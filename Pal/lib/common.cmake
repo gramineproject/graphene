@@ -1,13 +1,20 @@
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 
-file(GLOB COMMON_GRAPHENE_SOURCE
-    ${CMAKE_CURRENT_LIST_DIR}/graphene/*.c)
-file(GLOB COMMON_STDLIB_SOURCE
-    ${CMAKE_CURRENT_LIST_DIR}/stdlib/*.c)
-file(GLOB COMMON_STRING_SOURCE
-    ${CMAKE_CURRENT_LIST_DIR}/string/*.c)
-file(GLOB COMMON_NETWORK_SOURCE
-    ${CMAKE_CURRENT_LIST_DIR}/network/*.c)
+set(COMMON_LIB_SOURCE
+    graphene/config.c
+    graphene/path.c
+    stdlib/printfmt.c
+    string/atoi.c
+    string/memcmp.c
+    string/memcpy.c
+    string/memset.c
+    string/strchr.c
+    string/strlen.c
+    string/wordcopy.c
+    network/hton.c
+    network/inet_pton.c)
+
+prepend_list(COMMON_LIB_SOURCE "${CMAKE_CURRENT_LIST_DIR}/" "${COMMON_LIB_SOURCE}")
 
 if (CRYPTO_PROVIDER STREQUAL "mbedtls")
     file(GLOB COMMON_CRYPTO_C_SOURCE
@@ -21,16 +28,12 @@ endif()
 if (CRYPTO_PROVIDER STREQUAL "wolfssl")
     file(GLOB COMMON_CRYPTO_C_SOURCE
         ${CMAKE_CURRENT_LIST_DIR}/crypto/wolfssl/*.c
-        ${CMAKE_CURRENT_LIST_DIR}/crypto/wolfssl/mbedtls_*.c)
+        ${CMAKE_CURRENT_LIST_DIR}/crypto/adapters/wolfssl_*.c)
     file(GLOB COMMON_CRYPTO_ASM_SOURCE
         ${CMAKE_CURRENT_LIST_DIR}/crypto/wolfssl/*.S)
     add_definitions("-DCRYPTO_USE_WOLFSSL")
 endif()
 
-set(COMMON_LIB_SOURCE
-    ${COMMON_GRAPHENE_SOURCE}
-    ${COMMON_STDLIB_SOURCE}
-    ${COMMON_STRING_SOURCE}
-    ${COMMON_NETWORK_SOURCE}
+list(APPEND COMMON_LIB_SOURCE
     ${COMMON_CRYPTO_C_SOURCE}
     ${COMMON_CRYPTO_ASM_SOURCE})
