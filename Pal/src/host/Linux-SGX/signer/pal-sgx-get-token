@@ -15,7 +15,7 @@ from generated_offsets import *
 def read_sigstruct(sig):
     """Reading Sigstruct."""
     # field format: (offset, type, value)
-    # SGX_ARCH_SIGSTRUCT_
+    # SGX_ARCH_ENCLAVE_CSS_
     fields = {
         'date': (SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", 'year', 'month', 'day'),
         'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, "384s", 'modulus'),
