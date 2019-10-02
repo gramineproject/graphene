@@ -270,6 +270,8 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     uint8_t* ias_sig         = NULL;
     size_t   ias_certs_len   = 0;
     char*    ias_certs       = NULL;
+    char*    ias_adv_url     = NULL;
+    char*    ias_adv_ids     = NULL;
     char*    start       = https_header;
     char*    end         = strchr(https_header, '\n');
     while (end) {
@@ -343,6 +345,16 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
                 INLINE_SYSCALL(munmap, 2, ALLOC_ALIGNUP(total_bytes),
                                ALLOC_ALIGNUP(ias_certs_len) - ALLOC_ALIGNUP(total_bytes));
             ias_certs_len = total_bytes;
+        } else if (strpartcmp_static(start, "Advisory-URL: ")) {
+            start += static_strlen("Advisory-URL: ");
+            ias_adv_url = malloc(end - start + 1);
+            memcpy(ias_adv_url, start, end - start + 1);
+            ias_adv_url[end - start] = 0;
+        } else if (strpartcmp_static(start, "Advisory-IDs: ")) {
+            start += static_strlen("Advisory-IDs: ");
+            ias_adv_ids = malloc(end - start + 1);
+            memcpy(ias_adv_ids, start, end - start + 1);
+            ias_adv_ids[end - start] = 0;
         }
 
         start = next_start;
@@ -357,6 +369,11 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     if (!ias_certs) {
         SGX_DBG(DBG_E, "IAS returned invalid headers: no certificate chain\n");
         goto failed;
+    }
+
+    if (ias_adv_url && ias_adv_ids) {
+        SGX_DBG(DBG_E, "Please update or reconfigure your platform. See the following IAS "
+                "Advisories in %s: %s\n", ias_adv_url, ias_adv_ids);
     }
 
     // Now return the attestation data, including the IAS response, signature, and the
