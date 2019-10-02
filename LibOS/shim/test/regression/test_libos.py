@@ -142,6 +142,17 @@ class TC_01_OpenMP(RegressionTestCase):
         # OpenMP simple for loop
         self.assertIn('first: 0, last: 9', stdout)
 
+class TC_02_FileCheckPolicy(RegressionTestCase):
+    def test_000_strict(self):
+        stdout, stderr = self.run_binary(['file_check_policy_strict'])
+
+        self.assertIn('file_check_policy succeeded', stdout)
+
+    def test_001_allow_all_but_log(self):
+        stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log'])
+
+        self.assertIn('file_check_policy succeeded', stdout)
+
 class TC_30_Syscall(RegressionTestCase):
     def test_000_getcwd(self):
         stdout, stderr = self.run_binary(['getcwd'])
