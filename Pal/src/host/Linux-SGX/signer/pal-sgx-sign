@@ -269,7 +269,7 @@ def get_trusted_children(manifest, check_exist=True, do_checksum=True):
         if do_checksum:
             sig = open(target, 'rb').read()[
                 SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH:
-                SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE].hex()
+                SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH + SGX_HASH_SIZE].hex()
             targets[key] = (val, target, sig)
         else:
             targets[key] = (val, target)
@@ -655,22 +655,19 @@ def generate_sigstruct(attr, args, mrenclave):
     fields = {
         'header': (SGX_ARCH_ENCLAVE_CSS_HEADER,
                    "<4L", 0x00000006, 0x000000e1, 0x00010000, 0x00000000),
-        'vendor': (SGX_ARCH_ENCLAVE_CSS_MODULE_VENDOR, "<L", 0x00000000),
-        'date': (SGX_ARCH_ENCLAVE_CSS_DATE,
-                 "<HBB", attr['year'], attr['month'], attr['day']),
+        'module_vendor': (SGX_ARCH_ENCLAVE_CSS_MODULE_VENDOR, "<L", 0x00000000),
+        'date': (SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", attr['year'], attr['month'], attr['day']),
         'header2': (SGX_ARCH_ENCLAVE_CSS_HEADER2,
                     "<4L", 0x00000101, 0x00000060, 0x00000060, 0x00000001),
-        'swdefined': (SGX_ARCH_ENCLAVE_CSS_HW_VERSION, "<L", 0x00000000),
-
-        'miscs': (SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, "4s", attr['miscs']),
-        'miscmask': (SGX_ARCH_ENCLAVE_CSS_MISC_MASK, "4s", attr['miscs']),
-        'attrs': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES,
-                  "8s8s", attr['flags'], attr['xfrms']),
-        'attrmask': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK,
-                     "8s8s", attr['flags'], attr['xfrms']),
-        'mrenclave': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", mrenclave),
-        'isvprodid': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", attr['isvprodid']),
-        'isvsvn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", attr['isvsvn']),
+        'hw_version': (SGX_ARCH_ENCLAVE_CSS_HW_VERSION, "<L", 0x00000000),
+        'misc_select': (SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, "4s", attr['misc_select']),
+        'misc_mask': (SGX_ARCH_ENCLAVE_CSS_MISC_MASK, "4s", attr['misc_select']),
+        'attributes': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES, "8s8s", attr['flags'], attr['xfrms']),
+        'attribute_mask': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK,
+                           "8s8s", attr['flags'], attr['xfrms']),
+        'enclave_hash': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", mrenclave),
+        'isv_prod_id': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", attr['isv_prod_id']),
+        'isv_svn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", attr['isv_svn']),
     }
 
     sign_buffer = bytearray(128 + 128)
@@ -687,7 +684,7 @@ def generate_sigstruct(attr, args, mrenclave):
         ['openssl', 'rsa', '-modulus', '-in', args['key'], '-noout'],
         stdout=subprocess.PIPE)
     modulus_out = p.communicate()[0]
-    modulus = bytes.fromhex(modulus_out[8:8+SGX_ARCH_KEY_SIZE*2].decode())
+    modulus = bytes.fromhex(modulus_out[8:8+SE_KEY_SIZE*2].decode())
     modulus = bytes(reversed(modulus))
 
     p = subprocess.Popen(
@@ -785,16 +782,15 @@ def main_sign(args):
     def parse_int(s):
         return int(s, 0)
 
-    for key, default, parse in [
-            ('enclave_size', DEFAULT_ENCLAVE_SIZE, parse_size),
-            ('thread_num', str(DEFAULT_THREAD_NUM), parse_int),
-            ('isvprodid', '0', parse_int),
-            ('isvsvn', '0', parse_int),
+    for key, default, parse, attr_key in [
+            ('enclave_size', DEFAULT_ENCLAVE_SIZE, parse_size, 'enclave_size'),
+            ('thread_num', str(DEFAULT_THREAD_NUM), parse_int, 'thread_num'),
+            ('isvprodid', '0', parse_int, 'isv_prod_id'),
+            ('isvsvn', '0', parse_int, 'isv_svn'),
     ]:
-        attr[key] = parse(manifest.setdefault('sgx.' + key, default))
+        attr[attr_key] = parse(manifest.setdefault('sgx.' + key, default))
 
-    (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(
-        manifest)
+    (attr['flags'], attr['xfrms'], attr['misc_select']) = get_enclave_attributes(manifest)
 
     today = datetime.date.today()
     attr['year'] = today.year
@@ -802,18 +798,14 @@ def main_sign(args):
     attr['day'] = today.day
 
     print("Attributes:")
-    print("    size:      %d" % attr['enclave_size'])
-    print("    threadnum: %d" % attr['thread_num'])
-    print("    isvprodid: %d" % attr['isvprodid'])
-    print("    isvsvn:    %d" % attr['isvsvn'])
-    print("    flags:     %016x" % int.from_bytes(attr['flags'],
-                                                  byteorder='big'))
-    print("    xfrms:     %016x" % int.from_bytes(attr['xfrms'],
-                                                  byteorder='big'))
-    print("    miscs:     %08x" % int.from_bytes(attr['miscs'],
-                                                 byteorder='big'))
-    print("    date:      %d-%02d-%02d" % (attr['year'], attr['month'],
-                                           attr['day']))
+    print("    size:        %d" % attr['enclave_size'])
+    print("    thread_num:  %d" % attr['thread_num'])
+    print("    isv_prod_id: %d" % attr['isv_prod_id'])
+    print("    isv_svn:     %d" % attr['isv_svn'])
+    print("    attr.flags:  %016x" % int.from_bytes(attr['flags'], byteorder='big'))
+    print("    attr.xfrm:   %016x" % int.from_bytes(attr['xfrms'], byteorder='big'))
+    print("    misc_select: %08x" % int.from_bytes(attr['misc_select'], byteorder='big'))
+    print("    date:        %d-%02d-%02d" % (attr['year'], attr['month'], attr['day']))
 
     # Check client info for remote attestation
     # (if sgx.ra_client.spid is provided)

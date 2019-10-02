@@ -21,10 +21,10 @@ void dummy(void)
     DEFINE(SGX_XFRM_MPX, SGX_XFRM_MPX);
     DEFINE(SGX_XFRM_AVX512, SGX_XFRM_AVX512);
     DEFINE(SGX_MISCSELECT_EXINFO, SGX_MISCSELECT_EXINFO);
-    DEFINE(SGX_ARCH_KEY_SIZE, SE_KEY_SIZE);
+    DEFINE(SE_KEY_SIZE, SE_KEY_SIZE);
 
     /* sgx_measurement_t */
-    DEFINE(SGX_ARCH_HASH_SIZE, sizeof(sgx_measurement_t));
+    DEFINE(SGX_HASH_SIZE, sizeof(sgx_measurement_t));
 
     /* sgx_pal_gpr_t */
     OFFSET_T(SGX_GPR_RAX, sgx_pal_gpr_t, rax);
