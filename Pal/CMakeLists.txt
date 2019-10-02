@@ -4,9 +4,7 @@ set_property(GLOBAL PROPERTY ALLOW_DUPLICATE_CUSTOM_TARGETS ON)
 
 project(graphene_pal)
 
-if(NOT DEFINED SGX)
-    set(SGX $ENV{SGX})
-endif()
+set(SGX OFF CACHE BOOL "Enable SGX mode")
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     if(${SGX})
