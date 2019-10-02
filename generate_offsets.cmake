@@ -1,3 +1,5 @@
+cmake_policy(SET CMP0054 NEW)
+
 file(REMOVE ${OUTPUT_FILE})
 
 if(${FORMAT} STREQUAL "C")
