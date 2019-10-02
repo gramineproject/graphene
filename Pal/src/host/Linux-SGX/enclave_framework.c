@@ -323,8 +323,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
             if (get_file_check_policy() != FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG)
                 return -PAL_ERROR_DENIED;
 
-            SGX_DBG(DBG_I, "Allowing access to an unknown file due to "
-                    "file_check_policy settings: %s\n", uri);
+            pal_printf("Allowing access to an unknown file due to "
+                       "file_check_policy settings: %s\n", uri);
         }
 
         *stubptr = NULL;
