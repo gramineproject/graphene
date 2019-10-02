@@ -142,6 +142,9 @@ class TC_01_OpenMP(RegressionTestCase):
         # OpenMP simple for loop
         self.assertIn('first: 0, last: 9', stdout)
 
+@unittest.skipUnless(HAS_SGX,
+    'This test is only meaningful on SGX PAL because file-check-policy is '
+    'only relevant to SGX.')
 class TC_02_FileCheckPolicy(RegressionTestCase):
     def test_000_strict_success(self):
         stdout, stderr = self.run_binary(['file_check_policy_strict', 'trusted_testfile'])
