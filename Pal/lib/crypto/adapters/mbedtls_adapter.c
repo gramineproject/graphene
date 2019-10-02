@@ -24,10 +24,10 @@
 #include "pal_error.h"
 #include "pal_debug.h"
 #include "assert.h"
-#include "crypto/mbedtls/mbedtls/aes.h"
-#include "crypto/mbedtls/mbedtls/cmac.h"
-#include "crypto/mbedtls/mbedtls/sha256.h"
-#include "crypto/mbedtls/mbedtls/rsa.h"
+#include "crypto/mbedtls/aes.h"
+#include "crypto/mbedtls/cmac.h"
+#include "crypto/mbedtls/sha256.h"
+#include "crypto/mbedtls/rsa.h"
 
 int mbedtls_to_pal_error(int error)
 {

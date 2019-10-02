@@ -22,8 +22,8 @@ CFLAGS += -Wno-unused-result
 
 CFLAGS-libos = -I$(SHIMDIR)/include -L$(SHIMDIR)/../glibc-build/libos
 
-CFLAGS-libos-debug = -I$(SHIMDIR)/include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
-CXXFLAGS-libos-debug = -I$(SHIMDIR)/include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
+CFLAGS-libos-debug = -I$(SHIMDIR)/include -I$(PALDIR)/../include/pal -I$(PALDIR)/../include/lib -fno-builtin -nostdlib
+CXXFLAGS-libos-debug = -I$(SHIMDIR)/include -I$(PALDIR)/../include/pal -I$(PALDIR)/../include/lib -fno-builtin -nostdlib
 LDFLAGS-libos-debug = -L$(SHIMDIR)/src -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=$(abspath $(RUNTIME)) -lpal -lsysdb_debug
 
 .PHONY: all

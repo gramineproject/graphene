@@ -2,7 +2,7 @@ include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include  -I../../../include/pal \
-	   -I../../../include/host/FreeBSD -I../../../lib -I../../../ipc/linux \
+	   -I../../../include/host/FreeBSD -I../../../include/lib -I../../../ipc/linux \
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
