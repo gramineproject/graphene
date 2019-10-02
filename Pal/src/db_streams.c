@@ -83,34 +83,34 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
 
     switch (p - u) {
         case 3:
-            if (strpartcmp_static(u, "dir"))
+            if (strstartswith_static(u, "dir"))
                 hops = &dir_ops;
-            else if (strpartcmp_static(u, "tcp"))
+            else if (strstartswith_static(u, "tcp"))
                 hops = &tcp_ops;
-            else if (strpartcmp_static(u, "udp"))
+            else if (strstartswith_static(u, "udp"))
                 hops = &udp_ops;
-            else if (strpartcmp_static(u, "dev"))
+            else if (strstartswith_static(u, "dev"))
                 hops = &dev_ops;
             break;
 
         case 4:
-            if (strpartcmp_static(u, "file"))
+            if (strstartswith_static(u, "file"))
                 hops = &file_ops;
-            else if (strpartcmp_static(u, "pipe"))
+            else if (strstartswith_static(u, "pipe"))
                 hops = &pipe_ops;
-            else if (strpartcmp_static(u, "gipc"))
+            else if (strstartswith_static(u, "gipc"))
                 hops = &gipc_ops;
             break;
 
         case 7:
-            if (strpartcmp_static(u, "tcp.srv"))
+            if (strstartswith_static(u, "tcp.srv"))
                 hops = &tcp_ops;
-            else if (strpartcmp_static(u, "udp.srv"))
+            else if (strstartswith_static(u, "udp.srv"))
                 hops = &udp_ops;
             break;
 
         case 8:
-            if (strpartcmp_static(u, "pipe.srv"))
+            if (strstartswith_static(u, "pipe.srv"))
                 hops = &pipe_ops;
             break;
 

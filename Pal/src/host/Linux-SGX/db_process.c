@@ -248,7 +248,7 @@ static int check_child_mrenclave(PAL_HANDLE child, sgx_arch_hash_t* mrenclave,
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 {
     /* only access creating process with regular file */
-    if (!strpartcmp_static(uri, "file:"))
+    if (!strstartswith_static(uri, "file:"))
         return -PAL_ERROR_INVAL;
 
     unsigned int child_pid;

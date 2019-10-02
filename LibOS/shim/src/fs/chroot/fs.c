@@ -63,11 +63,11 @@ static int chroot_mount (const char * uri, void ** mount_data)
 {
     enum shim_file_type type;
 
-    if (strpartcmp_static(uri, "file:")) {
+    if (strstartswith_static(uri, "file:")) {
         type = FILE_UNKNOWN;
         uri += 5;
-    } else if (strpartcmp_static(uri, "dev:")) {
-        type = strpartcmp_static(uri + static_strlen("dev:"), "tty") ? FILE_TTY : FILE_DEV;
+    } else if (strstartswith_static(uri, "dev:")) {
+        type = strstartswith_static(uri + static_strlen("dev:"), "tty") ? FILE_TTY : FILE_DEV;
         uri += 4;
     } else
         return -EINVAL;
@@ -1017,7 +1017,7 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
     chroot_update_ino(dent);
 
     const char* uri = qstrgetstr(&data->host_uri);
-    assert(strpartcmp_static(uri, "dir:"));
+    assert(strstartswith_static(uri, "dir:"));
 
     pal_hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!pal_hdl)

@@ -280,7 +280,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     }
 
     /* Normalize the uri */
-    if (!strpartcmp_static(uri, "file:")) {
+    if (!strstartswith_static(uri, "file:")) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
         return -PAL_ERROR_INVAL;
     }
@@ -707,7 +707,7 @@ static int init_trusted_file (const char * key, const char * uri)
         return 0;
 
     /* Normalize the uri */
-    if (!strpartcmp_static(uri, "file:")) {
+    if (!strstartswith_static(uri, "file:")) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }

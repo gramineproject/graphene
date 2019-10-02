@@ -121,7 +121,7 @@ void _DkDebugAddMap (struct link_map * map)
             continue;
         if (s->sh_type == SHT_NULL)
             continue;
-        if (strpartcmp_static(shstrtab + s->sh_name, ".debug_"))
+        if (strstartswith_static(shstrtab + s->sh_name, ".debug_"))
             continue;
 
         snprintf(ptr, BUFFER_LENGTH - (ptr - buffer),

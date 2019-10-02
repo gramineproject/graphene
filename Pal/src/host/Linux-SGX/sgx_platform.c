@@ -278,7 +278,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
         if (end > start + 1 && *(end - 1) == '\r')
             end--;
 
-        if (strpartcmp_static(start, "X-IASReport-Signature: ")) {
+        if (strstartswith_static(start, "X-IASReport-Signature: ")) {
             start += static_strlen("X-IASReport-Signature: ");
 
             // Decode IAS report signature
@@ -301,7 +301,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
                 SGX_DBG(DBG_E, "Malformed IAS report signature\n");
                 goto failed;
             }
-        } else if (strpartcmp_static(start, "X-IASReport-Signing-Certificate: ")) {
+        } else if (strstartswith_static(start, "X-IASReport-Signing-Certificate: ")) {
             start += static_strlen("X-IASReport-Signing-Certificate: ");
 
             // Decode IAS signature chain

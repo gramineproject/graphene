@@ -125,7 +125,7 @@ void *calloc(size_t nmemb, size_t size);
     (memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str)) + 1))
 
 /* check if the var starts with the static string */
-#define strpartcmp_static(var, str) \
+#define strstartswith_static(var, str) \
     (!memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str))))
 
 /* copy static string and return the address of the null end (null if the dest

@@ -84,7 +84,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int * retf
     int ret, rete, child;
     int fds[6] = { -1, -1, -1, -1, -1, -1 };
 
-    if (!uri || !strpartcmp_static(uri, "file:"))
+    if (!uri || !strstartswith_static(uri, "file:"))
         return -EINVAL;
 
     if (IS_ERR((ret = INLINE_SYSCALL(pipe, 1, &fds[0]))) ||

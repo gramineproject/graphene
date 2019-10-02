@@ -76,7 +76,7 @@ static unsigned long parse_int (const char * str)
 
 static char * resolve_uri (const char * uri, const char ** errstring)
 {
-    if (!strpartcmp_static(uri, "file:")) {
+    if (!strstartswith_static(uri, "file:")) {
         *errstring = "Invalid URI";
         return NULL;
     }
@@ -794,7 +794,7 @@ static int load_enclave (struct pal_enclave * enclave,
             pal_sec->in_gdb = true;
         }
 
-        if (strpartcmp_static(&env[env_i], "LD_PRELOAD=")) {
+        if (strstartswith_static(&env[env_i], "LD_PRELOAD=")) {
             uint64_t env_i_size = strnlen(&env[env_i], env_size - env_i) + 1;
             memmove(&env[env_i], &env[env_i + env_i_size], env_size - env_i - env_i_size);
             env_size -= env_i_size;

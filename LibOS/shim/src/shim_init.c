@@ -409,7 +409,7 @@ int init_stack (const char ** argv, const char ** envp,
 int read_environs (const char ** envp)
 {
     for (const char ** e = envp ; *e ; e++) {
-        if (strpartcmp_static(*e, "LD_LIBRARY_PATH=")) {
+        if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {
             /* populate library_paths with entries from LD_LIBRARY_PATH envvar */
             const char * s = *e + static_strlen("LD_LIBRARY_PATH=");
             size_t npaths = 2; // One for the first entry, one for the last
@@ -549,7 +549,7 @@ static void set_profile_enabled (const char ** envp)
 {
     const char ** p;
     for (p = envp ; (*p) ; p++)
-        if (strpartcmp_static(*p, "PROFILE_ENABLED="))
+        if (strstartswith_static(*p, "PROFILE_ENABLED="))
             break;
     if (!(*p))
         return;
@@ -969,7 +969,7 @@ static int open_pal_handle (const char * uri, void * obj)
 {
     PAL_HANDLE hdl;
 
-    if (strpartcmp_static(uri, "dev:"))
+    if (strstartswith_static(uri, "dev:"))
         hdl = DkStreamOpen(uri, 0,
                            PAL_SHARE_OWNER_X|PAL_SHARE_OWNER_W|
                            PAL_SHARE_OWNER_R,

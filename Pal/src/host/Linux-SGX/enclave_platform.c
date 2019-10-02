@@ -349,13 +349,13 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
         return 0;
     }
 
-    if (!strpartcmp_static(start, "-----BEGIN CERTIFICATE-----"))
+    if (!strstartswith_static(start, "-----BEGIN CERTIFICATE-----"))
         return -PAL_ERROR_INVAL;
 
     start += static_strlen("-----BEGIN CERTIFICATE-----");
     char* end = strchr(start, '-');
 
-    if (!strpartcmp_static(end, "-----END CERTIFICATE-----"))
+    if (!strstartswith_static(end, "-----END CERTIFICATE-----"))
         return -PAL_ERROR_INVAL;
 
     size_t cert_der_len;
@@ -595,8 +595,8 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     SGX_DBG(DBG_S, "  timestamp: %s\n", ias_timestamp);
 
     // Only accept status to be "OK" or "GROUP_OUT_OF_DATE" (if accept_out_of_date is true)
-    if (!strcmp_static(ias_status, "OK") &&
-        (!accept_group_out_of_date || !strcmp_static(ias_status, "GROUP_OUT_OF_DATE"))) {
+    if (strcmp_static(ias_status, "OK") &&
+        (!accept_group_out_of_date || strcmp_static(ias_status, "GROUP_OUT_OF_DATE"))) {
         SGX_DBG(DBG_E, "IAS returned invalid status: %s\n", ias_status);
         goto failed;
     }
