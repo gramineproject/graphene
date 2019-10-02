@@ -2,7 +2,7 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 
 CFLAGS += -fno-builtin -nostdlib -no-pie \
-	  -I../include/pal -I../lib
+	  -I../include/pal -I../include/lib
 
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
 	      Memory Pipe Tcp Udp Yield Broadcast Ipc Server Wait HandleSend \

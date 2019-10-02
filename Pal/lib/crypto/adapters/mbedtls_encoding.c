@@ -18,8 +18,8 @@
 #include <errno.h>
 #include "pal_crypto.h"
 #include "pal_error.h"
-#include "crypto/mbedtls/mbedtls/base64.h"
-#include "crypto/mbedtls/mbedtls/asn1.h"
+#include "crypto/mbedtls/base64.h"
+#include "crypto/mbedtls/asn1.h"
 
 /*
  * Encoding a byte string in Base64 format. If "dst" is NULL, this function returns the

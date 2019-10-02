@@ -2,7 +2,7 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 include ../src/host/$(PAL_HOST)/Makefile.am
 
-CFLAGS += -I. -I../include -I../include/pal -I../include/host/$(PAL_HOST)
+CFLAGS += -I../include/lib -I../include/lib/crypto -I../include -I../include/pal -I../include/host/$(PAL_HOST)
 
 subdirs = string stdlib network graphene crypto
 
