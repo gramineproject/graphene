@@ -766,10 +766,10 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     memcpy(buf, uri, len + 1);
     options &= PAL_OPTION_MASK;
 
-    if (!strcmp_static(type, "udp.srv"))
+    if (strcmp_static(type, "udp.srv"))
         return udp_bind(hdl, buf, options);
 
-    if (!strcmp_static(type, "udp"))
+    if (strcmp_static(type, "udp"))
         return udp_connect(hdl, buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -908,7 +908,7 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (strpartcmp_static(addr, "udp:"))
+    if (!strpartcmp_static(addr, "udp:"))
         return -PAL_ERROR_INVAL;
 
     addr += static_strlen("udp:");

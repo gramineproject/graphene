@@ -67,8 +67,7 @@ static int chroot_mount (const char * uri, void ** mount_data)
         type = FILE_UNKNOWN;
         uri += 5;
     } else if (strpartcmp_static(uri, "dev:")) {
-        type = strpartcmp_static(uri + static_strlen("dev"), "tty") ?
-               FILE_DEV : FILE_TTY;
+        type = strpartcmp_static(uri + static_strlen("dev:"), "tty") ? FILE_TTY : FILE_DEV;
         uri += 4;
     } else
         return -EINVAL;
