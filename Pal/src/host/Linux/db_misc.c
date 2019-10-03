@@ -40,7 +40,7 @@ unsigned long _DkSystemTimeQueryEarly (void)
     struct timespec time;
     int ret;
 
-    ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time);
+    ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
 
     /* Come on, gettimeofday mostly never fails */
     if (IS_ERR(ret))
@@ -71,10 +71,10 @@ unsigned long _DkSystemTimeQuery (void)
 
 #if USE_VDSO_GETTIME == 1
     if (linux_state.vdso_clock_gettime) {
-        ret = linux_state.vdso_clock_gettime(CLOCK_MONOTONIC, &time);
+        ret = linux_state.vdso_clock_gettime(CLOCK_REALTIME, &time);
     } else {
 #endif
-        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time);
+        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
 #if USE_VDSO_GETTIME == 1
     }
 #endif
