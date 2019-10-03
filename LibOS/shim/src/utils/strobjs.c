@@ -29,7 +29,6 @@ static struct shim_lock str_mgr_lock;
 #define SYSTEM_UNLOCK() unlock(&str_mgr_lock)
 
 #define STR_MGR_ALLOC 32
-#define PAGE_SIZE     allocsize
 
 #define OBJ_TYPE struct shim_str
 #include "memmgr.h"

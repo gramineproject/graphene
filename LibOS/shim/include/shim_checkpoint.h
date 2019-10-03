@@ -199,8 +199,7 @@ enum {
 
 #define ADD_CP_OFFSET(size)                                         \
     ({                                                              \
-        size_t _size = ((size) + sizeof(void *) - 1) &              \
-                    ~(sizeof(void *) - 1);                          \
+        size_t _size = ALIGN_UP(size, sizeof(void*));               \
         struct shim_cp_entry * oob =                                \
                 (void *) base +                                     \
                 __ADD_CP_OFFSET(sizeof(struct shim_cp_entry));      \

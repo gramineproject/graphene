@@ -496,7 +496,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 {
     /* Check that the untrusted mapping is aligned to TRUSTED_STUB_SIZE
      * and includes the range for copying into the buffer */
-    assert(umem_start % TRUSTED_STUB_SIZE == 0);
+    assert(IS_ALIGNED(umem_start, TRUSTED_STUB_SIZE));
     assert(offset >= umem_start && offset + size <= umem_end);
 
     /* Start copying and checking at umem_start. The checked content may or

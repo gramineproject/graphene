@@ -125,11 +125,9 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     if (offset >= total)
         return 0;
 
-    static_assert(IS_POWER_OF_2(TRUSTED_STUB_SIZE), "TRUSTED_STUB_SIZE must be a power of two");
-
     uint64_t end       = (offset + count > total) ? total : offset + count;
-    uint64_t map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
-    uint64_t map_end   = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
+    uint64_t map_start = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
+    uint64_t map_end   = ALIGN_UP(end, TRUSTED_STUB_SIZE);
 
     if (map_end > total)
         map_end = ALLOC_ALIGNUP(total);
@@ -235,9 +233,8 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     uint64_t map_start, map_end;
 
     if (stubs) {
-        static_assert(IS_POWER_OF_2(TRUSTED_STUB_SIZE), "TRUSTED_STUB_SIZE must be a power of two");
-        map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
-        map_end   = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
+        map_start = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
+        map_end   = ALIGN_UP(end, TRUSTED_STUB_SIZE);
     } else {
         map_start = ALLOC_ALIGNDOWN(offset);
         map_end   = ALLOC_ALIGNUP(end);

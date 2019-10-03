@@ -171,7 +171,7 @@ int create_enclave(sgx_arch_secs_t * secs,
      * EINIT in https://software.intel.com/sites/default/files/managed/48/88/329298-002.pdf). */
 
     if (baseaddr) {
-        secs->base = (uint64_t) baseaddr & ~(secs->size - 1);
+        secs->base = ALIGN_DOWN_POW2(baseaddr, secs->size);
     } else {
         secs->base = ENCLAVE_HIGH_ADDRESS;
     }

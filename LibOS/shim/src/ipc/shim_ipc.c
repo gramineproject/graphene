@@ -35,7 +35,6 @@
 #include <shim_utils.h>
 
 #define IPC_INFO_MGR_ALLOC 32
-#define PAGE_SIZE          allocsize
 #define OBJ_TYPE           struct shim_ipc_info
 #include "memmgr.h"
 static MEM_MGR ipc_info_mgr;

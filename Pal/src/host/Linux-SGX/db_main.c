@@ -373,7 +373,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     }
 
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
-    void* manifest_addr = enclave_top - ALIGN_UP_PTR(manifest_size, pagesz);
+    void* manifest_addr = enclave_top - ALIGN_UP_PTR_POW2(manifest_size, pagesz);
 
     /* parse manifest data into config storage */
     struct config_store * root_config =

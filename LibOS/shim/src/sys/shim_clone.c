@@ -149,7 +149,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     void * stack = arg->stack;
 
     struct shim_vma_val vma;
-    lookup_vma(ALIGN_DOWN(stack), &vma);
+    lookup_vma(PAGE_ALIGN_DOWN_PTR(stack), &vma);
     my_thread->stack_top = vma.addr + vma.length;
     my_thread->stack_red = my_thread->stack = vma.addr;
 
@@ -335,7 +335,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
         if (user_stack_addr) {
             struct shim_vma_val vma;
-            lookup_vma(ALIGN_DOWN(user_stack_addr), &vma);
+            lookup_vma(PAGE_ALIGN_DOWN_PTR(user_stack_addr), &vma);
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
             parent_stack = (void *)tcb->shim_tcb.context.regs->rsp;

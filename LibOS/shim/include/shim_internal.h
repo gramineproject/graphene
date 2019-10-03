@@ -742,9 +742,14 @@ static inline uint64_t hash64 (uint64_t key)
 # define __alloca __builtin_alloca
 #endif
 
-extern unsigned long allocsize;
-extern unsigned long allocshift;
-extern unsigned long allocmask;
+extern size_t g_pal_alloc_align;
+#define PAGE_SIZE g_pal_alloc_align
+#define IS_PAGE_ALIGNED(x) IS_ALIGNED_POW2(x, g_pal_alloc_align)
+#define IS_PAGE_ALIGNED_PTR(x) IS_ALIGNED_PTR_POW2(x, g_pal_alloc_align)
+#define PAGE_ALIGN_DOWN(x) ALIGN_DOWN_POW2(x, g_pal_alloc_align)
+#define PAGE_ALIGN_UP(x) ALIGN_UP_POW2(x, g_pal_alloc_align)
+#define PAGE_ALIGN_DOWN_PTR(x) ALIGN_DOWN_PTR_POW2(x, g_pal_alloc_align)
+#define PAGE_ALIGN_UP_PTR(x) ALIGN_UP_PTR_POW2(x, g_pal_alloc_align)
 
 void * __system_malloc (size_t size);
 void __system_free (void * addr, size_t size);
@@ -771,12 +776,6 @@ unsigned long parse_int (const char * str);
 
 extern void * initial_stack;
 extern const char ** initial_envp;
-
-#define ALIGNED(addr)   (!(((unsigned long)(addr)) & allocshift))
-#define ALIGN_UP(addr)      \
-    ((__typeof__(addr)) ((((unsigned long)(addr)) + allocshift) & allocmask))
-#define ALIGN_DOWN(addr)    \
-    ((__typeof__(addr)) (((unsigned long)(addr)) & allocmask))
 
 void get_brk_region (void ** start, void ** end, void ** current);
 

@@ -342,8 +342,8 @@ int shim_do_fchown (int fd, uid_t uid, gid_t gid)
     return 0;
 }
 
-#define MAP_SIZE    (allocsize * 4)
-#define BUF_SIZE    (2048)
+#define MAP_SIZE (g_pal_alloc_align * 4)
+#define BUF_SIZE 2048
 
 static ssize_t handle_copy (struct shim_handle * hdli, off_t * offseti,
                             struct shim_handle * hdlo, off_t * offseto,
@@ -450,9 +450,9 @@ static ssize_t handle_copy (struct shim_handle * hdli, off_t * offseti,
             expectsize = bufsize = count - bytes;
 
         if (do_mapi && !bufi) {
-            boffi = offi - ALIGN_DOWN(offi);
+            boffi = offi - PAGE_ALIGN_DOWN(offi);
 
-            if (fsi->fs_ops->mmap(hdli, &bufi, ALIGN_UP(bufsize + boffi),
+            if (fsi->fs_ops->mmap(hdli, &bufi, PAGE_ALIGN_UP(bufsize + boffi),
                                   PROT_READ, MAP_FILE, offi - boffi) < 0) {
                 do_mapi = false;
                 boffi = 0;
@@ -470,9 +470,9 @@ static ssize_t handle_copy (struct shim_handle * hdli, off_t * offseti,
         }
 
         if (do_mapo && !bufo) {
-            boffo = offo - ALIGN_DOWN(offo);
+            boffo = offo - PAGE_ALIGN_DOWN(offo);
 
-            if (fso->fs_ops->mmap(hdlo, &bufo, ALIGN_UP(bufsize + boffo),
+            if (fso->fs_ops->mmap(hdlo, &bufo, PAGE_ALIGN_UP(bufsize + boffo),
                                   PROT_WRITE, MAP_FILE, offo - boffo) < 0) {
                 do_mapo = false;
                 boffo = 0;
@@ -493,19 +493,19 @@ static ssize_t handle_copy (struct shim_handle * hdli, off_t * offseti,
             copysize = count - bytes > bufsize ? bufsize :
                        count - bytes;
             memcpy(bufo + boffo, bufi + boffi, copysize);
-            DkVirtualMemoryFree(bufi, ALIGN_UP(bufsize + boffi));
+            DkVirtualMemoryFree(bufi, PAGE_ALIGN_UP(bufsize + boffi));
             bufi = NULL;
-            DkVirtualMemoryFree(bufo, ALIGN_UP(bufsize + boffo));
+            DkVirtualMemoryFree(bufo, PAGE_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
         } else if (do_mapo) {
             copysize = fsi->fs_ops->read(hdli, bufo + boffo, bufsize);
-            DkVirtualMemoryFree(bufo, ALIGN_UP(bufsize + boffo));
+            DkVirtualMemoryFree(bufo, PAGE_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
             if (copysize < 0)
                 break;
         } else if (do_mapi) {
             copysize = fso->fs_ops->write(hdlo, bufi + boffi, bufsize);
-            DkVirtualMemoryFree(bufi, ALIGN_UP(bufsize + boffi));
+            DkVirtualMemoryFree(bufi, PAGE_ALIGN_UP(bufsize + boffi));
             bufi = NULL;
             if (copysize < 0)
                 break;
