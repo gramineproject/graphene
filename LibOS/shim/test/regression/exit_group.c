@@ -22,7 +22,7 @@ void* inc(void* arg) {
 
 int main(int argc, char** argv) {
     pthread_t thread[THREAD_NUM];
-    pthread_barrier_init(&barrier, NULL, THREAD_NUM + 1);;
+    pthread_barrier_init(&barrier, NULL, THREAD_NUM + 1);
 
     for (int j = 0; j < THREAD_NUM; j++) {
         pthread_create(&thread[j], NULL, inc, NULL);
