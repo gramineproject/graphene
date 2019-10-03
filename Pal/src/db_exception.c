@@ -31,7 +31,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-#define INIT_EVENT_HANDLER { .lock = LOCK_INIT }
+#define INIT_EVENT_HANDLER { .lock = LOCK_INIT, .upcall = NULL }
 
 struct pal_event_handler {
     PAL_LOCK lock;
@@ -39,6 +39,7 @@ struct pal_event_handler {
 };
 
 struct pal_event_handler handlers[] = {
+    [0]                          = INIT_EVENT_HANDLER,
     [PAL_EVENT_ARITHMETIC_ERROR] = INIT_EVENT_HANDLER,
     [PAL_EVENT_MEMFAULT]         = INIT_EVENT_HANDLER,
     [PAL_EVENT_ILLEGAL]          = INIT_EVENT_HANDLER,
@@ -62,7 +63,7 @@ PAL_BOL
 DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
     ENTER_PAL_CALL(DkSetExceptionHandler);
 
-    if (!handler || event == 0 || event > sizeof(handlers) / sizeof(handlers[0])) {
+    if (!handler || event == 0 || event >= sizeof(handlers) / sizeof(handlers[0])) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
