@@ -125,8 +125,7 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     if (offset >= total)
         return 0;
 
-    static_assert((TRUSTED_STUB_SIZE & (TRUSTED_STUB_SIZE - 1)) == 0,
-                  "TRUSTED_STUB_SIZE must be a power of two");
+    static_assert(IS_POWER_OF_2(TRUSTED_STUB_SIZE), "TRUSTED_STUB_SIZE must be a power of two");
 
     uint64_t end       = (offset + count > total) ? total : offset + count;
     uint64_t map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
@@ -236,8 +235,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     uint64_t map_start, map_end;
 
     if (stubs) {
-        static_assert((TRUSTED_STUB_SIZE & (TRUSTED_STUB_SIZE - 1)) == 0,
-                      "TRUSTED_STUB_SIZE must be a power of two");
+        static_assert(IS_POWER_OF_2(TRUSTED_STUB_SIZE), "TRUSTED_STUB_SIZE must be a power of two");
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
         map_end   = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
     } else {

@@ -99,8 +99,7 @@ void setup_elf_hash (struct link_map *map)
         Elf32_Word symbias = *hash32++;
         Elf32_Word bitmask_nwords = *hash32++;
 
-        /* Must be a power of two.  */
-        assert((bitmask_nwords & (bitmask_nwords - 1)) == 0);
+        assert(IS_POWER_OF_2(bitmask_nwords));
         map->l_gnu_bitmask_idxbits = bitmask_nwords - 1;
         map->l_gnu_shift = *hash32++;
 

@@ -254,7 +254,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     enclave->size = parse_int(cfgbuf);
-    if (enclave->size & (enclave->size - 1)) {
+    if (!IS_POWER_OF_2(enclave->size)) {
         SGX_DBG(DBG_E, "Enclave size not a power of two (an SGX-imposed requirement)\n");
         ret = -EINVAL;
         goto out;
