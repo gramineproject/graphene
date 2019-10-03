@@ -55,7 +55,6 @@ typedef enum _pal_error_t {
 
 #define PAL_ERROR_NATIVE_COUNT PAL_ERROR_ADDRNOTEXIST
 #define PAL_ERROR_CRYPTO_START PAL_ERROR_CRYPTO_FEATURE_UNAVAILABLE
-#define PAL_ERROR_CRYPTO_END   PAL_ERROR_CRYPTO_INVALID_DH_STATE
 
     /* Crypto error constants and their descriptions are adapted from mbedtls. */
     PAL_ERROR_CRYPTO_FEATURE_UNAVAILABLE = 1000,
@@ -74,6 +73,7 @@ typedef enum _pal_error_t {
     PAL_ERROR_CRYPTO_VERIFY_FAILED,
     PAL_ERROR_CRYPTO_RNG_FAILED,
     PAL_ERROR_CRYPTO_INVALID_DH_STATE,
+#define PAL_ERROR_CRYPTO_END PAL_ERROR_CRYPTO_INVALID_DH_STATE
 } pal_error_t;
 
 const char* pal_strerror(int err);
