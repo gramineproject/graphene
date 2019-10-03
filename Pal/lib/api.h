@@ -73,6 +73,14 @@ typedef ptrdiff_t ssize_t;
 #define ALIGN_UP_PTR(ptr, size) \
     ((__typeof__(ptr)) ALIGN_DOWN_PTR((uintptr_t)(ptr) + ((size) - 1), (size)))
 
+#define SAME_TYPE(a, b) __builtin_types_compatible_p(__typeof__(a), __typeof__(b))
+#define IS_STATIC_ARRAY(a) (!SAME_TYPE(a, &*(a)))
+#define FORCE_STATIC_ARRAY(a) sizeof(int[IS_STATIC_ARRAY(a) - 1]) // evaluates to 0
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (FORCE_STATIC_ARRAY(a) + sizeof(a) / sizeof(a[0]))
+#endif
+
 #ifndef container_of
 /**
  * container_of - cast a member of a structure out to the containing structure
@@ -89,10 +97,8 @@ typedef ptrdiff_t ssize_t;
 #define XSTRINGIFY(x) STRINGIFY(x)
 #define STRINGIFY(x) #x
 
-#define static_strlen(str) (sizeof(str) - 1)
-
-/* Turning off unused-parameter warning for keeping function signatures */
 #define __UNUSED(x) do { (void)(x); } while (0)
+#define static_strlen(str) (ARRAY_SIZE(str) - 1)
 
 /* Libc functions */
 
@@ -146,20 +152,8 @@ void *calloc(size_t nmemb, size_t size);
         __typeof__(src)* _s = &(src);                                           \
         __typeof__(dst)* _d = &(dst);                                           \
                                                                                 \
-        __typeof__((*_s)[0]) _s2[sizeof(*_s)/sizeof((*_s)[0])];                 \
-        __typeof__((*_d)[0]) _d2[sizeof(*_d)/sizeof((*_d)[0])];                 \
-                                                                                \
-        /* Causes a compiler warning if the array types mismatch. */            \
-        (void) (_s == _d);                                                      \
-                                                                                \
-        /* Causes a compiler warning if passed arrays are not fixed size        \
-         * arrays.                                                              \
-         */                                                                     \
-        (void) (_s == &_s2);                                                    \
-        (void) (_d == &_d2);                                                    \
-                                                                                \
-        /* Double check sizes. */                                               \
-        static_assert(sizeof(*_s) == sizeof(*_d), "sizes don't match");         \
+        static_assert(SAME_TYPE((*_s)[0], (*_d)[0]), "types must match");       \
+        static_assert(ARRAY_SIZE(*_s) == ARRAY_SIZE(*_d), "sizes must match");  \
                                                                                 \
         memcpy(*_d, *_s, sizeof(*_d));                                          \
     } while (0)

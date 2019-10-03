@@ -649,12 +649,9 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
     if (map->l_ld != map->l_real_ld) {
         obj->map.l_ld   = NULL;
         memcpy(obj->dyn, map->l_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
-        for (int i = 0 ;
-             i < sizeof(obj->map.l_info) / sizeof(obj->map.l_info[0]) ;
-             i++)
+        for (int i = 0; i < ARRAY_SIZE(obj->map.l_info); i++)
             if (obj->map.l_info[i])
-                obj->map.l_info[i] =
-                    (void *) obj->map.l_info[i] - (unsigned long) map->l_ld;
+                obj->map.l_info[i] = (void *)obj->map.l_info[i] - (unsigned long)map->l_ld;
     }
     obj->map.l_name = NULL;
     memcpy(obj->map_name, map->l_name, sizeof(obj->map_name));
@@ -749,12 +746,9 @@ struct link_map * check_cached_elf_object (PAL_HANDLE handle)
 
     if (!obj->map.l_ld) {
         obj->map.l_ld = obj->dyn;
-        for (int i = 0 ;
-             i < sizeof(obj->map.l_info) / sizeof(obj->map.l_info[0]) ;
-             i++)
+        for (int i = 0; i < ARRAY_SIZE(obj->map.l_info); i++)
             if (obj->map.l_info[i])
-                obj->map.l_info[i] =
-                    (void *) obj->map.l_info[i] + (unsigned long) obj->map.l_ld;
+                obj->map.l_info[i] = (void*)obj->map.l_info[i] + (unsigned long)obj->map.l_ld;
     }
 
     struct cached_loadcmd * l = obj->loadcmds;

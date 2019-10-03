@@ -63,7 +63,7 @@ PAL_BOL
 DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
     ENTER_PAL_CALL(DkSetExceptionHandler);
 
-    if (!handler || event == 0 || event >= sizeof(handlers) / sizeof(handlers[0])) {
+    if (!handler || event == 0 || event >= ARRAY_SIZE(handlers)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }

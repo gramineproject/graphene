@@ -1448,7 +1448,7 @@ static int vdso_map_init(void) {
     __load_elf_object(NULL, addr, OBJECT_VDSO, NULL);
     vdso_map->l_name = "vDSO";
 
-    for (size_t i = 0; i < sizeof(vsyms) / sizeof(vsyms[0]); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
         ElfW(Sym)* sym = __do_lookup(vsyms[i].name, NULL, vdso_map);
         if (sym == NULL) {
             debug("vDSO: symbol value for %s not found\n", vsyms[i].name);
@@ -1473,7 +1473,7 @@ int vdso_map_migrate(void) {
         return -PAL_ERRNO;
 
     /* adjust funcs to loaded address for newly loaded libsysdb */
-    for (size_t i = 0; i < sizeof(vsyms) / sizeof(vsyms[0]); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
         **vsyms[i].func = vsyms[i].value;
     }
 

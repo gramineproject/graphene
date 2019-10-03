@@ -80,7 +80,7 @@ static const int async_signals[] =
     SIGINT,
     SIGCONT,
 };
-static const int nasync_signals = sizeof(async_signals) / sizeof(async_signals[0]);
+static const int nasync_signals = ARRAY_SIZE(async_signals);
 
 
 int set_sighandler (int * sigs, int nsig, void * handler)
@@ -402,7 +402,7 @@ void signal_setup (void)
         PAL_EVENT_RESUME,
     };
 
-    for (size_t e = 0 ; e < sizeof(events) / sizeof(events[0]) ; e++)
+    for (size_t e = 0; e < ARRAY_SIZE(events); e++)
         if ((ret = _DkPersistentSighandlerSetup(events[e])) < 0)
             goto err;
 

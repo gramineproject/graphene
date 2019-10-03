@@ -646,7 +646,7 @@ static void parse_clone_flags(va_list ap) {
 #undef FLG
 
     bool printed = false;
-    for (size_t i = 0; i < sizeof(all_flags) / sizeof(all_flags[0]); i++)
+    for (size_t i = 0; i < ARRAY_SIZE(all_flags); i++)
         if (flags & all_flags[i].flag) {
             if (printed)
                 PUTCH('|');

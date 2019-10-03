@@ -80,7 +80,7 @@ static const int async_signals[] =
     SIGCONT,
 };
 
-static const int nasync_signals = sizeof(async_signals) / sizeof(async_signals[0]);
+static const int nasync_signals = ARRAY_SIZE(async_signals);
 
 int set_sighandler (int * sigs, int nsig, void * handler)
 {

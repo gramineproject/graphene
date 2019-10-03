@@ -38,8 +38,6 @@ static const char* get_base_name_cases[][2] = {
     {"a/b/c", "c"},
 };
 
-#define ARR_LEN(x) (sizeof(x) / sizeof((x)[0]))
-
 #define print_err(name, i, ...)                                 \
     do {                                                        \
         pal_printf("%s: case %lu (\"%s\") ", name, i, cases[i][0]); \
@@ -78,7 +76,7 @@ static int run_test(void) {
 
 int main(void) {
     cases        = get_norm_path_cases;
-    cases_len    = ARR_LEN(get_norm_path_cases);
+    cases_len    = ARRAY_SIZE(get_norm_path_cases);
     func_to_test = get_norm_path;
     func_name = "get_norm_path";
     if (run_test()) {
@@ -86,7 +84,7 @@ int main(void) {
     }
 
     cases        = get_base_name_cases;
-    cases_len    = ARR_LEN(get_base_name_cases);
+    cases_len    = ARRAY_SIZE(get_base_name_cases);
     func_to_test = get_base_name;
     func_name = "get_base_name";
     if (run_test()) {

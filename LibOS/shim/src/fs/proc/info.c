@@ -63,7 +63,7 @@ retry:
     if (!str)
         return -ENOMEM;
 
-    for (size_t i = 0; i < sizeof(meminfo) / sizeof(meminfo[0]); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(meminfo); i++) {
         int ret = snprintf(str + len, max - len, meminfo[i].fmt, meminfo[i].val);
 
         if (len + ret == max)
@@ -150,7 +150,7 @@ retry:
     for (size_t n = 0; n < pal_control.cpu_info.cpu_num; n++) {
         cpuinfo[0].val = n;
         cpuinfo[6].val = n;
-        for (size_t i = 0; i < sizeof(cpuinfo) / sizeof(cpuinfo[0]); i++) {
+        for (size_t i = 0; i < ARRAY_SIZE(cpuinfo); i++) {
             int ret = snprintf(str + len, max - len, cpuinfo[i].fmt, cpuinfo[i].val);
 
             if (len + ret == max)
