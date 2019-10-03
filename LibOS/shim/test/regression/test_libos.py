@@ -122,8 +122,9 @@ class TC_00_Bootstrap(RegressionTestCase):
         try:
             self.run_binary(['multi_exit'])
         except subprocess.CalledProcessError as e:
-            # self.assertTrue(1 <= e.returncode and e.returncode <= 4)
-            pass
+            # Exit codes [1,4] are still fine since each thread exits with a unique
+            # number. Everything else is an error.
+            self.assertTrue(1 <= e.returncode and e.returncode <= 4)
 
     def test_401_signalexit(self):
         with self.expect_returncode(134):
