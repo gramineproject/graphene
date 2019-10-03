@@ -54,7 +54,11 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     __UNUSED(event);
     __UNUSED(context);
-    shim_get_tls()->pal_errno = (arg <= PAL_ERROR_NATIVE_COUNT) ? arg : PAL_ERROR_DENIED;
+    if ((arg <= PAL_ERROR_NATIVE_COUNT) || (arg >= PAL_ERROR_CRYPTO_START &&
+        arg <= PAL_ERROR_CRYPTO_END))
+        shim_get_tls()->pal_errno = arg;
+    else
+        shim_get_tls()->pal_errno = PAL_ERROR_DENIED;
 }
 
 noreturn void __abort(void) {
