@@ -53,7 +53,7 @@ typedef enum _pal_error_t {
     PAL_ERROR_CONNFAILED,
     PAL_ERROR_ADDRNOTEXIST,
 
-#define PAL_ERROR_NATIVE_COUNT (PAL_ERROR_ADDRNOTEXIST)
+#define PAL_ERROR_NATIVE_COUNT PAL_ERROR_ADDRNOTEXIST
 
     /* Crypto error constants and their descriptions are adapted from mbedtls. */
     PAL_ERROR_CRYPTO_FEATURE_UNAVAILABLE = 1000,
