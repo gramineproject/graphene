@@ -40,9 +40,7 @@
 #include <asm/unistd.h>
 #include <asm/fcntl.h>
 
-unsigned long allocsize;
-unsigned long allocshift;
-unsigned long allocmask;
+size_t g_pal_alloc_align;
 
 /* The following constants will help matching glibc version with compatible
    SHIM libraries */
@@ -257,8 +255,8 @@ DEFINE_PROFILE_OCCURENCE(alloc_stack_count, memory);
 
 void * allocate_stack (size_t size, size_t protect_size, bool user)
 {
-    size = ALIGN_UP(size);
-    protect_size = ALIGN_UP(protect_size);
+    size = PAGE_ALIGN_UP(size);
+    protect_size = PAGE_ALIGN_UP(protect_size);
 
     /* preserve a non-readable, non-writable page below the user
        stack to stop user program to clobber other vmas */
@@ -287,7 +285,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 
     stack += protect_size;
     // Ensure proper alignment for process' initial stack pointer value.
-    stack += (16 - (uintptr_t)stack % 16) % 16;
+    stack = ALIGN_UP_PTR(stack, 16);
     DkVirtualMemoryProtect(stack, size, PAL_PROT_READ|PAL_PROT_WRITE);
 
     if (bkeep_mprotect(stack, size, PROT_READ|PROT_WRITE, flags) < 0)
@@ -378,7 +376,7 @@ int init_stack (const char ** argv, const char ** envp,
     if (root_config) {
         char stack_cfg[CONFIG_MAX];
         if (get_config(root_config, "sys.stack.size", stack_cfg, CONFIG_MAX) > 0) {
-            stack_size = ALIGN_UP(parse_int(stack_cfg));
+            stack_size = PAGE_ALIGN_UP(parse_int(stack_cfg));
             set_rlimit_cur(RLIMIT_STACK, stack_size);
         }
     }
@@ -388,7 +386,7 @@ int init_stack (const char ** argv, const char ** envp,
     if (!cur_thread || cur_thread->stack)
         return 0;
 
-    void * stack = allocate_stack(stack_size, allocsize, true);
+    void * stack = allocate_stack(stack_size, g_pal_alloc_align, true);
     if (!stack)
         return -ENOMEM;
 
@@ -405,7 +403,7 @@ int init_stack (const char ** argv, const char ** envp,
 
     cur_thread->stack_top = stack + stack_size;
     cur_thread->stack     = stack;
-    cur_thread->stack_red = stack - allocsize;
+    cur_thread->stack_red = stack - g_pal_alloc_align;
 
     return 0;
 }
@@ -484,15 +482,13 @@ int init_manifest (PAL_HANDLE manifest_handle)
             return -PAL_ERRNO;
 
         size = attr.pending_size;
-        map_size = ALIGN_UP(size);
+        map_size = PAGE_ALIGN_UP(size);
         addr = bkeep_unmapped_any(map_size, PROT_READ, MAP_FLAGS,
                                   0, "manifest");
         if (!addr)
             return -ENOMEM;
 
-        void * ret_addr = DkStreamMap(manifest_handle, addr,
-                                      PAL_PROT_READ, 0,
-                                      ALIGN_UP(size));
+        void* ret_addr = DkStreamMap(manifest_handle, addr, PAL_PROT_READ, 0, PAGE_ALIGN_UP(size));
 
         if (!ret_addr) {
             bkeep_munmap(addr, map_size, MAP_FLAGS);
@@ -694,9 +690,12 @@ noreturn void* shim_init (int argc, void * args)
 
     DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE);
 
-    allocsize = PAL_CB(alloc_align);
-    allocshift = allocsize - 1;
-    allocmask = ~allocshift;
+    g_pal_alloc_align = PAL_CB(alloc_align);
+    if (!IS_POWER_OF_2(g_pal_alloc_align)) {
+        SYS_PRINTF("shim_init(): error: PAL allocation alignment not a power of 2\n");
+        shim_terminate(-EINVAL);
+    }
+    g_pal_alloc_align = PAL_CB(alloc_align);
 
     create_lock(&__master_lock);
 

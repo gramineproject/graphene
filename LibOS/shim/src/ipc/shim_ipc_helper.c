@@ -33,10 +33,9 @@
 #include <pal_error.h>
 #include <list.h>
 
-#define IPC_HELPER_STACK_SIZE (allocsize * 4)
+#define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 
 #define PORT_MGR_ALLOC  32
-#define PAGE_SIZE       allocsize
 #define OBJ_TYPE struct shim_ipc_port
 #include "memmgr.h"
 static MEM_MGR port_mgr;
@@ -801,7 +800,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     bool notme = (self != ipc_helper_thread);
     unlock(&ipc_helper_lock);
 
-    void* stack = allocate_stack(IPC_HELPER_STACK_SIZE, allocsize, false);
+    void* stack = allocate_stack(IPC_HELPER_STACK_SIZE, g_pal_alloc_align, false);
 
     if (notme || !stack) {
         free(stack);

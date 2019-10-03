@@ -37,7 +37,6 @@ static struct shim_lock slab_mgr_lock;
 
 #define SYSTEM_LOCK()   lock(&slab_mgr_lock)
 #define SYSTEM_UNLOCK() unlock(&slab_mgr_lock)
-#define PAGE_SIZE       allocsize
 
 #ifdef SLAB_DEBUG_TRACE
 #define SLAB_DEBUG
@@ -54,7 +53,7 @@ DEFINE_PROFILE_CATEGORY(memory, );
 
 /* Returns NULL on failure */
 void* __system_malloc(size_t size) {
-    size_t alloc_size = ALIGN_UP(size);
+    size_t alloc_size = PAGE_ALIGN_UP(size);
     void* addr;
     void* ret_addr;
     int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
@@ -92,9 +91,9 @@ void* __system_malloc(size_t size) {
 }
 
 void __system_free(void* addr, size_t size) {
-    DkVirtualMemoryFree(addr, ALIGN_UP(size));
+    DkVirtualMemoryFree(addr, PAGE_ALIGN_UP(size));
 
-    if (bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL) < 0)
+    if (bkeep_munmap(addr, PAGE_ALIGN_UP(size), VMA_INTERNAL) < 0)
         BUG();
 }
 

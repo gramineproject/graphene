@@ -645,7 +645,8 @@ static inline int __map_buffer (struct shim_handle * hdl, size_t size)
 
     /* second, reallocate the buffer */
     size_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
-    off_t  mapoff = file->marker & ~(bufsize - 1);
+    assert(IS_POWER_OF_2(bufsize));
+    off_t  mapoff = ALIGN_DOWN_POW2(file->marker, bufsize);
     size_t maplen = bufsize;
     int flags = MAP_FILE | MAP_PRIVATE | VMA_INTERNAL;
     int prot = PROT_READ;

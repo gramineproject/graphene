@@ -70,10 +70,24 @@ typedef ptrdiff_t ssize_t;
 
 #define IS_POWER_OF_2(x) (((x) & ((x) - 1)) == 0)
 
-#define ALIGN_DOWN_PTR(ptr, size) \
-    ((__typeof__(ptr)) (((uintptr_t)(ptr)) & -(size)))
-#define ALIGN_UP_PTR(ptr, size) \
-    ((__typeof__(ptr)) ALIGN_DOWN_PTR((uintptr_t)(ptr) + ((size) - 1), (size)))
+#define IS_ALIGNED(val, alignment) ((val) % (alignment) == 0)
+#define ALIGN_DOWN(val, alignment) ((val) - (val) % (alignment))
+#define ALIGN_UP(val, alignment)   ALIGN_DOWN((val) + (alignment) - 1, alignment)
+#define IS_ALIGNED_PTR(val, alignment) IS_ALIGNED((uintptr_t)(val), alignment)
+#define ALIGN_DOWN_PTR(ptr, alignment) ((__typeof__(ptr))(ALIGN_DOWN((uintptr_t)(ptr), alignment)))
+#define ALIGN_UP_PTR(ptr, alignment)   ((__typeof__(ptr))(ALIGN_UP((uintptr_t)(ptr), alignment)))
+
+/* Useful only when the alignment is a power of two, but when that's not known compile-time. */
+#define IS_ALIGNED_POW2(val, alignment) (((val) & ((alignment) - 1)) == 0)
+#define ALIGN_DOWN_POW2(val, alignment) \
+    ((val) - ((val) & ((alignment) - 1))) // `~` doesn't work if `alignment` is of a smaller type
+                                          // than `val`.
+#define ALIGN_UP_POW2(val, alignment)       ALIGN_DOWN_POW2((val) + (alignment) - 1, alignment)
+#define IS_ALIGNED_PTR_POW2(val, alignment) IS_ALIGNED_POW2((uintptr_t)(val), alignment)
+#define ALIGN_DOWN_PTR_POW2(ptr, alignment) ((__typeof__(ptr))(ALIGN_DOWN_POW2((uintptr_t)(ptr), \
+                                                                               alignment)))
+#define ALIGN_UP_PTR_POW2(ptr, alignment)   ((__typeof__(ptr))(ALIGN_UP_POW2((uintptr_t)(ptr), \
+                                                                             alignment)))
 
 #define SAME_TYPE(a, b) __builtin_types_compatible_p(__typeof__(a), __typeof__(b))
 #define IS_STATIC_ARRAY(a) (!SAME_TYPE(a, &*(a)))

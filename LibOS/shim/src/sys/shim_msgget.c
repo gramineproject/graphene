@@ -758,7 +758,8 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
         goto err_file;
 
     void* mem =
-        (void*)DkStreamMap(file, NULL, PAL_PROT_READ | PAL_PROT_WRITE, 0, ALIGN_UP(expected_size));
+        (void*)DkStreamMap(file, NULL, PAL_PROT_READ | PAL_PROT_WRITE, 0,
+                           PAGE_ALIGN_UP(expected_size));
     if (!mem) {
         ret = -EFAULT;
         goto err_file;
@@ -785,7 +786,7 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
         mtype->msgs = mtype->msg_tail = NULL;
     }
 
-    DkStreamUnmap(mem, ALIGN_UP(expected_size));
+    DkStreamUnmap(mem, PAGE_ALIGN_UP(expected_size));
 
     if (msgq->owned)
         for (mtype = msgq->types; mtype < &msgq->types[msgq->ntypes]; mtype++) {
@@ -846,7 +847,7 @@ static int __load_msg_persist(struct shim_msg_handle* msgq, bool readmsg) {
     int expected_size = sizeof(struct msg_handle_backup) + sizeof(struct msg_backup) * mback.nmsgs +
                         mback.currentsize;
 
-    void* mem = (void*)DkStreamMap(file, NULL, PAL_PROT_READ, 0, ALIGN_UP(expected_size));
+    void* mem = (void*)DkStreamMap(file, NULL, PAL_PROT_READ, 0, PAGE_ALIGN_UP(expected_size));
 
     if (!mem) {
         ret = -PAL_ERRNO;
@@ -869,7 +870,7 @@ static int __load_msg_persist(struct shim_msg_handle* msgq, bool readmsg) {
             goto out;
     };
 
-    DkStreamUnmap(mem, ALIGN_UP(expected_size));
+    DkStreamUnmap(mem, PAGE_ALIGN_UP(expected_size));
 
 done:
     DkStreamDelete(file, 0);

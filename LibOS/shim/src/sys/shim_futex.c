@@ -62,7 +62,7 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
     uint32_t val2 = 0;
     int ret       = 0;
 
-    if (!uaddr || ((uintptr_t)uaddr % sizeof(unsigned int)))
+    if (!uaddr || !IS_ALIGNED_PTR(uaddr, sizeof(unsigned int)))
         return -EINVAL;
 
     create_lock_runtime(&futex_list_lock);

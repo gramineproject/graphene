@@ -59,7 +59,7 @@ int init_brk_region(void* brk_region, size_t data_segment_size) {
     if (region.brk_start)
         return 0;
 
-    data_segment_size = ALIGN_UP(data_segment_size);
+    data_segment_size = PAGE_ALIGN_UP(data_segment_size);
     uint64_t brk_max_size = DEFAULT_BRK_MAX_SIZE;
 
     if (root_config) {
@@ -103,7 +103,7 @@ int init_brk_region(void* brk_region, size_t data_segment_size) {
                     return -convert_pal_errno(-ret);
                 rand %= MIN((size_t)0x2000000,
                             (size_t)(PAL_CB(user_address.end) - brk_region - brk_max_size));
-                rand = ALIGN_DOWN(rand);
+                rand = PAGE_ALIGN_DOWN(rand);
 
                 if (brk_region + rand + brk_max_size >= PAL_CB(user_address.end))
                     continue;

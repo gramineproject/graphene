@@ -220,8 +220,8 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
                     return NULL;
                 }
 
-                if (__builtin_expect (((ph->p_vaddr - ph->p_offset)
-                                       & (ph->p_align - 1)) != 0, 0)) {
+                if (__builtin_expect (!IS_ALIGNED_POW2(ph->p_vaddr - ph->p_offset, ph->p_align),
+                                      0)) {
                     print_error("ELF load command address/offset not properly aligned",
                                 -PAL_ERROR_NOMEM);
                     return NULL;

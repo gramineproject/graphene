@@ -384,7 +384,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
         } else {
             *(volatile char *) tmp;
         }
-        tmp = ALIGN_UP(tmp + 1);
+        tmp = PAGE_ALIGN_UP_PTR(tmp + 1);
     }
 
 ret_fault:
@@ -411,7 +411,7 @@ bool test_user_string (const char * addr)
         return true;
 
     size_t size, maxlen;
-    const char * next = ALIGN_UP(addr + 1);
+    const char* next = PAGE_ALIGN_UP_PTR(addr + 1);
 
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA). */
     if (is_sgx_pal()) {
@@ -425,7 +425,7 @@ bool test_user_string (const char * addr)
 
             size = strnlen(addr, maxlen);
             addr = next;
-            next = ALIGN_UP(addr + 1);
+            next = PAGE_ALIGN_UP_PTR(addr + 1);
         } while (size == maxlen);
 
         return false;
@@ -457,7 +457,7 @@ bool test_user_string (const char * addr)
 
         size = strnlen(addr, maxlen);
         addr = next;
-        next = ALIGN_UP(addr + 1);
+        next = PAGE_ALIGN_UP_PTR(addr + 1);
     } while (size == maxlen);
 
 ret_fault:

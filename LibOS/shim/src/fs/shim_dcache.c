@@ -31,8 +31,7 @@
 
 struct shim_lock dcache_lock;
 
-#define DCACHE_MGR_ALLOC    64
-#define PAGE_SIZE           allocsize
+#define DCACHE_MGR_ALLOC 64
 
 #define OBJ_TYPE struct shim_dentry
 #include <memmgr.h>

@@ -197,8 +197,8 @@ void * get_reserved_pages(void * addr, size_t size)
         return NULL;
     }
 
-    size = ((size + pgsz - 1) & ~(pgsz - 1));
-    addr = (void *)((uintptr_t)addr & ~(pgsz - 1));
+    size = ALIGN_UP(size, pgsz);
+    addr = ALIGN_DOWN_PTR(addr, pgsz);
 
     SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
 
@@ -266,11 +266,8 @@ void free_pages(void * addr, size_t size)
     if (!addr || !size)
         return;
 
-    if ((uintptr_t) addr_top & (pgsz - 1))
-        addr_top = (void *) (((uintptr_t) addr_top + pgsz - 1) & ~(pgsz - 1));
-
-    if ((uintptr_t) addr & (pgsz - 1))
-        addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
+    addr = ALIGN_DOWN_PTR(addr, pgsz);
+    addr_top = ALIGN_UP_PTR(addr_top, pgsz);
 
     if (addr >= heap_base + heap_size)
         return;

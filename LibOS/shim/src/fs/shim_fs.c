@@ -60,8 +60,7 @@ static struct shim_lock mount_mgr_lock;
 #define SYSTEM_LOCK()       lock(&mount_mgr_lock)
 #define SYSTEM_UNLOCK()     unlock(&mount_mgr_lock)
 
-#define MOUNT_MGR_ALLOC     64
-#define PAGE_SIZE           allocsize
+#define MOUNT_MGR_ALLOC 64
 
 #define OBJ_TYPE struct shim_mount
 #include <memmgr.h>

@@ -53,7 +53,6 @@ struct shim_vma {
 };
 
 #define VMA_MGR_ALLOC   DEFAULT_VMA_COUNT
-#define PAGE_SIZE       allocsize
 #define RESERVED_VMAS   6
 
 static struct shim_vma * reserved_vmas[RESERVED_VMAS];
@@ -73,7 +72,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 static inline void * __malloc (size_t size)
 {
     void * addr;
-    size = ALIGN_UP(size);
+    size = PAGE_ALIGN_UP(size);
 
     /*
      * Chia-Che 3/3/18: We must enforce the policy that all VMAs have to
@@ -319,7 +318,7 @@ int init_vma (void)
 
     /* Keep track of LibOS code itself so nothing overwrites it */
     ret = __bkeep_preloaded(&__load_address,
-                            ALIGN_UP(&__load_address_end),
+                            PAGE_ALIGN_UP_PTR(&__load_address_end),
                             PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
                             "LibOS");
     if (ret < 0)
@@ -366,7 +365,7 @@ int init_vma (void)
     ret = DkRandomBitsRead(&rand, sizeof(rand));
     if (ret < 0)
         return -convert_pal_errno(-ret);
-    current_heap_top -= ALIGN_DOWN(rand % addr_rand_size);
+    current_heap_top -= PAGE_ALIGN_DOWN(rand % addr_rand_size);
 #endif
 
     debug("heap top adjusted to %p\n", current_heap_top);
@@ -1092,7 +1091,7 @@ BEGIN_CP_FUNC(vma)
                     (off_t)(vma->offset + vma->length) > file_len) {
                     send_size = file_len > vma->offset ?
                                 file_len - vma->offset : 0;
-                    send_size = ALIGN_UP(send_size);
+                    send_size = PAGE_ALIGN_UP(send_size);
                 }
             }
             if (send_size > 0) {

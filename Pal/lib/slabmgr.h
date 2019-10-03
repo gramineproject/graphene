@@ -178,29 +178,33 @@ typedef struct __attribute__((packed)) large_mem_obj {
 
 #ifdef PAGE_SIZE
 static inline int size_align_down(int slab_size, int size) {
+    assert(IS_POWER_OF_2(PAGE_SIZE));
     int s = __MAX_MEM_SIZE(slab_size, size);
-    int p = s - (s & ~(PAGE_SIZE - 1));
+    int p = s - ALIGN_DOWN_POW2(s, PAGE_SIZE);
     int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int size_align_up(int slab_size, int size) {
+    assert(IS_POWER_OF_2(PAGE_SIZE));
     int s = __MAX_MEM_SIZE(slab_size, size);
-    int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
+    int p = ALIGN_UP_POW2(s, PAGE_SIZE) - s;
     int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size + p / o;
 }
 
 static inline int init_align_down(int size) {
+    assert(IS_POWER_OF_2(PAGE_SIZE));
     int s = __INIT_MAX_MEM_SIZE(size);
-    int p = s - (s & ~(PAGE_SIZE - 1));
+    int p = s - ALIGN_DOWN_POW2(s, PAGE_SIZE);
     int o = __INIT_SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int init_size_align_up(int size) {
+    assert(IS_POWER_OF_2(PAGE_SIZE));
     int s = __INIT_MAX_MEM_SIZE(size);
-    int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
+    int p = ALIGN_UP_POW2(s, PAGE_SIZE) - s;
     int o = __INIT_SUM_OBJ_SIZE(1);
     return size + p / o;
 }
