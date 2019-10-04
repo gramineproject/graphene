@@ -202,16 +202,41 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         return shim_do_vfork();
     }
 
-    assert((flags & ~(CLONE_PARENT_SETTID|CLONE_CHILD_SETTID|
-                      CLONE_CHILD_CLEARTID|CLONE_SETTLS|
-                      CLONE_VM|CLONE_FILES|
-                      CLONE_FS|CLONE_SIGHAND|CLONE_THREAD|
-                      CLONE_DETACHED| // Unused
-#ifdef CLONE_PTRACE
-                      CLONE_PTRACE| // Unused
+    const int supported_flags =
+        CLONE_CHILD_CLEARTID |
+        CLONE_CHILD_SETTID |
+        CLONE_DETACHED | // Unused
+        CLONE_FILES |
+        CLONE_FS |
+        CLONE_PARENT_SETTID |
+#ifdef CLONE_PIDFD
+        CLONE_PIDFD |
 #endif
-                      CLONE_SYSVSEM|CSIGNAL)) == 0);
+#ifdef CLONE_PTRACE
+        CLONE_PTRACE | // Unused
+#endif
+        CLONE_SETTLS |
+        CLONE_SIGHAND |
+        CLONE_SYSVSEM |
+        CLONE_THREAD |
+        CLONE_VM |
+        CSIGNAL;
 
+    const int unsupported_flags = ~supported_flags;
+
+    if (flags & unsupported_flags) {
+        debug("clone called with unsupported flags argument.\n");
+        return -EINVAL;
+    }
+
+    if (flags & CLONE_VM)
+        if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
+            debug("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
+            return -EINVAL;
+        }
+
+    /* Returning an explicit error code of EINVAL for the following three flags breaks too many
+     * programs. */
     if (!(flags & CLONE_FS))
         debug("clone without CLONE_FS is not yet implemented\n");
 
@@ -221,38 +246,6 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     if (!(flags & CLONE_SYSVSEM))
         debug("clone without CLONE_SYSVSEM is not yet implemented\n");
 
-    /* currently unsupported flags.
-     * Please update this once you added new flags support.
-     */
-    const int unsupported_flags =
-#ifdef CLONE_PIDFD
-        CLONE_PIDFD |
-#endif
-        CLONE_VFORK | /* vfork is handled above */
-        CLONE_PARENT |
-        CLONE_NEWNS |
-        CLONE_UNTRACED |
-        CLONE_NEWCGROUP |
-        CLONE_NEWUTS |
-        CLONE_NEWIPC |
-        CLONE_NEWUSER |
-        CLONE_NEWPID |
-        CLONE_NEWNET |
-        CLONE_IO;
-    if (flags & unsupported_flags)
-        debug("clone with flags 0x%x is not yet implemented\n",
-            flags & unsupported_flags);
-
-    if ((flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
-        return -EINVAL;
-    if ((flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
-        return -EINVAL;
-    if ((flags & CLONE_THREAD) && !(flags & CLONE_SIGHAND))
-        return -EINVAL;
-    if ((flags & CLONE_SIGHAND) && !(flags & CLONE_VM))
-        return -EINVAL;
-    if (flags & CLONE_THREAD && (flags & (CLONE_NEWUSER | CLONE_NEWPID)))
-        return -EINVAL;
 #ifdef CLONE_PIDFD
     if (flags & CLONE_PIDFD) {
         if (flags & (CLONE_DETACHED | CLONE_PARENT_SETTID | CLONE_THREAD))
