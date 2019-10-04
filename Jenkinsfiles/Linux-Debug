@@ -27,6 +27,10 @@ pipeline {
                             make regression
                             '''
                         sh '''
+                            cd LibOS/shim/test/fs
+                            make test
+                            '''
+                        sh '''
                             cd LibOS/shim/test/apps/ltp
                             make
                             ./syscalls.sh
