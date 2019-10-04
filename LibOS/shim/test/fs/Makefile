@@ -40,4 +40,4 @@ fs-test.xml:
 
 .PHONY: clean-tmp
 clean-tmp:
-	rm -rf *.tmp *.cached *.manifest.sgx *~ *.sig *.token *.o
+	rm -rf *.tmp *.cached *.manifest.sgx *~ *.sig *.token *.o __pycache__ .pytest_cache *.xml
