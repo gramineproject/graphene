@@ -1,0 +1,33 @@
+loader.preload = file:../../src/libsysdb.so
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.debug_type = none
+loader.syscall_symbol = syscalldb
+
+fs.mount.graphene_lib.type = chroot
+fs.mount.graphene_lib.path = /lib
+fs.mount.graphene_lib.uri = file:../../../../Runtime
+
+fs.mount.host_lib.type = chroot
+fs.mount.host_lib.path = /lib/x86_64-linux-gnu
+fs.mount.host_lib.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.host_usr_lib.type = chroot
+fs.mount.host_usr_lib.path = /usr/lib/x86_64-linux-gnu
+fs.mount.host_usr_lib.uri = file:/usr/lib/x86_64-linux-gnu
+
+fs.mount.bin.type = chroot
+fs.mount.bin.path = /bin
+fs.mount.bin.uri = file:/bin
+
+fs.mount.output.type = chroot
+fs.mount.output.path = /mounted
+fs.mount.output.uri = file:tmp
+
+sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
+sgx.trusted_files.libdl = file:../../../../Runtime/libdl.so.2
+sgx.trusted_files.libm = file:../../../../Runtime/libm.so.6
+sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
+sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+
+sgx.allowed_files.tmp_dir = file:tmp/
