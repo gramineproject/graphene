@@ -229,11 +229,19 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         return -EINVAL;
     }
 
+    /* Explicitly disallow CLONE_VM without either of CLONE_THREAD or CLONE_VFORK on Graphene. While
+     * Linux allows only CLONE_VM, it is exotic enough to not attempt a faithful emulation in
+     * Graphene. */
     if (flags & CLONE_VM)
         if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
             debug("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
             return -EINVAL;
         }
+
+    if ((flags & CLONE_THREAD) && !(flags & CLONE_SIGHAND))
+        return -EINVAL;
+    if ((flags & CLONE_SIGHAND) && !(flags & CLONE_VM))
+        return -EINVAL;
 
     /* Returning an explicit error code of EINVAL for the following three flags breaks too many
      * programs. */
