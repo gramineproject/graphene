@@ -33,10 +33,17 @@ void read_fd(const char* path, int fd, void* buffer, size_t size) {
     }
 }
 
-void seek_fd(const char* path, int fd, size_t offset) {
-    int ret = lseek(fd, offset, SEEK_SET);
-    if (ret < 0)
-        error("Failed to seek file %s (%zu): %s\n", path, offset, strerror(errno));
+void seek_fd(const char* path, int fd, ssize_t offset, int mode) {
+    off_t ret = lseek(fd, offset, mode);
+    if (ret == -1)
+        error("Failed to lseek(%zd, %d) file %s: %s\n", offset, mode, path, strerror(errno));
+}
+
+off_t tell_fd(const char* path, int fd) {
+    off_t pos = lseek(fd, 0, SEEK_CUR);
+    if (pos == -1)
+        error("Failed to lseek(0, SEEK_CUR) file %s: %s\n", path, strerror(errno));
+    return pos;
 }
 
 int open_output_fd(const char* path, bool rdwr) {
@@ -88,12 +95,19 @@ void read_stdio(const char* path, FILE* f, void* buffer, size_t size) {
     }
 }
 
-void seek_stdio(const char* path, FILE* f, size_t offset) {
+void seek_stdio(const char* path, FILE* f, off_t offset, int mode) {
     if (offset > LONG_MAX)
-        error("Failed to seek file %s(%zu): offset too big\n", path, offset);
-    int ret = fseek(f, (long)offset, SEEK_SET);
+        error("Failed to fseek file %s(%zd): offset too big\n", path, offset);
+    int ret = fseek(f, (long)offset, mode);
     if (ret < 0)
-        error("Failed to seek file %s(%zu): %s\n", path, offset, strerror(errno));
+        error("Failed to fseek file %s(%zd): %s\n", path, offset, strerror(errno));
+}
+
+off_t tell_stdio(const char* path, FILE* f) {
+    long pos = ftell(f);
+    if (pos < 0)
+        error("Failed to ftell file %s: %s\n", path, strerror(errno));
+    return pos;
 }
 
 void close_stdio(const char* path, FILE* f) {
@@ -102,8 +116,8 @@ void close_stdio(const char* path, FILE* f) {
             error("Failed to close file %s: %s\n", path, strerror(errno));
 }
 
-FILE* open_output_stdio(const char* path) {
-    FILE* f = fopen(path, "w");
+FILE* open_output_stdio(const char* path, bool rdwr) {
+    FILE* f = fopen(path, rdwr ? "r+" : "w");
     if (!f)
         error("Failed to open output file %s: %s\n", path, strerror(errno));
     return f;

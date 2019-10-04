@@ -14,8 +14,8 @@ void copy_data(int fi, int fo, const char* input_path, const char* output_path, 
         else
             step = offset;
         offset -= step;
-        seek_fd(input_path, fi, offset);
-        seek_fd(output_path, fo, offset);
+        seek_fd(input_path, fi, offset, SEEK_SET);
+        seek_fd(output_path, fo, offset, SEEK_SET);
         read_fd(input_path, fi, data, step);
         write_fd(output_path, fo, data, step);
     }

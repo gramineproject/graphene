@@ -91,6 +91,49 @@ class TC_00_FileSystem(RegressionTestCase):
         self.assertIn('compare(' + file_path + ') RW OK', stdout)
         self.assertIn('close(' + file_path + ') RW OK', stdout)
 
+    def verify_seek_tell(self, stdout, stderr, input_path, output_path_1, output_path_2, size):
+        self.assertNotIn('ERROR: ', stderr)
+        self.assertIn('open(' + input_path + ') input OK', stdout)
+        self.assertIn('seek(' + input_path + ') input start OK', stdout)
+        self.assertIn('seek(' + input_path + ') input end OK', stdout)
+        self.assertIn('tell(' + input_path + ') input end OK: ' + str(size), stdout)
+        self.assertIn('seek(' + input_path + ') input rewind OK', stdout)
+        self.assertIn('tell(' + input_path + ') input start OK: 0', stdout)
+        self.assertIn('close(' + input_path + ') input OK', stdout)
+        self.assertIn('fopen(' + input_path + ') input OK', stdout)
+        self.assertIn('fseek(' + input_path + ') input start OK', stdout)
+        self.assertIn('fseek(' + input_path + ') input end OK', stdout)
+        self.assertIn('ftell(' + input_path + ') input end OK: ' + str(size), stdout)
+        self.assertIn('fseek(' + input_path + ') input rewind OK', stdout)
+        self.assertIn('ftell(' + input_path + ') input start OK: 0', stdout)
+        self.assertIn('fclose(' + input_path + ') input OK', stdout)
+
+        self.assertIn('open(' + output_path_1 + ') output OK', stdout)
+        self.assertIn('seek(' + output_path_1 + ') output start OK', stdout)
+        self.assertIn('seek(' + output_path_1 + ') output end OK', stdout)
+        self.assertIn('tell(' + output_path_1 + ') output end OK: ' + str(size), stdout)
+        self.assertIn('seek(' + output_path_1 + ') output end 2 OK', stdout)
+        self.assertIn('seek(' + output_path_1 + ') output end 3 OK', stdout)
+        self.assertIn('tell(' + output_path_1 + ') output end 2 OK: ' + str(size + 4098), stdout)
+        self.assertIn('close(' + output_path_1 + ') output OK', stdout)
+        self.assertIn('fopen(' + output_path_2 + ') output OK', stdout)
+        self.assertIn('fseek(' + output_path_2 + ') output start OK', stdout)
+        self.assertIn('fseek(' + output_path_2 + ') output end OK', stdout)
+        self.assertIn('ftell(' + output_path_2 + ') output end OK: ' + str(size), stdout)
+        self.assertIn('fseek(' + output_path_2 + ') output end 2 OK', stdout)
+        self.assertIn('fseek(' + output_path_2 + ') output end 3 OK', stdout)
+        self.assertIn('ftell(' + output_path_2 + ') output end 2 OK: ' + str(size + 4098), stdout)
+        self.assertIn('fclose(' + output_path_2 + ') output OK', stdout)
+
+    def test_115_seek_tell(self):
+        input_path = self.INPUT_FILES[-1] # existing file
+        output_path_1 = os.path.join(self.OUTPUT_DIR, 'test_115a') # writable files
+        output_path_2 = os.path.join(self.OUTPUT_DIR, 'test_115b')
+        self.copy_input(input_path, output_path_1)
+        self.copy_input(input_path, output_path_2)
+        stdout, stderr = self.run_binary(['seek_tell', input_path, output_path_1, output_path_2])
+        self.verify_seek_tell(stdout, stderr, input_path, output_path_1, output_path_2, self.FILE_SIZES[-1])
+
     def test_120_file_delete(self):
         file_path = 'test_120'
         file_in = self.INPUT_FILES[-1] # existing file to be copied
