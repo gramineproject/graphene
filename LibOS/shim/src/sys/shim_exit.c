@@ -170,8 +170,9 @@ noreturn int shim_do_exit_group (int error_code)
     struct shim_thread * cur_thread = get_cur_thread();
     assert(!is_internal(cur_thread));
 
-    /* If exit_group() is invoked multiple times, which may happen since glibc's exit() uses
-     * exit_group() internally, only a single invocation proceeds past this point. */
+    /* If exit_group() is invoked multiple times, only a single invocation proceeds past this
+     * point. Kill signals are delivered asynchronously, which will eventually kick the execution
+     * out of this loop.*/
     static struct atomic_int first = ATOMIC_INIT(0);
     if (atomic_cmpxchg(&first, 0, 1) == 1) {
         while (1)
