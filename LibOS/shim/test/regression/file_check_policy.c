@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline int run_file_check_policy_test(int argc, char** argv) {
+int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s file_check_policy_testfile\n", argv[0]);
         return 1;

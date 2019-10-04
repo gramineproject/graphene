@@ -33,10 +33,10 @@ include $(SHIM_TEST_DIR)/../../../Makefile.rules
 include $(PALDIR)/Makefile.Test
 
 .PHONY: all
-all: pal_loader $(target) | $(call expand_target,$(exec_target))
+all: pal_loader $(target) | $(call expand_target,$(exec_target) $(manifests))
 
 .PHONY: sgx-tokens
-sgx-tokens: $(call expand_target_to_token,$(exec_target))
+sgx-tokens: $(call expand_target_to_token,$(exec_target) $(manifests))
 
 ifeq ($(DEBUG),1)
 CC += -g
