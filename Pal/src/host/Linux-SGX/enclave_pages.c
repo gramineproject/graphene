@@ -267,7 +267,7 @@ void free_pages(void * addr, size_t size)
         return;
 
     if ((uintptr_t) addr_top & (pgsz - 1))
-        addr = (void *) (((uintptr_t) addr_top + pgsz + 1) & ~(pgsz - 1));
+        addr_top = (void *) (((uintptr_t) addr_top + pgsz - 1) & ~(pgsz - 1));
 
     if ((uintptr_t) addr & (pgsz - 1))
         addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
