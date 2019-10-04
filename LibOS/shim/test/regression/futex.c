@@ -59,7 +59,7 @@ int main(int argc, const char** argv) {
 
         // Call the clone system call to create the child thread
         pids[i] = clone(&thread_function, (void*)stacks[i] + FIBER_STACK,
-                        CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM, &varx[i]);
+                        CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM | CLONE_THREAD, &varx[i]);
 
         // printf("clone() creates new thread %d\n", pids[i]);
 
