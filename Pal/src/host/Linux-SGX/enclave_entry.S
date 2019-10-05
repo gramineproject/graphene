@@ -585,10 +585,10 @@ __morestack:
 .section .rodata
 	.balign 64
 .Lxrstor_init_arg:
-	.byte 0x7f, 0x03 	# FCW
-	.skip 6, 0
-	.byte 0x80, 0x1f, 0, 0 	# MXCSR
-	.skip 500, 0	 	# rest of fxstore area
+	.byte 0x7f, 0x03        # FCW
+	.skip 22, 0             # FSW, FTW, FOP, etc: all zero-initialized
+	.byte 0x80, 0x1f, 0, 0  # MXCSR
+	.skip 484, 0            # rest of fxstore area
 
 	.skip 15, 0	 	# XSTATE_BV and XCOMP_BV[55:0]
 	.byte 0x80	 	# XCOMP_BV[63:56] i.e. "compact" format
