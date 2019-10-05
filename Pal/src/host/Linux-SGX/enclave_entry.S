@@ -91,6 +91,15 @@ enclave_entry:
 	xorq %r14, %r14
 	xorq %r15, %r15
 
+	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
+	# TODO: We currently clear only state covered by FXRSTOR but not by XRSTOR
+	#       (e.g., no clearing of YMM/ZMM regs). This is because we didn't read
+	#       the value of XFRM yet, so we don't know whether XRSTOR is safe at
+	#       this point.
+	leaq .Lxrstor_init_arg(%rip), %rax
+	fxrstor (%rax)
+	xorq %rax, %rax
+
 	# register states need to be carefully checked, so we move the handling
 	# to handle_ecall() in enclave_ecalls.c
 	callq handle_ecall
