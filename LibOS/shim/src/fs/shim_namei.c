@@ -513,6 +513,11 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
     int err = 0, newly_created = 0;
     struct shim_dentry *mydent = NULL;
 
+    if (*path == '\0') {
+        /* corner case: trying to open with empty filename */
+        return -ENOENT;
+    }
+
     lock(&dcache_lock);
 
     // lookup the path from start, passing flags
