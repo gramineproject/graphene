@@ -274,12 +274,15 @@ class TC_00_FileSystem(RegressionTestCase):
     def test_202_copy_dir_rev(self):
         self.do_copy_test('copy_rev', 60)
 
+    @expectedFailureIf(HAS_SGX)
     def test_203_copy_dir_mmap_whole(self):
         self.do_copy_test('copy_mmap_whole', 30)
 
+    @expectedFailureIf(HAS_SGX)
     def test_204_copy_dir_mmap_seq(self):
         self.do_copy_test('copy_mmap_seq', 60)
 
+    @expectedFailureIf(HAS_SGX)
     def test_205_copy_dir_mmap_rev(self):
         self.do_copy_test('copy_mmap_rev', 60)
 
