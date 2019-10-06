@@ -274,6 +274,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
        The created file is added to allowed_file list for later access */
     if (create && allow_file_creation) {
        register_trusted_file(uri, NULL);
+       *stubptr = NULL;
        *sizeptr = 0;
        return 0;
     }
