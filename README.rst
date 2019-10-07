@@ -116,6 +116,10 @@ Prerequisites
       sudo ./load.sh
       sudo sysctl vm.mmap_min = 0
 
+   We note that this last command is a tempoarary work-around for some issues with the Intel SGX
+   driver.  This is an inadvisable configuration for production systems.  We hope to remove this
+   step in a future version of Graphene, once the SGX driver is upstreamed to Linux.
+
 Building Graphene-SGX
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -148,9 +152,9 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
    - Generate the token from aesmd service, via the command::
 
-      make SGX_RUN=1
+      make SGX=1 sgx-tokens
 
-   - Run Hello World program with Graphene on SGX::
+   - Run a helloworld program with Graphene-SGX::
 
       SGX=1 ./pal_loader helloworld
 
@@ -166,7 +170,7 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
    - Generate a launch token from the aesmd service::
 
-      make SGX_RUN=1
+      make SGX=1 sgx-tokens
 
    - Run `helloworld.py` script with Graphene-SGX via::
 
@@ -202,7 +206,7 @@ To enable remote attestation tests in ``Pal/regression``, specify the following 
 
     cd PAL/regression
     make SGX=1 RA_CLIENT_SPID=<SPID> RA_CLIENT_KEY=<KEY>
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 
 If you receive a "GROUP_OUT_OF_DATE" status from IAS, this status indicates that your CPU
@@ -255,12 +259,12 @@ Here is an example manifest file::
     fs.mount.libc.uri = file:[relative path to Graphene root]/Runtime
 
 More examples can be found in the test directories (``LibOS/shim/test``). We
-have also tested several applications. such as GCC, Bash, and Apache.
+have also tested several applications, such as GCC, Bash, and Apache.
 The manifest files for these applications are provided in the
 individual directories under `LibOS/shim/test/apps`.
 
 For the full documentation of the Graphene manifest syntax, see the `Graphene
-documentation <https://graphene.rtfd.io/>`_.
+documentation <https://graphene.readthedocs.io/>`_.
 
 Contact
 =======
