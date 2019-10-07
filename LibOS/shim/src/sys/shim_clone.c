@@ -212,9 +212,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 #ifdef CLONE_PIDFD
         CLONE_PIDFD |
 #endif
-#ifdef CLONE_PTRACE
         CLONE_PTRACE | // Unused
-#endif
         CLONE_SETTLS |
         CLONE_SIGHAND |
         CLONE_SYSVSEM |
@@ -230,8 +228,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     }
 
     /* Explicitly disallow CLONE_VM without either of CLONE_THREAD or CLONE_VFORK on Graphene. While
-     * Linux allows only CLONE_VM, it is exotic enough to not attempt a faithful emulation in
-     * Graphene. */
+     * Linux allows passing CLONE_VM without either of CLONE_THREAD or CLONE_VFORK, this usage is
+     * exotic enough to not attempt a faithful emulation in Graphene. */
     if (flags & CLONE_VM)
         if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
             debug("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
@@ -243,8 +241,9 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     if ((flags & CLONE_SIGHAND) && !(flags & CLONE_VM))
         return -EINVAL;
 
-    /* Returning an explicit error code of EINVAL for the following three flags breaks too many
-     * programs. */
+    /* The caller may not have set the following three flags, but Graphene treats them as set to
+     * simplify the implementation of clone. Only print a warning since returning an explicit error
+     * code breaks many applications. */
     if (!(flags & CLONE_FS))
         debug("clone without CLONE_FS is not yet implemented\n");
 
