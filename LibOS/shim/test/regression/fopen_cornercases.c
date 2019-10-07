@@ -21,15 +21,13 @@ int main(int argc, char** argv) {
     printf("filepath = %s (len = %lu)\n", filepath, strlen(filepath));
 
     /* sanity check: try fopening empty filename (must fail) */
-    errno    = 0;
     FILE* fp = fopen("", "r");
     if (fp != NULL || errno != ENOENT) {
-        perror("(sanity check) fopen with empty filename did not fail");
+        perror("(sanity check) fopen with empty filename did not fail with ENOENT");
         return 1;
     }
 
     /* sanity check: try fopening dir in write mode (must fail) */
-    errno = 0;
     fp    = fopen(PATH, "w");
     if (fp != NULL || errno != EISDIR) {
         perror("(sanity check) fopen of dir with write access did not fail");
