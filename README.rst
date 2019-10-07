@@ -18,11 +18,10 @@ What is Graphene?
 
 Graphene is a lightweight guest OS, designed to run a single application with minimal host
 requirements.  Graphene can run applications in an isolated environment with benefits comparable to
-running a complete OS in a virtual machine---including guest customization, platform independence,
-and migration.
+running a complete OS in a virtual machine---including guest customization, ease of porting to
+different OSes, and process migration.
 
-Graphene supports native, unmodified Linux applications on
-any platform. Currently, Graphene runs on
+Graphene supports native, unmodified Linux applications on any platform. Currently, Graphene runs on
 Linux, FreeBSD and Intel SGX enclaves on Linux platforms.
 
 With Intel SGX support, Graphene can secure a |_| critical application in a |_| hardware-encrypted
@@ -43,10 +42,9 @@ Graphene consists of three parts:
 - The Platform Adaptation Layer, or PAL, (a shared library named ``libpal.so``)
 
 Graphene currently only works on the x86_64 architecture.  Graphene is currently tested on Ubuntu
-16.04 (both server and desktop version), along with Linux kernel versions 3.x/4.x.  We recommend
-building and installing Graphene on the same host platform.  Other distributions of 64-bit Linux
-potentially work, but the result is not guaranteed. If you find problems with Graphene on other
-Linux distributions, please contact us with a detailed bug report.
+16.04 and 18.04 (both server and desktop version), along with Linux kernel versions 3.x/4.x.  We
+recommend building and installing Graphene on the same host platform.  If you find problems with
+Graphene on other Linux distributions, please contact us with a detailed bug report.
 
 Run the following command on Ubuntu to install dependencies for Graphene::
 
@@ -56,11 +54,11 @@ For building Graphene for SGX, run the following command in addition::
 
     sudo apt-get install -y python-protobuf libprotobuf-c-dev protobuf-c-compiler
 
-To run unit tests locally, you also need the python3-pytest package::
+To run tests locally, you also need the python3-pytest package::
 
     sudo apt-get install -y python3-pytest
 
-To build the system, simply run the following commands in the root of the
+To build Graphene, simply run the following commands in the root of the
 source tree::
 
     git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
@@ -87,7 +85,7 @@ Prerequisites
 
 1. Generate signing keys
 
-   A 3072-bit RSA private key (PEM format) is required for signing the enclaves.
+   A 3072-bit RSA private key (PEM format) is required for signing the manifest.
    If you don't have a private key, create it with the following command::
 
       openssl genrsa -3 -out enclave-key.pem 3072
@@ -96,21 +94,21 @@ Prerequisites
    ``host/Linux-SGX/signer/enclave-key.pem``, or specify the key's location through
    the environment variable ``SGX_SIGNER_KEY``.
 
-   After signing the application, users may ship the application and Graphene binaries,
+   After signing the application's manifest, users may ship the application and Graphene binaries,
    along with an SGX-specific manifest (.manifest.sgx extension), the signature (.sig extension),
    and the aesmd init token (.token extension) to execute on another SGX-enabled host.
 
 2. Install the Intel SGX SDK and driver
 
    The Intel SGX Linux SDK is required to compile and run Graphene on SGX. Download
-   and install from the official Intel GitHub repositories:
+   and install it from the official Intel GitHub repositories:
 
    - <https://github.com/01org/linux-sgx>
    - <https://github.com/01org/linux-sgx-driver>
 
 3. Build and install the Graphene SGX driver
    A Graphene-specific Linux driver must also be installed before running Graphene in
-   an SGX environment. Simply run the following command to build the driver::
+   an SGX environment. Simply run the following commands to build the driver::
 
       cd Pal/src/host/Linux-SGX/sgx-driver
       make
@@ -122,16 +120,16 @@ Building Graphene-SGX
 ^^^^^^^^^^^^^^^^^^^^^
 
 To build Graphene with Intel SGX support, in the root directory of Graphene repo, run the following
-commands::
+command::
 
    make SGX=1
 
-To build with debug symbols, run the command::
+To build with debug symbols, instead run the command::
 
    make SGX=1 DEBUG=1
 
-Running ``make SGX=1`` in the test or regression directory will automatically
-generate the enclave signatures (.sig files).
+Running ``make SGX=1`` in the test or regression directory will automatically generate the required
+manifest signatures (.sig files).
 
 Run Built-in Examples in Graphene-SGX
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -160,17 +158,17 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
       ./pal_loader SGX helloworld
 
-2. Build and run a Python helloworld script in Graphene-SGX
+2. Build and run the Python `helloworld.py` script in Graphene-SGX
 
    - go to LibOS/shim/test/apps/python, and build the enclave::
 
       make SGX=1
 
-   - Generate the token::
+   - Generate a launch token from the aesmd service::
 
       make SGX_RUN=1
 
-   - Run python helloworld with Graphene-SGX via::
+   - Run `helloworld.py` script with Graphene-SGX via::
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
@@ -225,11 +223,10 @@ need to disable hyperthreading in your BIOS to mitigate L1 terminal fault.
 How to run an application in Graphene?
 ======================================
 
-Graphene library OS uses PAL (``libpal.so``) as a loader to bootstrap an
-application in the library OS. To start Graphene, PAL (``libpal.so``) will have
-to be run as an executable, with the name of the program, and a |_| "manifest
-file" given from the command line. Graphene provides three options for
-specifying the programs and manifest files:
+Graphene library OS uses the PAL (``libpal.so``) as a loader to bootstrap applications in the
+library OS. To start Graphene, PAL (``libpal.so``) will have to be run as an executable, with the
+name of the program, and a |_| "manifest file" (per-app configuration) given from the command
+line. Graphene provides three options for specifying the programs and manifest files:
 
 - option 1 (automatic manifest)::
 
@@ -245,26 +242,24 @@ specifying the programs and manifest files:
    [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
    (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
 
-Although manifest files are optional for Graphene, running an application
-usually requires some minimal configuration in its manifest file. A |_| sensible
-manifest file will include paths to the library OS and other libraries the application requires;
-environment variables, such as LD_LIBRARY_PATH; and file systems to
-be mounted.
+Running an application requires some minimal configuration in the application's manifest file.  A
+|_| sensible manifest file will include paths to the library OS and other libraries the application
+requires; environment variables, such as LD_LIBRARY_PATH; and file systems to be mounted.
 
-Here is an example of manifest files::
+Here is an example manifest file::
 
     loader.preload = file:LibOS/shim/src/libsysdb.so
-    loader.env.LDL_LIBRAY_PATH = /lib
-    fs.mount.glibc.type = chroot
-    fs.mount.glibc.path = /lib
-    fs.mount.glibc.uri = file:LibOS/build
+    loader.env.LD_LIBRAY_PATH = /lib
+    fs.mount.libc.type = chroot
+    fs.mount.libc.path = /lib
+    fs.mount.libc.uri = file:[relative path to Graphene root]/Runtime
 
 More examples can be found in the test directories (``LibOS/shim/test``). We
-have also tested several commercial applications such as GCC, Bash and Apache,
-and the manifest files that bootstrap them in Graphene are provided in the
-individual directories.
+have also tested several applications. such as GCC, Bash, and Apache.
+The manifest files for these applications are provided in the
+individual directories under `LibOS/shim/test/apps`.
 
-For more information and details of the manifest syntax, see the `Graphene
+For the full documentation of the Graphene manifest syntax, see the `Graphene
 documentation <https://graphene.rtfd.io/>`_.
 
 Contact
