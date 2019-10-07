@@ -24,8 +24,8 @@ int main(int argc, char** argv) {
 
     printf("filepath = %s (len = %lu)\n", filepath, strlen(filepath));
 
-    /* creating file within Graphene (requires sgx.allow_file_creation=1) */
-    int fd = openat(AT_FDCWD,"tmp/filecreatedbygraphene",O_WRONLY|O_CREAT|O_TRUNC,0666);
+    /* creating file within Graphene (requires sgx.allow_file_creation = 1) */
+    int fd = openat(AT_FDCWD, "tmp/filecreatedbygraphene", O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0) {
         perror("failed to create file from within Graphene");
         return 1;
