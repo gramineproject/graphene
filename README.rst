@@ -17,19 +17,17 @@ What is Graphene?
 =================
 
 Graphene is a lightweight guest OS, designed to run a single application with minimal host
-requirements.
-Graphene can run applications
-in an isolated environment with benefits comparable to running a complete OS in a virtual machine---including guest
-customization, platform independence, and migration.
+requirements.  Graphene can run applications in an isolated environment with benefits comparable to
+running a complete OS in a virtual machine---including guest customization, platform independence,
+and migration.
 
 Graphene supports native, unmodified Linux applications on
 any platform. Currently, Graphene runs on
 Linux, FreeBSD and Intel SGX enclaves on Linux platforms.
 
-With Intel SGX support, Graphene Library OS can secure a |_| critical
-application in a |_| hardware-encrypted memory region. Graphene can
-protect applications from a |_| malicious system stack with minimal porting
-effort.
+With Intel SGX support, Graphene can secure a |_| critical application in a |_| hardware-encrypted
+memory region. Graphene can protect applications from a |_| malicious system stack with minimal
+porting effort.
 
 Our `EuroSys 2014 <http://www.cs.unc.edu/~porter/pubs/tsai14graphene.pdf>` and `ATC 2017 <http://www.cs.unc.edu/~porter/pubs/graphene-sgx.pdf>` papers
 describe the motivation, design choices, and measured performance of Graphene.
@@ -40,18 +38,15 @@ How to build Graphene?
 
 Graphene consists of three parts:
 
-- An Instrumented GNU C Library
+- An instrumented GNU C Library
 - The Library OS itself (a shared library named ``libsysdb.so``, called the "shim" in our source code)
-- The Platform Adaption Layer, or PAL, (a shared library named ``libpal.so``)
+- The Platform Adaptation Layer, or PAL, (a shared library named ``libpal.so``)
 
-Graphene Library OS currently only works on the x86_64 architecture.
-
-Graphene Library OS is currently tested on Ubuntu 16.04
-(both server and desktop version), along with Linux kernel versions 3.5/3.14/4.4.
-We recommend building and installing Graphene on the same host platform.
-Other distributions of 64-bit Linux potentially work, but the result is not
-guaranteed. If you find problems with Graphene on other Linux distributions, please
-contact us with a detailed bug report.
+Graphene currently only works on the x86_64 architecture.  Graphene is currently tested on Ubuntu
+16.04 (both server and desktop version), along with Linux kernel versions 3.x/4.x.  We recommend
+building and installing Graphene on the same host platform.  Other distributions of 64-bit Linux
+potentially work, but the result is not guaranteed. If you find problems with Graphene on other
+Linux distributions, please contact us with a detailed bug report.
 
 Run the following command on Ubuntu to install dependencies for Graphene::
 
@@ -82,7 +77,7 @@ To build with ``-Werror``, run ``make WERROR=1``.
 Building with kernel-level sandboxing (optional)
 ------------------------------------------------
 
-This feature is marked as EXPERIMENTAL and no longer exists in the mainstream code.
+This feature is marked as EXPERIMENTAL and no longer exists on the master branch.
 
 Building with Intel SGX Support
 -------------------------------
@@ -108,33 +103,32 @@ Prerequisites
 2. Install the Intel SGX SDK and driver
 
    The Intel SGX Linux SDK is required to compile and run Graphene on SGX. Download
-   and install from the official Intel github repositories:
+   and install from the official Intel GitHub repositories:
 
    - <https://github.com/01org/linux-sgx>
    - <https://github.com/01org/linux-sgx-driver>
 
 3. Build and install the Graphene SGX driver
-   A Graphene-specific Linux driver must also be installed before running Graphene Library OS in
-   enclaves. Simply run the following command to build the driver::
+   A Graphene-specific Linux driver must also be installed before running Graphene in
+   an SGX environment. Simply run the following command to build the driver::
 
       cd Pal/src/host/Linux-SGX/sgx-driver
       make
-      (The console will be prompted to ask for the path of Intel SGX driver code)
+      # The console will be prompted to ask for the path of Intel SGX driver code
       sudo ./load.sh
+      sudo sysctl vm.mmap_min = 0
 
 Building Graphene-SGX
 ^^^^^^^^^^^^^^^^^^^^^
 
-To build Graphene Library OS with Intel SGX support, in the root directory of
-Graphene repo, run following commands::
+To build Graphene with Intel SGX support, in the root directory of Graphene repo, run the following
+commands::
 
    make SGX=1
-   make SGX_RUN=1
 
 To build with debug symbols, run the command::
 
    make SGX=1 DEBUG=1
-   make SGX_RUN=1 DEBUG=1
 
 Running ``make SGX=1`` in the test or regression directory will automatically
 generate the enclave signatures (.sig files).
@@ -146,7 +140,7 @@ There are a few built-in examples under ``LibOS/shim/test/``. The "native"
 folder includes a |_| rich set of C |_| programs and "apps" folder includes
 a |_| few tested applications, such as GCC, Python, and Apache.
 
-1. Build and run a |_| Hello World program with Graphene on SGX
+1. Build and run a |_| "hello world" program with Graphene-SGX
 
    - go to LibOS/shim/test/native, build the enclaves via the command::
 
@@ -166,7 +160,7 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
       ./pal_loader SGX helloworld
 
-2. Build and run a python helloworld script in Graphene on SGX
+2. Build and run a Python helloworld script in Graphene-SGX
 
    - go to LibOS/shim/test/apps/python, and build the enclave::
 
@@ -270,7 +264,7 @@ have also tested several commercial applications such as GCC, Bash and Apache,
 and the manifest files that bootstrap them in Graphene are provided in the
 individual directories.
 
-For more information and the detail of the manifest syntax, see the `Graphene
+For more information and details of the manifest syntax, see the `Graphene
 documentation <https://graphene.rtfd.io/>`_.
 
 Contact
