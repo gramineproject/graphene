@@ -1,7 +1,11 @@
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define FILENAME_MAX_LENGTH 255
 #define PATH                "tmp/"
@@ -19,6 +23,18 @@ int main(int argc, char** argv) {
     strcat(filepath, filename);
 
     printf("filepath = %s (len = %lu)\n", filepath, strlen(filepath));
+
+    /* creating file within Graphene (requires sgx.allow_file_creation=1) */
+    int fd = openat(AT_FDCWD,"tmp/filecreatedbygraphene",O_WRONLY|O_CREAT|O_TRUNC,0666);
+    if (fd < 0) {
+        perror("failed to create file from within Graphene");
+        return 1;
+    }
+    reti = close(fd);
+    if (reti < 0) {
+        perror("fclose failed");
+        return 1;
+    }
 
     /* sanity check: try fopening dir in write mode (must fail) */
     errno    = 0;
