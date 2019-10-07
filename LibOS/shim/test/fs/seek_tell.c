@@ -55,10 +55,10 @@ void seek_output_fd(const char* path) {
     for (size_t i=0; i<EXTEND_SIZE + 1; i++) {
         if (i == EXTEND_SIZE) {
             if (buf[i] != 1)
-                error("invalid last byte\n");
+                fatal_error("invalid last byte\n");
         } else {
             if (buf[i] != 0)
-                error("extended buffer not zeroed\n");
+                fatal_error("extended buffer not zeroed\n");
         }
     }
     pos = tell_fd(path, f);
@@ -86,10 +86,10 @@ void seek_output_stdio(const char* path) {
     for (size_t i=0; i<EXTEND_SIZE + 1; i++) {
         if (i == EXTEND_SIZE) {
             if (buf[i] != 1)
-                error("invalid last byte\n");
+                fatal_error("invalid last byte\n");
         } else {
             if (buf[i] != 0)
-                error("extended buffer not zeroed\n");
+                fatal_error("extended buffer not zeroed\n");
         }
     }
     pos = tell_stdio(path, f);
@@ -100,7 +100,7 @@ void seek_output_stdio(const char* path) {
 
 int main(int argc, char* argv[]) {
     if (argc < 4)
-        error("Usage: %s <input_path> <output_path_1> <output_path_2>\n", argv[0]);
+        fatal_error("Usage: %s <input_path> <output_path_1> <output_path_2>\n", argv[0]);
 
     setup();
     seek_input_fd(argv[1]);

@@ -22,7 +22,7 @@ void copy_data(int fi, int fo, const char* input_path, const char* output_path, 
                 step = size - offset;
 
             if (ftruncate(fo, offset + step) != 0)
-                error("ftruncate(%s, %zu) failed: %s\n", output_path, offset + step, strerror(errno));
+                fatal_error("ftruncate(%s, %zu) failed: %s\n", output_path, offset + step, strerror(errno));
 
             memcpy(out + offset, in + offset, step);
             offset += step;

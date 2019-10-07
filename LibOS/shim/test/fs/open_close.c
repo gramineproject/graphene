@@ -66,7 +66,7 @@ void open_close_output_stdio(const char* output_path) {
 
 int main(int argc, char* argv[]) {
     if (argc < 3)
-        error("Usage: %s <input_path> <output_path>\n", argv[0]);
+        fatal_error("Usage: %s <input_path> <output_path>\n", argv[0]);
 
     setup();
     open_close_input_fd(argv[1]);

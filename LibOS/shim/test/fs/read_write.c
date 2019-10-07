@@ -15,7 +15,7 @@ void read_write(const char* file_path) {
     read_fd(file_path, fd, buf2, size);
     printf("read(%s) RW OK\n", file_path);
     if (memcmp(buf1, buf2, size) != 0)
-        error("Read data is different from what was written\n");
+        fatal_error("Read data is different from what was written\n");
     printf("compare(%s) RW OK\n", file_path);
 
     for (size_t i = 0; i < 1024; i++) {
@@ -27,7 +27,7 @@ void read_write(const char* file_path) {
         seek_fd(file_path, fd, offset, SEEK_SET);
         read_fd(file_path, fd, buf2, chunk_size);
         if (memcmp(buf1, buf2, chunk_size) != 0)
-            error("Chunk data is different from what was written (offset %zu, size %zu)\n", offset, chunk_size);
+            fatal_error("Chunk data is different from what was written (offset %zu, size %zu)\n", offset, chunk_size);
     }
 
     close_fd(file_path, fd);
@@ -38,7 +38,7 @@ void read_write(const char* file_path) {
 
 int main(int argc, char* argv[]) {
     if (argc < 2)
-        error("Usage: %s <file_path>\n", argv[0]);
+        fatal_error("Usage: %s <file_path>\n", argv[0]);
 
     setup();
     read_write(argv[1]);

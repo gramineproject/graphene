@@ -6,26 +6,26 @@ void copy_file(const char* input_path, const char* output_path, size_t size) {
 
     struct stat st;
     if (fstat(fi, &st) < 0)
-        error("Failed to stat file %s: %s\n", input_path, strerror(errno));
+        fatal_error("Failed to stat file %s: %s\n", input_path, strerror(errno));
     if (st.st_size != size)
-        error("Size mismatch: expected %zu, got %zu\n", size, st.st_size);
+        fatal_error("Size mismatch: expected %zu, got %zu\n", size, st.st_size);
     printf("fstat(%zu) input OK\n", size);
 
     int fo = open_output_fd(output_path, /*rdwr=*/false);
     printf("open(%zu) output OK\n", size);
 
     if (fstat(fo, &st) < 0)
-        error("Failed to stat file %s: %s\n", output_path, strerror(errno));
+        fatal_error("Failed to stat file %s: %s\n", output_path, strerror(errno));
     if (st.st_size != 0)
-        error("Size mismatch: expected 0, got %zu\n", st.st_size);
+        fatal_error("Size mismatch: expected 0, got %zu\n", st.st_size);
     printf("fstat(%zu) output 1 OK\n", size);
 
     copy_data(fi, fo, input_path, output_path, size);
 
     if (fstat(fo, &st) < 0)
-        error("Failed to stat file %s: %s\n", output_path, strerror(errno));
+        fatal_error("Failed to stat file %s: %s\n", output_path, strerror(errno));
     if (st.st_size != size)
-        error("Size mismatch: expected %zu, got %zu\n", size, st.st_size);
+        fatal_error("Size mismatch: expected %zu, got %zu\n", size, st.st_size);
     printf("fstat(%zu) output 2 OK\n", size);
 
     close_fd(input_path, fi);
@@ -36,7 +36,7 @@ void copy_file(const char* input_path, const char* output_path, size_t size) {
 
 int main(int argc, char* argv[]) {
     if (argc < 3)
-        error("Usage: %s <input_dir> <output_dir>\n", argv[0]);
+        fatal_error("Usage: %s <input_dir> <output_dir>\n", argv[0]);
 
     setup();
 
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     // Process input directory
     DIR* dfd = opendir(input_dir);
     if (!dfd)
-        error("Failed to open input directory %s: %s\n", input_dir, strerror(errno));
+        fatal_error("Failed to open input directory %s: %s\n", input_dir, strerror(errno));
     printf("opendir(%s) OK\n", input_dir);
 
     struct dirent* de = NULL;
