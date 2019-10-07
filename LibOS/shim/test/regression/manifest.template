@@ -35,4 +35,6 @@ sgx.trusted_files.libstdcxx = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
 sgx.trusted_files.victim = file:exec_victim
 sgx.trusted_children.victim = file:exec_victim.sig
 
+sgx.allow_file_creation = 1
+
 sgx.allowed_files.tmp_dir = file:tmp/
