@@ -60,6 +60,15 @@ This syntax specifies the files that are allowed to be loaded into the enclave u
 These files are not cryptographically hashed and are thus not protected. It is insecure to allow
 files containing code or critical information; developers must not allow files blindly!
 
+### Allowing File Creation
+
+    sgx.allow_file_creation=[1|0]
+    (Default: 0)
+
+This syntax specifies whether file creation is allowed from within the enclave. Set it to 1 to
+allow enclaves to create files and to 0 otherwise. Files created during enclave execution do not
+need to be marked as `allowed_files` or `trusted_files`.
+
 ### Trusted Child Processes
 
     sgx.trusted_children.[identifier]=[URI of signature (.sig)]
