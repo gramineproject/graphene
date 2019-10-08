@@ -240,6 +240,10 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf,
         /* tf->uri is a subpath of `path` */
         return true;
     }
+    if (tf->uri_len == 5 && !memcmp(tf->uri, "file:", 5)) {
+        /* Empty path is a prefix of everything */
+        return true;
+    }
     return false;
 }
 
@@ -280,7 +284,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     /* Normalize the uri */
     if (!strstartswith_static(uri, "file:")) {
-        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
+        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
     normpath [0] = 'f';
@@ -710,6 +714,7 @@ static int init_trusted_file (const char * key, const char * uri)
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
+    assert(sizeof(normpath) > 5);
     normpath [0] = 'f';
     normpath [1] = 'i';
     normpath [2] = 'l';
@@ -828,8 +833,30 @@ no_trusted:
             memcpy(tmp, k, len + 1);
             k += len + 1;
             len = get_config(store, key, uri, CONFIG_MAX);
-            if (len > 0)
-                register_trusted_file(uri, NULL);
+            if (len <= 0) {
+                continue;
+            }
+
+            /* Normalize the uri */
+            char norm_path[URI_MAX];
+
+            if (!strstartswith_static(uri, "file:")) {
+                SGX_DBG(DBG_E, "Invalid URI [%s]: Allowed files must start with 'file:'\n", uri);
+                ret = -PAL_ERROR_INVAL;
+                goto out;
+            }
+            assert(sizeof(norm_path) > 5);
+            memcpy(norm_path, "file:", 5);
+
+            size_t norm_path_len = sizeof(norm_path) - 5;
+
+            ret = get_norm_path(uri + 5, norm_path + 5, &norm_path_len);
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + 5, pal_strerror(ret));
+                goto out;
+            }
+
+            register_trusted_file(norm_path, NULL);
         }
     }
 
