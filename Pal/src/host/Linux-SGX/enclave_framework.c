@@ -11,6 +11,8 @@
 
 #include "enclave_pages.h"
 
+static const size_t URI_FILE_PREFIX_LEN = static_strlen("file:");
+
 __sgx_mem_aligned struct pal_enclave_state pal_enclave_state;
 
 void * enclave_base, * enclave_top;
@@ -241,6 +243,10 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf,
         /* tf->uri is a subpath of `path` */
         return true;
     }
+    if (tf->uri_len == URI_FILE_PREFIX_LEN && !memcmp(tf->uri, "file:", URI_FILE_PREFIX_LEN)) {
+        /* Empty path is a prefix of everything */
+        return true;
+    }
     return false;
 }
 
@@ -282,21 +288,25 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     /* Normalize the uri */
     if (!strstartswith_static(uri, "file:")) {
-        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
+        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
+    assert(sizeof(normpath) > URI_FILE_PREFIX_LEN);
     normpath [0] = 'f';
     normpath [1] = 'i';
     normpath [2] = 'l';
     normpath [3] = 'e';
     normpath [4] = ':';
-    size_t len = sizeof(normpath) - 5;
-    ret = get_norm_path(uri + 5, normpath + 5, &len);
+    size_t len = sizeof(normpath) - URI_FILE_PREFIX_LEN;
+    ret = get_norm_path(uri + URI_FILE_PREFIX_LEN, normpath + URI_FILE_PREFIX_LEN, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + 5, pal_strerror(ret));
+        SGX_DBG(DBG_E,
+                "Path (%s) normalization failed: %s\n",
+                uri + URI_FILE_PREFIX_LEN,
+                pal_strerror(ret));
         return ret;
     }
-    len += 5;
+    len += URI_FILE_PREFIX_LEN;
 
     _DkSpinLock(&trusted_file_lock);
 
@@ -728,27 +738,34 @@ static int init_trusted_file (const char * key, const char * uri)
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
+    assert(sizeof(normpath) > URI_FILE_PREFIX_LEN);
     normpath [0] = 'f';
     normpath [1] = 'i';
     normpath [2] = 'l';
     normpath [3] = 'e';
     normpath [4] = ':';
-    size_t len = sizeof(normpath) - 5;
-    ret = get_norm_path(uri + 5, normpath + 5, &len);
+    size_t len = sizeof(normpath) - URI_FILE_PREFIX_LEN;
+    ret = get_norm_path(uri + URI_FILE_PREFIX_LEN, normpath + URI_FILE_PREFIX_LEN, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + 5, pal_strerror(ret));
+        SGX_DBG(DBG_E,
+                "Path (%s) normalization failed: %s\n",
+                uri + URI_FILE_PREFIX_LEN,
+                pal_strerror(ret));
         return ret;
     }
 
     return register_trusted_file(normpath, checksum);
 }
 
-int init_trusted_files (void)
-{
-    struct config_store * store = pal_state.root_config;
-    char * cfgbuf = NULL;
+int init_trusted_files (void) {
+    struct config_store* store = pal_state.root_config;
+    char* cfgbuf = NULL;
     ssize_t cfgsize;
     int nuris, ret;
+    char key[CONFIG_MAX];
+    char uri[CONFIG_MAX];
+    char* k;
+    char* tmp;
 
     if (pal_sec.exec_name[0] != '\0') {
         ret = init_trusted_file("exec", pal_sec.exec_name);
@@ -799,22 +816,19 @@ int init_trusted_files (void)
     if (nuris <= 0)
         goto no_trusted;
 
-    {
-        char key[CONFIG_MAX], uri[CONFIG_MAX];
-        char * k = cfgbuf, * tmp;
+    tmp = strcpy_static(key, "sgx.trusted_files.", CONFIG_MAX);
 
-        tmp = strcpy_static(key, "sgx.trusted_files.", CONFIG_MAX);
+    k = cfgbuf;
 
-        for (int i = 0 ; i < nuris ; i++) {
-            len = strlen(k);
-            memcpy(tmp, k, len + 1);
-            k += len + 1;
-            len = get_config(store, key, uri, CONFIG_MAX);
-            if (len > 0) {
-                ret = init_trusted_file(key + 18, uri);
-                if (ret < 0)
-                    goto out;
-            }
+    for (int i = 0 ; i < nuris ; i++) {
+        len = strlen(k);
+        memcpy(tmp, k, len + 1);
+        k += len + 1;
+        len = get_config(store, key, uri, CONFIG_MAX);
+        if (len > 0) {
+            ret = init_trusted_file(key + static_strlen("sgx.trusted_files."), uri);
+            if (ret < 0)
+                goto out;
         }
     }
 
@@ -835,20 +849,45 @@ no_trusted:
     if (nuris <= 0)
         goto no_allowed;
 
-    {
-        char key[CONFIG_MAX], uri[CONFIG_MAX];
-        char * k = cfgbuf, * tmp;
 
-        tmp = strcpy_static(key, "sgx.allowed_files.", CONFIG_MAX);
+    tmp = strcpy_static(key, "sgx.allowed_files.", CONFIG_MAX);
 
-        for (int i = 0 ; i < nuris ; i++) {
-            len = strlen(k);
-            memcpy(tmp, k, len + 1);
-            k += len + 1;
-            len = get_config(store, key, uri, CONFIG_MAX);
-            if (len > 0)
-                register_trusted_file(uri, NULL);
+    k = cfgbuf;
+
+    for (int i = 0 ; i < nuris ; i++) {
+        len = strlen(k);
+        memcpy(tmp, k, len + 1);
+        k += len + 1;
+        len = get_config(store, key, uri, CONFIG_MAX);
+        if (len <= 0) {
+            continue;
         }
+
+        /* Normalize the uri */
+        char norm_path[URI_MAX];
+
+        if (!strstartswith_static(uri, "file:")) {
+            SGX_DBG(DBG_E, "Invalid URI [%s]: Allowed files must start with 'file:'\n", uri);
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+        assert(sizeof(norm_path) > URI_FILE_PREFIX_LEN);
+        memcpy(norm_path, "file:", URI_FILE_PREFIX_LEN);
+
+        size_t norm_path_len = sizeof(norm_path) - URI_FILE_PREFIX_LEN;
+
+        ret = get_norm_path(uri + URI_FILE_PREFIX_LEN,
+                            norm_path + URI_FILE_PREFIX_LEN,
+                            &norm_path_len);
+        if (ret < 0) {
+            SGX_DBG(DBG_E,
+                    "Path (%s) normalization failed: %s\n",
+                    uri + URI_FILE_PREFIX_LEN,
+                    pal_strerror(ret));
+            goto out;
+        }
+
+        register_trusted_file(norm_path, NULL);
     }
 
 no_allowed:
