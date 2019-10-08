@@ -27,7 +27,6 @@ $(execs)
 endif
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
-export PAL_TOOLS  = ../../../../Pal/src/host/$(PAL_HOST)/tools
 export PYTHONPATH = ../../../../Scripts
 
 .PHONY: regression
