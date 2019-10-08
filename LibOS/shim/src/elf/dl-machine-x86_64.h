@@ -95,8 +95,7 @@ static bool elf_machine_rela(struct link_map* l, ElfW(Rela) * reloc, Elf64_Sym* 
     refsym->st_info = sym->st_info;
     refsym->st_size = sym->st_size;
 
-    if (__builtin_expect(ELFW(ST_TYPE)(sym->st_info) == STT_GNU_IFUNC, 0) &&
-        __builtin_expect(sym->st_shndx != SHN_UNDEF, 1)) {
+    if (ELFW(ST_TYPE)(sym->st_info) == STT_GNU_IFUNC && sym->st_shndx != SHN_UNDEF) {
         value = ((Elf64_Addr(*)(void))value)();
 
         refsym->st_info ^= ELFW(ST_TYPE)(sym->st_info);
