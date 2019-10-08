@@ -63,7 +63,7 @@ static void elf_machine_rela(struct link_map* l, Elf64_Rela* reloc, Elf64_Sym* s
     } while (0)
 #endif
 
-    if (__builtin_expect(r_type == R_X86_64_RELATIVE, 0)) {
+    if (r_type == R_X86_64_RELATIVE) {
         /* This is defined in rtld.c, but nowhere in the static libc.a;
            make the reference weak so static programs can still link.
            This declaration cannot be done when compiling rtld.c
@@ -75,7 +75,7 @@ static void elf_machine_rela(struct link_map* l, Elf64_Rela* reloc, Elf64_Sym* s
         return;
     }
 
-    if (__builtin_expect(r_type == R_X86_64_NONE, 0))
+    if (r_type == R_X86_64_NONE)
         return;
 
     Elf64_Addr value = l->l_addr + sym->st_value;
@@ -103,8 +103,7 @@ static void elf_machine_rela(struct link_map* l, Elf64_Rela* reloc, Elf64_Sym* s
     }
 #endif
 
-    if (__builtin_expect(ELFW(ST_TYPE)(sym->st_info) == STT_GNU_IFUNC, 0) &&
-        __builtin_expect(sym->st_shndx != SHN_UNDEF, 1))
+    if (ELFW(ST_TYPE)(sym->st_info) == STT_GNU_IFUNC && sym->st_shndx != SHN_UNDEF)
         value = ((Elf64_Addr(*)(void))value)();
 
     /* In the libc loader, they guaranteed that only R_ARCH_RELATIVE,

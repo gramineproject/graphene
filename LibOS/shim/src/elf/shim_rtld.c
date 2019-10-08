@@ -288,9 +288,9 @@ struct link_map* new_elf_object(const char* realname, int type) {
 void setup_elf_hash(struct link_map* map) {
     Elf_Symndx* hash;
 
-    if (__builtin_expect(map->l_info[DT_ADDRTAGIDX(DT_GNU_HASH) + DT_NUM + DT_THISPROCNUM +
-                                     DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM] != NULL,
-                         1)) {
+    if (map->l_info[DT_ADDRTAGIDX(DT_GNU_HASH) + DT_NUM + DT_THISPROCNUM +
+                                  DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM
+                   ] != NULL) {
         Elf32_Word* hash32 =
             (void*)D_PTR(map->l_info[DT_ADDRTAGIDX(DT_GNU_HASH) + DT_NUM + DT_THISPROCNUM +
                                      DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM]);
@@ -430,13 +430,12 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
             case PT_LOAD:
                 /* A load command tells us to map in part of the file.
                    We record the load commands and process them all later.  */
-                if (__builtin_expect(!IS_PAGE_ALIGNED(ph->p_align), 0)) {
+                if (!IS_PAGE_ALIGNED(ph->p_align)) {
                     errstring = "ELF load command alignment not page-aligned";
                     goto call_lose;
                 }
 
-                if (__builtin_expect(!IS_ALIGNED_POW2(ph->p_vaddr - ph->p_offset, ph->p_align),
-                                     0)) {
+                if (!IS_ALIGNED_POW2(ph->p_vaddr - ph->p_offset, ph->p_align)) {
                     errstring = "ELF load command address/offset not properly aligned";
                     goto call_lose;
                 }
@@ -480,7 +479,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
         }
     }
 
-    if (__builtin_expect(l->nloadcmds == 0, 0)) {
+    if (l->nloadcmds == 0) {
         /* This only happens for a bogus object that will be caught with
            another error below.  But we don't want to go through the
            calculations below using NLOADCMDS - 1.  */
@@ -492,7 +491,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
     /* Length of the sections to be loaded.  */
     maplength = l->loadcmds[l->nloadcmds - 1].allocend - c->mapstart;
 
-    if (__builtin_expect(e_type, ET_DYN) == ET_DYN) {
+    if (e_type == ET_DYN) {
         /* This is a position-independent shared object.  We can let the
            kernel map it anywhere it likes, but we must have space for all
            the segments in their specified positions relative to the first.
@@ -519,7 +518,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
             ret = (*mmap)(file, (void**)&mappref, PAGE_ALIGN_UP(maplength), c->prot,
                           c->flags | MAP_PRIVATE, c->mapoff);
 
-            if (__builtin_expect(ret < 0, 0)) {
+            if (ret < 0) {
             map_error:
                 errstring = "failed to map segment from shared object";
                 goto call_lose;
@@ -612,7 +611,7 @@ do_remap:
             if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL && type != OBJECT_USER &&
                 type != OBJECT_VDSO && zeropage > zero) {
                 /* Zero the final part of the last page of the segment.  */
-                if (__builtin_expect((c->prot & PROT_WRITE) == 0, 0)) {
+                if ((c->prot & PROT_WRITE) == 0) {
                     /* Dag nab it.  */
                     if (!DkVirtualMemoryProtect((caddr_t)PAGE_ALIGN_DOWN(zero), g_pal_alloc_align,
                                                 c->prot | PAL_PROT_WRITE)) {
@@ -635,7 +634,7 @@ do_remap:
                     type != OBJECT_VDSO) {
                     PAL_PTR mapat =
                         DkVirtualMemoryAlloc((void*)zeropage, zeroend - zeropage, 0, c->prot);
-                    if (__builtin_expect(!mapat, 0)) {
+                    if (!mapat) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
                     }
@@ -660,7 +659,7 @@ do_remap:
         goto success;
 
     if (l->l_ld == 0) {
-        if (__builtin_expect(e_type == ET_DYN, 0)) {
+        if (e_type == ET_DYN) {
             errstring = "object file has no dynamic section";
             goto call_lose;
         }
@@ -823,7 +822,7 @@ static int __check_elf_header(void* fbp, size_t len) {
        is borrow from open_verify() */
     ElfW(Ehdr)* ehdr = (ElfW(Ehdr)*)fbp;
 
-    if (__builtin_expect(len < sizeof(ElfW(Ehdr)), 0)) {
+    if (len < sizeof(ElfW(Ehdr))) {
         errstring = "ELF file with a strange size";
         goto verify_failed;
     }
@@ -838,10 +837,9 @@ static int __check_elf_header(void* fbp, size_t len) {
     };
 
     /* See whether the ELF header is what we expect.  */
-    if (__builtin_expect(memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 ||
-                             (ehdr->e_ident[EI_OSABI] != ELFOSABI_SYSV &&
-                              ehdr->e_ident[EI_OSABI] != ELFOSABI_LINUX),
-                         0)) {
+    if (memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 ||
+            (ehdr->e_ident[EI_OSABI] != ELFOSABI_SYSV &&
+             ehdr->e_ident[EI_OSABI] != ELFOSABI_LINUX)) {
         errstring = "ELF file with invalid header";
         goto verify_failed;
     }
@@ -852,20 +850,19 @@ static int __check_elf_header(void* fbp, size_t len) {
     }
 
     /* Now we check if the host match the elf machine profile */
-    if (!__builtin_expect(elf_machine_matches_host(ehdr), 1)) {
+    if (!elf_machine_matches_host(ehdr)) {
         errstring = "ELF file does not match with the host";
         goto verify_failed;
     }
 
     /* check if the type of ELF header is either DYN or EXEC */
-    if (__builtin_expect(ehdr->e_type, ET_DYN) != ET_DYN &&
-        __builtin_expect(ehdr->e_type, ET_EXEC) != ET_EXEC) {
+    if (ehdr->e_type != ET_DYN && ehdr->e_type != ET_EXEC) {
         errstring = "only ET_DYN and ET_EXEC can be loaded\n";
         goto verify_failed;
     }
 
     /* check if phentsize match the size of ElfW(Phdr) */
-    if (__builtin_expect(ehdr->e_phentsize, sizeof(ElfW(Phdr))) != sizeof(ElfW(Phdr))) {
+    if (ehdr->e_phentsize != sizeof(ElfW(Phdr))) {
         errstring = "ELF file's phentsize not the expected size";
         goto verify_failed;
     }
@@ -1113,10 +1110,7 @@ static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const ui
     ElfW(Sym)* check_match(ElfW(Sym)* sym) {
         unsigned int stt = ELFW(ST_TYPE)(sym->st_info);
 
-        if (__builtin_expect((sym->st_value == 0 /* No value.  */
-                              && stt != STT_TLS) ||
-                                 sym->st_shndx == SHN_UNDEF,
-                             0))
+        if ((sym->st_value == 0 /* No value */ && stt != STT_TLS) || sym->st_shndx == SHN_UNDEF)
             return NULL;
 
 /* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
@@ -1126,7 +1120,7 @@ static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const ui
     ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
      (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
 
-        if (__builtin_expect(((1 << stt) & ALLOWED_STT) == 0, 0))
+        if (((1 << stt) & ALLOWED_STT) == 0)
             return NULL;
 
         if (sym != ref && memcmp(strtab + sym->st_name, undef_name, len + 1))
@@ -1139,13 +1133,13 @@ static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const ui
 
     const ElfW(Addr)* bitmask = map->l_gnu_bitmask;
 
-    if (__builtin_expect(bitmask != NULL, 1)) {
+    if (bitmask != NULL) {
         ElfW(Addr) bitmask_word = bitmask[(hash / __ELF_NATIVE_CLASS) & map->l_gnu_bitmask_idxbits];
 
         unsigned int hashbit1 = hash & (__ELF_NATIVE_CLASS - 1);
         unsigned int hashbit2 = (hash >> map->l_gnu_shift) & (__ELF_NATIVE_CLASS - 1);
 
-        if (__builtin_expect((bitmask_word >> hashbit1) & (bitmask_word >> hashbit2) & 1, 0)) {
+        if ((bitmask_word >> hashbit1) & (bitmask_word >> hashbit2) & 1) {
             Elf32_Word bucket = map->l_gnu_buckets[hash % map->l_nbuckets];
 
             if (bucket != 0) {
@@ -1196,7 +1190,7 @@ static int do_lookup(const char* undef_name, ElfW(Sym)* ref, struct sym_val* res
     if (!sym)
         return 0;
 
-    switch (__builtin_expect(ELFW(ST_BIND)(sym->st_info), STB_GLOBAL)) {
+    switch (ELFW(ST_BIND)(sym->st_info)) {
         case STB_WEAK:
             /* Weak definition.  Use this value if we don't find another. */
             if (!result->s) {
@@ -1234,7 +1228,7 @@ struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym)** ref) {
 
     do_lookup(undef_name, *ref, &current_value);
 
-    if (__builtin_expect(current_value.s == NULL, 0)) {
+    if (current_value.s == NULL) {
         *ref = NULL;
         return NULL;
     }
@@ -1265,7 +1259,7 @@ static bool __need_interp(struct link_map* exec_map) {
     const ElfW(Dyn)* d;
 
     for (d = exec_map->l_ld; d->d_tag != DT_NULL; d++)
-        if (__builtin_expect(d->d_tag, DT_NEEDED) == DT_NEEDED) {
+        if (d->d_tag == DT_NEEDED) {
             const char* name     = strtab + d->d_un.d_val;
             int len              = strlen(name);
             const char* filename = name + len - 1;

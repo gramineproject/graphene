@@ -33,7 +33,7 @@ size_t strnlen(const char* str, size_t maxlen) {
     if (maxlen == 0)
         return 0;
 
-    if (__builtin_expect(end_ptr < str, 0))
+    if (end_ptr < str)
         end_ptr = (const char*)~0UL;
 
     /* Handle the first few characters by reading one character at a time.
