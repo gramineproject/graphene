@@ -254,7 +254,7 @@ extern struct shim_lock thread_list_lock;
  *
  * Searches global threads list for a thread with id equal to \p tid.
  * If no thread was found returns NULL.
- * Increases the referece counter of the returned thread.
+ * Increases refcount of the returned thread.
  */
 struct shim_thread* lookup_thread(IDTYPE tid);
 struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid);

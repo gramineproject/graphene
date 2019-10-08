@@ -125,9 +125,10 @@ int clone_implementation_wrapper(struct clone_args * arg)
     object_wait_with_retry(arg->create_event);
     DkObjectClose(arg->create_event);
 
-    struct shim_thread * my_thread = arg->thread;
+    /* Acquiring ownership of arg->thread pointer that was passed by caller,
+     * hance there is no need to call get_thread. */
+    struct shim_thread* my_thread = arg->thread;
     assert(my_thread);
-    get_thread(my_thread);
 
     if (!my_thread->tcb) {
         stack_allocated = 1;
@@ -389,6 +390,9 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         goto clone_thread_failed;
     }
 
+    /* Increasing refcount due to copy below. Passing ownership of the new copy
+     * of this pointer to the new thread (receiver of new_args). */
+    get_thread(thread);
     new_args.thread    = thread;
     new_args.parent    = self;
     new_args.stack     = user_stack_addr;
@@ -403,6 +407,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
                                           &new_args);
     if (!pal_handle) {
         ret = -PAL_ERRNO;
+        put_thread(new_args.thread);
         goto clone_thread_failed;
     }
 
