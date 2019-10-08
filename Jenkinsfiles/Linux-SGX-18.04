@@ -58,7 +58,7 @@ pipeline {
                             sh '''
                                 cd LibOS/shim/test/fs
                                 make SGX=1 all sgx-tokens
-                                make SGX=1 test
+                                make SGX=1 regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {

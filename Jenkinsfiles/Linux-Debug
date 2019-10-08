@@ -28,7 +28,7 @@ pipeline {
                             '''
                         sh '''
                             cd LibOS/shim/test/fs
-                            make test
+                            make regression
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/ltp
