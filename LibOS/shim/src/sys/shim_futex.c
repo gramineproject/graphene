@@ -62,11 +62,13 @@ static void add_futex_waiter(struct futex_waiter* waiter,
 
 static void del_futex_waiter(struct futex_waiter* waiter, struct shim_futex_handle* futex) {
     LISTP_DEL_INIT(waiter, &futex->waiters, list);
+    assert(waiter->thread);
     put_thread(waiter->thread);
 }
 
 static void del_futex_waiter_wakeup(struct futex_waiter* waiter, struct shim_futex_handle* futex) {
     LISTP_DEL_INIT(waiter, &futex->waiters, list);
+    assert(waiter->thread);
     thread_wakeup(waiter->thread);
     put_thread(waiter->thread);
 }
