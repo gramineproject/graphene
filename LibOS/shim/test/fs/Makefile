@@ -29,8 +29,8 @@ endif
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
 export PYTHONPATH = ../../../../Scripts
 
-.PHONY: regression
-regression: $(target)
+.PHONY: test
+test: $(target)
 	$(RM) fs-test.xml
 	$(MAKE) fs-test.xml
 
