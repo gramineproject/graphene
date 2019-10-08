@@ -200,9 +200,6 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
                 /* DEP 1/28/17: Should return ETIMEDOUT, not EAGAIN, on timeout. */
                 if (ret == -EAGAIN)
                     ret = -ETIMEDOUT;
-                if (ret == -ETIMEDOUT) {
-                    del_futex_waiter(&waiter, futex);
-                }
                 lock(&hdl->lock);
                 /* Chia-Che 10/17/17: FUTEX_WAKE should remove the waiter
                  * from the list; if not, we should remove it now. */
