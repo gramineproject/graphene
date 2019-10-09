@@ -59,7 +59,6 @@ bool unmap_tcs(void) {
     struct thread_map * map = &enclave_thread_map[index];
 
     assert(index < enclave_thread_num);
-    SGX_DBG(DBG_I, "unmap TCS at %p\n", map->tcs);
 
     pthread_mutex_lock(&tcs_lock);
     current_tcs = NULL;
