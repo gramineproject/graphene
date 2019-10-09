@@ -45,8 +45,8 @@
 
 #define TTY_FILE_MODE   0666
 
-#define FILE_BUFMAP_SIZE (PAL_CB(pagesize) * 4)
-#define FILE_BUF_SIZE (PAL_CB(pagesize))
+#define FILE_BUFMAP_SIZE (PAL_CB(alloc_align) * 4)
+#define FILE_BUF_SIZE (PAL_CB(alloc_align))
 
 struct mount_data {
     size_t              data_size;

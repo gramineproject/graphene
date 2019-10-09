@@ -76,35 +76,35 @@ typedef struct mem_mgr {
 #define __MIN_MEM_SIZE()     (sizeof(MEM_MGR_TYPE) + sizeof(MEM_AREA_TYPE))
 #define __MAX_MEM_SIZE(size) (__MIN_MEM_SIZE() + __SUM_OBJ_SIZE(size))
 
-#ifdef PAGE_SIZE
+#ifdef ALLOC_ALIGNMENT
 static inline int size_align_down(int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
-    int p = s - ALIGN_DOWN_POW2(s, PAGE_SIZE);
+    int p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
     int o = __SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int size_align_up(int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
-    int p = ALIGN_UP_POW2(s, PAGE_SIZE) - s;
+    int p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
     int o = __SUM_OBJ_SIZE(1);
     return size + p / o;
 }
 
 static inline int init_align_down(int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __MAX_MEM_SIZE(size);
-    int p = s - ALIGN_DOWN_POW2(s, PAGE_SIZE);
+    int p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
     int o = __SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int init_align_up(int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __MAX_MEM_SIZE(size);
-    int p = ALIGN_UP_POW2(s, PAGE_SIZE) - s;
+    int p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
     int o = __SUM_OBJ_SIZE(1);
     return size + p / o;
 }

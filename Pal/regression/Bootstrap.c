@@ -40,8 +40,6 @@ int main(int argc, char** argv, char** envp) {
     char* msg = "Written to Debug Stream\n";
     DkStreamWrite(pal_control.debug_stream, 0, strlen(msg), msg, NULL);
 
-    /* page size */
-    pal_printf("Page Size: %ld\n", pal_control.pagesize);
     /* Allocation Alignment */
     pal_printf("Allocation Alignment: %ld\n", pal_control.alloc_align);
 

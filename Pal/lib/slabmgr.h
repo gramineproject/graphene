@@ -169,39 +169,39 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #define __INIT_MIN_MEM_SIZE()     (sizeof(SLAB_MGR_TYPE) + sizeof(SLAB_AREA_TYPE) * SLAB_LEVEL)
 #define __INIT_MAX_MEM_SIZE(size) (__INIT_MIN_MEM_SIZE() + __INIT_SUM_OBJ_SIZE(size))
 
-#ifdef PAGE_SIZE
+#ifdef ALLOC_ALIGNMENT
 static inline int size_align_down(int slab_size, int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __MAX_MEM_SIZE(slab_size, size);
-    int p = s - ALIGN_DOWN_POW2(s, PAGE_SIZE);
+    int p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
     int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int size_align_up(int slab_size, int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __MAX_MEM_SIZE(slab_size, size);
-    int p = ALIGN_UP_POW2(s, PAGE_SIZE) - s;
+    int p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
     int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size + p / o;
 }
 
 static inline int init_align_down(int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __INIT_MAX_MEM_SIZE(size);
-    int p = s - ALIGN_DOWN_POW2(s, PAGE_SIZE);
+    int p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
     int o = __INIT_SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int init_size_align_up(int size) {
-    assert(IS_POWER_OF_2(PAGE_SIZE));
+    assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
     int s = __INIT_MAX_MEM_SIZE(size);
-    int p = ALIGN_UP_POW2(s, PAGE_SIZE) - s;
+    int p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
     int o = __INIT_SUM_OBJ_SIZE(1);
     return size + p / o;
 }
-#endif /* PAGE_SIZE */
+#endif /* ALLOC_ALIGNMENT */
 
 #ifndef STARTUP_SIZE
 #define STARTUP_SIZE 16
@@ -216,7 +216,7 @@ static inline void __set_free_slab_area(SLAB_AREA area, SLAB_MGR mgr, int level)
 }
 
 static inline SLAB_MGR create_slab_mgr(void) {
-#ifdef PAGE_SIZE
+#ifdef ALLOC_ALIGNMENT
     size_t size = init_size_align_up(STARTUP_SIZE);
 #else
     size_t size = STARTUP_SIZE;

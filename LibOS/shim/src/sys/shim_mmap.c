@@ -42,17 +42,17 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
      * According to the manpage, both addr and offset have to be page-aligned,
      * but not the length. mmap() will automatically round up the length.
      */
-    if (addr && !IS_PAGE_ALIGNED_PTR(addr))
+    if (addr && !IS_ALLOC_ALIGNED_PTR(addr))
         return (void*)-EINVAL;
 
-    if (fd >= 0 && !IS_PAGE_ALIGNED(offset))
+    if (fd >= 0 && !IS_ALLOC_ALIGNED(offset))
         return (void*)-EINVAL;
 
     if (!length || !access_ok(addr, length))
         return (void*)-EINVAL;
 
-    if (!IS_PAGE_ALIGNED(length))
-        length = PAGE_ALIGN_UP(length);
+    if (!IS_ALLOC_ALIGNED(length))
+        length = ALLOC_ALIGN_UP(length);
 
     /* ignore MAP_32BIT when MAP_FIXED is set */
     if ((flags & (MAP_32BIT | MAP_FIXED)) == (MAP_32BIT | MAP_FIXED))
@@ -148,11 +148,11 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
      * According to the manpage, addr has to be page-aligned, but not the
      * length. mprotect() will automatically round up the length.
      */
-    if (!addr || !IS_PAGE_ALIGNED_PTR(addr))
+    if (!addr || !IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
-    if (!IS_PAGE_ALIGNED(length))
-        length = PAGE_ALIGN_UP(length);
+    if (!IS_ALLOC_ALIGNED(length))
+        length = ALLOC_ALIGN_UP(length);
 
     if (bkeep_mprotect(addr, length, prot, 0) < 0)
         return -EPERM;
@@ -168,14 +168,14 @@ int shim_do_munmap(void* addr, size_t length) {
      * According to the manpage, addr has to be page-aligned, but not the
      * length. munmap() will automatically round up the length.
      */
-    if (!addr || !IS_PAGE_ALIGNED_PTR(addr))
+    if (!addr || !IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
     if (!length || !access_ok(addr, length))
         return -EINVAL;
 
-    if (!IS_PAGE_ALIGNED(length))
-        length = PAGE_ALIGN_UP(length);
+    if (!IS_ALLOC_ALIGNED(length))
+        length = ALLOC_ALIGN_UP(length);
 
     struct shim_vma_val vma;
 
@@ -208,13 +208,13 @@ int shim_do_munmap(void* addr, size_t length) {
  * Possibly it may cause performance(or other) issue due to this lying.
  */
 int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
-    if (!IS_PAGE_ALIGNED_PTR(addr))
+    if (!IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
     if (test_user_memory(addr, len, false))
         return -ENOMEM;
 
-    unsigned long pages = PAGE_ALIGN_UP(len) / g_pal_alloc_align;
+    unsigned long pages = ALLOC_ALIGN_UP(len) / g_pal_alloc_align;
     if (test_user_memory(vec, pages, true))
         return -EFAULT;
 

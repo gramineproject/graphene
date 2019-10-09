@@ -131,10 +131,10 @@ unsigned long _DkMemoryQuota (void)
 }
 
 extern struct atomic_int alloced_pages;
-extern unsigned int pagesz;
+extern unsigned int g_page_size;
 
 unsigned long _DkMemoryAvailableQuota (void)
 {
     return (pal_sec.heap_max - pal_sec.heap_min) -
-        atomic_read(&alloced_pages) * pagesz;
+        atomic_read(&alloced_pages) * g_page_size;
 }

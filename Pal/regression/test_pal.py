@@ -55,9 +55,6 @@ class TC_01_Bootstrap(RegressionTestCase):
         # Control Block: Debug Stream (Inline)
         self.assertIn('Written to Debug Stream', stdout)
 
-        # Control Block: Page Size
-        self.assertIn('Page Size: {}'.format(mmap.PAGESIZE), stderr)
-
         # Control Block: Allocation Alignment
         self.assertIn('Allocation Alignment: {}'.format(mmap.ALLOCATIONGRANULARITY), stderr)
 

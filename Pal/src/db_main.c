@@ -233,7 +233,6 @@ noreturn void pal_main (
 #endif
 
     pal_state.instance_id = instance_id;
-    pal_state.pagesize    = _DkGetPagesize();
     pal_state.alloc_align = _DkGetAllocationAlignment();
     assert(IS_POWER_OF_2(pal_state.alloc_align));
 
@@ -443,7 +442,6 @@ noreturn void pal_main (
                                     &__pal_control.user_address_hole.start,
                                     &__pal_control.user_address_hole.end);
 
-    __pal_control.pagesize           = pal_state.pagesize;
     __pal_control.alloc_align        = pal_state.alloc_align;
     __pal_control.broadcast_stream   = _DkBroadcastStreamOpen();
 

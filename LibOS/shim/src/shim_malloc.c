@@ -53,7 +53,7 @@ DEFINE_PROFILE_CATEGORY(memory, );
 
 /* Returns NULL on failure */
 void* __system_malloc(size_t size) {
-    size_t alloc_size = PAGE_ALIGN_UP(size);
+    size_t alloc_size = ALLOC_ALIGN_UP(size);
     void* addr;
     void* ret_addr;
     int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
@@ -91,9 +91,9 @@ void* __system_malloc(size_t size) {
 }
 
 void __system_free(void* addr, size_t size) {
-    DkVirtualMemoryFree(addr, PAGE_ALIGN_UP(size));
+    DkVirtualMemoryFree(addr, ALLOC_ALIGN_UP(size));
 
-    if (bkeep_munmap(addr, PAGE_ALIGN_UP(size), VMA_INTERNAL) < 0)
+    if (bkeep_munmap(addr, ALLOC_ALIGN_UP(size), VMA_INTERNAL) < 0)
         BUG();
 }
 

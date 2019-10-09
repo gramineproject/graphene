@@ -55,7 +55,7 @@ asm (".global pal_start \n"
 struct pal_bsd_state bsd_state;
 struct pal_sec pal_sec;
 
-static int pagesz = PRESET_PAGESIZE;
+static size_t g_page_size = PRESET_PAGESIZE;
 static uid_t uid;
 static gid_t gid;
 
@@ -101,7 +101,7 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
     for (av = (ElfW(auxv_t) *)auxv ; av->a_type != AT_NULL ; av++)
         switch (av->a_type) {
             case AT_PAGESZ:
-                pagesz = av->a_un.a_val;
+                g_page_size = av->a_un.a_val;
                 break;
             case AT_UID:
             case AT_EUID:
@@ -127,12 +127,12 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
 
 unsigned long _DkGetPagesize (void)
 {
-    return pagesz;
+    return g_page_size;
 }
 
 unsigned long _DkGetAllocationAlignment (void)
 {
-    return pagesz;
+    return g_page_size;
 }
 
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
@@ -215,7 +215,7 @@ void pal_bsd_main (void * args)
                          pal_map.l_info, pal_map.l_addr);
     ELF_DYNAMIC_RELOCATE(&pal_map);
 
-    init_slab_mgr(pagesz);
+    init_slab_mgr(g_page_size);
     setup_pal_map(&pal_map);
 
     bsd_state.start_time = 1000000ULL * time.tv_sec + time.tv_usec;
