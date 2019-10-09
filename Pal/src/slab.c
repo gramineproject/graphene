@@ -41,7 +41,7 @@ static char mem_pool[POOL_SIZE];
 static void* bump         = mem_pool;
 static void* mem_pool_end = &mem_pool[POOL_SIZE];
 #else
-#define PAGE_SIZE slab_alignment
+#define ALLOC_ALIGNMENT slab_alignment
 #endif
 
 #define STARTUP_SIZE 2

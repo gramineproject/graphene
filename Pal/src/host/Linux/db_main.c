@@ -62,7 +62,7 @@ __asm__ (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
 struct pal_linux_state linux_state;
 struct pal_sec pal_sec;
 
-static int pagesz = PRESET_PAGESIZE;
+static size_t g_page_size = PRESET_PAGESIZE;
 static int uid, gid;
 #if USE_VDSO_GETTIME == 1
 static ElfW(Addr) sysinfo_ehdr;
@@ -112,7 +112,7 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
     for (av = (ElfW(auxv_t) *) (e + 1) ; av->a_type != AT_NULL ; av++)
         switch (av->a_type) {
             case AT_PAGESZ:
-                pagesz = av->a_un.a_val;
+                g_page_size = av->a_un.a_val;
                 break;
             case AT_UID:
             case AT_EUID:
@@ -139,12 +139,12 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
 
 unsigned long _DkGetPagesize (void)
 {
-    return pagesz;
+    return g_page_size;
 }
 
 unsigned long _DkGetAllocationAlignment (void)
 {
-    return pagesz;
+    return g_page_size;
 }
 
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
@@ -229,7 +229,7 @@ void pal_linux_main (void * args)
 
     linux_state.environ = envp;
 
-    init_slab_mgr(pagesz);
+    init_slab_mgr(g_page_size);
 
     first_thread = malloc(HANDLE_SIZE(thread));
     if (!first_thread)

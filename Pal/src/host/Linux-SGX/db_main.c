@@ -45,23 +45,23 @@
 struct pal_linux_state linux_state;
 struct pal_sec pal_sec;
 
-unsigned int pagesz = PRESET_PAGESIZE;
+size_t g_page_size = PRESET_PAGESIZE;
 
 unsigned long _DkGetPagesize (void)
 {
-    return pagesz;
+    return g_page_size;
 }
 
 unsigned long _DkGetAllocationAlignment (void)
 {
-    return pagesz;
+    return g_page_size;
 }
 
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
                                       PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
     *start = (PAL_PTR) pal_sec.heap_min;
-    *end = (PAL_PTR) get_reserved_pages(NULL, pagesz);
+    *end = (PAL_PTR) get_reserved_pages(NULL, g_page_size);
     *hole_start = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, *start);
     *hole_end = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, *end);
 }
@@ -305,7 +305,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     }
 
     /* set up page allocator and slab manager */
-    init_slab_mgr(pagesz);
+    init_slab_mgr(g_page_size);
     init_untrusted_slab_mgr();
     init_pages();
     init_enclave_key();
@@ -314,7 +314,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     setup_pal_map(&pal_map);
 
     /* Set the alignment early */
-    pal_state.alloc_align = pagesz;
+    pal_state.alloc_align = g_page_size;
 
     /* initialize enclave properties */
     rv = init_enclave();
@@ -371,7 +371,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     }
 
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
-    void* manifest_addr = enclave_top - ALIGN_UP_PTR_POW2(manifest_size, pagesz);
+    void* manifest_addr = enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
 
     /* parse manifest data into config storage */
     struct config_store * root_config =

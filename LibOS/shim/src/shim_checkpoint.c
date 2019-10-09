@@ -339,8 +339,8 @@ BEGIN_CP_FUNC(gipc)
 {
     ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_gipc_entry));
 
-    void* send_addr  = (void*)PAGE_ALIGN_DOWN_PTR(obj);
-    size_t send_size = (void*)PAGE_ALIGN_UP_PTR(obj + size) - send_addr;
+    void* send_addr  = (void*)ALLOC_ALIGN_DOWN_PTR(obj);
+    size_t send_size = (void*)ALLOC_ALIGN_UP_PTR(obj + size) - send_addr;
 
     struct shim_gipc_entry * entry = (void *) (base + off);
 
@@ -399,7 +399,7 @@ static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
 {
     PAL_PTR hdr_addr = (PAL_PTR) store->base;
     PAL_NUM hdr_size = (PAL_NUM) store->offset + store->mem_size;
-    assert(IS_PAGE_ALIGNED_PTR(hdr_addr));
+    assert(IS_ALLOC_ALIGNED_PTR(hdr_addr));
 
     int mem_nentries = store->mem_nentries;
 
@@ -428,7 +428,7 @@ static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
         }
     }
 
-    hdr_size = PAGE_ALIGN_UP(hdr_size);
+    hdr_size = ALLOC_ALIGN_UP(hdr_size);
     int npages = DkPhysicalMemoryCommit(gipc_store, 1, &hdr_addr, &hdr_size);
     if (!npages)
         return -EPERM;
@@ -620,8 +620,8 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
                 debug("memory entry [%p]: %p-%p\n", entry, entry->addr,
                       entry->addr + entry->size);
 
-                PAL_PTR addr = PAGE_ALIGN_DOWN_PTR(entry->addr);
-                PAL_NUM size = PAGE_ALIGN_UP_PTR(entry->addr + entry->size) - (void*)addr;
+                PAL_PTR addr = ALLOC_ALIGN_DOWN_PTR(entry->addr);
+                PAL_NUM size = ALLOC_ALIGN_UP_PTR(entry->addr + entry->size) - (void*)addr;
                 PAL_FLG prot = entry->prot;
 
                 if (!DkVirtualMemoryAlloc(addr, size, 0, prot|PAL_PROT_WRITE)) {
@@ -752,7 +752,7 @@ int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
         goto out;
 
     void * cpaddr = cphdr.addr;
-    ret = fs->fs_ops->mmap(file, &cpaddr, PAGE_ALIGN_UP(cphdr.size), PROT_READ|PROT_WRITE,
+    ret = fs->fs_ops->mmap(file, &cpaddr, ALLOC_ALIGN_UP(cphdr.size), PROT_READ|PROT_WRITE,
                            MAP_PRIVATE|MAP_FILE, 0);
     if (ret < 0)
         goto out;
@@ -866,7 +866,7 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
          * checkpoint space. The reserved space is half of the size of the
          * checkpoint space, but can be further fine-tuned.
          */
-        size_t reserve_size = PAGE_ALIGN_UP(size >> 1);
+        size_t reserve_size = ALLOC_ALIGN_UP(size >> 1);
 
         debug("try allocate checkpoint store (size = %ld, reserve = %ld)\n",
               size, reserve_size);
@@ -1198,8 +1198,8 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
         /* Try to load the checkpoint at the same address */
         base = hdr->hdr.addr;
-        mapaddr = (PAL_PTR)PAGE_ALIGN_DOWN_PTR(base);
-        mapsize = (PAL_PTR)PAGE_ALIGN_UP_PTR(base + size) - mapaddr;
+        mapaddr = (PAL_PTR)ALLOC_ALIGN_DOWN_PTR(base);
+        mapsize = (PAL_PTR)ALLOC_ALIGN_UP_PTR(base + size) - mapaddr;
 
         /* Need to create VMA before allocation */
         ret = bkeep_mmap((void *) mapaddr, mapsize,
@@ -1211,13 +1211,13 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 #endif
 
     if (!base) {
-        base = bkeep_unmapped_any(PAGE_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_VMA_FLAGS, 0,
+        base = bkeep_unmapped_any(ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_VMA_FLAGS, 0,
                                   "cpstore");
         if (!base)
             return -ENOMEM;
 
         mapaddr = (PAL_PTR)base;
-        mapsize = (PAL_NUM)PAGE_ALIGN_UP(size);
+        mapsize = (PAL_NUM)ALLOC_ALIGN_UP(size);
     }
 
     debug("checkpoint mapped at %p-%p\n", base, base + size);

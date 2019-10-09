@@ -246,8 +246,8 @@ DEFINE_PROFILE_OCCURENCE(alloc_stack_count, memory);
 
 void * allocate_stack (size_t size, size_t protect_size, bool user)
 {
-    size = PAGE_ALIGN_UP(size);
-    protect_size = PAGE_ALIGN_UP(protect_size);
+    size = ALLOC_ALIGN_UP(size);
+    protect_size = ALLOC_ALIGN_UP(protect_size);
 
     /* preserve a non-readable, non-writable page below the user
        stack to stop user program to clobber other vmas */
@@ -377,7 +377,7 @@ int init_stack (const char ** argv, const char ** envp,
     if (root_config) {
         char stack_cfg[CONFIG_MAX];
         if (get_config(root_config, "sys.stack.size", stack_cfg, sizeof(stack_cfg)) > 0) {
-            stack_size = PAGE_ALIGN_UP(parse_int(stack_cfg));
+            stack_size = ALLOC_ALIGN_UP(parse_int(stack_cfg));
             set_rlimit_cur(RLIMIT_STACK, stack_size);
         }
     }
@@ -483,13 +483,13 @@ int init_manifest (PAL_HANDLE manifest_handle)
             return -PAL_ERRNO;
 
         size = attr.pending_size;
-        map_size = PAGE_ALIGN_UP(size);
+        map_size = ALLOC_ALIGN_UP(size);
         addr = bkeep_unmapped_any(map_size, PROT_READ, MAP_FLAGS,
                                   0, "manifest");
         if (!addr)
             return -ENOMEM;
 
-        void* ret_addr = DkStreamMap(manifest_handle, addr, PAL_PROT_READ, 0, PAGE_ALIGN_UP(size));
+        void* ret_addr = DkStreamMap(manifest_handle, addr, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(size));
 
         if (!ret_addr) {
             bkeep_munmap(addr, map_size, MAP_FLAGS);
@@ -1068,7 +1068,7 @@ void check_stack_hook (void)
     __asm__ volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
 
     if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
-        if ((uintptr_t) rsp - (uintptr_t) cur_thread->stack < PAL_CB(pagesize))
+        if ((uintptr_t)rsp - (uintptr_t)cur_thread->stack < PAL_CB(alloc_align))
             SYS_PRINTF("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
                        rsp, cur_thread->stack, cur_thread->stack_top);
     } else {

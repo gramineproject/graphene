@@ -145,14 +145,14 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     if (!zero_page) {
         zero_page = (void *)
-            INLINE_SYSCALL(mmap, 6, NULL, pagesize,
+            INLINE_SYSCALL(mmap, 6, NULL, g_page_size,
                            PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS,
                            -1, 0);
         if (IS_ERR_P(zero_page))
             return -ENOMEM;
     }
 
-    secs->ssa_frame_size = get_ssaframesize(token->body.attributes.xfrm) / pagesize;
+    secs->ssa_frame_size = get_ssaframesize(token->body.attributes.xfrm) / g_page_size;
     secs->misc_select = token->masked_misc_select_le;
     memcpy(&secs->attributes, &token->body.attributes, sizeof(sgx_attributes_t));
 
@@ -259,7 +259,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             p[2] = 'X';
     }
 
-    if (size == pagesize)
+    if (size == g_page_size)
         SGX_DBG(DBG_I, "adding page  to enclave: %p [%s:%s] (%s)%s\n",
                 addr, t, p, comment, m);
     else
@@ -284,9 +284,9 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             return -ERRNO(ret);
         }
 
-        param.addr += pagesize;
-        if (param.src != (uint64_t) zero_page) param.src += pagesize;
-        added_size += pagesize;
+        param.addr += g_page_size;
+        if (param.src != (uint64_t) zero_page) param.src += g_page_size;
+        added_size += g_page_size;
     }
 #else
     struct gsgx_enclave_add_pages param = {
@@ -319,7 +319,7 @@ int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_token_t * token)
 {
     unsigned long enclave_valid_addr =
-                secs->base + secs->size - pagesize;
+                secs->base + secs->size - g_page_size;
 
     SGX_DBG(DBG_I, "enclave initializing:\n");
     SGX_DBG(DBG_I, "    enclave id:   0x%016lx\n", enclave_valid_addr);

@@ -130,8 +130,12 @@ The fields of the Graphene control block are defined as follows:
         PAL_PTR_RANGE manifest_preload;
 
         /***** Host information *****/
-        /* host page size / allocation alignment */
-        PAL_NUM pagesize, alloc_align;
+        /* Host allocation alignment.
+         * This currently is (and most likely will always be) indistinguishable from the page size,
+         * looking from the LibOS perspective. The two values can be different on the PAL level though,
+         * see e.g. SYSTEM_INFO::dwAllocationGranularity on Windows.
+         */
+        PAL_NUM alloc_align;
         /* CPU information */
         PAL_CPU_INFO cpu_info;
         /* Memory information */

@@ -41,7 +41,7 @@ int snprintf(char * str, int size, const char * fmt, ...) __attribute__((format(
 
 /* constants and macros to help rounding addresses to page
    boundaries */
-extern size_t pagesize;
+extern size_t g_page_size;
 
 #undef IS_ALLOC_ALIGNED
 #undef IS_ALLOC_ALIGNED_PTR
@@ -50,12 +50,12 @@ extern size_t pagesize;
 #undef ALLOC_ALIGN_DOWN
 #undef ALLOC_ALIGN_DOWN_PTR
 
-#define IS_ALLOC_ALIGNED(addr)     IS_ALIGNED_POW2(addr, pagesize)
-#define IS_ALLOC_ALIGNED_PTR(addr) IS_ALIGNED_PTR_POW2(addr, pagesize)
-#define ALLOC_ALIGN_UP(addr)       ALIGN_UP_POW2(addr, pagesize)
-#define ALLOC_ALIGN_UP_PTR(addr)   ALIGN_UP_PTR_POW2(addr, pagesize)
-#define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, pagesize)
-#define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, pagesize)
+#define IS_ALLOC_ALIGNED(addr)     IS_ALIGNED_POW2(addr, g_page_size)
+#define IS_ALLOC_ALIGNED_PTR(addr) IS_ALIGNED_PTR_POW2(addr, g_page_size)
+#define ALLOC_ALIGN_UP(addr)       ALIGN_UP_POW2(addr, g_page_size)
+#define ALLOC_ALIGN_UP_PTR(addr)   ALIGN_UP_PTR_POW2(addr, g_page_size)
+#define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, g_page_size)
+#define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, g_page_size)
 
 uint32_t htonl (uint32_t longval);
 uint16_t htons (uint16_t shortval);

@@ -197,8 +197,8 @@ static int protect_page(struct link_map* l, void* addr, size_t size) {
             return 0;
     }
 
-    void* start = PAGE_ALIGN_DOWN_PTR(addr);
-    void* end   = PAGE_ALIGN_UP_PTR(addr + size);
+    void* start = ALLOC_ALIGN_DOWN_PTR(addr);
+    void* end   = ALLOC_ALIGN_UP_PTR(addr + size);
 
     if (!DkVirtualMemoryProtect(start, end - start, PAL_PROT_READ | PAL_PROT_WRITE | prot))
         return -PAL_ERRNO;
@@ -430,7 +430,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
             case PT_LOAD:
                 /* A load command tells us to map in part of the file.
                    We record the load commands and process them all later.  */
-                if (!IS_PAGE_ALIGNED(ph->p_align)) {
+                if (!IS_ALLOC_ALIGNED(ph->p_align)) {
                     errstring = "ELF load command alignment not page-aligned";
                     goto call_lose;
                 }
@@ -446,11 +446,11 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                 }
 
                 c           = &l->loadcmds[l->nloadcmds++];
-                c->mapstart = PAGE_ALIGN_DOWN(ph->p_vaddr);
-                c->mapend   = PAGE_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
+                c->mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
+                c->mapend   = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
                 c->dataend  = ph->p_vaddr + ph->p_filesz;
                 c->allocend = ph->p_vaddr + ph->p_memsz;
-                c->mapoff   = PAGE_ALIGN_DOWN(ph->p_offset);
+                c->mapoff   = ALLOC_ALIGN_DOWN(ph->p_offset);
 
                 /* Determine whether there is a gap between the last segment
                    and this one.  */
@@ -510,12 +510,12 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                 mappref = (ElfW(Addr))c->mapstart + (ElfW(Addr))addr;
             else
                 mappref = (ElfW(Addr))bkeep_unmapped_heap(
-                    PAGE_ALIGN_UP(maplength), c->prot,
+                    ALLOC_ALIGN_UP(maplength), c->prot,
                     c->flags | MAP_PRIVATE | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0), file,
                     c->mapoff, NULL);
 
             /* Remember which part of the address space this object uses.  */
-            ret = (*mmap)(file, (void**)&mappref, PAGE_ALIGN_UP(maplength), c->prot,
+            ret = (*mmap)(file, (void**)&mappref, ALLOC_ALIGN_UP(maplength), c->prot,
                           c->flags | MAP_PRIVATE, c->mapoff);
 
             if (ret < 0) {
@@ -600,8 +600,8 @@ do_remap:
             ElfW(Addr) zero, zeroend, zeropage;
 
             zero     = (ElfW(Addr))RELOCATE(l, c->dataend);
-            zeroend  = PAGE_ALIGN_UP((ElfW(Addr))RELOCATE(l, c->allocend));
-            zeropage = PAGE_ALIGN_UP(zero);
+            zeroend  = ALLOC_ALIGN_UP((ElfW(Addr))RELOCATE(l, c->allocend));
+            zeropage = ALLOC_ALIGN_UP(zero);
 
             if (zeroend < zeropage)
                 /* All the extra data is in the last page of the segment.
@@ -613,13 +613,13 @@ do_remap:
                 /* Zero the final part of the last page of the segment.  */
                 if ((c->prot & PROT_WRITE) == 0) {
                     /* Dag nab it.  */
-                    if (!DkVirtualMemoryProtect((caddr_t)PAGE_ALIGN_DOWN(zero), g_pal_alloc_align,
+                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
                                                 c->prot | PAL_PROT_WRITE)) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
                     memset((void*)zero, '\0', zeropage - zero);
-                    if (!DkVirtualMemoryProtect((caddr_t)PAGE_ALIGN_DOWN(zero), g_pal_alloc_align,
+                    if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
                                                 c->prot)) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
@@ -786,7 +786,7 @@ static int __free_elf_object(struct link_map* l) {
 
             zero     = l->l_addr + c->dataend;
             zeroend  = l->l_addr + c->allocend;
-            zeropage = PAGE_ALIGN_UP(zero);
+            zeropage = ALLOC_ALIGN_UP(zero);
 
             if (zeroend < zeropage)
                 /* All the extra data is in the last page of the segment.
@@ -1426,20 +1426,20 @@ static int vdso_map_init(void) {
      * When LibOS is loaded at different address, it may overlap with the old vDSO
      * area.
      */
-    void* addr = bkeep_unmapped_heap(PAGE_ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC, 0, NULL, 0,
+    void* addr = bkeep_unmapped_heap(ALLOC_ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC, 0, NULL, 0,
                                      "linux-vdso.so.1");
     if (addr == NULL)
         return -ENOMEM;
-    assert(addr == PAGE_ALIGN_UP_PTR(addr));
+    assert(addr == ALLOC_ALIGN_UP_PTR(addr));
 
-    void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, PAGE_ALIGN_UP(vdso_so_size), 0,
+    void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size), 0,
                                                  PAL_PROT_READ | PAL_PROT_WRITE);
     if (!ret_addr)
         return -PAL_ERRNO;
     assert(addr == ret_addr);
 
     memcpy(addr, &vdso_so, vdso_so_size);
-    memset(addr + vdso_so_size, 0, PAGE_ALIGN_UP(vdso_so_size) - vdso_so_size);
+    memset(addr + vdso_so_size, 0, ALLOC_ALIGN_UP(vdso_so_size) - vdso_so_size);
     __load_elf_object(NULL, addr, OBJECT_VDSO, NULL);
     vdso_map->l_name = "vDSO";
 
@@ -1453,7 +1453,7 @@ static int vdso_map_init(void) {
         **vsyms[i].func = vsyms[i].value;
     }
 
-    if (!DkVirtualMemoryProtect(addr, PAGE_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
+    if (!DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
         return -PAL_ERRNO;
 
     vdso_addr = addr;
@@ -1464,7 +1464,7 @@ int vdso_map_migrate(void) {
     if (!vdso_addr)
         return 0;
 
-    if (!DkVirtualMemoryProtect(vdso_addr, PAGE_ALIGN_UP(vdso_so_size),
+    if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
                                 PAL_PROT_READ | PAL_PROT_WRITE))
         return -PAL_ERRNO;
 
@@ -1473,7 +1473,7 @@ int vdso_map_migrate(void) {
         **vsyms[i].func = vsyms[i].value;
     }
 
-    if (!DkVirtualMemoryProtect(vdso_addr, PAGE_ALIGN_UP(vdso_so_size),
+    if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
                                 PAL_PROT_READ | PAL_PROT_EXEC))
         return -PAL_ERRNO;
     return 0;
@@ -1532,7 +1532,7 @@ int init_brk_from_executable(struct shim_handle* exec) {
             if (!(c->prot & PROT_EXEC))
                 data_segment_size += c->allocend - c->mapstart;
 
-        return init_brk_region((void*)PAGE_ALIGN_UP(exec_map->l_map_end), data_segment_size);
+        return init_brk_region((void*)ALLOC_ALIGN_UP(exec_map->l_map_end), data_segment_size);
     }
     return 0;
 }

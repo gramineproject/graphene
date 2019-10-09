@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-static unsigned long pgsz = PRESET_PAGESIZE;
+static size_t g_page_size = PRESET_PAGESIZE;
 void * heap_base;
 static uint64_t heap_size;
 
@@ -178,7 +178,7 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
     }
     assert_vma_list();
 
-    atomic_add(size / pgsz, &alloced_pages);
+    atomic_add(size / g_page_size, &alloced_pages);
     return addr;
 }
 
@@ -196,8 +196,8 @@ void * get_reserved_pages(void * addr, size_t size)
         return NULL;
     }
 
-    size = ALIGN_UP(size, pgsz);
-    addr = ALIGN_DOWN_PTR(addr, pgsz);
+    size = ALIGN_UP(size, g_page_size);
+    addr = ALIGN_DOWN_PTR(addr, g_page_size);
 
     SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
 
@@ -265,8 +265,8 @@ void free_pages(void * addr, size_t size)
     if (!addr || !size)
         return;
 
-    addr = ALIGN_DOWN_PTR(addr, pgsz);
-    addr_top = ALIGN_UP_PTR(addr_top, pgsz);
+    addr = ALIGN_DOWN_PTR(addr, g_page_size);
+    addr_top = ALIGN_UP_PTR(addr_top, g_page_size);
 
     if (addr >= heap_base + heap_size)
         return;
@@ -307,7 +307,7 @@ void free_pages(void * addr, size_t size)
     _DkInternalUnlock(&heap_vma_lock);
 
     unsigned int val = atomic_read(&alloced_pages);
-    atomic_sub(size / pgsz, &alloced_pages);
+    atomic_sub(size / g_page_size, &alloced_pages);
     if (val > atomic_read(&max_alloced_pages))
         atomic_set(&max_alloced_pages, val);
 }
@@ -319,5 +319,5 @@ void print_alloced_pages (void)
 
     printf("                >>>>>>>> "
            "Enclave heap size =         %10d pages / %10ld pages\n",
-           val > max ? val : max, heap_size / pgsz);
+           val > max ? val : max, heap_size / g_page_size);
 }
