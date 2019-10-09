@@ -283,7 +283,7 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('mmap test 8 passed', stdout)
 
     def test_52_large_mmap(self):
-        stdout, stderr = self.run_binary(['large-mmap'], timeout=240)
+        stdout, stderr = self.run_binary(['large-mmap'], timeout=480)
 
         # Ftruncate
         self.assertIn('large-mmap: ftruncate OK', stdout)
