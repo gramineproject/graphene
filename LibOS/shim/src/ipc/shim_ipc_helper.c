@@ -849,8 +849,13 @@ static int create_ipc_helper(void) {
  * problematic for the thread itself to release its own resources e.g. stack).
  */
 struct shim_thread* terminate_ipc_helper(void) {
-    if (ipc_helper_state != HELPER_ALIVE)
+    /* First check if thread is alive. */
+    lock(&ipc_helper_lock);
+    if (ipc_helper_state != HELPER_ALIVE) {
+        unlock(&ipc_helper_lock);
         return NULL;
+    }
+    unlock(&ipc_helper_lock);
 
     /* NOTE: Graphene doesn't have an abstraction of a queue of pending signals
      * between communicating processes (instead all communication is done over
@@ -867,6 +872,11 @@ struct shim_thread* terminate_ipc_helper(void) {
     DkThreadDelayExecution(500);
 
     lock(&ipc_helper_lock);
+    if (ipc_helper_state != HELPER_ALIVE) {
+        unlock(&ipc_helper_lock);
+        return NULL;
+    }
+
     struct shim_thread* ret = ipc_helper_thread;
     if (ret)
         get_thread(ret);

@@ -114,8 +114,10 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
 
     if (async_helper_state == HELPER_NOTALIVE) {
         int ret = create_async_helper();
-        if (ret < 0)
+        if (ret < 0) {
+            unlock(&async_helper_lock);
             return ret;
+        }
     }
 
     unlock(&async_helper_lock);
@@ -306,10 +308,13 @@ static int create_async_helper(void) {
  * problematic for the thread itself to release its own resources e.g. stack).
  */
 struct shim_thread* terminate_async_helper(void) {
-    if (async_helper_state != HELPER_ALIVE)
-        return NULL;
-
     lock(&async_helper_lock);
+
+    if (async_helper_state != HELPER_ALIVE) {
+        unlock(&async_helper_lock);
+        return NULL;
+    }
+
     struct shim_thread* ret = async_helper_thread;
     if (ret)
         get_thread(ret);
