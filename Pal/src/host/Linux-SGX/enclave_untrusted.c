@@ -22,7 +22,7 @@
 #include "enclave_ocalls.h"
 
 static PAL_LOCK malloc_lock = LOCK_INIT;
-static int pagesize         = PRESET_PAGESIZE;
+static size_t pagesize      = PRESET_PAGESIZE;
 
 #define SYSTEM_LOCK()   _DkSpinLock(&malloc_lock)
 #define SYSTEM_UNLOCK() _DkSpinUnlock(&malloc_lock)

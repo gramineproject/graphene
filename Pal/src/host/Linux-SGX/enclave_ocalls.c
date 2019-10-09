@@ -172,7 +172,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
     ms_ocall_read_t * ms;
 
     if (count > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
+        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
         if (IS_ERR(retval))
             return retval;
     }
@@ -207,7 +207,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
 out:
     sgx_reset_ustack();
     if (obuf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGNUP(count));
+        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
@@ -224,7 +224,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
         /* typical case of buf inside of enclave memory */
         if (count > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
+            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
@@ -257,7 +257,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 out:
     sgx_reset_ustack();
     if (obuf && obuf != buf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGNUP(count));
+        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
@@ -722,7 +722,7 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
     ms_ocall_recv_t * ms;
 
     if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
+        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
         if (IS_ERR(retval))
             return retval;
     }
@@ -779,7 +779,7 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
 out:
     sgx_reset_ustack();
     if (obuf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGNUP(count));
+        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
@@ -798,7 +798,7 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
         /* typical case of buf inside of enclave memory */
         if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
+            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
@@ -835,7 +835,7 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
 out:
     sgx_reset_ustack();
     if (obuf && obuf != buf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGNUP(count));
+        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
@@ -1090,7 +1090,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
             sgx_quote_t* quote = malloc(len);
             if (!sgx_copy_to_enclave(quote, len, attestation->quote, len))
                 retval = -EACCES;
-            ocall_munmap_untrusted(attestation->quote, ALLOC_ALIGNUP(len));
+            ocall_munmap_untrusted(attestation->quote, ALLOC_ALIGN_UP(len));
             attestation->quote = quote;
         }
 
@@ -1099,7 +1099,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
             char* ias_report = malloc(len + 1);
             if (!sgx_copy_to_enclave(ias_report, len, attestation->ias_report, len))
                 retval = -EACCES;
-            ocall_munmap_untrusted(attestation->ias_report, ALLOC_ALIGNUP(len));
+            ocall_munmap_untrusted(attestation->ias_report, ALLOC_ALIGN_UP(len));
             ias_report[len] = 0; // Ensure null-ending
             attestation->ias_report = ias_report;
         }
@@ -1109,7 +1109,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
             uint8_t* ias_sig = malloc(len);
             if (!sgx_copy_to_enclave(ias_sig, len, attestation->ias_sig, len))
                 retval = -EACCES;
-            ocall_munmap_untrusted(attestation->ias_sig, ALLOC_ALIGNUP(len));
+            ocall_munmap_untrusted(attestation->ias_sig, ALLOC_ALIGN_UP(len));
             attestation->ias_sig = ias_sig;
         }
 
@@ -1118,7 +1118,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
             char* ias_certs = malloc(len + 1);
             if (!sgx_copy_to_enclave(ias_certs, len, attestation->ias_certs, len))
                 retval = -EACCES;
-            ocall_munmap_untrusted(attestation->ias_certs, ALLOC_ALIGNUP(len));
+            ocall_munmap_untrusted(attestation->ias_certs, ALLOC_ALIGN_UP(len));
             ias_certs[len] = 0; // Ensure null-ending
             attestation->ias_certs = ias_certs;
         }

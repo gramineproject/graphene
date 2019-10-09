@@ -127,8 +127,8 @@ int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
     gs.len  = __alloca(sizeof(unsigned long) * entries);
 
     for (int i = 0 ; i < entries ; i++) {
-        if (!addrs[i] || !sizes[i] || !ALLOC_ALIGNED(addrs[i]) ||
-            !ALLOC_ALIGNED(sizes[i]))
+        if (!addrs[i] || !sizes[i] || !IS_ALLOC_ALIGNED_PTR(addrs[i]) ||
+            !IS_ALLOC_ALIGNED(sizes[i]))
             return -PAL_ERROR_INVAL;
 
         gs.addr[i] = (unsigned long) addrs[i];
@@ -155,7 +155,7 @@ int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
     gr.prot = __alloca(sizeof(unsigned long) * entries);
 
     for (int i = 0 ; i < entries ; i++) {
-        if (!sizes[i] || !ALLOC_ALIGNED(addrs[i]) || !ALLOC_ALIGNED(sizes[i]))
+        if (!sizes[i] || !IS_ALLOC_ALIGNED_PTR(addrs[i]) || !IS_ALLOC_ALIGNED(sizes[i]))
             return -PAL_ERROR_INVAL;
 
         gr.addr[i] = (unsigned long) addrs[i];

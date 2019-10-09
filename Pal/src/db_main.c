@@ -235,8 +235,7 @@ noreturn void pal_main (
     pal_state.instance_id = instance_id;
     pal_state.pagesize    = _DkGetPagesize();
     pal_state.alloc_align = _DkGetAllocationAlignment();
-    pal_state.alloc_shift = pal_state.alloc_align - 1;
-    pal_state.alloc_mask  = ~pal_state.alloc_shift;
+    assert(IS_POWER_OF_2(pal_state.alloc_align));
 
     init_slab_mgr(pal_state.alloc_align);
 
@@ -310,7 +309,7 @@ noreturn void pal_main (
 
         ret = _DkStreamMap(manifest_handle, &cfg_addr,
                            PAL_PROT_READ, 0,
-                           ALLOC_ALIGNUP(cfg_size));
+                           ALLOC_ALIGN_UP(cfg_size));
         if (ret < 0)
             INIT_FAIL(-ret, "cannot open manifest file");
 

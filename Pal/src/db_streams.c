@@ -532,12 +532,13 @@ DkStreamMap(PAL_HANDLE handle, PAL_PTR addr, PAL_FLG prot, PAL_NUM offset, PAL_N
     }
 
     /* Check that all addresses and sizes are aligned */
-    if ((addr && !ALLOC_ALIGNED(addr)) || !size || !ALLOC_ALIGNED(size) || !ALLOC_ALIGNED(offset)) {
+    if ((addr && !IS_ALLOC_ALIGNED_PTR(addr)) || !size || !IS_ALLOC_ALIGNED(size) || 
+            !IS_ALLOC_ALIGNED(offset)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN((PAL_PTR)NULL);
     }
 
-    if (map_addr && _DkCheckMemoryMappable((void*)map_addr, size)) {
+    if (map_addr && _DkCheckMemoryMappable(map_addr, size)) {
         _DkRaiseFailure(PAL_ERROR_DENIED);
         LEAVE_PAL_CALL_RETURN((PAL_PTR)NULL);
     }
@@ -558,7 +559,7 @@ DkStreamMap(PAL_HANDLE handle, PAL_PTR addr, PAL_FLG prot, PAL_NUM offset, PAL_N
 void DkStreamUnmap(PAL_PTR addr, PAL_NUM size) {
     ENTER_PAL_CALL(DkStreamUnmap);
 
-    if (!addr || !ALLOC_ALIGNED((void*)addr) || !size || !ALLOC_ALIGNED(size)) {
+    if (!addr || !IS_ALLOC_ALIGNED_PTR(addr) || !size || !IS_ALLOC_ALIGNED(size)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL();
     }

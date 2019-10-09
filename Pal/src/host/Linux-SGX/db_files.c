@@ -130,7 +130,7 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     uint64_t map_end   = ALIGN_UP(end, TRUSTED_STUB_SIZE);
 
     if (map_end > total)
-        map_end = ALLOC_ALIGNUP(total);
+        map_end = ALLOC_ALIGN_UP(total);
 
     ret = copy_and_verify_trusted_file(handle->file.realpath, handle->file.umem + map_start,
             map_start, map_end, buffer, offset, end - offset, stubs, total);
@@ -236,8 +236,8 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         map_start = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
         map_end   = ALIGN_UP(end, TRUSTED_STUB_SIZE);
     } else {
-        map_start = ALLOC_ALIGNDOWN(offset);
-        map_end   = ALLOC_ALIGNUP(end);
+        map_start = ALLOC_ALIGN_DOWN(offset);
+        map_end   = ALLOC_ALIGN_UP(end);
     }
 
     ret = ocall_mmap_untrusted(handle->file.fd, map_start, map_end - map_start, PROT_READ, &umem);

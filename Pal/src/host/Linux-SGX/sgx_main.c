@@ -19,9 +19,7 @@
 #include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
 
-unsigned long pagesize  = PRESET_PAGESIZE;
-unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
-unsigned long pageshift = PRESET_PAGESIZE - 1;
+size_t pagesize = PRESET_PAGESIZE;
 
 struct pal_enclave pal_enclave;
 
@@ -132,8 +130,8 @@ int scan_enclave_binary (int fd, unsigned long * base, unsigned long * size,
                 return -EINVAL;
 
             c = &loadcmds[nloadcmds++];
-            c->mapstart = ALLOC_ALIGNDOWN(ph->p_vaddr);
-            c->mapend = ALLOC_ALIGNUP(ph->p_vaddr + ph->p_memsz);
+            c->mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
+            c->mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_memsz);
         }
 
     *base = loadcmds[0].mapstart;
@@ -174,12 +172,12 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
                 return -EINVAL;
 
             c = &loadcmds[nloadcmds++];
-            c->mapstart = ALLOC_ALIGNDOWN(ph->p_vaddr);
-            c->mapend = ALLOC_ALIGNUP(ph->p_vaddr + ph->p_filesz);
+            c->mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
+            c->mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
             c->datastart = ph->p_vaddr;
             c->dataend = ph->p_vaddr + ph->p_filesz;
             c->allocend = ph->p_vaddr + ph->p_memsz;
-            c->mapoff = ALLOC_ALIGNDOWN(ph->p_offset);
+            c->mapoff = ALLOC_ALIGN_DOWN(ph->p_offset);
             c->prot = (ph->p_flags & PF_R ? PROT_READ  : 0)|
                       (ph->p_flags & PF_W ? PROT_WRITE : 0)|
                       (ph->p_flags & PF_X ? PROT_EXEC  : 0)|prot;
@@ -188,8 +186,8 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
     base -= loadcmds[0].mapstart;
     for (c = loadcmds; c < &loadcmds[nloadcmds] ; c++) {
         ElfW(Addr) zero = c->dataend;
-        ElfW(Addr) zeroend = ALLOC_ALIGNUP(c->allocend);
-        ElfW(Addr) zeropage = ALLOC_ALIGNUP(zero);
+        ElfW(Addr) zeroend = ALLOC_ALIGN_UP(c->allocend);
+        ElfW(Addr) zeropage = ALLOC_ALIGN_UP(zero);
 
         if (zeroend < zeropage)
             zeropage = zeroend;
@@ -340,7 +338,7 @@ int initialize_enclave (struct pal_enclave * enclave)
      * it first to the list with memory areas. */
     areas[area_num] = (struct mem_area) {
         .desc = "manifest", .skip_eextend = false, .fd = enclave->manifest,
-        .is_binary = false, .addr = 0, .size = ALLOC_ALIGNUP(manifest_size),
+        .is_binary = false, .addr = 0, .size = ALLOC_ALIGN_UP(manifest_size),
         .prot = PROT_READ, .type = SGX_PAGE_REG
     };
     area_num++;
