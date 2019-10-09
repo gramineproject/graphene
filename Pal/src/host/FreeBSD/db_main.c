@@ -142,15 +142,15 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
 
     if ((void *) TEXT_START - (void *) USER_ADDRESS_LOWEST >
         (void *) USER_ADDRESS_HIGHEST - (void *) DATA_END){
-        end_addr = (void *) ALLOC_ALIGNDOWN(TEXT_START);
+        end_addr = (void*)ALLOC_ALIGN_DOWN(TEXT_START);
         start_addr = pal_sec.user_addr_base ? :
             (void *) USER_ADDRESS_LOWEST;
     } else {
-        end_addr = (void *) USER_ADDRESS_HIGHEST;
-        start_addr = (void *) ALLOC_ALIGNUP(DATA_END);
+        end_addr = (void*)USER_ADDRESS_HIGHEST;
+        start_addr = (void*)ALLOC_ALIGN_UP(DATA_END);
     }
 
-    assert(ALLOC_ALIGNED(start_addr) && ALLOC_ALIGNED(end_addr));
+    assert(IS_ALLOC_ALIGNED(start_addr) && IS_ALLOC_ALIGNED(end_addr));
 
     while (1) {
         if (start_addr >= end_addr)

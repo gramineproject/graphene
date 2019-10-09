@@ -315,8 +315,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     /* Set the alignment early */
     pal_state.alloc_align = pagesz;
-    pal_state.alloc_shift = pagesz - 1;
-    pal_state.alloc_mask  = ~pagesz;
 
     /* initialize enclave properties */
     rv = init_enclave();

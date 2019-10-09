@@ -213,7 +213,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
             case PT_LOAD:
                 /* A load command tells us to map in part of the file.
                    We record the load commands and process them all later.  */
-                if (!ALLOC_ALIGNED(ph->p_align)) {
+                if (!IS_ALLOC_ALIGNED(ph->p_align)) {
                     print_error("ELF load command alignment not aligned",
                                 -PAL_ERROR_NOMEM);
                     return NULL;
@@ -226,11 +226,11 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
                 }
 
                 c = &loadcmds[nloadcmds++];
-                c->mapstart = ALLOC_ALIGNDOWN(ph->p_vaddr);
-                c->mapend = ALLOC_ALIGNUP(ph->p_vaddr + ph->p_filesz);
+                c->mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
+                c->mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
                 c->dataend = ph->p_vaddr + ph->p_filesz;
                 c->allocend = ph->p_vaddr + ph->p_memsz;
-                c->mapoff = ALLOC_ALIGNDOWN(ph->p_offset);
+                c->mapoff = ALLOC_ALIGN_DOWN(ph->p_offset);
 
                 /* Determine whether there is a gap between the last segment
                    and this one.  */
@@ -348,8 +348,8 @@ postmap:
             ElfW(Addr) zero, zeroend, zerosec;
 
             zero = l->l_addr + c->dataend;
-            zeroend = ALLOC_ALIGNUP(l->l_addr + c->allocend);
-            zerosec = ALLOC_ALIGNUP(zero);
+            zeroend = ALLOC_ALIGN_UP(l->l_addr + c->allocend);
+            zerosec = ALLOC_ALIGN_UP(zero);
 
             if (zeroend < zerosec)
                 /* All the extra data is in the last section of the segment.
@@ -362,7 +362,7 @@ postmap:
                 {
                     /* Dag nab it.  */
                     ret = _DkVirtualMemoryProtect(
-                        (void *) ALLOC_ALIGNDOWN(zero), pal_state.alloc_align,
+                        (void*)ALLOC_ALIGN_DOWN(zero), pal_state.alloc_align,
                         c->prot | PAL_PROT_WRITE);
                     if (ret < 0) {
                         print_error("cannot change memory protections", ret);
@@ -371,7 +371,7 @@ postmap:
                 }
                 memset ((void *) zero, '\0', zerosec - zero);
                 if ((c->prot & PAL_PROT_WRITE) == 0)
-                    _DkVirtualMemoryProtect((void *) ALLOC_ALIGNDOWN(zero),
+                    _DkVirtualMemoryProtect((void*)ALLOC_ALIGN_DOWN(zero),
                                             pal_state.alloc_align, c->prot);
             }
 
@@ -519,10 +519,9 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
                 map->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
                 break;
             case PT_LOAD: {
-                ElfW(Addr) start = (ElfW(Addr))
-                        ALLOC_ALIGNDOWN(map->l_addr + ph->p_vaddr);
+                ElfW(Addr) start = (ElfW(Addr))ALLOC_ALIGN_DOWN(map->l_addr + ph->p_vaddr);
                 ElfW(Addr) end = (ElfW(Addr))
-                        ALLOC_ALIGNUP(map->l_addr + ph->p_vaddr + ph->p_memsz);
+                        ALLOC_ALIGN_UP(map->l_addr + ph->p_vaddr + ph->p_memsz);
                 if (start < mapstart)
                     mapstart = start;
                 if (end > mapend)
@@ -627,7 +626,7 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
     unsigned long obj_size = sizeof(struct cached_elf_object);
     if (map->l_ld != map->l_real_ld)
         obj_size += sizeof(ElfW(Dyn)) * map->l_ldnum;
-    obj_size = ALLOC_ALIGNUP(obj_size);
+    obj_size = ALLOC_ALIGN_UP(obj_size);
 
     cached_size = obj_size;
     ret = _DkStreamSetLength(cached_file, obj_size);
@@ -660,10 +659,8 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
         if (ph->p_type == PT_LOAD) {
             assert(obj->nloadcmds < MAX_CACHED_LOADCMDS);
 
-            void * mapstart = (void *)
-                    ALLOC_ALIGNDOWN(map->l_addr + ph->p_vaddr);
-            void * mapend = (void *)
-                    ALLOC_ALIGNUP(map->l_addr + ph->p_vaddr + ph->p_memsz);
+            void* mapstart = (void*)ALLOC_ALIGN_DOWN(map->l_addr + ph->p_vaddr);
+            void* mapend   = (void*)ALLOC_ALIGN_UP(map->l_addr + ph->p_vaddr + ph->p_memsz);
             unsigned long mapsize = mapend - mapstart;
             int mapprot = 0;
             void * cache_addr = NULL;
@@ -727,7 +724,7 @@ struct link_map * check_cached_elf_object (PAL_HANDLE handle)
         return NULL;
 
     struct cached_elf_object * obj = NULL;
-    unsigned long obj_size = ALLOC_ALIGNUP(sizeof(struct cached_elf_object));
+    unsigned long obj_size = ALLOC_ALIGN_UP(sizeof(struct cached_elf_object));
 
     ret = _DkStreamMap(cached_file, (void **) &obj,
                        PAL_PROT_READ|PAL_PROT_WRITE|PAL_PROT_WRITECOPY,
@@ -1124,8 +1121,8 @@ struct link_map * lookup_symbol (const char * undef_name, ElfW(Sym) ** ref)
 
 static int protect_relro (struct link_map * l)
 {
-    ElfW(Addr) start = ALLOC_ALIGNDOWN(l->l_addr + l->l_relro_addr);
-    ElfW(Addr) end = ALLOC_ALIGNUP(l->l_addr + l->l_relro_addr +
+    ElfW(Addr) start = ALLOC_ALIGN_DOWN(l->l_addr + l->l_relro_addr);
+    ElfW(Addr) end = ALLOC_ALIGN_UP(l->l_addr + l->l_relro_addr +
                                    l->l_relro_size);
 
     if (start != end)
@@ -1147,9 +1144,9 @@ static int relocate_elf_object (struct link_map * l)
     for (ph = l->l_phdr ; ph < &l->l_phdr[l->l_phnum] ; ph++)
         if (ph->p_type == PT_LOAD && (ph->p_flags & PF_W) == 0) {
             struct textrels * r = malloc(sizeof(struct textrels));
-            r->start = ALLOC_ALIGNDOWN(ph->p_vaddr) + l->l_addr;
-            r->len = ALLOC_ALIGNUP(ph->p_vaddr + ph->p_memsz)
-                     - ALLOC_ALIGNDOWN(ph->p_vaddr);
+            r->start = ALLOC_ALIGN_DOWN(ph->p_vaddr) + l->l_addr;
+            r->len = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_memsz)
+                     - ALLOC_ALIGN_DOWN(ph->p_vaddr);
 
             ret = _DkVirtualMemoryProtect((void *) r->start, r->len,
                                           PAL_PROT_READ|PAL_PROT_WRITE);

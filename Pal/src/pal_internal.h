@@ -210,8 +210,9 @@ extern struct pal_internal_state {
 
     struct config_store * root_config;
 
-    unsigned long   pagesize;
-    unsigned long   alloc_align, alloc_shift, alloc_mask;
+    /* May not be the same as page size, see e.g. SYSTEM_INFO::dwAllocationGranularity on Windows.
+     */
+    size_t          alloc_align;
 
     PAL_HANDLE      console;
 
@@ -237,13 +238,12 @@ extern struct pal_internal_state {
 
 extern PAL_CONTROL __pal_control;
 
-#define ALLOC_ALIGNDOWN(addr)                               \
-        (((unsigned long)(addr)) & pal_state.alloc_mask)
-#define ALLOC_ALIGNUP(addr)                                 \
-        ((((unsigned long)(addr)) + pal_state.alloc_shift) & pal_state.alloc_mask)
-#define ALLOC_ALIGNED(addr)                                 \
-        ((unsigned long)(addr) ==                           \
-            (((unsigned long)(addr)) & pal_state.alloc_mask))
+#define IS_ALLOC_ALIGNED(addr)     IS_ALIGNED_POW2(addr, pal_state.alloc_align)
+#define IS_ALLOC_ALIGNED_PTR(addr) IS_ALIGNED_PTR_POW2(addr, pal_state.alloc_align)
+#define ALLOC_ALIGN_UP(addr)       ALIGN_UP_POW2(addr, pal_state.alloc_align)
+#define ALLOC_ALIGN_UP_PTR(addr)   ALIGN_UP_PTR_POW2(addr, pal_state.alloc_align)
+#define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, pal_state.alloc_align)
+#define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, pal_state.alloc_align)
 
 /* Main initialization function */
 noreturn void pal_main (

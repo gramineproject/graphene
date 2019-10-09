@@ -150,10 +150,10 @@ unsigned long _DkGetAllocationAlignment (void)
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
                                       PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
-    void * end_addr = (void *) ALLOC_ALIGNDOWN(TEXT_START);
-    void * start_addr = (void *) USER_ADDRESS_LOWEST;
+    void* end_addr = (void*)ALLOC_ALIGN_DOWN_PTR(TEXT_START);
+    void* start_addr = (void*)USER_ADDRESS_LOWEST;
 
-    assert(ALLOC_ALIGNED(start_addr) && ALLOC_ALIGNED(end_addr));
+    assert(IS_ALLOC_ALIGNED_PTR(start_addr) && IS_ALLOC_ALIGNED_PTR(end_addr));
 
     while (1) {
         if (start_addr >= end_addr)

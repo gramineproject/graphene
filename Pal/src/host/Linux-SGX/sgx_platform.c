@@ -246,7 +246,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     https_output_len = INLINE_SYSCALL(lseek, 3, output_fd, 0, SEEK_END);
     if (IS_ERR(https_output_len) || !https_output_len)
         goto failed;
-    https_output = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(https_output_len),
+    https_output = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(https_output_len),
                                          PROT_READ, MAP_PRIVATE|MAP_FILE, output_fd, 0);
     if (IS_ERR_P(https_output))
         goto failed;
@@ -260,7 +260,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     https_header_len = INLINE_SYSCALL(lseek, 3, header_fd, 0, SEEK_END);
     if (IS_ERR(https_header_len) || !https_header_len)
         goto failed;
-    https_header = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(https_header_len),
+    https_header = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(https_header_len),
                                          PROT_READ, MAP_PRIVATE|MAP_FILE, header_fd, 0);
     if (IS_ERR_P(https_header))
         goto failed;
@@ -288,7 +288,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
                 goto failed;
             }
 
-            ias_sig = (uint8_t*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(ias_sig_len),
+            ias_sig = (uint8_t*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(ias_sig_len),
                                                PROT_READ|PROT_WRITE,
                                                MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             if (IS_ERR_P(ias_sig)) {
@@ -306,7 +306,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
 
             // Decode IAS signature chain
             ias_certs_len = end - start;
-            ias_certs = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(ias_certs_len),
+            ias_certs = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(ias_certs_len),
                                               PROT_READ|PROT_WRITE,
                                               MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             if (IS_ERR_P(ias_certs)) {
@@ -339,9 +339,9 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
 
             // Adjust certificate chain length
             ias_certs[total_bytes++] = '\0';
-            if (ALLOC_ALIGNUP(total_bytes) < ALLOC_ALIGNUP(ias_certs_len))
-                INLINE_SYSCALL(munmap, 2, ALLOC_ALIGNUP(total_bytes),
-                               ALLOC_ALIGNUP(ias_certs_len) - ALLOC_ALIGNUP(total_bytes));
+            if (ALLOC_ALIGN_UP(total_bytes) < ALLOC_ALIGN_UP(ias_certs_len))
+                INLINE_SYSCALL(munmap, 2, ALLOC_ALIGN_UP(total_bytes),
+                               ALLOC_ALIGN_UP(ias_certs_len) - ALLOC_ALIGN_UP(total_bytes));
             ias_certs_len = total_bytes;
         }
 
@@ -371,9 +371,9 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     ret = 0;
 done:
     if (https_header)
-        INLINE_SYSCALL(munmap, 2, https_header, ALLOC_ALIGNUP(https_header_len));
+        INLINE_SYSCALL(munmap, 2, https_header, ALLOC_ALIGN_UP(https_header_len));
     if (https_output)
-        INLINE_SYSCALL(munmap, 2, https_output, ALLOC_ALIGNUP(https_output_len));
+        INLINE_SYSCALL(munmap, 2, https_output, ALLOC_ALIGN_UP(https_output_len));
     if (pipefds[0] != -1) INLINE_SYSCALL(close, 1, pipefds[0]);
     if (pipefds[1] != -1) INLINE_SYSCALL(close, 1, pipefds[1]);
     if (header_fd != -1) {
@@ -451,7 +451,7 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
         goto failed;
     }
 
-    sgx_quote_t* quote = (sgx_quote_t*) INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(r->quote.len),
+    sgx_quote_t* quote = (sgx_quote_t*) INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(r->quote.len),
                                                        PROT_READ|PROT_WRITE,
                                                        MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     if (IS_ERR_P(quote)) {
@@ -465,7 +465,7 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
 
     ret = contact_intel_attest_service(subkey, nonce, (sgx_quote_t *) quote, attestation);
     if (ret < 0) {
-        INLINE_SYSCALL(munmap, 2, quote, ALLOC_ALIGNUP(r->quote.len));
+        INLINE_SYSCALL(munmap, 2, quote, ALLOC_ALIGN_UP(r->quote.len));
         goto failed;
     }
 

@@ -65,12 +65,6 @@
 
 #define LARGE_OBJ_PADDING 8
 
-/* Returns the smallest exact multiple of _y that is at least as large as _x.
- * In other words, returns _x if _x is a multiple of _y, otherwise rounds
- * _x up to be a multiple of _y.
- */
-#define ROUND_UP(_x, _y) ((((_x) + (_y) - 1) / (_y)) * (_y))
-
 DEFINE_LIST(slab_obj);
 
 typedef struct __attribute__((packed)) slab_obj {
@@ -116,10 +110,9 @@ struct slab_debug {
 #define SLAB_CANARY_SIZE 0
 #endif
 
-#define SLAB_HDR_SIZE                                                                 \
-    ROUND_UP((sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) + SLAB_DEBUG_SIZE + \
-              SLAB_CANARY_SIZE),                                                      \
-             MIN_MALLOC_ALIGNMENT)
+#define SLAB_HDR_SIZE                                                                \
+    ALIGN_UP(sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) + SLAB_DEBUG_SIZE + \
+             SLAB_CANARY_SIZE, MIN_MALLOC_ALIGNMENT)
 
 #ifndef SLAB_LEVEL
 #define SLAB_LEVEL 8
