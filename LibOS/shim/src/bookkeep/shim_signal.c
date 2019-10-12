@@ -794,18 +794,35 @@ void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool ne
 
 static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
 {
-    int sig_without_coredump_bit = sig & ~(__WCOREDUMP_BIT);
+    struct shim_thread* cur_thread = get_cur_thread();
+    int sig_without_coredump_bit   = sig & ~(__WCOREDUMP_BIT);
 
     __UNUSED(ucontext);
     debug("killed by %s\n", signal_name(sig_without_coredump_bit));
 
-    if (!info->si_pid)
-        switch(sig) {
-            case SIGTERM:
-            case SIGINT:
-                shim_do_kill(-1, sig_without_coredump_bit);
-                break;
+    if (sig_without_coredump_bit == SIGABRT ||
+        (!info->si_pid && /* signal is sent from host OS, not from another process */
+         (sig_without_coredump_bit == SIGTERM || sig_without_coredump_bit == SIGINT))) {
+        /* Received signal to kill the process:
+         *   - SIGABRT must always kill the whole process (even if sent by Graphene itself),
+         *   - SIGTERM/SIGINT must kill the whole process if signal sent from host OS. */
+
+        /* If several signals arrive simultaneously, only one signal proceeds past this
+         * point. For more information, see shim_do_exit_group(). */
+        static struct atomic_int first = ATOMIC_INIT(0);
+        if (atomic_cmpxchg(&first, 0, 1) == 1) {
+            while (1)
+                DkThreadYieldExecution();
         }
+
+        do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
+
+        /* Ensure that the current thread wins in setting the process code/signal.
+         * For more information, see shim_do_exit_group(). */
+        while (check_last_thread(cur_thread)) {
+            DkThreadYieldExecution();
+        }
+    }
 
     try_process_exit(0, sig);
     DkThreadExit();
