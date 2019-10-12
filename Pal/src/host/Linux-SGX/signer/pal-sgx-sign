@@ -842,12 +842,14 @@ def main_sign(args):
     # Try populate memory areas
     memory_areas = get_memory_areas(attr, args)
 
-    if any([a.addr is not None for a in memory_areas]):
-        manifest['sgx.static_address'] = '1'
-    else:
-        global enclave_heap_min
-        enclave_heap_min = 0
-        manifest['sgx.static_address'] = '0'
+    if manifest.get('sgx.static_address', None) is None:
+        # If static_address is not specified explicitly, deduce from executable
+        if any([a.addr is not None for a in memory_areas]):
+            manifest['sgx.static_address'] = '1'
+        else:
+            global enclave_heap_min
+            enclave_heap_min = 0
+            manifest['sgx.static_address'] = '0'
 
     # Add manifest at the top
     shutil.copy2(args['manifest'], args['output'])
