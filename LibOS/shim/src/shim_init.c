@@ -326,10 +326,16 @@ static int populate_user_stack (void * stack, size_t stack_size,
 
     new_argv = stack_bottom;
     while (argv) {
+        int argv_size = 0;
+        for (const char ** a = argv ; *a ; a++)
+            argv_size += strlen(*a) + 1;
+        char * argv_bottom = ALLOCATE_TOP(argv_size);
+
         for (const char ** a = argv ; *a ; a++) {
             const char ** t = ALLOCATE_BOTTOM(sizeof(const char *));
             int len = strlen(*a) + 1;
-            char * abuf = ALLOCATE_TOP(len);
+            char * abuf = argv_bottom;
+            argv_bottom += len;
             memcpy(abuf, *a, len);
             *t = abuf;
         }
