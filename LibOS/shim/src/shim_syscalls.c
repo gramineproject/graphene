@@ -979,7 +979,7 @@ DEFINE_SHIM_SYSCALL(accept4, 4, shim_do_accept4, int, int, sockfd, struct sockad
 SHIM_SYSCALL_PASSTHROUGH(signalfd4, 4, int, int, ufd, __sigset_t*, user_mask, size_t, sizemask, int,
                          flags)
 
-SHIM_SYSCALL_PASSTHROUGH(eventfd2, 2, int, int, count, int, flags)
+DEFINE_SHIM_SYSCALL (eventfd2, 2, shim_do_eventfd2, int, int, init, int, flags)
 
 /* epoll_create1: sys/shim_epoll.c */
 DEFINE_SHIM_SYSCALL(epoll_create1, 1, shim_do_epoll_create1, int, int, flags)

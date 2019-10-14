@@ -45,6 +45,7 @@ extern struct handle_ops mutex_ops;
 extern struct handle_ops event_ops;
 extern struct handle_ops gipc_ops;
 extern struct handle_ops mcast_ops;
+extern struct handle_ops eventfd_ops;
 
 const struct handle_ops* pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
     [pal_type_file]    = &file_ops,
@@ -64,6 +65,7 @@ const struct handle_ops* pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
     [pal_type_mutex]   = &mutex_ops,
     [pal_type_event]   = &event_ops,
     [pal_type_gipc]    = &gipc_ops,
+    [pal_type_eventfd] = &eventfd_ops,
 };
 
 /* parse_stream_uri scan the uri, seperate prefix and search for
@@ -106,6 +108,8 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
                 hops = &tcp_ops;
             else if (strstartswith_static(u, "udp.srv"))
                 hops = &udp_ops;
+            else if (strstartswith_static(u, EVENTFD_URI_PREFIX))
+                hops = &eventfd_ops;
             break;
 
         case 8:

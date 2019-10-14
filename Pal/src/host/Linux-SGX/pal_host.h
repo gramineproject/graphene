@@ -113,6 +113,13 @@ typedef struct pal_handle
             PAL_BOL nonblocking;
         } pipeprv;
 
+        //Note: First attribute..should be >= One FD <= MAX_FDS.
+        struct {
+            PAL_IDX fd;
+            //TODO: Check if more flags are needed.
+            PAL_BOL nonblocking;
+        } eventfd;
+
         struct {
             PAL_IDX fd_in, fd_out;
             PAL_IDX dev_type;

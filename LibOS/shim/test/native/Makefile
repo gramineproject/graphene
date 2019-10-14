@@ -29,6 +29,11 @@ $(c_executables): %: %.c
 $(cxx_executables): %: %.cpp
 	$(call cmd,cxxsingle)
 
+eventfd_test: %: %.c
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) -o $@ $< -lpthread \
+	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
 include $(wildcard *.d)
 else
 .IGNORE: $(c_executables) $(cxx_executables)

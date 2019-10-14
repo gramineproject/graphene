@@ -569,6 +569,7 @@ extern struct shim_mount chroot_builtin_fs;
 extern struct shim_mount pipe_builtin_fs;
 extern struct shim_mount socket_builtin_fs;
 extern struct shim_mount epoll_builtin_fs;
+extern struct shim_mount eventfd_builtin_fs;
 
 /* proc file system */
 struct proc_nm_ops {

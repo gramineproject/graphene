@@ -142,9 +142,12 @@ enum {
     pal_type_mutex,
     pal_type_event,
     pal_type_gipc,
+    pal_type_eventfd,
     PAL_HANDLE_TYPE_BOUND,
 };
 
+/* PAL URI prefixes */
+#define EVENTFD_URI_PREFIX "eventfd:"
 
 #define PAL_IDX_POISON          ((PAL_IDX)-1) /* PAL identifier poison value */
 #define PAL_GET_TYPE(h)         (HANDLE_HDR(h)->type)
@@ -324,6 +327,9 @@ DkProcessExit (PAL_NUM exitCode);
 #define PAL_OPTION_NONBLOCK     04000
 #define PAL_OPTION_MASK         04000
 
+#define PAL_OPTION_CLOEXEC       01000
+#define PAL_OPTION_EFD_SEMAPHORE 02000
+
 #define WITHIN_MASK(val, mask)  (((val)|(mask)) == (mask))
 
 PAL_HANDLE
@@ -377,6 +383,13 @@ typedef struct {
     PAL_BOL readable, writable, runnable;
     PAL_FLG share_flags;
     PAL_NUM pending_size;
+#ifdef IN_PAL
+    PAL_IDX no_of_fds;
+    PAL_IDX fds[MAX_FDS];
+#else
+    PAL_IDX no_of_fds;
+    PAL_IDX fds[1];
+#endif
     union {
         struct {
             PAL_NUM linger;

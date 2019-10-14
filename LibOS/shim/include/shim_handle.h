@@ -50,6 +50,7 @@ enum shim_handle_type {
     TYPE_FUTEX,
     TYPE_STR,
     TYPE_EPOLL,
+    TYPE_EVENTFD
 };
 
 struct shim_handle;
