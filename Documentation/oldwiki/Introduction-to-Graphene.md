@@ -43,9 +43,14 @@ To install the prerequisites of Graphene on Ubuntu, run the following command:
 
     sudo apt-get install -y build-essential autoconf gawk bison
 
-To build Graphene for SGX, run the following command in addition:
+To build Graphene for SGX, run the following commands in addition (depending on your Ubuntu version):
 
-    sudo apt-get install -y python-protobuf
+    # For Ubuntu 18.04
+    sudo apt-get install -y python3-protobuf
+
+    # For Ubuntu 16.04
+    sudo apt install -y python3-pip
+    sudo /usr/bin/pip3 install protobuf
 
 To run tests, you also need the python3-pytest package:
 
