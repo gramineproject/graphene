@@ -22,6 +22,7 @@ CFLAGS-openmp = -fopenmp
 CFLAGS-multi_pthread = -pthread
 CFLAGS-exit_group = -pthread
 CFLAGS-abort_multithread = -pthread
+CFLAGS-eventfd = -pthread
 
 %: %.c
 	$(call cmd,csingle)

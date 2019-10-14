@@ -39,7 +39,7 @@ files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 defs	= -DIN_SHIM
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-fs	= chroot str pipe socket proc dev
+fs	= chroot str pipe socket proc dev eventfd
 ipcns	= pid sysv
 objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  $(patsubst %.c,%,$(wildcard utils/*.c)) \

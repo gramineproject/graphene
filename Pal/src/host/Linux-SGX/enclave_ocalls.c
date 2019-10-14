@@ -1243,3 +1243,23 @@ reset:
 out:
     return retval;
 }
+
+int ocall_eventfd (unsigned int initval, int flags)
+{
+    int retval = 0;
+    ms_ocall_eventfd_t * ms;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        sgx_reset_ustack();
+        return -EPERM;
+    }
+
+    ms->ms_initval = initval;
+    ms->ms_flags   = flags;
+
+    retval = sgx_ocall(OCALL_EVENTFD, ms);
+
+    sgx_reset_ustack();
+    return retval;
+}

@@ -67,8 +67,6 @@ typedef struct {
 #endif
 } PAL_RESERVED_HDR;
 
-#define MAX_FDS 3
-
 typedef struct pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE
@@ -105,6 +103,12 @@ typedef struct pal_handle
             PAL_IDX fds[MAX_FDS];
             PAL_BOL nonblocking;
         } pipeprv;
+
+        struct {
+            PAL_IDX fd;
+            /* TODO: add other flags in future, if needed (e.g., semaphore) */
+            PAL_BOL nonblocking;
+        } eventfd;
 
         struct {
             PAL_IDX fd_in, fd_out;

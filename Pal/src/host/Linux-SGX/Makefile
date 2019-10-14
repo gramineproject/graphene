@@ -12,7 +12,7 @@ host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_of
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
+enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memory \
 		 threading mutex events process object main rtld \
 		 exception misc ipc spinlock) \
 	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted)

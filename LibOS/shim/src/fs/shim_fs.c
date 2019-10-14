@@ -46,13 +46,14 @@ struct shim_fs mountable_fs [NUM_MOUNTABLE_FS] = {
         { .name = "dev",    .fs_ops = &dev_fs_ops,    .d_ops = &dev_d_ops,    },
     };
 
-#define NUM_BUILTIN_FS      4
+#define NUM_BUILTIN_FS      5
 
 struct shim_mount * builtin_fs [NUM_BUILTIN_FS] = {
                 &chroot_builtin_fs,
                 &pipe_builtin_fs,
                 &socket_builtin_fs,
                 &epoll_builtin_fs,
+                &eventfd_builtin_fs,
         };
 
 static struct shim_lock mount_mgr_lock;

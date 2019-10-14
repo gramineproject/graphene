@@ -670,6 +670,17 @@ static int sgx_ocall_delete(void * pms)
     return ret;
 }
 
+static int sgx_ocall_eventfd (void * pms)
+{
+    ms_ocall_eventfd_t * ms = (ms_ocall_eventfd_t *) pms;
+    int ret;
+    ODEBUG(OCALL_EVENTFD, ms);
+
+    ret = INLINE_SYSCALL(eventfd2, 2, ms->ms_initval, ms->ms_flags);
+
+    return ret;
+}
+
 void load_gdb_command (const char * command);
 
 static int sgx_ocall_load_debug(void * pms)
@@ -727,7 +738,8 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_DELETE]          = sgx_ocall_delete,
         [OCALL_LOAD_DEBUG]      = sgx_ocall_load_debug,
         [OCALL_GET_ATTESTATION] = sgx_ocall_get_attestation,
-    };
+        [OCALL_EVENTFD]         = sgx_ocall_eventfd,
+};
 
 #define EDEBUG(code, ms) do {} while (0)
 

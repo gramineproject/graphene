@@ -35,6 +35,10 @@ typedef uint32_t      PAL_FLG;
 typedef uint32_t      PAL_IDX;
 typedef bool          PAL_BOL;
 
+/* Moved MAX_FDS from <host_kernel>/pal_host.h to here,
+ * since it is 3, across all host kernels. */
+#define MAX_FDS 3
+
 #ifdef IN_PAL
 #include <atomic.h>
 typedef struct atomic_int PAL_REF;
@@ -142,9 +146,9 @@ enum {
     pal_type_mutex,
     pal_type_event,
     pal_type_gipc,
+    pal_type_eventfd,
     PAL_HANDLE_TYPE_BOUND,
 };
-
 
 #define PAL_IDX_POISON          ((PAL_IDX)-1) /* PAL identifier poison value */
 #define PAL_GET_TYPE(h)         (HANDLE_HDR(h)->type)
@@ -324,6 +328,11 @@ DkProcessExit (PAL_NUM exitCode);
 #define PAL_OPTION_NONBLOCK     04000
 #define PAL_OPTION_MASK         04000
 
+/* CLOEXEC is generic for any stream.
+ * SEMAPHORE is specific to eventfd syscall. */
+#define PAL_OPTION_CLOEXEC       01000
+#define PAL_OPTION_EFD_SEMAPHORE 02000
+
 #define WITHIN_MASK(val, mask)  (((val)|(mask)) == (mask))
 
 PAL_HANDLE
@@ -377,6 +386,8 @@ typedef struct {
     PAL_BOL readable, writable, runnable;
     PAL_FLG share_flags;
     PAL_NUM pending_size;
+    PAL_IDX no_of_fds;
+    PAL_IDX fds[MAX_FDS];
     union {
         struct {
             PAL_NUM linger;

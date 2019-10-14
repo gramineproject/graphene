@@ -47,7 +47,7 @@ typedef struct mutex_handle {
 
 #define _DkInternalLock _DkMutexLock
 #define _DkInternalUnlock _DkMutexUnlock
-#define MAX_FDS 3
+
 typedef union pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE

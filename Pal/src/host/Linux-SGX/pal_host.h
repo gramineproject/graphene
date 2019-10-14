@@ -40,7 +40,6 @@ int _DkSpinUnlock (struct spinlock * lock);
 #define LOCK_INIT   { .value =  { 0 } }
 #define _DkInternalLock _DkSpinLock
 #define _DkInternalUnlock _DkSpinUnlock
-#define MAX_FDS 3
 
 void * malloc_untrusted (int size);
 void free_untrusted (void * mem);
@@ -112,6 +111,12 @@ typedef struct pal_handle
             PAL_IDX fds[MAX_FDS];
             PAL_BOL nonblocking;
         } pipeprv;
+
+        struct {
+            PAL_IDX fd;
+            /* TODO: add other flags in future, if needed (e.g., semaphore) */
+            PAL_BOL nonblocking;
+        } eventfd;
 
         struct {
             PAL_IDX fd_in, fd_out;
