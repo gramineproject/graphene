@@ -45,7 +45,7 @@ To install the prerequisites of Graphene on Ubuntu, run the following command:
 
 To build Graphene for SGX, run the following command in addition:
 
-    sudo apt-get install -y python-protobuf
+    sudo apt-get install -y python3-protobuf
 
 To run tests, you also need the python3-pytest package:
 
