@@ -10,7 +10,8 @@ int main(int argc, const char** argv, const char** envp) {
         printf("argv[%d] = %s\n", i, argv[i]);
     }
 
-    /* Make sure argv strings are placed compactly in order */
+    /* Make sure argv strings follow the compact encoding where (1) all strings
+       are located adjacently and (2) in increasing order. */
     size_t sum_len = 0;
     for (int i = 0; i < argc; i++) {
         sum_len += strlen(argv[i]) + 1;
@@ -18,8 +19,8 @@ int main(int argc, const char** argv, const char** envp) {
 
     size_t chunk_len = argv[argc - 1] + strlen(argv[argc - 1]) - argv[0];
     if (sum_len != chunk_len + 1) {
-        printf("argv strings are not in desirable locations\n");
-        return -1;
+        printf("argv strings are not adjacent or not in increasing order\n");
+        return 1;
     }
 
     return 0;

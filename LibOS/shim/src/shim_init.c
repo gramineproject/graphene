@@ -326,6 +326,10 @@ static int populate_user_stack (void * stack, size_t stack_size,
 
     new_argv = stack_bottom;
     while (argv) {
+        /* Even though the SysV ABI does not specify the order of argv strings,
+           some applications (notably Node.js's libuv) assume the compact
+           encoding of argv where (1) all strings are located adjacently and
+           (2) in increasing order. */
         int argv_size = 0;
         for (const char ** a = argv ; *a ; a++)
             argv_size += strlen(*a) + 1;
