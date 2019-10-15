@@ -68,7 +68,7 @@ typedef ptrdiff_t ssize_t;
 #define SATURATED_P_SUB(ptr_a, b, limit) \
    ((__typeof__(ptr_a))SATURATED_SUB((uintptr_t)(ptr_a), (uintptr_t)(b), (uintptr_t)(limit)))
 
-#define IS_POWER_OF_2(x) (((x) & ((x) - 1)) == 0)
+#define IS_POWER_OF_2(x) ((x) && (((x) & ((x) - 1)) == 0))
 
 #define IS_ALIGNED(val, alignment) ((val) % (alignment) == 0)
 #define ALIGN_DOWN(val, alignment) ((val) - (val) % (alignment))
