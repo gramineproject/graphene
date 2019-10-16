@@ -26,6 +26,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     linux-headers-4.15.0-20-generic \
     net-tools \
     protobuf-c-compiler \
+    pylint3 \
     python \
     python3-apport \
     python3-apt \
