@@ -30,6 +30,7 @@ RUN apt-get update \
        python3-lxml \
        python3-pip \
        python3-pytest \
+       shellcheck \
        texinfo \
        wget \
     && /usr/bin/pip3 install protobuf \
