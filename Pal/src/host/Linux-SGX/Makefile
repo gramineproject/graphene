@@ -23,7 +23,7 @@ urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
-all: $(host_files)
+all: sgx-driver/isgx_version.h $(host_files)
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -86,7 +86,7 @@ debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
 sgx-driver/isgx_version.h:
-	$(MAKE) -C sgx-driver $(notdir $<)
+	$(MAKE) -C sgx-driver $(notdir $@)
 
 include $(wildcard *.d) $(wildcard debugger/*.d)
 
