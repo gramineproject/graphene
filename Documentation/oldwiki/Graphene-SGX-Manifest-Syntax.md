@@ -41,8 +41,8 @@ for a production enclave.
 
 This syntax ensures that the CPU features are available and enabled for the enclave. If the options
 are set in the manifest but the features are unavailable on the platform, enclave initialization
-should fail. Unsetting these options allows Graphene to enable the features flexibly based on the
-availability on the platform.
+should fail. If the options are unset, enclave initialization should succeed even if these features
+are unavailable on the platform.
 
 ### ISV Product ID and SVN
 

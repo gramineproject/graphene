@@ -178,7 +178,7 @@ def get_cpu_features():
     with open("/proc/cpuinfo", "r") as f:
         for line in f:
             if line.startswith("flags"):
-                return line.split(":")[1].strip().split(" ")
+                return line.split(":")[1].strip().split()
 
         raise Exception("Failed to parse CPU flags")
 
@@ -201,15 +201,13 @@ if __name__ == "__main__":
     ]
 
     for (bits, feature) in optional_sgx_features:
-        """
-        Check if SIGSTRUCT allows enabling an optional CPU feature.
-
-        If all the xfrm bits for a feature, after applying xfrmmask, are set in xfrms,
-        we can set the remaining bits if the feature is available.
-
-        If the xfrmmask includes all the required xfrm bits, then these bits cannot be
-        changed in xfrm (need to stay the same as signed).
-        """
+        # Check if SIGSTRUCT allows enabling an optional CPU feature.
+        #
+        # If all the xfrm bits for a feature, after applying xfrmmask, are set in xfrms,
+        # we can set the remaining bits if the feature is available.
+        #
+        # If the xfrmmask includes all the required xfrm bits, then these bits cannot be
+        # changed in xfrm (need to stay the same as signed).
         if xfrms & (bits & xfrmmask) == (bits & xfrmmask) and feature in cpu_features:
             attr['xfrms'] = int_to_bytes(xfrms | bits, 8)
 
