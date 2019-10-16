@@ -802,7 +802,7 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
 
     if (sig_without_coredump_bit == SIGABRT ||
         (!info->si_pid && (sig_without_coredump_bit == SIGTERM || sig_without_coredump_bit == SIGINT))) {
-        /* Received signal to kill the process including all its children:
+        /* Received signal to kill the process:
          *   - SIGABRT must always kill the whole process (even if sent by Graphene itself),
          *   - SIGTERM/SIGINT must kill the whole process if signal sent from host OS. */
 
@@ -814,8 +814,6 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
                 DkThreadYieldExecution();
         }
 
-        /* Send the kill signal to all known processes and to all threads. */
-        ipc_pid_kill_send(cur_thread->tid, /*target=*/0, KILL_ALL, sig_without_coredump_bit);
         do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
 
         /* Ensure that the current thread wins in setting the process code/signal.
