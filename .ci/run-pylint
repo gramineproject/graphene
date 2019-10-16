@@ -1,0 +1,13 @@
+#!/bin/sh
+
+cd "$(git rev-parse --show-toplevel)"
+
+find . -name \*.py \
+    -and -not -path ./LibOS/shim/test/apps/ltp/src/\* \
+| sed 's/./\\&/g' \
+| xargs pylint3 "$@" \
+    Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
+    Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+    Tools/gen_manifest \
+    Tools/gsce \
+    .ci/prfilter
