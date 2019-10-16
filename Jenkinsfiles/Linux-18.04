@@ -3,6 +3,14 @@ pipeline {
               dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile' }
         }
         stages {
+                stage('Lint') {
+                    steps {
+                        sh '''
+                            ./.ci/run-pylint -f text || :
+                            ./.ci/run-pylint -f json | ./.ci/prfilter
+                        '''
+                    }
+                }
                 stage('Build') {
                     steps {
                         sh '''

@@ -30,6 +30,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-pip \
     python3-protobuf \
     python3-pytest \
+    pylint3 \
     texinfo \
     wget
 
