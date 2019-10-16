@@ -29,6 +29,7 @@ RUN apt-get update \
        python3-minimal \
        python3-pip \
        python3-pytest \
+       shellcheck \
        texinfo \
        wget \
     && /usr/bin/pip3 install protobuf \

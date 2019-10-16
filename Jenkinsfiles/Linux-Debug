@@ -3,6 +3,14 @@ pipeline {
               dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile' }
         }
         stages {
+                stage('Lint') {
+                    steps {
+                        sh '''
+                            ./.ci/run-shellcheck || :
+                            ./.ci/run-shellcheck -f json | ./.ci/prfilter
+                        '''
+                    }
+                }
                 stage('Build') {
                     steps {
                         sh '''

@@ -1,0 +1,20 @@
+#!/bin/sh
+
+cd "$(git rev-parse --show-toplevel)"
+
+shellcheck "$@" \
+    LibOS/shim/test/apps/bash/scripts/bash_test.sh \
+    LibOS/shim/test/apps/common_tools/benchmark-http.sh \
+    LibOS/shim/test/apps/python/web-test.sh \
+    Pal/ipc/linux/*.sh \
+    Pal/src/host/FreeBSD/pal-gdb.template \
+    Pal/src/host/Linux-SGX/debugger/gdb \
+    Pal/src/host/Linux-SGX/sgx-driver/load.sh \
+    Runtime/pal_loader \
+    Scripts/clean-check \
+    Scripts/clean-check-prepare \
+    Scripts/clean-check-test-copy \
+    Scripts/list-all-graphene.sh \
+    Scripts/memusg \
+    .ci/run-pylint \
+    .ci/run-shellcheck
