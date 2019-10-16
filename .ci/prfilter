@@ -48,6 +48,7 @@ class Diff:
 
     The default diff is to the ``origin/master`` ref.
     '''
+    # pylint: disable=too-few-public-methods
 
     def __init__(self, ref=DEFAULT_REF):
         self._files = get_diff_ranges(ref)
