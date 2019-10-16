@@ -18,17 +18,19 @@ do
 done
 
 RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
-if [ ! -f /usr/bin/make ]; then
-    libpal=$(/bin/ls -1 $RUNTIME_DIR/libpal-*.so 2>/dev/null)
-    if [ $? -ne 0 ]; then
-        echo "Unable to detect PAL_HOST. Please install the make program."
-        exit 1
+if [ -z $PAL_HOST ]; then
+    if [ ! -f /usr/bin/make ]; then
+        libpal=$(/bin/ls -1 $RUNTIME_DIR/libpal-*.so 2>/dev/null)
+        if [ $? -ne 0 ]; then
+            echo "Unable to detect PAL_HOST. Please install the make program."
+            exit 1
+        fi
+        PAL_HOST=$(/usr/bin/basename $libpal)
+        PAL_HOST=${PAL_HOST%.so}
+        PAL_HOST=${PAL_HOST#libpal-}
+    else
+        PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
     fi
-    PAL_HOST=$(/usr/bin/basename $libpal)
-    PAL_HOST=${PAL_HOST%.so}
-    PAL_HOST=${PAL_HOST#libpal-}
-else
-    PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
 fi
 
 MANIFEST=
