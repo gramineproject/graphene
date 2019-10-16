@@ -1,4 +1,4 @@
-#define MAX_DBG_THREADS 64
+#define MAX_DBG_THREADS 1024
 
 /* This address is shared between our GDB and Graphene-SGX and must
  * reside in non-enclave memory. Graphene-SGX puts an enclave_dbginfo
