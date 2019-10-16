@@ -35,6 +35,7 @@ RUN apt-get update \
        python3-pip \
        python3-pytest \
        python3-scipy \
+       shellcheck \
        texinfo \
        wget \
        zlib1g \
