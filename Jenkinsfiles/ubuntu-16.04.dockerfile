@@ -26,10 +26,11 @@ RUN apt-get update \
        net-tools \
        protobuf-c-compiler \
        python \
-       python3-minimal \
        python3-lxml \
+       python3-minimal \
        python3-pip \
        python3-pytest \
+       shellcheck \
        texinfo \
        wget \
     && /usr/bin/pip3 install protobuf \
