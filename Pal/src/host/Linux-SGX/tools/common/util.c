@@ -3,9 +3,13 @@
  *                         Rafal Wojdyla <omeg@invisiblethingslab.com>
  */
 
+#define _LARGEFILE64_SOURCE
+
+#include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
 #include "util.h"
 
 /*! Console stdout fd */
@@ -47,19 +51,24 @@ endianness_t get_endianness(void) {
 }
 
 /* return -1 on error */
-ssize_t get_file_size(int fd) {
-    struct stat st;
+uint64_t get_file_size(int fd) {
+    struct stat64 st;
 
-    if (fstat(fd, &st) != 0)
-        return -1;
+    if (fstat64(fd, &st) != 0)
+        return (uint64_t)-1;
 
     return st.st_size;
 }
 
-/* Read whole file, caller should free the buffer */
-uint8_t* read_file(const char* path, ssize_t* size) {
+void* read_file(const char* path, size_t* size, void* buffer) {
     FILE* f = NULL;
-    uint8_t* buf = NULL;
+    uint64_t fs = 0;
+    void* orig_buf = buffer;
+
+    if (!size || !path)
+        return NULL;
+
+    assert(*size > 0 || !buffer);
 
     f = fopen(path, "rb");
     if (!f) {
@@ -67,29 +76,40 @@ uint8_t* read_file(const char* path, ssize_t* size) {
         goto out;
     }
 
-    *size = get_file_size(fileno(f));
-    if (*size == -1) {
-        ERROR("Failed to get size of file '%s': %s\n", path, strerror(errno));
-        goto out;
+    if (*size == 0) { // read whole file
+        fs = get_file_size(fileno(f));
+        if (fs == (uint64_t)-1) {
+            ERROR("Failed to get size of file '%s': %s\n", path, strerror(errno));
+            goto out;
+        }
+    } else {
+        fs = *size;
     }
 
-    buf = (uint8_t*)malloc(*size);
-    if (!buf) {
-        ERROR("No memory\n");
-        goto out;
+    if (!buffer) {
+        buffer = malloc(fs);
+        if (!buffer) {
+            ERROR("No memory\n");
+            goto out;
+        }
     }
 
-    if (fread(buf, *size, 1, f) != 1) {
+    if (fread(buffer, fs, 1, f) != 1) {
         ERROR("Failed to read file '%s'\n", path);
-        free(buf);
-        buf = NULL;
+        if (!orig_buf) {
+            free(buffer);
+            buffer = NULL;
+        }
     }
 
 out:
     if (f)
         fclose(f);
 
-    return buf;
+    if (buffer)
+        *size = fs;
+
+    return buffer;
 }
 
 static int write_file_internal(const char* path, size_t size, const void* buffer, bool append) {
@@ -201,4 +221,5 @@ int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
 /* For PAL's assert compatibility */
 void __abort(void) {
     ERROR("exiting\n");
+    exit(-1);
 }

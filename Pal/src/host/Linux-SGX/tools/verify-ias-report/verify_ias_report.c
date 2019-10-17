@@ -48,9 +48,9 @@ static void usage(const char* exec) {
 int main(int argc, char* argv[]) {
     int option              = 0;
     char* report_path       = NULL;
-    ssize_t report_size     = 0;
+    size_t report_size      = 0;
     char* sig_path          = NULL;
-    ssize_t sig_size        = 0;
+    size_t sig_size         = 0;
     char* nonce             = NULL;
     bool allow_outdated_tcb = false;
     char* mrsigner          = NULL;
@@ -120,23 +120,23 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    uint8_t* report = read_file(report_path, &report_size);
+    void* report = read_file(report_path, &report_size, /*buffer=*/NULL);
     if (!report) {
         ERROR("Failed to read report file '%s'\n", report_path);
         return -1;
     }
 
-    uint8_t* sig = read_file(sig_path, &sig_size);
+    void* sig = read_file(sig_path, &sig_size, /*buffer=*/NULL);
     if (!sig) {
         ERROR("Failed to read report signature file '%s'\n", sig_path);
         return -1;
     }
 
     char* ias_pubkey = NULL;
-    ssize_t ias_pubkey_size = 0;
+    size_t ias_pubkey_size = 0;
 
     if (ias_pubkey_path) {
-        uint8_t* buf = read_file(ias_pubkey_path, &ias_pubkey_size);
+        void* buf = read_file(ias_pubkey_path, &ias_pubkey_size, /*buffer=*/NULL);
         if (!buf) {
             ERROR("Failed to read IAS pubkey file '%s'\n", ias_pubkey_path);
             return -1;

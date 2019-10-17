@@ -1,16 +1,21 @@
 include ../../../../../../Scripts/Makefile.configs
+include ../../../../../../Scripts/Makefile.rules
 
+# IN_PAL is defined on 18.04 Jenkins pipeline for some reason, override it since we're NOT in PAL
+CFLAGS := $(filter-out -DIN_PAL, $(CFLAGS))
 CFLAGS += -I../.. \
           -I../../../../../include/lib \
           -I../../../../../lib/crypto/mbedtls/install/include \
           -I../../../../../lib/crypto/mbedtls/crypto/include \
+          -I../../protected-files \
           -DCRYPTO_USE_MBEDTLS \
           -D_POSIX_C_SOURCE=200809L \
           -fPIC
 
 LDFLAGS += -L../../../../../lib/crypto/mbedtls/install/lib
 
-PREFIX ?= /usr/local
+DEFAULT_PREFIX := /usr/local
+PREFIX ?= $(DEFAULT_PREFIX)
 
 .PHONY: all
 all: libsgx_util.so
@@ -35,18 +40,28 @@ cJSON.c cJSON.h: %: cJSON-$(CJSON_VERSION)/%
 
 attestation.o: cJSON.h
 
-libsgx_util.so: attestation.o cJSON.o ias.o util.o
+protected_files.o: ../../protected-files/protected_files.c
+	$(call cmd,cc_o_c)
+
+lru_cache.o: ../../protected-files/lru_cache.c
+	$(call cmd,cc_o_c)
+
+libsgx_util.so: attestation.o cJSON.o ias.o lru_cache.o pf_util.o protected_files.o util.o
 	$(CC) $^ $(LDFLAGS) ../../.lib/crypto/adapters/mbedtls_encoding.o -lmbedcrypto -lcurl -shared -o $@
 
 .PHONY: install
 install:
-	install libsgx_util.so ${PREFIX}/lib
-	install ../../../../../lib/crypto/mbedtls/install/lib/libmbedcrypto.so ${PREFIX}/lib
+	install -D libsgx_util.so -t ${PREFIX}/lib
+	install -D ../../../../../lib/crypto/mbedtls/install/lib/libmbedcrypto.so -t ${PREFIX}/lib
+ifeq ($(PREFIX), $(DEFAULT_PREFIX))
 	ldconfig
+else
+	ldconfig -n ${PREFIX}/lib
+endif
 
 .PHONY: clean
 clean:
-	$(RM) *.gz *.o *.so
+	$(RM) *.d *.gz *.o *.so
 
 .PHONY: distclean
 distclean: clean

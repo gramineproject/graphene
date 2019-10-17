@@ -3,6 +3,7 @@ include ../../../../../../Scripts/Makefile.rules
 
 CFLAGS += -I../.. \
           -I../common \
+          -I../../protected-files \
           -L../common \
           -L../../../../../lib/crypto/mbedtls/install/lib \
           -D_GNU_SOURCE
@@ -11,19 +12,19 @@ LDLIBS += -lsgx_util -lmbedcrypto
 
 PREFIX ?= /usr/local
 
-.PHONY: all
-all: ias_request
-
-ias_request: ias_request.o
+pf_crypt: pf_crypt.o
 	$(call cmd,csingle)
+
+.PHONY: all
+all: pf_crypt
 
 .PHONY: install
 install:
-	install -D ias_request -t ${PREFIX}/bin
+	install -D pf_crypt -t ${PREFIX}/bin
 
 .PHONY: clean
 clean:
-	$(RM) *.o ias_request
+	$(RM) *.o pf_crypt
 
 .PHONY: distclean
 distclean: clean

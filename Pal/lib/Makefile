@@ -132,7 +132,7 @@ objs += crypto/adapters/mbedtls_encoding.o
 endif
 
 .PHONY: all
-all: $(target)graphene-lib.a
+all: ../include/lib/uthash.h $(target)graphene-lib.a
 
 $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@mkdir -p $(dir $@)
@@ -146,6 +146,12 @@ ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(patsubst %.o,%.d,$(addprefix $(target),$(objs)))
 endif
 
+UTHASH_URI ?= https://raw.githubusercontent.com/troydhanson/uthash/8b214aefcb81df86a7e5e0d4fa20e59a6c18bc02/src/uthash.h
+UTHASH_CHECKSUM ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c2ac
+
+../include/lib/uthash.h:
+	../../Scripts/download --output $@ --url $(UTHASH_URI) --sha256 $(UTHASH_CHECKSUM)
+
 .PHONY: clean
 clean:
 	$(RM) $(objs) graphene-lib.a
@@ -153,3 +159,4 @@ clean:
 .PHONY: distclean
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls
+	$(RM) ../include/lib/uthash.h
