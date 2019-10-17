@@ -64,7 +64,7 @@ CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
 else
-CFLAGS += -O2
+CFLAGS += -O1
 endif
 export DEBUG
 
