@@ -800,7 +800,6 @@ int init_trusted_files (void) {
         goto out;
     }
 
-
     nuris = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
     if (nuris <= 0)
         goto no_trusted;

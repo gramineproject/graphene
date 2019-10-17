@@ -16,9 +16,10 @@ defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memory \
-		 threading mutex events process object main rtld \
-		 exception misc) \
-	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted xstate)
+		threading mutex events process object main rtld \
+		exception misc) \
+		$(addprefix enclave_,ocalls ecalls framework platform pages untrusted xstate) \
+		protected_files
 enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
 	    quote/aesm.pb-c clone-x86_64
@@ -26,7 +27,7 @@ urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
-all: sgx-driver/isgx_version.h $(host_files)
+all: sgx-driver/isgx_version.h $(host_files) tools
 
 libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
 	$(call cmd,ar_a_o)
@@ -82,7 +83,14 @@ enclave_entry.o sgx_entry.o: asm-offsets.h
 sgx-driver/isgx_version.h:
 	$(MAKE) -C sgx-driver $(notdir $@)
 
+<<<<<<< 4182c29476ed51170e676befcff2c37f8235da92
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
+=======
+.PHONY: tools
+tools:
+	@$(MAKE) -C tools
+
+>>>>>>> [Linux-SGX] Add protected files implementation
 include $(wildcard *.d) $(wildcard debugger/*.d)
 endif
 
@@ -106,6 +114,7 @@ clean: clean_
 distclean: clean_
 	$(RM) $(ias_cert_file)
 	$(MAKE) -C sgx-driver $@
+	$(MAKE) -C tools clean
 
 .PHONY: test
 test:

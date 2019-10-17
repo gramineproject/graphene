@@ -47,14 +47,23 @@ $(execs)
 endif
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
+export PAL_TOOLS  = ../../../../Pal/src/host/$(PAL_HOST)/tools
 export PYTHONPATH = ../../../../Scripts
 
-.PHONY: test
-test: $(target)
+.PHONY: fs-test
+fs-test: $(target)
 	$(RM) fs-test.xml
 	$(MAKE) fs-test.xml
 
+.PHONY: test
+test: $(target)
+	$(RM) pf-test.xml
+	$(MAKE) pf-test.xml
+
 fs-test.xml: test_fs.py $(call expand_target_to_token,$(target))
+	python3 -m pytest --junit-xml $@ -v $<
+
+pf-test.xml: test_pf.py $(call expand_target_to_token,$(target))
 	python3 -m pytest --junit-xml $@ -v $<
 
 .PHONY: clean-tmp

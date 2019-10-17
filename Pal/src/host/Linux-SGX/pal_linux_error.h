@@ -8,6 +8,8 @@
 
 static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
     switch (unix_errno) {
+        case 0:
+            return 0;
         case ENOENT:
             return -PAL_ERROR_STREAMNOTEXIST;
         case EINTR:

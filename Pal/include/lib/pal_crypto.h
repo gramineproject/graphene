@@ -89,6 +89,20 @@ void lib_DhFinal(LIB_DH_CONTEXT *context);
 /* AES-CMAC */
 int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
                 uint64_t input_len, uint8_t *mac, uint64_t mac_len);
+/* GCM encrypt, iv is assumed to be 12 bytes (and is changed by this call).
+ * input_len doesn't have to be a multiple of 16.
+ * Additional authenticated data (aad) may be NULL if absent.
+ * Output len is the same as input_len. */
+int lib_AESGCMEncrypt(const uint8_t* key, uint64_t key_len, const uint8_t* iv, const uint8_t* input,
+                      uint64_t input_len, const uint8_t* aad, uint64_t aad_len, uint8_t* output,
+                      uint8_t* tag, uint64_t tag_len);
+/* GCM decrypt, iv is assumed to be 12 bytes (and is changed by this call).
+ * input_len doesn't have to be a multiple of 16.
+ * Additional authenticated data (aad) may be NULL if absent.
+ * Output len is the same as input_len. */
+int lib_AESGCMDecrypt(const uint8_t* key, uint64_t key_len, const uint8_t* iv, const uint8_t* input,
+                      uint64_t input_len, const uint8_t* aad, uint64_t aad_len, uint8_t* output,
+                      const uint8_t* tag, uint64_t tag_len);
 
 /* note: 'lib_AESCMAC' is the combination of 'lib_AESCMACInit',
  * 'lib_AESCMACUpdate', and 'lib_AESCMACFinish'. */

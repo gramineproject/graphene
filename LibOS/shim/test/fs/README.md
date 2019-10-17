@@ -14,4 +14,5 @@ These tests perform common FS operations in various ways to exercise the Graphen
 How to execute
 --------------
 
-Run `make test`.
+Run `make test` (tests both regular files and protected files).
+Run `make fs-test` to only test regular files.
