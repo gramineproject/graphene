@@ -53,7 +53,7 @@ static inline int eventfd_type(int options) {
     return type;
 }
 
-static int eventfd_pal_open(PAL_HANDLE *handle, const char * type, const char * uri, int access,
+static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* uri, int access,
         int share, int create, int options) {
     int ret;
 
@@ -62,7 +62,7 @@ static int eventfd_pal_open(PAL_HANDLE *handle, const char * type, const char * 
     }
 
     //Note: called thro DkStreamOpen..so using create parameter
-    //to set initval. One issue..is eventfd's initval is supposed to be uint32,
+    //to set initval. One issue..is eventfd's initval is supposed to be unsigned int,
     //while create is int32 type.
     ret = ocall_eventfd(create, eventfd_type(options));
 
@@ -86,7 +86,7 @@ static int eventfd_pal_open(PAL_HANDLE *handle, const char * type, const char * 
 }
 
 /* 'read' operation of eventfd stream. offset does not apply here. */
-static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void * buffer) {
+static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* buffer) {
     if (offset)
         return -PAL_ERROR_INVAL;
 
@@ -113,7 +113,7 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
 
 /* 'write' operation of eventfd stream. offset does not apply here. */
 static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t len,
-        const void * buffer) {
+        const void* buffer) {
     if (offset)
         return -PAL_ERROR_INVAL;
 
@@ -145,7 +145,7 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
 }
 
 /* gets used for polling(query) on eventfd from LibOS. */
-static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR * attr) {
+static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 

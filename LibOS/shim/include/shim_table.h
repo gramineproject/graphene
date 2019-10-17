@@ -480,7 +480,8 @@ ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags
 int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
                       struct __kernel_rlimit64* old_rlim);
 ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags);
-int shim_do_eventfd2(int count, int flags);
+int shim_do_eventfd2(unsigned int count, int flags);
+int shim_do_eventfd(unsigned int count);
 
 /* libos call implementation */
 int shim_do_msgpersist(int msqid, int cmd);
@@ -782,14 +783,14 @@ int shim_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxevent
                      const __sigset_t* sigmask, size_t sigsetsize);
 int shim_signalfd(int ufd, __sigset_t* user_mask, size_t sizemask);
 int shim_timerfd_create(int clockid, int flags);
-int shim_eventfd(int count);
+int shim_eventfd(unsigned int count);
 int shim_fallocate(int fd, int mode, loff_t offset, loff_t len);
 int shim_timerfd_settime(int ufd, int flags, const struct __kernel_itimerspec* utmr,
                          struct __kernel_itimerspec* otmr);
 int shim_timerfd_gettime(int ufd, struct __kernel_itimerspec* otmr);
 int shim_accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int flags);
 int shim_signalfd4(int ufd, __sigset_t* user_mask, size_t sizemask, int flags);
-int shim_eventfd2(int count, int flags);
+int shim_eventfd2(unsigned int count, int flags);
 int shim_epoll_create1(int flags);
 int shim_dup3(int oldfd, int newfd, int flags);
 int shim_pipe2(int* fildes, int flags);

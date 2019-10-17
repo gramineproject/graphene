@@ -17,56 +17,46 @@
 /*
  * shim_eventfd.c
  *
- * Implementation of system call "eventfd" and "eventfd2".
+ * Implementation of system calls "eventfd" and "eventfd2".
  */
 
+#include <asm/fcntl.h>
+#include <sys/eventfd.h>
+#include <pal.h>
+#include <pal_error.h>
 #include <shim_internal.h>
 #include <shim_utils.h>
 #include <shim_table.h>
 #include <shim_handle.h>
 #include <shim_fs.h>
 
-#include <pal.h>
-#include <pal_error.h>
-
-#include <errno.h>
-
-#include <asm/fcntl.h>
-#include <sys/eventfd.h>
-
-int create_eventfd(PAL_HANDLE * efd, unsigned initval, int flags) {
+int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
     PAL_HANDLE hdl = NULL;
-    int ret = 0;
     int pal_flags = 0;
 
-    //Note: saving other flag options->EFD_CLOEXEC, and EFD_SEMAPHORE
-    pal_flags = flags & EFD_NONBLOCK ? PAL_OPTION_NONBLOCK : 0;
-    pal_flags = flags & EFD_CLOEXEC ? (PAL_OPTION_CLOEXEC | pal_flags) : pal_flags;
-    pal_flags = flags & EFD_SEMAPHORE ? (PAL_OPTION_EFD_SEMAPHORE | pal_flags) : pal_flags;
+    pal_flags |= flags & EFD_NONBLOCK ? PAL_OPTION_NONBLOCK : 0;
+    pal_flags |= flags & EFD_CLOEXEC ? PAL_OPTION_CLOEXEC : 0;
+    pal_flags |= flags & EFD_SEMAPHORE ? PAL_OPTION_EFD_SEMAPHORE : 0;
 
-    //Note: Passing initval as param for create, for lack of better option.
-    if (!(hdl = DkStreamOpen(EVENTFD_URI_PREFIX, 0, 0, initval, pal_flags))) {
-        ret = -PAL_ERRNO;
+    /* eventfd() requires initval but PAL's DkStreamOpen() doesn't have such an argument.
+     * Using `create` argument as a work-around;
+     * one issue is initval's type is unsigned int, but create is int32 in_DkStreamOpen */
+    if (!(hdl = DkStreamOpen(EVENTFD_URI_PREFIX, 0, 0, count, pal_flags))) {
         debug("eventfd open failure\n");
-        goto err;
+        return -PAL_ERRNO;
     }
 
     *efd = hdl;
     return 0;
 
-err:
-    return ret;
 }
 
-int shim_do_eventfd2(int init, int flags) {
-
-    if (test_user_memory((void *) &init, sizeof(unsigned int), true))
+int shim_do_eventfd2(unsigned int count, int flags) {
+    if (test_user_memory((void *) &count, sizeof(unsigned int), false))
         return -EFAULT;
 
     int ret = 0;
-
-    //Note: allocates from MEM_MGR buffer, and INC(hdl->ref_cnt)
-    struct shim_handle * hdl = get_new_handle();
+    struct shim_handle* hdl = get_new_handle();
 
     if (!hdl) {
         ret = -ENOMEM;
@@ -78,17 +68,15 @@ int shim_do_eventfd2(int init, int flags) {
     hdl->flags = O_RDWR;
     hdl->acc_mode = MAY_READ | MAY_WRITE;
 
-    if ((ret = create_eventfd(&hdl->pal_handle, init, flags)) < 0)
+    if ((ret = create_eventfd(&hdl->pal_handle, count, flags)) < 0)
         goto out;
 
     flags = flags & EFD_CLOEXEC ? FD_CLOEXEC : 0;
-    //Note: maps hdl<=>vfd in hdl's map array, and also INC(hdl->ref_cnt)
-    //in __set_new_fd_handle using get_handle(hdl).
-    int vfd = set_new_fd_handle(hdl, flags, NULL);
 
-    if (vfd < 0) {
-        goto out;
-    }
+    /* get_new_handle() above increments hdl's refcount.
+     * Followed by another increment inside set_new_fd_handle.
+     * So we need to put_handle() afterwards */
+    int vfd = set_new_fd_handle(hdl, flags, NULL);
 
     ret = vfd;
 
@@ -100,6 +88,6 @@ out:
 
 }
 
-int shim_do_eventfd(unsigned int init) {
-    return shim_do_eventfd2(init, 0);
+int shim_do_eventfd(unsigned int count) {
+    return shim_do_eventfd2(count, 0);
 }
