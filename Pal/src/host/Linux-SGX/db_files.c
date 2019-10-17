@@ -21,10 +21,7 @@
  * "file:" or "dir:".
  */
 
-#include <linux/types.h>
-
 #include "api.h"
-#include "assert.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -39,6 +36,7 @@ typedef __kernel_pid_t pid_t;
 #include <asm/stat.h>
 #include <linux/fs.h>
 #include <linux/stat.h>
+#include <linux/types.h>
 
 #include "enclave_pages.h"
 
@@ -47,6 +45,9 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
                      int create, int options) {
     if (strcmp_static(type, "file"))
         return -PAL_ERROR_INVAL;
+
+    struct protected_file* pf = NULL;
+
     /* try to do the real open */
     int fd = ocall_open(uri, access | create | options, share);
 
@@ -56,10 +57,13 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     /* if try_create_path succeeded, prepare for the file handle */
     size_t len     = strlen(uri) + 1;
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len);
+    if (!hdl)
+        return -PAL_ERROR_NOMEM;
+
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
-    hdl->file.fd     = fd;
-    char* path       = (void*)hdl + HANDLE_SIZE(file);
+    hdl->file.fd = fd;
+    char* path   = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
         SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
@@ -68,38 +72,114 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
     hdl->file.realpath = (PAL_STR)path;
 
-    sgx_stub_t* stubs;
-    uint64_t total;
-    ret = load_trusted_file(hdl, &stubs, &total, create);
-    if (ret < 0) {
-        SGX_DBG(DBG_E,
-                "Accessing file:%s is denied. (%s) "
-                "This file is not trusted or allowed.\n",
-                hdl->file.realpath, pal_strerror(ret));
-        free(hdl);
-        return ret;
-    }
+    SGX_DBG(DBG_D, "file_open: fd %d, uri %s [%s]\n", fd, uri, path);
+    if (is_protected_file(path)) {
+        pf_file_mode_t pf_mode = 0;
+        if ((access & O_RDWR) == O_RDWR) // 2
+            pf_mode = PF_FILE_MODE_READ | PF_FILE_MODE_WRITE;
+        else if ((access & O_WRONLY) == O_WRONLY) // 1
+            pf_mode = PF_FILE_MODE_WRITE;
+        else // O_RDONLY == 0
+            pf_mode = PF_FILE_MODE_READ;
 
-    hdl->file.stubs  = (PAL_PTR)stubs;
-    hdl->file.total  = total;
-    hdl->file.offset = 0;
-
-    if (hdl->file.stubs) {
-        /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
-        ret = ocall_map_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
+        // get real file size
+        struct stat st;
+        ret = ocall_fstat(fd, &st);
         if (IS_ERR(ret)) {
-            /* note that we don't free stubs because they are re-used in same trusted file */
+            SGX_DBG(DBG_E, "file_open(%s): fstat failed: %d\n", path, ret);
+            ret = unix_to_pal_error(ERRNO(ret));
+            goto out;
+        }
+
+        ret = -PAL_ERROR_DENIED;
+        pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, create);
+        if (pf) {
+            bool allowed = false;
+            pf_status_t pfs = pf_check_path(pf->context, path, &allowed);
+            if (!allowed || PF_FAILURE(pfs)) {
+                SGX_DBG(DBG_E, "file_open(%s): path doesn't match PF's allowed paths\n", path);
+                goto out;
+            }
+
+            if (pf->refcount == INT64_MAX) {
+                SGX_DBG(DBG_E, "file_open(%s): maximum refcount exceeded\n", path);
+                goto out;
+            }
+
+            pf->refcount++;
+        } else {
+            SGX_DBG(DBG_E, "load_protected_file(%s, %d) failed\n", path, hdl->file.fd);
+            goto out;
+        }
+
+        hdl->file.offset = 0;
+    } else {
+        sgx_stub_t* stubs;
+        uint64_t total;
+        ret = load_trusted_file(hdl, &stubs, &total, create);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Accessing file:%s is denied. (%s) "
+                    "This file is not trusted or allowed.\n",
+                    hdl->file.realpath, pal_strerror(ret));
             free(hdl);
-            return unix_to_pal_error(ERRNO(ret));
+            return ret;
+        }
+
+        hdl->file.stubs  = (PAL_PTR)stubs;
+        hdl->file.total  = total;
+        hdl->file.offset = 0;
+
+        if (hdl->file.stubs) {
+            /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
+            ret = ocall_map_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
+            if (IS_ERR(ret)) {
+                /* note that we don't free stubs because they are re-used in same trusted file */
+                free(hdl);
+                return unix_to_pal_error(ERRNO(ret));
+            }
         }
     }
 
     *handle = hdl;
-    return 0;
+    ret = 0;
+
+out:
+    if (ret != 0) {
+        if (pf)
+            unload_protected_file(pf);
+
+        free(hdl);
+        ocall_close(fd);
+    }
+    return ret;
 }
 
 /* 'read' operation for file streams. */
 static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
+    struct protected_file* pf = find_protected_file_handle(handle);
+
+    if (pf) {
+        if (!pf->context) {
+            SGX_DBG(DBG_E, "file_read: PF fd %d not initialized\n", handle->file.fd);
+            return -PAL_ERROR_BADHANDLE;
+        }
+
+        if (handle->file.fd != *(PAL_IDX*)pf->context->handle) {
+            SGX_DBG(DBG_E, "file_read(PF fd %d): call fd %d != ctx fd %d\n",
+                    handle->file.fd, handle->file.fd, *(int*)pf->context->handle);
+            return -PAL_ERROR_BADHANDLE;
+        }
+
+        pf_status_t pfs = pf_read(pf->context, offset, count, buffer);
+
+        if (PF_FAILURE(pfs)) {
+            SGX_DBG(DBG_E, "file_read(PF fd %d): pf_read failed: 0x%x\n", handle->file.fd, pfs);
+            return -PAL_ERROR_DENIED;
+        }
+
+        return count;
+    }
+
     int64_t ret;
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
@@ -142,6 +222,26 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
 
 /* 'write' operation for file streams. */
 static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
+    struct protected_file *pf = find_protected_file_handle(handle);
+
+    if (pf) {
+        int fd = handle->file.fd;
+
+        if (!pf->context) {
+            SGX_DBG(DBG_E, "file_write: PF fd %d not initialized\n", fd);
+            return -PAL_ERROR_BADHANDLE;
+        }
+
+        pf_status_t pf_ret = pf_write(pf->context, offset, count, buffer);
+
+        if (PF_FAILURE(pf_ret)) {
+            SGX_DBG(DBG_E, "file_write(PF fd %d): pf_write failed: 0x%x\n", fd, pf_ret);
+            return -PAL_ERROR_DENIED;
+        }
+
+        return count;
+    }
+
     int64_t ret;
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
@@ -171,6 +271,18 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
    close the file without deleting it. */
 static int file_close(PAL_HANDLE handle) {
     int fd = handle->file.fd;
+    struct protected_file* pf = find_protected_file_handle(handle);
+
+    if (pf) {
+        if (pf->refcount == 0) {
+            SGX_DBG(DBG_E, "file_close(PF fd %d) refcount == 0\n", fd);
+            return -PAL_ERROR_INVAL;
+        }
+
+        pf->refcount--;
+        if (pf->refcount == 0)
+            unload_protected_file(pf);
+    }
 
     if (handle->file.stubs) {
         /* case of trusted file: the whole file was mmapped in untrusted memory */
@@ -198,6 +310,81 @@ static int file_delete(PAL_HANDLE handle, int access) {
 
 /* 'map' operation for file stream. */
 static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
+    struct protected_file* pf = find_protected_file_handle(handle);
+
+    if (pf) {
+        int fd = handle->file.fd;
+        if ((prot & PAL_PROT_READ) && (prot & PAL_PROT_WRITE)) {
+            SGX_DBG(DBG_E, "file_map(PF fd %d): trying to map with R+W access\n", fd);
+            return -PAL_ERROR_NOTSUPPORT;
+        }
+
+        if (!pf->context) {
+            SGX_DBG(DBG_E, "file_map(PF fd %d): PF not initialized\n", fd);
+            return -PAL_ERROR_BADHANDLE;
+        }
+
+        if (handle->file.fd != *(PAL_IDX*)pf->context->handle) {
+            SGX_DBG(DBG_E, "file_map: PF call fd %d != ctx fd %d\n",
+                fd, *(int*)pf->context->handle);
+            return -PAL_ERROR_BADHANDLE;
+        }
+
+        void* buf = NULL;
+        if (!*addr) {
+            buf = malloc(size);
+            if (!buf)
+                return -PAL_ERROR_NOMEM;
+        }
+
+        uint64_t pf_size;
+        __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &pf_size);
+        assert(PF_SUCCESS(pfs));
+
+        if ((prot & PAL_PROT_WRITE) || !*addr) {
+            struct pf_allocation* pfa = malloc(sizeof(struct pf_allocation));
+            memset(pfa, 0, sizeof(*pfa));
+
+            if (prot & PAL_PROT_WRITE) {
+                pfa->size = size; // size > 0 marks pfa for writing to the PF
+                pfa->offset = offset;
+            }
+
+            if (!*addr) { // buffer was allocated by us
+                pfa->free = true;
+                *addr = buf;
+            } else {
+                pfa->free = false;
+            }
+
+            pfa->mem = *addr;
+            LISTP_ADD_TAIL(pfa, &pf->allocation_list, list);
+        }
+
+        if (prot & PAL_PROT_READ) {
+            // we don't check this on writes since file size may be extended then
+            if (offset >= pf_size) {
+                SGX_DBG(DBG_E, "file_map(PF fd %d): offset (%lu) >= file size (%lu)\n",
+                    fd, offset, pf_size);
+                return -PAL_ERROR_INVAL;
+            }
+
+            memset(*addr, 0, size);
+            uint64_t copy_size = size;
+            if (size > pf_size - offset)
+                copy_size = pf_size - offset;
+
+            pf_status_t pf_ret = pf_read(pf->context, offset, copy_size, *addr);
+            if (PF_FAILURE(pf_ret)) {
+                SGX_DBG(DBG_E, "file_map(PF fd %d): pf_read failed: 0x%x\n", fd, pf_ret);
+                return -PAL_ERROR_DENIED;
+            }
+        }
+
+        // Writes will be flushed to the PF on close.
+        return 0;
+    }
+
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
     uint64_t total    = handle->file.total;
     void* mem         = *addr;
@@ -266,6 +453,20 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 
 /* 'setlength' operation for file stream. */
 static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
+    struct protected_file *pf = find_protected_file_handle(handle);
+    if (pf) {
+        pf_status_t pfs = pf_set_size(pf->context, length);
+        if (PF_FAILURE(pfs)) {
+            SGX_DBG(DBG_E, "file_setlength(PF fd %d, %lu): pf_set_size returned 0x%x\n",
+                handle->file.fd, length, pfs);
+            uint64_t size;
+            pfs = pf_get_size(pf->context, &size);
+            assert(PF_SUCCESS(pfs));
+            return size;
+        }
+        return length;
+    }
+
     int ret = ocall_ftruncate(handle->file.fd, length);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -311,6 +512,7 @@ static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
     if (strcmp_static(type, "file") && strcmp_static(type, "dir"))
         return -PAL_ERROR_INVAL;
+
     /* try to do the real open */
     int fd = ocall_open(uri, 0, 0);
     if (IS_ERR(fd))
@@ -318,13 +520,53 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     struct stat stat_buf;
     int ret = ocall_fstat(fd, &stat_buf);
-    ocall_close(fd);
 
     /* if it failed, return the right error code */
-    if (IS_ERR(ret))
+    if (IS_ERR(ret)) {
+        ocall_close(fd);
         return unix_to_pal_error(ERRNO(ret));
+    }
 
     file_attrcopy(attr, &stat_buf);
+
+    char path[URI_MAX];
+    size_t len = URI_MAX;
+    ret = get_norm_path(uri, path, &len);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
+        ocall_close(fd);
+        return ret;
+    }
+
+    if (attr->handle_type != pal_type_dir) {
+        /* For protected files return the data size, not real FS size */
+        if (is_protected_file(path)) {
+            struct protected_file* pf = load_protected_file(path, (pf_handle_t)&fd,
+                                                            stat_buf.st_size, PAL_PROT_READ, false);
+            if (!pf) {
+                SGX_DBG(DBG_E, "file_attrquery: load_protected_file(%s, %d) failed\n", path, fd);
+                /* The call above will fail for PFs that were tampered with or have a wrong path.
+                 * glibc kills the process if this fails during directory enumeration, but that
+                 * should be fine given the scenario.
+                 */
+                ocall_close(fd);
+                return -PAL_ERROR_DENIED;
+            }
+
+            uint64_t size;
+            __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &size);
+            assert(PF_SUCCESS(pfs)); // this should never fail
+            attr->pending_size = size;
+
+            if (fd == *(int*)pf->context->handle) { // this is a PF opened just for us, close it
+                pfs = pf_close(pf->context);
+                pf->context = NULL;
+                assert(PF_SUCCESS(pfs));
+            }
+        }
+    }
+
+    ocall_close(fd);
     return 0;
 }
 
@@ -338,6 +580,17 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         return unix_to_pal_error(ERRNO(ret));
 
     file_attrcopy(attr, &stat_buf);
+
+    if (attr->handle_type != pal_type_dir) {
+        /* For protected files return the data size, not real FS size */
+        struct protected_file* pf = find_protected_file_handle(handle);
+        if (pf) {
+            uint64_t size;
+            __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &size);
+            assert(PF_SUCCESS(pfs));
+            attr->pending_size = size;
+        }
+    }
     return 0;
 }
 

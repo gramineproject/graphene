@@ -13,9 +13,10 @@ defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
-		 threading mutex events process object main rtld \
-		 exception misc ipc spinlock) \
-	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted)
+		threading mutex events process object main rtld \
+		exception misc ipc spinlock) \
+		$(addprefix enclave_,ocalls ecalls framework pf platform pages untrusted) \
+		protected_files
 enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
 	    quote/aesm.pb-c
@@ -23,7 +24,7 @@ urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
-all: sgx-driver/isgx_version.h $(host_files)
+all: sgx-driver/isgx_version.h $(host_files) tools
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -31,6 +32,8 @@ CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
 export DEBUG
 endif
+
+sgx_framework.c: sgx-driver/isgx_version.h
 
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
@@ -88,6 +91,10 @@ enclave_entry.o sgx_entry.o: asm-offsets.h
 sgx-driver/isgx_version.h:
 	$(MAKE) -C sgx-driver $(notdir $@)
 
+.PHONY: tools
+tools:
+	@$(MAKE) -C tools
+
 include $(wildcard *.d) $(wildcard debugger/*.d)
 
 include ../../../../Makefile.rules
@@ -102,6 +109,7 @@ clean:
 	rm -rf *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
 	       signer/__pycache__
 	$(MAKE) -C sgx-driver $@
+	$(MAKE) -C tools clean
 
 .PHONY: test
 test:
