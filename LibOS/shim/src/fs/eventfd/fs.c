@@ -20,38 +20,26 @@
  * This file contains codes for implementation of 'eventfd' filesystem.
  */
 
-#include <shim_internal.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
-#include <shim_profile.h>
-
-#include <pal.h>
-#include <pal_error.h>
-#include <pal_debug.h>
-
+#include <asm/fcntl.h>
+#include <asm/unistd.h>
 #include <errno.h>
-
 #include <linux/stat.h>
 #include <linux/fcntl.h>
+#include <pal.h>
+#include <shim_internal.h>
+#include <shim_handle.h>
+#include <shim_fs.h>
 
-#include <asm/fcntl.h>
-#include <asm/mman.h>
-#include <asm/unistd.h>
-#include <asm/prctl.h>
-#include <asm/fcntl.h>
-#include <shim_profile.h>
-
-static ssize_t eventfd_read(struct shim_handle * hdl, void * buf, size_t count) {
+static ssize_t eventfd_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!count)
         return 0;
 
-    if (count != sizeof(uint64_t))
+    if (count < sizeof(uint64_t))
         return -EINVAL;
 
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
-    if (!bytes)
+    if (bytes <= 0)
         return -PAL_ERRNO;
 
     assert((ssize_t ) bytes == sizeof(uint64_t));
@@ -59,16 +47,16 @@ static ssize_t eventfd_read(struct shim_handle * hdl, void * buf, size_t count) 
     return (ssize_t) bytes;
 }
 
-static ssize_t eventfd_write(struct shim_handle * hdl, const void * buf, size_t count) {
+static ssize_t eventfd_write(struct shim_handle* hdl, const void* buf, size_t count) {
     if (!count)
         return 0;
 
-    if (count != sizeof(uint64_t))
+    if (count < sizeof(uint64_t))
         return -EINVAL;
 
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
 
-    if (!bytes)
+    if (bytes <= 0)
         return -PAL_ERRNO;
 
     assert((ssize_t ) bytes == sizeof(uint64_t));
@@ -76,7 +64,7 @@ static ssize_t eventfd_write(struct shim_handle * hdl, const void * buf, size_t 
     return (ssize_t) bytes;
 }
 
-static off_t eventfd_poll(struct shim_handle * hdl, int poll_type) {
+static off_t eventfd_poll(struct shim_handle* hdl, int poll_type) {
     off_t ret = 0;
 
     lock(&hdl->lock);
@@ -104,9 +92,6 @@ static off_t eventfd_poll(struct shim_handle * hdl, int poll_type) {
         ret |= FS_POLL_RD;
     if ((poll_type & FS_POLL_WR) && attr.writable)
         ret |= FS_POLL_WR;
-
-    debug("%s:%d: ret=%ld, pal-eventfd=%u\n", __func__, __LINE__, ret,
-            (attr.no_of_fds) ? attr.fds[0] : 0);
 
 out:
     unlock(&hdl->lock);

@@ -33,6 +33,8 @@ else
 $(c_executables) $(cxx_executables):
 endif
 
+LDLIBS-eventfd += -lpthread
+
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
 export PYTHONPATH=../../../../Scripts
 

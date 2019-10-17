@@ -963,8 +963,6 @@ SHIM_SYSCALL_PASSTHROUGH(signalfd, 3, int, int, ufd, __sigset_t*, user_mask, siz
 
 SHIM_SYSCALL_PASSTHROUGH(timerfd_create, 2, int, int, clockid, int, flags)
 
-SHIM_SYSCALL_PASSTHROUGH(eventfd, 1, int, int, count)
-
 SHIM_SYSCALL_PASSTHROUGH(fallocate, 4, int, int, fd, int, mode, loff_t, offset, loff_t, len)
 
 SHIM_SYSCALL_PASSTHROUGH(timerfd_settime, 4, int, int, ufd, int, flags,
@@ -979,7 +977,9 @@ DEFINE_SHIM_SYSCALL(accept4, 4, shim_do_accept4, int, int, sockfd, struct sockad
 SHIM_SYSCALL_PASSTHROUGH(signalfd4, 4, int, int, ufd, __sigset_t*, user_mask, size_t, sizemask, int,
                          flags)
 
-DEFINE_SHIM_SYSCALL (eventfd2, 2, shim_do_eventfd2, int, int, init, int, flags)
+DEFINE_SHIM_SYSCALL(eventfd, 1, shim_do_eventfd, int, unsigned int, count)
+
+DEFINE_SHIM_SYSCALL (eventfd2, 2, shim_do_eventfd2, int, unsigned int, count, int, flags)
 
 /* epoll_create1: sys/shim_epoll.c */
 DEFINE_SHIM_SYSCALL(epoll_create1, 1, shim_do_epoll_create1, int, int, flags)

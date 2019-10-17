@@ -108,7 +108,7 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
                 hops = &tcp_ops;
             else if (strstartswith_static(u, "udp.srv"))
                 hops = &udp_ops;
-            else if (strstartswith_static(u, EVENTFD_URI_PREFIX))
+            else if (strstartswith_static(u, "eventfd:"))
                 hops = &eventfd_ops;
             break;
 

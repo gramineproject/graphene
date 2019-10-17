@@ -673,13 +673,11 @@ static int sgx_ocall_delete(void * pms)
 static int sgx_ocall_eventfd (void * pms)
 {
     ms_ocall_eventfd_t * ms = (ms_ocall_eventfd_t *) pms;
-    int64_t retval;
+    int retval;
     ODEBUG(OCALL_EVENTFD, ms);
 
     retval = INLINE_SYSCALL(eventfd2, 2, ms->ms_initval, ms->ms_flags);
 
-    if (IS_ERR(retval))
-        return unix_to_pal_error(ERRNO(retval));
     return retval;
 }
 
