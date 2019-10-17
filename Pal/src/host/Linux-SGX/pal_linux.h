@@ -31,6 +31,8 @@
 #include "sgx_tls.h"
 
 #include "enclave_ocalls.h"
+#include "protected_files.h"
+#include "uthash.h"
 
 #include <linux/mman.h>
 
@@ -159,6 +161,70 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mr_enclave_str);
 
+/* Used to track map buffers for protected files */
+DEFINE_LIST(pf_map);
+struct pf_map {
+    LIST_TYPE(pf_map) list;
+    struct protected_file* pf;
+    void* buffer;
+    uint64_t size;
+    uint64_t offset; /* offset in PF, needed for write buffers when flushing to the PF */
+};
+DEFINE_LISTP(pf_map);
+
+/* List of PF map buffers; this list is traversed on PF flush (on file close) */
+extern LISTP_TYPE(pf_map) g_pf_map_list;
+
+/* Data of a protected file */
+struct protected_file {
+    UT_hash_handle hh;
+    size_t path_len;
+    char* path;
+    pf_context_t context; /* NULL until PF is opened */
+    int64_t refcount; /* used for deciding when to call unload_protected_file() */
+};
+
+/* Initialize the PF library, register PFs from the manifest */
+int init_protected_files();
+
+/* Take ownership of the global PF lock */
+void pf_lock(void);
+
+/* Release ownership of the global PF lock */
+void pf_unlock(void);
+
+/* Return a registered PF that matches specified path
+   (or the path is contained in a registered PF directory) */
+struct protected_file* get_protected_file(const char* path);
+
+/* Load and initialize a PF (must be called before any I/O operations)
+ *
+ * path:   normalized host path
+ * fd:     pointer to an opened file descriptor (must point to a valid value for the whole time PF
+ *         is being accessed)
+ * size:   underlying file size (in bytes)
+ * mode:   access mode
+ * create: if true, the PF is being created/truncated
+ * pf:     (optional) PF pointer if already known
+ */
+struct protected_file* load_protected_file(const char* path, int* fd, size_t size,
+                                           pf_file_mode_t mode, bool create,
+                                           struct protected_file* pf);
+
+/* Flush PF map buffers and optionally remove and free them.
+   If pf is NULL, process all maps containing given buffer.
+   If buffer is NULL, process all maps for given pf. */
+int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove);
+
+/* Flush map buffers and unload/close the PF */
+int unload_protected_file(struct protected_file* pf);
+
+/* Find registered PF by path (exact match) */
+struct protected_file* find_protected_file(const char* path);
+
+/* Find protected file by handle (uses handle's path to call find_protected_file) */
+struct protected_file* find_protected_file_handle(PAL_HANDLE handle);
+
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
 
@@ -265,6 +331,11 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
 #endif
 
 #ifdef IN_ENCLAVE
+#undef uthash_fatal
+#define uthash_fatal(msg) \
+    __UNUSED(msg); \
+    DkProcessExit(-PAL_ERROR_NOMEM);
+
 #define SGX_DBG(class, fmt...) \
     do { if ((class) & DBG_LEVEL) printf(fmt); } while (0)
 #else

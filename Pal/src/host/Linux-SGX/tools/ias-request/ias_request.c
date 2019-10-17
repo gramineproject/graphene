@@ -86,8 +86,8 @@ int report(struct ias_context_t* ias, const char* quote_path, const char* nonce,
         goto out;
     }
 
-    ssize_t quote_size;
-    quote_data = read_file(quote_path, &quote_size);
+    size_t quote_size = 0;
+    quote_data = read_file(quote_path, &quote_size, /*buffer=*/NULL);
     if (!quote_data) {
         ERROR("Failed to read quote file '%s'\n", quote_path);
         goto out;

@@ -1,0 +1,29 @@
+include ../../../../../../Scripts/Makefile.configs
+include ../../../../../../Scripts/Makefile.rules
+
+CFLAGS += -I../.. \
+          -I../common \
+          -I../../protected-files \
+          -L../common \
+          -D_GNU_SOURCE
+
+LDLIBS += -lsgx_util
+
+PREFIX ?= /usr/local
+
+pf_crypt: pf_crypt.o
+	$(call cmd,csingle)
+
+.PHONY: all
+all: pf_crypt
+
+.PHONY: install
+install:
+	install pf_crypt ${PREFIX}/bin
+
+.PHONY: clean
+clean:
+	$(RM) *.o pf_crypt
+
+.PHONY: distclean
+distclean: clean

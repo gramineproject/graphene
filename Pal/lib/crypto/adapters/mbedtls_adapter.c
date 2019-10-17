@@ -29,6 +29,7 @@
 #include "mbedtls/aes.h"
 #include "mbedtls/cmac.h"
 #include "mbedtls/error.h"
+#include "mbedtls/gcm.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha256.h"
@@ -152,6 +153,70 @@ int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
     mbedtls_sha256_free(context);
     return 0;
 }
+
+/* GCM encrypt, iv is assumed to be 12 bytes.
+ * input_len doesn't have to be a multiple of 16.
+ * Additional authenticated data (aad) may be NULL if absent.
+ * Output len is the same as input_len. */
+int lib_AESGCMEncrypt(const uint8_t* key, uint64_t key_len, const uint8_t* iv, const uint8_t* input,
+                      uint64_t input_len, const uint8_t* aad, uint64_t aad_len, uint8_t* output,
+                      uint8_t* tag, uint64_t tag_len) {
+    int ret = -PAL_ERROR_INVAL;
+
+    mbedtls_gcm_context gcm;
+    mbedtls_gcm_init(&gcm);
+
+    if (key_len != 16 && key_len != 24 && key_len != 32)
+        goto out;
+
+    ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, key_len * 8);
+    ret = mbedtls_to_pal_error(ret);
+    if (ret != 0)
+        goto out;
+
+    ret = mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, input_len, iv, 12, aad, aad_len,
+                                    input, output, tag_len, tag);
+    ret = mbedtls_to_pal_error(ret);
+    if (ret != 0)
+        goto out;
+
+    ret = 0;
+out:
+    mbedtls_gcm_free(&gcm);
+    return ret;
+ }
+
+/* GCM decrypt, iv is assumed to be 12 bytes.
+ * input_len doesn't have to be a multiple of 16.
+ * Additional authenticated data (aad) may be NULL if absent.
+ * Output len is the same as input_len. */
+int lib_AESGCMDecrypt(const uint8_t* key, uint64_t key_len, const uint8_t* iv, const uint8_t* input,
+                      uint64_t input_len, const uint8_t* aad, uint64_t aad_len, uint8_t* output,
+                      const uint8_t* tag, uint64_t tag_len) {
+    int ret = -PAL_ERROR_INVAL;
+
+    mbedtls_gcm_context gcm;
+    mbedtls_gcm_init(&gcm);
+
+    if (key_len != 16 && key_len != 24 && key_len != 32)
+        goto out;
+
+    ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, key_len * 8);
+    ret = mbedtls_to_pal_error(ret);
+    if (ret != 0)
+        goto out;
+
+    ret = mbedtls_gcm_auth_decrypt(&gcm, input_len, iv, 12, aad, aad_len, tag, tag_len, input,
+                                   output);
+    ret = mbedtls_to_pal_error(ret);
+    if (ret != 0)
+        goto out;
+
+    ret = 0;
+out:
+    mbedtls_gcm_free(&gcm);
+    return ret;
+ }
 
 int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
                 uint64_t input_len, uint8_t *mac, uint64_t mac_len) {

@@ -31,3 +31,7 @@ sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
 
 sgx.allowed_files.tmp_dir = file:tmp/
+
+sgx.protected_files_key = ffeeddccbbaa99887766554433221100
+sgx.protected_files.input = file:tmp/pf_input
+sgx.protected_files.output = file:tmp/pf_output

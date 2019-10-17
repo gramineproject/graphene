@@ -65,40 +65,55 @@ ssize_t get_file_size(int fd) {
     return st.st_size;
 }
 
-/* Read whole file, caller should free the buffer */
-uint8_t* read_file(const char* path, ssize_t* size) {
+void* read_file(const char* path, size_t* size, void* buffer) {
     FILE* f = NULL;
-    uint8_t* buf = NULL;
+    ssize_t fs = 0;
+    void* buf = buffer;
 
+    if (!size || !path)
+        return NULL;
+
+    DBG("read_file '%s' %zu\n", path, *size);
     f = fopen(path, "rb");
     if (!f) {
         ERROR("Failed to open file '%s' for reading: %s\n", path, strerror(errno));
         goto out;
     }
 
-    *size = get_file_size(fileno(f));
-    if (*size == -1) {
-        ERROR("Failed to get size of file '%s': %s\n", path, strerror(errno));
-        goto out;
+    if (*size == 0) { // read whole file
+        fs = get_file_size(fileno(f));
+        if (fs < 0) {
+            ERROR("Failed to get size of file '%s': %s\n", path, strerror(errno));
+            goto out;
+        }
+    } else {
+        fs = *size;
     }
 
-    buf = (uint8_t*)malloc(*size);
-    if (!buf) {
-        ERROR("No memory\n");
-        goto out;
+    if (!buffer) {
+        buffer = malloc(fs);
+        if (!buffer) {
+            ERROR("No memory\n");
+            goto out;
+        }
     }
 
-    if (fread(buf, *size, 1, f) != 1) {
+    if (fread(buffer, fs, 1, f) != 1) {
         ERROR("Failed to read file '%s'\n", path);
-        free(buf);
-        buf = NULL;
+        if (!buf) {
+            free(buffer);
+            buffer = NULL;
+        }
     }
 
 out:
     if (f)
         fclose(f);
 
-    return buf;
+    if (buffer && *size == 0)
+        *size = fs;
+
+    return buffer;
 }
 
 static int write_file_internal(const char* path, size_t size, const void* buffer, bool append) {
