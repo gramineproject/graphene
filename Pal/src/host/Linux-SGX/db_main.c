@@ -31,6 +31,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
+#include "protected_files.h"
 
 #include <asm/ioctls.h>
 #include <asm/mman.h>
@@ -409,6 +410,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     if ((rv = init_file_check_policy()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the file check policy: %d\n", rv);
+        ocall_exit(rv, true);
+    }
+
+    if ((rv = init_protected_files()) < 0) {
+        SGX_DBG(DBG_E, "Failed to initialize protected files: %d\n", rv);
         ocall_exit(rv, true);
     }
 

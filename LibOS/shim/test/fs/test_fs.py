@@ -44,40 +44,43 @@ class TC_00_FileSystem(RegressionTestCase):
     def copy_input(self, input, output):
         shutil.copy(input, output)
 
-    def verify_open_close(self, stdout, stderr, input_path, output_path):
+    def verify_open_close(self, stdout, stderr, path, mode):
         self.assertNotIn('ERROR: ', stderr)
-        self.assertIn('open(' + input_path + ') input OK', stdout)
-        self.assertIn('close(' + input_path + ') input OK', stdout)
-        self.assertIn('open(' + input_path + ') input 1 OK', stdout)
-        self.assertIn('open(' + input_path + ') input 2 OK', stdout)
-        self.assertIn('close(' + input_path + ') input 1 OK', stdout)
-        self.assertIn('close(' + input_path + ') input 2 OK', stdout)
-        self.assertIn('fopen(' + input_path + ') input OK', stdout)
-        self.assertIn('fclose(' + input_path + ') input OK', stdout)
-        self.assertIn('fopen(' + input_path + ') input 1 OK', stdout)
-        self.assertIn('fopen(' + input_path + ') input 2 OK', stdout)
-        self.assertIn('fclose(' + input_path + ') input 1 OK', stdout)
-        self.assertIn('fclose(' + input_path + ') input 2 OK', stdout)
+        self.assertIn('open(' + path + ') ' + mode + ' OK', stdout)
+        self.assertIn('close(' + path + ') ' + mode + ' OK', stdout)
+        self.assertIn('open(' + path + ') ' + mode + ' 1 OK', stdout)
+        self.assertIn('open(' + path + ') ' + mode + ' 2 OK', stdout)
+        self.assertIn('close(' + path + ') ' + mode + ' 1 OK', stdout)
+        self.assertIn('close(' + path + ') ' + mode + ' 2 OK', stdout)
+        self.assertIn('fopen(' + path + ') ' + mode + ' OK', stdout)
+        self.assertIn('fclose(' + path + ') ' + mode + ' OK', stdout)
+        self.assertIn('fopen(' + path + ') ' + mode + ' 1 OK', stdout)
+        self.assertIn('fopen(' + path + ') ' + mode + ' 2 OK', stdout)
+        self.assertIn('fclose(' + path + ') ' + mode + ' 1 OK', stdout)
+        self.assertIn('fclose(' + path + ') ' + mode + ' 2 OK', stdout)
 
-        self.assertIn('open(' + output_path + ') output OK', stdout)
-        self.assertIn('close(' + output_path + ') output OK', stdout)
-        self.assertTrue(os.path.isfile(output_path))
-        self.assertIn('open(' + output_path + ') output 1 OK', stdout)
-        self.assertIn('open(' + output_path + ') output 2 OK', stdout)
-        self.assertIn('close(' + output_path + ') output 1 OK', stdout)
-        self.assertIn('close(' + output_path + ') output 2 OK', stdout)
-        self.assertIn('fopen(' + output_path + ') output OK', stdout)
-        self.assertIn('fclose(' + output_path + ') output OK', stdout)
-        self.assertIn('fopen(' + output_path + ') output 1 OK', stdout)
-        self.assertIn('fopen(' + output_path + ') output 2 OK', stdout)
-        self.assertIn('fclose(' + output_path + ') output 1 OK', stdout)
-        self.assertIn('fclose(' + output_path + ') output 2 OK', stdout)
+    def verify_open_flags(self, stdout, stderr):
+        self.assertNotIn('ERROR: ', stderr)
+        self.assertIn('open(O_CREAT|O_EXCL|O_RDWR) [doesn\'t exist] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_EXCL|O_RDWR) [exists] failed OK', stdout)
+        self.assertIn('open(O_CREAT|O_RDWR) [exists] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_RDWR) [doesn\'t exist] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_TRUNC|O_RDWR) [doesn\'t exist] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_TRUNC|O_RDWR) [exists] succeeded OK', stdout)
 
     def test_100_open_close(self):
         input_path = self.INPUT_FILES[-1] # existing file
         output_path = os.path.join(self.OUTPUT_DIR, 'test_100') # new file to be created
-        stdout, stderr = self.run_binary(['open_close', input_path, output_path])
-        self.verify_open_close(stdout, stderr, input_path, output_path)
+        stdout, stderr = self.run_binary(['open_close', 'R', input_path])
+        self.verify_open_close(stdout, stderr, input_path, 'input')
+        stdout, stderr = self.run_binary(['open_close', 'W', output_path])
+        self.verify_open_close(stdout, stderr, output_path, 'output')
+        self.assertTrue(os.path.isfile(output_path))
+
+    def test_101_open_flags(self):
+        file_path = os.path.join(self.OUTPUT_DIR, 'test_101') # new file to be created
+        stdout, stderr = self.run_binary(['open_flags', file_path])
+        self.verify_open_flags(stdout, stderr)
 
     def test_110_read_write(self):
         file_path = os.path.join(self.OUTPUT_DIR, 'test_110') # new file to be created
@@ -124,6 +127,10 @@ class TC_00_FileSystem(RegressionTestCase):
         self.assertIn('fseek(' + output_path_2 + ') output end 3 OK', stdout)
         self.assertIn('ftell(' + output_path_2 + ') output end 2 OK: ' + str(size + 4098), stdout)
         self.assertIn('fclose(' + output_path_2 + ') output OK', stdout)
+
+        expected_size = size + 4098
+        self.verify_size(output_path_1, expected_size)
+        self.verify_size(output_path_2, expected_size)
 
     def test_115_seek_tell(self):
         input_path = self.INPUT_FILES[-1] # existing file

@@ -5,7 +5,7 @@ CFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
           -I../../../lib/crypto/mbedtls/include -I../../../lib/crypto/mbedtls/crypto/include \
           -I../../../include/host/Linux-SGX \
           -I../../../include/host/Linux-common \
-          -I../../../include/lib -Isgx-driver
+          -I../../../include/lib -Isgx-driver -Iprotected-files
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py
@@ -37,9 +37,12 @@ enclave-objs = \
 	enclave_framework.o \
 	enclave_ocalls.o \
 	enclave_pages.o \
+	enclave_pf.o \
 	enclave_platform.o \
 	enclave_untrusted.o \
 	enclave_xstate.o \
+	protected-files/lru_cache.o \
+	protected-files/protected_files.o \
 	$(commons_objs)
 
 enclave-asm-objs = enclave_entry.o
@@ -117,6 +120,10 @@ sgx-driver/sgx.h:
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard debugger/*.d)
 endif
+
+.PHONY: tools
+tools:
+	@$(MAKE) -C tools
 
 include ../../../../Scripts/Makefile.rules
 

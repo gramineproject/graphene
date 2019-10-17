@@ -48,6 +48,26 @@ class RegressionTestCase(unittest.TestCase):
 
         return stdout.decode(), stderr.decode()
 
+    def run_native_binary(self, args, *, timeout=None, **kwds):
+        timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
+            else self.DEFAULT_TIMEOUT)
+
+        with subprocess.Popen([*args],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                preexec_fn=os.setpgrp,
+                **kwds) as process:
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                self.fail('timeout ({} s) expired'.format(timeout))
+
+            if process.returncode:
+                raise subprocess.CalledProcessError(
+                    process.returncode, args, stdout, stderr)
+
+        return stdout.decode(), stderr.decode()
+
     @contextlib.contextmanager
     def expect_returncode(self, returncode):
         if returncode == 0:

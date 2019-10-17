@@ -1,4 +1,5 @@
 include ../../../../../Scripts/Makefile.configs
+include ../../../../../Scripts/Makefile.rules
 
 targets = all clean distclean install
 
@@ -9,3 +10,4 @@ $(targets):
 	$(MAKE) -C quote-dump $@
 	$(MAKE) -C ias-request $@
 	$(MAKE) -C verify-ias-report $@
+	$(MAKE) -C pf_crypt $@
