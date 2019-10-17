@@ -20,17 +20,25 @@ done
 RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
 if [ -z $PAL_HOST ]; then
     if [ ! -f /usr/bin/make ]; then
-        libpal=$(/bin/ls -1 $RUNTIME_DIR/libpal-*.so 2>/dev/null)
-        if [ $? -ne 0 ]; then
+        libpal="$RUNTIME_DIR/libpal-*.so"
+        libpal="$(echo -n $libpal)"
+        libpal="${libpal//$RUNTIME_DIR\//}"
+        if [ "$libpal" = 'libpal-*.so' ]; then
             echo "Unable to detect PAL_HOST. Please install the make program."
             exit 1
+        elif [ $(echo -n "$libpal" | tr " " "\n" | grep -c "libpal-")  -ne 1 ]; then
+            echo "Multiple libpal detected (${libpal//$RUNTIME_DIR\//}). Please explicitly set the environment variable PAL_HOST."
+            exit 1
         fi
-        PAL_HOST=$(/usr/bin/basename $libpal)
-        PAL_HOST=${PAL_HOST%.so}
-        PAL_HOST=${PAL_HOST#libpal-}
+
+        PAL_HOST="${libpal%.so}"
+        PAL_HOST="${PAL_HOST#libpal-}"
     else
         PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
     fi
+    echo "PAL_HOST=$PAL_HOST implicitly detected."
+else
+    echo "Using PAL_HOST=$PAL_HOST explicitly set in environment variable."
 fi
 
 MANIFEST=
