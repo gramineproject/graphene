@@ -28,6 +28,7 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 #include "enclave_ocalls.h"
+#include "protected_files.h"
 
 #include <linux/mman.h>
 
@@ -144,6 +145,56 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mr_enclave_str);
+
+/* Used to track map allocations for protected files */
+DEFINE_LIST(pf_allocation);
+struct pf_allocation {
+    LIST_TYPE(pf_allocation) list;
+    void* mem; // buffer address
+    bool free; // whether to free the buffer
+    uint64_t size; // allocation size
+    uint64_t offset; // needed for write buffers when flushing to the PF
+};
+DEFINE_LISTP(pf_allocation);
+
+/* Data of a protected file */
+DEFINE_LIST(protected_file);
+struct protected_file {
+    LIST_TYPE(protected_file) list;
+    size_t path_len;
+    char path[URI_MAX];
+    pf_context_t* context; // NULL until PF is opened
+    int64_t refcount; // used for deciding when to call unload_protected_file()
+    LISTP_TYPE(pf_allocation) allocation_list;
+};
+DEFINE_LISTP(protected_file);
+
+/* Initialize the PF library, read & initialize PFs from the manifest */
+int init_protected_files();
+
+/* Return true if path matches a registered PF (or is contained in a registered PF directory) */
+bool is_protected_file(const char* path);
+
+/* Load and initialize a PF (must be called before any I/O operations)
+ *
+ * path:   normalized host path
+ * fd:     pointer to an opened file descriptor (must point to a valid value for the whole time PF
+ *         is being accessed)
+ * size:   underlying file size (in bytes)
+ * mode:   access mode
+ * create: if true, the PF is being created/truncated
+ */
+struct protected_file* load_protected_file(const char* path, int* fd, size_t size,
+                                           pf_file_mode_t mode, bool create);
+
+/* Cleanup: flush mmap'd writes to the PF, deallocate buffers etc */
+int unload_protected_file(struct protected_file* pf);
+
+/* Find registered PF by path (exact match) */
+struct protected_file* find_protected_file(const char* path);
+
+/* Find protected file by handle (uses handle's path to call find_protected_file) */
+struct protected_file* find_protected_file_handle(PAL_HANDLE handle);
 
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
