@@ -1,5 +1,5 @@
 # SUBDIRS = regression native inline benchmark
-SUBDIRS = native
+SUBDIRS = native fs
 
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
