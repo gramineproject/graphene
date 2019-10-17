@@ -64,7 +64,11 @@ CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
 else
-CFLAGS += -O1
+ifeq ($(WORKAROUND_BUG_1040),1)
+CFLAGS += -O0  # On Jenkins' Ubuntu 16.04 and gcc 5.4, O1/O2 fails some apps
+else
+CFLAGS += -O2  # On all other platforms, O1/O2 works correctly
+endif
 endif
 export DEBUG
 

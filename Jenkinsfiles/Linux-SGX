@@ -26,8 +26,9 @@ pipeline {
                             ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
                         '''
                         sh '''
-                            make -j 8 SGX=1 WERROR=1
-                            make -j 8 SGX=1 WERROR=1 test
+                            # On Jenkins' Ubuntu 16.04 and gcc 5.4, O1/O2 fails some apps (issue #1040)
+                            make -j 8 SGX=1 WERROR=1 WORKAROUND_BUG_1040=1
+                            make -j 8 SGX=1 WERROR=1 WORKAROUND_BUG_1040=1 test
                         '''
                         sh '''
                             make SGX=1 sgx-tokens
