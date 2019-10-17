@@ -27,15 +27,24 @@ $(execs)
 endif
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
+export PAL_TOOLS  = ../../../../Pal/src/host/$(PAL_HOST)/tools
 export PYTHONPATH = ../../../../Scripts
 
-.PHONY: test
-test: $(target)
+.PHONY: fs-test
+fs-test: $(target)
 	$(RM) fs-test.xml
 	$(MAKE) fs-test.xml
 
+.PHONY: test
+test: $(target)
+	$(RM) pf-test.xml
+	$(MAKE) pf-test.xml
+
 fs-test.xml:
 	python3 -m pytest --junit-xml $@ -v test_fs.py
+
+pf-test.xml:
+	python3 -m pytest --junit-xml $@ -v test_pf.py
 
 .PHONY: clean-tmp
 clean-tmp:
