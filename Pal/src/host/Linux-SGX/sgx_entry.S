@@ -18,8 +18,7 @@ sgx_ecall:
 
 .Ldo_ecall:
 	# RBX has to be the TCS of the thread
-	movq current_tcs@gottpoff(%rip), %rbx
-	movq %fs:(%rbx), %rbx
+	movq %gs:PAL_TCB_LINUX_TCS, %rbx
 
 	# RCX has to be the AEP (Asynchronous Exit Pointer)
 	leaq async_exit_pointer(%rip), %rcx

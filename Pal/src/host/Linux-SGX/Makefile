@@ -18,7 +18,7 @@ enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted)
 enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
-	    quote/aesm.pb-c
+	    quote/aesm.pb-c clone-x86_64
 urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 
@@ -64,7 +64,7 @@ $(addsuffix .o,$(enclave-objs)): quote/generated-cacert.h
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now -pie $^ -lc -pthread -lprotobuf-c -o $@
+	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now -pie $^ -lc -lprotobuf-c -o $@
 
 quote/aesm.pb-c.o: quote/aesm.pb-c.c quote/aesm.pb-c.h
 quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto

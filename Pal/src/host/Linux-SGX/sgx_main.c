@@ -932,8 +932,20 @@ static int load_enclave (struct pal_enclave * enclave,
     if (ret < 0)
         return ret;
 
-    current_enclave = enclave;
-    map_tcs(INLINE_SYSCALL(gettid, 0), /* created_by_pthread=*/false);
+    void* alt_stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, ALT_STACK_SIZE,
+                                            PROT_READ | PROT_WRITE,
+                                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (IS_ERR_P(alt_stack))
+        return -ENOMEM;
+
+    /* initialize TCB at the top of the alternative stack */
+    PAL_TCB_LINUX* tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
+    tcb->common.self   = &tcb->common;
+    tcb->enclave       = enclave;
+    tcb->alt_stack     = alt_stack;
+    tcb->stack         = NULL;  /* main thread uses the stack provided by Linux */
+    tcb->tcs           = NULL;  /* initialized by child thread */
+    pal_thread_init(tcb);
 
     /* start running trusted PAL */
     ecall_enclave_start(args, args_size, env, env_size);
@@ -945,6 +957,7 @@ static int load_enclave (struct pal_enclave * enclave,
 #endif
 
     unmap_tcs();
+    INLINE_SYSCALL(munmap, 2, alt_stack, ALT_STACK_SIZE);
     INLINE_SYSCALL(exit, 0);
     return 0;
 }

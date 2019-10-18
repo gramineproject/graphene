@@ -191,7 +191,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* retfd
 # endif
 
 # define ARCH_VFORK()                                                       \
-    (current_enclave->pal_sec.in_gdb ?                                      \
+    (get_tcb_linux()->enclave->pal_sec.in_gdb ?                             \
      INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK|SIGCHLD, 0, NULL, NULL) :\
      INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
 #else
@@ -222,6 +222,11 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* retfd
 
 #define SGX_DBG(class, fmt...) \
     do { if ((class) & DBG_LEVEL) pal_printf(fmt); } while (0)
+#endif
+
+#ifndef IN_ENCLAVE
+int clone(int (*__fn) (void* __arg), void* __child_stack,
+          int __flags, const void* __arg, ...);
 #endif
 
 #endif /* PAL_LINUX_H */

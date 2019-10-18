@@ -130,7 +130,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int * retf
 
     int pipe_in = proc_fds[1][0], pipe_out = proc_fds[1][1];
 
-    struct pal_sec * pal_sec = &current_enclave->pal_sec;
+    struct pal_sec * pal_sec = &get_tcb_linux()->enclave->pal_sec;
     struct proc_args proc_args;
     memcpy(proc_args.exec_name, uri, sizeof(PAL_SEC_STR));
     proc_args.instance_id   = pal_sec->instance_id;
