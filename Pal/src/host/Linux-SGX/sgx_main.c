@@ -234,8 +234,10 @@ int initialize_enclave (struct pal_enclave * enclave)
     sgx_arch_enclave_css_t enclave_sigstruct;
     sgx_arch_secs_t        enclave_secs;
     unsigned long          enclave_entry_addr;
-    void*                  tcs_addrs[MAX_DBG_THREADS];
     unsigned long          heap_min = DEFAULT_HEAP_MIN;
+
+    /* this array may overflow the stack, so we allocate it in BSS */
+    static void* tcs_addrs[MAX_DBG_THREADS];
 
     enclave_image = INLINE_SYSCALL(open, 3, ENCLAVE_FILENAME, O_RDONLY, 0);
     if (IS_ERR(enclave_image)) {
