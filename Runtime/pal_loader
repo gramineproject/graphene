@@ -26,8 +26,11 @@ if [ -z $PAL_HOST ]; then
         if [ "$libpal" = 'libpal-*.so' ]; then
             echo "Unable to detect PAL_HOST. Please install the make program."
             exit 1
-        elif [ $(echo -n "$libpal" | tr " " "\n" | grep -c "libpal-")  -ne 1 ]; then
-            echo "Multiple libpal detected (${libpal//$RUNTIME_DIR\//}). Please explicitly set the environment variable PAL_HOST."
+        fi
+
+        array=($libpal)
+        if [ ${#array[@]} -ne 1 ]; then
+            echo "Multiple libpal detected ($libpal). Please explicitly set the environment variable PAL_HOST."
             exit 1
         fi
 
