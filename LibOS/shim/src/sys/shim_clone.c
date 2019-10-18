@@ -122,9 +122,6 @@ int clone_implementation_wrapper(struct clone_args * arg)
 
     int stack_allocated = 0;
 
-    object_wait_with_retry(arg->create_event);
-    DkObjectClose(arg->create_event);
-
     /* We acquired ownership of arg->thread from the caller, hence there is
      * no need to call get_thread. */
     struct shim_thread* my_thread = arg->thread;
@@ -134,8 +131,14 @@ int clone_implementation_wrapper(struct clone_args * arg)
         stack_allocated = 1;
         my_thread->tcb = __alloca(sizeof(__libc_tcb_t) + PTHREAD_PADDING);
     }
-    allocate_tls(my_thread->tcb, my_thread->user_tcb, my_thread);
+    allocate_tls(my_thread->tcb, my_thread->user_tcb, my_thread); /* set up TCB */
     shim_tcb_t * tcb = &my_thread->tcb->shim_tcb;
+
+    /* only now we can call LibOS/PAL functions because they require a set-up TCB;
+     * do not move the below functions before allocate_tls()! */
+    object_wait_with_retry(arg->create_event);
+    DkObjectClose(arg->create_event);
+
     __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
                             // will be re-enabled when the thread starts.
     debug_setbuf(tcb, true);
