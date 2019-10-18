@@ -41,7 +41,7 @@ int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
     /* eventfd() requires initval but PAL's DkStreamOpen() doesn't have such an argument.
      * Using `create` argument as a work-around;
      * one issue is initval's type is unsigned int, but create is int32 in_DkStreamOpen */
-    if (!(hdl = DkStreamOpen(EVENTFD_URI_PREFIX, 0, 0, count, pal_flags))) {
+    if (!(hdl = DkStreamOpen("eventfd:", 0, 0, count, pal_flags))) {
         debug("eventfd open failure\n");
         return -PAL_ERRNO;
     }

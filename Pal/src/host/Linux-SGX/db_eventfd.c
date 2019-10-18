@@ -21,6 +21,13 @@
  * "eventfd:".
  */
 
+#include <asm/fcntl.h>
+#include <asm/poll.h>
+#include <linux/un.h>
+#include <linux/types.h>
+#include <sys/eventfd.h>
+
+#include "api.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
@@ -30,14 +37,6 @@
 #include "pal_error.h"
 #include "pal_security.h"
 #include "pal_debug.h"
-#include "api.h"
-
-#include <linux/types.h>
-typedef __kernel_pid_t pid_t;
-#include <asm/fcntl.h>
-#include <asm/poll.h>
-#include <linux/un.h>
-#include <sys/eventfd.h>
 
 static inline int eventfd_type(int options) {
     int type = 0;

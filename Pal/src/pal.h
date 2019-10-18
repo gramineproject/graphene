@@ -146,9 +146,6 @@ enum {
     PAL_HANDLE_TYPE_BOUND,
 };
 
-/* PAL URI prefixes */
-#define EVENTFD_URI_PREFIX "eventfd:"
-
 #define PAL_IDX_POISON          ((PAL_IDX)-1) /* PAL identifier poison value */
 #define PAL_GET_TYPE(h)         (HANDLE_HDR(h)->type)
 #define PAL_CHECK_TYPE(h, t)    (PAL_GET_TYPE(h) == pal_type_##t)
@@ -327,6 +324,8 @@ DkProcessExit (PAL_NUM exitCode);
 #define PAL_OPTION_NONBLOCK     04000
 #define PAL_OPTION_MASK         04000
 
+/* CLOEXEC is generic for any stream.
+ * SEMAPHORE flag added specific to eventfd system call. */
 #define PAL_OPTION_CLOEXEC       01000
 #define PAL_OPTION_EFD_SEMAPHORE 02000
 
