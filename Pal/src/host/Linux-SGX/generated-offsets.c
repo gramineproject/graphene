@@ -92,6 +92,9 @@ void dummy(void)
     OFFSET(SGX_EXEC_ADDR, enclave_tls, exec_addr);
     OFFSET(SGX_EXEC_SIZE, enclave_tls, exec_size);
 
+    /* struct pal_tcb_linux aka PAL_TCB_LINUX */
+    OFFSET(PAL_TCB_LINUX_TCS, pal_tcb_linux, tcs);
+
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_FLAGS, sgx_arch_tcs_t, flags);
     OFFSET_T(TCS_OSSA, sgx_arch_tcs_t, ossa);

@@ -59,7 +59,7 @@ uint16_t htons (uint16_t shortval);
 uint32_t ntohl (uint32_t longval);
 uint16_t ntohs (uint16_t shortval);
 
-struct pal_enclave {
+extern struct pal_enclave {
     /* attributes */
     unsigned long baseaddr;
     unsigned long size;
@@ -77,7 +77,7 @@ struct pal_enclave {
 
     /* security information */
     struct pal_sec pal_sec;
-};
+} pal_enclave;
 
 int open_gsgx (void);
 bool is_wrfsbase_supported (void);
@@ -120,19 +120,10 @@ int interrupt_thread (void * tcs);
 int clone_thread (void);
 
 void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
-void map_tcs(unsigned int tid, bool created_by_pthread);
-bool unmap_tcs(void);
-void thread_exit(void* rv);
-
-extern __thread struct pal_enclave * current_enclave;
-
-#define PAL_SEC() (&current_enclave->pal_sec)
-
-extern __thread sgx_arch_tcs_t * current_tcs
-            __attribute__((tls_model ("initial-exec")));
-
-extern __thread unsigned long debug_register
-            __attribute__((tls_model ("initial-exec")));
+int pal_thread_init(void* tcbptr);
+void map_tcs(unsigned int tid);
+void unmap_tcs(void);
+void thread_exit(int status);
 
 uint64_t sgx_edbgrd (void * addr);
 void sgx_edbgwr (void * addr, uint64_t data);
