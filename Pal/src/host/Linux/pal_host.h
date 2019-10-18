@@ -107,6 +107,12 @@ typedef struct pal_handle
         } pipeprv;
 
         struct {
+            PAL_IDX fd;
+            /* TODO: add other flags in future, if needed (e.g., semaphore) */
+            PAL_BOL nonblocking;
+        } eventfd;
+
+        struct {
             PAL_IDX fd_in, fd_out;
             PAL_IDX dev_type;
             PAL_BOL destroy;

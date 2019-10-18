@@ -125,6 +125,7 @@ int eventfd_using_various_flags() {
 
         if (efd < 0) {
             perror("eventfd failed");
+            printf("eventfd error for iteration #-%d, flags-%d\n", i, eventfd_flags[i]);
             return 1;
         }
 

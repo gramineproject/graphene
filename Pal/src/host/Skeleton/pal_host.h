@@ -67,6 +67,10 @@ typedef struct pal_handle
         } pipeprv;
 
         struct {
+            PAL_IDX unused;
+        } eventfd;
+
+        struct {
             PAL_IDX fd;
             PAL_IDX dev_type;
         } dev;

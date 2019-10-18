@@ -9,7 +9,7 @@ host_files = libpal-Skeleton.a pal.map
 defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
+objs	= $(addprefix db_,files devices pipes eventfd sockets streams memory threading \
 	    mutex events process object main rtld misc ipc exception)
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 

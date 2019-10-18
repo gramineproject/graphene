@@ -275,6 +275,13 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('OK on sigaltstack in main thread', stdout)
         self.assertIn('done exiting', stdout)
 
+    def test_070_eventfd(self):
+        stdout, stderr = self.run_binary(['eventfd'])
+
+        # Eventfd Test
+        self.assertIn('eventfd_using_poll completed successfully', stdout)
+        self.assertIn('eventfd_using_various_flags completed successfully', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

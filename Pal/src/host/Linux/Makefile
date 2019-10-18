@@ -15,7 +15,7 @@ host_files = libpal-Linux.a pal.map
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
+objs	= $(addprefix db_,files devices pipes eventfd sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
 	    exception) clone-x86_64
 graphene_lib = .lib/graphene-lib.a
