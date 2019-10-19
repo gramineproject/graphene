@@ -95,12 +95,12 @@ int pal_thread_init(void* tcbptr) {
 
     if (tcb->alt_stack) {
         /* align stack to 16 bytes */
-        void* alt_stack_top = ALIGN_DOWN_PTR(tcb, 16);
-        assert(alt_stack_top > tcb->alt_stack);
+        void* alt_stack = ALIGN_DOWN_PTR(tcb, 16);
+        assert(alt_stack > tcb->alt_stack);
         stack_t ss;
-        ss.ss_sp    = alt_stack_top;
+        ss.ss_sp    = alt_stack;
         ss.ss_flags = 0;
-        ss.ss_size  = alt_stack_top - tcb->alt_stack;
+        ss.ss_size  = alt_stack - tcb->alt_stack;
 
         ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
         if (IS_ERR(ret)) {
@@ -137,7 +137,7 @@ out:
     return ret;
 }
 
-void thread_exit(int status) {
+noreturn void thread_exit(int status) {
     PAL_TCB_LINUX* tcb = get_tcb_linux();
 
     /* technically, async signals were already blocked before calling this function
@@ -155,11 +155,18 @@ void thread_exit(int status) {
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
     }
 
-    /* free the thread stack */
-    INLINE_SYSCALL(munmap, 2, tcb->stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
-    /* after this line, needs to exit the thread immediately */
+    /* free the thread stack (via munmap) and exit; note that exit() needs a "status" arg
+     * but it could be allocated on a stack, so we must put it in register and do asm */
+    __asm__ volatile("syscall \n\t"            /* all args are already prepared, call munmap */
+                     "movq %%rdx, %%rax \n\t"  /* prepare for exit: rax = __NR_exit */
+                     "movq %%rbx, %%rdi \n\t"  /* prepare for exit: rdi = status    */
+                     "syscall \n\t"            /* all args are prepared, call exit  */
+                     : /* no output regs since we don't return from exit */
+                     : "a"(__NR_munmap), "D"(tcb->stack), "S"(THREAD_STACK_SIZE + ALT_STACK_SIZE),
+                       "d"(__NR_exit), "b"(status)
+                     : "cc", "rcx", "r11", "memory"  /* syscall instr clobbers cc, rcx, and r11 */
+    );
 
-    INLINE_SYSCALL(exit, 1, status);
     while (true) {
         /* nothing */
     }
@@ -179,7 +186,6 @@ int clone_thread(void) {
     /* initialize TCB at the top of the alternative stack */
     PAL_TCB_LINUX* tcb = child_stack_top + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
     tcb->common.self   = &tcb->common;
-    tcb->enclave       = get_tcb_linux()->enclave;
     tcb->alt_stack     = child_stack_top;
     tcb->stack         = stack;
     tcb->tcs           = NULL;  /* initialized by child thread */
@@ -210,6 +216,6 @@ int interrupt_thread (void * tcs)
         return -EINVAL;
     if (!map->tid)
         return -EINVAL;
-    INLINE_SYSCALL(tgkill, 3, get_tcb_linux()->enclave->pal_sec.pid, map->tid, SIGCONT);
+    INLINE_SYSCALL(tgkill, 3, pal_enclave.pal_sec.pid, map->tid, SIGCONT);
     return 0;
 }

@@ -40,7 +40,6 @@ typedef struct pal_tcb_linux {
     PAL_TCB common;
     struct {
         /* private to untrusted Linux PAL, unique to each untrusted thread */
-        struct pal_enclave* enclave;   /* current enclave information, for bookkeeping */
         sgx_arch_tcs_t*     tcs;       /* TCS page of SGX corresponding to thread, for EENTER */
         void*               stack;     /* bottom of stack, for later freeing when thread exits */
         void*               alt_stack; /* bottom of alt stack, for child thread to init alt stack */

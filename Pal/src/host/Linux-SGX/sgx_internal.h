@@ -59,7 +59,7 @@ uint16_t htons (uint16_t shortval);
 uint32_t ntohl (uint32_t longval);
 uint16_t ntohs (uint16_t shortval);
 
-struct pal_enclave {
+extern struct pal_enclave {
     /* attributes */
     unsigned long baseaddr;
     unsigned long size;
@@ -77,7 +77,7 @@ struct pal_enclave {
 
     /* security information */
     struct pal_sec pal_sec;
-};
+} pal_enclave;
 
 int open_gsgx (void);
 bool is_wrfsbase_supported (void);

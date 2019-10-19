@@ -191,7 +191,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* retfd
 # endif
 
 # define ARCH_VFORK()                                                       \
-    (get_tcb_linux()->enclave->pal_sec.in_gdb ?                             \
+    (pal_enclave.pal_sec.in_gdb ?                                           \
      INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK|SIGCHLD, 0, NULL, NULL) :\
      INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
 #else

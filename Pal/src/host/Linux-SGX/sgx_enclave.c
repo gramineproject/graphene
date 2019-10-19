@@ -438,7 +438,7 @@ static int sgx_ocall_sock_recv(void * pms)
     struct sockaddr * addr = ms->ms_addr;
     socklen_t addrlen = ms->ms_addr ? ms->ms_addrlen : 0;
 
-    if (ms->ms_sockfd == get_tcb_linux()->enclave->pal_sec.mcast_srv)
+    if (ms->ms_sockfd == pal_enclave.pal_sec.mcast_srv)
         addr = NULL;
 
     ret = INLINE_SYSCALL(recvfrom, 6,
@@ -460,10 +460,10 @@ static int sgx_ocall_sock_send(void * pms)
     socklen_t addrlen = ms->ms_addr ? ms->ms_addrlen : 0;
     struct sockaddr_in mcast_addr;
 
-    if (ms->ms_sockfd == get_tcb_linux()->enclave->pal_sec.mcast_srv) {
+    if (ms->ms_sockfd == pal_enclave.pal_sec.mcast_srv) {
         mcast_addr.sin_family = AF_INET;
         inet_pton4(MCAST_GROUP, sizeof(MCAST_GROUP),  &mcast_addr.sin_addr.s_addr);
-        mcast_addr.sin_port = htons(get_tcb_linux()->enclave->pal_sec.mcast_port);
+        mcast_addr.sin_port = htons(pal_enclave.pal_sec.mcast_port);
         addr = (struct sockaddr *) &mcast_addr;
         addrlen = sizeof(struct sockaddr_in);
     }
@@ -734,7 +734,7 @@ int ecall_enclave_start (char * args, size_t args_size, char * env, size_t env_s
     ms.ms_args_size = args_size;
     ms.ms_env = env;
     ms.ms_env_size = env_size;
-    ms.ms_sec_info = &get_tcb_linux()->enclave->pal_sec;
+    ms.ms_sec_info = &pal_enclave.pal_sec;
     EDEBUG(ECALL_ENCLAVE_START, &ms);
     return sgx_ecall(ECALL_ENCLAVE_START, &ms);
 }

@@ -23,6 +23,8 @@ unsigned long pagesize  = PRESET_PAGESIZE;
 unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
 unsigned long pageshift = PRESET_PAGESIZE - 1;
 
+struct pal_enclave pal_enclave;
+
 static inline
 char * alloc_concat(const char * p, size_t plen,
                     const char * s, size_t slen)
@@ -941,7 +943,6 @@ static int load_enclave (struct pal_enclave * enclave,
     /* initialize TCB at the top of the alternative stack */
     PAL_TCB_LINUX* tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
     tcb->common.self   = &tcb->common;
-    tcb->enclave       = enclave;
     tcb->alt_stack     = alt_stack;
     tcb->stack         = NULL;  /* main thread uses the stack provided by Linux */
     tcb->tcs           = NULL;  /* initialized by child thread */
@@ -975,13 +976,7 @@ int main (int argc, char ** argv, char ** envp)
     argc--;
     argv++;
 
-    struct pal_enclave * enclave = malloc(sizeof(struct pal_enclave));
-    if (!enclave)
-        return -ENOMEM;
-
-    memset(enclave, 0, sizeof(struct pal_enclave));
-
-    int is_child = sgx_init_child_process(&enclave->pal_sec);
+    int is_child = sgx_init_child_process(&pal_enclave.pal_sec);
     if (is_child < 0) {
         ret = is_child;
         goto out;
@@ -1000,7 +995,7 @@ int main (int argc, char ** argv, char ** envp)
             exec_uri = alloc_concat("file:", -1, argv[0], -1);
         }
     } else {
-        exec_uri = alloc_concat(enclave->pal_sec.exec_name, -1, NULL, -1);
+        exec_uri = alloc_concat(pal_enclave.pal_sec.exec_name, -1, NULL, -1);
     }
 
     if (!exec_uri) {
@@ -1104,17 +1099,16 @@ int main (int argc, char ** argv, char ** envp)
     char * env = envp[0];
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
 
-    ret = load_enclave(enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env, env_size,
+    ret = load_enclave(&pal_enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env, env_size,
                        exec_uri_inferred);
 
 out:
-    if (enclave->exec >= 0)
-        INLINE_SYSCALL(close, 1, enclave->exec);
-    if (enclave->sigfile >= 0)
-        INLINE_SYSCALL(close, 1, enclave->sigfile);
-    if (enclave->token >= 0)
-        INLINE_SYSCALL(close, 1, enclave->token);
-    free(enclave);
+    if (pal_enclave.exec >= 0)
+        INLINE_SYSCALL(close, 1, pal_enclave.exec);
+    if (pal_enclave.sigfile >= 0)
+        INLINE_SYSCALL(close, 1, pal_enclave.sigfile);
+    if (pal_enclave.token >= 0)
+        INLINE_SYSCALL(close, 1, pal_enclave.token);
     if (!IS_ERR(fd))
         INLINE_SYSCALL(close, 1, fd);
     free(exec_uri);
