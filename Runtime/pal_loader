@@ -39,9 +39,6 @@ if [ -z $PAL_HOST ]; then
     else
         PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
     fi
-    echo "PAL_HOST=$PAL_HOST implicitly detected."
-else
-    echo "Using PAL_HOST=$PAL_HOST explicitly set in environment variable."
 fi
 
 MANIFEST=
