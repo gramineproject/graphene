@@ -109,7 +109,7 @@ int thread_exit(struct shim_thread* self, bool send_ipc) {
         ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
     }
 
-    struct robust_list_head * robust_list = (void *) self->robust_list;
+    struct robust_list_head* robust_list = self->robust_list;
     self->robust_list = NULL;
 
     unlock(&self->lock);
