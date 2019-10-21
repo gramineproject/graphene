@@ -51,8 +51,9 @@ static inline int eventfd_type(int options) {
 
     return type;
 }
-/* access & share do not get set. In eventfd(initval, flags), create set to initval,
- * flags set to options */
+
+/* `type` must be eventfd, `uri` & `access` & `share` are unused,
+ * `create` holds eventfd's initval, `options` holds eventfd's flags */
 static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* uri, int access,
         int share, int create, int options) {
     int ret;
@@ -72,7 +73,7 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(eventfd));
     SET_HANDLE_TYPE(hdl, eventfd);
 
-    //Note: using index 0, given that there is only 1 eventfd FD per pal-handle.
+    /* Note: using index 0, given that there is only 1 eventfd FD per pal-handle. */
     HANDLE_HDR(hdl)->flags = RFD(0) | WFD(0) | WRITABLE(0);
 
     hdl->eventfd.fd = ret;
@@ -94,6 +95,8 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
+    /* TODO: verify that the value returned in buffer is somehow meaningful
+     * (to prevent Iago attacks) */
     int bytes = ocall_read(handle->eventfd.fd, buffer, len);
 
     if (IS_ERR(bytes))
@@ -159,7 +162,7 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
 
     /* For future use, so that Linux host kernel can send notifications to user-space apps.
      * App receives virtual FD from LibOS, but the Linux-host eventfd is memorized
-     * here, such that this Linux-host eventfd can be retreived(by LibOS) during app's ioctl(). */
+     * here, such that this Linux-host eventfd can be retreived (by LibOS) during app's ioctl(). */
     attr->no_of_fds = 1;
     attr->fds[0] = efd;
 
