@@ -60,7 +60,7 @@ pipeline {
                         sh '''
                             cd LibOS/shim/test/apps/ltp
                             make SGX=1 all sgx-tokens
-                            make SGX=1 ltp-sgx.xml
+                            make SGX=1 ltp-sgx.xml || :
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
