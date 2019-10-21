@@ -34,8 +34,6 @@ typedef struct mutex_handle {
 #define LOCK_INIT   {}
 #define INIT_LOCK(lock) do {} while (0)
 
-#define MAX_FDS     3
-
 typedef struct pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE

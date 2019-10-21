@@ -21,6 +21,7 @@ CFLAGS-syscall += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST)
 CFLAGS-openmp = -fopenmp
 CFLAGS-multi_pthread = -pthread
 CFLAGS-exit_group = -pthread
+CFLAGS-eventfd = -pthread
 
 %: %.c
 	$(call cmd,csingle)
@@ -32,8 +33,6 @@ else
 .IGNORE: $(c_executables) $(cxx_executables)
 $(c_executables) $(cxx_executables):
 endif
-
-LDLIBS-eventfd += -lpthread
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
 export PYTHONPATH=../../../../Scripts

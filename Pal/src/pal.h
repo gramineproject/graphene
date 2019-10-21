@@ -35,6 +35,10 @@ typedef uint32_t      PAL_FLG;
 typedef uint32_t      PAL_IDX;
 typedef bool          PAL_BOL;
 
+/* Moved MAX_FDS from <host_kernel>/pal_host.h to here,
+ * since it is 3, across all host kernels. */
+#define MAX_FDS 3
+
 #ifdef IN_PAL
 #include <atomic.h>
 typedef struct atomic_int PAL_REF;
@@ -325,7 +329,7 @@ DkProcessExit (PAL_NUM exitCode);
 #define PAL_OPTION_MASK         04000
 
 /* CLOEXEC is generic for any stream.
- * SEMAPHORE flag added specific to eventfd system call. */
+ * SEMAPHORE flag is specific to eventfd system call. */
 #define PAL_OPTION_CLOEXEC       01000
 #define PAL_OPTION_EFD_SEMAPHORE 02000
 
@@ -382,13 +386,8 @@ typedef struct {
     PAL_BOL readable, writable, runnable;
     PAL_FLG share_flags;
     PAL_NUM pending_size;
-#ifdef IN_PAL
     PAL_IDX no_of_fds;
     PAL_IDX fds[MAX_FDS];
-#else
-    PAL_IDX no_of_fds;
-    PAL_IDX fds[1];
-#endif
     union {
         struct {
             PAL_NUM linger;

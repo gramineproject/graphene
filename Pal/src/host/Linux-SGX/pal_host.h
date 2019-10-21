@@ -40,7 +40,6 @@ int _DkSpinUnlock (struct spinlock * lock);
 #define LOCK_INIT   { .value =  { 0 } }
 #define _DkInternalLock _DkSpinLock
 #define _DkInternalUnlock _DkSpinUnlock
-#define MAX_FDS 3
 
 void * malloc_untrusted (int size);
 void free_untrusted (void * mem);

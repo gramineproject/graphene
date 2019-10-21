@@ -137,7 +137,7 @@ int eventfd_using_various_flags() {
         eventfd_read(efd, &count);
         printf("efd = %d, count: %lu, errno=%d\n", efd, count, errno);
 
-        //Note: Calling another read, will block, if flags dont have EFD_NONBLOCK
+        /* calling the second read would block if flags doesn't have EFD_NONBLOCK */
         if (eventfd_flags[i] & EFD_NONBLOCK) {
             count = 0;
             errno = 0;

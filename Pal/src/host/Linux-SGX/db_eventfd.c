@@ -17,7 +17,7 @@
 /*
  * db_eventfd.c
  *
- * This file contains operands to handle streams with URIs that have
+ * This file contains operations to handle streams with URIs that have
  * "eventfd:".
  */
 
@@ -56,13 +56,14 @@ static inline int eventfd_type(int options) {
 static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* uri, int access,
         int share, int create, int options) {
     int ret;
+    __UNUSED(access);
+    __UNUSED(share);
 
     if ((strcmp_static(type, "eventfd") != 0) || (*uri != '\0')) {
         return -PAL_ERROR_INVAL;
     }
 
-    /* TODO: need to resolve type issue, since eventfd's initval is unsigned int,
-    but _DkStreamOpen's create is int32 type. */
+    /* Using create arg as a work-around (note: initval is uint32 but create is int32).*/
     ret = ocall_eventfd(create, eventfd_type(options));
 
     if (IS_ERR(ret))
@@ -93,8 +94,6 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
-    /* TODO: verify that the value returned in buffer is somehow meaningful
-     * (to prevent Iago attacks) */
     int bytes = ocall_read(handle->eventfd.fd, buffer, len);
 
     if (IS_ERR(bytes))
@@ -155,16 +154,12 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
         return unix_to_pal_error(ERRNO(ret));
 
     attr->readable = (ret == 1 && pfd.revents == POLLIN);
-
-    /* TODO: check if ERROR(0) gets set during polling in _DkObjectsWaitAny */
     attr->disconnected = flags & ERROR(0);
     attr->nonblocking = handle->eventfd.nonblocking;
 
-    /* Note:Eventfd can be used by linux kernel to signal user-space applications.
-     * Application receives virtual FD from LibOS.
-     * In order to support usage, application can use ioctl to send real eventfd
-     * to kernel. ioctl will be trapped by LibOS. LibOS will poll on the handle,
-     * to retrieve eventfd(from pal-handle), and send it down to kernel. */
+    /* For future use, so that Linux host kernel can send notifications to user-space apps.
+     * App receives virtual FD from LibOS, but the Linux-host eventfd is memorized
+     * here, such that this Linux-host eventfd can be retreived(by LibOS) during app's ioctl(). */
     attr->no_of_fds = 1;
     attr->fds[0] = efd;
 

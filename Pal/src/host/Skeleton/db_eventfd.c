@@ -17,7 +17,7 @@
 /*
  * db_eventfd.c
  *
- * This file contains operands to handle streams with URIs that have
+ * This file contains operations to handle streams with URIs that have
  * "eventfd:".
  */
 

@@ -67,8 +67,6 @@ typedef struct {
 #endif
 } PAL_RESERVED_HDR;
 
-#define MAX_FDS 3
-
 typedef struct pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE
