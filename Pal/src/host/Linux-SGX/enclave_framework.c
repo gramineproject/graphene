@@ -807,7 +807,7 @@ int init_trusted_files (void) {
         k += len + 1;
         len = get_config(store, key, uri, CONFIG_MAX);
         if (len > 0) {
-            ret = init_trusted_file(key + 18, uri);
+            ret = init_trusted_file(key + static_strlen("sgx.trusted_files."), uri);
             if (ret < 0)
                 goto out;
         }
