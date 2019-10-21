@@ -114,6 +114,7 @@ int shim_do_pipe2(int* filedes, int flags) {
             if (tmp)
                 put_handle(tmp);
         }
+        ret = (vfd1 < 0) ? vfd1 : vfd2;
         goto out;
     }
 
@@ -193,6 +194,7 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
             if (tmp)
                 put_handle(tmp);
         }
+        ret = (vfd1 < 0) ? vfd1 : vfd2;
         goto out;
     }
 
