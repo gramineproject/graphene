@@ -283,15 +283,6 @@ struct shim_sem_handle {
     LIST_TYPE(shim_sem_handle) key_hlist;
     LIST_TYPE(shim_sem_handle) sid_hlist;
 };
-DEFINE_LIST(futex_waiter);
-DEFINE_LISTP(futex_waiter);
-DEFINE_LIST(shim_futex_handle);
-struct shim_futex_handle {
-    int* uaddr;
-    LISTP_TYPE(futex_waiter) waiters;
-    struct shim_vma* vma;
-    LIST_TYPE(shim_futex_handle) list;
-};
 
 struct shim_str_data {
     REFTYPE ref_count;
@@ -358,7 +349,6 @@ struct shim_handle {
         struct shim_shm_handle shm;
         struct shim_msg_handle msg;
         struct shim_sem_handle sem;
-        struct shim_futex_handle futex;
         struct shim_str_handle str;
         struct shim_epoll_handle epoll;
     } info;

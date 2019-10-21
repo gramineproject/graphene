@@ -9,6 +9,7 @@
 #include <shim_handle.h>
 #include <shim_vma.h>
 
+#include <api.h>
 #include <pal.h>
 #include <list.h>
 
@@ -16,6 +17,16 @@ struct shim_handle;
 struct shim_fd_map;
 struct shim_dentry;
 struct shim_signal_log;
+
+#define WAKE_QUEUE_TAIL ((void*)1)
+/* If next is NULL, then this node is not on any queue.
+ * Otherwise it is a valid pointer to the next node or WAKE_QUEUE_TAIL. */
+struct wake_queue_node {
+    struct wake_queue_node* next;
+};
+struct wake_queue_head {
+    struct wake_queue_node* first;
+};
 
 DEFINE_LIST(shim_thread);
 DEFINE_LISTP(shim_thread);
@@ -61,9 +72,11 @@ struct shim_thread {
     stack_t signal_altstack;
 
     /* futex robust list */
-    void * robust_list;
+    struct robust_list_head* robust_list;
 
     PAL_HANDLE scheduler_event;
+
+    struct wake_queue_node wake_queue;
 
     PAL_HANDLE exit_event;
     int exit_code;
@@ -247,6 +260,42 @@ static inline void thread_wakeup (struct shim_thread * thread)
     DkEventSet(thread->scheduler_event);
 }
 
+/* Adds the thread to the wake-up queue.
+ * If this thread is already on some queue, then it *will* be woken up soon and there is no need
+ * to add it to another queue.
+ * queue->first should be a vailid pointer or WAKE_QUEUE_TAIL (i.e. cannot be NULL).
+ *
+ * Returns 0 if the thread was added to the queue, 1 otherwise. */
+static inline int add_thread_to_queue(struct wake_queue_head* queue, struct shim_thread* thread) {
+    void* nptr = NULL;
+    struct wake_queue_node* qnode = &thread->wake_queue;
+
+    /* Atomic cmp&xchg is enough, no need to take thread->lock */
+    if (!__atomic_compare_exchange_n(&qnode->next, &nptr, queue->first,
+                                     1, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+        return 1;
+    }
+
+    queue->first = qnode;
+    return 0;
+}
+
+/* Wakes up all threads on the queue.
+ * This is a destructive operation - queue cannot be used after calling this function. */
+static inline void wake_queue(struct wake_queue_head* queue) {
+    struct wake_queue_node* qnode = queue->first;
+
+    while (qnode != WAKE_QUEUE_TAIL) {
+        struct shim_thread* thread = container_of(qnode, struct shim_thread, wake_queue);
+
+        qnode = qnode->next;
+        __atomic_store_n(&thread->wake_queue.next, NULL, __ATOMIC_RELAXED);
+
+        thread_wakeup(thread);
+        put_thread(thread);
+    }
+}
+
 extern struct shim_lock thread_list_lock;
 
 /*!
@@ -321,6 +370,9 @@ int thread_exit (struct shim_thread * self, bool send_ipc);
 /* If the process was killed by a signal, pass it in the second
  *  argument, else pass zero */
 int try_process_exit (int error_code, int term_signal);
+
+void release_robust_list(struct robust_list_head* head);
+void release_clear_child_id(int* clear_child_tid);
 
 /* thread cloning helpers */
 struct clone_args {

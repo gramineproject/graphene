@@ -38,10 +38,6 @@
 #include <asm/prctl.h>
 #include <linux/futex.h>
 
-void release_robust_list (struct robust_list_head * head);
-
-void release_clear_child_id (int * clear_child_tid);
-
 int thread_exit(struct shim_thread * self, bool send_ipc)
 {
     bool sent_exit_msg = false;
@@ -108,7 +104,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
         ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
     }
 
-    struct robust_list_head * robust_list = (void *) self->robust_list;
+    struct robust_list_head* robust_list = self->robust_list;
     self->robust_list = NULL;
 
     unlock(&self->lock);
