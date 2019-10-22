@@ -82,8 +82,8 @@ pipeline {
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression
+                                make SGX=1 all
+                                make SGX=1 check
                            '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
