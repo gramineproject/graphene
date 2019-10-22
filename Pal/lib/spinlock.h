@@ -15,6 +15,14 @@ static inline void spinlock_init(spinlock_t *lock) {
     __atomic_store_n(lock, 0, __ATOMIC_RELAXED);
 }
 
+/* Returns 0 if taking the lock succeded, 1 if it was already taken */
+static inline int spinlock_trylock(spinlock_t *lock) {
+    if (__atomic_exchange_n(lock, 1, __ATOMIC_ACQUIRE) == 0) {
+        return 0;
+    }
+    return 1;
+}
+
 static inline void spinlock_lock(spinlock_t *lock) {
     int val;
 
@@ -25,8 +33,9 @@ static inline void spinlock_lock(spinlock_t *lock) {
 
     do {
         /* This check imposes no inter-thread ordering, thus does not slow other threads. */
-        while (__atomic_load_n(lock, __ATOMIC_RELAXED) != 0)
-            ;
+        while (__atomic_load_n(lock, __ATOMIC_RELAXED) != 0) {
+            asm volatile ("pause");
+        }
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
         val = 0;
