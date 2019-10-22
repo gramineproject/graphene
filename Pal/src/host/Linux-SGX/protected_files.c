@@ -169,9 +169,6 @@ pf_status_t pf_check_path(pf_context_t* pf, const char* path, bool* result) {
     pfs = PF_STATUS_SUCCESS;
     *result = true;
 
-    if (pf->header->allowed_paths_size < 2)
-        *result = false;
-
     if (strlen(path) != pf->header->allowed_paths_size - 2)
         *result = false;
 
