@@ -126,9 +126,13 @@ class TC_00_Bootstrap(RegressionTestCase):
         except subprocess.CalledProcessError as e:
             self.assertTrue(1 <= e.returncode and e.returncode <= 4)
 
-    def test_401_signalexit(self):
+    def test_402_signalexit(self):
         with self.expect_returncode(134):
             self.run_binary(['abort'])
+
+    def test_403_signalexit_multithread(self):
+        with self.expect_returncode(134):
+            self.run_binary(['abort_multithread'])
 
     def test_500_init_fail(self):
         try:

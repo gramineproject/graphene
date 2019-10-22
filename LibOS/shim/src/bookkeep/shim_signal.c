@@ -801,7 +801,8 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
     debug("killed by %s\n", signal_name(sig_without_coredump_bit));
 
     if (sig_without_coredump_bit == SIGABRT ||
-        (!info->si_pid && (sig_without_coredump_bit == SIGTERM || sig_without_coredump_bit == SIGINT))) {
+        (!info->si_pid && /* signal is sent from host OS, not from another process */
+         (sig_without_coredump_bit == SIGTERM || sig_without_coredump_bit == SIGINT))) {
         /* Received signal to kill the process:
          *   - SIGABRT must always kill the whole process (even if sent by Graphene itself),
          *   - SIGTERM/SIGINT must kill the whole process if signal sent from host OS. */
