@@ -12,7 +12,13 @@ from regression import (
     expectedFailureIf,
 )
 
-class TC_00_Bootstrap(RegressionTestCase):
+class TC_00_Unittests(RegressionTestCase):
+    def test_000_spinlock(self):
+        stdout, stderr = self.run_binary(['spinlock'])
+
+        self.assertIn('Test successful!', stdout)
+
+class TC_01_Bootstrap(RegressionTestCase):
     def test_100_basic_bootstrapping(self):
         stdout, stderr = self.run_binary(['bootstrap'])
 
@@ -151,7 +157,7 @@ class TC_00_Bootstrap(RegressionTestCase):
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
     'Linux PAL, then we should allow this test on Linux PAL as well.')
-class TC_01_OpenMP(RegressionTestCase):
+class TC_02_OpenMP(RegressionTestCase):
     def test_000_simple_for_loop(self):
         stdout, stderr = self.run_binary(['openmp'])
 
@@ -161,7 +167,7 @@ class TC_01_OpenMP(RegressionTestCase):
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because file-check-policy is '
     'only relevant to SGX.')
-class TC_02_FileCheckPolicy(RegressionTestCase):
+class TC_03_FileCheckPolicy(RegressionTestCase):
     def test_000_strict_success(self):
         manifest = self.get_manifest('file_check_policy_strict')
         stdout, stderr = self.run_binary([manifest, 'trusted_testfile'])
