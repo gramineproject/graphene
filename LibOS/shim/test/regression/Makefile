@@ -21,6 +21,7 @@ CFLAGS-syscall += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST)
 CFLAGS-openmp = -fopenmp
 CFLAGS-multi_pthread = -pthread
 CFLAGS-exit_group = -pthread
+CFLAGS-spinlock += -I$(PALDIR)/../lib -pthread
 
 %: %.c
 	$(call cmd,csingle)
