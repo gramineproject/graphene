@@ -162,7 +162,7 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
 
     /* For future use, so that Linux host kernel can send notifications to user-space apps.
      * App receives virtual FD from LibOS, but the Linux-host eventfd is memorized
-     * here, such that this Linux-host eventfd can be retreived (by LibOS) during app's ioctl(). */
+     * here, such that this Linux-host eventfd can be retrieved (by LibOS) during app's ioctl(). */
     attr->no_of_fds = 1;
     attr->fds[0] = efd;
 

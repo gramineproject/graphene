@@ -27,8 +27,8 @@
 #include "pal_error.h"
 #include "api.h"
 
-/* access & share do not get set. In eventfd(initval, flags), create set to initval,
- * flags set to options */
+/* `type` must be eventfd, `uri` & `access` & `share` are unused,
+ * `create` holds eventfd's initval, `options` holds eventfd's flags */
 static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* uri, int access,
         int share, int create, int options) {
     return -PAL_ERROR_NOTIMPLEMENTED;
