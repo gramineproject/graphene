@@ -197,9 +197,8 @@ static pf_status_t map_header(pf_context_t* pf, size_t underlying_size) {
         goto out;
 
     hdr = pf->header;
-    pf->last_chunk = hdr->data_size > 0 ? PF_CHUNK_NUMBER(hdr->data_size - 1) : 0;
-    DEBUG_PF("version %u, hdr size %u, data size %lu, last chunk #%lu, iv ",
-             hdr->version, hdr->header_size, hdr->data_size, pf->last_chunk);
+    DEBUG_PF("version %u, hdr size %u, data size %lu, iv ",
+             hdr->version, hdr->header_size, hdr->data_size);
     HEXDUMPNL(hdr->header_iv);
 
     status = PF_STATUS_BAD_VERSION;
@@ -369,8 +368,7 @@ static pf_status_t update_header(pf_context_t* pf, size_t data_size) {
                                        PF_HEADER_MAC(pf->header), PF_MAC_SIZE);
 
     if (PF_SUCCESS(status)) {
-        pf->last_chunk = data_size > 0 ? PF_CHUNK_NUMBER(data_size - 1) : 0;
-        DEBUG_PF("data size %lu, last chunk %lu, iv ", data_size, pf->last_chunk);
+        DEBUG_PF("data size %lu, iv ", data_size);
         HEXDUMP(pf->header->header_iv);
         __DEBUG_PF(", mac ");
         __HEXDUMPNL(PF_HEADER_MAC(pf->header), PF_MAC_SIZE);
@@ -378,7 +376,7 @@ static pf_status_t update_header(pf_context_t* pf, size_t data_size) {
         // Set the underlying file size
         size_t size;
         if (data_size > 0)
-            size = PF_CHUNK_OFFSET(pf->last_chunk + 1);
+            size = PF_CHUNK_OFFSET(PF_CHUNK_NUMBER(data_size - 1) + 1);
         else
             size = pf->header->header_size;
 
@@ -388,53 +386,6 @@ static pf_status_t update_header(pf_context_t* pf, size_t data_size) {
 
         DEBUG_PF("underlying file size: %lu\n", size);
     }
-
-out:
-    return status;
-}
-
-// (Internal) Negate last chunk number of a writable PF
-static pf_status_t update_last_chunk(pf_context_t* pf) {
-    pf_status_t status = PF_STATUS_UNKNOWN_ERROR;
-    pf_chunk_t* chunk  = NULL;
-    DEBUG_PF("data size %lu, last chunk: %lu\n", pf->header->data_size, pf->last_chunk);
-
-    // do nothing if there's no chunks
-    if (pf->header->data_size == 0)
-        return PF_STATUS_SUCCESS;
-
-    // map the chunk
-    status = cb_map(pf->handle, PF_FILE_MODE_READ | PF_FILE_MODE_WRITE,
-                    PF_CHUNK_OFFSET(pf->last_chunk), PF_CHUNK_SIZE, (void**)&chunk);
-
-    if (PF_FAILURE(status))
-        goto out;
-
-    status = pf_decrypt_chunk(pf, pf->last_chunk, chunk, pf->plaintext);
-    if (PF_FAILURE(status)) {
-        DEBUG_PF("pf_decrypt_chunk failed: 0x%x\n", status);
-        goto out;
-    }
-
-    // negate chunk number to indicate EOF
-    DEBUG_PF("old: idx 0x%lx, size %u, iv ", chunk->chunk_number, chunk->chunk_size);
-    HEXDUMP(chunk->chunk_iv);
-    __DEBUG_PF(", mac ");
-    __HEXDUMPNL(PF_CHUNK_MAC(chunk), PF_MAC_SIZE);
-
-    // encrypt again to update mac
-    status = pf_encrypt_chunk(pf, ~chunk->chunk_number, pf->plaintext, chunk->chunk_size, chunk);
-    if (PF_FAILURE(status)) {
-        DEBUG_PF("pf_encrypt_chunk failed: 0x%x\n", status);
-        goto out;
-    }
-
-    // unmap
-    status = cb_unmap(chunk, PF_CHUNK_SIZE);
-    if (PF_FAILURE(status))
-        goto out;
-
-    status = PF_STATUS_SUCCESS;
 
 out:
     return status;
@@ -505,11 +456,6 @@ pf_status_t pf_open(pf_handle_t handle, size_t underlying_size, pf_file_mode_t m
     DEBUG_PF("handle %p, context %p, mode %d\n", handle, pf, mode);
 
     status = map_header(pf, underlying_size);
-
-    // existing files have the last chunk# negated, revert this
-    // if we plan to be changing what the last chunk is
-    if (has_mode(pf, PF_FILE_MODE_WRITE))
-        update_last_chunk(pf);
 out:
     open_cleanup(pf, status, context);
     return status;
@@ -551,16 +497,6 @@ pf_status_t pf_close(pf_context_t* pf) {
 
     DEBUG_PF("pf %p, mode %d\n", pf, pf->mode);
 
-    // update last chunk if the file was writable
-    if (has_mode(pf, PF_FILE_MODE_WRITE)) {
-        if (pf->header->data_size > 0) {
-            status = update_last_chunk(pf);
-            if (PF_FAILURE(status)) {
-                DEBUG_PF("failed to fix last chunk: 0x%x\n", status);
-            }
-        }
-    }
-
     status = cb_unmap(pf->header, pf->header->header_size);
     if (PF_FAILURE(status)) {
         DEBUG_PF("failed to unmap header: 0x%x\n", status);
@@ -589,18 +525,9 @@ pf_status_t pf_decrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const pf_c
 
     status = PF_STATUS_BAD_CHUNK;
     // Verify chunk metadata
-    if (chunk->chunk_number >> 63 != 0) { // negated: last chunk
-        if (~chunk->chunk_number != chunk_number ||
-            chunk_number < PF_CHUNKS_COUNT(pf->header->data_size) - 1) {
-
-            DEBUG_PF("chunk #%lu: invalid chunk number 0x%lx\n", chunk_number, chunk->chunk_number);
-            goto out;
-        }
-    } else {
-        if (chunk->chunk_number != chunk_number) {
-            DEBUG_PF("chunk #%lu: invalid chunk number 0x%lx\n", chunk_number, chunk->chunk_number);
-            goto out;
-        }
+    if (chunk->chunk_number != chunk_number) {
+        DEBUG_PF("chunk #%lu: invalid chunk number 0x%lx\n", chunk_number, chunk->chunk_number);
+        goto out;
     }
 
     if (chunk->chunk_size > PF_CHUNK_DATA_MAX) {

@@ -275,7 +275,6 @@ typedef struct _pf_context_t {
     pf_header_t*   header; //!< PF header mapped in memory
     pf_file_mode_t mode; //!< Access mode
     uint8_t        key[PF_WRAP_KEY_SIZE]; //!< Wrap key
-    uint64_t       last_chunk; //!< Number of the last chunk so far (for writable PFs)
     char*          debug_buffer; //!< Buffer for debug output
     pf_chunk_t*    plaintext; //!< Temporary chunk buffer
     pf_chunk_t*    encrypted; //!< Temporary chunk buffer
