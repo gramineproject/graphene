@@ -2,8 +2,7 @@ include ../../../../../Makefile.configs
 
 CFLAGS := -Wall -Wextra -O2 -maes -std=c11 \
 	-fno-omit-frame-pointer \
-	-D_POSIX_C_SOURCE=200809L \
-	-DPF_DEFAULT_LINUX_CALLBACKS -DPF_DEFAULT_OPENSSL_CALLBACKS
+	-D_POSIX_C_SOURCE=200809L
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3

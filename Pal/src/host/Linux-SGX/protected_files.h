@@ -431,27 +431,4 @@ pf_status_t pf_get_size(pf_context_t* pf, uint64_t* size);
  */
 pf_status_t pf_set_size(pf_context_t* pf, size_t size);
 
-#ifdef PF_DEFAULT_LINUX_CALLBACKS
-// Enable predefined callbacks usable in a standard Linux environment
-// Assume that pf handle is a pointer to file's fd
-
-/*!
- * \brief Set the default Linux callbacks
- *
- * \param [in] debug_f (optional) Debug callback
- */
-void pf_set_linux_callbacks(pf_debug_f debug_f);
-
-#endif // PF_DEFAULT_LINUX_CALLBACKS
-
-#ifdef PF_DEFAULT_OPENSSL_CALLBACKS
-// Predefined crypto callbacks for OpenSSL
-
-/*!
- * \brief Set the default OpenSSL callbacks
- */
-void pf_set_openssl_crypto_callbacks();
-
-#endif // PF_DEFAULT_OPENSSL_CALLBACKS
-
 #endif // PROTECTED_FILES_H
