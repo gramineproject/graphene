@@ -20,11 +20,13 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <inttypes.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <sys/stat.h>
+
+#include <openssl/pem.h>
+#include <openssl/rand.h>
+
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include "../protected_files.h"
 
@@ -32,6 +34,211 @@
 #include "util.h"
 
 // High-level protected files helper functions.
+
+// PF callbacks usable in a standard Linux environment
+// Assume that pf handle is a pointer to file's fd
+
+void* linux_malloc(size_t size) {
+    void* address = malloc(size);
+    if (address)
+        memset(address, 0, size);
+    return address;
+}
+
+int linux_prot(pf_file_mode_t mode) {
+    int prot = 0;
+    if (mode & PF_FILE_MODE_READ)
+        prot |= PROT_READ;
+    if (mode & PF_FILE_MODE_WRITE)
+        prot |= PROT_WRITE;
+    return prot;
+}
+
+pf_status_t linux_map(pf_handle_t handle, pf_file_mode_t mode, size_t offset, size_t size,
+                      void** address) {
+    int fd = *(int*)handle;
+    *address = mmap(NULL, size, linux_prot(mode), MAP_SHARED, fd, offset);
+
+    if (*address == MAP_FAILED) {
+        ERROR("linux_map(%d, %d, %zu, %zu): %s\n", fd, mode, offset, size, strerror(errno));
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    return PF_STATUS_SUCCESS;
+}
+
+pf_status_t linux_unmap(void* address, size_t size) {
+    int ret = munmap(address, size);
+    if (ret < 0) {
+        ERROR("linux_unmap(%p, %zu): %s\n", address, size, strerror(errno));
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    return PF_STATUS_SUCCESS;
+}
+
+pf_status_t linux_truncate(pf_handle_t handle, size_t size) {
+    int fd  = *(int*)handle;
+    int ret = ftruncate(fd, size);
+    if (ret < 0) {
+        ERROR("linux_truncate(%d, %zu): %s\n", fd, size, strerror(errno));
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    return PF_STATUS_SUCCESS;
+}
+
+pf_status_t linux_flush(__attribute__((unused)) pf_handle_t handle) {
+    return PF_STATUS_NOT_IMPLEMENTED;
+}
+
+void pf_set_linux_callbacks(pf_debug_f debug_f) {
+    pf_set_callbacks(linux_malloc, free, linux_map, linux_unmap, linux_truncate, linux_flush,
+                     debug_f);
+}
+
+// Crypto callbacks for OpenSSL
+
+pf_status_t openssl_crypto_aes_gcm_encrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
+                                           size_t iv_size, const void* aad, size_t aad_size,
+                                           const void* input, size_t input_size, void* output,
+                                           uint8_t* mac, size_t mac_size) {
+    pf_status_t status = PF_STATUS_CALLBACK_FAILED;
+    if (iv_size != PF_IV_SIZE)
+        return PF_STATUS_INVALID_PARAMETER;
+
+    if (key_size != PF_WRAP_KEY_SIZE)
+        return PF_STATUS_INVALID_PARAMETER;
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx)
+        return PF_STATUS_NO_MEMORY;
+
+    // Choose cipher
+    EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
+
+    // Set IV length
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_size, NULL) != 1) {
+        ERROR("Failed to set AES IV len\n");
+        goto out;
+    }
+
+    // Set key/iv
+    if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv) != 1) {
+        ERROR("Failed to set AES key/IV\n");
+        goto out;
+    }
+
+    int out_len;
+    if (aad) {
+        // Additional data
+        if (EVP_EncryptUpdate(ctx, NULL, &out_len, aad, aad_size) != 1) {
+            ERROR("Failed to perform AES encryption for AAD\n");
+            goto out;
+        }
+    }
+
+    if (input) {
+        // Actual data
+        if (EVP_EncryptUpdate(ctx, output, &out_len, input, input_size) != 1) {
+            ERROR("Failed to perform AES encryption\n");
+            goto out;
+        }
+    }
+
+    // Final AES block, doesn't write anything in GCM mode but must be called for proper MAC calculation
+    if (EVP_EncryptFinal(ctx, NULL, &out_len) != 1) {
+        ERROR("Failed to perform final AES round\n");
+        goto out;
+    }
+
+    // Get MAC
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, mac_size, mac) != 1) {
+        ERROR("Failed to get AES MAC\n");
+        goto out;
+    }
+    status = PF_STATUS_SUCCESS;
+out:
+    EVP_CIPHER_CTX_free(ctx);
+    return status;
+}
+
+pf_status_t openssl_crypto_aes_gcm_decrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
+                                           size_t iv_size, const void* aad, size_t aad_size,
+                                           const void* input, size_t input_size, void* output,
+                                           const uint8_t* mac, size_t mac_size) {
+    pf_status_t status = PF_STATUS_CALLBACK_FAILED;
+    if (iv_size != PF_IV_SIZE)
+        return PF_STATUS_INVALID_PARAMETER;
+
+    if (key_size != PF_WRAP_KEY_SIZE)
+        return PF_STATUS_INVALID_PARAMETER;
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx)
+        return PF_STATUS_NO_MEMORY;
+
+    // Choose cipher
+    EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
+
+    // Set IV length
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_size, NULL) != 1) {
+        ERROR("Failed to set AES IV len\n");
+        goto out;
+    }
+
+    // Set key/iv
+    if (EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv) != 1) {
+        ERROR("Failed to set AES key/IV\n");
+        goto out;
+    }
+
+    int out_len;
+    if (aad) {
+        // Additional data
+        if (EVP_DecryptUpdate(ctx, NULL, &out_len, aad, aad_size) != 1) {
+            ERROR("Failed to perform AES encryption for AAD\n");
+            goto out;
+        }
+    }
+
+    if (input) {
+        // Actual data
+        if (EVP_DecryptUpdate(ctx, output, &out_len, input, input_size) != 1) {
+            ERROR("Failed to perform AES encryption\n");
+            goto out;
+        }
+    }
+
+    // Set expected tag value, doesn't modify mac
+    if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, mac_size, (void*)mac)) {
+        ERROR("Failed to set expected MAC\n");
+        goto out;
+    }
+
+    // Final AES block, validates MAC
+    if (EVP_DecryptFinal(ctx, NULL, &out_len) != 1) {
+        ERROR("Failed to validate decryption\n");
+        goto out;
+    }
+    status = PF_STATUS_SUCCESS;
+out:
+    EVP_CIPHER_CTX_free(ctx);
+    return status;
+}
+
+pf_status_t openssl_crypto_random(uint8_t* buffer, size_t size) {
+    if (!RAND_bytes(buffer, size)) {
+        ERROR("Failed to get random bytes\n");
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+    return PF_STATUS_SUCCESS;
+}
+
+void pf_set_openssl_crypto_callbacks() {
+    pf_set_crypto_callbacks(openssl_crypto_aes_gcm_encrypt, openssl_crypto_aes_gcm_decrypt,
+                            openssl_crypto_random);
+}
 
 // Debug print callback for protected files
 static void cb_debug(const char* msg) {
