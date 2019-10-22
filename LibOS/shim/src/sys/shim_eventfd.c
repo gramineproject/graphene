@@ -38,7 +38,7 @@ int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
     pal_flags |= flags & EFD_CLOEXEC ? PAL_OPTION_CLOEXEC : 0;
     pal_flags |= flags & EFD_SEMAPHORE ? PAL_OPTION_EFD_SEMAPHORE : 0;
 
-    /* eventfd() requires initval but PAL's DkStreamOpen() doesn't have such an argument.
+    /* eventfd() requires count (aka initval) but PAL's DkStreamOpen() doesn't have such an argument.
      * Using create arg as a work-around (note: initval is uint32 but create is int32).*/
     if (!(hdl = DkStreamOpen("eventfd:", 0, 0, count, pal_flags))) {
         debug("eventfd open failure\n");

@@ -86,7 +86,6 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
 
 }
 
-/* offset does not apply here. */
 static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* buffer) {
     if (offset)
         return -PAL_ERROR_INVAL;
@@ -108,7 +107,6 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
     return bytes;
 }
 
-/* offset does not apply here. */
 static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t len,
         const void* buffer) {
     if (offset)
@@ -140,7 +138,7 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     return bytes;
 }
 
-/* gets used for polling(query) on eventfd from LibOS. */
+/* invoked during poll operation on eventfd from LibOS. */
 static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
