@@ -161,18 +161,18 @@ pf_status_t pf_check_path(pf_context_t* pf, const char* path, bool* result) {
         goto out;
 
     // TODO: multiple paths
-    // allowed_paths should be double NULL-terminated
+    // allowed_paths should contain at least one NULL-terminated string
     pfs = PF_STATUS_BAD_HEADER;
-    if (pf->header->allowed_paths_size < 2)
+    if (pf->header->allowed_paths_size < 1)
         goto out;
 
     pfs = PF_STATUS_SUCCESS;
     *result = true;
 
-    if (strlen(path) != pf->header->allowed_paths_size - 2)
+    if (strlen(path) != pf->header->allowed_paths_size - 1)
         *result = false;
 
-    if (memcmp(path, PF_HEADER_PATHS(pf->header), strlen(path)) != 0)
+    if (memcmp(path, pf->header->allowed_paths, strlen(path)) != 0)
         *result = false;
 
 out:
@@ -182,23 +182,19 @@ out:
 // (Internal) Map header and verify its integrity
 static pf_status_t map_header(pf_context_t* pf, size_t underlying_size) {
     pf_status_t status = PF_STATUS_BAD_HEADER;
-    uint32_t hdr_size  = sizeof(pf_header_t);
-    uint32_t hdr_size_full;
-    pf_header_t* hdr = NULL;
 
     DEBUG_PF("pf %p, underlying size %lu\n", pf, underlying_size);
 
-    if (underlying_size < PF_MINIMUM_HEADER_SIZE)
+    if (underlying_size < PF_HEADER_SIZE)
         goto out;
 
     // Map the first (constant) part of the header, read-only for now
-    status = cb_map(pf->handle, PF_FILE_MODE_READ, 0, hdr_size, (void**)&pf->header);
+    status = cb_map(pf->handle, pf->mode, 0, PF_HEADER_SIZE, (void**)&pf->header);
     if (PF_FAILURE(status))
         goto out;
 
-    hdr = pf->header;
-    DEBUG_PF("version %u, hdr size %u, data size %lu, iv ",
-             hdr->version, hdr->header_size, hdr->data_size);
+    pf_header_t* hdr = pf->header;
+    DEBUG_PF("version %u, data size %lu, iv ", hdr->version, hdr->data_size);
     HEXDUMPNL(hdr->header_iv);
 
     status = PF_STATUS_BAD_VERSION;
@@ -206,9 +202,6 @@ static pf_status_t map_header(pf_context_t* pf, size_t underlying_size) {
         goto out;
 
     status = PF_STATUS_BAD_HEADER;
-    if (hdr->header_size >= PF_CHUNKS_OFFSET)
-        goto out;
-
     if (hdr->data_size > 0) {
         if (underlying_size != PF_CHUNK_OFFSET(PF_CHUNKS_COUNT(hdr->data_size))) {
             DEBUG_PF("invalid underlying size, expected %lu\n",
@@ -217,42 +210,23 @@ static pf_status_t map_header(pf_context_t* pf, size_t underlying_size) {
         }
     } else {
         // empty file
-        if (underlying_size != hdr->header_size) {
-            DEBUG_PF("invalid underlying size, expected %u\n", hdr->header_size);
+        if (underlying_size != PF_HEADER_SIZE) {
+            DEBUG_PF("invalid underlying size, expected %u\n", PF_HEADER_SIZE);
             goto out;
         }
     }
 
-    if (hdr->header_size - sizeof(pf_header_t) - ALIGN16(hdr->allowed_paths_size) != PF_MAC_SIZE) {
-        DEBUG_PF("invalid allowed_paths_size %u or header_size %u\n", hdr->allowed_paths_size,
-                 hdr->header_size);
+    status = PF_STATUS_PATH_TOO_LONG;
+    if (hdr->allowed_paths_size > PF_HEADER_ALLOWED_PATHS_SIZE) {
+        DEBUG_PF("invalid allowed_paths_size %u\n", hdr->allowed_paths_size);
         goto out;
     }
-
-    size_t expected_hdr_size = ALIGN16(sizeof(pf_header_t) + hdr->allowed_paths_size + PF_MAC_SIZE);
-    if (hdr->header_size != expected_hdr_size) {
-        DEBUG_PF("invalid header_size %u, expected %lu\n", hdr->header_size, expected_hdr_size);
-        goto out;
-    }
-
-    // Remap full header
-    hdr_size_full = hdr->header_size;
-    status = cb_unmap(hdr, hdr_size);
-    if (PF_FAILURE(status))
-        goto out;
-
-    hdr = pf->header = NULL;
-    hdr_size = hdr_size_full;
-    status = cb_map(pf->handle, pf->mode, 0, hdr_size, (void**)&pf->header);
-    if (PF_FAILURE(status))
-        goto out;
 
     // Check header integrity
-    hdr = pf->header;
     uint8_t tag[PF_MAC_SIZE];
 
     status = cb_crypto_aes_gcm_encrypt(pf->key, PF_WRAP_KEY_SIZE, hdr->header_iv, PF_IV_SIZE,
-                                       hdr, hdr->header_size - PF_MAC_SIZE, // additional data
+                                       hdr, PF_HEADER_SIZE - PF_MAC_SIZE, // additional data
                                        NULL, 0, // no data to encrypt
                                        NULL, // no output, calc MAC only
                                        tag, PF_MAC_SIZE);
@@ -263,11 +237,11 @@ static pf_status_t map_header(pf_context_t* pf, size_t underlying_size) {
     }
 
     status = PF_STATUS_MAC_MISMATCH;
-    if (memcmp(tag, PF_HEADER_MAC(hdr), PF_MAC_SIZE) != 0) {
+    if (memcmp(tag, hdr->header_mac, PF_MAC_SIZE) != 0) {
         DEBUG_PF("MAC mismatch: ");
         HEXDUMP(tag);
         __DEBUG_PF(" vs expected ");
-        __HEXDUMPNL(PF_HEADER_MAC(hdr), PF_MAC_SIZE);
+        __HEXDUMPNL(hdr->header_mac, PF_MAC_SIZE);
         goto out;
     }
 
@@ -275,7 +249,7 @@ static pf_status_t map_header(pf_context_t* pf, size_t underlying_size) {
 
 out:
     if (pf->header && PF_FAILURE(status)) {
-        if (PF_FAILURE(cb_unmap(pf->header, hdr_size)))
+        if (PF_FAILURE(cb_unmap(pf->header, PF_HEADER_SIZE)))
             DEBUG_PF("(failure path) header unmap failed\n");
         pf->header = NULL;
     }
@@ -283,66 +257,57 @@ out:
     return status;
 }
 
-// (Internal) Create header for a new PF
+// (Internal) Create header for a new PF (erases any data in the file)
 static pf_status_t create_header(pf_context_t* pf, const char* prefix, const char* file_name) {
     pf_status_t status;
-    char* target_path = NULL;
-    size_t target_path_size;
+    bool trailing_slash = prefix[strlen(prefix) - 1] == '/';
 
-    // Header stub
-    pf_header_t hdr = {0};
-    hdr.version = PF_FORMAT_VERSION;
+    status = cb_truncate(pf->handle, PF_HEADER_SIZE);
+    if (PF_FAILURE(status))
+        goto out;
+
+    // Map the header
+    status = cb_map(pf->handle, pf->mode, 0, PF_HEADER_SIZE, (void**)&pf->header);
+    if (PF_FAILURE(status))
+        goto out;
+
+    pf_header_t* hdr = pf->header;
+    memset(hdr, 0, PF_HEADER_SIZE);
+    hdr->version = PF_FORMAT_VERSION;
 
     // Generate IV for the header
-    status = cb_crypto_random(hdr.header_iv, PF_IV_SIZE);
+    status = cb_crypto_random(hdr->header_iv, PF_IV_SIZE);
     if (PF_FAILURE(status))
         goto out;
 
     // TODO: multiple allowed paths support
-    target_path_size = strlen(file_name)
+    hdr->allowed_paths_size = strlen(file_name)
         + 1 // slash
         + strlen(prefix)
-        + 1 // path NULL-terminator
-        + 1; // final NULL, allowed paths are double NULL-terminated
+        + 1; // path NULL-terminator
 
     // Trailing slash will be stripped
-    if (prefix[strlen(prefix) - 1] == '/')
-        target_path_size--;
+    if (trailing_slash)
+        hdr->allowed_paths_size--;
 
-    hdr.allowed_paths_size = target_path_size;
-    hdr.header_size = ALIGN16(sizeof(hdr) + hdr.allowed_paths_size + PF_MAC_SIZE);
-
-    status = PF_STATUS_BAD_HEADER;
-    if (hdr.header_size >= PF_CHUNKS_OFFSET)
+    status = PF_STATUS_PATH_TOO_LONG;
+    if (hdr->allowed_paths_size > PF_HEADER_ALLOWED_PATHS_SIZE)
         goto out;
 
-    DEBUG_PF("target path size %lu, hdr size %u\n", target_path_size, hdr.header_size);
-    status = cb_truncate(pf->handle, hdr.header_size);
-    if (PF_FAILURE(status))
-        goto out;
+    DEBUG_PF("allowed_paths_size: %u\n", hdr->allowed_paths_size);
 
-    // Prepare the full header
-    status = cb_map(pf->handle, pf->mode, 0, hdr.header_size, (void**)&pf->header);
-    if (PF_FAILURE(status))
-        goto out;
-
-    memcpy(pf->header, &hdr, sizeof(hdr));
     // TODO: multiple allowed paths support
-
-    target_path = ((char*)pf->header) + sizeof(hdr);
-    memset(target_path, 0, target_path_size);
-
-    if (prefix[strlen(prefix) - 1] == '/') {
-        snprintf(target_path, target_path_size, "%s%s", prefix, file_name);
+    if (trailing_slash) {
+        snprintf(hdr->allowed_paths, hdr->allowed_paths_size, "%s%s", prefix, file_name);
     } else {
-        snprintf(target_path, target_path_size, "%s/%s", prefix, file_name);
+        snprintf(hdr->allowed_paths, hdr->allowed_paths_size, "%s/%s", prefix, file_name);
     }
 
     status = PF_STATUS_SUCCESS;
 out:
     if (PF_FAILURE(status)) {
         if (pf->header) {
-            if (PF_FAILURE(cb_unmap(pf->header, hdr.header_size))) {
+            if (PF_FAILURE(cb_unmap(pf->header, PF_HEADER_SIZE))) {
                 DEBUG_PF("(failure path) header unmap failed\n");
             }
             pf->header = NULL;
@@ -355,30 +320,31 @@ out:
 // (Internal) Update header MAC for a writable PF and set underlying file size
 static pf_status_t update_header(pf_context_t* pf, size_t data_size) {
     pf_status_t status;
+    pf_header_t* hdr = pf->header;
 
-    DEBUG_PF("pf %p, data size %lu->%lu\n", pf, pf->header->data_size, data_size);
+    DEBUG_PF("pf %p, data size %lu->%lu\n", pf, hdr->data_size, data_size);
 
-    pf->header->data_size = data_size;
+    hdr->data_size = data_size;
 
     // Calculate header MAC
-    status = cb_crypto_aes_gcm_encrypt(pf->key, PF_WRAP_KEY_SIZE, pf->header->header_iv, PF_IV_SIZE,
-                                       pf->header, pf->header->header_size - PF_MAC_SIZE,
+    status = cb_crypto_aes_gcm_encrypt(pf->key, PF_WRAP_KEY_SIZE, hdr->header_iv, PF_IV_SIZE,
+                                       hdr, PF_HEADER_SIZE - PF_MAC_SIZE,
                                        NULL, 0, // no data to encrypt
                                        NULL, // no output, calc MAC only
-                                       PF_HEADER_MAC(pf->header), PF_MAC_SIZE);
+                                       hdr->header_mac, PF_MAC_SIZE);
 
     if (PF_SUCCESS(status)) {
         DEBUG_PF("data size %lu, iv ", data_size);
-        HEXDUMP(pf->header->header_iv);
+        HEXDUMP(hdr->header_iv);
         __DEBUG_PF(", mac ");
-        __HEXDUMPNL(PF_HEADER_MAC(pf->header), PF_MAC_SIZE);
+        __HEXDUMPNL(hdr->header_mac, PF_MAC_SIZE);
 
         // Set the underlying file size
         size_t size;
         if (data_size > 0)
             size = PF_CHUNK_OFFSET(PF_CHUNK_NUMBER(data_size - 1) + 1);
         else
-            size = pf->header->header_size;
+            size = PF_HEADER_SIZE;
 
         status = cb_truncate(pf->handle, size);
         if (PF_FAILURE(status))
@@ -497,7 +463,7 @@ pf_status_t pf_close(pf_context_t* pf) {
 
     DEBUG_PF("pf %p, mode %d\n", pf, pf->mode);
 
-    status = cb_unmap(pf->header, pf->header->header_size);
+    status = cb_unmap(pf->header, PF_HEADER_SIZE);
     if (PF_FAILURE(status)) {
         DEBUG_PF("failed to unmap header: 0x%x\n", status);
         goto out;
@@ -521,7 +487,7 @@ pf_status_t pf_decrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const pf_c
              chunk_number, chunk->chunk_number, chunk->chunk_size);
     HEXDUMP(chunk->chunk_iv);
     __DEBUG_PF(", mac ");
-    __HEXDUMPNL(PF_CHUNK_MAC(chunk), PF_MAC_SIZE);
+    __HEXDUMPNL(chunk->chunk_mac, PF_MAC_SIZE);
 
     status = PF_STATUS_BAD_CHUNK;
     // Verify chunk metadata
@@ -537,10 +503,10 @@ pf_status_t pf_decrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const pf_c
 
     // Decrypt data
     status = cb_crypto_aes_gcm_decrypt(pf->key, PF_WRAP_KEY_SIZE, chunk->chunk_iv, PF_IV_SIZE,
-                                       chunk, sizeof(pf_chunk_t), // AAD: metadata
-                                       PF_CHUNK_DATA(chunk), chunk->chunk_size, // input
+                                       chunk, PF_CHUNK_HEADER_SIZE, // AAD: metadata
+                                       chunk->chunk_data, chunk->chunk_size, // input
                                        (uint8_t*)output, // output
-                                       PF_CHUNK_MAC(chunk), PF_MAC_SIZE); // mac
+                                       chunk->chunk_mac, PF_MAC_SIZE); // mac
 
     if (PF_FAILURE(status)) {
         DEBUG_PF("chunk #%lu: decryption failed: 0x%x\n", chunk_number, status);
@@ -635,14 +601,14 @@ pf_status_t pf_encrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const void
 
     // Encrypt data
     status = cb_crypto_aes_gcm_encrypt(pf->key, PF_WRAP_KEY_SIZE, output->chunk_iv, PF_IV_SIZE,
-                                       output, sizeof(pf_chunk_t), // AAD: metadata
+                                       output, PF_CHUNK_HEADER_SIZE, // AAD: metadata
                                        input, chunk_size, // input
-                                       PF_CHUNK_DATA(output), // output
-                                       PF_CHUNK_MAC(output), PF_MAC_SIZE); // mac
+                                       output->chunk_data, // output
+                                       output->chunk_mac, PF_MAC_SIZE); // mac
 
     if (status == PF_STATUS_SUCCESS) {
         DEBUG_PF("mac ");
-        __HEXDUMPNL(PF_CHUNK_MAC(output), PF_MAC_SIZE);
+        __HEXDUMPNL(output->chunk_mac, PF_MAC_SIZE);
     }
 
 out:
@@ -710,11 +676,11 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
             // uninitialized, no existing data in chunk - just encrypt new data
             // make sure to account for writes that skip some bytes (need zeros at the start)
             if (input) {
-                memcpy(PF_CHUNK_DATA(pf->plaintext) + offset_in_chunk,
+                memcpy(pf->plaintext->chunk_data + offset_in_chunk,
                        (uint8_t*)input + input_offset,
                        chunk_data_size - offset_in_chunk);
             } else {
-                memset(PF_CHUNK_DATA(pf->plaintext) + offset_in_chunk,
+                memset(pf->plaintext->chunk_data + offset_in_chunk,
                        0,
                        chunk_data_size - offset_in_chunk);
             }
@@ -723,9 +689,9 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
             // overlay new data onto it and then encrypt again.
 
             // copy header
-            memcpy(pf->plaintext, chunk, sizeof(pf_chunk_t));
+            memcpy(pf->plaintext, chunk, PF_CHUNK_HEADER_SIZE);
             // decrypt
-            status = pf_decrypt_chunk(pf, chunk_nr, chunk, PF_CHUNK_DATA(pf->plaintext));
+            status = pf_decrypt_chunk(pf, chunk_nr, chunk, pf->plaintext->chunk_data);
             if (PF_FAILURE(status)) {
                 DEBUG_PF("pf_decrypt_chunk failed: 0x%x\n", status);
                 goto out;
@@ -733,11 +699,11 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
 
             if (input) {
                 // copy new data
-                memcpy(PF_CHUNK_DATA(pf->plaintext) + offset_in_chunk,
+                memcpy(pf->plaintext->chunk_data + offset_in_chunk,
                        (uint8_t*)input + input_offset,
                        chunk_data_size - offset_in_chunk);
             } else {
-                memset(PF_CHUNK_DATA(pf->plaintext) + offset_in_chunk,
+                memset(pf->plaintext->chunk_data + offset_in_chunk,
                        0,
                        chunk_data_size - offset_in_chunk);
             }
@@ -747,7 +713,7 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
         }
 
         // encrypt the chunk
-        status = pf_encrypt_chunk(pf, chunk_nr, PF_CHUNK_DATA(pf->plaintext), encrypt_size,
+        status = pf_encrypt_chunk(pf, chunk_nr, pf->plaintext->chunk_data, encrypt_size,
                                   pf->encrypted);
 
         if (PF_FAILURE(status)) {

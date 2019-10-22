@@ -19,7 +19,9 @@
 #ifndef PROTECTED_FILES_H
 #define PROTECTED_FILES_H
 
+#include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -71,53 +73,49 @@ TODO:
 #define PF_CHUNK_SIZE     (4 * 0x1000)
 
 /*! File offset for the first chunk, page aligned for easy mmap-ing */
-#define PF_CHUNKS_OFFSET  0x1000
+#define PF_CHUNKS_OFFSET             0x1000
+
+/*! Header size (constant) */
+#define PF_HEADER_SIZE               PF_CHUNKS_OFFSET
+
+/*! Maximum size for allowed paths */
+#define PF_HEADER_ALLOWED_PATHS_SIZE (PF_HEADER_SIZE -4 -8 -PF_IV_SIZE -4 -PF_MAC_SIZE)
+
+/*! Maximum number of data bytes in a chunk */
+#define PF_CHUNK_DATA_MAX (PF_CHUNK_SIZE -8 -4 -PF_IV_SIZE -8 -PF_MAC_SIZE)
 
 /*! Protected file header */
 typedef struct __attribute__((packed)) _pf_header_t {
     uint32_t version; //!< File format version
-    uint32_t header_size; //!< Full header size
     uint64_t data_size; //!< Original file size
     uint8_t  header_iv[PF_IV_SIZE]; //!< AES-GCM IV
-    uint32_t allowed_paths_size; //!< Size of allowed paths that follow
-/*  char*    allowed_paths; //!< C-string paths, double NULL-terminated, padded to 16
- *  uint8_t  header_mac[PF_MAC_SIZE]; //!< AES-GCM tag of header up to this field
- */
+    uint32_t allowed_paths_size; //!< Size of allowed paths that follow (including NULL terminators)
+    char     allowed_paths[PF_HEADER_ALLOWED_PATHS_SIZE]; //!< C-string paths, padded with zeros
+    uint8_t  header_mac[PF_MAC_SIZE]; //!< AES-GCM tag of header up to this field
 } pf_header_t;
+
+static_assert(sizeof(pf_header_t) == PF_HEADER_SIZE, "incorrect struct size");
 
 /*! Protected file chunk, each is individually encrypted */
 typedef struct __attribute__((packed)) _pf_chunk_t {
-    uint64_t chunk_number; //!< Negate to indicate EOF
+    uint64_t chunk_number; //!< Sequential in a file, starting from 0
     uint32_t chunk_size; //!< Decrypted size, important for the last chunk
     uint8_t  chunk_iv[PF_IV_SIZE]; //!< AES-GCM IV
-    uint8_t  padding[4]; //!< Zero
-/*  uint8_t  chunk_data[]; //!< Encrypted by wrap key (AES-GCM)
- *  uint8_t  chunk_mac[PF_MAC_SIZE]; //!< AES-GCM tag for all previous fields
- */
+    uint8_t  padding[8]; //!< Zero
+    uint8_t  chunk_data[PF_CHUNK_DATA_MAX]; //!< Padded with zeros
+    uint8_t  chunk_mac[PF_MAC_SIZE]; //!< AES-GCM tag for all previous fields
 } pf_chunk_t;
 
-#define ALIGN16(x) (((x) + 0x0f) & ~0x0f)
+static_assert(sizeof(pf_chunk_t) == PF_CHUNK_SIZE, "incorrect struct size");
 
-/*! Maximum number of data bytes in a chunk */
-#define PF_CHUNK_DATA_MAX         (PF_CHUNK_SIZE - sizeof(pf_chunk_t) - PF_MAC_SIZE)
-/*! Pointer to MAC in the file header */
-#define PF_HEADER_MAC(header)     (((uint8_t*)(header)) + (header)->header_size - PF_MAC_SIZE)
+/*! Size of chunk metadata/header */
+#define PF_CHUNK_HEADER_SIZE      (offsetof(pf_chunk_t, chunk_data))
 /*! Number of a chunk containing given data offset */
 #define PF_CHUNK_NUMBER(offset)   ((offset) / PF_CHUNK_DATA_MAX)
 /*! Number of chunks needed for the given data size */
 #define PF_CHUNKS_COUNT(size)     ((size) > 0 ? PF_CHUNK_NUMBER((size) - 1) + 1 : 0)
 /*! Offset of a given chunk relative to the start of the file */
 #define PF_CHUNK_OFFSET(chunk_nr) (PF_CHUNKS_OFFSET + (chunk_nr) * PF_CHUNK_SIZE)
-/*! Offset of MAC relative to chunk start */
-#define PF_CHUNK_MAC_OFFSET       (PF_CHUNK_SIZE - PF_MAC_SIZE)
-/*! Pointer to given chunk data */
-#define PF_CHUNK_DATA(chunk)      ((uint8_t*)(chunk) + sizeof(pf_chunk_t))
-/*! Pointer to given chunk MAC */
-#define PF_CHUNK_MAC(chunk)       ((uint8_t*)(chunk) + PF_CHUNK_MAC_OFFSET)
-/*! Minimum header size */
-#define PF_MINIMUM_HEADER_SIZE    ALIGN16(sizeof(pf_header_t) + PF_MAC_SIZE)
-/*! Pointer to allowed_paths in the file header */
-#define PF_HEADER_PATHS(header)   (((uint8_t*)(header)) + sizeof(pf_header_t))
 
 /*! Return values for PF functions */
 typedef enum _pf_status_t {
@@ -134,6 +132,7 @@ typedef enum _pf_status_t {
     PF_STATUS_MAC_MISMATCH      = -10,
     PF_STATUS_NOT_IMPLEMENTED   = -11,
     PF_STATUS_CALLBACK_FAILED   = -12,
+    PF_STATUS_PATH_TOO_LONG     = -13,
 } pf_status_t;
 
 #define PF_SUCCESS(status) ((status) == PF_STATUS_SUCCESS)
