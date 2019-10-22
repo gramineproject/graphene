@@ -27,7 +27,7 @@ or directories registered. For supported I/O operations, handlers (in db_files.c
 check if the file is a PF to perform the required operation transparently.
 
 Since PF's "logical" size is different than the real FS size (and to avoid potential
-infinite recursion in FS handlers) we don't use PAL file APIs here, but raw syscalls.
+infinite recursion in FS handlers) we don't use PAL file APIs here, but raw OCALLs.
 */
 
 // Callbacks for protected files handling
@@ -158,7 +158,7 @@ struct protected_file* find_protected_file(const char* path) {
     return pf;
 }
 
-// Find registered pf directory containing given path
+// Find registered pf directory starting with given path
 struct protected_file* find_protected_dir(const char* path) {
     struct protected_file* pf  = NULL;
     struct protected_file* tmp = NULL;
