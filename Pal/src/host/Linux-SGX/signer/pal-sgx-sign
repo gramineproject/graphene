@@ -363,7 +363,7 @@ def get_memory_areas(attr, args):
     areas.append(
         MemoryArea('ssa',
                    size=attr['thread_num'] * SSAFRAMESIZE * SSAFRAMENUM,
-                   flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
+                   flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG, measure=False))
     areas.append(MemoryArea('tcs', size=attr['thread_num'] * TCS_SIZE,
                             flags=PAGEINFO_TCS))
     areas.append(MemoryArea('tls', size=attr['thread_num'] * PAGESIZE,
@@ -371,7 +371,8 @@ def get_memory_areas(attr, args):
 
     for _ in range(attr['thread_num']):
         areas.append(MemoryArea('stack', size=ENCLAVE_STACK_SIZE,
-                                flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
+                                flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG,
+                                measure=False))
 
     areas.append(MemoryArea('pal', file=args['libpal'], flags=PAGEINFO_REG))
 
@@ -441,12 +442,17 @@ def gen_area_content(attr, areas):
     # on enclave startup.
     for area in areas:
         if (area.addr + area.size <= enclave_heap_min or
-                area.addr >= enclave_heap_max or area is exec_area):
+                area.addr >= enclave_heap_max):
+            if ((area not in stacks) and area is not ssa_area and
+                    not area.measure):
+                raise ValueError("Memory area \"{0}\", which is not the heap, "
+                                 "is not measured".format(area.desc))
+        elif area is exec_area:
             if not area.measure:
-                raise ValueError("Memory area, which is not the heap, "
-                                 "is not measured")
+                raise ValueError("Exec area in heap region is not measured")
         elif area.desc != 'free':
-            raise ValueError("Unexpected memory area is in heap range")
+            raise ValueError("Unexpected memory area \"{0}\" is in heap "
+                             "range".format(area.desc))
 
     for t in range(0, attr['thread_num']):
         ssa_offset = ssa_area.addr + SSAFRAMESIZE * SSAFRAMENUM * t

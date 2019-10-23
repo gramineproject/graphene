@@ -335,7 +335,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     area_num++;
 
     areas[area_num] = (struct mem_area) {
-        .desc = "ssa", .skip_eextend = false, .is_binary = false,
+        .desc = "ssa", .skip_eextend = true, .is_binary = false,
         .fd = -1, .addr = 0, .size = enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
         .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
     };
@@ -358,7 +358,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     struct mem_area* stack_areas = &areas[area_num]; /* memorize for later use */
     for (uint32_t t = 0; t < enclave->thread_num; t++) {
         areas[area_num] = (struct mem_area) {
-            .desc = "stack", .skip_eextend = false, .is_binary = false,
+            .desc = "stack", .skip_eextend = true, .is_binary = false,
             .fd = -1, .addr = 0, .size = ENCLAVE_STACK_SIZE,
             .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
         };
