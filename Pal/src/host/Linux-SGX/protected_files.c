@@ -232,7 +232,7 @@ static pf_status_t map_header(pf_context_t* pf, size_t underlying_size) {
                                        tag, PF_MAC_SIZE);
 
     if (PF_FAILURE(status)) {
-        DEBUG_PF("calculating header MAC failed: 0x%x\n", status);
+        DEBUG_PF("calculating header MAC failed: %d\n", status);
         goto out;
     }
 
@@ -465,7 +465,7 @@ pf_status_t pf_close(pf_context_t* pf) {
 
     status = cb_unmap(pf->header, PF_HEADER_SIZE);
     if (PF_FAILURE(status)) {
-        DEBUG_PF("failed to unmap header: 0x%x\n", status);
+        DEBUG_PF("failed to unmap header: %d\n", status);
         goto out;
     }
 
@@ -509,7 +509,7 @@ pf_status_t pf_decrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const pf_c
                                        chunk->chunk_mac, PF_MAC_SIZE); // mac
 
     if (PF_FAILURE(status)) {
-        DEBUG_PF("chunk #%lu: decryption failed: 0x%x\n", chunk_number, status);
+        DEBUG_PF("chunk #%lu: decryption failed: %d\n", chunk_number, status);
         goto out;
     }
 
@@ -693,7 +693,7 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
             // decrypt
             status = pf_decrypt_chunk(pf, chunk_nr, chunk, pf->plaintext->chunk_data);
             if (PF_FAILURE(status)) {
-                DEBUG_PF("pf_decrypt_chunk failed: 0x%x\n", status);
+                DEBUG_PF("pf_decrypt_chunk failed: %d\n", status);
                 goto out;
             }
 
@@ -717,7 +717,7 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
                                   pf->encrypted);
 
         if (PF_FAILURE(status)) {
-            DEBUG_PF("pf_encrypt_chunk failed: 0x%x\n", status);
+            DEBUG_PF("pf_encrypt_chunk failed: %d\n", status);
             goto out;
         }
 

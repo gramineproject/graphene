@@ -478,7 +478,7 @@ static int open_protected_file(const char* path, struct protected_file* pf, pf_h
     }
 
     if (PF_FAILURE(pfs)) {
-        SGX_DBG(DBG_E, "pf_open/pf_create(%d) failed: 0x%x\n", *(int*)handle, pfs);
+        SGX_DBG(DBG_E, "pf_open/pf_create(%d) failed: %d\n", *(int*)handle, pfs);
         return -PAL_ERROR_DENIED;
     }
     return 0;
@@ -538,7 +538,7 @@ int unload_protected_file(struct protected_file* pf) {
             if (size > 0) {
                 pfs = pf_write(pf->context, pfa->offset, size, pfa->mem);
                 if (PF_FAILURE(pfs)) {
-                    SGX_DBG(DBG_E, "unload_protected_file: pf_write failed: 0x%x\n", pfs);
+                    SGX_DBG(DBG_E, "unload_protected_file: pf_write failed: %d\n", pfs);
                     return -PAL_ERROR_INVAL;
                 }
             }
