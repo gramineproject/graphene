@@ -51,9 +51,6 @@ int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
 }
 
 int shim_do_eventfd2(unsigned int count, int flags) {
-    if (test_user_memory((void *) &count, sizeof(unsigned int), false))
-        return -EFAULT;
-
     int ret = 0;
     struct shim_handle* hdl = get_new_handle();
 
