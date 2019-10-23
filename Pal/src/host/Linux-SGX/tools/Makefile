@@ -16,7 +16,7 @@ endif
 
 headers = $(wildcard *.h) ../protected_files.h
 objs = util pf_util pf_crypt
-bins = pf_crypt
+bins = pf_crypt pf_tamper
 
 .PHONY: all
 all: $(bins)
@@ -28,6 +28,10 @@ $(addsuffix .o,$(objs)): %.o: %.c $(headers)
 	$(CC) $(CFLAGS) $(CFLAGS-$@) -c -o $@ $<
 
 pf_crypt: pf_crypt.o util.o pf_util.o protected_files.o
+	@echo [ host/Linux-SGX/tools/$@ ]
+	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now $^ -lc -lcrypto -o $@
+
+pf_tamper: pf_tamper.o util.o
 	@echo [ host/Linux-SGX/tools/$@ ]
 	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now $^ -lc -lcrypto -o $@
 
