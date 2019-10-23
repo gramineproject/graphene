@@ -324,7 +324,7 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const char*
     pf_handle_t handle = (pf_handle_t) &output;
     pf_status_t pfs    = pf_create(handle, prefix, file_name, wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
-        ERROR("Failed to open output PF: 0x%x\n", pfs);
+        ERROR("Failed to open output PF: %d\n", pfs);
         goto out;
     }
 
@@ -350,7 +350,7 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const char*
                 chunk_size = PF_CHUNK_DATA_MAX;
             pfs = pf_write(pf, input_offset, chunk_size, (uint8_t*)input_mem + input_offset);
             if (PF_FAILURE(pfs)) {
-                ERROR("Failed to write to output PF: 0x%x\n", pfs);
+                ERROR("Failed to write to output PF: %d\n", pfs);
                 goto out;
             }
 
@@ -404,7 +404,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path,
 
     pf_status_t pfs = pf_open((pf_handle_t) &input, st.st_size, PF_FILE_MODE_READ, wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
-        ERROR("Opening protected input file failed: 0x%x\n", pfs);
+        ERROR("Opening protected input file failed: %d\n", pfs);
         goto out;
     }
 
@@ -421,7 +421,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path,
 
     pfs = pf_get_size(pf, &input_size);
     if (PF_FAILURE(pfs)) {
-        ERROR("pf_get_size failed: 0x%x\n", pfs);
+        ERROR("pf_get_size failed: %d\n", pfs);
         goto out;
     }
 
@@ -432,7 +432,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path,
         // read from PF
         pfs = pf_read(pf, input_offset, chunk_data_size, buffer);
         if (PF_FAILURE(pfs)) {
-            ERROR("Read from protected file failed (offset %" PRIu64 ", size %u): 0x%x\n",
+            ERROR("Read from protected file failed (offset %" PRIu64 ", size %u): %d\n",
                 input_offset, chunk_data_size, pfs);
             goto out;
         }

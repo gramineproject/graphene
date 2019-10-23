@@ -173,7 +173,7 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
         pf_status_t pfs = pf_read(pf->context, offset, count, buffer);
 
         if (PF_FAILURE(pfs)) {
-            SGX_DBG(DBG_E, "file_read(PF fd %d): pf_read failed: 0x%x\n", handle->file.fd, pfs);
+            SGX_DBG(DBG_E, "file_read(PF fd %d): pf_read failed: %d\n", handle->file.fd, pfs);
             return -PAL_ERROR_DENIED;
         }
 
@@ -235,7 +235,7 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
         pf_status_t pf_ret = pf_write(pf->context, offset, count, buffer);
 
         if (PF_FAILURE(pf_ret)) {
-            SGX_DBG(DBG_E, "file_write(PF fd %d): pf_write failed: 0x%x\n", fd, pf_ret);
+            SGX_DBG(DBG_E, "file_write(PF fd %d): pf_write failed: %d\n", fd, pf_ret);
             return -PAL_ERROR_DENIED;
         }
 
@@ -376,7 +376,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 
             pf_status_t pf_ret = pf_read(pf->context, offset, copy_size, *addr);
             if (PF_FAILURE(pf_ret)) {
-                SGX_DBG(DBG_E, "file_map(PF fd %d): pf_read failed: 0x%x\n", fd, pf_ret);
+                SGX_DBG(DBG_E, "file_map(PF fd %d): pf_read failed: %d\n", fd, pf_ret);
                 return -PAL_ERROR_DENIED;
             }
         }
@@ -457,7 +457,7 @@ static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
     if (pf) {
         pf_status_t pfs = pf_set_size(pf->context, length);
         if (PF_FAILURE(pfs)) {
-            SGX_DBG(DBG_E, "file_setlength(PF fd %d, %lu): pf_set_size returned 0x%x\n",
+            SGX_DBG(DBG_E, "file_setlength(PF fd %d, %lu): pf_set_size returned %d\n",
                 handle->file.fd, length, pfs);
             uint64_t size;
             pfs = pf_get_size(pf->context, &size);
