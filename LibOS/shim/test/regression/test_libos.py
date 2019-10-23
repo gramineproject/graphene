@@ -324,6 +324,12 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('eventfd_using_poll completed successfully', stdout)
         self.assertIn('eventfd_using_various_flags completed successfully', stdout)
 
+    def test_080_sched(self):
+        stdout, stderr = self.run_binary(['sched'])
+
+        # Scheduling Syscalls Test
+        self.assertIn('Test completed successfully', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

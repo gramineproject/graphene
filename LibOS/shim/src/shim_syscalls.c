@@ -537,24 +537,27 @@ SHIM_SYSCALL_PASSTHROUGH(fstatfs, 2, int, int, fd, struct statfs*, buf)
 
 SHIM_SYSCALL_PASSTHROUGH(sysfs, 3, int, int, option, unsigned long, arg1, unsigned long, arg2)
 
-SHIM_SYSCALL_PASSTHROUGH(getpriority, 2, int, int, which, int, who)
+DEFINE_SHIM_SYSCALL(setpriority, 3, shim_do_setpriority, int, int, which, int, who, int, niceval)
 
-SHIM_SYSCALL_PASSTHROUGH(setpriority, 3, int, int, which, int, who, int, niceval)
+DEFINE_SHIM_SYSCALL(getpriority, 2, shim_do_getpriority, int, int, which, int, who)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_setparam, 2, int, pid_t, pid, struct __kernel_sched_param*, param)
+DEFINE_SHIM_SYSCALL(sched_setparam, 2, shim_do_sched_setparam, int, pid_t, pid,
+                    struct __kernel_sched_param*, param)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_getparam, 2, int, pid_t, pid, struct __kernel_sched_param*, param)
+DEFINE_SHIM_SYSCALL(sched_getparam, 2, shim_do_sched_getparam, int, pid_t, pid,
+                    struct __kernel_sched_param*, param)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_setscheduler, 3, int, pid_t, pid, int, policy,
-                         struct __kernel_sched_param*, param)
+DEFINE_SHIM_SYSCALL(sched_setscheduler, 3, shim_do_sched_setscheduler, int, pid_t, pid,
+                    int, policy, struct __kernel_sched_param*, param)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_getscheduler, 1, int, pid_t, pid)
+DEFINE_SHIM_SYSCALL(sched_getscheduler, 1, shim_do_sched_getscheduler, int, pid_t, pid)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_get_priority_max, 1, int, int, policy)
+DEFINE_SHIM_SYSCALL(sched_get_priority_max, 1, shim_do_sched_get_priority_max, int, int, policy)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_get_priority_min, 1, int, int, policy)
+DEFINE_SHIM_SYSCALL(sched_get_priority_min, 1, shim_do_sched_get_priority_min, int, int, policy)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_rr_get_interval, 2, int, pid_t, pid, struct timespec*, interval)
+DEFINE_SHIM_SYSCALL(sched_rr_get_interval, 2, shim_do_sched_rr_get_interval, int, pid_t, pid,
+                    struct timespec*, interval)
 
 SHIM_SYSCALL_PASSTHROUGH(mlock, 2, int, void*, start, size_t, len)
 
@@ -715,8 +718,8 @@ DEFINE_SHIM_SYSCALL(time, 1, shim_do_time, time_t, time_t*, tloc)
 DEFINE_SHIM_SYSCALL(futex, 6, shim_do_futex, int, int*, uaddr, int, op, int, val, void*, utime,
                     int*, uaddr2, int, val3)
 
-SHIM_SYSCALL_PASSTHROUGH(sched_setaffinity, 3, int, pid_t, pid, size_t, len, __kernel_cpu_set_t*,
-                         user_mask_ptr)
+DEFINE_SHIM_SYSCALL(sched_setaffinity, 3, shim_do_sched_setaffinity, int, pid_t, pid, size_t, len,
+                    __kernel_cpu_set_t*, user_mask_ptr)
 
 DEFINE_SHIM_SYSCALL(sched_getaffinity, 3, shim_do_sched_getaffinity, int, pid_t, pid, size_t, len,
                     __kernel_cpu_set_t*, user_mask_ptr)
