@@ -4,7 +4,6 @@ import argparse
 import datetime
 import hashlib
 import os
-import shutil
 import struct
 import subprocess
 import sys
@@ -851,8 +850,6 @@ def main_sign(args):
             enclave_heap_min = 0
             manifest['sgx.static_address'] = '0'
 
-    # Add manifest at the top
-    shutil.copy2(args['manifest'], args['output'])
     output_manifest(args['output'], manifest, manifest_layout)
 
     memory_areas = [
