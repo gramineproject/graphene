@@ -128,9 +128,11 @@ static int write_file_internal(const char* path, size_t size, const void* buffer
         goto out;
     }
 
-    if (fwrite(buffer, size, 1, f) != 1) {
-        ERROR("Failed to write file '%s': %s\n", path, strerror(errno));
-        goto out;
+    if (size > 0 && buffer) {
+        if (fwrite(buffer, size, 1, f) != 1) {
+            ERROR("Failed to write file '%s': %s\n", path, strerror(errno));
+            goto out;
+        }
     }
 
     errno = 0;
