@@ -54,7 +54,7 @@ Run the following command on Ubuntu to install dependencies for Graphene::
 
 For building Graphene for SGX, run the following command in addition::
 
-    sudo apt-get install -y python-protobuf libprotobuf-c-dev protobuf-c-compiler
+    sudo apt-get install -y python3-protobuf libprotobuf-c-dev protobuf-c-compiler
 
 To run tests locally, you also need the python3-pytest package::
 
