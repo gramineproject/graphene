@@ -112,7 +112,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.assertTrue(filecmp.cmp(input, dp, shallow=False))
 
     # override to change input dir (from plaintext to encrypted)
-    def do_copy(self, exec, timeout):
+    def do_copy_test(self, exec, timeout):
         stdout, stderr = self.run_binary([exec, self.ENCRYPTED_DIR, self.OUTPUT_DIR], timeout=timeout)
         self.verify_copy(stdout, stderr, self.ENCRYPTED_DIR, exec)
 
