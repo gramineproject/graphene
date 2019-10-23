@@ -184,11 +184,12 @@ int sgx_init_child_process (struct pal_sec * pal_sec)
     int ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, &proc_args,
                              sizeof(struct proc_args));
 
-    if (IS_ERR(ret) && ERRNO(ret) == EBADF)
-        return 0;
+    if (IS_ERR(ret)) {
+        if (ERRNO(ret) == EBADF)
+            return 0;
 
-    if (IS_ERR(ret))
         return ret;
+    }
 
     int child_status = 0;
     ret = INLINE_SYSCALL(write, 3, proc_args.proc_fds[1], &child_status,

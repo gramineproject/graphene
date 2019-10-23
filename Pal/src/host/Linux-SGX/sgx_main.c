@@ -228,8 +228,7 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
 int initialize_enclave (struct pal_enclave * enclave)
 {
     int ret = 0;
-
-    int                    enclave_image = -1;
+    int                    enclave_image;
     sgx_arch_token_t       enclave_token;
     sgx_arch_enclave_css_t enclave_sigstruct;
     sgx_arch_secs_t        enclave_secs;
@@ -247,7 +246,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     char cfgbuf[CONFIG_MAX];
 
     /* Reading sgx.enclave_size from manifest */
-    if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, CONFIG_MAX) <= 0) {
+    if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, sizeof(cfgbuf)) <= 0) {
         SGX_DBG(DBG_E, "Enclave size is not specified\n");
         ret = -EINVAL;
         goto out;
@@ -261,7 +260,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     /* Reading sgx.thread_num from manifest */
-    if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0) {
+    if (get_config(enclave->config, "sgx.thread_num", cfgbuf, sizeof(cfgbuf)) > 0) {
         enclave->thread_num = parse_int(cfgbuf);
 
         if (enclave->thread_num > MAX_DBG_THREADS) {
@@ -274,7 +273,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     /* Reading sgx.static_address from manifest */
-    if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 && cfgbuf[0] == '1')
+    if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0 && cfgbuf[0] == '1')
         enclave->baseaddr = heap_min;
     else
         enclave->baseaddr = heap_min = 0;
@@ -314,8 +313,8 @@ int initialize_enclave (struct pal_enclave * enclave)
     struct mem_area {
         const char * desc;
         bool skip_eextend;
-        bool is_binary;
         int fd;
+        bool is_binary;
         unsigned long addr, size, prot;
         enum sgx_page_type type;
     };
@@ -454,7 +453,7 @@ int initialize_enclave (struct pal_enclave * enclave)
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-            if (data == (void *)-1 || data == NULL) {
+            if (IS_ERR_P(data) || data == NULL) {
                 /* Note that Graphene currently doesn't handle 0x0 addresses */
                 SGX_DBG(DBG_E, "Allocating memory for tls pages failed\n");
                 goto out;
@@ -488,7 +487,7 @@ int initialize_enclave (struct pal_enclave * enclave)
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-            if (data == (void *)-1 || data == NULL) {
+            if (IS_ERR_P(data) || data == NULL) {
                 /* Note that Graphene currently doesn't handle 0x0 addresses */
                 SGX_DBG(DBG_E, "Allocating memory for tcs pages failed\n");
                 goto out;
@@ -512,7 +511,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            PROT_READ,
                                            MAP_FILE|MAP_PRIVATE,
                                            areas[i].fd, 0);
-            if (data == (void *)-1 || data == NULL) {
+            if (IS_ERR_P(data) || data == NULL) {
                 /* Note that Graphene currently doesn't handle 0x0 addresses */
                 SGX_DBG(DBG_E, "Allocating memory for file %s failed\n", areas[i].desc);
                 goto out;
@@ -655,7 +654,7 @@ static void create_instance (struct pal_sec * pal_sec)
     pal_sec->instance_id = id;
 }
 
-int load_manifest (int fd, struct config_store ** config_ptr)
+static int load_manifest (int fd, struct config_store ** config_ptr)
 {
     int ret = 0;
 
@@ -707,7 +706,7 @@ out:
  * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
  * Understands complex formats like "1,3-5,6".
  */
-int get_cpu_count(void) {
+static int get_cpu_count(void) {
     int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
     if (fd < 0)
         return unix_to_pal_error(ERRNO(fd));
@@ -761,7 +760,6 @@ static int load_enclave (struct pal_enclave * enclave,
 {
     struct pal_sec * pal_sec = &enclave->pal_sec;
     int ret;
-    const char * errstring;
     struct timeval tv;
 
 #if PRINT_ENCLAVE_STAT == 1
@@ -805,8 +803,6 @@ static int load_enclave (struct pal_enclave * enclave,
     }
 #endif
 
-    char cfgbuf[CONFIG_MAX];
-
     enclave->manifest = manifest_fd;
 
     ret = load_manifest(enclave->manifest, &enclave->config);
@@ -815,10 +811,13 @@ static int load_enclave (struct pal_enclave * enclave,
         return -EINVAL;
     }
 
+    char cfgbuf[CONFIG_MAX];
+    const char * errstring;
+
     // A manifest can specify an executable with a different base name
     // than the manifest itself.  Always give the exec field of the manifest
     // precedence if specified.
-    if (get_config(enclave->config, "loader.exec", cfgbuf, CONFIG_MAX) > 0) {
+    if (get_config(enclave->config, "loader.exec", cfgbuf, sizeof(cfgbuf)) > 0) {
         exec_uri = resolve_uri(cfgbuf, &errstring);
         exec_uri_inferred = false;
         if (!exec_uri) {
@@ -847,7 +846,7 @@ static int load_enclave (struct pal_enclave * enclave,
         }
     }
 
-    if (get_config(enclave->config, "sgx.sigfile", cfgbuf, CONFIG_MAX) < 0) {
+    if (get_config(enclave->config, "sgx.sigfile", cfgbuf, sizeof(cfgbuf)) < 0) {
         SGX_DBG(DBG_E, "Sigstruct file not found ('sgx.sigfile' must be specified in manifest)\n");
         return -EINVAL;
     }
