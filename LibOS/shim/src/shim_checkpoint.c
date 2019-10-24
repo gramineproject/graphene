@@ -500,10 +500,10 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
     size_t bytes = 0;
 
     do {
-        size_t ret = DkStreamWrite(stream, 0, total_bytes - bytes,
+        PAL_NUM ret = DkStreamWrite(stream, 0, total_bytes - bytes,
                                    (void *) store->base + bytes, NULL);
 
-        if (!ret) {
+        if (ret == PAL_STREAM_ERROR) {
             if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
                 PAL_ERRNO == EWOULDBLOCK)
                 continue;
@@ -520,9 +520,9 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         void * mem_addr = mem_entries[i]->addr;
         bytes = 0;
         do {
-            size_t ret = DkStreamWrite(stream, 0, mem_size - bytes,
+            PAL_NUM ret = DkStreamWrite(stream, 0, mem_size - bytes,
                                        mem_addr + bytes, NULL);
-            if (!ret) {
+            if (ret == PAL_STREAM_ERROR) {
                 if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
                     PAL_ERRNO == EWOULDBLOCK)
                     continue;
@@ -929,7 +929,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     int ret = 0;
     struct shim_process * new_process = NULL;
     struct newproc_header hdr;
-    size_t bytes;
+    PAL_NUM bytes;
     PAL_HANDLE gipc_hdl = NULL;
     memset(&hdr, 0, sizeof(hdr));
 
@@ -1073,7 +1073,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
      * notify the process to start receiving the checkpoint.
      */
     bytes = DkStreamWrite(proc, 0, sizeof(struct newproc_header), &hdr, NULL);
-    if (!bytes) {
+    if (bytes == PAL_STREAM_ERROR) {
         ret = -PAL_ERRNO;
         debug("failed writing to process stream (ret = %d)\n", ret);
         goto out;
@@ -1120,7 +1120,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     struct newproc_response res;
     bytes = DkStreamRead(proc, 0, sizeof(struct newproc_response), &res,
                          NULL, 0);
-    if (bytes == 0) {
+    if (bytes == PAL_STREAM_ERROR) {
         ret = -PAL_ERRNO;
         goto out;
     }
@@ -1257,11 +1257,11 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     } else {
         size_t total_bytes = 0;
         while (total_bytes < size) {
-            int bytes = DkStreamRead(PAL_CB(parent_process), 0,
-                                     size - total_bytes,
-                                     (void *) base + total_bytes, NULL, 0);
+            PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0,
+                                         size - total_bytes,
+                                         (void *) base + total_bytes, NULL, 0);
 
-            if (!bytes) {
+            if (bytes == PAL_STREAM_ERROR) {
                 if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
                     PAL_ERRNO == EWOULDBLOCK)
                     continue;

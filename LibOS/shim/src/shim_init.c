@@ -101,7 +101,6 @@ static int pal_errno_to_unix_errno [PAL_ERROR_NATIVE_COUNT + 1] = {
         /* PAL_ERROR_ENDOFSTREAM    */  0,
         /* PAL_ERROR_NOTSERVER      */  EINVAL,
         /* PAL_ERROR_NOTCONNECTION  */  ENOTCONN,
-        /* PAL_ERROR_ZEROSIZE       */  0,
         /* PAL_ERROR_CONNFAILED     */  ECONNRESET,
         /* PAL_ERROR_ADDRNOTEXIST   */  EADDRNOTAVAIL,
         /* PAL_ERROR_AFNOSUPPORT    */  EAFNOSUPPORT,
@@ -617,10 +616,10 @@ static int init_newproc (struct newproc_header * hdr)
 {
     BEGIN_PROFILE_INTERVAL();
 
-    int bytes = DkStreamRead(PAL_CB(parent_process), 0,
-                             sizeof(struct newproc_header), hdr,
-                             NULL, 0);
-    if (!bytes)
+    PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0,
+                                 sizeof(struct newproc_header), hdr,
+                                 NULL, 0);
+    if (bytes == PAL_STREAM_ERROR)
         return -PAL_ERRNO;
 
     SAVE_PROFILE_INTERVAL(child_wait_header);
@@ -788,9 +787,10 @@ noreturn void* shim_init (int argc, void * args)
         struct newproc_response res;
         res.child_vmid = cur_process.vmid;
         res.failure = 0;
-        if (!DkStreamWrite(PAL_CB(parent_process), 0,
-                           sizeof(struct newproc_response),
-                           &res, NULL))
+        PAL_NUM ret = DkStreamWrite(PAL_CB(parent_process), 0,
+                                    sizeof(struct newproc_response),
+                                    &res, NULL);
+        if (ret == PAL_STREAM_ERROR)
             shim_do_exit(-PAL_ERRNO);
     }
 
@@ -1231,20 +1231,22 @@ int message_confirm (const char * message, const char * options)
         return -EACCES;
     }
 
-#define WRITE(buf, len)                                             \
-    ({  int _ret = DkStreamWrite(hdl, 0, len, (void*)(buf), NULL);  \
-        _ret ? : -PAL_ERRNO; })
-
-#define READ(buf, len)                                              \
-    ({  int _ret = DkStreamRead(hdl, 0, len, buf, NULL, 0);         \
-        _ret ? : -PAL_ERRNO; })
-
-    if ((ret = WRITE(message, strlen(message))) < 0)
+    PAL_NUM pal_ret;
+    pal_ret = DkStreamWrite(hdl, 0, strlen(message), (void*)message, NULL);
+    if (pal_ret == PAL_STREAM_ERROR) {
+        ret = -PAL_ERRNO;
         goto out;
-    if ((ret = WRITE(option_str, noptions * 2 + 3)) < 0)
+    }
+    pal_ret = DkStreamWrite(hdl, 0, noptions * 2 + 3, option_str, NULL);
+    if (pal_ret == PAL_STREAM_ERROR) {
+        ret = -PAL_ERRNO;
         goto out;
-    if ((ret = READ(&answer, 1)) < 0)
+    }
+    pal_ret = DkStreamRead(hdl, 0, 1, &answer, NULL, 0);
+    if (pal_ret == PAL_STREAM_ERROR) {
+        ret = -PAL_ERRNO;
         goto out;
+    }
 
 out:
     DkObjectClose(hdl);

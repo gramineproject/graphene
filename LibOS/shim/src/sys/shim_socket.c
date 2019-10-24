@@ -1057,14 +1057,14 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
     ret       = 0;
 
     for (int i = 0; i < nbufs; i++) {
-        ret = DkStreamWrite(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri);
+        PAL_NUM pal_ret = DkStreamWrite(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri);
 
-        if (!ret) {
+        if (pal_ret == PAL_STREAM_ERROR) {
             ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ? -ECONNABORTED : -PAL_ERRNO;
             break;
         }
 
-        bytes += ret;
+        bytes += pal_ret;
     }
 
     if (bytes)
@@ -1189,15 +1189,14 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
     ret                   = 0;
 
     for (int i = 0; i < nbufs; i++) {
-        ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri,
-                           uri ? SOCK_URI_SIZE : 0);
+        PAL_NUM pal_ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri, uri ? SOCK_URI_SIZE : 0);
 
-        if (!ret) {
+        if (pal_ret == PAL_STREAM_ERROR) {
             ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ? -ECONNABORTED : -PAL_ERRNO;
             break;
         }
 
-        bytes += ret;
+        bytes += pal_ret;
 
         if (!addr || !bytes || address_received)
             continue;

@@ -45,9 +45,6 @@ static int socket_close(struct shim_handle* hdl) {
 static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
     struct shim_sock_handle* sock = &hdl->info.sock;
 
-    if (!count)
-        return 0;
-
     lock(&hdl->lock);
 
     if (sock->sock_type == SOCK_STREAM && sock->sock_state != SOCK_ACCEPTED &&
@@ -68,7 +65,7 @@ static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
 
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
-    if (!bytes)
+    if (bytes == PAL_STREAM_ERROR)
         switch (PAL_NATIVE_ERRNO) {
             case PAL_ERROR_ENDOFSTREAM:
                 return 0;
@@ -81,7 +78,6 @@ static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
             }
         }
 
-    assert((ssize_t)bytes > 0);
     return (ssize_t)bytes;
 }
 
@@ -106,12 +102,9 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
 
     unlock(&hdl->lock);
 
-    if (!count)
-        return 0;
-
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
-    if (!bytes) {
+    if (bytes == PAL_STREAM_ERROR) {
         int err;
         switch (PAL_NATIVE_ERRNO) {
             case PAL_ERROR_CONNFAILED:
@@ -127,7 +120,6 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
         return -err;
     }
 
-    assert((ssize_t)bytes > 0);
     return (ssize_t)bytes;
 }
 

@@ -311,10 +311,10 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     size_t bytes       = 0;
 
     do {
-        size_t ret =
+        PAL_NUM ret =
             DkStreamWrite(port->pal_handle, 0, total_bytes - bytes, (void*)msg + bytes, NULL);
 
-        if (!ret) {
+        if (ret == PAL_STREAM_ERROR) {
             if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
                 continue;
 

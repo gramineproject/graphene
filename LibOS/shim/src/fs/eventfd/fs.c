@@ -31,35 +31,25 @@
 #include <shim_fs.h>
 
 static ssize_t eventfd_read(struct shim_handle* hdl, void* buf, size_t count) {
-    if (!count)
-        return 0;
-
     if (count < sizeof(uint64_t))
         return -EINVAL;
 
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
-    if (bytes <= 0)
+    if (bytes == PAL_STREAM_ERROR)
         return -PAL_ERRNO;
-
-    assert((ssize_t ) bytes == sizeof(uint64_t));
 
     return (ssize_t) bytes;
 }
 
 static ssize_t eventfd_write(struct shim_handle* hdl, const void* buf, size_t count) {
-    if (!count)
-        return 0;
-
     if (count < sizeof(uint64_t))
         return -EINVAL;
 
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
 
-    if (bytes <= 0)
+    if (bytes == PAL_STREAM_ERROR)
         return -PAL_ERRNO;
-
-    assert((ssize_t ) bytes == sizeof(uint64_t));
 
     return (ssize_t) bytes;
 }
