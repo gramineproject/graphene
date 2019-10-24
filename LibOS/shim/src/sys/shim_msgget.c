@@ -832,8 +832,12 @@ static int __load_msg_persist(struct shim_msg_handle* msgq, bool readmsg) {
 
     size_t bytes = DkStreamRead(file, 0, sizeof(struct msg_handle_backup), &mback, NULL, 0);
 
+    if (bytes == PAL_STREAM_ERROR) {
+        ret = -PAL_ERRNO;
+        goto out;
+    }
     if (bytes < sizeof(struct msg_handle_backup)) {
-        ret = bytes ? -EFAULT : -PAL_ERRNO;
+        ret = -EFAULT;
         goto out;
     }
 

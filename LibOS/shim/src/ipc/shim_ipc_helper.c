@@ -557,10 +557,10 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 msg = tmp_buf;
             }
 
-            size_t read = DkStreamRead(port->pal_handle, /*offset=*/0, expected_size - bytes + readahead,
+            PAL_NUM read = DkStreamRead(port->pal_handle, /*offset=*/0, expected_size - bytes + readahead,
                                        (void *) msg + bytes, NULL, 0);
 
-            if (!read) {
+            if (read == PAL_STREAM_ERROR) {
                 if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
                     continue;
 
