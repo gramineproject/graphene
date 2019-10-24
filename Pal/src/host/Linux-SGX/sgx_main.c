@@ -404,7 +404,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     enclave_entry_addr += pal_area->addr;
 
     if (exec_area) {
-        if (exec_area->addr + exec_area->size >= pal_area->addr) {
+        if (exec_area->addr + exec_area->size > pal_area->addr - MEMORY_GAP) {
             SGX_DBG(DBG_E, "Application binary overlaps with Pal binary\n");
             ret = -EINVAL;
             goto out;
