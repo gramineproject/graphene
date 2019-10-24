@@ -250,9 +250,6 @@ int64_t _DkStreamRead(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* 
     if (!ops)
         return -PAL_ERROR_BADHANDLE;
 
-    if (!count)
-        return -PAL_ERROR_ZEROSIZE;
-
     int64_t ret;
 
     if (addr) {
@@ -301,9 +298,6 @@ int64_t _DkStreamWrite(PAL_HANDLE handle, uint64_t offset, uint64_t count, const
 
     if (!ops)
         return -PAL_ERROR_BADHANDLE;;
-
-    if (!count)
-        return -PAL_ERROR_ZEROSIZE;
 
     int64_t ret;
 
