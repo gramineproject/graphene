@@ -45,7 +45,6 @@ static const struct pal_error_description pal_error_list[] = {
     { PAL_ERROR_ENDOFSTREAM, "End of stream" },
     { PAL_ERROR_NOTSERVER, "Not a server" },
     { PAL_ERROR_NOTCONNECTION, "Not a connection" },
-    { PAL_ERROR_ZEROSIZE, "Zero size" },
     { PAL_ERROR_CONNFAILED, "Connection failed" },
     { PAL_ERROR_ADDRNOTEXIST, "Resource address does not exist" },
     { PAL_ERROR_AFNOSUPPORT, "Address family not supported by protocol" },

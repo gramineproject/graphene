@@ -254,9 +254,6 @@ int64_t _DkStreamRead(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* 
     if (!ops)
         return -PAL_ERROR_BADHANDLE;
 
-    if (!count)
-        return -PAL_ERROR_ZEROSIZE;
-
     int64_t ret;
 
     if (addr) {
@@ -275,7 +272,8 @@ int64_t _DkStreamRead(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* 
 }
 
 /* PAL call DkStreamRead: Read from stream at absolute offset. Return number
-   of bytes if succeeded, or 0 for failure. Error code is notified. */
+   of bytes if succeeded,
+   or PAL_STREAM_ERROR for failure. Error code is notified. */
 PAL_NUM
 DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, PAL_PTR source,
              PAL_NUM size) {
@@ -291,7 +289,7 @@ DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, P
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
-        ret = 0;
+        ret = PAL_STREAM_ERROR;
     }
 
     LEAVE_PAL_CALL_RETURN(ret);
@@ -304,10 +302,7 @@ int64_t _DkStreamWrite(PAL_HANDLE handle, uint64_t offset, uint64_t count, const
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
     if (!ops)
-        return -PAL_ERROR_BADHANDLE;;
-
-    if (!count)
-        return -PAL_ERROR_ZEROSIZE;
+        return -PAL_ERROR_BADHANDLE;
 
     int64_t ret;
 
@@ -327,7 +322,8 @@ int64_t _DkStreamWrite(PAL_HANDLE handle, uint64_t offset, uint64_t count, const
 }
 
 /* PAL call DkStreamWrite: Write to stream at absolute offset. Return number
-   of bytes if succeeded, or 0 for failure. Error code is notified. */
+   of bytes if succeeded,
+   or PAL_STREAM_ERROR for failure. Error code is notified. */
 PAL_NUM
 DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, PAL_STR dest) {
     ENTER_PAL_CALL(DkStreamWrite);
@@ -342,7 +338,7 @@ DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, 
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
-        ret = 0;
+        ret = PAL_STREAM_ERROR;
     }
 
     LEAVE_PAL_CALL_RETURN(ret);
