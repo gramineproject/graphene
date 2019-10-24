@@ -324,6 +324,9 @@ DkProcessExit (PAL_NUM exitCode);
 #define PAL_OPTION_NONBLOCK     04000
 #define PAL_OPTION_MASK         04000
 
+/* error value of read/write */
+#define PAL_STREAM_ERROR        ((PAL_NUM)-1L)
+
 #define WITHIN_MASK(val, mask)  (((val)|(mask)) == (mask))
 
 PAL_HANDLE
