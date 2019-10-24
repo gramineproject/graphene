@@ -40,28 +40,22 @@
 #include <linux/stat.h>
 
 static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
-    if (!count)
-        return 0;
-
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
     if (!bytes)
         return -PAL_ERRNO;
 
-    assert((ssize_t)bytes > 0);
+    assert(count == 0 || (ssize_t)bytes > 0);
     return (ssize_t)bytes;
 }
 
 static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count) {
-    if (!count)
-        return 0;
-
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (!bytes)
         return -PAL_ERRNO;
 
-    assert((ssize_t)bytes > 0);
+    assert(count == 0 || (ssize_t)bytes > 0);
     return (ssize_t)bytes;
 }
 
