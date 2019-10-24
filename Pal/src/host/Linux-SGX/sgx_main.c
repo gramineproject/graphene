@@ -314,6 +314,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         const char * desc;
         bool skip_eextend;
         int fd;
+        /* Only meaningful if fd != -1 */
         bool is_binary;
         unsigned long addr, size, prot;
         enum sgx_page_type type;
@@ -327,29 +328,30 @@ int initialize_enclave (struct pal_enclave * enclave)
      * memory. That's used by pal_linux_main to find the manifest area. So add
      * it first to the list with memory areas. */
     areas[area_num] = (struct mem_area) {
-        .desc = "manifest", .skip_eextend = false, .is_binary = false,
-        .fd = enclave->manifest, .addr = 0, .size = ALLOC_ALIGNUP(manifest_size),
+        .desc = "manifest", .skip_eextend = false, .fd = enclave->manifest,
+        .is_binary = false, .addr = 0, .size = ALLOC_ALIGNUP(manifest_size),
         .prot = PROT_READ, .type = SGX_PAGE_REG
     };
     area_num++;
 
     areas[area_num] = (struct mem_area) {
-        .desc = "ssa", .skip_eextend = false, .is_binary = false,
-        .fd = -1, .addr = 0, .size = enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
+        .desc = "ssa", .skip_eextend = false, .fd = -1,
+        .is_binary = false, .addr = 0,
+        .size = enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
         .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
     };
     struct mem_area* ssa_area = &areas[area_num++];
 
     areas[area_num] = (struct mem_area) {
-        .desc = "tcs", .skip_eextend = false, .is_binary = false,
-        .fd = -1, .addr = 0, .size = enclave->thread_num * pagesize,
+        .desc = "tcs", .skip_eextend = false, .fd = -1,
+        .is_binary = false, .addr = 0, .size = enclave->thread_num * pagesize,
         .prot = 0, .type = SGX_PAGE_TCS
     };
     struct mem_area* tcs_area = &areas[area_num++];
 
     areas[area_num] = (struct mem_area) {
-        .desc = "tls", .skip_eextend = false, .is_binary = false,
-        .fd = -1, .addr = 0, .size = enclave->thread_num * pagesize,
+        .desc = "tls", .skip_eextend = false, .fd = -1,
+        .is_binary = false, .addr = 0, .size = enclave->thread_num * pagesize,
         .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
     };
     struct mem_area* tls_area = &areas[area_num++];
@@ -357,16 +359,16 @@ int initialize_enclave (struct pal_enclave * enclave)
     struct mem_area* stack_areas = &areas[area_num]; /* memorize for later use */
     for (uint32_t t = 0; t < enclave->thread_num; t++) {
         areas[area_num] = (struct mem_area) {
-            .desc = "stack", .skip_eextend = false, .is_binary = false,
-            .fd = -1, .addr = 0, .size = ENCLAVE_STACK_SIZE,
+            .desc = "stack", .skip_eextend = false, .fd = -1,
+            .is_binary = false, .addr = 0, .size = ENCLAVE_STACK_SIZE,
             .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
         };
         area_num++;
     }
 
     areas[area_num] = (struct mem_area) {
-        .desc = "pal", .skip_eextend = false, .is_binary = true,
-        .fd = enclave_image, .addr = 0, .size = 0 /* set below */,
+        .desc = "pal", .skip_eextend = false, .fd = enclave_image,
+        .is_binary = true, .addr = 0, .size = 0 /* set below */,
         .prot = 0, .type = SGX_PAGE_REG
     };
     struct mem_area* pal_area = &areas[area_num++];
@@ -380,8 +382,8 @@ int initialize_enclave (struct pal_enclave * enclave)
     struct mem_area* exec_area = NULL;
     if (enclave->exec != -1) {
         areas[area_num] = (struct mem_area) {
-            .desc = "exec", .skip_eextend = false, .is_binary = true,
-            .fd = enclave->exec, .addr = 0, .size = 0 /* set below */,
+            .desc = "exec", .skip_eextend = false, .fd = enclave->exec,
+            .is_binary = true, .addr = 0, .size = 0 /* set below */,
             .prot = PROT_WRITE, .type = SGX_PAGE_REG
         };
         exec_area = &areas[area_num++];
@@ -417,8 +419,8 @@ int initialize_enclave (struct pal_enclave * enclave)
                     addr = heap_min;
 
                 areas[area_num] = (struct mem_area) {
-                    .desc = "free", .skip_eextend = true, .is_binary = false,
-                    .fd = -1, .addr = addr, .size = populating - addr,
+                    .desc = "free", .skip_eextend = true, .fd = -1,
+                    .is_binary = false, .addr = addr, .size = populating - addr,
                     .prot = PROT_READ | PROT_WRITE | PROT_EXEC, .type = SGX_PAGE_REG
                 };
                 area_num++;
@@ -430,8 +432,8 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     if (populating > heap_min) {
         areas[area_num] = (struct mem_area) {
-            .desc = "free", .skip_eextend = true, .is_binary = false,
-            .fd = -1, .addr = heap_min, .size = populating - heap_min,
+            .desc = "free", .skip_eextend = true, .fd = -1,
+            .is_binary = false, .addr = heap_min, .size = populating - heap_min,
             .prot = PROT_READ | PROT_WRITE | PROT_EXEC, .type = SGX_PAGE_REG
         };
         area_num++;
