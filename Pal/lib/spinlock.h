@@ -34,7 +34,7 @@ static inline void spinlock_lock(spinlock_t *lock) {
     do {
         /* This check imposes no inter-thread ordering, thus does not slow other threads. */
         while (__atomic_load_n(lock, __ATOMIC_RELAXED) != 0) {
-            asm volatile ("pause");
+            __asm__ volatile ("pause");
         }
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
