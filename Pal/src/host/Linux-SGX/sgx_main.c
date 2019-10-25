@@ -314,8 +314,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         const char * desc;
         bool skip_eextend;
         int fd;
-        /* Only meaningful if fd != -1 */
-        bool is_binary;
+        bool is_binary; /* only meaningful if fd != -1 */
         unsigned long addr, size, prot;
         enum sgx_page_type type;
     };
