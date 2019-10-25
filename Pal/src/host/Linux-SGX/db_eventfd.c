@@ -122,10 +122,9 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     PAL_FLG writable = WRITABLE(0);
 
     if (IS_ERR(bytes)) {
-        bytes = unix_to_pal_error(ERRNO(bytes));
-        if (bytes == -PAL_ERROR_TRYAGAIN)
+        if (ERRNO(bytes) == EAGAIN)
             HANDLE_HDR(handle)->flags &= ~writable;
-        return bytes;
+        return unix_to_pal_error(ERRNO(bytes));
     }
 
     /* whether fd is writable or not, gets updated here,
