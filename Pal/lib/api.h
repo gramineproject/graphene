@@ -146,8 +146,10 @@ void *calloc(size_t nmemb, size_t size);
 #define force_literal_cstr(str)   ("" str "")
 
 /* check if the var is exactly the same as the static string */
-#define strcmp_static(var, str) \
-    (memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str)) + 1))
+#define strcmp_static(var, str)                                               \
+    (memcmp(var,                                                              \
+            force_literal_cstr(str),                                          \
+            MIN(strlen(var) + 1, static_strlen(force_literal_cstr(str))) + 1))
 
 /* check if the var starts with the static string */
 #define strstartswith_static(var, str) \
