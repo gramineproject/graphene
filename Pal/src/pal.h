@@ -233,11 +233,19 @@ PAL_CONTROL * pal_control_addr (void);
  */
 
 /* Memory Allocation Types */
-#define PAL_ALLOC_COMMIT      0x0000   /* Actually allocate the memory */
-#define PAL_ALLOC_RESERVE     0x0001   /* Only reserve the memory */
-
+/*!
+ * \brief Actually allocate the memory.
+ */
+#define PAL_ALLOC_COMMIT      0x0000
+/*!
+ * \brief Only reserve the memory
+ */
+#define PAL_ALLOC_RESERVE     0x0001
+/*!
+ * \brief For PAL-internal use.
+ */
 #ifdef IN_PAL
-#define PAL_ALLOC_INTERNAL    0x8000   /* For PAL-internal use */
+#define PAL_ALLOC_INTERNAL    0x8000
 #endif
 
 /* Memory Protection Flags */
