@@ -56,7 +56,7 @@
 
 #define AF_UNSPEC 0
 
-#define SOCK_URI_SIZE 108
+#define UDP_MAX 65507
 
 static int rebase_on_lo __attribute_migratable = -1;
 
@@ -1082,6 +1082,7 @@ out_locked:
     unlock(&hdl->lock);
 out:
     put_handle(hdl);
+
     return ret;
 }
 
@@ -1120,7 +1121,7 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags
 static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, struct sockaddr* addr,
                           socklen_t* addrlen) {
     /* TODO handle flags properly. For now, explicitly return an error. */
-    if (flags) {
+    if (flags & ~MSG_PEEK) {
         debug("recvmsg()/recvmmsg()/recvfrom(): flags parameter unsupported.\n");
         return -EOPNOTSUPP;
     }
@@ -1129,6 +1130,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
     if (!hdl)
         return -EBADF;
 
+    struct shim_peek_buffer *peek_buffer = NULL;
     int ret = -ENOTSOCK;
     if (hdl->type != TYPE_SOCK)
         goto out;
@@ -1151,13 +1153,18 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
     if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
         goto out;
 
+    size_t expected_size = 0;
     for (int i = 0; i < nbufs; i++) {
         if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len, true))
             goto out;
+
+        expected_size += bufs[i].iov_len;
     }
 
-    lock(&hdl->lock);
 
+    lock(&hdl->lock);
+    peek_buffer = sock->peek_buffer;
+    sock->peek_buffer = NULL;
     PAL_HANDLE pal_hdl = hdl->pal_handle;
     char* uri          = NULL;
 
@@ -1184,61 +1191,133 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
 
     unlock(&hdl->lock);
 
+    if (flags & MSG_PEEK) {
+        /*build buffer*/
+        if (!peek_buffer) {
+            /*create new buffer*/
+            size_t buffer_size = expected_size;
+            if (sock->sock_type == SOCK_DGRAM)
+                buffer_size = UDP_MAX;
+            peek_buffer = malloc(buffer_size + sizeof(struct shim_peek_buffer));
+            peek_buffer->size = buffer_size;
+            peek_buffer->start = 0;
+            peek_buffer->end = 0;
+        } else {
+            /*realloc buffer*/
+            ssize_t expand = expected_size - (peek_buffer->size - peek_buffer->start);
+            if (expand > 0) {
+                struct shim_peek_buffer * old_peek_buffer = peek_buffer;
+                if (sock->sock_type == SOCK_DGRAM)
+                    expand = UDP_MAX - peek_buffer->end;
+                peek_buffer = malloc(sizeof(struct shim_peek_buffer) + peek_buffer->size + expand);
+                memcpy(peek_buffer, old_peek_buffer, sizeof(struct shim_peek_buffer) + peek_buffer->size);
+                peek_buffer->size += expand;
+                free(old_peek_buffer);
+            }
+        }
+    }
+
     bool address_received = false;
     int bytes             = 0;
     ret                   = 0;
 
-    for (int i = 0; i < nbufs; i++) {
-        ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri,
-                           uri ? SOCK_URI_SIZE : 0);
+    if (peek_buffer && peek_buffer->end - peek_buffer->start < expected_size) {
+        /*fill buffer*/
+        ret = DkStreamRead(pal_hdl, 0, peek_buffer->size - peek_buffer->end,
+                            &peek_buffer->buf[peek_buffer->end], uri, uri ? SOCK_URI_SIZE : 0);
+        if (ret != 0) {
+            peek_buffer->end += ret;
 
-        if (!ret) {
+            if (uri)
+                memcpy(peek_buffer->uri, uri, SOCK_URI_SIZE);
+        }
+    }
+
+    for (int i = 0; i < nbufs; i++) {
+        int received = 0;
+        if (peek_buffer && bytes + peek_buffer->start < peek_buffer->end) {
+            /*copy date from peek buffer*/
+            received = MIN(bufs[i].iov_len, peek_buffer->end - (peek_buffer->start + bytes));
+            memcpy(bufs[i].iov_base, &peek_buffer->buf[peek_buffer->start], received);
+            uri = peek_buffer->uri;
+        } else {
+            received = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri,
+                               uri ? SOCK_URI_SIZE : 0);
+        }
+
+        if (!received) {
             ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ? -ECONNABORTED : -PAL_ERRNO;
             break;
         }
 
-        bytes += ret;
+        bytes += received;
 
-        if (!addr || !bytes || address_received)
-            continue;
-
-        if (sock->domain == AF_UNIX) {
-            unix_copy_addr(addr, sock->addr.un.dentry);
-            *addrlen = sizeof(struct sockaddr_un);
-        }
-
-        if (sock->domain == AF_INET || sock->domain == AF_INET6) {
-            if (uri) {
-                struct addr_inet conn;
-
-                if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri, &conn, NULL)) < 0) {
-                    lock(&hdl->lock);
-                    goto out_locked;
-                }
-
-                debug("last packet received from %s\n", uri);
-
-                inet_rebase_port(true, sock->domain, &conn, false);
-                inet_copy_addr(sock->domain, addr, &conn);
-            } else {
-                inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+        if (addr && !address_received) {
+            if (sock->domain == AF_UNIX) {
+                unix_copy_addr(addr, sock->addr.un.dentry);
+                *addrlen = sizeof(struct sockaddr_un);
             }
 
-            *addrlen = (sock->domain == AF_INET) ? sizeof(struct sockaddr_in)
-                                                 : sizeof(struct sockaddr_in6);
+            if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+                if (uri) {
+                    struct addr_inet conn;
+
+                    if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri, &conn, NULL)) < 0) {
+                        lock(&hdl->lock);
+                        goto free_peek;
+                    }
+
+                    debug("last packet received from %s\n", uri);
+
+                    inet_rebase_port(true, sock->domain, &conn, false);
+                    inet_copy_addr(sock->domain, addr, &conn);
+                } else {
+                    inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+                }
+
+                *addrlen = (sock->domain == AF_INET) ? sizeof(struct sockaddr_in)
+                                                     : sizeof(struct sockaddr_in6);
+            }
+
+            address_received = true;
         }
 
-        address_received = false;
+        /*Avoid generating an invalid memory gap that from ret to iov_len*/
+        if ((size_t)received < bufs[i].iov_len || (peek_buffer && bytes + peek_buffer->start == peek_buffer->end))
+            break;
     }
 
     if (bytes)
         ret = bytes;
     if (ret < 0) {
         lock(&hdl->lock);
-        goto out_locked;
+        goto free_peek;
     }
-    goto out;
 
+    /*handle peek buffer*/
+    if (!(flags & MSG_PEEK) && peek_buffer) {
+        peek_buffer->start += bytes;
+        if (peek_buffer->start == peek_buffer->end || sock->sock_type == SOCK_DGRAM) {
+            free(peek_buffer);
+            peek_buffer = NULL;
+        }
+    }
+
+    if (!peek_buffer)
+        goto out;
+
+    lock(&hdl->lock);
+    if (sock->peek_buffer) {
+        /*Should multithreading be allowed to perform peek operations on a single sock at the same time?*/
+        BUG();
+    }
+
+    sock->peek_buffer = peek_buffer;
+    peek_buffer = NULL;
+
+free_peek:
+    if (peek_buffer)
+        free(peek_buffer);
 out_locked:
     if (ret < 0)
         sock->error = -ret;

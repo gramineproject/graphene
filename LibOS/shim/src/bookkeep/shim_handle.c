@@ -467,6 +467,15 @@ void put_handle(struct shim_handle* hdl) {
         } else {
             if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->close)
                 hdl->fs->fs_ops->close(hdl);
+
+            if (hdl->type == TYPE_SOCK && hdl->info.sock.peek_buffer) {
+                lock(&hdl->lock);
+                struct shim_peek_buffer * buf = hdl->info.sock.peek_buffer;
+                hdl->info.sock.peek_buffer = NULL;
+                unlock(&hdl->lock);
+
+                free(buf);
+            }
         }
 
         delete_from_epoll_handles(hdl);
