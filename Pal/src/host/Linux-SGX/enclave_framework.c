@@ -892,10 +892,10 @@ no_trusted:
 no_allowed:
     ret = 0;
 
-    if (get_config(store, "sgx.allow_file_creation", cfgbuf, cfgsize) <= 0) {
-        allow_file_creation = false;
-    } else
+    if (get_config(store, "sgx.allow_file_creation", cfgbuf, cfgsize) > 0 && cfgbuf[0] == '1')
         allow_file_creation = true;
+    else
+        allow_file_creation = false;
 
 out:
     free(cfgbuf);
