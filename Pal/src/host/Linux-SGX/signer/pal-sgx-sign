@@ -850,6 +850,9 @@ def main_sign(args):
             enclave_heap_min = 0
             manifest['sgx.static_address'] = '0'
 
+    if manifest.get('sgx.allow_file_creation', None) is None:
+        manifest['sgx.allow_file_creation'] = '0'
+
     output_manifest(args['output'], manifest, manifest_layout)
 
     memory_areas = [
