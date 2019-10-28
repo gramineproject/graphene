@@ -914,6 +914,126 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
     return retval;
 }
 
+int ocall_sock_recvmsg (int sockfd, struct msghdr *msg, int flags)
+{
+    int retval = 0;
+    ms_ocall_sock_recvmsg_t * ms;
+    size_t all_buf_size = 0;
+    size_t i = 0;
+    unsigned char * obuf = NULL;
+    unsigned char * ivec_obuf = NULL;
+    struct iovec *iovec_src_tmp = NULL;
+    struct iovec *iovec_dst_tmp = NULL;
+    int copied = 0;
+    int copy_length = 0;
+
+    for (i = 0; i < msg->msg_iovlen; i++) {
+        iovec_src_tmp = msg->msg_iov + i;
+        all_buf_size += iovec_src_tmp->iov_len;
+        if (iovec_src_tmp->iov_len && !iovec_src_tmp->iov_base)
+            return -EPERM;
+    }
+
+    if (all_buf_size > PRESET_PAGESIZE) {
+        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(all_buf_size), (void **)&obuf);
+        if (IS_ERR(retval))
+            return retval;
+    }
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        retval = -EPERM;
+        goto out;
+    }
+
+    ms->ms_sockfd = sockfd;
+    ms->ms_flags = flags;
+
+    ms->ms_msg = sgx_alloc_on_ustack(sizeof(struct msghdr));
+    if (!ms->ms_msg) {
+        retval = -EPERM;
+        goto out;
+    }
+
+    /*prepare msghdr*/
+    memset(ms, sizeof(struct msghdr), 0);
+    ms->ms_msg->msg_flags = msg->msg_flags;
+
+    if (msg->msg_name && msg->msg_namelen > 0) {
+        ms->ms_msg->msg_namelen = msg->msg_namelen;
+        ms->ms_msg->msg_name = sgx_alloc_on_ustack(msg->msg_namelen);
+        if (!ms->ms_msg->msg_name) {
+            retval = -EPERM;
+            goto out;
+        }
+        memcpy(ms->ms_msg->msg_name, msg->msg_name, msg->msg_namelen);
+    }
+
+    if (msg->msg_control && msg->msg_controllen > 0) {
+        ms->ms_msg->msg_controllen = msg->msg_controllen;
+        ms->ms_msg->msg_control = sgx_alloc_on_ustack(msg->msg_controllen);
+        if (!ms->ms_msg->msg_controllen) {
+            retval = -EPERM;
+            goto out;
+        }
+        memcpy(ms->ms_msg->msg_control, msg->msg_control, msg->msg_controllen);
+    }
+
+    ms->ms_msg->msg_iov = sgx_alloc_on_ustack(sizeof(struct iovec) * msg->msg_iovlen);
+    ms->ms_msg->msg_iovlen = msg->msg_iovlen;
+    if (!ms->ms_msg->msg_iov) {
+        retval = -EPERM;
+        goto out;
+    }
+
+    ivec_obuf = obuf ? obuf : sgx_alloc_on_ustack(all_buf_size);
+    if (!ivec_obuf) {
+        retval = -EPERM;
+        goto out;
+    }
+
+    for (i = 0; i < msg->msg_iovlen; i++) {
+        iovec_src_tmp = msg->msg_iov + i;
+        iovec_dst_tmp = ms->ms_msg->msg_iov + i;
+        iovec_dst_tmp->iov_base = ivec_obuf;
+        iovec_dst_tmp->iov_len = iovec_src_tmp->iov_len;
+
+        ivec_obuf += iovec_src_tmp->iov_len;
+    }
+
+    retval = sgx_ocall(OCALL_SOCK_RECVMSG, ms);
+
+    if (retval >= 0) {
+        /*copy flags, msg_name and msg_control*/
+        msg->msg_flags = ms->ms_msg->msg_flags;
+        msg->msg_namelen = ms->ms_msg->msg_namelen;
+        if (msg->msg_name)
+            memcpy(msg->msg_name, ms->ms_msg->msg_name, msg->msg_namelen);
+
+        msg->msg_controllen = ms->ms_msg->msg_controllen;
+        if (msg->msg_control)
+            memcpy(msg->msg_control, ms->ms_msg->msg_control, msg->msg_controllen);
+
+        /*copy iovec*/
+        if (retval > 0) {
+            for (i = 0; i < msg->msg_iovlen && copied < retval; i++) {
+                iovec_src_tmp = ms->ms_msg->msg_iov + i;
+                iovec_dst_tmp = msg->msg_iov + i;
+                copy_length = MIN((int)iovec_src_tmp->iov_len, retval - copied);
+                memcpy(iovec_dst_tmp->iov_base, iovec_src_tmp->iov_base, copy_length);
+                copied += copy_length;
+            }
+        }
+    }
+
+out:
+    sgx_reset_ustack();
+    if (obuf)
+        ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(all_buf_size));
+
+    return retval;
+}
+
 int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
                         const unsigned int * fds, unsigned int nfds)
 {

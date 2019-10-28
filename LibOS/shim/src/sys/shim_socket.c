@@ -66,6 +66,8 @@ static size_t minimal_addrlen(int domain) {
             return sizeof(struct sockaddr_in);
         case AF_INET6:
             return sizeof(struct sockaddr_in6);
+        case AF_UNIX:
+            return sizeof(struct sockaddr_un);
         default:
             return sizeof(struct sockaddr);
     }
@@ -1117,15 +1119,9 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags
     return total;
 }
 
-static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, struct sockaddr* addr,
-                          socklen_t* addrlen) {
-    /* TODO handle flags properly. For now, explicitly return an error. */
-    if (flags) {
-        debug("recvmsg()/recvmmsg()/recvfrom(): flags parameter unsupported.\n");
-        return -EOPNOTSUPP;
-    }
-
-    struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
+static ssize_t do_recvmsg(int sockfd, struct msghdr* msg, int flags)
+{
+    struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
@@ -1135,31 +1131,34 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
 
     struct shim_sock_handle* sock = &hdl->info.sock;
 
-    if (addr) {
+    if (flags && sock->domain == AF_UNIX) {
+        debug("recvmsg()/recvmmsg()/recvfrom(): flags parameter unsupported in AF_UNIX.\n");
+        return -EOPNOTSUPP;
+    }
+
+    if (msg->msg_name) {
         ret = -EINVAL;
-        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), false))
+        if (test_user_memory(&msg->msg_namelen, sizeof(msg->msg_namelen), true))
             goto out;
 
-        if (*addrlen < minimal_addrlen(sock->domain))
+        if (msg->msg_namelen < minimal_addrlen(sock->domain))
             goto out;
 
-        if (test_user_memory(addr, *addrlen, true))
+        if (test_user_memory(msg->msg_name, msg->msg_namelen, true))
             goto out;
     }
 
     ret = -EFAULT;
-    if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
-        goto out;
 
-    for (int i = 0; i < nbufs; i++) {
-        if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len, true))
+    struct iovec *iovec = msg->msg_iov;
+    for (size_t i = 0; i < msg->msg_iovlen; i++) {
+        if (!iovec[i].iov_base || test_user_memory(iovec[i].iov_base, iovec[i].iov_len, true))
             goto out;
     }
 
     lock(&hdl->lock);
 
     PAL_HANDLE pal_hdl = hdl->pal_handle;
-    char* uri          = NULL;
 
     if (sock->sock_type == SOCK_STREAM && sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED && sock->sock_state != SOCK_ACCEPTED) {
@@ -1172,71 +1171,60 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
         goto out_locked;
     }
 
-    if (addr && sock->sock_type == SOCK_DGRAM && sock->sock_state != SOCK_CONNECTED &&
+    if (msg->msg_name && sock->sock_type == SOCK_DGRAM && sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED) {
         if (sock->sock_state == SOCK_CREATED) {
             ret = -EINVAL;
             goto out_locked;
         }
-
-        uri = __alloca(SOCK_URI_SIZE);
     }
 
     unlock(&hdl->lock);
 
-    bool address_received = false;
-    int bytes             = 0;
-    ret                   = 0;
-
-    for (int i = 0; i < nbufs; i++) {
-        ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri,
-                           uri ? SOCK_URI_SIZE : 0);
-
+    if (sock->domain != AF_UNIX) {
+        ret = DkStreamRecvmsg(pal_hdl, (PAL_HANDLE)msg, flags);
         if (!ret) {
             ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ? -ECONNABORTED : -PAL_ERRNO;
-            break;
+            lock(&hdl->lock);
+            goto out_locked;
         }
+    } else {
+        /*use pipe instead of af_unix, call DkStreamRead()*/
+        bool address_received = false;
+        int bytes = 0;
+        ret = 0;
 
-        bytes += ret;
+        for (size_t i = 0; i < msg->msg_iovlen; i++) {
+            ret = DkStreamRead(pal_hdl, 0, iovec[i].iov_len, iovec[i].iov_base,
+                                NULL, 0);
 
-        if (!addr || !bytes || address_received)
-            continue;
-
-        if (sock->domain == AF_UNIX) {
-            unix_copy_addr(addr, sock->addr.un.dentry);
-            *addrlen = sizeof(struct sockaddr_un);
-        }
-
-        if (sock->domain == AF_INET || sock->domain == AF_INET6) {
-            if (uri) {
-                struct addr_inet conn;
-
-                if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri, &conn, NULL)) < 0) {
-                    lock(&hdl->lock);
-                    goto out_locked;
-                }
-
-                debug("last packet received from %s\n", uri);
-
-                inet_rebase_port(true, sock->domain, &conn, false);
-                inet_copy_addr(sock->domain, addr, &conn);
-            } else {
-                inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+            if (!ret) {
+                ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ?
+                        - ECONNABORTED : -PAL_ERRNO;
+                break;
             }
 
-            *addrlen = (sock->domain == AF_INET) ? sizeof(struct sockaddr_in)
-                                                 : sizeof(struct sockaddr_in6);
+            bytes += ret;
+            if (!address_received && sock->domain == AF_UNIX && msg->msg_name) {
+                unix_copy_addr(msg->msg_name, sock->addr.un.dentry);
+                msg->msg_namelen = sizeof(struct sockaddr_un);
+            }
+
+            address_received = true;
+
+            if (ret < (int)iovec[i].iov_len)
+                break;
         }
 
-        address_received = false;
+        if (bytes)
+            ret = bytes;
+
+        if (ret < 0) {
+            lock(&hdl->lock);
+            goto out_locked;
+        }
     }
 
-    if (bytes)
-        ret = bytes;
-    if (ret < 0) {
-        lock(&hdl->lock);
-        goto out_locked;
-    }
     goto out;
 
 out_locked:
@@ -1252,15 +1240,31 @@ out:
 ssize_t shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* addr,
                          socklen_t* addrlen) {
     struct iovec iovbuf;
+    struct msghdr msg;
+    int retval;
+
     iovbuf.iov_base = (void*)buf;
     iovbuf.iov_len  = len;
 
-    return do_recvmsg(sockfd, &iovbuf, 1, flags, addr, addrlen);
+    msg.msg_name = addr;
+    msg.msg_namelen = addrlen ? *addrlen : 0;
+
+    msg.msg_iov = &iovbuf;
+    msg.msg_iovlen = 1;
+
+    msg.msg_control = NULL;
+    msg.msg_controllen = 0;
+    msg.msg_flags = 0;
+
+    retval = do_recvmsg(sockfd, &msg, flags);
+    if (retval >= 0 && addrlen)
+        *addrlen = msg.msg_namelen;
+
+    return retval;
 }
 
 ssize_t shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
-    return do_recvmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags, msg->msg_name,
-                      &msg->msg_namelen);
+    return do_recvmsg(sockfd, msg, flags);
 }
 
 ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags,
@@ -1278,7 +1282,7 @@ ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags
         struct msghdr* m = &msg[i].msg_hdr;
 
         ssize_t bytes =
-            do_recvmsg(sockfd, m->msg_iov, m->msg_iovlen, flags, m->msg_name, &m->msg_namelen);
+            do_recvmsg(sockfd, m, flags);
         if (bytes < 0)
             return total > 0 ? total : bytes;
 

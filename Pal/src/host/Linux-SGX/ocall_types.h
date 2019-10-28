@@ -49,6 +49,7 @@ enum {
     OCALL_SOCK_RECV,
     OCALL_SOCK_SEND,
     OCALL_SOCK_RECV_FD,
+    OCALL_SOCK_RECVMSG,
     OCALL_SOCK_SEND_FD,
     OCALL_SOCK_SETOPT,
     OCALL_SOCK_SHUTDOWN,
@@ -228,6 +229,12 @@ typedef struct {
     unsigned int * ms_fds;
     unsigned int ms_nfds;
 } ms_ocall_sock_recv_fd_t;
+
+typedef struct {
+    int ms_sockfd;
+    struct msghdr *ms_msg;
+    int ms_flags;
+} ms_ocall_sock_recvmsg_t;
 
 typedef struct {
     int ms_sockfd;

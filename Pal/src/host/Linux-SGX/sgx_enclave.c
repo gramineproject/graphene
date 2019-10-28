@@ -522,6 +522,17 @@ static int sgx_ocall_sock_recv_fd(void * pms)
     return ret;
 }
 
+static int sgx_ocall_sock_recvmsg(void * pms)
+{
+    ms_ocall_sock_recvmsg_t * ms = (ms_ocall_sock_recvmsg_t *) pms;
+    int ret;
+    ODEBUG(OCALL_SOCK_RECVMSG, ms);
+
+    ret = INLINE_SYSCALL(recvmsg, 3, ms->ms_sockfd, ms->ms_msg, ms->ms_flags);
+
+    return ret;
+}
+
 static int sgx_ocall_sock_send_fd(void * pms)
 {
     ms_ocall_sock_send_fd_t * ms = (ms_ocall_sock_send_fd_t *) pms;
@@ -717,6 +728,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_SOCK_RECV]       = sgx_ocall_sock_recv,
         [OCALL_SOCK_SEND]       = sgx_ocall_sock_send,
         [OCALL_SOCK_RECV_FD]    = sgx_ocall_sock_recv_fd,
+        [OCALL_SOCK_RECVMSG]    = sgx_ocall_sock_recvmsg,
         [OCALL_SOCK_SEND_FD]    = sgx_ocall_sock_send_fd,
         [OCALL_SOCK_SETOPT]     = sgx_ocall_sock_setopt,
         [OCALL_SOCK_SHUTDOWN]   = sgx_ocall_sock_shutdown,

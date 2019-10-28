@@ -338,6 +338,9 @@ DkStreamRead (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
               PAL_PTR buffer, PAL_PTR source, PAL_NUM size);
 
 PAL_NUM
+DkStreamRecvmsg (PAL_HANDLE handle, PAL_HANDLE msg, PAL_NUM flags);
+
+PAL_NUM
 DkStreamWrite (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
                PAL_PTR buffer, PAL_STR dest);
 

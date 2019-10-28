@@ -72,6 +72,8 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
 int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
                         unsigned int * fds, unsigned int * nfds);
 
+int ocall_sock_recvmsg (int sockfd, struct msghdr *hdr, int flags);
+
 int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
                         const unsigned int * fds, unsigned int nfds);
 

@@ -481,6 +481,25 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
     return bytes;
 }
 
+static int64_t tcp_recvmsg(PAL_HANDLE handle, struct msghdr* hdr, int flags)
+{
+    if (!IS_HANDLE_TYPE(handle, tcp) || !handle->sock.conn)
+        return -PAL_ERROR_NOTCONNECTION;
+
+    if (handle->sock.fd == PAL_IDX_POISON)
+        return -PAL_ERROR_ENDOFSTREAM;
+
+    int bytes = ocall_sock_recvmsg(handle->sock.fd, hdr, flags);
+
+    if (IS_ERR(bytes))
+        return unix_to_pal_error(ERRNO(bytes));
+
+    if (!bytes)
+        return -PAL_ERROR_ENDOFSTREAM;
+
+    return bytes;
+}
+
 /* write' operation of tcp stream */
 static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const void* buf) {
     if (offset)
@@ -665,6 +684,17 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
         return ret;
 
     return bytes;
+}
+
+static int64_t udp_recvmsg(PAL_HANDLE handle, struct msghdr* hdr, int flags) {
+    if (!IS_HANDLE_TYPE(handle, udp) && !IS_HANDLE_TYPE(handle, udpsrv))
+        return -PAL_ERROR_NOTCONNECTION;
+
+    if (handle->sock.fd == PAL_IDX_POISON)
+        return -PAL_ERROR_BADHANDLE;
+
+    int ret = ocall_sock_recvmsg(handle->sock.fd, hdr, flags);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
 static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, uint64_t len, const void* buf) {
@@ -1001,6 +1031,7 @@ struct handle_ops tcp_ops = {
     .close          = &socket_close,
     .attrquerybyhdl = &socket_attrquerybyhdl,
     .attrsetbyhdl   = &socket_attrsetbyhdl,
+    .recvmsg        = &tcp_recvmsg,
 };
 
 struct handle_ops udp_ops = {
@@ -1012,6 +1043,7 @@ struct handle_ops udp_ops = {
     .close          = &socket_close,
     .attrquerybyhdl = &socket_attrquerybyhdl,
     .attrsetbyhdl   = &socket_attrsetbyhdl,
+    .recvmsg        = &udp_recvmsg,
 };
 
 struct handle_ops udpsrv_ops = {
@@ -1023,6 +1055,7 @@ struct handle_ops udpsrv_ops = {
     .close          = &socket_close,
     .attrquerybyhdl = &socket_attrquerybyhdl,
     .attrsetbyhdl   = &socket_attrsetbyhdl,
+    .recvmsg        = &udp_recvmsg,
 };
 
 PAL_HANDLE _DkBroadcastStreamOpen(void) {

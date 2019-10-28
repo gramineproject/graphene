@@ -35,6 +35,8 @@
 #define PAL_FILE(name) XSTRINGIFY(PAL_DIR) "/" name
 #define RUNTIME_FILE(name) XSTRINGIFY(RUNTIME_DIR) "/" name
 
+struct msghdr;
+
 /* handle_ops is the operators provided for each handler type. They are
    mostly used by Stream-related PAL calls, but can also be used by
    some others in special ways. */
@@ -120,6 +122,9 @@ struct handle_ops {
     /* 'rename' is used to change name of a stream, or reset its share
        option */
     int (*rename) (PAL_HANDLE handle, const char * type, const char * uri);
+
+    /* 'recvmsg' is used by by DkStreamRecvmsg */
+    int64_t (*recvmsg) (PAL_HANDLE handle, struct msghdr * hdr, int flags);
 };
 
 extern const struct handle_ops * pal_handle_ops [];
@@ -276,6 +281,7 @@ int _DkStreamOpen (PAL_HANDLE * handle, const char * uri,
 int _DkStreamDelete (PAL_HANDLE handle, int access);
 int64_t _DkStreamRead (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                        void * buf, char * addr, int addrlen);
+int64_t _DkStreamRecvmsg (PAL_HANDLE handle, struct msghdr *msg, int flags);
 int64_t _DkStreamWrite (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                         const void * buf, const char * addr, int addrlen);
 int _DkStreamAttributesQuery (const char * uri, PAL_STREAM_ATTR * attr);

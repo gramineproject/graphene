@@ -293,6 +293,48 @@ DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, P
     LEAVE_PAL_CALL_RETURN(ret);
 }
 
+/* _DkStreamRecvmsg for internal use. Recvmsg from stream.
+   The actual behavior of stream recvmsg is defined by handler */
+int64_t _DkStreamRecvmsg(PAL_HANDLE handle, struct msghdr * msg, int flags) {
+    const struct handle_ops* ops = HANDLE_OPS(handle);
+
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
+    if (!msg)
+        return -PAL_ERROR_ZEROSIZE;
+
+    int64_t ret;
+
+    if (!ops->recvmsg)
+        return -PAL_ERROR_NOTSUPPORT;
+
+    ret = ops->recvmsg(handle, msg, flags);
+
+    return ret ? ret : -PAL_ERROR_ENDOFSTREAM;
+}
+
+/* PAL call DkStreamRecvmsg: Readmsg from stream , return number
+   of bytes if succeeded, or 0 for failure. Error code is notified. */
+PAL_NUM
+DkStreamRecvmsg(PAL_HANDLE handle, PAL_HANDLE msg, PAL_NUM flags) {
+    ENTER_PAL_CALL(DkStreamRecvmsg);
+
+    if (!handle || !msg) {
+        _DkRaiseFailure(-PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(0);
+    }
+
+    int64_t ret = _DkStreamRecvmsg(handle, (struct msghdr *)msg, flags);
+
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = 0;
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}
+
 /* _DkStreamWrite for internal use, write to stream at absolute offset.
    The actual behavior of stream write is defined by handler */
 int64_t _DkStreamWrite(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buf,

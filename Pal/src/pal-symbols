@@ -15,6 +15,7 @@ DkEventClear
 DkObjectsWaitAny
 DkStreamOpen
 DkStreamRead
+DkStreamRecvmsg
 DkStreamWrite
 DkStreamMap
 DkStreamUnmap
