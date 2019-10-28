@@ -232,11 +232,12 @@ PAL_CONTROL * pal_control_addr (void);
  * unallocated, reserved, or backed by committed memory
  */
 
-/* Memory Allocation Flags */
+/* Memory Allocation Types */
+#define PAL_ALLOC_COMMIT      0x0000   /* Actually allocate the memory */
 #define PAL_ALLOC_RESERVE     0x0001   /* Only reserve the memory */
 
 #ifdef IN_PAL
-#define PAL_ALLOC_INTERNAL    0x8000
+#define PAL_ALLOC_INTERNAL    0x8000   /* For PAL-internal use */
 #endif
 
 /* Memory Protection Flags */
@@ -248,7 +249,22 @@ PAL_CONTROL * pal_control_addr (void);
 
 #define PAL_PROT_MASK       0xF
 
-
+/*!
+ * \brief Allocate pages of virtual memory from the host.
+ *
+ * \param addr The virtual address at which to map the memory.
+ *
+ * \param size The number of bytes to map.  Must be a multiple of the page size (4KiB).
+ *
+ * \param alloc_type The type of allocation.  This can be PAL_ALLOC_COMMIT,
+ *        PAL_ALLOC_RESERVE, and PAL_ALLOC_INTERNAL.
+ *
+ * \param prot The memory protection flags.  This may be PAL_PROT_NONE, PAL_PROT_READ,
+ *        PAL_PROT_WRITE, PAL_PROT_EXEC, and PAL_PROT_WRITECOPY.
+ *
+ * If addr is NULL, the OS will pick an unmapped address at which to map the memory.  If non-NULL,
+ * the memory will be mapped exactly at addr, potentially unmapping other contents.
+ */
 // If addr != NULL, then the returned region is always exactly at addr.
 PAL_PTR
 DkVirtualMemoryAlloc (PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type,
