@@ -30,8 +30,8 @@ porting effort.
 
 Our papers describe the motivation, design choices, and measured performance of Graphene:
 
-- `EuroSys 2014 <http://www.cs.unc.edu/~porter/pubs/tsai14graphene.pdf>`
-- `ATC 2017 <http://www.cs.unc.edu/~porter/pubs/graphene-sgx.pdf>`
+- `EuroSys 2014 <http://www.cs.unc.edu/~porter/pubs/tsai14graphene.pdf>`_
+- `ATC 2017 <http://www.cs.unc.edu/~porter/pubs/graphene-sgx.pdf>`_
 
 
 How to build Graphene?
