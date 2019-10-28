@@ -63,6 +63,8 @@ ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
+else
+CFLAGS += -O2
 endif
 export DEBUG
 
