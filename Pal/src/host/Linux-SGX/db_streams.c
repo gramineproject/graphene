@@ -47,7 +47,7 @@ typedef __kernel_pid_t pid_t;
 #include "enclave_pages.h"
 
 void _DkPrintConsole(const void* buf, int size) {
-    ocall_print_string(buf, size);
+    ocall_write(2 /*stderr*/, buf, size);
 }
 
 bool stataccess(struct stat* stat, int acc) {
