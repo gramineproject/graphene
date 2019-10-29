@@ -44,4 +44,19 @@ int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* 
 /*! Convert a file or directory (recursively) from the protected format */
 int pf_decrypt_files(const char* input_dir, const char* output_dir, const char* wrap_key_path);
 
+/*! AES-GCM encrypt */
+pf_status_t openssl_crypto_aes_gcm_encrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
+                                           size_t iv_size, const void* aad, size_t aad_size,
+                                           const void* input, size_t input_size, void* output,
+                                           uint8_t* mac, size_t mac_size);
+
+/*! AES-GCM decrypt */
+pf_status_t openssl_crypto_aes_gcm_decrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
+                                           size_t iv_size, const void* aad, size_t aad_size,
+                                           const void* input, size_t input_size, void* output,
+                                           const uint8_t* mac, size_t mac_size);
+
+/*! Load PF wrap key from file */
+int load_wrap_key(const char* wrap_key_path, uint8_t wrap_key[PF_WRAP_KEY_SIZE]);
+
 #endif

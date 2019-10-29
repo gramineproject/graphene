@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-#include "../protected_files.h"
+#include "pf_util.h"
 #include "util.h"
 
 /* Tamper with a PF in various ways for testing purposes.
@@ -50,20 +50,13 @@ void usage() {
     INFO("  --output, -o PATH    Directory where modified files will be written to\n");
 }
 
-int tamper_truncate(const char* output_dir, const char* input_name, ssize_t input_size, void* input) {
+int tamper_truncate(const char* input_name, ssize_t input_size, const void* input,
+                    const char* output_dir, char* output_path, ssize_t output_path_size) {
     int ret = -1;
-    ssize_t output_path_size = strlen(input_name) + strlen(output_dir) + 256;
-    char* output_path = NULL;
     const ssize_t min_size = PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_data) + 7;
 
     if (input_size < min_size) {
         ERROR("Input size %zu too small, need at least %zu\n", input_size, min_size);
-        goto out;
-    }
-
-    output_path = malloc(output_path_size);
-    if (!output_path) {
-        ERROR("No memory\n");
         goto out;
     }
 
@@ -78,22 +71,117 @@ int tamper_truncate(const char* output_dir, const char* input_name, ssize_t inpu
     ret = write_file(output_path, PF_CHUNKS_OFFSET / 2, input);
     if (ret < 0)
         goto out;
-    
+
     snprintf(output_path, output_path_size, "%s/%s.trunc_chunk_metadata", output_dir, input_name);
     INFO("[*] Truncated chunk (metadata): %s\n", output_path);
     ret = write_file(output_path, PF_CHUNKS_OFFSET + 10, input);
     if (ret < 0)
         goto out;
-    
+
     snprintf(output_path, output_path_size, "%s/%s.trunc_chunk_data", output_dir, input_name);
     INFO("[*] Truncated chunk (data): %s\n", output_path);
     ret = write_file(output_path, min_size, input);
     if (ret < 0)
         goto out;
-    
+
     ret = 0;
 out:
-    free(output_path);
+    return ret;
+}
+
+void* open_output(const char* path, ssize_t size, const void* input) {
+    void* mem = MAP_FAILED;
+    int fd = open(path, O_RDWR|O_CREAT, 0664);
+    if (fd < 0) {
+        ERROR("Failed to open output file '%s': %s\n", path, strerror(errno));
+        goto out;
+    }
+
+    if (ftruncate(fd, size) < 0) {
+        ERROR("Failed to ftruncate output file '%s': %s\n", path, strerror(errno));
+        goto out;
+    }
+
+    mem = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mem == MAP_FAILED) {
+        ERROR("Failed to mmap output file '%s': %s\n", path, strerror(errno));
+        goto out;
+    }
+
+    memcpy(mem, input, size);
+
+out:
+    if (fd >= 0)
+        close(fd);
+    return mem;
+}
+
+// if fix_mac is true, also create a file with correct header's MAC
+#define BREAK_HEADER(file_suffix, msg, fix_mac, ...) \
+    snprintf(output_path, output_path_size, "%s/%s." file_suffix, output_dir, input_name); \
+    INFO("[*] Header: " msg ": %s\n", output_path); \
+    output = open_output(output_path, size, input); \
+    if (output == MAP_FAILED) \
+        goto out; \
+    __VA_ARGS__ \
+    munmap(output, size); \
+    if (fix_mac) { \
+        snprintf(output_path, output_path_size, "%s/%s." file_suffix "_mac", output_dir, input_name); \
+        INFO("[*] Header (fixed MAC): " msg ": %s\n", output_path); \
+        output = open_output(output_path, size, input); \
+        if (output == MAP_FAILED) \
+            goto out; \
+        __VA_ARGS__ \
+        openssl_crypto_aes_gcm_encrypt(key, PF_WRAP_KEY_SIZE, output->header_iv, PF_IV_SIZE, \
+                                       output, PF_HEADER_SIZE-PF_MAC_SIZE, NULL, 0, NULL, \
+                                       output->header_mac, PF_MAC_SIZE); \
+        munmap(output, size); \
+    }
+
+int tamper_header(const char* input_name, ssize_t size, const void* input, const uint8_t* key,
+                  const char* output_dir, char* output_path, ssize_t output_path_size) {
+    int ret = -1;
+    pf_header_t* output = MAP_FAILED;
+
+    BREAK_HEADER("header_version_1", "invalid version (0)", 1,
+        {output->version = 0;});
+
+    BREAK_HEADER("header_version_2", "invalid version (max)", 1,
+        {output->version = UINT32_MAX;});
+
+    BREAK_HEADER("header_size_1", "invalid size (0)", 0,
+        {output->data_size = 0;});
+
+    BREAK_HEADER("header_size_2", "invalid size (x-1)", 1,
+        {output->data_size--;});
+
+    BREAK_HEADER("header_size_3", "invalid size (x+1)", 1,
+        {output->data_size++;});
+
+    BREAK_HEADER("header_size_4", "invalid size (max)", 1,
+        {output->data_size = UINT64_MAX;});
+
+    BREAK_HEADER("header_iv", "invalid IV", 0,
+        {output->header_iv[0] ^= 1;});
+
+    BREAK_HEADER("header_aps_1", "invalid allowed_paths_size (0)", 1,
+        {output->allowed_paths_size = 0;});
+
+    // These may not be strictly invalid, but they should result in inaccessible PFs
+    BREAK_HEADER("header_aps_2", "invalid allowed_paths_size (x-1)", 1,
+        {output->allowed_paths_size--;});
+
+    BREAK_HEADER("header_aps_3", "invalid allowed_paths_size (x+1)", 1,
+        {output->allowed_paths_size++;});
+
+    BREAK_HEADER("header_aps_4", "invalid allowed_paths_size (max)", 1,
+        {output->allowed_paths_size = UINT32_MAX;});
+
+    BREAK_HEADER("header_ap_1", "invalid allowed_paths", 1,
+        {output->allowed_paths[0]++;});
+
+    ret = 0;
+out:
     return ret;
 }
 
@@ -101,10 +189,12 @@ int main(int argc, char *argv[]) {
     int ret             = -1;
     int this_option     = 0;
     char* input_path    = NULL;
+    char* output_dir    = NULL;
     char* output_path   = NULL;
     char* wrap_key_path = NULL;
     int input_fd        = -1;
     void* input         = MAP_FAILED;
+    uint8_t wrap_key[PF_WRAP_KEY_SIZE];
 
     // Parse command line
     while (true) {
@@ -117,7 +207,7 @@ int main(int argc, char *argv[]) {
                 input_path = optarg;
                 break;
             case 'o':
-                output_path = optarg;
+                output_dir = optarg;
                 break;
             case 'w':
                 wrap_key_path = optarg;
@@ -140,7 +230,7 @@ int main(int argc, char *argv[]) {
         goto out;
     }
 
-    if (!output_path) {
+    if (!output_dir) {
         ERROR("Output path not specified\n");
         usage();
         goto out;
@@ -170,14 +260,27 @@ int main(int argc, char *argv[]) {
         goto out;
     }
 
-    const char* input_name = basename(input_path);
-    ret = tamper_truncate(output_path, input_name, input_size, input);
+    load_wrap_key(wrap_key_path, wrap_key);
 
-    ret = 0;
+    const char* input_name = basename(input_path);
+    ssize_t output_path_size = strlen(input_name) + strlen(output_dir) + 256;
+    output_path = malloc(output_path_size);
+    if (!output_path) {
+        ERROR("No memory\n");
+        goto out;
+    }
+
+    ret = tamper_truncate(input_name, input_size, input, output_dir, output_path, output_path_size);
+    if (ret < 0)
+        goto out;
+
+    ret = tamper_header(input_name, input_size, input, wrap_key, output_dir, output_path, output_path_size);
+
 out:
     if (input != MAP_FAILED)
         munmap(input, input_size);
     if (input_fd >= 0)
         close(input_fd);
+    free(output_path);
     return ret;
 }
