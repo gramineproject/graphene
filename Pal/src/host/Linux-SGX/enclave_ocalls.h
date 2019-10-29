@@ -10,8 +10,6 @@
 
 noreturn void ocall_exit (int exitcode, int is_exitgroup);
 
-int ocall_print_string (const char * str, unsigned int length);
-
 int ocall_alloc_untrusted (uint64_t size, void ** mem);
 
 int ocall_map_untrusted (int fd, uint64_t offset,

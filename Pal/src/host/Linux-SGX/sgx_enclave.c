@@ -48,13 +48,6 @@ static int sgx_ocall_exit(void* pms)
     return 0;
 }
 
-static int sgx_ocall_print_string(void * pms)
-{
-    ms_ocall_print_string_t * ms = (ms_ocall_print_string_t *) pms;
-    INLINE_SYSCALL(write, 3, 2, ms->ms_str, ms->ms_length);
-    return 0;
-}
-
 static int sgx_ocall_alloc_untrusted(void * pms)
 {
     ms_ocall_alloc_untrusted_t * ms = (ms_ocall_alloc_untrusted_t *) pms;
@@ -689,7 +682,6 @@ static int sgx_ocall_get_attestation(void* pms) {
 
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_EXIT]            = sgx_ocall_exit,
-        [OCALL_PRINT_STRING]    = sgx_ocall_print_string,
         [OCALL_ALLOC_UNTRUSTED] = sgx_ocall_alloc_untrusted,
         [OCALL_MAP_UNTRUSTED]   = sgx_ocall_map_untrusted,
         [OCALL_UNMAP_UNTRUSTED] = sgx_ocall_unmap_untrusted,

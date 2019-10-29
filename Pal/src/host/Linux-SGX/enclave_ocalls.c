@@ -28,36 +28,6 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup)
     }
 }
 
-int ocall_print_string (const char * str, unsigned int length)
-{
-    int retval = 0;
-    ms_ocall_print_string_t * ms;
-
-    ms = sgx_alloc_on_ustack(sizeof(*ms));
-    if (!ms) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    if (!str || length <= 0) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    ms->ms_length = length;
-    ms->ms_str = sgx_copy_to_ustack(str, length);
-
-    if (!ms->ms_str) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    retval = sgx_ocall(OCALL_PRINT_STRING, ms);
-
-    sgx_reset_ustack();
-    return retval;
-}
-
 int ocall_alloc_untrusted (uint64_t size, void ** mem)
 {
     int retval = 0;

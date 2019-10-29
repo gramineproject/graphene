@@ -21,7 +21,6 @@ typedef int (*sgx_ocall_fn_t)(void*);
 
 enum {
     OCALL_EXIT = 0,
-    OCALL_PRINT_STRING,
     OCALL_ALLOC_UNTRUSTED,
     OCALL_MAP_UNTRUSTED,
     OCALL_UNMAP_UNTRUSTED,
@@ -66,11 +65,6 @@ typedef struct {
     int ms_exitcode;
     int ms_is_exitgroup;
 } ms_ocall_exit_t;
-
-typedef struct {
-    const char * ms_str;
-    unsigned int ms_length;
-} ms_ocall_print_string_t;
 
 typedef struct {
     uint64_t ms_size;
