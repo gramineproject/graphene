@@ -144,8 +144,9 @@ void *calloc(size_t nmemb, size_t size);
 #define force_literal_cstr(str)   ("" str "")
 
 /* check if the var is exactly the same as the static string */
-#define strcmp_static(var, str) ((static_strlen(force_literal_cstr(str)) == strlen(var)) ? \
-    (memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str)) + 1)) : -1)
+#define strcmp_static(var, str) (strlen(var) > (static_strlen(force_literal_cstr(str))) ? \
+    (memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str)) + 1)) : \
+    (memcmp(var, force_literal_cstr(str), strlen(var) + 1)))
 
 /* check if the var starts with the static string */
 #define strstartswith_static(var, str) \
