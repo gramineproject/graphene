@@ -273,7 +273,7 @@ out:
     return ret;
 }
 
-static int load_wrap_key(const char* wrap_key_path, uint8_t wrap_key[PF_WRAP_KEY_SIZE]) {
+int load_wrap_key(const char* wrap_key_path, uint8_t wrap_key[PF_WRAP_KEY_SIZE]) {
     int ret = -1;
     ssize_t size = 0;
     uint8_t* buf = read_file(wrap_key_path, &size);

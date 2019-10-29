@@ -31,7 +31,7 @@ pf_crypt: pf_crypt.o util.o pf_util.o protected_files.o
 	@echo [ host/Linux-SGX/tools/$@ ]
 	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now $^ -lc -lcrypto -o $@
 
-pf_tamper: pf_tamper.o util.o
+pf_tamper: pf_tamper.o util.o pf_util.o protected_files.o
 	@echo [ host/Linux-SGX/tools/$@ ]
 	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now $^ -lc -lcrypto -o $@
 
