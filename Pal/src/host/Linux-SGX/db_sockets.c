@@ -336,7 +336,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_sock_listen(bind_addr->sa_family, sock_type(SOCK_STREAM, options), 0, bind_addr,
+    ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_STREAM, options), 0, bind_addr,
                             &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -370,7 +370,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_sock_accept(handle->sock.fd, &dest_addr, &dest_addrlen, &sock_options);
+    ret = ocall_accept(handle->sock.fd, &dest_addr, &dest_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -416,7 +416,7 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_sock_connect(dest_addr->sa_family, sock_type(SOCK_STREAM, options), 0, dest_addr,
+    ret = ocall_connect(dest_addr->sa_family, sock_type(SOCK_STREAM, options), 0, dest_addr,
                              dest_addrlen, bind_addr, &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -470,7 +470,7 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
+    int bytes = ocall_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -495,7 +495,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
+    int bytes = ocall_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -537,7 +537,7 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_sock_listen(bind_addr->sa_family, sock_type(SOCK_DGRAM, options), 0, bind_addr,
+    ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_DGRAM, options), 0, bind_addr,
                             &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -576,7 +576,7 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_sock_connect(dest_addr ? dest_addr->sa_family : AF_INET,
+    ret = ocall_connect(dest_addr ? dest_addr->sa_family : AF_INET,
                              sock_type(SOCK_DGRAM, options), 0, dest_addr, dest_addrlen, bind_addr,
                              &bind_addrlen, &sock_options);
 
@@ -630,7 +630,7 @@ static int64_t udp_receive(PAL_HANDLE handle, uint64_t offset, uint64_t len, voi
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int ret = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
+    int ret = ocall_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
@@ -651,7 +651,7 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     struct sockaddr conn_addr;
     socklen_t conn_addrlen = sizeof(struct sockaddr);
 
-    int bytes = ocall_sock_recv(handle->sock.fd, buf, len, &conn_addr, &conn_addrlen, NULL, NULL);
+    int bytes = ocall_recv(handle->sock.fd, buf, len, &conn_addr, &conn_addrlen, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -680,7 +680,7 @@ static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, uint64_t len, const 
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
+    int bytes = ocall_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -727,7 +727,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     if (ret < 0)
         return ret;
 
-    int bytes = ocall_sock_send(handle->sock.fd, buf, len, &conn_addr, conn_addrlen, NULL, 0);
+    int bytes = ocall_send(handle->sock.fd, buf, len, &conn_addr, conn_addrlen, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -767,7 +767,7 @@ static int socket_delete(PAL_HANDLE handle, int access) {
                 return -PAL_ERROR_INVAL;
         }
 
-        ocall_sock_shutdown(handle->sock.fd, shutdown);
+        ocall_shutdown(handle->sock.fd, shutdown);
     }
 
     return 0;
@@ -850,7 +850,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
             struct __kernel_linger l;
             l.l_onoff  = attr->socket.linger ? 1 : 0;
             l.l_linger = attr->socket.linger;
-            ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(struct __kernel_linger));
+            ret = ocall_setsockopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(struct __kernel_linger));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -859,7 +859,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.receivebuf != handle->sock.receivebuf) {
             val = attr->socket.receivebuf;
-            ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(int));
+            ret = ocall_setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(int));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -868,7 +868,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.sendbuf != handle->sock.sendbuf) {
             val = attr->socket.sendbuf;
-            ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(int));
+            ret = ocall_setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(int));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -877,7 +877,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.receivetimeout != handle->sock.receivetimeout) {
             val = attr->socket.receivetimeout;
-            ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_RCVTIMEO, &val, sizeof(int));
+            ret = ocall_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &val, sizeof(int));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -886,7 +886,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.sendtimeout != handle->sock.sendtimeout) {
             val = attr->socket.sendtimeout;
-            ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_SNDTIMEO, &val, sizeof(int));
+            ret = ocall_setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &val, sizeof(int));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -897,7 +897,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (HANDLE_TYPE(handle) == pal_type_tcp || HANDLE_TYPE(handle) == pal_type_tcpsrv) {
         if (attr->socket.tcp_cork != handle->sock.tcp_cork) {
             val = attr->socket.tcp_cork ? 1 : 0;
-            ret = ocall_sock_setopt(fd, SOL_TCP, TCP_CORK, &val, sizeof(int));
+            ret = ocall_setsockopt(fd, SOL_TCP, TCP_CORK, &val, sizeof(int));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -906,7 +906,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.tcp_keepalive != handle->sock.tcp_keepalive) {
             val = attr->socket.tcp_keepalive ? 1 : 0;
-            ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(int));
+            ret = ocall_setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(int));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -915,7 +915,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.tcp_nodelay != handle->sock.tcp_nodelay) {
             val = attr->socket.tcp_nodelay ? 1 : 0;
-            ret = ocall_sock_setopt(fd, SOL_TCP, TCP_NODELAY, &val, sizeof(int));
+            ret = ocall_setsockopt(fd, SOL_TCP, TCP_NODELAY, &val, sizeof(int));
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
@@ -1045,7 +1045,7 @@ static int64_t mcast_send(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_send(handle->mcast.srv, buf, size, NULL, 0, NULL, 0);
+    int bytes = ocall_send(handle->mcast.srv, buf, size, NULL, 0, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -1072,7 +1072,7 @@ static int64_t mcast_receive(PAL_HANDLE handle, uint64_t offset, uint64_t size, 
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_recv(handle->mcast.cli, buf, size, NULL, NULL, NULL, NULL);
+    int bytes = ocall_recv(handle->mcast.cli, buf, size, NULL, NULL, NULL, NULL);
 
     if (IS_ERR(bytes))
         bytes = unix_to_pal_error(ERRNO(bytes));

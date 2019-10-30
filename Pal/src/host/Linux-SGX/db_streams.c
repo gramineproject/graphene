@@ -273,7 +273,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
         }
 
     int ch = hdl->process.cargo;
-    ret    = ocall_sock_send(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, 0, NULL, 0);
+    ret    = ocall_send(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, 0, NULL, 0);
 
     if (IS_ERR(ret)) {
         free(hdl_data);
@@ -289,7 +289,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     chdr->cmsg_len = CMSG_LEN(fds_size);
     memcpy(CMSG_DATA(chdr), fds, fds_size);
 
-    ret = ocall_sock_send(ch, hdl_data, hdl_hdr.data_size, NULL, 0, chdr, chdr->cmsg_len);
+    ret = ocall_send(ch, hdl_data, hdl_hdr.data_size, NULL, 0, chdr, chdr->cmsg_len);
 
     free(hdl_data);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
@@ -305,7 +305,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     int ch = hdl->process.cargo;
 
-    int ret = ocall_sock_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, NULL, NULL, NULL);
+    int ret = ocall_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, NULL, NULL, NULL);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -316,7 +316,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
          * to shield Iago attack.
          * We know that the file descriptor is an unix domain socket with
          * blocking mode and that the sender, _DkSendHandle() above, sends the
-         * header with single sendmsg syscall by ocall_sock_send() which
+         * header with single sendmsg syscall by ocall_send() which
          * transfers a message atomically.
          *
          * read size == 0: return error for the caller to try again.
@@ -342,7 +342,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     char buffer[hdl_hdr.data_size];
     char cbuf[cbuf_size];
-    ret = ocall_sock_recv(ch, buffer, hdl_hdr.data_size, NULL, NULL, cbuf, &cbuf_size);
+    ret = ocall_recv(ch, buffer, hdl_hdr.data_size, NULL, NULL, cbuf, &cbuf_size);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));

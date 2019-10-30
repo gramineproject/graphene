@@ -47,30 +47,30 @@ int ocall_mkdir (const char *pathname, unsigned short mode);
 
 int ocall_getdents (int fd, struct linux_dirent64 *dirp, unsigned int size);
 
-int ocall_sock_listen (int domain, int type, int protocol,
+int ocall_listen (int domain, int type, int protocol,
                        struct sockaddr * addr, unsigned int * addrlen,
                        struct sockopt * opt);
 
-int ocall_sock_accept (int sockfd, struct sockaddr * addr,
+int ocall_accept (int sockfd, struct sockaddr * addr,
                        unsigned int * addrlen, struct sockopt * opt);
 
-int ocall_sock_connect (int domain, int type, int protocol,
+int ocall_connect (int domain, int type, int protocol,
                         const struct sockaddr * addr, unsigned int addrlen,
                         struct sockaddr * connaddr,
                         unsigned int * connaddrlen, struct sockopt * opt);
 
-int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
+int ocall_recv (int sockfd, void * buf, unsigned int count,
                      struct sockaddr * addr, unsigned int * addrlenptr,
                      void * control, uint64_t * controllenptr);
 
-int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
+int ocall_send (int sockfd, const void * buf, unsigned int count,
                      const struct sockaddr * addr, unsigned int addrlen,
                      void * control, uint64_t controllen);
 
-int ocall_sock_setopt (int sockfd, int level, int optname,
+int ocall_setsockopt (int sockfd, int level, int optname,
                        const void * optval, unsigned int optlen);
 
-int ocall_sock_shutdown (int sockfd, int how);
+int ocall_shutdown (int sockfd, int how);
 
 int ocall_resume_thread (void * tcs);
 
