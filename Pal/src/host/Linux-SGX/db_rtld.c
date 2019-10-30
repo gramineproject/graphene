@@ -65,9 +65,9 @@ void _DkDebugAddMap (struct link_map * map)
         unsigned long s = ALLOC_ALIGNDOWN(ehdr->e_shoff);
         unsigned long e = ALLOC_ALIGNUP(ehdr->e_shoff + shdrsz);
         void * umem;
-        ocall_map_untrusted(fd, s, e - s, PROT_READ, &umem);
+        ocall_mmap_untrusted(fd, s, e - s, PROT_READ, &umem);
         memcpy(shdr, umem + ehdr->e_shoff - s, shdrsz);
-        ocall_unmap_untrusted(umem, e - s);
+        ocall_munmap_untrusted(umem, e - s);
     }
 
     ElfW(Shdr) * shdrend = (void *) shdr + shdrsz;
@@ -89,9 +89,9 @@ void _DkDebugAddMap (struct link_map * map)
         unsigned long s = ALLOC_ALIGNDOWN(shstroff);
         unsigned long e = ALLOC_ALIGNUP(shstroff + shstrsz);
         void * umem;
-        ocall_map_untrusted(fd, s, e - s, PROT_READ, &umem);
+        ocall_mmap_untrusted(fd, s, e - s, PROT_READ, &umem);
         memcpy((void *) shstrtab, umem + shstroff - s, shstrsz);
-        ocall_unmap_untrusted(umem, e - s);
+        ocall_munmap_untrusted(umem, e - s);
     }
 
     ocall_close(fd);

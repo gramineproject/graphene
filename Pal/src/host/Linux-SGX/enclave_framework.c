@@ -384,7 +384,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         if (ret < 0)
             goto failed;
 
-        ret = ocall_map_untrusted(fd, offset, mapping_size, PROT_READ, &umem);
+        ret = ocall_mmap_untrusted(fd, offset, mapping_size, PROT_READ, &umem);
         if (IS_ERR(ret)) {
             ret = unix_to_pal_error(ERRNO(ret));
             goto unmap;
@@ -423,7 +423,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         /* Store the checksum for one file chunk for checking */
         ret = lib_AESCMACFinish(&aes_cmac, (uint8_t *) s, sizeof *s);
 unmap:
-        ocall_unmap_untrusted(umem, mapping_size);
+        ocall_munmap_untrusted(umem, mapping_size);
         if (ret < 0)
             goto failed;
     }

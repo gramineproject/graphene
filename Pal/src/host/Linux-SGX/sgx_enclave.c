@@ -63,11 +63,11 @@ static int sgx_ocall_alloc_untrusted(void * pms)
     return 0;
 }
 
-static int sgx_ocall_map_untrusted(void * pms)
+static int sgx_ocall_mmap_untrusted(void * pms)
 {
-    ms_ocall_map_untrusted_t * ms = (ms_ocall_map_untrusted_t *) pms;
+    ms_ocall_mmap_untrusted_t * ms = (ms_ocall_mmap_untrusted_t *) pms;
     void * addr;
-    ODEBUG(OCALL_MAP_UNTRUSTED, ms);
+    ODEBUG(OCALL_MMAP_UNTRUSTED, ms);
     addr = (void *) INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
                                    ms->ms_prot,
                                    MAP_FILE|MAP_SHARED,
@@ -79,10 +79,10 @@ static int sgx_ocall_map_untrusted(void * pms)
     return 0;
 }
 
-static int sgx_ocall_unmap_untrusted(void * pms)
+static int sgx_ocall_munmap_untrusted(void * pms)
 {
-    ms_ocall_unmap_untrusted_t * ms = (ms_ocall_unmap_untrusted_t *) pms;
-    ODEBUG(OCALL_UNMAP_UNTRUSTED, ms);
+    ms_ocall_munmap_untrusted_t * ms = (ms_ocall_munmap_untrusted_t *) pms;
+    ODEBUG(OCALL_MUNMAP_UNTRUSTED, ms);
     INLINE_SYSCALL(munmap, 2, ALLOC_ALIGNDOWN(ms->ms_mem),
                    ALLOC_ALIGNUP(ms->ms_mem + ms->ms_size) -
                    ALLOC_ALIGNDOWN(ms->ms_mem));
@@ -683,8 +683,8 @@ static int sgx_ocall_get_attestation(void* pms) {
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_EXIT]            = sgx_ocall_exit,
         [OCALL_ALLOC_UNTRUSTED] = sgx_ocall_alloc_untrusted,
-        [OCALL_MAP_UNTRUSTED]   = sgx_ocall_map_untrusted,
-        [OCALL_UNMAP_UNTRUSTED] = sgx_ocall_unmap_untrusted,
+        [OCALL_MMAP_UNTRUSTED]  = sgx_ocall_mmap_untrusted,
+        [OCALL_MUNMAP_UNTRUSTED]= sgx_ocall_munmap_untrusted,
         [OCALL_CPUID]           = sgx_ocall_cpuid,
         [OCALL_OPEN]            = sgx_ocall_open,
         [OCALL_CLOSE]           = sgx_ocall_close,

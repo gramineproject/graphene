@@ -22,8 +22,8 @@ typedef int (*sgx_ocall_fn_t)(void*);
 enum {
     OCALL_EXIT = 0,
     OCALL_ALLOC_UNTRUSTED,
-    OCALL_MAP_UNTRUSTED,
-    OCALL_UNMAP_UNTRUSTED,
+    OCALL_MMAP_UNTRUSTED,
+    OCALL_MUNMAP_UNTRUSTED,
     OCALL_CPUID,
     OCALL_OPEN,
     OCALL_CLOSE,
@@ -77,12 +77,12 @@ typedef struct {
     uint64_t ms_size;
     unsigned short ms_prot;
     void * ms_mem;
-} ms_ocall_map_untrusted_t;
+} ms_ocall_mmap_untrusted_t;
 
 typedef struct {
     const void * ms_mem;
     uint64_t ms_size;
-} ms_ocall_unmap_untrusted_t;
+} ms_ocall_munmap_untrusted_t;
 
 typedef struct {
     unsigned int ms_leaf;
