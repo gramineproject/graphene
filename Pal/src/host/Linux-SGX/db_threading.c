@@ -116,7 +116,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     LISTP_ADD_TAIL(&new_thread->thread, &thread_list, list);
     _DkInternalUnlock(&thread_list_lock);
 
-    int ret = ocall_wake_thread(NULL);
+    int ret = ocall_clone_thread();
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -154,7 +154,7 @@ noreturn void _DkThreadExit (void)
 
 int _DkThreadResume (PAL_HANDLE threadHandle)
 {
-    int ret = ocall_wake_thread(threadHandle->thread.tcs);
+    int ret = ocall_resume_thread(threadHandle->thread.tcs);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

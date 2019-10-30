@@ -461,9 +461,15 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
     return retval;
 }
 
-int ocall_wake_thread (void * tcs)
+int ocall_resume_thread (void * tcs)
 {
-    return sgx_ocall(OCALL_WAKE_THREAD, tcs);
+    return sgx_ocall(OCALL_RESUME_THREAD, tcs);
+}
+
+int ocall_clone_thread (void)
+{
+    void* dummy = NULL;
+    return sgx_ocall(OCALL_CLONE_THREAD, dummy);
 }
 
 int ocall_create_process(const char* uri, int nargs, const char** args, int procfds[3],
