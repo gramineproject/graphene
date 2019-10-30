@@ -272,19 +272,24 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
             fds[nfds++] = cargo->generic.fds[i];
         }
 
-    // ~ Initialize common parameter formessage passing
-    // Channel between parent and child
     int ch = hdl->process.cargo;
-    ret    = ocall_sock_send(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, 0);
+    ret    = ocall_sock_send(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, 0, NULL, 0);
 
-    // Unlock is error
     if (IS_ERR(ret)) {
         free(hdl_data);
         return unix_to_pal_error(ERRNO(ret));
     }
 
-    //  Send message
-    ret = ocall_sock_send_fd(ch, hdl_data, hdl_hdr.data_size, fds, nfds);
+    uint64_t fds_size = nfds * sizeof(unsigned int);
+    char cbuf[sizeof(struct cmsghdr) + fds_size];
+
+    struct cmsghdr* chdr = (struct cmsghdr*)cbuf;
+    chdr->cmsg_level = SOL_SOCKET;
+    chdr->cmsg_type = SCM_RIGHTS;
+    chdr->cmsg_len = CMSG_LEN(fds_size);
+    memcpy(CMSG_DATA(chdr), fds, fds_size);
+
+    ret = ocall_sock_send(ch, hdl_data, hdl_hdr.data_size, NULL, 0, chdr, chdr->cmsg_len);
 
     free(hdl_data);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
@@ -295,26 +300,23 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     struct hdl_header hdl_hdr;
 
-    // ~ Check connection PAL_HANDLE - is of process type for sending handle
-    // else fail
     if (!IS_HANDLE_TYPE(hdl, process))
         return -PAL_ERROR_BADHANDLE;
 
-    // ~ Initialize common parameter for message passing
-    // Channel between parent and child
     int ch = hdl->process.cargo;
 
-    int ret = ocall_sock_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, NULL);
+    int ret = ocall_sock_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, NULL, NULL, NULL);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
+
     if ((size_t)ret < sizeof(struct hdl_header)) {
         /*
          * This code block is just in case to cover all the possibilities
          * to shield Iago attack.
          * We know that the file descriptor is an unix domain socket with
          * blocking mode and that the sender, _DkSendHandle() above, sends the
-         * header with single sendto syscall by ocall_sock_send() which
+         * header with single sendmsg syscall by ocall_sock_send() which
          * transfers a message atomically.
          *
          * read size == 0: return error for the caller to try again.
@@ -330,20 +332,28 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
         return -PAL_ERROR_DENIED;
     }
 
-    // initialize variables to get body
-    void* buffer  = __alloca(hdl_hdr.data_size);
     uint32_t nfds = 0;
-
     for (int i = 0; i < MAX_FDS; i++)
         if (hdl_hdr.fds & (1U << i))
             nfds++;
 
-    uint32_t* fds = __alloca(sizeof(unsigned int) * nfds);
+    uint64_t fds_size  = nfds * sizeof(unsigned int);
+    uint64_t cbuf_size = sizeof(struct cmsghdr) + fds_size;
 
-    ret = ocall_sock_recv_fd(ch, buffer, hdl_hdr.data_size, fds, &nfds);
+    char buffer[hdl_hdr.data_size];
+    char cbuf[cbuf_size];
+    ret = ocall_sock_recv(ch, buffer, hdl_hdr.data_size, NULL, NULL, cbuf, &cbuf_size);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
+
+    nfds = 0;
+    uint32_t fds[fds_size];
+    struct cmsghdr* chdr = (struct cmsghdr*)cbuf;
+    if (chdr->cmsg_type == SCM_RIGHTS) {
+        nfds = (chdr->cmsg_len - sizeof(struct cmsghdr)) / sizeof(int);
+        memcpy(fds, CMSG_DATA(chdr), nfds * sizeof(int));
+    }
 
     PAL_HANDLE handle = NULL;
     ret               = handle_deserialize(&handle, buffer, hdl_hdr.data_size);

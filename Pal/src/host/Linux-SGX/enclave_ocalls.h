@@ -60,16 +60,12 @@ int ocall_sock_connect (int domain, int type, int protocol,
                         unsigned int * connaddrlen, struct sockopt * opt);
 
 int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
-                     struct sockaddr * addr, unsigned int * addrlen);
+                     struct sockaddr * addr, unsigned int * addrlenptr,
+                     void * control, uint64_t * controllenptr);
 
 int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
-                     const struct sockaddr * addr, unsigned int addrlen);
-
-int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
-                        unsigned int * fds, unsigned int * nfds);
-
-int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
-                        const unsigned int * fds, unsigned int nfds);
+                     const struct sockaddr * addr, unsigned int addrlen,
+                     void * control, uint64_t controllen);
 
 int ocall_sock_setopt (int sockfd, int level, int optname,
                        const void * optval, unsigned int optlen);

@@ -429,15 +429,35 @@ static int sgx_ocall_sock_recv(void * pms)
     struct sockaddr * addr = ms->ms_addr;
     socklen_t addrlen = ms->ms_addr ? ms->ms_addrlen : 0;
 
-    if (ms->ms_sockfd == PAL_SEC()->mcast_srv)
+    if (ms->ms_sockfd == PAL_SEC()->mcast_srv) {
         addr = NULL;
+        addrlen = 0;
+    }
 
-    ret = INLINE_SYSCALL(recvfrom, 6,
-                         ms->ms_sockfd, ms->ms_buf, ms->ms_count, 0,
-                         addr, addr ? &addrlen : NULL);
+    struct msghdr hdr;
+    struct iovec iov[1];
 
-    if (!IS_ERR(ret) && addr)
-        ms->ms_addrlen = addrlen;
+    iov[0].iov_base    = ms->ms_buf;
+    iov[0].iov_len     = ms->ms_count;
+    hdr.msg_name       = addr;
+    hdr.msg_namelen    = addrlen;
+    hdr.msg_iov        = iov;
+    hdr.msg_iovlen     = 1;
+    hdr.msg_control    = ms->ms_control;
+    hdr.msg_controllen = ms->ms_controllen;
+    hdr.msg_flags      = 0;
+
+    ret = INLINE_SYSCALL(recvmsg, 3, ms->ms_sockfd, &hdr, 0);
+
+    if (!IS_ERR(ret) && hdr.msg_name) {
+        /* note that ms->ms_addr is filled by recvmsg() itself */
+        ms->ms_addrlen = hdr.msg_namelen;
+    }
+
+    if (!IS_ERR(ret) && hdr.msg_control) {
+        /* note that ms->ms_control is filled by recvmsg() itself */
+        ms->ms_controllen = hdr.msg_controllen;
+    }
 
     return ret;
 }
@@ -459,107 +479,20 @@ static int sgx_ocall_sock_send(void * pms)
         addrlen = sizeof(struct sockaddr_in);
     }
 
-    ret = INLINE_SYSCALL(sendto, 6,
-                         ms->ms_sockfd, ms->ms_buf, ms->ms_count, MSG_NOSIGNAL,
-                         addr, addrlen);
-
-    return ret;
-}
-
-static int sgx_ocall_sock_recv_fd(void * pms)
-{
-    ms_ocall_sock_recv_fd_t * ms = (ms_ocall_sock_recv_fd_t *) pms;
-    int ret;
-    ODEBUG(OCALL_SOCK_RECV_FD, ms);
-
     struct msghdr hdr;
     struct iovec iov[1];
 
-    // receive PAL_HANDLE contents in the body
-    char cbuf[sizeof(struct cmsghdr) + ms->ms_nfds * sizeof(int)];
-
-    iov[0].iov_base = ms->ms_buf;
-    iov[0].iov_len = ms->ms_count;
-
-    // clear body memory
-    memset(&hdr, 0, sizeof(struct msghdr));
-
-    // set message header values
-    hdr.msg_iov = iov;
-    hdr.msg_iovlen = 1;
-    hdr.msg_control = cbuf;
-    hdr.msg_controllen = sizeof(struct cmsghdr) + sizeof(int) *
-                         ms->ms_nfds;
-    hdr.msg_flags = 0;
-
-    ret = INLINE_SYSCALL(recvmsg, 3, ms->ms_sockfd, &hdr, 0);
-
-    if (!IS_ERR(ret)) {
-        struct cmsghdr * chdr = CMSG_FIRSTHDR(&hdr);
-        if (chdr &&
-            chdr->cmsg_type == SCM_RIGHTS) {
-            ms->ms_nfds = (chdr->cmsg_len - sizeof(struct cmsghdr)) /
-                          sizeof(int);
-            memcpy(ms->ms_fds, CMSG_DATA(chdr), sizeof(int) * ms->ms_nfds);
-        } else {
-            ms->ms_nfds = 0;
-        }
-    }
-
-    return ret;
-}
-
-static int sgx_ocall_sock_send_fd(void * pms)
-{
-    ms_ocall_sock_send_fd_t * ms = (ms_ocall_sock_send_fd_t *) pms;
-    int ret;
-    ODEBUG(OCALL_SOCK_SEND_FD, ms);
-
-    // Declare variables required for sending the message
-    struct msghdr hdr; // message header
-    struct cmsghdr * chdr; //control message header
-    struct iovec iov[1]; // IO Vector
-
-    /* Message Body Composition:
-       IOVEC[0]: PAL_HANDLE
-       IOVEC[1..n]: Additional handle member follow
-       Control Message: file descriptors */
-
-    // Control message buffer with added space for 2 fds (ie. max size
-    // that it will have)
-    char cbuf[sizeof(struct cmsghdr) + ms->ms_nfds * sizeof(int)];
-
-    iov[0].iov_base = (void *) ms->ms_buf;
-    iov[0].iov_len = ms->ms_count;
-
-    hdr.msg_name = NULL;
-    hdr.msg_namelen = 0;
-    hdr.msg_iov = iov;
-    hdr.msg_iovlen = 1;
-    hdr.msg_flags = 0;
-
-    hdr.msg_control = cbuf; // Control Message Buffer
-    hdr.msg_controllen = sizeof(struct cmsghdr) + sizeof(int) * ms->ms_nfds;
-
-    // Fill control message infomation for the file descriptors
-    // Check hdr.msg_controllen >= sizeof(struct cmsghdr) to point to
-    // cbuf, which is redundant based on the above code as we have
-    // statically allocated memory.
-    // or (struct cmsghdr*) cbuf
-    chdr = CMSG_FIRSTHDR(&hdr); // Pointer to msg_control
-    chdr->cmsg_level = SOL_SOCKET; // Originating Protocol
-    chdr->cmsg_type = SCM_RIGHTS; // Protocol Specific Type
-    // Length of control message = sizeof(struct cmsghdr) + nfds
-    chdr->cmsg_len = CMSG_LEN(sizeof(int) * ms->ms_nfds);
-
-    // Copy the fds below control header
-    memcpy(CMSG_DATA(chdr), ms->ms_fds, sizeof(int) * ms->ms_nfds);
-
-    // Also, Update main header with control message length (duplicate)
-    hdr.msg_controllen = chdr->cmsg_len;
+    iov[0].iov_base    = (void*)ms->ms_buf;
+    iov[0].iov_len     = ms->ms_count;
+    hdr.msg_name       = (void*)addr;
+    hdr.msg_namelen    = addrlen;
+    hdr.msg_iov        = iov;
+    hdr.msg_iovlen     = 1;
+    hdr.msg_control    = ms->ms_control;
+    hdr.msg_controllen = ms->ms_controllen;
+    hdr.msg_flags      = 0;
 
     ret = INLINE_SYSCALL(sendmsg, 3, ms->ms_sockfd, &hdr, MSG_NOSIGNAL);
-
     return ret;
 }
 
@@ -702,8 +635,6 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_SOCK_CONNECT]    = sgx_ocall_sock_connect,
         [OCALL_SOCK_RECV]       = sgx_ocall_sock_recv,
         [OCALL_SOCK_SEND]       = sgx_ocall_sock_send,
-        [OCALL_SOCK_RECV_FD]    = sgx_ocall_sock_recv_fd,
-        [OCALL_SOCK_SEND_FD]    = sgx_ocall_sock_send_fd,
         [OCALL_SOCK_SETOPT]     = sgx_ocall_sock_setopt,
         [OCALL_SOCK_SHUTDOWN]   = sgx_ocall_sock_shutdown,
         [OCALL_GETTIME]         = sgx_ocall_gettime,
