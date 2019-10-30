@@ -250,10 +250,6 @@ typedef struct {
 } ms_ocall_delete_t;
 
 typedef struct {
-    unsigned int ms_tid;
-} ms_ocall_schedule_t;
-
-typedef struct {
     sgx_spid_t        ms_spid;
     const char*       ms_subkey;
     bool              ms_linkable;
