@@ -219,10 +219,17 @@ static int sgx_ocall_getdents(void * pms)
     return ret;
 }
 
-static int sgx_ocall_wake_thread(void * pms)
+static int sgx_ocall_resume_thread(void * pms)
 {
-    ODEBUG(OCALL_WAKE_THREAD, pms);
-    return pms ? interrupt_thread(pms) : clone_thread();
+    ODEBUG(OCALL_RESUME_THREAD, pms);
+    return interrupt_thread(pms);
+}
+
+static int sgx_ocall_clone_thread(void * pms)
+{
+    __UNUSED(pms);
+    ODEBUG(OCALL_CLONE_THREAD, pms);
+    return clone_thread();
 }
 
 static int sgx_ocall_create_process(void * pms)
@@ -685,7 +692,8 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_LSEEK]           = sgx_ocall_lseek,
         [OCALL_MKDIR]           = sgx_ocall_mkdir,
         [OCALL_GETDENTS]        = sgx_ocall_getdents,
-        [OCALL_WAKE_THREAD]     = sgx_ocall_wake_thread,
+        [OCALL_RESUME_THREAD]   = sgx_ocall_resume_thread,
+        [OCALL_CLONE_THREAD]    = sgx_ocall_clone_thread,
         [OCALL_CREATE_PROCESS]  = sgx_ocall_create_process,
         [OCALL_FUTEX]           = sgx_ocall_futex,
         [OCALL_SOCKETPAIR]      = sgx_ocall_socketpair,
