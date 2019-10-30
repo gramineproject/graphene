@@ -35,32 +35,6 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup)
     }
 }
 
-int ocall_alloc_untrusted (uint64_t size, void ** mem)
-{
-    int retval = 0;
-    ms_ocall_alloc_untrusted_t * ms;
-
-    ms = sgx_alloc_on_ustack(sizeof(*ms));
-    if (!ms) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    ms->ms_size = size;
-
-    retval = sgx_ocall(OCALL_ALLOC_UNTRUSTED, ms);
-
-    if (!retval) {
-        if (!sgx_copy_ptr_to_enclave(mem, ms->ms_mem, size)) {
-            sgx_reset_ustack();
-            return -EPERM;
-        }
-    }
-
-    sgx_reset_ustack();
-    return retval;
-}
-
 int ocall_mmap_untrusted (int fd, uint64_t offset,
                          uint64_t size, unsigned short prot,
                          void ** mem)
@@ -198,7 +172,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
     ms_ocall_read_t * ms;
 
     if (count > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
         if (IS_ERR(retval))
             return retval;
     }
@@ -250,7 +224,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
         /* typical case of buf inside of enclave memory */
         if (count > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
@@ -740,7 +714,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
     ms_ocall_sock_recv_t * ms;
 
     if ((count + len) > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
         if (IS_ERR(retval))
             return retval;
     }
@@ -804,7 +778,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
         /* typical case of buf inside of enclave memory */
         if ((count + addrlen) > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
