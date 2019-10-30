@@ -86,7 +86,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     if (hdl->file.stubs) {
         /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
-        ret = ocall_map_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
+        ret = ocall_mmap_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
         if (IS_ERR(ret)) {
             /* note that we don't free stubs because they are re-used in same trusted file */
             free(hdl);
@@ -174,7 +174,7 @@ static int file_close(PAL_HANDLE handle) {
 
     if (handle->file.stubs) {
         /* case of trusted file: the whole file was mmapped in untrusted memory */
-        ocall_unmap_untrusted(handle->file.umem, handle->file.total);
+        ocall_munmap_untrusted(handle->file.umem, handle->file.total);
     }
 
     ocall_close(fd);
@@ -210,7 +210,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
      * does not request a specific address.
      */
     if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
-        ret = ocall_map_untrusted(handle->file.fd, offset, size, HOST_PROT(prot), &mem);
+        ret = ocall_mmap_untrusted(handle->file.fd, offset, size, HOST_PROT(prot), &mem);
         if (!IS_ERR(ret))
             *addr = mem;
         return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
@@ -240,7 +240,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         map_end   = ALLOC_ALIGNUP(end);
     }
 
-    ret = ocall_map_untrusted(handle->file.fd, map_start, map_end - map_start, PROT_READ, &umem);
+    ret = ocall_mmap_untrusted(handle->file.fd, map_start, map_end - map_start, PROT_READ, &umem);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "file_map - ocall returned %d\n", ret);
         return unix_to_pal_error(ERRNO(ret));
@@ -252,14 +252,14 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 
         if (ret < 0) {
             SGX_DBG(DBG_E, "file_map - verify trusted returned %d\n", ret);
-            ocall_unmap_untrusted(umem, map_end - map_start);
+            ocall_munmap_untrusted(umem, map_end - map_start);
             return ret;
         }
     } else {
         memcpy(mem, umem + (offset - map_start), end - offset);
     }
 
-    ocall_unmap_untrusted(umem, map_end - map_start);
+    ocall_munmap_untrusted(umem, map_end - map_start);
     *addr = mem;
     return 0;
 }

@@ -110,7 +110,7 @@ int _DkVirtualMemoryFree (void * addr, uint64_t size)
     } else {
         /* Possible to have untrusted mapping. Simply unmap
            the memory outside the enclave */
-        ocall_unmap_untrusted(addr, size);
+        ocall_munmap_untrusted(addr, size);
     }
     return 0;
 }

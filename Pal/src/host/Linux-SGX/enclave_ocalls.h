@@ -12,11 +12,11 @@ noreturn void ocall_exit (int exitcode, int is_exitgroup);
 
 int ocall_alloc_untrusted (uint64_t size, void ** mem);
 
-int ocall_map_untrusted (int fd, uint64_t offset,
+int ocall_mmap_untrusted (int fd, uint64_t offset,
                          uint64_t size, unsigned short prot,
                          void ** mem);
 
-int ocall_unmap_untrusted (const void * mem, uint64_t size);
+int ocall_munmap_untrusted (const void * mem, uint64_t size);
 
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
                  unsigned int values[4]);

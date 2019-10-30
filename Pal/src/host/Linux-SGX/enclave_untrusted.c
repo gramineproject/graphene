@@ -39,7 +39,7 @@ static inline void* __malloc(int size) {
 #define system_malloc(size) __malloc(size)
 
 static inline void __free(void* addr, int size) {
-    ocall_unmap_untrusted(addr, size);
+    ocall_munmap_untrusted(addr, size);
 }
 
 #define system_free(addr, size) __free(addr, size)
