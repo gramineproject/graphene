@@ -29,8 +29,6 @@ int ocall_write (int fd, const void * buf, unsigned int count);
 
 int ocall_fstat (int fd, struct stat * buf);
 
-int ocall_stat (const char * path, struct stat * buf);
-
 int ocall_fionread (int fd);
 
 int ocall_fsetnonblock (int fd, int nonblocking);
