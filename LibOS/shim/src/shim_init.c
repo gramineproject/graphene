@@ -167,7 +167,7 @@ long int glibc_option (const char * opt)
     char cfg[CONFIG_MAX];
 
     if (!strcmp_static(opt, "heap_size")) {
-        ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
+        ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, sizeof(cfg));
         if (ret <= 0) {
             debug("no glibc option: %s (err=%ld)\n", opt, ret);
             return -ENOENT;
@@ -386,7 +386,7 @@ int init_stack (const char ** argv, const char ** envp,
 
     if (root_config) {
         char stack_cfg[CONFIG_MAX];
-        if (get_config(root_config, "sys.stack.size", stack_cfg, CONFIG_MAX) > 0) {
+        if (get_config(root_config, "sys.stack.size", stack_cfg, sizeof(stack_cfg)) > 0) {
             stack_size = PAGE_ALIGN_UP(parse_int(stack_cfg));
             set_rlimit_cur(RLIMIT_STACK, stack_size);
         }

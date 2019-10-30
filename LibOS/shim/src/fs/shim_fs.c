@@ -96,8 +96,8 @@ static int __mount_root (struct shim_dentry ** root)
     int ret = 0;
 
     if (root_config &&
-            get_config(root_config, "fs.root.type", type, CONFIG_MAX) > 0 &&
-            get_config(root_config, "fs.root.uri", uri, CONFIG_MAX) > 0) {
+            get_config(root_config, "fs.root.type", type, sizeof(type)) > 0 &&
+            get_config(root_config, "fs.root.uri", uri, sizeof(uri)) > 0) {
         debug("mounting root filesystem: %s from %s\n", type, uri);
         if ((ret = mount_fs(type, uri, "/", NULL, root, 0)) < 0) {
             debug("mounting root filesystem failed (%d)\n", ret);
@@ -157,15 +157,15 @@ static int __mount_one_other (const char * key, int keylen)
     char * kp = k + 9 + keylen;
 
     memcpy(kp, ".path", 6);
-    if (get_config(root_config, k, p, CONFIG_MAX) <= 0)
+    if (get_config(root_config, k, p, sizeof(p)) <= 0)
         return -EINVAL;
 
     memcpy(kp, ".type", 6);
-    if (get_config(root_config, k, t, CONFIG_MAX) <= 0)
+    if (get_config(root_config, k, t, sizeof(t)) <= 0)
         return -EINVAL;
 
     memcpy(kp, ".uri", 5);
-    if (get_config(root_config, k, u, CONFIG_MAX) > 0)
+    if (get_config(root_config, k, u, sizeof(u)) > 0)
         uri = u;
 
     debug("mounting as %s filesystem: from %s to %s\n", t, uri, p);

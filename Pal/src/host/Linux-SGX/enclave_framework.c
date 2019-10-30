@@ -729,7 +729,7 @@ static int init_trusted_file (const char * key, const char * uri)
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
-    ssize_t ret = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
+    ssize_t ret = get_config(pal_state.root_config, cskey, checksum, sizeof(checksum));
     if (ret < 0)
         return 0;
 
@@ -816,7 +816,7 @@ int init_trusted_files (void) {
     if (nuris <= 0)
         goto no_trusted;
 
-    tmp = strcpy_static(key, "sgx.trusted_files.", CONFIG_MAX);
+    tmp = strcpy_static(key, "sgx.trusted_files.", sizeof(key));
 
     k = cfgbuf;
 
@@ -824,7 +824,7 @@ int init_trusted_files (void) {
         len = strlen(k);
         memcpy(tmp, k, len + 1);
         k += len + 1;
-        len = get_config(store, key, uri, CONFIG_MAX);
+        len = get_config(store, key, uri, sizeof(uri));
         if (len > 0) {
             ret = init_trusted_file(key + static_strlen("sgx.trusted_files."), uri);
             if (ret < 0)
@@ -849,8 +849,7 @@ no_trusted:
     if (nuris <= 0)
         goto no_allowed;
 
-
-    tmp = strcpy_static(key, "sgx.allowed_files.", CONFIG_MAX);
+    tmp = strcpy_static(key, "sgx.allowed_files.", sizeof(key));
 
     k = cfgbuf;
 
@@ -858,7 +857,7 @@ no_trusted:
         len = strlen(k);
         memcpy(tmp, k, len + 1);
         k += len + 1;
-        len = get_config(store, key, uri, CONFIG_MAX);
+        len = get_config(store, key, uri, sizeof(uri));
         if (len <= 0) {
             continue;
         }
@@ -893,7 +892,7 @@ no_trusted:
 no_allowed:
     ret = 0;
 
-    if (get_config(store, "sgx.allow_file_creation", cfgbuf, CONFIG_MAX) <= 0) {
+    if (get_config(store, "sgx.allow_file_creation", cfgbuf, cfgsize) <= 0) {
         allow_file_creation = false;
     } else
         allow_file_creation = true;
@@ -910,8 +909,8 @@ int init_trusted_children (void)
     char key[CONFIG_MAX], mrkey[CONFIG_MAX];
     char uri[CONFIG_MAX], mr_enclave[CONFIG_MAX];
 
-    char * tmp1 = strcpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
-    char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
+    char * tmp1 = strcpy_static(key, "sgx.trusted_children.", sizeof(key));
+    char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", sizeof(mrkey));
 
     ssize_t cfgsize = get_config_entries_size(store, "sgx.trusted_mrenclave");
     if (cfgsize <= 0)
@@ -931,11 +930,11 @@ int init_trusted_children (void)
             memcpy(tmp2, k, len + 1);
             k += len + 1;
 
-            ssize_t ret = get_config(store, key, uri, CONFIG_MAX);
+            ssize_t ret = get_config(store, key, uri, sizeof(uri));
             if (ret < 0)
                 continue;
 
-            ret = get_config(store, mrkey, mr_enclave, CONFIG_MAX);
+            ret = get_config(store, mrkey, mr_enclave, sizeof(mr_enclave));
             if (ret > 0)
                 register_trusted_child(uri, mr_enclave);
         }
@@ -948,7 +947,7 @@ int init_file_check_policy (void)
 {
     char cfgbuf[CONFIG_MAX];
     ssize_t ret = get_config(pal_state.root_config, "sgx.file_check_policy",
-                             cfgbuf, CONFIG_MAX);
+                             cfgbuf, sizeof(cfgbuf));
 
     if (ret > 0) {
         if (!strcmp_static(cfgbuf, "strict"))

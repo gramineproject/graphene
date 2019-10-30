@@ -225,7 +225,7 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         path_lookupat(NULL, "/", 0, &thread->root, NULL);
         char dir_cfg[CONFIG_MAX];
         if (root_config &&
-            get_config(root_config, "fs.start_dir", dir_cfg, CONFIG_MAX) > 0) {
+            get_config(root_config, "fs.start_dir", dir_cfg, sizeof(dir_cfg)) > 0) {
             path_lookupat(NULL, dir_cfg, 0, &thread->cwd, NULL);
         } else if (thread->root) {
             get_dentry(thread->root);

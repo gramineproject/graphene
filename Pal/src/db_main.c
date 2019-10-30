@@ -51,7 +51,7 @@ static void load_libraries (void)
        any other libraries to preload. The can be multiple URIs,
        seperated by commas */
     len = get_config(pal_state.root_config, "loader.preload", cfgbuf,
-                     CONFIG_MAX);
+                     sizeof(cfgbuf));
     if (len <= 0)
         return;
 
@@ -153,7 +153,7 @@ static void read_environments (const char *** envpp)
         ssize_t bytes;
         ptr = &envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
-        if ((bytes = get_config(store, key, cfgbuf, CONFIG_MAX)) > 0) {
+        if ((bytes = get_config(store, key, cfgbuf, sizeof(char) * CONFIG_MAX)) > 0) {
             char * e = malloc(len + bytes + 2);
             memcpy(e, str, len);
             e[len] = '=';
@@ -180,7 +180,7 @@ static void set_debug_type (void)
         return;
 
     ret = get_config(pal_state.root_config, "loader.debug_type",
-                     cfgbuf, CONFIG_MAX);
+                     cfgbuf, sizeof(cfgbuf));
     if (ret <= 0)
         return;
 
@@ -190,7 +190,7 @@ static void set_debug_type (void)
         ret = _DkStreamOpen(&handle, "dev:tty", PAL_ACCESS_RDWR, 0, 0, 0);
     } else if (!strcmp_static(cfgbuf, "file")) {
         ret = get_config(pal_state.root_config, "loader.debug_file",
-                         cfgbuf, CONFIG_MAX);
+                         cfgbuf, sizeof(cfgbuf));
         if (ret <= 0)
             INIT_FAIL(PAL_ERROR_INVAL, "debug file not specified");
 
@@ -398,7 +398,7 @@ noreturn void pal_main (
         /* Run as a manifest file,
          * replace argv[0] with the contents of the manifest's loader.execname */
         char cfgbuf[CONFIG_MAX];
-        ret = get_config(pal_state.root_config, "loader.execname", cfgbuf, CONFIG_MAX);
+        ret = get_config(pal_state.root_config, "loader.execname", cfgbuf, sizeof(cfgbuf));
         if (ret > 0)
             *arguments = malloc_copy(cfgbuf, ret + 1);
     }
