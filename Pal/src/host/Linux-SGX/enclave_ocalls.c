@@ -711,15 +711,17 @@ int ocall_sock_connect (int domain, int type, int protocol,
 }
 
 int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
-                     struct sockaddr * addr, unsigned int * addrlen)
+                     struct sockaddr * addr, unsigned int * addrlenptr,
+                     void * control, uint64_t * controllenptr)
 {
     int retval = 0;
     void * obuf = NULL;
     unsigned int copied;
-    unsigned int len = addrlen ? *addrlen : 0;
+    unsigned int addrlen = addrlenptr ? *addrlenptr : 0;
+    uint64_t controllen  = controllenptr ? *controllenptr : 0;
     ms_ocall_sock_recv_t * ms;
 
-    if ((count + len) > MAX_UNTRUSTED_STACK_BUF) {
+    if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
         retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
         if (IS_ERR(retval))
             return retval;
@@ -733,8 +735,10 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
 
     ms->ms_sockfd = sockfd;
     ms->ms_count = count;
-    ms->ms_addrlen = len;
-    ms->ms_addr = addr ? sgx_alloc_on_ustack(len) : NULL;
+    ms->ms_addrlen = addrlen;
+    ms->ms_addr = addr ? sgx_alloc_on_ustack(addrlen) : NULL;
+    ms->ms_controllen = controllen;
+    ms->ms_control = control ? sgx_alloc_on_ustack(controllen) : NULL;
     if (obuf)
         ms->ms_buf = obuf;
     else
@@ -748,13 +752,22 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
     retval = sgx_ocall(OCALL_SOCK_RECV, ms);
 
     if (retval >= 0) {
-        if (addr && len) {
-            copied = sgx_copy_to_enclave(addr, len, ms->ms_addr, ms->ms_addrlen);
+        if (addr && addrlen) {
+            copied = sgx_copy_to_enclave(addr, addrlen, ms->ms_addr, ms->ms_addrlen);
             if (!copied) {
                 retval = -EPERM;
                 goto out;
             }
-            *addrlen = copied;
+            *addrlenptr = copied;
+        }
+
+        if (control && controllen) {
+            copied = sgx_copy_to_enclave(control, controllen, ms->ms_control, ms->ms_controllen);
+            if (!copied) {
+                retval = -EPERM;
+                goto out;
+            }
+            *controllenptr = copied;
         }
 
         if (retval > 0 && !sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
@@ -771,7 +784,8 @@ out:
 }
 
 int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
-                     const struct sockaddr * addr, unsigned int addrlen)
+                     const struct sockaddr * addr, unsigned int addrlen,
+                     void * control, uint64_t controllen)
 {
     int retval = 0;
     void * obuf = NULL;
@@ -782,7 +796,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
         obuf = (void*)buf;
     } else if (sgx_is_completely_within_enclave(buf, count)) {
         /* typical case of buf inside of enclave memory */
-        if ((count + addrlen) > MAX_UNTRUSTED_STACK_BUF) {
+        if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
             retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
             if (IS_ERR(retval))
@@ -804,6 +818,8 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
     ms->ms_count = count;
     ms->ms_addrlen = addrlen;
     ms->ms_addr = addr ? sgx_copy_to_ustack(addr, addrlen) : NULL;
+    ms->ms_controllen = controllen;
+    ms->ms_control = control ? sgx_copy_to_ustack(control, controllen) : NULL;
     if (obuf)
         ms->ms_buf = obuf;
     else
@@ -820,83 +836,6 @@ out:
     sgx_reset_ustack();
     if (obuf && obuf != buf)
         ocall_munmap_untrusted(obuf, ALLOC_ALIGNUP(count));
-    return retval;
-}
-
-int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
-                        unsigned int * fds, unsigned int * nfds)
-{
-    int retval = 0;
-    unsigned int copied = 0;
-    unsigned int max_nfds_bytes = (*nfds) * sizeof(int);
-    ms_ocall_sock_recv_fd_t * ms;
-
-    ms = sgx_alloc_on_ustack(sizeof(*ms));
-    if (!ms) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    ms->ms_sockfd = sockfd;
-    ms->ms_count = count;
-    ms->ms_nfds = *nfds;
-    ms->ms_buf = sgx_alloc_on_ustack(count);
-    ms->ms_fds = sgx_alloc_on_ustack(max_nfds_bytes);
-
-    if (!ms->ms_buf || !ms->ms_fds) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    retval = sgx_ocall(OCALL_SOCK_RECV_FD, ms);
-
-    if (retval >= 0) {
-        if (retval > 0 && !sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
-            sgx_reset_ustack();
-            return -EPERM;
-        }
-
-        if (ms->ms_nfds > 0) {
-            /* TOCTOU on ms_nfds is possible, but it is benign */
-            copied = sgx_copy_to_enclave(fds, max_nfds_bytes, ms->ms_fds, ms->ms_nfds * sizeof(int));
-            if (!copied) {
-                sgx_reset_ustack();
-                return -EPERM;
-            }
-        }
-        *nfds = copied / sizeof(int);
-    }
-
-    sgx_reset_ustack();
-    return retval;
-}
-
-int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
-                        const unsigned int * fds, unsigned int nfds)
-{
-    int retval = 0;
-    ms_ocall_sock_send_fd_t * ms;
-
-    ms = sgx_alloc_on_ustack(sizeof(*ms));
-    if (!ms) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    ms->ms_sockfd = sockfd;
-    ms->ms_count = count;
-    ms->ms_nfds = nfds;
-    ms->ms_buf = sgx_copy_to_ustack(buf, count);
-    ms->ms_fds = sgx_copy_to_ustack(fds, nfds * sizeof(int));
-
-    if (!ms->ms_buf || !ms->ms_fds) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    retval = sgx_ocall(OCALL_SOCK_SEND_FD, ms);
-
-    sgx_reset_ustack();
     return retval;
 }
 

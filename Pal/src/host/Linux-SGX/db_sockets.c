@@ -470,7 +470,7 @@ static int64_t tcp_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* 
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL);
+    int bytes = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -495,7 +495,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0);
+    int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -630,7 +630,7 @@ static int64_t udp_receive(PAL_HANDLE handle, uint64_t offset, uint64_t len, voi
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int ret = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL);
+    int ret = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL, NULL, NULL);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
@@ -651,7 +651,7 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     struct sockaddr conn_addr;
     socklen_t conn_addrlen = sizeof(struct sockaddr);
 
-    int bytes = ocall_sock_recv(handle->sock.fd, buf, len, &conn_addr, &conn_addrlen);
+    int bytes = ocall_sock_recv(handle->sock.fd, buf, len, &conn_addr, &conn_addrlen, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -680,7 +680,7 @@ static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, uint64_t len, const 
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0);
+    int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -727,7 +727,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     if (ret < 0)
         return ret;
 
-    int bytes = ocall_sock_send(handle->sock.fd, buf, len, &conn_addr, conn_addrlen);
+    int bytes = ocall_sock_send(handle->sock.fd, buf, len, &conn_addr, conn_addrlen, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -1045,7 +1045,7 @@ static int64_t mcast_send(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_send(handle->mcast.srv, buf, size, NULL, 0);
+    int bytes = ocall_sock_send(handle->mcast.srv, buf, size, NULL, 0, NULL, 0);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -1072,7 +1072,7 @@ static int64_t mcast_receive(PAL_HANDLE handle, uint64_t offset, uint64_t size, 
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_sock_recv(handle->mcast.cli, buf, size, NULL, NULL);
+    int bytes = ocall_sock_recv(handle->mcast.cli, buf, size, NULL, NULL, NULL, NULL);
 
     if (IS_ERR(bytes))
         bytes = unix_to_pal_error(ERRNO(bytes));

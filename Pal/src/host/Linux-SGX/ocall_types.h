@@ -47,8 +47,6 @@ enum {
     OCALL_SOCK_CONNECT,
     OCALL_SOCK_RECV,
     OCALL_SOCK_SEND,
-    OCALL_SOCK_RECV_FD,
-    OCALL_SOCK_SEND_FD,
     OCALL_SOCK_SETOPT,
     OCALL_SOCK_SHUTDOWN,
     OCALL_GETTIME,
@@ -201,6 +199,8 @@ typedef struct {
     unsigned int ms_count;
     struct sockaddr * ms_addr;
     unsigned int ms_addrlen;
+    void * ms_control;
+    uint64_t ms_controllen;
 } ms_ocall_sock_recv_t;
 
 typedef struct {
@@ -209,23 +209,9 @@ typedef struct {
     unsigned int ms_count;
     const struct sockaddr * ms_addr;
     unsigned int ms_addrlen;
+    void * ms_control;
+    uint64_t ms_controllen;
 } ms_ocall_sock_send_t;
-
-typedef struct {
-    int ms_sockfd;
-    void * ms_buf;
-    unsigned int ms_count;
-    unsigned int * ms_fds;
-    unsigned int ms_nfds;
-} ms_ocall_sock_recv_fd_t;
-
-typedef struct {
-    int ms_sockfd;
-    const void * ms_buf;
-    unsigned int ms_count;
-    const unsigned int * ms_fds;
-    unsigned int ms_nfds;
-} ms_ocall_sock_send_fd_t;
 
 typedef struct {
     int ms_sockfd;
