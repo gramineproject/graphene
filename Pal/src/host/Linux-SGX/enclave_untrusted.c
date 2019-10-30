@@ -32,7 +32,7 @@ static int pagesize         = PRESET_PAGESIZE;
 static inline void* __malloc(int size) {
     void* addr = NULL;
 
-    ocall_alloc_untrusted(size, &addr);
+    ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, &addr);
     return addr;
 }
 
