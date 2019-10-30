@@ -78,7 +78,7 @@ static int init_port_rebase(void) {
     char cfg[CONFIG_MAX];
     int rebase = 0;
 
-    if (!root_config || get_config(root_config, "net.port.rebase_on_lo", cfg, CONFIG_MAX) <= 0) {
+    if (!root_config || get_config(root_config, "net.port.rebase_on_lo", cfg, sizeof(cfg)) <= 0) {
         rebase_on_lo = 0;
         return 0;
     }

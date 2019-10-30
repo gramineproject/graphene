@@ -141,7 +141,7 @@ int init_trusted_platform(void) {
     }
 
     char subkey[CONFIG_MAX];
-    len = get_config(pal_state.root_config, "sgx.ra_client_key", subkey, CONFIG_MAX);
+    len = get_config(pal_state.root_config, "sgx.ra_client_key", subkey, sizeof(subkey));
     if (len <= 0) {
         SGX_DBG(DBG_E, "No sgx.ra_client_key in the manifest\n");
         return -PAL_ERROR_INVAL;

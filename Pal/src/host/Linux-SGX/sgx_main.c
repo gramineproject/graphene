@@ -250,7 +250,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     char cfgbuf[CONFIG_MAX];
 
     /* Reading sgx.enclave_size from manifest */
-    if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, CONFIG_MAX) <= 0) {
+    if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, sizeof(cfgbuf)) <= 0) {
         SGX_DBG(DBG_E, "Enclave size is not specified\n");
         ret = -EINVAL;
         goto out;
@@ -264,7 +264,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     /* Reading sgx.thread_num from manifest */
-    if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0) {
+    if (get_config(enclave->config, "sgx.thread_num", cfgbuf, sizeof(cfgbuf)) > 0) {
         enclave->thread_num = parse_int(cfgbuf);
 
         if (enclave->thread_num > MAX_DBG_THREADS) {
@@ -277,7 +277,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     /* Reading sgx.static_address from manifest */
-    if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 && cfgbuf[0] == '1')
+    if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0 && cfgbuf[0] == '1')
         enclave->baseaddr = heap_min;
     else
         enclave->baseaddr = heap_min = 0;
@@ -822,7 +822,7 @@ static int load_enclave (struct pal_enclave * enclave,
     // A manifest can specify an executable with a different base name
     // than the manifest itself.  Always give the exec field of the manifest
     // precedence if specified.
-    if (get_config(enclave->config, "loader.exec", cfgbuf, CONFIG_MAX) > 0) {
+    if (get_config(enclave->config, "loader.exec", cfgbuf, sizeof(cfgbuf)) > 0) {
         exec_uri = resolve_uri(cfgbuf, &errstring);
         exec_uri_inferred = false;
         if (!exec_uri) {
@@ -851,7 +851,7 @@ static int load_enclave (struct pal_enclave * enclave,
         }
     }
 
-    if (get_config(enclave->config, "sgx.sigfile", cfgbuf, CONFIG_MAX) < 0) {
+    if (get_config(enclave->config, "sgx.sigfile", cfgbuf, sizeof(cfgbuf)) < 0) {
         SGX_DBG(DBG_E, "Sigstruct file not found ('sgx.sigfile' must be specified in manifest)\n");
         return -EINVAL;
     }
