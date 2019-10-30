@@ -65,8 +65,8 @@ static int pipe_listen(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
 
     unsigned int addrlen = sizeof(struct sockaddr_un);
     struct sockopt sock_options;
-    ret = ocall_sock_listen(AF_UNIX, pipe_type(options), 0, (struct sockaddr*)&addr, &addrlen,
-                            &sock_options);
+    ret = ocall_listen(AF_UNIX, pipe_type(options), 0, (struct sockaddr*)&addr, &addrlen,
+                       &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -88,7 +88,7 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
         return -PAL_ERROR_DENIED;
 
     struct sockopt sock_options;
-    int ret = ocall_sock_accept(handle->pipe.fd, NULL, NULL, &sock_options);
+    int ret = ocall_accept(handle->pipe.fd, NULL, NULL, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -111,8 +111,8 @@ static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
         return ret;
 
     struct sockopt sock_options;
-    ret = ocall_sock_connect(AF_UNIX, pipe_type(options), 0, (void*)&addr,
-                             sizeof(struct sockaddr_un), NULL, NULL, &sock_options);
+    ret = ocall_connect(AF_UNIX, pipe_type(options), 0, (void*)&addr,
+                        sizeof(struct sockaddr_un), NULL, NULL, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -188,7 +188,7 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
         return -PAL_ERROR_INVAL;
 
     int fd    = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] : handle->pipe.fd;
-    int bytes = ocall_sock_recv(fd, buffer, len, NULL, NULL, NULL, NULL);
+    int bytes = ocall_recv(fd, buffer, len, NULL, NULL, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -212,7 +212,7 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, cons
         return -PAL_ERROR_INVAL;
 
     int fd    = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] : handle->pipe.fd;
-    int bytes = ocall_sock_send(fd, buffer, len, NULL, 0, NULL, 0);
+    int bytes = ocall_send(fd, buffer, len, NULL, 0, NULL, 0);
 
     PAL_FLG writable = IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0);
 
@@ -309,7 +309,7 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
             return -PAL_ERROR_INVAL;
     }
 
-    ocall_sock_shutdown(handle->pipe.fd, shutdown);
+    ocall_shutdown(handle->pipe.fd, shutdown);
     return 0;
 }
 

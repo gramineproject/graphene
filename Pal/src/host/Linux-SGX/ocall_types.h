@@ -42,13 +42,13 @@ enum {
     OCALL_CREATE_PROCESS,
     OCALL_FUTEX,
     OCALL_SOCKETPAIR,
-    OCALL_SOCK_LISTEN,
-    OCALL_SOCK_ACCEPT,
-    OCALL_SOCK_CONNECT,
-    OCALL_SOCK_RECV,
-    OCALL_SOCK_SEND,
-    OCALL_SOCK_SETOPT,
-    OCALL_SOCK_SHUTDOWN,
+    OCALL_LISTEN,
+    OCALL_ACCEPT,
+    OCALL_CONNECT,
+    OCALL_RECV,
+    OCALL_SEND,
+    OCALL_SETSOCKOPT,
+    OCALL_SHUTDOWN,
     OCALL_GETTIME,
     OCALL_SLEEP,
     OCALL_POLL,
@@ -175,14 +175,14 @@ typedef struct {
     const struct sockaddr * ms_addr;
     unsigned int ms_addrlen;
     struct sockopt ms_sockopt;
-} ms_ocall_sock_listen_t;
+} ms_ocall_listen_t;
 
 typedef struct {
     int ms_sockfd;
     struct sockaddr * ms_addr;
     unsigned int ms_addrlen;
     struct sockopt ms_sockopt;
-} ms_ocall_sock_accept_t;
+} ms_ocall_accept_t;
 
 typedef struct {
     int ms_domain, ms_type, ms_protocol;
@@ -191,7 +191,7 @@ typedef struct {
     struct sockaddr * ms_bind_addr;
     unsigned int ms_bind_addrlen;
     struct sockopt ms_sockopt;
-} ms_ocall_sock_connect_t;
+} ms_ocall_connect_t;
 
 typedef struct {
     PAL_IDX ms_sockfd;
@@ -201,7 +201,7 @@ typedef struct {
     unsigned int ms_addrlen;
     void * ms_control;
     uint64_t ms_controllen;
-} ms_ocall_sock_recv_t;
+} ms_ocall_recv_t;
 
 typedef struct {
     PAL_IDX ms_sockfd;
@@ -211,7 +211,7 @@ typedef struct {
     unsigned int ms_addrlen;
     void * ms_control;
     uint64_t ms_controllen;
-} ms_ocall_sock_send_t;
+} ms_ocall_send_t;
 
 typedef struct {
     int ms_sockfd;
@@ -219,12 +219,12 @@ typedef struct {
     int ms_optname;
     const void * ms_optval;
     unsigned int ms_optlen;
-} ms_ocall_sock_setopt_t;
+} ms_ocall_setsockopt_t;
 
 typedef struct {
     int ms_sockfd;
     int ms_how;
-} ms_ocall_sock_shutdown_t;
+} ms_ocall_shutdown_t;
 
 typedef struct {
     unsigned long ms_microsec;

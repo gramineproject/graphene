@@ -36,8 +36,8 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup)
 }
 
 int ocall_mmap_untrusted (int fd, uint64_t offset,
-                         uint64_t size, unsigned short prot,
-                         void ** mem)
+                          uint64_t size, unsigned short prot,
+                          void ** mem)
 {
     int retval = 0;
     ms_ocall_mmap_untrusted_t * ms;
@@ -568,14 +568,14 @@ int ocall_socketpair (int domain, int type, int protocol,
     return retval;
 }
 
-int ocall_sock_listen (int domain, int type, int protocol,
-                       struct sockaddr * addr, unsigned int * addrlen,
-                       struct sockopt * sockopt)
+int ocall_listen (int domain, int type, int protocol,
+                  struct sockaddr * addr, unsigned int * addrlen,
+                  struct sockopt * sockopt)
 {
     int retval = 0;
     unsigned int copied;
     unsigned int len = addrlen ? *addrlen : 0;
-    ms_ocall_sock_listen_t * ms;
+    ms_ocall_listen_t * ms;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms) {
@@ -594,7 +594,7 @@ int ocall_sock_listen (int domain, int type, int protocol,
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_SOCK_LISTEN, ms);
+    retval = sgx_ocall(OCALL_LISTEN, ms);
 
     if (retval >= 0) {
         if (addr && len) {
@@ -615,13 +615,13 @@ int ocall_sock_listen (int domain, int type, int protocol,
     return retval;
 }
 
-int ocall_sock_accept (int sockfd, struct sockaddr * addr,
-                       unsigned int * addrlen, struct sockopt * sockopt)
+int ocall_accept (int sockfd, struct sockaddr * addr,
+                  unsigned int * addrlen, struct sockopt * sockopt)
 {
     int retval = 0;
     unsigned int copied;
     unsigned int len = addrlen ? *addrlen : 0;
-    ms_ocall_sock_accept_t * ms;
+    ms_ocall_accept_t * ms;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms) {
@@ -638,7 +638,7 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_SOCK_ACCEPT, ms);
+    retval = sgx_ocall(OCALL_ACCEPT, ms);
 
     if (retval >= 0) {
         if (addr && len) {
@@ -659,16 +659,16 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
     return retval;
 }
 
-int ocall_sock_connect (int domain, int type, int protocol,
-                        const struct sockaddr * addr,
-                        unsigned int addrlen,
-                        struct sockaddr * bind_addr,
-                        unsigned int * bind_addrlen, struct sockopt * sockopt)
+int ocall_connect (int domain, int type, int protocol,
+                   const struct sockaddr * addr,
+                   unsigned int addrlen,
+                   struct sockaddr * bind_addr,
+                   unsigned int * bind_addrlen, struct sockopt * sockopt)
 {
     int retval = 0;
     unsigned int copied;
     unsigned int bind_len = bind_addrlen ? *bind_addrlen : 0;
-    ms_ocall_sock_connect_t * ms;
+    ms_ocall_connect_t * ms;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms) {
@@ -689,7 +689,7 @@ int ocall_sock_connect (int domain, int type, int protocol,
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_SOCK_CONNECT, ms);
+    retval = sgx_ocall(OCALL_CONNECT, ms);
 
     if (retval >= 0) {
         if (bind_addr && bind_len) {
@@ -710,16 +710,16 @@ int ocall_sock_connect (int domain, int type, int protocol,
     return retval;
 }
 
-int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
-                     struct sockaddr * addr, unsigned int * addrlenptr,
-                     void * control, uint64_t * controllenptr)
+int ocall_recv (int sockfd, void * buf, unsigned int count,
+                struct sockaddr * addr, unsigned int * addrlenptr,
+                void * control, uint64_t * controllenptr)
 {
     int retval = 0;
     void * obuf = NULL;
     unsigned int copied;
     unsigned int addrlen = addrlenptr ? *addrlenptr : 0;
     uint64_t controllen  = controllenptr ? *controllenptr : 0;
-    ms_ocall_sock_recv_t * ms;
+    ms_ocall_recv_t * ms;
 
     if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
         retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGNUP(count), PROT_READ | PROT_WRITE, &obuf);
@@ -749,7 +749,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
         goto out;
     }
 
-    retval = sgx_ocall(OCALL_SOCK_RECV, ms);
+    retval = sgx_ocall(OCALL_RECV, ms);
 
     if (retval >= 0) {
         if (addr && addrlen) {
@@ -783,13 +783,13 @@ out:
     return retval;
 }
 
-int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
-                     const struct sockaddr * addr, unsigned int addrlen,
-                     void * control, uint64_t controllen)
+int ocall_send (int sockfd, const void * buf, unsigned int count,
+                const struct sockaddr * addr, unsigned int addrlen,
+                void * control, uint64_t controllen)
 {
     int retval = 0;
     void * obuf = NULL;
-    ms_ocall_sock_send_t * ms;
+    ms_ocall_send_t * ms;
 
     if (sgx_is_completely_outside_enclave(buf, count)) {
         /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
@@ -830,7 +830,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
         goto out;
     }
 
-    retval = sgx_ocall(OCALL_SOCK_SEND, ms);
+    retval = sgx_ocall(OCALL_SEND, ms);
 
 out:
     sgx_reset_ustack();
@@ -839,11 +839,11 @@ out:
     return retval;
 }
 
-int ocall_sock_setopt (int sockfd, int level, int optname,
-                       const void * optval, unsigned int optlen)
+int ocall_setsockopt (int sockfd, int level, int optname,
+                      const void * optval, unsigned int optlen)
 {
     int retval = 0;
-    ms_ocall_sock_setopt_t * ms;
+    ms_ocall_setsockopt_t * ms;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms) {
@@ -867,16 +867,16 @@ int ocall_sock_setopt (int sockfd, int level, int optname,
         }
     }
 
-    retval = sgx_ocall(OCALL_SOCK_SETOPT, ms);
+    retval = sgx_ocall(OCALL_SETSOCKOPT, ms);
 
     sgx_reset_ustack();
     return retval;
 }
 
-int ocall_sock_shutdown (int sockfd, int how)
+int ocall_shutdown (int sockfd, int how)
 {
     int retval = 0;
-    ms_ocall_sock_shutdown_t * ms;
+    ms_ocall_shutdown_t * ms;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms) {
@@ -887,7 +887,7 @@ int ocall_sock_shutdown (int sockfd, int how)
     ms->ms_sockfd = sockfd;
     ms->ms_how = how;
 
-    retval = sgx_ocall(OCALL_SOCK_SHUTDOWN, ms);
+    retval = sgx_ocall(OCALL_SHUTDOWN, ms);
 
     sgx_reset_ustack();
     return retval;

@@ -444,7 +444,7 @@ static int proc_delete (PAL_HANDLE handle, int access)
     }
 
     if (handle->process.cargo != PAL_IDX_POISON)
-        ocall_sock_shutdown(handle->process.cargo, shutdown);
+        ocall_shutdown(handle->process.cargo, shutdown);
 
     return 0;
 }
