@@ -121,6 +121,7 @@ static void read_environments (const char *** envpp)
         memcpy(str, cfg, len + 1);
         cfg += len + 1;
     }
+    free(cfgbuf);
 
     int nenvs = 0, noverwrite = 0;
     for (const char ** e = envp ; *e ; e++, nenvs++)
@@ -143,8 +144,8 @@ static void read_environments (const char *** envpp)
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
     const char ** ptr;
-    free(cfgbuf);
-    cfgbuf = __alloca(sizeof(char) * CONFIG_MAX);
+    cfgsize = CONFIG_MAX;
+    cfgbuf = __alloca(cfgsize);
 
     for (int i = 0 ; i < nsetenvs ; i++) {
         const char * str = setenvs[i].str;
@@ -153,7 +154,7 @@ static void read_environments (const char *** envpp)
         ssize_t bytes;
         ptr = &envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
-        if ((bytes = get_config(store, key, cfgbuf, sizeof(char) * CONFIG_MAX)) > 0) {
+        if ((bytes = get_config(store, key, cfgbuf, cfgsize)) > 0) {
             char * e = malloc(len + bytes + 2);
             memcpy(e, str, len);
             e[len] = '=';
