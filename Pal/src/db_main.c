@@ -84,7 +84,6 @@ static void read_environments (const char *** envpp)
 {
     struct config_store * store = pal_state.root_config;
     const char ** envp = *envpp;
-    char * cfgbuf;
 
     /* loader.env.*: rewriting host environment variables */
     struct setenv {
@@ -96,22 +95,21 @@ static void read_environments (const char *** envpp)
     if (!pal_state.root_config)
         return;
 
-    ssize_t cfgsize = get_config_entries_size(store, "loader.env");
+    ssize_t cfgsize_envs = get_config_entries_size(store, "loader.env");
     /* XXX Propagate this error? */
-    if (cfgsize < 0)
+    if (cfgsize_envs < 0)
         return;
 
-    cfgbuf = malloc(cfgsize);
-    assert(cfgbuf);
-    nsetenvs = get_config_entries(store, "loader.env", cfgbuf, cfgsize);
-
+    char * cfgbuf_envs = malloc(cfgsize_envs);
+    assert(cfgbuf_envs);
+    nsetenvs = get_config_entries(store, "loader.env", cfgbuf_envs, cfgsize_envs);
     if (nsetenvs <= 0) {
-        free(cfgbuf);
+        free(cfgbuf_envs);
         return;
     }
 
     setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
-    char * cfg = cfgbuf;
+    char * cfg = cfgbuf_envs;
     for (int i = 0 ; i < nsetenvs ; i++) {
         size_t len = strlen(cfg);
         char * str = __alloca(len + 1);
@@ -121,7 +119,7 @@ static void read_environments (const char *** envpp)
         memcpy(str, cfg, len + 1);
         cfg += len + 1;
     }
-    free(cfgbuf);
+    free(cfgbuf_envs);
 
     int nenvs = 0, noverwrite = 0;
     for (const char ** e = envp ; *e ; e++, nenvs++)
@@ -144,8 +142,7 @@ static void read_environments (const char *** envpp)
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
     const char ** ptr;
-    cfgsize = CONFIG_MAX;
-    cfgbuf = __alloca(cfgsize);
+    char cfgbuf[CONFIG_MAX];
 
     for (int i = 0 ; i < nsetenvs ; i++) {
         const char * str = setenvs[i].str;
@@ -154,7 +151,7 @@ static void read_environments (const char *** envpp)
         ssize_t bytes;
         ptr = &envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
-        if ((bytes = get_config(store, key, cfgbuf, cfgsize)) > 0) {
+        if ((bytes = get_config(store, key, cfgbuf, sizeof(cfgbuf))) > 0) {
             char * e = malloc(len + bytes + 2);
             memcpy(e, str, len);
             e[len] = '=';
