@@ -465,6 +465,8 @@ int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp);
 int shim_do_clock_getres(clockid_t which_clock, struct timespec* tp);
 noreturn int shim_do_exit_group(int error_code);
 int shim_do_tgkill(int tgid, int pid, int sig);
+int shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,
+                  unsigned long maxnode, int flags);
 int shim_do_openat(int dfd, const char* filename, int flags, int mode);
 int shim_do_mkdirat(int dfd, const char* pathname, int mode);
 int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags);
