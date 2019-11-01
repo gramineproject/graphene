@@ -247,3 +247,16 @@ int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
 
     return 0;
 }
+
+
+int shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,
+                  unsigned long maxnode, int flags) {
+    /* dummy implementation, always return success */
+    __UNUSED(start);
+    __UNUSED(len);
+    __UNUSED(mode);
+    __UNUSED(nmask);
+    __UNUSED(maxnode);
+    __UNUSED(flags);
+    return 0;
+}

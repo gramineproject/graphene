@@ -815,8 +815,8 @@ SHIM_SYSCALL_PASSTHROUGH(utimes, 2, int, char*, filename, struct timeval*, utime
    TODO: vserver syscall is not implemented (kernel always returns -ENOSYS),
    how should we handle this?*/
 
-SHIM_SYSCALL_PASSTHROUGH(mbind, 6, int, void*, start, unsigned long, len, int, mode, unsigned long*,
-                         nmask, unsigned long, maxnode, int, flags)
+DEFINE_SHIM_SYSCALL(mbind, 6, shim_do_mbind, int, void*, start, unsigned long, len, int, mode,
+                    unsigned long*, nmask, unsigned long, maxnode, int, flags)
 
 SHIM_SYSCALL_PASSTHROUGH(set_mempolicy, 3, int, int, mode, unsigned long*, nmask, unsigned long,
                          maxnode)
