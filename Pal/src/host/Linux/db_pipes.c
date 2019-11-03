@@ -357,10 +357,6 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         attr->writable     = HANDLE_HDR(handle)->flags &
                                  (IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0));
     } else {
-        struct pollfd pfd  = {.fd = handle->generic.fds[0], .events = POLLIN, .revents = 0};
-        struct timespec tp = {0, 0};
-        ret                = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-        attr->readable     = (ret == 1 && pfd.revents == POLLIN);
         attr->pending_size = 0;
         attr->writable     = PAL_FALSE;
     }
