@@ -276,11 +276,12 @@ int initialize_enclave (struct pal_enclave * enclave)
         enclave->thread_num = 1;
     }
 
-    /* Reading sgx.static_address from manifest */
-    if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0 && cfgbuf[0] == '1')
-        enclave->baseaddr = heap_min;
-    else
-        enclave->baseaddr = heap_min = 0;
+    if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0 && cfgbuf[0] == '1') {
+        enclave->baseaddr = ALIGN_DOWN_POW2(heap_min, enclave->size);
+    } else {
+        enclave->baseaddr = ENCLAVE_HIGH_ADDRESS;
+        heap_min = 0;
+    }
 
     ret = read_enclave_token(enclave->token, &enclave_token);
     if (ret < 0) {
@@ -294,14 +295,15 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto out;
     }
 
-    ret = create_enclave(&enclave_secs, enclave->baseaddr, enclave->size, &enclave_token);
+    memset(&enclave_secs, 0, sizeof(enclave_secs));
+    enclave_secs.base = enclave->baseaddr;
+    enclave_secs.size = enclave->size;
+    ret = create_enclave(&enclave_secs, &enclave_token);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Creating enclave failed: %d\n", -ret);
         goto out;
     }
 
-    enclave->baseaddr = enclave_secs.base;
-    enclave->size = enclave_secs.size;
     enclave->ssaframesize = enclave_secs.ssa_frame_size * pagesize;
 
     struct stat stat;
