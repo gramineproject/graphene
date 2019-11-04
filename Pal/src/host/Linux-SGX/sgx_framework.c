@@ -136,10 +136,11 @@ bool is_wrfsbase_supported (void)
 }
 
 int create_enclave(sgx_arch_secs_t * secs,
-                   unsigned long baseaddr,
-                   unsigned long size,
                    sgx_arch_token_t * token)
 {
+    assert(secs->size && IS_POWER_OF_2(secs->size));
+    assert(IS_ALIGNED(secs->base, secs->size));
+
     int flags = MAP_SHARED;
 
     if (!zero_page) {
@@ -151,10 +152,6 @@ int create_enclave(sgx_arch_secs_t * secs,
             return -ENOMEM;
     }
 
-    memset(secs, 0, sizeof(sgx_arch_secs_t));
-    secs->size = pagesize;
-    while (secs->size < size)
-        secs->size <<= 1;
     secs->ssa_frame_size = get_ssaframesize(token->body.attributes.xfrm) / pagesize;
     secs->misc_select = token->masked_misc_select_le;
     memcpy(&secs->attributes, &token->body.attributes, sizeof(sgx_attributes_t));
@@ -164,12 +161,6 @@ int create_enclave(sgx_arch_secs_t * secs,
      * computed dynamically and SECS's mr_signer is populated based on the
      * SIGSTRUCT during EINIT (see pp21 for ECREATE and pp34 for
      * EINIT in https://software.intel.com/sites/default/files/managed/48/88/329298-002.pdf). */
-
-    if (baseaddr) {
-        secs->base = ALIGN_DOWN_POW2(baseaddr, secs->size);
-    } else {
-        secs->base = ENCLAVE_HIGH_ADDRESS;
-    }
 
     uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->base, secs->size,
                                    PROT_READ|PROT_WRITE|PROT_EXEC,
@@ -185,7 +176,7 @@ int create_enclave(sgx_arch_secs_t * secs,
         return -ENOMEM;
     }
 
-    secs->base = addr;
+    assert(secs->base == addr);
 
 #if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_create param = {
