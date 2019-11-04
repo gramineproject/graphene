@@ -309,27 +309,27 @@ struct shim_str_handle {
     char* ptr;
 };
 
-DEFINE_LIST(shim_epoll_fd);
-DEFINE_LISTP(shim_epoll_fd);
+DEFINE_LIST(shim_epoll_item);
+DEFINE_LISTP(shim_epoll_item);
 struct shim_epoll_handle {
     int maxfds;
-    int nfds;
-    LISTP_TYPE(shim_epoll_fd) fds; /* this list contains all the
-                                    * shim_epoll_fd objects in correspondence
-                                    * with the registered handles. */
-    FDTYPE* pal_fds;
-    PAL_HANDLE* pal_handles;
-    int npals;
     int nread;
     int nwaiters;
+
+    int npals;
+    PAL_HANDLE* pal_handles;
+
     AEVENTTYPE event;
+    LISTP_TYPE(shim_epoll_item) fds; /* this list contains all the
+                                    * shim_epoll_item objects in correspondence
+                                    * with the registered handles. */
 };
 
 struct shim_mount;
 struct shim_qstr;
 struct shim_dentry;
 
-/* The epolls list links to the back field of the shim_epoll_fd structure
+/* The epolls list links to the back field of the shim_epoll_item structure
  */
 struct shim_handle {
     enum shim_handle_type type;
@@ -342,8 +342,8 @@ struct shim_handle {
     struct shim_dentry* dentry;
 
     /* If this handle is registered for any epoll handle, this list contains
-     * a shim_epoll_fd object in correspondence with the epoll handle. */
-    LISTP_TYPE(shim_epoll_fd) epolls;
+     * a shim_epoll_item object in correspondence with the epoll handle. */
+    LISTP_TYPE(shim_epoll_item) epolls;
 
     struct shim_qstr uri; /* URI representing this handle, it is not
                            * necessary to be set. */
