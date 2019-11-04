@@ -741,7 +741,7 @@ BEGIN_CP_FUNC(handle) {
         }
 
         if (hdl->type == TYPE_EPOLL)
-            DO_CP(epoll_fd, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
+            DO_CP(epoll_item, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
 
         INIT_LISTP(&new_hdl->epolls);
 
