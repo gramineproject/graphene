@@ -796,6 +796,8 @@ int object_wait_with_retry(PAL_HANDLE handle);
 
 void release_clear_child_tid(int* clear_child_tid);
 
+void delete_from_epoll_handles(struct shim_handle* handle);
+
 #ifdef __x86_64__
 #define __SWITCH_STACK(stack_top, func, arg)                    \
     do {                                                        \

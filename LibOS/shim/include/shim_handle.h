@@ -304,16 +304,13 @@ DEFINE_LIST(shim_epoll_item);
 DEFINE_LISTP(shim_epoll_item);
 struct shim_epoll_handle {
     int maxfds;
-    int nread;
-    int nwaiters;
+    int waiter_cnt;
 
-    int npals;
+    int pal_cnt;
     PAL_HANDLE* pal_handles;
 
     AEVENTTYPE event;
-    LISTP_TYPE(shim_epoll_item) fds; /* this list contains all the
-                                    * shim_epoll_item objects in correspondence
-                                    * with the registered handles. */
+    LISTP_TYPE(shim_epoll_item) fds;
 };
 
 struct shim_mount;
