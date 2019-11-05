@@ -52,11 +52,10 @@ manifest_rules = \
 	$(extra_rules)
 
 manifest: manifest.template
-	sed $(manifest_rules) $< >$@
+	$(call cmd,manifest,$(manifest_rules))
 
 %.manifest: %.manifest.template $(executables) $(pal_lib)
-	sed $(manifest_rules) $< >$@
-	(grep -q "#\!" $@ && chmod +x $@) || true
+	$(call cmd,manifest,$(manifest_rules))
 
 ../src/user_shared_start.o ../src/user_start.o: ../src/user_start.S
 	$(MAKE) -C ../src $(notdir $@)
