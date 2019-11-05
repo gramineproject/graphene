@@ -1,8 +1,8 @@
 export PAL_DIR = $(CURDIR)
 export RUNTIME_DIR = $(CURDIR)/../../Runtime
 
-include ../../Makefile.configs
-include ../../Makefile.rules
+include ../../Scripts/Makefile.configs
+include ../../Scripts/Makefile.rules
 include Makefile.Host
 
 # Customizable PAL Targets

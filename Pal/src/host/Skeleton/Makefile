@@ -1,4 +1,4 @@
-include ../../../../Makefile.configs
+include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
 CFLAGS  += -I. -I../.. -I../../../include -I../../../lib
@@ -34,7 +34,7 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs))
 %.o: %.S $(headers)
 	$(call cmd,as_o_S)
 
-include ../../../../Makefile.rules
+include ../../../../Scripts/Makefile.rules
 
 .PHONY: clean
 clean:

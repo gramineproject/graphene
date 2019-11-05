@@ -116,12 +116,12 @@ quiet_cmd_check_no_reloc = [ check_no_reloc $^ ]
       cmd_check_no_reloc = LC_ALL=C readelf -r $^ | grep -q 'There are no relocations in this file.'
 
 # single .c => executable
-quiet_cmd_csingle  = [ $@ ]
-      cmd_csingle  = $(CC) -MD -MP $(CFLAGS) $(CFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
+quiet_cmd_csingle = [ $@ ]
+      cmd_csingle = $(CC) -MD -MP $(CFLAGS) $(CFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
 
 # single .cpp => executable
-quiet_cmd_cxxsingle  = [ $@ ]
-      cmd_cxxsingle  = $(CXX) -MD -MP $(CXXFLAGS) $(CXXFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
+quiet_cmd_cxxsingle = [ $@ ]
+      cmd_cxxsingle = $(CXX) -MD -MP $(CXXFLAGS) $(CXXFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
 
 # sgx sign
 quiet_cmd_sgx_sign_exec = [ $*.{sig, manifest.sgx} ]
@@ -144,7 +144,7 @@ quiet_cmd_sgx_sign_depend = [ $@ ]
       cmd_sgx_sign_depend = $(SGX_SIGN) -depend -output $@ -manifest $<
 
 # pal map
-PAL_SYMBOL_FILE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))Pal/src/pal-symbols
+PAL_SYMBOL_FILE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../Pal/src/pal-symbols
 PAL_SYMBOLS = $(shell sed -e 's|$$|;|g' $(PAL_SYMBOL_FILE))
 
 quiet_cmd_pal_map = [ $@ ]
