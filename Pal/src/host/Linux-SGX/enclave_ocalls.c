@@ -11,6 +11,11 @@
 #include <api.h>
 #include <asm/errno.h>
 
+/* Check against this limit if the buffer to be allocated fits on the untrusted stack; if not,
+ * buffer will be allocated on untrusted heap. Since Linux has 8MB of untrusted stack, let's
+ * set the limit to not too low and not too high value of 128 * 4K = 512KB. */
+#define MAX_UNTRUSTED_STACK_BUF (128 * PRESET_PAGESIZE)
+
 noreturn void ocall_exit(int exitcode, int is_exitgroup)
 {
     ms_ocall_exit_t * ms;
@@ -220,7 +225,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
     void * obuf = NULL;
     ms_ocall_read_t * ms;
 
-    if (count > PRESET_PAGESIZE) {
+    if (count > MAX_UNTRUSTED_STACK_BUF) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (IS_ERR(retval))
             return retval;
@@ -271,7 +276,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
         obuf = (void*)buf;
     } else if (sgx_is_completely_within_enclave(buf, count)) {
         /* typical case of buf inside of enclave memory */
-        if (count > PRESET_PAGESIZE) {
+        if (count > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
             retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
             if (IS_ERR(retval))
@@ -762,7 +767,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
     unsigned int len = addrlen ? *addrlen : 0;
     ms_ocall_sock_recv_t * ms;
 
-    if ((count + len) > PRESET_PAGESIZE) {
+    if ((count + len) > MAX_UNTRUSTED_STACK_BUF) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (IS_ERR(retval))
             return retval;
@@ -825,7 +830,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
         obuf = (void*)buf;
     } else if (sgx_is_completely_within_enclave(buf, count)) {
         /* typical case of buf inside of enclave memory */
-        if ((count + addrlen) > PRESET_PAGESIZE) {
+        if ((count + addrlen) > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
             retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
             if (IS_ERR(retval))
