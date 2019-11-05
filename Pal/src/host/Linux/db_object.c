@@ -122,8 +122,10 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
             case EINTR:
             case ERESTART:
                 ret = -PAL_ERROR_INTERRUPTED;
+                break;
             default:
                 ret = unix_to_pal_error(ERRNO(ret));
+                break;
         }
         goto out;
     }
@@ -269,8 +271,10 @@ int _DkObjectsWaitEvents(int count, PAL_HANDLE* handleArray, PAL_FLG* events, PA
             case EINTR:
             case ERESTART:
                 ret = -PAL_ERROR_INTERRUPTED;
+                break;
             default:
                 ret = unix_to_pal_error(ERRNO(ret));
+                break;
         }
         goto out;
     }
