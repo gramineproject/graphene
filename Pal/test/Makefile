@@ -6,8 +6,8 @@ CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
 
 .PHONY: default
 default: all
-include ../../Makefile.configs
-include ../../Makefile.rules
+include ../../Scripts/Makefile.configs
+include ../../Scripts/Makefile.rules
 include ../src/Makefile.Test
 
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
