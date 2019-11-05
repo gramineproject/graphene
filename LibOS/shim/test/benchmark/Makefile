@@ -4,7 +4,7 @@ cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 target = $(c_executables) $(cxx_executables) \
 	  manifest
 
-include ../Makefile.Test
+include ../../../../Scripts/Makefile.Test
 
 %.manifest: %.manifest.template
 	rm -rf $@

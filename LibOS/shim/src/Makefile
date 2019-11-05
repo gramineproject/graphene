@@ -1,6 +1,6 @@
 RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
-include ../../../Makefile.configs
+include ../../../Scripts/Makefile.configs
 include ../../../Pal/src/Makefile.Host
 
 OMIT_FRAME_POINTER = no
@@ -122,7 +122,7 @@ endif
 
 syscallas.S shim_checkpoint.c: asm-offsets.h
 
-include ../../../Makefile.rules
+include ../../../Scripts/Makefile.rules
 
 LDFLAGS-vdso/vdso.so.dbg = -nostdlib -shared \
 	--hash-style=both --build-id -Bsymbolic \

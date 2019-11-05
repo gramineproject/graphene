@@ -1,4 +1,4 @@
-include ../../../../Makefile.configs
+include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib \
@@ -47,7 +47,7 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 %.s: %.S
 	$(call cmd,cpp_s_S)
 
-include ../../../../Makefile.rules
+include ../../../../Scripts/Makefile.rules
 
 -include $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs))
 
