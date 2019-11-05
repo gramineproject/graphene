@@ -1,4 +1,4 @@
-include ../../../../Makefile.configs
+include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
 ias_cert_url ?= https://certificates.trustedservices.intel.com/Intel_SGX_Attestation_RootCA.pem
@@ -93,7 +93,7 @@ ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard debugger/*.d)
 endif
 
-include ../../../../Makefile.rules
+include ../../../../Scripts/Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o

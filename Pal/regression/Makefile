@@ -15,8 +15,8 @@ pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
 .PHONY: default
 default: all
-include ../../Makefile.configs
-include ../../Makefile.rules
+include ../../Scripts/Makefile.configs
+include ../../Scripts/Makefile.rules
 include ../src/Makefile.Test
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
