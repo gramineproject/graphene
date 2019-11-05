@@ -32,3 +32,10 @@
 int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us, PAL_HANDLE* polled) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+/* Improved version of _DkObjectsWaitAny(): wait for specific events on all handles in the handle
+ * array and return multiple events (including errors) reported by the host. */
+int _DkObjectsWaitEvents(int count, PAL_HANDLE* handleArray, PAL_FLG* events, PAL_FLG* ret_events,
+                         int64_t timeout_us) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
