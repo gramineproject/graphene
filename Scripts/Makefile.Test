@@ -1,15 +1,12 @@
-# TODO: remove This file
-# once graphene-tests rewrite is done, this file should be unnecessary.
-# This file is kept for graphene-tests to be happy as workaround
-
-SHIM_TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+SCRIPTS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+SHIM_TEST_DIR = $(SCRIPTS_DIR)/../LibOS/shim/test
 
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-PALDIR  = $(SHIM_TEST_DIR)/../../../Pal/src
-SHIMDIR = $(SHIM_TEST_DIR)/../src
-RUNTIME = $(SHIM_TEST_DIR)/../../../Runtime
+PALDIR  = $(abspath $(SCRIPTS_DIR)/../Pal/src)
+SHIMDIR = $(abspath $(SCRIPTS_DIR)/../LibOS/shim)
+RUNTIME = $(abspath $(SCRIPTS_DIR)/../Runtime)
 
 ifeq ($(SGX),1)
 PAL_LOADER = pal_loader SGX
@@ -23,17 +20,17 @@ CFLAGS 	= -Wall -std=gnu99
 CXXFLAGS = -Wall -std=c++14
 LDFLAGS	=
 
-CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
+CFLAGS-libos = -I$(SHIMDIR)/include -L$(SHIMDIR)/../glibc-build/libos
 
-CFLAGS-libos-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
-CXXFLAGS-libos-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
-LDFLAGS-libos-debug = -L$(SHIMDIR) -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=$(abspath $(RUNTIME)) -lpal -lsysdb_debug
+CFLAGS-libos-debug = -I$(SHIMDIR)/include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
+CXXFLAGS-libos-debug = -I$(SHIMDIR)/include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
+LDFLAGS-libos-debug = -L$(SHIMDIR)/src -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=$(abspath $(RUNTIME)) -lpal -lsysdb_debug
 
 .PHONY: default
 default: all
 
-include $(SHIM_TEST_DIR)/../../../Scripts/Makefile.configs
-include $(SHIM_TEST_DIR)/../../../Scripts/Makefile.rules
+include $(SCRIPTS_DIR)/Makefile.configs
+include $(SCRIPTS_DIR)/Makefile.rules
 include $(PALDIR)/Makefile.Test
 
 .PHONY: all

@@ -38,7 +38,7 @@ export GLIBC_CFLAGS
 all: $(GLIBC_TARGET) $(GLIBC_RUNTIME)
 	$(MAKE) -C $(SHIM_DIR) all
 
-include ../Makefile.rules
+include ../Scripts/Makefile.rules
 
 .PHONY: format
 format:
