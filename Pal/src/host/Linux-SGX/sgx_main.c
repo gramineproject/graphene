@@ -1084,7 +1084,10 @@ int main (int argc, char ** argv, char ** envp)
     }
 
     SGX_DBG(DBG_I, "Manifest file: %s\n", manifest_uri);
-    SGX_DBG(DBG_I, "Executable file: %s\n", exec_uri);
+    if (exec_uri_inferred)
+        SGX_DBG(DBG_I, "Inferred executable file: %s\n", exec_uri);
+    else
+        SGX_DBG(DBG_I, "Executable file: %s\n", exec_uri);
 
     /*
      * While C does not guarantee that the argv[i] and envp[i] strings are
