@@ -13,6 +13,7 @@ DkMutexRelease
 DkEventSet
 DkEventClear
 DkObjectsWaitAny
+DkObjectsWaitEvents
 DkStreamOpen
 DkStreamRead
 DkStreamWrite

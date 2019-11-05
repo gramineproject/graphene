@@ -313,7 +313,6 @@ DEFINE_LIST(shim_epoll_item);
 DEFINE_LISTP(shim_epoll_item);
 struct shim_epoll_handle {
     int maxfds;
-    int nread;
     int nwaiters;
 
     int npals;

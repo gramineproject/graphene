@@ -83,6 +83,15 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
         return -ENOMEM;
     }
 
+    /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
+    PAL_FLG* pal_events = malloc(nfds * sizeof(PAL_FLG) * 2);
+    if (!pal_events) {
+        free(pals);
+        free(fds_to_hdls);
+        return -ENOMEM;
+    }
+    PAL_FLG* ret_events = pal_events + nfds;
+
     nfds_t npals = 0;
     nfds_t nrevents = 0;
 
@@ -120,79 +129,46 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
             continue;
         }
 
-        if (!(fds[i].events & (POLLIN|POLLRDNORM)) && (fds[i].events & (POLLOUT|POLLWRNORM))) {
-            /* special case: user is interested only in write event on this handle, and whether
-             * write event occurs is always known in PAL layer, so simply consult PAL and
-             * update revents and skip this handle for polling (note that otherwise PAL could get
-             * stuck in host poll() because PAL always polls on read events) */
-            PAL_STREAM_ATTR attr;
-            if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-                /* something went wrong with this handle, silently skip this handle */
-                continue;
-            }
-
-            if (attr.writable)
-                fds[i].revents |= (fds[i].events & (POLLOUT|POLLWRNORM));
-            if (attr.disconnected)
-                fds[i].revents |= (POLLERR|POLLHUP);
-
-            if (fds[i].revents)
-                nrevents++;
-            continue;
-        }
-
         get_handle(hdl);
         fds_to_hdls[i] = hdl;
         pals[npals]    = hdl->pal_handle;
+        pal_events[npals]  = (fds[i].events & (POLLIN | POLLRDNORM)) ? PAL_WAIT_READ  : 0;
+        pal_events[npals] |= (fds[i].events & (POLLOUT | POLLWRNORM)) ? PAL_WAIT_WRITE : 0;
+        ret_events[npals] = 0;
         npals++;
     }
 
     unlock(&map->lock);
 
-    /* TODO: This loop is highly inefficient, since DkObjectsWaitAny returns only one (random)
-     *       handle out of the whole array of handles-waiting-for-events. We must replace this
-     *       loop with a single DkObjectsWaitEvents(). */
-    while (npals) {
-        PAL_HANDLE polled = DkObjectsWaitAny(npals, pals, timeout_us);
-        if (!polled)
-            break;
+    PAL_BOL polled = DkObjectsWaitEvents(npals, pals, pal_events, ret_events, timeout_us);
 
-        PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQueryByHandle(polled, &attr))
+    if (!polled) {
+        /* nothing was polled, skip the following loop */
+        npals = 0;
+    }
+
+    /* update fds.revents */
+    for (nfds_t i = 0; i < npals; i++) {
+        if (!ret_events[i])
             continue;
 
-        for (nfds_t i = 0; i < nfds; i++) {
-            if (fds_to_hdls[i]->pal_handle == polled) {
-                /* found user-supplied FD, update it with returned events */
-                fds[i].revents = 0;
-                if (attr.readable)
-                    fds[i].revents |= (fds[i].events & (POLLIN|POLLRDNORM));
-                if (attr.writable)
-                    fds[i].revents |= (fds[i].events & (POLLOUT|POLLWRNORM));
-                if (attr.disconnected)
-                    fds[i].revents |= (POLLERR|POLLHUP);
+        fds[i].revents = 0;
+        if (ret_events[i] & PAL_WAIT_ERROR)
+            fds[i].revents |= POLLERR | POLLHUP;
+        if (ret_events[i] & PAL_WAIT_READ)
+            fds[i].revents |= fds[i].events & (POLLIN|POLLRDNORM);
+        if (ret_events[i] & PAL_WAIT_WRITE)
+            fds[i].revents |= fds[i].events & (POLLOUT|POLLWRNORM);
 
-                if (fds[i].revents)
-                    nrevents++;
-                break;
-            }
-        }
-
-        /* done with this PAL handle, remove it from array on which to DkObjectsWaitAny */
-        nfds_t skip = 0;
-        for (nfds_t i = 0; i < npals; i++) {
-            if (pals[i] == polled)
-                skip = 1;
-            else
-                pals[i - skip] = pals[i];
-        }
-        npals -= skip;
+        if (fds[i].revents)
+            nrevents++;
     }
 
     for (nfds_t i = 0; i < nfds; i++)
         if (fds_to_hdls[i])
             put_handle(fds_to_hdls[i]);
     free(pals);
+    free(pal_events);
     free(fds_to_hdls);
 
     return nrevents;

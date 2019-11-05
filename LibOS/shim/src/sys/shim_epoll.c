@@ -73,7 +73,6 @@ int shim_do_epoll_create1(int flags) {
     set_handle_fs(hdl, &epoll_builtin_fs);
     epoll->maxfds      = MAX_EPOLL_HANDLES;
     epoll->npals       = 0;
-    epoll->nread       = 0;
     epoll->nwaiters    = 0;
     epoll->pal_handles = malloc(sizeof(PAL_HANDLE) * MAX_EPOLL_HANDLES);
     create_event(&epoll->event);
@@ -95,7 +94,6 @@ int shim_do_epoll_create(int size) {
 static void update_epoll(struct shim_epoll_handle* epoll) {
     struct shim_epoll_item* tmp;
     epoll->npals = 0;
-    epoll->nread = 0;
 
     LISTP_FOR_EACH_ENTRY(tmp, &epoll->fds, list) {
         if (!tmp->handle->pal_handle)
@@ -105,8 +103,6 @@ static void update_epoll(struct shim_epoll_handle* epoll) {
               tmp->handle->pal_handle, epoll);
 
         epoll->pal_handles[epoll->npals++] = tmp->handle->pal_handle;
-        if (tmp->handle->acc_mode & MAY_READ)
-            epoll->nread++;
     }
 
     /* if other threads are currently waiting on epoll_wait(), send a signal to update their
@@ -300,62 +296,87 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
     while (npals) {
         /* wait on epoll's PAL handles + one "event" handle that signals epoll updates */
         PAL_HANDLE* pal_handles = malloc((npals + 1) * sizeof(PAL_HANDLE));
-        if (!pal_handles)
+        if (!pal_handles) {
+            unlock(&epoll_hdl->lock);
+            put_handle(epoll_hdl);
             return -ENOMEM;
+        }
 
-        memcpy(pal_handles, epoll->pal_handles, npals * sizeof(PAL_HANDLE));
+        /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
+        PAL_FLG* pal_events = malloc((npals + 1) * sizeof(PAL_FLG) * 2);
+        if (!pal_events) {
+            free(pal_handles);
+            unlock(&epoll_hdl->lock);
+            put_handle(epoll_hdl);
+            return -ENOMEM;
+        }
+        PAL_FLG* ret_events = pal_events + (npals + 1);
+
+        /* populate pal_events with read/write events from user-supplied epoll items */
+        npals = 0;
+        struct shim_epoll_item* epoll_item;
+        LISTP_FOR_EACH_ENTRY(epoll_item, &epoll->fds, list) {
+            if (!epoll_item->handle->pal_handle)
+                continue;
+
+            pal_handles[npals] = epoll_item->handle->pal_handle;
+            pal_events[npals]  = (epoll_item->events & (EPOLLIN | EPOLLRDNORM)) ? PAL_WAIT_READ  : 0;
+            pal_events[npals] |= (epoll_item->events & (EPOLLOUT | EPOLLWRNORM)) ? PAL_WAIT_WRITE : 0;
+            ret_events[npals] = 0;
+            npals++;
+        }
+
+        /* populate "event" handle so it waits on read (meaning epoll-update signal arrived) */
         pal_handles[npals] = epoll->event.event;
+        pal_events[npals]  = PAL_WAIT_READ;
+        ret_events[npals]  = 0;
 
         epoll->nwaiters++;  /* mark epoll as being waited on (so epoll-update signal is sent) */
         unlock(&epoll_hdl->lock);
 
-        PAL_NUM pal_timeout = timeout_ms == -1 ? NO_TIMEOUT : (PAL_NUM)timeout_ms * 1000;
-        if (!epoll->nread) {
-            /* special case: epoll doesn't contain a single handle with MAY_READ, thus there are
-             * only write events possible, and for this we don't wait but return immediately
-             * TODO: this is an ugly corner case which may backfire */
-            pal_timeout = 0;
-        }
-
-        /* TODO: This is highly inefficient, since DkObjectsWaitAny returns only one (random)
-         *       handle out of the whole array of handles-waiting-for-events. We must replace
-         *       this with DkObjectsWaitEvents(). */
-        PAL_HANDLE polled = DkObjectsWaitAny(npals + 1, pal_handles, pal_timeout);
+        /* TODO: Timeout must be updated in case of retries; otherwise, we may wait for too long */
+        PAL_BOL polled = DkObjectsWaitEvents(npals, pal_handles, pal_events, ret_events, timeout_ms * 1000);
 
         lock(&epoll_hdl->lock);
         epoll->nwaiters--;
-        free(pal_handles);
 
-        if (polled == epoll->event.event) {
+        /* check if epoll was updated concurrently, and retry (similar to Linux semantics) */
+        if (ret_events[npals]) {
             wait_event(&epoll->event);
-            npals = epoll->npals; /* epoll was updated, probably npals is new */
+            npals = epoll->npals; /* since epoll was updated, most probably npals changed */
+            free(pal_handles);
+            free(pal_events);
             continue;
         }
 
-        PAL_STREAM_ATTR attr;
-        if (!polled || !DkStreamAttributesQueryByHandle(polled, &attr))
-            break;
+        if (!polled) {
+            /* nothing was polled, skip the following loop */
+            npals = 0;
+        }
 
-        struct shim_epoll_item* epoll_item = NULL;
-        struct shim_epoll_item* tmp;
-        LISTP_FOR_EACH_ENTRY(tmp, &epoll->fds, list) {
-            if (polled == tmp->handle->pal_handle) {
-                epoll_item = tmp;
+        /* update user-supplied epoll items' revents with ret_events of polled PAL handles */
+        for (int i = 0; i < npals; i++) {
+            LISTP_FOR_EACH_ENTRY(epoll_item, &epoll->fds, list) {
+                if (!epoll_item->handle->pal_handle)
+                    continue;
+                if (epoll_item->handle->pal_handle != pal_handles[i])
+                    continue;
+
+                if (ret_events[i] & PAL_WAIT_ERROR) {
+                    epoll_item->revents |= EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+                    epoll_item->handle   = NULL;
+                    need_update          = true; /* handle disconnected, remove from epoll list */
+                }
+                if (ret_events[i] & PAL_WAIT_READ)
+                    epoll_item->revents |= EPOLLIN | EPOLLRDNORM;
+                if (ret_events[i] & PAL_WAIT_WRITE)
+                    epoll_item->revents |= EPOLLOUT | EPOLLWRNORM;
                 break;
             }
         }
 
-        /* found epoll item that was polled, update its revents according to attr */
-        assert(epoll_item);
-        if (attr.disconnected) {
-            epoll_item->revents |= EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-            epoll_item->handle   = NULL;
-            need_update        = true; /* handle disconnected, need to remove from epoll list */
-        }
-        if (attr.readable)
-            epoll_item->revents |= EPOLLIN | EPOLLRDNORM;
-        if (attr.writable)
-            epoll_item->revents |= EPOLLOUT | EPOLLWRNORM;
+        free(pal_handles);
+        free(pal_events);
 
         npals = 0; /* to exit the while loop */
     }
