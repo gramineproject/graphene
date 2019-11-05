@@ -181,6 +181,19 @@ int clone_thread(void) {
     if (IS_ERR_P(stack))
         return -ENOMEM;
 
+    /* Stack layout for the new thread looks like this (recall that stacks grow towards lower
+     * addresses on Linux on x86-64):
+     *
+     *       stack +--> +-------------------+
+     *                  |  child stack      | THREAD_STACK_SIZE
+     * child_stack +--> +-------------------+
+     *                  |  alternate stack  | ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX)
+     *         tcb +--> +-------------------+
+     *                  |  PAL TCB          | sizeof(PAL_TCB_LINUX)
+     *                  +-------------------+
+     *
+     * Note that this whole memory region is zeroed out because we use mmap(). */
+
     void* child_stack_top = stack + THREAD_STACK_SIZE;
 
     /* initialize TCB at the top of the alternative stack */

@@ -90,7 +90,23 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
         ret = -ENOMEM;
         goto err;
     }
-    memset(stack, 0, THREAD_STACK_SIZE + ALT_STACK_SIZE);
+
+    /* Stack layout for the new thread looks like this (recall that stacks grow towards lower
+     * addresses on Linux on x86-64):
+     *
+     *       stack +--> +-------------------+
+     *                  |  child stack      | THREAD_STACK_SIZE
+     * child_stack +--> +-------------------+
+     *                  |  alternate stack  | ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX)
+     *         tcb +--> +-------------------+
+     *                  |  PAL TCB          | sizeof(PAL_TCB_LINUX)
+     *                  +-------------------+
+     *
+     * We zero out only the first page of the main stack (to comply with the requirement of
+     * gcc ABI, in particular that the initial stack frame's return address must be NULL).
+     * We zero out the whole altstack (since it is small anyway) and also the PAL TCB. */
+    memset(stack + THREAD_STACK_SIZE - PRESET_PAGESIZE, 0, PRESET_PAGESIZE);
+    memset(stack + THREAD_STACK_SIZE, 0, ALT_STACK_SIZE);
 
     void * child_stack = stack + THREAD_STACK_SIZE;
 

@@ -967,6 +967,20 @@ static int load_enclave (struct pal_enclave * enclave,
     return 0;
 }
 
+/* Grow stack of main thread to THREAD_STACK_SIZE by allocating a large dummy array and probing
+ * each stack page (Linux dynamically grows the stack of the main thread but gets confused with
+ * huge-jump stack accesses coming from within the enclave). Note that other, non-main threads
+ * are created manually via clone(.., THREAD_STACK_SIZE, ..) and thus do not need this hack. */
+static void __attribute__ ((noinline)) force_linux_to_grow_stack() {
+    char dummy[THREAD_STACK_SIZE];
+    for (uint64_t i = 0; i < sizeof(dummy); i += PRESET_PAGESIZE) {
+        /* touch each page on the stack just to make it is not optimized away */
+        __asm__ volatile("movq %0, %%rbx\r\n"
+                         "movq (%%rbx), %%rbx\r\n"
+                         : : "r"(&dummy[i]) : "%rbx");
+    }
+}
+
 int main (int argc, char ** argv, char ** envp)
 {
     char * manifest_uri = NULL;
@@ -977,6 +991,9 @@ int main (int argc, char ** argv, char ** envp)
     bool exec_uri_inferred = false; // Handle the case where the exec uri is
                                     // inferred from the manifest name somewhat
                                     // differently
+
+    force_linux_to_grow_stack();
+
     argc--;
     argv++;
 
