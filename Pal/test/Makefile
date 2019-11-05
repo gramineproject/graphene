@@ -16,12 +16,12 @@ include ../../Scripts/Makefile.manifest
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
-.PHONY: all
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-all: pal_loader $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target))
-else
-all:
+ifneq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
+$(error unsupported platform. $(SYS))
 endif
+
+.PHONY: all
+all: pal_loader $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target))
 
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(target))
