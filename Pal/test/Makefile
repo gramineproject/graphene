@@ -39,10 +39,10 @@ pal_loader:
 	ln -sf ../../Runtime/pal_loader
 
 manifest: manifest.template
-	cp -f $< $@
+	$(call cmd,manifest)
 
 %.manifest: %.manifest.template
-	cp -f $< $@
+	$(call cmd,manifest)
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 CFLAGS-Pie = -fPIC -pie
