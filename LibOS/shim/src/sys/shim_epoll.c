@@ -50,9 +50,10 @@ struct shim_mount epoll_builtin_fs;
 
 struct shim_epoll_item {
     FDTYPE fd;
-    __u64 data;
+    uint64_t data;
     unsigned int events;
     unsigned int revents;
+    bool connected;
     struct shim_handle* handle;      /* reference to monitored object (socket, pipe, file, etc) */
     struct shim_handle* epoll;       /* reference to epoll object that monitors handle object */
     LIST_TYPE(shim_epoll_item) list; /* list of shim_epoll_items, used by epoll object (via `fds`) */
@@ -67,15 +68,20 @@ int shim_do_epoll_create1(int flags) {
     if (!hdl)
         return -ENOMEM;
 
+    PAL_HANDLE* pal_handles = malloc(sizeof(*pal_handles) * MAX_EPOLL_HANDLES);
+    if (!pal_handles) {
+        put_handle(hdl);
+        return -ENOMEM;
+    }
+
     struct shim_epoll_handle* epoll = &hdl->info.epoll;
 
     hdl->type = TYPE_EPOLL;
     set_handle_fs(hdl, &epoll_builtin_fs);
     epoll->maxfds      = MAX_EPOLL_HANDLES;
-    epoll->npals       = 0;
-    epoll->nread       = 0;
-    epoll->nwaiters    = 0;
-    epoll->pal_handles = malloc(sizeof(PAL_HANDLE) * MAX_EPOLL_HANDLES);
+    epoll->pal_cnt     = 0;
+    epoll->waiter_cnt  = 0;
+    epoll->pal_handles = pal_handles;
     create_event(&epoll->event);
     INIT_LISTP(&epoll->fds);
 
@@ -92,30 +98,26 @@ int shim_do_epoll_create(int size) {
     return shim_do_epoll_create1(0);
 }
 
+/* lock of shim_handle enclosing this epoll should be held while calling this function */
 static void update_epoll(struct shim_epoll_handle* epoll) {
     struct shim_epoll_item* tmp;
-    epoll->npals = 0;
-    epoll->nread = 0;
+    epoll->pal_cnt = 0;
 
     LISTP_FOR_EACH_ENTRY(tmp, &epoll->fds, list) {
-        if (!tmp->handle->pal_handle)
+        if (!tmp->connected || !tmp->handle || !tmp->handle->pal_handle)
             continue;
 
-        debug("found handle %p (pal handle %p) from epoll handle %p\n", tmp->handle,
-              tmp->handle->pal_handle, epoll);
-
-        epoll->pal_handles[epoll->npals++] = tmp->handle->pal_handle;
-        if (tmp->handle->acc_mode & MAY_READ)
-            epoll->nread++;
+        epoll->pal_handles[epoll->pal_cnt++] = tmp->handle->pal_handle;
+        assert(epoll->pal_cnt <= MAX_EPOLL_HANDLES);
     }
 
     /* if other threads are currently waiting on epoll_wait(), send a signal to update their
-     * epoll items (note that we send nwaiters number of signals -- to each waiting thread) */
-    if (epoll->nwaiters)
-        set_event(&epoll->event, epoll->nwaiters);
+     * epoll items (note that we send waiter_cnt number of signals -- to each waiting thread) */
+    if (epoll->waiter_cnt)
+        set_event(&epoll->event, epoll->waiter_cnt);
 }
 
-int delete_from_epoll_handles(struct shim_handle* handle) {
+void delete_from_epoll_handles(struct shim_handle* handle) {
     /* handle may be registered in several epolls, delete it from all of them via handle->epolls */
     while (1) {
         /* first, get any epoll-item from this handle (via `back` list) and delete it from `back` */
@@ -147,8 +149,6 @@ int delete_from_epoll_handles(struct shim_handle* handle) {
         free(epoll_item);
         put_handle(hdl);
     }
-
-    return 0;
 }
 
 int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* event) {
@@ -157,6 +157,13 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
 
     if (epfd == fd)
         return -EINVAL;
+
+    if (op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD)
+        if (!event || test_user_memory(event, sizeof(*event), false)) {
+            /* surprisingly, man(epoll_ctl) does not specify EFAULT if event is invalid so
+             * we re-use EINVAL; also note that EPOLL_CTL_DEL ignores event completely */
+            return -EINVAL;
+        }
 
     struct shim_handle* epoll_hdl = get_fd_handle(epfd, NULL, cur->handle_map);
     if (!epoll_hdl)
@@ -186,26 +193,33 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                 goto out;
             }
             /* note that pipe and socket may not have pal_handle yet (e.g. before bind()) */
-            if ((hdl->type != TYPE_PIPE && hdl->type != TYPE_SOCK) || !hdl->pal_handle) {
+            if ((hdl->type != TYPE_PIPE && hdl->type != TYPE_SOCK && hdl->type != TYPE_EVENTFD) || !hdl->pal_handle) {
                 ret = -EPERM;
                 put_handle(hdl);
                 goto out;
             }
-            if (epoll->npals == MAX_EPOLL_HANDLES) {
+            if (epoll->pal_cnt == MAX_EPOLL_HANDLES) {
                 ret = -ENOSPC;
                 put_handle(hdl);
                 goto out;
             }
 
-            debug("add handle %p to epoll handle %p\n", hdl, epoll);
+            epoll_item = malloc(sizeof(struct shim_epoll_item));
+            if (!epoll_item) {
+                ret = -ENOMEM;
+                put_handle(hdl);
+                goto out;
 
-            epoll_item             = malloc(sizeof(struct shim_epoll_item));
-            epoll_item->fd         = fd;
-            epoll_item->events     = event->events;
-            epoll_item->data       = event->data;
-            epoll_item->revents    = 0;
-            epoll_item->handle     = hdl;
-            epoll_item->epoll      = epoll_hdl;
+            }
+
+            debug("add fd %d (handle %p) to epoll handle %p\n", fd, hdl, epoll);
+            epoll_item->fd        = fd;
+            epoll_item->events    = event->events;
+            epoll_item->data      = event->data;
+            epoll_item->revents   = 0;
+            epoll_item->handle    = hdl;
+            epoll_item->epoll     = epoll_hdl;
+            epoll_item->connected = true;
             get_handle(epoll_hdl);
 
             /* register hdl (corresponding to FD) in epoll (corresponding to EPFD):
@@ -221,7 +235,9 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
             LISTP_ADD_TAIL(epoll_item, &epoll->fds, list);
 
             put_handle(hdl);
-            goto update;
+
+            update_epoll(epoll);
+            break;
         }
 
         case EPOLL_CTL_MOD: {
@@ -229,18 +245,22 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                 if (epoll_item->fd == fd) {
                     epoll_item->events = event->events;
                     epoll_item->data   = event->data;
-                    goto update;
+
+                    debug("modified fd %d at epoll handle %p\n", fd, epoll);
+                    update_epoll(epoll);
+                    goto out;
                 }
             }
 
             ret = -ENOENT;
-            goto out;
+            break;
         }
 
         case EPOLL_CTL_DEL: {
             LISTP_FOR_EACH_ENTRY(epoll_item, &epoll->fds, list) {
                 if (epoll_item->fd == fd) {
                     struct shim_handle* hdl = epoll_item->handle;
+                    debug("delete fd %d (handle %p) from epoll handle %p\n", fd, hdl, epoll);
 
                     /* unregister hdl (corresponding to FD) in epoll (corresponding to EPFD):
                      * - unbind hdl from epoll-item via the `back` list
@@ -249,26 +269,26 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                     LISTP_DEL(epoll_item, &hdl->epolls, back);
                     unlock(&hdl->lock);
 
-                    /* note that we already grabbed epoll_hdl->lock so can safely update epoll */
+                    /* note that we already grabbed epoll_hdl->lock so we can safely update epoll */
                     LISTP_DEL(epoll_item, &epoll->fds, list);
 
                     put_handle(epoll_hdl);
                     free(epoll_item);
-                    goto update;
+
+                    update_epoll(epoll);
+                    goto out;
                 }
             }
 
             ret = -ENOENT;
-            goto out;
+            break;
         }
 
         default:
             ret = -EINVAL;
-            goto out;
+            break;
     }
 
-update:
-    update_epoll(epoll);
 out:
     unlock(&epoll_hdl->lock);
     put_handle(epoll_hdl);
@@ -296,68 +316,93 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
 
     lock(&epoll_hdl->lock);
 
-    int npals = epoll->npals;
-    while (npals) {
+    /* loop to retry on interrupted epoll waits (due to epoll being concurrently updated) */
+    while (1) {
         /* wait on epoll's PAL handles + one "event" handle that signals epoll updates */
-        PAL_HANDLE* pal_handles = malloc((npals + 1) * sizeof(PAL_HANDLE));
-        if (!pal_handles)
+        PAL_HANDLE* pal_handles = malloc((epoll->pal_cnt + 1) * sizeof(PAL_HANDLE));
+        if (!pal_handles) {
+            unlock(&epoll_hdl->lock);
+            put_handle(epoll_hdl);
             return -ENOMEM;
+        }
 
-        memcpy(pal_handles, epoll->pal_handles, npals * sizeof(PAL_HANDLE));
-        pal_handles[npals] = epoll->event.event;
+        /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
+        PAL_FLG* pal_events = malloc((epoll->pal_cnt + 1) * sizeof(PAL_FLG) * 2);
+        if (!pal_events) {
+            free(pal_handles);
+            unlock(&epoll_hdl->lock);
+            put_handle(epoll_hdl);
+            return -ENOMEM;
+        }
+        PAL_FLG* ret_events = pal_events + (epoll->pal_cnt + 1);
 
-        epoll->nwaiters++;  /* mark epoll as being waited on (so epoll-update signal is sent) */
+        /* populate pal_events with read/write events from user-supplied epoll items */
+        int pal_cnt = 0;
+        struct shim_epoll_item* epoll_item;
+        LISTP_FOR_EACH_ENTRY(epoll_item, &epoll->fds, list) {
+            if (!epoll_item->handle || !epoll_item->handle->pal_handle)
+                continue;
+
+            pal_handles[pal_cnt] = epoll_item->handle->pal_handle;
+            pal_events[pal_cnt]  = (epoll_item->events & (EPOLLIN | EPOLLRDNORM)) ? PAL_WAIT_READ  : 0;
+            pal_events[pal_cnt] |= (epoll_item->events & (EPOLLOUT | EPOLLWRNORM)) ? PAL_WAIT_WRITE : 0;
+            ret_events[pal_cnt]  = 0;
+            pal_cnt++;
+        }
+
+        /* populate "event" handle so it waits on read (meaning epoll-update signal arrived);
+         * note that we don't increment pal_cnt because this is a special not-user-supplied item */
+        pal_handles[pal_cnt] = epoll->event.event;
+        pal_events[pal_cnt]  = PAL_WAIT_READ;
+        ret_events[pal_cnt]  = 0;
+
+        epoll->waiter_cnt++;  /* mark epoll as being waited on (so epoll-update signal is sent) */
         unlock(&epoll_hdl->lock);
 
-        PAL_NUM pal_timeout = timeout_ms == -1 ? NO_TIMEOUT : (PAL_NUM)timeout_ms * 1000;
-        if (!epoll->nread) {
-            /* special case: epoll doesn't contain a single handle with MAY_READ, thus there are
-             * only write events possible, and for this we don't wait but return immediately
-             * TODO: this is an ugly corner case which may backfire */
-            pal_timeout = 0;
-        }
-
-        /* TODO: This is highly inefficient, since DkObjectsWaitAny returns only one (random)
-         *       handle out of the whole array of handles-waiting-for-events. We must replace
-         *       this with DkObjectsWaitEvents(). */
-        PAL_HANDLE polled = DkObjectsWaitAny(npals + 1, pal_handles, pal_timeout);
+        /* TODO: Timeout must be updated in case of retries; otherwise, we may wait for too long */
+        PAL_BOL polled = DkObjectsWaitEvents(pal_cnt + 1, pal_handles, pal_events, ret_events, timeout_ms * 1000);
 
         lock(&epoll_hdl->lock);
-        epoll->nwaiters--;
-        free(pal_handles);
+        epoll->waiter_cnt--;
 
-        if (polled == epoll->event.event) {
-            wait_event(&epoll->event);
-            npals = epoll->npals; /* epoll was updated, probably npals is new */
-            continue;
-        }
+        /* update user-supplied epoll items' revents with ret_events of polled PAL handles */
+        if (!ret_events[pal_cnt] && polled) {
+            /* only if epoll was not updated concurrently and something was actually polled */
+            for (int i = 0; i < pal_cnt; i++) {
+                LISTP_FOR_EACH_ENTRY(epoll_item, &epoll->fds, list) {
+                    if (!epoll_item->handle || !epoll_item->handle->pal_handle)
+                        continue;
+                    if (epoll_item->handle->pal_handle != pal_handles[i])
+                        continue;
 
-        PAL_STREAM_ATTR attr;
-        if (!polled || !DkStreamAttributesQueryByHandle(polled, &attr))
-            break;
-
-        struct shim_epoll_item* epoll_item = NULL;
-        struct shim_epoll_item* tmp;
-        LISTP_FOR_EACH_ENTRY(tmp, &epoll->fds, list) {
-            if (polled == tmp->handle->pal_handle) {
-                epoll_item = tmp;
-                break;
+                    if (ret_events[i] & PAL_WAIT_ERROR) {
+                        epoll_item->revents  |= EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+                        epoll_item->connected = false;
+                        /* handle disconnected, must remove it from epoll list */
+                        need_update = true;
+                    }
+                    if (ret_events[i] & PAL_WAIT_READ)
+                        epoll_item->revents |= EPOLLIN | EPOLLRDNORM;
+                    if (ret_events[i] & PAL_WAIT_WRITE)
+                        epoll_item->revents |= EPOLLOUT | EPOLLWRNORM;
+                    break;
+                }
             }
         }
 
-        /* found epoll item that was polled, update its revents according to attr */
-        assert(epoll_item);
-        if (attr.disconnected) {
-            epoll_item->revents |= EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-            epoll_item->handle   = NULL;
-            need_update        = true; /* handle disconnected, need to remove from epoll list */
-        }
-        if (attr.readable)
-            epoll_item->revents |= EPOLLIN | EPOLLRDNORM;
-        if (attr.writable)
-            epoll_item->revents |= EPOLLOUT | EPOLLWRNORM;
+        PAL_FLG event_handle_update = ret_events[pal_cnt];
+        free(pal_handles);
+        free(pal_events);
 
-        npals = 0; /* to exit the while loop */
+        if (event_handle_update) {
+            /* retry if epoll was updated concurrently (similar to Linux semantics) */
+            unlock(&epoll_hdl->lock);
+            wait_event(&epoll->event);
+            lock(&epoll_hdl->lock);
+        } else {
+            /* no need to retry, exit the while loop */
+            break;
+        }
     }
 
     /* update user-supplied events array with all events detected till now on epoll */

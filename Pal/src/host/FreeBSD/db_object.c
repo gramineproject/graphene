@@ -57,8 +57,8 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
 
     /* Normal case of not mutex/event: poll on all handles in the array (their handle types can be
      * process, socket, pipe, device, file, eventfd). */
-    struct pollfd fds[count]; /* TODO: if count is too big, stack overflow may occur */
-    PAL_HANDLE hdls[count];   /* TODO: if count is too big, stack overflow may occur */
+    struct pollfd fds[count * MAX_FDS]; /* TODO: if count is too big, stack overflow may occur */
+    PAL_HANDLE hdls[count * MAX_FDS];   /* TODO: if count is too big, stack overflow may occur */
     int nfds = 0;
 
     /* collect all FDs of all PAL handles that may report read/write events */
@@ -76,6 +76,7 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
         for (int j = 0; j < MAX_FDS; j++) {
             PAL_FLG flags = HANDLE_HDR(hdl)->flags;
 
+            /* hdl might be a mutex/event/non-pollable object, simply ignore it */
             if (hdl->generic.fds[j] == PAL_IDX_POISON)
                 continue;
             if (flags & ERROR(j))

@@ -805,6 +805,8 @@ struct clear_child_tid_struct {
 
 void release_clear_child_id(IDTYPE caller, void* clear_child_tids);
 
+void delete_from_epoll_handles(struct shim_handle* handle);
+
 #ifdef __x86_64__
 #define __SWITCH_STACK(stack_top, func, arg)                    \
     do {                                                        \
