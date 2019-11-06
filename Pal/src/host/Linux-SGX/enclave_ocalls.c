@@ -12,9 +12,11 @@
 #include <asm/errno.h>
 
 /* Check against this limit if the buffer to be allocated fits on the untrusted stack; if not,
- * buffer will be allocated on untrusted heap. Since Linux has 8MB of untrusted stack, let's
- * set the limit to not too low and not too high value of 128 * 4K = 512KB. */
-#define MAX_UNTRUSTED_STACK_BUF (128 * PRESET_PAGESIZE)
+ * buffer will be allocated on untrusted heap. Conservatively set this limit to 1/4 of the
+ * actual stack size. Currently THREAD_STACK_SIZE = 2MB, so this limit is 512KB.
+ * Note that the main thread is special in that it is handled by Linux, with the typical stack
+ * size of 8MB. Thus, 512KB limit also works well for the main thread. */
+#define MAX_UNTRUSTED_STACK_BUF (THREAD_STACK_SIZE / 4)
 
 noreturn void ocall_exit(int exitcode, int is_exitgroup)
 {
