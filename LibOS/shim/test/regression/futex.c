@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
+#include <pthread.h>
 
 // 64kB stack
 #define FIBER_STACK (1024 * 64)
@@ -21,7 +23,18 @@ struct atomic_int {
 static struct atomic_int my_counter;
 
 static inline void atomic_inc(struct atomic_int* v) {
-    asm volatile("lock; incl %0" : "+m"(v->counter));
+    __asm__ __volatile__("lock; incl %0" : "+m"(v->counter));
+}
+
+static inline int atomic_read(const struct atomic_int* v)
+{
+    int i = *(volatile int*)&v->counter;
+    return i;
+}
+
+static inline void atomic_set(struct atomic_int* v, int i)
+{
+    v->counter = i;
 }
 
 static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2,
@@ -29,7 +42,7 @@ static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeo
     return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr, val3);
 }
 
-int thread_function(void* argument) {
+void* thread_function(void* argument) {
     int* ptr = (int*)argument;
     int rv;
     atomic_inc(&my_counter);
@@ -38,33 +51,21 @@ int thread_function(void* argument) {
     rv = futex(&myfutex, FUTEX_WAIT_BITSET, 0, NULL, NULL, *ptr);
     assert(rv == 0);
     // printf("child thread %d awakened\n", getpid());
-    return 0;
+    return NULL;
 }
 
 int main(int argc, const char** argv) {
-    void* stacks[THREADS];
-    pid_t pids[THREADS];
-    int varx[THREADS];
-    my_counter.counter = 0;
+    pthread_t thread[THREADS];
+    static int varx[THREADS];
+    atomic_set(&my_counter, 0);
 
     for (int i = 0; i < THREADS; i++) {
         varx[i] = (1 << i);
 
-        // Allocate the stack
-        stacks[i] = malloc(FIBER_STACK);
-        if (stacks[i] == 0) {
-            perror("malloc: could not allocate stack");
-            _exit(1);
-        }
-
-        // Call the clone system call to create the child thread
-        pids[i] = clone(&thread_function, (void*)stacks[i] + FIBER_STACK,
-                        CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM | CLONE_THREAD, &varx[i]);
-
-        // printf("clone() creates new thread %d\n", pids[i]);
-
-        if (pids[i] == -1) {
-            perror("clone");
+        int ret = pthread_create(&thread[i], NULL, &thread_function, &varx[i]);
+        if (ret) {
+            errno = ret;
+            perror("pthread_create");
             _exit(2);
         }
     }
@@ -72,28 +73,31 @@ int main(int argc, const char** argv) {
     // Make sure the threads are sleeping
     do {
         sleep(1);
-    } while (my_counter.counter != THREADS);
+    } while (atomic_read(&my_counter) != THREADS);
+    // one more sleep to mitigate a race between atomic_inc() and futex()
+    // in thread_function()
+    sleep(1);
 
     printf("Waking up kiddos\n");
     /* Wake in reverse order */
     for (int i = THREADS - 1; i >= 0; i--) {
-        pid_t pid;
         int rv;
         int var = (1 << i);
 
         // Wake up the thread
-        rv = futex(&myfutex, FUTEX_WAKE_BITSET, 1, NULL, NULL, var);
+        do {
+            rv = futex(&myfutex, FUTEX_WAKE_BITSET, 1, NULL, NULL, var);
+        } while (rv == 0);
+        printf("FUTEX_WAKE_BITSET i = %d rv = %d\n", i, rv);
         assert(rv == 1);
 
         // Wait for the child thread to exit
-        pid = waitpid(pids[i], NULL, __WALL);
-        if (pid == -1) {
-            perror("waitpid");
+        int ret = pthread_join(thread[i], NULL);
+        if (ret) {
+            errno = ret;
+            perror("pthread_join");
             _exit(3);
         }
-
-        // Free the stack
-        free(stacks[i]);
     }
 
     printf("Woke all kiddos\n");
