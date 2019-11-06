@@ -23,6 +23,7 @@ CFLAGS-multi_pthread = -pthread
 CFLAGS-exit_group = -pthread
 CFLAGS-abort_multithread = -pthread
 CFLAGS-eventfd = -pthread
+CFLAGS-futex = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../lib -pthread
 
 %: %.c
