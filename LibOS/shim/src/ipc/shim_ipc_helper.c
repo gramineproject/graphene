@@ -791,10 +791,10 @@ static void shim_ipc_helper_prepare(void* arg) {
     if (!arg)
         return;
 
-    __libc_tcb_t* tcb = NULL;
-    allocate_tls(tcb, false, self);
+    unsigned long fs_base = 0;
+    allocate_tls(fs_base, self);
     debug_setbuf(shim_get_tls(), true);
-    debug("Set tcb to %p\n", tcb);
+    debug("Set tcb to 0x%lx\n", fs_base);
 
     lock(&ipc_helper_lock);
     bool notme = (self != ipc_helper_thread);

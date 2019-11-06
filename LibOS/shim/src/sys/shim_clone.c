@@ -125,7 +125,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     struct shim_thread* my_thread = arg->thread;
     assert(my_thread);
 
-    allocate_tls(my_thread->tcb, my_thread->user_tcb, my_thread); /* set up TCB */
+    allocate_tls(my_thread->fs_base, my_thread); /* set up TCB */
     shim_tcb_t * tcb = my_thread->shim_tcb;
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
@@ -136,7 +136,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
                             // will be re-enabled when the thread starts.
     debug_setbuf(tcb, true);
-    debug("set tcb to %p\n", my_thread->tcb);
+    debug("set fs_base to 0x%lx\n", my_thread->fs_base);
 
     struct shim_regs regs = *arg->parent->shim_tcb->context.regs;
     if (my_thread->set_child_tid) {
@@ -295,10 +295,9 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             ret = -EINVAL;
             goto failed;
         }
-        thread->tcb = tls;
-        thread->user_tcb = true;
+        thread->fs_base = (unsigned long)tls;
     } else {
-        thread->tcb = NULL;
+        thread->fs_base = 0;
     }
 
     if (!(flags & CLONE_THREAD))
@@ -320,17 +319,16 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     }
 
     if (!(flags & CLONE_VM)) {
-        __libc_tcb_t * tcb;
+        unsigned long fs_base;
         shim_tcb_t * old_shim_tcb = NULL;
         void * parent_stack = NULL;
 
-        if (thread->tcb) {
-            tcb = thread->tcb;
+        if (thread->fs_base) {
+            fs_base = thread->fs_base;
         } else {
-            thread->tcb = tcb = self->tcb;
+            thread->fs_base = fs_base = self->fs_base;
             old_shim_tcb = __alloca(sizeof(shim_tcb_t));
             memcpy(old_shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
-            thread->user_tcb = self->user_tcb;
             thread->shim_tcb = self->shim_tcb;
         }
 

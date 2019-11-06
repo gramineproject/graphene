@@ -73,12 +73,6 @@ struct shim_tcb {
 #include <stddef.h>
 
 void init_tcb (shim_tcb_t * tcb);
-struct __libc_tcb_t;
-typedef struct __libc_tcb_t __libc_tcb_t;
-
-/* don't define struct __libc_tcb_t. just type to point to libc tls
- * LibOS doesn't access this structure as it's private to libc.
- */
 
 static inline shim_tcb_t * shim_get_tls(void)
 {

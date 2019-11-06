@@ -591,7 +591,7 @@ void* shim_do_arch_prctl(int code, void* addr) {
             if (!addr)
                 return (void*)-EINVAL;
 
-            populate_tls(addr, true);
+            populate_tls((unsigned long)addr);
             debug("set tcb to %p\n", (void*)addr);
             return NULL;
 

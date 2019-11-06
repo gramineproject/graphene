@@ -721,15 +721,15 @@ static int resume_wrapper (void * param)
     struct shim_thread * thread = (struct shim_thread *) param;
     assert(thread);
 
-    __libc_tcb_t * libc_tcb = thread->tcb;
-    assert(libc_tcb);
+    unsigned long fs_base = thread->fs_base;
+    assert(fs_base);
     shim_tcb_t * tcb = thread->shim_tcb;
     assert(tcb->context.regs && tcb->context.regs->rsp);
 
     thread->in_vm = thread->is_alive = true;
-    allocate_tls(libc_tcb, thread->user_tcb, thread);
+    allocate_tls(fs_base, thread);
     debug_setbuf(tcb, false);
-    debug("set tcb to %p\n", libc_tcb);
+    debug("set tcb to 0x%lx\n", fs_base);
 
     object_wait_with_retry(thread_start_event);
 
@@ -746,8 +746,6 @@ BEGIN_RS_FUNC(running_thread)
 
     thread->vmid = cur_process.vmid;
 
-    if (!thread->user_tcb)
-        CP_REBASE(thread->tcb);
     if (thread->shim_tcb)
         CP_REBASE(thread->shim_tcb);
 
@@ -772,17 +770,17 @@ BEGIN_RS_FUNC(running_thread)
             thread->shim_tcb = shim_get_tls();
         }
         debug_setbuf(thread->shim_tcb, false);
-        __libc_tcb_t * libc_tcb = thread->tcb;
+        unsigned long fs_base = thread->fs_base;
 
-        if (libc_tcb) {
+        if (fs_base) {
             shim_tcb_t * tcb = thread->shim_tcb;
             assert(tcb->context.regs && tcb->context.regs->rsp);
             tcb->debug_buf = shim_get_tls()->debug_buf;
-            allocate_tls(libc_tcb, thread->user_tcb, thread);
+            allocate_tls(fs_base, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
             debug_setprefix(tcb);
-            debug("after resume, set tcb to %p\n", libc_tcb);
+            debug("after resume, set tcb to 0x%lx\n", fs_base);
         } else {
             /*
              * In execve case, the following holds:
@@ -790,7 +788,6 @@ BEGIN_RS_FUNC(running_thread)
              * stack_top = NULL
              * frameptr = NULL
              * tcb = NULL
-             * user_tcb = false
              * shim_tcb = NULL
              * in_vm = false
              */

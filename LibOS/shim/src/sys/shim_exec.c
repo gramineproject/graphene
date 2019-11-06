@@ -87,10 +87,9 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     struct shim_thread * cur_thread = get_cur_thread();
     int ret = 0;
 
-    /* libc tcb is not needed because PAL provides storage for shim_tcb */
-    __libc_tcb_t* tcb = NULL;
-    populate_tls(tcb, false);
-    debug("set tcb to %p\n", tcb);
+    unsigned long fs_base = 0;
+    populate_tls(fs_base);
+    debug("set fs_base to 0x%lx\n", fs_base);
 
     UPDATE_PROFILE_INTERVAL();
 
@@ -490,16 +489,14 @@ err:
 
     void * stack     = cur_thread->stack;
     void * stack_top = cur_thread->stack_top;
-    __libc_tcb_t * tcb = cur_thread->tcb;
+    unsigned long fs_base = cur_thread->fs_base;
     shim_tcb_t * shim_tcb = cur_thread->shim_tcb;
-    bool   user_tcb  = cur_thread->user_tcb;
     void * frameptr  = cur_thread->frameptr;
 
     cur_thread->stack     = NULL;
     cur_thread->stack_top = NULL;
     cur_thread->frameptr  = NULL;
-    cur_thread->tcb       = NULL;
-    cur_thread->user_tcb  = false;
+    cur_thread->fs_base   = 0;
     cur_thread->shim_tcb  = NULL;
     cur_thread->in_vm     = false;
     unlock(&cur_thread->lock);
@@ -510,8 +507,7 @@ err:
     cur_thread->stack       = stack;
     cur_thread->stack_top   = stack_top;
     cur_thread->frameptr    = frameptr;
-    cur_thread->tcb         = tcb;
-    cur_thread->user_tcb    = user_tcb;
+    cur_thread->fs_base     = fs_base;
     cur_thread->shim_tcb    = shim_tcb;
 
     if (ret < 0) {
