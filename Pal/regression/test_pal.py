@@ -300,6 +300,13 @@ class TC_20_SingleProcess(RegressionTestCase):
         # File Deletion
         self.assertFalse(pathlib.Path('file_delete.tmp').exists())
 
+    @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
+    def test_101_file(self):
+        stdout, stderr = self.run_binary(['File'])
+
+        # File Creation for non-existing file
+        self.assertIn('File Creation Test 4 OK', stderr)
+
     def test_110_directory(self):
         for path in ['dir_exist.tmp', 'dir_nonexist.tmp', 'dir_delete.tmp']:
             try:
