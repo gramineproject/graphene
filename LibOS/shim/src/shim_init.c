@@ -206,40 +206,36 @@ void init_tcb (shim_tcb_t * tcb)
 }
 
 /* This function is used to allocate tls before interpreter start running */
-void allocate_tls (__libc_tcb_t * tcb, bool user, struct shim_thread * thread)
+void allocate_tls (unsigned long fs_base, struct shim_thread * thread)
 {
-    shim_tcb_t * shim_tcb;
-    shim_tcb = shim_get_tls();
+    shim_tcb_t * shim_tcb = shim_get_tls();
     init_tcb(shim_tcb);
 
     if (thread) {
-        thread->tcb      = tcb;
-        thread->user_tcb = user;
+        thread->fs_base = fs_base;
         thread->shim_tcb = shim_tcb;
-        shim_tcb->tp  = thread;
+        shim_tcb->tp = thread;
         shim_tcb->tid = thread->tid;
     } else {
-        shim_tcb->tp  = NULL;
+        shim_tcb->tp = NULL;
         shim_tcb->tid = 0;
     }
 
-    DkSegmentRegister(PAL_SEGMENT_FS, tcb);
+    DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
     assert(shim_tls_check_canary());
 }
 
-void populate_tls (__libc_tcb_t * tcb, bool user)
+void populate_tls (unsigned long fs_base)
 {
-    shim_tcb_t * shim_tcb;
-    shim_tcb = shim_get_tls();
+    shim_tcb_t * shim_tcb = shim_get_tls();
 
     struct shim_thread * thread = shim_tcb->tp;
     if (thread) {
-        thread->tcb = tcb;
-        thread->user_tcb = user;
+        thread->fs_base = fs_base;
         thread->shim_tcb = shim_tcb;
     }
 
-    DkSegmentRegister(PAL_SEGMENT_FS, tcb);
+    DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
     assert(shim_tls_check_canary());
 }
 
@@ -679,12 +675,11 @@ noreturn void* shim_init (int argc, void * args)
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */
-    __libc_tcb_t* tcb = NULL;
-    allocate_tls(tcb, false, NULL);
+    unsigned long fs_base = 0;
+    allocate_tls(fs_base, NULL);
     __disable_preempt(shim_get_tls()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
     debug_setbuf(shim_get_tls(), true);
-    debug("set tcb to %p\n", tcb);
 
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();
