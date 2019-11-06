@@ -212,9 +212,7 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     int * new_argcp = &new_argc;
     const char ** new_argp;
     elf_auxv_t * new_auxp;
-    size_t reserve = 0;
-    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp,
-                          reserve)) < 0)
+    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
         return ret;
 
     __disable_preempt(shim_get_tls()); // Temporarily disable preemption
