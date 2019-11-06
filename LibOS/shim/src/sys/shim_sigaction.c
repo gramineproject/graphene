@@ -139,6 +139,10 @@ int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset)
             break;
     }
 
+    /* SIGKILL and SIGSTOP cannot be blocked, silently ignore them */
+    __sigdelset(&set_tmp, SIGKILL);
+    __sigdelset(&set_tmp, SIGSTOP);
+
     set_sig_mask(cur, &set_tmp);
 
 out:
