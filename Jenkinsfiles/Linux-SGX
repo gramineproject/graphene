@@ -111,7 +111,7 @@ pipeline {
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
-                           make -C Pal/src/host/Linux-SGX/sgx-driver clean
+                           make -C Pal/src/host/Linux-SGX/sgx-driver distclean
                            make SGX=1 clean
                            rm LibOS/glibc-*.tar.gz
                            make -C LibOS/shim/test/regression SGX=1 clean
