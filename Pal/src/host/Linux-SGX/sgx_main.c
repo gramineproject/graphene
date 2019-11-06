@@ -277,9 +277,9 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     /* Reading sgx.static_address from manifest */
-    if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 && cfgbuf[0] == '1')
+    if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 && cfgbuf[0] == '1') {
         enclave->baseaddr = ALIGN_DOWN_POW2(heap_min, enclave->size);
-    else {
+    } else {
         enclave->baseaddr = ENCLAVE_HIGH_ADDRESS;
         heap_min = 0;
     }
@@ -296,7 +296,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto out;
     }
 
-    memset(&enclave_secs, 0, sizeof(sgx_arch_secs_t));
+    memset(&enclave_secs, 0, sizeof(enclave_secs));
     enclave_secs.base = enclave->baseaddr;
     enclave_secs.size = enclave->size;
     ret = create_enclave(&enclave_secs, &enclave_token);
