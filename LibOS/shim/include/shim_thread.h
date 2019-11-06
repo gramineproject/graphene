@@ -82,8 +82,7 @@ struct shim_thread {
     struct shim_handle * exec;
 
     void * stack, * stack_top, * stack_red;
-    __libc_tcb_t * tcb;
-    bool user_tcb; /* is tcb assigned by user? */
+    unsigned long fs_base;
     shim_tcb_t * shim_tcb;
     void * frameptr;
 
@@ -145,8 +144,8 @@ void put_thread (struct shim_thread * thread);
 void get_simple_thread (struct shim_simple_thread * thread);
 void put_simple_thread (struct shim_simple_thread * thread);
 
-void allocate_tls (__libc_tcb_t * tcb_location, bool user, struct shim_thread * thread);
-void populate_tls (__libc_tcb_t * tcb_location, bool user);
+void allocate_tls (unsigned long fs_base, struct shim_thread * thread);
+void populate_tls (unsigned long fs_base);
 
 void debug_setprefix (shim_tcb_t * tcb);
 
@@ -186,7 +185,7 @@ void set_cur_thread (struct shim_thread * thread)
     IDTYPE tid = 0;
 
     if (thread) {
-        __libc_tcb_t * libc_tcb = tcb->tp ? tcb->tp->tcb : NULL;
+        unsigned long fs_base = tcb->tp ? tcb->tp->fs_base : 0;
         if (tcb->tp && tcb->tp != thread)
             put_thread(tcb->tp);
 
@@ -194,8 +193,7 @@ void set_cur_thread (struct shim_thread * thread)
             get_thread(thread);
 
         tcb->tp = thread;
-        if (libc_tcb)
-            thread->tcb = libc_tcb;
+        thread->fs_base = fs_base;
         thread->shim_tcb = tcb;
         tid = thread->tid;
 
