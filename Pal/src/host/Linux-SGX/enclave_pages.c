@@ -12,8 +12,7 @@ static unsigned long pgsz = PRESET_PAGESIZE;
 void * heap_base;
 static uint64_t heap_size;
 
-/* This list keeps heap_vma structures of free regions
- * organized in DESCENDING order.*/
+/* This list keeps heap_vma structures of used/reserved regions organized in DESCENDING order.*/
 DEFINE_LIST(heap_vma);
 struct heap_vma {
     LIST_TYPE(heap_vma) list;
