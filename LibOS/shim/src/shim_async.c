@@ -145,7 +145,7 @@ static void shim_async_helper(void * arg) {
         return;
 
     unsigned long fs_base = 0;
-    allocate_tls(fs_base, self);
+    init_fs_base(fs_base, self);
     debug_setbuf(shim_get_tls(), true);
 
     lock(&async_helper_lock);

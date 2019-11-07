@@ -727,7 +727,7 @@ static int resume_wrapper (void * param)
     assert(tcb->context.regs && tcb->context.regs->rsp);
 
     thread->in_vm = thread->is_alive = true;
-    allocate_tls(fs_base, thread);
+    init_fs_base(fs_base, thread);
     debug_setbuf(tcb, false);
     debug("set fs_base to 0x%lx\n", fs_base);
 
@@ -776,7 +776,7 @@ BEGIN_RS_FUNC(running_thread)
             shim_tcb_t * tcb = thread->shim_tcb;
             assert(tcb->context.regs && tcb->context.regs->rsp);
             tcb->debug_buf = shim_get_tls()->debug_buf;
-            allocate_tls(fs_base, thread);
+            init_fs_base(fs_base, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
             debug_setprefix(tcb);

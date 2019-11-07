@@ -144,8 +144,8 @@ void put_thread (struct shim_thread * thread);
 void get_simple_thread (struct shim_simple_thread * thread);
 void put_simple_thread (struct shim_simple_thread * thread);
 
-void allocate_tls (unsigned long fs_base, struct shim_thread * thread);
-void populate_tls (unsigned long fs_base);
+void init_fs_base (unsigned long fs_base, struct shim_thread * thread);
+void update_fs_base (unsigned long fs_base);
 
 void debug_setprefix (shim_tcb_t * tcb);
 
