@@ -206,7 +206,7 @@ void init_tcb (shim_tcb_t * tcb)
 }
 
 /* This function is used to allocate tls before interpreter start running */
-void allocate_tls (unsigned long fs_base, struct shim_thread * thread)
+void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
 {
     shim_tcb_t * shim_tcb = shim_get_tls();
     init_tcb(shim_tcb);
@@ -225,7 +225,7 @@ void allocate_tls (unsigned long fs_base, struct shim_thread * thread)
     assert(shim_tls_check_canary());
 }
 
-void populate_tls (unsigned long fs_base)
+void update_fs_base (unsigned long fs_base)
 {
     shim_tcb_t * shim_tcb = shim_get_tls();
 
@@ -676,7 +676,7 @@ noreturn void* shim_init (int argc, void * args)
 
     /* create the initial TCB, shim can not be run without a tcb */
     unsigned long fs_base = 0;
-    allocate_tls(fs_base, NULL);
+    init_fs_base(fs_base, NULL);
     __disable_preempt(shim_get_tls()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
     debug_setbuf(shim_get_tls(), true);
