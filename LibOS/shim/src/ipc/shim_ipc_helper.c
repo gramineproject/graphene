@@ -793,7 +793,7 @@ static void shim_ipc_helper_prepare(void* arg) {
 
     unsigned long fs_base = 0;
     init_fs_base(fs_base, self);
-    debug_setbuf(shim_get_tls(), true);
+    debug_setbuf(shim_get_tcb(), true);
 
     lock(&ipc_helper_lock);
     bool notme = (self != ipc_helper_thread);

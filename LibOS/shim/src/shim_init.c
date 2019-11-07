@@ -59,9 +59,9 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     __UNUSED(context);
     if ((arg <= PAL_ERROR_NATIVE_COUNT) || (arg >= PAL_ERROR_CRYPTO_START &&
         arg <= PAL_ERROR_CRYPTO_END))
-        shim_get_tls()->pal_errno = arg;
+        shim_get_tcb()->pal_errno = arg;
     else
-        shim_get_tls()->pal_errno = PAL_ERROR_DENIED;
+        shim_get_tcb()->pal_errno = PAL_ERROR_DENIED;
 }
 
 noreturn void __abort(void) {
@@ -208,7 +208,7 @@ void init_tcb (shim_tcb_t * tcb)
 /* This function is used to allocate tls before interpreter start running */
 void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
 {
-    shim_tcb_t * shim_tcb = shim_get_tls();
+    shim_tcb_t * shim_tcb = shim_get_tcb();
     init_tcb(shim_tcb);
 
     if (thread) {
@@ -227,7 +227,7 @@ void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
 
 void update_fs_base (unsigned long fs_base)
 {
-    shim_tcb_t * shim_tcb = shim_get_tls();
+    shim_tcb_t * shim_tcb = shim_get_tcb();
 
     struct shim_thread * thread = shim_tcb->tp;
     if (thread) {
@@ -677,9 +677,9 @@ noreturn void* shim_init (int argc, void * args)
     /* create the initial TCB, shim can not be run without a tcb */
     unsigned long fs_base = 0;
     init_fs_base(fs_base, NULL);
-    __disable_preempt(shim_get_tls()); // Temporarily disable preemption for delaying any signal
+    __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
-    debug_setbuf(shim_get_tls(), true);
+    debug_setbuf(shim_get_tcb(), true);
 
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();
@@ -809,7 +809,7 @@ noreturn void* shim_init (int argc, void * args)
     if (thread_start_event)
         DkEventSet(thread_start_event);
 
-    shim_tcb_t * cur_tcb = shim_get_tls();
+    shim_tcb_t * cur_tcb = shim_get_tcb();
     struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
 
     if (cur_tcb->context.regs && cur_tcb->context.regs->rsp) {
@@ -1156,7 +1156,7 @@ int shim_clean (int err)
 
 #ifdef PROFILE
     if (ENTER_TIME) {
-        switch (shim_get_tls()->context.orig_rax) {
+        switch (shim_get_tcb()->context.orig_rax) {
             case __NR_exit_group:
                 SAVE_PROFILE_INTERVAL_SINCE(syscall_exit_group, ENTER_TIME);
                 break;

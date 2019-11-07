@@ -104,7 +104,7 @@ struct shim_thread * __get_cur_thread (void)
 
 shim_tcb_t * __get_cur_tcb (void)
 {
-    return shim_get_tls();
+    return shim_get_tcb();
 }
 
 IDTYPE get_pid (void)
@@ -766,8 +766,8 @@ BEGIN_RS_FUNC(running_thread)
         thread->pal_handle = handle;
     } else {
         if (thread->shim_tcb) {
-            memcpy(shim_get_tls(), thread->shim_tcb, sizeof(shim_tcb_t));
-            thread->shim_tcb = shim_get_tls();
+            memcpy(shim_get_tcb(), thread->shim_tcb, sizeof(shim_tcb_t));
+            thread->shim_tcb = shim_get_tcb();
         }
         debug_setbuf(thread->shim_tcb, false);
         unsigned long fs_base = thread->fs_base;
@@ -775,7 +775,7 @@ BEGIN_RS_FUNC(running_thread)
         if (fs_base) {
             shim_tcb_t * tcb = thread->shim_tcb;
             assert(tcb->context.regs && tcb->context.regs->rsp);
-            tcb->debug_buf = shim_get_tls()->debug_buf;
+            tcb->debug_buf = shim_get_tcb()->debug_buf;
             init_fs_base(fs_base, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
@@ -791,7 +791,7 @@ BEGIN_RS_FUNC(running_thread)
              * shim_tcb = NULL
              * in_vm = false
              */
-            thread->shim_tcb = shim_get_tls();
+            thread->shim_tcb = shim_get_tcb();
             init_tcb(thread->shim_tcb);
             set_cur_thread(thread);
         }

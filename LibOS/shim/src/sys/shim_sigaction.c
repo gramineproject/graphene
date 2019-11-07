@@ -163,7 +163,7 @@ int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
     if (oss)
         *oss = *cur_ss;
 
-    void * sp = (void *)shim_get_tls()->context.regs->rsp;
+    void * sp = (void *)shim_get_tcb()->context.regs->rsp;
     /* check if thread is currently executing on an active altstack */
     if (!(cur_ss->ss_flags & SS_DISABLE) &&
         sp &&

@@ -74,7 +74,7 @@ struct shim_tcb {
 
 void init_tcb (shim_tcb_t * tcb);
 
-static inline shim_tcb_t * shim_get_tls(void)
+static inline shim_tcb_t * shim_get_tcb(void)
 {
     PAL_TCB * tcb = pal_get_tcb();
     return (shim_tcb_t*)tcb->libos_tcb;
@@ -83,7 +83,7 @@ static inline shim_tcb_t * shim_get_tls(void)
 static inline bool shim_tls_check_canary(void)
 {
     /* TODO: optimize to use single movq %gs:<offset> */
-    shim_tcb_t * shim_tcb = shim_get_tls();
+    shim_tcb_t * shim_tcb = shim_get_tcb();
     uint64_t __canary = shim_tcb->canary;
     return __canary == SHIM_TLS_CANARY;
 }
