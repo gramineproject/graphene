@@ -40,9 +40,9 @@ static int printnum(int (*_fputch)(void*, int, void*), void* f, void* putdat, un
 // Get an unsigned int of various possible sizes from a varargs list,
 // depending on the lflag parameter.
 #if !defined(__i386__)
-inline unsigned long long getuint(va_list ap, int lflag)
+static inline unsigned long long getuint(va_list ap, int lflag)
 #else
-inline unsigned long getuint(va_list ap, int lflag)
+static inline unsigned long getuint(va_list ap, int lflag)
 #endif
 {
 #if !defined(__i386__)
@@ -57,9 +57,9 @@ inline unsigned long getuint(va_list ap, int lflag)
 // Same as getuint but signed - can't use getuint
 // because of sign extension
 #if !defined(__i386__)
-inline long long getint(va_list ap, int lflag)
+static inline long long getint(va_list ap, int lflag)
 #else
-inline long getint(va_list ap, int lflag)
+static inline long getint(va_list ap, int lflag)
 #endif
 {
 #if !defined(__i386__)
