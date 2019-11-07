@@ -82,7 +82,7 @@ static inline shim_tcb_t * shim_get_tls(void)
 
 static inline bool shim_tls_check_canary(void)
 {
-    /* optimize to use single movq %gs:<offset> */
+    /* TODO: optimize to use single movq %gs:<offset> */
     shim_tcb_t * shim_tcb = shim_get_tls();
     uint64_t __canary = shim_tcb->canary;
     return __canary == SHIM_TLS_CANARY;

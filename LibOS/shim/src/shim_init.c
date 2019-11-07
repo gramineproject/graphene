@@ -42,7 +42,8 @@
 #include <asm/fcntl.h>
 
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
-              "shim_tcb_t is too big. increase PAL_LIBOS_TCB_SIZE");
+              "shim_tcb_t does not fit into PAL_TCB; "
+              "please increase PAL_LIBOS_TCB_SIZE");
 
 size_t g_pal_alloc_align;
 

@@ -47,7 +47,7 @@ PAL_HANDLE thread_start_event = NULL;
 
 //#define DEBUG_REF
 
-int init_thread ()
+int init_thread (void)
 {
     create_lock(&thread_list_lock);
 
