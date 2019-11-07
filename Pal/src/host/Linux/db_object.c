@@ -60,8 +60,8 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
     /* Normal case of not mutex/event: poll on all handles in the array (their handle types can be
      * process, socket, pipe, device, file, eventfd). Note that this function is used only for
      * Graphene-internal purposes, so we can allocate arrays on stack (since they are small). */
-    struct pollfd fds[count];
-    PAL_HANDLE hdls[count];
+    struct pollfd fds[count * MAX_FDS];
+    PAL_HANDLE hdls[count * MAX_FDS];
 
     /* collect all FDs of all PAL handles that may report read/write events */
     int nfds = 0;
@@ -199,12 +199,12 @@ int _DkObjectsWaitEvents(int count, PAL_HANDLE* handleArray, PAL_FLG* events, PA
 
     /* Normal case of not mutex/event: poll on all handles in the array (their handle types can be
      * process, socket, pipe, device, file, eventfd). */
-    struct pollfd* fds = malloc(count * sizeof(struct pollfd));
+    struct pollfd* fds = malloc(count * MAX_FDS * sizeof(struct pollfd));
     if (!fds) {
         return -PAL_ERROR_NOMEM;
     }
 
-    int* offsets = malloc(count * sizeof(int));
+    int* offsets = malloc(count * MAX_FDS * sizeof(int));
     if (!offsets) {
         free(fds);
         return -PAL_ERROR_NOMEM;
