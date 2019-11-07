@@ -301,10 +301,16 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertFalse(pathlib.Path('file_delete.tmp').exists())
 
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
-    def test_101_file(self):
+    def test_101_nonexist_file(self):
+        # Explicitly remove the file file_nonexist_disallowed.tmp before
+        # running binary. Otherwise this test will fail if these tests are
+        # run repeatedly.
+        os.remove('file_nonexist_disallowed.tmp')
+
         stdout, stderr = self.run_binary(['File'])
 
-        # File Creation for non-existing file
+        # Run file Creation for non-existing file. This behavior is
+        # disallowed unless sgx.allow_file_creation is explicitly set to 1.
         self.assertIn('File Creation Test 4 OK', stderr)
 
     def test_110_directory(self):
