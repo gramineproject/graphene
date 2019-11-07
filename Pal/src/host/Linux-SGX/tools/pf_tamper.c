@@ -170,44 +170,44 @@ int tamper_header(const char* input_name, size_t size, const void* input, const 
     int ret = -1;
     pf_header_t* output = MAP_FAILED;
 
-    BREAK_HEADER("header_version_1", "invalid version (0)", 1,
+    BREAK_HEADER("header_version_1", "invalid version (0)", true,
         {output->version = 0;});
 
-    BREAK_HEADER("header_version_2", "invalid version (max)", 1,
+    BREAK_HEADER("header_version_2", "invalid version (max)", true,
         {output->version = UINT32_MAX;});
 
-    BREAK_HEADER("header_size_1", "invalid size (0)", 0,
+    BREAK_HEADER("header_size_1", "invalid size (0)", false,
         {output->data_size = 0;});
 
-    BREAK_HEADER("header_size_2", "invalid size (x-1)", 1,
+    BREAK_HEADER("header_size_2", "invalid size (x-1)", true,
         {output->data_size--;});
 
-    BREAK_HEADER("header_size_3", "invalid size (x+1)", 1,
+    BREAK_HEADER("header_size_3", "invalid size (x+1)", true,
         {output->data_size++;});
 
-    BREAK_HEADER("header_size_4", "invalid size (max)", 1,
+    BREAK_HEADER("header_size_4", "invalid size (max)", true,
         {output->data_size = UINT64_MAX;});
 
-    BREAK_HEADER("header_iv", "invalid IV", 0,
+    BREAK_HEADER("header_iv", "invalid IV", false,
         {output->header_iv[0] ^= 1;});
 
-    BREAK_HEADER("header_aps_1", "invalid allowed_paths_size (0)", 1,
+    BREAK_HEADER("header_aps_1", "invalid allowed_paths_size (0)", true,
         {output->allowed_paths_size = 0;});
 
-    BREAK_HEADER("header_mac", "invalid MAC", 0,
+    BREAK_HEADER("header_mac", "invalid MAC", false,
         {output->header_mac[PF_MAC_SIZE-1] ^= 1;});
 
     // These may not be strictly invalid, but they should result in inaccessible PFs
-    BREAK_HEADER("header_aps_2", "invalid allowed_paths_size (x-1)", 1,
+    BREAK_HEADER("header_aps_2", "invalid allowed_paths_size (x-1)", true,
         {output->allowed_paths_size--;});
 
-    BREAK_HEADER("header_aps_3", "invalid allowed_paths_size (x+1)", 1,
+    BREAK_HEADER("header_aps_3", "invalid allowed_paths_size (x+1)", true,
         {output->allowed_paths_size++;});
 
-    BREAK_HEADER("header_aps_4", "invalid allowed_paths_size (max)", 1,
+    BREAK_HEADER("header_aps_4", "invalid allowed_paths_size (max)", true,
         {output->allowed_paths_size = UINT32_MAX;});
 
-    BREAK_HEADER("header_ap_1", "invalid allowed_paths", 1,
+    BREAK_HEADER("header_ap_1", "invalid allowed_paths", true,
         {output->allowed_paths[0]++;});
 
     ret = 0;
@@ -253,47 +253,48 @@ int tamper_chunk(const char* input_name, size_t size, const void* input, const u
 
 #define SET_PTR(mem, idx) chunk = (pf_chunk_t*)(((uint8_t*)mem) + PF_CHUNK_OFFSET(idx));
 
-    BREAK_CHUNK("chunk_number_1", "invalid number (0->1)", 1,
+    BREAK_CHUNK("chunk_number_1", "invalid number (0->1)", true,
         {SET_PTR(output, 0); chunk->chunk_number = 1;});
 
-    BREAK_CHUNK("chunk_number_2", "invalid number (0->max)", 1,
+    BREAK_CHUNK("chunk_number_2", "invalid number (0->max)", true,
         {SET_PTR(output, 0); chunk->chunk_number = UINT64_MAX;});
 
-    BREAK_CHUNK("chunk_size_1", "invalid size (0)", 1,
+    BREAK_CHUNK("chunk_size_1", "invalid size (0)", true,
         {SET_PTR(output, 0); chunk->chunk_size = 0;});
 
-    BREAK_CHUNK("chunk_size_2", "invalid size (x-1)", 1, // size for non-last chunk should be constant
+    // size for non-last chunk should be constant
+    BREAK_CHUNK("chunk_size_2", "invalid size (x-1)", true,
         {SET_PTR(output, 0); chunk->chunk_size--;});
 
-    BREAK_CHUNK("chunk_size_3", "invalid size (x+1)", 1,
+    BREAK_CHUNK("chunk_size_3", "invalid size (x+1)", true,
         {SET_PTR(output, 0); chunk->chunk_size++;});
 
-    BREAK_CHUNK("chunk_size_4", "invalid size (max)", 1,
+    BREAK_CHUNK("chunk_size_4", "invalid size (max)", true,
         {SET_PTR(output, 0); chunk->chunk_size = UINT32_MAX;});
 
-    BREAK_CHUNK("chunk_iv", "invalid IV", 0,
+    BREAK_CHUNK("chunk_iv", "invalid IV", false,
         {SET_PTR(output, 0); chunk->chunk_iv[PF_IV_SIZE-1] ^= 1;});
 
-    BREAK_CHUNK("chunk_padding_1", "invalid padding[0]", 1,
+    BREAK_CHUNK("chunk_padding_1", "invalid padding[0]", true,
         {SET_PTR(output, 0); chunk->padding[0] = 0xf0;});
 
-    BREAK_CHUNK("chunk_padding_2", "invalid padding[7]", 1,
+    BREAK_CHUNK("chunk_padding_2", "invalid padding[7]", true,
         {SET_PTR(output, 0); chunk->padding[7] = 0x01;});
 
-    BREAK_CHUNK("chunk_data_1", "invalid data[0]", 0,
+    BREAK_CHUNK("chunk_data_1", "invalid data[0]", false,
         {SET_PTR(output, 0); chunk->chunk_data[0] ^= 0xf0;});
 
-    BREAK_CHUNK("chunk_data_2", "invalid data[size-1]", 0,
+    BREAK_CHUNK("chunk_data_2", "invalid data[size-1]", false,
         {SET_PTR(output, 0); chunk->chunk_data[chunk->chunk_size-1] ^= 0x01;});
 
-    BREAK_CHUNK("chunk_mac", "invalid MAC", 0,
+    BREAK_CHUNK("chunk_mac", "invalid MAC", false,
         {SET_PTR(output, 0); chunk->chunk_mac[0] ^= 1;});
 
     if (chunks > 1) {
-        BREAK_CHUNK("chunk_number_3", "invalid number (1->0)", 1,
+        BREAK_CHUNK("chunk_number_3", "invalid number (1->0)", true,
             {SET_PTR(output, 1); chunk->chunk_number = 0;});
 
-        BREAK_CHUNK("chunk_number_4", "invalid number (1->-1)", 1,
+        BREAK_CHUNK("chunk_number_4", "invalid number (1->-1)", true,
             {SET_PTR(output, 1); chunk->chunk_number = -1;});
     }
 
@@ -301,14 +302,14 @@ int tamper_chunk(const char* input_name, size_t size, const void* input, const u
     SET_PTR(input, chunks-1); // check last chunk size
     if (chunk->chunk_size != PF_CHUNK_DATA_MAX) {
         // set last chunk size to be too large
-        BREAK_CHUNK("chunk_size_5", "invalid size (max size)", 1,
+        BREAK_CHUNK("chunk_size_5", "invalid size (max size)", true,
             {SET_PTR(output, chunks-1); chunk->chunk_size = PF_CHUNK_DATA_MAX;});
 
         // chunk is not full and data should be padded with zeros
-        BREAK_CHUNK("chunk_data_3", "invalid data[size+1]", 0,
+        BREAK_CHUNK("chunk_data_3", "invalid data[size+1]", false,
             {SET_PTR(output, chunks-1); chunk->chunk_data[chunk->chunk_size+1] = 1;});
 
-        BREAK_CHUNK("chunk_data_4", "invalid data[max size-1]", 0,
+        BREAK_CHUNK("chunk_data_4", "invalid data[max size-1]", false,
             {SET_PTR(output, chunks-1); chunk->chunk_data[PF_CHUNK_DATA_MAX-1] = 1;});
     }
 
