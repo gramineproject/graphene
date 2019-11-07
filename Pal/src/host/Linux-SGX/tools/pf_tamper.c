@@ -43,7 +43,7 @@ struct option g_options[] = {
 void usage() {
     INFO("\nUsage: pf_tamper [options]\n");
     INFO("To enable all modifications, the PF should contain at least 3 chunks\n");
-    INFO("and the last one should not be full.\n\n");
+    INFO("and the last one should not be full.\n");
     INFO("\nAvailable options:\n");
     INFO("  --help, -h           Display this help\n");
     INFO("  --verbose, -v        Enable verbose output\n");
@@ -52,22 +52,40 @@ void usage() {
     INFO("  --output, -o PATH    Directory where modified files will be written to\n");
 }
 
-#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+int truncate_pf(const char* input_name, size_t input_size, const void* input,
+                const char* output_dir, char* output_path, size_t output_path_size,
+                const char* suffix, const char* msg, bool extend, size_t size) {
 
-// copy input PF and truncate
-#define TRUNCATE(file_suffix, msg, size) \
-{ \
-    if (input_size > (ssize_t)(size)) { \
-        snprintf(output_path, output_path_size, "%s/%s." file_suffix, output_dir, input_name); \
-        INFO("[*] " msg ": %s\n", output_path); \
-        ret = write_file(output_path, (size), input); \
-        if (ret < 0) \
-            goto out; \
-    } \
+    int ret;
+    if (extend || input_size > size) {
+        snprintf(output_path, output_path_size, "%s/%s.%s", output_dir, input_name, suffix);
+        INFO("[*] %s: %s\n", msg, output_path);
+        if (input_size >= size) {
+            ret = write_file(output_path, size, input);
+        } else {
+            ret = write_file(output_path, input_size, input);
+            if (ret < 0)
+                return ret;
+            ret = truncate(output_path, size);
+        }
+        if (ret < 0)
+            return ret;
+    }
+    return 0;
 }
 
-int tamper_truncate(const char* input_name, ssize_t input_size, const void* input,
-                    const char* output_dir, char* output_path, ssize_t output_path_size) {
+#define TRUNCATE(suffix, msg, extend, size) \
+{ \
+    ret = truncate_pf(input_name, input_size, input, output_dir, output_path, output_path_size, \
+                      suffix, msg, extend, size); \
+    if (ret < 0) \
+        goto out; \
+}
+
+#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+
+int tamper_truncate(const char* input_name, size_t input_size, const void* input,
+                    const char* output_dir, char* output_path, size_t output_path_size) {
     int ret = -1;
 
     snprintf(output_path, output_path_size, "%s/%s.trunc_zero", output_dir, input_name);
@@ -76,22 +94,26 @@ int tamper_truncate(const char* input_name, ssize_t input_size, const void* inpu
     if (ret < 0)
         goto out;
 
-    TRUNCATE("trunc_zero", "Truncated header", PF_HEADER_SIZE / 2);
+    TRUNCATE("trunc_zero", "Truncated header", false, PF_HEADER_SIZE / 2);
 
-    TRUNCATE("trunc_chunk_metadata", "Truncated chunk (metadata)",
+    TRUNCATE("trunc_chunk_metadata", "Truncated chunk (metadata)", false,
         PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_size) + FIELD_SIZEOF(pf_chunk_t, chunk_size) / 2);
 
-    TRUNCATE("trunc_chunk_data", "Truncated chunk (data)",
+    TRUNCATE("trunc_chunk_data", "Truncated chunk (data)", false,
         PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_data) + 10);
 
-    TRUNCATE("trunc_chunks", "Truncated between chunks", PF_CHUNK_OFFSET(1));
+    TRUNCATE("trunc_chunks", "Truncated between chunks", false, PF_CHUNK_OFFSET(1));
+
+    TRUNCATE("trunc_extend_1", "Extended (+1)", true, input_size + 1);
+
+    TRUNCATE("trunc_extend_2", "Extended (+chunk)", true, input_size + PF_CHUNK_SIZE);
 
     ret = 0;
 out:
     return ret;
 }
 
-void* open_output(const char* path, ssize_t size, const void* input) {
+void* open_output(const char* path, size_t size, const void* input) {
     void* mem = MAP_FAILED;
     int fd = open(path, O_RDWR|O_CREAT, 0664);
     if (fd < 0) {
@@ -143,8 +165,8 @@ out:
     } \
 }
 
-int tamper_header(const char* input_name, ssize_t size, const void* input, const uint8_t* key,
-                  const char* output_dir, char* output_path, ssize_t output_path_size) {
+int tamper_header(const char* input_name, size_t size, const void* input, const uint8_t* key,
+                  const char* output_dir, char* output_path, size_t output_path_size) {
     int ret = -1;
     pf_header_t* output = MAP_FAILED;
 
@@ -218,8 +240,8 @@ out:
     } \
 }
 
-int tamper_chunk(const char* input_name, ssize_t size, const void* input, const uint8_t* key,
-                 const char* output_dir, char* output_path, ssize_t output_path_size) {
+int tamper_chunk(const char* input_name, size_t size, const void* input, const uint8_t* key,
+                 const char* output_dir, char* output_path, size_t output_path_size) {
     int ret = -1;
     void* output = MAP_FAILED;
     pf_chunk_t* chunk;
@@ -373,7 +395,7 @@ int main(int argc, char *argv[]) {
     load_wrap_key(wrap_key_path, wrap_key);
 
     const char* input_name = basename(input_path);
-    ssize_t output_path_size = strlen(input_name) + strlen(output_dir) + 256;
+    size_t output_path_size = strlen(input_name) + strlen(output_dir) + 256;
     output_path = malloc(output_path_size);
     if (!output_path) {
         ERROR("No memory\n");
