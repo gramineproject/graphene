@@ -792,7 +792,7 @@ static void shim_ipc_helper_prepare(void* arg) {
         return;
 
     unsigned long fs_base = 0;
-    allocate_tls(fs_base, self);
+    init_fs_base(fs_base, self);
     debug_setbuf(shim_get_tls(), true);
 
     lock(&ipc_helper_lock);

@@ -125,11 +125,11 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     struct shim_thread* my_thread = arg->thread;
     assert(my_thread);
 
-    allocate_tls(my_thread->fs_base, my_thread); /* set up TCB */
+    init_fs_base(my_thread->fs_base, my_thread); /* set up TCB */
     shim_tcb_t * tcb = my_thread->shim_tcb;
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
-     * do not move the below functions before allocate_tls()! */
+     * do not move the below functions before init_fs_base()! */
     object_wait_with_retry(arg->create_event);
     DkObjectClose(arg->create_event);
 
