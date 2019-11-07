@@ -116,27 +116,30 @@ out:
     return mem;
 }
 
-// if fix_mac is true, also create a file with correct header's MAC
-#define BREAK_HEADER(file_suffix, msg, fix_mac, ...) \
+// copy input PF and apply some modifications
+#define __BREAK_PF(file_suffix, msg, ...) \
+{ \
     snprintf(output_path, output_path_size, "%s/%s." file_suffix, output_dir, input_name); \
-    INFO("[*] Header: " msg ": %s\n", output_path); \
+    INFO("[*] " msg ": %s\n", output_path); \
     output = open_output(output_path, size, input); \
     if (output == MAP_FAILED) \
         goto out; \
     __VA_ARGS__ \
     munmap(output, size); \
-    if (fix_mac) { \
-        snprintf(output_path, output_path_size, "%s/%s." file_suffix "_mac", output_dir, input_name); \
-        INFO("[*] Header (fixed MAC): " msg ": %s\n", output_path); \
-        output = open_output(output_path, size, input); \
-        if (output == MAP_FAILED) \
-            goto out; \
-        __VA_ARGS__ \
-        openssl_crypto_aes_gcm_encrypt(key, PF_WRAP_KEY_SIZE, output->header_iv, PF_IV_SIZE, \
-                                       output, PF_HEADER_SIZE-PF_MAC_SIZE, NULL, 0, NULL, \
-                                       output->header_mac, PF_MAC_SIZE); \
-        munmap(output, size); \
-    }
+}
+
+// if fix is true, also create a file with correct header's MAC
+#define BREAK_HEADER(file_suffix, msg, fix, ...) \
+{ \
+    __BREAK_PF(file_suffix, "Header " msg, __VA_ARGS__); \
+    if (fix) { \
+        __BREAK_PF(file_suffix "_fixed", "Header (fixed) " msg, __VA_ARGS__ { \
+            openssl_crypto_aes_gcm_encrypt(key, PF_WRAP_KEY_SIZE, output->header_iv, PF_IV_SIZE, \
+                                           output, PF_HEADER_SIZE-PF_MAC_SIZE, NULL, 0, NULL, \
+                                           output->header_mac, PF_MAC_SIZE); \
+        }); \
+    } \
+}
 
 int tamper_header(const char* input_name, ssize_t size, const void* input, const uint8_t* key,
                   const char* output_dir, char* output_path, ssize_t output_path_size) {
@@ -167,6 +170,9 @@ int tamper_header(const char* input_name, ssize_t size, const void* input, const
     BREAK_HEADER("header_aps_1", "invalid allowed_paths_size (0)", 1,
         {output->allowed_paths_size = 0;});
 
+    BREAK_HEADER("header_mac", "invalid MAC", 0,
+        {output->header_mac[PF_MAC_SIZE-1] ^= 1;});
+
     // These may not be strictly invalid, but they should result in inaccessible PFs
     BREAK_HEADER("header_aps_2", "invalid allowed_paths_size (x-1)", 1,
         {output->allowed_paths_size--;});
@@ -179,6 +185,108 @@ int tamper_header(const char* input_name, ssize_t size, const void* input, const
 
     BREAK_HEADER("header_ap_1", "invalid allowed_paths", 1,
         {output->allowed_paths[0]++;});
+
+    ret = 0;
+out:
+    return ret;
+}
+
+// if fix is true, also create a file with correct chunk's MAC/encrypted data
+// aes input size is clamped to PF_CHUNK_DATA_MAX to not overwrite too much stuff
+#define BREAK_CHUNK(file_suffix, msg, fix, ...) \
+{ \
+    __BREAK_PF(file_suffix, "Chunk " msg, __VA_ARGS__); \
+    if (fix) { \
+        uint8_t decrypted[PF_CHUNK_SIZE]; \
+        __BREAK_PF(file_suffix "_fixed", "Chunk (fixed) " msg, { \
+            uint32_t size = chunk->chunk_size > PF_CHUNK_DATA_MAX ? PF_CHUNK_DATA_MAX : chunk->chunk_size; \
+            openssl_crypto_aes_gcm_decrypt(key, PF_WRAP_KEY_SIZE, chunk->chunk_iv, PF_IV_SIZE, \
+                                           chunk, PF_CHUNK_HEADER_SIZE, \
+                                           chunk->chunk_data, size, decrypted, \
+                                           chunk->chunk_mac, PF_MAC_SIZE); \
+        } \
+        __VA_ARGS__ \
+        { \
+            uint32_t size = chunk->chunk_size > PF_CHUNK_DATA_MAX ? PF_CHUNK_DATA_MAX : chunk->chunk_size; \
+            openssl_crypto_aes_gcm_encrypt(key, PF_WRAP_KEY_SIZE, chunk->chunk_iv, PF_IV_SIZE, \
+                                           chunk, PF_CHUNK_HEADER_SIZE, \
+                                           decrypted, size, chunk->chunk_data, \
+                                           chunk->chunk_mac, PF_MAC_SIZE); \
+        }); \
+    } \
+}
+
+int tamper_chunk(const char* input_name, ssize_t size, const void* input, const uint8_t* key,
+                 const char* output_dir, char* output_path, ssize_t output_path_size) {
+    int ret = -1;
+    void* output = MAP_FAILED;
+    pf_chunk_t* chunk;
+    pf_header_t* header = (pf_header_t*)input;
+    uint64_t chunks = PF_CHUNKS_COUNT(header->data_size);
+
+    if (chunks == 0) // no chunks to break
+        return 0;
+
+#define SET_PTR(mem, idx) chunk = (pf_chunk_t*)(((uint8_t*)mem) + PF_CHUNK_OFFSET(idx));
+
+    BREAK_CHUNK("chunk_number_1", "invalid number (0->1)", 1,
+        {SET_PTR(output, 0); chunk->chunk_number = 1;});
+
+    BREAK_CHUNK("chunk_number_2", "invalid number (0->max)", 1,
+        {SET_PTR(output, 0); chunk->chunk_number = UINT64_MAX;});
+
+    BREAK_CHUNK("chunk_size_1", "invalid size (0)", 1,
+        {SET_PTR(output, 0); chunk->chunk_size = 0;});
+
+    BREAK_CHUNK("chunk_size_2", "invalid size (x-1)", 1, // size for non-last chunk should be constant
+        {SET_PTR(output, 0); chunk->chunk_size--;});
+
+    BREAK_CHUNK("chunk_size_3", "invalid size (x+1)", 1,
+        {SET_PTR(output, 0); chunk->chunk_size++;});
+
+    BREAK_CHUNK("chunk_size_4", "invalid size (max)", 1,
+        {SET_PTR(output, 0); chunk->chunk_size = UINT32_MAX;});
+
+    BREAK_CHUNK("chunk_iv", "invalid IV", 0,
+        {SET_PTR(output, 0); chunk->chunk_iv[PF_IV_SIZE-1] ^= 1;});
+
+    BREAK_CHUNK("chunk_padding_1", "invalid padding[0]", 1,
+        {SET_PTR(output, 0); chunk->padding[0] = 0xf0;});
+
+    BREAK_CHUNK("chunk_padding_2", "invalid padding[7]", 1,
+        {SET_PTR(output, 0); chunk->padding[7] = 0x01;});
+
+    BREAK_CHUNK("chunk_data_1", "invalid data[0]", 0,
+        {SET_PTR(output, 0); chunk->chunk_data[0] ^= 0xf0;});
+
+    BREAK_CHUNK("chunk_data_2", "invalid data[size-1]", 0,
+        {SET_PTR(output, 0); chunk->chunk_data[chunk->chunk_size-1] ^= 0x01;});
+
+    BREAK_CHUNK("chunk_mac", "invalid MAC", 0,
+        {SET_PTR(output, 0); chunk->chunk_mac[0] ^= 1;});
+
+    if (chunks > 1) {
+        BREAK_CHUNK("chunk_number_3", "invalid number (1->0)", 1,
+            {SET_PTR(output, 1); chunk->chunk_number = 0;});
+
+        BREAK_CHUNK("chunk_number_4", "invalid number (1->-1)", 1,
+            {SET_PTR(output, 1); chunk->chunk_number = -1;});
+    }
+
+    // last chunk is not full?
+    SET_PTR(input, chunks-1); // check last chunk size
+    if (chunk->chunk_size != PF_CHUNK_DATA_MAX) {
+        // set last chunk size to be too large
+        BREAK_CHUNK("chunk_size_5", "invalid size (max size)", 1,
+            {SET_PTR(output, chunks-1); chunk->chunk_size = PF_CHUNK_DATA_MAX;});
+
+        // chunk is not full and data should be padded with zeros
+        BREAK_CHUNK("chunk_data_3", "invalid data[size+1]", 0,
+            {SET_PTR(output, chunks-1); chunk->chunk_data[chunk->chunk_size+1] = 1;});
+
+        BREAK_CHUNK("chunk_data_4", "invalid data[max size-1]", 0,
+            {SET_PTR(output, chunks-1); chunk->chunk_data[PF_CHUNK_DATA_MAX-1] = 1;});
+    }
 
     ret = 0;
 out:
@@ -275,6 +383,10 @@ int main(int argc, char *argv[]) {
         goto out;
 
     ret = tamper_header(input_name, input_size, input, wrap_key, output_dir, output_path, output_path_size);
+    if (ret < 0)
+        goto out;
+
+    ret = tamper_chunk(input_name, input_size, input, wrap_key, output_dir, output_path, output_path_size);
 
 out:
     if (input != MAP_FAILED)
