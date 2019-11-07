@@ -729,7 +729,7 @@ static int resume_wrapper (void * param)
     thread->in_vm = thread->is_alive = true;
     allocate_tls(fs_base, thread);
     debug_setbuf(tcb, false);
-    debug("set tcb to 0x%lx\n", fs_base);
+    debug("set fs_base to 0x%lx\n", fs_base);
 
     object_wait_with_retry(thread_start_event);
 

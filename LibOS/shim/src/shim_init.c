@@ -680,7 +680,6 @@ noreturn void* shim_init (int argc, void * args)
     __disable_preempt(shim_get_tls()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
     debug_setbuf(shim_get_tls(), true);
-    debug("set tcb to 0x%lx\n", fs_base);
 
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();
