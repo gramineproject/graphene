@@ -296,6 +296,15 @@ int tamper_chunk(const char* input_name, size_t size, const void* input, const u
 
         BREAK_CHUNK("chunk_number_4", "invalid number (1->-1)", true,
             {SET_PTR(output, 1); chunk->chunk_number = -1;});
+
+        // reorder chunks
+        BREAK_CHUNK("chunk_reorder", "reordered chunks (0<->1)", false,
+            {
+                SET_PTR(output, 1); // 0->1
+                memcpy(chunk, (uint8_t*)input + PF_CHUNK_OFFSET(0), PF_CHUNK_SIZE);
+                SET_PTR(output, 0); // 1->0
+                memcpy(chunk, (uint8_t*)input + PF_CHUNK_OFFSET(1), PF_CHUNK_SIZE);
+            });
     }
 
     // last chunk is not full?
