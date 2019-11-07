@@ -42,6 +42,8 @@ struct option g_options[] = {
 
 void usage() {
     INFO("\nUsage: pf_tamper [options]\n");
+    INFO("To enable all modifications, the PF should contain at least 3 chunks\n");
+    INFO("and the last one should not be full.\n\n");
     INFO("\nAvailable options:\n");
     INFO("  --help, -h           Display this help\n");
     INFO("  --verbose, -v        Enable verbose output\n");
@@ -50,15 +52,23 @@ void usage() {
     INFO("  --output, -o PATH    Directory where modified files will be written to\n");
 }
 
+#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+
+// copy input PF and truncate
+#define TRUNCATE(file_suffix, msg, size) \
+{ \
+    if (input_size > (ssize_t)(size)) { \
+        snprintf(output_path, output_path_size, "%s/%s." file_suffix, output_dir, input_name); \
+        INFO("[*] " msg ": %s\n", output_path); \
+        ret = write_file(output_path, (size), input); \
+        if (ret < 0) \
+            goto out; \
+    } \
+}
+
 int tamper_truncate(const char* input_name, ssize_t input_size, const void* input,
                     const char* output_dir, char* output_path, ssize_t output_path_size) {
     int ret = -1;
-    const ssize_t min_size = PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_data) + 7;
-
-    if (input_size < min_size) {
-        ERROR("Input size %zu too small, need at least %zu\n", input_size, min_size);
-        goto out;
-    }
 
     snprintf(output_path, output_path_size, "%s/%s.trunc_zero", output_dir, input_name);
     INFO("[*] Zero-size file: %s\n", output_path);
@@ -66,23 +76,15 @@ int tamper_truncate(const char* input_name, ssize_t input_size, const void* inpu
     if (ret < 0)
         goto out;
 
-    snprintf(output_path, output_path_size, "%s/%s.trunc_header", output_dir, input_name);
-    INFO("[*] Truncated header: %s\n", output_path);
-    ret = write_file(output_path, PF_CHUNKS_OFFSET / 2, input);
-    if (ret < 0)
-        goto out;
+    TRUNCATE("trunc_zero", "Truncated header", PF_HEADER_SIZE / 2);
 
-    snprintf(output_path, output_path_size, "%s/%s.trunc_chunk_metadata", output_dir, input_name);
-    INFO("[*] Truncated chunk (metadata): %s\n", output_path);
-    ret = write_file(output_path, PF_CHUNKS_OFFSET + 10, input);
-    if (ret < 0)
-        goto out;
+    TRUNCATE("trunc_chunk_metadata", "Truncated chunk (metadata)",
+        PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_size) + FIELD_SIZEOF(pf_chunk_t, chunk_size) / 2);
 
-    snprintf(output_path, output_path_size, "%s/%s.trunc_chunk_data", output_dir, input_name);
-    INFO("[*] Truncated chunk (data): %s\n", output_path);
-    ret = write_file(output_path, min_size, input);
-    if (ret < 0)
-        goto out;
+    TRUNCATE("trunc_chunk_data", "Truncated chunk (data)",
+        PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_data) + 10);
+
+    TRUNCATE("trunc_chunks", "Truncated between chunks", PF_CHUNK_OFFSET(1));
 
     ret = 0;
 out:
