@@ -21,10 +21,6 @@
 	.globl _start
 	.type _start,@function
 _start:
-	/* Clear the frame pointer.  The ABI suggests this be done, to mark
-	   the outermost frame obviously.  */
-	xorl %ebp, %ebp
-
 	popq %rdi		/* Pop the argument count.  */
 
 	/* argv starts just at the current stack top.  */
@@ -34,8 +30,12 @@ _start:
 	and  $~0xF, %rsp
 
 	/* push the exit address on the stack and preserve %rsp alignment */
-	subq $8, %rsp
 	pushq %rdx
+	/* Clear the frame pointer.  The ABI suggests this be done, to mark
+	   the outermost frame obviously.  */
+	pushq %rbp		/* %rbp is callee save. */
+	xorl %ebp, %ebp
+
 
 	/* find the environs */
 	lea (%rsi,%rdi,8), %rdx
@@ -48,4 +48,5 @@ _start:
 #endif
 
 	/* return to the exit function */
+	popq %rbp
 	retq
