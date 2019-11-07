@@ -458,26 +458,14 @@ diff -ruNp a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
 diff -ruNp a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
 --- a/sysdeps/x86_64/nptl/tls.h
 +++ b/sysdeps/x86_64/nptl/tls.h
-@@ -29,6 +29,8 @@
+@@ -29,6 +29,7 @@
  # include <libc-pointer-arith.h> /* For cast_to_integer.  */
  # include <kernel-features.h>
  # include <dl-dtv.h>
-+# include <shim_tls.h>
 +# include <syscalldb.h>
  
  /* Replacement type for __m128 since this file is included by ld.so,
     which is compiled with -mno-sse.  It must not change the alignment
-@@ -56,6 +58,10 @@ typedef struct
- # else
-   int __glibc_reserved1;
- # endif
-+
-+  shim_tcb_t shim_tcb;	/* For graphene, we allocate a shim_tcb
-+			   in the real tcb. */
-+
-   int __glibc_unused1;
-   /* Reservation of some values for the TM ABI.  */
-   void *__private_tm[4];
 @@ -144,7 +149,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \
