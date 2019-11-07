@@ -122,14 +122,14 @@ int init_thread (void);
 static inline struct shim_thread * shim_thread_self(void)
 {
     /* TODO: optimize to use single movq %gs:<offset> */
-    shim_tcb_t * shim_tcb = shim_get_tls();
+    shim_tcb_t * shim_tcb = shim_get_tcb();
     return shim_tcb->tp;
 }
 
 static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __self)
 {
     /* TODO: optimize to use single movq %gs:<offset> */
-    shim_tcb_t * shim_tcb = shim_get_tls();
+    shim_tcb_t * shim_tcb = shim_get_tcb();
     shim_tcb->tp = __self;
     return __self;
 }
@@ -181,7 +181,7 @@ static inline
 __attribute__((always_inline))
 void set_cur_thread (struct shim_thread * thread)
 {
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     IDTYPE tid = 0;
 
     if (thread) {
