@@ -85,12 +85,11 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     int ret = 0;
     PAL_HANDLE hdl = NULL;
-    void * stack = malloc(THREAD_STACK_SIZE + ALT_STACK_SIZE);
+    void* stack = calloc(1, THREAD_STACK_SIZE + ALT_STACK_SIZE);
     if (!stack) {
         ret = -ENOMEM;
         goto err;
     }
-    memset(stack, 0, THREAD_STACK_SIZE + ALT_STACK_SIZE);
 
     void * child_stack = stack + THREAD_STACK_SIZE;
 
