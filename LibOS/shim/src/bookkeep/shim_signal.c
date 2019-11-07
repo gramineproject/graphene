@@ -152,7 +152,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
 
 void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 {
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb);
 
     // Signals should not be delivered before the user process starts
@@ -247,7 +247,7 @@ static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * c
 
 static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb);
 
     if (tcb->test_range.cont_addr && arg
@@ -362,7 +362,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
      * a byte of each page; invalid access will be caught in memfault_upcall */
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
@@ -433,7 +433,7 @@ bool test_user_string (const char * addr)
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
      * a byte of each page; invalid access will be caught in memfault_upcall. */
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
@@ -565,7 +565,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     __UNUSED(arg);
     __UNUSED(context);
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     if (!tcb || !tcb->tp)
         return;
 
@@ -718,7 +718,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig)
 
 void handle_signal (void)
 {
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb);
 
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;

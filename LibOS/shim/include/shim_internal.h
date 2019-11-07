@@ -44,10 +44,10 @@
 /* important macros and static inline functions */
 static inline unsigned int get_cur_tid(void)
 {
-    return shim_get_tls()->tid;
+    return shim_get_tcb()->tid;
 }
 
-#define PAL_NATIVE_ERRNO        (shim_get_tls()->pal_errno)
+#define PAL_NATIVE_ERRNO        (shim_get_tcb()->pal_errno)
 
 #define INTERNAL_TID_BASE       ((IDTYPE) 1 << (sizeof(IDTYPE) * 8 - 1))
 
@@ -177,7 +177,7 @@ void syscall_wrapper_after_syscalldb(void);
 #define SHIM_ARG_TYPE long
 
 #ifdef PROFILE
-# define ENTER_TIME     shim_get_tls()->context.enter_time
+# define ENTER_TIME     shim_get_tcb()->context.enter_time
 # define BEGIN_SYSCALL_PROFILE()        \
     do { ENTER_TIME = GET_PROFILE_INTERVAL(); } while (0)
 # define END_SYSCALL_PROFILE(name)      \
@@ -195,7 +195,7 @@ void syscall_wrapper_after_syscalldb(void);
 void check_stack_hook (void);
 
 static inline int64_t get_cur_preempt (void) {
-    shim_tcb_t* tcb = shim_get_tls();
+    shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
     return atomic_read(&tcb->context.preempt);
 }
@@ -474,7 +474,7 @@ static inline int64_t __disable_preempt (shim_tcb_t * tcb)
 
 static inline void disable_preempt (shim_tcb_t * tcb)
 {
-    if (!tcb && !(tcb = shim_get_tls()))
+    if (!tcb && !(tcb = shim_get_tcb()))
         return;
 
     __disable_preempt(tcb);
@@ -493,7 +493,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig);
 
 static inline void enable_preempt (shim_tcb_t * tcb)
 {
-    if (!tcb && !(tcb = shim_get_tls()))
+    if (!tcb && !(tcb = shim_get_tcb()))
         return;
 
     int64_t preempt = atomic_read(&tcb->context.preempt);
@@ -542,7 +542,7 @@ static void lock(struct shim_lock* l)
     if (!lock_enabled || !l->lock)
         return;
 
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     disable_preempt(tcb);
 
 #if DEBUG_LOCK == 1
@@ -567,7 +567,7 @@ static inline void unlock(struct shim_lock* l)
     if (!lock_enabled || !l->lock)
         return;
 
-    shim_tcb_t* tcb = shim_get_tls();
+    shim_tcb_t* tcb = shim_get_tcb();
 
 #if DEBUG_LOCK == 1
     debug("unlock(%s=%p) %s:%d\n", name, l, file, line);
@@ -583,7 +583,7 @@ static inline bool locked(struct shim_lock* l)
     if (!lock_enabled || !l->lock)
         return false;
 
-    shim_tcb_t* tcb = shim_get_tls();
+    shim_tcb_t* tcb = shim_get_tcb();
     return tcb->tid == l->owner;
 }
 

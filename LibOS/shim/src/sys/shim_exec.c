@@ -214,7 +214,7 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
         return ret;
 
-    __disable_preempt(shim_get_tls()); // Temporarily disable preemption
+    __disable_preempt(shim_get_tcb()); // Temporarily disable preemption
                                        // during execve().
     SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
 

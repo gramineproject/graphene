@@ -1301,7 +1301,7 @@ void restore_context (struct shim_context * context)
     *(unsigned long*) (regs.rsp - RED_ZONE_SIZE - 8) = regs.rip;
 
     /* Ready to resume execution, re-enable preemption. */
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t * tcb = shim_get_tcb();
     __enable_preempt(tcb);
 
     memset(context, 0, sizeof(struct shim_context));
