@@ -40,7 +40,7 @@
 #include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_tls.h>
+#include <shim_tcb.h>
 #include <shim_utils.h>
 
 static void parse_open_flags(va_list);

@@ -39,7 +39,7 @@
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <atomic.h>
-#include <shim_tls.h>
+#include <shim_tcb.h>
 
 /* important macros and static inline functions */
 static inline unsigned int get_cur_tid(void)

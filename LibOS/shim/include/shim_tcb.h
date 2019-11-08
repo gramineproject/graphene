@@ -1,5 +1,5 @@
-#ifndef _SHIM_TLS_H_
-#define _SHIM_TLS_H_
+#ifndef _SHIM_TCB_H_
+#define _SHIM_TCB_H_
 
 #include <atomic.h>
 
