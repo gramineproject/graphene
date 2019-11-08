@@ -869,7 +869,7 @@ struct shim_thread* terminate_ipc_helper(void) {
      * prevent such cases, we simply wait for a bit before exiting.
      * */
     debug("Waiting for 0.5s for all in-flight IPC messages to reach their destinations\n");
-    DkThreadDelayExecution(500);
+    DkThreadDelayExecution(500000);  /* in microseconds */
 
     lock(&ipc_helper_lock);
     if (ipc_helper_state != HELPER_ALIVE) {
