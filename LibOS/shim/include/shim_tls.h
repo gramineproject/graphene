@@ -64,7 +64,7 @@ static inline shim_tcb_t * shim_get_tcb(void)
     return (shim_tcb_t*)tcb->libos_tcb;
 }
 
-static inline bool shim_tls_check_canary(void)
+static inline bool shim_tcb_check_canary(void)
 {
     /* TODO: optimize to use single movq %gs:<offset> */
     shim_tcb_t * shim_tcb = shim_get_tcb();
