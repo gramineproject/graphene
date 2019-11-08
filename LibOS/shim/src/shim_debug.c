@@ -27,7 +27,7 @@
 #include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_tls.h>
+#include <shim_tcb.h>
 #include <shim_vma.h>
 
 #ifndef DEBUG

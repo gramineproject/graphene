@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 #include <shim_internal.h>
-#include <shim_tls.h>
+#include <shim_tcb.h>
 
 void dummy(void)
 {

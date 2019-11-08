@@ -3,7 +3,7 @@
 
 #include <shim_defs.h>
 #include <shim_internal.h>
-#include <shim_tls.h>
+#include <shim_tcb.h>
 #include <shim_utils.h>
 #include <shim_signal.h>
 #include <shim_handle.h>
