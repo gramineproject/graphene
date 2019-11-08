@@ -222,7 +222,7 @@ void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
     }
 
     DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
-    assert(shim_tls_check_canary());
+    assert(shim_tcb_check_canary());
 }
 
 void update_fs_base (unsigned long fs_base)
@@ -236,7 +236,7 @@ void update_fs_base (unsigned long fs_base)
     }
 
     DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
-    assert(shim_tls_check_canary());
+    assert(shim_tcb_check_canary());
 }
 
 DEFINE_PROFILE_OCCURENCE(alloc_stack, memory);
