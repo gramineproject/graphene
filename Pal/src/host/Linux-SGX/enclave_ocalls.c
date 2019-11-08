@@ -29,8 +29,8 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup)
 }
 
 int ocall_mmap_untrusted (int fd, uint64_t offset,
-                         uint64_t size, unsigned short prot,
-                         void ** mem)
+                          uint64_t size, unsigned short prot,
+                          void ** mem)
 {
     int retval = 0;
     ms_ocall_mmap_untrusted_t * ms;
@@ -562,8 +562,8 @@ int ocall_socketpair (int domain, int type, int protocol,
 }
 
 int ocall_listen (int domain, int type, int protocol,
-                       struct sockaddr * addr, unsigned int * addrlen,
-                       struct sockopt * sockopt)
+                  struct sockaddr * addr, unsigned int * addrlen,
+                  struct sockopt * sockopt)
 {
     int retval = 0;
     unsigned int copied;
@@ -609,7 +609,7 @@ int ocall_listen (int domain, int type, int protocol,
 }
 
 int ocall_accept (int sockfd, struct sockaddr * addr,
-                       unsigned int * addrlen, struct sockopt * sockopt)
+                  unsigned int * addrlen, struct sockopt * sockopt)
 {
     int retval = 0;
     unsigned int copied;
@@ -653,10 +653,10 @@ int ocall_accept (int sockfd, struct sockaddr * addr,
 }
 
 int ocall_connect (int domain, int type, int protocol,
-                        const struct sockaddr * addr,
-                        unsigned int addrlen,
-                        struct sockaddr * bind_addr,
-                        unsigned int * bind_addrlen, struct sockopt * sockopt)
+                   const struct sockaddr * addr,
+                   unsigned int addrlen,
+                   struct sockaddr * bind_addr,
+                   unsigned int * bind_addrlen, struct sockopt * sockopt)
 {
     int retval = 0;
     unsigned int copied;
@@ -704,8 +704,8 @@ int ocall_connect (int domain, int type, int protocol,
 }
 
 int ocall_recv (int sockfd, void * buf, unsigned int count,
-                     struct sockaddr * addr, unsigned int * addrlenptr,
-                     void * control, uint64_t * controllenptr)
+                struct sockaddr * addr, unsigned int * addrlenptr,
+                void * control, uint64_t * controllenptr)
 {
     int retval = 0;
     void * obuf = NULL;
@@ -777,8 +777,8 @@ out:
 }
 
 int ocall_send (int sockfd, const void * buf, unsigned int count,
-                     const struct sockaddr * addr, unsigned int addrlen,
-                     void * control, uint64_t controllen)
+                const struct sockaddr * addr, unsigned int addrlen,
+                void * control, uint64_t controllen)
 {
     int retval = 0;
     void * obuf = NULL;
@@ -833,7 +833,7 @@ out:
 }
 
 int ocall_setsockopt (int sockfd, int level, int optname,
-                       const void * optval, unsigned int optlen)
+                      const void * optval, unsigned int optlen)
 {
     int retval = 0;
     ms_ocall_setsockopt_t * ms;

@@ -337,7 +337,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
     ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_STREAM, options), 0, bind_addr,
-                            &bind_addrlen, &sock_options);
+                       &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -417,7 +417,7 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
     ret = ocall_connect(dest_addr->sa_family, sock_type(SOCK_STREAM, options), 0, dest_addr,
-                             dest_addrlen, bind_addr, &bind_addrlen, &sock_options);
+                        dest_addrlen, bind_addr, &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -538,7 +538,7 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
     ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_DGRAM, options), 0, bind_addr,
-                            &bind_addrlen, &sock_options);
+                       &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -577,8 +577,8 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
     ret = ocall_connect(dest_addr ? dest_addr->sa_family : AF_INET,
-                             sock_type(SOCK_DGRAM, options), 0, dest_addr, dest_addrlen, bind_addr,
-                             &bind_addrlen, &sock_options);
+                        sock_type(SOCK_DGRAM, options), 0, dest_addr, dest_addrlen, bind_addr,
+                        &bind_addrlen, &sock_options);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));

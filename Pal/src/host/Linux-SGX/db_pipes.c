@@ -66,7 +66,7 @@ static int pipe_listen(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
     unsigned int addrlen = sizeof(struct sockaddr_un);
     struct sockopt sock_options;
     ret = ocall_listen(AF_UNIX, pipe_type(options), 0, (struct sockaddr*)&addr, &addrlen,
-                            &sock_options);
+                       &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -112,7 +112,7 @@ static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
 
     struct sockopt sock_options;
     ret = ocall_connect(AF_UNIX, pipe_type(options), 0, (void*)&addr,
-                             sizeof(struct sockaddr_un), NULL, NULL, &sock_options);
+                        sizeof(struct sockaddr_un), NULL, NULL, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
