@@ -791,8 +791,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     if (!arg)
         return;
 
-    unsigned long fs_base = 0;
-    init_fs_base(fs_base, self);
+    init_fs_base(0, self);
     debug_setbuf(shim_get_tcb(), true);
 
     lock(&ipc_helper_lock);

@@ -489,14 +489,12 @@ err:
 
     void * stack     = cur_thread->stack;
     void * stack_top = cur_thread->stack_top;
-    unsigned long fs_base = cur_thread->fs_base;
     shim_tcb_t * shim_tcb = cur_thread->shim_tcb;
     void * frameptr  = cur_thread->frameptr;
 
     cur_thread->stack     = NULL;
     cur_thread->stack_top = NULL;
     cur_thread->frameptr  = NULL;
-    cur_thread->fs_base   = 0;
     cur_thread->shim_tcb  = NULL;
     cur_thread->in_vm     = false;
     unlock(&cur_thread->lock);
@@ -507,7 +505,6 @@ err:
     cur_thread->stack       = stack;
     cur_thread->stack_top   = stack_top;
     cur_thread->frameptr    = frameptr;
-    cur_thread->fs_base     = fs_base;
     cur_thread->shim_tcb    = shim_tcb;
 
     if (ret < 0) {

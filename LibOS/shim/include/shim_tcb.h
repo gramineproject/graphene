@@ -28,6 +28,7 @@ struct shim_regs {
 
 struct shim_context {
     struct shim_regs *      regs;
+    unsigned long           fs_base;
     struct shim_context *   next;
     uint64_t                enter_time;
     struct atomic_int       preempt;

@@ -125,7 +125,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     struct shim_thread* my_thread = arg->thread;
     assert(my_thread);
 
-    init_fs_base(my_thread->fs_base, my_thread); /* set up TCB */
+    init_fs_base(arg->fs_base, my_thread);
     shim_tcb_t * tcb = my_thread->shim_tcb;
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
@@ -136,7 +136,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
                             // will be re-enabled when the thread starts.
     debug_setbuf(tcb, true);
-    debug("set fs_base to 0x%lx\n", my_thread->fs_base);
+    debug("set fs_base to 0x%lx\n", tcb->context.fs_base);
 
     struct shim_regs regs = *arg->parent->shim_tcb->context.regs;
     if (my_thread->set_child_tid) {
@@ -290,14 +290,13 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         /* Implemented in shim_futex.c: release_clear_child_id */
         thread->clear_child_tid = parent_tidptr;
 
+    unsigned long fs_base = 0;
     if (flags & CLONE_SETTLS) {
         if (!tls) {
             ret = -EINVAL;
             goto failed;
         }
-        thread->fs_base = (unsigned long)tls;
-    } else {
-        thread->fs_base = 0;
+        fs_base = (unsigned long)tls;
     }
 
     if (!(flags & CLONE_THREAD))
@@ -319,18 +318,16 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     }
 
     if (!(flags & CLONE_VM)) {
-        unsigned long fs_base;
         shim_tcb_t * old_shim_tcb = NULL;
         void * parent_stack = NULL;
 
-        if (thread->fs_base) {
-            fs_base = thread->fs_base;
-        } else {
-            thread->fs_base = fs_base = self->fs_base;
-            old_shim_tcb = __alloca(sizeof(shim_tcb_t));
-            memcpy(old_shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
-            thread->shim_tcb = self->shim_tcb;
+        if (!fs_base) {
+            fs_base = self->shim_tcb->context.fs_base;
         }
+        old_shim_tcb = __alloca(sizeof(shim_tcb_t));
+        memcpy(old_shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
+        thread->shim_tcb = self->shim_tcb;
+        thread->shim_tcb->context.fs_base = fs_base;
 
         if (user_stack_addr) {
             struct shim_vma_val vma;
@@ -394,6 +391,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     new_args.thread    = thread;
     new_args.parent    = self;
     new_args.stack     = user_stack_addr;
+    new_args.fs_base   = fs_base;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child

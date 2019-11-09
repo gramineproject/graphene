@@ -82,7 +82,6 @@ struct shim_thread {
     struct shim_handle * exec;
 
     void * stack, * stack_top, * stack_red;
-    unsigned long fs_base;
     shim_tcb_t * shim_tcb;
     void * frameptr;
 
@@ -185,7 +184,6 @@ void set_cur_thread (struct shim_thread * thread)
     IDTYPE tid = 0;
 
     if (thread) {
-        unsigned long fs_base = tcb->tp ? tcb->tp->fs_base : 0;
         if (tcb->tp && tcb->tp != thread)
             put_thread(tcb->tp);
 
@@ -193,7 +191,6 @@ void set_cur_thread (struct shim_thread * thread)
             get_thread(thread);
 
         tcb->tp = thread;
-        thread->fs_base = fs_base;
         thread->shim_tcb = tcb;
         tid = thread->tid;
 
@@ -328,6 +325,7 @@ struct clone_args {
     PAL_HANDLE initialize_event;
     struct shim_thread * parent, * thread;
     void * stack;
+    unsigned long fs_base;
 };
 
 void * allocate_stack (size_t size, size_t protect_size, bool user);

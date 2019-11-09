@@ -76,7 +76,6 @@ int shim_do_vfork(void) {
     new_thread->is_alive  = true;
     new_thread->stack     = cur_thread->stack;
     new_thread->stack_top = cur_thread->stack_top;
-    new_thread->fs_base   = cur_thread->fs_base;
     cur_thread->stack     = dummy_stack;
     cur_thread->stack_top = dummy_stack + stack_size;
     cur_thread->frameptr  = NULL;
