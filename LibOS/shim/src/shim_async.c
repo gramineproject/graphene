@@ -144,8 +144,7 @@ static void shim_async_helper(void * arg) {
     if (!arg)
         return;
 
-    unsigned long fs_base = 0;
-    init_fs_base(fs_base, self);
+    init_fs_base(0, self);
     debug_setbuf(shim_get_tcb(), true);
 
     lock(&async_helper_lock);

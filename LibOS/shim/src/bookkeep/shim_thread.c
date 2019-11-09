@@ -721,13 +721,20 @@ static int resume_wrapper (void * param)
     struct shim_thread * thread = (struct shim_thread *) param;
     assert(thread);
 
-    unsigned long fs_base = thread->fs_base;
+    /* initialize the current shim_tcb_t (= shim_get_tcb())
+       based on saved thread->shim_tcb */
+    shim_tcb_t* saved_tcb = thread->shim_tcb;
+    assert(saved_tcb->context.regs && saved_tcb->context.regs->rsp);
+    unsigned long fs_base = saved_tcb->context.fs_base;
     assert(fs_base);
-    shim_tcb_t * tcb = thread->shim_tcb;
-    assert(tcb->context.regs && tcb->context.regs->rsp);
+    init_fs_base(fs_base, thread);
 
     thread->in_vm = thread->is_alive = true;
-    init_fs_base(fs_base, thread);
+
+    shim_tcb_t* tcb = shim_get_tcb();
+    tcb->context.regs = saved_tcb->context.regs;
+    tcb->context.enter_time = saved_tcb->context.enter_time;
+    tcb->context.preempt = saved_tcb->context.preempt;
     debug_setbuf(tcb, false);
     debug("set fs_base to 0x%lx\n", fs_base);
 
@@ -765,22 +772,18 @@ BEGIN_RS_FUNC(running_thread)
 
         thread->pal_handle = handle;
     } else {
-        if (thread->shim_tcb) {
-            memcpy(shim_get_tcb(), thread->shim_tcb, sizeof(shim_tcb_t));
-            thread->shim_tcb = shim_get_tcb();
-        }
-        debug_setbuf(thread->shim_tcb, false);
-        unsigned long fs_base = thread->fs_base;
+        shim_tcb_t* saved_tcb = thread->shim_tcb;
+        if (saved_tcb) {
+            /* fork case */
+            shim_tcb_t* tcb = shim_get_tcb();
+            memcpy(tcb, saved_tcb, sizeof(*tcb));
 
-        if (fs_base) {
-            shim_tcb_t * tcb = thread->shim_tcb;
             assert(tcb->context.regs && tcb->context.regs->rsp);
-            tcb->debug_buf = shim_get_tcb()->debug_buf;
-            init_fs_base(fs_base, thread);
+            init_fs_base(tcb->context.fs_base, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
-            debug_setprefix(tcb);
-            debug("after resume, set tcb to 0x%lx\n", fs_base);
+            debug_setbuf(tcb, false);
+            debug("after resume, set tcb to 0x%lx\n", tcb->context.fs_base);
         } else {
             /*
              * In execve case, the following holds:
@@ -793,6 +796,7 @@ BEGIN_RS_FUNC(running_thread)
              */
             thread->shim_tcb = shim_get_tcb();
             init_tcb(thread->shim_tcb);
+            debug_setbuf(thread->shim_tcb, false);
             set_cur_thread(thread);
         }
 

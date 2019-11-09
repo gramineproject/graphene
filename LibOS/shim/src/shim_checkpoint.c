@@ -1304,7 +1304,9 @@ void restore_context (struct shim_context * context)
     shim_tcb_t * tcb = shim_get_tcb();
     __enable_preempt(tcb);
 
+    unsigned long fs_base = context->fs_base;
     memset(context, 0, sizeof(struct shim_context));
+    context->fs_base = fs_base;
 
     __asm__ volatile("movq %0, %%rsp\r\n"
                      "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */

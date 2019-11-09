@@ -212,7 +212,6 @@ void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
     init_tcb(shim_tcb);
 
     if (thread) {
-        thread->fs_base = fs_base;
         thread->shim_tcb = shim_tcb;
         shim_tcb->tp = thread;
         shim_tcb->tid = thread->tid;
@@ -221,6 +220,7 @@ void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
         shim_tcb->tid = 0;
     }
 
+    shim_tcb->context.fs_base = fs_base;
     DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
     assert(shim_tcb_check_canary());
 }
@@ -231,10 +231,10 @@ void update_fs_base (unsigned long fs_base)
 
     struct shim_thread * thread = shim_tcb->tp;
     if (thread) {
-        thread->fs_base = fs_base;
         thread->shim_tcb = shim_tcb;
     }
 
+    shim_tcb->context.fs_base = fs_base;
     DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
     assert(shim_tcb_check_canary());
 }
@@ -675,8 +675,7 @@ noreturn void* shim_init (int argc, void * args)
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */
-    unsigned long fs_base = 0;
-    init_fs_base(fs_base, NULL);
+    init_fs_base(0, NULL);
     __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
     debug_setbuf(shim_get_tcb(), true);

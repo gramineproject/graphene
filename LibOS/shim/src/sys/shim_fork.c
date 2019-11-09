@@ -84,7 +84,6 @@ int shim_do_fork (void)
     if (!new_thread)
         return -ENOMEM;
 
-    new_thread->fs_base  = cur_thread->fs_base;
     new_thread->shim_tcb = cur_thread->shim_tcb;
     new_thread->tgid     = new_thread->tid;
     new_thread->in_vm    = false;
