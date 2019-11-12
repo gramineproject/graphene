@@ -17,25 +17,6 @@
 #define FIBER_STACK (1024 * 64)
 #define THREADS     2
 static int myfutex = 0;
-struct atomic_int {
-    volatile int counter;
-};
-static struct atomic_int my_counter;
-
-static inline void atomic_inc(struct atomic_int* v) {
-    __asm__ __volatile__("lock; incl %0" : "+m"(v->counter));
-}
-
-static inline int atomic_read(const struct atomic_int* v)
-{
-    int i = *(volatile int*)&v->counter;
-    return i;
-}
-
-static inline void atomic_set(struct atomic_int* v, int i)
-{
-    v->counter = i;
-}
 
 static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2,
                  int val3) {
@@ -45,7 +26,6 @@ static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeo
 void* thread_function(void* argument) {
     int* ptr = (int*)argument;
     int rv;
-    atomic_inc(&my_counter);
 
     // Sleep on the futex
     rv = futex(&myfutex, FUTEX_WAIT_BITSET, 0, NULL, NULL, *ptr);
@@ -57,7 +37,6 @@ void* thread_function(void* argument) {
 int main(int argc, const char** argv) {
     pthread_t thread[THREADS];
     static int varx[THREADS];
-    atomic_set(&my_counter, 0);
 
     for (int i = 0; i < THREADS; i++) {
         varx[i] = (1 << i);
@@ -70,14 +49,6 @@ int main(int argc, const char** argv) {
         }
     }
 
-    // Make sure the threads are sleeping
-    do {
-        sleep(1);
-    } while (atomic_read(&my_counter) != THREADS);
-    // one more sleep to mitigate a race between atomic_inc() and futex()
-    // in thread_function()
-    sleep(1);
-
     printf("Waking up kiddos\n");
     /* Wake in reverse order */
     for (int i = THREADS - 1; i >= 0; i--) {
@@ -87,6 +58,14 @@ int main(int argc, const char** argv) {
         // Wake up the thread
         do {
             rv = futex(&myfutex, FUTEX_WAKE_BITSET, 1, NULL, NULL, var);
+            if (rv == 0) {
+                // the thread of thread_function() may not reach
+                // futex(FUTEX_WAIT_BITSET) yet.
+                // Wait for the thread to sleep and try again.
+                // Since synchronization primitive, futex, is being tested,
+                // futex can't be used here. resort to use sleep.
+                sleep(1);
+            }
         } while (rv == 0);
         printf("FUTEX_WAKE_BITSET i = %d rv = %d\n", i, rv);
         assert(rv == 1);
