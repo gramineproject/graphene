@@ -485,6 +485,21 @@ class TC_20_SingleProcess(RegressionTestCase):
         # Thread Cleanup: Can still start threads.
         self.assertIn('Thread 4 ok.', stderr)
 
+    @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
+    def test_511_thread2_exitless(self):
+        manifest = self.get_manifest('Thread2_exitless')
+        stdout, stderr = self.run_binary([manifest])
+
+        # Thread Cleanup: Exit by return.
+        self.assertIn('Thread 2 ok.', stderr)
+
+        # Thread Cleanup: Exit by DkThreadExit.
+        self.assertIn('Thread 3 ok.', stderr)
+        self.assertNotIn('Exiting thread 3 failed.', stderr)
+
+        # Thread Cleanup: Can still start threads.
+        self.assertIn('Thread 4 ok.', stderr)
+
     def test_900_misc(self):
         stdout, stderr = self.run_binary(['Misc'])
         # Query System Time

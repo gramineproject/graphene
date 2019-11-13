@@ -1,18 +1,22 @@
-#include "ocall_types.h"
 #include "ecall_types.h"
-#include "sgx_internal.h"
-#include "sgx_enclave.h"
-#include "pal_security.h"
+#include "ocall_types.h"
 #include "pal_linux_error.h"
+#include "pal_security.h"
+#include "rpcqueue.h"
+#include "sgx_enclave.h"
+#include "sgx_internal.h"
 
-#include <asm/mman.h>
+#include <asm/errno.h>
 #include <asm/ioctls.h>
+#include <asm/mman.h>
 #include <asm/socket.h>
 #include <linux/fs.h>
+#include <linux/futex.h>
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/signal.h>
 #include <math.h>
-#include <asm/errno.h>
+#include <sigset.h>
 
 #ifndef SOL_IPV6
 # define SOL_IPV6 41
@@ -40,6 +44,12 @@ static int sgx_ocall_exit(void* pms)
     ecall_thread_reset();
 
     unmap_tcs();
+
+    if (!current_enclave_thread_num()) {
+        /* no enclave threads left, kill the whole process */
+        INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
+    }
+
     thread_exit((int)ms->ms_exitcode);
     return 0;
 }
@@ -656,14 +666,122 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
 
 #define EDEBUG(code, ms) do {} while (0)
 
+rpc_queue_t* g_rpc_queue = NULL; /* pointer to untrusted queue */
+
+static int rpc_thread_loop(void* arg) {
+    __UNUSED(arg);
+    long mytid = INLINE_SYSCALL(gettid, 0);
+
+    /* block all signals except SIGUSR2 for RPC thread */
+    __sigset_t mask;
+    __sigfillset(&mask);
+    __sigdelset(&mask, SIGUSR2);
+    INLINE_SYSCALL(rt_sigprocmask, 4, SIG_SETMASK, &mask, NULL, sizeof(mask));
+
+    spinlock_lock(&g_rpc_queue->lock);
+    g_rpc_queue->rpc_threads[g_rpc_queue->rpc_threads_num] = mytid;
+    g_rpc_queue->rpc_threads_num++;
+    spinlock_unlock(&g_rpc_queue->lock);
+
+    while (1) {
+        rpc_request_t* req = rpc_dequeue(g_rpc_queue);
+        if (!req) {
+            __asm__ volatile("pause");
+            continue;
+        }
+
+        /* call actual function and notify awaiting enclave thread when done */
+        typedef int (*bridge_fn_t)(const void*);
+        bridge_fn_t bridge = (bridge_fn_t)(ocall_table[req->ocall_index]);
+        req->result = bridge(req->buffer);
+
+        /* this code is based on Mutex 2 from Futexes are Tricky */
+        int old_lock_state = __atomic_fetch_sub(&req->lock, 1, __ATOMIC_ACQ_REL);
+        if (old_lock_state == SPINLOCK_LOCKED_WITH_WAITERS) {
+            /* must unlock and wake waiters */
+            spinlock_unlock(&req->lock);
+            int ret = INLINE_SYSCALL(futex, 6, (int*)&req->lock, FUTEX_WAKE_PRIVATE,
+                                     1, NULL, NULL, 0);
+            if (ret == -1)
+                SGX_DBG(DBG_E, "RPC thread failed to wake up enclave thread\n");
+        }
+    }
+
+    /* NOTREACHED */
+    return 0;
+}
+
+static int start_rpc(size_t num_of_threads) {
+    g_rpc_queue = (rpc_queue_t*) INLINE_SYSCALL(mmap, 6, NULL,
+                                                ALIGN_UP(sizeof(rpc_queue_t), PRESET_PAGESIZE),
+                                                PROT_READ | PROT_WRITE,
+                                                MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    if (IS_ERR_P(g_rpc_queue))
+        return -ENOMEM;
+
+    /* initialize g_rpc_queue */
+    spinlock_init(&g_rpc_queue->lock);
+    g_rpc_queue->front = 0;
+    g_rpc_queue->rear  = 0;
+    for (size_t i = 0; i < RPC_QUEUE_SIZE; i++)
+        g_rpc_queue->q[i] = NULL;
+
+    for (size_t i = 0; i < num_of_threads; i++) {
+        void* stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, RPC_STACK_SIZE,
+                                            PROT_READ | PROT_WRITE,
+                                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (IS_ERR_P(stack))
+            goto fail;
+
+        void* child_stack_top = stack + RPC_STACK_SIZE;
+        child_stack_top = ALIGN_DOWN_PTR(child_stack_top, 16);
+
+        int dummy_parent_tid_field = 0;
+        int ret = clone(rpc_thread_loop, child_stack_top,
+                        CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM |
+                        CLONE_THREAD | CLONE_SIGHAND | CLONE_PTRACE | CLONE_PARENT_SETTID,
+                        NULL, &dummy_parent_tid_field, NULL);
+
+        if (IS_ERR(ret)) {
+            INLINE_SYSCALL(munmap, 2, stack, RPC_STACK_SIZE);
+            goto fail;
+        }
+    }
+
+    while (g_rpc_queue->rpc_threads_num != pal_enclave.rpc_thread_num) {
+        /* wait until all RPC threads are initialized in rpc_thread_loop */
+        INLINE_SYSCALL(sched_yield, 0);
+    }
+
+    return 0;
+
+fail:
+    if (g_rpc_queue)
+        INLINE_SYSCALL(munmap, 2, g_rpc_queue, ALIGN_UP(sizeof(rpc_queue_t), PRESET_PAGESIZE));
+    return -ENOMEM;
+}
+
+
 int ecall_enclave_start (char * args, size_t args_size, char * env, size_t env_size)
 {
+    g_rpc_queue = NULL;
+
+    if (pal_enclave.rpc_thread_num > 0) {
+        int ret = start_rpc(pal_enclave.rpc_thread_num);
+        if (ret < 0) {
+            /* failed to create RPC threads */
+            return ret;
+        }
+        /* after this point, g_rpc_queue != NULL */
+    }
+
     ms_ecall_enclave_start_t ms;
     ms.ms_args = args;
     ms.ms_args_size = args_size;
     ms.ms_env = env;
     ms.ms_env_size = env_size;
     ms.ms_sec_info = &pal_enclave.pal_sec;
+    ms.rpc_queue = g_rpc_queue;
     EDEBUG(ECALL_ENCLAVE_START, &ms);
     return sgx_ecall(ECALL_ENCLAVE_START, &ms);
 }

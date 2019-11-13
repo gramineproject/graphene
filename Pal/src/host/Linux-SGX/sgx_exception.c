@@ -21,20 +21,20 @@
  * host, and the methods to pass the exceptions to the upcalls.
  */
 
-#include "pal_linux.h"
 #include "api.h"
 #include "ecall_types.h"
 #include "ocall_types.h"
-#include "sgx_internal.h"
 #include "pal_linux.h"
-
-#include <atomic.h>
-#include <sigset.h>
-#include <linux/signal.h>
-#include <ucontext.h>
-#include <asm/errno.h>
-
+#include "pal_linux.h"
+#include "rpcqueue.h"
 #include "sgx_enclave.h"
+#include "sgx_internal.h"
+
+#include <asm/errno.h>
+#include <atomic.h>
+#include <linux/signal.h>
+#include <sigset.h>
+#include <ucontext.h>
 
 #if !defined(__i386__)
 /* In x86_64 kernels, sigaction is required to have a user-defined
@@ -197,6 +197,11 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 {
     __UNUSED(info);
 
+    /* send dummy signal to RPC threads so they interrupt blocked syscalls */
+    if (g_rpc_queue)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
+
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
     if (rip != (unsigned long) async_exit_pointer) {
@@ -212,6 +217,12 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
                                  struct ucontext * uc)
 {
     __UNUSED(info);
+
+    /* send dummy signal to RPC threads so they interrupt blocked syscalls;
+     * only do it on a benign SIGFPE signal (FP/div-by-zero exception) */
+    if (g_rpc_queue && signum == SIGFPE)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
@@ -240,6 +251,13 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
     sgx_raise(event);
 }
 
+static void _DkEmptySighandler(int signum, siginfo_t* info, struct ucontext* uc) {
+    __UNUSED(signum);
+    __UNUSED(info);
+    __UNUSED(uc);
+    /* we need this handler to interrupt blocking syscalls in RPC threads */
+}
+
 int sgx_signal_setup (void)
 {
     int ret, sig[4];
@@ -255,6 +273,14 @@ int sgx_signal_setup (void)
     sig[2] = SIGFPE;
     sig[3] = SIGBUS;
     if ((ret = set_sighandler(sig, 4, &_DkResumeSighandler)) < 0)
+        goto err;
+
+    /* SIGUSR2 is reserved for Graphene usage: interrupting blocking syscalls in RPC threads.
+     * We block SIGUSR2 in enclave threads; it is unblocked by each RPC thread explicitly. */
+    sig[0] = SIGUSR2;
+    if ((ret = set_sighandler(sig, 1, &_DkEmptySighandler)) < 0)
+        goto err;
+    if (block_signals(true, sig, 1) < 0)
         goto err;
 
     return 0;

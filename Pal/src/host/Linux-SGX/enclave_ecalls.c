@@ -4,6 +4,7 @@
 #include <api.h>
 
 #include "ecall_types.h"
+#include "rpcqueue.h"
 
 #define SGX_CAST(type, item) ((type)(item))
 
@@ -11,6 +12,29 @@ extern void * enclave_base, * enclave_top;
 
 static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
 
+/* returns 0 if rpc_queue is valid/not requested, otherwise -1 */
+static int init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
+    g_rpc_queue = untrusted_rpc_queue;
+    if (!g_rpc_queue) {
+        /* user app doesn't request RPC queue (i.e., the app doesn't request exitless syscalls) */
+        return 0;
+    }
+
+    if (!sgx_is_completely_outside_enclave(g_rpc_queue, sizeof(*g_rpc_queue)))
+        return -1;
+
+    if (g_rpc_queue->rpc_threads_num > MAX_RPC_THREADS)
+        return -1;
+
+    /* re-initialize rest fields for safety */
+    spinlock_init(&g_rpc_queue->lock);
+    g_rpc_queue->front = 0;
+    g_rpc_queue->rear  = 0;
+    for (size_t i = 0; i < RPC_QUEUE_SIZE; i++)
+        g_rpc_queue->q[i] = NULL;
+
+    return 0;
+}
 
 /*
  * Called from enclave_entry.S to execute ecalls.
@@ -68,6 +92,9 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
         if (!ms || !sgx_is_completely_outside_enclave(ms, sizeof(*ms))) {
             return;
         }
+
+        if (init_rpc_queue(ms->rpc_queue))
+            return;
 
         /* pal_linux_main is responsible to check the passed arguments */
         pal_linux_main(ms->ms_args, ms->ms_args_size,

@@ -15,9 +15,9 @@ ASFLAGS += $(defs)
 enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memory \
 		 threading mutex events process object main rtld \
 		 exception misc ipc spinlock) \
-	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted)
+	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted rpcqueue)
 enclave-asm-objs = enclave_entry
-urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
+urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene rpcqueue) \
 	    quote/aesm.pb-c clone-x86_64
 urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a

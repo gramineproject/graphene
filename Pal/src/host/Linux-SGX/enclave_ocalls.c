@@ -2,14 +2,18 @@
  * This is for enclave to make ocalls to untrusted runtime.
  */
 
-#include "pal_linux.h"
-#include "pal_internal.h"
-#include "pal_debug.h"
+#include "ecall_types.h"
 #include "enclave_ocalls.h"
 #include "ocall_types.h"
-#include "ecall_types.h"
+#include "pal_debug.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_error.h"
+#include "rpcqueue.h"
+#include "spinlock.h"
 #include <api.h>
 #include <asm/errno.h>
+#include <linux/futex.h>
 
 /* Check against this limit if the buffer to be allocated fits on the untrusted stack; if not,
  * buffer will be allocated on untrusted heap. Conservatively set this limit to 1/4 of the
@@ -17,6 +21,91 @@
  * Note that the main thread is special in that it is handled by Linux, with the typical stack
  * size of 8MB. Thus, 512KB limit also works well for the main thread. */
 #define MAX_UNTRUSTED_STACK_BUF (THREAD_STACK_SIZE / 4)
+
+/* global pointer to a single untrusted queue, requires proper synchronization */
+rpc_queue_t* g_rpc_queue;
+
+static int sgx_exitless_ocall(int code, void* ms) {
+    /* perform OCALL with enclave exit if no RPC queue (i.e., no exitless); no need for atomics
+     * because this pointer is set only once at enclave initialization */
+    if (!g_rpc_queue)
+        return sgx_ocall(code, ms);
+
+    /* allocate request on OCALL stack; it is automatically freed on OCALL end; note that request's
+     * lock is used in futex() and must be aligned to 4B so we pad OCALL stack to 4B alignment with
+     * dummy chars */
+    char* dummy;
+    do {
+        dummy = sgx_alloc_on_ustack(sizeof(*dummy));
+    } while ((uint64_t)dummy % 4 != 0);
+
+    rpc_request_t* req = sgx_alloc_on_ustack(sizeof(*req));
+    req->ocall_index = code;
+    req->buffer      = ms;
+    spinlock_init(&req->lock);
+
+    /* immediately grab the lock on this request (it is the responsibility of RPC thread to
+     * unlock it when done); this always succeeds since enclave thread is currently the only
+     * owner of the lock */
+    spinlock_lock(&req->lock);
+
+    /* enqueue OCALL request into RPC queue; some RPC thread will dequeue it, issue a syscall
+     * and, after syscall is finished, release the request's spinlock */
+    req = rpc_enqueue(g_rpc_queue, req);
+    if (!req) {
+        /* no space in queue: all RPC threads are busy with outstanding ocalls */
+        return -EPERM;
+    }
+
+    /* wait till request processing is finished; try spinlock first */
+    int timedout = spinlock_lock_timeout(&req->lock, RPC_SPINLOCK_TIMEOUT);
+
+    /* at this point:
+     * - either RPC thread is done with OCALL and released the request's spinlock,
+     *   and our enclave thread grabbed lock but it doesn't matter at this point
+     *   (OCALL is done, timedout = 0, no need to wait on futex)
+     * - or OCALL is still pending and the request is still blocked on spinlock
+     *   (OCALL is not done, timedout != 0, let's wait on futex) */
+
+    if (timedout) {
+        /* OCALL takes a lot of time, so fallback to waiting on a futex; at this point we exit
+         * enclave to perform syscall; this code is based on Mutex 2 from Futexes are Tricky */
+        int c = SPINLOCK_UNLOCKED;
+
+        /* at this point can be a subtle data race: RPC thread is only now done with OCALL and
+         * moved lock in UNLOCKED state; in this racey case, lock = UNLOCKED = 0 and we do not
+         * wait on futex (note that enclave thread grabbed lock but it doesn't matter) */
+        if (!spinlock_cmpxchg(&req->lock, &c, SPINLOCK_LOCKED_NO_WAITERS)) {
+            /* allocate futex args on OCALL stack; automatically freed on OCALL end */
+            ms_ocall_futex_t* ms = sgx_alloc_on_ustack(sizeof(*ms));
+            ms->ms_futex = (int*)&req->lock;
+            ms->ms_op = FUTEX_WAIT_PRIVATE;
+            ms->ms_timeout_us = -1; /* never time out */
+
+            do {
+                /* at this point lock = LOCKED_*; before waiting on futex, need to move lock to
+                 * LOCKED_WITH_WAITERS; note that check on cmpxchg of lock = UNLOCKED = 0 is for
+                 * the same data race as above */
+                if (c == SPINLOCK_LOCKED_WITH_WAITERS || /* shortcut: don't need to move lock state */
+                    spinlock_cmpxchg(&req->lock, &c, SPINLOCK_LOCKED_WITH_WAITERS)) {
+                    /* at this point, futex(wait) syscall expects lock to be in LOCKED_WITH_WAITERS
+                     * set by enclave thread above; if RPC thread moved it back to UNLOCKED, futex()
+                     * immediately returns */
+                    ms->ms_val = SPINLOCK_LOCKED_WITH_WAITERS;
+                    int ret = sgx_ocall(OCALL_FUTEX, ms);
+                    if (ret < 0 && ret != -EAGAIN)
+                        return -EPERM;
+                }
+                c = SPINLOCK_UNLOCKED;
+            } while (!spinlock_cmpxchg(&req->lock, &c, SPINLOCK_LOCKED_WITH_WAITERS));
+            /* while-loop is required for spurious futex wake-ups: our enclave thread must wait
+             * until lock moves to UNLOCKED (note that enclave thread grabs lock but it doesn't
+             * matter at this point) */
+        }
+    }
+
+    return req->result;
+}
 
 noreturn void ocall_exit(int exitcode, int is_exitgroup)
 {
@@ -53,7 +142,7 @@ int ocall_mmap_untrusted (int fd, uint64_t offset,
     ms->ms_size = size;
     ms->ms_prot = prot;
 
-    retval = sgx_ocall(OCALL_MMAP_UNTRUSTED, ms);
+    retval = sgx_exitless_ocall(OCALL_MMAP_UNTRUSTED, ms);
 
     if (!retval) {
         if (!sgx_copy_ptr_to_enclave(mem, ms->ms_mem, size)) {
@@ -85,7 +174,7 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
     ms->ms_mem  = mem;
     ms->ms_size = size;
 
-    retval = sgx_ocall(OCALL_MUNMAP_UNTRUSTED, ms);
+    retval = sgx_exitless_ocall(OCALL_MUNMAP_UNTRUSTED, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -106,7 +195,7 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
     ms->ms_leaf = leaf;
     ms->ms_subleaf = subleaf;
 
-    retval = sgx_ocall(OCALL_CPUID, ms);
+    retval = sgx_exitless_ocall(OCALL_CPUID, ms);
 
     if (!retval) {
         values[0] = ms->ms_values[0];
@@ -140,7 +229,7 @@ int ocall_open (const char * pathname, int flags, unsigned short mode)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_OPEN, ms);
+    retval = sgx_exitless_ocall(OCALL_OPEN, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -159,7 +248,7 @@ int ocall_close (int fd)
 
     ms->ms_fd = fd;
 
-    retval = sgx_ocall(OCALL_CLOSE, ms);
+    retval = sgx_exitless_ocall(OCALL_CLOSE, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -195,7 +284,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
         goto out;
     }
 
-    retval = sgx_ocall(OCALL_READ, ms);
+    retval = sgx_exitless_ocall(OCALL_READ, ms);
 
     if (retval > 0) {
         if (!sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
@@ -252,7 +341,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
         goto out;
     }
 
-    retval = sgx_ocall(OCALL_WRITE, ms);
+    retval = sgx_exitless_ocall(OCALL_WRITE, ms);
 
 out:
     sgx_reset_ustack();
@@ -275,7 +364,7 @@ int ocall_fstat (int fd, struct stat * buf)
 
     ms->ms_fd = fd;
 
-    retval = sgx_ocall(OCALL_FSTAT, ms);
+    retval = sgx_exitless_ocall(OCALL_FSTAT, ms);
 
     if (!retval)
         memcpy(buf, &ms->ms_stat, sizeof(struct stat));
@@ -297,7 +386,7 @@ int ocall_fionread (int fd)
 
     ms->ms_fd = fd;
 
-    retval = sgx_ocall(OCALL_FIONREAD, ms);
+    retval = sgx_exitless_ocall(OCALL_FIONREAD, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -317,7 +406,7 @@ int ocall_fsetnonblock (int fd, int nonblocking)
     ms->ms_fd = fd;
     ms->ms_nonblocking = nonblocking;
 
-    retval = sgx_ocall(OCALL_FSETNONBLOCK, ms);
+    retval = sgx_exitless_ocall(OCALL_FSETNONBLOCK, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -337,7 +426,7 @@ int ocall_fchmod (int fd, unsigned short mode)
     ms->ms_fd = fd;
     ms->ms_mode = mode;
 
-    retval = sgx_ocall(OCALL_FCHMOD, ms);
+    retval = sgx_exitless_ocall(OCALL_FCHMOD, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -356,7 +445,7 @@ int ocall_fsync (int fd)
 
     ms->ms_fd = fd;
 
-    retval = sgx_ocall(OCALL_FSYNC, ms);
+    retval = sgx_exitless_ocall(OCALL_FSYNC, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -376,7 +465,7 @@ int ocall_ftruncate (int fd, uint64_t length)
     ms->ms_fd = fd;
     ms->ms_length = length;
 
-    retval = sgx_ocall(OCALL_FTRUNCATE, ms);
+    retval = sgx_exitless_ocall(OCALL_FTRUNCATE, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -396,7 +485,7 @@ int ocall_lseek(int fd, uint64_t offset, int whence) {
     ms->ms_offset = offset;
     ms->ms_whence = whence;
 
-    retval = sgx_ocall(OCALL_LSEEK, ms);
+    retval = sgx_exitless_ocall(OCALL_LSEEK, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -422,7 +511,7 @@ int ocall_mkdir (const char * pathname, unsigned short mode)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_MKDIR, ms);
+    retval = sgx_exitless_ocall(OCALL_MKDIR, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -448,7 +537,7 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_GETDENTS, ms);
+    retval = sgx_exitless_ocall(OCALL_GETDENTS, ms);
 
     if (retval > 0) {
         if (!sgx_copy_to_enclave(dirp, size, ms->ms_dirp, retval)) {
@@ -463,13 +552,13 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
 
 int ocall_resume_thread (void * tcs)
 {
-    return sgx_ocall(OCALL_RESUME_THREAD, tcs);
+    return sgx_exitless_ocall(OCALL_RESUME_THREAD, tcs);
 }
 
 int ocall_clone_thread (void)
 {
     void* dummy = NULL;
-    return sgx_ocall(OCALL_CLONE_THREAD, dummy);
+    return sgx_exitless_ocall(OCALL_CLONE_THREAD, dummy);
 }
 
 int ocall_create_process(const char* uri, int nargs, const char** args, int procfds[3],
@@ -501,7 +590,7 @@ int ocall_create_process(const char* uri, int nargs, const char** args, int proc
         }
     }
 
-    retval = sgx_ocall(OCALL_CREATE_PROCESS, ms);
+    retval = sgx_exitless_ocall(OCALL_CREATE_PROCESS, ms);
 
     if (!retval) {
         if (pid)
@@ -535,7 +624,7 @@ int ocall_futex(int* futex, int op, int val, int64_t timeout_us) {
     ms->ms_val = val;
     ms->ms_timeout_us = timeout_us;
 
-    retval = sgx_ocall(OCALL_FUTEX, ms);
+    retval = sgx_exitless_ocall(OCALL_FUTEX, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -557,7 +646,7 @@ int ocall_socketpair (int domain, int type, int protocol,
     ms->ms_type = type;
     ms->ms_protocol = protocol;
 
-    retval = sgx_ocall(OCALL_SOCKETPAIR, ms);
+    retval = sgx_exitless_ocall(OCALL_SOCKETPAIR, ms);
 
     if (!retval) {
         sockfds[0] = ms->ms_sockfds[0];
@@ -594,7 +683,7 @@ int ocall_listen (int domain, int type, int protocol,
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_LISTEN, ms);
+    retval = sgx_exitless_ocall(OCALL_LISTEN, ms);
 
     if (retval >= 0) {
         if (addr && len) {
@@ -638,7 +727,7 @@ int ocall_accept (int sockfd, struct sockaddr * addr,
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_ACCEPT, ms);
+    retval = sgx_exitless_ocall(OCALL_ACCEPT, ms);
 
     if (retval >= 0) {
         if (addr && len) {
@@ -689,7 +778,7 @@ int ocall_connect (int domain, int type, int protocol,
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_CONNECT, ms);
+    retval = sgx_exitless_ocall(OCALL_CONNECT, ms);
 
     if (retval >= 0) {
         if (bind_addr && bind_len) {
@@ -749,7 +838,7 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
         goto out;
     }
 
-    retval = sgx_ocall(OCALL_RECV, ms);
+    retval = sgx_exitless_ocall(OCALL_RECV, ms);
 
     if (retval >= 0) {
         if (addr && addrlen) {
@@ -830,7 +919,7 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
         goto out;
     }
 
-    retval = sgx_ocall(OCALL_SEND, ms);
+    retval = sgx_exitless_ocall(OCALL_SEND, ms);
 
 out:
     sgx_reset_ustack();
@@ -867,7 +956,7 @@ int ocall_setsockopt (int sockfd, int level, int optname,
         }
     }
 
-    retval = sgx_ocall(OCALL_SETSOCKOPT, ms);
+    retval = sgx_exitless_ocall(OCALL_SETSOCKOPT, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -887,7 +976,7 @@ int ocall_shutdown (int sockfd, int how)
     ms->ms_sockfd = sockfd;
     ms->ms_how = how;
 
-    retval = sgx_ocall(OCALL_SHUTDOWN, ms);
+    retval = sgx_exitless_ocall(OCALL_SHUTDOWN, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -905,7 +994,7 @@ int ocall_gettime (unsigned long * microsec)
     }
 
     do {
-        retval = sgx_ocall(OCALL_GETTIME, ms);
+        retval = sgx_exitless_ocall(OCALL_GETTIME, ms);
     } while(retval == -EINTR);
     if (!retval)
         *microsec = ms->ms_microsec;
@@ -927,6 +1016,7 @@ int ocall_sleep (unsigned long * microsec)
 
     ms->ms_microsec = microsec ? *microsec : 0;
 
+    /* NOTE: no reason to use exitless for sleep() */
     retval = sgx_ocall(OCALL_SLEEP, ms);
     if (microsec) {
         if (!retval)
@@ -959,7 +1049,7 @@ int ocall_poll(struct pollfd* fds, int nfds, int64_t timeout_us) {
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_POLL, ms);
+    retval = sgx_exitless_ocall(OCALL_POLL, ms);
 
     if (retval >= 0) {
         if (!sgx_copy_to_enclave(fds, nfds_bytes, ms->ms_fds, nfds_bytes)) {
@@ -993,7 +1083,7 @@ int ocall_rename (const char * oldpath, const char * newpath)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_RENAME, ms);
+    retval = sgx_exitless_ocall(OCALL_RENAME, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -1017,7 +1107,7 @@ int ocall_delete (const char * pathname)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_DELETE, ms);
+    retval = sgx_exitless_ocall(OCALL_DELETE, ms);
 
     sgx_reset_ustack();
     return retval;
@@ -1034,7 +1124,7 @@ int ocall_load_debug(const char * command)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_LOAD_DEBUG, (void *) ms);
+    retval = sgx_exitless_ocall(OCALL_LOAD_DEBUG, (void *) ms);
 
     sgx_reset_ustack();
     return retval;
@@ -1071,7 +1161,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
     memcpy(&ms->ms_nonce,  nonce,  sizeof(sgx_quote_nonce_t));
     ms->ms_linkable = linkable;
 
-    retval = sgx_ocall(OCALL_GET_ATTESTATION, ms);
+    retval = sgx_exitless_ocall(OCALL_GET_ATTESTATION, ms);
 
     if (retval >= 0) {
         // First, try to copy the whole ms->ms_attestation inside
@@ -1154,7 +1244,7 @@ int ocall_eventfd (unsigned int initval, int flags)
     ms->ms_initval = initval;
     ms->ms_flags   = flags;
 
-    retval = sgx_ocall(OCALL_EVENTFD, ms);
+    retval = sgx_exitless_ocall(OCALL_EVENTFD, ms);
 
     sgx_reset_ustack();
     return retval;
