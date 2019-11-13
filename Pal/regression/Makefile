@@ -51,6 +51,7 @@ manifests = \
 	Process3.manifest \
 	SendHandle.manifest \
 	Thread2.manifest \
+	Thread2_exitless.manifest \
 	nonelf_binary.manifest
 
 target = $(executables) $(manifests)

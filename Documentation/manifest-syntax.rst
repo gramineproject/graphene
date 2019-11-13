@@ -179,6 +179,35 @@ of thread slots). The application cannot have more threads than this limit *at
 a time* (however, it is possible to create new threads after old threads are
 destroyed).
 
+Number of RPC Threads (Exitless Feature)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.rpc_thread_num=[NUM]
+    (Default: 0)
+
+This syntax specifies the number of RPC threads that are created outside of
+the enclave. RPC threads are helper threads that run in untrusted mode
+alongside enclave threads. RPC threads issue system calls on behalf of enclave
+threads. This allows "exitless" design when application threads never leave
+the enclave (except for a few syscalls where there is no benefit, e.g.,
+``nanosleep()``).
+
+If user specifies ``0`` or omits this directive, then no RPC threads are
+created and all system calls perform an enclave exit ("normal" execution).
+
+Note that the number of created RPC threads must match the maximum number of
+simultaneous enclave threads. If there are more RPC threads, then CPU time is
+wasted. If there are less RPC threads, some enclave threads may starve,
+especially if there are many blocking system calls by other enclave threads.
+
+The Exitless feature *may be detrimental for performance*. It trades slow
+OCALLs/ECALLs for fast shared-memory communication at the cost of occupying
+more CPU cores and burning more CPU cycles. For example, a single-threaded
+Redis instance on Linux becomes 5-threaded on Graphene with Exitless. Thus,
+Exitless may negatively impact throughput but may improve latency.
+
 Debug/Production Enclave
 ^^^^^^^^^^^^^^^^^^^^^^^^
 

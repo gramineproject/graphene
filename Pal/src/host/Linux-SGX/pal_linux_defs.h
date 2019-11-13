@@ -3,6 +3,7 @@
 
 #define THREAD_STACK_SIZE (PRESET_PAGESIZE * 512)  /* 2MB untrusted stack */
 #define ALT_STACK_SIZE    PRESET_PAGESIZE
+#define RPC_STACK_SIZE    (PRESET_PAGESIZE * 2)
 
 #define ENCLAVE_HIGH_ADDRESS    0x800000000
 #define SSAFRAMENUM         2
