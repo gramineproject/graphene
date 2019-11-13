@@ -37,13 +37,18 @@ bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
     return enclave_base >= addr + size || enclave_top <= addr;
 }
 
-void* sgx_alloc_on_ustack(uint64_t size) {
+void* sgx_alloc_on_ustack_aligned(uint64_t size, size_t alignment) {
     void* ustack = GET_ENCLAVE_TLS(ustack) - size;
+    ustack = ALIGN_DOWN_PTR(ustack, alignment);
     if (!sgx_is_completely_outside_enclave(ustack, size)) {
         return NULL;
     }
     SET_ENCLAVE_TLS(ustack, ustack);
     return ustack;
+}
+
+void* sgx_alloc_on_ustack(uint64_t size) {
+    return sgx_alloc_on_ustack_aligned(size, 1);
 }
 
 void* sgx_copy_to_ustack(const void* ptr, uint64_t size) {

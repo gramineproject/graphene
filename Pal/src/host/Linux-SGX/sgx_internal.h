@@ -67,6 +67,7 @@ extern struct pal_enclave {
     unsigned long baseaddr;
     unsigned long size;
     unsigned long thread_num;
+    unsigned long rpc_thread_num;
     unsigned long ssaframesize;
 
     /* files */
@@ -124,6 +125,7 @@ void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
 int pal_thread_init(void* tcbptr);
 void map_tcs(unsigned int tid);
 void unmap_tcs(void);
+int current_enclave_thread_num(void);
 void thread_exit(int status);
 
 uint64_t sgx_edbgrd (void * addr);

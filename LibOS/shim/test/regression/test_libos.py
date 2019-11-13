@@ -155,6 +155,14 @@ class TC_01_Bootstrap(RegressionTestCase):
         # Multiple thread creation
         self.assertIn('128 Threads Created', stdout)
 
+    @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
+    def test_601_multi_pthread_exitless(self):
+        manifest = self.get_manifest('multi_pthread_exitless')
+        stdout, _ = self.run_binary([manifest])
+
+        # Multiple thread creation
+        self.assertIn('128 Threads Created', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

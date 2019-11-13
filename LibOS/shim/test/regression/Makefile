@@ -75,6 +75,7 @@ manifests = \
 	large-mmap.manifest \
 	mmap-file.manifest \
 	multi_pthread.manifest \
+	multi_pthread_exitless.manifest \
 	openmp.manifest \
 	proc-path.manifest \
 	shared_object.manifest

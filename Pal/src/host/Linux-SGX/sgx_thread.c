@@ -73,6 +73,16 @@ void unmap_tcs(void) {
     spinlock_unlock(&tcs_lock);
 }
 
+int current_enclave_thread_num(void) {
+    int ret = 0;
+    spinlock_lock(&tcs_lock);
+    for (int i = 0; i < enclave_thread_num; i++)
+        if (enclave_thread_map[i].tid)
+            ret++;
+    spinlock_unlock(&tcs_lock);
+    return ret;
+}
+
 /*
  * pal_thread_init(): An initialization wrapper of a newly-created thread (including
  * the first thread). This function accepts a TCB pointer to be set to the GS register
