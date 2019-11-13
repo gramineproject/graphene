@@ -84,7 +84,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     hdl->file.total  = total;
     hdl->file.offset = 0;
 
-    if (hdl->file.stubs) {
+    if (hdl->file.stubs && hdl->file.total) {
         /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
         ret = ocall_mmap_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
         if (IS_ERR(ret)) {
@@ -172,7 +172,7 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
 static int file_close(PAL_HANDLE handle) {
     int fd = handle->file.fd;
 
-    if (handle->file.stubs) {
+    if (handle->file.stubs && handle->file.total) {
         /* case of trusted file: the whole file was mmapped in untrusted memory */
         ocall_munmap_untrusted(handle->file.umem, handle->file.total);
     }
