@@ -512,7 +512,7 @@ class TC_20_SingleProcess(RegressionTestCase):
 
 class TC_21_ProcessCreation(RegressionTestCase):
     def test_100_process(self):
-        _, stderr = self.run_binary(['Process'], timeout=8)
+        _, stderr = self.run_binary(['Process'], timeout=60)
         counter = collections.Counter(stderr.split('\n'))
         # Process Creation
         self.assertEqual(counter['Child Process Created'], 3)
