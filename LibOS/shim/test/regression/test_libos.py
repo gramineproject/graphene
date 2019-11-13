@@ -86,14 +86,14 @@ class TC_01_Bootstrap(RegressionTestCase):
             stdout)
 
     def test_201_fork_and_exec(self):
-        stdout, stderr = self.run_binary(['fork_and_exec'])
+        stdout, stderr = self.run_binary(['fork_and_exec'], timeout=60)
 
         # fork and exec 2 page child binary
         self.assertIn('child exited with status: 0', stdout)
         self.assertIn('test completed successfully', stdout)
 
     def test_202_vfork_and_exec(self):
-        stdout, stderr = self.run_binary(['vfork_and_exec'])
+        stdout, stderr = self.run_binary(['vfork_and_exec'], timeout=60)
 
         # vfork and exec 2 page child binary
         self.assertIn('child exited with status: 0', stdout)

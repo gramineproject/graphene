@@ -507,7 +507,7 @@ class TC_20_SingleProcess(RegressionTestCase):
 
 class TC_21_ProcessCreation(RegressionTestCase):
     def test_100_process(self):
-        stdout, stderr = self.run_binary(['Process'], timeout=8)
+        stdout, stderr = self.run_binary(['Process'], timeout=60)
         counter = collections.Counter(stderr.split('\n'))
         # Process Creation
         self.assertEqual(counter['Child Process Created'], 3)
@@ -523,7 +523,7 @@ class TC_21_ProcessCreation(RegressionTestCase):
         self.assertEqual(counter['Process Read 2: Hello World 2'], 3)
 
     def test_110_process_broadcast(self):
-        stdout, stderr = self.run_binary(['Process'], timeout=8)
+        stdout, stderr = self.run_binary(['Process'], timeout=60)
         counter = collections.Counter(stderr.split('\n'))
 
         # Multi-Process Broadcast Channel Transmission
