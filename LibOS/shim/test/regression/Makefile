@@ -75,6 +75,7 @@ manifests = \
 	large-mmap.manifest \
 	mmap-file.manifest \
 	multi_pthread.manifest \
+	multi_pthread_exitless.manifest \
 	openmp.manifest \
 	proc-path.manifest \
 	shared_object.manifest
@@ -83,7 +84,8 @@ exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
 	file_check_policy_strict.manifest \
-	file_check_policy_allow_all_but_log.manifest
+	file_check_policy_allow_all_but_log.manifest \
+	multi_pthread_exitless.manifest
 
 target = \
 	$(exec_target) \

@@ -3,10 +3,11 @@
 #include <pal_rtld.h>
 #include <hex.h>
 
+#include "debugger/sgx_gdb.h"
+#include "rpc_queue.h"
+#include "sgx_enclave.h"
 #include "sgx_internal.h"
 #include "sgx_tls.h"
-#include "sgx_enclave.h"
-#include "debugger/sgx_gdb.h"
 
 #include <asm/fcntl.h>
 #include <asm/socket.h>
@@ -295,6 +296,24 @@ int initialize_enclave (struct pal_enclave * enclave)
         }
     } else {
         enclave->thread_num = 1;
+    }
+
+    if (get_config(enclave->config, "sgx.rpc_thread_num", cfgbuf, sizeof(cfgbuf)) > 0) {
+        enclave->rpc_thread_num = parse_int(cfgbuf);
+
+        if (enclave->rpc_thread_num > MAX_RPC_THREADS) {
+            SGX_DBG(DBG_E, "Too many RPC threads specified\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        if (enclave->rpc_thread_num && enclave->thread_num > RPC_QUEUE_SIZE) {
+            SGX_DBG(DBG_E, "Too many threads for exitless feature (more than capacity of RPC queue)\n");
+            ret = -EINVAL;
+            goto out;
+        }
+    } else {
+        enclave->rpc_thread_num = 0;  /* by default, do not use exitless feature */
     }
 
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0 && cfgbuf[0] == '1') {

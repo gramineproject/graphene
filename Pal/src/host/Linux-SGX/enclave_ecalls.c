@@ -4,6 +4,7 @@
 #include <api.h>
 
 #include "ecall_types.h"
+#include "rpc_queue.h"
 
 #define SGX_CAST(type, item) ((type)(item))
 
@@ -11,6 +12,23 @@ extern void * enclave_base, * enclave_top;
 
 static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
 
+/* returns 0 if rpc_queue is valid/not requested, otherwise -1 */
+static int verify_and_init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
+    g_rpc_queue = NULL;
+
+    if (!untrusted_rpc_queue) {
+        /* user app didn't request RPC queue (i.e., the app didn't request exitless syscalls) */
+        return 0;
+    }
+
+    if (!sgx_is_completely_outside_enclave(untrusted_rpc_queue, sizeof(*untrusted_rpc_queue))) {
+        /* malicious RPC queue object, return error */
+        return -1;
+    }
+
+    g_rpc_queue = untrusted_rpc_queue;
+    return 0;
+}
 
 /*
  * Called from enclave_entry.S to execute ecalls.
@@ -70,6 +88,9 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
         if (!ms || !sgx_is_completely_outside_enclave(ms, sizeof(*ms))) {
             return;
         }
+
+        if (verify_and_init_rpc_queue(ms->rpc_queue))
+            return;
 
         /* xsave size must be initialized early */
         init_xsave_size(ms->ms_sec_info->enclave_attributes.xfrm);

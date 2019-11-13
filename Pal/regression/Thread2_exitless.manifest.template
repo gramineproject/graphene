@@ -1,0 +1,5 @@
+loader.exec = file:Thread2
+loader.execname = Thread2
+
+sgx.thread_num = 2
+sgx.rpc_thread_num = 2
