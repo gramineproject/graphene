@@ -28,8 +28,8 @@ pipeline {
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/python
-                                make test
+                                cd LibOS/shim/test/apps/python-simple
+                                make regression
                             '''
                         }
                         sh '''
