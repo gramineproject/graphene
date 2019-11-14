@@ -3,6 +3,7 @@
 import filecmp
 import os
 import shutil
+import subprocess
 import sys
 import unittest
 
@@ -19,6 +20,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
     @classmethod
     def setUpClass(c):
         c.PF_CRYPT = os.path.join(os.environ.get('PAL_TOOLS'), 'pf_crypt')
+        c.PF_TAMPER = os.path.join(os.environ.get('PAL_TOOLS'), 'pf_tamper')
         c.WRAP_KEY = os.path.join(c.TEST_DIR, 'wrap-key')
         # CONST_WRAP_KEY must match the one in manifest
         c.CONST_WRAP_KEY = [0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]
@@ -130,3 +132,30 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         exec = 'copy_whole'
         stdout, stderr = self.run_binary([exec, '/mounted/pf_input', '/mounted/pf_output'], timeout=30)
         self.verify_copy(stdout, stderr, '/mounted/pf_input', exec)
+
+    def corrupt_file(self, input, output):
+        cmd = [self.PF_TAMPER, '-w', self.WRAP_KEY, '-i', input, '-o', output]
+        stdout, stderr = self.run_native_binary(cmd)
+        return (stdout, stderr)
+
+    # invalid/corrupted files
+    def test_500_invalid(self):
+        INVALID_DIR = os.path.join(self.TEST_DIR, 'pf_invalid')
+        if not os.path.exists(INVALID_DIR):
+            os.mkdir(INVALID_DIR)
+        # prepare valid encrypted file (largest one for maximum possible corruptions)
+        # target prefix is INVALID_DIR
+        self.encrypt_file(self.INPUT_FILES[-1], self.OUTPUT_FILES[-1], INVALID_DIR)
+        # generate invalid files based on the above
+        self.corrupt_file(self.OUTPUT_FILES[-1], INVALID_DIR)
+        # try to decrypt invalid files
+        for name in os.listdir(INVALID_DIR):
+            input  = os.path.join(INVALID_DIR, name)
+            output = os.path.join(self.OUTPUT_DIR, name)
+            try:
+                stdout, stderr = self.run_native_binary([self.PF_CRYPT, 'd', '-w', self.WRAP_KEY, '-i', input, '-o', output])
+            except subprocess.CalledProcessError as e:
+                self.assertNotEqual(e.returncode, 0)
+            else:
+                print('[!] Fail: successfully decrypted file: ' + name)
+                self.fail()
