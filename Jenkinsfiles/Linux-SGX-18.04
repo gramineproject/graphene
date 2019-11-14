@@ -52,8 +52,8 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python-simple
-                                make SGX=1
-                                make SGX=1 regression
+                                PYTHONVERSION=3.6 make SGX=1
+                                PYTHONVERSION=3.6 make SGX=1 regression
                             '''
       }
       timeout(time: 5, unit: 'MINUTES') {

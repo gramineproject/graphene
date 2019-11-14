@@ -20,6 +20,7 @@ RUN apt-get update \
        net-tools \
        python \
        python-protobuf \
+       python3-apt \
        python3-minimal \
        python3-pytest \
        texinfo \
