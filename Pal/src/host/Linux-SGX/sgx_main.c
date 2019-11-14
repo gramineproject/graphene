@@ -111,9 +111,15 @@ int scan_enclave_binary (int fd, unsigned long * base, unsigned long * size,
     if (IS_ERR(ret))
         return -ERRNO(ret);
 
+    if ((size_t)ret < sizeof(ElfW(Ehdr)))
+        return -ENOEXEC;
+
     const ElfW(Ehdr) * header = (void *) filebuf;
     const ElfW(Phdr) * phdr = (void *) filebuf + header->e_phoff;
     const ElfW(Phdr) * ph;
+
+    if (memcmp(header->e_ident, ELFMAG, SELFMAG) != 0)
+        return -ENOEXEC;
 
     struct loadcmd {
         ElfW(Addr) mapstart, mapend;

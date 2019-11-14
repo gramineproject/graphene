@@ -117,6 +117,13 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('Loaded Executable: file:Bootstrap', stderr)
         self.assertIn('argv[0] = Bootstrap', stderr)
 
+    @unittest.skipUnless(HAS_SGX, 'need SGX')
+    def test_107_manifest_with_nonelf_binary(self):
+        manifest = self.get_manifest('nonelf_binary')
+        #Expect return code is -ENOEXEC(248 as unsigned char)
+        with self.expect_returncode(248):
+            self.run_binary([manifest])
+
     def test_110_preload_libraries(self):
         stdout, stderr = self.run_binary(['Bootstrap3'])
         self.assertIn('Binary 1 Preloaded', stderr)
