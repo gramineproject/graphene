@@ -144,16 +144,21 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         if not os.path.exists(INVALID_DIR):
             os.mkdir(INVALID_DIR)
         # prepare valid encrypted file (largest one for maximum possible corruptions)
+        original_input = self.OUTPUT_FILES[-1]
         # target prefix is INVALID_DIR
-        self.encrypt_file(self.INPUT_FILES[-1], self.OUTPUT_FILES[-1], INVALID_DIR)
+        self.encrypt_file(self.INPUT_FILES[-1], original_input, INVALID_DIR)
         # generate invalid files based on the above
-        self.corrupt_file(self.OUTPUT_FILES[-1], INVALID_DIR)
+        self.corrupt_file(original_input, INVALID_DIR)
         # try to decrypt invalid files
         for name in os.listdir(INVALID_DIR):
-            input  = os.path.join(INVALID_DIR, name)
-            output = os.path.join(self.OUTPUT_DIR, name)
+            invalid = os.path.join(INVALID_DIR, name)
+            output  = os.path.join(self.OUTPUT_DIR, name)
+            input   = os.path.join(INVALID_DIR, os.path.basename(original_input))
+            # copy the file so it has the original file name (for allowed path check)
+            shutil.copy(invalid, input)
+
             try:
-                stdout, stderr = self.run_native_binary([self.PF_CRYPT, 'd', '-w', self.WRAP_KEY, '-i', input, '-o', output])
+                self.run_native_binary([self.PF_CRYPT, 'd', '-V', '-w', self.WRAP_KEY, '-i', input, '-o', output])
             except subprocess.CalledProcessError as e:
                 self.assertNotEqual(e.returncode, 0)
             else:

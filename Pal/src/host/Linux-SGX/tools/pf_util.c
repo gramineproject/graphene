@@ -373,7 +373,7 @@ out:
 }
 
 // Convert a single file from the protected format
-int pf_decrypt_file(const char* input_path, const char* output_path,
+int pf_decrypt_file(const char* input_path, const char* output_path, bool verify_path,
                     uint8_t wrap_key[PF_WRAP_KEY_SIZE]) {
     int ret          = -1;
     int input        = -1;
@@ -406,6 +406,17 @@ int pf_decrypt_file(const char* input_path, const char* output_path,
     if (PF_FAILURE(pfs)) {
         ERROR("Opening protected input file failed: %d\n", pfs);
         goto out;
+    }
+
+    if (verify_path) {
+        bool allowed;
+        pfs = pf_check_path(pf, input_path, &allowed);
+        if (!allowed || PF_FAILURE(pfs)) {
+            ERROR("Path '%s' doesn't match PF's allowed paths\n", input_path);
+            goto out;
+        } else {
+            DBG("Path '%s' is allowed\n", input_path);
+        }
     }
 
     buffer = malloc(PF_CHUNK_DATA_MAX);
@@ -466,7 +477,7 @@ enum processing_mode_t {
 };
 
 static int process_files(const char* input_dir, const char* output_dir, const char* prefix,
-                         const char* wrap_key_path, enum processing_mode_t mode) {
+                         const char* wrap_key_path, enum processing_mode_t mode, bool verify_path) {
     int ret = -1;
     uint8_t wrap_key[PF_WRAP_KEY_SIZE];
     struct stat st;
@@ -492,7 +503,7 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
         if (mode == MODE_ENCRYPT)
             return pf_encrypt_file(input_dir, output_dir, basename(output_dir), prefix, wrap_key);
         else
-            return pf_decrypt_file(input_dir, output_dir, wrap_key);
+            return pf_decrypt_file(input_dir, output_dir, verify_path, wrap_key);
     }
 
     ret = mkdir(output_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -543,7 +554,7 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
             if (mode == MODE_ENCRYPT)
                 ret = pf_encrypt_file(input_path, output_path, dir->d_name, prefix, wrap_key);
             else
-                ret = pf_decrypt_file(input_path, output_path, wrap_key);
+                ret = pf_decrypt_file(input_path, output_path, verify_path, wrap_key);
 
             if (ret != 0)
                 goto out;
@@ -557,7 +568,8 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
             }
 
             snprintf(prefix_path, prefix_size, "%s/%s", prefix, dir->d_name);
-            ret = process_files(input_path, output_path, prefix_path, wrap_key_path, mode);
+            ret = process_files(input_path, output_path, prefix_path, wrap_key_path, mode,
+                                verify_path);
 
             free(prefix_path);
             if (ret != 0)
@@ -582,10 +594,11 @@ out:
 // Convert a file or directory (recursively) to the protected format
 int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* prefix,
                      const char* wrap_key_path) {
-    return process_files(input_dir, output_dir, prefix, wrap_key_path, MODE_ENCRYPT);
+    return process_files(input_dir, output_dir, prefix, wrap_key_path, MODE_ENCRYPT, false);
 }
 
 // Convert a file or directory (recursively) from the protected format
-int pf_decrypt_files(const char* input_dir, const char* output_dir, const char* wrap_key_path) {
-    return process_files(input_dir, output_dir, NULL, wrap_key_path, MODE_DECRYPT);
+int pf_decrypt_files(const char* input_dir, const char* output_dir, bool verify_path,
+                     const char* wrap_key_path) {
+    return process_files(input_dir, output_dir, NULL, wrap_key_path, MODE_DECRYPT, verify_path);
 }

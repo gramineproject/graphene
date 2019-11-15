@@ -28,6 +28,7 @@ struct option g_options[] = {
     { "output", required_argument, 0, 'o' },
     { "prefix", required_argument, 0, 'p' },
     { "wrap-key", required_argument, 0, 'w' },
+    { "verify", no_argument, 0, 'V' },
     { "verbose", no_argument, 0, 'v' },
     { "help", no_argument, 0, 'h' },
     { 0, 0, 0, 0 }
@@ -47,12 +48,13 @@ void usage() {
     INFO("\nAvailable encrypt options:\n");
     INFO("  --input, -i PATH        Single file or directory with input files to convert\n");
     INFO("  --output, -o PATH       Single file or directory to write output files to\n");
-    INFO("  --prefix, -p PATH       Target path for protected files that the payload manifest expects.\n");
+    INFO("  --prefix, -p PATH       Path prefix for protected files that the payload manifest expects\n");
     INFO("  --wrap-key, -w PATH     Path to wrap key file, must exist\n");
     INFO("\nAvailable decrypt options:\n");
     INFO("  --input, -i PATH        Single file or directory with input files to convert\n");
     INFO("  --output, -o PATH       Single file or directory to write output files to\n");
     INFO("  --wrap-key, -w PATH     Path to wrap key file, must exist\n");
+    INFO("  --verify, -V            (optional) Verify that input path matches PF's allowed paths\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -63,10 +65,11 @@ int main(int argc, char *argv[]) {
     char* wrap_key_path = NULL;
     char* prefix        = NULL;
     char* mode          = NULL;
+    bool verify         = false;
 
     // Parse command line
     while (true) {
-        this_option = getopt_long(argc, argv, "i:o:p:w:vh", g_options, NULL);
+        this_option = getopt_long(argc, argv, "i:o:p:w:Vvh", g_options, NULL);
         if (this_option == -1)
             break;
 
@@ -85,6 +88,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'v':
                 set_verbose(true);
+                break;
+            case 'V':
+                verify = true;
                 break;
             case 'h':
                 usage();
@@ -129,7 +135,7 @@ int main(int argc, char *argv[]) {
             usage();
             goto out;
         }
-        ret = pf_decrypt_files(input_path, output_path, wrap_key_path);
+        ret = pf_decrypt_files(input_path, output_path, verify, wrap_key_path);
         break;
 
     default:

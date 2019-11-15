@@ -35,14 +35,16 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const char*
                     const char* prefix, uint8_t wrap_key[PF_WRAP_KEY_SIZE]);
 
 /*! Convert a single file from the protected format */
-int pf_decrypt_file(const char* input_path, const char* output_path, uint8_t wrap_key[PF_WRAP_KEY_SIZE]);
+int pf_decrypt_file(const char* input_path, const char* output_path, bool verify_path,
+                    uint8_t wrap_key[PF_WRAP_KEY_SIZE]);
 
 /*! Convert a file or directory (recursively) to the protected format */
 int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* prefix,
                      const char* wrap_key_path);
 
 /*! Convert a file or directory (recursively) from the protected format */
-int pf_decrypt_files(const char* input_dir, const char* output_dir, const char* wrap_key_path);
+int pf_decrypt_files(const char* input_dir, const char* output_dir, bool verify_path,
+                     const char* wrap_key_path);
 
 /*! AES-GCM encrypt */
 pf_status_t openssl_crypto_aes_gcm_encrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
