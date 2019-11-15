@@ -76,9 +76,13 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     if (!pals)
         return -ENOMEM;
 
-    /* for bookkeeping, need to have a mapping FD -> handle */
-    struct shim_handle** fds_to_hdls = malloc(nfds * sizeof(struct shim_handle*));
-    if (!fds_to_hdls) {
+    /* for bookkeeping, need to have a mapping FD -> {shim handle, index-in-pals} */
+    struct fds_mapping_t {
+        struct shim_handle* hdl;  /* NULL if no mapping (handle is not used in polling) */
+        nfds_t idx;               /* index from fds array to pals array */
+    };
+    struct fds_mapping_t* fds_mapping = malloc(nfds * sizeof(struct fds_mapping_t));
+    if (!fds_mapping) {
         free(pals);
         return -ENOMEM;
     }
@@ -87,7 +91,7 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     PAL_FLG* pal_events = malloc(nfds * sizeof(PAL_FLG) * 2);
     if (!pal_events) {
         free(pals);
-        free(fds_to_hdls);
+        free(fds_mapping);
         return -ENOMEM;
     }
     PAL_FLG* ret_events = pal_events + nfds;
@@ -100,41 +104,41 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     /* collect PAL handles that correspond to user-supplied FDs (only those that can be polled) */
     for (nfds_t i = 0; i < nfds; i++) {
         fds[i].revents = 0;
-        fds_to_hdls[i] = NULL;
+        fds_mapping[i].hdl = NULL;
 
         if (fds[i].fd < 0) {
             /* FD is negative, must be ignored */
             continue;
         }
 
-        if (!(fds[i].events & (POLLIN|POLLRDNORM)) &&
-            !(fds[i].events & (POLLOUT|POLLWRNORM))) {
-            /* user didn't ask for read or write, ignore this FD */
-            continue;
-        }
-
         struct shim_handle* hdl = __get_fd_handle(fds[i].fd, NULL, map);
         if (!hdl || !hdl->fs || !hdl->fs->fs_ops) {
-            /* the corresponding handle doesn't exist or doesn't provide FS-like semantics */
+            /* the corresponding handle doesn't exist or doesn't provide FS-like semantics;
+             * do not include it in handles-to-poll array but notify user about invalid request */
+            fds[i].revents = POLLNVAL;
+            nrevents++;
             continue;
         }
 
-        int allowed_events = 2; /* read + write */
-        if ((fds[i].events & (POLLIN|POLLRDNORM)) && !(hdl->acc_mode & MAY_READ))
-            allowed_events -= 1; /* minus read */
-        if ((fds[i].events & (POLLOUT|POLLWRNORM)) && !(hdl->acc_mode & MAY_WRITE))
-            allowed_events -= 1; /* minus write */
-        if (!allowed_events) {
-            /* the corresponding handle cannot be read or written */
+        PAL_FLG allowed_events = 0;
+        if ((fds[i].events & (POLLIN|POLLRDNORM)) && (hdl->acc_mode & MAY_READ))
+            allowed_events |= PAL_WAIT_READ;
+        if ((fds[i].events & (POLLOUT|POLLWRNORM)) && (hdl->acc_mode & MAY_WRITE))
+            allowed_events |= PAL_WAIT_WRITE;
+
+        if ((fds[i].events & (POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM)) && !allowed_events) {
+            /* if user requested read/write events but they are not allowed on this handle,
+             * ignore this handle (but note that user may only be interested in errors, and
+             * this is a valid request) */
             continue;
         }
 
         get_handle(hdl);
-        fds_to_hdls[i] = hdl;
-        pals[npals]    = hdl->pal_handle;
-        pal_events[npals]  = (fds[i].events & (POLLIN | POLLRDNORM)) ? PAL_WAIT_READ  : 0;
-        pal_events[npals] |= (fds[i].events & (POLLOUT | POLLWRNORM)) ? PAL_WAIT_WRITE : 0;
-        ret_events[npals] = 0;
+        fds_mapping[i].hdl = hdl;
+        fds_mapping[i].idx = npals;
+        pals[npals]        = hdl->pal_handle;
+        pal_events[npals]  = allowed_events;
+        ret_events[npals]  = 0;
         npals++;
     }
 
@@ -142,34 +146,30 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
 
     PAL_BOL polled = DkObjectsWaitEvents(npals, pals, pal_events, ret_events, timeout_us);
 
-    if (!polled) {
-        /* nothing was polled, skip the following loop */
-        npals = 0;
+    /* update fds.revents, but only if something was actually polled */
+    if (polled) {
+        for (nfds_t i = 0; i < nfds; i++) {
+            if (!fds_mapping[i].hdl)
+                continue;
+
+            fds[i].revents = 0;
+            if (ret_events[fds_mapping[i].idx] & PAL_WAIT_ERROR)
+                fds[i].revents |= POLLERR | POLLHUP;
+            if (ret_events[fds_mapping[i].idx] & PAL_WAIT_READ)
+                fds[i].revents |= fds[i].events & (POLLIN|POLLRDNORM);
+            if (ret_events[fds_mapping[i].idx] & PAL_WAIT_WRITE)
+                fds[i].revents |= fds[i].events & (POLLOUT|POLLWRNORM);
+
+            if (fds[i].revents)
+                nrevents++;
+
+            put_handle(fds_mapping[i].hdl);
+        }
     }
 
-    /* update fds.revents */
-    for (nfds_t i = 0; i < npals; i++) {
-        if (!ret_events[i])
-            continue;
-
-        fds[i].revents = 0;
-        if (ret_events[i] & PAL_WAIT_ERROR)
-            fds[i].revents |= POLLERR | POLLHUP;
-        if (ret_events[i] & PAL_WAIT_READ)
-            fds[i].revents |= fds[i].events & (POLLIN|POLLRDNORM);
-        if (ret_events[i] & PAL_WAIT_WRITE)
-            fds[i].revents |= fds[i].events & (POLLOUT|POLLWRNORM);
-
-        if (fds[i].revents)
-            nrevents++;
-    }
-
-    for (nfds_t i = 0; i < nfds; i++)
-        if (fds_to_hdls[i])
-            put_handle(fds_to_hdls[i]);
     free(pals);
     free(pal_events);
-    free(fds_to_hdls);
+    free(fds_mapping);
 
     return nrevents;
 }

@@ -110,7 +110,7 @@ PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handleArray, PAL_FLG* eve
                             PAL_FLG* ret_events, PAL_NUM timeout_us) {
     ENTER_PAL_CALL(DkObjectsWaitEvents);
 
-    if (!count || !handleArray || !events) {
+    if (!count || !handleArray || !events || !ret_events) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }

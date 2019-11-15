@@ -434,8 +434,6 @@ static void destroy_handle(struct shim_handle* hdl) {
         free_mem_obj_to_mgr(handle_mgr, hdl);
 }
 
-extern int delete_from_epoll_handles(struct shim_handle* handle);
-
 void put_handle(struct shim_handle* hdl) {
     int ref_count = REF_DEC(hdl->ref_count);
 

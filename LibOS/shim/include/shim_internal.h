@@ -797,6 +797,8 @@ void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
 
+void delete_from_epoll_handles(struct shim_handle* handle);
+
 #ifdef __x86_64__
 #define __SWITCH_STACK(stack_top, func, arg)                    \
     do {                                                        \

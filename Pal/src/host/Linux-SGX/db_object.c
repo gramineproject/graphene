@@ -78,6 +78,7 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
         for (int j = 0; j < MAX_FDS; j++) {
             PAL_FLG flags = HANDLE_HDR(hdl)->flags;
 
+            /* hdl might be a mutex/event/non-pollable object, simply ignore it */
             if (hdl->generic.fds[j] == PAL_IDX_POISON)
                 continue;
             if (flags & ERROR(j))
@@ -218,6 +219,7 @@ int _DkObjectsWaitEvents(int count, PAL_HANDLE* handleArray, PAL_FLG* events, PA
         for (int j = 0; j < MAX_FDS; j++) {
             PAL_FLG flags = HANDLE_HDR(hdl)->flags;
 
+            /* hdl might be a mutex/event/non-pollable object, simply ignore it */
             if (hdl->generic.fds[j] == PAL_IDX_POISON)
                 continue;
             if (flags & ERROR(j))
