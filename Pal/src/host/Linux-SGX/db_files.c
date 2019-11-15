@@ -164,12 +164,6 @@ static int64_t pf_file_read(struct protected_file* pf, PAL_HANDLE handle, uint64
         return -PAL_ERROR_BADHANDLE;
     }
 
-    if (fd != *(int*)pf->context->handle) {
-        SGX_DBG(DBG_E, "pf_file_read(PF fd %d): call fd %d != ctx fd %d\n",
-                fd, fd, *(int*)pf->context->handle);
-        return -PAL_ERROR_BADHANDLE;
-    }
-
     pf_status_t pfs = pf_read(pf->context, offset, count, buffer);
 
     if (PF_FAILURE(pfs)) {
@@ -343,12 +337,6 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
         return -PAL_ERROR_BADHANDLE;
     }
 
-    if (handle->file.fd != *(PAL_IDX*)pf->context->handle) {
-        SGX_DBG(DBG_E, "file_map: PF call fd %d != ctx fd %d\n",
-            fd, *(int*)pf->context->handle);
-        return -PAL_ERROR_BADHANDLE;
-    }
-
     void* buf = NULL;
     if (!*addr) {
         buf = malloc(size);
@@ -478,10 +466,12 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 }
 
 static int64_t pf_file_setlength(struct protected_file *pf, PAL_HANDLE handle, uint64_t length) {
+    int fd = handle->file.fd;
+
     pf_status_t pfs = pf_set_size(pf->context, length);
     if (PF_FAILURE(pfs)) {
         SGX_DBG(DBG_E, "file_setlength(PF fd %d, %lu): pf_set_size returned %d\n",
-            handle->file.fd, length, pfs);
+                fd, length, pfs);
         uint64_t size;
         pfs = pf_get_size(pf->context, &size);
         assert(PF_SUCCESS(pfs));
