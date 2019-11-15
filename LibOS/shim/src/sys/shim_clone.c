@@ -318,16 +318,16 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     }
 
     if (!(flags & CLONE_VM)) {
-        shim_tcb_t * old_shim_tcb = NULL;
         void * parent_stack = NULL;
 
         if (!fs_base) {
             fs_base = self->shim_tcb->context.fs_base;
         }
-        old_shim_tcb = __alloca(sizeof(shim_tcb_t));
-        memcpy(old_shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
-        thread->shim_tcb = self->shim_tcb;
-        thread->shim_tcb->context.fs_base = fs_base;
+        /* associate cpu context to new forking thread for migration */
+        shim_tcb_t shim_tcb;
+        memcpy(&shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
+        shim_tcb.context.fs_base = fs_base;
+        thread->shim_tcb = &shim_tcb;
 
         if (user_stack_addr) {
             struct shim_vma_val vma;
@@ -344,10 +344,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         set_as_child(self, thread);
 
         ret = do_migrate_process(&migrate_fork, NULL, NULL, thread);
-        if (old_shim_tcb) {
-            thread->shim_tcb = NULL;
-            memcpy(self->shim_tcb, old_shim_tcb, sizeof(*self->shim_tcb));
-        }
+        thread->shim_tcb = NULL; /* cpu context of forked thread isn't
+                                  * needed any more */
         if (parent_stack)
             self->shim_tcb->context.regs->rsp = (unsigned long)parent_stack;
         if (ret < 0)

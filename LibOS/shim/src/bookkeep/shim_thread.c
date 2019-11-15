@@ -721,13 +721,20 @@ static int resume_wrapper (void * param)
     struct shim_thread * thread = (struct shim_thread *) param;
     assert(thread);
 
-    shim_tcb_t * tcb = thread->shim_tcb;
-    assert(tcb->context.regs && tcb->context.regs->rsp);
-    unsigned long fs_base = tcb->context.fs_base;
+    /* initialize the current shim_tcb_t (= shim_get_tcb())
+       based on saved thread->shim_tcb */
+    shim_tcb_t* saved_tcb = thread->shim_tcb;
+    assert(saved_tcb->context.regs && saved_tcb->context.regs->rsp);
+    unsigned long fs_base = saved_tcb->context.fs_base;
     assert(fs_base);
+    init_fs_base(fs_base, thread);
 
     thread->in_vm = thread->is_alive = true;
-    init_fs_base(fs_base, thread);
+
+    shim_tcb_t* tcb = shim_get_tcb();
+    tcb->context.regs = saved_tcb->context.regs;
+    tcb->context.enter_time = saved_tcb->context.enter_time;
+    tcb->context.preempt = saved_tcb->context.preempt;
     debug_setbuf(tcb, false);
     debug("set fs_base to 0x%lx\n", fs_base);
 
@@ -767,7 +774,7 @@ BEGIN_RS_FUNC(running_thread)
     } else {
         unsigned long fs_base = 0;
         if (thread->shim_tcb) {
-            shim_tcb_t * tcb = shim_get_tcb();
+            shim_tcb_t* tcb = shim_get_tcb();
             memcpy(tcb, thread->shim_tcb, sizeof(*tcb));
             thread->shim_tcb = tcb;
             fs_base = tcb->context.fs_base;
