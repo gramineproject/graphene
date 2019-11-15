@@ -88,6 +88,8 @@ void pal_start_thread (void)
     new_thread->param = NULL;
     SET_ENCLAVE_TLS(thread, new_thread);
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+    PAL_TCB* pal_tcb = pal_get_tcb();
+    memset(pal_tcb->libos_tcb, 0, sizeof(pal_tcb->libos_tcb));
     callback((void *) param);
     _DkThreadExit();
 }
