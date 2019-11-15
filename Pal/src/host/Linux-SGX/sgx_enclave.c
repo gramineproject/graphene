@@ -748,8 +748,13 @@ static int start_rpc(size_t num_of_threads) {
         }
     }
 
-    while (g_rpc_queue->rpc_threads_num != pal_enclave.rpc_thread_num) {
-        /* wait until all RPC threads are initialized in rpc_thread_loop */
+    /* wait until all RPC threads are initialized in rpc_thread_loop */
+    while (1) {
+        spinlock_lock(&g_rpc_queue->lock);
+        size_t n = g_rpc_queue->rpc_threads_num;
+        spinlock_unlock(&g_rpc_queue->lock);
+        if (n == pal_enclave.rpc_thread_num)
+            break;
         INLINE_SYSCALL(sched_yield, 0);
     }
 

@@ -40,18 +40,18 @@
 #define RPC_SPINLOCK_TIMEOUT 4096   /* # of iterations to spin before sleeping */
 
 typedef struct {
+    spinlock_t lock;  /* can be UNLOCKED / LOCKED_NO_WAITERS / LOCKED_WITH_WAITERS */
     int result;
     int ocall_index;
     void* buffer;
-    spinlock_t lock;  /* can be UNLOCKED / LOCKED_NO_WAITERS / LOCKED_WITH_WAITERS */
 } rpc_request_t;
 
 typedef struct rpc_queue {
-    uint64_t front, rear;
+    spinlock_t lock;                  /* global lock for enclave and RPC threads */
+    uint64_t front, rear;             /* indexes into front and rear ends of q */
     rpc_request_t* q[RPC_QUEUE_SIZE]; /* queue of syscall requests */
     int rpc_threads[MAX_RPC_THREADS]; /* RPC threads (thread IDs) */
-    volatile size_t rpc_threads_num;  /* number of RPC threads */
-    spinlock_t lock;                  /* global lock for enclave and RPC threads */
+    size_t rpc_threads_num;           /* number of RPC threads */
 } rpc_queue_t;
 
 extern rpc_queue_t* g_rpc_queue;  /* global RPC queue */
