@@ -154,31 +154,38 @@ out:
     return ret;
 }
 
+
+static int64_t pf_file_read(struct protected_file* pf, PAL_HANDLE handle, uint64_t offset,
+                            uint64_t count, void* buffer) {
+    int fd = handle->file.fd;
+
+    if (!pf->context) {
+        SGX_DBG(DBG_E, "pf_file_read: PF fd %d not initialized\n", fd);
+        return -PAL_ERROR_BADHANDLE;
+    }
+
+    if (fd != *(int*)pf->context->handle) {
+        SGX_DBG(DBG_E, "pf_file_read(PF fd %d): call fd %d != ctx fd %d\n",
+                fd, fd, *(int*)pf->context->handle);
+        return -PAL_ERROR_BADHANDLE;
+    }
+
+    pf_status_t pfs = pf_read(pf->context, offset, count, buffer);
+
+    if (PF_FAILURE(pfs)) {
+        SGX_DBG(DBG_E, "pf_file_read(PF fd %d): pf_read failed: %d\n", fd, pfs);
+        return -PAL_ERROR_DENIED;
+    }
+
+    return count;
+}
+
 /* 'read' operation for file streams. */
 static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
     struct protected_file* pf = find_protected_file_handle(handle);
 
-    if (pf) {
-        if (!pf->context) {
-            SGX_DBG(DBG_E, "file_read: PF fd %d not initialized\n", handle->file.fd);
-            return -PAL_ERROR_BADHANDLE;
-        }
-
-        if (handle->file.fd != *(PAL_IDX*)pf->context->handle) {
-            SGX_DBG(DBG_E, "file_read(PF fd %d): call fd %d != ctx fd %d\n",
-                    handle->file.fd, handle->file.fd, *(int*)pf->context->handle);
-            return -PAL_ERROR_BADHANDLE;
-        }
-
-        pf_status_t pfs = pf_read(pf->context, offset, count, buffer);
-
-        if (PF_FAILURE(pfs)) {
-            SGX_DBG(DBG_E, "file_read(PF fd %d): pf_read failed: %d\n", handle->file.fd, pfs);
-            return -PAL_ERROR_DENIED;
-        }
-
-        return count;
-    }
+    if (pf)
+        return pf_file_read(pf, handle, offset, count, buffer);
 
     int64_t ret;
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
@@ -220,27 +227,32 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     return end - offset;
 }
 
+
+static int64_t pf_file_write(struct protected_file* pf, PAL_HANDLE handle, uint64_t offset,
+                             uint64_t count, const void* buffer) {
+    int fd = handle->file.fd;
+
+    if (!pf->context) {
+        SGX_DBG(DBG_E, "pf_file_write: PF fd %d not initialized\n", fd);
+        return -PAL_ERROR_BADHANDLE;
+    }
+
+    pf_status_t pf_ret = pf_write(pf->context, offset, count, buffer);
+
+    if (PF_FAILURE(pf_ret)) {
+        SGX_DBG(DBG_E, "file_write(PF fd %d): pf_write failed: %d\n", fd, pf_ret);
+        return -PAL_ERROR_DENIED;
+    }
+
+    return count;
+}
+
 /* 'write' operation for file streams. */
 static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
     struct protected_file *pf = find_protected_file_handle(handle);
 
-    if (pf) {
-        int fd = handle->file.fd;
-
-        if (!pf->context) {
-            SGX_DBG(DBG_E, "file_write: PF fd %d not initialized\n", fd);
-            return -PAL_ERROR_BADHANDLE;
-        }
-
-        pf_status_t pf_ret = pf_write(pf->context, offset, count, buffer);
-
-        if (PF_FAILURE(pf_ret)) {
-            SGX_DBG(DBG_E, "file_write(PF fd %d): pf_write failed: %d\n", fd, pf_ret);
-            return -PAL_ERROR_DENIED;
-        }
-
-        return count;
-    }
+    if (pf)
+        return pf_file_write(pf, handle, offset, count, buffer);
 
     int64_t ret;
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
@@ -267,6 +279,21 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     return -PAL_ERROR_DENIED;
 }
 
+static int pf_file_close(struct protected_file* pf, PAL_HANDLE handle) {
+    int fd = handle->file.fd;
+
+    if (pf->refcount == 0) {
+        SGX_DBG(DBG_E, "pf_file_close(PF fd %d) refcount == 0\n", fd);
+        return -PAL_ERROR_INVAL;
+    }
+
+    pf->refcount--;
+    if (pf->refcount == 0)
+        return unload_protected_file(pf);
+
+    return 0;
+}
+
 /* 'close' operation for file streams. In this case, it will only
    close the file without deleting it. */
 static int file_close(PAL_HANDLE handle) {
@@ -274,14 +301,9 @@ static int file_close(PAL_HANDLE handle) {
     struct protected_file* pf = find_protected_file_handle(handle);
 
     if (pf) {
-        if (pf->refcount == 0) {
-            SGX_DBG(DBG_E, "file_close(PF fd %d) refcount == 0\n", fd);
-            return -PAL_ERROR_INVAL;
-        }
-
-        pf->refcount--;
-        if (pf->refcount == 0)
-            unload_protected_file(pf);
+        int ret = pf_file_close(pf, handle);
+        if (ret < 0)
+            return ret;
     }
 
     if (handle->file.stubs) {
@@ -308,82 +330,86 @@ static int file_delete(PAL_HANDLE handle, int access) {
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
+static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr, int prot,
+                       uint64_t offset, uint64_t size) {
+    int fd = handle->file.fd;
+    if ((prot & PAL_PROT_READ) && (prot & PAL_PROT_WRITE)) {
+        SGX_DBG(DBG_E, "file_map(PF fd %d): trying to map with R+W access\n", fd);
+        return -PAL_ERROR_NOTSUPPORT;
+    }
+
+    if (!pf->context) {
+        SGX_DBG(DBG_E, "file_map(PF fd %d): PF not initialized\n", fd);
+        return -PAL_ERROR_BADHANDLE;
+    }
+
+    if (handle->file.fd != *(PAL_IDX*)pf->context->handle) {
+        SGX_DBG(DBG_E, "file_map: PF call fd %d != ctx fd %d\n",
+            fd, *(int*)pf->context->handle);
+        return -PAL_ERROR_BADHANDLE;
+    }
+
+    void* buf = NULL;
+    if (!*addr) {
+        buf = malloc(size);
+        if (!buf)
+            return -PAL_ERROR_NOMEM;
+    }
+
+    uint64_t pf_size;
+    __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &pf_size);
+    assert(PF_SUCCESS(pfs));
+
+    if ((prot & PAL_PROT_WRITE) || !*addr) {
+        struct pf_allocation* pfa = malloc(sizeof(struct pf_allocation));
+        memset(pfa, 0, sizeof(*pfa));
+
+        if (prot & PAL_PROT_WRITE) {
+            pfa->size = size; // size > 0 marks pfa for writing to the PF
+            pfa->offset = offset;
+        }
+
+        if (!*addr) { // buffer was allocated by us
+            pfa->free = true;
+            *addr = buf;
+        } else {
+            pfa->free = false;
+        }
+
+        pfa->mem = *addr;
+        LISTP_ADD_TAIL(pfa, &pf->allocation_list, list);
+    }
+
+    if (prot & PAL_PROT_READ) {
+        // we don't check this on writes since file size may be extended then
+        if (offset >= pf_size) {
+            SGX_DBG(DBG_E, "file_map(PF fd %d): offset (%lu) >= file size (%lu)\n",
+                fd, offset, pf_size);
+            return -PAL_ERROR_INVAL;
+        }
+
+        memset(*addr, 0, size);
+        uint64_t copy_size = size;
+        if (size > pf_size - offset)
+            copy_size = pf_size - offset;
+
+        pf_status_t pf_ret = pf_read(pf->context, offset, copy_size, *addr);
+        if (PF_FAILURE(pf_ret)) {
+            SGX_DBG(DBG_E, "file_map(PF fd %d): pf_read failed: %d\n", fd, pf_ret);
+            return -PAL_ERROR_DENIED;
+        }
+    }
+
+    // Writes will be flushed to the PF on close.
+    return 0;
+}
+
 /* 'map' operation for file stream. */
 static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
     struct protected_file* pf = find_protected_file_handle(handle);
 
-    if (pf) {
-        int fd = handle->file.fd;
-        if ((prot & PAL_PROT_READ) && (prot & PAL_PROT_WRITE)) {
-            SGX_DBG(DBG_E, "file_map(PF fd %d): trying to map with R+W access\n", fd);
-            return -PAL_ERROR_NOTSUPPORT;
-        }
-
-        if (!pf->context) {
-            SGX_DBG(DBG_E, "file_map(PF fd %d): PF not initialized\n", fd);
-            return -PAL_ERROR_BADHANDLE;
-        }
-
-        if (handle->file.fd != *(PAL_IDX*)pf->context->handle) {
-            SGX_DBG(DBG_E, "file_map: PF call fd %d != ctx fd %d\n",
-                fd, *(int*)pf->context->handle);
-            return -PAL_ERROR_BADHANDLE;
-        }
-
-        void* buf = NULL;
-        if (!*addr) {
-            buf = malloc(size);
-            if (!buf)
-                return -PAL_ERROR_NOMEM;
-        }
-
-        uint64_t pf_size;
-        __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &pf_size);
-        assert(PF_SUCCESS(pfs));
-
-        if ((prot & PAL_PROT_WRITE) || !*addr) {
-            struct pf_allocation* pfa = malloc(sizeof(struct pf_allocation));
-            memset(pfa, 0, sizeof(*pfa));
-
-            if (prot & PAL_PROT_WRITE) {
-                pfa->size = size; // size > 0 marks pfa for writing to the PF
-                pfa->offset = offset;
-            }
-
-            if (!*addr) { // buffer was allocated by us
-                pfa->free = true;
-                *addr = buf;
-            } else {
-                pfa->free = false;
-            }
-
-            pfa->mem = *addr;
-            LISTP_ADD_TAIL(pfa, &pf->allocation_list, list);
-        }
-
-        if (prot & PAL_PROT_READ) {
-            // we don't check this on writes since file size may be extended then
-            if (offset >= pf_size) {
-                SGX_DBG(DBG_E, "file_map(PF fd %d): offset (%lu) >= file size (%lu)\n",
-                    fd, offset, pf_size);
-                return -PAL_ERROR_INVAL;
-            }
-
-            memset(*addr, 0, size);
-            uint64_t copy_size = size;
-            if (size > pf_size - offset)
-                copy_size = pf_size - offset;
-
-            pf_status_t pf_ret = pf_read(pf->context, offset, copy_size, *addr);
-            if (PF_FAILURE(pf_ret)) {
-                SGX_DBG(DBG_E, "file_map(PF fd %d): pf_read failed: %d\n", fd, pf_ret);
-                return -PAL_ERROR_DENIED;
-            }
-        }
-
-        // Writes will be flushed to the PF on close.
-        return 0;
-    }
+    if (pf)
+        return pf_file_map(pf, handle, addr, prot, offset, size);
 
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
     uint64_t total    = handle->file.total;
@@ -451,21 +477,24 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     return 0;
 }
 
+static int64_t pf_file_setlength(struct protected_file *pf, PAL_HANDLE handle, uint64_t length) {
+    pf_status_t pfs = pf_set_size(pf->context, length);
+    if (PF_FAILURE(pfs)) {
+        SGX_DBG(DBG_E, "file_setlength(PF fd %d, %lu): pf_set_size returned %d\n",
+            handle->file.fd, length, pfs);
+        uint64_t size;
+        pfs = pf_get_size(pf->context, &size);
+        assert(PF_SUCCESS(pfs));
+        return size;
+    }
+    return length;
+}
+
 /* 'setlength' operation for file stream. */
 static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
     struct protected_file *pf = find_protected_file_handle(handle);
-    if (pf) {
-        pf_status_t pfs = pf_set_size(pf->context, length);
-        if (PF_FAILURE(pfs)) {
-            SGX_DBG(DBG_E, "file_setlength(PF fd %d, %lu): pf_set_size returned %d\n",
-                handle->file.fd, length, pfs);
-            uint64_t size;
-            pfs = pf_get_size(pf->context, &size);
-            assert(PF_SUCCESS(pfs));
-            return size;
-        }
-        return length;
-    }
+    if (pf)
+        return pf_file_setlength(pf, handle, length);
 
     int ret = ocall_ftruncate(handle->file.fd, length);
     if (IS_ERR(ret))
@@ -508,6 +537,34 @@ static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
     attr->pending_size = stat->st_size;
 }
 
+static int pf_file_attrquery(int fd, const char* path, size_t real_size, PAL_STREAM_ATTR* attr) {
+    struct protected_file* pf = load_protected_file(path, (pf_handle_t)&fd, real_size,
+                                                    PAL_PROT_READ, false);
+    if (!pf) {
+        SGX_DBG(DBG_E, "pf_file_attrquery: load_protected_file(%s, %d) failed\n", path, fd);
+        /* The call above will fail for PFs that were tampered with or have a wrong path.
+         * glibc kills the process if this fails during directory enumeration, but that
+         * should be fine given the scenario.
+         */
+        ocall_close(fd);
+        return -PAL_ERROR_DENIED;
+    }
+
+    uint64_t size;
+    __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &size);
+    assert(PF_SUCCESS(pfs)); // this should never fail
+    attr->pending_size = size;
+
+    if (fd == *(int*)pf->context->handle) { // this is a PF opened just for us, close it
+        pfs = pf_close(pf->context);
+        pf->context = NULL;
+        assert(PF_SUCCESS(pfs));
+    }
+
+    ocall_close(fd);
+    return 0;
+}
+
 /* 'attrquery' operation for file streams */
 static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
     if (strcmp_static(type, "file") && strcmp_static(type, "dir"))
@@ -538,33 +595,9 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
         return ret;
     }
 
-    if (attr->handle_type != pal_type_dir) {
-        /* For protected files return the data size, not real FS size */
-        if (is_protected_file(path)) {
-            struct protected_file* pf = load_protected_file(path, (pf_handle_t)&fd,
-                                                            stat_buf.st_size, PAL_PROT_READ, false);
-            if (!pf) {
-                SGX_DBG(DBG_E, "file_attrquery: load_protected_file(%s, %d) failed\n", path, fd);
-                /* The call above will fail for PFs that were tampered with or have a wrong path.
-                 * glibc kills the process if this fails during directory enumeration, but that
-                 * should be fine given the scenario.
-                 */
-                ocall_close(fd);
-                return -PAL_ERROR_DENIED;
-            }
-
-            uint64_t size;
-            __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &size);
-            assert(PF_SUCCESS(pfs)); // this should never fail
-            attr->pending_size = size;
-
-            if (fd == *(int*)pf->context->handle) { // this is a PF opened just for us, close it
-                pfs = pf_close(pf->context);
-                pf->context = NULL;
-                assert(PF_SUCCESS(pfs));
-            }
-        }
-    }
+    /* For protected files return the data size, not real FS size */
+    if (attr->handle_type != pal_type_dir && is_protected_file(path))
+        return pf_file_attrquery(fd, path, stat_buf.st_size, attr);
 
     ocall_close(fd);
     return 0;
