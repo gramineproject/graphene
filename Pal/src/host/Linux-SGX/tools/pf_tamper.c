@@ -94,7 +94,7 @@ int tamper_truncate(const char* input_name, size_t input_size, const void* input
     if (ret < 0)
         goto out;
 
-    TRUNCATE("trunc_zero", "Truncated header", false, PF_HEADER_SIZE / 2);
+    TRUNCATE("trunc_header", "Truncated header", false, PF_HEADER_SIZE / 2);
 
     TRUNCATE("trunc_chunk_metadata", "Truncated chunk (metadata)", false,
         PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_size) + FIELD_SIZEOF(pf_chunk_t, chunk_size) / 2);
