@@ -3,7 +3,7 @@
 
 #include <atomic.h>
 
-#define SHIM_TLS_CANARY 0xdeadbeef
+#define SHIM_TCB_CANARY 0xdeadbeef
 
 struct shim_regs {
     unsigned long           orig_rax;
@@ -69,7 +69,7 @@ static inline bool shim_tcb_check_canary(void)
 {
     /* TODO: optimize to use single movq %gs:<offset> */
     shim_tcb_t * shim_tcb = shim_get_tcb();
-    return shim_tcb->canary == SHIM_TLS_CANARY;
+    return shim_tcb->canary == SHIM_TCB_CANARY;
 }
 
 #endif /* _SHIM_H_ */

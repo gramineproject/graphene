@@ -201,7 +201,7 @@ bool lock_enabled;
 
 void init_tcb (shim_tcb_t * tcb)
 {
-    tcb->canary = SHIM_TLS_CANARY;
+    tcb->canary = SHIM_TCB_CANARY;
     tcb->self = tcb;
 }
 
