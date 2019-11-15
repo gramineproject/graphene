@@ -50,7 +50,7 @@ static int pal_prot(pf_file_mode_t mode) {
 static pf_status_t cb_map(pf_handle_t handle, pf_file_mode_t mode, size_t offset, size_t size,
                           void** address) {
     int fd  = *(int*)handle;
-    int ret = ocall_map_untrusted(fd, offset, size, pal_prot(mode), address);
+    int ret = ocall_mmap_untrusted(fd, offset, size, pal_prot(mode), address);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "cb_map(%d, %d, %lu, %lu): ocall failed: %d\n", fd, mode, offset, size, ret);
         return PF_STATUS_CALLBACK_FAILED;
@@ -59,7 +59,7 @@ static pf_status_t cb_map(pf_handle_t handle, pf_file_mode_t mode, size_t offset
 }
 
 static pf_status_t cb_unmap(void* address, size_t size) {
-    int ret = ocall_unmap_untrusted(address, size);
+    int ret = ocall_munmap_untrusted(address, size);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "cb_unmap(%p, %lu): ocall failed: %d\n", address, size, ret);
         return PF_STATUS_CALLBACK_FAILED;
