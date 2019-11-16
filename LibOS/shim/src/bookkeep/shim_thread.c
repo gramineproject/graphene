@@ -772,24 +772,18 @@ BEGIN_RS_FUNC(running_thread)
 
         thread->pal_handle = handle;
     } else {
-        unsigned long fs_base = 0;
-        if (thread->shim_tcb) {
+        shim_tcb_t* saved_tcb = thread->shim_tcb;
+        if (saved_tcb) {
+            /* fork case */
             shim_tcb_t* tcb = shim_get_tcb();
-            memcpy(tcb, thread->shim_tcb, sizeof(*tcb));
-            thread->shim_tcb = tcb;
-            fs_base = tcb->context.fs_base;
-        }
-        debug_setbuf(thread->shim_tcb, false);
+            memcpy(tcb, saved_tcb, sizeof(*tcb));
 
-        if (fs_base) {
-            shim_tcb_t * tcb = thread->shim_tcb;
             assert(tcb->context.regs && tcb->context.regs->rsp);
-            tcb->debug_buf = shim_get_tcb()->debug_buf;
-            init_fs_base(fs_base, thread);
+            init_fs_base(tcb->context.fs_base, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
-            debug_setprefix(tcb);
-            debug("after resume, set tcb to 0x%lx\n", fs_base);
+            debug_setbuf(tcb, false);
+            debug("after resume, set tcb to 0x%lx\n", tcb->context.fs_base);
         } else {
             /*
              * In execve case, the following holds:
@@ -802,6 +796,7 @@ BEGIN_RS_FUNC(running_thread)
              */
             thread->shim_tcb = shim_get_tcb();
             init_tcb(thread->shim_tcb);
+            debug_setbuf(thread->shim_tcb, false);
             set_cur_thread(thread);
         }
 
