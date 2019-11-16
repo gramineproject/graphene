@@ -76,7 +76,7 @@ enclave_entry:
 	# push untrusted stack address to RCX
 	movq %rsp, %rcx
 
-	# switch to enclve stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
+	# switch to enclave stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
 	addq %gs:SGX_INITIAL_STACK_OFFSET, %rbx
 	movq %rbx, %rsp
 
@@ -90,6 +90,12 @@ enclave_entry:
 	xorq %r13, %r13
 	xorq %r14, %r14
 	xorq %r15, %r15
+
+	# clear the Alignment Check flag (%rFLAGS.AC) to prevent #AC-fault side channel;
+	# this overrides 8B on enclave stack but stack is not used at this point anyway
+	pushfq
+	andq $(~RFLAGS_AC), (%rsp)
+	popfq
 
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 	# TODO: We currently clear only state covered by FXRSTOR but not by XRSTOR
@@ -628,6 +634,14 @@ __morestack:
 	popq %rbp
 	fxrstor (%rsp)
 	movq %rbp, %rsp
+
+	# clear the Alignment Check flag (%rFLAGS.AC) to prevent #AC-fault side channel;
+	# this overrides 8B on enclave stack so we must stash the old value in %rdi
+	movq -8(%rsp), %rdi
+	pushfq
+	andq $(~RFLAGS_AC), (%rsp)
+	popfq
+	movq %rdi, -8(%rsp)
 
 	cmpq $0, %rsi
 	je .Lno_external_event
