@@ -383,6 +383,7 @@ typedef uint8_t sgx_key_128bit_t[16];
 #define RETURN_FROM_OCALL 0xffffffffffffffff
 
 #define RFLAGS_DF (1<<10)
+#define RFLAGS_AC (1<<18)
 
 #pragma pack(pop)
 #endif /* SGX_ARCH_H */

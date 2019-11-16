@@ -76,7 +76,7 @@ enclave_entry:
 	# push untrusted stack address to RCX
 	movq %rsp, %rcx
 
-	# switch to enclve stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
+	# switch to enclave stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
 	addq %gs:SGX_INITIAL_STACK_OFFSET, %rbx
 	movq %rbx, %rsp
 
@@ -90,6 +90,12 @@ enclave_entry:
 	xorq %r13, %r13
 	xorq %r14, %r14
 	xorq %r15, %r15
+
+	# clear the Alignment Check flag (%rFLAGS.AC) to prevent #AC-fault side channel;
+	# this overrides 8B on enclave stack but stack is not used at this point anyway
+	pushfq
+	andq $(~RFLAGS_AC), (%rsp)
+	popfq
 
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 	# TODO: We currently clear only state covered by FXRSTOR but not by XRSTOR
@@ -322,7 +328,7 @@ enclave_entry:
 	movq %rsi, SGX_GPR_RSP(%rbx)
 	movq $0, %gs:SGX_STACK
 	movq $0, %gs:SGX_OCALL_PREPARED
-	andq $(~RFLAGS_DF), SGX_GPR_RFLAGS(%rbx)
+	andq $(~(RFLAGS_DF | RFLAGS_AC)), SGX_GPR_RFLAGS(%rbx)
 	jmp .Leexit_exception
 
 .Lsetup_exception_handler:
@@ -405,8 +411,9 @@ enclave_entry:
 	subq $8, %rsi
 	movq %rsi, SGX_GPR_RSP(%rbx)
 
-	# Clear RFLAGS.DF to conform to the SysV ABI.
-	andq $(~RFLAGS_DF), SGX_GPR_RFLAGS(%rbx)
+	# clear RFLAGS.DF to conform to the SysV ABI, clear RFLAGS.AC to prevent
+	# the #AC-fault side channel
+	andq $(~(RFLAGS_DF | RFLAGS_AC)), SGX_GPR_RFLAGS(%rbx)
 
 	# new RIP is the exception handler
 	leaq _DkExceptionHandler(%rip), %rdi
@@ -631,6 +638,13 @@ __morestack:
 
 	cmpq $0, %rsi
 	je .Lno_external_event
+
+	# clear the Alignment Check flag (%rFLAGS.AC) to prevent #AC-fault side channel;
+	# this overrides 8B on enclave stack but these 8B will be overwritten with RAX anyway
+	pushfq
+	andq $(~RFLAGS_AC), (%rsp)
+	popfq
+
 	pushq %rax
 	movq %rsi, %rdi
 	movq %rsp, %rsi
