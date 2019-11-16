@@ -37,7 +37,6 @@ PAL_HANDLE DkNotificationEventCreate(PAL_BOL initialState) {
         handle = NULL;
     }
 
-    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
@@ -52,7 +51,6 @@ PAL_HANDLE DkSynchronizationEventCreate(PAL_BOL initialState) {
         handle = NULL;
     }
 
-    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 

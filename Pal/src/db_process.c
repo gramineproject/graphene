@@ -53,7 +53,6 @@ DkProcessCreate(PAL_STR uri, PAL_STR* args) {
         handle = NULL;
     }
 
-    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 

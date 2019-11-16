@@ -54,14 +54,6 @@ typedef struct {
 #  define HANDLE_HDR(handle) (&((handle)->hdr))
 # endif
 
-# ifndef TRACE_HEAP
-#  define TRACE_HEAP(handle) do {} while (0)
-# endif
-
-# ifndef UNTRACE_HEAP
-#  define UNTRACE_HEAP(handle) do {} while (0)
-# endif
-
 static inline void init_handle_hdr(PAL_HDR *hdr, int pal_type) {
     hdr->type = pal_type;
     hdr->flags = 0;

@@ -38,7 +38,6 @@ DkMutexCreate(PAL_NUM initialCount) {
         handle = NULL;
     }
 
-    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 

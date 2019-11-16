@@ -64,8 +64,6 @@ void DkObjectClose (PAL_HANDLE objectHandle)
         LEAVE_PAL_CALL();
     }
 
-    UNTRACE_HEAP(objectHandle);
-
     int ret = _DkObjectClose(objectHandle);
     if (ret < 0)
         _DkRaiseFailure(-ret);
