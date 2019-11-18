@@ -275,10 +275,12 @@ int tamper_chunk(const char* input_name, size_t size, const void* input, const u
     BREAK_CHUNK("chunk_iv", "invalid IV", false,
         {SET_PTR(output, 0); chunk->chunk_iv[PF_IV_SIZE-1] ^= 1;});
 
-    BREAK_CHUNK("chunk_padding_1", "invalid padding[0]", true,
+    // padding being zero is not enforced
+    BREAK_CHUNK("chunk_padding_1", "non-zero padding[0]", true,
         {SET_PTR(output, 0); chunk->padding[0] = 0xf0;});
 
-    BREAK_CHUNK("chunk_padding_2", "invalid padding[7]", true,
+    // padding being zero is not enforced
+    BREAK_CHUNK("chunk_padding_2", "non-zero padding[7]", true,
         {SET_PTR(output, 0); chunk->padding[7] = 0x01;});
 
     BREAK_CHUNK("chunk_data_1", "invalid data[0]", false,
@@ -313,6 +315,14 @@ int tamper_chunk(const char* input_name, size_t size, const void* input, const u
         // set last chunk size to be too large
         BREAK_CHUNK("chunk_size_5", "invalid size (max size)", true,
             {SET_PTR(output, chunks-1); chunk->chunk_size = PF_CHUNK_DATA_MAX;});
+
+        // padding being zero is not enforced
+        BREAK_CHUNK("chunk_data_3", "non-zero data[size+1]", false,
+            {SET_PTR(output, chunks-1); chunk->chunk_data[chunk->chunk_size+1] = 1;});
+
+        // padding being zero is not enforced
+        BREAK_CHUNK("chunk_data_4", "non-zero data[max size-1]", false,
+            {SET_PTR(output, chunks-1); chunk->chunk_data[PF_CHUNK_DATA_MAX-1] = 1;});
     }
 
     ret = 0;

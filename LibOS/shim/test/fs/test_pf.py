@@ -141,6 +141,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
     # invalid/corrupted files
     def test_500_invalid(self):
         INVALID_DIR = os.path.join(self.TEST_DIR, 'pf_invalid')
+        # files below should work normally (benign modifications)
+        SHOULD_PASS = ['chunk_padding_1_fixed', 'chunk_padding_2_fixed', 'chunk_data_3', 'chunk_data_3_fixed', 'chunk_data_4', 'chunk_data_4_fixed']
         if not os.path.exists(INVALID_DIR):
             os.mkdir(INVALID_DIR)
         # prepare valid encrypted file (largest one for maximum possible corruptions)
@@ -156,11 +158,16 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             input   = os.path.join(INVALID_DIR, os.path.basename(original_input))
             # copy the file so it has the original file name (for allowed path check)
             shutil.copy(invalid, input)
+            should_pass = any(s in name for s in SHOULD_PASS)
 
             try:
                 self.run_native_binary([self.PF_CRYPT, 'd', '-V', '-w', self.WRAP_KEY, '-i', input, '-o', output])
             except subprocess.CalledProcessError as e:
-                self.assertNotEqual(e.returncode, 0)
+                if should_pass:
+                    self.assertEqual(e.returncode, 0)
+                else:
+                    self.assertNotEqual(e.returncode, 0)
             else:
-                print('[!] Fail: successfully decrypted file: ' + name)
-                self.fail()
+                if not should_pass:
+                    print('[!] Fail: successfully decrypted file: ' + name)
+                    self.fail()
