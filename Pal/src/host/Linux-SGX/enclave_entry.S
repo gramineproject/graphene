@@ -329,6 +329,7 @@ enclave_entry:
 	movq $0, %gs:SGX_STACK
 	movq $0, %gs:SGX_OCALL_PREPARED
 	andq $(~RFLAGS_DF), SGX_GPR_RFLAGS(%rbx)
+	andq $(~RFLAGS_AC), SGX_GPR_RFLAGS(%rbx)
 	jmp .Leexit_exception
 
 .Lsetup_exception_handler:
@@ -413,6 +414,9 @@ enclave_entry:
 
 	# Clear RFLAGS.DF to conform to the SysV ABI.
 	andq $(~RFLAGS_DF), SGX_GPR_RFLAGS(%rbx)
+
+	# Clear RFLAGS.AC to prevent #AC-fault side channel.
+	andq $(~RFLAGS_AC), SGX_GPR_RFLAGS(%rbx)
 
 	# new RIP is the exception handler
 	leaq _DkExceptionHandler(%rip), %rdi
@@ -635,16 +639,15 @@ __morestack:
 	fxrstor (%rsp)
 	movq %rbp, %rsp
 
+	cmpq $0, %rsi
+	je .Lno_external_event
+
 	# clear the Alignment Check flag (%rFLAGS.AC) to prevent #AC-fault side channel;
-	# this overrides 8B on enclave stack so we must stash the old value in %rdi
-	movq -8(%rsp), %rdi
+	# this overrides 8B on enclave stack but these 8B will be overwritten with RAX anyway
 	pushfq
 	andq $(~RFLAGS_AC), (%rsp)
 	popfq
-	movq %rdi, -8(%rsp)
 
-	cmpq $0, %rsi
-	je .Lno_external_event
 	pushq %rax
 	movq %rsi, %rdi
 	movq %rsp, %rsi
