@@ -1,0 +1,3 @@
+#!/bin/sh
+
+echo "pal_load needs to recognize that this file is not an elf file"

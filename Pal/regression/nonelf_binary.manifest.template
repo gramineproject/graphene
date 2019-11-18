@@ -1,0 +1,5 @@
+loader.exec = file:./nonelf_binary
+loader.debug_type = inline
+loader.preload = file:Preload1.so,file:Preload2.so
+
+fs.mount.root.uri = file:
