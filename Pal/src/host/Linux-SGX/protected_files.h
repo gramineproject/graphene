@@ -99,11 +99,11 @@ static_assert(sizeof(pf_header_t) == PF_HEADER_SIZE, "incorrect struct size");
 /*! Protected file chunk, each is individually encrypted */
 typedef struct __attribute__((packed)) _pf_chunk_t {
     uint64_t chunk_number; //!< Sequential in a file, starting from 0
-    uint32_t chunk_size; //!< Decrypted size, important for the last chunk
+    uint32_t chunk_size; //!< Decrypted data size, important for the last chunk
     uint8_t  chunk_iv[PF_IV_SIZE]; //!< AES-GCM IV
     uint8_t  padding[8]; //!< Zero
-    uint8_t  chunk_data[PF_CHUNK_DATA_MAX]; //!< Padded with zeros
-    uint8_t  chunk_mac[PF_MAC_SIZE]; //!< AES-GCM tag for all previous fields
+    uint8_t  chunk_data[PF_CHUNK_DATA_MAX]; //!< size: chunk_size
+    uint8_t  chunk_mac[PF_MAC_SIZE]; //!< AES-GCM tag for chunk_data (size: chunk_size), fields before are used as aad
 } pf_chunk_t;
 
 static_assert(sizeof(pf_chunk_t) == PF_CHUNK_SIZE, "incorrect struct size");
