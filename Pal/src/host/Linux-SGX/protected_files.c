@@ -589,7 +589,6 @@ pf_status_t pf_encrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const void
 
     output->chunk_number = chunk_number;
     output->chunk_size = chunk_size;
-    memset(&output->padding, 0, sizeof(output->padding));
 
     // Generate IV for the chunk
     status = cb_crypto_random(output->chunk_iv, PF_IV_SIZE);
