@@ -1,8 +1,7 @@
 c_executables = $(patsubst %.c,%,$(wildcard *.c))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
-target = $(c_executables) $(cxx_executables) \
-	  manifest
+exec_target = $(c_executables) $(cxx_executables) manifest
 
 include ../Makefile.Test
 
