@@ -328,8 +328,7 @@ enclave_entry:
 	movq %rsi, SGX_GPR_RSP(%rbx)
 	movq $0, %gs:SGX_STACK
 	movq $0, %gs:SGX_OCALL_PREPARED
-	andq $(~RFLAGS_DF), SGX_GPR_RFLAGS(%rbx)
-	andq $(~RFLAGS_AC), SGX_GPR_RFLAGS(%rbx)
+	andq $(~(RFLAGS_DF | RFLAGS_AC)), SGX_GPR_RFLAGS(%rbx)
 	jmp .Leexit_exception
 
 .Lsetup_exception_handler:
@@ -412,11 +411,9 @@ enclave_entry:
 	subq $8, %rsi
 	movq %rsi, SGX_GPR_RSP(%rbx)
 
-	# Clear RFLAGS.DF to conform to the SysV ABI.
-	andq $(~RFLAGS_DF), SGX_GPR_RFLAGS(%rbx)
-
-	# Clear RFLAGS.AC to prevent #AC-fault side channel.
-	andq $(~RFLAGS_AC), SGX_GPR_RFLAGS(%rbx)
+	# clear RFLAGS.DF to conform to the SysV ABI, clear RFLAGS.AC to prevent
+	# the #AC-fault side channel
+	andq $(~(RFLAGS_DF | RFLAGS_AC)), SGX_GPR_RFLAGS(%rbx)
 
 	# new RIP is the exception handler
 	leaq _DkExceptionHandler(%rip), %rdi
