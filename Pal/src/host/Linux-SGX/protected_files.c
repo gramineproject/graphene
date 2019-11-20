@@ -326,6 +326,11 @@ static pf_status_t update_header(pf_context_t* pf, size_t data_size) {
 
     hdr->data_size = data_size;
 
+    // Regenerate IV
+    status = cb_crypto_random(hdr->header_iv, PF_IV_SIZE);
+    if (PF_FAILURE(status))
+        goto out;
+
     // Calculate header MAC
     status = cb_crypto_aes_gcm_encrypt(pf->key, PF_WRAP_KEY_SIZE, hdr->header_iv, PF_IV_SIZE,
                                        hdr, PF_HEADER_SIZE - PF_MAC_SIZE,
