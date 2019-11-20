@@ -97,7 +97,7 @@ int tamper_truncate(const char* input_name, size_t input_size, const void* input
     TRUNCATE("trunc_header", "Truncated header", false, PF_HEADER_SIZE / 2);
 
     TRUNCATE("trunc_chunk_metadata", "Truncated chunk (metadata)", false,
-        PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_size) + FIELD_SIZEOF(pf_chunk_t, chunk_size) / 2);
+        PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_iv) + FIELD_SIZEOF(pf_chunk_t, chunk_iv) / 2);
 
     TRUNCATE("trunc_chunk_data", "Truncated chunk (data)", false,
         PF_CHUNKS_OFFSET + offsetof(pf_chunk_t, chunk_data) + 10);
@@ -223,18 +223,16 @@ out:
     if (fix) { \
         uint8_t decrypted[PF_CHUNK_SIZE]; \
         __BREAK_PF(file_suffix "_fixed", "Chunk (fixed) " msg, { \
-            uint32_t size = chunk->chunk_size > PF_CHUNK_DATA_MAX ? PF_CHUNK_DATA_MAX : chunk->chunk_size; \
             openssl_crypto_aes_gcm_decrypt(key, PF_WRAP_KEY_SIZE, chunk->chunk_iv, PF_IV_SIZE, \
                                            chunk, PF_CHUNK_HEADER_SIZE, \
-                                           chunk->chunk_data, size, decrypted, \
+                                           chunk->chunk_data, chunk_size, decrypted, \
                                            chunk->chunk_mac, PF_MAC_SIZE); \
         } \
         __VA_ARGS__ \
         { \
-            uint32_t size = chunk->chunk_size > PF_CHUNK_DATA_MAX ? PF_CHUNK_DATA_MAX : chunk->chunk_size; \
             openssl_crypto_aes_gcm_encrypt(key, PF_WRAP_KEY_SIZE, chunk->chunk_iv, PF_IV_SIZE, \
                                            chunk, PF_CHUNK_HEADER_SIZE, \
-                                           decrypted, size, chunk->chunk_data, \
+                                           decrypted, chunk_size, chunk->chunk_data, \
                                            chunk->chunk_mac, PF_MAC_SIZE); \
         }); \
     } \
@@ -253,51 +251,42 @@ int tamper_chunk(const char* input_name, size_t size, const void* input, const u
 
 #define SET_PTR(mem, idx) chunk = (pf_chunk_t*)(((uint8_t*)mem) + PF_CHUNK_OFFSET(idx));
 
+    uint64_t idx = 0;
+    uint64_t chunk_size = PF_CHUNK_DATA_SIZE(header->data_size, idx);
     BREAK_CHUNK("chunk_number_1", "invalid number (0->1)", true,
-        {SET_PTR(output, 0); chunk->chunk_number = 1;});
+        {SET_PTR(output, idx); chunk->chunk_number = 1;});
 
     BREAK_CHUNK("chunk_number_2", "invalid number (0->max)", true,
-        {SET_PTR(output, 0); chunk->chunk_number = UINT64_MAX;});
-
-    BREAK_CHUNK("chunk_size_1", "invalid size (0)", true,
-        {SET_PTR(output, 0); chunk->chunk_size = 0;});
-
-    // size for non-last chunk should be constant
-    BREAK_CHUNK("chunk_size_2", "invalid size (x-1)", true,
-        {SET_PTR(output, 0); chunk->chunk_size--;});
-
-    BREAK_CHUNK("chunk_size_3", "invalid size (x+1)", true,
-        {SET_PTR(output, 0); chunk->chunk_size++;});
-
-    BREAK_CHUNK("chunk_size_4", "invalid size (max)", true,
-        {SET_PTR(output, 0); chunk->chunk_size = UINT32_MAX;});
+        {SET_PTR(output, idx); chunk->chunk_number = UINT64_MAX;});
 
     BREAK_CHUNK("chunk_iv", "invalid IV", false,
-        {SET_PTR(output, 0); chunk->chunk_iv[PF_IV_SIZE-1] ^= 1;});
+        {SET_PTR(output, idx); chunk->chunk_iv[PF_IV_SIZE-1] ^= 1;});
 
     // padding being zero is not enforced
     BREAK_CHUNK("chunk_padding_1", "non-zero padding[0]", true,
-        {SET_PTR(output, 0); chunk->padding[0] = 0xf0;});
+        {SET_PTR(output, idx); chunk->padding[0] = 0xf0;});
 
     // padding being zero is not enforced
     BREAK_CHUNK("chunk_padding_2", "non-zero padding[7]", true,
-        {SET_PTR(output, 0); chunk->padding[7] = 0x01;});
+        {SET_PTR(output, idx); chunk->padding[7] = 0x01;});
 
     BREAK_CHUNK("chunk_data_1", "invalid data[0]", false,
-        {SET_PTR(output, 0); chunk->chunk_data[0] ^= 0xf0;});
+        {SET_PTR(output, idx); chunk->chunk_data[0] ^= 0xf0;});
 
     BREAK_CHUNK("chunk_data_2", "invalid data[size-1]", false,
-        {SET_PTR(output, 0); chunk->chunk_data[chunk->chunk_size-1] ^= 0x01;});
+        {SET_PTR(output, idx); chunk->chunk_data[chunk_size-1] ^= 0x01;});
 
     BREAK_CHUNK("chunk_mac", "invalid MAC", false,
-        {SET_PTR(output, 0); chunk->chunk_mac[0] ^= 1;});
+        {SET_PTR(output, idx); chunk->chunk_mac[0] ^= 1;});
 
     if (chunks > 1) {
+        idx = 1;
+        chunk_size = PF_CHUNK_DATA_SIZE(header->data_size, idx);
         BREAK_CHUNK("chunk_number_3", "invalid number (1->0)", true,
-            {SET_PTR(output, 1); chunk->chunk_number = 0;});
+            {SET_PTR(output, idx); chunk->chunk_number = 0;});
 
         BREAK_CHUNK("chunk_number_4", "invalid number (1->-1)", true,
-            {SET_PTR(output, 1); chunk->chunk_number = -1;});
+            {SET_PTR(output, idx); chunk->chunk_number = -1;});
 
         // reorder chunks
         BREAK_CHUNK("chunk_reorder", "reordered chunks (0<->1)", false,
@@ -311,18 +300,16 @@ int tamper_chunk(const char* input_name, size_t size, const void* input, const u
 
     // last chunk is not full?
     SET_PTR(input, chunks-1); // check last chunk size
-    if (chunk->chunk_size != PF_CHUNK_DATA_MAX) {
-        // set last chunk size to be too large
-        BREAK_CHUNK("chunk_size_5", "invalid size (max size)", true,
-            {SET_PTR(output, chunks-1); chunk->chunk_size = PF_CHUNK_DATA_MAX;});
-
+    idx = chunks - 1;
+    chunk_size = PF_CHUNK_DATA_SIZE(header->data_size, idx);
+    if (chunk_size != PF_CHUNK_DATA_MAX) {
         // padding being zero is not enforced
         BREAK_CHUNK("chunk_data_3", "non-zero data[size+1]", false,
-            {SET_PTR(output, chunks-1); chunk->chunk_data[chunk->chunk_size+1] = 1;});
+            {SET_PTR(output, idx); chunk->chunk_data[chunk_size+1] = 1;});
 
         // padding being zero is not enforced
         BREAK_CHUNK("chunk_data_4", "non-zero data[max size-1]", false,
-            {SET_PTR(output, chunks-1); chunk->chunk_data[PF_CHUNK_DATA_MAX-1] = 1;});
+            {SET_PTR(output, idx); chunk->chunk_data[PF_CHUNK_DATA_MAX-1] = 1;});
     }
 
     ret = 0;

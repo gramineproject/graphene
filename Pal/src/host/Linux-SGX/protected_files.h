@@ -82,7 +82,7 @@ TODO:
 #define PF_HEADER_ALLOWED_PATHS_SIZE (PF_HEADER_SIZE -4 -8 -PF_IV_SIZE -4 -PF_MAC_SIZE)
 
 /*! Maximum number of data bytes in a chunk */
-#define PF_CHUNK_DATA_MAX (PF_CHUNK_SIZE -8 -4 -PF_IV_SIZE -8 -PF_MAC_SIZE)
+#define PF_CHUNK_DATA_MAX (PF_CHUNK_SIZE -8 -PF_IV_SIZE -12 -PF_MAC_SIZE)
 
 /*! Protected file header */
 typedef struct __attribute__((packed)) _pf_header_t {
@@ -99,9 +99,8 @@ static_assert(sizeof(pf_header_t) == PF_HEADER_SIZE, "incorrect struct size");
 /*! Protected file chunk, each is individually encrypted */
 typedef struct __attribute__((packed)) _pf_chunk_t {
     uint64_t chunk_number; //!< Sequential in a file, starting from 0
-    uint32_t chunk_size; //!< Decrypted data size, important for the last chunk
     uint8_t  chunk_iv[PF_IV_SIZE]; //!< AES-GCM IV
-    uint8_t  padding[8]; //!< Unused
+    uint8_t  padding[12]; //!< Unused
     uint8_t  chunk_data[PF_CHUNK_DATA_MAX]; //!< size: chunk_size
     uint8_t  chunk_mac[PF_MAC_SIZE]; //!< AES-GCM tag for chunk_data (size: chunk_size), fields before are used as aad
 } pf_chunk_t;
@@ -116,6 +115,8 @@ static_assert(sizeof(pf_chunk_t) == PF_CHUNK_SIZE, "incorrect struct size");
 #define PF_CHUNKS_COUNT(size)     ((size) > 0 ? PF_CHUNK_NUMBER((size) - 1) + 1 : 0)
 /*! Offset of a given chunk relative to the start of the file */
 #define PF_CHUNK_OFFSET(chunk_nr) (PF_CHUNKS_OFFSET + (chunk_nr) * PF_CHUNK_SIZE)
+/*! Size of chunk data */
+#define PF_CHUNK_DATA_SIZE(size, chunk_nr) (((chunk_nr) < (PF_CHUNKS_COUNT(size) - 1)) ? PF_CHUNK_DATA_MAX : (size % PF_CHUNK_DATA_MAX))
 
 /*! Return values for PF functions */
 typedef enum _pf_status_t {
@@ -372,11 +373,12 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
  * \param [in] pf PF context
  * \param [in] chunk_number Expected chunk number
  * \param [in] chunk Encrypted chunk with metadata (pf_chunk_t)
- * \param [out] output Decrypted chunk data (max size PF_CHUNK_DATA_MAX)
+ * \param [in] chunk_size Size of \a output
+ * \param [out] output Decrypted chunk data
  * \return PF status
  */
 pf_status_t pf_decrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const pf_chunk_t* chunk,
-                             void* output);
+                             uint32_t chunk_size, void* output);
 
 /*!
  * \brief Encrypt a single chunk

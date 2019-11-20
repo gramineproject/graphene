@@ -478,13 +478,12 @@ out:
 
 // (Public) Decrypt a single chunk
 pf_status_t pf_decrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const pf_chunk_t* chunk,
-                             void* output) {
+                             uint32_t chunk_size, void* output) {
     pf_status_t status = check_callbacks();
     if (PF_FAILURE(status))
         goto out;
 
-    DEBUG_PF("chunk #%lu: idx 0x%lx, size %u, iv ",
-             chunk_number, chunk->chunk_number, chunk->chunk_size);
+    DEBUG_PF("chunk #%lu: idx 0x%lx, size %u, iv ", chunk_number, chunk->chunk_number, chunk_size);
     HEXDUMP(chunk->chunk_iv);
     __DEBUG_PF(", mac ");
     __HEXDUMPNL(chunk->chunk_mac, PF_MAC_SIZE);
@@ -496,15 +495,10 @@ pf_status_t pf_decrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const pf_c
         goto out;
     }
 
-    if (chunk->chunk_size > PF_CHUNK_DATA_MAX) {
-        DEBUG_PF("chunk #%lu: invalid chunk data size %u\n", chunk_number, chunk->chunk_size);
-        goto out;
-    }
-
     // Decrypt data
     status = cb_crypto_aes_gcm_decrypt(pf->key, PF_WRAP_KEY_SIZE, chunk->chunk_iv, PF_IV_SIZE,
                                        chunk, PF_CHUNK_HEADER_SIZE, // AAD: metadata
-                                       chunk->chunk_data, chunk->chunk_size, // input
+                                       chunk->chunk_data, chunk_size, // input
                                        (uint8_t*)output, // output
                                        chunk->chunk_mac, PF_MAC_SIZE); // mac
 
@@ -554,11 +548,12 @@ pf_status_t pf_read(pf_context_t* pf, uint64_t offset, size_t size, void* output
                         (void**)&chunk);
 
         if (PF_SUCCESS(status)) {
+            uint64_t chunk_size = PF_CHUNK_DATA_SIZE(pf->header->data_size, chunk_nr);
             uint32_t read_size = size - output_offset;
-            if (read_size > chunk->chunk_size - offset_in_chunk)
-                read_size = chunk->chunk_size - offset_in_chunk;
+            if (read_size > chunk_size - offset_in_chunk)
+                read_size = chunk_size - offset_in_chunk;
 
-            status = pf_decrypt_chunk(pf, chunk_nr, chunk, pf->plaintext);
+            status = pf_decrypt_chunk(pf, chunk_nr, chunk, chunk_size, pf->plaintext);
             if (PF_SUCCESS(status)) {
                 memcpy((uint8_t*)output + output_offset, (uint8_t*)pf->plaintext + offset_in_chunk, read_size);
                 output_offset += read_size;
@@ -587,8 +582,8 @@ pf_status_t pf_encrypt_chunk(pf_context_t* pf, uint64_t chunk_number, const void
     if (PF_FAILURE(status))
         goto out;
 
+    assert(chunk_size <= PF_CHUNK_DATA_MAX);
     output->chunk_number = chunk_number;
-    output->chunk_size = chunk_size;
 
     // Generate IV for the chunk
     status = cb_crypto_random(output->chunk_iv, PF_IV_SIZE);
@@ -614,45 +609,22 @@ out:
     return status;
 }
 
-// (Public) Write to a PF (if input is NULL, write zeros)
-pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void* input) {
-    pf_chunk_t* chunk = NULL; // current chunk in the file
+static bool is_chunk_uninitialized(const pf_chunk_t* chunk) {
+    static const uint8_t zero[PF_IV_SIZE] = {0};
+    return memcmp(chunk->chunk_iv, zero, sizeof(zero)) == 0;
+}
 
-    pf_status_t status = check_callbacks();
-    if (PF_FAILURE(status))
-        goto out;
-
-    status = PF_STATUS_INVALID_CONTEXT;
-    if (!pf->header)
-        goto out;
-
-    if (!has_mode(pf, PF_FILE_MODE_WRITE))
-        return PF_STATUS_INVALID_MODE;
-
-    DEBUG_PF("pf %p, offset %lu, size %lu, file size %lu\n", pf, offset, size, pf->header->data_size);
-
-    // Update file size if the write exceeds current size
-    if (offset + size > pf->header->data_size) {
-        uint64_t data_size = pf->header->data_size;
-        status = update_header(pf, offset + size);
-        if (PF_FAILURE(status))
-            goto out;
-
-        if (offset - data_size > 0) {
-            // Write zeros to the extended portion of the file
-            status = pf_write(pf, data_size, offset - data_size, NULL);
-            if (PF_FAILURE(status))
-                goto out;
-        }
-    }
-
+static pf_status_t write_internal(pf_context_t* pf, uint64_t offset, size_t size, const void* input,
+                                  size_t previous_size) {
+    pf_status_t status;
     uint64_t first_chunk     = PF_CHUNK_NUMBER(offset);
     uint32_t offset_in_chunk = offset % PF_CHUNK_DATA_MAX;
     uint64_t last_chunk      = PF_CHUNK_NUMBER(offset + size - 1);
     uint64_t input_offset    = 0;
+    pf_chunk_t* chunk        = NULL; // current chunk in the file
 
-    DEBUG_PF("handle %p, chunks: %lu - %lu, 1st offset %u\n",
-             pf->handle, first_chunk, last_chunk, offset_in_chunk);
+    DEBUG_PF("pf %p, offset %lu, size %lu/%lu, handle %p, chunks: %lu - %lu, 1st offset %u\n",
+             pf, offset, size, previous_size, pf->handle, first_chunk, last_chunk, offset_in_chunk);
 
     for (uint64_t chunk_nr = first_chunk; chunk_nr <= last_chunk; chunk_nr++) {
         // read existing chunk (may be uninitialized if the file was extended)
@@ -662,6 +634,7 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
         if (PF_FAILURE(status))
             goto out;
 
+        uint64_t plaintext_size  = PF_CHUNK_DATA_SIZE(previous_size, chunk_nr);
         uint32_t chunk_data_size = size - input_offset + offset_in_chunk;
         if (chunk_data_size > PF_CHUNK_DATA_MAX)
             chunk_data_size = PF_CHUNK_DATA_MAX;
@@ -671,8 +644,8 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
         uint32_t encrypt_size = chunk_data_size;
 
         // prepare data to encrypt
-        if (chunk->chunk_size == 0) {
-            // uninitialized, no existing data in chunk - just encrypt new data
+        if (is_chunk_uninitialized(chunk)) {
+            // no existing data in chunk - just encrypt new data
             // make sure to account for writes that skip some bytes (need zeros at the start)
             if (input) {
                 memcpy(pf->plaintext->chunk_data + offset_in_chunk,
@@ -690,7 +663,8 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
             // copy header
             memcpy(pf->plaintext, chunk, PF_CHUNK_HEADER_SIZE);
             // decrypt
-            status = pf_decrypt_chunk(pf, chunk_nr, chunk, pf->plaintext->chunk_data);
+            status = pf_decrypt_chunk(pf, chunk_nr, chunk, plaintext_size,
+                                      pf->plaintext->chunk_data);
             if (PF_FAILURE(status)) {
                 DEBUG_PF("pf_decrypt_chunk failed: %d\n", status);
                 goto out;
@@ -707,8 +681,8 @@ pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void*
                        chunk_data_size - offset_in_chunk);
             }
 
-            if (chunk_data_size < pf->plaintext->chunk_size)
-                encrypt_size = pf->plaintext->chunk_size;
+            if (chunk_data_size < plaintext_size)
+                encrypt_size = plaintext_size;
         }
 
         // encrypt the chunk
@@ -740,8 +714,51 @@ out:
     return status;
 }
 
+// (Public) Write to a PF (if input is NULL, write zeros)
+pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void* input) {
+
+    pf_status_t status = check_callbacks();
+    if (PF_FAILURE(status))
+        goto out;
+
+    status = PF_STATUS_INVALID_CONTEXT;
+    if (!pf->header)
+        goto out;
+
+    if (!has_mode(pf, PF_FILE_MODE_WRITE))
+        return PF_STATUS_INVALID_MODE;
+
+    if (size == 0)
+        return PF_STATUS_SUCCESS;
+
+    uint64_t data_size = pf->header->data_size; // file data size before this write operation
+    DEBUG_PF("pf %p, offset %lu, size %lu, file size %lu\n", pf, offset, size, data_size);
+
+    // Update file size if the write exceeds current size
+    if (offset + size > data_size) {
+        status = update_header(pf, offset + size);
+        if (PF_FAILURE(status))
+            goto out;
+
+        if (offset - data_size > 0) {
+            // Write zeros to the extended portion of the file
+            status = write_internal(pf, data_size, offset - data_size, NULL, data_size);
+            if (PF_FAILURE(status))
+                goto out;
+
+            data_size = offset;
+        }
+    }
+
+    status = write_internal(pf, offset, size, input, data_size);
+
+out:
+    return status;
+}
+
 // (Public) Set PF size
 pf_status_t pf_set_size(pf_context_t* pf, size_t size) {
+    pf_chunk_t* chunk  = NULL;
     pf_status_t status = check_callbacks();
     if (PF_FAILURE(status))
         goto out;
@@ -754,12 +771,53 @@ pf_status_t pf_set_size(pf_context_t* pf, size_t size) {
     if (!has_mode(pf, PF_FILE_MODE_WRITE))
         goto out;
 
-    DEBUG_PF("pf %p, size %lu->%lu\n", pf, pf->header->data_size, size);
+    uint64_t old_size = pf->header->data_size;
+    DEBUG_PF("pf %p, size %lu->%lu\n", pf, old_size, size);
 
-    if (size > pf->header->data_size) // extend the file with zeros
-        status = pf_write(pf, pf->header->data_size, size - pf->header->data_size, NULL);
-    else // just update header and possibly truncate file
+    if (size > old_size) // extend the file with zeros
+        status = pf_write(pf, old_size, size - old_size, NULL);
+    else {
+        uint64_t old_last_chunk = PF_CHUNKS_COUNT(old_size) - 1;
+        uint32_t old_last_chunk_size = PF_CHUNK_DATA_SIZE(old_size, old_last_chunk);
+        uint64_t last_chunk = PF_CHUNKS_COUNT(size) - 1;
+        uint32_t last_chunk_size = PF_CHUNK_DATA_SIZE(size, last_chunk);
+
+        // update header and possibly truncate file
         status = update_header(pf, size);
+
+        // truncation between chunks -> no chunk update needed
+        if (size > 0 && last_chunk == old_last_chunk) {
+            // update last chunk
+            status = cb_map(pf->handle, PF_FILE_MODE_READ | PF_FILE_MODE_WRITE,
+                            PF_CHUNK_OFFSET(last_chunk), PF_CHUNK_SIZE, (void**)&chunk);
+            if (PF_FAILURE(status))
+                goto out;
+
+            // decrypt old data
+            status = pf_decrypt_chunk(pf, last_chunk, chunk, old_last_chunk_size, pf->plaintext);
+            if (PF_FAILURE(status)) {
+                DEBUG_PF("pf_decrypt_chunk failed: %d\n", status);
+                goto out;
+            }
+
+            // zero unused part of the chunk (and truncated data)
+            memset(&chunk->chunk_data[last_chunk_size], 0, PF_CHUNK_DATA_MAX - last_chunk_size);
+
+            // encrypt the data, truncating it
+            status = pf_encrypt_chunk(pf, last_chunk, pf->plaintext, last_chunk_size, chunk);
+            if (PF_FAILURE(status)) {
+                DEBUG_PF("pf_encrypt_chunk failed: %d\n", status);
+                goto out;
+            }
+        }
+    }
 out:
+    if (chunk) {
+        status = cb_unmap(chunk, PF_CHUNK_SIZE);
+        if (PF_FAILURE(status)) {
+            DEBUG_PF("failed to unmap chunk\n");
+            return status;
+        }
+    }
     return status;
 }
