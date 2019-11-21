@@ -18,12 +18,18 @@
 
 #define MAX_EFDS 3
 
-#define CHECK_FOR_ERROR(bytes, prefix, line_num)    \
+#define CLOSE_EFD_AND_EXIT(efd)    \
+    do {                           \
+        close(efd);                \
+        return 1;                  \
+    } while (0)
+
+#define EXIT_IF_ERROR(efd, bytes, prefix, line_num) \
     do {                                            \
         if (bytes != sizeof(uint64_t)) {            \
             perror(prefix);                         \
             printf("error at line-%d\n", line_num); \
-            return 1;                               \
+            CLOSE_EFD_AND_EXIT(efd);                \
         }                                           \
     } while (0)
 
@@ -82,7 +88,8 @@ int eventfd_using_poll() {
 
     if (ret != 0) {
         perror("error in thread creation\n");
-        return 1;
+        ret = 1;
+        goto out;
     }
 
     while (1) {
@@ -112,12 +119,18 @@ int eventfd_using_poll() {
         }
     }
 
-    if (nread_events == MAX_EFDS) {
+    if (nread_events == MAX_EFDS)
         printf("%s completed successfully\n", __func__);
-    } else
+    else
         printf("%s: nread_events=%d, MAX_EFDS=%d\n", __func__, nread_events, MAX_EFDS);
 
     pthread_join(tid, NULL);
+
+out:
+    for (int i = 0; i < MAX_EFDS; i++) {
+        close(efds[i]);
+    }
+
     return ret;
 }
 
@@ -142,31 +155,38 @@ int eventfd_using_various_flags() {
 
         count = 5;
         bytes = write(efd, &count, sizeof(count));
-        CHECK_FOR_ERROR(bytes, "write", __LINE__);
+        EXIT_IF_ERROR(efd, bytes, "write", __LINE__);
 
         bytes = write(efd, &count, sizeof(count));
-        CHECK_FOR_ERROR(bytes, "write", __LINE__);
+        EXIT_IF_ERROR(efd, bytes, "write", __LINE__);
 
         count = 0;
         errno = 0;
         if (eventfd_flags[i] & EFD_SEMAPHORE) {
             uint64_t prev_count = 0;
             bytes               = read(efd, &prev_count, sizeof(prev_count));
-            CHECK_FOR_ERROR(bytes, "read", __LINE__);
+            EXIT_IF_ERROR(efd, bytes, "read", __LINE__);
 
             bytes = read(efd, &count, sizeof(count));
-            CHECK_FOR_ERROR(bytes, "read", __LINE__);
+            EXIT_IF_ERROR(efd, bytes, "read", __LINE__);
 
-            if ((prev_count != count) || (count != 1))
+            if ((prev_count != 1) || (count != 1)) {
                 printf("flag->EFD_SEMAPHORE, error, prev_count=%lu, new count=%lu\n", prev_count,
                        count);
+                close(efd);
+                return 1;
+            }
+            continue;
         }
 
         count = 0;
         errno = 0;
         bytes = read(efd, &count, sizeof(count));
-        CHECK_FOR_ERROR(bytes, "read", __LINE__);
-        printf("%d: efd = %d, count: %lu, errno=%d\n", __LINE__, efd, count, errno);
+        EXIT_IF_ERROR(efd, bytes, "read", __LINE__);
+        if (count != 10) {
+            printf("%d: efd = %d, count: %lu, errno=%d\n", __LINE__, efd, count, errno);
+            CLOSE_EFD_AND_EXIT(efd);
+        }
 
         /* calling the second read would block if flags doesn't have EFD_NONBLOCK */
         if (eventfd_flags[i] & EFD_NONBLOCK) {
@@ -186,41 +206,47 @@ int eventfd_using_various_flags() {
 
 int eventfd_using_fork() {
     int status     = 0;
-    int single_efd = 0;
+    int efd = 0;
     uint64_t count = 0;
 
-    single_efd = eventfd(0, EFD_NONBLOCK);
+    efd = eventfd(0, EFD_NONBLOCK);
 
-    printf("%s:%d\n", __func__, __LINE__);
+    if (efd < 0) {
+        perror("eventfd failed");
+        return 1;
+    }
 
     pid_t pid = fork();
 
     if (pid == 0) {
         // child process
         count = 5;
-        write(single_efd, &count, sizeof(count));
+        write(efd, &count, sizeof(count));
         exit(0);
     } else if (pid > 0) {
         // parent process
         waitpid(pid, &status, 0);
 
         if (WIFSIGNALED(status)) {
-            printf("error\n");
-            return status;
+            perror("child was terminated by signal");
+            CLOSE_EFD_AND_EXIT(efd);
         }
 
         count = 0;
-        read(single_efd, &count, sizeof(count));
-        printf("parent-pid=%d, efd = %d, count: %lu, errno=%d\n", getpid(), single_efd, count,
-               errno);
+        read(efd, &count, sizeof(count));
+        if (count != 5) {
+            printf("parent-pid=%d, efd = %d, count: %lu, errno=%d\n", getpid(), efd, count,
+                   errno);
+            CLOSE_EFD_AND_EXIT(efd);
+        }
 
     } else {
-        // fork failed
+        perror("fork error");
         printf("fork error=%d\n", errno);
-        return pid;
+        CLOSE_EFD_AND_EXIT(efd);
     }
 
-    close(single_efd);
+    close(efd);
 
     printf("%s completed successfully\n", __func__);
 
