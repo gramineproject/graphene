@@ -4,6 +4,7 @@
 #include <pthread.h>
 
 #include <signal.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,11 +13,21 @@
 #include <sys/eventfd.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define MAX_EFDS 3
 
-int efds[MAX_EFDS] = { 0 };
+#define CHECK_FOR_ERROR(bytes, prefix, line_num)    \
+    do {                                            \
+        if (bytes != sizeof(uint64_t)) {            \
+            perror(prefix);                         \
+            printf("error at line-%d\n", line_num); \
+            return 1;                               \
+        }                                           \
+    } while (0)
+
+int efds[MAX_EFDS] = {0};
 
 void* write_eventfd_thread(void* arg) {
     uint64_t count = 10;
@@ -111,12 +122,12 @@ int eventfd_using_poll() {
 }
 
 /* This function used to test various flags supported while creating eventfd descriptors.
- * Note: EFD_SEMAPHORE has not been tested.
  * To support regression testing, positive value returned for error case. */
 int eventfd_using_various_flags() {
-    uint64_t count = 0;
-    int efd = 0;
-    int eventfd_flags[] = { 0, EFD_NONBLOCK, EFD_CLOEXEC, EFD_NONBLOCK | EFD_CLOEXEC };
+    uint64_t count      = 0;
+    int efd             = 0;
+    ssize_t bytes       = 0;
+    int eventfd_flags[] = {0, EFD_SEMAPHORE, EFD_NONBLOCK, EFD_CLOEXEC};
 
     for (int i = 0; i < sizeof(eventfd_flags) / sizeof(int); i++) {
         printf("iteration #-%d, flags=%d\n", i, eventfd_flags[i]);
@@ -130,23 +141,86 @@ int eventfd_using_various_flags() {
         }
 
         count = 5;
-        eventfd_write(efd, count);
-        eventfd_write(efd, count);
+        bytes = write(efd, &count, sizeof(count));
+        CHECK_FOR_ERROR(bytes, "write", __LINE__);
+
+        bytes = write(efd, &count, sizeof(count));
+        CHECK_FOR_ERROR(bytes, "write", __LINE__);
+
         count = 0;
         errno = 0;
-        eventfd_read(efd, &count);
-        printf("efd = %d, count: %lu, errno=%d\n", efd, count, errno);
+        if (eventfd_flags[i] & EFD_SEMAPHORE) {
+            uint64_t prev_count = 0;
+            bytes               = read(efd, &prev_count, sizeof(prev_count));
+            CHECK_FOR_ERROR(bytes, "read", __LINE__);
+
+            bytes = read(efd, &count, sizeof(count));
+            CHECK_FOR_ERROR(bytes, "read", __LINE__);
+
+            if ((prev_count != count) || (count != 1))
+                printf("flag->EFD_SEMAPHORE, error, prev_count=%lu, new count=%lu\n", prev_count,
+                       count);
+        }
+
+        count = 0;
+        errno = 0;
+        bytes = read(efd, &count, sizeof(count));
+        CHECK_FOR_ERROR(bytes, "read", __LINE__);
+        printf("%d: efd = %d, count: %lu, errno=%d\n", __LINE__, efd, count, errno);
 
         /* calling the second read would block if flags doesn't have EFD_NONBLOCK */
         if (eventfd_flags[i] & EFD_NONBLOCK) {
             count = 0;
             errno = 0;
-            eventfd_read(efd, &count);
-            printf("efd = %d, count: %lu, errno=%d\n", efd, count, errno);
+            read(efd, &count, sizeof(count));
+            printf("%d: efd = %d, count: %lu, errno=%d\n", __LINE__, efd, count, errno);
         }
 
         close(efd);
     }
+
+    printf("%s completed successfully\n", __func__);
+
+    return 0;
+}
+
+int eventfd_using_fork() {
+    int status     = 0;
+    int single_efd = 0;
+    uint64_t count = 0;
+
+    single_efd = eventfd(0, EFD_NONBLOCK);
+
+    printf("%s:%d\n", __func__, __LINE__);
+
+    pid_t pid = fork();
+
+    if (pid == 0) {
+        // child process
+        count = 5;
+        write(single_efd, &count, sizeof(count));
+        exit(0);
+    } else if (pid > 0) {
+        // parent process
+        waitpid(pid, &status, 0);
+
+        if (WIFSIGNALED(status)) {
+            printf("error\n");
+            return status;
+        }
+
+        count = 0;
+        read(single_efd, &count, sizeof(count));
+        printf("parent-pid=%d, efd = %d, count: %lu, errno=%d\n", getpid(), single_efd, count,
+               errno);
+
+    } else {
+        // fork failed
+        printf("fork error=%d\n", errno);
+        return pid;
+    }
+
+    close(single_efd);
 
     printf("%s completed successfully\n", __func__);
 
@@ -158,6 +232,7 @@ int main(int argc, char* argv[]) {
 
     ret = eventfd_using_poll();
     ret += eventfd_using_various_flags();
+    ret += eventfd_using_fork();
 
     return ret;
 }
