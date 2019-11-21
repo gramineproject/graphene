@@ -331,6 +331,7 @@ class TC_30_Syscall(RegressionTestCase):
         # Eventfd Test
         self.assertIn('eventfd_using_poll completed successfully', stdout)
         self.assertIn('eventfd_using_various_flags completed successfully', stdout)
+        self.assertIn('eventfd_using_fork completed successfully', stdout)
 
     def test_080_sched(self):
         stdout, stderr = self.run_binary(['sched'])
