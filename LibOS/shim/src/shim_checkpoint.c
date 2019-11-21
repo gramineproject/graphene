@@ -788,8 +788,7 @@ int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store * store)
     entries  += cnt;
     nentries -= cnt;
 
-    for (int i = 0 ; i < nentries ; i++)
-    {
+    for (int i = 0 ; i < nentries ; i++) {
         /* If DkSendHandle returns error,
          * need to return error to abort migration from parent to child.
          * If we dont error-out, application hangs. */
@@ -835,12 +834,10 @@ int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
             /* If DkReceiveHandle returns null handle,
              * need to return error to abort migration process in child.
              * If we dont error-out, it crashes PAL. */
-            if (hdl) {
-                *entry->phandle = hdl;
-                continue;
-            }
-            else
+            if (!hdl)
                 return -EINVAL;
+
+            *entry->phandle = hdl;
         }
     }
 
