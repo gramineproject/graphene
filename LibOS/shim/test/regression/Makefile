@@ -25,6 +25,7 @@ CFLAGS-abort_multithread = -pthread
 CFLAGS-eventfd = -pthread
 CFLAGS-futex = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../lib -pthread
+CFLAGS-sigprocmask += -pthread
 
 %: %.c
 	$(call cmd,csingle)
