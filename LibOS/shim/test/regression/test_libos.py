@@ -140,6 +140,10 @@ class TC_01_Bootstrap(RegressionTestCase):
         with self.expect_returncode(134):
             self.run_binary(['abort_multithread'])
 
+    def test_404_sigprocmask(self):
+        with self.expect_returncode(113):
+            self.run_binary(['sigprocmask'])
+
     def test_500_init_fail(self):
         try:
             self.run_binary(['init_fail'])
