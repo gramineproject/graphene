@@ -120,15 +120,15 @@ One can run tests manually:
 PYTHONPATH=path/to/graphene/Scripts
 PAL_LOADER=path/to/pal-Linux
 export PYTHONPATH PAL_LOADER
-python3 -m pytest -v -rs test.py
+python3 -m pytest -v -rs test_pal.py
 ```
 
 It is also possible to run subset of tests:
 
 ```sh
 # after env export
-python3 -m pytest -v -rs test.py::TC_01_Bootstrap
-python3 -m pytest -v -rs test.py::TC_01_Bootstrap::test_100_basic_boostrapping
+python3 -m pytest -v -rs test_pal.py::TC_01_Bootstrap
+python3 -m pytest -v -rs test_pal.py::TC_01_Bootstrap::test_100_basic_boostrapping
 ```
 
 The shim unit tests work similarly, and are under LibOS/shim/test/regression
@@ -144,5 +144,9 @@ To run these tests:
 ```Bash
 cd LibOS/shim/test/apps/ltp
 make
-./syscalls.sh
+make ltp.xml
+# or
+make SGX=1 ltp-sgx.xml
+# or manually run the tool with options you need:
+./runltp_xml.py -c ltp.cfg -v src/runtest/syscalls
 ```
