@@ -11,10 +11,10 @@ struct pal_sec;
 struct rpc_queue;
 
 typedef struct {
-    char * ms_args;
-    size_t ms_args_size;
-    char * ms_env;
-    size_t ms_env_size;
-    struct pal_sec * ms_sec_info;
-    struct rpc_queue * rpc_queue; /* pointer to RPC queue in untrusted mem */
+    char*             ms_args;
+    size_t            ms_args_size;
+    char*             ms_env;
+    size_t            ms_env_size;
+    struct pal_sec*   ms_sec_info;
+    struct rpc_queue* rpc_queue; /* pointer to RPC queue in untrusted mem */
 } ms_ecall_enclave_start_t;

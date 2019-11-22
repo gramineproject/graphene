@@ -25,6 +25,7 @@ int sgx_ocall (unsigned long code, void * ms);
 bool sgx_is_completely_within_enclave (const void * addr, uint64_t size);
 bool sgx_is_completely_outside_enclave(const void * addr, uint64_t size);
 
+void* sgx_alloc_on_ustack_aligned(uint64_t size, size_t alignment);
 void* sgx_alloc_on_ustack(uint64_t size);
 void* sgx_copy_to_ustack(const void* ptr, uint64_t size);
 void sgx_reset_ustack(void);

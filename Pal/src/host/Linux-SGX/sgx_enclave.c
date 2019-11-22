@@ -719,12 +719,8 @@ static int start_rpc(size_t num_of_threads) {
     if (IS_ERR_P(g_rpc_queue))
         return -ENOMEM;
 
-    /* initialize g_rpc_queue; just for sanity, it will be overwritten by in-enclave code */
-    spinlock_init(&g_rpc_queue->lock);
-    g_rpc_queue->front = 0;
-    g_rpc_queue->rear  = 0;
-    for (size_t i = 0; i < RPC_QUEUE_SIZE; i++)
-        g_rpc_queue->q[i] = NULL;
+    /* initialize g_rpc_queue just for sanity, it will be overwritten by in-enclave code */
+    rpc_queue_init(g_rpc_queue);
 
     for (size_t i = 0; i < num_of_threads; i++) {
         void* stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, RPC_STACK_SIZE,

@@ -19,19 +19,19 @@ typedef int spinlock_t;
 #define INIT_SPINLOCK_UNLOCKED SPINLOCK_UNLOCKED
 
 /* Use this to initialize spinlocks with *dynamic* storage duration. */
-static inline void spinlock_init(spinlock_t *lock) {
+static inline void spinlock_init(spinlock_t* lock) {
     __atomic_store_n(lock, SPINLOCK_UNLOCKED, __ATOMIC_RELAXED);
 }
 
 /* Returns 0 if taking the lock succeded, 1 if it was already taken */
-static inline int spinlock_trylock(spinlock_t *lock) {
+static inline int spinlock_trylock(spinlock_t* lock) {
     if (__atomic_exchange_n(lock, SPINLOCK_LOCKED, __ATOMIC_ACQUIRE) == SPINLOCK_UNLOCKED) {
         return 0;
     }
     return 1;
 }
 
-static inline void spinlock_lock(spinlock_t *lock) {
+static inline void spinlock_lock(spinlock_t* lock) {
     int val;
 
     /* First check if lock is already free. */
@@ -51,7 +51,7 @@ static inline void spinlock_lock(spinlock_t *lock) {
 }
 
 /* Returns 0 if taking the lock succeded; 1 if timed out (counted as number of iterations) */
-static inline int spinlock_lock_timeout(spinlock_t *lock, unsigned long iterations) {
+static inline int spinlock_lock_timeout(spinlock_t* lock, unsigned long iterations) {
     int val;
 
     /* First check if lock is already free. */
@@ -78,12 +78,12 @@ static inline int spinlock_lock_timeout(spinlock_t *lock, unsigned long iteratio
 /* Semantics are the same as gcc's atomic_compare_exchange_n(): compares the contents of *lock with
  * the contents of *expected; if equal, writes `desired` into *lock. If unequal, current contents of
  * *lock are written into *expected. If `desired` is written into *lock then true is returned. */
-static inline int spinlock_cmpxchg(spinlock_t *lock, int* expected, int desired) {
+static inline int spinlock_cmpxchg(spinlock_t* lock, int* expected, int desired) {
     return __atomic_compare_exchange_n(lock, expected, desired, /*weak=*/ 0,
                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
 }
 
-static inline void spinlock_unlock(spinlock_t *lock) {
+static inline void spinlock_unlock(spinlock_t* lock) {
     __atomic_store_n(lock, SPINLOCK_UNLOCKED, __ATOMIC_RELEASE);
 }
 

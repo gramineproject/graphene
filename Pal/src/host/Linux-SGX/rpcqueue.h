@@ -62,6 +62,14 @@ typedef struct rpc_queue {
 
 extern rpc_queue_t* g_rpc_queue;  /* global RPC queue */
 
+static inline void rpc_queue_init(rpc_queue_t* q) {
+    spinlock_init(&q->lock);
+    q->front = 0;
+    q->rear  = 0;
+    for (size_t i = 0; i < RPC_QUEUE_SIZE; i++)
+        q->q[i] = NULL;
+}
+
 static inline rpc_request_t* rpc_enqueue(rpc_queue_t* q, rpc_request_t* req) {
     rpc_request_t* ret = NULL;
     spinlock_lock(&q->lock);

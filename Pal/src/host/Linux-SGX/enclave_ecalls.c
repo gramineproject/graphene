@@ -13,7 +13,7 @@ extern void * enclave_base, * enclave_top;
 static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
 
 /* returns 0 if rpc_queue is valid/not requested, otherwise -1 */
-static int init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
+static int verify_and_init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
     g_rpc_queue = untrusted_rpc_queue;
     if (!g_rpc_queue) {
         /* user app doesn't request RPC queue (i.e., the app doesn't request exitless syscalls) */
@@ -26,13 +26,7 @@ static int init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
     if (g_rpc_queue->rpc_threads_num > MAX_RPC_THREADS)
         return -1;
 
-    /* re-initialize rest fields for safety */
-    spinlock_init(&g_rpc_queue->lock);
-    g_rpc_queue->front = 0;
-    g_rpc_queue->rear  = 0;
-    for (size_t i = 0; i < RPC_QUEUE_SIZE; i++)
-        g_rpc_queue->q[i] = NULL;
-
+    rpc_queue_init(g_rpc_queue); /* re-initialize rest fields for safety */
     return 0;
 }
 
@@ -93,7 +87,7 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
             return;
         }
 
-        if (init_rpc_queue(ms->rpc_queue))
+        if (verify_and_init_rpc_queue(ms->rpc_queue))
             return;
 
         /* pal_linux_main is responsible to check the passed arguments */
