@@ -32,21 +32,15 @@ static int sgx_exitless_ocall(int code, void* ms) {
         return sgx_ocall(code, ms);
 
     /* allocate request on OCALL stack; it is automatically freed on OCALL end; note that request's
-     * lock is used in futex() and must be aligned to 4B so we pad OCALL stack to 4B alignment with
-     * dummy chars */
-    char* dummy;
-    do {
-        dummy = sgx_alloc_on_ustack(sizeof(*dummy));
-    } while ((uint64_t)dummy % 4 != 0);
-
+     * lock is used in futex() and must be aligned to 4B (guaranteed by sgx_alloc_on_ustack) */
     rpc_request_t* req = sgx_alloc_on_ustack(sizeof(*req));
     req->ocall_index = code;
     req->buffer      = ms;
     spinlock_init(&req->lock);
 
-    /* immediately grab the lock on this request (it is the responsibility of RPC thread to
-     * unlock it when done); this always succeeds since enclave thread is currently the only
-     * owner of the lock */
+    /* grab the lock on this request (it is the responsibility of RPC thread to unlock it when
+     * done); this always succeeds immediately since enclave thread is currently the only owner
+     * of the lock */
     spinlock_lock(&req->lock);
 
     /* enqueue OCALL request into RPC queue; some RPC thread will dequeue it, issue a syscall

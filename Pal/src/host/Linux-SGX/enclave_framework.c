@@ -40,6 +40,7 @@ bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
 
 void* sgx_alloc_on_ustack(uint64_t size) {
     void* ustack = GET_ENCLAVE_TLS(ustack) - size;
+    ustack = ALIGN_DOWN_PTR(ustack, 16);
     if (!sgx_is_completely_outside_enclave(ustack, size)) {
         return NULL;
     }

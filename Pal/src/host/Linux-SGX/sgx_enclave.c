@@ -719,7 +719,7 @@ static int start_rpc(size_t num_of_threads) {
     if (IS_ERR_P(g_rpc_queue))
         return -ENOMEM;
 
-    /* initialize g_rpc_queue */
+    /* initialize g_rpc_queue; just for sanity, it will be overwritten by in-enclave code */
     spinlock_init(&g_rpc_queue->lock);
     g_rpc_queue->front = 0;
     g_rpc_queue->rear  = 0;
@@ -731,7 +731,7 @@ static int start_rpc(size_t num_of_threads) {
                                             PROT_READ | PROT_WRITE,
                                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (IS_ERR_P(stack))
-            goto fail;
+            return -ENOMEM;
 
         void* child_stack_top = stack + RPC_STACK_SIZE;
         child_stack_top = ALIGN_DOWN_PTR(child_stack_top, 16);
@@ -744,7 +744,7 @@ static int start_rpc(size_t num_of_threads) {
 
         if (IS_ERR(ret)) {
             INLINE_SYSCALL(munmap, 2, stack, RPC_STACK_SIZE);
-            goto fail;
+            return -ENOMEM;
         }
     }
 
@@ -759,11 +759,6 @@ static int start_rpc(size_t num_of_threads) {
     }
 
     return 0;
-
-fail:
-    if (g_rpc_queue)
-        INLINE_SYSCALL(munmap, 2, g_rpc_queue, ALIGN_UP(sizeof(rpc_queue_t), PRESET_PAGESIZE));
-    return -ENOMEM;
 }
 
 

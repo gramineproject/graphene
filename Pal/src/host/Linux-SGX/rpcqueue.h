@@ -35,9 +35,15 @@
 #include <stdint.h>
 #include "spinlock.h"
 
+/* Number of iterations to spin before sleeping. We choose 1M as follows: we want to sleep on
+ * blocking syscalls but we want to allow ample time for fast syscalls to complete. We choose
+ * 1 millisecond -- more than enough time to complete any non-blocking syscall. Assuming a 1GHz
+ * CPU and no pipelining (and ignoring the pause instruction), 1 millisecond is 1M cycles. This
+ * works well in practice. */
+#define RPC_SPINLOCK_TIMEOUT 1000000
+
 #define RPC_QUEUE_SIZE 1024         /* max # of requests in RPC queue */
 #define MAX_RPC_THREADS 256         /* max number of RPC threads */
-#define RPC_SPINLOCK_TIMEOUT 4096   /* # of iterations to spin before sleeping */
 
 typedef struct {
     spinlock_t lock;  /* can be UNLOCKED / LOCKED_NO_WAITERS / LOCKED_WITH_WAITERS */
@@ -56,7 +62,50 @@ typedef struct rpc_queue {
 
 extern rpc_queue_t* g_rpc_queue;  /* global RPC queue */
 
-rpc_request_t* rpc_enqueue(rpc_queue_t* q, rpc_request_t* req);
-rpc_request_t* rpc_dequeue(rpc_queue_t* q);
+static inline rpc_request_t* rpc_enqueue(rpc_queue_t* q, rpc_request_t* req) {
+    rpc_request_t* ret = NULL;
+    spinlock_lock(&q->lock);
+
+    if (q->rear - q->front >= RPC_QUEUE_SIZE) {
+        /* queue is full, cannot enqueue */
+        goto out;
+    }
+
+    if (q->q[q->rear % RPC_QUEUE_SIZE]) {
+        /* current slot is occupied, cannot enqueue but the caller can try again */
+        q->rear++;
+        goto out;
+    }
+
+    q->q[q->rear % RPC_QUEUE_SIZE] = req;
+    q->rear++;
+    ret = req;
+out:
+    spinlock_unlock(&q->lock);
+    return ret;
+}
+
+static inline rpc_request_t* rpc_dequeue(rpc_queue_t* q) {
+    rpc_request_t* ret = NULL;
+    spinlock_lock(&q->lock);
+
+    if (q->front == q->rear) {
+        /* queue is empty, nothing to dequeue */
+        goto out;
+    }
+
+    if (!q->q[q->front % RPC_QUEUE_SIZE]) {
+        /* current slot is empty, cannot dequeue but the caller can try next one */
+        q->front++;
+        goto out;
+    }
+
+    ret = q->q[q->front % RPC_QUEUE_SIZE];
+    q->q[q->front % RPC_QUEUE_SIZE] = NULL;
+    q->front++;
+out:
+    spinlock_unlock(&q->lock);
+    return ret;
+}
 
 #endif /* QUEUE_H_ */
