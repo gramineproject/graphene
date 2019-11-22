@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include <sys/eventfd.h>
 #include <sys/time.h>
@@ -18,10 +17,10 @@
 
 #define MAX_EFDS 3
 
-#define CLOSE_EFD_AND_EXIT(efd)    \
-    do {                           \
-        close(efd);                \
-        return 1;                  \
+#define CLOSE_EFD_AND_EXIT(efd) \
+    do {                        \
+        close(efd);             \
+        return 1;               \
     } while (0)
 
 #define EXIT_IF_ERROR(efd, bytes, prefix, line_num) \
@@ -38,7 +37,7 @@ int efds[MAX_EFDS] = {0};
 void* write_eventfd_thread(void* arg) {
     uint64_t count = 10;
 
-    int* efds = (int*) arg;
+    int* efds = (int*)arg;
 
     if (!arg) {
         printf("arg is NULL\n");
@@ -65,9 +64,9 @@ void* write_eventfd_thread(void* arg) {
 int eventfd_using_poll() {
     int ret = 0;
     struct pollfd pollfds[MAX_EFDS];
-    pthread_t tid = 0;
-    uint64_t count = 0;
-    int poll_ret = 0;
+    pthread_t tid    = 0;
+    uint64_t count   = 0;
+    int poll_ret     = 0;
     int nread_events = 0;
 
     for (int i = 0; i < MAX_EFDS; i++) {
@@ -80,7 +79,7 @@ int eventfd_using_poll() {
 
         printf("efd = %d\n", efds[i]);
 
-        pollfds[i].fd = efds[i];
+        pollfds[i].fd     = efds[i];
         pollfds[i].events = POLLIN;
     }
 
@@ -109,11 +108,10 @@ int eventfd_using_poll() {
         for (int i = 0; i < MAX_EFDS; i++) {
             if (pollfds[i].revents & POLLIN) {
                 pollfds[i].revents = 0;
-                errno = 0;
+                errno              = 0;
                 read(pollfds[i].fd, &count, sizeof(count));
                 printf("fd set=%d\n", pollfds[i].fd);
-                printf("efd = %d, count: %lu, errno=%d\n", pollfds[i].fd,
-                        count, errno);
+                printf("efd = %d, count: %lu, errno=%d\n", pollfds[i].fd, count, errno);
                 nread_events++;
             }
         }
@@ -134,7 +132,8 @@ out:
     return ret;
 }
 
-/* This function used to test various flags supported while creating eventfd descriptors.
+/* This function used to test various flags supported while creating eventfd
+ * descriptors.
  * To support regression testing, positive value returned for error case. */
 int eventfd_using_various_flags() {
     uint64_t count      = 0;
@@ -206,7 +205,7 @@ int eventfd_using_various_flags() {
 
 int eventfd_using_fork() {
     int status     = 0;
-    int efd = 0;
+    int efd        = 0;
     uint64_t count = 0;
 
     efd = eventfd(0, EFD_NONBLOCK);
@@ -235,8 +234,7 @@ int eventfd_using_fork() {
         count = 0;
         read(efd, &count, sizeof(count));
         if (count != 5) {
-            printf("parent-pid=%d, efd = %d, count: %lu, errno=%d\n", getpid(), efd, count,
-                   errno);
+            printf("parent-pid=%d, efd = %d, count: %lu, errno=%d\n", getpid(), efd, count, errno);
             CLOSE_EFD_AND_EXIT(efd);
         }
 
