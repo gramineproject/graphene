@@ -1,7 +1,8 @@
 #include "assert.h"
 #include "pal_internal.h"
-#include "sgx_internal.h"
 #include "pal_security.h"
+#include "sgx_internal.h"
+#include "spinlock.h"
 
 #include <linux/futex.h>
 #include <linux/signal.h>
@@ -21,18 +22,7 @@ static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
 
-static void spin_lock(struct atomic_int* p) {
-    while (atomic_cmpxchg(p, 0, 1)) {
-        while (atomic_read(p) == 1)
-            CPU_RELAX();
-    }
-}
-
-static void spin_unlock(struct atomic_int* p) {
-    atomic_set(p, 0);
-}
-
-static struct atomic_int tcs_lock = ATOMIC_INIT(0);
+static spinlock_t tcs_lock = INIT_SPINLOCK_UNLOCKED;
 
 void create_tcs_mapper (void * tcs_base, unsigned int thread_num)
 {
@@ -51,7 +41,7 @@ void create_tcs_mapper (void * tcs_base, unsigned int thread_num)
 }
 
 void map_tcs(unsigned int tid) {
-    spin_lock(&tcs_lock);
+    spinlock_lock(&tcs_lock);
     for (int i = 0 ; i < enclave_thread_num ; i++)
         if (!enclave_thread_map[i].tid) {
             enclave_thread_map[i].tid = tid;
@@ -59,7 +49,7 @@ void map_tcs(unsigned int tid) {
             ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[i] = tid;
             break;
         }
-    spin_unlock(&tcs_lock);
+    spinlock_unlock(&tcs_lock);
 }
 
 void unmap_tcs(void) {
@@ -68,20 +58,20 @@ void unmap_tcs(void) {
 
     assert(index < enclave_thread_num);
 
-    spin_lock(&tcs_lock);
+    spinlock_lock(&tcs_lock);
     get_tcb_linux()->tcs = NULL;
     ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[index] = 0;
     map->tid = 0;
-    spin_unlock(&tcs_lock);
+    spinlock_unlock(&tcs_lock);
 }
 
 int current_enclave_thread_num(void) {
     int ret = 0;
-    spin_lock(&tcs_lock);
+    spinlock_lock(&tcs_lock);
     for (int i = 0; i < enclave_thread_num; i++)
         if (enclave_thread_map[i].tid)
             ret++;
-    spin_unlock(&tcs_lock);
+    spinlock_unlock(&tcs_lock);
     return ret;
 }
 
