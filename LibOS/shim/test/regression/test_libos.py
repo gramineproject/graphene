@@ -142,7 +142,7 @@ class TC_01_Bootstrap(RegressionTestCase):
 
     def test_404_sigprocmask(self):
         with self.expect_returncode(113):
-            self.run_binary(['sigprocmask'], timeout=60)
+            self.run_binary(['sigprocmask'])
 
     def test_500_init_fail(self):
         try:

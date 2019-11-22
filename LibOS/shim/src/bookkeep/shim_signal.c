@@ -610,7 +610,7 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
     if (set) {
         memcpy(&thread->signal_mask, set, sizeof(__sigset_t));
 
-        /*SIGKILL and SIGSTOP cannot be ignored.*/
+        /* SIGKILL and SIGSTOP cannot be ignored */
         __sigdelset(&thread->signal_mask, SIGKILL);
         __sigdelset(&thread->signal_mask, SIGSTOP);
     }
