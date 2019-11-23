@@ -91,11 +91,6 @@ GLIBC_PATCHES_2.27 = \
 	glibc-patches/liblibos-2.23+.patch \
 	glibc-patches/hp-timing-2.23+.patch
 
-ifeq ($(GLIBC_DISABLE_VDSO),true)
-GLIBC_PATCHES_2.19 += \
-	glibc-patches/glibc-2.19-remove-vdso.patch
-endif
-
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
 GLIBC_PATCHES += glibc-patches/ld-gold.patch
 endif
