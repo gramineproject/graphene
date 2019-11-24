@@ -121,39 +121,6 @@ __asm__ (".type arch_exception_return_asm, @function;"
 
 extern void arch_exception_return (void) __asm__ ("arch_exception_return_asm");
 
-void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
-                              PAL_CONTEXT * context)
-{
-    if (frame) {
-        frame = __alloca(sizeof(struct pal_frame));
-        frame->identifier = PAL_FRAME_IDENTIFIER;
-        frame->func     = &_DkExceptionRealHandler;
-        frame->funcname = "_DkExceptionRealHandler";
-
-        store_register(rsp, frame->arch.rsp);
-        store_register(rbp, frame->arch.rbp);
-        unsigned long * last_frame = ((unsigned long *) frame->arch.rbp) + 1;
-        last_frame[0]  = (unsigned long) arch_exception_return;
-        last_frame[1]  = context->rax;
-        last_frame[2]  = context->rbx;
-        last_frame[3]  = context->rcx;
-        last_frame[4]  = context->rdx;
-        last_frame[5]  = context->rsi;
-        last_frame[6]  = context->rdi;
-        last_frame[7]  = context->r8;
-        last_frame[8]  = context->r9;
-        last_frame[9]  = context->r10;
-        last_frame[10] = context->r11;
-        last_frame[11] = context->r12;
-        last_frame[12] = context->r13;
-        last_frame[13] = context->r14;
-        last_frame[14] = context->r15;
-        last_frame[15] = context->rip;
-    }
-
-    _DkGenericSignalHandle(event, arg, frame, context);
-}
-
 /*
  * return value:
  *  true:  #UD is handled.
@@ -281,8 +248,6 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_cpu_context_t * uc)
     ctx.efl = uc->rflags;
     ctx.rip = uc->rip;
 
-    struct pal_frame * frame = get_frame(uc);
-
     PAL_NUM arg = 0;
     switch (event_num) {
     case PAL_EVENT_ILLEGAL:
@@ -298,7 +263,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_cpu_context_t * uc)
         /* nothing */
         break;
     }
-    _DkExceptionRealHandler(event_num, arg, frame, &ctx);
+    _DkGenericSignalHandle(event_num, arg, NULL, &ctx);
     restore_sgx_context(uc);
 }
 
