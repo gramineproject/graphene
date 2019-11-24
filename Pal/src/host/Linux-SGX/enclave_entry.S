@@ -306,7 +306,7 @@ enclave_entry:
 	# If there is registered signal handler for the current exception,
 	# _DkHandleExternalEvent() will be called (and thus we need to save
 	# %rdi = <external event>) before returning from ocall.
-	movq $-EINTR, %rdi # return value for .Lreturn_from_ocall
+	movq $-EINTR, SGX_GPR_RDI(%rbx) # return value for .Lreturn_from_ocall
 	# fallthrough to Case C.
 
 	# This code cannot land in Case B because:
