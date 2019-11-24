@@ -154,8 +154,6 @@ On the example of SIGINT, until we arrive into `_DkGenericSignalHandle()`.
 | | | +                                                                                           |a
 | | | | PAL_CONTEXT ctx = copy(uc)  <ctx contains interrupted-context frame>                      |v
 | | | |                                                                                           |e
-| | | | _DkExceptionRealHandler(PAL_EVENT_SUSPEND, ctx)                                           |
-| | | |                                                                                           |
 + + + + _DkGenericSignalHandle(PAL_EVENT_SUSPEND, ctx)                                            v
           < ... >
 ```
