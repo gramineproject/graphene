@@ -20,7 +20,7 @@ else
 CFLAGS += -I$(target)
 endif
 
-subdirs = string stdlib network graphene util crypto
+subdirs = string stdlib network graphene crypto
 
 # Choose Crypto provider among (mbedtls|wolfssl)
 CRYPTO_PROVIDER ?= mbedtls
@@ -35,12 +35,19 @@ CRYPTO_PROVIDER ?= mbedtls
 # symbols.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 subdirs += crypto/mbedtls
+crypto_mbedtls_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa sha256)
 endif
 ifeq ($(CRYPTO_PROVIDER),wolfssl)
 subdirs += crypto/wolfssl
+crypto_wolfssl_objs = $(addsuffix .o,$(patsubst %.c,%.o,$(sort $(wildcard crypto/wolfssl/*.c))))
 endif
 
-objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
+string_objs = $(addsuffix .o,atoi memcmp memcpy memset strchr strendswith strlen wordcopy)
+stdlib_objs = $(addsuffix .o,printfmt)
+network_objs = $(addsuffix .o,hton inet_pton)
+graphene_objs = $(addsuffix .o,config path)
+crypto_objs = $(addsuffix .o,udivmodti4)
+objs += $(foreach dir,$(subdirs),$(addprefix $(dir)/,$($(subst /,_,$(dir))_objs)))
 
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 CFLAGS += -DCRYPTO_USE_MBEDTLS

@@ -42,15 +42,16 @@ ASFLAGS += $(defs)
 fs	= chroot str pipe socket proc dev eventfd
 ipcns	= pid sysv
 objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
-	  $(patsubst %.c,%,$(wildcard utils/*.c)) \
+	  $(addprefix utils/,md5 printf strobjs) \
 	  $(addprefix fs/shim_,dcache namei fs_hash fs) \
-	  $(patsubst %.c,%,$(foreach f,$(fs),$(wildcard fs/$(f)/*.c))) \
+	  $(foreach f,$(fs),fs/$(f)/fs) \
+	  $(addprefix fs/proc/,info ipc-thread thread) \
 	  $(addprefix ipc/shim_,ipc ipc_helper ipc_child) \
 	  $(addprefix ipc/shim_ipc_,$(ipcns)) \
 	  elf/shim_rtld \
 	  $(addprefix shim_,init table syscalls checkpoint malloc \
 	  async parser debug object) syscallas start \
-	  $(patsubst %.c,%,$(wildcard sys/*.c)) \
+	  $(addprefix sys/shim_,access alarm benchmark brk clone dup epoll eventfd exec exit fcntl fork fs futex getcwd getpid getrlimit ioctl migrate mmap msgget open pipe poll sched semget sigaction sleep socket stat time uname vfork wait wrappers) \
 	  vdso/vdso-data
 all_objs = $(objs) vdso/vdso-note vdso/vdso
 
