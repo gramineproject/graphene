@@ -41,7 +41,7 @@ int main() {
         return 1;
     }
 
-    PAL_HANDLE thread2 = DkThreadCreate(thread2_run, NULL);
+    PAL_HANDLE thread2 = DkThreadCreate(thread2_run, NULL, /*clear_child_tid=*/NULL);
     if (thread2 == NULL) {
         pal_printf("DkThreadCreate failed\n");
         return 1;

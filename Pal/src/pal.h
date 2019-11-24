@@ -410,7 +410,7 @@ DkStreamChangeName (PAL_HANDLE handle, PAL_STR uri);
 #define PAL_THREAD_MASK         0
 
 PAL_HANDLE
-DkThreadCreate (PAL_PTR addr, PAL_PTR param);
+DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_PTR clear_child_tid);
 
 // assuming duration to be in microseconds
 PAL_NUM

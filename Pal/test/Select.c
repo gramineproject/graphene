@@ -26,7 +26,7 @@ int main() {
     handles[2] = DkStreamOpen("pipe:", PAL_ACCESS_RDWR, 0, 0, 0);
     wakeup     = handles[2];
 
-    PAL_HANDLE thd = DkThreadCreate(&thread, NULL);
+    PAL_HANDLE thd = DkThreadCreate(&thread, NULL, /*clear_child_tid=*/NULL);
 
     if (thd == NULL) {
         pal_printf("DkThreadCreate failed\n");

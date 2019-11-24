@@ -40,7 +40,7 @@ int main(int argc, const char** argv, const char** envp) {
     __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr1)::"memory");
     pal_printf("Private Message (FS Segment) 1: %s\n", ptr1);
 
-    PAL_HANDLE thread1 = DkThreadCreate(callback1, "Hello World");
+    PAL_HANDLE thread1 = DkThreadCreate(callback1, "Hello World", /*clear_child_tid=*/NULL);
 
     if (thread1) {
         pal_printf("Child Thread Created\n");

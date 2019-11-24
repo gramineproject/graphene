@@ -407,10 +407,11 @@ This API changes the name of an opened stream.
 
 #### DkThreadCreate
 
-    PAL_HANDLE DkThreadCreate(PAL_PTR addr, PAL_PTR param);
+    PAL_HANDLE DkThreadCreate(PAL_PTR addr, PAL_PTR param, PAL_PTR clear_child_tid);
 
 This API creates a thread in the current process. `addr` is the address of an entry point of
 execution for the new thread. `param` is the pointer argument that is passed to the new thread.
+`clear_child_tid` is the pointer to memory that is erased on child exit to notify parent.
 
 #### DkThreadDelayExecution
 

@@ -30,11 +30,12 @@
 /* PAL call DkThreadCreate: create a thread inside the current
    process */
 PAL_HANDLE
-DkThreadCreate(PAL_PTR addr, PAL_PTR param) {
+DkThreadCreate(PAL_PTR addr, PAL_PTR param, PAL_PTR clear_child_tid) {
     ENTER_PAL_CALL(DkThreadCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret           = _DkThreadCreate(&handle, (int (*)(void*))addr, (const void*)param);
+    int ret           = _DkThreadCreate(&handle, (int (*)(void*))addr, (const void*)param,
+                                        (const void*)clear_child_tid);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

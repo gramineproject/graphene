@@ -27,14 +27,14 @@ int main() {
 
     PAL_HANDLE thd1, thd2;
 
-    thd1 = DkThreadCreate(&thread_1, NULL);
+    thd1 = DkThreadCreate(&thread_1, NULL, /*clear_child_tid=*/NULL);
 
     if (thd1 == NULL) {
         pal_printf("DkThreadCreate failed\n");
         return -1;
     }
 
-    thd2 = DkThreadCreate(&thread_2, NULL);
+    thd2 = DkThreadCreate(&thread_2, NULL, /*clear_child_tid=*/NULL);
 
     if (thd2 == NULL) {
         pal_printf("DkThreadCreate failed\n");

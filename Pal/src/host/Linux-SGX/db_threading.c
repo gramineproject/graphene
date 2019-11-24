@@ -44,8 +44,9 @@ DEFINE_LISTP(pal_handle_thread);
 static LISTP_TYPE(pal_handle_thread) thread_list = LISTP_INIT;
 
 struct thread_param {
-    int (*callback) (void *);
-    const void * param;
+    int (*callback) (void*);
+    const void* param;
+    const void* clear_child_tid;
 };
 
 extern void * enclave_base;
@@ -82,12 +83,17 @@ void pal_start_thread (void)
 
     struct thread_param * thread_param =
             (struct thread_param *) new_thread->param;
-    int (*callback) (void *) = thread_param->callback;
-    const void * param = thread_param->param;
+    int (*callback) (void*)     = thread_param->callback;
+    const void* param           = thread_param->param;
+    const void* clear_child_tid = thread_param->clear_child_tid;
+
     free(thread_param);
     new_thread->param = NULL;
+
     SET_ENCLAVE_TLS(thread, new_thread);
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+    SET_ENCLAVE_TLS(clear_child_tid, clear_child_tid);
+
     callback((void *) param);
     _DkThreadExit();
 }
@@ -95,9 +101,8 @@ void pal_start_thread (void)
 /* _DkThreadCreate for internal use. Create an internal thread
    inside the current process. The arguments callback and param
    specify the starting function and parameters */
-int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * param)
-{
+int _DkThreadCreate(PAL_HANDLE* handle, int (*callback) (void*),
+                    const void* param, const void* clear_child_tid) {
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);
     /*
@@ -108,8 +113,9 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     new_thread->thread.tcs = NULL;
     INIT_LIST_HEAD(&new_thread->thread, list);
     struct thread_param * thread_param = malloc(sizeof(struct thread_param));
-    thread_param->callback = callback;
-    thread_param->param = param;
+    thread_param->callback        = callback;
+    thread_param->param           = param;
+    thread_param->clear_child_tid = clear_child_tid;
     new_thread->thread.param = (void *) thread_param;
 
     _DkInternalLock(&thread_list_lock);
@@ -141,6 +147,10 @@ void _DkThreadYieldExecution (void)
 noreturn void _DkThreadExit (void)
 {
     struct pal_handle_thread* exiting_thread = GET_ENCLAVE_TLS(thread);
+
+    /* thread is ready to exit, must inform LibOS by erasing clear_child_tid;
+     * note that we don't do it now (because this thread still occupies SGX
+     * TCS slot) but during handle_thread_reset in assembly code */
 
     /* main thread is not part of the thread_list */
     if(exiting_thread != &pal_control.first_thread->thread) {

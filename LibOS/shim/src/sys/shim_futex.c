@@ -427,40 +427,57 @@ void release_robust_list(struct robust_list_head* head) {
     }
 }
 
-void release_clear_child_id(int* clear_child_tid) {
-    debug("clear child tid at %p\n", clear_child_tid);
+/* Function is called by Async Helper thread to wait on *clear_child_tid to be changed
+ * to -1 (PAL does it when child thread finally exits). Since it is a callback to Async
+ * Helper thread, it must follow the `void (*callback) (IDTYPE caller, void * arg)`
+ * function signature even though we don't use caller. */
+void release_clear_child_id(IDTYPE caller, void* clear_child_tid_ptr) {
+    __UNUSED(caller);
+    int* clear_child_tid = (int*) clear_child_tid_ptr;
+    if (!clear_child_tid)
+        return;
+
+    /* wait on clear_child_tid to become -1; this signifies that PAL layer exited child thread */
+    while (__atomic_load_n(clear_child_tid, __ATOMIC_ACQUIRE) != -1) {
+        __asm__ volatile ("pause");
+    }
+
+    /* child thread exited, now parent can wake up; note that if PAL layer would set it to 0,
+     * parent thread could spuriously wake up, notice 0, and continue its execution without
+     * waiting for this function to succeed first */
     *clear_child_tid = 0;
 
+    /* at this point, child thread finally exited, can wake up parents if any */
     create_lock_runtime(&futex_list_lock);
 
     struct shim_futex_handle* tmp;
     struct shim_futex_handle* futex = NULL;
-    lock(&futex_list_lock);
 
+    lock(&futex_list_lock);
     LISTP_FOR_EACH_ENTRY(tmp, &futex_list, list) {
         if (tmp->uaddr == (void*)clear_child_tid) {
             futex = tmp;
             break;
         }
     }
-
     unlock(&futex_list_lock);
 
-    if (!futex)
+    if (!futex) {
+        /* no parent threads waiting on this child to exit */
         return;
+    }
 
+    debug("release futex at %p\n", clear_child_tid);
     struct futex_waiter* waiter;
     struct futex_waiter* wtmp;
     struct shim_handle* hdl = container_of(futex, struct shim_handle, info.futex);
+
     get_handle(hdl);
     lock(&hdl->lock);
-
-    debug("release futex at %p\n", clear_child_tid);
-    *clear_child_tid = 0;
     LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
+        /* wake up every parent waiting on this child */
         del_futex_waiter_wakeup(waiter, futex);
     }
-
     unlock(&hdl->lock);
     put_handle(hdl);
 }

@@ -80,9 +80,8 @@ int pal_thread_init (void * tcbptr)
 /* _DkThreadCreate for internal use. Create an internal thread
    inside the current process. The arguments callback and param
    specify the starting function and parameters */
-int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * param)
-{
+int _DkThreadCreate(PAL_HANDLE* handle, int (*callback) (void*),
+                    const void* param, const void* clear_child_tid) {
     int ret = 0;
     PAL_HANDLE hdl = NULL;
     void * stack = malloc(THREAD_STACK_SIZE + ALT_STACK_SIZE);
@@ -119,11 +118,12 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 
     // Initialize TCB at the top of the alternative stack.
     PAL_TCB_LINUX * tcb  = child_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
-    tcb->common.self = &tcb->common;
-    tcb->handle    = hdl;
-    tcb->alt_stack = child_stack; // Stack bottom
-    tcb->callback  = callback;
-    tcb->param     = (void *) param;
+    tcb->common.self     = &tcb->common;
+    tcb->handle          = hdl;
+    tcb->alt_stack       = child_stack; // Stack bottom
+    tcb->callback        = callback;
+    tcb->param           = (void*) param;
+    tcb->clear_child_tid = (void*) clear_child_tid;
 
     /* align child_stack to 16 */
     child_stack = ALIGN_DOWN_PTR(child_stack, 16);
@@ -190,6 +190,13 @@ noreturn void _DkThreadExit (void)
     PAL_HANDLE handle = tcb->handle;
 
     block_async_signals(true);
+
+    if (tcb->clear_child_tid) {
+        /* thread is ready to exit, must inform LibOS by setting *clear_child_tid to -1;
+         * async helper thread in LibOS is waiting on this to wake up parent */
+        *tcb->clear_child_tid = -1;
+    }
+
     if (tcb->alt_stack) {
         stack_t ss;
         ss.ss_sp    = NULL;

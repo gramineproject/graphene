@@ -194,9 +194,10 @@ typedef struct pal_tcb_linux {
         int         pending_event;
         LISTP_TYPE(event_queue) pending_queue;
         PAL_HANDLE  handle;
-        void *      alt_stack;
-        int         (*callback) (void *);
-        void *      param;
+        void*       alt_stack;
+        int         (*callback) (void*);
+        void*       param;
+        int*        clear_child_tid;
     };
 } PAL_TCB_LINUX;
 

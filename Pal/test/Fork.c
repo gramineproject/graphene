@@ -15,7 +15,7 @@ PAL_HANDLE _fork(void* args) {
     if (args == NULL) {
         struct stack_frame cur_frame = *frame;
         pal_printf("return address is %p\n", cur_frame.ret);
-        return DkThreadCreate(&_fork, &cur_frame);
+        return DkThreadCreate(&_fork, &cur_frame, /*clear_child_tid=*/NULL);
     } else {
         struct stack_frame* las_frame = (struct stack_frame*)args;
         pal_printf("(in child) return address is %p\n", las_frame->ret);

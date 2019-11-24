@@ -456,10 +456,9 @@ static inline void enable_locking (void)
         lock_enabled = true;
 }
 
-static inline PAL_HANDLE thread_create (void * func, void * arg)
-{
+static inline PAL_HANDLE thread_create(void* func, void* arg, void* clear_child_tid) {
     assert(lock_enabled);
-    return DkThreadCreate(func, arg);
+    return DkThreadCreate(func, arg, clear_child_tid);
 }
 
 static inline int64_t __disable_preempt (shim_tcb_t * tcb)
@@ -796,6 +795,8 @@ uint64_t get_rlimit_cur(int resource);
 void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
+
+void release_clear_child_id(IDTYPE caller, void* clear_child_tid_ptr);
 
 #ifdef __x86_64__
 #define __SWITCH_STACK(stack_top, func, arg)                    \

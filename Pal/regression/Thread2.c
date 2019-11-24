@@ -51,7 +51,7 @@ int thread4_run(void* args) {
 int main() {
     pal_printf("Thread 1 (main) started.\n");
 
-    PAL_HANDLE thread2 = DkThreadCreate(thread2_run, NULL);
+    PAL_HANDLE thread2 = DkThreadCreate(thread2_run, NULL, /*clear_child_tid=*/NULL);
     if (!thread2) {
         pal_printf("DkThreadCreate failed for thread 2.\n");
         return 1;
@@ -65,7 +65,7 @@ int main() {
         pal_printf("Thread 2 ok.\n");
     }
 
-    PAL_HANDLE thread3 = DkThreadCreate(thread3_run, NULL);
+    PAL_HANDLE thread3 = DkThreadCreate(thread3_run, NULL, /*clear_child_tid=*/NULL);
     if (!thread3) {
         pal_printf("DkThreadCreate failed for thread 3.\n");
         return 1;
@@ -77,7 +77,7 @@ int main() {
         pal_printf("Thread 3 ok.\n");
     }
 
-    PAL_HANDLE thread4 = DkThreadCreate(thread4_run, NULL);
+    PAL_HANDLE thread4 = DkThreadCreate(thread4_run, NULL, /*clear_child_tid=*/NULL);
     if (!thread4) {
         pal_printf("DkThreadCreate failed for thread 4.\n");
         return 1;

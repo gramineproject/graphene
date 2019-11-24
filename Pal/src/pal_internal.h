@@ -292,8 +292,8 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo);
 PAL_HANDLE _DkBroadcastStreamOpen (void);
 
 /* DkProcess and DkThread calls */
-int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * param);
+int _DkThreadCreate(PAL_HANDLE* handle, int (*callback) (void*),
+                    const void* param, const void* clear_child_tid);
 noreturn void _DkThreadExit (void);
 int _DkThreadDelayExecution (unsigned long * duration);
 void _DkThreadYieldExecution (void);

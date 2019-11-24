@@ -288,7 +288,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
     if (flags & CLONE_CHILD_CLEARTID)
         /* Implemented in shim_futex.c: release_clear_child_id */
-        thread->clear_child_tid = parent_tidptr;
+        thread->clear_child_tid = child_tidptr;
 
     if (flags & CLONE_SETTLS) {
         if (!tls) {
@@ -402,7 +402,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     // returns .The parent comes back here - however, the child is Happily
     // running the function we gave to DkThreadCreate.
     PAL_HANDLE pal_handle = thread_create(clone_implementation_wrapper,
-                                          &new_args);
+                                          &new_args, thread->clear_child_tid);
     if (!pal_handle) {
         ret = -PAL_ERRNO;
         put_thread(new_args.thread);

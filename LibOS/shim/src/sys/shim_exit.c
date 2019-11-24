@@ -40,8 +40,6 @@
 
 void release_robust_list (struct robust_list_head * head);
 
-void release_clear_child_id (int * clear_child_tid);
-
 int thread_exit(struct shim_thread * self, bool send_ipc)
 {
     bool sent_exit_msg = false;
@@ -122,8 +120,9 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     if (robust_list)
         release_robust_list(robust_list);
 
-    if (self->clear_child_tid)
-        release_clear_child_id (self->clear_child_tid);
+    /* ask Async Helper thread to wake up parent when this child thread finally exits */
+    if (parent && self->in_vm && self->clear_child_tid)
+        install_async_event(NULL, 0, &release_clear_child_id, self->clear_child_tid);
 
     DkEventSet(self->exit_event);
     return 0;
