@@ -42,15 +42,15 @@ ASFLAGS += $(defs)
 fs	= chroot str pipe socket proc dev eventfd
 ipcns	= pid sysv
 objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
-	  $(patsubst %.c,%,$(wildcard utils/*.c)) \
+	  $(patsubst %.c,%,$(sort $(wildcard utils/*.c))) \
 	  $(addprefix fs/shim_,dcache namei fs_hash fs) \
-	  $(patsubst %.c,%,$(foreach f,$(fs),$(wildcard fs/$(f)/*.c))) \
+	  $(patsubst %.c,%,$(foreach f,$(fs),$(sort $(wildcard fs/$(f)/*.c)))) \
 	  $(addprefix ipc/shim_,ipc ipc_helper ipc_child) \
 	  $(addprefix ipc/shim_ipc_,$(ipcns)) \
 	  elf/shim_rtld \
 	  $(addprefix shim_,init table syscalls checkpoint malloc \
 	  async parser debug object) syscallas start \
-	  $(patsubst %.c,%,$(wildcard sys/*.c)) \
+	  $(patsubst %.c,%,$(sort $(wildcard sys/*.c))) \
 	  vdso/vdso-data
 all_objs = $(objs) vdso/vdso-note vdso/vdso
 

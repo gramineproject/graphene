@@ -40,7 +40,7 @@ ifeq ($(CRYPTO_PROVIDER),wolfssl)
 subdirs += crypto/wolfssl
 endif
 
-objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
+objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(sort $(wildcard $(dir)/*.c))))
 
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 CFLAGS += -DCRYPTO_USE_MBEDTLS
