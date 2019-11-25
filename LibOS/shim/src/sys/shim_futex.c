@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "assert.h"
 #include "list.h"
 #include "pal.h"
 #include "shim_internal.h"
@@ -577,7 +578,7 @@ out_unlock:
 #define FUTEX_CHECK_READ 0
 #define FUTEX_CHECK_WRITE 1
 static int is_valid_futex_ptr(uint32_t* ptr, int check_write) {
-    if (!IS_ALIGNED_PTR(ptr, sizeof(*ptr))) {
+    if (!IS_ALIGNED_PTR(ptr, alignof(*ptr))) {
         return -EINVAL;
     }
     if (test_user_memory(ptr, sizeof(*ptr), check_write)) {
@@ -676,7 +677,7 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
 }
 
 int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val3) {
-    _Static_assert(sizeof(int) == 4, "futexes are defined to be 32-bit");
+    static_assert(sizeof(int) == 4, "futexes are defined to be 32-bit");
     return _shim_do_futex((uint32_t*)uaddr, op, (uint32_t)val, utime, (uint32_t*)uaddr2, (uint32_t)val3);
 }
 
@@ -723,7 +724,7 @@ out:
 static bool handle_futex_death(uint32_t* uaddr) {
     uint32_t val;
 
-    if (!IS_ALIGNED_PTR(uaddr, sizeof(*uaddr))) {
+    if (!IS_ALIGNED_PTR(uaddr, alignof(*uaddr))) {
         return -EINVAL;
     }
     if (!is_valid_futex_ptr(uaddr, 1)) {
@@ -836,7 +837,7 @@ void release_robust_list(struct robust_list_head* head) {
  * Ignore all possible errors just bailing out.
  */
 void release_clear_child_id(int* clear_child_tid) {
-    if (!IS_ALIGNED_PTR(clear_child_tid, sizeof(*clear_child_tid))) {
+    if (!IS_ALIGNED_PTR(clear_child_tid, alignof(*clear_child_tid))) {
         return;
     }
     if (test_user_memory(clear_child_tid, sizeof(*clear_child_tid), 1)) {
