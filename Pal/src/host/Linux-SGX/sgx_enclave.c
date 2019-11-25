@@ -58,10 +58,23 @@ static int sgx_ocall_map_untrusted(void * pms)
     ms_ocall_map_untrusted_t * ms = (ms_ocall_map_untrusted_t *) pms;
     void * addr;
     ODEBUG(OCALL_MAP_UNTRUSTED, ms);
-    addr = (void *) INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
-                                   ms->ms_prot,
-                                   MAP_FILE|MAP_SHARED,
-                                   ms->ms_fd, ms->ms_offset);
+
+    if (ms->ms_fd == -1) {
+        /* special case: alloc in untrusted memory for DMA with FPGA;
+         * note that we abuse ms_offset as flags */
+        addr = (void *) INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
+                                       ms->ms_prot,
+                                       /* flags */ (int)ms->ms_offset,
+                                       /* fd is ignored*/ -1,
+                                       /* offset is ignored */ 0);
+
+    } else {
+        addr = (void *) INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
+                                       ms->ms_prot,
+                                       MAP_FILE|MAP_SHARED,
+                                       ms->ms_fd, ms->ms_offset);
+    }
+
     if (IS_ERR_P(addr))
         return -ERRNO_P(addr);
 
@@ -657,6 +670,36 @@ static int sgx_ocall_load_debug(void * pms)
     return 0;
 }
 
+static int sgx_ocall_ioctl (void * pms)
+{
+    ms_ocall_ioctl_t * ms = (ms_ocall_ioctl_t *) pms;
+    int64_t retval;
+    ODEBUG(OCALL_IOCTL, ms);
+
+    retval = INLINE_SYSCALL(ioctl, 3, ms->ms_fd, ms->ms_op, ms->ms_arg);
+
+    if (IS_ERR(retval)) {
+        return unix_to_pal_error(ERRNO(retval));
+    } else {
+        ms->ms_retval = retval;
+        return 0;
+    }
+}
+
+static int sgx_ocall_eventfd_passthrough (void * pms)
+{
+    ms_ocall_eventfd_passthrough_t * ms = (ms_ocall_eventfd_passthrough_t *) pms;
+    int64_t retval;
+    ODEBUG(OCALL_EVENTFD_PASSTHROUGH, ms);
+
+    retval = INLINE_SYSCALL(eventfd2, 2, ms->ms_initval, ms->ms_flags);
+
+    if (IS_ERR(retval))
+        return unix_to_pal_error(ERRNO(retval));
+    return retval;
+}
+
+
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_EXIT]            = sgx_ocall_exit,
         [OCALL_PRINT_STRING]    = sgx_ocall_print_string,
@@ -695,6 +738,9 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_RENAME]          = sgx_ocall_rename,
         [OCALL_DELETE]          = sgx_ocall_delete,
         [OCALL_LOAD_DEBUG]      = sgx_ocall_load_debug,
+        [OCALL_IOCTL]           = sgx_ocall_ioctl,
+
+        [OCALL_EVENTFD_PASSTHROUGH] = sgx_ocall_eventfd_passthrough
     };
 
 #define EDEBUG(code, ms) do {} while (0)

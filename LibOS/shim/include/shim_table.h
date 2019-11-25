@@ -500,6 +500,7 @@ int shim_do_pipe2 (int * fildes, int flags);
 ssize_t shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags,
                           struct __kernel_timespec * timeout);
 ssize_t shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags);
+int shim_do_eventfd2(int count, int flags);
 
 /* libos call implementation */
 long shim_do_sandbox_create (int flags, const char * fs_sb,

@@ -196,11 +196,15 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
      * we allow mapping the file outside the enclave, if the library OS
      * does not request a specific address.
      */
-    if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
+    if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
+        mem = NULL;
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
-        if (!IS_ERR(ret))
+        if (!IS_ERR(ret)) {
+            SGX_DBG(DBG_I, "file:%s is mapped outside the enclave\n",
+                    handle->file.realpath);
             *addr = mem;
+        }
         return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
     }
 

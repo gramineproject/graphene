@@ -28,11 +28,18 @@
 
 #include <pal.h>
 #include <pal_error.h>
-
 #include <errno.h>
 
 int shim_do_stat (const char * file, struct stat * stat)
 {
+    if (strlen(file) >= 15 && strpartcmp_static(file, "/sys/class/fpga")) {
+         char hardlink[128] = {'\0'};
+         strcpy_static(hardlink, "/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/", sizeof(hardlink));
+         memcpy(hardlink + strlen(hardlink), file + 15, strlen(file) - 15);
+         file = hardlink;
+	 debug("[FPGA DEMO] stating hardlink file: %s\n", file);
+    }
+
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -61,6 +68,14 @@ out:
 
 int shim_do_lstat (const char * file, struct stat * stat)
 {
+    if (strlen(file) >= 15 && strpartcmp_static(file, "/sys/class/fpga")) {
+         char hardlink[128] = {'\0'};
+         strcpy_static(hardlink, "/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/", sizeof(hardlink));
+         memcpy(hardlink + strlen(hardlink), file + 15, strlen(file) - 15);
+         file = hardlink;
+	 debug("[FPGA DEMO] stating hardlink file: %s\n", file);
+    }
+
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -119,13 +134,20 @@ int shim_do_readlink (const char * file, char * buf, size_t bufsize)
     if (bufsize <= 0)
         return -EINVAL;
 
+    if (strlen(file) >= 15 && strpartcmp_static(file, "/sys/class/fpga")) {
+         char hardlink[128] = {'\0'};
+         strcpy_static(hardlink, "/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/", sizeof(hardlink));
+         memcpy(hardlink + strlen(hardlink), file + 15, strlen(file) - 15);
+	 memcpy(buf, hardlink, strlen(hardlink));
+         return strlen(hardlink);
+    }
+
     int ret;
     struct shim_dentry * dent = NULL;
     struct shim_qstr qstr = QSTR_INIT;
 
     if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent, NULL)) < 0)
         return ret;
-
     ret = -EINVAL;
     /* The correct behavior is to return -EINVAL if file is not a
        symbolic link */

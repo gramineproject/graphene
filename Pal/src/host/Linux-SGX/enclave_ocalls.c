@@ -1104,3 +1104,86 @@ int ocall_load_debug(const char * command)
     sgx_reset_ustack();
     return retval;
 }
+
+int ocall_ioctl (int fd, uint64_t op, PAL_ARG* arg, int noutputs, PAL_ARG* outputs,
+                 int ninputs, PAL_ARG* inputs, uint64_t* retval) {
+    int status = 0;
+
+    ms_ocall_ioctl_t* ms;
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        sgx_reset_ustack();
+        return -EPERM;
+    }
+
+    ms->ms_fd = fd;
+    ms->ms_op = op;
+    ms->ms_arg = NULL;
+    if (arg) {
+        /* some ioctls have the third argument arg, perform deep copy to ustack */
+        ms->ms_arg = sgx_copy_to_ustack(arg->val, arg->size);
+        if (!ms->ms_arg) {
+            sgx_reset_ustack();
+            return -EPERM;
+        }
+
+        for (int i = 0; i < noutputs; i++) {
+            void* newptr = sgx_copy_to_ustack(outputs[i].val, outputs[i].size);
+            if (!newptr) {
+                sgx_reset_ustack();
+                return -EPERM;
+            }
+            *(void**) (((uintptr_t) ms->ms_arg) + outputs[i].off) = newptr;
+        }
+    }
+
+    status = sgx_ocall(OCALL_IOCTL, ms);
+    if (!status) {
+        *retval = ms->ms_retval;
+
+        if (arg) {
+            /* some ioctls have the third argument arg, perform deep copy from ustack */
+            if (!sgx_copy_to_enclave(arg->val, arg->size, ms->ms_arg, arg->size)) {
+                sgx_reset_ustack();
+                return -EPERM;
+            }
+
+            for (int i = 0; i < noutputs; i++) {
+                *(void**) (((uintptr_t) arg->val) + outputs[i].off) = outputs[i].val;
+            }
+
+            for (int i = 0; i < ninputs; i++) {
+                void* newptr = *(void**) (((uintptr_t) ms->ms_arg) + inputs[i].off);
+                if (!sgx_copy_to_enclave(inputs[i].val, inputs[i].size, newptr, inputs[i].size)) {
+                    sgx_reset_ustack();
+                    return -EPERM;
+                }
+                assert(*(void**) (((uintptr_t) arg->val) + inputs[i].off) == inputs[i].val);
+            }
+        }
+    }
+
+    sgx_reset_ustack();
+    return status;
+}
+
+
+int ocall_eventfd_passthrough (unsigned int initval, int flags)
+{
+    int retval = 0;
+    ms_ocall_eventfd_passthrough_t * ms;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        sgx_reset_ustack();
+        return -EPERM;
+    }
+
+    ms->ms_initval = initval;
+    ms->ms_flags   = flags;
+
+    retval = sgx_ocall(OCALL_EVENTFD_PASSTHROUGH, ms);
+
+    sgx_reset_ustack();
+    return retval;
+}

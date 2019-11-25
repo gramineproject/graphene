@@ -180,3 +180,54 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
     add_cpuid_to_cache(leaf, subleaf, values);
     return 0;
 }
+
+int64_t _DkHostExtensionCall (PAL_HANDLE handle, PAL_NUM op, PAL_ARG* arg, int noutputs, PAL_ARG* outputs,
+                              int ninputs, PAL_ARG* inputs) {
+    // The handle needs to have at least one fd
+    if (!(HANDLE_HDR(handle)->flags & (RFD(0)|WFD(0))))
+        return -PAL_ERROR_BADHANDLE;
+
+    uint64_t retval = 0;
+    int ret = ocall_ioctl(handle->generic.fds[0], op, arg, noutputs, outputs,
+                          ninputs, inputs, &retval);
+    return (ret < 0) ? ret : retval;
+}
+
+
+int _DkEventfdPassthrough(PAL_NUM initval, PAL_NUM flags) {
+    int ret = ocall_eventfd_passthrough(initval, flags);
+    return ret;
+}
+
+int _DkPollPassthrough(PAL_POLLFD* fds, PAL_NUM nfds, PAL_NUM timeout) {
+    int64_t ocalltimeout = (int64_t)timeout;
+    struct pollfd ocallfds[nfds];
+
+    for (PAL_NUM i = 0; i < nfds; i++) {
+        ocallfds[i].fd      = (int)fds[i].fd;
+        ocallfds[i].events  = (short)fds[i].events;
+        ocallfds[i].revents = (short)fds[i].revents;
+    }
+
+    int ret = ocall_poll((struct pollfd*) &ocallfds, (int)nfds, &ocalltimeout);
+
+    for (PAL_NUM i = 0; i < nfds; i++)
+        fds[i].revents = (PAL_NUM)ocallfds[i].revents;
+
+    return ret;
+}
+
+int _DkReadPassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count) {
+    int ret = ocall_read((int)fd, (void*)buf, (unsigned int)count);
+    return ret;
+}
+
+int _DkWritePassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count) {
+    int ret = ocall_write((int)fd, (const void*)buf, (unsigned int)count);
+    return ret;
+}
+
+int _DkClosePassthrough(PAL_NUM fd) {
+    int ret = ocall_close((int)fd);
+    return ret;
+}

@@ -356,6 +356,14 @@ int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
 int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
                           PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
+int64_t _DkHostExtensionCall (PAL_HANDLE handle, PAL_NUM op, PAL_ARG* arg, int noutputs, PAL_ARG* outputs,
+                              int ninputs, PAL_ARG* inputs);
+
+int _DkEventfdPassthrough(PAL_NUM initval, PAL_NUM flags);
+int _DkPollPassthrough(PAL_POLLFD* fds, PAL_NUM nfds, PAL_NUM timeout);
+int _DkReadPassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count);
+int _DkWritePassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count);
+int _DkClosePassthrough(PAL_NUM fd);
 
 #define INIT_FAIL(exitcode, reason)                                     \
     do {                                                                \

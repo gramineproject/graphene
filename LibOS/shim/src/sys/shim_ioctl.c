@@ -35,6 +35,7 @@
 #include <asm/ioctls.h>
 #include <asm/termios.h>
 #include <asm/termbits.h>
+#include <linux/ioctl.h>
 #include <linux/fd.h>
 #include <linux/sockios.h>
 
@@ -42,6 +43,8 @@
 #define TERM_DEFAULT_OFLAG (OPOST|ONLCR)
 #define TERM_DEFAULT_CFLAG (B38400|CS8|CREAD)
 #define TERM_DEFAULT_LFLAG (ICANON|ECHO|ECHOE|ECHOK|ECHOCTL|ECHOKE|IEXTEN)
+
+static int ioctl_passthru (struct shim_handle * hdl, unsigned int cmd, unsigned long arg);
 
 static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
                           unsigned long arg)
@@ -500,10 +503,333 @@ done_fioread:
             break;
 
         default:
-            ret = -ENOSYS;
+            ret = ioctl_passthru(hdl, cmd, arg);
             break;
     }
 
     put_handle(hdl);
     return ret;
+}
+
+#define DUMMY_IOCTL_PRINT   _IOR('p', 0x01, struct dummy_print)
+struct dummy_print {
+    const char * str;
+    unsigned long size;
+};
+
+/* Dmitrii Kuvaiskii: list of ioctls for North Cove FPGA driver */
+#define FPGA_MAGIC 0xB5
+#define FPGA_BASE  0x00
+#define PORT_BASE  0x40
+#define FME_BASE   0x80
+
+#define FPGA_GET_API_VERSION        _IO(FPGA_MAGIC, FPGA_BASE + 0)
+#define FPGA_CHECK_EXTENSION        _IO(FPGA_MAGIC, FPGA_BASE + 1)
+#define FPGA_PORT_RESET             _IO(FPGA_MAGIC, PORT_BASE + 0)
+#define FPGA_PORT_GET_INFO          _IO(FPGA_MAGIC, PORT_BASE + 1)
+#define FPGA_PORT_GET_REGION_INFO   _IO(FPGA_MAGIC, PORT_BASE + 2)
+#define FPGA_PORT_DMA_MAP           _IO(FPGA_MAGIC, PORT_BASE + 3)
+#define FPGA_PORT_DMA_UNMAP         _IO(FPGA_MAGIC, PORT_BASE + 4)
+#define FPGA_PORT_UMSG_ENABLE       _IO(FPGA_MAGIC, PORT_BASE + 5)
+#define FPGA_PORT_UMSG_DISABLE      _IO(FPGA_MAGIC, PORT_BASE + 6)
+#define FPGA_PORT_UMSG_SET_MODE     _IO(FPGA_MAGIC, PORT_BASE + 7)
+#define FPGA_PORT_UMSG_SET_BASE_ADDR    _IO(FPGA_MAGIC, PORT_BASE + 8)
+#define FPGA_PORT_ERR_SET_IRQ       _IO(FPGA_MAGIC, PORT_BASE + 9)
+#define FPGA_PORT_UAFU_SET_IRQ      _IO(FPGA_MAGIC, PORT_BASE + 10)
+#define FPGA_PORT_UAFU_MMAP         _IO(FPGA_MAGIC, PORT_BASE + 11)
+#define FPGA_PORT_UAFU_UNMAP        _IO(FPGA_MAGIC, PORT_BASE + 12)
+#define FPGA_FME_PORT_PR            _IO(FPGA_MAGIC, FME_BASE + 0)
+#define FPGA_FME_PORT_RELEASE       _IO(FPGA_MAGIC, FME_BASE + 1)
+#define FPGA_FME_PORT_ASSIGN        _IO(FPGA_MAGIC, FME_BASE + 2)
+#define FPGA_FME_GET_INFO           _IO(FPGA_MAGIC, FME_BASE + 3)
+#define FPGA_FME_ERR_SET_IRQ        _IO(FPGA_MAGIC, FME_BASE + 4)
+
+struct fpga_port_info {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u32 capability;   /* The capability of port device */
+    __u32 num_regions;  /* The number of supported regions */
+    __u32 num_umsgs;    /* The number of allocated umsgs */
+    __u32 num_uafu_irqs;    /* The number of uafu interrupts */
+};
+
+struct fpga_port_region_info {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Access permission */
+    __u32 index;        /* Region index */
+    __u32 padding;
+    __u64 size;         /* Region size (bytes) */
+    __u64 offset;       /* Region offset from start of device fd */
+};
+
+struct fpga_port_dma_map {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u64 user_addr;        /* Process virtual address */
+    __u64 length;           /* Length of mapping (bytes)*/
+    __u64 iova;             /* IO virtual address */
+};
+
+struct fpga_port_dma_unmap {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u64 iova;     /* IO virtual address */
+};
+
+struct fpga_port_umsg_cfg {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u32 hint_bitmap;  /* UMSG Hint Mode Bitmap */
+};
+
+struct fpga_port_umsg_base_addr {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u64 iova;     /* IO virtual address */
+};
+
+struct fpga_port_err_irq_set {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __s32 evtfd;        /* Eventfd handler */
+};
+
+struct fpga_port_uafu_irq_set {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u32 start;        /* First irq number */
+    __u32 count;        /* The number of eventfd handler */
+    __s32 evtfd[8];     /* Eventfd handler; assume no more than 8 for simplicity */
+};
+
+struct fpga_port_uafu_mmap {
+    __u32 argsz;        /* Structure length, ignored */
+    __u32 flags;        /* MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_HUGETLB | MAP_1G_HUGEPAGE */
+    __u64 addr;         /* Always zero, ignored */
+    __u64 len;          /* Length of DMA region to allocate in untrusted memory */
+    __u64 local_addr;   /* Output address of the allocated DMA region in untrusted memory */
+};
+
+struct fpga_port_uafu_unmap {
+    __u32 argsz;        /* Structure length, ignored */
+    __u32 flags;        /* Flags, ignored */
+    __u64 addr;         /* Base address of DMA region allocated in untrusted memory */
+    __u64 len;          /* Length of DMA region allocated in untrusted memory */
+};
+
+struct fpga_fme_port_pr {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u32 port_id;
+    __u32 buffer_size;
+    __u64 buffer_address;   /* Userspace address to the buffer for PR */
+    __u64 status;       /* HW error code if ioctl returns -EIO */
+};
+
+struct fpga_fme_port_release {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u32 port_id;
+};
+
+struct fpga_fme_port_assign {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u32 port_id;
+};
+
+struct fpga_fme_info {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __u32 capability;   /* The capability of FME device */
+};
+
+struct fpga_fme_err_irq_set {
+    __u32 argsz;        /* Structure length */
+    __u32 flags;        /* Zero for now */
+    __s32 evtfd;        /* Eventfd handler */
+};
+
+
+static int ioctl_passthru (struct shim_handle * hdl, unsigned int cmd, unsigned long arg) {
+    PAL_ARG* pal_arg = NULL;
+    PAL_NUM ninputs = 0, noutputs = 0;
+    PAL_ARG* inputs  = NULL;
+    PAL_ARG* outputs = NULL;
+
+    // Don't change these macros
+
+    #define SET_ARG_TYPE(type)                              \
+        do {                                                \
+            pal_arg = __alloca(sizeof(PAL_ARG));            \
+            pal_arg->val  = (PAL_PTR) arg;                  \
+            pal_arg->size = sizeof(type);                   \
+            pal_arg->off  = 0;                              \
+        } while (0)
+
+
+    #define SET_NOUTPUTS(num)                               \
+        do {                                                \
+            outputs = __alloca(sizeof(PAL_ARG) * (num));    \
+        } while (0)
+
+    #define ADD_OUTPUT_SIZE(type, field, fsize)             \
+        do {                                                \
+            type* __a = (void *) arg;                       \
+            outputs[noutputs].val  = (PAL_PTR) __a->field;  \
+            outputs[noutputs].size = (fsize);               \
+            outputs[noutputs].off  = offsetof(type, field); \
+            noutputs++;                                     \
+        } while (0)
+
+    #define SET_NINPUTS(num)                                \
+        do {                                                \
+            inputs = __alloca(sizeof(PAL_ARG) * (num));     \
+        } while (0)
+
+    #define ADD_INPUT_SIZE(type, field, fsize)              \
+        do {                                                \
+            type* __a = (void *) arg;                       \
+            inputs[ninputs].val  = (PAL_PTR) __a->field;    \
+            inputs[ninputs].size = (fsize);                 \
+            inputs[ninputs].off  = offsetof(type, field);   \
+            ninputs++;                                      \
+        } while (0)
+
+
+    // List the all ioctl opcodes allowed for passthrough
+    switch(cmd) {
+        // This is an example: DUMMY_IOCTL_PRINT will print out the string
+        // in the argument to the kernel log.
+        case DUMMY_IOCTL_PRINT: {
+            struct dummy_print* __arg = (void *) arg;
+            SET_ARG_TYPE(struct dummy_print);
+            SET_NOUTPUTS(1);
+            ADD_OUTPUT_SIZE(struct dummy_print, str, __arg->size);
+            // Specify input size if necessary
+            break;
+        }
+
+        // Dmitrii Kuvaiskii: list of ioctls for North Cove FPGA driver
+        case FPGA_GET_API_VERSION:
+        case FPGA_CHECK_EXTENSION:
+        case FPGA_PORT_RESET:
+        case FPGA_PORT_UMSG_ENABLE:
+        case FPGA_PORT_UMSG_DISABLE:
+            break;
+
+        case FPGA_PORT_GET_INFO: {
+            struct fpga_port_info* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_info);
+            break;
+        }
+
+        case FPGA_PORT_GET_REGION_INFO: {
+            struct fpga_port_region_info* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_region_info);
+            break;
+        }
+
+        case FPGA_PORT_DMA_MAP: {
+            struct fpga_port_dma_map* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_dma_map);
+            /* TODO: This ioctl fails because user_addr is in enclave space
+             *       not available for the kernel driver! */
+            debug("ioctl(FPGA_PORT_DMA_MAP): user_addr=%p length=%lu\n",
+                  __arg->user_addr, __arg->length);
+            break;
+        }
+
+        case FPGA_PORT_DMA_UNMAP: {
+            struct fpga_port_dma_unmap* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_dma_unmap);
+            break;
+        }
+
+        case FPGA_PORT_UMSG_SET_MODE: {
+            struct fpga_port_umsg_cfg* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_umsg_cfg);
+            break;
+        }
+
+        case FPGA_PORT_UMSG_SET_BASE_ADDR: {
+            struct fpga_port_umsg_base_addr* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_umsg_base_addr);
+            break;
+        }
+
+        case FPGA_PORT_ERR_SET_IRQ: {
+            struct fpga_port_err_irq_set* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_err_irq_set);
+            break;
+        }
+
+        case FPGA_PORT_UAFU_SET_IRQ: {
+            struct fpga_port_uafu_irq_set* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_port_uafu_irq_set);
+            break;
+        }
+
+        case FPGA_PORT_UAFU_MMAP: {
+            /* special case: instead of ioctl, allocate untrusted memory */
+#define PAL_ALLOC_DMAREGION   0x4000
+            struct fpga_port_uafu_mmap* __arg = (void *) arg;
+            __arg->addr = 0x0UL;
+            void* ret = (void *) DkVirtualMemoryAlloc(/* addr */ (void*)__arg->addr,
+                                                      /* size */ __arg->len,
+                                                      /* alloc_type */ PAL_ALLOC_DMAREGION,
+                                                      /* prot abused as flags */ __arg->flags);
+            if (!ret) {
+                __arg->local_addr = 0;
+                return -ENOMEM;
+            }
+            __arg->local_addr = (uint64_t) ret;
+            return 0;
+        }
+
+        case FPGA_PORT_UAFU_UNMAP: {
+            /* special case: instead of ioctl, deallocate untrusted memory */
+            struct fpga_port_uafu_unmap* __arg = (void *) arg;
+            DkVirtualMemoryFree((void*)__arg->addr, __arg->len);
+            return 0;
+        }
+
+        case FPGA_FME_PORT_PR: {
+            struct fpga_fme_port_pr* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_fme_port_pr);
+            break;
+        }
+
+        case FPGA_FME_PORT_RELEASE: {
+            struct fpga_fme_port_release* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_fme_port_release);
+            break;
+        }
+
+        case FPGA_FME_PORT_ASSIGN: {
+            struct fpga_fme_port_assign* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_fme_port_assign);
+            break;
+        }
+
+        case FPGA_FME_GET_INFO: {
+            struct fpga_fme_info* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_fme_info);
+            break;
+        }
+
+        case FPGA_FME_ERR_SET_IRQ: {
+            struct fpga_fme_err_irq_set* __arg = (void *) arg;
+            SET_ARG_TYPE(struct fpga_fme_err_irq_set);
+            break;
+        }
+
+        default:
+            return -ENOSYS;
+    }
+
+    PAL_NATIVE_ERRNO = 0;
+    PAL_NUM retval = DkHostExtensionCall(hdl->pal_handle, cmd, pal_arg, noutputs, outputs,
+            ninputs, inputs);
+    return (PAL_NATIVE_ERRNO == 0) ? (int) retval : -PAL_ERRNO;
 }

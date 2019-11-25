@@ -150,3 +150,88 @@ DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4])
 
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
+
+PAL_NUM DkHostExtensionCall (PAL_HANDLE handle, PAL_NUM op, PAL_ARG* arg, PAL_NUM noutputs, PAL_ARG* outputs,
+                             PAL_NUM ninputs, PAL_ARG* inputs)
+{
+    ENTER_PAL_CALL(DkHostExtensionCall);
+
+    if (!handle) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(0);
+    }
+
+    if (UNKNOWN_HANDLE(handle)) {
+        _DkRaiseFailure(PAL_ERROR_BADHANDLE);
+        LEAVE_PAL_CALL_RETURN(0);
+    }
+
+    int64_t status = _DkHostExtensionCall(handle, op, arg, noutputs, outputs, ninputs, inputs);
+
+    if (status < 0) {
+        _DkRaiseFailure(-status);
+        status = 0;
+    }
+
+    LEAVE_PAL_CALL_RETURN(status);
+}
+
+PAL_NUM DkEventfdPassthrough(PAL_NUM initval, PAL_NUM flags) {
+    ENTER_PAL_CALL(DkEventfdPassthrough);
+
+    int ret = _DkEventfdPassthrough(initval, flags);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = 0;
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}
+
+PAL_NUM DkPollPassthrough(PAL_POLLFD* fds, PAL_NUM nfds, PAL_NUM timeout) {
+    ENTER_PAL_CALL(DkPollPassthrough);
+
+    int ret = _DkPollPassthrough(fds, nfds, timeout);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = 0;
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}
+
+PAL_NUM DkReadPassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count) {
+    ENTER_PAL_CALL(DkReadPassthrough);
+
+    int ret = _DkReadPassthrough(fd, buf, count);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = 0;
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}
+
+PAL_NUM DkWritePassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count) {
+    ENTER_PAL_CALL(DkWritePassthrough);
+
+    int ret = _DkWritePassthrough(fd, buf, count);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = 0;
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}
+
+PAL_NUM DkClosePassthrough(PAL_NUM fd) {
+    ENTER_PAL_CALL(DkClosePassthrough);
+
+    int ret = _DkClosePassthrough(fd);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = 0;
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}

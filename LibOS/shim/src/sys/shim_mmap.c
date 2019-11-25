@@ -134,6 +134,11 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         return (void *) ret;
     }
 
+    if (ret_addr != addr) {
+        bkeep_munmap(addr, length, flags);
+        bkeep_mmap(ret_addr, length, prot, flags, hdl, offset, NULL);
+    }
+
     ADD_PROFILE_OCCURENCE(mmap, length);
     return ret_addr;
 }

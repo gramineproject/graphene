@@ -1,0 +1,22 @@
+loader.preload = file:$(SHIMPATH)
+loader.env.LD_LIBRARY_PATH = /lib
+loader.debug_type = inline
+
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(LIBCDIR)
+
+fs.mount.bin.type = chroot
+fs.mount.bin.path = /bin
+fs.mount.bin.uri = file:/bin
+
+fs.mount.random.type = chroot
+fs.mount.random.path = /sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/intel-fpga-dev.0/device/device
+fs.mount.random.uri = dev:tty,/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/intel-fpga-dev.0/device/device
+
+# sgx-related
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0

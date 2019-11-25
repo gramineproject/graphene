@@ -39,6 +39,20 @@
 #include <linux/stat.h>
 #include <linux/fcntl.h>
 
+int eventfds[128] = {0};
+int eventfds_cnt = 0;
+
+int shim_do_eventfd2(int init, int flags) {
+    PAL_NATIVE_ERRNO = 0;
+    PAL_NUM retval = DkEventfdPassthrough(init, flags);
+    if (PAL_NATIVE_ERRNO == 0) {
+        /* TODO: need some lock here but don't care for now */
+        assert(eventfds_cnt < 128);
+        eventfds[eventfds_cnt++] = (int) retval;
+    }
+    return (PAL_NATIVE_ERRNO == 0) ? (int) retval : -PAL_ERRNO;
+}
+
 int do_handle_read (struct shim_handle * hdl, void * buf, int count)
 {
     if (!(hdl->acc_mode & MAY_READ))
@@ -58,6 +72,14 @@ int do_handle_read (struct shim_handle * hdl, void * buf, int count)
 
 size_t shim_do_read (int fd, void * buf, size_t count)
 {
+    /* if this fd is eventfd, then do pass-through read */
+    for (int i = 0; i < eventfds_cnt; i++) {
+        if (fd == eventfds[i]) {
+            int ret = DkReadPassthrough((PAL_NUM)fd, (PAL_PTR)buf, (PAL_NUM)count);
+            return ret;
+        }
+    }
+
     if (!buf || test_user_memory(buf, count, true))
         return -EFAULT;
 
@@ -89,6 +111,14 @@ int do_handle_write (struct shim_handle * hdl, const void * buf, int count)
 
 size_t shim_do_write (int fd, const void * buf, size_t count)
 {
+    /* if this fd is eventfd, then do pass-through write */
+    for (int i = 0; i < eventfds_cnt; i++) {
+        if (fd == eventfds[i]) {
+            int ret = DkWritePassthrough((PAL_NUM)fd, (PAL_PTR)buf, (PAL_NUM)count);
+            return ret;
+        }
+    }
+
     if (!buf || test_user_memory((void *) buf, count, false))
         return -EFAULT;
 
@@ -103,6 +133,14 @@ size_t shim_do_write (int fd, const void * buf, size_t count)
 
 int shim_do_open (const char * file, int flags, mode_t mode)
 {
+    if (strlen(file) >= 15 && strpartcmp_static(file, "/sys/class/fpga")) {
+         char hardlink[128] = {'\0'};
+         strcpy_static(hardlink, "/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/", sizeof(hardlink));
+         memcpy(hardlink + strlen(hardlink), file + 15, strlen(file) - 15);
+         file = hardlink;
+	 debug("[FPGA DEMO] opening hardlink file: %s\n", file);
+    }
+
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -112,7 +150,6 @@ int shim_do_open (const char * file, int flags, mode_t mode)
     struct shim_handle * hdl = get_new_handle();
     if (!hdl)
         return -ENOMEM;
-
     int ret = 0;
     ret = open_namei(hdl, NULL, file, flags, mode, NULL);
     if (ret < 0)
@@ -164,6 +201,18 @@ out:
 
 int shim_do_close (int fd)
 {
+    /* if this fd is eventfd, then do pass-through close */
+    for (int i = 0; i < eventfds_cnt; i++) {
+        if (fd == eventfds[i]) {
+            /* TODO: need some lock here but don't care for now */
+            int ret = DkClosePassthrough((PAL_NUM)fd);
+            for (int j = i; j < eventfds_cnt-1; j++)
+                eventfds[j] = eventfds[j+1];
+            eventfds_cnt--;
+            return ret;
+        }
+    }
+
     struct shim_handle * handle = detach_fd_handle(fd, NULL, NULL);
     if (!handle)
         return -EBADF;
@@ -195,6 +244,13 @@ off_t shim_do_lseek (int fd, off_t offset, int origin)
         /* TODO: handle lseek'ing of directories */
         ret = -ENOSYS;
         goto out;
+    }
+
+    /* Dmitrii Kuvaiskii: special case of lseek(0, SEEK_SET) on pseudo-device */
+    if ((origin == SEEK_SET) && (offset == 0) &&
+        (hdl->info.file.type == FILE_TTY)) {
+        put_handle(hdl);
+        return 0;
     }
 
     ret = fs->fs_ops->seek(hdl, offset, origin);

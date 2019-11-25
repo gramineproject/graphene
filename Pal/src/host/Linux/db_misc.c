@@ -241,3 +241,18 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
     cpuid(leaf, subleaf, values);
     return 0;
 }
+
+int64_t _DkHostExtensionCall (PAL_HANDLE handle, PAL_NUM op, PAL_ARG* arg, int noutputs, PAL_ARG* outputs,
+                              int ninputs, PAL_ARG* inputs)
+{
+    // The handle needs to have at least one fd
+    if (!(HANDLE_HDR(handle)->flags & (RFD(0)|WFD(0))))
+        return -PAL_ERROR_BADHANDLE;
+
+    int64_t ret = INLINE_SYSCALL(ioctl, 3, handle->generic.fds[0], op, arg->val);
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    return ret;
+}

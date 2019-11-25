@@ -65,13 +65,18 @@ static int parse_device_uri(const char** uri, char** type, struct handle_ops** o
     for (p = u; (*p) && (*p) != ',' && (*p) != '/'; p++)
         ;
 
-    if (strpartcmp_static(u, "tty"))
+    /*
+     * For terminal devices, Graphene supports two types of URIs:
+     *    dev:tty => Standard terminal
+     *    dev:tty,<host-level path> => Local terminal devices (e.g., virtual TTY)
+     */
+    if (strpartcmp_static(u, "tty") && (!(*p) || *p == ','))
         dops = &term_ops;
 
     if (!dops)
         return -PAL_ERROR_NOTSUPPORT;
 
-    *uri = (*p) ? p + 1 : p;
+    *uri = (*p) ? p + 1 : NULL;
     if (type) {
         *type = malloc_copy(u, p - u + 1);
         if (!*type)
@@ -91,9 +96,13 @@ static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 static int term_attrquerybyhdl(PAL_HANDLE hdl, PAL_STREAM_ATTR* attr);
 
 /* Method to open standard terminal */
-static int open_standard_term(PAL_HANDLE* handle, const char* param, int access) {
-    if (param)
-        return -PAL_ERROR_NOTIMPLEMENTED;
+static int open_standard_term(PAL_HANDLE* handle, const char* path, int access) {
+    int dev_fd = -1;
+    if (path) {
+        dev_fd = INLINE_SYSCALL(open, 3, path, access, 0);
+        if (IS_ERR(dev_fd))
+            return unix_to_pal_error(ERRNO(dev_fd));
+    }
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dev));
     SET_HANDLE_TYPE(hdl, dev);
@@ -101,12 +110,12 @@ static int open_standard_term(PAL_HANDLE* handle, const char* param, int access)
 
     if (!(access & PAL_ACCESS_WRONLY)) {
         HANDLE_HDR(hdl)->flags |= RFD(0);
-        hdl->dev.fd_in = 0;
+        hdl->dev.fd_in = dev_fd != -1 ? dev_fd : 0;
     }
 
     if (access & (PAL_ACCESS_WRONLY | PAL_ACCESS_RDWR)) {
         HANDLE_HDR(hdl)->flags |= WFD(1);
-        hdl->dev.fd_out = 1;
+        hdl->dev.fd_out = dev_fd != -1 ? dev_fd : 1;
     }
 
     *handle = hdl;
@@ -124,24 +133,7 @@ static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 
-    const char* term  = NULL;
-    const char* param = NULL;
-
-    const char* tmp = uri;
-    while (*tmp) {
-        if (!term && *tmp == '/')
-            term = tmp + 1;
-        if (*tmp == ',') {
-            param = param + 1;
-            break;
-        }
-        tmp++;
-    }
-
-    if (term)
-        return -PAL_ERROR_NOTIMPLEMENTED;
-
-    return open_standard_term(handle, param, access);
+    return open_standard_term(handle, uri, access);
 }
 
 static int term_close(PAL_HANDLE handle) {

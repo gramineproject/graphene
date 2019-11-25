@@ -385,8 +385,34 @@ done_polling:
     return ret;
 }
 
+extern int eventfds[128];
+extern int eventfds_cnt;
+
 int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout)
 {
+    /* if the first fd in fds is eventfd, then do pass-through poll
+     * (this assumes that _all_ other fds are also eventfds) */
+    if (nfds > 0 && fds) {
+        for (int i = 0; i < eventfds_cnt; i++) {
+            if (fds[0].fd == eventfds[i]) {
+                PAL_POLLFD dkfds[nfds];
+
+                for (nfds_t j = 0; j < nfds; j++) {
+                    dkfds[j].fd      = (PAL_NUM)fds[j].fd;
+                    dkfds[j].events  = (PAL_NUM)fds[j].events;
+                    dkfds[j].revents = (PAL_NUM)fds[j].revents;
+                }
+
+                int ret = DkPollPassthrough((PAL_POLLFD*) &dkfds, (PAL_NUM)nfds, (PAL_NUM)timeout);
+
+                for (nfds_t j = 0; j < nfds; j++)
+                    fds[j].revents = (short)dkfds[j].revents;
+
+                return ret;
+            }
+        }
+    }
+
     struct shim_thread * cur = get_cur_thread();
 
     struct poll_handle * polls =

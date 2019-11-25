@@ -48,8 +48,68 @@ extern const struct proc_dir dir_ipc_thread;
 extern const struct proc_fs_ops fs_meminfo;
 extern const struct proc_fs_ops fs_cpuinfo;
 
+/* minimal /proc/sys/vm/overcommit_memory emulation (always returns 0) */
+static int proc_dummy_open(struct shim_handle * hdl, const char * name, int flags) {
+    __UNUSED(name);
+
+    if (flags & (O_WRONLY|O_RDWR))
+        return -EACCES;
+
+    char* str = malloc(128);
+    if (!str)
+        return -ENOMEM;
+
+    int len = snprintf(str, 128, "0"); /* always return "0" text */
+
+    struct shim_str_data * data = malloc(sizeof(struct shim_str_data));
+    if (!data) {
+        free(str);
+        return -ENOMEM;
+    }
+
+    memset(data, 0, sizeof(struct shim_str_data));
+    data->str = str;
+    data->len = len;
+    hdl->type = TYPE_STR;
+    hdl->flags = flags & ~O_RDONLY;
+    hdl->acc_mode = MAY_READ;
+    hdl->info.str.data = data;
+    return 0;
+}
+
+static int proc_dummy_mode(const char * name, mode_t * mode) {
+    __UNUSED(name);
+    *mode = 0444;
+    return 0;
+}
+
+static int proc_dummy_stat(const char * name, struct stat * buf) {
+    __UNUSED(name);
+    memset(buf, 0, sizeof(struct stat));
+    buf->st_dev = buf->st_ino = 1;
+    buf->st_mode = 0444|S_IFREG;
+    buf->st_uid = buf->st_gid = 0;
+    buf->st_size = 128;
+    return 0;
+}
+
+const struct proc_fs_ops fs_dummy = {
+            .open   = &proc_dummy_open,
+            .mode   = &proc_dummy_mode,
+            .stat   = &proc_dummy_stat,
+        };
+
+const struct proc_dir dir_sys_vm = { .size = 1, .ent = {
+        { .name = "overcommit_memory", .fs_ops = &fs_dummy },
+    }, };
+
+const struct proc_dir dir_sys = { .size = 1, .ent = {
+        { .name = "vm", .fs_ops = &fs_dummy, .dir = &dir_sys_vm, },
+    }, };
+/* END minimal /proc/sys/vm/overcommit_memory emulation (always returns 0) */
+
 const struct proc_dir proc_root = {
-    .size = 5,
+    .size = 6,
     .ent = {
         { .name = "self", .fs_ops = &fs_thread, .dir = &dir_thread, },
         { .nm_ops = &nm_thread, .fs_ops = &fs_thread, .dir = &dir_thread, },
@@ -57,6 +117,7 @@ const struct proc_dir proc_root = {
           .dir = &dir_ipc_thread, },
         { .name = "meminfo", .fs_ops = &fs_meminfo, },
         { .name = "cpuinfo", .fs_ops = &fs_cpuinfo, },
+        { .name = "sys", .fs_ops = &fs_dummy, .dir = &dir_sys, },
     }, };
 
 #define PROC_INO_BASE      1
@@ -132,6 +193,7 @@ static int proc_match_name (const char * trim_name,
 
     const char * token = trim_name, * next_token;
     const struct proc_ent * tmp = proc_root.ent;
+    const struct proc_ent * end = tmp + proc_root.size;
     const struct proc_ent * last = NULL;
 
     if (*token == '/')
@@ -140,7 +202,7 @@ static int proc_match_name (const char * trim_name,
     while (token) {
         int tlen = token_len(token, &next_token);
 
-        for ( ; tmp->name || tmp->nm_ops ; tmp++) {
+        for ( ; tmp < end ; tmp++) {
             if (tmp->name && !memcmp(tmp->name, token, tlen))
                 goto found;
 
@@ -152,10 +214,17 @@ static int proc_match_name (const char * trim_name,
         return -ENOENT;
 
 found:
-        if (!tmp->dir && next_token)
+        if (!next_token) {
+            /* found the entry, break out of the while loop */
+            last = tmp;
+            break;
+        }
+
+        if (!tmp->dir)
             return -ENOENT;
 
         last = tmp;
+        end = tmp->dir->ent + tmp->dir->size;
         tmp = tmp->dir->ent;
         token = next_token;
     }

@@ -205,6 +205,7 @@ PAL_CONTROL * pal_control_addr (void);
 
 #ifdef IN_PAL
 #define PAL_ALLOC_INTERNAL    0x8000
+#define PAL_ALLOC_DMAREGION   0x4000   /* alloc in untrusted memory for DMA with FPGA */
 #endif
 
 /* Memory Protection Flags */
@@ -521,6 +522,27 @@ PAL_NUM DkMemoryAvailableQuota (void);
 
 PAL_BOL
 DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
+
+typedef struct {
+    PAL_PTR val;
+    PAL_NUM size, off;
+} PAL_ARG;
+
+PAL_NUM
+DkHostExtensionCall (PAL_HANDLE handle, PAL_NUM op, PAL_ARG* arg, PAL_NUM noutputs, PAL_ARG* outputs,
+                     PAL_NUM ninputs, PAL_ARG* inputs);
+
+typedef struct {
+    PAL_NUM fd;
+    PAL_NUM events;
+    PAL_NUM revents;
+} PAL_POLLFD;
+
+PAL_NUM DkEventfdPassthrough(PAL_NUM initval, PAL_NUM flags);
+PAL_NUM DkPollPassthrough(PAL_POLLFD* fds, PAL_NUM nfds, PAL_NUM timeout);
+PAL_NUM DkReadPassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count);
+PAL_NUM DkWritePassthrough(PAL_NUM fd, PAL_PTR buf, PAL_NUM count);
+PAL_NUM DkClosePassthrough(PAL_NUM fd);
 
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \

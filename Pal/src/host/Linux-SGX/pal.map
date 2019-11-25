@@ -42,6 +42,13 @@ PAL {
         DkSegmentRegister; # set segment register
         DkMemoryAvailableQuota;
         DkCpuIdRetrieve; # retrieve CPUID
+        DkHostExtensionCall;
+
+        DkEventfdPassthrough;
+        DkPollPassthrough;
+        DkReadPassthrough;
+        DkWritePassthrough;
+        DkClosePassthrough;
 
         # Debugging ABIs
         pal_printf; pal_snprintf; DkDebugAttachBinary; DkDebugDetachBinary;

@@ -71,39 +71,6 @@ To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 
 To build with "-Werror", run "make WERROR=1".
 
-### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
-
-__** Note: this step is optional. **__
-
-__** Note: for building with Intel:registered: SGX support, skip this step, go to section 2.2 **__
-
-__** Disclaimer: this feature is experimental and may contain bugs. Please do
-   no use in production system before further assessment.__
-
-To enable sandboxing, a customized Linux kernel is needed. Note that
-this feature is optional and completely unnecessary for running on SGX.
-To build the Graphene Linux kernel, do the following steps:
-
-    cd Pal/linux-3.19
-    make menuconfig
-    make
-    make install
-    (Add Graphene kernel as a boot option by commands like "update-grub")
-    (reboot and choose the Graphene kernel)
-
-Please note that the building process may pause before building the Linux
-kernel, because it requires you to provide a sensible configuration file
-(.config). The Graphene kernel requires the following options to be enabled
-in the configuration:
-
-  - CONFIG_GRAPHENE=y
-  - CONFIG_GRAPHENE_BULK_IPC=y
-  - CONFIG_GRAPHENE_ISOLATE=y
-
-For more details about the building and installation, see the Graphene github
-Wiki page: <https://github.com/oscarlab/graphene/wiki>.
-
-
 ### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
 #### 2.1.1 Prerequisites
@@ -126,8 +93,14 @@ files) and the signatures, to the SGX-enabled hosts.
 The Intel SGX Linux SDK is required for running Graphene Library OS. Download and install
 from the official Intel github repositories:
 
-   - <https://github.com/01org/linux-sgx>
-   - <https://github.com/01org/linux-sgx-driver>
+   - <https://github.com/01org/linux-sgx>  (SGX SDK)
+   - <https://github.com/01org/linux-sgx-driver>   (SGX Driver)
+        * Order of steps would be: (Important: Select branch sgx2. Master branch is deprecated) 
+            1. Build & Install SGX driver (Follow instructions in : https://github.com/intel/linux-sgx-driver) 
+            2. Build & Install SGX SDK & SGX PSW Package
+            3. Test the Intel(R) SGX SDK Package with the Code Samples 
+    Note: This section "Test the Intel(R) SGX SDK Package with the Code Samples" actually is written in middle, but requires the PSW, SGX SDK, SGX driver to be installed before running'
+ 
 
 A Linux driver must be installed before running Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
@@ -151,9 +124,27 @@ To build with debug symbols, run the command:
 
 Using "make SGX=1" in the test or regression directory will automatically generate the enclave signatures (.sig files).
 
+Note:
+1. Before running make SGX=1.  LD_LIBRARY_PATH must be unset. 
+    $ unset LD_LIBRARY_PATH
+2. For the very first time: Make will ask for Install directory of SGX driver.  Provide the path to the SGX driver checked out and build earlier in 2.2
+
+
 #### 2.1.3 Run Built-in Examples in Graphene-SGX
 
+Following items need to be run again everytime when the system is re-booted. An init script can be created if required. 
+
+1. Load Graphene-SGX driver
+    In <graphene_root>/Pal/src/host/Linux-SGX/sgx-driver
+    $ ./load.sh  
+2. Start SGX AESMD service 
+    sudo service aesmd start 
+3. Set Minimum V.A mmap to 0 
+sudo sysctl vm.mmap_min_addr=0
+
+
 There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
+
 
 (1) Build and run a Hello World program with Graphene on SGX
 - go to LibOS/shim/test/native, build the enclaves via command:
@@ -182,12 +173,27 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
-#### 2.1.3 Including Application Test Cases
+#### 2.1.4 Including Application Test Cases
 
 To add the application test cases, issue the following command from the root
 of the source tree:
 
     git submodule update --init -- LibOS/shim/test/apps/
+
+#### 2.1.5 OpenVINO FPGA
+
+
+Note: The Apps folder contains an example of OpenVINO-FPGA
+Follow the Readme in the OpenVINO-FPGA to build and run the App. 
+
+Following are the list of changes to support OpenVINO-FPGA in the Graphene source code:
+1. IOCTL support for Graphene-SGX
+2. Eventfd/poll support for Graphene-SGX
+3. DMA memory allocation outside SGX memory
+4. Additional workarounds for symlinks, lseek etc. 
+5. Mapping device file objects
+
+This features were added relative to Graphene source code in Aug '18. New commits might already fix the missing features mentioned above
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 

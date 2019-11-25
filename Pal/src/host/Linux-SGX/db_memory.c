@@ -65,10 +65,21 @@ bool _DkCheckMemoryMappable (const void * addr, size_t size)
 
 int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int prot)
 {
+#if 0
     if (!WITHIN_MASK(prot, PAL_PROT_MASK))
         return -PAL_ERROR_INVAL;
+#endif
 
     void * addr = *paddr, * mem;
+
+    /* special case: alloc in untrusted memory for DMA with FPGA;
+     * note that we abuse prot argument as flags and also abuse offset */
+    if (alloc_type & PAL_ALLOC_DMAREGION) {
+        int ret = ocall_map_untrusted(/*fd=*/-1, /*offset=*/prot, size, PROT_READ|PROT_WRITE, paddr);
+        if (IS_ERR(ret))
+            return -PAL_ERROR_INVAL;
+        return 0;
+    }
 
     if ((alloc_type & PAL_ALLOC_INTERNAL) && addr)
         return -PAL_ERROR_INVAL;
