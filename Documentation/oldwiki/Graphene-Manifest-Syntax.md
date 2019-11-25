@@ -1,3 +1,5 @@
+# Graphene Manifest Syntax
+
 ## Basic Syntax
 
 A manifest file is an application-specific configuration text file that specifies the environment

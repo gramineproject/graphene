@@ -1,7 +1,9 @@
+# Process Creation in Graphene SGX
+
 (Disclaimer: This explanation is partially outdated. It is intended only as an internal
 reference for developers of Graphene, not as a general documentation for Graphene users.)
 
-# Fork in Graphene-SGX
+## Fork in Graphene-SGX
 
 Fork() system call is intercepted in the `shim_do_fork()` LibOS function. This function performs
 three tasks: (1) discovers the namespace leader, (2) creates a LibOS `shim_thread` structure for
@@ -9,7 +11,7 @@ a new thread, and (3) calls `do_migrate_process()`. The first two tasks are triv
 concentrate on the third one.
 
 
-## Parent: Fork via `do_migrate_process`
+### Parent: Fork via `do_migrate_process`
 
 The function `do_migrate_process()` creates a new process in the underlying OS, establishes a
 channel between the current process and the newly created child process, collects checkpoint data
@@ -44,7 +46,7 @@ faster than normal Unix streams. However, SGX PAL does not support GIPC. Thus, t
 sending to the child is done via a Unix stream.
 
 
-## Child: Initialization after Fork
+### Child: Initialization after Fork
 
 After the child is created, Pal-Linux-SGX enters the enclave using EENTER. The enclave code calls
 `pal_linux_main()` which in turn calls `init_child_process()`. The `init_child_process()` function

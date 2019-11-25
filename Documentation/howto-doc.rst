@@ -1,4 +1,4 @@
-.. _doc-howto:
+.. _howto-doc:
 
 How to write documentation
 ==========================

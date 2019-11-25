@@ -1,3 +1,5 @@
+# Implementing New System Calls in Graphene
+
 ### Step 1: Define the Interface of System Call and Name the Function in `LibOS/shim/src/shim_syscalls.c`
 
 For example, assume we are implementing `sched_setaffinity`. You must find the definition of
