@@ -602,8 +602,12 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
             /* For FUTEX_WAIT, timeout is interpreted as a relative value, which differs from other
              * futex operations, where timeout is interpreted as an absolute value. */
             uint64_t current_time = DkSystemTimeQuery();
-            if (!current_time || timeout < current_time) {
+            if (!current_time) {
                 return -EINVAL;
+            }
+            if (timeout < current_time) {
+                /* We timeouted even before reaching this point. */
+                return -ETIMEDOUT;
             }
             timeout -= current_time;
         }
