@@ -589,7 +589,7 @@ static int is_valid_futex_ptr(uint32_t* ptr, int check_write) {
 static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, uint32_t* uaddr2, uint32_t val3) {
     int cmd = op & FUTEX_CMD_MASK;
     uint64_t timeout = NO_TIMEOUT;
-    uint32_t val2;
+    uint32_t val2 = 0;
 
     if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_WAIT_BITSET ||
                   cmd == FUTEX_LOCK_PI || cmd == FUTEX_WAIT_REQUEUE_PI)) {
