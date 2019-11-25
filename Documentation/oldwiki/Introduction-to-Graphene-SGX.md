@@ -1,3 +1,5 @@
+# Introduction to Graphene SGX
+
 ## What is Intel SGX?
 
 SGX (Software Guard Extenstions) is a security feature of the latest Intel CPUs. According to
@@ -27,7 +29,7 @@ hashes and URIs of these binaries, is signed), similar to the Intel SGX SDK work
 
 ## How to Build Graphene with Intel SGX Support?
 
-Refer to the [[Quick Start | SGX Quick Start]] page on how to build and run Graphene-SGX.
+Refer to the [Quick Start](Graphene-SGX-Quick-Start.md) page on how to build and run Graphene-SGX.
 
 ### Prerequisites
 
@@ -38,7 +40,7 @@ users then ship the signed bundle to the untrusted host and run it inside the SG
 secure their workloads.
 
 The prerequisites to build Graphene are detailed in
-[[Prerequisites of Graphene | Home#what-is-the-prerequisite-of-running-my-applications-in-graphene]]).
+[Prerequisites of Graphene](Introduction-to-Graphene.html#prerequisites).
 
 ### Prerequisites for Developer
 
@@ -72,7 +74,7 @@ developer's machine. For security reasons, Graphene will not allow loading any b
 not signed/hashed.
 
 For applications that are prepared in the Graphene apps directory, such as GCC, Apache, and Bash
-(more are listed in [[Run Applications in Graphene]]), just type 'make SGX=1' in the corresponding
+(more are listed in [Run Applications in Graphene](Run-Applications-in-Graphene.md)), just type 'make SGX=1' in the corresponding
 directory. The scripts are automated to build the applications and sign their manifests in order
 to ship them to the untrusted host.
 

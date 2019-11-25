@@ -1,3 +1,5 @@
+# PAL Host ABI
+
 ## What is Graphene's PAL Host ABI
 
 PAL Host ABI is the interface used by Graphene to interact with its host. It is translated into
@@ -21,7 +23,7 @@ PAL APIs. PAL does not and will not resolve other unresolved symbols, so the loa
 executables must resolve them afterwards.
 
 After loading the binaries, PAL needs to load and interpret the manifest files. The manifest syntax
-is described in [[Graphene Manifest Syntax]].
+is described in [Graphene Manifest Syntax](Graphene-Manifest-Syntax.md).
 
 ### Manifest and Executable Loading Rules
 
@@ -200,7 +202,7 @@ and aligned at the allocation alignment.
 
 This API modifies the permissions of a previously allocated memory mapping. Both `addr` and
 `size` must be non-zero and aligned at the allocation alignment. `prot` is defined as
-[[DkVirtualMemoryAlloc|PAL Host ABI#DkVirtualMemoryAlloc]].
+[DkVirtualMemoryAlloc](#dkvirtualmemoryalloc).
 
 ### Process Creation
 
@@ -318,7 +320,7 @@ write-side only, or both if 0 is given.
 This API maps a file to a virtual memory address in the current process. `address` can be NULL or
 a valid address that is aligned at the allocation alignment. `offset` and `size` have to be non-zero
 and aligned at the allocation alignment. `prot` is defined as
-[[DkVirtualMemoryAlloc|PAL Host ABI#DkVirtualMemoryAlloc]].
+[DkVirtualMemoryAlloc](#dkvirtualmemoryalloc).
 
 #### DkStreamUnmap
 
@@ -580,7 +582,7 @@ This API returns CPUID information in the array `values`, based on the leaf/subl
 
 This API creates a physical memory channel for the process to copy virtual memory as copy-on-write.
 Once a channel is created, other processes can connect to the physical memory channel by using
-[[DkStreamOpen|PAL Host ABI#DkStreamOpen]] with a URI `gipc:<key>`.
+[DkStreamOpen](#dkstreamopen) with a URI `gipc:<key>`.
 
 #### DkPhysicalMemoryCommit
 

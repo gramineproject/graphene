@@ -1,3 +1,5 @@
+# Graphene SGX Quick Start
+
 Before you run any applications in Graphene-SGX, please make sure that Intel SGX SDK and the SGX
 driver are installed on your system. We recommend using Intel SGX SDK and the SGX driver no older
 than version 2.1.

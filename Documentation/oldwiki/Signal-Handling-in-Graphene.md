@@ -1,7 +1,9 @@
+# Signal Handling in Graphene
+
 (Disclaimer: This explanation is partially outdated. It is intended only as an internal
 reference for developers of Graphene, not as a general documentation for Graphene users.)
 
-# Signal Handling
+## Signal Handling
 
 This analysis is written while Graphene's signal handling mechanisms are in flux. In future, all
 Graphene PALs should implement the same mechanism, and LibOS should adopt a better scheme to
@@ -49,9 +51,9 @@ in contrast to current LibOS approach of (1) delivering the first signal even in
 emulated syscall, and (2) pending nested signals until system-call completion.
 
 
-## Linux-SGX PAL Flows
+### Linux-SGX PAL Flows
 
-### Initialization of Signal Handling
+#### Initialization of Signal Handling
 
 ```
   Normal context
@@ -93,7 +95,7 @@ emulated syscall, and (2) pending nested signals until system-call completion.
 + + + rt_sigprocmask(SIGUNBLOCK, SIGSEGV | SIGILL | SIGFPE | SIGBUS)
 ```
 
-### Async Signal Arrives During Enclave Code Execution
+#### Async Signal Arrives During Enclave Code Execution
 
 On the example of SIGINT, until we arrive into `_DkGenericSignalHandle()`.
 
@@ -158,7 +160,7 @@ On the example of SIGINT, until we arrive into `_DkGenericSignalHandle()`.
           < ... >
 ```
 
-### Async Signal Arrives During Non-Enclave Code Execution
+#### Async Signal Arrives During Non-Enclave Code Execution
 
 Non-enclave code execution can only happen if Graphene process is currently executing untrusted-PAL
 code, e.g., is blocked on a `futex(wait)` system call.
@@ -208,12 +210,12 @@ On the example of SIGINT, until we arrive into `_DkGenericSignalHandle()`.
             < ... >                                              v
 ```
 
-### Sync Signal Arrives During Enclave Code Execution
+#### Sync Signal Arrives During Enclave Code Execution
 
 This case is exactly the same as for async signal. The only difference in the diagram would be that
 `_DkTerminateSighandler` is replaced by `_DkResumeSighandler`. But the logic is exactly the same.
 
-### Sync Signal Arrives During Non-Enclave Code Execution
+#### Sync Signal Arrives During Non-Enclave Code Execution
 
 Non-enclave code execution can only happen if Graphene process is currently executing untrusted-PAL
 code, e.g., is blocked on a `futex(wait)` system call.
@@ -223,7 +225,7 @@ or arithmetic exception in untrusted-PAL code. This should never happen in a cor
 of Graphene. In this case, `_DkResumeSighandler` simply kills the faulting thread (not the whole
 process!) by issuing `exit(1)` syscall.
 
-### DkGenericSignalHandle Logic
+#### DkGenericSignalHandle Logic
 
 ```
   Normal context (enclave mode)
@@ -267,9 +269,9 @@ process!) by issuing `exit(1)` syscall.
 ```
 
 
-## Linux PAL Flows
+### Linux PAL Flows
 
-### Initialization of Signal Handling
+#### Initialization of Signal Handling
 
 Very similar to the flow for Linux-SGX. In addition to 7 handled signals, Linux PAL also operates on
 these signals:
@@ -278,7 +280,7 @@ these signals:
 
 Describing flows for these signals is *future work*.
 
-### Async Signal Arrives During PAL Call Execution
+#### Async Signal Arrives During PAL Call Execution
 
 ```
   Normal context                                Signal context
@@ -312,7 +314,7 @@ Describing flows for these signals is *future work*.
 + +     _DkGenericSignalHandle(event, NULL, NULL)
 ```
 
-### Async Signal Arrives During Non-PAL Call Execution
+#### Async Signal Arrives During Non-PAL Call Execution
 
 ```
   Normal context                                Signal context
@@ -338,7 +340,7 @@ Describing flows for these signals is *future work*.
 +
 ```
 
-### Sync Signal Arrives During PAL Call Execution
+#### Sync Signal Arrives During PAL Call Execution
 
 ```
   Normal context                                Signal context
@@ -361,7 +363,7 @@ Describing flows for these signals is *future work*.
 ... thread is dead ...
 ```
 
-### Sync Signal Arrives During Non-PAL Call Execution
+#### Sync Signal Arrives During Non-PAL Call Execution
 
 ```
   Normal context                                Signal context
@@ -387,7 +389,7 @@ Describing flows for these signals is *future work*.
 +
 ```
 
-### DkGenericSignalHandle Logic
+#### DkGenericSignalHandle Logic
 
 ```
   Normal context (enclave mode)
@@ -430,11 +432,11 @@ Describing flows for these signals is *future work*.
 ```
 
 
-## Current LibOS Flows
+### Current LibOS Flows
 
 Note that LibOS flows are the same for all PALs.
 
-### Non-Nested Signal Case
+#### Non-Nested Signal Case
 
 On the example of `suspend_upcall()`.
 
@@ -488,7 +490,7 @@ On the example of `suspend_upcall()`.
 + DkExceptionReturn(event)
 ```
 
-### Nested Signal Case
+#### Nested Signal Case
 
 On the example of `suspend_upcall()`. Assumes `tcb.context.preempt = 1` (in a signal handler).
 ```
@@ -544,7 +546,7 @@ On the example of `suspend_upcall()`. Assumes `tcb.context.preempt = 1` (in a si
 + + +     + < handles pended SIGINT from tcb.thread.signal_logs[SIGINT]
 ```
 
-### Available Signal Handlers and Their Differences
+#### Available Signal Handlers and Their Differences
 
 (Notation: <Linux signal> -> PAL signal -> LibOS signal handler (purpose))
 
@@ -647,7 +649,7 @@ illegal_upcall(event, context)
 ```
 
 
-# Alarm() Emulation
+## Alarm() Emulation
 
 SIGALRM signal is blocked in Graphene. Therefore, on `alarm()` syscall, SIGALRM is generated and
 raised purely by LibOS.
@@ -713,7 +715,7 @@ shim_do_alarm(seconds)                          ... no alive host thread ...
 ```
 
 
-# Bugs and Issues
+## Bugs and Issues
 
 * BUG? Graphene LibOS performs `DkThreadYieldExecution()` in `__handle_signal()` (i.e., yield
 thread execution after handling one pending signal). Looks useless.

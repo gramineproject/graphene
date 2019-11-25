@@ -1,3 +1,6 @@
+# Debugging Graphene
+
+
 ## Running Graphene with GDB
 
 To enable GDB support, the PAL loader and Graphene implement the GDB protocol to notify the
