@@ -1,4 +1,6 @@
-The basic manifest syntax for Graphene is described in [[Graphene Manifest Syntax]]. If Graphene
+# Graphene SGX Manifest Syntax
+
+The basic manifest syntax for Graphene is described in [Graphene Manifest Syntax](Graphene-Manifest-Syntax.md). If Graphene
 is *not* running with SGX, the SGX-specific syntax is ignored. All keys in the SGX-specific syntax
 are optional. If the keys are not specified, Graphene will use the default values.
 

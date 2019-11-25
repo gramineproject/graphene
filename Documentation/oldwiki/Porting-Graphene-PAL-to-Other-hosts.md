@@ -1,3 +1,5 @@
+# Porting Graphene PAL to Other hosts
+
 ## Platform Compatibility of Graphene
 
 Graphene adopts a similar architecture to the Drawbridge Library OS, which runs a generic library
@@ -9,7 +11,7 @@ for this new host.
 
 To port Graphene to a new host platform, the only effort required is reimplementing the PAL on the
 desired host platform. Most of the implementation should be as simple as translating the PAL API
-to the native system interface of the host. The implemented PAL must support [[PAL Host ABI]].
+to the native system interface of the host. The implemented PAL must support [PAL Host ABI](PAL-Host-ABI.md).
 
 In fact, even in the PAL source code, we expect part of the code to be host-generic. To make porting
 Graphene easier, we deliberately separate the source code of PAL into three parts:

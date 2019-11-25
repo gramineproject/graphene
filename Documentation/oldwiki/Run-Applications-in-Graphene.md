@@ -1,14 +1,16 @@
+# Run Applications in Graphene
+
 We prepared and tested several applications to demonstrate Graphene usability. These applications
 can be directly built and run from the Graphene source:
 
-* [[LMBench (v2.5) | Run Applications in Graphene#running lmbench in graphene]]
-* [[Python | Run Applications in Graphene#running python in graphene]]
-* [[R | Run Applications in Graphene#running r in graphene]]
-* [[GCC | Run Applications in Graphene#running gcc in graphene ]]
-* [[Lighttpd | Run Applications in Graphene#running lighttpd in graphene]]
-* [[Apache | Run Applications in Graphene#running apache in graphene]]
-* [[Busybox | Run Applications in Graphene#running busybox in graphene]]
-* [[Bash | Run Applications in Graphene#running bash in graphene]]
+* [LMBench (v2.5)](#running-lmbench-in-graphene)
+* [Python](#running-python-in-graphene)
+* [R](#running-r-in-graphene)
+* [GCC](#running-gcc-in-graphene)
+* [Lighttpd](#running-lighttpd-in-graphene)
+* [Apache](#running-apache-in-graphene)
+* [Busybox](#running-busybox-in-graphene)
+* [Bash](#running-bash-in-graphene)
 
 ## Running LMBench in Graphene
 
@@ -131,7 +133,7 @@ Apache, run the following command:
 
 The commands above will compile the source code, build the manifest file for Graphene, generate
 the configuration file for Apache, and generate the HTML sample files (same as described in the
-[[lighttpd section|Run applications in Graphene#Running Lighttpd in Graphene]]).
+[lighttpd section](#running-lighttpd-in-graphene)).
 
 The server can be started manually via one of the following commands:
 
