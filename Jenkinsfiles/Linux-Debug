@@ -86,6 +86,7 @@ pipeline {
                            rm -rf LibOS/shim/test/apps/ltp/src
 
                            make -C LibOS/shim/test/apps/python-simple clean
+                           make -C LibOS/shim/test/apps/python-scipy-insecure clean
                            make -C LibOS/shim/test/apps/bash clean
                            make -C LibOS/shim/test/apps/gcc clean
                            make -C LibOS/shim/test/apps/lmbench clean
