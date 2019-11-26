@@ -263,16 +263,16 @@ static inline void thread_wakeup (struct shim_thread * thread)
 /* Adds the thread to the wake-up queue.
  * If this thread is already on some queue, then it *will* be woken up soon and there is no need
  * to add it to another queue.
- * queue->first should be a vailid pointer or WAKE_QUEUE_TAIL (i.e. cannot be NULL).
+ * queue->first should be a valid pointer or WAKE_QUEUE_TAIL (i.e. cannot be NULL).
  *
  * Returns 0 if the thread was added to the queue, 1 otherwise. */
 static inline int add_thread_to_queue(struct wake_queue_head* queue, struct shim_thread* thread) {
     void* nptr = NULL;
     struct wake_queue_node* qnode = &thread->wake_queue;
 
-    /* Atomic cmp&xchg is enough, no need to take thread->lock */
+    /* Atomic cmpxchg is enough, no need to take thread->lock */
     if (!__atomic_compare_exchange_n(&qnode->next, &nptr, queue->first,
-                                     1, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+                                     /*weak=*/false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
         return 1;
     }
 

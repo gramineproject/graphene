@@ -102,7 +102,7 @@ static void maybe_dequeue_futex(struct shim_futex* futex) {
  *
  * Increases refcount of current thread by 1 (in thread_setwait)
  * and of `futex` by 1.
- * Both `futex->lock` and `futex_list_lock` needs to be held.
+ * Both `futex->lock` and `futex_list_lock` need to be held.
  */
 static void add_futex_waiter(struct futex_waiter* waiter,
                              struct shim_futex* futex,
@@ -116,8 +116,10 @@ static void add_futex_waiter(struct futex_waiter* waiter,
 }
 
 /*
- * The caller inherits 1 thread's refcount, which previously accounted for waiter->thread being on
- * futex->waiters list.
+ * Ownership of the `waiter->thread` is passed to the caller; we do not change its refcount because
+ * we take it of `futex->waiters` list (-1) and give it to caller (+1).
+ *
+ * `futex->lock` needs to be held.
  */
 static struct shim_thread* remove_futex_waiter(struct futex_waiter* waiter,
                                                struct shim_futex* futex) {
@@ -127,6 +129,8 @@ static struct shim_thread* remove_futex_waiter(struct futex_waiter* waiter,
 
 /*
  * Moves waiter from `futex1` to `futex2`.
+ *
+ * `futex1->lock`, `futex2->lock` and `futex_list_lock` need to be held.
  */
 static void move_futex_waiter(struct futex_waiter* waiter,
                               struct shim_futex* futex1,
@@ -194,16 +198,18 @@ static int cmp_futexes(struct shim_futex* futex1, struct shim_futex* futex2) {
 }
 
 /*
- * Locks two futexes in a specifis order.
+ * Locks two futexes in ascending order (defined by cmp_futexes).
  * If a futex is NULL, it is just skipped.
  */
 static void lock_two_futexes(struct shim_futex* futex1, struct shim_futex* futex2) {
     if (!futex1 && !futex2) {
         return;
-    } else if (futex1 && !futex2){
+    } else if (futex1 && !futex2) {
         spinlock_lock(&futex1->lock);
+        return;
     } else if (!futex1 && futex2) {
         spinlock_lock(&futex2->lock);
+        return;
     }
     /* Both are not NULL. */
 
@@ -224,10 +230,12 @@ static void lock_two_futexes(struct shim_futex* futex1, struct shim_futex* futex
 static void unlock_two_futexes(struct shim_futex* futex1, struct shim_futex* futex2) {
     if (!futex1 && !futex2) {
         return;
-    } else if (futex1 && !futex2){
+    } else if (futex1 && !futex2) {
         spinlock_unlock(&futex1->lock);
+        return;
     } else if (!futex1 && futex2) {
         spinlock_unlock(&futex2->lock);
+        return;
     }
     /* Both are not NULL. */
 
@@ -321,7 +329,7 @@ out:
  *
  * Must be called with both futex_list_lock and futex->lock held.
  *
- * Returns number of threads worken.
+ * Returns number of threads woken.
  */
 static int move_to_wake_queue(struct shim_futex* futex, uint32_t bitset, int to_wake,
                               struct wake_queue_head* queue) {
@@ -495,9 +503,9 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
     struct shim_futex* futex1 = NULL;
     struct shim_futex* futex2 = NULL;
     struct wake_queue_head queue = { .first = WAKE_QUEUE_TAIL };
-    int ret = 0,
-        woken = 0,
-        moved = 0;
+    int ret = 0;
+    int woken = 0;
+    int requeued = 0;
     struct futex_waiter* waiter;
     struct futex_waiter* wtmp;
     struct shim_thread* thread;
@@ -529,7 +537,7 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
     }
 
     if (futex1) {
-        /* We cannot call move_to_wake_queue here, as this functions wakes at least 1 thread,
+        /* We cannot call move_to_wake_queue here, as this function wakes at least 1 thread,
          * (even if to_wake is 0) and here we want to wake-up exactly to_wake threads.
          * I guess it's better to be compatible and replicate these weird corner cases. */
         LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex1->waiters, list) {
@@ -539,9 +547,9 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
                     put_thread(thread);
                 }
                 ++woken;
-            } else if (moved < to_requeue) {
+            } else if (requeued < to_requeue) {
                 move_futex_waiter(waiter, futex1, futex2);
-                ++moved;
+                ++requeued;
             } else {
                 break;
             }
@@ -549,7 +557,7 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
 
         maybe_dequeue_futex(futex1);
 
-        ret = woken + moved;
+        ret = woken + requeued;
     }
 
 out_unlock:
@@ -575,9 +583,9 @@ out_unlock:
 
 }
 
-#define FUTEX_CHECK_READ 0
-#define FUTEX_CHECK_WRITE 1
-static int is_valid_futex_ptr(uint32_t* ptr, int check_write) {
+#define FUTEX_CHECK_READ false
+#define FUTEX_CHECK_WRITE true
+static int is_valid_futex_ptr(uint32_t* ptr, bool check_write) {
     if (!IS_ALIGNED_PTR(ptr, alignof(*ptr))) {
         return -EINVAL;
     }
@@ -594,7 +602,7 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
 
     if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_WAIT_BITSET ||
                   cmd == FUTEX_LOCK_PI || cmd == FUTEX_WAIT_REQUEUE_PI)) {
-        if (test_user_memory(utime, sizeof(struct timespec), 0)) {
+        if (test_user_memory(utime, sizeof(struct timespec), /*write=*/false)) {
             return -EFAULT;
         }
         timeout = timespec_to_us((struct timespec*)utime);
@@ -632,7 +640,7 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
 
     int ret = 0;
 
-    /* `uadddr` should be valid pointer in all cases. */
+    /* `uaddr` should be valid pointer in all cases. */
     ret = is_valid_futex_ptr(uaddr, FUTEX_CHECK_READ);
     if (ret) {
         return ret;
@@ -708,7 +716,7 @@ int shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* l
         get_thread(thread);
     }
 
-    if (test_user_memory(head, sizeof(*head), 1) || test_user_memory(len, sizeof(*len), 1)) {
+    if (test_user_memory(head, sizeof(*head), /*write=*/true) || test_user_memory(len, sizeof(*len), /*write=*/true)) {
         ret = -EFAULT;
         goto out;
     }
@@ -731,7 +739,7 @@ static bool handle_futex_death(uint32_t* uaddr) {
     if (!IS_ALIGNED_PTR(uaddr, alignof(*uaddr))) {
         return -EINVAL;
     }
-    if (!is_valid_futex_ptr(uaddr, 1)) {
+    if (!is_valid_futex_ptr(uaddr, FUTEX_CHECK_WRITE)) {
         return -EFAULT;
     }
 
@@ -748,7 +756,7 @@ static bool handle_futex_death(uint32_t* uaddr) {
         uint32_t new_val = (val & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
 
         if (__atomic_compare_exchange_n(uaddr, &val, new_val,
-                                        1, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+                                        /*weak=*/true, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
             /* Successfully set the new value, end the loop. */
             break;
         }
@@ -767,7 +775,7 @@ static bool handle_futex_death(uint32_t* uaddr) {
  * Returns 0 on success, negative value on error.
  */
 static bool fetch_robust_entry(struct robust_list** entry, struct robust_list** head) {
-    if (test_user_memory(head, sizeof(*head), 0)) {
+    if (test_user_memory(head, sizeof(*head), /*write=*/false)) {
         return -EFAULT;
     }
 
@@ -795,7 +803,7 @@ void release_robust_list(struct robust_list_head* head) {
         return;
     }
 
-    if (test_user_memory(&head->futex_offset, sizeof(head->futex_offset), 0)) {
+    if (test_user_memory(&head->futex_offset, sizeof(head->futex_offset), /*write=*/false)) {
         return;
     }
     futex_offset = head->futex_offset;
@@ -844,7 +852,7 @@ void release_clear_child_id(int* clear_child_tid) {
     if (!IS_ALIGNED_PTR(clear_child_tid, alignof(*clear_child_tid))) {
         return;
     }
-    if (test_user_memory(clear_child_tid, sizeof(*clear_child_tid), 1)) {
+    if (test_user_memory(clear_child_tid, sizeof(*clear_child_tid), /*write=*/true)) {
         return;
     }
 
