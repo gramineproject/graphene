@@ -66,16 +66,23 @@ pipeline {
                             sh '''
                                 cd LibOS/shim/test/apps/python-simple
                                 PYTHONVERSION=python3.6 make SGX=1
-                                PYTHONVERSION=python3.6 make SGX=1 regression
+                                PYTHONVERSION=python3.6 make SGX=1 check
                             '''
-      }
-      timeout(time: 5, unit: 'MINUTES') {
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/python-scipy-insecure
+                                PYTHONVERSION=python3.6 make SGX=1
+                                PYTHONVERSION=python3.6 make SGX=1 check
+                            '''
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/bash
                                 make SGX=1 all
                                 make SGX=1 regression
                            '''
-      }
+                        }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc

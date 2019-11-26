@@ -31,8 +31,10 @@ RUN apt-get update \
        python3-apt \
        python3-lxml \
        python3-minimal \
+       python3-numpy \
        python3-pip \
        python3-pytest \
+       python3-scipy \
        texinfo \
        wget \
     && /usr/bin/pip3 install protobuf \

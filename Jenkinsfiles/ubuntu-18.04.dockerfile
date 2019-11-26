@@ -31,9 +31,11 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-apt \
     python3-breathe \
     python3-lxml \
+    python3-numpy \
     python3-pip \
     python3-protobuf \
     python3-pytest \
+    python3-scipy \
     texinfo \
     wget
 

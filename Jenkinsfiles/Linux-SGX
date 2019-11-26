@@ -69,7 +69,14 @@ pipeline {
                             sh '''
                                 cd LibOS/shim/test/apps/python-simple
                                 make SGX=1
-                                make SGX=1 regression
+                                make SGX=1 check
+                            '''
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/python-scipy-insecure
+                                make SGX=1
+                                make SGX=1 check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
