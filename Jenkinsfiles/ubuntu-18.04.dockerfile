@@ -27,12 +27,14 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     protobuf-c-compiler \
     python \
     python3-breathe \
+    python3-lxml \
     python3-pip \
     python3-protobuf \
     python3-pytest \
-    python3-lxml \
     texinfo \
-    wget
+    wget \
+    zlib1g \
+    zlib1g-dev
 
 RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 

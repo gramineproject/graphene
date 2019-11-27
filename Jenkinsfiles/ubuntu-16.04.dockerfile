@@ -32,6 +32,8 @@ RUN apt-get update \
        python3-pytest \
        texinfo \
        wget \
+       zlib1g \
+       zlib1g-dev \
     && /usr/bin/pip3 install protobuf \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
