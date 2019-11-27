@@ -166,7 +166,7 @@ struct protected_file* find_protected_dir(const char* path) {
 
     _DkSpinLock(&protected_file_lock);
     LISTP_FOR_EACH_ENTRY(tmp, &protected_dir_list, list) {
-        if (tmp->path_len <= len &&
+        if (tmp->path_len < len &&
             !memcmp(tmp->path, path, tmp->path_len) &&
             (!path[tmp->path_len] || path[tmp->path_len] == '/')) {
             pf = tmp;
@@ -224,6 +224,8 @@ static int is_directory(const char* path, bool* is_dir) {
     int ret = ocall_open(path, O_RDONLY, 0);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "is_directory(%s): open failed: %d\n", path, ret);
+        /* this can be called on a path without the file existing, assume non-dir for now */
+        ret = 0;
         goto out;
     }
 

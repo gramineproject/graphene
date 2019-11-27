@@ -46,15 +46,10 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
-    struct protected_file* pf = NULL;
+    SGX_DBG(DBG_D, "file_open: uri %s, access 0x%x, share 0x%x, create 0x%x, options 0x%x\n",
+        uri, access, share, create, options);
 
-    /* try to do the real open */
-    int fd = ocall_open(uri, access | create | options, share);
-
-    if (IS_ERR(fd))
-        return unix_to_pal_error(ERRNO(fd));
-
-    /* if try_create_path succeeded, prepare for the file handle */
+    /* prepare the file handle */
     size_t len     = strlen(uri) + 1;
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len);
     if (!hdl)
@@ -62,7 +57,6 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
-    hdl->file.fd = fd;
     char* path   = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
@@ -72,8 +66,34 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
     hdl->file.realpath = (PAL_STR)path;
 
-    SGX_DBG(DBG_D, "file_open: fd %d, uri %s [%s]\n", fd, uri, path);
-    pf = get_protected_file(path);
+    int fd;
+    struct protected_file* pf = get_protected_file(path);
+    bool pf_create = create & O_CREAT; /* whether to re-initialize the PF */
+
+    if (pf && (create == PAL_CREATE_TRY)) { /* open the file whether it exists or not */
+        /* We need to know whether the file will be created or not
+           to know if we should re-initialize (truncate) the PF.
+           PAL_CREATE_TRY|PAL_CREATE_ALWAYS is equivalent to O_CREAT|O_EXCL */
+        fd = ocall_open(uri, access | (create | PAL_CREATE_ALWAYS) | options, share);
+        if (fd == -EEXIST) {
+            /* do not recreate the file */
+            pf_create = false;
+            fd = ocall_open(uri, access | create | options, share);
+        } else if (!IS_ERR(fd)) {
+            pf_create = true;
+        }
+    } else {
+        /* try to do the real open */
+        fd = ocall_open(uri, access | create | options, share);
+    }
+
+    if (IS_ERR(fd)) {
+        ret = unix_to_pal_error(ERRNO(fd));
+        goto out;
+    }
+
+    hdl->file.fd = fd;
+
     if (pf) {
         pf_file_mode_t pf_mode = 0;
         if ((access & O_RDWR) == O_RDWR) /* 2 */
@@ -93,7 +113,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         }
 
         ret = -PAL_ERROR_DENIED;
-        pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, create, pf);
+        pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, pf_create, pf);
         if (pf) {
             bool allowed = false;
             pf_status_t pfs = pf_check_path(pf->context, path, &allowed);
@@ -146,11 +166,12 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
 out:
     if (ret != 0) {
-        if (pf)
+        if (pf && pf->context)
             unload_protected_file(pf);
 
         free(hdl);
-        ocall_close(fd);
+        if (fd >= 0)
+            ocall_close(fd);
     }
     return ret;
 }
