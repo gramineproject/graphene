@@ -33,6 +33,7 @@ struct enclave_tls {
         void*    heap_max;
         void*    exec_addr;
         uint64_t exec_size;
+        int*     clear_child_tid;
     };
 };
 

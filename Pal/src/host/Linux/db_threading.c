@@ -184,8 +184,7 @@ void _DkThreadYieldExecution (void)
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-noreturn void _DkThreadExit (void)
-{
+noreturn void _DkThreadExit(int* clear_child_tid) {
     PAL_TCB_LINUX* tcb = get_tcb_linux();
     PAL_HANDLE handle = tcb->handle;
 
@@ -199,6 +198,12 @@ noreturn void _DkThreadExit (void)
         // Take precautions to unset the TCB and alternative stack first.
         INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, 0);
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
+    }
+
+    if (clear_child_tid) {
+        /* thread is ready to exit, must inform LibOS by setting *clear_child_tid to 0;
+         * async helper thread in LibOS is waiting on this to wake up parent */
+        __atomic_store_n(clear_child_tid, 0, __ATOMIC_RELAXED);
     }
 
     if (handle) {

@@ -28,7 +28,7 @@ int thread3_run(void* args) {
 
     // Ensure that the compiler can't know that this should never return.
     if (dummy_true) {
-        DkThreadExit();
+        DkThreadExit(/*clear_child_tid=*/NULL);
     }
 
     thread3_exit_ok = false;

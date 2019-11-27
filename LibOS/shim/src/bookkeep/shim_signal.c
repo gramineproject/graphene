@@ -830,7 +830,7 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
     }
 
     try_process_exit(0, sig);
-    DkThreadExit();
+    /*NOTREACHED*/
 }
 
 static void sighandler_core (int sig, siginfo_t * info, void * ucontext)

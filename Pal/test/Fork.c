@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
         }
 
         DkVirtualMemoryFree(str, 20);
-        DkThreadExit();
+        DkThreadExit(/*clear_child_tid=*/NULL);
     } else {
         pal_printf("in the parent\n");
         DkThreadDelayExecution(3000);

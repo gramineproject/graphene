@@ -27,7 +27,7 @@ int callback1(void* args) {
 
     count1 = 100;
     __asm__ volatile("nop" ::: "memory");
-    DkThreadExit();
+    DkThreadExit(/*clear_child_tid=*/NULL);
     count1 = 101;
     __asm__ volatile("nop" ::: "memory");
 

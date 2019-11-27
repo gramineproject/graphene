@@ -1138,17 +1138,17 @@ noreturn void shim_terminate (int err)
 
     /* do last clean-up of the process */
     shim_clean(err);
-
-    DkProcessExit(err);
 }
 
 /* cleanup and terminate process, preserve exit code if err == 0 */
-int shim_clean (int err)
-{
+noreturn void shim_clean(int err) {
     /* preventing multiple cleanup, this is mostly caused by
        assertion in shim_clean */
-    if (atomic_inc_return(&in_terminate) > 1)
-        return 0;
+    if (atomic_inc_return(&in_terminate) > 1) {
+        while (true) {
+            /* nothing */;
+        }
+    }
 
     if (err != 0)
         cur_process.exit_code = err;
@@ -1192,7 +1192,7 @@ int shim_clean (int err)
     debug("process %u exited with status %d\n", cur_process.vmid & 0xFFFF, cur_process.exit_code);
     MASTER_LOCK();
     DkProcessExit(cur_process.exit_code);
-    return 0;
+    /*NOTREACHED*/
 }
 
 int message_confirm (const char * message, const char * options)

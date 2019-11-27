@@ -113,8 +113,12 @@ void _DkThreadYieldExecution (void)
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-noreturn void _DkThreadExit (void)
-{
+noreturn void _DkThreadExit(int* clear_child_tid) {
+    if (clear_child_tid) {
+        /* thread is ready to exit, must inform LibOS by setting *clear_child_tid to 0;
+         * async helper thread in LibOS is waiting on this to wake up parent */
+        __atomic_store_n(clear_child_tid, 0, __ATOMIC_RELAXED);
+    }
     INLINE_SYSCALL(exit, 1, 0);
 }
 

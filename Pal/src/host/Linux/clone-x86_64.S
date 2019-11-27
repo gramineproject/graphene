@@ -108,6 +108,7 @@ thread_start:
 	/* movl $SYS_ify(exit), %eax */
 	/* syscall */
 	/* Instead of syscall exit, let's call _DkThreadExit */
+	movq	$0, %rdi
 	call _DkThreadExit
 	cfi_endproc
 

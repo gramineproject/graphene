@@ -38,6 +38,7 @@ struct async_event {
     void *                 arg;
     PAL_HANDLE             object;        /* handle (async IO) to wait on */
     uint64_t               expire_time;   /* alarm/timer to wait on */
+    bool                   todelete;
 };
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
@@ -85,7 +86,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
 
     lock(&async_helper_lock);
 
-    if (!object) {
+    if (callback != &release_clear_child_id && !object) {
         /* This is alarm() or setitimer() emulation, treat both according to
          * alarm() syscall semantics: cancel any pending alarm/timer. */
         struct async_event * tmp, * n;
@@ -154,7 +155,7 @@ static void shim_async_helper(void * arg) {
 
     if (notme) {
         put_thread(self);
-        DkThreadExit();
+        DkThreadExit(/*clear_child_tid=*/NULL);
         return;
     }
 
@@ -203,9 +204,18 @@ static void shim_async_helper(void * arg) {
 
         struct async_event * tmp, * n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
-            /* First check if this event was triggered; note that IO events
-             * stay in the list whereas alarms/timers are fired only once. */
-            if (polled && tmp->object == polled) {
+            /* First check if this event was triggered; there are three types:
+             *   1. Exited child:  trigger callback and remove from the list;
+             *   2. IO events:     trigger callback and keep in the list;
+             *   3. alarms/timers: trigger callback and remove from the list. */
+            if (tmp->callback == &release_clear_child_id) {
+                debug("Child exited, notifying parents if any\n");
+                tmp->todelete = true;
+                unlock(&async_helper_lock);
+                release_clear_child_id(tmp->caller, tmp->arg);
+                lock(&async_helper_lock);
+                continue;
+            } else if (polled && tmp->object == polled) {
                 debug("Async IO event triggered at %lu\n", now);
                 unlock(&async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
@@ -213,13 +223,15 @@ static void shim_async_helper(void * arg) {
             } else if (tmp->expire_time && tmp->expire_time <= now) {
                 debug("Async alarm/timer triggered at %lu (expired at %lu)\n",
                         now, tmp->expire_time);
-                LISTP_DEL(tmp, &async_list, list);
+                tmp->todelete = true;
                 unlock(&async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
-                free(tmp);
                 lock(&async_helper_lock);
                 continue;
             }
+
+            if (tmp->todelete)
+                continue;
 
             /* Now re-add this IO event to the list or re-add this timer */
             if (tmp->object) {
@@ -240,6 +252,13 @@ static void shim_async_helper(void * arg) {
                     /* use time of the next expiring alarm/timer */
                     next_expire_time = tmp->expire_time;
                 }
+            }
+        }
+
+        LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
+            if (tmp->todelete) {
+                LISTP_DEL(tmp, &async_list, list);
+                free(tmp);
             }
         }
 
@@ -269,11 +288,12 @@ static void shim_async_helper(void * arg) {
         polled = DkObjectsWaitAny(object_num + 1, object_list, sleep_time);
     }
 
+    __disable_preempt(self->shim_tcb);
     put_thread(self);
     debug("Async helper thread terminated\n");
     free(object_list);
 
-    DkThreadExit();
+    DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 /* this should be called with the async_helper_lock held */

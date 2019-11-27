@@ -257,7 +257,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_cpu_context_t * uc)
         while (true)
             __asm__ volatile("pause");
 #endif
-        _DkThreadExit();
+        _DkThreadExit(/*clear_child_tid=*/NULL);
     }
 
     PAL_CONTEXT ctx;
@@ -385,5 +385,5 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_cpu_context_t * uc)
 
     if (!_DkGenericSignalHandle(event, 0, frame, NULL)
         && event != PAL_EVENT_RESUME)
-        _DkThreadExit();
+        _DkThreadExit(/*clear_child_tid=*/NULL);
 }

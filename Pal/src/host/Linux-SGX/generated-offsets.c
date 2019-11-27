@@ -91,6 +91,7 @@ void dummy(void)
     OFFSET(SGX_HEAP_MAX, enclave_tls, heap_max);
     OFFSET(SGX_EXEC_ADDR, enclave_tls, exec_addr);
     OFFSET(SGX_EXEC_SIZE, enclave_tls, exec_size);
+    OFFSET(SGX_CLEAR_CHILD_TID, enclave_tls, clear_child_tid);
 
     /* struct pal_tcb_linux aka PAL_TCB_LINUX */
     OFFSET(PAL_TCB_LINUX_TCS, pal_tcb_linux, tcs);
