@@ -88,7 +88,9 @@ enclave_entry.o sgx_entry.o: asm-offsets.h
 sgx-driver/isgx_version.h:
 	$(MAKE) -C sgx-driver $(notdir $@)
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard debugger/*.d)
+endif
 
 include ../../../../Makefile.rules
 
