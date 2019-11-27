@@ -432,9 +432,11 @@ This API yields the current thread such that the host scheduler can reschedule i
 
 #### DkThreadExit
 
-    void DkThreadExit(void);
+    void DkThreadExit(PAL_PTR clear_child_tid);
 
-This API terminates the current thread.
+This API terminates the current thread. `clear_child_tid` is the pointer to memory that is erased
+on thread exit to notify LibOS (which in turn notifies the parent thread if any); if
+`clear_child_tid` is NULL, then PAL doesn't do the clearing.
 
 #### DkThreadResume
 

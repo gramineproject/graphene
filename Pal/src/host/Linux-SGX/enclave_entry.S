@@ -117,6 +117,15 @@ enclave_entry:
 .Lhandle_thread_reset:
 	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
 
+	# At this point, the thread has completely exited from the point of view
+	# of LibOS. We can now set *clear_child_tid to 0, which will trigger
+	# async helper thread in LibOS, who will wake up parent thread if any.
+	cmpq $0, %gs:SGX_CLEAR_CHILD_TID
+	je 1f
+	movq %gs:SGX_CLEAR_CHILD_TID, %rbx
+	movl $0, (%rbx)
+
+1:
 	# Signals are impossible at this point: benign untrusted runtime blocks
 	# all signals (see sgx_ocall_exit()), and even if malicious one doesn't
 	# block them, signals are ignored due to SGX_READY_FOR_EXCEPTIONS = 0.

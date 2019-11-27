@@ -91,7 +91,7 @@ void pal_start_thread (void)
     PAL_TCB* pal_tcb = pal_get_tcb();
     memset(&pal_tcb->libos_tcb, 0, sizeof(pal_tcb->libos_tcb));
     callback((void *) param);
-    _DkThreadExit();
+    _DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 /* _DkThreadCreate for internal use. Create an internal thread
@@ -140,9 +140,14 @@ void _DkThreadYieldExecution (void)
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-noreturn void _DkThreadExit (void)
-{
+noreturn void _DkThreadExit(int* clear_child_tid) {
     struct pal_handle_thread* exiting_thread = GET_ENCLAVE_TLS(thread);
+
+    /* thread is ready to exit, must inform LibOS by erasing clear_child_tid;
+     * note that we don't do it now (because this thread still occupies SGX
+     * TCS slot) but during handle_thread_reset in assembly code */
+    SET_ENCLAVE_TLS(clear_child_tid, clear_child_tid);
+    static_assert(sizeof(*clear_child_tid) == 4,  "unexpected clear_child_tid size");
 
     /* main thread is not part of the thread_list */
     if(exiting_thread != &pal_control.first_thread->thread) {

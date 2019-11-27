@@ -1562,7 +1562,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     int ret = vdso_map_init();
     if (ret < 0) {
         SYS_PRINTF("Could not initialize vDSO (error code = %d)", ret);
-        shim_clean(ret);
+        shim_clean_and_exit(ret);
     }
 
     struct link_map* exec_map = __search_map_by_handle(exec);
@@ -1601,7 +1601,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     ret               = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
         debug("execute_elf_object: DkRandomBitsRead failed.\n");
-        DkThreadExit();
+        DkThreadExit(/*clear_child_tid=*/NULL);
     }
     auxp[5].a_un.a_val = random;
 

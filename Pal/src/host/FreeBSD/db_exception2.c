@@ -314,7 +314,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
         return;
 
     if (!_DkGenericSignalHandle(event_num, NULL, frame, uc, eframe))
-        _DkThreadExit();
+        _DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 static void _DkPipeSighandler (int signum, siginfo_t * info,

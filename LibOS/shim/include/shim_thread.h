@@ -314,10 +314,10 @@ void set_handle_map (struct shim_thread * thread,
 }
 
 /* shim exit callback */
-int thread_exit (struct shim_thread * self, bool send_ipc);
+int thread_exit(struct shim_thread* self, bool send_ipc, int** clear_child_tid_pal_ptr);
 /* If the process was killed by a signal, pass it in the second
  *  argument, else pass zero */
-int try_process_exit (int error_code, int term_signal);
+noreturn void thread_or_process_exit(int error_code, int term_signal);
 
 /* thread cloning helpers */
 struct shim_clone_args {

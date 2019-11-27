@@ -423,8 +423,7 @@ DkThreadDelayExecution (PAL_NUM duration);
 void
 DkThreadYieldExecution (void);
 
-noreturn void
-DkThreadExit (void);
+noreturn void DkThreadExit(PAL_PTR clear_child_tid);
 
 PAL_BOL
 DkThreadResume (PAL_HANDLE thread);

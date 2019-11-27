@@ -80,7 +80,7 @@ static int child_thread_exit(struct shim_thread* thread, void* arg, bool* unlock
             /* remote thread is "virtually" exited: SIGCHLD is generated for
              * the parent thread and exit events are arranged for subsequent
              * wait4(). */
-            thread_exit(thread, false);
+            thread_exit(thread, /*send_ipc=*/false, /*clear_child_tid_pal_ptr*/NULL);
             goto out;
         }
     }
@@ -207,7 +207,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 
         /* Remote thread is "virtually" exited: SIGCHLD is generated for the
          * parent thread and exit events are arranged for subsequent wait4(). */
-        ret = thread_exit(thread, /*send_ipc=*/false);
+        ret = thread_exit(thread, /*send_ipc=*/false, /*clear_child_tid_pal_ptr*/NULL);
         put_thread(thread);
     } else {
         /* Uncommon case: remote child thread was already exited and deleted

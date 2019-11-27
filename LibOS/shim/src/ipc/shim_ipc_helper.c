@@ -780,10 +780,11 @@ noreturn static void shim_ipc_helper(void* dummy) {
     free(object_list);
     free(palhandle_list);
 
+    __disable_preempt(self->shim_tcb);
     put_thread(self);
     debug("IPC helper thread terminated\n");
 
-    DkThreadExit();
+    DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 static void shim_ipc_helper_prepare(void* arg) {
@@ -803,7 +804,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     if (notme || !stack) {
         free(stack);
         put_thread(self);
-        DkThreadExit();
+        DkThreadExit(/*clear_child_tid=*/NULL);
         return;
     }
 

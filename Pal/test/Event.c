@@ -17,7 +17,7 @@ int thread_1(void* args) {
     }
 
     DkEventSet(event1);
-    DkThreadExit();
+    DkThreadExit(/*clear_child_tid=*/NULL);
 
     return 0;
 }

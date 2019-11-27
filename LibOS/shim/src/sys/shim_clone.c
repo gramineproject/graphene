@@ -288,7 +288,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
     if (flags & CLONE_CHILD_CLEARTID)
         /* Implemented in shim_futex.c: release_clear_child_id */
-        thread->clear_child_tid = parent_tidptr;
+        thread->clear_child_tid = child_tidptr;
 
     unsigned long fs_base = 0;
     if (flags & CLONE_SETTLS) {

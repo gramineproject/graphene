@@ -250,7 +250,7 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
             INLINE_SYSCALL(nanosleep, 2, &sleeptime, NULL);
         }
 #endif
-        _DkThreadExit();
+        _DkThreadExit(/*clear_child_tid=*/NULL);
         return;
     }
 
@@ -293,7 +293,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
     // Call the event handler. If there is no handler, terminate the thread
     // unless it is a resuming event (then ignore the event).
     if (!_DkGenericSignalHandle(event_num, NULL, uc) && event_num != PAL_EVENT_RESUME)
-        _DkThreadExit();
+        _DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 static void _DkPipeSighandler (int signum, siginfo_t * info,

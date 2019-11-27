@@ -14,7 +14,7 @@ int thread2_run(void* args) {
     pal_printf("Sending event...\n");
     DkEventSet(event1);
     pal_printf("End of second thread.\n");
-    DkThreadExit();
+    DkThreadExit(/*clear_child_tid=*/NULL);
 
     return 0;
 }

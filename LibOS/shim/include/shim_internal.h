@@ -770,7 +770,7 @@ extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;
 
 /* cleanup and terminate process, preserve exit code if err == 0 */
-int shim_clean (int err);
+noreturn void shim_clean_and_exit(int err);
 
 unsigned long parse_int (const char * str);
 
@@ -796,6 +796,14 @@ uint64_t get_rlimit_cur(int resource);
 void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
+
+/* this struct is passed as the second argument to release_clear_child_id() */
+struct clear_child_tid_struct {
+    int* clear_child_tid;         /* passed to LibOS's clone() from user app */
+    int  clear_child_tid_val_pal; /* ptr to it is passed to PAL's DkThreadExit() */
+};
+
+void release_clear_child_id(IDTYPE caller, void* clear_child_tids);
 
 #ifdef __x86_64__
 #define __SWITCH_STACK(stack_top, func, arg)                    \

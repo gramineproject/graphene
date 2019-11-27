@@ -85,7 +85,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
 
     lock(&async_helper_lock);
 
-    if (!object) {
+    if (callback != &release_clear_child_id && !object) {
         /* This is alarm() or setitimer() emulation, treat both according to
          * alarm() syscall semantics: cancel any pending alarm/timer. */
         struct async_event * tmp, * n;
@@ -153,7 +153,7 @@ static void shim_async_helper(void * arg) {
 
     if (notme) {
         put_thread(self);
-        DkThreadExit();
+        DkThreadExit(/*clear_child_tid=*/NULL);
         return;
     }
 
@@ -206,9 +206,16 @@ static void shim_async_helper(void * arg) {
 
         struct async_event * tmp, * n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
-            /* First check if this event was triggered; note that IO events
-             * stay in the list whereas alarms/timers are fired only once. */
-            if (polled && tmp->object == polled) {
+            /* First check if this event was triggered; there are three types:
+             *   1. Exited child:  trigger callback and remove from the list;
+             *   2. IO events:     trigger callback and keep in the list;
+             *   3. alarms/timers: trigger callback and remove from the list. */
+            if (tmp->callback == &release_clear_child_id) {
+                debug("Child exited, notifying parent if any\n");
+                LISTP_DEL(tmp, &async_list, list);
+                LISTP_ADD_TAIL(tmp, &triggered, list);
+                continue;
+            } else if (polled && tmp->object == polled) {
                 debug("Async IO event triggered at %lu\n", now);
                 unlock(&async_helper_lock);
                 /* FIXME: potential race condition when
@@ -216,7 +223,6 @@ static void shim_async_helper(void * arg) {
                  * correctly implemented. tmp can be freed at the same
                  * time. */
                 tmp->callback(tmp->caller, tmp->arg);
-
                 /* async_list may be changed because async_helper_lock is
                  * released; list traverse cannot be continued. */
                 polled = NULL;
@@ -288,11 +294,12 @@ static void shim_async_helper(void * arg) {
         polled = DkObjectsWaitAny(object_num + 1, object_list, sleep_time);
     }
 
+    __disable_preempt(self->shim_tcb);
     put_thread(self);
     debug("Async helper thread terminated\n");
     free(object_list);
 
-    DkThreadExit();
+    DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 /* this should be called with the async_helper_lock held */

@@ -1355,5 +1355,5 @@ noreturn void start_execution(const char** arguments, const char** environs) {
     if (exec_map)
         CALL_ENTRY(exec_map, cookies);
 
-    _DkThreadExit();
+    _DkThreadExit(/*clear_child_tid=*/NULL);
 }

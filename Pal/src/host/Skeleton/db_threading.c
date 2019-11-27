@@ -45,7 +45,7 @@ void _DkThreadYieldExecution(void) {
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-noreturn void _DkThreadExit(void) {
+noreturn void _DkThreadExit(int* clear_child_tid) {
     /* needs to be implemented */
     while (true) {
         /* nothing */
