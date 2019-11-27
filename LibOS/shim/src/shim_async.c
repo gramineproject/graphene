@@ -200,23 +200,23 @@ static void shim_async_helper(void * arg) {
         uint64_t next_expire_time = 0;
         size_t object_num = 0;
 
+        LISTP_TYPE(async_event) triggered;
+        INIT_LISTP(&triggered);
+
         struct async_event * tmp, * n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
             /* First check if this event was triggered; note that IO events
              * stay in the list whereas alarms/timers are fired only once. */
             if (polled && tmp->object == polled) {
                 debug("Async IO event triggered at %lu\n", now);
-                unlock(&async_helper_lock);
-                tmp->callback(tmp->caller, tmp->arg);
-                lock(&async_helper_lock);
+                LISTP_DEL(tmp, &async_list, list);
+                LISTP_ADD(tmp, &triggered, list);
+                continue;
             } else if (tmp->expire_time && tmp->expire_time <= now) {
                 debug("Async alarm/timer triggered at %lu (expired at %lu)\n",
                         now, tmp->expire_time);
                 LISTP_DEL(tmp, &async_list, list);
-                unlock(&async_helper_lock);
-                tmp->callback(tmp->caller, tmp->arg);
-                free(tmp);
-                lock(&async_helper_lock);
+                LISTP_ADD(tmp, &triggered, list);
                 continue;
             }
 
@@ -240,6 +240,16 @@ static void shim_async_helper(void * arg) {
                     next_expire_time = tmp->expire_time;
                 }
             }
+        }
+
+        if (!LISTP_EMPTY(&triggered)) {
+            unlock(&async_helper_lock);
+            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &triggered, list) {
+                LISTP_DEL(tmp, &triggered, list);
+                tmp->callback(tmp->caller, tmp->arg);
+                free(tmp);
+            }
+            lock(&async_helper_lock);
         }
 
         uint64_t sleep_time;
