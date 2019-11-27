@@ -41,6 +41,12 @@ pipeline {
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
+                                cd LibOS/shim/test/apps/curl
+                                make check
+                           '''
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
                                 cd LibOS/shim/test/apps/gcc
                                 make check
                            '''
