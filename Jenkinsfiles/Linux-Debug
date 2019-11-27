@@ -73,6 +73,13 @@ pipeline {
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
                             '''
                         sh '''
+                            cd LibOS/shim/test/apps/nginx
+                            make
+                            make start-graphene-server &
+                            sleep 1
+                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
+                            '''
+                        sh '''
                             cd LibOS/shim/test/apps/apache
                             make
                             make start-graphene-server &
@@ -98,6 +105,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/gcc clean
                            make -C LibOS/shim/test/apps/lmbench clean
                            make -C LibOS/shim/test/apps/lighttpd distclean
+                           make -C LibOS/shim/test/apps/nginx distclean
                            make -C LibOS/shim/test/apps/apache distclean
                            make -C Pal/src PAL_HOST=Skeleton clean
 
