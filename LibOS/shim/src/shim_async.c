@@ -193,6 +193,10 @@ static void shim_async_helper(void * arg) {
             break;
         }
 
+        LISTP_TYPE(async_event) triggered;
+        INIT_LISTP(&triggered);
+
+    again:;
         /* Iterate through all async IO events and alarm/timer events to:
          *   - call callbacks for all triggered events, and
          *   - repopulate object_list with async IO events (if any), and
@@ -207,16 +211,22 @@ static void shim_async_helper(void * arg) {
             if (polled && tmp->object == polled) {
                 debug("Async IO event triggered at %lu\n", now);
                 unlock(&async_helper_lock);
+                /* FIXME: potential race condition when
+                 * ioctl(FIOASYNC, off) and cleanup on fd-close are
+                 * correctly implemented. tmp can be freed at the same
+                 * time. */
                 tmp->callback(tmp->caller, tmp->arg);
+
+                /* async_list may be changed because async_helper_lock is
+                 * released; list traverse cannot be continued. */
+                polled = NULL;
                 lock(&async_helper_lock);
+                goto again;
             } else if (tmp->expire_time && tmp->expire_time <= now) {
                 debug("Async alarm/timer triggered at %lu (expired at %lu)\n",
                         now, tmp->expire_time);
                 LISTP_DEL(tmp, &async_list, list);
-                unlock(&async_helper_lock);
-                tmp->callback(tmp->caller, tmp->arg);
-                free(tmp);
-                lock(&async_helper_lock);
+                LISTP_ADD_TAIL(tmp, &triggered, list);
                 continue;
             }
 
@@ -240,6 +250,16 @@ static void shim_async_helper(void * arg) {
                     next_expire_time = tmp->expire_time;
                 }
             }
+        }
+
+        if (!LISTP_EMPTY(&triggered)) {
+            unlock(&async_helper_lock);
+            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &triggered, list) {
+                LISTP_DEL(tmp, &triggered, list);
+                tmp->callback(tmp->caller, tmp->arg);
+                free(tmp);
+            }
+            lock(&async_helper_lock);
         }
 
         uint64_t sleep_time;
