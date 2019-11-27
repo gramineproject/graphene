@@ -53,6 +53,12 @@ pipeline {
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
+                                cd LibOS/shim/test/apps/curl
+                                make check
+                           '''
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
                                 cd LibOS/shim/test/apps/gcc
                                 make check
                            '''
@@ -94,6 +100,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/python-simple clean
                            make -C LibOS/shim/test/apps/python-scipy-insecure clean
                            make -C LibOS/shim/test/apps/bash clean
+                           make -C LibOS/shim/test/apps/curl clean
                            make -C LibOS/shim/test/apps/gcc clean
                            make -C LibOS/shim/test/apps/lmbench clean
                            make -C LibOS/shim/test/apps/lighttpd distclean

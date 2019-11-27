@@ -83,6 +83,13 @@ pipeline {
                                 make SGX=1 regression
                            '''
                         }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/curl
+                                make SGX=1 all
+                                make SGX=1 check
+                           '''
+                        }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
