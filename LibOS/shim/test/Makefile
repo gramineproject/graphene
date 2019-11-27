@@ -10,5 +10,5 @@ default: all
 .PHONY: all clean sgx-tokens
 all clean sgx-tokens:
 	for d in $(SUBDIRS); do \
-		$(MAKE) -C $$d $@; \
+		$(MAKE) -C $$d $@ || exit 255; \
 	done
