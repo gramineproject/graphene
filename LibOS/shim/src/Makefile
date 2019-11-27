@@ -157,4 +157,6 @@ clean:
 	       $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs)) \
 	       $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(all_objs)) $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs))
+endif
