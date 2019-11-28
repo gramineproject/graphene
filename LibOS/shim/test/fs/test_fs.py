@@ -125,6 +125,10 @@ class TC_00_FileSystem(RegressionTestCase):
         self.assertIn('ftell(' + output_path_2 + ') output end 2 OK: ' + str(size + 4098), stdout)
         self.assertIn('fclose(' + output_path_2 + ') output OK', stdout)
 
+        expected_size = size + 4098
+        self.verify_size(output_path_1, expected_size)
+        self.verify_size(output_path_2, expected_size)
+
     def test_115_seek_tell(self):
         input_path = self.INPUT_FILES[-1] # existing file
         output_path_1 = os.path.join(self.OUTPUT_DIR, 'test_115a') # writable files
