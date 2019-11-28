@@ -602,13 +602,12 @@ static int chroot_hstat (struct shim_handle * hdl, struct stat * stat)
     return query_dentry(hdl->dentry, hdl->pal_handle, NULL, stat);
 }
 
-static int chroot_flush (struct shim_handle * hdl)
-{
-    struct shim_file_handle * file = &hdl->info.file;
+static void chroot_flush_map(struct shim_handle* hdl) {
+    struct shim_file_handle* file = &hdl->info.file;
 
     if (file->buf_type == FILEBUF_MAP) {
         lock(&hdl->lock);
-        void * mapbuf = file->mapbuf;
+        void* mapbuf = file->mapbuf;
         size_t mapsize = file->mapsize;
         file->mapoffset = 0;
         file->mapbuf = NULL;
@@ -621,7 +620,19 @@ static int chroot_flush (struct shim_handle * hdl)
                 BUG();
         }
     }
+}
 
+static int chroot_flush(struct shim_handle* hdl) {
+    int ret = DkStreamFlush(hdl->pal_handle);
+    if (ret < 0)
+        return ret;
+
+    chroot_flush_map(hdl);
+    return 0;
+}
+
+static int chroot_close(struct shim_handle* hdl) {
+    chroot_flush_map(hdl);
     return 0;
 }
 
@@ -1317,7 +1328,7 @@ struct shim_fs_ops chroot_fs_ops = {
         .mount       = &chroot_mount,
         .unmount     = &chroot_unmount,
         .flush       = &chroot_flush,
-        .close       = &chroot_flush,
+        .close       = &chroot_close,
         .read        = &chroot_read,
         .write       = &chroot_write,
         .mmap        = &chroot_mmap,
