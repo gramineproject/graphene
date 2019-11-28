@@ -99,7 +99,7 @@ struct poll_handle {
     struct shim_handle * handle;
     struct poll_handle * next;
     struct poll_handle * children;
-} __attribute__((packed));
+};
 
 #define POLL_NOTIMEOUT  ((uint64_t)-1)
 

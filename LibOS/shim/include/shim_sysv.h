@@ -100,7 +100,7 @@ struct msg_req {
     unsigned short size;
     int flags;
     struct sysv_client dest;
-} __attribute__((packed));
+};
 
 #define INIT_MSG_TYPE_SIZE 32
 
