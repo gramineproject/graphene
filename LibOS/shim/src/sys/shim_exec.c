@@ -38,6 +38,31 @@
 #include <sys/mman.h>
 #include <asm/prctl.h>
 
+/* returns 0 if normalized URIs are the same; assumes file URIs */
+static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {
+    char norm1[STR_SIZE];
+    char norm2[STR_SIZE];
+    size_t len;
+    int ret;
+
+    if (!strstartswith_static(uri1, "file:") || !strstartswith_static(uri2, "file:"))
+        return -1;
+
+    uri1 += static_strlen("file:");
+    len = sizeof(norm1);
+    ret = get_norm_path(uri1, norm1, &len);
+    if (ret < 0)
+        return ret;
+
+    uri2 += static_strlen("file:");
+    len = sizeof(norm2);
+    ret = get_norm_path(uri2, norm2, &len);
+    if (ret < 0)
+        return ret;
+
+    return memcmp(norm1, norm2, len + 1);
+}
+
 static int close_on_exec (struct shim_fd_handle * fd_hdl,
                           struct shim_handle_map * map)
 {
@@ -451,16 +476,23 @@ err:
 
     SAVE_PROFILE_INTERVAL(open_file_for_exec);
 
-#if EXECVE_RTLD == 1
-    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
-        int is_last = check_last_thread(cur_thread) == 0;
-        if (is_last) {
-            debug("execve() in the same process\n");
-            return shim_do_execve_rtld(exec, argv, envp);
+    bool use_same_process = check_last_thread(cur_thread) == 0;
+    if (use_same_process && !strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+        /* for SGX PALs, can use same process only if it is the same executable (because a
+         * different executable has a different measurement and thus requires a new enclave);
+         * this special case is to correctly handle e.g. Bash process replacing itself */
+        assert(cur_thread->exec);
+        if (normalize_and_cmp_uris(qstrgetstr(&cur_thread->exec->uri), qstrgetstr(&exec->uri))) {
+            /* it is not the same executable, definitely cannot use same process */
+            use_same_process = false;
         }
-        debug("execve() in a new process\n");
     }
-#endif
+
+    if (use_same_process) {
+        debug("execve() in the same process\n");
+        return shim_do_execve_rtld(exec, argv, envp);
+    }
+    debug("execve() in a new process\n");
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
