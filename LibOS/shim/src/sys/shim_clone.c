@@ -114,7 +114,7 @@ static void fixup_child_context(struct shim_regs * regs)
  */
 #define PTHREAD_PADDING 2048
 
-static int clone_implementation_wrapper(struct clone_args * arg)
+static int clone_implementation_wrapper(struct shim_clone_args * arg)
 {
     //The child thread created by PAL is now running on the
     //PAL allocated stack. We need to switch the stack to use
@@ -368,7 +368,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
     enable_locking();
 
-    struct clone_args new_args;
+    struct shim_clone_args new_args;
     memset(&new_args, 0, sizeof(new_args));
 
     new_args.create_event = DkNotificationEventCreate(PAL_FALSE);
