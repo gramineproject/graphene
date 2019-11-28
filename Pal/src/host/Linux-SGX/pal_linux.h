@@ -146,16 +146,19 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mr_enclave_str);
 
-/* Used to track map allocations for protected files */
-DEFINE_LIST(pf_allocation);
-struct pf_allocation {
-    LIST_TYPE(pf_allocation) list;
-    void* mem; /* buffer address */
-    bool free; /* whether to free the buffer */
-    uint64_t size; /* allocation size */
-    uint64_t offset; /* needed for write buffers when flushing to the PF */
+/* Used to track map buffers for protected files */
+DEFINE_LIST(pf_map);
+struct pf_map {
+    LIST_TYPE(pf_map) list;
+    struct protected_file* pf; /* owning PF */
+    void* buffer; /* buffer address */
+    uint64_t size; /* buffer size */
+    uint64_t offset; /* offset in PF, needed for write buffers when flushing to the PF */
 };
-DEFINE_LISTP(pf_allocation);
+DEFINE_LISTP(pf_map);
+
+/* List of PF map buffers */
+extern LISTP_TYPE(pf_map) g_pf_map_list;
 
 /* Data of a protected file */
 DEFINE_LIST(protected_file);
@@ -165,7 +168,6 @@ struct protected_file {
     char path[URI_MAX];
     pf_context_t* context; /* NULL until PF is opened */
     int64_t refcount; /* used for deciding when to call unload_protected_file() */
-    LISTP_TYPE(pf_allocation) allocation_list;
 };
 DEFINE_LISTP(protected_file);
 
@@ -190,7 +192,12 @@ struct protected_file* load_protected_file(const char* path, int* fd, size_t siz
                                            pf_file_mode_t mode, bool create,
                                            struct protected_file* pf);
 
-/* Cleanup: flush mmap'd writes to the PF, deallocate buffers etc */
+/* Flush PF map buffers and optionally remove them.
+   If pf is NULL, process all maps containing given buffer.
+   If buffer is NULL, process all maps for given pf. */
+int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove);
+
+/* Flush map buffers and unload/close the PF */
 int unload_protected_file(struct protected_file* pf);
 
 /* Find registered PF by path (exact match) */

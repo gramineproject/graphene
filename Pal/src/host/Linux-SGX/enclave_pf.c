@@ -30,6 +30,9 @@ Since PF's "logical" size is different than the real FS size (and to avoid poten
 infinite recursion in FS handlers) we don't use PAL file APIs here, but raw OCALLs.
 */
 
+/* List of map buffers */
+LISTP_TYPE(pf_map) g_pf_map_list = LISTP_INIT;
+
 /* Callbacks for protected files handling */
 static void* cb_malloc(size_t size) {
     void* address = malloc(size);
@@ -347,7 +350,6 @@ static int register_protected_path(const char* path, struct protected_file** new
 
     new->path_len = strlen(path);
     memcpy(new->path, path, new->path_len + 1);
-    INIT_LISTP(&new->allocation_list);
     new->refcount = 0;
 
     bool is_dir;
@@ -520,38 +522,61 @@ struct protected_file* load_protected_file(const char* path, int* fd, size_t siz
     return pf;
 }
 
-/* Cleanup/flush write buffers */
-int unload_protected_file(struct protected_file* pf) {
-    struct pf_allocation* pfa;
-    struct pf_allocation* tmp;
-    __attribute__((unused)) pf_status_t pfs;
+/* Flush PF map buffers and optionally remove them.
+   If pf is NULL, process all maps containing given buffer.
+   If buffer is NULL, process all maps for given pf. */
+int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
+    struct pf_map* map;
+    struct pf_map* tmp;
+    size_t pf_size;
+    pf_status_t pfs;
 
-    LISTP_FOR_EACH_ENTRY_SAFE(pfa, tmp, &pf->allocation_list, list) {
-        size_t size = pfa->size;
-        size_t pf_size;
-        pf_status_t pfs = pf_get_size(pf->context, &pf_size);
+    SGX_DBG(DBG_D, "flush_pf_maps: pf %p, buf %p, remove %d\n", pf, buffer, remove);
+    assert(pf || buffer);
+
+    LISTP_FOR_EACH_ENTRY_SAFE(map, tmp, &g_pf_map_list, list) {
+        if (pf && map->pf != pf)
+            continue;
+
+        if (buffer && map->buffer != buffer)
+            continue;
+
+        size_t size = map->size;
+
+        if (!pf)
+            pf = map->pf;
+
+        pfs = pf_get_size(pf->context, &pf_size);
         assert(PF_SUCCESS(pfs));
 
-        if (size > 0) { /* 'write' pfa, flush it */
-            if (size > pf_size)
-                size = pf_size;
+        SGX_DBG(DBG_D, "flush_pf_maps: pf %p, buf %p, size %lu, offset %lu\n",
+            map->pf, map->buffer, size, map->offset);
 
-            if (size > 0) {
-                pfs = pf_write(pf->context, pfa->offset, size, pfa->mem);
-                if (PF_FAILURE(pfs)) {
-                    SGX_DBG(DBG_E, "unload_protected_file: pf_write failed: %d\n", pfs);
-                    return -PAL_ERROR_INVAL;
-                }
+        assert(pf_size >= map->offset);
+        if (map->offset + size > pf_size)
+            size = pf_size - map->offset;
+
+        if (size > 0) {
+            pfs = pf_write(pf->context, map->offset, size, map->buffer);
+            if (PF_FAILURE(pfs)) {
+                SGX_DBG(DBG_E, "flush_pf_maps: pf_write failed: %d\n", pfs);
+                return -PAL_ERROR_INVAL;
             }
         }
 
-        if (pfa->free)
-            free(pfa->mem);
+        if (remove)
+            LISTP_DEL(map, &g_pf_map_list, list);
+     }
+    return 0;
+}
 
-        LISTP_DEL(pfa, &pf->allocation_list, list);
-    }
-
-    pfs = pf_close(pf->context);
+/* Flush map buffers and unload/close the PF */
+int unload_protected_file(struct protected_file* pf) {
+    /* flush all pf's maps and delete them */
+    int ret = flush_pf_maps(pf, NULL, true);
+    if (ret < 0)
+        return ret;
+    __attribute__((unused)) pf_status_t pfs = pf_close(pf->context);
     assert(PF_SUCCESS(pfs));
 
     pf->context = NULL;

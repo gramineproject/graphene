@@ -359,35 +359,27 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
         return -PAL_ERROR_BADHANDLE;
     }
 
-    void* buf = NULL;
-    if (!*addr) {
-        buf = malloc(size);
-        if (!buf)
-            return -PAL_ERROR_NOMEM;
-    }
-
     uint64_t pf_size;
     __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &pf_size);
     assert(PF_SUCCESS(pfs));
 
-    if ((prot & PAL_PROT_WRITE) || !*addr) {
-        struct pf_allocation* pfa = malloc(sizeof(struct pf_allocation));
-        memset(pfa, 0, sizeof(*pfa));
+    SGX_DBG(DBG_D, "pf_file_map: pf %p, fd %d, addr %p, prot %d, offset %lu, size %lu\n",
+        pf, fd, *addr, prot, offset, size);
 
-        if (prot & PAL_PROT_WRITE) {
-            pfa->size = size; /* size > 0 marks pfa for writing to the PF */
-            pfa->offset = offset;
-        }
+    /* LibOS always provides preallocated buffer for file maps */
+    assert(*addr);
 
-        if (!*addr) { /* buffer was allocated by us */
-            pfa->free = true;
-            *addr = buf;
-        } else {
-            pfa->free = false;
-        }
 
-        pfa->mem = *addr;
-        LISTP_ADD_TAIL(pfa, &pf->allocation_list, list);
+    if (prot & PAL_PROT_WRITE) {
+        struct pf_map* map = malloc(sizeof(*map));
+        memset(map, 0, sizeof(*map));
+
+        map->pf     = pf;
+        map->size   = size;
+        map->offset = offset;
+        map->buffer = *addr;
+
+        LISTP_ADD_TAIL(map, &g_pf_map_list, list);
     }
 
     if (prot & PAL_PROT_READ) {
