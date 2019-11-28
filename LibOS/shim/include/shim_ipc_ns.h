@@ -46,7 +46,7 @@ struct ipc_ns_offered {
     IDTYPE base, size;
     LEASETYPE lease;
     unsigned int owner_offset;
-} __attribute__((packed));
+};
 
 struct ipc_ns_client {
     IDTYPE vmid;
@@ -125,8 +125,7 @@ int NS_CALLBACK(lease)(IPC_CALLBACK_ARGS);
 NS_MSG_TYPE(offer) {
     IDTYPE base, size;
     LEASETYPE lease;
-}
-__attribute__((packed));
+};
 
 int NS_SEND(offer)(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE size,
                    LEASETYPE lease, unsigned long seq);
@@ -169,8 +168,7 @@ int NS_CALLBACK(queryall)(IPC_CALLBACK_ARGS);
 NS_MSG_TYPE(answer) {
     int nanswers;
     struct ipc_ns_offered answers[];
-}
-__attribute__((packed));
+};
 
 int NS_SEND(answer)(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
                     struct ipc_ns_offered* answers, int nowners, struct ipc_ns_client** ownerdata,
@@ -185,8 +183,7 @@ int CONCAT2(NS, get_key)(NS_KEY* key, bool delete);
 /* FINDKEY */
 NS_MSG_TYPE(findkey) {
     NS_KEY key;
-}
-__attribute__((packed));
+};
 
 int NS_SEND(findkey)(NS_KEY* key);
 int NS_CALLBACK(findkey)(IPC_CALLBACK_ARGS);
@@ -195,8 +192,7 @@ int NS_CALLBACK(findkey)(IPC_CALLBACK_ARGS);
 NS_MSG_TYPE(tellkey) {
     NS_KEY key;
     IDTYPE id;
-}
-__attribute__((packed));
+};
 
 int NS_SEND(tellkey)(struct shim_ipc_port* port, IDTYPE dest, NS_KEY* key, IDTYPE id,
                      unsigned long seq);

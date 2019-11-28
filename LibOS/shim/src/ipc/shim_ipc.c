@@ -449,7 +449,7 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
     int ret;
     size_t len = strlen(cpdir);
 
-    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_checkpoint) + len);
+    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_checkpoint) + len + 1);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_CHECKPOINT, total_msg_size, 0);
 

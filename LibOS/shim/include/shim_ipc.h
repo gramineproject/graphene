@@ -122,8 +122,8 @@ struct shim_ipc_resp {
 /* PID_CHECKPOINT: broadcast checkpointing */
 struct shim_ipc_checkpoint {
     IDTYPE cpsession;
-    char cpdir[1];
-} __attribute__((packed));
+    char cpdir[];
+};
 
 int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession);
 int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
@@ -204,7 +204,7 @@ struct pid_status {
 struct shim_ipc_pid_getstatus {
     int npids;
     IDTYPE pids[];
-} __attribute__((packed));
+};
 
 int ipc_pid_getstatus_send(struct shim_ipc_port* port, IDTYPE dest, int npids, IDTYPE* pids,
                            struct pid_status** status);
@@ -315,7 +315,7 @@ struct shim_ipc_sysv_movres {
     IDTYPE owner;
     LEASETYPE lease;
     char uri[1];
-} __attribute__((packed));
+};
 
 int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, LEASETYPE lease,
                          IDTYPE resid, enum sysv_type type);
@@ -349,7 +349,7 @@ struct shim_ipc_sysv_msgmov {
     LEASETYPE lease;
     unsigned short nscores;
     struct sysv_score scores[];
-} __attribute__((packed));
+};
 
 int ipc_sysv_msgmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, LEASETYPE lease,
                          struct sysv_score* scores, int nscores);
@@ -361,7 +361,7 @@ struct shim_ipc_sysv_semop {
     unsigned long timeout;
     int nsops;
     struct sembuf sops[];
-} __attribute__((packed));
+};
 
 #define IPC_SEM_NOTIMEOUT ((unsigned long)-1)
 
@@ -397,7 +397,7 @@ struct shim_ipc_sysv_semmov {
     LEASETYPE lease;
     unsigned short nsems, nsrcs, nscores;
     struct sem_backup sems[];
-} __attribute__((packed));
+};
 
 int ipc_sysv_semmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, LEASETYPE lease,
                          struct sem_backup* sems, int nsems, struct sem_client_backup* srcs,
