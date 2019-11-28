@@ -17,6 +17,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libelf-dev \
     libexpat1 \
     libexpat1-dev \
+    libnss-mdns \
     libomp-dev \
     libpcre2-dev \
     libpcre3-dev \

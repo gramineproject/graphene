@@ -17,6 +17,7 @@ RUN apt-get update \
        libaprutil1-dev \
        libexpat1 \
        libexpat1-dev \
+       libnss-mdns \
        libomp-dev \
        libpcre2-dev \
        libpcre3-dev \
