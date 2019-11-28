@@ -49,7 +49,9 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 
 include ../../../../Makefile.rules
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs))
+endif
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 

@@ -149,7 +149,9 @@ $(OBJ_DIR)/%.s: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_s_c)
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
+endif
 
 .PHONY: clean
 clean:
