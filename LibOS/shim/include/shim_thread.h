@@ -320,7 +320,7 @@ int thread_exit (struct shim_thread * self, bool send_ipc);
 int try_process_exit (int error_code, int term_signal);
 
 /* thread cloning helpers */
-struct clone_args {
+struct shim_clone_args {
     PAL_HANDLE create_event;
     PAL_HANDLE initialize_event;
     struct shim_thread * parent, * thread;
