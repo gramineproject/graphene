@@ -284,13 +284,6 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
         }
     }
 
-    if (IS_HANDLE_TYPE(handle, pipesrv)) {
-        char buffer[108];
-        pipe_path(handle->pipe.pipeid, buffer, 108);
-        ocall_delete(buffer);
-        return 0;
-    }
-
     if (handle->pipe.fd == PAL_IDX_POISON)
         return 0;
 
