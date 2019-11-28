@@ -606,6 +606,10 @@ static int chroot_flush (struct shim_handle * hdl)
 {
     struct shim_file_handle * file = &hdl->info.file;
 
+    int ret = DkStreamFlush(hdl->pal_handle);
+    if (ret < 0)
+        return ret;
+
     if (file->buf_type == FILEBUF_MAP) {
         lock(&hdl->lock);
         void * mapbuf = file->mapbuf;
