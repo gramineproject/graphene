@@ -40,7 +40,7 @@ users then ship the signed bundle to the untrusted host and run it inside the SG
 secure their workloads.
 
 The prerequisites to build Graphene are detailed in
-[Prerequisites of Graphene](#prerequisites).
+[Prerequisites of Graphene](Introduction-to-Graphene.html#prerequisites).
 
 ### Prerequisites for Developer
 
