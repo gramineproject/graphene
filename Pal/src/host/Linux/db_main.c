@@ -237,8 +237,10 @@ void pal_linux_main (void * args)
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
 
-    void * alt_stack = malloc(ALT_STACK_SIZE);
-    if (!alt_stack)
+    void* alt_stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, ALT_STACK_SIZE,
+                                            PROT_READ | PROT_WRITE,
+                                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (IS_ERR_P(alt_stack))
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
     memset(alt_stack, 0, ALT_STACK_SIZE);
     first_thread->thread.stack = alt_stack;

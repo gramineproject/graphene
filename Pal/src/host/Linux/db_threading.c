@@ -85,8 +85,10 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     int ret = 0;
     PAL_HANDLE hdl = NULL;
-    void * stack = malloc(THREAD_STACK_SIZE + ALT_STACK_SIZE);
-    if (!stack) {
+    void* stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, THREAD_STACK_SIZE + ALT_STACK_SIZE,
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (IS_ERR_P(stack)) {
         ret = -ENOMEM;
         goto err;
     }
@@ -187,6 +189,7 @@ void _DkThreadYieldExecution (void)
 noreturn void _DkThreadExit(int* clear_child_tid) {
     PAL_TCB_LINUX* tcb = get_tcb_linux();
     PAL_HANDLE handle = tcb->handle;
+    assert(handle);
 
     block_async_signals(true);
     if (tcb->alt_stack) {
@@ -200,19 +203,34 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
     }
 
-    if (clear_child_tid) {
-        /* thread is ready to exit, must inform LibOS by setting *clear_child_tid to 0;
-         * async helper thread in LibOS is waiting on this to wake up parent */
-        __atomic_store_n(clear_child_tid, 0, __ATOMIC_RELAXED);
+    size_t stack_size;
+    if (!tcb->callback) {
+        /* it is first thread, we only mmapped altstack, normal stack was mmaped by Linux */
+        stack_size = ALT_STACK_SIZE;
+    } else {
+        /* it is not-first thread created by DkThreadCreate, we mmapped both normal and altstack */
+        stack_size = THREAD_STACK_SIZE + ALT_STACK_SIZE;
     }
 
-    if (handle) {
-        // Free the thread stack
-        free(handle->thread.stack);
-        // After this line, needs to exit the thread immediately
-    }
+    /* To make sure the compiler doesn't touch the stack after it was freed, need inline asm:
+     *   1. Free the thread stack (via munmap)
+     *   2. Set *clear_child_tid = 0 if clear_child_tid != NULL
+     *      (we thus inform LibOS, where async helper thread is waiting on this to wake up parent)
+     *   3. Exit thread */
+    __asm__ volatile("syscall \n\t"            /* all args are already prepared, call munmap */
+                     "cmpq $0, %%rbx \n\t"     /* check if clear_child_tid != NULL */
+                     "je 1f \n\t"
+                     "movl $0, (%%rbx) \n\t"   /* set *clear_child_tid = 0 */
+                     "1: \n\t"
+                     "movq %%rdx, %%rax \n\t"  /* prepare for exit: rax = __NR_exit */
+                     "movq $0, %%rdi \n\t"     /* prepare for exit: rdi = 0         */
+                     "syscall \n\t"            /* all args are prepared, call exit  */
+                     : /* no output regs since we don't return from exit */
+                     : "a"(__NR_munmap), "D"(handle->thread.stack), "S"(stack_size),
+                       "d"(__NR_exit), "b"(clear_child_tid)
+                     : "cc", "rcx", "r11", "memory"  /* syscall instr clobbers cc, rcx, and r11 */
+    );
 
-    INLINE_SYSCALL(exit, 1, 0);
     while (true) {
         /* nothing */
     }
