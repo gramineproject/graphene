@@ -28,6 +28,12 @@ GLIBC_LIBS = \
 GLIBC_TARGET = $(addprefix $(BUILD_DIR)/, $(GLIBC_LIBS))
 GLIBC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GLIBC_TARGET)))
 
+GLIBC_CFLAGS = -O2 -U_FORTIFY_SOURCE -fno-stack-protector -Wno-unused-value
+ifeq ($(DEBUG),1)
+	GLIBC_CFLAGS += -g
+endif
+export GLIBC_CFLAGS
+
 .PHONY: all
 all: $(GLIBC_TARGET) $(GLIBC_RUNTIME)
 	$(MAKE) -C $(SHIM_DIR) all
@@ -49,11 +55,14 @@ $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
 $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
-ifeq ($(DEBUG),1)
-	./buildglibc.py --src $(GLIBC_SRC) --quiet --debug
-else
-	./buildglibc.py --src $(GLIBC_SRC) --quiet
-endif
+	mkdir -p $(BUILD_DIR)
+	(cd $(BUILD_DIR) || exit 1; \
+	CFLAGS=$$GLIBC_CFLAGS ../$< --prefix=$(RUNTIME_DIR) \
+		--with-tls \
+		--without-selinux \
+		--disable-test \
+		--disable-nscd \
+	)
 
 define LN_SF_TO_RUNTIME_DIR_template =
 $(RUNTIME_DIR)/$(notdir $(1)): $(1)
@@ -71,12 +80,6 @@ GLIBC_PATCHES = \
 	glibc-patches/syscalldb-api.patch \
 	glibc-patches/liblibos.patch \
 	glibc-patches/malloc-arena-size.patch
-
-GLIBC_PATCHES_2.19 = \
-	glibc-patches/fix-make-warnings.patch \
-	glibc-patches/no-pie.patch \
-	glibc-patches/liblibos-2.19.patch \
-	glibc-patches/hp-timing-2.19.patch
 
 GLIBC_PATCHES_2.23 = \
 	glibc-patches/liblibos-2.23+.patch \

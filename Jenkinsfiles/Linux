@@ -8,8 +8,6 @@ pipeline {
                         sh '''
                             ./Scripts/clean-check-prepare
                             cd LibOS
-                            make -j 8 glibc-build/Build.success GLIBC_VERSION=2.19
-                            rm -r glibc-build
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.23
                             rm -r glibc-build
                             cd ..
@@ -94,7 +92,7 @@ pipeline {
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            make clean
-                           rm -r LibOS/glibc-2.19 LibOS/glibc-2.23
+                           rm -r LibOS/glibc-2.23
                            rm LibOS/glibc-*.tar.gz
                            make -C Pal/ipc/linux KERNELDIR=/lib/modules/4.4.0-161-generic/build clean
                            make -C LibOS/shim/test/regression clean
