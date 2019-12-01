@@ -30,28 +30,6 @@
 
 #define SHA256_DIGEST_LEN 32
 
-#ifdef CRYPTO_USE_WOLFSSL
-#define CRYPTO_PROVIDER_SPECIFIED
-
-#include "crypto/wolfssl/cmac.h"
-#include "crypto/wolfssl/aes.h"
-#include "crypto/wolfssl/sha256.h"
-#include "crypto/wolfssl/dh.h"
-#include "crypto/wolfssl/rsa.h"
-
-typedef SHA256 LIB_SHA256_CONTEXT;
-
-#define DH_SIZE 128
-
-typedef struct {
-    uint8_t priv[DH_SIZE];
-    uint32_t priv_size;
-    DhKey key;
-} LIB_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
-
-typedef struct RSAKey LIB_RSA_KEY;
-#endif /* CRYPTO_USE_WOLFSSL */
-
 #ifdef CRYPTO_USE_MBEDTLS
 #define CRYPTO_PROVIDER_SPECIFIED
 

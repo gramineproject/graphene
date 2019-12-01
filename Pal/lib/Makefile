@@ -22,7 +22,6 @@ endif
 
 subdirs = string stdlib network graphene crypto
 
-# Choose Crypto provider among (mbedtls|wolfssl)
 CRYPTO_PROVIDER ?= mbedtls
 
 # Select which crypto adpater you want to use here. This has to match
@@ -37,10 +36,6 @@ ifeq ($(CRYPTO_PROVIDER),mbedtls)
 subdirs += crypto/mbedtls
 crypto_mbedtls_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa sha256)
 endif
-ifeq ($(CRYPTO_PROVIDER),wolfssl)
-subdirs += crypto/wolfssl
-crypto_wolfssl_objs = $(addsuffix .o,$(patsubst %.c,%.o,$(sort $(wildcard crypto/wolfssl/*.c))))
-endif
 
 string_objs = $(addsuffix .o,atoi memcmp memcpy memset strchr strendswith strlen wordcopy)
 stdlib_objs = $(addsuffix .o,printfmt)
@@ -54,11 +49,6 @@ CFLAGS += -DCRYPTO_USE_MBEDTLS
 objs += crypto/adapters/mbedtls_adapter.o
 objs += crypto/adapters/mbedtls_dh.o
 objs += crypto/adapters/mbedtls_encoding.o
-endif
-ifeq ($(CRYPTO_PROVIDER),wolfssl)
-CFLAGS += -DCRYPTO_USE_WOLFSSL
-objs += crypto/adapters/wolfssl_adapter.o
-objs += crypto/adapters/wolfssl_dh.o
 endif
 
 .PHONY: all
