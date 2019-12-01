@@ -793,6 +793,10 @@ static void parse_exec_envp(va_list ap) {
 static void parse_pipe_fds(va_list ap) {
     int* fds = va_arg(ap, int*);
 
+    if (test_user_memory(fds, 2 * sizeof(*fds), false)) {
+        PRINTF("[invalid-addr %p]", fds);
+        return;
+    }
     PRINTF("[%d, %d]", fds[0], fds[1]);
 }
 
