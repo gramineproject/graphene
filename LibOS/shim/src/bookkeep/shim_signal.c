@@ -250,7 +250,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb);
 
-    if (tcb->test_range.cont_addr && arg
+    if (tcb->test_range.cont_addr
         && (void *) arg >= tcb->test_range.start
         && (void *) arg <= tcb->test_range.end) {
         assert(context);
