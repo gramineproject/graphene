@@ -273,6 +273,16 @@ class TC_30_Syscall(RegressionTestCase):
         # Futex Timeout Test
         self.assertIn('futex correctly timed out', stdout)
 
+    def test_042_futex_requeue(self):
+        stdout, stderr = self.run_binary(['futex_requeue'])
+
+        self.assertIn('Test successful!', stdout)
+
+    def test_043_futex_wake_op(self):
+        stdout, stderr = self.run_binary(['futex_wake_op'])
+
+        self.assertIn('Test successful!', stdout)
+
     def test_050_mmap(self):
         stdout, stderr = self.run_binary(['mmap-file'], timeout=60)
 
