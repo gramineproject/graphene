@@ -202,7 +202,7 @@ and aligned at the allocation alignment.
 
 This API modifies the permissions of a previously allocated memory mapping. Both `addr` and
 `size` must be non-zero and aligned at the allocation alignment. `prot` is defined as
-[DkVirtualMemoryAlloc](#DkVirtualMemoryAlloc).
+[DkVirtualMemoryAlloc](#dkvirtualmemoryalloc).
 
 ### Process Creation
 
@@ -320,7 +320,7 @@ write-side only, or both if 0 is given.
 This API maps a file to a virtual memory address in the current process. `address` can be NULL or
 a valid address that is aligned at the allocation alignment. `offset` and `size` have to be non-zero
 and aligned at the allocation alignment. `prot` is defined as
-[DkVirtualMemoryAlloc](#DkVirtualMemoryAlloc).
+[DkVirtualMemoryAlloc](#dkvirtualmemoryalloc).
 
 #### DkStreamUnmap
 
@@ -582,7 +582,7 @@ This API returns CPUID information in the array `values`, based on the leaf/subl
 
 This API creates a physical memory channel for the process to copy virtual memory as copy-on-write.
 Once a channel is created, other processes can connect to the physical memory channel by using
-[DkStreamOpen](#DkStreamOpen) with a URI `gipc:<key>`.
+[DkStreamOpen](#dkstreamopen) with a URI `gipc:<key>`.
 
 #### DkPhysicalMemoryCommit
 
