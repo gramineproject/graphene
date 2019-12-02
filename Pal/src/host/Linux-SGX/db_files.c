@@ -349,6 +349,10 @@ static int file_delete(PAL_HANDLE handle, int access) {
 static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr, int prot,
                        uint64_t offset, uint64_t size) {
     int fd = handle->file.fd;
+
+    if (size == 0)
+        return -PAL_ERROR_INVAL;
+
     if ((prot & PAL_PROT_READ) && (prot & PAL_PROT_WRITE)) {
         SGX_DBG(DBG_E, "file_map(PF fd %d): trying to map with R+W access\n", fd);
         return -PAL_ERROR_NOTSUPPORT;
