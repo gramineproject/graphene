@@ -218,7 +218,7 @@ static void shim_async_helper(void * arg) {
                 tmp->callback(tmp->caller, tmp->arg);
 
                 /* async_list may be changed because async_helper_lock is
-                 * released. list traverse can't be continued. */
+                 * released; list traverse cannot be continued. */
                 polled = NULL;
                 lock(&async_helper_lock);
                 goto again;
