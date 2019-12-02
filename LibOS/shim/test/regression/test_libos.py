@@ -263,17 +263,27 @@ class TC_30_Syscall(RegressionTestCase):
         # fopen corner cases
         self.assertIn('Successfully read from file: Hello World', stdout)
 
-    def test_040_futex_wake(self):
-        stdout, stderr = self.run_binary(['futex'])
+    def test_040_futex_bitset(self):
+        stdout, _ = self.run_binary(['futex_bitset'])
 
         # Futex Wake Test
         self.assertIn('Woke all kiddos', stdout)
 
     def test_041_futex_timeout(self):
-        stdout, stderr = self.run_binary(['futex-timeout'])
+        stdout, _ = self.run_binary(['futex_timeout'])
 
         # Futex Timeout Test
         self.assertIn('futex correctly timed out', stdout)
+
+    def test_042_futex_requeue(self):
+        stdout, _ = self.run_binary(['futex_requeue'])
+
+        self.assertIn('Test successful!', stdout)
+
+    def test_043_futex_wake_op(self):
+        stdout, _ = self.run_binary(['futex_wake_op'])
+
+        self.assertIn('Test successful!', stdout)
 
     def test_050_mmap(self):
         stdout, stderr = self.run_binary(['mmap-file'], timeout=60)
