@@ -187,7 +187,7 @@ class TC_00_FileSystem(RegressionTestCase):
         # (different code path, enumeration also performs stat)
         for i in self.INDEXES:
             input_path = self.INPUT_FILES[i] # existing file
-            output_path = self.OUTPUT_FILES[i] # file that will be open in write mode
+            output_path = self.OUTPUT_FILES[i] # file that will be opened in write mode
             size = str(self.FILE_SIZES[i])
             self.copy_input(input_path, output_path)
             stdout, stderr = self.run_binary(['stat', input_path, output_path])
@@ -243,16 +243,16 @@ class TC_00_FileSystem(RegressionTestCase):
             self.assertIn('fstat(' + size + ') input OK', stdout)
             self.assertIn('open(' + size + ') output OK', stdout)
             self.assertIn('fstat(' + size + ') output 1 OK', stdout)
-            if (exec == 'copy_whole'):
+            if exec == 'copy_whole':
                 self.assertIn('read_fd(' + size + ') input OK', stdout)
                 self.assertIn('write_fd(' + size + ') output OK', stdout)
-            if (size != '0'):
-                if ('copy_mmap' in exec):
+            if size != '0':
+                if 'copy_mmap' in exec:
                     self.assertIn('mmap_fd(' + size + ') input OK', stdout)
                     self.assertIn('mmap_fd(' + size + ') output OK', stdout)
                     self.assertIn('munmap_fd(' + size + ') input OK', stdout)
                     self.assertIn('munmap_fd(' + size + ') output OK', stdout)
-                if (exec == 'copy_mmap_rev'):
+                if exec == 'copy_mmap_rev':
                     self.assertIn('ftruncate(' + size + ') output OK', stdout)
             self.assertIn('fstat(' + size + ') output 2 OK', stdout)
             self.assertIn('close(' + size + ') input OK', stdout)

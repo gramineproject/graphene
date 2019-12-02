@@ -1,7 +1,6 @@
 #include "common.h"
 
-__attribute__((noreturn))
-void fatal_error(const char* fmt, ...) {
+noreturn void fatal_error(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     fprintf(stderr, "ERROR: ");
@@ -15,7 +14,9 @@ void setup() {
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IOLBF, 0);
 
-    srand(time(0));
+    unsigned int seed = time(NULL);
+    printf("Random seed: %u\n", seed);
+    srand(seed);
 }
 
 int open_input_fd(const char* path) {
@@ -26,10 +27,13 @@ int open_input_fd(const char* path) {
 }
 
 void read_fd(const char* path, int fd, void* buffer, size_t size) {
-    if (size > 0) {
-        size_t ret = read(fd, buffer, size);
-        if (ret != size)
+    off_t offset = 0;
+    while (size > 0) {
+        ssize_t ret = read(fd, buffer + offset, size);
+        if (ret < 0)
             fatal_error("Failed to read file %s: %s\n", path, strerror(errno));
+        size -= ret;
+        offset += ret;
     }
 }
 
@@ -54,17 +58,19 @@ int open_output_fd(const char* path, bool rdwr) {
 }
 
 void write_fd(const char* path, int fd, const void* buffer, size_t size) {
-    if (size > 0) {
-        size_t ret = write(fd, buffer, size);
-        if (ret != size)
+    off_t offset = 0;
+    while (size > 0) {
+        ssize_t ret = write(fd, buffer + offset, size);
+        if (ret < 0)
             fatal_error("Failed to write file %s: %s\n", path, strerror(errno));
+        size -= ret;
+        offset += ret;
     }
 }
 
 void close_fd(const char* path, int fd) {
-    if (fd >= 0)
-        if (close(fd) != 0)
-            fatal_error("Failed to close file %s: %s\n", path, strerror(errno));
+    if (fd >= 0 && close(fd) != 0)
+        fatal_error("Failed to close file %s: %s\n", path, strerror(errno));
 }
 
 void* mmap_fd(const char* path, int fd, int protection, size_t offset, size_t size) {
@@ -83,7 +89,7 @@ void munmap_fd(const char* path, void* address, size_t size) {
 FILE* open_input_stdio(const char* path) {
     FILE* f = fopen(path, "r");
     if (!f)
-        fatal_error("Failed to open input file %s: %s\n", path, strerror(errno));
+        fatal_error("Failed to fopen input file %s: %s\n", path, strerror(errno));
     return f;
 }
 
@@ -91,7 +97,7 @@ void read_stdio(const char* path, FILE* f, void* buffer, size_t size) {
     if (size > 0) {
         size_t ret = fread(buffer, size, 1, f);
         if (ret != 1)
-            fatal_error("Failed to read file %s: %s\n", path, strerror(errno));
+            fatal_error("Failed to fread file %s: %s\n", path, strerror(errno));
     }
 }
 
@@ -111,15 +117,14 @@ off_t tell_stdio(const char* path, FILE* f) {
 }
 
 void close_stdio(const char* path, FILE* f) {
-    if (f)
-        if (fclose(f) != 0)
-            fatal_error("Failed to close file %s: %s\n", path, strerror(errno));
+    if (f && fclose(f) != 0)
+        fatal_error("Failed to fclose file %s: %s\n", path, strerror(errno));
 }
 
 FILE* open_output_stdio(const char* path, bool rdwr) {
     FILE* f = fopen(path, rdwr ? "r+" : "w");
     if (!f)
-        fatal_error("Failed to open output file %s: %s\n", path, strerror(errno));
+        fatal_error("Failed to fopen output file %s: %s\n", path, strerror(errno));
     return f;
 }
 
@@ -127,7 +132,7 @@ void write_stdio(const char* path, FILE* f, const void* buffer, size_t size) {
     if (size > 0) {
         size_t ret = fwrite(buffer, size, 1, f);
         if (ret != 1)
-            fatal_error("Failed to write file %s: %s\n", path, strerror(errno));
+            fatal_error("Failed to fwrite file %s: %s\n", path, strerror(errno));
     }
 }
 

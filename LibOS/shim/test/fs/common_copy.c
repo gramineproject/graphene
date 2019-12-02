@@ -62,9 +62,9 @@ int main(int argc, char* argv[]) {
         size_t output_path_size = strlen(output_dir) + 1 + strlen(de->d_name) + 1;
         char* input_path = alloc_buffer(input_path_size);
         char* output_path = alloc_buffer(output_path_size);
-        size_t size = (size_t) strtoumax(de->d_name, NULL, 10);
+        size_t size = (size_t)strtoumax(de->d_name, NULL, 10);
         snprintf(input_path, input_path_size, "%s/%s", input_dir, de->d_name);
-        snprintf(output_path, output_path_size, "%s/%zu", output_dir, size);
+        snprintf(output_path, output_path_size, "%s/%s", output_dir, de->d_name);
 
         copy_file(input_path, output_path, size);
 

@@ -1,7 +1,7 @@
 #include "common.h"
 
 void read_write(const char* file_path) {
-    const size_t size = 1024*1024;
+    const size_t size = 1024 * 1024;
     int fd = open_output_fd(file_path, /*rdwr=*/true);
     printf("open(%s) RW OK\n", file_path);
 

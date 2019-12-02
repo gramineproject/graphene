@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdnoreturn.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -19,7 +20,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-void fatal_error(const char* fmt, ...);
+noreturn void fatal_error(const char* fmt, ...);
 void setup();
 int open_input_fd(const char* path);
 void read_fd(const char* path, int fd, void* buffer, size_t size);
