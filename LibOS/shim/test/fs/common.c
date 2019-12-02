@@ -30,7 +30,9 @@ void read_fd(const char* path, int fd, void* buffer, size_t size) {
     off_t offset = 0;
     while (size > 0) {
         ssize_t ret = read(fd, buffer + offset, size);
-        if (ret < 0)
+        if (ret == -EINTR)
+            continue;
+        if (ret <= 0)
             fatal_error("Failed to read file %s: %s\n", path, strerror(errno));
         size -= ret;
         offset += ret;
@@ -61,7 +63,9 @@ void write_fd(const char* path, int fd, const void* buffer, size_t size) {
     off_t offset = 0;
     while (size > 0) {
         ssize_t ret = write(fd, buffer + offset, size);
-        if (ret < 0)
+        if (ret == -EINTR)
+            continue;
+        if (ret <= 0)
             fatal_error("Failed to write file %s: %s\n", path, strerror(errno));
         size -= ret;
         offset += ret;
