@@ -72,8 +72,6 @@ static void* get_thread_stack(void) {
 
     if (thread_stack_num == thread_stack_size) {
         /* realloc thread_stack_map to accommodate more objects (includes the very first time) */
-        if (thread_stack_size == 0)
-            thread_stack_size = 8;
         thread_stack_size += 8;
         struct thread_stack_map_t* tmp = malloc(thread_stack_size * sizeof(*tmp));
         if (!tmp)
