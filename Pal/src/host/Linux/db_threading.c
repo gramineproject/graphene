@@ -20,19 +20,19 @@
  * This file contain APIs to create, exit and yield a thread.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
-
+#include "pal_linux_defs.h"
+#include "spinlock.h"
 #include <errno.h>
-#include <linux/signal.h>
 #include <linux/mman.h>
 #include <linux/sched.h>
+#include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
@@ -41,6 +41,60 @@
 #else
 #include <asm/prctl.h>
 #endif
+
+/* Linux PAL cannot use mmap/unmap to manage thread stacks because this may overlap with
+ * pal_control.user_address. Linux PAL also cannot just use malloc/free because DkThreadExit
+ * needs to use raw system calls and inline asm. Thus, we resort to recycling thread stacks
+ * allocated by previous threads and not used anymore. This still leaks memory but at least
+ * it is bounded by the maximum number of simultaneously executing threads. Note that main
+ * thread is not a part of this mechanism (it only allocates a tiny altstack). */
+struct thread_stack_map_t {
+    void* stack;
+    int   used;
+};
+
+static struct thread_stack_map_t* thread_stack_map = NULL;
+static int thread_stack_num  = 0;
+static int thread_stack_size = 0;
+static spinlock_t thread_stack_lock = INIT_SPINLOCK_UNLOCKED;
+
+static void* get_thread_stack(void) {
+    void* ret = NULL;
+    spinlock_lock(&thread_stack_lock);
+    for (int i = 0; i < thread_stack_num; i++) {
+        if (!thread_stack_map[i].used) {
+            /* found allocated and unused stack -- use it */
+            thread_stack_map[i].used = 1;
+            ret = thread_stack_map[i].stack;
+            goto out;
+        }
+    }
+
+    if (thread_stack_num == thread_stack_size) {
+        /* realloc thread_stack_map to accomodate more objects (includes the very first time) */
+        if (thread_stack_size == 0)
+            thread_stack_size = 8;
+        thread_stack_size *= 2;
+        struct thread_stack_map_t* tmp = malloc(thread_stack_size * sizeof(struct thread_stack_map_t));
+        if (!tmp)
+            goto out;
+
+        memcpy(tmp, thread_stack_map, thread_stack_num * sizeof(struct thread_stack_map_t));
+        free(thread_stack_map);
+        thread_stack_map = tmp;
+    }
+
+    ret = malloc(THREAD_STACK_SIZE + ALT_STACK_SIZE);
+    if (!ret)
+        goto out;
+
+    thread_stack_map[thread_stack_num].stack = ret;
+    thread_stack_map[thread_stack_num].used  = 1;
+    thread_stack_num++;
+out:
+    spinlock_unlock(&thread_stack_lock);
+    return ret;
+}
 
 /*
  * pal_thread_init(): An initialization wrapper of a newly-created thread (including
@@ -85,10 +139,8 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     int ret = 0;
     PAL_HANDLE hdl = NULL;
-    void* stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, THREAD_STACK_SIZE + ALT_STACK_SIZE,
-                                        PROT_READ | PROT_WRITE,
-                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (IS_ERR_P(stack)) {
+    void* stack = get_thread_stack();
+    if (!stack) {
         ret = -ENOMEM;
         goto err;
     }
@@ -203,31 +255,31 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
     }
 
-    size_t stack_size;
-    if (!tcb->callback) {
-        /* it is first thread, we only mmapped altstack, normal stack was mmaped by Linux */
-        stack_size = ALT_STACK_SIZE;
-    } else {
-        /* it is not-first thread created by DkThreadCreate, we mmapped both normal and altstack */
-        stack_size = THREAD_STACK_SIZE + ALT_STACK_SIZE;
+    /* we do not free thread stack but instead mark it as recycled, see get_thread_stack() */
+    static_assert(sizeof(spinlock_t) == sizeof(int), "unexpected spinlock_t size");
+    spinlock_lock(&thread_stack_lock);
+    for (int i = 0; i < thread_stack_num; i++) {
+        if (thread_stack_map[i].stack == handle->thread.stack) {
+            thread_stack_map[i].used = 0;
+            break;
+        }
     }
+    /* we do not unlock now because thread can still use clear_child_tid allocated on stack */
 
     /* To make sure the compiler doesn't touch the stack after it was freed, need inline asm:
-     *   1. Free the thread stack (via munmap)
+     *   1. Unlock thread_stack_lock (so that other threads can start re-using this stack)
      *   2. Set *clear_child_tid = 0 if clear_child_tid != NULL
      *      (we thus inform LibOS, where async helper thread is waiting on this to wake up parent)
      *   3. Exit thread */
-    __asm__ volatile("syscall \n\t"            /* all args are already prepared, call munmap */
+    __asm__ volatile("movl $0, (%%rdx) \n\t"   /* spinlock_unlock(&thread_stack_lock) */
                      "cmpq $0, %%rbx \n\t"     /* check if clear_child_tid != NULL */
                      "je 1f \n\t"
                      "movl $0, (%%rbx) \n\t"   /* set *clear_child_tid = 0 */
                      "1: \n\t"
-                     "movq %%rdx, %%rax \n\t"  /* prepare for exit: rax = __NR_exit */
-                     "movq $0, %%rdi \n\t"     /* prepare for exit: rdi = 0         */
-                     "syscall \n\t"            /* all args are prepared, call exit  */
+                     "syscall \n\t"            /* rdi arg is already prepared, call exit */
                      : /* no output regs since we don't return from exit */
-                     : "a"(__NR_munmap), "D"(handle->thread.stack), "S"(stack_size),
-                       "d"(__NR_exit), "b"(clear_child_tid)
+                     : "a"(__NR_exit), "D"(0), /* rdi = exit status == 0 */
+                       "d"(&thread_stack_lock), "b"(clear_child_tid)
                      : "cc", "rcx", "r11", "memory"  /* syscall instr clobbers cc, rcx, and r11 */
     );
 
