@@ -109,7 +109,7 @@ static sgx_key_128bit_t enclave_key;
  * @data:         the data to be included and signed in the report
  * @report:       a buffer for storing the report
  */
-static int sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
+static int __sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
                           sgx_report_t* report) {
     __sgx_mem_aligned struct pal_enclave_state state;
     memcpy(&state, &pal_enclave_state, sizeof(state));
@@ -1152,7 +1152,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     memcpy(&target_info.mr_enclave , &report.body.mr_enclave,  sizeof(sgx_measurement_t));
     memcpy(&target_info.attributes, &report.body.attributes, sizeof(sgx_attributes_t));
 
-    ret = sgx_get_report(&target_info, data, &report);
+    ret = __sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
         goto out;
@@ -1208,7 +1208,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     /* B -> A: report[B -> A] */
-    ret = sgx_get_report(&target_info, data, &report);
+    ret = __sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
         goto out;
@@ -1297,3 +1297,51 @@ void restore_sgx_context(sgx_cpu_context_t *ctx) {
 
     _restore_sgx_context(ctx);
 }
+
+/**
+ * Obtains a CPU-signed report for local attestation.
+ *
+ * Caller must ensure proper alignment of input and output parameters!
+ *
+ * @param target_info the enclave target info
+ * @param data        the data to be included and signed in the report
+ * @param report      a buffer for storing the report
+ * @return 0 on success, non-zero otherwise.
+ */
+int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t* data,
+                   sgx_report_t* report) {
+
+    int ret = sgx_report((sgx_target_info_t*) target_info, (sgx_report_data_t*) data, report);
+    if (ret) {
+        SGX_DBG(DBG_E, "sgx_report failed: ret = %d)\n", ret);
+        return -PAL_ERROR_DENIED;
+    }
+    return 0;
+}
+
+/**
+ * Populates an sgx_target_info_t structure with all the information necessary for local
+ * attestation.
+ *
+ * The resulting sgx_target_info_t structure can be passed to another enclave as part of the local
+ * attestation flow.
+ */
+int sgx_target_info(sgx_target_info_t* ti) {
+
+    __sgx_mem_aligned sgx_target_info_t target_info = {0, };
+    __sgx_mem_aligned sgx_report_t report;
+    sgx_report_data_t report_data = {0, };
+
+    int ret = sgx_get_report(&target_info, &report_data, &report);
+    if (ret < 0) return ret;
+
+    memset(ti, 0, sizeof(*ti));
+    memcpy(&ti->attributes, &report.body.attributes, sizeof(ti->attributes));
+    memcpy(&ti->config_id, &report.body.config_id, sizeof(ti->config_id));
+    memcpy(&ti->config_svn, &report.body.config_svn, sizeof(ti->config_svn));
+    memcpy(&ti->misc_select, &report.body.misc_select, sizeof(ti->misc_select));
+    memcpy(&ti->mr_enclave, &report.body.mr_enclave, sizeof(ti->mr_enclave));
+
+    return 0;
+}
+
