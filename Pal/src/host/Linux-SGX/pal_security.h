@@ -28,7 +28,7 @@ struct pal_sec {
     PAL_IDX         ppid, pid, uid, gid;
 
     /* enclave information */
-    sgx_target_info_t  aesm_targetinfo;
+    sgx_target_info_t  qe_targetinfo;
     sgx_measurement_t  mr_enclave;
     sgx_measurement_t  mr_signer;
     sgx_attributes_t   enclave_attributes;

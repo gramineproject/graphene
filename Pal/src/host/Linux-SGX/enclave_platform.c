@@ -418,7 +418,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     SGX_DBG(DBG_S, "  nonce: %s\n", ALLOCA_BYTES2HEXSTR(*nonce));
 
     __sgx_mem_aligned sgx_report_t report;
-    __sgx_mem_aligned sgx_target_info_t targetinfo = pal_sec.aesm_targetinfo;
+    __sgx_mem_aligned sgx_target_info_t targetinfo = pal_sec.qe_targetinfo;
 
     int ret = sgx_report(&targetinfo, report_data, &report);
     if (ret) {
@@ -433,12 +433,16 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
         return ret;
     }
 
+#if 0
+    // Thomas: This check is pointless. If you receive a valid attestation report from IAS, there is no point in verifying the QE runs on the same platform as your enclave. If it would run on a different platform, your target info would not work.
+    //
     // First, verify the report from the quoting enclave
     ret = sgx_verify_report(&attestation.qe_report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to verify QE report, ret = %d\n", ret);
         goto failed;
     }
+#endif
 
     // Verify the IAS response against the certificate chain
     uint8_t* data_to_verify = (uint8_t*)attestation.ias_report;

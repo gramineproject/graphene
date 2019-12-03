@@ -938,7 +938,7 @@ static int load_enclave (struct pal_enclave * enclave,
     if (ret < 0)
         return ret;
 
-    ret = init_aesm_targetinfo(&pal_sec->aesm_targetinfo);
+    ret = init_quoting_enclave_targetinfo(&pal_sec->qe_targetinfo);
     if (ret < 0)
         return ret;
 

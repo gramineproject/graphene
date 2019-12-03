@@ -266,7 +266,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     pal_sec.cargo_fd  = sec_info.cargo_fd;
 
     COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
-    pal_sec.aesm_targetinfo = sec_info.aesm_targetinfo;
+    pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
     pal_sec.mcast_port = sec_info.mcast_port;
     pal_sec.mcast_srv = sec_info.mcast_srv;
     pal_sec.mcast_cli = sec_info.mcast_cli;
