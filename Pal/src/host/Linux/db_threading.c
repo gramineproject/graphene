@@ -50,36 +50,36 @@
  * thread is not a part of this mechanism (it only allocates a tiny altstack). */
 struct thread_stack_map_t {
     void* stack;
-    int   used;
+    bool  used;
 };
 
 static struct thread_stack_map_t* thread_stack_map = NULL;
-static int thread_stack_num  = 0;
-static int thread_stack_size = 0;
+static size_t thread_stack_num  = 0;
+static size_t thread_stack_size = 0;
 static spinlock_t thread_stack_lock = INIT_SPINLOCK_UNLOCKED;
 
 static void* get_thread_stack(void) {
     void* ret = NULL;
     spinlock_lock(&thread_stack_lock);
-    for (int i = 0; i < thread_stack_num; i++) {
+    for (size_t i = 0; i < thread_stack_num; i++) {
         if (!thread_stack_map[i].used) {
             /* found allocated and unused stack -- use it */
-            thread_stack_map[i].used = 1;
+            thread_stack_map[i].used = true;
             ret = thread_stack_map[i].stack;
             goto out;
         }
     }
 
     if (thread_stack_num == thread_stack_size) {
-        /* realloc thread_stack_map to accomodate more objects (includes the very first time) */
+        /* realloc thread_stack_map to accommodate more objects (includes the very first time) */
         if (thread_stack_size == 0)
             thread_stack_size = 8;
-        thread_stack_size *= 2;
-        struct thread_stack_map_t* tmp = malloc(thread_stack_size * sizeof(struct thread_stack_map_t));
+        thread_stack_size += 8;
+        struct thread_stack_map_t* tmp = malloc(thread_stack_size * sizeof(*tmp));
         if (!tmp)
             goto out;
 
-        memcpy(tmp, thread_stack_map, thread_stack_num * sizeof(struct thread_stack_map_t));
+        memcpy(tmp, thread_stack_map, thread_stack_num * sizeof(*tmp));
         free(thread_stack_map);
         thread_stack_map = tmp;
     }
@@ -89,7 +89,7 @@ static void* get_thread_stack(void) {
         goto out;
 
     thread_stack_map[thread_stack_num].stack = ret;
-    thread_stack_map[thread_stack_num].used  = 1;
+    thread_stack_map[thread_stack_num].used  = true;
     thread_stack_num++;
 out:
     spinlock_unlock(&thread_stack_lock);
@@ -256,21 +256,24 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
     }
 
     /* we do not free thread stack but instead mark it as recycled, see get_thread_stack() */
-    static_assert(sizeof(spinlock_t) == sizeof(int), "unexpected spinlock_t size");
     spinlock_lock(&thread_stack_lock);
-    for (int i = 0; i < thread_stack_num; i++) {
+    for (size_t i = 0; i < thread_stack_num; i++) {
         if (thread_stack_map[i].stack == handle->thread.stack) {
-            thread_stack_map[i].used = 0;
+            thread_stack_map[i].used = false;
             break;
         }
     }
-    /* we do not unlock now because thread can still use clear_child_tid allocated on stack */
+    /* we might still be using the stack we just marked as unused until we enter the asm mode,
+     * so we do not unlock now but rather in asm below */
 
     /* To make sure the compiler doesn't touch the stack after it was freed, need inline asm:
      *   1. Unlock thread_stack_lock (so that other threads can start re-using this stack)
      *   2. Set *clear_child_tid = 0 if clear_child_tid != NULL
      *      (we thus inform LibOS, where async helper thread is waiting on this to wake up parent)
      *   3. Exit thread */
+    static_assert(sizeof(thread_stack_lock) == 4, "unexpected thread_stack_lock size");
+    static_assert(sizeof(*clear_child_tid) == 4,  "unexpected clear_child_tid size");
+
     __asm__ volatile("movl $0, (%%rdx) \n\t"   /* spinlock_unlock(&thread_stack_lock) */
                      "cmpq $0, %%rbx \n\t"     /* check if clear_child_tid != NULL */
                      "je 1f \n\t"

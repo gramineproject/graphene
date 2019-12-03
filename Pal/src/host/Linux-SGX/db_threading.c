@@ -145,6 +145,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
      * note that we don't do it now (because this thread still occupies SGX
      * TCS slot) but during handle_thread_reset in assembly code */
     SET_ENCLAVE_TLS(clear_child_tid, clear_child_tid);
+    static_assert(sizeof(*clear_child_tid) == 4,  "unexpected clear_child_tid size");
 
     /* main thread is not part of the thread_list */
     if(exiting_thread != &pal_control.first_thread->thread) {
