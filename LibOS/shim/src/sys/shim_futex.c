@@ -905,7 +905,7 @@ void release_robust_list(struct robust_list_head* head) {
 
 /*
  * This function is called by Async Helper thread. It first waits for `clear_child_tid_val_pal`
- * to be set to 0 (PAL does it when child thread finally exits). Nest, it sets `clear_child_tid`
+ * to be set to 0 (PAL does it when child thread finally exits). Next, it sets `clear_child_tid`
  * to 0 and wakes at most one waiter on that futex.
  *
  * Ignores all possible errors, silently just bailing out.
