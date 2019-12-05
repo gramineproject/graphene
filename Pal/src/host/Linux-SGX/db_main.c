@@ -337,6 +337,12 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     pal_state.start_time = start_time;
 
+    linux_state.uid = pal_sec.uid;
+    linux_state.gid = pal_sec.gid;
+    linux_state.process_id = (start_time & (~0xffff)) | pal_sec.pid;
+
+    SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+
     /* if there is a parent, create parent handle */
     if (pal_sec.ppid) {
         if ((rv = init_child_process(&parent)) < 0) {
@@ -345,14 +351,8 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         }
     }
 
-    linux_state.uid = pal_sec.uid;
-    linux_state.gid = pal_sec.gid;
-    linux_state.process_id = (start_time & (~0xffff)) | pal_sec.pid;
-
     /* now let's mark our enclave as initialized */
     pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
-
-    SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
     /*
      * We create dummy handles for exec and manifest here to make the logic in
