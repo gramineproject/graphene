@@ -128,8 +128,6 @@ class TC_01_Bootstrap(RegressionTestCase):
         with self.expect_returncode(113):
             self.run_binary(['exit'])
 
-    @unittest.skipIf(HAS_SGX,
-        'Exposes a rare memory corruption on SGX PAL. Disable for now.')
     def test_401_exit_group(self):
         try:
             self.run_binary(['exit_group'])
