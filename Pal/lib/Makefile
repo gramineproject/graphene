@@ -10,7 +10,7 @@ ARFLAGS	=
 
 include ../src/host/$(PAL_HOST)/Makefile.am
 
-CFLAGS += -I. -I../include -I../src
+CFLAGS += -I. -I../include -I../src -Icrypto/mbedtls
 
 # Include host_endian.h from either the host-specific directory,
 # or directly under the target directory.
@@ -37,7 +37,7 @@ subdirs += crypto/mbedtls
 crypto_mbedtls_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa sha256)
 endif
 
-string_objs = $(addsuffix .o,atoi memcmp memcpy memset strchr strendswith strlen wordcopy)
+string_objs = $(addsuffix .o,atoi memcmp memcpy memset strchr strendswith strlen wordcopy strcmp)
 stdlib_objs = $(addsuffix .o,printfmt)
 network_objs = $(addsuffix .o,hton inet_pton)
 graphene_objs = $(addsuffix .o,config path)
