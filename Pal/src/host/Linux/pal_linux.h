@@ -191,7 +191,9 @@ typedef struct pal_tcb_linux {
     PAL_TCB common;
     struct {
         /* private to Linux PAL */
-        int         pending_event;
+        struct atomic_int in_pal;
+        int         pending_event;  /* needs to be accessed by atomic
+                                     * operation */
         LISTP_TYPE(event_queue) pending_queue;
         PAL_HANDLE  handle;
         void *      alt_stack;

@@ -179,7 +179,10 @@ typedef struct pal_handle
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 
+extern void __enter_pal_call(void);
 extern void __check_pending_event (void);
+
+#define ENTER_PAL_CALL(name) __enter_pal_call()
 
 #define LEAVE_PAL_CALL() do { __check_pending_event(); } while (0)
 

@@ -266,17 +266,15 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
     if (event_num == -1)
         return;
 
-    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    PAL_TCB_LINUX * tcb = get_tcb_linux();
 
     // If the signal arrives in the middle of a PAL call, add the event
     // to pending in the current TCB.
-    if (ADDR_IN_PAL(rip)) {
-        PAL_TCB_LINUX * tcb = get_tcb_linux();
+    if (atomic_read(&tcb->in_pal)) {
         assert(tcb);
-        if (!tcb->pending_event) {
-            // Use the preserved pending event slot
-            tcb->pending_event = event_num;
-        } else {
+        // try to use the preserved pending event slot
+        int old = 0;
+        if (__atomic_compare_exchange_n(&tcb->pending_event, &old, event_num,false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
             // If there is already a pending event, add the new event to the queue.
             // (a relatively rare case.)
             struct event_queue * ev = malloc(sizeof(*ev));
@@ -309,6 +307,11 @@ static void _DkPipeSighandler (int signum, siginfo_t * info,
     return;
 }
 
+void __enter_pal_call(void) {
+    PAL_TCB_LINUX * tcb = get_tcb_linux();
+    assert(tcb);
+    atomic_inc(&tcb->in_pal);
+}
 /*
  * __check_pending_event(): checks the existence of a pending event in the TCB
  * and handles the event consequently.
@@ -317,9 +320,12 @@ void __check_pending_event (void)
 {
     PAL_TCB_LINUX * tcb = get_tcb_linux();
     assert(tcb);
-    if (tcb->pending_event) {
-        int event = tcb->pending_event;
-        tcb->pending_event = 0;
+
+    if (atomic_add_return(-1, &tcb->in_pal))
+        return;
+
+    int event = __atomic_exchange_n(&tcb->pending_event, 0, __ATOMIC_RELAXED);
+    if (event) {
         _DkGenericSignalHandle(event, NULL, NULL);
 
         if (!LISTP_EMPTY(&tcb->pending_queue)) {
