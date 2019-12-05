@@ -2,8 +2,7 @@
  * \file base64.h
  *
  * \brief RFC 1521 base64 encoding/decoding
- */
-/*
+ *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
  *  SPDX-License-Identifier: Apache-2.0
  *
@@ -23,12 +22,6 @@
  */
 #ifndef MBEDTLS_BASE64_H
 #define MBEDTLS_BASE64_H
-
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
 
 #include <stddef.h>
 
@@ -81,15 +74,12 @@ int mbedtls_base64_encode( unsigned char *dst, size_t dlen, size_t *olen,
 int mbedtls_base64_decode( unsigned char *dst, size_t dlen, size_t *olen,
                    const unsigned char *src, size_t slen );
 
-#if defined(MBEDTLS_SELF_TEST)
 /**
  * \brief          Checkup routine
  *
  * \return         0 if successful, or 1 if the test failed
  */
 int mbedtls_base64_self_test( int verbose );
-
-#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

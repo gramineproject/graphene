@@ -270,9 +270,7 @@ const int *mbedtls_cipher_list( void );
  * \return              the cipher information structure associated with the
  *                      given cipher_name, or NULL if not found.
  */
-#if 0
 const mbedtls_cipher_info_t *mbedtls_cipher_info_from_string( const char *cipher_name );
-#endif
 
 /**
  * \brief               Returns the cipher information structure associated

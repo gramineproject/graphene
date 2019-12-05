@@ -397,8 +397,6 @@ int mbedtls_rsa_rsaes_oaep_decrypt( mbedtls_rsa_context *ctx,
                             unsigned char *output,
                             size_t output_max_len );
 
-#if defined MBEDTLS_PKCS1
-    
 /**
  * \brief          Generic wrapper to perform a PKCS#1 signature using the
  *                 mode from the context. Do a private RSA operation to sign
@@ -619,7 +617,6 @@ int mbedtls_rsa_rsassa_pss_verify_ext( mbedtls_rsa_context *ctx,
                                mbedtls_md_type_t mgf1_hash_id,
                                int expected_salt_len,
                                const unsigned char *sig );
-#endif
 
 /**
  * \brief          Copy the components of an RSA context
