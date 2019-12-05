@@ -206,7 +206,7 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
             thread->signal_handles[i].action =
                     malloc_copy(cur_thread->signal_handles[i].action,
-                                sizeof(struct shim_signal_handle));
+                                sizeof(*thread->signal_handles[i].action));
         }
 
         memcpy(&thread->signal_mask, &cur_thread->signal_mask,
