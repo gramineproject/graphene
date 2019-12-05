@@ -157,7 +157,10 @@ noreturn void thread_exit(int status) {
 
     /* free the thread stack (via munmap) and exit; note that exit() needs a "status" arg
      * but it could be allocated on a stack, so we must put it in register and do asm */
-    __asm__ volatile("syscall \n\t"            /* all args are already prepared, call munmap */
+    __asm__ volatile("cmpq $0, %%rdi \n\t"     /* check if tcb->stack != NULL */
+                     "je 1f \n\t"
+                     "syscall \n\t"            /* all args are already prepared, call munmap */
+                     "1: \n\t"
                      "movq %%rdx, %%rax \n\t"  /* prepare for exit: rax = __NR_exit */
                      "movq %%rbx, %%rdi \n\t"  /* prepare for exit: rdi = status    */
                      "syscall \n\t"            /* all args are prepared, call exit  */
