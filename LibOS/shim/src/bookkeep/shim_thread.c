@@ -463,6 +463,31 @@ void del_simple_thread (struct shim_simple_thread * thread)
     put_simple_thread(thread);
 }
 
+/* Function is called by Async Helper thread to wait on thread->clear_child_tid_pal to be zeroed
+ * (PAL does it when thread finally exits). Since it is a callback to Async Helper thread, this
+ * function must follow the `void (*callback) (IDTYPE caller, void* arg)` signature. */
+void cleanup_thread(IDTYPE caller, void* arg) {
+    __UNUSED(caller);
+
+    struct shim_thread* thread = (struct shim_thread*)arg;
+    assert(thread);
+    lock(&thread->lock);
+
+    /* wait on clear_child_tid_pal; this signals that PAL layer exited child thread */
+    while (__atomic_load_n(&thread->clear_child_tid_pal, __ATOMIC_RELAXED) != 0) {
+        __asm__ volatile ("pause");
+    }
+
+    /* notify parent if any */
+    release_clear_child_id(thread->clear_child_tid);
+
+    /* clean up the thread itself */
+    thread->is_alive = false;
+    unlock(&thread->lock);
+
+    del_thread(thread);
+}
+
 int check_last_thread (struct shim_thread * self)
 {
     struct shim_thread * tmp;
@@ -474,7 +499,6 @@ int check_last_thread (struct shim_thread * self)
     LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
         if (tmp->tid &&
             (!self || tmp->tid != self->tid) && tmp->in_vm && tmp->is_alive) {
-            debug("check_last_thread: thread %d is alive\n", tmp->tid);
             unlock(&thread_list_lock);
             return tmp->tid;
         }

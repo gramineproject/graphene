@@ -427,28 +427,10 @@ void release_robust_list(struct robust_list_head* head) {
     }
 }
 
-/* Function is called by Async Helper thread to wait on clear_child_tid_val_pal to be set to 0
- * (PAL does it when child thread finally exits). Next, *clear_child_tid is set to 0 and parent
- * threads are woken up. Since it is a callback to Async Helper thread, it must follow the
- * `void (*callback) (IDTYPE caller, void * arg)` signature even though we don't use caller. */
-void release_clear_child_id(IDTYPE caller, void* clear_child_tids) {
-    __UNUSED(caller);
+void release_clear_child_id(int* clear_child_tid) {
+    /* child thread exited, now parent can wake up */
+    __atomic_store_n(clear_child_tid, 0, __ATOMIC_RELAXED);
 
-    struct clear_child_tid_struct* child = (struct clear_child_tid_struct*)clear_child_tids;
-    if (!child || !child->clear_child_tid)
-        goto out;
-
-    /* wait on clear_child_tid_val_pal; this signals that PAL layer exited child thread */
-    while (__atomic_load_n(&child->clear_child_tid_val_pal, __ATOMIC_RELAXED) != 0) {
-        __asm__ volatile ("pause");
-    }
-
-    /* child thread exited, now parent can wake up; note that PAL layer can't set clear_child_tid
-     * itself, because parent thread could spuriously wake up, notice 0 on clear_child_tid, and
-     * continue its execution without waiting for this function to succeed first */
-    __atomic_store_n(child->clear_child_tid, 0, __ATOMIC_RELAXED);
-
-    /* at this point, child thread finally exited, can wake up parents if any */
     create_lock_runtime(&futex_list_lock);
 
     struct shim_futex_handle* tmp;
@@ -456,19 +438,17 @@ void release_clear_child_id(IDTYPE caller, void* clear_child_tids) {
 
     lock(&futex_list_lock);
     LISTP_FOR_EACH_ENTRY(tmp, &futex_list, list) {
-        if (tmp->uaddr == (void*)child->clear_child_tid) {
+        if (tmp->uaddr == (void*)clear_child_tid) {
             futex = tmp;
             break;
         }
     }
     unlock(&futex_list_lock);
 
-    if (!futex) {
-        /* no parent threads waiting on this child to exit */
-        goto out;
-    }
+    if (!futex)
+        return;
 
-    debug("release futex at %p\n", child->clear_child_tid);
+    debug("release futex at %p\n", clear_child_tid);
     struct futex_waiter* waiter;
     struct futex_waiter* wtmp;
     struct shim_handle* hdl = container_of(futex, struct shim_handle, info.futex);
@@ -481,7 +461,4 @@ void release_clear_child_id(IDTYPE caller, void* clear_child_tids) {
     }
     unlock(&hdl->lock);
     put_handle(hdl);
-
-out:
-    free(child);
 }

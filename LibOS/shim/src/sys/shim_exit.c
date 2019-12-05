@@ -40,7 +40,7 @@
 
 void release_robust_list (struct robust_list_head * head);
 
-int thread_exit(struct shim_thread* self, bool send_ipc, int** clear_child_tid_pal_ptr) {
+int thread_exit(struct shim_thread* self, bool send_ipc) {
     bool sent_exit_msg = false;
 
     /* Chia-Che: Broadcast exit message as early as possible,
@@ -64,7 +64,11 @@ int thread_exit(struct shim_thread* self, bool send_ipc, int** clear_child_tid_p
     #endif
 
     int exit_code = self->exit_code;
-    self->is_alive = false;
+
+    if (!self->in_vm) {
+        /* thread is in another process, we cannot rely on Async Helper thread to clean it */
+        self->is_alive = false;
+    }
 
     if (is_internal(self))
         goto out;
@@ -119,24 +123,6 @@ int thread_exit(struct shim_thread* self, bool send_ipc, int** clear_child_tid_p
     if (robust_list)
         release_robust_list(robust_list);
 
-    if (parent && self->in_vm && self->clear_child_tid) {
-        /* ask Async Helper thread to wake up parent when this child thread finally exits;
-         * we must alloc clear_child_tids on heap instead of this thread's stack; it is
-         * freed in release_clear_child_id() */
-        struct clear_child_tid_struct* clear_child_tids = malloc(sizeof(*clear_child_tids));
-        if (clear_child_tids) {
-            clear_child_tids->clear_child_tid         = self->clear_child_tid;
-            clear_child_tids->clear_child_tid_val_pal = 1; /* any non-zero value suffices */
-            install_async_event(NULL, 0, &release_clear_child_id, clear_child_tids);
-
-            if (clear_child_tid_pal_ptr) {
-                /* caller wants to performs DkThreadExit() and needs to know which address
-                 * PAL must set to inform the Async Helper thread */
-                *clear_child_tid_pal_ptr = &clear_child_tids->clear_child_tid_val_pal;
-            }
-        }
-    }
-
     DkEventSet(self->exit_event);
     return 0;
 }
@@ -149,12 +135,15 @@ noreturn void thread_or_process_exit(int error_code, int term_signal) {
     cur_process.exit_code = term_signal ? term_signal : error_code;
     cur_thread->term_signal = term_signal;
 
-    int* clear_child_tid_pal = NULL;
     if (cur_thread->in_vm)
-        thread_exit(cur_thread, true, &clear_child_tid_pal);
+        thread_exit(cur_thread, true);
 
     if (check_last_thread(cur_thread)) {
-        DkThreadExit(clear_child_tid_pal);
+        /* ask Async Helper thread to cleanup this thread */
+        cur_thread->clear_child_tid_pal = 1; /* any non-zero value suffices */
+        install_async_event(NULL, 0, &cleanup_thread, cur_thread);
+
+        DkThreadExit(&cur_thread->clear_child_tid_pal);
     }
 
     struct shim_thread * async_thread = terminate_async_helper();
@@ -197,7 +186,7 @@ noreturn int shim_do_exit_group (int error_code)
 #ifndef ALIAS_VFORK_AS_FORK
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
-        thread_exit(cur_thread, true, NULL);
+        thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
 #endif
@@ -237,7 +226,7 @@ noreturn int shim_do_exit (int error_code)
 #ifndef ALIAS_VFORK_AS_FORK
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
-        thread_exit(cur_thread, true, NULL);
+        thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
 #endif
