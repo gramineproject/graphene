@@ -33,18 +33,18 @@
 #ifdef CRYPTO_USE_MBEDTLS
 #define CRYPTO_PROVIDER_SPECIFIED
 
-#include "crypto/mbedtls/mbedtls/cmac.h"
+#include "crypto/mbedtls/include/mbedtls/cmac.h"
 typedef struct AES LIB_AES_CONTEXT;
 
-#include "crypto/mbedtls/mbedtls/dhm.h"
-#include "crypto/mbedtls/mbedtls/rsa.h"
-#include "crypto/mbedtls/mbedtls/sha256.h"
+#include "crypto/mbedtls/include/mbedtls/dhm.h"
+#include "crypto/mbedtls/include/mbedtls/rsa.h"
+#include "crypto/mbedtls/include/mbedtls/sha256.h"
 
 typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
 #define DH_SIZE 256
-#include "crypto/mbedtls/mbedtls/dhm.h"
+#include "crypto/mbedtls/include/mbedtls/dhm.h"
 typedef mbedtls_dhm_context LIB_DH_CONTEXT;
 typedef mbedtls_rsa_context LIB_RSA_KEY;
 typedef struct {
@@ -115,7 +115,7 @@ int lib_Base64Encode(const uint8_t* src, size_t slen, char* dst, size_t* dlen);
 int lib_Base64Decode(const char *src, size_t slen, uint8_t* dst, size_t* dlen);
 
 #ifdef CRYPTO_USE_MBEDTLS
-#include "crypto/mbedtls/mbedtls/asn1.h"
+#include "crypto/mbedtls/include/mbedtls/asn1.h"
 enum asn1_tag {
     ASN1_BOOLEAN                = MBEDTLS_ASN1_BOOLEAN,
     ASN1_INTEGET                = MBEDTLS_ASN1_INTEGER,
