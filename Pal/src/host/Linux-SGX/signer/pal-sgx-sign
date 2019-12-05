@@ -117,6 +117,8 @@ def output_manifest(filename, manifest, manifest_layout):
     with open(filename, 'w') as f:
         written = []
 
+        f.write("# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED.\n\n")
+
         for (key, comment) in manifest_layout:
             line = ''
             if key is not None:
