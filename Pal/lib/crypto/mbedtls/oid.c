@@ -32,6 +32,9 @@
 #include "mbedtls/oid.h"
 #include "mbedtls/rsa.h"
 
+#include <stdio.h>
+#include <string.h>
+
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else

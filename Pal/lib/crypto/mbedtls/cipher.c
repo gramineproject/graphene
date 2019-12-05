@@ -34,6 +34,8 @@
 #include "mbedtls/cipher.h"
 #include "mbedtls/cipher_internal.h"
 
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(MBEDTLS_GCM_C)
 #include "mbedtls/gcm.h"
@@ -50,8 +52,6 @@
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
-#include <stdlib.h>
-#include <string.h>
 #define mbedtls_calloc calloc
 #define mbedtls_free   free
 #endif
@@ -99,7 +99,6 @@ const mbedtls_cipher_info_t *mbedtls_cipher_info_from_type( const mbedtls_cipher
     return( NULL );
 }
 
-#if 0
 const mbedtls_cipher_info_t *mbedtls_cipher_info_from_string( const char *cipher_name )
 {
     const mbedtls_cipher_definition_t *def;
@@ -113,7 +112,6 @@ const mbedtls_cipher_info_t *mbedtls_cipher_info_from_string( const char *cipher
 
     return( NULL );
 }
-#endif
 
 const mbedtls_cipher_info_t *mbedtls_cipher_info_from_values( const mbedtls_cipher_id_t cipher_id,
                                               int key_bitlen,

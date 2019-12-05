@@ -37,6 +37,8 @@
 
 #include "mbedtls/dhm.h"
 
+#include <string.h>
+
 #if defined(MBEDTLS_PEM_PARSE_C)
 #include "mbedtls/pem.h"
 #endif
@@ -48,7 +50,6 @@
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
-#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #define mbedtls_printf     printf

@@ -40,10 +40,9 @@
 #if defined(MBEDTLS_RSA_C)
 
 #include "mbedtls/rsa.h"
-
-#ifdef MBEDTLS_PKCS1_V15
 #include "mbedtls/oid.h"
-#endif
+
+#include <string.h>
 
 #if defined(MBEDTLS_PKCS1_V21)
 #include "mbedtls/md.h"
@@ -57,7 +56,6 @@
 #include "mbedtls/platform.h"
 #else
 #include <stdio.h>
-#include <string.h>
 #define mbedtls_printf printf
 #define mbedtls_calloc calloc
 #define mbedtls_free   free
@@ -453,7 +451,7 @@ cleanup:
     return( 0 );
 }
 
-#if defined(MBEDTLS_PKCS1_V21) || defined(MBEDTLS_PKCS1_V15)
+#if defined(MBEDTLS_PKCS1_V21)
 /**
  * Generate and apply the MGF1 operation (from PKCS#1 v2.1) to a buffer.
  *
@@ -645,8 +643,6 @@ int mbedtls_rsa_rsaes_pkcs1_v15_encrypt( mbedtls_rsa_context *ctx,
 }
 #endif /* MBEDTLS_PKCS1_V15 */
 
-
-#ifdef MBEDTLS_PKCS1
 /*
  * Add the message padding, then do an RSA operation
  */
@@ -675,7 +671,6 @@ int mbedtls_rsa_pkcs1_encrypt( mbedtls_rsa_context *ctx,
             return( MBEDTLS_ERR_RSA_INVALID_PADDING );
     }
 }
-#endif /* MBEDTLS_PKCS1 */
 
 #if defined(MBEDTLS_PKCS1_V21)
 /*
@@ -801,7 +796,7 @@ int mbedtls_rsa_rsaes_oaep_decrypt( mbedtls_rsa_context *ctx,
 }
 #endif /* MBEDTLS_PKCS1_V21 */
 
-#if defined(MBEDTLS_PKCS1_V15) || defined(MBEDTLS_PKCS1_V15_BASIC)
+#if defined(MBEDTLS_PKCS1_V15)
 /*
  * Implementation of the PKCS#1 v2.1 RSAES-PKCS1-V1_5-DECRYPT function
  */
@@ -888,7 +883,6 @@ int mbedtls_rsa_rsaes_pkcs1_v15_decrypt( mbedtls_rsa_context *ctx,
 }
 #endif /* MBEDTLS_PKCS1_V15 */
 
-#ifdef MBEDTLS_PKCS1
 /*
  * Do an RSA operation, then remove the message padding
  */
@@ -919,7 +913,6 @@ int mbedtls_rsa_pkcs1_decrypt( mbedtls_rsa_context *ctx,
             return( MBEDTLS_ERR_RSA_INVALID_PADDING );
     }
 }
-#endif /* MBEDTLS_PKCS1 */
 
 #if defined(MBEDTLS_PKCS1_V21)
 /*
@@ -1147,8 +1140,6 @@ cleanup:
 }
 #endif /* MBEDTLS_PKCS1_V15 */
 
-#ifdef MBEDTLS_PKCS1
-
 /*
  * Do an RSA operation to sign the message digest
  */
@@ -1180,6 +1171,7 @@ int mbedtls_rsa_pkcs1_sign( mbedtls_rsa_context *ctx,
     }
 }
 
+#if defined(MBEDTLS_PKCS1_V21)
 /*
  * Implementation of the PKCS#1 v2.1 RSASSA-PSS-VERIFY function
  */
@@ -1449,7 +1441,6 @@ int mbedtls_rsa_rsassa_pkcs1_v15_verify( mbedtls_rsa_context *ctx,
 }
 #endif /* MBEDTLS_PKCS1_V15 */
 
-#ifdef MBEDTLS_PKCS1
 /*
  * Do an RSA operation and check the message digest
  */
@@ -1480,7 +1471,6 @@ int mbedtls_rsa_pkcs1_verify( mbedtls_rsa_context *ctx,
             return( MBEDTLS_ERR_RSA_INVALID_PADDING );
     }
 }
-#endif /* MBEDTLS_PKCS1 */
 
 /*
  * Copy the components of an RSA key

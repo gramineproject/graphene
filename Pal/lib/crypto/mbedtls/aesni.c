@@ -34,8 +34,6 @@
 
 #include "mbedtls/aesni.h"
 
-#include "api.h"
-
 #include <string.h>
 
 #ifndef asm
@@ -49,7 +47,7 @@
  */
 int mbedtls_aesni_has_support( unsigned int what )
 {
-#if 0
+#if 1
     static int done = 0;
     static unsigned int c = 0;
 
@@ -65,8 +63,7 @@ int mbedtls_aesni_has_support( unsigned int what )
 
     return( ( c & what ) != 0 );
 #else
-    /* CPUID not allowed within the enclave. Assume we have AES-NI. */
-    __UNUSED(what);
+    (void) what; // unused
     return 1;
 #endif
 }
