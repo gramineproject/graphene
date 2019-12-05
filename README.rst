@@ -116,7 +116,7 @@ Prerequisites
       make
       # The console will be prompted to ask for the path of Intel SGX driver code
       sudo ./load.sh
-      sudo sysctl vm.mmap_min = 0
+      sudo sysctl vm.mmap_min_addr = 0
 
    We note that this last command is a tempoarary work-around for some issues with the Intel SGX
    driver.  This is an inadvisable configuration for production systems.  We hope to remove this
