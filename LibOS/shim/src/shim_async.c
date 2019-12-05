@@ -85,7 +85,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
 
     lock(&async_helper_lock);
 
-    if (callback != &release_clear_child_id && !object) {
+    if (callback != &cleanup_thread && !object) {
         /* This is alarm() or setitimer() emulation, treat both according to
          * alarm() syscall semantics: cancel any pending alarm/timer. */
         struct async_event * tmp, * n;
@@ -210,8 +210,8 @@ static void shim_async_helper(void * arg) {
              *   1. Exited child:  trigger callback and remove from the list;
              *   2. IO events:     trigger callback and keep in the list;
              *   3. alarms/timers: trigger callback and remove from the list. */
-            if (tmp->callback == &release_clear_child_id) {
-                debug("Child exited, notifying parent if any\n");
+            if (tmp->callback == &cleanup_thread) {
+                debug("Thread exited, cleaning up\n");
                 LISTP_DEL(tmp, &async_list, list);
                 LISTP_ADD_TAIL(tmp, &triggered, list);
                 continue;

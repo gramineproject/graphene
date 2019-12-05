@@ -41,6 +41,8 @@
 #include <atomic.h>
 #include <shim_tcb.h>
 
+noreturn void shim_clean_and_exit(int exit_code);
+
 /* important macros and static inline functions */
 static inline unsigned int get_cur_tid(void)
 {
@@ -144,8 +146,6 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     return shim_stdio;
 }
 
-noreturn void shim_terminate (int err);
-
 #define USE_PAUSE       0
 
 static inline void do_pause (void);
@@ -160,7 +160,7 @@ static inline void do_pause (void);
     do {                                                                    \
         __SYS_PRINTF("BUG() " __FILE__ ":%d\n", __LINE__);                  \
         PAUSE();                                                            \
-        shim_terminate(-ENOTRECOVERABLE);                                   \
+        shim_clean_and_exit(-ENOTRECOVERABLE);                              \
     } while (0)
 
 #define DEBUG_HERE() \
@@ -769,9 +769,6 @@ static inline bool memory_migrated(void * mem)
 extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;
 
-/* cleanup and terminate process, preserve exit code if err == 0 */
-noreturn void shim_clean_and_exit(int err);
-
 unsigned long parse_int (const char * str);
 
 extern void * initial_stack;
@@ -797,13 +794,7 @@ void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
 
-/* this struct is passed as the second argument to release_clear_child_id() */
-struct clear_child_tid_struct {
-    int* clear_child_tid;         /* passed to LibOS's clone() from user app */
-    int  clear_child_tid_val_pal; /* ptr to it is passed to PAL's DkThreadExit() */
-};
-
-void release_clear_child_id(IDTYPE caller, void* clear_child_tids);
+void release_clear_child_tid(int* clear_child_tid);
 
 #ifdef __x86_64__
 #define __SWITCH_STACK(stack_top, func, arg)                    \

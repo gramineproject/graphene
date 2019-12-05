@@ -202,7 +202,7 @@ retry_dump_vmas:
 
 error:
     debug("execve: failed %d\n", ret);
-    shim_terminate(ret);
+    shim_clean_and_exit(ret);
 }
 
 static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,

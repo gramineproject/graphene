@@ -66,7 +66,7 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 noreturn void __abort(void) {
     PAUSE();
-    shim_terminate(-ENOTRECOVERABLE);
+    shim_clean_and_exit(-ENOTRECOVERABLE);
 }
 
 void warn (const char *format, ...)
@@ -662,7 +662,7 @@ DEFINE_PROFILE_INTERVAL(init_signal,                init);
         int _err = CALL_INIT(func, ##__VA_ARGS__);                      \
         if (_err < 0) {                                                 \
             SYS_PRINTF("shim_init() in " #func " (%d)\n", _err);        \
-            shim_terminate(_err);                                       \
+            shim_clean_and_exit(_err);                                  \
         }                                                               \
         SAVE_PROFILE_INTERVAL(func);                                    \
     } while (0)
@@ -691,7 +691,7 @@ noreturn void* shim_init (int argc, void * args)
     g_pal_alloc_align = PAL_CB(alloc_align);
     if (!IS_POWER_OF_2(g_pal_alloc_align)) {
         SYS_PRINTF("shim_init(): error: PAL allocation alignment not a power of 2\n");
-        shim_terminate(-EINVAL);
+        shim_clean_and_exit(-EINVAL);
     }
 
     create_lock(&__master_lock);
@@ -1129,26 +1129,16 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
 }
 #endif /* PROFILE */
 
-static struct atomic_int in_terminate = { .counter = 0, };
-
-noreturn void shim_terminate (int err)
-{
-    debug("teminating the whole process (%d)\n", err);
-
-    /* do last clean-up of the process */
-    shim_clean_and_exit(err);
-}
-
-/* cleanup and terminate process, preserve exit code if err == 0 */
-noreturn void shim_clean_and_exit(int err) {
-    if (atomic_inc_return(&in_terminate) > 1) {
+noreturn void shim_clean_and_exit(int exit_code) {
+    static int in_terminate = 0;
+    if (__atomic_add_fetch(&in_terminate, 1, __ATOMIC_RELAXED) > 1) {
         while (true) {
             /* nothing */
         }
     }
 
-    if (err != 0)
-        cur_process.exit_code = err;
+    cur_process.exit_code = exit_code;
+
     store_all_msg_persist();
 
 #ifdef PROFILE

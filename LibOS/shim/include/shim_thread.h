@@ -50,7 +50,9 @@ struct shim_thread {
     struct shim_handle_map * handle_map;
 
     /* child tid */
-    int * set_child_tid, * clear_child_tid;
+    int* set_child_tid;
+    int* clear_child_tid;      /* LibOS zeroes it to notify parent that thread exited */
+    int  clear_child_tid_pal;  /* PAL zeroes it to notify LibOS that thread exited */
 
     /* signal handling */
     __sigset_t signal_mask;
@@ -272,7 +274,8 @@ void del_thread (struct shim_thread * thread);
 void add_simple_thread (struct shim_simple_thread * thread);
 void del_simple_thread (struct shim_simple_thread * thread);
 
-int check_last_thread (struct shim_thread * self);
+void cleanup_thread(IDTYPE caller, void* thread);
+int check_last_thread(struct shim_thread* self);
 
 #ifndef ALIAS_VFORK_AS_FORK
 void switch_dummy_thread (struct shim_thread * thread);
@@ -313,10 +316,7 @@ void set_handle_map (struct shim_thread * thread,
     thread->handle_map = map;
 }
 
-/* shim exit callback */
-int thread_exit(struct shim_thread* self, bool send_ipc, int** clear_child_tid_pal_ptr);
-/* If the process was killed by a signal, pass it in the second
- *  argument, else pass zero */
+int thread_exit(struct shim_thread* self, bool send_ipc);
 noreturn void thread_or_process_exit(int error_code, int term_signal);
 
 /* thread cloning helpers */
