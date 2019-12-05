@@ -1,4 +1,5 @@
 /* Copyright (C) 2017 Fortanix, Inc.
+   Copyright (C) 2019 Intel Corp.
 
    This file is part of Graphene Library OS.
 
@@ -36,5 +37,17 @@
 #define MBEDTLS_SHA256_C
 #define MBEDTLS_BASE64_C
 #define MBEDTLS_ASN1_PARSE_C
+
+#define MBEDTLS_PLATFORM_NO_STD_FUNCTIONS
+
+#include <limits.h>
+#include <stddef.h>
+
+void* calloc(size_t nmem, size_t size);
+void free(void*);
+
+#define MBEDTLS_PLATFORM_STD_CALLOC   calloc
+#define MBEDTLS_PLATFORM_STD_FREE     free
+#define MBEDTLS_PLATFORM_STD_SNPRINTF snprintf
 
 #endif
