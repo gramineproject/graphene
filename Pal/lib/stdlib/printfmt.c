@@ -296,7 +296,7 @@ static int vsprintf(char* buf, int n, const char* fmt, va_list ap) {
     return b.cnt;
 }
 
-int snprintf(char* buf, int n, const char* fmt, ...) {
+int snprintf(char* buf, size_t n, const char* fmt, ...) {
     va_list ap;
     int rc;
 
