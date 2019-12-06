@@ -123,6 +123,7 @@ typedef ptrdiff_t ssize_t;
 /* Libc String functions string.h/stdlib.h */
 size_t strnlen (const char *str, size_t maxlen);
 size_t strlen (const char *str);
+int strcmp(const char* a, const char* b);
 
 long strtol (const char *s, char **endptr, int base);
 int atoi (const char *nptr);
