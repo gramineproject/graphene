@@ -37,7 +37,7 @@
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
 int printf(const char * fmt, ...) __attribute__((format(printf, 1, 2)));
-int snprintf(char * str, int size, const char * fmt, ...) __attribute__((format(printf, 3, 4)));
+int snprintf(char * str, size_t size, const char * fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /* constants and macros to help rounding addresses to page
    boundaries */
