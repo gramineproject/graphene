@@ -4,7 +4,7 @@ include Makefile.am
 ias_cert_url ?= https://certificates.trustedservices.intel.com/Intel_SGX_Attestation_RootCA.pem
 ias_cert_file = quote/$(notdir $(ias_cert_url))
 
-CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../lib/crypto/mbedtls -Isgx-driver
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../lib/crypto/mbedtls/include -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py

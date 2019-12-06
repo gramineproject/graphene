@@ -10,7 +10,7 @@ ARFLAGS	=
 
 include ../src/host/$(PAL_HOST)/Makefile.am
 
-CFLAGS += -I. -I../include -I../src -Icrypto/mbedtls
+CFLAGS += -I. -I../include -I../src -Icrypto/mbedtls/include
 
 # Include host_endian.h from either the host-specific directory,
 # or directly under the target directory.
@@ -33,9 +33,23 @@ CRYPTO_PROVIDER ?= mbedtls
 # this pulls Diffie-Hellman code into LibOS shim, resulting in unsatisfied
 # symbols.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
-subdirs += crypto/mbedtls
-crypto_mbedtls_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa sha256)
+subdirs += crypto/mbedtls/library
+crypto_mbedtls_library_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa sha256)
 endif
+
+MBEDTLS_VERSION ?= 2.4.2
+MBEDTLS_SRC ?= mbedtls-$(MBEDTLS_VERSION).tar.gz
+MBEDTLS_URI ?= https://github.com/ARMmbed/mbedtls/archive/
+crypto/$(MBEDTLS_SRC):
+	wget -O $@ $(MBEDTLS_URI)/$(MBEDTLS_SRC)
+
+crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC)
+	cd crypto && tar -mxzf $(MBEDTLS_SRC)
+	mv crypto/mbedtls-mbedtls-$(MBEDTLS_VERSION) crypto/mbedtls
+	cp crypto/platform.h crypto/config.h crypto/mbedtls/include/mbedtls
+
+crypto/mbedtls/library/aes.c: crypto/mbedtls/CMakeLists.txt
+$(addprefix crypto/mbedtls/library/,$(filter-out aes.c,$(patsubst %.o,%.c,$(crypto_mbedtls_library_objs)))): crypto/mbedtls/library/aes.c
 
 string_objs = $(addsuffix .o,atoi memcmp memcpy memset strchr strendswith strlen wordcopy strcmp)
 stdlib_objs = $(addsuffix .o,printfmt)
@@ -74,3 +88,7 @@ endif
 .PHONY: clean
 clean:
 	rm -f $(objs) graphene-lib.a
+
+.PHONY: distclean
+distclean: clean
+	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/mbedtls
