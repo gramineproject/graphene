@@ -3,11 +3,7 @@
 #include "pal_defs.h"
 #include "pal_error.h"
 
-static int strcmp(const char* a, const char* b) {
-    for (; *a && *b && *a == *b; a++, b++)
-        ;
-    return *a - *b;
-}
+#include <string.h>
 
 static const char* get_norm_path_cases[][2] = {
     {"/", "/"},
