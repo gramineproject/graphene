@@ -18,6 +18,8 @@
 #ifndef MBEDTLS_PLATFORM_H
 #define MBEDTLS_PLATFORM_H
 
+#include <limits.h>
+
 /* For standard library apis. */
 
 void * malloc(size_t size);
@@ -27,5 +29,4 @@ void free(void *);
 #define mbedtls_calloc calloc
 #define mbedtls_free free
 #define mbedtls_snprintf snprintf
-#define mbedtls_platform_zeroize(buf, len) do { memset((buf), 0, (len)); } while (0)
 #endif

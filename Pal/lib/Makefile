@@ -34,10 +34,10 @@ CRYPTO_PROVIDER ?= mbedtls
 # symbols.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 subdirs += crypto/mbedtls/library
-crypto_mbedtls_library_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa sha256)
+crypto_mbedtls_library_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa rsa_internal sha256 platform_util)
 endif
 
-MBEDTLS_VERSION ?= 2.4.2
+MBEDTLS_VERSION ?= 2.16.3
 MBEDTLS_SRC ?= mbedtls-$(MBEDTLS_VERSION).tar.gz
 MBEDTLS_URI ?= https://github.com/ARMmbed/mbedtls/archive/
 crypto/$(MBEDTLS_SRC):
