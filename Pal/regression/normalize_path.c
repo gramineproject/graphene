@@ -3,8 +3,6 @@
 #include "pal_defs.h"
 #include "pal_error.h"
 
-#include <string.h>
-
 static const char* get_norm_path_cases[][2] = {
     {"/", "/"},
     {"/a/b/c", "/a/b/c"},
