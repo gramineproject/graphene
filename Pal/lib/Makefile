@@ -58,6 +58,8 @@ graphene_objs = $(addsuffix .o,config path)
 crypto_objs = $(addsuffix .o,udivmodti4)
 objs += $(foreach dir,$(subdirs),$(addprefix $(dir)/,$($(subst /,_,$(dir))_objs)))
 
+$(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/library/aes.c
+
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 CFLAGS += -DCRYPTO_USE_MBEDTLS
 objs += crypto/adapters/mbedtls_adapter.o
