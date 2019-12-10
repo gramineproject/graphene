@@ -96,6 +96,7 @@ pipeline {
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            make clean
+                           make -C Pal/lib distclean
                            rm -r LibOS/glibc-2.23
                            rm LibOS/glibc-*.tar.gz
                            make -C Pal/ipc/linux KERNELDIR=/lib/modules/4.4.0-161-generic/build clean
