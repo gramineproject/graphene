@@ -39,6 +39,7 @@
 
 #include "ecall_types.h"
 #include "enclave_pages.h"
+#include "lru_cache.h"
 
 #define RTLD_BOOTSTRAP
 #define _ENTRY enclave_entry
@@ -432,6 +433,8 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         enclave_base + GET_ENCLAVE_TLS(tcs_offset);
     __pal_control.first_thread = first_thread;
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
+
+    lruc_test();
 
     /* call main function */
     pal_main(pal_sec.instance_id, manifest, exec,

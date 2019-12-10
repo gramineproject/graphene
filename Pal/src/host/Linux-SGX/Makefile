@@ -18,8 +18,8 @@ ASFLAGS += $(defs)
 enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memory \
 		threading mutex events process object main rtld \
 		exception misc) \
-		$(addprefix enclave_,ocalls ecalls framework platform pages untrusted xstate) \
-		protected_files
+		$(addprefix enclave_,ocalls ecalls framework pf platform pages untrusted xstate) \
+		protected_files lru_cache
 enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
 	    quote/aesm.pb-c clone-x86_64
@@ -83,16 +83,13 @@ enclave_entry.o sgx_entry.o: asm-offsets.h
 sgx-driver/isgx_version.h:
 	$(MAKE) -C sgx-driver $(notdir $@)
 
-<<<<<<< 4182c29476ed51170e676befcff2c37f8235da92
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
-=======
+include $(wildcard *.d) $(wildcard debugger/*.d)
+endif
+
 .PHONY: tools
 tools:
 	@$(MAKE) -C tools
-
->>>>>>> [Linux-SGX] Add protected files implementation
-include $(wildcard *.d) $(wildcard debugger/*.d)
-endif
 
 include ../../../../Scripts/Makefile.rules
 
