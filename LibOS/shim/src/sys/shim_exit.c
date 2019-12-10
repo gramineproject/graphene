@@ -132,7 +132,6 @@ noreturn void thread_or_process_exit(int error_code, int term_signal) {
     struct shim_thread * cur_thread = get_cur_thread();
 
     cur_thread->exit_code = -error_code;
-    cur_process.exit_code = term_signal ? term_signal : error_code;
     cur_thread->term_signal = term_signal;
 
     if (cur_thread->in_vm)
@@ -162,7 +161,7 @@ noreturn void thread_or_process_exit(int error_code, int term_signal) {
          */
         put_thread(ipc_thread); /* free resources of the thread */
 
-    shim_clean_and_exit(0);
+    shim_clean_and_exit(term_signal ? term_signal : error_code);
 }
 
 noreturn int shim_do_exit_group (int error_code)
@@ -193,12 +192,6 @@ noreturn int shim_do_exit_group (int error_code)
 
     debug("now kill other threads in the process\n");
     do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
-    /* This loop ensures that the current thread, which issues exit_group(), wins in setting the
-     * process's exit code. thread_or_process_exit() first sets the exit_code before updating the
-     * thread's state to "dead". Once check_last_thread() indicates that the current thread is the
-     * last thread, all the children will already have set thread->exit_code. Hence, this thread's
-     * execution of thread_or_process_exit() gets to determine the final exit_code, which is the
-     * desired outcome. */
     while (check_last_thread(cur_thread)) {
         DkThreadYieldExecution();
     }

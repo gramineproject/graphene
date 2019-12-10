@@ -473,6 +473,8 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     assert(thread);
     lock(&thread->lock);
 
+    int exit_code = thread->term_signal ? : thread->exit_code;
+
     /* wait on clear_child_tid_pal; this signals that PAL layer exited child thread */
     while (__atomic_load_n(&thread->clear_child_tid_pal, __ATOMIC_RELAXED) != 0) {
         __asm__ volatile ("pause");
@@ -482,29 +484,33 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     release_clear_child_id(thread->clear_child_tid);
 
     /* clean up the thread itself */
+    lock(&thread_list_lock);
     thread->is_alive = false;
-    unlock(&thread->lock);
+    LISTP_DEL_INIT(thread, &thread_list, list);
+    unlock(&thread_list_lock);
 
-    del_thread(thread);
+    unlock(&thread->lock);
+    put_thread(thread);
+
+    if (!check_last_thread(NULL)) {
+        /* corner case when all application threads exited via exit(), only Async helper
+         * and IPC helper threads are left at this point so simply exit process (recall
+         * that typically processes exit via exit_group()) */
+        shim_clean_and_exit(exit_code);
+    }
 }
 
-int check_last_thread (struct shim_thread * self)
-{
-    struct shim_thread * tmp;
+int check_last_thread(struct shim_thread* self) {
+    struct shim_thread* tmp;
 
     lock(&thread_list_lock);
-    /* find out if there is any thread that is
-       1) no current thread 2) in current vm
-       3) still alive */
     LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
-        if (tmp->tid &&
-            (!self || tmp->tid != self->tid) && tmp->in_vm && tmp->is_alive) {
+        if (tmp->tid && (!self || tmp->tid != self->tid) && tmp->in_vm && tmp->is_alive) {
             unlock(&thread_list_lock);
             return tmp->tid;
         }
     }
 
-    debug("this is the only thread %d\n", self->tid);
     unlock(&thread_list_lock);
     return 0;
 }
