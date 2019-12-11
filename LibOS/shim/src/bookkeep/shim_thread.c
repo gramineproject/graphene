@@ -471,7 +471,6 @@ void cleanup_thread(IDTYPE caller, void* arg) {
 
     struct shim_thread* thread = (struct shim_thread*)arg;
     assert(thread);
-    lock(&thread->lock);
 
     int exit_code = thread->term_signal ? : thread->exit_code;
 
@@ -489,7 +488,6 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     LISTP_DEL_INIT(thread, &thread_list, list);
     unlock(&thread_list_lock);
 
-    unlock(&thread->lock);
     put_thread(thread);
 
     if (!check_last_thread(NULL)) {
