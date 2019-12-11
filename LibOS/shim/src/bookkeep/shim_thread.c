@@ -463,6 +463,27 @@ void del_simple_thread (struct shim_simple_thread * thread)
     put_simple_thread(thread);
 }
 
+static int __check_last_thread(struct shim_thread* self) {
+    IDTYPE self_tid = self ? self->tid : 0;
+
+    struct shim_thread* thread;
+    LISTP_FOR_EACH_ENTRY(thread, &thread_list, list) {
+        if (thread->tid && thread->tid != self_tid && thread->in_vm && thread->is_alive) {
+            return thread->tid;
+        }
+    }
+    return 0;
+}
+
+/* Checks for any alive threads apart from thread self. Returns tid of the first found alive thread
+ * or 0 if there are no alive threads. self can be NULL, then all threads are checked. */
+int check_last_thread(struct shim_thread* self) {
+    lock(&thread_list_lock);
+    int alive_thread_tid = __check_last_thread(self);
+    unlock(&thread_list_lock);
+    return alive_thread_tid;
+}
+
 /* Function is called by Async Helper thread to wait on thread->clear_child_tid_pal to be zeroed
  * (PAL does it when thread finally exits). Since it is a callback to Async Helper thread, this
  * function must follow the `void (*callback) (IDTYPE caller, void* arg)` signature. */
@@ -486,31 +507,18 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     lock(&thread_list_lock);
     thread->is_alive = false;
     LISTP_DEL_INIT(thread, &thread_list, list);
-    unlock(&thread_list_lock);
 
     put_thread(thread);
 
-    if (!check_last_thread(NULL)) {
+    if (!__check_last_thread(NULL)) {
         /* corner case when all application threads exited via exit(), only Async helper
          * and IPC helper threads are left at this point so simply exit process (recall
          * that typically processes exit via exit_group()) */
+        unlock(&thread_list_lock);
         shim_clean_and_exit(exit_code);
-    }
-}
-
-int check_last_thread(struct shim_thread* self) {
-    struct shim_thread* tmp;
-
-    lock(&thread_list_lock);
-    LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
-        if (tmp->tid && (!self || tmp->tid != self->tid) && tmp->in_vm && tmp->is_alive) {
-            unlock(&thread_list_lock);
-            return tmp->tid;
-        }
     }
 
     unlock(&thread_list_lock);
-    return 0;
 }
 
 int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
