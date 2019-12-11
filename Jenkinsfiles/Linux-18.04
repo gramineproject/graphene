@@ -78,6 +78,15 @@ pipeline {
                                 make test N_RUNS=1 ENOUGH=100
                             '''
                         }
+                        timeout(time: 10, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/redis
+                                make
+                                make start-graphene-server &
+                                sleep 1
+                                ./src/src/redis-benchmark
+                            '''
+                        }
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
                             make
