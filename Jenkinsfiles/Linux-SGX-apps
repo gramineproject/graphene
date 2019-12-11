@@ -130,11 +130,6 @@ pipeline {
                            ./Scripts/clean-check
                         '''
                     }
-                    post {
-                        always {
-                            // currently no reports
-                        }
-                    }
                 }
                 stage('Deploy') {
                     steps {
