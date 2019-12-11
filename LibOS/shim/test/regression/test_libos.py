@@ -251,6 +251,10 @@ class TC_30_Syscall(RegressionTestCase):
 
         self.assertIn('Success!', stdout)
 
+    def test_022_host_root_fs(self):
+        stdout, _ = self.run_binary(['host_root_fs'])
+        self.assertIn('Test was successful', stdout)
+
     def test_030_fopen(self):
         if os.path.exists("tmp/filecreatedbygraphene"):
             os.remove("tmp/filecreatedbygraphene")
