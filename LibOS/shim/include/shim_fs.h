@@ -104,7 +104,7 @@ struct shim_fs_ops {
 };
 
 #define DENTRY_VALID        0x0001  /* this dentry is verified to be valid */
-#define DENTRY_NEGATIVE     0x0002  /* negative, recently deleted */
+#define DENTRY_NEGATIVE     0x0002  /* recently deleted or inaccessible */
 #define DENTRY_RECENTLY     0x0004  /* recently used */
 #define DENTRY_PERSIST      0x0008  /* added as a persistent dentry */
 #define DENTRY_HASHED       0x0010  /* added in the dcache */
