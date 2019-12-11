@@ -198,7 +198,7 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, 
          * Not done in original code, so leaving for now.
          */
         if (err) {
-            if (err == -ENOENT) {
+            if (err == -ENOENT || err == -EACCES) {
                 // Let ENOENT fall through so we can get negative dentries in
                 // the cache
                 dent->state |= DENTRY_NEGATIVE;
@@ -759,8 +759,10 @@ int list_directory_dentry (struct shim_dentry *dent) {
     for ( ; d ; d = d->next) {
         struct shim_dentry * child;
         if ((ret = lookup_dentry(dent, d->name, strlen(d->name),
-                                 &child, fs)) < 0)
-            goto done_read;
+                                 &child, fs)) < 0) {
+            if (ret != -ENOENT)
+                goto done_read;
+        }
 
         if (child->state & DENTRY_NEGATIVE)
             continue;
@@ -774,6 +776,7 @@ int list_directory_dentry (struct shim_dentry *dent) {
     }
 
     dent->state |= DENTRY_LISTED;
+    ret = 0;
 
 done_read:
     unlock(&dcache_lock);
