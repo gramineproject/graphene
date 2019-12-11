@@ -127,6 +127,10 @@ pipeline {
                            make -C LibOS/shim/test/apps/nginx SGX=1 distclean
                            make -C LibOS/shim/test/apps/apache SGX=1 distclean
 
+                           # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
+                           rm -rf /tmp/graphene-sgx.clean-check.clean/LibOS/shim/test/apps/ltp/src
+                           rm -rf LibOS/shim/test/apps/ltp/src
+
                            ./Scripts/clean-check
                         '''
                     }
