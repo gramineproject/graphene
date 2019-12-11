@@ -71,6 +71,15 @@ pipeline {
                                 make test N_RUNS=1 ENOUGH=100
                             '''
                         }
+                        timeout(time: 10, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/redis
+                                make USE_SELECT=1
+                                make start-graphene-server &
+                                sleep 1
+                                ./src/src/redis-benchmark
+                            '''
+                        }
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
                             make
@@ -112,6 +121,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/curl clean
                            make -C LibOS/shim/test/apps/gcc clean
                            make -C LibOS/shim/test/apps/lmbench distclean
+                           make -C LibOS/shim/test/apps/redis distclean
                            make -C LibOS/shim/test/apps/lighttpd distclean
                            make -C LibOS/shim/test/apps/nginx distclean
                            make -C LibOS/shim/test/apps/apache distclean

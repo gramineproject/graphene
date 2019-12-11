@@ -75,6 +75,15 @@ pipeline {
                                 make SGX=1 test N_RUNS=1 ENOUGH=100
                             '''
                         }
+                        timeout(time: 15, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/redis
+                                make SGX=1
+                                make SGX=1 start-graphene-server &
+                                sleep 30
+                                ./src/src/redis-benchmark
+                            '''
+                        }
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
                             make SGX=1
