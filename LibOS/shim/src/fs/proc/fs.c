@@ -47,8 +47,11 @@ extern const struct proc_dir dir_ipc_thread;
 extern const struct proc_fs_ops fs_meminfo;
 extern const struct proc_fs_ops fs_cpuinfo;
 
+extern const struct proc_fs_ops fs_sgx_attestation;
+extern const struct proc_dir dir_sgx;
+
 const struct proc_dir proc_root = {
-    .size = 5,
+    .size = 6,
     .ent =
         {
             {
@@ -73,6 +76,11 @@ const struct proc_dir proc_root = {
             {
                 .name   = "cpuinfo",
                 .fs_ops = &fs_cpuinfo,
+            },
+            {
+                .name   = "sgx_attestation",
+                .fs_ops = &fs_sgx_attestation,
+                .dir    = &dir_sgx
             },
         },
 };

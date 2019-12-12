@@ -33,6 +33,8 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 
+#include "sgx_attest.h"
+
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
     int ret = ocall_gettime(&microsec);
@@ -164,5 +166,67 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
         return -PAL_ERROR_DENIED;
 
     add_cpuid_to_cache(leaf, subleaf, values);
+    return 0;
+}
+
+PAL_BOL
+_DkIASReport (PAL_PTR report, PAL_NUM maxsize, PAL_NUM* size) {
+
+    char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
+    ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
+                             sizeof(spid_hex));
+    if (len <= 0) {
+        SGX_DBG(DBG_E, "*** No client info specified in the manifest. "
+                "Graphene will not perform remote attestation ***\n");
+        return 0;
+    }
+
+    if (len != sizeof(sgx_spid_t) * 2) {
+        SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
+        return -PAL_ERROR_INVAL;
+    }
+
+    sgx_spid_t spid;
+    for (ssize_t i = 0; i < len; i++) {
+        int8_t val = hex2dec(spid_hex[i]);
+        if (val < 0) {
+            SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
+            return -PAL_ERROR_INVAL;
+        }
+        spid[i/2] = spid[i/2] * 16 + (uint8_t)val;
+    }
+
+    char subkey[CONFIG_MAX];
+    len = get_config(pal_state.root_config, "sgx.ra_client_key", subkey, sizeof(subkey));
+    if (len <= 0) {
+        SGX_DBG(DBG_E, "No sgx.ra_client_key in the manifest\n");
+        return -PAL_ERROR_INVAL;
+    }
+
+    char buf[2];
+    len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
+    bool linkable = (len == 1 && buf[0] == '1');
+
+    len = get_config(pal_state.root_config, "sgx.ra_accept_group_out_of_date", buf, sizeof(buf));
+    bool accept_group_out_of_date = (len == 1 && buf[0] == '1');
+
+    sgx_quote_nonce_t nonce;
+    int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
+    if (ret < 0)
+        return ret;
+
+    char* status;
+    char* timestamp;
+    sgx_attestation_t attn;
+    __sgx_mem_aligned sgx_report_data_t report_data = {0, };
+    ret = sgx_verify_platform(&spid, subkey, &nonce, &report_data, linkable,
+                              accept_group_out_of_date, &attn, &status, &timestamp);
+    if (ret < 0)
+        return ret;
+
+    if (maxsize >= attn.ias_report_len) {
+        memcpy(report, attn.ias_report, attn.ias_report_len);
+        *size = attn.ias_report_len;
+    }
     return 0;
 }

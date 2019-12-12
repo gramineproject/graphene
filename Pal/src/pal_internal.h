@@ -347,6 +347,7 @@ int _DkSegmentRegisterSet (int reg, const void * addr);
 int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
+PAL_BOL _DkIASReport(PAL_PTR buf, PAL_NUM bufsize, PAL_NUM* size);
 
 #define INIT_FAIL(exitcode, reason)                                     \
     do {                                                                \

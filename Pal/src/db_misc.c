@@ -143,3 +143,15 @@ DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]) {
 
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
+
+PAL_BOL
+DkIASReport (PAL_PTR buf, PAL_NUM bufsize, PAL_NUM* size) {
+    ENTER_PAL_CALL(DkIASReport);
+
+    int ret = _DkIASReport(buf, bufsize, size);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
+}

@@ -32,9 +32,11 @@ void sgx_reset_ustack(void);
 bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, uint64_t size);
 uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr, uint64_t usize);
 
-/*
- * sgx_report:
- * Generate SGX hardware signed report.
+/**
+ * Low-level wrapper around EREPORT instruction leaf.
+ *
+ * Caller is responsible for parameter alignment: 512 byte for targetinfo, and 128 byte for
+ * reportdata and 512 byte for report.
  */
 static inline int sgx_report (sgx_target_info_t * targetinfo,
                               void * reportdata, sgx_report_t * report)
@@ -46,9 +48,10 @@ static inline int sgx_report (sgx_target_info_t * targetinfo,
     return 0;
 }
 
-/*
- * sgx_getkey:
- * Retrieve SGX hardware enclave cryptography key.
+/**
+ * Low-level wrapper around EGETKEY instruction leaf.
+ *
+ * Caller is responsible for parameter alignment: 512 byte for keyrequest and 16 byte for key.
  */
 static inline int64_t sgx_getkey (sgx_key_request_t * keyrequest,
                                   sgx_key_128bit_t * key)

@@ -1318,30 +1318,3 @@ int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t
     }
     return 0;
 }
-
-/**
- * Populates an sgx_target_info_t structure with all the information necessary for local
- * attestation.
- *
- * The resulting sgx_target_info_t structure can be passed to another enclave as part of the local
- * attestation flow.
- */
-int sgx_target_info(sgx_target_info_t* ti) {
-
-    __sgx_mem_aligned sgx_target_info_t target_info = {0, };
-    __sgx_mem_aligned sgx_report_t report;
-    sgx_report_data_t report_data = {0, };
-
-    int ret = sgx_get_report(&target_info, &report_data, &report);
-    if (ret < 0) return ret;
-
-    memset(ti, 0, sizeof(*ti));
-    memcpy(&ti->attributes, &report.body.attributes, sizeof(ti->attributes));
-    memcpy(&ti->config_id, &report.body.config_id, sizeof(ti->config_id));
-    memcpy(&ti->config_svn, &report.body.config_svn, sizeof(ti->config_svn));
-    memcpy(&ti->misc_select, &report.body.misc_select, sizeof(ti->misc_select));
-    memcpy(&ti->mr_enclave, &report.body.mr_enclave, sizeof(ti->mr_enclave));
-
-    return 0;
-}
-

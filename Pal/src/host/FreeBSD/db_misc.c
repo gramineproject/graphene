@@ -187,3 +187,11 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+PAL_BOL
+_DkIASReport (PAL_PTR report, PAL_NUM maxsize, PAL_NUM* size) {
+    __UNUSED(report);
+    __UNUSED(maxsize);
+    __UNUSED(size);
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
