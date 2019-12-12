@@ -27,10 +27,6 @@ pipeline {
                         '''
                         sh '''
                             make -j 8 SGX=1 WERROR=1
-                            make -j 8 SGX=1 WERROR=1 test
-                        '''
-                        sh '''
-                            make SGX=1 sgx-tokens
                         '''
                     }
                 }
@@ -127,7 +123,10 @@ pipeline {
                            make -C LibOS/shim/test/apps/nginx SGX=1 distclean
                            make -C LibOS/shim/test/apps/apache SGX=1 distclean
 
-                           # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
+                           # Currently used release of LTP contains broken symlinks under
+                           # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit
+                           # rm of these symlinks, the clean-check utility fails. We should
+                           # update to newer release of LTP where this issue will be fixed.
                            rm -rf /tmp/graphene-sgx.clean-check.clean/LibOS/shim/test/apps/ltp/src
                            rm -rf LibOS/shim/test/apps/ltp/src
 
