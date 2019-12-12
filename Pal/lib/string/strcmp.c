@@ -1,7 +1,8 @@
 #include "api.h"
 
-int strcmp(const char* a, const char* b) {
-    for (; *a && *b && *a == *b; a++, b++)
-        ;
-    return *a - *b;
+// Copied from musl.
+int strcmp(const char *l, const char *r)
+{
+    for (; *l==*r && *l; l++, r++);
+    return *(unsigned char *)l - *(unsigned char *)r;
 }

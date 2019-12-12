@@ -1,2 +1,2 @@
-mbedtls/*
-*.tar.gz
+/mbedtls/*
+/*.tar.gz

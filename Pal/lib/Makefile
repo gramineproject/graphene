@@ -40,12 +40,26 @@ endif
 MBEDTLS_VERSION ?= 2.16.3
 MBEDTLS_SRC ?= mbedtls-$(MBEDTLS_VERSION).tar.gz
 MBEDTLS_URI ?= https://github.com/ARMmbed/mbedtls/archive/
+MBEDTLS_CHECKSUM ?= ec72ecf39275327f52b5ee9787271313a0d2960e7342b488d223a118ba164caa
+
 crypto/$(MBEDTLS_SRC):
-	wget -O $@ $(MBEDTLS_URI)/$(MBEDTLS_SRC)
+	wget --timeout=10 $(MBEDTLS_URI)/$(MBEDTLS_SRC) -O tmp
+	@[ "`sha256sum tmp`" = "$(MBEDTLS_CHECKSUM)  tmp" ] || \
+		(echo "*** $@ has a wrong checksum ***"; rm -f tmp; exit 255)
+	mv -f tmp $@
+
+ifeq ($(DEBUG),1)
+MBED_BUILD_TYPE=Debug
+else
+MBED_BUILD_TYPE=Release
+endif
 
 crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC)
 	cd crypto && tar -mxzf $(MBEDTLS_SRC)
 	mv crypto/mbedtls-mbedtls-$(MBEDTLS_VERSION) crypto/mbedtls
+	mkdir crypto/mbedtls/install
+	cd crypto/mbedtls && cmake -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=$(MBED_BUILD_TYPE) -DENABLE_PROGRAMS=off -DENABLE_TESTING=off -DCMAKE_C_COMPILER=gcc .
+	make -C crypto/mbedtls install
 	cp crypto/platform.h crypto/config.h crypto/mbedtls/include/mbedtls
 
 crypto/mbedtls/library/aes.c: crypto/mbedtls/CMakeLists.txt
