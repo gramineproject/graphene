@@ -24,10 +24,6 @@ pipeline {
                         '''
                         sh '''
                             make -j 8 SGX=1 WERROR=1
-                            make -j 8 SGX=1 WERROR=1 test
-                        '''
-                        sh '''
-                            make SGX=1 sgx-tokens
                         '''
                     }
                 }
