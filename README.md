@@ -57,19 +57,9 @@ For building Graphene for SGX, run the following command in addition:
     sudo apt-get install -y python-protobuf
 
 
-To build the system, simply run the following commands in the root of the
-source tree:
+Run the following command in the root of the source tree:
 
     git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
-    make
-
-Each part of Graphene can be built separately in the subdirectories.
-
-To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
-"make". To specify custom mirrors for downloading the GLIBC source, use
-"GLIBC_MIRRORS=..." when running "make".
-
-To build with "-Werror", run "make WERROR=1".
 
 ### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
@@ -95,12 +85,6 @@ from the official Intel github repositories:
 
    - <https://github.com/01org/linux-sgx>  (SGX SDK)
    - <https://github.com/01org/linux-sgx-driver>   (SGX Driver)
-        * Order of steps would be: (Important: Select branch sgx2. Master branch is deprecated) 
-            1. Build & Install SGX driver (Follow instructions in : https://github.com/intel/linux-sgx-driver) 
-            2. Build & Install SGX SDK & SGX PSW Package
-            3. Test the Intel(R) SGX SDK Package with the Code Samples 
-    Note: This section "Test the Intel(R) SGX SDK Package with the Code Samples" actually is written in middle, but requires the PSW, SGX SDK, SGX driver to be installed before running'
- 
 
 A Linux driver must be installed before running Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
