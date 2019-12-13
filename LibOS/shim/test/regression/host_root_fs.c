@@ -1,21 +1,21 @@
-#include <stdio.h>
 #include <dirent.h>
+#include <stdio.h>
 
-static int showdir(char* dir) {
+static int showdir(char* path) {
     struct dirent* de;
 
-    DIR *dr = opendir(dir);
-    if (!dr) {
-        printf("Could not open directory `%s`\n", dir);
+    DIR* dir = opendir(path);
+    if (!dir) {
+        printf("Could not open directory `%s`\n", path);
         return 1;
     }
 
-    printf("Contents of directory `%s`:\n", dir);
-    while ((de = readdir(dr)))
+    printf("Contents of directory `%s`:\n", path);
+    while ((de = readdir(dir)))
         printf("  %s\n", de->d_name);
     printf("\n");
 
-    closedir(dr);
+    closedir(dir);
     return 0;
 }
 
