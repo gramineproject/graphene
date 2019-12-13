@@ -263,6 +263,14 @@ class TC_30_Syscall(RegressionTestCase):
         # fopen corner cases
         self.assertIn('Successfully read from file: Hello World', stdout)
 
+    def test_031_readdir(self):
+        stdout, _ = self.run_binary(['readdir'])
+        self.assertIn('test completed successfully', stdout)
+
+    def test_032_file_size(self):
+        stdout, _ = self.run_binary(['file_size'])
+        self.assertIn('test completed successfully', stdout)
+
     def test_040_futex_bitset(self):
         stdout, _ = self.run_binary(['futex_bitset'])
 

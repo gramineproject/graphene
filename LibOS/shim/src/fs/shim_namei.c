@@ -780,6 +780,8 @@ int list_directory_dentry (struct shim_dentry *dent) {
         child->ino = d->ino;
     }
 
+    /* Once DENTRY_LISTED is set, the ino of the newly created file will not be updated, so its
+     * ino needs to be set in create() or open(O_CREAT). */
     dent->state |= DENTRY_LISTED;
     ret = 0;
 

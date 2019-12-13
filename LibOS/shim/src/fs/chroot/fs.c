@@ -417,6 +417,11 @@ static int __chroot_open (struct shim_dentry * dent,
             if (!palhdl)
                 return -PAL_ERRNO;
         }
+
+        /* If DENTRY_LISTED is set on the parent dentry, list_directory_dentry() will not update
+         * dent's ino, so ino will be actively updated here. */
+        if (creat)
+            chroot_update_ino(dent);
     }
 
     if (!data->queried) {
@@ -574,6 +579,19 @@ static inline bool check_version (struct shim_handle * hdl)
 {
     return atomic_read(&FILE_HANDLE_DATA(hdl)->version)
            == hdl->info.file.version;
+}
+
+static void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle* file,
+                               struct shim_file_data* data) {
+    if (check_version(hdl)) {
+        off_t size;
+        do {
+            if ((size = atomic_read(&data->size)) >= file->size) {
+                file->size = size;
+                break;
+            }
+        } while ((off_t)atomic_cmpxchg(&data->size, size, file->size) != size);
+    }
 }
 
 static int chroot_hstat (struct shim_handle * hdl, struct stat * stat)
@@ -763,15 +781,7 @@ static ssize_t map_write (struct shim_handle * hdl, const void * buf, size_t cou
            file->size -= count - pal_ret;
         }
 
-        if (check_version(hdl)) {
-            off_t size;
-            do {
-                if ((size = atomic_read(&data->size)) >= file->size) {
-                    file->size = size;
-                    break;
-                }
-            } while ((off_t) atomic_cmpxchg(&data->size, size, file->size) != size);
-        }
+        chroot_update_size(hdl, file, data);
 
         if (__builtin_add_overflow(marker, pal_ret, &file->marker)) {
             // Should never happen. Even if it would, we couldn't recover from this condition.
@@ -887,6 +897,10 @@ static ssize_t chroot_write (struct shim_handle * hdl, const void * buf, size_t 
             BUG();
         if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, pal_ret, &file->marker))
             BUG();
+        if (file->marker > file->size) {
+            file->size = file->marker;
+            chroot_update_size(hdl, file, FILE_HANDLE_DATA(hdl));
+        }
     } else {
         ret = PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO;
     }
