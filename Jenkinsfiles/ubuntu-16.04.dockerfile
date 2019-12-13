@@ -9,7 +9,6 @@ RUN apt-get update \
        bison \
        build-essential \
        curl \
-       cmake \
        flex \
        gawk \
        gettext \

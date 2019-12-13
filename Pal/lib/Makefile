@@ -58,8 +58,7 @@ crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC)
 	cd crypto && tar -mxzf $(MBEDTLS_SRC)
 	mv crypto/mbedtls-mbedtls-$(MBEDTLS_VERSION) crypto/mbedtls
 	mkdir crypto/mbedtls/install
-	cd crypto/mbedtls && cmake -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=$(MBED_BUILD_TYPE) -DENABLE_PROGRAMS=off -DENABLE_TESTING=off -DCMAKE_C_COMPILER=gcc .
-	make -C crypto/mbedtls install
+	cd crypto/mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C && make DESTDIR=install install .
 	cp crypto/platform.h crypto/config.h crypto/mbedtls/include/mbedtls
 
 crypto/mbedtls/library/aes.c: crypto/mbedtls/CMakeLists.txt
