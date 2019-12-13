@@ -199,8 +199,8 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, 
          */
         if (err) {
             if (err == -ENOENT || err == -EACCES) {
-                // Let ENOENT fall through so we can get negative dentries in
-                // the cache
+                /* Non-existing files and inaccessible files are marked as
+                 * negative dentries, so they can still be cached */
                 dent->state |= DENTRY_NEGATIVE;
             } else {
 
@@ -760,8 +760,10 @@ int list_directory_dentry (struct shim_dentry *dent) {
         struct shim_dentry * child;
         if ((ret = lookup_dentry(dent, d->name, strlen(d->name),
                                  &child, fs)) < 0) {
-            if (ret != -ENOENT)
+            if (ret != -ENOENT) {
+                /* if the file is recently deleted or inaccessible, ignore it */
                 goto done_read;
+            }
         }
 
         if (child->state & DENTRY_NEGATIVE)
