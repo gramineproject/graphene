@@ -6,6 +6,14 @@ pipeline {
                        }
         }
         stages {
+                stage('Lint') {
+                    steps {
+                        sh '''
+                            ./.ci/run-shellcheck || :
+                            ./.ci/run-shellcheck -f json | ./.ci/prfilter
+                        '''
+                    }
+                }
                 stage('Build') {
                     steps {
                         sh '''
