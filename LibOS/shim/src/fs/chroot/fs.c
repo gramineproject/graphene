@@ -415,6 +415,9 @@ static int __chroot_open (struct shim_dentry * dent,
             if (!palhdl)
                 return -PAL_ERRNO;
         }
+
+        if (creat)
+            chroot_update_ino(dent);
     }
 
     if (!data->queried) {
@@ -874,6 +877,19 @@ static ssize_t chroot_write (struct shim_handle * hdl, const void * buf, size_t 
             BUG();
         if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, pal_ret, &file->marker))
             BUG();
+        if (file->marker > file->size) {
+            struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
+            file->size = file->marker;
+            if (check_version(hdl)) {
+                off_t size;
+                do {
+                    if ((size = atomic_read(&data->size)) >= file->size) {
+                        file->size = size;
+                        break;
+                    }
+                } while ((off_t) atomic_cmpxchg(&data->size, size, file->size) != size);
+            }
+        }
     } else {
         ret = PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO;
     }
