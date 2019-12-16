@@ -11,13 +11,18 @@
 
 #define BUF_LENGTH      4096
 
-#define TEST_DIR        "/tmp"
+#define TEST_DIR        "tmp"
 #define TEST_FILE       "__testfile__"
 
-/* return 1 if file_name exists, otherwise 0 */
-int find_file(char* dir_name, char* file_name)
+typedef enum
 {
-    int found = 0;
+    false = 0,
+    true = 1
+}bool;
+
+/* return true if file_name exists, otherwise false */
+bool find_file(char* dir_name, char* file_name) {
+    bool found = false;
     DIR* dir = opendir(dir_name);
     if (dir == NULL) {
         perror("opendir failed");
@@ -36,7 +41,7 @@ int find_file(char* dir_name, char* file_name)
         }
 
         if (strncmp(file_name, dent->d_name, strlen(file_name)) == 0) {
-            found = 1;
+            found = true;
             break;
         }
     }
@@ -46,17 +51,43 @@ out:
     return found;
 }
 
+ssize_t rw_file(int fd, char* buf, size_t bytes, bool write_flag) {
+    ssize_t rv = 0;
+    ssize_t ret;
+
+    while (bytes > rv) {
+        if (write_flag)
+            ret = write(fd, buf + rv, bytes - rv);
+        else
+            ret = read(fd, buf + rv, bytes - rv);
+
+        if (ret >= 0) {
+            rv += ret;
+        } else {
+            if (errno == EAGAIN || errno == EINTR) {
+                continue;
+            } else {
+                printf("%s failed:%s\n", write_flag ? "write" : "read", strerror(errno));
+                perror("");
+                break;
+            }
+        }
+    }
+
+    return rv;
+}
+
 int main(int argc, const char** argv) {
     char buf[BUF_LENGTH];
     int rv = 0;
-    int bytes;
+    ssize_t bytes;
     int fd = 0;
 
     unlink(TEST_DIR"/"TEST_FILE);
 
-    /* test readdir: Find a newly created file */
-    if (find_file(TEST_DIR, TEST_FILE) == 1) {
-        printf("failed\n");
+    /* test readdir: should not find a file that we just deleted */
+    if (find_file(TEST_DIR, TEST_FILE)) {
+        printf("The file %s was unexpectedly found\n", TEST_FILE);
         rv = -1;
         goto out;
     }
@@ -67,22 +98,23 @@ int main(int argc, const char** argv) {
         return -1;
     }
 
-    if (find_file(TEST_DIR, TEST_FILE) == 0) {
+    if (!find_file(TEST_DIR, TEST_FILE)) {
         printf("The file %s was not found\n", TEST_FILE);
         rv = -1;
         goto out;
     }
 
     /* test file size: write a file of type != FILEBUF_MAP */
-    bytes = write(fd, buf, BUF_LENGTH);
+    bytes = rw_file(fd, buf, BUF_LENGTH, true);
     assert(bytes == BUF_LENGTH);
 
     lseek(fd, 0, SEEK_SET);
-    bytes = write(fd, buf, 1);
+    bytes = rw_file(fd, buf, 1, true);
     assert(bytes == 1);
 
     lseek(fd, 4096, SEEK_SET);
     bytes = write(fd, buf, BUF_LENGTH);
+    bytes = rw_file(fd, buf, BUF_LENGTH, true);
     assert(bytes == BUF_LENGTH);
 
     close(fd);
@@ -95,9 +127,9 @@ int main(int argc, const char** argv) {
     /* reopen file, the file size should be 4096 + BUF_LENGTH,
        try read BUF_LENGTH bytes from position 4096 */
     lseek(fd, 4096, SEEK_SET);
-    bytes = read(fd, buf, BUF_LENGTH);
+    bytes = rw_file(fd, buf, BUF_LENGTH, false);
     if (bytes != BUF_LENGTH) {
-        printf("read failed\n");
+        printf("read length\n");
         rv = -1;
         goto out;
     }
