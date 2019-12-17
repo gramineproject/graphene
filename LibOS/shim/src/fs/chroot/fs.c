@@ -577,9 +577,8 @@ static inline bool check_version (struct shim_handle * hdl)
            == hdl->info.file.version;
 }
 
-static inline chroot_update_size(struct shim_handle * hdl, struct shim_file_handle * file,
-                                 struct shim_file_data * data)
-{
+static inline chroot_update_size(struct shim_handle* hdl, struct shim_file_handle* file,
+                                 struct shim_file_data* data) {
     if (check_version(hdl)) {
         off_t size;
         do {
