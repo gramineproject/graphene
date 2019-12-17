@@ -427,7 +427,7 @@ void release_robust_list(struct robust_list_head* head) {
     }
 }
 
-void release_clear_child_id(int* clear_child_tid) {
+void release_clear_child_tid(int* clear_child_tid) {
     /* child thread exited, now parent can wake up */
     __atomic_store_n(clear_child_tid, 0, __ATOMIC_RELAXED);
 

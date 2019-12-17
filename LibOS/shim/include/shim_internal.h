@@ -794,7 +794,7 @@ void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
 
-void release_clear_child_id(int* clear_child_tid);
+void release_clear_child_tid(int* clear_child_tid);
 
 #ifdef __x86_64__
 #define __SWITCH_STACK(stack_top, func, arg)                    \

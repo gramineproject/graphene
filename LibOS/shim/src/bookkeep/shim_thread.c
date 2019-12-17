@@ -463,7 +463,7 @@ void del_simple_thread (struct shim_simple_thread * thread)
     put_simple_thread(thread);
 }
 
-static int __check_last_thread(struct shim_thread* self) {
+static int _check_last_thread(struct shim_thread* self) {
     IDTYPE self_tid = self ? self->tid : 0;
 
     struct shim_thread* thread;
@@ -479,14 +479,14 @@ static int __check_last_thread(struct shim_thread* self) {
  * or 0 if there are no alive threads. self can be NULL, then all threads are checked. */
 int check_last_thread(struct shim_thread* self) {
     lock(&thread_list_lock);
-    int alive_thread_tid = __check_last_thread(self);
+    int alive_thread_tid = _check_last_thread(self);
     unlock(&thread_list_lock);
     return alive_thread_tid;
 }
 
-/* Function is called by Async Helper thread to wait on thread->clear_child_tid_pal to be zeroed
- * (PAL does it when thread finally exits). Since it is a callback to Async Helper thread, this
- * function must follow the `void (*callback) (IDTYPE caller, void* arg)` signature. */
+/* This function is called by Async Helper thread to wait on thread->clear_child_tid_pal to be
+ * zeroed (PAL does it when thread finally exits). Since it is a callback to Async Helper thread,
+ * this function must follow the `void (*callback) (IDTYPE caller, void* arg)` signature. */
 void cleanup_thread(IDTYPE caller, void* arg) {
     __UNUSED(caller);
 
@@ -501,7 +501,7 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     }
 
     /* notify parent if any */
-    release_clear_child_id(thread->clear_child_tid);
+    release_clear_child_tid(thread->clear_child_tid);
 
     /* clean up the thread itself */
     lock(&thread_list_lock);
@@ -510,7 +510,7 @@ void cleanup_thread(IDTYPE caller, void* arg) {
 
     put_thread(thread);
 
-    if (!__check_last_thread(NULL)) {
+    if (!_check_last_thread(NULL)) {
         /* corner case when all application threads exited via exit(), only Async helper
          * and IPC helper threads are left at this point so simply exit process (recall
          * that typically processes exit via exit_group()) */
