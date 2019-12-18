@@ -13,8 +13,10 @@
 /* The above copyright notice and this permission notice shall be */
 /* included in all copies or substantial portions of the Software. */
 
-int strcmp(const char *l, const char *r)
-{
-    for (; *l==*r && *l; l++, r++);
-    return *(unsigned char *)l - *(unsigned char *)r;
+/* musl 1.1.24 */
+
+int strcmp(const char* l, const char* r) {
+    for (; *l == *r && *l; l++, r++)
+        ;
+    return *(unsigned char*)l - *(unsigned char*)r;
 }
