@@ -54,6 +54,10 @@ else
 MBED_BUILD_TYPE=Release
 endif
 
+# First, build mbedtls library against system's glibc and install in ../install. This library is
+# used by, for example, LibOS test cases. Second, prepare mbedtls directory to be used during PAL
+# build. A specific platform.h and config.h header replaces libc dependencies with PAL-specific
+# replacements.
 crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC)
 	cd crypto && tar -mxzf $(MBEDTLS_SRC)
 	mv crypto/mbedtls-mbedtls-$(MBEDTLS_VERSION) crypto/mbedtls
