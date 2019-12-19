@@ -93,12 +93,12 @@ int main(void) {
 
     store(&futex2, arg1);
 
-    for (i = 0; i < THREADS1 + THREADS2; ++i) {
+    for (i = 0; i < THREADS1 + THREADS2; i++) {
         check(pthread_create(&th[i], NULL, thread_func, (void*)i));
     }
 
     // wait for all threads
-    for (i = 0; i < THREADS1 + THREADS2; ++i) {
+    for (i = 0; i < THREADS1 + THREADS2; i++) {
         while (load(&thread_state[i]) != 1) {
             usleep(1000u);
         }
@@ -128,7 +128,7 @@ int main(void) {
     usleep(100000u);
 
     ret = 0;
-    for (i = 0; i < THREADS1; ++i) {
+    for (i = 0; i < THREADS1; i++) {
         if (load(&thread_state[i]) == 2) {
             ret++;
             check(pthread_join(th[i], NULL));
@@ -141,7 +141,7 @@ int main(void) {
     }
 
     ret = 0;
-    for (i = THREADS1; i < THREADS1 + THREADS2; ++i) {
+    for (i = THREADS1; i < THREADS1 + THREADS2; i++) {
         if (load(&thread_state[i]) == 2) {
             ret++;
             check(pthread_join(th[i], NULL));
@@ -171,7 +171,7 @@ int main(void) {
         return 1;
     }
 
-    for (i = 0; i < THREADS1 + THREADS2; ++i) {
+    for (i = 0; i < THREADS1 + THREADS2; i++) {
         if (load(&thread_state[i]) != 3) {
             check(pthread_join(th[i], NULL));
         }

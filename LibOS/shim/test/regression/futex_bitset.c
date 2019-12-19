@@ -38,7 +38,7 @@ int main(int argc, const char** argv) {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 
-    assert(THREADS < sizeof(int) * 8);
+    static_assert(THREADS < sizeof(int) * 8 - 1, "Left shift in the loop below would overflow!");
 
     for (int i = 0; i < THREADS; i++) {
         varx[i] = (1 << i);
@@ -69,7 +69,7 @@ int main(int argc, const char** argv) {
                 sleep(1);
             }
         } while (rv == 0);
-        printf("FUTEX_WAKE_BITSET i = %d rv = %d (expected: %d)\n", i, rv, 1);
+        printf("FUTEX_WAKE_BITSET i = %d rv = %d (expected: 1)\n", i, rv);
         if (rv != 1) {
             return 1;
         }
