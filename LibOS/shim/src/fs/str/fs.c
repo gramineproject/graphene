@@ -76,6 +76,13 @@ int str_close(struct shim_handle* hdl) {
     }
 
     str_dput(hdl->dentry);
+
+    if (hdl->info.str.data) {
+        free(hdl->info.str.data->str);
+        free(hdl->info.str.data);
+        hdl->info.str.data = NULL;
+    }
+
     return 0;
 }
 

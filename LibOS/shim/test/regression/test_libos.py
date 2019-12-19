@@ -381,7 +381,11 @@ class TC_40_FileSystem(RegressionTestCase):
         # proc/cpuinfo Linux-based formatting
         self.assertIn('cpuinfo test passed', stdout)
 
-    def test_030_fdleak(self):
+    def test_030_str_close_leak(self):
+        stdout, stderr = self.run_binary(['str_close_leak'], timeout=10)
+        self.assertIn("Success", stdout)
+
+    def test_040_resource_leak(self):
         stdout, stderr = self.run_binary(['fdleak'], timeout=10)
         self.assertIn("Test succeeded.", stdout)
 
