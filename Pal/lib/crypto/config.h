@@ -43,7 +43,7 @@
 #include <limits.h>
 #include <stddef.h>
 
-void* calloc (size_t nmem, size_t size);
+void* calloc(size_t nmem, size_t size);
 void free(void*);
 
 #define MBEDTLS_PLATFORM_STD_CALLOC   calloc
