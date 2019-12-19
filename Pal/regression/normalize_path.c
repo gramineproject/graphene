@@ -6,7 +6,7 @@
 static int strcmp(const char* a, const char* b) {
     for (; *a && *b && *a == *b; a++, b++)
         ;
-    return *a - *b;
+    return (unsigned char)*a - (unsigned char)*b;
 }
 
 static const char* get_norm_path_cases[][2] = {
