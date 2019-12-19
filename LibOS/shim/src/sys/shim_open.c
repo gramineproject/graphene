@@ -134,11 +134,13 @@ size_t shim_do_write (int fd, const void * buf, size_t count)
 int shim_do_open (const char * file, int flags, mode_t mode)
 {
     if (strlen(file) >= 15 && strpartcmp_static(file, "/sys/class/fpga")) {
-         char hardlink[128] = {'\0'};
-         strcpy_static(hardlink, "/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/", sizeof(hardlink));
-         memcpy(hardlink + strlen(hardlink), file + 15, strlen(file) - 15);
-         file = hardlink;
-	 debug("[FPGA DEMO] opening hardlink file: %s\n", file);
+         //char hardlink[128] = {'\0'};
+         //strcpy_static(hardlink, "/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/fpga/", sizeof(hardlink));
+         char devicepath[CONFIG_MAX] = {'\0'};
+         get_config(root_config, "fpga.devicepath", devicepath, sizeof(devicepath));
+         memcpy(devicepath + strlen(devicepath), file + 15, strlen(file) - 15);
+         file = devicepath;
+	 debug("[FPGA DEMO] opening devicepath file: %s\n", file);
     }
 
     if (!file || test_user_string(file))
