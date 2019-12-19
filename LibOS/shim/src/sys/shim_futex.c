@@ -21,6 +21,12 @@
  *                                  ~ the Linux kernel source
  */
 
+/*
+ * Current implementation is limited to one process i.e. threads calling futex syscall on the same
+ * futex word must reside in the same process.
+ * As a result we can distinguish futexes by their virtual address.
+ */
+
 #include <linux/futex.h>
 #include <linux/time.h>
 #include <stdint.h>
@@ -43,7 +49,7 @@ struct futex_waiter {
     struct shim_thread* thread;
     uint32_t bitset;
     LIST_TYPE(futex_waiter) list;
-    /* futex field is guarded by futex_list lock, do not use it without taking that lock first.
+    /* futex field is guarded by g_futex_list_lock, do not use it without taking that lock first.
      * This is needed to ensure that a waiter knows what futex they were sleeping on, after they
      * wake-up (because they could have been requeued to another futex).*/
     struct shim_futex* futex;
@@ -55,14 +61,14 @@ struct shim_futex {
     uint32_t* uaddr;
     LISTP_TYPE(futex_waiter) waiters;
     LIST_TYPE(shim_futex) list;
-    /* This lock guards every access to uaddr and waiters (above).
-     * Always take futex_list_lock before taking this lock. */
+    /* This lock guards every access to *uaddr (futex word value) and waiters (above).
+     * Always take g_futex_list_lock before taking this lock. */
     spinlock_t lock;
     REFTYPE _ref_count;
 };
 
-static LISTP_TYPE(shim_futex) futex_list = LISTP_INIT;
-static spinlock_t futex_list_lock = INIT_SPINLOCK_UNLOCKED;
+static LISTP_TYPE(shim_futex) g_futex_list = LISTP_INIT;
+static spinlock_t g_futex_list_lock = INIT_SPINLOCK_UNLOCKED;
 
 static void get_futex(struct shim_futex* futex) {
     REF_INC(futex->_ref_count);
@@ -142,42 +148,51 @@ static void unlock_two_futexes(struct shim_futex* futex1, struct shim_futex* fut
 }
 
 /*
- * Adds `futex` to `futex_list`.
+ * Adds `futex` to `g_futex_list`.
  *
- * Both `futex_list_lock` and `futex->lock` should be held while calling this function.
+ * Both `g_futex_list_lock` and `futex->lock` should be held while calling this function.
  */
 static void enqueue_futex(struct shim_futex* futex) {
     get_futex(futex);
-    LISTP_ADD_TAIL(futex, &futex_list, list);
+    LISTP_ADD_TAIL(futex, &g_futex_list, list);
+}
+
+/*
+ * Checks whether `futex` has no waiters and is on `g_futex_list`.
+ *
+ * This requires only `futex->lock` to be held.
+ */
+static bool check_dequeue_futex(struct shim_futex* futex) {
+    return LISTP_EMPTY(&futex->waiters) && !LIST_EMPTY(futex, list);
 }
 
 static void _maybe_dequeue_futex(struct shim_futex* futex) {
-    if (LISTP_EMPTY(&futex->waiters) && !LIST_EMPTY(futex, list)) {
-        LISTP_DEL_INIT(futex, &futex_list, list);
+    if (check_dequeue_futex(futex)) {
+        LISTP_DEL_INIT(futex, &g_futex_list, list);
         /* We still hold this futex reference (in the caller), so this won't call free. */
         put_futex(futex);
     }
 }
 
 /*
- * If `futex` has no waiters and is on `futex_list`, takes it off that list.
+ * If `futex` has no waiters and is on `g_futex_list`, takes it off that list.
  *
- * Neither `futex_list_lock` nor `futex->lock` should be held while calling this,
+ * Neither `g_futex_list_lock` nor `futex->lock` should be held while calling this,
  * it acquires these locks itself.
  */
 static void maybe_dequeue_futex(struct shim_futex* futex) {
-    spinlock_lock(&futex_list_lock);
+    spinlock_lock(&g_futex_list_lock);
     spinlock_lock(&futex->lock);
     _maybe_dequeue_futex(futex);
     spinlock_unlock(&futex->lock);
-    spinlock_unlock(&futex_list_lock);
+    spinlock_unlock(&g_futex_list_lock);
 }
 
 /*
  * Same as `maybe_dequeue_futex`, but works for two futexes, any of which might be NULL.
  */
 static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_futex* futex2) {
-    spinlock_lock(&futex_list_lock);
+    spinlock_lock(&g_futex_list_lock);
     lock_two_futexes(futex1, futex2);
     if (futex1) {
         _maybe_dequeue_futex(futex1);
@@ -186,21 +201,12 @@ static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_fut
         _maybe_dequeue_futex(futex2);
     }
     unlock_two_futexes(futex1, futex2);
-    spinlock_unlock(&futex_list_lock);
-}
-
-/*
- * Performs the same check as `maybe_dequeue_futex`, but without actual dequeuing.
- *
- * This requires only `futex->lock` to be held.
- */
-static bool check_dequeue_futex(struct shim_futex* futex) {
-    return LISTP_EMPTY(&futex->waiters) && !LIST_EMPTY(futex, list);
+    spinlock_unlock(&g_futex_list_lock);
 }
 
 /*
  * Adds `waiter` to `futex` waiters list.
- * You need to make sure that this futex is still on `futex_list`, but in most cases it follows
+ * You need to make sure that this futex is still on `g_futex_list`, but in most cases it follows
  * from the program control flow.
  *
  * Increases refcount of current thread by 1 (in thread_setwait)
@@ -232,7 +238,7 @@ static struct shim_thread* remove_futex_waiter(struct futex_waiter* waiter,
 
 /*
  * Moves waiter from `futex1` to `futex2`.
- * As in `add_futex_waiter`, `futex2` needs to be on `futex_list`.
+ * As in `add_futex_waiter`, `futex2` needs to be on `g_futex_list`.
  *
  * `futex1->lock` and `futex2->lock` need to be held.
  */
@@ -269,14 +275,14 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
 }
 
 /*
- * Finds a futex in `futex_list`.
- * Must be called with `futex_list_lock` held.
+ * Finds a futex in `g_futex_list`.
+ * Must be called with `g_futex_list_lock` held.
  * Increases refcount of futex by 1.
  */
 static struct shim_futex* find_futex(uint32_t* uaddr) {
     struct shim_futex* futex;
 
-    LISTP_FOR_EACH_ENTRY(futex, &futex_list, list) {
+    LISTP_FOR_EACH_ENTRY(futex, &g_futex_list, list) {
         if (futex->uaddr == uaddr) {
             get_futex(futex);
             return futex;
@@ -287,27 +293,33 @@ static struct shim_futex* find_futex(uint32_t* uaddr) {
 }
 
 static uint64_t timespec_to_us(const struct timespec* ts) {
-    return ts->tv_sec * 1000000u + ts->tv_nsec / 1000u;
+    return (uint64_t)ts->tv_sec * 1000000u + (uint64_t)ts->tv_nsec / 1000u;
 }
 
 static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t bitset) {
     int ret = 0;
     struct shim_futex* futex = NULL;
     struct shim_thread* thread = NULL;
+    struct shim_futex* tmp = NULL;
 
-    spinlock_lock(&futex_list_lock);
+    spinlock_lock(&g_futex_list_lock);
     futex = find_futex(uaddr);
     if (!futex) {
-        spinlock_unlock(&futex_list_lock);
-        futex = create_new_futex(uaddr);
-        if (!futex) {
+        spinlock_unlock(&g_futex_list_lock);
+        tmp = create_new_futex(uaddr);
+        if (!tmp) {
             return -ENOMEM;
         }
-        spinlock_lock(&futex_list_lock);
-        enqueue_futex(futex);
+        spinlock_lock(&g_futex_list_lock);
+        futex = find_futex(uaddr);
+        if (!futex) {
+            enqueue_futex(tmp);
+            futex = tmp;
+            tmp = NULL;
+        }
     }
     spinlock_lock(&futex->lock);
-    spinlock_unlock(&futex_list_lock);
+    spinlock_unlock(&g_futex_list_lock);
 
     if (__atomic_load_n(uaddr, __ATOMIC_RELAXED) != val) {
         ret = -EAGAIN;
@@ -330,13 +342,13 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
         ret = -ETIMEDOUT;
     }
 
-    spinlock_lock(&futex_list_lock);
+    spinlock_lock(&g_futex_list_lock);
     /* We might have been requeued. Grab the (possibly new) futex reference. */
     futex = waiter.futex;
     assert(futex);
     get_futex(futex);
     spinlock_lock(&futex->lock);
-    spinlock_unlock(&futex_list_lock);
+    spinlock_unlock(&g_futex_list_lock);
 
     if (!LIST_EMPTY(&waiter, list)) {
         /* If we woke up due to time out, we were not removed from the waiters list (opposite
@@ -350,7 +362,7 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
     put_futex(waiter.futex);
 
 out_with_futex_lock: ; // C is awesome!
-    /* Because dequeuing a futex requires `futex_list_lock` which we do not hold at this moment,
+    /* Because dequeuing a futex requires `g_futex_list_lock` which we do not hold at this moment,
      * we check if we actually need to do it now (locks acquisition and dequeuing). */
     bool needs_dequeue = check_dequeue_futex(futex);
 
@@ -365,6 +377,9 @@ out_with_futex_lock: ; // C is awesome!
     }
 
     put_futex(futex);
+    if (tmp) {
+        put_futex(tmp);
+    }
     return ret;
 }
 
@@ -413,14 +428,14 @@ static int futex_wake(uint32_t* uaddr, int to_wake, uint32_t bitset) {
         return -EINVAL;
     }
 
-    spinlock_lock(&futex_list_lock);
+    spinlock_lock(&g_futex_list_lock);
     futex = find_futex(uaddr);
     if (!futex) {
-        spinlock_unlock(&futex_list_lock);
+        spinlock_unlock(&g_futex_list_lock);
         return 0;
     }
     spinlock_lock(&futex->lock);
-    spinlock_unlock(&futex_list_lock);
+    spinlock_unlock(&g_futex_list_lock);
 
     woken = move_to_wake_queue(futex, bitset, to_wake, &queue);
 
@@ -457,12 +472,12 @@ static int futex_wake_op(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake1, int t
     bool needs_dequeue1 = false;
     bool needs_dequeue2 = false;
 
-    spinlock_lock(&futex_list_lock);
+    spinlock_lock(&g_futex_list_lock);
     futex1 = find_futex(uaddr1);
     futex2 = find_futex(uaddr2);
 
     lock_two_futexes(futex1, futex2);
-    spinlock_unlock(&futex_list_lock);
+    spinlock_unlock(&g_futex_list_lock);
 
     unsigned int op = (val3 >> 28) & 0x7; // highest bit is for FUTEX_OP_OPARG_SHIFT
     unsigned int cmp = (val3 >> 24) & 0xf;
@@ -477,7 +492,12 @@ static int futex_wake_op(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake1, int t
              * so we do the same. */
             oparg &= 0x1f;
         }
-        oparg = 1 << oparg;
+        if (oparg == 31) {
+            // left shift by 31 would be UB here
+            oparg = -2147483648;
+        } else {
+            oparg = 1 << oparg;
+        }
     }
 
     switch (op) {
@@ -557,6 +577,7 @@ out_unlock:
 static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to_requeue, uint32_t* val) {
     struct shim_futex* futex1 = NULL;
     struct shim_futex* futex2 = NULL;
+    struct shim_futex* tmp = NULL;
     struct wake_queue_head queue = { .first = WAKE_QUEUE_TAIL };
     int ret = 0;
     int woken = 0;
@@ -571,23 +592,28 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
         return -EINVAL;
     }
 
-    spinlock_lock(&futex_list_lock);
+    spinlock_lock(&g_futex_list_lock);
     futex2 = find_futex(uaddr2);
     if (!futex2) {
-        spinlock_unlock(&futex_list_lock);
-        futex2 = create_new_futex(uaddr2);
-        if (!futex2) {
+        spinlock_unlock(&g_futex_list_lock);
+        tmp = create_new_futex(uaddr2);
+        if (!tmp) {
             return -ENOMEM;
         }
         needs_dequeue2 = true;
 
-        spinlock_lock(&futex_list_lock);
-        enqueue_futex(futex2);
+        spinlock_lock(&g_futex_list_lock);
+        futex2 = find_futex(uaddr2);
+        if (!futex2) {
+            enqueue_futex(tmp);
+            futex2 = tmp;
+            tmp = NULL;
+        }
     }
     futex1 = find_futex(uaddr1);
 
     lock_two_futexes(futex1, futex2);
-    spinlock_unlock(&futex_list_lock);
+    spinlock_unlock(&g_futex_list_lock);
 
     if (val != NULL) {
         if (__atomic_load_n(uaddr1, __ATOMIC_RELAXED) != *val) {
@@ -638,8 +664,11 @@ out_unlock:
     assert(futex2);
     put_futex(futex2);
 
-    return ret;
+    if (tmp) {
+        put_futex(tmp);
+    }
 
+    return ret;
 }
 
 #define FUTEX_CHECK_READ false
@@ -911,7 +940,7 @@ void release_robust_list(struct robust_list_head* head) {
  * Ignores all possible errors, silently just bailing out.
  *
  * Since it is a callback to Async Helper thread, it must follow the
- * `void (*callback) (IDTYPE caller, void * arg)` signature even though we don't use caller.
+ * `void (*callback) (IDTYPE caller, void* arg)` signature even though we don't use caller.
  */
 void release_clear_child_id(IDTYPE caller, void* clear_child_tids) {
     __UNUSED(caller);
