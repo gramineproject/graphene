@@ -1062,9 +1062,8 @@ BEGIN_CP_FUNC(vma)
 
         void * need_mapped = vma->addr;
 
-        if (
-            NEED_MIGRATE_MEMORY(vma)) {
-            void *   send_addr = vma->addr;
+        if (NEED_MIGRATE_MEMORY(vma)) {
+            void* send_addr  = vma->addr;
             size_t send_size = vma->length;
             if (vma->file) {
                 /*

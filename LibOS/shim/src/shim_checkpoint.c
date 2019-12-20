@@ -1009,9 +1009,8 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
     size_t total_bytes = 0;
     while (total_bytes < size) {
-        PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0,
-                size - total_bytes,
-                (void *) base + total_bytes, NULL, 0);
+        PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0, size - total_bytes,
+                                     (void*)base + total_bytes, NULL, 0);
 
         if (bytes == PAL_STREAM_ERROR) {
             if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
