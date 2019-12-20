@@ -53,13 +53,12 @@ static inline int create_process_handle (PAL_HANDLE * parent,
 {
     PAL_HANDLE phdl = NULL, chdl = NULL;
     int fds[6] = { -1, -1, -1, -1, -1, -1 };
+    int socktype = SOCK_STREAM | SOCK_CLOEXEC;
     int ret;
 
-    if (IS_ERR((ret = INLINE_SYSCALL(pipe2, 2, &fds[0], O_CLOEXEC))) ||
-        IS_ERR((ret = INLINE_SYSCALL(pipe2, 2, &fds[2], O_CLOEXEC))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX,
-                                     SOCK_STREAM|SOCK_CLOEXEC,
-                                     0, &fds[4])))) {
+    if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[0]))) ||
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2]))) ||
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[4])))) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -139,9 +138,10 @@ static int child_process (void * param)
     if (IS_ERR(ret))
         goto failed;
 
-    handle_set_cloexec(proc_param->parent, false);
+    if (proc_param->parent)
+        handle_set_cloexec(proc_param->parent,   false);
     if (proc_param->exec)
-        handle_set_cloexec(proc_param->exec, false);
+        handle_set_cloexec(proc_param->exec,     false);
     if (proc_param->manifest)
         handle_set_cloexec(proc_param->manifest, false);
 

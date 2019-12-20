@@ -52,13 +52,12 @@ static inline int create_process_handle (PAL_HANDLE * parent,
 {
     PAL_HANDLE phdl = NULL, chdl = NULL;
     int fds[6] = { -1, -1, -1, -1, -1, -1 };
+    int socktype = SOCK_STREAM | SOCK_CLOEXEC;
     int ret;
 
-    if (IS_ERR((ret = INLINE_SYSCALL(pipe2, 2, &fds[0], O_CLOEXEC))) ||
-        IS_ERR((ret = INLINE_SYSCALL(pipe2, 2, &fds[2], O_CLOEXEC))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX,
-                                     SOCK_STREAM|SOCK_CLOEXEC,
-                                     0, &fds[4])))) {
+    if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[0]))) ||
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2]))) ||
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[4])))) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -144,7 +143,7 @@ struct proc_args {
  * NOTE: more tricks may be needed to prevent unexpected optimization for
  * future compiler.
  */
-int __attribute_noinline
+static int __attribute_noinline
 child_process (struct proc_param * proc_param)
 {
     int ret = ARCH_VFORK();
