@@ -94,23 +94,8 @@ struct shim_thread {
     unsigned long exit_time;
 #endif
 
-#ifdef SHIM_SYSCALL_STACK
-#define SHIM_THREAD_SYSCALL_STACK_SIZE  (16 * 1024)
-    uint8_t syscall_stack[SHIM_THREAD_SYSCALL_STACK_SIZE];
-#endif
+    uint8_t* syscall_stack;
 };
-
-static inline void shim_tcb_init_syscall_stack(
-    shim_tcb_t* shim_tcb, struct shim_thread* thread) {
-#ifdef SHIM_SYSCALL_STACK
-    if (thread) {
-        shim_tcb->syscall_stack = ALIGN_DOWN_PTR(
-            (void*)thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE, 16UL);
-    } else {
-        shim_tcb->syscall_stack = NULL;
-    }
-#endif
-}
 
 DEFINE_LIST(shim_simple_thread);
 struct shim_simple_thread {
@@ -155,6 +140,19 @@ static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __
 static inline bool is_internal(struct shim_thread *thread)
 {
     return thread->tid >= INTERNAL_TID_BASE;
+}
+
+static inline void shim_tcb_init_syscall_stack(
+    shim_tcb_t* shim_tcb, struct shim_thread* thread) {
+    if (thread && !is_internal(thread)) {
+        if (!thread->syscall_stack) {
+            thread->syscall_stack = malloc(SHIM_THREAD_SYSCALL_STACK_SIZE);
+        }
+        shim_tcb->syscall_stack = ALIGN_DOWN_PTR(
+            (void*)thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE, 16UL);
+    } else {
+        shim_tcb->syscall_stack = NULL;
+    }
 }
 
 void get_thread (struct shim_thread * thread);

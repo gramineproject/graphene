@@ -36,8 +36,25 @@
 syscalldb:
         .cfi_startproc
 
+        movq %rsp, %r11
+        .cfi_def_cfa_register %r11
+        .cfi_register %rsp, %r11
+        .cfi_undefined %r11
+
+        # switch stack
+        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
+
         # Create shim_regs struct on the stack.
+        pushq %r11              # save old %rsp
+
+        pushq (%r11)            # copy return address from original stack
+        .cfi_def_cfa %rsp, 8
+        .cfi_val_offset %rsp, 8
+
+syscalldb_from_wrapper:
         pushfq
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rflags, -2 * 8
 
         # Under GDB, single-stepping sets Trap Flag (TP) of EFLAGS,
         # thus TP=1 is stored on pushfq above. Upon consequent popfq,
@@ -46,28 +63,54 @@ syscalldb:
 
         cld
         pushq %rbp
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rbp, -3 * 8
         pushq %rbx
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rbx, -4 * 8
         pushq %rdi
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rdi, -5 * 8
         pushq %rsi
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rsi, -6 * 8
         pushq %rdx
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rdx, -7 * 8
         pushq %rcx
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rcx, -8 * 8
         pushq %r8
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r8, -9 * 8
         pushq %r9
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r9, -10 * 8
         pushq %r10
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r10, -11 * 8
         pushq %r11
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r11, -12 * 8
         pushq %r12
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r12, -13 * 8
         pushq %r13
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r13, -14 * 8
         pushq %r14
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r14, -15 * 8
         pushq %r15
-        leaq SHIM_REGS_SIZE - SHIM_REGS_R15(%rsp), %rbx
-        pushq %rbx
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %r15, -16 * 8
         pushq %rax
+        .cfi_adjust_cfa_offset 8
+        .cfi_val_offset %rax, -17 * 8
         # shim_regs struct ends here.
 
         movq %rsp, %rbp
-        .cfi_def_cfa_offset SHIM_REGS_SIZE
-        .cfi_offset %rbp, -3 * 8    # saved_rbp is at CFA-24 (saved_rflags + saved_rbp)
-        .cfi_def_cfa_register %rbp  # %rbp
+        .cfi_def_cfa_register %rbp
 
         cmp $LIBOS_SYSCALL_BOUND, %rax
         jae isundef
@@ -89,25 +132,63 @@ syscalldb:
 
 ret:
         movq %rbp, %rsp
+        .cfi_def_cfa_register %rsp
         addq $2 * 8, %rsp   # skip orig_rax and rsp
+        .cfi_adjust_cfa_offset -2 * 8
         popq %r15
+        .cfi_restore %r15
+        .cfi_adjust_cfa_offset -8
         popq %r14
+        .cfi_restore %r14
+        .cfi_adjust_cfa_offset -8
         popq %r13
+        .cfi_restore %r13
+        .cfi_adjust_cfa_offset -8
         popq %r12
-        popq %r11
+        .cfi_restore %r12
+        .cfi_adjust_cfa_offset -8
+        addq $8, %rsp           # skip %r11 as it's used below
+        .cfi_adjust_cfa_offset -8
         popq %r10
+        .cfi_restore %r10
+        .cfi_adjust_cfa_offset -8
         popq %r9
+        .cfi_restore %r9
+        .cfi_adjust_cfa_offset -8
         popq %r8
+        .cfi_restore %r8
+        .cfi_adjust_cfa_offset -8
         popq %rcx
+        .cfi_restore %rcx
+        .cfi_adjust_cfa_offset -8
         popq %rdx
+        .cfi_restore %rdx
+        .cfi_adjust_cfa_offset -8
         popq %rsi
+        .cfi_restore %rsi
+        .cfi_adjust_cfa_offset -8
         popq %rdi
+        .cfi_restore %rdi
+        .cfi_adjust_cfa_offset -8
         popq %rbx
+        .cfi_restore %rbx
+        .cfi_adjust_cfa_offset -8
         popq %rbp
-        .cfi_def_cfa %rsp, 2 * 8  # +8 for ret_addr, +8 for saved_rflags
+        .cfi_restore %rbp
+        .cfi_adjust_cfa_offset -8
         popfq
-        .cfi_def_cfa_offset 8     # +8 for ret_addr
-        retq
+        .cfi_restore %rflags
+        .cfi_adjust_cfa_offset -8
+
+        popq %r11
+        .cfi_restore %rip, %r11
+        .cfi_adjust_cfa_offset -8
+
+        # restore application stack
+        popq %rsp
+        .cfi_def_cfa %rsp, 8
+
+        jmp *%r11
 
 isundef:
 #ifdef DEBUG
@@ -121,52 +202,11 @@ isundef:
         .cfi_endproc
         .size syscalldb, .-syscalldb
 
-#ifndef SHIM_SYSCALL_STACK
-        /*
-         * syscall_wrapper: emulate syscall instruction
-         *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
-         * See illegal_upcall() @ shim_signal.c and
-         *     fixup_child_context() @ shim_clone.c
-         *
-         * input:
-         * %rcx: Instruction address to continue app execution after trapped
-         *       syscall instruction
-         * %r11: rflags on entering syscall
-         */
-syscall_wrapper:
-        .cfi_startproc
-        .cfi_def_cfa %rsp, 0
-        # %rcx is used as input for returning %rip
-        .cfi_register %rip, %rcx
-        # %r11 is used as input to keep %rflags
-        .cfi_register %rflags, %r11
-        subq $RED_ZONE_SIZE, %rsp
-        .cfi_adjust_cfa_offset RED_ZONE_SIZE
-        callq *syscalldb@GOTPCREL(%rip)
-syscall_wrapper_after_syscalldb:
-        addq $RED_ZONE_SIZE, %rsp
-        .cfi_adjust_cfa_offset -RED_ZONE_SIZE
-        # restore %rflags for syscall abi compatibility.
-        # This must be done after "addq $RED_ZONE_SIZE, %rsp" above
-        # which destroys %rflags
-        xchg %r11, (%rsp)
-        .cfi_offset %rflags, 0
-        popfq
-        .cfi_adjust_cfa_offset -8
-        .cfi_same_value %rflags
-        pushq %r11
-        .cfi_adjust_cfa_offset 8
-        jmp *%rcx
-
-        .cfi_endproc
-        .size syscall_wrapper, .-syscall_wrapper
-
-#else
         /*
          * syscall_wrapper: emulate syscall instruction
          *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
          *   This switches stack to dedicated one allocated by LibOS to avoid
-         *   small application stack. e.g. go program.
+         *   small application stack. e.g. as goroutine.
          * See illegal_upcall() @ shim_signal.c and
          *     fixup_child_context() @ shim_clone.c
          *
@@ -174,25 +214,25 @@ syscall_wrapper_after_syscalldb:
          * %rcx: Instruction address to continue app execution after trapped
          *       syscall instruction
          * %r11: rflags on entering syscall: unused as %rflags is preserved
-         *       %r11 == %rflags on entry
          */
 syscall_wrapper:
         .cfi_startproc
         .cfi_def_cfa %rsp, 0
         # %rcx is used as input for returning %rip
         .cfi_register %rip, %rcx
-        # %r11(saved %rflags) isn't needed.
+        .cfi_register %rflags, %rcx
+        # %r11(saved %rflags) isn't needed,
+        # so re-use %r11 to store application stack
         movq %rsp, %r11
         .cfi_def_cfa_register %r11
         .cfi_register %rsp, %r11
+        .cfi_undefined %r11
         # switch stack to the one allocated by LibOS
         movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
-        callq *syscalldb@GOTPCREL(%rip)
-syscall_wrapper_after_syscalldb:
-        # %rflags is perserved. no need to restore
-        movq %r11, %rsp
-        jmp *%rcx
+        pushq %r11
+        pushq %rcx
+        jmp syscalldb_from_wrapper
+        # no return from syscall_db_from_wrapper
 
         .cfi_endproc
         .size syscall_wrapper, .-syscall_wrapper
-#endif

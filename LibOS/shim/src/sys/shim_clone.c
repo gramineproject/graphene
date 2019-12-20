@@ -47,26 +47,6 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
      */
 }
 
-/*
- * See syscall_wrapper @ syscalldb.S and illegal_upcall() @ shim_signal.c
- * for details.
- * child thread can _not_ use parent stack. So return right after syscall
- * instruction as if syscall_wrapper is executed.
- */
-static void fixup_child_context(struct shim_regs * regs)
-{
-    if (regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
-        /*
-         * we don't need to emulate stack pointer change because %rsp is
-         * initialized to new child user stack passed to clone() system call.
-         * See the caller of fixup_child_context().
-         */
-        /* regs->rsp += RED_ZONE_SIZE; */
-        regs->rflags = regs->r11;
-        regs->rip = regs->rcx;
-    }
-}
-
 /* from **sysdeps/unix/sysv/linux/x86_64/clone.S:
    The userland implementation is:
    int clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg),
@@ -107,13 +87,6 @@ static void fixup_child_context(struct shim_regs * regs)
  * 7.In the wrapper function ,we just do the stack switch to user
  *   Provided stack and execute the user Provided function.
  */
-
-/* glibc needs space offset by fs.  In the absence of a good way to predict
- * how big the struct pthread will be (defined in nptl/descr.h),
- * let's just define a value that over-shoots it.
- */
-#define PTHREAD_PADDING 2048
-
 static int clone_implementation_wrapper(struct shim_clone_args * arg)
 {
     //The child thread created by PAL is now running on the
@@ -159,16 +132,13 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
     DkEventSet(arg->initialize_event);
 
     /***** From here down, we are switching to the user-provided stack ****/
-
-    //user_stack_addr[0] ==> user provided function address
-    //user_stack_addr[1] ==> arguments to user provided function.
-
     debug("child swapping stack to %p return 0x%lx: %d\n",
           stack, regs.rip, my_thread->tid);
 
     tcb->context.regs = &regs;
-    fixup_child_context(tcb->context.regs);
     tcb->context.regs->rsp = (unsigned long)stack;
+    assert((void*)regs.rip < (void*)&__code_address &&
+           (void*)regs.rip >= (void*)&__code_address_end);
 
     put_thread(my_thread);
 

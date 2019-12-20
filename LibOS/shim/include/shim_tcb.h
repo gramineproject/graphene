@@ -7,7 +7,6 @@
 
 struct shim_regs {
     unsigned long           orig_rax;
-    unsigned long           rsp;
     unsigned long           r15;
     unsigned long           r14;
     unsigned long           r13;
@@ -24,6 +23,7 @@ struct shim_regs {
     unsigned long           rbp;
     unsigned long           rflags;
     unsigned long           rip;
+    unsigned long           rsp;
 };
 
 struct shim_context {
@@ -45,9 +45,7 @@ struct shim_tcb {
     unsigned int            tid;
     int                     pal_errno;
     struct debug_buf *      debug_buf;
-#ifdef SHIM_SYSCALL_STACK
     uint8_t*                syscall_stack;
-#endif
 
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],

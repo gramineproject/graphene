@@ -65,8 +65,6 @@
 
 #define WARN_NO_GIPC                0   /* warn if GIPC is not supported for process creation */
 
-/* TODO user configuration */
-#define SHIM_SYSCALL_STACK          1
-//#undef SHIM_SYSCALL_STACK
+#define SHIM_THREAD_SYSCALL_STACK_SIZE  (16 * 1024)
 
 #endif /* _SHIM_DEFS_H_ */
