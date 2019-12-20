@@ -107,13 +107,6 @@ static void fixup_child_context(struct shim_regs * regs)
  * 7.In the wrapper function ,we just do the stack switch to user
  *   Provided stack and execute the user Provided function.
  */
-
-/* glibc needs space offset by fs.  In the absence of a good way to predict
- * how big the struct pthread will be (defined in nptl/descr.h),
- * let's just define a value that over-shoots it.
- */
-#define PTHREAD_PADDING 2048
-
 static int clone_implementation_wrapper(struct shim_clone_args * arg)
 {
     //The child thread created by PAL is now running on the
