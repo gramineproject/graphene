@@ -40,10 +40,6 @@ typedef __kernel_pid_t pid_t;
 #include <linux/un.h>
 #include <sys/socket.h>
 
-#if USE_PIPE_SYSCALL == 1
-#include <linux/msg.h>
-#endif
-
 static int pipe_path(int pipeid, char* path, int len) {
     /* use abstract UNIX sockets for pipes */
     memset(path, 0, len);
@@ -120,40 +116,6 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
                 return -PAL_ERROR_DENIED;
         }
 
-#if USE_PIPE_SYSCALL == 1
-    int pipes[2];
-    struct msghdr hdr;
-    struct iovec iov;
-    char cbuf[sizeof(struct cmsghdr) + 2 * sizeof(int)];
-    char b  = 0;
-    int ret = 0;
-
-    memset(&hdr, 0, sizeof(struct msghdr));
-    hdr.msg_iov        = &iov;
-    hdr.msg_iovlen     = 1;
-    hdr.msg_control    = cbuf;
-    hdr.msg_controllen = sizeof(cbuf);
-    iov.iov_base       = &b;
-    iov.iov_len        = 1;
-
-    ret = INLINE_SYSCALL(recvmsg, 3, newfd, &hdr, 0);
-
-    INLINE_SYSCALL(close, 1, newfd);
-
-    struct cmsghdr* chdr = CMSG_FIRSTHDR(&hdr);
-
-    if (IS_ERR(ret) || chdr->cmsg_type != SCM_RIGHTS)
-        return -PAL_ERROR_DENIED;
-
-    memcpy(pipes, CMSG_DATA(chdr), sizeof(int) * 2);
-
-    PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipeprv));
-    SET_HANDLE_TYPE(clnt, pipeprv);
-    clnt->__in.flags |= RFD(0) | WFD(1) | WRITABLE(1);
-    clnt->pipeprv.fds[0] = pipes[0];
-    clnt->pipeprv.fds[1] = pipes[1];
-    *client              = clnt;
-#else
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(clnt, pipecli);
     HANDLE_HDR(clnt)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
@@ -161,7 +123,6 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
     clnt->pipe.pipeid      = handle->pipe.pipeid;
     clnt->pipe.nonblocking = PAL_FALSE;
     *client                = clnt;
-#endif
 
     return 0;
 }
@@ -169,11 +130,7 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
 static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
     int ret, fd;
 
-#if USE_PIPE_SYSCALL == 1
-    fd = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-#else
     fd = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | options, 0);
-#endif
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
@@ -197,60 +154,12 @@ static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
         }
     }
 
-#if USE_PIPE_SYSCALL == 1
-    int pipes[4], tmp;
-
-    INLINE_SYSCALL(pipe2, 2, &pipes[0], O_CLOEXEC | options);
-    INLINE_SYSCALL(pipe2, 2, &pipes[2], O_CLOEXEC | options);
-
-    tmp      = pipes[3];
-    pipes[3] = pipes[1];
-    pipes[1] = tmp;
-
-    struct msghdr hdr;
-    struct iovec iov;
-    char cbuf[sizeof(struct cmsghdr) + 2 * sizeof(int)];
-    char b = 0;
-
-    memset(&hdr, 0, sizeof(struct msghdr));
-    hdr.msg_iov        = &iov;
-    hdr.msg_iovlen     = 1;
-    hdr.msg_control    = cbuf;
-    hdr.msg_controllen = sizeof(cbuf);
-    iov.iov_base       = &b;
-    iov.iov_len        = 1;
-
-    struct cmsghdr* chdr = CMSG_FIRSTHDR(&hdr);
-    chdr->cmsg_level     = SOL_SOCKET;
-    chdr->cmsg_type      = SCM_RIGHTS;
-    chdr->cmsg_len       = CMSG_LEN(sizeof(int) * 2);
-    memcpy(CMSG_DATA(chdr), &pipes[2], sizeof(int) * 2);
-
-    ret = INLINE_SYSCALL(sendmsg, 3, fd, &hdr, 0);
-    INLINE_SYSCALL(close, 1, fd);
-    INLINE_SYSCALL(close, 1, pipes[2]);
-    INLINE_SYSCALL(close, 1, pipes[3]);
-
-    if (IS_ERR(ret)) {
-        INLINE_SYSCALL(close, 1, pipes[0]);
-        INLINE_SYSCALL(close, 1, pipes[1]);
-        return -PAL_ERROR_DENIED;
-    }
-
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
-    SET_HANDLE_TYPE(hdl, pipeprv);
-    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(1) | WRITABLE(1);
-    hdl->pipeprv.fds[0]      = pipes[0];
-    hdl->pipeprv.fds[1]      = pipes[1];
-    hdl->pipeprv.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
-#else
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(hdl, pipe);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
     hdl->pipe.fd          = fd;
     hdl->pipe.pipeid      = pipeid;
     hdl->pipe.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
-#endif
     *handle = hdl;
 
     return 0;
@@ -259,11 +168,7 @@ static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
 static int pipe_private(PAL_HANDLE* handle, int options) {
     int ret, fds[2];
 
-#if USE_PIPE_SYSCALL == 1
-    ret = INLINE_SYSCALL(pipe2, 2, fds, O_CLOEXEC | options);
-#else
     ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | options, 0, fds);
-#endif
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
@@ -317,32 +222,7 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
     int fd        = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] : handle->pipe.fd;
     int64_t bytes = 0;
 
-#if USE_PIPE_SYSCALL == 1
-    if (IS_HANDLE_TYPE(handle, pipeprv)) {
-        bytes = INLINE_SYSCALL(read, 3, fd, buffer, len);
-    } else {
-#endif
-#if PIPE_USE_SENDMSG_RECVMSG == 1
-        struct msghdr hdr;
-        struct iovec iov;
-
-        iov.iov_base       = buffer;
-        iov.iov_len        = len;
-        hdr.msg_name       = NULL;
-        hdr.msg_namelen    = 0;
-        hdr.msg_iov        = &iov;
-        hdr.msg_iovlen     = 1;
-        hdr.msg_control    = NULL;
-        hdr.msg_controllen = 0;
-        hdr.msg_flags      = 0;
-
-        bytes = INLINE_SYSCALL(recvmsg, 3, fd, &hdr, 0);
-#else
     bytes = INLINE_SYSCALL(read, 3, fd, buffer, len);
-#endif
-#if USE_PIPE_SYSCALL == 1
-    }
-#endif
 
     if (IS_ERR(bytes))
         bytes = unix_to_pal_error(ERRNO(bytes));
@@ -365,32 +245,7 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, size_t len, const 
     int fd        = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] : handle->pipe.fd;
     int64_t bytes = 0;
 
-#if USE_PIPE_SYSCALL == 1
-    if (IS_HANDLE_TYPE(handle, pipeprv)) {
-        bytes = INLINE_SYSCALL(write, 3, fd, buffer, len);
-    } else {
-#endif
-#if PIPE_USE_SENDMSG_RECVMSG == 1
-        struct msghdr hdr;
-        struct iovec iov;
-
-        iov.iov_base       = (void*)buffer;
-        iov.iov_len        = len;
-        hdr.msg_name       = NULL;
-        hdr.msg_namelen    = 0;
-        hdr.msg_iov        = &iov;
-        hdr.msg_iovlen     = 1;
-        hdr.msg_control    = NULL;
-        hdr.msg_controllen = 0;
-        hdr.msg_flags      = 0;
-
-        bytes = INLINE_SYSCALL(sendmsg, 3, fd, &hdr, MSG_NOSIGNAL);
-#else
     bytes = INLINE_SYSCALL(write, 3, fd, buffer, len);
-#endif
-#if USE_PIPE_SYSCALL == 1
-    }
-#endif
 
     PAL_FLG writable = IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0);
 
