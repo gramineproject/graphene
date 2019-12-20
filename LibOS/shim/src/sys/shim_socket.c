@@ -1206,36 +1206,40 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
 
         bytes += pal_ret;
 
-        if (!addr || !bytes || address_received)
-            continue;
-
-        if (sock->domain == AF_UNIX) {
-            unix_copy_addr(addr, sock->addr.un.dentry);
-            *addrlen = sizeof(struct sockaddr_un);
-        }
-
-        if (sock->domain == AF_INET || sock->domain == AF_INET6) {
-            if (uri) {
-                struct addr_inet conn;
-
-                if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri, &conn, NULL)) < 0) {
-                    lock(&hdl->lock);
-                    goto out_locked;
-                }
-
-                debug("last packet received from %s\n", uri);
-
-                inet_rebase_port(true, sock->domain, &conn, false);
-                inet_copy_addr(sock->domain, addr, &conn);
-            } else {
-                inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+        if (addr && !address_received) {
+            if (sock->domain == AF_UNIX) {
+                unix_copy_addr(addr, sock->addr.un.dentry);
+                *addrlen = sizeof(struct sockaddr_un);
             }
 
-            *addrlen = (sock->domain == AF_INET) ? sizeof(struct sockaddr_in)
-                                                 : sizeof(struct sockaddr_in6);
+            if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+                if (uri) {
+                    struct addr_inet conn;
+
+                    if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri, &conn, NULL)) < 0) {
+                        lock(&hdl->lock);
+                        goto out_locked;
+                    }
+
+                    debug("last packet received from %s\n", uri);
+
+                    inet_rebase_port(true, sock->domain, &conn, false);
+                    inet_copy_addr(sock->domain, addr, &conn);
+                } else {
+                    inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+                }
+
+                *addrlen = (sock->domain == AF_INET) ? sizeof(struct sockaddr_in)
+                                                     : sizeof(struct sockaddr_in6);
+            }
+
+            address_received = true;
         }
 
-        address_received = false;
+        /* gap in iovecs is not allowed, return a partial read to user; it is the responsibility of
+         * user application to deal with partial reads */
+        if (pal_ret < bufs[i].iov_len)
+            break;
     }
 
     if (bytes)
