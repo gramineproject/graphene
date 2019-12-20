@@ -416,6 +416,9 @@ static int __chroot_open (struct shim_dentry * dent,
                 return -PAL_ERRNO;
         }
 
+        /* If DENTRY_LISTED is set on the parent dentry,
+         * list_directory_dentry() will not update dent's ino,
+         * so ino will be actively updated here. */
         if (creat)
             chroot_update_ino(dent);
     }
