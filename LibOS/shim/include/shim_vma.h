@@ -80,10 +80,6 @@ static inline void free_vma_val_array(struct shim_vma_val* vmas, size_t count) {
 #define NEED_MIGRATE_MEMORY(vma) \
     (((vma)->flags & VMA_TAINTED || !(vma)->file) && !((vma)->flags & VMA_UNMAPPED))
 
-#define NEED_MIGRATE_MEMORY_IF_GIPC(vma)                                                   \
-    (!((vma)->flags & VMA_UNMAPPED) && !(!(vma)->prot && !((vma)->flags & VMA_TAINTED)) && \
-     !((vma)->file && ((vma)->flags & MAP_SHARED)))
-
 static inline PAL_FLG PAL_PROT(int prot, int flags) {
     PAL_FLG pal_prot = 0;
 

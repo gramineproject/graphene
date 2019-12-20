@@ -1,7 +1,7 @@
 include ../../../../Makefile.configs
 include Makefile.am
 
-CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc/linux \
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib \
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
@@ -11,7 +11,7 @@ defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    mutex events process object main rtld misc ipc \
+	    mutex events process object main rtld misc \
 	    exception2) rfork_thread
 graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)

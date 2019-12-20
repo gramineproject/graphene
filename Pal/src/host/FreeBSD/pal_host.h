@@ -110,12 +110,6 @@ typedef union pal_handle
     struct {
         PAL_HDR hdr;
         PAL_IDX fd;
-        PAL_NUM token;
-    } gipc;
-
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fd;
         PAL_PTR bind;
         PAL_PTR conn;
         PAL_BOL nonblocking;

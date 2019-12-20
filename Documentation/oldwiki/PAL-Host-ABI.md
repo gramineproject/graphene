@@ -574,28 +574,3 @@ This API returns the amount of currently available memory for LibOS/application 
      PAL_BOL DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
 
 This API returns CPUID information in the array `values`, based on the leaf/subleaf.
-
-
-### Memory Bulk Copy (Optional)
-
-#### DkCreatePhysicalMemoryChannel
-
-    PAL_HANDLE DkCreatePhysicalMemoryChannel(PAL_NUM* key);
-
-This API creates a physical memory channel for the process to copy virtual memory as copy-on-write.
-Once a channel is created, other processes can connect to the physical memory channel by using
-[DkStreamOpen](#dkstreamopen) with a URI `gipc:<key>`.
-
-#### DkPhysicalMemoryCommit
-
-    PAL_NUM DkPhysicalMemoryCommit(PAL_HANDLE channel, PAL_NUM entries, PAL_PTR* addrs,
-                                   PAL_NUM* sizes);
-
-This API commits (sends) an array of the virtual memory area over the physical memory channel.
-
-#### DkPhysicalMemoryMap
-
-    PAL_NUM DkPhysicalMemoryMap(PAL_HANDLE channel, PAL_NUM entries, PAL_PTR* addrs,
-                                PAL_NUM* sizes, PAL_FLG* prots);
-
-This API maps an array of virtual memory area from the physical memory channel.

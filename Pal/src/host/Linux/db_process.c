@@ -34,7 +34,6 @@
 #include "pal_error.h"
 #include "pal_security.h"
 #include "pal_rtld.h"
-#include "graphene-ipc.h"
 #include "api.h"
 
 #include <linux/sched.h>

@@ -37,9 +37,6 @@ DkCpuIdRetrieve
 DkObjectClose
 DkSetExceptionHandler
 DkExceptionReturn
-DkCreatePhysicalMemoryChannel
-DkPhysicalMemoryCommit
-DkPhysicalMemoryMap
 DkSegmentRegister
 DkStreamChangeName
 DkStreamAttributesSetByHandle

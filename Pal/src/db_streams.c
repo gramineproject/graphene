@@ -43,7 +43,6 @@ extern struct handle_ops thread_ops;
 extern struct handle_ops proc_ops;
 extern struct handle_ops mutex_ops;
 extern struct handle_ops event_ops;
-extern struct handle_ops gipc_ops;
 extern struct handle_ops mcast_ops;
 extern struct handle_ops eventfd_ops;
 
@@ -64,7 +63,6 @@ const struct handle_ops* pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
     [pal_type_thread]  = &thread_ops,
     [pal_type_mutex]   = &mutex_ops,
     [pal_type_event]   = &event_ops,
-    [pal_type_gipc]    = &gipc_ops,
     [pal_type_eventfd] = &eventfd_ops,
 };
 
@@ -99,8 +97,6 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
                 hops = &file_ops;
             else if (strstartswith_static(u, "pipe"))
                 hops = &pipe_ops;
-            else if (strstartswith_static(u, "gipc"))
-                hops = &gipc_ops;
             break;
 
         case 7:

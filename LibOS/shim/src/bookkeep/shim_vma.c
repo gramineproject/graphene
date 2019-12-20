@@ -1062,13 +1062,8 @@ BEGIN_CP_FUNC(vma)
 
         void * need_mapped = vma->addr;
 
-        if (
-#if MIGRATE_MORE_GIPC == 1
-            store->use_gipc ?
-            NEED_MIGRATE_MEMORY_IF_GIPC(vma) :
-#endif
-            NEED_MIGRATE_MEMORY(vma)) {
-            void *   send_addr = vma->addr;
+        if (NEED_MIGRATE_MEMORY(vma)) {
+            void* send_addr  = vma->addr;
             size_t send_size = vma->length;
             if (vma->file) {
                 /*
@@ -1095,32 +1090,17 @@ BEGIN_CP_FUNC(vma)
                 }
             }
             if (send_size > 0) {
-#if HASH_GIPC == 1
                 if (!(pal_prot & PAL_PROT_READ)) {
-#else
-                if (!store->use_gipc && !(pal_prot & PAL_PROT_READ)) {
-#endif
                     /* Make the area readable */
                     DkVirtualMemoryProtect(send_addr, send_size,
                                            pal_prot|PAL_PROT_READ);
                 }
 
-                if (store->use_gipc) {
-                    struct shim_gipc_entry * gipc;
-                    DO_CP_SIZE(gipc, send_addr, send_size, &gipc);
-                    gipc->mem.prot = pal_prot;
-                } else {
-                    struct shim_mem_entry * mem;
-                    DO_CP_SIZE(memory, send_addr, send_size, &mem);
-                    mem->prot = pal_prot;
-                }
+                struct shim_mem_entry * mem;
+                DO_CP_SIZE(memory, send_addr, send_size, &mem);
+                mem->prot = pal_prot;
 
                 need_mapped = vma->addr + vma->length;
-
-#if HASH_GIPC == 1
-                if (store->use_gipc && !(pal_prot & PAL_PROT_READ))
-                    DkVirtualMemoryProtect(send_addr, send_size, pal_prot);
-#endif
             }
         }
         ADD_CP_FUNC_ENTRY(off);

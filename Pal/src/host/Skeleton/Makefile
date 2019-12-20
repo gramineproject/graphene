@@ -10,7 +10,7 @@ defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes eventfd sockets streams memory threading \
-	    mutex events process object main rtld misc ipc exception)
+	    mutex events process object main rtld misc exception)
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all

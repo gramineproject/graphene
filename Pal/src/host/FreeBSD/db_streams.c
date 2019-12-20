@@ -152,7 +152,6 @@ int handle_serialize (PAL_HANDLE handle, void ** data)
                 dsz2 = addr_size(handle->sock.conn);
             }
             break;
-        case pal_type_gipc:
         case pal_type_process:
             break;
         default:
@@ -250,7 +249,6 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
             }
             break;
         }
-        case pal_type_gipc:
         case pal_type_process:
             hdl = malloc_copy(hdl_data, hdlsz);
             break;
