@@ -41,11 +41,6 @@ This function collects absolutely all shim data on the current state of the pare
 For SGX, the data must be encrypted in this function.
 
 
-Note that `do_migrate_process()` checks for GIPC availability, with the assumption that GIPC is
-faster than normal Unix streams. However, SGX PAL does not support GIPC. Thus, the checkpoint
-sending to the child is done via a Unix stream.
-
-
 ### Child: Initialization after Fork
 
 After the child is created, Pal-Linux-SGX enters the enclave using EENTER. The enclave code calls

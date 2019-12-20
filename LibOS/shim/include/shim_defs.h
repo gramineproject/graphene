@@ -1,10 +1,6 @@
 #ifndef _SHIM_DEFS_H_
 #define _SHIM_DEFS_H_
 
-#define MIGRATE_MORE_GIPC           0
-
-#define HASH_GIPC                   0
-
 /*
  * If enable CPSTORE_DERANDOMIZATION, the library OS will try to
  * load the checkpoint (either from the parent or a file) at the
@@ -62,7 +58,5 @@
 /* ELF aux vectors  */
 #define REQUIRED_ELF_AUXV           8   /* number of LibOS-supported vectors */
 #define REQUIRED_ELF_AUXV_SPACE     16  /* extra memory space (in bytes) */
-
-#define WARN_NO_GIPC                0   /* warn if GIPC is not supported for process creation */
 
 #endif /* _SHIM_DEFS_H_ */

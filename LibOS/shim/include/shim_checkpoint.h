@@ -94,13 +94,6 @@ struct shim_mem_entry {
     void * data;
 };
 
-struct shim_gipc_entry {
-    struct shim_mem_entry mem;
-#if HASH_GIPC == 1
-    unsigned long first_hash;
-#endif
-};
-
 struct shim_palhdl_entry {
     struct shim_palhdl_entry * prev;
     PAL_HANDLE handle;
@@ -118,11 +111,6 @@ struct shim_cp_store {
 
     /* check point area */
     ptr_t base, offset, bound;
-
-    /* entries of gipc records */
-    bool use_gipc;
-    struct shim_gipc_entry * last_gipc_entry;
-    int gipc_nentries;
 
     /* entries of out-of-band data */
     struct shim_mem_entry * last_mem_entry;
@@ -415,11 +403,6 @@ struct newproc_cp_header {
         unsigned long entoffset;
         int nentries;
     } palhdl;
-    struct gipc_header {
-        char uri[16];
-        unsigned long entoffset;
-        int nentries;
-    } gipc;
 };
 
 struct newproc_header {

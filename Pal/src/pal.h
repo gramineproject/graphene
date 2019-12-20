@@ -127,7 +127,6 @@ enum {
     pal_type_thread,
     pal_type_mutex,
     pal_type_event,
-    pal_type_gipc,
     pal_type_eventfd,
     PAL_HANDLE_TYPE_BOUND,
 };
@@ -523,16 +522,6 @@ DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size);
 #define PAL_SEGMENT_GS          0x2
 
 PAL_PTR DkSegmentRegister (PAL_FLG reg, PAL_PTR addr);
-
-PAL_HANDLE
-DkCreatePhysicalMemoryChannel (PAL_NUM * key);
-
-PAL_NUM
-DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs, PAL_NUM * sizes);
-
-PAL_NUM
-DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
-                     PAL_NUM * sizes, PAL_FLG * prots);
 
 PAL_NUM DkMemoryAvailableQuota (void);
 

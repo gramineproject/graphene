@@ -198,9 +198,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkInstructionCacheFlush',
         'DkSegmentRegister',
         'DkMemoryAvailableQuota',
-        'DkCreatePhysicalMemoryChannel',
-        'DkPhysicalMemoryCommit',
-        'DkPhysicalMemoryMap',
     ]
 
     def test_000_symbols(self):
@@ -552,59 +549,7 @@ class TC_21_ProcessCreation(RegressionTestCase):
         self.assertEqual(counter['Binary 1 Preloaded'], 2)
         self.assertEqual(counter['Binary 2 Preloaded'], 2)
 
-
-@unittest.skipIf(HAS_SGX, 'GIPC not supported on SGX')
-
-## XXX Should really be running these tests as part of CI
-@unittest.skipUnless(pathlib.Path('/dev/gipc').exists(), 'GIPC not loaded')
-
-class TC_22_GIPC(RegressionTestCase):
-    def test_000_gipc(self):
-        with open('ipc_mapping.tmp', 'w') as file:
-            file.write('Hello World')
-            os.ftruncate(file.fileno(), mmap.PAGESIZE)
-
-        stdout, stderr = self.run_binary(['Ipc'])
-        counter = collections.Counter(stderr.split('\n'))
-
-        # Create and Join Physical Memory Bulk Copy Store
-        self.assertEqual(counter['Create Physical Memory Store OK'], 5)
-        self.assertEqual(counter['Join Physical Memory Store OK'], 5)
-
-        # Map and Commit Anonymous Physical Memory
-        self.assertIn('[Test 1] Physical Memory Commit OK', stderr)
-        self.assertIn('[Test 1] Physical Memory Map   : Hello World', stderr)
-
-        # Transfer Anonymous Physical Memory as Copy-on-Write
-        self.assertIn('[Test 1] Sender   After  Commit: Hello World, Alice', stderr)
-        self.assertIn('[Test 1] Sender   Before Map   : Alice, Hello World', stderr)
-        self.assertIn('[Test 1] Receiver After  Map   : Hello World, Bob', stderr)
-        self.assertIn('[Test 1] Sender   After  Map   : Alice, Hello World', stderr)
-
-        # Map and Commit Untouched Physical Memory
-        self.assertIn('[Test 2] Physical Memory Commit OK', stderr)
-        self.assertIn('[Test 2] Physical Memory Map   : ', stderr)
-        self.assertIn('[Test 2] Sender   After  Commit: Hello World, Alice', stderr)
-        self.assertIn('[Test 2] Sender   Before Map   : Alice, Hello World', stderr)
-        self.assertIn('[Test 2] Receiver After  Map   : Hello World, Bob', stderr)
-        self.assertIn('[Test 2] Sender   After  Map   : Alice, Hello World', stderr)
-
-        # Map and Commit File-Backed Physical Memory
-        self.assertIn('[Test 3] Physical Memory Commit OK', stderr)
-        self.assertIn('[Test 3] Physical Memory Map   : Hello World', stderr)
-        self.assertIn('[Test 3] Sender   After  Commit: Hello World', stderr)
-        self.assertIn('[Test 3] Receiver After  Map   : Hello World, Bob', stderr)
-        self.assertIn('[Test 3] Sender   After  Map   : Hello World', stderr)
-
-        # Map and Commit File-Backed Physical Memory Beyond File Size
-        self.assertIn('[Test 4] Physical Memory Commit OK', stderr)
-        self.assertIn('[Test 4] Physical Memory Map   : Memory Fault', stderr)
-
-        # Map and Commit Huge Physical Memory
-        self.assertIn('[Test 5] Physical Memory Commit OK', stderr)
-        self.assertIn('[Test 5] Physical Memory Map   : Hello World', stderr)
-
-class TC_23_SendHandle(RegressionTestCase):
+class TC_22_SendHandle(RegressionTestCase):
     def test_000_send_handle(self):
         stdout, stderr = self.run_binary(['SendHandle'])
         counter = collections.Counter(stderr.split('\n'))

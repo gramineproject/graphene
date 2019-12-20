@@ -55,8 +55,6 @@ DEFINE_PROFILE_INTERVAL(child_created_in_new_process,  resume);
 DEFINE_PROFILE_INTERVAL(child_wait_header,             resume);
 DEFINE_PROFILE_INTERVAL(child_receive_header,          resume);
 DEFINE_PROFILE_INTERVAL(do_migration,                  resume);
-DEFINE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc, resume);
-DEFINE_PROFILE_INTERVAL(child_load_memory_by_gipc,     resume);
 DEFINE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe, resume);
 DEFINE_PROFILE_INTERVAL(child_receive_handles,         resume);
 DEFINE_PROFILE_INTERVAL(restore_checkpoint,            resume);
@@ -335,139 +333,6 @@ BEGIN_RS_FUNC(qstr)
 }
 END_RS_FUNC(qstr)
 
-BEGIN_CP_FUNC(gipc)
-{
-    ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_gipc_entry));
-
-    void* send_addr  = (void*)ALLOC_ALIGN_DOWN_PTR(obj);
-    size_t send_size = (void*)ALLOC_ALIGN_UP_PTR(obj + size) - send_addr;
-
-    struct shim_gipc_entry * entry = (void *) (base + off);
-
-    entry->mem.addr = send_addr;
-    entry->mem.size = send_size;
-    entry->mem.prot = PAL_PROT_READ|PAL_PROT_WRITE;
-    entry->mem.prev = (void *) store->last_gipc_entry;
-    store->last_gipc_entry = entry;
-    store->gipc_nentries++;
-
-#if HASH_GIPC == 1
-    struct md5_ctx ctx;
-    md5_init(&ctx);
-    md5_update(&ctx, send_addr, g_pal_alloc_align);
-    md5_final(&ctx);
-    entry->first_hash = *(unsigned long *) ctx.digest;
-#endif /* HASH_GIPC == 1 */
-
-    ADD_CP_FUNC_ENTRY(off);
-
-    if (objp)
-        *objp = entry;
-}
-END_CP_FUNC(gipc)
-
-BEGIN_RS_FUNC(gipc)
-{
-    __UNUSED(rebase);
-    __UNUSED(offset);
-    __UNUSED(base);
-    __UNUSED(entry);
-
-#if HASH_GIPC == 1
-    struct shim_gipc_entry * entry = (void *) (base + GET_CP_FUNC_ENTRY());
-
-    PAL_FLG pal_prot = PAL_PROT(entry->prot, 0);
-    if (!(pal_prot & PROT_READ))
-        DkVirtualMemoryProtect(entry->addr, entry->npages * g_pal_alloc_align,
-                               pal_prot|PAL_PROT_READ);
-
-    struct md5_ctx ctx;
-    md5_init(&ctx);
-    md5_update(&ctx, entry->addr, g_pal_alloc_align);
-    md5_final(&ctx);
-    assert(*(unsigned long *) ctx.digest == entry->first_hash);
-
-    if (!(pal_prot & PAL_PROT_READ))
-        DkVirtualMemoryProtect(entry->addr, entry->npages * g_pal_alloc_align,
-                               pal_prot);
-#endif /* HASH_GIPC == 1 */
-}
-END_RS_FUNC(gipc)
-
-static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
-                                    struct shim_cp_store * store)
-{
-    PAL_PTR hdr_addr = (PAL_PTR) store->base;
-    PAL_NUM hdr_size = (PAL_NUM) store->offset + store->mem_size;
-    assert(IS_ALLOC_ALIGNED_PTR(hdr_addr));
-
-    int mem_nentries = store->mem_nentries;
-
-    if (mem_nentries) {
-        struct shim_mem_entry ** mem_entries =
-                    __alloca(sizeof(struct shim_mem_entry *) * mem_nentries);
-        int mem_cnt = mem_nentries;
-        struct shim_mem_entry * mem_ent = store->last_mem_entry;
-
-        for (; mem_ent ; mem_ent = mem_ent->prev) {
-            if (!mem_cnt)
-                return -EINVAL;
-            mem_entries[--mem_cnt] = mem_ent;
-        }
-
-        mem_entries  += mem_cnt;
-        mem_nentries -= mem_cnt;
-
-        for (int i = 0 ; i < mem_nentries ; i++) {
-            void * mem_addr = (void *) store->base +
-                              __ADD_CP_OFFSET(mem_entries[i]->size);
-
-            assert(store->offset <= hdr_size);
-            memcpy(mem_addr, mem_entries[i]->addr, mem_entries[i]->size);
-            mem_entries[i]->data = mem_addr;
-        }
-    }
-
-    hdr_size = ALLOC_ALIGN_UP(hdr_size);
-    int npages = DkPhysicalMemoryCommit(gipc_store, 1, &hdr_addr, &hdr_size);
-    if (!npages)
-        return -EPERM;
-
-    int nentries = store->gipc_nentries;
-    PAL_PTR * gipc_addrs = __alloca(sizeof(PAL_PTR) * nentries);
-    PAL_NUM * gipc_sizes = __alloca(sizeof(PAL_NUM) * nentries);
-    int total_pages = 0;
-    int cnt = nentries;
-    struct shim_gipc_entry * ent = store->last_gipc_entry;
-
-    for (; ent ; ent = (void *) ent->mem.prev) {
-        if (!cnt)
-            return -EINVAL;
-        cnt--;
-        gipc_addrs[cnt] = ent->mem.addr;
-        gipc_sizes[cnt] = ent->mem.size;
-        total_pages += ent->mem.size / g_pal_alloc_align;
-    }
-
-    gipc_addrs += cnt;
-    gipc_sizes += cnt;
-    nentries   -= cnt;
-
-    /* Chia-Che: sending an empty page can't ever be a smart idea.
-       we might rather fail here */
-    npages = DkPhysicalMemoryCommit(gipc_store, nentries, gipc_addrs,
-                                    gipc_sizes);
-
-    if (npages < total_pages) {
-        debug("gipc supposed to send %d pages, but only %d pages sent\n",
-              total_pages, npages);
-        return -ENOMEM;
-    }
-
-    ADD_PROFILE_OCCURENCE(migrate_send_gipc_pages, npages);
-    return 0;
-}
-
 static int send_checkpoint_on_stream (PAL_HANDLE stream,
                                       struct shim_cp_store * store)
 {
@@ -538,55 +403,6 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         mem_entries[i]->size = mem_size;
         ADD_PROFILE_OCCURENCE(migrate_send_on_stream, mem_size);
     }
-
-    return 0;
- }
-
-
-static int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, ptr_t base,
-                         long rebase)
-{
-    struct shim_gipc_entry * gipc_entries = (void *) (base + hdr->entoffset);
-    int nentries = hdr->nentries;
-
-    if (!nentries)
-        return 0;
-
-    debug("restore memory by gipc: %d entries\n", nentries);
-
-    struct shim_gipc_entry ** entries =
-            __alloca(sizeof(struct shim_gipc_entry *) * nentries);
-
-    struct shim_gipc_entry * entry = gipc_entries;
-    int cnt = nentries;
-
-    while (entry) {
-        CP_REBASE(entry->mem.prev);
-        CP_REBASE(entry->mem.paddr);
-        if (!cnt)
-            return -EINVAL;
-        entries[--cnt] = entry;
-        entry = (void *) entry->mem.prev;
-    }
-
-    entries  += cnt;
-    nentries -= cnt;
-    PAL_PTR * addrs = __alloca(sizeof(PAL_PTR) * nentries);
-    PAL_NUM * sizes = __alloca(sizeof(PAL_NUM) * nentries);
-    PAL_FLG * prots = __alloca(sizeof(PAL_FLG) * nentries);
-
-    for (int i = 0 ; i < nentries ; i++) {
-        addrs[i] = entries[i]->mem.paddr ? NULL : (PAL_PTR) entries[i]->mem.addr;
-        sizes[i] = entries[i]->mem.size;
-        prots[i] = entries[i]->mem.prot;
-    }
-
-    if (!DkPhysicalMemoryMap(gipc, nentries, addrs, sizes, prots))
-        return -PAL_ERRNO;
-
-    for (int i = 0 ; i < nentries ; i++)
-        if (entries[i]->mem.paddr)
-            *(void **) entries[i]->mem.paddr = (void *) addrs[i];
 
     return 0;
 }
@@ -897,21 +713,15 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
 
 DEFINE_PROFILE_CATEGORY(migrate_proc, migrate);
 DEFINE_PROFILE_INTERVAL(migrate_create_process,   migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_create_gipc,      migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_connect_ipc,      migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_init_checkpoint,  migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_save_checkpoint,  migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_send_header,      migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_send_checkpoint,  migrate_proc);
 DEFINE_PROFILE_OCCURENCE(migrate_send_on_stream,  migrate_proc);
-DEFINE_PROFILE_OCCURENCE(migrate_send_gipc_pages, migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_send_pal_handles, migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_free_checkpoint,  migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_wait_response,    migrate_proc);
-
-#if WARN_NO_GIPC == 1
-static bool warn_no_gipc __attribute_migratable = true;
-#endif
 
 /*
  * Create a new process and migrate the process states to the new process.
@@ -934,7 +744,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     struct shim_process * new_process = NULL;
     struct newproc_header hdr;
     PAL_NUM bytes;
-    PAL_HANDLE gipc_hdl = NULL;
     memset(&hdr, 0, sizeof(hdr));
 
 #ifdef PROFILE
@@ -959,29 +768,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     SAVE_PROFILE_INTERVAL(migrate_create_process);
 
-    /*
-     * Detect if GIPC is supported by the host. If GIPC is not supported
-     * forking may be slow because we have to use RPC streams for migrating
-     * user memory.
-     */
-    bool use_gipc = false;
-    PAL_NUM gipc_key;
-    gipc_hdl = DkCreatePhysicalMemoryChannel(&gipc_key);
-
-    if (gipc_hdl) {
-        debug("created gipc store: gipc:%lu\n", gipc_key);
-        use_gipc = true;
-        SAVE_PROFILE_INTERVAL(migrate_create_gipc);
-    } else {
-#if WARN_NO_GIPC == 1
-        if (warn_no_gipc) {
-            warn_no_gipc = false;
-            SYS_PRINTF("WARNING: no physical memory support, process creation "
-                       "may be slow.\n");
-        }
-#endif
-    }
-
     /* Create process and IPC bookkeepings */
     new_process = create_process(exec ? /*execve case*/ true : /*fork case*/ false);
     if (!new_process) {
@@ -995,7 +781,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     struct shim_cp_store cpstore;
     memset(&cpstore, 0, sizeof(cpstore));
     cpstore.alloc    = cp_alloc;
-    cpstore.use_gipc = use_gipc;
     cpstore.bound    = CP_INIT_VMA_SIZE;
 
     while (1) {
@@ -1049,17 +834,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         hdr.checkpoint.mem.nentries  = cpstore.mem_nentries;
     }
 
-    if (cpstore.use_gipc) {
-        snprintf(hdr.checkpoint.gipc.uri, sizeof(hdr.checkpoint.gipc.uri),
-                 "gipc:%ld", gipc_key);
-
-        if (cpstore.gipc_nentries) {
-            hdr.checkpoint.gipc.entoffset =
-                        (ptr_t) cpstore.last_gipc_entry - cpstore.base;
-            hdr.checkpoint.gipc.nentries  = cpstore.gipc_nentries;
-        }
-    }
-
     if (cpstore.palhdl_nentries) {
         hdr.checkpoint.palhdl.entoffset =
                     (ptr_t) cpstore.last_palhdl_entry - cpstore.base;
@@ -1089,9 +863,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     ADD_PROFILE_OCCURENCE(migrate_send_on_stream, bytes);
     SAVE_PROFILE_INTERVAL(migrate_send_header);
 
-    /* Sending the checkpoint either through GIPC or the RPC stream */
-    ret = cpstore.use_gipc ? send_checkpoint_by_gipc(gipc_hdl, &cpstore) :
-          send_checkpoint_on_stream(proc, &cpstore);
+    ret = send_checkpoint_on_stream(proc, &cpstore);
 
     if (ret < 0) {
         debug("failed sending checkpoint (ret = %d)\n", ret);
@@ -1155,8 +927,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     ret = 0;
 out:
-    if (gipc_hdl)
-        DkObjectClose(gipc_hdl);
     if (new_process)
         free_process(new_process);
 
@@ -1182,8 +952,6 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     PAL_PTR mapaddr;
     PAL_NUM mapsize;
     long rebase;
-    bool use_gipc = !!hdr->gipc.uri[0];
-    PAL_HANDLE gipc_store;
     int ret = 0;
     BEGIN_PROFILE_INTERVAL();
 
@@ -1227,22 +995,10 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     debug("checkpoint mapped at %p-%p\n", base, base + size);
 
     PAL_FLG pal_prot = PAL_PROT_READ|PAL_PROT_WRITE;
-    PAL_PTR mapped = mapaddr;
 
-    if (use_gipc) {
-        debug("open gipc store: %s\n", hdr->gipc.uri);
-
-        gipc_store = DkStreamOpen(hdr->gipc.uri, 0, 0, 0, 0);
-        if (!gipc_store ||
-            !DkPhysicalMemoryMap(gipc_store, 1, &mapped, &mapsize, &pal_prot))
-            return -PAL_ERRNO;
-
-        SAVE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc);
-    } else {
-        void * mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, pal_prot);
-        if (!mapped)
-            return -PAL_ERRNO;
-    }
+    PAL_PTR mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, pal_prot);
+    if (!mapped)
+        return -PAL_ERRNO;
 
     assert(mapaddr == mapped);
     /*
@@ -1251,33 +1007,24 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
      */
     rebase = (long) ((uintptr_t) base - (uintptr_t) hdr->hdr.addr);
 
-    /* Load the memory data sent separately over GIPC or the RPC stream. */
-    if (use_gipc) {
-        if ((ret = restore_gipc(gipc_store, &hdr->gipc, (ptr_t) base, rebase)) < 0)
-            return ret;
+    size_t total_bytes = 0;
+    while (total_bytes < size) {
+        PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0,
+                size - total_bytes,
+                (void *) base + total_bytes, NULL, 0);
 
-        SAVE_PROFILE_INTERVAL(child_load_memory_by_gipc);
-        DkStreamDelete(gipc_store, 0);
-    } else {
-        size_t total_bytes = 0;
-        while (total_bytes < size) {
-            PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0,
-                                         size - total_bytes,
-                                         (void *) base + total_bytes, NULL, 0);
-
-            if (bytes == PAL_STREAM_ERROR) {
-                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
+        if (bytes == PAL_STREAM_ERROR) {
+            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
                     PAL_ERRNO == EWOULDBLOCK)
-                    continue;
-                return -PAL_ERRNO;
-            }
-
-            total_bytes += bytes;
+                continue;
+            return -PAL_ERRNO;
         }
 
-        SAVE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe);
-        debug("%lu bytes read on stream\n", total_bytes);
+        total_bytes += bytes;
     }
+
+    SAVE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe);
+    debug("%lu bytes read on stream\n", total_bytes);
 
     /* Receive socket or RPC handles from the parent process. */
     ret = receive_handles_on_stream(&hdr->palhdl, (ptr_t) base, rebase);

@@ -346,11 +346,6 @@ size_t _DkRandomBitsRead (void * buffer, size_t size);
 int _DkSegmentRegisterSet (int reg, const void * addr);
 int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);
-int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key);
-int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
-                             PAL_PTR * addrs, PAL_NUM * sizes);
-int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
-                          PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
 #define INIT_FAIL(exitcode, reason)                                     \

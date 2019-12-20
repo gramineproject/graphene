@@ -136,10 +136,6 @@ typedef struct pal_handle
 
         struct {
             PAL_IDX fd;
-        } gipc;
-
-        struct {
-            PAL_IDX fd;
             PAL_PTR bind;
             PAL_PTR conn;
             PAL_BOL nonblocking;

@@ -60,9 +60,5 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkSegmentRegister);
     PRINT_SYMBOL(DkMemoryAvailableQuota);
 
-    PRINT_SYMBOL(DkCreatePhysicalMemoryChannel);
-    PRINT_SYMBOL(DkPhysicalMemoryCommit);
-    PRINT_SYMBOL(DkPhysicalMemoryMap);
-
     return 0;
 }

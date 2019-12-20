@@ -14,7 +14,7 @@ CFLAGS += $(defs)
 ASFLAGS += $(defs)
 enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memory \
 		 threading mutex events process object main rtld \
-		 exception misc ipc spinlock) \
+		 exception misc spinlock) \
 	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted)
 enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
