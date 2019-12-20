@@ -549,7 +549,7 @@ class TC_21_ProcessCreation(RegressionTestCase):
         self.assertEqual(counter['Binary 1 Preloaded'], 2)
         self.assertEqual(counter['Binary 2 Preloaded'], 2)
 
-class TC_22_SendHandle(RegressionTestCase):
+class TC_23_SendHandle(RegressionTestCase):
     def test_000_send_handle(self):
         stdout, stderr = self.run_binary(['SendHandle'])
         counter = collections.Counter(stderr.split('\n'))
