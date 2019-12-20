@@ -57,7 +57,7 @@ struct proc_args {
  * NOTE: more tricks may be needed to prevent unexpected optimization for
  * future compiler.
  */
-int __attribute_noinline
+static int __attribute_noinline
 vfork_exec(int pipe_input, int proc_fds[3], const char** argv)
 {
     int ret = ARCH_VFORK();
@@ -87,10 +87,10 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int * retf
     if (!uri || !strstartswith_static(uri, "file:"))
         return -EINVAL;
 
-    if (IS_ERR((ret = INLINE_SYSCALL(pipe, 1, &fds[0]))) ||
-        IS_ERR((ret = INLINE_SYSCALL(pipe, 1, &fds[2]))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM,
-                                     0, &fds[4]))))
+    int socktype = SOCK_STREAM;
+    if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[0]))) ||
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2]))) ||
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[4]))))
         goto out;
 
     int proc_fds[2][3] = {

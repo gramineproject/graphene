@@ -177,7 +177,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     ssize_t https_output_len = 0;
     int header_fd = -1;
     int output_fd = -1;
-    int pipefds[2] = { -1, -1 };
+    int fds[2] = {-1, -1};
 
     header_fd = mkstemp(https_header_path);
     if (header_fd < 0)
@@ -187,7 +187,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     if (output_fd < 0)
         goto failed;
 
-    ret = INLINE_SYSCALL(pipe, 1, pipefds);
+    ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, &fds[0]);
     if (IS_ERR(ret))
         goto failed;
 
@@ -198,11 +198,11 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
                                  "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}",
                                  quote_str, nonce_str);
 
-    ret = INLINE_SYSCALL(write, 3, pipefds[1], https_request, https_request_len);
+    ret = INLINE_SYSCALL(write, 3, fds[1], https_request, https_request_len);
     if (IS_ERR(ret))
         goto failed;
-    INLINE_SYSCALL(close, 1, pipefds[1]);
-    pipefds[1] = -1;
+    INLINE_SYSCALL(close, 1, fds[1]);
+    fds[1] = -1;
 
     char subscription_header[64];
     snprintf(subscription_header, 64, "Ocp-Apim-Subscription-Key: %s", subkey);
@@ -221,7 +221,7 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
         goto failed;
 
     if (!pid) {
-        INLINE_SYSCALL(dup2, 2, pipefds[0], 0);
+        INLINE_SYSCALL(dup2, 2, fds[0], 0);
         extern char** environ;
         INLINE_SYSCALL(execve, 3, https_client_args[0], https_client_args, environ);
 
@@ -374,8 +374,10 @@ done:
         INLINE_SYSCALL(munmap, 2, https_header, ALLOC_ALIGN_UP(https_header_len));
     if (https_output)
         INLINE_SYSCALL(munmap, 2, https_output, ALLOC_ALIGN_UP(https_output_len));
-    if (pipefds[0] != -1) INLINE_SYSCALL(close, 1, pipefds[0]);
-    if (pipefds[1] != -1) INLINE_SYSCALL(close, 1, pipefds[1]);
+    if (fds[0] != -1)
+        INLINE_SYSCALL(close, 1, fds[0]);
+    if (fds[1] != -1)
+        INLINE_SYSCALL(close, 1, fds[1]);
     if (header_fd != -1) {
         INLINE_SYSCALL(close,  1, header_fd);
         INLINE_SYSCALL(unlink, 1, https_header_path);
