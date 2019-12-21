@@ -150,6 +150,7 @@ typedef struct pal_handle
             PAL_IDX pid;
             PAL_BOL nonblocking;
             PAL_SESSION_KEY session_key;
+            void* ssl_ctx;
         } process;
 
         struct pal_handle_thread thread;

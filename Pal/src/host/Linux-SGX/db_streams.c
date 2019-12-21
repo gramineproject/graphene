@@ -151,6 +151,12 @@ int handle_serialize(PAL_HANDLE handle, void** data) {
     if (dsz2)
         memcpy(buffer + hdlsz + dsz1, d2, dsz2);
 
+    if (PAL_GET_TYPE(handle) == pal_type_process) {
+        /* must not leak session key and SSL context -> zero them */
+        memset(buffer + offsetof(struct pal_handle, process.session_key), 0, sizeof(handle->process.session_key));
+        memset(buffer + offsetof(struct pal_handle, process.ssl_ctx), 0, sizeof(handle->process.ssl_ctx));
+    }
+
     *data = buffer;
     return hdlsz + dsz1 + dsz2;
 }
@@ -242,6 +248,15 @@ int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
 
     if (!hdl)
         return ret;
+
+    if (PAL_GET_TYPE(hdl) == pal_type_process) {
+        /* must not have leaked session key and SSL context, verify */
+        static PAL_SESSION_KEY zero_session_key;
+        __UNUSED(zero_session_key); /* otherwise GCC with Release build complains */
+
+        assert(memcmp(hdl->process.session_key, zero_session_key, sizeof(zero_session_key)) == 0);
+        assert(hdl->process.ssl_ctx == 0);
+    }
 
     *handle = hdl;
     return 0;

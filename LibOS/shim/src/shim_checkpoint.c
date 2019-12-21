@@ -901,6 +901,19 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto out;
     }
 
+    /* Downgrade communication with child to non-secure (only checkpoint send is secure).
+     * Currently only relevant to SGX PAL, other PALs ignore this. */
+    PAL_STREAM_ATTR attr;
+    if (!DkStreamAttributesQueryByHandle(proc, &attr)) {
+        ret = -PAL_ERRNO;
+        goto out;
+    }
+    attr.secure = PAL_FALSE;
+    if (!DkStreamAttributesSetByHandle(proc, &attr)) {
+        ret = -PAL_ERRNO;
+        goto out;
+    }
+
     SAVE_PROFILE_INTERVAL(migrate_wait_response);
 
     /* exec != NULL implies the execve case so the new process "replaces"

@@ -17,16 +17,18 @@
 #ifndef PAL_LINUX_H
 #define PAL_LINUX_H
 
+#include "api.h"
+#include "pal.h"
+#include "pal_crypto.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
-#include "pal.h"
-#include "api.h"
 
 #include "linux_types.h"
-#include "sgx_arch.h"
-#include "sgx_tls.h"
 #include "sgx_api.h"
+#include "sgx_arch.h"
 #include "sgx_attest.h"
+#include "sgx_tls.h"
+
 #include "enclave_ocalls.h"
 
 #include <linux/mman.h>
@@ -177,6 +179,12 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mr_enclave_t check_mr_enclave);
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mr_enclave_t check_mr_enclave);
+
+int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* session_key,
+                        LIB_SSL_CONTEXT** out_ssl_ctx);
+int _DkStreamSecureFree(LIB_SSL_CONTEXT* ssl_ctx);
+int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len);
+int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len);
 
 #include "sgx_arch.h"
 
