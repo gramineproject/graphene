@@ -8,8 +8,8 @@ Glossary
    PAL
       Platform Adaption Layer
 
-      .. todo:: Is this really correct?
+      .. todo:: TBD
 
    SGX
       Software Guard Extensions is a set of instructions on Intel processors.
-      See https://en.wikipedia.org/wiki/Software_Guard_Extensions.
+      See :doc:`/sgx-intro`.
