@@ -373,6 +373,7 @@ typedef struct {
     PAL_BOL disconnected;
     PAL_BOL nonblocking;
     PAL_BOL readable, writable, runnable;
+    PAL_BOL secure;
     PAL_FLG share_flags;
     PAL_NUM pending_size;
     PAL_IDX no_of_fds;
