@@ -4,6 +4,7 @@
    :caption: Introduction
    :maxdepth: 2
 
+   debugging
    glossary
    howto-doc
 
