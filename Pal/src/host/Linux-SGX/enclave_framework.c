@@ -105,8 +105,6 @@ static void print_report(sgx_report_t* r) {
 
 static sgx_key_128bit_t enclave_key;
 
-#define KEYBUF_SIZE ((sizeof(sgx_key_128bit_t) * 2) + 1)
-
 /*
  * sgx_get_report() obtains a CPU-signed report for local attestation
  * @target_info:  the enclave target info
@@ -963,67 +961,6 @@ int init_file_check_policy (void)
     return 0;
 }
 
-#if 0
-void test_dh (void)
-{
-    int ret;
-    DhKey key1, key2;
-    uint32_t privsz1, privsz2, pubsz1, pubsz2, agreesz1, agreesz2;
-    unsigned char priv1[128], pub1[128], priv2[128], pub2[128], agree1[128],
-        agree2[128], scratch[257];
-
-    InitDhKey(&key1);
-    InitDhKey(&key2);
-
-    ret = DhSetKey(&key1, dh_param.p, sizeof(dh_param.p), dh_param.g,
-                   sizeof(dh_param.g));
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "DhSetKey for key 1 failed: %d\n", ret);
-        return;
-    }
-    ret = DhSetKey(&key2, dh_param.p, sizeof(dh_param.p), dh_param.g,
-                   sizeof(dh_param.g));
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "DhSetKey for key 2 failed: %d\n", ret);
-        return;
-    }
-
-    ret = DhGenerateKeyPair(&key1, priv1, &privsz1, pub1, &pubsz1);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "DhGenerateKeyPair for key 1 failed: %d\n", ret);
-        return;
-    }
-    ret = DhGenerateKeyPair(&key2, priv2, &privsz2, pub2, &pubsz2);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "DhGenerateKeyPair for key 2 failed: %d\n", ret);
-        return;
-    }
-
-    ret = DhAgree(&key1, agree1, &agreesz1, priv1, privsz1, pub2, pubsz2);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "DhAgree for key 1 failed: %d\n", ret);
-        return;
-    }
-
-    ret = DhAgree(&key2, agree2, &agreesz2, priv2, privsz2, pub1, pubsz1);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "DhAgree for key 1 failed: %d\n", ret);
-        return;
-    }
-
-    FreeDhKey(&key1);
-    FreeDhKey(&key2);
-
-    SGX_DBG(DBG_S, "key exchange(side A): %s\n",
-            __bytes2hexstr(agree1, agreesz1, scratch, agreesz1 * 2 + 1));
-    SGX_DBG(DBG_S, "key exchange(side B): %s\n",
-            __bytes2hexstr(agree2, agreesz2, scratch, agreesz2 * 2 + 1));
-}
-#endif
-
-#define RSA_KEY_SIZE        2048
-#define RSA_E               3
-
 int init_enclave (void)
 {
     // Get report to initialize info (MR_ENCLAVE, etc.) about this enclave from
@@ -1045,26 +982,6 @@ int init_enclave (void)
     memcpy(&pal_sec.mr_enclave, &report.body.mr_enclave, sizeof(pal_sec.mr_enclave));
     memcpy(&pal_sec.mr_signer, &report.body.mr_signer, sizeof(pal_sec.mr_signer));
     pal_sec.enclave_attributes = report.body.attributes;
-
-#if 0
-    /*
-     * This enclave-specific key is a building block for authenticating
-     * new pipe connections with other enclaves that are already
-     * authenticated. Since pipe protection is a future feature, this key
-     * is currently unused and hence deprecated.
-     */
-    int ret;
-    LIB_RSA_KEY *rsa = malloc(sizeof(LIB_RSA_KEY));
-    lib_RSAInitKey(rsa);
-
-    ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "lib_RSAGenerateKey failed: %d\n", ret);
-        return ret;
-    }
-
-    pal_enclave_config.enclave_key = rsa;
-#endif
 
     /*
      * The enclave id is uniquely created for each enclave as a token
