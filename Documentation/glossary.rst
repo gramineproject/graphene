@@ -22,5 +22,10 @@ Glossary
       for example, the Linux-SGX PAL.
 
    SGX
-      Software Guard Extensions is a set of instructions on Intel processors.
-      See https://en.wikipedia.org/wiki/Software_Guard_Extensions.
+      Software Guard Extensions is a set of instructions on Intel processors for
+      creating Trusted Execution Environments (:term:`TEE`). See
+      :doc:`/sgx-intro`.
+
+   Thread Control Block
+
+      .. todo:: TBD
