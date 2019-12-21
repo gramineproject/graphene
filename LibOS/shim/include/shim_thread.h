@@ -97,6 +97,9 @@ struct shim_thread {
     uint8_t* syscall_stack;
 };
 
+int shim_thread_alloc_syscall_stack(struct shim_thread* thread);
+void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* thread);
+
 DEFINE_LIST(shim_simple_thread);
 struct shim_simple_thread {
     /* VMID and PIDs */
@@ -140,22 +143,6 @@ static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __
 static inline bool is_internal(struct shim_thread *thread)
 {
     return thread->tid >= INTERNAL_TID_BASE;
-}
-
-static inline void shim_tcb_init_syscall_stack(
-    shim_tcb_t* shim_tcb, struct shim_thread* thread) {
-    if (thread && !is_internal(thread)) {
-        if (!thread->syscall_stack) {
-            thread->syscall_stack = malloc(SHIM_THREAD_SYSCALL_STACK_SIZE);
-            assert(thread->syscall_stack != NULL);
-        }
-        shim_tcb->syscall_stack_low = thread->syscall_stack;
-        shim_tcb->syscall_stack = ALIGN_DOWN_PTR(
-            (void*)thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE, 16UL);
-    } else {
-        shim_tcb->syscall_stack_low = NULL;
-        shim_tcb->syscall_stack = NULL;
-    }
 }
 
 void get_thread (struct shim_thread * thread);
@@ -211,8 +198,8 @@ void set_cur_thread (struct shim_thread * thread)
             get_thread(thread);
 
         tcb->tp = thread;
-        shim_tcb_init_syscall_stack(tcb, thread);
         thread->shim_tcb = tcb;
+        shim_tcb_init_syscall_stack(tcb, thread);
         tid = thread->tid;
 
         if (!is_internal(thread) && !thread->signal_logs)
@@ -284,6 +271,7 @@ void set_as_child (struct shim_thread * parent, struct shim_thread * child);
 
 /* creating and revoking thread objects */
 struct shim_thread * get_new_thread (IDTYPE new_tid);
+struct shim_thread * get_new_thread_syscall_stack (IDTYPE new_tid);
 struct shim_thread * get_new_internal_thread (void);
 struct shim_simple_thread * get_new_simple_thread (void);
 

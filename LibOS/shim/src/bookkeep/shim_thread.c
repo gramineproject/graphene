@@ -47,6 +47,17 @@ PAL_HANDLE thread_start_event = NULL;
 
 //#define DEBUG_REF
 
+void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* thread) {
+    if (thread && thread->syscall_stack) {
+        shim_tcb->syscall_stack_low = thread->syscall_stack;
+        shim_tcb->syscall_stack = ALIGN_DOWN_PTR(
+            (void*)thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE, 16UL);
+    } else {
+        shim_tcb->syscall_stack_low = NULL;
+        shim_tcb->syscall_stack = NULL;
+    }
+}
+
 int init_thread (void)
 {
     create_lock(&thread_list_lock);
@@ -55,7 +66,7 @@ int init_thread (void)
     if (cur_thread)
         return 0;
 
-    if (!(cur_thread = get_new_thread(0)))
+    if (!(cur_thread = get_new_thread_syscall_stack(0)))
         return -ENOMEM;
 
     cur_thread->in_vm = cur_thread->is_alive = true;
@@ -241,6 +252,27 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
+    return thread;
+}
+
+int shim_thread_alloc_syscall_stack(struct shim_thread* thread) {
+    assert(thread->syscall_stack == NULL);
+    thread->syscall_stack = malloc(SHIM_THREAD_SYSCALL_STACK_SIZE);
+    if (!thread->syscall_stack)
+        return -ENOMEM;
+    return 0;
+}
+
+struct shim_thread* get_new_thread_syscall_stack(IDTYPE new_tid) {
+    struct shim_thread* thread = get_new_thread(new_tid);
+    if (!thread) {
+        return NULL;
+    }
+    int ret = shim_thread_alloc_syscall_stack(thread);
+    if (ret < 0) {
+        put_thread(thread);
+        return NULL;
+    }
     return thread;
 }
 
@@ -686,6 +718,7 @@ BEGIN_CP_FUNC(thread)
     } else {
         new_thread = (struct shim_thread *) (base + off);
     }
+    new_thread->syscall_stack = NULL;
 
     if (objp)
         *objp = (void *) new_thread;
@@ -711,6 +744,7 @@ BEGIN_RS_FUNC(thread)
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
+    thread->syscall_stack = NULL;
 
     add_thread(thread);
 
@@ -813,12 +847,16 @@ BEGIN_RS_FUNC(running_thread)
                                  NUM_SIGS);
 
     if (cur_thread) {
+        assert(cur_thread->syscall_stack);
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread);
         if (!thread)
             return -PAL_ERRNO;
 
         thread->pal_handle = handle;
     } else {
+        int ret = shim_thread_alloc_syscall_stack(thread);
+        if (ret < 0)
+            return ret;
         shim_tcb_t* saved_tcb = thread->shim_tcb;
         if (saved_tcb) {
             /* fork case */

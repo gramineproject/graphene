@@ -231,7 +231,12 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         set_parent_tid = parent_tidptr;
     }
 
-    struct shim_thread * thread = get_new_thread(0);
+    struct shim_thread* thread;
+    if (flags & CLONE_VM) {
+        thread = get_new_thread_syscall_stack(0);
+    } else {
+        thread = get_new_thread(0);
+    }
     if (!thread) {
         ret = -ENOMEM;
         goto failed;
