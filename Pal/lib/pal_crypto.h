@@ -51,6 +51,21 @@ typedef struct {
     mbedtls_cipher_type_t cipher;
     mbedtls_cipher_context_t ctx;
 } LIB_AESCMAC_CONTEXT;
+
+#include "crypto/mbedtls/include/mbedtls/ctr_drbg.h"
+#include "crypto/mbedtls/include/mbedtls/entropy.h"
+#include "crypto/mbedtls/include/mbedtls/ssl.h"
+typedef struct {
+    mbedtls_entropy_context entropy;
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_ssl_config conf;
+    mbedtls_ssl_context ssl;
+    int ciphersuites[2];  /* [0] is actual ciphersuite, [1] must be 0 to indicate end of array */
+    int (*pal_recv_cb)(int fd, void* buf, uint32_t len);
+    int (*pal_send_cb)(int fd, const void* buf, uint32_t len);
+    int stream_fd;
+} LIB_SSL_CONTEXT;
+
 #endif /* CRYPTO_USE_MBEDTLS */
 
 #ifndef CRYPTO_PROVIDER_SPECIFIED
@@ -142,4 +157,12 @@ int lib_ASN1GetSerial(uint8_t** ptr, const uint8_t* end, enum asn1_tag* tag, boo
 int lib_ASN1GetBitstring(uint8_t** ptr, const uint8_t* end, uint8_t** str, size_t* len);
 int lib_ASN1GetLargeNumberLength(uint8_t** ptr, const uint8_t* end, size_t* len);
 
+/* SSL/TLS */
+int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
+                const uint8_t* psk, size_t psk_size,
+                int (*pal_recv_cb)(int fd, void* buf, uint32_t len),
+                int (*pal_send_cb)(int fd, const void* buf, uint32_t len));
+int lib_SSLFree(LIB_SSL_CONTEXT* ssl_ctx);
+int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len);
+int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len);
 #endif

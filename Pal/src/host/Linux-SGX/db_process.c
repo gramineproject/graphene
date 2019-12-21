@@ -271,6 +271,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     child->process.cargo       = cargo_fd;
     child->process.pid         = child_pid;
     child->process.nonblocking = PAL_FALSE;
+    child->process.ssl_ctx     = NULL;
 
     ret = _DkStreamKeyExchange(child, &child->process.session_key);
     if (ret < 0)
@@ -283,6 +284,11 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
         goto failed;
 
     ret = _DkStreamReportRequest(child, &sign_data, &check_child_mr_enclave);
+    if (ret < 0)
+        goto failed;
+
+    ret = _DkStreamSecureInit(child, /*is_server=*/true, &child->process.session_key,
+                              (LIB_SSL_CONTEXT**)&child->process.ssl_ctx);
     if (ret < 0)
         goto failed;
 
@@ -316,10 +322,11 @@ int init_child_process (PAL_HANDLE * parent_handle)
     SET_HANDLE_TYPE(parent, process);
     HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
 
-    parent->process.stream     = pal_sec.stream_fd;
-    parent->process.cargo      = pal_sec.cargo_fd;
-    parent->process.pid        = pal_sec.ppid;
+    parent->process.stream      = pal_sec.stream_fd;
+    parent->process.cargo       = pal_sec.cargo_fd;
+    parent->process.pid         = pal_sec.ppid;
     parent->process.nonblocking = PAL_FALSE;
+    parent->process.ssl_ctx     = NULL;
 
     int ret = _DkStreamKeyExchange(parent, &parent->process.session_key);
     if (ret < 0)
@@ -332,6 +339,11 @@ int init_child_process (PAL_HANDLE * parent_handle)
         return ret;
 
     ret = _DkStreamReportRespond(parent, &sign_data, &check_parent_mr_enclave);
+    if (ret < 0)
+        return ret;
+
+    ret = _DkStreamSecureInit(parent, /*is_server=*/false, &parent->process.session_key,
+                              (LIB_SSL_CONTEXT**)&parent->process.ssl_ctx);
     if (ret < 0)
         return ret;
 
@@ -363,8 +375,15 @@ static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (count >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_read(handle->process.stream, buffer, count);
-    return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
+    int bytes;
+    if (handle->process.ssl_ctx) {
+        bytes = _DkStreamSecureRead(handle->process.ssl_ctx, buffer, count);
+    } else {
+        bytes = ocall_read(handle->process.stream, buffer, count);
+        bytes = IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
+    }
+
+    return bytes;
 }
 
 static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
@@ -376,13 +395,22 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (count >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_write(handle->process.stream, buffer, count);
-
-    if (IS_ERR(bytes)) {
-        bytes = unix_to_pal_error(ERRNO(bytes));
-        if (bytes == -PAL_ERROR_TRYAGAIN)
-            HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
-        return bytes;
+    int bytes;
+    if (handle->process.ssl_ctx) {
+        bytes = _DkStreamSecureWrite(handle->process.ssl_ctx, buffer, count);
+        if (bytes < 0) {
+            if (bytes == -PAL_ERROR_TRYAGAIN)
+                HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
+            return bytes;
+        }
+    } else {
+        bytes = ocall_write(handle->process.stream, buffer, count);
+        if (IS_ERR(bytes)) {
+            bytes = unix_to_pal_error(ERRNO(bytes));
+            if (bytes == -PAL_ERROR_TRYAGAIN)
+                HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
+            return bytes;
+        }
     }
 
     if ((uint64_t)bytes == count)
@@ -403,6 +431,11 @@ static int proc_close (PAL_HANDLE handle)
     if (handle->process.cargo != PAL_IDX_POISON) {
         ocall_close(handle->process.cargo);
         handle->process.cargo = PAL_IDX_POISON;
+    }
+
+    if (handle->process.ssl_ctx) {
+        _DkStreamSecureFree((LIB_SSL_CONTEXT*)handle->process.ssl_ctx);
+        handle->process.ssl_ctx = NULL;
     }
 
     return 0;
@@ -449,6 +482,7 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     attr->readable = (attr->pending_size > 0);
     attr->writable = HANDLE_HDR(handle)->flags & WRITABLE(0);
     attr->nonblocking = handle->process.nonblocking;
+    attr->secure = handle->process.ssl_ctx ? PAL_TRUE : PAL_FALSE;
     return 0;
 }
 
@@ -464,6 +498,16 @@ static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
             return unix_to_pal_error(ERRNO(ret));
 
         handle->process.nonblocking = attr->nonblocking;
+    }
+
+    if (!attr->secure && handle->process.ssl_ctx) {
+        /* remove TLS protection from process.stream */
+        _DkStreamSecureFree((LIB_SSL_CONTEXT*)handle->process.ssl_ctx);
+        handle->process.ssl_ctx = NULL;
+    } else if (attr->secure && !handle->process.ssl_ctx) {
+        /* adding TLS protection for process.stream is not yet implemented */
+        SGX_DBG(DBG_E, "Securing a non-secure process handle is not supported!\n");
+        return -PAL_ERROR_NOTSUPPORT;
     }
 
     return 0;

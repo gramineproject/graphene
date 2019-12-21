@@ -34,7 +34,10 @@ CRYPTO_PROVIDER ?= mbedtls
 # symbols.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 subdirs += crypto/mbedtls/library
-crypto_mbedtls_library_objs = $(addsuffix .o,aes aesni asn1parse base64 bignum cipher cipher_wrap cmac dhm md md_wrap oid rsa rsa_internal sha256 platform_util)
+crypto_mbedtls_library_objs = $(addsuffix .o, aes aesni asn1parse base64 bignum cipher \
+                                              cipher_wrap cmac ctr_drbg dhm entropy gcm md \
+                                              md_wrap oid rsa rsa_internal sha256 ssl_tls \
+                                              ssl_ciphersuites ssl_cli ssl_srv platform_util)
 endif
 
 MBEDTLS_VERSION ?= 2.16.3
@@ -77,7 +80,7 @@ objs += $(foreach dir,$(subdirs),$(addprefix $(dir)/,$($(subst /,_,$(dir))_objs)
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/library/aes.c
 
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
-CFLAGS += -DCRYPTO_USE_MBEDTLS
+CFLAGS += -DCRYPTO_USE_MBEDTLS -mrdrnd
 objs += crypto/adapters/mbedtls_adapter.o
 objs += crypto/adapters/mbedtls_dh.o
 objs += crypto/adapters/mbedtls_encoding.o
