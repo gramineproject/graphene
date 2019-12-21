@@ -10,6 +10,7 @@ void dummy(void)
     OFFSET_T(SHIM_TCB_OFFSET, PAL_TCB, libos_tcb);
     OFFSET_T(TCB_REGS, shim_tcb_t, context.regs);
     OFFSET_T(SHIM_TCB_SYSCALL_STACK, shim_tcb_t, syscall_stack);
+    OFFSET_T(SHIM_TCB_SYSCALL_STACK_LOW, shim_tcb_t, syscall_stack_low);
     OFFSET(SHIM_REGS_RSP, shim_regs, rsp);
     OFFSET(SHIM_REGS_R15, shim_regs, r15);
     OFFSET(SHIM_REGS_RIP, shim_regs, rip);

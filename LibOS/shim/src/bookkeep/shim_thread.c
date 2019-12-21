@@ -749,6 +749,12 @@ BEGIN_CP_FUNC(running_thread)
         ptr_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
         new_thread->shim_tcb = (void *)(base + toff);
         memcpy(new_thread->shim_tcb, thread->shim_tcb, sizeof(shim_tcb_t));
+        struct shim_regs* regs = thread->shim_tcb->context.regs;
+        if (regs) {
+            ptr_t roff = ADD_CP_OFFSET(sizeof(*regs));
+            new_thread->shim_tcb->context.regs = (struct shim_regs*)(base + roff);
+            memcpy(new_thread->shim_tcb->context.regs, regs, sizeof(*regs));
+        }
     }
 }
 END_CP_FUNC(running_thread)
@@ -790,8 +796,12 @@ BEGIN_RS_FUNC(running_thread)
 
     thread->vmid = cur_process.vmid;
 
-    if (thread->shim_tcb)
+    if (thread->shim_tcb) {
         CP_REBASE(thread->shim_tcb);
+        if (thread->shim_tcb->context.regs) {
+            CP_REBASE(thread->shim_tcb->context.regs);
+        }
+    }
 
     if (thread->set_child_tid) {
         /* CLONE_CHILD_SETTID */

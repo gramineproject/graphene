@@ -46,6 +46,7 @@ struct shim_tcb {
     int                     pal_errno;
     struct debug_buf *      debug_buf;
     uint8_t*                syscall_stack;
+    uint8_t*                syscall_stack_low;
 
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],

@@ -31,9 +31,29 @@
         .global syscall_wrapper
         .type syscall_wrapper, @function
 
+        # TODO: remove this once nested syscall is avoided
+        .global syscalldb_from_wrapper
+        .type syscalldb_from_wrapper, @function
+
+
 syscalldb:
         .cfi_startproc
         .cfi_def_cfa %rsp, 8
+
+        # TODO: remove this workaround for nested syscall
+        pushfq
+        .cfi_adjust_cfa_offset 8
+        .cfi_offset %rflags, -2 * 8
+        cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_LOW), %rsp
+        jle switch_stack
+        cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
+        ja switch_stack
+        jmp skip_switch_stack
+
+switch_stack:
+        popfq
+        .cfi_adjust_cfa_offset -8
+        .cfi_restore %rflags
 
         movq %rsp, %r11
         .cfi_def_cfa_register %r11
@@ -45,10 +65,27 @@ syscalldb:
 
         # Create shim_regs struct on the stack.
         pushq %r11              # save old %rsp
+        addq $8, (%rsp)         # adjust saved %rip
         .cfi_def_cfa %rsp, 0
         .cfi_offset %rsp, 0
 
         pushq (%r11)            # copy return address from original stack
+        .cfi_adjust_cfa_offset 8
+        .cfi_offset %rip, -8
+        jmp syscalldb_from_wrapper
+
+skip_switch_stack:
+        # TODO: remove this workaround for nested syscall
+        popfq
+        .cfi_adjust_cfa_offset -8
+        .cfi_restore %rflags
+        popq %r11
+        .cfi_def_cfa %rsp, -8
+        .cfi_register %rip, %r11
+        pushq %rsp
+        .cfi_adjust_cfa_offset 8
+        .cfi_offset %rsp, 0
+        pushq %r11
         .cfi_adjust_cfa_offset 8
         .cfi_offset %rip, -8
 
@@ -134,8 +171,8 @@ syscalldb_from_wrapper:
 ret:
         movq %rbp, %rsp
         .cfi_def_cfa_register %rsp
-        addq $2 * 8, %rsp   # skip orig_rax and rsp
-        .cfi_adjust_cfa_offset -2 * 8
+        addq $8, %rsp   # skip orig_rax
+        .cfi_adjust_cfa_offset -8
         popq %r15
         .cfi_restore %r15
         .cfi_adjust_cfa_offset -8

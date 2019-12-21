@@ -474,7 +474,7 @@ ret_fault:
     return has_fault;
 }
 
-void __attribute__((weak)) syscall_wrapper(void)
+void __attribute__((weak)) syscalldb_from_wrapper(void)
 {
     /*
      * work around for link.
@@ -530,7 +530,38 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
              */
             context->rcx = (long)rip + 2;
             context->r11 = context->efl;
-            context->rip = (long)&syscall_wrapper;
+
+            /*
+             * WORKAROUND
+             * syscall_wrapper doesn't handle nested syscall
+             * Once nested syscall is avoided (by fixing signal delivery)
+             * this work around can be removed.
+             * it's difficult for syscall_wrapper to implement
+             * conditionally switching stack without clobbering %rflags.
+             * So do it here.
+             */
+            // context->rip = (unsigned long)&syscall_wrapper;
+            shim_tcb_t * tcb = shim_get_tcb();
+            unsigned long* rsp;
+            if ((void*)tcb->syscall_stack_low < (void*)context->rsp &&
+                (void*)context->rsp <= (void*)tcb->syscall_stack) {
+                /*
+                 * We're nesting system call by signal handler
+                 * syscall stack is already being used.
+                 */
+                rsp = (unsigned long*)context->rsp;
+            } else {
+                rsp = (unsigned long*)tcb->syscall_stack;
+            }
+            /* pushq %rsp */
+            rsp--;
+            *rsp = context->rsp;
+            /* pushq %rip */
+            rsp--;
+            *rsp = context->rcx;
+            /* adjust %rsp and %rip */
+            context->rsp = (unsigned long)rsp;
+            context->rip = (unsigned long)&syscalldb_from_wrapper;
         } else {
             deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
                                          si_addr, (void *) arg), context);

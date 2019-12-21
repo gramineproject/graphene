@@ -147,10 +147,13 @@ static inline void shim_tcb_init_syscall_stack(
     if (thread && !is_internal(thread)) {
         if (!thread->syscall_stack) {
             thread->syscall_stack = malloc(SHIM_THREAD_SYSCALL_STACK_SIZE);
+            assert(thread->syscall_stack != NULL);
         }
+        shim_tcb->syscall_stack_low = thread->syscall_stack;
         shim_tcb->syscall_stack = ALIGN_DOWN_PTR(
             (void*)thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE, 16UL);
     } else {
+        shim_tcb->syscall_stack_low = NULL;
         shim_tcb->syscall_stack = NULL;
     }
 }

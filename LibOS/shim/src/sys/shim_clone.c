@@ -38,15 +38,6 @@
 #include <linux/sched.h>
 #include <asm/prctl.h>
 
-void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
-{
-    /*
-     * workaround for linking.
-     * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
-     * due to missing syscall_wrapper_after_syscalldb.
-     */
-}
-
 /* from **sysdeps/unix/sysv/linux/x86_64/clone.S:
    The userland implementation is:
    int clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg),
@@ -137,7 +128,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
 
     tcb->context.regs = &regs;
     tcb->context.regs->rsp = (unsigned long)stack;
-    assert((void*)regs.rip < (void*)&__code_address &&
+    assert((void*)regs.rip < (void*)&__code_address ||
            (void*)regs.rip >= (void*)&__code_address_end);
 
     put_thread(my_thread);
