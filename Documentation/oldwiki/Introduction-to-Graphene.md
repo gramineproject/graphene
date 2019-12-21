@@ -61,7 +61,7 @@ To run tests, you also need the python3-pytest package:
 
 ## Build and Run Graphene
 
-See [Graphene Quick Start](Graphene-Quick-Start.md) for instructions how to quickly build and run Graphene.
+See [Graphene Quick Start](../quickstart) for instructions how to quickly build and run Graphene.
 
 ### Obtain Source Code
 
