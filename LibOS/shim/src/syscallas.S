@@ -46,12 +46,13 @@ syscalldb:
         .cfi_offset %rflags, -2 * 8
         cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_LOW), %rsp
         jle switch_stack
-        cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
+        cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_HIGH), %rsp
         ja switch_stack
         jmp skip_switch_stack
 
 switch_stack:
         popfq
+        .cfi_remember_state
         .cfi_adjust_cfa_offset -8
         .cfi_restore %rflags
 
@@ -61,11 +62,13 @@ switch_stack:
         .cfi_undefined %r11
 
         # switch stack
-        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
+        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_HIGH), %rsp
 
         # Create shim_regs struct on the stack.
         pushq %r11              # save old %rsp
-        addq $8, (%rsp)         # adjust saved %rip
+        # saved rsp has to point to the top of the application stack
+        # (before call to this stub) so we move it past saved return address
+        addq $8, (%rsp)
         .cfi_def_cfa %rsp, 0
         .cfi_offset %rsp, 0
 
@@ -75,6 +78,7 @@ switch_stack:
         jmp syscalldb_from_wrapper
 
 skip_switch_stack:
+        .cfi_restore_state
         # TODO: remove this workaround for nested syscall
         popfq
         .cfi_adjust_cfa_offset -8
@@ -84,15 +88,15 @@ skip_switch_stack:
         .cfi_register %rip, %r11
         pushq %rsp
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rsp, 0
+        .cfi_rel_offset %rsp, 0
         pushq %r11
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rip, -8
+        .cfi_rel_offset %rip, 0
 
 syscalldb_from_wrapper:
         pushfq
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rflags, -2 * 8
+        .cfi_rel_offset %rflags, 0
 
         # Under GDB, single-stepping sets Trap Flag (TP) of EFLAGS,
         # thus TP=1 is stored on pushfq above. Upon consequent popfq,
@@ -102,49 +106,49 @@ syscalldb_from_wrapper:
         cld
         pushq %rbp
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rbp, -3 * 8
+        .cfi_rel_offset %rbp, 0
         pushq %rbx
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rbx, -4 * 8
+        .cfi_rel_offset %rbx, 0
         pushq %rdi
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rdi, -5 * 8
+        .cfi_rel_offset %rdi, 0
         pushq %rsi
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rsi, -6 * 8
+        .cfi_rel_offset %rsi, 0
         pushq %rdx
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rdx, -7 * 8
+        .cfi_rel_offset %rdx, 0
         pushq %rcx
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rcx, -8 * 8
+        .cfi_rel_offset %rcx, 0
         pushq %r8
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r8, -9 * 8
+        .cfi_rel_offset %r8, 0
         pushq %r9
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r9, -10 * 8
+        .cfi_rel_offset %r9, 0
         pushq %r10
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r10, -11 * 8
+        .cfi_rel_offset %r10, 0
         pushq %r11
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r11, -12 * 8
+        .cfi_rel_offset %r11, 0
         pushq %r12
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r12, -13 * 8
+        .cfi_rel_offset %r12, 0
         pushq %r13
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r13, -14 * 8
+        .cfi_rel_offset %r13, 0
         pushq %r14
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r14, -15 * 8
+        .cfi_rel_offset %r14, 0
         pushq %r15
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %r15, -16 * 8
+        .cfi_rel_offset %r15, 0
         pushq %rax
         .cfi_adjust_cfa_offset 8
-        .cfi_offset %rax, -17 * 8
+        .cfi_rel_offset %rax, 0
         # shim_regs struct ends here.
 
         movq %rsp, %rbp
@@ -152,6 +156,7 @@ syscalldb_from_wrapper:
 
         cmp $LIBOS_SYSCALL_BOUND, %rax
         jae isundef
+        .cfi_remember_state
 
         movq shim_table@GOTPCREL(%rip), %rbx
         movq (%rbx,%rax,8), %rbx
@@ -229,6 +234,7 @@ ret:
         jmp *%r11
 
 isundef:
+        .cfi_restore_state
 #ifdef DEBUG
         mov %rax, %rdi
         andq $~0xF, %rsp  # Required by System V AMD64 ABI.
@@ -266,7 +272,7 @@ syscall_wrapper:
         .cfi_undefined %r11
 
         # switch stack to the one allocated by LibOS
-        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
+        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_HIGH), %rsp
         pushq %r11
         .cfi_def_cfa %rsp, 0
         .cfi_offset %rsp, 0

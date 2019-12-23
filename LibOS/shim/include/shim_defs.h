@@ -47,6 +47,9 @@
 
 #define CP_INIT_VMA_SIZE            (64 * 1024 * 1024)  /* 64MB */
 
+/* syscall stack size: 2 * 4K is for guard page */
+#define SHIM_THREAD_SYSCALL_STACK_SIZE  (16 * 1024 + 2 * 4 * 1024)
+
 #define ENABLE_ASLR                 1
 
 /* debug message printout */
@@ -64,7 +67,5 @@
 #define REQUIRED_ELF_AUXV_SPACE     16  /* extra memory space (in bytes) */
 
 #define WARN_NO_GIPC                0   /* warn if GIPC is not supported for process creation */
-
-#define SHIM_THREAD_SYSCALL_STACK_SIZE  (16 * 1024)
 
 #endif /* _SHIM_DEFS_H_ */

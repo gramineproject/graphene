@@ -49,12 +49,11 @@ PAL_HANDLE thread_start_event = NULL;
 
 void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* thread) {
     if (thread && thread->syscall_stack) {
-        shim_tcb->syscall_stack_low = thread->syscall_stack;
-        shim_tcb->syscall_stack = ALIGN_DOWN_PTR(
-            (void*)thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE, 16UL);
+        shim_tcb->syscall_stack_low = thread->syscall_stack_low;
+        shim_tcb->syscall_stack_high = thread->syscall_stack_high;
     } else {
         shim_tcb->syscall_stack_low = NULL;
-        shim_tcb->syscall_stack = NULL;
+        shim_tcb->syscall_stack_high = NULL;
     }
 }
 
@@ -260,6 +259,13 @@ int shim_thread_alloc_syscall_stack(struct shim_thread* thread) {
     thread->syscall_stack = malloc(SHIM_THREAD_SYSCALL_STACK_SIZE);
     if (!thread->syscall_stack)
         return -ENOMEM;
+
+    thread->syscall_stack_low = ALLOC_ALIGN_UP_PTR(thread->syscall_stack + ALLOC_ALIGNMENT);
+    thread->syscall_stack_high = ALLOC_ALIGN_DOWN_PTR(thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE - ALLOC_ALIGNMENT);
+
+    /* guard page for stack */
+    DkVirtualMemoryProtect(thread->syscall_stack_low - ALLOC_ALIGNMENT, ALLOC_ALIGNMENT, PAL_PROT_NONE);
+    DkVirtualMemoryProtect(thread->syscall_stack_high, ALLOC_ALIGNMENT, PAL_PROT_NONE);
     return 0;
 }
 
@@ -373,7 +379,12 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->child_exit_event);
         destroy_lock(&thread->lock);
 
-        free(thread->syscall_stack);
+        if (thread->syscall_stack) {
+            PAL_FLG prot = PAL_PROT_READ | PAL_PROT_WRITE;
+            DkVirtualMemoryProtect(thread->syscall_stack_low - ALLOC_ALIGNMENT, ALLOC_ALIGNMENT, prot);
+            DkVirtualMemoryProtect(thread->syscall_stack_high, ALLOC_ALIGNMENT, prot);
+            free(thread->syscall_stack);
+        }
         free(thread->signal_logs);
         free(thread);
     }

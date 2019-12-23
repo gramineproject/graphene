@@ -533,9 +533,18 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
             /*
              * WORKAROUND
-             * syscall_wrapper doesn't handle nested syscall
-             * Once nested syscall is avoided (by fixing signal delivery)
-             * this work around can be removed.
+             *
+             * Async signal can arrive while LibOS is executing.
+             * The current implementation simply call its signal
+             * handler (Suspending libos execution), and the signal
+             * handler of the application can issue syscall again
+             * to enter LibOS.
+             * In such case, syscall stack is already being used and
+             * the syscall stack should not be overwritten.
+             *
+             * syscall_wrapper doesn't handle such case.
+             * Once the re-entrance to LibOS is avoided (by fixing signal
+             * delivery), this work around can be removed.
              * it's difficult for syscall_wrapper to implement
              * conditionally switching stack without clobbering %rflags.
              * So do it here.
@@ -544,14 +553,14 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             shim_tcb_t * tcb = shim_get_tcb();
             unsigned long* rsp;
             if ((void*)tcb->syscall_stack_low < (void*)context->rsp &&
-                (void*)context->rsp <= (void*)tcb->syscall_stack) {
+                (void*)context->rsp <= (void*)tcb->syscall_stack_high) {
                 /*
-                 * We're nesting system call by signal handler
-                 * syscall stack is already being used.
+                 * We're re-entering to LibOS and syscall satck
+                 * is already being used.
                  */
                 rsp = (unsigned long*)context->rsp;
             } else {
-                rsp = (unsigned long*)tcb->syscall_stack;
+                rsp = (unsigned long*)tcb->syscall_stack_high;
             }
             /* pushq %rsp */
             rsp--;

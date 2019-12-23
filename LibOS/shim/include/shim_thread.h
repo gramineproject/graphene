@@ -94,7 +94,9 @@ struct shim_thread {
     unsigned long exit_time;
 #endif
 
-    uint8_t* syscall_stack;
+    void* syscall_stack;        /* allocated area for stack */
+    void* syscall_stack_low;
+    void* syscall_stack_high;
 };
 
 int shim_thread_alloc_syscall_stack(struct shim_thread* thread);
