@@ -691,7 +691,7 @@ static inline int __map_buffer (struct shim_handle * hdl, size_t size)
         maplen *= 2;
 
     /* Create the bookkeeping before allocating the memory. */
-    void * mapbuf = bkeep_unmapped_any(maplen, prot, flags, "filebuf");
+    void * mapbuf = bkeep_unmapped_any(0, maplen, prot, flags, "filebuf");
     if (!mapbuf)
         return -ENOMEM;
 

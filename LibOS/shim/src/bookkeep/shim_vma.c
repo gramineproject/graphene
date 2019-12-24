@@ -59,7 +59,7 @@ static struct shim_vma * reserved_vmas[RESERVED_VMAS];
 static struct shim_vma early_vmas[RESERVED_VMAS];
 
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
-                                size_t length, int prot, int flags,
+                                size_t alignment, size_t length, int prot, int flags,
                                 struct shim_handle * file,
                                 off_t offset, const char * comment);
 
@@ -79,7 +79,7 @@ static inline void * __malloc (size_t size)
      * be created before issuing the PAL calls.
      */
     addr = __bkeep_unmapped(PAL_CB(user_address.end),
-                            PAL_CB(user_address.start), size,
+                            PAL_CB(user_address.start), 0, size,
                             PROT_READ|PROT_WRITE,
                             MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
                             NULL, 0, "vma");
@@ -810,11 +810,12 @@ int bkeep_mprotect (void * addr, size_t length, int prot, int flags)
  * added to the VMA list.
  */
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
-                                size_t length, int prot, int flags,
+                                size_t alignment, size_t length, int prot, int flags,
                                 struct shim_handle * file,
                                 off_t offset, const char * comment)
 {
     assert(top_addr > bottom_addr);
+    assert(!alignment || IS_POWER_OF_2(alignment));
 
     if (!length || length > (uintptr_t) top_addr - (uintptr_t) bottom_addr)
         return NULL;
@@ -830,8 +831,21 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 
         assert(start <= end);
 
-        /* Check if there is enough space between prev and cur */
+        bool found = false;
         if (length <= (uintptr_t) end - (uintptr_t) start) {
+            if (alignment) {
+                /* [end - length, end) will be booked below */
+                void* tmp = ALIGN_DOWN_PTR_POW2(end - length, alignment);
+                if (start <= tmp) {
+                    end = tmp + length;
+                    found = true;
+                }
+            } else {
+                found = true;
+            }
+        }
+        /* Check if there is enough space between prev and cur */
+        if (found) {
             /* create a new VMA at the top of the range */
             __bkeep_mmap(prev, end - length, end, prot, flags,
                          file, offset, comment);
@@ -853,11 +867,11 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
     return NULL;
 }
 
-void * bkeep_unmapped (void * top_addr, void * bottom_addr, size_t length,
+void * bkeep_unmapped (void * top_addr, void * bottom_addr, size_t alignment, size_t length,
                        int prot, int flags, const char * comment)
 {
     lock(&vma_list_lock);
-    void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
+    void * addr = __bkeep_unmapped(top_addr, bottom_addr, alignment, length, prot, flags,
                                    NULL, 0, comment);
     assert_vma_list();
     __restore_reserved_vmas();
@@ -896,7 +910,7 @@ void * bkeep_unmapped_heap (size_t length, int prot, int flags,
     if (top_addr > bottom_addr) {
         /* Try first time */
         addr = __bkeep_unmapped(top_addr, bottom_addr,
-                                length, prot, flags,
+                                0, length, prot, flags,
                                 file, offset, comment);
         assert_vma_list();
     }
@@ -912,7 +926,7 @@ void * bkeep_unmapped_heap (size_t length, int prot, int flags,
     } else if (top_addr < heap_max) {
         /* Try to allocate above the current heap top */
         addr = __bkeep_unmapped(heap_max, bottom_addr,
-                                length, prot, flags,
+                                0, length, prot, flags,
                                 file, offset, comment);
         assert_vma_list();
     }
