@@ -65,7 +65,7 @@ void* __system_malloc(size_t size) {
      * pattern. It is not safe to just call DkVirtualMemoryAlloc directly
      * without reserving the vma region first.
      */
-    addr = bkeep_unmapped_any(alloc_size, PROT_READ | PROT_WRITE, flags, 0, "slab");
+    addr = bkeep_unmapped_any(alloc_size, PROT_READ | PROT_WRITE, flags, "slab");
 
     if (!addr)
         return NULL;

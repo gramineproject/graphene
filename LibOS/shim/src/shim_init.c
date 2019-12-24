@@ -453,7 +453,7 @@ int init_manifest (PAL_HANDLE manifest_handle)
         size = attr.pending_size;
         map_size = ALLOC_ALIGN_UP(size);
         addr = bkeep_unmapped_any(map_size, PROT_READ, MAP_FLAGS,
-                                  0, "manifest");
+                                  "manifest");
         if (!addr)
             return -ENOMEM;
 

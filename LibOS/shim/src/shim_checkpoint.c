@@ -696,7 +696,7 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
          * top of the virtual address space.
          */
         addr = bkeep_unmapped_any(size + reserve_size, PROT_READ|PROT_WRITE,
-                                  CP_VMA_FLAGS, 0, "cpstore");
+                                  CP_VMA_FLAGS, "cpstore");
         if (!addr)
             return NULL;
 
@@ -996,7 +996,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 #endif
 
     if (!base) {
-        base = bkeep_unmapped_any(ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_VMA_FLAGS, 0,
+        base = bkeep_unmapped_any(ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
                                   "cpstore");
         if (!base)
             return -ENOMEM;

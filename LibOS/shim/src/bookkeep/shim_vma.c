@@ -854,11 +854,11 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 }
 
 void * bkeep_unmapped (void * top_addr, void * bottom_addr, size_t length,
-                       int prot, int flags, off_t offset, const char * comment)
+                       int prot, int flags, const char * comment)
 {
     lock(&vma_list_lock);
     void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
-                                   NULL, offset, comment);
+                                   NULL, 0, comment);
     assert_vma_list();
     __restore_reserved_vmas();
     unlock(&vma_list_lock);
