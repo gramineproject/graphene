@@ -44,12 +44,11 @@
 noreturn void shim_clean_and_exit(int exit_code);
 
 /* important macros and static inline functions */
-static inline unsigned int get_cur_tid(void)
-{
-    return shim_get_tcb()->tid;
+static inline unsigned int get_cur_tid(void) {
+    return SHIM_TCB_GET(tid);
 }
 
-#define PAL_NATIVE_ERRNO        (shim_get_tcb()->pal_errno)
+#define PAL_NATIVE_ERRNO        (SHIM_TCB_GET(pal_errno))
 
 #define INTERNAL_TID_BASE       ((IDTYPE) 1 << (sizeof(IDTYPE) * 8 - 1))
 
@@ -583,8 +582,7 @@ static inline bool locked(struct shim_lock* l)
     if (!lock_enabled || !l->lock)
         return false;
 
-    shim_tcb_t* tcb = shim_get_tcb();
-    return tcb->tid == l->owner;
+    return get_cur_tid() == l->owner;
 }
 
 #define DEBUG_MASTER_LOCK 0

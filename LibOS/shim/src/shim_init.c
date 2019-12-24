@@ -199,17 +199,10 @@ char ** library_paths = NULL;
 struct shim_lock __master_lock;
 bool lock_enabled;
 
-void init_tcb (shim_tcb_t * tcb)
-{
-    tcb->canary = SHIM_TCB_CANARY;
-    tcb->self = tcb;
-}
-
 /* This function is used to allocate tls before interpreter start running */
 void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
 {
     shim_tcb_t * shim_tcb = shim_get_tcb();
-    init_tcb(shim_tcb);
 
     if (thread) {
         thread->shim_tcb = shim_tcb;
