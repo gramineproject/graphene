@@ -879,7 +879,7 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
          * Allocating the checkpoint space at the first space found from the
          * top of the virtual address space.
          */
-        addr = bkeep_unmapped_any(size + reserve_size, PROT_READ|PROT_WRITE,
+        addr = bkeep_unmapped_any(0, size + reserve_size, PROT_READ|PROT_WRITE,
                                   CP_VMA_FLAGS, "cpstore");
         if (!addr)
             return NULL;
@@ -1215,7 +1215,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 #endif
 
     if (!base) {
-        base = bkeep_unmapped_any(ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
+        base = bkeep_unmapped_any(0, ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
                                   "cpstore");
         if (!base)
             return -ENOMEM;
