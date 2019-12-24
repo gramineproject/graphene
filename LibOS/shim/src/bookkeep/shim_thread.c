@@ -49,6 +49,8 @@ PAL_HANDLE thread_start_event = NULL;
 
 void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* thread) {
     if (thread && thread->syscall_stack) {
+        assert(IS_ALIGNED_PTR(thread->syscall_stack_low, ALLOC_ALIGNMENT));
+        assert(IS_ALIGNED_PTR(thread->syscall_stack_high, ALLOC_ALIGNMENT));
         shim_tcb->syscall_stack_low = thread->syscall_stack_low;
         shim_tcb->syscall_stack_high = thread->syscall_stack_high;
     } else {
@@ -256,17 +258,42 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
 int shim_thread_alloc_syscall_stack(struct shim_thread* thread) {
     assert(thread->syscall_stack == NULL);
-    thread->syscall_stack = malloc(SHIM_THREAD_SYSCALL_STACK_SIZE);
+    int prot = PROT_READ | PROT_WRITE;
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
+    thread->syscall_stack = bkeep_unmapped_any(
+        ALLOC_ALIGNMENT, SHIM_THREAD_SYSCALL_STACK_SIZE, prot, flags, "syscall_stack");
     if (!thread->syscall_stack)
         return -ENOMEM;
 
-    thread->syscall_stack_low = ALLOC_ALIGN_UP_PTR(thread->syscall_stack + ALLOC_ALIGNMENT);
-    thread->syscall_stack_high = ALLOC_ALIGN_DOWN_PTR(thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE - ALLOC_ALIGNMENT);
+    thread->syscall_stack_low = thread->syscall_stack + ALLOC_ALIGNMENT;
+    assert(IS_ALIGNED_PTR(thread->syscall_stack_low, ALLOC_ALIGNMENT));
+    thread->syscall_stack_high = thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE;
+    assert(IS_ALIGNED_PTR(thread->syscall_stack_high, ALLOC_ALIGNMENT));
 
     /* guard page for stack */
-    DkVirtualMemoryProtect(thread->syscall_stack_low - ALLOC_ALIGNMENT, ALLOC_ALIGNMENT, PAL_PROT_NONE);
-    DkVirtualMemoryProtect(thread->syscall_stack_high, ALLOC_ALIGNMENT, PAL_PROT_NONE);
+    void* addr;
+    int ret;
+    addr = DkVirtualMemoryAlloc(thread->syscall_stack, ALLOC_ALIGNMENT, 0, PAL_PROT_NONE);
+    if (!addr) {
+        ret = -PAL_ERRNO;
+        goto out;
+    }
+    addr = DkVirtualMemoryAlloc(
+        thread->syscall_stack_low, SHIM_THREAD_SYSCALL_STACK_SIZE - ALLOC_ALIGNMENT, 0,
+        PAL_PROT_READ | PAL_PROT_WRITE);
+    if (!addr) {
+        ret = -PAL_ERRNO;
+        DkVirtualMemoryFree(thread->syscall_stack, ALLOC_ALIGNMENT);
+        goto out;
+    }
     return 0;
+
+out:
+    if (thread->syscall_stack) {
+        bkeep_munmap(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE, flags);
+        thread->syscall_stack = NULL;
+    }
+    return ret;
 }
 
 struct shim_thread* get_new_thread_syscall_stack(IDTYPE new_tid) {
@@ -380,9 +407,9 @@ void put_thread (struct shim_thread * thread)
         destroy_lock(&thread->lock);
 
         if (thread->syscall_stack) {
-            PAL_FLG prot = PAL_PROT_READ | PAL_PROT_WRITE;
-            DkVirtualMemoryProtect(thread->syscall_stack_low - ALLOC_ALIGNMENT, ALLOC_ALIGNMENT, prot);
-            DkVirtualMemoryProtect(thread->syscall_stack_high, ALLOC_ALIGNMENT, prot);
+            DkVirtualMemoryFree(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE);
+            bkeep_munmap(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE,
+                         MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL);
             free(thread->syscall_stack);
         }
         free(thread->signal_logs);

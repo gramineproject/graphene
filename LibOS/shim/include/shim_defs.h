@@ -47,8 +47,8 @@
 
 #define CP_INIT_VMA_SIZE            (64 * 1024 * 1024)  /* 64MB */
 
-/* syscall stack size: 2 * 4K is for guard page */
-#define SHIM_THREAD_SYSCALL_STACK_SIZE  (16 * 1024 + 2 * 4 * 1024)
+/* syscall stack size: ALLOC_ALIGNMENT is for a guard page */
+#define SHIM_THREAD_SYSCALL_STACK_SIZE  (16 * 1024 + ALLOC_ALIGNMENT)
 
 #define ENABLE_ASLR                 1
 
