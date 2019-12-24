@@ -6,29 +6,29 @@
 #define SHIM_TCB_CANARY 0xdeadbeef
 
 struct shim_regs {
-    unsigned long           orig_rax;
-    unsigned long           rsp;
-    unsigned long           r15;
-    unsigned long           r14;
-    unsigned long           r13;
-    unsigned long           r12;
-    unsigned long           r11;
-    unsigned long           r10;
-    unsigned long           r9;
-    unsigned long           r8;
-    unsigned long           rcx;
-    unsigned long           rdx;
-    unsigned long           rsi;
-    unsigned long           rdi;
-    unsigned long           rbx;
-    unsigned long           rbp;
-    unsigned long           rflags;
-    unsigned long           rip;
+    uint64_t    orig_rax;
+    uint64_t    rsp;
+    uint64_t    r15;
+    uint64_t    r14;
+    uint64_t    r13;
+    uint64_t    r12;
+    uint64_t    r11;
+    uint64_t    r10;
+    uint64_t    r9;
+    uint64_t    r8;
+    uint64_t    rcx;
+    uint64_t    rdx;
+    uint64_t    rsi;
+    uint64_t    rdi;
+    uint64_t    rbx;
+    uint64_t    rbp;
+    uint64_t    rflags;
+    uint64_t    rip;
 };
 
 struct shim_context {
     struct shim_regs *      regs;
-    unsigned long           fs_base;
+    uint64_t                fs_base;
     struct shim_context *   next;
     uint64_t                enter_time;
     struct atomic_int       preempt;
