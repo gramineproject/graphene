@@ -64,7 +64,7 @@ static int debug_fputch(void* f, int ch, void* b) {
 
 void debug_puts(const char* str) {
     int len               = strlen(str);
-    struct debug_buf* buf = shim_get_tcb()->debug_buf;
+    struct debug_buf* buf = SHIM_TCB_GET(debug_buf);
 
     while (len) {
         int rem     = DEBUGBUF_SIZE - 4 - buf->end;
@@ -95,11 +95,11 @@ void debug_puts(const char* str) {
 }
 
 void debug_putch(int ch) {
-    debug_fputch(NULL, ch, shim_get_tcb()->debug_buf);
+    debug_fputch(NULL, ch, SHIM_TCB_GET(debug_buf));
 }
 
 void debug_vprintf(const char* fmt, va_list ap) {
-    vfprintfmt((void*)debug_fputch, NULL, shim_get_tcb()->debug_buf, fmt, ap);
+    vfprintfmt((void*)debug_fputch, NULL, SHIM_TCB_GET(debug_buf), fmt, ap);
 }
 
 void debug_printf(const char* fmt, ...) {

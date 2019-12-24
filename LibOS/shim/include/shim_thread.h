@@ -120,21 +120,6 @@ struct shim_simple_thread {
 
 int init_thread (void);
 
-static inline struct shim_thread * shim_thread_self(void)
-{
-    /* TODO: optimize to use single movq %gs:<offset> */
-    shim_tcb_t * shim_tcb = shim_get_tcb();
-    return shim_tcb->tp;
-}
-
-static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __self)
-{
-    /* TODO: optimize to use single movq %gs:<offset> */
-    shim_tcb_t * shim_tcb = shim_get_tcb();
-    shim_tcb->tp = __self;
-    return __self;
-}
-
 static inline bool is_internal(struct shim_thread *thread)
 {
     return thread->tid >= INTERNAL_TID_BASE;
@@ -167,7 +152,7 @@ static inline
 __attribute__((always_inline))
 struct shim_thread * get_cur_thread (void)
 {
-    return shim_thread_self();
+    return SHIM_TCB_GET(tp);
 }
 
 static inline

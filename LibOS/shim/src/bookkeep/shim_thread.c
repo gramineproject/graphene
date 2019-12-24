@@ -97,16 +97,6 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
     return thread;
 }
 
-struct shim_thread * __get_cur_thread (void)
-{
-    return shim_thread_self();
-}
-
-shim_tcb_t * __get_cur_tcb (void)
-{
-    return shim_get_tcb();
-}
-
 IDTYPE get_pid (void)
 {
     IDTYPE idx;
@@ -813,6 +803,7 @@ BEGIN_RS_FUNC(running_thread)
             /* fork case */
             shim_tcb_t* tcb = shim_get_tcb();
             memcpy(tcb, saved_tcb, sizeof(*tcb));
+            shim_tcb_init();
 
             assert(tcb->context.regs && tcb->context.regs->rsp);
             init_fs_base(tcb->context.fs_base, thread);

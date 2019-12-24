@@ -675,6 +675,7 @@ noreturn void* shim_init (int argc, void * args)
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */
+    shim_tcb_init();
     init_fs_base(0, NULL);
     __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization

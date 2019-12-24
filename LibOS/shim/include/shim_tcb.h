@@ -58,18 +58,46 @@ struct shim_tcb {
 
 void init_tcb (shim_tcb_t * tcb);
 
+#define SHIM_TCB_GET(member)                                            \
+    ({                                                                  \
+        shim_tcb_t* tcb;                                                \
+        static_assert(sizeof(tcb->member) == 8,                         \
+                      "SHIM_TCB_GET can be used only for 8-bytes member"); \
+        __typeof__(tcb->member) ret;                                    \
+        __asm__ ("movq %%gs:%c1,%q0"                                    \
+                 : "=r"(ret)                                            \
+                 : "i" (offsetof(PAL_TCB, libos_tcb) +                  \
+                        offsetof(shim_tcb_t, member)));                 \
+        ret;                                                            \
+    })
+
+#define SHIM_TCB_SET(member, value)                                     \
+    do {                                                                \
+        shim_tcb_t* tcb;                                                \
+        static_assert(sizeof(tcb->member) == 8,                         \
+                      "SHIM_TCB_SET can be used only for 8-bytes member"); \
+        __asm__ ("movq %q0, %%gs:%c1":: "r"(value),                     \
+                 "i"(offsetof(PAL_TCB, libos_tcb) +                     \
+                     offsetof(shim_tcb_t, member)));                    \
+    } while (0)
+
+/* Setup shim_tcb_t::self so that shim_get_tcb() work.
+ * Call this function at the beginning of thread execution.
+ */
+static inline void shim_tcb_init(void) {
+    PAL_TCB * tcb = pal_get_tcb();
+    shim_tcb_t* shim_tcb = (shim_tcb_t*)tcb->libos_tcb;
+    shim_tcb->self = shim_tcb;
+}
+
 static inline shim_tcb_t * shim_get_tcb(void)
 {
-    /* TODO: optimize to use single movq %gs:<offset> */
-    PAL_TCB * tcb = pal_get_tcb();
-    return (shim_tcb_t*)tcb->libos_tcb;
+    return SHIM_TCB_GET(self);
 }
 
 static inline bool shim_tcb_check_canary(void)
 {
-    /* TODO: optimize to use single movq %gs:<offset> */
-    shim_tcb_t * shim_tcb = shim_get_tcb();
-    return shim_tcb->canary == SHIM_TCB_CANARY;
+    return SHIM_TCB_GET(canary) == SHIM_TCB_CANARY;
 }
 
 #endif /* _SHIM_H_ */
