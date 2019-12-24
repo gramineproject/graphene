@@ -97,16 +97,6 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
     return thread;
 }
 
-struct shim_thread * __get_cur_thread (void)
-{
-    return shim_thread_self();
-}
-
-shim_tcb_t * __get_cur_tcb (void)
-{
-    return shim_get_tcb();
-}
-
 IDTYPE get_pid (void)
 {
     IDTYPE idx;
@@ -759,6 +749,7 @@ static int resume_wrapper (void * param)
 
     /* initialize the current shim_tcb_t (= shim_get_tcb())
        based on saved thread->shim_tcb */
+    shim_tcb_init();
     shim_tcb_t* saved_tcb = thread->shim_tcb;
     assert(saved_tcb->context.regs && saved_tcb->context.regs->rsp);
     unsigned long fs_base = saved_tcb->context.fs_base;
@@ -813,6 +804,7 @@ BEGIN_RS_FUNC(running_thread)
             /* fork case */
             shim_tcb_t* tcb = shim_get_tcb();
             memcpy(tcb, saved_tcb, sizeof(*tcb));
+            __shim_tcb_init(tcb);
 
             assert(tcb->context.regs && tcb->context.regs->rsp);
             init_fs_base(tcb->context.fs_base, thread);
@@ -831,7 +823,6 @@ BEGIN_RS_FUNC(running_thread)
              * in_vm = false
              */
             thread->shim_tcb = shim_get_tcb();
-            init_tcb(thread->shim_tcb);
             debug_setbuf(thread->shim_tcb, false);
             set_cur_thread(thread);
         }

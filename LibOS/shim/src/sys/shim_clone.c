@@ -118,6 +118,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
     struct shim_thread* my_thread = arg->thread;
     assert(my_thread);
 
+    shim_tcb_init();
     init_fs_base(arg->fs_base, my_thread);
     shim_tcb_t * tcb = my_thread->shim_tcb;
 
