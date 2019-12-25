@@ -535,8 +535,8 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
              * WORKAROUND
              *
              * Async signal can arrive while LibOS is executing.
-             * The current implementation simply call its signal
-             * handler (Suspending libos execution), and the signal
+             * The current implementation simply calls its signal
+             * handler (suspending LibOS execution), and the signal
              * handler of the application can issue syscall again
              * to enter LibOS.
              * In such case, syscall stack is already being used and
@@ -544,21 +544,24 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
              *
              * syscall_wrapper doesn't handle such case.
              * Once the re-entrance to LibOS is avoided (by fixing signal
-             * delivery), this work around can be removed.
+             * delivery), this workaround can be removed.
              * it's difficult for syscall_wrapper to implement
              * conditionally switching stack without clobbering %rflags.
              * So do it here.
              */
-            // context->rip = (unsigned long)&syscall_wrapper;
-            shim_tcb_t * tcb = shim_get_tcb();
+            shim_tcb_t* tcb = shim_get_tcb();
             unsigned long* rsp;
-            if ((void*)tcb->syscall_stack_low < (void*)context->rsp &&
-                (void*)context->rsp <= (void*)tcb->syscall_stack_high) {
+            void* current_rsp = (void*)context->rsp;
+            if ((tcb->pal_stack_low < current_rsp &&
+                 current_rsp <= tcb->pal_stack_high) ||
+                (tcb->syscall_stack_low < current_rsp &&
+                 current_rsp <= tcb->syscall_stack_high)) {
                 /*
-                 * We're re-entering to LibOS and syscall satck
+                 * We're re-entering to LibOS and syscall stack
                  * is already being used.
                  */
                 rsp = (unsigned long*)context->rsp;
+                rsp -= RED_ZONE_SIZE / sizeof(*rsp);
             } else {
                 rsp = (unsigned long*)tcb->syscall_stack_high;
             }
@@ -567,7 +570,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             *rsp = context->rsp;
             /* pushq %rip */
             rsp--;
-            *rsp = context->rcx;
+            *rsp = context->rip + 2;
             /* adjust %rsp and %rip */
             context->rsp = (unsigned long)rsp;
             context->rip = (unsigned long)&syscalldb_from_wrapper;

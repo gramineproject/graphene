@@ -1318,7 +1318,7 @@ void restore_context (struct shim_context * context)
                      "popq %%r14\r\n"
                      "popq %%r13\r\n"
                      "popq %%r12\r\n"
-                     "addq $8, %%rsp\r\n"   /* skip %r11 as it's used blow */
+                     "addq $8, %%rsp\r\n"   /* skip %r11 as it's used below */
                      "popq %%r10\r\n"
                      "popq %%r9\r\n"
                      "popq %%r8\r\n"

@@ -50,6 +50,13 @@ struct shim_tcb {
     void*                   syscall_stack_low;
     void*                   syscall_stack_high;
 
+    /* PAL stack range
+     * TODO: Once LibOS is fixed for (emulated) signal delivery to not re-enter
+     * LibOS (and Pal), remove this function.
+     */
+    void*                   pal_stack_low;
+    void*                   pal_stack_high;
+
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],
      * the code addr is set to cont_addr to alert the caller. */

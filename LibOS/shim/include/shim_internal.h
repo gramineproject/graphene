@@ -170,7 +170,7 @@ static inline void do_pause (void);
 void handle_signal (void);
 long convert_pal_errno (long err);
 void syscall_wrapper(void);
-void syscalldb_from_wrapper(void);  /* TODO: remove this work around */
+void syscalldb_from_wrapper(void);  /* TODO: remove this workaround */
 
 #define PAL_ERRNO  convert_pal_errno(PAL_NATIVE_ERRNO)
 

@@ -57,6 +57,15 @@ void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* threa
         shim_tcb->syscall_stack_low = NULL;
         shim_tcb->syscall_stack_high = NULL;
     }
+
+    /*
+     * TODO: Once LibOS is fixed for (emulated) signal delivery to not re-enter
+     * LibOS (and Pal), remove those initialization.
+     */
+    PAL_PTR_RANGE range;
+    DkThreadPalStack(&range);
+    shim_tcb->pal_stack_low = range.start;
+    shim_tcb->pal_stack_high = range.end;
 }
 
 int init_thread (void)
@@ -273,15 +282,17 @@ int shim_thread_alloc_syscall_stack(struct shim_thread* thread) {
     /* guard page for stack */
     void* addr;
     int ret;
-    addr = DkVirtualMemoryAlloc(thread->syscall_stack, ALLOC_ALIGNMENT, 0, PAL_PROT_NONE);
+    addr = DkVirtualMemoryAlloc(
+        thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE, 0,
+        PAL_PROT_READ | PAL_PROT_WRITE);
     if (!addr) {
         ret = -PAL_ERRNO;
         goto out;
     }
-    addr = DkVirtualMemoryAlloc(
-        thread->syscall_stack_low, SHIM_THREAD_SYSCALL_STACK_SIZE - ALLOC_ALIGNMENT, 0,
-        PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!addr) {
+
+    PAL_BOL success = DkVirtualMemoryProtect(
+        thread->syscall_stack, ALLOC_ALIGNMENT, PAL_PROT_NONE);
+    if (!success) {
         ret = -PAL_ERRNO;
         DkVirtualMemoryFree(thread->syscall_stack, ALLOC_ALIGNMENT);
         goto out;
@@ -410,7 +421,6 @@ void put_thread (struct shim_thread * thread)
             DkVirtualMemoryFree(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE);
             bkeep_munmap(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE,
                          MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL);
-            free(thread->syscall_stack);
         }
         free(thread->signal_logs);
         free(thread);

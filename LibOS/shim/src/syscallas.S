@@ -44,9 +44,17 @@ syscalldb:
         pushfq
         .cfi_adjust_cfa_offset 8
         .cfi_offset %rflags, -2 * 8
+
         cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_LOW), %rsp
-        jle switch_stack
+        jbe 1f
         cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_HIGH), %rsp
+        ja 1f
+        jmp skip_switch_stack
+
+1:
+        cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_PAL_STACK_LOW), %rsp
+        jbe switch_stack
+        cmpq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_PAL_STACK_HIGH), %rsp
         ja switch_stack
         jmp skip_switch_stack
 

@@ -59,7 +59,7 @@ static struct shim_vma * reserved_vmas[RESERVED_VMAS];
 static struct shim_vma early_vmas[RESERVED_VMAS];
 
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
-                                size_t alignemnt, size_t length, int prot, int flags,
+                                size_t alignment, size_t length, int prot, int flags,
                                 struct shim_handle * file,
                                 off_t offset, const char * comment);
 
