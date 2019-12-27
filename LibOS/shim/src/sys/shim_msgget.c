@@ -741,7 +741,7 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
     debug("store msgq %d to persistent store\n", msgq->msqid);
 
     char fileuri[20];
-    snprintf(fileuri, 20, "file:msgq.%08x", msgq->msqid);
+    snprintf(fileuri, 20, URI_PREFIX_FILE "msgq.%08x", msgq->msqid);
 
     PAL_HANDLE file = DkStreamOpen(fileuri, PAL_ACCESS_RDWR, 0600, PAL_CREATE_TRY, 0);
     if (!file) {
@@ -821,7 +821,7 @@ static int __load_msg_persist(struct shim_msg_handle* msgq, bool readmsg) {
     int ret = 0;
 
     char fileuri[20];
-    snprintf(fileuri, 20, "file:msgq.%08x", msgq->msqid);
+    snprintf(fileuri, 20, URI_PREFIX_FILE "msgq.%08x", msgq->msqid);
 
     PAL_HANDLE file = DkStreamOpen(fileuri, PAL_ACCESS_RDONLY, 0, 0, 0);
 

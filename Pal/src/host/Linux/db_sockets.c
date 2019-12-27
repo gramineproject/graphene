@@ -537,10 +537,10 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     char uri_buf[PAL_SOCKADDR_SIZE];
     memcpy(uri_buf, uri, uri_len);
 
-    if (!strcmp_static(type, "tcp.srv"))
+    if (!strcmp_static(type, URI_TYPE_TCP_SRV))
         return tcp_listen(handle, uri_buf, options);
 
-    if (!strcmp_static(type, "tcp"))
+    if (!strcmp_static(type, URI_TYPE_TCP))
         return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -752,10 +752,10 @@ static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int acce
 
     memcpy(buf, uri, len + 1);
 
-    if (!strcmp_static(type, "udp.srv"))
+    if (!strcmp_static(type, URI_TYPE_UDP_SRV))
         return udp_bind(hdl, buf, options);
 
-    if (!strcmp_static(type, "udp"))
+    if (!strcmp_static(type, URI_TYPE_UDP))
         return udp_connect(hdl, buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -822,7 +822,7 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, size_t len,
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
 
-    char* addr_uri = strcpy_static(addr, "udp:", addrlen);
+    char* addr_uri = strcpy_static(addr, URI_PREFIX_UDP, addrlen);
     if (!addr_uri)
         return -PAL_ERROR_OVERFLOW;
 
@@ -879,11 +879,11 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, size_t len, co
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (!strstartswith_static(addr, "udp:"))
+    if (!strstartswith_static(addr, URI_PREFIX_UDP))
         return -PAL_ERROR_INVAL;
 
-    addr += static_strlen("udp:");
-    addrlen -= static_strlen("udp:");
+    addr += static_strlen(URI_PREFIX_UDP);
+    addrlen -= static_strlen(URI_PREFIX_UDP);
 
     char* addrbuf = __alloca(addrlen);
     memcpy(addrbuf, addr, addrlen);
@@ -1115,68 +1115,78 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 }
 
 static int socket_getname(PAL_HANDLE handle, char* buffer, size_t count) {
-    size_t old_count = count;
+    size_t orig_count = count;
     int ret;
 
-    const char* prefix         = NULL;
-    size_t prefix_len          = 0;
+    const char* prefix = NULL;
+    size_t prefix_len = 0;
     struct sockaddr* bind_addr = NULL;
     struct sockaddr* dest_addr = NULL;
 
     switch (PAL_GET_TYPE(handle)) {
         case pal_type_tcpsrv:
-            prefix_len = static_strlen("tcp.srv");
-            prefix     = "tcp.srv";
-            bind_addr  = (struct sockaddr*)handle->sock.bind;
+            prefix_len = static_strlen(URI_PREFIX_TCP_SRV);
+            prefix = URI_PREFIX_TCP_SRV;
+            bind_addr = (struct sockaddr*)handle->sock.bind;
             break;
         case pal_type_tcp:
-            prefix_len = static_strlen("tcp");
-            prefix     = "tcp";
-            bind_addr  = (struct sockaddr*)handle->sock.bind;
-            dest_addr  = (struct sockaddr*)handle->sock.conn;
+            prefix_len = static_strlen(URI_PREFIX_TCP);
+            prefix = URI_PREFIX_TCP;
+            bind_addr = (struct sockaddr*)handle->sock.bind;
+            dest_addr = (struct sockaddr*)handle->sock.conn;
             break;
         case pal_type_udpsrv:
-            prefix_len = static_strlen("udp.srv");
-            prefix     = "udp.srv";
-            bind_addr  = (struct sockaddr*)handle->sock.bind;
+            prefix_len = static_strlen(URI_PREFIX_UDP_SRV);
+            prefix = URI_PREFIX_UDP_SRV;
+            bind_addr = (struct sockaddr*)handle->sock.bind;
             break;
         case pal_type_udp:
-            prefix_len = static_strlen("udp");
-            prefix     = "udp";
-            bind_addr  = (struct sockaddr*)handle->sock.bind;
-            dest_addr  = (struct sockaddr*)handle->sock.conn;
+            prefix_len = static_strlen(URI_PREFIX_UDP);
+            prefix = URI_PREFIX_UDP;
+            bind_addr = (struct sockaddr*)handle->sock.bind;
+            dest_addr = (struct sockaddr*)handle->sock.conn;
             break;
         default:
             return -PAL_ERROR_INVAL;
     }
 
-    if (prefix_len >= count)
+    if (count < prefix_len + 1) {
         return -PAL_ERROR_OVERFLOW;
+    }
 
     memcpy(buffer, prefix, prefix_len + 1);
     buffer += prefix_len;
     count -= prefix_len;
 
-    for (int i = 0; i < 2; i++) {
-        struct sockaddr* addr = i ? dest_addr : bind_addr;
-        if (addr) {
-            if (count <= 1)
-                return -PAL_ERROR_OVERFLOW;
-
-            buffer[0] = ':';
-            buffer[1] = 0;
-            buffer++;
-            count--;
-
-            if ((ret = inet_create_uri(buffer, count, addr, addr_size(addr))) < 0)
-                return ret;
-
-            buffer += ret;
-            count -= ret;
+    if (bind_addr) {
+        if ((ret = inet_create_uri(buffer, count, bind_addr, addr_size(bind_addr))) < 0) {
+            return ret;
         }
+
+        buffer += ret;
+        count -= ret;
     }
 
-    return old_count - count;
+    if (dest_addr) {
+        if (bind_addr) {
+            if (count < 2) {
+                return -PAL_ERROR_OVERFLOW;
+            }
+
+            *buffer++ = ':';
+            *buffer = '\0';
+            count--;
+        }
+
+        if ((ret = inet_create_uri(buffer, count, dest_addr, addr_size(dest_addr))) < 0) {
+            return ret;
+        }
+
+        buffer += ret;
+        count -= ret;
+    }
+
+    return orig_count - count;
 }
 
 struct handle_ops tcp_ops = {

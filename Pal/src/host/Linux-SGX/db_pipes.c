@@ -157,7 +157,7 @@ static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 
-    if (!strcmp_static(type, "pipe") && !*uri)
+    if (!strcmp_static(type, URI_TYPE_PIPE) && !*uri)
         return pipe_private(handle, options);
 
     char* endptr;
@@ -166,10 +166,10 @@ static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (*endptr)
         return -PAL_ERROR_INVAL;
 
-    if (!strcmp_static(type, "pipe.srv"))
+    if (!strcmp_static(type, URI_TYPE_PIPE_SRV))
         return pipe_listen(handle, pipeid, options);
 
-    if (!strcmp_static(type, "pipe"))
+    if (!strcmp_static(type, URI_TYPE_PIPE))
         return pipe_connect(handle, pipeid, options);
 
     return -PAL_ERROR_INVAL;
@@ -370,12 +370,12 @@ static int pipe_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     switch (HANDLE_TYPE(handle)) {
         case pal_type_pipesrv:
         case pal_type_pipecli:
-            prefix_len = 8;
-            prefix     = "pipe.srv";
+            prefix_len = static_strlen(URI_TYPE_PIPE_SRV);
+            prefix     = URI_TYPE_PIPE_SRV;
             break;
         case pal_type_pipe:
-            prefix_len = 4;
-            prefix     = "pipe";
+            prefix_len = static_strlen(URI_TYPE_PIPE);
+            prefix     = URI_TYPE_PIPE;
             break;
         case pal_type_pipeprv:
         default:

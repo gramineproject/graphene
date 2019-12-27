@@ -41,7 +41,7 @@ typedef __kernel_pid_t pid_t;
 static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
-    if (strcmp_static(type, "file"))
+    if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
     /* try to do the real open */
@@ -235,7 +235,7 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 static int file_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
-    if (strcmp_static(type, "file") && strcmp_static(type, "dir"))
+    if (strcmp_static(type, URI_TYPE_FILE) && strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
     struct stat stat_buf;
@@ -281,7 +281,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
 static int file_rename (PAL_HANDLE handle, const char * type,
                         const char * uri)
 {
-    if (strcmp_static(type, "file"))
+    if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
     char* tmp = strdup(uri);
@@ -310,7 +310,7 @@ static int file_getname (PAL_HANDLE handle, char * buffer, size_t count)
         return 0;
 
     size_t len = strlen(handle->file.realpath);
-    char * tmp = strcpy_static(buffer, "file:", count);
+    char * tmp = strcpy_static(buffer, URI_PREFIX_FILE, count);
 
     if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
@@ -347,7 +347,7 @@ struct handle_ops file_ops = {
 static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
-    if (strcmp_static(type, "dir"))
+    if (strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
         return -PAL_ERROR_INVAL;
@@ -528,7 +528,7 @@ static int dir_delete (PAL_HANDLE handle, int access)
 static int dir_rename (PAL_HANDLE handle, const char * type,
                        const char * uri)
 {
-    if (strcmp_static(type, "dir"))
+    if (strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
     char* tmp = strdup(uri);
@@ -557,7 +557,7 @@ static int dir_getname (PAL_HANDLE handle, char * buffer, size_t count)
         return 0;
 
     size_t len = strlen(handle->dir.realpath);
-    char * tmp = strcpy_static(buffer, "dir:", count);
+    char * tmp = strcpy_static(buffer, URI_PREFIX_DIR, count);
 
     if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;

@@ -82,34 +82,34 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
 
     switch (p - u) {
         case 3:
-            if (strstartswith_static(u, "dir"))
+            if (strstartswith_static(u, URI_PREFIX_DIR))
                 hops = &dir_ops;
-            else if (strstartswith_static(u, "tcp"))
+            else if (strstartswith_static(u, URI_PREFIX_TCP))
                 hops = &tcp_ops;
-            else if (strstartswith_static(u, "udp"))
+            else if (strstartswith_static(u, URI_PREFIX_UDP))
                 hops = &udp_ops;
-            else if (strstartswith_static(u, "dev"))
+            else if (strstartswith_static(u, URI_PREFIX_DEV))
                 hops = &dev_ops;
             break;
 
         case 4:
-            if (strstartswith_static(u, "file"))
+            if (strstartswith_static(u, URI_PREFIX_FILE))
                 hops = &file_ops;
-            else if (strstartswith_static(u, "pipe"))
+            else if (strstartswith_static(u, URI_PREFIX_PIPE))
                 hops = &pipe_ops;
             break;
 
         case 7:
-            if (strstartswith_static(u, "tcp.srv"))
+            if (strstartswith_static(u, URI_PREFIX_TCP_SRV))
                 hops = &tcp_ops;
-            else if (strstartswith_static(u, "udp.srv"))
+            else if (strstartswith_static(u, URI_PREFIX_UDP_SRV))
                 hops = &udp_ops;
-            else if (strstartswith_static(u, "eventfd"))
+            else if (strstartswith_static(u, URI_PREFIX_EVENTFD))
                 hops = &eventfd_ops;
             break;
 
         case 8:
-            if (strstartswith_static(u, "pipe.srv"))
+            if (strstartswith_static(u, URI_PREFIX_PIPE_SRV))
                 hops = &pipe_ops;
             break;
 

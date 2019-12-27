@@ -161,6 +161,6 @@ struct shim_fs_ops pipe_fs_ops = {
 };
 
 struct shim_mount pipe_builtin_fs = {
-    .type   = "pipe",
+    .type   = URI_TYPE_PIPE,
     .fs_ops = &pipe_fs_ops,
 };

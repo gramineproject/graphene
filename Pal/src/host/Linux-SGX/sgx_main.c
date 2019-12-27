@@ -79,7 +79,7 @@ static unsigned long parse_int (const char * str)
 
 static char * resolve_uri (const char * uri, const char ** errstring)
 {
-    if (!strstartswith_static(uri, "file:")) {
+    if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
         *errstring = "Invalid URI";
         return NULL;
     }
@@ -92,7 +92,7 @@ static char * resolve_uri (const char * uri, const char ** errstring)
         return NULL;
     }
 
-    return alloc_concat("file:", static_strlen("file:"), path_buf, len);
+    return alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, path_buf, len);
 }
 
 static
@@ -837,7 +837,7 @@ static int load_enclave (struct pal_enclave * enclave,
         }
     }
 
-    enclave->exec = INLINE_SYSCALL(open, 3, exec_uri + static_strlen("file:"),
+    enclave->exec = INLINE_SYSCALL(open, 3, exec_uri + URI_PREFIX_FILE_LEN,
                                    O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->exec)) {
         if (exec_uri_inferred) {
@@ -874,7 +874,7 @@ static int load_enclave (struct pal_enclave * enclave,
         return -EINVAL;
     }
 
-    enclave->sigfile = INLINE_SYSCALL(open, 3, sig_uri + static_strlen("file:"),
+    enclave->sigfile = INLINE_SYSCALL(open, 3, sig_uri + URI_PREFIX_FILE_LEN,
                                       O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->sigfile)) {
         SGX_DBG(DBG_E, "Cannot open sigstruct file %s\n", sig_uri);
@@ -889,7 +889,7 @@ static int load_enclave (struct pal_enclave * enclave,
         return -ENOMEM;
     }
 
-    enclave->token = INLINE_SYSCALL(open, 3, token_uri + static_strlen("file:"),
+    enclave->token = INLINE_SYSCALL(open, 3, token_uri + URI_PREFIX_FILE_LEN,
                                     O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->token)) {
         SGX_DBG(DBG_E, "Cannot open token \'%s\'. Use \'"
@@ -1014,10 +1014,10 @@ int main (int argc, char ** argv, char ** envp)
         if (!argc)
             goto usage;
 
-        if (!strcmp_static(argv[0], "file:")) {
+        if (!strcmp_static(argv[0], URI_PREFIX_FILE)) {
             exec_uri = alloc_concat(argv[0], -1, NULL, -1);
         } else {
-            exec_uri = alloc_concat("file:", -1, argv[0], -1);
+            exec_uri = alloc_concat(URI_PREFIX_FILE, -1, argv[0], -1);
         }
     } else {
         exec_uri = alloc_concat(pal_enclave.pal_sec.exec_name, -1, NULL, -1);
@@ -1028,7 +1028,7 @@ int main (int argc, char ** argv, char ** envp)
         goto out;
     }
 
-    fd = INLINE_SYSCALL(open, 3, exec_uri + static_strlen("file:"), O_RDONLY|O_CLOEXEC, 0);
+    fd = INLINE_SYSCALL(open, 3, exec_uri + URI_PREFIX_FILE_LEN, O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(fd)) {
         SGX_DBG(DBG_E, "Input file not found: %s\n", exec_uri);
         ret = fd;
@@ -1047,7 +1047,7 @@ int main (int argc, char ** argv, char ** envp)
 
     char manifest_base_name[URI_MAX];
     size_t manifest_base_name_len = sizeof(manifest_base_name);
-    ret = get_base_name(exec_uri + static_strlen("file:"), manifest_base_name,
+    ret = get_base_name(exec_uri + URI_PREFIX_FILE_LEN, manifest_base_name,
                         &manifest_base_name_len);
     if (ret < 0) {
         goto out;
@@ -1100,7 +1100,7 @@ int main (int argc, char ** argv, char ** envp)
         }
     }
 
-    manifest_uri = alloc_concat("file:", static_strlen("file:"), manifest_base_name, -1);
+    manifest_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, manifest_base_name, -1);
     if (!manifest_uri) {
         ret = -ENOMEM;
         goto out;

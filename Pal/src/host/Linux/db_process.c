@@ -198,13 +198,13 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
          * tell its address to forked process.
          */
         size_t len;
-        const char * file_uri = "file:";
+        const char * file_uri = URI_PREFIX_FILE;
         if (exec_map && exec_map->l_name &&
-            (len = strlen(uri)) >= 5 && !memcmp(uri, file_uri, 5) &&
+            (len = strlen(uri)) >= URI_PREFIX_FILE_LEN && !memcmp(uri, file_uri, URI_PREFIX_FILE_LEN) &&
             /* skip "file:"*/
-            strlen(exec_map->l_name) == len - 5 &&
+            strlen(exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
             /* + 1 for lasting * NUL */
-            !memcmp(exec_map->l_name, uri + 5, len - 5 + 1))
+            !memcmp(exec_map->l_name, uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
             exec->file.map_start = (PAL_PTR)exec_map->l_map_start;
     }
 

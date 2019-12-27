@@ -158,11 +158,11 @@ static int unix_create_uri(char* uri, int count, enum shim_sock_state state, uns
         case SOCK_BOUND:
         case SOCK_LISTENED:
         case SOCK_ACCEPTED:
-            bytes = snprintf(uri, count, "pipe.srv:%u", pipeid);
+            bytes = snprintf(uri, count, URI_PREFIX_PIPE_SRV "%u", pipeid);
             break;
 
         case SOCK_CONNECTED:
-            bytes = snprintf(uri, count, "pipe:%u", pipeid);
+            bytes = snprintf(uri, count, URI_PREFIX_PIPE "%u", pipeid);
             break;
 
         default:
@@ -195,30 +195,28 @@ static void inet_rebase_port(bool reverse, int domain, struct addr_inet* addr, b
         addr->ext_port = addr->port + rebase_on_lo;
 }
 
-static int inet_translate_addr(int domain, char* uri, int count, struct addr_inet* addr) {
+static ssize_t inet_translate_addr(int domain, char* uri, size_t count, struct addr_inet* addr) {
     if (domain == AF_INET) {
         unsigned char* ad = (unsigned char*)&addr->addr.v4.s_addr;
-        int bytes =
-            snprintf(uri, count, "%u.%u.%u.%u:%u", ad[0], ad[1], ad[2], ad[3], addr->ext_port);
-        return bytes == count ? -ENAMETOOLONG : bytes;
+        return snprintf(uri, count, "%u.%u.%u.%u:%u", ad[0], ad[1], ad[2], ad[3], addr->ext_port);
     }
 
     if (domain == AF_INET6) {
         unsigned short* ad = (void*)&addr->addr.v6.s6_addr;
-        int bytes =
-            snprintf(uri, count, "[%04x:%04x:%x:%04x:%04x:%04x:%04x:%04x]:%u", __ntohs(ad[0]),
+        return snprintf(uri, count, "[%04x:%04x:%x:%04x:%04x:%04x:%04x:%04x]:%u", __ntohs(ad[0]),
                      __ntohs(ad[1]), __ntohs(ad[2]), __ntohs(ad[3]), __ntohs(ad[4]), __ntohs(ad[5]),
                      __ntohs(ad[6]), __ntohs(ad[7]), addr->ext_port);
-        return bytes == count ? -ENAMETOOLONG : bytes;
     }
 
     return -EPROTONOSUPPORT;
 }
 
-static int inet_create_uri(int domain, char* uri, int count, int sock_type,
-                           enum shim_sock_state state, struct addr_inet* bind,
-                           struct addr_inet* conn) {
-    int bytes = 0, ret;
+static ssize_t inet_create_uri(int domain, char* uri, size_t count, int sock_type,
+                               enum shim_sock_state state, struct addr_inet* bind,
+                               struct addr_inet* conn) {
+    size_t bytes = 0;
+    ssize_t ret;
+    size_t prefix_len;
 
     if (sock_type == SOCK_STREAM) {
         switch (state) {
@@ -228,32 +226,34 @@ static int inet_create_uri(int domain, char* uri, int count, int sock_type,
 
             case SOCK_BOUND:
             case SOCK_LISTENED:
-                if (count < 9)
+                prefix_len = static_strlen(URI_PREFIX_TCP_SRV);
+                if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
-                memcpy(uri, "tcp.srv:", 9);
-                ret = inet_translate_addr(domain, uri + 8, count - 8, bind);
-                return ret < 0 ? ret : ret + 8;
+                memcpy(uri, URI_PREFIX_TCP_SRV, prefix_len + 1);
+                ret = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, bind);
+                return ret < 0 ? ret : (ssize_t)(ret + prefix_len);
 
             case SOCK_BOUNDCONNECTED:
-                if (count < 5)
+                prefix_len = static_strlen(URI_PREFIX_TCP);
+                if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
-                memcpy(uri, "tcp:", 5);
-                bytes = 4;
-                ret   = inet_translate_addr(domain, uri + bytes, count - bytes, bind);
+                memcpy(uri, URI_PREFIX_TCP, prefix_len + 1);
+                ret   = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, bind);
                 if (ret < 0)
                     return ret;
-                uri[bytes + ret] = ':';
+                uri[prefix_len + ret] = ':';
                 bytes += ret + 1;
                 ret = inet_translate_addr(domain, uri + bytes, count - bytes, conn);
-                return ret < 0 ? ret : ret + bytes;
+                return ret < 0 ? ret : (ssize_t)(ret + bytes);
 
             case SOCK_CONNECTED:
             case SOCK_ACCEPTED:
-                if (count < 5)
+                prefix_len = static_strlen(URI_PREFIX_TCP);
+                if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
-                memcpy(uri, "tcp:", 5);
-                ret = inet_translate_addr(domain, uri + 4, count - 4, conn);
-                return ret < 0 ? ret : ret + 4;
+                memcpy(uri, URI_PREFIX_TCP, prefix_len + 1);
+                ret = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, conn);
+                return ret < 0 ? ret : (ssize_t)(ret + prefix_len);
         }
     }
 
@@ -268,31 +268,33 @@ static int inet_create_uri(int domain, char* uri, int count, int sock_type,
                 return -EOPNOTSUPP;
 
             case SOCK_BOUNDCONNECTED:
-                if (count < 9)
+                prefix_len = static_strlen(URI_PREFIX_UDP_SRV);
+                if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
-                memcpy(uri, "tcp.srv:", 9);
-                bytes = 8;
-                ret   = inet_translate_addr(domain, uri + bytes, count - bytes, bind);
+                memcpy(uri, URI_PREFIX_UDP_SRV, prefix_len + 1);
+                ret   = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, bind);
                 if (ret < 0)
                     return ret;
-                uri[bytes + ret] = ':';
+                uri[prefix_len + ret] = ':';
                 bytes += ret + 1;
                 ret = inet_translate_addr(domain, uri + bytes, count - bytes, conn);
-                return ret < 0 ? ret : ret + bytes;
+                return ret < 0 ? ret : (ssize_t)(ret + bytes);
 
             case SOCK_BOUND:
-                if (count < 9)
+                prefix_len = static_strlen(URI_PREFIX_UDP_SRV);
+                if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
-                memcpy(uri, "udp.srv:", 9);
-                ret = inet_translate_addr(domain, uri + 8, count - 8, bind);
-                return ret < 0 ? ret : ret + 9;
+                memcpy(uri, URI_PREFIX_UDP_SRV, prefix_len + 1);
+                ret = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, bind);
+                return ret < 0 ? ret : (ssize_t)(ret + prefix_len);
 
             case SOCK_CONNECTED:
-                if (count < 5)
+                prefix_len = static_strlen(URI_PREFIX_UDP);
+                if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
-                memcpy(uri, "udp:", 5);
-                ret = inet_translate_addr(domain, uri + 4, count - 4, conn);
-                return ret < 0 ? ret : ret + 4;
+                memcpy(uri, URI_PREFIX_UDP, prefix_len + 1);
+                ret = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, conn);
+                return ret < 0 ? ret : (ssize_t)(ret + prefix_len);
         }
     }
 
@@ -544,17 +546,17 @@ static int inet_parse_addr(int domain, int type, const char* uri, struct addr_in
 
     if (!(next_str = strchr(uri, ':')))
         return -EINVAL;
+    next_str++;
 
     enum { UDP, UDPSRV, TCP, TCPSRV } prefix;
-    int n = (next_str++) - uri;
 
-    if (!memcmp(uri, "udp", n))
+    if (strstartswith_static(uri, URI_PREFIX_UDP))
         prefix = UDP;
-    else if (!memcmp(uri, "udp.srv", n))
+    else if (strstartswith_static(uri, URI_PREFIX_UDP_SRV))
         prefix = UDPSRV;
-    else if (!memcmp(uri, "tcp", n))
+    else if (strstartswith_static(uri, URI_PREFIX_TCP))
         prefix = TCP;
-    else if (!memcmp(uri, "tcp.srv", n))
+    else if (strstartswith_static(uri, URI_PREFIX_TCP_SRV))
         prefix = TCPSRV;
     else
         return -EINVAL;
@@ -973,7 +975,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
     if (!hdl)
         return -EBADF;
 
-    int ret = -ENOTSOCK;
+    ssize_t ret = -ENOTSOCK;
     if (hdl->type != TYPE_SOCK)
         goto out;
 
@@ -1021,7 +1023,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         }
 
         if (sock->sock_state == SOCK_CREATED && !pal_hdl) {
-            pal_hdl = DkStreamOpen("udp:", 0, 0, 0, hdl->flags & O_NONBLOCK);
+            pal_hdl = DkStreamOpen(URI_PREFIX_UDP, 0, 0, 0, hdl->flags & O_NONBLOCK);
             if (!pal_hdl) {
                 ret = -PAL_ERRNO;
                 goto out_locked;
@@ -1044,8 +1046,12 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         struct addr_inet addr_buf;
         inet_save_addr(sock->domain, &addr_buf, addr);
         inet_rebase_port(false, sock->domain, &addr_buf, false);
-        memcpy(uri, "udp:", 5);
-        if ((ret = inet_translate_addr(sock->domain, uri + 4, SOCK_URI_SIZE - 4, &addr_buf)) < 0) {
+        size_t prefix_len = static_strlen(URI_PREFIX_UDP);
+        memcpy(uri, URI_PREFIX_UDP, prefix_len + 1);
+        if ((ret = inet_translate_addr(sock->domain,
+                                       uri + prefix_len,
+                                       SOCK_URI_SIZE - prefix_len,
+                                       &addr_buf)) < 0) {
             lock(&hdl->lock);
             goto out_locked;
         }

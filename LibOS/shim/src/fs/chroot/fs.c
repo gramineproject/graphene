@@ -63,11 +63,11 @@ static int chroot_mount (const char * uri, void ** mount_data)
 {
     enum shim_file_type type;
 
-    if (strstartswith_static(uri, "file:")) {
+    if (strstartswith_static(uri, URI_PREFIX_FILE)) {
         type = FILE_UNKNOWN;
         uri += 5;
-    } else if (strstartswith_static(uri, "dev:")) {
-        type = strstartswith_static(uri + static_strlen("dev:"), "tty") ? FILE_TTY : FILE_DEV;
+    } else if (strstartswith_static(uri, URI_PREFIX_DEV)) {
+        type = strstartswith_static(uri + static_strlen(URI_PREFIX_DEV), "tty") ? FILE_TTY : FILE_DEV;
         uri += 4;
     } else
         return -EINVAL;
@@ -105,16 +105,16 @@ static inline ssize_t concat_uri (char * buffer, size_t size, int type,
     switch (type) {
         case FILE_UNKNOWN:
         case FILE_REGULAR:
-            tmp = strcpy_static(buffer, "file:", size);
+            tmp = strcpy_static(buffer, URI_PREFIX_FILE, size);
             break;
 
         case FILE_DIR:
-            tmp = strcpy_static(buffer, "dir:", size);
+            tmp = strcpy_static(buffer, URI_PREFIX_DIR, size);
             break;
 
         case FILE_DEV:
         case FILE_TTY:
-            tmp = strcpy_static(buffer, "dev:", size);
+            tmp = strcpy_static(buffer, URI_PREFIX_DEV, size);
             break;
 
         default:
@@ -1029,7 +1029,7 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
     chroot_update_ino(dent);
 
     const char* uri = qstrgetstr(&data->host_uri);
-    assert(strstartswith_static(uri, "dir:"));
+    assert(strstartswith_static(uri, URI_PREFIX_DIR));
 
     pal_hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!pal_hdl)
@@ -1356,7 +1356,7 @@ struct shim_d_ops chroot_d_ops = {
     };
 
 struct mount_data chroot_data = { .root_uri_len = 5,
-                                  .root_uri = "file:", };
+                                  .root_uri = URI_PREFIX_FILE, };
 
 struct shim_mount chroot_builtin_fs = { .type   = "chroot",
                                         .fs_ops = &chroot_fs_ops,

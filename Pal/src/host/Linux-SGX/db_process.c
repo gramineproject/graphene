@@ -248,7 +248,7 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 {
     /* only access creating process with regular file */
-    if (!strstartswith_static(uri, "file:"))
+    if (!strstartswith_static(uri, URI_PREFIX_FILE))
         return -PAL_ERROR_INVAL;
 
     unsigned int child_pid;

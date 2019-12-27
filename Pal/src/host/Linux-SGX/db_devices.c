@@ -218,7 +218,7 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
 /* 'open' operation for device streams */
 static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    if (strcmp_static(type, "dev"))
+    if (strcmp_static(type, URI_TYPE_DEV))
         return -PAL_ERROR_INVAL;
 
     struct handle_ops* ops = NULL;
@@ -327,7 +327,7 @@ static int dev_flush(PAL_HANDLE handle) {
 
 /* 'attrquery' operation for device streams */
 static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
-    if (strcmp_static(type, "dev"))
+    if (strcmp_static(type, URI_TYPE_DEV))
         return -PAL_ERROR_INVAL;
 
     struct handle_ops* ops = NULL;
