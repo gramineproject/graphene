@@ -552,4 +552,10 @@ DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
 # define symbol_version_default(real, name, version)
 #endif
 
+/* WORK AROUND for LibOS signal delivery quirk.
+ * TODO: Once LibOS is fixed for (emulated) signal delivery to not re-enter
+ * LibOS (and Pal), remove this function.
+ */
+void DkThreadPalStack(PAL_PTR_RANGE* stack);
+
 #endif /* PAL_H */

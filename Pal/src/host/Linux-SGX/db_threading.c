@@ -126,6 +126,18 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     return 0;
 }
 
+/*
+ * TODO: Once LibOS is fixed for (emulated) signal delivery to not re-enter
+ * LibOS (and Pal), remove this function.
+ */
+void DkThreadPalStack(PAL_PTR_RANGE* stack) {
+    /* Pal/Linux-SGX doesn't use dedicated stack(equivalent to siglatstack)
+     * for exception handling(yet).
+     */
+    stack->start = (PAL_PTR)~0ULL;
+    stack->end = 0;
+}
+
 int _DkThreadDelayExecution (unsigned long * duration)
 {
     int ret = ocall_sleep(duration);

@@ -200,6 +200,16 @@ err:
     return ret;
 }
 
+/*
+ * TODO: Once LibOS is fixed for (emulated) signal delivery to not re-enter
+ * LibOS (and Pal), remove this function.
+ */
+void DkThreadPalStack(PAL_PTR_RANGE* stack) {
+    PAL_TCB_LINUX* tcb = get_tcb_linux();
+    stack->start = (PAL_PTR)tcb->alt_stack;
+    stack->end = (PAL_PTR)tcb;
+}
+
 int _DkThreadDelayExecution (unsigned long * duration)
 {
     struct timespec sleeptime;
