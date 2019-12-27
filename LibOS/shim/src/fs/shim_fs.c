@@ -108,7 +108,7 @@ static int __mount_root (struct shim_dentry ** root)
     }
 
     debug("mounting default root filesystem\n");
-    if ((ret = mount_fs("chroot", "file:", "/", NULL, root, 0)) < 0) {
+    if ((ret = mount_fs("chroot", URI_PREFIX_FILE, "/", NULL, root, 0)) < 0) {
         debug("mounting root filesystem failed (%d)\n", ret);
     }
     return ret;
@@ -135,7 +135,7 @@ static int __mount_sys (struct shim_dentry *root)
 
     debug("mounting as chroot filesystem: from dev:tty to /dev\n");
 
-    if ((ret = mount_fs("chroot", "dev:tty", "/dev/tty", dev_dent, NULL, 0)) < 0) {
+    if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty", dev_dent, NULL, 0)) < 0) {
         debug("mounting terminal device failed (%d)\n", ret);
         return ret;
     }

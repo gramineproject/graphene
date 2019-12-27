@@ -45,16 +45,17 @@ static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {
     size_t len;
     int ret;
 
-    if (!strstartswith_static(uri1, "file:") || !strstartswith_static(uri2, "file:"))
+    if (!strstartswith_static(uri1, URI_PREFIX_FILE)
+            || !strstartswith_static(uri2, URI_PREFIX_FILE))
         return -1;
 
-    uri1 += static_strlen("file:");
+    uri1 += URI_PREFIX_FILE_LEN;
     len = sizeof(norm1);
     ret = get_norm_path(uri1, norm1, &len);
     if (ret < 0)
         return ret;
 
-    uri2 += static_strlen("file:");
+    uri2 += URI_PREFIX_FILE_LEN;
     len = sizeof(norm2);
     ret = get_norm_path(uri2, norm2, &len);
     if (ret < 0)

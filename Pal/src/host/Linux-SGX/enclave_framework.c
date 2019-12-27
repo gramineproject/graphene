@@ -11,8 +11,6 @@
 
 #include "enclave_pages.h"
 
-static const size_t URI_FILE_PREFIX_LEN = static_strlen("file:");
-
 __sgx_mem_aligned struct pal_enclave_state pal_enclave_state;
 
 void * enclave_base, * enclave_top;
@@ -241,7 +239,7 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf,
         /* tf->uri is a subpath of `path` */
         return true;
     }
-    if (tf->uri_len == URI_FILE_PREFIX_LEN && !memcmp(tf->uri, "file:", URI_FILE_PREFIX_LEN)) {
+    if (tf->uri_len == URI_PREFIX_FILE_LEN && !memcmp(tf->uri, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN)) {
         /* Empty path is a prefix of everything */
         return true;
     }
@@ -285,26 +283,22 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     }
 
     /* Normalize the uri */
-    if (!strstartswith_static(uri, "file:")) {
+    if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
-    assert(sizeof(normpath) > URI_FILE_PREFIX_LEN);
-    normpath [0] = 'f';
-    normpath [1] = 'i';
-    normpath [2] = 'l';
-    normpath [3] = 'e';
-    normpath [4] = ':';
-    size_t len = sizeof(normpath) - URI_FILE_PREFIX_LEN;
-    ret = get_norm_path(uri + URI_FILE_PREFIX_LEN, normpath + URI_FILE_PREFIX_LEN, &len);
+    assert(sizeof(normpath) > URI_PREFIX_FILE_LEN);
+    memcpy(normpath, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
+    size_t len = sizeof(normpath) - URI_PREFIX_FILE_LEN;
+    ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
         SGX_DBG(DBG_E,
                 "Path (%s) normalization failed: %s\n",
-                uri + URI_FILE_PREFIX_LEN,
+                uri + URI_PREFIX_FILE_LEN,
                 pal_strerror(ret));
         return ret;
     }
-    len += URI_FILE_PREFIX_LEN;
+    len += URI_PREFIX_FILE_LEN;
 
     _DkSpinLock(&trusted_file_lock);
 
@@ -732,22 +726,18 @@ static int init_trusted_file (const char * key, const char * uri)
         return 0;
 
     /* Normalize the uri */
-    if (!strstartswith_static(uri, "file:")) {
+    if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
-    assert(sizeof(normpath) > URI_FILE_PREFIX_LEN);
-    normpath [0] = 'f';
-    normpath [1] = 'i';
-    normpath [2] = 'l';
-    normpath [3] = 'e';
-    normpath [4] = ':';
-    size_t len = sizeof(normpath) - URI_FILE_PREFIX_LEN;
-    ret = get_norm_path(uri + URI_FILE_PREFIX_LEN, normpath + URI_FILE_PREFIX_LEN, &len);
+    assert(sizeof(normpath) > URI_PREFIX_FILE_LEN);
+    memcpy(normpath, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
+    size_t len = sizeof(normpath) - URI_PREFIX_FILE_LEN;
+    ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
         SGX_DBG(DBG_E,
                 "Path (%s) normalization failed: %s\n",
-                uri + URI_FILE_PREFIX_LEN,
+                uri + URI_PREFIX_FILE_LEN,
                 pal_strerror(ret));
         return ret;
     }
@@ -863,23 +853,23 @@ no_trusted:
         /* Normalize the uri */
         char norm_path[URI_MAX];
 
-        if (!strstartswith_static(uri, "file:")) {
+        if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
             SGX_DBG(DBG_E, "Invalid URI [%s]: Allowed files must start with 'file:'\n", uri);
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
-        assert(sizeof(norm_path) > URI_FILE_PREFIX_LEN);
-        memcpy(norm_path, "file:", URI_FILE_PREFIX_LEN);
+        assert(sizeof(norm_path) > URI_PREFIX_FILE_LEN);
+        memcpy(norm_path, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
 
-        size_t norm_path_len = sizeof(norm_path) - URI_FILE_PREFIX_LEN;
+        size_t norm_path_len = sizeof(norm_path) - URI_PREFIX_FILE_LEN;
 
-        ret = get_norm_path(uri + URI_FILE_PREFIX_LEN,
-                            norm_path + URI_FILE_PREFIX_LEN,
+        ret = get_norm_path(uri + URI_PREFIX_FILE_LEN,
+                            norm_path + URI_PREFIX_FILE_LEN,
                             &norm_path_len);
         if (ret < 0) {
             SGX_DBG(DBG_E,
                     "Path (%s) normalization failed: %s\n",
-                    uri + URI_FILE_PREFIX_LEN,
+                    uri + URI_PREFIX_FILE_LEN,
                     pal_strerror(ret));
             goto out;
         }

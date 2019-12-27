@@ -852,8 +852,8 @@ static int name_pipe_rand (char * uri, size_t size, void * id)
     int ret = DkRandomBitsRead(&pipeid, sizeof(pipeid));
     if (ret < 0)
         return -convert_pal_errno(-ret);
-    debug("creating pipe: pipe.srv:%u\n", pipeid);
-    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) >= size)
+    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%u\n", pipeid);
+    if ((len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%u", pipeid)) >= size)
         return -ERANGE;
     *((IDTYPE *)id) = pipeid;
     return len;
@@ -863,8 +863,8 @@ static int name_pipe_vmid (char * uri, size_t size, void * id)
 {
     IDTYPE pipeid = cur_process.vmid;
     size_t len;
-    debug("creating pipe: pipe.srv:%u\n", pipeid);
-    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) >= size)
+    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%u\n", pipeid);
+    if ((len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%u", pipeid)) >= size)
         return -ERANGE;
     *((IDTYPE *)id) = pipeid;
     return len;
@@ -888,7 +888,7 @@ static int pipe_addr (char * uri, size_t size, const void * id,
 {
     IDTYPE pipeid = *((IDTYPE *) id);
     size_t len;
-    if ((len = snprintf(uri, size, "pipe:%u", pipeid)) == size)
+    if ((len = snprintf(uri, size, URI_PREFIX_PIPE "%u", pipeid)) == size)
         return -ERANGE;
     if (qstr)
         qstrsetstr(qstr, uri, len);
@@ -970,7 +970,7 @@ static int open_pal_handle (const char * uri, void * obj)
 {
     PAL_HANDLE hdl;
 
-    if (strstartswith_static(uri, "dev:"))
+    if (strstartswith_static(uri, URI_PREFIX_DEV))
         hdl = DkStreamOpen(uri, 0,
                            PAL_SHARE_OWNER_X|PAL_SHARE_OWNER_W|
                            PAL_SHARE_OWNER_R,

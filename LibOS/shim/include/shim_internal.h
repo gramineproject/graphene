@@ -136,7 +136,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     if (shim_stdio)
         return shim_stdio;
 
-    shim_stdio = DkStreamOpen("dev:tty", PAL_ACCESS_RDWR, 0, 0, 0);
+    shim_stdio = DkStreamOpen(URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
 
     if (!shim_stdio) {
         shim_stdio = (PAL_HANDLE) -1;
@@ -620,7 +620,7 @@ static inline void create_lock_runtime(struct shim_lock* l)
 static inline void create_event (AEVENTTYPE * e)
 {
     if (!e->event)
-        e->event = DkStreamOpen("pipe:", PAL_ACCESS_RDWR, 0, 0,
+        e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0,
                                 PAL_OPTION_NONBLOCK);
 }
 

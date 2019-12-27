@@ -84,7 +84,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
     int ret, rete, child;
     int fds[4] = { -1, -1, -1, -1 };
 
-    if (!uri || !strstartswith_static(uri, "file:"))
+    if (!uri || !strstartswith_static(uri, URI_PREFIX_FILE))
         return -EINVAL;
 
     int socktype = SOCK_STREAM;

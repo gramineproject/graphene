@@ -96,10 +96,10 @@ int init_child_process(PAL_HANDLE* parent_handle);
  */
 static PAL_HANDLE setup_dummy_file_handle (const char * name)
 {
-    if (!strstartswith_static(name, "file:"))
+    if (!strstartswith_static(name, URI_PREFIX_FILE))
         return NULL;
 
-    name += static_strlen("file:");
+    name += URI_PREFIX_FILE_LEN;
     size_t len = strlen(name) + 1;
     PAL_HANDLE handle = malloc(HANDLE_SIZE(file) + len);
     SET_HANDLE_TYPE(handle, file);

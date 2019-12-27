@@ -78,38 +78,54 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
     if ((*p) != ':')
         return -PAL_ERROR_INVAL;
 
+    ++p;
+
     struct handle_ops* hops = NULL;
 
     switch (p - u) {
-        case 3:
-            if (strstartswith_static(u, "dir"))
+        case 4: ;
+            static_assert(static_strlen(URI_PREFIX_DIR) == 4, "URI_PREFIX_DIR has unexpected length");
+            static_assert(static_strlen(URI_PREFIX_TCP) == 4, "URI_PREFIX_TCP has unexpected length");
+            static_assert(static_strlen(URI_PREFIX_UDP) == 4, "URI_PREFIX_UDP has unexpected length");
+            static_assert(static_strlen(URI_PREFIX_DEV) == 4, "URI_PREFIX_DEV has unexpected length");
+
+            if (strstartswith_static(u, URI_PREFIX_DIR))
                 hops = &dir_ops;
-            else if (strstartswith_static(u, "tcp"))
+            else if (strstartswith_static(u, URI_PREFIX_TCP))
                 hops = &tcp_ops;
-            else if (strstartswith_static(u, "udp"))
+            else if (strstartswith_static(u, URI_PREFIX_UDP))
                 hops = &udp_ops;
-            else if (strstartswith_static(u, "dev"))
+            else if (strstartswith_static(u, URI_PREFIX_DEV))
                 hops = &dev_ops;
             break;
 
-        case 4:
-            if (strstartswith_static(u, "file"))
+        case 5: ;
+            static_assert(static_strlen(URI_PREFIX_FILE) == 5, "URI_PREFIX_FILE has unexpected length");
+            static_assert(static_strlen(URI_PREFIX_PIPE) == 5, "URI_PREFIX_PIPE has unexpected length");
+
+            if (strstartswith_static(u, URI_PREFIX_FILE))
                 hops = &file_ops;
-            else if (strstartswith_static(u, "pipe"))
+            else if (strstartswith_static(u, URI_PREFIX_PIPE))
                 hops = &pipe_ops;
             break;
 
-        case 7:
-            if (strstartswith_static(u, "tcp.srv"))
+        case 8: ;
+            static_assert(static_strlen(URI_PREFIX_TCP_SRV) == 8, "URI_PREFIX_TCP_SRV has unexpected length");
+            static_assert(static_strlen(URI_PREFIX_UDP_SRV) == 8, "URI_PREFIX_UDP_SRV has unexpected length");
+            static_assert(static_strlen(URI_PREFIX_EVENTFD) == 8, "URI_PREFIX_EVENTFD has unexpected length");
+
+            if (strstartswith_static(u, URI_PREFIX_TCP_SRV))
                 hops = &tcp_ops;
-            else if (strstartswith_static(u, "udp.srv"))
+            else if (strstartswith_static(u, URI_PREFIX_UDP_SRV))
                 hops = &udp_ops;
-            else if (strstartswith_static(u, "eventfd"))
+            else if (strstartswith_static(u, URI_PREFIX_EVENTFD))
                 hops = &eventfd_ops;
             break;
 
-        case 8:
-            if (strstartswith_static(u, "pipe.srv"))
+        case 9: ;
+            static_assert(static_strlen(URI_PREFIX_PIPE_SRV) == 9, "URI_PREFIX_PIPE_SRV has unexpected length");
+
+            if (strstartswith_static(u, URI_PREFIX_PIPE_SRV))
                 hops = &pipe_ops;
             break;
 
@@ -120,13 +136,14 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
     if (!hops)
         return -PAL_ERROR_NOTSUPPORT;
 
-    *uri = p + 1;
+    *uri = p;
 
     if (prefix) {
-        *prefix = malloc_copy(u, p - u + 1);
+        *prefix = malloc_copy(u, p - u);
         if (!*prefix)
             return -PAL_ERROR_NOMEM;
-        (*prefix)[p - u] = '\0';
+        /* We don't want ':' in prefix, replacing that with nullbyte which also ends the string. */
+        (*prefix)[p - 1 - u] = '\0';
     }
 
     if (ops)

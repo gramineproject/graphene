@@ -235,4 +235,30 @@ int set_config (struct config_store * cfg, const char * key, const char * val);
 
 #define CONFIG_MAX      4096
 
+#define URI_PREFIX_SEPARATOR    ":"
+
+#define URI_TYPE_DIR            "dir"
+#define URI_TYPE_TCP            "tcp"
+#define URI_TYPE_TCP_SRV        "tcp.srv"
+#define URI_TYPE_UDP            "udp"
+#define URI_TYPE_UDP_SRV        "udp.srv"
+#define URI_TYPE_PIPE           "pipe"
+#define URI_TYPE_PIPE_SRV       "pipe.srv"
+#define URI_TYPE_DEV            "dev"
+#define URI_TYPE_EVENTFD        "eventfd"
+#define URI_TYPE_FILE           "file"
+
+#define URI_PREFIX_DIR          URI_TYPE_DIR        URI_PREFIX_SEPARATOR
+#define URI_PREFIX_TCP          URI_TYPE_TCP        URI_PREFIX_SEPARATOR
+#define URI_PREFIX_TCP_SRV      URI_TYPE_TCP_SRV    URI_PREFIX_SEPARATOR
+#define URI_PREFIX_UDP          URI_TYPE_UDP        URI_PREFIX_SEPARATOR
+#define URI_PREFIX_UDP_SRV      URI_TYPE_UDP_SRV    URI_PREFIX_SEPARATOR
+#define URI_PREFIX_PIPE         URI_TYPE_PIPE       URI_PREFIX_SEPARATOR
+#define URI_PREFIX_PIPE_SRV     URI_TYPE_PIPE_SRV   URI_PREFIX_SEPARATOR
+#define URI_PREFIX_DEV          URI_TYPE_DEV        URI_PREFIX_SEPARATOR
+#define URI_PREFIX_EVENTFD      URI_TYPE_EVENTFD    URI_PREFIX_SEPARATOR
+#define URI_PREFIX_FILE         URI_TYPE_FILE       URI_PREFIX_SEPARATOR
+
+#define URI_PREFIX_FILE_LEN     (static_strlen(URI_PREFIX_FILE))
+
 #endif /* API_H */

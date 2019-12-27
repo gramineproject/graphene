@@ -544,10 +544,10 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
     char uri_buf[PAL_SOCKADDR_SIZE];
     memcpy(uri_buf, uri, uri_len);
 
-    if (!strcmp_static(type, "tcp.srv"))
+    if (!strcmp_static(type, URI_TYPE_TCP_SRV))
         return tcp_listen(handle, uri_buf, options);
 
-    if (!strcmp_static(type, "tcp"))
+    if (!strcmp_static(type, URI_TYPE_TCP))
         return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -766,10 +766,10 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     memcpy(buf, uri, len + 1);
     options &= PAL_OPTION_MASK;
 
-    if (!strcmp_static(type, "udp.srv"))
+    if (!strcmp_static(type, URI_TYPE_UDP_SRV))
         return udp_bind(hdl, buf, options);
 
-    if (!strcmp_static(type, "udp"))
+    if (!strcmp_static(type, URI_TYPE_UDP))
         return udp_connect(hdl, buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -848,7 +848,7 @@ static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
-    char * tmp = strcpy_static(addr, "udp:", addrlen);
+    char * tmp = strcpy_static(addr, URI_PREFIX_UDP, addrlen);
     if (!tmp)
         return -PAL_ERROR_OVERFLOW;
 
@@ -908,11 +908,11 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (!strstartswith_static(addr, "udp:"))
+    if (!strstartswith_static(addr, URI_PREFIX_UDP))
         return -PAL_ERROR_INVAL;
 
-    addr += static_strlen("udp:");
-    addrlen -= static_strlen("udp:");
+    addr += static_strlen(URI_PREFIX_UDP);
+    addrlen -= static_strlen(URI_PREFIX_UDP);
     char * addrbuf = __alloca(addrlen + 1);
     memcpy(addrbuf, addr, addrlen + 1);
 
@@ -1169,24 +1169,24 @@ static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
 
     switch (PAL_GET_TYPE(handle)) {
         case pal_type_tcpsrv:
-            prefix_len = 7;
-            prefix = "tcp.srv";
+            prefix_len = static_strlen(URI_TYPE_TCP_SRV);
+            prefix = URI_TYPE_TCP_SRV;
             bind_addr = handle->sock.bind;
             break;
         case pal_type_tcp:
-            prefix_len = 3;
-            prefix = "tcp";
+            prefix_len = static_strlen(URI_TYPE_TCP);
+            prefix = URI_TYPE_TCP;
             bind_addr = handle->sock.bind;
             dest_addr = handle->sock.conn;
             break;
         case pal_type_udpsrv:
-            prefix_len = 7;
-            prefix = "udp.srv";
+            prefix_len = static_strlen(URI_TYPE_UDP_SRV);
+            prefix = URI_TYPE_UDP_SRV;
             bind_addr = handle->sock.bind;
             break;
         case pal_type_udp:
-            prefix_len = 3;
-            prefix = "udp";
+            prefix_len = static_strlen(URI_TYPE_UDP);
+            prefix = URI_TYPE_UDP;
             bind_addr = handle->sock.bind;
             dest_addr = handle->sock.conn;
             break;

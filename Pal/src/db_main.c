@@ -185,7 +185,7 @@ static void set_debug_type (void)
     PAL_HANDLE handle = NULL;
 
     if (!strcmp_static(cfgbuf, "inline")) {
-        ret = _DkStreamOpen(&handle, "dev:tty", PAL_ACCESS_RDWR, 0, 0, 0);
+        ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
     } else if (!strcmp_static(cfgbuf, "file")) {
         ret = get_config(pal_state.root_config, "loader.debug_file",
                          cfgbuf, sizeof(cfgbuf));
@@ -277,7 +277,7 @@ noreturn void pal_main (
         ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
         if (ret) {
             /* try open "file:manifest" */
-            manifest_uri = "file:manifest";
+            manifest_uri = URI_PREFIX_FILE "manifest";
             ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY,
                                 0, 0, 0);
             if (ret) {
