@@ -6,7 +6,7 @@ Glossary
 .. glossary::
 
    PAL
-      Platform Adaption Layer
+      Platform Adaptation Layer
 
       .. todo:: TBD
 
