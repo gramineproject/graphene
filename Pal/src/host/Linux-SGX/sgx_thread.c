@@ -21,6 +21,13 @@ static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
 
+void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
+    tcb->self = tcb;
+    tcb->tcs = NULL;    /* initialized by child thread */
+    tcb->stack = stack;
+    tcb->alt_stack = alt_stack;
+}
+
 static void spin_lock(struct atomic_int* p) {
     while (atomic_cmpxchg(p, 0, 1)) {
         while (atomic_read(p) == 1)
@@ -55,7 +62,7 @@ void map_tcs(unsigned int tid) {
     for (int i = 0 ; i < enclave_thread_num ; i++)
         if (!enclave_thread_map[i].tid) {
             enclave_thread_map[i].tid = tid;
-            get_tcb_linux()->tcs = enclave_thread_map[i].tcs;
+            get_tcb_urts()->tcs = enclave_thread_map[i].tcs;
             ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[i] = tid;
             break;
         }
@@ -63,13 +70,13 @@ void map_tcs(unsigned int tid) {
 }
 
 void unmap_tcs(void) {
-    int index = get_tcb_linux()->tcs - enclave_tcs;
+    int index = get_tcb_urts()->tcs - enclave_tcs;
     struct thread_map * map = &enclave_thread_map[index];
 
     assert(index < enclave_thread_num);
 
     spin_lock(&tcs_lock);
-    get_tcb_linux()->tcs = NULL;
+    get_tcb_urts()->tcs = NULL;
     ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[index] = 0;
     map->tid = 0;
     spin_unlock(&tcs_lock);
@@ -83,10 +90,10 @@ void unmap_tcs(void) {
  * up by other means (e.g., the GS register is set by an SGX-enforced TCS.OGSBASGX).
  */
 int pal_thread_init(void* tcbptr) {
-    PAL_TCB_LINUX* tcb = tcbptr;
+    PAL_TCB_URTS* tcb = tcbptr;
     int ret;
 
-    /* set GS reg of this thread to thread's TCB; after this point, can use get_tcb_linux() */
+    /* set GS reg of this thread to thread's TCB; after this point, can use get_tcb_urts() */
     ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
     if (IS_ERR(ret)) {
         ret = -EPERM;
@@ -138,7 +145,7 @@ out:
 }
 
 noreturn void thread_exit(int status) {
-    PAL_TCB_LINUX* tcb = get_tcb_linux();
+    PAL_TCB_URTS* tcb = get_tcb_urts();
 
     /* technically, async signals were already blocked before calling this function
      * (by sgx_ocall_exit()) but we keep it here for future proof */
@@ -190,9 +197,9 @@ int clone_thread(void) {
      *       stack +--> +-------------------+
      *                  |  child stack      | THREAD_STACK_SIZE
      * child_stack +--> +-------------------+
-     *                  |  alternate stack  | ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX)
+     *                  |  alternate stack  | ALT_STACK_SIZE - sizeof(PAL_TCB_URTS)
      *         tcb +--> +-------------------+
-     *                  |  PAL TCB          | sizeof(PAL_TCB_LINUX)
+     *                  |  PAL TCB          | sizeof(PAL_TCB_URTS)
      *                  +-------------------+
      *
      * Note that this whole memory region is zeroed out because we use mmap(). */
@@ -200,11 +207,8 @@ int clone_thread(void) {
     void* child_stack_top = stack + THREAD_STACK_SIZE;
 
     /* initialize TCB at the top of the alternative stack */
-    PAL_TCB_LINUX* tcb = child_stack_top + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
-    tcb->common.self   = &tcb->common;
-    tcb->alt_stack     = child_stack_top;
-    tcb->stack         = stack;
-    tcb->tcs           = NULL;  /* initialized by child thread */
+    PAL_TCB_URTS* tcb = child_stack_top + ALT_STACK_SIZE - sizeof(PAL_TCB_URTS);
+    pal_tcb_urts_init(tcb, stack, child_stack_top);
 
     /* align child_stack to 16 */
     child_stack_top = ALIGN_DOWN_PTR(child_stack_top, 16);

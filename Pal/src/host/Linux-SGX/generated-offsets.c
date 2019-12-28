@@ -93,8 +93,8 @@ void dummy(void)
     OFFSET(SGX_EXEC_SIZE, enclave_tls, exec_size);
     OFFSET(SGX_CLEAR_CHILD_TID, enclave_tls, clear_child_tid);
 
-    /* struct pal_tcb_linux aka PAL_TCB_LINUX */
-    OFFSET(PAL_TCB_LINUX_TCS, pal_tcb_linux, tcs);
+    /* struct pal_tcb_urts aka PAL_TCB_URTS */
+    OFFSET(PAL_TCB_URTS_TCS, pal_tcb_urts, tcs);
 
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_FLAGS, sgx_arch_tcs_t, flags);
