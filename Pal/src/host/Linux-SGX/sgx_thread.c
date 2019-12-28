@@ -21,6 +21,14 @@ static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
 
+void pal_tcb_linux_init(PAL_TCB_LINUX* tcb, void* stack, void* alt_stack)
+{
+    tcb->self = tcb;
+    tcb->tcs = NULL;    /* initialized by child thread */
+    tcb->stack = stack;
+    tcb->alt_stack = alt_stack;
+}
+
 static void spin_lock(struct atomic_int* p) {
     while (atomic_cmpxchg(p, 0, 1)) {
         while (atomic_read(p) == 1)
@@ -201,10 +209,7 @@ int clone_thread(void) {
 
     /* initialize TCB at the top of the alternative stack */
     PAL_TCB_LINUX* tcb = child_stack_top + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
-    tcb->common.self   = &tcb->common;
-    tcb->alt_stack     = child_stack_top;
-    tcb->stack         = stack;
-    tcb->tcs           = NULL;  /* initialized by child thread */
+    pal_tcb_linux_init(tcb, child_stack_top, stack);
 
     /* align child_stack to 16 */
     child_stack_top = ALIGN_DOWN_PTR(child_stack_top, 16);
