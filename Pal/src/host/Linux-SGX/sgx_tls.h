@@ -63,21 +63,21 @@ extern uint64_t dummy_debug_variable;
              "i" (offsetof(struct enclave_tls, member)));           \
     } while (0)
 # else
-typedef struct pal_tcb_linux {
-    struct pal_tcb_linux* self;
-    /* private to untrusted Linux PAL, unique to each untrusted thread */
+/* private to untrusted Linux PAL, unique to each untrusted thread */
+typedef struct pal_tcb_urts {
+    struct pal_tcb_urts* self;
     sgx_arch_tcs_t*     tcs;       /* TCS page of SGX corresponding to thread, for EENTER */
     void*               stack;     /* bottom of stack, for later freeing when thread exits */
     void*               alt_stack; /* bottom of alt stack, for child thread to init alt stack */
-} PAL_TCB_LINUX;
+} PAL_TCB_URTS;
 
-extern void pal_tcb_linux_init(PAL_TCB_LINUX* tcb, void* stack, void* alt_stack);
+extern void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack);
 
-static inline PAL_TCB_LINUX* get_tcb_linux(void) {
-    PAL_TCB_LINUX* tcb;
+static inline PAL_TCB_URTS* get_tcb_urts(void) {
+    PAL_TCB_URTS* tcb;
     __asm__ ("movq %%gs:%c1, %q0\n"
              : "=r" (tcb)
-             : "i" (offsetof(PAL_TCB_LINUX, self)));
+             : "i" (offsetof(PAL_TCB_URTS, self)));
     return tcb;
 }
 # endif
