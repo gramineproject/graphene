@@ -51,21 +51,15 @@ static inline int create_process_handle (PAL_HANDLE * parent,
                                          PAL_HANDLE * child)
 {
     PAL_HANDLE phdl = NULL, chdl = NULL;
-    int fds[6] = { -1, -1, -1, -1, -1, -1 };
+    int fds[4] = { -1, -1, -1, -1 };
     int socktype = SOCK_STREAM | SOCK_CLOEXEC;
     int ret;
 
     if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[0]))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2]))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[4])))) {
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2])))) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
-
-    int proc_fds[2][3] = {
-        { fds[0], fds[3], fds[4] },
-        { fds[2], fds[1], fds[5] },
-    };
 
     phdl = malloc(HANDLE_SIZE(process));
     if (!phdl) {
@@ -74,10 +68,9 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    HANDLE_HDR(phdl)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
-    phdl->process.stream_in   = proc_fds[0][0];
-    phdl->process.stream_out  = proc_fds[0][1];
-    phdl->process.cargo       = proc_fds[0][2];
+    HANDLE_HDR(phdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
+    phdl->process.stream      = fds[0];
+    phdl->process.cargo       = fds[2];
     phdl->process.pid         = linux_state.pid;
     phdl->process.nonblocking = PAL_FALSE;
 
@@ -88,10 +81,9 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
-    chdl->process.stream_in   = proc_fds[1][0];
-    chdl->process.stream_out  = proc_fds[1][1];
-    chdl->process.cargo       = proc_fds[1][2];
+    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
+    chdl->process.stream      = fds[1];
+    chdl->process.cargo       = fds[3];
     chdl->process.pid         = 0; /* unknown yet */
     chdl->process.nonblocking = PAL_FALSE;
 
@@ -104,7 +96,7 @@ out:
             _DkObjectClose(phdl);
         if (chdl)
             _DkObjectClose(chdl);
-        for (int i = 0 ; i < 6 ; i++)
+        for (int i = 0; i < 4; i++)
             if (fds[i] != -1)
                 INLINE_SYSCALL(close, 1, fds[i]);
     }
@@ -151,8 +143,7 @@ child_process (struct proc_param * proc_param)
         return ret;
 
     /* child */
-    ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream_in,
-                         PROC_INIT_FD);
+    ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream, PROC_INIT_FD);
     if (IS_ERR(ret))
         goto failed;
 
@@ -320,7 +311,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     /* step 4: send parameters over the process handle */
 
     ret = INLINE_SYSCALL(write, 3,
-                         child_handle->process.stream_out,
+                         child_handle->process.stream,
                          proc_args,
                          sizeof(struct proc_args) + datasz);
 
@@ -446,8 +437,7 @@ static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    int64_t bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer,
-                                   count);
+    int64_t bytes = INLINE_SYSCALL(read, 3, handle->process.stream, buffer, count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -468,13 +458,12 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    int64_t bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer,
-                                   count);
+    int64_t bytes = INLINE_SYSCALL(write, 3, handle->process.stream, buffer, count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
+                HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
                 return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
@@ -484,23 +473,18 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 
     assert(!IS_ERR(bytes));
     if ((size_t)bytes == count)
-        HANDLE_HDR(handle)->flags |= WRITABLE(1);
+        HANDLE_HDR(handle)->flags |= WRITABLE(0);
     else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
+        HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
 
     return bytes;
 }
 
 static int proc_close (PAL_HANDLE handle)
 {
-    if (handle->process.stream_in != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->process.stream_in);
-        handle->process.stream_in = PAL_IDX_POISON;
-    }
-
-    if (handle->process.stream_out != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->process.stream_out);
-        handle->process.stream_out = PAL_IDX_POISON;
+    if (handle->process.stream != PAL_IDX_POISON) {
+        INLINE_SYSCALL(close, 1, handle->process.stream);
+        handle->process.stream = PAL_IDX_POISON;
     }
 
     if (handle->process.cargo != PAL_IDX_POISON) {
@@ -528,17 +512,8 @@ static int proc_delete (PAL_HANDLE handle, int access)
             return -PAL_ERROR_INVAL;
     }
 
-    if (access != PAL_DELETE_WR &&
-        handle->process.stream_in != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->process.stream_in);
-        handle->process.stream_in = PAL_IDX_POISON;
-    }
-
-    if (access != PAL_DELETE_RD &&
-        handle->process.stream_out != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->process.stream_out);
-        handle->process.stream_out = PAL_IDX_POISON;
-    }
+    if (handle->process.stream != PAL_IDX_POISON)
+        INLINE_SYSCALL(shutdown, 2, handle->process.stream, shutdown);
 
     if (handle->process.cargo != PAL_IDX_POISON)
         INLINE_SYSCALL(shutdown, 2, handle->process.cargo, shutdown);
@@ -554,18 +529,18 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
     int ret, val;
 
-    if (handle->process.stream_in == PAL_IDX_POISON)
+    if (handle->process.stream == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    ret = INLINE_SYSCALL(ioctl, 3, handle->process.stream_in, FIONREAD, &val);
+    ret = INLINE_SYSCALL(ioctl, 3, handle->process.stream, FIONREAD, &val);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
     attr->handle_type  = pal_type_process;
     attr->nonblocking  = handle->process.nonblocking;
-    attr->disconnected = HANDLE_HDR(handle)->flags & (ERROR(0)|ERROR(1));
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
     attr->readable     = !!val;
-    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(1);
+    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
     attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
 
@@ -574,12 +549,12 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
 static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (handle->process.stream_in == PAL_IDX_POISON)
+    if (handle->process.stream == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     int ret;
     if (attr->nonblocking != handle->process.nonblocking) {
-        ret = INLINE_SYSCALL(fcntl, 3, handle->process.stream_in, F_SETFL,
+        ret = INLINE_SYSCALL(fcntl, 3, handle->process.stream, F_SETFL,
                              handle->process.nonblocking ? O_NONBLOCK : 0);
 
         if (IS_ERR(ret))

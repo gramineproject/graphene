@@ -262,7 +262,9 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     COPY_ARRAY(pal_sec.manifest_name, sec_info.manifest_name);
     pal_sec.manifest_name[sizeof(pal_sec.manifest_name) - 1] = '\0';
 
-    COPY_ARRAY(pal_sec.proc_fds, sec_info.proc_fds);
+    pal_sec.stream_fd = sec_info.stream_fd;
+    pal_sec.cargo_fd  = sec_info.cargo_fd;
+
     COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
     pal_sec.aesm_targetinfo = sec_info.aesm_targetinfo;
     pal_sec.mcast_port = sec_info.mcast_port;

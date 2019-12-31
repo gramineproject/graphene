@@ -41,7 +41,8 @@ struct proc_args {
     PAL_SEC_STR     exec_name;
     unsigned int    instance_id;
     unsigned int    parent_process_id;
-    unsigned int    proc_fds[3];
+    int             stream_fd;
+    int             cargo_fd;
     PAL_SEC_STR     pipe_prefix;
     unsigned int    mcast_port;
 };
@@ -58,17 +59,16 @@ struct proc_args {
  * future compiler.
  */
 static int __attribute_noinline
-vfork_exec(int pipe_input, int proc_fds[3], const char** argv)
-{
+vfork_exec(int child_stream, int parent_stream, int parent_cargo, const char** argv) {
     int ret = ARCH_VFORK();
     if (ret)
         return ret;
 
-    /* child */
-    for (int i = 0 ; i < 3 ; i++)
-        INLINE_SYSCALL(close, 1, proc_fds[i]);
+    /* child: close parent's FDs, rewire child stream to init FD, and execve */
+    INLINE_SYSCALL(close, 1, parent_stream);
+    INLINE_SYSCALL(close, 1, parent_cargo);
 
-    ret = INLINE_SYSCALL(dup2, 2, pipe_input, PROC_INIT_FD);
+    ret = INLINE_SYSCALL(dup2, 2, child_stream, PROC_INIT_FD);
     if (!IS_ERR(ret)) {
         extern char** environ;
         ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
@@ -80,23 +80,17 @@ vfork_exec(int pipe_input, int proc_fds[3], const char** argv)
     return 0;
 }
 
-int sgx_create_process(const char* uri, int nargs, const char** args, int * retfds) {
+int sgx_create_process(const char* uri, int nargs, const char** args, int* stream_fd, int* cargo_fd) {
     int ret, rete, child;
-    int fds[6] = { -1, -1, -1, -1, -1, -1 };
+    int fds[4] = { -1, -1, -1, -1 };
 
     if (!uri || !strstartswith_static(uri, "file:"))
         return -EINVAL;
 
     int socktype = SOCK_STREAM;
     if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[0]))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2]))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[4]))))
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2]))))
         goto out;
-
-    int proc_fds[2][3] = {
-        { fds[0], fds[3], fds[4] },
-        { fds[2], fds[1], fds[5] },
-    };
 
     const char ** argv = __alloca(sizeof(const char *) * (nargs + 2));
     argv[0] = PAL_LOADER;
@@ -112,10 +106,11 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int * retf
         goto out;
     }
 
-    ret = vfork_exec(proc_fds[0][0], proc_fds[1], argv);
+    ret = vfork_exec(/*child_stream=*/fds[0], /*parent_stream=*/fds[1], /*parent_cargo=*/fds[3], argv);
     if (IS_ERR(ret))
         goto out;
 
+    /* parent continues here */
     child = ret;
 
     /* children unblock async signals by sgx_signal_setup() */
@@ -125,32 +120,26 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int * retf
         goto out;
     }
 
-    for (int i = 0 ; i < 3 ; i++)
-        INLINE_SYSCALL(close, 1, proc_fds[0][i]);
-
-    int pipe_in = proc_fds[1][0], pipe_out = proc_fds[1][1];
+    INLINE_SYSCALL(close, 1, fds[0]); /* child stream */
+    INLINE_SYSCALL(close, 1, fds[2]); /* child cargo */
 
     struct pal_sec * pal_sec = &pal_enclave.pal_sec;
     struct proc_args proc_args;
     memcpy(proc_args.exec_name, uri, sizeof(PAL_SEC_STR));
-    proc_args.instance_id   = pal_sec->instance_id;
+    proc_args.instance_id       = pal_sec->instance_id;
     proc_args.parent_process_id = pal_sec->pid;
-    proc_args.proc_fds[0] = proc_fds[0][0];
-    proc_args.proc_fds[1] = proc_fds[0][1];
-    proc_args.proc_fds[2] = proc_fds[0][2];
+    proc_args.stream_fd         = fds[0];
+    proc_args.cargo_fd          = fds[2];
     memcpy(proc_args.pipe_prefix, pal_sec->pipe_prefix, sizeof(PAL_SEC_STR));
     proc_args.mcast_port = pal_sec->mcast_port;
 
-    ret = INLINE_SYSCALL(write, 3, pipe_out, &proc_args,
-                         sizeof(struct proc_args));
-
+    ret = INLINE_SYSCALL(write, 3, fds[1], &proc_args, sizeof(struct proc_args));
     if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args)) {
         ret = -EPERM;
         goto out;
     }
 
-    ret = INLINE_SYSCALL(read, 3, pipe_in, &rete, sizeof(int));
-
+    ret = INLINE_SYSCALL(read, 3, fds[1], &rete, sizeof(int));
     if (IS_ERR(ret) || (size_t)ret < sizeof(int)) {
         ret = -EPERM;
         goto out;
@@ -161,15 +150,18 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int * retf
         goto out;
     }
 
-    for (int i = 0 ; i < 3 ; i++) {
-        INLINE_SYSCALL(fcntl, 3, proc_fds[1][i], F_SETFD, FD_CLOEXEC);
-        retfds[i] = proc_fds[1][i];
-    }
+    INLINE_SYSCALL(fcntl, 3, fds[1], F_SETFD, FD_CLOEXEC);
+    INLINE_SYSCALL(fcntl, 3, fds[3], F_SETFD, FD_CLOEXEC);
+
+    if (stream_fd)
+        *stream_fd = fds[1];
+    if (cargo_fd)
+        *cargo_fd = fds[3];
 
     ret = child;
 out:
     if (IS_ERR(ret)) {
-        for (int i = 0 ; i < 6 ; i++)
+        for (int i = 0; i < 4; i++)
             if (fds[i] >= 0)
                 INLINE_SYSCALL(close, 1, fds[i]);
     }
@@ -181,28 +173,23 @@ int sgx_init_child_process (struct pal_sec * pal_sec)
 {
     struct proc_args proc_args;
 
-    int ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, &proc_args,
-                             sizeof(struct proc_args));
-
+    int ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, &proc_args, sizeof(struct proc_args));
     if (IS_ERR(ret)) {
         if (ERRNO(ret) == EBADF)
             return 0;
-
         return ret;
     }
 
     int child_status = 0;
-    ret = INLINE_SYSCALL(write, 3, proc_args.proc_fds[1], &child_status,
-                         sizeof(int));
+    ret = INLINE_SYSCALL(write, 3, PROC_INIT_FD, &child_status, sizeof(int));
     if (IS_ERR(ret))
         return ret;
 
     memcpy(pal_sec->exec_name, proc_args.exec_name, sizeof(PAL_SEC_STR));
     pal_sec->instance_id   = proc_args.instance_id;
-    pal_sec->ppid        = proc_args.parent_process_id;
-    pal_sec->proc_fds[0] = proc_args.proc_fds[0];
-    pal_sec->proc_fds[1] = proc_args.proc_fds[1];
-    pal_sec->proc_fds[2] = proc_args.proc_fds[2];
+    pal_sec->ppid          = proc_args.parent_process_id;
+    pal_sec->stream_fd     = proc_args.stream_fd;
+    pal_sec->cargo_fd      = proc_args.cargo_fd;
     memcpy(pal_sec->pipe_prefix, proc_args.pipe_prefix, sizeof(PAL_SEC_STR));
     pal_sec->mcast_port  = proc_args.mcast_port;
 

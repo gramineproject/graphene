@@ -267,7 +267,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     unsigned int fds[MAX_FDS];
     unsigned int nfds = 0;
     for (int i = 0; i < MAX_FDS; i++)
-        if (HANDLE_HDR(cargo)->flags & (RFD(i) | WFD(1))) {
+        if (HANDLE_HDR(cargo)->flags & (RFD(i) | WFD(i))) {
             hdl_hdr.fds |= 1U << i;
             fds[nfds++] = cargo->generic.fds[i];
         }
