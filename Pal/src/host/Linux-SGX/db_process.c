@@ -252,24 +252,24 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
         return -PAL_ERROR_INVAL;
 
     unsigned int child_pid;
-    int proc_fds[3];
+    int stream_fd;
+    int cargo_fd;
     int nargs = 0, ret;
 
     if (args)
         for (const char ** a = args ; *a ; a++)
             nargs++;
 
-    ret = ocall_create_process(uri, nargs, args, proc_fds, &child_pid);
+    ret = ocall_create_process(uri, nargs, args, &stream_fd, &cargo_fd, &child_pid);
     if (ret < 0)
         return ret;
 
     PAL_HANDLE child = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(child, process);
-    HANDLE_HDR(child)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
-    child->process.stream_in  = proc_fds[0];
-    child->process.stream_out = proc_fds[1];
-    child->process.cargo      = proc_fds[2];
-    child->process.pid = child_pid;
+    HANDLE_HDR(child)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
+    child->process.stream      = stream_fd;
+    child->process.cargo       = cargo_fd;
+    child->process.pid         = child_pid;
     child->process.nonblocking = PAL_FALSE;
 
     ret = _DkStreamKeyExchange(child, &child->process.session_key);
@@ -314,11 +314,10 @@ int init_child_process (PAL_HANDLE * parent_handle)
 {
     PAL_HANDLE parent = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(parent, process);
-    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
+    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
 
-    parent->process.stream_in  = pal_sec.proc_fds[0];
-    parent->process.stream_out = pal_sec.proc_fds[1];
-    parent->process.cargo      = pal_sec.proc_fds[2];
+    parent->process.stream     = pal_sec.stream_fd;
+    parent->process.cargo      = pal_sec.cargo_fd;
     parent->process.pid        = pal_sec.ppid;
     parent->process.nonblocking = PAL_FALSE;
 
@@ -364,7 +363,7 @@ static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (count >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_read(handle->process.stream_in, buffer, count);
+    int bytes = ocall_read(handle->process.stream, buffer, count);
     return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
 }
 
@@ -377,33 +376,28 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (count >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_write(handle->process.stream_out, buffer, count);
+    int bytes = ocall_write(handle->process.stream, buffer, count);
 
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
         if (bytes == -PAL_ERROR_TRYAGAIN)
-            HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
+            HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
         return bytes;
     }
 
     if ((uint64_t)bytes == count)
-        HANDLE_HDR(handle)->flags |= WRITABLE(1);
+        HANDLE_HDR(handle)->flags |= WRITABLE(0);
     else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
+        HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
 
     return bytes;
 }
 
 static int proc_close (PAL_HANDLE handle)
 {
-    if (handle->process.stream_in != PAL_IDX_POISON) {
-        ocall_close(handle->process.stream_in);
-        handle->process.stream_in = PAL_IDX_POISON;
-    }
-
-    if (handle->process.stream_out != PAL_IDX_POISON) {
-        ocall_close(handle->process.stream_out);
-        handle->process.stream_out = PAL_IDX_POISON;
+    if (handle->process.stream != PAL_IDX_POISON) {
+        ocall_close(handle->process.stream);
+        handle->process.stream = PAL_IDX_POISON;
     }
 
     if (handle->process.cargo != PAL_IDX_POISON) {
@@ -431,17 +425,8 @@ static int proc_delete (PAL_HANDLE handle, int access)
             return -PAL_ERROR_INVAL;
     }
 
-    if (access != PAL_DELETE_WR &&
-        handle->process.stream_in != PAL_IDX_POISON) {
-        ocall_close(handle->process.stream_in);
-        handle->process.stream_in = PAL_IDX_POISON;
-    }
-
-    if (access != PAL_DELETE_RD &&
-        handle->process.stream_out != PAL_IDX_POISON) {
-        ocall_close(handle->process.stream_out);
-        handle->process.stream_out = PAL_IDX_POISON;
-    }
+    if (handle->process.stream != PAL_IDX_POISON)
+        ocall_shutdown(handle->process.stream, shutdown);
 
     if (handle->process.cargo != PAL_IDX_POISON)
         ocall_shutdown(handle->process.cargo, shutdown);
@@ -451,29 +436,29 @@ static int proc_delete (PAL_HANDLE handle, int access)
 
 static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (handle->process.stream_in == PAL_IDX_POISON)
+    if (handle->process.stream == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    int ret = ocall_fionread(handle->process.stream_in);
+    int ret = ocall_fionread(handle->process.stream);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
     memset(attr, 0, sizeof(PAL_STREAM_ATTR));
     attr->pending_size = ret;
-    attr->disconnected = HANDLE_HDR(handle)->flags & (ERROR(0)|ERROR(1));
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
     attr->readable = (attr->pending_size > 0);
-    attr->writable = HANDLE_HDR(handle)->flags & WRITABLE(1);
+    attr->writable = HANDLE_HDR(handle)->flags & WRITABLE(0);
     attr->nonblocking = handle->process.nonblocking;
     return 0;
 }
 
 static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (handle->process.stream_in == PAL_IDX_POISON)
+    if (handle->process.stream == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     if (attr->nonblocking != handle->process.nonblocking) {
-        int ret = ocall_fsetnonblock(handle->process.stream_in,
+        int ret = ocall_fsetnonblock(handle->process.stream,
                                      handle->process.nonblocking);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));

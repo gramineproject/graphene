@@ -132,7 +132,7 @@ typedef union pal_handle
 
     struct {
         PAL_HDR hdr;
-        PAL_IDX stream_in, stream_out;
+        PAL_IDX stream;
         PAL_IDX cargo;
         PAL_IDX pid;
         PAL_BOL nonblocking;
