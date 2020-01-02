@@ -585,7 +585,7 @@ class TC_50_Attestation(RegressionTestCase):
             # Check the attestation status
             if line.startswith("Attestation status:"):
                 status = line[19:].strip()
-                self.assertIn(status, ["OK", "GROUP_OUT_OF_DATE"])
+                self.assertIn(status, ["OK", "GROUP_OUT_OF_DATE", "CONFIGURATION_NEEDED"])
 
             # Check the timestamp
             if line.startswith("Attestation timestamp:"):

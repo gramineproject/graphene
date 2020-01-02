@@ -106,7 +106,8 @@
  *    - The HTTPS response from the IAS needs to contain the same quote generated from the
  *      PSW enclave, the same mr_enclave, attributes, and 64-byte report data.
  *    - The HTTPS response needs to have an acceptable status, which is "OK" by default, or
- *      "GROUP_OUT_OF_DATE" if "sgx.ra_accept_group_out_of_date = 1" is in the manifest.
+ *      "GROUP_OUT_OF_DATE" if "sgx.ra_accept_group_out_of_date = 1" is in the manifest, or
+ *      "CONFIGURATION_NEEDED" if "sgx.ra_accept_configuration_needed = 1" is in the manifest.
  *      If you obtain a status besides OK, please see the SECURITY ADVISORIES in README.md.
  */
 
@@ -154,6 +155,9 @@ int init_trusted_platform(void) {
     len = get_config(pal_state.root_config, "sgx.ra_accept_group_out_of_date", buf, sizeof(buf));
     bool accept_group_out_of_date = (len == 1 && buf[0] == '1');
 
+    len = get_config(pal_state.root_config, "sgx.ra_accept_configuration_needed", buf, sizeof(buf));
+    bool accept_configuration_needed = (len == 1 && buf[0] == '1');
+
     sgx_quote_nonce_t nonce;
     int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
     if (ret < 0)
@@ -162,7 +166,8 @@ int init_trusted_platform(void) {
     char* status;
     char* timestamp;
     ret = sgx_verify_platform(&spid, subkey, &nonce, (sgx_report_data_t*)&pal_enclave_state,
-                              linkable, accept_group_out_of_date, NULL, &status, &timestamp);
+                              linkable, accept_group_out_of_date, accept_configuration_needed,
+                              /*ret_attestation=*/NULL, &status, &timestamp);
     if (ret < 0)
         return ret;
 
@@ -394,7 +399,8 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * @nonce:             A 16-byte nonce to be included in the quote.
  * @report_data:       A 64-byte bytestring to be included in the local report and the quote.
  * @linkable:          Specify whether the SPID is linkable.
- * @accept_group_out_of_date: Specify whether to accept GROUP_OUT_OF_DATE from IAS
+ * @accept_group_out_of_date:    Specify whether to accept GROUP_OUT_OF_DATE from IAS
+ * @accept_configuration_needed: Specify whether to accept CONFIGURATION_NEEDED from IAS
  * @ret_attestation:   Returns the retrieved attestation data.
  * @ret_ias_status:    Returns a pointer to the attestation status (as a string) from the IAS.
  * @ret_ias_timestamp: Returns a pointer to the timestamp (as a string) from the IAS.
@@ -402,8 +408,9 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  */
 int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
                         sgx_report_data_t* report_data, bool linkable,
-                        bool accept_group_out_of_date, sgx_attestation_t* ret_attestation,
-                        char** ret_ias_status, char** ret_ias_timestamp) {
+                        bool accept_group_out_of_date, bool accept_configuration_needed,
+                        sgx_attestation_t* ret_attestation, char** ret_ias_status,
+                        char** ret_ias_timestamp) {
 
     SGX_DBG(DBG_S, "Request quote:\n");
     SGX_DBG(DBG_S, "  spid:  %s\n", ALLOCA_BYTES2HEXSTR(*spid));
@@ -594,9 +601,11 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     SGX_DBG(DBG_S, "  status:    %s\n", ias_status);
     SGX_DBG(DBG_S, "  timestamp: %s\n", ias_timestamp);
 
-    // Only accept status to be "OK" or "GROUP_OUT_OF_DATE" (if accept_out_of_date is true)
+    // Only accept status to be "OK" or "GROUP_OUT_OF_DATE" / "CONFIGURATION_NEEDED"
+    // (if accept_out_of_date / accept_configuration_needed is true)
     if (strcmp_static(ias_status, "OK") &&
-        (!accept_group_out_of_date || strcmp_static(ias_status, "GROUP_OUT_OF_DATE"))) {
+        (!accept_group_out_of_date || strcmp_static(ias_status, "GROUP_OUT_OF_DATE")) &&
+        (!accept_configuration_needed || strcmp_static(ias_status, "CONFIGURATION_NEEDED"))) {
         SGX_DBG(DBG_E, "IAS returned invalid status: %s\n", ias_status);
         goto failed;
     }

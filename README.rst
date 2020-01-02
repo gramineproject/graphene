@@ -217,6 +217,12 @@ you can specify the following option in the manifest::
 
     sgx.ra_accept_group_out_of_date = 1
 
+Similarly, if you receive a ``CONFIGURATION_NEEDED`` status from IAS, this status indicates that
+additional configuration of your SGX platform may be needed. If you wish to bypass this error,
+you can specify the following option in the manifest::
+
+    sgx.ra_accept_configuration_needed = 1
+
 *Security advisories:*
 
 - ``GROUP_OUT_OF_DATE`` may indicate that the firmware (microcode) of you CPU is not updated
