@@ -386,7 +386,7 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn("Test succeeded.", stdout)
 
     def test_040_str_close_leak(self):
-        stdout, _ = self.run_binary(['str_close_leak'])
+        stdout, _ = self.run_binary(['str_close_leak'], timeout=60)
         self.assertIn("Success", stdout)
 
 class TC_80_Socket(RegressionTestCase):
