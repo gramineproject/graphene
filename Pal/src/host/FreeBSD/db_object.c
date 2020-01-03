@@ -17,138 +17,215 @@
 /*
  * db_object.c
  *
- * This file contains APIs for waiting on PAL handles (polling): DkObjectsWaitAny.
+ * This file contains APIs for closing or polling PAL handles.
  */
 
-#include "api.h"
-#include "pal.h"
-#include "pal_debug.h"
 #include "pal_defs.h"
-#include "pal_error.h"
-#include "pal_freebsd.h"
 #include "pal_freebsd_defs.h"
+#include "pal.h"
 #include "pal_internal.h"
+#include "pal_freebsd.h"
+#include "pal_error.h"
+#include "pal_debug.h"
+#include "api.h"
 
-#include <errno.h>
+#include <time.h>
 #include <sys/poll.h>
 #include <sys/wait.h>
-#include <time.h>
+#include <atomic.h>
+#include <errno.h>
 
-/* Wait for an event on any handle in the handle array and return this handle in polled.
- * If no ready-event handle was found, polled is set to NULL. */
-int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
-                      PAL_HANDLE* polled) {
+#define DEFAULT_QUANTUM 500
+
+/* internally to wait for one object. Also used as a shortcut to wait
+   on events and semaphores */
+static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
+{
+    /* only for all these handle which has a file descriptor, or
+       a eventfd. events and semaphores will skip this part */
+    if (handle->hdr.flags & HAS_FDS) {
+        struct pollfd fds[MAX_FDS];
+        int off[MAX_FDS];
+        int nfds = 0;
+        for (int i = 0 ; i < MAX_FDS ; i++) {
+            int events = 0;
+
+            if ((handle->hdr.flags & RFD(i)) &&
+                !(handle->hdr.flags & ERROR(i)))
+                events |= POLLIN;
+
+            if ((handle->hdr.flags & WFD(i)) &&
+                !(handle->hdr.flags & WRITABLE(i)) &&
+                !(handle->hdr.flags & ERROR(i)))
+                events |= POLLOUT;
+
+            if (events) {
+                fds[nfds].fd = handle->hdr.fds[i];
+                fds[nfds].events = events|POLLHUP|POLLERR;
+                fds[nfds].revents = 0;
+                off[nfds] = i;
+                nfds++;
+            }
+        }
+
+        if (!nfds)
+            return -PAL_ERROR_TRYAGAIN;
+
+        int ret = INLINE_SYSCALL(poll, 3, &fds, nfds,
+                                 timeout ? timeout : -1);
+
+        if (IS_ERR(ret))
+            switch (ERRNO(ret)) {
+                case EINTR:
+                    return -PAL_ERROR_INTERRUPTED;
+                default:
+                    return unix_to_pal_error(ERRNO(ret));
+            }
+
+        if (!ret)
+            return -PAL_ERROR_TRYAGAIN;
+
+        for (int i = 0 ; i < nfds ; i++) {
+            if (!fds[i].revents)
+                continue;
+            if (fds[i].revents & POLLOUT)
+                handle->hdr.flags |= WRITABLE(off[i]);
+            if (fds[i].revents & (POLLHUP|POLLERR))
+                handle->hdr.flags |= ERROR(off[i]);
+        }
+
+        return 0;
+    }
+
+    const struct handle_ops * ops = HANDLE_OPS(handle);
+
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
+    if (!ops->wait)
+        return -PAL_ERROR_NOTSUPPORT;
+
+    return ops->wait(handle, timeout);
+}
+
+/* _DkObjectsWaitAny for internal use. The function wait for any of the handle
+   in the handle array. timeout can be set for the wait. */
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
+                       PAL_HANDLE * polled)
+{
     if (count <= 0)
         return 0;
 
-    if (count == 1 && handleArray[0]) {
-        /* Special case of DkObjectsWaitAny(1, mutex/event, ...): perform a mutex-specific or
-         * event-specific wait() callback instead of host-OS poll. */
-        if (IS_HANDLE_TYPE(handleArray[0], mutex) || IS_HANDLE_TYPE(handleArray[0], event)) {
-            const struct handle_ops* ops = HANDLE_OPS(handleArray[0]);
-            assert(ops && ops->wait);
-
-            int rv = ops->wait(handleArray[0], timeout_us);
-            if (rv == 0)
-                *polled = handleArray[0];
-            return rv;
-        }
+    if (count == 1) {
+        *polled = handleArray[0];
+        return _DkObjectWaitOne(handleArray[0], timeout);
     }
 
-    /* Normal case of not mutex/event: poll on all handles in the array (their handle types can be
-     * process, socket, pipe, device, file, eventfd). */
-    struct pollfd fds[count * MAX_FDS]; /* TODO: if count is too big, stack overflow may occur */
-    PAL_HANDLE hdls[count * MAX_FDS];   /* TODO: if count is too big, stack overflow may occur */
-    int nfds = 0;
+    int i, j, ret, maxfds = 0, nfds = 0;
 
-    /* collect all FDs of all PAL handles that may report read/write events */
-    for (int i = 0; i < count; i++) {
+    /* we are not gonna to allow any polling on muliple synchronous
+       objects, doing this is simply violating the division of
+       labor between PAL and library OS */
+    for (i = 0 ; i < count ; i++) {
         PAL_HANDLE hdl = handleArray[i];
+
         if (!hdl)
             continue;
 
-        /* ignore duplicate handles */
-        for (int j = 0; j < i; j++)
+        if (!(hdl->hdr.flags & HAS_FDS))
+            return -PAL_ERROR_NOTSUPPORT;
+
+        /* eliminate repeated entries */
+        for (j = 0 ; j < i ; j++)
             if (hdl == handleArray[j])
-                continue;
+                break;
+        if (j == i) {
+            for (j = 0 ; j < MAX_FDS ; j++)
+                if (hdl->hdr.flags & (RFD(j)|WFD(j)))
+                    maxfds++;
+        }
+    }
 
-        /* collect all internal-handle FDs (only those which are readable/writable) */
-        for (int j = 0; j < MAX_FDS; j++) {
-            PAL_FLG flags = HANDLE_HDR(hdl)->flags;
+    struct pollfd * fds = __alloca(sizeof(struct pollfd) * maxfds);
+    PAL_HANDLE * hdls = __alloca(sizeof(PAL_HANDLE) * maxfds);
 
-            /* hdl might be a mutex/event/non-pollable object, simply ignore it */
-            if (hdl->generic.fds[j] == PAL_IDX_POISON)
-                continue;
-            if (flags & ERROR(j))
-                continue;
+    for (i = 0 ; i < count ; i++) {
+        PAL_HANDLE hdl = handleArray[i];
 
-            /* always ask host to wait for read event (if FD allows read events); however, no need
-             * to ask host to wait for write event if FD is already known to be writable */
+        if (!hdl)
+            continue;
+
+        for (j = 0 ; j < i ; j++)
+            if (hdl == handleArray[j])
+                break;
+        if (j < i)
+            continue;
+
+        for (j = 0 ; j < MAX_FDS ; j++) {
             int events = 0;
-            events |= (flags & RFD(j)) ? POLLIN : 0;
-            events |= ((flags & WFD(j)) && !(flags & WRITABLE(j))) ? POLLOUT : 0;
 
-            if (events) {
-                fds[nfds].fd      = hdl->generic.fds[j];
-                fds[nfds].events  = events | POLLHUP | POLLERR;
+            if ((hdl->hdr.flags & RFD(j)) &&
+                !(hdl->hdr.flags & ERROR(j)))
+                events |= POLLIN;
+
+            if ((hdl->hdr.flags & WFD(j)) &&
+                !(hdl->hdr.flags & WRITABLE(j)) &&
+                !(hdl->hdr.flags & ERROR(j)))
+                events |= POLLOUT;
+
+            if (events && hdl->hdr.fds[j] != PAL_IDX_POISON) {
+                fds[nfds].fd = hdl->hdr.fds[j];
+                fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
-                hdls[nfds]        = hdl;
+                hdls[nfds] = hdl;
                 nfds++;
             }
         }
     }
 
-    if (!nfds) {
-        /* did not find any wait-able FDs (probably because their events were already cached) */
+    if (!nfds)
         return -PAL_ERROR_TRYAGAIN;
-    }
 
-    ret = INLINE_SYSCALL(poll, 3, fds, nfds, timeout_us ? timeout_us : -1);
+    ret = INLINE_SYSCALL(poll, 3, fds, nfds, timeout ? timeout : -1);
 
     if (IS_ERR(ret))
         switch (ERRNO(ret)) {
             case EINTR:
-            case ERESTART:
                 return -PAL_ERROR_INTERRUPTED;
             default:
                 return unix_to_pal_error(ERRNO(ret));
         }
 
-    if (!ret) {
-        /* timed out */
+    if (!ret)
         return -PAL_ERROR_TRYAGAIN;
-    }
 
     PAL_HANDLE polled_hdl = NULL;
 
-    for (int i = 0; i < nfds; i++) {
+    for (i = 0 ; i < nfds ; i++) {
         if (!fds[i].revents)
             continue;
 
-        /* One PAL handle can have MAX_FDS internal FDs, so we must select one handle (randomly)
-         * from the ones on which the host reported events and then collect all revents on this
-         * handle's internal FDs.
-         * TODO: This is very inefficient. Each DkObjectsWaitAny() returns only one of possibly
-         *       many event-ready PAL handles. We must introduce new DkObjectsWaitEvents(). */
-        if (!polled_hdl)
-            polled_hdl = hdls[i];
+        PAL_HANDLE hdl = hdls[i];
 
-        if (polled_hdl != hdls[i])
+        if (polled_hdl) {
+            if (hdl != polled_hdl)
+                continue;
+        } else {
+            polled_hdl = hdl;
+        }
+
+        for (j = 0 ; j < MAX_FDS ; j++)
+            if ((hdl->hdr.flags & (RFD(j)|WFD(j))) &&
+                hdl->hdr.fds[j] == fds[i].fd)
+                break;
+
+        if (j == MAX_FDS)
             continue;
 
-        for (int j = 0; j < MAX_FDS; j++) {
-            if (!(HANDLE_HDR(polled_hdl)->flags & (RFD(j) | WFD(j))))
-                continue;
-            if (polled_hdl->generic.fds[j] != (PAL_IDX)fds[i].fd)
-                continue;
-
-            /* found internal FD of PAL handle that corresponds to the FD of event-ready fds[i] */
-            if (fds[i].revents & POLLOUT)
-                HANDLE_HDR(polled_hdl)->flags |= WRITABLE(j);
-            if (fds[i].revents & (POLLHUP|POLLERR))
-                HANDLE_HDR(polled_hdl)->flags |= ERROR(j);
-            /* TODO: Why is there no READABLE flag? Are FDs always assumed to be readable? */
-        }
+        if (fds[i].revents & POLLOUT)
+            hdl->hdr.flags |= WRITABLE(j);
+        if (fds[i].revents & (POLLHUP|POLLERR))
+            hdl->hdr.flags |= ERROR(j);
     }
 
     *polled = polled_hdl;
