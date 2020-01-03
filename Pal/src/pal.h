@@ -492,14 +492,14 @@ DkEventClear (PAL_HANDLE eventHandle);
 
 /* Returns: NULL if the call times out, the ready handle on success */
 PAL_HANDLE
-DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout_us);
+DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE* handle_array, PAL_NUM timeout_us);
 
 #define PAL_WAIT_SIGNAL     1   /* ignored in events */
 #define PAL_WAIT_READ       2
 #define PAL_WAIT_WRITE      4
 #define PAL_WAIT_ERROR      8   /* ignored in events */
 
-PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handleArray, PAL_FLG* events,
+PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
                             PAL_FLG* ret_events, PAL_NUM timeout_us);
 
 /* Deprecate DkObjectReference */

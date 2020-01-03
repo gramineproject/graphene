@@ -34,29 +34,26 @@
 typedef long int __fd_mask;
 
 #ifndef __NFDBITS
-#define __NFDBITS    (8 * (int)sizeof(__fd_mask))
+#define __NFDBITS (8 * (int)sizeof(__fd_mask))
 #endif
+
 #ifndef __FDS_BITS
 #define __FDS_BITS(set) ((set)->fds_bits)
 #endif
 
-# define __FD_ZERO(set)                                     \
-    do {                                                    \
-        unsigned int __i;                                   \
-        fd_set *__arr = (set);                              \
-        for (__i = 0; __i < sizeof (fd_set) / sizeof (__fd_mask); ++__i) \
-        __FDS_BITS (__arr)[__i] = 0;                        \
+#define __FD_ZERO(set)                                         \
+    do {                                                       \
+        unsigned int i;                                        \
+        fd_set* arr = (set);                                   \
+        for (i = 0; i < sizeof(fd_set)/sizeof(__fd_mask); i++) \
+        __FDS_BITS(arr)[i] = 0;                                \
     } while (0)
 
-#define __FD_ELT(d)     ((d) / __NFDBITS)
-#define __FD_MASK(d)    ((__fd_mask)1 << ((d) % __NFDBITS))
-
-#define __FD_SET(d, set)                                    \
-  ((void)(__FDS_BITS(set)[__FD_ELT(d)] |= __FD_MASK(d)))
-#define __FD_CLR(d, set)                                    \
-  ((void)(__FDS_BITS(set)[__FD_ELT(d)] &= ~__FD_MASK(d)))
-#define __FD_ISSET(d, set)                                  \
-  ((__FDS_BITS(set)[__FD_ELT(d)] & __FD_MASK(d)) != 0)
+#define __FD_ELT(d) ((d) / __NFDBITS)
+#define __FD_MASK(d) ((__fd_mask)1 << ((d) % __NFDBITS))
+#define __FD_SET(d, set) ((void)(__FDS_BITS(set)[__FD_ELT(d)] |= __FD_MASK(d)))
+#define __FD_CLR(d, set) ((void)(__FDS_BITS(set)[__FD_ELT(d)] &= ~__FD_MASK(d)))
+#define __FD_ISSET(d, set) ((__FDS_BITS(set)[__FD_ELT(d)] & __FD_MASK(d)) != 0)
 
 #define POLL_NOTIMEOUT  ((uint64_t)-1)
 

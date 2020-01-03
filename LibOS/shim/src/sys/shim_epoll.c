@@ -107,8 +107,8 @@ static void update_epoll(struct shim_epoll_handle* epoll) {
         if (!tmp->connected || !tmp->handle || !tmp->handle->pal_handle)
             continue;
 
+        assert(epoll->pal_cnt < MAX_EPOLL_HANDLES);
         epoll->pal_handles[epoll->pal_cnt++] = tmp->handle->pal_handle;
-        assert(epoll->pal_cnt <= MAX_EPOLL_HANDLES);
     }
 
     /* if other threads are currently waiting on epoll_wait(), send a signal to update their
