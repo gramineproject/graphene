@@ -3,8 +3,6 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <unistd.h>
 
 int main(void) {
@@ -16,7 +14,11 @@ int main(void) {
     char string[] = "Hello, world!\n";
     struct timespec tv = {.tv_sec = 10, .tv_nsec = 0};
 
-    pipe(fd);
+    ret = pipe(fd);
+    if (ret < 0) {
+        perror("pipe creation failed");
+        return 1;
+    }
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);

@@ -396,22 +396,22 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('epoll_wait test passed', stdout)
 
     def test_020_poll(self):
-        stdout, stderr = self.run_binary(['poll'])
+        stdout, _ = self.run_binary(['poll'])
         self.assertIn('poll(POLLOUT) returned 1 file descriptors', stdout)
         self.assertIn('poll(POLLIN) returned 1 file descriptors', stdout)
 
     def test_030_ppoll(self):
-        stdout, stderr = self.run_binary(['ppoll'])
+        stdout, _ = self.run_binary(['ppoll'])
         self.assertIn('ppoll(POLLOUT) returned 1 file descriptors', stdout)
         self.assertIn('ppoll(POLLIN) returned 1 file descriptors', stdout)
 
     def test_040_select(self):
-        stdout, stderr = self.run_binary(['select'])
+        stdout, _ = self.run_binary(['select'])
         self.assertIn('select() on write event returned 1 file descriptors', stdout)
         self.assertIn('select() on read event returned 1 file descriptors', stdout)
 
     def test_050_pselect(self):
-        stdout, stderr = self.run_binary(['pselect'])
+        stdout, _ = self.run_binary(['pselect'])
         self.assertIn('pselect() on write event returned 1 file descriptors', stdout)
         self.assertIn('pselect() on read event returned 1 file descriptors', stdout)
 

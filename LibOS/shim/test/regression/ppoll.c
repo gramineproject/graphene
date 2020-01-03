@@ -12,7 +12,11 @@ int main(void) {
     char string[] = "Hello, world!\n";
     struct timespec tv = { .tv_sec = 10, .tv_nsec = 0};
 
-    pipe(fd);
+    ret = pipe(fd);
+    if (ret < 0) {
+        perror("pipe creation failed");
+        return 1;
+    }
 
     struct pollfd outfds[] = { {.fd = fd[1], .events = POLLOUT}, };
     ret = ppoll(outfds, 1, &tv, NULL);
@@ -27,7 +31,7 @@ int main(void) {
     ret = ppoll(infds, 1, &tv, NULL);
     if (ret <= 0) {
         perror("ppoll with POLLIN failed");
-        return 2;
+        return 1;
     }
     printf("ppoll(POLLIN) returned %d file descriptors\n", ret);
 
