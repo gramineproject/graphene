@@ -79,6 +79,14 @@ This specifies the program break (brk) size in each Graphene process. The defaul
 program break size is determined by the library OS. Units like `K` (KB), `M` (MB), and `G` (GB) can
 be appended to the values for convenience. For example, `sys.brk.size=1M` indicates a 1MB brk size.
 
+### Allowing eventfd
+
+    sys.allow_insecure_eventfd=[1|0]
+    (Default: 0)
+
+This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since eventfd emulation
+currently relies on the host, these system calls are disallowed by default due to security concerns.
+
 
 ## FS-related (Required by LibOS)
 
