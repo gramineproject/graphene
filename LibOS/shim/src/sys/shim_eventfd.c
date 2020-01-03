@@ -40,7 +40,7 @@ static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
 
     char eventfd_cfg[2];
     ssize_t len = get_config(root_config, "sys.allow_eventfd", eventfd_cfg, sizeof(eventfd_cfg));
-    if (len <= 0 || eventfd_cfg[0] != '1') {
+    if (len != 1 || eventfd_cfg[0] != '1') {
         /* eventfd is not explicitly allowed in manifest */
         return -ENOSYS;
     }
