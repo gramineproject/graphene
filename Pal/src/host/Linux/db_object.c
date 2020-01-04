@@ -40,7 +40,7 @@ int _DkObjectsWaitAny(size_t count, PAL_HANDLE* handle_array, int64_t timeout_us
                       PAL_HANDLE* polled) {
     int ret;
 
-    if (count <= 0)
+    if (count == 0)
         return 0;
 
     if (count == 1 && handle_array[0] &&
@@ -180,7 +180,7 @@ int _DkObjectsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
                          int64_t timeout_us) {
     int ret;
 
-    if (count <= 0)
+    if (count == 0)
         return 0;
 
     struct pollfd* fds = malloc(count * MAX_FDS * sizeof(*fds));

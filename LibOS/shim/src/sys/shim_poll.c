@@ -46,7 +46,7 @@ typedef long int __fd_mask;
         unsigned int i;                                        \
         fd_set* arr = (set);                                   \
         for (i = 0; i < sizeof(fd_set)/sizeof(__fd_mask); i++) \
-        __FDS_BITS(arr)[i] = 0;                                \
+            __FDS_BITS(arr)[i] = 0;                            \
     } while (0)
 
 #define __FD_ELT(d) ((d) / __NFDBITS)
