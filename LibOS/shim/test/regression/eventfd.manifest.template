@@ -3,7 +3,7 @@ loader.env.LD_LIBRARY_PATH = /lib
 loader.debug_type = none
 loader.syscall_symbol = syscalldb
 
-sys.allow_eventfd = 1
+sys.allow_insecure_eventfd = 1
 
 fs.mount.graphene_lib.type = chroot
 fs.mount.graphene_lib.path = /lib

@@ -81,7 +81,7 @@ be appended to the values for convenience. For example, `sys.brk.size=1M` indica
 
 ### Allowing eventfd
 
-    sys.allow_eventfd=[1|0]
+    sys.allow_insecure_eventfd=[1|0]
     (Default: 0)
 
 This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since eventfd emulation
