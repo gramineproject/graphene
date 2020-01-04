@@ -238,10 +238,11 @@ static ssize_t inet_create_uri(int domain, char* uri, size_t count, int sock_typ
                 if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
                 memcpy(uri, URI_PREFIX_TCP, prefix_len + 1);
-                ret   = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, bind);
+                bytes = prefix_len;
+                ret = inet_translate_addr(domain, uri + bytes, count - bytes, bind);
                 if (ret < 0)
                     return ret;
-                uri[prefix_len + ret] = ':';
+                uri[bytes + ret] = ':';
                 bytes += ret + 1;
                 ret = inet_translate_addr(domain, uri + bytes, count - bytes, conn);
                 return ret < 0 ? ret : (ssize_t)(ret + bytes);
@@ -272,10 +273,11 @@ static ssize_t inet_create_uri(int domain, char* uri, size_t count, int sock_typ
                 if (count < prefix_len + 1)
                     return -ENAMETOOLONG;
                 memcpy(uri, URI_PREFIX_UDP_SRV, prefix_len + 1);
-                ret   = inet_translate_addr(domain, uri + prefix_len, count - prefix_len, bind);
+                bytes = prefix_len;
+                ret = inet_translate_addr(domain, uri + bytes, count - bytes, bind);
                 if (ret < 0)
                     return ret;
-                uri[prefix_len + ret] = ':';
+                uri[bytes + ret] = ':';
                 bytes += ret + 1;
                 ret = inet_translate_addr(domain, uri + bytes, count - bytes, conn);
                 return ret < 0 ? ret : (ssize_t)(ret + bytes);
