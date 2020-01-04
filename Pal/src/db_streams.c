@@ -78,10 +78,17 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
     if ((*p) != ':')
         return -PAL_ERROR_INVAL;
 
+    ++p;
+
     struct handle_ops* hops = NULL;
 
     switch (p - u) {
-        case 3:
+        case 4:
+            static_assert(static_strlen(URI_PREFIX_DIR) == 4);
+            static_assert(static_strlen(URI_PREFIX_TCP) == 4);
+            static_assert(static_strlen(URI_PREFIX_UDP) == 4);
+            static_assert(static_strlen(URI_PREFIX_DEV) == 4);
+
             if (strstartswith_static(u, URI_PREFIX_DIR))
                 hops = &dir_ops;
             else if (strstartswith_static(u, URI_PREFIX_TCP))
@@ -92,14 +99,21 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
                 hops = &dev_ops;
             break;
 
-        case 4:
+        case 5:
+            static_assert(static_strlen(URI_PREFIX_FILE) == 5);
+            static_assert(static_strlen(URI_PREFIX_PIPE) == 5);
+
             if (strstartswith_static(u, URI_PREFIX_FILE))
                 hops = &file_ops;
             else if (strstartswith_static(u, URI_PREFIX_PIPE))
                 hops = &pipe_ops;
             break;
 
-        case 7:
+        case 8:
+            static_assert(static_strlen(URI_PREFIX_TCP_SRV) == 8);
+            static_assert(static_strlen(URI_PREFIX_UDP_SRV) == 8);
+            static_assert(static_strlen(URI_PREFIX_EVENTFD) == 8);
+
             if (strstartswith_static(u, URI_PREFIX_TCP_SRV))
                 hops = &tcp_ops;
             else if (strstartswith_static(u, URI_PREFIX_UDP_SRV))
@@ -108,7 +122,8 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
                 hops = &eventfd_ops;
             break;
 
-        case 8:
+        case 9:
+            static_assert(static_strlen(URI_PREFIX_PIPE_SRV) == 9);
             if (strstartswith_static(u, URI_PREFIX_PIPE_SRV))
                 hops = &pipe_ops;
             break;
@@ -120,13 +135,14 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
     if (!hops)
         return -PAL_ERROR_NOTSUPPORT;
 
-    *uri = p + 1;
+    *uri = p;
 
     if (prefix) {
-        *prefix = malloc_copy(u, p - u + 1);
+        *prefix = malloc_copy(u, p - u);
         if (!*prefix)
             return -PAL_ERROR_NOMEM;
-        (*prefix)[p - u] = '\0';
+        /* We don't want ':' in prefix, replacing that with nullbyte which also ends the string. */
+        (*prefix)[p - 1 - u] = '\0';
     }
 
     if (ops)
