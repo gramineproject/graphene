@@ -202,17 +202,8 @@ bool lock_enabled;
 /* This function is used to allocate tls before interpreter start running */
 void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
 {
+    __UNUSED(thread);
     shim_tcb_t * shim_tcb = shim_get_tcb();
-
-    if (thread) {
-        thread->shim_tcb = shim_tcb;
-        shim_tcb->tp = thread;
-        shim_tcb->tid = thread->tid;
-    } else {
-        shim_tcb->tp = NULL;
-        shim_tcb->tid = 0;
-    }
-
     shim_tcb->context.fs_base = fs_base;
     DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
     assert(shim_tcb_check_canary());
@@ -221,12 +212,6 @@ void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
 void update_fs_base (unsigned long fs_base)
 {
     shim_tcb_t * shim_tcb = shim_get_tcb();
-
-    struct shim_thread * thread = shim_tcb->tp;
-    if (thread) {
-        thread->shim_tcb = shim_tcb;
-    }
-
     shim_tcb->context.fs_base = fs_base;
     DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
     assert(shim_tcb_check_canary());

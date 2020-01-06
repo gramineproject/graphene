@@ -793,6 +793,7 @@ static void shim_ipc_helper_prepare(void* arg) {
         return;
 
     shim_tcb_init();
+    set_cur_thread(self);
     init_fs_base(0, self);
     debug_setbuf(shim_get_tcb(), true);
 
