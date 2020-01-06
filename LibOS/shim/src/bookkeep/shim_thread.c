@@ -737,12 +737,7 @@ BEGIN_CP_FUNC(running_thread)
     if (thread->shim_tcb) {
         ptr_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
         new_thread->shim_tcb = (void *)(base + toff);
-        struct shim_tcb* shim_tcb = thread->shim_tcb;
-        struct shim_tcb* new_tcb = new_thread->shim_tcb;
-        /* only those memberes needs to be copied */
-        new_tcb->context.regs = shim_tcb->context.regs;
-        new_tcb->context.fs_base = shim_tcb->context.fs_base;
-        new_tcb->tid = shim_tcb->tid;
+        memcpy(new_thread->shim_tcb, thread->shim_tcb, sizeof(shim_tcb_t));
     }
 }
 END_CP_FUNC(running_thread)
@@ -810,7 +805,7 @@ BEGIN_RS_FUNC(running_thread)
             /* fork case */
             shim_tcb_t* tcb = shim_get_tcb();
             memcpy(tcb, saved_tcb, sizeof(*tcb));
-            shim_tcb_init();
+            __shim_tcb_init();
             set_cur_thread(thread);
 
             assert(tcb->context.regs && tcb->context.regs->rsp);

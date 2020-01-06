@@ -140,17 +140,23 @@ struct shim_tcb {
         }                                                               \
     } while (0)
 
-/* Setup shim_tcb_t::self so that shim_get_tcb() work.
- * Call this function at the beginning of thread execution.
- */
-static inline void shim_tcb_init(void) {
+static inline void __shim_tcb_init(void) {
     PAL_TCB* tcb = pal_get_tcb();
     shim_tcb_t* shim_tcb = (shim_tcb_t*)tcb->libos_tcb;
     shim_tcb->canary = SHIM_TCB_CANARY;
     shim_tcb->self = shim_tcb;
 }
 
-static inline shim_tcb_t * shim_get_tcb(void) {
+/* Call this function at the beginning of thread execution. */
+static inline void shim_tcb_init(void) {
+    PAL_TCB* tcb = pal_get_tcb();
+    shim_tcb_t* shim_tcb = (shim_tcb_t*)tcb->libos_tcb;
+    memset(shim_tcb, 0, sizeof(*shim_tcb));
+    shim_tcb->canary = SHIM_TCB_CANARY;
+    shim_tcb->self = shim_tcb;
+}
+
+static inline shim_tcb_t* shim_get_tcb(void) {
     return SHIM_TCB_GET(self);
 }
 
