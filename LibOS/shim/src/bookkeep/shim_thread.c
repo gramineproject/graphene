@@ -737,7 +737,13 @@ BEGIN_CP_FUNC(running_thread)
     if (thread->shim_tcb) {
         ptr_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
         new_thread->shim_tcb = (void *)(base + toff);
-        memcpy(new_thread->shim_tcb, thread->shim_tcb, sizeof(shim_tcb_t));
+        struct shim_tcb* new_tcb = new_thread->shim_tcb;
+        memcpy(new_tcb, thread->shim_tcb, sizeof(*new_tcb));
+        /* don't export stale pointers */
+        new_tcb->self = NULL;
+        new_tcb->tp = NULL;
+        new_tcb->context.next = NULL;
+        new_tcb->debug_buf = NULL;
     }
 }
 END_CP_FUNC(running_thread)

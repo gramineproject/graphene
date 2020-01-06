@@ -161,13 +161,6 @@ bool cur_thread_is_alive (void)
     return thread ? thread->is_alive : false;
 }
 
-/* only used by LibOS initialization until struct shim_thread is available */
-static inline void set_cur_thread_null(void) {
-    shim_tcb_t* tcb = shim_get_tcb();
-    tcb->tp = NULL;
-    tcb->tid = 0;
-}
-
 static inline
 __attribute__((always_inline))
 void set_cur_thread (struct shim_thread * thread)
@@ -198,7 +191,8 @@ void set_cur_thread (struct shim_thread * thread)
 
     if (tcb->tid != tid) {
         tcb->tid = tid;
-        debug_setprefix(tcb);
+        if (tcb->debug_buf)
+            debug_setprefix(tcb);
     }
 }
 
