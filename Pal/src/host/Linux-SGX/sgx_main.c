@@ -951,7 +951,7 @@ static int load_enclave (struct pal_enclave * enclave,
     /* initialize TCB at the top of the alternative stack */
     PAL_TCB_URTS* tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_URTS);
     pal_tcb_urts_init(
-        tcb, NULL/*=stack: main thread uses the stack provided by Linux */, alt_stack);
+        tcb, /*stack=*/NULL, alt_stack); /* main thread uses the stack provided by Linux */
     pal_thread_init(tcb);
 
     /* start running trusted PAL */

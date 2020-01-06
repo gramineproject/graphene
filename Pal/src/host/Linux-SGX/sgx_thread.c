@@ -21,8 +21,7 @@ static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
 
-void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack)
-{
+void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
     tcb->self = tcb;
     tcb->tcs = NULL;    /* initialized by child thread */
     tcb->stack = stack;
@@ -209,7 +208,7 @@ int clone_thread(void) {
 
     /* initialize TCB at the top of the alternative stack */
     PAL_TCB_URTS* tcb = child_stack_top + ALT_STACK_SIZE - sizeof(PAL_TCB_URTS);
-    pal_tcb_urts_init(tcb, child_stack_top, stack);
+    pal_tcb_urts_init(tcb, stack, child_stack_top);
 
     /* align child_stack to 16 */
     child_stack_top = ALIGN_DOWN_PTR(child_stack_top, 16);
