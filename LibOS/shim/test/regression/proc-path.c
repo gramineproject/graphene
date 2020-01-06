@@ -21,4 +21,5 @@ int main(int argc, char** argv) {
     } else {
         printf("proc path test failure\n");
     }
+    return 0;
 }

@@ -76,4 +76,5 @@ int main(int argc, char** argv) {
         native_cpuid(&eax, &ebx, &ecx, &edx);
         printf("eax: %x ebx: %x ecx: %x edx: %x\n", eax, ebx, ecx, edx);
     }
+    return 0;
 }

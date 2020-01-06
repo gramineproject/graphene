@@ -33,7 +33,6 @@ int main(int argc, char** argv) {
             kill(parent_pid, SIGKILL);
 
         printf("[pid=%d|ppid=%d] Hello, Dad!\n", getpid(), getppid());
-        return 0;
     } else {
         struct timespec rem;
         rem.tv_sec  = kill_parent ? 60 : 1;
@@ -47,6 +46,6 @@ int main(int argc, char** argv) {
             kill(pid, SIGKILL);
 
         printf("[pid=%d|ppid=%d] Hello, Kid!\n", getpid(), getppid());
-        return 0;
     }
+    return 0;
 }

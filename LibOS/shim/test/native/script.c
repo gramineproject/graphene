@@ -12,5 +12,5 @@ int main(int argc, const char** argv, const char** envp) {
     setenv("IN_EXECVE", "1", 1);
 
     execv(new_argv[0], new_argv);
-    return 0;
+    return 1;
 }
