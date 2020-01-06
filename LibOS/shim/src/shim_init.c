@@ -199,16 +199,6 @@ char ** library_paths = NULL;
 struct shim_lock __master_lock;
 bool lock_enabled;
 
-/* This function is used to allocate tls before interpreter start running */
-void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
-{
-    __UNUSED(thread);
-    shim_tcb_t * shim_tcb = shim_get_tcb();
-    shim_tcb->context.fs_base = fs_base;
-    DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
-    assert(shim_tcb_check_canary());
-}
-
 void update_fs_base (unsigned long fs_base)
 {
     shim_tcb_t * shim_tcb = shim_get_tcb();
@@ -654,7 +644,7 @@ noreturn void* shim_init (int argc, void * args)
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
-    init_fs_base(0, NULL);
+    update_fs_base(0);
     __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
     debug_setbuf(shim_get_tcb(), true);

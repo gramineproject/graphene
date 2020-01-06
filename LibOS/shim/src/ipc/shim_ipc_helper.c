@@ -794,7 +794,7 @@ static void shim_ipc_helper_prepare(void* arg) {
 
     shim_tcb_init();
     set_cur_thread(self);
-    init_fs_base(0, self);
+    update_fs_base(0);
     debug_setbuf(shim_get_tcb(), true);
 
     lock(&ipc_helper_lock);
