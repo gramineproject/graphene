@@ -760,7 +760,7 @@ static int resume_wrapper (void * param)
     set_cur_thread(thread);
     unsigned long fs_base = saved_tcb->context.fs_base;
     assert(fs_base);
-    init_fs_base(fs_base, thread);
+    update_fs_base(fs_base);
 
     thread->in_vm = thread->is_alive = true;
 
@@ -814,7 +814,7 @@ BEGIN_RS_FUNC(running_thread)
             set_cur_thread(thread);
 
             assert(tcb->context.regs && tcb->context.regs->rsp);
-            init_fs_base(tcb->context.fs_base, thread);
+            update_fs_base(tcb->context.fs_base);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
             debug_setbuf(tcb, false);

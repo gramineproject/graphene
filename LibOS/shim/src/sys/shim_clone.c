@@ -127,7 +127,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
 
     shim_tcb_init();
     set_cur_thread(my_thread);
-    init_fs_base(arg->fs_base, my_thread);
+    update_fs_base(arg->fs_base);
     shim_tcb_t * tcb = my_thread->shim_tcb;
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
