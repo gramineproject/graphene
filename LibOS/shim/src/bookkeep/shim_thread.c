@@ -757,6 +757,7 @@ static int resume_wrapper (void * param)
     shim_tcb_init();
     shim_tcb_t* saved_tcb = thread->shim_tcb;
     assert(saved_tcb->context.regs && saved_tcb->context.regs->rsp);
+    set_cur_thread(thread);
     unsigned long fs_base = saved_tcb->context.fs_base;
     assert(fs_base);
     init_fs_base(fs_base, thread);
@@ -810,6 +811,7 @@ BEGIN_RS_FUNC(running_thread)
             shim_tcb_t* tcb = shim_get_tcb();
             memcpy(tcb, saved_tcb, sizeof(*tcb));
             shim_tcb_init();
+            set_cur_thread(thread);
 
             assert(tcb->context.regs && tcb->context.regs->rsp);
             init_fs_base(tcb->context.fs_base, thread);
@@ -827,9 +829,8 @@ BEGIN_RS_FUNC(running_thread)
              * shim_tcb = NULL
              * in_vm = false
              */
-            thread->shim_tcb = shim_get_tcb();
-            debug_setbuf(thread->shim_tcb, false);
             set_cur_thread(thread);
+            debug_setbuf(thread->shim_tcb, false);
         }
 
         thread->in_vm = thread->is_alive = true;
