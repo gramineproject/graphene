@@ -830,8 +830,8 @@ BEGIN_RS_FUNC(running_thread)
              * shim_tcb = NULL
              * in_vm = false
              */
-            debug_setbuf(thread->shim_tcb, false);
             set_cur_thread(thread);
+            debug_setbuf(thread->shim_tcb, false);
         }
 
         thread->in_vm = thread->is_alive = true;

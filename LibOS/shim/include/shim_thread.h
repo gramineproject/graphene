@@ -191,7 +191,8 @@ void set_cur_thread (struct shim_thread * thread)
 
     if (tcb->tid != tid) {
         tcb->tid = tid;
-        debug_setprefix(tcb);
+        if (tcb->debug_buf)
+            debug_setprefix(tcb);
     }
 }
 
