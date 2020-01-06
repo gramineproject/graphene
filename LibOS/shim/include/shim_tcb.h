@@ -95,7 +95,6 @@ struct shim_tcb {
             break;                                                      \
         default:                                                        \
             __abort();                                                  \
-            break;                                                      \
         }                                                               \
         ret;                                                            \
     })
@@ -111,32 +110,31 @@ struct shim_tcb {
                       "8, 4, 2, or 1-byte(s) members");                 \
         switch (sizeof(tcb->member)) {                                  \
         case 8:                                                         \
-            __asm__("movq %q0, %%gs:%c1\n" \
-                    :: "ir"(value),                                     \
+            __asm__("movq %q0, %%gs:%c1\n"                              \
+                    :: "r"(value),                                      \
                     "i"(offsetof(PAL_TCB, libos_tcb) +                  \
                         offsetof(shim_tcb_t, member)));                 \
             break;                                                      \
         case 4:                                                         \
             __asm__("movl %k0, %%gs:%c1\n"                              \
-                    :: "ir"(value),                                     \
+                    :: "r"(value),                                      \
                     "i"(offsetof(PAL_TCB, libos_tcb) +                  \
                         offsetof(shim_tcb_t, member)));                 \
             break;                                                      \
         case 2:                                                         \
             __asm__("movw %w0, %%gs:%c1\n"                              \
-                    :: "ir"(value),                                     \
+                    :: "r"(value),                                      \
                     "i"(offsetof(PAL_TCB, libos_tcb) +                  \
                         offsetof(shim_tcb_t, member)));                 \
             break;                                                      \
         case 1:                                                         \
             __asm__("movb %b0, %%gs:%c1\n"                              \
-                    :: "ir"(value),                                     \
+                    :: "r"(value),                                      \
                     "i"(offsetof(PAL_TCB, libos_tcb) +                  \
                         offsetof(shim_tcb_t, member)));                 \
             break;                                                      \
         default:                                                        \
             __abort();                                                  \
-            break;                                                      \
         }                                                               \
     } while (0)
 

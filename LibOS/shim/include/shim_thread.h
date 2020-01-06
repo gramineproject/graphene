@@ -149,7 +149,7 @@ void debug_setbuf (shim_tcb_t * tcb, bool on_stack)
 
 static inline
 __attribute__((always_inline))
-struct shim_thread * get_cur_thread (void) {
+struct shim_thread* get_cur_thread (void) {
     return SHIM_TCB_GET(tp);
 }
 
