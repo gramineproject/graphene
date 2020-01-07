@@ -811,7 +811,7 @@ BEGIN_RS_FUNC(running_thread)
             /* fork case */
             shim_tcb_t* tcb = shim_get_tcb();
             memcpy(tcb, saved_tcb, sizeof(*tcb));
-            __shim_tcb_init();
+            __shim_tcb_init(tcb);
             set_cur_thread(thread);
 
             assert(tcb->context.regs && tcb->context.regs->rsp);

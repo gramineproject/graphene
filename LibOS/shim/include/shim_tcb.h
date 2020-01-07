@@ -70,25 +70,25 @@ struct shim_tcb {
                       "8, 4, 2, or 1-byte(s) members");                 \
         switch (sizeof(ret)) {                                          \
         case 8:                                                         \
-            __asm__("movq %%gs:%c1, %q0\n"                              \
+            __asm__("movq %%gs:%c1, %0\n"                               \
                     : "=r"(ret)                                         \
                     : "i" (offsetof(PAL_TCB, libos_tcb) +               \
                            offsetof(shim_tcb_t, member)));              \
             break;                                                      \
         case 4:                                                         \
-            __asm__("movl %%gs:%c1, %k0\n"                              \
+            __asm__("movl %%gs:%c1, %0\n"                               \
                     : "=r"(ret)                                         \
                     : "i" (offsetof(PAL_TCB, libos_tcb) +               \
                            offsetof(shim_tcb_t, member)));              \
             break;                                                      \
         case 2:                                                         \
-            __asm__("movw %%gs:%c1, %w0\n"                              \
+            __asm__("movw %%gs:%c1, %0\n"                               \
                     : "=r"(ret)                                         \
                     : "i" (offsetof(PAL_TCB, libos_tcb) +               \
                            offsetof(shim_tcb_t, member)));              \
             break;                                                      \
         case 1:                                                         \
-            __asm__("movb %%gs:%c1, %b0\n"                              \
+            __asm__("movb %%gs:%c1, %0\n"                               \
                     : "=r"(ret)                                         \
                     : "i" (offsetof(PAL_TCB, libos_tcb) +               \
                            offsetof(shim_tcb_t, member)));              \
@@ -110,37 +110,35 @@ struct shim_tcb {
                       "8, 4, 2, or 1-byte(s) members");                 \
         switch (sizeof(tcb->member)) {                                  \
         case 8:                                                         \
-            __asm__("movq %q0, %%gs:%c1\n"                              \
-                    :: "r"(value),                                      \
-                    "i"(offsetof(PAL_TCB, libos_tcb) +                  \
-                        offsetof(shim_tcb_t, member)));                 \
+            __asm__("movq %0, %%gs:%c1\n"                               \
+                    :: "ir"(value),                                     \
+                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
+                         offsetof(shim_tcb_t, member)));                \
             break;                                                      \
         case 4:                                                         \
-            __asm__("movl %k0, %%gs:%c1\n"                              \
-                    :: "r"(value),                                      \
-                    "i"(offsetof(PAL_TCB, libos_tcb) +                  \
-                        offsetof(shim_tcb_t, member)));                 \
+            __asm__("movl %0, %%gs:%c1\n"                               \
+                    :: "ir"(value),                                     \
+                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
+                         offsetof(shim_tcb_t, member)));                \
             break;                                                      \
         case 2:                                                         \
-            __asm__("movw %w0, %%gs:%c1\n"                              \
-                    :: "r"(value),                                      \
-                    "i"(offsetof(PAL_TCB, libos_tcb) +                  \
-                        offsetof(shim_tcb_t, member)));                 \
+            __asm__("movw %0, %%gs:%c1\n"                               \
+                    :: "ir"(value),                                     \
+                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
+                         offsetof(shim_tcb_t, member)));                \
             break;                                                      \
         case 1:                                                         \
-            __asm__("movb %b0, %%gs:%c1\n"                              \
-                    :: "r"(value),                                      \
-                    "i"(offsetof(PAL_TCB, libos_tcb) +                  \
-                        offsetof(shim_tcb_t, member)));                 \
+            __asm__("movb %0, %%gs:%c1\n"                               \
+                    :: "ir"(value),                                     \
+                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
+                         offsetof(shim_tcb_t, member)));                \
             break;                                                      \
         default:                                                        \
             __abort();                                                  \
         }                                                               \
     } while (0)
 
-static inline void __shim_tcb_init(void) {
-    PAL_TCB* tcb = pal_get_tcb();
-    shim_tcb_t* shim_tcb = (shim_tcb_t*)tcb->libos_tcb;
+static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
     shim_tcb->canary = SHIM_TCB_CANARY;
     shim_tcb->self = shim_tcb;
 }
@@ -150,8 +148,7 @@ static inline void shim_tcb_init(void) {
     PAL_TCB* tcb = pal_get_tcb();
     shim_tcb_t* shim_tcb = (shim_tcb_t*)tcb->libos_tcb;
     memset(shim_tcb, 0, sizeof(*shim_tcb));
-    shim_tcb->canary = SHIM_TCB_CANARY;
-    shim_tcb->self = shim_tcb;
+    __shim_tcb_init(shim_tcb);
 }
 
 static inline shim_tcb_t* shim_get_tcb(void) {
