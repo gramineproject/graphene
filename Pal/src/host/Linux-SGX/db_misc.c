@@ -210,6 +210,9 @@ _DkIASReport (PAL_PTR report, PAL_NUM maxsize, PAL_NUM* size) {
     len = get_config(pal_state.root_config, "sgx.ra_accept_group_out_of_date", buf, sizeof(buf));
     bool accept_group_out_of_date = (len == 1 && buf[0] == '1');
 
+    len = get_config(pal_state.root_config, "sgx.ra_accept_configuration_needed", buf, sizeof(buf));
+    bool accept_configuration_needed = (len == 1 && buf[0] == '1');
+
     sgx_quote_nonce_t nonce;
     int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
     if (ret < 0)
@@ -220,7 +223,8 @@ _DkIASReport (PAL_PTR report, PAL_NUM maxsize, PAL_NUM* size) {
     sgx_attestation_t attn;
     __sgx_mem_aligned sgx_report_data_t report_data = {0, };
     ret = sgx_verify_platform(&spid, subkey, &nonce, &report_data, linkable,
-                              accept_group_out_of_date, &attn, &status, &timestamp);
+                              accept_group_out_of_date, accept_configuration_needed,
+                              &attn, &status, &timestamp);
     if (ret < 0)
         return ret;
 

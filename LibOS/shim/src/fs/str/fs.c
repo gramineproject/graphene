@@ -55,7 +55,9 @@ int str_dput(struct shim_dentry* dent) {
         return 0;
 
     if (data->str) {
-        free(data->str);
+        if (!data->do_not_free) {
+            free(data->str);
+        }
         data->str = NULL;
     }
 
@@ -78,7 +80,10 @@ int str_close(struct shim_handle* hdl) {
     str_dput(hdl->dentry);
 
     if (hdl->info.str.data) {
-        free(hdl->info.str.data->str);
+        if (!hdl->info.str.data->do_not_free) {
+            free(hdl->info.str.data->str);
+            hdl->info.str.data->str = NULL;
+        }
         free(hdl->info.str.data);
         hdl->info.str.data = NULL;
     }
@@ -140,6 +145,10 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
     assert(strhdl->data);
 
     struct shim_str_data* data = strhdl->data;
+
+    if (data->do_not_free && strhdl->ptr + count > data->str + data->buf_size) {
+        return -ENOMEM;
+    }
 
     if (!data->str || strhdl->ptr + count > data->str + data->buf_size) {
         int newlen = 0;

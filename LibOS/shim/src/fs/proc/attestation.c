@@ -36,6 +36,7 @@ static int proc_sgx_attestation_stat(const char* name, struct stat* buf) {
 
 static __sgx_mem_aligned sgx_report_t report;
 static __sgx_mem_aligned sgx_target_info_t target_info;
+static __sgx_mem_aligned sgx_target_info_t my_target_info;
 static __sgx_mem_aligned sgx_report_data_t report_data;
 
 static int proc_sgx_report_stat(const char* name, struct stat* buf) {
@@ -45,7 +46,6 @@ static int proc_sgx_report_stat(const char* name, struct stat* buf) {
 }
 
 static int proc_sgx_report_open(struct shim_handle* hdl, const char* name, int flags) {
-
     __UNUSED(name);
 
     if (flags & (O_WRONLY | O_RDWR))
@@ -61,11 +61,13 @@ static int proc_sgx_report_open(struct shim_handle* hdl, const char* name, int f
 
     data->str          = (char*) &report;
     data->len          = sizeof(sgx_report_t);
+    data->do_not_free  = 1;
 
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
+    hdl->info.str.ptr  = (char*) &report;
 
     return 0;
 }
@@ -83,10 +85,7 @@ static int proc_sgx_ias_report_stat(const char* name, struct stat* buf) {
 }
 
 static int proc_sgx_ias_report_open(struct shim_handle* hdl, const char* name, int flags) {
-
-    __UNUSED(hdl);
     __UNUSED(name);
-    __UNUSED(flags);
 
     struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
@@ -101,11 +100,13 @@ static int proc_sgx_ias_report_open(struct shim_handle* hdl, const char* name, i
 
     data->str          = (char*) ias_report;
     data->len          = size;
+    data->do_not_free  = 1;
 
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
+    hdl->info.str.ptr  = (char*) ias_report;
 
     return 0;
 }
@@ -150,30 +151,24 @@ int sgx_target_info(sgx_target_info_t* ti) {
 }
 
 static int proc_sgx_my_target_info_open(struct shim_handle* hdl, const char* name, int flags) {
-    __UNUSED(hdl);
     __UNUSED(name);
-    __UNUSED(flags);
-
-    sgx_target_info_t* target_info = malloc(sizeof(*target_info));
-    if (!target_info) {
-        return -ENOMEM;
-    }
 
     struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
-        free(target_info);
         return -ENOMEM;
     }
 
-    sgx_target_info(target_info);
+    sgx_target_info(&my_target_info);
 
-    data->str          = (char*) target_info;
-    data->len          = sizeof(*target_info);
+    data->str          = (char*) &my_target_info;
+    data->len          = sizeof(my_target_info);
+    data->do_not_free  = 1;
 
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
+    hdl->info.str.ptr  = (char*) &my_target_info;
 
     return 0;
 }
@@ -200,11 +195,12 @@ static int proc_sgx_target_info_open(struct shim_handle* hdl, const char* name, 
 
     data->str          = (char*) &target_info;
     data->buf_size     = sizeof(target_info);
-    data->len          = 0;
+    data->len          = sizeof(target_info);
+    data->do_not_free  = 1;
 
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDWR;
-    hdl->acc_mode      = MAY_WRITE;
+    hdl->acc_mode      = MAY_WRITE | MAY_READ;
     hdl->info.str.data = data;
     hdl->info.str.ptr  = (char*) &target_info;
 
@@ -224,6 +220,7 @@ static int proc_sgx_report_data_stat(const char* name, struct stat* buf) {
 }
 
 static int proc_sgx_report_data_open(struct shim_handle* hdl, const char* name, int flags) {
+    __UNUSED(name);
 
     struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
@@ -232,11 +229,12 @@ static int proc_sgx_report_data_open(struct shim_handle* hdl, const char* name, 
 
     data->str          = (char*) &report_data;
     data->buf_size     = sizeof(report_data);
-    data->len          = 0;
+    data->len          = sizeof(report_data);
+    data->do_not_free  = 1;
 
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDWR;
-    hdl->acc_mode      = MAY_WRITE;
+    hdl->acc_mode      = MAY_WRITE | MAY_READ;
     hdl->info.str.data = data;
     hdl->info.str.ptr  = (char*) &report_data;
 

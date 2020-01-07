@@ -46,7 +46,7 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  $(addprefix utils/,md5 printf strobjs) \
 	  $(addprefix fs/shim_,dcache namei fs_hash fs) \
 	  $(foreach f,$(fs),fs/$(f)/fs) \
-	  $(addprefix fs/proc/,info ipc-thread thread) \
+	  $(addprefix fs/proc/,info ipc-thread thread attestation) \
 	  $(addprefix ipc/shim_,ipc ipc_helper ipc_child) \
 	  $(addprefix ipc/shim_ipc_,$(ipcns)) \
 	  elf/shim_rtld \

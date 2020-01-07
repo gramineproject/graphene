@@ -1,4 +1,4 @@
-/* a simple attestation test */
+/* Attestation API test. */
 
 #include <fcntl.h>
 #include <stdbool.h>
@@ -38,8 +38,6 @@ static void print_report(sgx_report_t* r) {
     printf("  mac:         "); PRINT_HEX(r->mac); printf("\n");
 }
 
-// 1. Local attestation: read /proc/my_target_info to exercise /proc/my_target_info logic; write target_info_t to /proc/target_info; write /proc/report_data; read /proc/report; verify sgx_report_t; since we used the current enclave's target_info_t, we should be able to verify the report w/o problems.
-
 /**
  * @return 0 on success, -1 otherwise.
  */
@@ -71,6 +69,15 @@ static int verify_report_mac(sgx_report_t* report) {
 
 char report_data_str[] = "I heart SGX!";
 
+/**
+ * Exercise local attestation.
+ *
+ * 1. Read /proc/my_target_info
+ * 2. Write content from /proc/my_target_info to /proc/target_info
+ * 3. Write report_data_str to /proc/report_data
+ * 4. Read /proc/report
+ * 5. Verify data read from /proc/report. Since we used the current enclave's target_info_t, we should be able to verify the report.
+ */
 static void local_attestation(void) {
     sgx_target_info_t target_info;
     int fd = open("/proc/sgx_attestation/my_target_info", O_RDONLY);
@@ -106,10 +113,46 @@ static void local_attestation(void) {
     }
 }
 
-// 2. Remote attestation: write /proc/report_data; read /proc/ias_report; verify IAS report
+const char* paths[] = {
+    "report",
+    "report_data",
+    "my_target_info",
+    "target_info",
+    /* "ias_report", */
+    /* "quote" */
+};
+
+const char* path_prefix = "/proc/sgx_attestation";
+
+/**
+ * Repeatedly open()/close() pseudo-files to hopefully uncover resource leaks.
+ */
+static void resource_leak(void) {
+    for (int i=0; i < 1000000; i++) {
+        for (int j = 0; j < sizeof(paths) / sizeof(&paths[0]); j++) {
+            char fn[64];
+            snprintf(fn, sizeof(fn), "%s/%s", path_prefix, paths[j]);
+            int fd = open(fn, O_RDONLY);
+            if (fd == -1) abort();
+            close(fd);
+        }
+    }
+}
+
+/**
+ * Exercise remote attestation.
+ *
+ * Write /proc/report_data; read /proc/ias_report; verify IAS report
+ */
+static void remote_attestation(void) {
+    // TODO
+}
 
 int main(int argc, char** argv) {
+    resource_leak();
     local_attestation();
+    remote_attestation();
+#if 0
     {
         const int fd = open("/proc/sgx_attestation/ias_report", O_RDONLY);
         if (fd < 0) abort();
@@ -118,5 +161,6 @@ int main(int argc, char** argv) {
         close(fd);
         printf("IAS Report\n%.*s", rc, ias_report);
     }
+#endif
     return 0;
 }
