@@ -101,26 +101,6 @@ static struct pal_frame * get_frame (sgx_cpu_context_t * uc)
     return NULL;
 }
 
-__asm__ (".type arch_exception_return_asm, @function;"
-     "arch_exception_return_asm:"
-     "  pop %rax;"
-     "  pop %rbx;"
-     "  pop %rcx;"
-     "  pop %rdx;"
-     "  pop %rsi;"
-     "  pop %rdi;"
-     "  pop %r8;"
-     "  pop %r9;"
-     "  pop %r10;"
-     "  pop %r11;"
-     "  pop %r12;"
-     "  pop %r13;"
-     "  pop %r14;"
-     "  pop %r15;"
-     "  retq;");
-
-extern void arch_exception_return (void) __asm__ ("arch_exception_return_asm");
-
 /*
  * return value:
  *  true:  #UD is handled.
