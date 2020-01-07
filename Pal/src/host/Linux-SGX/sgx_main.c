@@ -210,7 +210,7 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
 
             ret = add_pages_to_enclave(secs, (void *) base + c->mapstart, addr,
                                        c->mapend - c->mapstart,
-                                       SGX_PAGE_REG, c->prot, 0,
+                                       SGX_PAGE_REG, c->prot, /*skip_eextend=*/false,
                                        (c->prot & PROT_EXEC) ? "code" : "data");
 
             INLINE_SYSCALL(munmap, 2, addr, c->mapend - c->mapstart);
@@ -309,6 +309,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         SGX_DBG(DBG_E, "Reading enclave token failed: %d\n", -ret);
         goto out;
     }
+    enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
 
     ret = read_enclave_sigstruct(enclave->sigfile, &enclave_sigstruct);
     if (ret < 0) {
