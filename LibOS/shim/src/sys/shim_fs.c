@@ -180,7 +180,7 @@ int shim_do_rmdir(const char* pathname) {
     dent->state |= DENTRY_NEGATIVE;
 out:
     put_dentry(dent);
-    return 0;
+    return ret;
 }
 
 mode_t shim_do_umask(mode_t mask) {

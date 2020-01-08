@@ -457,11 +457,13 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
             *dent = my_dent;
 
         // Enforce LOOKUP_CREATE flag at a higher level
-        if (my_dent->state & DENTRY_NEGATIVE)
-                err = -ENOENT;
+        if (my_dent->state & DENTRY_NEGATIVE) {
+            err = -ENOENT;
+            goto out;
+        }
 
         // Enforce the LOOKUP_DIRECTORY flag
-        if ((flags & LOOKUP_DIRECTORY) & !(my_dent->state & DENTRY_ISDIRECTORY))
+        if ((flags & LOOKUP_DIRECTORY) && !(my_dent->state & DENTRY_ISDIRECTORY))
             err = -ENOTDIR;
     }
 
