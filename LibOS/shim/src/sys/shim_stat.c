@@ -20,22 +20,19 @@
  * Implementation of system call "stat", "lstat", "fstat" and "readlink".
  */
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
-#include <shim_profile.h>
-#include <shim_thread.h>
+#include <errno.h>
+#include <linux/fcntl.h>
 
 #include <pal.h>
 #include <pal_error.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_profile.h>
+#include <shim_table.h>
+#include <shim_thread.h>
 
-#include <errno.h>
-
-#include <linux/fcntl.h>
-
-int shim_do_stat (const char * file, struct stat * stat)
-{
+int shim_do_stat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -43,12 +40,12 @@ int shim_do_stat (const char * file, struct stat * stat)
         return -EFAULT;
 
     int ret;
-    struct shim_dentry * dent = NULL;
+    struct shim_dentry* dent = NULL;
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, NULL)) < 0)
         goto out;
 
-    struct shim_mount * fs = dent->fs;
+    struct shim_mount* fs = dent->fs;
 
     if (!fs->d_ops || !fs->d_ops->stat) {
         ret = -EACCES;
@@ -62,8 +59,7 @@ out:
     return ret;
 }
 
-int shim_do_lstat (const char * file, struct stat * stat)
-{
+int shim_do_lstat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -71,12 +67,12 @@ int shim_do_lstat (const char * file, struct stat * stat)
         return -EFAULT;
 
     int ret;
-    struct shim_dentry * dent = NULL;
+    struct shim_dentry* dent = NULL;
 
     if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent, NULL)) < 0)
         goto out;
 
-    struct shim_mount * fs = dent->fs;
+    struct shim_mount* fs = dent->fs;
 
     if (!fs->d_ops || !fs->d_ops->stat) {
         ret = -EACCES;
@@ -90,14 +86,13 @@ out:
     return ret;
 }
 
-int shim_do_fstat (int fd, struct stat * stat)
-{
-    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+int shim_do_fstat(int fd, struct stat* stat) {
+    struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
     int ret = -EACCES;
-    struct shim_mount * fs = hdl->fs;
+    struct shim_mount* fs = hdl->fs;
 
     if (!fs || !fs->fs_ops)
         goto out;
@@ -111,8 +106,7 @@ out:
     return ret;
 }
 
-int shim_do_readlink (const char * file, char * buf, size_t bufsize)
-{
+int shim_do_readlink(const char* file, char* buf, size_t bufsize) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -123,7 +117,7 @@ int shim_do_readlink (const char * file, char * buf, size_t bufsize)
         return -EINVAL;
 
     int ret;
-    struct shim_dentry * dent = NULL;
+    struct shim_dentry* dent = NULL;
     struct shim_qstr qstr = QSTR_INIT;
 
     if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent, NULL)) < 0)
@@ -153,55 +147,49 @@ out:
     return ret;
 }
 
-static int __do_statfs (struct shim_mount * fs, struct statfs * buf)
-{
+static int __do_statfs(struct shim_mount* fs, struct statfs* buf) {
     __UNUSED(fs);
     if (!buf || test_user_memory(buf, sizeof(*buf), true))
         return -EFAULT;
 
     memset(buf, 0, sizeof(*buf));
 
-    buf->f_bsize = 4096;
+    buf->f_bsize  = 4096;
     buf->f_blocks = 20000000;
-    buf->f_bfree = 10000000;
+    buf->f_bfree  = 10000000;
     buf->f_bavail = 10000000;
 
-    debug("statfs: %ld %ld %ld\n", buf->f_blocks, buf->f_bfree,
-            buf->f_bavail);
+    debug("statfs: %ld %ld %ld\n", buf->f_blocks, buf->f_bfree, buf->f_bavail);
 
     return 0;
 }
 
-int shim_do_statfs (const char * path, struct statfs * buf)
-{
+int shim_do_statfs(const char* path, struct statfs* buf) {
     if (!path || test_user_string(path))
         return -EFAULT;
 
     int ret;
-    struct shim_dentry * dent = NULL;
+    struct shim_dentry* dent = NULL;
 
-    if ((ret = path_lookupat(NULL, path, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent, NULL)) < 0)
+    if ((ret = path_lookupat(NULL, path, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, NULL)) < 0)
         return ret;
 
-    struct shim_mount * fs = dent->fs;
+    struct shim_mount* fs = dent->fs;
     put_dentry(dent);
-    return __do_statfs (fs, buf);
+    return __do_statfs(fs, buf);
 }
 
-int shim_do_fstatfs (int fd, struct statfs * buf)
-{
-    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+int shim_do_fstatfs(int fd, struct statfs* buf) {
+    struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
-    struct shim_mount * fs = hdl->fs;
+    struct shim_mount* fs = hdl->fs;
     put_handle(hdl);
-    return __do_statfs (fs, buf);
+    return __do_statfs(fs, buf);
 }
 
-int shim_do_newfstatat(int dirfd, const char* pathname,
-                       struct stat* statbuf, int flags)
-{
+int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags) {
     if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW))
         return -EINVAL;
     if (test_user_string(pathname))
@@ -217,12 +205,12 @@ int shim_do_newfstatat(int dirfd, const char* pathname,
         debug("ignoring AT_NO_AUTOMOUNT.");
     }
 
-    if (!*pathname){
+    if (!*pathname) {
         if (!(flags & AT_EMPTY_PATH))
             return -ENOENT;
 
         if (dirfd == AT_FDCWD) {
-            struct shim_dentry * cwd = get_cur_thread()->cwd;
+            struct shim_dentry* cwd  = get_cur_thread()->cwd;
             struct shim_d_ops* d_ops = cwd->fs->d_ops;
             if (d_ops && d_ops->stat)
                 return d_ops->stat(cwd, statbuf);

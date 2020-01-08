@@ -20,20 +20,18 @@
  * Implementation of system call "pause" and "nanosleep".
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_table.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
-#include <shim_thread.h>
+#include <errno.h>
 
 #include <pal.h>
 #include <pal_error.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_table.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
+#include <shim_vma.h>
 
-#include <errno.h>
-
-static bool signal_pending (void)
-{
+static bool signal_pending(void) {
     struct shim_thread* cur = get_cur_thread();
     if (!cur)
         return false;
@@ -61,8 +59,7 @@ static bool signal_pending (void)
     return false;
 }
 
-int shim_do_pause (void)
-{
+int shim_do_pause(void) {
     if (signal_pending())
         return -EINTR;
 
@@ -71,16 +68,14 @@ int shim_do_pause (void)
     return -EINTR;
 }
 
-int shim_do_nanosleep (const struct __kernel_timespec * rqtp,
-                       struct __kernel_timespec * rmtp)
-{
+int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp) {
     if (!rqtp)
         return -EFAULT;
 
     if (signal_pending()) {
         if (rmtp) {
             /* no time elapsed, so copy time interval from rqtp to rmtp */
-            rmtp->tv_sec = rqtp->tv_sec;
+            rmtp->tv_sec  = rqtp->tv_sec;
             rmtp->tv_nsec = rqtp->tv_nsec;
         }
         return -EINTR;
@@ -92,7 +87,7 @@ int shim_do_nanosleep (const struct __kernel_timespec * rqtp,
     if (ret < time) {
         if (rmtp) {
             unsigned long remtime = time - ret;
-            rmtp->tv_sec = remtime / 1000000L;
+            rmtp->tv_sec  = remtime / 1000000L;
             rmtp->tv_nsec = (remtime - rmtp->tv_sec * 1000) * 1000;
         }
         return -EINTR;

@@ -20,23 +20,20 @@
  * Implementation of system call "execve".
  */
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_fs.h>
-#include <shim_ipc.h>
-#include <shim_profile.h>
+#include <asm/prctl.h>
+#include <errno.h>
+#include <linux/futex.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
 
 #include <pal.h>
 #include <pal_error.h>
-
-#include <errno.h>
-
-#include <linux/futex.h>
-
-#include <sys/syscall.h>
-#include <sys/mman.h>
-#include <asm/prctl.h>
+#include <shim_fs.h>
+#include <shim_internal.h>
+#include <shim_ipc.h>
+#include <shim_profile.h>
+#include <shim_table.h>
+#include <shim_thread.h>
 
 /* returns 0 if normalized URIs are the same; assumes file URIs */
 static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {
@@ -45,8 +42,8 @@ static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {
     size_t len;
     int ret;
 
-    if (!strstartswith_static(uri1, URI_PREFIX_FILE)
-            || !strstartswith_static(uri2, URI_PREFIX_FILE))
+    if (!strstartswith_static(uri1, URI_PREFIX_FILE) ||
+        !strstartswith_static(uri2, URI_PREFIX_FILE))
         return -1;
 
     uri1 += URI_PREFIX_FILE_LEN;
@@ -64,18 +61,15 @@ static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {
     return memcmp(norm1, norm2, len + 1);
 }
 
-static int close_on_exec (struct shim_fd_handle * fd_hdl,
-                          struct shim_handle_map * map)
-{
+static int close_on_exec(struct shim_fd_handle* fd_hdl, struct shim_handle_map* map) {
     if (fd_hdl->flags & FD_CLOEXEC) {
-        struct shim_handle * hdl = __detach_fd_handle(fd_hdl, NULL, map);
+        struct shim_handle* hdl = __detach_fd_handle(fd_hdl, NULL, map);
         put_handle(hdl);
     }
     return 0;
 }
 
-static int close_cloexec_handle (struct shim_handle_map * map)
-{
+static int close_cloexec_handle(struct shim_handle_map* map) {
     return walk_handle_map(&close_on_exec, map);
 }
 
@@ -87,30 +81,28 @@ DEFINE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(unmap_all_vmas_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(load_new_executable_for_exec, exec_rtld);
 
-int init_brk_from_executable (struct shim_handle * exec);
+int init_brk_from_executable(struct shim_handle* exec);
 
-struct execve_rtld_arg
-{
-    void *        old_stack_top;
-    void *        old_stack;
-    void *        old_stack_red;
-    const char ** new_argp;
-    int *         new_argcp;
-    elf_auxv_t *  new_auxp;
+struct execve_rtld_arg {
+    void* old_stack_top;
+    void* old_stack;
+    void* old_stack_red;
+    const char** new_argp;
+    int* new_argcp;
+    elf_auxv_t* new_auxp;
 };
 
-noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
-{
+noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct execve_rtld_arg arg;
     memcpy(&arg, __arg, sizeof(arg));
-    void * old_stack_top = arg.old_stack_top;
-    void * old_stack = arg.old_stack;
-    void * old_stack_red = arg.old_stack_red;
-    const char ** new_argp = arg.new_argp;
-    int * new_argcp = arg.new_argcp;
-    elf_auxv_t * new_auxp = arg.new_auxp;
+    void* old_stack_top   = arg.old_stack_top;
+    void* old_stack       = arg.old_stack;
+    void* old_stack_red   = arg.old_stack_red;
+    const char** new_argp = arg.new_argp;
+    int* new_argcp        = arg.new_argcp;
+    elf_auxv_t* new_auxp  = arg.new_auxp;
 
-    struct shim_thread * cur_thread = get_cur_thread();
+    struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
     unsigned long fs_base = 0;
@@ -133,7 +125,7 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     reset_brk();
 
     size_t count = DEFAULT_VMA_COUNT;
-    struct shim_vma_val * vmas = malloc(sizeof(struct shim_vma_val) * count);
+    struct shim_vma_val* vmas = malloc(sizeof(struct shim_vma_val) * count);
 
     if (!vmas) {
         ret = -ENOMEM;
@@ -144,8 +136,7 @@ retry_dump_vmas:
     ret = dump_all_vmas(vmas, count);
 
     if (ret == -EOVERFLOW) {
-        struct shim_vma_val * new_vmas
-                = malloc(sizeof(struct shim_vma_val) * count * 2);
+        struct shim_vma_val* new_vmas = malloc(sizeof(struct shim_vma_val) * count * 2);
         if (!new_vmas) {
             free(vmas);
             ret = -ENOMEM;
@@ -163,7 +154,7 @@ retry_dump_vmas:
     }
 
     count = ret;
-    for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
+    for (struct shim_vma_val* vma = vmas; vma < vmas + count; vma++) {
         /* Don't free the current stack */
         if (vma->addr == cur_thread->stack)
             continue;
@@ -206,12 +197,10 @@ error:
     shim_clean_and_exit(ret);
 }
 
-static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
-                         const char ** envp)
-{
+static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const char** envp) {
     BEGIN_PROFILE_INTERVAL();
 
-    struct shim_thread * cur_thread = get_cur_thread();
+    struct shim_thread* cur_thread = get_cur_thread();
     int ret;
 
     if ((ret = close_cloexec_handle(cur_thread->handle_map)) < 0)
@@ -223,34 +212,34 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     get_handle(hdl);
     cur_thread->exec = hdl;
 
-    void * old_stack_top = cur_thread->stack_top;
-    void * old_stack     = cur_thread->stack;
-    void * old_stack_red = cur_thread->stack_red;
+    void* old_stack_top   = cur_thread->stack_top;
+    void* old_stack       = cur_thread->stack;
+    void* old_stack_red   = cur_thread->stack_red;
     cur_thread->stack_top = NULL;
     cur_thread->stack     = NULL;
     cur_thread->stack_red = NULL;
 
     initial_envp = NULL;
     int new_argc = 0;
-    for (const char ** a = argv ; *a ; a++, new_argc++);
+    for (const char** a = argv; *a; a++, new_argc++)
+        ;
 
-    int * new_argcp = &new_argc;
-    const char ** new_argp;
-    elf_auxv_t * new_auxp;
+    int* new_argcp = &new_argc;
+    const char** new_argp;
+    elf_auxv_t* new_auxp;
     if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
         return ret;
 
-    __disable_preempt(shim_get_tcb()); // Temporarily disable preemption
-                                       // during execve().
+    __disable_preempt(shim_get_tcb());  // Temporarily disable preemption during execve().
     SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
 
     struct execve_rtld_arg arg = {
         .old_stack_top = old_stack_top,
-        .old_stack = old_stack,
+        .old_stack     = old_stack,
         .old_stack_red = old_stack_red,
-        .new_argp = new_argp,
-        .new_argcp = new_argcp,
-        .new_auxp = new_auxp
+        .new_argp      = new_argp,
+        .new_argcp     = new_argcp,
+        .new_auxp      = new_auxp
     };
     __SWITCH_STACK(new_argcp, &__shim_do_execve_rtld, &arg);
     return 0;
@@ -265,12 +254,10 @@ DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);
 
 /* thread is cur_thread stripped off stack & tcb (see below func);
  * process is new process which is forked and waits for checkpoint. */
-static int migrate_execve (struct shim_cp_store * cpstore,
-                           struct shim_thread * thread,
-                           struct shim_process * process, va_list ap)
-{
-    struct shim_handle_map * handle_map;
-    const char ** envp = va_arg(ap, const char **);
+static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thread,
+                          struct shim_process* process, va_list ap) {
+    struct shim_handle_map* handle_map;
+    const char** envp = va_arg(ap, const char**);
     int ret;
 
     BEGIN_PROFILE_INTERVAL();
@@ -291,16 +278,12 @@ static int migrate_execve (struct shim_cp_store * cpstore,
             2. cur_threadrent filesystem
             3. handle mapping
             4. each handle              */
-    BEGIN_MIGRATION_DEF(execve,
-                        struct shim_thread * thread,
-                        struct shim_process * proc,
-                        const char ** envp)
-    {
+    BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
+                        const char** envp) {
         DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
         DEFINE_MIGRATE(all_mounts, NULL, 0);
         DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
-        DEFINE_MIGRATE(handle_map, thread->handle_map,
-                       sizeof (struct shim_handle_map));
+        DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
         DEFINE_MIGRATE(migratable, NULL, 0);
         DEFINE_MIGRATE(environ, envp, 0);
     }
@@ -309,12 +292,9 @@ static int migrate_execve (struct shim_cp_store * cpstore,
     return START_MIGRATE(cpstore, execve, thread, process, envp);
 }
 
-
-int shim_do_execve (const char * file, const char ** argv,
-                    const char ** envp)
-{
-    struct shim_thread * cur_thread = get_cur_thread();
-    struct shim_dentry * dent = NULL;
+int shim_do_execve(const char* file, const char** argv, const char** envp) {
+    struct shim_thread* cur_thread = get_cur_thread();
+    struct shim_dentry* dent       = NULL;
     int ret = 0, argc = 0;
 
     if (test_user_string(file))
@@ -343,10 +323,9 @@ int shim_do_execve (const char * file, const char ** argv,
 
     BEGIN_PROFILE_INTERVAL();
 
-
     DEFINE_LIST(sharg);
     struct sharg {
-        LIST_TYPE(sharg)  list;
+        LIST_TYPE(sharg) list;
         int len;
         char arg[0];
     };
@@ -361,12 +340,12 @@ reopen:
     if ((ret = path_lookupat(NULL, file, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
-    struct shim_mount * fs = dent->fs;
+    struct shim_mount* fs = dent->fs;
     get_dentry(dent);
 
     if (!fs->d_ops->open) {
         ret = -EACCES;
-err:
+    err:
         put_dentry(dent);
         return ret;
     }
@@ -379,7 +358,7 @@ err:
 
     SAVE_PROFILE_INTERVAL(search_and_check_file_for_exec);
 
-    struct shim_handle * exec = NULL;
+    struct shim_handle* exec = NULL;
 
     if (!(exec = get_new_handle())) {
         ret = -ENOMEM;
@@ -387,7 +366,7 @@ err:
     }
 
     set_handle_fs(exec, fs);
-    exec->flags = O_RDONLY;
+    exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
     ret = fs->d_ops->open(exec, dent, O_RDONLY);
 
@@ -397,7 +376,7 @@ err:
     }
 
     size_t pathlen;
-    char *path = dentry_get_path(dent, true, &pathlen);
+    char* path = dentry_get_path(dent, true, &pathlen);
     qstrsetstr(&exec->path, path, pathlen);
 
     if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
@@ -407,7 +386,7 @@ err:
 
     if (ret == -EINVAL) { /* it's a shebang */
         LISTP_TYPE(sharg) new_shargs = LISTP_INIT;
-        struct sharg * next = NULL;
+        struct sharg* next = NULL;
         bool ended = false, started = false;
         char buf[80];
 
@@ -416,7 +395,9 @@ err:
             if (ret <= 0)
                 break;
 
-            char * s = buf, * c = buf, * e = buf + ret;
+            char* s = buf;
+            char* c = buf;
+            char* e = buf + ret;
 
             if (!started) {
                 if (ret < 2 || buf[0] != '#' || buf[1] != '!')
@@ -427,12 +408,11 @@ err:
                 started = true;
             }
 
-            for (; c < e ; c++) {
+            for (; c < e; c++) {
                 if (*c == ' ' || *c == '\n' || c == e - 1) {
-                    int l = (*c == ' ' || * c == '\n') ? c - s : e - s;
+                    int l = (*c == ' ' || *c == '\n') ? c - s : e - s;
                     if (next) {
-                        struct sharg * sh =
-                            __alloca(sizeof(struct sharg) + next->len + l + 1);
+                        struct sharg* sh = __alloca(sizeof(struct sharg) + next->len + l + 1);
                         sh->len = next->len + l;
                         memcpy(sh->arg, next->arg, next->len);
                         memcpy(sh->arg + next->len, s, l);
@@ -464,8 +444,7 @@ err:
                 LISTP_ADD_TAIL(next, &new_shargs, list);
             }
 
-            struct sharg * first =
-                LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
+            struct sharg* first = LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
             assert(first);
             debug("detected as script: run by %s\n", first->arg);
             file = first->arg;
@@ -479,9 +458,9 @@ err:
 
     bool use_same_process = check_last_thread(cur_thread) == 0;
     if (use_same_process && !strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
-        /* for SGX PALs, can use same process only if it is the same executable (because a
-         * different executable has a different measurement and thus requires a new enclave);
-         * this special case is to correctly handle e.g. Bash process replacing itself */
+        /* for SGX PALs, can use same process only if it is the same executable (because a different
+         * executable has a different measurement and thus requires a new enclave); this special
+         * case is to correctly handle e.g. Bash process replacing itself */
         assert(cur_thread->exec);
         if (normalize_and_cmp_uris(qstrgetstr(&cur_thread->exec->uri), qstrgetstr(&exec->uri))) {
             /* it is not the same executable, definitely cannot use same process */
@@ -498,32 +477,33 @@ err:
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     if (!LISTP_EMPTY(&shargs)) {
-        struct sharg * sh;
+        struct sharg* sh;
         int shargc = 0, cnt = 0;
-        LISTP_FOR_EACH_ENTRY(sh, &shargs, list)
+        LISTP_FOR_EACH_ENTRY(sh, &shargs, list) {
             shargc++;
+        }
 
-        const char ** new_argv =
-                __alloca(sizeof(const char *) * (argc + shargc + 1));
+        const char** new_argv = __alloca(sizeof(const char*) * (argc + shargc + 1));
 
-        LISTP_FOR_EACH_ENTRY(sh, &shargs, list)
+        LISTP_FOR_EACH_ENTRY(sh, &shargs, list) {
             new_argv[cnt++] = sh->arg;
+        }
 
-        for (cnt = 0 ; cnt < argc ; cnt++)
+        for (cnt = 0; cnt < argc; cnt++)
             new_argv[shargc + cnt] = argv[cnt];
 
         new_argv[shargc + argc] = NULL;
-        argv = new_argv;
+        argv                    = new_argv;
     }
 
     lock(&cur_thread->lock);
     put_handle(cur_thread->exec);
     cur_thread->exec = exec;
 
-    void * stack     = cur_thread->stack;
-    void * stack_top = cur_thread->stack_top;
-    shim_tcb_t * shim_tcb = cur_thread->shim_tcb;
-    void * frameptr  = cur_thread->frameptr;
+    void* stack          = cur_thread->stack;
+    void* stack_top      = cur_thread->stack_top;
+    shim_tcb_t* shim_tcb = cur_thread->shim_tcb;
+    void* frameptr       = cur_thread->frameptr;
 
     cur_thread->stack     = NULL;
     cur_thread->stack_top = NULL;
@@ -535,10 +515,10 @@ err:
     ret = do_migrate_process(&migrate_execve, exec, argv, cur_thread, envp);
 
     lock(&cur_thread->lock);
-    cur_thread->stack       = stack;
-    cur_thread->stack_top   = stack_top;
-    cur_thread->frameptr    = frameptr;
-    cur_thread->shim_tcb    = shim_tcb;
+    cur_thread->stack     = stack;
+    cur_thread->stack_top = stack_top;
+    cur_thread->frameptr  = frameptr;
+    cur_thread->shim_tcb  = shim_tcb;
 
     if (ret < 0) {
         /* execve failed, so reanimate this thread as if nothing happened */
@@ -547,10 +527,12 @@ err:
         return ret;
     }
 
-    /* This "temporary" process must die quietly, not sending any messages
-     * to not confuse the parent and the execve'ed child */
-    debug("Temporary process %u exited after emulating execve (by forking new process to replace this one)\n",
-          cur_process.vmid & 0xFFFF);
+    /* This "temporary" process must die quietly, not sending any messages to not confuse the parent
+     * and the execve'ed child */
+    debug(
+        "Temporary process %u exited after emulating execve (by forking new process to replace this"
+        " one)\n",
+        cur_process.vmid & 0xFFFF);
     MASTER_LOCK();
     DkProcessExit(0);
 

@@ -21,41 +21,40 @@
  * "kill", "tkill" and "tgkill".
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_ipc.h>
-#include <shim_profile.h>
+#include <errno.h>
+#include <stddef.h>  // FIXME(mkow): Without this we get:
+                     //     asm/signal.h:126:2: error: unknown type name ‘size_t’
+                     // It definitely shouldn't behave like this...
+#include <linux/signal.h>
 
 #include <pal.h>
 #include <pal_error.h>
+#include <shim_internal.h>
+#include <shim_ipc.h>
+#include <shim_profile.h>
+#include <shim_table.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 
-#include <errno.h>
-
-#include <linux/signal.h>
-
-int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
-                       struct __kernel_sigaction * oldact, size_t sigsetsize)
-{
+int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
+                      struct __kernel_sigaction* oldact, size_t sigsetsize) {
     /* SIGKILL and SIGSTOP cannot be caught or ignored */
-    if (signum == SIGKILL || signum == SIGSTOP ||
-        signum <= 0 || signum > NUM_SIGS ||
-        sigsetsize != sizeof(__sigset_t))
+    if (signum == SIGKILL || signum == SIGSTOP || signum <= 0 || signum > NUM_SIGS ||
+            sigsetsize != sizeof(__sigset_t))
         return -EINVAL;
 
-    if (act && test_user_memory((void *) act, sizeof(*act), false))
+    if (act && test_user_memory((void*)act, sizeof(*act), false))
         return -EFAULT;
 
     if (oldact && test_user_memory(oldact, sizeof(*oldact), false))
         return -EFAULT;
 
-    struct shim_thread * cur = get_cur_thread();
+    struct shim_thread* cur = get_cur_thread();
     int err = 0;
 
-    assert(!act || (void *) act->k_sa_handler != (void *) 0x11);
+    assert(!act || (void*)act->k_sa_handler != (void*)0x11);
 
-    struct shim_signal_handle * sighdl = &cur->signal_handles[signum - 1];
+    struct shim_signal_handle* sighdl = &cur->signal_handles[signum - 1];
 
     lock(&cur->lock);
 
@@ -86,28 +85,27 @@ out:
     return err;
 }
 
-int shim_do_sigreturn (int __unused)
-{
+int shim_do_sigreturn(int __unused) {
     __UNUSED(__unused);
     /* do nothing */
     return 0;
 }
 
-int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset)
-{
-    __sigset_t * old, tmp, set_tmp;
+int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
+    __sigset_t* old;
+    __sigset_t tmp;
+    __sigset_t set_tmp;
 
-    if (how != SIG_BLOCK && how != SIG_UNBLOCK &&
-        how != SIG_SETMASK)
+    if (how != SIG_BLOCK && how != SIG_UNBLOCK && how != SIG_SETMASK)
         return -EINVAL;
 
-    if (set && test_user_memory((void *) set, sizeof(*set), false))
+    if (set && test_user_memory((void*)set, sizeof(*set), false))
         return -EFAULT;
 
     if (oldset && test_user_memory(oldset, sizeof(*oldset), false))
         return -EFAULT;
 
-    struct shim_thread * cur = get_cur_thread();
+    struct shim_thread* cur = get_cur_thread();
     int err = 0;
 
     lock(&cur->lock);
@@ -150,25 +148,22 @@ out:
     return err;
 }
 
-int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
-{
+int shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
     if (ss && (ss->ss_flags & ~SS_DISABLE))
         return -EINVAL;
 
-    struct shim_thread * cur = get_cur_thread();
+    struct shim_thread* cur = get_cur_thread();
     lock(&cur->lock);
 
-    stack_t * cur_ss = &cur->signal_altstack;
+    stack_t* cur_ss = &cur->signal_altstack;
 
     if (oss)
         *oss = *cur_ss;
 
-    void * sp = (void *)shim_get_tcb()->context.regs->rsp;
+    void* sp = (void*)shim_get_tcb()->context.regs->rsp;
     /* check if thread is currently executing on an active altstack */
-    if (!(cur_ss->ss_flags & SS_DISABLE) &&
-        sp &&
-        cur_ss->ss_sp <= sp &&
-        sp < cur_ss->ss_sp + cur_ss->ss_size) {
+    if (!(cur_ss->ss_flags & SS_DISABLE) && sp && cur_ss->ss_sp <= sp &&
+            sp < cur_ss->ss_sp + cur_ss->ss_size) {
         if (oss)
             oss->ss_flags |= SS_ONSTACK;
         if (ss) {
@@ -195,18 +190,18 @@ int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
     return 0;
 }
 
-int shim_do_sigsuspend (const __sigset_t * mask)
-{
-    if (!mask || test_user_memory((void *) mask, sizeof(*mask), false))
+int shim_do_sigsuspend(const __sigset_t* mask) {
+    if (!mask || test_user_memory((void*)mask, sizeof(*mask), false))
         return -EFAULT;
 
-    __sigset_t * old, tmp;
-    struct shim_thread * cur = get_cur_thread();
+    __sigset_t* old;
+    __sigset_t tmp;
+    struct shim_thread* cur = get_cur_thread();
 
     lock(&cur->lock);
 
     /* return immediately on some pending unblocked signal */
-    for (int sig = 1 ; sig <= NUM_SIGS ; sig++) {
+    for (int sig = 1; sig <= NUM_SIGS; sig++) {
         if (atomic_read(&cur->signal_logs[sig - 1].head) !=
             atomic_read(&cur->signal_logs[sig - 1].tail)) {
             /* at least one signal of type sig... */
@@ -235,22 +230,21 @@ int shim_do_sigsuspend (const __sigset_t * mask)
     return -EINTR;
 }
 
-int shim_do_sigpending (__sigset_t * set, size_t sigsetsize)
-{
+int shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;
 
     if (!set || test_user_memory(set, sigsetsize, false))
         return -EFAULT;
 
-    struct shim_thread * cur = get_cur_thread();
+    struct shim_thread* cur = get_cur_thread();
 
     __sigemptyset(set);
 
     if (!cur->signal_logs)
         return 0;
 
-    for (int sig = 1 ; sig <= NUM_SIGS ; sig++) {
+    for (int sig = 1; sig <= NUM_SIGS; sig++) {
         if (atomic_read(&cur->signal_logs[sig - 1].head) !=
             atomic_read(&cur->signal_logs[sig - 1].tail))
             __sigaddset(set, sig);
@@ -260,7 +254,7 @@ int shim_do_sigpending (__sigset_t * set, size_t sigsetsize)
 }
 
 struct walk_arg {
-    struct shim_thread * current;
+    struct shim_thread* current;
     IDTYPE sender;
     IDTYPE id;
     int sig;
@@ -268,8 +262,7 @@ struct walk_arg {
 };
 
 // Need to hold thread->lock
-static inline void __append_signal(struct shim_thread* thread, int sig, IDTYPE sender)
-{
+static inline void __append_signal(struct shim_thread* thread, int sig, IDTYPE sender) {
     debug("Thread %d killed by signal %d\n", thread->tid, sig);
     siginfo_t info;
     memset(&info, 0, sizeof(siginfo_t));
@@ -278,10 +271,8 @@ static inline void __append_signal(struct shim_thread* thread, int sig, IDTYPE s
     append_signal(thread, sig, &info, true);
 }
 
-static int __kill_proc (struct shim_thread * thread, void * arg,
-                        bool * unlocked)
-{
-    struct walk_arg * warg = (struct walk_arg *) arg;
+static int __kill_proc(struct shim_thread* thread, void* arg, bool* unlocked) {
+    struct walk_arg* warg = (struct walk_arg*)arg;
     int srched = 0;
 
     if (!warg->use_ipc && !thread->in_vm)
@@ -303,8 +294,7 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
     if (!thread->in_vm) {
         unlock(&thread_list_lock);
         *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS,
-                                   warg->sig)) ? 1 : 0;
+        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS, warg->sig)) ? 1 : 0;
     } else {
         lock(&thread->lock);
 
@@ -320,8 +310,7 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
             unlock(&thread->lock);
             unlock(&thread_list_lock);
             *unlocked = true;
-            return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS,
-                                   warg->sig)) ? 1 : 0;
+            return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS, warg->sig)) ? 1 : 0;
         }
     }
 out_locked:
@@ -330,10 +319,8 @@ out:
     return srched;
 }
 
-static int __kill_proc_simple (struct shim_simple_thread * sthread,
-                               void * arg, bool * unlocked)
-{
-    struct walk_arg * warg = (struct walk_arg *) arg;
+static int __kill_proc_simple(struct shim_simple_thread* sthread, void* arg, bool* unlocked) {
+    struct walk_arg* warg = (struct walk_arg*)arg;
     int srched = 0;
 
     if (sthread->tgid != warg->id)
@@ -345,17 +332,15 @@ static int __kill_proc_simple (struct shim_simple_thread * sthread,
         unlock(&sthread->lock);
         unlock(&thread_list_lock);
         *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS,
-                                   warg->sig)) ? 1 : 0;
+        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS, warg->sig)) ? 1 : 0;
     }
 
     unlock(&sthread->lock);
     return srched;
 }
 
-int do_kill_proc (IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc)
-{
-   struct shim_thread * cur = get_cur_thread();
+int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
+    struct shim_thread* cur = get_cur_thread();
 
     if (!tgid) {
         /* DEP: cur->tgid never changes.  No lock needed */
@@ -387,10 +372,8 @@ out:
     return srched ? 0 : -ESRCH;
 }
 
-static int __kill_pgroup (struct shim_thread * thread, void * arg,
-                          bool * unlocked)
-{
-    struct walk_arg * warg = (struct walk_arg *) arg;
+static int __kill_pgroup(struct shim_thread* thread, void* arg, bool* unlocked) {
+    struct walk_arg* warg = (struct walk_arg*)arg;
     int srched = 0;
 
     if (!warg->use_ipc && !thread->in_vm)
@@ -416,8 +399,7 @@ static int __kill_pgroup (struct shim_thread * thread, void * arg,
         unlock(&thread->lock);
         unlock(&thread_list_lock);
         *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP,
-                                   warg->sig)) ? 1 : 0;
+        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP, warg->sig)) ? 1 : 0;
     }
 
 out:
@@ -425,10 +407,8 @@ out:
     return srched;
 }
 
-static int __kill_pgroup_simple (struct shim_simple_thread * sthread,
-                                 void * arg, bool * unlocked)
-{
-    struct walk_arg * warg = (struct walk_arg *) arg;
+static int __kill_pgroup_simple(struct shim_simple_thread* sthread, void* arg, bool* unlocked) {
+    struct walk_arg* warg = (struct walk_arg*)arg;
     int srched = 0;
 
     if (sthread->pgid != warg->id)
@@ -440,17 +420,15 @@ static int __kill_pgroup_simple (struct shim_simple_thread * sthread,
         unlock(&sthread->lock);
         unlock(&thread_list_lock);
         *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP,
-                                   warg->sig)) ? 1 : 0;
+        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP, warg->sig)) ? 1 : 0;
     }
 
     unlock(&sthread->lock);
     return srched;
 }
 
-int do_kill_pgroup (IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc)
-{
-    struct shim_thread * cur = get_cur_thread();
+int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
+    struct shim_thread* cur = get_cur_thread();
 
     if (!pgid) {
         pgid = cur->pgid;
@@ -481,12 +459,10 @@ out:
     return srched ? 0 : -ESRCH;
 }
 
-static int __kill_all_threads (struct shim_thread * thread, void * arg,
-                               bool * unlocked)
-{
-    __UNUSED(unlocked); // Retained for API compatibility
+static int __kill_all_threads(struct shim_thread* thread, void* arg, bool* unlocked) {
+    __UNUSED(unlocked);  // Retained for API compatibility
     int srched = 0;
-    struct walk_arg * warg = (struct walk_arg *) arg;
+    struct walk_arg* warg = (struct walk_arg*)arg;
 
     if (thread->tgid != thread->tid)
         return 0;
@@ -505,8 +481,7 @@ static int __kill_all_threads (struct shim_thread * thread, void * arg,
     return srched;
 }
 
-int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig)
-{
+int kill_all_threads(struct shim_thread* cur, IDTYPE sender, int sig) {
     struct walk_arg arg;
     arg.current = cur;
     arg.sender  = sender;
@@ -517,14 +492,13 @@ int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig)
     return 0;
 }
 
-int shim_do_kill (pid_t pid, int sig)
-{
+int shim_do_kill(pid_t pid, int sig) {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     if (sig < 0 || sig > NUM_SIGS)
         return -EINVAL;
 
-    struct shim_thread * cur = get_cur_thread();
+    struct shim_thread* cur = get_cur_thread();
     int ret = 0;
     bool send_to_self = false;
 
@@ -547,14 +521,14 @@ int shim_do_kill (pid_t pid, int sig)
        specified by pid. */
     else if (pid > 0) {
         ret = do_kill_proc(cur->tid, pid, sig, true);
-        send_to_self = ((IDTYPE) pid == cur->tgid);
+        send_to_self = (IDTYPE)pid == cur->tgid;
     }
 
     /* If pid is less than -1, then sig is sent to every process in the
        process group whose id is -pid */
     else {
         ret = do_kill_pgroup(cur->tid, -pid, sig, true);
-        send_to_self = ((IDTYPE) -pid == cur->pgid);
+        send_to_self = (IDTYPE)-pid == cur->pgid;
     }
 
     if (send_to_self) {
@@ -603,16 +577,15 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
     return ipc_pid_kill_send(sender, tid, KILL_THREAD, sig);
 }
 
-int shim_do_tkill (pid_t tid, int sig)
-{
+int shim_do_tkill(pid_t tid, int sig) {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     if (tid <= 0)
         return -EINVAL;
 
-    struct shim_thread * cur = get_cur_thread();
+    struct shim_thread* cur = get_cur_thread();
 
-    if ((IDTYPE) tid == cur->tid) {
+    if ((IDTYPE)tid == cur->tid) {
         if (sig) {
             siginfo_t info;
             memset(&info, 0, sizeof(siginfo_t));
@@ -626,8 +599,7 @@ int shim_do_tkill (pid_t tid, int sig)
     return do_kill_thread(cur->tgid, 0, tid, sig, true);
 }
 
-int shim_do_tgkill (pid_t tgid, pid_t tid, int sig)
-{
+int shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     if (tgid < -1 || tgid == 0 || tid <= 0)
@@ -636,9 +608,9 @@ int shim_do_tgkill (pid_t tgid, pid_t tid, int sig)
     if (tgid == -1)
         tgid = 0;
 
-    struct shim_thread * cur = get_cur_thread();
+    struct shim_thread* cur = get_cur_thread();
 
-    if ((IDTYPE) tid == cur->tid) {
+    if ((IDTYPE)tid == cur->tid) {
         if (sig) {
             siginfo_t info;
             memset(&info, 0, sizeof(siginfo_t));

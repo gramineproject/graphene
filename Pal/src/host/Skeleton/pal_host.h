@@ -24,22 +24,20 @@
 #define PAL_HOST_H
 
 #ifndef IN_PAL
-# error "cannot be included outside PAL"
+#error "cannot be included outside PAL"
 #endif
 
 typedef struct mutex_handle {
     int unused;
 } PAL_LOCK;
 
-#define LOCK_INIT   {}
+#define LOCK_INIT {}
 #define INIT_LOCK(lock) do {} while (0)
 
-typedef struct pal_handle
-{
-    /* TSAI: Here we define the internal types of PAL_HANDLE
-     * in PAL design, user has not to access the content inside the
-     * handle, also there is no need to allocate the internal
-     * handles, so we hide the type name of these handles on purpose.
+typedef struct pal_handle {
+    /* TSAI: Here we define the internal types of PAL_HANDLE in PAL design, user has not to access
+     * the content inside the handle, also there is no need to allocate the internal handles, so we
+     * hide the type name of these handles on purpose.
      */
     PAL_HDR hdr;
 
@@ -48,9 +46,8 @@ typedef struct pal_handle
             PAL_IDX fds[MAX_FDS];
         } generic;
 
-        /* DP: Here we just define a placeholder fd; place your details here.
-         * Not every type requires an fd either - this is up to your
-         * host-specific code.
+        /* DP: Here we just define a placeholder fd; place your details here. Not every type
+         * requires an fd either - this is up to your host-specific code.
          */
         struct {
             PAL_IDX fd;

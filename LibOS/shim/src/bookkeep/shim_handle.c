@@ -393,8 +393,9 @@ int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int flags,
     if (ret < 0) {
         if (fd == handle_map->fd_top)
             handle_map->fd_top = fd ? fd - 1 : FD_NULL;
-    } else
+    } else {
         ret = fd;
+    }
 out:
     unlock(&handle_map->lock);
     return ret;

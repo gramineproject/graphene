@@ -20,19 +20,18 @@
  * This file contains APIs for closing or polling PAL handles.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "api.h"
 #include "atomic.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
 /* Deprecated DkObjectReference. */
 
-int _DkObjectClose (PAL_HANDLE objectHandle)
-{
-    const struct handle_ops * ops = HANDLE_OPS(objectHandle);
+int _DkObjectClose(PAL_HANDLE objectHandle) {
+    const struct handle_ops* ops = HANDLE_OPS(objectHandle);
     if (!ops)
         return -PAL_ERROR_BADHANDLE;
 
@@ -44,9 +43,8 @@ int _DkObjectClose (PAL_HANDLE objectHandle)
 
     /*
      * Chia-Che 12/7/2017:
-     *   _DkObjectClose will free the object, unless the handle has
-     *   a 'close' operation, and the operation returns a non-zero value
-     *   (e.g., 1 for skipping free() or -ERRNO).
+     *   _DkObjectClose will free the object, unless the handle has a 'close' operation, and the
+     *   operation returns a non-zero value (e.g., 1 for skipping free() or -ERRNO).
      */
     if (!ret)
         free(objectHandle);
@@ -55,8 +53,7 @@ int _DkObjectClose (PAL_HANDLE objectHandle)
 }
 
 /* PAL call DkObjectClose: Close the given object handle. */
-void DkObjectClose (PAL_HANDLE objectHandle)
-{
+void DkObjectClose(PAL_HANDLE objectHandle) {
     ENTER_PAL_CALL(DkObjectClose);
 
     if (!objectHandle) {
@@ -71,8 +68,8 @@ void DkObjectClose (PAL_HANDLE objectHandle)
     LEAVE_PAL_CALL();
 }
 
-// PAL call DkObjectsWaitAny: wait for any of the handles in the handle array.
-// The wait can be timed out, unless NO_TIMEOUT is given for the timeout_us argument.
+/* PAL call DkObjectsWaitAny: wait for any of the handles in the handle array. The wait can be timed
+ * out, unless NO_TIMEOUT is given for the timeout_us argument. */
 PAL_HANDLE
 DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handle_array, PAL_NUM timeout_us) {
     ENTER_PAL_CALL(DkObjectsWaitAny);
@@ -82,12 +79,11 @@ DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handle_array, PAL_NUM timeout_us) {
         LEAVE_PAL_CALL_RETURN(NULL);
     }
 
-    for (PAL_NUM i = 0 ; i < count ; i++)
+    for (PAL_NUM i = 0; i < count; i++)
         if (UNKNOWN_HANDLE(handle_array[i])) {
             _DkRaiseFailure(PAL_ERROR_INVAL);
             LEAVE_PAL_CALL_RETURN(NULL);
         }
-
 
     PAL_HANDLE polled = NULL;
 
@@ -100,10 +96,8 @@ DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handle_array, PAL_NUM timeout_us) {
     LEAVE_PAL_CALL_RETURN(polled);
 }
 
-/* Wait for user-specified events of handles in the handle array. The wait can be timed out,
- * unless NO_TIMEOUT is given in the timeout_us argument. Returns PAL_TRUE if waiting was
- * successful.
- */
+/* Wait for user-specified events of handles in the handle array. The wait can be timed out, unless
+ * NO_TIMEOUT is given in the timeout_us argument. Returns PAL_TRUE if waiting was successful. */
 PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
                             PAL_FLG* ret_events, PAL_NUM timeout_us) {
     ENTER_PAL_CALL(DkObjectsWaitEvents);

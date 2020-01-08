@@ -492,8 +492,9 @@ void parse_syscall_before(int sysno, const char* name, int nr, ...) {
             const char* type = va_arg(ap, const char*);
             __UNUSED(type);  // type not needed on this path
             (*parser->parser[i])(ap);
-        } else
+        } else {
             parse_syscall_args(ap);
+        }
     }
 
     PUTCH(')');
@@ -540,8 +541,9 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...) {
                 const char* type = va_arg(ap, const char*);
                 __UNUSED(type);  // type not needed on this path
                 (*parser->parser[i])(ap);
-            } else
+            } else {
                 parse_syscall_args(ap);
+            }
         }
 
     if (is_pointer(ret_type)) {
@@ -565,8 +567,9 @@ static void parse_open_flags(va_list ap) {
     } else if (flags & O_RDWR) {
         PUTS("O_RDWR");
         flags &= ~O_RDWR;
-    } else
+    } else {
         PUTS("O_RDONLY");
+    }
 
     if (flags & O_APPEND) {
         PUTS("|O_APPEND");

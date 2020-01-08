@@ -18,9 +18,9 @@
 #ifndef SGX_ATTEST_H
 #define SGX_ATTEST_H
 
-#include "sgx_arch.h"
-
 #include <stdint.h>
+
+#include "sgx_arch.h"
 
 typedef struct {
     uint16_t version;
@@ -28,14 +28,14 @@ typedef struct {
     uint32_t gid;
     uint16_t isvsvn_qe;
     uint16_t isvsvn_pce;
-    uint8_t  reserved[4];
-    uint8_t  base[32];
+    uint8_t reserved[4];
+    uint8_t base[32];
 } __attribute__((packed)) sgx_quote_body_t;
 
 typedef struct {
-    sgx_quote_body_t  body;
+    sgx_quote_body_t body;
     sgx_report_body_t report_body;
-    uint32_t          sig_len;
+    uint32_t sig_len;
 } __attribute__((packed)) sgx_quote_t;
 
 typedef uint8_t sgx_spid_t[16];
@@ -46,10 +46,9 @@ enum {
     SGX_LINKABLE_SIGNATURE
 };
 
-#define SGX_QUOTE_MAX_SIZE   (2048)
+#define SGX_QUOTE_MAX_SIZE 2048
 
-#define IAS_REPORT_URL \
-    "https://api.trustedservices.intel.com/sgx/dev/attestation/v3/report"
+#define IAS_REPORT_URL "https://api.trustedservices.intel.com/sgx/dev/attestation/v3/report"
 
 int init_trusted_platform(void);
 
@@ -71,6 +70,6 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
                         sgx_attestation_t* ret_attestation, char** ret_ias_status,
                         char** ret_ias_timestamp);
 
-#define HTTPS_REQUEST_MAX_LENGTH   (256)
+#define HTTPS_REQUEST_MAX_LENGTH 256
 
 #endif /* SGX_ATTEST_H */

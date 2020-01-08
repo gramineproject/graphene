@@ -649,8 +649,9 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
         if (dent->parent) {
             get_dentry(dent->parent);
             hdl->dir_info.dotdot = dent->parent;
-        } else
+        } else {
             hdl->dir_info.dotdot = NULL;
+        }
 
         // Let's defer setting the DENTRY_LISTED flag until we need it
         // Use -1 to indicate that the buf/ptr isn't initialized

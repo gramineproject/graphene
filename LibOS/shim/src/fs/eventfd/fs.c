@@ -23,12 +23,13 @@
 #include <asm/fcntl.h>
 #include <asm/unistd.h>
 #include <errno.h>
-#include <linux/stat.h>
 #include <linux/fcntl.h>
+#include <linux/stat.h>
+
 #include <pal.h>
-#include <shim_internal.h>
-#include <shim_handle.h>
 #include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
 
 static ssize_t eventfd_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (count < sizeof(uint64_t))
@@ -39,19 +40,19 @@ static ssize_t eventfd_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (bytes == PAL_STREAM_ERROR)
         return -PAL_ERRNO;
 
-    return (ssize_t) bytes;
+    return (ssize_t)bytes;
 }
 
 static ssize_t eventfd_write(struct shim_handle* hdl, const void* buf, size_t count) {
     if (count < sizeof(uint64_t))
         return -EINVAL;
 
-    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (bytes == PAL_STREAM_ERROR)
         return -PAL_ERRNO;
 
-    return (ssize_t) bytes;
+    return (ssize_t)bytes;
 }
 
 static off_t eventfd_poll(struct shim_handle* hdl, int poll_type) {
@@ -89,12 +90,12 @@ out:
 }
 
 struct shim_fs_ops eventfd_fs_ops = {
-    .read = &eventfd_read,
+    .read  = &eventfd_read,
     .write = &eventfd_write,
-    .poll = &eventfd_poll,
+    .poll  = &eventfd_poll,
 };
 
 struct shim_mount eventfd_builtin_fs = {
-    .type = URI_TYPE_EVENTFD,
+    .type   = URI_TYPE_EVENTFD,
     .fs_ops = &eventfd_fs_ops,
 };

@@ -41,21 +41,21 @@ typedef long int __fd_mask;
 #define __FDS_BITS(set) ((set)->fds_bits)
 #endif
 
-#define __FD_ZERO(set)                                         \
-    do {                                                       \
-        unsigned int i;                                        \
-        fd_set* arr = (set);                                   \
-        for (i = 0; i < sizeof(fd_set)/sizeof(__fd_mask); i++) \
-            __FDS_BITS(arr)[i] = 0;                            \
+#define __FD_ZERO(set)                                           \
+    do {                                                         \
+        unsigned int i;                                          \
+        fd_set* arr = (set);                                     \
+        for (i = 0; i < sizeof(fd_set) / sizeof(__fd_mask); i++) \
+            __FDS_BITS(arr)[i] = 0;                              \
     } while (0)
 
-#define __FD_ELT(d) ((d) / __NFDBITS)
-#define __FD_MASK(d) ((__fd_mask)1 << ((d) % __NFDBITS))
-#define __FD_SET(d, set) ((void)(__FDS_BITS(set)[__FD_ELT(d)] |= __FD_MASK(d)))
-#define __FD_CLR(d, set) ((void)(__FDS_BITS(set)[__FD_ELT(d)] &= ~__FD_MASK(d)))
+#define __FD_ELT(d)        ((d) / __NFDBITS)
+#define __FD_MASK(d)       ((__fd_mask)1 << ((d) % __NFDBITS))
+#define __FD_SET(d, set)   ((void)(__FDS_BITS(set)[__FD_ELT(d)] |= __FD_MASK(d)))
+#define __FD_CLR(d, set)   ((void)(__FDS_BITS(set)[__FD_ELT(d)] &= ~__FD_MASK(d)))
 #define __FD_ISSET(d, set) ((__FDS_BITS(set)[__FD_ELT(d)] & __FD_MASK(d)) != 0)
 
-#define POLL_NOTIMEOUT  ((uint64_t)-1)
+#define POLL_NOTIMEOUT ((uint64_t)-1)
 
 int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     if (!fds || test_user_memory(fds, sizeof(*fds) * nfds, true))
@@ -75,8 +75,8 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
 
     /* for bookkeeping, need to have a mapping FD -> {shim handle, index-in-pals} */
     struct fds_mapping_t {
-        struct shim_handle* hdl;  /* NULL if no mapping (handle is not used in polling) */
-        nfds_t idx;               /* index from fds array to pals array */
+        struct shim_handle* hdl; /* NULL if no mapping (handle is not used in polling) */
+        nfds_t idx;              /* index from fds array to pals array */
     };
     struct fds_mapping_t* fds_mapping = malloc(nfds * sizeof(struct fds_mapping_t));
     if (!fds_mapping) {
@@ -110,32 +110,32 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
 
         struct shim_handle* hdl = __get_fd_handle(fds[i].fd, NULL, map);
         if (!hdl || !hdl->fs || !hdl->fs->fs_ops) {
-            /* the corresponding handle doesn't exist or doesn't provide FS-like semantics;
-             * do not include it in handles-to-poll array but notify user about invalid request */
+            /* The corresponding handle doesn't exist or doesn't provide FS-like semantics; do not
+             * include it in handles-to-poll array but notify user about invalid request. */
             fds[i].revents = POLLNVAL;
             nrevents++;
             continue;
         }
 
         PAL_FLG allowed_events = 0;
-        if ((fds[i].events & (POLLIN|POLLRDNORM)) && (hdl->acc_mode & MAY_READ))
+        if ((fds[i].events & (POLLIN | POLLRDNORM)) && (hdl->acc_mode & MAY_READ))
             allowed_events |= PAL_WAIT_READ;
-        if ((fds[i].events & (POLLOUT|POLLWRNORM)) && (hdl->acc_mode & MAY_WRITE))
+        if ((fds[i].events & (POLLOUT | POLLWRNORM)) && (hdl->acc_mode & MAY_WRITE))
             allowed_events |= PAL_WAIT_WRITE;
 
-        if ((fds[i].events & (POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM)) && !allowed_events) {
-            /* if user requested read/write events but they are not allowed on this handle,
-             * ignore this handle (but note that user may only be interested in errors, and
-             * this is a valid request) */
+        if ((fds[i].events & (POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM)) && !allowed_events) {
+            /* If user requested read/write events but they are not allowed on this handle, ignore
+             * this handle (but note that user may only be interested in errors, and this is a valid
+             * request). */
             continue;
         }
 
         get_handle(hdl);
         fds_mapping[i].hdl = hdl;
         fds_mapping[i].idx = pal_cnt;
-        pals[pal_cnt]        = hdl->pal_handle;
-        pal_events[pal_cnt]  = allowed_events;
-        ret_events[pal_cnt]  = 0;
+        pals[pal_cnt] = hdl->pal_handle;
+        pal_events[pal_cnt] = allowed_events;
+        ret_events[pal_cnt] = 0;
         pal_cnt++;
     }
 
@@ -153,9 +153,9 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
             if (ret_events[fds_mapping[i].idx] & PAL_WAIT_ERROR)
                 fds[i].revents |= POLLERR | POLLHUP;
             if (ret_events[fds_mapping[i].idx] & PAL_WAIT_READ)
-                fds[i].revents |= fds[i].events & (POLLIN|POLLRDNORM);
+                fds[i].revents |= fds[i].events & (POLLIN | POLLRDNORM);
             if (ret_events[fds_mapping[i].idx] & PAL_WAIT_WRITE)
-                fds[i].revents |= fds[i].events & (POLLOUT|POLLWRNORM);
+                fds[i].revents |= fds[i].events & (POLLOUT | POLLWRNORM);
 
             if (fds[i].revents)
                 nrevents++;
@@ -171,8 +171,8 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
     return nrevents;
 }
 
-int shim_do_ppoll(struct pollfd* fds, int nfds, struct timespec* tsp,
-                  const __sigset_t* sigmask, size_t sigsetsize) {
+int shim_do_ppoll(struct pollfd* fds, int nfds, struct timespec* tsp, const __sigset_t* sigmask,
+                  size_t sigsetsize) {
     __UNUSED(sigmask);
     __UNUSED(sigsetsize);
 
@@ -180,10 +180,10 @@ int shim_do_ppoll(struct pollfd* fds, int nfds, struct timespec* tsp,
     return shim_do_poll(fds, nfds, timeout_ms);
 }
 
-int shim_do_select(int nfds, fd_set* readfds, fd_set* writefds,
-                   fd_set* errorfds, struct __kernel_timeval* tsv) {
+int shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds,
+                   struct __kernel_timeval* tsv) {
     if (tsv && (tsv->tv_sec < 0 || tsv->tv_usec < 0))
-            return -EINVAL;
+        return -EINVAL;
 
     if (nfds < 0 || (uint64_t)nfds > get_rlimit_cur(RLIMIT_NOFILE))
         return -EINVAL;
@@ -194,7 +194,7 @@ int shim_do_select(int nfds, fd_set* readfds, fd_set* writefds,
 
         /* special case of select(0, ..., tsv) used for sleep */
         struct __kernel_timespec tsp;
-        tsp.tv_sec = tsv->tv_sec;
+        tsp.tv_sec  = tsv->tv_sec;
         tsp.tv_nsec = tsv->tv_usec * 1000;
         return shim_do_nanosleep(&tsp, NULL);
     }
@@ -278,14 +278,13 @@ int shim_do_select(int nfds, fd_set* readfds, fd_set* writefds,
     return ret;
 }
 
-int shim_do_pselect6(int nfds, fd_set* readfds, fd_set* writefds,
-                     fd_set* errorfds, const struct __kernel_timespec* tsp,
-                     const __sigset_t* sigmask) {
+int shim_do_pselect6(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds,
+                     const struct __kernel_timespec* tsp, const __sigset_t* sigmask) {
     __UNUSED(sigmask);
 
     if (tsp) {
         struct __kernel_timeval tsv;
-        tsv.tv_sec = tsp->tv_sec;
+        tsv.tv_sec  = tsp->tv_sec;
         tsv.tv_usec = tsp->tv_nsec / 1000;
         return shim_do_select(nfds, readfds, writefds, errorfds, &tsv);
     }

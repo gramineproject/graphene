@@ -20,30 +20,25 @@
  * Implementation of system call "fork".
  */
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_ipc.h>
-#include <shim_profile.h>
-#include <shim_checkpoint.h>
+#include <asm/prctl.h>
+#include <errno.h>
+#include <linux/futex.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
 
 #include <pal.h>
 #include <pal_error.h>
+#include <shim_checkpoint.h>
+#include <shim_internal.h>
+#include <shim_ipc.h>
+#include <shim_profile.h>
+#include <shim_table.h>
+#include <shim_thread.h>
 
-#include <errno.h>
-#include <sys/syscall.h>
-#include <sys/mman.h>
-#include <asm/prctl.h>
-#include <linux/futex.h>
-
-int migrate_fork (struct shim_cp_store * store,
-                  struct shim_thread * thread,
-                  struct shim_process * process, va_list ap)
-{
+int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
+                 struct shim_process* process, va_list ap) {
     __UNUSED(ap);
-    BEGIN_MIGRATION_DEF(fork, struct shim_thread * thread,
-                        struct shim_process * process)
-    {
+    BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread, struct shim_process* process) {
         DEFINE_MIGRATE(process, process, sizeof(struct shim_process));
         DEFINE_MIGRATE(all_mounts, NULL, 0);
         DEFINE_MIGRATE(all_vmas, NULL, 0);
@@ -70,16 +65,15 @@ int migrate_fork (struct shim_cp_store * store,
     return ret;
 }
 
-int shim_do_fork (void)
-{
+int shim_do_fork(void) {
     int ret = 0;
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     if ((ret = prepare_ns_leaders()) < 0)
         return ret;
 
-    struct shim_thread * cur_thread = get_cur_thread();
-    struct shim_thread * new_thread = get_new_thread(0);
+    struct shim_thread* cur_thread = get_cur_thread();
+    struct shim_thread* new_thread = get_new_thread(0);
 
     if (!new_thread)
         return -ENOMEM;
@@ -97,9 +91,9 @@ int shim_do_fork (void)
     }
 
     lock(&new_thread->lock);
-    struct shim_handle_map * handle_map = new_thread->handle_map;
-    new_thread->handle_map = NULL;
-    new_thread->shim_tcb = NULL;
+    struct shim_handle_map* handle_map = new_thread->handle_map;
+    new_thread->handle_map             = NULL;
+    new_thread->shim_tcb               = NULL;
     unlock(&new_thread->lock);
     if (handle_map)
         put_handle_map(handle_map);

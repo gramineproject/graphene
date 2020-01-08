@@ -113,15 +113,16 @@
 
 
 /*
- * Perform the initial attestation procedure if "sgx.ra_client.spid" is specified in
- * the manifest file.
+ * Perform the initial attestation procedure if "sgx.ra_client.spid" is specified in the manifest
+ * file.
  */
 int init_trusted_platform(void) {
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
-    ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
-                             sizeof(spid_hex));
+    ssize_t len =
+        get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex, sizeof(spid_hex));
     if (len <= 0) {
-        SGX_DBG(DBG_E, "*** No client info specified in the manifest. "
+        SGX_DBG(DBG_E,
+                "*** No client info specified in the manifest. "
                 "Graphene will not perform remote attestation ***\n");
         return 0;
     }
@@ -138,7 +139,7 @@ int init_trusted_platform(void) {
             SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
             return -PAL_ERROR_INVAL;
         }
-        spid[i/2] = spid[i/2] * 16 + (uint8_t)val;
+        spid[i / 2] = spid[i / 2] * 16 + (uint8_t)val;
     }
 
     char subkey[CONFIG_MAX];
@@ -172,7 +173,7 @@ int init_trusted_platform(void) {
         return ret;
 
     // If the attestation is successful, update the control block
-    __pal_control.attestation_status = status;
+    __pal_control.attestation_status    = status;
     __pal_control.attestation_timestamp = timestamp;
     return ret;
 }
@@ -313,11 +314,11 @@ static int parse_x509(uint8_t* cert, size_t cert_len, uint8_t** body, size_t* bo
     exp = ptr;
     ptr += exp_len;
 
-    *body = malloc(cert_signed_len);
+    *body     = malloc(cert_signed_len);
     *body_len = cert_signed_len;
     memcpy(*body, cert_signed, cert_signed_len);
 
-    *sig = malloc(cert_sig_len);
+    *sig     = malloc(cert_sig_len);
     *sig_len = cert_sig_len;
     memcpy(*sig, cert_sig, cert_sig_len);
 
@@ -345,7 +346,6 @@ static int parse_x509(uint8_t* cert, size_t cert_len, uint8_t** body, size_t* bo
  */
 static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* body_len,
                           uint8_t** sig, size_t* sig_len, LIB_RSA_KEY* pubkey) {
-
     int ret;
     char* start = strchr(cert, '-');
     if (!start) {
@@ -384,13 +384,13 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
 /*
  * Perform the remote attestation to verify the current SGX platform.
  *
- * The remote attestation procedure verifies two primary properties: (1) The current execution
- * runs in an SGX enclave; and (2) The enclave is created on a genuine, up-to-date Intel CPU.
- * This procedure requires interaction with the Intel PSW quoting enclave (AESMD) and the
- * Intel Attestation Service (IAS). The quoting enclave verifies a local attestation report
- * from the target enclave, and then generates a quoting enclave (QE) report and a platform
- * quote signed by the platform's attestation key. The IAS then verifies the platform quote and
- * issues a remote attestation report, signed by a certificate chain attached to the report.
+ * The remote attestation procedure verifies two primary properties: (1) The current execution runs
+ * in an SGX enclave; and (2) The enclave is created on a genuine, up-to-date Intel CPU. This
+ * procedure requires interaction with the Intel PSW quoting enclave (AESMD) and the Intel
+ * Attestation Service (IAS). The quoting enclave verifies a local attestation report from the
+ * target enclave, and then generates a quoting enclave (QE) report and a platform quote signed by
+ * the platform's attestation key. The IAS then verifies the platform quote and issues a remote
+ * attestation report, signed by a certificate chain attached to the report.
  *
  * TODO: currently no verification of the correctness of the IAS certificate
  *
@@ -411,7 +411,6 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
                         bool accept_group_out_of_date, bool accept_configuration_needed,
                         sgx_attestation_t* ret_attestation, char** ret_ias_status,
                         char** ret_ias_timestamp) {
-
     SGX_DBG(DBG_S, "Request quote:\n");
     SGX_DBG(DBG_S, "  spid:  %s\n", ALLOCA_BYTES2HEXSTR(*spid));
     SGX_DBG(DBG_S, "  type:  %s\n", linkable ? "linkable" : "unlinkable");
@@ -443,30 +442,28 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     // Verify the IAS response against the certificate chain
     uint8_t* data_to_verify = (uint8_t*)attestation.ias_report;
     uint8_t* data_sig       = attestation.ias_sig;
-    size_t   data_len       = attestation.ias_report_len;
-    size_t   data_sig_len   = attestation.ias_sig_len;
+    size_t data_len         = attestation.ias_report_len;
+    size_t data_sig_len     = attestation.ias_sig_len;
 
     // Attach the IAS signing chain with the hard-coded CA certificate
     const char* ca_cert = IAS_CA_CERT;
-    size_t len1 = strlen(attestation.ias_certs);
-    size_t len2 = static_strlen(IAS_CA_CERT);
-    char* certs = malloc(len1 + len2 + 1);
+    size_t len1         = strlen(attestation.ias_certs);
+    size_t len2         = static_strlen(IAS_CA_CERT);
+    char* certs         = malloc(len1 + len2 + 1);
     memcpy(certs, attestation.ias_certs, len1);
     memcpy(certs + len1, ca_cert, len2);
     certs[len1 + len2] = 0;
     free(attestation.ias_certs);
-    attestation.ias_certs = certs;
+    attestation.ias_certs     = certs;
     attestation.ias_certs_len = len1 + len2 + 1;
 
-    // There can be multiple certificates in the chain. We need to use the public key from
-    // the *first* certificate to verify the IAS response. For each certificate except
-    // the last one, we need to use the public key from the *next* certificate to verify
-    // the certificate body. The last certificate will be verified by the CA certificate
-    // (hard-coded in the binary)
+    // There can be multiple certificates in the chain. We need to use the public key from the
+    // *first* certificate to verify the IAS response. For each certificate except the last one, we
+    // need to use the public key from the *next* certificate to verify the certificate body. The
+    // last certificate will be verified by the CA certificate (hard-coded in the binary)
 
     for (char* cert_start = attestation.ias_certs;
-         cert_start < attestation.ias_certs + attestation.ias_certs_len && *cert_start; ) {
-
+            cert_start < attestation.ias_certs + attestation.ias_certs_len && *cert_start;) {
         // Generate the message digest first (without RSA)
         LIB_SHA256_CONTEXT ctx;
         uint8_t hash[32];
@@ -481,10 +478,10 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
             goto failed;
 
         // Use the public key to verify the last signature
-        uint8_t*    cert_body;
-        uint8_t*    cert_sig;
-        size_t      cert_body_len;
-        size_t      cert_sig_len;
+        uint8_t* cert_body;
+        uint8_t* cert_sig;
+        size_t   cert_body_len;
+        size_t   cert_sig_len;
         LIB_RSA_KEY cert_key;
 
         ret = parse_x509_pem(cert_start, &cert_start, &cert_body, &cert_body_len, &cert_sig,
@@ -496,8 +493,9 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
 
         ret = lib_RSAVerifySHA256(&cert_key, hash, sizeof(hash), data_sig, data_sig_len);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Failed to verify the report against the IAS certificates,"
-                    " rv = %d\n", ret);
+            SGX_DBG(DBG_E,
+                    "Failed to verify the report against the IAS certificates, rv = %d\n",
+                    ret);
             lib_RSAFreeKey(&cert_key);
             goto failed;
         }
@@ -511,12 +509,13 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     }
 
     // Parse the IAS report in JSON format
-    char* ias_status    = NULL;
-    char* ias_timestamp = NULL;
+    char* ias_status             = NULL;
+    char* ias_timestamp          = NULL;
     sgx_quote_nonce_t* ias_nonce = NULL;
-    sgx_quote_t*       ias_quote = NULL;
+    sgx_quote_t* ias_quote       = NULL;
     char* start = attestation.ias_report;
-    if (start[0] == '{') start++;
+    if (start[0] == '{')
+        start++;
     char* end = strchr(start, ',');
     while (end) {
         char* next_start = end + 1;
@@ -525,16 +524,24 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
         char* delim = strchr(start, ':');
         if (!delim)
             break;
-        char*  key  = start;
-        char*  val  = delim + 1;
+        char* key   = start;
+        char* val   = delim + 1;
         size_t klen = delim - start;
         size_t vlen = end - val;
 
         // Remove quotation marks (") around the key and value if there are any
-        if (key[0] == '"') { key++; klen--; }
-        if (key[klen - 1] == '"') klen--;
-        if (val[0] == '"') { val++; vlen--; }
-        if (val[vlen - 1] == '"') vlen--;
+        if (key[0] == '"') {
+            key++;
+            klen--;
+        }
+        if (key[klen - 1] == '"')
+            klen--;
+        if (val[0] == '"') {
+            val++;
+            vlen--;
+        }
+        if (val[vlen - 1] == '"')
+            vlen--;
 
         // Scan the fields in the IAS report.
         if (!memcmp(key, "isvEnclaveQuoteStatus", klen)) {
@@ -582,7 +589,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
         }
 
         start = next_start;
-        end = strchr(start, ',') ? : strchr(start, '}');
+        end   = strchr(start, ',') ?: strchr(start, '}');
     }
 
     if (!ias_status || !ias_nonce || !ias_timestamp || !ias_quote) {
@@ -591,18 +598,18 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     }
 
     SGX_DBG(DBG_S, "Quote:\n");
-    SGX_DBG(DBG_S, "  version:    %04x\n",  ias_quote->body.version);
-    SGX_DBG(DBG_S, "  sigtype:    %04x\n",  ias_quote->body.sigtype);
-    SGX_DBG(DBG_S, "  gid:        %08x\n",  ias_quote->body.gid);
-    SGX_DBG(DBG_S, "  isvsvn qe:  %08x\n",  ias_quote->body.isvsvn_qe);
-    SGX_DBG(DBG_S, "  isvsvn pce: %08x\n",  ias_quote->body.isvsvn_pce);
+    SGX_DBG(DBG_S, "  version:    %04x\n", ias_quote->body.version);
+    SGX_DBG(DBG_S, "  sigtype:    %04x\n", ias_quote->body.sigtype);
+    SGX_DBG(DBG_S, "  gid:        %08x\n", ias_quote->body.gid);
+    SGX_DBG(DBG_S, "  isvsvn qe:  %08x\n", ias_quote->body.isvsvn_qe);
+    SGX_DBG(DBG_S, "  isvsvn pce: %08x\n", ias_quote->body.isvsvn_pce);
 
     SGX_DBG(DBG_S, "IAS report: %s\n", attestation.ias_report);
     SGX_DBG(DBG_S, "  status:    %s\n", ias_status);
     SGX_DBG(DBG_S, "  timestamp: %s\n", ias_timestamp);
 
-    // Only accept status to be "OK" or "GROUP_OUT_OF_DATE" / "CONFIGURATION_NEEDED"
-    // (if accept_out_of_date / accept_configuration_needed is true)
+    // Only accept status to be "OK" or "GROUP_OUT_OF_DATE" / "CONFIGURATION_NEEDED" (if
+    // accept_out_of_date / accept_configuration_needed is true)
     if (strcmp_static(ias_status, "OK") &&
         (!accept_group_out_of_date || strcmp_static(ias_status, "GROUP_OUT_OF_DATE")) &&
         (!accept_configuration_needed || strcmp_static(ias_status, "CONFIGURATION_NEEDED"))) {
@@ -648,10 +655,14 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     }
     ret = 0;
 free_attestation:
-    if (attestation.quote)      free(attestation.quote);
-    if (attestation.ias_report) free(attestation.ias_report);
-    if (attestation.ias_sig)    free(attestation.ias_sig);
-    if (attestation.ias_certs)  free(attestation.ias_certs);
+    if (attestation.quote)
+        free(attestation.quote);
+    if (attestation.ias_report)
+        free(attestation.ias_report);
+    if (attestation.ias_sig)
+        free(attestation.ias_sig);
+    if (attestation.ias_certs)
+        free(attestation.ias_certs);
     return ret;
 
 failed:

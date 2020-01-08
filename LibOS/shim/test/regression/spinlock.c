@@ -1,14 +1,14 @@
 /* Poor man's spinlock test */
+#include "spinlock.h"
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "spinlock.h"
-
 #define TEST_TIMES 1000
 
 static spinlock_t guard = INIT_SPINLOCK_UNLOCKED;
-static spinlock_t go = INIT_SPINLOCK_UNLOCKED;
+static spinlock_t go    = INIT_SPINLOCK_UNLOCKED;
 static volatile int x = 0;
 
 static int set_expect(int s, int e) {
@@ -47,7 +47,7 @@ static void do_test(void) {
         exit(1);
     }
 
-    pthread_join(th, (void **)&ret_val);
+    pthread_join(th, (void**)&ret_val);
     if (ret_val) {
         puts("Test failed!");
         exit(1);

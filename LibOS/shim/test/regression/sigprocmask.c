@@ -4,14 +4,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void* thread_func(void* arg)
-{
+void* thread_func(void* arg) {
     exit(113);
     return NULL;
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     sigset_t newmask;
     sigset_t oldmask;
     sigemptyset(&newmask);
@@ -44,7 +42,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    while(1)
+    while (1)
         sleep(1);
 
     return -1;

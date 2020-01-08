@@ -21,8 +21,9 @@
 
 #ifndef __ASSEMBLER__
 
-#include "assert.h"
 #include <stdint.h>
+
+#include "assert.h"
 
 #pragma pack(push, 1)
 
@@ -59,7 +60,7 @@ typedef uint32_t sgx_misc_select_t;
 typedef uint16_t sgx_prod_id_t;
 typedef uint16_t sgx_isv_svn_t;
 typedef uint16_t sgx_config_svn_t;
-typedef uint8_t  sgx_config_id_t[SGX_CONFIGID_SIZE];
+typedef uint8_t sgx_config_id_t[SGX_CONFIGID_SIZE];
 
 #define SGX_ISVEXT_PROD_ID_SIZE 16
 #define SGX_ISV_FAMILY_ID_SIZE  16
@@ -73,12 +74,12 @@ typedef uint8_t sgx_isvfamily_id_t[SGX_ISV_FAMILY_ID_SIZE];
 #define SGX_FLAGS_PROVISION_KEY 0x10ULL
 #define SGX_FLAGS_LICENSE_KEY   0x20ULL
 
-#define SGX_XFRM_LEGACY         0x03ULL
-#define SGX_XFRM_AVX            0x06ULL
-#define SGX_XFRM_MPX            0x18ULL
-#define SGX_XFRM_AVX512         0xe6ULL
+#define SGX_XFRM_LEGACY 0x03ULL
+#define SGX_XFRM_AVX    0x06ULL
+#define SGX_XFRM_MPX    0x18ULL
+#define SGX_XFRM_AVX512 0xe6ULL
 
-#define SGX_MISCSELECT_EXINFO   0x01UL
+#define SGX_MISCSELECT_EXINFO 0x01UL
 
 typedef struct {
     uint64_t          size;
@@ -166,29 +167,30 @@ typedef struct {
 
 // Required by _restore_sgx_context, see enclave_entry.S.
 static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, rflags) ==
-               sizeof(((sgx_cpu_context_t) {0}).rflags),
-               "rip must be directly after rflags in sgx_cpu_context_t");
-static_assert(offsetof(sgx_cpu_context_t, rflags) - offsetof(sgx_cpu_context_t, rdi) <= RED_ZONE_SIZE,
-               "rdi needs to be within red zone distance from rflags");
+                  sizeof(((sgx_cpu_context_t){0}).rflags),
+              "rip must be directly after rflags in sgx_cpu_context_t");
+static_assert(offsetof(sgx_cpu_context_t, rflags) - offsetof(sgx_cpu_context_t, rdi) <=
+                  RED_ZONE_SIZE,
+              "rdi needs to be within red zone distance from rflags");
 
 typedef struct {
-    uint32_t vector:8;
-    uint32_t exit_type:3;
-    uint32_t reserved:20;
-    uint32_t valid:1;
+    uint32_t vector : 8;
+    uint32_t exit_type : 3;
+    uint32_t reserved : 20;
+    uint32_t valid : 1;
 } sgx_arch_exit_info_t;
 
-#define SGX_EXCEPTION_HARDWARE      3UL
-#define SGX_EXCEPTION_SOFTWARE      6UL
+#define SGX_EXCEPTION_HARDWARE 3UL
+#define SGX_EXCEPTION_SOFTWARE 6UL
 
-#define SGX_EXCEPTION_VECTOR_DE     0UL  /* DIV and IDIV instructions */
-#define SGX_EXCEPTION_VECTOR_DB     1UL  /* For Intel use only */
-#define SGX_EXCEPTION_VECTOR_BP     3UL  /* INT 3 instruction */
-#define SGX_EXCEPTION_VECTOR_BR     5UL  /* BOUND instruction */
-#define SGX_EXCEPTION_VECTOR_UD     6UL  /* UD2 instruction or reserved opcodes */
-#define SGX_EXCEPTION_VECTOR_MF    16UL  /* x87 FPU floating-point or WAIT/FWAIT instruction */
-#define SGX_EXCEPTION_VECTOR_AC    17UL  /* Any data reference in memory */
-#define SGX_EXCEPTION_VECTOR_XM    19UL  /* Any SIMD floating-point exceptions */
+#define SGX_EXCEPTION_VECTOR_DE 0UL  /* DIV and IDIV instructions */
+#define SGX_EXCEPTION_VECTOR_DB 1UL  /* For Intel use only */
+#define SGX_EXCEPTION_VECTOR_BP 3UL  /* INT 3 instruction */
+#define SGX_EXCEPTION_VECTOR_BR 5UL  /* BOUND instruction */
+#define SGX_EXCEPTION_VECTOR_UD 6UL  /* UD2 instruction or reserved opcodes */
+#define SGX_EXCEPTION_VECTOR_MF 16UL /* x87 FPU floating-point or WAIT/FWAIT instruction */
+#define SGX_EXCEPTION_VECTOR_AC 17UL /* Any data reference in memory */
+#define SGX_EXCEPTION_VECTOR_XM 19UL /* Any SIMD floating-point exceptions */
 
 typedef struct {
     uint64_t lin_addr;
@@ -202,12 +204,12 @@ typedef struct {
     uint64_t reserved[7];
 } sgx_arch_sec_info_t;
 
-#define SGX_SECINFO_FLAGS_R             0x001
-#define SGX_SECINFO_FLAGS_W             0x002
-#define SGX_SECINFO_FLAGS_X             0x004
-#define SGX_SECINFO_FLAGS_SECS          0x000
-#define SGX_SECINFO_FLAGS_TCS           0x100
-#define SGX_SECINFO_FLAGS_REG           0x200
+#define SGX_SECINFO_FLAGS_R    0x001
+#define SGX_SECINFO_FLAGS_W    0x002
+#define SGX_SECINFO_FLAGS_X    0x004
+#define SGX_SECINFO_FLAGS_SECS 0x000
+#define SGX_SECINFO_FLAGS_TCS  0x100
+#define SGX_SECINFO_FLAGS_REG  0x200
 
 typedef struct _css_header_t {
     uint8_t  header[12];
@@ -340,8 +342,7 @@ typedef struct _key_request_t {
 } sgx_key_request_t;
 static_assert(sizeof(sgx_key_request_t) == 512, "incorrect struct size");
 
-#define SGX_TARGETINFO_FILLED_SIZE (sizeof(sgx_measurement_t) + \
-                                    sizeof(sgx_attributes_t))
+#define SGX_TARGETINFO_FILLED_SIZE (sizeof(sgx_measurement_t) + sizeof(sgx_attributes_t))
 
 typedef uint8_t sgx_key_128bit_t[16];
 
@@ -356,34 +357,34 @@ typedef uint8_t sgx_key_128bit_t[16];
 
 #endif
 
-#define EENTER      2
-#define ERESUME     3
-#define EDBGRD      4
-#define EDBGWR      5
+#define EENTER  2
+#define ERESUME 3
+#define EDBGRD  4
+#define EDBGWR  5
 
-#define EREPORT     0
-#define EGETKEY     1
-#define EEXIT       4
+#define EREPORT 0
+#define EGETKEY 1
+#define EEXIT   4
 
-#define LAUNCH_KEY          0
-#define PROVISION_KEY       1
-#define PROVISION_SEAL_KEY  2
-#define REPORT_KEY          3
-#define SEAL_KEY            4
+#define LAUNCH_KEY         0
+#define PROVISION_KEY      1
+#define PROVISION_SEAL_KEY 2
+#define REPORT_KEY         3
+#define SEAL_KEY           4
 
-#define KEYPOLICY_MRENCLAVE     1
-#define KEYPOLICY_MRSIGNER      2
+#define KEYPOLICY_MRENCLAVE 1
+#define KEYPOLICY_MRSIGNER  2
 
-#define XSAVE_SIZE  512
+#define XSAVE_SIZE 512
 
-#define STACK_ALIGN 0xfffffffffffffff0
-#define XSAVE_ALIGN 0xffffffffffffffc0
+#define STACK_ALIGN       0xfffffffffffffff0
+#define XSAVE_ALIGN       0xffffffffffffffc0
 #define XSAVE_NON_FX_MASK 0xfffffffffffffffc
 
 #define RETURN_FROM_OCALL 0xffffffffffffffff
 
-#define RFLAGS_DF (1<<10)
-#define RFLAGS_AC (1<<18)
+#define RFLAGS_DF (1 << 10)
+#define RFLAGS_AC (1 << 18)
 
 #pragma pack(pop)
 #endif /* SGX_ARCH_H */

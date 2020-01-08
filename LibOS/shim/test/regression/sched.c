@@ -11,7 +11,7 @@
 
 int main(int argc, char** argv) {
     /* setters */
-    struct sched_param param = { .sched_priority = 50 };
+    struct sched_param param = {.sched_priority = 50};
     if (sched_setscheduler(0, SCHED_RR, &param) == -1) {
         perror("Error setting scheduler\n");
         return 1;
@@ -65,9 +65,9 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    struct timespec interval = { 0 };
-    if (sched_rr_get_interval(0, &interval) == -1 ||
-            interval.tv_sec != 0 || interval.tv_nsec != 100000000) {
+    struct timespec interval = {0};
+    if (sched_rr_get_interval(0, &interval) == -1 || interval.tv_sec != 0 ||
+            interval.tv_nsec != 100000000) {
         perror("Error getting interval of SCHED_RR\n");
         return 2;
     }

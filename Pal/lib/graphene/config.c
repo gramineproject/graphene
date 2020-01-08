@@ -414,8 +414,9 @@ static int __dup_config(const struct config_store* ss, const LISTP_TYPE(config) 
                 *data += e->klen;
                 *size -= e->klen;
                 memcpy(key, e->key, e->klen);
-            } else
+            } else {
                 need += e->klen;
+            }
         }
         if (e->val) {
             if (*size > e->vlen) {
@@ -423,8 +424,9 @@ static int __dup_config(const struct config_store* ss, const LISTP_TYPE(config) 
                 *data += e->vlen;
                 *size -= e->vlen;
                 memcpy(val, e->val, e->vlen);
-            } else
+            } else {
                 need += e->vlen;
+            }
         }
 
         if (need) {

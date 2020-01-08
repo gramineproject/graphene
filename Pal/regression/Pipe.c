@@ -3,8 +3,10 @@
 #include "pal_debug.h"
 
 int main(int argc, char** argv, char** envp) {
-    char buffer1[20] = "Hello World 1", buffer2[20] = "Hello World 2";
-    char buffer3[20], buffer4[20];
+    char buffer1[20] = "Hello World 1";
+    char buffer2[20] = "Hello World 2";
+    char buffer3[20];
+    char buffer4[20];
     int ret;
 
     PAL_HANDLE pipe1 = DkStreamOpen("pipe.srv:1", PAL_ACCESS_RDWR, 0, 0, 0);
@@ -17,8 +19,9 @@ int main(int argc, char** argv, char** envp) {
         if (!DkStreamAttributesQueryByHandle(pipe1, &attr)) {
             pal_printf("Failed to get any attributes from the pipesrv\n");
             return -1;
-        } else
+        } else {
             pal_printf("Pipe Attribute Query 1 on pipesrv returned OK\n");
+        }
         // DEP: would be nice to sanity check the attributes.
         // Job for another day...
 

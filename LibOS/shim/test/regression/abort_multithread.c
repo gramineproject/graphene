@@ -1,9 +1,9 @@
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 
-/* Test if abort() in a child thread kills the whole process. This should report
- * 134 (128 + 6 where 6 is SIGABRT) as its return code. */
+/* Test if abort() in a child thread kills the whole process. This should report 134 (128 + 6 where
+ * 6 is SIGABRT) as its return code. */
 
 void* thread_abort(void* arg) {
     abort();

@@ -9,8 +9,8 @@ int main(void) {
     fd_set rfds;
     fd_set wfds;
 
-    int  ret;
-    int  fd[2];
+    int ret;
+    int fd[2];
     char string[] = "Hello, world!\n";
     struct timespec tv = {.tv_sec = 10, .tv_nsec = 0};
 
@@ -32,7 +32,7 @@ int main(void) {
     }
     printf("pselect() on write event returned %d file descriptors\n", ret);
 
-    write(fd[1], string, (strlen(string)+1));
+    write(fd[1], string, (strlen(string) + 1));
     ret = pselect(fd[1] + 1, &rfds, NULL, NULL, &tv, NULL);
     if (ret <= 0) {
         perror("pselect() on read event failed");

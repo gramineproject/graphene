@@ -1,8 +1,6 @@
 #include <errno.h>
-
 #include <poll.h>
 #include <pthread.h>
-
 #include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>

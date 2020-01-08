@@ -20,30 +20,29 @@
  * This file contains functions to add asyncronous events triggered by timer.
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_thread.h>
-
-#include <pal.h>
 #include <list.h>
+#include <pal.h>
+#include <shim_internal.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 
-#define IDLE_SLEEP_TIME     1000
-#define MAX_IDLE_CYCLES     100
+#define IDLE_SLEEP_TIME 1000
+#define MAX_IDLE_CYCLES 100
 
 DEFINE_LIST(async_event);
 struct async_event {
-    IDTYPE                 caller;        /* thread installing this event */
+    IDTYPE caller;  /* thread installing this event */
     LIST_TYPE(async_event) list;
-    void                   (*callback) (IDTYPE caller, void * arg);
-    void *                 arg;
-    PAL_HANDLE             object;        /* handle (async IO) to wait on */
-    uint64_t               expire_time;   /* alarm/timer to wait on */
+    void (*callback)(IDTYPE caller, void* arg);
+    void* arg;
+    PAL_HANDLE object;     /* handle (async IO) to wait on */
+    uint64_t expire_time;  /* alarm/timer to wait on */
 };
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
 
 /* can be read without async_helper_lock but always written with lock held */
-static enum {  HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
+static enum { HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
 
 static struct shim_thread* async_helper_thread;
 static struct shim_lock async_helper_lock;
@@ -68,27 +67,27 @@ static int create_async_helper(void);
  * or 0 for async IO events. On error, it returns -1.
  */
 int64_t install_async_event(PAL_HANDLE object, uint64_t time,
-                            void (*callback) (IDTYPE caller, void * arg),
-                            void * arg) {
+                            void (*callback)(IDTYPE caller, void* arg), void* arg) {
     /* if event happens on object, time must be zero */
     assert(!object || (object && !time));
 
-    uint64_t now = DkSystemTimeQuery();
+    uint64_t now                  = DkSystemTimeQuery();
     uint64_t max_prev_expire_time = now;
 
     struct async_event* event = malloc(sizeof(struct async_event));
-    event->callback     = callback;
-    event->arg          = arg;
-    event->caller       = get_cur_tid();
-    event->object       = object;
-    event->expire_time  = time ? now + time : 0;
+    event->callback           = callback;
+    event->arg                = arg;
+    event->caller             = get_cur_tid();
+    event->object             = object;
+    event->expire_time        = time ? now + time : 0;
 
     lock(&async_helper_lock);
 
     if (callback != &cleanup_thread && !object) {
         /* This is alarm() or setitimer() emulation, treat both according to
          * alarm() syscall semantics: cancel any pending alarm/timer. */
-        struct async_event * tmp, * n;
+        struct async_event* tmp;
+        struct async_event* n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
             if (tmp->expire_time) {
                 /* this is a pending alarm/timer, cancel it and save its expiration time */
@@ -139,8 +138,8 @@ int init_async(void) {
     return 0;
 }
 
-static void shim_async_helper(void * arg) {
-    struct shim_thread * self = (struct shim_thread *) arg;
+static void shim_async_helper(void* arg) {
+    struct shim_thread* self = (struct shim_thread*)arg;
     if (!arg)
         return;
 
@@ -173,11 +172,10 @@ static void shim_async_helper(void * arg) {
 
     /* init object_list so that it always contains at least install_new_event */
     size_t object_list_size = 32;
-    PAL_HANDLE * object_list =
-            malloc(sizeof(PAL_HANDLE) * (1 + object_list_size));
+    PAL_HANDLE* object_list = malloc(sizeof(PAL_HANDLE) * (1 + object_list_size));
 
     PAL_HANDLE install_new_event_hdl = event_handle(&install_new_event);
-    object_list[0] = install_new_event_hdl;
+    object_list[0]                   = install_new_event_hdl;
 
     while (true) {
         uint64_t now = DkSystemTimeQuery();
@@ -204,9 +202,10 @@ static void shim_async_helper(void * arg) {
          *   - repopulate object_list with async IO events (if any), and
          *   - find the next expiring alarm/timer (if any) */
         uint64_t next_expire_time = 0;
-        size_t object_num = 0;
+        size_t object_num         = 0;
 
-        struct async_event * tmp, * n;
+        struct async_event* tmp;
+        struct async_event* n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
             /* First check if this event was triggered; there are three types:
              *   1. Exited child:  trigger callback and remove from the list;
@@ -231,8 +230,8 @@ static void shim_async_helper(void * arg) {
                 lock(&async_helper_lock);
                 goto again;
             } else if (tmp->expire_time && tmp->expire_time <= now) {
-                debug("Async alarm/timer triggered at %lu (expired at %lu)\n",
-                        now, tmp->expire_time);
+                debug("Async alarm/timer triggered at %lu (expired at %lu)\n", now,
+                      tmp->expire_time);
                 LISTP_DEL(tmp, &async_list, list);
                 LISTP_ADD_TAIL(tmp, &triggered, list);
                 continue;
@@ -242,10 +241,8 @@ static void shim_async_helper(void * arg) {
             if (tmp->object) {
                 if (object_num == object_list_size) {
                     /* grow object_list to accomodate more objects */
-                    PAL_HANDLE * tmp_array = malloc(
-                            sizeof(PAL_HANDLE) * (1 + object_list_size * 2));
-                    memcpy(tmp_array, object_list,
-                            sizeof(PAL_HANDLE) * (1 + object_list_size));
+                    PAL_HANDLE* tmp_array = malloc(sizeof(PAL_HANDLE) * (1 + object_list_size * 2));
+                    memcpy(tmp_array, object_list, sizeof(PAL_HANDLE) * (1 + object_list_size));
                     object_list_size *= 2;
                     free(object_list);
                     object_list = tmp_array;
@@ -272,10 +269,10 @@ static void shim_async_helper(void * arg) {
 
         uint64_t sleep_time;
         if (next_expire_time) {
-            sleep_time = next_expire_time - now;
+            sleep_time  = next_expire_time - now;
             idle_cycles = 0;
         } else if (object_num) {
-            sleep_time = NO_TIMEOUT;
+            sleep_time  = NO_TIMEOUT;
             idle_cycles = 0;
         } else {
             /* no async IO events and no timers/alarms: thread is idling */
@@ -284,7 +281,7 @@ static void shim_async_helper(void * arg) {
         }
 
         if (idle_cycles == MAX_IDLE_CYCLES) {
-            async_helper_state = HELPER_NOTALIVE;
+            async_helper_state  = HELPER_NOTALIVE;
             async_helper_thread = NULL;
             unlock(&async_helper_lock);
             debug("Async helper thread has been idle for some time; stopping it\n");
@@ -314,13 +311,13 @@ static int create_async_helper(void) {
         return -ENOMEM;
 
     async_helper_thread = new;
-    async_helper_state = HELPER_ALIVE;
+    async_helper_state  = HELPER_ALIVE;
 
     PAL_HANDLE handle = thread_create(shim_async_helper, new);
 
     if (!handle) {
         async_helper_thread = NULL;
-        async_helper_state = HELPER_NOTALIVE;
+        async_helper_state  = HELPER_NOTALIVE;
         put_thread(new);
         return -PAL_ERRNO;
     }

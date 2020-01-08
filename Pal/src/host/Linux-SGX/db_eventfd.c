@@ -17,26 +17,25 @@
 /*
  * db_eventfd.c
  *
- * This file contains operations to handle streams with URIs that have
- * "eventfd:".
+ * This file contains operations to handle streams with URIs that have "eventfd:".
  */
 
 #include <asm/fcntl.h>
 #include <asm/poll.h>
-#include <linux/un.h>
 #include <linux/types.h>
+#include <linux/un.h>
 #include <sys/eventfd.h>
 
 #include "api.h"
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_defs.h"
 #include "pal_linux_error.h"
-#include "pal_error.h"
 #include "pal_security.h"
-#include "pal_debug.h"
 
 static inline int eventfd_type(int options) {
     int type = 0;
@@ -52,10 +51,10 @@ static inline int eventfd_type(int options) {
     return type;
 }
 
-/* `type` must be eventfd, `uri` & `access` & `share` are unused,
- * `create` holds eventfd's initval, `options` holds eventfd's flags */
+/* `type` must be eventfd, `uri` & `access` & `share` are unused, `create` holds eventfd's initval,
+ * `options` holds eventfd's flags */
 static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* uri, int access,
-        int share, int create, int options) {
+                            int share, int create, int options) {
     int ret;
     __UNUSED(access);
     __UNUSED(share);
@@ -76,12 +75,11 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
     /* Note: using index 0, given that there is only 1 eventfd FD per pal-handle. */
     HANDLE_HDR(hdl)->flags = RFD(0) | WFD(0) | WRITABLE(0);
 
-    hdl->eventfd.fd = ret;
+    hdl->eventfd.fd          = ret;
     hdl->eventfd.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
     *handle = hdl;
 
     return 0;
-
 }
 
 static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* buffer) {
@@ -94,8 +92,8 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
-    /* TODO: verify that the value returned in buffer is somehow meaningful
-     * (to prevent Iago attacks) */
+    /* TODO: verify that the value returned in buffer is somehow meaningful (to prevent Iago
+     * attacks) */
     int bytes = ocall_read(handle->eventfd.fd, buffer, len);
 
     if (IS_ERR(bytes))
@@ -108,7 +106,7 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
 }
 
 static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t len,
-        const void* buffer) {
+                                 const void* buffer) {
     if (offset)
         return -PAL_ERROR_INVAL;
 
@@ -127,9 +125,9 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
         return unix_to_pal_error(ERRNO(bytes));
     }
 
-    /* whether fd is writable or not, gets updated here,
-     * to optimize polling logic in _DkObjectsWaitAny */
-    if ((uint64_t) bytes == sizeof(uint64_t))
+    /* whether fd is writable or not, gets updated here, to optimize polling logic in
+     * _DkObjectsWaitAny */
+    if ((uint64_t)bytes == sizeof(uint64_t))
         HANDLE_HDR(handle)->flags |= writable;
     else
         HANDLE_HDR(handle)->flags &= ~writable;
@@ -147,21 +145,21 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
     int efd = handle->eventfd.fd;
     int flags = HANDLE_HDR(handle)->flags;
 
-    struct pollfd pfd = { .fd = efd, .events = POLLIN, .revents = 0 };
+    struct pollfd pfd = {.fd = efd, .events = POLLIN, .revents = 0};
     int ret = ocall_poll(&pfd, 1, 0);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+    attr->readable     = (ret == 1 && pfd.revents == POLLIN);
     attr->disconnected = flags & ERROR(0);
-    attr->nonblocking = handle->eventfd.nonblocking;
+    attr->nonblocking  = handle->eventfd.nonblocking;
 
-    /* For future use, so that Linux host kernel can send notifications to user-space apps.
-     * App receives virtual FD from LibOS, but the Linux-host eventfd is memorized
-     * here, such that this Linux-host eventfd can be retrieved (by LibOS) during app's ioctl(). */
+    /* For future use, so that Linux host kernel can send notifications to user-space apps. App
+     * receives virtual FD from LibOS, but the Linux-host eventfd is memorized here, such that this
+     * Linux-host eventfd can be retrieved (by LibOS) during app's ioctl(). */
     attr->no_of_fds = 1;
-    attr->fds[0] = efd;
+    attr->fds[0]    = efd;
 
     return 0;
 }
@@ -179,9 +177,9 @@ static int eventfd_pal_close(PAL_HANDLE handle) {
 }
 
 struct handle_ops eventfd_ops = {
-    .open               = &eventfd_pal_open,
-    .read               = &eventfd_pal_read,
-    .write              = &eventfd_pal_write,
-    .close              = &eventfd_pal_close,
-    .attrquerybyhdl     = &eventfd_pal_attrquerybyhdl,
+    .open           = &eventfd_pal_open,
+    .read           = &eventfd_pal_read,
+    .write          = &eventfd_pal_write,
+    .close          = &eventfd_pal_close,
+    .attrquerybyhdl = &eventfd_pal_attrquerybyhdl,
 };

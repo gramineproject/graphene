@@ -20,49 +20,40 @@
  * This file contains APIs for miscellaneous use.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
-int _DkInternalLock (PAL_LOCK * lock)
-{
+int _DkInternalLock(PAL_LOCK* lock) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkInternalUnlock (PAL_LOCK * lock)
-{
+int _DkInternalUnlock(PAL_LOCK* lock) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-unsigned long _DkSystemTimeQuery (void)
-{
+unsigned long _DkSystemTimeQuery(void) {
     return 0;
 }
 
-size_t _DkRandomBitsRead (void * buffer, size_t size)
-{
+size_t _DkRandomBitsRead(void* buffer, size_t size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSegmentRegisterSet (int reg, const void * addr)
-{
+int _DkSegmentRegisterSet(int reg, const void* addr) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSegmentRegisterGet (int reg, void ** addr)
-{
+int _DkSegmentRegisterGet(int reg, void** addr) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkInstructionCacheFlush (const void * addr, int size)
-{
+int _DkInstructionCacheFlush(const void* addr, int size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
-                      unsigned int values[4])
-{
+int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

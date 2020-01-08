@@ -69,8 +69,9 @@ static int chroot_mount (const char * uri, void ** mount_data)
     } else if (strstartswith_static(uri, URI_PREFIX_DEV)) {
         type = strstartswith_static(uri + static_strlen(URI_PREFIX_DEV), "tty") ? FILE_TTY : FILE_DEV;
         uri += 4;
-    } else
+    } else {
         return -EINVAL;
+    }
 
     if (!(*uri))
         uri = ".";
@@ -258,8 +259,9 @@ static int __query_attr (struct shim_dentry * dent,
             for (d = dbuf; d; d = d->next)
                 nlink++;
             free(dbuf);
-        } else
+        } else {
             nlink = 2; // Educated guess...
+        }
         data->nlink = nlink;
     } else {
         /* DEP 3/18/17: Right now, we don't support hard links,

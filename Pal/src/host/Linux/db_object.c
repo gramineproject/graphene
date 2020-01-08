@@ -20,6 +20,11 @@
  * This file contains APIs for waiting on PAL handles (polling).
  */
 
+#include <asm/errno.h>
+#include <linux/poll.h>
+#include <linux/time.h>
+#include <linux/wait.h>
+
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -29,13 +34,8 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 
-#include <asm/errno.h>
-#include <linux/poll.h>
-#include <linux/time.h>
-#include <linux/wait.h>
-
-/* Wait for an event on any handle in the handle array and return this handle in `polled`.
- * If no ready-event handle was found, `polled` is set to NULL. */
+/* Wait for an event on any handle in the handle array and return this handle in `polled`. If no
+ * ready-event handle was found, `polled` is set to NULL. */
 int _DkObjectsWaitAny(size_t count, PAL_HANDLE* handle_array, int64_t timeout_us,
                       PAL_HANDLE* polled) {
     int ret;
@@ -94,7 +94,7 @@ int _DkObjectsWaitAny(size_t count, PAL_HANDLE* handle_array, int64_t timeout_us
                 fds[nfds].fd      = hdl->generic.fds[j];
                 fds[nfds].events  = events;
                 fds[nfds].revents = 0;
-                hdls[nfds]        = hdl;
+                hdls[nfds] = hdl;
                 nfds++;
             }
         }
@@ -109,9 +109,9 @@ int _DkObjectsWaitAny(size_t count, PAL_HANDLE* handle_array, int64_t timeout_us
     struct timespec timeout_ts;
 
     if (timeout_us >= 0) {
-        int64_t sec = timeout_us / 1000000;
-        int64_t microsec = timeout_us - sec * 1000000;
-        timeout_ts.tv_sec = sec;
+        int64_t sec        = timeout_us / 1000000;
+        int64_t microsec   = timeout_us - sec * 1000000;
+        timeout_ts.tv_sec  = sec;
         timeout_ts.tv_nsec = microsec * 1000;
     }
 
@@ -161,7 +161,7 @@ int _DkObjectsWaitAny(size_t count, PAL_HANDLE* handle_array, int64_t timeout_us
             /* found internal FD of PAL handle that corresponds to the FD of event-ready fds[i] */
             if (fds[i].revents & POLLOUT)
                 HANDLE_HDR(polled_hdl)->flags |= WRITABLE(j);
-            if (fds[i].revents & (POLLHUP|POLLERR))
+            if (fds[i].revents & (POLLHUP | POLLERR))
                 HANDLE_HDR(polled_hdl)->flags |= ERROR(j);
         }
     }
@@ -172,12 +172,11 @@ out:
     return ret;
 }
 
-
 /* Improved version of _DkObjectsWaitAny(): wait for specific events on all handles in the handle
  * array and return multiple events (including errors) reported by the host. Returns 0 on success,
  * PAL error on failure. */
-int _DkObjectsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events, PAL_FLG* ret_events,
-                         int64_t timeout_us) {
+int _DkObjectsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events,
+                         PAL_FLG* ret_events, int64_t timeout_us) {
     int ret;
 
     if (count == 0)
@@ -221,7 +220,7 @@ int _DkObjectsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
                 fds[nfds].fd      = hdl->generic.fds[j];
                 fds[nfds].events  = fdevents;
                 fds[nfds].revents = 0;
-                offsets[nfds]     = i;
+                offsets[nfds] = i;
                 nfds++;
             }
         }
@@ -236,9 +235,9 @@ int _DkObjectsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
     struct timespec timeout_ts;
 
     if (timeout_us >= 0) {
-        int64_t sec = timeout_us / 1000000;
-        int64_t microsec = timeout_us - sec * 1000000;
-        timeout_ts.tv_sec = sec;
+        int64_t sec        = timeout_us / 1000000;
+        int64_t microsec   = timeout_us - sec * 1000000;
+        timeout_ts.tv_sec  = sec;
         timeout_ts.tv_nsec = microsec * 1000;
     }
 
@@ -272,7 +271,7 @@ int _DkObjectsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
             ret_events[j] |= PAL_WAIT_READ;
         if (fds[i].revents & POLLOUT)
             ret_events[j] |= PAL_WAIT_WRITE;
-        if (fds[i].revents & (POLLHUP|POLLERR|POLLNVAL))
+        if (fds[i].revents & (POLLHUP | POLLERR | POLLNVAL))
             ret_events[j] |= PAL_WAIT_ERROR;
     }
 
