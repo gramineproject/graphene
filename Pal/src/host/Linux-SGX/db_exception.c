@@ -36,28 +36,12 @@
 #include <linux/signal.h>
 #include <ucontext.h>
 
-typedef struct exception_event {
-    PAL_IDX             event_num;
-    PAL_CONTEXT *       context;
-} PAL_EVENT;
-
-static void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
-                                    PAL_NUM arg, PAL_CONTEXT* context)
-{
-    struct exception_event event;
-
-    event.event_num = event_num;
-    event.context = context;
-
-    (*upcall) ((PAL_PTR) &event, arg, context);
-}
-
 static bool
 _DkGenericSignalHandle(int event_num, PAL_NUM arg, PAL_CONTEXT* context) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
 
     if (upcall) {
-        _DkGenericEventTrigger(event_num, upcall, arg, context);
+        (*upcall)(NULL, arg, context);
         return true;
     }
 
@@ -291,30 +275,12 @@ void _DkExceptionHandler(
     restore_pal_context(uc, &ctx);
 }
 
-void _DkRaiseFailure (int error)
-{
-    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
-
-    if (!upcall)
-        return;
-
-    PAL_EVENT event;
-    event.event_num = PAL_EVENT_FAILURE;
-    event.context   = NULL;
-
-    (*upcall) ((PAL_PTR) &event, error, NULL);
+void _DkRaiseFailure(int error) {
+    _DkGenericSignalHandle(PAL_EVENT_FAILURE, error, /*context=*/NULL);
 }
 
 void _DkExceptionReturn(void* event) {
-    PAL_EVENT* e = event;
-    PAL_CONTEXT* ctx = e->context;
-
-    if (!ctx) {
-        return;
-    }
-
-    sgx_cpu_context_t uc;
-    restore_pal_context(&uc, ctx);
+    __UNUSED(event);
 }
 
 noreturn void _DkHandleExternalEvent(

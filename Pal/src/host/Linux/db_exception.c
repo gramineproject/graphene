@@ -164,12 +164,6 @@ int block_async_signals (bool block)
     return block_signals(block, async_signals, nasync_signals);
 }
 
-typedef struct {
-    PAL_IDX         event_num;
-    PAL_CONTEXT     context;
-    ucontext_t *    uc;
-} PAL_EVENT;
-
 static int get_event_num (int signum)
 {
     switch(signum) {
@@ -183,20 +177,20 @@ static int get_event_num (int signum)
     }
 }
 
-static void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
-                                    PAL_NUM arg, ucontext_t * uc)
-{
-    PAL_EVENT event;
-    event.event_num = event_num;
-
-    if (uc) {
-        memcpy(&event.context, uc->uc_mcontext.gregs, sizeof(PAL_CONTEXT));
-        event.context.fpregs = (PAL_XREGS_STATE*)uc->uc_mcontext.fpregs;
+static void _DkGenericEventTrigger(PAL_EVENT_HANDLER upcall,
+                                   PAL_NUM arg, ucontext_t* uc) {
+    if (!uc) {
+        (*upcall)(NULL, arg, NULL);
+        return;
     }
 
-    event.uc = uc;
-
-    (*upcall) ((PAL_PTR) &event, arg, &event.context);
+    PAL_CONTEXT context;
+    memcpy(&context, uc->uc_mcontext.gregs, sizeof(context));
+    context.fpregs = (PAL_XREGS_STATE*)uc->uc_mcontext.fpregs;
+    (*upcall)(NULL, arg, &context);
+    /* copy the context back to ucontext */
+    memcpy(uc->uc_mcontext.gregs, &context, sizeof(context));
+    uc->uc_mcontext.fpregs = (struct _libc_fpstate*)context.fpregs;
 }
 
 static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
@@ -212,7 +206,7 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
             event_num == PAL_EVENT_ILLEGAL)
             arg = (PAL_NUM) (info ? info->si_addr : 0);
 
-        _DkGenericEventTrigger(event_num, upcall, arg, uc);
+        _DkGenericEventTrigger(upcall, arg, uc);
         return true;
     }
 
@@ -336,18 +330,11 @@ void __check_pending_event (void)
     }
 }
 
-void _DkRaiseFailure (int error)
-{
+void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
-
-    if (!upcall)
-        return;
-
-    PAL_EVENT event;
-    event.event_num = PAL_EVENT_FAILURE;
-    event.uc = NULL;
-
-    (*upcall) ((PAL_PTR) &event, error, NULL);
+    if (upcall) {
+        _DkGenericEventTrigger(upcall, error, NULL);
+    }
 }
 
 struct signal_ops {
@@ -413,12 +400,6 @@ err:
     INIT_FAIL(-ret, "cannot setup signal handlers");
 }
 
-void _DkExceptionReturn (void * event)
-{
-    PAL_EVENT * e = event;
-    if (e->uc) {
-        /* copy the context back to ucontext */
-        memcpy(e->uc->uc_mcontext.gregs, &e->context, sizeof(PAL_CONTEXT));
-        e->uc->uc_mcontext.fpregs = (struct _libc_fpstate*)e->context.fpregs;
-    }
+void _DkExceptionReturn(void* event) {
+    __UNUSED(event);
 }
