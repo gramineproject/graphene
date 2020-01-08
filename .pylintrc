@@ -303,8 +303,10 @@ good-names=
     i,
     j,
     k,
+    t,
     ex,
     Run,
+    argparser,
     _
 
 # Include a hint for the correct naming format with invalid-name.
