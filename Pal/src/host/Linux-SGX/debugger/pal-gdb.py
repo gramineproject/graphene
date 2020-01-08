@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+# pylint: disable=invalid-name
 
-import os, sys, gdb
+import gdb # pylint: disable=import-error
+
+# pylint: enable=invalid-name
+# pylint: disable=no-self-use,too-few-public-methods
 
 class LoadCommandBreakpoint(gdb.Breakpoint):
     def __init__(self):

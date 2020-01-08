@@ -9,6 +9,7 @@ import sys
 DEFAULT_REF = 'origin/master'
 
 ALWAYS = list(map(pathlib.Path, [
+    'Pal/src/host/Linux-SGX/debugger/pal-gdb.py',
     'Pal/src/host/Linux-SGX/signer',
     'Tools/gen_manifest',
 ]))
