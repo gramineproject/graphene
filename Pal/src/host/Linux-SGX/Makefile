@@ -19,7 +19,7 @@ enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memor
 		threading mutex events process object main rtld \
 		exception misc) \
 		$(addprefix enclave_,ocalls ecalls framework pf platform pages untrusted xstate) \
-		protected_files lru_cache
+		lru_cache protected_files
 enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
 	    quote/aesm.pb-c clone-x86_64

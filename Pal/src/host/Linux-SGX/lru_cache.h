@@ -1,8 +1,8 @@
 #ifndef LRU_CACHE_H_
 #define LRU_CACHE_H_
 
-#include "pal_internal.h"
-#include "pal_linux.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include "uthash.h"
 
 struct lruc_context;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2018,2019 Invisible Things Lab
+/* Copyright (C) 2018-2020 Invisible Things Lab
                            Rafal Wojdyla <omeg@invisiblethingslab.com>
 
    This file is part of Graphene Library OS.
@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 /* Miscellaneous helper functions */
 

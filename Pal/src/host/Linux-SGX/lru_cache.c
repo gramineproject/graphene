@@ -1,4 +1,19 @@
+#include <assert.h>
+#include <list.h>
 #include "lru_cache.h"
+
+#ifdef IN_PAL
+    #include "pal_internal.h"
+    #include "pal_linux.h"
+#else
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+
+noreturn void __abort(void) {
+    exit(-1);
+}
+#endif
 
 DEFINE_LIST(_lruc_list_node);
 typedef struct _lruc_list_node {
@@ -24,8 +39,12 @@ struct lruc_context {
 #define uthash_fatal(msg) lruc_fatal(msg)
 
 void lruc_fatal(const char* msg) {
-    SGX_DBG(DBG_E, "%s\n", msg);
+    printf("%s\n", msg);
+#ifdef IN_PAL
     DkProcessExit(-PAL_ERROR_NOMEM);
+#else
+    __abort();
+#endif
 }
 
 lruc_context_t lruc_create(void) {
@@ -77,7 +96,7 @@ bool lruc_add(lruc_context_t lruc, uint64_t key, void* data) {
     list_node->key = key;
     map_node->key = key;
     LISTP_ADD(list_node, &lruc->list, list);
-    lruc_map_node_t* mn = get_map_node(lruc, key);
+    __attribute__((unused)) lruc_map_node_t* mn = get_map_node(lruc, key);
     assert(mn == NULL);
     map_node->data = data;
     map_node->list_ptr = list_node;
@@ -161,74 +180,76 @@ void lruc_remove_last(lruc_context_t lruc) {
     free(mn);
 }
 
+#ifndef IN_PAL
 void lruc_test(void) {
     uint64_t a=1, b=2, c=3, d=4;
-    SGX_DBG(DBG_D, "\n=== LRUC TEST ===\n");
+    printf("\n=== LRUC TEST ===\n");
     lruc_context_t lruc = lruc_create();
-    SGX_DBG(DBG_D, "empty size: %u\n", lruc_size(lruc));
+    printf("empty size: %u\n", lruc_size(lruc));
 
     lruc_add(lruc, a, &a);
-    SGX_DBG(DBG_D, "after add 1 size: %u\n", lruc_size(lruc));
+    printf("after add 1 size: %u\n", lruc_size(lruc));
     uint64_t* x = lruc_find(lruc, a);
     #define X (x?*x:0)
-    SGX_DBG(DBG_D, "find(1): %lu\n", X);
+    printf("find(1): %lu\n", X);
 
     lruc_add(lruc, b, &b);
-    SGX_DBG(DBG_D, "after add 2 size: %u\n", lruc_size(lruc));
+    printf("after add 2 size: %u\n", lruc_size(lruc));
     x = lruc_find(lruc, a);
-    SGX_DBG(DBG_D, "find(1): %lu\n", X);
+    printf("find(1): %lu\n", X);
     x = lruc_find(lruc, b);
-    SGX_DBG(DBG_D, "find(2): %lu\n", X);
+    printf("find(2): %lu\n", X);
 
     lruc_add(lruc, c, &c);
-    SGX_DBG(DBG_D, "after add 3 size: %u\n", lruc_size(lruc));
+    printf("after add 3 size: %u\n", lruc_size(lruc));
     x = lruc_find(lruc, a);
-    SGX_DBG(DBG_D, "find(1): %lu\n", X);
+    printf("find(1): %lu\n", X);
     x = lruc_find(lruc, b);
-    SGX_DBG(DBG_D, "find(2): %lu\n", X);
+    printf("find(2): %lu\n", X);
     x = lruc_find(lruc, c);
-    SGX_DBG(DBG_D, "find(3): %lu\n", X);
+    printf("find(3): %lu\n", X);
 
     lruc_add(lruc, d, &d);
-    SGX_DBG(DBG_D, "after add 4 size: %u\n", lruc_size(lruc));
+    printf("after add 4 size: %u\n", lruc_size(lruc));
     x = lruc_find(lruc, a);
-    SGX_DBG(DBG_D, "find(1): %lu\n", X);
+    printf("find(1): %lu\n", X);
     x = lruc_find(lruc, b);
-    SGX_DBG(DBG_D, "find(2): %lu\n", X);
+    printf("find(2): %lu\n", X);
     x = lruc_find(lruc, c);
-    SGX_DBG(DBG_D, "find(3): %lu\n", X);
+    printf("find(3): %lu\n", X);
     x = lruc_find(lruc, d);
-    SGX_DBG(DBG_D, "find(4): %lu\n", X);
+    printf("find(4): %lu\n", X);
 
     x = lruc_get(lruc, a);
-    SGX_DBG(DBG_D, "after get 1 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 1 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_get(lruc, b);
-    SGX_DBG(DBG_D, "after get 2 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 2 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_get(lruc, c);
-    SGX_DBG(DBG_D, "after get 3 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 3 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_get(lruc, d);
-    SGX_DBG(DBG_D, "after get 4 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 4 size: %u, %lu\n", lruc_size(lruc), X);
 
     lruc_remove_last(lruc);
     x = lruc_get(lruc, a);
-    SGX_DBG(DBG_D, "after get 1 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 1 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_get(lruc, b);
-    SGX_DBG(DBG_D, "after get 2 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 2 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_get(lruc, c);
-    SGX_DBG(DBG_D, "after get 3 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 3 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_get(lruc, d);
-    SGX_DBG(DBG_D, "after get 4 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after get 4 size: %u, %lu\n", lruc_size(lruc), X);
 
     x = lruc_get(lruc, b);
     lruc_remove_last(lruc);
     x = lruc_find(lruc, a);
-    SGX_DBG(DBG_D, "after find 1 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after find 1 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_find(lruc, b);
-    SGX_DBG(DBG_D, "after find 2 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after find 2 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_find(lruc, c);
-    SGX_DBG(DBG_D, "after find 3 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after find 3 size: %u, %lu\n", lruc_size(lruc), X);
     x = lruc_find(lruc, d);
-    SGX_DBG(DBG_D, "after find 4 size: %u, %lu\n", lruc_size(lruc), X);
+    printf("after find 4 size: %u, %lu\n", lruc_size(lruc), X);
 #undef X
     lruc_destroy(lruc);
 }
+#endif

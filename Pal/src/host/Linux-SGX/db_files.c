@@ -115,12 +115,13 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         ret = -PAL_ERROR_DENIED;
         pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, pf_create, pf);
         if (pf) {
+            /* // path check should be done by pf_open()
             bool allowed = false;
             pf_status_t pfs = pf_check_path(pf->context, path, &allowed);
             if (!allowed || PF_FAILURE(pfs)) {
                 SGX_DBG(DBG_E, "file_open(%s): path doesn't match PF's allowed paths\n", path);
                 goto out;
-            }
+            }*/
 
             if (pf->refcount == INT64_MAX) {
                 SGX_DBG(DBG_E, "file_open(%s): maximum refcount exceeded\n", path);
@@ -563,7 +564,11 @@ static int pf_file_attrquery(struct protected_file* pf, int fd, const char* path
     assert(PF_SUCCESS(pfs));
     attr->pending_size = size;
 
-    if (fd == *(int*)pf->context->handle) { /* this is a PF opened just for us, close it */
+    pf_handle_t pf_handle;
+    pfs = pf_get_handle(pf->context, &pf_handle);
+    assert(PF_SUCCESS(pfs));
+
+    if (fd == *(int*)pf_handle) { /* this is a PF opened just for us, close it */
         pfs = pf_close(pf->context);
         pf->context = NULL;
         assert(PF_SUCCESS(pfs));

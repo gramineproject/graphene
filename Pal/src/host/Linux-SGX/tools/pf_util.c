@@ -1,4 +1,4 @@
-/* Copyright (C) 2018,2019 Invisible Things Lab
+/* Copyright (C) 2018-2020 Invisible Things Lab
                            Rafal Wojdyla <omeg@invisiblethingslab.com>
 
    This file is part of Graphene Library OS.
@@ -16,8 +16,6 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#define _GNU_SOURCE
-
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -27,8 +25,6 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
-
-#include "../protected_files.h"
 
 #include "pf_util.h"
 #include "util.h"
@@ -45,70 +41,143 @@ void* linux_malloc(size_t size) {
     return address;
 }
 
-int linux_prot(pf_file_mode_t mode) {
-    int prot = 0;
-    if (mode & PF_FILE_MODE_READ)
-        prot |= PROT_READ;
-    if (mode & PF_FILE_MODE_WRITE)
-        prot |= PROT_WRITE;
-    return prot;
-}
-
-pf_status_t linux_map(pf_handle_t handle, pf_file_mode_t mode, size_t offset, size_t size,
-                      void** address) {
+pf_status_t linux_read(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
     int fd = *(int*)handle;
-    *address = mmap(NULL, size, linux_prot(mode), MAP_SHARED, fd, offset);
-
-    if (*address == MAP_FAILED) {
-        ERROR("linux_map(%d, %d, %zu, %zu): %s\n", fd, mode, offset, size, strerror(errno));
+    DBG("linux_read: fd %d, buf %p, offset %zu, size %zu\n", fd, buffer, offset, size);
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+        ERROR("lseek failed: %s\n", strerror(errno));
         return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    off_t offs = 0;
+    while (size > 0) {
+        ssize_t ret = read(fd, buffer + offs, size);
+        if (ret == -EINTR)
+            continue;
+        if (ret <= 0) {
+            ERROR("read failed: %s\n", strerror(errno));
+            return PF_STATUS_CALLBACK_FAILED;
+        }
+        size -= ret;
+        offs += ret;
     }
 
     return PF_STATUS_SUCCESS;
 }
 
-pf_status_t linux_unmap(void* address, size_t size) {
-    int ret = munmap(address, size);
-    if (ret < 0) {
-        ERROR("linux_unmap(%p, %zu): %s\n", address, size, strerror(errno));
+pf_status_t linux_write(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
+    int fd = *(int*)handle;
+    DBG("linux_write: fd %d, buf %p, offset %zu, size %zu\n", fd, buffer, offset, size);
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+        ERROR("lseek failed: %s\n", strerror(errno));
         return PF_STATUS_CALLBACK_FAILED;
     }
 
+    off_t offs = 0;
+    while (size > 0) {
+        ssize_t ret = write(fd, buffer + offs, size);
+        if (ret == -EINTR)
+            continue;
+        if (ret <= 0) {
+            ERROR("write failed: %s\n", strerror(errno));
+        }
+        size -= ret;
+        offs += ret;
+    }
     return PF_STATUS_SUCCESS;
 }
 
 pf_status_t linux_truncate(pf_handle_t handle, size_t size) {
     int fd  = *(int*)handle;
+    DBG("linux_truncate: fd %d, size %zu\n", fd, size);
     int ret = ftruncate(fd, size);
     if (ret < 0) {
-        ERROR("linux_truncate(%d, %zu): %s\n", fd, size, strerror(errno));
+        ERROR("ftruncate failed: %s\n", strerror(errno));
         return PF_STATUS_CALLBACK_FAILED;
     }
 
     return PF_STATUS_SUCCESS;
 }
 
-pf_status_t linux_flush(__attribute__((unused)) pf_handle_t handle) {
-    return PF_STATUS_NOT_IMPLEMENTED;
+pf_status_t linux_flush(pf_handle_t handle) {
+    int fd  = *(int*)handle;
+    DBG("linux_flush: fd %d\n", fd);
+    int ret = fsync(fd);
+    if (ret < 0) {
+        ERROR("fsync failed: %s\n", strerror(errno));
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    return PF_STATUS_SUCCESS;
+}
+
+pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle, size_t* size) {
+    DBG("linux_open: '%s', mode %d\n", path, mode);
+    *handle = malloc(sizeof(int));
+    if (!*handle)
+        return PF_STATUS_NO_MEMORY;
+
+    // write access in this callback is only used for creating recovery files
+    int flags = mode == PF_FILE_MODE_READ ? O_RDONLY : O_WRONLY | O_CREAT | O_TRUNC;
+    int fd = open(path, flags, 0600);
+
+    if (fd < 0) {
+        free(*handle);
+        ERROR("open failed: %s\n", strerror(errno));
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    if (size) {
+        struct stat st;
+        if (fstat(fd, &st) < 0) {
+            free(*handle);
+            ERROR("fstat failed: %s\n", strerror(errno));
+            return PF_STATUS_CALLBACK_FAILED;
+        }
+
+        *size = st.st_size;
+    }
+
+    *(int*)*handle = fd;
+
+    return PF_STATUS_SUCCESS;
+}
+
+pf_status_t linux_close(pf_handle_t handle) {
+    int fd  = *(int*)handle;
+    DBG("linux_close: fd %d\n", fd);
+    int ret = close(fd);
+    if (ret < 0) {
+        ERROR("close failed: %s\n", strerror(errno));
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    free(handle);
+    return PF_STATUS_SUCCESS;
+}
+
+static pf_status_t linux_delete(const char* path) {
+    DBG("linux_delete: '%s'\n", path);
+    int ret = unlink(path);
+    if (ret < 0) {
+        ERROR("unlink failed: %s\n", strerror(errno));
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+    return PF_STATUS_SUCCESS;
 }
 
 void pf_set_linux_callbacks(pf_debug_f debug_f) {
-    pf_set_callbacks(linux_malloc, free, linux_map, linux_unmap, linux_truncate, linux_flush,
-                     debug_f);
+    pf_set_callbacks(linux_malloc, free, linux_read, linux_write, linux_truncate, linux_flush,
+                     linux_open, linux_close, linux_delete, debug_f);
 }
 
 /* Crypto callbacks for OpenSSL */
 
-pf_status_t openssl_crypto_aes_gcm_encrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
-                                           size_t iv_size, const void* aad, size_t aad_size,
+pf_status_t openssl_crypto_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                           const void* aad, size_t aad_size,
                                            const void* input, size_t input_size, void* output,
-                                           uint8_t* mac, size_t mac_size) {
+                                           pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
-    if (iv_size != PF_IV_SIZE)
-        return PF_STATUS_INVALID_PARAMETER;
-
-    if (key_size != PF_WRAP_KEY_SIZE)
-        return PF_STATUS_INVALID_PARAMETER;
 
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
@@ -118,13 +187,14 @@ pf_status_t openssl_crypto_aes_gcm_encrypt(const uint8_t* key, size_t key_size, 
     EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
 
     /* Set IV length */
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_size, NULL) != 1) {
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(*iv), NULL) != 1) {
         ERROR("Failed to set AES IV len\n");
         goto out;
     }
 
     /* Set key/iv */
-    if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv) != 1) {
+    if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const unsigned char*)key,
+        (const unsigned char*)iv) != 1) {
         ERROR("Failed to set AES key/IV\n");
         goto out;
     }
@@ -154,7 +224,7 @@ pf_status_t openssl_crypto_aes_gcm_encrypt(const uint8_t* key, size_t key_size, 
     }
 
     /* Get MAC */
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, mac_size, mac) != 1) {
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, sizeof(*mac), mac) != 1) {
         ERROR("Failed to get AES MAC\n");
         goto out;
     }
@@ -164,16 +234,11 @@ out:
     return status;
 }
 
-pf_status_t openssl_crypto_aes_gcm_decrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
-                                           size_t iv_size, const void* aad, size_t aad_size,
+pf_status_t openssl_crypto_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                           const void* aad, size_t aad_size,
                                            const void* input, size_t input_size, void* output,
-                                           const uint8_t* mac, size_t mac_size) {
+                                           const pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
-    if (iv_size != PF_IV_SIZE)
-        return PF_STATUS_INVALID_PARAMETER;
-
-    if (key_size != PF_WRAP_KEY_SIZE)
-        return PF_STATUS_INVALID_PARAMETER;
 
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
@@ -183,13 +248,14 @@ pf_status_t openssl_crypto_aes_gcm_decrypt(const uint8_t* key, size_t key_size, 
     EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
 
     /* Set IV length */
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_size, NULL) != 1) {
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(*iv), NULL) != 1) {
         ERROR("Failed to set AES IV len\n");
         goto out;
     }
 
     /* Set key/iv */
-    if (EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv) != 1) {
+    if (EVP_DecryptInit_ex(ctx, NULL, NULL, (const unsigned char*)key,
+                           (const unsigned char*)iv) != 1) {
         ERROR("Failed to set AES key/IV\n");
         goto out;
     }
@@ -212,7 +278,7 @@ pf_status_t openssl_crypto_aes_gcm_decrypt(const uint8_t* key, size_t key_size, 
     }
 
     /* Set expected tag value, doesn't modify mac */
-    if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, mac_size, (void*)mac)) {
+    if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, sizeof(*mac), (void*)mac)) {
         ERROR("Failed to set expected MAC\n");
         goto out;
     }
@@ -255,7 +321,7 @@ void pf_init() {
 /* Generate random PF key and save it to file */
 int pf_generate_wrap_key(const char* wrap_key_path) {
     int ret;
-    uint8_t wrap_key[PF_WRAP_KEY_SIZE];
+    pf_key_t wrap_key;
 
     ret = read_file_part("/dev/urandom", wrap_key, sizeof(wrap_key));
     if (ret < 0) {
@@ -274,7 +340,7 @@ out:
     return ret;
 }
 
-int load_wrap_key(const char* wrap_key_path, uint8_t wrap_key[PF_WRAP_KEY_SIZE]) {
+int load_wrap_key(const char* wrap_key_path, pf_key_t* wrap_key) {
     int ret = -1;
     ssize_t size = 0;
     uint8_t* buf = read_file(wrap_key_path, &size);
@@ -284,12 +350,12 @@ int load_wrap_key(const char* wrap_key_path, uint8_t wrap_key[PF_WRAP_KEY_SIZE])
         goto out;
     }
 
-    if (size != PF_WRAP_KEY_SIZE) {
-        ERROR("Wrap key size %zu != %zu\n", size, (size_t)PF_WRAP_KEY_SIZE);
+    if (size != PF_KEY_SIZE) {
+        ERROR("Wrap key size %zu != %zu\n", size, (size_t)PF_KEY_SIZE);
         goto out;
     }
 
-    memcpy(wrap_key, buf, PF_WRAP_KEY_SIZE);
+    memcpy(wrap_key, buf, PF_KEY_SIZE);
     ret = 0;
 
 out:
@@ -298,14 +364,13 @@ out:
 }
 
 /* Convert a single file to the protected format */
-int pf_encrypt_file(const char* input_path, const char* output_path, const char* file_name,
-                    const char* prefix, uint8_t wrap_key[PF_WRAP_KEY_SIZE]) {
+int pf_encrypt_file(const char* input_path, const char* output_path, const pf_key_t* wrap_key) {
     int ret            = -1;
     int input          = -1;
     int output         = -1;
     void* input_mem    = MAP_FAILED;
     ssize_t input_size = 0;
-    pf_context_t* pf   = NULL;
+    pf_context_t pf    = NULL;
     size_t chunk_size;
 
     input = open(input_path, O_RDONLY);
@@ -322,8 +387,9 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const char*
 
     INFO("Processing: %s\n", input_path);
 
-    pf_handle_t handle = (pf_handle_t) &output;
-    pf_status_t pfs    = pf_create(handle, prefix, file_name, wrap_key, &pf);
+    pf_handle_t handle = (pf_handle_t)&output;
+    pf_status_t pfs    = pf_open(handle, output_path, /*size=*/0, PF_FILE_MODE_WRITE,
+                                 /*create=*/true, /*enable_recovery=*/false, wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
         ERROR("Failed to open output PF: %d\n", pfs);
         goto out;
@@ -347,8 +413,8 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const char*
 
         while (input_offset < input_size) {
             chunk_size = input_size - input_offset;
-            if (chunk_size > PF_CHUNK_DATA_MAX)
-                chunk_size = PF_CHUNK_DATA_MAX;
+            if (chunk_size > PF_NODE_SIZE)
+                chunk_size = PF_NODE_SIZE;
             pfs = pf_write(pf, input_offset, chunk_size, (uint8_t*)input_mem + input_offset);
             if (PF_FAILURE(pfs)) {
                 ERROR("Failed to write to output PF: %d\n", pfs);
@@ -362,8 +428,13 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const char*
     ret = 0;
 
 out:
-    if (pf)
-        pf_close(pf);
+    if (pf) {
+        if (PF_FAILURE(pf_close(pf))) {
+            ERROR("failed to close PF\n");
+            ret = -1;
+        }
+    }
+
     if (input >= 0)
         close(input);
     if (output >= 0)
@@ -375,12 +446,12 @@ out:
 
 /* Convert a single file from the protected format */
 int pf_decrypt_file(const char* input_path, const char* output_path, bool verify_path,
-                    uint8_t wrap_key[PF_WRAP_KEY_SIZE]) {
+                    const pf_key_t* wrap_key) {
     int ret          = -1;
     int input        = -1;
     int output       = -1;
     void* buffer     = NULL;
-    pf_context_t* pf = NULL;
+    pf_context_t pf  = NULL;
 
     input = open(input_path, O_RDONLY);
     if (input < 0) {
@@ -403,12 +474,14 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         goto out;
     }
 
-    pf_status_t pfs = pf_open((pf_handle_t) &input, st.st_size, PF_FILE_MODE_READ, wrap_key, &pf);
+    const char* path = verify_path ? input_path : NULL;
+    pf_status_t pfs = pf_open((pf_handle_t)&input, path, st.st_size, PF_FILE_MODE_READ,
+                              /*create=*/false, /*enable_recovery=*/false, wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
         ERROR("Opening protected input file failed: %d\n", pfs);
         goto out;
     }
-
+/* // this is done in pf_open()
     if (verify_path) {
         bool allowed;
         pfs = pf_check_path(pf, input_path, &allowed);
@@ -418,9 +491,9 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         } else {
             DBG("Path '%s' is allowed\n", input_path);
         }
-    }
+    }*/
 
-    buffer = malloc(PF_CHUNK_DATA_MAX);
+    buffer = malloc(PF_NODE_SIZE);
     if (!buffer) {
         ERROR("No memory\n");
         goto out;
@@ -429,7 +502,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
     /* Process file contents */
     uint64_t input_size;
     uint64_t input_offset    = 0;
-    uint32_t chunk_data_size = PF_CHUNK_DATA_MAX;
+    uint32_t chunk_data_size = PF_NODE_SIZE;
 
     pfs = pf_get_size(pf, &input_size);
     if (PF_FAILURE(pfs)) {
@@ -478,7 +551,7 @@ enum processing_mode_t {
 static int process_files(const char* input_dir, const char* output_dir, const char* prefix,
                          const char* wrap_key_path, enum processing_mode_t mode, bool verify_path) {
     int ret = -1;
-    uint8_t wrap_key[PF_WRAP_KEY_SIZE];
+    pf_key_t wrap_key;
     struct stat st;
     char* input_path  = NULL;
     char* output_path = NULL;
@@ -488,7 +561,7 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
         goto out;
     }
 
-    ret = load_wrap_key(wrap_key_path, wrap_key);
+    ret = load_wrap_key(wrap_key_path, &wrap_key);
     if (ret != 0)
         goto out;
 
@@ -500,9 +573,9 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
     /* single file? */
     if (S_ISREG(st.st_mode)) {
         if (mode == MODE_ENCRYPT)
-            return pf_encrypt_file(input_dir, output_dir, basename(output_dir), prefix, wrap_key);
+            return pf_encrypt_file(input_dir, output_dir, &wrap_key);
         else
-            return pf_decrypt_file(input_dir, output_dir, verify_path, wrap_key);
+            return pf_decrypt_file(input_dir, output_dir, verify_path, &wrap_key);
     }
 
     ret = mkdir(output_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -551,9 +624,9 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
 
         if (S_ISREG(st.st_mode)) {
             if (mode == MODE_ENCRYPT)
-                ret = pf_encrypt_file(input_path, output_path, dir->d_name, prefix, wrap_key);
+                ret = pf_encrypt_file(input_path, output_path, &wrap_key);
             else
-                ret = pf_decrypt_file(input_path, output_path, verify_path, wrap_key);
+                ret = pf_decrypt_file(input_path, output_path, verify_path, &wrap_key);
 
             if (ret != 0)
                 goto out;

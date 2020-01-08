@@ -179,7 +179,7 @@ struct protected_file {
     LIST_TYPE(protected_file) list;
     size_t path_len;
     char path[URI_MAX];
-    pf_context_t* context; /* NULL until PF is opened */
+    pf_context_t context; /* NULL until PF is opened */
     int64_t refcount; /* used for deciding when to call unload_protected_file() */
 };
 DEFINE_LISTP(protected_file);

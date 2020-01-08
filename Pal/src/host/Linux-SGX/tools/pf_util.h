@@ -1,4 +1,4 @@
-/* Copyright (C) 2018,2019 Invisible Things Lab
+/* Copyright (C) 2018-2020 Invisible Things Lab
                            Rafal Wojdyla <omeg@invisiblethingslab.com>
 
    This file is part of Graphene Library OS.
@@ -31,12 +31,11 @@ void pf_init();
 int pf_generate_wrap_key(const char* wrap_key_path);
 
 /*! Convert a single file to the protected format */
-int pf_encrypt_file(const char* input_path, const char* output_path, const char* file_name,
-                    const char* prefix, uint8_t wrap_key[PF_WRAP_KEY_SIZE]);
+int pf_encrypt_file(const char* input_path, const char* output_path, const pf_key_t* wrap_key);
 
 /*! Convert a single file from the protected format */
 int pf_decrypt_file(const char* input_path, const char* output_path, bool verify_path,
-                    uint8_t wrap_key[PF_WRAP_KEY_SIZE]);
+                    const pf_key_t* wrap_key);
 
 /*! Convert a file or directory (recursively) to the protected format */
 int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* prefix,
@@ -47,18 +46,18 @@ int pf_decrypt_files(const char* input_dir, const char* output_dir, bool verify_
                      const char* wrap_key_path);
 
 /*! AES-GCM encrypt */
-pf_status_t openssl_crypto_aes_gcm_encrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
-                                           size_t iv_size, const void* aad, size_t aad_size,
+pf_status_t openssl_crypto_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                           const void* aad, size_t aad_size,
                                            const void* input, size_t input_size, void* output,
-                                           uint8_t* mac, size_t mac_size);
+                                           pf_mac_t* mac);
 
 /*! AES-GCM decrypt */
-pf_status_t openssl_crypto_aes_gcm_decrypt(const uint8_t* key, size_t key_size, const uint8_t* iv,
-                                           size_t iv_size, const void* aad, size_t aad_size,
+pf_status_t openssl_crypto_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                           const void* aad, size_t aad_size,
                                            const void* input, size_t input_size, void* output,
-                                           const uint8_t* mac, size_t mac_size);
+                                           const pf_mac_t* mac);
 
 /*! Load PF wrap key from file */
-int load_wrap_key(const char* wrap_key_path, uint8_t wrap_key[PF_WRAP_KEY_SIZE]);
+int load_wrap_key(const char* wrap_key_path, pf_key_t* wrap_key);
 
 #endif
