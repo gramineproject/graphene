@@ -10,6 +10,4 @@ find . -name \*.py \
 | xargs pylint3 "$@" \
     Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
     Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-    Tools/gen_manifest \
-    Tools/gsce \
     .ci/prfilter
