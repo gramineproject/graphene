@@ -2,10 +2,15 @@
 
 import collections
 import json
+import pathlib
 import subprocess
 import sys
 
 DEFAULT_REF = 'origin/master'
+
+ALWAYS = list(map(pathlib.Path, [
+    'Pal/src/host/Linux-SGX/signer',
+]))
 
 def get_diff_ranges(ref=DEFAULT_REF):
     '''Get chunks affected by a merge request
@@ -45,6 +50,8 @@ class Diff:
     >>> diff = Diff()
     >>> (message['file'], message['line']) in diff
     True # or False
+    >>> diff.message_is_important(message)
+    True # or False
 
     The default diff is to the ``origin/master`` ref.
     '''
@@ -60,6 +67,21 @@ class Diff:
         except KeyError:
             return False
 
+    def message_is_important(self, message):
+        if (message['path'], message['line']) in self:
+            return True
+
+        path = pathlib.Path(message['path'])
+        for always in ALWAYS:
+            try:
+                path.relative_to(always)
+                return True
+            except ValueError:
+                # path is not .relative_to() the path from ALWAYS
+                pass
+
+        return False
+
 def main():
     diff = Diff()
     with sys.stdin:
@@ -73,7 +95,7 @@ def main():
         if 'symbol' not in message:
             message['symbol'] = message['code']
 
-        if (message['path'], message['line']) in diff:
+        if diff.message_is_important(message):
             if not ret:
                 print('MESSAGES AFFECTING THIS PR:')
             print('{path} +{line}:{column}: {symbol}: {message}'.format(
