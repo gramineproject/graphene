@@ -2,10 +2,54 @@
 
 import collections
 import json
+import pathlib
 import subprocess
 import sys
 
 DEFAULT_REF = 'origin/master'
+
+WHITELIST = list(map(pathlib.Path, [
+    # for pylint
+    'Documentation/conf.py',
+    'LibOS/shim/test/apps/ltp/contrib/conf_lint.py',
+    'LibOS/shim/test/apps/ltp/contrib/conf_merge.py',
+    'LibOS/shim/test/apps/ltp/contrib/conf_missing.py',
+    'LibOS/shim/test/apps/ltp/contrib/conf_remove_must_pass.py',
+    'LibOS/shim/test/apps/ltp/contrib/has_own_main.py',
+    'LibOS/shim/test/apps/ltp/contrib/report.py',
+    'LibOS/shim/test/apps/ltp/runltp_xml.py',
+    'LibOS/shim/test/apps/python-scipy-insecure/scripts/test-numpy.py',
+    'LibOS/shim/test/apps/python-scipy-insecure/scripts/test-scipy.py',
+    'LibOS/shim/test/apps/python-simple/scripts/benchrun.py',
+    'LibOS/shim/test/apps/python-simple/scripts/dummy-web-server.py',
+    'LibOS/shim/test/apps/python-simple/scripts/fibonacci.py',
+    'LibOS/shim/test/apps/python-simple/scripts/helloworld.py',
+    'LibOS/shim/test/apps/python-simple/scripts/test-http.py',
+    'LibOS/shim/test/fs/test_fs.py',
+    'LibOS/shim/test/regression/test_libos.py',
+    'Pal/regression/test_pal.py',
+    'Pal/src/host/Linux-SGX/sgx-driver/link-intel-driver.py',
+    'Pal/src/host/Linux/pal-gdb.py',
+    'Scripts/regression.py',
+    'Tools',
+
+    # for shellcheck
+    'LibOS/shim/test/apps/bash/scripts/bash_test.sh',
+    'LibOS/shim/test/apps/common_tools/benchmark-http.sh',
+    'LibOS/shim/test/apps/python-simple/run-tests.sh',
+    'LibOS/shim/test/native',
+    'Pal/src/host/FreeBSD/pal-gdb.template',
+    'Pal/src/host/Linux-SGX/debugger/gdb',
+    'Pal/src/host/Linux-SGX/sgx-driver/load.sh',
+    'Runtime/pal_loader',
+    'Scripts/clean-check',
+    'Scripts/clean-check-prepare',
+    'Scripts/clean-check-test-copy',
+    'Scripts/list-all-graphene.sh',
+    'Scripts/memusg',
+    '.ci/run-pylint',
+    '.ci/run-shellcheck',
+]))
 
 def get_diff_ranges(ref=DEFAULT_REF):
     '''Get chunks affected by a merge request
@@ -45,6 +89,8 @@ class Diff:
     >>> diff = Diff()
     >>> (message['file'], message['line']) in diff
     True # or False
+    >>> diff.message_is_important(message)
+    True # or False
 
     The default diff is to the ``origin/master`` ref.
     '''
@@ -60,6 +106,26 @@ class Diff:
         except KeyError:
             return False
 
+    def message_is_important(self, message):
+        path = pathlib.Path(message['path'])
+        for i in WHITELIST:
+            try:
+                path.relative_to(always)
+                break
+            except ValueError:
+                # path is not .relative_to() the path from WHITELIST
+                pass
+        else:
+            # not on whitelist: always complain
+            return True
+
+        if (message['path'], message['line']) in self:
+            # on whitelist, but in diff: do complain
+            return True
+
+        # on whitelist and outside diff: don't complain
+        return False
+
 def main():
     diff = Diff()
     with sys.stdin:
@@ -73,7 +139,7 @@ def main():
         if 'symbol' not in message:
             message['symbol'] = message['code']
 
-        if (message['path'], message['line']) in diff:
+        if diff.message_is_important(message):
             if not ret:
                 print('MESSAGES AFFECTING THIS PR:')
             print('{path} +{line}:{column}: {symbol}: {message}'.format(
