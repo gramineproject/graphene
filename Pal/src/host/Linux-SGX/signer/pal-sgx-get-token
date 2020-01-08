@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=invalid-name
 
 import argparse
 import os
@@ -9,26 +10,28 @@ import sys
 import aesm_pb2
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from generated_offsets import *
+import generated_offsets as offs # pylint: disable=import-error,wrong-import-position
+
+# pylint: enable=invalid-name
 
 def set_optional_sgx_features(attr):
     """Set optional SGX features if they are available on this machine."""
     optional_sgx_features = {
-        SGX_XFRM_AVX:      "avx",
-        SGX_XFRM_AVX512:   "avx512f",
-        SGX_XFRM_MPX:      "mpx",
+        offs.SGX_XFRM_AVX:      "avx",
+        offs.SGX_XFRM_AVX512:   "avx512f",
+        offs.SGX_XFRM_MPX:      "mpx",
     }
 
     cpu_features = ""
-    with open("/proc/cpuinfo", "r") as f:
-        for line in f:
+    with open("/proc/cpuinfo", "r") as file:
+        for line in file:
             if line.startswith("flags"):
                 cpu_features = line.split(":")[1].strip().split()
                 break
         else:
             raise Exception("Failed to parse CPU flags")
 
-    xfrms    = int.from_bytes(attr['xfrms'], byteorder='little')
+    xfrms = int.from_bytes(attr['xfrms'], byteorder='little')
     xfrmmask = int.from_bytes(attr['xfrm_mask'], byteorder='little')
 
     new_xfrms = 0
@@ -49,18 +52,19 @@ def read_sigstruct(sig):
     # field format: (offset, type, value)
     # SGX_ARCH_ENCLAVE_CSS_
     fields = {
-        'date': (SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", 'year', 'month', 'day'),
-        'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, "384s", 'modulus'),
-        'exponent': (SGX_ARCH_ENCLAVE_CSS_EXPONENT, "<L", 'exponent'),
-        'signature': (SGX_ARCH_ENCLAVE_CSS_SIGNATURE, "384s", 'signature'),
+        'date': (offs.SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", 'year', 'month', 'day'),
+        'modulus': (offs.SGX_ARCH_ENCLAVE_CSS_MODULUS, "384s", 'modulus'),
+        'exponent': (offs.SGX_ARCH_ENCLAVE_CSS_EXPONENT, "<L", 'exponent'),
+        'signature': (offs.SGX_ARCH_ENCLAVE_CSS_SIGNATURE, "384s", 'signature'),
 
-        'misc_select': (SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, "4s", 'misc_select'),
-        'misc_mask': (SGX_ARCH_ENCLAVE_CSS_MISC_MASK, "4s", 'misc_mask'),
-        'attributes': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
-        'attribute_mask': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK, "8s8s", 'flag_mask', 'xfrm_mask'),
-        'enclave_hash': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", 'enclave_hash'),
-        'isv_prod_id': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", 'isv_prod_id'),
-        'isv_svn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", 'isv_svn'),
+        'misc_select': (offs.SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, "4s", 'misc_select'),
+        'misc_mask': (offs.SGX_ARCH_ENCLAVE_CSS_MISC_MASK, "4s", 'misc_mask'),
+        'attributes': (offs.SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
+        'attribute_mask': (offs.SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK, "8s8s",
+            'flag_mask', 'xfrm_mask'),
+        'enclave_hash': (offs.SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", 'enclave_hash'),
+        'isv_prod_id': (offs.SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", 'isv_prod_id'),
+        'isv_svn': (offs.SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", 'isv_svn'),
     }
 
     attr = dict()
