@@ -26,6 +26,8 @@ Introduction-level
   - `Part 2, SGX Externals (Quarkslab)
     <https://blog.quarkslab.com/overview-of-intel-sgx-part-2-sgx-externals.html>`__
 
+- `MIT's deep dive in SGX architecture <https://eprint.iacr.org/2016/086>`__.
+
 - Intel's whitepapers:
 
   - `Innovative Technology for CPU Based Attestation and Sealing
@@ -36,15 +38,6 @@ Introduction-level
     <https://software.intel.com/sites/default/files/article/413938/hasp-2013-innovative-instructions-for-trusted-solutions.pdf>`__
   - `Slides from ISCA 2015 <https://sgxisca.weebly.com/>`__
     (`actual slides [PDF] <https://software.intel.com/sites/default/files/332680-002.pdf>`__)
-
-- `Wikipedia page <https://en.wikipedia.org/wiki/Software_Guard_Extensions>`__
-- `Landing page <https://software.intel.com/en-us/sgx>`__
-  (mostly marketing-quality)
-
-About cryptography involed
---------------------------
-
-- `Intel SGX Explained <https://eprint.iacr.org/2016/086>`__.
 
 Official Documentation
 ----------------------
@@ -70,15 +63,13 @@ Installation Instructions
 Linux modules
 ^^^^^^^^^^^^^
 
-*NOTE* this section
-
 At the time of this writing (December 2019) there are two modules in
 circulation: one is distributed together with SDK (`github repo
 <https://github.com/intel/linux-sgx-driver>`__) and another is being upstreamed
 (`github repo <https://github.com/intel/SGXDataCenterAttestationPrimitives/tree/master/driver/linux>`__,
 `LKML thread (v24) <https://lore.kernel.org/lkml/20191129231326.18076-1-jarkko.sakkinen@linux.intel.com/>`__).
 
-Those two are not to be confused. The driver from SDK is currently unversally
+Those two are not to be confused. The driver from SDK is currently universally
 used, because it is the only driver mentioned in downloads, but it won't be ever
 upstreamed, so it is likely that it's days are numbered.
 
@@ -181,6 +172,14 @@ SGX terminology
 
    Remote Attestation
       .. todo:: TBD
+
+   SDK
+      Software Development Kit
+
+      In the context of :term:`SGX`, this means a |nbsp| specific piece supplied
+      by Intel which helps people write enclaves packed into ``.so`` files to be
+      accessible like normal libraries (at least on Linux). Availabe together
+      with a |nbsp| kernel module and documentation.
 
    SECS
       SGX Enclave Control Structure
