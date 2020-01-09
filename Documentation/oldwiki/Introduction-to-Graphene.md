@@ -22,9 +22,10 @@ Graphene was developed to encapsulate all host-specific code in one layer, calle
 Adaptation Layer, or PAL. Thus, if there is a PAL for a given host, the library OS and applications
 will "just work".
 
-Porting Graphene to a new host only requires porting a PAL, by implementing the [PAL Host ABI](PAL-Host-ABI.md)
-using OS features of the host. To date, we ported Graphene to FreeBSD and Linux (the latter also
-with Intel SGX support). Support for more hosts is expected in the future.
+Porting Graphene to a new host only requires porting a PAL, by implementing the
+[PAL Host ABI](PAL-Host-ABI.md) using OS features of the host. To date, we ported Graphene to
+FreeBSD (this port is not maintained anymore) and Linux (the latter also with Intel SGX support).
+Support for more hosts is expected in the future.
 
 #### Check out Application Test Cases
 
