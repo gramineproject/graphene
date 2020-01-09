@@ -12,8 +12,8 @@ DkSynchronizationEventCreate
 DkMutexRelease
 DkEventSet
 DkEventClear
-DkObjectsWaitAny
-DkObjectsWaitEvents
+DkSynchronizationObjectWait
+DkStreamsWaitEvents
 DkStreamOpen
 DkStreamRead
 DkStreamWrite

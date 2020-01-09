@@ -50,8 +50,9 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkSynchronizationEventCreate);
     PRINT_SYMBOL(DkEventSet);
     PRINT_SYMBOL(DkEventClear);
+    PRINT_SYMBOL(DkSynchronizationObjectWait);
 
-    PRINT_SYMBOL(DkObjectsWaitAny);
+    PRINT_SYMBOL(DkStreamsWaitEvents);
     PRINT_SYMBOL(DkObjectClose);
 
     PRINT_SYMBOL(DkSystemTimeQuery);

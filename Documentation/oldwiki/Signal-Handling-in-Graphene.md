@@ -678,14 +678,14 @@ shim_do_alarm(seconds)                          ... no alive host thread ...
 | | + + <creates new thread in host>  +------>  shim_async_helper()
 | |                                             +
 | | set_event(async_helper_event)               | while (true):
-| | +                                           |   DkObjectsWaitAny(array =
+| | +                                           |   DkStreamsWaitEvents(array =
 + + + DkStreamWrite(async_helper_event) +-+     |      { global async_helper_event },
                                           |     |      timeout = <some-constant>)
 ... app-thread code continues ...         |     |   ...
                                           |     |
                                           +-->  |   event = async_list.pop()
                                                 |
-                                                |   DkObjectsWaitAny(...,
+                                                |   DkStreamsWaitEvents(...,
                                                 |      timeout = event.expire_time)
                                                 |
                                                 |   ... sleep until timeout ...

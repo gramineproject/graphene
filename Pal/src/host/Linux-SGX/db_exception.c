@@ -331,8 +331,8 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_cpu_context_t * uc)
 {
     struct pal_frame * frame = get_frame(uc);
 
-    if (event == PAL_EVENT_RESUME &&
-        frame && frame->func == DkObjectsWaitAny)
+    if (event == PAL_EVENT_RESUME && frame &&
+        (frame->func == DkSynchronizationObjectWait || frame->func == DkStreamsWaitEvents))
         return;
 
     if (!frame) {

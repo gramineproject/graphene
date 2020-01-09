@@ -13,12 +13,11 @@ void helper_timeout(PAL_NUM timeout) {
     }
 
     /* Wait on the binary semaphore with a timeout */
-    PAL_HANDLE rv = DkObjectsWaitAny(1, &sem1, timeout);
-    if (rv == NULL)
+    PAL_BOL rv = DkSynchronizationObjectWait(sem1, timeout);
+    if (rv == PAL_FALSE)
         pal_printf("Locked binary semaphore timed out (%ld).\n", timeout);
     else
-        pal_printf("Acquired locked binary semaphore!?! Got back %p; sem1 is %p (%ld)\n", rv, sem1,
-                   timeout);
+        pal_printf("Acquired locked binary semaphore!?! sem1 is %p (%ld)\n", sem1, timeout);
 
     DkObjectClose(sem1);
 }
@@ -34,11 +33,11 @@ void helper_success(PAL_NUM timeout) {
     }
 
     /* Wait on the binary semaphore with a timeout */
-    PAL_HANDLE rv = DkObjectsWaitAny(1, &sem1, timeout);
-    if (rv == sem1)
+    PAL_BOL rv = DkSynchronizationObjectWait(sem1, timeout);
+    if (rv == PAL_TRUE)
         pal_printf("Locked binary semaphore successfully (%ld).\n", timeout);
     else
-        pal_printf("Failed to lock binary semaphore: Got back %p; sem1 is %p\n", rv, sem1);
+        pal_printf("Failed to lock binary semaphore: sem1 is %p\n", sem1);
 
     DkObjectClose(sem1);
 }

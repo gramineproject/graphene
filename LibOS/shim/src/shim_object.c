@@ -2,15 +2,15 @@
 #include <shim_internal.h>
 
 int object_wait_with_retry(PAL_HANDLE handle) {
-    PAL_HANDLE ret;
+    PAL_BOL ret;
     do {
-        ret = DkObjectsWaitAny(1, &handle, NO_TIMEOUT);
-    } while (ret == NULL &&
+        ret = DkSynchronizationObjectWait(handle, NO_TIMEOUT);
+    } while (!ret &&
              (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED || PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN));
-    if (ret == NULL) {
+
+    if (!ret) {
         debug("waiting on %p resulted in error %s", handle, pal_strerror(PAL_NATIVE_ERRNO));
         return -PAL_NATIVE_ERRNO;
     }
-    assert(ret == handle);
     return 0;
 }

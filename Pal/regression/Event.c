@@ -49,7 +49,7 @@ int main() {
     unsigned long t_start = DkSystemTimeQuery();
 
     pal_printf("Testing wait with too short timeout...\n");
-    DkObjectsWaitAny(1, &event1, 1000000);
+    DkSynchronizationObjectWait(event1, 1000000);
     unsigned long t_wait1  = DkSystemTimeQuery();
     unsigned long dt_wait1 = t_wait1 - t_start;
     pal_printf("Wait returned after %lu us.\n", dt_wait1);
@@ -59,7 +59,7 @@ int main() {
     }
 
     pal_printf("Testing wait with long enough timeout...\n");
-    DkObjectsWaitAny(1, &event1, 5000000);
+    DkSynchronizationObjectWait(event1, 5000000);
     unsigned long t_wait2  = DkSystemTimeQuery();
     unsigned long dt_wait2 = t_wait2 - t_start;
     pal_printf("Wait returned after %lu us since start.\n", dt_wait2);
