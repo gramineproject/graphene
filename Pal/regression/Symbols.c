@@ -34,6 +34,7 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkStreamAttributesSetByHandle);
     PRINT_SYMBOL(DkStreamGetName);
     PRINT_SYMBOL(DkStreamChangeName);
+    PRINT_SYMBOL(DkStreamsWaitEvents);
 
     PRINT_SYMBOL(DkThreadCreate);
     PRINT_SYMBOL(DkThreadDelayExecution);
@@ -50,8 +51,8 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkSynchronizationEventCreate);
     PRINT_SYMBOL(DkEventSet);
     PRINT_SYMBOL(DkEventClear);
+    PRINT_SYMBOL(DkSynchronizationObjectWait);
 
-    PRINT_SYMBOL(DkObjectsWaitAny);
     PRINT_SYMBOL(DkObjectClose);
 
     PRINT_SYMBOL(DkSystemTimeQuery);

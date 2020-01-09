@@ -520,28 +520,25 @@ This API clears a notification event or a synchronization event.
 
 ### Objects
 
-#### DkObjectsWaitAny
+#### DkSynchronizationObjectWait
 
     #define NO_TIMEOUT ((PAL_NUM)-1)
-    PAL_HANDLE DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handle_array, PAL_NUM timeout_us);
+    PAL_BOL DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us);
 
-This API polls an array of handles and returns one handle with recent activity. `timeout_us` is
-the maximum time that the API should wait (in microseconds), or `NO_TIMEOUT` to indicate it is to
-be blocked until at least one handle is ready.
+This API waits on a synchronization handle and returns true if this handle's event was triggered and
+false otherwise. `timeout_us` is the maximum time that the API should wait (in microseconds), or
+`NO_TIMEOUT` to indicate it is to be blocked until the handle's event is triggered.
 
-#### DkObjectsWaitEvents
+#### DkStreamsWaitEvents
 
     #define NO_TIMEOUT ((PAL_NUM)-1)
-    PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
+    PAL_BOL DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
                                 PAL_FLG* ret_events, PAL_NUM timeout_us);
 
 This API polls an array of handles with user-defined events `events` and returns polled-handles'
 events in `ret_events`. `timeout_us` is the maximum time that the API should wait (in
 microseconds), or `NO_TIMEOUT` to indicate it is to be blocked until at least one handle is ready.
 It returns true if there was an event on at least one handle and false otherwise.
-
-This API is a more efficient version of `DkObjectsWaitAny()` and closely resembles Linux poll
-semantics. Therefore, `DkObjectsWaitAny()` should be considered deprecated.
 
 #### DkObjectClose
 

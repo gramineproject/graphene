@@ -618,12 +618,12 @@ out:
  * thread calls receive_ipc_message() if a message arrives on port.
  *
  * Other threads add and remove IPC ports via add_ipc_xxx() and del_ipc_xxx() functions. These ports
- * are added to port_list which the IPC helper thread consults before each new DkObjectsWaitAny().
+ * are added to port_list which the IPC helper thread consults before each DkStreamsWaitEvents().
  *
  * Note that ports are copied from global port_list to local object_list. This is because ports may
  * be removed from port_list by other threads while IPC helper thread is waiting on
- * DkObjectsWaitAny(). For this reason IPC thread also get references to all current ports and puts
- * them after handling all ports in object_list.
+ * DkStreamsWaitEvents(). For this reason IPC thread also get references to all current ports and
+ * puts them after handling all ports in object_list.
  *
  * Previous implementation went to great lengths to keep changes to the list of current ports to a
  * minimum (instead of repopulating the list before each wait like in current code). Unfortunately,
@@ -634,25 +634,22 @@ noreturn static void shim_ipc_helper(void* dummy) {
     __UNUSED(dummy);
     struct shim_thread* self = get_cur_thread();
 
-    PAL_HANDLE polled = NULL;
-
     /* Initialize two lists:
-     * - object_list collects IPC port objects and is the main handled list
-     * - palhandle_list collects corresponding PAL handles of IPC port objects and is needed for
-     *   DkObjectsWaitAny(.., <array-of-PAL-handles>, ..) interface; palhandle_list always contains
-     *   at least install_new_event
-     *
-     * We allocate these two lists on the heap so they do not overflow the limited PAL stack. We
-     * grow them at runtime if needed.
-     */
-    size_t object_list_size    = 0;
-    size_t object_list_maxsize = 32;
-    struct shim_ipc_port** object_list =
-        malloc(sizeof(struct shim_ipc_port*) * object_list_maxsize);
-    PAL_HANDLE* palhandle_list = malloc(sizeof(PAL_HANDLE) * (1 + object_list_maxsize));
+     * - `ports` collects IPC port objects and is the main list we process here
+     * - `pals` collects PAL handles of IPC port objects; always contains install_new_event */
+    size_t ports_cnt = 0;
+    size_t ports_max_cnt = 32;
+    struct shim_ipc_port** ports = malloc(sizeof(*ports) * ports_max_cnt);
+    PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + ports_max_cnt));
 
-    PAL_HANDLE install_new_event_hdl = event_handle(&install_new_event);
-    palhandle_list[0]                = install_new_event_hdl;
+    /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
+    PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + ports_max_cnt) * 2);
+    PAL_FLG* ret_events = pal_events + 1 + ports_max_cnt;
+
+    PAL_HANDLE install_new_event_pal = event_handle(&install_new_event);
+    pals[0]       = install_new_event_pal;
+    pal_events[0] = PAL_WAIT_READ;
+    ret_events[0] = 0;
 
     while (true) {
         lock(&ipc_helper_lock);
@@ -661,94 +658,45 @@ noreturn static void shim_ipc_helper(void* dummy) {
             unlock(&ipc_helper_lock);
             break;
         }
-        unlock(&ipc_helper_lock);
 
-        struct shim_ipc_port* polled_port = NULL;
-
-        if (polled == install_new_event_hdl) {
-            /* some thread wants to install new event; this event is found in object_list below, so
-             * just re-init install_new_event */
-            debug("New IPC event was requested (port was added/removed)\n");
-            clear_event(&install_new_event);
-        } else {
-            /* it is not install_new_event handle, so must be one of ports */
-            for (size_t i = 0; i < object_list_size; i++)
-                if (polled == object_list[i]->pal_handle) {
-                    polled_port = object_list[i];
-                    break;
-                }
-        }
-
-        if (polled_port) {
-            if (polled_port->type & IPC_PORT_SERVER) {
-                /* if polled port is server port, accept a client, create client port, and add it to
-                 * port list */
-                PAL_HANDLE client = DkStreamWaitForClient(polled_port->pal_handle);
-                if (client) {
-                    /* type of client port is the same as original server port but with LISTEN (for
-                     * remote client) and without SERVER (this port doesn't wait for new clients) */
-                    IDTYPE client_type = (polled_port->type & ~IPC_PORT_SERVER) | IPC_PORT_LISTEN;
-                    add_ipc_port_by_id(polled_port->vmid, client, client_type, NULL, NULL);
-                } else {
-                    debug("Port %p (handle %p) was removed during accepting client\n", polled_port,
-                          polled_port->pal_handle);
-                    del_ipc_port_fini(polled_port, -ECHILD);
-                }
-            } else {
-                PAL_STREAM_ATTR attr;
-                if (DkStreamAttributesQueryByHandle(polled_port->pal_handle, &attr)) {
-                    /* can read on this port, so receive messages */
-                    if (attr.readable) {
-                        /* NOTE: IPC helper thread does not handle failures currently */
-                        receive_ipc_message(polled_port);
-                    }
-
-                    if (attr.disconnected) {
-                        debug("Port %p (handle %p) disconnected\n", polled_port,
-                              polled_port->pal_handle);
-                        del_ipc_port_fini(polled_port, -ECONNRESET);
-                    }
-                } else {
-                    debug("Port %p (handle %p) was removed during attr querying\n", polled_port,
-                          polled_port->pal_handle);
-                    del_ipc_port_fini(polled_port, -PAL_ERRNO);
-                }
-            }
-        }
-
-        /* done handling ports; put their references so they can be freed */
-        for (size_t i = 0; i < object_list_size; i++)
-            put_ipc_port(object_list[i]);
-
-        lock(&ipc_helper_lock);
-
-        /* iterate through all ports to repopulate object_list */
-        object_list_size = 0;
+        /* iterate through all known ports from `port_list` to repopulate `ports` */
+        ports_cnt = 0;
         struct shim_ipc_port* port;
         struct shim_ipc_port* tmp;
         LISTP_FOR_EACH_ENTRY_SAFE(port, tmp, &port_list, list) {
             /* get port reference so it is not freed while we wait on/handle it */
             __get_ipc_port(port);
 
-            if (object_list_size == object_list_maxsize) {
-                /* grow object_list and palhandle_list to accomodate more objects */
-                struct shim_ipc_port** tmp_array =
-                    malloc(sizeof(struct shim_ipc_port*) * (object_list_maxsize * 2));
-                PAL_HANDLE* tmp_pal_array =
-                    malloc(sizeof(PAL_HANDLE) * (1 + object_list_maxsize * 2));
-                memcpy(tmp_array, object_list, sizeof(struct shim_ipc_port*) * (object_list_size));
-                memcpy(tmp_pal_array, palhandle_list, sizeof(PAL_HANDLE) * (1 + object_list_size));
-                object_list_maxsize *= 2;
-                free(object_list);
-                free(palhandle_list);
-                object_list    = tmp_array;
-                palhandle_list = tmp_pal_array;
+            if (ports_cnt == ports_max_cnt) {
+                /* grow `ports` and `pals` to accommodate more objects */
+                struct shim_ipc_port** tmp_ports = malloc(sizeof(*tmp_ports) * ports_max_cnt * 2);
+                PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + ports_max_cnt * 2));
+                PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + ports_max_cnt * 4));
+                PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + ports_max_cnt * 2;
+
+                memcpy(tmp_ports, ports, sizeof(*tmp_ports) * ports_max_cnt);
+                memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + ports_max_cnt));
+                memcpy(tmp_pal_events, pal_events, sizeof(*tmp_pal_events) * (1 + ports_max_cnt));
+                memcpy(tmp_ret_events, ret_events, sizeof(*tmp_ret_events) * (1 + ports_max_cnt));
+
+                ports_max_cnt *= 2;
+
+                free(ports);
+                free(pals);
+                free(pal_events);
+
+                ports      = tmp_ports;
+                pals       = tmp_pals;
+                pal_events = tmp_pal_events;
+                ret_events = tmp_ret_events;
             }
 
-            /* re-add this port to object_list and palhandle_list */
-            object_list[object_list_size]        = port;
-            palhandle_list[object_list_size + 1] = port->pal_handle;
-            object_list_size++;
+            /* re-add this port to ports/pals/events */
+            ports[ports_cnt]          = port;
+            pals[ports_cnt + 1]       = port->pal_handle;
+            pal_events[ports_cnt + 1] = PAL_WAIT_READ;
+            ret_events[ports_cnt + 1] = 0;
+            ports_cnt++;
 
             debug("Listening to process %u on port %p (handle %p, type %04x)\n",
                   port->vmid & 0xFFFF, port, port->pal_handle, port->type);
@@ -756,16 +704,67 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
         unlock(&ipc_helper_lock);
 
-        /* wait on collected ports' PAL handles + install_new_event_hdl */
-        polled = DkObjectsWaitAny(object_list_size + 1, palhandle_list, NO_TIMEOUT);
+        /* wait on collected ports' PAL handles + install_new_event_pal */
+        PAL_BOL polled = DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events, NO_TIMEOUT);
+
+        for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
+            if (ret_events[i]) {
+                if (pals[i] == install_new_event_pal) {
+                    /* some thread wants to install new event; this event is found in `ports`, so
+                     * just re-init install_new_event */
+                    debug("New IPC event was requested (port was added/removed)\n");
+                    clear_event(&install_new_event);
+                    continue;
+                }
+
+                /* it is not install_new_event handle, so must be one of ports */
+                assert(i > 0);
+                struct shim_ipc_port* polled_port = ports[i - 1];
+                assert(polled_port);
+
+                if (polled_port->type & IPC_PORT_SERVER) {
+                    /* server port: accept client, create client port, and add it to port list */
+                    PAL_HANDLE client = DkStreamWaitForClient(polled_port->pal_handle);
+                    if (client) {
+                        /* type of client port is the same as original server port but with LISTEN
+                         * (for remote client) and without SERVER (doesn't wait for new clients) */
+                        IDTYPE client_type = (polled_port->type & ~IPC_PORT_SERVER) | IPC_PORT_LISTEN;
+                        add_ipc_port_by_id(polled_port->vmid, client, client_type, NULL, NULL);
+                    } else {
+                        debug("Port %p (handle %p) was removed during accepting client\n",
+                              polled_port, polled_port->pal_handle);
+                        del_ipc_port_fini(polled_port, -ECHILD);
+                    }
+                } else {
+                    PAL_STREAM_ATTR attr;
+                    if (DkStreamAttributesQueryByHandle(polled_port->pal_handle, &attr)) {
+                        /* can read on this port, so receive messages */
+                        if (attr.readable) {
+                            /* NOTE: IPC helper thread does not handle failures currently */
+                            receive_ipc_message(polled_port);
+                        }
+                        if (attr.disconnected) {
+                            debug("Port %p (handle %p) disconnected\n",
+                                  polled_port, polled_port->pal_handle);
+                            del_ipc_port_fini(polled_port, -ECONNRESET);
+                        }
+                    } else {
+                        debug("Port %p (handle %p) was removed during attr querying\n",
+                              polled_port, polled_port->pal_handle);
+                        del_ipc_port_fini(polled_port, -PAL_ERRNO);
+                    }
+                }
+            }
+        }
+
+        /* done handling ports; put their references so they can be freed */
+        for (size_t i = 0; i < ports_cnt; i++)
+            put_ipc_port(ports[i]);
     }
 
-    /* IPC thread exits; put acquired port references so they can be freed */
-    for (size_t i = 0; i < object_list_size; i++)
-        put_ipc_port(object_list[i]);
-
-    free(object_list);
-    free(palhandle_list);
+    free(ports);
+    free(pals);
+    free(pal_events);
 
     __disable_preempt(self->shim_tcb);
     put_thread(self);

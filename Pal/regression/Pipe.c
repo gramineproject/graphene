@@ -28,10 +28,6 @@ int main(int argc, char** argv, char** envp) {
         PAL_HANDLE pipe2 = DkStreamOpen("pipe:1", PAL_ACCESS_RDWR, 0, 0, 0);
 
         if (pipe2) {
-            // DEP 10/24/16: We should also be able to wait for a connection
-            //  on this handle
-            // PAL_HANDLE pipe3 = DkObjectsWaitAny(1, &pipe1, 0);
-
             PAL_HANDLE pipe3 = DkStreamWaitForClient(pipe1);
 
             if (pipe3) {

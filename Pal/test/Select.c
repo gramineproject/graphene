@@ -1,24 +1,23 @@
-/* This Hello World demostrate a simple multithread program */
 #include "pal.h"
 #include "pal_debug.h"
 
 PAL_HANDLE wakeup;
 
-int thread(void* args) {
-    pal_printf("Enter Thread\n");
+int thread_func(void* args) {
+    pal_printf("Enter thread\n");
 
     DkThreadDelayExecution(3000000);
-    pal_printf("set event\n");
+    pal_printf("Thread sets event\n");
 
     char byte = 0;
     DkStreamWrite(wakeup, 0, 1, &byte, NULL);
 
-    pal_printf("Leave Thread\n");
+    pal_printf("Leave thread\n");
     return 0;
 }
 
-int main() {
-    pal_printf("Enter Main Thread\n");
+int main(int argc, char** argv) {
+    pal_printf("Enter main thread\n");
 
     PAL_HANDLE handles[3];
     handles[0] = DkStreamOpen("pipe:", PAL_ACCESS_RDWR, 0, 0, 0);
@@ -26,20 +25,26 @@ int main() {
     handles[2] = DkStreamOpen("pipe:", PAL_ACCESS_RDWR, 0, 0, 0);
     wakeup     = handles[2];
 
-    PAL_HANDLE thd = DkThreadCreate(&thread, NULL);
-
-    if (thd == NULL) {
+    PAL_HANDLE thd = DkThreadCreate(&thread_func, NULL);
+    if (!thd) {
         pal_printf("DkThreadCreate failed\n");
         return -1;
     }
 
-    pal_printf("wait on event\n");
+    pal_printf("Waiting on event\n");
 
-    PAL_HANDLE hdl = DkObjectsWaitAny(3, handles, NO_TIMEOUT);
+    PAL_FLG events[3]  = {PAL_WAIT_READ, PAL_WAIT_READ, PAL_WAIT_READ};
+    PAL_FLG revents[3] = {0, 0, 0};
 
-    if (hdl == wakeup)
-        pal_printf("events is called\n");
+    PAL_BOL polled = DkStreamsWaitEvents(3, handles, events, revents, NO_TIMEOUT);
+    if (!polled) {
+        pal_printf("DkStreamsWaitEvents did not return any events\n");
+        return -1;
+    }
 
-    pal_printf("Leave Main Thread\n");
+    if (revents[2])
+        pal_printf("Event was called\n");
+
+    pal_printf("Leave main thread\n");
     return 0;
 }
