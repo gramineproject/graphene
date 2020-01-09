@@ -40,7 +40,8 @@ int _DkSynchronizationObjectWait(PAL_HANDLE handle, int64_t timeout_us) {
     assert(IS_HANDLE_TYPE(handle, mutex) || IS_HANDLE_TYPE(handle, event));
 
     const struct handle_ops* ops = HANDLE_OPS(handle);
-    assert(ops && ops->wait);
+    if (!ops || !ops->wait)
+        return -PAL_ERROR_NOTIMPLEMENTED;
 
     return ops->wait(handle, timeout_us);
 }
