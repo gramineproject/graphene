@@ -707,8 +707,7 @@ int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* dat
             break;
 
         unlock(&hdl->lock);
-        while (!DkObjectsWaitAny(1, &msgq->event, NO_TIMEOUT))
-            ;
+        object_wait_with_retry(msgq->event);
         lock(&hdl->lock);
 
         if (!msgq->owned)

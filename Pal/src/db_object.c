@@ -71,42 +71,32 @@ void DkObjectClose (PAL_HANDLE objectHandle)
     LEAVE_PAL_CALL();
 }
 
-// PAL call DkObjectsWaitAny: wait for any of the handles in the handle array.
-// The wait can be timed out, unless NO_TIMEOUT is given for the timeout_us argument.
-PAL_HANDLE
-DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handle_array, PAL_NUM timeout_us) {
-    ENTER_PAL_CALL(DkObjectsWaitAny);
+/* Wait on a synchronization handle and return true if this handle's event was triggered,
+ * otherwise return false and additionally raise failure. */
+PAL_BOL DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us) {
+    ENTER_PAL_CALL(DkSynchronizationObjectWait);
 
-    if (!count || !handle_array) {
+    if (!handle) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(NULL);
     }
 
-    for (PAL_NUM i = 0 ; i < count ; i++)
-        if (UNKNOWN_HANDLE(handle_array[i])) {
-            _DkRaiseFailure(PAL_ERROR_INVAL);
-            LEAVE_PAL_CALL_RETURN(NULL);
-        }
-
-
-    PAL_HANDLE polled = NULL;
-
-    int ret = _DkObjectsWaitAny(count, handle_array, timeout_us, &polled);
+    int ret = _DkSynchronizationObjectWait(handle, timeout_us);
     if (ret < 0) {
         _DkRaiseFailure(-ret);
-        polled = NULL;
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    LEAVE_PAL_CALL_RETURN(polled);
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
 /* Wait for user-specified events of handles in the handle array. The wait can be timed out,
  * unless NO_TIMEOUT is given in the timeout_us argument. Returns PAL_TRUE if waiting was
  * successful.
  */
-PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
+PAL_BOL DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
                             PAL_FLG* ret_events, PAL_NUM timeout_us) {
-    ENTER_PAL_CALL(DkObjectsWaitEvents);
+    ENTER_PAL_CALL(DkStreamsWaitEvents);
 
     if (!count || !handle_array || !events || !ret_events) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
@@ -120,7 +110,7 @@ PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* ev
         }
     }
 
-    int ret = _DkObjectsWaitEvents(count, handle_array, events, ret_events, timeout_us);
+    int ret = _DkStreamsWaitEvents(count, handle_array, events, ret_events, timeout_us);
     if (ret < 0) {
         _DkRaiseFailure(-ret);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);

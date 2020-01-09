@@ -549,7 +549,9 @@ static void lock(struct shim_lock* l)
     debug("try lock(%s=%p) %s:%d\n", name, l, file, line);
 #endif
 
-    while (!DkObjectsWaitAny(1, &l->lock, NO_TIMEOUT));
+    while (!DkSynchronizationObjectWait(l->lock, NO_TIMEOUT))
+        /* nop */;
+
     l->owner = tcb->tid;
 #if DEBUG_LOCK == 1
     debug("lock(%s=%p) by %s:%d\n", name, l, file, line);
@@ -656,7 +658,7 @@ static inline void wait_event (AEVENTTYPE * e)
         char byte;
         int n = 0;
         do {
-            if (!DkObjectsWaitAny(1, &e->event, NO_TIMEOUT))
+            if (!DkSynchronizationObjectWait(e->event, NO_TIMEOUT))
                 continue;
 
             n = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);

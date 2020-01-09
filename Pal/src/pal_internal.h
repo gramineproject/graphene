@@ -325,8 +325,8 @@ int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot);
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);
 int _DkObjectClose (PAL_HANDLE objectHandle);
-int _DkObjectsWaitAny(size_t count, PAL_HANDLE* handle_array, int64_t timeout_us, PAL_HANDLE* polled);
-int _DkObjectsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events, PAL_FLG* ret_events,
+int _DkSynchronizationObjectWait(PAL_HANDLE handle, int64_t timeout_us);
+int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events, PAL_FLG* ret_events,
                          int64_t timeout_us);
 
 /* DkException calls & structures */

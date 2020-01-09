@@ -128,7 +128,7 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     }
 
     /* whether fd is writable or not, gets updated here,
-     * to optimize polling logic in _DkObjectsWaitAny */
+     * to optimize polling logic in _DkStreamsWaitEvents */
     if ((uint64_t) bytes == sizeof(uint64_t))
         HANDLE_HDR(handle)->flags |= writable;
     else

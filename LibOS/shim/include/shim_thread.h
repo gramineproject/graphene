@@ -248,7 +248,7 @@ static inline int thread_sleep (uint64_t timeout_us)
     if (!event)
         return -EINVAL;
 
-    if ( NULL == DkObjectsWaitAny(1, &event, timeout_us))
+    if (!DkSynchronizationObjectWait(event, timeout_us))
         return -PAL_ERRNO;
 
     return 0;

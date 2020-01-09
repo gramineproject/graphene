@@ -477,28 +477,22 @@ DkNotificationEventCreate (PAL_BOL initialState);
 PAL_HANDLE
 DkSynchronizationEventCreate (PAL_BOL initialState);
 
-/* DkEventDestroy deprecated, replaced by DkObjectClose */
-
 void
 DkEventSet (PAL_HANDLE eventHandle);
-
-/* DkEventWait deprecated, replaced by DkObjectsWaitAny */
 
 void
 DkEventClear (PAL_HANDLE eventHandle);
 
 #define NO_TIMEOUT ((PAL_NUM)-1)
 
-/* Returns: NULL if the call times out, the ready handle on success */
-PAL_HANDLE
-DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE* handle_array, PAL_NUM timeout_us);
+PAL_BOL DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us);
 
 #define PAL_WAIT_SIGNAL     1   /* ignored in events */
 #define PAL_WAIT_READ       2
 #define PAL_WAIT_WRITE      4
 #define PAL_WAIT_ERROR      8   /* ignored in events */
 
-PAL_BOL DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
+PAL_BOL DkStreamsWaitEvents(PAL_NUM count, PAL_HANDLE* handle_array, PAL_FLG* events,
                             PAL_FLG* ret_events, PAL_NUM timeout_us);
 
 /* Deprecate DkObjectReference */

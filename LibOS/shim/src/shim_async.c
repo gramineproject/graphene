@@ -167,24 +167,21 @@ static void shim_async_helper(void * arg) {
      * to install a new event. */
     uint64_t idle_cycles = 0;
 
-    PAL_HANDLE polled = NULL;
+    /* init pals so that it always contains at least install_new_event */
+    size_t pals_size = 32;
+    PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + pals_size));
 
-    /* init object_list so that it always contains at least install_new_event */
-    size_t object_list_size = 32;
-    PAL_HANDLE * object_list =
-            malloc(sizeof(PAL_HANDLE) * (1 + object_list_size));
+    /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
+    PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + pals_size) * 2);
+    PAL_FLG* ret_events = pal_events + 1 + pals_size;
 
-    PAL_HANDLE install_new_event_hdl = event_handle(&install_new_event);
-    object_list[0] = install_new_event_hdl;
+    PAL_HANDLE install_new_event_pal = event_handle(&install_new_event);
+    pals[0]       = install_new_event_pal;
+    pal_events[0] = PAL_WAIT_READ;
+    ret_events[0] = 0;
 
     while (true) {
         uint64_t now = DkSystemTimeQuery();
-
-        if (polled == install_new_event_hdl) {
-            /* Some thread wants to install new event; this event is found
-             * in async_list below, so just re-init install_new_event. */
-            clear_event(&install_new_event);
-        }
 
         lock(&async_helper_lock);
         if (async_helper_state != HELPER_ALIVE) {
@@ -193,63 +190,38 @@ static void shim_async_helper(void * arg) {
             break;
         }
 
-        LISTP_TYPE(async_event) triggered;
-        INIT_LISTP(&triggered);
-
-    again:;
-        /* Iterate through all async IO events and alarm/timer events to:
-         *   - call callbacks for all triggered events, and
-         *   - repopulate object_list with async IO events (if any), and
-         *   - find the next expiring alarm/timer (if any) */
         uint64_t next_expire_time = 0;
-        size_t object_num = 0;
+        size_t pal_cnt = 0;
 
-        struct async_event * tmp, * n;
+        struct async_event* tmp;
+        struct async_event* n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
-            /* First check if this event was triggered; there are three types:
-             *   1. Exited child:  trigger callback and remove from the list;
-             *   2. IO events:     trigger callback and keep in the list;
-             *   3. alarms/timers: trigger callback and remove from the list. */
-            if (tmp->callback == &cleanup_thread) {
-                debug("Thread exited, cleaning up\n");
-                LISTP_DEL(tmp, &async_list, list);
-                LISTP_ADD_TAIL(tmp, &triggered, list);
-                continue;
-            } else if (polled && tmp->object == polled) {
-                debug("Async IO event triggered at %lu\n", now);
-                unlock(&async_helper_lock);
-                /* FIXME: potential race condition when
-                 * ioctl(FIOASYNC, off) and cleanup on fd-close are
-                 * correctly implemented. tmp can be freed at the same
-                 * time. */
-                tmp->callback(tmp->caller, tmp->arg);
-                /* async_list may be changed because async_helper_lock is
-                 * released; list traverse cannot be continued. */
-                polled = NULL;
-                lock(&async_helper_lock);
-                goto again;
-            } else if (tmp->expire_time && tmp->expire_time <= now) {
-                debug("Async alarm/timer triggered at %lu (expired at %lu)\n",
-                        now, tmp->expire_time);
-                LISTP_DEL(tmp, &async_list, list);
-                LISTP_ADD_TAIL(tmp, &triggered, list);
-                continue;
-            }
-
-            /* Now re-add this IO event to the list or re-add this timer */
+            /* repopulate pals with IO events and find the next expiring alarm/timer */
             if (tmp->object) {
-                if (object_num == object_list_size) {
-                    /* grow object_list to accomodate more objects */
-                    PAL_HANDLE * tmp_array = malloc(
-                            sizeof(PAL_HANDLE) * (1 + object_list_size * 2));
-                    memcpy(tmp_array, object_list,
-                            sizeof(PAL_HANDLE) * (1 + object_list_size));
-                    object_list_size *= 2;
-                    free(object_list);
-                    object_list = tmp_array;
+                if (pal_cnt == pals_size) {
+                    /* grow pals to accomodate more objects */
+                    PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + pals_size * 2));
+                    PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + pals_size * 4));
+                    PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + pals_size * 2;
+
+                    memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + pals_size));
+                    memcpy(tmp_pal_events, pal_events, sizeof(*tmp_pal_events) * (1 + pals_size));
+                    memcpy(tmp_ret_events, ret_events, sizeof(*tmp_ret_events) * (1 + pals_size));
+
+                    pals_size *= 2;
+
+                    free(pals);
+                    free(pal_events);
+
+                    pals = tmp_pals;
+                    pal_events = tmp_pal_events;
+                    ret_events = tmp_ret_events;
                 }
-                object_list[object_num + 1] = tmp->object;
-                object_num++;
+
+                pals[pal_cnt + 1]       = tmp->object;
+                pal_events[pal_cnt + 1] = PAL_WAIT_READ;
+                ret_events[pal_cnt + 1] = 0;
+                pal_cnt++;
             } else if (tmp->expire_time && tmp->expire_time > now) {
                 if (!next_expire_time || next_expire_time > tmp->expire_time) {
                     /* use time of the next expiring alarm/timer */
@@ -258,21 +230,11 @@ static void shim_async_helper(void * arg) {
             }
         }
 
-        if (!LISTP_EMPTY(&triggered)) {
-            unlock(&async_helper_lock);
-            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &triggered, list) {
-                LISTP_DEL(tmp, &triggered, list);
-                tmp->callback(tmp->caller, tmp->arg);
-                free(tmp);
-            }
-            lock(&async_helper_lock);
-        }
-
         uint64_t sleep_time;
         if (next_expire_time) {
             sleep_time = next_expire_time - now;
             idle_cycles = 0;
-        } else if (object_num) {
+        } else if (pal_cnt) {
             sleep_time = NO_TIMEOUT;
             idle_cycles = 0;
         } else {
@@ -291,13 +253,65 @@ static void shim_async_helper(void * arg) {
         unlock(&async_helper_lock);
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
-        polled = DkObjectsWaitAny(object_num + 1, object_list, sleep_time);
+        PAL_BOL polled = DkStreamsWaitEvents(pal_cnt + 1, pals, pal_events, ret_events, sleep_time);
+
+        now = DkSystemTimeQuery();
+
+        LISTP_TYPE(async_event) triggered;
+        INIT_LISTP(&triggered);
+
+        for (size_t i = 0; polled && (i < pal_cnt + 1); i++) {
+            if (ret_events[i]) {
+                if (pals[i] == install_new_event_pal) {
+                    /* some thread wants to install new event; this event is found
+                     * in async_list, so just re-init install_new_event */
+                    clear_event(&install_new_event);
+                    continue;
+                }
+
+                /* check if this event is an IO event found in async_list */
+                LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
+                    if (tmp->object == pals[i]) {
+                        debug("Async IO event triggered at %lu\n", now);
+                        LISTP_ADD_TAIL(tmp, &triggered, list);
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* check if exit-child or alarm/timer events were triggered */
+        LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
+            if (tmp->callback == &cleanup_thread) {
+                debug("Thread exited, cleaning up\n");
+                LISTP_DEL(tmp, &async_list, list);
+                LISTP_ADD_TAIL(tmp, &triggered, list);
+            } else if (tmp->expire_time && tmp->expire_time <= now) {
+                debug("Alarm/timer triggered at %lu (expired at %lu)\n", now, tmp->expire_time);
+                LISTP_DEL(tmp, &async_list, list);
+                LISTP_ADD_TAIL(tmp, &triggered, list);
+            }
+        }
+
+        /* call callbacks for all triggered events */
+        if (!LISTP_EMPTY(&triggered)) {
+            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &triggered, list) {
+                LISTP_DEL(tmp, &triggered, list);
+                tmp->callback(tmp->caller, tmp->arg);
+                if (!tmp->object) {
+                    /* this is a one-off exit-child or alarm/timer event */
+                    free(tmp);
+                }
+            }
+        }
     }
 
     __disable_preempt(self->shim_tcb);
     put_thread(self);
     debug("Async helper thread terminated\n");
-    free(object_list);
+
+    free(pals);
+    free(pal_events);
 
     DkThreadExit(/*clear_child_tid=*/NULL);
 }

@@ -1,5 +1,3 @@
-/* This Hello World demostrate a simple multithread program */
-
 #include "pal.h"
 #include "pal_debug.h"
 
@@ -7,46 +5,45 @@ static PAL_HANDLE event1;
 
 int count = 0;
 
-int thread_1(void* args) {
+int thread_func(void* args) {
     DkThreadDelayExecution(1000);
 
-    pal_printf("In Thread 1\n");
+    pal_printf("In thread 1\n");
 
-    while (count < 100) {
+    while (count < 100)
         count++;
-    }
 
     DkEventSet(event1);
     DkThreadExit(/*clear_child_tid=*/NULL);
-
-    return 0;
+    return 0; /* NOTREACHED */
 }
 
 int main(int argc, char** argv) {
-    pal_printf("Enter Main Thread\n");
+    pal_printf("Enter main thread\n");
 
     PAL_HANDLE thd1;
 
     event1 = DkNotificationEventCreate(0);
-    if (event1 == NULL) {
+    if (!event1) {
         pal_printf("DkNotificationEventCreate failed\n");
         return -1;
     }
 
-    thd1 = DkThreadCreate(&thread_1, 0);
-
-    if (thd1 == NULL) {
+    thd1 = DkThreadCreate(&thread_func, 0);
+    if (!thd1) {
         pal_printf("DkThreadCreate failed\n");
         return -1;
     }
 
-    DkObjectsWaitAny(1, &event1, NO_TIMEOUT);
+    /* wait till thread thd1 is done */
+    DkSynchronizationObjectWait(event1, NO_TIMEOUT);
 
-    if (count < 100)
+    if (count != 100)
         return -1;
 
-    DkObjectsWaitAny(1, &event1, NO_TIMEOUT);
+    /* this wait should return immediately */
+    DkSynchronizationObjectWait(event1, NO_TIMEOUT);
 
-    pal_printf("Leave Main Thread\n");
+    pal_printf("Success, leave main thread\n");
     return 0;
 }
