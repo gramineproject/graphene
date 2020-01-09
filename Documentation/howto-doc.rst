@@ -107,7 +107,7 @@ Preferred reST style
       This is a |_| README.
 
 Documentation of the code should be organized into files by logical concepts,
-as they fit into programmers mind. Ideally, this should match the source files,
+as they fit into programmer's mind. Ideally, this should match the source files,
 if those files were organised correctly in the first place, but the reality may
 be different. In case of doubt, place them as they fit the narrative of the
 document, not as they are placed in the source files.
@@ -123,7 +123,8 @@ Preferred Doxygen style
 
    .. code-block:: c
 
-      /*! \brief An example function
+      /*!
+       * \brief An example function
        *
        * This function returns a number augmented by the Answer to the Ultimate
        * Question of Life, the Universe, and Everything.
@@ -131,8 +132,7 @@ Preferred Doxygen style
        * \param n The number to be added
        * \return A number 42 greater
        */
-      int foo(int n)
-      {
+      int foo(int n) {
           return n + 42;
       }
 
@@ -143,7 +143,6 @@ Preferred Doxygen style
       .. doxygenfunction:: foo
 
       It's an example function, but is documented!
-
 
 2. In reST, do not use ``autodoxygen`` directives, and especially do not use
    ``.. doxygenfile::``, because documentation should be written as prose, not
