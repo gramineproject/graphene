@@ -22,7 +22,7 @@ running a complete OS in a virtual machine -- including guest customization, eas
 different OSes, and process migration.
 
 Graphene supports native, unmodified Linux applications on any platform. Currently, Graphene runs on
-Linux, FreeBSD and Intel SGX enclaves on Linux platforms.
+Linux and Intel SGX enclaves on Linux platforms.
 
 With Intel SGX support, Graphene can secure a |_| critical application in a |_| hardware-encrypted
 memory region. Graphene can protect applications from a |_| malicious system stack with minimal

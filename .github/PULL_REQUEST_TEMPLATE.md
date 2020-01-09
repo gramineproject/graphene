@@ -5,7 +5,6 @@
 - [ ] README and global configuration
 - [ ] Linux PAL
 - [ ] SGX PAL
-- [ ] FreeBSD PAL
 - [ ] Common PAL code
 - [ ] Library OS (i.e., SHIM), including GLIBC
 
