@@ -17,16 +17,14 @@ To build Graphene with debug symbols, the source code needs to be compiled with
     make clean
     make DEBUG=1
 
-To run Graphene with GDB, use one of the following commands to run your
-application::
+To run Graphene with GDB, use the following command to run your application::
 
     GDB=1 [Graphene Directory]/Runtime/pal_loader [executable|manifest] [arguments]
-    gdb --args [executable|manifest] [arguments]
 
 Running Graphene-SGX with GDB
 -----------------------------
 
-Graphene-SGX also supports GDB from outside the enclave if the enclave is
+Graphene-SGX supports debugging of enclavized applications if the enclave is
 created in debug mode. Graphene provides a specialized GDB for the application
 and the library OS running inside an enclave (using a normal GDB will only debug
 the execution *outside* the enclave).
