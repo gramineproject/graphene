@@ -1,11 +1,9 @@
-all_hosts = Skeleton Linux Linux-SGX FreeBSD
+all_hosts = Skeleton Linux Linux-SGX
 
 SYS ?= $(shell gcc -dumpmachine)
 ifeq ($(PAL_HOST),)
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 PAL_HOST := Linux
-else ifeq ($(findstring freebsd,$(SYS)),freebsd)
-PAL_HOST := FreeBSD
 else
 $(error Unsupported platform: $(SYS))
 endif

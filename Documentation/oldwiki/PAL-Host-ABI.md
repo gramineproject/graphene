@@ -35,8 +35,8 @@ based on the file name or content.
 
 Precisely, the loading rules for the manifest and executable are as follows:
 
-1. The first argument given to the PAL loader (e.g., `pal-Linux`, `pal-Linux-SGX`, `pal-FreeBSD`,
-or the cross-platform wrapper, `pal-loader`) can be either a manifest file or an executable.
+1. The first argument given to the PAL loader (e.g., `pal-Linux` or `pal-Linux-SGX`, or the
+cross-platform wrapper, `pal-loader`) can be either a manifest file or an executable.
 2. If an executable is given to the command line, the loader will search for the manifest in the
 following order: the same file name as the executable with a `.manifest` or `.manifest.sgx` extension,
 a `manifest` file without any extension, or no manifest at all.
