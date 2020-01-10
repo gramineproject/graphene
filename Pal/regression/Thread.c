@@ -56,9 +56,11 @@ int main(int argc, const char** argv, const char** envp) {
         while (count1 < 100) {
             DkThreadYieldExecution();
         }
-        for (int i = 0; i < 300; i++) {
+        for (int i = 0; i < 500; i++) {
             DkThreadYieldExecution();
         }
+
+        __asm__ volatile("nop" ::: "memory");
         if (count1 == 100)
             pal_printf("Child Thread Exited\n");
     }
