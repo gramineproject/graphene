@@ -131,12 +131,26 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
             continue;
 
         size_t j = offsets[i];
+
+        /* update revents */
         if (fds[i].revents & POLLIN)
             ret_events[j] |= PAL_WAIT_READ;
         if (fds[i].revents & POLLOUT)
             ret_events[j] |= PAL_WAIT_WRITE;
         if (fds[i].revents & (POLLHUP | POLLERR | POLLNVAL))
             ret_events[j] |= PAL_WAIT_ERROR;
+
+        /* update handle's internal fields (flags) */
+        PAL_HANDLE hdl = handle_array[j];
+        assert(hdl);
+        for (size_t k = 0; k < MAX_FDS; k++) {
+            if (hdl->generic.fds[k] != (PAL_IDX)fds[i].fd)
+                continue;
+            if (fds[i].revents & POLLOUT)
+                HANDLE_HDR(hdl)->flags |= WRITABLE(k);
+            if (fds[i].revents & (POLLHUP|POLLERR|POLLNVAL))
+                HANDLE_HDR(hdl)->flags |= ERROR(k);
+        }
     }
 
     ret = 0;
