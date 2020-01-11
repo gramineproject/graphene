@@ -23,10 +23,10 @@ ssize_t rw_file(int fd, char* buf, size_t bytes, bool write_flag) {
         else
             ret = read(fd, buf + rv, bytes - rv);
 
-        if (ret >= 0) {
+        if (ret > 0) {
             rv += ret;
         } else {
-            if (errno == EAGAIN || errno == EINTR) {
+            if (ret < 0 && (errno == EAGAIN || errno == EINTR)) {
                 continue;
             } else {
                 fprintf(stderr, "%s failed:%s\n", write_flag ? "write" : "read", strerror(errno));
@@ -82,9 +82,9 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    rv = lseek(fd, 4096, SEEK_SET);
+    rv = lseek(fd, 8192, SEEK_SET);
     if (rv < 0) {
-        perror("lseek to 4KB offset failed");
+        perror("lseek to 8KB offset failed");
         return 1;
     }
 
@@ -106,10 +106,10 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    /* reopen file: file size should be 4096 + BUF_LENGTH */
-    rv = lseek(fd, 4096, SEEK_SET);
+    /* reopen file: file size should be 8192 + BUF_LENGTH */
+    rv = lseek(fd, 8192, SEEK_SET);
     if (rv < 0) {
-        perror("lseek to 4KB offset failed");
+        perror("lseek to 8KB offset failed");
         return 1;
     }
 
