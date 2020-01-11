@@ -8,7 +8,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define BUF_LENGTH 4096
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#define BUF_LENGTH  4096
+#define HOLE_LENGTH 8192
 
 #define TEST_DIR  "tmp"
 #define TEST_FILE "__testfile__"
@@ -66,7 +70,7 @@ int main(int argc, const char** argv) {
     /* test file size: write a file of type != FILEBUF_MAP */
     bytes = rw_file(fd, buf, BUF_LENGTH, true);
     if (bytes < 0 || bytes != BUF_LENGTH) {
-        perror("writing BUF_LENGTH bytes to test file failed");
+        perror("writing " STR(BUF_LENGTH) " bytes to test file failed");
         return 1;
     }
 
@@ -82,15 +86,15 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    rv = lseek(fd, 8192, SEEK_SET);
+    rv = lseek(fd, HOLE_LENGTH, SEEK_SET);
     if (rv < 0) {
-        perror("lseek to 8KB offset failed");
+        perror("lseek to " STR(HOLE_LENGTH) " offset failed");
         return 1;
     }
 
     bytes = rw_file(fd, buf, BUF_LENGTH, true);
     if (bytes < 0 || bytes != BUF_LENGTH) {
-        perror("writing BUF_LENGTH bytes to test file failed");
+        perror("writing " STR(BUF_LENGTH) " bytes to test file failed");
         return 1;
     }
 
@@ -106,16 +110,16 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    /* reopen file: file size should be 8192 + BUF_LENGTH */
-    rv = lseek(fd, 8192, SEEK_SET);
+    /* reopen file: file size should be HOLE_LENGTH + BUF_LENGTH */
+    rv = lseek(fd, HOLE_LENGTH, SEEK_SET);
     if (rv < 0) {
-        perror("lseek to 8KB offset failed");
+        perror("lseek to " STR(HOLE_LENGTH) " offset failed");
         return 1;
     }
 
     bytes = rw_file(fd, buf, BUF_LENGTH, false);
     if (bytes != BUF_LENGTH) {
-        perror("reading BUF_LENGTH bytes from test file failed");
+        perror("reading " STR(BUF_LENGTH) " bytes from test file failed");
         return 1;
     }
 
