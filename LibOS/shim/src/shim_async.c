@@ -261,6 +261,9 @@ static void shim_async_helper(void* arg) {
         LISTP_TYPE(async_event) triggered;
         INIT_LISTP(&triggered);
 
+        /* acquire lock because we read/modify async_list below */
+        lock(&async_helper_lock);
+
         for (size_t i = 0; polled && (i < pal_cnt + 1); i++) {
             if (ret_events[i]) {
                 if (pals[i] == install_new_event_pal) {
@@ -293,6 +296,8 @@ static void shim_async_helper(void* arg) {
                 LISTP_ADD_TAIL(tmp, &triggered, list);
             }
         }
+
+        unlock(&async_helper_lock);
 
         /* call callbacks for all triggered events */
         if (!LISTP_EMPTY(&triggered)) {
