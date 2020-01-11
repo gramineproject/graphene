@@ -1,13 +1,15 @@
-#include <errno.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-#define TEST_DIR        "tmp"
-#define TEST_FILE       "__testfile__"
+#define TEST_DIR  "tmp"
+#define TEST_FILE "__testfile__"
 
 /* return true if file_name exists, otherwise false */
 bool find_file(char* dir_name, char* file_name) {
@@ -18,9 +20,9 @@ bool find_file(char* dir_name, char* file_name) {
         return found;
     }
 
-    errno = 0;
     struct dirent* dent = NULL;
     while (1) {
+        errno = 0;
         dent = readdir(dir);
         if (dent == NULL) {
             if (errno == 0)
@@ -44,33 +46,48 @@ int main(int argc, const char** argv) {
     int rv = 0;
     int fd = 0;
 
-    unlink(TEST_DIR"/"TEST_FILE);
+    /* setup the test directory and file */
+    rv = mkdir(TEST_DIR, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if (rv < 0 && errno != EEXIST) {
+        perror("mkdir failed");
+        return 1;
+    }
+
+    rv = unlink(TEST_DIR"/"TEST_FILE);
+    if (rv < 0 && errno != ENOENT) {
+        perror("unlink failed");
+        return 1;
+    }
 
     /* test readdir: should not find a file that we just deleted */
     if (find_file(TEST_DIR, TEST_FILE)) {
-        fprintf(stderr, "The file %s was unexpectedly found\n", TEST_FILE);
-        rv = -1;
-        goto out;
+        perror("file " TEST_FILE " was unexpectedly found\n");
+        return 1;
     }
 
-    fd = open(TEST_DIR"/"TEST_FILE, O_CREAT | O_RDWR | O_TRUNC, 0660);
+    fd = open(TEST_DIR"/"TEST_FILE, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     if (fd < 0) {
         perror("open failed");
-        return -1;
+        return 1;
     }
 
     if (!find_file(TEST_DIR, TEST_FILE)) {
-        fprintf(stderr, "The file %s was not found\n", TEST_FILE);
-        rv = -1;
-        goto out;
+        perror("file " TEST_FILE " was not found\n");
+        return 1;
+    }
+
+    rv = close(fd);
+    if (rv < 0) {
+        perror("close failed");
+        return 1;
+    }
+
+    rv = unlink(TEST_DIR"/"TEST_FILE);
+    if (rv < 0) {
+        perror("unlink failed");
+        return 1;
     }
 
     printf("test completed successfully\n");
-
-out:
-    if (fd)
-        close(fd);
-
-    unlink(TEST_DIR"/"TEST_FILE);
     return rv;
 }

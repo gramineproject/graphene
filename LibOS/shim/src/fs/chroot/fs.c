@@ -416,9 +416,8 @@ static int __chroot_open (struct shim_dentry * dent,
                 return -PAL_ERRNO;
         }
 
-        /* If DENTRY_LISTED is set on the parent dentry,
-         * list_directory_dentry() will not update dent's ino,
-         * so ino will be actively updated here. */
+        /* If DENTRY_LISTED is set on the parent dentry, list_directory_dentry() will not update
+         * dent's ino, so ino will be actively updated here. */
         if (creat)
             chroot_update_ino(dent);
     }
@@ -580,8 +579,8 @@ static inline bool check_version (struct shim_handle * hdl)
            == hdl->info.file.version;
 }
 
-static inline chroot_update_size(struct shim_handle* hdl, struct shim_file_handle* file,
-                                 struct shim_file_data* data) {
+static inline void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle* file,
+                                      struct shim_file_data* data) {
     if (check_version(hdl)) {
         off_t size;
         do {

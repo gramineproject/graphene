@@ -254,13 +254,11 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('Successfully read from file: Hello World', stdout)
 
     def test_031_readdir(self):
-        stdout, stderr = self.run_binary(['readdir'])
-
+        stdout, _ = self.run_binary(['readdir'])
         self.assertIn('test completed successfully', stdout)
 
     def test_032_file_size(self):
-        stdout, stderr = self.run_binary(['file_size'])
-
+        stdout, _ = self.run_binary(['file_size'])
         self.assertIn('test completed successfully', stdout)
 
     def test_040_futex_wake(self):

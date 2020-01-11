@@ -4,19 +4,20 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-#define BUF_LENGTH      4096
+#define BUF_LENGTH 4096
 
-#define TEST_DIR        "tmp"
-#define TEST_FILE       "__testfile__"
+#define TEST_DIR  "tmp"
+#define TEST_FILE "__testfile__"
 
 ssize_t rw_file(int fd, char* buf, size_t bytes, bool write_flag) {
     ssize_t rv = 0;
     ssize_t ret;
 
     while (bytes > rv) {
-        errno = 0;
         if (write_flag)
             ret = write(fd, buf + rv, bytes - rv);
         else
@@ -29,7 +30,7 @@ ssize_t rw_file(int fd, char* buf, size_t bytes, bool write_flag) {
                 continue;
             } else {
                 fprintf(stderr, "%s failed:%s\n", write_flag ? "write" : "read", strerror(errno));
-                break;
+                return ret;
             }
         }
     }
@@ -39,53 +40,97 @@ ssize_t rw_file(int fd, char* buf, size_t bytes, bool write_flag) {
 
 int main(int argc, const char** argv) {
     char buf[BUF_LENGTH];
-    int rv = 0;
     ssize_t bytes;
     int fd = 0;
+    int rv = 0;
 
-    unlink(TEST_DIR"/"TEST_FILE);
+    /* setup the test directory and file */
+    rv = mkdir(TEST_DIR, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if (rv < 0 && errno != EEXIST) {
+        perror("mkdir failed");
+        return 1;
+    }
 
-    fd = open(TEST_DIR"/"TEST_FILE, O_CREAT | O_RDWR | O_TRUNC, 0660);
+    rv = unlink(TEST_DIR"/"TEST_FILE);
+    if (rv < 0 && errno != ENOENT) {
+        perror("unlink failed");
+        return 1;
+    }
+
+    fd = open(TEST_DIR"/"TEST_FILE, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     if (fd < 0) {
         perror("open failed");
-        return -1;
+        return 1;
     }
 
     /* test file size: write a file of type != FILEBUF_MAP */
     bytes = rw_file(fd, buf, BUF_LENGTH, true);
-    assert(bytes == BUF_LENGTH);
+    if (bytes < 0 || bytes != BUF_LENGTH) {
+        perror("writing BUF_LENGTH bytes to test file failed");
+        return 1;
+    }
 
-    lseek(fd, 0, SEEK_SET);
+    rv = lseek(fd, 0, SEEK_SET);
+    if (rv < 0) {
+        perror("lseek to beginning of file failed");
+        return 1;
+    }
+
     bytes = rw_file(fd, buf, 1, true);
-    assert(bytes == 1);
+    if (bytes < 0 || bytes != 1) {
+        perror("writing one byte to test file failed");
+        return 1;
+    }
 
-    lseek(fd, 4096, SEEK_SET);
+    rv = lseek(fd, 4096, SEEK_SET);
+    if (rv < 0) {
+        perror("lseek to 4KB offset failed");
+        return 1;
+    }
+
     bytes = rw_file(fd, buf, BUF_LENGTH, true);
-    assert(bytes == BUF_LENGTH);
+    if (bytes < 0 || bytes != BUF_LENGTH) {
+        perror("writing BUF_LENGTH bytes to test file failed");
+        return 1;
+    }
 
-    close(fd);
+    rv = close(fd);
+    if (rv < 0) {
+        perror("close failed");
+        return 1;
+    }
+
     fd = open(TEST_DIR"/"TEST_FILE, O_RDONLY);
     if (fd < 0) {
         perror("open failed");
-        return -1;
+        return 1;
     }
 
-    /* reopen file, the file size should be 4096 + BUF_LENGTH,
-       try read BUF_LENGTH bytes from position 4096 */
-    lseek(fd, 4096, SEEK_SET);
+    /* reopen file: file size should be 4096 + BUF_LENGTH */
+    rv = lseek(fd, 4096, SEEK_SET);
+    if (rv < 0) {
+        perror("lseek to 4KB offset failed");
+        return 1;
+    }
+
     bytes = rw_file(fd, buf, BUF_LENGTH, false);
     if (bytes != BUF_LENGTH) {
-        fprintf(stderr, "read length(%zd) is not expected(%d)\n", bytes, BUF_LENGTH);
-        rv = -1;
-        goto out;
+        perror("reading BUF_LENGTH bytes from test file failed");
+        return 1;
+    }
+
+    rv = close(fd);
+    if (rv < 0) {
+        perror("close failed");
+        return 1;
+    }
+
+    rv = unlink(TEST_DIR"/"TEST_FILE);
+    if (rv < 0) {
+        perror("unlink failed");
+        return 1;
     }
 
     printf("test completed successfully\n");
-
-out:
-    if (fd)
-        close(fd);
-
-    unlink(TEST_DIR"/"TEST_FILE);
-    return rv;
+    return 0;
 }
