@@ -1228,7 +1228,8 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
             address_received = true;
         }
 
-        /* Gap is not allowed */
+        /* gap in iovecs is not allowed, return a partial read to user; it is the responsibility of
+         * user application to deal with partial reads */
         if (pal_ret < bufs[i].iov_len)
             break;
     }
