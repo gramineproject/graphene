@@ -48,6 +48,8 @@ int main(int argc, const char** argv) {
     int fd = 0;
     int rv = 0;
 
+    memset(buf, 0, BUF_LENGTH);
+
     /* setup the test directory and file */
     rv = mkdir(TEST_DIR, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (rv < 0 && errno != EEXIST) {
@@ -69,7 +71,7 @@ int main(int argc, const char** argv) {
 
     /* test file size: write a file of type != FILEBUF_MAP */
     bytes = rw_file(fd, buf, BUF_LENGTH, true);
-    if (bytes < 0 || bytes != BUF_LENGTH) {
+    if (bytes != BUF_LENGTH) {
         perror("writing " STR(BUF_LENGTH) " bytes to test file failed");
         return 1;
     }
@@ -81,7 +83,7 @@ int main(int argc, const char** argv) {
     }
 
     bytes = rw_file(fd, buf, 1, true);
-    if (bytes < 0 || bytes != 1) {
+    if (bytes != 1) {
         perror("writing one byte to test file failed");
         return 1;
     }
@@ -93,7 +95,7 @@ int main(int argc, const char** argv) {
     }
 
     bytes = rw_file(fd, buf, BUF_LENGTH, true);
-    if (bytes < 0 || bytes != BUF_LENGTH) {
+    if (bytes != BUF_LENGTH) {
         perror("writing " STR(BUF_LENGTH) " bytes to test file failed");
         return 1;
     }
