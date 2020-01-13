@@ -269,7 +269,8 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
      *   2. Set *clear_child_tid = 0 if clear_child_tid != NULL
      *      (we thus inform LibOS, where async helper thread is waiting on this to wake up parent)
      *   3. Exit thread */
-    static_assert(sizeof(g_thread_stack_lock) == 4, "unexpected g_thread_stack_lock size");
+    static_assert(sizeof(g_thread_stack_lock.lock) == 4, "unexpected g_thread_stack_lock.lock size");
+    static_assert(offsetof(__typeof__(g_thread_stack_lock), lock) == 0, "unexpected offset of lock in g_thread_stack_lock");
     static_assert(sizeof(*clear_child_tid) == 4,  "unexpected clear_child_tid size");
 
     __asm__ volatile("movl $0, (%%rdx) \n\t"   /* spinlock_unlock(&g_thread_stack_lock) */
@@ -280,7 +281,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
                      "syscall \n\t"            /* rdi arg is already prepared, call exit */
                      : /* no output regs since we don't return from exit */
                      : "a"(__NR_exit), "D"(0), /* rdi = exit status == 0 */
-                       "d"(&g_thread_stack_lock), "b"(clear_child_tid)
+                       "d"(&g_thread_stack_lock.lock), "b"(clear_child_tid)
                      : "cc", "rcx", "r11", "memory"  /* syscall instr clobbers cc, rcx, and r11 */
     );
 
