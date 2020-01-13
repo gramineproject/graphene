@@ -635,17 +635,17 @@ noreturn static void shim_ipc_helper(void* dummy) {
     struct shim_thread* self = get_cur_thread();
 
     /* Initialize two lists:
-     * - ports collects IPC port objects and is the main handled list
-     * - pals collects corresponding PAL handles of IPC port objects;
+     * - `ports` collects IPC port objects and is the main list we process here
+     * - `pals` collects corresponding PAL handles of IPC port objects;
      *   it always contains at least install_new_event */
-    size_t port_cnt = 0;
-    size_t ports_size = 32;
-    struct shim_ipc_port** ports = malloc(sizeof(*ports) * ports_size);
-    PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + ports_size));
+    size_t ports_cnt = 0;
+    size_t ports_max_cnt = 32;
+    struct shim_ipc_port** ports = malloc(sizeof(*ports) * ports_max_cnt);
+    PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + ports_max_cnt));
 
     /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
-    PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + ports_size) * 2);
-    PAL_FLG* ret_events = pal_events + 1 + ports_size;
+    PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + ports_max_cnt) * 2);
+    PAL_FLG* ret_events = pal_events + 1 + ports_max_cnt;
 
     PAL_HANDLE install_new_event_pal = event_handle(&install_new_event);
     pals[0]       = install_new_event_pal;
@@ -660,27 +660,27 @@ noreturn static void shim_ipc_helper(void* dummy) {
             break;
         }
 
-        /* iterate through all ports to repopulate ports */
-        port_cnt = 0;
+        /* iterate through all known ports from `port_list` to repopulate `ports` */
+        ports_cnt = 0;
         struct shim_ipc_port* port;
         struct shim_ipc_port* tmp;
         LISTP_FOR_EACH_ENTRY_SAFE(port, tmp, &port_list, list) {
             /* get port reference so it is not freed while we wait on/handle it */
             __get_ipc_port(port);
 
-            if (port_cnt == ports_size) {
-                /* grow ports and pals to accomodate more objects */
-                struct shim_ipc_port** tmp_ports = malloc(sizeof(*tmp_ports) * (ports_size * 2));
-                PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + ports_size * 2));
-                PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + ports_size * 4));
-                PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + ports_size * 2;
+            if (ports_cnt == ports_max_cnt) {
+                /* grow `ports` and `pals` to accommodate more objects */
+                struct shim_ipc_port** tmp_ports = malloc(sizeof(*tmp_ports) * ports_max_cnt * 2);
+                PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + ports_max_cnt * 2));
+                PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + ports_max_cnt * 4));
+                PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + ports_max_cnt * 2;
 
-                memcpy(tmp_ports, ports, sizeof(*tmp_ports) * (ports_size));
-                memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + ports_size));
-                memcpy(tmp_pal_events, pal_events, sizeof(*tmp_pal_events) * (1 + ports_size));
-                memcpy(tmp_ret_events, ret_events, sizeof(*tmp_ret_events) * (1 + ports_size));
+                memcpy(tmp_ports, ports, sizeof(*tmp_ports) * ports_max_cnt);
+                memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + ports_max_cnt));
+                memcpy(tmp_pal_events, pal_events, sizeof(*tmp_pal_events) * (1 + ports_max_cnt));
+                memcpy(tmp_ret_events, ret_events, sizeof(*tmp_ret_events) * (1 + ports_max_cnt));
 
-                ports_size *= 2;
+                ports_max_cnt *= 2;
 
                 free(ports);
                 free(pals);
@@ -693,11 +693,11 @@ noreturn static void shim_ipc_helper(void* dummy) {
             }
 
             /* re-add this port to ports/pals/events */
-            ports[port_cnt]          = port;
-            pals[port_cnt + 1]       = port->pal_handle;
-            pal_events[port_cnt + 1] = PAL_WAIT_READ;
-            ret_events[port_cnt + 1] = 0;
-            port_cnt++;
+            ports[ports_cnt]          = port;
+            pals[ports_cnt + 1]       = port->pal_handle;
+            pal_events[ports_cnt + 1] = PAL_WAIT_READ;
+            ret_events[ports_cnt + 1] = 0;
+            ports_cnt++;
 
             debug("Listening to process %u on port %p (handle %p, type %04x)\n",
                   port->vmid & 0xFFFF, port, port->pal_handle, port->type);
@@ -706,9 +706,9 @@ noreturn static void shim_ipc_helper(void* dummy) {
         unlock(&ipc_helper_lock);
 
         /* wait on collected ports' PAL handles + install_new_event_pal */
-        PAL_BOL polled = DkStreamsWaitEvents(port_cnt + 1, pals, pal_events, ret_events, NO_TIMEOUT);
+        PAL_BOL polled = DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events, NO_TIMEOUT);
 
-        for (size_t i = 0; polled && (i < port_cnt + 1); i++) {
+        for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {
                 if (pals[i] == install_new_event_pal) {
                     /* some thread wants to install new event; this event is found
@@ -720,7 +720,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
                 /* it is not install_new_event handle, so must be one of ports */
                 assert(i > 0);
-                struct shim_ipc_port* polled_port = ports[i-1];
+                struct shim_ipc_port* polled_port = ports[i - 1];
                 assert(polled_port);
 
                 if (polled_port->type & IPC_PORT_SERVER) {
@@ -761,7 +761,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
         }
 
         /* done handling ports; put their references so they can be freed */
-        for (size_t i = 0; i < port_cnt; i++)
+        for (size_t i = 0; i < ports_cnt; i++)
             put_ipc_port(ports[i]);
     }
 

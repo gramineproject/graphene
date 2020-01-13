@@ -82,7 +82,8 @@ int main(int argc, char** argv) {
                         nhdls--;
                         continue;
                     }
-                    ((char*)buffer)[bytes] = 0;
+                    int last_byte = bytes < 4096 ? bytes : 4095;
+                    ((char*)buffer)[last_byte] = 0;
                     pal_printf("[%d] %s", i, (char*)buffer);
 
                 }

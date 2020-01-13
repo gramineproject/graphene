@@ -527,7 +527,7 @@ This API clears a notification event or a synchronization event.
 
 This API waits on a synchronization handle and returns true if this handle's event was triggered and
 false otherwise. `timeout_us` is the maximum time that the API should wait (in microseconds), or
-`NO_TIMEOUT` to indicate it is to be blocked until the handle' event is triggered.
+`NO_TIMEOUT` to indicate it is to be blocked until the handle's event is triggered.
 
 #### DkStreamsWaitEvents
 

@@ -168,13 +168,13 @@ static void shim_async_helper(void* arg) {
      * to install a new event. */
     uint64_t idle_cycles = 0;
 
-    /* init pals so that it always contains at least install_new_event */
-    size_t pals_size = 32;
-    PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + pals_size));
+    /* init `pals` so that it always contains at least install_new_event */
+    size_t pals_max_cnt = 32;
+    PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + pals_max_cnt));
 
     /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
-    PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + pals_size) * 2);
-    PAL_FLG* ret_events = pal_events + 1 + pals_size;
+    PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + pals_max_cnt) * 2);
+    PAL_FLG* ret_events = pal_events + 1 + pals_max_cnt;
 
     PAL_HANDLE install_new_event_pal = event_handle(&install_new_event);
     pals[0]       = install_new_event_pal;
@@ -192,24 +192,24 @@ static void shim_async_helper(void* arg) {
         }
 
         uint64_t next_expire_time = 0;
-        size_t pal_cnt            = 0;
+        size_t pals_cnt            = 0;
 
         struct async_event* tmp;
         struct async_event* n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
-            /* repopulate pals with IO events and find the next expiring alarm/timer */
+            /* repopulate `pals` with IO events and find the next expiring alarm/timer */
             if (tmp->object) {
-                if (pal_cnt == pals_size) {
-                    /* grow pals to accomodate more objects */
-                    PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + pals_size * 2));
-                    PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + pals_size * 4));
-                    PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + pals_size * 2;
+                if (pals_cnt == pals_max_cnt) {
+                    /* grow `pals` to accommodate more objects */
+                    PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + pals_max_cnt * 2));
+                    PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + pals_max_cnt * 4));
+                    PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + pals_max_cnt * 2;
 
-                    memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + pals_size));
-                    memcpy(tmp_pal_events, pal_events, sizeof(*tmp_pal_events) * (1 + pals_size));
-                    memcpy(tmp_ret_events, ret_events, sizeof(*tmp_ret_events) * (1 + pals_size));
+                    memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + pals_max_cnt));
+                    memcpy(tmp_pal_events, pal_events, sizeof(*tmp_pal_events) * (1 + pals_max_cnt));
+                    memcpy(tmp_ret_events, ret_events, sizeof(*tmp_ret_events) * (1 + pals_max_cnt));
 
-                    pals_size *= 2;
+                    pals_max_cnt *= 2;
 
                     free(pals);
                     free(pal_events);
@@ -219,10 +219,10 @@ static void shim_async_helper(void* arg) {
                     ret_events = tmp_ret_events;
                 }
 
-                pals[pal_cnt + 1]       = tmp->object;
-                pal_events[pal_cnt + 1] = PAL_WAIT_READ;
-                ret_events[pal_cnt + 1] = 0;
-                pal_cnt++;
+                pals[pals_cnt + 1]       = tmp->object;
+                pal_events[pals_cnt + 1] = PAL_WAIT_READ;
+                ret_events[pals_cnt + 1] = 0;
+                pals_cnt++;
             } else if (tmp->expire_time && tmp->expire_time > now) {
                 if (!next_expire_time || next_expire_time > tmp->expire_time) {
                     /* use time of the next expiring alarm/timer */
@@ -235,7 +235,7 @@ static void shim_async_helper(void* arg) {
         if (next_expire_time) {
             sleep_time  = next_expire_time - now;
             idle_cycles = 0;
-        } else if (pal_cnt) {
+        } else if (pals_cnt) {
             sleep_time = NO_TIMEOUT;
             idle_cycles = 0;
         } else {
@@ -254,7 +254,7 @@ static void shim_async_helper(void* arg) {
         unlock(&async_helper_lock);
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
-        PAL_BOL polled = DkStreamsWaitEvents(pal_cnt + 1, pals, pal_events, ret_events, sleep_time);
+        PAL_BOL polled = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
 
         now = DkSystemTimeQuery();
 
@@ -264,7 +264,7 @@ static void shim_async_helper(void* arg) {
         /* acquire lock because we read/modify async_list below */
         lock(&async_helper_lock);
 
-        for (size_t i = 0; polled && (i < pal_cnt + 1); i++) {
+        for (size_t i = 0; polled && i < pals_cnt + 1; i++) {
             if (ret_events[i]) {
                 if (pals[i] == install_new_event_pal) {
                     /* some thread wants to install new event; this event is found
