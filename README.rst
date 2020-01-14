@@ -274,6 +274,13 @@ individual directories under ``LibOS/shim/test/apps``.
 For the full documentation of the Graphene manifest syntax, see the `Graphene
 documentation <https://graphene.readthedocs.io/>`_.
 
+Docker support
+==============
+
+We are actively working on adding a proper Docker support. You can find the old and deprecated
+implementation on `DEPRECATED/gsc <https://github.com/oscarlab/graphene/tree/DEPRECATED/gsc>`_
+branch (caveat: use at your own risk!).
+
 Contact
 =======
 
