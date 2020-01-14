@@ -150,9 +150,12 @@ static void unlock_two_futexes(struct shim_futex* futex1, struct shim_futex* fut
 /*
  * Adds `futex` to `g_futex_list`.
  *
- * Both `g_futex_list_lock` and `futex->lock` should be held while calling this function.
+ * `g_futex_list_lock` should be held while calling this function and you must ensure that nobody
+ * is using `futex` (e.g. you have just created it).
  */
 static void enqueue_futex(struct shim_futex* futex) {
+    assert(spinlock_is_locked(&g_futex_list_lock));
+
     get_futex(futex);
     LISTP_ADD_TAIL(futex, &g_futex_list, list);
 }
@@ -163,10 +166,15 @@ static void enqueue_futex(struct shim_futex* futex) {
  * This requires only `futex->lock` to be held.
  */
 static bool check_dequeue_futex(struct shim_futex* futex) {
+    assert(spinlock_is_locked(&futex->lock));
+
     return LISTP_EMPTY(&futex->waiters) && !LIST_EMPTY(futex, list);
 }
 
 static void _maybe_dequeue_futex(struct shim_futex* futex) {
+    assert(spinlock_is_locked(&futex->lock));
+    assert(spinlock_is_locked(&g_futex_list_lock));
+
     if (check_dequeue_futex(futex)) {
         LISTP_DEL_INIT(futex, &g_futex_list, list);
         /* We still hold this futex reference (in the caller), so this won't call free. */
@@ -216,6 +224,8 @@ static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_fut
 static void add_futex_waiter(struct futex_waiter* waiter,
                              struct shim_futex* futex,
                              uint32_t bitset) {
+    assert(spinlock_is_locked(&futex->lock));
+
     thread_setwait(&waiter->thread, NULL);
     INIT_LIST_HEAD(waiter, list);
     waiter->bitset = bitset;
@@ -232,6 +242,8 @@ static void add_futex_waiter(struct futex_waiter* waiter,
  */
 static struct shim_thread* remove_futex_waiter(struct futex_waiter* waiter,
                                                struct shim_futex* futex) {
+    assert(spinlock_is_locked(&futex->lock));
+
     LISTP_DEL_INIT(waiter, &futex->waiters, list);
     return waiter->thread;
 }
@@ -245,6 +257,9 @@ static struct shim_thread* remove_futex_waiter(struct futex_waiter* waiter,
 static void move_futex_waiter(struct futex_waiter* waiter,
                               struct shim_futex* futex1,
                               struct shim_futex* futex2) {
+    assert(spinlock_is_locked(&futex1->lock));
+    assert(spinlock_is_locked(&futex2->lock));
+
     LISTP_DEL_INIT(waiter, &futex1->waiters, list);
     get_futex(futex2);
     put_futex(waiter->futex);
@@ -280,6 +295,8 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
  * Increases refcount of futex by 1.
  */
 static struct shim_futex* find_futex(uint32_t* uaddr) {
+    assert(spinlock_is_locked(&g_futex_list_lock));
+
     struct shim_futex* futex;
 
     LISTP_FOR_EACH_ENTRY(futex, &g_futex_list, list) {
@@ -394,6 +411,8 @@ out_with_futex_lock: ; // C is awesome!
  */
 static int move_to_wake_queue(struct shim_futex* futex, uint32_t bitset, int to_wake,
                               struct wake_queue_head* queue) {
+    assert(spinlock_is_locked(&futex->lock));
+
     struct futex_waiter* waiter;
     struct futex_waiter* wtmp;
     struct shim_thread* thread;
