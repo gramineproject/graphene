@@ -267,8 +267,8 @@ static void shim_async_helper(void* arg) {
         for (size_t i = 0; polled && i < pals_cnt + 1; i++) {
             if (ret_events[i]) {
                 if (pals[i] == install_new_event_pal) {
-                    /* some thread wants to install new event; this event is found
-                     * in async_list, so just re-init install_new_event */
+                    /* some thread wants to install new event; this event is found in async_list,
+                     * so just re-init install_new_event */
                     clear_event(&install_new_event);
                     continue;
                 }

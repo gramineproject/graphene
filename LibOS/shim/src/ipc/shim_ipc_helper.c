@@ -636,8 +636,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
     /* Initialize two lists:
      * - `ports` collects IPC port objects and is the main list we process here
-     * - `pals` collects corresponding PAL handles of IPC port objects;
-     *   it always contains at least install_new_event */
+     * - `pals` collects PAL handles of IPC port objects; always contains install_new_event */
     size_t ports_cnt = 0;
     size_t ports_max_cnt = 32;
     struct shim_ipc_port** ports = malloc(sizeof(*ports) * ports_max_cnt);
@@ -711,8 +710,8 @@ noreturn static void shim_ipc_helper(void* dummy) {
         for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {
                 if (pals[i] == install_new_event_pal) {
-                    /* some thread wants to install new event; this event is found
-                     * in ports, so just re-init install_new_event */
+                    /* some thread wants to install new event; this event is found in `ports`, so
+                     * just re-init install_new_event */
                     debug("New IPC event was requested (port was added/removed)\n");
                     clear_event(&install_new_event);
                     continue;
@@ -724,13 +723,11 @@ noreturn static void shim_ipc_helper(void* dummy) {
                 assert(polled_port);
 
                 if (polled_port->type & IPC_PORT_SERVER) {
-                    /* if polled port is server port, accept a client,
-                     * create client port, and add it to port list */
+                    /* server port: accept client, create client port, and add it to port list */
                     PAL_HANDLE client = DkStreamWaitForClient(polled_port->pal_handle);
                     if (client) {
-                        /* type of client port is the same as original server port
-                         * but with LISTEN (for remote client) and without SERVER
-                         * (this port doesn't wait for new clients) */
+                        /* type of client port is the same as original server port but with LISTEN
+                         * (for remote client) and without SERVER (doesn't wait for new clients) */
                         IDTYPE client_type = (polled_port->type & ~IPC_PORT_SERVER) | IPC_PORT_LISTEN;
                         add_ipc_port_by_id(polled_port->vmid, client, client_type, NULL, NULL);
                     } else {
