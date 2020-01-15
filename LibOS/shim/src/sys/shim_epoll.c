@@ -193,7 +193,7 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                 goto out;
             }
             /* note that pipe and socket may not have pal_handle yet (e.g. before bind()) */
-            if ((hdl->type != TYPE_PIPE && hdl->type != TYPE_SOCK && hdl->type != TYPE_EVENTFD) || !hdl->pal_handle) {
+            if (hdl->type != TYPE_PIPE && hdl->type != TYPE_SOCK && hdl->type != TYPE_EVENTFD) {
                 ret = -EPERM;
                 put_handle(hdl);
                 goto out;
