@@ -416,6 +416,10 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('poll(POLLOUT) returned 1 file descriptors', stdout)
         self.assertIn('poll(POLLIN) returned 1 file descriptors', stdout)
 
+    def test_021_poll_many_types(self):
+        stdout, _ = self.run_binary(['poll_many_types'])
+        self.assertIn('poll(POLLIN) returned 3 file descriptors', stdout)
+
     def test_030_ppoll(self):
         stdout, _ = self.run_binary(['ppoll'])
         self.assertIn('ppoll(POLLOUT) returned 1 file descriptors', stdout)
