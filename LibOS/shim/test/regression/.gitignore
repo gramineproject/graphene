@@ -11,6 +11,7 @@
 /bootstrap-c++
 /bootstrap_pie
 /bootstrap_static
+/cpuid
 /epoll_wait_timeout
 /eventfd
 /exec

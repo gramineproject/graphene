@@ -33,6 +33,8 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 
+#include "sgx_api.h"
+
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
     int ret = ocall_gettime(&microsec);
@@ -153,15 +155,143 @@ void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int va
     _DkInternalUnlock(&cpuid_cache_lock);
 }
 
-int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    if (leaf != 0x4 && leaf != 0x7 && leaf != 0xb)
-        subleaf = 0;
+static inline uint32_t extension_enabled(uint32_t xfrm, uint32_t bit_idx) {
+    uint32_t feature_bit = 1U << bit_idx;
+    return xfrm & feature_bit;
+}
 
+static __sgx_mem_aligned sgx_report_t report;
+static __sgx_mem_aligned sgx_target_info_t target_info;
+static __sgx_mem_aligned sgx_report_data_t report_data;
+
+/**
+ * Initialize the data structures used for CPUID emulation.
+ */
+void init_cpuid(void) {
+    memset(&report, 0, sizeof(report));
+    memset(&target_info, 0, sizeof(target_info));
+    memset(&report_data, 0, sizeof(report_data));
+    sgx_report(&target_info, &report_data, &report);
+}
+
+/**
+ * Sanity check untrusted CPUID inputs.
+ *
+ * The basic idea is that there are only a handful of extensions and we know the size needed to
+ * store each extension's state. Use this to sanitize host's untrusted cpuid output. We also know
+ * through xfrm what extensions are enabled inside the enclave.
+ */
+static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[4]) {
+
+    uint64_t xfrm = report.body.attributes.xfrm;
+
+    enum cpu_extension {
+        x87 = 0, SSE, AVX, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3, PKRU = 9 };
+    const uint32_t extension_sizes_bytes[] =
+        { [AVX] = 256, [MPX_1] = 64, [MPX_2] = 64, [AVX512_1] = 64, [AVX512_2] = 512,
+          [AVX512_3] = 1024, [PKRU] = 8};
+    /* Note that AVX offset is 576 bytes and MPX_1 starts at 960. The AVX state size is 256, leaving
+     * 128 bytes unaccounted for. */
+    const uint32_t extension_offset_bytes[] =
+        { [AVX] = 576, [MPX_1] = 960, [MPX_2] = 1024, [AVX512_1] = 1088, [AVX512_2] = 1152,
+          [AVX512_3] = 1664, [PKRU] = 2688};
+    enum register_index {
+        EAX = 0, EBX, ECX, EDX
+    };
+
+    const uint32_t EXTENDED_STATE_LEAF = 0xd;
+
+    if (leaf == EXTENDED_STATE_LEAF) {
+        switch (subleaf) {
+        case 0x0:
+            /* From the SDM: "EDX:EAX is a bitmap of all the user state components that can be
+             * managed using the XSAVE feature set. A bit can be set in XCR0 if and only if the
+             * corresponding bit is set in this bitmap. Every processor that supports the XSAVE
+             * feature set will set EAX[0] (x87 state) and EAX[1] (SSE state)."
+             *
+             * On EENTER/ERESUME, the system installs xfrm into XCR0. Hence, we return xfrm here in
+             * EAX.
+             */
+            values[EAX] = xfrm;
+
+            /* From the SDM: "EBX enumerates the size (in bytes) required by the XSAVE instruction
+             * for an XSAVE area containing all the user state components corresponding to bits
+             * currently set in XCR0."
+             */
+            uint32_t xsave_size = 0;
+            /* Start from AVX since x87 and SSE are always captured using XSAVE. Also, x87 and SSE
+             * state size is implicitly included in the extension's offset, e.g., AVX's offset is
+             * 576 which includes x87 and SSE state as well as the XSAVE header. */
+            for (int i = AVX; i <= PKRU; i++) {
+                if (extension_enabled(xfrm, i)) {
+                    xsave_size = extension_offset_bytes[i] + extension_sizes_bytes[i];
+                }
+            }
+            values[EBX] = xsave_size;
+
+            /* From the SDM: "ECX enumerates the size (in bytes) required by the XSAVE instruction
+             * for an XSAVE area containing all the user state components supported by this
+             * processor."
+             *
+             * We are assuming here that inside the enclave, ECX and EBX for leaf 0xD and subleaf
+             * 0x1 should always be identical, while outside they can potentially be
+             * different. Also, outside of SGX EBX can change at runtime, while ECX is a static
+             * property.
+             */
+            values[ECX] = values[EBX];
+            values[EDX] = 0;
+
+            break;
+        case 0x1: {
+            const uint32_t xsave_legacy_size = 512;
+            const uint32_t xsave_header = 64;
+            uint32_t save_size_bytes = xsave_legacy_size + xsave_header;
+
+            /* Start with AVX, since x87 and SSE state is already included when initializing
+             * `save_size_bytes`. */
+            for (int i = AVX; i <= PKRU; i++) {
+                if (extension_enabled(xfrm, i)) {
+                    save_size_bytes += extension_sizes_bytes[i];
+                }
+            }
+            /* EBX reports the actual size occupied by those extensions irrespective of their
+             * offsets within the xsave area.
+             */
+            values[EBX] = save_size_bytes;
+
+            break;
+        }
+        case AVX:
+        case MPX_1:
+        case MPX_2:
+        case AVX512_1:
+        case AVX512_2:
+        case AVX512_3:
+        case PKRU:
+            if (extension_enabled(xfrm, subleaf)) {
+                if (values[EAX] != extension_sizes_bytes[subleaf]) {
+                    SGX_DBG(DBG_E, "Unexpected value in host CPUID. Exiting...\n");
+                    _DkProcessExit(1);
+                }
+            } else {
+                if (values[EAX] != 0) {
+                    SGX_DBG(DBG_E, "Unexpected value in host CPUID. Exiting...\n");
+                    _DkProcessExit(1);
+                }
+            }
+            break;
+        }
+    }
+}
+
+int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     if (!get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
     if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
         return -PAL_ERROR_DENIED;
+
+    sanity_check_cpuid(leaf, subleaf, values);
 
     add_cpuid_to_cache(leaf, subleaf, values);
     return 0;
