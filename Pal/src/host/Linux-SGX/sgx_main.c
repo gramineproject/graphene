@@ -234,7 +234,8 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
 int initialize_enclave (struct pal_enclave * enclave)
 {
     int ret = 0;
-    int                    enclave_image;
+    int                    enclave_image = -1;
+    char *                 enclave_uri = NULL;
     sgx_arch_token_t       enclave_token;
     sgx_arch_enclave_css_t enclave_sigstruct;
     sgx_arch_secs_t        enclave_secs;
@@ -244,14 +245,27 @@ int initialize_enclave (struct pal_enclave * enclave)
     /* this array may overflow the stack, so we allocate it in BSS */
     static void* tcs_addrs[MAX_DBG_THREADS];
 
-    enclave_image = INLINE_SYSCALL(open, 3, ENCLAVE_FILENAME, O_RDONLY, 0);
+    char cfgbuf[CONFIG_MAX];
+    const char * errstring;
+
+    /* Use sgx.enclave_file from manifest if exists */
+    if (get_config(enclave->config, "sgx.enclave_file", cfgbuf, sizeof(cfgbuf)) > 0) {
+        enclave_uri = resolve_uri(cfgbuf, &errstring);
+        if (!enclave_uri) {
+            SGX_DBG(DBG_E, "%s: %s\n", errstring, cfgbuf);
+            return -EINVAL;
+        }
+    } else {
+        /* Fallback to fixed ENCLAVE_FILENAME */
+        enclave_uri = alloc_concat("file:", -1, ENCLAVE_FILENAME, -1);
+    }
+
+    enclave_image = INLINE_SYSCALL(open, 3, enclave_uri + static_strlen("file:"), O_RDONLY, 0);
     if (IS_ERR(enclave_image)) {
-        SGX_DBG(DBG_E, "Cannot find %s\n", ENCLAVE_FILENAME);
+        SGX_DBG(DBG_E, "Cannot find enclave image: %s\n", enclave_uri);
         ret = -ERRNO(enclave_image);
         goto out;
     }
-
-    char cfgbuf[CONFIG_MAX];
 
     /* Reading sgx.enclave_size from manifest */
     if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, sizeof(cfgbuf)) <= 0) {
@@ -573,6 +587,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 out:
     if (enclave_image >= 0)
         INLINE_SYSCALL(close, 1, enclave_image);
+    free(enclave_uri);
 
     return ret;
 }
