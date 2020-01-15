@@ -154,9 +154,6 @@ void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int va
 }
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    if (leaf != 0x4 && leaf != 0x7 && leaf != 0xb)
-        subleaf = 0;
-
     if (!get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
