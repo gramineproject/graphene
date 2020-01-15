@@ -117,6 +117,27 @@ int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout_ms) {
             continue;
         }
 
+        if (hdl->type == TYPE_FILE || hdl->type == TYPE_DEV) {
+            /* Files and devs are special cases: their poll is emulated at LibOS level; do not
+             * include them in handles-to-poll array but instead use handle-specific callback. */
+            int shim_events = 0;
+            if ((fds[i].events & (POLLIN | POLLRDNORM)) && (hdl->acc_mode & MAY_READ))
+                shim_events |= FS_POLL_RD;
+            if ((fds[i].events & (POLLOUT | POLLWRNORM)) && (hdl->acc_mode & MAY_WRITE))
+                shim_events |= FS_POLL_WR;
+
+            int shim_revents = hdl->fs->fs_ops->poll(hdl, shim_events);
+
+            fds[i].revents = 0;
+            if (shim_revents & FS_POLL_RD)
+                fds[i].revents |= fds[i].events & (POLLIN | POLLRDNORM);
+            if (shim_revents & FS_POLL_WR)
+                fds[i].revents |= fds[i].events & (POLLOUT | POLLWRNORM);
+
+            nrevents++;
+            continue;
+        }
+
         PAL_FLG allowed_events = 0;
         if ((fds[i].events & (POLLIN | POLLRDNORM)) && (hdl->acc_mode & MAY_READ))
             allowed_events |= PAL_WAIT_READ;
