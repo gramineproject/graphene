@@ -243,7 +243,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     /* relocate PAL itself */
     pal_map.l_addr = elf_machine_load_address();
-    pal_map.l_name = ENCLAVE_FILENAME;
+    pal_map.l_name = ENCLAVE_PAL_FILENAME;
     elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
                          pal_map.l_info, pal_map.l_addr);
 

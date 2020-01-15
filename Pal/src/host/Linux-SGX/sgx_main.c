@@ -234,7 +234,8 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
 int initialize_enclave (struct pal_enclave * enclave)
 {
     int ret = 0;
-    int                    enclave_image;
+    int                    enclave_image = -1;
+    char*                  enclave_uri = NULL;
     sgx_arch_token_t       enclave_token;
     sgx_arch_enclave_css_t enclave_sigstruct;
     sgx_arch_secs_t        enclave_secs;
@@ -244,14 +245,29 @@ int initialize_enclave (struct pal_enclave * enclave)
     /* this array may overflow the stack, so we allocate it in BSS */
     static void* tcs_addrs[MAX_DBG_THREADS];
 
-    enclave_image = INLINE_SYSCALL(open, 3, ENCLAVE_FILENAME, O_RDONLY, 0);
-    if (IS_ERR(enclave_image)) {
-        SGX_DBG(DBG_E, "Cannot find %s\n", ENCLAVE_FILENAME);
-        ret = -ERRNO(enclave_image);
+    char cfgbuf[CONFIG_MAX];
+    const char* errstring = "out of memory";
+
+    /* Use sgx.enclave_pal_file from manifest if exists */
+    if (get_config(enclave->config, "sgx.enclave_pal_file", cfgbuf, sizeof(cfgbuf)) > 0) {
+        enclave_uri = resolve_uri(cfgbuf, &errstring);
+    } else {
+        enclave_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, ENCLAVE_PAL_FILENAME, -1);
+    }
+
+    if (!enclave_uri || !strstartswith_static(enclave_uri, URI_PREFIX_FILE)) {
+        SGX_DBG(DBG_E, "Cannot open in-enclave PAL: %s (incorrect sgx.enclave_file in manifest?)\n",
+                errstring);
+        ret = -EINVAL;
         goto out;
     }
 
-    char cfgbuf[CONFIG_MAX];
+    enclave_image = INLINE_SYSCALL(open, 3, enclave_uri + URI_PREFIX_FILE_LEN, O_RDONLY, 0);
+    if (IS_ERR(enclave_image)) {
+        SGX_DBG(DBG_E, "Cannot find enclave image: %s\n", enclave_uri);
+        ret = -ERRNO(enclave_image);
+        goto out;
+    }
 
     /* Reading sgx.enclave_size from manifest */
     if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, sizeof(cfgbuf)) <= 0) {
@@ -384,7 +400,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     ret = scan_enclave_binary(enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Scanning Pal binary (%s) failed: %d\n", ENCLAVE_FILENAME, -ret);
+        SGX_DBG(DBG_E, "Scanning Pal binary (%s) failed: %d\n", enclave_uri, -ret);
         goto out;
     }
 
@@ -573,6 +589,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 out:
     if (enclave_image >= 0)
         INLINE_SYSCALL(close, 1, enclave_image);
+    free(enclave_uri);
 
     return ret;
 }
