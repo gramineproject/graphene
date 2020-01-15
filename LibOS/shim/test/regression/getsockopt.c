@@ -1,46 +1,50 @@
-/* Unit test for issue #92.
- * Example for use of getsockopt with SO_TYPE
- * taken from here: http://alas.matf.bg.ac.rs/manuals/lspe/snode=103.html
- */
+/* Unit test for issues #92 and #644 */
+
 #include <assert.h>
 #include <errno.h>
+#include <netinet/tcp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 
 int main(int argc, char** argv) {
-    int z;
-    int s       = -1; /* Socket */
-    int so_type = -1; /* Socket type */
+    int ret;
     socklen_t optlen; /* Option length */
-    int rv = 0;
 
-    /*
-     * Create a TCP/IP socket to use:
-     */
-    s = socket(PF_INET, SOCK_STREAM, 0);
-    if (s == -1) {
-        printf("socket(2) error %d", errno);
-        exit(-1);
+    int fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        perror("socket failed");
+        return 1;
     }
 
-    /*
-     * Get socket option SO_SNDBUF:
-     */
-    optlen = sizeof so_type;
-    z      = getsockopt(s, SOL_SOCKET, SO_TYPE, &so_type, &optlen);
-    if (z) {
-        printf("getsockopt(s,SOL_SOCKET,SO_TYPE) %d", errno);
-        exit(-1);
+    int so_type;
+    optlen = sizeof(so_type);
+    ret = getsockopt(fd, SOL_SOCKET, SO_TYPE, &so_type, &optlen);
+    if (ret < 0) {
+        perror("getsockopt(SOL_SOCKET, SO_TYPE) failed");
+        return 1;
     }
 
-    assert(optlen == sizeof so_type);
-    if (so_type == SOCK_STREAM) {
-        printf("getsockopt: Got socket type OK\n");
-    } else {
-        printf("getsockopt: Got socket type failed\n");
-        rv = -1;
+    if (optlen != sizeof(so_type) || so_type != SOCK_STREAM) {
+        fprintf(stderr, "getsockopt(SOL_SOCKET, SO_TYPE) failed\n");
+        return 1;
     }
 
-    return rv;
+    printf("getsockopt: Got socket type OK\n");
+
+    int so_flags = 1;
+    optlen = sizeof(so_flags);
+    ret = getsockopt(fd, SOL_TCP, TCP_NODELAY, (void*)&so_flags, &optlen);
+    if (ret < 0) {
+        perror("getsockopt(SOL_TCP, TCP_NODELAY) failed");
+        return 1;
+    }
+
+    if (optlen != sizeof(so_flags) || (so_flags != 0 && so_flags != 1)) {
+        fprintf(stderr, "getsockopt(SOL_TCP, TCP_NODELAY) failed\n");
+        return 1;
+    }
+
+    printf("getsockopt: Got TCP_NODELAY flag OK\n");
+    return 0;
 }

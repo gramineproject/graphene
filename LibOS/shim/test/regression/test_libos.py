@@ -414,8 +414,9 @@ class TC_40_FileSystem(RegressionTestCase):
 
 class TC_80_Socket(RegressionTestCase):
     def test_000_getsockopt(self):
-        stdout, stderr = self.run_binary(['getsockopt'])
+        stdout, _ = self.run_binary(['getsockopt'])
         self.assertIn('getsockopt: Got socket type OK', stdout)
+        self.assertIn('getsockopt: Got TCP_NODELAY flag OK', stdout)
 
     def test_010_epoll_wait_timeout(self):
         stdout, stderr = self.run_binary(['epoll_wait_timeout', '8000'],
