@@ -1,6 +1,8 @@
 #ifndef _SPINLOCK_H
 #define _SPINLOCK_H
 
+#include <api.h>
+
 #ifdef DEBUG
 #define DEBUG_SPINLOCKS
 #endif // DEBUG
@@ -37,11 +39,11 @@ static inline void debug_spinlock_giveup_ownership(spinlock_t* lock) {
 }
 #else
 static inline void debug_spinlock_take_ownership(spinlock_t* lock) {
-    (void)lock;
+    __UNUSED(lock);
 }
 
 static inline void debug_spinlock_giveup_ownership(spinlock_t* lock) {
-    (void)lock;
+    __UNUSED(lock);
 }
 #endif // DEBUG_SPINLOCKS_SHIM
 
