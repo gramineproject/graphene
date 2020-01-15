@@ -479,3 +479,10 @@ class TC_80_Socket(RegressionTestCase):
     def test_310_socket_tcp_ipv6_v6only(self):
         stdout, _ = self.run_binary(['tcp_ipv6_v6only'], timeout=50)
         self.assertIn('test completed successfully', stdout)
+
+@unittest.skipUnless(HAS_SGX,
+    'This test is only meaningful on SGX PAL because only SGX emulates CPUID.')
+class TC_90_CpuidSGX(RegressionTestCase):
+    def test_000_cpuid(self):
+        stdout, _ = self.run_binary(['cpuid'])
+        self.assertIn('CPUID test passed.', stdout)
