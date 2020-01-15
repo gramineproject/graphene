@@ -332,6 +332,14 @@ struct __kernel_ustat
   };
 
 /* bits/socket.h */
+enum
+{
+    MSG_OOB  = 0x01, /* Process out-of-band data.  */
+#define MSG_OOB     MSG_OOB
+    MSG_PEEK = 0x02, /* Peek at incoming messages.  */
+#define MSG_PEEK    MSG_PEEK
+};
+
 struct msghdr {
     void *msg_name;         /* Address to send to/receive from.  */
     socklen_t msg_namelen;  /* Length of address data.  */

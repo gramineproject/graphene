@@ -56,8 +56,6 @@
 
 #define AF_UNSPEC 0
 
-#define SOCK_URI_SIZE 108
-
 static int rebase_on_lo __attribute_migratable = -1;
 
 static size_t minimal_addrlen(int domain) {
@@ -1127,9 +1125,8 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags
 
 static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, struct sockaddr* addr,
                           socklen_t* addrlen) {
-    /* TODO handle flags properly. For now, explicitly return an error. */
-    if (flags) {
-        debug("recvmsg()/recvmmsg()/recvfrom(): flags parameter unsupported.\n");
+    if (flags & ~MSG_PEEK) {
+        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK is supported).\n");
         return -EOPNOTSUPP;
     }
 
@@ -1137,6 +1134,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
     if (!hdl)
         return -EBADF;
 
+    struct shim_peek_buffer* peek_buffer = NULL;
     int ret = -ENOTSOCK;
     if (hdl->type != TYPE_SOCK)
         goto out;
@@ -1159,13 +1157,16 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
     if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
         goto out;
 
+    size_t expected_size = 0;
     for (int i = 0; i < nbufs; i++) {
         if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len, true))
             goto out;
+        expected_size += bufs[i].iov_len;
     }
 
     lock(&hdl->lock);
-
+    peek_buffer        = sock->peek_buffer;
+    sock->peek_buffer  = NULL;
     PAL_HANDLE pal_hdl = hdl->pal_handle;
     char* uri          = NULL;
 
@@ -1192,19 +1193,76 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
 
     unlock(&hdl->lock);
 
-    bool address_received = false;
-    int bytes             = 0;
-    ret                   = 0;
-
-    for (int i = 0; i < nbufs; i++) {
-        PAL_NUM pal_ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri, uri ? SOCK_URI_SIZE : 0);
-
-        if (pal_ret == PAL_STREAM_ERROR) {
-            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ? -ECONNABORTED : -PAL_ERRNO;
-            break;
+    if (flags & MSG_PEEK) {
+        if (!peek_buffer) {
+            /* create new peek buffer with expected read size */
+            peek_buffer = malloc(sizeof(*peek_buffer) + expected_size);
+            if (!peek_buffer) {
+                ret = -ENOMEM;
+                lock(&hdl->lock);
+                goto out_locked;
+            }
+            peek_buffer->size  = expected_size;
+            peek_buffer->start = 0;
+            peek_buffer->end   = 0;
+        } else {
+            /* realloc peek buffer to accomodate expected read size */
+            if (expected_size > peek_buffer->size - peek_buffer->start) {
+                size_t expand = expected_size - (peek_buffer->size - peek_buffer->start);
+                struct shim_peek_buffer* old_peek_buffer = peek_buffer;
+                peek_buffer = malloc(sizeof(*peek_buffer) + old_peek_buffer->size + expand);
+                if (!peek_buffer) {
+                    ret = -ENOMEM;
+                    lock(&hdl->lock);
+                    goto out_locked;
+                }
+                memcpy(peek_buffer, old_peek_buffer, sizeof(*peek_buffer) + old_peek_buffer->size);
+                peek_buffer->size += expand;
+                free(old_peek_buffer);
+            }
         }
 
-        bytes += pal_ret;
+        if (expected_size > peek_buffer->end - peek_buffer->start) {
+            /* fill peek buffer if this MSG_PEEK read request cannot be satisfied with data already
+             * present in peek buffer; note that buffer can hold expected read size at this point */
+            size_t left_to_read = expected_size - (peek_buffer->end - peek_buffer->start);
+            PAL_NUM pal_ret = DkStreamRead(pal_hdl, /*offset=*/0, left_to_read,
+                                           &peek_buffer->buf[peek_buffer->end],
+                                           uri, uri ? SOCK_URI_SIZE : 0);
+            if (pal_ret == PAL_STREAM_ERROR) {
+                ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ? -ECONNABORTED : -PAL_ERRNO;
+                lock(&hdl->lock);
+                goto out_locked;
+            }
+
+            peek_buffer->end += pal_ret;
+            if (uri)
+                memcpy(peek_buffer->uri, uri, SOCK_URI_SIZE);
+        }
+    }
+
+    ret = 0;
+
+    bool address_received = false;
+    size_t total_bytes    = 0;
+
+    for (int i = 0; i < nbufs; i++) {
+        size_t iov_bytes = 0;
+        if (peek_buffer && total_bytes < peek_buffer->end - peek_buffer->start) {
+            /* still some data left to read from peek buffer */
+            iov_bytes = MIN(bufs[i].iov_len, peek_buffer->end - peek_buffer->start - total_bytes);
+            memcpy(bufs[i].iov_base, &peek_buffer->buf[peek_buffer->start + total_bytes], iov_bytes);
+            uri = peek_buffer->uri;
+        } else {
+            PAL_NUM pal_ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri, uri ? SOCK_URI_SIZE : 0);
+            if (pal_ret == PAL_STREAM_ERROR) {
+                ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ? -ECONNABORTED : -PAL_ERRNO;
+                break;
+            }
+            iov_bytes = pal_ret;
+        }
+
+        total_bytes += iov_bytes;
 
         if (addr && !address_received) {
             if (sock->domain == AF_UNIX) {
@@ -1238,23 +1296,47 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
 
         /* gap in iovecs is not allowed, return a partial read to user; it is the responsibility of
          * user application to deal with partial reads */
-        if (pal_ret < bufs[i].iov_len)
+        if (iov_bytes < bufs[i].iov_len)
+            break;
+
+        /* we read from peek_buffer and exhausted it, return a partial read to user; it is the
+         * responsibility of user application to deal with partial reads */
+        if (peek_buffer && total_bytes == peek_buffer->end - peek_buffer->start)
             break;
     }
 
-    if (bytes)
-        ret = bytes;
+    if (total_bytes)
+        ret = total_bytes;
     if (ret < 0) {
         lock(&hdl->lock);
         goto out_locked;
     }
+
+    if (!(flags & MSG_PEEK) && peek_buffer) {
+        /* we read from peek buffer without MSG_PEEK, need to "remove" this read data */
+        peek_buffer->start += total_bytes;
+        if (peek_buffer->start == peek_buffer->end) {
+            /* we may have exhausted peek buffer, free it to not leak memory */
+            free(peek_buffer);
+            peek_buffer = NULL;
+        }
+    }
+
+    if (peek_buffer) {
+        /* there is non-exhausted peek buffer for this socket, update socket's data */
+        lock(&hdl->lock);
+        assert(!sock->peek_buffer); /* other thread cannot update this socket's peek buffer */
+        sock->peek_buffer = peek_buffer;
+        unlock(&hdl->lock);
+    }
+
     goto out;
 
 out_locked:
     if (ret < 0)
         sock->error = -ret;
-
     unlock(&hdl->lock);
+    free(peek_buffer);
 out:
     put_handle(hdl);
     return ret;

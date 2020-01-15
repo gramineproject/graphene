@@ -466,6 +466,11 @@ void put_handle(struct shim_handle* hdl) {
         } else {
             if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->close)
                 hdl->fs->fs_ops->close(hdl);
+
+            if (hdl->type == TYPE_SOCK && hdl->info.sock.peek_buffer) {
+                free(hdl->info.sock.peek_buffer);
+                hdl->info.sock.peek_buffer = NULL;
+            }
         }
 
         delete_from_epoll_handles(hdl);
@@ -741,6 +746,12 @@ BEGIN_CP_FUNC(handle) {
 
         if (hdl->type == TYPE_EPOLL)
             DO_CP(epoll_item, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
+
+        if (hdl->type == TYPE_SOCK) {
+            /* no support for multiple processes sharing options/peek buffer of the socket */
+            new_hdl->info.sock.pending_options = NULL;
+            new_hdl->info.sock.peek_buffer     = NULL;
+        }
 
         INIT_LISTP(&new_hdl->epolls);
 

@@ -154,6 +154,8 @@ struct shim_pipe_handle {
 #define AF_INET  PF_INET
 #define AF_INET6 PF_INET6
 
+#define SOCK_URI_SIZE 108
+
 enum shim_sock_state {
     SOCK_CREATED,
     SOCK_BOUND,
@@ -203,6 +205,14 @@ struct shim_sock_handle {
         int optlen;
         char optval[];
     } * pending_options;
+
+    struct shim_peek_buffer {
+        size_t size;
+        size_t start;
+        size_t end;
+        char uri[SOCK_URI_SIZE];
+        char buf[];
+    } * peek_buffer;
 };
 
 struct shim_dirent {
