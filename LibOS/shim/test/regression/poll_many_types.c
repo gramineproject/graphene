@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -14,27 +15,34 @@ int main(int argc, char** argv) {
     int pipefd[2];
     ret = pipe(pipefd);
     if (ret < 0) {
-        perror("pipe creation failed");
+        perror("pipe creation");
         return 1;
     }
+
     /* write something into write end of pipe so read end becomes pollable */
-    ret = write(pipefd[1], string, (strlen(string) + 1));
-    if (ret < 0) {
-        perror("pipe write failed");
-        return 1;
+    ssize_t written = 0;
+    while (written < sizeof(string)) {
+        ssize_t n;
+        if ((n = write(pipefd[1], string + written, sizeof(string) - written)) < 0) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
+            perror("pipe write");
+            return 1;
+        }
+        written += n;
     }
 
     /* type 2: regular file */
     int filefd = open(argv[0], O_RDONLY);
     if (filefd < 0) {
-        perror("file open failed");
+        perror("file open");
         return 1;
     }
 
     /* type 3: dev file */
     int devfd = open("/dev/urandom", O_RDONLY);
     if (devfd < 0) {
-        perror("dev/urandom open failed");
+        perror("dev/urandom open");
         return 1;
     }
 
@@ -46,7 +54,7 @@ int main(int argc, char** argv) {
 
     ret = poll(infds, 3, -1);
     if (ret <= 0) {
-        perror("poll with POLLIN failed");
+        perror("poll with POLLIN");
         return 1;
     }
     printf("poll(POLLIN) returned %d file descriptors\n", ret);

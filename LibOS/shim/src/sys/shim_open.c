@@ -65,6 +65,12 @@ size_t shim_do_read (int fd, void * buf, size_t count)
     if (!hdl)
         return -EBADF;
 
+    /* sockets may read from LibOS buffer due to MSG_PEEK, so need to call socket-specific recv */
+    if (hdl->type == TYPE_SOCK) {
+        put_handle(hdl);
+        return shim_do_recvfrom(fd, buf, count, 0, NULL, NULL);
+    }
+
     int ret = do_handle_read(hdl, buf, count);
     put_handle(hdl);
     return ret;
