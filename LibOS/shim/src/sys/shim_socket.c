@@ -1449,13 +1449,98 @@ struct __kernel_linger {
     int l_linger;
 };
 
+static void __populate_addr_with_defaults(PAL_STREAM_ATTR* attr) {
+    /* Linux default recv/send buffer sizes for new sockets */
+    attr->socket.receivebuf     = 212992;
+    attr->socket.sendbuf        = 212992;
+
+    attr->socket.linger         = 0;
+    attr->socket.receivetimeout = 0;
+    attr->socket.sendtimeout    = 0;
+    attr->socket.tcp_cork       = PAL_FALSE;
+    attr->socket.tcp_keepalive  = PAL_FALSE;
+    attr->socket.tcp_nodelay    = PAL_FALSE;
+}
+
+static bool __update_attr(PAL_STREAM_ATTR* attr, int level, int optname, char* optval, int optlen) {
+    __UNUSED(optlen);
+    assert(attr);
+
+    bool need_set_attr = false;
+    int intval         = *((int*)optval);
+    PAL_BOL bolval     = intval ? PAL_TRUE : PAL_FALSE;
+
+    if (level == SOL_SOCKET) {
+        switch (optname) {
+            case SO_KEEPALIVE:
+                if (bolval != attr->socket.tcp_keepalive) {
+                    attr->socket.tcp_keepalive = bolval;
+                    need_set_attr = true;
+                }
+                break;
+            case SO_LINGER: {
+                struct __kernel_linger* l = (struct __kernel_linger*)optval;
+                int linger                = l->l_onoff ? l->l_linger : 0;
+                if (linger != (int)attr->socket.linger) {
+                    attr->socket.linger = linger;
+                    need_set_attr = true;
+                }
+                break;
+            }
+            case SO_RCVBUF:
+                if (intval != (int)attr->socket.receivebuf) {
+                    attr->socket.receivebuf = intval;
+                    need_set_attr = true;
+                }
+                break;
+            case SO_SNDBUF:
+                if (intval != (int)attr->socket.sendbuf) {
+                    attr->socket.sendbuf = intval;
+                    need_set_attr = true;
+                }
+                break;
+            case SO_RCVTIMEO:
+                if (intval != (int)attr->socket.receivetimeout) {
+                    attr->socket.receivetimeout = intval;
+                    need_set_attr = true;
+                }
+                break;
+            case SO_SNDTIMEO:
+                if (intval != (int)attr->socket.sendtimeout) {
+                    attr->socket.sendtimeout = intval;
+                    need_set_attr = true;
+                }
+                break;
+            case SO_REUSEADDR:
+                /* PAL always does REUSEADDR, no need to check or update */
+                break;
+        }
+    }
+
+    if (level == SOL_TCP) {
+        switch (optname) {
+            case TCP_CORK:
+                if (bolval != attr->socket.tcp_cork) {
+                    attr->socket.tcp_cork = bolval;
+                    need_set_attr = true;
+                }
+                break;
+            case TCP_NODELAY:
+                if (bolval != attr->socket.tcp_nodelay) {
+                    attr->socket.tcp_nodelay = bolval;
+                    need_set_attr = true;
+                }
+                break;
+        }
+    }
+
+    return need_set_attr;
+}
+
 static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char* optval,
                            int optlen, PAL_STREAM_ATTR* attr) {
     // Issue 754 - https://github.com/oscarlab/graphene/issues/754
     __UNUSED(optlen);
-
-    int intval     = *((int*)optval);
-    PAL_BOL bolval = intval ? PAL_TRUE : PAL_FALSE;
 
     if (level == SOL_SOCKET) {
         switch (optname) {
@@ -1472,9 +1557,9 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
             case SO_RCVTIMEO:
             case SO_SNDTIMEO:
             case SO_REUSEADDR:
-                goto query;
+                break;
             default:
-                goto unknown;
+                return -ENOPROTOOPT;
         }
     }
 
@@ -1482,91 +1567,23 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
         switch (optname) {
             case TCP_CORK:
             case TCP_NODELAY:
-                goto query;
+                break;
             default:
-                goto unknown;
+                return -ENOPROTOOPT;
         }
     }
 
-unknown:
-    return -ENOPROTOOPT;
-
-query:
     if (!attr) {
         attr = __alloca(sizeof(PAL_STREAM_ATTR));
-
         if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, attr))
             return -PAL_ERRNO;
     }
 
-    if (level == SOL_SOCKET) {
-        switch (optname) {
-            case SO_KEEPALIVE:
-                if (bolval != attr->socket.tcp_keepalive) {
-                    attr->socket.tcp_keepalive = bolval;
-                    goto set;
-                }
-                break;
-            case SO_LINGER: {
-                struct __kernel_linger* l = (struct __kernel_linger*)optval;
-                int linger                = l->l_onoff ? l->l_linger : 0;
-                if (linger != (int)attr->socket.linger) {
-                    attr->socket.linger = linger;
-                    goto set;
-                }
-                break;
-            }
-            case SO_RCVBUF:
-                if (intval != (int)attr->socket.receivebuf) {
-                    attr->socket.receivebuf = intval;
-                    goto set;
-                }
-                break;
-            case SO_SNDBUF:
-                if (intval != (int)attr->socket.sendbuf) {
-                    attr->socket.sendbuf = intval;
-                    goto set;
-                }
-                break;
-            case SO_RCVTIMEO:
-                if (intval != (int)attr->socket.receivetimeout) {
-                    attr->socket.receivetimeout = intval;
-                    goto set;
-                }
-                break;
-            case SO_SNDTIMEO:
-                if (intval != (int)attr->socket.sendtimeout) {
-                    attr->socket.sendtimeout = intval;
-                    goto set;
-                }
-                break;
-            case SO_REUSEADDR:
-                break;
-        }
+    bool need_set_attr = __update_attr(attr, level, optname, optval, optlen);
+    if (need_set_attr) {
+        if (!DkStreamAttributesSetByHandle(hdl->pal_handle, attr))
+            return -PAL_ERRNO;
     }
-
-    if (level == SOL_TCP) {
-        switch (optname) {
-            case TCP_CORK:
-                if (bolval != attr->socket.tcp_cork) {
-                    attr->socket.tcp_cork = bolval;
-                    goto set;
-                }
-                break;
-            case TCP_NODELAY:
-                if (bolval != attr->socket.tcp_nodelay) {
-                    attr->socket.tcp_nodelay = bolval;
-                    goto set;
-                }
-                break;
-        }
-    }
-
-    return 0;
-
-set:
-    if (!DkStreamAttributesSetByHandle(hdl->pal_handle, attr))
-        return -PAL_ERRNO;
 
     return 0;
 }
@@ -1701,7 +1718,7 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
             case SO_RCVTIMEO:
             case SO_SNDTIMEO:
             case SO_REUSEADDR:
-                goto query;
+                break;
             default:
                 goto unknown;
         }
@@ -1711,68 +1728,81 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
         switch (optname) {
             case TCP_CORK:
             case TCP_NODELAY:
-                goto query;
+                break;
             default:
                 goto unknown;
         }
     }
 
-unknown:
-    ret = -ENOPROTOOPT;
-    goto out;
+    /* at this point, we need to query PAL to get current attributes of hdl */
+    PAL_STREAM_ATTR attr;
 
-query:
-    {
-        PAL_STREAM_ATTR attr;
+    if (!hdl->pal_handle) {
+        /* it is possible that there is no underlying PAL handle for hdl, e.g., socket() before
+         * bind(); in this case, augment default attrs with pending_options and skip quering PAL */
+        __populate_addr_with_defaults(&attr);
 
+        struct shim_sock_option* o = sock->pending_options;
+        while (o) {
+            __update_attr(&attr, o->level, o->optname, o->optval, o->optlen);
+            o = o->next;
+        }
+    } else {
+        /* query PAL to get current attributes */
         if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
             ret = -PAL_ERRNO;
             goto out;
         }
+    }
 
-        if (level == SOL_SOCKET) {
-            switch (optname) {
-                case SO_KEEPALIVE:
-                    *intval = attr.socket.tcp_keepalive ? 1 : 0;
-                    break;
-                case SO_LINGER: {
-                    struct __kernel_linger* l = (struct __kernel_linger*)optval;
-                    l->l_onoff                = attr.socket.linger ? 1 : 0;
-                    l->l_linger               = attr.socket.linger;
-                    break;
-                }
-                case SO_RCVBUF:
-                    *intval = attr.socket.receivebuf;
-                    break;
-                case SO_SNDBUF:
-                    *intval = attr.socket.sendbuf;
-                    break;
-                case SO_RCVTIMEO:
-                    *intval = attr.socket.receivetimeout;
-                    break;
-                case SO_SNDTIMEO:
-                    *intval = attr.socket.sendtimeout;
-                    break;
-                case SO_REUSEADDR:
-                    *intval = 1;
-                    break;
+    if (level == SOL_SOCKET) {
+        switch (optname) {
+            case SO_KEEPALIVE:
+                *intval = attr.socket.tcp_keepalive ? 1 : 0;
+                break;
+            case SO_LINGER: {
+                struct __kernel_linger* l = (struct __kernel_linger*)optval;
+                l->l_onoff                = attr.socket.linger ? 1 : 0;
+                l->l_linger               = attr.socket.linger;
+                break;
             }
-        }
-
-        if (level == SOL_TCP) {
-            switch (optname) {
-                case TCP_CORK:
-                    *intval = attr.socket.tcp_cork ? 1 : 0;
-                    break;
-                case TCP_NODELAY:
-                    *intval = attr.socket.tcp_nodelay ? 1 : 0;
-                    break;
-            }
+            case SO_RCVBUF:
+                *intval = attr.socket.receivebuf;
+                break;
+            case SO_SNDBUF:
+                *intval = attr.socket.sendbuf;
+                break;
+            case SO_RCVTIMEO:
+                *intval = attr.socket.receivetimeout;
+                break;
+            case SO_SNDTIMEO:
+                *intval = attr.socket.sendtimeout;
+                break;
+            case SO_REUSEADDR:
+                *intval = 1;
+                break;
         }
     }
+
+    if (level == SOL_TCP) {
+        switch (optname) {
+            case TCP_CORK:
+                *intval = attr.socket.tcp_cork ? 1 : 0;
+                break;
+            case TCP_NODELAY:
+                *intval = attr.socket.tcp_nodelay ? 1 : 0;
+                break;
+        }
+    }
+
+    ret = 0;
 
 out:
     unlock(&hdl->lock);
     put_handle(hdl);
     return ret;
+
+unknown:
+    ret = -ENOPROTOOPT;
+    goto out;
 }
