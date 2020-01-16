@@ -71,10 +71,11 @@ int main(void) {
         err(1, "unlink");
     }
 
-    if (!WIFEXITED(st)) {
+    if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
         printf("abnormal child termination: %d\n", st);
         return 1;
     }
 
-    return WEXITSTATUS(st);
+    puts("Test successful!");
+    return 0;
 }

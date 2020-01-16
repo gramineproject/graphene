@@ -327,7 +327,9 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('large-mmap: mmap 2 completed OK', stdout)
 
     def test_053_mprotect_file_fork(self):
-        _, _ = self.run_binary(['mprotect_file_fork'])
+        stdout, _ = self.run_binary(['mprotect_file_fork'])
+
+        self.assertIn("Test successful!", stdout)
 
     @unittest.skip('sigaltstack isn\'t correctly implemented')
     def test_060_sigaltstack(self):
