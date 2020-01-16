@@ -8,3 +8,4 @@ A random file documentation
 There is a |~| random function:
 
 .. doxygenfunction:: parse_int
+   :project: libos
