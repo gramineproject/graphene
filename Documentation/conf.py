@@ -84,11 +84,12 @@ rst_prolog = '''
    :trim:
 '''
 
-breathe_default_project = 'graphene'
-breathe_projects = {breathe_default_project: '_build/doxygen/xml'}
+breathe_projects = {p: '_build/doxygen-{}/xml'.format(p)
+    for p in ('libos', 'pal', 'pal-linux', 'pal-linux-sgx')}
 
 def generate_doxygen(app):
-    subprocess.check_call(['doxygen', 'Doxyfile'])
+    for p in breathe_projects:
+        subprocess.check_call(['doxygen', 'Doxyfile-{}'.format(p)])
 def setup(app):
     app.connect('builder-inited', generate_doxygen)
 

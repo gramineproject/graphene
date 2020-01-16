@@ -1,0 +1,8 @@
+@INCLUDE = Doxyfile
+PROJECT_NAME = "PAL"
+OUTPUT_DIRECTORY = _build/doxygen-pal
+INPUT = ../Pal/include/pal ../Pal/src
+EXCLUDE = ../Pal/src/host
+MACRO_EXPANSION = YES
+EXPAND_ONLY_PREDEF = YES
+PREDEFINED = noreturn=
