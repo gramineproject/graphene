@@ -16,6 +16,11 @@
    libos/shim-init
 
 .. toctree::
+   :caption: PAL
+
+   pal/host-abi
+
+.. toctree::
    :caption: Manual pages
    :maxdepth: 1
    :glob:
