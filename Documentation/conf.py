@@ -79,6 +79,9 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
 
+highlight_language = 'c'
+primary_domain = 'c'
+
 rst_prolog = '''
 .. |~| unicode:: 0xa0
    :trim:
@@ -92,6 +95,10 @@ def generate_doxygen(app):
         subprocess.check_call(['doxygen', 'Doxyfile-{}'.format(p)])
 def setup(app):
     app.connect('builder-inited', generate_doxygen)
+
+breathe_domain_by_extension = {
+    'h': 'c',
+}
 
 todo_include_todos = True
 

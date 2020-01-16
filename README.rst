@@ -13,6 +13,9 @@ Graphene Library OS with Intel SGX Support
 .. |nbsp| unicode:: 0xa0
    :trim:
 
+.. highlight:: sh
+
+
 What is Graphene?
 =================
 
