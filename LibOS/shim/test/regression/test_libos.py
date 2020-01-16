@@ -316,7 +316,7 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('mmap test 5 passed', stdout)
         self.assertIn('mmap test 8 passed', stdout)
 
-    def test_52_large_mmap(self):
+    def test_052_large_mmap(self):
         stdout, stderr = self.run_binary(['large-mmap'], timeout=480)
 
         # Ftruncate
@@ -325,6 +325,9 @@ class TC_30_Syscall(RegressionTestCase):
         # Large mmap
         self.assertIn('large-mmap: mmap 1 completed OK', stdout)
         self.assertIn('large-mmap: mmap 2 completed OK', stdout)
+
+    def test_053_mprotect_file_fork(self):
+        _, _ = self.run_binary(['mprotect_file_fork'])
 
     @unittest.skip('sigaltstack isn\'t correctly implemented')
     def test_060_sigaltstack(self):
