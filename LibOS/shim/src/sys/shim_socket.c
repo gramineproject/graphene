@@ -1542,6 +1542,9 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
     // Issue 754 - https://github.com/oscarlab/graphene/issues/754
     __UNUSED(optlen);
 
+    if (level != SOL_SOCKET && level != SOL_TCP)
+        return -ENOPROTOOPT;
+
     if (level == SOL_SOCKET) {
         switch (optname) {
             case SO_ACCEPTCONN:
@@ -1684,6 +1687,9 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
     lock(&hdl->lock);
 
     int* intval = (int*)optval;
+
+    if (level != SOL_SOCKET && level != SOL_TCP)
+        goto unknown;
 
     if (level == SOL_SOCKET) {
         switch (optname) {
