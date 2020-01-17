@@ -466,7 +466,7 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('Data: This is packet 9', stdout)
 
 @unittest.skipUnless(HAS_SGX,
-    'This test is only meaningful on SGX PAL because only SGX emulated CPUID.')
+    'This test is only meaningful on SGX PAL because only SGX emulates CPUID.')
 class TC_90_CpuidSGX(RegressionTestCase):
     def test_000_cpuid(self):
         stdout, _ = self.run_binary(['cpuid'])

@@ -21,28 +21,33 @@ static void test_cpuid_leaf_0xd(void) {
     const uint32_t extension_unavailable = 0;
 
     cpuid(leaf, AVX, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX])) abort();
+    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX]))
+        abort();
     memset(vs, 0, sizeof(vs));
 
     cpuid(leaf, MPX_1, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[MPX_1])) abort();
+    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[MPX_1]))
+        abort();
     memset(vs, 0, sizeof(vs));
 
     cpuid(leaf, MPX_2, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[MPX_2])) abort();
+    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[MPX_2]))
+        abort();
     memset(vs, 0, sizeof(vs));
 
     cpuid(leaf, AVX512_1, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_1])) abort();
+    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_1]))
+        abort();
     memset(vs, 0, sizeof(vs));
 
     cpuid(leaf, AVX512_2, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_2])) abort();
+    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_2]))
+        abort();
     memset(vs, 0, sizeof(vs));
 
     cpuid(leaf, AVX512_3, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_3])) abort();
-    memset(vs, 0, sizeof(vs));
+    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_3]))
+        abort();
 }
 
 int main(int argc, char** argv, char** envp) {
