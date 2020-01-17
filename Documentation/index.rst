@@ -6,9 +6,22 @@
 
    quickstart
    manifest-syntax
-   debugging
    glossary
    howto-doc
+
+.. toctree::
+   :caption: Manual pages
+   :maxdepth: 1
+   :glob:
+
+   manpages/*
+
+.. toctree::
+   :caption: Developing Graphene
+   :maxdepth: 1
+
+   devel/debugging
+   devel/signal-handling
 
 .. toctree::
    :caption: LibOS
@@ -19,13 +32,6 @@
    :caption: PAL
 
    pal/host-abi
-
-.. toctree::
-   :caption: Manual pages
-   :maxdepth: 1
-   :glob:
-
-   manpages/*
 
 .. _old-wiki:
 
