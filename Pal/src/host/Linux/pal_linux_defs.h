@@ -14,4 +14,8 @@
 
 #define BLOCK_SIGFAULT 0
 
+#ifndef FIONREAD
+#define FIONREAD 0x541B
+#endif
+
 #endif /* PAL_LINUX_DEFS_H */

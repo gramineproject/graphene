@@ -48,10 +48,6 @@ typedef __kernel_pid_t pid_t;
 # define SEEK_SET 0
 #endif
 
-#ifndef FIONREAD
-# define FIONREAD 0x541B
-#endif
-
 static inline int create_process_handle (PAL_HANDLE * parent,
                                          PAL_HANDLE * child)
 {
@@ -73,7 +69,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    HANDLE_HDR(phdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
+    HANDLE_HDR(phdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
     phdl->process.stream      = fds[0];
     phdl->process.cargo       = fds[2];
     phdl->process.pid         = linux_state.pid;
@@ -86,7 +82,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
+    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
     chdl->process.stream      = fds[1];
     chdl->process.cargo       = fds[3];
     chdl->process.pid         = 0; /* unknown yet */
@@ -468,7 +464,6 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
                 return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
@@ -477,11 +472,6 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
         }
 
     assert(!IS_ERR(bytes));
-    if ((size_t)bytes == count)
-        HANDLE_HDR(handle)->flags |= WRITABLE(0);
-    else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
-
     return bytes;
 }
 
@@ -536,7 +526,6 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->handle_type  = HANDLE_HDR(handle)->type;
     attr->nonblocking  = handle->process.nonblocking;
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
 
     /* get number of bytes available for reading */
     ret = INLINE_SYSCALL(ioctl, 3, handle->process.stream, FIONREAD, &val);
@@ -546,14 +535,14 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->pending_size = val;
 
     /* query if there is data available for reading */
-    struct pollfd pfd  = {.fd = handle->process.stream, .events = POLLIN, .revents = 0};
+    struct pollfd pfd  = {.fd = handle->process.stream, .events = POLLIN | POLLOUT, .revents = 0};
     struct timespec tp = {0, 0};
     ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents == POLLIN);
-
+    attr->readable = ret == 1 && (pfd.revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
+    attr->writable = ret == 1 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
     return 0;
 }
 

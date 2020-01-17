@@ -289,7 +289,7 @@ void pal_linux_main (void * args)
     size_t len = strlen(argv[0]) + 1;
     PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len);
     SET_HANDLE_TYPE(file, file);
-    HANDLE_HDR(file)->flags |= RFD(0)|WFD(0)|WRITABLE(0);
+    HANDLE_HDR(file)->flags |= RFD(0)|WFD(0);
     file->file.fd = fd;
     file->file.offset = 0;
     file->file.map_start = NULL;

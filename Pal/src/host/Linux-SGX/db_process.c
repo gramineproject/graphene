@@ -267,7 +267,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     PAL_HANDLE child = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(child, process);
-    HANDLE_HDR(child)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
+    HANDLE_HDR(child)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
     child->process.stream      = stream_fd;
     child->process.cargo       = cargo_fd;
     child->process.pid         = child_pid;
@@ -315,7 +315,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
 {
     PAL_HANDLE parent = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(parent, process);
-    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1)|WRITABLE(0)|WRITABLE(1);
+    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
 
     parent->process.stream     = pal_sec.stream_fd;
     parent->process.cargo      = pal_sec.cargo_fd;
@@ -378,18 +378,8 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
         return -PAL_ERROR_INVAL;
 
     int bytes = ocall_write(handle->process.stream, buffer, count);
-
-    if (IS_ERR(bytes)) {
-        bytes = unix_to_pal_error(ERRNO(bytes));
-        if (bytes == -PAL_ERROR_TRYAGAIN)
-            HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
-        return bytes;
-    }
-
-    if ((uint64_t)bytes == count)
-        HANDLE_HDR(handle)->flags |= WRITABLE(0);
-    else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
+    if (IS_ERR(bytes))
+        return unix_to_pal_error(ERRNO(bytes));
 
     return bytes;
 }
@@ -444,7 +434,6 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->handle_type  = HANDLE_HDR(handle)->type;
     attr->nonblocking  = handle->process.nonblocking;
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
 
     /* get number of bytes available for reading */
     ret = ocall_fionread(handle->process.stream);
@@ -454,13 +443,13 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->pending_size = ret;
 
     /* query if there is data available for reading */
-    struct pollfd pfd = {.fd = handle->process.stream, .events = POLLIN, .revents = 0};
+    struct pollfd pfd = {.fd = handle->process.stream, .events = POLLIN | POLLOUT, .revents = 0};
     ret = ocall_poll(&pfd, 1, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents == POLLIN);
-
+    attr->readable = ret == 1 && (pfd.revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
+    attr->writable = ret == 1 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
     return 0;
 }
 
