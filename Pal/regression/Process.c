@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv, char** envp) {
     char buffer1[20] = "Hello World 1", buffer2[20] = "Hello World 2";
-    char buffer3[20], buffer4[20], buffer5[20];
+    char buffer3[20], buffer4[20];
     int ret;
 
     if (argc > 1 && !memcmp(argv[1], "Child", 6)) {
