@@ -44,7 +44,6 @@ struct proc_args {
     int             stream_fd;
     int             cargo_fd;
     PAL_SEC_STR     pipe_prefix;
-    unsigned int    mcast_port;
 };
 
 /*
@@ -131,7 +130,6 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
     proc_args.stream_fd         = fds[0];
     proc_args.cargo_fd          = fds[2];
     memcpy(proc_args.pipe_prefix, pal_sec->pipe_prefix, sizeof(PAL_SEC_STR));
-    proc_args.mcast_port = pal_sec->mcast_port;
 
     ret = INLINE_SYSCALL(write, 3, fds[1], &proc_args, sizeof(struct proc_args));
     if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args)) {
@@ -191,7 +189,6 @@ int sgx_init_child_process (struct pal_sec * pal_sec)
     pal_sec->stream_fd     = proc_args.stream_fd;
     pal_sec->cargo_fd      = proc_args.cargo_fd;
     memcpy(pal_sec->pipe_prefix, proc_args.pipe_prefix, sizeof(PAL_SEC_STR));
-    pal_sec->mcast_port  = proc_args.mcast_port;
 
     return 1;
 }

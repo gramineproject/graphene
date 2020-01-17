@@ -524,19 +524,6 @@ class TC_21_ProcessCreation(RegressionTestCase):
         self.assertEqual(counter['Process Write 2 OK'], 3)
         self.assertEqual(counter['Process Read 2: Hello World 2'], 3)
 
-    def test_110_process_broadcast(self):
-        stdout, stderr = self.run_binary(['Process'], timeout=8)
-        counter = collections.Counter(stderr.split('\n'))
-
-        # Multi-Process Broadcast Channel Transmission
-        if ('Warning: broadcast stream is not open. '
-                'Do you have a multicast route configured?') in stderr:
-            self.skipTest('Could not open broadcast stream. '
-                'Do you have a multicast route configured?')
-
-        self.assertEqual(counter['Broadcast Write OK'], 1)
-        self.assertEqual(counter['Broadcast Read: Hello World 1'], 3)
-
     def test_200_process2(self):
         # Process Creation with a Different Binary
         stdout, stderr = self.run_binary(['Process2'])

@@ -443,7 +443,6 @@ noreturn void pal_main (
                                     &__pal_control.user_address_hole.end);
 
     __pal_control.alloc_align        = pal_state.alloc_align;
-    __pal_control.broadcast_stream   = _DkBroadcastStreamOpen();
 
     if (_DkGetCPUInfo(&__pal_control.cpu_info) < 0) {
         goto out_fail;

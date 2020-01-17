@@ -84,10 +84,6 @@ typedef struct pal_handle {
 
         struct {
             PAL_IDX unused;
-        } mcast;
-
-        struct {
-            PAL_IDX unused;
         } thread;
 
         struct {

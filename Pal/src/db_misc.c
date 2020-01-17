@@ -32,44 +32,6 @@ PAL_NUM DkSystemTimeQuery(void) {
     return time;
 }
 
-static PAL_LOCK lock = LOCK_INIT;
-static unsigned long seed;
-
-size_t _DkFastRandomBitsRead(void* buffer, size_t size) {
-    unsigned long rand;
-    size_t bytes = 0;
-
-    _DkInternalLock(&lock);
-    rand = seed;
-    while (!seed) {
-        _DkInternalUnlock(&lock);
-        int ret = _DkRandomBitsRead(&rand, sizeof(rand));
-        if (ret < 0)
-            return ret;
-        _DkInternalLock(&lock);
-        seed = rand;
-    }
-
-    do {
-        if (bytes + sizeof(rand) <= size) {
-            *(unsigned long*)((char*)buffer + bytes) = rand;
-            bytes += sizeof(rand);
-        } else {
-            for (size_t i = 0; i < size - bytes; i++)
-                *(unsigned char*)((char*)buffer + bytes + i) = ((unsigned char*)&rand)[i];
-            bytes = size;
-        }
-        do {
-            rand = hash64(rand);
-        } while (!rand);
-    } while (bytes < size);
-
-    seed = rand;
-    _DkInternalUnlock(&lock);
-
-    return bytes;
-}
-
 PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size) {
     ENTER_PAL_CALL(DkRandomBitsRead);
 

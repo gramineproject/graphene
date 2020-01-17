@@ -289,7 +289,6 @@ int _DkStreamGetName (PAL_HANDLE handle, char * buf, int size);
 const char * _DkStreamRealpath (PAL_HANDLE hdl);
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo);
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo);
-PAL_HANDLE _DkBroadcastStreamOpen (void);
 
 /* DkProcess and DkThread calls */
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
@@ -338,7 +337,6 @@ void _DkExceptionReturn (void * event);
 int _DkInternalLock (PAL_LOCK * mut);
 int _DkInternalUnlock (PAL_LOCK * mut);
 unsigned long _DkSystemTimeQuery (void);
-size_t _DkFastRandomBitsRead (void * buffer, size_t size);
 
 /*
  * Cryptographically secure random.

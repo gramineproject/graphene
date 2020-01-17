@@ -169,25 +169,3 @@ struct handle_ops udpsrv_ops = {
     .close          = &socket_close,
     .attrquerybyhdl = &socket_attrquerybyhdl,
 };
-
-PAL_HANDLE _DkBroadcastStreamOpen(void) {
-    return NULL;
-}
-
-static int64_t mcast_send(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buf) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
-static int64_t mcast_receive(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buf) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
-static int mcast_close(PAL_HANDLE handle) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
-struct handle_ops mcast_ops = {
-    .write = &mcast_send,
-    .read  = &mcast_receive,
-    .close = &mcast_close,
-};

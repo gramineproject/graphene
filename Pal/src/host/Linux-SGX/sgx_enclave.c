@@ -426,11 +426,6 @@ static int sgx_ocall_recv(void * pms)
     struct sockaddr * addr = ms->ms_addr;
     socklen_t addrlen = ms->ms_addr ? ms->ms_addrlen : 0;
 
-    if (ms->ms_sockfd == pal_enclave.pal_sec.mcast_srv) {
-        addr = NULL;
-        addrlen = 0;
-    }
-
     struct msghdr hdr;
     struct iovec iov[1];
 
@@ -466,15 +461,6 @@ static int sgx_ocall_send(void * pms)
     ODEBUG(OCALL_SEND, ms);
     const struct sockaddr * addr = ms->ms_addr;
     socklen_t addrlen = ms->ms_addr ? ms->ms_addrlen : 0;
-    struct sockaddr_in mcast_addr;
-
-    if (ms->ms_sockfd == pal_enclave.pal_sec.mcast_srv) {
-        mcast_addr.sin_family = AF_INET;
-        inet_pton4(MCAST_GROUP, sizeof(MCAST_GROUP),  &mcast_addr.sin_addr.s_addr);
-        mcast_addr.sin_port = htons(pal_enclave.pal_sec.mcast_port);
-        addr = (struct sockaddr *) &mcast_addr;
-        addrlen = sizeof(struct sockaddr_in);
-    }
 
     struct msghdr hdr;
     struct iovec iov[1];

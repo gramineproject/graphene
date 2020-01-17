@@ -157,13 +157,6 @@ typedef struct pal_handle
             PAL_SESSION_KEY session_key;
         } process;
 
-        struct {
-            PAL_IDX cli;
-            PAL_IDX srv;
-            PAL_IDX port;
-            PAL_BOL nonblocking;
-        } mcast;
-
         struct pal_handle_thread thread;
 
         struct {
