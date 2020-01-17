@@ -595,68 +595,6 @@ out:
     return ret;
 }
 
-static int mcast_s (int port)
-{
-    struct sockaddr_in addr;
-    int ret = 0;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-
-    int fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
-
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
-
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
-                         &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    return fd;
-}
-
-static int mcast_c (int port)
-{
-    int ret = 0, fd;
-
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-
-    fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
-
-    int reuse = 1;
-    INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR,
-                   &reuse, sizeof(reuse));
-
-    ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
-                         &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    inet_pton4(MCAST_GROUP, sizeof(MCAST_GROUP) - 1,
-               &addr.sin_addr.s_addr);
-
-    struct ip_mreq group;
-    group.imr_multiaddr.s_addr = addr.sin_addr.s_addr;
-    group.imr_interface.s_addr = INADDR_ANY;
-
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                         &group, sizeof(group));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    return fd;
-}
-
 static unsigned long randval = 0;
 
 void getrand (void * buffer, size_t size)
@@ -934,22 +872,6 @@ static int load_enclave (struct pal_enclave * enclave,
         memset(pal_sec->exec_name, 0, sizeof(PAL_SEC_STR));
     } else {
         memcpy(pal_sec->exec_name, exec_uri, strlen(exec_uri) + 1);
-    }
-
-    if (!pal_sec->mcast_port) {
-        unsigned short mcast_port;
-        getrand(&mcast_port, sizeof(unsigned short));
-        pal_sec->mcast_port = mcast_port > 1024 ? mcast_port : mcast_port + 1024;
-    }
-
-    if ((ret = mcast_s(pal_sec->mcast_port)) >= 0) {
-        pal_sec->mcast_srv = ret;
-        if ((ret = mcast_c(pal_sec->mcast_port)) >= 0) {
-            pal_sec->mcast_cli = ret;
-        } else {
-            INLINE_SYSCALL(close, 1, pal_sec->mcast_srv);
-            pal_sec->mcast_srv = 0;
-        }
     }
 
     ret = sgx_signal_setup();

@@ -64,7 +64,6 @@ extern struct pal_sec {
 
     /* pipes and sockets */
     unsigned long pipe_prefix_id;
-    unsigned short mcast_port;
 
     /* for debugger */
     void (*_dl_debug_state)(void);

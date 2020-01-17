@@ -142,14 +142,6 @@ typedef struct pal_handle
         } process;
 
         struct {
-            PAL_IDX cli;
-            PAL_IDX srv;
-            PAL_IDX port;
-            PAL_BOL nonblocking;
-            PAL_PTR addr;
-        } mcast;
-
-        struct {
             PAL_IDX tid;
             PAL_PTR stack;
         } thread;

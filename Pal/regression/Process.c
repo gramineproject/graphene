@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv, char** envp) {
     char buffer1[20] = "Hello World 1", buffer2[20] = "Hello World 2";
-    char buffer3[20], buffer4[20], buffer5[20];
+    char buffer3[20], buffer4[20];
     int ret;
 
     if (argc > 1 && !memcmp(argv[1], "Child", 6)) {
@@ -22,16 +22,6 @@ int main(int argc, char** argv, char** envp) {
         }
 
         DkStreamWrite(pal_control.parent_process, 0, 20, buffer1, NULL);
-
-        if (pal_control.broadcast_stream == NULL) {
-            pal_printf(
-                "Warning: broadcast stream is not open. "
-                "Do you have a multicast route configured?\n");
-        } else {
-            ret = DkStreamRead(pal_control.broadcast_stream, 0, 20, buffer5, NULL, 0);
-            if (ret > 0)
-                pal_printf("Broadcast Read: %s\n", buffer5);
-        }
 
         ret = DkStreamWrite(pal_control.parent_process, 0, 20, buffer1, NULL);
         if (ret > 0)
@@ -54,17 +44,6 @@ int main(int argc, char** argv, char** envp) {
                 pal_printf("Process created %d\n", i + 1);
                 DkStreamRead(children[i], 0, 20, buffer4, NULL, 0);
             }
-        }
-
-        pal_printf("Broadcasting message\n");
-        if (pal_control.broadcast_stream == NULL) {
-            pal_printf(
-                "Warning: broadcast stream is not open. "
-                "Do you have a multicast route configured?\n");
-        } else {
-            ret = DkStreamWrite(pal_control.broadcast_stream, 0, 20, buffer1, NULL);
-            if (ret > 0)
-                pal_printf("Broadcast Write OK\n");
         }
 
         for (int i = 0; i < 3; i++)

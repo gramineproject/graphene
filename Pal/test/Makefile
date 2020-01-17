@@ -11,8 +11,8 @@ include ../../Makefile.rules
 include ../src/Makefile.Test
 
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
-	      Memory Pipe Tcp Udp Yield Broadcast Server Wait HandleSend \
-	      Select Segment Sleep Cpuid Pie
+	      Memory Pipe Tcp Udp Yield Server Wait HandleSend Select Segment \
+	      Sleep Cpuid Pie
 manifests = manifest
 
 target = $(executables) $(manifests)

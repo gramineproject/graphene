@@ -49,7 +49,6 @@ struct pal_sec {
 
     /* additional information */
     PAL_SEC_STR     pipe_prefix;
-    PAL_IDX         mcast_port, mcast_srv, mcast_cli;
 
     /* Need to pass in the number of cores */
     PAL_NUM         num_cpus;
@@ -71,7 +70,5 @@ extern struct pal_sec pal_sec;
 #define GRAPHENE_PIPEDIR        (GRAPHENE_TEMPDIR "/pipes")
 
 #define PROC_INIT_FD    255
-
-#define MCAST_GROUP "239.0.0.1"
 
 #endif /* PAL_SECURITY_H */

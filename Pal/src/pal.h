@@ -123,7 +123,6 @@ enum {
     pal_type_udp,
     pal_type_udpsrv,
     pal_type_process,
-    pal_type_mcast,
     pal_type_thread,
     pal_type_mutex,
     pal_type_event,
@@ -170,8 +169,6 @@ typedef struct {
     PAL_HANDLE first_thread;
     /* debug stream */
     PAL_HANDLE debug_stream;
-    /* broadcast RPC stream */
-    PAL_HANDLE broadcast_stream;
 
     /***** Memory layout ******/
     /* The range of user address */

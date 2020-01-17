@@ -120,8 +120,6 @@ The fields of the Graphene control block are defined as follows:
         PAL_HANDLE first_thread;
         /* debug stream */
         PAL_HANDLE debug_stream;
-        /* broadcast RPC stream */
-        PAL_HANDLE broadcast_stream;
 
         /***** Memory layout ******/
         /* The range of user address */
