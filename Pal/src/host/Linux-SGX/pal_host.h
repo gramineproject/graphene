@@ -184,9 +184,7 @@ typedef struct pal_handle
 
 #define RFD(n)          (1 << (MAX_FDS*0 + (n)))
 #define WFD(n)          (1 << (MAX_FDS*1 + (n)))
-#define WRITABLE(n)     (1 << (MAX_FDS*2 + (n)))
-#define ERROR(n)        (1 << (MAX_FDS*3 + (n)))
-#define HAS_FDS         ((1 << MAX_FDS*2) - 1)
+#define ERROR(n)        (1 << (MAX_FDS*2 + (n)))
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 

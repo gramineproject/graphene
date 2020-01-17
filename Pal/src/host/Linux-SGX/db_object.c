@@ -146,8 +146,6 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
         for (size_t k = 0; k < MAX_FDS; k++) {
             if (hdl->generic.fds[k] != (PAL_IDX)fds[i].fd)
                 continue;
-            if (fds[i].revents & POLLOUT)
-                HANDLE_HDR(hdl)->flags |= WRITABLE(k);
             if (fds[i].revents & (POLLHUP|POLLERR|POLLNVAL))
                 HANDLE_HDR(hdl)->flags |= ERROR(k);
         }

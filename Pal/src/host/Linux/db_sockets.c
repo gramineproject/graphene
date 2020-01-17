@@ -608,12 +608,6 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, size_t len, const v
     hdr.msg_flags      = 0;
 
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
-
-    if (!IS_ERR(bytes) && (size_t)bytes == len)
-        HANDLE_HDR(handle)->flags |= WRITABLE(0);
-    else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
-
     if (IS_ERR(bytes))
         bytes = unix_to_pal_error(ERRNO(bytes));
 
@@ -860,12 +854,6 @@ static int64_t udp_send(PAL_HANDLE handle, uint64_t offset, size_t len, const vo
     hdr.msg_flags      = 0;
 
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
-
-    if (!IS_ERR(bytes) && (size_t)bytes == len)
-        HANDLE_HDR(handle)->flags |= WRITABLE(0);
-    else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
-
     if (IS_ERR(bytes))
         bytes = unix_to_pal_error(ERRNO(bytes));
 
@@ -912,12 +900,6 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, size_t len, co
     hdr.msg_flags      = 0;
 
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
-
-    if (!IS_ERR(bytes) && (size_t)bytes == len)
-        HANDLE_HDR(handle)->flags |= WRITABLE(0);
-    else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(0);
-
     if (IS_ERR(bytes))
         bytes = unix_to_pal_error(ERRNO(bytes));
 
@@ -982,7 +964,6 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->handle_type           = HANDLE_HDR(handle)->type;
     attr->nonblocking           = handle->sock.nonblocking;
     attr->disconnected          = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->writable              = HANDLE_HDR(handle)->flags & WRITABLE(0);
 
     attr->socket.linger         = handle->sock.linger;
     attr->socket.receivebuf     = handle->sock.receivebuf;
@@ -1005,13 +986,14 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     }
 
     /* query if there is data available for reading */
-    struct pollfd pfd  = {.fd = handle->sock.fd, .events = POLLIN, .revents = 0};
+    struct pollfd pfd  = {.fd = handle->sock.fd, .events = POLLIN | POLLOUT, .revents = 0};
     struct timespec tp = {0, 0};
     ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+    attr->readable = (ret == 1 && pfd.revents & POLLIN);
+    attr->writable = (ret == 1 && pfd.revents & POLLOUT);
 
     return 0;
 }
@@ -1285,7 +1267,7 @@ PAL_HANDLE _DkBroadcastStreamOpen(void) {
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(mcast));
     SET_HANDLE_TYPE(hdl, mcast);
-    HANDLE_HDR(hdl)->flags |= WFD(1) | WRITABLE(1);
+    HANDLE_HDR(hdl)->flags |= WFD(1);
     hdl->mcast.srv         = srv;
     hdl->mcast.cli         = cli;
     hdl->mcast.port        = (PAL_NUM)pal_sec.mcast_port;
@@ -1327,19 +1309,11 @@ static int64_t mcast_send(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
             case ECONNRESET:
             case EPIPE:
                 return -PAL_ERROR_CONNFAILED;
-            case EAGAIN:
-                HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
-                /* fallthrough */
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
     assert(!IS_ERR(bytes));
-    if ((size_t)bytes == size)
-        HANDLE_HDR(handle)->flags |= WRITABLE(1);
-    else
-        HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
-
     return bytes;
 }
 
@@ -1384,7 +1358,7 @@ static int mcast_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->disconnected = HANDLE_HDR(handle)->flags & (ERROR(0) | ERROR(1));
     attr->nonblocking  = handle->mcast.nonblocking;
     attr->readable     = !!val;
-    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(1);
+    attr->writable     = PAL_TRUE;
     attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
 

@@ -122,7 +122,7 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
 
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(clnt, pipecli);
-    HANDLE_HDR(clnt)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
+    HANDLE_HDR(clnt)->flags |= RFD(0) | WFD(0);
     clnt->pipe.fd          = newfd;
     clnt->pipe.pipeid      = handle->pipe.pipeid;
     clnt->pipe.nonblocking = PAL_FALSE;
@@ -160,7 +160,7 @@ static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(hdl, pipe);
-    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->pipe.fd          = fd;
     hdl->pipe.pipeid      = pipeid;
     hdl->pipe.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
@@ -178,7 +178,7 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
     SET_HANDLE_TYPE(hdl, pipeprv);
-    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(1) | WRITABLE(1);
+    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(1);
     hdl->pipeprv.fds[0]      = fds[0];
     hdl->pipeprv.fds[1]      = fds[1];
     hdl->pipeprv.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
@@ -250,14 +250,6 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, size_t len, const 
     int64_t bytes = 0;
 
     bytes = INLINE_SYSCALL(write, 3, fd, buffer, len);
-
-    PAL_FLG writable = IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0);
-
-    if (!IS_ERR(bytes) && (size_t)bytes == len)
-        HANDLE_HDR(handle)->flags |= writable;
-    else
-        HANDLE_HDR(handle)->flags &= ~writable;
-
     if (IS_ERR(bytes))
         bytes = unix_to_pal_error(ERRNO(bytes));
 
@@ -351,7 +343,6 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->nonblocking  = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.nonblocking
                                                          : handle->pipe.nonblocking;
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->writable     = PAL_FALSE;
 
     /* get number of bytes available for reading (doesn't make sense for "listening" pipes) */
     attr->pending_size = 0;
@@ -361,18 +352,17 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
             return unix_to_pal_error(ERRNO(ret));
 
         attr->pending_size = val;
-        attr->writable     = HANDLE_HDR(handle)->flags & (IS_HANDLE_TYPE(handle, pipeprv)
-                                                              ? WRITABLE(1) : WRITABLE(0));
     }
 
     /* query if there is data available for reading */
-    struct pollfd pfd  = {.fd = handle->generic.fds[0], .events = POLLIN, .revents = 0};
+    struct pollfd pfd  = {.fd = handle->generic.fds[0], .events = POLLIN | POLLOUT, .revents = 0};
     struct timespec tp = {0, 0};
     ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+    attr->readable = (ret == 1 && pfd.revents & POLLIN);
+    attr->writable = (ret == 1 && pfd.revents & POLLOUT);
 
     return 0;
 }

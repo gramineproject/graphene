@@ -57,7 +57,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     size_t len     = strlen(uri) + 1;
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len);
     SET_HANDLE_TYPE(hdl, file);
-    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->file.fd     = fd;
     char* path       = (void*)hdl + HANDLE_SIZE(file);
     int ret;

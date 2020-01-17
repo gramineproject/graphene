@@ -73,7 +73,7 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
     SET_HANDLE_TYPE(hdl, eventfd);
 
     /* Note: using index 0, given that there is only 1 eventfd FD per pal-handle. */
-    HANDLE_HDR(hdl)->flags = RFD(0) | WFD(0) | WRITABLE(0);
+    HANDLE_HDR(hdl)->flags = RFD(0) | WFD(0);
 
     hdl->eventfd.fd          = ret;
     hdl->eventfd.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
@@ -117,18 +117,8 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
         return -PAL_ERROR_INVAL;
 
     int bytes = ocall_write(handle->eventfd.fd, buffer, len);
-    PAL_FLG writable = WRITABLE(0);
-
-    if (IS_ERR(bytes)) {
-        if (ERRNO(bytes) == EAGAIN)
-            HANDLE_HDR(handle)->flags &= ~writable;
+    if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
-    }
-
-    if ((uint64_t)bytes == sizeof(uint64_t))
-        HANDLE_HDR(handle)->flags |= writable;
-    else
-        HANDLE_HDR(handle)->flags &= ~writable;
 
     return bytes;
 }
@@ -143,7 +133,6 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
     attr->handle_type  = HANDLE_HDR(handle)->type;
     attr->nonblocking  = handle->eventfd.nonblocking;
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
 
     /* get number of bytes available for reading */
     ret = ocall_fionread(handle->eventfd.fd);
@@ -153,12 +142,13 @@ static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) 
     attr->pending_size = ret;
 
     /* query if there is data available for reading */
-    struct pollfd pfd = {.fd = handle->eventfd.fd, .events = POLLIN, .revents = 0};
+    struct pollfd pfd = {.fd = handle->eventfd.fd, .events = POLLIN | POLLOUT, .revents = 0};
     ret = ocall_poll(&pfd, 1, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+    attr->readable = (ret == 1 && pfd.revents & POLLIN);
+    attr->writable = (ret == 1 && pfd.revents & POLLOUT);
 
     /* For future use, so that Linux host kernel can send notifications to user-space apps. App
      * receives virtual FD from LibOS, but the Linux-host eventfd is memorized here, such that this
