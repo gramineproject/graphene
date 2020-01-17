@@ -307,36 +307,36 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
 }
 
 static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+    int ret;
+
     if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    attr->handle_type = PAL_GET_TYPE(handle);
+    attr->handle_type  = HANDLE_HDR(handle)->type;
+    attr->nonblocking  = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.nonblocking
+                                                         : handle->pipe.nonblocking;
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->writable     = PAL_FALSE;
 
-    int read_fd = handle->generic.fds[0];
-    int flags   = HANDLE_HDR(handle)->flags;
-
+    /* get number of bytes available for reading (doesn't make sense for "listening" pipes) */
+    attr->pending_size = 0;
     if (!IS_HANDLE_TYPE(handle, pipesrv)) {
-        int ret = ocall_fionread(read_fd);
+        ret = ocall_fionread(handle->generic.fds[0]);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
 
         attr->pending_size = ret;
-        attr->writable     = flags & (IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0));
-    } else {
-        attr->pending_size = 0;
-        attr->writable     = PAL_FALSE;
+        attr->writable     = HANDLE_HDR(handle)->flags & (IS_HANDLE_TYPE(handle, pipeprv)
+                                                              ? WRITABLE(1) : WRITABLE(0));
     }
 
-    struct pollfd pfd = {.fd = read_fd, .events = POLLIN, .revents = 0};
-    int ret           = ocall_poll(&pfd, 1, 0);
+    /* query if there is data available for reading */
+    struct pollfd pfd = {.fd = handle->generic.fds[0], .events = POLLIN, .revents = 0};
+    ret = ocall_poll(&pfd, 1, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
     attr->readable = (ret == 1 && pfd.revents == POLLIN);
-
-    attr->disconnected = flags & ERROR(0);
-    attr->nonblocking =
-        IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.nonblocking : handle->pipe.nonblocking;
 
     return 0;
 }

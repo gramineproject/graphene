@@ -40,6 +40,10 @@ typedef __kernel_pid_t pid_t;
 #include <linux/un.h>
 #include <sys/socket.h>
 
+#ifndef FIONREAD
+#define FIONREAD 0x541B
+#endif
+
 static int pipe_path(int pipeid, char* path, int len) {
     /* use abstract UNIX sockets for pipes */
     memset(path, 0, len);
@@ -336,39 +340,40 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
     return 0;
 }
 
-#ifndef FIONREAD
-#define FIONREAD 0x541B
-#endif
-
 static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
-    int ret, val;
+    int ret;
+    int val;
 
     if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    attr->handle_type = PAL_GET_TYPE(handle);
+    attr->handle_type  = HANDLE_HDR(handle)->type;
+    attr->nonblocking  = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.nonblocking
+                                                         : handle->pipe.nonblocking;
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->writable     = PAL_FALSE;
 
-    if (attr->handle_type != pal_type_pipesrv) {
+    /* get number of bytes available for reading (doesn't make sense for "listening" pipes) */
+    attr->pending_size = 0;
+    if (!IS_HANDLE_TYPE(handle, pipesrv)) {
         ret = INLINE_SYSCALL(ioctl, 3, handle->generic.fds[0], FIONREAD, &val);
-        if (IS_ERR(ret)) {
+        if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
-        }
+
         attr->pending_size = val;
-        attr->writable     = HANDLE_HDR(handle)->flags &
-                                 (IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0));
-    } else {
-        attr->pending_size = 0;
-        attr->writable     = PAL_FALSE;
+        attr->writable     = HANDLE_HDR(handle)->flags & (IS_HANDLE_TYPE(handle, pipeprv)
+                                                              ? WRITABLE(1) : WRITABLE(0));
     }
 
+    /* query if there is data available for reading */
     struct pollfd pfd  = {.fd = handle->generic.fds[0], .events = POLLIN, .revents = 0};
     struct timespec tp = {0, 0};
-    ret                = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-    attr->readable     = (ret == 1 && pfd.revents == POLLIN);
+    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
-    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->nonblocking =
-        IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.nonblocking : handle->pipe.nonblocking;
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+
     return 0;
 }
 

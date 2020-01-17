@@ -38,6 +38,10 @@
 #include "pal_linux_error.h"
 #include "pal_security.h"
 
+#ifndef FIONREAD
+#define FIONREAD 0x541B
+#endif
+
 static inline int eventfd_type(int options) {
     int type = 0;
     if (options & PAL_OPTION_NONBLOCK)
@@ -133,31 +137,39 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     return bytes;
 }
 
-/* invoked during poll operation on eventfd from LibOS. */
 static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
-    if (handle->generic.fds[0] == PAL_IDX_POISON)
+    int ret;
+    int val;
+
+    if (handle->eventfd.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    attr->handle_type = PAL_GET_TYPE(handle);
-    int efd           = handle->eventfd.fd;
-    int flags         = HANDLE_HDR(handle)->flags;
+    attr->handle_type  = HANDLE_HDR(handle)->type;
+    attr->nonblocking  = handle->eventfd.nonblocking;
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
 
-    struct pollfd pfd  = {.fd = efd, .events = POLLIN, .revents = 0};
-    struct timespec tp = {0, 0};
-    int ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-
+    /* get number of bytes available for reading */
+    ret = INLINE_SYSCALL(ioctl, 3, handle->eventfd.fd, FIONREAD, &val);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable     = (ret == 1 && pfd.revents == POLLIN);
-    attr->disconnected = flags & ERROR(0);
-    attr->nonblocking  = handle->eventfd.nonblocking;
+    attr->pending_size = val;
+
+    /* query if there is data available for reading */
+    struct pollfd pfd  = {.fd = handle->eventfd.fd, .events = POLLIN, .revents = 0};
+    struct timespec tp = {0, 0};
+    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     /* For future use, so that Linux host kernel can send notifications to user-space apps. App
      * receives virtual FD from LibOS, but the Linux-host eventfd is memorized here, such that this
      * Linux-host eventfd can be retrieved (by LibOS) during app's ioctl(). */
     attr->no_of_fds = 1;
-    attr->fds[0]    = efd;
+    attr->fds[0]    = handle->eventfd.fd;
 
     return 0;
 }

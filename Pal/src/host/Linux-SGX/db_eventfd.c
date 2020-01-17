@@ -135,29 +135,36 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
 
 /* invoked during poll operation on eventfd from LibOS. */
 static int eventfd_pal_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
-    if (handle->generic.fds[0] == PAL_IDX_POISON)
+    int ret;
+
+    if (handle->eventfd.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    attr->handle_type = PAL_GET_TYPE(handle);
+    attr->handle_type  = HANDLE_HDR(handle)->type;
+    attr->nonblocking  = handle->eventfd.nonblocking;
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
 
-    int efd = handle->eventfd.fd;
-    int flags = HANDLE_HDR(handle)->flags;
-
-    struct pollfd pfd = {.fd = efd, .events = POLLIN, .revents = 0};
-    int ret = ocall_poll(&pfd, 1, 0);
-
+    /* get number of bytes available for reading */
+    ret = ocall_fionread(handle->eventfd.fd);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable     = (ret == 1 && pfd.revents == POLLIN);
-    attr->disconnected = flags & ERROR(0);
-    attr->nonblocking  = handle->eventfd.nonblocking;
+    attr->pending_size = ret;
+
+    /* query if there is data available for reading */
+    struct pollfd pfd = {.fd = handle->eventfd.fd, .events = POLLIN, .revents = 0};
+    ret = ocall_poll(&pfd, 1, 0);
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     /* For future use, so that Linux host kernel can send notifications to user-space apps. App
      * receives virtual FD from LibOS, but the Linux-host eventfd is memorized here, such that this
      * Linux-host eventfd can be retrieved (by LibOS) during app's ioctl(). */
     attr->no_of_fds = 1;
-    attr->fds[0]    = efd;
+    attr->fds[0]    = handle->eventfd.fd;
 
     return 0;
 }
