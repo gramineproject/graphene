@@ -92,8 +92,8 @@ Stack Size
     sys.stack.size=[# of bytes (with K/M/G)]
 
 This specifies the stack size of each thread in each Graphene process. The default value is
-determined by the library OS. Units like ``K`` (KB), ``M`` (MB), and ``G`` (GB) can be appended to the
-values for convenience. For example, ``sys.stack.size=1M`` indicates a 1MB stack size.
+determined by the library OS. Units like ``K`` (KiB), ``M`` (MiB), and ``G`` (GiB) can be appended to the
+values for convenience. For example, ``sys.stack.size=1M`` indicates a 1 |~| MiB stack size.
 
 Program Break (Heap) Size
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -103,8 +103,8 @@ Program Break (Heap) Size
     sys.brk.size=[# of bytes (with K/M/G)]
 
 This specifies the program break (brk) size in each Graphene process. The default value of the
-program break size is determined by the library OS. Units like ``K`` (KB), ``M`` (MB), and ``G`` (GB) can
-be appended to the values for convenience. For example, ``sys.brk.size=1M`` indicates a 1MB brk size.
+program break size is determined by the library OS. Units like ``K`` (KiB), ``M`` (MiB), and ``G`` (GiB) can
+be appended to the values for convenience. For example, ``sys.brk.size=1M`` indicates a 1 |~| MiB brk size.
 
 Allowing eventfd
 ^^^^^^^^^^^^^^^^
