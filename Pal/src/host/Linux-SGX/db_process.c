@@ -435,21 +435,32 @@ static int proc_delete (PAL_HANDLE handle, int access)
     return 0;
 }
 
-static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
-{
+static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+    int ret;
+
     if (handle->process.stream == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    int ret = ocall_fionread(handle->process.stream);
+    attr->handle_type  = HANDLE_HDR(handle)->type;
+    attr->nonblocking  = handle->process.nonblocking;
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
+
+    /* get number of bytes available for reading */
+    ret = ocall_fionread(handle->process.stream);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    memset(attr, 0, sizeof(PAL_STREAM_ATTR));
     attr->pending_size = ret;
-    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->readable = (attr->pending_size > 0);
-    attr->writable = HANDLE_HDR(handle)->flags & WRITABLE(0);
-    attr->nonblocking = handle->process.nonblocking;
+
+    /* query if there is data available for reading */
+    struct pollfd pfd = {.fd = handle->process.stream, .events = POLLIN, .revents = 0};
+    ret = ocall_poll(&pfd, 1, 0);
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+
     return 0;
 }
 

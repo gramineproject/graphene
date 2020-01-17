@@ -58,6 +58,10 @@ typedef __kernel_pid_t pid_t;
 #define SOL_IPV6 41
 #endif
 
+#ifndef FIONREAD
+#define FIONREAD 0x541B
+#endif
+
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
 #define PAL_SOCKADDR_SIZE 96
@@ -969,19 +973,17 @@ static int socket_close(PAL_HANDLE handle) {
     return 0;
 }
 
-#ifndef FIONREAD
-#define FIONREAD 0x541B
-#endif
-
 static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+    int ret;
+
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     attr->handle_type           = HANDLE_HDR(handle)->type;
-    attr->disconnected          = HANDLE_HDR(handle)->flags & ERROR(0);
     attr->nonblocking           = handle->sock.nonblocking;
+    attr->disconnected          = HANDLE_HDR(handle)->flags & ERROR(0);
     attr->writable              = HANDLE_HDR(handle)->flags & WRITABLE(0);
-    attr->pending_size          = 0; /* fill in later */
+
     attr->socket.linger         = handle->sock.linger;
     attr->socket.receivebuf     = handle->sock.receivebuf;
     attr->socket.sendbuf        = handle->sock.sendbuf;
@@ -991,20 +993,25 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->socket.tcp_keepalive  = handle->sock.tcp_keepalive;
     attr->socket.tcp_nodelay    = handle->sock.tcp_nodelay;
 
-    int fd = handle->sock.fd, ret, val;
-
+    /* get number of bytes available for reading (doesn't make sense for listening sockets) */
+    attr->pending_size = 0;
     if (!IS_HANDLE_TYPE(handle, tcpsrv)) {
-        /* try use ioctl FIONEAD to get the size of socket */
-        ret = INLINE_SYSCALL(ioctl, 3, fd, FIONREAD, &val);
+        int val;
+        ret = INLINE_SYSCALL(ioctl, 3, handle->sock.fd, FIONREAD, &val);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
+
         attr->pending_size = val;
     }
 
-    struct pollfd pfd  = {.fd = fd, .events = POLLIN, .revents = 0};
+    /* query if there is data available for reading */
+    struct pollfd pfd  = {.fd = handle->sock.fd, .events = POLLIN, .revents = 0};
     struct timespec tp = {0, 0};
-    ret                = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-    attr->readable     = (ret == 1 && pfd.revents == POLLIN);
+    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     return 0;
 }

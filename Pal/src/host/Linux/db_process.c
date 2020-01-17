@@ -25,26 +25,31 @@
  * at creation.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_debug.h"
-#include "pal_error.h"
-#include "pal_security.h"
+#include "pal_linux_defs.h"
 #include "pal_rtld.h"
-#include "api.h"
-
-#include <linux/sched.h>
-#include <linux/types.h>
+#include "pal_security.h"
 typedef __kernel_pid_t pid_t;
-#include <asm/fcntl.h>
-#include <sys/socket.h>
 #include <asm/errno.h>
+#include <asm/fcntl.h>
+#include <asm/poll.h>
+#include <linux/sched.h>
+#include <linux/time.h>
+#include <linux/types.h>
+#include <sys/socket.h>
 
 #ifndef SEEK_SET
 # define SEEK_SET 0
+#endif
+
+#ifndef FIONREAD
+# define FIONREAD 0x541B
 #endif
 
 static inline int create_process_handle (PAL_HANDLE * parent,
@@ -521,28 +526,33 @@ static int proc_delete (PAL_HANDLE handle, int access)
     return 0;
 }
 
-#ifndef FIONREAD
-# define FIONREAD 0x541B
-#endif
-
-static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
-{
-    int ret, val;
+static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+    int ret;
+    int val;
 
     if (handle->process.stream == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
+    attr->handle_type  = HANDLE_HDR(handle)->type;
+    attr->nonblocking  = handle->process.nonblocking;
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
+
+    /* get number of bytes available for reading */
     ret = INLINE_SYSCALL(ioctl, 3, handle->process.stream, FIONREAD, &val);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->handle_type  = pal_type_process;
-    attr->nonblocking  = handle->process.nonblocking;
-    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->readable     = !!val;
-    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(0);
-    attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
+
+    /* query if there is data available for reading */
+    struct pollfd pfd  = {.fd = handle->process.stream, .events = POLLIN, .revents = 0};
+    struct timespec tp = {0, 0};
+    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     return 0;
 }
