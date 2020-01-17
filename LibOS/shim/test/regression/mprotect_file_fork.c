@@ -2,7 +2,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -56,9 +55,9 @@ int main(void) {
         // child
         if (*(int*)ptr != VAL) {
             printf("EXPECTED: 0x%x\nGOT     : 0x%x\n", VAL, *(int*)ptr);
-            exit(1);
+            return 1;
         }
-        exit(0);
+        return 0;
     }
 
     // parent

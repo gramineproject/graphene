@@ -329,7 +329,7 @@ class TC_30_Syscall(RegressionTestCase):
     def test_053_mprotect_file_fork(self):
         stdout, _ = self.run_binary(['mprotect_file_fork'])
 
-        self.assertIn("Test successful!", stdout)
+        self.assertIn('Test successful!', stdout)
 
     @unittest.skip('sigaltstack isn\'t correctly implemented')
     def test_060_sigaltstack(self):
