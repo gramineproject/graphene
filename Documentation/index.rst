@@ -6,6 +6,7 @@
 
    quickstart
    manifest-syntax
+   supported-syscalls
    glossary
    howto-doc
 
