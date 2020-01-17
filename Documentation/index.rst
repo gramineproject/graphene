@@ -5,6 +5,7 @@
    :maxdepth: 2
 
    quickstart
+   manifest-syntax
    debugging
    glossary
    howto-doc
