@@ -1,10 +1,18 @@
-# Supported System Calls in Graphene
+Supported System Calls in Graphene
+==================================
+
+.. note::
+
+   This document is outdated. Please :doc:`send patches <devel/contributing>`
+   with corrections.
 
 The following is a list of system calls that are currently implemented.
 
-## System Calls that are Fully Implemented
+System Calls that are Fully Implemented
+---------------------------------------
 
-### System Calls that Require Multi-process Coordination
+System Calls that Require Multi-process Coordination
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Process creation (fork/vfork)
 * execve
@@ -14,7 +22,8 @@ The following is a list of system calls that are currently implemented.
 * System V IPC semaphore (semget/semop/semtimedop/semctl)
 * System V IPC message queue (msgget/msgsnd/msgrcv)
 
-### System calls that require no multi-process coordination
+System calls that require no multi-process coordination
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * File open/close (open/openat/creat/close)
 * File descriptor access (read/write/readv/writev/pread64/pwrite64)
@@ -54,42 +63,42 @@ The following is a list of system calls that are currently implemented.
 * Thread-state (arch_prctl)
 
 
-## System Calls that are Partially Implemented
+System Calls that are Partially Implemented
+-------------------------------------------
 
 * ioctl
 
-   Currently only FIONREAD is supported for the ioctl system call.
+  Currently only FIONREAD is supported for the ioctl system call.
 
 * fcntl
-   + Supported: Duplicate FDs (F_DUPFD/F_DUPFD_CLOEXEC), Set FD flags (F_GETFD/F_SETFD), Set file flags (F_GETFL/F_SETFL)
-   + Unsupported: File locking (F_SETLK/F_SETLKW/F_GETLK)
+  - Supported: Duplicate FDs (F_DUPFD/F_DUPFD_CLOEXEC), Set FD flags (F_GETFD/F_SETFD), Set file flags (F_GETFL/F_SETFL)
+  - Unsupported: File locking (F_SETLK/F_SETLKW/F_GETLK)
 
 * clone
 
-   The Linux clone system call is ubiquitously used for creation of processes and threads. However,
-   in Graphene, we only use the clone system call for thread creation. Process creation is
-   implemented as the fork system call. In practice, it is quite rare for applications to use
-   methods that are not forking to create processes.
+  The Linux clone system call is ubiquitously used for creation of processes and threads. However,
+  in Graphene, we only use the clone system call for thread creation. Process creation is
+  implemented as the fork system call. In practice, it is quite rare for applications to use
+  methods that are not forking to create processes.
 
-   The namespace options (CLONE_FS, CLONE_NEWIPC, CLONE_NEWNET, etc) are currently not supported.
+  The namespace options (CLONE_FS, CLONE_NEWIPC, CLONE_NEWNET, etc) are currently not supported.
 
 * msgctl
 
-   Only IPC_RMID is supported.
+  Only IPC_RMID is supported.
 
 * setpgid/setsid
 
-   These two system calls set the process credentials but do not coordinate any cross-process state.
+  These two system calls set the process credentials but do not coordinate any cross-process state.
 
 * bind
 
-   Binding on path (UNIX socket) is only supported locally in the process.
+  Binding on path (UNIX socket) is only supported locally in the process.
 
 * readlink
 
-   Symbolic links are not supported. Readlink will simply resolve absolute paths.
+  Symbolic links are not supported. Readlink will simply resolve absolute paths.
 
 * getrlimit
 
-   Returns the static values of RLIMIT_NOFILE, RLIMIT_RSS, RLIMIT_AS, RLIMIT_STACK.
-
+  Returns the static values of RLIMIT_NOFILE, RLIMIT_RSS, RLIMIT_AS, RLIMIT_STACK.
