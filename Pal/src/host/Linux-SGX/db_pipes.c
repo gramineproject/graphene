@@ -298,7 +298,7 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
 static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int ret;
 
-    if (handle->generic.fds[0] == PAL_IDX_POISON)
+    if (handle->pipe.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     attr->handle_type  = HANDLE_HDR(handle)->type;
@@ -309,21 +309,40 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     /* get number of bytes available for reading (doesn't make sense for "listening" pipes) */
     attr->pending_size = 0;
     if (!IS_HANDLE_TYPE(handle, pipesrv)) {
-        ret = ocall_fionread(handle->generic.fds[0]);
+        ret = ocall_fionread(handle->pipe.fd);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
 
         attr->pending_size = ret;
     }
 
-    /* query if there is data available for reading */
-    struct pollfd pfd = {.fd = handle->generic.fds[0], .events = POLLIN | POLLOUT, .revents = 0};
-    ret = ocall_poll(&pfd, 1, 0);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    /* query if there is data available for reading/writing */
+    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+        /* for private pipe, readable and writable are queried on different fds */
+        struct pollfd pfd[2] = {{.fd = handle->pipeprv.fds[0], .events = POLLIN,  .revents = 0},
+                                {.fd = handle->pipeprv.fds[1], .events = POLLOUT, .revents = 0}};
+        ret = ocall_poll(&pfd[0], 2, 0);
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents & POLLIN);
-    attr->writable = (ret == 1 && pfd.revents & POLLOUT);
+        attr->readable = (ret >= 1 && pfd[0].revents & POLLIN);
+        attr->writable = (ret >= 1 && pfd[1].revents & POLLOUT);
+    } else {
+        /* for non-private pipes, both readable and writable are queried on the same fd */
+        short pfd_events = POLLIN;
+        if (!IS_HANDLE_TYPE(handle, pipesrv)) {
+            /* querying for writing doesn't make sense for "listening" pipes */
+            pfd_events |= POLLOUT;
+        }
+
+        struct pollfd pfd = {.fd = handle->pipe.fd, .events = pfd_events, .revents = 0};
+        ret = ocall_poll(&pfd, 1, 0);
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
+
+        attr->readable = (ret == 1 && pfd.revents & POLLIN);
+        attr->writable = (ret == 1 && pfd.revents & POLLOUT);
+    }
 
     return 0;
 }
