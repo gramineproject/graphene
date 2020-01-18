@@ -364,8 +364,14 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
 
+        /* note that LibOS assumes that readable/writable are false on error/closed connection */
         attr->readable = (ret >= 1 && pfd[0].revents & POLLIN);
+        if (ret >= 1 && pfd[0].revents & (POLLERR | POLLHUP))
+            attr->readable = PAL_FALSE;
+
         attr->writable = (ret >= 1 && pfd[1].revents & POLLOUT);
+        if (ret >= 1 && pfd[1].revents & (POLLERR | POLLHUP))
+            attr->writable = PAL_FALSE;
     } else {
         /* for non-private pipes, both readable and writable are queried on the same fd */
         short pfd_events = POLLIN;
@@ -382,6 +388,11 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         attr->readable = (ret == 1 && pfd.revents & POLLIN);
         attr->writable = (ret == 1 && pfd.revents & POLLOUT);
+        if (ret == 1 && pfd.revents & (POLLERR | POLLHUP)) {
+            /* LibOS assumes that readable/writable are false on error/closed connection */
+            attr->readable = PAL_FALSE;
+            attr->writable = PAL_FALSE;
+        }
     }
 
     return 0;

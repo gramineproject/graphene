@@ -449,6 +449,11 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
     attr->readable = (ret == 1 && pfd.revents & POLLIN);
     attr->writable = (ret == 1 && pfd.revents & POLLOUT);
+    if (ret == 1 && pfd.revents & (POLLERR | POLLHUP)) {
+        /* LibOS assumes that readable/writable are false on error/closed connection */
+        attr->readable = PAL_FALSE;
+        attr->writable = PAL_FALSE;
+    }
 
     return 0;
 }
