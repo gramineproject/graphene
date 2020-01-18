@@ -18,14 +18,15 @@
 #include <pal_error.h>
 #include <pal_internal.h>
 #include <pal_security.h>
+#include <spinlock.h>
 
 #include "enclave_ocalls.h"
 
-static PAL_LOCK malloc_lock = LOCK_INIT;
+static spinlock_t malloc_lock = INIT_SPINLOCK_UNLOCKED;
 static size_t g_page_size   = PRESET_PAGESIZE;
 
-#define SYSTEM_LOCK()   _DkSpinLock(&malloc_lock)
-#define SYSTEM_UNLOCK() _DkSpinUnlock(&malloc_lock)
+#define SYSTEM_LOCK()   spinlock_lock(&malloc_lock)
+#define SYSTEM_UNLOCK() spinlock_unlock(&malloc_lock)
 
 #define ALLOC_ALIGNMENT g_page_size
 

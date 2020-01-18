@@ -187,16 +187,14 @@ void _DkMutexRelease(PAL_HANDLE handle) {
     return;
 }
 
-int _DkInternalLock(PAL_LOCK* lock) {
+void _DkInternalLock(PAL_LOCK* lock) {
     // Retry the lock if being interrupted by signals
     while (_DkMutexLock(lock) < 0)
         ;
-    return 0;
 }
 
-int _DkInternalUnlock(PAL_LOCK* lock) {
+void _DkInternalUnlock(PAL_LOCK* lock) {
     _DkMutexUnlock(lock);
-    return 0;
 }
 
 static int mutex_wait(PAL_HANDLE handle, int64_t timeout_us) {

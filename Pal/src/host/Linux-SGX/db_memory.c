@@ -28,6 +28,7 @@
 #include "pal_security.h"
 #include "pal_error.h"
 #include "pal_debug.h"
+#include "spinlock.h"
 #include "api.h"
 
 #include <asm/mman.h>
@@ -41,7 +42,7 @@ static struct pal_vma {
 } pal_vmas[PAL_VMA_MAX];
 
 static uint32_t pal_nvmas = 0;
-static struct spinlock pal_vma_lock;
+static spinlock_t pal_vma_lock = INIT_SPINLOCK_UNLOCKED;
 
 bool _DkCheckMemoryMappable (const void * addr, size_t size)
 {
@@ -50,16 +51,16 @@ bool _DkCheckMemoryMappable (const void * addr, size_t size)
         return true;
     }
 
-    _DkSpinLock(&pal_vma_lock);
+    spinlock_lock(&pal_vma_lock);
 
     for (uint32_t i = 0 ; i < pal_nvmas ; i++)
         if (addr < pal_vmas[i].top && addr + size > pal_vmas[i].bottom) {
             printf("address %p-%p is not mappable\n", addr, addr + size);
-            _DkSpinUnlock(&pal_vma_lock);
+            spinlock_unlock(&pal_vma_lock);
             return true;
         }
 
-    _DkSpinUnlock(&pal_vma_lock);
+    spinlock_unlock(&pal_vma_lock);
     return false;
 }
 
@@ -90,12 +91,12 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
 
     if (alloc_type & PAL_ALLOC_INTERNAL) {
         SGX_DBG(DBG_M, "pal allocates %p-%p for internal use\n", mem, mem + size);
-        _DkSpinLock(&pal_vma_lock);
+        spinlock_lock(&pal_vma_lock);
         assert(pal_nvmas < PAL_VMA_MAX);
         pal_vmas[pal_nvmas].bottom = mem;
         pal_vmas[pal_nvmas].top = mem + size;
         pal_nvmas++;
-        _DkSpinUnlock(&pal_vma_lock);
+        spinlock_unlock(&pal_vma_lock);
     }
 
     *paddr = mem;

@@ -35,6 +35,7 @@
 #include "pal_error.h"
 #include "pal_security.h"
 #include "pal_crypto.h"
+#include "spinlock.h"
 #include "api.h"
 
 #include <linux/sched.h>
@@ -52,22 +53,22 @@ struct trusted_child {
 
 DEFINE_LISTP(trusted_child);
 static LISTP_TYPE(trusted_child) trusted_children = LISTP_INIT;
-static struct spinlock trusted_children_lock = LOCK_INIT;
+static spinlock_t trusted_children_lock = INIT_SPINLOCK_UNLOCKED;
 
 int register_trusted_child(const char * uri, const char * mr_enclave_str)
 {
     struct trusted_child * tc = NULL, * new;
     int uri_len = strlen(uri);
 
-    _DkSpinLock(&trusted_children_lock);
+    spinlock_lock(&trusted_children_lock);
 
     LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
-            _DkSpinUnlock(&trusted_children_lock);
+            spinlock_unlock(&trusted_children_lock);
             return 0;
         }
     }
-    _DkSpinUnlock(&trusted_children_lock);
+    spinlock_unlock(&trusted_children_lock);
 
     new = malloc(sizeof(struct trusted_child) + uri_len);
     if (!new)
@@ -116,18 +117,18 @@ int register_trusted_child(const char * uri, const char * mr_enclave_str)
 
     SGX_DBG(DBG_S, "trusted: %s %s\n", mr_enclave_text, new->uri);
 
-    _DkSpinLock(&trusted_children_lock);
+    spinlock_lock(&trusted_children_lock);
 
     LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
-            _DkSpinUnlock(&trusted_children_lock);
+            spinlock_unlock(&trusted_children_lock);
             free(new);
             return 0;
         }
     }
 
     LISTP_ADD_TAIL(new, &trusted_children, list);
-    _DkSpinUnlock(&trusted_children_lock);
+    spinlock_unlock(&trusted_children_lock);
     return 0;
 }
 
@@ -230,18 +231,18 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
     }
 
     struct trusted_child * tc;
-    _DkSpinLock(&trusted_children_lock);
+    spinlock_lock(&trusted_children_lock);
 
     /* Try to find a matching mr_enclave from the manifest */
     LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
         if (!memcmp(mr_enclave, &tc->mr_enclave, sizeof(sgx_measurement_t))) {
-            _DkSpinUnlock(&trusted_children_lock);
+            spinlock_unlock(&trusted_children_lock);
             SGX_DBG(DBG_S, "trusted child: %s\n", tc->uri);
             return 0;
         }
     }
 
-    _DkSpinUnlock(&trusted_children_lock);
+    spinlock_unlock(&trusted_children_lock);
     return 1;
 }
 

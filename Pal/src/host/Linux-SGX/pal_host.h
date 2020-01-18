@@ -28,18 +28,13 @@
 #endif
 
 #include <atomic.h>
+#include <spinlock.h>
 
-/* Spinlocking */
-typedef struct spinlock {
-    struct atomic_int value;
-} PAL_LOCK;
+typedef spinlock_t PAL_LOCK;
 
-int _DkSpinLock (struct spinlock * lock);
-int _DkSpinUnlock (struct spinlock * lock);
-
-#define LOCK_INIT   { .value =  { 0 } }
-#define _DkInternalLock _DkSpinLock
-#define _DkInternalUnlock _DkSpinUnlock
+#define LOCK_INIT INIT_SPINLOCK_UNLOCKED
+#define _DkInternalLock spinlock_lock
+#define _DkInternalUnlock spinlock_unlock
 
 void * malloc_untrusted (int size);
 void free_untrusted (void * mem);
