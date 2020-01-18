@@ -26,12 +26,12 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-int _DkInternalLock(PAL_LOCK* lock) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+void _DkInternalLock(PAL_LOCK* lock) {
+    assert(0);
 }
 
-int _DkInternalUnlock(PAL_LOCK* lock) {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+void _DkInternalUnlock(PAL_LOCK* lock) {
+    assert(0);
 }
 
 unsigned long _DkSystemTimeQuery(void) {

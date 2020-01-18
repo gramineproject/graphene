@@ -335,8 +335,8 @@ void _DkRaiseFailure (int error);
 void _DkExceptionReturn (void * event);
 
 /* other DK calls */
-int _DkInternalLock (PAL_LOCK * mut);
-int _DkInternalUnlock (PAL_LOCK * mut);
+void _DkInternalLock(PAL_LOCK* mut);
+void _DkInternalUnlock(PAL_LOCK* mut);
 unsigned long _DkSystemTimeQuery (void);
 size_t _DkFastRandomBitsRead (void * buffer, size_t size);
 
