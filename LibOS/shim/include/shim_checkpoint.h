@@ -112,7 +112,7 @@ struct shim_cp_store {
     /* entries of out-of-band data */
     struct shim_mem_entry* last_mem_entry;
     int mem_nentries;
-    int mem_size;
+    size_t mem_size;
 
     /* entries of pal handles to send */
     struct shim_palhdl_entry* last_palhdl_entry;
