@@ -733,13 +733,16 @@ static int __bkeep_mprotect (struct shim_vma * prev,
             /* If [start, end) contains the VMA, just update its protection. */
             if (start <= cur->start && cur->end <= end) {
                 cur->prot = prot;
+                if (cur->file && (prot & PROT_WRITE)) {
+                    cur->flags |= VMA_TAINTED;
+                }
             } else {
                 /* Create a new VMA for the protected area */
                 new = __get_new_vma();
                 new->start = cur->start > start ? cur->start : start;
                 new->end   = cur->end < end ? cur->end : end;
                 new->prot  = prot;
-                new->flags = cur->flags;
+                new->flags = cur->flags | ((cur->file && (prot & PROT_WRITE)) ? VMA_TAINTED : 0);
                 new->file  = cur->file;
                 if (new->file) {
                     get_handle(new->file);
