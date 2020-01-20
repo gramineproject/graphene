@@ -33,6 +33,7 @@
 .. toctree::
    :caption: PAL
 
+   pal/porting
    pal/host-abi
 
 .. _old-wiki:
