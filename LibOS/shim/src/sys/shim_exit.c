@@ -142,7 +142,7 @@ noreturn void thread_or_process_exit(int error_code, int term_signal) {
         cur_thread->clear_child_tid_pal = 1; /* any non-zero value suffices */
         int64_t ret = install_async_event(NULL, 0, &cleanup_thread, cur_thread);
         if (ret < 0) {
-            debug("failed to set async cleanup_thread (exiting without clear child tid),"
+            debug("failed to set up async cleanup_thread (exiting without clear child tid),"
                   " return code: %ld\n", ret);
             DkThreadExit(NULL);
         }

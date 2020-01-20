@@ -71,7 +71,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
     /* if event happens on object, time must be zero */
     assert(!object || (object && !time));
 
-    uint64_t now                  = DkSystemTimeQuery();
+    uint64_t now = DkSystemTimeQuery();
     if ((int64_t)now < 0) {
         return (int64_t)now;
     }
@@ -221,7 +221,7 @@ static void shim_async_helper(void* arg) {
             if (tmp->object) {
                 if (pals_cnt == pals_max_cnt) {
                     /* grow `pals` to accommodate more objects */
-                    PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + pals_max_cnt * 2));
+                    PAL_HANDLE* tmp_pals = malloc(sizeof(*tmp_pals) * (1 + pals_max_cnt * 2));
                     if (!tmp_pals) {
                         debug("tmp_pals allocation failed\n");
                         goto out_err_unlock;
