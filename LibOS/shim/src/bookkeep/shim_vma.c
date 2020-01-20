@@ -165,6 +165,8 @@ static inline bool test_vma_overlap (struct shim_vma * vma,
 
 static inline void __assert_vma_list (void)
 {
+    assert(locked(&vma_list_lock));
+
     struct shim_vma * tmp;
     struct shim_vma * prev __attribute__((unused)) = NULL;
 
@@ -196,6 +198,8 @@ static inline void assert_vma_list (void)
 static inline struct shim_vma *
 __lookup_vma (void * addr, struct shim_vma ** pprev)
 {
+    assert(locked(&vma_list_lock));
+
     struct shim_vma * vma, * prev = NULL;
     struct shim_vma * found = NULL;
 
@@ -224,6 +228,7 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
 static inline void
 __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
+    assert(locked(&vma_list_lock));
     assert(!prev || prev->end <= vma->start);
     assert(vma != prev);
 
@@ -249,6 +254,7 @@ __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 static inline void
 __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
+    assert(locked(&vma_list_lock));
     __UNUSED(prev);
     assert(vma != prev);
     LISTP_DEL(vma, &vma_list, list);
@@ -276,6 +282,8 @@ static int
 __bkeep_preloaded (void * start, void * end, int prot, int flags,
                    const char * comment)
 {
+    assert(locked(&vma_list_lock));
+
     if (!start || !end || start == end)
         return 0;
 
@@ -375,6 +383,8 @@ int init_vma (void)
 
 static inline struct shim_vma * __get_new_vma (void)
 {
+    assert(locked(&vma_list_lock));
+
     struct shim_vma * tmp = NULL;
 
     if (vma_mgr)
@@ -401,6 +411,8 @@ static inline struct shim_vma * __get_new_vma (void)
 
 static inline void __restore_reserved_vmas (void)
 {
+    assert(locked(&vma_list_lock));
+
     bool nothing_reserved;
     do {
         nothing_reserved = true;
@@ -420,6 +432,8 @@ static inline void __restore_reserved_vmas (void)
 
 static inline void __drop_vma (struct shim_vma * vma)
 {
+    assert(locked(&vma_list_lock));
+
     if (vma->file)
         put_handle(vma->file);
 
@@ -476,6 +490,8 @@ static int __bkeep_mmap (struct shim_vma * prev,
                          struct shim_handle * file, off_t offset,
                          const char * comment)
 {
+    assert(locked(&vma_list_lock));
+
     int ret = 0;
     struct shim_vma * new = __get_new_vma();
 
@@ -534,6 +550,8 @@ int bkeep_mmap (void * addr, size_t length, int prot, int flags,
 static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end,
                                  struct shim_vma ** tailptr)
 {
+    assert(locked(&vma_list_lock));
+
     if (test_vma_startin(vma, start, end)) {
         /*
          * Dealing with the head: if the starting address of "vma" is in
@@ -609,6 +627,8 @@ static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end
 static int __bkeep_munmap (struct shim_vma ** pprev,
                            void * start, void * end, int flags)
 {
+    assert(locked(&vma_list_lock));
+
     struct shim_vma * prev = *pprev;
     struct shim_vma * cur, * next;
 
@@ -705,6 +725,8 @@ int bkeep_munmap (void * addr, size_t length, int flags)
 static int __bkeep_mprotect (struct shim_vma * prev,
                              void * start, void * end, int prot, int flags)
 {
+    assert(locked(&vma_list_lock));
+
     struct shim_vma * cur, * next;
 
     if (!prev) {
@@ -814,6 +836,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
                                 struct shim_handle * file,
                                 off_t offset, const char * comment)
 {
+    assert(locked(&vma_list_lock));
     assert(top_addr > bottom_addr);
 
     if (!length || length > (uintptr_t) top_addr - (uintptr_t) bottom_addr)

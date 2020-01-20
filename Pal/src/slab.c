@@ -34,6 +34,7 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 
 #define SYSTEM_LOCK()   _DkInternalLock(&slab_mgr_lock)
 #define SYSTEM_UNLOCK() _DkInternalUnlock(&slab_mgr_lock)
+#define SYSTEM_LOCKED() _DkInternalIsLocked(&slab_mgr_lock)
 
 #if STATIC_SLAB == 1
 #define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */

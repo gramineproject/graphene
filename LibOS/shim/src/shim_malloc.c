@@ -37,6 +37,7 @@ static struct shim_lock slab_mgr_lock;
 
 #define SYSTEM_LOCK()   lock(&slab_mgr_lock)
 #define SYSTEM_UNLOCK() unlock(&slab_mgr_lock)
+#define SYSTEM_LOCKED() locked(&slab_mgr_lock)
 
 #ifdef SLAB_DEBUG_TRACE
 #define SLAB_DEBUG

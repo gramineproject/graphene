@@ -45,6 +45,9 @@
 #ifndef SYSTEM_UNLOCK
 #define SYSTEM_UNLOCK() ({})
 #endif
+#ifndef SYSTEM_LOCKED
+#define SYSTEM_LOCKED() true
+#endif
 
 DEFINE_LIST(mem_obj);
 typedef struct mem_obj {
@@ -111,6 +114,8 @@ static inline int init_align_up(int size) {
 #endif
 
 static inline void __set_free_mem_area(MEM_AREA area, MEM_MGR mgr) {
+    assert(SYSTEM_LOCKED());
+
     mgr->size += area->size;
     mgr->obj         = area->objs;
     mgr->obj_top     = area->objs + area->size;

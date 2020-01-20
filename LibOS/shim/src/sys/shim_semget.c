@@ -51,6 +51,8 @@ DEFINE_PROFILE_CATEGORY(sysv_sem, );
 
 static int __add_sem_handle(unsigned long key, IDTYPE semid, int nsems, bool owned,
                             struct shim_sem_handle** semhdl) {
+    assert(locked(&sem_list_lock));
+
     LISTP_TYPE(shim_sem_handle)* key_head =
         (key != IPC_PRIVATE) ? &sem_key_hlist[SEM_HASH(key)] : NULL;
     LISTP_TYPE(shim_sem_handle)* sid_head = semid ? &sem_sid_hlist[SEM_HASH(semid)] : NULL;
@@ -188,12 +190,13 @@ void put_sem_handle(struct shim_sem_handle* sem) {
 }
 
 static int __del_sem_handle(struct shim_sem_handle* sem) {
+    struct shim_handle* hdl = SEM_TO_HANDLE(sem);
+    assert(locked(&hdl->lock));
+
     if (sem->deleted)
         return 0;
 
     sem->deleted = true;
-
-    struct shim_handle* hdl = SEM_TO_HANDLE(sem);
 
     lock(&sem_list_lock);
     LISTP_DEL_INIT(sem, &sem_list, list);

@@ -54,6 +54,8 @@ DEFINE_PROFILE_CATEGORY(sysv_msg, );
 
 static int __add_msg_handle(unsigned long key, IDTYPE msqid, bool owned,
                             struct shim_msg_handle** msghdl) {
+    assert(locked(&msgq_list_lock));
+
     LISTP_TYPE(shim_msg_handle)* key_head =
         (key != IPC_PRIVATE) ? &msgq_key_hlist[MSGQ_HASH(key)] : NULL;
     LISTP_TYPE(shim_msg_handle)* qid_head = msqid ? &msgq_qid_hlist[MSGQ_HASH(msqid)] : NULL;
@@ -218,6 +220,9 @@ static void __free_msg_linked_qobjs(struct shim_msg_handle* msgq, void* obj) {
 }
 
 static int __del_msg_handle(struct shim_msg_handle* msgq) {
+    struct shim_handle* hdl = MSG_TO_HANDLE(msgq);
+    assert(locked(&hdl->lock));
+
     if (msgq->deleted)
         return -EIDRM;
 
@@ -227,8 +232,6 @@ static int __del_msg_handle(struct shim_msg_handle* msgq) {
     msgq->queueused = 0;
     free(msgq->types);
     msgq->ntypes = 0;
-
-    struct shim_handle* hdl = MSG_TO_HANDLE(msgq);
 
     lock(&msgq_list_lock);
     LISTP_DEL_INIT(msgq, &msgq_list, list);

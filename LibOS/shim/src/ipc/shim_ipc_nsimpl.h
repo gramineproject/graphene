@@ -76,7 +76,7 @@ struct range_bitmap {
     unsigned char map[];
 };
 
-/* Helper functions __*_range_*() must be called with range_map_lock held */
+/* Helper functions __*_range*() must be called with range_map_lock held */
 static struct range_bitmap* range_map;
 static struct shim_lock range_map_lock;
 
@@ -170,6 +170,8 @@ void CONCAT3(debug_print, NS, ranges)(void) {
 #define INIT_RANGE_MAP_SIZE 32
 
 static int __extend_range_bitmap(IDTYPE expected) {
+    assert(locked(&range_map_lock));
+
     IDTYPE size = INIT_RANGE_MAP_SIZE;
 
     if (range_map)
@@ -197,6 +199,8 @@ static int __extend_range_bitmap(IDTYPE expected) {
 }
 
 static int __set_range_bitmap(IDTYPE off, bool unset) {
+    assert(locked(&range_map_lock));
+
     IDTYPE i         = off / BITS;
     IDTYPE j         = off - i * BITS;
     unsigned char* m = range_map->map + i;
@@ -214,6 +218,8 @@ static int __set_range_bitmap(IDTYPE off, bool unset) {
 }
 
 static bool __check_range_bitmap(IDTYPE off) {
+    assert(locked(&range_map_lock));
+
     IDTYPE i         = off / BITS;
     IDTYPE j         = off - i * BITS;
     unsigned char* m = range_map->map + i;
@@ -222,6 +228,8 @@ static bool __check_range_bitmap(IDTYPE off) {
 }
 
 static struct range* __get_range(IDTYPE off) {
+    assert(locked(&range_map_lock));
+
     LISTP_TYPE(range)* head = range_table + RANGE_HASH(off);
 
     if (!range_map || off >= range_map->map_size)
@@ -242,6 +250,8 @@ static struct range* __get_range(IDTYPE off) {
 
 static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* uri,
                        LEASETYPE lease) {
+    assert(locked(&range_map_lock));
+
     LISTP_TYPE(range)* head = range_table + RANGE_HASH(off);
     int ret                 = 0;
 

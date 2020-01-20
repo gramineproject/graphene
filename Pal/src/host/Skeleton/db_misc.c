@@ -35,6 +35,11 @@ void _DkInternalUnlock(PAL_LOCK* lock) {
     __abort();
 }
 
+bool _DkInternalIsLocked(PAL_LOCK* lock) {
+    __abort();
+    return false;
+}
+
 unsigned long _DkSystemTimeQuery(void) {
     return 0;
 }

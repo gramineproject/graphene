@@ -71,6 +71,7 @@ static struct shim_lock mount_mgr_lock;
 
 #define SYSTEM_LOCK()   lock(&mount_mgr_lock)
 #define SYSTEM_UNLOCK() unlock(&mount_mgr_lock)
+#define SYSTEM_LOCKED() locked(&mount_mgr_lock)
 
 #define MOUNT_MGR_ALLOC 64
 
@@ -278,6 +279,8 @@ int search_builtin_fs(const char* type, struct shim_mount** fs) {
 }
 
 int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
+    assert(locked(&dcache_lock));
+
     int ret = 0;
 
     dent->state |= DENTRY_MOUNTPOINT;

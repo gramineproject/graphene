@@ -73,6 +73,7 @@ static inline int __lookup_flags (int flags)
  */
 /* Assume caller has acquired dcache_lock */
 int permission (struct shim_dentry * dent, mode_t mask) {
+    assert(locked(&dcache_lock));
 
     mode_t mode = 0;
 
@@ -156,6 +157,8 @@ int permission (struct shim_dentry * dent, mode_t mask) {
  */
 int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, struct shim_dentry ** new, struct shim_mount * fs)
 {
+    assert(locked(&dcache_lock));
+
     struct shim_dentry * dent = NULL;
     int do_fs_lookup = 0;
     int err = 0;
@@ -265,6 +268,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                      struct shim_dentry ** dent, int link_depth,
                      struct shim_mount * fs, bool make_ancestor)
 {
+    assert(locked(&dcache_lock));
     // Basic idea: recursively iterate over path, peeling off one atom at a
     // time.
     /* Chia-Che 12/5/2014:
