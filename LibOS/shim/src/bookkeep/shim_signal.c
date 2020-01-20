@@ -619,6 +619,8 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
 }
 
 static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
+    assert(locked(&thread->lock));
+
     struct shim_signal_handle* sighdl = &thread->signal_handles[sig - 1];
     __rt_sighandler_t handler = NULL;
 
@@ -745,6 +747,8 @@ void handle_signal (void)
 
 // Need to hold thread->lock when calling this function
 void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt) {
+    assert(locked(&thread->lock));
+
     __rt_sighandler_t handler = __get_sighandler(thread, sig);
 
     if (!handler) {

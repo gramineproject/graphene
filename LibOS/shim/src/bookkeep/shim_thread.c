@@ -78,6 +78,8 @@ void dump_threads (void)
 }
 
 static struct shim_thread* __lookup_thread(IDTYPE tid) {
+    assert(locked(&thread_list_lock));
+
     struct shim_thread* tmp;
 
     LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
@@ -253,6 +255,8 @@ struct shim_thread * get_new_internal_thread (void)
 
 struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid)
 {
+    assert(locked(&thread_list_lock));
+
     struct shim_simple_thread * tmp;
 
     LISTP_FOR_EACH_ENTRY(tmp, &simple_thread_list, list) {
@@ -343,6 +347,8 @@ void get_simple_thread (struct shim_simple_thread * thread)
 
 void put_simple_thread (struct shim_simple_thread * thread)
 {
+    assert(locked(&thread_list_lock));
+
     int ref_count = REF_DEC(thread->ref_count);
 
     if (!ref_count) {
@@ -454,6 +460,8 @@ void del_simple_thread (struct shim_simple_thread * thread)
 }
 
 static int _check_last_thread(struct shim_thread* self) {
+    assert(locked(&thread_list_lock));
+
     IDTYPE self_tid = self ? self->tid : 0;
 
     struct shim_thread* thread;

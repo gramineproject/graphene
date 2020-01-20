@@ -187,6 +187,20 @@ void _DkMutexRelease(PAL_HANDLE handle) {
     return;
 }
 
+bool _DkMutexIsLocked(struct mutex_handle* m) {
+    if (!m->locked) {
+        return false;
+    }
+
+#ifdef DEBUG_MUTEX
+    if (m->owner != INLINE_SYSCALL(gettid, 0)) {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 void _DkInternalLock(PAL_LOCK* lock) {
     // Retry the lock if being interrupted by signals
     while (_DkMutexLock(lock) < 0)
@@ -195,6 +209,10 @@ void _DkInternalLock(PAL_LOCK* lock) {
 
 void _DkInternalUnlock(PAL_LOCK* lock) {
     _DkMutexUnlock(lock);
+}
+
+bool _DkInternalIsLocked(PAL_LOCK* lock) {
+    return _DkMutexIsLocked(lock);
 }
 
 static int mutex_wait(PAL_HANDLE handle, int64_t timeout_us) {

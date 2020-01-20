@@ -216,6 +216,8 @@ static struct shim_ipc_port* __create_ipc_port(PAL_HANDLE hdl) {
 }
 
 static void __free_ipc_port(struct shim_ipc_port* port) {
+    assert(locked(&ipc_helper_lock));
+
     if (port->pal_handle) {
         DkObjectClose(port->pal_handle);
         port->pal_handle = NULL;
@@ -230,13 +232,15 @@ static void __get_ipc_port(struct shim_ipc_port* port) {
 }
 
 static void __put_ipc_port(struct shim_ipc_port* port) {
+    assert(locked(&ipc_helper_lock));
+
     int ref_count = REF_DEC(port->ref_count);
     if (!ref_count)
         __free_ipc_port(port);
 }
 
 void get_ipc_port(struct shim_ipc_port* port) {
-    /* no need to grab ipc_helper_lock because __get_ipc_port() is atomic */
+    /* no need to grab ipc_helper_lock because __get_ipc_port() does not touch global state */
     __get_ipc_port(port);
 }
 
@@ -252,6 +256,8 @@ void put_ipc_port(struct shim_ipc_port* port) {
 }
 
 static void __add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type, port_fini fini) {
+    assert(locked(&ipc_helper_lock));
+
     port->type |= type;
     if (vmid && !port->vmid)
         port->vmid = vmid;
@@ -281,6 +287,8 @@ static void __add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type,
 }
 
 static void __del_ipc_port(struct shim_ipc_port* port) {
+    assert(locked(&ipc_helper_lock));
+
     debug("Deleting port %p (handle %p) of process %u\n", port, port->pal_handle,
           port->vmid & 0xFFFF);
 
@@ -849,6 +857,8 @@ static void shim_ipc_helper_prepare(void* arg) {
 
 /* this should be called with the ipc_helper_lock held */
 static int create_ipc_helper(void) {
+    assert(locked(&ipc_helper_lock));
+
     if (ipc_helper_state == HELPER_ALIVE)
         return 0;
 

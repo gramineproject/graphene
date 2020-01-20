@@ -146,6 +146,8 @@ void put_dentry(struct shim_dentry* dent) {
  */
 struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry* parent,
                                    const char* name, int namelen, HASHTYPE* hashptr) {
+    assert(locked(&dcache_lock));
+
     struct shim_dentry* dent = alloc_dentry();
     HASHTYPE hash;
 
@@ -211,6 +213,8 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
  */
 struct shim_dentry* __lookup_dcache(struct shim_dentry* start, const char* name, int namelen,
                                     HASHTYPE* hashptr) {
+    assert(locked(&dcache_lock));
+
     /* In this implementation, we just look at the children
      * under the parent and see if there are matches.  It so,
      * return it; if not, don't.
@@ -284,6 +288,8 @@ out:
  * structure on the heap to track progress.
  */
 int __del_dentry_tree(struct shim_dentry* root) {
+    assert(locked(&dcache_lock));
+
     struct shim_dentry *cursor, *n;
 
     LISTP_FOR_EACH_ENTRY_SAFE(cursor, n, &root->children, siblings) {

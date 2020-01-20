@@ -35,6 +35,7 @@ typedef spinlock_t PAL_LOCK;
 #define LOCK_INIT INIT_SPINLOCK_UNLOCKED
 #define _DkInternalLock spinlock_lock
 #define _DkInternalUnlock spinlock_unlock
+#define _DkInternalIsLocked spinlock_is_locked
 
 void * malloc_untrusted (int size);
 void free_untrusted (void * mem);

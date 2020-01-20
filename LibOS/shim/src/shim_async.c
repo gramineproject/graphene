@@ -364,6 +364,8 @@ out_err:
 
 /* this should be called with the async_helper_lock held */
 static int create_async_helper(void) {
+    assert(locked(&async_helper_lock));
+
     if (async_helper_state == HELPER_ALIVE)
         return 0;
 

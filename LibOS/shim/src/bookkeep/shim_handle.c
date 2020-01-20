@@ -34,6 +34,7 @@ static struct shim_lock handle_mgr_lock;
 
 #define SYSTEM_LOCK()   lock(&handle_mgr_lock)
 #define SYSTEM_UNLOCK() unlock(&handle_mgr_lock)
+#define SYSTEM_LOCKED() locked(&handle_mgr_lock)
 
 #define OBJ_TYPE struct shim_handle
 #include <memmgr.h>
@@ -199,6 +200,8 @@ done:
 }
 
 struct shim_handle* __get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map* map) {
+    assert(locked(&map->lock));
+
     struct shim_fd_handle* fd_handle = NULL;
 
     if (map->fd_top != FD_NULL && fd <= map->fd_top) {
@@ -228,6 +231,8 @@ struct shim_handle* get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map*
 
 struct shim_handle* __detach_fd_handle(struct shim_fd_handle* fd, int* flags,
                                        struct shim_handle_map* map) {
+    assert(locked(&map->lock));
+
     struct shim_handle* handle = NULL;
 
     if (HANDLE_ALLOCATED(fd)) {
@@ -556,6 +561,8 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
 }
 
 static struct shim_handle_map* __enlarge_handle_map(struct shim_handle_map* map, FDTYPE size) {
+    assert(locked(&map->lock));
+
     if (size <= map->fd_size)
         return map;
 

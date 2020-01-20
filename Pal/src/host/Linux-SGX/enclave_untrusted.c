@@ -27,6 +27,7 @@ static size_t g_page_size   = PRESET_PAGESIZE;
 
 #define SYSTEM_LOCK()   spinlock_lock(&malloc_lock)
 #define SYSTEM_UNLOCK() spinlock_unlock(&malloc_lock)
+#define SYSTEM_LOCKED() spinlock_is_locked(&malloc_lock)
 
 #define ALLOC_ALIGNMENT g_page_size
 

@@ -505,8 +505,6 @@ static inline void enable_preempt (shim_tcb_t * tcb)
     __enable_preempt(tcb);
 }
 
-#define DEBUG_LOCK 0
-
 static inline bool lock_created(struct shim_lock* l)
 {
     return l->lock != NULL;
@@ -518,72 +516,75 @@ static inline void clear_lock(struct shim_lock* l)
     l->owner = 0;
 }
 
-static inline void create_lock(struct shim_lock* l)
-{
+static inline bool create_lock(struct shim_lock* l) {
+    l->owner = 0;
     l->lock = DkMutexCreate(0);
-    /* l->owner = LOCK_FREE; */
-    /* l->reowned = 0; */
+    return l->lock != NULL;
 }
 
-static inline void destroy_lock(struct shim_lock* l)
-{
+static inline void destroy_lock(struct shim_lock* l) {
     DkObjectClose(l->lock);
+    l->lock = NULL;
+    l->owner = 0;
 }
 
-#if DEBUG_LOCK == 1
-#define lock(l) __lock(l, #l, __FILE__, __LINE__)
-static void __lock(struct shim_lock* l,
-                   const char* name, const char* file, int line)
+#ifdef DEBUG
+#define lock(l) __lock(l, __FILE__, __LINE__)
+static void __lock(struct shim_lock* l, const char* file, int line) {
 #else
-static void lock(struct shim_lock* l)
+static void lock(struct shim_lock* l) {
 #endif
-{
-    if (!lock_enabled || !l->lock)
+    if (!lock_enabled) {
         return;
+    }
+    /* TODO: This whole if should be just an assert. Change it once we are sure that it does not
+     * trigger (previous code allowed for this case). Same in unlock below. */
+    if (!l->lock) {
+#ifdef DEBUG
+        debug("Trying to lock an uninitialized lock at %s:%d!\n", file, line);
+#endif // DEBUG
+        __abort();
+    }
 
     shim_tcb_t * tcb = shim_get_tcb();
     disable_preempt(tcb);
-
-#if DEBUG_LOCK == 1
-    debug("try lock(%s=%p) %s:%d\n", name, l, file, line);
-#endif
 
     while (!DkSynchronizationObjectWait(l->lock, NO_TIMEOUT))
         /* nop */;
 
     l->owner = tcb->tid;
-#if DEBUG_LOCK == 1
-    debug("lock(%s=%p) by %s:%d\n", name, l, file, line);
-#endif
 }
 
-#if DEBUG_LOCK == 1
-#define unlock(l) __unlock(l, #l, __FILE__, __LINE__)
-static inline void __unlock(struct shim_lock* l,
-                            const char* name, const char* file, int line)
+#ifdef DEBUG
+#define unlock(l) __unlock(l, __FILE__, __LINE__)
+static inline void __unlock(struct shim_lock* l, const char* file, int line) {
 #else
-static inline void unlock(struct shim_lock* l)
+static inline void unlock(struct shim_lock* l) {
 #endif
-{
-    if (!lock_enabled || !l->lock)
+    if (!lock_enabled) {
         return;
+    }
+    if (!l->lock) {
+#ifdef DEBUG
+        debug("Trying to unlock an uninitialized lock at %s:%d!\n", file, line);
+#endif // DEBUG
+        __abort();
+    }
 
     shim_tcb_t* tcb = shim_get_tcb();
-
-#if DEBUG_LOCK == 1
-    debug("unlock(%s=%p) %s:%d\n", name, l, file, line);
-#endif
 
     l->owner = 0;
     DkMutexRelease(l->lock);
     enable_preempt(tcb);
 }
 
-static inline bool locked(struct shim_lock* l)
-{
-    if (!lock_enabled || !l->lock)
+static inline bool locked(struct shim_lock* l) {
+    if (!lock_enabled) {
+        return true;
+    }
+    if (!l->lock) {
         return false;
-
+    }
     return get_cur_tid() == l->owner;
 }
 

@@ -263,6 +263,8 @@ struct walk_arg {
 
 // Need to hold thread->lock
 static inline void __append_signal(struct shim_thread* thread, int sig, IDTYPE sender) {
+    assert(locked(&thread->lock));
+
     debug("Thread %d killed by signal %d\n", thread->tid, sig);
     siginfo_t info;
     memset(&info, 0, sizeof(siginfo_t));

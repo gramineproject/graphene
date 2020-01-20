@@ -27,6 +27,7 @@ static struct shim_lock str_mgr_lock;
 
 #define SYSTEM_LOCK()   lock(&str_mgr_lock)
 #define SYSTEM_UNLOCK() unlock(&str_mgr_lock)
+#define SYSTEM_LOCKED() locked(&str_mgr_lock)
 
 #define STR_MGR_ALLOC 32
 
