@@ -160,7 +160,6 @@ enclave_entry:
 	FAIL_LOOP
 1:
 
-	# get some information from GPR
 	movq %gs:SGX_GPR, %rbx
 
 	movq %rdi, %rsi
