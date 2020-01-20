@@ -26,6 +26,21 @@ The documentation should be written with ``html`` builder of Sphinx in mind. The
 (like ``latex``) may be considered in the future, but for now their output is
 not published.
 
+.. note::
+
+   A |nbsp| note about terminology:
+
+   ``html``, ``latex`` and ``manpage``, and also others, are Sphinx "builders":
+   http://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-b.
+   Sphinx can output many different formats, some of them have overlapping usage
+   (both ``html`` and ``latex`` usually output full handbook, the difference is
+   screen vs print), some are specialised (``manpage`` processes only selected
+   documents for man; those documents may or may not be also used by other
+   builders).
+
+   When launched through ``make`` (like ``make -C Documentation html``), this
+   becomes "target" in Make terminology.
+
 Building documentation
 ----------------------
 
@@ -45,9 +60,8 @@ Preferred reST style
 
 (This is adapted from `Python's style guide`_).
 
-- In ``.rst`` files use 3-space tab. This is an uncommon value, but good value
-  because intended blocks usually follow explicit markup, which begins with
-  ``..``.
+- Use 3-space tab in ``.rst`` files to align the indentation with reST explicit
+  markup, which begins with two dots and a |nbsp| space.
 
 - Wrap the paragraphs at 80th character. But don't wrap verbatim text like logs
   and use applicable style when wrapping code examples (see ``CODESTYLE.md`` in
@@ -86,10 +100,14 @@ Preferred reST style
 
   This means most documents use only ``=`` and ``-`` adornments.
 
-  .. hint::
+  .. tip::
 
-     For vim users: you can enter the ``-`` underlines using the key combination
-     ``yypVr-`` and the other adornments with similar combinations.
+     For vim users:
+        you can enter the ``-`` underlines using the key combination
+        ``yypVr-`` and the other adornments with similar combinations.
+
+     For Emacs users:
+        Read more at https://docutils.sourceforge.io/docs/user/emacs.html.
 
 - Use ``|nbsp|`` to insert non-breaking space. This should be added after
   one-letter words and where otherwise appropriate::
