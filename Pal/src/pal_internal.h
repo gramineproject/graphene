@@ -245,17 +245,24 @@ extern PAL_CONTROL __pal_control;
 #define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, pal_state.alloc_align)
 #define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, pal_state.alloc_align)
 
-/* Main initialization function */
-noreturn void pal_main (
-        PAL_NUM    instance_id,      /* current instance id */
-        PAL_HANDLE manifest_handle,  /* manifest handle if opened */
-        PAL_HANDLE exec_handle,      /* executable handle if opened */
-        PAL_PTR    exec_loaded_addr, /* executable addr if loaded */
-        PAL_HANDLE parent_process,   /* parent process if it's a child */
-        PAL_HANDLE first_thread,     /* first thread handle */
-        PAL_STR *  arguments,        /* application arguments */
-        PAL_STR *  environments      /* environment variables */
-    );
+/*!
+ * \brief Main initialization function
+ *
+ * This function must be called by the host-specific loader.
+ *
+ * \param instance_id       current instance id
+ * \param manifest_handle   manifest handle if opened
+ * \param exec_handle       executable handle if opened
+ * \param exec_loaded_addr  executable addr if loaded
+ * \param parent_process    parent process if it's a child
+ * \param first_thread      first thread handle
+ * \param arguments         application arguments
+ * \param environments      environment variables
+ */
+noreturn void pal_main(
+    PAL_NUM instance_id, PAL_HANDLE manifest_handle, PAL_HANDLE exec_handle,
+    PAL_PTR exec_loaded_addr, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
+    PAL_STR* arguments, PAL_STR* environments);
 
 /* For initialization */
 unsigned long _DkGetPagesize (void);
