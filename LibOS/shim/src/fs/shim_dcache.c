@@ -211,6 +211,8 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
  */
 struct shim_dentry* __lookup_dcache(struct shim_dentry* start, const char* name, int namelen,
                                     HASHTYPE* hashptr) {
+    assert(locked(&dcache_lock));
+
     /* In this implementation, we just look at the children
      * under the parent and see if there are matches.  It so,
      * return it; if not, don't.

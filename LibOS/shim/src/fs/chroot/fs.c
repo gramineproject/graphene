@@ -180,6 +180,8 @@ static ssize_t make_uri (struct shim_dentry * dent)
    be held */
 static int create_data (struct shim_dentry * dent, const char * uri, size_t len)
 {
+    assert(locked(&dent->lock));
+
     if (dent->data)
         return 0;
 

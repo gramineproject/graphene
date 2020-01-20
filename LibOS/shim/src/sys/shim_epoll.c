@@ -100,6 +100,8 @@ int shim_do_epoll_create(int size) {
 
 /* lock of shim_handle enclosing this epoll should be held while calling this function */
 static void update_epoll(struct shim_epoll_handle* epoll) {
+    assert(locked(&container_of(epoll, struct shim_handle, info.epoll)->lock));
+
     struct shim_epoll_item* tmp;
     epoll->pal_cnt = 0;
 

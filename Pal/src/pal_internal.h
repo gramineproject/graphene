@@ -336,6 +336,7 @@ void _DkExceptionReturn (void * event);
 /* other DK calls */
 void _DkInternalLock(PAL_LOCK* mut);
 void _DkInternalUnlock(PAL_LOCK* mut);
+bool _DkInternalIsLocked(PAL_LOCK* mut);
 unsigned long _DkSystemTimeQuery (void);
 
 /*

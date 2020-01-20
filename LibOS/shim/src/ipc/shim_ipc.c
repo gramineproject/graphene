@@ -85,6 +85,8 @@ int prepare_ns_leaders(void) {
 }
 
 static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid, const char* uri, size_t len) {
+    assert(locked(&ipc_info_lock));
+
     struct shim_ipc_info* info =
         get_mem_obj_from_mgr_enlarge(ipc_info_mgr, size_align_up(IPC_INFO_MGR_ALLOC));
     if (!info)
@@ -100,6 +102,8 @@ static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid, const char* uri, siz
 }
 
 static void __free_ipc_info(struct shim_ipc_info* info) {
+    assert(locked(&ipc_info_lock));
+
     if (info->pal_handle) {
         DkObjectClose(info->pal_handle);
         info->pal_handle = NULL;
@@ -115,13 +119,15 @@ static void __get_ipc_info(struct shim_ipc_info* info) {
 }
 
 static void __put_ipc_info(struct shim_ipc_info* info) {
+    assert(locked(&ipc_info_lock));
+
     int ref_count = REF_DEC(info->ref_count);
     if (!ref_count)
         __free_ipc_info(info);
 }
 
 void get_ipc_info(struct shim_ipc_info* info) {
-    /* no need to grab ipc_info_lock because __get_ipc_info() is atomic */
+    /* no need to grab ipc_info_lock because __get_ipc_info() does not touch global state */
     __get_ipc_info(info);
 }
 

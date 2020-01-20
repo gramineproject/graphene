@@ -71,6 +71,7 @@ static struct shim_lock mount_mgr_lock;
 
 #define SYSTEM_LOCK()   lock(&mount_mgr_lock)
 #define SYSTEM_UNLOCK() unlock(&mount_mgr_lock)
+#define SYSTEM_LOCKED() locked(&mount_mgr_lock)
 
 #define MOUNT_MGR_ALLOC 64
 

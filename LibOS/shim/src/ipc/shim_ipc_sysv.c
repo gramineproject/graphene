@@ -892,6 +892,8 @@ out:
 int __balance_sysv_score(struct sysv_balance_policy* policy, struct shim_handle* hdl,
                          struct sysv_score* scores, int nscores, struct sysv_client* src,
                          long score) {
+    assert(locked(&hdl->lock));
+
     struct sysv_score* s    = scores;
     struct sysv_score* last = scores + nscores;
 

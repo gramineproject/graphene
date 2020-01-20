@@ -277,6 +277,7 @@ static inline void destroy_slab_mgr(SLAB_MGR mgr) {
 
 // SYSTEM_LOCK needs to be held by the caller on entry.
 static inline int enlarge_slab_mgr(SLAB_MGR mgr, int level) {
+    assert(SYSTEM_LOCKED());
     assert(level < SLAB_LEVEL);
     /* DEP 11/24/17: This strategy basically doubles a level's size
      * every time it grows.  The assumption if we get this far is that
