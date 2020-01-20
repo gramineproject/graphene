@@ -21,17 +21,18 @@
  */
 
 #include "api.h"
+#include "assert.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"
 #include "pal_internal.h"
 
 void _DkInternalLock(PAL_LOCK* lock) {
-    assert(0);
+    __abort();
 }
 
 void _DkInternalUnlock(PAL_LOCK* lock) {
-    assert(0);
+    __abort();
 }
 
 unsigned long _DkSystemTimeQuery(void) {
