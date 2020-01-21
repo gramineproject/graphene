@@ -23,6 +23,7 @@
    :maxdepth: 1
 
    devel/debugging
+   devel/sgx-process-creation
    devel/signal-handling
 
 .. toctree::
