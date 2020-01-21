@@ -128,6 +128,11 @@
 #define LIST_TYPE(STRUCT_NAME)  struct list_head##_##STRUCT_NAME
 #define LISTP_TYPE(STRUCT_NAME) struct listp##_##STRUCT_NAME
 
+/* TODO: For these changes(like adding size parameter for list), I have only updated
+LISTP* macros, that have the first ptr(like the meta-data of the linked list).
+For example, updated size parameter in LISTP_ADD, but not updated macro-> LIST_ADD
+Also most of the PAL code seems to use LISTP* macros. */
+
 /* Declare the enclosing struct for convenience, on
  * the assumption that this is primarily used in structure
  * definitions, and harmless if duplicated. */
@@ -136,7 +141,10 @@
     LIST_TYPE(STRUCT_NAME) {      \
         struct STRUCT_NAME* next; \
         struct STRUCT_NAME* prev; \
-    }
+    };                            \
+    LIST_SORT_FUNC_PTR_DECLARE();
+
+#define LIST_SORT_FUNC_PTR_DECLARE() typedef bool (*list_sort)(void* node1, void* node2);
 
 /* We use LISTP for pointers to a list.  This project only really needs
  * doubly-linked lists.  We used hlists to get a single pointer for more
@@ -145,9 +153,66 @@
 #define DEFINE_LISTP(STRUCT)  \
     LISTP_TYPE(STRUCT) {      \
         struct STRUCT* first; \
+        int64_t size;         \
+        list_sort sort_fptr;  \
     }
 
-#define LISTP_INIT {NULL}
+#define LISTP_INIT \
+    { NULL, 0, NULL }
+
+#define LISTP_INITIALIZE(LISTP)        \
+    do {                               \
+        if ((LISTP)) {                 \
+            (LISTP)->first     = NULL; \
+            (LISTP)->size      = 0;    \
+            (LISTP)->sort_fptr = NULL; \
+        }                              \
+    } while (0)
+
+#define LISTP_SET_SORT_FUNCTION(LISTP, LIST_SORT_FUNCTION) ((LISTP)->sort_fptr = LIST_SORT_FUNCTION)
+
+// TODO: currently sorting is O(n^2), make it better.
+#define LISTP_SORT(LISTP, STRUCT_NAME)                                                          \
+    do {                                                                                        \
+        struct STRUCT_NAME* head  = NULL;                                                       \
+        struct STRUCT_NAME* outer = NULL;                                                       \
+        struct STRUCT_NAME* inner = NULL;                                                       \
+        if ((LISTP)) {                                                                          \
+            if ((LISTP)->sort_fptr) {                                                           \
+                head                = LISTP_FIRST_ENTRY(LISTP, STRUCT_NAME, list);              \
+                outer               = head;                                                     \
+                bool adjacent_nodes = 0;                                                        \
+                while (outer != NULL) {                                                         \
+                    inner = LISTP_NEXT_ENTRY(outer, LISTP, list);                               \
+                    while (inner != NULL) {                                                     \
+                        if (!((LISTP)->sort_fptr(outer, inner))) {                              \
+                            struct STRUCT_NAME* for_swap = NULL;                                \
+                            adjacent_nodes =                                                    \
+                                (LISTP_NEXT_ENTRY(outer, LISTP, list) == inner) ? true : false; \
+                            if (!adjacent_nodes) {                                              \
+                                struct STRUCT_NAME* prev_of_inner = NULL;                       \
+                                struct STRUCT_NAME* prev_of_outer = NULL;                       \
+                                prev_of_inner = LISTP_PREV_ENTRY(inner, LISTP, list);           \
+                                prev_of_outer = LISTP_PREV_ENTRY(outer, LISTP, list);           \
+                                LISTP_DEL(inner, LISTP, list);                                  \
+                                LISTP_DEL(outer, LISTP, list);                                  \
+                                LISTP_ADD_AFTER(inner, prev_of_outer, LISTP, list);             \
+                                LISTP_ADD_AFTER(outer, prev_of_inner, LISTP, list);             \
+                            } else {                                                            \
+                                LISTP_DEL(outer, LISTP, list);                                  \
+                                LISTP_ADD_AFTER(outer, inner, LISTP, list);                     \
+                            }                                                                   \
+                            for_swap = inner;                                                   \
+                            inner    = outer;                                                   \
+                            outer    = for_swap;                                                \
+                        }                                                                       \
+                        inner = LISTP_NEXT_ENTRY(inner, LISTP, list);                           \
+                    }                                                                           \
+                    outer = LISTP_NEXT_ENTRY(outer, LISTP, list);                               \
+                }                                                                               \
+            }                                                                                   \
+        }                                                                                       \
+    } while (0)
 
 /* A node not on a list uses NULL; on a list, you
  * store self pointers */
@@ -160,9 +225,12 @@
 #define INIT_LISTP(OBJECT)      \
     do {                        \
         (OBJECT)->first = NULL; \
+        (OBJECT)->size  = 0;    \
     } while (0)
 
 #define LISTP_EMPTY(HEAD) ((HEAD)->first == NULL)
+
+#define LISTP_SIZE(HEAD) ((HEAD)->size)
 
 #define LIST_EMPTY(NODE, FIELD) ((NODE)->FIELD.next == NULL)
 
@@ -180,25 +248,33 @@
 
 #define LIST_ADD(NEW, HEAD, FIELD) __LIST_ADD(NEW, (HEAD)->FIELD.next, HEAD, FIELD)
 
-#define LISTP_ADD(NEW, HEAD, FIELD)                                           \
-    do {                                                                      \
-        if ((HEAD)->first == NULL) {                                          \
-            (HEAD)->first     = (NEW);                                        \
-            (NEW)->FIELD.next = (NEW);                                        \
-            (NEW)->FIELD.prev = (NEW);                                        \
-        } else {                                                              \
-            __LIST_ADD(NEW, (HEAD)->first, (HEAD)->first->FIELD.prev, FIELD); \
-            (HEAD)->first = (NEW);                                            \
-        }                                                                     \
+#define LISTP_ADD(NEW, HEAD, FIELD)                                               \
+    do {                                                                          \
+        if ((HEAD)->first == NULL) {                                              \
+            (HEAD)->first     = (NEW);                                            \
+            (NEW)->FIELD.next = (NEW);                                            \
+            (NEW)->FIELD.prev = (NEW);                                            \
+            (HEAD)->size      = 1;                                                \
+        } else {                                                                  \
+            if (++((HEAD)->size) > 0) {                                           \
+                __LIST_ADD(NEW, (HEAD)->first, (HEAD)->first->FIELD.prev, FIELD); \
+                (HEAD)->first = (NEW);                                            \
+            }                                                                     \
+            if ((HEAD)->size < 0)                                                 \
+                --((HEAD)->size);                                                 \
+        }                                                                         \
     } while (0)
 
 /* If NODE is defined, add NEW after NODE; if not,
  * put NEW at the front of the list */
+// TODO: not checking for ++HEAD->size overflow and if there
+// are other paths to this..
 #define LISTP_ADD_AFTER(NEW, NODE, HEAD, FIELD) \
     do {                                        \
-        if (NODE)                               \
+        if (NODE) {                             \
+            ++((HEAD)->size);                   \
             LIST_ADD(NEW, NODE, FIELD);         \
-        else                                    \
+        } else                                  \
             LISTP_ADD(NEW, HEAD, FIELD);        \
     } while (0)
 
@@ -210,8 +286,24 @@
             (HEAD)->first     = (NEW);                \
             (NEW)->FIELD.next = (NEW);                \
             (NEW)->FIELD.prev = (NEW);                \
-        } else                                        \
+            (HEAD)->size      = 1;                    \
+        } else if (++((HEAD)->size) > 0) {            \
             LIST_ADD_TAIL(NEW, (HEAD)->first, FIELD); \
+        }                                             \
+        if ((HEAD)->size < 0)                         \
+            --((HEAD)->size);                         \
+    } while (0)
+
+#define LISTP_PUSH_FRONT(NEW, LISTP, FIELD) LISTP_ADD(NEW, LISTP, FIELD)
+#define LISTP_POP_FRONT(FIRST_ENTRY, LISTP, STRUCT_NAME, FIELD)                  \
+    do {                                                                         \
+        struct STRUCT_NAME* head = LISTP_FIRST_ENTRY(LISTP, STRUCT_NAME, FIELD); \
+        if (head) {                                                              \
+            LISTP_DEL(head, LISTP, FIELD);                                       \
+            --((LISTP)->size);                                                   \
+            FIRST_ENTRY = head;                                                  \
+        } else                                                                   \
+            FIRST_ENTRY = NULL;                                                  \
     } while (0)
 
 /* Or deletion needs to know the list root */
@@ -228,12 +320,34 @@
         LIST_ASSERT((NODE)->FIELD.next->FIELD.prev == (NODE)); \
         (NODE)->FIELD.prev->FIELD.next = (NODE)->FIELD.next;   \
         (NODE)->FIELD.next->FIELD.prev = (NODE)->FIELD.prev;   \
+        --((HEAD)->size);                                      \
     } while (0)
 
 #define LISTP_DEL_INIT(NODE, HEAD, FIELD) \
     do {                                  \
         LISTP_DEL(NODE, HEAD, FIELD);     \
         INIT_LIST_HEAD(NODE, FIELD);      \
+    } while (0)
+
+/* clears linked list container, does NOT free each list node, like list.clear().*/
+#define LISTP_CLEAR(LISTP, STRUCT_NAME)                \
+    do {                                               \
+        struct STRUCT_NAME *f, *n;                     \
+        LISTP_FOR_EACH_ENTRY_SAFE(f, n, LISTP, list) { \
+            LISTP_DEL(f, LISTP, list);                 \
+        }                                              \
+        (LISTP)->size = 0;                             \
+    } while (0)
+
+/* clears linked list container, and frees each list item.*/
+#define LISTP_CLEAR_AND_FREE_EACH_LIST_ITEM(LISTP, STRUCT_NAME) \
+    do {                                                        \
+        struct STRUCT_NAME *f, *n;                              \
+        LISTP_FOR_EACH_ENTRY_SAFE(f, n, LISTP, list) {          \
+            LISTP_DEL(f, LISTP, list);                          \
+            free(f);                                            \
+        }                                                       \
+        (LISTP)->size = 0;                                      \
     } while (0)
 
 /* Keep vestigial TYPE and FIELD parameters to minimize disruption
