@@ -80,7 +80,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 pygments_style = None
 
 rst_prolog = '''
-.. |nbsp| unicode:: 0xa0
+.. |~| unicode:: 0xa0
    :trim:
 '''
 

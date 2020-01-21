@@ -11,12 +11,12 @@ Documentation is generally written as `reStructuredText`_ files which are placed
 in ``Documentation/`` directory. See `Sphinx' reST primer`_ for short
 introduction into syntax.
 
-For code written in |nbsp| C, we use `Doxygen`_ and `Breathe`_, which is
-a |nbsp| Sphinx' plugin for including Doxygen documentation. Documentation of
-C |nbsp| language API should be written as Doxygen comments (see `Doxygen
-manual`_) and then included in one of the ``.rst`` files (with appropriate
-description) using one of the `Breathe directives`_, like
-``.. doxygenfunction::`` or ``.. doxygenstruct::``.
+For code written in |~| C, we use `Doxygen`_ and `Breathe`_, which is
+a |~| Sphinx' plugin for including Doxygen documentation. Documentation of
+C |~| language API should be written as Doxygen comments (see `Doxygen manual`_)
+and then included in one of the ``.rst`` files (with appropriate description)
+using one of the `Breathe directives`_, like ``.. doxygenfunction::`` or ``..
+doxygenstruct::``.
 
 :ref:`Old Wiki <old-wiki>` is imported as it was, in Markdown, but new
 documentation should be written in reST.
@@ -28,7 +28,7 @@ not published.
 
 .. note::
 
-   A |nbsp| note about terminology:
+   A |~| note about terminology:
 
    ``html``, ``latex`` and ``manpage``, and also others, are Sphinx "builders":
    http://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-b.
@@ -61,7 +61,7 @@ Preferred reST style
 (This is adapted from `Python's style guide`_).
 
 - Use 3-space tab in ``.rst`` files to align the indentation with reST explicit
-  markup, which begins with two dots and a |nbsp| space.
+  markup, which begins with two dots and a |~| space.
 
 - Wrap the paragraphs at 80th character. But don't wrap verbatim text like logs
   and use applicable style when wrapping code examples (see ``CODESTYLE.md`` in
@@ -109,20 +109,20 @@ Preferred reST style
      For Emacs users:
         Read more at https://docutils.sourceforge.io/docs/user/emacs.html.
 
-- Use ``|nbsp|`` to insert non-breaking space. This should be added after
+- Use ``|~|`` to insert non-breaking space. This should be added after
   one-letter words and where otherwise appropriate::
 
-      This is a |nbsp| function.
+      This is a |~| function.
 
   This substitution is added to all documents processed by Sphinx. For files
   processed also by other software (like ``README.rst``, which is both rendered
-  by GitHub and included in ``index.rst``), use ``|_|`` after adding this
+  by GitHub and included in ``index.rst``), use ``|nbsp|`` after adding this
   substitution yourself::
 
-      .. |_| unicode:: 0xa0
+      .. |nbsp| unicode:: 0xa0
          :trim:
 
-      This is a |_| README.
+      This is a |nbsp| README.
 
 Documentation of the code should be organized into files by logical concepts,
 as they fit into programmer's mind. Ideally, this should match the source files,
@@ -156,7 +156,7 @@ Preferred Doxygen style
 
    ::
 
-      There is a |nbsp| very special function :c:func:`foo`:
+      There is a |~| very special function :c:func:`foo`:
 
       .. doxygenfunction:: foo
 
@@ -164,7 +164,7 @@ Preferred Doxygen style
 
 2. In reST, do not use ``autodoxygen`` directives, and especially do not use
    ``.. doxygenfile::``, because documentation should be written as prose, not
-   a |nbsp| coredump. Write an explanation, how the things go together and place
+   a |~| coredump. Write an explanation, how the things go together and place
    the ``.. doxygenfunction::`` directives where aproppriate.
 
 Further reading

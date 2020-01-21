@@ -8,9 +8,9 @@ Graphene Library OS with Intel SGX Support
 
 *A Linux-compatible Library OS for Multi-Process Applications*
 
-.. This is not |nbsp|, because that is in rst_prolog in conf.py, which GitHub
-   cannot parse. GitHub doesn't appear to use it correctly anyway...
-.. |_| unicode:: 0xa0
+.. This is not |~|, because that is in rst_prolog in conf.py, which GitHub cannot parse.
+   GitHub doesn't appear to use it correctly anyway...
+.. |nbsp| unicode:: 0xa0
    :trim:
 
 What is Graphene?
@@ -24,9 +24,9 @@ different OSes, and process migration.
 Graphene supports native, unmodified Linux applications on any platform. Currently, Graphene runs on
 Linux and Intel SGX enclaves on Linux platforms.
 
-With Intel SGX support, Graphene can secure a |_| critical application in a |_| hardware-encrypted
-memory region. Graphene can protect applications from a |_| malicious system stack with minimal
-porting effort.
+With Intel SGX support, Graphene can secure a |nbsp| critical application in
+a |nbsp| hardware-encrypted memory region. Graphene can protect applications from a |nbsp| malicious
+system stack with minimal porting effort.
 
 Our papers describe the motivation, design choices, and measured performance of Graphene:
 
@@ -140,11 +140,11 @@ manifest signatures (.sig files).
 Run Built-in Examples in Graphene-SGX
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are a few built-in examples under ``LibOS/shim/test/``. The "native"
-folder includes a |_| rich set of C |_| programs and "apps" folder includes
-a |_| few tested applications, such as GCC, Python, and Apache.
+There are a few built-in examples under ``LibOS/shim/test/``. The "native" folder includes
+a |nbsp| rich set of C |nbsp| programs and "apps" folder includes a |nbsp| few tested applications,
+such as GCC, Python, and Apache.
 
-1. Build and run a |_| ``helloworld`` program with Graphene-SGX
+1. Build and run a |nbsp| ``helloworld`` program with Graphene-SGX
 
    - go to LibOS/shim/test/native, build the enclaves via the command::
 
@@ -237,7 +237,7 @@ How to run an application in Graphene?
 
 Graphene library OS uses the PAL (``libpal.so``) as a loader to bootstrap applications in the
 library OS. To start Graphene, PAL (``libpal.so``) will have to be run as an executable, with the
-name of the program, and a |_| "manifest file" (per-app configuration) given from the command
+name of the program, and a |nbsp| "manifest file" (per-app configuration) given from the command
 line. Graphene provides three options for specifying the programs and manifest files:
 
 - option 1 (automatic manifest)::
@@ -254,9 +254,10 @@ line. Graphene provides three options for specifying the programs and manifest f
    [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
    (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
 
-Running an application requires some minimal configuration in the application's manifest file.  A
-|_| sensible manifest file will include paths to the library OS and other libraries the application
-requires; environment variables, such as ``LD_LIBRARY_PATH``; and file systems to be mounted.
+Running an application requires some minimal configuration in the application's manifest file.
+A |nbsp| sensible manifest file will include paths to the library OS and other libraries the
+application requires; environment variables, such as ``LD_LIBRARY_PATH``; and file systems to be
+mounted.
 
 Here is an example manifest file::
 
