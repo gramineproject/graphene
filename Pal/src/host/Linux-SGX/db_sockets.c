@@ -793,14 +793,8 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    attr->readable = (ret == 1 && pfd.revents & POLLIN);
-    attr->writable = (ret == 1 && pfd.revents & POLLOUT);
-    if (ret == 1 && pfd.revents & (POLLERR | POLLHUP)) {
-        /* LibOS assumes that readable/writable are false on error/closed connection */
-        attr->readable = PAL_FALSE;
-        attr->writable = PAL_FALSE;
-    }
-
+    attr->readable = ret == 1 && (pfd.revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
+    attr->writable = ret == 1 && (pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
     return 0;
 }
 
