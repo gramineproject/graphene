@@ -194,10 +194,10 @@ int init_ipc_helper(void) {
      * locking mechanisms if not done already since we are going in multi-threaded mode) */
     enable_locking();
     lock(&ipc_helper_lock);
-    create_ipc_helper();
+    int ret = create_ipc_helper();
     unlock(&ipc_helper_lock);
 
-    return 0;
+    return ret;
 }
 
 static struct shim_ipc_port* __create_ipc_port(PAL_HANDLE hdl) {
@@ -448,6 +448,11 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
         size_t cnt = 0;
         struct shim_ipc_port** target_ports_heap =
             malloc(sizeof(struct shim_ipc_port*) * target_ports_cnt);
+        if (!target_ports_heap) {
+            unlock(&ipc_helper_lock);
+            debug("Allocation of target_ports_heap failed\n");
+            return -ENOMEM;
+        }
 
         LISTP_FOR_EACH_ENTRY(port, &port_list, list) {
             if (port == exclude_port)
@@ -532,6 +537,9 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
     size_t bufsize   = IPC_MSG_MINIMAL_SIZE + readahead;
 
     struct shim_ipc_msg* msg = malloc(bufsize);
+    if (!msg) {
+        return -ENOMEM;
+    }
     size_t expected_size     = IPC_MSG_MINIMAL_SIZE;
     size_t bytes             = 0;
 
@@ -542,6 +550,10 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 while (expected_size + readahead > bufsize)
                     bufsize *= 2;
                 void* tmp_buf = malloc(bufsize);
+                if (!tmp_buf) {
+                    ret = -ENOMEM;
+                    goto out;
+                }
                 memcpy(tmp_buf, msg, bytes);
                 free(msg);
                 msg = tmp_buf;
@@ -640,10 +652,22 @@ noreturn static void shim_ipc_helper(void* dummy) {
     size_t ports_cnt = 0;
     size_t ports_max_cnt = 32;
     struct shim_ipc_port** ports = malloc(sizeof(*ports) * ports_max_cnt);
+    if (!ports) {
+        debug("shim_ipc_helper: allocation of ports failed\n");
+        goto out_err;
+    }
     PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + ports_max_cnt));
+    if (!pals) {
+        debug("shim_ipc_helper: allocation of pals failed\n");
+        goto out_err;
+    }
 
     /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
     PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + ports_max_cnt) * 2);
+    if (!pal_events) {
+        debug("shim_ipc_helper: allocation of pal_events failed\n");
+        goto out_err;
+    }
     PAL_FLG* ret_events = pal_events + 1 + ports_max_cnt;
 
     PAL_HANDLE install_new_event_pal = event_handle(&install_new_event);
@@ -670,8 +694,20 @@ noreturn static void shim_ipc_helper(void* dummy) {
             if (ports_cnt == ports_max_cnt) {
                 /* grow `ports` and `pals` to accommodate more objects */
                 struct shim_ipc_port** tmp_ports = malloc(sizeof(*tmp_ports) * ports_max_cnt * 2);
+                if (!tmp_ports) {
+                    debug("shim_ipc_helper: allocation of tmp_ports failed\n");
+                    goto out_err_unlock;
+                }
                 PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + ports_max_cnt * 2));
+                if (!tmp_pals) {
+                    debug("shim_ipc_helper: allocation of tmp_pals failed\n");
+                    goto out_err_unlock;
+                }
                 PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + ports_max_cnt * 4));
+                if (!tmp_pal_events) {
+                    debug("shim_ipc_helper: allocation of tmp_pal_events failed\n");
+                    goto out_err_unlock;
+                }
                 PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + ports_max_cnt * 2;
 
                 memcpy(tmp_ports, ports, sizeof(*tmp_ports) * ports_max_cnt);
@@ -771,6 +807,13 @@ noreturn static void shim_ipc_helper(void* dummy) {
     debug("IPC helper thread terminated\n");
 
     DkThreadExit(/*clear_child_tid=*/NULL);
+
+out_err_unlock:
+    unlock(&ipc_helper_lock);
+out_err:
+    debug("Terminating the process due to a fatal error in ipc helper\n");
+    put_thread(self);
+    DkProcessExit(1);
 }
 
 static void shim_ipc_helper_prepare(void* arg) {

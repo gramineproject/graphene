@@ -3,45 +3,185 @@
 How to write documentation
 ==========================
 
-Documentation is generally written as `reStructuredText`_ files and processed
-using `Sphinx`_. See `Sphinx' reST primer`_ for short introduction into syntax.
+.. highlight:: rst
+
+Graphene uses `Sphinx`_ to generate the documentation in HTML form. The
+documentation is hosted on Read The Docs at https://graphene.readthedocs.io/.
+Documentation is generally written as `reStructuredText`_ files which are placed
+in ``Documentation/`` directory. See `Sphinx' reST primer`_ for short
+introduction into syntax.
+
+For code written in |nbsp| C, we use `Doxygen`_ and `Breathe`_, which is
+a |nbsp| Sphinx' plugin for including Doxygen documentation. Documentation of
+C |nbsp| language API should be written as Doxygen comments (see `Doxygen
+manual`_) and then included in one of the ``.rst`` files (with appropriate
+description) using one of the `Breathe directives`_, like
+``.. doxygenfunction::`` or ``.. doxygenstruct::``.
+
 :ref:`Old Wiki <old-wiki>` is imported as it was, in Markdown, but new
 documentation should be written in reST.
 
-API documentation of C |nbsp| language should be written as Doxygen comments
-(prefer Qt-style ``/*!`` and ``\param``) and then included in one of the
-``.rst`` files (with appropriate description) using one of the `Breathe
-directives`_, like ``.. doxygenfunction::`` or ``.. doxygenstruct::``. See
-`Breathe`_ documentation for more info. Do not use ``autodoxygen`` directives,
-and especially do not use ``.. doxygenfile::``, because documentation should be
-written as prose, not a |nbsp| coredump.
+The documentation should be written with ``html`` builder of Sphinx in mind. The
+:file:`manpages/` subdirectory also targets ``manpage`` builder. Other builders
+(like ``latex``) may be considered in the future, but for now their output is
+not published.
 
-In ``.rst`` files use 3-space tab. This is an uncommon value, but good value
-because intended blocks usually follow explicit markup, which begins with
-``..``). Wrap the paragraphs at 80th character, but don't wrap verbatim text
-like logs and use applicable style when wrapping code examples. Use Python
-convention for header hierarchy: ``#`` with overline, ``*`` with overline,
-``=``, ``-``, ``^``, ``"``. This means most documents use only ``=`` and ``-``
-underlines. Those underlines are easy to enter in :command:`vim` using the
-combination ``yypVr-``.
+.. note::
+
+   A |nbsp| note about terminology:
+
+   ``html``, ``latex`` and ``manpage``, and also others, are Sphinx "builders":
+   http://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-b.
+   Sphinx can output many different formats, some of them have overlapping usage
+   (both ``html`` and ``latex`` usually output full handbook, the difference is
+   screen vs print), some are specialised (``manpage`` processes only selected
+   documents for man; those documents may or may not be also used by other
+   builders).
+
+   When launched through ``make`` (like ``make -C Documentation html``), this
+   becomes "target" in Make terminology.
+
+Building documentation
+----------------------
+
+To build documentation, change directory to ``Documentation`` and use ``make``,
+specifying the appropriate target. The output is in the ``_build`` directory:
+
+.. code-block:: sh
+
+   cd Documentation
+   make html man
+
+   firefox _build/html/index.html
+   man _build/man/pal_loader.1
+
+Preferred reST style
+--------------------
+
+(This is adapted from `Python's style guide`_).
+
+- Use 3-space tab in ``.rst`` files to align the indentation with reST explicit
+  markup, which begins with two dots and a |nbsp| space.
+
+- Wrap the paragraphs at 80th character. But don't wrap verbatim text like logs
+  and use applicable style when wrapping code examples (see ``CODESTYLE.md`` in
+  the repository).
+
+- For headers, use Python convention for header hierarchy:
+
+  1. ``#`` with overline,
+  2. ``*`` with overline,
+  3. ``=``,
+  4. ``-``,
+  5. ``^``,
+  6. ``"``.
+
+  Example::
+
+     ###################################
+     Very top level header (in TOC etc.)
+     ###################################
+
+     *******************
+     Less than top level
+     *******************
+
+     Per-file header
+     ===============
+
+     Section header
+     --------------
+
+     Subsection header
+     ^^^^^^^^^^^^^^^^^
+
+     Subsubsection header
+     """"""""""""""""""""
+
+  This means most documents use only ``=`` and ``-`` adornments.
+
+  .. tip::
+
+     For vim users:
+        you can enter the ``-`` underlines using the key combination
+        ``yypVr-`` and the other adornments with similar combinations.
+
+     For Emacs users:
+        Read more at https://docutils.sourceforge.io/docs/user/emacs.html.
+
+- Use ``|nbsp|`` to insert non-breaking space. This should be added after
+  one-letter words and where otherwise appropriate::
+
+      This is a |nbsp| function.
+
+  This substitution is added to all documents processed by Sphinx. For files
+  processed also by other software (like ``README.rst``, which is both rendered
+  by GitHub and included in ``index.rst``), use ``|_|`` after adding this
+  substitution yourself::
+
+      .. |_| unicode:: 0xa0
+         :trim:
+
+      This is a |_| README.
 
 Documentation of the code should be organized into files by logical concepts,
-as they fit into programmers mind. Ideally, this should match the source files,
+as they fit into programmer's mind. Ideally, this should match the source files,
 if those files were organised correctly in the first place, but the reality may
-be different. In case of doubt, place them as they fit the narration of the
+be different. In case of doubt, place them as they fit the narrative of the
 document, not as they are placed in the source files.
 
 Documents should be grouped by general areas and presented using
 ``.. toctree::`` directive in :file:`index.rst` file. This causes them to be
 included in TOC in the main document and also in sidebar on RTD.
 
-The documentation targets ``html`` output of Sphinx. The :file:`manpages/`
-subdirectory also targets ``manpage`` builder. Other formats (like ``latex``)
-may be considered in the future, but for now their output is neither published
-not cared for.
+Preferred Doxygen style
+-----------------------
+
+1. Prefer Qt-style ``/*!`` and ``\param``:
+
+   .. code-block:: c
+
+      /*!
+       * \brief An example function
+       *
+       * This function returns a number augmented by the Answer to the Ultimate
+       * Question of Life, the Universe, and Everything.
+       *
+       * \param n The number to be added
+       * \return A number 42 greater
+       */
+      int foo(int n) {
+          return n + 42;
+      }
+
+   ::
+
+      There is a |nbsp| very special function :c:func:`foo`:
+
+      .. doxygenfunction:: foo
+
+      It's an example function, but is documented!
+
+2. In reST, do not use ``autodoxygen`` directives, and especially do not use
+   ``.. doxygenfile::``, because documentation should be written as prose, not
+   a |nbsp| coredump. Write an explanation, how the things go together and place
+   the ``.. doxygenfunction::`` directives where aproppriate.
+
+Further reading
+---------------
+
+- `Four kinds of documentation`_
+  (`HN thread <https://news.ycombinator.com/item?id=21289832>`__)
+- `The Hitchhiker's Guide to Documentation`_ divided by audience (role in the
+  project), with references to good real-world examples
 
 .. _reStructuredText: https://en.wikipedia.org/wiki/ReStructuredText
 .. _Sphinx: https://www.sphinx-doc.org/
 .. _Sphinx' reST primer: https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
+.. _Doxygen: http://www.doxygen.nl/
+.. _Doxygen manual: http://www.doxygen.nl/manual/docblocks.html
 .. _Breathe: https://breathe.readthedocs.io/en/latest/
 .. _Breathe directives: https://breathe.readthedocs.io/en/latest/directives.html
+.. _Python's style guide: https://devguide.python.org/documenting/#style-guide
+.. _Four kinds of documentation: https://www.divio.com/blog/documentation/
+.. _The Hitchhiker's Guide to Documentation: https://docs-guide.readthedocs.io/en/latest/>

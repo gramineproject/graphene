@@ -1,12 +1,13 @@
-#include <pal_linux.h>
-#include <pal_linux_error.h>
-#include <pal_internal.h>
-#include <pal_debug.h>
-#include <pal_error.h>
-#include <pal_security.h>
-#include <pal_crypto.h>
 #include <api.h>
 #include <list.h>
+#include <pal_crypto.h>
+#include <pal_debug.h>
+#include <pal_error.h>
+#include <pal_internal.h>
+#include <pal_linux.h>
+#include <pal_linux_error.h>
+#include <pal_security.h>
+#include <spinlock.h>
 #include <stdbool.h>
 
 #include "enclave_pages.h"
@@ -218,7 +219,7 @@ struct trusted_file {
 
 DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
-static struct spinlock trusted_file_lock = LOCK_INIT;
+static spinlock_t trusted_file_lock = INIT_SPINLOCK_UNLOCKED;
 static int trusted_file_indexes = 0;
 static bool allow_file_creation = 0;
 static int file_check_policy = FILE_CHECK_POLICY_STRICT;
@@ -300,7 +301,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     }
     len += URI_PREFIX_FILE_LEN;
 
-    _DkSpinLock(&trusted_file_lock);
+    spinlock_lock(&trusted_file_lock);
 
     LISTP_FOR_EACH_ENTRY(tmp, &trusted_file_list, list) {
         if (tmp->stubs) {
@@ -318,7 +319,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         }
     }
 
-    _DkSpinUnlock(&trusted_file_lock);
+    spinlock_unlock(&trusted_file_lock);
 
     if (!tf || !tf->index) {
         if (!tf) {
@@ -434,19 +435,19 @@ unmap:
         goto failed;
     }
 
-    _DkSpinLock(&trusted_file_lock);
+    spinlock_lock(&trusted_file_lock);
     if (tf->stubs || tf->index == -PAL_ERROR_DENIED)
         free(tf->stubs);
     *stubptr = tf->stubs = stubs;
     *sizeptr = tf->size;
     ret = tf->index;
-    _DkSpinUnlock(&trusted_file_lock);
+    spinlock_unlock(&trusted_file_lock);
     return ret;
 
 failed:
     free(stubs);
 
-    _DkSpinLock(&trusted_file_lock);
+    spinlock_lock(&trusted_file_lock);
     if (tf->stubs) {
         *stubptr = tf->stubs;
         *sizeptr = tf->size;
@@ -454,7 +455,7 @@ failed:
     } else {
         tf->index = -PAL_ERROR_DENIED;
     }
-    _DkSpinUnlock(&trusted_file_lock);
+    spinlock_unlock(&trusted_file_lock);
 
 #if PRINT_ENCLAVE_STAT
     if (!ret) {
@@ -624,15 +625,15 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
     size_t uri_len = strlen(uri);
     int ret;
 
-    _DkSpinLock(&trusted_file_lock);
+    spinlock_lock(&trusted_file_lock);
 
     LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
-            _DkSpinUnlock(&trusted_file_lock);
+            spinlock_unlock(&trusted_file_lock);
             return 0;
         }
     }
-    _DkSpinUnlock(&trusted_file_lock);
+    spinlock_unlock(&trusted_file_lock);
 
     new = malloc(sizeof(struct trusted_file));
     if (!new)
@@ -697,18 +698,18 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
         SGX_DBG(DBG_S, "allowed: %s\n", new->uri);
     }
 
-    _DkSpinLock(&trusted_file_lock);
+    spinlock_lock(&trusted_file_lock);
 
     LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
-            _DkSpinUnlock(&trusted_file_lock);
+            spinlock_unlock(&trusted_file_lock);
             free(new);
             return 0;
         }
     }
 
     LISTP_ADD_TAIL(new, &trusted_file_list, list);
-    _DkSpinUnlock(&trusted_file_lock);
+    spinlock_unlock(&trusted_file_lock);
     return 0;
 }
 

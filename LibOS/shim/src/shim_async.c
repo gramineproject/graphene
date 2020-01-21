@@ -64,17 +64,25 @@ static int create_async_helper(void);
  *   - async IO events set object = handle and time = 0.
  *
  * Function returns remaining usecs for alarm/timer events (same as alarm())
- * or 0 for async IO events. On error, it returns -1.
+ * or 0 for async IO events. On error, it returns a negated error code.
  */
 int64_t install_async_event(PAL_HANDLE object, uint64_t time,
                             void (*callback)(IDTYPE caller, void* arg), void* arg) {
     /* if event happens on object, time must be zero */
     assert(!object || (object && !time));
 
-    uint64_t now                  = DkSystemTimeQuery();
+    uint64_t now = DkSystemTimeQuery();
+    if ((int64_t)now < 0) {
+        return (int64_t)now;
+    }
+
     uint64_t max_prev_expire_time = now;
 
     struct async_event* event = malloc(sizeof(struct async_event));
+    if (!event) {
+        return -ENOMEM;
+    }
+
     event->callback           = callback;
     event->arg                = arg;
     event->caller             = get_cur_tid();
@@ -171,9 +179,17 @@ static void shim_async_helper(void* arg) {
     /* init `pals` so that it always contains at least install_new_event */
     size_t pals_max_cnt = 32;
     PAL_HANDLE* pals = malloc(sizeof(*pals) * (1 + pals_max_cnt));
+    if (!pals) {
+        debug("Allocation of pals failed\n");
+        goto out_err;
+    }
 
     /* allocate one memory region to hold two PAL_FLG arrays: events and revents */
     PAL_FLG* pal_events = malloc(sizeof(*pal_events) * (1 + pals_max_cnt) * 2);
+    if (!pal_events) {
+        debug("Allocation of pal_events failed\n");
+        goto out_err;
+    }
     PAL_FLG* ret_events = pal_events + 1 + pals_max_cnt;
 
     PAL_HANDLE install_new_event_pal = event_handle(&install_new_event);
@@ -183,6 +199,10 @@ static void shim_async_helper(void* arg) {
 
     while (true) {
         uint64_t now = DkSystemTimeQuery();
+        if ((int64_t)now < 0) {
+            debug("DkSystemTimeQuery failed with: %ld\n", (int64_t)now);
+            goto out_err;
+        }
 
         lock(&async_helper_lock);
         if (async_helper_state != HELPER_ALIVE) {
@@ -201,8 +221,16 @@ static void shim_async_helper(void* arg) {
             if (tmp->object) {
                 if (pals_cnt == pals_max_cnt) {
                     /* grow `pals` to accommodate more objects */
-                    PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + pals_max_cnt * 2));
+                    PAL_HANDLE* tmp_pals = malloc(sizeof(*tmp_pals) * (1 + pals_max_cnt * 2));
+                    if (!tmp_pals) {
+                        debug("tmp_pals allocation failed\n");
+                        goto out_err_unlock;
+                    }
                     PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + pals_max_cnt * 4));
+                    if (!tmp_pal_events) {
+                        debug("tmp_pal_events allocation failed\n");
+                        goto out_err_unlock;
+                    }
                     PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + pals_max_cnt * 2;
 
                     memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + pals_max_cnt));
@@ -257,6 +285,10 @@ static void shim_async_helper(void* arg) {
         PAL_BOL polled = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
 
         now = DkSystemTimeQuery();
+        if ((int64_t)now < 0) {
+            debug("DkSystemTimeQuery failed with: %ld\n", (int64_t)now);
+            goto out_err;
+        }
 
         LISTP_TYPE(async_event) triggered;
         INIT_LISTP(&triggered);
@@ -320,6 +352,14 @@ static void shim_async_helper(void* arg) {
     free(pal_events);
 
     DkThreadExit(/*clear_child_tid=*/NULL);
+    return;
+
+out_err_unlock:
+    unlock(&async_helper_lock);
+out_err:
+    debug("Terminating the process due to a fatal error in async helper\n");
+    put_thread(self);
+    DkProcessExit(1);
 }
 
 /* this should be called with the async_helper_lock held */
