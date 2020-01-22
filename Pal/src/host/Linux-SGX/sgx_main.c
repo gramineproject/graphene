@@ -210,7 +210,7 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
 
             ret = add_pages_to_enclave(secs, (void *) base + c->mapstart, addr,
                                        c->mapend - c->mapstart,
-                                       SGX_PAGE_REG, c->prot, false,
+                                       SGX_PAGE_REG, c->prot, /*skip_eextended=*/false,
                                        (c->prot & PROT_EXEC) ? "code" : "data");
 
             INLINE_SYSCALL(munmap, 2, addr, c->mapend - c->mapstart);
@@ -331,9 +331,9 @@ int initialize_enclave (struct pal_enclave * enclave)
     };
 
     /*
-     * 10: manifest, ...
-     * enclave->thread_num: stack
-     * enclave->thread_num: sig stack
+     * 10 for manifest, SSA, TCS, etc
+     * + enclave->thread_num for normal stack
+     * + enclave->thread_num for signal stack
      */
     int area_num_max = 10 + enclave->thread_num * 2;
     struct mem_area * areas = __alloca(sizeof(areas[0]) * area_num_max);
