@@ -4,10 +4,17 @@ set -e
 
 cd "$(git rev-parse --show-toplevel)"
 
+# pylint3 was replaced with pylint from Ubuntu 19.10
+if which pylint3; then
+    PYLINT=pylint3
+else
+    PYLINT=pylint
+fi
+
 find . -name \*.py \
     -and -not -path ./LibOS/shim/test/apps/ltp/src/\* \
 | sed 's/./\\&/g' \
-| xargs pylint3 "$@" \
+| xargs "${PYLINT}" "$@" \
     Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
     Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
     .ci/prfilter
