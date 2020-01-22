@@ -811,16 +811,16 @@ _restore_sgx_context:
 	jmp *%gs:SGX_TMP_RIP
 	.cfi_endproc
 
-	# void __save_xregs(uint64_t xsave_area)
-	#   %rdi: input: pointer to xsave_area
-	#   %r11: return address: not to use stack
-	#   %rax, %rdx: clobered
+	# void __save_xregs(PAL_XREGS_STATE* xsave_area)
+	#   RDI: input: pointer to xsave_area
+	#   R11: return address: in order to not touch stack
+	#                        In some situation, stack isn't available.
+	#   RAX, RDX: clobbered
 	.global __save_xregs
 	.type __save_xregs, @function
 __save_xregs:
 	.cfi_startproc
-	movq xsave_enabled@GOTPCREL(%rip), %rax
-	movl (%rax), %eax
+	movl xsave_enabled(%rip), %eax
 	cmpl $0, %eax
 	jz 1f
 
@@ -843,7 +843,7 @@ __save_xregs:
 	jmp *%r11
 	.cfi_endproc
 
-	# void save_xregs(uint64_t xsave_area)
+	# void save_xregs(PAL_XREGS_STATE* xsave_area)
 	.global save_xregs
 	.type save_xregs, @function
 save_xregs:
@@ -852,16 +852,16 @@ save_xregs:
 	jmp __save_xregs
 	.cfi_endproc
 
-	# void __restore_xregs(uint64_t xsave_area)
-	#   %rdi: input: pointer to xsave_area
-	#   %r11: return address: not to use stack
-	#   %rax, %rdx: clobered
+	# void restore_xregs(const PAL_XREGS_STATE* xsave_area)
+	#   RDI: input: pointer to xsave_area
+	#   R11: return address: in order to not touch stack
+	#                        In some situation, stack isn't available.
+	#   RAX, RDX: clobbered
 	.global __restore_xregs
 	.type __restore_xregs, @function
 __restore_xregs:
 	.cfi_startproc
-	movq xsave_enabled@GOTPCREL(%rip), %rax
-	movl (%rax), %eax
+	movl xsave_enabled(%rip), %eax
 	cmpl $0, %eax
 	jz 1f
 
@@ -874,7 +874,7 @@ __restore_xregs:
 	jmp *%r11
 	.cfi_endproc
 
-	# void restore_xregs(uint64_t xsave_area)
+	# void restore_xregs(const PAL_XREGS_STATE* xsave_area)
 	.global restore_xregs
 	.type restore_xregs, @function
 restore_xregs:
