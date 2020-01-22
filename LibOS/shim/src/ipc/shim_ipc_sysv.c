@@ -616,7 +616,7 @@ int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS) {
 
         case SETVAL: {
             ret = -EINVAL;
-            if (msgin->valsize != sizeof(unsigned short))
+            if (msgin->valsize != sizeof(sem->sems[msgin->semnum].val))
                 break;
             if (msgin->semnum >= sem->nsems)
                 break;
