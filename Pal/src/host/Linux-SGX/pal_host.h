@@ -185,10 +185,4 @@ typedef struct pal_handle
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 
-#define ENTER_PAL_CALL(name)
-
-#define LEAVE_PAL_CALL()
-
-#define LEAVE_PAL_CALL_RETURN(retval)   return (retval)
-
 #endif /* PAL_HOST_H */

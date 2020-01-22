@@ -57,8 +57,8 @@ _DkGenericSignalHandle(int event_num, PAL_NUM arg, PAL_CONTEXT* context) {
  */
 noreturn static void restore_sgx_context(sgx_cpu_context_t* uc,
                                          PAL_XREGS_STATE* xregs_state) {
-    SGX_DBG(DBG_E, "uc %p rsp 0x%08lx &rsp: %p rip 0x%08lx +0x%08lx &rip: %p\n",
-            uc, uc->rsp, &uc->rsp, uc->rip, uc->rip - (uintptr_t) TEXT_START, &uc->rip);
+    SGX_DBG(DBG_E, "uc %p rsp 0x%08lx &rsp %p rip 0x%08lx +0x%08lx &rip %p\n",
+            uc, uc->rsp, &uc->rsp, uc->rip, uc->rip - (uintptr_t)TEXT_START, &uc->rip);
 
     if (xregs_state == NULL)
         xregs_state = (PAL_XREGS_STATE*)SYNTHETIC_STATE;
@@ -120,14 +120,23 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
 
     assert(xregs_state);
     ctx->fpregs = xregs_state;
+
+    /* Emulate format for fp registers Linux sets up as signal frame.
+     * https://elixir.bootlin.com/linux/v5.4.13/source/arch/x86/kernel/fpu/signal.c#L86
+     * https://elixir.bootlin.com/linux/v5.4.13/source/arch/x86/kernel/fpu/signal.c#L459
+     */
     PAL_FPX_SW_BYTES* fpx_sw = &xregs_state->fpstate.sw_reserved;
     fpx_sw->magic1 = PAL_FP_XSTATE_MAGIC1;
     fpx_sw->extended_size = xsave_size;
     fpx_sw->xfeatures = xsave_features;
-    fpx_sw->xstate_size = xsave_size + PAL_FP_XSTATE_MAGIC2_SIZE;
     memset(fpx_sw->padding, 0, sizeof(fpx_sw->padding));
-    *(__typeof__(PAL_FP_XSTATE_MAGIC2)*)((void*)xregs_state + xsave_size) =
-        PAL_FP_XSTATE_MAGIC2;
+    if (xsave_enabled) {
+        fpx_sw->xstate_size = xsave_size + PAL_FP_XSTATE_MAGIC2_SIZE;
+        *(__typeof__(PAL_FP_XSTATE_MAGIC2)*)((void*)xregs_state + xsave_size) =
+            PAL_FP_XSTATE_MAGIC2;
+    } else {
+        fpx_sw->xstate_size = xsave_size;
+    }
 }
 
 /*
@@ -171,7 +180,7 @@ static bool handle_ud(sgx_cpu_context_t * uc)
 
 void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc) {
     PAL_XREGS_STATE* xregs_state = (PAL_XREGS_STATE*)(uc + 1);
-    assert((((uintptr_t)xregs_state) % PAL_XSTATE_ALIGN) == 0);
+    assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     union {
         sgx_arch_exit_info_t info;
@@ -241,7 +250,7 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc) {
     PAL_CONTEXT ctx;
     save_pal_context(&ctx, uc, xregs_state);
 
-    /* TODO: save EXINFO from MISC regsion and populate those */
+    /* TODO: save EXINFO from MISC region and populate those below fields */
     ctx.err = 0;
     ctx.trapno = ei.info.valid ? ei.info.vector : event_num;
     ctx.oldmask = 0;
@@ -274,15 +283,13 @@ void _DkExceptionReturn(void* event) {
     __UNUSED(event);
 }
 
-noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
-                                     PAL_XREGS_STATE* xregs_state) {
+noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc) {
     assert(event);
-    assert((((uintptr_t)xregs_state) % PAL_XSTATE_ALIGN) == 0);
-    assert((PAL_XREGS_STATE*) (uc + 1) == xregs_state);
+    PAL_XREGS_STATE* xregs_state = (PAL_XREGS_STATE*)(uc + 1);
+    assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     /* We only end up in _DkHandleExternalEvent() if interrupted during
-     * host syscall;
-     * Inform LibOS layer that PAL was interrupted (by setting PAL_ERRNO). */
+     * host syscall; Inform LibOS layer that PAL was interrupted (by setting PAL_ERRNO). */
     _DkRaiseFailure(PAL_ERROR_INTERRUPTED);
 
     PAL_CONTEXT ctx;
@@ -293,9 +300,9 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc,
     ctx.oldmask = 0;
     ctx.cr2 = 0;
 
-    if (!_DkGenericSignalHandle(event, 0, &ctx)
-        && event != PAL_EVENT_RESUME)
+    if (!_DkGenericSignalHandle(event, 0, &ctx) && event != PAL_EVENT_RESUME) {
         _DkThreadExit(/*clear_child_tid=*/NULL);
+    }
 
     restore_sgx_context(uc, ctx.fpregs);
 }
