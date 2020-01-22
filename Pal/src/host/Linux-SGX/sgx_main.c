@@ -309,6 +309,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         SGX_DBG(DBG_E, "Reading enclave token failed: %d\n", -ret);
         goto out;
     }
+    enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
 
     ret = read_enclave_sigstruct(enclave->sigfile, &enclave_sigstruct);
     if (ret < 0) {
