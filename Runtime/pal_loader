@@ -17,18 +17,18 @@ do
 	shift
 done
 
-RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
-if [ -z $PAL_HOST ]; then
+RUNTIME_DIR=$(/usr/bin/dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+if [ -z "$PAL_HOST" ]; then
     if [ ! -f /usr/bin/make ]; then
         libpal="$RUNTIME_DIR/libpal-*.so"
-        libpal="$(echo -n $libpal)"
+        libpal="$(echo -n "$libpal")"
         libpal="${libpal//$RUNTIME_DIR\//}"
         if [ "$libpal" = 'libpal-*.so' ]; then
             echo "Unable to detect PAL_HOST. Please install the make program."
             exit 1
         fi
 
-        array=($libpal)
+        array=("$libpal")
         if [ ${#array[@]} -ne 1 ]; then
             echo "Multiple libpal detected ($libpal). Please explicitly set the environment variable PAL_HOST."
             exit 1
@@ -47,7 +47,7 @@ PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
 
 if [ "$GDB" == "1" ]; then
 	GDB=$RUNTIME_DIR/pal_gdb-$PAL_HOST
-	if [ ! -f $GDB ]; then
+	if [ ! -f "$GDB" ]; then
 		GDB="/usr/bin/gdb"
 	fi
 fi
@@ -56,15 +56,15 @@ if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
 	if [ -n "$INSIDE_EMACS" ]; then
 		GDB="$GDB -i=mi"
 	fi
-	PREFIX="$GDB --args"
+	PREFIX=("$GDB" --args)
 fi
 
 if [ "$PERF" == "1" ]; then
-	PREFIX="perf stat"
+	PREFIX=(perf stat)
 fi
 
 if [ "$MEMUSG" == "1" ]; then
-	PREFIX="$RUNTIME_DIR/../Scripts/memusg"
+	PREFIX=("$RUNTIME_DIR/../Scripts/memusg")
 fi
 
 while [ "$1" != "" ];
@@ -83,4 +83,8 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-exec $PREFIX $PAL_CMD $MANIFEST "$@"
+if [ ${#PREIFX[@]} -eq 0 ]; then
+    exec "$PAL_CMD" "$MANIFEST" "$@"
+else
+    exec "${PREFIX[@]}" "$PAL_CMD" "$MANIFEST" "$@"
+fi
