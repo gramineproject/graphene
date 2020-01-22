@@ -1566,18 +1566,12 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
         }
     }
 
-    if (level == SOL_TCP) {
-        switch (optname) {
-            case TCP_CORK:
-            case TCP_NODELAY:
-                break;
-            default:
-                return -ENOPROTOOPT;
-        }
-    }
+    if (level == SOL_TCP && optname != TCP_CORK && optname != TCP_NODELAY)
+        return -ENOPROTOOPT;
 
+    PAL_STREAM_ATTR local_attr;
     if (!attr) {
-        attr = __alloca(sizeof(PAL_STREAM_ATTR));
+        attr = &local_attr;
         if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, attr))
             return -PAL_ERRNO;
     }

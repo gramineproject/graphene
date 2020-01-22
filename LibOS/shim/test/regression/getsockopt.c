@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     }
 
     if (optlen != sizeof(so_type) || so_type != SOCK_STREAM) {
-        fprintf(stderr, "getsockopt(SOL_SOCKET, SO_TYPE) failed");
+        fprintf(stderr, "getsockopt(SOL_SOCKET, SO_TYPE) failed\n");
         return 1;
     }
 
@@ -34,14 +34,14 @@ int main(int argc, char** argv) {
 
     int so_flags = 1;
     optlen = sizeof(so_flags);
-    ret = getsockopt(fd, SOL_TCP, TCP_NODELAY, (void *)&so_flags, &optlen);
+    ret = getsockopt(fd, SOL_TCP, TCP_NODELAY, (void*)&so_flags, &optlen);
     if (ret < 0) {
         perror("getsockopt(SOL_TCP, TCP_NODELAY) failed");
         return 1;
     }
 
     if (optlen != sizeof(so_flags) || (so_flags != 0 && so_flags != 1)) {
-        fprintf(stderr, "getsockopt(SOL_TCP, TCP_NODELAY) failed");
+        fprintf(stderr, "getsockopt(SOL_TCP, TCP_NODELAY) failed\n");
         return 1;
     }
 
