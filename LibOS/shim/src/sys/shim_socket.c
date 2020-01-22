@@ -1550,8 +1550,7 @@ static void __populate_addr_with_defaults(PAL_STREAM_ATTR* attr) {
     attr->socket.tcp_nodelay    = PAL_FALSE;
 }
 
-static bool __update_attr(PAL_STREAM_ATTR* attr, int level, int optname, char* optval, int optlen) {
-    __UNUSED(optlen);
+static bool __update_attr(PAL_STREAM_ATTR* attr, int level, int optname, char* optval) {
     assert(attr);
 
     bool need_set_attr = false;
@@ -1626,10 +1625,7 @@ static bool __update_attr(PAL_STREAM_ATTR* attr, int level, int optname, char* o
 }
 
 static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char* optval,
-                           int optlen, PAL_STREAM_ATTR* attr) {
-    // Issue 754 - https://github.com/oscarlab/graphene/issues/754
-    __UNUSED(optlen);
-
+                           PAL_STREAM_ATTR* attr) {
     if (level != SOL_SOCKET && level != SOL_TCP)
         return -ENOPROTOOPT;
 
@@ -1664,7 +1660,7 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
             return -PAL_ERRNO;
     }
 
-    bool need_set_attr = __update_attr(attr, level, optname, optval, optlen);
+    bool need_set_attr = __update_attr(attr, level, optname, optval);
     if (need_set_attr) {
         if (!DkStreamAttributesSetByHandle(hdl->pal_handle, attr))
             return -PAL_ERRNO;
@@ -1689,7 +1685,7 @@ static int __process_pending_options(struct shim_handle* hdl) {
     while (o) {
         PAL_STREAM_ATTR tmp = attr;
 
-        int ret = __do_setsockopt(hdl, o->level, o->optname, o->optval, o->optlen, &tmp);
+        int ret = __do_setsockopt(hdl, o->level, o->optname, o->optval, &tmp);
 
         if (!ret)
             attr = tmp;
@@ -1703,7 +1699,10 @@ static int __process_pending_options(struct shim_handle* hdl) {
 }
 
 int shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen) {
-    if (!optval)
+    if (optlen < (int)sizeof(int))
+        return -EINVAL;
+
+    if (!optval || test_user_memory(optval, optlen, /*write=*/false))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -1741,7 +1740,7 @@ int shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen)
         goto out_locked;
     }
 
-    ret = __do_setsockopt(hdl, level, optname, optval, optlen, NULL);
+    ret = __do_setsockopt(hdl, level, optname, optval, NULL);
 
 out_locked:
     unlock(&hdl->lock);
@@ -1751,7 +1750,10 @@ out:
 }
 
 int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen) {
-    if (!optval || !optlen)
+    if (!optlen || test_user_memory(optlen, sizeof(*optlen), /*write=*/true))
+        return -EFAULT;
+
+    if (!optval || test_user_memory(optval, *optlen, /*write=*/true))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -1832,7 +1834,7 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
 
         struct shim_sock_option* o = sock->pending_options;
         while (o) {
-            __update_attr(&attr, o->level, o->optname, o->optval, o->optlen);
+            __update_attr(&attr, o->level, o->optname, o->optval);
             o = o->next;
         }
     } else {
