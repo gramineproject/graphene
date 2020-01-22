@@ -106,10 +106,13 @@ union pal_csgsfs {
     uint64_t csgsfs;
 };
 
-/* adopt Linux style fp layout */
+/* adopt Linux style fp layout(_libc_fpstate):
+ * Because self-contained definition is needed for Pal definition,
+ * same layout is defined with PAL prefix.
+ */
 #define PAL_FP_XSTATE_MAGIC1        0x46505853U
 #define PAL_FP_XSTATE_MAGIC2        0x46505845U
-#define PAL_FP_XSTATE_MAGIC2_SIZE   sizeof(PAL_FP_XSTATE_MAGIC2)
+#define PAL_FP_XSTATE_MAGIC2_SIZE   (sizeof(PAL_FP_XSTATE_MAGIC2))
 
 enum PAL_XFEATURE {
     PAL_XFEATURE_FP,
@@ -207,7 +210,7 @@ typedef struct {
     uint64_t reserved[6];
 } __attribute__((packed)) PAL_XSTATE_HEADER;
 
-#define PAL_XSTATE_ALIGN    64
+#define PAL_XSTATE_ALIGN 64
 
 typedef struct {
     PAL_FPSTATE fpstate;
