@@ -58,10 +58,6 @@ typedef __kernel_pid_t pid_t;
 #define SOL_IPV6 41
 #endif
 
-#ifndef FIONREAD
-#define FIONREAD 0x541B
-#endif
-
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
 #define PAL_SOCKADDR_SIZE 96

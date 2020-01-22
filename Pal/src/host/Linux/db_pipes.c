@@ -40,10 +40,6 @@ typedef __kernel_pid_t pid_t;
 #include <linux/un.h>
 #include <sys/socket.h>
 
-#ifndef FIONREAD
-#define FIONREAD 0x541B
-#endif
-
 static int pipe_path(int pipeid, char* path, int len) {
     /* use abstract UNIX sockets for pipes */
     memset(path, 0, len);

@@ -48,10 +48,6 @@ typedef __kernel_pid_t pid_t;
 # define SEEK_SET 0
 #endif
 
-#ifndef FIONREAD
-# define FIONREAD 0x541B
-#endif
-
 static inline int create_process_handle (PAL_HANDLE * parent,
                                          PAL_HANDLE * child)
 {

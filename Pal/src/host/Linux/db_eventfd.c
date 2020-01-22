@@ -38,10 +38,6 @@
 #include "pal_linux_error.h"
 #include "pal_security.h"
 
-#ifndef FIONREAD
-#define FIONREAD 0x541B
-#endif
-
 static inline int eventfd_type(int options) {
     int type = 0;
     if (options & PAL_OPTION_NONBLOCK)
