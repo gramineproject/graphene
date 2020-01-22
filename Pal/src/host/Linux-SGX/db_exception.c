@@ -267,7 +267,7 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc) {
 }
 
 void _DkRaiseFailure(int error) {
-    _DkGenericSignalHandle(PAL_EVENT_FAILURE, error, NULL);
+    _DkGenericSignalHandle(PAL_EVENT_FAILURE, error, /*context=*/NULL);
 }
 
 void _DkExceptionReturn(void* event) {
