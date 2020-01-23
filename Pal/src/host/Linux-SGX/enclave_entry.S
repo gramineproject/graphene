@@ -374,7 +374,7 @@ enclave_entry:
 
 	# The last instructions of _restore_sgx_context need to be atomic for
 	# the code below (see _restore_sgx_context for more details). So
-	# emulate this if we interrupted there.
+	# emulate this if we were interrupted there.
 	leaq .Ltmp_rip_saved0(%rip), %rax
 	cmpq %rax, SGX_GPR_RIP(%rbx)
 	je .Lemulate_tmp_rip_saved0
