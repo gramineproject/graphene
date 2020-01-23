@@ -821,9 +821,9 @@ _restore_sgx_context:
 	.cfi_endproc
 
 	# void __save_xregs(PAL_XREGS_STATE* xsave_area)
-	#   RDI: input: pointer to xsave_area
+	#   RDI: argument: pointer to xsave_area
 	#   R11: return address: in order to not touch stack
-	#                        In some situation, stack isn't available.
+	#                        In some situations, stack isn't available.
 	#   RAX, RDX: clobbered
 	.global __save_xregs
 	.type __save_xregs, @function
@@ -862,9 +862,9 @@ save_xregs:
 	.cfi_endproc
 
 	# void restore_xregs(const PAL_XREGS_STATE* xsave_area)
-	#   RDI: input: pointer to xsave_area
+	#   RDI: argument: pointer to xsave_area
 	#   R11: return address: in order to not touch stack
-	#                        In some situation, stack isn't available.
+	#                        In some situations, stack isn't available.
 	#   RAX, RDX: clobbered
 	.global __restore_xregs
 	.type __restore_xregs, @function
