@@ -663,7 +663,10 @@ noreturn void* shim_init (int argc, void * args)
         shim_clean_and_exit(-EINVAL);
     }
 
-    create_lock(&__master_lock);
+    if (!create_lock(&__master_lock)) {
+        SYS_PRINTF("shim_init(): error: failed to allocate __master_lock\n");
+        shim_clean_and_exit(-ENOMEM);
+    }
 
     int * argcp = &argc;
     const char ** argv, ** envp, ** argp = NULL;

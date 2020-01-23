@@ -34,6 +34,12 @@
 
 #define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 
+static struct shim_lock ipc_port_mgr_lock;
+
+#define SYSTEM_LOCK()   lock(&ipc_port_mgr_lock)
+#define SYSTEM_UNLOCK() unlock(&ipc_port_mgr_lock)
+#define SYSTEM_LOCKED() locked(&ipc_port_mgr_lock)
+
 #define PORT_MGR_ALLOC 32
 #define OBJ_TYPE       struct shim_ipc_port
 #include "memmgr.h"
@@ -168,6 +174,10 @@ static int init_ns_ipc_port(int ns_idx) {
 }
 
 int init_ipc_ports(void) {
+    if (!create_lock(&ipc_port_mgr_lock)) {
+        return -ENOMEM;
+    }
+
     if (!(port_mgr = create_mem_mgr(init_align_up(PORT_MGR_ALLOC))))
         return -ENOMEM;
 
@@ -187,7 +197,9 @@ int init_ipc_ports(void) {
 int init_ipc_helper(void) {
     /* early enough in init, can write global vars without the lock */
     ipc_helper_state = HELPER_NOTALIVE;
-    create_lock(&ipc_helper_lock);
+    if (!create_lock(&ipc_helper_lock)) {
+        return -ENOMEM;
+    }
     create_event(&install_new_event);
 
     /* some IPC ports were already added before this point, so spawn IPC helper thread (and enable
@@ -211,7 +223,10 @@ static struct shim_ipc_port* __create_ipc_port(PAL_HANDLE hdl) {
     INIT_LIST_HEAD(port, list);
     INIT_LISTP(&port->msgs);
     REF_SET(port->ref_count, 0);
-    create_lock(&port->msgs_lock);
+    if (!create_lock(&port->msgs_lock)) {
+        free_mem_obj_to_mgr(port_mgr, port);
+        return NULL;
+    }
     return port;
 }
 
@@ -388,7 +403,9 @@ void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode) {
             port->fini[i] = NULL;
         }
 
+    lock(&ipc_helper_lock);
     __put_ipc_port(port);
+    unlock(&ipc_helper_lock);
 }
 
 void del_all_ipc_ports(void) {

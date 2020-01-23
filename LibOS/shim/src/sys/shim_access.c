@@ -41,9 +41,13 @@ int shim_do_access(const char* file, mode_t mode) {
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
-    ret = path_lookupat(NULL, file, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, NULL);
+    lock(&dcache_lock);
+
+    ret = __path_lookupat(NULL, file, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, 0, NULL, false);
     if (!ret)
-        ret = permission(dent, mode);
+        ret = __permission(dent, mode);
+
+    unlock(&dcache_lock);
 
     return ret;
 }
@@ -62,13 +66,17 @@ int shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
     if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
-    ret = path_lookupat(dir, filename, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, NULL);
+    lock(&dcache_lock);
+
+    ret = __path_lookupat(dir, filename, LOOKUP_ACCESS | LOOKUP_FOLLOW, &dent, 0, NULL, false);
     if (ret < 0)
         goto out;
 
-    ret = permission(dent, mode);
+    ret = __permission(dent, mode);
 
 out:
+    unlock(&dcache_lock);
+
     put_dentry(dir);
     return ret;
 }

@@ -141,13 +141,15 @@ static inline ssize_t concat_uri (char * buffer, size_t size, int type,
 
 /* simply just create data, sometimes it is individually called when the
    handle is not linked to a dentry */
-static struct shim_file_data * __create_data (void)
-{
-    struct shim_file_data * data = calloc(1, sizeof(struct shim_file_data));
+static struct shim_file_data* __create_data (void) {
+    struct shim_file_data* data = calloc(1, sizeof(struct shim_file_data));
     if (!data)
         return NULL;
 
-    create_lock(&data->lock);
+    if (!create_lock(&data->lock)) {
+        free(data);
+        return NULL;
+    }
     return data;
 }
 

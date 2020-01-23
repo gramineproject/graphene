@@ -54,7 +54,9 @@ int init_ns_pid(void) {
     struct shim_ipc_info* info;
     int ret = 0;
 
-    init_namespace();
+    if ((ret = init_namespace()) < 0) {
+        return ret;
+    }
 
     if ((ret = get_ipc_info_cur_process(&info)) < 0)
         return ret;
@@ -690,7 +692,9 @@ static LISTP_TYPE(rpcreq) rpc_reqs;
 static struct shim_lock rpc_queue_lock;
 
 int get_rpc_msg(IDTYPE* sender, void* buf, int len) {
-    create_lock_runtime(&rpc_queue_lock);
+    if (!create_lock_runtime(&rpc_queue_lock)) {
+        return -ENOMEM;
+    }
     lock(&rpc_queue_lock);
 
     if (!LISTP_EMPTY(&rpc_msgs)) {
@@ -738,7 +742,9 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
 
     debug("ipc callback from %u: IPC_PID_SENDPRC(%u, %d)\n", msg->src, msgin->sender, msgin->len);
 
-    create_lock_runtime(&rpc_queue_lock);
+    if (!create_lock_runtime(&rpc_queue_lock)) {
+        return -ENOMEM;
+    }
     lock(&rpc_queue_lock);
 
     if (!LISTP_EMPTY(&rpc_reqs)) {

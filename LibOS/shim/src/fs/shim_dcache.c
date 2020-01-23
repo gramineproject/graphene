@@ -28,12 +28,18 @@
 #include <shim_internal.h>
 #include <shim_types.h>
 
-struct shim_lock dcache_lock;
+static struct shim_lock dcache_mgr_lock;
+
+#define SYSTEM_LOCK()   lock(&dcache_mgr_lock)
+#define SYSTEM_UNLOCK() unlock(&dcache_mgr_lock)
+#define SYSTEM_LOCKED() locked(&dcache_mgr_lock)
 
 #define DCACHE_MGR_ALLOC 64
 
 #define OBJ_TYPE struct shim_dentry
 #include <memmgr.h>
+
+struct shim_lock dcache_lock;
 
 static MEM_MGR dentry_mgr = NULL;
 
@@ -59,13 +65,20 @@ static struct shim_dentry* alloc_dentry(void) {
     INIT_LISTP(&dent->children);
     INIT_LIST_HEAD(dent, siblings);
 
+    if (!create_lock(&dent->lock)) {
+        free_mem_obj_to_mgr(dentry_mgr, dent);
+        return NULL;
+    }
+
     return dent;
 }
 
 int init_dcache(void) {
-    dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
+    if (!create_lock(&dcache_mgr_lock) || !create_lock(&dcache_lock)) {
+        return -ENOMEM;
+    }
 
-    create_lock(&dcache_lock);
+    dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
 
     dentry_root = alloc_dentry();
 
@@ -100,6 +113,7 @@ void get_dentry(struct shim_dentry* dent) {
 }
 
 static void free_dentry(struct shim_dentry* dent) {
+    destroy_lock(&dent->lock);
     free_mem_obj_to_mgr(dentry_mgr, dent);
 }
 
@@ -374,7 +388,9 @@ BEGIN_RS_FUNC(dentry) {
     CP_REBASE(dent->parent);
     CP_REBASE(dent->mounted);
 
-    create_lock(&dent->lock);
+    if (!create_lock(&dent->lock)) {
+        return -ENOMEM;
+    }
 
     /* DEP 6/16/17: I believe the point of this line is to
      * fix up the children linked list.  Presumably the ref count and

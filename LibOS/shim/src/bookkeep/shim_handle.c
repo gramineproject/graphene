@@ -130,10 +130,13 @@ static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct 
 static struct shim_handle_map* __enlarge_handle_map(struct shim_handle_map* map, FDTYPE size);
 
 int init_handle(void) {
-    create_lock(&handle_mgr_lock);
-    handle_mgr = create_mem_mgr(init_align_up(HANDLE_MGR_ALLOC));
-    if (!handle_mgr)
+    if (!create_lock(&handle_mgr_lock)) {
         return -ENOMEM;
+    }
+    handle_mgr = create_mem_mgr(init_align_up(HANDLE_MGR_ALLOC));
+    if (!handle_mgr) {
+        return -ENOMEM;
+    }
     return 0;
 }
 
@@ -278,7 +281,10 @@ struct shim_handle* get_new_handle(void) {
 
     memset(new_handle, 0, sizeof(struct shim_handle));
     REF_SET(new_handle->ref_count, 1);
-    create_lock(&new_handle->lock);
+    if (!create_lock(&new_handle->lock)) {
+        free_mem_obj_to_mgr(handle_mgr, new_handle);
+        return NULL;
+    }
     new_handle->owner = cur_process.vmid;
     INIT_LISTP(&new_handle->epolls);
     return new_handle;
@@ -555,7 +561,10 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
 
     handle_map->fd_top  = FD_NULL;
     handle_map->fd_size = size;
-    create_lock(&handle_map->lock);
+    if (!create_lock(&handle_map->lock)) {
+        free(handle_map);
+        return NULL;
+    }
 
     return handle_map;
 }
@@ -781,13 +790,17 @@ BEGIN_RS_FUNC(handle) {
     CP_REBASE(hdl->dentry);
     CP_REBASE(hdl->epolls);
 
-    create_lock(&hdl->lock);
+    if (!create_lock(&hdl->lock)) {
+        return -ENOMEM;
+    }
 
     if (!hdl->fs) {
         assert(hdl->fs_type);
         search_builtin_fs(hdl->fs_type, &hdl->fs);
-        if (!hdl->fs)
+        if (!hdl->fs) {
+            destroy_lock(&hdl->lock);
             return -EINVAL;
+        }
     }
 
     if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->checkin)
@@ -874,7 +887,9 @@ BEGIN_RS_FUNC(handle_map) {
 
     DEBUG_RS("size=%d,top=%d", handle_map->fd_size, handle_map->fd_top);
 
-    create_lock(&handle_map->lock);
+    if (!create_lock(&handle_map->lock)) {
+        return -ENOMEM;
+    }
     lock(&handle_map->lock);
 
     if (handle_map->fd_top != FD_NULL)

@@ -41,7 +41,7 @@ struct async_event {
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
 
-/* can be read without async_helper_lock but always written with lock held */
+/* Should be accessed  with async_helper_lock held. */
 static enum { HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
 
 static struct shim_thread* async_helper_thread;
@@ -137,7 +137,9 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
 int init_async(void) {
     /* early enough in init, can write global vars without the lock */
     async_helper_state = HELPER_NOTALIVE;
-    create_lock(&async_helper_lock);
+    if (!create_lock(&async_helper_lock)) {
+        return -ENOMEM;
+    }
     create_event(&install_new_event);
 
     /* enable locking mechanisms since we are going in multi-threaded mode */

@@ -89,8 +89,10 @@ int init_fs(void) {
     if (!mount_mgr)
         return -ENOMEM;
 
-    create_lock(&mount_mgr_lock);
-    create_lock(&mount_list_lock);
+    if (!create_lock(&mount_mgr_lock) || !create_lock(&mount_list_lock)) {
+        destroy_mem_mgr(mount_mgr);
+        return -ENOMEM;
+    }
     return 0;
 }
 
@@ -399,6 +401,8 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     size_t last_len;
     find_last_component(mount_point, &last, &last_len);
 
+    lock(&dcache_lock);
+
     if (!parent) {
         // See if we are not at the root mount
         if (last_len > 0) {
@@ -410,7 +414,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
             if ((ret = __path_lookupat(dentry_root, parent_path, 0, &parent, 0, dentry_root->fs,
                                        make_ancestor)) < 0) {
                 debug("Path lookup failed %d\n", ret);
-                goto out;
+                goto out_with_unlock;
             }
         }
     }
@@ -421,11 +425,9 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
         if (parent->rel_path.len + 1 + last_len >= STR_SIZE) {  /* +1 for '/' */
             debug("Relative path exceeds the limit %d\n", STR_SIZE);
             ret = -ENAMETOOLONG;
-            goto out;
+            goto out_with_unlock;
         }
     }
-
-    lock(&dcache_lock);
 
     struct shim_mount* mount = alloc_mount();
     void* mount_data         = NULL;

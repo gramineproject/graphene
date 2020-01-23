@@ -602,14 +602,17 @@ extern struct shim_lock __master_lock;
 # define MASTER_UNLOCK() do { unlock(&__master_lock); } while (0)
 #endif
 
-static inline void create_lock_runtime(struct shim_lock* l)
-{
+static inline bool create_lock_runtime(struct shim_lock* l) {
+    bool ret = true;
+
     if (!lock_created(l)) {
         MASTER_LOCK();
         if (!lock_created(l))
-            create_lock(l);
+            ret = create_lock(l);
         MASTER_UNLOCK();
     }
+
+    return ret;
 }
 
 static inline void create_event (AEVENTTYPE * e)
