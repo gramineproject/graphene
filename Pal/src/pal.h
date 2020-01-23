@@ -106,7 +106,7 @@ union pal_csgsfs {
     uint64_t csgsfs;
 };
 
-/* adopt Linux style fp layout(_libc_fpstate):
+/* adopt Linux style fp layout, _libc_fpstate of glibc:
  * Because self-contained definition is needed for Pal definition,
  * same layout is defined with PAL prefix.
  */
