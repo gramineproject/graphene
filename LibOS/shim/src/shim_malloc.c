@@ -99,8 +99,13 @@ void __system_free(void* addr, size_t size) {
 }
 
 int init_slab(void) {
-    create_lock(&slab_mgr_lock);
+    if (!create_lock(&slab_mgr_lock)) {
+        return -ENOMEM;
+    }
     slab_mgr = create_slab_mgr();
+    if (!slab_mgr) {
+        return -ENOMEM;
+    }
     return 0;
 }
 

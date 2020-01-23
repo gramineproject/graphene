@@ -192,7 +192,9 @@ static int proc_match_ipc_thread(const char* name) {
     if (parse_ipc_thread_name(name, &pid, NULL, NULL, NULL) < 0)
         return 0;
 
-    create_lock_runtime(&status_lock);
+    if (!create_lock_runtime(&status_lock)) {
+        return -ENOMEM;
+    }
     lock(&status_lock);
 
     if (pid_status_cache)
@@ -214,7 +216,9 @@ static int proc_ipc_thread_dir_mode(const char* name, mode_t* mode) {
     if (ret < 0)
         return ret;
 
-    create_lock_runtime(&status_lock);
+    if (!create_lock_runtime(&status_lock)) {
+        return -ENOMEM;
+    }
     lock(&status_lock);
 
     if (pid_status_cache)
@@ -237,7 +241,9 @@ static int proc_ipc_thread_dir_stat(const char* name, struct stat* buf) {
     if (ret < 0)
         return ret;
 
-    create_lock_runtime(&status_lock);
+    if (!create_lock_runtime(&status_lock)) {
+        return -ENOMEM;
+    }
     lock(&status_lock);
 
     if (pid_status_cache)
@@ -265,7 +271,9 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int 
     struct pid_status_cache* status = NULL;
     int ret                         = 0;
 
-    create_lock_runtime(&status_lock);
+    if (!create_lock_runtime(&status_lock)) {
+        return -ENOMEM;
+    }
 
     lock(&status_lock);
     if (pid_status_cache && !pid_status_cache->dirty) {

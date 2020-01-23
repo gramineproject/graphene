@@ -48,8 +48,7 @@
 #include "shim_ipc_nsimpl.h"
 
 int init_ns_sysv(void) {
-    init_namespace();
-    return 0;
+    return init_namespace();
 }
 
 DEFINE_PROFILE_INTERVAL(ipc_sysv_delres_send, ipc);

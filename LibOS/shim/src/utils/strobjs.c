@@ -37,8 +37,14 @@ static struct shim_lock str_mgr_lock;
 static MEM_MGR str_mgr = NULL;
 
 int init_str_mgr(void) {
-    create_lock(&str_mgr_lock);
+    if (!create_lock(&str_mgr_lock)) {
+        return -ENOMEM;
+    }
     str_mgr = create_mem_mgr(init_align_up(STR_MGR_ALLOC));
+    if (!str_mgr) {
+        destroy_lock(&str_mgr_lock);
+        return -ENOMEM;
+    }
     return 0;
 }
 

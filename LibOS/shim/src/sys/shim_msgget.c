@@ -18,6 +18,10 @@
  * shim_msgget.c
  *
  * Implementation of system call "msgget", "msgsnd", "msgrcv" and "msgctl".
+ *
+ * XXX(borysp): I'm pretty sure there are possible deadlocks in this code. Sometimes it first takes
+ * `msgq_list_lock` and then `hdl->lock`, sometimes other way round. Someone will have to rewrite
+ * it someday.
  */
 
 #include <errno.h>
@@ -260,15 +264,14 @@ int del_msg_handle(struct shim_msg_handle* msgq) {
     return ret;
 }
 
-static void __try_create_lock(void) {
-    create_lock_runtime(&msgq_list_lock);
-}
-
 int shim_do_msgget(key_t key, int msgflg) {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     IDTYPE msgid = 0;
     int ret;
-    __try_create_lock();
+
+    if (!create_lock_runtime(&msgq_list_lock)) {
+        return -ENOMEM;
+    }
 
     if (key != IPC_PRIVATE) {
         struct shim_msg_handle* msgq = get_msg_handle_by_key(key);
@@ -376,7 +379,10 @@ int shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg) {
         return -EINVAL;
 
     struct shim_msg_handle* msgq;
-    __try_create_lock();
+
+    if (!create_lock_runtime(&msgq_list_lock)) {
+        return -ENOMEM;
+    }
 
     if ((ret = connect_msg_handle(msqid, &msgq)) < 0)
         return ret;
@@ -401,7 +407,10 @@ int shim_do_msgrcv(int msqid, void* msgp, size_t msgsz, long msgtype, int msgflg
 
     struct __kernel_msgbuf* msgbuf = (struct __kernel_msgbuf*)msgp;
     struct shim_msg_handle* msgq;
-    __try_create_lock();
+
+    if (!create_lock_runtime(&msgq_list_lock)) {
+        return -ENOMEM;
+    }
 
     if ((ret = connect_msg_handle(msqid, &msgq)) < 0)
         return ret;
@@ -419,7 +428,10 @@ int shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf) {
 
     struct shim_msg_handle* msgq;
     int ret;
-    __try_create_lock();
+
+    if (!create_lock_runtime(&msgq_list_lock)) {
+        return -ENOMEM;
+    }
 
     if ((ret = connect_msg_handle(msqid, &msgq)) < 0)
         return ret;
@@ -432,7 +444,7 @@ int shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf) {
                     break;
             }
 
-            __del_msg_handle(msgq);
+            del_msg_handle(msgq);
             break;
 
         default:
@@ -890,11 +902,15 @@ int store_all_msg_persist(void) {
     struct shim_msg_handle* msgq;
     struct shim_msg_handle* n;
 
+    if (!create_lock_runtime(&msgq_list_lock)) {
+        return -ENOMEM;
+    }
+
     lock(&msgq_list_lock);
 
     LISTP_FOR_EACH_ENTRY_SAFE(msgq, n, &msgq_list, list) {
         if (msgq->owned) {
-            struct shim_handle* hdl = container_of(msgq, struct shim_handle, info.msg);
+            struct shim_handle* hdl = MSG_TO_HANDLE(msgq);
             lock(&hdl->lock);
             __store_msg_persist(msgq);
             unlock(&hdl->lock);
@@ -910,13 +926,17 @@ int shim_do_msgpersist(int msqid, int cmd) {
     struct shim_handle* hdl;
     int ret = -EINVAL;
 
+    if (!create_lock_runtime(&msgq_list_lock)) {
+        return -ENOMEM;
+    }
+
     switch (cmd) {
         case MSGPERSIST_STORE:
             msgq = get_msg_handle_by_id(msqid);
             if (!msgq)
                 return -EINVAL;
 
-            hdl = container_of(msgq, struct shim_handle, info.msg);
+            hdl = MSG_TO_HANDLE(msgq);
             lock(&hdl->lock);
             ret = __store_msg_persist(msgq);
             unlock(&hdl->lock);

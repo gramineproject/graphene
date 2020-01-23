@@ -292,9 +292,14 @@ __bkeep_preloaded (void * start, void * end, int prot, int flags,
     return __bkeep_mmap(prev, start, end, prot, flags, NULL, 0, comment);
 }
 
-int init_vma (void)
-{
-    int ret;
+int init_vma(void) {
+    int ret = 0;
+
+    if (!create_lock(&vma_list_lock)) {
+        return -ENOMEM;
+    }
+
+    lock(&vma_list_lock);
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
         reserved_vmas[i] = &early_vmas[i];
@@ -307,7 +312,7 @@ int init_vma (void)
                                 PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
                                 "reserved");
         if (ret < 0)
-            return ret;
+            goto out;
     }
 
     ret = __bkeep_preloaded(PAL_CB(executable_range.start),
@@ -315,14 +320,14 @@ int init_vma (void)
                             PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
                             "exec");
     if (ret < 0)
-        return ret;
+        goto out;
 
     ret = __bkeep_preloaded(PAL_CB(manifest_preload.start),
                             PAL_CB(manifest_preload.end),
                             PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
                             "manifest");
     if (ret < 0)
-        return ret;
+        goto out;
 
     /* Keep track of LibOS code itself so nothing overwrites it */
     ret = __bkeep_preloaded(&__load_address,
@@ -330,13 +335,14 @@ int init_vma (void)
                             PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
                             "LibOS");
     if (ret < 0)
-        return ret;
+        goto out;
 
     /* Initialize the allocator */
 
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
         debug("failed creating the VMA allocator\n");
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++) {
@@ -357,8 +363,6 @@ int init_vma (void)
         assert(reserved_vmas[i]);
     }
 
-    create_lock(&vma_list_lock);
-
     current_heap_top = PAL_CB(user_address.end);
 
 #if ENABLE_ASLR == 1
@@ -371,14 +375,18 @@ int init_vma (void)
         (PAL_CB(user_address.end) - PAL_CB(user_address.start)) * 5 / 6;
     size_t rand;
     ret = DkRandomBitsRead(&rand, sizeof(rand));
-    if (ret < 0)
-        return -convert_pal_errno(-ret);
+    if (ret < 0) {
+        ret = -convert_pal_errno(-ret);
+        goto out;
+    }
     current_heap_top -= ALLOC_ALIGN_DOWN(rand % addr_rand_size);
 #endif
 
     debug("heap top adjusted to %p\n", current_heap_top);
 
-    return 0;
+out:
+    unlock(&vma_list_lock);
+    return ret;
 }
 
 static inline struct shim_vma * __get_new_vma (void)

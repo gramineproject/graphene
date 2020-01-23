@@ -34,6 +34,12 @@
 #include <shim_unistd.h>
 #include <shim_utils.h>
 
+static struct shim_lock ipc_info_mgr_lock;
+
+#define SYSTEM_LOCK()   lock(&ipc_info_mgr_lock)
+#define SYSTEM_UNLOCK() unlock(&ipc_info_mgr_lock)
+#define SYSTEM_LOCKED() locked(&ipc_info_mgr_lock)
+
 #define IPC_INFO_MGR_ALLOC 32
 #define OBJ_TYPE           struct shim_ipc_info
 #include "memmgr.h"
@@ -60,7 +66,11 @@ int init_ns_sysv(void);
 int init_ipc(void) {
     int ret = 0;
 
-    create_lock(&ipc_info_lock);
+    if (!create_lock(&ipc_info_lock)
+        || !create_lock(&cur_process.lock)
+        || !create_lock(&ipc_info_mgr_lock)) {
+        return -ENOMEM;
+    }
 
     if (!(ipc_info_mgr = create_mem_mgr(init_align_up(IPC_INFO_MGR_ALLOC))))
         return -ENOMEM;
@@ -596,7 +606,8 @@ BEGIN_RS_FUNC(process) {
             get_ipc_info(process->ns[i]);
 
     memcpy(&cur_process, process, sizeof(struct shim_process));
-    create_lock(&cur_process.lock);
+    // this lock will be created in init_ipc
+    clear_lock(&cur_process.lock);
 
     DEBUG_RS("vmid=%u,uri=%s,parent=%u(%s)", process->vmid,
              process->self ? qstrgetstr(&process->self->uri) : "",
