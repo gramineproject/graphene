@@ -89,7 +89,7 @@ pipeline {
                            make -C Pal/lib distclean
                            rm LibOS/glibc-*.tar.gz
                            make -C LibOS/shim/test/regression SGX=1 clean
-                           make -C LibOS/shim/test/apps/ltp clean
+                           #make -C LibOS/shim/test/apps/ltp clean
                            # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
                            rm -rf /tmp/graphene-sgx.clean-check.clean/LibOS/shim/test/apps/ltp/src
                            rm -rf LibOS/shim/test/apps/ltp/src
