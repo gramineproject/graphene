@@ -377,14 +377,6 @@ enclave_entry:
 	# The last instructions of _restore_sgx_context need to be atomic for
 	# the code below (see _restore_sgx_context for more details). So
 	# emulate this if we interrupted there.
-	# To avoid this RIP-overwriting race, emulate vulnerable instructions in
-	# _restore_sgx_context() before setting up an exception handler:
-	# - if saved RIP == .Ltmp_rip_saved0
-	#   emulate movq SGX_CPU_CONTEXT_R15 - SGX_CPU_CONTEXT_RIP(%rsp), %r15
-	# - if saved RIP == .Ltmp_rip_saved1
-	#   emulate movq SGX_CPU_CONTEXT_RSP - SGX_CPU_CONTEXT_RIP(%rsp), %rsp
-	# - if saved RIP == .Ltmp_rip_saved2
-	#   emulate jmp *%gs:SGX_TMP_RIP
 	leaq .Ltmp_rip_saved0(%rip), %rax
 	cmpq %rax, SGX_GPR_RIP(%rbx)
 	je .Lemulate_tmp_rip_saved0
@@ -558,7 +550,6 @@ sgx_ocall:
 	.cfi_offset %rbp, -16
 	.cfi_def_cfa_register %rbp
 
-	# switch to signal stack If we are not already using the signal stack switch to it.
 	CHECK_IF_SIGNAL_STACK_IS_USED %rax, %rsp, .Lon_signal_stack_ocall, .Lout_of_signal_stack_ocall
 
 .Lout_of_signal_stack_ocall:
