@@ -10,12 +10,10 @@
 	jmp .Lfail_loop\@
 .endm
 
-.macro CHECK_IF_SIGNAL_STACK_IS_USED tmp_reg, stack_reg, label_on_stack, label_out_of_stack
-	movq %gs:SGX_SIG_STACK_LOW, \tmp_reg
-	cmpq \tmp_reg, \stack_reg
+.macro CHECK_IF_SIGNAL_STACK_IS_USED stack_reg, label_on_stack, label_out_of_stack
+	cmpq %gs:SGX_SIG_STACK_LOW, \stack_reg
 	jb \label_out_of_stack
-	movq %gs:SGX_SIG_STACK_HIGH, \tmp_reg
-	cmpq \tmp_reg, \stack_reg
+	cmpq %gs:SGX_SIG_STACK_HIGH, \stack_reg
 	ja \label_out_of_stack
 	jmp \label_on_stack
 .endm
@@ -409,8 +407,7 @@ enclave_entry:
 
 	movq SGX_GPR_RSP(%rbx), %rsi
 
-	# Check if saved rsp is in signal stack
-	CHECK_IF_SIGNAL_STACK_IS_USED %rax, %rsi, .Lon_signal_stack, .Lout_of_signal_stack
+	CHECK_IF_SIGNAL_STACK_IS_USED %rsi, .Lon_signal_stack, .Lout_of_signal_stack
 
 .Lout_of_signal_stack:
 	movq %gs:SGX_SIG_STACK_HIGH, %rsi
@@ -550,7 +547,7 @@ sgx_ocall:
 	.cfi_offset %rbp, -16
 	.cfi_def_cfa_register %rbp
 
-	CHECK_IF_SIGNAL_STACK_IS_USED %rax, %rsp, .Lon_signal_stack_ocall, .Lout_of_signal_stack_ocall
+	CHECK_IF_SIGNAL_STACK_IS_USED %rsp, .Lon_signal_stack_ocall, .Lout_of_signal_stack_ocall
 
 .Lout_of_signal_stack_ocall:
 	movq %gs:SGX_SIG_STACK_HIGH, %rsp
