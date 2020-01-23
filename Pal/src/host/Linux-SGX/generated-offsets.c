@@ -1,15 +1,14 @@
 #include <stddef.h>
 #include <asm/errno.h>
 
-#include "pal.h"
-#include "sgx_arch.h"
-#include "sgx_tls.h"
+#include "ecall_types.h"
+#include "ocall_types.h"
 #include "pal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "ecall_types.h"
-#include "ocall_types.h"
+#include "sgx_arch.h"
+#include "sgx_tls.h"
 
 #include <generated-offsets-build.h>
 
