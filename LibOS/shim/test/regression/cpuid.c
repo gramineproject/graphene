@@ -16,8 +16,8 @@ static void test_cpuid_leaf_0xd(void) {
     const uint32_t leaf = 0xd;
     // Sub-leaf IDs for the various extensions.
     enum {
-        AVX = 2, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3 };
-    const uint32_t extension_sizes_bytes[] = {0, 0, 256, 64, 64, 64, 512, 1024};
+        AVX = 2, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3, PKRU = 9 };
+    const uint32_t extension_sizes_bytes[] = {0, 0, 256, 64, 64, 64, 512, 1024, 0, 8};
     const uint32_t extension_unavailable = 0;
 
     cpuid(leaf, AVX, vs);
@@ -48,6 +48,12 @@ static void test_cpuid_leaf_0xd(void) {
     cpuid(leaf, AVX512_3, vs);
     if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_3]))
         abort();
+    memset(vs, 0, sizeof(vs));
+
+    cpuid(leaf, PKRU, vs);
+    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[PKRU]))
+        abort();
+    memset(vs, 0, sizeof(vs));
 }
 
 int main(int argc, char** argv, char** envp) {
