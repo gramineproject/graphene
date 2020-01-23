@@ -178,8 +178,8 @@ static bool handle_ud(sgx_cpu_context_t * uc)
     return false;
 }
 
-void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc) {
-    PAL_XREGS_STATE* xregs_state = (PAL_XREGS_STATE*)(uc + 1);
+void _DkExceptionHandler(
+    unsigned int exit_info, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state) {
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     union {
@@ -250,7 +250,7 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc) {
     PAL_CONTEXT ctx;
     save_pal_context(&ctx, uc, xregs_state);
 
-    /* TODO: save EXINFO from MISC region and populate those below fields */
+    /* TODO: save EXINFO from MISC region and populate below fields */
     ctx.err = 0;
     ctx.trapno = ei.info.valid ? ei.info.vector : event_num;
     ctx.oldmask = 0;
@@ -283,9 +283,9 @@ void _DkExceptionReturn(void* event) {
     __UNUSED(event);
 }
 
-noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc) {
+noreturn void _DkHandleExternalEvent(
+    PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state) {
     assert(event);
-    PAL_XREGS_STATE* xregs_state = (PAL_XREGS_STATE*)(uc + 1);
     assert(IS_ALIGNED_PTR(xregs_state, PAL_XSTATE_ALIGN));
 
     /* We only end up in _DkHandleExternalEvent() if interrupted during

@@ -483,9 +483,10 @@ enclave_entry:
 	movq SGX_GPR_RIP(%rbx), %rdi
 	movq %rdi, SGX_CPU_CONTEXT_RIP(%rsi)
 
-	# Pass pointer to sgx_cpu_context_t to _DkExceptionHandler
+	# Pass pointer to sgx_cpu_context_t and PAL_XREGS_STATE to _DkExceptionHandler
 	movq %rsi, SGX_GPR_RSI(%rbx) # 2nd argument for _DkExceptionHandler()
-
+	movq %rsi, SGX_GPR_RDX(%rbx)
+	addq $SGX_CPU_CONTEXT_SIZE, SGX_GPR_RDX(%rbx) # 3rd argument for _DkExceptionHandler()
 	# TODO: save EXINFO in MISC region
 
 	# x86-64 sysv abi requires 16B alignment of stack before call instruction
@@ -731,6 +732,7 @@ __morestack:
 	# _restore_sgx_context restores rflags and fp registers. So we don't have to
 	# sanitize them like below.
 	jmp _restore_sgx_context
+	# NOTREACHED
 
 .Lexternal_event:
 	# clear the Alignment Check flag (%rFLAGS.AC) to prevent #AC-fault side channel;
@@ -741,8 +743,9 @@ __morestack:
 	leaq SYNTHETIC_STATE(%rip), %rdi
 	callq restore_xregs
 
-	movq %rsi, %rdi # %rdi = PAL_NUM event
-	movq %rsp, %rsi # %rsi = sgx_cpu_context_t* uc
+	movq %rsi, %rdi # 1st argument = PAL_NUM event
+	movq %rsp, %rsi # 2nd argument = sgx_cpu_context_t* uc
+	leaq SGX_CPU_CONTEXT_SIZE(%rsp), %rdx # 3rd argument = PAL_XREGS_STATE* xregs_state
 	callq _DkHandleExternalEvent
 	# NOTREACHED
 
