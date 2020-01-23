@@ -304,5 +304,14 @@ noreturn void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc) {
         _DkThreadExit(/*clear_child_tid=*/NULL);
     }
 
-    restore_sgx_context(uc, ctx.fpregs);
+    /*
+     * The modification to PAL_CONTEXT is discarded.
+     * It is assumed that LibOS won't change context (GPRs, fp registers)
+     * if RIP is in PAL.
+     *
+     * TODO: in long term, record the signal and trigger the signal handler
+     * when returning from PAL by the use of
+     * ENTER_PAL_CALL/LEAVE_PAL_CALL/LEAVE_PAL_CALL_RETURN.
+     */
+    restore_sgx_context(uc, xregs_state);
 }
