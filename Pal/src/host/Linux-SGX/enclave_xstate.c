@@ -1,6 +1,6 @@
 /*
  * this function is shamelessly stolen from linux-sgx
- * https://github.com/intel/linux-sgx/blob/master/sdk/trts/trts_xsave.cpp
+ * https://github.com/intel/linux-sgx/blob/9ddec08fb98c1636ed3b1a77bbc4fa3520344ede/sdk/trts/trts_xsave.cpp
  * It has BSD lisence.
  */
 
@@ -82,12 +82,12 @@ void init_xsave_size(uint64_t xfrm) {
     xsave_features = PAL_XFEATURE_MASK_FPSSE;
     xsave_size = 512 + 64;
     if (!xfrm || (xfrm & SGX_XFRM_RESERVED)) {
-        SGX_DBG(DBG_I, "xsave is disabled xfrm 0x%lx\n", xfrm);
+        SGX_DBG(DBG_I, "xsave is disabled, xfrm 0x%lx\n", xfrm);
         return;
     }
 
     xsave_enabled = (xfrm == SGX_XFRM_LEGACY) ? 0 : 1;
-    for (size_t i = 0; i < sizeof(xsave_size_table)/sizeof(xsave_size_table[0]); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(xsave_size_table); i++) {
         if ((xfrm & xsave_size_table[i].bits) == xsave_size_table[i].bits) {
             xsave_features = xfrm;
             xsave_size = xsave_size_table[i].size;
