@@ -1206,7 +1206,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
             peek_buffer->start = 0;
             peek_buffer->end   = 0;
         } else {
-            /* realloc peek buffer to accomodate expected read size */
+            /* realloc peek buffer to accommodate expected read size */
             if (expected_size > peek_buffer->size - peek_buffer->start) {
                 size_t expand = expected_size - (peek_buffer->size - peek_buffer->start);
                 struct shim_peek_buffer* old_peek_buffer = peek_buffer;
@@ -1248,8 +1248,9 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
 
     for (int i = 0; i < nbufs; i++) {
         size_t iov_bytes = 0;
-        if (peek_buffer && total_bytes < peek_buffer->end - peek_buffer->start) {
-            /* still some data left to read from peek buffer */
+        if (peek_buffer) {
+            /* some data left to read from peek buffer */
+            assert(total_bytes < peek_buffer->end - peek_buffer->start);
             iov_bytes = MIN(bufs[i].iov_len, peek_buffer->end - peek_buffer->start - total_bytes);
             memcpy(bufs[i].iov_base, &peek_buffer->buf[peek_buffer->start + total_bytes], iov_bytes);
             uri = peek_buffer->uri;

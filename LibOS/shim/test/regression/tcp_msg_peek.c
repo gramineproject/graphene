@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -17,89 +18,146 @@
 enum { SINGLE, PARALLEL } mode = PARALLEL;
 int pipefds[2];
 
-int server(void) {
-    int create_socket, new_socket;
+void server(void) {
+    int listening_socket, client_socket;
     struct sockaddr_in address;
     socklen_t addrlen;
-    char buffer[BUFLEN];
 
-    if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((listening_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         exit(1);
     }
 
     int enable = 1;
-    if (setsockopt(create_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0) {
+    if (setsockopt(listening_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0) {
         perror("setsockopt");
         exit(1);
     }
 
-    memset((char*)&address, 0, sizeof(address));
+    memset(&address, 0, sizeof(address));
     address.sin_family      = AF_INET;
     address.sin_port        = htons(PORT);
     address.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    if (bind(listening_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind");
-        close(create_socket);
         exit(1);
     }
 
-    if (listen(create_socket, 3) < 0) {
+    if (listen(listening_socket, 3) < 0) {
         perror("listen");
-        close(create_socket);
         exit(1);
     }
 
     if (mode == PARALLEL) {
-        close(pipefds[0]);
+        if (close(pipefds[0]) < 0) {
+            perror("close of pipe");
+            exit(1);
+        }
+
         char byte = 0;
-        write(pipefds[1], &byte, 1);
+
+        ssize_t written = 0;
+        while (written == 0) {
+            if ((written = write(pipefds[1], &byte, sizeof(byte))) < 0) {
+                if (errno == EINTR || errno == EAGAIN)
+                    continue;
+                perror("write on pipe");
+                exit(1);
+            }
+        }
     }
 
-    addrlen    = sizeof(address);
-    new_socket = accept(create_socket, (struct sockaddr*)&address, &addrlen);
+    addrlen       = sizeof(address);
+    client_socket = accept(listening_socket, (struct sockaddr*)&address, &addrlen);
 
-    if (new_socket < 0) {
+    if (client_socket < 0) {
         perror("accept");
-        close(create_socket);
         exit(1);
     }
 
-    close(create_socket);
+    if (close(listening_socket) < 0) {
+        perror("close of listening socket");
+        exit(1);
+    }
 
     puts("[server] client is connected...");
 
-    sprintf(buffer, "Hello from server!\n");
-    if (sendto(new_socket, buffer, strlen(buffer), 0, 0, 0) < 0) {
-        perror("sendto");
-        close(new_socket);
+    char buffer[] = "Hello from server!\n";
+
+    ssize_t written = 0;
+    while (written < sizeof(buffer)) {
+        ssize_t n;
+        if ((n = sendto(client_socket, buffer + written, sizeof(buffer) - written, 0, 0, 0)) < 0) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
+            perror("sendto to client");
+            exit(1);
+        }
+        written += n;
+    }
+
+    if (close(client_socket) < 0) {
+        perror("close of client socket");
         exit(1);
     }
 
     puts("[server] done");
-    close(new_socket);
-    return 0;
 }
 
-int client(void) {
-    int create_socket;
+static ssize_t client_recv(int server_socket, char* buf, size_t len, int flags) {
+    ssize_t read = 0;
+    while (1) {
+        ssize_t n;
+        if ((n = recv(server_socket, buf + read, len - read, flags)) < 0) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
+            perror("client recv");
+            exit(1);
+        }
+
+        read += n;
+
+        if (!n || flags & MSG_PEEK) {
+            /* recv with MSG_PEEK flag should be done only once */
+            break;
+        }
+    }
+
+    return read;
+}
+
+void client(void) {
+    int server_socket;
     struct sockaddr_in address;
     char buffer[BUFLEN];
     ssize_t count;
 
     if (mode == PARALLEL) {
-        close(pipefds[1]);
+        if (close(pipefds[1]) < 0) {
+            perror("close of pipe");
+            exit(1);
+        }
+
         char byte = 0;
-        read(pipefds[0], &byte, 1);
+
+        ssize_t received = 0;
+        while (received == 0) {
+            if ((received = read(pipefds[0], &byte, sizeof(byte))) < 0) {
+                if (errno == EINTR || errno == EAGAIN)
+                    continue;
+                perror("read on pipe");
+                exit(1);
+            }
+        }
     }
 
-    if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         exit(1);
     }
 
-    memset((char*)&address, 0, sizeof(address));
+    memset(&address, 0, sizeof(address));
     address.sin_family = AF_INET;
     address.sin_port   = htons((PORT));
     if (inet_aton(SRV_IP, &address.sin_addr) == 0) {
@@ -107,35 +165,29 @@ int client(void) {
         exit(1);
     }
 
-    if (connect(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    if (connect(server_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("connect");
         exit(1);
     }
 
     printf("[client] receiving with MSG_PEEK: ");
-    if ((count = recv(create_socket, buffer, sizeof(buffer), MSG_PEEK)) < 0) {
-        perror("recv");
-        exit(1);
-    }
+    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_PEEK);
     fwrite(buffer, count, 1, stdout);
 
     printf("[client] receiving without MSG_PEEK: ");
-    if ((count = recv(create_socket, buffer, sizeof(buffer), 0)) < 0) {
-        perror("recv");
-        exit(1);
-    }
+    count = client_recv(server_socket, buffer, sizeof(buffer), 0);
     fwrite(buffer, count, 1, stdout);
 
     printf("[client] checking how many bytes are left unread: ");
-    if ((count = recv(create_socket, buffer, sizeof(buffer), 0)) < 0) {
-        perror("recv");
-        exit(1);
-    }
+    count = client_recv(server_socket, buffer, sizeof(buffer), 0);
     printf("%zu\n", count);
 
+    if (close(server_socket) < 0) {
+        perror("close of server socket");
+        exit(1);
+    }
+
     puts("[client] done");
-    close(create_socket);
-    return 0;
 }
 
 int main(int argc, char** argv) {
