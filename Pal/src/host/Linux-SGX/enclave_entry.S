@@ -409,7 +409,6 @@ enclave_entry:
 
 	movq SGX_GPR_RSP(%rbx), %rsi
 
-	# Check if saved rsp is in signal stack
 	CHECK_IF_SIGNAL_STACK_IS_USED %rax, %rsi, .Lon_signal_stack, .Lout_of_signal_stack
 
 .Lout_of_signal_stack:
