@@ -33,6 +33,8 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 
+#include "sgx_api.h"
+
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
     int ret = ocall_gettime(&microsec);
@@ -153,12 +155,79 @@ void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int va
     _DkInternalUnlock(&cpuid_cache_lock);
 }
 
+__sgx_mem_aligned sgx_report_t report;
+__sgx_mem_aligned sgx_target_info_t target_info;
+__sgx_mem_aligned sgx_report_data_t report_data;
+
+static inline uint32_t extension_enabled(uint32_t xfrm, uint32_t bit) {
+    return (xfrm & (1U << bit));
+}
+
+/**
+ * Sanity check untrusted CPUID inputs.
+ *
+ * The basic idea is that there are only a handful of extensions and we known the size to store each
+ * extension's state. use this to cross check what cpuid returns. We also know through xfrm what
+ * extensions are enabled inside the enclave.
+ */
+static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[4]) {
+
+    static int initialized = 0;
+    if (__sync_bool_compare_and_swap(&initialized, 0, 1)) {
+        sgx_report(&target_info, &report_data, &report);
+    }
+
+    uint64_t xfrm = report.body.attributes.xfrm;
+
+    enum {
+        AVX = 2, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3, PKRU = 9 };
+    const uint32_t extension_sizes_bytes[] = {0, 0, 256, 64, 64, 64, 512, 1024, 0, 8};
+    const uint32_t EXTENDED_STATE_LEAF = 0xd;
+
+    if (leaf == EXTENDED_STATE_LEAF) {
+        switch (subleaf) {
+        case 0x0:
+            // cross-check eax[0..9] with xfrm.
+            break;
+        case 0x1:
+            // verify value in ebx
+            break;
+        case AVX:
+            // fall through
+        case MPX_1:
+            // fall through
+        case MPX_2:
+            // fall through
+        case AVX512_1:
+            // fall through
+        case AVX512_2:
+            // fall through
+        case AVX512_3:
+            // fall through
+        case PKRU:
+            if (extension_enabled(xfrm, subleaf)) {
+                if (values[0] != extension_sizes_bytes[subleaf]) {
+                    _DkProcessExit(-1); // under attack
+                }
+            } else {
+                if (values[0] != 0) {
+                    _DkProcessExit(-1); // under attack
+                }
+            }
+            break;
+        }
+    }
+}
+
+
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     if (!get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
     if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
         return -PAL_ERROR_DENIED;
+
+    sanity_check_cpuid(leaf, subleaf, values);
 
     add_cpuid_to_cache(leaf, subleaf, values);
     return 0;
