@@ -63,7 +63,9 @@ static struct __kernel_rlimit64 __rlim[RLIM_NLIMITS] __attribute_migratable = {
 static struct shim_lock rlimit_lock;
 
 int init_rlimit(void) {
-    create_lock(&rlimit_lock);
+    if (!create_lock(&rlimit_lock)) {
+        return -ENOMEM;
+    }
     return 0;
 }
 
@@ -106,10 +108,12 @@ int shim_do_setrlimit(int resource, struct __kernel_rlimit* rlim) {
     if (rlim->rlim_cur > rlim->rlim_max)
         return -EINVAL;
 
-    if (rlim->rlim_max > __rlim[resource].rlim_max && cur_thread->euid)
-        return -EPERM;
-
     lock(&rlimit_lock);
+    if (rlim->rlim_max > __rlim[resource].rlim_max && cur_thread->euid) {
+        unlock(&rlimit_lock);
+        return -EPERM;
+    }
+
     __rlim[resource].rlim_cur = rlim->rlim_cur;
     __rlim[resource].rlim_max = rlim->rlim_max;
     unlock(&rlimit_lock);
@@ -120,6 +124,7 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
                       struct __kernel_rlimit64* old_rlim) {
     struct shim_thread* cur_thread = get_cur_thread();
     assert(cur_thread);
+    int ret = 0;
 
     // XXX: Do not support setting/getting the rlimit of other processes yet.
     if (pid && pid != (pid_t)cur_thread->tgid)
@@ -134,20 +139,31 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
     }
 
     if (new_rlim) {
-        if (test_user_memory((void*)new_rlim, sizeof(*new_rlim), false))
-            return -EFAULT;
-        if (new_rlim->rlim_cur > new_rlim->rlim_max)
-            return -EINVAL;
-        if (new_rlim->rlim_max > __rlim[resource].rlim_max && cur_thread->euid)
-            return -EPERM;
+        if (test_user_memory((void*)new_rlim, sizeof(*new_rlim), false)) {
+            ret = -EFAULT;
+            goto out;
+        }
+        if (new_rlim->rlim_cur > new_rlim->rlim_max) {
+            ret = -EINVAL;
+            goto out;
+        }
     }
 
     lock(&rlimit_lock);
+
+    if (new_rlim) {
+        if (new_rlim->rlim_max > __rlim[resource].rlim_max && cur_thread->euid) {
+            ret = -EPERM;
+            goto out;
+        }
+    }
+
     if (old_rlim)
         *old_rlim = __rlim[resource];
     if (new_rlim)
         __rlim[resource] = *new_rlim;
-    unlock(&rlimit_lock);
 
-    return 0;
+out:
+    unlock(&rlimit_lock);
+    return ret;
 }

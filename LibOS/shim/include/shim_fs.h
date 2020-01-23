@@ -324,7 +324,7 @@ extern struct shim_lock dcache_lock;
 /* Checks permission (specified by mask) of a dentry. If force is not set, permission is considered
  * granted on invalid dentries.
  * Assumes that caller has acquired dcache_lock. */
-int permission(struct shim_dentry* dent, mode_t mask);
+int __permission(struct shim_dentry* dent, mode_t mask);
 
 /* This function looks up a single dentry based on its parent dentry pointer and the name. `namelen`
  * is the length of char* name. The dentry is returned in pointer *new.

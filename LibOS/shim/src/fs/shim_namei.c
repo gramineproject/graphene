@@ -72,7 +72,7 @@ static inline int __lookup_flags (int flags)
  * Returns 0 on success, negative on failure.
  */
 /* Assume caller has acquired dcache_lock */
-int permission (struct shim_dentry * dent, mode_t mask) {
+int __permission(struct shim_dentry* dent, mode_t mask) {
     assert(locked(&dcache_lock));
 
     mode_t mode = 0;
@@ -548,7 +548,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
         }
 
         // Check the parent permission first
-        err = permission(dir, MAY_WRITE | MAY_EXEC);
+        err = __permission(dir, MAY_WRITE | MAY_EXEC);
         if (err)  goto out;
 
         // Try EINVAL when creat isn't an option
@@ -593,7 +593,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
     // creat/O_CREAT have idiosyncratic semantics about opening a
     // newly-created, read-only file for writing, but only the first time.
     if (!newly_created) {
-        if ((err = permission(mydent, acc_mode)) < 0)
+        if ((err = __permission(mydent, acc_mode)) < 0)
             goto out;
     }
 

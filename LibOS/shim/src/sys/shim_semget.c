@@ -220,20 +220,19 @@ static int __del_sem_handle(struct shim_sem_handle* sem) {
 int del_sem_handle(struct shim_sem_handle* sem) {
     struct shim_handle* hdl = SEM_TO_HANDLE(sem);
     lock(&hdl->lock);
-    int ret = del_sem_handle(sem);
+    int ret = __del_sem_handle(sem);
     unlock(&hdl->lock);
     return ret;
-}
-
-static void __try_create_lock(void) {
-    create_lock_runtime(&sem_list_lock);
 }
 
 int shim_do_semget(key_t key, int nsems, int semflg) {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     IDTYPE semid = 0;
     int ret;
-    __try_create_lock();
+
+    if (!create_lock_runtime(&sem_list_lock)) {
+        return -ENOMEM;
+    }
 
     if (key != IPC_PRIVATE) {
         struct shim_sem_handle* sem = get_sem_handle_by_key(key);
@@ -350,7 +349,9 @@ static int __do_semop(int semid, struct sembuf* sops, unsigned int nsops, unsign
         if (sops[i].sem_num >= nsems)
             nsems = sops[i].sem_num + 1;
 
-    __try_create_lock();
+    if (!create_lock_runtime(&sem_list_lock)) {
+        return -ENOMEM;
+    }
 
     if ((ret = connect_sem_handle(semid, nsems, &sem)) < 0)
         return ret;
@@ -375,7 +376,10 @@ int shim_do_semctl(int semid, int semnum, int cmd, unsigned long arg) {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_sem_handle* sem;
     int ret;
-    __try_create_lock();
+
+    if (!create_lock_runtime(&sem_list_lock)) {
+        return -ENOMEM;
+    }
 
     if ((ret = connect_sem_handle(semid, 0, &sem)) < 0)
         return ret;

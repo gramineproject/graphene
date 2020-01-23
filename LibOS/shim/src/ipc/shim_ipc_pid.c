@@ -54,7 +54,9 @@ int init_ns_pid(void) {
     struct shim_ipc_info* info;
     int ret = 0;
 
-    init_namespace();
+    if ((ret = init_namespace()) < 0) {
+        return ret;
+    }
 
     if ((ret = get_ipc_info_cur_process(&info)) < 0)
         return ret;
@@ -690,7 +692,9 @@ static LISTP_TYPE(rpcreq) rpc_reqs;
 static struct shim_lock rpc_queue_lock;
 
 int get_rpc_msg(IDTYPE* sender, void* buf, int len) {
-    create_lock_runtime(&rpc_queue_lock);
+    if (!create_lock_runtime(&rpc_queue_lock)) {
+        return -ENOMEM;
+    }
     lock(&rpc_queue_lock);
 
     if (!LISTP_EMPTY(&rpc_msgs)) {
@@ -738,7 +742,10 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
 
     debug("ipc callback from %u: IPC_PID_SENDPRC(%u, %d)\n", msg->src, msgin->sender, msgin->len);
 
-    create_lock_runtime(&rpc_queue_lock);
+    if (!create_lock_runtime(&rpc_queue_lock)) {
+        ret = -ENOMEM;
+        goto out;
+    }
     lock(&rpc_queue_lock);
 
     if (!LISTP_EMPTY(&rpc_reqs)) {
@@ -749,13 +756,13 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
         r->sender = msgin->sender;
         memcpy(r->buffer, msgin->payload, r->len);
         thread_wakeup(r->thread);
-        goto out;
+        goto out_unlock;
     }
 
     struct rpcmsg* m = malloc(sizeof(struct rpcmsg) + msgin->len);
     if (!m) {
         ret = -ENOMEM;
-        goto out;
+        goto out_unlock;
     }
 
     INIT_LIST_HEAD(m, list);
@@ -763,8 +770,10 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
     m->len    = msgin->len;
     memcpy(m->payload, msgin->payload, msgin->len);
     LISTP_ADD_TAIL(m, &rpc_msgs, list);
-out:
+
+out_unlock:
     unlock(&rpc_queue_lock);
+out:
     SAVE_PROFILE_INTERVAL(ipc_pid_sendrpc_callback);
     return ret;
 }

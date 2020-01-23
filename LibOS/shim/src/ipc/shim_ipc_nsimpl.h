@@ -700,8 +700,11 @@ out:
     unlock(&range_map_lock);
 }
 
-static inline void init_namespace(void) {
-    create_lock(&range_map_lock);
+static inline int init_namespace(void) {
+    if (!create_lock(&range_map_lock)) {
+        return -ENOMEM;
+    }
+    return 0;
 }
 
 #define _NS_ID(ns)     __NS_ID(ns)
