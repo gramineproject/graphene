@@ -210,7 +210,7 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
 
             ret = add_pages_to_enclave(secs, (void *) base + c->mapstart, addr,
                                        c->mapend - c->mapstart,
-                                       SGX_PAGE_REG, c->prot, 0,
+                                       SGX_PAGE_REG, c->prot, /*skip_eextended=*/false,
                                        (c->prot & PROT_EXEC) ? "code" : "data");
 
             INLINE_SYSCALL(munmap, 2, addr, c->mapend - c->mapstart);
