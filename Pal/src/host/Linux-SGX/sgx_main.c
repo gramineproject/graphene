@@ -938,9 +938,12 @@ static int load_enclave (struct pal_enclave * enclave,
     if (ret < 0)
         return ret;
 
-    ret = init_aesm_targetinfo(&pal_sec->aesm_targetinfo);
-    if (ret < 0)
-        return ret;
+    if (get_config(enclave->config, "sgx.ra_client_key", cfgbuf, sizeof(cfgbuf)) > 0) {
+        /* initialize communication with AESM enclave only if app requests remote attestation */
+        ret = init_aesm_targetinfo(&pal_sec->aesm_targetinfo);
+        if (ret < 0)
+            return ret;
+    }
 
     void* alt_stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, ALT_STACK_SIZE,
                                             PROT_READ | PROT_WRITE,
