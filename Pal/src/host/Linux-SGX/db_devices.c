@@ -191,7 +191,7 @@ static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
-    if (size >= (1ULL << (sizeof(unsigned int) * 8)))
+    if (size != (uint32_t)size)
         return -PAL_ERROR_INVAL;
 
     int bytes = ocall_read(fd, buffer, size);
@@ -208,7 +208,7 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
-    if (size >= (1ULL << (sizeof(unsigned int) * 8)))
+    if (size != (uint32_t)size)
         return -PAL_ERROR_INVAL;
 
     int bytes = ocall_write(fd, buffer, size);

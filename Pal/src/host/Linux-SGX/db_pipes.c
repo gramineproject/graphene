@@ -184,7 +184,7 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
 
-    if (len >= (1ULL << (sizeof(unsigned int) * 8)))
+    if (len != (uint32_t)len)
         return -PAL_ERROR_INVAL;
 
     int fd    = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] : handle->pipe.fd;
@@ -208,7 +208,7 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, cons
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
 
-    if (len >= (1ULL << (sizeof(unsigned int) * 8)))
+    if (len != (uint32_t)len)
         return -PAL_ERROR_INVAL;
 
     int fd    = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] : handle->pipe.fd;

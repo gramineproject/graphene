@@ -372,7 +372,7 @@ static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (count >= (1ULL << (sizeof(unsigned int) * 8)))
+    if (count != (uint32_t)count)
         return -PAL_ERROR_INVAL;
 
     int bytes;
@@ -392,7 +392,7 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    if (count >= (1ULL << (sizeof(unsigned int) * 8)))
+    if (count != (uint32_t)count)
         return -PAL_ERROR_INVAL;
 
     int bytes;
