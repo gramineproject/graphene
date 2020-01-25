@@ -18,16 +18,18 @@
 #define PAL_LINUX_H
 
 #include "api.h"
-#include "enclave_ocalls.h"
-#include "linux_types.h"
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
+
+#include "linux_types.h"
 #include "sgx_api.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
 #include "sgx_tls.h"
+
+#include "enclave_ocalls.h"
 
 #include <linux/mman.h>
 

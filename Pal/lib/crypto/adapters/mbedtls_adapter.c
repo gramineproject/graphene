@@ -326,7 +326,7 @@ int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t*
     for (size_t i = 0; i < len; i += sizeof(rand64)) {
         while (__builtin_ia32_rdrand64_step(&rand64) == 0)
             /*nop*/;
-        size_t over = output + i + sizeof(rand64) < len ? 0 : output + i + sizeof(rand64) - len;
+        size_t over = i + sizeof(rand64) < len ? 0 : i + sizeof(rand64) - len;
         memcpy(output + i, &rand64, sizeof(rand64) - over);
     }
 
