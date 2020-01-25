@@ -210,7 +210,7 @@ struct shim_sock_handle {
         size_t size;             /* total size (capacity) of buffer `buf` */
         size_t start;            /* beginning of buffered but yet unread data in `buf` */
         size_t end;              /* end of buffered but yet unread data in `buf` */
-        char uri[SOCK_URI_SIZE]; /* cached URI for recvfrom(udp-socket) case */
+        char uri[SOCK_URI_SIZE]; /* cached URI for recvfrom(udp_socket) case */
         char buf[];              /* peek buffer of size `size` */
     }* peek_buffer;
 };

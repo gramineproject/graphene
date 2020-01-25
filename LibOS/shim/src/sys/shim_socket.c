@@ -1326,7 +1326,12 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
     if (peek_buffer) {
         /* there is non-exhausted peek buffer for this socket, update socket's data */
         lock(&hdl->lock);
-        assert(!sock->peek_buffer); /* other thread cannot update this socket's peek buffer */
+
+        /* we assume it is impossible for other thread to update this socket's peek buffer (i.e.,
+         * only single thread works on a particular socket); if some real-world program actually has
+         * two threads working on one socket, then we need to fix "grab the lock twice" logic */
+        assert(!sock->peek_buffer);
+
         sock->peek_buffer = peek_buffer;
         unlock(&hdl->lock);
     }
