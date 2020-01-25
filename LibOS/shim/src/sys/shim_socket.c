@@ -1614,7 +1614,7 @@ int shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen)
     if (optlen < (int)sizeof(int))
         return -EINVAL;
 
-    if (!optval || test_user_memory(optval, optlen, false))
+    if (!optval || test_user_memory(optval, optlen, /*write=*/false))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
@@ -1662,10 +1662,10 @@ out:
 }
 
 int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen) {
-    if (!optlen || test_user_memory(optlen, sizeof(*optlen), true))
+    if (!optlen || test_user_memory(optlen, sizeof(*optlen), /*write=*/true))
         return -EFAULT;
 
-    if (!optval || test_user_memory(optval, *optlen, true))
+    if (!optval || test_user_memory(optval, *optlen, /*write=*/true))
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
