@@ -56,15 +56,15 @@ if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
 	if [ -n "$INSIDE_EMACS" ]; then
 		GDB="$GDB -i=mi"
 	fi
-	PREFIX="$GDB --args"
+	PREFIX=("$GDB" --args)
 fi
 
 if [ "$PERF" == "1" ]; then
-	PREFIX="perf stat"
+	PREFIX=(perf stat)
 fi
 
 if [ "$MEMUSG" == "1" ]; then
-	PREFIX="$RUNTIME_DIR/../Scripts/memusg"
+	PREFIX=("$RUNTIME_DIR/../Scripts/memusg")
 fi
 
 while [ "$1" != "" ];
@@ -83,8 +83,8 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-if [ -z "$PREFIX" ]; then
+if [ ${#PREIFX[@]} -eq 0 ]; then
     exec "$PAL_CMD" "$MANIFEST" "$@"
 else
-    exec "$PREFIX" "$PAL_CMD" "$MANIFEST" "$@"
+    exec "${PREFIX[@]}" "$PAL_CMD" "$MANIFEST" "$@"
 fi
