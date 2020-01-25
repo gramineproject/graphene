@@ -318,14 +318,16 @@ int lib_RSAFreeKey(LIB_RSA_KEY *key)
 }
 
 int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t* olen) {
-    (void) data;
+    __UNUSED(data);
+    assert(output && olen);
     *olen = 0;
 
-    for (size_t i = 0; i < len; i += 8) {
-        unsigned long long rand64;
+    unsigned long long rand64;
+    for (size_t i = 0; i < len; i += sizeof(rand64)) {
         while (__builtin_ia32_rdrand64_step(&rand64) == 0)
             /*nop*/;
-        memcpy(output + i, &rand64, sizeof(rand64));
+        size_t over = output + i + sizeof(rand64) < len ? 0 : output + i + sizeof(rand64) - len;
+        memcpy(output + i, &rand64, sizeof(rand64) - over);
     }
 
     *olen = len;
@@ -333,13 +335,15 @@ int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t*
 }
 
 static int recv_cb(void* ctx, uint8_t* buf, size_t len) {
-    LIB_SSL_CONTEXT* ssl_ctx = (LIB_SSL_CONTEXT*) ctx;
+    LIB_SSL_CONTEXT* ssl_ctx = (LIB_SSL_CONTEXT*)ctx;
     int fd = ssl_ctx->stream_fd;
     if (fd < 0)
         return MBEDTLS_ERR_NET_INVALID_CONTEXT;
 
-    if ((uint64_t)len >= (1ULL << (sizeof(uint32_t) * 8)))
-            return MBEDTLS_ERR_NET_RECV_FAILED;
+    if (len != (uint32_t)len) {
+        /* pal_recv_cb cannot receive more than 32-bit limit, trim len to fit in 32-bit */
+        len = UINT32_MAX;
+    }
 
     int ret = ssl_ctx->pal_recv_cb(fd, buf, (uint32_t)len);
 
@@ -353,13 +357,15 @@ static int recv_cb(void* ctx, uint8_t* buf, size_t len) {
 }
 
 static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
-    LIB_SSL_CONTEXT* ssl_ctx = (LIB_SSL_CONTEXT*) ctx;
+    LIB_SSL_CONTEXT* ssl_ctx = (LIB_SSL_CONTEXT*)ctx;
     int fd = ssl_ctx->stream_fd;
     if (fd < 0)
         return MBEDTLS_ERR_NET_INVALID_CONTEXT;
 
-    if ((uint64_t)len >= (1ULL << (sizeof(uint32_t) * 8)))
-            return MBEDTLS_ERR_NET_SEND_FAILED;
+    if (len != (uint32_t)len) {
+        /* pal_send_cb cannot send more than 32-bit limit, trim len to fit in 32-bit */
+        len = UINT32_MAX;
+    }
 
     int ret = ssl_ctx->pal_send_cb(fd, buf, (uint32_t)len);
     if (ret < 0) {
@@ -378,7 +384,10 @@ int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
     int ret;
 
     memset(ssl_ctx, 0, sizeof(*ssl_ctx));
+
     ssl_ctx->ciphersuites[0] = MBEDTLS_TLS_PSK_WITH_AES_128_GCM_SHA256;
+    memset(&ssl_ctx->ciphersuites[1], 0, sizeof(ssl_ctx->ciphersuites[1]));
+
     ssl_ctx->pal_recv_cb = pal_recv_cb;
     ssl_ctx->pal_send_cb = pal_send_cb;
     ssl_ctx->stream_fd   = stream_fd;
