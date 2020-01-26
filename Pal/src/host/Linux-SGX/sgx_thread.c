@@ -215,11 +215,9 @@ int clone_thread(void) {
 
     int dummy_parent_tid_field = 0;
     ret = clone(pal_thread_init, child_stack_top,
-                CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
-                CLONE_THREAD|CLONE_SIGHAND|CLONE_PTRACE|
-                CLONE_PARENT_SETTID,
-                (void*) tcb,
-                &dummy_parent_tid_field, NULL);
+                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD |
+                CLONE_SIGHAND | CLONE_PARENT_SETTID,
+                (void*)tcb, &dummy_parent_tid_field, NULL);
 
     if (IS_ERR(ret)) {
         INLINE_SYSCALL(munmap, 2, stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);

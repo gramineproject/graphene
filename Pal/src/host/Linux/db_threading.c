@@ -181,10 +181,9 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     child_stack = ALIGN_DOWN_PTR(child_stack, 16);
 
     ret = clone(pal_thread_init, child_stack,
-                    CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
-                    CLONE_THREAD|CLONE_SIGHAND|CLONE_PTRACE|
-                    CLONE_PARENT_SETTID,
-                    (void *) tcb, &hdl->thread.tid, NULL);
+                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD |
+                CLONE_SIGHAND | CLONE_PARENT_SETTID,
+                (void*)tcb, &hdl->thread.tid, NULL);
 
     if (IS_ERR(ret)) {
         ret = -PAL_ERROR_DENIED;
