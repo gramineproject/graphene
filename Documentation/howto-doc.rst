@@ -167,6 +167,20 @@ Preferred Doxygen style
    a |~| coredump. Write an explanation, how the things go together and place
    the ``.. doxygenfunction::`` directives where aproppriate.
 
+3. You can use ``\rst`` and ``\endrst`` to write reST in Doxygen comments:
+
+   .. code-block:: c
+
+      /*!
+       * \brief An example function
+       *
+       * \rst
+       * .. note::
+       *
+       *    This works!
+       * \endrst
+       */
+
 Further reading
 ---------------
 
