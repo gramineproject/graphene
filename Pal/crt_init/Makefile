@@ -20,4 +20,4 @@ include $(wildcard *.d)
 
 .PHONY: clean
 clean:
-	$(RM) -f $(files_to_build) *.d
+	$(RM) $(files_to_build) *.d
