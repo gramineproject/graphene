@@ -29,15 +29,15 @@ sgx-tokens: $(call expand_target_to_token,$(target))
 pal_loader:
 	ln -sf ../../Runtime/pal_loader
 
-.PHONY: csu-recurse
-csu-recurse:
-	$(MAKE) -C ../csu all
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C ../crt_init all
 
-../csu/user_start.o: csu-recurse
+../crt_init/user_start.o: crt_init-recurse
 	@true
 
 CFLAGS-Pie = -fPIC -pie
-LDLIBS += $(graphene_lib) $(pal_lib) ../csu/user_start.o
+LDLIBS += $(graphene_lib) $(pal_lib) ../crt_init/user_start.o
 $(executables): %: %.c $(LDLIBS)
 	$(call cmd,csingle)
 

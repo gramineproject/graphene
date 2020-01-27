@@ -1,23 +1,23 @@
 include ../Scripts/Makefile.configs
 
-DIRS = src csu test regression
+DIRS = src crt_init test regression
 
 .PHONY: all
 all:
 	$(MAKE) -C src
-	$(MAKE) -C csu
+	$(MAKE) -C crt_init
 
 .PHONY: clean
 clean:
 	$(MAKE) -C src clean
-	$(MAKE) -C csu clean
+	$(MAKE) -C crt_init clean
 	$(MAKE) -C test clean
 	$(MAKE) -C regression clean
 
 .PHONY: test
 test:
 	$(MAKE) -C src test
-	$(MAKE) -C csu test
+	$(MAKE) -C crt_init test
 	$(MAKE) -C test
 	$(MAKE) -C regression
 

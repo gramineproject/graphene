@@ -69,11 +69,11 @@ manifest_rules = \
 	-e 's:\$$(RA_CLIENT_KEY):$(RA_CLIENT_KEY):g' \
 	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
 
-.PHONY: csu-recurse
-csu-recurse:
-	$(MAKE) -C ../csu all
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C ../crt_init all
 
-../csu/user_shared_start.o ../csu/user_start.o: csu-recurse
+../crt_init/user_shared_start.o ../crt_init/user_start.o: crt_init-recurse
 	@true
 
 CFLAGS-AvxDisable += -mavx
@@ -83,13 +83,13 @@ CFLAGS-AvxDisable += -mavx
 ../regression/File: | File
 	@true
 
-LDLIBS-preloads = ../csu/user_shared_start.o $(graphene_lib) $(pal_lib)
+LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib)
 $(preloads): CFLAGS += -shared -fPIC
 $(preloads): LDLIBS = $(LDLIBS-preloads)
 $(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle)
 
-LDLIBS-executables = ../csu/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
+LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
 $(executables): CFLAGS += -no-pie
 $(executables): LDLIBS = $(LDLIBS-executables)
 $(executables): %: %.c $(LDLIBS-executables)

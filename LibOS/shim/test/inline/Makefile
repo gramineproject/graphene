@@ -8,18 +8,18 @@ include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
 
-.PHONY: csu-recurse
-csu-recurse:
-	$(MAKE) -C ../csu all
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C ../crt_init all
 
-../csu/user_shared_start.o ../csu/user_start.o: csu-recurse
+../crt_init/user_shared_start.o ../crt_init/user_start.o: crt_init-recurse
 	@true
 
-LDLIBS-user_start = $(PALDIR)/../csu/user_start.o
-.PHONY: csu-recurse
-csu-recurse:
-	$(MAKE) -C $(PALDIR)/../csu/ all
-$(PALDIR)/../csu/user_start.o: csu-recurse
+LDLIBS-user_start = $(PALDIR)/../crt_init/user_start.o
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C $(PALDIR)/../crt_init/ all
+$(PALDIR)/../crt_init/user_start.o: crt_init-recurse
 	@true
 
 CFLAGS += $(CFLAGS-libos-debug)
