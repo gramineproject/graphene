@@ -9,6 +9,7 @@ Quick Start
 
 2. Build Graphene::
 
+      sudo apt-get install -y build-essential autoconf gawk bison
       cd graphene
       make
 
@@ -43,55 +44,58 @@ in <https://github.com/01org/linux-sgx> and
 
 1. Ensure That Intel SGX is Enabled on Your Platform::
 
-    lsmod | grep isgx
-    ps ax | grep [a]esm_service
+      lsmod | grep isgx
+      ps ax | grep [a]esm_service
 
 The first command should list `isgx` and the second command should list the
 process status of `aesm_service`.
 
 2. Clone the Repository and Set the Home Directory of Graphene::
 
-    git clone https://github.com/oscarlab/graphene.git
-    cd graphene
-    git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
-    export GRAPHENE_DIR=$PWD
+      git clone https://github.com/oscarlab/graphene.git
+      cd graphene
+      git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
+      export GRAPHENE_DIR=$PWD
 
 3. Prepare a Signing Key::
 
-    cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
-    openssl genrsa -3 -out enclave-key.pem 3072
+      cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
+      openssl genrsa -3 -out enclave-key.pem 3072
 
 4. Build and Install Graphene SGX Driver::
 
-    cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver
-    make
-    # the console will prompt you for the path of the Intel SGX driver code
-    sudo ./load.sh
+      cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver
+      make
+      # the console will prompt you for the path of the Intel SGX driver code
+      sudo ./load.sh
 
 5. Build Graphene-SGX::
 
-    cd $GRAPHENE_DIR
-    make SGX=1
+      sudo apt-get install -y \
+         build-essential autoconf gawk bison \
+         python3-protobuf libprotobuf-c-dev protobuf-c-compiler
+      cd $GRAPHENE_DIR
+      make SGX=1
 
 6. Set `vm.mmap_min_addr=0` in the System::
 
-    sudo sysctl vm.mmap_min_addr=0
+      sudo sysctl vm.mmap_min_addr=0
 
 7. Build and Run `helloworld`::
 
-    cd $GRAPHENE_DIR/LibOS/shim/test/native
-    make SGX=1
-    make SGX=1 sgx-tokens
-    SGX=1 ./pal_loader helloworld
+      cd $GRAPHENE_DIR/LibOS/shim/test/native
+      make SGX=1
+      make SGX=1 sgx-tokens
+      SGX=1 ./pal_loader helloworld
 
 8. Test LMBench Application::
 
-    cd $GRAPHENE_DIR
-    git submodule update --init -- LibOS/shim/test/apps
-    cd $GRAPHENE_DIR/LibOS/shim/test/apps/lmbench
-    make SGX=1
-    cd lmbench-2.5/bin/linux
-    SGX=1 ./pal_loader lat_syscall null
-    SGX=1 ./pal_loader lat_syscall open
-    SGX=1 ./pal_loader lat_syscall read
-    SGX=1 ./pal_loader lat_proc fork
+      cd $GRAPHENE_DIR
+      git submodule update --init -- LibOS/shim/test/apps
+      cd $GRAPHENE_DIR/LibOS/shim/test/apps/lmbench
+      make SGX=1
+      cd lmbench-2.5/bin/linux
+      SGX=1 ./pal_loader lat_syscall null
+      SGX=1 ./pal_loader lat_syscall open
+      SGX=1 ./pal_loader lat_syscall read
+      SGX=1 ./pal_loader lat_proc fork
