@@ -82,6 +82,7 @@ Table of Contents
    :caption: Developing Graphene
    :maxdepth: 1
 
+   devel/contributing
    devel/debugging
    devel/new-syscall
    devel/sgx-process-creation
