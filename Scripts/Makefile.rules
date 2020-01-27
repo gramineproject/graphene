@@ -124,8 +124,8 @@ quiet_cmd_cxxsingle = [ $@ ]
       cmd_cxxsingle = $(CXX) -MD -MP $(CXXFLAGS) $(CXXFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
 
 # multiple .o => executable
-quiet_cmd_cmulti  = [ $@ ]
-      cmd_cmulti  = $(CC) -MD -MP $(CFLAGS) $(CFLAGS-$@) -o $@ $^ $(LDLIBS) $(LDLIBS-$@)
+quiet_cmd_cmulti = [ $@ ]
+      cmd_cmulti = $(CC) -MD -MP $(CFLAGS) $(CFLAGS-$@) -o $@ $^ $(LDLIBS) $(LDLIBS-$@)
 
 # sgx sign
 quiet_cmd_sgx_sign_exec = [ $*.{sig, manifest.sgx} ]
