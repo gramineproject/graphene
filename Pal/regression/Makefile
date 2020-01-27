@@ -78,7 +78,7 @@ crt_init-recurse:
 
 CFLAGS-AvxDisable += -mavx
 
-# work around: File.manifest.template has strange reference
+# workaround: File.manifest.template has strange reference
 # to ../regression/File
 ../regression/File: | File
 	@true
