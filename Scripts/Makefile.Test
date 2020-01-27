@@ -1,5 +1,5 @@
 ifeq ($(SYS),)
-$(error include Makefiel.config before $(lastword $(MAKEFILE_LIST)))
+$(error include Makefile.config before $(lastword $(MAKEFILE_LIST)))
 endif
 
 ifeq ($(MAKEFILE_MANIFEST_DIR),)
