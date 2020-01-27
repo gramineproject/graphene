@@ -83,6 +83,7 @@ Table of Contents
    :maxdepth: 1
 
    devel/contributing
+   devel/coding-style
    devel/setup
    devel/debugging
    devel/new-syscall
