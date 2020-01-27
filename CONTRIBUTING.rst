@@ -58,7 +58,8 @@ In general, a |nbsp| PR should:
    circumstances, namely: when designing a unit test is difficult (e.g., the
    code is deep enough in Graphene that it would require extra hooks for
    testing) or cannot be easily tested (e.g., a performance fix).
-4. Follow [project style guidelines](CODESTYLE.md).
+4. Follow project's `style guidelines
+   <https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
 
 PR Life Cycle
 ^^^^^^^^^^^^^
@@ -85,7 +86,8 @@ PR Merging Policy
 Before a pull request is merged, it must:
 
 1. Pass all CI tests
-2. Follow [project style guidelines](CODESTYLE.md).
+2. Follow project's `style guidelines
+   <https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
 3. Introduce no new compilation errors or warnings
 4. Have all discussions from reviewers resolved
 5. Have a clear, concise and grammatically correct comments and commit messages.
@@ -126,7 +128,8 @@ Reviewing Guidelines
 
 Style Guidelines
 ^^^^^^^^^^^^^^^^
-See [style guidelines](CODESTYLE.md).
+See `style guidelines
+<https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
 
 Running Regression Tests by Hand
 --------------------------------
