@@ -61,8 +61,8 @@ Preferred reST style
   markup, which begins with two dots and a |~| space.
 
 - Wrap the paragraphs at 80th character. But don't wrap verbatim text like logs
-  and use applicable style when wrapping code examples (see ``CODESTYLE.md`` in
-  the repository).
+  and use applicable style when wrapping code examples (see
+  :doc:`devel/coding-style`).
 
 - For headers, use Python convention for header hierarchy:
 
