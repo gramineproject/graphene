@@ -84,6 +84,7 @@ Table of Contents
    :maxdepth: 1
 
    devel/contributing
+   devel/setup
    devel/debugging
    devel/new-syscall
    devel/sgx-process-creation
