@@ -88,4 +88,4 @@ clean:
 
 .PHONY: distclean
 distclean: clean
-	$(RM) crypto/$(MBEDTLS_SRC) crypto/mbedtls
+	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/mbedtls
