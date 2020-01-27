@@ -101,15 +101,6 @@ Table of Contents
    pal/porting
    pal/host-abi
 
-.. _old-wiki:
-
-.. toctree::
-   :caption: Old Wiki (to be rewritten)
-   :maxdepth: 1
-   :glob:
-
-   oldwiki/*
-
 Indices and tables
 ==================
 

@@ -1,6 +1,12 @@
-# Introduction to Graphene SGX
+:orphan:
 
-## What is Intel SGX?
+Introduction to Graphene SGX
+============================
+
+.. highlight:: text
+
+What is Intel SGX?
+------------------
 
 SGX (Software Guard Extenstions) is a security feature of the latest Intel CPUs. According to
 <https://github.com/ayeks/SGX-hardware>, SGX is available in Intel CPUs that were launched after
@@ -12,7 +18,8 @@ memory region (called SGX enclaves) for the protected application, such that nei
 software attacks nor hardware attacks such as cold-boot attacks can modify or retrieve the
 application data from the enclave memory.
 
-## Why use Graphene for Intel SGX?
+Why use Graphene for Intel SGX?
+-------------------------------
 
 Porting applications to an Intel SGX platform can be cumbersome. To secure an application with SGX,
 developers must recompile the application executable with the Intel SGX SDK
@@ -27,12 +34,13 @@ into enclaves, with no/minimal porting efforts. Graphene provides a signing tool
 binaries that are loaded into the enclave (technically, the application manifest, which contains
 hashes and URIs of these binaries, is signed), similar to the Intel SGX SDK workflow.
 
-## How to Build Graphene with Intel SGX Support?
+How to Build Graphene with Intel SGX Support?
+---------------------------------------------
 
-Refer to the [Quick Start](Graphene-SGX-Quick-Start.md) page on how to build and run Graphene-SGX.
+Refer to the :doc:`../quickstart` page on how to build and run Graphene-SGX.
 
-### Prerequisites
-
+Prerequisites
+^^^^^^^^^^^^^
 Porting and running an application on Intel SGX with Graphene-SGX involves two parties: the
 developer and the untrusted host (for testing purposes, the same host may represent both parties).
 The developer builds and signs the bundle of Graphene plus the target application(s). Developers/
@@ -42,8 +50,8 @@ secure their workloads.
 The prerequisites to build Graphene are detailed in
 [Prerequisites of Graphene](Introduction-to-Graphene.html#prerequisites).
 
-### Prerequisites for Developer
-
+Prerequisites for Developer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To build Graphene with Intel SGX support, simply run `make SGX=1` instead of `make` at
 the root of the source tree (or in the PAL directory if the rest of the source is already built).
 Like regular Graphene, `DEBUG=1` can be used to build with debug symbols. After compiling the
@@ -82,14 +90,14 @@ If you are simply testing the applications, you may build and run the applicatio
 (which must be SGX-enabled). In production scenarios, building and running the applications on the
 same host is mostly meaningless.
 
-### Prerequisites for Untrusted Host
-
+Prerequisites for Untrusted Host
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To run the applications on Intel SGX with Graphene-SGX, the host must have an SGX-enabled CPU, with
 Intel SGX SDK and the SGX driver installed. Please download and install the SDK and the driver from:
 <https://github.com/01org/linux-sgx> and <https://github.com/01org/linux-sgx-driver>.
 
 A Graphene SGX driver (gsgx) also needs to be installed on the untrusted host. Simply run the
-following commands to build the driver:
+following commands to build the driver::
 
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
@@ -108,7 +116,7 @@ tokens for the applications.
 
 With the manifest (`.manifest.sgx`), the signature (`.sig`), and the token (`.token`) ready, one
 can launch Graphene-SGX to run the application. Graphene-SGX provides three options for specifying
-the programs and manifest files:
+the programs and manifest files::
 
     Option 1: (automatic manifest)
     SGX=1 [PATH_TO_PAL]/pal [PROGRAM] [ARGUMENTS]...
