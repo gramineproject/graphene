@@ -88,6 +88,7 @@ Table of Contents
    devel/new-syscall
    devel/sgx-process-creation
    devel/signal-handling
+   devel/setup
 
 .. toctree::
    :caption: LibOS
