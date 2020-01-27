@@ -18,9 +18,6 @@ and then included in one of the ``.rst`` files (with appropriate description)
 using one of the `Breathe directives`_, like ``.. doxygenfunction::`` or ``..
 doxygenstruct::``.
 
-:ref:`Old Wiki <old-wiki>` is imported as it was, in Markdown, but new
-documentation should be written in reST.
-
 The documentation should be written with ``html`` builder of Sphinx in mind. The
 :file:`manpages/` subdirectory also targets ``manpage`` builder. Other builders
 (like ``latex``) may be considered in the future, but for now their output is
