@@ -27,14 +27,14 @@ CPUINFO_FLAGS_WHITELIST = [
 
 class TC_00_Basic(RegressionTestCase):
     def test_000_atomic_math(self):
-        stdout, stderr = self.run_binary(['AtomicMath'])
+        _, stderr = self.run_binary(['AtomicMath'])
         self.assertIn('Subtract INT_MIN: Both values match 2147483648', stderr)
         self.assertIn('Subtract INT_MAX: Both values match -2147483647', stderr)
         self.assertIn('Subtract LLONG_MIN: Both values match -9223372036854775808', stderr)
         self.assertIn('Subtract LLONG_MAX: Both values match -9223372036854775807', stderr)
 
     def test_001_path_normalization(self):
-        stdout, stderr = self.run_binary(['normalize_path'])
+        _, stderr = self.run_binary(['normalize_path'])
 
         self.assertIn("Success!\n", stderr)
 
@@ -62,7 +62,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('Executable Range OK', stderr)
 
     def test_101_basic_boostrapping_five_arguments(self):
-        stdout, stderr = self.run_binary(['Bootstrap', 'a', 'b', 'c', 'd'])
+        _, stderr = self.run_binary(['Bootstrap', 'a', 'b', 'c', 'd'])
 
         # Five Arguments Given
         self.assertIn('# of Arguments: 5', stderr)
@@ -72,15 +72,15 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('argv[4] = d', stderr)
 
     def test_102_cpuinfo(self):
-        with open('/proc/cpuinfo') as file:
-            cpuinfo = file.read().strip().split('\n\n')[-1]
+        with open('/proc/cpuinfo') as file_:
+            cpuinfo = file_.read().strip().split('\n\n')[-1]
         cpuinfo = dict(map(str.strip, line.split(':'))
             for line in cpuinfo.split('\n'))
         if 'flags' in cpuinfo:
             cpuinfo['flags'] = ' '.join(flag for flag in cpuinfo['flags']
                 if flag in CPUINFO_FLAGS_WHITELIST)
 
-        stdout, stderr = self.run_binary(['Bootstrap'])
+        _, stderr = self.run_binary(['Bootstrap'])
 
         self.assertIn('CPU num: {}'.format(int(cpuinfo['processor']) + 1),
             stderr)
@@ -92,24 +92,24 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('CPU flags: {[flags]}'.format(cpuinfo), stderr)
 
     def test_103_dotdot(self):
-        stdout, stderr = self.run_binary(['..Bootstrap'])
+        _, stderr = self.run_binary(['..Bootstrap'])
         self.assertIn('User Program Started', stderr)
 
     def test_104_manifest_as_executable_name(self):
         manifest = self.get_manifest('Bootstrap2')
-        stdout, stderr = self.run_binary([manifest])
+        _, stderr = self.run_binary([manifest])
         self.assertIn('User Program Started', stderr)
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
 
     def test_105_manifest_as_argument(self):
         manifest = self.get_manifest('Bootstrap4')
-        stdout, stderr = self.run_binary([manifest])
+        _, stderr = self.run_binary([manifest])
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Loaded Executable: file:Bootstrap', stderr)
 
     def test_106_manifest_with_shebang(self):
         manifest = self.get_manifest('Bootstrap4')
-        stdout, stderr = self.run_binary(['./' + manifest])
+        _, stderr = self.run_binary(['./' + manifest])
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Loaded Executable: file:Bootstrap', stderr)
         self.assertIn('argv[0] = Bootstrap', stderr)
@@ -122,7 +122,7 @@ class TC_01_Bootstrap(RegressionTestCase):
             self.run_binary([manifest])
 
     def test_110_preload_libraries(self):
-        stdout, stderr = self.run_binary(['Bootstrap3'])
+        _, stderr = self.run_binary(['Bootstrap3'])
         self.assertIn('Binary 1 Preloaded', stderr)
         self.assertIn('Binary 2 Preloaded', stderr)
         self.assertIn('Preloaded Function 1 Called', stderr)
@@ -130,26 +130,26 @@ class TC_01_Bootstrap(RegressionTestCase):
 
     def test_111_preload_libraries(self):
         # Bootstrap without Executable but Preload Libraries
-        stdout, stderr = self.run_binary([self.get_manifest('Bootstrap5')])
+        _, stderr = self.run_binary([self.get_manifest('Bootstrap5')])
         self.assertIn('Binary 1 Preloaded', stderr)
         self.assertIn('Binary 2 Preloaded', stderr)
 
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
     def test_120_8gb_enclave(self):
         manifest = self.get_manifest('Bootstrap6')
-        stdout, stderr = self.run_binary([manifest], timeout=360)
+        _, stderr = self.run_binary([manifest], timeout=360)
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Executable Range OK', stderr)
 
     def test_130_large_number_of_items_in_manifest(self):
-        stdout, stderr = self.run_binary([self.get_manifest('Bootstrap7')])
+        _, stderr = self.run_binary([self.get_manifest('Bootstrap7')])
         self.assertIn('key1000=na', stderr)
         self.assertIn('key1=na', stderr)
 
     @unittest.skip('this is broken on non-SGX, see #860')
     def test_140_missing_executable_and_manifest(self):
         try:
-            stdout, stderr = self.run_binary(['fakenews'])
+            _, stderr = self.run_binary(['fakenews'])
             self.fail(
                 'expected non-zero returncode, stderr: {!r}'.format(stderr))
         except subprocess.CalledProcessError as e:
@@ -202,17 +202,17 @@ class TC_02_Symbols(RegressionTestCase):
     ]
 
     def test_000_symbols(self):
-        stdout, stderr = self.run_binary(['Symbols'])
+        _, stderr = self.run_binary(['Symbols'])
         found_symbols = dict(line.split(' = ')
             for line in stderr.strip().split('\n') if line.startswith('Dk'))
         self.assertCountEqual(found_symbols, self.ALL_SYMBOLS)
-        for k, v in found_symbols.items():
-            v = ast.literal_eval(v)
-            self.assertNotEqual(v, 0, 'symbol {} has value 0'.format(k))
+        for k, value in found_symbols.items():
+            value = ast.literal_eval(value)
+            self.assertNotEqual(value, 0, 'symbol {} has value 0'.format(k))
 
 class TC_10_Exception(RegressionTestCase):
     def test_000_exception(self):
-        stdout, stderr = self.run_binary(['Exception'])
+        _, stderr = self.run_binary(['Exception'])
 
         # Exception Handling (Div-by-Zero)
         self.assertIn('Arithmetic Exception Handler', stderr)
@@ -242,10 +242,10 @@ class TC_20_SingleProcess(RegressionTestCase):
             pass
         pathlib.Path('file_delete.tmp').touch()
 
-        with open('File', 'rb') as file:
-            file_exist = file.read()
+        with open('File', 'rb') as file_:
+            file_exist = file_.read()
 
-        stdout, stderr = self.run_binary(['File'])
+        _, stderr = self.run_binary(['File'])
 
         # Basic File Opening
         self.assertIn('File Open Test 1 OK', stderr)
@@ -266,8 +266,8 @@ class TC_20_SingleProcess(RegressionTestCase):
             file_exist[200:240].hex()), stderr)
 
         # File Writing
-        with open('file_nonexist.tmp', 'rb') as file:
-            file_nonexist = file.read()
+        with open('file_nonexist.tmp', 'rb') as file_:
+            file_nonexist = file_.read()
 
         self.assertEqual(file_exist[0:40], file_nonexist[200:240])
         self.assertEqual(file_exist[200:240], file_nonexist[0:40])
@@ -309,7 +309,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         # run repeatedly.
         os.remove('file_nonexist_disallowed.tmp')
 
-        stdout, stderr = self.run_binary(['File'])
+        _, stderr = self.run_binary(['File'])
 
         # Run file creation for non-existing file. This behavior is
         # disallowed unless sgx.allow_file_creation is explicitly set to 1.
@@ -324,15 +324,14 @@ class TC_20_SingleProcess(RegressionTestCase):
 
         path = pathlib.Path('dir_exist.tmp')
         files = [path / ''.join(random.choice(string.ascii_letters)
-                for j in range(8))
-            for i in range(5)]
-
+                                for _ in range(8))
+                 for _ in range(5)]
         path.mkdir()
-        for p in files:
-            p.touch()
+        for file_ in files:
+            file_.touch()
         pathlib.Path('dir_delete.tmp').mkdir()
 
-        stdout, stderr = self.run_binary(['Directory'])
+        _, stderr = self.run_binary(['Directory'])
 
         # Basic Directory Opening
         self.assertIn('Directory Open Test 1 OK', stderr)
@@ -345,8 +344,8 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Directory Creation Test 3 OK', stderr)
 
         # Directory Reading
-        for p in files:
-            self.assertIn('Read Directory: {}'.format(p.name), stderr)
+        for file_ in files:
+            self.assertIn('Read Directory: {}'.format(file_.name), stderr)
 
         # Directory Attribute Query
         self.assertIn('Query: type = ', stderr)
@@ -358,12 +357,12 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertFalse(pathlib.Path('dir_delete.tmp').exists())
 
     def test_200_event(self):
-        stdout, stderr = self.run_binary(['Event'])
+        _, stderr = self.run_binary(['Event'])
         self.assertIn('Wait with too short timeout ok.', stderr)
         self.assertIn('Wait with long enough timeout ok.', stderr)
 
     def test_210_semaphore(self):
-        stdout, stderr = self.run_binary(['Semaphore'])
+        _, stderr = self.run_binary(['Semaphore'])
 
         # Semaphore: Timeout on Locked Semaphores
         self.assertIn('Locked binary semaphore timed out (1000).', stderr)
@@ -374,7 +373,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Locked binary semaphore successfully (0).', stderr)
 
     def test_300_memory(self):
-        stdout, stderr = self.run_binary(['Memory'])
+        _, stderr = self.run_binary(['Memory'])
 
         # Memory Allocation
         self.assertIn('Memory Allocation OK', stderr)
@@ -393,7 +392,7 @@ class TC_20_SingleProcess(RegressionTestCase):
 
     @expectedFailureIf(HAS_SGX)
     def test_301_memory_nosgx(self):
-        stdout, stderr = self.run_binary(['Memory'])
+        _, stderr = self.run_binary(['Memory'])
 
         # SGX1 does not support unmapping a page or changing its permission
         # after enclave init. Therefore the memory protection and deallocation
@@ -407,7 +406,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Memory Deallocation OK', stderr)
 
     def test_400_pipe(self):
-        stdout, stderr = self.run_binary(['Pipe'])
+        _, stderr = self.run_binary(['Pipe'])
 
         # Pipe Creation
         self.assertIn('Pipe Creation 1 OK', stderr)
@@ -425,7 +424,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Pipe Read 2: Hello World 2', stderr)
 
     def test_410_socket(self):
-        stdout, stderr = self.run_binary(['Socket'])
+        _, stderr = self.run_binary(['Socket'])
 
         # TCP Socket Creation
         self.assertIn('TCP Creation 1 OK', stderr)
@@ -458,7 +457,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('UDP Read 4: Hello World 2', stderr)
 
     def test_500_thread(self):
-        stdout, stderr = self.run_binary(['Thread'])
+        _, stderr = self.run_binary(['Thread'])
 
         # Thread Creation
         self.assertIn('Child Thread Created', stderr)
@@ -475,7 +474,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Child Thread Exited', stderr)
 
     def test_510_thread2(self):
-        stdout, stderr = self.run_binary(['Thread2'])
+        _, stderr = self.run_binary(['Thread2'])
 
         # Thread Cleanup: Exit by return.
         self.assertIn('Thread 2 ok.', stderr)
@@ -488,7 +487,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Thread 4 ok.', stderr)
 
     def test_900_misc(self):
-        stdout, stderr = self.run_binary(['Misc'])
+        _, stderr = self.run_binary(['Misc'])
         # Query System Time
         self.assertIn('Query System Time OK', stderr)
 
@@ -502,14 +501,14 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Generate Random Bits OK', stderr)
 
     def test_910_hex(self):
-        stdout, stderr = self.run_binary(['Hex'])
+        _, stderr = self.run_binary(['Hex'])
         # Hex 2 String Helper Function
         self.assertIn('Hex test 1 is deadbeef', stderr)
         self.assertIn('Hex test 2 is cdcdcdcdcdcdcdcd', stderr)
 
 class TC_21_ProcessCreation(RegressionTestCase):
     def test_100_process(self):
-        stdout, stderr = self.run_binary(['Process'], timeout=8)
+        _, stderr = self.run_binary(['Process'], timeout=8)
         counter = collections.Counter(stderr.split('\n'))
         # Process Creation
         self.assertEqual(counter['Child Process Created'], 3)
@@ -526,20 +525,20 @@ class TC_21_ProcessCreation(RegressionTestCase):
 
     def test_200_process2(self):
         # Process Creation with a Different Binary
-        stdout, stderr = self.run_binary(['Process2'])
+        _, stderr = self.run_binary(['Process2'])
         counter = collections.Counter(stderr.split('\n'))
         self.assertEqual(counter['User Program Started'], 1)
 
     def test_300_process3(self):
         # Process Creation without Executable
-        stdout, stderr = self.run_binary(['Process3'])
+        _, stderr = self.run_binary(['Process3'])
         counter = collections.Counter(stderr.split('\n'))
         self.assertEqual(counter['Binary 1 Preloaded'], 2)
         self.assertEqual(counter['Binary 2 Preloaded'], 2)
 
 class TC_23_SendHandle(RegressionTestCase):
     def test_000_send_handle(self):
-        stdout, stderr = self.run_binary(['SendHandle'])
+        _, stderr = self.run_binary(['SendHandle'])
         counter = collections.Counter(stderr.split('\n'))
 
         # Send and Receive Handles across Processes
@@ -561,13 +560,13 @@ class TC_40_AVXDisable(RegressionTestCase):
     @unittest.expectedFailure
     def test_000_avx_disable(self):
         # Disable AVX bit in XFRM
-        stdout, stderr = self.run_binary(['AvxDisable'])
+        _, stderr = self.run_binary(['AvxDisable'])
         self.assertIn('Illegal instruction executed in enclave', stderr)
 
 @unittest.skipUnless(HAS_SGX, 'need SGX')
 class TC_50_Attestation(RegressionTestCase):
     def test_000_remote_attestation(self):
-        stdout, stderr = self.run_binary(["Attestation"])
+        _, stderr = self.run_binary(["Attestation"])
 
         for line in stderr.split("\n"):
             # Check the attestation status
@@ -581,4 +580,4 @@ class TC_50_Attestation(RegressionTestCase):
                 # The timestamp may be in another time zone, but should be
                 # within 24 hours of the current time.
                 self.assertTrue(datetime.now() - timedelta(hours=24) <= timestamp and \
-                                datetime.now() + timedelta(hours=24) >= timestamp);
+                                datetime.now() + timedelta(hours=24) >= timestamp)
