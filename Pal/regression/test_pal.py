@@ -323,8 +323,8 @@ class TC_20_SingleProcess(RegressionTestCase):
                 pass
 
         path = pathlib.Path('dir_exist.tmp')
-        files = [path.joinpath(''.join(random.choice(string.ascii_letters)
-                                       for _ in range(8)))
+        files = [path / ''.join(random.choice(string.ascii_letters)
+                                for _ in range(8))
                  for _ in range(5)]
         path.mkdir()
         for file_ in files:
