@@ -172,8 +172,11 @@ typedef struct {
 } ms_ocall_socketpair_t;
 
 typedef struct {
-    int ms_domain, ms_type, ms_protocol;
-    const struct sockaddr * ms_addr;
+    int ms_domain;
+    int ms_type;
+    int ms_protocol;
+    int ms_ipv6_v6only;
+    const struct sockaddr* ms_addr;
     unsigned int ms_addrlen;
     struct sockopt ms_sockopt;
 } ms_ocall_listen_t;
@@ -186,10 +189,13 @@ typedef struct {
 } ms_ocall_accept_t;
 
 typedef struct {
-    int ms_domain, ms_type, ms_protocol;
-    const struct sockaddr * ms_addr;
+    int ms_domain;
+    int ms_type;
+    int ms_protocol;
+    int ms_ipv6_v6only;
+    const struct sockaddr* ms_addr;
     unsigned int ms_addrlen;
-    struct sockaddr * ms_bind_addr;
+    struct sockaddr* ms_bind_addr;
     unsigned int ms_bind_addrlen;
     struct sockopt ms_sockopt;
 } ms_ocall_connect_t;

@@ -315,7 +315,7 @@ static inline int sock_type(int type, int options) {
 }
 
 /* listen on a tcp socket */
-static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
+static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
     unsigned int bind_addrlen;
@@ -336,8 +336,9 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_STREAM, options), 0, bind_addr,
-                       &bind_addrlen, &sock_options);
+    int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
+    ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_STREAM, options), 0, ipv6_v6only,
+                       bind_addr, &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -416,8 +417,8 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_connect(dest_addr->sa_family, sock_type(SOCK_STREAM, options), 0, dest_addr,
-                        dest_addrlen, bind_addr, &bind_addrlen, &sock_options);
+    ret = ocall_connect(dest_addr->sa_family, sock_type(SOCK_STREAM, options), 0, /*ipv6_v6only=*/0,
+                        dest_addr, dest_addrlen, bind_addr, &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -448,7 +449,7 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     memcpy(uri_buf, uri, uri_len);
 
     if (!strcmp_static(type, URI_TYPE_TCP_SRV))
-        return tcp_listen(handle, uri_buf, options);
+        return tcp_listen(handle, uri_buf, create, options);
 
     if (!strcmp_static(type, URI_TYPE_TCP))
         return tcp_connect(handle, uri_buf, options);
@@ -503,7 +504,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
 }
 
 /* used by 'open' operation of tcp stream for bound socket */
-static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
+static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
     unsigned int bind_addrlen;
@@ -527,8 +528,9 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_DGRAM, options), 0, bind_addr,
-                       &bind_addrlen, &sock_options);
+    int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
+    ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_DGRAM, options), 0, ipv6_v6only,
+                       bind_addr, &bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -544,7 +546,7 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
 }
 
 /* used by 'open' operation of tcp stream for connected socket */
-static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
+static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer[2];
     struct sockaddr* bind_addr = buffer;
     struct sockaddr* dest_addr = buffer + 1;
@@ -566,9 +568,10 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_connect(dest_addr ? dest_addr->sa_family : AF_INET,
-                        sock_type(SOCK_DGRAM, options), 0, dest_addr, dest_addrlen, bind_addr,
-                        &bind_addrlen, &sock_options);
+    int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
+    ret = ocall_connect(dest_addr ? dest_addr->sa_family : AF_INET, sock_type(SOCK_DGRAM, options),
+                        0, ipv6_v6only, dest_addr, dest_addrlen, bind_addr, &bind_addrlen,
+                        &sock_options);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -599,10 +602,10 @@ static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int acce
     memcpy(buf, uri, len + 1);
 
     if (!strcmp_static(type, URI_TYPE_UDP_SRV))
-        return udp_bind(hdl, buf, options);
+        return udp_bind(hdl, buf, create, options);
 
     if (!strcmp_static(type, URI_TYPE_UDP))
-        return udp_connect(hdl, buf, options);
+        return udp_connect(hdl, buf, create, options);
 
     return -PAL_ERROR_NOTSUPPORT;
 }

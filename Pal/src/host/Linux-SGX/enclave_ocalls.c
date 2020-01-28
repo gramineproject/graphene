@@ -570,14 +570,12 @@ int ocall_socketpair (int domain, int type, int protocol,
     return retval;
 }
 
-int ocall_listen (int domain, int type, int protocol,
-                  struct sockaddr * addr, unsigned int * addrlen,
-                  struct sockopt * sockopt)
-{
+int ocall_listen(int domain, int type, int protocol, int ipv6_v6only,
+                 struct sockaddr* addr, unsigned int* addrlen, struct sockopt* sockopt) {
     int retval = 0;
     unsigned int copied;
     unsigned int len = addrlen ? *addrlen : 0;
-    ms_ocall_listen_t * ms;
+    ms_ocall_listen_t* ms;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms) {
@@ -588,6 +586,7 @@ int ocall_listen (int domain, int type, int protocol,
     ms->ms_domain = domain;
     ms->ms_type = type;
     ms->ms_protocol = protocol;
+    ms->ms_ipv6_v6only = ipv6_v6only;
     ms->ms_addrlen = len;
     ms->ms_addr = (addr && len) ? sgx_copy_to_ustack(addr, len) : NULL;
 
@@ -661,16 +660,14 @@ int ocall_accept (int sockfd, struct sockaddr * addr,
     return retval;
 }
 
-int ocall_connect (int domain, int type, int protocol,
-                   const struct sockaddr * addr,
-                   unsigned int addrlen,
-                   struct sockaddr * bind_addr,
-                   unsigned int * bind_addrlen, struct sockopt * sockopt)
-{
+int ocall_connect(int domain, int type, int protocol, int ipv6_v6only,
+                  const struct sockaddr* addr, unsigned int addrlen,
+                  struct sockaddr* bind_addr, unsigned int* bind_addrlen,
+                  struct sockopt* sockopt) {
     int retval = 0;
     unsigned int copied;
     unsigned int bind_len = bind_addrlen ? *bind_addrlen : 0;
-    ms_ocall_connect_t * ms;
+    ms_ocall_connect_t* ms;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms) {
@@ -681,6 +678,7 @@ int ocall_connect (int domain, int type, int protocol,
     ms->ms_domain = domain;
     ms->ms_type = type;
     ms->ms_protocol = protocol;
+    ms->ms_ipv6_v6only = ipv6_v6only;
     ms->ms_addrlen = addrlen;
     ms->ms_bind_addrlen = bind_len;
     ms->ms_addr = addr ? sgx_copy_to_ustack(addr, addrlen) : NULL;

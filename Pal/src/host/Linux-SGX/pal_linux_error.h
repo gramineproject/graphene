@@ -22,6 +22,7 @@ static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
         case EFAULT:
             return -PAL_ERROR_BADADDR;
         case EEXIST:
+        case EADDRINUSE:
             return -PAL_ERROR_STREAMEXIST;
         case ENOTDIR:
             return -PAL_ERROR_STREAMISFILE;

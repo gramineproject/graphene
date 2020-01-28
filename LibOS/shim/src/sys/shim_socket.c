@@ -417,6 +417,20 @@ static int create_socket_uri(struct shim_handle* hdl) {
     return -EPROTONOSUPPORT;
 }
 
+/* hdl->lock must be held */
+static bool __socket_is_ipv6_v6only(struct shim_handle* hdl) {
+    struct shim_sock_option* o = hdl->info.sock.pending_options;
+    while (o) {
+        if (o->level == IPPROTO_IPV6 && o->optname == IPV6_V6ONLY) {
+            int* intval = (int*)o->optval;
+            return *intval ? 1 : 0;
+        }
+        o = o->next;
+    }
+    return false;
+}
+
+
 int shim_do_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen) {
     if (!addr || test_user_memory(addr, addrlen, false))
         return -EFAULT;
@@ -480,7 +494,13 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen) {
     if ((ret = create_socket_uri(hdl)) < 0)
         goto out;
 
-    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, 0, hdl->flags & O_NONBLOCK);
+    int create_flags = PAL_CREATE_DUALSTACK;
+    if (__socket_is_ipv6_v6only(hdl)) {
+        /* application requests IPV6_V6ONLY, this socket is not dual-stack */
+        create_flags &= ~PAL_CREATE_DUALSTACK;
+    }
+
+    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, create_flags, hdl->flags & O_NONBLOCK);
 
     if (!pal_hdl) {
         ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ? -EADDRINUSE : -PAL_ERRNO;
@@ -1626,7 +1646,7 @@ static bool __update_attr(PAL_STREAM_ATTR* attr, int level, int optname, char* o
 
 static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char* optval,
                            PAL_STREAM_ATTR* attr) {
-    if (level != SOL_SOCKET && level != SOL_TCP)
+    if (level != SOL_SOCKET && level != SOL_TCP && level != IPPROTO_IPV6)
         return -ENOPROTOOPT;
 
     if (level == SOL_SOCKET) {
@@ -1649,6 +1669,9 @@ static int __do_setsockopt(struct shim_handle* hdl, int level, int optname, char
                 return -ENOPROTOOPT;
         }
     }
+
+    if (level == IPPROTO_IPV6 && optname != IPV6_V6ONLY)
+        return -ENOPROTOOPT;
 
     if (level == SOL_TCP && optname != TCP_CORK && optname != TCP_NODELAY)
         return -ENOPROTOOPT;
@@ -1772,7 +1795,7 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
 
     int* intval = (int*)optval;
 
-    if (level != SOL_SOCKET && level != SOL_TCP)
+    if (level != SOL_SOCKET && level != SOL_TCP && level != IPPROTO_IPV6)
         goto unknown;
 
     if (level == SOL_SOCKET) {
@@ -1818,6 +1841,15 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
         switch (optname) {
             case TCP_CORK:
             case TCP_NODELAY:
+                break;
+            default:
+                goto unknown;
+        }
+    }
+
+    if (level == IPPROTO_IPV6) {
+        switch (optname) {
+            case IPV6_V6ONLY:
                 break;
             default:
                 goto unknown;
@@ -1881,6 +1913,14 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
                 break;
             case TCP_NODELAY:
                 *intval = attr.socket.tcp_nodelay ? 1 : 0;
+                break;
+        }
+    }
+
+    if (level == IPPROTO_IPV6) {
+        switch (optname) {
+            case IPV6_V6ONLY:
+                *intval = __socket_is_ipv6_v6only(hdl) ? 1 : 0;
                 break;
         }
     }

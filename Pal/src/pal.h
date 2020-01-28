@@ -426,11 +426,10 @@ DkProcessExit (PAL_NUM exitCode);
 #define PAL_SHARE_MASK      0777
 
 /* Stream Create Flags */
-#define PAL_CREATE_TRY        0100       /* 0100 Create file if file not
-                                           exist (O_CREAT) */
-#define PAL_CREATE_ALWAYS     0200       /* 0300 Create file and fail if file
-                                           already exist (O_CREAT|O_EXCL) */
-#define PAL_CREATE_MASK       0300
+#define PAL_CREATE_TRY        0100       /* Create file if file not exist (O_CREAT) */
+#define PAL_CREATE_ALWAYS     0200       /* Create file and fail if file already exist (O_CREAT|O_EXCL) */
+#define PAL_CREATE_DUALSTACK  0400       /* Create dual-stack socket (opposite of IPV6_V6ONLY) */
+#define PAL_CREATE_MASK       0700
 
 /* Stream Option Flags */
 #define PAL_OPTION_NONBLOCK     04000
