@@ -290,11 +290,7 @@ static int sgx_ocall_listen(void * pms)
         goto err;
 
     fd = ret;
-    if (ms->ms_addr->sa_family == AF_INET6) {
-        int ipv6only = 1;
-        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only,
-                       sizeof(int));
-    }
+
     /* must set the socket to be reuseable */
     int reuseaddr = 1;
     INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr,
@@ -369,11 +365,6 @@ static int sgx_ocall_connect(void * pms)
         goto err;
 
     fd = ret;
-    if (ms->ms_addr && ms->ms_addr->sa_family == AF_INET6) {
-        int ipv6only = 1;
-        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only,
-                       sizeof(int));
-    }
 
     if (ms->ms_bind_addr && ms->ms_bind_addr->sa_family) {
         ret = INLINE_SYSCALL(bind, 3, fd, ms->ms_bind_addr,
