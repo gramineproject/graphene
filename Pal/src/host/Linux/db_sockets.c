@@ -348,11 +348,6 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
 
-    if (bind_addr->sa_family == AF_INET6) {
-        int ipv6only = 1;
-        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only, sizeof(int));
-    }
-
     /* must set the socket to be reuseable */
     int reuseaddr = 1;
     INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int));
@@ -478,11 +473,6 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
                     goto failed;
             }
         }
-    }
-
-    if (dest_addr->sa_family == AF_INET6) {
-        int ipv6only = 1;
-        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only, sizeof(int));
     }
 
     ret = INLINE_SYSCALL(connect, 3, fd, dest_addr, dest_addrlen);
@@ -635,11 +625,6 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
 
-    if (bind_addr->sa_family == AF_INET6) {
-        int ipv6only = 1;
-        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only, sizeof(int));
-    }
-
     ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
 
     if (IS_ERR(ret)) {
@@ -693,11 +678,6 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
-
-    if (dest_addr && dest_addr->sa_family == AF_INET6) {
-        int ipv6only = 1;
-        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only, sizeof(int));
-    }
 
     if (bind_addr) {
         ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
