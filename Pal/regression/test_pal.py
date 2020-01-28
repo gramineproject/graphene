@@ -27,14 +27,14 @@ CPUINFO_FLAGS_WHITELIST = [
 
 class TC_00_Basic(RegressionTestCase):
     def test_000_atomic_math(self):
-        stdout, stderr = self.run_binary(['AtomicMath'])
+        stdout, stderr = self.run_binary(['AtomicMath']) # pylint: disable=unused-variable
         self.assertIn('Subtract INT_MIN: Both values match 2147483648', stderr)
         self.assertIn('Subtract INT_MAX: Both values match -2147483647', stderr)
         self.assertIn('Subtract LLONG_MIN: Both values match -9223372036854775808', stderr)
         self.assertIn('Subtract LLONG_MAX: Both values match -9223372036854775807', stderr)
 
     def test_001_path_normalization(self):
-        stdout, stderr = self.run_binary(['normalize_path'])
+        stdout, stderr = self.run_binary(['normalize_path']) # pylint: disable=unused-variable
 
         self.assertIn("Success!\n", stderr)
 
@@ -62,7 +62,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('Executable Range OK', stderr)
 
     def test_101_basic_boostrapping_five_arguments(self):
-        stdout, stderr = self.run_binary(['Bootstrap', 'a', 'b', 'c', 'd'])
+        stdout, stderr = self.run_binary(['Bootstrap', 'a', 'b', 'c', 'd']) # pylint: disable=unused-variable
 
         # Five Arguments Given
         self.assertIn('# of Arguments: 5', stderr)
@@ -80,7 +80,7 @@ class TC_01_Bootstrap(RegressionTestCase):
             cpuinfo['flags'] = ' '.join(flag for flag in cpuinfo['flags']
                 if flag in CPUINFO_FLAGS_WHITELIST)
 
-        stdout, stderr = self.run_binary(['Bootstrap'])
+        stdout, stderr = self.run_binary(['Bootstrap']) # pylint: disable=unused-variable
 
         self.assertIn('CPU num: {}'.format(int(cpuinfo['processor']) + 1),
             stderr)
@@ -92,24 +92,24 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('CPU flags: {[flags]}'.format(cpuinfo), stderr)
 
     def test_103_dotdot(self):
-        stdout, stderr = self.run_binary(['..Bootstrap'])
+        stdout, stderr = self.run_binary(['..Bootstrap']) # pylint: disable=unused-variable
         self.assertIn('User Program Started', stderr)
 
     def test_104_manifest_as_executable_name(self):
         manifest = self.get_manifest('Bootstrap2')
-        stdout, stderr = self.run_binary([manifest])
+        stdout, stderr = self.run_binary([manifest]) # pylint: disable=unused-variable
         self.assertIn('User Program Started', stderr)
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
 
     def test_105_manifest_as_argument(self):
         manifest = self.get_manifest('Bootstrap4')
-        stdout, stderr = self.run_binary([manifest])
+        stdout, stderr = self.run_binary([manifest]) # pylint: disable=unused-variable
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Loaded Executable: file:Bootstrap', stderr)
 
     def test_106_manifest_with_shebang(self):
         manifest = self.get_manifest('Bootstrap4')
-        stdout, stderr = self.run_binary(['./' + manifest])
+        stdout, stderr = self.run_binary(['./' + manifest]) # pylint: disable=unused-variable
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Loaded Executable: file:Bootstrap', stderr)
         self.assertIn('argv[0] = Bootstrap', stderr)
@@ -122,7 +122,7 @@ class TC_01_Bootstrap(RegressionTestCase):
             self.run_binary([manifest])
 
     def test_110_preload_libraries(self):
-        stdout, stderr = self.run_binary(['Bootstrap3'])
+        stdout, stderr = self.run_binary(['Bootstrap3']) # pylint: disable=unused-variable
         self.assertIn('Binary 1 Preloaded', stderr)
         self.assertIn('Binary 2 Preloaded', stderr)
         self.assertIn('Preloaded Function 1 Called', stderr)
@@ -130,26 +130,26 @@ class TC_01_Bootstrap(RegressionTestCase):
 
     def test_111_preload_libraries(self):
         # Bootstrap without Executable but Preload Libraries
-        stdout, stderr = self.run_binary([self.get_manifest('Bootstrap5')])
+        stdout, stderr = self.run_binary([self.get_manifest('Bootstrap5')]) # pylint: disable=unused-variable
         self.assertIn('Binary 1 Preloaded', stderr)
         self.assertIn('Binary 2 Preloaded', stderr)
 
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
     def test_120_8gb_enclave(self):
         manifest = self.get_manifest('Bootstrap6')
-        stdout, stderr = self.run_binary([manifest], timeout=360)
+        stdout, stderr = self.run_binary([manifest], timeout=360) # pylint: disable=unused-variable
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Executable Range OK', stderr)
 
     def test_130_large_number_of_items_in_manifest(self):
-        stdout, stderr = self.run_binary([self.get_manifest('Bootstrap7')])
+        stdout, stderr = self.run_binary([self.get_manifest('Bootstrap7')]) # pylint: disable=unused-variable
         self.assertIn('key1000=na', stderr)
         self.assertIn('key1=na', stderr)
 
     @unittest.skip('this is broken on non-SGX, see #860')
     def test_140_missing_executable_and_manifest(self):
         try:
-            stdout, stderr = self.run_binary(['fakenews'])
+            stdout, stderr = self.run_binary(['fakenews']) # pylint: disable=unused-variable
             self.fail(
                 'expected non-zero returncode, stderr: {!r}'.format(stderr))
         except subprocess.CalledProcessError as e:
@@ -202,7 +202,7 @@ class TC_02_Symbols(RegressionTestCase):
     ]
 
     def test_000_symbols(self):
-        stdout, stderr = self.run_binary(['Symbols'])
+        stdout, stderr = self.run_binary(['Symbols']) # pylint: disable=unused-variable
         found_symbols = dict(line.split(' = ')
             for line in stderr.strip().split('\n') if line.startswith('Dk'))
         self.assertCountEqual(found_symbols, self.ALL_SYMBOLS)
@@ -212,7 +212,7 @@ class TC_02_Symbols(RegressionTestCase):
 
 class TC_10_Exception(RegressionTestCase):
     def test_000_exception(self):
-        stdout, stderr = self.run_binary(['Exception'])
+        stdout, stderr = self.run_binary(['Exception']) # pylint: disable=unused-variable
 
         # Exception Handling (Div-by-Zero)
         self.assertIn('Arithmetic Exception Handler', stderr)
@@ -245,7 +245,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         with open('File', 'rb') as file:
             file_exist = file.read()
 
-        stdout, stderr = self.run_binary(['File'])
+        stdout, stderr = self.run_binary(['File']) # pylint: disable=unused-variable
 
         # Basic File Opening
         self.assertIn('File Open Test 1 OK', stderr)
@@ -309,7 +309,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         # run repeatedly.
         os.remove('file_nonexist_disallowed.tmp')
 
-        stdout, stderr = self.run_binary(['File'])
+        stdout, stderr = self.run_binary(['File']) # pylint: disable=unused-variable
 
         # Run file creation for non-existing file. This behavior is
         # disallowed unless sgx.allow_file_creation is explicitly set to 1.
@@ -332,7 +332,7 @@ class TC_20_SingleProcess(RegressionTestCase):
             p.touch()
         pathlib.Path('dir_delete.tmp').mkdir()
 
-        stdout, stderr = self.run_binary(['Directory'])
+        stdout, stderr = self.run_binary(['Directory']) # pylint: disable=unused-variable
 
         # Basic Directory Opening
         self.assertIn('Directory Open Test 1 OK', stderr)
@@ -358,12 +358,12 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertFalse(pathlib.Path('dir_delete.tmp').exists())
 
     def test_200_event(self):
-        stdout, stderr = self.run_binary(['Event'])
+        stdout, stderr = self.run_binary(['Event']) # pylint: disable=unused-variable
         self.assertIn('Wait with too short timeout ok.', stderr)
         self.assertIn('Wait with long enough timeout ok.', stderr)
 
     def test_210_semaphore(self):
-        stdout, stderr = self.run_binary(['Semaphore'])
+        stdout, stderr = self.run_binary(['Semaphore']) # pylint: disable=unused-variable
 
         # Semaphore: Timeout on Locked Semaphores
         self.assertIn('Locked binary semaphore timed out (1000).', stderr)
@@ -374,7 +374,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Locked binary semaphore successfully (0).', stderr)
 
     def test_300_memory(self):
-        stdout, stderr = self.run_binary(['Memory'])
+        stdout, stderr = self.run_binary(['Memory']) # pylint: disable=unused-variable
 
         # Memory Allocation
         self.assertIn('Memory Allocation OK', stderr)
@@ -393,7 +393,7 @@ class TC_20_SingleProcess(RegressionTestCase):
 
     @expectedFailureIf(HAS_SGX)
     def test_301_memory_nosgx(self):
-        stdout, stderr = self.run_binary(['Memory'])
+        stdout, stderr = self.run_binary(['Memory']) # pylint: disable=unused-variable
 
         # SGX1 does not support unmapping a page or changing its permission
         # after enclave init. Therefore the memory protection and deallocation
@@ -407,7 +407,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Memory Deallocation OK', stderr)
 
     def test_400_pipe(self):
-        stdout, stderr = self.run_binary(['Pipe'])
+        stdout, stderr = self.run_binary(['Pipe']) # pylint: disable=unused-variable
 
         # Pipe Creation
         self.assertIn('Pipe Creation 1 OK', stderr)
@@ -425,7 +425,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Pipe Read 2: Hello World 2', stderr)
 
     def test_410_socket(self):
-        stdout, stderr = self.run_binary(['Socket'])
+        stdout, stderr = self.run_binary(['Socket']) # pylint: disable=unused-variable
 
         # TCP Socket Creation
         self.assertIn('TCP Creation 1 OK', stderr)
@@ -458,7 +458,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('UDP Read 4: Hello World 2', stderr)
 
     def test_500_thread(self):
-        stdout, stderr = self.run_binary(['Thread'])
+        stdout, stderr = self.run_binary(['Thread']) # pylint: disable=unused-variable
 
         # Thread Creation
         self.assertIn('Child Thread Created', stderr)
@@ -475,7 +475,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Child Thread Exited', stderr)
 
     def test_510_thread2(self):
-        stdout, stderr = self.run_binary(['Thread2'])
+        stdout, stderr = self.run_binary(['Thread2']) # pylint: disable=unused-variable
 
         # Thread Cleanup: Exit by return.
         self.assertIn('Thread 2 ok.', stderr)
@@ -488,7 +488,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Thread 4 ok.', stderr)
 
     def test_900_misc(self):
-        stdout, stderr = self.run_binary(['Misc'])
+        stdout, stderr = self.run_binary(['Misc']) # pylint: disable=unused-variable
         # Query System Time
         self.assertIn('Query System Time OK', stderr)
 
@@ -502,14 +502,14 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('Generate Random Bits OK', stderr)
 
     def test_910_hex(self):
-        stdout, stderr = self.run_binary(['Hex'])
+        stdout, stderr = self.run_binary(['Hex']) # pylint: disable=unused-variable
         # Hex 2 String Helper Function
         self.assertIn('Hex test 1 is deadbeef', stderr)
         self.assertIn('Hex test 2 is cdcdcdcdcdcdcdcd', stderr)
 
 class TC_21_ProcessCreation(RegressionTestCase):
     def test_100_process(self):
-        stdout, stderr = self.run_binary(['Process'], timeout=8)
+        stdout, stderr = self.run_binary(['Process'], timeout=8) # pylint: disable=unused-variable
         counter = collections.Counter(stderr.split('\n'))
         # Process Creation
         self.assertEqual(counter['Child Process Created'], 3)
@@ -525,7 +525,7 @@ class TC_21_ProcessCreation(RegressionTestCase):
         self.assertEqual(counter['Process Read 2: Hello World 2'], 3)
 
     def test_110_process_broadcast(self):
-        stdout, stderr = self.run_binary(['Process'], timeout=8)
+        stdout, stderr = self.run_binary(['Process'], timeout=8) # pylint: disable=unused-variable
         counter = collections.Counter(stderr.split('\n'))
 
         # Multi-Process Broadcast Channel Transmission
@@ -539,20 +539,20 @@ class TC_21_ProcessCreation(RegressionTestCase):
 
     def test_200_process2(self):
         # Process Creation with a Different Binary
-        stdout, stderr = self.run_binary(['Process2'])
+        stdout, stderr = self.run_binary(['Process2']) # pylint: disable=unused-variable
         counter = collections.Counter(stderr.split('\n'))
         self.assertEqual(counter['User Program Started'], 1)
 
     def test_300_process3(self):
         # Process Creation without Executable
-        stdout, stderr = self.run_binary(['Process3'])
+        stdout, stderr = self.run_binary(['Process3']) # pylint: disable=unused-variable
         counter = collections.Counter(stderr.split('\n'))
         self.assertEqual(counter['Binary 1 Preloaded'], 2)
         self.assertEqual(counter['Binary 2 Preloaded'], 2)
 
 class TC_23_SendHandle(RegressionTestCase):
     def test_000_send_handle(self):
-        stdout, stderr = self.run_binary(['SendHandle'])
+        stdout, stderr = self.run_binary(['SendHandle']) # pylint: disable=unused-variable
         counter = collections.Counter(stderr.split('\n'))
 
         # Send and Receive Handles across Processes
@@ -574,13 +574,13 @@ class TC_40_AVXDisable(RegressionTestCase):
     @unittest.expectedFailure
     def test_000_avx_disable(self):
         # Disable AVX bit in XFRM
-        stdout, stderr = self.run_binary(['AvxDisable'])
+        stdout, stderr = self.run_binary(['AvxDisable']) # pylint: disable=unused-variable
         self.assertIn('Illegal instruction executed in enclave', stderr)
 
 @unittest.skipUnless(HAS_SGX, 'need SGX')
 class TC_50_Attestation(RegressionTestCase):
     def test_000_remote_attestation(self):
-        stdout, stderr = self.run_binary(["Attestation"])
+        stdout, stderr = self.run_binary(["Attestation"]) # pylint: disable=unused-variable
 
         for line in stderr.split("\n"):
             # Check the attestation status
