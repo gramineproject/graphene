@@ -167,6 +167,9 @@ typedef struct {
 } sgx_cpu_context_t;
 
 // Required by _restore_sgx_context, see enclave_entry.S.
+static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, rflags) ==
+              sizeof(((sgx_cpu_context_t){0}).rflags),
+              "rip must be directly after rflags in sgx_cpu_context_t");
 static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, r15) <= RED_ZONE_SIZE,
               "r15 needs to be within red zone distance from rip");
 static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, rsp) <= RED_ZONE_SIZE,
