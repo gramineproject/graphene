@@ -12,28 +12,28 @@ Process Creation in Graphene SGX
 Fork in Graphene-SGX
 --------------------
 
-Fork() system call is intercepted in the :func:`shim_do_fork()` LibOS function.
+Fork() system call is intercepted in the `shim_do_fork()` LibOS function.
 This function performs three tasks:
 
 1. discovers the namespace leader,
 2. creates a LibOS :type:`shim_thread` structure for a new thread, and
-3. calls :func:`do_migrate_process()`.
+3. calls `do_migrate_process()`.
 
 The first two tasks are trivial, so we concentrate on the third one.
 
 
 Parent: Fork via `do_migrate_process`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The function :func:`do_migrate_process()` creates a new process in the
+The function `do_migrate_process()` creates a new process in the
 underlying OS, establishes a |~| channel between the current process and the
 newly created child process, collects checkpoint data from the parent process,
 sends the checkpoint to the child process, and establishes an IPC port to listen
 for events from the child process (such as death of the child).
 
-To implement this logic, :func:`do_migrate_process()` calls the following
+To implement this logic, `do_migrate_process()` calls the following
 functions:
 
-1. :func:`_DkProcessCreate()` -- PAL-specific creation of the process in the
+1. `_DkProcessCreate()` -- PAL-specific creation of the process in the
    underlying OS. For SGX PAL, this function performs ``clone() + execve()``
    system calls in underlying Linux to create a new process. The new (child)
    process can communicate with the parent process via Unix pipes. Using these
@@ -46,15 +46,15 @@ functions:
    the parent who verifies it, and the parent sends its REPORT to the child, who
    in turn verifies it.
 
-2. `*migrate()` -- function pointer to collect checkpoint data from the parent
+2. ``*migrate()`` -- function pointer to collect checkpoint data from the parent
    process (e.g., shim structures for process metadata, threads metadata, loaded
    libraries metadata, mounted points with FS metadata, VMAs, etc.). The
    checkpoint is created in trusted enclave memory and is never persisted (so it
    does not lead to leaks). For the fork case, the actual function is
-   :func:`migrate_fork()`. This function collects absolutely all shim data on
+   `migrate_fork()`. This function collects absolutely all shim data on
    the current state of the parent process.
 
-3. :func:`send_checkpoint_on_stream()` -- sends the whole checkpoint to the
+3. `send_checkpoint_on_stream()` -- sends the whole checkpoint to the
    child using :func:`DkStreamWrite()`. The only interesting thing about this
    function is that data is sent in plaintext. For SGX, the data must be
    encrypted in this function.
@@ -63,33 +63,33 @@ functions:
 Child: Initialization after Fork
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 After the child is created, Pal-Linux-SGX enters the enclave using EENTER. The
-enclave code calls :func:`pal_linux_main()` which in turn calls
-:func:`init_child_process()`. The :func:`init_child_process()` function serves
-as a child counterpart of the :func:`_DkProcessCreate()` logic of the parent.
-After :func:`init_child_process()` successfully authenticates the parent,
-:func:`pal_linux_main()` ends up calling :func:`pal_main()` which calls
-:func:`start_execution()` which finally invokes the entry point of LibOS --
-:func:`shim_start()`. :func:`shim_start()` simply calls :func:`shim_init()`,
+enclave code calls `pal_linux_main()` which in turn calls
+`init_child_process()`. The `init_child_process()` function serves
+as a child counterpart of the `_DkProcessCreate()` logic of the parent.
+After `init_child_process()` successfully authenticates the parent,
+`pal_linux_main()` ends up calling `pal_main()` which calls
+`start_execution()` which finally invokes the entry point of LibOS --
+`shim_start()`. `shim_start()` simply calls `shim_init()`,
 which reads the checkpoint from the network, restores it in child enclave's
 memory, and finally jumps to checkpointed RIP.
 
 In particular, these are the important child functions for fork:
 
-1. :func:`init_child_process()` -- a counterpart function to parent's
-   :func:`_DkProcessCreate()`. It inherits Unix pipes to communicate with the parent.
+1. `init_child_process()` -- a counterpart function to parent's
+   `_DkProcessCreate()`. It inherits Unix pipes to communicate with the parent.
    Using these pipes, the child establishes a share secret via DH key exchange
-   with the parent. The rest is similar to the logic in :func:`DkProcessCreate()`. At
-   the end of this function, the child successfully authenticated the parent
-   process.
+   with the parent. The rest is similar to the logic in
+   :func:`DkProcessCreate()`. At the end of this function, the child
+   successfully authenticated the parent process.
 
-2. :func:`do_migration()` -- reads the checkpoint from the network using
-   :func:`DkStreamRead()`. You can think of :func:`do_migration()` as
-   a |~| counterpart to :func:`send_checkpoint_on_stream()`. This function is
-   called from :func:`shim_init()`.
+2. `do_migration()` -- reads the checkpoint from the network using
+   :func:`DkStreamRead()`. You can think of `do_migration()` as
+   a |~| counterpart to `send_checkpoint_on_stream()`. This function is
+   called from `shim_init()`.
 
-3. :func:`restore_checkpoint()` -- restores checkpoint in child enclave's
-   memory. You can think of :func:`restore_checkpoint()` as a |~| counterpart
-   to :func:`migrate_fork()`. This function is called from :func:`shim_init()`.
+3. `restore_checkpoint()` -- restores checkpoint in child enclave's
+   memory. You can think of `restore_checkpoint()` as a |~| counterpart
+   to `migrate_fork()`. This function is called from `shim_init()`.
 
 
 Fork Flows
