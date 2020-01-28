@@ -538,7 +538,9 @@ static void lock(struct shim_lock* l) {
         return;
     }
     if (!l->lock) {
+#ifdef DEBUG
         debug("Trying to lock an uninitialized lock at %s:%d!\n", file, line);
+#endif // DEBUG
         __abort();
     }
 
@@ -561,7 +563,9 @@ static inline void unlock(struct shim_lock* l) {
         return;
     }
     if (!l->lock) {
+#ifdef DEBUG
         debug("Trying to unlock an uninitialized lock at %s:%d!\n", file, line);
+#endif // DEBUG
         __abort();
     }
 
