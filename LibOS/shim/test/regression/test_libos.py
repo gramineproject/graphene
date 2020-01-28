@@ -26,7 +26,6 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('# of Arguments: 1', stdout)
         self.assertIn('argv[0] = bootstrap', stdout)
 
-
     def test_101_basic_bootstrapping_five_arguments(self):
         # Five Arguments Given
         stdout, _ = self.run_binary(['bootstrap', 'a', 'b', 'c', 'd'])
@@ -179,11 +178,8 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
 
     def test_001_strict_fail(self):
         manifest = self.get_manifest('file_check_policy_strict')
-        try:
-            _, _ = self.run_binary([manifest, 'unknown_testfile'])
-            self.fail('expected to return nonzero')
-        except subprocess.CalledProcessError as e:
-            self.assertEqual(e.returncode, 2, 'expected returncode == 2')
+        with self.expect_returncode(2):
+            self.run_binary([manifest, 'unknown_testfile'])
 
     def test_002_allow_all_but_log_success(self):
         manifest = self.get_manifest('file_check_policy_allow_all_but_log')
