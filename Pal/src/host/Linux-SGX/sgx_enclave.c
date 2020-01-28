@@ -14,10 +14,6 @@
 #include <math.h>
 #include <asm/errno.h>
 
-#ifndef SOL_IPV6
-# define SOL_IPV6 41
-#endif
-
 #define ODEBUG(code, ms) do {} while (0)
 
 static int sgx_ocall_exit(void* pms)
@@ -293,8 +289,17 @@ static int sgx_ocall_listen(void * pms)
 
     /* must set the socket to be reuseable */
     int reuseaddr = 1;
-    INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr,
-                   sizeof(int));
+    ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
+    if (IS_ERR(ret))
+        goto err_fd;
+
+    if (ms->ms_domain == AF_INET6) {
+        /* IPV6_V6ONLY socket option can only be set before first bind */
+        ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ms->ms_ipv6_v6only,
+                sizeof(ms->ms_ipv6_v6only));
+        if (IS_ERR(ret))
+            goto err_fd;
+    }
 
     ret = INLINE_SYSCALL(bind, 3, fd, ms->ms_addr, ms->ms_addrlen);
     if (IS_ERR(ret))
@@ -367,6 +372,14 @@ static int sgx_ocall_connect(void * pms)
     fd = ret;
 
     if (ms->ms_bind_addr && ms->ms_bind_addr->sa_family) {
+        if (ms->ms_domain == AF_INET6) {
+            /* IPV6_V6ONLY socket option can only be set before first bind */
+            ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ms->ms_ipv6_v6only,
+                    sizeof(ms->ms_ipv6_v6only));
+            if (IS_ERR(ret))
+                goto err_fd;
+        }
+
         ret = INLINE_SYSCALL(bind, 3, fd, ms->ms_bind_addr,
                              ms->ms_bind_addrlen);
         if (IS_ERR(ret))

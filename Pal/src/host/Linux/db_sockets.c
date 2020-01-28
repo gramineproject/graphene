@@ -54,10 +54,6 @@ typedef __kernel_pid_t pid_t;
 #define TCP_CORK 3
 #endif
 
-#ifndef SOL_IPV6
-#define SOL_IPV6 41
-#endif
-
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
 #define PAL_SOCKADDR_SIZE 96
@@ -324,7 +320,7 @@ static bool check_any_addr(struct sockaddr* addr) {
 }
 
 /* listen on a tcp socket */
-static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
+static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
     size_t bind_addrlen;
@@ -350,7 +346,17 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
 
     /* must set the socket to be reuseable */
     int reuseaddr = 1;
-    INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int));
+    ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
+    if (IS_ERR(ret))
+        return -PAL_ERROR_INVAL;
+
+    if (bind_addr->sa_family == AF_INET6) {
+        /* IPV6_V6ONLY socket option can only be set before first bind */
+        int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
+        ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_v6only, sizeof(ipv6_v6only));
+        if (IS_ERR(ret))
+            return -PAL_ERROR_INVAL;
+    }
 
     ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
 
@@ -528,7 +534,7 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     memcpy(uri_buf, uri, uri_len);
 
     if (!strcmp_static(type, URI_TYPE_TCP_SRV))
-        return tcp_listen(handle, uri_buf, options);
+        return tcp_listen(handle, uri_buf, create, options);
 
     if (!strcmp_static(type, URI_TYPE_TCP))
         return tcp_connect(handle, uri_buf, options);
@@ -601,7 +607,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, size_t len, const v
 }
 
 /* used by 'open' operation of tcp stream for bound socket */
-static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
+static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
     size_t bind_addrlen;
@@ -624,6 +630,14 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
+
+    /* IPV6_V6ONLY socket option can only be set before first bind */
+    if (bind_addr->sa_family == AF_INET6) {
+        int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
+        ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_v6only, sizeof(ipv6_v6only));
+        if (IS_ERR(ret))
+            return -PAL_ERROR_INVAL;
+    }
 
     ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
 
@@ -656,7 +670,7 @@ failed:
 }
 
 /* used by 'open' operation of tcp stream for connected socket */
-static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
+static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer[2];
     struct sockaddr* bind_addr = buffer;
     struct sockaddr* dest_addr = buffer + 1;
@@ -680,6 +694,15 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
         return -PAL_ERROR_DENIED;
 
     if (bind_addr) {
+        if (bind_addr->sa_family == AF_INET6) {
+            /* IPV6_V6ONLY socket option can only be set before first bind */
+            int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
+            ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_v6only,
+                                 sizeof(ipv6_v6only));
+            if (IS_ERR(ret))
+                return -PAL_ERROR_INVAL;
+        }
+
         ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
 
         if (IS_ERR(ret)) {
@@ -727,10 +750,10 @@ static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int acce
     memcpy(buf, uri, len + 1);
 
     if (!strcmp_static(type, URI_TYPE_UDP_SRV))
-        return udp_bind(hdl, buf, options);
+        return udp_bind(hdl, buf, create, options);
 
     if (!strcmp_static(type, URI_TYPE_UDP))
-        return udp_connect(hdl, buf, options);
+        return udp_connect(hdl, buf, create, options);
 
     return -PAL_ERROR_NOTSUPPORT;
 }
