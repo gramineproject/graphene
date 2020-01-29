@@ -65,9 +65,11 @@ crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC)
 	mv crypto/mbedtls-mbedtls-$(MBEDTLS_VERSION) crypto/mbedtls
 	mkdir crypto/mbedtls/install
 	cd crypto/mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C && make DESTDIR=install install .
+
+crypto/mbedtls/include/mbedtls/config.h: crypto/config.h crypto/mbedtls/CMakeLists.txt
 	cp crypto/config.h crypto/mbedtls/include/mbedtls
 
-crypto/mbedtls/library/aes.c: crypto/mbedtls/CMakeLists.txt
+crypto/mbedtls/library/aes.c: crypto/mbedtls/CMakeLists.txt crypto/mbedtls/include/mbedtls/config.h
 $(addprefix crypto/mbedtls/library/,$(filter-out aes.c,$(patsubst %.o,%.c,$(crypto_mbedtls_library_objs)))): crypto/mbedtls/library/aes.c
 
 string_objs = $(addsuffix .o,atoi memcmp memcpy memset strchr strendswith strlen wordcopy strcmp)
