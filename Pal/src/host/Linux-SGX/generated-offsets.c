@@ -85,11 +85,11 @@ void dummy(void)
     OFFSET(SGX_GPR, enclave_tls, gpr);
     OFFSET(SGX_EXIT_TARGET, enclave_tls, exit_target);
     OFFSET(SGX_FSBASE, enclave_tls, fsbase);
-    OFFSET(SGX_STACK, enclave_tls, stack);
+    OFFSET(SGX_PRE_OCALL_STACK, enclave_tls, pre_ocall_stack);
     OFFSET(SGX_USTACK_TOP, enclave_tls, ustack_top);
     OFFSET(SGX_USTACK, enclave_tls, ustack);
     OFFSET(SGX_THREAD, enclave_tls, thread);
-    OFFSET(SGX_OCALL_PREPARED, enclave_tls, ocall_prepared);
+    OFFSET(SGX_OCALL_EXIT_CALLED, enclave_tls, ocall_exit_called);
     OFFSET(SGX_THREAD_STARTED, enclave_tls, thread_started);
     OFFSET(SGX_READY_FOR_EXCEPTIONS, enclave_tls, ready_for_exceptions);
     OFFSET(SGX_MANIFEST_SIZE, enclave_tls, manifest_size);

@@ -24,11 +24,11 @@ struct enclave_tls {
         sgx_pal_gpr_t* gpr;
         void*    exit_target;
         void*    fsbase;
-        void*    stack;
+        void*    pre_ocall_stack;
         void*    ustack_top;
         void*    ustack;
         struct pal_handle_thread* thread;
-        uint64_t ocall_prepared;
+        uint64_t ocall_exit_called;
         uint64_t thread_started;
         uint64_t ready_for_exceptions;
         uint64_t manifest_size;

@@ -29,7 +29,8 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup)
     // There are two reasons for this loop:
     //  1. Ocalls can be interuppted.
     //  2. We can't trust the outside to actually exit, so we need to ensure
-    //     that we never return even when the outside tries to trick us.
+    //     that we never return even when the outside tries to trick us (this
+    //     case should be already catched by enclave_entry.S).
     while (true) {
         sgx_ocall(OCALL_EXIT, ms);
     }
