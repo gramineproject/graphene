@@ -1,6 +1,9 @@
 SHIM {
     global:
-        syscalldb; register_library;
-        glibc_version; glibc_option;
+        glibc_option;
+        glibc_version;
+        register_library;
+        syscalldb;
+        syscall_wrapper;
     local: *;
 };
