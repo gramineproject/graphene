@@ -281,6 +281,8 @@ int search_builtin_fs(const char* type, struct shim_mount** fs) {
 }
 
 int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
+    assert(locked(&dcache_lock));
+
     int ret = 0;
 
     dent->state |= DENTRY_MOUNTPOINT;
