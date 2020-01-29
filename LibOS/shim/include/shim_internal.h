@@ -537,6 +537,8 @@ static void lock(struct shim_lock* l) {
     if (!lock_enabled) {
         return;
     }
+    /* TODO: This whole if should be just an assert. Change it once we are sure that it does not
+     * trigger (previous code allowed for this case). Same in unlock below. */
     if (!l->lock) {
 #ifdef DEBUG
         debug("Trying to lock an uninitialized lock at %s:%d!\n", file, line);
