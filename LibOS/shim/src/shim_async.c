@@ -41,7 +41,7 @@ struct async_event {
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
 
-/* Should be accessed  with async_helper_lock held. */
+/* Should be accessed with async_helper_lock held. */
 static enum { HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
 
 static struct shim_thread* async_helper_thread;

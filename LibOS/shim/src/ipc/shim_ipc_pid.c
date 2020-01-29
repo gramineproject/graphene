@@ -743,7 +743,8 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
     debug("ipc callback from %u: IPC_PID_SENDPRC(%u, %d)\n", msg->src, msgin->sender, msgin->len);
 
     if (!create_lock_runtime(&rpc_queue_lock)) {
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
     lock(&rpc_queue_lock);
 
@@ -755,13 +756,13 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
         r->sender = msgin->sender;
         memcpy(r->buffer, msgin->payload, r->len);
         thread_wakeup(r->thread);
-        goto out;
+        goto out_unlock;
     }
 
     struct rpcmsg* m = malloc(sizeof(struct rpcmsg) + msgin->len);
     if (!m) {
         ret = -ENOMEM;
-        goto out;
+        goto out_unlock;
     }
 
     INIT_LIST_HEAD(m, list);
@@ -769,8 +770,10 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
     m->len    = msgin->len;
     memcpy(m->payload, msgin->payload, msgin->len);
     LISTP_ADD_TAIL(m, &rpc_msgs, list);
-out:
+
+out_unlock:
     unlock(&rpc_queue_lock);
+out:
     SAVE_PROFILE_INTERVAL(ipc_pid_sendrpc_callback);
     return ret;
 }

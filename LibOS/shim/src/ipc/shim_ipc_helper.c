@@ -403,9 +403,7 @@ void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode) {
             port->fini[i] = NULL;
         }
 
-    lock(&ipc_helper_lock);
-    __put_ipc_port(port);
-    unlock(&ipc_helper_lock);
+    put_ipc_port(port);
 }
 
 void del_all_ipc_ports(void) {

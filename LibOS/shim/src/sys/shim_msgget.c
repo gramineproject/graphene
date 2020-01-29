@@ -19,9 +19,9 @@
  *
  * Implementation of system call "msgget", "msgsnd", "msgrcv" and "msgctl".
  *
- * XXX: I'm pretty sure there are possible deadlocks in this code. Sometimes it first takes
- * `msgq_list_lock` and then `hdl->lock`, sometimes other way round. Someone will have to
- * rewrite it someday.
+ * XXX(borysp): I'm pretty sure there are possible deadlocks in this code. Sometimes it first takes
+ * `msgq_list_lock` and then `hdl->lock`, sometimes other way round. Someone will have to rewrite
+ * it someday.
  */
 
 #include <errno.h>
@@ -444,10 +444,7 @@ int shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf) {
                     break;
             }
 
-            struct shim_handle* hdl = MSG_TO_HANDLE(msgq);
-            lock(&hdl->lock);
-            __del_msg_handle(msgq);
-            unlock(&hdl->lock);
+            del_msg_handle(msgq);
             break;
 
         default:
