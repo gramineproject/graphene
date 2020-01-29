@@ -210,7 +210,7 @@ enclave_entry:
 	#    an ocall.
 	# 2. The enclave gets interrupted. The not restored %rsp is pushed into
 	#    SGX_GPR_RSP by the processor.
-	# 3. The host enters the enclave again and indicated that there's a new
+	# 3. The host enters the enclave again and indicates that there's a new
 	#    signal.
 	# 4. SGX_GPR_RSP points to the untrusted stack
 	#
@@ -570,7 +570,7 @@ sgx_ocall:
 	movq %rsp, %gs:SGX_PRE_OCALL_STACK
 
 .Locall_about_to_eexit_begin:
-	# From here .Lhandle_exception can mess out with state (%rip and %rsp).
+	# From here .Lhandle_exception can mess with our state (%rip and %rsp).
 	# We therefore need to be extremely careful when making changes here.
 	#
 	# It's ok to use the untrusted stack and exit target below without
