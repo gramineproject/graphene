@@ -232,17 +232,29 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
                                  NUM_SIGS);
     if (!thread->signal_logs) {
-        put_thread(thread);
-        return NULL;
+        goto out_error;
     }
     if (!create_lock(&thread->lock)) {
-        put_thread(thread);
-        return NULL;
+        goto out_error;
     }
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
     return thread;
+
+out_error:
+    free(thread->signal_logs);
+    if (thread->root) {
+        put_dentry(thread->root);
+    }
+    if (thread->cwd) {
+        put_dentry(thread->cwd);
+    }
+    for (int i = 0 ; i < NUM_SIGS ; i++) {
+        free(thread->signal_handles[i].action);
+    }
+    free(thread);
+    return NULL;
 }
 
 struct shim_thread * get_new_internal_thread (void)
@@ -258,7 +270,7 @@ struct shim_thread * get_new_internal_thread (void)
     thread->tid   = new_tid;
     thread->in_vm = thread->is_alive = true;
     if (!create_lock(&thread->lock)) {
-        put_thread(thread);
+        free(thread);
         return NULL;
     }
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
