@@ -106,7 +106,14 @@ struct shim_thread {
 #ifdef PROFILE
     unsigned long exit_time;
 #endif
+
+    void* syscall_stack;        /* allocated area for stack */
+    void* syscall_stack_low;
+    void* syscall_stack_high;
 };
+
+int shim_thread_alloc_syscall_stack(struct shim_thread* thread);
+void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* thread);
 
 DEFINE_LIST(shim_simple_thread);
 struct shim_simple_thread {
@@ -190,6 +197,7 @@ void set_cur_thread (struct shim_thread * thread)
 
         tcb->tp = thread;
         thread->shim_tcb = tcb;
+        shim_tcb_init_syscall_stack(tcb, thread);
         tid = thread->tid;
 
         if (!is_internal(thread) && !thread->signal_logs)
@@ -298,6 +306,7 @@ void set_as_child (struct shim_thread * parent, struct shim_thread * child);
 
 /* creating and revoking thread objects */
 struct shim_thread * get_new_thread (IDTYPE new_tid);
+struct shim_thread * get_new_thread_syscall_stack (IDTYPE new_tid);
 struct shim_thread * get_new_internal_thread (void);
 struct shim_simple_thread * get_new_simple_thread (void);
 

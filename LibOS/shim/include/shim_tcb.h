@@ -48,6 +48,10 @@ struct shim_tcb {
     int                     pal_errno;
     struct debug_buf *      debug_buf;
 
+    /* syscall stack range */
+    void*                   syscall_stack_low;
+    void*                   syscall_stack_high;
+
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],
      * the code addr is set to cont_addr to alert the caller. */
