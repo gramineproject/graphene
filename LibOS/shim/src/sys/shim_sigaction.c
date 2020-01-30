@@ -85,7 +85,7 @@ out:
     return err;
 }
 
-int shim_do_sigreturn(int __unused) {
+attribute_nofp int shim_do_sigreturn(int __unused) {
     __UNUSED(__unused);
     /* do nothing */
     return 0;

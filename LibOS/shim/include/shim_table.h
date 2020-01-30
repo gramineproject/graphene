@@ -27,7 +27,7 @@ long __shim_munmap(long, long);
 long __shim_brk(long);
 long __shim_rt_sigaction(long, long, long, long);
 long __shim_rt_sigprocmask(long, long, long);
-long __shim_rt_sigreturn(long);
+attribute_nofp long __shim_rt_sigreturn(long);
 long __shim_ioctl(long, long, long);
 long __shim_pread64(long, long, long, long);
 long __shim_pwrite64(long, long, long, long);
@@ -339,7 +339,7 @@ void* shim_do_brk(void* brk);
 int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
                       struct __kernel_sigaction* oldact, size_t sigsetsize);
 int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset);
-int shim_do_sigreturn(int __unused);
+attribute_nofp int shim_do_sigreturn(int __unused);
 int shim_do_ioctl(int fd, int cmd, unsigned long arg);
 ssize_t shim_do_pread64(int fd, char* buf, size_t count, loff_t pos);
 ssize_t shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos);
@@ -521,7 +521,7 @@ void* shim_brk(void* brk);
 int shim_rt_sigaction(int signum, const struct __kernel_sigaction* act,
                       struct __kernel_sigaction* oldact, size_t sigsetsize);
 int shim_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset);
-int shim_rt_sigreturn(int __unused);
+attribute_nofp int shim_rt_sigreturn(int __unused);
 int shim_ioctl(int fd, int cmd, unsigned long arg);
 size_t shim_pread64(int fd, char* buf, size_t count, loff_t pos);
 size_t shim_pwrite64(int fd, char* buf, size_t count, loff_t pos);

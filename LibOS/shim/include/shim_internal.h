@@ -26,6 +26,7 @@
 #endif
 
 #define attribute_hidden __attribute__ ((visibility ("hidden")))
+#define attribute_nofp __attribute__((__target__("no-mmx,no-sse,no-sse2,no-avx,no-avx2,no-3dnow")))
 
 #define ALIAS_STR(name) #name
 

@@ -173,7 +173,21 @@ DEFINE_SHIM_SYSCALL(rt_sigprocmask, 3, shim_do_sigprocmask, int, int, how, const
                     __sigset_t*, oldset)
 
 /* rt_sigreturn: sys/shim_sigaction.c */
-DEFINE_SHIM_SYSCALL(rt_sigreturn, 1, shim_do_sigreturn, int, int, __unused)
+//DEFINE_SHIM_SYSCALL(rt_sigreturn, 1, shim_do_sigreturn, int, int, __unused)
+attribute_nofp long __shim_rt_sigreturn(long __arg1) {
+    int __unused = (int)__arg1;
+    int __ret = shim_do_sigreturn(__unused);
+    long ret = (long)__ret;
+    return ret;
+}
+
+attribute_nofp int shim_rt_sigreturn(int __unused) {
+    long __ret = __shim_rt_sigreturn ((long)__unused);
+    int ret = (int)__ret;
+    if (ret < 0)
+        return -1;
+    return ret;
+}
 
 /* ioctl: sys/shim_ioctl.c */
 DEFINE_SHIM_SYSCALL(ioctl, 3, shim_do_ioctl, int, int, fd, int, cmd, unsigned long, arg)
