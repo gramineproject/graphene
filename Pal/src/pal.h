@@ -307,6 +307,8 @@ typedef struct {
     PAL_PTR_RANGE executable_range;
     /* manifest preloaded here */
     PAL_PTR_RANGE manifest_preload;
+    /* pal test area */
+    PAL_PTR_RANGE pal_text;
 
     /***** Host information *****/
     /* Host allocation alignment.

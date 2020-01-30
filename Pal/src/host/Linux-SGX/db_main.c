@@ -389,6 +389,8 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     pal_state.root_config = root_config;
     __pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
     __pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
+    __pal_control.pal_text.start = TEXT_START;
+    __pal_control.pal_text.end = TEXT_END;
 
     if ((rv = init_trusted_platform()) < 0) {
         SGX_DBG(DBG_E, "Failed to verify the platform using remote attestation: %d\n", rv);

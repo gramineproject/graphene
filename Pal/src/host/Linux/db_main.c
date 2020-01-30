@@ -227,6 +227,8 @@ void pal_linux_main (void * args)
 
     ELF_DYNAMIC_RELOCATE(&pal_map);
 
+    __pal_control.pal_text.start = TEXT_START;
+    __pal_control.pal_text.end = TEXT_END;
     linux_state.environ = envp;
 
     init_slab_mgr(g_page_size);
