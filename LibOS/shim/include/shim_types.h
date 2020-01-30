@@ -284,6 +284,37 @@ struct _libc_xmmreg {
     __uint32_t    element[4];
 };
 
+#define FP_XSTATE_MAGIC1        0x46505853U
+#define FP_XSTATE_MAGIC2        0x46505845U
+#define FP_XSTATE_MAGIC2_SIZE   sizeof(FP_XSTATE_MAGIC2)
+
+struct _fpx_sw_bytes {
+    __uint32_t  magic1;
+    __uint32_t  extended_size;
+    __uint64_t  xfeatures;
+    __uint32_t  xstate_size;
+    __uint32_t  padding[7];
+};
+
+struct swregs_state {
+    __uint32_t cwd;
+    __uint32_t swd;
+    __uint32_t twd;
+    __uint32_t fip;
+    __uint32_t fcs;
+    __uint32_t foo;
+    __uint32_t fos;
+    __uint32_t st_space[20];
+    __uint8_t  ftop;
+    __uint8_t  changed;
+    __uint8_t  lookahead;
+    __uint8_t  no_update;
+    __uint8_t  rm;
+    __uint8_t  alimit;
+    void *             info; /* struct math_emu_info */
+    __uint32_t entry_eip;
+};
+
 struct _libc_fpstate {
     /* 64-bit FXSAVE format.  */
     __uint16_t          cwd;
@@ -296,8 +327,25 @@ struct _libc_fpstate {
     __uint32_t          mxcr_mask;
     struct _libc_fpxreg st[8];
     struct _libc_xmmreg _xmm[16];
-    __uint32_t          padding[24];
+    union {
+        __uint32_t      padding[24];
+        struct {
+            __uint32_t  padding2[12];
+            struct _fpx_sw_bytes sw_reserved;
+        };
+    };
 };
+
+struct _libc_xstate_header {
+    __uint64_t  xfeatures;
+    __uint64_t  xcomp_bv;
+    __uint64_t  reserved[6];
+} __attribute__((packed));
+
+struct _libc_xregs_state {
+    struct _libc_fpstate fpstate;
+    struct _libc_xstate_header header;
+} __attribute__((packed, aligned(64)));
 
 /* Structure to describe FPU registers.  */
 typedef struct _libc_fpstate *fpregset_t;

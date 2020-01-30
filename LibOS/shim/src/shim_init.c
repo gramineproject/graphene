@@ -53,6 +53,107 @@ size_t g_pal_alloc_align;
 
 const unsigned int glibc_version = GLIBC_VERSION;
 
+static bool fpu_xstate_enabled = false;
+static uint64_t fpu_xfeatures = PAL_XFEATURE_MASK_FPSSE;
+unsigned long fpu_xstate_size = 512 + 64;
+
+#define XSAVE_RESET_STATE_SIZE (512 + 64)  // 512 for legacy regs, 64 for xsave header
+static const uint32_t xsave_reset_state[XSAVE_RESET_STATE_SIZE/sizeof(uint32_t)]
+__attribute__((aligned(64))) = {
+    0x037F, 0, 0, 0, 0, 0, 0x1F80, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // XCOMP_BV[63] = 1, compaction mode
+};
+
+void fpstate_init(void) {
+    unsigned int value[4];
+
+
+    if (!DkCpuIdRetrieve(0x1, 0, value))
+        goto out;
+
+#define ECX_XSAVE   (1UL << 26)
+#define ECX_OXSAVE  (1UL << 27)
+    if (!(value[PAL_CPUID_WORD_ECX] & ECX_XSAVE) ||
+        !(value[PAL_CPUID_WORD_ECX] & ECX_OXSAVE))
+        goto out;
+
+#define XSTATE_CPUID 0x0000000d
+    if (!DkCpuIdRetrieve(XSTATE_CPUID, 0, value))
+        goto out;
+
+    uint64_t xfeatures = value[PAL_CPUID_WORD_EAX] |
+        (((uint64_t)value[PAL_CPUID_WORD_EDX]) << 31);
+    if (!xfeatures)
+        goto out;
+    if (xfeatures == 3)
+        goto out;
+
+    fpu_xstate_enabled = true;
+    fpu_xfeatures = xfeatures;
+    fpu_xstate_size = value[PAL_CPUID_WORD_EBX];
+
+out:
+    debug("xstate_enabled %d xstate_size 0x%lx(%ld) xfeatures 0x%lx \n",
+          fpu_xstate_enabled, fpu_xstate_size, fpu_xstate_size, fpu_xfeatures);
+}
+
+attribute_nofp void fpstate_save(struct _libc_fpstate* fpstate) {
+    assert(IS_ALIGNED_PTR(fpstate, 64UL));
+
+    if (fpu_xstate_enabled) {
+        long lmask = -1;
+        long hmask = -1;
+        memset(fpstate, 0, 8 * 8);
+        __asm__ volatile("xsave64 (%0)"
+                         :: "r"(fpstate), "m"(*fpstate),
+                          "a"(lmask), "d"(hmask)
+                         : "memory");
+    } else {
+        __asm__ volatile("fxsave64 (%0)"
+                         :: "r"(fpstate), "m"(*fpstate)
+                         : "memory");
+    }
+
+    struct _fpx_sw_bytes * fpx_sw = &fpstate->sw_reserved;
+    fpx_sw->magic1 = FP_XSTATE_MAGIC1;
+    fpx_sw->extended_size = fpu_xstate_size + FP_XSTATE_MAGIC2_SIZE;
+    fpx_sw->xfeatures = fpu_xfeatures;
+    fpx_sw->xstate_size = fpu_xstate_size;
+    memset(fpx_sw->padding, 0, sizeof(fpx_sw->padding));
+    if (fpu_xstate_enabled) {
+        *((__typeof__(FP_XSTATE_MAGIC2)*)((void*)fpstate + fpx_sw->xstate_size))
+            = FP_XSTATE_MAGIC2;
+    }
+}
+
+attribute_nofp void fpstate_restore(const struct _libc_fpstate* fpstate) {
+    assert(IS_ALIGNED_PTR(fpstate, 64UL));
+
+    if (fpu_xstate_enabled) {
+        long lmask = -1;
+        long hmask = -1;
+        __asm__ volatile("xrstor64 (%0)"
+                         :: "r"(fpstate), "m"(*fpstate),
+                          "a"(lmask), "d"(hmask)
+                         : "memory");
+    } else {
+        __asm__ volatile("fxrstor64 (%0)"
+                         :: "r"(fpstate), "m"(*fpstate)
+                         : "memory");
+    }
+}
+
+attribute_nofp void fpstate_reset(void) {
+    fpstate_restore((struct _libc_fpstate*)xsave_reset_state);
+}
+
 static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     __UNUSED(event);
@@ -663,6 +764,7 @@ noreturn void* shim_init (int argc, void * args)
         shim_clean_and_exit(-EINVAL);
     }
 
+    fpstate_init();
     create_lock(&__master_lock);
 
     int * argcp = &argc;
