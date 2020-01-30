@@ -244,6 +244,9 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
 out_error:
     free(thread->signal_logs);
+    if (thread->handle_map) {
+        put_handle_map(thread->handle_map);
+    }
     if (thread->root) {
         put_dentry(thread->root);
     }
@@ -252,6 +255,9 @@ out_error:
     }
     for (int i = 0 ; i < NUM_SIGS ; i++) {
         free(thread->signal_handles[i].action);
+    }
+    if (thread->exec) {
+        put_handle(thread->exec);
     }
     free(thread);
     return NULL;
