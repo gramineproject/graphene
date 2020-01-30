@@ -113,6 +113,9 @@ pipeline {
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''
                         sh '''
+                           ./Scripts/gitignore-test
+                        '''
+                        sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
@@ -131,13 +134,6 @@ pipeline {
                            make -C LibOS/shim/test/apps/lighttpd SGX=1 distclean
                            make -C LibOS/shim/test/apps/nginx SGX=1 distclean
                            make -C LibOS/shim/test/apps/apache SGX=1 distclean
-
-                           # Currently used release of LTP contains broken symlinks under
-                           # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit
-                           # rm of these symlinks, the clean-check utility fails. We should
-                           # update to newer release of LTP where this issue will be fixed.
-                           rm -rf /tmp/graphene-sgx-apps.clean-check.clean/LibOS/shim/test/apps/ltp/src
-                           rm -rf LibOS/shim/test/apps/ltp/src
 
                            ./Scripts/clean-check
                         '''

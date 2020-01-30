@@ -109,6 +109,9 @@ pipeline {
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''
                         sh '''
+                           ./Scripts/gitignore-test
+                        '''
+                        sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            make clean
