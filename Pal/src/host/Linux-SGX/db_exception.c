@@ -127,15 +127,13 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
      */
     PAL_FPX_SW_BYTES* fpx_sw = &xregs_state->fpstate.sw_reserved;
     fpx_sw->magic1 = PAL_FP_XSTATE_MAGIC1;
-    fpx_sw->extended_size = xsave_size;
+    fpx_sw->extended_size = xsave_size + PAL_FP_XSTATE_MAGIC2_SIZE;
     fpx_sw->xfeatures = xsave_features;
+    fpx_sw->xstate_size = xsave_size;
     memset(fpx_sw->padding, 0, sizeof(fpx_sw->padding));
     if (xsave_enabled) {
-        fpx_sw->xstate_size = xsave_size + PAL_FP_XSTATE_MAGIC2_SIZE;
         *(__typeof__(PAL_FP_XSTATE_MAGIC2)*)((void*)xregs_state + xsave_size) =
             PAL_FP_XSTATE_MAGIC2;
-    } else {
-        fpx_sw->xstate_size = xsave_size;
     }
 }
 
