@@ -1065,6 +1065,9 @@ void restore_context (struct shim_context * context)
 
     /* Ready to resume execution, re-enable preemption. */
     shim_tcb_t * tcb = shim_get_tcb();
+    assert(get_cur_thread()->syscall_stack);
+    assert(tcb->syscall_stack_low);
+    assert(tcb->syscall_stack_high);
     __enable_preempt(tcb);
 
     unsigned long fs_base = context->fs_base;
