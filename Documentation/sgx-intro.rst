@@ -75,8 +75,11 @@ Those two are not to be confused. The driver from SDK is currently universally
 used, because it is the only driver mentioned in downloads, but it won't be ever
 upstreamed, so it is likely that it's days are numbered.
 
-The driver being upstreamed requires :term:`DCAP`. The SDK driver supports DCAP
-but does not require it.
+- The driver being upstreamed requires :term:`DCAP`.
+- The SDK driver supports DCAP but does not require it.
+- Linux will not merge anything that requires :term:`IAS` and maintainers
+  consider non-writable :term:`FLC` MSRs as non-functional SGX:
+  https://lore.kernel.org/lkml/20191223094614.GB16710@zn.tnic/
 
 SGX terminology
 ---------------
