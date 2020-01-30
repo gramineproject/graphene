@@ -10,10 +10,16 @@ clean-extra += clean-tmp
 .PHONY: default
 default: all
 
+extra_rules = \
+	-e 's:\$$(RA_CLIENT_SPID):$(RA_CLIENT_SPID):g' \
+	-e 's:\$$(RA_CLIENT_KEY):$(RA_CLIENT_KEY):g' \
+	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
+
 include ../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
+CFLAGS-attestation += -I../../../../Pal/lib/crypto/mbedtls/install/include -I../../../../Pal/src/host/Linux-SGX -I../../../../Pal/lib  -I../../../../Pal/src
 CFLAGS-bootstrap_static = -static
 CFLAGS-bootstrap_pie = -fPIC -pie
 CFLAGS-shared_object = -fPIC -pie
@@ -28,6 +34,8 @@ CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../lib -pthread
 CFLAGS-sigprocmask += -pthread
+
+LDLIBS-attestation += -L../../../../Pal/lib/crypto/mbedtls/install/lib -lmbedx509 -lmbedcrypto
 
 %: %.c
 	$(call cmd,csingle)

@@ -95,6 +95,7 @@ int ocall_load_debug (const char * command);
 
 int ocall_get_attestation(const sgx_spid_t* spid, const char* subkey, bool linkable,
                           const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
-                          sgx_attestation_t* attestation);
-int ocall_eventfd (unsigned int initval, int flags);
+                          char** ias_report, size_t* ias_report_len, char** ias_header,
+                          size_t* ias_header_len);
 
+int ocall_eventfd (unsigned int initval, int flags);

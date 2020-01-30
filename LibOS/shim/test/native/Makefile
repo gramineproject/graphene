@@ -11,9 +11,6 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
 CFLAGS-msg_create.libos += $(CFLAGS-libos)
 CFLAGS-msg_send.libos += $(CFLAGS-libos)
-# CFLAGS-attestation += -I/opt/intel/sgxsdk/include -I../../../../Pal/lib/crypto/mbedtls/include  -I../../../../Pal/src/host/Linux-SGX
-CFLAGS-attestation += -I../../../../Pal/lib/crypto/mbedtls/install/include -I../../../../Pal/src/host/Linux-SGX -I../../../../Pal/lib  -I../../../../Pal/src
-LDLIBS-attestation += -L../../../../Pal/lib/crypto/mbedtls/install/lib -lmbedcrypto
 
 LDLIBS-condvar.pthread += -lpthread
 LDLIBS-futextest.pthread += -lpthread

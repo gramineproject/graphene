@@ -399,6 +399,11 @@ class TC_40_FileSystem(RegressionTestCase):
         stdout, _ = self.run_binary(['str_close_leak'], timeout=60)
         self.assertIn("Success", stdout)
 
+    def test_050_attestation(self):
+        stdout, _ = self.run_binary(['attestation'], timeout=60)
+        self.assertIn("Successfully verified IAS report signature.", stdout)
+        self.assertIn("Swapping reports successful.", stdout)
+
 class TC_80_Socket(RegressionTestCase):
     def test_000_getsockopt(self):
         stdout, stderr = self.run_binary(['getsockopt'])

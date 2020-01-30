@@ -39,11 +39,12 @@ static __sgx_mem_aligned sgx_target_info_t target_info;
 static __sgx_mem_aligned sgx_target_info_t my_target_info;
 static __sgx_mem_aligned sgx_report_data_t report_data;
 
-static int proc_sgx_report_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    __UNUSED(buf);
-    __abort();
-}
+/* IAS interactions are cached and only repeated if this variable is false. */
+static int    ias_valid = 0;
+static char   ias_report[10 * 1024];
+static char   ias_header[10 * 1024];
+static size_t ias_report_size = sizeof(ias_report);
+static size_t ias_header_size = sizeof(ias_header);
 
 static int proc_sgx_report_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
@@ -78,10 +79,40 @@ static int proc_sgx_report_mode(const char* name, mode_t* mode) {
     return 0;
 }
 
-static int proc_sgx_ias_report_stat(const char* name, struct stat* buf) {
+static int proc_sgx_ias_header_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
-    __UNUSED(buf);
-    __abort();
+
+    struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
+    if (!data) {
+        return -ENOMEM;
+    }
+
+    if (!ias_valid) {
+        ias_report_size = sizeof(ias_report);
+        ias_header_size = sizeof(ias_header);
+        int ret = DkIASReport(ias_report, &ias_report_size, ias_header, &ias_header_size);
+        if (ret < 0)
+            return ret;
+        ias_valid = 1;
+    }
+
+    data->str          = (char*) ias_header;
+    data->len          = ias_header_size;
+    data->do_not_free  = 1;
+
+    hdl->type          = TYPE_STR;
+    hdl->flags         = flags & ~O_RDONLY;
+    hdl->acc_mode      = MAY_READ;
+    hdl->info.str.data = data;
+    hdl->info.str.ptr  = (char*) ias_header;
+
+    return 0;
+}
+
+static int proc_sgx_ias_header_mode(const char* name, mode_t* mode) {
+    __UNUSED(name);
+    *mode = 0444;
+    return 0;
 }
 
 static int proc_sgx_ias_report_open(struct shim_handle* hdl, const char* name, int flags) {
@@ -92,14 +123,17 @@ static int proc_sgx_ias_report_open(struct shim_handle* hdl, const char* name, i
         return -ENOMEM;
     }
 
-    static char ias_report[10 * 1024];
-    static PAL_NUM size;
-    int ret = DkIASReport(ias_report, sizeof(ias_report), &size);
-    if (ret < 0)
-        return ret;
+    if (!ias_valid) {
+        ias_report_size = sizeof(ias_report);
+        ias_header_size = sizeof(ias_header);
+        int ret = DkIASReport(ias_report, &ias_report_size, ias_header, &ias_header_size);
+        if (ret < 0)
+            return ret;
+        ias_valid = 1;
+    }
 
     data->str          = (char*) ias_report;
-    data->len          = size;
+    data->len          = ias_report_size;
     data->do_not_free  = 1;
 
     hdl->type          = TYPE_STR;
@@ -116,13 +150,6 @@ static int proc_sgx_ias_report_mode(const char* name, mode_t* mode) {
     *mode = 0444;
     return 0;
 }
-
-static int proc_sgx_my_target_info_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    __UNUSED(buf);
-    __abort();
-}
-
 
 /**
  * Populates an sgx_target_info_t structure with all the information necessary for local
@@ -179,12 +206,6 @@ static int proc_sgx_my_target_info_mode(const char* name, mode_t* mode) {
     return 0;
 }
 
-static int proc_sgx_target_info_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    __UNUSED(buf);
-    __abort();
-}
-
 static int proc_sgx_target_info_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
 
@@ -213,10 +234,15 @@ static int proc_sgx_target_info_mode(const char* name, mode_t* mode) {
     return 0;
 }
 
-static int proc_sgx_report_data_stat(const char* name, struct stat* buf) {
-    __UNUSED(name);
-    __UNUSED(buf);
-    __abort();
+/**
+ * Invalidate IAS cache.
+ *
+ * Since the report_data field changed, a new interaction with IAS is required to reflect the
+ * changed report_data in the IAS response.
+ */
+static int report_data_modify(struct shim_handle* hdl) {
+    ias_valid = 0;
+    return 0;
 }
 
 static int proc_sgx_report_data_open(struct shim_handle* hdl, const char* name, int flags) {
@@ -231,6 +257,7 @@ static int proc_sgx_report_data_open(struct shim_handle* hdl, const char* name, 
     data->buf_size     = sizeof(report_data);
     data->len          = sizeof(report_data);
     data->do_not_free  = 1;
+    data->modify       = report_data_modify;
 
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDWR;
@@ -255,40 +282,50 @@ struct proc_fs_ops fs_sgx_attestation = {
 static struct proc_fs_ops fs_sgx_report = {
     .open = &proc_sgx_report_open,
     .mode = &proc_sgx_report_mode,
-    .stat = &proc_sgx_report_stat,
+    .stat = &proc_sgx_attestation_stat,
+};
+
+static struct proc_fs_ops fs_sgx_ias_header = {
+    .open = &proc_sgx_ias_header_open,
+    .mode = &proc_sgx_ias_header_mode,
+    .stat = &proc_sgx_attestation_stat,
 };
 
 static struct proc_fs_ops fs_sgx_ias_report = {
     .open = &proc_sgx_ias_report_open,
     .mode = &proc_sgx_ias_report_mode,
-    .stat = &proc_sgx_ias_report_stat,
+    .stat = &proc_sgx_attestation_stat,
 };
 
 static struct proc_fs_ops fs_sgx_my_target_info = {
     .open = &proc_sgx_my_target_info_open,
     .mode = &proc_sgx_my_target_info_mode,
-    .stat = &proc_sgx_my_target_info_stat,
+    .stat = &proc_sgx_attestation_stat,
 };
 
 static struct proc_fs_ops fs_sgx_target_info = {
     .open = &proc_sgx_target_info_open,
     .mode = &proc_sgx_target_info_mode,
-    .stat = &proc_sgx_target_info_stat,
+    .stat = &proc_sgx_attestation_stat,
 };
 
 static struct proc_fs_ops fs_sgx_report_data = {
     .open = &proc_sgx_report_data_open,
     .mode = &proc_sgx_report_data_mode,
-    .stat = &proc_sgx_report_data_stat,
+    .stat = &proc_sgx_attestation_stat,
 };
 
 struct proc_dir dir_sgx = {
-    .size = 5,
+    .size = 6,
     .ent =
         {
             {
                 .name   = "report",
                 .fs_ops = &fs_sgx_report,
+            },
+            {
+                .name   = "ias_header",
+                .fs_ops = &fs_sgx_ias_header,
             },
             {
                 .name   = "ias_report",

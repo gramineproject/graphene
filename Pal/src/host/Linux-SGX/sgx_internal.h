@@ -103,7 +103,8 @@ int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_targetinfo);
 
 int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
                             const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
-                            sgx_attestation_t* attestation);
+                            char** ias_report, size_t* ias_report_len, char** ias_header,
+                            size_t* ias_header_len);
 
 int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_enclave_css_t * sigstruct,

@@ -145,16 +145,21 @@ failed:
     return ret;
 }
 
-/*
- * Contact to Intel Attestation Service and retrieve the signed attestation report
+/**
+ * Contact Intel Attestation Service to retrieve the signed attestation report and related
+ * meta-data.
  *
- * @subkey:      SPID subscription key.
- * @nonce:       Random nonce generated in the enclave.
- * @quote:       Platform quote retrieved from AESMD.
- * @attestation: Attestation data to be returned to the enclave.
+ * @param subkey SPID subscription key.
+ * @param nonce Random nonce to verify response freshness.
+ * @param quote Platform quote retrieved from AESMD.
+ * @param ias_report Attestation report returned by IAS.
+ * @param ias_report_len Length in bytes of #ias_report.
+ * @param ias_https_header HTTPS header(s) returned by IAS.
+ * @param ias_https_header_len Length in bytes of #ias_https_header.
  */
 int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* nonce,
-                                 const sgx_quote_t* quote, sgx_attestation_t* attestation) {
+                                 const sgx_quote_t* quote, char** ias_report, size_t* ias_report_len,
+                                 char** ias_https_header, size_t* ias_https_header_len) {
 
     size_t quote_len = sizeof(sgx_quote_t) + quote->sig_len;
     size_t quote_str_len;
@@ -265,109 +270,14 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     if (IS_ERR_P(https_header))
         goto failed;
 
-    // Parse the HTTPS headers
-    size_t   ias_sig_len     = 0;
-    uint8_t* ias_sig         = NULL;
-    size_t   ias_certs_len   = 0;
-    char*    ias_certs       = NULL;
-    char*    start       = https_header;
-    char*    end         = strchr(https_header, '\n');
-    while (end) {
-        char* next_start = end + 1;
-        // If the eol (\n) is preceded by a return (\r), move the end pointer.
-        if (end > start + 1 && *(end - 1) == '\r')
-            end--;
+    *ias_report           = https_output;
+    *ias_report_len       = https_output_len;
+    *ias_https_header     = https_header;
+    *ias_https_header_len = https_header_len;
 
-        if (strstartswith_static(start, "X-IASReport-Signature: ")) {
-            start += static_strlen("X-IASReport-Signature: ");
-
-            // Decode IAS report signature
-            ret = lib_Base64Decode(start, end - start, NULL, &ias_sig_len);
-            if (ret < 0) {
-                SGX_DBG(DBG_E, "Malformed IAS signature\n");
-                goto failed;
-            }
-
-            ias_sig = (uint8_t*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(ias_sig_len),
-                                               PROT_READ|PROT_WRITE,
-                                               MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            if (IS_ERR_P(ias_sig)) {
-                SGX_DBG(DBG_E, "Cannot allocate memory for IAS report signature\n");
-                goto failed;
-            }
-
-            ret = lib_Base64Decode(start, end - start, ias_sig, &ias_sig_len);
-            if (ret < 0) {
-                SGX_DBG(DBG_E, "Malformed IAS report signature\n");
-                goto failed;
-            }
-        } else if (strstartswith_static(start, "X-IASReport-Signing-Certificate: ")) {
-            start += static_strlen("X-IASReport-Signing-Certificate: ");
-
-            // Decode IAS signature chain
-            ias_certs_len = end - start;
-            ias_certs = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(ias_certs_len),
-                                              PROT_READ|PROT_WRITE,
-                                              MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            if (IS_ERR_P(ias_certs)) {
-                SGX_DBG(DBG_E, "Cannot allocate memory for IAS certificate chain\n");
-                goto failed;
-            }
-
-            /*
-             * The value of x-iasreport-signing-certificate is a certificate chain which
-             * consists of multiple certificates represented in the PEM format. The value
-             * is escaped using the % character. For example, a %20 in the certificate
-             * needs to be replaced as the newline ("\n"). The following logic iteratively
-             * reads the character and converts the escaped characters into the buffer.
-             */
-            size_t total_bytes = 0;
-            // Convert escaped characters
-            for (size_t i = 0; i < ias_certs_len; i++) {
-                if (start[i] == '%') {
-                    int8_t hex1 = hex2dec(start[i + 1]), hex2 = hex2dec(start[i + 2]);
-                    if (hex1 < 0 || hex2 < 0)
-                        goto failed;
-
-                    char c = hex1 * 16 + hex2;
-                    if (c != '\n') ias_certs[total_bytes++] = c;
-                    i += 2;
-                } else {
-                    ias_certs[total_bytes++] = start[i];
-                }
-            }
-
-            // Adjust certificate chain length
-            ias_certs[total_bytes++] = '\0';
-            if (ALLOC_ALIGN_UP(total_bytes) < ALLOC_ALIGN_UP(ias_certs_len))
-                INLINE_SYSCALL(munmap, 2, ALLOC_ALIGN_UP(total_bytes),
-                               ALLOC_ALIGN_UP(ias_certs_len) - ALLOC_ALIGN_UP(total_bytes));
-            ias_certs_len = total_bytes;
-        }
-
-        start = next_start;
-        end   = strchr(start, '\n');
-    }
-
-    if (!ias_sig) {
-        SGX_DBG(DBG_E, "IAS returned invalid headers: no report signature\n");
-        goto failed;
-    }
-
-    if (!ias_certs) {
-        SGX_DBG(DBG_E, "IAS returned invalid headers: no certificate chain\n");
-        goto failed;
-    }
-
-    // Now return the attestation data, including the IAS response, signature, and the
-    // certificate chain back to the caller.
-    attestation->ias_report     = https_output;
-    attestation->ias_report_len = https_output_len;
-    attestation->ias_sig        = ias_sig;
-    attestation->ias_sig_len    = ias_sig_len;
-    attestation->ias_certs      = ias_certs;
-    attestation->ias_certs_len  = ias_certs_len;
+    https_header = NULL; // Don't free the HTTPS output
     https_output = NULL; // Don't free the HTTPS output
+
     ret = 0;
 done:
     if (https_header)
@@ -392,25 +302,21 @@ failed:
     goto done;
 }
 
-/*
- * This wrapper function performs the whole attestation procedure outside the enclave (except
- * retrieving the local remote attestation and verification). The function first contacts
- * the AESM service to retrieve a quote of the platform and the report of the quoting enclave.
- * Then, the function submits the quote to the IAS through a HTTPS client (CURL) to exchange
- * for a remote attestation report signed by a Intel-approved certificate chain. Finally, the
- * function returns the QE report, the quote, and the response from the IAS back to the enclave
- * for verification.
+/**
+ * The function first contacts the AESM service to retrieve a quote of the platform and the report
+ * of the quoting enclave. Then, the function submits the quote to IAS through an HTTPS client
+ * (CURL) to exchange for a remote attestation report signed by an Intel-approved certificate
+ * chain. The function returns the IAS response and associated meta-data (HTTP headers).
  *
- * @spid:        The client SPID registered with IAS.
- * @subkey:      SPID subscription key.
- * @linkable:    A boolean that represents whether the SPID is linkable.
- * @report:      The local report of the target enclave.
- * @nonce:       A 16-byte nonce randomly generated inside the enclave.
- * @attestation: A structure for storing the response from the AESM service and the IAS.
+ * @param spid        The client SPID registered with IAS.
+ * @param subkey      SPID subscription key.
+ * @param linkable    A boolean that represents whether the SPID is linkable.
+ * @param report      The local report of the target enclave.
+ * @param nonce       A 16-byte nonce randomly generated inside the enclave.
  */
 int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
                             const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
-                            sgx_attestation_t* attestation) {
+                            char** ias_report, size_t* ias_report_len, char** ias_header, size_t* ias_header_len) {
 
     int ret = connect_aesm_service();
     if (ret < 0)
@@ -462,16 +368,13 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
     }
 
     memcpy(quote, r->quote.data, r->quote.len);
-    attestation->quote = quote;
-    attestation->quote_len = r->quote.len;
 
-    ret = contact_intel_attest_service(subkey, nonce, (sgx_quote_t *) quote, attestation);
-    if (ret < 0) {
-        INLINE_SYSCALL(munmap, 2, quote, ALLOC_ALIGN_UP(r->quote.len));
+    ret = contact_intel_attest_service(subkey, nonce, (sgx_quote_t *) quote, ias_report,
+                                       ias_report_len, ias_header, ias_header_len);
+    INLINE_SYSCALL(munmap, 2, quote, ALLOC_ALIGN_UP(r->quote.len));
+    if (ret < 0)
         goto failed;
-    }
 
-    memcpy(&attestation->qe_report, r->qe_report.data, sizeof(sgx_report_t));
     response__free_unpacked(res, NULL);
     return 0;
 

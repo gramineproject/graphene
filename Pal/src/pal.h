@@ -197,10 +197,6 @@ typedef struct {
     /* Memory information (only required ones) */
     PAL_MEM_INFO mem_info;
 
-    /* Attestation information */
-    PAL_STR attestation_status;
-    PAL_STR attestation_timestamp;
-
     /* Purely for profiling */
     PAL_NUM startup_time;
     PAL_NUM host_specific_startup_time;
@@ -535,7 +531,7 @@ PAL_BOL
 DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
 
 PAL_BOL
-DkIASReport (PAL_PTR buf, PAL_NUM bufsize, PAL_NUM* size);
+DkIASReport (PAL_PTR report, PAL_NUM* report_size, PAL_PTR header, PAL_NUM* header_size);
 
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \

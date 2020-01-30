@@ -169,8 +169,19 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     return 0;
 }
 
+/**
+ * Initiates communication with Intel Attestation Service to obtain the Intel Attestation Service
+ * response (HTTP body) and header.
+ *
+ * @param report[out]
+ * @param report_size[in,out] Caller specifies maximum size allocated for report. On the return
+ *     path, contains actual size of report.
+ * @param header[out]
+ * @param header_size[in,out] Caller specifies maximum size allocated for header. On the return
+ *     path, contains actual size of header.
+ */
 PAL_BOL
-_DkIASReport (PAL_PTR report, PAL_NUM maxsize, PAL_NUM* size) {
+_DkIASReport(PAL_PTR report, PAL_NUM* report_size, PAL_PTR header, PAL_NUM* header_size) {
 
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
     ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
@@ -207,30 +218,29 @@ _DkIASReport (PAL_PTR report, PAL_NUM maxsize, PAL_NUM* size) {
     len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
     bool linkable = (len == 1 && buf[0] == '1');
 
-    len = get_config(pal_state.root_config, "sgx.ra_accept_group_out_of_date", buf, sizeof(buf));
-    bool accept_group_out_of_date = (len == 1 && buf[0] == '1');
-
-    len = get_config(pal_state.root_config, "sgx.ra_accept_configuration_needed", buf, sizeof(buf));
-    bool accept_configuration_needed = (len == 1 && buf[0] == '1');
-
     sgx_quote_nonce_t nonce;
     int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
     if (ret < 0)
         return ret;
 
-    char* status;
-    char* timestamp;
-    sgx_attestation_t attn;
+    char* ias_report = NULL;
+    char* ias_header = NULL;
+    size_t ias_report_len = 0;
+    size_t ias_header_len = 0;
     __sgx_mem_aligned sgx_report_data_t report_data = {0, };
-    ret = sgx_verify_platform(&spid, subkey, &nonce, &report_data, linkable,
-                              accept_group_out_of_date, accept_configuration_needed,
-                              &attn, &status, &timestamp);
+    ret = sgx_get_attestation(&spid, subkey, &nonce, &report_data, linkable,
+                              &ias_report, &ias_report_len, &ias_header, &ias_header_len);
     if (ret < 0)
         return ret;
 
-    if (maxsize >= attn.ias_report_len) {
-        memcpy(report, attn.ias_report, attn.ias_report_len);
-        *size = attn.ias_report_len;
+    if (*report_size >= ias_report_len) {
+        memcpy(report, ias_report, ias_report_len);
+        *report_size = ias_report_len;
+    }
+
+    if (*header_size >= ias_header_len) {
+        memcpy(header, ias_header, ias_header_len);
+        *header_size = ias_header_len;
     }
     return 0;
 }
