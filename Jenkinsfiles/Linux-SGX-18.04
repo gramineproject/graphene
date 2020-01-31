@@ -79,6 +79,12 @@ pipeline {
                             make SGX=1 all sgx-tokens
                             make SGX=1 ltp-sgx.xml || :
                             '''
+                        sh '''
+                           # Workaround LTP bug:
+                           git -C LibOS/shim/test/apps/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
+
+                           ./Scripts/gitignore-test
+                        '''
                     }
                     post {
                         always {

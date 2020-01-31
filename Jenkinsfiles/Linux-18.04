@@ -105,6 +105,12 @@ pipeline {
                             sleep 1
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''
+                        sh '''
+                           # Workaround LTP bug:
+                           git -C LibOS/shim/test/apps/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
+
+                           ./Scripts/gitignore-test
+                        '''
                     }
                     post {
                         always {
