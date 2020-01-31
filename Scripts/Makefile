@@ -1,9 +1,12 @@
 .PHONY: all
 all: ;
 
-.PHONY:
+.PHONY: clean
 clean:
 	rm -rf __pycache__
+
+.PHONY: distclean
+distclean: clean
 
 .PHONY: format
 format: ;

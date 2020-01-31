@@ -84,10 +84,7 @@ pipeline {
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
-                           make -C Pal/src/host/Linux-SGX/sgx-driver distclean
-                           make SGX=1 clean
-                           make -C Pal/lib distclean
-                           rm LibOS/glibc-*.tar.gz
+                           make SGX=1 distclean
                            make -C LibOS/shim/test/regression SGX=1 clean
                            make -C LibOS/shim/test/apps/ltp clean
                            # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559

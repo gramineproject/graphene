@@ -56,7 +56,7 @@ $(executables): %: %.c $(LDLIBS)
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX), 1)
 include $(addsuffix .manifest.sgx.d,$(executables))
 endif
@@ -66,7 +66,7 @@ else
 $(executables):
 endif
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d, $(executables)) $(addsuffix .i.d, $(executables)) $(addsuffix .s.d, $(executables))
 endif
 
@@ -77,3 +77,6 @@ clean:
 	       $(addsuffix .s.d, $(executables)) \
 	       $(addsuffix .manifest.sgx.d,$(executables)) \
 		   .output.*
+
+.PHONY: distclean
+distclean: clean

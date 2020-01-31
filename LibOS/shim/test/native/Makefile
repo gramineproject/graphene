@@ -29,7 +29,7 @@ $(c_executables): %: %.c
 $(cxx_executables): %: %.cpp
 	$(call cmd,cxxsingle)
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
 endif
 else

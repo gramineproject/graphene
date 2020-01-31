@@ -111,10 +111,9 @@ pipeline {
                         sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
-                           make clean
-                           make -C Pal/lib distclean
+                           make distclean
                            rm -r LibOS/glibc-2.23
-                           rm LibOS/glibc-*.tar.gz
+                           rm LibOS/glibc-2.23.tar.gz
                            make -C LibOS/shim/test/regression clean
 
                            make -C LibOS/shim/test/apps/ltp clean

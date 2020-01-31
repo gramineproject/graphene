@@ -5,6 +5,9 @@ all:
 clean:
 	rm -f *.a *.o *.so *.so.* pal_gdb* pal-*
 
+.PHONY: distclean
+distclean: clean
+
 .PHONY: format
 format:
 

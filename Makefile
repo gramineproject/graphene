@@ -1,7 +1,7 @@
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-targets = all clean format test sgx-tokens
+targets = all clean format test sgx-tokens distclean
 
 ifneq ($(filter sgx-tokens,$(MAKECMDGOALS)),)
 ifneq ($(SGX),1)

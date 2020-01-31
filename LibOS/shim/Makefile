@@ -15,10 +15,11 @@ test:
 sgx-tokens:
 	$(MAKE) -C test sgx-tokens
 
-.PHONY: clean
-clean:
-	$(MAKE) -C src clean
-	$(MAKE) -C test clean
+clean_targets = clean distclean
+.PHONY: $(clean_targets)
+$(clean_targets):
+	$(MAKE) -C src $@
+	$(MAKE) -C test $@
 
 .PHONY: format
 format:

@@ -149,14 +149,18 @@ $(OBJ_DIR)/%.s: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_s_c)
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
 endif
 
-.PHONY: clean
-clean:
+clean_targets = clean distclean
+.PHONY: $(clean_targets) clean_
+
+$(clean_targets): clean_
+	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) $@
+
+clean_:
 	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build) *.d
-	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) clean
 
 .PHONY: test
 test:
