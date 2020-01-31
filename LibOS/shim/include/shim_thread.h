@@ -192,9 +192,10 @@ void set_cur_thread (struct shim_thread * thread)
         thread->shim_tcb = tcb;
         tid = thread->tid;
 
-        if (!is_internal(thread) && !thread->signal_logs)
-            thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
-                                         NUM_SIGS);
+        if (!is_internal(thread) && !thread->signal_logs) {
+            thread->signal_logs = signal_logs_alloc();
+            assert(thread->signal_logs); /* FIXME on ENOMEM */
+        }
     } else if (tcb->tp) {
         put_thread(tcb->tp);
         tcb->tp = NULL;

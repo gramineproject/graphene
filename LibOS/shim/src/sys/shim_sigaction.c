@@ -202,8 +202,7 @@ int shim_do_sigsuspend(const __sigset_t* mask) {
 
     /* return immediately on some pending unblocked signal */
     for (int sig = 1; sig <= NUM_SIGS; sig++) {
-        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
-            atomic_read(&cur->signal_logs[sig - 1].tail)) {
+        if (signal_logs_pending(cur->signal_logs, sig)) {
             /* at least one signal of type sig... */
             if (!__sigismember(mask, sig)) {
                 /* ...and this type is not blocked in supplied mask */
@@ -245,8 +244,7 @@ int shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
         return 0;
 
     for (int sig = 1; sig <= NUM_SIGS; sig++) {
-        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
-            atomic_read(&cur->signal_logs[sig - 1].tail))
+        if (signal_logs_pending(cur->signal_logs, sig))
             __sigaddset(set, sig);
     }
 
