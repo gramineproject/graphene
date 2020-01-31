@@ -57,7 +57,7 @@ _DkGenericSignalHandle(int event_num, PAL_NUM arg, PAL_CONTEXT* context) {
  */
 noreturn static void restore_sgx_context(sgx_cpu_context_t* uc,
                                          PAL_XREGS_STATE* xregs_state) {
-    SGX_DBG(DBG_E, "uc %p rsp 0x%08lx &rsp %p rip 0x%08lx +0x%08lx &rip %p\n",
+    SGX_DBG(DBG_I, "uc %p rsp 0x%08lx &rsp %p rip 0x%08lx +0x%08lx &rip %p\n",
             uc, uc->rsp, &uc->rsp, uc->rip, uc->rip - (uintptr_t)TEXT_START, &uc->rip);
 
     if (xregs_state == NULL)
