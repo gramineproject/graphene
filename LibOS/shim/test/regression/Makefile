@@ -48,7 +48,7 @@ regression: $(target)
 	$(RM) libos-regression.xml
 	$(MAKE) libos-regression.xml
 
-libos-regression.xml:
+libos-regression.xml: test_libos.py $(call expand_target_to_token,$(target))
 	python3 -m pytest --junit-xml $@ -v test_libos.py
 
 .PHONY: clean-tmp
