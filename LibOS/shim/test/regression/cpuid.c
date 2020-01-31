@@ -5,55 +5,67 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t vs[4]) {
-    __asm__ volatile("cpuid" : "=a"(vs[0]), "=b"(vs[1]), "=c"(vs[2]), "=d"(vs[3])
+struct regs {
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+} __attribute__((packed));
+
+static void cpuid(uint32_t leaf, uint32_t subleaf, struct regs* r) {
+    __asm__ volatile("cpuid" : "=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
                              : "0"(leaf), "2"(subleaf));
 }
 
 static void test_cpuid_leaf_0xd(void) {
-    uint32_t vs[4] = {0, 0, 0, 0};
+    struct regs r = {0, };
 
     const uint32_t leaf = 0xd;
     // Sub-leaf IDs for the various extensions.
-    enum {
-        AVX = 2, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3, PKRU = 9 };
-    const uint32_t extension_sizes_bytes[] = {0, 0, 256, 64, 64, 64, 512, 1024, 0, 8};
+    enum cpu_extension {
+        x87 = 0, SSE, AVX, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3, PKRU = 9 };
+    const uint32_t extension_sizes_bytes[] =
+        { [AVX] = 256, [MPX_1] = 64, [MPX_2] = 64, [AVX512_1] = 64, [AVX512_2] = 512,
+          [AVX512_3] = 1024, [PKRU] = 8};
+    enum register_index {
+        EAX = 0, EBX, ECX, EDX
+    };
     const uint32_t extension_unavailable = 0;
 
-    cpuid(leaf, AVX, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX]))
+    cpuid(leaf, AVX, &r);
+    if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX]))
         abort();
-    memset(vs, 0, sizeof(vs));
+    memset(&r, 0, sizeof(r));
 
-    cpuid(leaf, MPX_1, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[MPX_1]))
+    cpuid(leaf, MPX_1, &r);
+    if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[MPX_1]))
         abort();
-    memset(vs, 0, sizeof(vs));
+    memset(&r, 0, sizeof(r));
 
-    cpuid(leaf, MPX_2, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[MPX_2]))
+    cpuid(leaf, MPX_2, &r);
+    if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[MPX_2]))
         abort();
-    memset(vs, 0, sizeof(vs));
+    memset(&r, 0, sizeof(r));
 
-    cpuid(leaf, AVX512_1, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_1]))
+    cpuid(leaf, AVX512_1, &r);
+    if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX512_1]))
         abort();
-    memset(vs, 0, sizeof(vs));
+    memset(&r, 0, sizeof(r));
 
-    cpuid(leaf, AVX512_2, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_2]))
+    cpuid(leaf, AVX512_2, &r);
+    if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX512_2]))
         abort();
-    memset(vs, 0, sizeof(vs));
+    memset(&r, 0, sizeof(r));
 
-    cpuid(leaf, AVX512_3, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[AVX512_3]))
+    cpuid(leaf, AVX512_3, &r);
+    if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[AVX512_3]))
         abort();
-    memset(vs, 0, sizeof(vs));
+    memset(&r, 0, sizeof(r));
 
-    cpuid(leaf, PKRU, vs);
-    if (!(vs[0] == extension_unavailable || vs[0] == extension_sizes_bytes[PKRU]))
+    cpuid(leaf, PKRU, &r);
+    if (!(r.eax == extension_unavailable || r.eax == extension_sizes_bytes[PKRU]))
         abort();
-    memset(vs, 0, sizeof(vs));
+    memset(&r, 0, sizeof(r));
 }
 
 int main(int argc, char** argv, char** envp) {

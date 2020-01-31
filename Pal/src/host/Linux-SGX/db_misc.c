@@ -156,16 +156,16 @@ void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int va
 }
 
 static inline uint32_t extension_enabled(uint32_t xfrm, uint32_t bit_idx) {
-    uint32_t feature_bit = (1U << bit_idx);
-    return (xfrm & feature_bit);
+    uint32_t feature_bit = 1U << bit_idx;
+    return xfrm & feature_bit;
 }
 
 /**
  * Sanity check untrusted CPUID inputs.
  *
- * The basic idea is that there are only a handful of extensions and we known the size to store each
- * extension's state. use this to cross check what cpuid returns. We also know through xfrm what
- * extensions are enabled inside the enclave.
+ * The basic idea is that there are only a handful of extensions and we know the size to store each
+ * extension's state. Use this to sanitize host's untrusted cpuid output. We also know through xfrm
+ * what extensions are enabled inside the enclave.
  */
 static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[4]) {
 
@@ -173,12 +173,18 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
     static __sgx_mem_aligned sgx_target_info_t target_info;
     static __sgx_mem_aligned sgx_report_data_t report_data;
 
-    static int initialized = 0;
-    if (__sync_bool_compare_and_swap(&initialized, 0, 1)) {
+    enum { UNINITIALIZED = 0, IN_PROGRESS, DONE };
+    static int initialized = UNINITIALIZED;
+    if (__sync_bool_compare_and_swap(&initialized, UNINITIALIZED, IN_PROGRESS)) {
         memset(&report, 0, sizeof(report));
         memset(&target_info, 0, sizeof(target_info));
         memset(&report_data, 0, sizeof(report_data));
         sgx_report(&target_info, &report_data, &report);
+        __sync_bool_compare_and_swap(&initialized, IN_PROGRESS, DONE);
+    }
+
+    while (initialized != DONE) {
+        _DkThreadYieldExecution();
     }
 
     uint64_t xfrm = report.body.attributes.xfrm;
@@ -217,6 +223,9 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
              * currently set in XCR0."
              */
             uint32_t xsave_size = 0;
+            /* Start from AVX since x87 and SSE are always captured using XSAVE. Also, x87 and SSE
+             * state size is implicitly included in the extension's offset, e.g., AVX's offset is
+             * 576 which includes x87 and SSE state as well as the XSAVE header. */
             for (int i = AVX; i <= PKRU; i++) {
                 if (extension_enabled(xfrm, i)) {
                     xsave_size = extension_offset_bytes[i] + extension_sizes_bytes[i];
@@ -225,13 +234,14 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
             values[EBX] = xsave_size;
 
             /* From the SDM: "ECX enumerates the size (in bytes) required by the XSAVE instruction
-             * for an XSAVE area containing all the user state components supported by this processor."
+             * for an XSAVE area containing all the user state components supported by this
+             * processor."
              *
-             * Now, I think that outside of SGX, ecx and ebx for leaf 0xd and subleaf 0x1 can have
-             * different values, while inside they should always be identical. Also, ebx can change
-             * at runtime, while ecx is a static property.
+             * Assume that inside the enclave, ECX and EBX for leaf 0xd and subleaf 0x1 should
+             * always be identical, while outside they can potentially be different. Also, outside
+             * of SGX EBX can change at runtime, while ECX is a static property.
              */
-            values[ECX] = values[1];
+            values[ECX] = values[EBX];
             values[EDX] = 0;
 
             break;
@@ -240,6 +250,8 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
             const uint32_t xsave_header = 64;
             uint32_t save_size_bytes = xsave_legacy_size + xsave_header;
 
+            /* Start with AVX, since x87 and SSE state is already included when initializing
+             * #save_size_bytes. */
             for (int i = AVX; i <= PKRU; i++) {
                 if (extension_enabled(xfrm, i)) {
                     save_size_bytes += extension_sizes_bytes[i];
@@ -261,11 +273,13 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
         case PKRU:
             if (extension_enabled(xfrm, subleaf)) {
                 if (values[EAX] != extension_sizes_bytes[subleaf]) {
-                    _DkProcessExit(1); // under attack
+                    SGX_DBG(DBG_E, "Unexpected value in host CPUID. Exiting ...\n");
+                    _DkProcessExit(1);
                 }
             } else {
                 if (values[EAX] != 0) {
-                    _DkProcessExit(1); // under attack
+                    SGX_DBG(DBG_E, "Unexpected value in host CPUID. Exiting ...\n");
+                    _DkProcessExit(1);
                 }
             }
             break;
