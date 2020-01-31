@@ -224,8 +224,12 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         }
     }
 
-    thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
-                                 NUM_SIGS);
+    thread->signal_logs = signal_logs_alloc();
+    if (!thread->signal_logs) {
+        free(thread);
+        return NULL;
+    }
+
     thread->vmid = cur_process.vmid;
     create_lock(&thread->lock);
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
@@ -331,7 +335,7 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->child_exit_event);
         destroy_lock(&thread->lock);
 
-        free(thread->signal_logs);
+        signal_logs_free(thread->signal_logs);
         free(thread);
     }
 }
@@ -796,8 +800,9 @@ BEGIN_RS_FUNC(running_thread)
         thread->set_child_tid = NULL;
     }
 
-    thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
-                                 NUM_SIGS);
+    thread->signal_logs = signal_logs_alloc();
+    if (!thread->signal_logs)
+        return -ENOMEM;
 
     if (cur_thread) {
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread);

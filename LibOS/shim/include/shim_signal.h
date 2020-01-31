@@ -101,9 +101,14 @@ struct shim_signal {
 #define MAX_SIGNAL_LOG      32
 
 struct shim_signal_log {
+    // [tail, head): free area
+    // [head, tail + MAX_SIGNAL_LOG): used area
     struct atomic_int head, tail;
     struct shim_signal * logs[MAX_SIGNAL_LOG];
 };
+
+struct shim_signal_log* signal_logs_alloc(void);
+void signal_logs_free(struct shim_signal_log* signal_log);
 
 extern const char * const siglist[NUM_KNOWN_SIGS + 1];
 
