@@ -12,3 +12,4 @@ seek_tell
 stat
 truncate
 *.xml
+/.cache

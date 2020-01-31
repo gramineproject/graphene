@@ -117,6 +117,12 @@ pipeline {
                             '''
                         }
                         sh '''
+                           # Workaround LTP bug (see https://github.com/linux-test-project/ltp/issues/560 for upstream fix):
+                           git -C LibOS/shim/test/apps/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
+
+                           ./Scripts/gitignore-test
+                        '''
+                        sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            make distclean
