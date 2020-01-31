@@ -12,6 +12,7 @@ $(clean_targets):
 	$(MAKE) -C src $@
 	$(MAKE) -C test $@
 	$(MAKE) -C regression $@
+	$(MAKE) -C lib $@
 
 .PHONY: test
 test:
