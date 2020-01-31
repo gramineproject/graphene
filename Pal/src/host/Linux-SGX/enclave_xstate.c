@@ -82,7 +82,7 @@ void init_xsave_size(uint64_t xfrm) {
     xsave_features = PAL_XFEATURE_MASK_FPSSE;
     xsave_size = 512 + 64;
     if (!xfrm || (xfrm & SGX_XFRM_RESERVED)) {
-        SGX_DBG(DBG_I, "xsave is disabled, xfrm 0x%lx\n", xfrm);
+        SGX_DBG(DBG_M, "xsave is disabled, xfrm 0x%lx\n", xfrm);
         return;
     }
 
@@ -93,5 +93,5 @@ void init_xsave_size(uint64_t xfrm) {
             xsave_size = xsave_size_table[i].size;
         }
     }
-    SGX_DBG(DBG_I, "xsave is enabled with xsave_size: %u\n", xsave_size);
+    SGX_DBG(DBG_M, "xsave is enabled with xsave_size: %u\n", xsave_size);
 }
