@@ -116,7 +116,7 @@ pipeline {
 
                            make -C LibOS/shim/test/apps/ltp clean
                            # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
-                           rm -rf /tmp/graphene.clean-check.clean/LibOS/shim/test/apps/ltp/src
+                           rm -rf /tmp/graphene-18.04.clean-check.clean/LibOS/shim/test/apps/ltp/src
                            rm -rf LibOS/shim/test/apps/ltp/src
 
                            make -C LibOS/shim/test/apps/python-simple clean

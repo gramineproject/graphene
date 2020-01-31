@@ -139,7 +139,7 @@ pipeline {
                            # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit
                            # rm of these symlinks, the clean-check utility fails. We should
                            # update to newer release of LTP where this issue will be fixed.
-                           rm -rf /tmp/graphene-sgx-apps.clean-check.clean/LibOS/shim/test/apps/ltp/src
+                           rm -rf /tmp/graphene-sgx-18.04-apps.clean-check.clean/LibOS/shim/test/apps/ltp/src
                            rm -rf LibOS/shim/test/apps/ltp/src
 
                            ./Scripts/clean-check
