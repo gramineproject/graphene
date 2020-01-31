@@ -46,10 +46,7 @@ MBEDTLS_URI ?= https://github.com/ARMmbed/mbedtls/archive/
 MBEDTLS_CHECKSUM ?= ec72ecf39275327f52b5ee9787271313a0d2960e7342b488d223a118ba164caa
 
 crypto/$(MBEDTLS_SRC):
-	wget --timeout=10 $(MBEDTLS_URI)/$(MBEDTLS_SRC) -O tmp
-	@[ "`sha256sum tmp`" = "$(MBEDTLS_CHECKSUM)  tmp" ] || \
-		(echo "*** $@ has a wrong checksum ***"; rm -f tmp; exit 255)
-	mv -f tmp $@
+	../../Scripts/download --output $@ --url $(MBEDTLS_URI)/$(MBEDTLS_SRC) --sha256 $(MBEDTLS_CHECKSUM)
 
 ifeq ($(DEBUG),1)
 MBED_BUILD_TYPE=Debug
