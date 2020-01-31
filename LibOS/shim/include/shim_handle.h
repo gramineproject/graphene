@@ -125,6 +125,8 @@ struct shim_dev_ops {
     int (*hstat)(struct shim_handle* hdl, struct stat* buf);
 };
 
+int dev_update_dev_ops(struct shim_handle* hdl);
+
 struct shim_dev_handle {
     struct shim_dev_ops dev_ops;
 };
