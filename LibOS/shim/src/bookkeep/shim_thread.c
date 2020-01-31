@@ -253,7 +253,7 @@ out_error:
     if (thread->cwd) {
         put_dentry(thread->cwd);
     }
-    for (int i = 0 ; i < NUM_SIGS ; i++) {
+    for (int i = 0; i < NUM_SIGS; i++) {
         free(thread->signal_handles[i].action);
     }
     if (thread->exec) {

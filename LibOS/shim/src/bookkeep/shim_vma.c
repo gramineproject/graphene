@@ -292,7 +292,7 @@ __bkeep_preloaded (void * start, void * end, int prot, int flags,
     return __bkeep_mmap(prev, start, end, prot, flags, NULL, 0, comment);
 }
 
-int init_vma (void) {
+int init_vma(void) {
     int ret = 0;
 
     if (!create_lock(&vma_list_lock)) {

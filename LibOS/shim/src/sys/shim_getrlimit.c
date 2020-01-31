@@ -138,8 +138,6 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
             return -EFAULT;
     }
 
-    lock(&rlimit_lock);
-
     if (new_rlim) {
         if (test_user_memory((void*)new_rlim, sizeof(*new_rlim), false)) {
             ret = -EFAULT;
@@ -149,6 +147,11 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
             ret = -EINVAL;
             goto out;
         }
+    }
+
+    lock(&rlimit_lock);
+
+    if (new_rlim) {
         if (new_rlim->rlim_max > __rlim[resource].rlim_max && cur_thread->euid) {
             ret = -EPERM;
             goto out;
