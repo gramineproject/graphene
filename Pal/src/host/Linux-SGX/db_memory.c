@@ -88,15 +88,16 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
     }
 
     if (alloc_type & PAL_ALLOC_INTERNAL) {
+        spinlock_lock(&pal_vma_lock);
         if (pal_nvmas >= PAL_VMA_MAX) {
             SGX_DBG(DBG_E, "Pal is out of VMAs (current limit on VMAs PAL_VMA_MAX = %d)!\n",
                     PAL_VMA_MAX);
+            spinlock_unlock(&pal_vma_lock);
             free_pages(mem, size);
             return -PAL_ERROR_NOMEM;
         }
 
         SGX_DBG(DBG_M, "pal allocates %p-%p for internal use\n", mem, mem + size);
-        spinlock_lock(&pal_vma_lock);
         pal_vmas[pal_nvmas].bottom = mem;
         pal_vmas[pal_nvmas].top = mem + size;
         pal_nvmas++;
