@@ -36,7 +36,7 @@ else
 fi
 
 ok=true
-diff "$diff_opts" -r "$clean_dir" "$top_dir" > "$diff" || ok=false
+diff "$diff_opts" -x .git -r "$clean_dir" "$top_dir" > "$diff" || ok=false
 
 if [ "$ok" == true ]; then
     echo "Source tree is unchanged. :]"
