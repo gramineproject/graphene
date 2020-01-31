@@ -482,3 +482,7 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('[client] checking how many bytes are left unread: 0', stdout)
         self.assertIn('[client] done', stdout)
         self.assertIn('[server] done', stdout)
+
+    def test_310_socket_tcp_ipv6_v6only(self):
+        stdout, _ = self.run_binary(['tcp_ipv6_v6only'], timeout=50)
+        self.assertIn('test completed successfully', stdout)
