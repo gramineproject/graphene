@@ -101,8 +101,7 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
     return thread;
 }
 
-IDTYPE get_pid (void)
-{
+static IDTYPE get_pid(void) {
     IDTYPE idx;
 
     while (1) {
@@ -168,8 +167,18 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     }
 
     struct shim_thread * thread = alloc_new_thread();
-    if (!thread)
+    if (!thread) {
+        release_pid(new_tid);
         return NULL;
+    }
+
+    thread->signal_logs = signal_logs_alloc();
+    if (!thread->signal_logs) {
+        free(thread);
+        release_pid(new_tid);
+        return NULL;
+    }
+
 
     struct shim_thread * cur_thread = get_cur_thread();
     thread->tid = new_tid;
@@ -228,22 +237,18 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         }
     }
 
-    thread->vmid = cur_process.vmid;
-    thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
-                                 NUM_SIGS);
-    if (!thread->signal_logs) {
-        goto out_error;
-    }
     if (!create_lock(&thread->lock)) {
         goto out_error;
     }
+
+    thread->vmid = cur_process.vmid;
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
     return thread;
 
 out_error:
-    free(thread->signal_logs);
+    signal_logs_free(thread->signal_logs);
     if (thread->handle_map) {
         put_handle_map(thread->handle_map);
     }
@@ -370,7 +375,7 @@ void put_thread (struct shim_thread * thread)
             destroy_lock(&thread->lock);
         }
 
-        free(thread->signal_logs);
+        signal_logs_free(thread->signal_logs);
         free(thread);
     }
 }
@@ -846,8 +851,9 @@ BEGIN_RS_FUNC(running_thread)
         thread->set_child_tid = NULL;
     }
 
-    thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
-                                 NUM_SIGS);
+    thread->signal_logs = signal_logs_alloc();
+    if (!thread->signal_logs)
+        return -ENOMEM;
 
     if (cur_thread) {
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread);
