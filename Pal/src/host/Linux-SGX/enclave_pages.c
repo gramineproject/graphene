@@ -69,8 +69,11 @@ static void assert_vma_list (void)
 #endif
 }
 
+struct heap_vma* cache = NULL;
+
 static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
 {
+    cache = NULL;
     struct heap_vma * next;
 
     if (prev) {
@@ -179,6 +182,7 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
     assert_vma_list();
 
     atomic_add(size / g_page_size, &alloced_pages);
+    cache = vma;
     return addr;
 }
 
@@ -214,9 +218,14 @@ void * get_reserved_pages(void * addr, size_t size)
      */
     if (addr && addr >= heap_base &&
         addr + size <= heap_base + heap_size) {
+        if (cache && cache->bottom >= addr) {
+            vma = cache;
+            goto skip;
+        }
         LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
             if (vma->bottom < addr)
                 break;
+        skip:
             prev = vma;
         }
         void * ret = reserve_area(addr, size, prev);
@@ -281,24 +290,49 @@ void free_pages(void * addr, size_t size)
 
     _DkInternalLock(&heap_vma_lock);
 
-    struct heap_vma * vma, * p;
+    if (cache && cache->bottom == addr && cache->top == addr_top) {
+        LISTP_DEL(cache, &heap_vma_list, list);
+        free(cache);
+        cache = NULL;
+    } else {
+        struct heap_vma * vma, * p;
 
-    LISTP_FOR_EACH_ENTRY_SAFE(vma, p, &heap_vma_list, list) {
-        if (vma->bottom >= addr_top)
-            continue;
-        if (vma->top <= addr)
-            break;
-        if (vma->bottom < addr) {
-            struct heap_vma * new = malloc(sizeof(struct heap_vma));
-            new->top = addr;
-            new->bottom = vma->bottom;
-            INIT_LIST_HEAD(new, list);
-            LIST_ADD(new, vma, list);
-        }
+        LISTP_FOR_EACH_ENTRY_SAFE(vma, p, &heap_vma_list, list) {
+            if (vma->bottom >= addr_top) {
+                if (cache && cache->top < vma->bottom && cache->bottom >= addr_top) {
+                    /* dirty hack to depend on listp implemetation */
+                    first_iter = false;
+                    vma = cache;
+                    p = cache->list.next;
+                }
+                continue;
+            }
+            if (vma->top <= addr) {
+                cache = vma;
+                break;
+            }
 
-        vma->bottom = addr_top;
-        if (vma->top <= vma->bottom) {
-            LISTP_DEL(vma, &heap_vma_list, list); free(vma);
+            if (addr <= vma->bottom && vma->top <= addr_top) {
+                LISTP_DEL(vma, &heap_vma_list, list);
+                free(vma);
+                if (cache == vma)
+                    cache = NULL;
+            } else if (addr <= vma->bottom) {
+                vma->bottom = addr_top;
+                cache = vma;
+            } else if (vma->top <= addr_top) {
+                vma->top = addr;
+                cache = vma;
+            } else {
+                // vma->bottom < addr && addr_top < vma->top
+                struct heap_vma * new = malloc(sizeof(struct heap_vma));
+                vma->bottom = addr_top;
+                new->top = addr;
+                new->bottom = vma->bottom;
+                INIT_LIST_HEAD(new, list);
+                LIST_ADD(new, vma, list);
+                cache = vma;
+            }
         }
     }
 
