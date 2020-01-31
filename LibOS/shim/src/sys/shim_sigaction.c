@@ -103,9 +103,9 @@ attribute_nofp int shim_do_sigreturn(int __unused) {
         return 0;
     }
 
-    /* no more signals pending. return back */
+    /* no more pending signals, return back to application */
     gregset_t* gregs = &user_uc->uc_mcontext.gregs;
-    /* RAX: will be restored as return value of sigreturn. see below */
+    /* rax will be restored as a return value of sigreturn, see below */
     regs->r15 = (*gregs)[REG_R15];
     regs->r14 = (*gregs)[REG_R14];
     regs->r13 = (*gregs)[REG_R13];
@@ -127,7 +127,6 @@ attribute_nofp int shim_do_sigreturn(int __unused) {
     struct _libc_fpstate * user_fpstate = user_uc->uc_mcontext.fpregs;
     fpstate_restore(user_fpstate);
 
-    /* syscalldb_return doesn't restore %rax. but %rax is return value */
     return (*gregs)[REG_RAX];
 }
 

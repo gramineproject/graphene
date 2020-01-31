@@ -388,7 +388,7 @@ typedef struct ucontext {
 } ucontext_t;
 
 struct sigframe {
-    void * restorer;
+    void* restorer;
     ucontext_t uc;
     siginfo_t info;
     /* fpstate follows */

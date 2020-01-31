@@ -47,7 +47,7 @@
         .type __syscalldb_check_sigpending_end, @function
 
 .macro CHECK_SIGNAL_PENDING_BIT
-        lock btrq $SHIM_FLAG_SIGPENDING, %gs:(SHIM_TCB_OFFSET + SHIM_TCB_FLAGS)
+        lock btrq $SHIM_FLAG_MAY_DELIVER_SIGNAL, %gs:(SHIM_TCB_OFFSET + SHIM_TCB_FLAGS)
 .endm
 
 syscalldb:
@@ -155,7 +155,7 @@ syscalldb:
         jmp __syscallas_return_begin
 
 .Ldeliver_signal:
-        movq %rax, %rdi # to preverve returning value
+        movq %rax, %rdi # to preserve return value
         call *deliver_signal_on_sysret@GOTPCREL(%rip)
 
 __syscallas_return_begin:
@@ -218,8 +218,7 @@ __syscallas_return_begin:
         movq SHIM_REGS_R11 - SHIM_REGS_RSP(%rsp), %r11
         .cfi_restore %r11
 
-        # how to specify
-        # previous %rip = %gs:(SHIM_TCB_OFFSET + SHIM_TCB_TMP_RIP)?
+        # TODO: specify rip as %gs:(SHIM_TCB_OFFSET + SHIM_TCB_TMP_RIP)
         .cfi_undefined %rip
 
         # restore application stack
@@ -249,19 +248,13 @@ isundef:
          * syscall_wrapper: emulate syscall instruction
          *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
          *   This switches stack to dedicated one allocated by LibOS to avoid
-         *   small application stack. e.g. as goroutine.
+         *   small application stack, e.g. as in goroutine.
          * See illegal_upcall() @ shim_signal.c
          *
          * argument:
          * %rcx: Instruction address to continue app execution after trapped
          *       syscall instruction
          * %r11: rflags on entering syscall: unused as %rflags is preserved
-         *
-         * also this function can be used to invoke systemcall without
-         * consuming application stack. The code snippet looks like
-         *     leaq 1f(%rip), %rcx
-         *     jmp *syscall_wrapper(%rip)
-         *     1:
          */
 syscall_wrapper:
         .cfi_startproc
@@ -297,9 +290,7 @@ __syscalldb_check_sigpending_begin:
         ret
 
 .Lsigpending:
-        # call nop syscall to trigger signal delivery.
-        # Any syscall with no side effect is okay.
-        # (Or dedicated syscall can be introduced in shim_table.c)
+        # call a syscall with no side effects to trigger signal delivery
         movq $__NR_gettid, %rax
         jmp syscalldb
 

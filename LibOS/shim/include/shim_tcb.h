@@ -46,7 +46,7 @@ struct shim_tcb {
     unsigned int            tid;
     int                     pal_errno;
     struct debug_buf *      debug_buf;
-#define SHIM_FLAG_SIGPENDING 0
+#define SHIM_FLAG_MAY_DELIVER_SIGNAL 0
     unsigned long           flags;
     uint64_t                tmp_rip;
 
