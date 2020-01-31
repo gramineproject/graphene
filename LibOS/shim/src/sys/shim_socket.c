@@ -422,8 +422,8 @@ static bool __socket_is_ipv6_v6only(struct shim_handle* hdl) {
     struct shim_sock_option* o = hdl->info.sock.pending_options;
     while (o) {
         if (o->level == IPPROTO_IPV6 && o->optname == IPV6_V6ONLY) {
-            int intval = *((int*)o->optval);
-            return intval ? 1 : 0;
+            int* intval = (int*)o->optval;
+            return *intval ? 1 : 0;
         }
         o = o->next;
     }
