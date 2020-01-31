@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
     }
 
     ret = bind(socket_ipv4, (struct sockaddr*)&address_ipv4, sizeof(address_ipv4));
-    if (ret == 0 || errno != EADDRINUSE) {
+    if (ret != -1 || errno != EADDRINUSE) {
         fprintf(stderr, "bind(ipv4) was successful even though there is no IPV6_V6ONLY on same port\n");
         return 1;
     }
