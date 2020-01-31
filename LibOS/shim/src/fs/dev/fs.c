@@ -438,6 +438,28 @@ static int dev_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
     return -ENOENT;
 }
 
+int dev_update_dev_ops(struct shim_handle* hdl) {
+    int ret;
+    char buf[STR_SIZE];
+    size_t bufsize = sizeof(buf);
+    struct shim_dev_ops ops_buf = EMPTY_DEV_OPS;
+
+    assert(hdl);
+    if (hdl->type != TYPE_DEV)
+        return 0;
+
+    ret = get_base_name(qstrgetstr(&hdl->path), buf, &bufsize);
+    if (ret < 0)
+        return -ENOENT;
+
+    ret = search_dev_driver(buf, &ops_buf);
+    if (ret < 0)
+        return ret;
+
+    memcpy(&hdl->info.dev.dev_ops, &ops_buf, sizeof(ops_buf));
+    return 0;
+}
+
 struct shim_fs_ops dev_fs_ops = {
     .mount    = &dev_mount,
     .unmount  = &dev_unmount,

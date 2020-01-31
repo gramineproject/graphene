@@ -783,6 +783,14 @@ BEGIN_RS_FUNC(handle) {
             return -EINVAL;
     }
 
+    if (hdl->type == TYPE_DEV) {
+        /* for device handles, info.dev.dev_ops contains function pointers into LibOS; they may
+           have become invalid due to relocation of LibOS text section in the child, update them */
+        if (dev_update_dev_ops(hdl) < 0) {
+            return -EINVAL;
+        }
+    }
+
     if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->checkin)
         hdl->fs->fs_ops->checkin(hdl);
 
