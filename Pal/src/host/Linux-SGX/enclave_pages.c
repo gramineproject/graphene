@@ -71,8 +71,8 @@ static void assert_vma_list (void)
 
 struct heap_vma* cache = NULL;
 
-static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
-{
+static void* reserve_area(void* addr, size_t size, struct heap_vma* prev,
+                          LISTP_TYPE(heap_vma)* freed_vmas) {
     cache = NULL;
     struct heap_vma * next;
 
@@ -126,8 +126,8 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
                     prev->bottom, prev->top);
 
             vma->top = (prev->top > vma->top) ? prev->top : vma->top;
-            LISTP_DEL(prev, &heap_vma_list,list);
-            free(prev);
+            LISTP_DEL(prev, &heap_vma_list, list);
+            LISTP_ADD(prev, freed_vmas, list);
         }
 
         prev = prev_prev;
@@ -154,16 +154,21 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
 
             vma->bottom = next->bottom;
             LISTP_DEL(next, &heap_vma_list, list);
-            free(next);
+            LISTP_ADD(next, freed_vmas, list);
         }
 
         next = next_next;
     }
 
     if (!vma) {
-        vma = malloc(sizeof(struct heap_vma));
-        if (!vma) {
-            return NULL;
+        if (LISTP_EMPTY(freed_vmas)) {
+            vma = malloc(sizeof(struct heap_vma));
+            if (!vma) {
+                return NULL;
+            }
+        } else {
+            vma = LISTP_FIRST_ENTRY(freed_vmas, struct heap_vma, list);
+            LISTP_DEL(vma, freed_vmas, list);
         }
         vma->top = addr + size;
         vma->bottom = addr;
@@ -186,6 +191,13 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
     return addr;
 }
 
+static void free_vmas(LISTP_TYPE(heap_vma)* freed_vmas) {
+    struct heap_vma* vma;
+    struct heap_vma* tmp;
+    LISTP_FOR_EACH_ENTRY_SAFE(vma, tmp, freed_vmas, list) {
+        free(vma);
+    }
+}
 
 // TODO: This function should be fixed to always either return exactly `addr` or
 // fail.
@@ -205,6 +217,7 @@ void * get_reserved_pages(void * addr, size_t size)
 
     SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
 
+    LISTP_TYPE(heap_vma) freed_vmas = LISTP_INIT;
     _DkInternalLock(&heap_vma_lock);
 
     struct heap_vma * prev = NULL;
@@ -228,8 +241,9 @@ void * get_reserved_pages(void * addr, size_t size)
         skip:
             prev = vma;
         }
-        void * ret = reserve_area(addr, size, prev);
+        void* ret = reserve_area(addr, size, prev, &freed_vmas);
         _DkInternalUnlock(&heap_vma_lock);
+        free_vmas(&freed_vmas);
         return ret;
     }
 
@@ -243,8 +257,9 @@ void * get_reserved_pages(void * addr, size_t size)
     LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
         if ((size_t)(avail_top - vma->top) > size) {
             addr = avail_top - size;
-            void * ret = reserve_area(addr, size, prev);
+            void* ret = reserve_area(addr, size, prev, &freed_vmas);
             _DkInternalUnlock(&heap_vma_lock);
+            free_vmas(&freed_vmas);
             return ret;
         }
         prev = vma;
@@ -253,8 +268,9 @@ void * get_reserved_pages(void * addr, size_t size)
 
     if (avail_top >= heap_base + size) {
         addr = avail_top - size;
-        void * ret = reserve_area(addr, size, prev);
+        void* ret = reserve_area(addr, size, prev, &freed_vmas);
         _DkInternalUnlock(&heap_vma_lock);
+        free_vmas(&freed_vmas);
         return ret;
     }
 
@@ -288,6 +304,7 @@ void free_pages(void * addr, size_t size)
 
     SGX_DBG(DBG_M, "free %ld bytes at %p\n", size, addr);
 
+    LISTP_TYPE(heap_vma) freed_vmas = LISTP_INIT;
     _DkInternalLock(&heap_vma_lock);
 
     if (cache && cache->bottom == addr && cache->top == addr_top) {
@@ -314,7 +331,7 @@ void free_pages(void * addr, size_t size)
 
             if (addr <= vma->bottom && vma->top <= addr_top) {
                 LISTP_DEL(vma, &heap_vma_list, list);
-                free(vma);
+                LISTP_ADD(vma, &freed_vmas, list);
                 if (cache == vma)
                     cache = NULL;
             } else if (addr <= vma->bottom) {
@@ -339,6 +356,7 @@ void free_pages(void * addr, size_t size)
     assert_vma_list();
 
     _DkInternalUnlock(&heap_vma_lock);
+    free_vmas(&freed_vmas);
 
     unsigned int val = atomic_read(&alloced_pages);
     atomic_sub(size / g_page_size, &alloced_pages);
