@@ -88,7 +88,7 @@ enclave_entry.o sgx_entry.o: asm-offsets.h
 sgx-driver/isgx_version.h:
 	$(MAKE) -C sgx-driver $(notdir $@)
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d) $(wildcard debugger/*.d)
 endif
 
@@ -97,12 +97,20 @@ include ../../../../Makefile.rules
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
-CLEAN_FILES += $(ias_cert_file) quote/generated-cacert.h
+CLEAN_FILES += quote/generated-cacert.h
 
-.PHONY: clean
-clean:
+.PHONY: clean_
+clean_:
 	rm -rf *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
 	       signer/__pycache__
+
+.PHONY: clean
+clean: clean_
+	$(MAKE) -C sgx-driver $@
+
+.PHONY: distclean
+distclean: clean_
+	rm -f $(ias_cert_file)
 	$(MAKE) -C sgx-driver $@
 
 .PHONY: test

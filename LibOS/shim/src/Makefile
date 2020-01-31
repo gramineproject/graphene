@@ -152,11 +152,15 @@ vdso/vdso.so: vdso/vdso.so.dbg
 vdso/vdso-data.o: vdso/vdso.so
 CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/.vdso-linked-for-reloc-check.so vdso/.vdso-no-reloc-checked
 
+.PHONY: clean
 clean:
 	rm -rf $(addsuffix .o,$(all_objs)) $(addsuffix .d,$(all_objs)) \
 	       $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs)) \
 	       $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(all_objs)) $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs))
 endif
+
+.PHONY: distclean
+distclean: clean

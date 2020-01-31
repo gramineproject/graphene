@@ -105,7 +105,7 @@ $(target)%.o: %.c
 	@mkdir -p $(dir $@)
 	$(call cmd,cc_o_c)
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(patsubst %.o,%.d,$(addprefix $(target),$(objs)))
 endif
 

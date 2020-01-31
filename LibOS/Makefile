@@ -124,10 +124,18 @@ $(GLIBC_SRC)/nptl/Versions: $(GLIBC_SRC)/configure
 
 $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 
-.PHONY: clean
-clean:
-	$(MAKE) -C $(SHIM_DIR) clean
+.PHONY: clean_
+clean_:
 	rm -rf $(BUILD_DIR) $(GLIBC_SRC) build.log
+
+.PHONY: clean
+clean: clean_
+	$(MAKE) -C $(SHIM_DIR) clean
+
+.PHONY: distclean
+distclean: clean_
+	$(MAKE) -C $(SHIM_DIR) distclean
+	rm -f $(GLIBC_SRC).tar.gz
 
 else
 .IGNORE: $(GLIBC_TARGET)
@@ -136,6 +144,9 @@ $(GLIBC_TARGET):
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
+
+.PHONY: distclean
+distclean: clean
 endif
 
 .PHONY: test

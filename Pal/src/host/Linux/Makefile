@@ -48,7 +48,7 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 
 include ../../../../Makefile.rules
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs))
 endif
 
@@ -59,6 +59,9 @@ clean:
 	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES) \
 	      $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) \
 	      $(addsuffix .s.d,$(objs))
+
+.PHONY: distclean
+distclean: clean
 
 .PHONY: test
 test:

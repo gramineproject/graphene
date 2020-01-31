@@ -39,3 +39,6 @@ include ../../../../Makefile.rules
 .PHONY: clean
 clean:
 	rm -f $(addsuffix .o,$(objs)) $(addsuffix .d,$(objs)) $(host_files) $(pal_lib)
+
+.PHONY: distclean
+distclean: clean

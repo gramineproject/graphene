@@ -76,7 +76,7 @@ $(executables): LDLIBS = $(LDLIBS-executables)
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle)
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
 ifeq ($(SGX), 1)
 # Bootstrap5.manifest doesn't have main executable, but only preloaded
@@ -113,3 +113,6 @@ pal-regression.xml: test_pal.py $(call expand_target_to_token,$(target))
 .PHONY: clean
 clean:
 	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig *.d .output.* *.token .*.d .*.sig .*.token __pycache__ .cache pal-regression.xml
+
+.PHONY: distclean
+distclean: clean

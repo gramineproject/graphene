@@ -81,7 +81,7 @@ manifest: manifest.template
 	@echo [ $@ ]
 	sed $(manifest_rules) $< > $@
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX),1)
 include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
 endif
@@ -91,3 +91,6 @@ endif
 clean: $(clean-extra)
 	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d) .output.* \
 	       *.sig *.token *.manifest.sgx
+
+.PHONY: distclean
+distclean: clean

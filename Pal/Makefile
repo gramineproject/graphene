@@ -6,11 +6,13 @@ DIRS = src test regression
 all:
 	$(MAKE) -C src
 
-.PHONY: clean
-clean:
-	$(MAKE) -C src clean
-	$(MAKE) -C test clean
-	$(MAKE) -C regression clean
+clean_targets = clean distclean
+.PHONY: $(clean_targets)
+$(clean_targets):
+	$(MAKE) -C src $@
+	$(MAKE) -C test $@
+	$(MAKE) -C regression $@
+	$(MAKE) -C lib $@
 
 .PHONY: test
 test:
@@ -29,3 +31,6 @@ format:
 	                               -path ./lib/crypto/udivmodti4.c -prune -o \
 	                               -path ./src/host/Linux-SGX/sgx-driver -prune -o \
 	                               \( -name '*.h' -o -name '*.c' \) -print)
+
+.PHONY: distclean
+distclean: clean
