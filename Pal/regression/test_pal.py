@@ -18,6 +18,13 @@ from regression import (
     expectedFailureIf,
 )
 
+if HAS_SGX:
+    pal_sgx_sign_path = pathlib.Path(__file__).parent / \
+            '../src/host/Linux-SGX/signer/pal-sgx-sign'
+    pal_sgx_sign = {'__file__': str(pal_sgx_sign_path)}
+    exec(pal_sgx_sign_path.open().read(), pal_sgx_sign)
+    read_manifest = pal_sgx_sign['read_manifest']
+
 CPUINFO_FLAGS_WHITELIST = [
     'fpu', 'vme', 'de', 'pse', 'tsc', 'msr', 'pae', 'mce', 'cx8', 'apic', 'sep',
     'mtrr', 'pge', 'mca', 'cmov', 'pat', 'pse36', 'pn', 'clflush', 'dts',
@@ -566,6 +573,10 @@ class TC_40_AVXDisable(RegressionTestCase):
 @unittest.skipUnless(HAS_SGX, 'need SGX')
 class TC_50_Attestation(RegressionTestCase):
     def test_000_remote_attestation(self):
+        manifest, _ = read_manifest(self.get_manifest("Attestation"))
+        if not manifest.get('sgx.ra_client_spid'):
+            raise unittest.SkipTest('needs RA SPID and key')
+
         _, stderr = self.run_binary(["Attestation"])
 
         for line in stderr.split("\n"):
