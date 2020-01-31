@@ -101,8 +101,6 @@ endif
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
-	[ "`sha256sum $(GLIBC_SRC).tar.gz`" = "$(GLIBC_CHECKSUM)  $(GLIBC_SRC).tar.gz" ] || \
-		(echo "*** $(GLIBC_SRC).tar.gz has a wrong checksum ***"; exit 255)
 	rm -rf $(GLIBC_SRC)
 	tar -xzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
@@ -113,10 +111,7 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 	touch $@
 
 $(GLIBC_SRC).tar.gz:
-	for MIRROR in $(GLIBC_MIRRORS); do \
-		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
-		&& break; \
-	done
+	../Scripts/download --output $@ --sha256 $(GLIBC_CHECKSUM) $(foreach mirror,$(GLIBC_MIRRORS),--url $(mirror)glibc/$(GLIBC_SRC).tar.gz)
 
 $(GLIBC_SRC)/elf/Versions: $(GLIBC_SRC)/configure
 

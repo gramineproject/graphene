@@ -2,6 +2,7 @@ include ../../../../Makefile.configs
 include Makefile.am
 
 ias_cert_url ?= https://certificates.trustedservices.intel.com/Intel_SGX_Attestation_RootCA.pem
+ias_cert_sha256 ?= e7b9113b647bc6bd421d4f140076a3acc31e410e01bf12883841e824cdaf1564
 ias_cert_file = quote/$(notdir $(ias_cert_url))
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../lib/crypto/mbedtls/include -Isgx-driver
@@ -76,7 +77,7 @@ quote/generated-cacert.h: $(ias_cert_file)
 	@echo "#define IAS_CA_CERT \"$(shell cat $< | tr -d '[\r\n]')\"" > $@
 
 $(ias_cert_file):
-	@wget $(ias_cert_url) -O $@
+	@../../../../Scripts/download --output $@ --url $(ias_cert_url) --sha256 $(ias_cert_sha256)
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
