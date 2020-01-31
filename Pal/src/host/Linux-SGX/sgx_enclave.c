@@ -296,7 +296,7 @@ static int sgx_ocall_listen(void * pms)
     if (ms->ms_domain == AF_INET6) {
         /* IPV6_V6ONLY socket option can only be set before first bind */
         ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ms->ms_ipv6_v6only,
-                sizeof(ms->ms_ipv6_v6only));
+                             sizeof(ms->ms_ipv6_v6only));
         if (IS_ERR(ret))
             goto err_fd;
     }
@@ -375,7 +375,7 @@ static int sgx_ocall_connect(void * pms)
         if (ms->ms_domain == AF_INET6) {
             /* IPV6_V6ONLY socket option can only be set before first bind */
             ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ms->ms_ipv6_v6only,
-                    sizeof(ms->ms_ipv6_v6only));
+                                 sizeof(ms->ms_ipv6_v6only));
             if (IS_ERR(ret))
                 goto err_fd;
         }
