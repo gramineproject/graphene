@@ -22,6 +22,7 @@
 
 #include <asm/fcntl.h>
 #include <linux/time.h>
+#include <stdatomic.h>
 
 #include "api.h"
 #include "pal.h"
@@ -174,16 +175,17 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
     static __sgx_mem_aligned sgx_report_data_t report_data;
 
     enum { UNINITIALIZED = 0, IN_PROGRESS, DONE };
-    static int initialized = UNINITIALIZED;
-    if (__sync_bool_compare_and_swap(&initialized, UNINITIALIZED, IN_PROGRESS)) {
+    static atomic_int initialized = ATOMIC_INIT(UNINITIALIZED);
+    int expected_state = UNINITIALIZED;
+    if (atomic_compare_exchange_strong(&initialized, &expected_state, IN_PROGRESS)) {
         memset(&report, 0, sizeof(report));
         memset(&target_info, 0, sizeof(target_info));
         memset(&report_data, 0, sizeof(report_data));
         sgx_report(&target_info, &report_data, &report);
-        __sync_bool_compare_and_swap(&initialized, IN_PROGRESS, DONE);
+        atomic_store(&initialized, DONE);
     }
 
-    while (initialized != DONE) {
+    while (atomic_load(&initialized) != DONE) {
         _DkThreadYieldExecution();
     }
 
