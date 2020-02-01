@@ -166,6 +166,7 @@ static inline void do_pause (void);
 #define DEBUG_HERE() \
     do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
 
+extern bool fpu_xstate_enabled;
 extern unsigned long fpu_xstate_size;
 attribute_nofp void fpstate_save(struct _libc_fpstate* fpstate);
 attribute_nofp void fpstate_restore(const struct _libc_fpstate* fpstate);

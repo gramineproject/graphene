@@ -53,7 +53,7 @@ size_t g_pal_alloc_align;
 
 const unsigned int glibc_version = GLIBC_VERSION;
 
-static bool fpu_xstate_enabled = false;
+bool fpu_xstate_enabled = false;
 static uint64_t fpu_xfeatures = PAL_XFEATURE_MASK_FPSSE;
 unsigned long fpu_xstate_size = 512 + 64;
 
