@@ -52,7 +52,7 @@ void signal_logs_free(struct shim_signal_log* signal_logs) {
         int head = atomic_read(&log->head);
         int tail = atomic_read(&log->tail);
         if (tail < head) {
-            for (int i = head; i < MAX_SIGNAL_LOG - 1; i++) {
+            for (int i = head; i < MAX_SIGNAL_LOG; i++) {
                 free(log->logs[i]);
             }
             head = 0;
