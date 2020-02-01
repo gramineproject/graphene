@@ -263,16 +263,14 @@ int shim_thread_alloc_syscall_stack(struct shim_thread* thread) {
     /* guard page for stack */
     void* addr;
     int ret;
-    addr = DkVirtualMemoryAlloc(
-        thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE, 0,
-        PAL_PROT_READ | PAL_PROT_WRITE);
+    addr = DkVirtualMemoryAlloc(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE, 0,
+                                PAL_PROT_READ | PAL_PROT_WRITE);
     if (!addr) {
         ret = -PAL_ERRNO;
         goto out;
     }
 
-    PAL_BOL success = DkVirtualMemoryProtect(
-        thread->syscall_stack, ALLOC_ALIGNMENT, PAL_PROT_NONE);
+    PAL_BOL success = DkVirtualMemoryProtect(thread->syscall_stack, ALLOC_ALIGNMENT, PAL_PROT_NONE);
     if (!success) {
         ret = -PAL_ERRNO;
         DkVirtualMemoryFree(thread->syscall_stack, ALLOC_ALIGNMENT);

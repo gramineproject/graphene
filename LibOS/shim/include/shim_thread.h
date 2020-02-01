@@ -107,6 +107,8 @@ struct shim_thread {
     unsigned long exit_time;
 #endif
 
+    /* syscall stack size: ALLOC_ALIGNMENT is for a guard page */
+#define SHIM_THREAD_SYSCALL_STACK_SIZE (16 * 1024 + ALLOC_ALIGNMENT)
     void* syscall_stack;        /* allocated area for stack */
     void* syscall_stack_low;
     void* syscall_stack_high;
