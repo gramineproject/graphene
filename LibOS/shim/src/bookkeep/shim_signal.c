@@ -47,8 +47,8 @@ struct shim_signal_log* signal_logs_alloc(void) {
 }
 
 void signal_logs_free(struct shim_signal_log* signal_logs) {
-    for (int sig = 1; sig < NUM_KNOWN_SIGS; sig++) {
-        struct shim_signal_log* log = &signal_logs[sig - 1];
+    for (int sig = 0; sig < NUM_SIGS; sig++) {
+        struct shim_signal_log* log = &signal_logs[sig];
         int head = atomic_read(&log->head);
         int tail = atomic_read(&log->tail);
         if (tail < head) {
