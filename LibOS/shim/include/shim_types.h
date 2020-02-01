@@ -322,7 +322,7 @@ struct swregs_state {
     __uint8_t  no_update;
     __uint8_t  rm;
     __uint8_t  alimit;
-    void *             info; /* struct math_emu_info */
+    void*      info; /* struct math_emu_info */
     __uint32_t entry_eip;
 };
 
@@ -353,10 +353,11 @@ struct _libc_xstate_header {
     __uint64_t  reserved[6];
 } __attribute__((packed));
 
+#define _LIBC_XSTATE_ALIGN 64
 struct _libc_xregs_state {
     struct _libc_fpstate fpstate;
     struct _libc_xstate_header header;
-} __attribute__((packed, aligned(64)));
+} __attribute__((packed,aligned(_LIBC_XSTATE_ALIGN)));
 
 /* Structure to describe FPU registers.  */
 typedef struct _libc_fpstate *fpregset_t;

@@ -59,7 +59,7 @@ unsigned long fpu_xstate_size = 512 + 64;
 
 #define XSAVE_RESET_STATE_SIZE (512 + 64)  // 512 for legacy regs, 64 for xsave header
 static const uint32_t xsave_reset_state[XSAVE_RESET_STATE_SIZE/sizeof(uint32_t)]
-__attribute__((aligned(64))) = {
+__attribute__((aligned(_LIBC_XSTATE_ALIGN))) = {
     0x037F, 0, 0, 0, 0, 0, 0x1F80, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -73,7 +73,6 @@ __attribute__((aligned(64))) = {
 
 void fpstate_init(void) {
     unsigned int value[4];
-
 
     if (!DkCpuIdRetrieve(0x1, 0, value))
         goto out;
@@ -121,7 +120,7 @@ attribute_nofp void fpstate_save(struct _libc_fpstate* fpstate) {
                          : "memory");
     }
 
-    struct _fpx_sw_bytes * fpx_sw = &fpstate->sw_reserved;
+    struct _fpx_sw_bytes* fpx_sw = &fpstate->sw_reserved;
     fpx_sw->magic1 = FP_XSTATE_MAGIC1;
     fpx_sw->extended_size = fpu_xstate_size + FP_XSTATE_MAGIC2_SIZE;
     fpx_sw->xfeatures = fpu_xfeatures;
