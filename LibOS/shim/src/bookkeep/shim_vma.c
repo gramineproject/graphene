@@ -196,6 +196,7 @@ static inline void assert_vma_list (void)
  *
  * vma_list_lock must be held when calling this function.
  */
+static struct shim_vma* lookup_cache = NULL;
 static inline struct shim_vma *
 __lookup_vma (void * addr, struct shim_vma ** pprev)
 {
@@ -204,6 +205,10 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
     struct shim_vma * vma, * prev = NULL;
     struct shim_vma * found = NULL;
 
+    if (lookup_cache && lookup_cache->end < addr) {
+        vma = lookup_cache;
+        goto skip;
+    }
     LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
         if (addr < vma->start)
             break;
@@ -214,10 +219,14 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
 
         assert(vma->end > vma->start);
         assert(!prev || prev->end <= vma->start);
+    skip:
         prev = vma;
     }
 
-    if (pprev) *pprev = prev;
+    if (pprev) {
+        *pprev = prev;
+        lookup_cache = prev;
+    }
     return found;
 }
 
@@ -440,6 +449,8 @@ static inline void __drop_vma (struct shim_vma * vma)
     if (vma->file)
         put_handle(vma->file);
 
+    if (lookup_cache == vma)
+        lookup_cache = NULL;
     if (num_reserved_vmas < RESERVED_VMAS)
         reserved_vmas[num_reserved_vmas++] = vma;
     else
