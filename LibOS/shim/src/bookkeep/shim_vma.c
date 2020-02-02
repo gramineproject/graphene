@@ -55,6 +55,7 @@ struct shim_vma {
 #define VMA_MGR_ALLOC   DEFAULT_VMA_COUNT
 #define RESERVED_VMAS   6
 
+static int num_reserved_vmas;
 static struct shim_vma * reserved_vmas[RESERVED_VMAS];
 static struct shim_vma early_vmas[RESERVED_VMAS];
 
@@ -303,6 +304,7 @@ int init_vma(void) {
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
         reserved_vmas[i] = &early_vmas[i];
+    num_reserved_vmas = RESERVED_VMAS;
 
     /* Bookkeeping for preloaded areas */
 
@@ -362,6 +364,7 @@ int init_vma(void) {
         reserved_vmas[i] = get_mem_obj_from_mgr(vma_mgr);
         assert(reserved_vmas[i]);
     }
+    num_reserved_vmas = RESERVED_VMAS;
 
     current_heap_top = PAL_CB(user_address.end);
 
@@ -398,12 +401,9 @@ static inline struct shim_vma * __get_new_vma (void)
     if (vma_mgr)
         tmp = get_mem_obj_from_mgr(vma_mgr);
     if (tmp == NULL) {
-        for (int i = 0 ; i < RESERVED_VMAS ; i++)
-            if (reserved_vmas[i]) {
-                tmp = reserved_vmas[i];
-                reserved_vmas[i] = NULL;
-                break;
-            }
+        if (num_reserved_vmas) {
+            tmp = reserved_vmas[--num_reserved_vmas];
+        }
     }
 
     if (tmp == NULL) {
@@ -417,25 +417,20 @@ static inline struct shim_vma * __get_new_vma (void)
     return tmp;
 }
 
-static inline void __restore_reserved_vmas (void)
-{
+static inline void __restore_reserved_vmas(void) {
     assert(locked(&vma_list_lock));
 
-    bool nothing_reserved;
-    do {
-        nothing_reserved = true;
-        for (int i = 0 ; i < RESERVED_VMAS ; i++)
-            if (!reserved_vmas[i]) {
-                struct shim_vma * new =
-                    get_mem_obj_from_mgr_enlarge(vma_mgr,
-                                                 size_align_up(VMA_MGR_ALLOC));
+    if (num_reserved_vmas > 2)
+        return;
 
-                /* this allocation must succeed */
-                assert(new);
-                reserved_vmas[i] = new;
-                nothing_reserved = false;
-            }
-    } while (!nothing_reserved);
+    for (; num_reserved_vmas < RESERVED_VMAS; num_reserved_vmas++) {
+        struct shim_vma * new = get_mem_obj_from_mgr_enlarge(vma_mgr,
+                                                             size_align_up(VMA_MGR_ALLOC));
+
+        /* this allocation must succeed */
+        assert(new);
+        reserved_vmas[num_reserved_vmas] = new;
+    }
 }
 
 static inline void __drop_vma (struct shim_vma * vma)
@@ -445,13 +440,10 @@ static inline void __drop_vma (struct shim_vma * vma)
     if (vma->file)
         put_handle(vma->file);
 
-    for (int i = 0 ; i < RESERVED_VMAS ; i++)
-        if (!reserved_vmas[i]) {
-            reserved_vmas[i] = vma;
-            return;
-        }
-
-    free_mem_obj_to_mgr(vma_mgr, vma);
+    if (num_reserved_vmas < RESERVED_VMAS)
+        reserved_vmas[num_reserved_vmas++] = vma;
+    else
+        free_mem_obj_to_mgr(vma_mgr, vma);
 }
 
 static inline void
