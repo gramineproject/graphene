@@ -97,8 +97,7 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
     return thread;
 }
 
-IDTYPE get_pid (void)
-{
+static IDTYPE get_pid(void) {
     IDTYPE idx;
 
     while (1) {
@@ -164,8 +163,10 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     }
 
     struct shim_thread * thread = alloc_new_thread();
-    if (!thread)
+    if (!thread) {
+        release_pid(new_tid);
         return NULL;
+    }
 
     thread->signal_logs = signal_logs_alloc();
     if (!thread->signal_logs) {
