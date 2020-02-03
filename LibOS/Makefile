@@ -97,7 +97,7 @@ endif
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
-	rm -rf $(GLIBC_SRC)
+	$(RM) -r $(GLIBC_SRC)
 	tar -xzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
 	for p in $(GLIBC_PATCHES); do \
@@ -117,7 +117,7 @@ $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 
 .PHONY: clean_
 clean_:
-	rm -rf $(BUILD_DIR) $(GLIBC_SRC) build.log
+	$(RM) -r $(BUILD_DIR) $(GLIBC_SRC) build.log
 
 .PHONY: clean
 clean: clean_
@@ -126,7 +126,7 @@ clean: clean_
 .PHONY: distclean
 distclean: clean_
 	$(MAKE) -C $(SHIM_DIR) distclean
-	rm -f $(GLIBC_SRC).tar.gz
+	$(RM) $(GLIBC_SRC).tar.gz
 
 else
 .IGNORE: $(GLIBC_TARGET)
@@ -134,7 +134,7 @@ $(GLIBC_TARGET):
 
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR)
+	$(RM) -r $(BUILD_DIR)
 
 .PHONY: distclean
 distclean: clean

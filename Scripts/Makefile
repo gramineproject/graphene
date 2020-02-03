@@ -3,7 +3,7 @@ all: ;
 
 .PHONY: clean
 clean:
-	rm -rf __pycache__
+	$(RM) -r __pycache__
 
 .PHONY: distclean
 distclean: clean

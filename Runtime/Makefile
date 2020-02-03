@@ -3,7 +3,7 @@ all:
 
 .PHONY: clean
 clean:
-	rm -f *.a *.o *.so *.so.* pal_gdb* pal-*
+	$(RM) *.a *.o *.so *.so.* pal_gdb* pal-*
 
 .PHONY: distclean
 distclean: clean

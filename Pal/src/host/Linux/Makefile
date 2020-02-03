@@ -47,7 +47,7 @@ CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 
 .PHONY: clean
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES) \
+	$(RM) $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES) \
 	      $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) \
 	      $(addsuffix .s.d,$(objs))
 

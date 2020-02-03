@@ -137,7 +137,7 @@ $(clean_targets): clean_
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) $@
 
 clean_:
-	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build) *.d
+	$(RM) -r $(LIB_DIR) $(OBJ_DIR) $(files_to_build) *.d
 
 .PHONY: test
 test:

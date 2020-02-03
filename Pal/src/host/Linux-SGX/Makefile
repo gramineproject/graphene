@@ -95,8 +95,8 @@ CLEAN_FILES += quote/generated-cacert.h
 
 .PHONY: clean_
 clean_:
-	rm -rf *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
-	       signer/__pycache__
+	$(RM) -r *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
+	         signer/__pycache__
 
 .PHONY: clean
 clean: clean_
@@ -104,7 +104,7 @@ clean: clean_
 
 .PHONY: distclean
 distclean: clean_
-	rm -f $(ias_cert_file)
+	$(RM) $(ias_cert_file)
 	$(MAKE) -C sgx-driver $@
 
 .PHONY: test

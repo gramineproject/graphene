@@ -87,7 +87,7 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(objs) graphene-lib.a
+	$(RM) $(objs) graphene-lib.a
 
 .PHONY: distclean
 distclean: clean
