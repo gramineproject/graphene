@@ -56,15 +56,15 @@ struct shim_signal_log* signal_logs_alloc(void) {
 void signal_logs_free(struct shim_signal_log* signal_logs) {
     for (int sig = 0; sig < NUM_SIGS; sig++) {
         struct shim_signal_log* log = &signal_logs[sig];
-        int head = atomic_read(&log->head);
         int tail = atomic_read(&log->tail);
-        if (tail < head) {
-            for (int i = head; i < MAX_SIGNAL_LOG; i++) {
+        int head = atomic_read(&log->head);
+        if (head < tail) {
+            for (int i = tail; i < MAX_SIGNAL_LOG; i++) {
                 free(log->logs[i]);
             }
-            head = 0;
+            tail = 0;
         }
-        for (int i = head; i < tail; i++) {
+        for (int i = tail; i < head; i++) {
             free(log->logs[i]);
         }
     }
@@ -78,17 +78,17 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         return NULL;
 
     struct shim_signal_log * log = &thread->signal_logs[sig - 1];
-    int head, tail, old_tail;
+    int tail, head, old_head;
 
     do {
-        head = atomic_read(&log->head);
-        old_tail = tail = atomic_read(&log->tail);
+        tail = atomic_read(&log->tail);
+        old_head = head = atomic_read(&log->head);
 
-        if (head == tail + 1 || (!head && tail == (MAX_SIGNAL_LOG - 1)))
+        if (tail == head + 1 || (!tail && head == (MAX_SIGNAL_LOG - 1)))
             return NULL;
 
-        tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
-    } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
+        head = (head == MAX_SIGNAL_LOG - 1) ? 0 : head + 1;
+    } while (atomic_cmpxchg(&log->head, old_head, head) == head);
 
     /*
      * FIXME: race condition between allocating the slot and populating the
@@ -96,12 +96,12 @@ allocate_signal_log (struct shim_thread * thread, int sig)
      *        This whole structure needs a rewrite, it can't be implemented correctly lock-free.
      *
      */
-    debug("signal_logs[%d]: head=%d, tail=%d (counter = %ld)\n", sig - 1,
-          head, tail, thread->has_signal.counter + 1);
+    debug("signal_logs[%d]: tail=%d, head=%d (counter = %ld)\n", sig - 1,
+          tail, head, thread->has_signal.counter + 1);
 
     atomic_inc(&thread->has_signal);
 
-    return &log->logs[old_tail];
+    return &log->logs[old_head];
 }
 
 static struct shim_signal *
@@ -109,31 +109,31 @@ fetch_signal_log (struct shim_thread * thread, int sig)
 {
     struct shim_signal_log * log = &thread->signal_logs[sig - 1];
     struct shim_signal * signal = NULL;
-    int head, tail, old_head;
+    int tail, head, old_tail;
 
     while (1) {
-        old_head = head = atomic_read(&log->head);
-        tail = atomic_read(&log->tail);
+        old_tail = tail = atomic_read(&log->tail);
+        head = atomic_read(&log->head);
 
-        if (head == tail)
+        if (tail == head)
             return NULL;
 
-        if (!(signal = log->logs[head]))
+        if (!(signal = log->logs[tail]))
             return NULL;
 
         /*
          * FIXME: race condition between finding the slot and clearing slot.
          */
-        log->logs[head] = NULL;
-        head = (head == MAX_SIGNAL_LOG - 1) ? 0 : head + 1;
+        log->logs[tail] = NULL;
+        tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
 
-        if (atomic_cmpxchg(&log->head, old_head, head) == old_head)
+        if (atomic_cmpxchg(&log->tail, old_tail, tail) == old_tail)
             break;
 
-        log->logs[old_head] = signal;
+        log->logs[old_tail] = signal;
     }
 
-    debug("signal_logs[%d]: head=%d, tail=%d\n", sig -1, head, tail);
+    debug("signal_logs[%d]: tail=%d, head=%d\n", sig -1, tail, head);
 
     atomic_dec(&thread->has_signal);
 

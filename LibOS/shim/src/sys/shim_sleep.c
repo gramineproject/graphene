@@ -44,8 +44,8 @@ static bool signal_pending(void) {
     }
 
     for (int sig = 1; sig <= NUM_SIGS; sig++) {
-        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
-            atomic_read(&cur->signal_logs[sig - 1].tail)) {
+        if (atomic_read(&cur->signal_logs[sig - 1].tail) !=
+            atomic_read(&cur->signal_logs[sig - 1].head)) {
             /* at least one signal of type sig... */
             if (!__sigismember(&cur->signal_mask, sig)) {
                 /* ...and this type is not blocked  */

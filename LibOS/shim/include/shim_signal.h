@@ -103,13 +103,14 @@ struct shim_signal {
 struct shim_signal_log {
     /*
      * ringed buffer:
-     * free area: [tail, head)
-     * used area: [head, min(tail + MAX_SIGNAL_LOG, MAX_SIGNAL_LOG)),
-     *            [0, tail) if (tail < head)
+     * used area: [tail, head) or
+     *            [tail, MAX_SIGNAL_LOG) and [0, head) if head < tail
+     * free area: [head, tail) or
+     *            [head, MAX_SIGNAL_LOG) and [0, tail) if tail < head
      */
-    struct atomic_int tail;
     struct atomic_int head;
-    struct shim_signal * logs[MAX_SIGNAL_LOG];
+    struct atomic_int tail;
+    struct shim_signal* logs[MAX_SIGNAL_LOG];
 };
 
 struct shim_signal_log* signal_logs_alloc(void);
