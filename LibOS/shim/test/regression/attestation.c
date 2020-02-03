@@ -18,6 +18,7 @@
 
 #include "sgx_api.h"
 #include "sgx_arch.h"
+#include "sgx_attest.h"
 
 #define PRINT_HEX(s) do { print_str_hex((char*)s, sizeof(s)); } while (0);
 
@@ -264,8 +265,8 @@ const char* paths[] = {
     "my_target_info",
     "target_info",
     "ias_report",
-    "ias_header"
-    /* "quote" */
+    "ias_header",
+    "quote"
 };
 
 const char* path_prefix = "/proc/sgx_attestation";
@@ -319,7 +320,7 @@ int verify_ias_certificate_chain(const char* sign_cert, size_t sign_cert_len) {
 }
 
 /**
- * Verify that #signature was computed over #report by #sign_cert.
+ * Verify that #signature was computed over #report with key in #sign_cert.
  *
  * @param report Intel Attestation Service report.
  * @param report_len Lenght of #report.
@@ -402,6 +403,55 @@ char* unescape(const char* in, size_t len) {
     }
     *p = 0;
     return out;
+}
+
+/**
+ *
+ * @return 0 on success, < 0 otherwise.
+ */
+static int extract_quote_from_ias_report(const char* report, int report_len, sgx_quote_t* quote) {
+    (void) report_len;
+
+    const char* json_string = "\"isvEnclaveQuoteBody\":\"";
+    char* p_begin = strstr((const char*) report, json_string);
+    if (p_begin == NULL)
+        return -EINVAL;
+    p_begin += strlen(json_string);
+    const char* p_end = strchr(p_begin, '"');
+    if (p_end == NULL)
+        return -EINVAL;
+
+    const int quote_base64_len = p_end - p_begin;
+    uint8_t* quote_bin = malloc(quote_base64_len);
+    size_t quote_bin_len = quote_base64_len;
+
+    int ret = mbedtls_base64_decode(quote_bin, quote_base64_len,
+                                    &quote_bin_len,
+                                    (unsigned char*) p_begin, quote_base64_len);
+    if (ret < 0)
+        return -EINVAL;
+
+    assert(quote_bin_len <= sizeof(sgx_quote_t));
+    memset(quote, 0, sizeof(sgx_quote_t));
+    memcpy(quote, quote_bin, quote_bin_len);
+    free(quote_bin);
+    return 0;
+}
+
+/**
+ * @return 0 if report_data field matches expected value (#report_data_str), -1 otherwise.
+ */
+static int verify_report_data(const char* report, int len) {
+    sgx_quote_t quote;
+    int ret;
+    ret = extract_quote_from_ias_report(report, len, &quote);
+    if (ret < 0)
+        return -1;
+
+    uint8_t report_data[sizeof(sgx_report_data_t)] = {0,};
+    strcpy((char*)report_data, report_data_str);
+    ret = memcmp(quote.report_body.report_data.d, report_data, sizeof(report_data));
+    return ret == 0 ? 0 : -1;
 }
 
 /**
@@ -500,6 +550,11 @@ static void ias_interaction(void) {
     ias_sign_chain_unescaped = NULL;
 
     printf("Successfully verified IAS report signature.\n");
+
+    rc = verify_report_data(ias_report, ias_report_len);
+    if (rc)
+        abort();
+    puts("Successfully verified report data.");
 }
 
 int main(int argc, char** argv) {

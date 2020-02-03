@@ -403,6 +403,7 @@ class TC_40_FileSystem(RegressionTestCase):
         stdout, _ = self.run_binary(['attestation'], timeout=60)
         self.assertIn("Successfully verified IAS report signature.", stdout)
         self.assertIn("Swapping reports successful.", stdout)
+        self.assertIn("Successfully verified report data.", stdout)
 
 class TC_80_Socket(RegressionTestCase):
     def test_000_getsockopt(self):

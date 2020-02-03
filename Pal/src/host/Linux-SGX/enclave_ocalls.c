@@ -1145,3 +1145,69 @@ int ocall_eventfd (unsigned int initval, int flags)
     sgx_reset_ustack();
     return retval;
 }
+
+
+/**
+ * ocall_get_quote() executes the untrusted code in PAL to obtain a quote from the quoting enclave
+ * (see sgx_platform.c:retrieve_quote()). Upon successful execution, the function returns quote.
+ *
+ * @param spid[in] Software provider ID (SPID).
+ * @param linkable[in] Quote type (linkable vs unlinkable).
+ * @param report[in] Local attestation report to be sent to quoting enclave.
+ * @param nonce[in] Randomly-generated nonce for freshness.
+ * @param quote[out] Quote returned by quoting enclave.
+ * @param quote_len[out] Length of #quote in bytes.
+ */
+int ocall_get_quote (const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
+                     const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len) {
+
+    ms_ocall_get_quote_t * ms;
+    int retval = -EPERM;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms)
+        goto reset;
+
+    memcpy(&ms->ms_spid, spid, sizeof(*spid));
+    memcpy(&ms->ms_report, report, sizeof(*report));
+    ms->ms_linkable = linkable;
+    memcpy(&ms->ms_nonce,  nonce,  sizeof(*nonce));
+
+    retval = sgx_ocall(OCALL_GET_QUOTE, ms);
+
+    if (retval >= 0) {
+        ms_ocall_get_quote_t ms_trusted;
+        if (!sgx_copy_to_enclave(&ms_trusted, sizeof(ms_trusted), ms, sizeof(ms_trusted))) {
+            retval = -EACCES;
+            goto reset;
+        }
+
+        // For calling ocall_munmap_untrusted, need to reset the untrusted stack
+        sgx_reset_ustack();
+
+        // Copy each field inside and free the untrusted buffers
+        if (ms_trusted.ms_quote) {
+            size_t len = ms_trusted.ms_quote_len;
+            char*  buf = malloc(len);
+
+            if (!sgx_copy_to_enclave(buf, len, ms_trusted.ms_quote, len))
+                retval = -EACCES;
+            ocall_munmap_untrusted(ms_trusted.ms_quote, ALLOC_ALIGN_UP(len));
+
+            *quote     = buf;
+            *quote_len = len;
+        }
+
+        // At this point, no field should point to outside the enclave
+        if (retval < 0) {
+            if (*quote) free(*quote);
+        }
+
+        goto out;
+    }
+
+reset:
+    sgx_reset_ustack();
+out:
+    return retval;
+}

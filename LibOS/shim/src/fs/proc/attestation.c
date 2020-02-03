@@ -10,6 +10,7 @@
 #include <shim_internal.h>
 
 #include "sgx_api.h"
+#include "sgx_attest.h"
 
 // TODO: For some reason S_IF* macros are missing if this file is included before our headers. We
 // should investigate and fix this behavior.
@@ -45,6 +46,9 @@ static char   ias_report[10 * 1024];
 static char   ias_header[10 * 1024];
 static size_t ias_report_size = sizeof(ias_report);
 static size_t ias_header_size = sizeof(ias_header);
+static int    quote_valid = 0;
+static uint8_t quote[2048];
+static size_t quote_size = sizeof(quote);
 
 static int proc_sgx_report_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
@@ -90,7 +94,8 @@ static int proc_sgx_ias_header_open(struct shim_handle* hdl, const char* name, i
     if (!ias_valid) {
         ias_report_size = sizeof(ias_report);
         ias_header_size = sizeof(ias_header);
-        int ret = DkIASReport(ias_report, &ias_report_size, ias_header, &ias_header_size);
+        int ret = DkIASReport(&report_data, ias_report, &ias_report_size, ias_header,
+                              &ias_header_size);
         if (ret < 0)
             return ret;
         ias_valid = 1;
@@ -126,7 +131,8 @@ static int proc_sgx_ias_report_open(struct shim_handle* hdl, const char* name, i
     if (!ias_valid) {
         ias_report_size = sizeof(ias_report);
         ias_header_size = sizeof(ias_header);
-        int ret = DkIASReport(ias_report, &ias_report_size, ias_header, &ias_header_size);
+        int ret = DkIASReport(&report_data, ias_report, &ias_report_size, ias_header,
+                              &ias_header_size);
         if (ret < 0)
             return ret;
         ias_valid = 1;
@@ -206,6 +212,42 @@ static int proc_sgx_my_target_info_mode(const char* name, mode_t* mode) {
     return 0;
 }
 
+static int proc_sgx_quote_open(struct shim_handle* hdl, const char* name, int flags) {
+    __UNUSED(name);
+
+    struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
+    if (!data) {
+        return -ENOMEM;
+    }
+
+    if (!quote_valid) {
+        size_t quote_size = sizeof(quote);
+        int ret = DkSGXQuote(&report_data, sizeof(report_data), quote, &quote_size);
+        if (ret < 0)
+            return ret;
+        quote_valid = 1;
+    }
+
+    data->str          = (char*) &quote;
+    data->buf_size     = sizeof(quote);
+    data->len          = sizeof(quote);
+    data->do_not_free  = 1;
+
+    hdl->type          = TYPE_STR;
+    hdl->flags         = flags & ~O_RDONLY;
+    hdl->acc_mode      = MAY_READ;
+    hdl->info.str.data = data;
+    hdl->info.str.ptr  = (char*) &quote;
+
+    return 0;
+}
+
+static int proc_sgx_quote_mode(const char* name, mode_t* mode) {
+    __UNUSED(name);
+    *mode = 0666;
+    return 0;
+}
+
 static int proc_sgx_target_info_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
 
@@ -235,13 +277,13 @@ static int proc_sgx_target_info_mode(const char* name, mode_t* mode) {
 }
 
 /**
- * Invalidate IAS cache.
+ * Invalidate cached IAS report and quote.
  *
  * Since the report_data field changed, a new interaction with IAS is required to reflect the
- * changed report_data in the IAS response.
+ * changed report_data in the IAS response. Same for the quote.
  */
 static int report_data_modify(struct shim_handle* hdl) {
-    ias_valid = 0;
+    ias_valid = quote_valid = 0;
     return 0;
 }
 
@@ -303,6 +345,12 @@ static struct proc_fs_ops fs_sgx_my_target_info = {
     .stat = &proc_sgx_attestation_stat,
 };
 
+static struct proc_fs_ops fs_sgx_quote = {
+    .open = &proc_sgx_quote_open,
+    .mode = &proc_sgx_quote_mode,
+    .stat = &proc_sgx_attestation_stat,
+};
+
 static struct proc_fs_ops fs_sgx_target_info = {
     .open = &proc_sgx_target_info_open,
     .mode = &proc_sgx_target_info_mode,
@@ -316,7 +364,7 @@ static struct proc_fs_ops fs_sgx_report_data = {
 };
 
 struct proc_dir dir_sgx = {
-    .size = 6,
+    .size = 7,
     .ent =
         {
             {
@@ -334,6 +382,10 @@ struct proc_dir dir_sgx = {
             {
                 .name   = "my_target_info",
                 .fs_ops = &fs_sgx_my_target_info,
+            },
+            {
+                .name   = "quote",
+                .fs_ops = &fs_sgx_quote,
             },
             {
                 .name   = "target_info",

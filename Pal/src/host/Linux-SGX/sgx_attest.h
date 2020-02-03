@@ -69,6 +69,10 @@ int sgx_get_attestation(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
                         sgx_report_data_t* report_data, bool linkable,
                         char** ias_report, size_t* ias_report_len, char** ias_header, size_t* ias_header_len);
 
+int sgx_get_quote(const sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
+                  sgx_report_data_t* report_data,
+                  bool linkable, uint8_t** quote, size_t* quote_len);
+
 #define HTTPS_REQUEST_MAX_LENGTH   (256)
 
 #endif /* SGX_ATTEST_H */

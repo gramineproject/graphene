@@ -181,7 +181,8 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
  *     path, contains actual size of header.
  */
 PAL_BOL
-_DkIASReport(PAL_PTR report, PAL_NUM* report_size, PAL_PTR header, PAL_NUM* header_size) {
+_DkIASReport(PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR header,
+             PAL_NUM* header_size) {
 
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
     ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
@@ -227,8 +228,11 @@ _DkIASReport(PAL_PTR report, PAL_NUM* report_size, PAL_PTR header, PAL_NUM* head
     char* ias_header = NULL;
     size_t ias_report_len = 0;
     size_t ias_header_len = 0;
-    __sgx_mem_aligned sgx_report_data_t report_data = {0, };
-    ret = sgx_get_attestation(&spid, subkey, &nonce, &report_data, linkable,
+
+    __sgx_mem_aligned sgx_report_data_t report_data_aligned;
+    memcpy(&report_data_aligned, report_data, sizeof(report_data_aligned));
+
+    ret = sgx_get_attestation(&spid, subkey, &nonce, &report_data_aligned, linkable,
                               &ias_report, &ias_report_len, &ias_header, &ias_header_len);
     if (ret < 0)
         return ret;
@@ -242,5 +246,62 @@ _DkIASReport(PAL_PTR report, PAL_NUM* report_size, PAL_PTR header, PAL_NUM* head
         memcpy(header, ias_header, ias_header_len);
         *header_size = ias_header_len;
     }
+    return 0;
+}
+
+
+/**
+ * Obtains the EPID quote by talking to the platforms AESMD.
+ *
+ * @param report_data[in]
+ * @param report_data_size[in]
+ * @param quote[out]
+ * @param quote_size[in,out] Caller specifies maximum size allocated for #quote. On the return
+ *     path, contains actual size of #quote.
+ */
+PAL_BOL
+_DkSGXQuote(const PAL_PTR report_data, PAL_NUM report_data_size,
+            PAL_PTR quote, PAL_NUM* quote_size) {
+
+    if (report_data_size != sizeof(sgx_report_data_t))
+        return -PAL_ERROR_INVAL;
+
+    char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
+    ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
+                             sizeof(spid_hex));
+    if (len <= 0) {
+        SGX_DBG(DBG_E, "*** No Software Provider ID (SPID) specified in the manifest. "
+                "Graphene can not perform remote attestation ***\n");
+        return 0;
+    }
+
+    if (len != sizeof(sgx_spid_t) * 2) {
+        SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
+        return -PAL_ERROR_INVAL;
+    }
+
+    sgx_spid_t spid;
+    for (ssize_t i = 0; i < len; i++) {
+        int8_t val = hex2dec(spid_hex[i]);
+        if (val < 0) {
+            SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
+            return -PAL_ERROR_INVAL;
+        }
+        spid[i/2] = spid[i/2] * 16 + (uint8_t)val;
+    }
+
+    char buf[2];
+    len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
+    bool linkable = (len == 1 && buf[0] == '1');
+
+    sgx_quote_nonce_t nonce;
+    int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
+    if (ret < 0)
+        return ret;
+
+    ret = sgx_get_quote(&spid, &nonce, report_data, linkable, (uint8_t**) &quote, quote_size);
+    if (ret < 0)
+        return ret;
+
     return 0;
 }

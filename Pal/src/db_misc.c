@@ -145,10 +145,23 @@ DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]) {
 }
 
 PAL_BOL
-DkIASReport (PAL_PTR report, PAL_NUM* report_size, PAL_PTR header, PAL_NUM* header_size) {
+DkIASReport (PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR header,
+             PAL_NUM* header_size) {
     ENTER_PAL_CALL(DkIASReport);
 
-    int ret = _DkIASReport(report, report_size, header, header_size);
+    int ret = _DkIASReport(report_data, report, report_size, header, header_size);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
+}
+
+PAL_BOL
+DkSGXQuote (PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote, PAL_NUM* quote_size) {
+    ENTER_PAL_CALL(DkSGXQuote);
+
+    int ret = _DkSGXQuote(report_data, report_data_size, quote, quote_size);
     if (ret < 0) {
         _DkRaiseFailure(-ret);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);

@@ -311,7 +311,7 @@ failed:
  * @param spid        The client SPID registered with IAS.
  * @param subkey      SPID subscription key.
  * @param linkable    A boolean that represents whether the SPID is linkable.
- * @param report      The local report of the target enclave.
+ * @param report      The enclave report to convert into a quote.
  * @param nonce       A 16-byte nonce randomly generated inside the enclave.
  */
 int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
@@ -374,6 +374,80 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
     INLINE_SYSCALL(munmap, 2, quote, ALLOC_ALIGN_UP(r->quote.len));
     if (ret < 0)
         goto failed;
+
+    response__free_unpacked(res, NULL);
+    return 0;
+
+failed:
+    response__free_unpacked(res, NULL);
+    return -PAL_ERROR_DENIED;
+}
+
+
+/**
+ * Contact the AESM service to retrieve the quote based on the #report.
+ *
+ * @param spid
+ * @param linkable
+ * @param report      The enclave report to convert into a quote.
+ * @param nonce       A 16-byte nonce randomly generated inside the enclave.
+ * @param quote[out]
+ * @param quote_len[out]
+ */
+int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
+                   const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len) {
+
+    int ret = connect_aesm_service();
+    if (ret < 0)
+        return ret;
+
+    Request req = REQUEST__INIT;
+    Request__GetQuoteRequest getreq = REQUEST__GET_QUOTE_REQUEST__INIT;
+    getreq.report.data   = (uint8_t*) report;
+    getreq.report.len    = SGX_REPORT_ACTUAL_SIZE;
+    getreq.quote_type    = linkable ? SGX_LINKABLE_SIGNATURE : SGX_UNLINKABLE_SIGNATURE;
+    getreq.spid.data     = (uint8_t*) spid;
+    getreq.spid.len      = sizeof(*spid);
+    getreq.has_nonce     = true;
+    getreq.nonce.data    = (uint8_t*) nonce;
+    getreq.nonce.len     = sizeof(*nonce);
+    getreq.buf_size      = SGX_QUOTE_MAX_SIZE;
+    getreq.has_qe_report = true;
+    getreq.qe_report     = true;
+    req.getquotereq      = &getreq;
+
+    Response* res = NULL;
+    ret = request_aesm_service(&req, &res);
+    if (ret < 0)
+        return ret;
+
+    if (!res->getquoteres) {
+        SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
+        goto failed;
+    }
+
+    Response__GetQuoteResponse* r = res->getquoteres;
+    if (r->errorcode != 0) {
+        SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
+        goto failed;
+    }
+
+    if (!r->has_quote     || r->quote.len < sizeof(sgx_quote_t) ||
+        !r->has_qe_report || r->qe_report.len != SGX_REPORT_ACTUAL_SIZE) {
+        SGX_DBG(DBG_E, "aesm_service returned invalid quote or report\n");
+        goto failed;
+    }
+
+    *quote = INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(r->quote.len),
+                            PROT_READ|PROT_WRITE,
+                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    if (IS_ERR_P(*quote)) {
+        SGX_DBG(DBG_E, "Failed to allocate memory for the quote\n");
+        goto failed;
+    }
+
+    memcpy(*quote, r->quote.data, r->quote.len);
+    *quote_len = r->quote.len;
 
     response__free_unpacked(res, NULL);
     return 0;
