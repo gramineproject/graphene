@@ -45,4 +45,4 @@ libos-regression.xml: test_libos.py $(call expand_target_to_token,$(target))
 
 .PHONY: clean-tmp
 clean-tmp:
-	rm -rf *.tmp *.cached *.manifest.sgx *~ *.sig *.token .cache __pycache__ libos-regression.xml testfile tmp/*
+	$(RM) -r *.tmp *.cached *.manifest.sgx *~ *.sig *.token .cache __pycache__ libos-regression.xml testfile tmp/*

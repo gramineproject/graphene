@@ -41,4 +41,4 @@ fs-test.xml: test_fs.py $(call expand_target_to_token,$(target))
 
 .PHONY: clean-tmp
 clean-tmp:
-	rm -rf *.tmp *.cached *.manifest.sgx *~ *.sig *.token *.o __pycache__ .pytest_cache .cache *.xml
+	$(RM) -r *.tmp *.cached *.manifest.sgx *~ *.sig *.token *.o __pycache__ .pytest_cache .cache *.xml
