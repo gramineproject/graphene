@@ -42,6 +42,21 @@ typedef void (*__rt_sighandler_t)(int, siginfo_t*, void*);
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
+#define MAX_SIGNAL_LOG 32
+
+struct shim_signal_log {
+    /*
+     * ringed buffer:
+     * used area: [tail, head) or
+     *            [tail, MAX_SIGNAL_LOG) and [0, head) if head < tail
+     * free area: [head, tail) or
+     *            [head, MAX_SIGNAL_LOG) and [0, tail) if tail < head
+     */
+    struct atomic_int head;
+    struct atomic_int tail;
+    struct shim_signal* logs[MAX_SIGNAL_LOG];
+};
+
 struct shim_signal_log* signal_logs_alloc(void) {
     struct shim_signal_log* signal_logs = malloc(sizeof(*signal_logs) * NUM_SIGS);
     if (!signal_logs)
@@ -69,6 +84,11 @@ void signal_logs_free(struct shim_signal_log* signal_logs) {
         }
     }
     free(signal_logs);
+}
+
+bool signal_logs_pending(const struct shim_signal_log* signal_log, int sig) {
+    /* FIXME: race condition between reading two atomic variables */
+    return atomic_read(&signal_log[sig - 1].tail) != atomic_read(&signal_log[sig - 1].head);
 }
 
 static struct shim_signal **
