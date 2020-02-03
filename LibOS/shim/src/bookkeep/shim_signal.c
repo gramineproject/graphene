@@ -528,7 +528,7 @@ static void syscallas_return_emulate(PAL_CONTEXT* context) {
      */
     void* rip = (void *)context->IP;
     if (rip == (void*)&__syscallas_return_before_jmp) {
-        /* emulate jmp *r11 */
+        /* emulate jmp *%gs:(SHIM_TCB_OFFSET + SHIM_TCB_TMP_RIP) */
         shim_tcb_t* tcb = shim_get_tcb();
         assert(tcb->context.regs == NULL);
         context->rip = tcb->tmp_rip;
@@ -884,23 +884,28 @@ static bool get_signal_to_deliver(struct sig_deliver* deliver) {
     deliver->signal = NULL;
     struct shim_thread* thread = get_cur_thread();
 
-    while (atomic_read(&thread->has_signal)) {
-        struct shim_signal* signal = NULL;
-        /* signal numbers start from 1 */
-        int sig;
-        for (sig = 1; sig < NUM_KNOWN_SIGS; sig++) {
-            if (!__sigismember(&thread->signal_mask, sig) &&
-                (signal = fetch_signal_log(thread, sig)))
-                break;
-        }
+    if (!atomic_read(&thread->has_signal))
+        return false;
+
+    /* signal numbers start from 1 */
+    for (int sig = 1; sig < NUM_KNOWN_SIGS; sig++) {
+        if (__sigismember(&thread->signal_mask, sig))
+            continue;
+
+        struct shim_signal* signal = fetch_signal_log(thread, sig);
         if (!signal)
-            break;
+            continue;
 
         __rt_sighandler_t handler;
         restorer_t restorer;
         get_sighandler(thread, sig, &handler, &restorer);
         if (!handler) {
+            /* This signal is ignored. drain the queue */
             free(signal);
+            while ((signal = fetch_signal_log(thread, sig)))
+                free(signal);
+            if (!atomic_read(&thread->has_signal))
+                break;
             continue;
         }
 
