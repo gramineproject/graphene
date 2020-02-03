@@ -108,7 +108,7 @@ regression:
 	$(MAKE) pal-regression.xml
 
 pal-regression.xml: test_pal.py $(call expand_target_to_token,$(target))
-	python3 -m pytest --junit-xml $@ -v test_pal.py
+	python3 -m pytest --junit-xml $@ -v $<
 
 .PHONY: clean
 clean:

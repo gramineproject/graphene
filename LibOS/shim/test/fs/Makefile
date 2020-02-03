@@ -34,8 +34,8 @@ test: $(target)
 	$(RM) fs-test.xml
 	$(MAKE) fs-test.xml
 
-fs-test.xml:
-	python3 -m pytest --junit-xml $@ -v test_fs.py
+fs-test.xml: test_fs.py $(call expand_target_to_token,$(target))
+	python3 -m pytest --junit-xml $@ -v $<
 
 .PHONY: clean-tmp
 clean-tmp:
