@@ -45,12 +45,11 @@ static __rt_sighandler_t default_sighandler[NUM_SIGS];
 #define MAX_SIGNAL_LOG 32
 
 struct shim_signal_log {
+    /* FIXME: This whole structure needs a rewrite, it can't be implemented correctly lock-free. */
     /*
-     * ringed buffer:
-     * used area: [tail, head) or
-     *            [tail, MAX_SIGNAL_LOG) and [0, head) if head < tail
-     * free area: [head, tail) or
-     *            [head, MAX_SIGNAL_LOG) and [0, tail) if tail < head
+     * ring buffer of pending same-type signals (e.g. all pending SIGINTs).
+     * [tail, head) for used area (with wrap around)
+     * [head, tail) for free area (with wrap around)
      */
     struct atomic_int head;
     struct atomic_int tail;
