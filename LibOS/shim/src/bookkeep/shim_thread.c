@@ -167,6 +167,14 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     if (!thread)
         return NULL;
 
+    thread->signal_logs = signal_logs_alloc();
+    if (!thread->signal_logs) {
+        free(thread);
+        release_pid(new_tid);
+        return NULL;
+    }
+
+
     struct shim_thread * cur_thread = get_cur_thread();
     thread->tid = new_tid;
 
@@ -222,12 +230,6 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
             get_dentry(thread->root);
             thread->cwd = thread->root;
         }
-    }
-
-    thread->signal_logs = signal_logs_alloc();
-    if (!thread->signal_logs) {
-        free(thread);
-        return NULL;
     }
 
     thread->vmid = cur_process.vmid;

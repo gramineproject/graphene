@@ -101,9 +101,14 @@ struct shim_signal {
 #define MAX_SIGNAL_LOG      32
 
 struct shim_signal_log {
-    // [tail, head): free area
-    // [head, tail + MAX_SIGNAL_LOG): used area
-    struct atomic_int head, tail;
+    /*
+     * ringed buffer:
+     * free area: [tail, head)
+     * used area: [head, min(tail + MAX_SIGNAL_LOG, MAX_SIGNAL_LOG)),
+     *            [0, tail) if (tail < head)
+     */
+    struct atomic_int tail;
+    struct atomic_int head;
     struct shim_signal * logs[MAX_SIGNAL_LOG];
 };
 

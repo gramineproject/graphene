@@ -43,7 +43,14 @@ typedef void (*__rt_sighandler_t)(int, siginfo_t*, void*);
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
 struct shim_signal_log* signal_logs_alloc(void) {
-    return calloc(NUM_SIGS, sizeof(struct shim_signal_log));
+    struct shim_signal_log* signal_logs = malloc(sizeof(*signal_logs) * NUM_SIGS);
+    if (!signal_logs)
+        return NULL;
+    for (int i = 0; i < NUM_SIGS; i++) {
+        atomic_set(&signal_logs[i].head, 0);
+        atomic_set(&signal_logs[i].tail, 0);
+    }
+    return signal_logs;
 }
 
 void signal_logs_free(struct shim_signal_log* signal_logs) {
@@ -83,8 +90,12 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
     } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
 
-    // FIXME: race condition between allocating the slot and
-    //        populating slot.
+    /*
+     * FIXME: race condition between allocating the slot and populating the
+     *        slot.
+     *        This whole structure needs a rewrite, it can't be implemented correctly lock-free.
+     *
+     */
     debug("signal_logs[%d]: head=%d, tail=%d (counter = %ld)\n", sig - 1,
           head, tail, thread->has_signal.counter + 1);
 
@@ -110,8 +121,9 @@ fetch_signal_log (struct shim_thread * thread, int sig)
         if (!(signal = log->logs[head]))
             return NULL;
 
-        // FIXME: race condition between finding the slot and
-        //        clearing slot.
+        /*
+         * FIXME: race condition between finding the slot and clearing slot.
+         */
         log->logs[head] = NULL;
         head = (head == MAX_SIGNAL_LOG - 1) ? 0 : head + 1;
 
