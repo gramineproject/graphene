@@ -49,12 +49,9 @@ PAL_HANDLE thread_start_event = NULL;
 
 void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* thread) {
     if (thread && thread->syscall_stack) {
-        assert(IS_ALIGNED_PTR(thread->syscall_stack_low, ALLOC_ALIGNMENT));
         assert(IS_ALIGNED_PTR(thread->syscall_stack_high, ALLOC_ALIGNMENT));
-        shim_tcb->syscall_stack_low = thread->syscall_stack_low;
         shim_tcb->syscall_stack_high = thread->syscall_stack_high;
     } else {
-        shim_tcb->syscall_stack_low = NULL;
         shim_tcb->syscall_stack_high = NULL;
     }
 }
@@ -255,8 +252,6 @@ int shim_thread_alloc_syscall_stack(struct shim_thread* thread) {
     if (!thread->syscall_stack)
         return -ENOMEM;
 
-    thread->syscall_stack_low = thread->syscall_stack + ALLOC_ALIGNMENT;
-    assert(IS_ALIGNED_PTR(thread->syscall_stack_low, ALLOC_ALIGNMENT));
     thread->syscall_stack_high = thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE;
     assert(IS_ALIGNED_PTR(thread->syscall_stack_high, ALLOC_ALIGNMENT));
 

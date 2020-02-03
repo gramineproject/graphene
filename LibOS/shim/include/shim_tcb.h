@@ -50,8 +50,6 @@ struct shim_tcb {
     unsigned long           flags;
     uint64_t                tmp_rip;
 
-    /* syscall stack range */
-    void*                   syscall_stack_low;
     void*                   syscall_stack_high;
 
     /* This record is for testing the memory of user inputs.
