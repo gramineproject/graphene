@@ -100,6 +100,7 @@ allocate_signal_log (struct shim_thread * thread, int sig)
     struct shim_signal_log * log = &thread->signal_logs[sig - 1];
     int tail, head, old_head;
 
+    /* FIXME: race condition between allocating the slot and populating the slot. */
     do {
         tail = atomic_read(&log->tail);
         old_head = head = atomic_read(&log->head);
@@ -110,12 +111,6 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         head = (head == MAX_SIGNAL_LOG - 1) ? 0 : head + 1;
     } while (atomic_cmpxchg(&log->head, old_head, head) == head);
 
-    /*
-     * FIXME: race condition between allocating the slot and populating the
-     *        slot.
-     *        This whole structure needs a rewrite, it can't be implemented correctly lock-free.
-     *
-     */
     debug("signal_logs[%d]: tail=%d, head=%d (counter = %ld)\n", sig - 1,
           tail, head, thread->has_signal.counter + 1);
 
@@ -131,6 +126,7 @@ fetch_signal_log (struct shim_thread * thread, int sig)
     struct shim_signal * signal = NULL;
     int tail, head, old_tail;
 
+    /* FIXME: race condition between finding the slot and clearing the slot. */
     while (1) {
         old_tail = tail = atomic_read(&log->tail);
         head = atomic_read(&log->head);
@@ -141,9 +137,6 @@ fetch_signal_log (struct shim_thread * thread, int sig)
         if (!(signal = log->logs[tail]))
             return NULL;
 
-        /*
-         * FIXME: race condition between finding the slot and clearing slot.
-         */
         log->logs[tail] = NULL;
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
 
