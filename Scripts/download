@@ -61,7 +61,7 @@ for url in "${urls[@]}"; do
     wget --timeout=10 -O "$tmpd/unverified" "$url" || true
     sha256_received="$(sha256sum "$tmpd/unverified" | cut -d ' ' -f 1)"
     if [ "$sha256" != "$sha256_received" ]; then
-        echo "download: WARNING: Hash missmatch: Expected $sha256 but received $sha256_received"
+        echo "download: WARNING: Hash mismatch: Expected $sha256 but received $sha256_received"
         continue
     fi
     echo "download: Fetched '$output' (${sha256:0:8}...) successfully."
