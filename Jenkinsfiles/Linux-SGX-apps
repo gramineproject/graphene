@@ -91,28 +91,34 @@ pipeline {
                                 ./src/src/redis-benchmark
                             '''
                         }
-                        sh '''
-                            cd LibOS/shim/test/apps/lighttpd
-                            make SGX=1
-                            make SGX=1 start-graphene-server &
-                            sleep 10
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
+                        timeout(time: 15, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/lighttpd
+                                make SGX=1
+                                make SGX=1 start-graphene-server &
+                                sleep 10
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
                             '''
-                        sh '''
-                            cd LibOS/shim/test/apps/nginx
-                            make SGX=1
-                            make SGX=1 start-graphene-server &
-                            sleep 30
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
+                        }
+                        timeout(time: 15, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/nginx
+                                make SGX=1
+                                make SGX=1 start-graphene-server &
+                                sleep 30
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
                             '''
-                        sh '''
-                            cd LibOS/shim/test/apps/apache
-                            make SGX=1
-                            make SGX=1 start-graphene-server &
-                            sleep 30
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
+                        }
+                        timeout(time: 25, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/apache
+                                make SGX=1
+                                make SGX=1 start-graphene-server &
+                                sleep 30
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
                             '''
+                        }
                         sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 

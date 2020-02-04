@@ -56,10 +56,12 @@ pipeline {
                                 make check
                             '''
                         }
-                        sh '''
-                            cd LibOS/shim/test/apps/bash
-                            make regression
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/bash
+                                make regression
                             '''
+                        }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/curl
@@ -87,28 +89,34 @@ pipeline {
                                 ./src/src/redis-benchmark
                             '''
                         }
-                        sh '''
-                            cd LibOS/shim/test/apps/lighttpd
-                            make
-                            make start-graphene-server &
-                            sleep 1
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
+                        timeout(time: 10, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/lighttpd
+                                make
+                                make start-graphene-server &
+                                sleep 1
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
                             '''
-                        sh '''
-                            cd LibOS/shim/test/apps/nginx
-                            make
-                            make start-graphene-server &
-                            sleep 1
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
+                        }
+                        timeout(time: 10, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/nginx
+                                make
+                                make start-graphene-server &
+                                sleep 1
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
                             '''
-                        sh '''
-                            cd LibOS/shim/test/apps/apache
-                            make
-                            make start-graphene-server &
-                            sleep 1
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
-                            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
+                        }
+                        timeout(time: 20, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/apache
+                                make
+                                make start-graphene-server &
+                                sleep 1
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
+                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
                             '''
+                        }
                         sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
