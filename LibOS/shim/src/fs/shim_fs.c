@@ -38,11 +38,12 @@ struct shim_fs {
     struct shim_d_ops * d_ops;
 };
 
-#define NUM_MOUNTABLE_FS    3
+#define NUM_MOUNTABLE_FS    4
 
 struct shim_fs mountable_fs [NUM_MOUNTABLE_FS] = {
         { .name = "chroot", .fs_ops = &chroot_fs_ops, .d_ops = &chroot_d_ops, },
         { .name = "proc",   .fs_ops = &proc_fs_ops,   .d_ops = &proc_d_ops,   },
+        { .name = "sys",    .fs_ops = &sys_fs_ops,    .d_ops = &sys_d_ops,    },
         { .name = "dev",    .fs_ops = &dev_fs_ops,    .d_ops = &dev_d_ops,    },
     };
 
@@ -122,6 +123,13 @@ static int __mount_sys (struct shim_dentry *root)
 
     if ((ret = mount_fs("proc", NULL, "/proc", root, NULL, 0)) < 0) {
         debug("mounting proc filesystem failed (%d)\n", ret);
+        return ret;
+    }
+
+    debug("mounting as sys filesystem: /sys\n");
+
+    if ((ret = mount_fs("sys", NULL, "/sys", root, NULL, 0)) < 0) {
+        debug("mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
 

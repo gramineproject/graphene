@@ -40,7 +40,7 @@ files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 defs	= -DIN_SHIM
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-fs	= chroot str pipe socket proc dev eventfd
+fs	= chroot str pipe socket proc sys dev eventfd
 ipcns	= pid sysv
 objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  $(addprefix utils/,md5 printf strobjs) \

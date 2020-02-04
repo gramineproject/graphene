@@ -217,7 +217,7 @@ char report_data_str[] = "I heart SGX!";
  */
 static void swap_sgx_reports(void) {
     sgx_target_info_t target_info;
-    int fd = open("/proc/sgx_attestation/my_target_info", O_RDONLY);
+    int fd = open("/sys/sgx_attestation/my_target_info", O_RDONLY);
     if (fd <= 0)
         abort();
     int rc = read(fd, &target_info, sizeof(target_info));
@@ -225,7 +225,7 @@ static void swap_sgx_reports(void) {
         abort();
     close(fd);
 
-    fd = open("/proc/sgx_attestation/target_info", O_WRONLY);
+    fd = open("/sys/sgx_attestation/target_info", O_WRONLY);
     if (fd <= 0)
         abort();
     rc = write(fd, &target_info, sizeof(target_info));
@@ -235,7 +235,7 @@ static void swap_sgx_reports(void) {
 
     sgx_report_data_t report_data = {0,};
     memcpy((void*)&report_data, (void*) report_data_str, sizeof(report_data_str));
-    fd = open("/proc/sgx_attestation/report_data", O_WRONLY);
+    fd = open("/sys/sgx_attestation/report_data", O_WRONLY);
     if (fd <= 0)
         abort();
     rc = write(fd, &report_data, sizeof(report_data));
@@ -244,7 +244,7 @@ static void swap_sgx_reports(void) {
     close(fd);
 
     sgx_report_t report;
-    fd = open("/proc/sgx_attestation/report", O_RDONLY);
+    fd = open("/sys/sgx_attestation/report", O_RDONLY);
     if (fd <= 0)
         abort();
     rc = read(fd, &report, sizeof(report));
@@ -269,7 +269,7 @@ const char* paths[] = {
     "quote"
 };
 
-const char* path_prefix = "/proc/sgx_attestation";
+const char* path_prefix = "/sys/sgx_attestation";
 
 /**
  * Repeatedly open()/close() pseudo-files to hopefully uncover resource leaks.
@@ -463,7 +463,7 @@ static int verify_report_data(const char* report, int len) {
 static void ias_interaction(void) {
     sgx_report_data_t report_data = {0,};
     memcpy((void*)&report_data, (void*) report_data_str, sizeof(report_data_str));
-    const int fd = open("/proc/sgx_attestation/report_data", O_WRONLY);
+    const int fd = open("/sys/sgx_attestation/report_data", O_WRONLY);
     assert(fd > 0);
     int rc = write(fd, &report_data, sizeof(report_data));
     if (rc != sizeof(report_data))
@@ -473,7 +473,7 @@ static void ias_interaction(void) {
     char ias_report[8*1024];
     int ias_report_len;
     {
-        const int fd = open("/proc/sgx_attestation/ias_report", O_RDONLY);
+        const int fd = open("/sys/sgx_attestation/ias_report", O_RDONLY);
         if (fd < 0) abort();
         ias_report_len = read(fd, ias_report, sizeof(ias_report));
         assert(ias_report_len >= 0);
@@ -484,7 +484,7 @@ static void ias_interaction(void) {
     char ias_header[8*1024];
     int ias_header_len;
     {
-        const int fd = open("/proc/sgx_attestation/ias_header", O_RDONLY);
+        const int fd = open("/sys/sgx_attestation/ias_header", O_RDONLY);
         if (fd < 0) abort();
         ias_header_len = read(fd, ias_header, sizeof(ias_header));
         assert(ias_header_len >= 0);
