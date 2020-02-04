@@ -444,9 +444,7 @@ int dev_update_dev_ops(struct shim_handle* hdl) {
     size_t bufsize = sizeof(buf);
     struct shim_dev_ops ops_buf = EMPTY_DEV_OPS;
 
-    assert(hdl);
-    if (hdl->type != TYPE_DEV)
-        return 0;
+    assert(hdl && hdl->type == TYPE_DEV);
 
     ret = get_base_name(qstrgetstr(&hdl->path), buf, &bufsize);
     if (ret < 0)
