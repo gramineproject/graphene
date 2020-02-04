@@ -1,8 +1,84 @@
-c_executables = $(patsubst %.c,%,$(wildcard *.c))
-cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
-manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
-
-exec_target = $(c_executables) $(cxx_executables) file_check_policy_strict.manifest file_check_policy_allow_all_but_log.manifest
+c_executables = \
+	abort \
+	abort_multithread \
+	bootstrap \
+	bootstrap_pie \
+	bootstrap_static \
+	epoll_wait_timeout \
+	eventfd \
+	exec \
+	exec_invalid_args \
+	exec_same \
+	exec_victim \
+	exit \
+	exit_group \
+	fdleak \
+	file_check_policy \
+	file_size \
+	fopen_cornercases \
+	fork_and_exec \
+	fstat_cwd \
+	futex_bitset \
+	futex_requeue \
+	futex_timeout \
+	futex_wake_op \
+	getcwd \
+	getdents \
+	getsockopt \
+	host_root_fs \
+	init_fail \
+	large-mmap \
+	large_dir_read \
+	mmap-file \
+	mprotect_file_fork \
+	multi_pthread \
+	openmp \
+	poll \
+	poll_many_types \
+	ppoll \
+	proc \
+	proc-path \
+	proc_cpuinfo \
+	pselect \
+	readdir \
+	sched \
+	select \
+	shared_object \
+	sigaltstack \
+	sigprocmask \
+	spinlock \
+	stat_invalid_args \
+	str_close_leak \
+	syscall \
+	tcp_msg_peek \
+	udp \
+	unix \
+	vfork_and_exec
+cxx_executables = bootstrap-c++
+manifests = \
+	manifest \
+	eventfd.manifest \
+	exec_victim.manifest \
+	exit_group.manifest \
+	file_check_policy_allow_all_but_log.manifest \
+	file_check_policy_strict.manifest \
+	futex_bitset.manifest \
+	futex_requeue.manifest \
+	futex_wake_op.manifest \
+	getdents.manifest \
+	host_root_fs.manifest \
+	init_fail.manifest \
+	large-mmap.manifest \
+	mmap-file.manifest \
+	multi_pthread.manifest \
+	openmp.manifest \
+	proc-path.manifest \
+	shared_object.manifest
+exec_target = \
+	$(c_executables) \
+	$(cxx_executables) \
+	file_check_policy_strict.manifest \
+	file_check_policy_allow_all_but_log.manifest
 target = $(exec_target) $(manifests)
 
 clean-extra += clean-tmp

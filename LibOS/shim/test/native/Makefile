@@ -1,7 +1,61 @@
-c_executables = $(patsubst %.c,%,$(wildcard *.c))
-cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
-manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
-
+c_executables = \
+	alarm \
+	brk \
+	clone \
+	condvar \
+	cpuinfo \
+	dir \
+	divzero \
+	dup \
+	epoll \
+	epoll_socket \
+	errno \
+	exec_fork \
+	file \
+	fork \
+	fork_bomb \
+	fork_exec \
+	fs \
+	futextest \
+	get_time \
+	helloworld \
+	helloworld_pthread \
+	kill \
+	malloc \
+	meminfo \
+	msg_create \
+	msg_create_libos \
+	msg_send \
+	msg_send_libos \
+	multiproc \
+	multisleep \
+	pause \
+	pid_alloc \
+	pid_kill \
+	pipe \
+	pipe_latency \
+	readdir \
+	rename \
+	script \
+	sem \
+	sleep \
+	socketpair \
+	sqrt \
+	start \
+	sync \
+	system \
+	tcp \
+	test_start_pthread_m \
+	time \
+	vfork \
+	vfork_exec
+cxx_executables =
+manifests = \
+	manifest \
+	exec_fork.manifest \
+	ls.manifest \
+	script.manifest \
+	static.manifest
 exec_target = $(c_executables) $(cxx_executables) ls.manifest
 target = $(exec_target) $(manifests)
 

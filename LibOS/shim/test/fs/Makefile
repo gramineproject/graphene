@@ -1,6 +1,18 @@
-execs = $(filter-out common common_copy,$(patsubst %.c,%,$(wildcard *.c)))
+execs = \
+	copy_mmap_rev \
+	copy_mmap_seq \
+	copy_mmap_whole \
+	copy_rev \
+	copy_seq \
+	copy_whole \
+	delete \
+	open_close \
+	read_write \
+	seek_tell \
+	stat \
+	truncate
 copy_execs = $(filter copy_%,$(execs))
-manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
+manifests = manifest
 
 exec_target = $(execs)
 target = $(exec_target) $(manifests)
