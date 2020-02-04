@@ -125,7 +125,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     struct shim_thread * cur_thread = (struct shim_thread *) tcb->tp;
     int sig = info->si_signo;
 
-    struct shim_signal* signal = malloc(sizeof(*signal));
+    struct shim_signal* signal = calloc(1, sizeof(*signal));
     if (!signal) {
         return;
     }
@@ -133,7 +133,6 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     int64_t preempt = __disable_preempt(tcb);
 
     /* save in signal */
-    memset(signal, 0, sizeof(struct shim_signal));
     __store_info(info, signal);
     struct shim_signal** signal_log = allocate_signal_log(cur_thread, sig);
     if (signal_log) {
@@ -526,7 +525,7 @@ static void syscallas_return_emulate(PAL_CONTEXT* context) {
      * After this emulation, the context is updated to app context,
      * and the caller can proceed to handle the async signal in a safe manner.
      */
-    void* rip = (void *)context->IP;
+    void* rip = (void*)context->IP;
     if (rip == (void*)&__syscallas_return_before_jmp) {
         /* emulate jmp *%gs:(SHIM_TCB_OFFSET + SHIM_TCB_TMP_RIP) */
         shim_tcb_t* tcb = shim_get_tcb();
@@ -651,12 +650,17 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
 
 static void __get_sighandler(struct shim_thread* thread, int sig,
                              __rt_sighandler_t* handler, restorer_t* restorer) {
+    assert(locked(&thread->lock));
     *handler = NULL;
     *restorer = NULL;
 
     struct shim_signal_handle* sighdl = &thread->signal_handles[sig - 1];
     if (sighdl->action) {
         struct __kernel_sigaction* act = sighdl->action;
+        /*
+         * on amd64, 1-3 arguments are passed by register and when setting up the signal frame,
+         * all the 3 arguments are setup, so this cast is safe.
+         */
         *handler = (void*)act->k_sa_handler;
         *restorer = act->sa_restorer;
         if (act->sa_flags & SA_RESETHAND) {
@@ -667,7 +671,7 @@ static void __get_sighandler(struct shim_thread* thread, int sig,
 
     if ((void*)*handler == SIG_IGN) {
         *handler = NULL;
-    } else if (!*handler) {
+    } else if ((void*)*handler == SIG_DFL || !*handler) {
         *handler = default_sighandler[sig - 1];
     }
 }
@@ -679,15 +683,15 @@ static void get_sighandler(struct shim_thread * thread, int sig,
     unlock(&thread->lock);
 }
 
-static unsigned int fpstate_size_get(const struct _libc_fpstate* fpstate) {
-    if (fpstate == NULL)
+static unsigned int xstate_size_get(const struct _libc_xregs_state* xstate) {
+    if (xstate == NULL)
         return 0;
 
-    const struct _fpx_sw_bytes* sw = &fpstate->sw_reserved;
-    if (sw->magic1 == FP_XSTATE_MAGIC1 &&
+    const struct _libc_fpx_sw_bytes* sw = &xstate->fpstate.sw_reserved;
+    if (sw->magic1 == _LIBC_FP_XSTATE_MAGIC1 &&
         sw->xstate_size < sw->extended_size &&
-        *((__typeof__(FP_XSTATE_MAGIC2)*)((void*)fpstate + sw->xstate_size)) ==
-        FP_XSTATE_MAGIC2)
+        *((__typeof__(_LIBC_FP_XSTATE_MAGIC2)*)((char*)xstate + sw->xstate_size)) ==
+        _LIBC_FP_XSTATE_MAGIC2)
         return sw->extended_size;
 
     return sizeof(struct swregs_state);
@@ -696,8 +700,8 @@ static unsigned int fpstate_size_get(const struct _libc_fpstate* fpstate) {
 static void direct_call_if_default_handler(int sig, siginfo_t* info, __rt_sighandler_t handler);
 
 static void get_signal_stack(struct shim_thread* thread, void* current_stack,
-                             unsigned int fpstate_size,
-                             struct sigframe** user_sigframe, fpregset_t* user_fpstate) {
+                             unsigned int xstate_size, struct sigframe** user_sigframe,
+                             struct _libc_xregs_state** user_xstate) {
 
     void* sp;
     const stack_t* ss = &thread->signal_altstack;
@@ -709,10 +713,20 @@ static void get_signal_stack(struct shim_thread* thread, void* current_stack,
         sp = ss->ss_sp + ss->ss_size;
     }
 
-    sp = ALIGN_DOWN_PTR(sp - fpstate_size, _LIBC_XSTATE_ALIGN);
-    *user_fpstate = sp;
-    sp = ALIGN_DOWN_PTR(sp - sizeof(**user_sigframe), 16UL) - 8;
-    *user_sigframe = sp;
+    sp = ALIGN_DOWN_PTR(sp - xstate_size, _LIBC_XSTATE_ALIGN);
+    *user_xstate = sp;
+
+    /*
+     * signal frame requires those alignment on stack
+     * struct sigframe
+     *     void* restorer; (8 mod 16) bytes aligned
+     *                     as if right after function call
+     *     ucontext_t uc;  16 bytes aligned as if before function call
+     *     ...
+     */
+    sp = ALIGN_DOWN_PTR(sp - (sizeof(**user_sigframe) - offsetof(struct sigframe, uc)), 16UL);
+    ucontext_t* user_uc = sp;
+    *user_sigframe = container_of(user_uc, struct sigframe, uc);
     assert(IS_ALIGNED_PTR(&(*user_sigframe)->uc, 16UL));
 }
 
@@ -720,15 +734,12 @@ static void setup_sigframe(struct shim_thread* thread, int sig, struct shim_sign
                            PAL_CONTEXT* context, __rt_sighandler_t handler, restorer_t restorer) {
     direct_call_if_default_handler(sig, &signal->info, handler);
 
-    struct _libc_xregs_state* xregs_state =
-        (struct _libc_xregs_state* )context->fpregs;
-    struct _libc_fpstate* fpstate = &xregs_state->fpstate;
-    unsigned int fpstate_size = fpstate_size_get(fpstate);
+    struct _libc_xregs_state* xstate = (struct _libc_xregs_state*)context->fpregs;
+    unsigned int xstate_size = xstate_size_get(xstate);
 
     struct sigframe* user_sigframe;
-    fpregset_t user_fpstate;
-    get_signal_stack(thread, (void*)context->rsp, fpstate_size,
-                     &user_sigframe, &user_fpstate);
+    struct _libc_xregs_state* user_xstate;
+    get_signal_stack(thread, (void*)context->rsp, xstate_size, &user_sigframe, &user_xstate);
 
     user_sigframe->restorer = restorer;
     ucontext_t* user_uc = &user_sigframe->uc;
@@ -741,9 +752,9 @@ static void setup_sigframe(struct shim_thread* thread, int sig, struct shim_sign
            sizeof(user_uc->uc_mcontext.gregs));
 
     user_sigframe->info = signal->info;
-    if (fpstate_size > 0) {
-        user_uc->uc_mcontext.fpregs = user_fpstate;
-        memcpy(user_fpstate, fpstate, fpstate_size);
+    if (xstate_size > 0) {
+        user_uc->uc_mcontext.fpregs = &user_xstate->fpstate;
+        memcpy(user_xstate, xstate, xstate_size);
         if (fpu_xstate_enabled) {
             user_uc->uc_flags |= UC_FP_XSTATE;
         }
@@ -845,6 +856,15 @@ void handle_sysret_signal(void) {
     struct shim_thread* thread = (struct shim_thread*)tcb->tp;
 
     clear_bit(SHIM_FLAG_MAY_DELIVER_SIGNAL, &tcb->flags);
+    /*
+     * The host signal handler, allocate_signal_log(), can queue the signal to set the bit
+     * asynchronously.
+     * the checking order is important.
+     * clear the bit, test the condition and set the bit if signal delivery to app is necessary.
+     *
+     * False positive is acceptable as deliver_signal_on_sysret() is nop unless deliverable
+     * signal is queued. (except performance).
+     */
     /* TODO: take user signal mask into account; would require peek_signal_log() */
     if (atomic_read(&thread->has_signal)) {
         set_bit(SHIM_FLAG_MAY_DELIVER_SIGNAL, &tcb->flags);
@@ -928,7 +948,7 @@ int handle_next_signal(ucontext_t* user_uc) {
         return 0;
 
     struct shim_regs* regs = shim_get_tcb()->context.regs;
-    struct sigframe* user_sigframe = (struct sigframe*)(((void*)user_uc) - 8);
+    struct sigframe* user_sigframe = container_of(user_uc, struct sigframe, uc);
 
     /* setup to return to signal handler */
     user_sigframe->restorer = deliver.restorer;
@@ -977,8 +997,8 @@ attribute_nofp uint64_t deliver_signal_on_sysret(uint64_t syscall_ret) {
 
     struct shim_thread* thread = tcb->tp;
     struct sigframe* user_sigframe;
-    fpregset_t user_fpstate;
-    get_signal_stack(thread, (void*)regs->rsp, fpu_xstate_size, &user_sigframe, &user_fpstate);
+    struct _libc_xregs_state* user_xstate;
+    get_signal_stack(thread, (void*)regs->rsp, fpu_xstate_size, &user_sigframe, &user_xstate);
 
     /* setup sigframe */
     user_sigframe->restorer = restorer;
@@ -987,42 +1007,42 @@ attribute_nofp uint64_t deliver_signal_on_sysret(uint64_t syscall_ret) {
     user_uc->uc_link = NULL;
     user_uc->uc_stack = thread->signal_altstack;
 
-    gregset_t * gregs = &user_uc->uc_mcontext.gregs;
-    (*gregs)[REG_R8] = regs->r8;
-    (*gregs)[REG_R9] = regs->r9;
-    (*gregs)[REG_R10] = regs->r10;
-    (*gregs)[REG_R11] = regs->r11;
-    (*gregs)[REG_R12] = regs->r12;
-    (*gregs)[REG_R13] = regs->r13;
-    (*gregs)[REG_R14] = regs->r14;
-    (*gregs)[REG_R15] = regs->r15;
-    (*gregs)[REG_RDI] = regs->rdi;
-    (*gregs)[REG_RSI] = regs->rsi;
-    (*gregs)[REG_RBP] = regs->rbp;
-    (*gregs)[REG_RBX] = regs->rbx;
-    (*gregs)[REG_RDX] = regs->rdx;
-    (*gregs)[REG_RAX] = syscall_ret;
-    (*gregs)[REG_RCX] = regs->rcx;
-    (*gregs)[REG_RSP] = regs->rsp;
-    (*gregs)[REG_RIP] = regs->rip;
-    (*gregs)[REG_EFL] = regs->rflags;
+    greg_t* gregs = user_uc->uc_mcontext.gregs;
+    gregs[REG_R8] = regs->r8;
+    gregs[REG_R9] = regs->r9;
+    gregs[REG_R10] = regs->r10;
+    gregs[REG_R11] = regs->r11;
+    gregs[REG_R12] = regs->r12;
+    gregs[REG_R13] = regs->r13;
+    gregs[REG_R14] = regs->r14;
+    gregs[REG_R15] = regs->r15;
+    gregs[REG_RDI] = regs->rdi;
+    gregs[REG_RSI] = regs->rsi;
+    gregs[REG_RBP] = regs->rbp;
+    gregs[REG_RBX] = regs->rbx;
+    gregs[REG_RDX] = regs->rdx;
+    gregs[REG_RAX] = syscall_ret;
+    gregs[REG_RCX] = regs->rcx;
+    gregs[REG_RSP] = regs->rsp;
+    gregs[REG_RIP] = regs->rip;
+    gregs[REG_EFL] = regs->rflags;
     union csgsfs sr = {
-        .cs = 0x33, /* __USER_CS(5) | 0(GDT) | 3(RPL) */
+        .cs = 0x33, /* __USER_CS = (6 << 5) | (0 << 2)(GDT) | 3(RPL) */
         .fs = 0,
         .gs = 0,
-        .ss = 0x2b, /* __USER_DS(6) | 0(GDT) | 3(RPL) */
+        .ss = 0x2b, /* __USER_DS = (5 << 5) | (0 << 2)(GDT) | 3(RPL) */
     };
-    (*gregs)[REG_CSGSFS] = sr.csgsfs;
+    gregs[REG_CSGSFS] = sr.csgsfs;
 
-    (*gregs)[REG_ERR] = signal->info.si_errno;
-    (*gregs)[REG_TRAPNO] = signal->info.si_code;
-    (*gregs)[REG_OLDMASK] = 0;
-    (*gregs)[REG_CR2] = (long)signal->info.si_addr;
+    gregs[REG_ERR] = signal->info.si_errno;
+    gregs[REG_TRAPNO] = signal->info.si_code;
+    gregs[REG_OLDMASK] = 0;
+    gregs[REG_CR2] = (long)signal->info.si_addr;
 
     user_sigframe->info = signal->info;
-    user_uc->uc_mcontext.fpregs = user_fpstate;
-    memset(user_fpstate, 0, fpu_xstate_size);
-    fpstate_save(user_fpstate);
+    user_uc->uc_mcontext.fpregs = &user_xstate->fpstate;
+    memset(user_xstate, 0, fpu_xstate_size);
+    xstate_save(user_xstate);
     if (fpu_xstate_enabled) {
         user_uc->uc_flags |= UC_FP_XSTATE;
     }
@@ -1033,7 +1053,7 @@ attribute_nofp uint64_t deliver_signal_on_sysret(uint64_t syscall_ret) {
     free(signal);
 
     /* setup to return to signal handler */
-    fpstate_reset();
+    xstate_reset();
     regs->rsp = (uint64_t)user_sigframe;
     regs->rip = (unsigned long)handler;
     regs->rdi = (unsigned long)sig;
@@ -1044,6 +1064,8 @@ attribute_nofp uint64_t deliver_signal_on_sysret(uint64_t syscall_ret) {
 
 // Need to hold thread->lock when calling this function
 void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt) {
+    assert(locked(&thread->lock));
+
     __rt_sighandler_t handler;
     restorer_t restorer;
     __get_sighandler(thread, sig, &handler, &restorer);
@@ -1140,13 +1162,13 @@ static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
     sighandler_kill(sig, info, ucontext);
 }
 
-static void direct_call_if_default_handler(
-    int sig, siginfo_t* info, __rt_sighandler_t handler) {
+static void direct_call_if_default_handler(int sig, siginfo_t* info, __rt_sighandler_t handler) {
     /* sighandler_kill/core kills the thread without using info or context, so invoke it directly */
     if (handler == &sighandler_kill || handler == &sighandler_core) {
         debug("directly calling sighandler_kill\n");
         /* thread exits immediately after handling */
         handler(sig, info, NULL);
+        __builtin_unreachable();
     }
 }
 

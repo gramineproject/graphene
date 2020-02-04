@@ -37,6 +37,12 @@ EXPORT_SYMBOL(shim_gettimeofday);
 EXPORT_SYMBOL(shim_time);
 EXPORT_SYMBOL(shim_getcpu);
 
+/*
+ * the targeted function is called if and only if
+ * <func ptr> != NULL && shim_check_sigpending != * NULL.
+ * Without calling shim_check_sigpending, the emulated signal can be queued, but never be
+ * delivered.
+ */
 static void (*shim_check_sigpending)(void) = NULL;
 EXPORT_SYMBOL(shim_check_sigpending);
 

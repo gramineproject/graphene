@@ -372,15 +372,24 @@ typedef struct {
 
 /* Userlevel context.  */
 typedef struct ucontext {
-#define UC_FP_XSTATE            0x1
-#define UC_SIGCONTEXT_SS        0x2
-#define UC_STRICT_RESTORE_SS    0x4
+#ifndef UC_FP_XSTATE
+#define UC_FP_XSTATE 0x1
+#endif
+#ifndef UC_SIGCONTEXT_SS
+#define UC_SIGCONTEXT_SS 0x2
+#endif
+#ifndef UC_STRICT_RESTORE_SS
+#define UC_STRICT_RESTORE_SS 0x4
+#endif
     unsigned long int uc_flags;
     struct ucontext *uc_link;
-// stack_t::ss_flags
-#define SS_ONSTACK  1
-#define SS_DISABLE  2
-#define SS_AUTODISARM   (1U << 31)      /* disable sas during sighandling */
+/* stack_t::ss_flags */
+#ifndef SS_ONSTACK
+#define SS_ONSTACK 1
+#endif
+#ifndef SS_DISABLE
+#define SS_DISABLE 2
+#endif
     stack_t uc_stack;
     mcontext_t uc_mcontext;
     __sigset_t uc_sigmask;

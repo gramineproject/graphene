@@ -120,15 +120,15 @@ attribute_nofp void fpstate_save(struct _libc_fpstate* fpstate) {
                          : "memory");
     }
 
-    struct _fpx_sw_bytes* fpx_sw = &fpstate->sw_reserved;
-    fpx_sw->magic1 = FP_XSTATE_MAGIC1;
-    fpx_sw->extended_size = fpu_xstate_size + FP_XSTATE_MAGIC2_SIZE;
+    struct _libc_fpx_sw_bytes* fpx_sw = &fpstate->sw_reserved;
+    fpx_sw->magic1 = _LIBC_FP_XSTATE_MAGIC1;
+    fpx_sw->extended_size = fpu_xstate_size + _LIBC_FP_XSTATE_MAGIC2_SIZE;
     fpx_sw->xfeatures = fpu_xfeatures;
     fpx_sw->xstate_size = fpu_xstate_size;
     memset(fpx_sw->padding, 0, sizeof(fpx_sw->padding));
     if (fpu_xstate_enabled) {
-        *((__typeof__(FP_XSTATE_MAGIC2)*)((void*)fpstate + fpx_sw->xstate_size))
-            = FP_XSTATE_MAGIC2;
+        *((__typeof__(_LIBC_FP_XSTATE_MAGIC2)*)((char*)fpstate + fpx_sw->xstate_size))
+            = _LIBC_FP_XSTATE_MAGIC2;
     }
 }
 

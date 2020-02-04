@@ -60,7 +60,7 @@ syscalldb:
         .cfi_undefined %r11
 
         # switch stack
-        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_HIGH), %rsp
+        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
 
         # Create shim_regs struct on the stack.
         pushq %r11 # save old %rsp
@@ -251,7 +251,7 @@ isundef:
          *   small application stack, e.g. as in goroutine.
          * See illegal_upcall() @ shim_signal.c
          *
-         * argument:
+         * arguments:
          * %rcx: Instruction address to continue app execution after trapped
          *       syscall instruction
          * %r11: rflags on entering syscall: unused as %rflags is preserved
@@ -270,7 +270,7 @@ syscall_wrapper:
         .cfi_undefined %r11
 
         # switch stack to the one allocated by LibOS
-        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK_HIGH), %rsp
+        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
         pushq %r11
         .cfi_def_cfa %rsp, 0
         .cfi_offset %rsp, 0
