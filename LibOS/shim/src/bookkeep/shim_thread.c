@@ -48,11 +48,11 @@ PAL_HANDLE thread_start_event = NULL;
 //#define DEBUG_REF
 
 void shim_tcb_init_syscall_stack(shim_tcb_t* shim_tcb, struct shim_thread* thread) {
-    if (thread && thread->syscall_stack) {
-        assert(IS_ALIGNED_PTR(thread->syscall_stack_high, ALLOC_ALIGNMENT));
-        shim_tcb->syscall_stack_high = thread->syscall_stack_high;
+    if (thread && thread->syscall_stack_base) {
+        assert(IS_ALIGNED_PTR(thread->syscall_stack, ALLOC_ALIGNMENT));
+        shim_tcb->syscall_stack = thread->syscall_stack;
     } else {
-        shim_tcb->syscall_stack_high = NULL;
+        shim_tcb->syscall_stack = NULL;
     }
 }
 
@@ -244,39 +244,39 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 }
 
 int shim_thread_alloc_syscall_stack(struct shim_thread* thread) {
-    assert(thread->syscall_stack == NULL);
+    assert(thread->syscall_stack_base == NULL);
     int prot = PROT_READ | PROT_WRITE;
     int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
-    thread->syscall_stack = bkeep_unmapped_any(
+    thread->syscall_stack_base = bkeep_unmapped_any(
         ALLOC_ALIGNMENT, SHIM_THREAD_SYSCALL_STACK_SIZE, prot, flags, "syscall_stack");
-    if (!thread->syscall_stack)
+    if (!thread->syscall_stack_base)
         return -ENOMEM;
 
-    thread->syscall_stack_high = thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE;
-    assert(IS_ALIGNED_PTR(thread->syscall_stack_high, ALLOC_ALIGNMENT));
+    thread->syscall_stack = thread->syscall_stack_base + SHIM_THREAD_SYSCALL_STACK_SIZE;
+    assert(IS_ALIGNED_PTR(thread->syscall_stack, ALLOC_ALIGNMENT));
 
     /* guard page for stack */
     void* addr;
     int ret;
-    addr = DkVirtualMemoryAlloc(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE, 0,
+    addr = DkVirtualMemoryAlloc(thread->syscall_stack_base, SHIM_THREAD_SYSCALL_STACK_SIZE, 0,
                                 PAL_PROT_READ | PAL_PROT_WRITE);
     if (!addr) {
         ret = -PAL_ERRNO;
         goto out;
     }
 
-    PAL_BOL success = DkVirtualMemoryProtect(thread->syscall_stack, ALLOC_ALIGNMENT, PAL_PROT_NONE);
+    PAL_BOL success = DkVirtualMemoryProtect(thread->syscall_stack_base, ALLOC_ALIGNMENT, PAL_PROT_NONE);
     if (!success) {
         ret = -PAL_ERRNO;
-        DkVirtualMemoryFree(thread->syscall_stack, ALLOC_ALIGNMENT);
+        DkVirtualMemoryFree(thread->syscall_stack_base, ALLOC_ALIGNMENT);
         goto out;
     }
     return 0;
 
 out:
-    if (thread->syscall_stack) {
-        bkeep_munmap(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE, flags);
-        thread->syscall_stack = NULL;
+    if (thread->syscall_stack_base) {
+        bkeep_munmap(thread->syscall_stack_base, SHIM_THREAD_SYSCALL_STACK_SIZE, flags);
+        thread->syscall_stack_base = NULL;
     }
     return ret;
 }
@@ -391,9 +391,9 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->child_exit_event);
         destroy_lock(&thread->lock);
 
-        if (thread->syscall_stack) {
-            DkVirtualMemoryFree(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE);
-            bkeep_munmap(thread->syscall_stack, SHIM_THREAD_SYSCALL_STACK_SIZE,
+        if (thread->syscall_stack_base) {
+            DkVirtualMemoryFree(thread->syscall_stack_base, SHIM_THREAD_SYSCALL_STACK_SIZE);
+            bkeep_munmap(thread->syscall_stack_base, SHIM_THREAD_SYSCALL_STACK_SIZE,
                          MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL);
         }
         free(thread->signal_logs);
@@ -740,7 +740,7 @@ BEGIN_CP_FUNC(thread)
     } else {
         new_thread = (struct shim_thread *) (base + off);
     }
-    new_thread->syscall_stack = NULL;
+    new_thread->syscall_stack_base = NULL;
 
     if (objp)
         *objp = (void *) new_thread;
@@ -766,7 +766,7 @@ BEGIN_RS_FUNC(thread)
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
-    thread->syscall_stack = NULL;
+    thread->syscall_stack_base = NULL;
 
     add_thread(thread);
 
@@ -876,7 +876,7 @@ BEGIN_RS_FUNC(running_thread)
                                  NUM_SIGS);
 
     if (cur_thread) {
-        assert(cur_thread->syscall_stack);
+        assert(cur_thread->syscall_stack_base);
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread);
         if (!thread)
             return -PAL_ERRNO;

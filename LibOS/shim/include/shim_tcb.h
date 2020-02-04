@@ -50,7 +50,7 @@ struct shim_tcb {
     unsigned long           flags;
     uint64_t                tmp_rip;
 
-    void*                   syscall_stack_high;
+    void*                   syscall_stack;
 
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],
