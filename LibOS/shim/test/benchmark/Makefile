@@ -1,8 +1,20 @@
-c_executables = $(patsubst %.c,%,$(wildcard *.c))
-cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
+c_executables = \
+	fork_latency \
+	rpc_latency \
+	rpc_latency2 \
+	sig_latency \
+	start \
+	test_start
 
-exec_target = $(c_executables) $(cxx_executables)
-target = $(exec_target) manifest
+cxx_executables =
+
+exec_target = \
+	$(c_executables) \
+	$(cxx_executables)
+
+target = \
+	$(exec_target) \
+	manifest
 
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
