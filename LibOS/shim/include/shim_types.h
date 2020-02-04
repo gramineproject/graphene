@@ -295,11 +295,11 @@ struct _libc_xmmreg {
     __uint32_t    element[4];
 };
 
-#define FP_XSTATE_MAGIC1        0x46505853U
-#define FP_XSTATE_MAGIC2        0x46505845U
-#define FP_XSTATE_MAGIC2_SIZE   sizeof(FP_XSTATE_MAGIC2)
+#define _LIBC_FP_XSTATE_MAGIC1 0x46505853U
+#define _LIBC_FP_XSTATE_MAGIC2 0x46505845U
+#define _LIBC_FP_XSTATE_MAGIC2_SIZE sizeof(_LIBC_FP_XSTATE_MAGIC2)
 
-struct _fpx_sw_bytes {
+struct _libc_fpx_sw_bytes {
     __uint32_t  magic1;
     __uint32_t  extended_size;
     __uint64_t  xfeatures;
@@ -342,7 +342,7 @@ struct _libc_fpstate {
         __uint32_t      padding[24];
         struct {
             __uint32_t  padding2[12];
-            struct _fpx_sw_bytes sw_reserved;
+            struct _libc_fpx_sw_bytes sw_reserved;
         };
     };
 };
@@ -351,13 +351,13 @@ struct _libc_xstate_header {
     __uint64_t  xfeatures;
     __uint64_t  xcomp_bv;
     __uint64_t  reserved[6];
-} __attribute__((packed));
+};
 
 #define _LIBC_XSTATE_ALIGN 64
 struct _libc_xregs_state {
     struct _libc_fpstate fpstate;
     struct _libc_xstate_header header;
-} __attribute__((packed,aligned(_LIBC_XSTATE_ALIGN)));
+} __attribute__((aligned(_LIBC_XSTATE_ALIGN)));
 
 /* Structure to describe FPU registers.  */
 typedef struct _libc_fpstate *fpregset_t;

@@ -168,9 +168,9 @@ static inline void do_pause (void);
 
 extern bool fpu_xstate_enabled;
 extern unsigned long fpu_xstate_size;
-attribute_nofp void fpstate_save(struct _libc_fpstate* fpstate);
-attribute_nofp void fpstate_restore(const struct _libc_fpstate* fpstate);
-attribute_nofp void fpstate_reset(void);
+attribute_nofp void xstate_save(struct _libc_xregs_state* xstate);
+attribute_nofp void xstate_restore(const struct _libc_xregs_state* xstate);
+attribute_nofp void xstate_reset(void);
 
 /* definition for syscall table */
 void handle_signal (void);
