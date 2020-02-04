@@ -37,7 +37,23 @@ executables = \
 	Thread2 \
 	normalize_path
 
-manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template))
+manifests = \
+	manifest \
+	Attestation.manifest \
+	AvxDisable.manifest \
+	Bootstrap2.manifest \
+	Bootstrap3.manifest \
+	Bootstrap4.manifest \
+	Bootstrap5.manifest \
+	Bootstrap6.manifest \
+	Bootstrap7.manifest \
+	File.manifest \
+	Process.manifest \
+	Process2.manifest \
+	Process3.manifest \
+	SendHandle.manifest \
+	Thread2.manifest \
+	nonelf_binary.manifest
 
 target = $(executables) $(manifests)
 

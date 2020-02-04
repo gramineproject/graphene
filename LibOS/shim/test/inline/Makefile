@@ -1,8 +1,18 @@
-c_executables = $(patsubst %.c,%,$(wildcard *.c))
-cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
+c_executables = \
+	fork \
+	helloworld \
+	vfork
 
-exec_target = $(c_executables) $(cxx_executables)
-target = $(c_executables) $(cxx_executables) manifest
+cxx_executables =
+
+exec_target = \
+	$(c_executables) \
+	$(cxx_executables)
+
+target = \
+	$(c_executables) \
+	$(cxx_executables) \
+	manifest
 
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
