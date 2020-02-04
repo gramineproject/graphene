@@ -60,9 +60,9 @@ struct shim_signal_log* signal_logs_alloc(void) {
     struct shim_signal_log* signal_logs = malloc(sizeof(*signal_logs) * NUM_SIGS);
     if (!signal_logs)
         return NULL;
-    for (int i = 0; i < NUM_SIGS; i++) {
-        atomic_set(&signal_logs[i].head, 0);
-        atomic_set(&signal_logs[i].tail, 0);
+    for (int sig = 0; sig < NUM_SIGS; sig++) {
+        atomic_set(&signal_logs[sig].head, 0);
+        atomic_set(&signal_logs[sig].tail, 0);
     }
     return signal_logs;
 }
