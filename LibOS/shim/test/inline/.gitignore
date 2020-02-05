@@ -1,8 +1,8 @@
-*
-!.gitignore
-!*.c
-!*.cpp
-!*.py
-!*.sh
-!*.template
-!Makefile*
+/*.manifest
+
+/manifest
+/pal_loader
+
+/fork
+/helloworld
+/vfork

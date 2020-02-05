@@ -1,5 +1,9 @@
-/fork_latency
+/*.manifest
+
 /manifest
+/pal_loader
+
+/fork_latency
 /rpc_latency
 /rpc_latency2
 /sig_latency

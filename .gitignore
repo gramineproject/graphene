@@ -5,12 +5,6 @@
 \#*#
 *~
 
-/Runtime/*
-!/Runtime/Makefile
-!/Runtime/pal_loader
-/Jenkinsfiles/Jenkinsfile-*
-/Jenkinsfiles/JenkinsfileSGX-*
-
 .lib
 *.i
 *.s
@@ -22,11 +16,13 @@ pal.map
 *.a
 *.o
 *.so
+*.so.*
 
 # python
 *.pyc
 
 # sgx
+*.manifest.sgx
 *.sig
 *.token
 *.cached
