@@ -9,6 +9,7 @@ import random
 import shutil
 import string
 import subprocess
+import sys
 import unittest
 from datetime import datetime, timedelta
 
@@ -17,6 +18,10 @@ from regression import (
     RegressionTestCase,
     expectedFailureIf,
 )
+
+if HAS_SGX:
+    sys.path.insert(0, os.path.dirname(__file__) + '/../src/host/Linux-SGX/signer')
+    from pal_sgx_sign import read_manifest
 
 CPUINFO_FLAGS_WHITELIST = [
     'fpu', 'vme', 'de', 'pse', 'tsc', 'msr', 'pae', 'mce', 'cx8', 'apic', 'sep',
@@ -566,6 +571,10 @@ class TC_40_AVXDisable(RegressionTestCase):
 @unittest.skipUnless(HAS_SGX, 'need SGX')
 class TC_50_Attestation(RegressionTestCase):
     def test_000_remote_attestation(self):
+        manifest, _ = read_manifest(self.get_manifest("Attestation"))
+        if not manifest.get('sgx.ra_client_spid'):
+            raise unittest.SkipTest('needs RA SPID and key')
+
         _, stderr = self.run_binary(["Attestation"])
 
         for line in stderr.split("\n"):
