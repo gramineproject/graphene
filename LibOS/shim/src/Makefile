@@ -22,7 +22,6 @@ endif
 ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
 
 LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
-	  -dynamic-link=libpal.so \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
 
 files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
@@ -61,13 +60,13 @@ $(files_to_install): $(RUNTIME_DIR)/%: %
 
 LDFLAGS-libsysdb.so += --version-script shim.map -T shim.lds
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS-$@)) \
-	     $(graphene_lib) $(pal_lib)
+	     $(graphene_lib) $(pal_lib) shim.map shim.lds
 	$(call cmd,ld_so_o)
 
 LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim.lds
 libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
-		   $(graphene_lib) $(pal_lib)
+		   $(graphene_lib) $(pal_lib) shim-debug.map shim.lds
 	$(call cmd,ld_so_o)
 
 .PHONY: graphene_lib_recurse
