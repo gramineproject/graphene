@@ -2,9 +2,17 @@ c_executables = \
 	fork \
 	helloworld \
 	vfork
+
 cxx_executables =
-exec_target = $(c_executables) $(cxx_executables)
-target = $(c_executables) $(cxx_executables) manifest
+
+exec_target = \
+	$(c_executables) \
+	$(cxx_executables)
+
+target = \
+	$(c_executables) \
+	$(cxx_executables) \
+	manifest
 
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest

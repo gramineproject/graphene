@@ -5,9 +5,16 @@ c_executables = \
 	sig_latency \
 	start \
 	test_start
+
 cxx_executables =
-exec_target = $(c_executables) $(cxx_executables)
-target = $(exec_target) manifest
+
+exec_target = \
+	$(c_executables) \
+	$(cxx_executables)
+
+target = \
+	$(exec_target) \
+	manifest
 
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest

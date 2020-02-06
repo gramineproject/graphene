@@ -1,21 +1,27 @@
-execs = \
+copy_execs = \
 	copy_mmap_rev \
 	copy_mmap_seq \
 	copy_mmap_whole \
 	copy_rev \
 	copy_seq \
-	copy_whole \
+	copy_whole
+
+execs = \
+	$(copy_execs) \
 	delete \
 	open_close \
 	read_write \
 	seek_tell \
 	stat \
 	truncate
-copy_execs = $(filter copy_%,$(execs))
+
 manifests = manifest
 
 exec_target = $(execs)
-target = $(exec_target) $(manifests)
+
+target = \
+	$(exec_target) \
+	$(manifests)
 
 clean-extra += clean-tmp
 

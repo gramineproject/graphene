@@ -49,15 +49,24 @@ c_executables = \
 	time \
 	vfork \
 	vfork_exec
+
 cxx_executables =
+
 manifests = \
 	manifest \
 	exec_fork.manifest \
 	ls.manifest \
 	script.manifest \
 	static.manifest
-exec_target = $(c_executables) $(cxx_executables) ls.manifest
-target = $(exec_target) $(manifests)
+
+exec_target = \
+	$(c_executables) \
+	$(cxx_executables) \
+	ls.manifest
+
+target = \
+	$(exec_target) \
+	$(manifests)
 
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest

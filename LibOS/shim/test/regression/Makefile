@@ -54,7 +54,9 @@ c_executables = \
 	udp \
 	unix \
 	vfork_and_exec
+
 cxx_executables = bootstrap-c++
+
 manifests = \
 	manifest \
 	eventfd.manifest \
@@ -74,12 +76,16 @@ manifests = \
 	openmp.manifest \
 	proc-path.manifest \
 	shared_object.manifest
+
 exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
 	file_check_policy_strict.manifest \
 	file_check_policy_allow_all_but_log.manifest
-target = $(exec_target) $(manifests)
+
+target = \
+	$(exec_target) \
+	$(manifests)
 
 clean-extra += clean-tmp
 
