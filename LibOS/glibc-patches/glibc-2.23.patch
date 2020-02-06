@@ -114,21 +114,6 @@ diff -ruNp a/Makefile b/Makefile
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
-diff -ruNp a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
---- a/sysdeps/unix/sysv/linux/_exit.c
-+++ b/sysdeps/unix/sysv/linux/_exit.c
-@@ -28,9 +28,9 @@ _exit (int status)
-   while (1)
-     {
- #ifdef __NR_exit_group
--      INLINE_SYSCALL (exit_group, 1, status);
-+      INLINE_SYSCALL_ASM (exit_group, 1, status);
- #endif
--      INLINE_SYSCALL (exit, 1, status);
-+      INLINE_SYSCALL_ASM (exit, 1, status);
- 
- #ifdef ABORT_INSTRUCTION
-       ABORT_INSTRUCTION;
 diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 --- a/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
@@ -507,42 +492,7 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */
-@@ -191,9 +192,20 @@
- /* Define a macro which expands inline into the wrapper code for a system
-    call.  */
- # undef INLINE_SYSCALL
--# define INLINE_SYSCALL(name, nr, args...) \
-+# define INLINE_SYSCALL(name, nr_args...) \
-   ({									      \
--    unsigned long int resultvar = INTERNAL_SYSCALL (name, , nr, args);	      \
-+    unsigned long int resultvar = INTERNAL_SYSCALL (name, , ##nr_args);	      \
-+    if (__glibc_unlikely (INTERNAL_SYSCALL_ERROR_P (resultvar, )))	      \
-+      {									      \
-+	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-+	resultvar = (unsigned long int) -1;				      \
-+      }									      \
-+    (long int) resultvar; })
-+
-+# undef INLINE_SYSCALL_ASM
-+# define INLINE_SYSCALL_ASM(name, nr_args...) \
-+  ({									      \
-+    unsigned long int resultvar = INTERNAL_SYSCALL_ASM (name, , ##nr_args);   \
-     if (__glibc_unlikely (INTERNAL_SYSCALL_ERROR_P (resultvar, )))	      \
-       {									      \
- 	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-@@ -205,9 +217,9 @@
-    into the wrapper code for a system call.  It should be used when size
-    of any argument > size of long int.  */
- # undef INLINE_SYSCALL_TYPES
--# define INLINE_SYSCALL_TYPES(name, nr, args...) \
-+# define INLINE_SYSCALL_TYPES(name, nr_args...) \
-   ({									      \
--    unsigned long int resultvar = INTERNAL_SYSCALL_TYPES (name, , nr, args);  \
-+    unsigned long int resultvar = INTERNAL_SYSCALL_TYPES (name, , ##nr_args); \
-     if (__glibc_unlikely (INTERNAL_SYSCALL_ERROR_P (resultvar, )))	      \
-       {									      \
- 	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-@@ -227,13 +239,19 @@
+@@ -227,6 +239,6 @@
      LOAD_ARGS_##nr (args)						      \
      LOAD_REGS_##nr							      \
      asm volatile (							      \
@@ -550,21 +500,6 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
 +    SYSCALLDB								      \
      : "=a" (resultvar)							      \
      : "0" (name) ASM_ARGS_##nr : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);   \
-     (long int) resultvar; })
-+# define INTERNAL_SYSCALL_NCS_ASM INTERNAL_SYSCALL_NCS
-+
- # undef INTERNAL_SYSCALL
--# define INTERNAL_SYSCALL(name, err, nr, args...) \
--  INTERNAL_SYSCALL_NCS (__NR_##name, err, nr, ##args)
-+# define INTERNAL_SYSCALL(name, err, nr_args...) \
-+  INTERNAL_SYSCALL_NCS (__NR_##name, err, ##nr_args)
-+
-+# undef INTERNAL_SYSCALL_ASM
-+# define INTERNAL_SYSCALL_ASM(name, err, nr_args...) \
-+  INTERNAL_SYSCALL_NCS_ASM (__NR_##name, err, ##nr_args)
- 
- # define INTERNAL_SYSCALL_NCS_TYPES(name, err, nr, args...) \
-   ({									      \
 @@ -241,7 +259,7 @@
      LOAD_ARGS_TYPES_##nr (args)						      \
      LOAD_REGS_TYPES_##nr (args)						      \
@@ -610,14 +545,6 @@ diff -ruNp a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
  
  /* Replacement type for __m128 since this file is included by ld.so,
     which is compiled with -mno-sse.  It must not change the alignment
-@@ -138,7 +144,6 @@ typedef struct
- # define GET_DTV(descr) \
-   (((tcbhead_t *) (descr))->dtv)
- 
--
- /* Code to initially initialize the thread pointer.  This might need
-    special attention since 'errno' is not yet available and if the
-    operation can cause a failure 'errno' must not be touched.
 @@ -155,7 +160,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \

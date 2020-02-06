@@ -114,21 +114,6 @@ diff -ruNp a/Makefile b/Makefile
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
-diff -ruNp a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
---- a/sysdeps/unix/sysv/linux/_exit.c	2018-02-01 10:17:18.000000000 -0600
-+++ b/sysdeps/unix/sysv/linux/_exit.c	2019-05-27 17:26:39.209526816 -0500
-@@ -28,9 +28,9 @@ _exit (int status)
-   while (1)
-     {
- #ifdef __NR_exit_group
--      INLINE_SYSCALL (exit_group, 1, status);
-+      INLINE_SYSCALL_ASM (exit_group, 1, status);
- #endif
--      INLINE_SYSCALL (exit, 1, status);
-+      INLINE_SYSCALL_ASM (exit, 1, status);
- 
- #ifdef ABORT_INSTRUCTION
-       ABORT_INSTRUCTION;
 diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 --- a/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
@@ -320,54 +305,7 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */
-@@ -191,9 +192,20 @@
- /* Define a macro which expands inline into the wrapper code for a system
-    call.  */
- # undef INLINE_SYSCALL
--# define INLINE_SYSCALL(name, nr, args...) \
-+# define INLINE_SYSCALL(name, nr_args...) \
-   ({									      \
--    unsigned long int resultvar = INTERNAL_SYSCALL (name, , nr, args);	      \
-+    unsigned long int resultvar = INTERNAL_SYSCALL (name, , ##nr_args);	      \
-+    if (__glibc_unlikely (INTERNAL_SYSCALL_ERROR_P (resultvar, )))	      \
-+      {									      \
-+	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-+	resultvar = (unsigned long int) -1;				      \
-+      }									      \
-+    (long int) resultvar; })
-+
-+# undef INLINE_SYSCALL_ASM
-+# define INLINE_SYSCALL_ASM(name, nr_args...) \
-+  ({									      \
-+    unsigned long int resultvar = INTERNAL_SYSCALL_ASM (name, , ##nr_args);   \
-     if (__glibc_unlikely (INTERNAL_SYSCALL_ERROR_P (resultvar, )))	      \
-       {									      \
- 	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-@@ -205,9 +217,9 @@
-    into the wrapper code for a system call.  It should be used when size
-    of any argument > size of long int.  */
- # undef INLINE_SYSCALL_TYPES
--# define INLINE_SYSCALL_TYPES(name, nr, args...) \
-+# define INLINE_SYSCALL_TYPES(name, nr_args...) \
-   ({									      \
--    unsigned long int resultvar = INTERNAL_SYSCALL_TYPES (name, , nr, args);  \
-+    unsigned long int resultvar = INTERNAL_SYSCALL_TYPES (name, , ##nr_args); \
-     if (__glibc_unlikely (INTERNAL_SYSCALL_ERROR_P (resultvar, )))	      \
-       {									      \
- 	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-@@ -236,12 +248,19 @@
- #define INTERNAL_SYSCALL_NCS(number, err, nr, args...)			\
- 	internal_syscall##nr (number, err, args)
- 
-+#undef INTERNAL_SYSCALL_ASM
-+#define INTERNAL_SYSCALL_ASM(name, err, nr, args...)			\
-+	INTERNAL_SYSCALL_NCS_ASM (SYS_ify (name), err, nr, args)
-+
-+#undef INTERNAL_SYSCALL_NCS_ASM
-+#define INTERNAL_SYSCALL_NCS_ASM INTERNAL_SYSCALL_NCS
-+
- #undef internal_syscall0
- #define internal_syscall0(number, err, dummy...)			\
+@@ -241,7 +260,7 @@
  ({									\
      unsigned long int resultvar;					\
      asm volatile (							\
