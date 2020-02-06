@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -204,7 +205,10 @@ int main(int argc, char** argv) {
             return 0;
         }
     } else {
-        pipe(pipefds);
+        if (pipe(pipefds) < 0) {
+            perror("pipe error");
+            return 1;
+        }
 
         int pid = fork();
 

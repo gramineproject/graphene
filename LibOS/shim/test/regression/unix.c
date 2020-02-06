@@ -33,13 +33,13 @@ int server_dummy_socket(void) {
     if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind");
         close(create_socket);
-        exit(-1);
+        exit(1);
     }
 
     if (listen(create_socket, 3) < 0) {
         perror("listen");
         close(create_socket);
-        exit(-1);
+        exit(1);
     }
 
     /* do not close this socket to test two sockets in parallel */
@@ -62,19 +62,22 @@ int server(void) {
     if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind");
         close(create_socket);
-        exit(-1);
+        exit(1);
     }
 
     if (listen(create_socket, 3) < 0) {
         perror("listen");
         close(create_socket);
-        exit(-1);
+        exit(1);
     }
 
     if (mode == PARALLEL) {
         close(pipefds[0]);
         char byte = 0;
-        write(pipefds[1], &byte, 1);
+        if (write(pipefds[1], &byte, 1) != 1) {
+            perror("write error");
+            exit(1);
+        }
     }
 
     addrlen    = sizeof(address);
@@ -83,7 +86,7 @@ int server(void) {
     if (new_socket < 0) {
         perror("accept");
         close(create_socket);
-        exit(-1);
+        exit(1);
     }
 
     close(create_socket);
@@ -92,7 +95,7 @@ int server(void) {
 
     if (do_fork) {
         if (fork() > 0) {
-            asm volatile ("int $3");
+            __asm__ volatile ("int $3");
             close(new_socket);
             wait(NULL);
             return 0;
@@ -103,7 +106,7 @@ int server(void) {
         sprintf(buffer, "Data: This is packet %d\n", i);
         if (sendto(new_socket, buffer, strlen(buffer), 0, 0, 0) == -1) {
             fprintf(stderr, "sendto() failed\n");
-            exit(-1);
+            exit(1);
         }
     }
 
@@ -122,7 +125,10 @@ int client(void) {
     if (mode == PARALLEL) {
         close(pipefds[1]);
         char byte = 0;
-        read(pipefds[0], &byte, 1);
+        if (read(pipefds[0], &byte, 1) != 1) {
+            perror("read error");
+            return 1;
+        }
     }
 
     if ((create_socket = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
@@ -162,34 +168,33 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         if (strcmp(argv[1], "client") == 0) {
             mode = SINGLE;
-            client();
-            return 0;
-        }
-
-        if (strcmp(argv[1], "server") == 0) {
+            return client();
+        } else if (strcmp(argv[1], "server") == 0) {
             mode = SINGLE;
             server_dummy_socket();
-            server();
-            return 0;
-        }
-
-        if (strcmp(argv[1], "fork") == 0) {
+            return server();
+        } else if (strcmp(argv[1], "fork") == 0) {
             do_fork = 1;
-            goto old;
-        }
-    } else {
-    old:
-        pipe(pipefds);
-
-        int pid = fork();
-
-        if (pid == 0) {
-            client();
         } else {
-            server_dummy_socket();
-            server();
+            printf("Invalid argument\n");
+            return 1;
         }
     }
 
-    return 0;
+    if (pipe(pipefds) < 0) {
+        perror("pipe error");
+        return 1;
+    }
+
+    int pid = fork();
+
+    if (pid < 0) {
+        perror("fork error");
+        return 1;
+    } else if (pid == 0) {
+        return client();
+    } else {
+        server_dummy_socket();
+        return server();
+    }
 }

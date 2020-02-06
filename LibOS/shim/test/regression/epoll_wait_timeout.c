@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>

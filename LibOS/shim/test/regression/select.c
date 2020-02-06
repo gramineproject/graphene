@@ -32,7 +32,12 @@ int main(void) {
     }
     printf("select() on write event returned %d file descriptors\n", ret);
 
-    write(fd[1], string, (strlen(string) + 1));
+    size_t len = strlen(string) + 1;
+    if (write(fd[1], string, len) != len) {
+        perror("write error");
+        return 1;
+    }
+
     ret = select(fd[1] + 1, &rfds, NULL, NULL, &tv);
     if (ret <= 0) {
         perror("select() on read event failed");
