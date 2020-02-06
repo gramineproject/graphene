@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <string.h>
 #include <sys/select.h>
@@ -32,7 +33,11 @@ int main(void) {
     }
     printf("pselect() on write event returned %d file descriptors\n", ret);
 
-    write(fd[1], string, (strlen(string) + 1));
+    size_t len = strlen(string) + 1;
+    if (write(fd[1], string, len) != len) {
+        perror("write error");
+        return 1;
+    }
     ret = pselect(fd[1] + 1, &rfds, NULL, NULL, &tv, NULL);
     if (ret <= 0) {
         perror("pselect() on read event failed");

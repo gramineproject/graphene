@@ -9,7 +9,7 @@ int main(int argc, char** argv, char** envp) {
     gettimeofday(&tv, NULL);
 
     if (argc < 2)
-        return -1;
+        return 1;
 
     unsigned long long msec1 = atoll(argv[1]);
     unsigned long long msec2 = tv.tv_sec * 1000000ULL + tv.tv_usec;

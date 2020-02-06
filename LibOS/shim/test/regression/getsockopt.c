@@ -1,5 +1,6 @@
 /* Unit test for issues #92 and #644 */
 
+#define _GNU_SOURCE
 #include <assert.h>
 #include <errno.h>
 #include <netinet/tcp.h>

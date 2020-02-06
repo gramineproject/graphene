@@ -47,7 +47,10 @@ int main(int argc, char** argv) {
         for (int i = 0; i < TEST_TIMES; i++) {
             close(fds[i][0]);
             char c = 0;
-            write(fds[i][1], &c, 1);
+            if (write(fds[i][1], &c, 1) != 1) {
+                perror("write error");
+                exit(1);
+            }
             close(fds[i][1]);
         }
 
@@ -70,7 +73,10 @@ int main(int argc, char** argv) {
 
         if (event.events & EPOLLIN) {
             char c;
-            read(event.data.fd, &c, 1);
+            if (read(event.data.fd, &c, 1) != 1) {
+                perror("read error");
+                exit(1);
+            }
         }
 
         printf("fd %d polled:", event.data.fd);

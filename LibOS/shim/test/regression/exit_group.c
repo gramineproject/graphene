@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <linux/unistd.h>
 #include <pthread.h>
 #include <stdatomic.h>

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -42,7 +43,10 @@ int server(void) {
     if (mode == PARALLEL) {
         close(pipefds[0]);
         char byte = 0;
-        write(pipefds[1], &byte, 1);
+        if (write(pipefds[1], &byte, 1) != 1) {
+            perror("write error");
+            return 1;
+        }
     }
 
     if (do_fork) {
@@ -79,7 +83,10 @@ int client(void) {
     if (mode == PARALLEL) {
         close(pipefds[1]);
         char byte = 0;
-        read(pipefds[0], &byte, 1);
+        if (read(pipefds[0], &byte, 1) != 1) {
+            perror("read error");
+            return 1;
+        }
     }
 
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
@@ -122,33 +129,36 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         if (strcmp(argv[1], "client") == 0) {
             mode = SINGLE;
-            client();
-            return 0;
-        }
-
-        if (strcmp(argv[1], "server") == 0) {
+            return client();
+        } else if (strcmp(argv[1], "server") == 0) {
             mode = SINGLE;
-            server();
-            return 0;
-        }
-
-        if (strcmp(argv[1], "fork") == 0) {
+            return server();
+        } else if (strcmp(argv[1], "fork") == 0) {
             do_fork = 1;
-            goto old;
-        }
-    } else {
-    old:
-        pipe(pipefds);
-
-        int pid = fork();
-
-        if (pid == 0)
-            client();
-        else {
-            server();
-            waitpid(pid, NULL, -1);
+        } else {
+            puts("Invalid option!");
+            return 1;
         }
     }
 
-    return 0;
+    if (pipe(pipefds) < 0) {
+        perror("pipe error");
+        return 1;
+    }
+
+    int pid = fork();
+
+    if (pid < 0) {
+        perror("fork error");
+        return 1;
+    } else if (pid == 0) {
+        return client();
+    } else {
+        int ret = server();
+        if (waitpid(pid, NULL, -1) == -1) {
+            perror("waitpid error");
+            ret = 1;
+        }
+        return ret;
+    }
 }

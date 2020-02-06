@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <shim_unistd.h>
 #include <stdio.h>
 #include <stdlib.h>

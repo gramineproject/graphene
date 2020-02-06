@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,20 +37,26 @@ int main(int argc, char** argv) {
     for (int i = 0; i < times; i++) {
         int pipes[2];
 
-        pipe(pipes);
+        if (pipe(pipes) < 0) {
+            perror("pipe error");
+            return 1;
+        }
 
         firstpid = fork();
 
         if (firstpid < 0) {
             printf("fork failed\n");
-            return -1;
+            return 1;
         }
 
         if (firstpid == 0) {
             close(pipes[1]);
 
             signal(SIGUSR1, sighand1);
-            read(pipes[0], &secondpid, sizeof(int));
+            if (read(pipes[0], &secondpid, sizeof(int)) != sizeof(int)) {
+                perror("read error");
+                return 1;
+            }
 #ifndef DO_BENCH
             printf("%d killing %d\n", getpid(), secondpid);
 #endif
@@ -76,13 +83,16 @@ int main(int argc, char** argv) {
 
         if (secondpid < 0) {
             printf("fork failed\n");
-            return -1;
+            return 1;
         }
 
         if (secondpid == 0) {
             signal(SIGUSR1, sighand2);
             secondpid = getpid();
-            write(pipes[1], &secondpid, sizeof(int));
+            if (write(pipes[1], &secondpid, sizeof(int)) != sizeof(int)) {
+                perror("write error");
+                return 1;
+            }
             struct timeval start_time;
             gettimeofday(&start_time, NULL);
 

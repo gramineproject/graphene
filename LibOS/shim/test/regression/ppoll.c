@@ -31,7 +31,13 @@ int main(void) {
     struct pollfd infds[] = {
         {.fd = fd[0], .events = POLLIN},
     };
-    write(fd[1], string, (strlen(string) + 1));
+
+    size_t len = strlen(string) + 1;
+    if (write(fd[1], string, len) != len) {
+        perror("write error");
+        return 1;
+    }
+
     ret = ppoll(infds, 1, &tv, NULL);
     if (ret <= 0) {
         perror("ppoll with POLLIN failed");

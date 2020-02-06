@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +28,10 @@ void sighand2(int signum, siginfo_t* sinfo, void* ucontext) {
 int main(int argc, char** argv) {
     int pipes[2];
 
-    pipe(pipes);
+    if (pipe(pipes) < 0) {
+        perror("pipe failed");
+        return 1;
+    }
 
     firstpid = fork();
 
@@ -43,7 +47,10 @@ int main(int argc, char** argv) {
         gettimeofday(&start_time, NULL);
 
         signal(SIGUSR1, (void*)sighand1);
-        read(pipes[0], &secondpid, sizeof(int));
+        if (read(pipes[0], &secondpid, sizeof(int)) != sizeof(int)) {
+            perror("read failed");
+            return 1;
+        }
         kill(secondpid, SIGUSR1);
         while (count < NTRIES - 1) {
             sleep(1);
@@ -74,7 +81,10 @@ int main(int argc, char** argv) {
 
         signal(SIGUSR1, (void*)sighand2);
         secondpid = getpid();
-        write(pipes[1], &secondpid, sizeof(int));
+        if (write(pipes[1], &secondpid, sizeof(int)) != sizeof(int)) {
+            perror("write error");
+            return 1;
+        }
         while (count < NTRIES) {
             sleep(1);
         }
