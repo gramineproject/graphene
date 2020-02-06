@@ -1,5 +1,6 @@
 /*.xml
 
+/.cache
 /abort
 /abort_multithread
 /bootstrap

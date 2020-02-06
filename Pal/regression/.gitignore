@@ -3,6 +3,7 @@
 
 /pal_loader
 
+/.cache
 /..Bootstrap
 /AtomicMath
 /Attestation
