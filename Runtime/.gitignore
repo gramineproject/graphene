@@ -1,6 +1,3 @@
-/crt1.o
-/crti.o
-/crtn.o
 /pal-Linux
 /pal-Linux-SGX
 /pal_gdb-Linux-SGX
