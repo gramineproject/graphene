@@ -16,6 +16,7 @@ pal.map
 *.a
 *.o
 *.so
+*.so.*
 
 # python
 *.pyc

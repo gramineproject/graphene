@@ -1,3 +1,4 @@
+/*.tmp
 /*.xml
 
 /..Bootstrap
@@ -30,8 +31,3 @@
 /Thread2
 /nonelf_binary
 /normalize_path
-
-/file_nonexist.tmp
-/file_nonexist_disallowed.tmp
-/to_send.tmp
-/dir_exist.tmp
