@@ -1,5 +1,6 @@
 /* Test to create 100 message queues and query them from another process*/
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,13 +77,19 @@ void server(void) {
     if (mode == PARALLEL) {
         close(pipefds[0]);
         char byte;
-        write(pipefds[1], &byte, 1);
+        if (write(pipefds[1], &byte, 1) != 1) {
+            perror("write error");
+            exit(1);
+        }
     }
 
     if (mode == PARALLEL) {
         close(pipefds[3]);
         char byte;
-        read(pipefds[2], &byte, 1);
+        if (read(pipefds[2], &byte, 1) != 1) {
+            perror("read error");
+            exit(1);
+        }
     }
 
     printf("time spent on %d creation: %llu microsecond\n", TEST_TIMES,
@@ -101,7 +108,10 @@ void client(void) {
     if (mode == PARALLEL) {
         close(pipefds[1]);
         char byte;
-        read(pipefds[0], &byte, 1);
+        if (read(pipefds[0], &byte, 1) != 1) {
+            perror("read error");
+            exit(1);
+        }
     }
 
     gettimeofday(&tv1, NULL);
@@ -119,7 +129,10 @@ void client(void) {
     if (mode == PARALLEL) {
         close(pipefds[2]);
         char byte;
-        write(pipefds[3], &byte, 1);
+        if (write(pipefds[3], &byte, 1) != 1) {
+            perror("write error");
+            exit(1);
+        }
     }
 
     printf("time spent on %d connection: %llu microsecond\n", TEST_TIMES,
@@ -136,9 +149,10 @@ int main(int argc, char** argv) {
         keys[i] = rand();
     }
 
-    pipe(pipefds);
-    pipe(pipefds + 2);
-
+    if (pipe(pipefds) < 0 || pipe(pipefds + 2) < 0) {
+        perror("pipe error");
+        return 1;
+    }
     /* server to be the parent and client to be the child */
     if (argc == 1) {
         if (fork() == 0)

@@ -1,6 +1,8 @@
 #include <stdlib.h>
 
 int main(int argc, char** argv) {
-    system("./helloworld");
+    if (system("./helloworld")) {
+        return 1;
+    }
     return 0;
 }

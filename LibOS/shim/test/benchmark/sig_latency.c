@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <sched.h>
 #include <signal.h>
 #include <stdio.h>
@@ -54,24 +55,24 @@ int main(int argc, char** argv) {
     if (argc >= 2) {
         times = atoi(argv[1]) / 2;
         if (times > TEST_TIMES)
-            return -1;
+            return 1;
     }
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
     signal(SIGUSR1, (void*)sigact);
 
-    pipe(&pipes[0]);
-    pipe(&pipes[2]);
-    pipe(&pipes[4]);
-    pipe(&pipes[6]);
+    if (pipe(&pipes[0]) < 0 || pipe(&pipes[2]) < 0 || pipe(&pipes[4]) < 0 || pipe(&pipes[6]) < 0) {
+        perror("pipe error");
+        return 1;
+    }
 
     for (i = 0; i < times; i++) {
         pids[i][0] = fork();
 
         if (pids[i][0] < 0) {
             printf("fork failed\n");
-            return -1;
+            return 1;
         }
 
         if (pids[i][0] == 0) {
@@ -84,19 +85,28 @@ int main(int argc, char** argv) {
             close(pipes[7]);
 
             count = 0;
-            read(pipes[6], &pids[i][1], sizeof(int));
+            if (read(pipes[6], &pids[i][1], sizeof(int)) != sizeof(int)) {
+                perror("read error");
+                return 1;
+            }
             secondpid = pids[i][1];
             close(pipes[6]);
 
             char byte;
-            write(pipes[5], &byte, 1);
+            if (write(pipes[5], &byte, 1) != 1) {
+                perror("write error");
+                return 1;
+            }
             close(pipes[5]);
 
             while (count < NTRIES) {
                 sched_yield();
             }
 
-            read(pipes[2], &byte, 1);
+            if (read(pipes[2], &byte, 1) != 1) {
+                perror("read error");
+                return 1;
+            }
             close(pipes[2]);
             exit(0);
         }
@@ -105,7 +115,7 @@ int main(int argc, char** argv) {
 
         if (pids[i][1] < 0) {
             printf("fork failed\n");
-            return -1;
+            return 1;
         }
 
         if (pids[i][1] == 0) {
@@ -118,12 +128,21 @@ int main(int argc, char** argv) {
 
             firstpid = pids[i][0];
             int pid  = getpid();
-            write(pipes[7], &pid, sizeof(int));
+            if (write(pipes[7], &pid, sizeof(int)) != sizeof(int)) {
+                perror("write error");
+                return 1;
+            }
             close(pipes[7]);
 
             char byte;
-            write(pipes[5], &byte, 1);
-            read(pipes[0], &byte, 1);
+            if (write(pipes[5], &byte, 1) != 1) {
+                perror("write error");
+                return 1;
+            }
+            if (read(pipes[0], &byte, 1) != 1) {
+                perror("read error");
+                return 1;
+            }
 
             struct timeval timevals[2];
             gettimeofday(&timevals[0], NULL);
@@ -139,10 +158,16 @@ int main(int argc, char** argv) {
 
             close(pipes[0]);
 
-            write(pipes[5], timevals, sizeof(struct timeval) * 2);
+            if (write(pipes[5], timevals, sizeof(struct timeval) * 2) != sizeof(struct timeval) * 2) {
+                perror("write error");
+                return 1;
+            }
             close(pipes[5]);
 
-            read(pipes[2], &byte, 1);
+            if (read(pipes[2], &byte, 1) != 1) {
+                perror("read error");
+                return 1;
+            }
             close(pipes[2]);
 
             exit(0);
@@ -165,7 +190,10 @@ int main(int argc, char** argv) {
     sleep(1);
 
     char bytes[times * 2];
-    write(pipes[1], bytes, times);
+    if (write(pipes[1], bytes, times) != times) {
+        perror("write error");
+        return 1;
+    }
     close(pipes[1]);
 
     unsigned long long start_time = 0;
@@ -183,7 +211,10 @@ int main(int argc, char** argv) {
     }
 
     close(pipes[4]);
-    write(pipes[3], bytes, times * 2);
+    if (write(pipes[3], bytes, times * 2) != times * 2) {
+        perror("write error");
+        return 1;
+    }
     close(pipes[3]);
 
     for (i = 0; i < times; i++) {

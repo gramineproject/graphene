@@ -4,6 +4,7 @@
 
 // Meant to be used for edge triggered epoll
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>

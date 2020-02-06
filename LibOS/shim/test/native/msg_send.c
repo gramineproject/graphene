@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,11 +11,6 @@
 
 #define PAYLOAD_SIZE 10
 
-struct msgbuf {
-    long mtype;
-    char mtext[PAYLOAD_SIZE];
-};
-
 #define TEST_TIMES 1000
 #define TEST_TYPES 2
 #define DO_BENCH   1
@@ -26,7 +22,8 @@ int pipefds[4], key;
 void server(void) {
     struct timeval tv1, tv2;
     int msqid;
-    struct msgbuf buf;
+    char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE] __attribute__((aligned(__alignof__(struct msgbuf))));
+    struct msgbuf* buf = (struct msgbuf*)_data;
 
     if ((msqid = msgget(key, mode == SERIAL ? 0600 | IPC_CREAT : 0)) < 0) {
         perror("msgget");
@@ -36,14 +33,14 @@ void server(void) {
     gettimeofday(&tv1, NULL);
 
     for (int i = 0; i < TEST_TIMES; i++) {
-        buf.mtype = (i % TEST_TYPES) + 1;
-        if (msgsnd(msqid, &buf, PAYLOAD_SIZE, 0) < 0) {
+        buf->mtype = (i % TEST_TYPES) + 1;
+        if (msgsnd(msqid, buf, PAYLOAD_SIZE, 0) < 0) {
             perror("msgsnd");
             exit(1);
         }
 
 #ifndef DO_BENCH
-        printf("Message: \"%s\" sent\n", buf.mtext);
+        printf("Message: \"%s\" sent\n", buf->mtext);
 #endif
     }
 
@@ -53,10 +50,16 @@ void server(void) {
         char byte = 0;
 
         close(pipefds[0]);
-        write(pipefds[1], &byte, 1);
+        if (write(pipefds[1], &byte, 1) != 1) {
+            perror("write error");
+            exit(1);
+        }
 
         close(pipefds[3]);
-        read(pipefds[2], &byte, 1);
+        if (read(pipefds[2], &byte, 1) != 1) {
+            perror("read error");
+            exit(1);
+        }
     }
 
     printf("time spent on %d msgsnd: %llu microsecond\n", TEST_TIMES,
@@ -70,13 +73,17 @@ void server(void) {
 void client(void) {
     struct timeval tv1, tv2;
     int msqid;
-    struct msgbuf buf;
+    char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE] __attribute__((aligned(__alignof__(struct msgbuf))));
+    struct msgbuf* buf = (struct msgbuf*)_data;
     int ret;
 
     if (mode == PARALLEL) {
         char byte = 0;
         close(pipefds[1]);
-        read(pipefds[0], &byte, 1);
+        if (read(pipefds[0], &byte, 1) != 1) {
+            perror("read error");
+            exit(1);
+        }
     }
 
     if ((msqid = msgget(key, 0)) < 0) {
@@ -88,14 +95,14 @@ void client(void) {
 
     for (int i = 0; i < TEST_TIMES; i++) {
         int type = (i % TEST_TYPES) + 1;
-        if ((ret = msgrcv(msqid, &buf, PAYLOAD_SIZE, type, 0)) < 0) {
+        if ((ret = msgrcv(msqid, buf, PAYLOAD_SIZE, type, 0)) < 0) {
             perror("msgrcv");
             exit(1);
         }
 
 #ifndef DO_BENCH
-        buf.mtext[ret] = 0;
-        printf("Client received: \"%s\"\n", buf.mtext);
+        buf->mtext[ret] = 0;
+        printf("Client received: \"%s\"\n", buf->mtext);
 #endif
     }
 
@@ -104,7 +111,10 @@ void client(void) {
     if (mode == PARALLEL) {
         char byte = 0;
         close(pipefds[2]);
-        write(pipefds[3], &byte, 1);
+        if (write(pipefds[3], &byte, 1) != 1) {
+            perror("write error");
+            exit(1);
+        }
     }
 
     printf("time spent on %d msgrcv: %llu microsecond\n", TEST_TIMES,
@@ -149,8 +159,10 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    pipe(&pipefds[0]);
-    pipe(&pipefds[2]);
+    if (pipe(&pipefds[0]) < 0 || pipe(&pipefds[2]) < 0) {
+        perror("pipe error");
+        return 1;
+    }
 
     /* server to be the parent and client to be the child */
     if (argc == 1) {

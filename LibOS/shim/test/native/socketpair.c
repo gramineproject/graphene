@@ -18,7 +18,9 @@ int main(int argc, char** argv) {
 
     if (pid1 == 0) {
         close(sv[0]);
-        write(sv[1], "hello world", 12);
+        if (write(sv[1], "hello world", 12) != 12) {
+            return 1;
+        }
         return 0;
     }
 

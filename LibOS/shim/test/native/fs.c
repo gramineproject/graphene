@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -14,8 +15,14 @@ int main() {
 
     int ret;
     while ((ret = read(fd2, buf, 4096)) > 0) {
-        write(1, buf, ret);
-        write(fd, buf, ret);
+        if (write(1, buf, ret) != ret || write(fd, buf, ret) != ret) {
+            perror("write error");
+            return 1;
+        }
+    }
+    if (ret < 0) {
+        perror("read error");
+        return 1;
     }
 
     close(fd);

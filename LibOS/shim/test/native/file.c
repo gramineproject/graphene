@@ -10,7 +10,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    write(fd1, "Hello World\n", 12);
+    if (write(fd1, "Hello World\n", 12) != 12) {
+        perror("write error");
+        return 1;
+    }
     close(fd1);
 
     int fd2 = open("testfile", O_RDONLY, 0600);

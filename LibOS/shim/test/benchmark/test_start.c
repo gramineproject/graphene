@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -68,7 +69,7 @@ int main(int argc, char** argv, char** envp) {
             get_time(time_arg, overhead);
 
             execve(new_argv[0], new_argv, envp);
-            exit(-1);
+            exit(1);
         }
 
         close(pipes[1]);

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -63,11 +64,14 @@ int main(int argc, char** argv, char** envp) {
             get_time(time_arg, overhead);
 
             close(pipes[0]);
-            write(pipes[1], time_arg, 30);
+            if (write(pipes[1], time_arg, 30) != 30) {
+                perror("write error");
+                return 1;
+            }
             close(pipes[1]);
 
             execve(new_argv[0], new_argv, envp);
-            exit(-1);
+            exit(1);
         }
 
         close(pipes[1]);

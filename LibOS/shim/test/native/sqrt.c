@@ -6,7 +6,10 @@ int main(int argc, char** argv) {
 
     printf("enter a float: ");
     fflush(stdin);
-    scanf("%f", &x);
+    if (scanf("%f", &x) != 1) {
+        perror("reading error");
+        return 1;
+    }
     printf("sqrt(x) = %f\n", sqrt(x));
 
     return 0;
