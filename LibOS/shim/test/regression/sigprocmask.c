@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>

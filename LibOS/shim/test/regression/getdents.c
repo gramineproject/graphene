@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
 #include <inttypes.h>

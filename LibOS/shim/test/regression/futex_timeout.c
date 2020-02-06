@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <errno.h>
 #include <linux/futex.h>
 #include <stdio.h>
