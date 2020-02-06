@@ -1,6 +1,8 @@
 /*.tmp
 /*.xml
 
+/pal_loader
+
 /..Bootstrap
 /AtomicMath
 /Attestation
