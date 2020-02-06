@@ -45,7 +45,6 @@ THE_BIG_LIST_OF_NAUGHTY_FILES = list(map(pathlib.Path, [
     'LibOS/shim/test/native',
     'Pal/src/host/Linux-SGX/debugger/gdb',
     'Pal/src/host/Linux-SGX/sgx-driver/load.sh',
-    'Runtime/pal_loader',
     'Scripts/list-all-graphene.sh',
     'Scripts/memusg',
     '.ci/run-pylint',
