@@ -139,9 +139,7 @@
         struct STRUCT_NAME* next; \
         struct STRUCT_NAME* prev; \
     };                            \
-    LIST_SORT_FUNC_PTR_DECLARE();
-
-#define LIST_SORT_FUNC_PTR_DECLARE() typedef bool (*list_sort)(void* node1, void* node2);
+    typedef bool (*list_compare)(const void* node1, const void* node2);
 
 /* We use LISTP for pointers to a list.  This project only really needs
  * doubly-linked lists.  We used hlists to get a single pointer for more
@@ -151,7 +149,7 @@
     LISTP_TYPE(STRUCT) {      \
         struct STRUCT* first; \
         size_t size;          \
-        list_sort sort_fptr;  \
+        list_compare compare_fptr;  \
     }
 
 #define LISTP_INIT { NULL, 0, NULL }
@@ -161,11 +159,11 @@
         if ((LISTP)) {                 \
             (LISTP)->first     = NULL; \
             (LISTP)->size      = 0;    \
-            (LISTP)->sort_fptr = NULL; \
+            (LISTP)->compare_fptr = NULL; \
         }                              \
     } while (0)
 
-#define LISTP_SET_SORT_FUNCTION(LISTP, LIST_SORT_FUNCTION) ((LISTP)->sort_fptr = LIST_SORT_FUNCTION)
+#define LISTP_SET_COMPARE_FUNCTION(LISTP, LIST_COMPARE_FUNCTION) ((LISTP)->compare_fptr = LIST_COMPARE_FUNCTION)
 
 // TODO: currently sorting is O(n^2), make it better.
 #define LISTP_SORT(LISTP, STRUCT_NAME)                                                          \
@@ -174,14 +172,14 @@
         struct STRUCT_NAME* outer = NULL;                                                       \
         struct STRUCT_NAME* inner = NULL;                                                       \
         if (LISTP) {                                                                          \
-            if ((LISTP)->sort_fptr) {                                                           \
+            if ((LISTP)->compare_fptr) {                                                           \
                 head                = LISTP_FIRST_ENTRY(LISTP, STRUCT_NAME, list);              \
                 outer               = head;                                                     \
                 bool adjacent_nodes = 0;                                                        \
                 while (outer != NULL) {                                                         \
                     inner = LISTP_NEXT_ENTRY(outer, LISTP, list);                               \
                     while (inner != NULL) {                                                     \
-                        if (!((LISTP)->sort_fptr(outer, inner))) {                              \
+                        if (!((LISTP)->compare_fptr(outer, inner))) {                              \
                             struct STRUCT_NAME* for_swap = NULL;                                \
                             adjacent_nodes =                                                    \
                                 (LISTP_NEXT_ENTRY(outer, LISTP, list) == inner) ? true : false; \
@@ -292,16 +290,10 @@
     } while (0)
 
 #define LISTP_PUSH_FRONT(NEW, LISTP, FIELD) LISTP_ADD(NEW, LISTP, FIELD)
-#define LISTP_POP_FRONT(FIRST_ENTRY, LISTP, STRUCT_NAME, FIELD)                   \
-    do {                                                                          \
-        struct STRUCT_NAME* first = LISTP_FIRST_ENTRY(LISTP, STRUCT_NAME, FIELD); \
-        if (first) {                                                              \
-            LISTP_DEL(first, LISTP, FIELD);                                       \
-            FIRST_ENTRY = first;                                                  \
-        } else {                                                                    \
-            FIRST_ENTRY = NULL;                                \
-        }                                                                                   \
-    } while (0)
+#define LISTP_POP_FRONT(LISTP, STRUCT_NAME, FIELD) ({                                                                \
+    struct STRUCT_NAME* first_entry = LISTP_FIRST_ENTRY(LISTP, STRUCT_NAME, FIELD); \
+    LISTP_DEL(first_entry, LISTP, FIELD);                                                                                                                 \
+    first_entry;})
 
 /* Or deletion needs to know the list root */
 #define LISTP_DEL(NODE, HEAD, FIELD)                           \
@@ -324,16 +316,6 @@
     do {                                  \
         LISTP_DEL(NODE, HEAD, FIELD);     \
         INIT_LIST_HEAD(NODE, FIELD);      \
-    } while (0)
-
-/* clears linked list container, does not free each list node, like list.clear(). */
-#define LISTP_CLEAR(LISTP, STRUCT_NAME)                       \
-    do {                                                      \
-        struct STRUCT_NAME *first, *next;                     \
-        LISTP_FOR_EACH_ENTRY_SAFE(first, next, LISTP, list) { \
-            LISTP_DEL(first, LISTP, list);                    \
-        }                                                     \
-        LIST_ASSERT((LISTP)->size == 0);                                    \
     } while (0)
 
 /* clears linked list container, and frees each list item. */
