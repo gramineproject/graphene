@@ -14,11 +14,6 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 
 CFLAGS += -Wextra
 
-ifeq ($(OMIT_FRAME_POINTER),yes)
-CFLAGS += -DOMIT_FRAME_POINTER=1
-else
-CFLAGS += -fno-omit-frame-pointer -DOMIT_FRAME_POINTER=0
-endif
 ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
 
 LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
