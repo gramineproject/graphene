@@ -9,17 +9,18 @@
 	.type sgx_ecall, @function
 
 sgx_ecall:
+	# put entry address in RDX
+	leaq .Lsgx_entry(%rip), %rdx
+
+	# other arguments: RDI - code, RSI - ms
+
+.Ldo_ecall_callee_save:
 	pushq %rbx
 	pushq %rbp
 	pushq %r12
 	pushq %r13
 	pushq %r14
 	pushq %r15
-
-	# put entry address in RDX
-	leaq .Lsgx_entry(%rip), %rdx
-
-	# other arguments: RDI - code, RSI - ms
 
 .Ldo_ecall:
 	# RBX has to be the TCS of the thread
@@ -51,15 +52,8 @@ async_exit_pointer:
 	.type sgx_raise, @function
 
 sgx_raise:
-	pushq %rbx
-	pushq %rbp
-	pushq %r12
-	pushq %r13
-	pushq %r14
-	pushq %r15
-
 	leaq .Lafter_resume(%rip), %rdx
-	jmp .Ldo_ecall
+	jmp .Ldo_ecall_callee_save
 
 .Lsgx_entry:
 	# arguments: RDI - code, RSI - ms
