@@ -176,7 +176,7 @@ DEFINE_SHIM_SYSCALL(rt_sigprocmask, 3, shim_do_sigprocmask, int, int, how, const
 DEFINE_SHIM_SYSCALL(rt_sigreturn, 1, shim_do_sigreturn, int, int, __unused)
 
 /* ioctl: sys/shim_ioctl.c */
-DEFINE_SHIM_SYSCALL(ioctl, 3, shim_do_ioctl, int, int, fd, int, cmd, unsigned long, arg)
+DEFINE_SHIM_SYSCALL(ioctl, 3, shim_do_ioctl, int, int, fd, unsigned long, cmd, unsigned long, arg)
 
 /* pread64 : sys/shim_open.c */
 DEFINE_SHIM_SYSCALL(pread64, 4, shim_do_pread64, size_t, int, fd, char*, buf, size_t, count, loff_t,

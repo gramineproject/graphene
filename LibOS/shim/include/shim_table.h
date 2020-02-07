@@ -340,7 +340,7 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
                       struct __kernel_sigaction* oldact, size_t sigsetsize);
 int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset);
 int shim_do_sigreturn(int __unused);
-int shim_do_ioctl(int fd, int cmd, unsigned long arg);
+int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg);
 ssize_t shim_do_pread64(int fd, char* buf, size_t count, loff_t pos);
 ssize_t shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos);
 ssize_t shim_do_readv(int fd, const struct iovec* vec, int vlen);
@@ -522,7 +522,7 @@ int shim_rt_sigaction(int signum, const struct __kernel_sigaction* act,
                       struct __kernel_sigaction* oldact, size_t sigsetsize);
 int shim_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset);
 int shim_rt_sigreturn(int __unused);
-int shim_ioctl(int fd, int cmd, unsigned long arg);
+int shim_ioctl(int fd, unsigned long cmd, unsigned long arg);
 size_t shim_pread64(int fd, char* buf, size_t count, loff_t pos);
 size_t shim_pwrite64(int fd, char* buf, size_t count, loff_t pos);
 ssize_t shim_readv(int fd, const struct iovec* vec, int vlen);
