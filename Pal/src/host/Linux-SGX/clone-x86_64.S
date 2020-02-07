@@ -91,7 +91,6 @@ ENTRY (clone)
 	ret
 
 ENTRY (thread_start)
-thread_start:
 	cfi_startproc
 	/* Clearing frame pointer is insufficient, use CFI.  */
 	cfi_undefined (rip)
