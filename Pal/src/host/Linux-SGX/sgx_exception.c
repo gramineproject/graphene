@@ -161,22 +161,6 @@ int block_async_signals (bool block)
     return block_signals(block, async_signals, nasync_signals);
 }
 
-int unset_sighandler (int * sigs, int nsig)
-{
-    for (int i = 0 ; i < nsig ; i++) {
-#if defined(__i386__)
-        int ret = INLINE_SYSCALL(sigaction, 4, sigs[i], SIG_DFL, NULL)
-#else
-        int ret = INLINE_SYSCALL(rt_sigaction, 4, sigs[i],
-                                 (struct sigaction *) SIG_DFL, NULL,
-                                 sizeof(__sigset_t));
-#endif
-        if (IS_ERR(ret))
-            return -ERRNO(ret);
-    }
-    return 0;
-}
-
 static int get_event_num (int signum)
 {
     switch(signum) {
