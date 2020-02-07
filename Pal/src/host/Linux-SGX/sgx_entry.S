@@ -10,9 +10,14 @@
 
 sgx_ecall:
 	pushq %rbx
+	pushq %rbp
+	pushq %r12
+	pushq %r13
+	pushq %r14
+	pushq %r15
 
 	# put entry address in RDX
-	leaq sgx_entry(%rip), %rdx
+	leaq .Lsgx_entry(%rip), %rdx
 
 	# other arguments: RDI - code, RSI - ms
 
@@ -27,6 +32,12 @@ sgx_ecall:
 	ENCLU
 
 	# currently only ECALL_THREAD_RESET returns
+.Lafter_resume:
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	popq %rbp
 	popq %rbx
 	retq
 
@@ -40,13 +51,17 @@ async_exit_pointer:
 	.type sgx_raise, @function
 
 sgx_raise:
+	pushq %rbx
+	pushq %rbp
+	pushq %r12
+	pushq %r13
+	pushq %r14
+	pushq %r15
+
 	leaq .Lafter_resume(%rip), %rdx
 	jmp .Ldo_ecall
 
-.Lafter_resume:
-	retq
-
-sgx_entry:
+.Lsgx_entry:
 	# arguments: RDI - code, RSI - ms
 
 	.cfi_startproc
