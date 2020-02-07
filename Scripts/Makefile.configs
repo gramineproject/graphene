@@ -23,22 +23,37 @@ OBJCOPY ?= objcopy
 SYS ?= $(shell $(CC) -dumpmachine)
 export SYS
 
-DEBUG ?=
-export DEBUG
-
 CFLAGS += -Wall -std=c11
 CXXFLAGS += -Wall -std=c++14
 
-ifeq ($(DEBUG),1)
+DEBUG ?=
+export DEBUG
+
+# make DEBUG=0 synonym for undefined DEBUG
+ifeq ($(DEBUG),0)
+override DEBUG =
+endif
+
+ifeq ($(DEBUG),)
+# -O2: yes -DDEBUG: no
+CFLAGS += -O2
+CXXFLAGS += -O2
+else ifeq ($(DEBUG),1)
+# -O2: yes -DDEBUG: yes
+CFLAGS += -O2 -gdwarf-2 -g3
+CXXFLAGS += -O2 -gdwarf-2 -g3
+CFLAGS += -DDEBUG
+ASFLAGS += -DDEBUG
+else ifeq ($(DEBUG),2)
+# -O2: no -DDEBUG: yes
 CFLAGS += -gdwarf-2 -g3
 CXXFLAGS += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
-endif
-
-ifeq ($(DEBUG),)
-CFLAGS += -O2
-CXXFLAGS += -O2
+# other makefiles assumes only DEBUG=1 for debug
+override DEBUG = 1
+else
+$(error unknown DEBUG value "$(DEBUG)")
 endif
 
 ifeq ($(WERROR),1)
