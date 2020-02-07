@@ -220,25 +220,25 @@ static void* file_alloc(struct shim_cp_store* store, void* addr, size_t size) {
     return addr;
 }
 
+static BEGIN_MIGRATION_DEF(checkpoint) {
+    DEFINE_MIGRATE(process, &cur_process, sizeof(struct shim_process));
+    DEFINE_MIGRATE(all_mounts, NULL, 0);
+    DEFINE_MIGRATE(all_vmas, NULL, 0);
+    DEFINE_MIGRATE(all_running_threads, NULL, 0);
+    DEFINE_MIGRATE(brk, NULL, 0);
+    DEFINE_MIGRATE(loaded_libraries, NULL, 0);
+#ifdef DEBUG
+    DEFINE_MIGRATE(gdb_map, NULL, 0);
+#endif
+    DEFINE_MIGRATE(migratable, NULL, 0);
+}
+END_MIGRATION_DEF(checkpoint)
+
 static int finish_checkpoint(struct cp_session* cpsession) {
     struct shim_cp_store* cpstore = &cpsession->cpstore;
     int ret;
 
     cpstore->alloc = file_alloc;
-
-    BEGIN_MIGRATION_DEF(checkpoint) {
-        DEFINE_MIGRATE(process, &cur_process, sizeof(struct shim_process));
-        DEFINE_MIGRATE(all_mounts, NULL, 0);
-        DEFINE_MIGRATE(all_vmas, NULL, 0);
-        DEFINE_MIGRATE(all_running_threads, NULL, 0);
-        DEFINE_MIGRATE(brk, NULL, 0);
-        DEFINE_MIGRATE(loaded_libraries, NULL, 0);
-#ifdef DEBUG
-        DEFINE_MIGRATE(gdb_map, NULL, 0);
-#endif
-        DEFINE_MIGRATE(migratable, NULL, 0);
-    }
-    END_MIGRATION_DEF(checkpoint)
 
     if ((ret = START_MIGRATE(cpstore, checkpoint)) < 0)
         return ret;
