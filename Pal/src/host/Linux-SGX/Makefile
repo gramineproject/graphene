@@ -15,30 +15,65 @@ host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_of
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memory \
-		 threading mutex events process object main rtld \
-		 exception misc) \
-	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted xstate)
-enclave-asm-objs = enclave_entry
-urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
-	    quote/aesm.pb-c clone-x86_64
-urts-asm-objs = sgx_entry
+
+enclave-objs = \
+	db_devices.o \
+	db_eventfd.o \
+	db_events.o \
+	db_exception.o \
+	db_files.o \
+	db_main.o \
+	db_memory.o \
+	db_misc.o \
+	db_mutex.o \
+	db_object.o \
+	db_pipes.o \
+	db_process.o \
+	db_rtld.o \
+	db_sockets.o \
+	db_streams.o \
+	db_threading.o \
+	enclave_ecalls.o \
+	enclave_framework.o \
+	enclave_ocalls.o \
+	enclave_pages.o \
+	enclave_platform.o \
+	enclave_untrusted.o \
+	enclave_xstate.o
+
+enclave-asm-objs = enclave_entry.o
+
+urts-objs = \
+	clone-x86_64.o \
+	sgx_enclave.o \
+	sgx_exception.o \
+	sgx_framework.o \
+	sgx_graphene.o \
+	sgx_main.o \
+	sgx_platform.o \
+	sgx_process.o \
+	sgx_rtld.o \
+	sgx_thread.o \
+	quote/aesm.pb-c.o
+
+urts-asm-objs = sgx_entry.o
+
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
 all: sgx-driver/isgx_version.h $(host_files)
 
-libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
+libpal-Linux-SGX.a: $(enclave-objs) $(enclave-asm-objs)
 	$(call cmd,ar_a_o)
 
-$(addsuffix .o,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .o,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
-$(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
+$(enclave-objs): CFLAGS += -DIN_ENCLAVE
+$(patsubst %.o,%.i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
+$(patsubst %.o,%.s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
+$(enclave-asm-objs): ASFLAGS += -DIN_ENCLAVE
+$(patsubst %.o,%.s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 
-$(addsuffix .o,$(urts-objs)): quote/aesm.pb-c.h
-$(addsuffix .o,$(enclave-objs)): quote/generated-cacert.h
+$(urts-objs): quote/aesm.pb-c.h
+$(enclave-objs): quote/generated-cacert.h
 
 %.o: %.c
 	$(call cmd,cc_o_c)
@@ -57,7 +92,7 @@ $(addsuffix .o,$(enclave-objs)): quote/generated-cacert.h
 
 CFLAGS-pal-sgx = -Wl,-z,relro,-z,now -pie
 LDLIBS-pal-sgx += -lprotobuf-c
-pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
+pal-sgx: $(urts-objs) $(urts-asm-objs) $(graphene_lib)
 	$(call cmd,cmulti)
 
 quote/aesm.pb-c.o: quote/aesm.pb-c.c quote/aesm.pb-c.h
