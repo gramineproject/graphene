@@ -2,8 +2,6 @@ RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
 include ../../../Scripts/Makefile.configs
 
-OMIT_FRAME_POINTER = no
-
 CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes -Wtrampolines \
 	  -Werror=implicit-function-declaration \
