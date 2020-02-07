@@ -252,12 +252,6 @@ DEFINE_PROFILE_INTERVAL(search_and_check_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(open_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);
 
-/* Now we start to migrate bookkeeping for exec.
-   The data we need to migrate are:
-        1. cur_threadrent thread
-        2. cur_threadrent filesystem
-        3. handle mapping
-        4. each handle              */
 static BEGIN_MIGRATION_DEF(__execve, struct shim_thread* thread, struct shim_process* proc,
                            const char** envp) {
     DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));

@@ -220,7 +220,7 @@ static void* file_alloc(struct shim_cp_store* store, void* addr, size_t size) {
     return addr;
 }
 
-static BEGIN_MIGRATION_DEF(checkpoint) {
+static BEGIN_MIGRATION_DEF(__checkpoint) {
     DEFINE_MIGRATE(process, &cur_process, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(all_vmas, NULL, 0);
@@ -232,7 +232,7 @@ static BEGIN_MIGRATION_DEF(checkpoint) {
 #endif
     DEFINE_MIGRATE(migratable, NULL, 0);
 }
-END_MIGRATION_DEF(checkpoint)
+END_MIGRATION_DEF(__checkpoint)
 
 static int finish_checkpoint(struct cp_session* cpsession) {
     struct shim_cp_store* cpstore = &cpsession->cpstore;
@@ -240,7 +240,7 @@ static int finish_checkpoint(struct cp_session* cpsession) {
 
     cpstore->alloc = file_alloc;
 
-    if ((ret = START_MIGRATE(cpstore, checkpoint)) < 0)
+    if ((ret = START_MIGRATE(cpstore, __checkpoint)) < 0)
         return ret;
 
     struct cp_header* hdr = (struct cp_header*)cpstore->base;
