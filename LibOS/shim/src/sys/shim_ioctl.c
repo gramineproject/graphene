@@ -303,7 +303,7 @@ void signal_io(IDTYPE target, void* arg) {
     put_thread(thread);
 }
 
-int shim_do_ioctl(int fd, int cmd, unsigned long arg) {
+int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
