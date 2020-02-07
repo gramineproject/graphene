@@ -326,9 +326,9 @@ struct shim_cp_map_entry* get_cp_map_entry(void* map, void* addr, bool create);
         e->off                      = (off);                                      \
     } while (0)
 
-#define BEGIN_MIGRATION_DEF(name, ...)                               \
-    int migrate_##name(struct shim_cp_store* store, ##__VA_ARGS__) { \
-        int ret    = 0;                                              \
+#define BEGIN_MIGRATION_DEF(name, ...)                                  \
+    int migrate_cp_##name(struct shim_cp_store* store, ##__VA_ARGS__) { \
+        int ret    = 0;                                                 \
         ptr_t base = store->base;
 
 #define END_MIGRATION_DEF(name)     \
@@ -367,7 +367,7 @@ struct shim_cp_map_entry* get_cp_map_entry(void* map, void* addr, bool create);
             }                                                              \
             SAVE_PROFILE_INTERVAL(checkpoint_create_map);                  \
                                                                            \
-            ret = migrate_##name(store, ##__VA_ARGS__);                    \
+            ret = migrate_cp_##name(store, ##__VA_ARGS__);                 \
             if (ret < 0)                                                   \
                 goto out;                                                  \
                                                                            \

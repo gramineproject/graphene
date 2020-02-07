@@ -252,6 +252,17 @@ DEFINE_PROFILE_INTERVAL(search_and_check_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(open_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);
 
+static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
+                           const char** envp) {
+    DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
+    DEFINE_MIGRATE(all_mounts, NULL, 0);
+    DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
+    DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
+    DEFINE_MIGRATE(migratable, NULL, 0);
+    DEFINE_MIGRATE(environ, envp, 0);
+}
+END_MIGRATION_DEF(execve)
+
 /* thread is cur_thread stripped off stack & tcb (see below func);
  * process is new process which is forked and waits for checkpoint. */
 static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thread,
@@ -271,23 +282,6 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
         return ret;
 
     SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
-
-    /* Now we start to migrate bookkeeping for exec.
-       The data we need to migrate are:
-            1. cur_threadrent thread
-            2. cur_threadrent filesystem
-            3. handle mapping
-            4. each handle              */
-    BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
-                        const char** envp) {
-        DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
-        DEFINE_MIGRATE(all_mounts, NULL, 0);
-        DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
-        DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
-        DEFINE_MIGRATE(migratable, NULL, 0);
-        DEFINE_MIGRATE(environ, envp, 0);
-    }
-    END_MIGRATION_DEF(execve)
 
     return START_MIGRATE(cpstore, execve, thread, process, envp);
 }
