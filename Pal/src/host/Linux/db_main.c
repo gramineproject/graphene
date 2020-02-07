@@ -40,12 +40,12 @@
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
    messed up by function calls */
-__asm__ (".global pal_start \n"
-     "  .type pal_start,@function \n"
-     "pal_start: \n"
-     "  movq %rsp, %rdi \n"
-     "  andq $~15, %rsp \n"
-     "  call pal_linux_main \n");
+__asm__ (".global pal_start\n"
+     "  .type pal_start,@function\n"
+     "pal_start:\n"
+     "  movq %rsp, %rdi\n"
+     "  andq $~15, %rsp\n"
+     "  call pal_linux_main\n");
 
 #define RTLD_BOOTSTRAP
 
