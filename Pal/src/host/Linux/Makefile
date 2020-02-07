@@ -11,15 +11,31 @@ host_files = libpal-Linux.a pal.map
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-objs	= $(addprefix db_,files devices pipes eventfd sockets streams memory threading \
-	    mutex events process object main rtld misc \
-	    exception) clone-x86_64
+objs = \
+	clone-x86_64.o \
+	db_devices.o \
+	db_eventfd.o \
+	db_events.o \
+	db_exception.o \
+	db_files.o \
+	db_main.o \
+	db_memory.o \
+	db_misc.o \
+	db_mutex.o \
+	db_object.o \
+	db_pipes.o \
+	db_process.o \
+	db_rtld.o \
+	db_sockets.o \
+	db_streams.o \
+	db_threading.o
+
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
 all: $(host_files)
 
-libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
+libpal-Linux.a: $(objs) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
 %.o: %.c
@@ -40,16 +56,16 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 include ../../../../Scripts/Makefile.rules
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
--include $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs))
+-include $(patsubst %.o,%.d,$(objs)) $(patsubst %.o,%.i.d,$(objs)) $(patsubst %.o,%.s.d,$(objs))
 endif
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 
 .PHONY: clean
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES) \
-	      $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) \
-	      $(addsuffix .s.d,$(objs))
+	rm -f $(objs) $(host_files) $(CLEAN_FILES) \
+	      $(patsubst %.o,%.d,$(objs)) $(patsubst %.o,%.i.d,$(objs)) \
+	      $(patsubst %.o,%.s.d,$(objs))
 
 .PHONY: distclean
 distclean: clean

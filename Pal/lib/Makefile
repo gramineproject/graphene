@@ -4,8 +4,6 @@ include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I../include/lib -I../include -I../include/pal -Icrypto/mbedtls/include -I../include/host/$(PAL_HOST)
 
-subdirs = string stdlib network graphene crypto
-
 CRYPTO_PROVIDER ?= mbedtls
 
 # Select which crypto adpater you want to use here. This has to match
@@ -17,11 +15,32 @@ CRYPTO_PROVIDER ?= mbedtls
 # this pulls Diffie-Hellman code into LibOS shim, resulting in unsatisfied
 # symbols.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
-subdirs += crypto/mbedtls/library
-crypto_mbedtls_library_objs = $(addsuffix .o, aes aesni asn1parse base64 bignum cipher \
-                                              cipher_wrap cmac ctr_drbg dhm entropy gcm md \
-                                              md_wrap oid rsa rsa_internal sha256 ssl_tls \
-                                              ssl_ciphersuites ssl_cli ssl_srv platform_util)
+crypto_mbedtls_library_objs = \
+	crypto/mbedtls/library/aes.o \
+	crypto/mbedtls/library/aesni.o \
+	crypto/mbedtls/library/asn1parse.o \
+	crypto/mbedtls/library/base64.o \
+	crypto/mbedtls/library/bignum.o \
+	crypto/mbedtls/library/cipher.o \
+	crypto/mbedtls/library/cipher_wrap.o \
+	crypto/mbedtls/library/cmac.o \
+	crypto/mbedtls/library/ctr_drbg.o \
+	crypto/mbedtls/library/dhm.o \
+	crypto/mbedtls/library/entropy.o \
+	crypto/mbedtls/library/gcm.o \
+	crypto/mbedtls/library/md.o \
+	crypto/mbedtls/library/md_wrap.o \
+	crypto/mbedtls/library/oid.o \
+	crypto/mbedtls/library/platform_util.o \
+	crypto/mbedtls/library/rsa.o \
+	crypto/mbedtls/library/rsa_internal.o \
+	crypto/mbedtls/library/sha256.o \
+	crypto/mbedtls/library/ssl_ciphersuites.o \
+	crypto/mbedtls/library/ssl_cli.o \
+	crypto/mbedtls/library/ssl_srv.o \
+	crypto/mbedtls/library/ssl_tls.o
+
+objs += $(crypto_mbedtls_library_objs)
 endif
 
 MBEDTLS_VERSION ?= 2.16.3
@@ -52,14 +71,24 @@ crypto/mbedtls/include/mbedtls/config.h: crypto/config.h crypto/mbedtls/CMakeLis
 	cp crypto/config.h crypto/mbedtls/include/mbedtls
 
 crypto/mbedtls/library/aes.c: crypto/mbedtls/CMakeLists.txt crypto/mbedtls/include/mbedtls/config.h
-$(addprefix crypto/mbedtls/library/,$(filter-out aes.c,$(patsubst %.o,%.c,$(crypto_mbedtls_library_objs)))): crypto/mbedtls/library/aes.c
+$(filter-out crypto/mbedtls/library/aes.c,$(patsubst %.o,%.c,$(crypto_mbedtls_library_objs))): crypto/mbedtls/library/aes.c
 
-string_objs = $(addsuffix .o,atoi memcmp memcpy memset strchr strendswith strlen wordcopy strcmp)
-stdlib_objs = $(addsuffix .o,printfmt)
-network_objs = $(addsuffix .o,hton inet_pton)
-graphene_objs = $(addsuffix .o,config path)
-crypto_objs = $(addsuffix .o,udivmodti4)
-objs += $(foreach dir,$(subdirs),$(addprefix $(dir)/,$($(subst /,_,$(dir))_objs)))
+objs += \
+	crypto/udivmodti4.o \
+	graphene/config.o \
+	graphene/path.o \
+	network/hton.o \
+	network/inet_pton.o \
+	stdlib/printfmt.o \
+	string/atoi.o \
+	string/memcmp.o \
+	string/memcpy.o \
+	string/memset.o \
+	string/strchr.o \
+	string/strcmp.o \
+	string/strendswith.o \
+	string/strlen.o \
+	string/wordcopy.o
 
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/library/aes.c
 

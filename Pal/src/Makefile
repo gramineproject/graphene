@@ -36,8 +36,21 @@ files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
 	  -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
-objs	= $(addprefix db_,streams memory threading mutex events process \
-	    object main misc exception rtld) slab printf pal_error
+objs = \
+	db_events.o \
+	db_exception.o \
+	db_main.o \
+	db_memory.o \
+	db_misc.o \
+	db_mutex.o \
+	db_object.o \
+	db_process.o \
+	db_rtld.o \
+	db_streams.o \
+	db_threading.o \
+	pal_error.o \
+	printf.o \
+	slab.o
 
 graphene_lib = $(LIB_DIR)/graphene-lib.a
 host_lib = $(HOST_DIR)/libpal-$(PAL_HOST).a
@@ -91,7 +104,7 @@ $(runtime_loader): $(pal_loader)
 endif
 
 ifneq ($(pal_lib),)
-$(pal_lib): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
+$(pal_lib): $(addprefix $(OBJ_DIR)/,$(objs)) \
 	    $(host_lib) $(graphene_lib) $(pal_lib_deps)
 	$(call cmd,ld_so_o)
 
@@ -109,7 +122,7 @@ $(pal_lib_post): $(pal_lib)
 	@$(MAKE) -C $(HOST_DIR) $@
 endif
 
-$(pal_static): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
+$(pal_static): $(addprefix $(OBJ_DIR)/,$(objs)) \
 	       $(host_lib) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
@@ -127,7 +140,7 @@ $(OBJ_DIR)/%.s: %.c
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
--include $(patsubst %,$(OBJ_DIR)/%.d,$(objs))
+-include $(patsubst %.o,$(OBJ_DIR)/%.d,$(objs))
 endif
 
 clean_targets = clean distclean

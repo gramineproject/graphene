@@ -31,21 +31,87 @@ files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 defs	= -DIN_SHIM
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
-fs	= chroot str pipe socket proc dev eventfd
-ipcns	= pid sysv
-objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
-	  $(addprefix utils/,md5 printf strobjs) \
-	  $(addprefix fs/shim_,dcache namei fs_hash fs) \
-	  $(foreach f,$(fs),fs/$(f)/fs) \
-	  $(addprefix fs/proc/,info ipc-thread thread) \
-	  $(addprefix ipc/shim_,ipc ipc_helper ipc_child) \
-	  $(addprefix ipc/shim_ipc_,$(ipcns)) \
-	  elf/shim_rtld \
-	  $(addprefix shim_,init table syscalls checkpoint malloc \
-	  async parser debug object) syscallas start \
-	  $(addprefix sys/shim_,access alarm benchmark brk clone dup epoll eventfd exec exit fcntl fork fs futex getcwd getpid getrlimit ioctl migrate mmap msgget open pipe poll sched semget sigaction sleep socket stat time uname vfork wait wrappers) \
-	  vdso/vdso-data
-all_objs = $(objs) vdso/vdso-note vdso/vdso
+
+objs = \
+	shim_async.o \
+	shim_checkpoint.o \
+	shim_debug.o \
+	shim_init.o \
+	shim_malloc.o \
+	shim_object.o \
+	shim_parser.o \
+	shim_syscalls.o \
+	shim_table.o \
+	start.o \
+	syscallas.o \
+	bookkeep/shim_handle.o \
+	bookkeep/shim_signal.o \
+	bookkeep/shim_thread.o \
+	bookkeep/shim_vma.o \
+	elf/shim_rtld.o \
+	fs/shim_dcache.o \
+	fs/shim_fs.o \
+	fs/shim_fs_hash.o \
+	fs/shim_namei.o \
+	fs/chroot/fs.o \
+	fs/dev/fs.o \
+	fs/eventfd/fs.o \
+	fs/pipe/fs.o \
+	fs/proc/fs.o \
+	fs/proc/info.o \
+	fs/proc/ipc-thread.o \
+	fs/proc/thread.o \
+	fs/socket/fs.o \
+	fs/str/fs.o \
+	ipc/shim_ipc.o \
+	ipc/shim_ipc_child.o \
+	ipc/shim_ipc_helper.o \
+	ipc/shim_ipc_pid.o \
+	ipc/shim_ipc_sysv.o \
+	sys/shim_access.o \
+	sys/shim_alarm.o \
+	sys/shim_benchmark.o \
+	sys/shim_brk.o \
+	sys/shim_clone.o \
+	sys/shim_dup.o \
+	sys/shim_epoll.o \
+	sys/shim_eventfd.o \
+	sys/shim_exec.o \
+	sys/shim_exit.o \
+	sys/shim_fcntl.o \
+	sys/shim_fork.o \
+	sys/shim_fs.o \
+	sys/shim_futex.o \
+	sys/shim_getcwd.o \
+	sys/shim_getpid.o \
+	sys/shim_getrlimit.o \
+	sys/shim_ioctl.o \
+	sys/shim_migrate.o \
+	sys/shim_mmap.o \
+	sys/shim_msgget.o \
+	sys/shim_open.o \
+	sys/shim_pipe.o \
+	sys/shim_poll.o \
+	sys/shim_sched.o \
+	sys/shim_semget.o \
+	sys/shim_sigaction.o \
+	sys/shim_sleep.o \
+	sys/shim_socket.o \
+	sys/shim_stat.o \
+	sys/shim_time.o \
+	sys/shim_uname.o \
+	sys/shim_vfork.o \
+	sys/shim_wait.o \
+	sys/shim_wrappers.o \
+	utils/md5.o \
+	utils/printf.o \
+	utils/strobjs.o \
+	vdso/vdso-data.o
+
+all_objs = \
+	$(objs) \
+	vdso/vdso-note.o \
+	vdso/vdso.o
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
@@ -60,12 +126,12 @@ $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
 
 LDFLAGS-libsysdb.so += --version-script shim.map -T shim.lds
-libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS-$@)) \
+libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 	     $(graphene_lib) $(pal_lib)
 	$(call cmd,ld_so_o)
 
 LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim.lds
-libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
+libsysdb_debug.so: $(filter-out syscallas.o,$(objs)) \
 		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
 		   $(graphene_lib) $(pal_lib)
 	$(call cmd,ld_so_o)
@@ -77,7 +143,7 @@ graphene_lib_recurse:
 $(graphene_lib): graphene_lib_recurse
 	@true
 
-libsysdb.a: $(addsuffix .o,$(objs))
+libsysdb.a: $(objs)
 	$(call cmd,ar_a_o)
 
 %.o: %.c
@@ -128,12 +194,12 @@ CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/.vdso-linked-for-reloc-check.s
 
 .PHONY: clean
 clean:
-	rm -rf $(addsuffix .o,$(all_objs)) $(addsuffix .d,$(all_objs)) \
-	       $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs)) \
+	rm -rf $(all_objs) $(patsubst %.o,%.d,$(all_objs)) \
+	       $(patsubst %.o,%.i.d,$(all_objs)) $(patsubst %.o,%.s.d,$(all_objs)) \
 	       $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
--include $(addsuffix .d,$(all_objs)) $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs))
+-include $(patsubst %.o,%.d,$(all_objs)) $(patsubst %.o,%.i.d,$(all_objs)) $(patsubst %.o,%.s.d,$(all_objs))
 endif
 
 .PHONY: distclean
