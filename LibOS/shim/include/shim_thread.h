@@ -251,7 +251,7 @@ static inline void thread_wakeup (struct shim_thread * thread)
  *
  * Returns 0 if the thread was added to the queue, 1 otherwise. */
 static inline int add_thread_to_queue(struct wake_queue_head* queue, struct shim_thread* thread) {
-    void* nptr = NULL;
+    struct wake_queue_node* nptr = NULL;
     struct wake_queue_node* qnode = &thread->wake_queue;
 
     /* Atomic cmpxchg is enough, no need to take thread->lock */
