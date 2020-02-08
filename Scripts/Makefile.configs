@@ -39,18 +39,18 @@ ifeq ($(DEBUG),)
 CFLAGS += -O2
 CXXFLAGS += -O2
 else ifeq ($(DEBUG),1)
-# -O2: yes -DDEBUG: yes
-CFLAGS += -O2 -gdwarf-2 -g3
-CXXFLAGS += -O2 -gdwarf-2 -g3
-CFLAGS += -DDEBUG
-ASFLAGS += -DDEBUG
-else ifeq ($(DEBUG),2)
 # -O2: no -DDEBUG: yes
 CFLAGS += -gdwarf-2 -g3
 CXXFLAGS += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
-# other makefiles assumes only DEBUG=1 for debug
+else ifeq ($(DEBUG),2)
+# -O2: yes -DDEBUG: yes
+CFLAGS += -O2 -gdwarf-2 -g3
+CXXFLAGS += -O2 -gdwarf-2 -g3
+CFLAGS += -DDEBUG
+ASFLAGS += -DDEBUG
+# other makefiles assume only DEBUG=1 for debug
 override DEBUG = 1
 else
 $(error unknown DEBUG value "$(DEBUG)")

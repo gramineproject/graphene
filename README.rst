@@ -68,7 +68,8 @@ source tree::
 
 Each part of Graphene can be built separately in the subdirectories.
 
-To build Graphene with debug symbols, run ``make DEBUG=1``
+To build Graphene with debug symbols without optimization, run ``make DEBUG=1``
+To build Graphene with debug symbols with optimization, run ``make DEBUG=2``
 instead of ``make``. To specify custom mirrors for downloading the GLIBC
 source, use ``make GLIBC_MIRRORS=...``.
 
@@ -130,9 +131,13 @@ command::
 
    make SGX=1
 
-To build with debug symbols, instead run the command::
+To build with debug symbols without optimization, instead run the command::
 
    make SGX=1 DEBUG=1
+
+To build with debug symbols with optimization, instead run the command::
+
+   make SGX=1 DEBUG=2
 
 Running ``make SGX=1`` in the test or regression directory will automatically generate the required
 manifest signatures (.sig files).
