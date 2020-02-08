@@ -42,7 +42,7 @@ if [ -z "$PAL_HOST" ]; then
 fi
 
 MANIFEST=
-PREFIX=
+PREFIX=()
 PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
 
 if [ "$GDB" == "1" ]; then
@@ -84,7 +84,7 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-if [ ${#PREIFX[@]} -eq 0 ]; then
+if [ ${#PREFIX[@]} -eq 0 ]; then
     exec "$PAL_CMD" "$MANIFEST" "$@"
 else
     exec "${PREFIX[@]}" "$PAL_CMD" "$MANIFEST" "$@"
