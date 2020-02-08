@@ -84,7 +84,7 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-if [ ${#PREIFX[@]} -eq 0 ]; then
+if [ ${#PREFIX[@]} -eq 0 ]; then
     exec "$PAL_CMD" "$MANIFEST" "$@"
 else
     exec "${PREFIX[@]}" "$PAL_CMD" "$MANIFEST" "$@"
