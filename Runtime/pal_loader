@@ -42,7 +42,7 @@ if [ -z "$PAL_HOST" ]; then
 fi
 
 MANIFEST=
-PREFIX=
+PREFIX=()
 PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
 
 if [ "$GDB" == "1" ]; then
