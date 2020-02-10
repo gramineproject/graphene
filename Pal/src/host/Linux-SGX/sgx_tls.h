@@ -3,6 +3,13 @@
 
 #include <pal.h>
 
+struct untrusted_area {
+    void* mem;
+    uint64_t size;
+    uint64_t in_use;
+    bool valid;
+};
+
 /*
  * Beside the classic thread local storage (like ustack, thread, etc.) the TLS
  * area is also used to pass parameters needed during enclave or thread
@@ -11,33 +18,33 @@
  */
 struct enclave_tls {
     PAL_TCB common;
-    struct {
-        /* private to Linux-SGX PAL */
-        uint64_t enclave_size;
-        uint64_t tcs_offset;
-        uint64_t initial_stack_offset;
-        uint64_t tmp_rip;
-        uint64_t sig_stack_low;
-        uint64_t sig_stack_high;
-        void*    ecall_return_addr;
-        void*    ssa;
-        sgx_pal_gpr_t* gpr;
-        void*    exit_target;
-        void*    fsbase;
-        void*    pre_ocall_stack;
-        void*    ustack_top;
-        void*    ustack;
-        struct pal_handle_thread* thread;
-        uint64_t ocall_exit_called;
-        uint64_t thread_started;
-        uint64_t ready_for_exceptions;
-        uint64_t manifest_size;
-        void*    heap_min;
-        void*    heap_max;
-        void*    exec_addr;
-        uint64_t exec_size;
-        int*     clear_child_tid;
-    };
+
+    /* private to Linux-SGX PAL */
+    uint64_t enclave_size;
+    uint64_t tcs_offset;
+    uint64_t initial_stack_offset;
+    uint64_t tmp_rip;
+    uint64_t sig_stack_low;
+    uint64_t sig_stack_high;
+    void*    ecall_return_addr;
+    void*    ssa;
+    sgx_pal_gpr_t* gpr;
+    void*    exit_target;
+    void*    fsbase;
+    void*    pre_ocall_stack;
+    void*    ustack_top;
+    void*    ustack;
+    struct pal_handle_thread* thread;
+    uint64_t ocall_exit_called;
+    uint64_t thread_started;
+    uint64_t ready_for_exceptions;
+    uint64_t manifest_size;
+    void*    heap_min;
+    void*    heap_max;
+    void*    exec_addr;
+    uint64_t exec_size;
+    int*     clear_child_tid;
+    struct untrusted_area untrusted_area_cache;
 };
 
 #ifndef DEBUG
@@ -45,6 +52,11 @@ extern uint64_t dummy_debug_variable;
 #endif
 
 # ifdef IN_ENCLAVE
+
+static inline struct enclave_tls* get_tcb_trts(void) {
+    return (struct enclave_tls*)pal_get_tcb();
+}
+
 #  define GET_ENCLAVE_TLS(member)                                   \
     ({                                                              \
         struct enclave_tls * tmp;                                   \
