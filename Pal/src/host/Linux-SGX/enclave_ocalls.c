@@ -92,6 +92,29 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
     return retval;
 }
 
+static int ocall_mmap_untrusted_cache(uint64_t size, void** mem) {
+    struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
+    if (cache->mem) {
+        if (cache->mem && cache->size >= size) {
+            *mem = cache->mem;
+            return 0;
+        }
+        int retval = ocall_munmap_untrusted(cache->mem, cache->size);
+        if (retval) {
+            cache->mem = NULL;
+            return retval;
+        }
+    }
+
+    cache->size = size;
+    int retval = ocall_mmap_untrusted(-1, 0, cache->size, PROT_READ | PROT_WRITE, &cache->mem);
+    if (retval) {
+        cache->mem = NULL;
+    }
+    *mem = cache->mem;
+    return retval;
+}
+
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
                  unsigned int values[4])
 {
@@ -173,7 +196,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
     ms_ocall_read_t * ms;
 
     if (count > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
+        retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
         if (IS_ERR(retval))
             return retval;
     }
@@ -207,8 +230,6 @@ int ocall_read (int fd, void * buf, unsigned int count)
 
 out:
     sgx_reset_ustack();
-    if (obuf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
@@ -225,7 +246,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
         /* typical case of buf inside of enclave memory */
         if (count > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
+            retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
@@ -257,8 +278,6 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 
 out:
     sgx_reset_ustack();
-    if (obuf && obuf != buf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
@@ -722,7 +741,7 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
     ms_ocall_recv_t * ms;
 
     if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
+        retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
         if (IS_ERR(retval))
             return retval;
     }
@@ -778,8 +797,6 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
 
 out:
     sgx_reset_ustack();
-    if (obuf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
@@ -798,7 +815,7 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
         /* typical case of buf inside of enclave memory */
         if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
+            retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
@@ -834,8 +851,6 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
 
 out:
     sgx_reset_ustack();
-    if (obuf && obuf != buf)
-        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
     return retval;
 }
 
