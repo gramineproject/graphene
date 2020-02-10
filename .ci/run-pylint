@@ -12,7 +12,8 @@ fi
 
 find . -name \*.py \
     -and -not -path ./Pal/lib/crypto/mbedtls/\* \
-    -and -not -path ./LibOS/glibc-\*/\* \
+    -and -not -path ./LibOS/glibc-build/\* \
+    -and -not -path ./LibOS/glibc-\?.\?\?/\* \
     -and -not -path ./LibOS/shim/test/apps/ltp/opt/\* \
     -and -not -path ./LibOS/shim/test/apps/ltp/src/\* \
 | sed 's/./\\&/g' \
