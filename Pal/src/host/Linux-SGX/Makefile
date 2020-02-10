@@ -104,7 +104,7 @@ clean: clean_
 
 .PHONY: distclean
 distclean: clean_
-	rm -f $(ias_cert_file)
+	$(RM) $(ias_cert_file)
 	$(MAKE) -C sgx-driver $@
 
 .PHONY: test
