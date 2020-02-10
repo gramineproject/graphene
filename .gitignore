@@ -22,8 +22,6 @@ pal.map
 *.pyc
 
 # sgx
-manifest
-*.manifest
 *.manifest.sgx
 *.sig
 *.token

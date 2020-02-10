@@ -1,4 +1,8 @@
+/*.manifest
 /*.xml
+
+/manifest
+/pal_loader
 
 /.cache
 /abort

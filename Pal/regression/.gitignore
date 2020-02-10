@@ -1,6 +1,8 @@
 /*.tmp
 /*.xml
+/*.manifest
 
+/manifest
 /pal_loader
 
 /.cache
