@@ -96,7 +96,7 @@ CLEAN_FILES += quote/generated-cacert.h
 .PHONY: clean_
 clean_:
 	$(RM) -r *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
-	       signer/__pycache__
+	         signer/__pycache__
 
 .PHONY: clean
 clean: clean_

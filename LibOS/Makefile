@@ -117,7 +117,7 @@ $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 
 .PHONY: clean_
 clean_:
-	rm -rf $(BUILD_DIR) $(GLIBC_SRC) build.log
+	$(RM) -f $(BUILD_DIR) $(GLIBC_SRC) build.log
 
 .PHONY: clean
 clean: clean_
