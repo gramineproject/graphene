@@ -138,8 +138,9 @@
     LIST_TYPE(STRUCT_NAME) {      \
         struct STRUCT_NAME* next; \
         struct STRUCT_NAME* prev; \
-    };                            \
-    typedef bool (*list_compare)(const void* node1, const void* node2);
+    };
+
+typedef bool (*list_compare)(const void* node1, const void* node2);
 
 /* We use LISTP for pointers to a list.  This project only really needs
  * doubly-linked lists.  We used hlists to get a single pointer for more
@@ -367,7 +368,6 @@
          /* Handle the case where the first element was removed. */                                \
          first_iter = first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP), (CURSOR) = (TMP), \
               (TMP) = (TMP)->FIELD.next)
-
 
 /* Continue safe iteration with CURSOR->next */
 #define LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(CURSOR, TMP, HEAD, FIELD)    \
