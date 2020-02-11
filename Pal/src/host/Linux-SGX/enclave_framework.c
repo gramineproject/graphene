@@ -259,8 +259,12 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf,
  * Returns 0 if succeeded, or an error code otherwise.
  */
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
-                       uint64_t * sizeptr, int create)
+                       uint64_t * sizeptr, int create, void** umem)
 {
+    *stubptr = NULL;
+    *sizeptr = 0;
+    *umem = NULL;
+
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
     char normpath[URI_MAX];
@@ -278,8 +282,6 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
        The created file is added to allowed_file list for later access */
     if (create && allow_file_creation) {
        register_trusted_file(uri, NULL);
-       *stubptr = NULL;
-       *sizeptr = 0;
        return 0;
     }
 
@@ -344,6 +346,19 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (tf->index < 0)
         return tf->index;
 
+    sgx_stub_t* stubs = NULL;
+    /* mmap the whole trusted file in untrusted memory for future reads/writes; it is
+     * caller's responsibility to unmap those areas after use */
+    *sizeptr = tf->size;
+    if (*sizeptr) {
+        ret = ocall_mmap_untrusted(fd, 0, tf->size, PROT_READ, umem);
+        if (IS_ERR(ret)) {
+            *umem = NULL;
+            ret = unix_to_pal_error(ERRNO(ret));
+            goto failed;
+        }
+    }
+
 #if CACHE_FILE_STUBS == 1
     if (tf->stubs) {
         *stubptr = tf->stubs;
@@ -355,14 +370,15 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
-    sgx_stub_t * stubs = malloc(sizeof(sgx_stub_t) * nstubs);
-    if (!stubs)
-        return -PAL_ERROR_NOMEM;
+    stubs = malloc(sizeof(sgx_stub_t) * nstubs);
+    if (!stubs) {
+        ret = -PAL_ERROR_NOMEM;
+        goto failed;
+    }
 
     sgx_stub_t * s = stubs; /* stubs is an array of 128bit values */
     uint64_t offset = 0;
     LIB_SHA256_CONTEXT sha;
-    void * umem;
 
     ret = lib_SHA256Init(&sha);
     if (ret < 0)
@@ -376,12 +392,6 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&enclave_key, sizeof(enclave_key));
         if (ret < 0)
             goto failed;
-
-        ret = ocall_mmap_untrusted(fd, offset, mapping_size, PROT_READ, &umem);
-        if (IS_ERR(ret)) {
-            ret = unix_to_pal_error(ERRNO(ret));
-            goto unmap;
-        }
 
         /*
          * To prevent TOCTOU attack when generating the file checksum, we
@@ -400,23 +410,21 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
             /* Any file content needs to be copied into the enclave before
              * checking and re-hashing */
-            memcpy(small_chunk, umem + chunk_offset, chunk_size);
+            memcpy(small_chunk, *umem + offset + chunk_offset, chunk_size);
 
             /* Update the file checksum */
             ret = lib_SHA256Update(&sha, small_chunk, chunk_size);
             if (ret < 0)
-                goto unmap;
+                goto failed;
 
             /* Update the checksum for the file chunk */
             ret = lib_AESCMACUpdate(&aes_cmac, small_chunk, chunk_size);
             if (ret < 0)
-                goto unmap;
+                goto failed;
         }
 
         /* Store the checksum for one file chunk for checking */
         ret = lib_AESCMACFinish(&aes_cmac, (uint8_t *) s, sizeof *s);
-unmap:
-        ocall_munmap_untrusted(umem, mapping_size);
         if (ret < 0)
             goto failed;
     }
@@ -439,33 +447,22 @@ unmap:
     if (tf->stubs || tf->index == -PAL_ERROR_DENIED)
         free(tf->stubs);
     *stubptr = tf->stubs = stubs;
-    *sizeptr = tf->size;
     ret = tf->index;
     spinlock_unlock(&trusted_file_lock);
     return ret;
 
 failed:
+    if (*umem) {
+        assert(*sizeptr > 0);
+        ocall_munmap_untrusted(*umem, *sizeptr);
+    }
     free(stubs);
 
     spinlock_lock(&trusted_file_lock);
-    if (tf->stubs) {
-        *stubptr = tf->stubs;
-        *sizeptr = tf->size;
-        ret = tf->index;
-    } else {
+    if (!tf->stubs) {
         tf->index = -PAL_ERROR_DENIED;
     }
     spinlock_unlock(&trusted_file_lock);
-
-#if PRINT_ENCLAVE_STAT
-    if (!ret) {
-        sgx_stub_t * loaded_stub;
-        uint64_t loaded_size;
-        PAL_HANDLE handle = NULL;
-        if (!_DkStreamOpen(&handle, normpath, PAL_ACCESS_RDONLY, 0, 0, 0))
-            load_trusted_file (handle, &loaded_stub, &loaded_size);
-    }
-#endif
 
     return ret;
 }
