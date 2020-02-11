@@ -35,7 +35,7 @@
 #include <shim_table.h>
 #include <shim_thread.h>
 
-static BEGIN_MIGRATION_DEF(__fork, struct shim_thread* thread, struct shim_process* process) {
+static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread, struct shim_process* process) {
     DEFINE_MIGRATE(process, process, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(all_vmas, NULL, 0);
@@ -48,12 +48,12 @@ static BEGIN_MIGRATION_DEF(__fork, struct shim_thread* thread, struct shim_proce
     DEFINE_MIGRATE(gdb_map, NULL, 0);
 #endif
 }
-END_MIGRATION_DEF(__fork)
+END_MIGRATION_DEF(fork)
 
 int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
                  struct shim_process* process, va_list ap) {
     __UNUSED(ap);
-    int ret = START_MIGRATE(store, __fork, thread, process);
+    int ret = START_MIGRATE(store, fork, thread, process);
 
     thread->in_vm = false;
 

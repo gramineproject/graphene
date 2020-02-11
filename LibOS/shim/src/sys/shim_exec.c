@@ -252,7 +252,7 @@ DEFINE_PROFILE_INTERVAL(search_and_check_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(open_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);
 
-static BEGIN_MIGRATION_DEF(__execve, struct shim_thread* thread, struct shim_process* proc,
+static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
                            const char** envp) {
     DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
@@ -261,7 +261,7 @@ static BEGIN_MIGRATION_DEF(__execve, struct shim_thread* thread, struct shim_pro
     DEFINE_MIGRATE(migratable, NULL, 0);
     DEFINE_MIGRATE(environ, envp, 0);
 }
-END_MIGRATION_DEF(__execve)
+END_MIGRATION_DEF(execve)
 
 /* thread is cur_thread stripped off stack & tcb (see below func);
  * process is new process which is forked and waits for checkpoint. */
@@ -283,7 +283,7 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
 
     SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
 
-    return START_MIGRATE(cpstore, __execve, thread, process, envp);
+    return START_MIGRATE(cpstore, execve, thread, process, envp);
 }
 
 int shim_do_execve(const char* file, const char** argv, const char** envp) {
