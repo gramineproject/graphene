@@ -18,13 +18,13 @@ $(SGX_SIGNER_KEY):
 %.token: %.sig
 	$(call cmd,sgx_get_token)
 
-%.sig %.manifest.sgx: %.manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+%.sig %.manifest.sgx: %.manifest % %.manifest.sgx.d
 	$(call cmd,sgx_sign_exec)
 
-%.sig %.manifest.sgx: manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+%.sig %.manifest.sgx: manifest % %.manifest.sgx.d
 	$(call cmd,sgx_sign_exec)
 
-%.sig %.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+%.sig %.manifest.sgx: %.manifest %.manifest.sgx.d
 	$(call cmd,sgx_sign)
 
 .PRECIOUS: %.manifest.sgx.d
