@@ -70,7 +70,8 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     sgx_stub_t* stubs;
     uint64_t total;
-    ret = load_trusted_file(hdl, &stubs, &total, create);
+    void* umem;
+    ret = load_trusted_file(hdl, &stubs, &total, create, &umem);
     if (ret < 0) {
         SGX_DBG(DBG_E,
                 "Accessing file:%s is denied. (%s) "
@@ -83,16 +84,16 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     hdl->file.stubs  = (PAL_PTR)stubs;
     hdl->file.total  = total;
     hdl->file.offset = 0;
-
-    if (hdl->file.stubs && hdl->file.total) {
+    if (hdl->file.stubs && hdl->file.total && !umem) {
         /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
-        ret = ocall_mmap_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
+        ret = ocall_mmap_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &umem);
         if (IS_ERR(ret)) {
             /* note that we don't free stubs because they are re-used in same trusted file */
             free(hdl);
             return unix_to_pal_error(ERRNO(ret));
         }
     }
+    hdl->file.umem = umem;
 
     *handle = hdl;
     return 0;
