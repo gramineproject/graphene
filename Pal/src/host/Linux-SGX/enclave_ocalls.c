@@ -94,24 +94,26 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
 
 static int ocall_mmap_untrusted_cache(uint64_t size, void** mem) {
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
-    if (cache->mem) {
-        if (cache->mem && cache->size >= size) {
+    if (cache->valid) {
+        if (cache->size >= size) {
             *mem = cache->mem;
             return 0;
         }
         int retval = ocall_munmap_untrusted(cache->mem, cache->size);
-        if (retval) {
-            cache->mem = NULL;
+        if (IS_ERR(retval)) {
+            cache->valid = false;
             return retval;
         }
     }
 
-    cache->size = size;
-    int retval = ocall_mmap_untrusted(-1, 0, cache->size, PROT_READ | PROT_WRITE, &cache->mem);
-    if (retval) {
-        cache->mem = NULL;
+    int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
+    if (IS_ERR(retval)) {
+        cache->valid = false;
+    } else {
+        cache->valid = true;
+        cache->mem = *mem;
+        cache->size = size;
     }
-    *mem = cache->mem;
     return retval;
 }
 
