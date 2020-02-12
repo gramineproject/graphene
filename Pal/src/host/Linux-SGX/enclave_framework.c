@@ -261,6 +261,7 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf,
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr, int create, void** umem)
 {
+    *stubptr = NULL;
     *sizeptr = 0;
     *umem = NULL;
 
@@ -281,8 +282,6 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
        The created file is added to allowed_file list for later access */
     if (create && allow_file_creation) {
        register_trusted_file(uri, NULL);
-       *stubptr = NULL;
-       *sizeptr = 0;
        return 0;
     }
 
@@ -348,15 +347,13 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         return tf->index;
 
     sgx_stub_t* stubs = NULL;
-    /*
-     * case of trusted file: mmap the whole file in untrusted memory for future reads/writes
-     * It's caller's responsibility to unmap those area after use
-     */
+    /* mmap the whole trusted file in untrusted memory for future reads/writes; it is
+     * caller's responsibility to unmap those areas after use */
     *sizeptr = tf->size;
     if (*sizeptr) {
         ret = ocall_mmap_untrusted(fd, 0, tf->size, PROT_READ, umem);
         if (IS_ERR(ret)) {
-            *sizeptr = 0;
+            *umem = NULL;
             ret = unix_to_pal_error(ERRNO(ret));
             goto failed;
         }
@@ -455,30 +452,17 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     return ret;
 
 failed:
-    if (*sizeptr > 0)
+    if (*umem) {
+        assert(*sizeptr > 0);
         ocall_munmap_untrusted(*umem, *sizeptr);
-    *umem = NULL;
+    }
     free(stubs);
 
     spinlock_lock(&trusted_file_lock);
-    if (tf->stubs) {
-        *stubptr = tf->stubs;
-        *sizeptr = tf->size;
-        ret = tf->index;
-    } else {
+    if (!tf->stubs) {
         tf->index = -PAL_ERROR_DENIED;
     }
     spinlock_unlock(&trusted_file_lock);
-
-#if PRINT_ENCLAVE_STAT
-    if (!ret) {
-        sgx_stub_t * loaded_stub;
-        uint64_t loaded_size;
-        PAL_HANDLE handle = NULL;
-        if (!_DkStreamOpen(&handle, normpath, PAL_ACCESS_RDONLY, 0, 0, 0))
-            load_trusted_file (handle, &loaded_stub, &loaded_size);
-    }
-#endif
 
     return ret;
 }
