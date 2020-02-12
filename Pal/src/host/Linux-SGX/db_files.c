@@ -104,6 +104,16 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
+        /*
+         * TODO: possible optimization to avoid one memory copy
+         * - ocall_mmap_untrusted()
+         * - memcpy()
+         * - ocall_munmap_untrusted()
+         *   mmap area can be cached for later IO
+         *
+         * What count is break-even to choose this option?
+         */
+
         /* case of allowed file: emulate via lseek + read */
         if (handle->file.offset != offset) {
             ret = ocall_lseek(handle->file.fd, offset, SEEK_SET);
@@ -146,6 +156,8 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
+        /* TODO: optimization: See the comment in file_read() */
+
         /* case of allowed file: emulate via lseek + write */
         if (handle->file.offset != offset) {
             ret = ocall_lseek(handle->file.fd, offset, SEEK_SET);
