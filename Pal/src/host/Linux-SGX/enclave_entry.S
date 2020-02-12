@@ -79,10 +79,7 @@ enclave_entry:
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
 	subq %gs:SGX_TCS_OFFSET, %rbx
-	movq %rbx, %r8
-
-	# push untrusted stack address to RCX
-	movq %rsp, %rcx
+	movq %rbx, %rcx
 
 	# switch to enclave stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
 	addq %gs:SGX_INITIAL_STACK_OFFSET, %rbx
@@ -91,6 +88,7 @@ enclave_entry:
 	# clear the rest of register states
 	xorq %rax, %rax
 	xorq %rbx, %rbx
+	xorq %r8, %r8
 	xorq %r9,  %r9
 	xorq %r10, %r10
 	xorq %r11, %r11
@@ -577,7 +575,8 @@ sgx_ocall:
 	# checks since the processor will ensure that after exiting enclave
 	# mode in-enclave memory can't be accessed.
 
-	movq %gs:SGX_USTACK, %rsp
+	movq %gs:SGX_GPR, %rbx
+	movq SGX_GPR_URSP(%rbx), %rsp
 
 #ifdef DEBUG
 	# Push %rip of some code inside __morestack() on untrusted stack.

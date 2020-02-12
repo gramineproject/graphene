@@ -39,9 +39,7 @@ static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
  *      Base address of enclave. Calculated dynamically in enclave_entry.S.
  *      Trusted.
  */
-void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
-                   void * untrusted_stack, void * enclave_base_addr)
-{
+void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* enclave_base_addr) {
     if (ecall_index < 0 || ecall_index >= ECALL_NR)
         return;
 
@@ -51,8 +49,7 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
     }
 
     SET_ENCLAVE_TLS(exit_target,     exit_target);
-    SET_ENCLAVE_TLS(ustack_top,      untrusted_stack);
-    SET_ENCLAVE_TLS(ustack,          untrusted_stack);
+    SET_ENCLAVE_TLS(ustack_top,      GET_ENCLAVE_TLS(gpr)->ursp);
     SET_ENCLAVE_TLS(clear_child_tid, NULL);
 
     if (atomic_cmpxchg(&enclave_start_called, 0, 1) == 0) {

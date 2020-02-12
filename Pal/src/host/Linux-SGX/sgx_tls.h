@@ -26,7 +26,6 @@ struct enclave_tls {
         void*    fsbase;
         void*    pre_ocall_stack;
         void*    ustack_top;
-        void*    ustack;
         struct pal_handle_thread* thread;
         uint64_t ocall_exit_called;
         uint64_t thread_started;
