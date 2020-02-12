@@ -37,9 +37,11 @@ bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
     return enclave_base >= addr + size || enclave_top <= addr;
 }
 
-static inline void sgx_set_ustack(void* ustack) {
+static inline void sgx_set_ursp(void* ustack) {
     /* atomically set ursp regarding to AEX */
-    *((volatile uint64_t*)&GET_ENCLAVE_TLS(gpr)->ursp) = (uint64_t)ustack;
+    __asm__ volatile("movq %1, %0\n"
+                     : "=m"(GET_ENCLAVE_TLS(gpr)->ursp)
+                     : "r"(ustack));
 }
 
 void* sgx_alloc_on_ustack(uint64_t size) {
@@ -47,7 +49,7 @@ void* sgx_alloc_on_ustack(uint64_t size) {
     if (!sgx_is_completely_outside_enclave(ustack, size)) {
         return NULL;
     }
-    sgx_set_ustack(ustack);
+    sgx_set_ursp(ustack);
     return ustack;
 }
 
@@ -63,7 +65,7 @@ void* sgx_copy_to_ustack(const void* ptr, uint64_t size) {
 }
 
 void sgx_reset_ustack(void) {
-    sgx_set_ustack(GET_ENCLAVE_TLS(ustack_top));
+    sgx_set_ursp(GET_ENCLAVE_TLS(ustack_top));
 }
 
 /* NOTE: Value from possibly untrusted uptr must be copied inside
