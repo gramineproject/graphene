@@ -85,7 +85,7 @@ int set_sighandler (int * sigs, int nsig, void * handler)
 {
     struct sigaction action;
     action.sa_handler = (void (*)(int)) handler;
-    action.sa_flags = SA_SIGINFO;
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
 
 #if !defined(__i386__)
     action.sa_flags |= SA_RESTORER;

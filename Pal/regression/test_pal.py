@@ -314,8 +314,24 @@ class TC_02_Symbols(RegressionTestCase):
             self.assertNotEqual(value, 0, 'symbol {} has value 0'.format(k))
 
 class TC_10_Exception(RegressionTestCase):
+    def is_altstack_different_from_main_stack(self, output):
+        mainstack = 0
+        altstack  = 0
+        for line in output.splitlines():
+            if line.startswith('Stack in main:'):
+                mainstack = int(line.split(':')[1], 0)
+            elif line.startswith('Stack in handler:'):
+                altstack = int(line.split(':')[1], 0)
+
+        # handler stack cannot be "close" to the main stack
+        if abs(mainstack - altstack) < 8192:
+            return False
+        return True
+
     def test_000_exception(self):
         _, stderr = self.run_binary(['Exception'])
+
+        self.assertTrue(self.is_altstack_different_from_main_stack(stderr))
 
         # Exception Handling (Div-by-Zero)
         self.assertIn('Arithmetic Exception Handler', stderr)

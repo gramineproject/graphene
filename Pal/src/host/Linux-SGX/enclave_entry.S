@@ -62,8 +62,7 @@ enclave_entry:
 	# RDI - ECALL number
 	# RSI - pointer to ecall arguments
 	# RDX - exit target
-	# RCX (former RSP) - The untrusted stack
-	# R8  - enclave base
+	# RCX - enclave base
 
 	cmpq $ECALL_THREAD_RESET, %rdi
 	je .Lhandle_thread_reset
@@ -79,10 +78,7 @@ enclave_entry:
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
 	subq %gs:SGX_TCS_OFFSET, %rbx
-	movq %rbx, %r8
-
-	# push untrusted stack address to RCX
-	movq %rsp, %rcx
+	movq %rbx, %rcx
 
 	# switch to enclave stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
 	addq %gs:SGX_INITIAL_STACK_OFFSET, %rbx
@@ -91,6 +87,7 @@ enclave_entry:
 	# clear the rest of register states
 	xorq %rax, %rax
 	xorq %rbx, %rbx
+	xorq %r8, %r8
 	xorq %r9,  %r9
 	xorq %r10, %r10
 	xorq %r11, %r11
