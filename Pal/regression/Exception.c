@@ -6,10 +6,18 @@
 #include "pal.h"
 #include "pal_debug.h"
 
+static void* get_stack(void) {
+    void* stack;
+    __asm__ volatile("mov %%rsp, %0" : "=r"(stack) :: "memory");
+    return stack;
+}
+
 void handler1 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     pal_printf("Arithmetic Exception Handler 1: 0x%08lx, rip = 0x%08lx\n",
                arg, context->rip);
+
+    pal_printf("Stack in handler: %p\n", get_stack());
 
     while (*(unsigned char *) context->rip != 0x90)
         context->rip++;
@@ -108,6 +116,8 @@ static void red_zone_test(void) {
 int main (void)
 {
     volatile long i;
+
+    pal_printf("Stack in main: %p\n", get_stack());
 
     DkSetExceptionHandler(handler1, PAL_EVENT_ARITHMETIC_ERROR);
     i = 0;

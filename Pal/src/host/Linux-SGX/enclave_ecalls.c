@@ -49,17 +49,11 @@ static int verify_and_init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
  *  exit_target:
  *      Address to return to after EEXIT. Untrusted.
  *
- *  untrusted_stack:
- *      Address to urts stack. Restored before EEXIT and used for ocall
- *      arguments. Untrusted.
- *
  *  enclave_base_addr:
  *      Base address of enclave. Calculated dynamically in enclave_entry.S.
  *      Trusted.
  */
-void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
-                   void * untrusted_stack, void * enclave_base_addr)
-{
+void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* enclave_base_addr) {
     if (ecall_index < 0 || ecall_index >= ECALL_NR)
         return;
 
@@ -68,9 +62,14 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
         enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
+    /* disallow malicious URSP (that points into the enclave) */
+    void* ursp = (void*)GET_ENCLAVE_TLS(gpr)->ursp;
+    if (enclave_base <= ursp && ursp <= enclave_top)
+        return;
+
     SET_ENCLAVE_TLS(exit_target,     exit_target);
-    SET_ENCLAVE_TLS(ustack_top,      untrusted_stack);
-    SET_ENCLAVE_TLS(ustack,          untrusted_stack);
+    SET_ENCLAVE_TLS(ustack,          ursp);
+    SET_ENCLAVE_TLS(ustack_top,      ursp);
     SET_ENCLAVE_TLS(clear_child_tid, NULL);
     SET_ENCLAVE_TLS(untrusted_area_cache.in_use, 0UL);
 

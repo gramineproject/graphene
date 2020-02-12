@@ -110,13 +110,11 @@ int pal_thread_init (void * tcbptr)
         return -ERRNO(ret);
 
     if (tcb->alt_stack) {
-        // Align stack to 16 bytes
-        void* alt_stack_top = ALIGN_DOWN_PTR(tcb, 16);
-        assert(alt_stack_top > tcb->alt_stack);
-        stack_t ss;
-        ss.ss_sp    = alt_stack_top;
-        ss.ss_flags = 0;
-        ss.ss_size  = alt_stack_top - tcb->alt_stack;
+        stack_t ss = {
+            .ss_sp    = tcb->alt_stack,
+            .ss_flags = 0,
+            .ss_size  = ALT_STACK_SIZE - sizeof(*tcb),
+        };
 
         ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
         if (IS_ERR(ret))
