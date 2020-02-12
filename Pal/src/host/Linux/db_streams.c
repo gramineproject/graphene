@@ -168,10 +168,6 @@ int handle_serialize(PAL_HANDLE handle, void** data) {
     return hdlsz + dsz1 + dsz2;
 }
 
-#ifndef SEEK_SET
-#define SEEK_SET 0
-#endif
-
 int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
     PAL_HANDLE hdl_data = (void*)data, hdl = NULL;
     int hdlsz = handle_size(hdl_data), ret = -PAL_ERROR_NOMEM;
