@@ -5,9 +5,9 @@
 #include "shim_types.h"
 #else
 /* XXX(borysp): This is hacky. Normally we would want to just include <sys/types.h> but it would
- * brake some tests in "inline" directory. The main reason is that other header files are not
+ * break some tests in "inline" directory. The main reason is that other header files are not
  * prepared for being included both in LibOS and in standalone binaries. Fortunately this header
- * onlt missed one type definition, hence this typedef sufficies. */
+ * only missed one type definition, hence this typedef suffices. */
 typedef int pid_t;
 #include <unistd.h>
 #endif

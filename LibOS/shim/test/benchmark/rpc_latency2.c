@@ -86,7 +86,8 @@ int main(int argc, char** argv) {
             gettimeofday(&timevals[1], NULL);
             close(pipes[0]);
 
-            if (write(pipes[5], timevals, sizeof(struct timeval) * 2) != sizeof(struct timeval) * 2) {
+            if (write(pipes[5], timevals, sizeof(struct timeval) * 2)
+                    != sizeof(struct timeval) * 2) {
                 perror("write error");
                 return 1;
             }

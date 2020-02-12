@@ -199,7 +199,9 @@ int eventfd_using_various_flags() {
             errno = 0;
             ssize_t ret = read(efd, &count, sizeof(count));
             if (ret != -1 || errno != EAGAIN) {
-                printf("read that should return -1 with EAGAIN returned: %ld with errno=%d\n", ret, errno);
+                printf("read that should return -1 with EAGAIN returned: %ld with errno=%d\n",
+                       ret,
+                       errno);
                 close(efd);
                 return 1;
             }
@@ -249,7 +251,7 @@ int eventfd_using_fork() {
         if (read(efd, &count, sizeof(count)) != sizeof(count)) {
             perror("read error");
             close(efd);
-            return 1;
+            exit(1);
         }
         if (count != 5) {
             printf("parent-pid=%d, efd = %d, count: %lu, errno=%d\n", getpid(), efd, count, errno);

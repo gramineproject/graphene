@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <stdalign.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +23,7 @@ int pipefds[4], key;
 void server(void) {
     struct timeval tv1, tv2;
     int msqid;
-    char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE] __attribute__((aligned(__alignof__(struct msgbuf))));
+    alignas(__alignof__(struct msgbuf)) char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE];
     struct msgbuf* buf = (struct msgbuf*)_data;
 
     if ((msqid = msgget(key, mode == SERIAL ? 0600 | IPC_CREAT : 0)) < 0) {
@@ -73,7 +74,7 @@ void server(void) {
 void client(void) {
     struct timeval tv1, tv2;
     int msqid;
-    char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE] __attribute__((aligned(__alignof__(struct msgbuf))));
+    alignas(__alignof__(struct msgbuf)) char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE];
     struct msgbuf* buf = (struct msgbuf*)_data;
     int ret;
 
