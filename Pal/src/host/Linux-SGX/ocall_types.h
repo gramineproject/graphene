@@ -28,13 +28,14 @@ enum {
     OCALL_CLOSE,
     OCALL_READ,
     OCALL_WRITE,
+    OCALL_PREAD,
+    OCALL_PWRITE,
     OCALL_FSTAT,
     OCALL_FIONREAD,
     OCALL_FSETNONBLOCK,
     OCALL_FCHMOD,
     OCALL_FSYNC,
     OCALL_FTRUNCATE,
-    OCALL_LSEEK,
     OCALL_MKDIR,
     OCALL_GETDENTS,
     OCALL_RESUME_THREAD,
@@ -108,6 +109,20 @@ typedef struct {
 
 typedef struct {
     int ms_fd;
+    void * ms_buf;
+    unsigned int ms_count;
+    uint64_t ms_offset;
+} ms_ocall_pread_t;
+
+typedef struct {
+    int ms_fd;
+    const void * ms_buf;
+    unsigned int ms_count;
+    uint64_t ms_offset;
+} ms_ocall_pwrite_t;
+
+typedef struct {
+    int ms_fd;
     struct stat ms_stat;
 } ms_ocall_fstat_t;
 
@@ -133,12 +148,6 @@ typedef struct {
     int ms_fd;
     uint64_t ms_length;
 } ms_ocall_ftruncate_t;
-
-typedef struct {
-    int ms_fd;
-    uint64_t ms_offset;
-    int ms_whence;
-} ms_ocall_lseek_t;
 
 typedef struct {
     const char * ms_pathname;
