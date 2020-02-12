@@ -18,9 +18,13 @@
  * size of 8MB. Thus, 512KB limit also works well for the main thread. */
 #define MAX_UNTRUSTED_STACK_BUF (THREAD_STACK_SIZE / 4)
 
+static void ocall_munmap_untrusted_cache(void);
+
 noreturn void ocall_exit(int exitcode, int is_exitgroup)
 {
     ms_ocall_exit_t * ms;
+
+    ocall_munmap_untrusted_cache();
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     ms->ms_exitcode     = exitcode;
@@ -115,6 +119,20 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem) {
         cache->size = size;
     }
     return retval;
+}
+
+static void ocall_munmap_untrusted_cache(void) {
+    struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
+    if (!cache->valid)
+        return;
+
+    int retval = ocall_munmap_untrusted(cache->mem, cache->size);
+    if (IS_ERR(retval)) {
+        /* there is not much we can do when the thread is exiting */
+    }
+
+    /* TCB will be re-used for next thread creation. */
+    cache->valid = false;
 }
 
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
@@ -499,6 +517,8 @@ int ocall_create_process(const char* uri, int nargs, const char** args, int* str
     int retval = 0;
     int ulen = uri ? strlen(uri) + 1 : 0;
     ms_ocall_create_process_t * ms;
+
+    ocall_munmap_untrusted_cache();
 
     ms = sgx_alloc_on_ustack(sizeof(*ms) + nargs * sizeof(char *));
     if (!ms) {
