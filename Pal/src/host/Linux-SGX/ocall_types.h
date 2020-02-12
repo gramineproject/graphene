@@ -109,14 +109,14 @@ typedef struct {
 
 typedef struct {
     int ms_fd;
-    void * ms_buf;
+    void* ms_buf;
     unsigned int ms_count;
     uint64_t ms_offset;
 } ms_ocall_pread_t;
 
 typedef struct {
     int ms_fd;
-    const void * ms_buf;
+    const void* ms_buf;
     unsigned int ms_count;
     uint64_t ms_offset;
 } ms_ocall_pwrite_t;
