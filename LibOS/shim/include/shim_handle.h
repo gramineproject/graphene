@@ -86,11 +86,6 @@ struct shim_file_handle {
     enum shim_file_type type;
     off_t size;
     off_t marker;
-
-    enum { FILEBUF_MAP, FILEBUF_NONE } buf_type;
-    size_t mapsize;
-    off_t mapoffset;
-    void* mapbuf;
 };
 
 #define FILE_HANDLE_DATA(hdl)  ((hdl)->info.file.data)
