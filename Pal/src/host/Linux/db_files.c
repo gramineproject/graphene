@@ -66,10 +66,6 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     return 0;
 }
 
-#ifndef SEEK_SET
-# define SEEK_SET 0
-#endif
-
 /* 'read' operation for file streams. */
 static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                           void * buffer)
