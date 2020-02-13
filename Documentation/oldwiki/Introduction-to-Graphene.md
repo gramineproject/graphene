@@ -129,7 +129,7 @@ To make Graphene aware of the SGX driver, run the following commands:
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
     # the console will prompt you for the path of the Intel SGX driver code
-    sudo ./load.sh
+    sudo insmod gsgx.ko
 
 #### Build Graphene for SGX
 

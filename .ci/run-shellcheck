@@ -10,7 +10,6 @@ shellcheck "$@" \
     LibOS/shim/test/apps/python-simple/run-tests.sh \
     LibOS/shim/test/native/*.sh \
     Pal/src/host/Linux-SGX/debugger/gdb \
-    Pal/src/host/Linux-SGX/sgx-driver/load.sh \
     Runtime/pal_loader \
     Scripts/clean-check \
     Scripts/clean-check-prepare \
