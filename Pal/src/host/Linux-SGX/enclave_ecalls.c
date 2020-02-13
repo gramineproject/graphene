@@ -49,6 +49,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
     }
 
     SET_ENCLAVE_TLS(exit_target,     exit_target);
+    SET_ENCLAVE_TLS(ustack,          GET_ENCLAVE_TLS(gpr)->ursp);
     SET_ENCLAVE_TLS(ustack_top,      GET_ENCLAVE_TLS(gpr)->ursp);
     SET_ENCLAVE_TLS(clear_child_tid, NULL);
 

@@ -575,8 +575,7 @@ sgx_ocall:
 	# checks since the processor will ensure that after exiting enclave
 	# mode in-enclave memory can't be accessed.
 
-	movq %gs:SGX_GPR, %rbx
-	movq SGX_GPR_URSP(%rbx), %rsp
+	movq %gs:SGX_USTACK, %rsp
 
 #ifdef DEBUG
 	# Push %rip of some code inside __morestack() on untrusted stack.

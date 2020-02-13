@@ -46,7 +46,6 @@ void dummy(void)
     OFFSET_T(SGX_GPR_R15, sgx_pal_gpr_t, r15);
     OFFSET_T(SGX_GPR_RFLAGS, sgx_pal_gpr_t, rflags);
     OFFSET_T(SGX_GPR_RIP, sgx_pal_gpr_t, rip);
-    OFFSET_T(SGX_GPR_URSP, sgx_pal_gpr_t, ursp);
     OFFSET_T(SGX_GPR_EXITINFO, sgx_pal_gpr_t, exitinfo);
     DEFINE(SGX_GPR_SIZE, sizeof(sgx_pal_gpr_t));
 
@@ -88,6 +87,7 @@ void dummy(void)
     OFFSET(SGX_FSBASE, enclave_tls, fsbase);
     OFFSET(SGX_PRE_OCALL_STACK, enclave_tls, pre_ocall_stack);
     OFFSET(SGX_USTACK_TOP, enclave_tls, ustack_top);
+    OFFSET(SGX_USTACK, enclave_tls, ustack);
     OFFSET(SGX_THREAD, enclave_tls, thread);
     OFFSET(SGX_OCALL_EXIT_CALLED, enclave_tls, ocall_exit_called);
     OFFSET(SGX_THREAD_STARTED, enclave_tls, thread_started);
