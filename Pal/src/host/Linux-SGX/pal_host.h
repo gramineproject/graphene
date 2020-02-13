@@ -95,6 +95,12 @@ typedef struct pal_handle
             /* below fields are used only for trusted files */
             PAL_PTR stubs;    /* contains hashes of file chunks */
             PAL_PTR umem;     /* valid only when stubs != NULL */
+
+            /* below fields are used only for untrusted files read */
+            size_t umap_length;
+            uint64_t umap_offset;
+            void* umap;
+            uint64_t file_size;
         } file;
 
         struct {

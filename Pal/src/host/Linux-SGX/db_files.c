@@ -41,6 +41,7 @@ typedef __kernel_pid_t pid_t;
 #include <linux/stat.h>
 
 #include "enclave_pages.h"
+#include "sgx_internal.h"
 
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
@@ -59,6 +60,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->file.fd     = fd;
+    hdl->file.umap_length = 0;
     char* path       = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
@@ -98,21 +100,108 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     return 0;
 }
 
+static void file_unmap_untrusted(PAL_HANDLE handle) {
+    if (!handle->file.umap_length)
+        return;
+
+    ocall_munmap_untrusted(handle->file.umap, handle->file.umap_length);
+    handle->file.umap_length = 0;
+}
+
+/* only for read for now */
+static int file_map_untrusted(PAL_HANDLE handle, uint64_t offset, size_t length) {
+    if (handle->file.umap_length) {
+        if (handle->file.umap_offset <= offset &&
+            offset + length <= handle->file.umap_offset + handle->file.umap_length)
+            return 0;
+        file_unmap_untrusted(handle);
+    }
+
+    uint64_t umap_offset = ALLOC_ALIGN_DOWN(offset);
+    size_t mappable_size = ALLOC_ALIGN_UP(handle->file.file_size - umap_offset);
+    if (mappable_size == 0)
+        return -EINVAL;
+    size_t map_needed = ALLOC_ALIGN_UP(offset + length - umap_offset);
+    size_t umap_length = g_page_size;
+    while (umap_length < map_needed)
+        umap_length *= 2;
+    umap_length = MIN(umap_length, mappable_size);
+
+    void* umap;
+    int ret = ocall_mmap_untrusted(handle->file.fd, umap_offset, umap_length, PROT_READ | MAP_SHARED, &umap);
+    if (IS_ERR(ret))
+        return ret;
+
+    handle->file.umap = umap;
+    handle->file.umap_offset = umap_offset;
+    handle->file.umap_length = umap_length;
+    return 0;
+}
+
+static int64_t file_memcpy_untrusted(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
+    int64_t copy = MIN(count, handle->file.umap_offset + handle->file.umap_length - offset);
+    memcpy(buffer, handle->file.umap + (offset - handle->file.umap_offset), copy);
+    return copy;
+}
+
+static int64_t file_map_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
+    /* race: the file can be truncated by others. need to prepare for SIGBUS */
+    struct stat stat;
+    int ret = ocall_fstat(handle->file.fd, &stat);
+    if (IS_ERR(ret))
+        return ret;
+    if (offset >= (uint64_t)stat.st_size)
+        return 0;
+    handle->file.file_size = stat.st_size;
+    count = MIN(count, stat.st_size - offset);
+
+    int64_t head = 0;
+    if (handle->file.umap_length &&
+        handle->file.umap_offset <= offset &&
+        offset < handle->file.umap_offset + handle->file.umap_length) {
+        head = file_memcpy_untrusted(handle, offset, count, buffer);
+
+        buffer += head;
+        offset += head;
+        count -= head;
+        if (!count)
+            return head;
+    }
+
+    int64_t tail = 0;
+    if (handle->file.umap_length &&
+        handle->file.umap_offset <= offset + count &&
+        offset + count < handle->file.umap_offset + handle->file.umap_length) {
+        uint64_t tail_offset = offset + count - MAX(offset, handle->file.umap_offset);
+        uint64_t tail_count = offset + count - tail_offset;
+        tail = file_memcpy_untrusted(handle, tail_offset, tail_count, buffer + (tail_offset - offset));
+
+        count -= tail;
+        assert(count);
+    }
+
+    ret = file_map_untrusted(handle, offset, count);
+    if (IS_ERR(ret)) {
+        return head ? head : ret;
+    }
+
+    int64_t copied = file_memcpy_untrusted(handle, offset, count, buffer);
+    assert((uint64_t)copied == count);
+    return head + copied + tail;
+}
+
 /* 'read' operation for file streams. */
 static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
     int64_t ret;
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        /*
-         * TODO: possible optimization to avoid one memory copy
-         * - ocall_mmap_untrusted()
-         * - memcpy()
-         * - ocall_munmap_untrusted()
-         *   mmap area can be cached for later IO
-         *
-         * What count is break-even to choose this option?
-         */
+#define MAP_READ_THRETHOLD  (g_page_size * 4)   /* TODO: what size is good? */
+        if (count > MAP_READ_THRETHOLD) {
+            ret = file_map_read(handle, offset, count, buffer);
+            if (!IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
+        }
 
         /* case of allowed file: emulate via lseek + read */
         if (handle->file.offset != offset) {
@@ -156,8 +245,6 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        /* TODO: optimization: See the comment in file_read() */
-
         /* case of allowed file: emulate via lseek + write */
         if (handle->file.offset != offset) {
             ret = ocall_lseek(handle->file.fd, offset, SEEK_SET);
@@ -189,6 +276,7 @@ static int file_close(PAL_HANDLE handle) {
         ocall_munmap_untrusted(handle->file.umem, handle->file.total);
     }
 
+    file_unmap_untrusted(handle);
     ocall_close(fd);
 
     /* initial realpath is part of handle object and will be freed with it */
