@@ -94,7 +94,7 @@ following commands to build the driver:
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
     # the console will prompt you for the path of the Intel SGX driver code
-    sudo ./load.sh
+    sudo insmod gsgx.ko
 
 If the Graphene SGX driver is successfully installed, and the Intel SDK aesmd service is up and
 running (see [here](https://github.com/01org/linux-sgx#start-or-stop-aesmd-service) for more

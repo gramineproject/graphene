@@ -1,16 +1,15 @@
+#include <asm/errno.h>
 #include <hex.h>
 #include <pal_linux.h>
 #include <pal_rtld.h>
-#include "sgx_internal.h"
+
+#include "gsgx.h"
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
-#include "graphene-sgx.h"
-
-#include <asm/errno.h>
+#include "sgx_internal.h"
 
 int gsgx_device = -1;
 int isgx_device = -1;
-#define ISGX_FILE "/dev/isgx"
 
 void * zero_page;
 
@@ -19,7 +18,7 @@ int open_gsgx(void)
     gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR | O_CLOEXEC, 0);
     if (IS_ERR(gsgx_device)) {
         SGX_DBG(DBG_E, "Cannot open device " GSGX_FILE ". Please make sure the"
-                " \'graphene_sgx\' kernel module is loaded.\n");
+                " Graphene SGX kernel module is loaded.\n");
         return -ERRNO(gsgx_device);
     }
 
@@ -127,7 +126,7 @@ bool is_wrfsbase_supported (void)
 
     if (!(cpuinfo[1] & 0x1)) {
         SGX_DBG(DBG_E, "The WRFSBASE instruction is not permitted on this"
-                " platform. Please make sure the \'graphene_sgx\' kernel module"
+                " platform. Please make sure the Graphene SGX kernel module"
                 " is loaded properly.\n");
         return false;
     }
@@ -178,19 +177,10 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     assert(secs->base == addr);
 
-#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_create param = {
         .src = (uint64_t) secs,
     };
-    int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_CREATE,
-                         &param);
-#else
-    struct gsgx_enclave_create param = {
-        .src = (uint64_t) secs,
-    };
-    int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_CREATE,
-                         &param);
-#endif
+    int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_CREATE, &param);
 
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_I, "enclave ECREATE failed in enclave creation ioctl - %d\n", ERRNO(ret));
@@ -267,7 +257,6 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                 addr, addr + size, t, p, comment, m);
 
 
-#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_add_page param = {
         .addr       = secs->base + (uint64_t) addr,
         .src        = (uint64_t) (user_addr ? : zero_page),
@@ -288,28 +277,6 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
         if (param.src != (uint64_t) zero_page) param.src += g_page_size;
         added_size += g_page_size;
     }
-#else
-    struct gsgx_enclave_add_pages param = {
-        .addr       = secs->baseaddr + (uint64_t) addr,
-        .user_addr  = (uint64_t) user_addr,
-        .size       = size,
-        .secinfo    = (uint64_t) &secinfo,
-        .flags      = skip_eextend ? GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND : 0,
-    };
-
-    if (!user_addr) {
-        param.user_addr = (unsigned long) zero_page;
-        param.flags |= GSGX_ENCLAVE_ADD_PAGES_REPEAT_SRC;
-    }
-
-    ret = INLINE_SYSCALL(ioctl, 3, gsgx_device,
-                         GSGX_IOCTL_ENCLAVE_ADD_PAGES,
-                         &param);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_I, "Enclave add page returned %d\n", ret);
-        return -ERRNO(ret);
-    }
-#endif
 
     return 0;
 }
@@ -328,7 +295,6 @@ int init_enclave(sgx_arch_secs_t * secs,
         SGX_DBG(DBG_I, " %02x", sigstruct->body.enclave_hash.m[i]);
     SGX_DBG(DBG_I, "\n");
 
-#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_init param = {
         .addr           = enclave_valid_addr,
         .sigstruct      = (uint64_t) sigstruct,
@@ -336,15 +302,6 @@ int init_enclave(sgx_arch_secs_t * secs,
     };
     int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_INIT,
                              &param);
-#else
-    struct gsgx_enclave_init param = {
-        .addr           = enclave_valid_addr,
-        .sigstruct      = (uint64_t) sigstruct,
-        .einittoken     = (uint64_t) token,
-    };
-    int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_INIT,
-                             &param);
-#endif
 
     if (IS_ERR(ret)) {
         return -ERRNO(ret);

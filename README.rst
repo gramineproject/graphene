@@ -115,7 +115,7 @@ Prerequisites
       cd Pal/src/host/Linux-SGX/sgx-driver
       make
       # The console will be prompted to ask for the path of Intel SGX driver code
-      sudo ./load.sh
+      sudo insmod gsgx.ko
       sudo sysctl vm.mmap_min_addr = 0
 
    We note that this last command is a tempoarary work-around for some issues with the Intel SGX
