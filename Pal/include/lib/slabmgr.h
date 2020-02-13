@@ -251,7 +251,7 @@ static inline SLAB_MGR create_slab_mgr(void) {
         mgr->size[i] = 0;
         __set_free_slab_area(area, mgr, i);
 
-        addr += __MAX_MEM_SIZE(slab_levels[i], STARTUP_SIZE);
+        addr += __MAX_MEM_SIZE(slab_levels[i], size);
     }
 
     return mgr;
@@ -269,7 +269,7 @@ static inline void destroy_slab_mgr(SLAB_MGR mgr) {
                 system_free(area, __MAX_MEM_SIZE(slab_levels[i], area->size));
         }
 
-        addr += __MAX_MEM_SIZE(slab_levels[i], STARTUP_SIZE);
+        addr += __MAX_MEM_SIZE(slab_levels[i], area->size);
     }
 
     system_free(mgr, addr - (void*)mgr);
