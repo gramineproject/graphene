@@ -61,7 +61,7 @@ urts-asm-objs = sgx_entry.o
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
-all: sgx-driver/isgx_version.h $(host_files)
+all: sgx-driver/sgx.h $(host_files)
 
 libpal-Linux-SGX.a: $(enclave-objs) $(enclave-asm-objs)
 	$(call cmd,ar_a_o)
@@ -114,7 +114,7 @@ debugger/sgx_gdb.so: debugger/sgx_gdb.c
 
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
-sgx-driver/isgx_version.h:
+sgx-driver/sgx.h:
 	$(MAKE) -C sgx-driver $(notdir $@)
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
