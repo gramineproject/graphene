@@ -200,7 +200,7 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
         if (count > MAP_READ_THRETHOLD) {
             ret = file_map_read(handle, offset, count, buffer);
             if (!IS_ERR(ret))
-                return unix_to_pal_error(ERRNO(ret));
+                return ret;
         }
 
         /* case of allowed file: emulate via lseek + read */
