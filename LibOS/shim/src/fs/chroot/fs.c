@@ -624,21 +624,15 @@ static int chroot_hstat (struct shim_handle * hdl, struct stat * stat)
     return query_dentry(hdl->dentry, hdl->pal_handle, NULL, stat);
 }
 
-static void chroot_flush_map(struct shim_handle* hdl) {
-    __UNUSED(hdl);
-}
-
 static int chroot_flush(struct shim_handle* hdl) {
     int ret = DkStreamFlush(hdl->pal_handle);
     if (ret < 0)
         return ret;
-
-    chroot_flush_map(hdl);
     return 0;
 }
 
 static int chroot_close(struct shim_handle* hdl) {
-    chroot_flush_map(hdl);
+    __UNUSED(hdl);
     return 0;
 }
 
