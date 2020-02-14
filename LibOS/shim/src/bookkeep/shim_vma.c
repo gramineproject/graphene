@@ -55,7 +55,7 @@ struct shim_vma {
 #define VMA_MGR_ALLOC   DEFAULT_VMA_COUNT
 #define RESERVED_VMAS   6
 
-static int num_reserved_vmas;
+static int g_num_reserved_vmas;
 static struct shim_vma * reserved_vmas[RESERVED_VMAS];
 static struct shim_vma early_vmas[RESERVED_VMAS];
 
@@ -313,7 +313,7 @@ int init_vma(void) {
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
         reserved_vmas[i] = &early_vmas[i];
-    num_reserved_vmas = RESERVED_VMAS;
+    g_num_reserved_vmas = RESERVED_VMAS;
 
     /* Bookkeeping for preloaded areas */
 
@@ -373,7 +373,7 @@ int init_vma(void) {
         reserved_vmas[i] = get_mem_obj_from_mgr(vma_mgr);
         assert(reserved_vmas[i]);
     }
-    num_reserved_vmas = RESERVED_VMAS;
+    g_num_reserved_vmas = RESERVED_VMAS;
 
     current_heap_top = PAL_CB(user_address.end);
 
@@ -410,8 +410,8 @@ static inline struct shim_vma * __get_new_vma (void)
     if (vma_mgr)
         tmp = get_mem_obj_from_mgr(vma_mgr);
     if (tmp == NULL) {
-        if (num_reserved_vmas) {
-            tmp = reserved_vmas[--num_reserved_vmas];
+        if (g_num_reserved_vmas) {
+            tmp = reserved_vmas[--g_num_reserved_vmas];
         }
     }
 
@@ -429,16 +429,41 @@ static inline struct shim_vma * __get_new_vma (void)
 static inline void __restore_reserved_vmas(void) {
     assert(locked(&vma_list_lock));
 
-    if (num_reserved_vmas > 2)
+    /*
+     * On entry bkeep_mmap(), it needs to be ensured that
+     * two(at least) reserved_vmas are available.
+     * i.e. two shim_vma can be allocated without (recursively)
+     * calling system_malloc(__malloc) which requires shim_vma again.
+     *
+     * bkeep_mmap() may call system_malloc() and then
+     * the call flow looks like this.
+     * bkeep_mmap() may call recursively
+     * -> __get_new_vma(): one shim_vma is used for the requested region
+     * -> __restore_reserved_vmas()
+     *   -> get_mem_obj_from_mgr_enlarge()
+     *   -> system_malloc()=__malloc()
+     *   -> __bkeep_unmapped()
+     *   -> __bkep_mmap()
+     *   -> __get_new_vma()
+     *   -> try to use g_served_vmas[]
+     *      and it must success.
+     *      and then reserved vmas are re-populated.
+     */
+    if (g_num_reserved_vmas >= 2)
         return;
 
-    for (; num_reserved_vmas < RESERVED_VMAS; num_reserved_vmas++) {
+    /*
+     * get_mem_obj_from_mgr_enlarge() may call system_malloc() (==__malloc())
+     * which calls __get_new_vma() to consume g_reserved_vma.
+     */
+    assert(g_num_reserved_vmas);
+    while (g_num_reserved_vmas < RESERVED_VMAS) {
         struct shim_vma * new = get_mem_obj_from_mgr_enlarge(vma_mgr,
                                                              size_align_up(VMA_MGR_ALLOC));
 
         /* this allocation must succeed */
         assert(new);
-        reserved_vmas[num_reserved_vmas] = new;
+        reserved_vmas[g_num_reserved_vmas++] = new;
     }
 }
 
@@ -451,8 +476,8 @@ static inline void __drop_vma (struct shim_vma * vma)
 
     if (lookup_cache == vma)
         lookup_cache = NULL;
-    if (num_reserved_vmas < RESERVED_VMAS)
-        reserved_vmas[num_reserved_vmas++] = vma;
+    if (g_num_reserved_vmas < RESERVED_VMAS)
+        reserved_vmas[g_num_reserved_vmas++] = vma;
     else
         free_mem_obj_to_mgr(vma_mgr, vma);
 }
@@ -539,6 +564,7 @@ int bkeep_mmap (void * addr, size_t length, int prot, int flags,
     debug("bkeep_mmap: %p-%p\n", addr, addr + length);
 
     lock(&vma_list_lock);
+    assert(g_num_reserved_vmas >= 2);/* see the comment in __restore_reserved_vmas() */
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mmap(prev, addr, addr + length, prot, flags, file, offset,
