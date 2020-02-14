@@ -36,7 +36,7 @@
 
 /*
  * Internal bookkeeping for VMAs (virtual memory areas). This data
- * structure can only be accessed in this source file, with vma_list_lock
+ * structure can only be accessed in this source file, with g_vma_list_lock
  * held. No reference counting needed in this data structure.
  */
 DEFINE_LIST(shim_vma);
@@ -56,8 +56,8 @@ struct shim_vma {
 #define RESERVED_VMAS   6
 
 static int g_num_reserved_vmas;
-static struct shim_vma * reserved_vmas[RESERVED_VMAS];
-static struct shim_vma early_vmas[RESERVED_VMAS];
+static struct shim_vma * g_reserved_vmas[RESERVED_VMAS];
+static struct shim_vma g_early_vmas[RESERVED_VMAS];
 
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
                                 size_t length, int prot, int flags,
@@ -98,19 +98,19 @@ static inline void * __malloc (size_t size)
 #include <memmgr.h>
 
 /*
- * "vma_mgr" has no specific lock. "vma_list_lock" must be held when
+ * "g_vma_mgr" has no specific lock. "g_vma_list_lock" must be held when
  * allocating or freeing any VMAs.
  */
-static MEM_MGR vma_mgr = NULL;
+static MEM_MGR g_vma_mgr = NULL;
 
 /*
- * "vma_list" contains a sorted list of non-overlapping VMAs.
- * "vma_list_lock" must be held when accessing either the vma_list or any
+ * "g_vma_list" contains a sorted list of non-overlapping VMAs.
+ * "g_vma_list_lock" must be held when accessing either the g_vma_list or any
  * field of a VMA.
  */
 DEFINE_LISTP(shim_vma);
-static LISTP_TYPE(shim_vma) vma_list = LISTP_INIT;
-static struct shim_lock vma_list_lock;
+static LISTP_TYPE(shim_vma) g_vma_list = LISTP_INIT;
+static struct shim_lock g_vma_list_lock;
 
 /*
  * Return true if [s, e) is exactly the area represented by vma.
@@ -166,12 +166,12 @@ static inline bool test_vma_overlap (struct shim_vma * vma,
 
 static inline void __assert_vma_list (void)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     struct shim_vma * tmp;
     struct shim_vma * prev __attribute__((unused)) = NULL;
 
-    LISTP_FOR_EACH_ENTRY(tmp, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &g_vma_list, list) {
         /* Assert we are really sorted */
         assert(tmp->end > tmp->start);
         assert(!prev || prev->end <= tmp->start);
@@ -180,7 +180,7 @@ static inline void __assert_vma_list (void)
 }
 
 // In a debug build only, assert that the VMA list is
-// sorted.  This should be called with the vma_list_lock held.
+// sorted.  This should be called with the g_vma_list_lock held.
 static inline void assert_vma_list (void)
 {
 #ifdef DEBUG
@@ -194,13 +194,13 @@ static inline void assert_vma_list (void)
  * __lookup_vma() fills "pprev" even when the function cannot find a
  * matching vma for "addr".
  *
- * vma_list_lock must be held when calling this function.
+ * g_vma_list_lock must be held when calling this function.
  */
 static struct shim_vma* lookup_cache = NULL;
 static inline struct shim_vma *
 __lookup_vma (void * addr, struct shim_vma ** pprev)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     struct shim_vma * vma, * prev = NULL;
     struct shim_vma * found = NULL;
@@ -209,7 +209,7 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
         vma = lookup_cache;
         goto skip;
     }
-    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &g_vma_list, list) {
         if (addr < vma->start)
             break;
         if (test_vma_contain(vma, addr, addr + 1)) {
@@ -232,48 +232,48 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
 
 /*
  * __insert_vma() places "vma" after "prev", or at the beginning of
- * vma_list if "prev" is NULL. vma_list_lock must be held when calling
+ * g_vma_list if "prev" is NULL. g_vma_list_lock must be held when calling
  * this function.
  */
 static inline void
 __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
     assert(!prev || prev->end <= vma->start);
     assert(vma != prev);
 
     /* check the next entry */
     struct shim_vma * next = prev ?
-            LISTP_NEXT_ENTRY(prev, &vma_list, list) :
-            LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list);
+            LISTP_NEXT_ENTRY(prev, &g_vma_list, list) :
+            LISTP_FIRST_ENTRY(&g_vma_list, struct shim_vma, list);
 
     __UNUSED(next);
     assert(!next || vma->end <= next->start);
 
     if (prev)
-        LISTP_ADD_AFTER(vma, prev, &vma_list, list);
+        LISTP_ADD_AFTER(vma, prev, &g_vma_list, list);
     else
-        LISTP_ADD(vma, &vma_list, list);
+        LISTP_ADD(vma, &g_vma_list, list);
 }
 
 /*
  * __remove_vma() removes "vma" after "prev", or at the beginnning of
- * vma_list if "prev" is NULL. vma_list_lock must be held when calling
+ * g_vma_list if "prev" is NULL. g_vma_list_lock must be held when calling
  * this function.
  */
 static inline void
 __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
     __UNUSED(prev);
     assert(vma != prev);
-    LISTP_DEL(vma, &vma_list, list);
+    LISTP_DEL(vma, &g_vma_list, list);
 }
 
 /*
  * Storing a cursor pointing to the current heap top. With ASLR, the cursor
  * is randomized at initialization. The cursor is monotonically decremented
- * when allocating user VMAs. Updating this cursor needs holding vma_list_lock.
+ * when allocating user VMAs. Updating this cursor needs holding g_vma_list_lock.
  */
 static void * current_heap_top;
 
@@ -292,7 +292,7 @@ static int
 __bkeep_preloaded (void * start, void * end, int prot, int flags,
                    const char * comment)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     if (!start || !end || start == end)
         return 0;
@@ -305,14 +305,14 @@ __bkeep_preloaded (void * start, void * end, int prot, int flags,
 int init_vma(void) {
     int ret = 0;
 
-    if (!create_lock(&vma_list_lock)) {
+    if (!create_lock(&g_vma_list_lock)) {
         return -ENOMEM;
     }
 
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
-        reserved_vmas[i] = &early_vmas[i];
+        g_reserved_vmas[i] = &g_early_vmas[i];
     g_num_reserved_vmas = RESERVED_VMAS;
 
     /* Bookkeeping for preloaded areas */
@@ -350,18 +350,18 @@ int init_vma(void) {
 
     /* Initialize the allocator */
 
-    if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
+    if (!(g_vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
         debug("failed creating the VMA allocator\n");
         ret = -ENOMEM;
         goto out;
     }
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++) {
-        if (!reserved_vmas[i]) {
-            struct shim_vma * new = get_mem_obj_from_mgr(vma_mgr);
+        if (!g_reserved_vmas[i]) {
+            struct shim_vma * new = get_mem_obj_from_mgr(g_vma_mgr);
             assert(new);
-            struct shim_vma * e = &early_vmas[i];
-            struct shim_vma * prev = LISTP_PREV_ENTRY(e, &vma_list, list);
+            struct shim_vma * e = &g_early_vmas[i];
+            struct shim_vma * prev = LISTP_PREV_ENTRY(e, &g_vma_list, list);
             debug("Converting early VMA [%p] %p-%p\n", e, e->start, e->end);
             memcpy(new, e, sizeof(*e));
             INIT_LIST_HEAD(new, list);
@@ -370,8 +370,8 @@ int init_vma(void) {
         }
 
         /* replace all reserved VMAs */
-        reserved_vmas[i] = get_mem_obj_from_mgr(vma_mgr);
-        assert(reserved_vmas[i]);
+        g_reserved_vmas[i] = get_mem_obj_from_mgr(g_vma_mgr);
+        assert(g_reserved_vmas[i]);
     }
     g_num_reserved_vmas = RESERVED_VMAS;
 
@@ -397,21 +397,21 @@ int init_vma(void) {
     debug("heap top adjusted to %p\n", current_heap_top);
 
 out:
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return ret;
 }
 
 static inline struct shim_vma * __get_new_vma (void)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     struct shim_vma * tmp = NULL;
 
-    if (vma_mgr)
-        tmp = get_mem_obj_from_mgr(vma_mgr);
+    if (g_vma_mgr)
+        tmp = get_mem_obj_from_mgr(g_vma_mgr);
     if (tmp == NULL) {
         if (g_num_reserved_vmas) {
-            tmp = reserved_vmas[--g_num_reserved_vmas];
+            tmp = g_reserved_vmas[--g_num_reserved_vmas];
         }
     }
 
@@ -427,7 +427,7 @@ static inline struct shim_vma * __get_new_vma (void)
 }
 
 static inline void __restore_reserved_vmas(void) {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     /*
      * On entry bkeep_mmap(), it needs to be ensured that
@@ -458,18 +458,18 @@ static inline void __restore_reserved_vmas(void) {
      */
     assert(g_num_reserved_vmas);
     while (g_num_reserved_vmas < RESERVED_VMAS) {
-        struct shim_vma * new = get_mem_obj_from_mgr_enlarge(vma_mgr,
+        struct shim_vma * new = get_mem_obj_from_mgr_enlarge(g_vma_mgr,
                                                              size_align_up(VMA_MGR_ALLOC));
 
         /* this allocation must succeed */
         assert(new);
-        reserved_vmas[g_num_reserved_vmas++] = new;
+        g_reserved_vmas[g_num_reserved_vmas++] = new;
     }
 }
 
 static inline void __drop_vma (struct shim_vma * vma)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     if (vma->file)
         put_handle(vma->file);
@@ -477,9 +477,9 @@ static inline void __drop_vma (struct shim_vma * vma)
     if (lookup_cache == vma)
         lookup_cache = NULL;
     if (g_num_reserved_vmas < RESERVED_VMAS)
-        reserved_vmas[g_num_reserved_vmas++] = vma;
+        g_reserved_vmas[g_num_reserved_vmas++] = vma;
     else
-        free_mem_obj_to_mgr(vma_mgr, vma);
+        free_mem_obj_to_mgr(g_vma_mgr, vma);
 }
 
 static inline void
@@ -526,7 +526,7 @@ static int __bkeep_mmap (struct shim_vma * prev,
                          struct shim_handle * file, off_t offset,
                          const char * comment)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     int ret = 0;
     struct shim_vma * new = __get_new_vma();
@@ -563,7 +563,7 @@ int bkeep_mmap (void * addr, size_t length, int prot, int flags,
 
     debug("bkeep_mmap: %p-%p\n", addr, addr + length);
 
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
     assert(g_num_reserved_vmas >= 2);/* see the comment in __restore_reserved_vmas() */
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
@@ -571,7 +571,7 @@ int bkeep_mmap (void * addr, size_t length, int prot, int flags,
                            comment);
     assert_vma_list();
     __restore_reserved_vmas();
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return ret;
 }
 
@@ -582,12 +582,12 @@ int bkeep_mmap (void * addr, size_t length, int prot, int flags,
  * (2) [start, end) overlaps with the ending of the VMA.
  * (3) [start, end) overlaps with the middle of the VMA. In this case, the VMA
  *     is splitted into two. The new VMA is stored in 'tailptr'.
- * In either of these cases, "vma" is the only one changed among vma_list.
+ * In either of these cases, "vma" is the only one changed among g_vma_list.
  */
 static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end,
                                  struct shim_vma ** tailptr)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     if (test_vma_startin(vma, start, end)) {
         /*
@@ -664,20 +664,20 @@ static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end
 static int __bkeep_munmap (struct shim_vma ** pprev,
                            void * start, void * end, int flags)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     struct shim_vma * prev = *pprev;
     struct shim_vma * cur, * next;
 
     if (!prev) {
-        cur = LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list);
+        cur = LISTP_FIRST_ENTRY(&g_vma_list, struct shim_vma, list);
         if (!cur)
             return 0;
     } else {
-        cur = LISTP_NEXT_ENTRY(prev, &vma_list, list);
+        cur = LISTP_NEXT_ENTRY(prev, &g_vma_list, list);
     }
 
-    next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
+    next = cur ? LISTP_NEXT_ENTRY(cur, &g_vma_list, list) : NULL;
 
     while (cur) {
         struct shim_vma * tail = NULL;
@@ -715,13 +715,13 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
         }
 
         cur = next;
-        next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
+        next = cur ? LISTP_NEXT_ENTRY(cur, &g_vma_list, list) : NULL;
     }
 
     if (prev)
-        assert(cur == LISTP_NEXT_ENTRY(prev, &vma_list, list));
+        assert(cur == LISTP_NEXT_ENTRY(prev, &g_vma_list, list));
     else
-        assert(cur == LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list));
+        assert(cur == LISTP_FIRST_ENTRY(&g_vma_list, struct shim_vma, list));
 
     assert(!prev || prev->end <= start);
     assert(!cur || end <= cur->start);
@@ -736,7 +736,7 @@ int bkeep_munmap (void * addr, size_t length, int flags)
 
     debug("bkeep_munmap: %p-%p\n", addr, addr + length);
 
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_munmap(&prev, addr, addr + length, flags);
@@ -745,7 +745,7 @@ int bkeep_munmap (void * addr, size_t length, int flags)
     /* DEP 5/20/19: If this is a debugging region we are removing, take it out
      * of the checkpoint.  Otherwise, it will be restored erroneously after a fork. */
     remove_r_debug(addr);
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return ret;
 }
 
@@ -762,19 +762,19 @@ int bkeep_munmap (void * addr, size_t length, int flags)
 static int __bkeep_mprotect (struct shim_vma * prev,
                              void * start, void * end, int prot, int flags)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
 
     struct shim_vma * cur, * next;
 
     if (!prev) {
-        cur = LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list);
+        cur = LISTP_FIRST_ENTRY(&g_vma_list, struct shim_vma, list);
         if (!cur)
             return 0;
     } else {
-        cur = LISTP_NEXT_ENTRY(prev, &vma_list, list);
+        cur = LISTP_NEXT_ENTRY(prev, &g_vma_list, list);
     }
 
-    next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
+    next = cur ? LISTP_NEXT_ENTRY(cur, &g_vma_list, list) : NULL;
 
     while (cur) {
         struct shim_vma * new, * tail = NULL;
@@ -839,7 +839,7 @@ static int __bkeep_mprotect (struct shim_vma * prev,
 
         prev = cur;
         cur = next;
-        next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
+        next = cur ? LISTP_NEXT_ENTRY(cur, &g_vma_list, list) : NULL;
     }
 
     return 0;
@@ -852,13 +852,13 @@ int bkeep_mprotect (void * addr, size_t length, int prot, int flags)
 
     debug("bkeep_mprotect: %p-%p\n", addr, addr + length);
 
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mprotect(prev, addr, addr + length, prot, flags);
     assert_vma_list();
     __restore_reserved_vmas();
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return ret;
 }
 
@@ -873,7 +873,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
                                 struct shim_handle * file,
                                 off_t offset, const char * comment)
 {
-    assert(locked(&vma_list_lock));
+    assert(locked(&g_vma_list_lock));
     assert(top_addr > bottom_addr);
 
     if (!length || length > (uintptr_t) top_addr - (uintptr_t) bottom_addr)
@@ -907,7 +907,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
             break;
 
         cur = prev;
-        prev = LISTP_PREV_ENTRY(cur, &vma_list, list);
+        prev = LISTP_PREV_ENTRY(cur, &g_vma_list, list);
     }
 
     return NULL;
@@ -916,12 +916,12 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 void * bkeep_unmapped (void * top_addr, void * bottom_addr, size_t length,
                        int prot, int flags, off_t offset, const char * comment)
 {
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
     void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
                                    NULL, offset, comment);
     assert_vma_list();
     __restore_reserved_vmas();
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return addr;
 }
 
@@ -929,7 +929,7 @@ void * bkeep_unmapped_heap (size_t length, int prot, int flags,
                             struct shim_handle * file,
                             off_t offset, const char * comment)
 {
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
 
     void * bottom_addr = PAL_CB(user_address.start);
     void * top_addr = current_heap_top;
@@ -978,7 +978,7 @@ void * bkeep_unmapped_heap (size_t length, int prot, int flags,
     }
 
     __restore_reserved_vmas();
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
 #ifdef MAP_32BIT
     assert(!(flags & MAP_32BIT) || !addr || addr + length <= ADDR_32BIT);
 #endif
@@ -1001,18 +1001,18 @@ __dump_vma (struct shim_vma_val * val, const struct shim_vma * vma)
 
 int lookup_vma (void * addr, struct shim_vma_val * res)
 {
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
 
     struct shim_vma * vma = __lookup_vma(addr, NULL);
     if (!vma) {
-        unlock(&vma_list_lock);
+        unlock(&g_vma_list_lock);
         return -ENOENT;
     }
 
     if (res)
         __dump_vma(res, vma);
 
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return 0;
 }
 
@@ -1020,9 +1020,9 @@ int lookup_overlap_vma (void * addr, size_t length, struct shim_vma_val * res)
 {
     struct shim_vma * tmp, * vma = NULL;
 
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
 
-    LISTP_FOR_EACH_ENTRY(tmp, &vma_list, list)
+    LISTP_FOR_EACH_ENTRY(tmp, &g_vma_list, list)
         if (test_vma_overlap (tmp, addr, addr + length)) {
             vma = tmp;
             break;
@@ -1030,14 +1030,14 @@ int lookup_overlap_vma (void * addr, size_t length, struct shim_vma_val * res)
 
 
     if (!vma) {
-        unlock(&vma_list_lock);
+        unlock(&g_vma_list_lock);
         return -ENOENT;
     }
 
     if (res)
         __dump_vma(res, vma);
 
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return 0;
 }
 
@@ -1045,12 +1045,12 @@ bool is_in_adjacent_vmas (void * addr, size_t length)
 {
     struct shim_vma* vma;
     struct shim_vma* prev = NULL;
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
 
     /* we rely on the fact that VMAs are sorted (for adjacent VMAs) */
     assert_vma_list();
 
-    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &g_vma_list, list) {
         if (addr >= vma->start && addr < vma->end) {
             assert(prev == NULL);
             prev = vma;
@@ -1061,14 +1061,14 @@ bool is_in_adjacent_vmas (void * addr, size_t length)
                 break;
             }
             if ((addr + length) > vma->start && (addr + length) <= vma->end) {
-                unlock(&vma_list_lock);
+                unlock(&g_vma_list_lock);
                 return true;
             }
             prev = vma;
         }
     }
 
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return false;
 }
 
@@ -1077,9 +1077,9 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
     struct shim_vma_val * val = vmas;
     struct shim_vma * vma;
     size_t cnt = 0;
-    lock(&vma_list_lock);
+    lock(&g_vma_list_lock);
 
-    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &g_vma_list, list) {
         if (VMA_TYPE(vma->flags))
             continue;
         if (vma->flags & VMA_UNMAPPED)
@@ -1098,7 +1098,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
         val++;
     }
 
-    unlock(&vma_list_lock);
+    unlock(&g_vma_list_lock);
     return cnt;
 }
 
@@ -1332,7 +1332,7 @@ void debug_print_vma_list (void)
     SYS_PRINTF("vma bookkeeping:\n");
 
     struct shim_vma * vma;
-    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &g_vma_list, list) {
         debug_print_vma(vma);
     }
 }
