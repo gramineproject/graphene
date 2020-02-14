@@ -36,8 +36,10 @@ CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
 endif
 
+ifeq ($(DEBUG),)
 CFLAGS += -O2
 CXXFLAGS += -O2
+endif
 
 ifeq ($(WERROR),1)
 CFLAGS += -Werror
