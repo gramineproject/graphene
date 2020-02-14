@@ -20,7 +20,7 @@
 #include "sgx_arch.h"
 #include "pal_error.h"
 
-int sgx_ocall (unsigned long code, void * ms);
+long sgx_ocall (unsigned long code, void * ms);
 
 bool sgx_is_completely_within_enclave (const void * addr, uint64_t size);
 bool sgx_is_completely_outside_enclave(const void * addr, uint64_t size);
