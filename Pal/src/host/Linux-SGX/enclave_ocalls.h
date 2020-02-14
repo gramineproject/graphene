@@ -7,6 +7,7 @@
 #include <asm/stat.h>
 #include <linux/socket.h>
 #include <linux/poll.h>
+#include <sys/types.h>
 
 noreturn void ocall_exit (int exitcode, int is_exitgroup);
 
@@ -27,6 +28,10 @@ int ocall_read (int fd, void * buf, unsigned int count);
 
 int ocall_write (int fd, const void * buf, unsigned int count);
 
+ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset);
+
+ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset);
+
 int ocall_fstat (int fd, struct stat * buf);
 
 int ocall_fionread (int fd);
@@ -38,8 +43,6 @@ int ocall_fchmod (int fd, unsigned short mode);
 int ocall_fsync (int fd);
 
 int ocall_ftruncate (int fd, uint64_t length);
-
-int ocall_lseek(int fd, uint64_t offset, int whence);
 
 int ocall_mkdir (const char *pathname, unsigned short mode);
 
