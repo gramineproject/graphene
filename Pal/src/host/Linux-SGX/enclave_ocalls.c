@@ -96,6 +96,13 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
     return retval;
 }
 
+/*
+ * Cache the untrusted mmap to avoid mmap/munmap per io(read/write). Because this cache is
+ * stashed per thread in enclave_tls, we needn't to worry about concurrency. On thread exit or
+ * fork, this cache needs to be freed to avoid leak on fork.
+ * (Strictly speaking if other threads are running on fork, their cached untrusted mmap areas will
+ *  leak. We don't care of it for now. Ostrich algorithm)
+ */
 static int ocall_mmap_untrusted_cache(uint64_t size, void** mem) {
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
     if (cache->valid) {
