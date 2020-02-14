@@ -44,12 +44,15 @@ RUN apt-get update \
     && /usr/bin/pip3 install protobuf \
 
 # Install OpenSSL 1.1 from source, 16.04 doesn't have it in official repositories
+    && mkdir /opt/openssl-1.1 \
     && wget https://www.openssl.org/source/openssl-1.1.1d.tar.gz \
     && tar -xf openssl-1.1.1d.tar.gz \
     && cd openssl-1.1.1d \
-    && ./config --prefix=/usr --openssldir=/usr shared \
+    && ./config --prefix=/opt/openssl-1.1 --openssldir=/opt/openssl-1.1 shared \
     && make \
     && make install \
+    && rm /openssl-1.1.1d.tar.gz \
+    && rm -rf /openssl-1.1.1d \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
