@@ -264,6 +264,97 @@ out:
     return retval;
 }
 
+ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
+    long retval = 0;
+    void* obuf = NULL;
+    ms_ocall_pread_t* ms;
+    void* ms_buf;
+
+    if (count > MAX_UNTRUSTED_STACK_BUF) {
+        retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
+        if (IS_ERR(retval))
+            return retval;
+        ms_buf = obuf;
+    } else {
+        ms_buf = sgx_alloc_on_ustack(count);
+    }
+    if (!ms_buf)
+        return -EPERM;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        retval = -EPERM;
+        goto out;
+    }
+
+    ms->ms_fd = fd;
+    ms->ms_count = count;
+    ms->ms_offset = offset;
+    ms->ms_buf = ms_buf;
+
+    retval = sgx_ocall(OCALL_PREAD, ms);
+    if (retval > 0) {
+        if (!sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
+            retval = -EPERM;
+        }
+    }
+
+out:
+    sgx_reset_ustack();
+    if (obuf)
+        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
+    return retval;
+}
+
+ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset) {
+    long retval = 0;
+    void* obuf = NULL;
+    ms_ocall_pwrite_t* ms;
+    void* ms_buf;
+
+    if (sgx_is_completely_outside_enclave(buf, count)) {
+        /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
+        obuf = (void*)buf;
+        ms_buf = obuf;
+    } else if (sgx_is_completely_within_enclave(buf, count)) {
+        /* typical case of buf inside of enclave memory */
+        if (count > MAX_UNTRUSTED_STACK_BUF) {
+            /* buf is too big and may overflow untrusted stack, so use untrusted heap */
+            retval = ocall_mmap_untrusted(-1, 0, ALLOC_ALIGN_UP(count), PROT_READ | PROT_WRITE, &obuf);
+            if (IS_ERR(retval))
+                return retval;
+            memcpy(obuf, buf, count);
+            ms_buf = obuf;
+        } else {
+            ms_buf = sgx_copy_to_ustack(buf, count);
+        }
+    } else {
+        /* buf is partially in/out of enclave memory */
+        ms_buf = NULL;
+    }
+    if (!ms_buf)
+        return -EPERM;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        retval = -EPERM;
+        goto out;
+    }
+
+    ms->ms_fd = fd;
+    ms->ms_count = count;
+    ms->ms_offset = offset;
+    ms->ms_buf = ms_buf;
+
+    retval = sgx_ocall(OCALL_PWRITE, ms);
+
+out:
+    sgx_reset_ustack();
+    if (obuf && obuf != buf)
+        ocall_munmap_untrusted(obuf, ALLOC_ALIGN_UP(count));
+    return retval;
+}
+
 int ocall_fstat (int fd, struct stat * buf)
 {
     int retval = 0;
@@ -380,26 +471,6 @@ int ocall_ftruncate (int fd, uint64_t length)
     ms->ms_length = length;
 
     retval = sgx_ocall(OCALL_FTRUNCATE, ms);
-
-    sgx_reset_ustack();
-    return retval;
-}
-
-int ocall_lseek(int fd, uint64_t offset, int whence) {
-    int retval = 0;
-    ms_ocall_lseek_t* ms;
-
-    ms = sgx_alloc_on_ustack(sizeof(*ms));
-    if (!ms) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
-
-    ms->ms_fd     = fd;
-    ms->ms_offset = offset;
-    ms->ms_whence = whence;
-
-    retval = sgx_ocall(OCALL_LSEEK, ms);
 
     sgx_reset_ustack();
     return retval;
