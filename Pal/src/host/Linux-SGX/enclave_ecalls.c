@@ -31,10 +31,6 @@ static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
  *  exit_target:
  *      Address to return to after EEXIT. Untrusted.
  *
- *  untrusted_stack:
- *      Address to urts stack. Restored before EEXIT and used for ocall
- *      arguments. Untrusted.
- *
  *  enclave_base_addr:
  *      Base address of enclave. Calculated dynamically in enclave_entry.S.
  *      Trusted.
@@ -48,9 +44,18 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
+    /*
+     * Is there any guarantee that URSP is not malicious (does not point inside the enclave)?
+     * I don't see anything like this in the description of EENTER
+     * (https://www.felixcloutier.com/x86/eenter).
+     */
+    void* ursp = (void*)GET_ENCLAVE_TLS(gpr)->ursp;
+    if (enclave_base <= ursp && ursp <= enclave_top)
+        return;
+
     SET_ENCLAVE_TLS(exit_target,     exit_target);
-    SET_ENCLAVE_TLS(ustack,          GET_ENCLAVE_TLS(gpr)->ursp);
-    SET_ENCLAVE_TLS(ustack_top,      GET_ENCLAVE_TLS(gpr)->ursp);
+    SET_ENCLAVE_TLS(ustack,          ursp);
+    SET_ENCLAVE_TLS(ustack_top,      ursp);
     SET_ENCLAVE_TLS(clear_child_tid, NULL);
 
     if (atomic_cmpxchg(&enclave_start_called, 0, 1) == 0) {
