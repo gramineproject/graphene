@@ -4,9 +4,10 @@
 #include <pal.h>
 
 struct untrusted_area {
-    bool valid;
     void* mem;
     uint64_t size;
+    uint64_t in_use;
+    bool valid;
 };
 
 /*

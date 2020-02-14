@@ -18,13 +18,13 @@
  * size of 8MB. Thus, 512KB limit also works well for the main thread. */
 #define MAX_UNTRUSTED_STACK_BUF (THREAD_STACK_SIZE / 4)
 
-static void ocall_munmap_untrusted_cache(void);
+static void ocall_munmap_untrusted_cache_teardown(void);
 
 noreturn void ocall_exit(int exitcode, int is_exitgroup)
 {
     ms_ocall_exit_t * ms;
 
-    ocall_munmap_untrusted_cache();
+    ocall_munmap_untrusted_cache_teardown();
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     ms->ms_exitcode     = exitcode;
@@ -97,14 +97,28 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
 }
 
 /*
- * Cache the untrusted mmap to avoid mmap/munmap per io(read/write). Because this cache is
- * stashed per thread in enclave_tls, we needn't to worry about concurrency. On thread exit or
- * fork, this cache needs to be freed to avoid leak on fork.
- * (Strictly speaking if other threads are running on fork, their cached untrusted mmap areas will
- *  leak. We don't care of it for now. Ostrich algorithm)
+ * Memorize untrusted memory area to avoid mmap/munmap per each read/write IO. Because this cache is
+ * per-thread, we don't worry about concurrency. On thread exit or
+ * process fork, this cache must be freed to avoid leaks.
+ * (Note that if other threads are running on fork, their cached memory areas will
+ * leak, but this is shouldn't happen in reality).
+ *
+ * By AEX, another ocall can be invoked during we're using the cache.
+ * cache::in_use protects against it.
  */
-static int ocall_mmap_untrusted_cache(uint64_t size, void** mem) {
+static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munmap) {
+    *need_munmap = false;
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
+    int in_use = 0;
+    if (!__atomic_compare_exchange_n(&cache->in_use, &in_use, 1, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+        int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
+        if (IS_ERR(retval)) {
+            return retval;
+        }
+        *need_munmap = true;
+        return 0;
+    }
+
     if (cache->valid) {
         if (cache->size >= size) {
             *mem = cache->mem;
@@ -128,18 +142,29 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem) {
     return retval;
 }
 
-static void ocall_munmap_untrusted_cache(void) {
+static void ocall_munmap_untrusted_cache(void* mem, uint64_t size, bool need_munmap) {
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
-    if (!cache->valid)
+    if (!need_munmap) {
+        __atomic_sub_fetch(&cache->in_use, 1, __ATOMIC_RELAXED);
         return;
-
-    int retval = ocall_munmap_untrusted(cache->mem, cache->size);
-    if (IS_ERR(retval)) {
-        /* there is not much we can do when the thread is exiting */
     }
 
-    /* TCB will be re-used for next thread creation. */
+    /* there is not much we can do in case of error */
+    ocall_munmap_untrusted(mem, size);
+}
+
+static void ocall_munmap_untrusted_cache_teardown(void) {
+    struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
+
+    /* Prevent further use of cache in case of AEX */
+    __atomic_add_fetch(&cache->in_use, 1, __ATOMIC_RELAXED);
+
+    if (!cache->valid)
+        return;
     cache->valid = false;
+
+    /* there is not much we can do in case of error */
+    ocall_munmap_untrusted(cache->mem, cache->size);
 }
 
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
@@ -221,9 +246,10 @@ int ocall_read (int fd, void * buf, unsigned int count)
     int retval = 0;
     void * obuf = NULL;
     ms_ocall_read_t * ms;
+    bool need_munmap = false;
 
     if (count > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
+        retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
         if (IS_ERR(retval))
             return retval;
     }
@@ -257,6 +283,8 @@ int ocall_read (int fd, void * buf, unsigned int count)
 
 out:
     sgx_reset_ustack();
+    if (obuf)
+        ocall_munmap_untrusted_cache(obuf, ALLOC_ALIGN_UP(count), need_munmap);
     return retval;
 }
 
@@ -265,6 +293,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
     int retval = 0;
     void * obuf = NULL;
     ms_ocall_write_t * ms;
+    bool need_munmap = false;
 
     if (sgx_is_completely_outside_enclave(buf, count)) {
         /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
@@ -273,7 +302,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
         /* typical case of buf inside of enclave memory */
         if (count > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
+            retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
@@ -305,6 +334,8 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 
 out:
     sgx_reset_ustack();
+    if (obuf && obuf != buf)
+        ocall_munmap_untrusted_cache(obuf, ALLOC_ALIGN_UP(count), need_munmap);
     return retval;
 }
 
@@ -525,7 +556,7 @@ int ocall_create_process(const char* uri, int nargs, const char** args, int* str
     int ulen = uri ? strlen(uri) + 1 : 0;
     ms_ocall_create_process_t * ms;
 
-    ocall_munmap_untrusted_cache();
+    ocall_munmap_untrusted_cache_teardown();
 
     ms = sgx_alloc_on_ustack(sizeof(*ms) + nargs * sizeof(char *));
     if (!ms) {
@@ -768,9 +799,10 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
     unsigned int addrlen = addrlenptr ? *addrlenptr : 0;
     uint64_t controllen  = controllenptr ? *controllenptr : 0;
     ms_ocall_recv_t * ms;
+    bool need_munmap = false;
 
     if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
-        retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
+        retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
         if (IS_ERR(retval))
             return retval;
     }
@@ -826,6 +858,8 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
 
 out:
     sgx_reset_ustack();
+    if (obuf)
+        ocall_munmap_untrusted_cache(obuf, ALLOC_ALIGN_UP(count), need_munmap);
     return retval;
 }
 
@@ -836,6 +870,7 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
     int retval = 0;
     void * obuf = NULL;
     ms_ocall_send_t * ms;
+    bool need_munmap;
 
     if (sgx_is_completely_outside_enclave(buf, count)) {
         /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
@@ -844,7 +879,7 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
         /* typical case of buf inside of enclave memory */
         if ((count + addrlen + controllen) > MAX_UNTRUSTED_STACK_BUF) {
             /* buf is too big and may overflow untrusted stack, so use untrusted heap */
-            retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf);
+            retval = ocall_mmap_untrusted_cache(ALLOC_ALIGN_UP(count), &obuf, &need_munmap);
             if (IS_ERR(retval))
                 return retval;
             memcpy(obuf, buf, count);
@@ -880,6 +915,8 @@ int ocall_send (int sockfd, const void * buf, unsigned int count,
 
 out:
     sgx_reset_ustack();
+    if (obuf && obuf != buf)
+        ocall_munmap_untrusted_cache(obuf, ALLOC_ALIGN_UP(count), need_munmap);
     return retval;
 }
 
