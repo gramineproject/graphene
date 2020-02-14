@@ -11,6 +11,8 @@
 #include <api.h>
 #include <asm/errno.h>
 
+/* TODO: revise return value as long sgx_ocall(void*) */
+
 /* Check against this limit if the buffer to be allocated fits on the untrusted stack; if not,
  * buffer will be allocated on untrusted heap. Conservatively set this limit to 1/4 of the
  * actual stack size. Currently THREAD_STACK_SIZE = 2MB, so this limit is 512KB.
