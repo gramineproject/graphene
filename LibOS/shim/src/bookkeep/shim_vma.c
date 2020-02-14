@@ -196,36 +196,62 @@ static inline void assert_vma_list (void)
  *
  * g_vma_list_lock must be held when calling this function.
  */
-static struct shim_vma* lookup_cache = NULL;
-static inline struct shim_vma *
-__lookup_vma (void * addr, struct shim_vma ** pprev)
-{
+
+/*
+ * This speeds only the case when continuously increasing addresses are looked up.
+ * This is easy optimization with the hope that it won't harm in cache miss case.
+ *
+ * TODO:
+ * observe memory allocation behavior and optimized based on it.
+ * The related components to be observed are
+ * - bkeep_unmapped_heap()
+ * - bkeep_unampped_any() = bkeep_unampped() used by shim_malloc()
+ * - user app malloc (e.g. malloc in glibc or other malloc)
+ */
+static struct shim_vma* g_lookup_cache = NULL;
+
+static bool check_addr_vma(void* addr, struct shim_vma* vma,
+                           struct shim_vma** pprev, struct shim_vma** found) {
+    if (addr < vma->start)
+        return true;
+    if (test_vma_contain(vma, addr, addr + 1)) {
+        *found = vma;
+        return true;
+    }
+
+    assert(vma->end > vma->start);
+    assert(!*pprev || (*pprev)->end <= vma->start);
+    *pprev = vma;
+    return false;
+}
+
+static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev) {
     assert(locked(&g_vma_list_lock));
 
-    struct shim_vma * vma, * prev = NULL;
-    struct shim_vma * found = NULL;
+    struct shim_vma* vma;
+    struct shim_vma* prev = NULL;
+    struct shim_vma* found = NULL;
 
-    if (lookup_cache && lookup_cache->end < addr) {
-        vma = lookup_cache;
-        goto skip;
-    }
-    LISTP_FOR_EACH_ENTRY(vma, &g_vma_list, list) {
-        if (addr < vma->start)
-            break;
-        if (test_vma_contain(vma, addr, addr + 1)) {
-            found = vma;
-            break;
-        }
-
-        assert(vma->end > vma->start);
-        assert(!prev || prev->end <= vma->start);
-    skip:
+    if (g_lookup_cache && g_lookup_cache->end < addr) {
+        /* addr is after the cached address, skip to cached addr. */
+        struct shim_vma* tmp;
+        vma = g_lookup_cache;
         prev = vma;
+        LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(vma, tmp, &g_vma_list, list) {
+            if (check_addr_vma(addr, vma, &prev, &found))
+                break;
+        }
+    } else {
+        /* addr is before the cached address, search from the beginning */
+        LISTP_FOR_EACH_ENTRY(vma, &g_vma_list, list) {
+            if (check_addr_vma(addr, vma, &prev, &found))
+                break;
+        }
     }
 
     if (pprev) {
         *pprev = prev;
-        lookup_cache = prev;
+        g_lookup_cache = prev;
     }
     return found;
 }
@@ -474,8 +500,8 @@ static inline void __drop_vma (struct shim_vma * vma)
     if (vma->file)
         put_handle(vma->file);
 
-    if (lookup_cache == vma)
-        lookup_cache = NULL;
+    if (g_lookup_cache == vma)
+        g_lookup_cache = NULL;
     if (g_num_reserved_vmas < RESERVED_VMAS)
         g_reserved_vmas[g_num_reserved_vmas++] = vma;
     else
