@@ -269,7 +269,7 @@ static inline void destroy_slab_mgr(SLAB_MGR mgr) {
                 system_free(area, __MAX_MEM_SIZE(slab_levels[i], area->size));
         }
 
-        addr += __MAX_MEM_SIZE(slab_levels[i], STARTUP_SIZE);
+        addr += __MAX_MEM_SIZE(slab_levels[i], area->size);
     }
 
     system_free(mgr, addr - (void*)mgr);
