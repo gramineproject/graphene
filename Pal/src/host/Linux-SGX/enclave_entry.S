@@ -62,8 +62,7 @@ enclave_entry:
 	# RDI - ECALL number
 	# RSI - pointer to ecall arguments
 	# RDX - exit target
-	# RCX (former RSP) - The untrusted stack
-	# R8  - enclave base
+	# RCX - enclave base
 
 	cmpq $ECALL_THREAD_RESET, %rdi
 	je .Lhandle_thread_reset
