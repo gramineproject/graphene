@@ -292,7 +292,6 @@ void pal_linux_main (void * args)
     SET_HANDLE_TYPE(file, file);
     HANDLE_HDR(file)->flags |= RFD(0)|WFD(0);
     file->file.fd = fd;
-    file->file.offset = 0;
     file->file.map_start = NULL;
 
     char * path = (void *) file + HANDLE_SIZE(file);

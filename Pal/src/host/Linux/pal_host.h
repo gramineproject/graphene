@@ -75,7 +75,6 @@ typedef struct pal_handle
 
         struct {
             PAL_IDX fd;
-            PAL_NUM offset;
             PAL_STR realpath;
             /*
              * map_start is to request this file should be mapped to this

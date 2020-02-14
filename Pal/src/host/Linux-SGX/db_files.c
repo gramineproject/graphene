@@ -82,7 +82,6 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     hdl->file.stubs  = (PAL_PTR)stubs;
     hdl->file.total  = total;
-    hdl->file.offset = 0;
 
     if (hdl->file.stubs && hdl->file.total) {
         /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
@@ -104,19 +103,9 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        /* case of allowed file: emulate via lseek + read */
-        if (handle->file.offset != offset) {
-            ret = ocall_lseek(handle->file.fd, offset, SEEK_SET);
-            if (IS_ERR(ret))
-                return -PAL_ERROR_DENIED;
-            handle->file.offset = offset;
-        }
-
-        ret = ocall_read(handle->file.fd, buffer, count);
+        ret = ocall_pread(handle->file.fd, buffer, count, offset);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
-
-        handle->file.offset = offset + ret;
         return ret;
     }
 
@@ -146,19 +135,9 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        /* case of allowed file: emulate via lseek + write */
-        if (handle->file.offset != offset) {
-            ret = ocall_lseek(handle->file.fd, offset, SEEK_SET);
-            if (IS_ERR(ret))
-                return -PAL_ERROR_DENIED;
-            handle->file.offset = offset;
-        }
-
-        ret = ocall_write(handle->file.fd, buffer, count);
+        ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
-
-        handle->file.offset = offset + ret;
         return ret;
     }
 

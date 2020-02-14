@@ -117,6 +117,22 @@ static long sgx_ocall_write(void * pms)
     return ret;
 }
 
+static long sgx_ocall_pread(void* pms) {
+    ms_ocall_pread_t* ms = (ms_ocall_pread_t*)pms;
+    long ret;
+    ODEBUG(OCALL_PREAD, ms);
+    ret = INLINE_SYSCALL(pread64, 4, ms->ms_fd, ms->ms_buf, ms->ms_count, ms->ms_offset);
+    return ret;
+}
+
+static long sgx_ocall_pwrite(void* pms) {
+    ms_ocall_pwrite_t* ms = (ms_ocall_pwrite_t*)pms;
+    long ret;
+    ODEBUG(OCALL_PWRITE, ms);
+    ret = INLINE_SYSCALL(pwrite64, 4, ms->ms_fd, ms->ms_buf, ms->ms_count, ms->ms_offset);
+    return ret;
+}
+
 static long sgx_ocall_fstat(void * pms)
 {
     ms_ocall_fstat_t * ms = (ms_ocall_fstat_t *) pms;
@@ -184,14 +200,6 @@ static long sgx_ocall_ftruncate(void * pms)
     long ret;
     ODEBUG(OCALL_FTRUNCATE, ms);
     ret = INLINE_SYSCALL(ftruncate, 2, ms->ms_fd, ms->ms_length);
-    return ret;
-}
-
-static long sgx_ocall_lseek(void* pms) {
-    ms_ocall_lseek_t* ms = (ms_ocall_lseek_t*)pms;
-    long ret;
-    ODEBUG(OCALL_LSEEK, ms);
-    ret = INLINE_SYSCALL(lseek, 3, ms->ms_fd, ms->ms_offset, ms->ms_whence);
     return ret;
 }
 
@@ -619,13 +627,14 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_CLOSE]            = sgx_ocall_close,
         [OCALL_READ]             = sgx_ocall_read,
         [OCALL_WRITE]            = sgx_ocall_write,
+        [OCALL_PREAD]            = sgx_ocall_pread,
+        [OCALL_PWRITE]           = sgx_ocall_pwrite,
         [OCALL_FSTAT]            = sgx_ocall_fstat,
         [OCALL_FIONREAD]         = sgx_ocall_fionread,
         [OCALL_FSETNONBLOCK]     = sgx_ocall_fsetnonblock,
         [OCALL_FCHMOD]           = sgx_ocall_fchmod,
         [OCALL_FSYNC]            = sgx_ocall_fsync,
         [OCALL_FTRUNCATE]        = sgx_ocall_ftruncate,
-        [OCALL_LSEEK]            = sgx_ocall_lseek,
         [OCALL_MKDIR]            = sgx_ocall_mkdir,
         [OCALL_GETDENTS]         = sgx_ocall_getdents,
         [OCALL_RESUME_THREAD]    = sgx_ocall_resume_thread,
