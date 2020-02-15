@@ -2,6 +2,7 @@
 # pylint: disable=invalid-name
 
 import argparse
+import array
 import os
 import socket
 import struct
@@ -76,6 +77,9 @@ def read_sigstruct(sig):
 
     return attr
 
+def is_dcap():
+    """ Check if we're dealing with DCAP driver."""
+    return hasattr(offs, 'SGX_DCAP')
 
 def connect_aesmd(attr):
     """Connect with AESMD."""
@@ -118,6 +122,41 @@ def connect_aesmd(attr):
 
     return ret_msg.ret.token
 
+def create_dummy_token(attr):
+    """ Create dummy token with a few fields initialized with real values
+        and others with a placeholder ('\0')"""
+    token = array.array('B', b'\0'*304)
+
+    # format: field_name -> tuple (offset, type_with_size)
+    fields = dict()
+
+    fields['valid'] = (0, "<I")
+    fields['reserved'] = (4, "44B")
+    fields['flags'] = (48, "<Q") # attrs
+    fields['xfrms'] = (56, "<Q") # attrs
+    fields['mrenclave'] = (64, "32B")
+    fields['reserved2'] = (96, "32B")
+    fields['mrsigner'] = (128, "32B")
+    fields['reserved3'] = (160, "32B")
+    fields['cpusvnle'] = (192, "<2Q")
+    fields['isvprodidle'] = (208, "<H")
+    fields['isvsvnle'] = (210, "<H")
+    fields['reserved4'] = (212, "24B")
+    fields['misc_mask'] = (236, "<I")
+    fields['flagmask'] = (240, "<Q") # attrmask
+    fields['xfrmmask'] = (248, "<Q") # attrmask
+    fields['keyid'] = (256, "32B")
+    fields['mac'] = (288, "16B")
+
+    # fields read by create_enclave() in sgx_framework.c
+    actual_fields = ['flags', 'xfrms', 'misc_mask']
+
+    for key in actual_fields:
+        field = fields[key]
+        field_size = struct.Struct(field[1]).size
+        token[field[0]:field[0] + field_size] = array.array('B', attr[key])
+
+    return token
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--sig', '-sig', metavar='SIGNATURE',
@@ -148,7 +187,11 @@ def main(args=None):
     print("    signature:   %s..." % attr['signature'].hex()[:32])
     print("    date:        %d-%02d-%02d" % (attr['year'], attr['month'], attr['day']))
 
-    token = connect_aesmd(attr)
+    if is_dcap():
+        token = create_dummy_token(attr)
+    else:
+        token = connect_aesmd(attr)
+
     args.output.write(token)
     return 0
 

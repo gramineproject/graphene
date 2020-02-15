@@ -94,7 +94,9 @@ Prerequisites for Untrusted Host
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To run the applications on Intel SGX with Graphene-SGX, the host must have an SGX-enabled CPU, with
 Intel SGX SDK and the SGX driver installed. Please download and install the SDK and the driver from:
-<https://github.com/01org/linux-sgx> and <https://github.com/01org/linux-sgx-driver>.
+https://github.com/01org/linux-sgx and https://github.com/01org/linux-sgx-driver. If you want
+to use the DCAP SDK and driver, please download and install from:
+https://github.com/intel/SGXDataCenterAttestationPrimitives.
 
 A Graphene SGX driver (gsgx) also needs to be installed on the untrusted host. Simply run the
 following commands to build the driver::

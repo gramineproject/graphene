@@ -285,6 +285,9 @@ int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_enclave_css_t * sigstruct,
                  sgx_arch_token_t * token)
 {
+#ifdef SGX_DCAP
+    __UNUSED(token);
+#endif
     unsigned long enclave_valid_addr =
                 secs->base + secs->size - g_page_size;
 
@@ -298,7 +301,9 @@ int init_enclave(sgx_arch_secs_t * secs,
     struct sgx_enclave_init param = {
         .addr           = enclave_valid_addr,
         .sigstruct      = (uint64_t) sigstruct,
+#ifndef SGX_DCAP
         .einittoken     = (uint64_t) token,
+#endif
     };
     int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_INIT,
                              &param);
