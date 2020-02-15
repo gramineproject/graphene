@@ -34,19 +34,22 @@ SGX Quick Start
 
 Before you run any applications in Graphene-SGX, please make sure that Intel SGX
 SDK and the SGX driver are installed on your system. We recommend using Intel
-SGX SDK and the SGX driver no older than version 2.1.
+SGX SDK and the SGX driver no older than version 1.9 (or the DCAP SGX SDK and
+the driver version 1.4/1.5).
 
 If Intel SGX SDK and the SGX driver are not installed, please follow the READMEs
 in <https://github.com/01org/linux-sgx> and
 <https://github.com/01org/linux-sgx-driver> to download and install them.
+If you want to use the DCAP SDK and driver, please follow the READMEs in
+<https://github.com/intel/SGXDataCenterAttestationPrimitives>.
 
 1. Ensure That Intel SGX is Enabled on Your Platform::
 
-      lsmod | grep isgx
+      lsmod | grep sgx
       ps ax | grep [a]esm_service
 
-The first command should list :command:`isgx` and the second command should list
-the process status of :command:`aesm_service`.
+The first command should list :command:`isgx` (or :command:`sgx`) and the
+second command should list the process status of :command:`aesm_service`.
 
 2. Clone the Repository and Set the Home Directory of Graphene::
 

@@ -10,6 +10,13 @@
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 
+/* sgx.h header from the Intel SGX driver assumes that `__packed` macro was defined */
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
+#include "sgx.h"
+#undef __packed
+
 #include <generated-offsets-build.h>
 
 void dummy(void)
@@ -169,4 +176,9 @@ void dummy(void)
     OFFSET_T(XSAVE_HEADER_OFFSET, PAL_XREGS_STATE, header);
     DEFINE(PAL_XSTATE_ALIGN, PAL_XSTATE_ALIGN);
     DEFINE(PAL_FP_XSTATE_MAGIC2_SIZE, PAL_FP_XSTATE_MAGIC2_SIZE);
+
+    /* SGX_DCAP */
+#ifdef SGX_DCAP
+    DEFINE(SGX_DCAP, SGX_DCAP);
+#endif
 }

@@ -3,7 +3,7 @@ include ../../Scripts/Makefile.rules
 include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I../include/lib -I../include -I../include/pal -I../include/host/$(PAL_HOST) \
-          -Icrypto/mbedtls/include -Icrypto/mbedtls/crypto/include
+          -I../src/host/$(PAL_HOST) -Icrypto/mbedtls/include -Icrypto/mbedtls/crypto/include
 
 CRYPTO_PROVIDER ?= mbedtls
 
