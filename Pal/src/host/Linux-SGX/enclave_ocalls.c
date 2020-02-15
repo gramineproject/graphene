@@ -101,7 +101,7 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
  * per-thread, we don't worry about concurrency. On thread exit or
  * process fork, this cache must be freed to avoid leaks.
  * (Note that if other threads are running on fork, their cached memory areas will
- * leak, but this is shouldn't happen in reality).
+ * leak, but this shouldn't happen in reality).
  *
  * By AEX, another ocall can be invoked during we're using the cache.
  * cache::in_use protects against it.
@@ -145,7 +145,7 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munm
 static void ocall_munmap_untrusted_cache(void* mem, uint64_t size, bool need_munmap) {
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
     if (!need_munmap) {
-        __atomic_sub_fetch(&cache->in_use, 1, __ATOMIC_RELAXED);
+        __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
         return;
     }
 
@@ -157,7 +157,7 @@ static void ocall_munmap_untrusted_cache_teardown(void) {
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
 
     /* Prevent further use of cache in case of AEX */
-    __atomic_add_fetch(&cache->in_use, 1, __ATOMIC_RELAXED);
+    __atomic_store_n(&cache->in_use, 1, __ATOMIC_RELAXED);
 
     if (!cache->valid)
         return;
