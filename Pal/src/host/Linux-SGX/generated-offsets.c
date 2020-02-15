@@ -9,6 +9,7 @@
 #include "pal_security.h"
 #include "sgx_arch.h"
 #include "sgx_tls.h"
+#include "sgx.h"
 
 #include <generated-offsets-build.h>
 
@@ -169,4 +170,9 @@ void dummy(void)
     OFFSET_T(XSAVE_HEADER_OFFSET, PAL_XREGS_STATE, header);
     DEFINE(PAL_XSTATE_ALIGN, PAL_XSTATE_ALIGN);
     DEFINE(PAL_FP_XSTATE_MAGIC2_SIZE, PAL_FP_XSTATE_MAGIC2_SIZE);
+
+    /* SGX_DCAP */
+#ifdef SGX_DCAP
+    DEFINE(SGX_DCAP, SGX_DCAP);
+#endif
 }
