@@ -110,10 +110,11 @@ int pal_thread_init (void * tcbptr)
         return -ERRNO(ret);
 
     if (tcb->alt_stack) {
-        stack_t ss;
-        ss.ss_sp    = tcb->alt_stack;
-        ss.ss_flags = 0;
-        ss.ss_size  = ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
+        stack_t ss = {
+            .ss_sp    = tcb->alt_stack,
+            .ss_flags = 0,
+            .ss_size  = ALT_STACK_SIZE - sizeof(*tcb),
+        };
 
         ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
         if (IS_ERR(ret))
