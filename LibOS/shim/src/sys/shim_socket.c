@@ -361,10 +361,11 @@ static void inet_save_addr(int domain, struct addr_inet* addr, const struct sock
         if (saddr->sa_family == AF_INET) {
             const struct sockaddr_in* in           = (const struct sockaddr_in*)saddr;
             addr->port                             = __ntohs(in->sin_port);
-            addr->addr.v6.s6_addr32 = {
-                /* in->sin_addr.s_addr is already network byte order */
-                __htonl(0), __htonl(0), __htonl(0x0000ffff), in->sin_addr.s_addr
-            };
+            addr->addr.v6.s6_addr32[0] = __htonl(0);
+            addr->addr.v6.s6_addr32[1] = __htonl(0);
+            addr->addr.v6.s6_addr32[2] = __htonl(0x0000ffff);
+            /* in->sin_addr.s_addr is already network byte order */
+            addr->addr.v6.s6_addr32[3] = in->sin_addr.s_addr;
         } else {
             const struct sockaddr_in6* in6 = (const struct sockaddr_in6*)saddr;
             addr->port                     = __ntohs(in6->sin6_port);
