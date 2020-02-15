@@ -122,6 +122,7 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munm
         int retval = ocall_munmap_untrusted(cache->mem, cache->size);
         if (IS_ERR(retval)) {
             cache->valid = false;
+            __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
             return retval;
         }
     }
@@ -129,6 +130,7 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munm
     int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
     if (IS_ERR(retval)) {
         cache->valid = false;
+        __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
     } else {
         cache->valid = true;
         cache->mem = *mem;
@@ -138,14 +140,13 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munm
 }
 
 static void ocall_munmap_untrusted_cache(void* mem, uint64_t size, bool need_munmap) {
-    struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
-    if (!need_munmap) {
+    if (need_munmap) {
+        /* there is not much we can do in case of error */
+        ocall_munmap_untrusted(mem, size);
+    } else {
+        struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
         __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
-        return;
     }
-
-    /* there is not much we can do in case of error */
-    ocall_munmap_untrusted(mem, size);
 }
 
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
