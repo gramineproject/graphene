@@ -44,11 +44,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
-    /*
-     * Is there any guarantee that URSP is not malicious (does not point inside the enclave)?
-     * I don't see anything like this in the description of EENTER
-     * (https://www.felixcloutier.com/x86/eenter).
-     */
+    /* disallow malicious URSP (that points into the enclave) */
     void* ursp = (void*)GET_ENCLAVE_TLS(gpr)->ursp;
     if (enclave_base <= ursp && ursp <= enclave_top)
         return;
