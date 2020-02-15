@@ -456,34 +456,34 @@ static inline void __restore_reserved_vmas(void) {
     assert(locked(&g_vma_list_lock));
 
     /*
-     * On entry bkeep_mmap(), it needs to be ensured that
-     * two(at least) reserved_vmas are available.
-     * i.e. two shim_vma can be allocated without (recursively)
-     * calling system_malloc(__malloc) which requires shim_vma again.
+     * On entry bkeep_mmap(), it needs to ensure that
+     * three (at least) reserved_vmas are available.
+     * After that, g_reserved_vmas needs to be re-populated.
+     * one for __bkeep_munmap() => __shrink_vma()
+     * one for new vma for new region
+     * one for re-populating reserved_vma.
      *
-     * bkeep_mmap() may call system_malloc() and then
-     * the call flow looks like this.
-     * bkeep_mmap() may call recursively
-     * -> __get_new_vma(): one shim_vma is used for the requested region
-     * -> __restore_reserved_vmas()
-     *   -> get_mem_obj_from_mgr_enlarge()
-     *   -> system_malloc()=__malloc()
-     *   -> __bkeep_unmapped()
-     *   -> __bkep_mmap()
-     *   -> __get_new_vma()
-     *   -> try to use g_served_vmas[]
-     *      and it must success.
-     *      and then reserved vmas are re-populated.
+     * NOTE:
+     * get_mem_obj_from_mgr_enlarge() can use g_reserved_vmas by
+     * calling system_malloc(__malloc)
+     * get_mem_obj_from_mgr_enlarge()
+     * -> system_malloc()=__malloc()
+     * -> __bkeep_unmapped()
+     * -> __bkep_mmap()
+     * -> __get_new_vma()
+     * -> try to use g_served_vmas[]
+     *    and it must success.
+     *    and then reserved vmas are re-populated.
      */
-    if (g_num_reserved_vmas >= 2)
+    if (g_num_reserved_vmas >= 3)
         return;
 
     /*
      * get_mem_obj_from_mgr_enlarge() may call system_malloc() (==__malloc())
      * which calls __get_new_vma() to consume g_reserved_vma.
      */
-    assert(g_num_reserved_vmas);
     while (g_num_reserved_vmas < RESERVED_VMAS) {
+        assert(g_num_reserved_vmas >= 1);
         struct shim_vma * new = get_mem_obj_from_mgr_enlarge(g_vma_mgr,
                                                              size_align_up(VMA_MGR_ALLOC));
 
@@ -590,13 +590,12 @@ int bkeep_mmap (void * addr, size_t length, int prot, int flags,
     debug("bkeep_mmap: %p-%p\n", addr, addr + length);
 
     lock(&g_vma_list_lock);
-    assert(g_num_reserved_vmas >= 2);/* see the comment in __restore_reserved_vmas() */
+    __restore_reserved_vmas();
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mmap(prev, addr, addr + length, prot, flags, file, offset,
                            comment);
     assert_vma_list();
-    __restore_reserved_vmas();
     unlock(&g_vma_list_lock);
     return ret;
 }
@@ -763,11 +762,11 @@ int bkeep_munmap (void * addr, size_t length, int flags)
     debug("bkeep_munmap: %p-%p\n", addr, addr + length);
 
     lock(&g_vma_list_lock);
+    __restore_reserved_vmas();
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_munmap(&prev, addr, addr + length, flags);
     assert_vma_list();
-    __restore_reserved_vmas();
     /* DEP 5/20/19: If this is a debugging region we are removing, take it out
      * of the checkpoint.  Otherwise, it will be restored erroneously after a fork. */
     remove_r_debug(addr);
@@ -879,11 +878,11 @@ int bkeep_mprotect (void * addr, size_t length, int prot, int flags)
     debug("bkeep_mprotect: %p-%p\n", addr, addr + length);
 
     lock(&g_vma_list_lock);
+    __restore_reserved_vmas();
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mprotect(prev, addr, addr + length, prot, flags);
     assert_vma_list();
-    __restore_reserved_vmas();
     unlock(&g_vma_list_lock);
     return ret;
 }
@@ -943,10 +942,10 @@ void * bkeep_unmapped (void * top_addr, void * bottom_addr, size_t length,
                        int prot, int flags, off_t offset, const char * comment)
 {
     lock(&g_vma_list_lock);
+    __restore_reserved_vmas();
     void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
                                    NULL, offset, comment);
     assert_vma_list();
-    __restore_reserved_vmas();
     unlock(&g_vma_list_lock);
     return addr;
 }
@@ -956,6 +955,7 @@ void * bkeep_unmapped_heap (size_t length, int prot, int flags,
                             off_t offset, const char * comment)
 {
     lock(&g_vma_list_lock);
+    __restore_reserved_vmas();
 
     void * bottom_addr = PAL_CB(user_address.start);
     void * top_addr = current_heap_top;
@@ -1003,7 +1003,6 @@ void * bkeep_unmapped_heap (size_t length, int prot, int flags,
         assert_vma_list();
     }
 
-    __restore_reserved_vmas();
     unlock(&g_vma_list_lock);
 #ifdef MAP_32BIT
     assert(!(flags & MAP_32BIT) || !addr || addr + length <= ADDR_32BIT);
