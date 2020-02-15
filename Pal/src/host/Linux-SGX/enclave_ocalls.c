@@ -18,13 +18,9 @@
  * size of 8MB. Thus, 512KB limit also works well for the main thread. */
 #define MAX_UNTRUSTED_STACK_BUF (THREAD_STACK_SIZE / 4)
 
-static void ocall_munmap_untrusted_cache_teardown(void);
-
 noreturn void ocall_exit(int exitcode, int is_exitgroup)
 {
     ms_ocall_exit_t * ms;
-
-    ocall_munmap_untrusted_cache_teardown();
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     ms->ms_exitcode     = exitcode;
@@ -97,14 +93,13 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
 }
 
 /*
- * Memorize untrusted memory area to avoid mmap/munmap per each read/write IO. Because this cache is
- * per-thread, we don't worry about concurrency. On thread exit or
- * process fork, this cache must be freed to avoid leaks.
- * (Note that if other threads are running on fork, their cached memory areas will
- * leak, but this shouldn't happen in reality).
+ * Memorize untrusted memory area to avoid mmap/munmap per each read/write IO. Because this cache
+ * is per-thread, we don't worry about concurrency. The cache will be carried over thread
+ * exit/creation. On fork/exec emulation, untrusted code does vfork/exec, so those mmap cache
+ * will be released by exec host syscall.
  *
- * By AEX, another ocall can be invoked during we're using the cache.
- * cache::in_use protects against it.
+ * By AEX, another ocall can be invoked during we're using the cache. cache::in_use protects
+ * against it.
  */
 static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munmap) {
     *need_munmap = false;
@@ -151,20 +146,6 @@ static void ocall_munmap_untrusted_cache(void* mem, uint64_t size, bool need_mun
 
     /* there is not much we can do in case of error */
     ocall_munmap_untrusted(mem, size);
-}
-
-static void ocall_munmap_untrusted_cache_teardown(void) {
-    struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
-
-    /* Prevent further use of cache in case of AEX */
-    __atomic_store_n(&cache->in_use, 1, __ATOMIC_RELAXED);
-
-    if (!cache->valid)
-        return;
-    cache->valid = false;
-
-    /* there is not much we can do in case of error */
-    ocall_munmap_untrusted(cache->mem, cache->size);
 }
 
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
@@ -555,8 +536,6 @@ int ocall_create_process(const char* uri, int nargs, const char** args, int* str
     int retval = 0;
     int ulen = uri ? strlen(uri) + 1 : 0;
     ms_ocall_create_process_t * ms;
-
-    ocall_munmap_untrusted_cache_teardown();
 
     ms = sgx_alloc_on_ustack(sizeof(*ms) + nargs * sizeof(char *));
     if (!ms) {
