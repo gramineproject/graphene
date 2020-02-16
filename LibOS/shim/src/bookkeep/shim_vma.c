@@ -56,8 +56,7 @@ struct shim_vma {
 #define RESERVED_VMAS   6
 
 static int g_num_reserved_vmas;
-static struct shim_vma * g_reserved_vmas[RESERVED_VMAS];
-static struct shim_vma g_early_vmas[RESERVED_VMAS];
+static struct shim_vma* g_reserved_vmas[RESERVED_VMAS];
 
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
                                 size_t length, int prot, int flags,
@@ -337,8 +336,9 @@ int init_vma(void) {
 
     lock(&g_vma_list_lock);
 
+    struct shim_vma early_vmas[RESERVED_VMAS];
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
-        g_reserved_vmas[i] = &g_early_vmas[i];
+        g_reserved_vmas[i] = &early_vmas[i];
     g_num_reserved_vmas = RESERVED_VMAS;
 
     /* Bookkeeping for preloaded areas */
@@ -383,10 +383,10 @@ int init_vma(void) {
     }
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++) {
-        if (!g_reserved_vmas[i]) {
+        if (i >= g_num_reserved_vmas) {
             struct shim_vma * new = get_mem_obj_from_mgr(g_vma_mgr);
             assert(new);
-            struct shim_vma * e = &g_early_vmas[i];
+            struct shim_vma * e = &early_vmas[i];
             struct shim_vma * prev = LISTP_PREV_ENTRY(e, &g_vma_list, list);
             debug("Converting early VMA [%p] %p-%p\n", e, e->start, e->end);
             memcpy(new, e, sizeof(*e));
