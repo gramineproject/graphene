@@ -42,6 +42,9 @@ int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
 {
     void * addr = *paddr, * mem = addr;
 
+    if (addr && _DkCheckMemoryMappable(addr, size))
+        return -PAL_ERROR_DENIED;
+
     int flags = HOST_FLAGS(alloc_type, prot|PAL_PROT_WRITECOPY);
     prot = HOST_PROT(prot);
 
@@ -57,6 +60,9 @@ int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
 
 int _DkVirtualMemoryFree (void * addr, size_t size)
 {
+    if (_DkCheckMemoryMappable(addr, size))
+        return -PAL_ERROR_DENIED;
+
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
@@ -64,6 +70,9 @@ int _DkVirtualMemoryFree (void * addr, size_t size)
 
 int _DkVirtualMemoryProtect (void * addr, size_t size, int prot)
 {
+    if (_DkCheckMemoryMappable(addr, size))
+        return -PAL_ERROR_DENIED;
+
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, HOST_PROT(prot));
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;

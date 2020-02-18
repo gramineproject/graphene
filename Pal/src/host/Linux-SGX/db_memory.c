@@ -77,6 +77,9 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
     if (size == 0)
         __asm__ volatile ("int $3");
 
+    if (_DkCheckMemoryMappable(addr, size))
+        return -PAL_ERROR_DENIED;
+
     mem = get_reserved_pages(addr, size);
     if (!mem)
         return addr ? -PAL_ERROR_DENIED : -PAL_ERROR_NOMEM;
@@ -113,6 +116,9 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
 
 int _DkVirtualMemoryFree (void * addr, uint64_t size)
 {
+    if (_DkCheckMemoryMappable(addr, size))
+        return -PAL_ERROR_DENIED;
+
     if (sgx_is_completely_within_enclave(addr, size)) {
         free_pages(addr, size);
 
@@ -144,6 +150,9 @@ int _DkVirtualMemoryFree (void * addr, uint64_t size)
 
 int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 {
+    if (_DkCheckMemoryMappable(addr, size))
+        return -PAL_ERROR_DENIED;
+
     static struct atomic_int at_cnt = {.counter = 0};
 
     if (atomic_cmpxchg(&at_cnt, 0, 1) == 0)

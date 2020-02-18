@@ -153,6 +153,9 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 {
     int fd = handle->file.fd;
     void * mem = *addr;
+    if (mem && _DkCheckMemoryMappable(mem, size))
+        return -PAL_ERROR_DENIED;
+
     /*
      * work around for fork emulation
      * the first exec image to be loaded has to be at same address

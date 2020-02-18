@@ -108,6 +108,8 @@ extern struct pal_linux_state {
 # error "INLINE_SYSCALL not supported"
 #endif
 
+bool _DkCheckMemoryMappable(const void* addr, size_t size);
+
 #ifndef SIGCHLD
 # define SIGCHLD 17
 #endif

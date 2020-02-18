@@ -204,6 +204,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     void* umem;
     int ret;
 
+    if (mem && _DkCheckMemoryMappable(mem, size))
+        return -PAL_ERROR_DENIED;
+
     /*
      * If the file is listed in the manifest as an "allowed" file,
      * we allow mapping the file outside the enclave, if the library OS

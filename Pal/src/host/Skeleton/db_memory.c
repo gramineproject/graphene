@@ -27,10 +27,6 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-bool _DkCheckMemoryMappable(const void* addr, size_t size) {
-    return true;
-}
-
 int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
