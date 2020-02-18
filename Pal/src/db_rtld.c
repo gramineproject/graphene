@@ -819,6 +819,10 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     int len = _DkStreamRead(handle, 0, FILEBUF_SIZE, &fb, NULL, 0);
 
     if ((size_t)len < sizeof(ElfW(Ehdr))) {
+        if (len < 0)
+            ret = len;
+        else
+            ret = -PAL_ERROR_INVAL;
         errstring = "ELF file with a strange size";
         goto verify_failed;
     }
@@ -844,6 +848,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     if (memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 || (
             ehdr->e_ident[EI_OSABI] != ELFOSABI_SYSV &&
             ehdr->e_ident[EI_OSABI] != ELFOSABI_LINUX)) {
+        ret = -PAL_ERROR_INVAL;
         errstring = "ELF file with invalid header";
         goto verify_failed;
     }
@@ -864,12 +869,14 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
         ret = _DkStreamRead(handle, ehdr->e_phoff, maplength, phdr, NULL, 0);
 
         if (ret < 0 || (size_t)ret != maplength) {
+            ret = -PAL_ERROR_INVAL;
             errstring = "cannot read file data";
             goto verify_failed;
         }
     }
 
     if (!(map = map_elf_object_by_handle(handle, type, &fb, len, true))) {
+        ret = -PAL_ERROR_INVAL;
         errstring = "unexpected failure";
         goto verify_failed;
     }
