@@ -12,12 +12,17 @@ static size_t g_page_size = PRESET_PAGESIZE;
 void * heap_base;
 static uint64_t heap_size;
 
+/* TODO: If this list can be very long, consider to introduce rb tree instead of simple doubly
+ * linked list
+ */
 /* This list keeps heap_vma structures of used/reserved regions organized in DESCENDING order.*/
 DEFINE_LIST(heap_vma);
 struct heap_vma {
     LIST_TYPE(heap_vma) list;
-    void * top;
-    void * bottom;
+    /* [bottom, top) */
+    void* top;
+    void* bottom;
+    bool internal;  /* PAL_ALLOC_INTERNAL */
 };
 
 DEFINE_LISTP(heap_vma);
@@ -37,6 +42,7 @@ void init_pages (void)
         struct heap_vma * vma = malloc(sizeof(struct heap_vma));
         vma->bottom = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, pal_sec.heap_min);
         vma->top = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, pal_sec.heap_max);
+        vma->internal = false;  /* migration does copy it */
         reserved_for_exec = vma->top - vma->bottom;
         INIT_LIST_HEAD(vma, list);
         LISTP_ADD(vma, &heap_vma_list, list);
@@ -69,16 +75,19 @@ static void assert_vma_list (void)
 #endif
 }
 
-static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
-{
-    struct heap_vma * next;
+static bool vma_overlap(const struct heap_vma* vma, const void* start, size_t size) {
+    return !(start + size <= vma->bottom || vma->top <= start);
+}
+
+static bool vma_mergable(const struct heap_vma* vma, const void* start, size_t size) {
+    return !(start + size < vma->bottom || vma->top < start);
+}
+
+static int reserve_area(void* addr, size_t size, struct heap_vma* prev, bool internal) {
+    struct heap_vma* next;
 
     if (prev) {
-        // If this is the last entry, don't wrap around
-        if (prev->list.next == LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list))
-            next = NULL;
-        else
-            next = prev->list.next;
+        next = LISTP_NEXT_ENTRY(prev, &heap_vma_list, list);
     } else {
         /* In this case, the list is empty, or
          * first vma starts at or below the allocation site.
@@ -87,8 +96,7 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
          * they overlap, until the vmas drop below the requested addr
          * (traversing in decreasing virtual address order)
          */
-        next = LISTP_EMPTY(&heap_vma_list) ? NULL :
-            LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list);
+        next = LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list);
     }
 
     if (prev && next)
@@ -99,74 +107,69 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
     else if (next)
         SGX_DBG(DBG_M, "insert vma above %p-%p\n", next->bottom, next->top);
 
-    struct heap_vma * vma = NULL;
-    while (prev) {
-        struct heap_vma * prev_prev = NULL;
+    if (!internal) {
+        /* The region must not overlap with internal use area */
+        if (prev && vma_overlap(prev, addr, size) && prev->internal)
+            return -PAL_ERROR_DENIED;
 
-        if (prev->bottom > addr + size)
-            break;
+        struct heap_vma* tmp = next;
+        while (tmp) {
+            assert(tmp->top <= addr + size);
+            if (tmp->top <= addr)
+                break;
 
-        /* This appears to be doing a reverse search; we should stop before we
-         * wrap back to the last entry */
-        if (prev->list.prev != LISTP_LAST_ENTRY(&heap_vma_list, struct heap_vma, list))
-            prev_prev = LIST_ENTRY(prev->list.prev, struct heap_vma, list);
+            struct heap_vma* next_next = LISTP_NEXT_ENTRY(tmp, &heap_vma_list, list);
 
-        if (!vma) {
-            SGX_DBG(DBG_M, "merge %p-%p and %p-%p\n", addr, addr + size,
-                    prev->bottom, prev->top);
+            assert(vma_overlap(tmp, addr, size));
+            if (tmp->internal)
+                return -PAL_ERROR_DENIED;
 
-            vma = prev;
-            vma->top = (addr + size > vma->top) ? addr + size : vma->top;
-            vma->bottom = addr;
-        } else {
-            SGX_DBG(DBG_M, "merge %p-%p and %p-%p\n", vma->bottom, vma->top,
-                    prev->bottom, prev->top);
-
-            vma->top = (prev->top > vma->top) ? prev->top : vma->top;
-            LISTP_DEL(prev, &heap_vma_list,list);
-            free(prev);
+            tmp = next_next;
         }
-
-        prev = prev_prev;
     }
 
-    while (next) {
-        struct heap_vma * next_next = NULL;
+    struct heap_vma* vma = malloc(sizeof(*vma));
+    if (!vma)
+        return -PAL_ERROR_NOMEM;
+    vma->top = addr + size;
+    vma->bottom = addr;
+    vma->internal = internal;
 
+    /* merge with previous(higher address) vma */
+    if (prev && vma_mergable(prev, addr, size) && prev->internal == internal) {
+        SGX_DBG(DBG_M, "prev merge %p-%p and %p-%p %d\n", addr, addr + size, prev->bottom, prev->top, (int)internal);
+        vma->top = MAX(vma->top, prev->top);
+        vma->bottom = MIN(vma->bottom, prev->bottom);
+        struct heap_vma* prev_prev = LISTP_PREV_ENTRY(prev, &heap_vma_list, list);
+        LISTP_DEL(prev, &heap_vma_list, list);
+        free(prev);
+        prev = prev_prev;
+    } else {
+        assert(!prev || addr + size <= prev->bottom);
+    }
+
+    /* merge with next(lower address) vma */
+    while (next) {
+        assert(next->top <= addr + size);
         if (next->top < addr)
             break;
 
-        if (next->list.next != LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list))
-            next_next = LIST_ENTRY(next->list.next, struct heap_vma, list);
+        struct heap_vma* next_next = LISTP_NEXT_ENTRY(next, &heap_vma_list, list);
 
-        if (!vma) {
-            SGX_DBG(DBG_M, "merge %p-%p and %p-%p\n", addr, addr + size,
-                    next->bottom, next->top);
-
-            vma = next;
-            vma->top = (addr + size > vma->top) ? addr + size : vma->top;
-        } else {
-            SGX_DBG(DBG_M, "merge %p-%p and %p-%p\n", vma->bottom, vma->top,
-                    next->bottom, next->top);
-
-            vma->bottom = next->bottom;
+        if (vma->internal == internal) {
+            assert(vma_mergable(vma, addr, size));
+            vma->bottom = MIN(vma->bottom, next->bottom);
             LISTP_DEL(next, &heap_vma_list, list);
             free(next);
+        } else {
+            assert(!vma_overlap(vma, addr, size));
         }
 
         next = next_next;
     }
 
-    if (!vma) {
-        vma = malloc(sizeof(struct heap_vma));
-        if (!vma) {
-            return NULL;
-        }
-        vma->top = addr + size;
-        vma->bottom = addr;
-        INIT_LIST_HEAD(vma, list);
-        LISTP_ADD_AFTER(vma, prev, &heap_vma_list, list);
-    }
+    INIT_LIST_HEAD(vma, list);
+    LISTP_ADD_AFTER(vma, prev, &heap_vma_list, list);
 
     if (vma->bottom >= vma->top) {
         SGX_DBG(DBG_E, "*** Bad memory bookkeeping: %p - %p ***\n",
@@ -178,100 +181,123 @@ static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
     }
     assert_vma_list();
 
+    /* FIXME: size isn't correct as there can be overlaps with existing areas. */
     atomic_add(size / g_page_size, &alloced_pages);
-    return addr;
+    SGX_DBG(DBG_M, "allocated [%p, %p)@%ld bytes %d\n", addr, addr + size, size, (int)internal);
+
+    return 0;
 }
 
-
-// TODO: This function should be fixed to always either return exactly `addr` or
-// fail.
-void * get_reserved_pages(void * addr, size_t size)
-{
-    if (!size)
-        return NULL;
-
-    SGX_DBG(DBG_M, "*** get_reserved_pages: heap_base %p, heap_size %lu, limit %p ***\n", heap_base, heap_size, heap_base + heap_size);
-    if (addr >= heap_base + heap_size) {
-        SGX_DBG(DBG_E, "*** allocating out of heap: %p ***\n", addr);
-        return NULL;
-    }
-
-    size = ALIGN_UP(size, g_page_size);
-    addr = ALIGN_DOWN_PTR(addr, g_page_size);
-
-    SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
+static int get_reserved_pages_fixed(void* addr, size_t size) {
+    if (!(addr >= heap_base && addr + size <= heap_base + heap_size))
+        return -PAL_ERROR_INVAL;
 
     _DkInternalLock(&heap_vma_lock);
+    struct heap_vma* prev = NULL;
+    struct heap_vma* vma;
+    LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
+        if (vma_mergable(vma, addr, size)) {
+            prev = vma;
+            break;
+        }
+        /* non-overlap case */
+        if (vma->bottom <= addr + size)
+            break;
+        prev = vma;
+    }
+    int ret = reserve_area(addr, size, prev, false);
+    _DkInternalUnlock(&heap_vma_lock);
+    return ret;
+}
 
-    struct heap_vma * prev = NULL;
-    struct heap_vma * vma;
-
+static int get_reserved_pages_alloc(void** addr, size_t size, bool internal) {
     /* Allocating in the heap region.  This loop searches the vma list to
      * find the first vma with a starting address lower than the requested
      * address.  Recall that vmas are in descending order.
      *
      * If the very first vma matches, prev will be null.
      */
-    if (addr && addr >= heap_base &&
-        addr + size <= heap_base + heap_size) {
-        LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
-            if (vma->bottom < addr)
-                break;
-            prev = vma;
-        }
-        void * ret = reserve_area(addr, size, prev);
-        _DkInternalUnlock(&heap_vma_lock);
-        return ret;
-    }
+    *addr = NULL;
+    int ret = -PAL_ERROR_NOMEM;
+    struct heap_vma* prev = NULL;
+    void* avail_top = heap_base + heap_size;
 
-    if (addr) {
-        _DkInternalUnlock(&heap_vma_lock);
-        return NULL;
-    }
-
-    void * avail_top = heap_base + heap_size;
-
+    _DkInternalLock(&heap_vma_lock);
+    struct heap_vma* vma;
     LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
         if ((size_t)(avail_top - vma->top) > size) {
-            addr = avail_top - size;
-            void * ret = reserve_area(addr, size, prev);
-            _DkInternalUnlock(&heap_vma_lock);
-            return ret;
+            *addr = avail_top - size;
+            break;
         }
         prev = vma;
         avail_top = prev->bottom;
     }
-
-    if (avail_top >= heap_base + size) {
-        addr = avail_top - size;
-        void * ret = reserve_area(addr, size, prev);
-        _DkInternalUnlock(&heap_vma_lock);
-        return ret;
+    if (!*addr && avail_top >= heap_base + size) {
+        *addr = avail_top - size;
     }
 
-    _DkInternalUnlock(&heap_vma_lock);
+    if (*addr)
+        ret = reserve_area(*addr, size, prev, internal);
 
-    SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %lu) ***\n", size);
-    __asm__ volatile("int $3");
-    return NULL;
+    _DkInternalUnlock(&heap_vma_lock);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %lu) ***\n", size);
+#ifdef DEBUG
+        if (pal_sec.in_gdb)
+            __asm__ volatile ("int $3" ::: "memory");
+#endif
+        *addr = NULL;
+    }
+    return ret;
 }
 
-void free_pages(void * addr, size_t size)
-{
-    void * addr_top = addr + size;
+/*
+ * FIXME: recursive deadlock
+ * get_reserved_pages() => malloc(sizeof(*vma)) => slab_alloc() => __system_malloc() @ slab.c =>
+ * get_reserved_pages()
+ * Normally slab_alloc() hits cached item so that __system_malloc() isn't invoked.
+ */
+// TODO: This function should be fixed to always either return exactly `addr` or
+// fail.
+int get_reserved_pages(void** addr, size_t size, bool internal) {
+    if (!size)
+        return -PAL_ERROR_INVAL;
+
+    SGX_DBG(DBG_M, "*** get_reserved_pages: heap_base %p, heap_size %lu, limit %p ***\n", heap_base, heap_size, heap_base + heap_size);
+    if (*addr >= heap_base + heap_size) {
+        SGX_DBG(DBG_E, "*** allocating out of heap: %p ***\n", addr);
+        return -PAL_ERROR_INVAL;
+    }
+
+    size = ALIGN_UP(size, g_page_size);
+    *addr = ALIGN_DOWN_PTR(*addr, g_page_size);
+
+    SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, *addr);
+
+    if (*addr) {
+        if (internal)
+            /* fixed addr allocation isn't needed for internal use for now */
+            return -PAL_ERROR_INVAL;
+        return get_reserved_pages_fixed(*addr, size);
+    }
+    return get_reserved_pages_alloc(addr, size, internal);
+}
+
+int free_pages(void* addr, size_t size) {
+    void* addr_top = addr + size;
 
     SGX_DBG(DBG_M, "free_pages: trying to free %p %lu\n", addr, size);
 
     if (!addr || !size)
-        return;
+        return 0;
 
     addr = ALIGN_DOWN_PTR(addr, g_page_size);
     addr_top = ALIGN_UP_PTR(addr_top, g_page_size);
 
     if (addr >= heap_base + heap_size)
-        return;
+        return 0;
     if (addr_top <= heap_base)
-        return;
+        return 0;
     if (addr_top > heap_base + heap_size)
         addr_top = heap_base + heap_size;
     if (addr < heap_base)
@@ -282,12 +308,32 @@ void free_pages(void * addr, size_t size)
     _DkInternalLock(&heap_vma_lock);
 
     struct heap_vma * vma, * p;
-
+    bool checked = false;
     LISTP_FOR_EACH_ENTRY_SAFE(vma, p, &heap_vma_list, list) {
         if (vma->bottom >= addr_top)
             continue;
         if (vma->top <= addr)
             break;
+
+        assert(vma_overlap(vma, addr, size));
+        /* Check needs to be done before modifying the list */
+        if (vma->internal) {
+            /* TODO: currently assume that internal PAL memory is freed at same granularity as
+             *       was allocated in _DkVirtualMemoryAlloc(); may be false in general case */
+            if (!(vma->bottom <= addr && addr + size <= vma->top))
+                return -PAL_ERROR_DENIED;
+        } else if (!checked) {
+            struct heap_vma* tmp;
+            struct heap_vma* next = vma;
+            LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(next, tmp, &heap_vma_list, list) {
+                if (next->top <= addr)
+                    break;
+                if (next->internal)
+                    return -PAL_ERROR_DENIED;
+            }
+            checked = true;
+        }
+
         if (vma->bottom < addr) {
             struct heap_vma * new = malloc(sizeof(struct heap_vma));
             new->top = addr;
@@ -298,7 +344,8 @@ void free_pages(void * addr, size_t size)
 
         vma->bottom = addr_top;
         if (vma->top <= vma->bottom) {
-            LISTP_DEL(vma, &heap_vma_list, list); free(vma);
+            LISTP_DEL(vma, &heap_vma_list, list);
+            free(vma);
         }
     }
 
@@ -306,10 +353,46 @@ void free_pages(void * addr, size_t size)
 
     _DkInternalUnlock(&heap_vma_lock);
 
+    /* FIXME: size isn't correct as unreserved area can be freed as nop */
     unsigned int val = atomic_read(&alloced_pages);
     atomic_sub(size / g_page_size, &alloced_pages);
     if (val > atomic_read(&max_alloced_pages))
         atomic_set(&max_alloced_pages, val);
+
+    return 0;
+}
+
+/* Only for file_map(): once file_map unuse this function, eliminate this */
+bool _DkCheckMemoryMappable(const void* addr, size_t size) {
+    if (addr < DATA_END && addr + size > TEXT_START) {
+        printf("address %p-%p is not mappable\n", addr, addr + size);
+        return false;
+    }
+
+    if (!addr || !size)
+        return true;
+
+    bool ret = true;
+    addr = ALIGN_DOWN_PTR(addr, g_page_size);
+    const void* addr_top = addr + size;
+    addr_top = ALIGN_UP_PTR(addr_top, g_page_size);
+
+    _DkInternalLock(&heap_vma_lock);
+    struct heap_vma* vma;
+    LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
+        if (vma->bottom >= addr_top)
+            continue;
+        if (vma->top <= addr)
+            break;
+
+        assert(vma_overlap(vma, addr, size));
+        if (vma->internal) {
+            ret = false;
+            break;
+        }
+    }
+    _DkInternalUnlock(&heap_vma_lock);
+    return ret;
 }
 
 void print_alloced_pages (void)

@@ -61,7 +61,8 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
                                       PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
     *start = (PAL_PTR) pal_sec.heap_min;
-    *end = (PAL_PTR) get_reserved_pages(NULL, g_page_size);
+    int ret = get_reserved_pages(end, g_page_size, false);
+    assert(!ret);
     *hole_start = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, *start);
     *hole_end = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, *end);
 }

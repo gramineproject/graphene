@@ -73,12 +73,8 @@ out:
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
 int _DkStreamUnmap(void* addr, uint64_t size) {
-    if (_DkCheckMemoryMappable(addr, size))
-        return -PAL_ERROR_DENIED;
-
     /* Just let the kernel tell us if the mapping isn't good. */
-    free_pages(addr, size);
-    return 0;
+    return free_pages(addr, size);
 }
 
 static size_t addr_size(const struct sockaddr* addr) {

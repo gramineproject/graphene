@@ -204,9 +204,6 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     void* umem;
     int ret;
 
-    if (mem && _DkCheckMemoryMappable(mem, size))
-        return -PAL_ERROR_DENIED;
-
     /*
      * If the file is listed in the manifest as an "allowed" file,
      * we allow mapping the file outside the enclave, if the library OS
@@ -228,9 +225,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         return -PAL_ERROR_DENIED;
     }
 
-    mem = get_reserved_pages(mem, size);
-    if (!mem)
-        return -PAL_ERROR_NOMEM;
+    ret = get_reserved_pages(&mem, size, false);
+    if (ret < 0)
+        return ret;
 
     uint64_t end = (offset + size > total) ? total : offset + size;
     uint64_t map_start, map_end;
