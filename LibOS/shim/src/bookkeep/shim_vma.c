@@ -250,7 +250,9 @@ static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev)
 
     if (pprev) {
         *pprev = prev;
-        g_lookup_cache = prev;
+        if (prev) {
+            g_lookup_cache = prev;
+        }
     }
     return found;
 }
