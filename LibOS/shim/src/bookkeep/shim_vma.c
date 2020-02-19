@@ -195,6 +195,8 @@ static inline void assert_vma_list (void)
  *       - bkeep_unmapped_heap()
  *       - bkeep_unmapped_any() = bkeep_unmapped() used by shim_malloc.c
  *       - user app malloc (e.g. malloc() in glibc)
+ *
+ * Another options is to introduce rb-tree. (or other tree, e.g. splay tree)
  */
 static struct shim_vma* g_lookup_cache = NULL;
 
@@ -213,6 +215,14 @@ static bool check_addr_vma(void* addr, struct shim_vma* vma,
     return false;
 }
 
+/*
+ * __lookup_vma() returns the VMA that contains the address; otherwise,
+ * This speeds only the case when continuously increasing addresses are looked up.
+ * returns NULL. "pprev" returns the highest VMA below the address.
+ * __lookup_vma() fills "pprev" even when the function cannot find a
+ * matching vma for "addr".
+ * This is easy optimization with the hope that it won't harm in cache miss case.
+ */
 static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev) {
     assert(locked(&g_vma_list_lock));
 
@@ -281,8 +291,9 @@ static inline void
 __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
     assert(locked(&g_vma_list_lock));
-    __UNUSED(prev);
     assert(vma != prev);
+    if (g_lookup_cache == vma)
+        g_lookup_cache = prev;
     LISTP_DEL(vma, &g_vma_list, list);
 }
 
@@ -384,7 +395,6 @@ int init_vma(void) {
             INIT_LIST_HEAD(new, list);
             __remove_vma(e, prev);
             __insert_vma(new, prev);
-            g_lookup_cache = NULL;
         }
 
         /* replace all reserved VMAs */
@@ -448,8 +458,7 @@ static inline void __restore_reserved_vmas(void) {
     assert(locked(&g_vma_list_lock));
 
     /*
-     * On entry bkeep_mmap(), it needs to ensure that
-     * at least three reserved_vmas are available.
+     * On entry bkeep_mmap(), it needs to ensure that at least three reserved_vmas are available.
      * After that, g_reserved_vmas needs to be re-populated.
      * - one for __bkeep_munmap() => __shrink_vma()
      * - one for new vma for new region
@@ -477,8 +486,7 @@ static inline void __drop_vma (struct shim_vma * vma)
     if (vma->file)
         put_handle(vma->file);
 
-    if (g_lookup_cache == vma)
-        g_lookup_cache = NULL;
+    assert(g_lookup_cache != vma);
     if (g_num_reserved_vmas < RESERVED_VMAS)
         g_reserved_vmas[g_num_reserved_vmas++] = vma;
     else
