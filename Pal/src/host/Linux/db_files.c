@@ -153,7 +153,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 {
     int fd = handle->file.fd;
     void * mem = *addr;
-    if (mem && _DkCheckMemoryMappable(mem, size))
+    if (mem && !_DkCheckMemoryMappable(mem, size))
         return -PAL_ERROR_DENIED;
 
     /*
