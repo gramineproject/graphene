@@ -84,7 +84,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
      *   (2) start from `vma_below` and iterate through VMAs with lower-addresses for merges */
     struct heap_vma* vma_below;
     if (vma_above) {
-        vma_below = vma_above->list.next;
+        vma_below = LISTP_NEXT_ENTRY(vma_above, &g_heap_vma_list, list);
         SGX_DBG(DBG_M, "Inserted vma between %p-%p and %p-%p\n",
                 vma_below->bottom, vma_below->top, vma_above->bottom, vma_above->top);
     } else {
@@ -98,10 +98,11 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
         SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top,
                 vma_above->bottom, vma_above->top);
 
-        vma->top = MAX(vma_above->top, vma->top);
+        vma->bottom = MIN(vma_above->bottom, vma->bottom);
+        vma->top    = MAX(vma_above->top, vma->top);
         LISTP_DEL(vma_above, &g_heap_vma_list, list);
 
-        struct heap_vma* vma_above_above = vma_above->list.prev;
+        struct heap_vma* vma_above_above = LISTP_PREV_ENTRY(vma_above, &g_heap_vma_list, list);
         free(vma_above);
         vma_above = vma_above_above;
     }
@@ -112,9 +113,10 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
                 vma_below->bottom, vma_below->top);
 
         vma->bottom = MIN(vma_below->bottom, vma->bottom);
+        vma->top    = MAX(vma_below->top, vma->top);
         LISTP_DEL(vma_below, &g_heap_vma_list, list);
 
-        struct heap_vma* vma_below_below = vma_below->list.next;
+        struct heap_vma* vma_below_below = LISTP_NEXT_ENTRY(vma_below, &g_heap_vma_list, list);
         free(vma_below);
         vma_below = vma_below_below;
     }
