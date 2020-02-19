@@ -95,17 +95,21 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
 /*
  * Memorize untrusted memory area to avoid mmap/munmap per each read/write IO. Because this cache
  * is per-thread, we don't worry about concurrency. The cache will be carried over thread
- * exit/creation. On fork/exec emulation, untrusted code does vfork/exec, so those mmap cache
+ * exit/creation. On fork/exec emulation, untrusted code does vfork/exec, so the mmapped cache
  * will be released by exec host syscall.
  *
- * By AEX, another ocall can be invoked during we're using the cache. cache::in_use protects
- * against it.
+ * In case of AEX and consequent signal handling, current thread may be interrupted in the middle
+ * of using the cache. If there are OCALLs during signal handling, they could interfere with the
+ * normal-execution use of the cache, so 'in_use' atomic protects against it. OCALLs during signal
+ * handling do not use the cache and always explicitly mmap/munmap untrusted memory; 'need_munmap'
+ * indicates whether explicit munmap is needed at the end of such OCALL.
  */
 static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munmap) {
     *need_munmap = false;
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
     int in_use = 0;
     if (!__atomic_compare_exchange_n(&cache->in_use, &in_use, 1, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+        /* AEX signal handling case: cache is in use, so make explicit mmap/munmap */
         int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
         if (IS_ERR(retval)) {
             return retval;
@@ -114,6 +118,7 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munm
         return 0;
     }
 
+    /* normal execution case: cache was not in use, so use it/allocate new one for reuse */
     if (cache->valid) {
         if (cache->size >= size) {
             *mem = cache->mem;
