@@ -1,3 +1,7 @@
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
+
 #include <stddef.h>
 #include <asm/errno.h>
 
