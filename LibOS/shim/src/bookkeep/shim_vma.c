@@ -223,8 +223,8 @@ static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev)
     if (g_lookup_cache && g_lookup_cache->end < addr) {
         /* addr is after the cached address, skip to cached VMA. */
         struct shim_vma* tmp;
-        vma = g_lookup_cache;
-        prev = vma;
+        prev = g_lookup_cache;
+        vma = prev;
         LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(vma, tmp, &g_vma_list, list) {
             if (check_addr_vma(addr, vma, &prev, &found))
                 break;
@@ -384,6 +384,7 @@ int init_vma(void) {
             INIT_LIST_HEAD(new, list);
             __remove_vma(e, prev);
             __insert_vma(new, prev);
+            g_lookup_cache = NULL;
         }
 
         /* replace all reserved VMAs */
@@ -471,6 +472,7 @@ static inline void __restore_reserved_vmas(void) {
 static inline void __drop_vma (struct shim_vma * vma)
 {
     assert(locked(&g_vma_list_lock));
+    assert(g_vma_mgr);
 
     if (vma->file)
         put_handle(vma->file);
