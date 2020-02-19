@@ -387,7 +387,8 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         if (!(mem_entries[i]->prot & PAL_PROT_READ) && mem_size > 0) {
             /* Make the area readable */
             PAL_BOL ret = DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot | PAL_PROT_READ);
-            assert(ret);
+            if (!ret)
+                return -PAL_ERRNO;
         }
 
         bytes = 0;
@@ -405,8 +406,10 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         } while (bytes < mem_entries[i]->size);
 
         if (!(mem_entries[i]->prot & PAL_PROT_READ) && mem_size > 0) {
+            /* the area was made readable above; revert to original permissions */
             PAL_BOL ret = DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot);
-            assert(ret);
+            if (ret)
+                return -PAL_ERRNO;
         }
 
         mem_entries[i]->size = mem_size;
