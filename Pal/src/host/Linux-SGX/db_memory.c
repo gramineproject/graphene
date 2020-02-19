@@ -77,15 +77,9 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
     if (size == 0)
         __asm__ volatile ("int $3");
 
-    mem = get_reserved_pages(addr, size);
+    mem = get_enclave_pages(addr, size);
     if (!mem)
         return addr ? -PAL_ERROR_DENIED : -PAL_ERROR_NOMEM;
-    if (addr && mem != addr) {
-        // TODO: This case should be made impossible by fixing
-        // `get_reserved_pages` semantics.
-        free_pages(mem, size);
-        return -PAL_ERROR_INVAL; // `addr` was unaligned.
-    }
 
     if (alloc_type & PAL_ALLOC_INTERNAL) {
         spinlock_lock(&pal_vma_lock);
@@ -93,7 +87,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
             spinlock_unlock(&pal_vma_lock);
             SGX_DBG(DBG_E, "Pal is out of VMAs (current limit on VMAs PAL_VMA_MAX = %d)!\n",
                     PAL_VMA_MAX);
-            free_pages(mem, size);
+            free_enclave_pages(mem, size);
             return -PAL_ERROR_NOMEM;
         }
 
@@ -114,7 +108,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
 int _DkVirtualMemoryFree (void * addr, uint64_t size)
 {
     if (sgx_is_completely_within_enclave(addr, size)) {
-        free_pages(addr, size);
+        free_enclave_pages(addr, size);
 
         /* check if it is internal PAL memory and remove this VMA from pal_vmas if yes */
         spinlock_lock(&pal_vma_lock);
@@ -157,11 +151,11 @@ unsigned long _DkMemoryQuota (void)
     return pal_sec.heap_max - pal_sec.heap_min;
 }
 
-extern struct atomic_int alloced_pages;
+extern struct atomic_int g_alloced_pages;
 extern unsigned int g_page_size;
 
 unsigned long _DkMemoryAvailableQuota (void)
 {
     return (pal_sec.heap_max - pal_sec.heap_min) -
-        atomic_read(&alloced_pages) * g_page_size;
+        atomic_read(&g_alloced_pages) * g_page_size;
 }

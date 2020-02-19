@@ -60,8 +60,8 @@ unsigned long _DkGetAllocationAlignment (void)
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
                                       PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
-    *start = (PAL_PTR) pal_sec.heap_min;
-    *end = (PAL_PTR) get_reserved_pages(NULL, g_page_size);
+    *start = (PAL_PTR) pal_sec.heap_min + g_page_size; /* one page is for sentinel VMA */
+    *end = (PAL_PTR) get_enclave_pages(NULL, g_page_size);
     *hole_start = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, *start);
     *hole_end = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, *end);
 }
@@ -307,7 +307,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);
     init_untrusted_slab_mgr();
-    init_pages();
+    init_enclave_pages();
     init_enclave_key();
 
     init_cpuid();

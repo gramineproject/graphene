@@ -74,7 +74,7 @@ out:
    The memory is unmapped as a whole.*/
 int _DkStreamUnmap(void* addr, uint64_t size) {
     /* Just let the kernel tell us if the mapping isn't good. */
-    free_pages(addr, size);
+    free_enclave_pages(addr, size);
     return 0;
 }
 
