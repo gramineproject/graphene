@@ -188,24 +188,13 @@ static inline void assert_vma_list (void)
 }
 
 /*
- * __lookup_vma() returns the VMA that contains the address; otherwise,
- * returns NULL. "pprev" returns the highest VMA below the address.
- * __lookup_vma() fills "pprev" even when the function cannot find a
- * matching vma for "addr".
- *
- * g_vma_list_lock must be held when calling this function.
- */
-
-/*
  * This speeds only the case when continuously increasing addresses are looked up.
  * This is easy optimization with the hope that it won't harm in cache miss case.
  *
- * TODO:
- * observe memory allocation behavior and optimized based on it.
- * The related components to be observed are
- * - bkeep_unmapped_heap()
- * - bkeep_unampped_any() = bkeep_unampped() used by shim_malloc()
- * - user app malloc (e.g. malloc in glibc or other malloc)
+ * TODO: observe memory allocation behavior and optimize for it; in particular, look at:
+ *       - bkeep_unmapped_heap()
+ *       - bkeep_unmapped_any() = bkeep_unmapped() used by shim_malloc.c
+ *       - user app malloc (e.g. malloc() in glibc)
  */
 static struct shim_vma* g_lookup_cache = NULL;
 
@@ -232,7 +221,7 @@ static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev)
     struct shim_vma* found = NULL;
 
     if (g_lookup_cache && g_lookup_cache->end < addr) {
-        /* addr is after the cached address, skip to cached addr. */
+        /* addr is after the cached address, skip to cached VMA. */
         struct shim_vma* tmp;
         vma = g_lookup_cache;
         prev = vma;
@@ -459,31 +448,15 @@ static inline void __restore_reserved_vmas(void) {
 
     /*
      * On entry bkeep_mmap(), it needs to ensure that
-     * three (at least) reserved_vmas are available.
+     * at least three reserved_vmas are available.
      * After that, g_reserved_vmas needs to be re-populated.
-     * one for __bkeep_munmap() => __shrink_vma()
-     * one for new vma for new region
-     * one for re-populating reserved_vma.
-     *
-     * NOTE:
-     * get_mem_obj_from_mgr_enlarge() can use g_reserved_vmas by
-     * calling system_malloc(__malloc)
-     * get_mem_obj_from_mgr_enlarge()
-     * -> system_malloc()=__malloc()
-     * -> __bkeep_unmapped()
-     * -> __bkep_mmap()
-     * -> __get_new_vma()
-     * -> try to use g_served_vmas[]
-     *    and it must success.
-     *    and then reserved vmas are re-populated.
+     * - one for __bkeep_munmap() => __shrink_vma()
+     * - one for new vma for new region
+     * - one for re-populating reserved_vma.
      */
     if (g_num_reserved_vmas >= 3)
         return;
 
-    /*
-     * get_mem_obj_from_mgr_enlarge() may call system_malloc() (==__malloc())
-     * which calls __get_new_vma() to consume g_reserved_vma.
-     */
     while (g_num_reserved_vmas < RESERVED_VMAS) {
         assert(g_num_reserved_vmas >= 1);
         struct shim_vma * new = get_mem_obj_from_mgr_enlarge(g_vma_mgr,
