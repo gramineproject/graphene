@@ -823,21 +823,6 @@ static_always_inline void * current_stack(void)
     return _rsp;
 }
 
-static_always_inline bool __range_not_ok(unsigned long addr, unsigned long size) {
-    addr += size;
-    if (addr < size) {
-        /* pointer arithmetic overflow, this check is x86-64 specific */
-        return true;
-    }
-    return false;
-}
-
-/* Check if pointer to memory region is valid. Return true if the memory
- * region may be valid, false if it is definitely invalid. */
-static inline bool access_ok(const volatile void* addr, size_t size) {
-    return !__range_not_ok((unsigned long)addr, (unsigned long)size);
-}
-
 #else
 # error "Unsupported architecture"
 #endif /* __x86_64__ */
