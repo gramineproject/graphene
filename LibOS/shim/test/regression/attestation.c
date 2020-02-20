@@ -259,14 +259,16 @@ static void swap_sgx_reports(void) {
     }
 }
 
+/* This currently does not include 'quote'. Since the quote interface does not implement any
+ * caching, we do not want to have 10^6 interaction with the quoting enclave as this would simply
+ * take too long. */
 const char* paths[] = {
     "report",
     "report_data",
     "my_target_info",
     "target_info",
     "ias_report",
-    "ias_header",
-    "quote"
+    "ias_header"
 };
 
 const char* path_prefix = "/sys/sgx_attestation";
@@ -275,8 +277,8 @@ const char* path_prefix = "/sys/sgx_attestation";
  * Repeatedly open()/close() pseudo-files to hopefully uncover resource leaks.
  */
 static void resource_leak(void) {
-    for (int i=0; i < 1000000; i++) {
-        for (int j = 0; j < sizeof(paths) / sizeof(&paths[0]); j++) {
+    for (int j = 0; j < sizeof(paths) / sizeof(&paths[0]); j++) {
+        for (int i=0; i < 1000000; i++) {
             char fn[64];
             snprintf(fn, sizeof(fn), "%s/%s", path_prefix, paths[j]);
             int fd = open(fn, O_RDONLY);
@@ -557,9 +559,40 @@ static void ias_interaction(void) {
     puts("Successfully verified report data.");
 }
 
+enum { SUCCESS = 0, FAILURE = -1 };
+
+/**
+ * @return 0 on success, < 0 otherwise.
+ */
+static int test_quote_interface(void) {
+    sgx_report_data_t report_data = {0,};
+    memcpy((void*)&report_data, (void*) report_data_str, sizeof(report_data_str));
+    int fd = open("/sys/sgx_attestation/report_data", O_WRONLY);
+    if (fd < 0)
+        return FAILURE;
+    int rc = write(fd, &report_data, sizeof(report_data));
+    if (rc != sizeof(report_data))
+        return FAILURE;
+    close(fd);
+
+    char path[255];
+    snprintf(path, sizeof(path), "%s/%s", path_prefix, "quote");
+    fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return FAILURE;
+    uint8_t quote[2048];
+    rc = read(fd, quote, sizeof(quote));
+    close(fd);
+
+    rc = memcmp(((sgx_quote_t*)quote)->report_body.report_data.d, report_data.d, sizeof(report_data));
+    return rc == 0 ? SUCCESS : FAILURE;
+}
+
 int main(int argc, char** argv) {
     resource_leak();
     swap_sgx_reports();
     ias_interaction();
+    if (SUCCESS == test_quote_interface())
+        puts("Successfully verified quote interface.");
     return 0;
 }

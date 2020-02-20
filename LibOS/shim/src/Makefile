@@ -11,8 +11,7 @@ CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  $(cc-option, -Wnull-dereference) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal \
-	  -I../../../Pal/include/elf \
-	  -I../../../Pal/src/host/Linux-SGX
+	  -I../../../Pal/include/elf
 
 EXTRAFLAGS = -Wextra
 

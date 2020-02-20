@@ -299,9 +299,22 @@ _DkSGXQuote(const PAL_PTR report_data, PAL_NUM report_data_size,
     if (ret < 0)
         return ret;
 
-    ret = sgx_get_quote(&spid, &nonce, report_data, linkable, (uint8_t**) &quote, quote_size);
+    char* pal_quote;
+    size_t pal_quote_size;
+
+    ret = sgx_get_quote(&spid, &nonce, report_data, linkable, (uint8_t**) &pal_quote, &pal_quote_size);
     if (ret < 0)
         return ret;
+
+    if (*quote_size < pal_quote_size) {
+        free(pal_quote);
+        *quote_size = pal_quote_size;
+        return -PAL_ERROR_INVAL;
+    }
+
+    memcpy(quote, pal_quote, pal_quote_size);
+    *quote_size = pal_quote_size;
+    free(pal_quote);
 
     return 0;
 }
