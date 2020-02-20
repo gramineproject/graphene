@@ -269,12 +269,12 @@ struct hdl_header {
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     struct hdl_header hdl_hdr;
     void* hdl_data;
-    int ret = handle_serialize(cargo, &hdl_data);
-    if (ret < 0)
-        return ret;
+    int data_size = handle_serialize(cargo, &hdl_data);
+    if (data_size < 0)
+        return data_size;
 
     hdl_hdr.fds       = 0;
-    hdl_hdr.data_size = ret;
+    hdl_hdr.data_size = data_size;
     unsigned int fds[MAX_FDS];
     unsigned int nfds = 0;
     for (int i = 0; i < MAX_FDS; i++)
@@ -284,6 +284,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
         }
 
     int ch = hdl->process.cargo;
+    ssize_t ret;
     ret    = ocall_send(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, 0, NULL, 0);
 
     if (IS_ERR(ret)) {
@@ -316,7 +317,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     int ch = hdl->process.cargo;
 
-    int ret = ocall_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, NULL, NULL, NULL);
+    ssize_t ret = ocall_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, NULL, NULL, NULL);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));

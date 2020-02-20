@@ -24,9 +24,9 @@ int ocall_open (const char * pathname, int flags, unsigned short mode);
 
 int ocall_close (int fd);
 
-int ocall_read (int fd, void * buf, unsigned int count);
+ssize_t ocall_read(int fd, void* buf, size_t count);
 
-int ocall_write (int fd, const void * buf, unsigned int count);
+ssize_t ocall_write(int fd, const void* buf, size_t count);
 
 ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset);
 
@@ -59,13 +59,13 @@ int ocall_connect(int domain, int type, int protocol, int ipv6_v6only,
                   struct sockaddr* bind_addr, unsigned int* bind_addrlen,
                   struct sockopt* sockopt);
 
-int ocall_recv (int sockfd, void * buf, unsigned int count,
-                struct sockaddr * addr, unsigned int * addrlenptr,
-                void * control, uint64_t * controllenptr);
+ssize_t ocall_recv(int sockfd, void* buf, size_t count,
+                   struct sockaddr* addr, unsigned int* addrlenptr,
+                   void* control, uint64_t* controllenptr);
 
-int ocall_send (int sockfd, const void * buf, unsigned int count,
-                const struct sockaddr * addr, unsigned int addrlen,
-                void * control, uint64_t controllen);
+ssize_t ocall_send(int sockfd, const void* buf, size_t count,
+                   const struct sockaddr* addr, unsigned int addrlen,
+                   void* control, uint64_t controllen);
 
 int ocall_setsockopt (int sockfd, int level, int optname,
                       const void * optval, unsigned int optlen);
