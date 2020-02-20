@@ -34,6 +34,13 @@
 
 DEFINE_PROFILE_OCCURENCE(mmap, memory);
 
+static bool completely_within_user_address(void* addr, size_t length) {
+    if (((uint64_t) addr) > (UINT64_MAX - length)) {
+        return false;
+    }
+    return PAL_CB(user_address.start) <= addr && addr + length <= PAL_CB(user_address.end);
+}
+
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
     struct shim_handle* hdl = NULL;
     long ret                = 0;
@@ -64,9 +71,7 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
 
     if ((flags & MAP_FIXED) || addr) {
         struct shim_vma_val tmp;
-
-        if (addr < PAL_CB(user_address.start) || PAL_CB(user_address.end) <= addr ||
-            (uintptr_t)PAL_CB(user_address.end) - (uintptr_t)addr < length) {
+        if (!completely_within_user_address(addr, length)) {
             debug(
                 "mmap: user specified address %p with length %lu "
                 "not in allowed user space, ignoring this hint\n",
@@ -154,6 +159,8 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
+    if (!completely_within_user_address(addr, length))
+        return -ENOMEM;
     if (bkeep_mprotect(addr, length, prot, 0) < 0)
         return -EPERM;
 
@@ -179,6 +186,8 @@ int shim_do_munmap(void* addr, size_t length) {
 
     struct shim_vma_val vma;
 
+    if (!completely_within_user_address(addr, length))
+        return -EINVAL;
     if (lookup_overlap_vma(addr, length, &vma) < 0) {
         debug("can't find addr %p - %p in map, quit unmapping\n", addr, addr + length);
 
