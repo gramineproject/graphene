@@ -446,8 +446,15 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
         goto failed;
     }
 
-    memcpy(*quote, r->quote.data, r->quote.len);
-    *quote_len = r->quote.len;
+    /* I have no clue why the quoting enclave would always set r->quote.len to getreq.buf_size
+     * instead of the actual size [1]. We calculate the actual size by peeking into the quote and
+     * determining the size of the signature.
+     *
+     * [1] https://github.com/intel/linux-sgx/blob/master/psw/ae/aesm_service/source/core/ipc/AEGetQuoteRequest.cpp#L168
+     */
+    size_t actual_quote_size = sizeof(sgx_quote_t) + ((sgx_quote_t*)r->quote.data)->sig_len;
+    memcpy(*quote, r->quote.data, actual_quote_size);
+    *quote_len = actual_quote_size;
 
     response__free_unpacked(res, NULL);
     return 0;
