@@ -11,8 +11,6 @@
 #include <api.h>
 #include <asm/errno.h>
 
-/* TODO: revise return value as long sgx_ocall(void*) */
-
 /* Check against this limit if the buffer to be allocated fits on the untrusted stack; if not,
  * buffer will be allocated on untrusted heap. Conservatively set this limit to 1/4 of the
  * actual stack size. Currently THREAD_STACK_SIZE = 2MB, so this limit is 512KB.
@@ -168,8 +166,8 @@ int ocall_close (int fd)
     return retval;
 }
 
-int ocall_read(int fd, void* buf, unsigned int count) {
-    int retval = 0;
+ssize_t ocall_read(int fd, void* buf, size_t count) {
+    ssize_t retval = 0;
     void* obuf = NULL;
     ms_ocall_read_t* ms;
     void* ms_buf;
@@ -213,8 +211,8 @@ out:
     return retval;
 }
 
-int ocall_write(int fd, const void* buf, unsigned int count) {
-    int retval = 0;
+ssize_t ocall_write(int fd, const void* buf, size_t count) {
+    ssize_t retval = 0;
     void* obuf = NULL;
     ms_ocall_write_t* ms;
     const void* ms_buf;
@@ -784,11 +782,11 @@ int ocall_connect(int domain, int type, int protocol, int ipv6_v6only,
     return retval;
 }
 
-int ocall_recv (int sockfd, void * buf, unsigned int count,
-                struct sockaddr * addr, unsigned int * addrlenptr,
-                void * control, uint64_t * controllenptr)
+ssize_t ocall_recv(int sockfd, void* buf, size_t count,
+                   struct sockaddr* addr, unsigned int* addrlenptr,
+                   void* control, uint64_t* controllenptr)
 {
-    int retval = 0;
+    ssize_t retval = 0;
     void * obuf = NULL;
     unsigned int copied;
     unsigned int addrlen = addrlenptr ? *addrlenptr : 0;
@@ -857,11 +855,11 @@ out:
     return retval;
 }
 
-int ocall_send (int sockfd, const void * buf, unsigned int count,
-                const struct sockaddr * addr, unsigned int addrlen,
-                void * control, uint64_t controllen)
+ssize_t ocall_send (int sockfd, const void* buf, size_t count,
+                    const struct sockaddr* addr, unsigned int addrlen,
+                    void* control, uint64_t controllen)
 {
-    int retval = 0;
+    ssize_t retval = 0;
     void * obuf = NULL;
     ms_ocall_send_t * ms;
 
