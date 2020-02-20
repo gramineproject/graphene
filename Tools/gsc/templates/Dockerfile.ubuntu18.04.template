@@ -1,0 +1,74 @@
+# start with 18.04
+FROM ubuntu:18.04 AS graphene
+
+# Add steps here to set up dependencies
+RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    apache2-utils \
+    autoconf \
+    bison \
+    build-essential \
+    curl \
+    flex \
+    gawk \
+    gettext \
+    git \
+    libapr1-dev \
+    libaprutil1-dev \
+    libelf-dev \
+    libexpat1 \
+    libexpat1-dev \
+    libnss-mdns \
+    libomp-dev \
+    libpcre2-dev \
+    libpcre3-dev \
+    libprotobuf-c-dev \
+    libssl-dev \
+    libxml2-dev \
+    linux-headers-`uname -r` \
+    net-tools \
+    protobuf-c-compiler \
+    pylint3 \
+    python \
+    python3-apport \
+    python3-apt \
+    python3-breathe \
+    python3-lxml \
+    python3-numpy \
+    python3-pip \
+    python3-protobuf \
+    python3-pytest \
+    python3-scipy \
+    shellcheck \
+    texinfo \
+    wget \
+    zlib1g \
+    zlib1g-dev
+
+RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
+
+# Make a directory for the intel driver
+RUN mkdir -p /opt/intel && chown 1001 /opt/intel
+
+# clone graphene
+RUN git clone https://github.com/oscarlab/graphene.git
+
+# init submodules
+RUN cd graphene && git submodule init && git submodule update
+
+# create keys for signing
+RUN cd graphene/Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
+
+# symlink and create version number for sgx driver. !!! Don't build the gsgx kernel driver !!! (was anyways build by host)
+RUN cd graphene/Pal/src/host/Linux-SGX/sgx-driver \
+    && git clone https://github.com/01org/linux-sgx-driver.git \
+    && cd linux-sgx-driver \
+    && git checkout sgx_driver_${sgxdriver_major}.${sgxdriver_minor} 
+
+# build grapehene
+RUN cd graphene && ISGX_DRIVER_PATH=linux-sgx-driver make SGX=1 ${DEBUG} WERROR=1
+
+# translate runtime symlinks to files
+RUN for f in $$(find graphene/Runtime -type l);do cp --remove-destination $$(readlink $$f) $$f;done;
+
+# Finished building Graphene
+# ------------------------------------------

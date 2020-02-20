@@ -1,0 +1,65 @@
+FROM ubuntu:16.04 AS graphene
+
+# Add steps here to set up dependencies
+RUN apt-get update \
+     && apt-get -y --force-yes upgrade \ 
+     && apt-get install -y --force-yes \
+       apache2-utils \
+       autoconf \
+       bison \
+       build-essential \
+       curl \
+       flex \
+       gawk \
+       gettext \
+       git \
+       libapr1-dev \
+       libaprutil1-dev \
+       libexpat1 \
+       libexpat1-dev \
+       libnss-mdns \
+       libomp-dev \
+       libpcre2-dev \
+       libpcre3-dev \
+       libprotobuf-c-dev \
+       libssl-dev \
+       libxml2-dev \
+       linux-headers-`uname -r` \
+       net-tools \
+       protobuf-c-compiler \
+       python \
+       python3-apport \
+       python3-apt \
+       python3-lxml \
+       python3-minimal \
+       python3-numpy \
+       python3-pip \
+       python3-pytest \
+       python3-scipy \
+       shellcheck \
+       texinfo \
+       wget \
+       zlib1g \
+       zlib1g-dev \
+    && /usr/bin/pip3 install protobuf \
+
+# clone graphene
+RUN git clone https://github.com/oscarlab/graphene.git
+
+# init submodules
+RUN cd ~/graphene && git submodule init && git submodule update
+
+# create keys for signing
+RUN cd ~/graphene/Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
+
+# symlink and create version number for sgx driver. !!! Don't build the gsgx kernel driver !!! (was anyways build by host)
+RUN cd graphene/Pal/src/host/Linux-SGX/sgx-driver \
+    && git clone https://github.com/01org/linux-sgx-driver.git \
+    && cd linux-sgx-driver \
+    && git checkout sgx_driver_${sgxdriver_major}.${sgxdriver_minor}
+
+# build graphene-sgx
+RUN cd ~/graphene &&  ISGX_DRIVER_PATH=linux-sgx-driver make SGX=1 WERROR=1
+
+# Finished building Graphene
+# ------------------------------------------

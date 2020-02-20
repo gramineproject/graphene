@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# Generate EINITOKEN
+/graphene/signer/pal-sgx-get-token -output ${binary}.token -sig ${binary}.sig
+
+# Run the application with arguments given to it
+SGX=1 graphene/Runtime/pal-Linux-SGX ${binary}.manifest.sgx ${binary_arguments} $${@}
