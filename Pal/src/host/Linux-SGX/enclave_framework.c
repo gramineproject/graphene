@@ -37,23 +37,16 @@ bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
     return enclave_base >= addr + size || enclave_top <= addr;
 }
 
-int sgx_alloc_on_ustack(uint64_t size, void** new, void** old) {
+void sgx_prepare_ustack(void** old_ustack) {
     void* ustack = GET_ENCLAVE_TLS(ustack);
-    *old = ustack;
+    *old_ustack = ustack;
 
     if (ustack != GET_ENCLAVE_TLS(ustack_top))
         ustack -= RED_ZONE_SIZE;
-    ustack -= size;
-    ustack = ALIGN_DOWN_PTR(ustack, 16);
-    if (!sgx_is_completely_outside_enclave(ustack, size)) {
-        return -EPERM;
-    }
     SET_ENCLAVE_TLS(ustack, ustack);
-    *new = ustack;
-    return 0;
 }
 
-void* sgx_alloc_on_ustack_cont(uint64_t size) {
+void* sgx_alloc_on_ustack(uint64_t size) {
     void* ustack = GET_ENCLAVE_TLS(ustack) - size;
     ustack = ALIGN_DOWN_PTR(ustack, 16);
     if (!sgx_is_completely_outside_enclave(ustack, size)) {
@@ -67,16 +60,16 @@ void* sgx_copy_to_ustack(const void* ptr, uint64_t size) {
     if (!sgx_is_completely_within_enclave(ptr, size)) {
         return NULL;
     }
-    void* uptr = sgx_alloc_on_ustack_cont(size);
+    void* uptr = sgx_alloc_on_ustack(size);
     if (uptr) {
         memcpy(uptr, ptr, size);
     }
     return uptr;
 }
 
-void sgx_reset_ustack(const void* ustack) {
-    assert(ustack <= GET_ENCLAVE_TLS(ustack_top));
-    SET_ENCLAVE_TLS(ustack, ustack);
+void sgx_reset_ustack(const void* old_ustack) {
+    assert(old_ustack <= GET_ENCLAVE_TLS(ustack_top));
+    SET_ENCLAVE_TLS(ustack, old_ustack);
 }
 
 /* NOTE: Value from possibly untrusted uptr must be copied inside
