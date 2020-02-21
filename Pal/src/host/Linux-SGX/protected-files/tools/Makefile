@@ -1,7 +1,7 @@
-include ../../../../../Scripts/Makefile.configs
+include ../../../../../../Scripts/Makefile.configs
 
 CFLAGS := -Wall -Wextra -O2 -maes -std=c11 \
-	-fno-omit-frame-pointer -I../../../../include/lib -I/opt/openssl-1.1/include \
+	-fno-omit-frame-pointer -I../../../../../include/lib -I/opt/openssl-1.1/include \
 	-D_GNU_SOURCE
 
 LDFLAGS += -L/opt/openssl-1.1/lib

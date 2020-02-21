@@ -20,8 +20,8 @@ from regression import (
 class TC_50_ProtectedFiles(TC_00_FileSystem):
     @classmethod
     def setUpClass(c):
-        c.PF_CRYPT = os.path.join(os.environ.get('PAL_TOOLS'), 'pf_crypt')
-        c.PF_TAMPER = os.path.join(os.environ.get('PAL_TOOLS'), 'pf_tamper')
+        c.PF_CRYPT = os.path.join(os.environ.get('PF_TOOLS'), 'pf_crypt')
+        c.PF_TAMPER = os.path.join(os.environ.get('PF_TOOLS'), 'pf_tamper')
         c.WRAP_KEY = os.path.join(c.TEST_DIR, 'wrap-key')
         # CONST_WRAP_KEY must match the one in manifest
         c.CONST_WRAP_KEY = [0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]

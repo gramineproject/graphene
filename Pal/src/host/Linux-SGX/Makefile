@@ -7,7 +7,7 @@ ias_cert_file = quote/$(notdir $(ias_cert_url))
 
 CFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
 	-I../../../lib/crypto/mbedtls/include -I../../../include/host/Linux-SGX \
-	-I../../../include/lib -Isgx-driver
+	-I../../../include/lib -Isgx-driver -Iprotected-files
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py
@@ -19,7 +19,7 @@ enclave-objs = $(addprefix db_,files devices pipes eventfd sockets streams memor
 		threading mutex events process object main rtld \
 		exception misc) \
 		$(addprefix enclave_,ocalls ecalls framework pf platform pages untrusted xstate) \
-		lru_cache protected_files
+		protected-files/lru_cache protected-files/protected_files
 enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
 	    quote/aesm.pb-c clone-x86_64
@@ -89,7 +89,7 @@ endif
 
 .PHONY: tools
 tools:
-	@$(MAKE) -C tools
+	@$(MAKE) -C protected-files/tools
 
 include ../../../../Scripts/Makefile.rules
 
@@ -111,7 +111,7 @@ clean: clean_
 distclean: clean_
 	$(RM) $(ias_cert_file)
 	$(MAKE) -C sgx-driver $@
-	$(MAKE) -C tools clean
+	$(MAKE) -C protected-files/tools clean
 
 .PHONY: test
 test:

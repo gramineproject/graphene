@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "uthash.h"
+#include "../uthash.h"
 
 struct lruc_context;
 typedef struct lruc_context* lruc_context_t;

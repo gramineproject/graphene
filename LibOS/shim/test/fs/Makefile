@@ -47,7 +47,7 @@ $(execs)
 endif
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
-export PAL_TOOLS  = ../../../../Pal/src/host/$(PAL_HOST)/tools
+export PF_TOOLS  = ../../../../Pal/src/host/$(PAL_HOST)/protected-files/tools
 export PYTHONPATH = ../../../../Scripts
 
 .PHONY: fs-test
