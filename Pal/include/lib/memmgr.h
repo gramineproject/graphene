@@ -156,7 +156,6 @@ static inline MEM_MGR enlarge_mem_mgr(MEM_MGR mgr, unsigned int size) {
     area->size = size;
     INIT_LIST_HEAD(area, __list);
     LISTP_ADD(area, &mgr->area_list, __list);
-    __set_free_mem_area(area, mgr);
     SYSTEM_UNLOCK();
     return mgr;
 }
@@ -182,18 +181,23 @@ static inline OBJ_TYPE* get_mem_obj_from_mgr(MEM_MGR mgr) {
     MEM_OBJ mobj;
 
     SYSTEM_LOCK();
-    if (mgr->obj == mgr->obj_top && LISTP_EMPTY(&mgr->free_list)) {
-        SYSTEM_UNLOCK();
-        return NULL;
-    }
-
     if (!LISTP_EMPTY(&mgr->free_list)) {
         mobj = LISTP_FIRST_ENTRY(&mgr->free_list, MEM_OBJ_TYPE, __list);
         LISTP_DEL_INIT(mobj, &mgr->free_list, __list);
         CHECK_LIST_HEAD(MEM_OBJ, &mgr->free_list, __list);
     } else {
+        if (mgr->obj == mgr->obj_top) {
+            /* If there is a previously allocated area, just activate it. */
+            MEM_AREA area = LISTP_PREV_ENTRY(mgr->active_area, &mgr->area_list, __list);
+            if (!area) {
+                SYSTEM_UNLOCK();
+                return NULL;
+            }
+            __set_free_mem_area(area, mgr);
+        }
         mobj = mgr->obj++;
     }
+    assert(mgr->obj <= mgr->obj_top);
     SYSTEM_UNLOCK();
     return &mobj->obj;
 }
@@ -202,15 +206,14 @@ static inline OBJ_TYPE* get_mem_obj_from_mgr_enlarge(MEM_MGR mgr, unsigned int s
     MEM_OBJ mobj;
 
     SYSTEM_LOCK();
-    if (mgr->obj == mgr->obj_top && LISTP_EMPTY(&mgr->free_list)) {
-        size_t mgr_size = mgr->size;
+    while (mgr->obj == mgr->obj_top && LISTP_EMPTY(&mgr->free_list)) {
         MEM_AREA area;
 
         /* If there is a previously allocated area, just activate it. */
         area = LISTP_PREV_ENTRY(mgr->active_area, &mgr->area_list, __list);
         if (area) {
             __set_free_mem_area(area, mgr);
-            goto alloc;
+            break;
         }
 
         SYSTEM_UNLOCK();
@@ -232,11 +235,8 @@ static inline OBJ_TYPE* get_mem_obj_from_mgr_enlarge(MEM_MGR mgr, unsigned int s
          * someone has already enlarged the space, we just add the new area to
          * the list for later use. */
         LISTP_ADD(area, &mgr->area_list, __list);
-        if (mgr_size == mgr->size) /* check if the size has changed */
-            __set_free_mem_area(area, mgr);
     }
 
-alloc:
     if (!LISTP_EMPTY(&mgr->free_list)) {
         mobj = LISTP_FIRST_ENTRY(&mgr->free_list, MEM_OBJ_TYPE, __list);
         LISTP_DEL_INIT(mobj, &mgr->free_list, __list);
