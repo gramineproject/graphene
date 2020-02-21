@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>
+#include <stdarg.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -88,6 +89,46 @@ retry:
     return 0;
 }
 
+// FIXME: remove once global realloc is enabled
+static void* realloc(void* ptr, size_t old_size, size_t new_size) {
+    void* tmp = malloc(new_size);
+    if (!tmp) {
+        return NULL;
+    }
+
+    memcpy(tmp, ptr, old_size);
+
+    free(ptr);
+
+    return tmp;
+}
+
+static int print_to_str(char** str, size_t off, size_t* size, const char* fmt, ...) {
+    int ret;
+    va_list ap;
+
+retry:
+    va_start(ap, fmt);
+    ret = vsnprintf(*str + off, *size - off, fmt, ap);
+    va_end(ap);
+
+    if (ret < 0) {
+        return -EINVAL;
+    }
+
+    if ((size_t)ret >= *size - off) {
+        char* tmp = realloc(*str, *size, *size + 128);
+        if (!tmp) {
+            return -ENOMEM;
+        }
+        *size += 128;
+        *str = tmp;
+        goto retry;
+    }
+
+    return ret;
+}
+
 static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flags) {
     // This function only serves one file
     __UNUSED(name);
@@ -95,76 +136,41 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
     if (flags & (O_WRONLY | O_RDWR))
         return -EACCES;
 
-    int len, max = 128;
-    char* str = NULL;
-
-    struct {
-        const char* fmt;
-        unsigned long val;
-    }
-    /* below strings must match exactly the strings retrieved from
-     * /proc/cpuinfo (see Linux's arch/x86/kernel/cpu/proc.c) */
-    cpuinfo[] = {
-        {
-            "processor\t: %lu\n",
-            0,
-        },
-        {
-            "vendor_id\t: %s\n",
-            (unsigned long)pal_control.cpu_info.cpu_vendor,
-        },
-        {
-            "cpu family\t: %lu\n",
-            pal_control.cpu_info.cpu_family,
-        },
-        {
-            "model\t\t: %lu\n",
-            pal_control.cpu_info.cpu_model,
-        },
-        {
-            "model name\t: %s\n",
-            (unsigned long)pal_control.cpu_info.cpu_brand,
-        },
-        {
-            "stepping\t: %lu\n",
-            pal_control.cpu_info.cpu_stepping,
-        },
-        {
-            "core id\t\t: %lu\n",
-            0,
-        },
-        {
-            "cpu cores\t: %lu\n",
-            pal_control.cpu_info.cpu_num,
-        },
-    };
-
-retry:
-    max *= 2;
-    len = 0;
-    free(str);
-    str = malloc(max);
-    if (!str)
+    size_t len = 0,
+           max = 128;
+    char* str = malloc(max);
+    if (!str) {
         return -ENOMEM;
+    }
+
+#define ADD_INFO(fmt, ...) do {                                         \
+        int ret = print_to_str(&str, len, &max, fmt, ##__VA_ARGS__);    \
+        if (ret < 0) {                                                  \
+            free(str);                                                  \
+            return ret;                                                 \
+        }                                                               \
+        len += ret;                                                     \
+    } while (0)
 
     for (size_t n = 0; n < pal_control.cpu_info.cpu_num; n++) {
-        cpuinfo[0].val = n;
-        cpuinfo[6].val = n;
-        for (size_t i = 0; i < ARRAY_SIZE(cpuinfo); i++) {
-            int ret = snprintf(str + len, max - len, cpuinfo[i].fmt, cpuinfo[i].val);
-
-            if (len + ret == max)
-                goto retry;
-
-            len += ret;
-        }
-
-        if (len >= max - 1)
-            goto retry;
-
-        str[len++] = '\n';
-        str[len]   = 0;
+        /* Below strings must match exactly the strings retrieved from /proc/cpuinfo
+         * (see Linux's arch/x86/kernel/cpu/proc.c) */
+        ADD_INFO("processor\t: %lu\n", n);
+        ADD_INFO("vendor_id\t: %s\n", pal_control.cpu_info.cpu_vendor);
+        ADD_INFO("cpu family\t: %lu\n", pal_control.cpu_info.cpu_family);
+        ADD_INFO("model\t\t: %lu\n", pal_control.cpu_info.cpu_model);
+        ADD_INFO("model name\t: %s\n", pal_control.cpu_info.cpu_brand);
+        ADD_INFO("stepping\t: %lu\n", pal_control.cpu_info.cpu_stepping);
+        ADD_INFO("core id\t\t: %lu\n", n);
+        ADD_INFO("cpu cores\t: %lu\n", pal_control.cpu_info.cpu_num);
+        double bogomips = pal_control.cpu_info.cpu_bogomips;
+        // Apparently graphene snprintf cannot into floats.
+        ADD_INFO("bogomips\t: %lu.%02lu\n",
+                 (unsigned long)bogomips,
+                 (unsigned long)(bogomips * 100.0 + 0.5) % 100);
+        ADD_INFO("\n");
     }
+#undef ADD_INFO
 
     struct shim_str_data* data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
