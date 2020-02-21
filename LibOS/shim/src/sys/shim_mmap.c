@@ -161,8 +161,12 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
-    if (!completely_within_user_address(addr, length))
-        return -ENOMEM;
+    if (!completely_within_user_address(addr, length)) {
+        /* Pal may load the executable outside of user address. Allow rtld to mprotect it */
+        if (!(PAL_CB(executable_range.start) <= addr &&
+              addr + length <= PAL_CB(executable_range.end)))
+            return -ENOMEM;
+    }
 
     if (bkeep_mprotect(addr, length, prot, 0) < 0)
         return -EPERM;
@@ -187,12 +191,8 @@ int shim_do_munmap(void* addr, size_t length) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
-    if (!completely_within_user_address(addr, length)) {
-        /* Pal loads the executable outside of user address. Allow rtld to mprotect it */
-        if (!(PAL_CB(executable_range.start) <= addr &&
-              addr + length <= PAL_CB(executable_range.end)))
-            return -EINVAL;
-    }
+    if (!completely_within_user_address(addr, length))
+        return -EINVAL;
 
     struct shim_vma_val vma;
 
