@@ -35,10 +35,9 @@
 DEFINE_PROFILE_OCCURENCE(mmap, memory);
 
 static bool completely_within_user_address(void* addr, size_t length) {
-    if (((uint64_t) addr) > (UINT64_MAX - length)) {
-        return false;
-    }
-    return PAL_CB(user_address.start) <= addr && addr + length <= PAL_CB(user_address.end);
+    /* the caller already tested access_ok() */
+    return /* access_ok(addr, length) && */
+        PAL_CB(user_address.start) <= addr && addr + length <= PAL_CB(user_address.end);
 }
 
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
@@ -156,11 +155,15 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (!addr || !IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
+    if (!length || !access_ok(addr, length))
+        return -EINVAL;
+
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
     if (!completely_within_user_address(addr, length))
         return -ENOMEM;
+
     if (bkeep_mprotect(addr, length, prot, 0) < 0)
         return -EPERM;
 
@@ -184,10 +187,15 @@ int shim_do_munmap(void* addr, size_t length) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
+    if (!completely_within_user_address(addr, length)) {
+        /* Pal loads the executable outside of user address. Allow rtld to mprotect it */
+        if (!(PAL_CB(executable_range.start) <= addr &&
+              addr + length <= PAL_CB(executable_range.end)))
+            return -EINVAL;
+    }
+
     struct shim_vma_val vma;
 
-    if (!completely_within_user_address(addr, length))
-        return -EINVAL;
     if (lookup_overlap_vma(addr, length, &vma) < 0) {
         debug("can't find addr %p - %p in map, quit unmapping\n", addr, addr + length);
 
