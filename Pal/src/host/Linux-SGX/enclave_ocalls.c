@@ -1197,10 +1197,6 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
         goto out;
     }
 
-    // For calling ocall_munmap_untrusted, need to reset the untrusted stack
-    sgx_reset_ustack(old_ustack);
-    old_ustack = NULL;
-
     // Copy each field inside and free the untrusted buffers
     if (attestation->quote) {
         size_t len = attestation->quote_len;
@@ -1249,8 +1245,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
     }
 
 out:
-    if (old_ustack)
-        sgx_reset_ustack(old_ustack);
+    sgx_reset_ustack(old_ustack);
     return retval;
 }
 
