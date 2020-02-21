@@ -253,6 +253,7 @@ static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
     MEM_OBJ mobj = container_of(obj, MEM_OBJ_TYPE, obj);
 
     SYSTEM_LOCK();
+#ifdef DEBUG
     MEM_AREA area, found = NULL;
     LISTP_FOR_EACH_ENTRY(area, &mgr->area_list, __list) {
         if (mobj >= area->objs && mobj < area->objs + area->size) {
@@ -265,8 +266,14 @@ static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
         INIT_LIST_HEAD(mobj, __list);
         LISTP_ADD_TAIL(mobj, &mgr->free_list, __list);
         CHECK_LIST_HEAD(MEM_OBJ, &mgr->free_list, __list);
+    } else {
+        /* TODO: warn it */
     }
-
+#else
+    INIT_LIST_HEAD(mobj, __list);
+    LISTP_ADD_TAIL(mobj, &mgr->free_list, __list);
+    CHECK_LIST_HEAD(MEM_OBJ, &mgr->free_list, __list);
+#endif
     SYSTEM_UNLOCK();
 }
 
