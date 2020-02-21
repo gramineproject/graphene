@@ -85,7 +85,7 @@ DEFINE_LIST(slab_area);
 
 typedef struct __attribute__((packed)) slab_area {
     LIST_TYPE(slab_area) __list;
-    unsigned int size;
+    size_t size;
     unsigned char pad[AREA_PADDING];
     unsigned char raw[];
 } SLAB_AREA_TYPE, *SLAB_AREA;
@@ -175,35 +175,35 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #define __INIT_MAX_MEM_SIZE(size) (__INIT_MIN_MEM_SIZE() + __INIT_SUM_OBJ_SIZE(size))
 
 #ifdef ALLOC_ALIGNMENT
-static inline int size_align_down(int slab_size, int size) {
+static inline size_t size_align_down(size_t slab_size, size_t size) {
     assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
-    int s = __MAX_MEM_SIZE(slab_size, size);
-    int p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
-    int o = __SUM_OBJ_SIZE(slab_size, 1);
+    size_t s = __MAX_MEM_SIZE(slab_size, size);
+    size_t p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
+    size_t o = __SUM_OBJ_SIZE(slab_size, 1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int size_align_up(int slab_size, int size) {
+static inline size_t size_align_up(size_t slab_size, size_t size) {
     assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
-    int s = __MAX_MEM_SIZE(slab_size, size);
-    int p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
-    int o = __SUM_OBJ_SIZE(slab_size, 1);
+    size_t s = __MAX_MEM_SIZE(slab_size, size);
+    size_t p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
+    size_t o = __SUM_OBJ_SIZE(slab_size, 1);
     return size + p / o;
 }
 
-static inline int init_align_down(int size) {
+static inline size_t init_align_down(size_t size) {
     assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
-    int s = __INIT_MAX_MEM_SIZE(size);
-    int p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
-    int o = __INIT_SUM_OBJ_SIZE(1);
+    size_t s = __INIT_MAX_MEM_SIZE(size);
+    size_t p = s - ALIGN_DOWN_POW2(s, ALLOC_ALIGNMENT);
+    size_t o = __INIT_SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int init_size_align_up(int size) {
+static inline size_t init_size_align_up(size_t size) {
     assert(IS_POWER_OF_2(ALLOC_ALIGNMENT));
-    int s = __INIT_MAX_MEM_SIZE(size);
-    int p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
-    int o = __INIT_SUM_OBJ_SIZE(1);
+    size_t s = __INIT_MAX_MEM_SIZE(size);
+    size_t p = ALIGN_UP_POW2(s, ALLOC_ALIGNMENT) - s;
+    size_t o = __INIT_SUM_OBJ_SIZE(1);
     return size + p / o;
 }
 #endif /* ALLOC_ALIGNMENT */
@@ -213,7 +213,7 @@ static inline int init_size_align_up(int size) {
 #endif
 
 static inline void __set_free_slab_area(SLAB_AREA area, struct slab_level_mgr* lmgr, int level) {
-    int slab_size     = slab_levels[level] + SLAB_HDR_SIZE;
+    size_t slab_size     = slab_levels[level] + SLAB_HDR_SIZE;
     lmgr->addr        = (void*)area->raw;
     lmgr->addr_top    = (void*)area->raw + (area->size * slab_size);
     lmgr->size       += area->size;
