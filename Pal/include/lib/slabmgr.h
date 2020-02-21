@@ -135,13 +135,18 @@ static const size_t slab_levels[SLAB_LEVEL] = {SLAB_LEVEL_SIZES};
 
 DEFINE_LISTP(slab_obj);
 DEFINE_LISTP(slab_area);
+
+struct slab_level_mgr {
+    LISTP_TYPE(slab_area) area_list;
+    LISTP_TYPE(slab_obj) free_list;
+    size_t size;
+    void* addr;
+    void* addr_top;
+    SLAB_AREA active_area;
+};
+
 typedef struct slab_mgr {
-    LISTP_TYPE(slab_area) area_list[SLAB_LEVEL];
-    LISTP_TYPE(slab_obj) free_list[SLAB_LEVEL];
-    size_t size[SLAB_LEVEL];
-    void* addr[SLAB_LEVEL];
-    void* addr_top[SLAB_LEVEL];
-    SLAB_AREA active_area[SLAB_LEVEL];
+    struct slab_level_mgr lmgr[SLAB_LEVEL];
 } SLAB_MGR_TYPE, *SLAB_MGR;
 
 typedef struct __attribute__((packed)) large_mem_obj {
@@ -207,12 +212,12 @@ static inline int init_size_align_up(int size) {
 #define STARTUP_SIZE 16
 #endif
 
-static inline void __set_free_slab_area(SLAB_AREA area, SLAB_MGR mgr, int level) {
-    int slab_size        = slab_levels[level] + SLAB_HDR_SIZE;
-    mgr->addr[level]     = (void*)area->raw;
-    mgr->addr_top[level] = (void*)area->raw + (area->size * slab_size);
-    mgr->size[level] += area->size;
-    mgr->active_area[level] = area;
+static inline void __set_free_slab_area(SLAB_AREA area, struct slab_level_mgr* lmgr, int level) {
+    int slab_size     = slab_levels[level] + SLAB_HDR_SIZE;
+    lmgr->addr        = (void*)area->raw;
+    lmgr->addr_top    = (void*)area->raw + (area->size * slab_size);
+    lmgr->size       += area->size;
+    lmgr->active_area = area;
 }
 
 static inline SLAB_MGR create_slab_mgr(void) {
@@ -244,12 +249,13 @@ static inline SLAB_MGR create_slab_mgr(void) {
         area->size = size;
 
         INIT_LIST_HEAD(area, __list);
-        INIT_LISTP(&mgr->area_list[i]);
-        LISTP_ADD_TAIL(area, &mgr->area_list[i], __list);
+        struct slab_level_mgr* lmgr = &mgr->lmgr[i];
+        INIT_LISTP(&lmgr->area_list);
+        LISTP_ADD_TAIL(area, &lmgr->area_list, __list);
 
-        INIT_LISTP(&mgr->free_list[i]);
-        mgr->size[i] = 0;
-        __set_free_slab_area(area, mgr, i);
+        INIT_LISTP(&lmgr->free_list);
+        lmgr->size = 0;
+        __set_free_slab_area(area, lmgr, i);
 
         addr += __MAX_MEM_SIZE(slab_levels[i], size);
     }
@@ -264,9 +270,9 @@ static inline void destroy_slab_mgr(SLAB_MGR mgr) {
     for (i = 0; i < SLAB_LEVEL; i++) {
         area = (SLAB_AREA)addr;
 
-        LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &mgr->area_list[i], __list) {
+        LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &mgr->lmgr[i].area_list, __list) {
             if (tmp != area)
-                system_free(area, __MAX_MEM_SIZE(slab_levels[i], area->size));
+                system_free(tmp, __MAX_MEM_SIZE(slab_levels[i], tmp->size));
         }
 
         addr += __MAX_MEM_SIZE(slab_levels[i], area->size);
@@ -276,51 +282,48 @@ static inline void destroy_slab_mgr(SLAB_MGR mgr) {
 }
 
 // SYSTEM_LOCK needs to be held by the caller on entry.
-static inline int enlarge_slab_mgr(SLAB_MGR mgr, int level) {
+static inline int enlarge_slab_mgr(struct slab_level_mgr* lmgr, int level) {
     assert(SYSTEM_LOCKED());
     assert(level < SLAB_LEVEL);
     /* DEP 11/24/17: This strategy basically doubles a level's size
      * every time it grows.  The assumption if we get this far is that
-     * mgr->addr == mgr->top_addr */
-    assert(mgr->addr[level] == mgr->addr_top[level]);
+     * lmgr->addr == lmgr->top_addr */
 
-    size_t size = mgr->size[level];
-    SLAB_AREA area;
+    while (lmgr->addr == lmgr->addr_top && LISTP_EMPTY(&lmgr->free_list)) {
+        size_t size = lmgr->size;
+        SLAB_AREA area;
 
-    /* If there is a previously allocated area, just activate it. */
-    area = LISTP_PREV_ENTRY(mgr->active_area[level], &mgr->area_list[level], __list);
-    if (area) {
-        __set_free_slab_area(area, mgr, level);
-        return 0;
-    }
+        /* If there is a previously allocated area, just activate it. */
+        area = LISTP_PREV_ENTRY(lmgr->active_area, &lmgr->area_list, __list);
+        if (area) {
+            __set_free_slab_area(area, lmgr, level);
+            return 0;
+        }
 
-    /* system_malloc() may be blocking, so we release the lock before
-     * allocating more memory */
-    SYSTEM_UNLOCK();
+        /* system_malloc() may be blocking, so we release the lock before
+         * allocating more memory */
+        SYSTEM_UNLOCK();
 
-    /* If the allocation failed, always try smaller sizes */
-    for (; size > 0; size >>= 1) {
-        area = (SLAB_AREA)system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
-        if (area)
-            break;
-    }
+        /* If the allocation failed, always try smaller sizes */
+        for (; size > 0; size >>= 1) {
+            area = (SLAB_AREA)system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
+            if (area)
+                break;
+        }
 
-    if (!area) {
         SYSTEM_LOCK();
-        return -ENOMEM;
+        if (!area) {
+            return -ENOMEM;
+        }
+
+        area->size = size;
+        INIT_LIST_HEAD(area, __list);
+
+        /* There can be concurrent operations to extend the SLAB manager. In case
+         * someone has already enlarged the space, we just add the new area to the
+         * list for later use. */
+        LISTP_ADD(area, &lmgr->area_list, __list);
     }
-
-    SYSTEM_LOCK();
-
-    area->size = size;
-    INIT_LIST_HEAD(area, __list);
-
-    /* There can be concurrent operations to extend the SLAB manager. In case
-     * someone has already enlarged the space, we just add the new area to the
-     * list for later use. */
-    LISTP_ADD(area, &mgr->area_list[level], __list);
-    if (mgr->size[level] == size) /* check if the size has changed */
-        __set_free_slab_area(area, mgr, level);
 
     return 0;
 }
@@ -348,23 +351,22 @@ static inline void* slab_alloc(SLAB_MGR mgr, size_t size) {
     }
 
     SYSTEM_LOCK();
-    assert(mgr->addr[level] <= mgr->addr_top[level]);
-    if (mgr->addr[level] == mgr->addr_top[level] && LISTP_EMPTY(&mgr->free_list[level])) {
-        int ret = enlarge_slab_mgr(mgr, level);
-        if (ret < 0) {
-            SYSTEM_UNLOCK();
-            return NULL;
-        }
+    struct slab_level_mgr* lmgr = &mgr->lmgr[level];
+    assert(lmgr->addr <= lmgr->addr_top);
+    int ret = enlarge_slab_mgr(lmgr, level);
+    if (ret < 0) {
+        SYSTEM_UNLOCK();
+        return NULL;
     }
 
-    if (!LISTP_EMPTY(&mgr->free_list[level])) {
-        mobj = LISTP_FIRST_ENTRY(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
-        LISTP_DEL(mobj, &mgr->free_list[level], __list);
+    if (!LISTP_EMPTY(&lmgr->free_list)) {
+        mobj = LISTP_FIRST_ENTRY(&lmgr->free_list, SLAB_OBJ_TYPE, __list);
+        LISTP_DEL(mobj, &lmgr->free_list, __list);
     } else {
-        mobj = (void*)mgr->addr[level];
-        mgr->addr[level] += slab_levels[level] + SLAB_HDR_SIZE;
+        mobj = (void*)lmgr->addr;
+        lmgr->addr += slab_levels[level] + SLAB_HDR_SIZE;
     }
-    assert(mgr->addr[level] <= mgr->addr_top[level]);
+    assert(lmgr->addr <= lmgr->addr_top);
     OBJ_LEVEL(mobj) = level;
     SYSTEM_UNLOCK();
 
@@ -461,7 +463,7 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
 
     SYSTEM_LOCK();
     INIT_LIST_HEAD(mobj, __list);
-    LISTP_ADD_TAIL(mobj, &mgr->free_list[level], __list);
+    LISTP_ADD_TAIL(mobj, &mgr->lmgr[level].free_list, __list);
     SYSTEM_UNLOCK();
 }
 
