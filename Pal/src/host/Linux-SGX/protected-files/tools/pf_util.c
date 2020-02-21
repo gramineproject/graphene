@@ -34,13 +34,6 @@
 /* PF callbacks usable in a standard Linux environment.
    Assume that pf handle is a pointer to file's fd. */
 
-void* linux_malloc(size_t size) {
-    void* address = malloc(size);
-    if (address)
-        memset(address, 0, size);
-    return address;
-}
-
 pf_status_t linux_read(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
     int fd = *(int*)handle;
     DBG("linux_read: fd %d, buf %p, offset %zu, size %zu\n", fd, buffer, offset, size);
@@ -167,8 +160,8 @@ static pf_status_t linux_delete(const char* path) {
 }
 
 void pf_set_linux_callbacks(pf_debug_f debug_f) {
-    pf_set_callbacks(linux_malloc, free, linux_read, linux_write, linux_truncate, linux_flush,
-                     linux_open, linux_close, linux_delete, debug_f);
+    pf_set_callbacks(linux_read, linux_write, linux_truncate, linux_flush, linux_open, linux_close,
+                     linux_delete, debug_f);
 }
 
 /* Crypto callbacks for OpenSSL */

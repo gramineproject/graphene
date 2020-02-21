@@ -36,13 +36,6 @@ infinite recursion in FS handlers) we don't use PAL file APIs here, but raw OCAL
 LISTP_TYPE(pf_map) g_pf_map_list = LISTP_INIT;
 
 /* Callbacks for protected files handling */
-static void* cb_malloc(size_t size) {
-    void* address = malloc(size);
-    if (address)
-        memset(address, 0, size);
-    return address;
-}
-
 static pf_status_t cb_read(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
     int fd  = *(int*)handle;
     int ret = ocall_lseek(fd, offset, SEEK_SET);
@@ -476,8 +469,7 @@ out:
 
 /* Initialize the PF library, register PFs from the manifest */
 int init_protected_files() {
-    pf_set_callbacks(cb_malloc, free, cb_read, cb_write, cb_truncate, cb_flush, cb_open, cb_close,
-                     cb_delete,
+    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_flush, cb_open, cb_close, cb_delete,
 #ifdef DEBUG
                      cb_debug
 #else

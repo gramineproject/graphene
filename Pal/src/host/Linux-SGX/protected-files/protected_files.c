@@ -60,6 +60,7 @@ char* strncpy(char* dest, const char* src, size_t size) {
 }
 #else
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #endif
 
@@ -71,8 +72,6 @@ static void erase_memory(void *buffer, size_t size) {
 }
 
 /* Host callbacks */
-static pf_malloc_f   cb_malloc   = NULL;
-static pf_free_f     cb_free     = NULL;
 static pf_read_f     cb_read     = NULL;
 static pf_write_f    cb_write    = NULL;
 static pf_truncate_f cb_truncate = NULL;
@@ -131,9 +130,7 @@ void __hexdump(const void* data, size_t size) {
 #define HEXDUMPNL(x) __HEXDUMPNL((void*)&(x), sizeof(x))
 
 static bool check_callbacks() {
-    return (cb_malloc != NULL &&
-            cb_free != NULL &&
-            cb_read != NULL &&
+    return (cb_read != NULL &&
             cb_write != NULL &&
             cb_truncate != NULL &&
             cb_flush != NULL &&
@@ -340,7 +337,7 @@ static bool ipf_restore_current_meta_data_key(pf_context_t pf) {
 // file_init.cpp
 
 static bool ipf_init_fields(pf_context_t pf) {
-    pf->debug_buffer = cb_malloc(PF_DEBUG_PRINT_SIZE_MAX);
+    pf->debug_buffer = malloc(PF_DEBUG_PRINT_SIZE_MAX);
     if (!pf->debug_buffer)
         return false;
     pf->meta_data_node_number = 0;
@@ -374,7 +371,7 @@ static bool ipf_init_fields(pf_context_t pf) {
 static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool create,
                              pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
                              bool enable_recovery) {
-    struct pf_context* pf = cb_malloc(sizeof(struct pf_context));
+    struct pf_context* pf = malloc(sizeof(struct pf_context));
 
     pf_last_error = PF_STATUS_NO_MEMORY;
     if (!pf)
@@ -457,7 +454,7 @@ static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool cre
 out:
     if (pf_last_error != PF_STATUS_SUCCESS) {
         DEBUG_PF("failed: %d\n", pf_last_error);
-        cb_free(pf);
+        free(pf);
         pf = NULL;
     }
 
@@ -664,7 +661,7 @@ static bool ipf_close(pf_context_t pf) {
         file_node_t* file_node = (file_node_t*)data;
         // data portion is the same size for data and mht nodes
         erase_memory(&file_node->data_plain, sizeof(file_node->data_plain));
-        cb_free(file_node);
+        free(file_node);
         lruc_remove_last(pf->cache);
     }
 
@@ -677,9 +674,9 @@ static bool ipf_close(pf_context_t pf) {
 
     lruc_destroy(pf->cache);
 
-    cb_free(pf->debug_buffer);
+    free(pf->debug_buffer);
     erase_memory(pf, sizeof(struct pf_context));
-    cb_free(pf);
+    free(pf);
 
     return retval;
 }
@@ -1491,7 +1488,7 @@ static file_node_t* ipf_get_data_node(pf_context_t pf) {
             file_node_t* file_node = (file_node_t*)data;
             // data portion is the same size for data and mht nodes
             erase_memory(&file_node->data_plain, sizeof(file_node->data_plain));
-            cb_free(file_node);
+            free(file_node);
         } else {
             if (!ipf_internal_flush(pf, false)) {
                 // error, can't flush cache, file status changed to error
@@ -1515,7 +1512,7 @@ static file_node_t* ipf_append_data_node(pf_context_t pf) {
 
     file_node_t* new_file_data_node = NULL;
 
-    new_file_data_node = cb_malloc(sizeof(*new_file_data_node));
+    new_file_data_node = malloc(sizeof(*new_file_data_node));
     if (!new_file_data_node) {
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
@@ -1529,7 +1526,7 @@ static file_node_t* ipf_append_data_node(pf_context_t pf) {
                      &new_file_data_node->physical_node_number);
 
     if (!lruc_add(pf->cache, new_file_data_node->physical_node_number, new_file_data_node)) {
-        cb_free(new_file_data_node);
+        free(new_file_data_node);
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
@@ -1557,7 +1554,7 @@ static file_node_t* ipf_read_data_node(pf_context_t pf) {
     if (file_mht_node == NULL) // some error happened
         return NULL;
 
-    file_data_node = cb_malloc(sizeof(*file_data_node));
+    file_data_node = malloc(sizeof(*file_data_node));
     if (!file_data_node) {
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
@@ -1570,7 +1567,7 @@ static file_node_t* ipf_read_data_node(pf_context_t pf) {
 
     if (!ipf_read_node(pf, pf->file, file_data_node->physical_node_number,
                        file_data_node->encrypted.cipher, PF_NODE_SIZE)) {
-        cb_free(file_data_node);
+        free(file_data_node);
         return NULL;
     }
 
@@ -1585,7 +1582,7 @@ static file_node_t* ipf_read_data_node(pf_context_t pf) {
                                        &gcm_crypto_data->gmac);
 
     if (PF_FAILURE(status)) {
-        cb_free(file_data_node);
+        free(file_data_node);
         pf_last_error = status;
         if (status == PF_STATUS_MAC_MISMATCH)
             pf->file_status = PF_STATUS_CORRUPTED;
@@ -1595,7 +1592,7 @@ static file_node_t* ipf_read_data_node(pf_context_t pf) {
     if (!lruc_add(pf->cache, file_data_node->physical_node_number, file_data_node)) {
         // scrub the plaintext data
         erase_memory(&file_data_node->data_plain, sizeof(file_data_node->data_plain));
-        cb_free(file_data_node);
+        free(file_data_node);
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
@@ -1645,7 +1642,7 @@ static file_node_t* ipf_append_mht_node(pf_context_t pf, uint64_t mht_node_numbe
                                     mht_node_number * (1 + ATTACHED_DATA_NODES_COUNT);
 
     file_node_t* new_file_mht_node = NULL;
-    new_file_mht_node = cb_malloc(sizeof(*new_file_mht_node));
+    new_file_mht_node = malloc(sizeof(*new_file_mht_node));
     if (!new_file_mht_node) {
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
@@ -1659,7 +1656,7 @@ static file_node_t* ipf_append_mht_node(pf_context_t pf, uint64_t mht_node_numbe
     new_file_mht_node->physical_node_number = physical_node_number;
 
     if (!lruc_add(pf->cache, new_file_mht_node->physical_node_number, new_file_mht_node)) {
-        cb_free(new_file_mht_node);
+        free(new_file_mht_node);
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
@@ -1688,7 +1685,7 @@ static file_node_t* ipf_read_mht_node(pf_context_t pf, uint64_t mht_node_number)
     if (parent_file_mht_node == NULL) // some error happened
         return NULL;
 
-    file_mht_node = cb_malloc(sizeof(*file_mht_node));
+    file_mht_node = malloc(sizeof(*file_mht_node));
     if (!file_mht_node) {
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
@@ -1702,7 +1699,7 @@ static file_node_t* ipf_read_mht_node(pf_context_t pf, uint64_t mht_node_number)
 
     if (!ipf_read_node(pf, pf->file, file_mht_node->physical_node_number,
                        file_mht_node->encrypted.cipher, PF_NODE_SIZE)) {
-        cb_free(file_mht_node);
+        free(file_mht_node);
         return NULL;
     }
 
@@ -1716,7 +1713,7 @@ static file_node_t* ipf_read_mht_node(pf_context_t pf, uint64_t mht_node_number)
                                        &file_mht_node->mht_plain,
                                        &gcm_crypto_data->gmac);
     if (PF_FAILURE(status)) {
-        cb_free(file_mht_node);
+        free(file_mht_node);
         pf_last_error = status;
         if (status == PF_STATUS_MAC_MISMATCH)
             pf->file_status = PF_STATUS_CORRUPTED;
@@ -1725,7 +1722,7 @@ static file_node_t* ipf_read_mht_node(pf_context_t pf, uint64_t mht_node_number)
 
     if (!lruc_add(pf->cache, file_mht_node->physical_node_number, file_mht_node)) {
         erase_memory(&file_mht_node->mht_plain, sizeof(file_mht_node->mht_plain));
-        cb_free(file_mht_node);
+        free(file_mht_node);
         pf_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
@@ -1767,7 +1764,7 @@ static bool ipf_do_file_recovery(pf_context_t pf, const char* filename, uint32_t
 
         nodes_count = (uint32_t)(file_size / recovery_node_size);
 
-        recovery_node = (uint8_t*)cb_malloc(recovery_node_size);
+        recovery_node = malloc(recovery_node_size);
         if (recovery_node == NULL) {
             pf_last_error = PF_STATUS_NO_MEMORY;
             break;
@@ -1806,7 +1803,7 @@ static bool ipf_do_file_recovery(pf_context_t pf, const char* filename, uint32_t
 
     } while (0);
 
-    cb_free(recovery_node);
+    free(recovery_node);
     cb_close(source_file);
     cb_close(recovery_file);
 
@@ -1818,11 +1815,9 @@ static bool ipf_do_file_recovery(pf_context_t pf, const char* filename, uint32_t
 
 // public API
 
-void pf_set_callbacks(pf_malloc_f malloc_f, pf_free_f free_f, pf_read_f read_f, pf_write_f write_f,
-                      pf_truncate_f truncate_f, pf_flush_f flush_f, pf_open_f open_f,
-                      pf_close_f close_f, pf_delete_f delete_f, pf_debug_f debug_f) {
-    cb_malloc   = malloc_f;
-    cb_free     = free_f;
+void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f truncate_f,
+                      pf_flush_f flush_f, pf_open_f open_f, pf_close_f close_f,
+                      pf_delete_f delete_f, pf_debug_f debug_f) {
     cb_read     = read_f;
     cb_write    = write_f;
     cb_truncate = truncate_f;

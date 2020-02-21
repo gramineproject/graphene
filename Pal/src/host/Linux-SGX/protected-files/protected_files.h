@@ -104,25 +104,6 @@ typedef enum _pf_file_mode_t {
 typedef void* pf_handle_t;
 
 /*!
- * \brief Allocate memory callback
- *
- * \param [in] size Size to allocate
- * \return Allocated address or NULL if failed
- *
- * \details Must zero the allocated buffer
- */
-typedef void* (*pf_malloc_f)(size_t size);
-
-/*!
- * \brief Free memory callback
- *
- * \param [in] address Address to free
- *
- * \details Must accept NULL pointers
- */
-typedef void (*pf_free_f)(void* address);
-
-/*!
  * \brief File read callback
  *
  * \param [in] handle File handle
@@ -244,8 +225,6 @@ typedef pf_status_t (*pf_crypto_random_f)(uint8_t* buffer, size_t size);
 /*!
  * \brief Initialize I/O callbacks
  *
- * \param [in] malloc_f Allocate memory callback
- * \param [in] free_f Free memory callback
  * \param [in] read_f File read callback
  * \param [in] write_f File write callback
  * \param [in] truncate_f File truncate callback
@@ -257,9 +236,9 @@ typedef pf_status_t (*pf_crypto_random_f)(uint8_t* buffer, size_t size);
  *
  * \details Must be called before any actual APIs
  */
-void pf_set_callbacks(pf_malloc_f malloc_f, pf_free_f free_f, pf_read_f read_f, pf_write_f write_f,
-                      pf_truncate_f truncate_f, pf_flush_f flush_f, pf_open_f open_f,
-                      pf_close_f close_f, pf_delete_f delete_f, pf_debug_f debug_f);
+void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f truncate_f,
+                      pf_flush_f flush_f, pf_open_f open_f, pf_close_f close_f,
+                      pf_delete_f delete_f, pf_debug_f debug_f);
 
 /*!
  * \brief Initialize cryptographic callbacks
