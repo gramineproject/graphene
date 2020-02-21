@@ -21,18 +21,19 @@
  * processes environment, arguments and manifest.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
+#include "linux_commons.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_debug.h"
-#include "pal_error.h"
+#include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "api.h"
 
-#include <asm/mman.h>
 #include <asm/ioctls.h>
+#include <asm/mman.h>
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
 
@@ -490,6 +491,24 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
+static double get_bogomips(void) {
+    int fd = -1;
+    char buf[0x800] = { 0 };
+
+    fd = ocall_open("/proc/cpuinfo", O_RDONLY, 0);
+    if (fd < 0) {
+        return 0.0;
+    }
+
+    /* Although the whole file might not fit in this size, the first cpu desciption should. */
+    int x = ocall_read(fd, buf, sizeof(buf) - 1);
+    ocall_close(fd);
+    if (x < 0) {
+        return 0.0;
+    }
+
+    return get_bogomips_from_buf(buf, sizeof(buf));
+}
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
@@ -557,5 +576,8 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
+
+    ci->cpu_bogomips = get_bogomips();
+
     return rv;
 }

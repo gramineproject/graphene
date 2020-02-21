@@ -7,6 +7,7 @@ ias_cert_file = quote/$(notdir $(ias_cert_url))
 
 CFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
 	-I../../../lib/crypto/mbedtls/include -I../../../include/host/Linux-SGX \
+	-I../../../include/host/commons \
 	-I../../../include/lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
@@ -15,6 +16,8 @@ host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_of
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
+
+commons_objs = linux_commons.o
 
 enclave-objs = \
 	db_devices.o \
@@ -39,7 +42,8 @@ enclave-objs = \
 	enclave_pages.o \
 	enclave_platform.o \
 	enclave_untrusted.o \
-	enclave_xstate.o
+	enclave_xstate.o \
+	$(commons_objs)
 
 enclave-asm-objs = enclave_entry.o
 
@@ -74,6 +78,9 @@ $(patsubst %.o,%.s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 
 $(urts-objs): quote/aesm.pb-c.h
 $(enclave-objs): quote/generated-cacert.h
+
+$(commons_objs): %.o: ../commons/%.c
+	$(call cmd,cc_o_c)
 
 %.o: %.c
 	$(call cmd,cc_o_c)

@@ -270,6 +270,7 @@ typedef struct {
     PAL_NUM cpu_family;
     PAL_NUM cpu_model;
     PAL_NUM cpu_stepping;
+    double  cpu_bogomips;
     PAL_STR cpu_flags;
 } PAL_CPU_INFO;
 
