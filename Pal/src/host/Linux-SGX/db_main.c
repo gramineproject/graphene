@@ -81,7 +81,6 @@ PAL_NUM _DkGetHostId (void)
 #include <asm/errno.h>
 
 void setup_pal_map (struct link_map * map);
-static struct link_map pal_map;
 
 void init_untrusted_slab_mgr(void);
 int init_enclave(void);

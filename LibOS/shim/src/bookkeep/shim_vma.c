@@ -53,7 +53,7 @@ struct shim_vma {
 };
 
 #define VMA_MGR_ALLOC   DEFAULT_VMA_COUNT
-#define RESERVED_VMAS   6
+#define RESERVED_VMAS   7
 
 static struct shim_vma * reserved_vmas[RESERVED_VMAS];
 static struct shim_vma early_vmas[RESERVED_VMAS];
@@ -314,6 +314,13 @@ int init_vma(void) {
         if (ret < 0)
             goto out;
     }
+
+    ret = __bkeep_preloaded(PAL_CB(pal_range.start),
+                            PAL_CB(pal_range.end),
+                            PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
+                            "pal");
+    if (ret < 0)
+        goto out;
 
     ret = __bkeep_preloaded(PAL_CB(executable_range.start),
                             PAL_CB(executable_range.end),

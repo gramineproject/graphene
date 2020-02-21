@@ -200,8 +200,6 @@ void setup_pal_map (struct link_map * map);
 void setup_vdso_map (ElfW(Addr) addr);
 #endif
 
-static struct link_map pal_map;
-
 #ifdef __x86_64__
 # include "elf-x86_64.h"
 #else

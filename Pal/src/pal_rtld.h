@@ -105,6 +105,7 @@ struct link_gdb_map {
     struct link_map * l_next, * l_prev;     /* Chain of loaded objects.     */
 };
 
+extern struct link_map pal_map;
 extern struct link_map * loaded_maps;
 extern struct link_map * rtld_map;
 extern struct link_map * exec_map;

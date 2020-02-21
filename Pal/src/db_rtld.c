@@ -34,6 +34,7 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 
+struct link_map pal_map;
 struct link_map * loaded_maps = NULL;
 struct link_map * exec_map = NULL;
 
@@ -1297,6 +1298,8 @@ void * stack_before_call __attribute_unused = NULL;
 noreturn void start_execution(const char** arguments, const char** environs) {
     /* First we will try to run all the preloaded libraries which come with
        entry points */
+    __pal_control.pal_range.start = (PAL_PTR)pal_map.l_map_start;
+    __pal_control.pal_range.end   = (PAL_PTR)pal_map.l_map_end;
     if (exec_map) {
         __pal_control.executable_range.start = (PAL_PTR) exec_map->l_map_start;
         __pal_control.executable_range.end   = (PAL_PTR) exec_map->l_map_end;

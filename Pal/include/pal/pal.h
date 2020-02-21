@@ -303,6 +303,8 @@ typedef struct {
      * Used for example by SGX for exec area (including memory gap) in the
      * middle of the heap. If unused set start == end. */
     PAL_PTR_RANGE user_address_hole;
+    /* PAL */
+    PAL_PTR_RANGE pal_range;
     /* address where executable is loaded */
     PAL_PTR_RANGE executable_range;
     /* manifest preloaded here */
