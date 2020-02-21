@@ -711,28 +711,6 @@ static bool ipf_pre_close(pf_context_t pf) {
 
 // file_flush.cpp
 
-#if 0 // unused
-static bool ipf_flush(pf_context_t pf) {
-    bool result = false;
-
-    DEBUG_PF("pf %p\n", pf);
-
-    if (pf->file_status != PF_STATUS_SUCCESS) {
-        pf_last_error = PF_STATUS_UNKNOWN_ERROR;
-        return false;
-    }
-
-    result = ipf_internal_flush(pf, true);
-    if (!result) {
-        assert(pf->file_status != PF_STATUS_SUCCESS);
-        if (pf->file_status == PF_STATUS_SUCCESS)
-            pf->file_status = PF_STATUS_FLUSH_ERROR; // for release set this anyway
-    }
-
-    return result;
-}
-#endif
-
 // DEBUG
 #define _RECOVERY_HOOK_(_x) (0)
 
@@ -1151,18 +1129,6 @@ static bool ipf_erase_recovery_file(pf_context_t pf) {
     return true;
 }
 
-#if 0 // unused
-static int64_t ipf_tell(pf_context_t pf) {
-    DEBUG_PF("pf %p\n", pf);
-    if (PF_FAILURE(pf->file_status)) {
-        pf_last_error = pf->file_status;
-        return -1;
-    }
-
-    return pf->offset;
-}
-#endif
-
 // seek beyond the current size is supported for SEEK_SET if the file is writable,
 // the file is then extended with zeros
 static bool ipf_seek(pf_context_t pf, int64_t new_offset, int origin) {
@@ -1213,25 +1179,6 @@ static bool ipf_seek(pf_context_t pf, int64_t new_offset, int origin) {
     return result;
 }
 
-#if 0 // unused
-static pf_status_t ipf_get_error(pf_context_t pf) {
-    pf_status_t result = PF_STATUS_SUCCESS;
-
-    if (pf_last_error != PF_STATUS_SUCCESS)
-        result = pf_last_error;
-    else if (pf->file_status != PF_STATUS_SUCCESS)
-        result = pf->file_status;
-
-    return result;
-}
-#endif
-
-#if 0 // unused
-static bool ipf_get_eof(pf_context_t pf) {
-    return pf->end_of_file;
-}
-#endif
-
 static void ipf_clear_error(pf_context_t pf) {
     DEBUG_PF("pf %p\n", pf);
     if (pf->file_status == PF_STATUS_UNINITIALIZED ||
@@ -1258,43 +1205,6 @@ static void ipf_clear_error(pf_context_t pf) {
         pf->end_of_file = false;
     }
 }
-
-#if 0 // unused
-static bool ipf_clear_cache(pf_context_t pf) {
-    DEBUG_PF("pf %p\n", pf);
-    if (PF_FAILURE(pf->file_status)) {
-        ipf_clear_error(pf); // attempt to fix the file, will also flush it
-    } else {
-        ipf_internal_flush(pf, true);
-    }
-
-    if (PF_FAILURE(pf->file_status)) {
-        // clearing the cache might lead to losing un-saved data
-        return false;
-    }
-
-    while (lruc_size(pf->cache) > 0) {
-        void* data = lruc_get_last(pf->cache);
-
-        assert(data != NULL);
-        assert(((file_node_t*)data)->need_writing == false);
-        // for production -
-        if (data == NULL || ((file_node_t*)data)->need_writing) {
-            return false;
-        }
-
-        lruc_remove_last(pf->cache);
-
-        // before deleting the memory, need to scrub the plain secrets
-        file_node_t* file_node = (file_node_t*)data;
-        // data portion is the same size for data and mht nodes
-        erase_memory(&file_node->data_plain, sizeof(file_node->data_plain));
-        cb_free(file_node);
-    }
-
-    return true;
-}
-#endif
 
 // memcpy src->dest if src is not NULL, zero dest otherwise
 static void memcpy_or_zero(void* dest, const void* src, size_t size) {
