@@ -340,12 +340,11 @@ static int recv_cb(void* ctx, uint8_t* buf, size_t len) {
     if (fd < 0)
         return MBEDTLS_ERR_NET_INVALID_CONTEXT;
 
-    if (len != (uint32_t)len) {
+    if (len > INT_MAX) {
         /* pal_recv_cb cannot receive more than 32-bit limit, trim len to fit in 32-bit */
-        len = UINT32_MAX;
+        len = INT_MAX;
     }
-
-    int ret = ssl_ctx->pal_recv_cb(fd, buf, (uint32_t)len);
+    ssize_t ret = ssl_ctx->pal_recv_cb(fd, buf, len);
 
     if (ret < 0) {
         if (ret == -EINTR)
@@ -362,12 +361,11 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
     if (fd < 0)
         return MBEDTLS_ERR_NET_INVALID_CONTEXT;
 
-    if (len != (uint32_t)len) {
+    if (len > INT_MAX) {
         /* pal_send_cb cannot send more than 32-bit limit, trim len to fit in 32-bit */
-        len = UINT32_MAX;
+        len = INT_MAX;
     }
-
-    int ret = ssl_ctx->pal_send_cb(fd, buf, (uint32_t)len);
+    ssize_t ret = ssl_ctx->pal_send_cb(fd, buf, len);
     if (ret < 0) {
         if (ret == -EINTR)
             return MBEDTLS_ERR_SSL_WANT_WRITE;
@@ -379,8 +377,8 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
 
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
                 const uint8_t* psk, size_t psk_size,
-                int (*pal_recv_cb)(int fd, void* buf, uint32_t len),
-                int (*pal_send_cb)(int fd, const void* buf, uint32_t len)) {
+                ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len),
+                ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len)) {
     int ret;
 
     memset(ssl_ctx, 0, sizeof(*ssl_ctx));

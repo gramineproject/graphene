@@ -1274,14 +1274,6 @@ out:
     return ret;
 }
 
-static int ocall_read_wrapper(int fd, void* buf, uint32_t len) {
-    return ocall_read(fd, buf, len);
-}
-
-static int ocall_write_wrapper(int fd, const void* buf, uint32_t len) {
-    return ocall_write(fd, buf, len);
-}
-
 int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* session_key,
                         LIB_SSL_CONTEXT** out_ssl_ctx) {
     int stream_fd;
@@ -1298,7 +1290,7 @@ int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* sess
 
     int ret = lib_SSLInit(ssl_ctx, stream_fd, is_server,
                           (const uint8_t*)session_key, sizeof(*session_key),
-                          ocall_read_wrapper, ocall_write_wrapper);
+                          ocall_read, ocall_write);
 
     if (ret != 0) {
         free(ssl_ctx);

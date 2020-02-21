@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #define SHA256_DIGEST_LEN 32
 
@@ -61,8 +62,8 @@ typedef struct {
     mbedtls_ssl_config conf;
     mbedtls_ssl_context ssl;
     int ciphersuites[2];  /* [0] is actual ciphersuite, [1] must be 0 to indicate end of array */
-    int (*pal_recv_cb)(int fd, void* buf, uint32_t len);
-    int (*pal_send_cb)(int fd, const void* buf, uint32_t len);
+    ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len);
+    ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len);
     int stream_fd;
 } LIB_SSL_CONTEXT;
 
@@ -160,8 +161,8 @@ int lib_ASN1GetLargeNumberLength(uint8_t** ptr, const uint8_t* end, size_t* len)
 /* SSL/TLS */
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
                 const uint8_t* psk, size_t psk_size,
-                int (*pal_recv_cb)(int fd, void* buf, uint32_t len),
-                int (*pal_send_cb)(int fd, const void* buf, uint32_t len));
+                ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len),
+                ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len));
 int lib_SSLFree(LIB_SSL_CONTEXT* ssl_ctx);
 int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len);
 int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len);
