@@ -141,10 +141,10 @@ static void cb_debug(const char* msg) {
 }
 #endif
 
-static pf_status_t cb_crypto_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                             const void* aad, size_t aad_size,
-                                             const void* input, size_t input_size, void* output,
-                                             pf_mac_t* mac) {
+static pf_status_t cb_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                      const void* aad, size_t aad_size,
+                                      const void* input, size_t input_size, void* output,
+                                      pf_mac_t* mac) {
     int ret = lib_AESGCMEncrypt((const uint8_t*)key, sizeof(*key), (const uint8_t*)iv, input,
                                 input_size, aad, aad_size, output, (uint8_t*)mac, sizeof(*mac));
     if (ret != 0) {
@@ -154,10 +154,10 @@ static pf_status_t cb_crypto_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t*
     return PF_STATUS_SUCCESS;
 }
 
-static pf_status_t cb_crypto_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                             const void* aad, size_t aad_size,
-                                             const void* input, size_t input_size, void* output,
-                                             const pf_mac_t* mac) {
+static pf_status_t cb_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                      const void* aad, size_t aad_size,
+                                      const void* input, size_t input_size, void* output,
+                                      const pf_mac_t* mac) {
     int ret = lib_AESGCMDecrypt((const uint8_t*)key, sizeof(*key), (const uint8_t*)iv, input,
                                 input_size, aad, aad_size, output, (const uint8_t*)mac,
                                 sizeof(*mac));
@@ -168,7 +168,7 @@ static pf_status_t cb_crypto_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t*
     return PF_STATUS_SUCCESS;
 }
 
-static pf_status_t cb_crypto_random(uint8_t* buffer, size_t size) {
+static pf_status_t cb_random(uint8_t* buffer, size_t size) {
     int ret = _DkRandomBitsRead(buffer, size);
     if (ret < 0) {
         SGX_DBG(DBG_E, "_DkRandomBitsRead failed: %d\n", ret);
@@ -470,15 +470,13 @@ out:
 /* Initialize the PF library, register PFs from the manifest */
 int init_protected_files() {
     pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_flush, cb_open, cb_close, cb_delete,
+                     cb_aes_gcm_encrypt, cb_aes_gcm_decrypt, cb_random,
 #ifdef DEBUG
                      cb_debug
 #else
                      NULL
 #endif
                      );
-
-    pf_set_crypto_callbacks(cb_crypto_aes_gcm_encrypt, cb_crypto_aes_gcm_decrypt,
-                            cb_crypto_random);
 
     /* TODO: development only: get SECRET WRAP KEY FOR PROTECTED FILES from manifest
        In the future, this key should be provisioned after local/remote attestation. */

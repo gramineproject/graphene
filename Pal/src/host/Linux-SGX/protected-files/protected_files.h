@@ -190,10 +190,10 @@ typedef void (*pf_debug_f)(const char* msg);
  * \param [out] mac MAC computed for \a input and \a aad
  * \return PF status
  */
-typedef pf_status_t (*pf_crypto_aes_gcm_encrypt_f)(const pf_key_t* key, const pf_iv_t* iv,
-                                                   const void* aad, size_t aad_size,
-                                                   const void* input, size_t input_size,
-                                                   void* output, pf_mac_t* mac);
+typedef pf_status_t (*pf_aes_gcm_encrypt_f)(const pf_key_t* key, const pf_iv_t* iv,
+                                            const void* aad, size_t aad_size,
+                                            const void* input, size_t input_size,
+                                            void* output, pf_mac_t* mac);
 
 /*!
  * \brief AES-GCM decrypt callback
@@ -208,10 +208,10 @@ typedef pf_status_t (*pf_crypto_aes_gcm_encrypt_f)(const pf_key_t* key, const pf
  * \param [in] mac Expected MAC
  * \return PF status
  */
-typedef pf_status_t (*pf_crypto_aes_gcm_decrypt_f)(const pf_key_t* key, const pf_iv_t* iv,
-                                                   const void* aad, size_t aad_size,
-                                                   const void* input, size_t input_size,
-                                                   void* output, const pf_mac_t* mac);
+typedef pf_status_t (*pf_aes_gcm_decrypt_f)(const pf_key_t* key, const pf_iv_t* iv,
+                                            const void* aad, size_t aad_size,
+                                            const void* input, size_t input_size,
+                                            void* output, const pf_mac_t* mac);
 
 /*!
  * \brief Cryptographic random number generator callback
@@ -220,7 +220,7 @@ typedef pf_status_t (*pf_crypto_aes_gcm_decrypt_f)(const pf_key_t* key, const pf
  * \param [in] size Size of \a buffer in bytes
  * \return PF status
  */
-typedef pf_status_t (*pf_crypto_random_f)(uint8_t* buffer, size_t size);
+typedef pf_status_t (*pf_random_f)(uint8_t* buffer, size_t size);
 
 /*!
  * \brief Initialize I/O callbacks
@@ -232,26 +232,18 @@ typedef pf_status_t (*pf_crypto_random_f)(uint8_t* buffer, size_t size);
  * \param [in] open_f File open callback
  * \param [in] close_f File close callback
  * \param [in] delete_f File delete callback
+ * \param [in] aes_gcm_encrypt_f AES-GCM encrypt callback
+ * \param [in] aes_gcm_decrypt_f AES-GCM decrypt callback
+ * \param [in] random_f Cryptographic random number generator callback
  * \param [in] debug_f (optional) Debug print callback
  *
  * \details Must be called before any actual APIs
  */
 void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f truncate_f,
                       pf_flush_f flush_f, pf_open_f open_f, pf_close_f close_f,
-                      pf_delete_f delete_f, pf_debug_f debug_f);
-
-/*!
- * \brief Initialize cryptographic callbacks
- *
- * \param [in] crypto_aes_gcm_encrypt_f AES-GCM encrypt callback
- * \param [in] crypto_aes_gcm_decrypt_f AES-GCM decrypt callback
- * \param [in] crypto_random_f Cryptographic random number generator callback
- *
- * \details Must be called before any actual APIs
- */
-void pf_set_crypto_callbacks(pf_crypto_aes_gcm_encrypt_f crypto_aes_gcm_encrypt_f,
-                             pf_crypto_aes_gcm_decrypt_f crypto_aes_gcm_decrypt_f,
-                             pf_crypto_random_f crypto_random_f);
+                      pf_delete_f delete_f, pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
+                      pf_aes_gcm_decrypt_f aes_gcm_decrypt_f, pf_random_f random_f,
+                      pf_debug_f debug_f);
 
 /*! Context representing an open protected file */
 typedef struct pf_context* pf_context_t;

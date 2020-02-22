@@ -159,17 +159,12 @@ static pf_status_t linux_delete(const char* path) {
     return PF_STATUS_SUCCESS;
 }
 
-void pf_set_linux_callbacks(pf_debug_f debug_f) {
-    pf_set_callbacks(linux_read, linux_write, linux_truncate, linux_flush, linux_open, linux_close,
-                     linux_delete, debug_f);
-}
-
 /* Crypto callbacks for OpenSSL */
 
-pf_status_t openssl_crypto_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                           const void* aad, size_t aad_size,
-                                           const void* input, size_t input_size, void* output,
-                                           pf_mac_t* mac) {
+pf_status_t openssl_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                    const void* aad, size_t aad_size,
+                                    const void* input, size_t input_size, void* output,
+                                    pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
 
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -227,10 +222,10 @@ out:
     return status;
 }
 
-pf_status_t openssl_crypto_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                           const void* aad, size_t aad_size,
-                                           const void* input, size_t input_size, void* output,
-                                           const pf_mac_t* mac) {
+pf_status_t openssl_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                    const void* aad, size_t aad_size,
+                                    const void* input, size_t input_size, void* output,
+                                    const pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
 
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -287,7 +282,7 @@ out:
     return status;
 }
 
-pf_status_t openssl_crypto_random(uint8_t* buffer, size_t size) {
+pf_status_t openssl_random(uint8_t* buffer, size_t size) {
     if (!RAND_bytes(buffer, size)) {
         ERROR("Failed to get random bytes\n");
         return PF_STATUS_CALLBACK_FAILED;
@@ -295,9 +290,10 @@ pf_status_t openssl_crypto_random(uint8_t* buffer, size_t size) {
     return PF_STATUS_SUCCESS;
 }
 
-void pf_set_openssl_crypto_callbacks() {
-    pf_set_crypto_callbacks(openssl_crypto_aes_gcm_encrypt, openssl_crypto_aes_gcm_decrypt,
-                            openssl_crypto_random);
+void pf_set_linux_callbacks(pf_debug_f debug_f) {
+    pf_set_callbacks(linux_read, linux_write, linux_truncate, linux_flush, linux_open, linux_close,
+                     linux_delete, openssl_aes_gcm_encrypt, openssl_aes_gcm_decrypt, openssl_random,
+                     debug_f);
 }
 
 /* Debug print callback for protected files */
@@ -308,7 +304,6 @@ static void cb_debug(const char* msg) {
 /* Initialize protected files for native environment */
 void pf_init() {
     pf_set_linux_callbacks(cb_debug);
-    pf_set_openssl_crypto_callbacks();
 }
 
 /* Generate random PF key and save it to file */
