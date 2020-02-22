@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <list.h>
+#include <uthash.h>
 #include "lru_cache.h"
 
 #ifdef IN_PAL
@@ -38,7 +39,7 @@ struct lruc_context {
 #undef uthash_fatal
 #define uthash_fatal(msg) lruc_fatal(msg)
 
-void lruc_fatal(const char* msg) {
+static void lruc_fatal(const char* msg) {
     printf("%s\n", msg);
 #ifdef IN_PAL
     DkProcessExit(-PAL_ERROR_NOMEM);
