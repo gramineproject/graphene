@@ -108,12 +108,36 @@ static pf_status_t cb_flush(pf_handle_t handle) {
 
 static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
                            size_t* size) {
-    // TODO (only used for recovery files)
-    __UNUSED(path);
-    __UNUSED(mode);
-    __UNUSED(handle);
-    __UNUSED(size);
-    return PF_STATUS_NOT_IMPLEMENTED;
+    SGX_DBG(DBG_D, "cb_open(%s): mode %d\n", path, mode);
+    *handle = malloc(sizeof(int));
+    if (!*handle)
+        return PF_STATUS_NO_MEMORY;
+
+    /* write access in this callback is only used for creating recovery files */
+    int flags = mode == PF_FILE_MODE_READ ? O_RDONLY : O_WRONLY | O_CREAT | O_TRUNC;
+    int fd = ocall_open(path, flags, 0600);
+
+    if (IS_ERR(fd)) {
+        free(*handle);
+        SGX_DBG(DBG_E, "cb_open(%s): open failed: %d\n", path, fd);
+        return PF_STATUS_CALLBACK_FAILED;
+    }
+
+    if (size) {
+        struct stat st;
+        int ret = ocall_fstat(fd, &st);
+        if (IS_ERR(ret)) {
+            free(*handle);
+            SGX_DBG(DBG_E, "cb_open(%s): fstat failed: %d\n", path, ret);
+            return PF_STATUS_CALLBACK_FAILED;
+        }
+
+        *size = st.st_size;
+    }
+
+    *(int*)*handle = fd;
+
+    return PF_STATUS_SUCCESS;
 }
 
 static pf_status_t cb_close(pf_handle_t handle) {
