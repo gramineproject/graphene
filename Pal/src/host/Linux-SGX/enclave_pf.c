@@ -320,7 +320,7 @@ out:
         }
     }
 
-    return unix_to_pal_error(ERRNO(ret));
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
 /* Register all files from the given directory recursively */
