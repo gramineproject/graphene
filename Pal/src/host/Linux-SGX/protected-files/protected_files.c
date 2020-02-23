@@ -1835,11 +1835,6 @@ void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f trunca
     g_initialized      = true;
 }
 
-void pf_set_crypto_callbacks(
-
-                             ) {
-}
-
 pf_status_t pf_open(pf_handle_t handle, const char* path, size_t underlying_size,
                     pf_file_mode_t mode, bool create, bool enable_recovery, const pf_key_t* key,
                     pf_context_t* context) {
