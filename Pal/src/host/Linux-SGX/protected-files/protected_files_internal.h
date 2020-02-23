@@ -206,7 +206,9 @@ struct pf_context {
     uint32_t master_key_count;
     char recovery_filename[RECOVERY_FILE_MAX_LEN]; // might include full path to the file
     lruc_context_t cache;
+#ifdef DEBUG
     char* debug_buffer; // buffer for debug output
+#endif
 };
 
 static bool ipf_init_fields(pf_context_t pf);

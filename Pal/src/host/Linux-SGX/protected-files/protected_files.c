@@ -62,6 +62,7 @@ char* strncpy(char* dest, const char* src, size_t size) {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define __UNUSED(x) (void)(x)
 #endif
 
 static void erase_memory(void *buffer, size_t size) {
@@ -85,6 +86,7 @@ static pf_aes_gcm_encrypt_f cb_aes_gcm_encrypt = NULL;
 static pf_aes_gcm_decrypt_f cb_aes_gcm_decrypt = NULL;
 static pf_random_f          cb_random          = NULL;
 
+#ifdef DEBUG
 #define PF_DEBUG_PRINT_SIZE_MAX 4096
 
 /* Debug print without function name prefix. Implicit param: pf (context pointer). */
@@ -128,6 +130,10 @@ void __hexdump(const void* data, size_t size) {
 /* nl suffix: add new line at the end */
 #define __HEXDUMPNL(data, size) { if (cb_debug) { __hexdump(data, size); __DEBUG_PF("\n"); } }
 #define HEXDUMPNL(x) __HEXDUMPNL((void*)&(x), sizeof(x))
+#else /* DEBUG */
+#define DEBUG_PF(...)
+#define __DEBUG_PF(...)
+#endif /* DEBUG */
 
 static pf_iv_t g_empty_iv = {0};
 static bool g_initialized = false;
@@ -175,6 +181,7 @@ typedef struct {
 static bool ipf_generate_secure_blob(pf_context_t pf, pf_key_t* key, const char* label,
                                      uint64_t physical_node_number, pf_mac_t* output) {
     kdf_input_t buf = {0};
+    __UNUSED(pf);
 
     DEBUG_PF("label: %s, node: %lu\n", label, physical_node_number);
     uint32_t len = (uint32_t)strnlen(label, MAX_LABEL_LEN + 1);
@@ -325,9 +332,11 @@ static bool ipf_restore_current_meta_data_key(pf_context_t pf) {
 // file_init.cpp
 
 static bool ipf_init_fields(pf_context_t pf) {
+#ifdef DEBUG
     pf->debug_buffer = malloc(PF_DEBUG_PRINT_SIZE_MAX);
     if (!pf->debug_buffer)
         return false;
+#endif
     pf->meta_data_node_number = 0;
     memset(&pf->file_meta_data, 0, sizeof(pf->file_meta_data));
     memset(&pf->encrypted_part_plain, 0, sizeof(pf->encrypted_part_plain));
@@ -497,6 +506,7 @@ static bool ipf_file_recovery(pf_context_t pf, const char* filename) {
 static bool ipf_read_node(pf_context_t pf, pf_handle_t handle, uint64_t node_number, void* buffer,
                           uint32_t node_size) {
     uint64_t offset = node_number * node_size;
+    __UNUSED(pf);
 
     DEBUG_PF("pf %p, node %lu, buffer %p, size %u\n", pf, node_number, buffer, node_size);
 
@@ -511,6 +521,7 @@ static bool ipf_read_node(pf_context_t pf, pf_handle_t handle, uint64_t node_num
 
 static bool ipf_write_file(pf_context_t pf, pf_handle_t handle, uint64_t offset, void* buffer,
                            uint32_t size) {
+    __UNUSED(pf);
     DEBUG_PF("pf %p, offset %lu, buffer %p, size %u\n", pf, offset, buffer, size);
 
     pf_status_t status = cb_write(handle, buffer, offset, size);
@@ -662,7 +673,9 @@ static bool ipf_close(pf_context_t pf) {
 
     lruc_destroy(pf->cache);
 
+#ifdef DEBUG
     free(pf->debug_buffer);
+#endif
     erase_memory(pf, sizeof(struct pf_context));
     free(pf);
 
