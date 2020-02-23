@@ -36,18 +36,6 @@ struct lruc_context {
     lruc_list_node_t* current;
 };
 
-#undef uthash_fatal
-#define uthash_fatal(msg) lruc_fatal(msg)
-
-static void lruc_fatal(const char* msg) {
-    printf("%s\n", msg);
-#ifdef IN_PAL
-    DkProcessExit(-PAL_ERROR_NOMEM);
-#else
-    __abort();
-#endif
-}
-
 lruc_context_t lruc_create(void) {
     lruc_context_t lruc = malloc(sizeof(struct lruc_context));
     if (!lruc)

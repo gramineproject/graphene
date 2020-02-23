@@ -205,29 +205,20 @@ static pf_status_t cb_random(uint8_t* buffer, size_t size) {
    TODO: In the future, this key should be provisioned after local/remote attestation. */
 static pf_key_t g_pf_wrap_key = {0};
 
-static LISTP_TYPE(protected_file) protected_file_list = LISTP_INIT;
-static LISTP_TYPE(protected_file) protected_dir_list = LISTP_INIT;
-static spinlock_t protected_file_lock = INIT_SPINLOCK_UNLOCKED;
+static struct protected_file* g_protected_files = NULL;
+static struct protected_file* g_protected_dirs = NULL;
+static spinlock_t g_protected_file_lock = INIT_SPINLOCK_UNLOCKED;
 
 #define FILE_URI_PREFIX "file:"
 #define FILE_URI_PREFIX_LEN strlen(FILE_URI_PREFIX)
 
-/* Exact match of path in protected_file_list */
+/* Exact match of path in g_protected_files */
 struct protected_file* find_protected_file(const char* path) {
     struct protected_file* pf  = NULL;
-    struct protected_file* tmp = NULL;
-    size_t len                 = strlen(path);
 
-    spinlock_lock(&protected_file_lock);
-    LISTP_FOR_EACH_ENTRY(tmp, &protected_file_list, list) {
-        /* files: must be exactly the same URI */
-        if (tmp->path_len == len && !memcmp(tmp->path, path, len + 1)) {
-            pf = tmp;
-            break;
-        }
-    }
-
-    spinlock_unlock(&protected_file_lock);
+    spinlock_lock(&g_protected_file_lock);
+    HASH_FIND_STR(g_protected_files, path, pf);
+    spinlock_unlock(&g_protected_file_lock);
     return pf;
 }
 
@@ -237,8 +228,8 @@ struct protected_file* find_protected_dir(const char* path) {
     struct protected_file* tmp = NULL;
     size_t len                 = strlen(path);
 
-    spinlock_lock(&protected_file_lock);
-    LISTP_FOR_EACH_ENTRY(tmp, &protected_dir_list, list) {
+    spinlock_lock(&g_protected_file_lock);
+    for (tmp = g_protected_dirs; tmp != NULL; tmp = tmp->hh.next) {
         if (tmp->path_len < len &&
             !memcmp(tmp->path, path, tmp->path_len) &&
             (!path[tmp->path_len] || path[tmp->path_len] == '/')) {
@@ -247,7 +238,7 @@ struct protected_file* find_protected_dir(const char* path) {
         }
     }
 
-    spinlock_unlock(&protected_file_lock);
+    spinlock_unlock(&g_protected_file_lock);
     return pf;
 }
 
@@ -276,7 +267,7 @@ struct protected_file* get_protected_file(const char* path) {
     pf = find_protected_dir(path);
     if (pf) {
         /* path not registered but matches registered dir */
-        SGX_DBG(DBG_D, "is_pf: registering new PF '%s' in dir '%s'\n", path, pf->path);
+        SGX_DBG(DBG_D, "get_pf: registering new PF '%s' in dir '%s'\n", path, pf->path);
         __attribute__((unused)) int ret = register_protected_path(path, &pf);
         assert(ret == 0);
         /* return newly registered PF */
@@ -414,8 +405,6 @@ static int register_protected_path(const char* path, struct protected_file** new
     if (!new)
         return -PAL_ERROR_NOMEM;
 
-    INIT_LIST_HEAD(new, list);
-
     memset(new, 0, sizeof(struct protected_file));
 
     new->path_len = strlen(path);
@@ -428,20 +417,20 @@ static int register_protected_path(const char* path, struct protected_file** new
         free(new);
         return ret;
     }
-    SGX_DBG(DBG_D, "register_protected_path: [%s] %s\n", is_dir ? "dir" : "file", path);
+    SGX_DBG(DBG_D, "register_protected_path: [%s] %s = %p\n", is_dir ? "dir" : "file", path, new);
 
     if (is_dir)
         register_protected_dir(path);
 
-    spinlock_lock(&protected_file_lock);
+    spinlock_lock(&g_protected_file_lock);
 
     if (is_dir) {
-        LISTP_ADD_TAIL(new, &protected_dir_list, list);
+        HASH_ADD_STR(g_protected_dirs, path, new);
     } else {
-        LISTP_ADD_TAIL(new, &protected_file_list, list);
+        HASH_ADD_STR(g_protected_files, path, new);
     }
 
-    spinlock_unlock(&protected_file_lock);
+    spinlock_unlock(&g_protected_file_lock);
 
     if (new_pf)
         *new_pf = new;
@@ -485,6 +474,8 @@ static int register_protected_files(const char* key_prefix) {
         goto out;
     }
 
+    SGX_DBG(DBG_D, "Registered %u protected directories and %u protected files\n",
+            HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
     ret = 0;
 out:
     free(cfgbuf);

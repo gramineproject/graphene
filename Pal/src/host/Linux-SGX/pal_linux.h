@@ -31,6 +31,7 @@
 
 #include "enclave_ocalls.h"
 #include "protected_files.h"
+#include "uthash.h"
 
 #include <linux/mman.h>
 
@@ -174,15 +175,13 @@ DEFINE_LISTP(pf_map);
 extern LISTP_TYPE(pf_map) g_pf_map_list;
 
 /* Data of a protected file */
-DEFINE_LIST(protected_file);
 struct protected_file {
-    LIST_TYPE(protected_file) list;
+    UT_hash_handle hh;
     size_t path_len;
     char path[URI_MAX];
     pf_context_t context; /* NULL until PF is opened */
     int64_t refcount; /* used for deciding when to call unload_protected_file() */
 };
-DEFINE_LISTP(protected_file);
 
 /* Initialize the PF library, register PFs from the manifest */
 int init_protected_files();
@@ -304,6 +303,11 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
 #endif
 
 #ifdef IN_ENCLAVE
+#undef uthash_fatal
+#define uthash_fatal(msg) \
+    __UNUSED(msg); \
+    DkProcessExit(-PAL_ERROR_NOMEM);
+
 #define SGX_DBG(class, fmt...) \
     do { if ((class) & DBG_LEVEL) printf(fmt); } while (0)
 #else

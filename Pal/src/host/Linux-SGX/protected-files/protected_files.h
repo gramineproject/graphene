@@ -51,6 +51,7 @@
 #define PROTECTED_FILES_H_
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /*! Size of the AES-GCM encryption key */
