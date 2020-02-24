@@ -35,9 +35,8 @@
 DEFINE_PROFILE_OCCURENCE(mmap, memory);
 
 static bool completely_within_user_address(void* addr, size_t length) {
-    /* the caller already tested access_ok() */
-    return /* access_ok(addr, length) && */
-        PAL_CB(user_address.start) <= addr && addr + length <= PAL_CB(user_address.end);
+    /* the caller already tested access_ok(), so we can safely perform addr + length */
+    return PAL_CB(user_address.start) <= addr && addr + length <= PAL_CB(user_address.end);
 }
 
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
