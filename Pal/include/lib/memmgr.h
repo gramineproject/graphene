@@ -122,17 +122,15 @@ static inline void __set_free_mem_area(MEM_AREA area, MEM_MGR mgr) {
     mgr->active_area = area;
 }
 
-static inline MEM_MGR create_mem_mgr(unsigned int size) {
-    void* mem = system_malloc(__MAX_MEM_SIZE(size));
+static inline MEM_MGR create_mem_mgr_in_place(void* mem, size_t mem_size) {
     MEM_AREA area;
     MEM_MGR mgr;
+    unsigned int size = (mem_size - sizeof(*mgr) - sizeof(*area)) / sizeof(*mgr->obj);
 
-    if (!mem)
-        return NULL;
-
+    assert(IS_ALIGNED_PTR(mem, __alignof__(*mgr)));
     mgr        = (MEM_MGR)mem;
     mgr->size  = 0;
-    area       = (MEM_AREA)(mem + sizeof(MEM_MGR_TYPE));
+    area       = (MEM_AREA)(mem + sizeof(*mgr));
     area->size = size;
 
     INIT_LIST_HEAD(area, __list);
@@ -143,6 +141,24 @@ static inline MEM_MGR create_mem_mgr(unsigned int size) {
     __set_free_mem_area(area, mgr);
 
     return mgr;
+}
+
+static inline bool mem_mgr_enlarged(MEM_MGR mgr) {
+    /* check if mem_mgr has never invoke system_malloc() to allocate MEM_AREA except first
+     * allocation by create_mem_mgr() */
+    return !(!LISTP_EMPTY(&mgr->area_list) &&
+             LISTP_NEXT_ENTRY(LISTP_FIRST_ENTRY(&mgr->area_list, MEM_AREA_TYPE, __list),
+                              &mgr->area_list, __list) == NULL &&
+             (void*)mgr + sizeof(MEM_MGR_TYPE) == LISTP_FIRST_ENTRY(&mgr->area_list,
+                                                                    MEM_AREA_TYPE, __list));
+}
+
+static inline MEM_MGR create_mem_mgr(unsigned int size) {
+    size_t mem_size = __MAX_MEM_SIZE(size);
+    void* mem = system_malloc(mem_size);
+    if (!mem)
+        return NULL;
+    return create_mem_mgr_in_place(mem, mem_size);
 }
 
 static inline MEM_MGR enlarge_mem_mgr(MEM_MGR mgr, unsigned int size) {
