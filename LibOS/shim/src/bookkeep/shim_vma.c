@@ -90,8 +90,18 @@ static inline void * __malloc (size_t size)
                                          PAL_PROT_WRITE|PAL_PROT_READ);
 }
 
+void __free(void* addr, size_t size) {
+    __UNUSED(addr);
+    __UNUSED(size);
+
+    /* g_vma_mgr is never destroyed. */
+    __abort();
+}
+
 #undef system_malloc
 #define system_malloc __malloc
+#undef system_free
+#define system_free __free
 
 #define OBJ_TYPE struct shim_vma
 #include <memmgr.h>
@@ -101,6 +111,11 @@ static inline void * __malloc (size_t size)
  * allocating or freeing any VMAs.
  */
 static MEM_MGR g_vma_mgr = NULL;
+/*
+ * If assert(!__mem_mgr_enlarged(vma_mgr)) fails, increase the size of g_vma_mgr_area for the
+ * needed vmas for initialization.
+ */
+static uint8_t g_vma_mgr_area[__MAX_MEM_SIZE(VMA_MGR_ALLOC)];
 
 /*
  * "g_vma_list" contains a sorted list of non-overlapping VMAs.
@@ -187,17 +202,6 @@ static inline void assert_vma_list (void)
 #endif
 }
 
-/*
- * This speeds only the case when continuously increasing addresses are looked up.
- * This is easy optimization with the hope that it won't harm in cache miss case.
- *
- * TODO: observe memory allocation behavior and optimize for it; in particular, look at:
- *       - bkeep_unmapped_heap()
- *       - bkeep_unmapped_any() = bkeep_unmapped() used by shim_malloc.c
- *       - user app malloc (e.g. malloc() in glibc)
- *
- * Another options is to introduce rb-tree. (or other tree, e.g. splay tree)
- */
 static struct shim_vma* g_lookup_cache = NULL;
 
 static bool check_addr_vma(void* addr, struct shim_vma* vma,
@@ -217,11 +221,9 @@ static bool check_addr_vma(void* addr, struct shim_vma* vma,
 
 /*
  * __lookup_vma() returns the VMA that contains the address; otherwise,
- * This speeds only the case when continuously increasing addresses are looked up.
  * returns NULL. "pprev" returns the highest VMA below the address.
  * __lookup_vma() fills "pprev" even when the function cannot find a
  * matching vma for "addr".
- * This is easy optimization with the hope that it won't harm in cache miss case.
  */
 static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev) {
     assert(locked(&g_vma_list_lock));
@@ -230,6 +232,17 @@ static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev)
     struct shim_vma* prev = NULL;
     struct shim_vma* found = NULL;
 
+    /*
+     * This speeds only the case when continuously increasing addresses are looked up.
+     * This is easy optimization with the hope that it won't harm in cache miss case.
+     *
+     * TODO: observe memory allocation behavior and optimize for it; in particular, look at:
+     *       - bkeep_unmapped_heap()
+     *       - bkeep_unmapped_any() = bkeep_unmapped() used by shim_malloc.c
+     *       - user app malloc (e.g. malloc() in glibc)
+     *
+     * Another options is to introduce rb-tree. (or other tree, e.g. splay tree)
+     */
     if (g_lookup_cache && g_lookup_cache->end < addr) {
         /* addr is after the cached address, skip to cached VMA. */
         struct shim_vma* tmp;
@@ -250,6 +263,9 @@ static inline struct shim_vma* __lookup_vma(void* addr, struct shim_vma** pprev)
     if (pprev) {
         *pprev = prev;
         if (prev) {
+            /* The callers with pprev = NULL are lookup_vma() and lookup_overlap_vma()
+             * which seems useless to update g_lookup_cache.
+             */
             g_lookup_cache = prev;
         }
     }
@@ -315,6 +331,8 @@ static int __bkeep_munmap (struct shim_vma ** prev,
 static int __bkeep_mprotect (struct shim_vma * prev,
                              void * start, void * end, int prot, int flags);
 
+static inline void __restore_reserved_vmas(void);
+
 static int
 __bkeep_preloaded (void * start, void * end, int prot, int flags,
                    const char * comment)
@@ -326,7 +344,11 @@ __bkeep_preloaded (void * start, void * end, int prot, int flags,
 
     struct shim_vma * prev = NULL;
     __lookup_vma(start, &prev);
-    return __bkeep_mmap(prev, start, end, prot, flags, NULL, 0, comment);
+    int ret = __bkeep_mmap(prev, start, end, prot, flags, NULL, 0, comment);
+    assert(!mem_mgr_enlarged(g_vma_mgr));
+    __restore_reserved_vmas();
+    assert(!mem_mgr_enlarged(g_vma_mgr));
+    return ret;
 }
 
 int init_vma(void) {
@@ -338,9 +360,14 @@ int init_vma(void) {
 
     lock(&g_vma_list_lock);
 
-    struct shim_vma early_vmas[RESERVED_VMAS];
-    for (int i = 0 ; i < RESERVED_VMAS ; i++)
-        g_reserved_vmas[i] = &early_vmas[i];
+    /* Initialize the allocator */
+    g_vma_mgr = create_mem_mgr_in_place(g_vma_mgr_area, sizeof(g_vma_mgr_area));
+    assert(g_vma_mgr);
+    for (int i = 0; i < RESERVED_VMAS; i++) {
+        g_reserved_vmas[i] = get_mem_obj_from_mgr(g_vma_mgr);
+        assert(g_reserved_vmas[i]);
+        assert(!mem_mgr_enlarged(g_vma_mgr));
+    }
     g_num_reserved_vmas = RESERVED_VMAS;
 
     /* Bookkeeping for preloaded areas */
@@ -376,33 +403,6 @@ int init_vma(void) {
     if (ret < 0)
         goto out;
 
-    /* Initialize the allocator */
-
-    if (!(g_vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
-        debug("failed creating the VMA allocator\n");
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    for (int i = 0 ; i < RESERVED_VMAS ; i++) {
-        if (i >= g_num_reserved_vmas) {
-            struct shim_vma * new = get_mem_obj_from_mgr(g_vma_mgr);
-            assert(new);
-            struct shim_vma * e = &early_vmas[i];
-            struct shim_vma * prev = LISTP_PREV_ENTRY(e, &g_vma_list, list);
-            debug("Converting early VMA [%p] %p-%p\n", e, e->start, e->end);
-            memcpy(new, e, sizeof(*e));
-            INIT_LIST_HEAD(new, list);
-            __remove_vma(e, prev);
-            __insert_vma(new, prev);
-        }
-
-        /* replace all reserved VMAs */
-        g_reserved_vmas[i] = get_mem_obj_from_mgr(g_vma_mgr);
-        assert(g_reserved_vmas[i]);
-    }
-    g_num_reserved_vmas = RESERVED_VMAS;
-
     current_heap_top = PAL_CB(user_address.end);
 
 #if ENABLE_ASLR == 1
@@ -433,10 +433,7 @@ static inline struct shim_vma * __get_new_vma (void)
 {
     assert(locked(&g_vma_list_lock));
 
-    struct shim_vma * tmp = NULL;
-
-    if (g_vma_mgr)
-        tmp = get_mem_obj_from_mgr(g_vma_mgr);
+    struct shim_vma* tmp = get_mem_obj_from_mgr(g_vma_mgr);
     if (tmp == NULL) {
         if (g_num_reserved_vmas) {
             tmp = g_reserved_vmas[--g_num_reserved_vmas];
@@ -457,23 +454,15 @@ static inline struct shim_vma * __get_new_vma (void)
 static inline void __restore_reserved_vmas(void) {
     assert(locked(&g_vma_list_lock));
 
-    /*
-     * On entry bkeep_mmap(), it needs to ensure that at least three reserved_vmas are available.
-     * After that, g_reserved_vmas needs to be re-populated.
-     * - one for __bkeep_munmap() => __shrink_vma()
-     * - one for new vma for new region
-     * - one for re-populating reserved_vma.
-     */
-    if (g_num_reserved_vmas >= 3)
-        return;
-
     while (g_num_reserved_vmas < RESERVED_VMAS) {
+        /* get_mem_obj_from_mgr_enlarge() may allocate vma for memory allocation. */
         assert(g_num_reserved_vmas >= 1);
         struct shim_vma * new = get_mem_obj_from_mgr_enlarge(g_vma_mgr,
                                                              size_align_up(VMA_MGR_ALLOC));
 
         /* this allocation must succeed */
-        assert(new);
+        if (!new)
+            __abort();
         g_reserved_vmas[g_num_reserved_vmas++] = new;
     }
 }
