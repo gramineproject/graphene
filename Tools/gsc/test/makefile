@@ -1,8 +1,9 @@
 TESTCASES=hello-world python3
-DISTRIBUTIONS=ubuntu18.04 ubuntu16.04
+DISTRIBUTIONS=ubuntu18.04 #ubuntu16.04
 TESTS=$(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
+SGX_DEVICES=$(SGX_DEVICES)
 
-.PHONY: test clean cleanBase cleanGSC cleanContainer 
+.PHONY: test clean cleanBase cleanGSC cleanContainer
 
 all: $(TESTS)
 	for d in $(DISTRIBUTIONS); do \
@@ -26,21 +27,21 @@ TESTNUM=5
 
 test-%:
 	echo "Testing $*"
-	docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-$*-hello-world > out 2>/dev/null;
+	docker run $(SGX_DEVICES) gsc-$*-hello-world > out 2>/dev/null;
 	grep -q "Hello World!" out;
 	echo [SUCCESS] 1/$(TESTNUM)
-	docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-$*-python3 -c 'print("HelloWorld!")' >out 2>/dev/null;
+	docker run $(SGX_DEVICES) gsc-$*-python3 -c 'print("HelloWorld!")' >out 2>/dev/null;
 	grep -q "HelloWorld!" out;
 	echo [SUCCESS] 2/$(TESTNUM)
-	docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-$*-python3 /graphene-tests/python-simple/scripts/helloworld.py >out 2>/dev/null;
+	docker run $(SGX_DEVICES) gsc-$*-python3 /graphene-tests/python-simple/scripts/helloworld.py >out 2>/dev/null;
 	grep -q "Hello World" out;
 	echo [SUCCESS] 3/$(TESTNUM)
-	docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-$*-python3 /graphene-tests/python-simple/scripts/fibonacci.py >out 2>/dev/null;
+	docker run $(SGX_DEVICES) gsc-$*-python3 /graphene-tests/python-simple/scripts/fibonacci.py >out 2>/dev/null;
 	grep -q "fib2              55" out;
 	echo [SUCCESS] 4/$(TESTNUM)
-	docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket -d -p 8005:8005 gsc-$*-python3 graphene-tests/python-simple/scripts/dummy-web-server.py 8005 >c.id 2>/dev/null;
+	docker run $(SGX_DEVICES) -d -p 8005:8005 gsc-$*-python3 graphene-tests/python-simple/scripts/dummy-web-server.py 8005 >c.id 2>/dev/null;
 	sleep 10
-	docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-$*-python3 graphene-tests/python-simple/scripts/test-http.py `ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | grep -v 172.17` 8005 >output1 2>/dev/null;
+	docker run $(SGX_DEVICES) gsc-$*-python3 graphene-tests/python-simple/scripts/test-http.py `ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | grep -v 172.17` 8005 >output1 2>/dev/null;
 	cat output1 | tail -n 1 > output1.clean
 	wget -q http://localhost:8005/ -O output2
 	echo >> output2
@@ -58,11 +59,15 @@ cleanBase: $(addprefix cleanImage-, $(TESTS))
 cleanGSC: $(addprefix cleanImage-gsc-, $(TESTS))
 	docker image prune -f
 
+# Create a space to be used in subst
 space :=
 space +=
 
 cleanContainers:
 	docker container ls | grep -e '$(subst $(space),|,$(TESTS))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container rm -f
 
-clean: cleanGSC cleanBase cleanContainers
+distclean: cleanContainers cleanBase cleanGSC
+	docker builder prune -a -f
+
+clean: cleanContainers
 	docker image prune -f

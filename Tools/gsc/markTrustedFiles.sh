@@ -11,7 +11,7 @@ echo $0
 find $path -not -type d | grep -v ^/boot | grep -v ^/dev | grep -v ^/proc | grep -v ^/var | grep -v ^/sys | grep -v /etc/rc | grep -v ^$0 | grep -v ^/\\. | grep -v \/files | grep -Pv "[\x80-\xFF]" >files
 
 
-for f in $(cat files); 
+for f in $(cat files);
 do
     if [ -f $f ]
     then

@@ -18,7 +18,7 @@ def load_config(file):
 
 # Generate manifest from a template (see template/manifest.template) based on the binary name.
 # The generated manifest is only partially completed. Later, during the docker build it is
-# completed by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
+# finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
 def generate_manifest(image, substitutions, user_manifest, binary):
     substitutions.update({'bin_name': binary})
 
@@ -35,7 +35,7 @@ def generate_manifest(image, substitutions, user_manifest, binary):
         app_manifest.write(user_mf)
         app_manifest.write("\n")
 
-# Generate app loader scirpt which generates the SGX token and starts the Graphene PAL loader with
+# Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
 def generate_app_loader(image, app, binary, binary_arguments):
     with open('templates/apploader.template') as apl:
@@ -53,7 +53,7 @@ def generate_app_loader(image, app, binary, binary_arguments):
 # templates/Dockerfile.distro.gscapp.template). It follows a docker multistage build with two
 # stages. The first stage is based on Dockerfile.$distro.template which compiles Graphene for the
 # specified distribution. The second stage based on Dockerfile.gscapp.template builds the final
-# image based on the previoulsy built Graphene and the base image. In addition, it completes the
+# image based on the previously built Graphene and the base image. In addition, it completes the
 # manifest generation and generates the signature.
 def generate_dockerfile(image, substitutions, app, binary):
     config = load_config('config.json')
@@ -67,7 +67,7 @@ def generate_dockerfile(image, substitutions, app, binary):
         template_dfg = string.Template(dfg.read())
         instantiated_dfg = template_dfg.substitute(config)
 
-    # generate 2nd stage (based on image)
+    # generate 2nd stage (based on application image)
     with open('templates/Dockerfile.' + config['distro'] + '.gscapp.template') as dfapp:
         substitutions.update({
             "appImage" : image,
@@ -99,7 +99,7 @@ def prepare_build_context(image, user_manifest, substitutions, app, binary, bina
 
 
 def prepare_arguments_and_build_context(base_image, image, user_manifest, options):
-    # image names follow the form distro/package:tag
+    # image names follow the format distro/package:tag
     image_re = re.match(r'([^:]*)(:?)(.*)', image)
     if image_re.group(1):
         app = image_re.group(1)
@@ -111,11 +111,9 @@ def prepare_arguments_and_build_context(base_image, image, user_manifest, option
     cmd = ' '.join(base_image.attrs['Config']['Cmd'])
     # remove /bin/sh -c prefix and extract binary and arguments
     cmd = cmd[cmd.startswith('[/bin/sh -c ') and len('[/bin/sh -c ') : ]
-    split = cmd.split(" ", 1)
+    split = cmd.split(None, 1)
     binary = split[0]
-    binary_arguments = ""
-    if len(split) > 1:
-        binary_arguments = split[1]
+    binary_arguments = split[1] if len(split) > 1 else ""
 
     params = {
         '-d': {
@@ -164,15 +162,17 @@ def gsc_build(args):
             base_image = docker_socket.images.get(image)
         except (docker.errors.ImageNotFound, docker.errors.APIError):
             print("Unable to find base image " + image)
-            sys.exit(0)
+            sys.exit(1)
 
         print("Building graphenized image from base image " + image)
         prepare_arguments_and_build_context(base_image, image, user_manifest, args[2:])
 
         docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
-        streamer = docker_api.build(path=image, tag=gsc_image_name(image))
+        # docker build returns stream of json output
+        stream = docker_api.build(path=image, tag=gsc_image_name(image))
 
-        for chunk in streamer:
+        # print continuously the stream of output by docker build
+        for chunk in stream:
             json_output = json.loads(chunk.decode('utf-8'))
             if 'stream' in json_output:
                 for line in json_output['stream'].splitlines():
@@ -187,12 +187,12 @@ def gsc_build(args):
 
         except (docker.errors.ImageNotFound, docker.errors.APIError):
             print("Failed to build graphenized image for " + image)
-            sys.exit(0)      
+            sys.exit(1)
 
 def print_build_help():
     print("Build command usage:")
     print("   gsc build <manifest> <image name>[:<tag>] [<options>]")
-    print("      manifest - Application specific manifest to be included in the generated manifest")
+    print("      manifest - application specific manifest to be included in the generated manifest")
     print("      image name - name of the base image to be graphenized")
     print("      tag - tag of the image\n")
     print("      Options:")
@@ -203,8 +203,8 @@ def print_usage(cmd):
     print("Usage:")
     print("gsc <cmd> [<cmd arguments>]\n")
     print("List of Commands:")
-    print("   build - Build a graphenized docker image")
-    print("   help - Print this information\n")
+    print("   build - build a graphenized docker image")
+    print("   help - print this information\n")
 
     print_build_help()
 
