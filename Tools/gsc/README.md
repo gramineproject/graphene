@@ -105,9 +105,18 @@ docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/
 *application arguments* - Application arguments to be supplied to the application launching inside
 the Docker container and Graphene
 
-*options* - Options are passed through to Docker run. Common options include `-it` (interactive with terminal)
-or `-d` (detached). Please see [docker
+*options* - Options are passed through to Docker run. Common options include `-it` (interactive with
+terminal) or `-d` (detached). Please see [docker
 manual](https://docs.docker.com/engine/reference/commandline/run/) for details.
+
+**Execute with Linux PAL instead of Linux-SGX PAL**:
+When specifying `-L` during GSC `build`, you may select the Linux PAL at docker run time instead of
+the Linux-SGX PAL. By specifying the environment variable `LINUX_PAL` as an option to the docker
+`run` command.
+
+```
+docker run ... --env LINUX_PAL=linux gsc-<image-name> ...
+```
 
 ### GSC Configuration parameters
 

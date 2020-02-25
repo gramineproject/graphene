@@ -4,4 +4,9 @@
 /graphene/signer/pal-sgx-get-token -output ${binary}.token -sig ${binary}.sig
 
 # Run the application with arguments given to it
-SGX=1 graphene/Runtime/pal-Linux-SGX ${binary}.manifest.sgx ${binary_arguments} $${@}
+if [ -z "$$LINUX_PAL" ]
+then
+    SGX=1 graphene/Runtime/pal-Linux-SGX ${binary}.manifest.sgx ${binary_arguments} $${@}
+else
+    graphene/Runtime/pal-Linux ${binary}.manifest ${binary_arguments} $${@}
+fi

@@ -122,15 +122,23 @@ def prepare_arguments_and_build_context(base_image, image, user_manifest, option
                 'DEBUG' : 'DEBUG=1',
                 'debug_output': 'inline'
             },
+        '-L': {
+                'MAKE_LINUX_PAL': ' && make {DEBUG} WERROR=1'
+            }
     }
     # default substitutions
     substitutions = {
         'DEBUG': '',
-        'debug_output': 'none'
+        'debug_output': 'none',
+        'MAKE_LINUX_PAL': ''
     }
 
     for option in options:
         substitutions.update(params[option])
+
+    # If debug option was selected make sure that the LINUX PAL is compiled with debug as well
+    substitutions['MAKE_LINUX_PAL'] = substitutions['MAKE_LINUX_PAL'].format(
+                                        DEBUG=substitutions['DEBUG'])
 
     prepare_build_context(image, user_manifest, substitutions, app, binary, binary_arguments)
 
