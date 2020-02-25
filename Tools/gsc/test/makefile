@@ -1,5 +1,5 @@
 TESTCASES=hello-world python3
-DISTRIBUTIONS=ubuntu18.04 #ubuntu16.04
+DISTRIBUTIONS=ubuntu18.04 ubuntu16.04
 TESTS=$(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 SGX_DEVICES=$(SGX_DEVICES)
 
