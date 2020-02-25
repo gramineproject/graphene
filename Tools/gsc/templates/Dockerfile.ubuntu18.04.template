@@ -2,7 +2,9 @@
 FROM ubuntu:18.04 AS graphene
 
 # Add steps here to set up dependencies
-RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN apt-get update \
+    && apt-get -y --force-yes upgrade \
+    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     apache2-utils \
     autoconf \
     bison \
@@ -46,28 +48,25 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 
-# Make a directory for the intel driver
-RUN mkdir -p /opt/intel && chown 1001 /opt/intel
-
-# clone graphene
+# Clone graphene
 RUN git clone https://github.com/oscarlab/graphene.git
 
-# init submodules
+# Init submodules
 RUN cd graphene && git submodule init && git submodule update
 
-# create keys for signing
-RUN cd graphene/Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
+# Create keys for signing
+RUN cd /graphene/Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
 
-# symlink and create version number for sgx driver. !!! Don't build the gsgx kernel driver !!! (was anyways build by host)
-RUN cd graphene/Pal/src/host/Linux-SGX/sgx-driver \
-    && git clone https://github.com/01org/linux-sgx-driver.git \
+# Create SGX driver for header files
+RUN cd /graphene/Pal/src/host/Linux-SGX/sgx-driver \
+    && git clone ${sgxdriver_repository} \
     && cd linux-sgx-driver \
-    && git checkout sgx_driver_${sgxdriver_major}.${sgxdriver_minor} 
+    && git checkout ${sgxdriver_version} 
 
-# build grapehene
+# Build Grapehene-SGX
 RUN cd graphene && ISGX_DRIVER_PATH=linux-sgx-driver make SGX=1 ${DEBUG} WERROR=1
 
-# translate runtime symlinks to files
+# Translate runtime symlinks to files
 RUN for f in $$(find graphene/Runtime -type l);do cp --remove-destination $$(readlink $$f) $$f;done;
 
 # Finished building Graphene

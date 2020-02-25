@@ -3,8 +3,8 @@
 This folder includes sample images and test cases for GSC. The set of examples include:
 
 * Hello-World (print "Hello World!" using echo)
-* Python3 (Run python3 command line)
-* Graphene-Tests Python called gtpython (helloworld.py, fibonacci.py, webserver)
+* Python3 (Run python3 command line) which is tested with a `-c 'print("Hello World!")'` and the
+  three [Graphene test](https://github.com/oscarlab/graphene-tests) scripts  from python-simple
 
 Each sample consists of two files `ubuntu.<image name>.dockerfile` and `ubuntu.<image name>.manifest`.
 
@@ -42,7 +42,7 @@ make test
 
 To run a container of an image named `<image name>`:
 
-(may not work for all images, since the test cases is invoked via command line arguments)
+(may not work for all images, since the test cases are invoked via command line arguments)
 
 ```
 make run-gsc-ubuntu/<image name>
@@ -50,7 +50,7 @@ make run-gsc-ubuntu/<image name>
 
 ## Remove images & containers from docker daemon
 
-Remove GSC build sample images:
+Remove GSC built sample images:
 
 ```
 make cleanGSC
@@ -68,7 +68,7 @@ Remove containers:
 make cleanContainers
 ```
 
-Remove all images & containers build by this test folder:
+Remove all images & containers built by this test folder:
 
 ```
 make clean

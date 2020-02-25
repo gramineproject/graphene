@@ -2,90 +2,90 @@
 
 import json
 import os
-import os.path
 import re
 import sys
-from string import Template
-from shutil import copyfile
+import string
+import shutil
 
 import docker
 
 def gsc_image_name(name):
     return "gsc-" + name
 
-# load config of GSC
 def load_config(file):
     with open(file) as json_config_file:
         return json.load(json_config_file)
 
-# generate manifest from a template based on the binary name
-# manifest is not finished only prepared. During docker build
-# this manifest is completed with trusted files and the path to the binary.
-def generate_manifest(image, default, user_manifest, binary):
+# Generate manifest from a template (see template/manifest.template) based on the binary name.
+# The generated manifest is only partially completed. Later, during the docker build it is
+# completed by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
+def generate_manifest(image, substitutions, user_manifest, binary):
+    substitutions.update({'bin_name': binary})
+
+    with open(user_manifest) as user_manifest_file:
+        user_mf = user_manifest_file.read()
+
     with open('templates/manifest.template') as manifest_template:
-        replace = {'bin_name': binary}
-        replace.update(default)
-        template_mf = Template(manifest_template.read())
-        instantiated_mf = template_mf.substitute(replace)
+        template_mf = string.Template(manifest_template.read())
+        instantiated_mf = template_mf.substitute(substitutions)
 
-        with open(user_manifest) as u_m_content:
-            app_manifest = open(image + '/' + binary + '.manifest', 'w')
-            app_manifest.write(instantiated_mf)
-            app_manifest.write("\n")
-            app_manifest.write(u_m_content.read())
-            app_manifest.write("\n")
-            app_manifest.close()
+    with open(image + '/' + binary + '.manifest', 'w') as app_manifest:
+        app_manifest.write(instantiated_mf)
+        app_manifest.write("\n")
+        app_manifest.write(user_mf)
+        app_manifest.write("\n")
 
-# generate app loader scirpt which generates a token and runs the manifest
-# this is based on a template
+# Generate app loader scirpt which generates the SGX token and starts the Graphene PAL loader with
+# the manifest as an input (see template/apploader.template).
 def generate_app_loader(image, app, binary, binary_arguments):
-    with open('templates/app.loader.template') as apl:
-        template_apl = Template(apl.read())
+    with open('templates/apploader.template') as apl:
+        template_apl = string.Template(apl.read())
         instantiated_apl = template_apl.substitute({
                     'app' : app,
                     'binary' : binary,
                     'binary_arguments': binary_arguments})
 
-        dockerfile = open(image + '/apploader.sh', 'w')
-        dockerfile.write(instantiated_apl)
-        dockerfile.close()
+    with open(image + '/apploader.sh', 'w') as apploader:
+        apploader.write(instantiated_apl)
 
-# Dockerfile generated from a template depends which Ubuntu version to be used
-# currently fixed to 18.04.
-# Build via multistage build process:
-# 1) Build graphene with the correct driver version
-# 2) Build application image with additions of graphene
+# Generate a dockerfile that compiles Graphene and includes the application image. This dockerfile
+# is generated from two templates (templates/Dockerfile.$distro.template and
+# templates/Dockerfile.distro.gscapp.template). It follows a docker multistage build with two
+# stages. The first stage is based on Dockerfile.$distro.template which compiles Graphene for the
+# specified distribution. The second stage based on Dockerfile.gscapp.template builds the final
+# image based on the previoulsy built Graphene and the base image. In addition, it completes the
+# manifest generation and generates the signature.
 def generate_dockerfile(image, substitutions, app, binary):
-    # load config
     config = load_config('config.json')
+    if not config['sgxdriver_version']:
+        config.update({'sgxdriver_version': "master"})
+
     config.update(substitutions)
 
-    # generate build stage 1 from graphene template
-    with open('templates/Dockerfile.ubuntu' + config['ubuntu'] + '.template') as dfg:
-        template_dfg = Template(dfg.read())
+    # generate stage 1 from distribution template
+    with open('templates/Dockerfile.' + config['distro'] + '.template') as dfg:
+        template_dfg = string.Template(dfg.read())
         instantiated_dfg = template_dfg.substitute(config)
 
-        # build app specific 2nd stage
-        with open('templates/Dockerfile.gscapp.template') as dfapp:
-            replacements = {
-             "appImage" : image,
-             "app" : app,
-             "binary" : binary
-            }
-            replacements.update(substitutions)
-            template_dfapp = Template(dfapp.read())
-            instantiated_dfapp = template_dfapp.substitute(replacements)
+    # generate 2nd stage (based on image)
+    with open('templates/Dockerfile.' + config['distro'] + '.gscapp.template') as dfapp:
+        substitutions.update({
+            "appImage" : image,
+            "app" : app,
+            "binary" : binary
+            })
+        template_dfapp = string.Template(dfapp.read())
+        instantiated_dfapp = template_dfapp.substitute(substitutions)
 
-            dockerfile = open(image + "/Dockerfile", "w")
-            dockerfile.write(instantiated_dfg)
-            dockerfile.write(instantiated_dfapp)
-            dockerfile.close()
+    with open(image + "/Dockerfile", "w") as dockerfile:
+        dockerfile.write(instantiated_dfg)
+        dockerfile.write(instantiated_dfapp)
 
 def prepare_build_context(image, user_manifest, substitutions, app, binary, binary_arguments):
     # create directory for image specific files
     os.makedirs(image, exist_ok=True)
 
-    # generate dockerfile to build grapheneized docker image
+    # generate dockerfile to build graphenized docker image
     generate_dockerfile(image, substitutions, app, binary)
 
     # generate app specific loader script
@@ -95,175 +95,116 @@ def prepare_build_context(image, user_manifest, substitutions, app, binary, bina
     generate_manifest(image, substitutions, user_manifest, binary)
 
     # copy markTrustedFiles.sh
-    copyfile("markTrustedFiles.sh", image + "/markTrustedFiles.sh")
+    shutil.copyfile("markTrustedFiles.sh", image + "/markTrustedFiles.sh")
 
-def build_gsc_image(dclient, image, user_manifest, options):
-    # receive base docker image info
-    try:
-        app_img = dclient.images.get(image)
 
-        # get app name and tag
-        image_re = re.match(r'([^:]*)(:?)(.*)', image)
-        if image_re.group(1):
-            app = image_re.group(1)
+def prepare_arguments_and_build_context(base_image, image, user_manifest, options):
+    # image names follow the form distro/package:tag
+    image_re = re.match(r'([^:]*)(:?)(.*)', image)
+    if image_re.group(1):
+        app = image_re.group(1)
 
-        # remove trailing slashes
-        app = app.split('/')[-1]
+    # remove possible distroname (i.e., ubuntu/app)
+    app = app.split('/')[-1]
 
-        # find command of image
-        cmd = ' '.join(app_img.attrs['Config']['Cmd'])
-        # possibly if starts with bin/sh
-        cmd = cmd[cmd.startswith('[/bin/sh -c ') and len('[/bin/sh -c ') : ]
-        split = cmd.split(" ", 1)
-        binary = split[0]
-        binary_arguments = ""
-        if len(split) > 1:
-            binary_arguments = split[1]
-        print("args:", binary_arguments)
+    # find command of image from base_image
+    cmd = ' '.join(base_image.attrs['Config']['Cmd'])
+    # remove /bin/sh -c prefix and extract binary and arguments
+    cmd = cmd[cmd.startswith('[/bin/sh -c ') and len('[/bin/sh -c ') : ]
+    split = cmd.split(" ", 1)
+    binary = split[0]
+    binary_arguments = ""
+    if len(split) > 1:
+        binary_arguments = split[1]
 
-        params = {
-            '-d': {
-                    'DEBUG' : 'DEBUG=1',
-                    'debug_output': 'inline'
-                },
-        }
-        # default substitutions
-        default = {
-            'DEBUG': '',
-            'debug_output': 'none'
-        }
+    params = {
+        '-d': {
+                'DEBUG' : 'DEBUG=1',
+                'debug_output': 'inline'
+            },
+    }
+    # default substitutions
+    substitutions = {
+        'DEBUG': '',
+        'debug_output': 'none'
+    }
 
-        for option in options:
-            default.update(params[option])
+    for option in options:
+        substitutions.update(params[option])
 
-        prepare_build_context(image, user_manifest, default, app, binary, binary_arguments)
+    prepare_build_context(image, user_manifest, substitutions, app, binary, binary_arguments)
 
-        # build graphenized docker image
-        os.chdir(image)
-        os.system('docker build -t ' + gsc_image_name(image) + ' . \n')
-
-    except (docker.errors.ImageNotFound, docker.errors.APIError):
-
-        print("Unable to find base image " + image)
-
-#
-# Build graphenized docker image (aka. docker build)
-#
+# Build graphenized docker image. args has to follow <app manifest> <base_image> [<options>].
 def gsc_build(args):
     if len(args) < 2:
         print("Too few arguments to command build")
-        print_run_help()
+        print_build_help()
         sys.exit(1)
 
-    dclient = docker.DockerClient(base_url='unix://var/run/docker.sock')
+    docker_socket = docker.DockerClient(base_url='unix://var/run/docker.sock')
 
     user_manifest = args[0]
     image = args[1]
 
-    print("Graphenizing docker image " + image)
-
-    # test if image exists
     try:
-        dclient.images.get(gsc_image_name(image))
-
-        print("Image already exists, no build required.")
+        docker_socket.images.get(gsc_image_name(image))
+        print("Image " + gsc_image_name(image) + " already exists, no gsc build required.")
+        sys.exit(0)
 
     except (docker.errors.ImageNotFound, docker.errors.APIError):
+        try:
+            base_image = docker_socket.images.get(image)
+        except (docker.errors.ImageNotFound, docker.errors.APIError):
+            print("Unable to find base image " + image)
+            sys.exit(0)
 
-        print("Building graphenized image")
+        print("Building graphenized image from base image " + image)
+        prepare_arguments_and_build_context(base_image, image, user_manifest, args[2:])
 
-        # build image, since it doesn't exist locally
-        build_gsc_image(dclient, image, user_manifest, args[2:])
+        docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
+        streamer = docker_api.build(path=image, tag=gsc_image_name(image))
 
-#
-# Run graphenized version of docker image (aka. docker run)
-#
-def gsc_run(args):
-    if len(args) < 1:
-        print("Too few arguments to command run")
-        print_run_help()
-        sys.exit(1)
+        for chunk in streamer:
+            json_output = json.loads(chunk.decode('utf-8'))
+            if 'stream' in json_output:
+                for line in json_output['stream'].splitlines():
+                    print(line)
 
-    if (not os.path.exists("/dev/isgx")
-        or not os.path.exists("/dev/gsgx")
-        or not os.path.exists("/var/run/aesmd/aesm.socket")):
-        print("Please install sgx driver, graphene kernel module and SGX SDK/aesm")
-        exit(1)
+        # Check if docker build was successful
+        try:
+            base_image = docker_socket.images.get(gsc_image_name(image))
 
-    dclient = docker.DockerClient(base_url='unix://var/run/docker.sock')
+            print("Successfully graphenized docker image " + image + " into docker image "
+                    + gsc_image_name(image))
 
-    opt = 0
-    for arg in args:
-        if arg.startswith('-'):
-            opt += 1
-        else:
-            try:
-                dclient.images.get(gsc_image_name(arg))
-                # if image exists exit
-                break
-            except (docker.errors.APIError, docker.errors.ImageNotFound):
-                opt += 1
+        except (docker.errors.ImageNotFound, docker.errors.APIError):
+            print("Failed to build graphenized image for " + image)
+            sys.exit(0)      
 
-    options = ""
-    if opt > 0:
-        options = ' '.join(args[0:opt])
-    # run grapheneized docker container
-    image = args[opt]
-    if len(args) > opt+1:
-        app_args = '\'' + '\' \''.join(args[opt+1:]) + '\''
-    else:
-        app_args = ""
-
-    try:
-        dclient.images.get(gsc_image_name(image))
-
-        print("Running graphenized docker image " + gsc_image_name(image)
-            + " with arguments ("+ str(len(app_args)) + ") " + app_args
-            + " options " + options)
-
-        os.system("docker run --device=/dev/gsgx --device=/dev/isgx "
-            +"-v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket "
-            + options + " " + gsc_image_name(image) + " " + app_args + "\n")
-
-    except (docker.errors.ImageNotFound, docker.errors.APIError):
-        print("Unable to find image " + gsc_image_name(image))
-
-#
-# Print Usage
-#
 def print_build_help():
     print("Build command usage:")
-    print("gsc build <manifest> <image name>[:<tag>] [<options>]")
-    print("manifest - Application specific manifest to be included in the generated manifest")
-    print("image name - name of the base image to be graphenized")
-    print("tag - tag of the image\n")
-    print("Options:")
-    print("-d - compile Graphene with debug")
-
-def print_run_help():
-    print("Run command usage:")
-    print("gsc run [options] <image name>[:<tag>] [application arguments]")
-    print("image name - Name of image without GSC build")
-    print("tag - Tag of the image to be used\n")
-    print("application arguments - Arguments given to the application")
-    print("Options are passed through to docker run.")
-    print("Common options include -t -i")
+    print("   gsc build <manifest> <image name>[:<tag>] [<options>]")
+    print("      manifest - Application specific manifest to be included in the generated manifest")
+    print("      image name - name of the base image to be graphenized")
+    print("      tag - tag of the image\n")
+    print("      Options:")
+    print("         -d - compile Graphene with debug")
 
 def print_usage(cmd):
     #pylint: disable=unused-argument
     print("Usage:")
     print("gsc <cmd> [<cmd arguments>]\n")
     print("List of Commands:")
-    print("build - Build a graphenized docker image")
-    print("run - Run a previously build graphenized docker image")
-    print("help - Print this information\n")
+    print("   build - Build a graphenized docker image")
+    print("   help - Print this information\n")
 
     print_build_help()
-    print_run_help()
 
-#
-# Main entry (split by command)
-#
+    print("\nTo run a graphenized Docker image, execute:")
+    print("docker run --device=/dev/gsgx --device=/dev/isgx -v "
+        "/var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [options] gsc-<image-name>[:<tag>]"
+        " [application arguments]")
+
 if __name__ == '__main__':
 
     if len(sys.argv) < 2:
@@ -271,13 +212,10 @@ if __name__ == '__main__':
         sys.exit(1)
 
     GSC_CMDS = {
-        'run': gsc_run,
         'build': gsc_build,
         'help': print_usage,
     }
 
-    # GSC command is the first argument
-    # if not provided print usage
+    # GSC command is the first argument if not provided print usage
     CMD = GSC_CMDS.get(sys.argv[1], print_usage)
-    # handle command
     CMD(sys.argv[2:])

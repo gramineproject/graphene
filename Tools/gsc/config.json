@@ -1,5 +1,5 @@
 {
-    "sgxdriver_major": "2",
-    "sgxdriver_minor": "5",
-    "ubuntu": "18.04"
+    "sgxdriver_repository": "https://github.com/01org/linux-sgx-driver.git",
+    "sgxdriver_version": "sgx_driver_2.5",
+    "distro": "ubuntu16.04"
 }

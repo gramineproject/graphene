@@ -5,8 +5,6 @@ loader.exec = file:BINARY_PATH
 loader.execname = ${bin_name}
 loader.env.LD_LIBRARY_PATH = /graphene/Runtime:LIBRARY_PATHS
 loader.env.PATH = /usr/local/bin:/usr/bin:/bin
-loader.env.USERNAME =
-loader.env.PWD =
 loader.debug_type = ${debug_output}
 
 fs.root.type = chroot
