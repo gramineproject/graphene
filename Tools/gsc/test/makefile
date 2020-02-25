@@ -64,7 +64,7 @@ space :=
 space +=
 
 cleanContainers:
-	docker container ls | grep -e '$(subst $(space),|,$(TESTS))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container rm -f
+	docker container ls | grep -e '$(subst $(space),|,$(TESTS))|$(subst $(space),|,$(addprefix gsc-, $(TESTS)))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container rm -f
 
 distclean: cleanContainers cleanBase cleanGSC
 	docker builder prune -a -f
