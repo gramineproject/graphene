@@ -94,6 +94,7 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
     return retval;
 }
 
+#define IOSIZE_MAX ((size_t)(1024 * 1024 * 16)) /* what size is good? deduce from enclave size? */
 /*
  * Memorize untrusted memory area to avoid mmap/munmap per each read/write IO. Because this cache
  * is per-thread, we don't worry about concurrency. The cache will be carried over thread
@@ -230,7 +231,7 @@ int ocall_close (int fd)
     return retval;
 }
 
-int ocall_read(int fd, void* buf, unsigned int count) {
+static int ocall_read_raw(int fd, void* buf, unsigned int count) {
     int retval = 0;
     void* obuf = NULL;
     ms_ocall_read_t* ms;
@@ -276,7 +277,26 @@ out:
     return retval;
 }
 
-int ocall_write(int fd, const void* buf, unsigned int count) {
+int ocall_read(int fd, void* buf, unsigned int count) {
+    unsigned int done = 0;
+
+    while (done < count) {
+        unsigned int iosize = MIN(count - done, IOSIZE_MAX);
+        int ret = ocall_read_raw(fd, buf + done, iosize);
+        if (IS_ERR(ret)) {
+            if (!done)
+                done = ret;
+            break;
+        }
+        if (!ret) /* EOF */
+            break;
+        done += ret;
+    }
+
+    return done;
+}
+
+static int ocall_write_raw(int fd, const void* buf, unsigned int count) {
     int retval = 0;
     void* obuf = NULL;
     ms_ocall_write_t* ms;
@@ -326,7 +346,24 @@ out:
     return retval;
 }
 
-ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
+int ocall_write(int fd, const void* buf, unsigned int count) {
+    unsigned int done = 0;
+
+    while (done < count) {
+        unsigned int iosize = MIN(count - done, IOSIZE_MAX);
+        int ret = ocall_write_raw(fd, buf + done, iosize);
+        if (IS_ERR(ret)) {
+            if (!done)
+                done = ret;
+            break;
+        }
+        done += ret;
+    }
+
+    return done;
+}
+
+static ssize_t ocall_pread_raw(int fd, void* buf, size_t count, off_t offset) {
     long retval = 0;
     void* obuf = NULL;
     ms_ocall_pread_t* ms;
@@ -371,7 +408,26 @@ out:
     return retval;
 }
 
-ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset) {
+ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
+    size_t done = 0;
+
+    while (done < count) {
+        size_t iosize = MIN(count - done, IOSIZE_MAX);
+        ssize_t ret = ocall_pread_raw(fd, buf + done, iosize, offset + done);
+        if (IS_ERR(ret)) {
+            if (!done)
+                done = ret;
+            break;
+        }
+        if (!ret) /* EOF */
+            break;
+        done += ret;
+    }
+
+    return done;
+}
+
+static ssize_t ocall_pwrite_raw(int fd, const void* buf, size_t count, off_t offset) {
     long retval = 0;
     void* obuf = NULL;
     ms_ocall_pwrite_t* ms;
@@ -420,6 +476,23 @@ out:
     if (obuf)
         ocall_munmap_untrusted_cache(obuf, ALLOC_ALIGN_UP(count), need_munmap);
     return retval;
+}
+
+ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset) {
+    size_t done = 0;
+
+    while (done < count) {
+        size_t iosize = MIN(count - done, IOSIZE_MAX);
+        int ret = ocall_pwrite_raw(fd, buf + done, iosize, offset + done);
+        if (IS_ERR(ret)) {
+            if (!done)
+                done = ret;
+            break;
+        }
+        done += ret;
+    }
+
+    return done;
 }
 
 int ocall_fstat (int fd, struct stat * buf)
