@@ -5,9 +5,9 @@ This folder includes sample images and test cases for GSC:
 
 -  Hello-World (print "Hello World!" using echo)
 -  Python3 (run python3 command line) which is tested with a
-   ``-c 'print("Hello World!")'`` and the three `Graphene
-   test <https://github.com/oscarlab/graphene-tests>`__ scripts from
-   python-simple
+   ``-c 'print("Hello World!")'`` and the three
+   `Graphene test scripts <https://github.com/oscarlab/graphene-tests>`__
+   from python-simple
 
 Each sample consists of two files ``<distro>-<image-name>.dockerfile``
 and ``<distro>-<image-name>.manifest`` where ``<distro>`` specifies the

@@ -11,7 +11,7 @@ The ``gsc`` command line tool follows the common Docker approach to first build 
 subsequently run a container of an image. It provides the ``build`` command and allows to
 subsequently use ``docker run``.
 
-The `test directory <test/README.md>`__ provides sample Docker images and scripts to graphenize them
+The `test directory <test/README.rst>`__ provides sample Docker images and scripts to graphenize them
 using ``gsc``.
 
 Prerequisites to running GSC
@@ -26,16 +26,19 @@ Prerequisites to running GSC
 
 **Kernel modules and services:**
 
-- Follow installation instructions for `Intel SGX driver
-<https://github.com/intel/linux-sgx-driver>`__
-- Follow installation instructions for `Intel SGX SDK
-<https://01.org/intel-software-guard-extensions/downloads>`__
 - Follow installation instructions for
-`Graphene <https://github.com/oscarlab/graphene>`__
+`Intel SGX driver <https://github.com/intel/linux-sgx-driver>`__
 
-**Configurations:** - User must have access to Docker daemon
+- Follow installation instructions for
+`Intel SGX SDK <https://01.org/intel-software-guard-extensions/downloads>`__
 
-::
+- Follow installation instructions for `Graphene <https://github.com/oscarlab/graphene>`__
+
+**Configurations:**
+
+- User must have access to Docker daemon
+
+    ::
 
     sudo adduser $USER docker
 
@@ -65,59 +68,47 @@ run <image-name>``). In case of GSC, the graphenized image is run via the regula
 line interface. It requires to add ``isgx`` and ``gsgx`` as devices and mount the AESMD socket file
 as a volume.
 
-Detailed Usage
+Building Docker images with GSC
 --------------
-
-::
-
-    gsc <cmd> [<cmd arguments>]
-
-List of Commands
-~~~~~~~~~~~~~~~~
-
-*build* - Build a graphenized Docker image
-
-*help* - Print this information
-
-Build command
-~~~~~~~~~~~~~
 
 ::
 
     gsc build <manifest> <image-name>[:<tag>] [<options>]
 
-*manifest* - Application specific manifest entries
+- *manifest*: Application specific manifest entries
 
-*image-name* - Name of the base image
+- *image-name*: Name of the base image
 
-*tag* - Tag of the base image
+- *tag*: Tag of the base image
 
-**Options:**
+- *Options*:
 
-``-d`` - compile Graphene with debug flags and output
+    - ``-d``: compile Graphene with debug flags and output
 
-``-L`` - compile Graphene with Linux PAL in addition to Linux-SGX PAL
+    - ``-L``: compile Graphene with Linux PAL in addition to Linux-SGX PAL
 
 Run graphenized Docker images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Execute Docker run command via Docker CLI and provide gsgx and sgx device, and the PSW/AESM socket.
+Execute Docker run command via Docker CLI and provide gsgx and isgx device, and the PSW/AESM socket.
 Additional Docker options and application arguments may be supplied to the Docker run command.
 
 ::
 
-    docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [options] gsc-<image-name>[:<tag>] [application arguments]
+    docker run --device=/dev/gsgx --device=/dev/isgx
+        -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
+        [options] gsc-<image-name>[:<tag>] [application arguments]
 
-*image-name* - Name of image without GSC build
+- *image-name*: Name of image without GSC build
 
-*tag* - Tag of the image to be used
+- *tag*: Tag of the image to be used
 
-*application arguments* - Application arguments to be supplied to the application launching inside
+- *application arguments*: Application arguments to be supplied to the application launching inside
 the Docker container and Graphene
 
-*options* - Options are passed through to Docker run. Common options include ``-it`` (interactive
-with terminal) or ``-d`` (detached). Please see `Docker manual
-<https://docs.docker.com/engine/reference/commandline/run/>`__ for details.
+- *options*: Options are passed through to Docker run. Common options include ``-it`` (interactive
+with terminal) or ``-d`` (detached). Please see
+`Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__ for details.
 
 **Execute with Linux PAL instead of Linux-SGX PAL**: When specifying ``-L`` during GSC ``build``,
 you may select the Linux PAL at Docker run time instead of the Linux-SGX PAL by specifying the
@@ -133,13 +124,18 @@ GSC Configuration parameters
 GSC is configured via a configuration file called `config.json <config.json>`__ with the following
 parameters:
 
-**sgxdriver\_repository**: From which repository should the driver be checked out.
+- *distro*: Defines Linux distribution to be used to build Graphene in. Currently supported values
+are ``ubuntu18.04`` / ``ubuntu16.04``.
 
-**sgxdriver\_version**: Defines the SGX driver version to be checked out from the
+- *graphene\_repository*: Graphene is cloned from this repository
+
+- *graphene\_branch*: Branch to be checked out
+
+- *sgxdriver\_repository*: From which repository should the driver be checked out.
+
+- *sgxdriver\_version*: Defines the SGX driver version to be checked out from the
 ``sgxdriver_repository``. Default value is master.
 
-**distro**: Defines Linux distribution to be used to build Graphene in. Currently supported values
-are ubuntu18.04 and ubuntu16.04.
 
 Limitations
 -----------
