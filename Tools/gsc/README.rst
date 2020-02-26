@@ -81,9 +81,9 @@ Building Docker images with GSC
 
 - *Options*:
 
-    - ``-d``: compile Graphene with debug flags and output
+    - ``-d``: Compile Graphene with debug flags and output
 
-    - ``-L``: compile Graphene with Linux PAL in addition to Linux-SGX PAL
+    - ``-L``: Compile Graphene with Linux PAL in addition to Linux-SGX PAL
 
 Run graphenized Docker images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -101,8 +101,7 @@ Additional Docker options and application arguments may be supplied to the Docke
 
 - *tag*: Tag of the image to be used
 
-- *application arguments*: Application arguments to be supplied to the application launching inside
-the Docker container and Graphene
+- *application arguments*: Application arguments to be supplied to the application launching inside the Docker container and Graphene
 
 - *options*: Options are passed through to Docker run. Common options include ``-it`` (interactive
 with terminal) or ``-d`` (detached). Please see
