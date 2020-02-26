@@ -26,11 +26,9 @@ Prerequisites to running GSC
 
 **Kernel modules and services:**
 
-- Follow installation instructions for
-`Intel SGX driver <https://github.com/intel/linux-sgx-driver>`__
+- Follow installation instructions for `Intel SGX driver <https://github.com/intel/linux-sgx-driver>`__
 
-- Follow installation instructions for
-`Intel SGX SDK <https://01.org/intel-software-guard-extensions/downloads>`__
+- Follow installation instructions for `Intel SGX SDK <https://01.org/intel-software-guard-extensions/downloads>`__
 
 - Follow installation instructions for `Graphene <https://github.com/oscarlab/graphene>`__
 
