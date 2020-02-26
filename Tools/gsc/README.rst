@@ -119,7 +119,7 @@ GSC Configuration parameters
 GSC is configured via a configuration file called `config.json <config.json>`__ with the following
 parameters:
 
-- *distro*: Defines Linux distribution to be used to build Graphene in. Currently supported values are ``ubuntu18.04`` / ``ubuntu16.04``.
+- *distro*: Defines Linux distribution to be used to build Graphene in. Currently supported values are ``ubuntu18.04``/``ubuntu16.04``.
 
 - *graphene\_repository*: Source repository of Graphene.
 
