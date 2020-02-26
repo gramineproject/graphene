@@ -19,8 +19,7 @@ def load_config(file):
 # Generate manifest from a template (see template/manifest.template) based on the binary name.
 # The generated manifest is only partially completed. Later, during the docker build it is
 # finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
-def generate_manifest(image, substitutions, user_manifest, binary):
-    substitutions.update({'bin_name': binary})
+def generate_manifest(image, substitutions, user_manifest):
 
     with open(user_manifest) as user_manifest_file:
         user_mf = user_manifest_file.read()
@@ -29,7 +28,7 @@ def generate_manifest(image, substitutions, user_manifest, binary):
         template_mf = string.Template(manifest_template.read())
         instantiated_mf = template_mf.substitute(substitutions)
 
-    with open(image + '/' + binary + '.manifest', 'w') as app_manifest:
+    with open(image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
         app_manifest.write(instantiated_mf)
         app_manifest.write("\n")
         app_manifest.write(user_mf)
@@ -37,13 +36,10 @@ def generate_manifest(image, substitutions, user_manifest, binary):
 
 # Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
-def generate_app_loader(image, app, binary, binary_arguments):
+def generate_app_loader(image, substitutions):
     with open('templates/apploader.template') as apl:
         template_apl = string.Template(apl.read())
-        instantiated_apl = template_apl.substitute({
-                    'app' : app,
-                    'binary' : binary,
-                    'binary_arguments': binary_arguments})
+        instantiated_apl = template_apl.substitute(substitutions)
 
     with open(image + '/apploader.sh', 'w') as apploader:
         apploader.write(instantiated_apl)
@@ -55,25 +51,14 @@ def generate_app_loader(image, app, binary, binary_arguments):
 # specified distribution. The second stage based on Dockerfile.gscapp.template builds the final
 # image based on the previously built Graphene and the base image. In addition, it completes the
 # manifest generation and generates the signature.
-def generate_dockerfile(image, substitutions, app, binary):
-    config = load_config('config.json')
-    if not config['sgxdriver_version']:
-        config.update({'sgxdriver_version': "master"})
-
-    config.update(substitutions)
-
+def generate_dockerfile(image, substitutions):
     # generate stage 1 from distribution template
-    with open('templates/Dockerfile.' + config['distro'] + '.template') as dfg:
+    with open('templates/Dockerfile.' + substitutions['distro'] + '.template') as dfg:
         template_dfg = string.Template(dfg.read())
-        instantiated_dfg = template_dfg.substitute(config)
+        instantiated_dfg = template_dfg.substitute(substitutions)
 
     # generate 2nd stage (based on application image)
-    with open('templates/Dockerfile.' + config['distro'] + '.gscapp.template') as dfapp:
-        substitutions.update({
-            "appImage" : image,
-            "app" : app,
-            "binary" : binary
-            })
+    with open('templates/Dockerfile.' + substitutions['distro'] + '.gscapp.template') as dfapp:
         template_dfapp = string.Template(dfapp.read())
         instantiated_dfapp = template_dfapp.substitute(substitutions)
 
@@ -81,40 +66,24 @@ def generate_dockerfile(image, substitutions, app, binary):
         dockerfile.write(instantiated_dfg)
         dockerfile.write(instantiated_dfapp)
 
-def prepare_build_context(image, user_manifest, substitutions, app, binary, binary_arguments):
+def prepare_build_context(image, user_manifest, substitutions):
     # create directory for image specific files
     os.makedirs(image, exist_ok=True)
 
     # generate dockerfile to build graphenized docker image
-    generate_dockerfile(image, substitutions, app, binary)
+    generate_dockerfile(image, substitutions)
 
     # generate app specific loader script
-    generate_app_loader(image, app, binary, binary_arguments)
+    generate_app_loader(image, substitutions)
 
     # generate manifest stub for this app
-    generate_manifest(image, substitutions, user_manifest, binary)
+    generate_manifest(image, substitutions, user_manifest)
 
     # copy markTrustedFiles.sh
     shutil.copyfile("markTrustedFiles.sh", image + "/markTrustedFiles.sh")
 
 
-def prepare_arguments_and_build_context(base_image, image, user_manifest, options):
-    # image names follow the format distro/package:tag
-    image_re = re.match(r'([^:]*)(:?)(.*)', image)
-    if image_re.group(1):
-        app = image_re.group(1)
-
-    # remove possible distroname (i.e., ubuntu/app)
-    app = app.split('/')[-1]
-
-    # find command of image from base_image
-    cmd = ' '.join(base_image.attrs['Config']['Cmd'])
-    # remove /bin/sh -c prefix and extract binary and arguments
-    cmd = cmd[cmd.startswith('[/bin/sh -c ') and len('[/bin/sh -c ') : ]
-    split = cmd.split(None, 1)
-    binary = split[0]
-    binary_arguments = split[1] if len(split) > 1 else ""
-
+def prepare_substitutions(base_image, image, options):
     params = {
         '-d': {
                 'DEBUG' : 'DEBUG=1',
@@ -138,7 +107,37 @@ def prepare_arguments_and_build_context(base_image, image, user_manifest, option
     substitutions['MAKE_LINUX_PAL'] = substitutions['MAKE_LINUX_PAL'].format(
                                         DEBUG=substitutions['DEBUG'])
 
-    prepare_build_context(image, user_manifest, substitutions, app, binary, binary_arguments)
+    config = load_config('config.json')
+    if not config['sgxdriver_version']:
+        config.update({'sgxdriver_version': "master"})
+
+    substitutions.update(config)
+
+    # image names follow the format distro/package:tag
+    image_wo_distro = image.split('/')[-1]
+    image_re = re.match(r'([^:]*)(:?)(.*)', image_wo_distro)
+    if image_re.group(1):
+        app = image_re.group(1)
+
+    # find command of image from base_image
+    cmd = ' '.join(base_image.attrs['Config']['Cmd'])
+    # remove /bin/sh -c prefix and extract binary and arguments
+    cmd = cmd[cmd.startswith('[/bin/sh -c ') and len('[/bin/sh -c ') : ]
+    split = cmd.split(None, 1)
+    binary = split[0]
+    binary_arguments = split[1] if len(split) > 1 else ""
+
+    working_dir = base_image.attrs['Config']['WorkingDir']
+
+    substitutions.update({
+            "appImage" : image,
+            "app" : app,
+            "binary" : binary,
+            'binary_arguments': binary_arguments,
+            'working_dir': working_dir
+            })
+
+    return substitutions
 
 # Build graphenized docker image. args has to follow <app manifest> <base_image> [<options>].
 def gsc_build(args):
@@ -165,7 +164,10 @@ def gsc_build(args):
             sys.exit(1)
 
         print("Building graphenized image from base image " + image)
-        prepare_arguments_and_build_context(base_image, image, user_manifest, args[2:])
+
+        substitutions = prepare_substitutions(base_image, image, args[2:])
+
+        prepare_build_context(image, user_manifest, substitutions)
 
         docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
         # docker build returns stream of json output

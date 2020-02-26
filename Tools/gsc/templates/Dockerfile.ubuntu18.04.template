@@ -48,10 +48,13 @@ RUN apt-get update \
 RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 
 # Clone graphene
-RUN git clone https://github.com/oscarlab/graphene.git
+RUN git clone ${graphene_repository}
 
 # Init submodules
-RUN cd graphene && git submodule init && git submodule update
+RUN cd /graphene \
+    && git checkout ${graphene_branch} \
+    && git submodule init \
+    && git submodule update
 
 # Create keys for signing
 RUN cd /graphene/Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
@@ -63,10 +66,10 @@ RUN cd /graphene/Pal/src/host/Linux-SGX/sgx-driver \
     && git checkout ${sgxdriver_version}
 
 # Build Grapehene-SGX
-RUN cd graphene && ISGX_DRIVER_PATH=linux-sgx-driver make SGX=1 ${DEBUG} WERROR=1 ${MAKE_LINUX_PAL}
+RUN cd /graphene && ISGX_DRIVER_PATH=linux-sgx-driver make SGX=1 ${DEBUG} WERROR=1 ${MAKE_LINUX_PAL}
 
 # Translate runtime symlinks to files
-RUN for f in $$(find graphene/Runtime -type l);do cp --remove-destination $$(readlink $$f) $$f;done;
+RUN for f in $$(find /graphene/Runtime -type l);do cp --remove-destination $$(readlink $$f) $$f;done;
 
 # Finished building Graphene
 # ------------------------------------------

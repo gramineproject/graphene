@@ -1,5 +1,7 @@
 {
+    "distro": "ubuntu16.04",
+    "graphene_branch": "master",
+    "graphene_repository": "https://github.com/oscarlab/graphene.git",
     "sgxdriver_repository": "https://github.com/01org/linux-sgx-driver.git",
-    "sgxdriver_version": "sgx_driver_2.5",
-    "distro": "ubuntu16.04"
+    "sgxdriver_version": "sgx_driver_2.5"
 }
