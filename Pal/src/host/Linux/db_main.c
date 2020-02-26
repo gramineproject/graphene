@@ -443,7 +443,7 @@ static double get_bogomips(void) {
         return 0.0;
     }
 
-    /* Although the whole file might not fit in this size, the first cpu desciption should. */
+    /* Although the whole file might not fit in this size, the first cpu description should. */
     long x = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
     INLINE_SYSCALL(close, 1, fd);
     if (x < 0) {

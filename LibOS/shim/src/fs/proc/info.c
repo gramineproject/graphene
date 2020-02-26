@@ -143,7 +143,7 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
         return -ENOMEM;
     }
 
-#define ADD_INFO(fmt, ...) do {                                     \
+#define ADD_INFO(fmt, ...) do {                                         \
         int ret = print_to_str(&str, len, &max, fmt, ##__VA_ARGS__);    \
         if (ret < 0) {                                                  \
             free(str);                                                  \
@@ -153,6 +153,8 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
     } while (0)
 
     for (size_t n = 0; n < pal_control.cpu_info.cpu_num; n++) {
+        /* Below strings must match exactly the strings retrieved from /proc/cpuinfo
+         * (see Linux's arch/x86/kernel/cpu/proc.c) */
         ADD_INFO("processor\t: %lu\n", n);
         ADD_INFO("vendor_id\t: %s\n", pal_control.cpu_info.cpu_vendor);
         ADD_INFO("cpu family\t: %lu\n", pal_control.cpu_info.cpu_family);

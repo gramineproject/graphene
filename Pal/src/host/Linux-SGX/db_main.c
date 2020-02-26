@@ -500,7 +500,7 @@ static double get_bogomips(void) {
         return 0.0;
     }
 
-    /* Although the whole file might not fit in this size, the first cpu desciption should. */
+    /* Although the whole file might not fit in this size, the first cpu description should. */
     int x = ocall_read(fd, buf, sizeof(buf) - 1);
     ocall_close(fd);
     if (x < 0) {

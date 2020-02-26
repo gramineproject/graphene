@@ -25,7 +25,7 @@ static double atod(const char* s) {
 
 double get_bogomips_from_buf(const char* buf, size_t size) {
     /* We could use strstr if graphene had one. */
-    /* Each prefix of the word "bogomips" occurs only once in the whole world, hence this works. */
+    /* Each prefix of the word "bogomips" occurs only once in the whole word, hence this works. */
     const char* const word = "bogomips";
     const size_t word_size = strlen(word);
     size_t i = 0,
