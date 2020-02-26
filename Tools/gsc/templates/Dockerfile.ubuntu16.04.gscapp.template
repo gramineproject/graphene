@@ -34,10 +34,11 @@ RUN  sed -i "s/BINARY_PATH/$$(which ${binary} | sed 's:/:\\/:g')/g" ${binary}.ma
 
  RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
-    python3-protobuf \
+    python3-pip \
     libprotobuf-c-dev \
     binutils \
-    openssl
+    openssl \
+    && /usr/bin/pip3 install protobuf
 
 # Sign application and manifest
 RUN /graphene/signer/pal-sgx-sign \
