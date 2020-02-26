@@ -225,21 +225,21 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         uint64_t map_end   = ALLOC_ALIGN_UP(end);
         uint64_t map_size = map_end - map_start;
 
-        uint64_t count = 0;
+        size_t count = 0;
         while (count < map_size) {
-            ret = ocall_pread(handle->file.fd, mem + count, map_size - count, map_start + count);
-            if (IS_ERR(ret)) {
-                if (ERRNO(ret) == EINTR) {
+            ssize_t tmp = ocall_pread(handle->file.fd, mem + count, map_size - count, map_start + count);
+            if (IS_ERR(tmp)) {
+                if (ERRNO(tmp) == EINTR) {
                     continue;
                 }
-                SGX_DBG(DBG_E, "file_map - ocall_pread returned %d\n", ret);
-                return unix_to_pal_error(ERRNO(ret));
+                SGX_DBG(DBG_E, "file_map - ocall_pread returned %ld\n", tmp);
+                return unix_to_pal_error(ERRNO(tmp));
             }
-            if (ret == 0)   /* EOF */
+            if (tmp == 0)   /* EOF */
                 break;
-            count += ret;
+            count += tmp;
         }
-        if (map_start + count < map_end) {
+        if (count < map_size) {
             memset(mem + count, 0, map_size - count);
         }
     }
