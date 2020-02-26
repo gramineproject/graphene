@@ -3,7 +3,7 @@ include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
 	-I../../../include/host/Linux -I../../../include/lib \
-	-I../../../include/host/commons
+	-I../../../include/host/Linux-common
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
 host_files = libpal-Linux.a pal.map
@@ -12,7 +12,7 @@ defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
-commons_objs = linux_commons.o
+commons_objs = bogomips.o
 
 objs = \
 	clone-x86_64.o \
@@ -42,7 +42,7 @@ all: $(host_files)
 libpal-Linux.a: $(objs) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
-$(commons_objs): %.o: ../commons/%.c
+$(commons_objs): %.o: ../Linux-common/%.c
 	$(call cmd,cc_o_c)
 
 %.o: %.c

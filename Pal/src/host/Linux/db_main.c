@@ -22,7 +22,7 @@
  */
 
 #include "api.h"
-#include "linux_commons.h"
+#include "bogomips.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"

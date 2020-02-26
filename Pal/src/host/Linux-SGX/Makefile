@@ -7,7 +7,7 @@ ias_cert_file = quote/$(notdir $(ias_cert_url))
 
 CFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
 	-I../../../lib/crypto/mbedtls/include -I../../../include/host/Linux-SGX \
-	-I../../../include/host/commons \
+	-I../../../include/host/Linux-common \
 	-I../../../include/lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
@@ -17,7 +17,7 @@ defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
-commons_objs = linux_commons.o
+commons_objs = bogomips.o
 
 enclave-objs = \
 	db_devices.o \
@@ -79,7 +79,7 @@ $(patsubst %.o,%.s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 $(urts-objs): quote/aesm.pb-c.h
 $(enclave-objs): quote/generated-cacert.h
 
-$(commons_objs): %.o: ../commons/%.c
+$(commons_objs): %.o: ../Linux-common/%.c
 	$(call cmd,cc_o_c)
 
 %.o: %.c
