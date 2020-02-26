@@ -173,7 +173,8 @@ def gsc_build(args):
 
         # print continuously the stream of output by docker build
         for chunk in stream:
-            json_output = json.loads(chunk.decode('utf-8'))
+            json_output = json.loads(chunk.decode(sys.stdout.encoding
+                                        if sys.stdout.encoding is not None else 'UTF-8'))
             if 'stream' in json_output:
                 for line in json_output['stream'].splitlines():
                     print(line)
