@@ -103,8 +103,7 @@ Additional Docker options and application arguments may be supplied to the Docke
 
 - *application arguments*: Application arguments to be supplied to the application launching inside the Docker container and Graphene
 
-- *options*:
-Options are passed through to Docker run. Common options include ``-it`` (interactive with terminal) or ``-d`` (detached). Please see `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__ for details.
+- *options*: Options are passed through to Docker run. Common options include ``-it`` (interactive with terminal) or ``-d`` (detached). Please see `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__ for details.
 
 **Execute with Linux PAL instead of Linux-SGX PAL**: When specifying ``-L`` during GSC ``build``,
 you may select the Linux PAL at Docker run time instead of the Linux-SGX PAL by specifying the
