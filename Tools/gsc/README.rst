@@ -125,14 +125,13 @@ parameters:
 - *distro*: Defines Linux distribution to be used to build Graphene in. Currently supported values
 are ``ubuntu18.04`` / ``ubuntu16.04``.
 
-- *graphene\_repository*: Graphene is cloned from this repository
+- *graphene\_repository*: Source repository of Graphene.
 
-- *graphene\_branch*: Branch to be checked out
+- *graphene\_branch*: Branch of the ``grapehene_repository``.
 
-- *sgxdriver\_repository*: From which repository should the driver be checked out.
+- *sgxdriver\_repository*: Source repository of the Intel SGX driver.
 
-- *sgxdriver\_version*: Defines the SGX driver version to be checked out from the
-``sgxdriver_repository``. Default value is master.
+- *sgxdriver\_branch*: Branch of the ``sgxdriver_repository``.
 
 
 Limitations

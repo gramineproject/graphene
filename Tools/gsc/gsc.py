@@ -108,9 +108,6 @@ def prepare_substitutions(base_image, image, options):
                                         DEBUG=substitutions['DEBUG'])
 
     config = load_config('config.json')
-    if not config['sgxdriver_version']:
-        config.update({'sgxdriver_version': "master"})
-
     substitutions.update(config)
 
     # image names follow the format distro/package:tag
