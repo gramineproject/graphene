@@ -1,4 +1,4 @@
-# Integrate graphene into the app image
+# Integrate Graphene into the app image
 # This file is used in a multistage docker build process, in which the previous image is named "graphene"
 FROM ${appImage}
 
