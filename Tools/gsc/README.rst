@@ -36,7 +36,7 @@ Prerequisites to running GSC
 
 - User must have access to Docker daemon
 
-    ::
+::
 
     sudo adduser $USER docker
 
