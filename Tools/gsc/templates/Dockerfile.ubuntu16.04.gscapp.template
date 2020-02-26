@@ -16,29 +16,28 @@ COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/generated_offsets.py /grap
 RUN mkdir -p /graphene/Pal/src
 
 # Prepare application loader
-COPY apploader.sh /
-RUN chmod u+x /apploader.sh
+COPY apploader.sh .
+RUN chmod u+x apploader.sh
 
 # Finalize the manifest
-COPY ${binary}.manifest /
+COPY ${binary}.manifest .
 COPY markTrustedFiles.sh /
 # 1) Replace app path with real path and update library path,
 # 2) Add all files as trusted files,
 # 3) Remove aux
 RUN  sed -i "s/BINARY_PATH/$$(which ${binary} | sed 's:/:\\/:g')/g" ${binary}.manifest \
     && sed -i "s/LIBRARY_PATHS/$$(ldconfig -v 2>/dev/null | grep -v ^'\s' | tr -d '\n' | sed 's:/:\\/:g')/g" ${binary}.manifest \
-    && chmod u+x ./markTrustedFiles.sh \
+    && chmod u+x /markTrustedFiles.sh \
     && /markTrustedFiles.sh / ${binary}.manifest  \
     && chmod u+x ${binary}.manifest \
-    && rm ./markTrustedFiles.sh files checkedfiles
+    && rm /markTrustedFiles.sh files checkedfiles
 
  RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
-    python3-pip \
+    python3-protobuf \
     libprotobuf-c-dev \
     binutils \
-    openssl \
-    && /usr/bin/pip3 install protobuf
+    openssl
 
 # Sign application and manifest
 RUN /graphene/signer/pal-sgx-sign \
@@ -48,10 +47,6 @@ RUN /graphene/signer/pal-sgx-sign \
     -manifest ${binary}.manifest \
     && chmod u+x ${binary}.manifest.sgx
 
-RUN env DEBIAN_FRONTEND=noninteractive apt-get remove -y \
-    binutils openssl \
-    && env DEBIAN_FRONTEND=noninteractive apt-get autoremove -y
-
 # Define default command
-ENTRYPOINT  ["/bin/bash", "/apploader.sh"]
+ENTRYPOINT  ["/bin/bash", "./apploader.sh"]
 CMD []
