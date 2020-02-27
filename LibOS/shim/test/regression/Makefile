@@ -84,7 +84,8 @@ exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
 	file_check_policy_strict.manifest \
-	file_check_policy_allow_all_but_log.manifest
+	file_check_policy_allow_all_but_log.manifest \
+	multi_pthread_exitless.manifest
 
 target = \
 	$(exec_target) \
