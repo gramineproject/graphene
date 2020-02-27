@@ -303,6 +303,10 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         return;
     }
 
+    /* Set the alignment early */
+    pal_state.alloc_align = g_page_size;
+    pal_state.start_time = start_time;
+
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);
     init_untrusted_slab_mgr();
@@ -313,9 +317,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     /* now we can add a link map for PAL itself */
     setup_pal_map(&pal_map);
-
-    /* Set the alignment early */
-    pal_state.alloc_align = g_page_size;
 
     /* initialize enclave properties */
     rv = init_enclave();
@@ -335,8 +336,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     if (!environments) {
         return;
     }
-
-    pal_state.start_time = start_time;
 
     linux_state.uid = pal_sec.uid;
     linux_state.gid = pal_sec.gid;
