@@ -1,9 +1,10 @@
+#include "api.h"
 #include "enclave_pages.h"
-#include <api.h>
-#include <list.h>
-#include <pal_internal.h>
-#include <pal_linux.h>
-#include <pal_security.h>
+#include "list.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_security.h"
 
 struct atomic_int g_alloced_pages;
 
@@ -12,31 +13,37 @@ static void* g_heap_bottom;
 static void* g_heap_top;
 
 /* list of VMAs of used memory areas kept in DESCENDING order */
+/* TODO: rewrite the logic so that this list keeps VMAs in ascending order */
 DEFINE_LIST(heap_vma);
 struct heap_vma {
     LIST_TYPE(heap_vma) list;
-    void* top;
     void* bottom;
+    void* top;
 };
 DEFINE_LISTP(heap_vma);
 
 /* sentinel VMA always exists and occupies one page at the heap bottom;
  * it simplifies VMA traversal in g_heap_vma_list (removes corner cases) */
-struct heap_vma* g_sentinel_vma = NULL;
+static struct heap_vma* g_sentinel_vma = NULL;
 
 static LISTP_TYPE(heap_vma) g_heap_vma_list = LISTP_INIT;
 static PAL_LOCK g_heap_vma_lock = LOCK_INIT;
 
-void init_enclave_pages(void) {
+int init_enclave_pages(void) {
     g_heap_bottom = pal_sec.heap_min;
     g_heap_top    = pal_sec.heap_max;
 
     size_t reserved_size = 0;
     struct heap_vma* exec_vma = NULL;
 
-    if (pal_sec.exec_size) {
-        /* there is an executable mapped in the middle of the heap, carve a VMA for its area */
+    if (pal_sec.exec_addr < g_heap_top && pal_sec.exec_addr + pal_sec.exec_size > g_heap_bottom) {
+        /* there is an executable mapped inside the heap, carve a VMA for its area; this can happen
+         * in case of non-PIE executables that start at a predefined address (typically 0x400000) */
         exec_vma = malloc(sizeof(*exec_vma));
+        if (!exec_vma) {
+            SGX_DBG(DBG_E, "*** Cannot initialize VMA for executable ***\n");
+            return -PAL_ERROR_NOMEM;
+        }
         exec_vma->bottom = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, g_heap_bottom);
         exec_vma->top = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, g_heap_top);
         INIT_LIST_HEAD(exec_vma, list);
@@ -48,6 +55,10 @@ void init_enclave_pages(void) {
     if (!exec_vma || exec_vma->bottom >= g_heap_bottom + g_page_size) {
         /* 1 page at the bottom of heap is not occupied, carve a sentinel VMA for it */
         g_sentinel_vma = malloc(sizeof(*g_sentinel_vma));
+        if (!g_sentinel_vma) {
+            SGX_DBG(DBG_E, "*** Cannot initialize VMA for sentinel ***\n");
+            return -PAL_ERROR_NOMEM;
+        }
         g_sentinel_vma->bottom = g_heap_bottom;
         g_sentinel_vma->top    = g_heap_bottom + g_page_size;
         INIT_LIST_HEAD(g_sentinel_vma, list);
@@ -60,6 +71,7 @@ void init_enclave_pages(void) {
     }
 
     SGX_DBG(DBG_M, "Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
+    return 0;
 }
 
 static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vma_above) {
@@ -71,7 +83,8 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
     if (addr < g_sentinel_vma->top)
         return NULL;
 
-    /* create VMA; if in this function, we are guaranteed to have free area [addr, addr+size) */
+    /* create VMA; if in this function, we are guaranteed to have some free area in memory region
+     * [addr, addr+size) but there may also be overlapping VMAs (see below) */
     struct heap_vma* vma = malloc(sizeof(*vma));
     if (!vma)
         return NULL;
@@ -93,38 +106,35 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
         SGX_DBG(DBG_M, "Inserted vma above %p-%p\n", vma_below->bottom, vma_below->top);
     }
 
-    while (vma_above && vma_above != g_sentinel_vma && vma_above->bottom <= vma->top) {
+    while (vma_above && vma_above->bottom <= vma->top) {
         /* newly created VMA grows into above VMA; expand newly created VMA and free above-VMA */
         SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top,
                 vma_above->bottom, vma_above->top);
+
+        struct heap_vma* vma_above_above = LISTP_PREV_ENTRY(vma_above, &g_heap_vma_list, list);
 
         vma->bottom = MIN(vma_above->bottom, vma->bottom);
         vma->top    = MAX(vma_above->top, vma->top);
         LISTP_DEL(vma_above, &g_heap_vma_list, list);
 
-        struct heap_vma* vma_above_above = LISTP_PREV_ENTRY(vma_above, &g_heap_vma_list, list);
         free(vma_above);
         vma_above = vma_above_above;
     }
 
-    while (vma_below && vma_below != g_sentinel_vma && vma_below->top >= vma->bottom) {
+    while (vma_below && vma_below->top >= vma->bottom) {
         /* newly created VMA grows into below VMA; expand newly create VMA and free below-VMA */
         SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top,
                 vma_below->bottom, vma_below->top);
+
+        struct heap_vma* vma_below_below = LISTP_NEXT_ENTRY(vma_below, &g_heap_vma_list, list);
 
         vma->bottom = MIN(vma_below->bottom, vma->bottom);
         vma->top    = MAX(vma_below->top, vma->top);
         LISTP_DEL(vma_below, &g_heap_vma_list, list);
 
-        struct heap_vma* vma_below_below = LISTP_NEXT_ENTRY(vma_below, &g_heap_vma_list, list);
         free(vma_below);
         vma_below = vma_below_below;
     }
-
-    /* only after we traversed other VMAs, we can add newly created VMA to the list;
-     * if vma_above wrapped to lowest-address sentinel VMA, then add VMA to head of list */
-    if (vma_above == g_sentinel_vma)
-        vma_above = NULL;
 
     INIT_LIST_HEAD(vma, list);
     LISTP_ADD_AFTER(vma, vma_above, &g_heap_vma_list, list);
@@ -146,6 +156,8 @@ void* get_enclave_pages(void* addr, size_t size) {
 
     size = ALIGN_UP(size, g_page_size);
     addr = ALIGN_DOWN_PTR(addr, g_page_size);
+
+    assert(access_ok(addr, size));
 
     SGX_DBG(DBG_M, "Allocating %ld bytes at %p\n", size, addr);
 
@@ -185,25 +197,22 @@ out:
     _DkInternalUnlock(&g_heap_vma_lock);
 
     if (!ret) {
-        SGX_DBG(DBG_E, "*** Cannot allocate %lu bytes on the heap ***\n", size);
+        SGX_DBG(DBG_E, "*** Cannot allocate %lu bytes on the heap (at address %p) ***\n", size, addr);
     }
     return ret;
 }
 
-void free_enclave_pages(void* addr, size_t size) {
-    void* addr_top = addr + size;
+int free_enclave_pages(void* addr, size_t size) {
+    int ret = 0;
 
-    addr = ALIGN_DOWN_PTR(addr, g_page_size);
-    addr_top = ALIGN_UP_PTR(addr_top, g_page_size);
+    if (!size)
+        return -PAL_ERROR_NOMEM;
 
-    if (!addr || !size || addr >= g_heap_top || addr_top <= g_heap_bottom)
-        return;
+    size = ALIGN_UP(size, g_page_size);
+    assert(access_ok(addr, size));
 
-    if (addr_top > g_heap_top)
-        addr_top = g_heap_top;
-
-    if (addr < g_heap_bottom)
-        addr = g_heap_bottom;
+    if (!IS_ALIGNED_PTR(addr, g_page_size) || addr < g_heap_bottom || addr + size > g_heap_top)
+        return -PAL_ERROR_INVAL;
 
     SGX_DBG(DBG_M, "Freeing %ld bytes at %p\n", size, addr);
 
@@ -212,31 +221,38 @@ void free_enclave_pages(void* addr, size_t size) {
     struct heap_vma* vma;
     struct heap_vma* p;
     LISTP_FOR_EACH_ENTRY_SAFE(vma, p, &g_heap_vma_list, list) {
-        if (vma->bottom >= addr_top)
+        if (vma->bottom >= addr + size)
             continue;
         if (vma->top <= addr)
             break;
 
         /* found VMA overlapping with memory area to free */
         if (vma->bottom < addr) {
-            /* create VMA [vma->bottom, addr); this may leave VMA [addr_top, vma->top), see below */
+            /* create VMA [vma->bottom, addr); this may leave VMA [addr + size, vma->top), see below */
             struct heap_vma* new = malloc(sizeof(*new));
+            if (!new) {
+                SGX_DBG(DBG_E, "*** Cannot create split VMA during free of address %p ***\n", addr);
+                ret = -PAL_ERROR_NOMEM;
+                goto out;
+            }
             new->top    = addr;
             new->bottom = vma->bottom;
             INIT_LIST_HEAD(new, list);
             LIST_ADD(new, vma, list);
         }
 
-        /* compress overlapping VMA to [addr_top, vma->top) */
-        vma->bottom = addr_top;
-        if (vma->top <= addr_top) {
-            /* memory area to free completely covers [addr_top, vma->top), free VMA */
+        /* compress overlapping VMA to [addr + size, vma->top) */
+        vma->bottom = addr + size;
+        if (vma->top <= addr + size) {
+            /* memory area to free completely covers/extends above the rest of the VMA */
             LISTP_DEL(vma, &g_heap_vma_list, list);
             free(vma);
         }
     }
 
-    _DkInternalUnlock(&g_heap_vma_lock);
-
     atomic_sub(size / g_page_size, &g_alloced_pages);
+
+out:
+    _DkInternalUnlock(&g_heap_vma_lock);
+    return ret;
 }

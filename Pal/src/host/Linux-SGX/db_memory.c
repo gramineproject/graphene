@@ -108,7 +108,10 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
 int _DkVirtualMemoryFree (void * addr, uint64_t size)
 {
     if (sgx_is_completely_within_enclave(addr, size)) {
-        free_enclave_pages(addr, size);
+        int ret = free_enclave_pages(addr, size);
+        if (ret < 0) {
+            return ret;
+        }
 
         /* check if it is internal PAL memory and remove this VMA from pal_vmas if yes */
         spinlock_lock(&pal_vma_lock);
