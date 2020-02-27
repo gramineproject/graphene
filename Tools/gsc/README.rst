@@ -80,9 +80,7 @@ Building Docker images with GSC
 - *tag*: Tag of the base image
 
 - *Options*:
-
     - ``-d``: Compile Graphene with debug flags and output
-
     - ``-L``: Compile Graphene with Linux PAL in addition to Linux-SGX PAL
 
 Run graphenized Docker images
