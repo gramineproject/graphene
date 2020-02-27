@@ -14,12 +14,12 @@ and ``<distro>-<image-name>.manifest`` where ``<distro>`` specifies the
 underlying Linux distribution and ``<image-name>`` specifies the test
 case.
 
-**\*.dockerfile** describes the basic image and its application. It
+*\*.dockerfile* describes the basic image and its application. It
 builds the Docker image by installing required software packages,
 configuring the application and changing the Docker entrypoint to start
 the application.
 
-**\*.manifest** describes the specific Graphene manifest changes
+*\*.manifest* describes the specific Graphene manifest changes
 required to run this application reliably. For instance, this includes
 the memory size and the number of threads. In some cases this file might
 be empty, but its existence is required for the makefile structure.
