@@ -494,7 +494,7 @@ class TC_20_SingleProcess(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
     def test_511_thread2_exitless(self):
         manifest = self.get_manifest('Thread2_exitless')
-        _, stderr = self.run_binary([manifest])
+        _, stderr = self.run_binary([manifest], timeout=60)
 
         # Thread Cleanup: Exit by return.
         self.assertIn('Thread 2 ok.', stderr)

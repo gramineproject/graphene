@@ -158,7 +158,7 @@ class TC_01_Bootstrap(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
     def test_601_multi_pthread_exitless(self):
         manifest = self.get_manifest('multi_pthread_exitless')
-        stdout, _ = self.run_binary([manifest])
+        stdout, _ = self.run_binary([manifest], timeout=60)
 
         # Multiple thread creation
         self.assertIn('128 Threads Created', stdout)
