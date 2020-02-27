@@ -116,6 +116,12 @@ pipeline {
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
                             '''
                         }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/blender
+                                make check
+                            '''
+                        }
                         sh '''
                            # Workaround LTP bug (see https://github.com/linux-test-project/ltp/issues/560 for upstream fix):
                            git -C LibOS/shim/test/apps/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
@@ -143,6 +149,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/lighttpd distclean
                            make -C LibOS/shim/test/apps/nginx distclean
                            make -C LibOS/shim/test/apps/apache distclean
+                           make -C LibOS/shim/test/apps/blender distclean
                            make -C Pal/src PAL_HOST=Skeleton clean
 
                            ./Scripts/clean-check
