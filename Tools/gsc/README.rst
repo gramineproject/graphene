@@ -27,9 +27,7 @@ Prerequisites to running GSC
 **Kernel modules and services:**
 
 - Follow installation instructions for `Intel SGX driver <https://github.com/intel/linux-sgx-driver>`__
-
 - Follow installation instructions for `Intel SGX SDK <https://01.org/intel-software-guard-extensions/downloads>`__
-
 - Follow installation instructions for `Graphene <https://github.com/oscarlab/graphene>`__
 
 **Configurations:**
@@ -74,11 +72,8 @@ Building Docker images with GSC
     gsc build <manifest> <image-name>[:<tag>] [<options>]
 
 - *manifest*: Application specific manifest entries
-
 - *image-name*: Name of the base image
-
 - *tag*: Tag of the base image
-
 - *Options*:
     - ``-d``: Compile Graphene with debug flags and output
     - ``-L``: Compile Graphene with Linux PAL in addition to Linux-SGX PAL
@@ -96,11 +91,8 @@ Additional Docker options and application arguments may be supplied to the Docke
         [options] gsc-<image-name>[:<tag>] [application arguments]
 
 - *image-name*: Name of image without GSC build
-
 - *tag*: Tag of the image to be used
-
 - *application arguments*: Application arguments to be supplied to the application launching inside the Docker container and Graphene
-
 - *options*: Options are passed through to Docker run. Common options include ``-it`` (interactive with terminal) or ``-d`` (detached). Please see `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__ for details.
 
 **Execute with Linux PAL instead of Linux-SGX PAL**: When specifying ``-L`` during GSC ``build``,
@@ -118,13 +110,9 @@ GSC is configured via a configuration file called `config.json <config.json>`__ 
 parameters:
 
 - *distro*: Defines Linux distribution to be used to build Graphene in. Currently supported values are ``ubuntu18.04``/``ubuntu16.04``.
-
 - *graphene\_repository*: Source repository of Graphene.
-
 - *graphene\_branch*: Branch of the ``grapehene_repository``.
-
 - *sgxdriver\_repository*: Source repository of the Intel SGX driver.
-
 - *sgxdriver\_branch*: Branch of the ``sgxdriver_repository``.
 
 
