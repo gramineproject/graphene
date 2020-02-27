@@ -18,12 +18,17 @@ RUN apt-get update \
        libexpat1 \
        libexpat1-dev \
        libnss-mdns \
+       libnuma1 \
        libomp-dev \
        libpcre2-dev \
        libpcre3-dev \
        libprotobuf-c-dev \
        libssl-dev \
+       libxfixes3 \
+       libxi6 \
        libxml2-dev \
+       libxrender1 \
+       libxxf86vm1 \
        linux-headers-4.4.0-161-generic \
        net-tools \
        protobuf-c-compiler \
