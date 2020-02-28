@@ -2,6 +2,9 @@
  * This is for enclave to make ocalls to untrusted runtime.
  */
 
+#ifndef ENCLAVE_OCALLS_H
+#define ENCLAVE_OCALLS_H
+
 #include "pal_linux.h"
 
 #include <asm/stat.h>
@@ -28,7 +31,10 @@ int ocall_read (int fd, void * buf, unsigned int count);
 
 int ocall_write (int fd, const void * buf, unsigned int count);
 
-ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset);
+ssize_t __ocall_pread(int fd, void* buf, size_t count, off_t offset, bool interruptible);
+static inline ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
+    return __ocall_pread(fd, buf, count, offset, true);
+}
 
 ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset);
 
@@ -100,3 +106,4 @@ int ocall_get_attestation(const sgx_spid_t* spid, const char* subkey, bool linka
                           sgx_attestation_t* attestation);
 int ocall_eventfd (unsigned int initval, int flags);
 
+#endif /* ENCLAVE_OCALLS_H */

@@ -362,7 +362,7 @@ out:
     return retval;
 }
 
-ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
+ssize_t __ocall_pread(int fd, void* buf, size_t count, off_t offset, bool interruptible) {
     long retval = 0;
     void* obuf = NULL;
     ms_ocall_pread_t* ms;
@@ -400,6 +400,8 @@ ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset) {
         ssize_t ret = sgx_ocall(OCALL_PREAD, ms);
 
         if (IS_ERR(ret)) {
+            if (!interruptible && ret == -EINTR)
+                continue;
             if (!done)
                 done = ret;
             break;
