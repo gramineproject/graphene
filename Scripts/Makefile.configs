@@ -29,29 +29,31 @@ CXXFLAGS += -Wall -std=c++14
 DEBUG ?=
 export DEBUG
 
+OPTDEBUG ?=
+export OPTDEBUG
+
 # make DEBUG=0 synonym for undefined DEBUG
 ifeq ($(DEBUG),0)
 override DEBUG =
 endif
 
+# make OPTDEBUG=0 synonym for undefined OPTDEBUG
+ifeq ($(OPTDEBUG),0)
+override OPTDEBUG =
+endif
+
 ifeq ($(DEBUG),)
-# -O2: yes -DDEBUG: no
 CFLAGS += -O2
 CXXFLAGS += -O2
 else ifeq ($(DEBUG),1)
-# -O2: no -DDEBUG: yes
+ifeq ($(OPTDEBUG),1)
+CFLAGS += -O2
+CXXFLAGS += -O2
+endif
 CFLAGS += -gdwarf-2 -g3
 CXXFLAGS += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
-else ifeq ($(DEBUG),2)
-# -O2: yes -DDEBUG: yes
-CFLAGS += -O2 -gdwarf-2 -g3
-CXXFLAGS += -O2 -gdwarf-2 -g3
-CFLAGS += -DDEBUG
-ASFLAGS += -DDEBUG
-# other makefiles assume only DEBUG=1 for debug
-override DEBUG = 1
 else
 $(error unknown DEBUG value "$(DEBUG)")
 endif
