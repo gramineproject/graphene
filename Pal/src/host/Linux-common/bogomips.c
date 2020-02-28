@@ -63,3 +63,9 @@ double get_bogomips_from_cpuinfo_buf(const char* buf, size_t size) {
     return 0.0;
 }
 
+double sanitize_bogomips_value(double v) {
+    if (!__builtin_isnormal(v) || v < 0.0) {
+        return 0.0;
+    }
+    return v;
+}
