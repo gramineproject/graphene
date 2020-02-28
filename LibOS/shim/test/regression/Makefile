@@ -13,13 +13,13 @@ default: all
 extra_rules = \
 	-e 's:\$$(RA_CLIENT_SPID):$(RA_CLIENT_SPID):g' \
 	-e 's:\$$(RA_CLIENT_KEY):$(RA_CLIENT_KEY):g' \
-	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
+	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g'
 
 include ../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
-CFLAGS-attestation += -I../../../../Pal/lib/crypto/mbedtls/install/include -I../../../../Pal/src/host/Linux-SGX -I../../../../Pal/lib  -I../../../../Pal/src
+CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/install/include -I$(PALDIR)/host/Linux-SGX -I$(PALDIR)/../lib  -I$(PALDIR)
 CFLAGS-bootstrap_static = -static
 CFLAGS-bootstrap_pie = -fPIC -pie
 CFLAGS-shared_object = -fPIC -pie

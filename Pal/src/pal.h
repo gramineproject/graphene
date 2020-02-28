@@ -530,12 +530,11 @@ PAL_NUM DkMemoryAvailableQuota (void);
 PAL_BOL
 DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
 
-PAL_BOL
-DkIASReport (PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR header,
-             PAL_NUM* header_size);
+PAL_BOL DkAttestationReport(PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR header,
+                            PAL_NUM* header_size);
 
-PAL_BOL
-DkSGXQuote (PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote, PAL_NUM* quote_size);
+PAL_BOL DkAttestationQuote (PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
+                            PAL_NUM* quote_size);
 
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \

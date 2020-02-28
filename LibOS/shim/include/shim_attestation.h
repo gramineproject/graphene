@@ -143,13 +143,6 @@ typedef struct {
     uint64_t rip;
 } sgx_cpu_context_t;
 
-// Required by _restore_sgx_context, see enclave_entry.S.
-static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, rflags) ==
-               sizeof(((sgx_cpu_context_t) {0}).rflags),
-               "rip must be directly after rflags in sgx_cpu_context_t");
-static_assert(offsetof(sgx_cpu_context_t, rflags) - offsetof(sgx_cpu_context_t, rdi) <= RED_ZONE_SIZE,
-               "rdi needs to be within red zone distance from rflags");
-
 typedef struct {
     uint32_t vector:8;
     uint32_t exit_type:3;
@@ -376,5 +369,21 @@ static inline int sgx_report (sgx_target_info_t * targetinfo,
         : "memory");
     return 0;
 }
+
+typedef struct {
+    uint16_t version;
+    uint16_t sigtype;
+    uint32_t gid;
+    uint16_t isvsvn_qe;
+    uint16_t isvsvn_pce;
+    uint8_t  reserved[4];
+    uint8_t  base[32];
+} __attribute__((packed)) sgx_quote_body_t;
+
+typedef struct {
+    sgx_quote_body_t  body;
+    sgx_report_body_t report_body;
+    uint32_t          sig_len;
+} __attribute__((packed)) sgx_quote_t;
 
 #endif

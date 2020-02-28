@@ -400,10 +400,10 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn("Success", stdout)
 
     def test_050_attestation(self):
-        stdout, _ = self.run_binary(['attestation'], timeout=60)
-        self.assertIn("Successfully verified IAS report signature.", stdout)
-        self.assertIn("Swapping reports successful.", stdout)
-        self.assertIn("Successfully verified report data.", stdout)
+        stdout, _ = self.run_binary(['attestation'], timeout=120)
+        self.assertIn("Verify local attestation... SUCCESS", stdout)
+        self.assertIn("Verify remote attestation... SUCCESS", stdout)
+        self.assertIn("Verify quote interface... SUCCESS", stdout)
 
 class TC_80_Socket(RegressionTestCase):
     def test_000_getsockopt(self):

@@ -157,7 +157,7 @@ extern struct pal_enclave_state {
     uint64_t        enclave_id;         // Unique identifier for authentication
     sgx_sign_data_t enclave_data;       // Reserved for signing other data
 } __attribute__((packed)) pal_enclave_state;
-static_assert(sizeof(pal_enclave_state) == 64, "incorrect struct size");
+static_assert(sizeof(pal_enclave_state) == sizeof(sgx_report_data_t), "incorrect struct size");
 
 /*
  * sgx_verify_report: verify a CPU-signed report from another local enclave

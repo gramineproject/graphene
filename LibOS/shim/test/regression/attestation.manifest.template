@@ -11,11 +11,6 @@ fs.mount.bin.type = chroot
 fs.mount.bin.path = /bin
 fs.mount.bin.uri = file:/bin
 
-# allow to bind on port 8000
-net.allow_bind.1 = 127.0.0.1:8000
-# allow to connect to port 8000
-net.allow_peer.1 = 127.0.0.1:8000
-
 # sgx-related
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6

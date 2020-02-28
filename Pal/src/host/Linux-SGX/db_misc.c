@@ -180,17 +180,15 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
  * @param header_size[in,out] Caller specifies maximum size allocated for header. On the return
  *     path, contains actual size of header.
  */
-PAL_BOL
-_DkIASReport(PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR header,
-             PAL_NUM* header_size) {
-
+PAL_BOL _DkAttestationReport(PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size,
+                             PAL_PTR header, PAL_NUM* header_size) {
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
     ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
                              sizeof(spid_hex));
     if (len <= 0) {
         SGX_DBG(DBG_E, "*** No client info specified in the manifest. "
                 "Graphene will not perform remote attestation ***\n");
-        return 0;
+        return -PAL_ERROR_INVAL;
     }
 
     if (len != sizeof(sgx_spid_t) * 2) {
@@ -237,21 +235,25 @@ _DkIASReport(PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR 
     if (ret < 0)
         return ret;
 
-    if (*report_size >= ias_report_len) {
-        memcpy(report, ias_report, ias_report_len);
+    if (*report_size < ias_report_len || *header_size < ias_header_len) {
         *report_size = ias_report_len;
+        *header_size = ias_header_len;
+        free(ias_report);
+        free(ias_header);
+        return -PAL_ERROR_INVAL;
     }
 
-    if (*header_size >= ias_header_len) {
-        memcpy(header, ias_header, ias_header_len);
-        *header_size = ias_header_len;
-    }
+    memcpy(report, ias_report, ias_report_len);
+    *report_size = ias_report_len;
+
+    memcpy(header, ias_header, ias_header_len);
+    *header_size = ias_header_len;
+
     return 0;
 }
 
-
 /**
- * Obtains the EPID quote by talking to the platforms AESMD.
+ * Obtains the EPID quote by talking to the platform's AESMD.
  *
  * @param report_data[in]
  * @param report_data_size[in]
@@ -259,10 +261,8 @@ _DkIASReport(PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR 
  * @param quote_size[in,out] Caller specifies maximum size allocated for #quote. On the return
  *     path, contains actual size of #quote.
  */
-PAL_BOL
-_DkSGXQuote(const PAL_PTR report_data, PAL_NUM report_data_size,
-            PAL_PTR quote, PAL_NUM* quote_size) {
-
+PAL_BOL _DkAttestationQuote(const PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
+                            PAL_NUM* quote_size) {
     if (report_data_size != sizeof(sgx_report_data_t))
         return -PAL_ERROR_INVAL;
 

@@ -290,7 +290,6 @@ struct shim_str_data {
     off_t len;
     size_t buf_size;
     bool dirty;
-    bool is_global;
     int (*update)(struct shim_handle* hdl);
     int (*modify)(struct shim_handle* hdl);
 };

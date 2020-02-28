@@ -55,9 +55,7 @@ int str_dput(struct shim_dentry* dent) {
         return 0;
 
     if (data->str) {
-        if (!data->is_global) {
-            free(data->str);
-        }
+        free(data->str);
         data->str = NULL;
     }
 
@@ -80,10 +78,7 @@ int str_close(struct shim_handle* hdl) {
     str_dput(hdl->dentry);
 
     if (hdl->info.str.data) {
-        if (!hdl->info.str.data->is_global) {
-            free(hdl->info.str.data->str);
-            hdl->info.str.data->str = NULL;
-        }
+        free(hdl->info.str.data->str);
         free(hdl->info.str.data);
         hdl->info.str.data = NULL;
     }
@@ -145,10 +140,6 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
     assert(strhdl->data);
 
     struct shim_str_data* data = strhdl->data;
-
-    if (data->is_global && strhdl->ptr + count > data->str + data->buf_size) {
-        return -ENOMEM;
-    }
 
     if (!data->str || strhdl->ptr + count > data->str + data->buf_size) {
         int newlen = 0;

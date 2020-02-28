@@ -32,18 +32,11 @@ static int proc_sgx_attestation_stat(const char* name, struct stat* buf) {
     return 0;
 }
 
-static __sgx_mem_aligned sgx_report_t g_report;
 static __sgx_mem_aligned sgx_target_info_t g_target_info;
-static __sgx_mem_aligned sgx_target_info_t g_my_target_info;
 static __sgx_mem_aligned sgx_report_data_t g_report_data;
 
-/* IAS interactions are cached and only repeated if this variable is false. */
-enum {INVALID, UPDATE_IN_PROGRESS, VALID};
-static atomic_int ias_valid = ATOMIC_VAR_INIT(INVALID);
-static char       ias_report[10 * 1024];
-static char       ias_header[10 * 1024];
-static size_t     ias_report_size = sizeof(ias_report);
-static size_t     ias_header_size = sizeof(ias_header);
+static char   g_ias_header[10 * 1024];
+static size_t g_ias_header_size = sizeof(g_ias_header);
 
 static int proc_sgx_report_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
@@ -56,17 +49,24 @@ static int proc_sgx_report_open(struct shim_handle* hdl, const char* name, int f
         return -ENOMEM;
     }
 
-    sgx_report(&g_target_info, &g_report_data, &g_report);
+    sgx_report_t* str = (sgx_report_t*)malloc(sizeof(sgx_report_t));
+    if (!str) {
+        free(data);
+        return -ENOMEM;
+    }
 
-    data->str       = (char*) &g_report;
-    data->buf_size  = sizeof(g_report);
-    data->len       = sizeof(g_report);
-    data->is_global = 1;
+    __sgx_mem_aligned sgx_report_t report;
+    sgx_report(&g_target_info, &g_report_data, &report);
+    memcpy(str, &report, sizeof(report));
+
+    data->str      = (char*)str;
+    data->buf_size = sizeof(*str);
+    data->len      = sizeof(*str);
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-    hdl->info.str.ptr  = (char*) &g_report;
+    hdl->info.str.ptr  = (char*)str;
 
     return 0;
 }
@@ -88,30 +88,21 @@ static int proc_sgx_ias_header_open(struct shim_handle* hdl, const char* name, i
         return -ENOMEM;
     }
 
-    int expected = INVALID;
-    if (atomic_compare_exchange_strong(&ias_valid, &expected, UPDATE_IN_PROGRESS)) {
-        ias_report_size = sizeof(ias_report);
-        ias_header_size = sizeof(ias_header);
-        int ret = DkIASReport(&g_report_data, ias_report, &ias_report_size, ias_header,
-                              &ias_header_size);
-        if (ret < 0)
-            return ret;
-        ias_valid = VALID;
+    char* str = malloc(g_ias_header_size);
+    if (!str) {
+        free(data);
+        return -ENOMEM;
     }
+    memcpy(str, g_ias_header, g_ias_header_size);
 
-    while (atomic_load(&ias_valid) != VALID) {
-        DkThreadYieldExecution();
-    }
-
-    data->str       = (char*) ias_header;
-    data->buf_size  = ias_header_size;
-    data->len       = ias_header_size;
-    data->is_global = 1;
+    data->str       = str;
+    data->buf_size  = g_ias_header_size;
+    data->len       = g_ias_header_size;
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-    hdl->info.str.ptr  = (char*) ias_header;
+    hdl->info.str.ptr  = str;
 
     return 0;
 }
@@ -133,30 +124,35 @@ static int proc_sgx_ias_report_open(struct shim_handle* hdl, const char* name, i
         return -ENOMEM;
     }
 
-    int expected = INVALID;
-    if (atomic_compare_exchange_strong(&ias_valid, &expected, UPDATE_IN_PROGRESS)) {
-        ias_report_size = sizeof(ias_report);
-        ias_header_size = sizeof(ias_header);
-        int ret = DkIASReport(&g_report_data, ias_report, &ias_report_size, ias_header,
-                              &ias_header_size);
-        if (ret < 0)
-            return ret;
-        ias_valid = VALID;
+    char   ias_report[10*1024];
+    char   ias_header[sizeof(g_ias_header)];
+    size_t ias_report_size = sizeof(ias_report);
+    size_t ias_header_size = sizeof(ias_header);
+    int ret = DkIASReport(&g_report_data, ias_report, &ias_report_size, ias_header,
+                          &ias_header_size);
+
+    if (ret < 0) {
+        free(data);
+        return ret;
     }
 
-    while (atomic_load(&ias_valid) != VALID) {
-        DkThreadYieldExecution();
+    char* str = malloc(ias_report_size);
+    if (!str) {
+        free(data);
+        return -ENOMEM;
     }
+    memcpy(str, ias_report, ias_report_size);
+    memcpy(g_ias_header, ias_header, ias_header_size);
+    g_ias_header_size = ias_header_size;
 
-    data->str       = (char*) ias_report;
+    data->str       = str;
     data->buf_size  = ias_report_size;
     data->len       = ias_report_size;
-    data->is_global = 1;
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-    hdl->info.str.ptr  = (char*) ias_report;
+    hdl->info.str.ptr  = str;
 
     return 0;
 }
@@ -175,13 +171,13 @@ static int proc_sgx_ias_report_mode(const char* name, mode_t* mode) {
  * attestation flow.
  */
 int sgx_target_info(sgx_target_info_t* ti) {
-
     __sgx_mem_aligned sgx_target_info_t target_info = {0, };
     __sgx_mem_aligned sgx_report_t report;
     __sgx_mem_aligned sgx_report_data_t report_data = {0, };
 
     int ret = sgx_report(&target_info, &report_data, &report);
-    if (ret < 0) return ret;
+    if (ret < 0)
+        return ret;
 
     memset(ti, 0, sizeof(*ti));
     memcpy(&ti->attributes, &report.body.attributes, sizeof(ti->attributes));
@@ -204,17 +200,22 @@ static int proc_sgx_my_target_info_open(struct shim_handle* hdl, const char* nam
         return -ENOMEM;
     }
 
-    sgx_target_info(&g_my_target_info);
+    sgx_target_info_t* str = (sgx_target_info_t*)malloc(sizeof(*str));
+    if (!str) {
+        free(data);
+        return -ENOMEM;
+    }
 
-    data->str       = (char*) &g_my_target_info;
-    data->buf_size  = sizeof(g_my_target_info);
-    data->len       = sizeof(g_my_target_info);
-    data->is_global = 1;
+    sgx_target_info(str);
+
+    data->str       = (char*)str;
+    data->buf_size  = sizeof(*str);
+    data->len       = sizeof(*str);
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-    hdl->info.str.ptr  = (char*) &g_my_target_info;
+    hdl->info.str.ptr  = (char*)str;
 
     return 0;
 }
@@ -266,7 +267,16 @@ static int proc_sgx_quote_open(struct shim_handle* hdl, const char* name, int fl
 
 static int proc_sgx_quote_mode(const char* name, mode_t* mode) {
     __UNUSED(name);
-    *mode = 0666;
+    *mode = 0444;
+    return 0;
+}
+
+/**
+ * Only the first sizeof(g_target_info) bytes of the underlying string are copied into the global.
+ */
+static int target_info_modify(struct shim_handle* hdl) {
+    __UNUSED(hdl);
+    memcpy(&g_target_info, hdl->info.str.data->str, sizeof(g_target_info));
     return 0;
 }
 
@@ -279,14 +289,21 @@ static int proc_sgx_target_info_open(struct shim_handle* hdl, const char* name, 
         return -ENOMEM;
     }
 
-    data->str          = (char*) &g_target_info;
-    data->buf_size     = sizeof(g_target_info);
-    data->is_global    = 1;
+    sgx_target_info_t* str = (sgx_target_info_t*)malloc(sizeof(g_target_info));
+    if (!str) {
+        free(data);
+        return -ENOMEM;
+    }
+    memcpy(str, &g_target_info, sizeof(*str));
+
+    data->str      = str;
+    data->buf_size = sizeof(*str);
+    data->modify   = &target_info_modify;
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_WRITE | MAY_READ;
     hdl->info.str.data = data;
-    hdl->info.str.ptr  = (char*) &g_target_info;
+    hdl->info.str.ptr  = str;
 
     return 0;
 }
@@ -298,14 +315,11 @@ static int proc_sgx_target_info_mode(const char* name, mode_t* mode) {
 }
 
 /**
- * Invalidate cached IAS report and quote.
- *
- * Since the g_report_data field changed, a new interaction with IAS is required to reflect the
- * changed g_report_data in the IAS response. Same for the quote.
+ * Only the first `sizeof(g_report_data)` bytes of the underlying shim_str_data will be copied.
  */
 static int report_data_modify(struct shim_handle* hdl) {
     __UNUSED(hdl);
-    atomic_store(&ias_valid, INVALID);
+    memcpy(&g_report_data, hdl->info.str.data->str, sizeof(g_report_data));
     return 0;
 }
 
@@ -318,15 +332,22 @@ static int proc_sgx_report_data_open(struct shim_handle* hdl, const char* name, 
         return -ENOMEM;
     }
 
-    data->str          = (char*) &g_report_data;
-    data->buf_size     = sizeof(g_report_data);
-    data->is_global    = 1;
-    data->modify       = report_data_modify;
+    char* str = malloc(sizeof(g_report_data));
+    if (!str) {
+        free(data);
+        return -ENOMEM;
+    }
+    memcpy(str, &g_report_data, sizeof(g_report_data));
+
+    data->str      = str;
+    data->buf_size = sizeof(g_report_data);
+    /* Invoked when file is close()d. */
+    data->modify   = &report_data_modify;
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_WRITE | MAY_READ;
     hdl->info.str.data = data;
-    hdl->info.str.ptr  = (char*) &g_report_data;
+    hdl->info.str.ptr  = str;
 
     return 0;
 }

@@ -109,7 +109,9 @@ err:
     return -ERRNO(ret);
 }
 
-// Retrieve the sgx_target_info_t of quoting enclave (QE).
+/**
+ * Retrieve quoting enclave's sgx_target_info_t. Obtain #qe_target_info by talking to AESMD.
+ */
 int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_target_info) {
 
     Request req = REQUEST__INIT;
@@ -134,7 +136,7 @@ int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_target_info) {
     }
 
     if (r->targetinfo.len != sizeof(*qe_target_info)) {
-        SGX_DBG(DBG_E, "aesm_service returned invalid target info\n");
+        SGX_DBG(DBG_E, "Quoting enclave returned invalid target info\n");
         goto failed;
     }
 
@@ -275,8 +277,8 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     *ias_https_header     = https_header;
     *ias_https_header_len = https_header_len;
 
-    https_header = NULL; // Don't free the HTTPS output
-    https_output = NULL; // Don't free the HTTPS output
+    https_header = NULL; // Don't free the buffer
+    https_output = NULL; // Don't free the buffer
 
     ret = 0;
 done:
@@ -298,7 +300,7 @@ done:
     }
     return ret;
 failed:
-    ret = -PAL_ERROR_DENIED;
+    ret = -EPERM;
     goto done;
 }
 
@@ -380,7 +382,7 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
 
 failed:
     response__free_unpacked(res, NULL);
-    return -PAL_ERROR_DENIED;
+    return -EPERM;
 }
 
 
@@ -461,5 +463,5 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
 
 failed:
     response__free_unpacked(res, NULL);
-    return -PAL_ERROR_DENIED;
+    return -EPERM;
 }

@@ -1047,14 +1047,14 @@ int ocall_load_debug(const char * command)
  * attestation data required for platform verification (i.e., sgx_attestation_t). Except the
  * QE report, most data fields of the attestation need to be copied into the enclave.
  *
- * @param spid        The client SPID registered with the IAS.
- * @param subkey      SPID subscription key.
- * @param linkable    Whether the SPID is linkable.
- * @param report      Local attestation report for the quoting enclave.
- * @param nonce       Randomly-generated nonce for freshness.
- * @param ias_report Attestation report returned by IAS.
- * @param ias_report_len Length in bytes of #ias_report.
- * @param ias_https_header HTTPS header(s) returned by IAS.
+ * @param spid                 The client SPID registered with the IAS.
+ * @param subkey               SPID subscription key.
+ * @param linkable             Whether the SPID is linkable.
+ * @param report               Local attestation report for the quoting enclave.
+ * @param nonce                Randomly-generated nonce for freshness.
+ * @param ias_report           Attestation report returned by IAS.
+ * @param ias_report_len       Length in bytes of #ias_report.
+ * @param ias_https_header     HTTPS header(s) returned by IAS.
  * @param ias_https_header_len Length in bytes of #ias_https_header.
  */
 int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool linkable,
@@ -1113,10 +1113,11 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
 
         // At this point, no field should point to outside the enclave
         if (retval < 0) {
-            if (*ias_report) free(*ias_report);
-            if (*ias_header) free(*ias_header);
+            free(*ias_report);
+            free(*ias_header);
         }
 
+        /* Already executed sgx_reset_ustack() above. */
         goto out;
     }
 
@@ -1151,11 +1152,11 @@ int ocall_eventfd (unsigned int initval, int flags)
  * ocall_get_quote() executes the untrusted code in PAL to obtain a quote from the quoting enclave
  * (see sgx_platform.c:retrieve_quote()). Upon successful execution, the function returns quote.
  *
- * @param spid[in] Software provider ID (SPID).
- * @param linkable[in] Quote type (linkable vs unlinkable).
- * @param report[in] Local attestation report to be sent to quoting enclave.
- * @param nonce[in] Randomly-generated nonce for freshness.
- * @param quote[out] Quote returned by quoting enclave.
+ * @param spid[in]       Software provider ID (SPID).
+ * @param linkable[in]   Quote type (linkable vs unlinkable).
+ * @param report[in]     Local attestation report to be sent to quoting enclave.
+ * @param nonce[in]      Randomly-generated nonce for freshness.
+ * @param quote[out]     Quote returned by quoting enclave.
  * @param quote_len[out] Length of #quote in bytes.
  */
 int ocall_get_quote (const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
@@ -1171,7 +1172,7 @@ int ocall_get_quote (const sgx_spid_t* spid, bool linkable, const sgx_report_t* 
     memcpy(&ms->ms_spid, spid, sizeof(*spid));
     memcpy(&ms->ms_report, report, sizeof(*report));
     ms->ms_linkable = linkable;
-    memcpy(&ms->ms_nonce,  nonce,  sizeof(*nonce));
+    memcpy(&ms->ms_nonce, nonce, sizeof(*nonce));
 
     retval = sgx_ocall(OCALL_GET_QUOTE, ms);
 
@@ -1200,9 +1201,10 @@ int ocall_get_quote (const sgx_spid_t* spid, bool linkable, const sgx_report_t* 
 
         // At this point, no field should point to outside the enclave
         if (retval < 0) {
-            if (*quote) free(*quote);
+            free(*quote);
         }
 
+        /* Already executed sgx_reset_ustack() above. */
         goto out;
     }
 

@@ -242,9 +242,8 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
     return 0;
 }
 
-PAL_BOL
-_DkIASReport (PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR header,
-              PAL_NUM* header_size) {
+PAL_BOL _DkAttestationReport(PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size,
+                             PAL_PTR header, PAL_NUM* header_size) {
     __UNUSED(report_data);
     __UNUSED(report);
     __UNUSED(report_size);
@@ -253,9 +252,8 @@ _DkIASReport (PAL_PTR report_data, PAL_PTR report, PAL_NUM* report_size, PAL_PTR
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-PAL_BOL
-_DkSGXQuote (PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
-             PAL_NUM* quote_size) {
+PAL_BOL _DkAttestationQuote(PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
+                            PAL_NUM* quote_size) {
     __UNUSED(report_data);
     __UNUSED(report_data_size);
     __UNUSED(quote);
