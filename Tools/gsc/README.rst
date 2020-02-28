@@ -158,8 +158,23 @@ Docker images with large number of files
 Due to the overestimating nature of GSC, Docker images with a large number of files result in as
 many trusted files. As a result, internal Graphene memory data structures are quickly depleted
 during initializtion. In our experience Docker images with upto 10,000 files successfully execute
-independent of the Graphene internal memory limits. For Docker images with more files we recommend
-to increase the PAL_VMA_MAX defined in `db_memory.c <Pal/src/host/Linux-SGX/db_memory.c>`_ .
+independent of the Graphene internal memory limits. Otherwise Graphene shows the following error
+messages::
+
+    Pal is out of VMAs (current limit on VMAs PAL_VMA_MAX = 64)!
+    ******** Out-of-memory in PAL ********
+
+For Docker images with more files we recommend to increase the PAL_VMA_MAX defined in
+`db_memory.c <Pal/src/host/Linux-SGX/db_memory.c>`_ and remove code which checks for duplicated
+files. These checks can be removed, since the GSC ensures that files appear once in the manifest.
+We prepared a special branch with these Graphene modifications allowing about 50,000 trusted files.
+To apply these changes to a graphenized image, modify the GSC `config.json <config.json>`_ as
+follows::
+
+    ...
+    "graphene_repository": "https://github.com/vahldiek/graphene/",
+    "graphene_branch": "high_vma_count",
+    ...
 
 Access to files in excluded folders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
