@@ -83,8 +83,8 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
     if (addr < g_sentinel_vma->top)
         return NULL;
 
-    /* create VMA; if in this function, we are guaranteed to have some free area in memory region
-     * [addr, addr+size) but there may also be overlapping VMAs (see below) */
+    /* create VMA with [addr, addr+size); in case of existing overlapping VMAs, the created VMA is
+     * merged with them and the old VMAs are discarded, similar to mmap(MAX_FIXED) */
     struct heap_vma* vma = malloc(sizeof(*vma));
     if (!vma)
         return NULL;
@@ -209,10 +209,11 @@ int free_enclave_pages(void* addr, size_t size) {
         return -PAL_ERROR_NOMEM;
 
     size = ALIGN_UP(size, g_page_size);
-    assert(access_ok(addr, size));
 
-    if (!IS_ALIGNED_PTR(addr, g_page_size) || addr < g_heap_bottom || addr + size > g_heap_top)
+    if (!access_ok(addr, size) || !IS_ALIGNED_PTR(addr, g_page_size) ||
+        addr < g_heap_bottom || addr + size > g_heap_top) {
         return -PAL_ERROR_INVAL;
+    }
 
     SGX_DBG(DBG_M, "Freeing %ld bytes at %p\n", size, addr);
 

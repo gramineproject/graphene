@@ -262,7 +262,7 @@ int set_config (struct config_store * cfg, const char * key, const char * val);
 #define URI_PREFIX_FILE_LEN     (static_strlen(URI_PREFIX_FILE))
 
 #ifdef __x86_64__
-static inline bool __range_not_ok(unsigned long addr, unsigned long size) {
+static inline bool __range_not_ok(uintptr_t addr, size_t size) {
     addr += size;
     if (addr < size) {
         /* pointer arithmetic overflow, this check is x86-64 specific */
@@ -274,7 +274,7 @@ static inline bool __range_not_ok(unsigned long addr, unsigned long size) {
 /* Check if pointer to memory region is valid. Return true if the memory
  * region may be valid, false if it is definitely invalid. */
 static inline bool access_ok(const volatile void* addr, size_t size) {
-    return !__range_not_ok((unsigned long)addr, (unsigned long)size);
+    return !__range_not_ok((uintptr_t)addr, size);
 }
 
 #else
