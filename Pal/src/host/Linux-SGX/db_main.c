@@ -507,7 +507,7 @@ static double get_bogomips(void) {
         return 0.0;
     }
 
-    return get_bogomips_from_buf(buf, sizeof(buf));
+    return get_bogomips_from_cpuinfo_buf(buf, sizeof(buf));
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)

@@ -23,7 +23,7 @@ static double atod(const char* s) {
     return ret;
 }
 
-double get_bogomips_from_buf(const char* buf, size_t size) {
+double get_bogomips_from_cpuinfo_buf(const char* buf, size_t size) {
     /* We could use strstr if graphene had one. */
     /* Each prefix of the word "bogomips" occurs only once in the whole word, hence this works. */
     const char* const word = "bogomips";
