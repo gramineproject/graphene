@@ -3,7 +3,7 @@
 
 /* This version is too dumb to be shared by the whole repository and should be removed once we get
  * a proper stdlib (like musl). */
-static double atod(const char* s) {
+static double proc_cpuinfo_atod(const char* s) {
     double ret = 0.0;
     char* end = NULL;
     double base, fractional;
@@ -55,7 +55,7 @@ double get_bogomips_from_cpuinfo_buf(const char* buf, size_t size) {
                 i++;
             }
             if (buf[i] == ':') {
-                return atod(&buf[i + 1]);
+                return proc_cpuinfo_atod(&buf[i + 1]);
             }
         }
     }

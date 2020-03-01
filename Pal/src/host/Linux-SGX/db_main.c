@@ -578,6 +578,9 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_flags = flags;
 
     ci->cpu_bogomips = get_bogomips();
+    if (ci->cpu_bogomips == 0.0) {
+        SGX_DBG(DBG_E, "Warning: bogomips could not be retrived, passing 0.0 to the application\n");
+    }
 
     return rv;
 }
