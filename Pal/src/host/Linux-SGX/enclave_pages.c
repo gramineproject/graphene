@@ -70,6 +70,8 @@ int init_enclave_pages(void) {
         g_sentinel_vma = exec_vma;
     }
 
+    atomic_add(reserved_size / g_page_size, &g_alloced_pages);
+
     SGX_DBG(DBG_M, "Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
     return 0;
 }
@@ -142,6 +144,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
 
     if (vma->bottom >= vma->top) {
         SGX_DBG(DBG_E, "*** Bad memory bookkeeping: %p - %p ***\n", vma->bottom, vma->top);
+        ocall_exit(/*exitcode=*/1, /*is_exitgroup=*/true);
     }
 
     atomic_add(size / g_page_size, &g_alloced_pages);
