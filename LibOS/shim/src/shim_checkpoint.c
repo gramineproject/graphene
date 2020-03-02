@@ -391,6 +391,7 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         }
 
         bytes = 0;
+        int error = 0;
         do {
             PAL_NUM ret = DkStreamWrite(stream, 0, mem_size - bytes,
                                        mem_addr + bytes, NULL);
@@ -398,7 +399,8 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
                 if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
                     PAL_ERRNO == EWOULDBLOCK)
                     continue;
-                return -PAL_ERRNO;
+                error = -PAL_ERRNO;
+                break;
             }
 
             bytes += ret;
@@ -406,9 +408,14 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
 
         if (!(mem_entries[i]->prot & PAL_PROT_READ) && mem_size > 0) {
             /* the area was made readable above; revert to original permissions */
-            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot))
-                return -PAL_ERRNO;
+            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot)) {
+                if (!error) {
+                    error = -PAL_ERRNO;
+                }
+            }
         }
+        if (error < 0)
+            return error;
 
         mem_entries[i]->size = mem_size;
         ADD_PROFILE_OCCURENCE(migrate_send_on_stream, mem_size);
