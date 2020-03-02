@@ -22,10 +22,6 @@ struct heap_vma {
 };
 DEFINE_LISTP(heap_vma);
 
-/* sentinel VMA always exists and occupies one page at the heap bottom;
- * it simplifies VMA traversal in g_heap_vma_list (removes corner cases) */
-static struct heap_vma* g_sentinel_vma = NULL;
-
 static LISTP_TYPE(heap_vma) g_heap_vma_list = LISTP_INIT;
 static PAL_LOCK g_heap_vma_lock = LOCK_INIT;
 
@@ -52,24 +48,6 @@ int init_enclave_pages(void) {
         reserved_size += exec_vma->top - exec_vma->bottom;
     }
 
-    if (!exec_vma || exec_vma->bottom >= g_heap_bottom + g_page_size) {
-        /* 1 page at the bottom of heap is not occupied, carve a sentinel VMA for it */
-        g_sentinel_vma = malloc(sizeof(*g_sentinel_vma));
-        if (!g_sentinel_vma) {
-            SGX_DBG(DBG_E, "*** Cannot initialize VMA for sentinel ***\n");
-            return -PAL_ERROR_NOMEM;
-        }
-        g_sentinel_vma->bottom = g_heap_bottom;
-        g_sentinel_vma->top    = g_heap_bottom + g_page_size;
-        INIT_LIST_HEAD(g_sentinel_vma, list);
-        LISTP_ADD_TAIL(g_sentinel_vma, &g_heap_vma_list, list); /* must be last in the list */
-
-        reserved_size += g_sentinel_vma->top - g_sentinel_vma->bottom;
-    } else {
-        /* exec_vma occupies the bottom of heap, mark it as sentinel VMA */
-        g_sentinel_vma = exec_vma;
-    }
-
     atomic_add(reserved_size / g_page_size, &g_alloced_pages);
 
     SGX_DBG(DBG_M, "Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
@@ -79,10 +57,8 @@ int init_enclave_pages(void) {
 static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vma_above) {
     assert(_DkInternalIsLocked(&g_heap_vma_lock));
     assert(addr && size);
-    assert(g_sentinel_vma);
-    assert(!LISTP_EMPTY(&g_heap_vma_list));
 
-    if (addr < g_sentinel_vma->top)
+    if (addr < g_heap_bottom)
         return NULL;
 
     /* create VMA with [addr, addr+size); in case of existing overlapping VMAs, the created VMA is
@@ -100,12 +76,9 @@ static void* __create_vma_and_merge(void* addr, size_t size, struct heap_vma* vm
     struct heap_vma* vma_below;
     if (vma_above) {
         vma_below = LISTP_NEXT_ENTRY(vma_above, &g_heap_vma_list, list);
-        SGX_DBG(DBG_M, "Inserted vma between %p-%p and %p-%p\n",
-                vma_below->bottom, vma_below->top, vma_above->bottom, vma_above->top);
     } else {
         /* no VMA above `addr`; VMA right below `addr` must be the first (highest-address) in list */
         vma_below = LISTP_FIRST_ENTRY(&g_heap_vma_list, struct heap_vma, list);
-        SGX_DBG(DBG_M, "Inserted vma above %p-%p\n", vma_below->bottom, vma_below->top);
     }
 
     while (vma_above && vma_above->bottom <= vma->top) {
@@ -194,6 +167,10 @@ void* get_enclave_pages(void* addr, size_t size) {
             vma_above = vma;
             vma_above_bottom = vma_above->bottom;
         }
+
+        /* corner case: there may be enough space between heap bottom and the lowest-address VMA */
+        if (g_heap_bottom < vma_above_bottom - size)
+            ret = __create_vma_and_merge(vma_above_bottom - size, size, vma_above);
     }
 
 out:
