@@ -59,7 +59,7 @@ def parse_size(value):
 def read_manifest(filename):
     manifest = dict()
     manifest_layout = []
-    with open(filename, "r") as file:
+    with open(filename, "r", encoding="utf-8") as file:
         for line in file:
             if line == "":
                 manifest_layout.append((None, None))
@@ -129,7 +129,7 @@ def output_manifest(filename, manifest, manifest_layout):
                 if line != '':
                     line += ' '
                 line += comment
-            file.write(line)
+            file.write(str(line.encode("utf-8")))
             file.write('\n')
 
         file.write('\n')
@@ -212,7 +212,7 @@ def resolve_uri(uri, check_exist=True):
         target = os.path.normpath(uri[len('file:'):])
     else:
         target = os.path.normpath(uri)
-    if check_exist and not os.path.exists(target):
+    if check_exist and not os.path.exists(target.encode("utf-8")):
         raise Exception(
             'Cannot resolve ' + orig_uri + ' or the file does not exist.')
     return target
@@ -228,7 +228,7 @@ def resolve_manifest_uri(manifest_path, uri):
 
 def get_checksum(filename):
     digest = hashlib.sha256()
-    with open(filename, 'rb') as file:
+    with open(filename.encode("utf-8"), 'rb') as file:
         digest.update(file.read())
     return digest.digest()
 
@@ -857,7 +857,7 @@ def main_sign(args):
     print("Trusted files:")
     for key, val in get_trusted_files(manifest, args).items():
         (uri, _, checksum) = val
-        print("    %s %s" % (checksum, uri))
+        print("    %s %s" % (checksum, uri.encode("utf-8")))
         manifest['sgx.trusted_checksum.' + key] = checksum
 
     print("Trusted children:")
