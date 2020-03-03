@@ -16,6 +16,7 @@ find . -name \*.py \
     -and -not -path ./LibOS/glibc-\?.\?\?/\* \
     -and -not -path ./LibOS/shim/test/apps/ltp/opt/\* \
     -and -not -path ./LibOS/shim/test/apps/ltp/src/\* \
+    -and -not -path ./LibOS/shim/test/apps/pytorch/\* \
 | sed 's/./\\&/g' \
 | xargs "${PYLINT}" "$@" \
     Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
