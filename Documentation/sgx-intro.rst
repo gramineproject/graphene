@@ -1,23 +1,37 @@
+:orphan:
+
 Introduction to SGX
 ===================
 
 Graphene project uses :term:`SGX` to securely run software. SGX is
-a |nbsp| complicated topic, which may be hard to learn, because the
-documentation is scattered thorough official, reference documentation, blogposts
-and academic papers. This page is an attempt to curate a |nbsp| dossier of
-available reading material.
+a |~| complicated topic, which may be hard to learn, because the documentation
+is scattered thorough official, reference documentation, blogposts and academic
+papers. This page is an attempt to curate a |~| dossier of available reading
+material.
 
-SGX is both an instruction set (a |nbsp| feature of the CPU) and accompanying
-technology (:term:`SDK` and assorted libraries).
+SGX is is an umbrella name of *technology* that is comprised from several parts:
 
-SGX is still being developed. The current (December 2019) version is referred to
-as SGX1 and the next version is called SGX2. The distinguishing feature of SGX2
-is :term:`EDMM` (Enclave Dynamic Memory Management). Another feature, which is
-not strictly part of SGX2, but was not part of original SGX instruction
-set is :term:`DCAP` (Data Center Attestation Primitives). As of now there is
-hardware support available for DCAP but not SGX2 per se (EDMM).
+- CPU/platform *hardware features*: the new instruction set, new
+  microarchitecture with the :term:`PRM` (:term:`EPC`) memory region and some
+  new MSRs and some new logic in the MMU and so on;
+- the SGX :term:`Remote Attestation` *infrastructure*, online services provided
+  by Intel and/or third parties (see :term:`DCAP`);
+- :term:`SDK` and assorted *software*.
 
-.. todo:: some kind of introduction
+SGX is still being developed. The current (December 2019) version of CPU
+features is referred to as "SGX1" or simply "SGX" and is more or less finalised.
+All new/changed instructions from original SGX are informally referred to as
+":term:`SGX2`".
+
+Features which might be considered part of SGX2:
+
+- :term:`EDMM` (Enclave Dynamic Memory Management) is part of SGX2
+- :term:`FLC` (Flexible Launch Control), not strictly part of SGX2, but was not
+  part of original SGX instruction either
+
+As of now there is hardware support available for FLC but not SGX2 per se
+(EDMM). Most of the literature available (especially introduction-level)
+concerns original SGX1 only.
 
 Introductory reading
 --------------------
@@ -63,30 +77,49 @@ Installation Instructions
 
 .. todo:: TBD
 
-Linux kernel modules
+Linux kernel drivers
 ^^^^^^^^^^^^^^^^^^^^
-At the time of this writing (December 2019) there are two modules in
-circulation: one is distributed together with SDK (`github repo
-<https://github.com/intel/linux-sgx-driver>`__) and another is being upstreamed
-(`github repo <https://github.com/intel/SGXDataCenterAttestationPrimitives/tree/master/driver/linux>`__,
-`LKML thread (v24) <https://lore.kernel.org/lkml/20191129231326.18076-1-jarkko.sakkinen@linux.intel.com/>`__).
 
-Those two are not to be confused. The driver from SDK is currently universally
-used, because it is the only driver mentioned in downloads, but it won't be ever
-upstreamed, so it is likely that it's days are numbered.
+For historical reasons, there are three SGX drivers currently (March 2020):
 
-- The driver being upstreamed requires :term:`DCAP`.
-- The SDK driver supports DCAP but does not require it.
-- Linux will not merge anything that requires :term:`IAS` and maintainers
-  consider non-writable :term:`FLC` MSRs as non-functional SGX:
+- https://github.com/intel/linux-sgx-driver -- old one, does not support DCAP,
+  deprecated
+
+- https://github.com/intel/SGXDataCenterAttestationPrimitives/tree/master/driver
+  -- new one, out-of-tree, supports both non-DCAP software infrastructure (with
+  old EPID remote-attestation technique) and the new DCAP (with new ECDSA and
+  more "normal" PKI infrastucture).
+
+- Upstreaming in-kernel SGX driver (see LKML patches) -- will be upstreamed one
+  day, supports both non-DCAP and DCAP. The DCAP driver closely matches this
+  upstreaming version.
+
+  The in-tree driver will not be a |~| module
+  (https://lore.kernel.org/linux-sgx/20190401225717.GA13450@linux.intel.com/),
+  so "installation instructions" will likely be minimal.
+
+  Also it will not require :term:`IAS` and kernel maintainers consider
+  non-writable :term:`FLC` MSRs as non-functional SGX:
   https://lore.kernel.org/lkml/20191223094614.GB16710@zn.tnic/
 
 SGX terminology
 ---------------
 
-.. as usual, keep this sorted
+.. keep this sorted by full (not abbreviated) terms, leaving out generic terms
+   like "Intel" and "SGX"
 
 .. glossary::
+
+   Architectural Enclaves
+   AE
+
+      A |~| set of "system" enclaves concerned with starting other enclaves.
+
+      .. seealso::
+
+         :term:`Provisioning Enclave`
+         :term:`Quoting Enclave`
+         :term:`Launch Enclave`
 
    AEP
       .. todo:: TBD
@@ -105,44 +138,57 @@ SGX terminology
          :term:`Remote Attestation`
             Description of Remote Attestation
 
+   Data Center Attestation Primitives
    DCAP
-      Data Center Attestation Primitives
 
-      Also called Flexible Launch Control (FIXME is this accurate?). This allows
-      for launching enclaves without Intel's remote infrastructure (FIXME only
-      launch enclaves? does this also include local and remote attestation?).
+      A |~| software infrastructure provided by Intel as a reference
+      implementation for the new ECDSA/:term:`PCS`-based remote attestation.
+      Relies on the :term:`Flexible Launch Control` hardware feature. In
+      principle this is a |~| special version of :term:`SDK`/:term:`PSW` that
+      has a |~| reference launch enclave and is backed by the DCAP-enabled SGX
+      driver.
+
+      This allows for launching enclaves without Intel's remote infrastructure.
       But this requires deployment of own infrastructure, so is operationally
-      more complicated.
-
-      .. todo:: TBD
+      more complicated. Therefore it is intended for server environments (where
+      you control all the machines).
 
       .. seealso::
 
-         :term:`EPID`
-            A |nbsp| way to launch enclaves with Intel's infrastructure.
+         Orientation Guide
+            https://download.01.org/intel-sgx/dcap-1.0.1/docs/Intel_SGX_DCAP_ECDSA_Orientation.pdf
 
-   EDMM
-      Enclave Dynamic Memory Management, a |nbsp| feature of SGX2.
+         :term:`EPID`
+            A |~| way to launch enclaves with Intel's infrastructure, intended
+            for client machines.
 
    Enclave
       .. todo:: TBD
 
+   Enclave Dynamic Memory Management
+   EDMM
+      A |~| hardware feature of :term:`SGX2`, allows dynamic memory allocation,
+      which in turn allows dynamic thread creation.
+
+   Enclave Page Cache
    EPC
-      Enclave Page Cache
 
       .. todo:: TBD
 
+   Enclave Page Cache Map
    EPCM
-      Enclave Page Cache Map
 
       .. todo:: TBD
 
+   Enhanded Privacy Identification
+   Enhanded Privacy Identifier
    EPID
-      Enhanded Privacy Identification/Identifier
 
-      May also be referred to as Intel Launch Control (FIXME is this accurate?).
+      .. todo:: short description
 
-      .. todo:: TBD
+      Contrary to DCAP, EPID may be understood as "opinionated", with most
+      moving parts fixed and tied to services provided by Intel. This is
+      intended for client enclaves and deprecated for server environments.
 
       .. seealso::
 
@@ -150,79 +196,154 @@ SGX terminology
             A way to launch enclaves without relying on the Intel's
             infrastructure.
 
+   Flexible Launch Control
    FLC
-      Flexible Launch Control
 
-      A |nbsp| way to substitute :term:`Launch Enclave` with another one, not
-      supplied by Intel. This is done by overwriting MSR in BIOS.
+      Hardware (CPU) feature that allows substituting :term:`Launch Enclave`.
+      Basically, a |~| change in SGX's EINIT logic to not require the EINITTOKEN
+      from the Intel-based Launch Enclave. An |~| MSR, which can be locked at
+      boot time, keeps the hash of the public key of the "launching" entity,
+      e.g., Microsoft would put its own public key into the FLC register and
+      lock it at boot time.
+
+      With FLC, :term:`Launch Enclave` can be written by other companies (other
+      than Intel) and must be signed with the key corresponding to the one
+      locked in the MSR (a |~| reference Launch Enclave simply allows all
+      enclaves to run). Interestingly, the MSR can also stay unlocked and then
+      it can be modified at run-time by the VMM or the OS kernel.
 
       .. seealso::
 
          https://software.intel.com/en-us/blogs/2018/12/09/an-update-on-3rd-party-attestation
             Announcement
 
+         :term:`DCAP`
+
+   Launch Enclave
    LE
-      Launch Enclave
 
       .. todo:: TBD
+
+      .. seealso::
+
+         :term:`Architectural Enclaves`
 
    Local Attestation
       .. todo:: TBD
 
+   Intel Attestation Service
    IAS
-      Intel Attestation Service
 
+      Old Internet service provided by Intel for old :term:`EPID`-based remote
+      attestation. Enclaves send SGX quotes to the client/verifier who will
+      forward it to IAS to check its validity.
+
+      .. seealso::
+
+         :term:`PCS`
+            Provisioning Certification Service, another Internet service
+            provided by Intel.
+
+   Memory Encryption Engine
    MEE
-      Memory Encryption Engine
 
       .. todo:: TBD
 
    OCALL
+
       .. todo:: TBD
 
+   SGX Platform Software
    PSW
-      Platform Software
+
+      Software infrastructure provided by Intel with all special
+      :term:`Architectural Enclaves` (:term:`Provisioning Enclave`,
+      :term:`Quoting Enclave`, :term:`Launch Enclave`). This mainly refers to
+      the "old" EPID/IAS-based remote attestation.
+
+   Processor Reserved Memory
+   PRM
 
       .. todo:: TBD
+
+   Provisioning Enclave
+
+      .. todo:: TBD
+
+      .. seealso::
+
+         :term:`Architectural Enclaves`
+
+   Intel Provisioning Certification Service
+   PCS
+
+      New internet service provided by Intel for new ECDSA-based remote
+      attestation. Enclave provider creates its own internal Attestation Service
+      where it caches PKI collateral from Intel's PCS, and the verifier gets the
+      certificate chain from the enclave provider to check validity.
+
+      .. seealso::
+
+         :term:`IAS`
+            Intel Attestation Service, another Internet service.
+
+   Quoting Enclave
+
+      .. todo:: TBD
+
+      .. seealso::
+
+         :term:`Architectural Enclaves`
 
    Remote Attestation
       .. todo:: TBD
 
+   Intel SGX Software Development Kit
+   Intel SGX SDK
+   SGX SDK
    SDK
-      Software Development Kit
 
-      In the context of :term:`SGX`, this means a |nbsp| specific piece of
-      software supplied by Intel which helps people write enclaves packed into
-      ``.so`` files to be accessible like normal libraries (at least on Linux).
-      Available together with a |nbsp| kernel module and documentation.
+      In the context of :term:`SGX`, this means a |~| specific piece of software
+      supplied by Intel which helps people write enclaves packed into ``.so``
+      files to be accessible like normal libraries (at least on Linux).
+      Available together with a |~| kernel module and documentation.
 
+   SGX Enclave Control Structure
    SECS
-      SGX Enclave Control Structure
 
       .. todo:: TBD
 
+   SGX2
+
+      This refers to "whatever Intel came up with after releasing original
+      SGX1", usually with respect to hardware features and the instruction set
+      in particular.
+
+      There is no single definition, likely because this is still work in
+      progress and Intel might . This encompasses at least :term:`EDMM`.
+
+   State Save Area
    SSA
-      State Save Area
 
       .. todo:: TBD
 
+   Security Version Number
    SVN
-      Security Version Number
 
       .. todo:: TBD
 
+   Trusted Computing Base
    TCB
-      Trusted Computing Base
 
       In context of :term:`SGX` this has the usual meaning: the set of all
       components that are critical to security. Any vulnerability in TCB
-      compromise security. Any problem outside TCB is not a |nbsp|
-      vulnerability, i.e. |nbsp| should not compromise security.
+      compromise security. Any problem outside TCB is not a |~| vulnerability,
+      i.e. |~| should not compromise security.
 
-      In context of Graphene there is a |nbsp| particular meaning. Those two
-      should not be confused.
+      In context of Graphene there is a |~| different meaning (Thread Control
+      Block). Those two should not be confused.
 
+   Thread Control Structure
    TCS
-      Thread Control Structure
 
       .. todo:: TBD
