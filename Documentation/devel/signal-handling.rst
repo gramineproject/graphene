@@ -286,6 +286,7 @@ Initialization of Signal Handling
 
 Very similar to the flow for Linux-SGX. In addition to 7 handled signals, Linux PAL also operates on
 these signals:
+
 * SIGCHLD -- is ignored
 * SIGPIPE -- installs `_DkPipeSighandler` handler
 
@@ -571,22 +572,24 @@ Available Signal Handlers and Their Differences
 (Notation: <Linux signal> -> PAL signal -> LibOS signal handler (purpose))
 
 Sync signals:
-* SIGFPE  -> PAL_EVENT_ARITHMETIC_ERROR  -> arithmetic_error_upcall (if not internal fault, handle
-pending non-blocked SIGFPEs and then this SIGFPE)
-* SIGSEGV -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault, handle pending
-non-blocked SIGSEGVs and then this SIGSEGV)
-* SIGBUS  -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault, handle pending
-non-blocked SIGBUSs and then this SIGBUS)
-* SIGILL  -> PAL_EVENT_ILLEGAL  -> illegal_upcall  (handle pending non-blocked SIGILLs and then
-this SIGILL)
+
+* SIGFPE  -> PAL_EVENT_ARITHMETIC_ERROR  -> arithmetic_error_upcall (if not
+  internal fault, handle pending non-blocked SIGFPEs and then this SIGFPE)
+* SIGSEGV -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault,
+  handle pending non-blocked SIGSEGVs and then this SIGSEGV)
+* SIGBUS  -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault,
+  handle pending non-blocked SIGBUSs and then this SIGBUS)
+* SIGILL  -> PAL_EVENT_ILLEGAL  -> illegal_upcall  (handle pending non-blocked
+  SIGILLs and then this SIGILL)
 
 Async signals:
-* SIGTERM -> PAL_EVENT_QUIT     -> quit_upcall    (handle pending non-blocked SIGTERMs and then
-this SIGTERM)
-* SIGINT  -> PAL_EVENT_SUSPEND  -> suspend_upcall (handle pending non-blocked SIGINTs and then
-this SIGINT)
-* SIGCONT -> PAL_EVENT_RESUME   -> resume_upcall  (handle pending non-blocked signals but not
-SIGCONT itself)
+
+* SIGTERM -> PAL_EVENT_QUIT     -> quit_upcall    (handle pending non-blocked
+  SIGTERMs and then this SIGTERM)
+* SIGINT  -> PAL_EVENT_SUSPEND  -> suspend_upcall (handle pending non-blocked
+  SIGINTs and then this SIGINT)
+* SIGCONT -> PAL_EVENT_RESUME   -> resume_upcall  (handle pending non-blocked
+  signals but not SIGCONT itself)
 
 We already described flows of `suspend_upcall`. Here is how other signal handlers are different
 from `suspend_upcall`:

@@ -37,7 +37,7 @@ How to Build and Run Graphene?
 ==============================
 
 See :doc:`quickstart` for instructions how to quickly build and run Graphene.
-For full build instruction, see :doc:`building`.
+For full build instructions, see :doc:`building`.
 
 How to Contact the Maintainers?
 ===============================

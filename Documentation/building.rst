@@ -14,15 +14,15 @@ Graphene consists of three parts:
 - An instrumented GNU C Library
 - The Library OS itself (a shared library named ``libsysdb.so``, called the
   "shim" in our source code)
-- The Platform Adaptation Layer, or PAL, (a shared library named ``libpal.so``)
+- The Platform Adaptation Layer, or PAL (a shared library named ``libpal.so``)
 
 Prerequisites
 -------------
 
 Graphene currently only works on the x86_64 architecture. Graphene is currently
 tested on Ubuntu 16.04 and 18.04 (both server and desktop version), along with
-Linux kernel versions 3.x/4.x. We recommend building and installing Graphene on
-the same host platform. If you find problems with Graphene on other Linux
+Linux kernel versions 3.x/4.x/5.x. We recommend building and installing Graphene
+on the same host platform. If you find problems with Graphene on other Linux
 distributions, please contact us with a |~| detailed `bug report
 <https://github.com/oscarlab/graphene/issues/new>`__.
 
@@ -62,12 +62,6 @@ source, use :command:`make GLIBC_MIRRORS=...`.
 
 To build with ``-Werror``, run :command:`make WERROR=1`.
 
-Building with kernel-level sandboxing (optional)
-------------------------------------------------
-
-This feature is marked as EXPERIMENTAL and no longer exists on the master
-branch.
-
 Building with Intel SGX Support
 -------------------------------
 
@@ -106,11 +100,10 @@ Prerequisites
       cd Pal/src/host/Linux-SGX/sgx-driver
       make
       # The console will be prompted to ask for the path of Intel SGX driver code
-      sudo ./load.sh
       sudo sysctl vm.mmap_min_addr = 0
 
-   We note that this last command is a |~| tempoarary work-around for some
-   issues with the Intel SGX driver. This is an inadvisable configuration for
+   We note that this last command is a |~| temporary work-around for some issues
+   with the Intel SGX driver. This is an inadvisable configuration for
    production systems. We hope to remove this step in a |~| future version of
    Graphene, once the SGX driver is upstreamed to Linux.
 
@@ -128,3 +121,12 @@ To build with debug symbols, instead run the command::
 
 Running :command:`make SGX=1` in the test or regression directory will
 automatically generate the required manifest signatures (``.sig`` files).
+
+Deprecated features
+-------------------
+
+Building with kernel-level sandboxing (optional)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This feature is marked as EXPERIMENTAL and no longer exists on the master
+branch.

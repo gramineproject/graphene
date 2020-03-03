@@ -29,7 +29,7 @@
 #include <stdnoreturn.h>
 
 typedef uint64_t      PAL_NUM; /*!< a number */
-typedef const char *  PAL_STR; /*!< a pointer to a string */
+typedef const char *  PAL_STR; /*!< a pointer to a C-string */
 typedef void *        PAL_PTR; /*!< a pointer to memory or buffer (something other than string) */
 typedef uint32_t      PAL_FLG; /*!< a set of flags */
 typedef uint32_t      PAL_IDX; /*!< an index */
@@ -42,7 +42,14 @@ typedef uint32_t      PAL_IDX; /*!< an index */
  */
 typedef bool          PAL_BOL;
 
+/*!
+ * True value for #PAL_BOL.
+ */
 #define PAL_TRUE  true
+
+/*!
+ * False value for #PAL_BOL.
+ */
 #define PAL_FALSE false
 
 /* Moved MAX_FDS from <host_kernel>/pal_host.h to here,
@@ -176,7 +183,7 @@ typedef struct _PAL_CONTROL {
     /*
      * Memory layout
      */
-    PAL_PTR_RANGE user_address; /*!< The range of user address */
+    PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
     /*!
      * \brief Reserved memory range inside of user address.
@@ -229,7 +236,7 @@ PAL_CONTROL * pal_control_addr (void);
 /*! Memory Allocation Flags */
 enum PAL_ALLOC {
     PAL_ALLOC_RESERVE  = 0x0001, /*!< Only reserve the memory */
-    PAL_ALLOC_INTERNAL = 0x8000, /*!< Allocate for PAL (valid only #IN_PAL) */
+    PAL_ALLOC_INTERNAL = 0x8000, /*!< Allocate for PAL (valid only if #IN_PAL) */
 };
 
 /*! Memory Protection Flags */
@@ -344,9 +351,9 @@ enum PAL_CREATE {
 
 /*! Stream Option Flags */
 enum PAL_OPTION {
-    PAL_OPTION_NONBLOCK      = 04000,
     PAL_OPTION_CLOEXEC       = 01000,
-    PAL_OPTION_EFD_SEMAPHORE = 02000, /*!< specific to eventfd syscall */
+    PAL_OPTION_EFD_SEMAPHORE = 02000, /*!< specific to `eventfd` syscall */
+    PAL_OPTION_NONBLOCK      = 04000,
 
     PAL_OPTION_MASK          = 07000,
 };
@@ -403,7 +410,7 @@ DkStreamWaitForClient(PAL_HANDLE handle);
  */
 PAL_NUM
 DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, PAL_PTR source,
-        PAL_NUM size);
+             PAL_NUM size);
 
 /*!
  * \brief Write data to an opened stream.
@@ -433,17 +440,16 @@ DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
  * \param address can be NULL or a valid address that is aligned at the allocation alignment.
  * \param prot see #DkVirtualMemoryAlloc()
  *
- * offset and size have to be non-zero
- * and aligned at the allocation alignment
+ * `offset` and `size` have to be non-zero and aligned at the allocation alignment
  */
 PAL_PTR
 DkStreamMap(PAL_HANDLE handle, PAL_PTR address, PAL_FLG prot,
-             PAL_NUM offset, PAL_NUM size);
+            PAL_NUM offset, PAL_NUM size);
 
 /*!
  * \brief Unmap virtual memory that is backed by a file stream.
  *
- * addr and size must be aligned at the allocation alignment
+ * `addr` and `size` must be aligned at the allocation alignment
  */
 void
 DkStreamUnmap(PAL_PTR addr, PAL_NUM size);
@@ -732,6 +738,7 @@ DkSystemTimeQuery(void);
  * \brief Cryptographically secure random.
  *
  * \param[out] buffer is filled with cryptographically-secure random values
+ * \param[in] size buffer size
  * \return 0 on success, negative on failure
  */
 PAL_NUM

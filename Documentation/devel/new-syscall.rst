@@ -1,5 +1,5 @@
-Implementing New System Call in Graphene
-========================================
+Implementing A New System Call in Graphene
+==========================================
 
 Step 1: Define the Interface of System Call and Name the Function in :file:`LibOS/shim/src/shim_syscalls.c`
 -----------------------------------------------------------------------------------------------------------

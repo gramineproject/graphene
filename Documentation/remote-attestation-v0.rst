@@ -35,9 +35,8 @@ variables:
    make SGX=1 sgx-tokens
 
 If you receive a ``GROUP_OUT_OF_DATE`` status from IAS, this status indicates
-that your CPU is out of date and can be vulnerable to hardware attacks. If you
-wish to bypass this error, you can specify the following option in the
-manifest::
+that your CPU is out of date and can be vulnerable. If you wish to bypass this
+error, you can specify the following option in the manifest::
 
    sgx.ra_accept_group_out_of_date = 1
 

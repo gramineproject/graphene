@@ -34,7 +34,7 @@ To implement this logic, `do_migrate_process()` calls the following
 functions:
 
 1. `_DkProcessCreate()` -- PAL-specific creation of the process in the
-   underlying OS. For SGX PAL, this function performs ``clone() + execve()``
+   underlying OS. For SGX PAL, this function performs ``clone()`` + ``execve()``
    system calls in underlying Linux to create a new process. The new (child)
    process can communicate with the parent process via Unix pipes. Using these
    pipes, the parent and the child establish a shared secret via Diffie-Hellman
@@ -345,16 +345,19 @@ Open Issues
   checkpoint.
 
 
-## Appendix A: Source Files
+Appendix A: Source Files
+------------------------
 
 Parent:
-- `shim_do_fork()`:				`LibOS/shim/src/sys/shim_fork.c`
-- `do_migrate_process()`:		`LibOS/shim/src/shim_checkpoint.c`
-- `_DkProcessCreate()`:			`Pal/src/host/Linux-SGX/db_process.c`
-- `migrate_fork()`:				`LibOS/shim/src/sys/shim_fork.c`
-- `send_checkpoint_on_stream()`:`LibOS/shim/src/shim_checkpoint.c`
+
+- `shim_do_fork()`: `LibOS/shim/src/sys/shim_fork.c`
+- `do_migrate_process()`: `LibOS/shim/src/shim_checkpoint.c`
+- `_DkProcessCreate()`: `Pal/src/host/Linux-SGX/db_process.c`
+- `migrate_fork()`: `LibOS/shim/src/sys/shim_fork.c`
+- `send_checkpoint_on_stream()`: `LibOS/shim/src/shim_checkpoint.c`
 
 Child:
-- `init_child_process()`:		`Pal/src/host/Linux-SGX/db_process.c`
-- `do_migration()`:				`LibOS/shim/src/shim_checkpoint.c`
-- `restore_checkpoint()`:		`LibOS/shim/src/shim_checkpoint.c`
+
+- `init_child_process()`: `Pal/src/host/Linux-SGX/db_process.c`
+- `do_migration()`: `LibOS/shim/src/shim_checkpoint.c`
+- `restore_checkpoint()`: `LibOS/shim/src/shim_checkpoint.c`

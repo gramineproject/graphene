@@ -1,6 +1,11 @@
 Supported System Calls in Graphene
 ==================================
 
+.. note::
+
+   This document is outdated. Please :doc:`send patches <devel/contributing>`
+   with corrections.
+
 The following is a list of system calls that are currently implemented.
 
 System Calls that are Fully Implemented

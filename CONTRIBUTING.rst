@@ -2,6 +2,8 @@ Contributing to Graphene
 ========================
 
 .. highlight:: sh
+
+.. see Documentation/howto-doc.rst about |nbsp| versus |~|
 .. |nbsp| unicode:: 0xa0
    :trim:
 

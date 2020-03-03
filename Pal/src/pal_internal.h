@@ -248,7 +248,7 @@ extern PAL_CONTROL __pal_control;
 /*!
  * \brief Main initialization function
  *
- * This function must be called by the host-specific bootloader.
+ * This function must be called by the host-specific loader.
  *
  * \param instance_id       current instance id
  * \param manifest_handle   manifest handle if opened
@@ -259,9 +259,10 @@ extern PAL_CONTROL __pal_control;
  * \param arguments         application arguments
  * \param environments      environment variables
  */
-noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE manifest_handle, PAL_HANDLE exec_handle,
-        PAL_PTR exec_loaded_addr, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
-        PAL_STR* arguments, PAL_STR* environments);
+noreturn void pal_main(
+    PAL_NUM instance_id, PAL_HANDLE manifest_handle, PAL_HANDLE exec_handle,
+    PAL_PTR exec_loaded_addr, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
+    PAL_STR* arguments, PAL_STR* environments);
 
 /* For initialization */
 unsigned long _DkGetPagesize (void);
