@@ -348,10 +348,6 @@ PAL_CONTROL * pal_control_addr (void);
 /* Memory Allocation Flags */
 #define PAL_ALLOC_RESERVE     0x0001   /* Only reserve the memory */
 
-#ifdef IN_PAL
-#define PAL_ALLOC_INTERNAL    0x8000
-#endif
-
 /* Memory Protection Flags */
 #define PAL_PROT_NONE       0x0     /* 0x0 Page can not be accessed. */
 #define PAL_PROT_READ       0x1     /* 0x1 Page can be read. */

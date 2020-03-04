@@ -176,7 +176,6 @@ positive number, aligned at the allocation alignment.
 
     /* Memory Allocation Flags */
     #define PAL_ALLOC_RESERVE     0x0001   /* Only reserve the memory */
-    #define PAL_ALLOC_INTERNAL    0x8000   /* Allocate for PAL */
 
 `prot` can be a combination of the following flags:
 

@@ -59,7 +59,7 @@ static inline void* __malloc(int size) {
     }
 #endif
 
-    _DkVirtualMemoryAlloc(&addr, size, PAL_ALLOC_INTERNAL, PAL_PROT_READ | PAL_PROT_WRITE);
+    _DkVirtualMemoryAlloc(&addr, size, /*alloc_type=*/0, PAL_PROT_READ | PAL_PROT_WRITE);
     return addr;
 }
 
