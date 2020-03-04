@@ -18,7 +18,7 @@ void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
 
-static int register_trusted_file (const char * uri, const char * checksum_str);
+static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates);
 
 bool sgx_is_completely_within_enclave (const void * addr, uint64_t size)
 {
@@ -281,7 +281,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     /* Allow to create the file when allow_file_creation is turned on;
        The created file is added to allowed_file list for later access */
     if (create && allow_file_creation) {
-       register_trusted_file(uri, NULL);
+       register_trusted_file(uri, NULL, /*check_duplicates=*/true);
        return 0;
     }
 
@@ -616,21 +616,24 @@ failed:
     return -PAL_ERROR_DENIED;
 }
 
-static int register_trusted_file (const char * uri, const char * checksum_str)
-{
+static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates) {
     struct trusted_file * tf = NULL, * new;
     size_t uri_len = strlen(uri);
     int ret;
 
-    spinlock_lock(&trusted_file_lock);
-
-    LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
-        if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
-            spinlock_unlock(&trusted_file_lock);
-            return 0;
+    if (check_duplicates) {
+        /* this check is only done during runtime (when creating a new file) and not needed during
+         * initialization (because manifest is assumed to have no duplicates); skipping this check
+         * significantly improves startup time */
+        spinlock_lock(&trusted_file_lock);
+        LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
+            if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
+                spinlock_unlock(&trusted_file_lock);
+                return 0;
+            }
         }
+        spinlock_unlock(&trusted_file_lock);
     }
-    spinlock_unlock(&trusted_file_lock);
 
     new = malloc(sizeof(struct trusted_file));
     if (!new)
@@ -697,16 +700,21 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
 
     spinlock_lock(&trusted_file_lock);
 
-    LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
-        if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
-            spinlock_unlock(&trusted_file_lock);
-            free(new);
-            return 0;
+    if (check_duplicates) {
+        /* this check is only done during runtime and not needed during initialization (see above);
+         * we check again because same file could have been added by another thread in meantime */
+        LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
+            if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
+                spinlock_unlock(&trusted_file_lock);
+                free(new);
+                return 0;
+            }
         }
     }
 
     LISTP_ADD_TAIL(new, &trusted_file_list, list);
     spinlock_unlock(&trusted_file_lock);
+
     return 0;
 }
 
@@ -740,7 +748,7 @@ static int init_trusted_file (const char * key, const char * uri)
         return ret;
     }
 
-    return register_trusted_file(normpath, checksum);
+    return register_trusted_file(normpath, checksum, /*check_duplicates=*/false);
 }
 
 int init_trusted_files (void) {
@@ -872,7 +880,7 @@ no_trusted:
             goto out;
         }
 
-        register_trusted_file(norm_path, NULL);
+        register_trusted_file(norm_path, NULL, /*check_duplicates=*/false);
     }
 
 no_allowed:
