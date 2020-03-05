@@ -26,21 +26,72 @@ DEFINE_LISTP(heap_vma);
 static LISTP_TYPE(heap_vma) g_heap_vma_list = LISTP_INIT;
 static PAL_LOCK g_heap_vma_lock = LOCK_INIT;
 
+/* heap_vma objects are taken from pre-allocated pool to avoid recursive mallocs */
+#define MAX_HEAP_VMAS 100000
+static struct heap_vma g_heap_vma_pool[MAX_HEAP_VMAS];
+static size_t g_heap_vma_num = 0;
+static struct heap_vma* g_free_vma = NULL;
+
+/* returns uninitialized heap_vma, the caller is responsible for setting at least bottom/top */
+static struct heap_vma* __alloc_vma(void) {
+    assert(_DkInternalIsLocked(&g_heap_vma_lock));
+
+    if (g_free_vma) {
+        /* simple optimization: if there is a cached free vma object, use it */
+        assert((uintptr_t)g_free_vma >= (uintptr_t)&g_heap_vma_pool[0]);
+        assert((uintptr_t)g_free_vma <= (uintptr_t)&g_heap_vma_pool[MAX_HEAP_VMAS - 1]);
+
+        struct heap_vma* ret = g_free_vma;
+        g_free_vma = NULL;
+        g_heap_vma_num++;
+        return ret;
+    }
+
+    /* FIXME: this loop may become perf bottleneck on large number of vma objects; however,
+     * experiments show that this number typically does not exceed 20 (thanks to VMA merging) */
+    for (size_t i = 0; i < MAX_HEAP_VMAS; i++) {
+        if (!g_heap_vma_pool[i].bottom && !g_heap_vma_pool[i].top) {
+            /* found empty slot in the pool, use it */
+            g_heap_vma_num++;
+            return &g_heap_vma_pool[i];
+        }
+    }
+
+    return NULL;
+}
+
+static void __free_vma(struct heap_vma* vma) {
+    assert(_DkInternalIsLocked(&g_heap_vma_lock));
+    assert((uintptr_t)vma >= (uintptr_t)&g_heap_vma_pool[0]);
+    assert((uintptr_t)vma <= (uintptr_t)&g_heap_vma_pool[MAX_HEAP_VMAS - 1]);
+
+    g_free_vma  = vma;
+    vma->top    = 0;
+    vma->bottom = 0;
+    g_heap_vma_num--;
+}
+
 int init_enclave_pages(void) {
+    int ret;
+
     g_heap_bottom = pal_sec.heap_min;
     g_heap_top    = pal_sec.heap_max;
 
     size_t reserved_size = 0;
     struct heap_vma* exec_vma = NULL;
 
+    _DkInternalLock(&g_heap_vma_lock);
+
     if (pal_sec.exec_addr < g_heap_top && pal_sec.exec_addr + pal_sec.exec_size > g_heap_bottom) {
         /* there is an executable mapped inside the heap, carve a VMA for its area; this can happen
          * in case of non-PIE executables that start at a predefined address (typically 0x400000) */
-        exec_vma = malloc(sizeof(*exec_vma));
+        exec_vma = __alloc_vma();
         if (!exec_vma) {
             SGX_DBG(DBG_E, "*** Cannot initialize VMA for executable ***\n");
-            return -PAL_ERROR_NOMEM;
+            ret = -PAL_ERROR_NOMEM;
+            goto out;
         }
+
         exec_vma->bottom = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, g_heap_bottom);
         exec_vma->top = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, g_heap_top);
         exec_vma->is_pal_internal = false;
@@ -53,7 +104,11 @@ int init_enclave_pages(void) {
     atomic_add(reserved_size / g_page_size, &g_alloced_pages);
 
     SGX_DBG(DBG_M, "Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
-    return 0;
+    ret = 0;
+
+out:
+    _DkInternalUnlock(&g_heap_vma_lock);
+    return ret;
 }
 
 static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_internal,
@@ -99,7 +154,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
     /* create VMA with [addr, addr+size); in case of existing overlapping VMAs, the created VMA is
      * merged with them and the old VMAs are discarded, similar to mmap(MAX_FIXED) */
-    struct heap_vma* vma = malloc(sizeof(*vma));
+    struct heap_vma* vma = __alloc_vma();
     if (!vma)
         return NULL;
     vma->bottom          = addr;
@@ -126,7 +181,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         vma->top    = MAX(vma_above->top, vma->top);
         LISTP_DEL(vma_above, &g_heap_vma_list, list);
 
-        free(vma_above);
+        __free_vma(vma_above);
         vma_above = vma_above_above;
     }
 
@@ -143,7 +198,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         vma->top    = MAX(vma_below->top, vma->top);
         LISTP_DEL(vma_below, &g_heap_vma_list, list);
 
-        free(vma_below);
+        __free_vma(vma_below);
         vma_below = vma_below_below;
     }
 
@@ -267,7 +322,7 @@ int free_enclave_pages(void* addr, size_t size) {
 
         if (vma->bottom < addr) {
             /* create VMA [vma->bottom, addr); this may leave VMA [addr + size, vma->top), see below */
-            struct heap_vma* new = malloc(sizeof(*new));
+            struct heap_vma* new = __alloc_vma();
             if (!new) {
                 SGX_DBG(DBG_E, "*** Cannot create split VMA during free of address %p ***\n", addr);
                 ret = -PAL_ERROR_NOMEM;
@@ -285,7 +340,7 @@ int free_enclave_pages(void* addr, size_t size) {
         if (vma->top <= addr + size) {
             /* memory area to free completely covers/extends above the rest of the VMA */
             LISTP_DEL(vma, &g_heap_vma_list, list);
-            free(vma);
+            __free_vma(vma);
         }
     }
 
