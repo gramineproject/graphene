@@ -63,6 +63,16 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
 {
     *start = (PAL_PTR) pal_sec.heap_min;
     *end = (PAL_PTR) get_enclave_pages(NULL, g_page_size, /*is_pal_internal=*/false);
+
+    /* FIXME: hack to keep some heap for internal PAL objects allocated at runtime (recall that
+     * LibOS does not keep track of PAL memory, so without this hack it could overwrite internal
+     * PAL memory). This hack is probabilistic and brittle. */
+    *end = SATURATED_P_SUB(*end, 2 * 1024 * g_page_size, *start);  /* 8MB reserved for PAL stuff */
+    if (*end <= *start) {
+        SGX_DBG(DBG_E, "Not enough enclave memory, please increase enclave size!\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+
     *hole_start = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, *start);
     *hole_end = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, *end);
 }
