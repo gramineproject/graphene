@@ -120,20 +120,28 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         vma_below = LISTP_FIRST_ENTRY(&g_heap_vma_list, struct heap_vma, list);
     }
 
-    if (vma_above && addr + size > vma_above->bottom &&
-        is_pal_internal != vma_above->is_pal_internal) {
-        /* [addr, addr+size) overlaps with above VMA and one of these areas is pal-internal */
-        SGX_DBG(DBG_M, "VMA cannot be allocated: %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n",
-                addr, addr + size, is_pal_internal, vma_above->bottom, vma_above->top, vma_above->is_pal_internal);
-        return NULL;
+    /* check whether [addr, addr + size) overlaps with above VMAs of different type */
+    struct heap_vma* check_vma_above = vma_above;
+    while (check_vma_above && addr + size > check_vma_above->bottom) {
+        if (check_vma_above->is_pal_internal != is_pal_internal) {
+            SGX_DBG(DBG_M, "VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n",
+                    addr, addr + size, is_pal_internal, check_vma_above->bottom,
+                    check_vma_above->top, check_vma_above->is_pal_internal);
+            return NULL;
+        }
+        check_vma_above = LISTP_PREV_ENTRY(check_vma_above, &g_heap_vma_list, list);
     }
 
-    if (vma_below && addr < vma_below->top &&
-        is_pal_internal != vma_below->is_pal_internal) {
-        /* [addr, addr+size) overlaps with below VMA and one of these areas is pal-internal */
-        SGX_DBG(DBG_M, "VMA cannot be allocated: %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n",
-                addr, addr + size, is_pal_internal, vma_below->bottom, vma_below->top, vma_below->is_pal_internal);
-        return NULL;
+    /* check whether [addr, addr + size) overlaps with below VMAs of different type */
+    struct heap_vma* check_vma_below = vma_below;
+    while (check_vma_below && addr + size < check_vma_below->top) {
+        if (check_vma_below->is_pal_internal != is_pal_internal) {
+            SGX_DBG(DBG_M, "VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n",
+                    addr, addr + size, is_pal_internal, check_vma_below->bottom,
+                    check_vma_below->top, check_vma_below->is_pal_internal);
+            return NULL;
+        }
+        check_vma_below = LISTP_NEXT_ENTRY(check_vma_below, &g_heap_vma_list, list);
     }
 
     /* create VMA with [addr, addr+size); in case of existing overlapping VMAs, the created VMA is
@@ -145,6 +153,9 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     vma->top             = addr + size;
     vma->is_pal_internal = is_pal_internal;
 
+    /* how much memory was freed because [addr, addr + size) overlapped with VMAs */
+    ssize_t freed = 0;
+
     /* Try to merge VMAs as an optimization:
      *   (1) start from `vma_above` and iterate through VMAs with higher-addresses for merges
      *   (2) start from `vma_below` and iterate through VMAs with lower-addresses for merges.
@@ -155,6 +166,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top,
                 vma_above->bottom, vma_above->top);
 
+        freed += vma_above->top - vma_above->bottom;
         struct heap_vma* vma_above_above = LISTP_PREV_ENTRY(vma_above, &g_heap_vma_list, list);
 
         vma->bottom = MIN(vma_above->bottom, vma->bottom);
@@ -171,6 +183,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top,
                 vma_below->bottom, vma_below->top);
 
+        freed += vma_below->top - vma_below->bottom;
         struct heap_vma* vma_below_below = LISTP_NEXT_ENTRY(vma_below, &g_heap_vma_list, list);
 
         vma->bottom = MIN(vma_below->bottom, vma->bottom);
@@ -190,8 +203,8 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         ocall_exit(/*exitcode=*/1, /*is_exitgroup=*/true);
     }
 
-    /* FIXME: adding `size` may be incorrect as there can be overlaps with existing areas */
-    atomic_add(size / g_page_size, &g_alloced_pages);
+    ssize_t alloced = vma->top - vma->bottom - freed;
+    atomic_add(alloced / g_page_size, &g_alloced_pages);
     return addr;
 }
 
@@ -272,6 +285,9 @@ int free_enclave_pages(void* addr, size_t size) {
     bool is_pal_internal_set = false;
     bool is_pal_internal;
 
+    /* how much memory was actually freed, since [addr, addr + size) can overlap with VMAs */
+    ssize_t freed = 0;
+
     struct heap_vma* vma;
     struct heap_vma* p;
     LISTP_FOR_EACH_ENTRY_SAFE(vma, p, &g_heap_vma_list, list) {
@@ -312,13 +328,13 @@ int free_enclave_pages(void* addr, size_t size) {
         vma->bottom = addr + size;
         if (vma->top <= addr + size) {
             /* memory area to free completely covers/extends above the rest of the VMA */
+            freed += vma->top - vma->bottom;
             LISTP_DEL(vma, &g_heap_vma_list, list);
             __free_vma(vma);
         }
     }
 
-    /* FIXME: subtracting `size` may be incorrect as there can be partial free of areas */
-    atomic_sub(size / g_page_size, &g_alloced_pages);
+    atomic_sub(freed / g_page_size, &g_alloced_pages);
 
 out:
     _DkInternalUnlock(&g_heap_vma_lock);
