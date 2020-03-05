@@ -199,7 +199,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         return -PAL_ERROR_DENIED;
     }
 
-    mem = get_enclave_pages(mem, size);
+    mem = get_enclave_pages(mem, size, /*is_pal_internal=*/false);
     if (!mem)
         return -PAL_ERROR_NOMEM;
 
