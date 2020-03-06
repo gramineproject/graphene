@@ -11,17 +11,15 @@ def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
 
 def generate_trusted_files(root_dir):
-    # Cxclude directories from list of trusted files
+    # Exclude directories from list of trusted files
     exclude_dirs = ['boot', 'dev', 'proc', 'var', 'sys', 'etc/rc']
     exclude_re = re.compile('^/(' + '|'.join(exclude_dirs) + ').*')
-    # Check for any non ASCII character
     num_trusted = 1
-
     trusted_files = ''
 
     for root, _, files in os.walk(root_dir, followlinks=False):
-        for f in files:
-            filename = (root + '/' +  f).replace('//', '/')
+        for file in files:
+            filename = os.path.join(root, file)
             if  (not exclude_re.match(filename)
                 and is_ascii(filename)
                 and os.path.exists(filename)
@@ -98,8 +96,8 @@ def main(args):
             print('\tAdded signatures for trusted child processes '
                         + ', '.join(trusted_signatures) + '.')
 
-        status = os.stat(manifest)
-        os.chmod(manifest, status.st_mode | stat.S_IEXEC)
+        #status = os.stat(manifest)
+        #os.chmod(manifest, status.st_mode | stat.S_IEXEC)
 
         print('\tWrote manifest.')
 

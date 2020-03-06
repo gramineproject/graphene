@@ -19,24 +19,20 @@ def load_config(file):
 # Generate manifest from a template (see template/manifest.template) based on the binary name.
 # The generated manifest is only partially completed. Later, during the docker build it is
 # finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
-def generate_manifests(image, substitutions, user_manifests):
+def generate_manifest(image, substitutions, user_manifest):
 
-    for user_manifest in user_manifests:
+    with open(user_manifest, 'r') as user_manifest_file:
+        user_mf = user_manifest_file.read()
 
-        app = user_manifest[0:user_manifest.find('.')]
+    with open('templates/manifest.template') as manifest_template:
+        template_mf = string.Template(manifest_template.read())
+        instantiated_mf = template_mf.substitute(substitutions)
 
-        with open(user_manifest) as user_manifest_file:
-            user_mf = user_manifest_file.read()
-
-        with open('templates/manifest.template') as manifest_template:
-            template_mf = string.Template(manifest_template.read())
-            instantiated_mf = template_mf.substitute(substitutions)
-
-        with open(image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
-            app_manifest.write(instantiated_mf)
-            app_manifest.write("\n")
-            app_manifest.write(user_mf)
-            app_manifest.write("\n")
+    with open(image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
+        app_manifest.write(instantiated_mf)
+        app_manifest.write("\n")
+        app_manifest.write(user_mf)
+        app_manifest.write("\n")
 
 # Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
@@ -81,13 +77,18 @@ def prepare_build_context(image, user_manifests, substitutions):
     generate_app_loader(image, substitutions)
 
     # generate manifest stub for this app
-    generate_manifests(image, substitutions, user_manifests)
+    generate_manifest(image, substitutions, user_manifests[0])
+
+    for user_manifest in user_manifests[1:]:
+
+        substitutions['binary'] = user_manifest[0:user_manifest.find('.')]
+        generate_manifest(image, substitutions, user_manifests)
 
     # copy markTrustedFiles.sh
     shutil.copyfile("finalize_manifests.py", image + "/finalize_manifests.py")
 
 
-def prepare_substitutions(base_image, image, options):
+def prepare_substitutions(base_image, image, options, user_manifests):
     params = {
         '-d': {
                 'DEBUG' : 'DEBUG=1',
@@ -135,7 +136,8 @@ def prepare_substitutions(base_image, image, options):
             "app" : app,
             "binary" : binary,
             'binary_arguments': binary_arguments,
-            'working_dir': working_dir
+            'working_dir': working_dir,
+            'user_manifests': ''.join(user_manifests[1:0])
             })
 
     return substitutions
@@ -170,7 +172,7 @@ def gsc_build(args):
 
         print("Building graphenized image from base image " + image)
 
-        substitutions = prepare_substitutions(base_image, image, args[0:options])
+        substitutions = prepare_substitutions(base_image, image, args[0:options], user_manifests)
 
         prepare_build_context(image, user_manifests, substitutions)
 

@@ -32,7 +32,7 @@ COPY finalize_manifests.py /
 # 1) Replace app path with real path and update library path,
 # 2) Add all files under / as trusted files,
 # 3) Make manifest executable
-RUN python3 /finalize_manifests.py / ${binary}.manifest
+RUN python3 /finalize_manifests.py / ${binary}.manifest  ${user_manifests}
 
 # Sign application and manifest
 RUN /graphene/signer/pal-sgx-sign \
