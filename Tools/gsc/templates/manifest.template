@@ -1,9 +1,9 @@
 loader.preload = file:/graphene/Runtime/libsysdb.so
 
 # Get path of binary
-loader.exec = file:BINARY_PATH
+loader.exec = file:$${binary_path}
 loader.execname = ${binary}
-loader.env.LD_LIBRARY_PATH = /graphene/Runtime:LIBRARY_PATHS
+loader.env.LD_LIBRARY_PATH = /graphene/Runtime:$${library_paths}
 loader.env.PATH = /usr/local/bin:/usr/bin:/bin
 loader.debug_type = ${debug_output}
 

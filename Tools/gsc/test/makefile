@@ -1,5 +1,5 @@
 TESTCASES=hello-world python3 nodejs
-DISTRIBUTIONS=ubuntu18.04 ubuntu16.04
+DISTRIBUTIONS=ubuntu18.04 #ubuntu16.04
 TESTS=$(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 SGX_DEVICES=--device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
 
@@ -8,7 +8,6 @@ SGX_DEVICES=--device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:
 all: $(TESTS)
 	for d in $(DISTRIBUTIONS); do \
 		sed -i 's/\"distro\": \".*\"/\"distro\": \"'$${d}'\"/' ../config.json; \
-		cat ../config.json;\
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)); \
 	done
 
@@ -18,7 +17,7 @@ all: $(TESTS)
 
 gsc-%: %.manifest
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build test/$< $*
+	cd .. && ./gsc build $* test/$<
 
 test: $(addprefix test-, $(DISTRIBUTIONS))
 	echo "[SUCCESS] Completed all GSC test cases"

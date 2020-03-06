@@ -3,7 +3,15 @@
 FROM ${appImage}
 
 # Update any packages
-RUN apt-get update && apt-get upgrade -y
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    python3 \
+    python3-pip \
+    libprotobuf-c-dev \
+    binutils \
+    openssl \
+    && /usr/bin/pip3 install protobuf
 
 # Copy Graphene runtime and signer tools to /graphene
 RUN mkdir /graphene \
@@ -20,25 +28,12 @@ COPY apploader.sh .
 RUN chmod u+x apploader.sh
 
 # Finalize the manifest
-COPY ${binary}.manifest .
-COPY markTrustedFiles.sh /
+COPY *.manifest .
+COPY finalize_manifests.py /
 # 1) Replace app path with real path and update library path,
-# 2) Add all files as trusted files,
-# 3) Remove aux
-RUN  sed -i "s/BINARY_PATH/$$(which ${binary} | sed 's:/:\\/:g')/g" ${binary}.manifest \
-    && sed -i "s/LIBRARY_PATHS/$$(ldconfig -v 2>/dev/null | grep -v ^'\s' | tr -d '\n' | sed 's:/:\\/:g')/g" ${binary}.manifest \
-    && chmod u+x /markTrustedFiles.sh \
-    && /markTrustedFiles.sh / ${binary}.manifest  \
-    && chmod u+x ${binary}.manifest \
-    && rm /markTrustedFiles.sh files checkedfiles
-
- RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python3 \
-    python3-pip \
-    libprotobuf-c-dev \
-    binutils \
-    openssl \
-    && /usr/bin/pip3 install protobuf
+# 2) Add all files under / as trusted files,
+# 3) Make manifest executable
+RUN python3 /finalize_manifests.py / ${binary}.manifest
 
 # Sign application and manifest
 RUN /graphene/signer/pal-sgx-sign \

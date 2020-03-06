@@ -71,15 +71,16 @@ Building Docker images with GSC
 
 ::
 
-    gsc build <manifest> <image-name>[:<tag>] [<options>]
+    gsc build [<options>] <image-name>[:<tag>] <app>.manifest [<app2>.manifest ...]
 
-* *manifest*: Application specific manifest entries
-* *image-name*: Name of the base image
-* *tag*: Tag of the base image
 * *options*:
 
   * ``-d``: Compile Graphene with debug flags and output
   * ``-L``: Compile Graphene with Linux PAL in addition to Linux-SGX PAL
+* *image-name*: Name of the base image
+* *tag*: Tag of the base image
+* *<app>.manifest*: Application specific manifest entries for starting application
+* *<app2>.manifest*: Application specific manifest entries for exec'd applications
 
 Run graphenized Docker images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -1,3 +1,9 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 
-python3 ./gsc.py $@
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(__file__))
+from gsc import main # pylint: disable=import-error,wrong-import-position
+
+sys.exit(main(sys.argv))

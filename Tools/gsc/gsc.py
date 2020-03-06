@@ -19,20 +19,24 @@ def load_config(file):
 # Generate manifest from a template (see template/manifest.template) based on the binary name.
 # The generated manifest is only partially completed. Later, during the docker build it is
 # finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
-def generate_manifest(image, substitutions, user_manifest):
+def generate_manifests(image, substitutions, user_manifests):
 
-    with open(user_manifest) as user_manifest_file:
-        user_mf = user_manifest_file.read()
+    for user_manifest in user_manifests:
 
-    with open('templates/manifest.template') as manifest_template:
-        template_mf = string.Template(manifest_template.read())
-        instantiated_mf = template_mf.substitute(substitutions)
+        app = user_manifest[0:user_manifest.find('.')]
 
-    with open(image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
-        app_manifest.write(instantiated_mf)
-        app_manifest.write("\n")
-        app_manifest.write(user_mf)
-        app_manifest.write("\n")
+        with open(user_manifest) as user_manifest_file:
+            user_mf = user_manifest_file.read()
+
+        with open('templates/manifest.template') as manifest_template:
+            template_mf = string.Template(manifest_template.read())
+            instantiated_mf = template_mf.substitute(substitutions)
+
+        with open(image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
+            app_manifest.write(instantiated_mf)
+            app_manifest.write("\n")
+            app_manifest.write(user_mf)
+            app_manifest.write("\n")
 
 # Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
@@ -66,7 +70,7 @@ def generate_dockerfile(image, substitutions):
         dockerfile.write(instantiated_dfg)
         dockerfile.write(instantiated_dfapp)
 
-def prepare_build_context(image, user_manifest, substitutions):
+def prepare_build_context(image, user_manifests, substitutions):
     # create directory for image specific files
     os.makedirs(image, exist_ok=True)
 
@@ -77,10 +81,10 @@ def prepare_build_context(image, user_manifest, substitutions):
     generate_app_loader(image, substitutions)
 
     # generate manifest stub for this app
-    generate_manifest(image, substitutions, user_manifest)
+    generate_manifests(image, substitutions, user_manifests)
 
     # copy markTrustedFiles.sh
-    shutil.copyfile("markTrustedFiles.sh", image + "/markTrustedFiles.sh")
+    shutil.copyfile("finalize_manifests.py", image + "/finalize_manifests.py")
 
 
 def prepare_substitutions(base_image, image, options):
@@ -143,10 +147,14 @@ def gsc_build(args):
         print_build_help()
         sys.exit(1)
 
-    docker_socket = docker.DockerClient(base_url='unix://var/run/docker.sock')
+    options = 0
+    for arg in args:
+        options += 1 if arg.startswith('-') else 0
 
-    user_manifest = args[0]
-    image = args[1]
+    image = args[options]
+    user_manifests = args[options+1:]
+
+    docker_socket = docker.DockerClient(base_url='unix://var/run/docker.sock')
 
     try:
         docker_socket.images.get(gsc_image_name(image))
@@ -162,9 +170,9 @@ def gsc_build(args):
 
         print("Building graphenized image from base image " + image)
 
-        substitutions = prepare_substitutions(base_image, image, args[2:])
+        substitutions = prepare_substitutions(base_image, image, args[0:options])
 
-        prepare_build_context(image, user_manifest, substitutions)
+        prepare_build_context(image, user_manifests, substitutions)
 
         docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
         # docker build returns stream of json output
@@ -191,12 +199,15 @@ def gsc_build(args):
 
 def print_build_help():
     print("Build command usage:")
-    print("   gsc build <manifest> <image name>[:<tag>] [<options>]")
-    print("      manifest - application specific manifest to be included in the generated manifest")
-    print("      image name - name of the base image to be graphenized")
-    print("      tag - tag of the image\n")
+    print("   gsc build [<options>] <image name>[:<tag>] <app>.manifest [<app2>.manifest ...]")
     print("      Options:")
     print("         -d - compile Graphene with debug")
+    print("      tag - tag of the image")
+    print("      image name - name of the base image to be graphenized")
+    print("      <app>.manifest - start application specific manifest to be included in the generated"
+                + " manifest")
+    print("      <app2>.manifest - application specific manifests to be exec'd by manifest_1")
+
 
 def print_usage(cmd):
     #pylint: disable=unused-argument
@@ -213,17 +224,16 @@ def print_usage(cmd):
         "/var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [options] gsc-<image-name>[:<tag>]"
         " [application arguments]")
 
-if __name__ == '__main__':
-
-    if len(sys.argv) < 2:
+def main(args):
+    if len(args) < 2:
         print_usage("")
         sys.exit(1)
 
-    GSC_CMDS = {
+    gsc_cmds = {
         'build': gsc_build,
         'help': print_usage,
     }
 
     # GSC command is the first argument if not provided print usage
-    CMD = GSC_CMDS.get(sys.argv[1], print_usage)
-    CMD(sys.argv[2:])
+    cmd = gsc_cmds.get(args[1], print_usage)
+    cmd(args[2:])
