@@ -61,10 +61,8 @@ unsigned long _DkGetAllocationAlignment (void)
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
                                       PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
-    /* the end of user-available heap is detected by carving out a dummy page via
-     * get_enclave_pages(), which is assumed to allocate pages top to bottom on heap */
-    *start = (PAL_PTR) pal_sec.heap_min;
-    *end = (PAL_PTR) get_enclave_pages(NULL, g_page_size, /*is_pal_internal=*/false);
+    *start = (PAL_PTR)pal_sec.heap_min;
+    *end   = (PAL_PTR)get_enclave_heap_top();
 
     /* FIXME: hack to keep some heap for internal PAL objects allocated at runtime (recall that
      * LibOS does not keep track of PAL memory, so without this hack it could overwrite internal

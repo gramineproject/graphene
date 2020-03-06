@@ -41,7 +41,7 @@ bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     }
 
     /* FIXME: this function is almost useless now; note that _DkVirtualMemoryAlloc() checks whether
-     * [addr, addr + size) overlaps with PAL-internal VMAs and errors out */
+     * [addr, addr + size) overlaps with VMAs and errors out */
 
     return false;
 }

@@ -134,7 +134,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
     /* check whether [addr, addr + size) overlaps with below VMAs of different type */
     struct heap_vma* check_vma_below = vma_below;
-    while (check_vma_below && addr + size < check_vma_below->top) {
+    while (check_vma_below && addr < check_vma_below->top) {
         if (check_vma_below->is_pal_internal != is_pal_internal) {
             SGX_DBG(DBG_M, "VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n",
                     addr, addr + size, is_pal_internal, check_vma_below->bottom,
@@ -154,7 +154,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     vma->is_pal_internal = is_pal_internal;
 
     /* how much memory was freed because [addr, addr + size) overlapped with VMAs */
-    ssize_t freed = 0;
+    size_t freed = 0;
 
     /* Try to merge VMAs as an optimization:
      *   (1) start from `vma_above` and iterate through VMAs with higher-addresses for merges
@@ -203,8 +203,9 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
         ocall_exit(/*exitcode=*/1, /*is_exitgroup=*/true);
     }
 
-    ssize_t alloced = vma->top - vma->bottom - freed;
-    atomic_add(alloced / g_page_size, &g_alloced_pages);
+    assert(vma->top - vma->bottom >= (ptrdiff_t)freed);
+    size_t allocated = vma->top - vma->bottom - freed;
+    atomic_add(allocated / g_page_size, &g_alloced_pages);
     return addr;
 }
 
@@ -286,7 +287,7 @@ int free_enclave_pages(void* addr, size_t size) {
     bool is_pal_internal;
 
     /* how much memory was actually freed, since [addr, addr + size) can overlap with VMAs */
-    ssize_t freed = 0;
+    size_t freed = 0;
 
     struct heap_vma* vma;
     struct heap_vma* p;
@@ -309,6 +310,8 @@ int free_enclave_pages(void* addr, size_t size) {
             goto out;
         }
 
+        freed += MIN(vma->top, addr + size) - MAX(vma->bottom, addr);
+
         if (vma->bottom < addr) {
             /* create VMA [vma->bottom, addr); this may leave VMA [addr + size, vma->top), see below */
             struct heap_vma* new = __alloc_vma();
@@ -328,7 +331,6 @@ int free_enclave_pages(void* addr, size_t size) {
         vma->bottom = addr + size;
         if (vma->top <= addr + size) {
             /* memory area to free completely covers/extends above the rest of the VMA */
-            freed += vma->top - vma->bottom;
             LISTP_DEL(vma, &g_heap_vma_list, list);
             __free_vma(vma);
         }
@@ -339,4 +341,22 @@ int free_enclave_pages(void* addr, size_t size) {
 out:
     _DkInternalUnlock(&g_heap_vma_lock);
     return ret;
+}
+
+/* returns current highest available address on the enclave heap */
+void* get_enclave_heap_top(void) {
+    _DkInternalLock(&g_heap_vma_lock);
+
+    void* addr = g_heap_top;
+    struct heap_vma* vma;
+    LISTP_FOR_EACH_ENTRY(vma, &g_heap_vma_list, list) {
+        if (vma->top < addr) {
+            goto out;
+        }
+        addr = vma->bottom;
+    }
+
+out:
+    _DkInternalUnlock(&g_heap_vma_lock);
+    return addr;
 }
