@@ -18,10 +18,13 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <inttypes.h>
+#include <stdlib.h>
 #include <unistd.h>
 
-#include <openssl/pem.h>
-#include <openssl/rand.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/gcm.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -159,141 +162,96 @@ static pf_status_t linux_delete(const char* path) {
     return PF_STATUS_SUCCESS;
 }
 
-/* Crypto callbacks for OpenSSL */
+/* Crypto callbacks for mbedTLS */
 
-pf_status_t openssl_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
+pf_status_t mbedtls_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
                                     const void* aad, size_t aad_size,
                                     const void* input, size_t input_size, void* output,
                                     pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
 
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-    if (!ctx)
-        return PF_STATUS_NO_MEMORY;
+    mbedtls_gcm_context gcm;
+    mbedtls_gcm_init(&gcm);
 
-    /* Choose cipher */
-    EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
-
-    /* Set IV length */
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(*iv), NULL) != 1) {
-        ERROR("Failed to set AES IV len\n");
+    int ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, (const unsigned char*)key,
+                                 PF_KEY_SIZE * 8);
+    if (ret != 0) {
+        ERROR("mbedtls_gcm_setkey failed: %d\n", ret);
         goto out;
     }
 
-    /* Set key/iv */
-    if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const unsigned char*)key,
-        (const unsigned char*)iv) != 1) {
-        ERROR("Failed to set AES key/IV\n");
+    ret = mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, input_size, (const unsigned char*)iv,
+                                    PF_IV_SIZE, aad, aad_size, input, output, PF_MAC_SIZE,
+                                    (unsigned char*)mac);
+    if (ret != 0) {
+        ERROR("mbedtls_gcm_crypt_and_tag failed: %d\n", ret);
         goto out;
     }
 
-    int out_len;
-    if (aad) {
-        /* Additional data */
-        if (EVP_EncryptUpdate(ctx, NULL, &out_len, aad, aad_size) != 1) {
-            ERROR("Failed to perform AES encryption for AAD\n");
-            goto out;
-        }
-    }
-
-    if (input) {
-        /* Actual data */
-        if (EVP_EncryptUpdate(ctx, output, &out_len, input, input_size) != 1) {
-            ERROR("Failed to perform AES encryption\n");
-            goto out;
-        }
-    }
-
-    /* Final AES block, doesn't write anything in GCM mode but must be called for proper MAC
-       calculation */
-    if (EVP_EncryptFinal(ctx, NULL, &out_len) != 1) {
-        ERROR("Failed to perform final AES round\n");
-        goto out;
-    }
-
-    /* Get MAC */
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, sizeof(*mac), mac) != 1) {
-        ERROR("Failed to get AES MAC\n");
-        goto out;
-    }
     status = PF_STATUS_SUCCESS;
 out:
-    EVP_CIPHER_CTX_free(ctx);
+    mbedtls_gcm_free(&gcm);
     return status;
 }
 
-pf_status_t openssl_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
+pf_status_t mbedtls_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
                                     const void* aad, size_t aad_size,
                                     const void* input, size_t input_size, void* output,
                                     const pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
 
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-    if (!ctx)
-        return PF_STATUS_NO_MEMORY;
+    DBG("mbedtls_aes_gcm_decrypt\n");
+    mbedtls_gcm_context gcm;
+    mbedtls_gcm_init(&gcm);
 
-    /* Choose cipher */
-    EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
-
-    /* Set IV length */
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(*iv), NULL) != 1) {
-        ERROR("Failed to set AES IV len\n");
+    int ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, (const unsigned char*)key,
+                                 PF_KEY_SIZE * 8);
+    if (ret != 0) {
+        ERROR("mbedtls_gcm_setkey failed: %d\n", ret);
         goto out;
     }
 
-    /* Set key/iv */
-    if (EVP_DecryptInit_ex(ctx, NULL, NULL, (const unsigned char*)key,
-                           (const unsigned char*)iv) != 1) {
-        ERROR("Failed to set AES key/IV\n");
+    ret = mbedtls_gcm_auth_decrypt(&gcm, input_size, (const unsigned char*)iv, PF_IV_SIZE, aad,
+                                   aad_size, (const unsigned char*)mac, PF_MAC_SIZE, input, output);
+    if (ret != 0) {
+        ERROR("mbedtls_gcm_auth_decrypt failed: %d\n", ret);
         goto out;
     }
 
-    int out_len;
-    if (aad) {
-        /* Additional data */
-        if (EVP_DecryptUpdate(ctx, NULL, &out_len, aad, aad_size) != 1) {
-            ERROR("Failed to perform AES encryption for AAD\n");
-            goto out;
-        }
-    }
-
-    if (input) {
-        /* Actual data */
-        if (EVP_DecryptUpdate(ctx, output, &out_len, input, input_size) != 1) {
-            ERROR("Failed to perform AES encryption\n");
-            goto out;
-        }
-    }
-
-    /* Set expected tag value, doesn't modify mac */
-    if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, sizeof(*mac), (void*)mac)) {
-        ERROR("Failed to set expected MAC\n");
-        goto out;
-    }
-
-    /* Final AES block, validates MAC */
-    if (EVP_DecryptFinal(ctx, NULL, &out_len) != 1) {
-        ERROR("Failed to validate decryption\n");
-        goto out;
-    }
     status = PF_STATUS_SUCCESS;
 out:
-    EVP_CIPHER_CTX_free(ctx);
+    mbedtls_gcm_free(&gcm);
     return status;
 }
 
-pf_status_t openssl_random(uint8_t* buffer, size_t size) {
-    if (!RAND_bytes(buffer, size)) {
+static mbedtls_entropy_context g_entropy;
+static mbedtls_ctr_drbg_context g_prng;
+static const char* g_prng_tag = "Graphene protected files library";
+
+pf_status_t mbedtls_random(uint8_t* buffer, size_t size) {
+    if (mbedtls_ctr_drbg_random(&g_prng, buffer, size) != 0) {
         ERROR("Failed to get random bytes\n");
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
 }
 
-void pf_set_linux_callbacks(pf_debug_f debug_f) {
+int pf_set_linux_callbacks(pf_debug_f debug_f) {
+    /* Initialize mbedTLS CPRNG */
+    mbedtls_entropy_init(&g_entropy);
+    mbedtls_ctr_drbg_init(&g_prng);
+    int ret = mbedtls_ctr_drbg_seed(&g_prng, mbedtls_entropy_func, &g_entropy,
+                                    (const unsigned char*)g_prng_tag, strlen(g_prng_tag));
+
+    if (ret != 0) {
+        ERROR("Failed to initialize mbedTLS RNG: %d\n", ret);
+        return -1;
+    }
+
     pf_set_callbacks(linux_read, linux_write, linux_truncate, linux_flush, linux_open, linux_close,
-                     linux_delete, openssl_aes_gcm_encrypt, openssl_aes_gcm_decrypt, openssl_random,
+                     linux_delete, mbedtls_aes_gcm_encrypt, mbedtls_aes_gcm_decrypt, mbedtls_random,
                      debug_f);
+    return 0;
 }
 
 /* Debug print callback for protected files */
@@ -302,8 +260,8 @@ static void cb_debug(const char* msg) {
 }
 
 /* Initialize protected files for native environment */
-void pf_init() {
-    pf_set_linux_callbacks(cb_debug);
+int pf_init() {
+    return pf_set_linux_callbacks(cb_debug);
 }
 
 /* Generate random PF key and save it to file */
@@ -311,9 +269,9 @@ int pf_generate_wrap_key(const char* wrap_key_path) {
     int ret;
     pf_key_t wrap_key;
 
-    ret = read_file_part("/dev/urandom", wrap_key, sizeof(wrap_key));
-    if (ret < 0) {
-        ERROR("Failed to read random bytes\n");
+    ret = mbedtls_ctr_drbg_random(&g_prng, (unsigned char*)&wrap_key, sizeof(wrap_key));
+    if (ret != 0) {
+        ERROR("Failed to read random bytes: %d\n", ret);
         goto out;
     }
 

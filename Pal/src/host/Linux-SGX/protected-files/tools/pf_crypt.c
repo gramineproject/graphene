@@ -111,8 +111,12 @@ int main(int argc, char *argv[]) {
         goto out;
     }
 
+    if (pf_init() != 0) {
+        ERROR("Failed to initialize protected files\n");
+        goto out;
+    }
+
     mode = argv[optind];
-    pf_init();
 
     switch (mode[0]) {
     case 'g': /* gen-key */

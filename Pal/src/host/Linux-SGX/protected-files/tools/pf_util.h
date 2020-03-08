@@ -25,7 +25,7 @@
 /* High-level protected files helper functions */
 
 /*! Initialize protected files for native environment */
-void pf_init();
+int pf_init();
 
 /*! Generate random PF key and save it to file */
 int pf_generate_wrap_key(const char* wrap_key_path);
@@ -46,16 +46,16 @@ int pf_decrypt_files(const char* input_dir, const char* output_dir, bool verify_
                      const char* wrap_key_path);
 
 /*! AES-GCM encrypt */
-pf_status_t openssl_crypto_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                           const void* aad, size_t aad_size,
-                                           const void* input, size_t input_size, void* output,
-                                           pf_mac_t* mac);
+pf_status_t mbedtls_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                    const void* aad, size_t aad_size,
+                                    const void* input, size_t input_size, void* output,
+                                    pf_mac_t* mac);
 
 /*! AES-GCM decrypt */
-pf_status_t openssl_crypto_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                           const void* aad, size_t aad_size,
-                                           const void* input, size_t input_size, void* output,
-                                           const pf_mac_t* mac);
+pf_status_t mbedtls_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
+                                    const void* aad, size_t aad_size,
+                                    const void* input, size_t input_size, void* output,
+                                    const pf_mac_t* mac);
 
 /*! Load PF wrap key from file */
 int load_wrap_key(const char* wrap_key_path, pf_key_t* wrap_key);

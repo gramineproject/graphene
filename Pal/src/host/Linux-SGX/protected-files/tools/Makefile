@@ -1,10 +1,12 @@
 include ../../../../../../Scripts/Makefile.configs
 
 CFLAGS := -Wall -Wextra -O2 -maes -std=c11 \
-	-fno-omit-frame-pointer -I../../../../../include/lib -I/opt/openssl-1.1/include \
+	-fno-omit-frame-pointer \
+	-I../../../../../include/lib \
+	-I../../../../../lib/crypto/mbedtls/install/include \
 	-D_GNU_SOURCE
 
-LDFLAGS += -L/opt/openssl-1.1/lib
+LDFLAGS += -L../../../../../lib/crypto/mbedtls/install/lib
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -35,11 +37,11 @@ $(addsuffix .o,$(objs)): %.o: %.c $(headers)
 
 pf_crypt: pf_crypt.o util.o pf_util.o protected_files.o lruc.o
 	@echo [ host/Linux-SGX/tools/$@ ]
-	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now $^ -lc -lcrypto -o $@
+	@$(CC) $(CFLAGS) $(LDFLAGS) -Wl,-z,relro,-z,now $^ -lc -lmbedcrypto -o $@
 
 #pf_tamper: pf_tamper.o util.o pf_util.o protected_files.o lruc.o
 #	@echo [ host/Linux-SGX/tools/$@ ]
-#	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now $^ -lc -lcrypto -o $@
+#	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now $^ -lc -lmbedcrypto -o $@
 
 clean:
 	@rm -f *.o
