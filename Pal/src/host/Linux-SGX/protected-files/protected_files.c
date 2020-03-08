@@ -1771,7 +1771,7 @@ static bool ipf_do_file_recovery(pf_context_t pf, const char* filename, uint32_t
             break;
         }
 
-        status = cb_open(filename, PF_FILE_MODE_READ|PF_FILE_MODE_WRITE, &source_file, NULL);
+        status = cb_open(filename, PF_FILE_MODE_WRITE, &source_file, NULL);
         if (PF_FAILURE(status)) {
             g_last_error = status;
             break;

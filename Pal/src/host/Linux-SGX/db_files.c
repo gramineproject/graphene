@@ -51,13 +51,13 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     /* prepare the file handle */
     size_t len     = strlen(uri) + 1;
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len);
+    PAL_HANDLE hdl = calloc(1, HANDLE_SIZE(file) + len);
     if (!hdl)
         return -PAL_ERROR_NOMEM;
 
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
-    char* path       = (void*)hdl + HANDLE_SIZE(file);
+    char* path = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
         SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
@@ -66,9 +66,9 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
     hdl->file.realpath = (PAL_STR)path;
 
-    int fd;
+    int fd = -1;
     struct protected_file* pf = get_protected_file(path);
-    bool pf_create = create & O_CREAT; /* whether to re-initialize the PF */
+    bool pf_create = create & PAL_CREATE_TRY; /* whether to re-initialize the PF */
 
     if (pf && (create == PAL_CREATE_TRY)) { /* open the file whether it exists or not */
         /* We need to know whether the file will be created or not
@@ -115,14 +115,6 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         ret = -PAL_ERROR_DENIED;
         pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, pf_create, pf);
         if (pf) {
-            /* // path check should be done by pf_open()
-            bool allowed = false;
-            pf_status_t pfs = pf_check_path(pf->context, path, &allowed);
-            if (!allowed || PF_FAILURE(pfs)) {
-                SGX_DBG(DBG_E, "file_open(%s): path doesn't match PF's allowed paths\n", path);
-                goto out;
-            }*/
-
             if (pf->refcount == INT64_MAX) {
                 SGX_DBG(DBG_E, "file_open(%s): maximum refcount exceeded\n", path);
                 goto out;
@@ -369,11 +361,10 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     assert(PF_SUCCESS(pfs));
 
     SGX_DBG(DBG_D, "pf_file_map: pf %p, fd %d, addr %p, prot %d, offset %lu, size %lu\n",
-        pf, fd, *addr, prot, offset, size);
+            pf, fd, *addr, prot, offset, size);
 
     /* LibOS always provides preallocated buffer for file maps */
     assert(*addr);
-
 
     if (prot & PAL_PROT_WRITE) {
         struct pf_map* map = malloc(sizeof(*map));
@@ -384,14 +375,16 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
         map->offset = offset;
         map->buffer = *addr;
 
+        pf_lock();
         LISTP_ADD_TAIL(map, &g_pf_map_list, list);
+        pf_unlock();
     }
 
     if (prot & PAL_PROT_READ) {
         /* we don't check this on writes since file size may be extended then */
         if (offset >= pf_size) {
             SGX_DBG(DBG_E, "file_map(PF fd %d): offset (%lu) >= file size (%lu)\n",
-                fd, offset, pf_size);
+                    fd, offset, pf_size);
             return -PAL_ERROR_INVAL;
         }
 
@@ -548,7 +541,7 @@ static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 
 static int pf_file_attrquery(struct protected_file* pf, int fd, const char* path, size_t real_size,
                              PAL_STREAM_ATTR* attr) {
-    pf = load_protected_file(path, (pf_handle_t)&fd, real_size, PAL_PROT_READ, false, pf);
+    pf = load_protected_file(path, &fd, real_size, PAL_PROT_READ, /*create=*/false, pf);
     if (!pf) {
         SGX_DBG(DBG_E, "pf_file_attrquery: load_protected_file(%s, %d) failed\n", path, fd);
         /* The call above will fail for PFs that were tampered with or have a wrong path.

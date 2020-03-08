@@ -93,6 +93,8 @@ typedef struct _meta_data_encrypted {
 typedef uint8_t meta_data_encrypted_blob_t[sizeof(meta_data_encrypted_t)];
 
 #define META_DATA_NODE_SIZE PF_NODE_SIZE
+static_assert(PF_NODE_SIZE <= SSIZE_MAX, "PF_NODE_SIZE <= SSIZE_MAX");
+
 typedef uint8_t meta_data_padding_t[META_DATA_NODE_SIZE
     - (sizeof(meta_data_plain_t) + sizeof(meta_data_encrypted_blob_t))];
 
@@ -246,7 +248,6 @@ static bool ipf_erase_recovery_file(pf_context_t pf);
 static bool ipf_internal_flush(pf_context_t pf, bool flush_to_disk);
 static bool ipf_do_file_recovery(pf_context_t pf, const char* filename, uint32_t node_size);
 static bool ipf_pre_close(pf_context_t pf);
-//static bool ipf_clear_cache(pf_context_t pf);
 
 static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool create,
                              pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
@@ -254,11 +255,7 @@ static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool cre
 static bool ipf_close(pf_context_t pf);
 static size_t ipf_read(pf_context_t pf, void* ptr, size_t size);
 static size_t ipf_write(pf_context_t pf, const void* ptr, size_t size);
-//static int64_t ipf_tell(pf_context_t pf);
 static bool ipf_seek(pf_context_t pf, int64_t new_offset, int origin);
-//static bool ipf_get_eof(pf_context_t pf);
-//static pf_status_t ipf_get_error(pf_context_t pf);
 static void ipf_clear_error(pf_context_t pf);
-//static bool ipf_flush(pf_context_t pf);
 
 #endif

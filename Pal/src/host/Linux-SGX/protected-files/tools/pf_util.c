@@ -109,16 +109,12 @@ pf_status_t linux_flush(pf_handle_t handle) {
 
 pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle, size_t* size) {
     DBG("linux_open: '%s', mode %d\n", path, mode);
-    *handle = malloc(sizeof(int));
-    if (!*handle)
-        return PF_STATUS_NO_MEMORY;
 
     // write access in this callback is only used for creating recovery files
     int flags = mode == PF_FILE_MODE_READ ? O_RDONLY : O_WRONLY | O_CREAT | O_TRUNC;
     int fd = open(path, flags, 0600);
 
     if (fd < 0) {
-        free(*handle);
         ERROR("open failed: %s\n", strerror(errno));
         return PF_STATUS_CALLBACK_FAILED;
     }
@@ -126,13 +122,16 @@ pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handl
     if (size) {
         struct stat st;
         if (fstat(fd, &st) < 0) {
-            free(*handle);
             ERROR("fstat failed: %s\n", strerror(errno));
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         *size = st.st_size;
     }
+
+    *handle = malloc(sizeof(int));
+    if (!*handle)
+        return PF_STATUS_NO_MEMORY;
 
     *(int*)*handle = fd;
 
@@ -348,7 +347,7 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const pf_ke
         goto out;
     }
 
-    int64_t input_offset = 0;
+    ssize_t input_offset = 0;
 
     if (input_size > 0) {
         input_mem = mmap(NULL, input_size, PROT_READ, MAP_PRIVATE, input, 0);
@@ -396,7 +395,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
     int ret          = -1;
     int input        = -1;
     int output       = -1;
-    void* buffer     = NULL;
+    void* output_mem = MAP_FAILED;
     pf_context_t pf  = NULL;
 
     input = open(input_path, O_RDONLY);
@@ -427,28 +426,11 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         ERROR("Opening protected input file failed: %d\n", pfs);
         goto out;
     }
-/* // this is done in pf_open()
-    if (verify_path) {
-        bool allowed;
-        pfs = pf_check_path(pf, input_path, &allowed);
-        if (!allowed || PF_FAILURE(pfs)) {
-            ERROR("Path '%s' doesn't match PF's allowed paths\n", input_path);
-            goto out;
-        } else {
-            DBG("Path '%s' is allowed\n", input_path);
-        }
-    }*/
-
-    buffer = malloc(PF_NODE_SIZE);
-    if (!buffer) {
-        ERROR("No memory\n");
-        goto out;
-    }
 
     /* Process file contents */
-    uint64_t input_size;
-    uint64_t input_offset    = 0;
-    uint32_t chunk_data_size = PF_NODE_SIZE;
+    size_t input_size;
+    size_t input_offset = 0;
+    size_t chunk_size   = PF_NODE_SIZE;
 
     pfs = pf_get_size(pf, &input_size);
     if (PF_FAILURE(pfs)) {
@@ -456,36 +438,50 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         goto out;
     }
 
-    while (input_offset < input_size) {
-        if (input_size - input_offset < chunk_data_size)
-            chunk_data_size = input_size - input_offset;
+    if (input_size > SSIZE_MAX) {
+        ERROR("Input file size too large\n");
+        goto out;
+    }
 
-        pfs = pf_read(pf, input_offset, chunk_data_size, buffer);
-        if (PF_FAILURE(pfs)) {
-            ERROR("Read from protected file failed (offset %" PRIu64 ", size %u): %d\n",
-                input_offset, chunk_data_size, pfs);
+    if (ftruncate(output, input_size) < 0) {
+        ERROR("ftruncate output file '%s' failed: %s\n", output_path, strerror(errno));
+        goto out;
+    }
+
+    if (input_size > 0) {
+        output_mem = mmap(NULL, input_size, PROT_WRITE, MAP_SHARED, output, 0);
+        if (output_mem == MAP_FAILED) {
+            ERROR("Failed to mmap output file '%s': %s\n", output_path, strerror(errno));
             goto out;
         }
 
-        if (write(output, buffer, chunk_data_size) != chunk_data_size) {
-            ret = errno;
-            ERROR("Write to output file failed: %s\n", strerror(errno));
-            goto out;
-        }
+        while (input_offset < input_size) {
+            chunk_size = input_size - input_offset;
+            if (chunk_size > PF_NODE_SIZE)
+                chunk_size = PF_NODE_SIZE;
 
-        input_offset += chunk_data_size;
+            pfs = pf_read(pf, input_offset, chunk_size, output_mem + input_offset);
+            if (PF_FAILURE(pfs)) {
+                ERROR("Read from protected file failed (offset %" PRIu64 ", size %" PRIu64 "): %d\n",
+                      input_offset, chunk_size, pfs);
+                goto out;
+            }
+
+            input_offset += chunk_size;
+        }
     }
 
     ret = 0;
 
 out:
-    free(buffer);
     if (pf)
         pf_close(pf);
     if (input >= 0)
         close(input);
     if (output >= 0)
         close(output);
+    if (output_mem != MAP_FAILED)
+        munmap(output_mem, input_size);
     return ret;
 }
 

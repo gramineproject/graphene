@@ -17,11 +17,11 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <linux/fs.h>
-#include <pal_linux.h>
-#include <pal_linux_error.h>
-#include <pal_internal.h>
-#include <pal_crypto.h>
-#include <spinlock.h>
+#include "pal_linux.h"
+#include "pal_linux_error.h"
+#include "pal_internal.h"
+#include "pal_crypto.h"
+#include "spinlock.h"
 
 /*
 At startup, protected file paths are read from the manifest and the specified files
@@ -46,16 +46,17 @@ static pf_status_t cb_read(pf_handle_t handle, void* buffer, size_t offset, size
     }
 
     size_t offs = 0;
-    while (size > 0) {
-        ssize_t read = ocall_read(fd, buffer + offs, size);
+    size_t to_read = size;
+    while (to_read > 0) {
+        ssize_t read = ocall_read(fd, buffer + offs, to_read);
         if (read == -EINTR)
             continue;
-        if (read <= 0) {
+        if (IS_ERR(read)) {
             SGX_DBG(DBG_E, "cb_read(%d, %p, %lu, %lu): read failed: %ld\n",
                     fd, buffer, offset, size, read);
             return PF_STATUS_CALLBACK_FAILED;
         }
-        size -= read;
+        to_read -= read;
         offs += read;
     }
     return PF_STATUS_SUCCESS;
@@ -71,16 +72,17 @@ static pf_status_t cb_write(pf_handle_t handle, void* buffer, size_t offset, siz
     }
 
     size_t offs = 0;
-    while (size > 0) {
-        ssize_t written = ocall_write(fd, buffer + offs, size);
+    size_t to_write = size;
+    while (to_write > 0) {
+        ssize_t written = ocall_write(fd, buffer + offs, to_write);
         if (written == -EINTR)
             continue;
-        if (written <= 0) {
+        if (IS_ERR(written)) {
             SGX_DBG(DBG_E, "cb_write(%d, %p, %lu, %lu): write failed: %ld\n",
                     fd, buffer, offset, size, written);
             return PF_STATUS_CALLBACK_FAILED;
         }
-        size -= written;
+        to_write -= written;
         offs += written;
     }
     return PF_STATUS_SUCCESS;
@@ -106,19 +108,22 @@ static pf_status_t cb_flush(pf_handle_t handle) {
     return PF_STATUS_SUCCESS;
 }
 
+/* this callback is only used for creating recovery files and during recovery */
 static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
                            size_t* size) {
     SGX_DBG(DBG_D, "cb_open(%s): mode %d\n", path, mode);
-    *handle = malloc(sizeof(int));
-    if (!*handle)
-        return PF_STATUS_NO_MEMORY;
 
-    /* write access in this callback is only used for creating recovery files */
-    int flags = mode == PF_FILE_MODE_READ ? O_RDONLY : O_WRONLY | O_CREAT | O_TRUNC;
+    int flags;
+    if (mode == PF_FILE_MODE_READ)
+        flags = O_RDONLY;
+    else if (mode == PF_FILE_MODE_WRITE) /* create recovery file */
+        flags = O_WRONLY | O_CREAT | O_TRUNC;
+    else /* PF_FILE_MODE_READ|PF_FILE_MODE_WRITE */
+        flags = O_RDWR;
+
     int fd = ocall_open(path, flags, 0600);
 
     if (IS_ERR(fd)) {
-        free(*handle);
         SGX_DBG(DBG_E, "cb_open(%s): open failed: %d\n", path, fd);
         return PF_STATUS_CALLBACK_FAILED;
     }
@@ -127,13 +132,16 @@ static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* h
         struct stat st;
         int ret = ocall_fstat(fd, &st);
         if (IS_ERR(ret)) {
-            free(*handle);
             SGX_DBG(DBG_E, "cb_open(%s): fstat failed: %d\n", path, ret);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
         *size = st.st_size;
     }
+
+    *handle = malloc(sizeof(int));
+    if (!*handle)
+        return PF_STATUS_NO_MEMORY;
 
     *(int*)*handle = fd;
 
@@ -194,7 +202,7 @@ static pf_status_t cb_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
 
 static pf_status_t cb_random(uint8_t* buffer, size_t size) {
     int ret = _DkRandomBitsRead(buffer, size);
-    if (ret < 0) {
+    if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "_DkRandomBitsRead failed: %d\n", ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
@@ -205,9 +213,24 @@ static pf_status_t cb_random(uint8_t* buffer, size_t size) {
    TODO: In the future, this key should be provisioned after local/remote attestation. */
 static pf_key_t g_pf_wrap_key = {0};
 
+/* Collection of registered protected files */
 static struct protected_file* g_protected_files = NULL;
+
+/* Collection of registered protected directories */
 static struct protected_file* g_protected_dirs = NULL;
+
+/* Lock for operations on global PF structures */
 static spinlock_t g_protected_file_lock = INIT_SPINLOCK_UNLOCKED;
+
+/* Take ownership of the global PF lock */
+void pf_lock(void) {
+    spinlock_lock(&g_protected_file_lock);
+}
+
+/* Release ownership of the global PF lock */
+void pf_unlock(void) {
+    spinlock_unlock(&g_protected_file_lock);
+}
 
 #define FILE_URI_PREFIX "file:"
 #define FILE_URI_PREFIX_LEN strlen(FILE_URI_PREFIX)
@@ -216,9 +239,9 @@ static spinlock_t g_protected_file_lock = INIT_SPINLOCK_UNLOCKED;
 struct protected_file* find_protected_file(const char* path) {
     struct protected_file* pf  = NULL;
 
-    spinlock_lock(&g_protected_file_lock);
+    pf_lock();
     HASH_FIND_STR(g_protected_files, path, pf);
-    spinlock_unlock(&g_protected_file_lock);
+    pf_unlock();
     return pf;
 }
 
@@ -228,7 +251,7 @@ struct protected_file* find_protected_dir(const char* path) {
     struct protected_file* tmp = NULL;
     size_t len                 = strlen(path);
 
-    spinlock_lock(&g_protected_file_lock);
+    pf_lock();
     for (tmp = g_protected_dirs; tmp != NULL; tmp = tmp->hh.next) {
         if (tmp->path_len < len &&
             !memcmp(tmp->path, path, tmp->path_len) &&
@@ -238,7 +261,7 @@ struct protected_file* find_protected_dir(const char* path) {
         }
     }
 
-    spinlock_unlock(&g_protected_file_lock);
+    pf_unlock();
     return pf;
 }
 
@@ -287,7 +310,6 @@ static int is_directory(const char* path, bool* is_dir) {
     *is_dir = false;
     int ret = ocall_open(path, O_RDONLY, 0);
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "is_directory(%s): open failed: %d\n", path, ret);
         /* this can be called on a path without the file existing, assume non-dir for now */
         ret = 0;
         goto out;
@@ -327,6 +349,7 @@ static int register_protected_dir(const char* path) {
     ret = ocall_open(path, O_RDONLY | O_DIRECTORY, 0);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "register_protected_dir: opening %s failed: %d\n", path, ret);
+        ret = unix_to_pal_error(ERRNO(ret));
         goto out;
     }
     fd = ret;
@@ -336,7 +359,7 @@ static int register_protected_dir(const char* path) {
     do {
         returned = ocall_getdents(fd, buf, bufsize);
         if (IS_ERR(returned)) {
-            ret = returned;
+            ret = unix_to_pal_error(ERRNO(returned));
             SGX_DBG(DBG_E, "register_protected_dir: reading %s failed: %d\n", path, ret);
             goto out;
         }
@@ -401,11 +424,9 @@ static int register_protected_path(const char* path, struct protected_file** new
         return 0;
     }
 
-    new = malloc(sizeof(struct protected_file));
+    new = calloc(1, sizeof(*new));
     if (!new)
         return -PAL_ERROR_NOMEM;
-
-    memset(new, 0, sizeof(struct protected_file));
 
     new->path_len = strlen(path);
     memcpy(new->path, path, new->path_len + 1);
@@ -422,7 +443,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     if (is_dir)
         register_protected_dir(path);
 
-    spinlock_lock(&g_protected_file_lock);
+    pf_lock();
 
     if (is_dir) {
         HASH_ADD_STR(g_protected_dirs, path, new);
@@ -430,7 +451,7 @@ static int register_protected_path(const char* path, struct protected_file** new
         HASH_ADD_STR(g_protected_files, path, new);
     }
 
-    spinlock_unlock(&g_protected_file_lock);
+    pf_unlock();
 
     if (new_pf)
         *new_pf = new;
@@ -441,12 +462,12 @@ static int register_protected_path(const char* path, struct protected_file** new
 /* Read PF paths from manifest and register them */
 static int register_protected_files(const char* key_prefix) {
     char* cfgbuf    = NULL;
-    int ret         = -1;
+    int ret         = -PAL_ERROR_DENIED;
     ssize_t cfgsize = get_config_entries_size(pal_state.root_config, key_prefix);
     if (cfgsize <= 0)
         goto out;
 
-    cfgbuf = (char*)malloc(cfgsize);
+    cfgbuf = malloc(cfgsize);
     int nuris = get_config_entries(pal_state.root_config, key_prefix, cfgbuf, cfgsize);
     if (nuris == -PAL_ERROR_INVAL)
         nuris = 0;

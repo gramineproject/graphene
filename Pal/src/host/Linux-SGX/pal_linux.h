@@ -186,6 +186,12 @@ struct protected_file {
 /* Initialize the PF library, register PFs from the manifest */
 int init_protected_files();
 
+/* Take ownership of the global PF lock */
+void pf_lock(void);
+
+/* Release ownership of the global PF lock */
+void pf_unlock(void);
+
 /* Return a registered PF that matches specified path
    (or the path is contained in a registered PF directory) */
 struct protected_file* get_protected_file(const char* path);

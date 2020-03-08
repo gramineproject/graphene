@@ -25,8 +25,8 @@ DEFINE_LISTP(_lruc_list_node);
 
 typedef struct _lruc_map_node {
     uint64_t key;
-	void* data;
-	lruc_list_node_t* list_ptr;
+    void* data;
+    lruc_list_node_t* list_ptr;
     UT_hash_handle hh;
 } lruc_map_node_t;
 
@@ -162,10 +162,10 @@ void lruc_remove_last(lruc_context_t lruc) {
 
     lruc_list_node_t* ln = LISTP_LAST_ENTRY(&lruc->list, 0, list);
     LISTP_DEL(ln, &lruc->list, list);
-    free(ln);
     lruc_map_node_t* mn = get_map_node(lruc, ln->key);
     assert(mn != NULL);
     HASH_DEL(lruc->map, mn);
+    free(ln);
     free(mn);
 }
 
