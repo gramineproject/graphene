@@ -5,11 +5,11 @@ Introduction to SGX
 
 Graphene project uses :term:`SGX` to securely run software. SGX is
 a |~| complicated topic, which may be hard to learn, because the documentation
-is scattered thorough official, reference documentation, blogposts and academic
+is scattered through official/reference documentation, blogposts and academic
 papers. This page is an attempt to curate a |~| dossier of available reading
 material.
 
-SGX is is an umbrella name of *technology* that is comprised from several parts:
+SGX is an umbrella name of *technology* that comprises several parts:
 
 - CPU/platform *hardware features*: the new instruction set, new
   microarchitecture with the :term:`PRM` (:term:`EPC`) memory region and some
@@ -18,20 +18,20 @@ SGX is is an umbrella name of *technology* that is comprised from several parts:
   by Intel and/or third parties (see :term:`DCAP`);
 - :term:`SDK` and assorted *software*.
 
-SGX is still being developed. The current (December 2019) version of CPU
-features is referred to as "SGX1" or simply "SGX" and is more or less finalised.
-All new/changed instructions from original SGX are informally referred to as
+SGX is still being developed. The current (March 2020) version of CPU features
+is referred to as "SGX1" or simply "SGX" and is more or less finalized. All
+new/changed instructions from original SGX are informally referred to as
 ":term:`SGX2`".
 
 Features which might be considered part of SGX2:
 
 - :term:`EDMM` (Enclave Dynamic Memory Management) is part of SGX2
 - :term:`FLC` (Flexible Launch Control), not strictly part of SGX2, but was not
-  part of original SGX instruction either
+  part of original SGX hardware either
 
-As of now there is hardware support available for FLC but not SGX2 per se
-(EDMM). Most of the literature available (especially introduction-level)
-concerns original SGX1 only.
+As of now there is hardware support (on a |~| limited set of CPUs) for FLC and
+(on an even more limited set of CPUs) SGX2/EDMM. Most of the literature
+available (especially introduction-level) concerns original SGX1 only.
 
 Introductory reading
 --------------------
@@ -55,6 +55,8 @@ Introductory reading
     <https://software.intel.com/sites/default/files/article/413938/hasp-2013-innovative-instructions-for-trusted-solutions.pdf>`__
   - `Slides from ISCA 2015 <https://sgxisca.weebly.com/>`__
     (`actual slides [PDF] <https://software.intel.com/sites/default/files/332680-002.pdf>`__)
+
+- `Hardware compatibility list (unofficial) <https://github.com/ayeks/SGX-hardware>`__
 
 Official Documentation
 ----------------------
@@ -88,7 +90,7 @@ For historical reasons, there are three SGX drivers currently (March 2020):
 - https://github.com/intel/SGXDataCenterAttestationPrimitives/tree/master/driver
   -- new one, out-of-tree, supports both non-DCAP software infrastructure (with
   old EPID remote-attestation technique) and the new DCAP (with new ECDSA and
-  more "normal" PKI infrastucture).
+  more "normal" PKI infrastructure).
 
 - Upstreaming in-kernel SGX driver (see LKML patches) -- will be upstreamed one
   day, supports both non-DCAP and DCAP. The DCAP driver closely matches this
@@ -113,13 +115,14 @@ SGX terminology
    Architectural Enclaves
    AE
 
-      A |~| set of "system" enclaves concerned with starting other enclaves.
+      A |~| set of "system" enclaves concerned with starting and attesting other
+      enclaves.
 
       .. seealso::
 
          :term:`Provisioning Enclave`
-         :term:`Quoting Enclave`
          :term:`Launch Enclave`
+         :term:`Quoting Enclave`
 
    AEP
       .. todo:: TBD
@@ -180,8 +183,8 @@ SGX terminology
 
       .. todo:: TBD
 
-   Enhanded Privacy Identification
-   Enhanded Privacy Identifier
+   Enhanced Privacy Identification
+   Enhanced Privacy Identifier
    EPID
 
       .. todo:: short description
@@ -199,18 +202,17 @@ SGX terminology
    Flexible Launch Control
    FLC
 
-      Hardware (CPU) feature that allows substituting :term:`Launch Enclave`.
-      Basically, a |~| change in SGX's EINIT logic to not require the EINITTOKEN
-      from the Intel-based Launch Enclave. An |~| MSR, which can be locked at
-      boot time, keeps the hash of the public key of the "launching" entity,
-      e.g., Microsoft would put its own public key into the FLC register and
-      lock it at boot time.
+      Hardware (CPU) feature that allows substituting :term:`Launch Enclave` for
+      one not signed by Intel. A |~| change in SGX's EINIT logic to not require
+      the EINITTOKEN from the Intel-based Launch Enclave. An |~| MSR, which can
+      be locked at boot time, keeps the hash of the public key of the
+      "launching" entity.
 
       With FLC, :term:`Launch Enclave` can be written by other companies (other
       than Intel) and must be signed with the key corresponding to the one
       locked in the MSR (a |~| reference Launch Enclave simply allows all
-      enclaves to run). Interestingly, the MSR can also stay unlocked and then
-      it can be modified at run-time by the VMM or the OS kernel.
+      enclaves to run). The MSR can also stay unlocked and then it can be
+      modified at run-time by the VMM or the OS kernel.
 
       .. seealso::
 
@@ -234,9 +236,9 @@ SGX terminology
    Intel Attestation Service
    IAS
 
-      Old Internet service provided by Intel for old :term:`EPID`-based remote
+      Internet service provided by Intel for "old" :term:`EPID`-based remote
       attestation. Enclaves send SGX quotes to the client/verifier who will
-      forward it to IAS to check its validity.
+      forward them to IAS to check their validity.
 
       .. seealso::
 
@@ -315,12 +317,10 @@ SGX terminology
 
    SGX2
 
-      This refers to "whatever Intel came up with after releasing original
-      SGX1", usually with respect to hardware features and the instruction set
-      in particular.
+      This refers to all new SGX instructions and other hardware features that
+      were introduced after the release of the original SGX1.
 
-      There is no single definition, likely because this is still work in
-      progress and Intel might . This encompasses at least :term:`EDMM`.
+      Encompasses at least :term:`EDMM`, but is still work in progress.
 
    State Save Area
    SSA
@@ -337,11 +337,11 @@ SGX terminology
 
       In context of :term:`SGX` this has the usual meaning: the set of all
       components that are critical to security. Any vulnerability in TCB
-      compromise security. Any problem outside TCB is not a |~| vulnerability,
+      compromises security. Any problem outside TCB is not a |~| vulnerability,
       i.e. |~| should not compromise security.
 
-      In context of Graphene there is a |~| different meaning (Thread Control
-      Block). Those two should not be confused.
+      In context of Graphene there is also a |~| different meaning
+      (:term:`Thread Control Block`). Those two should not be confused.
 
    Thread Control Structure
    TCS

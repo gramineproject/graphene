@@ -14,3 +14,7 @@ Glossary
       Software Guard Extensions is a set of instructions on Intel processors for
       creating Trusted Execution Environments (:term:`TEE`). See
       :doc:`/sgx-intro`.
+
+   Thread Control Block
+
+      .. todo:: TBD
