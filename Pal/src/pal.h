@@ -166,7 +166,7 @@ typedef struct {
 } PAL_MEM_INFO;
 
 /********** PAL APIs **********/
-typedef struct _PAL_CONTROL {
+typedef struct PAL_CONTROL_ {
     PAL_STR host_type;
     PAL_NUM process_id; /*!< An identifier of current picoprocess */
     PAL_NUM host_id;
