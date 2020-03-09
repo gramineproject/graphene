@@ -31,6 +31,7 @@
 #ifndef QUEUE_H_
 #define QUEUE_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "spinlock.h"
@@ -70,8 +71,8 @@ static inline void rpc_queue_init(rpc_queue_t* q) {
         q->q[i] = NULL;
 }
 
-static inline rpc_request_t* rpc_enqueue(rpc_queue_t* q, rpc_request_t* req) {
-    rpc_request_t* ret = NULL;
+static inline bool rpc_enqueue(rpc_queue_t* q, rpc_request_t* req) {
+    bool ret = false;
     spinlock_lock(&q->lock);
 
     if (q->rear - q->front >= RPC_QUEUE_SIZE) {
@@ -87,13 +88,20 @@ static inline rpc_request_t* rpc_enqueue(rpc_queue_t* q, rpc_request_t* req) {
 
     q->q[q->rear % RPC_QUEUE_SIZE] = req;
     q->rear++;
-    ret = req;
+    ret = true;
 out:
     spinlock_unlock(&q->lock);
     return ret;
 }
 
 static inline rpc_request_t* rpc_dequeue(rpc_queue_t* q) {
+    if (__atomic_load_n(&q->front, __ATOMIC_RELAXED) == __atomic_load_n(&q->rear, __ATOMIC_RELAXED)) {
+        /* quick check that queue is empty; this doesn't acquire a spinlock and thus lowers latency
+         * on rpc_enqueue() performed by enclave threads (they don't have to wait for spinlock
+         * release); note that untrusted RPC threads will simply retry again if this check fails */
+        return NULL;
+    }
+
     rpc_request_t* ret = NULL;
     spinlock_lock(&q->lock);
 

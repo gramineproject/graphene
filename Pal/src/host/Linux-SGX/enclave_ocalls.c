@@ -2,6 +2,12 @@
  * This is for enclave to make ocalls to untrusted runtime.
  */
 
+#include <api.h>
+#include <asm/errno.h>
+#include <linux/futex.h>
+#include <stdalign.h>
+#include <stdbool.h>
+
 #include "ecall_types.h"
 #include "enclave_ocalls.h"
 #include "ocall_types.h"
@@ -11,10 +17,6 @@
 #include "pal_linux_error.h"
 #include "rpcqueue.h"
 #include "spinlock.h"
-#include <api.h>
-#include <asm/errno.h>
-#include <linux/futex.h>
-#include <stdalign.h>
 
 /* TODO: revise return value as long for sgx_ocall() and sgx_exitless_ocall() */
 
@@ -37,6 +39,9 @@ static int sgx_exitless_ocall(int code, void* ms) {
     /* allocate request on OCALL stack; it is automatically freed on OCALL end; note that request's
      * lock is used in futex() and must be aligned to 4B */
     rpc_request_t* req = sgx_alloc_on_ustack_aligned(sizeof(*req), alignof(*req));
+    if (!req)
+        return -ENOMEM;
+
     req->ocall_index = code;
     req->buffer      = ms;
     spinlock_init(&req->lock);
@@ -48,8 +53,8 @@ static int sgx_exitless_ocall(int code, void* ms) {
 
     /* enqueue OCALL request into RPC queue; some RPC thread will dequeue it, issue a syscall
      * and, after syscall is finished, release the request's spinlock */
-    req = rpc_enqueue(g_rpc_queue, req);
-    if (!req) {
+    bool enqueued = rpc_enqueue(g_rpc_queue, req);
+    if (!enqueued) {
         /* no space in queue: all RPC threads are busy with outstanding ocalls;
          * fallback to normal syscall path with enclave exit */
         return sgx_ocall(code, ms);
@@ -76,6 +81,9 @@ static int sgx_exitless_ocall(int code, void* ms) {
         if (!spinlock_cmpxchg(&req->lock, &c, SPINLOCK_LOCKED_NO_WAITERS)) {
             /* allocate futex args on OCALL stack; automatically freed on OCALL end */
             ms_ocall_futex_t* ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+            if (!ms)
+                return -ENOMEM;
+
             ms->ms_futex = &req->lock.lock;
             ms->ms_op = FUTEX_WAIT_PRIVATE;
             ms->ms_timeout_us = -1; /* never time out */
