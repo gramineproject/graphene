@@ -49,14 +49,14 @@ and produces an image named ``gsc-<image-name>``.
 driver details.
 
 **Graphenizing the base image:** The second stage copies the important Graphene artifacts (e.g., the
-runtime and signer tool) from the first stage. It then prepares the manifest file by adding image
-specific variables such as the executable path and the library path, and scanning the entire image
-to generate a list of trusted files. GSC excludes files from ``/boot``, ``/dev``, ``/proc``,
-``/var``, ``/sys`` and ``/etc/rc`` folders, since checksums are required which either don't exist or
-may vary across different deployment machines. Based on this manifest file, we use Graphene's
-signer tool to generate a signature and the Intel SGX manifest file. Afterwards we remove any
-previously created files or installed packages. In a last step the entrypoint is changed to launch
-the ``apploader.sh`` script which generates SGX token and starts the ``pal-Linux-SGX`` loader.
+runtime and signer tool) from the first stage. It then prepares image-specific variables such as the
+executable path and the library path, and scanning the entire image to generate a list of trusted
+files. GSC excludes files from ``/boot``, ``/dev``, ``/proc``, ``/var``, ``/sys`` and ``/etc/rc``
+folders, since checksums are required which either don't exist or may vary across different
+deployment machines. The values combined for the manifest file. Graphene's signer tool to generates
+Intel SGX enclave measurement or signature, and the Intel SGX-specific manifest file. In a last step
+the entrypoint is changed to launch the ``apploader.sh`` script which generates Intel SGX token and
+starts the ``pal-Linux-SGX`` loader.
 
 Running graphenized Docker images
 ---------------------------------
@@ -152,30 +152,6 @@ Integration of Docker Secrets
 Docker Secrets are automatically pulled by Docker and the results are stored either in environment
 variables or mounted as files. GSC is currently unaware of such files and hence, cannot mark them
 trusted. Similar to trusted data these files may be added to the image specific manifest file.
-
-Docker images with large number of files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Due to the overestimating nature of GSC, Docker images with a large number of files generate in as
-many trusted files. As a result, internal Graphene memory data structures are quickly depleted
-during initialization. In our experience Docker images with up to 10,000 files successfully execute
-independent of the Graphene internal memory limits. Otherwise Graphene shows the following error
-messages::
-
-    Pal is out of VMAs (current limit on VMAs PAL_VMA_MAX = 64)!
-    ******** Out-of-memory in PAL ********
-
-For Docker images with more files we recommend to increase the PAL_VMA_MAX defined in
-`db_memory.c <Pal/src/host/Linux-SGX/db_memory.c>`_ and remove code which checks for duplicated
-files. These checks can be removed, since the GSC ensures that files appear once in the manifest.
-We prepared a special branch with these Graphene modifications allowing about 50,000 trusted files.
-To apply these changes to a graphenized image, modify the GSC `config.json <config.json>`_ as
-follows::
-
-    ...
-    "graphene_repository": "https://github.com/vahldiek/graphene/",
-    "graphene_branch": "high_vma_count",
-    ...
 
 Access to files in excluded folders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
