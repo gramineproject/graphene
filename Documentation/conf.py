@@ -93,7 +93,9 @@ breathe_projects = {p: '_build/doxygen-{}/xml'.format(p)
 def generate_doxygen(app):
     for p in breathe_projects:
         subprocess.check_call(['doxygen', 'Doxyfile-{}'.format(p)])
+
 def setup(app):
+    app.add_stylesheet('css/graphene.css')
     app.connect('builder-inited', generate_doxygen)
 
 breathe_domain_by_extension = {
