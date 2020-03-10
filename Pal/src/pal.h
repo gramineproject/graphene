@@ -377,7 +377,7 @@ enum PAL_OPTION {
  * further access such as reading or writing.
  *
  * The following is a list of URIs that are supported:
- * * `file:...`, `dir:...`: Files or directories on the host file system. If #PAL_CREATE_TRY is
+ * * `%file:...`, `dir:...`: Files or directories on the host file system. If #PAL_CREATE_TRY is
  *   given in `create` flags, the file/directory will be created.
  * * `dev:...`: Open a device as a stream. For example, `dev:tty` represents the standard I/O.
  * * `pipe.srv:<ID>`, `pipe:<ID>`, `pipe:`: Open a byte stream that can be used for RPC between
@@ -509,7 +509,7 @@ typedef struct _PAL_STREAM_ATTR {
 /*!
  * \brief Query the attributes of a named stream.
  *
- * This API only applies for URIs such as `file:...`, `dir:...`, and `dev:...`.
+ * This API only applies for URIs such as `%file:...`, `dir:...`, and `dev:...`.
  */
 PAL_BOL
 DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR * attr);
