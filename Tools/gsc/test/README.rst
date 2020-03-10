@@ -47,6 +47,18 @@ Run sample images with test arguments
 
     make test
 
+To run the first `n` tests, specify `TESTNUM`.
+
+::
+
+    make test TESTNUM=<n>
+
+To run a specific test case, specify the test number and distirbution.
+
+::
+
+    make test-<test number>-<distribution>
+
 Remove images & containers from Docker daemon
 ---------------------------------------------
 

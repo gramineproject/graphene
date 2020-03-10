@@ -81,8 +81,10 @@ def prepare_build_context(image, user_manifests, substitutions):
 
     for user_manifest in user_manifests[1:]:
 
-        substitutions['binary'] = user_manifest[0:user_manifest.find('.')]
-        generate_manifest(image, substitutions, user_manifests)
+        substitutions['binary'] = user_manifest[0 if not user_manifest.find('/')
+                                    else user_manifest.find('/') + 1
+                                    : user_manifest.find('.')]
+        generate_manifest(image, substitutions, user_manifest)
 
     # copy markTrustedFiles.sh
     shutil.copyfile("finalize_manifests.py", image + "/finalize_manifests.py")
@@ -137,7 +139,8 @@ def prepare_substitutions(base_image, image, options, user_manifests):
             "binary" : binary,
             'binary_arguments': binary_arguments,
             'working_dir': working_dir,
-            'user_manifests': ''.join(user_manifests[1:0])
+            'user_manifests': ' '.join([os.path.basename(manifest)
+                                        for manifest in user_manifests[1:]])
             })
 
     return substitutions

@@ -2,10 +2,13 @@
 
 import os
 import sys
-import stat
 import subprocess
 import re
 import string
+import io
+
+sys.path.insert(0, '/graphene/signer')
+import pal_sgx_sign # pylint: disable=import-error,wrong-import-position
 
 def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
@@ -52,8 +55,36 @@ def get_binary_path(executable):
     path, _ = out.communicate()
     return path.decode().replace('\n', '')
 
-def generate_trusted_children():
-    print("not implemented")
+def generate_signature(manifest):
+     # Surpress pal_sgx_sign print statements
+    saved_stdout = sys.stdout
+    saved_stderr = sys.stderr
+    sys.stdout = io.StringIO()
+    sys.stderr = io.StringIO()
+
+    # FIXME: call pal-sgx-sign via generate_signature function instead of using os.system
+    # In rare cases leads to wrong enclave measurement
+    os.system('/graphene/signer/pal-sgx-sign'+
+        ' -libpal /graphene/Runtime/libpal-Linux-SGX.so ' +
+        ' -key /graphene/signer/enclave-key.pem' +
+        ' -output ' + manifest + '.sgx' +
+        ' -manifest '+ manifest)
+
+#    if pal_sgx_sign.main(['-libpal', '/graphene/Runtime/libpal-Linux-SGX.so',
+#        '-key', '/graphene/signer/enclave-key.pem',
+#        '-output', manifest + '.sgx',
+#        '-manifest', manifest]):
+#        # Print surpressed output of pal_sgx_sign
+#        pal_sgx_sign_output = '\n'.join(sys.stdout.read()) + '\n'.join(sys.stderr.read())
+#        sys.stdout = saved_stdout
+#        sys.stderr = saved_stderr
+#        print(pal_sgx_sign_output)
+#        print('pal-sgx-sign failed for ' + manifest + '.')
+#        sys.exit(1)
+
+    # Reset stdout to regular terminal output
+    sys.stdout = saved_stdout
+    sys.stderr = saved_stderr
 
 def main(args):
     if len(args) < 3:
@@ -81,30 +112,29 @@ def main(args):
 
         print('\tSetting exec file to \'' + binary_path + '\'.')
 
-        with open(manifest, "r") as mf:
-            mf_template = string.Template(mf.read())
+        with open(manifest, "r") as manifest_file:
+            mf_template = string.Template(manifest_file.read())
 
         mf_instance = mf_template.substitute({
                                 'binary_path': binary_path,
                                 'library_paths': library_paths
                                 })
 
-        with open(manifest, "w") as mf:
-            mf.write(''.join((mf_instance, trusted_files)))
+        # Write final manifest file with trusted files and children
+        with open(manifest, "w") as manifest_file:
+            manifest_file.write('\n'.join((mf_instance,
+                                           trusted_files,
+                                           '\n'.join(trusted_signatures),
+                                           '\n')))
 
-            # add signature of all prev applications
-            print('\tAdded signatures for trusted child processes '
-                        + ', '.join(trusted_signatures) + '.')
+        print('\tWrote ' + manifest + '.')
 
-        #status = os.stat(manifest)
-        #os.chmod(manifest, status.st_mode | stat.S_IEXEC)
+        generate_signature(manifest)
 
-        print('\tWrote manifest.')
+        print('\tGenerated ' + manifest + '.sgx and generated signature.')
 
-        # generate signature for this manifest
-
-        # store signature in signature list
-        trusted_signatures.append(executable + '.sig')
+        trusted_signatures.append('sgx.trusted_children.child' + str(len(trusted_signatures) +1)
+                                    + ' = file:' + executable + '.sig')
 
 if __name__ == '__main__':
     main(sys.argv)
