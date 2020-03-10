@@ -124,7 +124,7 @@ The fields of the Graphene control block are defined as follows:
 
 .. doxygentypedef:: PAL_CONTROL
    :project: pal
-.. doxygenstruct:: _PAL_CONTROL
+.. doxygenstruct:: PAL_CONTROL_
    :project: pal
    :members:
 

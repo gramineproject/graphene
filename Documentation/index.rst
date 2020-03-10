@@ -85,11 +85,11 @@ Table of Contents
 
    devel/contributing
    devel/coding-style
+   devel/setup
    devel/debugging
    devel/new-syscall
    devel/sgx-process-creation
    devel/signal-handling
-   devel/setup
 
 .. toctree::
    :caption: LibOS
