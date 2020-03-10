@@ -21,7 +21,7 @@ gsc-%-bash: %-bash.manifest ls.manifest sh.manifest
 
 gsc-%-python3: %-python3.manifest sh.manifest ls.manifest
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build -d $*-python3 $(addprefix test/, $^)
+	cd .. && ./gsc build $*-python3 $(addprefix test/, $^)
 
 gsc-%: %.manifest
 	echo "Build graphenized image $@"
@@ -99,7 +99,7 @@ TESTSEQUNCE=$(shell seq 1  $(TESTNUM))
 test-%:
 	echo "Testing $*."
 	for t in $(TESTSEQUNCE); do \
-		$(MAKE) test-$${t}-$*; \
+		$(MAKE) test-$${t}-$* || exit 1; \
 	done
 	echo "Successfully finished testing $*."
 
