@@ -109,9 +109,7 @@ err:
     return -ERRNO(ret);
 }
 
-// Retrieve the targetinfo for the AESM enclave for generating the local attestation report.
-int init_aesm_targetinfo(sgx_target_info_t* aesm_targetinfo) {
-
+int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_target_info) {
     Request req = REQUEST__INIT;
     Request__InitQuoteRequest initreq = REQUEST__INIT_QUOTE_REQUEST__INIT;
     req.initquotereq = &initreq;
@@ -133,12 +131,12 @@ int init_aesm_targetinfo(sgx_target_info_t* aesm_targetinfo) {
         goto failed;
     }
 
-    if (r->targetinfo.len != sizeof(*aesm_targetinfo)) {
-        SGX_DBG(DBG_E, "aesm_service returned invalid target info\n");
+    if (r->targetinfo.len != sizeof(*qe_target_info)) {
+        SGX_DBG(DBG_E, "Quoting Enclave returned invalid target info\n");
         goto failed;
     }
 
-    memcpy(aesm_targetinfo, r->targetinfo.data, sizeof(*aesm_targetinfo));
+    memcpy(qe_target_info, r->targetinfo.data, sizeof(*qe_target_info));
     ret = 0;
 failed:
     response__free_unpacked(res, NULL);
