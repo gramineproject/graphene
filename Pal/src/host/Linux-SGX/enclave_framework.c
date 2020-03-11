@@ -104,14 +104,8 @@ static void print_report(sgx_report_t* r) {
 
 static sgx_key_128bit_t enclave_key;
 
-/*
- * sgx_get_report() obtains a CPU-signed report for local attestation
- * @target_info:  the enclave target info
- * @data:         the data to be included and signed in the report
- * @report:       a buffer for storing the report
- */
-static int sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
-                          sgx_report_t* report) {
+static int __sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
+                            sgx_report_t* report) {
     __sgx_mem_aligned struct pal_enclave_state state;
     memcpy(&state, &pal_enclave_state, sizeof(state));
     memcpy(&state.enclave_data, data, sizeof(*data));
@@ -123,6 +117,16 @@ static int sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
     }
 
     print_report(report);
+    return 0;
+}
+
+int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t* data,
+                   sgx_report_t* report) {
+    int ret = sgx_report(target_info, data, report);
+    if (ret) {
+        SGX_DBG(DBG_E, "sgx_report failed: ret = %d\n", ret);
+        return -PAL_ERROR_DENIED;
+    }
     return 0;
 }
 
@@ -969,7 +973,7 @@ int init_enclave (void)
     __sgx_mem_aligned sgx_report_t report;
 
     assert(sizeof(reportdata) == sizeof(sgx_report_data_t));
-    int ret = sgx_report(&targetinfo, (sgx_report_data_t*)&reportdata, &report);
+    int ret = sgx_report(&targetinfo, &reportdata, &report);
     if (ret) {
         SGX_DBG(DBG_E, "failed to get self report: %d\n", ret);
         return -PAL_ERROR_INVAL;
@@ -1158,7 +1162,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     memcpy(&target_info.mr_enclave , &report.body.mr_enclave,  sizeof(sgx_measurement_t));
     memcpy(&target_info.attributes, &report.body.attributes, sizeof(sgx_attributes_t));
 
-    ret = sgx_get_report(&target_info, data, &report);
+    ret = __sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
         goto out;
@@ -1214,7 +1218,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     /* B -> A: report[B -> A] */
-    ret = sgx_get_report(&target_info, data, &report);
+    ret = __sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
         goto out;

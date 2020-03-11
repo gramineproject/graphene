@@ -36,9 +36,8 @@ uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr
  * sgx_report:
  * Generate SGX hardware signed report.
  */
-static inline int sgx_report (sgx_target_info_t * targetinfo,
-                              void * reportdata, sgx_report_t * report)
-{
+static inline int sgx_report(const sgx_target_info_t* targetinfo,
+                             const void* reportdata, sgx_report_t* report) {
     __asm__ volatile(
         ENCLU "\n"
         :: "a"(EREPORT), "b"(targetinfo), "c"(reportdata), "d"(report)
