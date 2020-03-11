@@ -900,8 +900,8 @@ static int load_enclave (struct pal_enclave * enclave,
         return ret;
 
     if (get_config(enclave->config, "sgx.ra_client_key", cfgbuf, sizeof(cfgbuf)) > 0) {
-        /* initialize communication with AESM enclave only if app requests remote attestation */
-        ret = init_aesm_targetinfo(&pal_sec->aesm_targetinfo);
+        /* initialize communication with Quoting Enclave only if app requests remote attestation */
+        ret = init_quoting_enclave_targetinfo(&pal_sec->qe_targetinfo);
         if (ret < 0)
             return ret;
     }
