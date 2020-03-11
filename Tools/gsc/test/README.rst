@@ -47,13 +47,13 @@ Run sample images with test arguments
 
     make test
 
-To run the first `n` tests, specify `TESTNUM`.
+To run the first `n` tests, specify `MAXTESTNUM`.
 
 ::
 
-    make test TESTNUM=<n>
+    make test MAXTESTNUM=<n>
 
-To run a specific test case, specify the test number and distirbution.
+To run a specific test case, specify the test number and distribution.
 
 ::
 

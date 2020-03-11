@@ -5,10 +5,6 @@ import sys
 import subprocess
 import re
 import string
-import io
-
-sys.path.insert(0, '/graphene/signer')
-import pal_sgx_sign # pylint: disable=import-error,wrong-import-position
 
 def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
@@ -17,8 +13,9 @@ def generate_trusted_files(root_dir):
     # Exclude directories from list of trusted files
     exclude_dirs = ['boot', 'dev', 'proc', 'var', 'sys', 'etc/rc']
     exclude_re = re.compile('^/(' + '|'.join(exclude_dirs) + ').*')
-    num_trusted = 1
+    num_trusted = 0
     trusted_files = ''
+    script_file = os.path.basename(__file__)
 
     for root, _, files in os.walk(root_dir, followlinks=False):
         for file in files:
@@ -26,12 +23,12 @@ def generate_trusted_files(root_dir):
             if  (not exclude_re.match(filename)
                 and is_ascii(filename)
                 and os.path.exists(filename)
-                and filename != os.path.basename(__file__)):
-                trusted_files = ''.join((trusted_files, 'sgx.trusted_files.file' + str(num_trusted)
-                                                    + ' = file:' + filename + '\n'))
+                and filename != script_file):
+                trusted_files += ('sgx.trusted_files.file' + str(num_trusted)
+                                    + ' = file:' + filename + '\n')
                 num_trusted += 1
 
-    print('Found ' + str(num_trusted - 1) + ' files in \'' + root_dir + '\'.')
+    print('Found ' + str(num_trusted) + ' files in \'' + root_dir + '\'.')
 
     return trusted_files
 
@@ -56,43 +53,35 @@ def get_binary_path(executable):
     return path.decode().replace('\n', '')
 
 def generate_signature(manifest):
-     # Surpress pal_sgx_sign print statements
-    saved_stdout = sys.stdout
-    saved_stderr = sys.stderr
-    sys.stdout = io.StringIO()
-    sys.stderr = io.StringIO()
+    sign_process = subprocess.Popen([
+        '/graphene/signer/pal-sgx-sign',
+        '-libpal', '/graphene/Runtime/libpal-Linux-SGX.so',
+        '-key', '/graphene/signer/enclave-key.pem',
+        '-output', manifest + '.sgx',
+        '-manifest', manifest + '.gsc'
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
 
-    # FIXME: call pal-sgx-sign via generate_signature function instead of using os.system
-    # In rare cases leads to wrong enclave measurement
-    os.system('/graphene/signer/pal-sgx-sign'+
-        ' -libpal /graphene/Runtime/libpal-Linux-SGX.so ' +
-        ' -key /graphene/signer/enclave-key.pem' +
-        ' -output ' + manifest + '.sgx' +
-        ' -manifest '+ manifest)
+    _, err = sign_process.communicate()
 
-#    if pal_sgx_sign.main(['-libpal', '/graphene/Runtime/libpal-Linux-SGX.so',
-#        '-key', '/graphene/signer/enclave-key.pem',
-#        '-output', manifest + '.sgx',
-#        '-manifest', manifest]):
-#        # Print surpressed output of pal_sgx_sign
-#        pal_sgx_sign_output = '\n'.join(sys.stdout.read()) + '\n'.join(sys.stderr.read())
-#        sys.stdout = saved_stdout
-#        sys.stderr = saved_stderr
-#        print(pal_sgx_sign_output)
-#        print('pal-sgx-sign failed for ' + manifest + '.')
-#        sys.exit(1)
-
-    # Reset stdout to regular terminal output
-    sys.stdout = saved_stdout
-    sys.stderr = saved_stderr
+    if (sign_process.returncode is not 0
+        or not os.path.exists(os.path.join(os.getcwd(), manifest + '.sgx'))):
+        print(err.decode())
+        print("Finalize manifests failed due to pal-sgx-sign failure.")
+        sys.exit(1)
 
 def main(args):
     if len(args) < 3:
         print('Too few arguments.')
         print('Usage:')
         print('   ' + args[0] + ' <directory> <app>.manifest [<app2>.manifest ...]')
-        print('    <directory>: Search the directory tree of from this root for files '
+        print('    <directory>: Search the directory tree from this root for files '
                 + 'and generate list of trusted files')
+        sys.exit(1)
+
+    if not os.path.isdir(args[1]):
+        print('Could not find directory ' + args[1] + '.')
         sys.exit(1)
 
     trusted_files = generate_trusted_files(args[1])
@@ -102,12 +91,13 @@ def main(args):
 
     trusted_signatures = []
 
-    # To deal with multi-process applications, we allow multiple manifest files to be specified
+    # To deal with multi-process applications, we allow multiple manifest files to be specified.
+    # User must specify manifest files in the order of parent to child. Reverse list of manifests
+    # to include signatures of children in parent.
     for manifest in reversed(args[2:]):
-
         print(manifest + ':')
 
-        executable = manifest[0:manifest.find('.')]
+        executable = manifest[:manifest.rfind('.manifest')] if manifest.rfind('.manifest') != -1 else manifest
         binary_path = get_binary_path(executable)
 
         print('\tSetting exec file to \'' + binary_path + '\'.')
@@ -121,7 +111,7 @@ def main(args):
                                 })
 
         # Write final manifest file with trusted files and children
-        with open(manifest, "w") as manifest_file:
+        with open(manifest + '.gsc', "w") as manifest_file:
             manifest_file.write('\n'.join((mf_instance,
                                            trusted_files,
                                            '\n'.join(trusted_signatures),
@@ -133,7 +123,7 @@ def main(args):
 
         print('\tGenerated ' + manifest + '.sgx and generated signature.')
 
-        trusted_signatures.append('sgx.trusted_children.child' + str(len(trusted_signatures) +1)
+        trusted_signatures.append('sgx.trusted_children.child' + str(len(trusted_signatures))
                                     + ' = file:' + executable + '.sig')
 
 if __name__ == '__main__':

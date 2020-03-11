@@ -27,10 +27,10 @@ COPY apploader.sh ./
 COPY *.manifest ./
 COPY finalize_manifests.py /
 
-# 1) Mark apploader.sh executable
-# 2) Finalize manifests
+# Mark apploader.sh executable, finalize manifests, and remove intermediate scripts
 RUN chmod u+x apploader.sh \
-    && python3 /finalize_manifests.py / ${binary}.manifest ${user_manifests}
+    && python3 /finalize_manifests.py / ${binary}.manifest ${user_manifests} \
+    && rm -f finalize_manifests.py
 
 # Define default command
 ENTRYPOINT  ["/bin/bash", "./apploader.sh"]

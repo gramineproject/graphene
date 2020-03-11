@@ -28,7 +28,7 @@ def generate_manifest(image, substitutions, user_manifest):
         template_mf = string.Template(manifest_template.read())
         instantiated_mf = template_mf.substitute(substitutions)
 
-    with open(image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
+    with open('gsc-' + image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
         app_manifest.write(instantiated_mf)
         app_manifest.write("\n")
         app_manifest.write(user_mf)
@@ -41,7 +41,7 @@ def generate_app_loader(image, substitutions):
         template_apl = string.Template(apl.read())
         instantiated_apl = template_apl.substitute(substitutions)
 
-    with open(image + '/apploader.sh', 'w') as apploader:
+    with open('gsc-' + image + '/apploader.sh', 'w') as apploader:
         apploader.write(instantiated_apl)
 
 # Generate a dockerfile that compiles Graphene and includes the application image. This dockerfile
@@ -62,13 +62,13 @@ def generate_dockerfile(image, substitutions):
         template_dfapp = string.Template(dfapp.read())
         instantiated_dfapp = template_dfapp.substitute(substitutions)
 
-    with open(image + "/Dockerfile", "w") as dockerfile:
+    with open('gsc-' + image + "/Dockerfile", "w") as dockerfile:
         dockerfile.write(instantiated_dfg)
         dockerfile.write(instantiated_dfapp)
 
 def prepare_build_context(image, user_manifests, substitutions):
     # create directory for image specific files
-    os.makedirs(image, exist_ok=True)
+    os.makedirs('gsc-' + image, exist_ok=True)
 
     # generate dockerfile to build graphenized docker image
     generate_dockerfile(image, substitutions)
@@ -81,13 +81,13 @@ def prepare_build_context(image, user_manifests, substitutions):
 
     for user_manifest in user_manifests[1:]:
 
-        substitutions['binary'] = user_manifest[0 if not user_manifest.find('/')
-                                    else user_manifest.find('/') + 1
-                                    : user_manifest.find('.')]
+        substitutions['binary'] = user_manifest[user_manifest.rfind('/') if user_manifest.rfind('/') != -1
+                                    else user_manifest.rfind('/') + 1
+                                    : user_manifest.rfind('.manifest')]
         generate_manifest(image, substitutions, user_manifest)
 
     # copy markTrustedFiles.sh
-    shutil.copyfile("finalize_manifests.py", image + "/finalize_manifests.py")
+    shutil.copyfile("finalize_manifests.py", 'gsc-' + image + "/finalize_manifests.py")
 
 
 def prepare_substitutions(base_image, image, options, user_manifests):
@@ -145,7 +145,8 @@ def prepare_substitutions(base_image, image, options, user_manifests):
 
     return substitutions
 
-# Build graphenized docker image. args has to follow <app manifest> <base_image> [<options>].
+# Build graphenized docker image. args has to follow [<options>] <base_image> <app.manifest>
+# [<app2.manifest> ...].
 def gsc_build(args):
     if len(args) < 2:
         print("Too few arguments to command build")
@@ -181,7 +182,7 @@ def gsc_build(args):
 
         docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
         # docker build returns stream of json output
-        stream = docker_api.build(path=image, tag=gsc_image_name(image))
+        stream = docker_api.build(path='gsc-' + image, tag=gsc_image_name(image))
 
         # print continuously the stream of output by docker build
         for chunk in stream:
@@ -204,14 +205,14 @@ def gsc_build(args):
 
 def print_build_help():
     print("Build command usage:")
-    print("   gsc build [<options>] <image name>[:<tag>] <app>.manifest [<app2>.manifest ...]")
+    print("   gsc build [<options>] <image-name>[:<tag>] <app>.manifest [<app2>.manifest ...]")
     print("      Options:")
     print("         -d - compile Graphene with debug")
+    print("      image-name - name of the base image to be graphenized")
     print("      tag - tag of the image")
-    print("      image name - name of the base image to be graphenized")
-    print("      <app>.manifest - start application specific manifest to be included in the generated"
-                + " manifest")
-    print("      <app2>.manifest - application specific manifests to be exec'd by manifest_1")
+    print("      <app>.manifest - application-specific manifest for the first executable")
+    print("      <app2>.manifest -  application-specific manifest for the second executable "
+                        + "(child of the first executable)")
 
 
 def print_usage(cmd):

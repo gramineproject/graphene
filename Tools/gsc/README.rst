@@ -53,10 +53,10 @@ runtime and signer tool) from the first stage. It then prepares image-specific v
 executable path and the library path, and scanning the entire image to generate a list of trusted
 files. GSC excludes files from ``/boot``, ``/dev``, ``/proc``, ``/var``, ``/sys`` and ``/etc/rc``
 folders, since checksums are required which either don't exist or may vary across different
-deployment machines. The values combined for the manifest file. Graphene's signer tool to generates
-Intel SGX enclave measurement or signature, and the Intel SGX-specific manifest file. In a last step
-the entrypoint is changed to launch the ``apploader.sh`` script which generates Intel SGX token and
-starts the ``pal-Linux-SGX`` loader.
+deployment machines. GSC combines these values and list of trusted files to a new manifest file.
+Graphene's signer tool generates Intel SGX enclave measurement or signature, and the Intel
+SGX-specific manifest file. In a last step the entrypoint is changed to launch the ``apploader.sh``
+script which generates Intel SGX token and starts the ``pal-Linux-SGX`` loader.
 
 Running graphenized Docker images
 ---------------------------------
@@ -79,8 +79,9 @@ Building Docker images with GSC
   * ``-L``: Compile Graphene with Linux PAL in addition to Linux-SGX PAL
 * *image-name*: Name of the base image
 * *tag*: Tag of the base image
-* *<app>.manifest*: Application specific manifest entries for starting application
-* *<app2>.manifest*: Application specific manifest entries for exec'd applications
+* *<app>.manifest*: Application specific manifest entries for the first application
+* *<app2>.manifest*: Application specific manifest entries for the second executable (child of the
+first executable
 
 Run graphenized Docker images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
