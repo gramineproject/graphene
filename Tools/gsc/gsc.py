@@ -84,8 +84,7 @@ def prepare_build_context(image, user_manifests, substitutions):
 
     for user_manifest in user_manifests[1:]:
 
-        substitutions['binary'] = user_manifest[user_manifest.rfind('/') if user_manifest.rfind('/') != -1
-                                    else user_manifest.rfind('/') + 1
+        substitutions['binary'] = user_manifest[user_manifest.rfind('/') + 1
                                     : user_manifest.rfind('.manifest')]
         generate_manifest(image, substitutions, user_manifest)
 
