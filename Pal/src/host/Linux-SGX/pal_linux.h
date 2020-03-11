@@ -18,6 +18,7 @@
 #define PAL_LINUX_H
 
 #include "api.h"
+#include "assert.h"
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_defs.h"
@@ -169,12 +170,27 @@ extern struct pal_enclave_state {
     uint64_t        enclave_id;         // Unique identifier for authentication
     sgx_sign_data_t enclave_data;       // Reserved for signing other data
 } __attribute__((packed)) pal_enclave_state;
+static_assert(sizeof(pal_enclave_state) == sizeof(sgx_report_data_t), "incorrect struct size");
 
 /*
  * sgx_verify_report: verify a CPU-signed report from another local enclave
  * @report: the buffer storing the report to verify
  */
 int sgx_verify_report(sgx_report_t* report);
+
+
+/*!
+ * \brief Obtain a CPU-signed report for local attestation.
+ *
+ * Caller must align all parameters to 512 bytes (cf. `__sgx_mem_aligned`).
+ *
+ * \param[in]  target_info  Information on the target enclave.
+ * \param[in]  data         User-specified data to be included in the report.
+ * \param[out] report       Output buffer to store the report.
+ * \return                  0 on success, negative error code otherwise.
+ */
+int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t* data,
+                   sgx_report_t* report);
 
 typedef int (*check_mr_enclave_t)(PAL_HANDLE, sgx_measurement_t*, struct pal_enclave_state*);
 
