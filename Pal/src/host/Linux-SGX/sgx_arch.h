@@ -294,18 +294,22 @@ typedef struct _sgx_report_data_t {
 #define __sgx_mem_aligned __attribute__((aligned(512)))
 
 typedef struct _report_body_t {
-    sgx_cpu_svn_t     cpu_svn;
-    sgx_misc_select_t misc_select;
-    uint8_t           reserved1[28];
-    sgx_attributes_t  attributes;
-    sgx_measurement_t mr_enclave;
-    uint8_t           reserved2[32];
-    sgx_measurement_t mr_signer;
-    uint8_t           reserved3[96];
-    sgx_prod_id_t     isv_prod_id;
-    sgx_isv_svn_t     isv_svn;
-    uint8_t           reserved4[60];
-    sgx_report_data_t report_data;
+    sgx_cpu_svn_t        cpu_svn;
+    sgx_misc_select_t    misc_select;
+    uint8_t              reserved1[12];
+    sgx_isvext_prod_id_t isv_ext_prod_id;
+    sgx_attributes_t     attributes;
+    sgx_measurement_t    mr_enclave;
+    uint8_t              reserved2[32];
+    sgx_measurement_t    mr_signer;
+    uint8_t              reserved3[32];
+    sgx_config_id_t      config_id;
+    sgx_prod_id_t        isv_prod_id;
+    sgx_isv_svn_t        isv_svn;
+    sgx_config_svn_t     config_svn;
+    uint8_t              reserved4[42];
+    sgx_isvfamily_id_t   isv_family_id;
+    sgx_report_data_t    report_data;
 } sgx_report_body_t;
 
 typedef struct _report_t {
