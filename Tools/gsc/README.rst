@@ -79,9 +79,11 @@ Building Docker images with GSC
   * ``-L``: Compile Graphene with Linux PAL in addition to Linux-SGX PAL
 * *image-name*: Name of the base image
 * *tag*: Tag of the base image
-* *<app>.manifest*: Application specific manifest entries for the first application
-* *<app2>.manifest*: Application specific manifest entries for the second executable (child of the
-first executable
+* *<app>.manifest*: Application-specific manifest entries for the first application. If file does
+not exist, manifest will be generated without application-specific values.
+* *<app2>.manifest*: Application-specific manifest entries for the second executable (child of the
+first executable). If file does not exist, manifest will be generated without application-specific
+values.
 
 Run graphenized Docker images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

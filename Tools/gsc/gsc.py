@@ -21,8 +21,11 @@ def load_config(file):
 # finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
 def generate_manifest(image, substitutions, user_manifest):
 
-    with open(user_manifest, 'r') as user_manifest_file:
-        user_mf = user_manifest_file.read()
+    if os.path.exists(user_manifest):
+        with open(user_manifest, 'r') as user_manifest_file:
+            user_mf = user_manifest_file.read()
+    else:
+        user_mf = ""
 
     with open('templates/manifest.template') as manifest_template:
         template_mf = string.Template(manifest_template.read())
