@@ -111,6 +111,21 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
                             const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
                             sgx_attestation_t* attestation);
 
+/*!
+ * \brief Obtain SGX Quote from the Quoting Enclave (communicate via AESM).
+ *
+ * \param[in]  spid       Software provider ID (SPID).
+ * \param[in]  linkable   Quote type (linkable vs unlinkable).
+ * \param[in]  report     Enclave report to convert into a quote.
+ * \param[in]  nonce      16B nonce to be included in the quote for freshness.
+ * \param[out] quote      Quote returned by the Quoting Enclave (allocated via mmap() in this
+ *                        function; the caller gets the ownership of the quote).
+ * \param[out] quote_len  Length of the quote returned by the Quoting Enclave.
+ * \return                0 on success, negative Linux error code otherwise.
+ */
+int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
+                   const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len);
+
 int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_enclave_css_t * sigstruct,
                  sgx_arch_token_t * token);

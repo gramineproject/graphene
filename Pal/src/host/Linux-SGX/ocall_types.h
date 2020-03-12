@@ -59,6 +59,7 @@ enum {
     OCALL_LOAD_DEBUG,
     OCALL_GET_ATTESTATION,
     OCALL_EVENTFD,
+    OCALL_GET_QUOTE,
     OCALL_NR,
 };
 
@@ -279,5 +280,14 @@ typedef struct {
     unsigned int ms_initval;
     int          ms_flags;
 } ms_ocall_eventfd_t;
+
+typedef struct {
+    sgx_spid_t        ms_spid;
+    bool              ms_linkable;
+    sgx_report_t      ms_report;
+    sgx_quote_nonce_t ms_nonce;
+    char*             ms_quote;
+    size_t            ms_quote_len;
+} ms_ocall_get_quote_t;
 
 #pragma pack(pop)

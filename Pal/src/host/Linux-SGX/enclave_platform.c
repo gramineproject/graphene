@@ -669,3 +669,25 @@ failed:
     ret = -PAL_ERROR_DENIED;
     goto free_attestation;
 }
+
+int sgx_get_quote(const sgx_spid_t* spid, const sgx_quote_nonce_t* nonce,
+                  const sgx_report_data_t* report_data, bool linkable,
+                  char** quote, size_t* quote_len) {
+    /* must align all arguments to sgx_report() so that EREPORT doesn't complain */
+    __sgx_mem_aligned sgx_report_t report;
+    __sgx_mem_aligned sgx_target_info_t targetinfo = pal_sec.qe_targetinfo;
+    __sgx_mem_aligned sgx_report_data_t _report_data = *report_data;
+
+    int ret = sgx_report(&targetinfo, &_report_data, &report);
+    if (ret) {
+        SGX_DBG(DBG_E, "Failed to get enclave report\n");
+        return -PAL_ERROR_DENIED;
+    }
+
+    ret = ocall_get_quote(spid, linkable, &report, nonce, quote, quote_len);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Failed to get quote\n");
+        return unix_to_pal_error(ERRNO(ret));
+    }
+    return 0;
+ }

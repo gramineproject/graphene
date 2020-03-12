@@ -2,12 +2,14 @@
  * This is for enclave to make ocalls to untrusted runtime.
  */
 
-#include "pal_linux.h"
-#include "pal_internal.h"
-#include "pal_debug.h"
+#include "ecall_types.h"
 #include "enclave_ocalls.h"
 #include "ocall_types.h"
-#include "ecall_types.h"
+#include "pal_debug.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "sgx_attest.h"
+
 #include <api.h>
 #include <asm/errno.h>
 
@@ -1296,6 +1298,70 @@ int ocall_eventfd (unsigned int initval, int flags)
 
     retval = sgx_ocall(OCALL_EVENTFD, ms);
 
+    sgx_reset_ustack();
+    return retval;
+}
+
+int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
+                    const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len) {
+    int retval;
+    char* buf  = NULL;
+
+    ms_ocall_get_quote_t* ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        retval = -ENOMEM;
+        goto out;
+    }
+
+    memcpy(&ms->ms_spid, spid, sizeof(*spid));
+    memcpy(&ms->ms_report, report, sizeof(*report));
+    memcpy(&ms->ms_nonce, nonce, sizeof(*nonce));
+    ms->ms_linkable = linkable;
+
+    retval = sgx_ocall(OCALL_GET_QUOTE, ms);
+
+    if (!IS_ERR(retval)) {
+        ms_ocall_get_quote_t ms_copied;
+        if (!sgx_copy_to_enclave(&ms_copied, sizeof(ms_copied), ms, sizeof(*ms))) {
+            retval = -EACCES;
+            goto out;
+        }
+
+        /* copy each field inside and free the out-of-enclave buffers */
+        if (ms_copied.ms_quote) {
+            size_t len = ms_copied.ms_quote_len;
+            if (len > SGX_QUOTE_MAX_SIZE) {
+                retval = -EACCES;
+                goto out;
+            }
+
+            buf = malloc(len);
+            if (!buf) {
+                retval = -ENOMEM;
+                goto out;
+            }
+
+            if (!sgx_copy_to_enclave(buf, len, ms_copied.ms_quote, len)) {
+                retval = -EACCES;
+                goto out;
+            }
+
+            /* for calling ocall_munmap_untrusted(), need to reset the untrusted stack */
+            sgx_reset_ustack();
+
+            retval = ocall_munmap_untrusted(ms_copied.ms_quote, ALLOC_ALIGN_UP(len));
+            if (IS_ERR(retval)) {
+                goto out;
+            }
+
+            *quote     = buf;
+            *quote_len = len;
+        }
+    }
+
+out:
+    if (IS_ERR(retval))
+        free(buf);
     sgx_reset_ustack();
     return retval;
 }
