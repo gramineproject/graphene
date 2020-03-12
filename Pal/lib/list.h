@@ -140,6 +140,8 @@
         struct STRUCT_NAME* prev; \
     };
 
+/* should return 1, if node2 needs to be ahead of node1. 
+order of sorting, ascending or depending depends on user's compare function.*/
 typedef bool (*list_compare)(const void* node1, const void* node2);
 
 /* We use LISTP for pointers to a list.  This project only really needs
@@ -149,65 +151,11 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
 #define DEFINE_LISTP(STRUCT)  \
     LISTP_TYPE(STRUCT) {      \
         struct STRUCT* first; \
-        size_t size;          \
-        list_compare compare_fptr;  \
+        list_compare compare_fptr;\
     }
 
-#define LISTP_INIT { NULL, 0, NULL }
-
-#define LISTP_INITIALIZE(LISTP)        \
-    do {                               \
-        if ((LISTP)) {                 \
-            (LISTP)->first     = NULL; \
-            (LISTP)->size      = 0;    \
-            (LISTP)->compare_fptr = NULL; \
-        }                              \
-    } while (0)
-
+#define LISTP_INIT { NULL, NULL }
 #define LISTP_SET_COMPARE_FUNCTION(LISTP, LIST_COMPARE_FUNCTION) ((LISTP)->compare_fptr = LIST_COMPARE_FUNCTION)
-
-// TODO: currently sorting is O(n^2), make it better.
-#define LISTP_SORT(LISTP, STRUCT_NAME)                                                          \
-    do {                                                                                        \
-        struct STRUCT_NAME* head  = NULL;                                                       \
-        struct STRUCT_NAME* outer = NULL;                                                       \
-        struct STRUCT_NAME* inner = NULL;                                                       \
-        if (LISTP) {                                                                          \
-            if ((LISTP)->compare_fptr) {                                                           \
-                head                = LISTP_FIRST_ENTRY(LISTP, STRUCT_NAME, list);              \
-                outer               = head;                                                     \
-                bool adjacent_nodes = 0;                                                        \
-                while (outer != NULL) {                                                         \
-                    inner = LISTP_NEXT_ENTRY(outer, LISTP, list);                               \
-                    while (inner != NULL) {                                                     \
-                        if (!((LISTP)->compare_fptr(outer, inner))) {                              \
-                            struct STRUCT_NAME* for_swap = NULL;                                \
-                            adjacent_nodes =                                                    \
-                                (LISTP_NEXT_ENTRY(outer, LISTP, list) == inner) ? true : false; \
-                            if (!adjacent_nodes) {                                              \
-                                struct STRUCT_NAME* prev_of_inner = NULL;                       \
-                                struct STRUCT_NAME* prev_of_outer = NULL;                       \
-                                prev_of_inner = LISTP_PREV_ENTRY(inner, LISTP, list);           \
-                                prev_of_outer = LISTP_PREV_ENTRY(outer, LISTP, list);           \
-                                LISTP_DEL(inner, LISTP, list);                                  \
-                                LISTP_DEL(outer, LISTP, list);                                  \
-                                LISTP_ADD_AFTER(inner, prev_of_outer, LISTP, list);             \
-                                LISTP_ADD_AFTER(outer, prev_of_inner, LISTP, list);             \
-                            } else {                                                            \
-                                LISTP_DEL(outer, LISTP, list);                                  \
-                                LISTP_ADD_AFTER(outer, inner, LISTP, list);                     \
-                            }                                                                   \
-                            for_swap = inner;                                                   \
-                            inner    = outer;                                                   \
-                            outer    = for_swap;                                                \
-                        }                                                                       \
-                        inner = LISTP_NEXT_ENTRY(inner, LISTP, list);                           \
-                    }                                                                           \
-                    outer = LISTP_NEXT_ENTRY(outer, LISTP, list);                               \
-                }                                                                               \
-            }                                                                                   \
-        }                                                                                       \
-    } while (0)
 
 /* A node not on a list uses NULL; on a list, you
  * store self pointers */
@@ -220,12 +168,10 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
 #define INIT_LISTP(OBJECT)      \
     do {                        \
         (OBJECT)->first = NULL; \
-        (OBJECT)->size  = 0;    \
+        (OBJECT)->compare_fptr = NULL; \
     } while (0)
 
 #define LISTP_EMPTY(HEAD) ((HEAD)->first == NULL)
-
-#define LISTP_SIZE(HEAD) ((HEAD)->size)
 
 #define LIST_EMPTY(NODE, FIELD) ((NODE)->FIELD.next == NULL)
 
@@ -241,9 +187,6 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
         (NEW)->FIELD.prev          = __tmp_prev; \
     } while (0)
 
-/* Note: If LIST_ADD* macros are invoked directly,
- * size of list cannot be updated. Need to use LISTP_ADD* macros,
- * to make sure, size of list gets updated. */
 #define LIST_ADD(NEW, HEAD, FIELD) __LIST_ADD(NEW, (HEAD)->FIELD.next, HEAD, FIELD)
 
 #define LISTP_ADD(NEW, HEAD, FIELD)                                           \
@@ -252,11 +195,8 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
             (HEAD)->first     = (NEW);                                        \
             (NEW)->FIELD.next = (NEW);                                        \
             (NEW)->FIELD.prev = (NEW);                                        \
-            (HEAD)->size      = 1;                                            \
         } else {                                                              \
-            LIST_ASSERT((HEAD)->size < MAX_SIZE);                             \
             __LIST_ADD(NEW, (HEAD)->first, (HEAD)->first->FIELD.prev, FIELD); \
-            ++(HEAD)->size;                                                   \
             (HEAD)->first = (NEW);                                            \
         }                                                                     \
     } while (0)
@@ -266,9 +206,7 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
 #define LISTP_ADD_AFTER(NEW, NODE, HEAD, FIELD)   \
     do {                                          \
         if (NODE) {                               \
-            LIST_ASSERT((HEAD)->size < MAX_SIZE); \
             LIST_ADD(NEW, NODE, FIELD);           \
-            ++(HEAD)->size;                       \
         } else {                                    \
             LISTP_ADD(NEW, HEAD, FIELD);  \
         }  \
@@ -282,11 +220,8 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
             (HEAD)->first     = (NEW);                \
             (NEW)->FIELD.next = (NEW);                \
             (NEW)->FIELD.prev = (NEW);                \
-            (HEAD)->size      = 1;                    \
         } else {                                      \
-            LIST_ASSERT((HEAD)->size < MAX_SIZE);     \
             LIST_ADD_TAIL(NEW, (HEAD)->first, FIELD); \
-            ++(HEAD)->size;                           \
         }                                             \
     } while (0)
 
@@ -310,7 +245,6 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
         LIST_ASSERT((NODE)->FIELD.next->FIELD.prev == (NODE)); \
         (NODE)->FIELD.prev->FIELD.next = (NODE)->FIELD.next;   \
         (NODE)->FIELD.next->FIELD.prev = (NODE)->FIELD.prev;   \
-        --((HEAD)->size);                                      \
     } while (0)
 
 #define LISTP_DEL_INIT(NODE, HEAD, FIELD) \
@@ -318,6 +252,15 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
         LISTP_DEL(NODE, HEAD, FIELD);     \
         INIT_LIST_HEAD(NODE, FIELD);      \
     } while (0)
+
+#define LISTP_GET_SIZE(LISTP, STRUCT_NAME, SIZE)             \
+    do {                                                     \
+        struct STRUCT_NAME *first, *next;                    \
+        SIZE = 0;                                            \
+        LISTP_FOR_EACH_ENTRY_SAFE(first, next, LISTP, list) {\
+        SIZE++;                                              \
+        }                                                    \
+    } while (0);
 
 /* clears linked list container, and frees each list item. */
 #define LISTP_CLEAR_AND_FREE_EACH_LIST_ITEM(LISTP, STRUCT_NAME) \
@@ -327,7 +270,6 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
             LISTP_DEL(first, LISTP, list);                      \
             free(first);                                        \
         }                                                       \
-        LIST_ASSERT((LISTP)->size == 0);                                    \
     } while (0)
 
 /* Keep vestigial TYPE and FIELD parameters to minimize disruption
@@ -388,8 +330,6 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
 
 // Add NEW to OLD at position first (assuming first is all we need for now)
 // Can probably drop TYPE with some preprocessor smarts
-/* Future TODO: Currently LISTP_SPLICE* macros are not used by PAL code.
- * Add support to make sure size of list gets updated correctly during splice operation. */
 #define LISTP_SPLICE(NEW, OLD, FIELD, TYPE)                                      \
     do {                                                                         \
         if (!LISTP_EMPTY(NEW)) {                                                 \
@@ -441,5 +381,130 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
         LISTP_DEL_INIT(NODE, OLD, FIELD);      \
         LISTP_ADD_TAIL(NODE, NEW, FIELD);      \
     } while (0)
+
+/* _FIND_MIN, _LISTP_TRAVERSE, _LISTP_MERGE_OP, are
+macros for internal use. Used by macro-> LISTP_SORT */
+#define _FIND_MIN(a, b) ((a < b) ? a:b)
+
+#define _LISTP_TRAVERSE(LISTP, walk_to, head, len)\
+do {\
+    int walk = len;         \
+    walk_to = head;         \
+    while (walk_to && walk) {\
+            walk_to = LISTP_NEXT_ENTRY(walk_to, LISTP, list);\
+            walk--;\
+    }\
+} while (0)
+
+#define _LISTP_MERGE_OP(LISTP, STRUCT_NAME, list1, l1_len, list2, l2_len) \
+do {\
+    size_t l1_consumed = 0;\
+    size_t l2_consumed = 0;\
+    struct STRUCT_NAME* list1_end = NULL;\
+    struct STRUCT_NAME* list2_end = NULL;\
+    struct STRUCT_NAME* merged_list = NULL;\
+    struct STRUCT_NAME* list1_next = NULL;\
+    struct STRUCT_NAME* list2_next = NULL;\
+    if (!list1 && !list2)\
+        break;\
+    if ((l1_len == 0) && (l2_len == 0))\
+        break;\
+    l1_consumed = l2_consumed = 0;\
+    if (l1_len > 0)\
+        _LISTP_TRAVERSE(LISTP, list1_end, list1, l1_len -1);\
+    if (l2_len > 0)\
+        _LISTP_TRAVERSE(LISTP, list2_end, list2, l2_len -1);\
+    if (list1_end && list2) {\
+        /* No need to merge, sorted sub-lists can be taken as-is */\
+        if (((LISTP)->compare_fptr(list1_end, list2)))\
+            break;\
+    }\
+    while ((l1_consumed < l1_len) && (l2_consumed < l2_len) && list1 && list2) {\
+     if (!((LISTP)->compare_fptr(list1, list2))) {\
+            list2_next = LISTP_NEXT_ENTRY(list2, LISTP, list);\
+         /* update head */\
+         if (list1 == LISTP_FIRST_ENTRY(LISTP, _list_node, list)) {\
+            LISTP_DEL(list2, LISTP, list);\
+            LISTP_PUSH_FRONT(list2, LISTP, list);\
+            merged_list = LISTP_FIRST_ENTRY(LISTP, _list_node, list);\
+        }\
+        else {\
+            (!merged_list) ? ({merged_list = list2;}) :\
+                ({\
+                    LISTP_DEL(list2, LISTP, list);\
+                    LISTP_ADD_AFTER(list2, merged_list, LISTP, list);\
+                    merged_list = LISTP_NEXT_ENTRY(merged_list, LISTP, list);});\
+        }\
+        list2 = list2_next;\
+        l2_consumed++;\
+     }\
+     else {\
+            list1_next = LISTP_NEXT_ENTRY(list1, LISTP, list);\
+            (!merged_list) ? ({merged_list = list1;}) :\
+                ({\
+                    LISTP_DEL(list1, LISTP, list);\
+                    LISTP_ADD_AFTER(list1, merged_list, LISTP, list);\
+                    merged_list = LISTP_NEXT_ENTRY(merged_list, LISTP, list);});\
+        list1 = list1_next;\
+        l1_consumed++;\
+     }\
+    }\
+    /* note: safety check. at this point, we shouldnt hit this case !merged_list*/\
+    if (!merged_list)\
+        break;\
+    while ((l1_consumed < l1_len) && list1) {\
+        list1_next = LISTP_NEXT_ENTRY(list1, LISTP, list);\
+        LISTP_DEL(list1, LISTP, list);\
+        LISTP_ADD_AFTER(list1, merged_list, LISTP, list);\
+        merged_list = LISTP_NEXT_ENTRY(merged_list, LISTP, list);\
+        list1 = list1_next;\
+        l1_consumed++;\
+    }\
+    while ((l2_consumed < l2_len) && list2) {\
+        list2_next = LISTP_NEXT_ENTRY(list2, LISTP, list);\
+        LISTP_DEL(list2, LISTP, list);\
+        LISTP_ADD_AFTER(list2, merged_list, LISTP, list);\
+        merged_list = LISTP_NEXT_ENTRY(merged_list, LISTP, list);\
+        list2 = list2_next;\
+        l2_consumed++;\
+    }\
+} while (0)
+
+/* iterative merge sort, O(nlog(n)) */
+#define LISTP_SORT(LISTP, STRUCT_NAME)\
+do {\
+    struct STRUCT_NAME* head  = NULL;       \
+    struct STRUCT_NAME* list1_ptr = NULL; \
+    struct STRUCT_NAME* list2_ptr = NULL; \
+    size_t len = 0;\
+    size_t width = 0;\
+    size_t left = 0;\
+    size_t mid = 0;\
+    size_t right = 0;\
+    size_t l1_len = 0;\
+    size_t l2_len = 0;\
+    if (LISTP) {                          \
+        if (!(LISTP)->compare_fptr)\
+            break;                        \
+        LISTP_GET_SIZE(LISTP, STRUCT_NAME, len);\
+        for (width = 1; width <= len-1; width = 2*width) {  \
+            for (left = 0, list1_ptr = LISTP_FIRST_ENTRY(LISTP, _list_node, list);\
+            (list1_ptr != NULL) && (left < len-1); left += 2*width) {\
+                mid = _FIND_MIN(left + width - 1, len-1);\
+                right = _FIND_MIN(left + 2*width - 1, len-1);\
+                if (right > left) {\
+                    l1_len = mid - left + 1;\
+                    l2_len = right - mid;\
+                    _LISTP_TRAVERSE(LISTP, list2_ptr, list1_ptr, l1_len);\
+                    _LISTP_MERGE_OP(LISTP, STRUCT_NAME, list1_ptr, l1_len, list2_ptr, l2_len);\
+                }\
+                /* head can change during merge operation.\
+                Updating list1_ptr based on current head. */\
+                head =  LISTP_FIRST_ENTRY(LISTP, _list_node, list);\
+                _LISTP_TRAVERSE(LISTP, list1_ptr, head, left + (2 * width));\
+            }\
+        }\
+    }\
+} while (0)
 
 #endif  // LIST_H
