@@ -47,6 +47,23 @@
  *
  */
 
+/* Protected files (PF) are a new type of file that can be specified in the manifest (SGX only).
+ * They are encrypted on disk and transparently decrypted when accessed by Graphene or by
+ * application running inside Graphene.
+ *
+ * Features:
+ * - Data is encrypted (confidentiality) and integrity protected (tamper resistance).
+ * - File swap protection (a PF can only be accessed when in a specific path).
+ * - Transparency (Graphene application sees PFs as regular files, no need to modify
+ *   the application).
+ *
+ * Internal PF format is based on the SGX SDK implementation:
+ * https://github.com/intel/linux-sgx/tree/master/sdk/protected_fs
+ *
+ * Note: Graphene PFs can't be read by the SGX SDK (nor the other way around) due to some
+ *       differences in internal structures.
+ */
+
 #ifndef PROTECTED_FILES_H_
 #define PROTECTED_FILES_H_
 
@@ -144,7 +161,7 @@ typedef pf_status_t (*pf_truncate_f)(pf_handle_t handle, size_t size);
 typedef pf_status_t (*pf_flush_f)(pf_handle_t handle);
 
 /*!
- * \brief File open callback
+ * \brief File open callback (recovery only)
  *
  * \param [in] path File path
  * \param [in] mode Open mode
@@ -156,7 +173,7 @@ typedef pf_status_t (*pf_open_f)(const char* path, pf_file_mode_t mode, pf_handl
                                  size_t* size);
 
 /*!
- * \brief File close callback
+ * \brief File close callback (recovery only)
  *
  * \param [in] handle File handle
  * \return PF status
@@ -164,7 +181,7 @@ typedef pf_status_t (*pf_open_f)(const char* path, pf_file_mode_t mode, pf_handl
 typedef pf_status_t (*pf_close_f)(pf_handle_t handle);
 
 /*!
- * \brief File delete callback
+ * \brief File delete callback (recovery only)
  *
  * \param [in] path File path
  * \return PF status
@@ -249,9 +266,6 @@ void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f trunca
 /*! Context representing an open protected file */
 typedef struct pf_context* pf_context_t;
 
-/*! Last operation error */
-extern pf_status_t pf_last_error;
-
 /* Public API */
 
 /*!
@@ -302,16 +316,6 @@ pf_status_t pf_read(pf_context_t pf, uint64_t offset, size_t size, void* output)
 pf_status_t pf_write(pf_context_t pf, uint64_t offset, size_t size, const void* input);
 
 /*!
- * \brief Check whether a PF was opened with specified access mode
- *
- * \param [in] pf PF context
- * \param [in] mode Access mode to check for
- * \param [out] result True if the PF was opened with specified access mode
- * \return PF status
- */
-pf_status_t pf_has_mode(pf_context_t pf, pf_file_mode_t mode, bool* result);
-
-/*!
  * \brief Get data size of a PF
  *
  * \param [in] pf PF context
@@ -337,5 +341,13 @@ pf_status_t pf_set_size(pf_context_t pf, size_t size);
  * \return PF status
  */
 pf_status_t pf_get_handle(pf_context_t pf, pf_handle_t* handle);
+
+/*!
+ * \brief Flush any pending data of a protected file to disk
+ *
+ * \param [in] pf PF context
+ * \return PF status
+ */
+pf_status_t pf_flush(pf_context_t pf);
 
 #endif

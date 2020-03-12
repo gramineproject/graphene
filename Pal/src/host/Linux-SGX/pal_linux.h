@@ -164,14 +164,14 @@ int register_trusted_child (const char * uri, const char * mr_enclave_str);
 DEFINE_LIST(pf_map);
 struct pf_map {
     LIST_TYPE(pf_map) list;
-    struct protected_file* pf; /* owning PF */
-    void* buffer; /* buffer address */
-    uint64_t size; /* buffer size */
+    struct protected_file* pf;
+    void* buffer;
+    uint64_t size;
     uint64_t offset; /* offset in PF, needed for write buffers when flushing to the PF */
 };
 DEFINE_LISTP(pf_map);
 
-/* List of PF map buffers */
+/* List of PF map buffers; this list is traversed on PF flush (on file close) */
 extern LISTP_TYPE(pf_map) g_pf_map_list;
 
 /* Data of a protected file */

@@ -50,8 +50,11 @@
 #ifndef PROTECTED_FILES_INTERNAL_H_
 #define PROTECTED_FILES_INTERNAL_H_
 
+/* for SSIZE_MAX */
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
-#include <list.h>
+#include <limits.h>
+#include "list.h"
 #include "lru_cache.h"
 #include "protected_files.h"
 
@@ -78,12 +81,17 @@ typedef struct _meta_data_plain {
 
 // these are all defined as relative to node size, so we can decrease node size in tests
 // and have deeper tree
-#define FILENAME_MAX_LEN  260
+#define FILENAME_MAX_LEN      260
+#define PATHNAME_MAX_LEN      (512)
+#define FULLNAME_MAX_LEN      (PATHNAME_MAX_LEN + FILENAME_MAX_LEN)
+#define RECOVERY_FILE_MAX_LEN (FULLNAME_MAX_LEN + 10)
+
+
 #define MD_USER_DATA_SIZE (PF_NODE_SIZE*3/4)  // 3072
 static_assert(MD_USER_DATA_SIZE == 3072, "bad struct size");
 
 typedef struct _meta_data_encrypted {
-    char     clean_filename[FILENAME_MAX_LEN];
+    char     clean_filename[FULLNAME_MAX_LEN];
     int64_t  size;
     pf_key_t mht_key;
     pf_mac_t mht_gmac;
@@ -151,10 +159,6 @@ typedef enum {
     FILE_MHT_NODE_TYPE = 1,
     FILE_DATA_NODE_TYPE = 2,
 } mht_node_type_e;
-
-#define PATHNAME_MAX_LEN      (512)
-#define FULLNAME_MAX_LEN      (PATHNAME_MAX_LEN + FILENAME_MAX_LEN)
-#define RECOVERY_FILE_MAX_LEN (FULLNAME_MAX_LEN + 10)
 
 // make sure these are the same size
 static_assert(sizeof(mht_node_t) == sizeof(data_node_t),

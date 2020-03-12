@@ -367,8 +367,7 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     assert(*addr);
 
     if (prot & PAL_PROT_WRITE) {
-        struct pf_map* map = malloc(sizeof(*map));
-        memset(map, 0, sizeof(*map));
+        struct pf_map* map = calloc(1, sizeof(*map));
 
         map->pf     = pf;
         map->size   = size;
@@ -388,7 +387,6 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
             return -PAL_ERROR_INVAL;
         }
 
-        memset(*addr, 0, size);
         uint64_t copy_size = size;
         if (size > pf_size - offset)
             copy_size = pf_size - offset;
@@ -398,6 +396,7 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
             SGX_DBG(DBG_E, "file_map(PF fd %d): pf_read failed: %d\n", fd, pf_ret);
             return -PAL_ERROR_DENIED;
         }
+        memset(*addr + copy_size, 0, size - copy_size);
     }
 
     /* Writes will be flushed to the PF on close. */
@@ -484,10 +483,7 @@ static int64_t pf_file_setlength(struct protected_file *pf, PAL_HANDLE handle, u
     if (PF_FAILURE(pfs)) {
         SGX_DBG(DBG_E, "file_setlength(PF fd %d, %lu): pf_set_size returned %d\n",
                 fd, length, pfs);
-        uint64_t size;
-        pfs = pf_get_size(pf->context, &size);
-        assert(PF_SUCCESS(pfs));
-        return size;
+        return -PAL_ERROR_DENIED;
     }
     return length;
 }
@@ -508,7 +504,22 @@ static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
 
 /* 'flush' operation for file stream. */
 static int file_flush(PAL_HANDLE handle) {
-    ocall_fsync(handle->file.fd);
+    int fd = handle->file.fd;
+    struct protected_file *pf = find_protected_file_handle(handle);
+    if (pf) {
+        int ret = flush_pf_maps(pf, /*buffer=*/NULL, /*remove=*/false);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "file_flush(PF fd %d): flush_pf_maps returned %d\n", fd, ret);
+            return ret;
+        }
+        pf_status_t pfs = pf_flush(pf->context);
+        if (PF_FAILURE(pfs)) {
+            SGX_DBG(DBG_E, "file_flush(PF fd %d): pf_flush returned %d\n", fd, pfs);
+            return -PAL_ERROR_DENIED;
+        }
+    } else {
+        ocall_fsync(fd);
+    }
     return 0;
 }
 
@@ -539,16 +550,17 @@ static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
     attr->pending_size = stat->st_size;
 }
 
-static int pf_file_attrquery(struct protected_file* pf, int fd, const char* path, size_t real_size,
-                             PAL_STREAM_ATTR* attr) {
-    pf = load_protected_file(path, &fd, real_size, PAL_PROT_READ, /*create=*/false, pf);
+static int pf_file_attrquery(struct protected_file* pf, int fd_from_attrquery, const char* path,
+                             size_t real_size, PAL_STREAM_ATTR* attr) {
+    pf = load_protected_file(path, &fd_from_attrquery, real_size, PAL_PROT_READ, /*create=*/false,
+                             pf);
     if (!pf) {
-        SGX_DBG(DBG_E, "pf_file_attrquery: load_protected_file(%s, %d) failed\n", path, fd);
+        SGX_DBG(DBG_E, "pf_file_attrquery: load_protected_file(%s, %d) failed\n", path,
+                fd_from_attrquery);
         /* The call above will fail for PFs that were tampered with or have a wrong path.
          * glibc kills the process if this fails during directory enumeration, but that
          * should be fine given the scenario.
          */
-        ocall_close(fd);
         return -PAL_ERROR_DENIED;
     }
 
@@ -561,13 +573,12 @@ static int pf_file_attrquery(struct protected_file* pf, int fd, const char* path
     pfs = pf_get_handle(pf->context, &pf_handle);
     assert(PF_SUCCESS(pfs));
 
-    if (fd == *(int*)pf_handle) { /* this is a PF opened just for us, close it */
+    if (fd_from_attrquery == *(int*)pf_handle) { /* this is a PF opened just for us, close it */
         pfs = pf_close(pf->context);
         pf->context = NULL;
         assert(PF_SUCCESS(pfs));
     }
 
-    ocall_close(fd);
     return 0;
 }
 
@@ -586,8 +597,8 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     /* if it failed, return the right error code */
     if (IS_ERR(ret)) {
-        ocall_close(fd);
-        return unix_to_pal_error(ERRNO(ret));
+        ret = unix_to_pal_error(ERRNO(ret));
+        goto out;
     }
 
     file_attrcopy(attr, &stat_buf);
@@ -597,17 +608,19 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     ret = get_norm_path(uri, path, &len);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
-        ocall_close(fd);
-        return ret;
+        goto out;
     }
 
     /* For protected files return the data size, not real FS size */
     struct protected_file* pf = get_protected_file(path);
     if (pf && attr->handle_type != pal_type_dir)
-        return pf_file_attrquery(pf, fd, path, stat_buf.st_size, attr);
+        ret = pf_file_attrquery(pf, fd, path, stat_buf.st_size, attr);
+    else
+        ret = 0;
 
+out:
     ocall_close(fd);
-    return 0;
+    return ret;
 }
 
 /* 'attrquerybyhdl' operation for file streams */

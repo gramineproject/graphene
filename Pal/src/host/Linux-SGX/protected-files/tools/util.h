@@ -52,9 +52,6 @@ ssize_t get_file_size(int fd);
 /*! Read whole file, caller should free the buffer */
 uint8_t* read_file(const char* path, ssize_t* size);
 
-/*! Read size bytes from the file */
-int read_file_part(const char* path, uint8_t* buffer, size_t size);
-
 /*! Write buffer to file */
 int write_file(const char* path, size_t size, const void* buffer);
 
@@ -62,11 +59,8 @@ int write_file(const char* path, size_t size, const void* buffer);
 int append_file(const char* path, size_t size, const void* buffer);
 
 /*! Print memory as hex */
-void hexdump_mem(void* data, size_t size);
+void hexdump_mem(const void* data, size_t size);
 
-#define HEXDUMP(x) hexdump_mem((void*)&(x), sizeof(x))
-
-/*! Fill memory buffer with zeros */
-void zero_memory(void* buffer, size_t size);
+#define HEXDUMP(x) hexdump_mem((const void*)&(x), sizeof(x))
 
 #endif

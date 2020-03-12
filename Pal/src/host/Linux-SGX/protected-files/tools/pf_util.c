@@ -107,11 +107,18 @@ pf_status_t linux_flush(pf_handle_t handle) {
     return PF_STATUS_SUCCESS;
 }
 
+/* this callback is only used for creating recovery files and during recovery */
 pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle, size_t* size) {
     DBG("linux_open: '%s', mode %d\n", path, mode);
 
-    // write access in this callback is only used for creating recovery files
-    int flags = mode == PF_FILE_MODE_READ ? O_RDONLY : O_WRONLY | O_CREAT | O_TRUNC;
+    int flags;
+    if (mode == PF_FILE_MODE_READ)
+        flags = O_RDONLY;
+    else if (mode == PF_FILE_MODE_WRITE) /* create recovery file */
+        flags = O_WRONLY | O_CREAT | O_TRUNC;
+    else /* PF_FILE_MODE_READ|PF_FILE_MODE_WRITE */
+        flags = O_RDWR;
+
     int fd = open(path, flags, 0600);
 
     if (fd < 0) {
@@ -123,6 +130,7 @@ pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handl
         struct stat st;
         if (fstat(fd, &st) < 0) {
             ERROR("fstat failed: %s\n", strerror(errno));
+            close(fd);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -130,8 +138,10 @@ pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handl
     }
 
     *handle = malloc(sizeof(int));
-    if (!*handle)
+    if (!*handle) {
+        close(fd);
         return PF_STATUS_NO_MEMORY;
+    }
 
     *(int*)*handle = fd;
 
@@ -276,6 +286,7 @@ int pf_generate_wrap_key(const char* wrap_key_path) {
 
     if (write_file(wrap_key_path, sizeof(wrap_key), wrap_key) != 0) {
         ERROR("Failed to save wrap key\n");
+        ret = -1;
         goto out;
     }
 
@@ -296,11 +307,11 @@ int load_wrap_key(const char* wrap_key_path, pf_key_t* wrap_key) {
     }
 
     if (size != PF_KEY_SIZE) {
-        ERROR("Wrap key size %zu != %zu\n", size, (size_t)PF_KEY_SIZE);
+        ERROR("Wrap key size %zu != %zu\n", size, sizeof(*wrap_key));
         goto out;
     }
 
-    memcpy(wrap_key, buf, PF_KEY_SIZE);
+    memcpy(wrap_key, buf, sizeof(*wrap_key));
     ret = 0;
 
 out:
@@ -490,8 +501,8 @@ enum processing_mode_t {
     MODE_DECRYPT = 2,
 };
 
-static int process_files(const char* input_dir, const char* output_dir, const char* prefix,
-                         const char* wrap_key_path, enum processing_mode_t mode, bool verify_path) {
+static int process_files(const char* input_dir, const char* output_dir, const char* wrap_key_path,
+                         enum processing_mode_t mode, bool verify_path) {
     int ret = -1;
     pf_key_t wrap_key;
     struct stat st;
@@ -574,18 +585,7 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
                 goto out;
         } else if (S_ISDIR(st.st_mode)) {
             /* process directory recursively */
-            size_t prefix_size = strlen(prefix) + 1 + strlen(dir->d_name) + 1;
-            char* prefix_path = malloc(prefix_size);
-            if (!prefix_path) {
-                ERROR("No memory\n");
-                goto out;
-            }
-
-            snprintf(prefix_path, prefix_size, "%s/%s", prefix, dir->d_name);
-            ret = process_files(input_path, output_path, prefix_path, wrap_key_path, mode,
-                                verify_path);
-
-            free(prefix_path);
+            ret = process_files(input_path, output_path, wrap_key_path, mode, verify_path);
             if (ret != 0)
                 goto out;
         } else {
@@ -606,13 +606,12 @@ out:
 }
 
 /* Convert a file or directory (recursively) to the protected format */
-int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* prefix,
-                     const char* wrap_key_path) {
-    return process_files(input_dir, output_dir, prefix, wrap_key_path, MODE_ENCRYPT, false);
+int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* wrap_key_path) {
+    return process_files(input_dir, output_dir, wrap_key_path, MODE_ENCRYPT, false);
 }
 
 /* Convert a file or directory (recursively) from the protected format */
 int pf_decrypt_files(const char* input_dir, const char* output_dir, bool verify_path,
                      const char* wrap_key_path) {
-    return process_files(input_dir, output_dir, NULL, wrap_key_path, MODE_DECRYPT, verify_path);
+    return process_files(input_dir, output_dir, wrap_key_path, MODE_DECRYPT, verify_path);
 }

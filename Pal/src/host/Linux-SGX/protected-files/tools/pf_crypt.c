@@ -26,7 +26,6 @@
 struct option g_options[] = {
     { "input", required_argument, 0, 'i' },
     { "output", required_argument, 0, 'o' },
-    { "prefix", required_argument, 0, 'p' },
     { "wrap-key", required_argument, 0, 'w' },
     { "verify", no_argument, 0, 'V' },
     { "verbose", no_argument, 0, 'v' },
@@ -48,7 +47,6 @@ void usage() {
     INFO("\nAvailable encrypt options:\n");
     INFO("  --input, -i PATH        Single file or directory with input files to convert\n");
     INFO("  --output, -o PATH       Single file or directory to write output files to\n");
-    INFO("  --prefix, -p PATH       Path prefix for protected files that the payload manifest expects\n");
     INFO("  --wrap-key, -w PATH     Path to wrap key file, must exist\n");
     INFO("\nAvailable decrypt options:\n");
     INFO("  --input, -i PATH        Single file or directory with input files to convert\n");
@@ -63,7 +61,6 @@ int main(int argc, char *argv[]) {
     char* input_path    = NULL;
     char* output_path   = NULL;
     char* wrap_key_path = NULL;
-    char* prefix        = NULL;
     char* mode          = NULL;
     bool verify         = false;
 
@@ -78,9 +75,6 @@ int main(int argc, char *argv[]) {
                 break;
             case 'o':
                 output_path = optarg;
-                break;
-            case 'p':
-                prefix = optarg;
                 break;
             case 'w':
                 wrap_key_path = optarg;
@@ -124,12 +118,12 @@ int main(int argc, char *argv[]) {
         break;
 
     case 'e': /* encrypt */
-        if (!input_path || !output_path || !prefix) {
-            ERROR("Input/output path or prefix not specified\n");
+        if (!input_path || !output_path) {
+            ERROR("Input or output path not specified\n");
             usage();
             goto out;
         }
-        ret = pf_encrypt_files(input_path, output_path, prefix, wrap_key_path);
+        ret = pf_encrypt_files(input_path, output_path, wrap_key_path);
         break;
 
     case 'd': /* decrypt */

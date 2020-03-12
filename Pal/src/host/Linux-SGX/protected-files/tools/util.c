@@ -51,29 +51,6 @@ ssize_t get_file_size(int fd) {
     return st.st_size;
 }
 
-/* Read `size` bytes from the file */
-int read_file_part(const char* path, uint8_t* buffer, size_t size) {
-    FILE* f = NULL;
-    int ret = -1;
-
-    f = fopen(path, "rb");
-    if (!f) {
-        ERROR("Failed to open file '%s' for reading: %s\n", path, strerror(errno));
-        goto out;
-    }
-
-    if (fread(buffer, size, 1, f) != 1) {
-        ERROR("Failed to read file '%s'\n", path);
-        goto out;
-    }
-    ret = 0;
-
-out:
-    if (f)
-        fclose(f);
-    return ret;
-}
-
 /* Read whole file, caller should free the buffer */
 uint8_t* read_file(const char* path, ssize_t* size) {
     FILE* f = NULL;
@@ -161,16 +138,11 @@ void util_set_fd(int stdout_fd, int stderr_fd) {
 }
 
 /* Print memory as hex */
-void hexdump_mem(void* data, size_t size) {
+void hexdump_mem(const void* data, size_t size) {
     size_t i;
     uint8_t* ptr = (uint8_t*)data;
 
     for (i = 0; i < size; i++)
         INFO("%02x", ptr[i]);
     INFO("\n");
-}
-
-/* Fill memory buffer with zeros */
-void zero_memory(void* buffer, size_t size) {
-    memset(buffer, 0, size);
 }

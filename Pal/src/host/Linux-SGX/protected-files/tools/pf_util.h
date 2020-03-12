@@ -38,8 +38,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
                     const pf_key_t* wrap_key);
 
 /*! Convert a file or directory (recursively) to the protected format */
-int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* prefix,
-                     const char* wrap_key_path);
+int pf_encrypt_files(const char* input_dir, const char* output_dir, const char* wrap_key_path);
 
 /*! Convert a file or directory (recursively) from the protected format */
 int pf_decrypt_files(const char* input_dir, const char* output_dir, bool verify_path,

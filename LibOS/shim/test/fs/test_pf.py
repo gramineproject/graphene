@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 from test_fs import (
@@ -36,7 +37,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         # create encrypted files
         c.set_default_key(c)
         for i in c.INDEXES:
-            cmd = [c.PF_CRYPT, 'e', '-w', c.WRAP_KEY, '-i', c.INPUT_FILES[i], '-o', c.ENCRYPTED_FILES[i], '-p', c.ENCRYPTED_DIR]
+            cmd = [c.PF_CRYPT, 'e', '-w', c.WRAP_KEY, '-i', c.INPUT_FILES[i], '-o', c.ENCRYPTED_FILES[i]]
             c.run_native_binary(c, cmd)
 
     def set_default_key(self):
@@ -45,10 +46,10 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
 
     # override to encrypt the file
     def copy_input(self, input, output):
-        self.encrypt_file(input, output, self.OUTPUT_DIR)
+        self.encrypt_file(input, output)
 
-    def encrypt_file(self, input, output, prefix):
-        cmd = [self.PF_CRYPT, 'e', '-w', self.WRAP_KEY, '-i', input, '-o', output, '-p', prefix]
+    def encrypt_file(self, input, output):
+        cmd = [self.PF_CRYPT, 'e', '-w', self.WRAP_KEY, '-i', input, '-o', output]
         stdout, stderr = self.run_native_binary(cmd)
         return (stdout, stderr)
 
@@ -59,16 +60,16 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
 
     def test_000_gen_key(self):
         # test random key generation
-        cmd = [self.PF_CRYPT, 'g', '-w', self.WRAP_KEY]
+        key_path = os.path.join(self.TEST_DIR, next(tempfile._get_candidate_names()))
+        cmd = [self.PF_CRYPT, 'g', '-w', key_path]
         stdout, stderr = self.run_native_binary(cmd)
-        self.assertIn('Wrap key saved to: ' + self.WRAP_KEY, stdout)
-        self.assertEqual(os.path.getsize(self.WRAP_KEY), 16)
-        # change key to the hardcoded one for remaining tests
-        self.set_default_key()
+        self.assertIn('Wrap key saved to: ' + key_path, stdout)
+        self.assertEqual(os.path.getsize(key_path), 16)
+        os.remove(key_path)
 
     def test_010_encrypt_decrypt(self):
         for i in self.INDEXES:
-            stdout, stderr = self.encrypt_file(self.INPUT_FILES[i], self.OUTPUT_FILES[i], '/'+self.OUTPUT_DIR)
+            stdout, stderr = self.encrypt_file(self.INPUT_FILES[i], self.OUTPUT_FILES[i])
             self.assertFalse(filecmp.cmp(self.INPUT_FILES[i], self.OUTPUT_FILES[i], shallow=False))
             dp = os.path.join(self.OUTPUT_DIR, os.path.basename(self.OUTPUT_FILES[i]) + '.decrypted')
             stdout, stderr = self.decrypt_file(self.OUTPUT_FILES[i], dp)
@@ -76,6 +77,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
 
     # override to change input dir (from plaintext to encrypted)
     def test_100_open_close(self):
+        # the test binary expects a path to read-only (existing) file and a path to file that
+        # will get created
         input_path = self.ENCRYPTED_FILES[-1] # existing file
         output_path = os.path.join(self.OUTPUT_DIR, 'test_100') # new file
         stdout, stderr = self.run_binary(['open_close', input_path, output_path])
@@ -83,6 +86,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
 
     # override to change input dir (from plaintext to encrypted)
     def test_115_seek_tell(self):
+        # the test binary expects a path to read-only (existing) file and two paths to files that
+        # will get created
         plaintext_path = self.INPUT_FILES[-1]
         input_path = self.ENCRYPTED_FILES[-1] # existing file
         output_path_1 = os.path.join(self.OUTPUT_DIR, 'test_115a') # writable files
@@ -94,6 +99,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
 
     # override to change input dir (from plaintext to encrypted)
     def test_130_file_stat(self):
+        # the test binary expects a path to read-only (existing) file and a path to file that
+        # will get created
         for i in self.INDEXES:
             input_path = self.ENCRYPTED_FILES[i]
             output_path = self.OUTPUT_FILES[i]
@@ -153,8 +160,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             os.mkdir(INVALID_DIR)
         # prepare valid encrypted file (largest one for maximum possible corruptions)
         original_input = self.OUTPUT_FILES[-1]
-        # target prefix is INVALID_DIR
-        self.encrypt_file(self.INPUT_FILES[-1], original_input, INVALID_DIR)
+        self.encrypt_file(self.INPUT_FILES[-1], original_input)
         # generate invalid files based on the above
         self.corrupt_file(original_input, INVALID_DIR)
         # try to decrypt invalid files

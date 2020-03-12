@@ -1,42 +1,59 @@
-Protected files (PF) are a new type of file that can be specified in the manifest (SGX only).
-They are encrypted on disk and transparently decrypted when accessed by the Graphene payload.
+***************
+Protected Files
+***************
 
-Features:
+Protected files (PF) are a new type of file that can be specified in the manifest (SGX only).
+They are encrypted on disk and transparently decrypted when accessed by Graphene or by application
+running inside Graphene.
+
+Features
+========
 
 - Data is encrypted (confidentiality) and integrity protected (tamper resistance).
 - File swap protection (a PF can only be accessed when in a specific path).
-- Transparency (Graphene payload sees PFs as regular files, no need to modify the payload).
+- Transparency (Graphene application sees PFs as regular files, no need to modify the application).
 
 The following new manifest elements are added:
 
+```
 sgx.protected_files_key = <16-byte hex value>
 sgx.protected_files.<name> = file:<host path>
+```
 
-Example:
+Example
+-------
 
+```
 sgx.protected_files.pf_1 = file:tmp/some_file
 sgx.protected_files.pf_2 = file:tmp/some_dir
 sgx.protected_files.pf_3 = file:tmp/another_dir/some_file
+```
 
 Paths specifying PF entries can be files or directories. If a directory is specified,
 all existing files/directories within are registered as protected recursively (and are expected
 to be encrypted in the PF format). New files created in a protected directory are automatically
 treated as protected.
 
-NOTE: sgx.protected_files_key specifies the encryption key and is only a temporary implementation.
+NOTE
+----
+
+`sgx.protected_files_key` specifies the encryption key and is only a temporary implementation.
 This key should be provisioned to the enclave with local/remote attestation in the future.
 
-The tools directory contains the pf_crypt utility that converts files to/from the protected format.
+The `tools` directory contains the `pf_crypt` utility that converts files to/from the protected
+format.
 
 Internal protected file format in this version was ported from the SGX SDK:
 https://github.com/intel/linux-sgx/tree/master/sdk/protected_fs
 
-Tests:
+Tests
+=====
 
-Tests in LibOS/shim/test/fs now contain PF tests too (target is still test).
-Target to run just non-PF tests is fs-test.
+Tests in `LibOS/shim/test/fs` now contain PF tests too (target is still `test`).
+Target to run just non-PF tests is `fs-test`.
 
-TODO:
+TODO
+====
 
 - Truncating files is not yet implemented.
 - The recovery file feature is disabled, this needs to be discussed if it's needed in Graphene.

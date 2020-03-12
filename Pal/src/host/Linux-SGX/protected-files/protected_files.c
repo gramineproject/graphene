@@ -333,7 +333,7 @@ static bool ipf_restore_current_meta_data_key(pf_context_t pf) {
 
 static bool ipf_init_fields(pf_context_t pf) {
 #ifdef DEBUG
-    pf->debug_buffer = malloc(PF_DEBUG_PRINT_SIZE_MAX);
+    pf->debug_buffer = calloc(1, PF_DEBUG_PRINT_SIZE_MAX);
     if (!pf->debug_buffer)
         return false;
 #endif
@@ -368,7 +368,7 @@ static bool ipf_init_fields(pf_context_t pf) {
 static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool create,
                              pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
                              bool enable_recovery) {
-    struct pf_context* pf = malloc(sizeof(struct pf_context));
+    struct pf_context* pf = calloc(1, sizeof(*pf));
 
     g_last_error = PF_STATUS_NO_MEMORY;
     if (!pf)
@@ -602,8 +602,8 @@ static bool ipf_init_existing_file(pf_context_t pf, const char* filename) {
     DEBUG_PF("data size %lu\n", pf->encrypted_part_plain.size);
 
     if (filename) {
-        size_t name_len = strnlen(pf->encrypted_part_plain.clean_filename, FILENAME_MAX_LEN);
-        if (name_len != strnlen(filename, FILENAME_MAX_LEN) ||
+        size_t name_len = strnlen(pf->encrypted_part_plain.clean_filename, FULLNAME_MAX_LEN);
+        if (name_len != strnlen(filename, FULLNAME_MAX_LEN) ||
             memcmp(filename, pf->encrypted_part_plain.clean_filename, name_len) != 0) {
             g_last_error = PF_STATUS_INVALID_PATH;
             return false;
@@ -1513,12 +1513,11 @@ static file_node_t* ipf_append_data_node(pf_context_t pf) {
 
     file_node_t* new_file_data_node = NULL;
 
-    new_file_data_node = malloc(sizeof(*new_file_data_node));
+    new_file_data_node = calloc(1, sizeof(*new_file_data_node));
     if (!new_file_data_node) {
         g_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
-    memset(new_file_data_node, 0, sizeof(*new_file_data_node));
 
     new_file_data_node->type = FILE_DATA_NODE_TYPE;
     new_file_data_node->new_node = true;
@@ -1555,12 +1554,12 @@ static file_node_t* ipf_read_data_node(pf_context_t pf) {
     if (file_mht_node == NULL) // some error happened
         return NULL;
 
-    file_data_node = malloc(sizeof(*file_data_node));
+    file_data_node = calloc(1, sizeof(*file_data_node));
     if (!file_data_node) {
         g_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
-    memset(file_data_node, 0, sizeof(*file_data_node));
+
     file_data_node->type = FILE_DATA_NODE_TYPE;
     file_data_node->node_number = data_node_number;
     file_data_node->physical_node_number = physical_node_number;
@@ -1643,12 +1642,11 @@ static file_node_t* ipf_append_mht_node(pf_context_t pf, uint64_t mht_node_numbe
                                     mht_node_number * (1 + ATTACHED_DATA_NODES_COUNT);
 
     file_node_t* new_file_mht_node = NULL;
-    new_file_mht_node = malloc(sizeof(*new_file_mht_node));
+    new_file_mht_node = calloc(1, sizeof(*new_file_mht_node));
     if (!new_file_mht_node) {
         g_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
-    memset(new_file_mht_node, 0, sizeof(*new_file_mht_node));
 
     new_file_mht_node->type = FILE_MHT_NODE_TYPE;
     new_file_mht_node->new_node = true;
@@ -1686,13 +1684,12 @@ static file_node_t* ipf_read_mht_node(pf_context_t pf, uint64_t mht_node_number)
     if (parent_file_mht_node == NULL) // some error happened
         return NULL;
 
-    file_mht_node = malloc(sizeof(*file_mht_node));
+    file_mht_node = calloc(1, sizeof(*file_mht_node));
     if (!file_mht_node) {
         g_last_error = PF_STATUS_NO_MEMORY;
         return NULL;
     }
 
-    memset(file_mht_node, 0, sizeof(*file_mht_node));
     file_mht_node->type = FILE_MHT_NODE_TYPE;
     file_mht_node->node_number = mht_node_number;
     file_mht_node->physical_node_number = physical_node_number;
@@ -1916,6 +1913,16 @@ pf_status_t pf_write(pf_context_t pf, uint64_t offset, size_t size, const void* 
         return g_last_error;
     return PF_STATUS_SUCCESS;
 }
+
+pf_status_t pf_flush(pf_context_t pf) {
+    if (!g_initialized)
+        return PF_STATUS_UNINITIALIZED;
+
+    if (!ipf_internal_flush(pf, /*flush_to_disk=*/true))
+        return g_last_error;
+    return PF_STATUS_SUCCESS;
+}
+
 
 pf_status_t pf_get_handle(pf_context_t pf, pf_handle_t* handle) {
     if (!g_initialized)

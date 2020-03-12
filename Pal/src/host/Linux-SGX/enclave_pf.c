@@ -133,6 +133,7 @@ static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* h
         int ret = ocall_fstat(fd, &st);
         if (IS_ERR(ret)) {
             SGX_DBG(DBG_E, "cb_open(%s): fstat failed: %d\n", path, ret);
+            ocall_close(fd);
             return PF_STATUS_CALLBACK_FAILED;
         }
 
@@ -140,8 +141,10 @@ static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* h
     }
 
     *handle = malloc(sizeof(int));
-    if (!*handle)
+    if (!*handle) {
+        ocall_close(fd);
         return PF_STATUS_NO_MEMORY;
+    }
 
     *(int*)*handle = fd;
 
@@ -270,6 +273,7 @@ struct protected_file* find_protected_file_handle(PAL_HANDLE handle) {
     char uri[URI_MAX];
     int uri_len;
 
+    /* TODO: this logic is inefficient, add a PF reference to PAL_HANDLE instead */
     uri_len = _DkStreamGetName(handle, uri, URI_MAX);
     if (uri_len < 0)
         return NULL;
@@ -375,7 +379,7 @@ static int register_protected_dir(const char* path) {
 
             /* register file */
             size_t sub_path_size = strlen(dir->d_name) + 1 + path_size + FILE_URI_PREFIX_LEN;
-            char* sub_path = (char*)malloc(sub_path_size);
+            char* sub_path = malloc(sub_path_size);
             ret = -PAL_ERROR_NOMEM;
             if (!sub_path)
                 goto out;
@@ -402,13 +406,18 @@ out:
 
 /* Register a single PF (if it's a directory, recursively) */
 static int register_protected_path(const char* path, struct protected_file** new_pf) {
-    char normpath[URI_MAX];
+    int ret = -PAL_ERROR_NOMEM;
+    struct protected_file* new = NULL;
+
+    char* normpath = malloc(URI_MAX);
+    if (!normpath)
+        goto out;
 
     size_t len = URI_MAX;
-    int ret    = get_norm_path(path, normpath, &len);
+    ret = get_norm_path(path, normpath, &len);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Couldn't normalize path (%s): %s\n", path, pal_strerror(ret));
-        return ret;
+        goto out;
     }
 
     /* discard the "file:" prefix */
@@ -417,16 +426,17 @@ static int register_protected_path(const char* path, struct protected_file** new
     else
         path = normpath;
 
-    struct protected_file* new;
-
     if (find_protected_file(path)) {
+        ret = 0;
         SGX_DBG(DBG_D, "register_protected_path: file %s already registered\n", path);
-        return 0;
+        goto out;
     }
 
     new = calloc(1, sizeof(*new));
-    if (!new)
-        return -PAL_ERROR_NOMEM;
+    if (!new) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
 
     new->path_len = strlen(path);
     memcpy(new->path, path, new->path_len + 1);
@@ -434,10 +444,9 @@ static int register_protected_path(const char* path, struct protected_file** new
 
     bool is_dir;
     ret = is_directory(path, &is_dir);
-    if (ret != 0) {
-        free(new);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
+
     SGX_DBG(DBG_D, "register_protected_path: [%s] %s = %p\n", is_dir ? "dir" : "file", path, new);
 
     if (is_dir)
@@ -456,7 +465,12 @@ static int register_protected_path(const char* path, struct protected_file** new
     if (new_pf)
         *new_pf = new;
 
-    return 0;
+    ret = 0;
+out:
+    free(normpath);
+    if (ret != 0 && new)
+        free(new);
+    return ret;
 }
 
 /* Read PF paths from manifest and register them */
@@ -470,33 +484,32 @@ static int register_protected_files(const char* key_prefix) {
     cfgbuf = malloc(cfgsize);
     int nuris = get_config_entries(pal_state.root_config, key_prefix, cfgbuf, cfgsize);
     if (nuris == -PAL_ERROR_INVAL)
-        nuris = 0;
-
-    if (nuris >= 0) {
-        char key[CONFIG_MAX], uri[CONFIG_MAX];
-        char* k = cfgbuf;
-
-        for (int i = 0 ; i < nuris ; i++) {
-            int len = strlen(k);
-            snprintf(key, CONFIG_MAX, "%s.%s", key_prefix, k);
-            k += len + 1;
-            len = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
-            if (len > 0) {
-                if (!strstartswith_static(uri, FILE_URI_PREFIX)) {
-                    SGX_DBG(DBG_E, "Invalid URI [%s]: Protected files must start with 'file:'\n",
-                            uri);
-                } else {
-                    register_protected_path(uri, NULL);
-                }
-            }
-        }
-    } else {
-        ret = nuris;
         goto out;
+
+    char key[CONFIG_MAX], uri[CONFIG_MAX];
+    char* k = cfgbuf;
+
+    for (int i = 0 ; i < nuris ; i++) {
+        size_t len = strlen(k);
+        snprintf(key, CONFIG_MAX, "%s.%s", key_prefix, k);
+        k += len + 1;
+        len = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
+        if (len > 0) {
+            if (!strstartswith_static(uri, FILE_URI_PREFIX)) {
+                SGX_DBG(DBG_E, "Invalid URI [%s]: Protected files must start with 'file:'\n",
+                        uri);
+            } else {
+                register_protected_path(uri, NULL);
+            }
+        } else {
+            SGX_DBG(DBG_E, "Invalid PF entry in manifest: '%s'\n", key);
+        }
     }
 
+    pf_lock();
     SGX_DBG(DBG_D, "Registered %u protected directories and %u protected files\n",
             HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
+    pf_unlock();
     ret = 0;
 out:
     free(cfgbuf);
@@ -504,15 +517,15 @@ out:
 }
 
 /* Initialize the PF library, register PFs from the manifest */
-int init_protected_files() {
-    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_flush, cb_open, cb_close, cb_delete,
-                     cb_aes_gcm_encrypt, cb_aes_gcm_decrypt, cb_random,
+int init_protected_files(void) {
+    pf_debug_f debug_callback = NULL;
+
 #ifdef DEBUG
-                     cb_debug
-#else
-                     NULL
+    debug_callback = cb_debug;
 #endif
-                     );
+
+    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_flush, cb_open, cb_close, cb_delete,
+                     cb_aes_gcm_encrypt, cb_aes_gcm_decrypt, cb_random, debug_callback);
 
     /* TODO: development only: get SECRET WRAP KEY FOR PROTECTED FILES from manifest
        In the future, this key should be provisioned after local/remote attestation. */
@@ -541,9 +554,10 @@ int init_protected_files() {
         g_pf_wrap_key[i/2] = g_pf_wrap_key[i/2] * 16 + (uint8_t)val;
     }
 
-    if (register_protected_files("sgx.protected_files") < 0)
+    if (register_protected_files("sgx.protected_files") < 0) {
         SGX_DBG(DBG_E, "sgx.protected_files key not found in manifest, "
                 "protected files will not be available\n");
+    }
 
     return 0;
 }
@@ -553,7 +567,8 @@ static int open_protected_file(const char* path, struct protected_file* pf, pf_h
                                size_t size, pf_file_mode_t mode, bool create) {
     pf_status_t pfs;
     /* TODO: enable_recovery is always false for now */
-    pfs = pf_open(handle, path, size, mode, create, false, &g_pf_wrap_key, &pf->context);
+    pfs = pf_open(handle, path, size, mode, create, /*enable_recovery=*/false, &g_pf_wrap_key,
+                  &pf->context);
     if (PF_FAILURE(pfs)) {
         SGX_DBG(DBG_E, "pf_open(%d, %s) failed: %d\n", *(int*)handle, path, pfs);
         return -PAL_ERROR_DENIED;
@@ -577,7 +592,7 @@ struct protected_file* load_protected_file(const char* path, int* fd, size_t siz
         if (!pf->context) {
             SGX_DBG(DBG_D, "load_protected_file: %s, fd %d: opening new PF %p\n", path, *fd, pf);
             int ret = open_protected_file(path, pf, (pf_handle_t)fd, size, mode, create);
-            if (ret != 0)
+            if (ret < 0)
                 return NULL;
         } else {
             SGX_DBG(DBG_D, "load_protected_file: %s, fd %d: returning old PF %p\n", path, *fd, pf);
@@ -587,7 +602,7 @@ struct protected_file* load_protected_file(const char* path, int* fd, size_t siz
     return pf;
 }
 
-/* Flush PF map buffers and optionally remove them.
+/* Flush PF map buffers and optionally remove and free them.
    If pf is NULL, process all maps containing given buffer.
    If buffer is NULL, process all maps for given pf. */
 int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
@@ -599,6 +614,7 @@ int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
     SGX_DBG(DBG_D, "flush_pf_maps: pf %p, buf %p, remove %d\n", pf, buffer, remove);
     assert(pf || buffer);
 
+    pf_lock();
     LISTP_FOR_EACH_ENTRY_SAFE(map, tmp, &g_pf_map_list, list) {
         if (pf && map->pf != pf)
             continue;
@@ -607,31 +623,34 @@ int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
             continue;
 
         size_t size = map->size;
+        struct protected_file* map_pf = pf ? pf : map->pf;
 
-        if (!pf)
-            pf = map->pf;
-
-        pfs = pf_get_size(pf->context, &pf_size);
+        pfs = pf_get_size(map_pf->context, &pf_size);
         assert(PF_SUCCESS(pfs));
 
         SGX_DBG(DBG_D, "flush_pf_maps: pf %p, buf %p, size %lu, offset %lu\n",
-            map->pf, map->buffer, size, map->offset);
+                map_pf, map->buffer, size, map->offset);
 
         assert(pf_size >= map->offset);
         if (map->offset + size > pf_size)
             size = pf_size - map->offset;
 
         if (size > 0) {
-            pfs = pf_write(pf->context, map->offset, size, map->buffer);
+            pfs = pf_write(map_pf->context, map->offset, size, map->buffer);
             if (PF_FAILURE(pfs)) {
                 SGX_DBG(DBG_E, "flush_pf_maps: pf_write failed: %d\n", pfs);
+                pf_unlock();
                 return -PAL_ERROR_INVAL;
             }
         }
 
-        if (remove)
+        if (remove) {
             LISTP_DEL(map, &g_pf_map_list, list);
-     }
+            free(map);
+        }
+    }
+
+    pf_unlock();
     return 0;
 }
 
