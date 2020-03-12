@@ -55,6 +55,25 @@ enum {
 
 #define SGX_QUOTE_MAX_SIZE 2048
 
+/*!
+ * \brief Obtain SGX Quote from the Quoting Enclave (communicate via AESM).
+ *
+ * First create my enclave report (sgx_report_t) with target info of the Quoting Enclave, and
+ * then call out of the enclave to request the corresponding Quote from the Quoting Enclave.
+ * Communication is done via AESM service, in the form of protobuf request/response messages.
+ *
+ * \param spid[in]         Software provider ID (SPID).
+ * \param nonce[in]        16B nonce to be included in the quote for freshness.
+ * \param report_data[in]  64B bytestring to be included in the report and the quote.
+ * \param linkable[in]     Quote type (linkable vs unlinkable).
+ * \param quote[out]       Quote returned by the Quoting Enclave.
+ * \param quote_len[out]   Length of the quote returned by the Quoting Enclave.
+ * \return                 0 on success, negative PAL error code otherwise.
+ */
+int sgx_get_quote(const sgx_spid_t* spid, const sgx_quote_nonce_t* nonce,
+                  const sgx_report_data_t* report_data, bool linkable,
+                  char** quote, size_t* quote_len);
+
 #define IAS_REPORT_URL "https://api.trustedservices.intel.com/sgx/dev/attestation/v3/report"
 
 int init_trusted_platform(void);

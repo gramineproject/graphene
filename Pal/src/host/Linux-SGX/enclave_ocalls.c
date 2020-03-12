@@ -1299,3 +1299,60 @@ int ocall_eventfd (unsigned int initval, int flags)
     sgx_reset_ustack();
     return retval;
 }
+
+int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
+                    const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len) {
+    int retval = -EPERM;
+    char* buf  = NULL;
+
+    ms_ocall_get_quote_t* ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms)
+        goto out;
+
+    memcpy(&ms->ms_spid, spid, sizeof(*spid));
+    memcpy(&ms->ms_report, report, sizeof(*report));
+    memcpy(&ms->ms_nonce, nonce, sizeof(*nonce));
+    ms->ms_linkable = linkable;
+
+    retval = sgx_ocall(OCALL_GET_QUOTE, ms);
+
+    if (!IS_ERR(retval)) {
+        ms_ocall_get_quote_t ms_trusted;
+        if (!sgx_copy_to_enclave(&ms_trusted, sizeof(ms_trusted), ms, sizeof(ms_trusted))) {
+            retval = -EACCES;
+            goto out;
+        }
+
+        /* copy each field inside and free the untrusted buffers */
+        if (ms_trusted.ms_quote) {
+            size_t len = ms_trusted.ms_quote_len;
+            buf = malloc(len);
+            if (!buf) {
+                retval = -ENOMEM;
+                goto out;
+            }
+
+            if (!sgx_copy_to_enclave(buf, len, ms_trusted.ms_quote, len)) {
+                retval = -EACCES;
+                goto out;
+            }
+
+            /* for calling ocall_munmap_untrusted(), need to reset the untrusted stack */
+            sgx_reset_ustack();
+
+            retval = ocall_munmap_untrusted(ms_trusted.ms_quote, ALLOC_ALIGN_UP(len));
+            if (IS_ERR(retval)) {
+                goto out;
+            }
+
+            *quote     = buf;
+            *quote_len = len;
+        }
+    }
+
+out:
+    if (IS_ERR(retval))
+        free(buf);
+    sgx_reset_ustack();
+    return retval;
+}

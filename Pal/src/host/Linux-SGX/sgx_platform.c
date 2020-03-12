@@ -479,3 +479,72 @@ failed:
     response__free_unpacked(res, NULL);
     return -PAL_ERROR_DENIED;
 }
+
+int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
+                   const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len) {
+    int ret = connect_aesm_service();
+    if (ret < 0)
+        return ret;
+
+    Request req = REQUEST__INIT;
+    Request__GetQuoteRequest getreq = REQUEST__GET_QUOTE_REQUEST__INIT;
+    getreq.report.data   = (uint8_t*)report;
+    getreq.report.len    = SGX_REPORT_ACTUAL_SIZE;
+    getreq.quote_type    = linkable ? SGX_LINKABLE_SIGNATURE : SGX_UNLINKABLE_SIGNATURE;
+    getreq.spid.data     = (uint8_t*)spid;
+    getreq.spid.len      = sizeof(*spid);
+    getreq.has_nonce     = true;
+    getreq.nonce.data    = (uint8_t*)nonce;
+    getreq.nonce.len     = sizeof(*nonce);
+    getreq.buf_size      = SGX_QUOTE_MAX_SIZE;
+    getreq.has_qe_report = true;
+    getreq.qe_report     = true;
+    req.getquotereq      = &getreq;
+
+    Response* res = NULL;
+    ret = request_aesm_service(&req, &res);
+    if (ret < 0)
+        return ret;
+
+    ret = -EPERM;
+
+    if (!res->getquoteres) {
+        SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
+        goto out;
+    }
+
+    Response__GetQuoteResponse* r = res->getquoteres;
+    if (r->errorcode != 0) {
+        SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
+        goto out;
+    }
+
+    if (!r->has_quote     || r->quote.len < sizeof(sgx_quote_t) ||
+        !r->has_qe_report || r->qe_report.len != SGX_REPORT_ACTUAL_SIZE) {
+        SGX_DBG(DBG_E, "aesm_service returned invalid quote or report\n");
+        goto out;
+    }
+
+    *quote = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(r->quote.len),
+                                   PROT_READ|PROT_WRITE,
+                                   MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    if (IS_ERR_P(*quote)) {
+        SGX_DBG(DBG_E, "Failed to allocate memory for the quote\n");
+        goto out;
+    }
+
+    /* For some reason, Quoting Enclave always sets `r->quote.len == getreq.buf_size` instead of
+     * the actual size [1]. We calculate the actual size here by peeking into the quote and
+     * determining the size of the signature.
+     *
+     * [1] https://github.com/intel/linux-sgx/blob/master/psw/ae/aesm_service/source/core/ipc/AEGetQuoteRequest.cpp#L168
+     */
+    size_t actual_quote_size = sizeof(sgx_quote_t) + ((sgx_quote_t*)r->quote.data)->sig_len;
+    memcpy(*quote, r->quote.data, actual_quote_size);
+    *quote_len = actual_quote_size;
+
+    ret = 0;
+out:
+    response__free_unpacked(res, NULL);
+    return ret;
+}
