@@ -125,10 +125,8 @@
 #define LIST_ASSERT(COND)
 #endif
 
-#define LIST_TYPE(STRUCT_NAME) struct list_head##_##STRUCT_NAME
+#define LIST_TYPE(STRUCT_NAME)  struct list_head##_##STRUCT_NAME
 #define LISTP_TYPE(STRUCT_NAME) struct listp##_##STRUCT_NAME
-
-#define MAX_SIZE (~(size_t)0)
 
 /* Declare the enclosing struct for convenience, on
  * the assumption that this is primarily used in structure
@@ -138,7 +136,7 @@
     LIST_TYPE(STRUCT_NAME) {      \
         struct STRUCT_NAME* next; \
         struct STRUCT_NAME* prev; \
-    };
+    }
 
 /* should return 1, if node2 needs to be ahead of node1. 
 order of sorting, ascending or depending depends on user's compare function.*/
@@ -203,13 +201,12 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
 
 /* If NODE is defined, add NEW after NODE; if not,
  * put NEW at the front of the list */
-#define LISTP_ADD_AFTER(NEW, NODE, HEAD, FIELD)   \
-    do {                                          \
-        if (NODE) {                               \
-            LIST_ADD(NEW, NODE, FIELD);           \
-        } else {                                    \
-            LISTP_ADD(NEW, HEAD, FIELD);  \
-        }  \
+#define LISTP_ADD_AFTER(NEW, NODE, HEAD, FIELD) \
+    do {                                        \
+        if (NODE)                               \
+            LIST_ADD(NEW, NODE, FIELD);         \
+        else                                    \
+            LISTP_ADD(NEW, HEAD, FIELD);        \
     } while (0)
 
 #define LIST_ADD_TAIL(NEW, HEAD, FIELD) __LIST_ADD(NEW, HEAD, (HEAD)->FIELD.prev, FIELD)
@@ -220,9 +217,8 @@ typedef bool (*list_compare)(const void* node1, const void* node2);
             (HEAD)->first     = (NEW);                \
             (NEW)->FIELD.next = (NEW);                \
             (NEW)->FIELD.prev = (NEW);                \
-        } else {                                      \
+        } else                                        \
             LIST_ADD_TAIL(NEW, (HEAD)->first, FIELD); \
-        }                                             \
     } while (0)
 
 #define LISTP_PUSH_FRONT(NEW, LISTP, FIELD) LISTP_ADD(NEW, LISTP, FIELD)
