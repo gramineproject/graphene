@@ -597,12 +597,13 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
         goto failed;
     }
 
-    SGX_DBG(DBG_S, "Quote:\n");
-    SGX_DBG(DBG_S, "  version:    %04x\n", ias_quote->body.version);
-    SGX_DBG(DBG_S, "  sigtype:    %04x\n", ias_quote->body.sigtype);
-    SGX_DBG(DBG_S, "  gid:        %08x\n", ias_quote->body.gid);
-    SGX_DBG(DBG_S, "  isvsvn qe:  %08x\n", ias_quote->body.isvsvn_qe);
-    SGX_DBG(DBG_S, "  isvsvn pce: %08x\n", ias_quote->body.isvsvn_pce);
+    SGX_DBG(DBG_S, "IAS quote:\n");
+    SGX_DBG(DBG_S, "  version:       %04x\n", ias_quote->version);
+    SGX_DBG(DBG_S, "  sign_type:     %04x\n", ias_quote->sign_type);
+    SGX_DBG(DBG_S, "  epid_group_id: %02x%02x%02x%02x\n", ias_quote->epid_group_id[3],
+            ias_quote->epid_group_id[2], ias_quote->epid_group_id[1], ias_quote->epid_group_id[3]);
+    SGX_DBG(DBG_S, "  qe_svn:        %08x\n", ias_quote->qe_svn);
+    SGX_DBG(DBG_S, "  pce_svn:       %08x\n", ias_quote->pce_svn);
 
     SGX_DBG(DBG_S, "IAS report: %s\n", attestation.ias_report);
     SGX_DBG(DBG_S, "  status:    %s\n", ias_status);
@@ -624,8 +625,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     }
 
     // Check if the quote matches the IAS report
-    if (memcmp(&ias_quote->body, &attestation.quote->body, sizeof(sgx_quote_body_t)) ||
-        memcmp(&ias_quote->report_body, &report.body, sizeof(sgx_report_body_t))) {
+    if (memcmp(ias_quote, attestation.quote, SGX_QUOTE_BODY_SIZE)) {
         SGX_DBG(DBG_E, "IAS returned the wrong quote\n");
         goto failed;
     }
