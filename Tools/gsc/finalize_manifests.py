@@ -5,6 +5,7 @@ import sys
 import subprocess
 import re
 import string
+import argparse
 
 def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
@@ -33,11 +34,8 @@ def generate_trusted_files(root_dir):
     return trusted_files
 
 def generate_library_paths():
-    ld_config = subprocess.Popen(['ldconfig', '-v'],
-           stdout=subprocess.PIPE,
-           stderr=subprocess.PIPE)
-    ld_paths, _ = ld_config.communicate()
-    ld_paths = ld_paths.decode().splitlines()
+    ld_paths = subprocess.check_output('ldconfig -v',
+           stderr=subprocess.PIPE, shell=True).decode().splitlines()
 
     # Library paths start without whitespace. Libraries found under a path start with an
     # indentation.
@@ -46,11 +44,9 @@ def generate_library_paths():
     return ''.join(ld_paths)
 
 def get_binary_path(executable):
-    out = subprocess.Popen(['which', executable],
-           stdout=subprocess.PIPE,
-           stderr=subprocess.PIPE)
-    path, _ = out.communicate()
-    return path.decode().replace('\n', '')
+    path = subprocess.check_output('which ' + executable,
+           stderr=subprocess.STDOUT, shell=True).decode()
+    return path.replace('\n', '')
 
 def generate_signature(manifest):
     sign_process = subprocess.Popen([
@@ -71,20 +67,25 @@ def generate_signature(manifest):
         print("Finalize manifests failed due to pal-sgx-sign failure.")
         sys.exit(1)
 
-def main(args):
-    if len(args) < 3:
-        print('Too few arguments.')
-        print('Usage:')
-        print('   ' + args[0] + ' <directory> <app>.manifest [<app2>.manifest ...]')
-        print('    <directory>: Search the directory tree from this root for files '
-                + 'and generate list of trusted files')
+ARGPARSER = argparse.ArgumentParser()
+ARGPARSER.add_argument('finalize_manifests.py', metavar='SCRIPT',
+    help='Script to be run.')
+ARGPARSER.add_argument('directory', metavar='DIRNAME',
+    help='Search the directory tree from this root for files and generate list of trusted files')
+ARGPARSER.add_argument('manifests', metavar='APP.manifest',
+    nargs='+',
+    help='Application-specific manifest files. The first manifest will be used for the entry point '
+        + 'of the docker image. If file does not exist, manifest will be generated without '
+        + 'application-specific values.')
+
+def main(args=None):
+    args = ARGPARSER.parse_args(args)
+
+    if not os.path.isdir(args.directory):
+        print('Could not find directory ' + args.directory + '.')
         sys.exit(1)
 
-    if not os.path.isdir(args[1]):
-        print('Could not find directory ' + args[1] + '.')
-        sys.exit(1)
-
-    trusted_files = generate_trusted_files(args[1])
+    trusted_files = generate_trusted_files(args.directory)
     library_paths = generate_library_paths()
 
     print('Setting LD_LIBRARY_PATH to \'' + library_paths + '\'.')
@@ -94,7 +95,7 @@ def main(args):
     # To deal with multi-process applications, we allow multiple manifest files to be specified.
     # User must specify manifest files in the order of parent to child. Reverse list of manifests
     # to include signatures of children in parent.
-    for manifest in reversed(args[2:]):
+    for manifest in reversed(args.manifests):
         print(manifest + ':')
 
         executable = manifest[:manifest.rfind('.manifest')] if manifest.rfind('.manifest') != -1 else manifest
