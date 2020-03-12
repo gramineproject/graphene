@@ -100,3 +100,16 @@ int ocall_get_attestation(const sgx_spid_t* spid, const char* subkey, bool linka
                           sgx_attestation_t* attestation);
 int ocall_eventfd (unsigned int initval, int flags);
 
+/*!
+ * \brief Execute untrusted code in PAL to obtain a quote from the Quoting Enclave.
+ *
+ * \param spid[in]        Software provider ID (SPID).
+ * \param linkable[in]    Quote type (linkable vs unlinkable).
+ * \param report[in]      My enclave report to be sent to the Quoting Enclave.
+ * \param nonce[in]       16B nonce to be included in the quote for freshness.
+ * \param quote[out]      Quote returned by the Quoting Enclave.
+ * \param quote_len[out]  Length of the quote returned by the Quoting Enclave.
+ * \return                0 on success, negative error code otherwise.
+ */
+int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
+                    const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len);
