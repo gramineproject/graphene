@@ -1,7 +1,7 @@
 include ../Scripts/Makefile.configs
 include ../Scripts/Makefile.rules
 
-GLIBC_VERSION ?= 2.27
+GLIBC_VERSION ?= 2.31
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
 GLIBC_CHECKSUM = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
 SHIM_DIR = shim
@@ -86,6 +86,9 @@ GLIBC_PATCHES_2.23 = \
 
 GLIBC_PATCHES_2.27 = \
 	glibc-patches/hp-timing-2.23+.patch
+
+# Glibc 2.31 dropped x86-64-specific HP timing, so no need for patch
+GLIBC_PATCHES_2.31 =
 
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
 GLIBC_PATCHES += glibc-patches/ld-gold.patch
