@@ -43,7 +43,7 @@ typedef struct _sgx_quote_t {
     uint8_t signature[];
 } sgx_quote_t;
 
-#define SGX_QUOTE_BODY_SIZE offsetof(sgx_quote_t, signature_len)
+#define SGX_QUOTE_BODY_SIZE (offsetof(sgx_quote_t, signature_len))
 
 typedef uint8_t sgx_spid_t[16];
 typedef uint8_t sgx_quote_nonce_t[16];
