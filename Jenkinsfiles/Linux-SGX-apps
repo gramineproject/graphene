@@ -34,7 +34,7 @@ pipeline {
                             ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
                         '''
                         sh '''
-                            make -j 8 SGX=1 WERROR=1 GLIBC_VERSION=2.23
+                            make -j 8 SGX=1 WERROR=1 GLIBC_VERSION=2.27
                         '''
                     }
                 }
@@ -133,7 +133,7 @@ pipeline {
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
-                           make SGX=1 GLIBC_VERSION=2.23 distclean
+                           make SGX=1 GLIBC_VERSION=2.27 distclean
 
                            make -C LibOS/shim/test/apps/python-simple SGX=1 clean
                            make -C LibOS/shim/test/apps/python-scipy-insecure SGX=1 clean

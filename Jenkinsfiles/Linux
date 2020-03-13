@@ -15,8 +15,8 @@ pipeline {
                     steps {
                         sh '''
                             ./Scripts/clean-check-prepare
-                            make -j 8 WERROR=1 GLIBC_VERSION=2.23
-                            make -j 8 WERROR=1 GLIBC_VERSION=2.23 test
+                            make -j 8 WERROR=1 GLIBC_VERSION=2.27
+                            make -j 8 WERROR=1 GLIBC_VERSION=2.27 test
                             make -C Pal/src -j 8 PAL_HOST=Skeleton WERROR=1
                            '''
                     }
@@ -128,7 +128,7 @@ pipeline {
                         sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
-                           make GLIBC_VERSION=2.23 distclean
+                           make GLIBC_VERSION=2.27 distclean
                            make -C LibOS/shim/test/regression clean
 
                            make -C LibOS/shim/test/apps/ltp clean
