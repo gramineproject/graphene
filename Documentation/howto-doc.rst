@@ -28,7 +28,7 @@ not published.
    A |~| note about terminology:
 
    ``html``, ``latex`` and ``manpage``, and also others, are Sphinx "builders":
-   http://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-b.
+   https://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-b.
    Sphinx can output many different formats, some of them have overlapping usage
    (both ``html`` and ``latex`` usually output full handbook, the difference is
    screen vs print), some are specialised (``manpage`` processes only selected
