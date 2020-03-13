@@ -369,7 +369,13 @@ int shim_do_semop(int semid, struct sembuf* sops, unsigned int nsops) {
 int shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
                        const struct timespec* timeout) {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
-    return __do_semop(semid, sops, nsops, timeout->tv_sec * 1000000000ULL + timeout->tv_nsec);
+
+    unsigned long timeout_ns = IPC_SEM_NOTIMEOUT;
+    if (timeout) {
+        timeout_ns = timeout->tv_sec * 1000000000ULL + timeout->tv_nsec;
+    }
+
+    return __do_semop(semid, sops, nsops, timeout_ns);
 }
 
 int shim_do_semctl(int semid, int semnum, int cmd, unsigned long arg) {
