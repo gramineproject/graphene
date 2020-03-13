@@ -1,0 +1,449 @@
+diff --git a/Makeconfig b/Makeconfig
+index f252842979..4e22deb595 100644
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -930,7 +930,8 @@ endif	# $(+cflags) == ""
+ # current directory.
+ +includes = -I$(..)include $(if $(subdir),$(objpfx:%/=-I%)) \
+ 	    $(+sysdep-includes) $(includes) \
+-	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes)
++	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes) \
++	    -I$(common-objpfx)../shim/include
+ 
+ # Since libio has several internal header files, we use a -I instead
+ # of many little headers in the include directory.
+@@ -1274,6 +1275,9 @@ all-subdirs = csu assert ctype locale intl catgets math setjmp signal	    \
+ 	      localedata timezone rt conform debug mathvec support	    \
+ 	      dlfcn elf
+ 
++# Add libos for Graphene
++all-subdirs += libos
++
+ ifeq ($(build-crypt),yes)
+ all-subdirs += crypt
+ rpath-dirs += crypt
+diff --git a/Makefile b/Makefile
+index 8f0a93aceb..37c6356629 100644
+--- a/Makefile
++++ b/Makefile
+@@ -434,6 +434,8 @@ $(inst_includedir)/gnu/stubs.h: $(+force)
+ install-others-nosubdir: $(installed-stubs)
+ endif
+ 
++# For Graphene
++CFLAGS-syscalldb.c = -fPIC
+ 
+ # Since stubs.h is never needed when building the library, we simplify the
+ # hairy installation process by producing it in place only as the last part
+diff --git a/elf/Makefile b/elf/Makefile
+index 632a4d8b0f..d9def31d16 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -21,7 +21,7 @@ subdir		:= elf
+ 
+ include ../Makeconfig
+ 
+-headers		= elf.h bits/elfclass.h link.h bits/link.h
++headers		= elf.h bits/elfclass.h link.h bits/link.h syscalldb.h
+ routines	= $(all-dl-routines) dl-support dl-iteratephdr \
+ 		  dl-addr dl-addr-obj enbl-secure dl-profstub \
+ 		  dl-origin dl-libc dl-sym dl-sysdep dl-error \
+@@ -33,7 +33,8 @@ dl-routines	= $(addprefix dl-,load lookup object reloc deps hwcaps \
+ 				  runtime init fini debug misc \
+ 				  version profile tls origin scope \
+ 				  execstack open close trampoline \
+-				  exception sort-maps)
++				  exception sort-maps) \
++			  syscalldb syscallas
+ ifeq (yes,$(use-ldconfig))
+ dl-routines += dl-cache
+ endif
+diff --git a/elf/Versions b/elf/Versions
+index 3b09901f6c..7b5c35a55b 100644
+--- a/elf/Versions
++++ b/elf/Versions
+@@ -79,4 +79,7 @@ ld {
+     # Set value of a tunable.
+     __tunable_get_val;
+   }
++  SHIM {
++    syscalldb; glibc_version; register_library;
++  }
+ }
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index a6b80f9395..92ac9703f7 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -73,6 +73,8 @@ struct filebuf
+ #include <dl-prop.h>
+ #include <not-cancel.h>
+ 
++#include <glibc-version.h>
++
+ #include <endian.h>
+ #if BYTE_ORDER == BIG_ENDIAN
+ # define byteorder ELFDATA2MSB
+@@ -1390,6 +1392,9 @@ cannot enable executable stack as shared object requires");
+   DL_AFTER_LOAD (l);
+ #endif
+ 
++  /* register the library to SHIM */
++  register_library(l->l_name, l->l_addr);
++
+   /* Now that the object is fully initialized add it to the object list.  */
+   _dl_add_to_namespace_list (l, nsid);
+ 
+diff --git a/elf/rtld.c b/elf/rtld.c
+index 553cfbd1b7..11fac22f32 100644
+--- a/elf/rtld.c
++++ b/elf/rtld.c
+@@ -458,6 +458,23 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
+   return start_addr;
+ }
+ 
++/* For Graphene, check if Glibc version matches the compatible SHIM
++ * library. If not, tell the user to update Glibc. */
++#include "glibc-version.h"
++
++const unsigned int glibc_version __attribute__((weak)) = GLIBC_VERSION;
++
++static void
++check_glibc_version (void)
++{
++  if (glibc_version != GLIBC_VERSION)
++    {
++      _dl_fatal_printf ("Warning from Graphene: "
++                        "Glibc version is incorrect. Please rebuild Glibc.\n");
++      _exit (1);
++    }
++}
++
+ static ElfW(Addr) __attribute_used__
+ _dl_start (void *arg)
+ {
+@@ -528,6 +545,9 @@ _dl_start (void *arg)
+      therefore need not test whether we have to allocate the array
+      for the relocation results (as done in dl-reloc.c).  */
+ 
++  /* For Graphene, check if the glibc version is correct. */
++  check_glibc_version();
++
+   /* Now life is sane; we can call functions and access global data.
+      Set up to use the operating system facilities, and find out from
+      the operating system's program loader where to find the program
+diff --git a/shlib-versions b/shlib-versions
+index b9cb99d2fb..2d91a6c7f7 100644
+--- a/shlib-versions
++++ b/shlib-versions
+@@ -29,6 +29,9 @@ ld=ld.so.1
+ # The -ldl interface (see <dlfcn.h>) is the same on all platforms.
+ libdl=2
+ 
++# Interface for Graphene
++liblibos=1
++
+ # So far the -lutil interface is the same on all platforms, except for the
+ # `struct utmp' format, which depends on libc.
+ libutil=1
+diff --git a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
+index cbce00832c..ac5d209ccf 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
++++ b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
+@@ -89,7 +89,7 @@ ENTRY(____longjmp_chk)
+ 	xorl	%edi, %edi
+ 	lea	-sizeSS(%rsp), %RSI_LP
+ 	movl	$__NR_sigaltstack, %eax
+-	syscall
++	SYSCALLDB
+ 	/* Without working sigaltstack we cannot perform the test.  */
+ 	testl	%eax, %eax
+ 	jne	.Lok2
+diff --git a/sysdeps/unix/sysv/linux/x86_64/__start_context.S b/sysdeps/unix/sysv/linux/x86_64/__start_context.S
+index 9f7b00afbe..c3679598b2 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/__start_context.S
++++ b/sysdeps/unix/sysv/linux/x86_64/__start_context.S
+@@ -52,7 +52,7 @@ ENTRY(__push___start_context)
+ 	movl	$ARCH_CET_ALLOC_SHSTK, %edi
+ 	movl	$__NR_arch_prctl, %eax
+ 	/* The new shadow stack base is returned in __ssp[1].  */
+-	syscall
++	SYSCALLDB
+ 	testq	%rax, %rax
+ 	jne	L(hlt)		/* This should never happen.  */
+ 
+diff --git a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
+index 256529c9f6..5170ab579e 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/cancellation.S
++++ b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
+@@ -98,7 +98,7 @@ ENTRY(__pthread_disable_asynccancel)
+ 	xorq	%r10, %r10
+ 	addq	$CANCELHANDLING, %rdi
+ 	LOAD_PRIVATE_FUTEX_WAIT (%esi)
+-	syscall
++	SYSCALLDB
+ 	movl	%fs:CANCELHANDLING, %eax
+ 	jmp	3b
+ END(__pthread_disable_asynccancel)
+diff --git a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x86_64/clone.S
+index 5ae90f06d3..200b96b0a9 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/clone.S
++++ b/sysdeps/unix/sysv/linux/x86_64/clone.S
+@@ -73,7 +73,7 @@ ENTRY (__clone)
+ 	/* End FDE now, because in the child the unwind info will be
+ 	   wrong.  */
+ 	cfi_endproc;
+-	syscall
++	SYSCALLDB
+ 
+ 	testq	%rax,%rax
+ 	jl	SYSCALL_ERROR_LABEL
+@@ -96,7 +96,7 @@ L(thread_start):
+ 	/* Call exit with return value from function call. */
+ 	movq	%rax, %rdi
+ 	movl	$SYS_ify(exit), %eax
+-	syscall
++	SYSCALLDB
+ 	cfi_endproc;
+ 
+ 	cfi_startproc;
+diff --git a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
+index debdd891ab..fcb1307cbf 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/getcontext.S
++++ b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
+@@ -73,7 +73,7 @@ ENTRY(__getcontext)
+ 	mov	%RSP_LP, %RSI_LP
+ 	movl	$ARCH_CET_STATUS, %edi
+ 	movl	$__NR_arch_prctl, %eax
+-	syscall
++	SYSCALLDB
+ 	testq	%rax, %rax
+ 	jz	L(continue_no_err)
+ 
+@@ -125,7 +125,7 @@ L(no_shstk):
+ #endif
+ 	movl	$_NSIG8,%r10d
+ 	movl	$__NR_rt_sigprocmask, %eax
+-	syscall
++	SYSCALLDB
+ 	cmpq	$-4095, %rax		/* Check %rax for error.  */
+ 	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
+ 
+diff --git a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
+index 31bbc9dbe4..e1bfe2f13e 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/setcontext.S
++++ b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
+@@ -44,7 +44,7 @@ ENTRY(__setcontext)
+ 	movl	$SIG_SETMASK, %edi
+ 	movl	$_NSIG8,%r10d
+ 	movl	$__NR_rt_sigprocmask, %eax
+-	syscall
++	SYSCALLDB
+ 	/* Pop the pointer into RDX. The choice is arbitrary, but
+ 	   leaving RDI and RSI available for use later can avoid
+ 	   shuffling values.  */
+diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
+index c58a77c5c6..f1b413ea73 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
++++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
+@@ -78,7 +78,7 @@ asm									\
+    "	.type __" #name ",@function\n"					\
+    "__" #name ":\n"							\
+    "	movq $" #syscall ", %rax\n"					\
+-   "	syscall\n"							\
++   SYSCALLDB_ASM							\
+    ".LEND_" #name ":\n"							\
+    ".section .eh_frame,\"a\",@progbits\n"				\
+    ".LSTARTFRAME_" #name ":\n"						\
+diff --git a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
+index e071ef6347..4f09c105f8 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
++++ b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
+@@ -77,7 +77,7 @@ ENTRY(__swapcontext)
+ 	movl	$SIG_SETMASK, %edi
+ 	movl	$_NSIG8,%r10d
+ 	movl	$__NR_rt_sigprocmask, %eax
+-	syscall
++	SYSCALLDB
+ 	cmpq	$-4095, %rax		/* Check %rax for error.  */
+ 	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
+ 
+@@ -117,7 +117,7 @@ ENTRY(__swapcontext)
+ 	mov	%RSP_LP, %RSI_LP
+ 	movl	$ARCH_CET_STATUS, %edi
+ 	movl	$__NR_arch_prctl, %eax
+-	syscall
++	SYSCALLDB
+ 	testq	%rax, %rax
+ 	jz	L(continue_no_err)
+ 
+diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
+index 6c93fc6304..e390f0dcc1 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
++++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
+@@ -34,7 +34,7 @@ ENTRY (syscall)
+ 	movq %r8, %r10
+ 	movq %r9, %r8
+ 	movq 8(%rsp),%r9	/* arg6 is on the stack.  */
+-	syscall			/* Do the system call.  */
++	SYSCALLDB			/* Do the system call.  */
+ 	cmpq $-4095, %rax	/* Check %rax for error.  */
+ 	jae SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
+ 	ret			/* Return to caller.  */
+diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
+index c2eb37e575..c8910d8330 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/sysdep.h
++++ b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
+@@ -22,6 +22,7 @@
+ #include <sysdeps/unix/sysv/linux/sysdep.h>
+ #include <sysdeps/unix/x86_64/sysdep.h>
+ #include <tls.h>
++#include "syscalldb.h"
+ 
+ /* Defines RTLD_PRIVATE_ERRNO.  */
+ #include <dl-sysdep.h>
+@@ -166,7 +167,7 @@
+ # define DO_CALL(syscall_name, args)		\
+     DOARGS_##args				\
+     movl $SYS_ify (syscall_name), %eax;		\
+-    syscall;
++    SYSCALLDB;
+ 
+ # define DOARGS_0 /* nothing */
+ # define DOARGS_1 /* nothing */
+@@ -230,7 +231,7 @@
+ ({									\
+     unsigned long int resultvar;					\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB								\
+     : "=a" (resultvar)							\
+     : "0" (number)							\
+     : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
+@@ -244,7 +245,7 @@
+     TYPEFY (arg1, __arg1) = ARGIFY (arg1);			 	\
+     register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB								\
+     : "=a" (resultvar)							\
+     : "0" (number), "r" (_a1)						\
+     : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
+@@ -260,7 +261,7 @@
+     register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
+     register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB								\
+     : "=a" (resultvar)							\
+     : "0" (number), "r" (_a1), "r" (_a2)				\
+     : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
+@@ -278,7 +279,7 @@
+     register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
+     register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB								\
+     : "=a" (resultvar)							\
+     : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3)			\
+     : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
+@@ -298,7 +299,7 @@
+     register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
+     register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB								\
+     : "=a" (resultvar)							\
+     : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4)		\
+     : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
+@@ -320,7 +321,7 @@
+     register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
+     register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB								\
+     : "=a" (resultvar)							\
+     : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4),		\
+       "r" (_a5)								\
+@@ -345,7 +346,7 @@
+     register TYPEFY (arg2, _a2) asm ("rsi") = __arg2;			\
+     register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB								\
+     : "=a" (resultvar)							\
+     : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4),		\
+       "r" (_a5), "r" (_a6)						\
+diff --git a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
+index 776d2fc610..9fc94470d6 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/vfork.S
++++ b/sysdeps/unix/sysv/linux/x86_64/vfork.S
+@@ -51,7 +51,7 @@ ENTRY (__vfork)
+ 
+ 	/* Stuff the syscall number in RAX and enter into the kernel.  */
+ 	movl	$SYS_ify (vfork), %eax
+-	syscall
++	SYSCALLDB
+ 
+ #if !SHSTK_ENABLED
+ 	/* Push back the return PC.  */
+diff --git a/sysdeps/unix/sysv/linux/x86_64/x32/times.c b/sysdeps/unix/sysv/linux/x86_64/x32/times.c
+index fb93cb609c..c36fd5264e 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/x32/times.c
++++ b/sysdeps/unix/sysv/linux/x86_64/x32/times.c
+@@ -26,7 +26,7 @@
+     TYPEFY (arg1, __arg1) = ARGIFY (arg1);			 	\
+     register TYPEFY (arg1, _a1) asm ("rdi") = __arg1;			\
+     asm volatile (							\
+-    "syscall\n\t"							\
++    SYSCALLDB_ASM                           \
+     : "=a" (resultvar)							\
+     : "0" (number), "r" (_a1)						\
+     : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
+diff --git a/sysdeps/unix/x86_64/sysdep.h b/sysdeps/unix/x86_64/sysdep.h
+index c549dce4db..eb12d98b18 100644
+--- a/sysdeps/unix/x86_64/sysdep.h
++++ b/sysdeps/unix/x86_64/sysdep.h
+@@ -25,7 +25,7 @@
+ 
+ #define DO_CALL(syscall_name, args)					      \
+   lea SYS_ify (syscall_name), %rax;					      \
+-  syscall
++  SYSCALLDB
+ 
+ #define	r0		%rax	/* Normal return-value register.  */
+ #define	r1		%rbx	/* Secondary return-value register.  */
+diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
+index 8e9baffeb4..04f2ee64aa 100644
+--- a/sysdeps/x86_64/dl-machine.h
++++ b/sysdeps/x86_64/dl-machine.h
+@@ -579,7 +579,8 @@ elf_machine_lazy_rel (struct link_map *map,
+ 	value = ((ElfW(Addr) (*) (void)) value) ();
+       *reloc_addr = value;
+     }
+-  else
++  /* for Graphene, get around R_X86_64_NONE */
++  else if (__builtin_expect (r_type != R_X86_64_NONE, 1))
+     _dl_reloc_bad_type (map, r_type, 1);
+ }
+ 
+diff --git a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
+index e7c1416eec..0d3b7babb0 100644
+--- a/sysdeps/x86_64/nptl/tls.h
++++ b/sysdeps/x86_64/nptl/tls.h
+@@ -29,6 +29,7 @@
+ # include <libc-pointer-arith.h> /* For cast_to_integer.  */
+ # include <kernel-features.h>
+ # include <dl-dtv.h>
++# include <syscalldb.h>
+ 
+ /* Replacement type for __m128 since this file is included by ld.so,
+    which is compiled with -mno-sse.  It must not change the alignment
+@@ -161,7 +162,7 @@ _Static_assert (offsetof (tcbhead_t, __glibc_unused2) == 0x80,
+      _head->self = _thrdescr;						      \
+ 									      \
+      /* It is a simple syscall to set the %fs value for the thread.  */	      \
+-     asm volatile ("syscall"						      \
++     asm volatile (SYSCALLDB						      \
+ 		   : "=a" (_result)					      \
+ 		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
+ 		     "D" ((unsigned long int) ARCH_SET_FS),		      \
