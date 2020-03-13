@@ -601,7 +601,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     SGX_DBG(DBG_S, "  version:       %04x\n", ias_quote->version);
     SGX_DBG(DBG_S, "  sign_type:     %04x\n", ias_quote->sign_type);
     SGX_DBG(DBG_S, "  epid_group_id: %02x%02x%02x%02x\n", ias_quote->epid_group_id[3],
-            ias_quote->epid_group_id[2], ias_quote->epid_group_id[1], ias_quote->epid_group_id[3]);
+            ias_quote->epid_group_id[2], ias_quote->epid_group_id[1], ias_quote->epid_group_id[0]);
     SGX_DBG(DBG_S, "  qe_svn:        %08x\n", ias_quote->qe_svn);
     SGX_DBG(DBG_S, "  pce_svn:       %08x\n", ias_quote->pce_svn);
 
