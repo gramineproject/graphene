@@ -16,7 +16,7 @@ Fork() system call is intercepted in the `shim_do_fork()` LibOS function.
 This function performs three tasks:
 
 1. discovers the namespace leader,
-2. creates a LibOS :type:`shim_thread` structure for a new thread, and
+2. creates a LibOS `shim_thread` structure for a new thread, and
 3. calls `do_migrate_process()`.
 
 The first two tasks are trivial, so we concentrate on the third one.
