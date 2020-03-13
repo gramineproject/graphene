@@ -61,11 +61,12 @@ def generate_signature(manifest):
 
     _, err = sign_process.communicate()
 
-    if (sign_process.returncode is not 0
+    if (sign_process.returncode != 0
         or not os.path.exists(os.path.join(os.getcwd(), manifest + '.sgx'))):
         print(err.decode())
         print("Finalize manifests failed due to pal-sgx-sign failure.")
         sys.exit(1)
+
 
 ARGPARSER = argparse.ArgumentParser()
 ARGPARSER.add_argument('finalize_manifests.py', metavar='SCRIPT',
@@ -93,8 +94,8 @@ def main(args=None):
     trusted_signatures = []
 
     # To deal with multi-process applications, we allow multiple manifest files to be specified.
-    # User must specify manifest files in the order of parent to child. Reverse list of manifests
-    # to include signatures of children in parent.
+    # User must specify manifest files in the order of parent to child. Here we reverse the list
+    # of manifests to include the signatures of children in the parent.
     for manifest in reversed(args.manifests):
         print(manifest + ':')
 

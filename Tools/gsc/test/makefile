@@ -1,4 +1,4 @@
-TESTCASES=hello-world python3 nodejs bash numpy
+TESTCASES=hello-world python3 nodejs bash numpy pytorch
 DISTRIBUTIONS=ubuntu18.04 ubuntu16.04
 TESTS=$(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 SGX_DEVICES=--device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
@@ -19,9 +19,13 @@ gsc-%-bash: %-bash.manifest ls.manifest
 	echo "Build graphenized image $@"
 	cd .. && ./gsc build $*-bash $(addprefix test/, $^)
 
-gsc-%-python3: %-python3.manifest sh.manifest ls.manifest
+gsc-%-python3: %-python3.manifest
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build $*-python3 $(addprefix test/, $^)
+	cd .. && ./gsc build $*-python3 $(addprefix test/, $^ sh.manifest ls.manifest)
+
+gsc-%-pytorch: %-pytorch.manifest
+	echo "Build graphenized image $@"
+	cd .. && ./gsc build $*-pytorch $(addprefix test/, $^ sh.manifest)
 
 gsc-%: %.manifest
 	echo "Build graphenized image $@"
@@ -30,6 +34,7 @@ gsc-%: %.manifest
 test: $(addprefix test-, $(DISTRIBUTIONS))
 	echo "[SUCCESS] Completed all GSC test cases"
 
+# FIXME: Test 9 - 11 currently not working properly
 MAXTESTNUM?=8
 
 test-1-%:
@@ -72,11 +77,14 @@ test-8-%:
 	grep -q "numpy version:" out;
 
 test-9-%:
+	docker run $(SGX_DEVICES) gsc-$*-pytorch pytorchexample.py
+
+test-10-%:
 	docker run $(SGX_DEVICES) gsc-$*-python3 -c 'import os;os.system("ls")' >out 2>/dev/null;
 	grep -q "finalize_manifests.py" out;
 
-test-10-%:
-	docker run $(SGX_DEVICES) gsc-$*-bash -c 'ls' >out 2>&1;
+test-11-%:
+	docker run $(SGX_DEVICES) gsc-$*-bash -c 'ls' >out 2>/dev/null;
 	grep -q "finalize_manifests.py" out;
 
 test-%:
