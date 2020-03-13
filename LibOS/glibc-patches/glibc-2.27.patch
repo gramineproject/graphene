@@ -102,6 +102,14 @@ diff -ruNp a/Makeconfig b/Makeconfig
  
  # Since libio has several internal header files, we use a -I instead
  # of many little headers in the include directory.
+@@ -1100,4 +1100,7 @@ all-subdirs = csu assert ctype locale in
+ 	      $(add-on-subdirs) dlfcn elf
+ 
++# Add libos for Graphene
++all-subdirs += libos
++
+ ifndef avoid-generated
+ # sysd-sorted itself will contain rules making the sysd-sorted target
 diff -ruNp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
@@ -413,3 +421,17 @@ diff -ruNp a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
+diff --git a/shlib-versions b/shlib-versions
+index 78b0ad7..5c3dcf2 100644
+--- a/shlib-versions
++++ b/shlib-versions
+@@ -64,6 +64,9 @@ sh.*-.*-linux.*		ld=ld-linux.so.2	GLIBC_
+ # The -ldl interface (see <dlfcn.h>) is the same on all platforms.
+ libdl=2
+ 
++# Interface for Graphene
++liblibos=1
++
+ # So far the -lutil interface is the same on all platforms, except for the
+ # `struct utmp' format, which depends on libc.
+ libutil=1

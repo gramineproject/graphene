@@ -1,15 +1,3 @@
-diff --git a/Makeconfig b/Makeconfig
-index 1908f27..cf34ba1 100644
---- a/Makeconfig
-+++ b/Makeconfig
-@@ -1100,4 +1100,7 @@ all-subdirs = csu assert ctype locale in
- 	      $(add-on-subdirs) dlfcn elf
- 
-+# Add libos for Graphene
-+all-subdirs += libos
-+
- ifndef avoid-generated
- # sysd-sorted itself will contain rules making the sysd-sorted target
 diff --git a/libos/Makefile b/libos/Makefile
 new file mode 100644
 index 0000000..7e0027d
