@@ -74,11 +74,9 @@ GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 GLIBC_PATCHES = \
 	glibc-patches/$(GLIBC_SRC).patch \
 	glibc-patches/syscalldb-api.patch \
-	glibc-patches/liblibos.patch \
-	glibc-patches/malloc-arena-size.patch
+	glibc-patches/liblibos.patch
 
 GLIBC_PATCHES_2.23 = \
-	glibc-patches/liblibos-2.23+.patch \
 	glibc-patches/hp-timing-2.23+.patch \
 	glibc-patches/dangling-else.patch \
 	glibc-patches/cvs-common-symbols.patch \
@@ -87,7 +85,6 @@ GLIBC_PATCHES_2.23 = \
 	glibc-patches/nis-bogus-conditional.patch
 
 GLIBC_PATCHES_2.27 = \
-	glibc-patches/liblibos-2.23+.patch \
 	glibc-patches/hp-timing-2.23+.patch
 
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
