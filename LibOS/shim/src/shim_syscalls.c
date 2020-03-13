@@ -795,8 +795,9 @@ DEFINE_SHIM_SYSCALL(clock_gettime, 2, shim_do_clock_gettime, int, clockid_t, whi
 DEFINE_SHIM_SYSCALL(clock_getres, 2, shim_do_clock_getres, int, clockid_t, which_clock,
                     struct timespec*, tp)
 
-SHIM_SYSCALL_PASSTHROUGH(clock_nanosleep, 4, int, clockid_t, which_clock, int, flags,
-                         const struct timespec*, rqtp, struct timespec*, rmtp)
+/* clock_nanosleep: sys/shim_sleep.c */
+DEFINE_SHIM_SYSCALL(clock_nanosleep, 4, shim_do_clock_nanosleep, int, clockid_t, which_clock, int,
+                    flags, const struct __kernel_timespec*, rqtp, struct __kernel_timespec*, rmtp)
 
 /* exit_group: sys/shim_exit.c */
 DEFINE_SHIM_SYSCALL(exit_group, 1, shim_do_exit_group, int, int, error_code)

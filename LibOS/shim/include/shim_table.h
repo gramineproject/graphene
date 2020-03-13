@@ -463,6 +463,8 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
 int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* event);
 int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp);
 int shim_do_clock_getres(clockid_t which_clock, struct timespec* tp);
+int shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
+                            struct __kernel_timespec* rmtp);
 noreturn int shim_do_exit_group(int error_code);
 int shim_do_tgkill(int tgid, int pid, int sig);
 int shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,
@@ -735,8 +737,8 @@ int shim_timer_delete(timer_t timer_id);
 int shim_clock_settime(clockid_t which_clock, const struct timespec* tp);
 int shim_clock_gettime(clockid_t which_clock, struct timespec* tp);
 int shim_clock_getres(clockid_t which_clock, struct timespec* tp);
-int shim_clock_nanosleep(clockid_t which_clock, int flags, const struct timespec* rqtp,
-                         struct timespec* rmtp);
+int shim_clock_nanosleep(clockid_t which_clock, int flags, const struct __kernel_timespec* rqtp,
+                         struct __kernel_timespec* rmtp);
 int shim_exit_group(int error_code);
 int shim_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxevents, int timeout_ms);
 int shim_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* event);

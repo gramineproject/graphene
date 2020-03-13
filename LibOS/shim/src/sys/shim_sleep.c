@@ -94,3 +94,16 @@ int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_time
 
     return 0;
 }
+
+int shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
+                            struct __kernel_timespec* rmtp) {
+    /* all clocks are the same */
+    __UNUSED(clock_id);
+
+    if (flags) {
+        debug("clock_nanosleep does not support non-zero flags (%d)\n", flags);
+        return -EINVAL;
+    }
+
+    return shim_do_nanosleep(rqtp, rmtp);
+}
