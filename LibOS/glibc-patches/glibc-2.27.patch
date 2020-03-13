@@ -86,7 +86,7 @@ diff -ruNp a/elf/Versions b/elf/Versions
      __tunable_get_val;
    }
 +  SHIM {
-+    syscalldb; glibc_version; glibc_option; register_library;
++    syscalldb; glibc_version; register_library;
 +  }
  }
 diff -ruNp a/Makeconfig b/Makeconfig

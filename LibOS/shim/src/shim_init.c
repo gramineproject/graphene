@@ -166,25 +166,6 @@ unsigned long parse_int (const char * str)
     return num;
 }
 
-long int glibc_option (const char * opt)
-{
-    char cfg[CONFIG_MAX];
-
-    if (!strcmp_static(opt, "heap_size")) {
-        ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, sizeof(cfg));
-        if (ret <= 0) {
-            debug("no glibc option: %s (err=%ld)\n", opt, ret);
-            return -ENOENT;
-        }
-
-        long int heap_size = parse_int(cfg);
-        debug("glibc option: heap_size = %ld\n", heap_size);
-        return (long int) heap_size;
-    }
-
-    return -EINVAL;
-}
-
 void * migrated_memory_start;
 void * migrated_memory_end;
 

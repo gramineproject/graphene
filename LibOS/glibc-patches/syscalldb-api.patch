@@ -36,7 +36,7 @@ new file mode 100644
 index 0000000..7a56162
 --- /dev/null
 +++ b/syscalldb.c
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,11 @@
 +#include "syscalldb.h"
 +#include <stdarg.h>
 +#include <errno.h>
@@ -48,17 +48,12 @@ index 0000000..7a56162
 +{
 +	return 0;
 +}
-+
-+long int glibc_option (const char * opt)
-+{
-+	return -EINVAL;
-+}
 diff --git a/syscalldb.h b/syscalldb.h
 new file mode 100644
 index 0000000..2833def
 --- /dev/null
 +++ b/syscalldb.h
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,33 @@
 +#ifndef _SYSCALLDB_H_
 +#define _SYSCALLDB_H_
 +
@@ -88,12 +83,6 @@ index 0000000..2833def
 +
 +#define SYSCALLDB_ASM                       \
 +    "callq *syscalldb@GOTPCREL(%rip)\n\t"
-+
-+long int glibc_option (const char * opt);
-+
-+asm (
-+".weak glibc_option\r\n"
-+".type glibc_option, @function\r\n");
 +
 +#endif /* Assembler */
 +
