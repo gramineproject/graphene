@@ -26,14 +26,14 @@ static long sgx_ocall_exit(void* pms)
          * be around until the child finally exits (because its parent in turn may wait on it) */
         SGX_DBG(DBG_I, "Temporary process exits after emulating execve, wait for child to exit\n");
 
-        int ret = INLINE_SYSCALL(wait4, 4, /*any child*/-1, /*wstatus=*/NULL, /*options=*/0,
-                                 /*rusage=*/NULL);
+        int wstatus;
+        int ret = INLINE_SYSCALL(wait4, 4, /*any child*/-1, &wstatus, /*options=*/0, /*rusage=*/NULL);
         if (IS_ERR(ret)) {
             /* it's too late to recover from errors, just log it and continue with dying */
             SGX_DBG(DBG_I, "Temporary process waited for child to exit but received error %d\n", ret);
         }
 
-        ms->ms_exitcode = 0;
+        ms->ms_exitcode = wstatus;
     }
 
     if (ms->ms_exitcode != (int) ((uint8_t) ms->ms_exitcode)) {

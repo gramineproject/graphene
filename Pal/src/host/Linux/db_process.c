@@ -425,9 +425,9 @@ noreturn void _DkProcessExit (int exitcode)
     if (exitcode == PAL_WAIT_FOR_CHILDREN_EXIT) {
         /* this is a "temporary" process exiting after execve'ing a child process: it must still
          * be around until the child finally exits (because its parent in turn may wait on it) */
-        INLINE_SYSCALL(wait4, 4, /*any child*/-1, /*wstatus=*/NULL, /*options=*/0,
-                       /*rusage=*/NULL);
-        exitcode = 0;
+        int wstatus;
+        INLINE_SYSCALL(wait4, 4, /*any child*/-1, &wstatus, /*options=*/0, /*rusage=*/NULL);
+        exitcode = wstatus;
     }
 
     INLINE_SYSCALL(exit_group, 1, exitcode);

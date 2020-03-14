@@ -389,10 +389,14 @@ PAL_HANDLE
 DkProcessCreate (PAL_STR uri, PAL_STR * args);
 
 
-/* Magic exit code that instructs the exiting process to wait for its children. Required for a
- * corner case when the parent exec's the child in a new Graphene process: for correctness,
- * the parent cannot immediately exit since it may have a parent that waits on it. We hope that
- * no sane application will pick this magic number as its exit code. */
+/*!
+ * \brief Magic exit code that instructs the exiting process to wait for its children
+ *
+ * Required for a corner case when the parent exec's the child in a new Graphene process: for
+ * correctness, the parent cannot immediately exit since it may have a parent that waits on it.
+ * If an application by coincidence picks this magic number as its exit code, it is changed to
+ * another exit code so as to not confuse the PAL code.
+ */
 #define PAL_WAIT_FOR_CHILDREN_EXIT (1024 * 1024)
 
 noreturn void

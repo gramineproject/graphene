@@ -525,8 +525,8 @@ reopen:
      * and the execve'ed child, but it must still be around until the child finally exits (because
      * its parent in turn may wait on it, e.g., `bash -c ls`) */
     debug(
-        "Temporary process %u exits after emulating execve (by forking new process to replace this"
-        " one); will wait for forked process to exit...\n", cur_process.vmid & 0xFFFF);
+        "Temporary process %u is exiting after emulating execve (by forking new process to replace"
+        " this one); will wait for forked process to exit...\n", cur_process.vmid & 0xFFFF);
     MASTER_LOCK();
     DkProcessExit(PAL_WAIT_FOR_CHILDREN_EXIT);
 
