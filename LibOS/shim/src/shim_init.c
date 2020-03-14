@@ -1140,6 +1140,12 @@ noreturn void shim_clean_and_exit(int exit_code) {
     shim_stdio = NULL;
     debug("process %u exited with status %d\n", cur_process.vmid & 0xFFFF, cur_process.exit_code);
     MASTER_LOCK();
+
+    if (cur_process.exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
+        /* user application specified magic exit code; this should be an extremely rare case */
+        debug("exit status collides with Graphene-internal magic status; changed to 1\n");
+        cur_process.exit_code = 1;
+    }
     DkProcessExit(cur_process.exit_code);
 }
 
