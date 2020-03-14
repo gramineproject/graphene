@@ -25,8 +25,8 @@ def generate_trusted_files(root_dir):
                 and is_ascii(filename)
                 and os.path.exists(filename)
                 and filename != script_file):
-                trusted_files += ('sgx.trusted_files.file' + str(num_trusted)
-                                    + ' = file:' + filename + '\n')
+                trusted_files += 'sgx.trusted_files.file{} = file:{}\n'.format(num_trusted,
+                                                                                filename)
                 num_trusted += 1
 
     print('Found ' + str(num_trusted) + ' files in \'' + root_dir + '\'.')
@@ -76,15 +76,14 @@ ARGPARSER.add_argument('directory', metavar='DIRNAME',
 ARGPARSER.add_argument('manifests', metavar='APP.manifest',
     nargs='+',
     help='Application-specific manifest files. The first manifest will be used for the entry point '
-        + 'of the docker image. If file does not exist, manifest will be generated without '
-        + 'application-specific values.')
+        'of the docker image. If file does not exist, manifest will be generated without '
+        'application-specific values.')
 
 def main(args=None):
     args = ARGPARSER.parse_args(args)
 
     if not os.path.isdir(args.directory):
-        print('Could not find directory ' + args.directory + '.')
-        sys.exit(1)
+        ARGPARSER.error('Could not find directory ' + args.directory + '.')
 
     trusted_files = generate_trusted_files(args.directory)
     library_paths = generate_library_paths()

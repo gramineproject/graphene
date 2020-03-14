@@ -126,12 +126,11 @@ def prepare_substitutions(base_image, image, options, user_manifests):
         app = image_re.group(1)
 
     # find command of image from base_image
-    cmd = ' '.join(base_image.attrs['Config']['Cmd'])
+    cmd = base_image.attrs['Config']['Cmd']
     # remove /bin/sh -c prefix and extract binary and arguments
-    cmd = cmd[cmd.startswith('[/bin/sh -c ') and len('[/bin/sh -c ') : ]
-    split = cmd.split(None, 1)
-    binary = split[0]
-    binary_arguments = split[1] if len(split) > 1 else ""
+    binary_it = 2 if cmd[0] == '/bin/sh' and cmd[1] == '-c' else 0
+    binary = cmd[binary_it]
+    binary_arguments = cmd[binary_it +1 : ]
 
     working_dir = base_image.attrs['Config']['WorkingDir']
 
@@ -139,7 +138,7 @@ def prepare_substitutions(base_image, image, options, user_manifests):
             "appImage" : image,
             "app" : app,
             "binary" : binary,
-            'binary_arguments': binary_arguments,
+            'binary_arguments': "'" + "' '".join(binary_arguments) + "'",
             'working_dir': working_dir,
             'user_manifests': ' '.join([os.path.basename(manifest)
                                         for manifest in user_manifests[1:]])
