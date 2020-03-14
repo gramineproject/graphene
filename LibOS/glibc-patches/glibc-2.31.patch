@@ -67,7 +67,7 @@ index 3b09901f6c..7b5c35a55b 100644
      __tunable_get_val;
    }
 +  SHIM {
-+    syscalldb; glibc_version; glibc_option; register_library;
++    syscalldb; glibc_version; register_library;
 +  }
  }
 diff --git a/elf/dl-load.c b/elf/dl-load.c

@@ -87,8 +87,8 @@ GLIBC_PATCHES_2.23 = \
 GLIBC_PATCHES_2.27 = \
 	glibc-patches/hp-timing-2.23+.patch
 
-# Glibc 2.31 dropped x86-64-specific HP timing, so no need for patch
-GLIBC_PATCHES_2.31 =
+GLIBC_PATCHES_2.31 = \
+	glibc-patches/hp-timing-2.31.patch
 
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
 GLIBC_PATCHES += glibc-patches/ld-gold.patch
