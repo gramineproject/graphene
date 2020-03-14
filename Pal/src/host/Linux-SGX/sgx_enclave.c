@@ -21,6 +21,21 @@ static long sgx_ocall_exit(void* pms)
     ms_ocall_exit_t * ms = (ms_ocall_exit_t *) pms;
     ODEBUG(OCALL_EXIT, NULL);
 
+    if (ms->ms_is_exitgroup && ms->ms_exitcode == PAL_WAIT_FOR_CHILDREN_EXIT) {
+        /* this is a "temporary" process exiting after execve'ing a child process: it must still
+         * be around until the child finally exits (because its parent in turn may wait on it) */
+        SGX_DBG(DBG_I, "Temporary process exits after emulating execve, wait for child to exit\n");
+
+        int ret = INLINE_SYSCALL(wait4, 4, /*any child*/-1, /*wstatus=*/NULL, /*options=*/0,
+                                 /*rusage=*/NULL);
+        if (IS_ERR(ret)) {
+            /* it's too late to recover from errors, just log it and continue with dying */
+            SGX_DBG(DBG_I, "Temporary process waited for child to exit but received error %d\n", ret);
+        }
+
+        ms->ms_exitcode = 0;
+    }
+
     if (ms->ms_exitcode != (int) ((uint8_t) ms->ms_exitcode)) {
         SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n",
                 ms->ms_exitcode, (uint8_t) ms->ms_exitcode);
