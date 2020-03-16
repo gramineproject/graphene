@@ -138,8 +138,8 @@ int init_trusted_files (void);
  * return:  0 succeed
  */
 
-int load_trusted_file
-    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr, int create);
+int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, int create,
+                      void** umem);
 
 enum {
     FILE_CHECK_POLICY_STRICT = 0,

@@ -376,7 +376,7 @@ static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (count != (uint32_t)count)
         return -PAL_ERROR_INVAL;
 
-    int bytes;
+    ssize_t bytes;
     if (handle->process.ssl_ctx) {
         bytes = _DkStreamSecureRead(handle->process.ssl_ctx, buffer, count);
     } else {
@@ -396,7 +396,7 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (count != (uint32_t)count)
         return -PAL_ERROR_INVAL;
 
-    int bytes;
+    ssize_t bytes;
     if (handle->process.ssl_ctx) {
         bytes = _DkStreamSecureWrite(handle->process.ssl_ctx, buffer, count);
     } else {

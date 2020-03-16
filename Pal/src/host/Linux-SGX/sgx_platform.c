@@ -156,7 +156,7 @@ failed:
 int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* nonce,
                                  const sgx_quote_t* quote, sgx_attestation_t* attestation) {
 
-    size_t quote_len = sizeof(sgx_quote_t) + quote->sig_len;
+    size_t quote_len = sizeof(sgx_quote_t) + quote->signature_len;
     size_t quote_str_len;
     lib_Base64Encode((uint8_t*)quote, quote_len, NULL, &quote_str_len);
     char* quote_str = __alloca(quote_str_len);

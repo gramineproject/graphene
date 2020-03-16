@@ -22,21 +22,28 @@
 
 #include "sgx_arch.h"
 
-typedef struct {
-    uint16_t version;
-    uint16_t sigtype;
-    uint32_t gid;
-    uint16_t isvsvn_qe;
-    uint16_t isvsvn_pce;
-    uint8_t reserved[4];
-    uint8_t base[32];
-} __attribute__((packed)) sgx_quote_body_t;
+#pragma pack(push, 1)
 
-typedef struct {
-    sgx_quote_body_t body;
+typedef uint8_t sgx_epid_group_id_t[4];
+
+typedef struct _sgx_basename_t {
+    uint8_t name[32];
+} sgx_basename_t;
+
+typedef struct _sgx_quote_t {
+    uint16_t version;
+    uint16_t sign_type;
+    sgx_epid_group_id_t epid_group_id;
+    sgx_isv_svn_t qe_svn;
+    sgx_isv_svn_t pce_svn;
+    uint32_t xeid;
+    sgx_basename_t basename;
     sgx_report_body_t report_body;
-    uint32_t sig_len;
-} __attribute__((packed)) sgx_quote_t;
+    uint32_t signature_len;
+    uint8_t signature[];
+} sgx_quote_t;
+
+#define SGX_QUOTE_BODY_SIZE (offsetof(sgx_quote_t, signature_len))
 
 typedef uint8_t sgx_spid_t[16];
 typedef uint8_t sgx_quote_nonce_t[16];
@@ -62,7 +69,7 @@ typedef struct {
     size_t       ias_sig_len;
     char*        ias_certs;
     size_t       ias_certs_len;
-} __attribute__((packed)) sgx_attestation_t;
+} sgx_attestation_t;
 
 int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
                         sgx_report_data_t* report_data, bool linkable,
@@ -71,5 +78,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
                         char** ret_ias_timestamp);
 
 #define HTTPS_REQUEST_MAX_LENGTH 256
+
+#pragma pack(pop)
 
 #endif /* SGX_ATTEST_H */

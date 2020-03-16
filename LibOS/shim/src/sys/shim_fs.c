@@ -22,9 +22,12 @@
  * "sendfile".
  */
 
+#define __KERNEL__
+
 #include <asm/mman.h>
 #include <errno.h>
 #include <linux/fcntl.h>
+#include <linux/stat.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -34,10 +37,6 @@
 #include <shim_table.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
-
-/* FIXME(mkow): for some reason it must be included last, otherwise S_IFREG is not being
- * defined inside (sic!). */
-#include <linux/stat.h>
 
 /* The kernel would look up the parent directory, and remove the child from the inode. But we are
  * working with the PAL, so we open the file, truncate and close it. */

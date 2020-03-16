@@ -918,6 +918,7 @@ def make_depend(args):
                                          do_checksum=False).values():
         dependencies.add(filename[1])
     dependencies.add(args['libpal'])
+    dependencies.add(args['key'])
 
     with open(output, 'w') as file:
         manifest_sgx = output

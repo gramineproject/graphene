@@ -188,7 +188,7 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
         return -PAL_ERROR_INVAL;
 
     int fd    = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] : handle->pipe.fd;
-    int bytes = ocall_recv(fd, buffer, len, NULL, NULL, NULL, NULL);
+    ssize_t bytes = ocall_recv(fd, buffer, len, NULL, NULL, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -213,7 +213,7 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, cons
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] : handle->pipe.fd;
 
-    int bytes = ocall_send(fd, buffer, len, NULL, 0, NULL, 0);
+    ssize_t bytes = ocall_send(fd, buffer, len, NULL, 0, NULL, 0);
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
 

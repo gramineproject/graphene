@@ -18,7 +18,7 @@ static int is_dot_or_dotdot(const char* name) {
 
 int main(int argc, char* argv[]) {
     int fd = 0, ret = 1;
-    char name[21]     = {0};
+    char name[21]       = {0};
     DIR* dir            = NULL;
     struct dirent* dent = NULL;
     unsigned long i     = 0;
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     }
 
     for (i = 0; i < FILES_NO; i++) {
-        sprintf(name, "%010lu", i);
+        snprintf(name, sizeof(name), "%010lu", i);
         fd = open(name, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
         if (fd < 0) {
             fprintf(stderr, "error: cannot create file %lu: %s\n", i, strerror(errno));
