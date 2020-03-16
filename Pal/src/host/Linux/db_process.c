@@ -43,6 +43,7 @@ typedef __kernel_pid_t pid_t;
 #include <linux/time.h>
 #include <linux/types.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 
 static inline int create_process_handle (PAL_HANDLE * parent,
                                          PAL_HANDLE * child)
@@ -426,8 +427,19 @@ noreturn void _DkProcessExit (int exitcode)
         /* this is a "temporary" process exiting after execve'ing a child process: it must still
          * be around until the child finally exits (because its parent in turn may wait on it) */
         int wstatus;
-        INLINE_SYSCALL(wait4, 4, /*any child*/-1, &wstatus, /*options=*/0, /*rusage=*/NULL);
-        exitcode = wstatus;
+        int ret = INLINE_SYSCALL(wait4, 4, /*any child*/-1, &wstatus, /*options=*/0, /*rusage=*/NULL);
+        if (IS_ERR(ret)) {
+            /* it's too late to recover from errors, just set some reasonable exit code */
+            exitcode = ECHILD;
+        } else {
+            /* Linux expects 0..127 for normal termination and 128..255 for signal termination */
+            if (WIFEXITED(wstatus))
+                exitcode = WEXITSTATUS(wstatus);
+            else if (WIFSIGNALED(wstatus))
+                exitcode = 128 + WTERMSIG(wstatus);
+            else
+                exitcode = ECHILD;
+        }
     }
 
     INLINE_SYSCALL(exit_group, 1, exitcode);

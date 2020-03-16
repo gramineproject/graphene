@@ -1,18 +1,20 @@
 #include "ocall_types.h"
-#include "ecall_types.h"
-#include "sgx_internal.h"
-#include "sgx_enclave.h"
-#include "pal_security.h"
 #include "pal_linux_error.h"
+#include "pal_security.h"
+#include "sgx_enclave.h"
+#include "sgx_internal.h"
 
-#include <asm/mman.h>
+#include "ecall_types.h"
+
+#include <asm/errno.h>
 #include <asm/ioctls.h>
+#include <asm/mman.h>
 #include <asm/socket.h>
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <math.h>
-#include <asm/errno.h>
+#include <sys/wait.h>
 
 #define ODEBUG(code, ms) do {} while (0)
 
@@ -29,11 +31,18 @@ static long sgx_ocall_exit(void* pms)
         int wstatus;
         int ret = INLINE_SYSCALL(wait4, 4, /*any child*/-1, &wstatus, /*options=*/0, /*rusage=*/NULL);
         if (IS_ERR(ret)) {
-            /* it's too late to recover from errors, just log it and continue with dying */
+            /* it's too late to recover from errors, just log it and set some reasonable exit code */
             SGX_DBG(DBG_I, "Temporary process waited for child to exit but received error %d\n", ret);
+            ms->ms_exitcode = ECHILD;
+        } else {
+            /* Linux expects 0..127 for normal termination and 128..255 for signal termination */
+            if (WIFEXITED(wstatus))
+                ms->ms_exitcode = WEXITSTATUS(wstatus);
+            else if (WIFSIGNALED(wstatus))
+                ms->ms_exitcode = 128 + WTERMSIG(wstatus);
+            else
+                ms->ms_exitcode = ECHILD;
         }
-
-        ms->ms_exitcode = wstatus;
     }
 
     if (ms->ms_exitcode != (int) ((uint8_t) ms->ms_exitcode)) {
