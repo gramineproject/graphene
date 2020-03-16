@@ -1,0 +1,402 @@
+/* Copyright (C) 2018-2020 Invisible Things Lab
+                           Rafal Wojdyla <omeg@invisiblethingslab.com>
+   This file is part of Graphene Library OS.
+   Graphene Library OS is free software: you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+   Graphene Library OS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
+#include <mbedtls/md.h>
+#include <mbedtls/pk.h>
+#include <stdalign.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "api.h"
+#include "attestation.h"
+#include "cJSON.h"
+#include "pal_crypto.h"
+#include "sgx_arch.h"
+#include "sgx_attest.h"
+#include "util.h"
+
+/*! This is the public RSA key of the IAS (PEM). It's used to verify IAS report signatures. */
+const char* g_ias_public_key_pem =
+"-----BEGIN PUBLIC KEY-----\n"
+"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqXot4OZuphR8nudFrAFi\n"
+"aGxxkgma/Es/BA+tbeCTUR106AL1ENcWA4FX3K+E9BBL0/7X5rj5nIgX/R/1ubhk\n"
+"KWw9gfqPG3KeAtIdcv/uTO1yXv50vqaPvE1CRChvzdS/ZEBqQ5oVvLTPZ3VEicQj\n"
+"lytKgN9cLnxbwtuvLUK7eyRPfJW/ksddOzP8VBBniolYnRCD2jrMRZ8nBM2ZWYwn\n"
+"XnwYeOAHV+W9tOhAImwRwKF/95yAsVwd21ryHMJBcGH70qLagZ7Ttyt++qO/6+KA\n"
+"XJuKwZqjRlEtSEz8gZQeFfVYgcwSfo96oSMAzVr7V0L6HSDLRnpb6xxmbPdqNol4\n"
+"tQIDAQAB\n"
+"-----END PUBLIC KEY-----\n";
+
+// TODO: decode some known values (flags etc)
+void display_report_body(const sgx_report_body_t* body) {
+    INFO(" cpu_svn          : ");
+    HEXDUMP(body->cpu_svn);
+    INFO(" misc_select      : ");
+    HEXDUMP(body->misc_select);
+    INFO(" reserved1        : ");
+    HEXDUMP(body->reserved1);
+    INFO(" isv_ext_prod_id  : ");
+    HEXDUMP(body->isv_ext_prod_id);
+    INFO(" attributes.flags : ");
+    HEXDUMP(body->attributes.flags);
+    INFO(" attributes.xfrm  : ");
+    HEXDUMP(body->attributes.xfrm);
+    INFO(" mr_enclave       : ");
+    HEXDUMP(body->mr_enclave);
+    INFO(" reserved2        : ");
+    HEXDUMP(body->reserved2);
+    INFO(" mr_signer        : ");
+    HEXDUMP(body->mr_signer);
+    INFO(" reserved3        : ");
+    HEXDUMP(body->reserved3);
+    INFO(" config_id        : ");
+    HEXDUMP(body->config_id);
+    INFO(" isv_prod_id      : ");
+    HEXDUMP(body->isv_prod_id);
+    INFO(" isv_svn          : ");
+    HEXDUMP(body->isv_svn);
+    INFO(" config_svn       : ");
+    HEXDUMP(body->config_svn);
+    INFO(" reserved4        : ");
+    HEXDUMP(body->reserved4);
+    INFO(" isv_family_id    : ");
+    HEXDUMP(body->isv_family_id);
+    INFO(" report_data      : ");
+    HEXDUMP(body->report_data);
+}
+
+void display_quote(const void* quote_data, size_t quote_size) {
+    if (quote_size < offsetof(sgx_quote_t, signature_len)) {
+        ERROR("Quote size too small\n");
+        return;
+    }
+
+    assert(IS_ALIGNED_PTR_POW2(quote_data, alignof(sgx_quote_t)));
+    sgx_quote_t* quote = (sgx_quote_t*)quote_data;
+    INFO("version           : ");
+    HEXDUMP(quote->version);
+    INFO("sign_type         : ");
+    HEXDUMP(quote->sign_type);
+    INFO("epid_group_id     : ");
+    HEXDUMP(quote->epid_group_id);
+    INFO("qe_svn            : ");
+    HEXDUMP(quote->qe_svn);
+    INFO("pce_svn           : ");
+    HEXDUMP(quote->pce_svn);
+    INFO("xeid              : ");
+    HEXDUMP(quote->xeid);
+    INFO("basename          : ");
+    HEXDUMP(quote->basename);
+    INFO("report_body       :\n");
+    display_report_body(&quote->report_body);
+
+    // quotes from IAS reports are missing signature fields
+    if (quote_size >= sizeof(sgx_quote_t)) {
+        INFO("signature_len     : %d (0x%x)\n", quote->signature_len, quote->signature_len);
+    }
+
+    if (quote_size >= sizeof(sgx_quote_t) + quote->signature_len) {
+        INFO("signature         : ");
+        hexdump_mem(&quote->signature, quote->signature_len);
+        INFO("\n");
+    }
+}
+
+int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t* ias_sig_b64,
+                      size_t ias_sig_b64_size, bool allow_outdated_tcb, const char* nonce,
+                      const char* mrsigner, const char* mrenclave, const char* isv_prod_id,
+                      const char* isv_svn, const char* report_data, const char* ias_pub_key_pem) {
+    mbedtls_pk_context ias_pub_key;
+    int ret = -1;
+    uint8_t* ias_sig = NULL;
+    uint8_t* report_quote = NULL;
+    cJSON* json = NULL;
+
+    // Load the IAS public key
+    mbedtls_pk_init(&ias_pub_key);
+
+    if (!ias_pub_key_pem)
+        ias_pub_key_pem = g_ias_public_key_pem;
+
+    ret = mbedtls_pk_parse_public_key(&ias_pub_key, (const unsigned char*)ias_pub_key_pem,
+                                      strlen(ias_pub_key_pem) + 1);
+    if (ret != 0) {
+        ERROR("Failed to parse IAS public key: %d\n", ret);
+        goto out;
+    }
+
+    DBG("IAS key: %s, %zu bits\n", mbedtls_pk_get_name(&ias_pub_key),
+        mbedtls_pk_get_bitlen(&ias_pub_key));
+
+    if (!mbedtls_pk_can_do(&ias_pub_key, MBEDTLS_PK_RSA)) {
+        ret = -1;
+        ERROR("IAS public key is not an RSA key\n");
+        goto out;
+    }
+
+    size_t ias_sig_size = 0;
+
+    // Drop trailing newlines
+    if (ias_sig_b64_size == 0) {
+        ret = -1;
+        ERROR("Invalid signature size\n");
+        goto out;
+    }
+
+    while (ias_sig_b64[ias_sig_b64_size - 1] == '\n' || ias_sig_b64[ias_sig_b64_size - 1] == '\r')
+        ias_sig_b64[--ias_sig_b64_size] = '\0';
+
+    ret = lib_Base64Decode((const char*)ias_sig_b64, ias_sig_b64_size, NULL, &ias_sig_size);
+    if (ret != 0) {
+        ERROR("Failed to base64-decode IAS signature\n");
+        goto out;
+    }
+
+    ias_sig = malloc(ias_sig_size);
+    if (!ias_sig) {
+        ret = -1;
+        ERROR("No memory\n");
+        goto out;
+    }
+
+    ret = lib_Base64Decode((const char*)ias_sig_b64, ias_sig_b64_size, ias_sig, &ias_sig_size);
+    if (ret != 0) {
+        ERROR("Failed to base64-decode IAS signature\n");
+        goto out;
+    }
+
+    DBG("Decoded IAS signature size: %zu bytes\n", ias_sig_size);
+
+    // Calculate report hash
+    uint8_t report_hash[32];
+    ret = mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), (const unsigned char*)ias_report,
+                     ias_report_size, report_hash);
+    if (ret != 0) {
+        ERROR("Failed to compute IAS report hash: %d\n", ret);
+        goto out;
+    }
+
+    // Verify signature
+    ret = mbedtls_pk_verify(&ias_pub_key, MBEDTLS_MD_SHA256, (const unsigned char*)report_hash,
+                            sizeof(report_hash), ias_sig, ias_sig_size);
+    if (ret != 0) {
+        ERROR("Failed to verify IAS report signature: %d\n", ret);
+        goto out;
+    }
+
+    INFO("IAS report: signature verified correctly\n");
+
+    // Check quote status
+    ret = -1;
+    json = cJSON_Parse((const char*)ias_report);
+    if (!json) {
+        ERROR("Failed to parse IAS report\n");
+        goto out;
+    }
+
+    cJSON* node = cJSON_GetObjectItem(json, "isvEnclaveQuoteStatus");
+    if (!node) {
+        ERROR("IAS report: failed to read quote status\n");
+        goto out;
+    }
+
+    if (node->type != cJSON_String) {
+        ERROR("IAS report: quote status is not a string\n");
+        goto out;
+    }
+
+    if (strcmp("OK", node->valuestring) == 0) {
+        ret = 0;
+        INFO("IAS report: quote status OK\n");
+    } else if (allow_outdated_tcb && strcmp("GROUP_OUT_OF_DATE", node->valuestring) == 0) {
+        ret = 0;
+        INFO("IAS report: allowing quote status GROUP_OUT_OF_DATE\n");
+    }
+
+    if (ret != 0) {
+        ERROR("IAS report: quote status is not OK (%s)\n", node->valuestring);
+        goto out;
+    }
+
+    ret = -1;
+    // Verify nonce if required
+    if (nonce) {
+        cJSON* node = cJSON_GetObjectItem(json, "nonce");
+        if (!node) {
+            ERROR("IAS report: failed to read nonce\n");
+            goto out;
+        }
+
+        if (node->type != cJSON_String) {
+            ERROR("IAS report: nonce is not a string\n");
+            goto out;
+        }
+
+        if (strcmp(nonce, node->valuestring) != 0) {
+            ERROR("IAS report: invalid nonce '%s', expected '%s'\n", node->valuestring, nonce);
+            goto out;
+        }
+
+        DBG("IAS report: nonce OK\n");
+    }
+
+    // Extract quote from the report
+    node = cJSON_GetObjectItem(json, "isvEnclaveQuoteBody");
+    if (!node) {
+        ERROR("IAS report: failed to get quote\n");
+        goto out;
+    }
+
+    if (node->type != cJSON_String) {
+        ERROR("IAS report: quote is not a string\n");
+        goto out;
+    }
+
+    size_t quote_size = 0;
+    ret = lib_Base64Decode(node->valuestring, strlen(node->valuestring), NULL, &quote_size);
+    if (ret != 0) {
+        ERROR("IAS report: failed to decode report quote\n");
+        goto out;
+    }
+
+    report_quote = malloc(quote_size);
+    if (!report_quote) {
+        ret = -1;
+        ERROR("No memory\n");
+        goto out;
+    }
+
+    ret = lib_Base64Decode(node->valuestring, strlen(node->valuestring), report_quote, &quote_size);
+    if (ret != 0) {
+        ERROR("IAS report: failed to decode report quote\n");
+        goto out;
+    }
+
+    DBG("IAS report: quote decoded, size %zu bytes\n", quote_size);
+    ret = verify_quote(report_quote, quote_size, mrsigner, mrenclave, isv_prod_id, isv_svn,
+                       report_data);
+
+out:
+    if (json)
+        cJSON_Delete(json);
+    mbedtls_pk_free(&ias_pub_key);
+    free(report_quote);
+    free(ias_sig);
+    return ret ? -1 : 0;
+}
+
+int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signer,
+                 const char* mr_enclave, const char* isv_prod_id, const char* isv_svn,
+                 const char* report_data) {
+    int ret = -1;
+
+    assert(IS_ALIGNED_PTR_POW2(quote_data, alignof(sgx_quote_t)));
+    sgx_quote_t* quote = (sgx_quote_t*)quote_data;
+
+    // Quote contained in the IAS report doesn't contain signature_len and signature fields
+    // Reject any smaller quotes as invalid
+    size_t ias_quote_size = offsetof(sgx_quote_t, signature_len);
+    if (quote_size < ias_quote_size) {
+        ERROR("Quote: Bad size %zu < %zu\n", quote_size, ias_quote_size);
+        goto out;
+    }
+
+    if (get_verbose())
+        display_quote(quote_data, quote_size);
+
+    sgx_report_body_t* body = &quote->report_body;
+
+    sgx_measurement_t expected_mr;
+    if (mr_signer) {
+        if (parse_hex(mr_signer, &expected_mr, sizeof(expected_mr)) != 0)
+            goto out;
+
+        if (memcmp(&body->mr_signer, &expected_mr, sizeof(expected_mr)) != 0) {
+            ERROR("Quote: mr_signer doesn't match the expected value\n");
+            if (get_verbose()) {
+                ERROR("Quote mr_signer:\n");
+                HEXDUMP(body->mr_signer);
+                ERROR("Expected mr_signer:\n");
+                HEXDUMP(expected_mr);
+                goto out;
+            }
+        }
+
+        DBG("Quote: mr_signer OK\n");
+    }
+
+    if (mr_enclave) {
+        if (parse_hex(mr_enclave, &expected_mr, sizeof(expected_mr)) != 0)
+            goto out;
+
+        if (memcmp(&body->mr_enclave, &expected_mr, sizeof(expected_mr)) != 0) {
+            ERROR("Quote: mr_enclave doesn't match the expected value\n");
+            if (get_verbose()) {
+                ERROR("Quote mr_enclave:\n");
+                HEXDUMP(body->mr_enclave);
+                ERROR("Expected mr_enclave:\n");
+                HEXDUMP(expected_mr);
+                goto out;
+            }
+        }
+
+        DBG("Quote: mr_enclave OK\n");
+    }
+
+    // Product ID must match, security version must be greater or equal
+    if (isv_prod_id) {
+        sgx_prod_id_t prod_id = strtoul(isv_prod_id, NULL, 10);
+
+        if (body->isv_prod_id != prod_id) {
+            ERROR("Quote: invalid isv_prod_id (%u, expected %u)\n", body->isv_prod_id, prod_id);
+            goto out;
+        }
+
+        DBG("Quote: isv_prod_id OK\n");
+    }
+
+    if (isv_svn) {
+        sgx_isv_svn_t svn = strtoul(isv_svn, NULL, 10);
+
+        if (body->isv_svn < svn) {
+            ERROR("Quote: invalid isv_svn (%u < expected %u)\n", body->isv_svn, svn);
+            goto out;
+        }
+
+        DBG("Quote: isv_svn OK\n");
+    }
+
+    if (report_data) {
+        sgx_report_data_t rd;
+        if (parse_hex(report_data, &rd, sizeof(rd)) != 0)
+            goto out;
+
+        if (memcmp(&body->report_data, &rd, sizeof(rd)) != 0) {
+            ERROR("Quote: report_data doesn't match the expected value\n");
+            if (get_verbose()) {
+                ERROR("Quote report_data:\n");
+                HEXDUMP(body->report_data);
+                ERROR("Expected report_data:\n");
+                HEXDUMP(rd);
+            }
+        }
+
+        DBG("Quote: report_data OK\n");
+    }
+
+    ret = 0;
+    // TODO: KSS support (isv_ext_prod_id, config_id, config_svn, isv_family_id)
+out:
+    return ret;
+}

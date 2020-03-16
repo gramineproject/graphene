@@ -12,8 +12,10 @@ RSA's MD5 algorithm (LibOS/shim/src/utils/md5.c) - RSA custom attribution licens
 
 Internet Software Consortium (permissive license): Pal/lib/network/inet_pton.c
 
-MIT JOS (mix of MIT and BSD licenses:
+MIT JOS (mix of MIT and BSD licenses):
 * Pal/lib/stdlib/printfmt.c
+
+cJSON - MIT
 
 A number of files taken from other C libraries:
 * musl - MIT
