@@ -102,7 +102,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
 /*!
  * \brief Retrieve Quoting Enclave's sgx_target_info_t by talking to AESMD.
  *
- * \param qe_targetinfo[out]  Retrieved Quoting Enclave's target info.
+ * \param[out] qe_targetinfo  Retrieved Quoting Enclave's target info.
  * \return                    0 on success, negative error code otherwise.
  */
 int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_targetinfo);
