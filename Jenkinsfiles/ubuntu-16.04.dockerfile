@@ -9,6 +9,7 @@ RUN apt-get update \
        bison \
        build-essential \
        curl \
+       docker.io \
        flex \
        gawk \
        gettext \

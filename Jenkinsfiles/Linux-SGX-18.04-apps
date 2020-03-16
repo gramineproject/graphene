@@ -39,6 +39,11 @@ pipeline {
                         sh '''
                             make -j 8 SGX=1 WERROR=1
                         '''
+                        sh '''
+                            cd Tools/gsc/test
+                            sed -i 's/2.5/1.9/g' ../config.json
+                            make
+                        '''
                     }
                 }
                 stage('Test') {
@@ -150,6 +155,10 @@ pipeline {
                            rm -rf LibOS/shim/test/apps/ltp/src
 
                            ./Scripts/clean-check
+                        '''
+                        sh '''
+                            cd Tools/gsc/test
+                            make test
                         '''
                     }
                 }
