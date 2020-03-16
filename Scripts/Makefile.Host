@@ -13,11 +13,11 @@ endif
 endif
 
 ifeq ($(SGX_RUN),1)
-	$(error "SGX_RUN has been removed. Always set SGX=1 if building for SGX and use the 'sgx-tokens' make target to build launch/EINIT tokens")
+$(error "SGX_RUN has been removed. Always set SGX=1 if building for SGX and use the 'sgx-tokens' make target to build launch/EINIT tokens")
 endif
 
 ifeq ($(SGX),1)
-	PAL_HOST := $(patsubst %-SGX,%,$(PAL_HOST))-SGX
+PAL_HOST := $(patsubst %-SGX,%,$(PAL_HOST))-SGX
 endif
 
 ifeq ($(findstring $(PAL_HOST),$(all_hosts)),)

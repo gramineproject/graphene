@@ -19,12 +19,17 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libexpat1 \
     libexpat1-dev \
     libnss-mdns \
+    libnuma1 \
     libomp-dev \
     libpcre2-dev \
     libpcre3-dev \
     libprotobuf-c-dev \
     libssl-dev \
+    libxfixes3 \
+    libxi6 \
     libxml2-dev \
+    libxrender1 \
+    libxxf86vm1 \
     linux-headers-4.15.0-20-generic \
     net-tools \
     protobuf-c-compiler \

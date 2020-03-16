@@ -194,7 +194,7 @@ static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void
     if (size != (uint32_t)size)
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_read(fd, buffer, size);
+    ssize_t bytes = ocall_read(fd, buffer, size);
     return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
 }
 
@@ -211,7 +211,7 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
     if (size != (uint32_t)size)
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_write(fd, buffer, size);
+    ssize_t bytes = ocall_write(fd, buffer, size);
     return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
 }
 

@@ -47,11 +47,11 @@ SECTIONS
     *(.text .stub .text.*);
     . = ALIGN(8);
     __cp_name = .;
-    SORT(*)(SORT(.cp_name.*));
+    *(SORT(.cp_name.*));
     __cp_func = .;
-    SORT(*)(SORT(.cp_func.*));
+    *(SORT(.cp_func.*));
     __rs_func = .;
-    SORT(*)(SORT(.rs_func.*));
+    *(SORT(.rs_func.*));
     __code_address_end = .;
   }
   .fini          : { *(.fini) }

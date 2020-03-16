@@ -26,7 +26,7 @@ PHDRS
         text            PT_LOAD         FLAGS(5) FILEHDR PHDRS;
         dynamic         PT_DYNAMIC      FLAGS(4);
         note            PT_NOTE         FLAGS(4);
-        eh_frame_header PT_GNU_EH_FRAME;
+        eh_frame_hdr    PT_GNU_EH_FRAME;
 }
 
 SECTIONS
@@ -53,7 +53,7 @@ SECTIONS
         .note : { *(.note.*) } :text :note
         .eh_frame_hdr : { *(.eh_frame_hdr) } :text :eh_frame_hdr
         .eh_frame : { KEEP (*(.eh_frame)) } :text
-        .text   : { *(.text*) } : text = 0x909090
+        .text   : { *(.text*) } : text = 0x90909090,
 
         /DISCARD/ : {
                 *(.discard)

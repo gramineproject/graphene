@@ -186,7 +186,8 @@ void fprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
 void vfprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
                  const char * fmt, va_list ap) __attribute__((format(printf, 4, 0)));
 
-int snprintf (char * buf, size_t n, const char * fmt, ...) __attribute__((format(printf, 3, 4)));
+int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap);
+int snprintf(char* buf, size_t n, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /* Miscelleneous */
 
@@ -260,5 +261,25 @@ int set_config (struct config_store * cfg, const char * key, const char * val);
 #define URI_PREFIX_FILE         URI_TYPE_FILE       URI_PREFIX_SEPARATOR
 
 #define URI_PREFIX_FILE_LEN     (static_strlen(URI_PREFIX_FILE))
+
+#ifdef __x86_64__
+static inline bool __range_not_ok(uintptr_t addr, size_t size) {
+    addr += size;
+    if (addr < size) {
+        /* pointer arithmetic overflow, this check is x86-64 specific */
+        return true;
+    }
+    return false;
+}
+
+/* Check if pointer to memory region is valid. Return true if the memory
+ * region may be valid, false if it is definitely invalid. */
+static inline bool access_ok(const volatile void* addr, size_t size) {
+    return !__range_not_ok((uintptr_t)addr, size);
+}
+
+#else
+# error "Unsupported architecture"
+#endif /* __x86_64__ */
 
 #endif /* API_H */

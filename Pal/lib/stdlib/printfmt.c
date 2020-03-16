@@ -266,7 +266,8 @@ void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const c
 }
 
 struct sprintbuf {
-    int cnt, max;
+    size_t cnt;
+    size_t max;
     char* buf;
 };
 
@@ -280,7 +281,7 @@ static int sprintputch(void* f, int ch, struct sprintbuf* b) {
     return 0;
 }
 
-static int vsprintf(char* buf, int n, const char* fmt, va_list ap) {
+int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap) {
     struct sprintbuf b = {0, n, buf};
 
     if (!buf || n < 1)
@@ -301,7 +302,7 @@ int snprintf(char* buf, size_t n, const char* fmt, ...) {
     int rc;
 
     va_start(ap, fmt);
-    rc = vsprintf(buf, n, fmt, ap);
+    rc = vsnprintf(buf, n, fmt, ap);
     va_end(ap);
 
     return rc;

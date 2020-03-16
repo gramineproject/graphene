@@ -94,7 +94,7 @@ static int64_t eventfd_pal_read(PAL_HANDLE handle, uint64_t offset, uint64_t len
 
     /* TODO: verify that the value returned in buffer is somehow meaningful (to prevent Iago
      * attacks) */
-    int bytes = ocall_read(handle->eventfd.fd, buffer, len);
+    ssize_t bytes = ocall_read(handle->eventfd.fd, buffer, len);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -116,7 +116,7 @@ static int64_t eventfd_pal_write(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (len < sizeof(uint64_t))
         return -PAL_ERROR_INVAL;
 
-    int bytes = ocall_write(handle->eventfd.fd, buffer, len);
+    ssize_t bytes = ocall_write(handle->eventfd.fd, buffer, len);
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
 

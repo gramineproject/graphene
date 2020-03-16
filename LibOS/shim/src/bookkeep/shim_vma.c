@@ -1124,12 +1124,6 @@ BEGIN_CP_FUNC(vma)
                 }
             }
             if (send_size > 0) {
-                if (!(pal_prot & PAL_PROT_READ)) {
-                    /* Make the area readable */
-                    DkVirtualMemoryProtect(send_addr, send_size,
-                                           pal_prot|PAL_PROT_READ);
-                }
-
                 struct shim_mem_entry * mem;
                 DO_CP_SIZE(memory, send_addr, send_size, &mem);
                 mem->prot = pal_prot;

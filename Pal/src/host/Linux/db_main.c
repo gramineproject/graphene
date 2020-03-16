@@ -21,19 +21,20 @@
  * processes environment, arguments and manifest.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
+#include "bogomips.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_debug.h"
-#include "pal_error.h"
+#include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "api.h"
 
-#include <asm/mman.h>
-#include <asm/ioctls.h>
 #include <asm/errno.h>
+#include <asm/ioctls.h>
+#include <asm/mman.h>
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
 
@@ -238,10 +239,9 @@ void pal_linux_main (void * args)
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
 
-    void * alt_stack = malloc(ALT_STACK_SIZE);
+    void * alt_stack = calloc(1, ALT_STACK_SIZE);
     if (!alt_stack)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
-    memset(alt_stack, 0, ALT_STACK_SIZE);
     first_thread->thread.stack = alt_stack;
 
     // Initialize TCB at the top of the alternative stack.
@@ -433,6 +433,25 @@ int get_cpu_count(void) {
     return cpu_count;
 }
 
+static double get_bogomips(void) {
+    int fd = -1;
+    char buf[0x800] = { 0 };
+
+    fd = INLINE_SYSCALL(open, 2, "/proc/cpuinfo", O_RDONLY);
+    if (fd < 0) {
+        return 0.0;
+    }
+
+    /* Although the whole file might not fit in this size, the first cpu description should. */
+    long x = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
+    INLINE_SYSCALL(close, 1, fd);
+    if (x < 0) {
+        return 0.0;
+    }
+
+    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf, sizeof(buf)));
+}
+
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[PAL_CPUID_WORD_NUM];
@@ -504,5 +523,11 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
+
+    ci->cpu_bogomips = get_bogomips();
+    if (ci->cpu_bogomips == 0.0) {
+        printf("Warning: bogomips could not be retrieved, passing 0.0 to the application\n");
+    }
+
     return rv;
 }

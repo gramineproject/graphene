@@ -22,21 +22,18 @@
  * directory cache.
  */
 
+#include <asm/fcntl.h>
+#include <linux/fcntl.h>
+#include <linux/stat.h>
 #include <stdbool.h>
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
-#include <shim_profile.h>
-
 #include <pal.h>
-
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-
-#include <asm/fcntl.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_profile.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 
 /* Advances a char pointer (string) past any repeated slashes and returns the result.
  * Must be a null-terminated string. */

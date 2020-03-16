@@ -21,18 +21,19 @@
  * processes environment, arguments and manifest.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
+#include "bogomips.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_debug.h"
-#include "pal_error.h"
+#include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "api.h"
 
-#include <asm/mman.h>
 #include <asm/ioctls.h>
+#include <asm/mman.h>
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
 
@@ -60,10 +61,20 @@ unsigned long _DkGetAllocationAlignment (void)
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
                                       PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
-    *start = (PAL_PTR) pal_sec.heap_min;
-    *end = (PAL_PTR) get_reserved_pages(NULL, g_page_size);
+    *start = (PAL_PTR)pal_sec.heap_min;
+    *end   = (PAL_PTR)get_enclave_heap_top();
+
+    /* FIXME: hack to keep some heap for internal PAL objects allocated at runtime (recall that
+     * LibOS does not keep track of PAL memory, so without this hack it could overwrite internal
+     * PAL memory). This hack is probabilistic and brittle. */
+    *end = SATURATED_P_SUB(*end, 2 * 1024 * g_page_size, *start);  /* 8MB reserved for PAL stuff */
+    if (*end <= *start) {
+        SGX_DBG(DBG_E, "Not enough enclave memory, please increase enclave size!\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+
     *hole_start = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, *start);
-    *hole_end = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, *end);
+    *hole_end   = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, *end);
 }
 
 PAL_NUM _DkGetProcessId (void)
@@ -306,7 +317,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);
     init_untrusted_slab_mgr();
-    init_pages();
+    init_enclave_pages();
     init_enclave_key();
 
     init_cpuid();
@@ -490,6 +501,24 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
+static double get_bogomips(void) {
+    int fd = -1;
+    char buf[0x800] = { 0 };
+
+    fd = ocall_open("/proc/cpuinfo", O_RDONLY, 0);
+    if (fd < 0) {
+        return 0.0;
+    }
+
+    /* Although the whole file might not fit in this size, the first cpu description should. */
+    int x = ocall_read(fd, buf, sizeof(buf) - 1);
+    ocall_close(fd);
+    if (x < 0) {
+        return 0.0;
+    }
+
+    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf, sizeof(buf)));
+}
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
@@ -557,5 +586,11 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
+
+    ci->cpu_bogomips = get_bogomips();
+    if (ci->cpu_bogomips == 0.0) {
+        SGX_DBG(DBG_E, "Warning: bogomips could not be retrieved, passing 0.0 to the application\n");
+    }
+
     return rv;
 }

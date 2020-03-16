@@ -127,6 +127,13 @@ pipeline {
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
                             '''
                         }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/blender
+                                make SGX=1
+                                make SGX=1 check
+                           '''
+                        }
                         sh '''
                            ./Scripts/gitignore-test
                         '''
@@ -146,6 +153,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/lighttpd SGX=1 distclean
                            make -C LibOS/shim/test/apps/nginx SGX=1 distclean
                            make -C LibOS/shim/test/apps/apache SGX=1 distclean
+                           make -C LibOS/shim/test/apps/blender SGX=1 distclean
 
                            # Currently used release of LTP contains broken symlinks under
                            # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit
