@@ -110,8 +110,8 @@ int ocall_eventfd (unsigned int initval, int flags);
  * \param[in]  linkable   Quote type (linkable vs unlinkable).
  * \param[in]  report     Enclave report to be sent to the Quoting Enclave.
  * \param[in]  nonce      16B nonce to be included in the quote for freshness.
- * \param[out] quote      Quote returned by the Quoting Enclave (allocated by this function; the
- *                        caller gets the ownership of the quote).
+ * \param[out] quote      Quote returned by the Quoting Enclave (allocated via malloc() in this
+ *                        function; the caller gets the ownership of the quote).
  * \param[out] quote_len  Length of the quote returned by the Quoting Enclave.
  * \return                0 on success, negative Linux error code otherwise.
  */

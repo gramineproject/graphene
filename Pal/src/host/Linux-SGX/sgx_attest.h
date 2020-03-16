@@ -66,8 +66,8 @@ enum {
  * \param[in]  nonce        16B nonce to be included in the quote for freshness.
  * \param[in]  report_data  64B bytestring to be included in the report and the quote.
  * \param[in]  linkable     Quote type (linkable vs unlinkable).
- * \param[out] quote        Quote returned by the Quoting Enclave (allocated by this function; the
- *                          caller gets the ownership of the quote).
+ * \param[out] quote        Quote returned by the Quoting Enclave (allocated via malloc() in this
+ *                          function; the caller gets the ownership of the quote).
  * \param[out] quote_len    Length of the quote returned by the Quoting Enclave.
  * \return                  0 on success, negative PAL error code otherwise.
  */

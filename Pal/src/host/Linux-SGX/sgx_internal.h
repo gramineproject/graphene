@@ -112,8 +112,8 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
  * \param[in]  linkable   Quote type (linkable vs unlinkable).
  * \param[in]  report     Enclave report to convert into a quote.
  * \param[in]  nonce      16B nonce to be included in the quote for freshness.
- * \param[out] quote      Quote returned by the Quoting Enclave (allocated by this function; the
- *                        caller gets the ownership of the quote).
+ * \param[out] quote      Quote returned by the Quoting Enclave (allocated via mmap() in this
+ *                        function; the caller gets the ownership of the quote).
  * \param[out] quote_len  Length of the quote returned by the Quoting Enclave.
  * \return                0 on success, negative Linux error code otherwise.
  */
