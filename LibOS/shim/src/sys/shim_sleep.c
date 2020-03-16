@@ -101,7 +101,7 @@ int shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel
     __UNUSED(clock_id);
 
     if (flags) {
-        debug("clock_nanosleep does not support non-zero flags (%d)\n", flags);
+        debug("Graphene's clock_nanosleep does not support non-zero flags (%d)\n", flags);
         return -EINVAL;
     }
 
