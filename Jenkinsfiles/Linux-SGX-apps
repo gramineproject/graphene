@@ -39,7 +39,7 @@ pipeline {
                         sh '''
                             cd Tools/gsc/test
                             sed -i 's/2.5/1.9/g' ../config.json
-                            make
+                            make TESTNUM=4
                         '''
                     }
                 }
@@ -155,7 +155,7 @@ pipeline {
                         '''
                         sh '''
                             cd Tools/gsc/test
-                            make test
+                            make test MAXTESTNUM=4
                         '''
                     }
                 }

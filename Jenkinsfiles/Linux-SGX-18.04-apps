@@ -158,7 +158,7 @@ pipeline {
                         '''
                         sh '''
                             cd Tools/gsc/test
-                            make test
+                            make test MAXTESTNUM=4
                         '''
                     }
                 }
