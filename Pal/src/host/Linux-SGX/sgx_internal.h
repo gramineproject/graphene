@@ -108,13 +108,14 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
 /*!
  * \brief Obtain SGX Quote from the Quoting Enclave (communicate via AESM).
  *
- * \param spid[in]         Software provider ID (SPID).
- * \param linkable[in]     Quote type (linkable vs unlinkable).
- * \param report[in]       My enclave report to convert into a quote.
- * \param nonce[in]        16B nonce to be included in the quote for freshness.
- * \param quote[out]       Quote returned by the Quoting Enclave.
- * \param quote_len[out]   Length of the quote returned by the Quoting Enclave.
- * \return                 0 on success, negative error code otherwise.
+ * \param[in]  spid       Software provider ID (SPID).
+ * \param[in]  linkable   Quote type (linkable vs unlinkable).
+ * \param[in]  report     Enclave report to convert into a quote.
+ * \param[in]  nonce      16B nonce to be included in the quote for freshness.
+ * \param[out] quote      Quote returned by the Quoting Enclave (allocated by this function; the
+ *                        caller gets the ownership of the quote).
+ * \param[out] quote_len  Length of the quote returned by the Quoting Enclave.
+ * \return                0 on success, negative Linux error code otherwise.
  */
 int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
                    const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len);

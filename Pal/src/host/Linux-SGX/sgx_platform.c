@@ -525,22 +525,26 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
         goto out;
     }
 
-    *quote = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(r->quote.len),
-                                   PROT_READ|PROT_WRITE,
-                                   MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-    if (IS_ERR_P(*quote)) {
+    /* Intel SGX SDK implementation of the Quoting Enclave always sets `quote.len` to user-provided
+     * `getreq.buf_size` (see above) instead of the actual size. We calculate the actual size here
+     * by peeking into the quote and determining the size of the signature. */
+    size_t actual_quote_size = sizeof(sgx_quote_t) + ((sgx_quote_t*)r->quote.data)->sig_len;
+    if (actual_quote_size > SGX_QUOTE_MAX_SIZE) {
+        SGX_DBG(DBG_E, "Size of the obtained SGX quote exceeds %d\n", SGX_QUOTE_MAX_SIZE);
+        goto out;
+    }
+
+    char* mmapped = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(actual_quote_size),
+                                          PROT_READ|PROT_WRITE,
+                                          MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    if (IS_ERR_P(mmapped)) {
         SGX_DBG(DBG_E, "Failed to allocate memory for the quote\n");
         goto out;
     }
 
-    /* For some reason, Quoting Enclave always sets `r->quote.len == getreq.buf_size` instead of
-     * the actual size [1]. We calculate the actual size here by peeking into the quote and
-     * determining the size of the signature.
-     *
-     * [1] https://github.com/intel/linux-sgx/blob/master/psw/ae/aesm_service/source/core/ipc/AEGetQuoteRequest.cpp#L168
-     */
-    size_t actual_quote_size = sizeof(sgx_quote_t) + ((sgx_quote_t*)r->quote.data)->sig_len;
     memcpy(*quote, r->quote.data, actual_quote_size);
+
+    *quote = mmapped;
     *quote_len = actual_quote_size;
 
     ret = 0;

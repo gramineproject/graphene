@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 enum {
     ECALL_ENCLAVE_START = 0,
     ECALL_THREAD_START,
