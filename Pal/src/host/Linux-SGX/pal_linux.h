@@ -184,10 +184,10 @@ int sgx_verify_report(sgx_report_t* report);
  *
  * Caller must align all parameters to 512 bytes (cf. `__sgx_mem_aligned`).
  *
- * \param target_info[in] Information on the target enclave.
- * \param data[in]        User-specified data to be included in the report.
- * \param report[out]     Output buffer to store the report.
- * \return                0 on success, negative error code otherwise.
+ * \param[in]  target_info  Information on the target enclave.
+ * \param[in]  data         User-specified data to be included in the report.
+ * \param[out] report       Output buffer to store the report.
+ * \return                  0 on success, negative error code otherwise.
  */
 int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t* data,
                    sgx_report_t* report);
