@@ -101,13 +101,13 @@ index 553cfbd1b7..11fac22f32 100644
    return start_addr;
  }
  
-+/* For graphene, check if glibc version match to the compatible SHIM
-+   library. If not, tell the user to update glibc. */
++/* For Graphene, check if Glibc version matches the compatible SHIM
++ * library. If not, tell the user to update Glibc. */
 +#include "glibc-version.h"
 +
 +const unsigned int glibc_version __attribute__((weak)) = GLIBC_VERSION;
 +
-+static void __attribute__((noinline,optimize("-O0")))
++static void
 +check_glibc_version (void)
 +{
 +  if (glibc_version != GLIBC_VERSION)
@@ -421,7 +421,7 @@ index 8e9baffeb4..04f2ee64aa 100644
        *reloc_addr = value;
      }
 -  else
-+  /* for graphene, get around R_X86_64_NONE */
++  /* for Graphene, get around R_X86_64_NONE */
 +  else if (__builtin_expect (r_type != R_X86_64_NONE, 1))
      _dl_reloc_bad_type (map, r_type, 1);
  }
