@@ -1,10 +1,9 @@
+#include "ecall_types.h"
 #include "ocall_types.h"
 #include "pal_linux_error.h"
 #include "pal_security.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
-
-#include "ecall_types.h"
 
 #include <asm/errno.h>
 #include <asm/ioctls.h>
