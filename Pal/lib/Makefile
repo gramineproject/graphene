@@ -64,7 +64,7 @@ crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC)
 	cd crypto && tar -mxzf $(MBEDTLS_SRC)
 	mv crypto/mbedtls-mbedtls-$(MBEDTLS_VERSION) crypto/mbedtls
 	mkdir crypto/mbedtls/install
-	cd crypto/mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C && make DESTDIR=install install .
+	cd crypto/mbedtls && ./scripts/config.pl set MBEDTLS_CMAC_C && make SHARED=1 DESTDIR=install install .
 	$(RM) crypto/mbedtls/include/mbedtls/config.h
 
 crypto/mbedtls/include/mbedtls/config.h: crypto/config.h crypto/mbedtls/CMakeLists.txt
