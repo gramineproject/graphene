@@ -6,4 +6,4 @@ all: quote_dump
 
 .PHONY: clean
 clean:
-	rm -f *.o quote_dump
+	$(RM) *.o quote_dump

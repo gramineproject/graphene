@@ -31,8 +31,8 @@ void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t* eax, uint32_t* ebx,
     if (edx) *edx = (edx_ & 0xFFFFFFFF);
 }
 
-bool check_cpuid_support() {
-    // Checks whether (R/E)FLAGS.ID is writable.
+static bool __cpuid_supported() {
+    // Checks whether (R/E)FLAGS.ID is writable (bit 21).
     uint64_t write_diff;
     __asm__ (
         "pushf\n"
@@ -50,7 +50,7 @@ bool check_cpuid_support() {
     return write_diff;
 }
 
-// 2**exp with saturation.
+// 2**exp with saturation for unsigned types.
 template<class T> T saturating_exp2(T exp) {
     // Protect against UB.
     if (exp >= sizeof(T)*8)
@@ -70,7 +70,7 @@ class SgxCpuChecker {
     bool sgx_mem_concurrency_supported_ = false;
     uint64_t maximum_enclave_size_x86_ = false;
     uint64_t maximum_enclave_size_x64_ = false;
-    bool epc_region_allocated_ = false;
+    uint64_t epc_region_size_ = 0;
 
 public:
     explicit SgxCpuChecker() {
@@ -93,7 +93,7 @@ public:
         uint32_t cpuid_12_1_ecx;
         uint32_t cpuid_12_1_edx;
 
-        cpuid_supported_ = check_cpuid_support();
+        cpuid_supported_ = __cpuid_supported();
         if (!cpuid_supported_)
             return;
         cpuid(0, 0, &cpuid_max_leaf_value, &cpuid_0_ebx, &cpuid_0_ecx, &cpuid_0_edx);
@@ -102,6 +102,7 @@ public:
                      && cpuid_0_ecx == __builtin_bswap32('ntel');
         if (!is_intel_cpu_ || cpuid_max_leaf_value < 7)
             return;
+        // See chapter 36.7 in Intel SDM vol.3
         cpuid(7, 0, &cpuid_7_0_eax, &cpuid_7_0_ebx, &cpuid_7_0_ecx, &cpuid_7_0_edx);
         sgx_supported_ = cpuid_7_0_ebx & (1 << 2);
         if (!sgx_supported_ || cpuid_max_leaf_value < 0x12)
@@ -123,11 +124,11 @@ public:
             if (!type)
                 break;
             if (type == 1) {
-                // Intel also checks (*eax&0xFFFFF000 || *ebx&0xFFFFF) here, but
-                // it seems to be incorrect according to docs.
+                // EAX and EBX report the physical address of the base of the EPC region,
+                // but we only care about the EPC size
                 if (ecx & 0xFFFFF000 || edx & 0xFFFFF) {
-                    epc_region_allocated_ = true;
-                    break;
+                    epc_region_size_ += ecx & 0xFFFFF000;
+                    epc_region_size_ += (uint64_t)(edx & 0xFFFFF) << 32;
                 }
             }
         }
@@ -137,8 +138,9 @@ public:
     bool is_intel_cpu() const { return is_intel_cpu_; }
     bool sgx_supported() const { return sgx_supported_; }
     bool sgx1_supported() const { return sgx1_supported_; }
+    // SGX2 enclave dynamic memory management (EDMM) support (EAUG, EACCEPT, EMODPR, ...)
     bool sgx2_supported() const { return sgx2_supported_; }
-    // Flexible Launch Control support
+    // Flexible Launch Control support (IA32_SGXPUBKEYHASH{0..3} MSRs)
     bool flc_supported() const { return flc_supported_; }
     // Extensions for virtualizers (EINCVIRTCHILD, EDECVIRTCHILD, ESETCONTEXT).
     bool sgx_virt_supported() const { return sgx_virt_supported_; }
@@ -146,7 +148,7 @@ public:
     bool sgx_mem_concurrency_supported() const { return sgx_mem_concurrency_supported_; }
     uint64_t maximum_enclave_size_x86() const { return maximum_enclave_size_x86_; }
     uint64_t maximum_enclave_size_x64() const { return maximum_enclave_size_x64_; }
-    bool epc_region_allocated() const { return epc_region_allocated_; }
+    uint64_t epc_region_size() const { return epc_region_size_; }
 };
 
 bool sgx_driver_loaded() {
@@ -177,24 +179,27 @@ void print_detailed_info(const SgxCpuChecker& cpu_checker) {
     printf("SGX supported by CPU: %s\n", bool2str(sgx_supported));
     if (!sgx_supported)
         return;
-    printf("SGX1: %s\n", bool2str(cpu_checker.sgx1_supported()));
-    printf("SGX2: %s\n", bool2str(cpu_checker.sgx2_supported()));
-    printf("Flexible Launch Control: %s\n", bool2str(cpu_checker.flc_supported()));
-    printf("SGX extensions for virtualizers: %s\n", bool2str(cpu_checker.sgx_virt_supported()));
-    printf("Extensions for concurrent memory management: %s\n", bool2str(cpu_checker.sgx_mem_concurrency_supported()));
+    printf("SGX1 (ECREATE, EENTER, ...): %s\n", bool2str(cpu_checker.sgx1_supported()));
+    printf("SGX2 (EAUG, EACCEPT, EMODPR, ...): %s\n", bool2str(cpu_checker.sgx2_supported()));
+    printf("Flexible Launch Control (IA32_SGXPUBKEYHASH{0..3} MSRs): %s\n",
+           bool2str(cpu_checker.flc_supported()));
+    printf("SGX extensions for virtualizers (EINCVIRTCHILD, EDECVIRTCHILD, ESETCONTEXT): %s\n",
+           bool2str(cpu_checker.sgx_virt_supported()));
+    printf("Extensions for concurrent memory management (ETRACKC, ELDBC, ELDUC, ERDINFO): %s\n",
+           bool2str(cpu_checker.sgx_mem_concurrency_supported()));
     printf("Max enclave size (32-bit): 0x%" PRIx64 "\n", cpu_checker.maximum_enclave_size_x86());
     printf("Max enclave size (64-bit): 0x%" PRIx64 "\n", cpu_checker.maximum_enclave_size_x64());
-    printf("EPC allocated: %s\n", bool2str(cpu_checker.epc_region_allocated()));
+    printf("EPC size: 0x%" PRIx64 "\n", cpu_checker.epc_region_size());
     printf("SGX driver loaded: %s\n", bool2str(sgx_driver_loaded()));
     printf("SGX PSW/libsgx installed: %s\n", bool2str(psw_installed()));
     printf("AESMD running: %s\n", bool2str(aesmd_running()));
 }
 
 int main(int argc, char* argv[]) {
-    bool verbose = (argc >= 2) && !strcmp(argv[1], "--verbose");
+    bool quiet = (argc >= 2) && !strcmp(argv[1], "--quiet");
 
     SgxCpuChecker cpu_checker;
-    if (verbose)
+    if (!quiet)
         print_detailed_info(cpu_checker);
 
     if (!cpu_checker.cpuid_supported() || !cpu_checker.is_intel_cpu()
@@ -204,7 +209,7 @@ int main(int argc, char* argv[]) {
     // We currently fail also when only one from 32/64 bit modes is available.
     if (cpu_checker.maximum_enclave_size_x86() == 0
         || cpu_checker.maximum_enclave_size_x64() == 0
-        || !cpu_checker.epc_region_allocated())
+        || cpu_checker.epc_region_size() == 0)
         return ExitCodes::NO_BIOS_SUPPORT;
     if (!psw_installed())
         return ExitCodes::PSW_NOT_INSTALLED;

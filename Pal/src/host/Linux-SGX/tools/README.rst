@@ -1,26 +1,28 @@
-SGX snippets and tools
-======================
+SGX tools
+=========
 
 SGX availability checker
 ------------------------
 
 Example output::
 
-    > ./is_sgx_available/is_sgx_available --verbose
+    > ./is_sgx_available/is_sgx_available
     SGX supported by CPU: true
-    SGX1: true
-    SGX2: false
-    Flexible Launch Control: false
-    SGX extensions for virtualizers: false
-    Extensions for concurrent memory management: false
+    SGX1 (ECREATE, EENTER, ...): true
+    SGX2 (EAUG, EACCEPT, EMODPR, ...): false
+    Flexible Launch Control (IA32_SGXPUBKEYHASH{0..3} MSRs): false
+    SGX extensions for virtualizers (EINCVIRTCHILD, EDECVIRTCHILD, ESETCONTEXT): false
+    Extensions for concurrent memory management (ETRACKC, ELDBC, ELDUC, ERDINFO): false
     Max enclave size (32-bit): 0x80000000
     Max enclave size (64-bit): 0x1000000000
-    EPC allocated: true
+    EPC size: 0x5d80000
     SGX driver loaded: true
     SGX PSW/libsgx installed: true
     AESMD running: false
 
-The result of the check is signaled by exit code. Possible values can be found in the source.
+The program terminates successfully if all SGX components are detected and running, otherwise
+the program exits with an error code (see source code for possible values).
+To supress printing output use the --quiet argument.
 
 SGX quote dump
 --------------
@@ -50,4 +52,4 @@ Displays internal structure of an SGX quote::
      reserved4        : 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
      report_data      : 8b287999fbf00bd795b74886b3e173cf8a6dd97a86a0057fdf43840adb1864430000000000000000000000000000000000000000000000000000000000000000
     signature_len     : 680 (0x2a8)
-    signature         : 240aafaad9f1624f5e353c503439687f88bb6d590ea8f07bea415c4a0d32b3c7fc9c8ecf7b721c744af89d54a2e80c5f27ad1fbda8cb30278e9225e01bf3616917ec95341b1f1b5d154e57df143280cf787d078d1f2c86f5359ac5667b76b27e6c1df5ac21d0cc98abbc255040e3b1072f34a8daf755dc5f6210e9dbb8845e388bf112efaf2a8b17ab226963d96aba45566b58d4f413520fdcc821fd1978987ad7283b41d43c9e85e0589c5f1886aa05aeb6552676a374adb8a38db341785853e6e3896f677e57b799a9f7e08474b80d8e0cf139e6a9d25ea951364f1658fe3b7820d7f67148a7b27befda29dbd55cc92a95b4eaead73b653a0d28f53acbe731ee3f8744b0d642ed27c2afb5ffbfa8ad397e7893038a3e6236c08455656b47cafc7635dd448939d72d3f76fb68010000c07985d6a234480bbf05a4037bf6ac9bde361b0e994241ed05c3b209559aa6dc677601534d08a98ce1d483df022093ed9578158aa7c525079c4b161e3559d62bd1a87c0ea452a579238a77bc68cd360fc2bcfb7d6187b68ccf1fbc78e5dad3359ac0f58f981083dcc72a768228d0c4339e684914cf3fcc3fb69781b2613cccbcae6c75ef505cd8d7341fa1dd6f4a2e6f24635cab1a92bdc38509469c3350ade94799cececdb88358227849125404c4ac4cbc6fcaa1ef11b885f0b884d9269966b64c6b4b84b92b6f4e632110e401f19db3e980385a47350be35f1b0db232a0ec60c1b12e69125f2c3a57bfe51175ca8df7379387d2c43d5471ce3657f3cf980946d38abe00c04f4a544edbbbb33b2bbb7bde51942199d4ce9c32504e23fa35e301ca7529ac97bcd5c36e24054b847964f83770b884d6d2e2b410fa2800eda479336d93bd23ab30179fe46a844809dc97a1a5868c9f8d29f30a7dcfbfa00e3b80175c30403bc923c358bc8ff5d2141e32b34ddaa12dd82fbc
+    signature         : 240aafaa...
