@@ -18,6 +18,7 @@
 #ifndef SGX_ATTEST_H
 #define SGX_ATTEST_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "sgx_arch.h"
