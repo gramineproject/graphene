@@ -98,7 +98,8 @@ def main(args=None):
     for manifest in reversed(args.manifests):
         print(manifest + ':')
 
-        executable = manifest[:manifest.rfind('.manifest')] if manifest.rfind('.manifest') != -1 else manifest
+        executable = manifest[:manifest.rfind('.manifest')] if (
+                                    manifest.rfind('.manifest') != -1) else manifest
         binary_path = get_binary_path(executable)
 
         print('\tSetting exec file to \'' + binary_path + '\'.')
