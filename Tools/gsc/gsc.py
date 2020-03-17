@@ -119,15 +119,12 @@ def prepare_substitutions(base_image, image, options, user_manifests):
     config = load_config('config.json')
     substitutions.update(config)
 
-    # image names follow the format distro/package:tag
-    image_wo_distro = image.split('/')[-1]
-    image_re = re.match(r'([^:]*)(:?)(.*)', image_wo_distro)
-    if image_re.group(1):
-        app = image_re.group(1)
+    # Image names follow the format distro/package:tag
+    image_re = re.match(r'([^:]*)(:?)(.*)', image[image.rfind('/')+1:])
 
-    # find command of image from base_image
+    # Find command of image from base_image
     cmd = base_image.attrs['Config']['Cmd']
-    # remove /bin/sh -c prefix and extract binary and arguments
+    # Remove /bin/sh -c prefix and extract binary and arguments
     binary_it = 2 if cmd[0] == '/bin/sh' and cmd[1] == '-c' else 0
     binary = cmd[binary_it]
     binary_arguments = "'" + "' '".join(cmd[binary_it +1 : ]) + "'" if (len(cmd)
@@ -137,7 +134,7 @@ def prepare_substitutions(base_image, image, options, user_manifests):
 
     substitutions.update({
             "appImage" : image,
-            "app" : app,
+            "app" : image_re.group(1),
             "binary" : binary,
             'binary_arguments': binary_arguments,
             'working_dir': working_dir,
