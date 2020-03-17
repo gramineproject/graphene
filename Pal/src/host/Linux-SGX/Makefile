@@ -6,9 +6,10 @@ ias_cert_sha256 ?= e7b9113b647bc6bd421d4f140076a3acc31e410e01bf12883841e824cdaf1
 ias_cert_file = quote/$(notdir $(ias_cert_url))
 
 CFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
-	-I../../../lib/crypto/mbedtls/include -I../../../include/host/Linux-SGX \
-	-I../../../include/host/Linux-common \
-	-I../../../include/lib -Isgx-driver
+          -I../../../lib/crypto/mbedtls/include -I../../../lib/crypto/mbedtls/crypto/include \
+          -I../../../include/host/Linux-SGX \
+          -I../../../include/host/Linux-common \
+          -I../../../include/lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py
