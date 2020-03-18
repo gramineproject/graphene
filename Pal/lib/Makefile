@@ -18,7 +18,6 @@ ifeq ($(CRYPTO_PROVIDER),mbedtls)
 crypto_mbedtls_library_objs = \
 	crypto/mbedtls/library/aes.o \
 	crypto/mbedtls/library/aesni.o \
-	crypto/mbedtls/library/asn1parse.o \
 	crypto/mbedtls/library/base64.o \
 	crypto/mbedtls/library/bignum.o \
 	crypto/mbedtls/library/cipher.o \

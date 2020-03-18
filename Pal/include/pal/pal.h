@@ -321,10 +321,6 @@ typedef struct {
     /* Memory information (only required ones) */
     PAL_MEM_INFO mem_info;
 
-    /* Attestation information */
-    PAL_STR attestation_status;
-    PAL_STR attestation_timestamp;
-
     /* Purely for profiling */
     PAL_NUM startup_time;
     PAL_NUM host_specific_startup_time;

@@ -57,7 +57,6 @@ enum {
     OCALL_RENAME,
     OCALL_DELETE,
     OCALL_LOAD_DEBUG,
-    OCALL_GET_ATTESTATION,
     OCALL_EVENTFD,
     OCALL_GET_QUOTE,
     OCALL_NR,
@@ -266,15 +265,6 @@ typedef struct {
 typedef struct {
     const char * ms_pathname;
 } ms_ocall_delete_t;
-
-typedef struct {
-    sgx_spid_t        ms_spid;
-    const char*       ms_subkey;
-    bool              ms_linkable;
-    sgx_report_t      ms_report;
-    sgx_quote_nonce_t ms_nonce;
-    sgx_attestation_t ms_attestation;
-} ms_ocall_get_attestation_t;
 
 typedef struct {
     unsigned int ms_initval;

@@ -834,24 +834,18 @@ def main_sign(args):
     print("    misc_select: %08x" % int.from_bytes(attr['misc_select'], byteorder='big'))
     print("    date:        %d-%02d-%02d" % (attr['year'], attr['month'], attr['day']))
 
-    # Check client info for remote attestation
-    # (if sgx.ra_client.spid is provided)
-    print("Attestation:")
+    # Check client info for SGX quote retrieval (if sgx.ra_client.spid is provided)
+    print("SGX Quote Retrieval:")
     if 'sgx.ra_client_spid' in manifest and manifest['sgx.ra_client_spid']:
         print("    spid:     " + manifest['sgx.ra_client_spid'])
-        if 'sgx.ra_client_key' in manifest and manifest['sgx.ra_client_key']:
-            print("    key:   " + manifest['sgx.ra_client_key'])
-        else:
-            print("    *** sgx.ra_client_key not specified ***")
-            return 1
         if 'sgx.ra_client_linkable' in manifest:
             print("    linkable: " + manifest['sgx.ra_client_linkable'])
         else:
             print("    linkable: 0")
     else:
-        print("    *** Client info is not specified. Graphene will not perform"
-              " remote attestation before execution. Please provide"
-              " sgx.ra_client_spid and sgx.ra_client_key in the manifest. ***")
+        print("    *** Client info is not specified. Graphene will not be able to perform SGX"
+              " quote retrieval (required for remote attestation). Please provide"
+              " sgx.ra_client_spid in the manifest. ***")
 
     # Get trusted checksums and measurements
     print("Trusted files:")
