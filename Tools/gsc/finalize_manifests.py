@@ -12,7 +12,7 @@ def is_ascii(chars):
 
 def generate_trusted_files(root_dir):
     # Exclude directories from list of trusted files
-    exclude_dirs = ['boot', 'dev', 'proc', 'var', 'sys', 'etc/rc']
+    exclude_dirs = ['boot', 'dev', 'etc/rc', 'proc', 'sys', 'var']
     exclude_re = re.compile('^/(' + '|'.join(exclude_dirs) + ').*')
     num_trusted = 0
     trusted_files = ''

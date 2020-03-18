@@ -2,7 +2,7 @@ pipeline {
         agent {
             dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile'
                          label 'sgx_slave'
-                         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx"
+                         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx  -v /var/run/docker.sock:/var/run/docker.sock"
                        }
         }
         stages {
@@ -42,7 +42,7 @@ pipeline {
                         sh '''
                             cd Tools/gsc/test
                             sed -i 's/2.5/1.9/g' ../config.json
-                            make
+                            make IMAGE_SUFFIX=-git log -1 --pretty=format:"%H"
                         '''
                     }
                 }
@@ -166,7 +166,7 @@ pipeline {
                         '''
                         sh '''
                             cd Tools/gsc/test
-                            make test MAXTESTNUM=4
+                            make test MAXTESTNUM=4 IMAGE_SUFFIX=-git log -1 --pretty=format:"%H"
                         '''
                     }
                 }
@@ -185,6 +185,12 @@ pipeline {
                 }
                 unstable {
                         echo 'Pipeline marked as "unstable"'
+                }
+                cleanup {
+                    sh '''
+                        cd Tools/gsc/test
+                        make distclean IMAGE_SUFFIX=-git log -1 --pretty=format:"%H"
+                    '''
                 }
         }
 }
