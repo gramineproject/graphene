@@ -49,7 +49,7 @@ pipeline {
                                 cd Pal/regression
                                 if [ "${ra_client_spid}" != "" ]; then \
                                     make clean SGX=1; \
-                                    make SGX=1 RA_CLIENT_SPID=${ra_client_spid} \
+                                    make SGX=1 RA_CLIENT_SPID=${ra_client_spid}; \
                                 else \
                                     make SGX=1; \
                                 fi
