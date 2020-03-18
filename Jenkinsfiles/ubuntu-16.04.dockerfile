@@ -47,7 +47,7 @@ RUN apt-get update \
        wget \
        zlib1g \
        zlib1g-dev \
-    && /usr/bin/pip3 install protobuf docker
+    && /usr/bin/pip3 install protobuf docker \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
