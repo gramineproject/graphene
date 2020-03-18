@@ -1,10 +1,6 @@
 include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
-ias_cert_url ?= https://certificates.trustedservices.intel.com/Intel_SGX_Attestation_RootCA.pem
-ias_cert_sha256 ?= e7b9113b647bc6bd421d4f140076a3acc31e410e01bf12883841e824cdaf1564
-ias_cert_file = quote/$(notdir $(ias_cert_url))
-
 CFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
 	-I../../../lib/crypto/mbedtls/include -I../../../include/host/Linux-SGX \
 	-I../../../include/host/Linux-common \
@@ -77,7 +73,6 @@ $(enclave-asm-objs): ASFLAGS += -DIN_ENCLAVE
 $(patsubst %.o,%.s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 
 $(urts-objs): quote/aesm.pb-c.h
-$(enclave-objs): quote/generated-cacert.h
 
 $(commons_objs): %.o: ../Linux-common/%.c
 	$(call cmd,cc_o_c)
@@ -108,12 +103,6 @@ quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto
 	@echo [ host/Linux-SGX/quote/aesm.pb-c.h ]
 	@protoc-c --c_out=. $<
 
-quote/generated-cacert.h: $(ias_cert_file)
-	@echo "#define IAS_CA_CERT \"$(shell cat $< | tr -d '[\r\n]')\"" > $@
-
-$(ias_cert_file):
-	@../../../../Scripts/download --output $@ --url $(ias_cert_url) --sha256 $(ias_cert_sha256)
-
 debugger/sgx_gdb.so: CFLAGS =
 CFLAGS-debugger/sgx_gdb.so = -shared -Wall -fPIC -O2 -std=c11
 debugger/sgx_gdb.so: debugger/sgx_gdb.c
@@ -133,7 +122,6 @@ include ../../../../Scripts/Makefile.rules
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
-CLEAN_FILES += quote/generated-cacert.h
 
 .PHONY: clean_
 clean_:
@@ -146,7 +134,6 @@ clean: clean_
 
 .PHONY: distclean
 distclean: clean_
-	$(RM) $(ias_cert_file)
 	$(MAKE) -C sgx-driver $@
 
 .PHONY: test

@@ -634,13 +634,6 @@ static long sgx_ocall_load_debug(void * pms)
     return 0;
 }
 
-static long sgx_ocall_get_attestation(void* pms) {
-    ms_ocall_get_attestation_t * ms = (ms_ocall_get_attestation_t *) pms;
-    ODEBUG(OCALL_GET_ATTESTATION, ms);
-    return retrieve_verified_quote(&ms->ms_spid, ms->ms_subkey, ms->ms_linkable, &ms->ms_report,
-                                   &ms->ms_nonce, &ms->ms_attestation);
-}
-
 static long sgx_ocall_get_quote(void* pms) {
     ms_ocall_get_quote_t* ms = (ms_ocall_get_quote_t*)pms;
     ODEBUG(OCALL_GET_QUOTE, ms);
@@ -685,7 +678,6 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_RENAME]           = sgx_ocall_rename,
         [OCALL_DELETE]           = sgx_ocall_delete,
         [OCALL_LOAD_DEBUG]       = sgx_ocall_load_debug,
-        [OCALL_GET_ATTESTATION]  = sgx_ocall_get_attestation,
         [OCALL_EVENTFD]          = sgx_ocall_eventfd,
         [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
     };
