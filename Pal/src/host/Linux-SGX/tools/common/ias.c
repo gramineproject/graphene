@@ -40,13 +40,13 @@ struct ias_context_t {
 /** IAS response with attestation evidence or signature revocation list */
 struct ias_request_resp {
     char* signature; /**< X-IASReport-Signature data, NULL terminated string */
-    size_t signature_size; /**< length of \a signature string */
+    size_t signature_size; /**< size of \a signature string */
     char* certificate; /**< x-iasreport-signing-certificate data, NULL terminated string */
-    size_t certificate_size; /**< length of \a certificate string */
+    size_t certificate_size; /**< size of \a certificate string */
     char* advisory_url; /**< Advisory-URL data, NULL terminated string */
-    size_t advisory_url_size; /**< length of \a advisory_url string */
+    size_t advisory_url_size; /**< size of \a advisory_url string */
     char* advisory_ids; /**< Advisory-IDs data, NULL terminated string */
-    size_t advisory_ids_size; /**< length of \a advisory_ids string */
+    size_t advisory_ids_size; /**< size of \a advisory_ids string */
     char* data; /**< response data */
     size_t data_size; /**< size of \a data field */
 };
