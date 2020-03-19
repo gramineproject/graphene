@@ -5,7 +5,7 @@ all: is_sgx_available
 
 .PHONY: install
 install:
-	cp -n is_sgx_available ${PREFIX}/bin
+	install is_sgx_available ${PREFIX}/bin
 
 .PHONY: clean
 clean:
