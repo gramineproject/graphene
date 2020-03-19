@@ -13,7 +13,7 @@ ias_request: ias_request.o
 
 .PHONY: install
 install:
-	cp -n ias_request ${PREFIX}/bin
+	install ias_request ${PREFIX}/bin
 
 .PHONY: clean
 clean:

@@ -18,8 +18,8 @@ libsgx_util.so: ias.o util.o
 
 .PHONY: install
 install:
-	cp -n libsgx_util.so ${PREFIX}/lib
-	cp -n ../../../../../lib/crypto/mbedtls/install/lib/libmbedcrypto.so ${PREFIX}/lib
+	install libsgx_util.so ${PREFIX}/lib
+	install ../../../../../lib/crypto/mbedtls/install/lib/libmbedcrypto.so ${PREFIX}/lib
 	ldconfig
 
 .PHONY: clean
