@@ -228,8 +228,8 @@ struct ias_context_t* ias_init(const char* ias_api_key, const char* ias_verify_u
     context->ias_verify_url = ias_verify_url;
     context->ias_sigrl_url = ias_sigrl_url;
 
-    // uncomment the line below for troubleshooting
-    //curl_easy_setopt(context->curl, CURLOPT_VERBOSE, 1L);
+    if (get_verbose())
+        curl_easy_setopt(context->curl, CURLOPT_VERBOSE, 1L);
 
     // IAS requires TLS 1.2 minimum
     curl_ret = curl_easy_setopt(context->curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
