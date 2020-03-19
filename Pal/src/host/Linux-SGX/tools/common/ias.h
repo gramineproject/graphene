@@ -24,9 +24,9 @@ struct ias_context_t;
 /**
  * \brief Initialize context used for IAS communication.
  *
- * \param [in] ias_api_key API key for IAS access.
+ * \param [in] ias_api_key    API key for IAS access.
  * \param [in] ias_verify_url URL for IAS attestation verification API.
- * \param [in] ias_sigrl_url URL for IAS "Retrieve SigRL" API.
+ * \param [in] ias_sigrl_url  URL for IAS "Retrieve SigRL" API.
  * \return Context to be used in further ias_* calls or NULL on failure.
  *
  * \details Should be called once, before handling any request.
@@ -45,10 +45,10 @@ void ias_cleanup(struct ias_context_t* context);
 /**
  * \brief Get the signature revocation list for a given EPID group.
  *
- * \param [in] context IAS context returned by ias_init().
- * \param [in] gid EPID group ID to get SigRL for.
+ * \param [in]  context    IAS context returned by ias_init().
+ * \param [in]  gid        EPID group ID to get SigRL for.
  * \param [out] sigrl_size Size of the SigRL (may be 0).
- * \param [out] sigrl SigRL data, needs to be freed by the caller.
+ * \param [out] sigrl      SigRL data, needs to be freed by the caller.
  * \return 0 on success, -1 otherwise.
  */
 int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_size, void** sigrl);
@@ -56,13 +56,13 @@ int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_s
 /**
  * \brief Send quote to IAS for verification.
  *
- * \param [in] context IAS context returned by ias_init().
- * \param [in] quote Binary quote data blob.
- * \param [in] quote_size Size of \a quote.
- * \param [in] nonce (Optional) Nonce to send with the IAS request (maximum size: 32 bytes).
- * \param [in] report_path (Optional) File to save IAS report to.
- * \param [in] sig_path (Optional) File to save IAS report's signature to.
- * \param [in] cert_path (Optional) File to save IAS certificate to.
+ * \param [in] context       IAS context returned by ias_init().
+ * \param [in] quote Binary  Quote data blob.
+ * \param [in] quote_size    Size of \a quote.
+ * \param [in] nonce         (Optional) Nonce to send with the IAS request (maximum size: 32 bytes).
+ * \param [in] report_path   (Optional) File to save IAS report to.
+ * \param [in] sig_path      (Optional) File to save IAS report's signature to.
+ * \param [in] cert_path     (Optional) File to save IAS certificate to.
  * \param [in] advisory_path (Optional) File to save IAS security advisories to.
  * \return 0 on success, -1 otherwise.
  *

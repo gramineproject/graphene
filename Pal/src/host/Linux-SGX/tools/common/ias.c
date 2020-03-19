@@ -54,7 +54,7 @@ struct ias_request_resp {
 /**
  *  \brief Decode %-sequences ("URL encoding")
  *
- *  \param [in] src NULL-terminated URL-encoded input.
+ *  \param [in]  src NULL-terminated URL-encoded input.
  *  \param [out] dst Buffer to write decoded output to. Can be the same as \a src.
  */
 void urldecode(const char* src, char* dst) {
@@ -92,9 +92,9 @@ void urldecode(const char* src, char* dst) {
 /**
  * \brief Parse response headers to get report signature and other metadata.
  *
- * \param [in] buffer Single HTTP header.
- * \param [in] size Together with \a count a size of \a buffer.
- * \param [in] count Size of \a buffer, in \a size units.
+ * \param [in] buffer  Single HTTP header.
+ * \param [in] size    Together with \a count a size of \a buffer.
+ * \param [in] count   Size of \a buffer, in \a size units.
  * \param [in] context User data pointer (ias_request_resp).
  * \return \a size * \a count
  *
@@ -106,8 +106,8 @@ static size_t header_callback(char* buffer, size_t size, size_t count, void* con
     const char* cert_hdr = "x-iasreport-signing-certificate: "; // header containing IAS certificate
     const char* adv_url_hdr = "Advisory-URL: "; // header containing URL to IAS security advisories
     const char* adv_ids_hdr = "Advisory-IDs: "; // header containing security advisory IDs
-    size_t length = size * count;
-    struct ias_request_resp *resp_data = context;
+    size_t total_size = size * count;
+    struct ias_request_resp* resp_data = context;
     char** save_to;
     size_t* save_to_size;
     size_t hdr_len;
@@ -131,23 +131,23 @@ static size_t header_callback(char* buffer, size_t size, size_t count, void* con
     } else if (!strncasecmp(buffer, adv_ids_hdr, strlen(adv_ids_hdr))) {
         save_to = &resp_data->advisory_ids;
         save_to_size = &resp_data->advisory_ids_size;
-        hdr_len = strlen(cert_hdr);
+        hdr_len = strlen(adv_ids_hdr);
     } else {
         /* don't save */
-        return length;
+        return total_size;
     }
 
     /* keep only last value */
     if (*save_to) {
         free(*save_to);
     }
-    *save_to = strndup(buffer + hdr_len, length - hdr_len);
+    *save_to = strndup(buffer + hdr_len, total_size - hdr_len);
 
     if (!*save_to) {
         ERROR("Out of memory\n");
         exit(-ENOMEM); // no way to gracefully recover
     }
-    *save_to_size = length - hdr_len;
+    *save_to_size = total_size - hdr_len;
 
     /* drop already stored data - seeing headers after some data means it's additional response
      * - store only the last one */
@@ -157,15 +157,15 @@ static size_t header_callback(char* buffer, size_t size, size_t count, void* con
         resp_data->data_size = 0;
     }
 
-    return length;
+    return total_size;
 }
 
 /**
  * \brief Add HTTP body chunk to internal buffer.
  *
- * \param [in] buffer Chunk containing HTTP body.
- * \param [in] size Together with \a count a size of \a buffer.
- * \param [in] count Size of \a buffer, in \a size units.
+ * \param [in] buffer  Chunk containing HTTP body.
+ * \param [in] size    Together with \a count a size of \a buffer.
+ * \param [in] count   Size of \a buffer, in \a size units.
  * \param [in] context User data pointer (ias_request_resp).
  * \return \a size * \a count
  *
@@ -173,7 +173,7 @@ static size_t header_callback(char* buffer, size_t size, size_t count, void* con
  *          https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
  */
 static size_t body_callback(char* buffer, size_t size, size_t count, void* context) {
-    size_t length = size * count;
+    size_t total_size = size * count;
     struct ias_request_resp* resp_data = context;
 
     /* sanity check */
@@ -181,32 +181,22 @@ static size_t body_callback(char* buffer, size_t size, size_t count, void* conte
         return 0;
 
     /* make space for the data, plus terminating \0 */
-    resp_data->data = realloc(resp_data->data, resp_data->data_size + length + 1);
+    resp_data->data = realloc(resp_data->data, resp_data->data_size + total_size + 1);
     if (!resp_data->data) {
         ERROR("Out of memory\n");
         exit(-ENOMEM); // no way to gracefully recover
     }
 
     /* append the data (buffer) to resp_data->data */
-    memcpy(resp_data->data + resp_data->data_size, buffer, length);
-    resp_data->data_size += length;
+    memcpy(resp_data->data + resp_data->data_size, buffer, total_size);
+    resp_data->data_size += total_size;
 
     /* add terminating \0, but don't count it resp_data->data_size to ease appending next chunk */
     resp_data->data[resp_data->data_size] = '\0';
 
-    return length;
+    return total_size;
 }
 
-/**
- * \brief Initialize context used for IAS communication.
- *
- * \param [in] ias_api_key API key for IAS access.
- * \param [in] ias_verify_url URL for IAS attestation verification API.
- * \param [in] ias_sigrl_url URL for IAS "Retrieve SigRL" API.
- * \return Context to be used in further ias_* calls or NULL on failure.
- *
- * \details Should be called once, before handling any request.
- */
 struct ias_context_t* ias_init(const char* ias_api_key, const char* ias_verify_url,
                                const char* ias_sigrl_url) {
     int ret = -1;
@@ -279,12 +269,6 @@ out:
     return context;
 }
 
-/**
- * \brief Cleanup context used for IAS communication.
- *
- * \param [in] context IAS context returned by ias_init().
- * \details Should be called once, after serving last request.
- */
 void ias_cleanup(struct ias_context_t* context) {
     if (!context)
         return;
@@ -299,15 +283,6 @@ void ias_cleanup(struct ias_context_t* context) {
     curl_global_cleanup();
 }
 
-/**
- * \brief Get the signature revocation list for a given EPID group.
- *
- * \param [in] context IAS context returned by ias_init().
- * \param [in] gid EPID group ID to get SigRL for.
- * \param [out] sigrl_size Size of the SigRL (may be 0).
- * \param [out] sigrl SigRL data, needs to be freed by the caller.
- * \return 0 on success, -1 otherwise.
- */
 int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_size, void** sigrl) {
     struct ias_request_resp* ias_resp = NULL;
     int ret = -1;
@@ -392,21 +367,6 @@ out:
     return ret;
 }
 
-/**
- * \brief Send quote to IAS for verification.
- *
- * \param [in] context IAS context returned by ias_init().
- * \param [in] quote Binary quote data blob.
- * \param [in] quote_size Size of \a quote.
- * \param [in] nonce (Optional) Nonce to send with the IAS request (maximum size: 32 bytes).
- * \param [in] report_path (Optional) File to save IAS report to.
- * \param [in] sig_path (Optional) File to save IAS report's signature to.
- * \param [in] cert_path (Optional) File to save IAS certificate to.
- * \param [in] advisory_path (Optional) File to save IAS security advisories to.
- * \return 0 on success, -1 otherwise.
- *
- * \details Sends quote to the "Verify Attestation Evidence" IAS endpoint.
- */
 int ias_verify_quote(struct ias_context_t* context, const void* quote, size_t quote_size,
                      const char* nonce, const char* report_path, const char* sig_path,
                      const char* cert_path, const char* advisory_path) {
