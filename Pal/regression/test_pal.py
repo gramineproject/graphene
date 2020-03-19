@@ -11,7 +11,6 @@ import string
 import subprocess
 import sys
 import unittest
-from datetime import datetime, timedelta
 
 from regression import (
     HAS_SGX,
