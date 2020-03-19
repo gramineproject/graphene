@@ -19,7 +19,6 @@
 #include "pal_crypto.h"
 #include "pal_error.h"
 #include "mbedtls/base64.h"
-#include "mbedtls/asn1.h"
 
 /*
  * Encoding a byte string in Base64 format. If "dst" is NULL, this function returns the
