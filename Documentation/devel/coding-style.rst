@@ -9,9 +9,10 @@ Graphene. All newly commited code must conform to them to pass a |~| review.
 Automatic Reformatting
 ----------------------
 
-To make formatting easier we've added an integration with `clang-format` (currently only for C
-code). You must install appropriate package from your distribution to use it. For Ubuntu 18.04 you
-can setup it this way:
+To make formatting easier we've added an integration with
+:program:`clang-format` (currently only for C |~| code). You must install
+appropriate package from your distribution to use it. For Ubuntu 18.04 you can
+setup it this way:
 
 .. code-block:: sh
 
@@ -94,10 +95,10 @@ Code formatting
 
    Groups:
 
-   1. Matching `.h` header for `.c` files.
+   1. Matching :file:`.h` header for :file:`.c` files.
    2. Standard library headers.
    3. Non-standard headers not included in Graphene's repository (e.g. from
-      external dependencies, like `curl.h`).
+      external dependencies, like :file:`curl.h`).
    4. Graphene's headers.
 
 Conventions and High-level Style
