@@ -12,8 +12,8 @@ No change needed. See :file:`.dir-locals.el`.
 Vim Configuration
 -----------------
 
-Please add the following script to the end of your `~/.vimrc`,
-or place in `~/.vim/after/ftplugin/c.vim` if you have other plugins.
+Please add the following script to the end of your :file:`~/.vimrc`,
+or place in :file:`~/.vim/after/ftplugin/c.vim` if you have other plugins.
 
 .. code-block:: vim
 
@@ -29,4 +29,4 @@ or place in `~/.vim/after/ftplugin/c.vim` if you have other plugins.
 .. warning::
 
    Due to security concerns, we do not suggest using Vim modelines or
-   ``.exrc``.
+   :file:`.exrc`.
