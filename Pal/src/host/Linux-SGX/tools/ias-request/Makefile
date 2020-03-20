@@ -1,7 +1,14 @@
 include ../../../../../../Scripts/Makefile.configs
-CFLAGS += -I../.. -I../common -D_GNU_SOURCE
+include ../../../../../../Scripts/Makefile.rules
+
+CFLAGS += -I../.. \
+		  -I../common \
+		  -D_GNU_SOURCE
+
 LDFLAGS += -L../common \
            -L../../../../../lib/crypto/mbedtls/install/lib
+
+LDLIBS-ias_request += -lsgx_util
 
 PREFIX ?= /usr/local
 
@@ -9,7 +16,7 @@ PREFIX ?= /usr/local
 all: ias_request
 
 ias_request: ias_request.o
-	$(CC) $^ $(CFLAGS) $(LDFLAGS) -lsgx_util -lmbedcrypto -o $@
+	$(call cmd,csingle)
 
 .PHONY: install
 install:

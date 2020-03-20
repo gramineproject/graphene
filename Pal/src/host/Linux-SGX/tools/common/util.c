@@ -72,15 +72,9 @@ uint8_t* read_file(const char* path, ssize_t* size) {
 
     if (fread(buf, *size, 1, f) != 1) {
         ERROR("Failed to read file '%s'\n", path);
-        goto err;
     }
 
 out:
-    if (f)
-        fclose(f);
-    return buf;
-
-err:
     if (f)
         fclose(f);
     free(buf);
@@ -135,10 +129,9 @@ void util_set_fd(int stdout_fd, int stderr_fd) {
 
 /* Print memory as hex */
 void hexdump_mem(const void* data, size_t size) {
-    size_t i;
     uint8_t* ptr = (uint8_t*)data;
 
-    for (i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
         INFO("%02x", ptr[i]);
     INFO("\n");
 }

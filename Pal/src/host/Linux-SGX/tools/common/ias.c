@@ -12,6 +12,7 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#include <assert.h>
 #include <ctype.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -19,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+
 #include "pal_crypto.h"
 #include "util.h"
 
@@ -29,38 +31,38 @@
             true;                                                                  \
         }))
 
-/** Context used in ias_*() calls */
+/*! Context used in ias_*() calls */
 struct ias_context_t {
-    CURL* curl; /**< CURL context for this session */
-    const char* ias_verify_url; /**< URL for IAS attestation verification API */
-    const char* ias_sigrl_url; /**< URL for IAS "Retrieve SigRL" API */
-    struct curl_slist* headers; /**< Request headers sent to IAS */
+    CURL* curl;                 /*!< CURL context for this session */
+    const char* ias_verify_url; /*!< URL for IAS attestation verification API */
+    const char* ias_sigrl_url;  /*!< URL for IAS "Retrieve SigRL" API */
+    struct curl_slist* headers; /*!< Request headers sent to IAS */
 };
 
-/** IAS response with attestation evidence or signature revocation list */
+/*! IAS response with attestation evidence or signature revocation list */
 struct ias_request_resp {
-    char* signature; /**< X-IASReport-Signature data, NULL terminated string */
-    size_t signature_size; /**< size of \a signature string */
-    char* certificate; /**< x-iasreport-signing-certificate data, NULL terminated string */
-    size_t certificate_size; /**< size of \a certificate string */
-    char* advisory_url; /**< Advisory-URL data, NULL terminated string */
-    size_t advisory_url_size; /**< size of \a advisory_url string */
-    char* advisory_ids; /**< Advisory-IDs data, NULL terminated string */
-    size_t advisory_ids_size; /**< size of \a advisory_ids string */
-    char* data; /**< response data */
-    size_t data_size; /**< size of \a data field */
+    char* signature;          /*!< X-IASReport-Signature data, NULL terminated string */
+    size_t signature_size;    /*!< size of \a signature string */
+    char* certificate;        /*!< x-iasreport-signing-certificate data, NULL terminated string */
+    size_t certificate_size;  /*!< size of \a certificate string */
+    char* advisory_url;       /*!< Advisory-URL data, NULL terminated string */
+    size_t advisory_url_size; /*!< size of \a advisory_url string */
+    char* advisory_ids;       /*!< Advisory-IDs data, NULL terminated string */
+    size_t advisory_ids_size; /*!< size of \a advisory_ids string */
+    char* data;               /*!< response data */
+    size_t data_size;         /*!< size of \a data field */
 };
 
-/**
+/*!
  *  \brief Decode %-sequences ("URL encoding")
  *
- *  \param [in]  src NULL-terminated URL-encoded input.
- *  \param [out] dst Buffer to write decoded output to. Can be the same as \a src.
+ *  \param[in]  src NULL-terminated URL-encoded input.
+ *  \param[out] dst Buffer to write decoded output to. Can be the same as \a src.
  */
 void urldecode(const char* src, char* dst) {
     char a, b;
     while (*src) {
-        if ((*src == '%') && ((a = src[1]) && (b = src[2])) && (isxdigit(a) && isxdigit(b))) {
+        if (*src == '%' && (a = src[1]) && (b = src[2]) && isxdigit(a) && isxdigit(b)) {
             if (a >= 'a')
                 a -= 'a'-'A';
 
@@ -78,7 +80,7 @@ void urldecode(const char* src, char* dst) {
                 b -= '0';
 
             *dst++ = 16 * a + b;
-            src+=3;
+            src += 3;
         } else if (*src == '+') {
             *dst++ = ' ';
             src++;
@@ -89,16 +91,16 @@ void urldecode(const char* src, char* dst) {
     *dst++ = '\0';
 }
 
-/**
+/*!
  * \brief Parse response headers to get report signature and other metadata.
  *
- * \param [in] buffer  Single HTTP header.
- * \param [in] size    Together with \a count a size of \a buffer.
- * \param [in] count   Size of \a buffer, in \a size units.
- * \param [in] context User data pointer (ias_request_resp).
+ * \param[in] buffer  Single HTTP header.
+ * \param[in] size    Together with \a count a size of \a buffer.
+ * \param[in] count   Size of \a buffer, in \a size units.
+ * \param[in] context User data pointer (ias_request_resp).
  * \return \a size * \a count
  *
- * \details See CURL documentation at
+ * \details See cURL documentation at
  *          https://curl.haxx.se/libcurl/c/CURLOPT_HEADERFUNCTION.html
  */
 static size_t header_callback(char* buffer, size_t size, size_t count, void* context) {
@@ -112,9 +114,7 @@ static size_t header_callback(char* buffer, size_t size, size_t count, void* con
     size_t* save_to_size;
     size_t hdr_len;
 
-    /* sanity check */
-    if (!context)
-        return 0;
+    assert(context);
 
     if (!strncasecmp(buffer, sig_hdr, strlen(sig_hdr))) {
         save_to = &resp_data->signature;
@@ -160,25 +160,23 @@ static size_t header_callback(char* buffer, size_t size, size_t count, void* con
     return total_size;
 }
 
-/**
+/*!
  * \brief Add HTTP body chunk to internal buffer.
  *
- * \param [in] buffer  Chunk containing HTTP body.
- * \param [in] size    Together with \a count a size of \a buffer.
- * \param [in] count   Size of \a buffer, in \a size units.
- * \param [in] context User data pointer (ias_request_resp).
+ * \param[in] buffer  Chunk containing HTTP body.
+ * \param[in] size    Together with \a count a size of \a buffer.
+ * \param[in] count   Size of \a buffer, in \a size units.
+ * \param[in] context User data pointer (ias_request_resp).
  * \return \a size * \a count
  *
- * \details See CURL documentation at
+ * \details See cURL documentation at
  *          https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
  */
 static size_t body_callback(char* buffer, size_t size, size_t count, void* context) {
     size_t total_size = size * count;
     struct ias_request_resp* resp_data = context;
 
-    /* sanity check */
-    if (!context)
-        return 0;
+    assert(context);
 
     /* make space for the data, plus terminating \0 */
     resp_data->data = realloc(resp_data->data, resp_data->data_size + total_size + 1);
@@ -191,7 +189,7 @@ static size_t body_callback(char* buffer, size_t size, size_t count, void* conte
     memcpy(resp_data->data + resp_data->data_size, buffer, total_size);
     resp_data->data_size += total_size;
 
-    /* add terminating \0, but don't count it resp_data->data_size to ease appending next chunk */
+    /* add terminating \0, but don't count it in resp_data->data_size to ease appending next chunk */
     resp_data->data[resp_data->data_size] = '\0';
 
     return total_size;
@@ -207,7 +205,7 @@ struct ias_context_t* ias_init(const char* ias_api_key, const char* ias_verify_u
 
     // can be called multiple times
     CURLcode curl_ret = curl_global_init(CURL_GLOBAL_ALL);
-    if (CURL_FAIL("global CURL init", curl_ret))
+    if (CURL_FAIL("global cURL init", curl_ret))
         goto out;
 
     context = calloc(1, sizeof(*context));
@@ -270,8 +268,7 @@ out:
 }
 
 void ias_cleanup(struct ias_context_t* context) {
-    if (!context)
-        return;
+    assert(context);
 
     if (context->headers)
         curl_slist_free_all(context->headers);
@@ -351,7 +348,7 @@ int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_s
 
         lib_Base64Decode(ias_resp->data, strlen(ias_resp->data), *sigrl, sigrl_size);
         if (!*sigrl_size) {
-            ERROR("Failed do base64-decode SigRL\n");
+            ERROR("Failed to base64-decode SigRL\n");
             goto out;
         }
     }
