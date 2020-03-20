@@ -281,7 +281,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
             fds[nfds++] = cargo->generic.fds[i];
         }
 
-    int ch = hdl->process.cargo;
+    int ch = hdl->process.stream;
     ssize_t ret;
     ret    = ocall_send(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, 0, NULL, 0);
 
@@ -313,7 +313,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     if (!IS_HANDLE_TYPE(hdl, process))
         return -PAL_ERROR_BADHANDLE;
 
-    int ch = hdl->process.cargo;
+    int ch = hdl->process.stream;
 
     ssize_t ret = ocall_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL, NULL, NULL, NULL);
 

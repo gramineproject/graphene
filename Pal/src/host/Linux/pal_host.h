@@ -135,7 +135,6 @@ typedef struct pal_handle
 
         struct {
             PAL_IDX stream;
-            PAL_IDX cargo;
             PAL_IDX pid;
             PAL_BOL nonblocking;
         } process;

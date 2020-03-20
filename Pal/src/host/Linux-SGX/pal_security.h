@@ -43,9 +43,8 @@ struct pal_sec {
 
     PAL_SEC_STR     manifest_name;
 
-    /* child's stream and cargo FDs created and sent over by parent */
+    /* child's stream FD created and sent over by parent */
     PAL_IDX         stream_fd;
-    PAL_IDX         cargo_fd;
 
     /* additional information */
     PAL_SEC_STR     pipe_prefix;

@@ -254,22 +254,20 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     unsigned int child_pid;
     int stream_fd;
-    int cargo_fd;
     int nargs = 0, ret;
 
     if (args)
         for (const char ** a = args ; *a ; a++)
             nargs++;
 
-    ret = ocall_create_process(uri, nargs, args, &stream_fd, &cargo_fd, &child_pid);
+    ret = ocall_create_process(uri, nargs, args, &stream_fd, &child_pid);
     if (ret < 0)
         return ret;
 
     PAL_HANDLE child = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(child, process);
-    HANDLE_HDR(child)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
+    HANDLE_HDR(child)->flags |= RFD(0)|WFD(0);
     child->process.stream      = stream_fd;
-    child->process.cargo       = cargo_fd;
     child->process.pid         = child_pid;
     child->process.nonblocking = PAL_FALSE;
     child->process.ssl_ctx     = NULL;
@@ -321,10 +319,9 @@ int init_child_process (PAL_HANDLE * parent_handle)
 {
     PAL_HANDLE parent = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(parent, process);
-    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
+    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0);
 
     parent->process.stream      = pal_sec.stream_fd;
-    parent->process.cargo       = pal_sec.cargo_fd;
     parent->process.pid         = pal_sec.ppid;
     parent->process.nonblocking = PAL_FALSE;
     parent->process.ssl_ctx     = NULL;
@@ -414,11 +411,6 @@ static int proc_close (PAL_HANDLE handle)
         handle->process.stream = PAL_IDX_POISON;
     }
 
-    if (handle->process.cargo != PAL_IDX_POISON) {
-        ocall_close(handle->process.cargo);
-        handle->process.cargo = PAL_IDX_POISON;
-    }
-
     if (handle->process.ssl_ctx) {
         _DkStreamSecureFree((LIB_SSL_CONTEXT*)handle->process.ssl_ctx);
         handle->process.ssl_ctx = NULL;
@@ -446,9 +438,6 @@ static int proc_delete (PAL_HANDLE handle, int access)
 
     if (handle->process.stream != PAL_IDX_POISON)
         ocall_shutdown(handle->process.stream, shutdown);
-
-    if (handle->process.cargo != PAL_IDX_POISON)
-        ocall_shutdown(handle->process.cargo, shutdown);
 
     return 0;
 }

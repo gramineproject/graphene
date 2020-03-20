@@ -274,7 +274,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     pal_sec.manifest_name[sizeof(pal_sec.manifest_name) - 1] = '\0';
 
     pal_sec.stream_fd = sec_info.stream_fd;
-    pal_sec.cargo_fd  = sec_info.cargo_fd;
 
     COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
     pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
