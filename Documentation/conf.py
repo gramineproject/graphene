@@ -104,6 +104,14 @@ breathe_domain_by_extension = {
 
 todo_include_todos = True
 
+nitpicky = True
+nitpick_ignore = [
+    ('c:type', 'bool'),
+    ('c:type', 'uint32_t'),
+    ('c:type', 'uint64_t'),
+    ('c:type', 'union'),
+]
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
