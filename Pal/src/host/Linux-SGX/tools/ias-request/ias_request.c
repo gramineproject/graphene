@@ -17,6 +17,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "ias.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
@@ -49,34 +50,34 @@ struct option g_options[] = {
 };
 
 void usage(const char* exec) {
-    printf("Usage: %s <request> [options]\n", exec);
-    printf("Available requests:\n");
-    printf("  sigrl                     Retrieve signature revocation list for a given EPID group\n");
-    printf("  report                    Verify attestation evidence (quote)\n");
-    printf("Available general options:\n");
-    printf("  --help, -h                Display this help\n");
-    printf("  --verbose, -v             Enable verbose output\n");
-    printf("  --api-key, -k STRING      IAS API key\n");
-    printf("Available sigrl options:\n");
-    printf("  --gid, -g STRING          EPID group ID (hex string)\n");
-    printf("  --sigrl-path, -i PATH     Path to save SigRL to\n");
-    printf("  --sigrl-url, -S URL       URL for the IAS SigRL endpoint (default:\n"
-           "                            %s)\n", IAS_URL_SIGRL);
-    printf("Available report options:\n");
-    printf("  --quote-path, -q PATH     Path to quote to submit\n");
-    printf("  --nonce, -n STRING        Nonce to use (optional)\n");
-    printf("  --report-path, -r PATH    Path to save IAS report to\n");
-    printf("  --sig-path, -s PATH       Path to save IAS report's signature to (optional)\n");
-    printf("  --cert-path, -c PATH      Path to save IAS certificate to (optional)\n");
-    printf("  --advisory-path, -a PATH  Path to save IAS advisories to (optional)\n");
-    printf("  --report-url, -R URL      URL for the IAS attestation report endpoint (default:\n"
+    INFO("Usage: %s <request> [options]\n", exec);
+    INFO("Available requests:\n");
+    INFO("  sigrl                     Retrieve signature revocation list for a given EPID group\n");
+    INFO("  report                    Verify attestation evidence (quote)\n");
+    INFO("Available general options:\n");
+    INFO("  --help, -h                Display this help\n");
+    INFO("  --verbose, -v             Enable verbose output\n");
+    INFO("  --api-key, -k STRING      IAS API key\n");
+    INFO("Available sigrl options:\n");
+    INFO("  --gid, -g STRING          EPID group ID (hex string)\n");
+    INFO("  --sigrl-path, -i PATH     Path to save SigRL to\n");
+    INFO("  --sigrl-url, -S URL       URL for the IAS SigRL endpoint (default:\n"
+         "                            %s)\n", IAS_URL_SIGRL);
+    INFO("Available report options:\n");
+    INFO("  --quote-path, -q PATH     Path to quote to submit\n");
+    INFO("  --nonce, -n STRING        Nonce to use (optional)\n");
+    INFO("  --report-path, -r PATH    Path to save IAS report to\n");
+    INFO("  --sig-path, -s PATH       Path to save IAS report's signature to (optional)\n");
+    INFO("  --cert-path, -c PATH      Path to save IAS certificate to (optional)\n");
+    INFO("  --advisory-path, -a PATH  Path to save IAS advisories to (optional)\n");
+    INFO("  --report-url, -R URL      URL for the IAS attestation report endpoint (default:\n"
            "                            %s)\n", IAS_URL_REPORT);
 }
 
 int report(struct ias_context_t* ias, const char* quote_path, const char* nonce,
            const char* report_path, const char* sig_path, const char* cert_path,
            const char* advisory_path) {
-    int ret          = -1;
+    int ret = -1;
     void* quote_data = NULL;
 
     if (!quote_path) {
@@ -110,7 +111,7 @@ int report(struct ias_context_t* ias, const char* quote_path, const char* nonce,
         goto out;
     }
 
-    printf("IAS submission successful\n");
+    INFO("IAS submission successful\n");
 out:
     free(quote_data);
     return ret;
@@ -123,7 +124,7 @@ int sigrl(struct ias_context_t* ias, const char* gid_str, const char* sigrl_path
         return -1;
     }
 
-    for (size_t i=0; i<4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         if (!isxdigit(gid_str[i * 2]) || !isxdigit(gid_str[i * 2 + 1])) {
             ERROR("Invalid EPID group ID\n");
             return -1;
@@ -136,9 +137,9 @@ int sigrl(struct ias_context_t* ias, const char* gid_str, const char* sigrl_path
     int ret = ias_get_sigrl(ias, gid, &sigrl_size, &sigrl);
     if (ret == 0) {
         if (sigrl_size == 0) {
-            printf("No SigRL for given EPID group ID %s\n", gid_str);
+            INFO("No SigRL for given EPID group ID %s\n", gid_str);
         } else {
-            printf("SigRL size: %zu\n", sigrl_size);
+            DBG("SigRL size: %zu\n", sigrl_size);
             ret = write_file(sigrl_path, sigrl_size, sigrl);
         }
     }

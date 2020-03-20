@@ -59,4 +59,4 @@ void hexdump_mem(const void* data, size_t size);
 
 #define HEXDUMP(x) hexdump_mem((const void*)&(x), sizeof(x))
 
-#endif
+#endif /* UTIL_H */

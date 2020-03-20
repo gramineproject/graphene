@@ -1,3 +1,17 @@
+/* Copyright (C) 2018-2020 Invisible Things Lab
+                           Michal Kowalczyk <mkow@invisiblethingslab.com>
+   This file is part of Graphene Library OS.
+   Graphene Library OS is free software: you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+   Graphene Library OS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
 #include <cinttypes>
 #include <cstdint>
 #include <cstring>
@@ -31,7 +45,7 @@ void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t* eax, uint32_t* ebx,
     if (edx) *edx = (edx_ & 0xFFFFFFFF);
 }
 
-static bool __cpuid_supported() {
+static bool is_cpuid_supported() {
     // Checks whether (R/E)FLAGS.ID is writable (bit 21).
     uint64_t write_diff;
     __asm__ (
@@ -93,7 +107,7 @@ public:
         uint32_t cpuid_12_1_ecx;
         uint32_t cpuid_12_1_edx;
 
-        cpuid_supported_ = __cpuid_supported();
+        cpuid_supported_ = is_cpuid_supported();
         if (!cpuid_supported_)
             return;
         cpuid(0, 0, &cpuid_max_leaf_value, &cpuid_0_ebx, &cpuid_0_ecx, &cpuid_0_edx);
