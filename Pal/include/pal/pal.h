@@ -431,7 +431,7 @@ DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 * \param args an array of strings -- the arguments to be passed to the new process.
 */
 PAL_HANDLE
-DkProcessCreate(PAL_STR uri, PAL_STR * args);
+DkProcessCreate(PAL_STR uri, PAL_STR* args);
 
 /*!
  * \brief Terminate all threads in the process immediately.
