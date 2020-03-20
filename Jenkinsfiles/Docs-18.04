@@ -5,7 +5,7 @@ pipeline {
         stages {
                 stage('Build') {
                     steps {
-                        sh 'make -C Documentation html SPHINXOPTS="-W -n"'
+                        sh 'make -C Documentation html SPHINXOPTS="-W"'
                     }
                 }
         }
