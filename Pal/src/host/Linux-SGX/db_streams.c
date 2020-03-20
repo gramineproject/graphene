@@ -45,6 +45,8 @@ typedef __kernel_pid_t pid_t;
 #include <linux/types.h>
 #include <linux/wait.h>
 
+#define DUMMYPAYLOAD "dummypayload"
+#define DUMMYPAYLOADSIZE sizeof(DUMMYPAYLOAD)
 
 struct hdl_header {
     unsigned short fds : (MAX_FDS);
@@ -137,6 +139,8 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
             }
             break;
         case pal_type_process:
+            /* do not send ssl_ctx to child */
+            break;
         case pal_type_eventfd:
             break;
         default:
@@ -154,12 +158,6 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
         memcpy(buffer + hdlsz, d1, dsz1);
     if (dsz2)
         memcpy(buffer + hdlsz + dsz1, d2, dsz2);
-
-    if (PAL_GET_TYPE(handle) == pal_type_process) {
-        /* must not leak session key and SSL context -> zero them */
-        memset(buffer + offsetof(struct pal_handle, process.session_key), 0, sizeof(handle->process.session_key));
-        memset(buffer + offsetof(struct pal_handle, process.ssl_ctx), 0, sizeof(handle->process.ssl_ctx));
-    }
 
     *data = buffer;
     return hdlsz + dsz1 + dsz2;
@@ -203,19 +201,13 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size)
             break;
         }
         case pal_type_process:
+            /* child doesn't need to know ssl_ctx of other processes */
+            hdl->process.ssl_ctx = NULL;
+            break;
         case pal_type_eventfd:
             break;
         default:
             return -PAL_ERROR_BADHANDLE;
-    }
-
-    if (PAL_GET_TYPE(hdl) == pal_type_process) {
-        /* must not have leaked session key and SSL context, verify */
-        static PAL_SESSION_KEY zero_session_key;
-        __UNUSED(zero_session_key); /* otherwise GCC with Release build complains */
-
-        assert(memcmp(hdl->process.session_key, zero_session_key, sizeof(zero_session_key)) == 0);
-        assert(hdl->process.ssl_ctx == 0);
     }
 
     *handle = hdl;
@@ -271,11 +263,23 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     chdr->cmsg_len       = CMSG_LEN(fds_size);
     memcpy(CMSG_DATA(chdr), fds, fds_size);
 
-    /* finally send the serialized cargo as payload and FDs-to-transfer as ancillary data */
-    ret = ocall_send(fd, hdl_data, hdl_hdr.data_size, NULL, 0, chdr, chdr->cmsg_len);
+    /* next send FDs-to-transfer as ancillary data */
+    ret = ocall_send(fd, DUMMYPAYLOAD, DUMMYPAYLOADSIZE, NULL, 0, chdr, chdr->cmsg_len);
     if (IS_ERR(ret)) {
         free(hdl_data);
         return unix_to_pal_error(ERRNO(ret));
+    }
+
+    /* finally send the serialized cargo as payload (possibly encrypted) */
+    if (hdl->process.ssl_ctx) {
+        ret = _DkStreamSecureWrite(hdl->process.ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
+    } else {
+        ret = ocall_write(fd, hdl_data, hdl_hdr.data_size);
+        ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    }
+    if (IS_ERR(ret)) {
+        free(hdl_data);
+        return ret;
     }
 
     free(hdl_data);
@@ -325,10 +329,21 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     char hdl_data[hdl_hdr.data_size];
     char cbuf[cbuf_size];
 
-    /* finally receive the serialized cargo as payload and FDs-to-transfer as ancillary data */
-    ret = ocall_recv(fd, hdl_data, hdl_hdr.data_size, NULL, NULL, cbuf, &cbuf_size);
+    /* next receive FDs-to-transfer as ancillary data */
+    char dummypayload[DUMMYPAYLOADSIZE];
+    ret = ocall_recv(fd, dummypayload, DUMMYPAYLOADSIZE, NULL, NULL, cbuf, &cbuf_size);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
+
+    /* finally receive the serialized cargo as payload (possibly encrypted) */
+    if (hdl->process.ssl_ctx) {
+        ret = _DkStreamSecureRead(hdl->process.ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
+    } else {
+        ret = ocall_read(fd, hdl_data, hdl_hdr.data_size);
+        ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    }
+    if (IS_ERR(ret))
+        return ret;
 
     struct cmsghdr* chdr = (struct cmsghdr*)cbuf;
     if (chdr->cmsg_type != SCM_RIGHTS)
