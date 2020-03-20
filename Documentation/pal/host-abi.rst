@@ -77,7 +77,7 @@ follows::
            PAL_IDX type;
        } hdr;
        /* other resource-specific definitions */
-   } PAL_HANDLE;
+   } * PAL_HANDLE;
 
 .. doxygenunion:: pal_handle
    :project: pal
@@ -111,6 +111,12 @@ Basic types
    :project: pal
 
 
+.. doxygentypedef:: PAL_PTR_RANGE
+   :project: pal
+.. doxygenstruct:: PAL_PTR_RANGE_
+   :project: pal
+   :members:
+
 Graphene Control Block
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -128,6 +134,19 @@ The fields of the Graphene control block are defined as follows:
    :project: pal
    :members:
 
+.. doxygentypedef:: PAL_CPU_INFO
+   :project: pal
+.. doxygenstruct:: PAL_CPU_INFO_
+   :project: pal
+   :members:
+.. doxygentypedef:: PAL_MEM_INFO
+   :project: pal
+.. doxygenstruct:: PAL_MEM_INFO_
+   :project: pal
+   :members:
+
+.. doxygenfunction:: pal_control_addr
+   :project: pal
 
 Pal APIs
 --------
@@ -296,6 +315,18 @@ seven calls to create, signal, and block on synchronization objects.
 
 Exception Handling
 ^^^^^^^^^^^^^^^^^^
+
+.. doxygenenum:: PAL_EVENT
+   :project: pal
+
+.. doxygentypedef:: PAL_CONTEXT
+   :project: pal
+.. doxygenstruct:: PAL_CONTEXT_
+   :project: pal
+   :members:
+
+.. doxygentypedef:: PAL_EVENT_HANDLER
+   :project: pal
 
 .. doxygenfunction:: DkSetExceptionHandler
    :project: pal
