@@ -78,7 +78,7 @@ out:
     if (f)
         fclose(f);
     free(buf);
-    return NULL;
+    return buf;
 }
 
 static int write_file_internal(const char* path, size_t size, const void* buffer, bool append) {
