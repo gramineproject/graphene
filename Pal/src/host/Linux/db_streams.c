@@ -282,7 +282,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 
     // ~ Initialize common parameter formessage passing
     // Channel between parent and child
-    int ch = hdl->process.cargo;
+    int ch = hdl->process.stream;
 
     // Declare variables required for sending the message
     struct msghdr hdr;     // message header
@@ -361,7 +361,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     // ~ Initialize common parameter for message passing
     // Channel between parent and child
-    int ch = hdl->process.cargo;
+    int ch = hdl->process.stream;
 
     struct msghdr hdr;
     struct iovec iov[1];

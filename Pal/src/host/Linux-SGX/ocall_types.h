@@ -165,7 +165,6 @@ typedef struct {
     unsigned int ms_pid;
     const char * ms_uri;
     int ms_stream_fd;
-    int ms_cargo_fd;
     int ms_nargs;
     const char * ms_args[];
 } ms_ocall_create_process_t;
