@@ -53,7 +53,8 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     int socktype = SOCK_STREAM | SOCK_CLOEXEC;
     int ret;
 
-    if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds)))) {
+    ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds);
+    if (IS_ERR(ret)) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
