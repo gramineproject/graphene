@@ -13,7 +13,7 @@ Quick Start
       cd graphene
       make
 
-3. Build and Run `helloworld`::
+3. Build and Run :program:`helloworld`::
 
       cd LibOS/shim/test/native
       make
@@ -47,8 +47,8 @@ in <https://github.com/01org/linux-sgx> and
       lsmod | grep isgx
       ps ax | grep [a]esm_service
 
-The first command should list `isgx` and the second command should list the
-process status of `aesm_service`.
+The first command should list :command:`isgx` and the second command should list
+the process status of :command:`aesm_service`.
 
 2. Clone the Repository and Set the Home Directory of Graphene::
 
@@ -77,11 +77,11 @@ process status of `aesm_service`.
       cd $GRAPHENE_DIR
       make SGX=1
 
-6. Set `vm.mmap_min_addr=0` in the System::
+6. Set ``vm.mmap_min_addr=0`` in the System::
 
       sudo sysctl vm.mmap_min_addr=0
 
-7. Build and Run `helloworld`::
+7. Build and Run :program:`helloworld`::
 
       cd $GRAPHENE_DIR/LibOS/shim/test/native
       make SGX=1
