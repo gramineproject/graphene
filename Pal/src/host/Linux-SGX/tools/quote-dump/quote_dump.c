@@ -79,31 +79,11 @@ int main(int argc, char* argv[]) {
 
     const char* path = argv[1];
 
-    char* buf = NULL;
-    size_t buf_size = 0;
- 
-    FILE* f = fopen(path, "r");
-    if (!f) {
-        perror("fopen");
-        exit(-EINVAL);
-    }
+    ssize_t quote_size = 0;
+    uint8_t* quote = read_file(path, &quote_size);
+    if (!quote)
+        return -1;
 
-    fseek(f, 0, SEEK_END);
-    buf_size = ftell(f);
-    rewind(f);
-
-    buf = malloc(buf_size);
-    if (!buf) {
-        ERROR("No memory\n");
-        exit(-ENOMEM);
-    }
-
-    if (fread(buf, buf_size, 1, f) != 1) {
-        ERROR("Error reading '%s'\n", path);
-        exit(-EINVAL);
-    }
-
-    fclose(f);
-    display_quote((const sgx_quote_t*)buf);
+    display_quote((const sgx_quote_t*)quote);
     return 0;
 }
