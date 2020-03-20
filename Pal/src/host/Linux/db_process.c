@@ -35,6 +35,7 @@
 #include "pal_linux_defs.h"
 #include "pal_rtld.h"
 #include "pal_security.h"
+
 typedef __kernel_pid_t pid_t;
 #include <asm/errno.h>
 #include <asm/fcntl.h>
@@ -44,16 +45,14 @@ typedef __kernel_pid_t pid_t;
 #include <linux/types.h>
 #include <sys/socket.h>
 
-static inline int create_process_handle (PAL_HANDLE * parent,
-                                         PAL_HANDLE * child)
-{
-    PAL_HANDLE phdl = NULL, chdl = NULL;
-    int fds[4] = { -1, -1, -1, -1 };
+static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
+    PAL_HANDLE phdl = NULL;
+    PAL_HANDLE chdl = NULL;
+    int fds[2] = {-1, -1};
     int socktype = SOCK_STREAM | SOCK_CLOEXEC;
     int ret;
 
-    if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[0]))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, &fds[2])))) {
+    if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds)))) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -65,9 +64,8 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    HANDLE_HDR(phdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
+    HANDLE_HDR(phdl)->flags  |= RFD(0)|WFD(0);
     phdl->process.stream      = fds[0];
-    phdl->process.cargo       = fds[2];
     phdl->process.pid         = linux_state.pid;
     phdl->process.nonblocking = PAL_FALSE;
 
@@ -78,9 +76,8 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(0)|RFD(1)|WFD(1);
+    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(0);
     chdl->process.stream      = fds[1];
-    chdl->process.cargo       = fds[3];
     chdl->process.pid         = 0; /* unknown yet */
     chdl->process.nonblocking = PAL_FALSE;
 
@@ -89,13 +86,12 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     ret = 0;
 out:
     if (ret < 0) {
-        if (phdl)
-            _DkObjectClose(phdl);
-        if (chdl)
-            _DkObjectClose(chdl);
-        for (int i = 0; i < 4; i++)
-            if (fds[i] != -1)
-                INLINE_SYSCALL(close, 1, fds[i]);
+        free(phdl);
+        free(chdl);
+        if (fds[0] != -1)
+            INLINE_SYSCALL(close, 1, fds[0]);
+        if (fds[1] != -1)
+            INLINE_SYSCALL(close, 1, fds[1]);
     }
     return ret;
 }
@@ -104,7 +100,7 @@ struct proc_param {
     PAL_HANDLE parent;
     PAL_HANDLE exec;
     PAL_HANDLE manifest;
-    const char ** argv;
+    const char** argv;
 };
 
 struct proc_args {
@@ -478,11 +474,6 @@ static int proc_close (PAL_HANDLE handle)
         handle->process.stream = PAL_IDX_POISON;
     }
 
-    if (handle->process.cargo != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->process.cargo);
-        handle->process.cargo = PAL_IDX_POISON;
-    }
-
     return 0;
 }
 
@@ -505,9 +496,6 @@ static int proc_delete (PAL_HANDLE handle, int access)
 
     if (handle->process.stream != PAL_IDX_POISON)
         INLINE_SYSCALL(shutdown, 2, handle->process.stream, shutdown);
-
-    if (handle->process.cargo != PAL_IDX_POISON)
-        INLINE_SYSCALL(shutdown, 2, handle->process.cargo, shutdown);
 
     return 0;
 }

@@ -613,8 +613,7 @@ int ocall_clone_thread (void)
     return sgx_ocall(OCALL_CLONE_THREAD, dummy);
 }
 
-int ocall_create_process(const char* uri, int nargs, const char** args, int* stream_fd,
-                         int* cargo_fd, unsigned int* pid) {
+int ocall_create_process(const char* uri, int nargs, const char** args, int* stream_fd, unsigned int* pid) {
     int retval = 0;
     int ulen = uri ? strlen(uri) + 1 : 0;
     ms_ocall_create_process_t * ms;
@@ -649,8 +648,6 @@ int ocall_create_process(const char* uri, int nargs, const char** args, int* str
             *pid = ms->ms_pid;
         if (stream_fd)
             *stream_fd = ms->ms_stream_fd;
-        if (cargo_fd)
-            *cargo_fd = ms->ms_cargo_fd;
     }
 
     sgx_reset_ustack();

@@ -227,7 +227,7 @@ extern struct pal_enclave_config {
 
 #else
 
-int sgx_create_process(const char* uri, int nargs, const char** args, int* stream_fd, int* cargo_fd);
+int sgx_create_process(const char* uri, int nargs, const char** args, int* stream_fd);
 
 #ifdef DEBUG
 # ifndef SIGCHLD

@@ -243,7 +243,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 
     ssize_t ret;
     struct hdl_header hdl_hdr = {.fds = 0, .data_size = hdl_data_size};
-    int fd = hdl->process.cargo;
+    int fd = hdl->process.stream;
 
     /* apply bitmask of FDs-to-transfer to hdl_hdr.fds and populate `fds` with these FDs */
     int fds[MAX_FDS];
@@ -297,7 +297,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     ssize_t ret;
     struct hdl_header hdl_hdr;
-    int fd = hdl->process.cargo;
+    int fd = hdl->process.stream;
 
     /* first receive hdl_hdr so that we know how many FDs were transfered + how large is cargo */
     ret = ocall_recv(fd, &hdl_hdr, sizeof(hdl_hdr), NULL, NULL, NULL, NULL);
