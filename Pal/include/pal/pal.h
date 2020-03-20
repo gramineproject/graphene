@@ -556,7 +556,7 @@ enum PAL_DELETE {
 };
 
 /*!
- * \brief Delete files or directories on the host or shuts down the connection of TCP/UDP sockets.
+ * \brief Delete files or directories on the host or shut down the connection of TCP/UDP sockets.
  *
  * \param access which side to shut down (#PAL_DELETE), or both if 0 is given.
  */
@@ -584,7 +584,7 @@ void
 DkStreamUnmap(PAL_PTR addr, PAL_NUM size);
 
 /*!
- * \brief Set the length of the file referenced by handle to length.
+ * \brief Set the length of the file referenced by handle to `length`.
  *
  * \return Returns the 0 on success, a _positive_ errno on failure.
  */
@@ -642,7 +642,7 @@ typedef struct _PAL_STREAM_ATTR {
  * This API only applies for URIs such as `%file:...`, `dir:...`, and `dev:...`.
  */
 PAL_BOL
-DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR * attr);
+DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr);
 
 /*!
  * \brief Query the attributes of an opened stream.
@@ -650,13 +650,13 @@ DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR * attr);
  * This API applies to any stream handle.
  */
 PAL_BOL
-DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
+DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
 /*!
  * \brief Set the attributes of an opened stream.
  */
 PAL_BOL
-DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
+DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
 /*!
  * \brief Query the name of an opened stream.
@@ -878,7 +878,7 @@ DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size);
  * \todo document DkInstructionCacheFlush
  */
 PAL_BOL
-DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size);
+DkInstructionCacheFlush(PAL_PTR addr, PAL_NUM size);
 
 enum PAL_SEGMENT {
     PAL_SEGMENT_FS = 0x1,
@@ -916,7 +916,7 @@ enum PAL_CPUID_WORD {
  * \param[out] values the array of the results
  */
 PAL_BOL
-DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
+DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
 
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \
