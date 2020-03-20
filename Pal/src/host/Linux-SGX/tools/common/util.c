@@ -73,6 +73,7 @@ uint8_t* read_file(const char* path, ssize_t* size) {
     if (fread(buf, *size, 1, f) != 1) {
         ERROR("Failed to read file '%s'\n", path);
         free(buf);
+        buf = NULL;
     }
 
 out:
