@@ -13,4 +13,10 @@ fs.root.uri = file:/
 
 fs.start_dir = ${working_dir}
 
+# start at static addresses (otherwise breaks when static and PIE executables are used)
+sgx.static_address = 1
+
+# specify enclave size
+sgx.enclave_size = ${enclave_size}
+
 # All trusted files and the user defined manifest specifications should be after this line

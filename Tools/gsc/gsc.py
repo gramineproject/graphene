@@ -21,11 +21,13 @@ def load_config(file):
 # finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
 def generate_manifest(image, substitutions, user_manifest):
 
+    user_mf = ""
     if os.path.exists(user_manifest):
         with open(user_manifest, 'r') as user_manifest_file:
-            user_mf = user_manifest_file.read()
-    else:
-        user_mf = ""
+            for line in user_manifest_file:
+                # exclude memory specifications
+                if not line.startswith('sgx.enclave_size'):
+                    user_mf += line
 
     with open('templates/manifest.template') as manifest_template:
         template_mf = string.Template(manifest_template.read())
@@ -91,6 +93,25 @@ def prepare_build_context(image, user_manifests, substitutions):
     # copy markTrustedFiles.sh
     shutil.copyfile("finalize_manifests.py", 'gsc-' + image + "/finalize_manifests.py")
 
+def extract_manifest_keys(user_manifest):
+    manifest_dic = {}
+
+    with open(user_manifest, "r") as file:
+        for line in file:
+            pound = line.find("#")
+            if pound != -1:
+                continue
+
+            line = line.strip()
+            equal = line.find("=")
+            if equal != -1:
+                key = line[:equal].strip()
+                manifest_dic[key] = line[equal + 1:].strip()
+
+    return manifest_dic
+
+def get_enclave_size(manifest_dic):
+    return manifest_dic['sgx.enclave_size'] if 'sgx.enclave_size' in manifest_dic else 256
 
 def prepare_substitutions(base_image, image, options, user_manifests):
     params = {
@@ -124,13 +145,16 @@ def prepare_substitutions(base_image, image, options, user_manifests):
 
     # Find command of image from base_image
     cmd = base_image.attrs['Config']['Cmd']
-    # Remove /bin/sh -c prefix and extract binary and arguments
-    binary_it = 2 if cmd[0] == '/bin/sh' and cmd[1] == '-c' else 0
+    #TODO: extract the correct binary command to run, previous solution marked behind is not
+    # correct
+    binary_it = 0 #2 if cmd[0] == '/bin/sh' and cmd[1] == '-c' else 0
     binary = cmd[binary_it]
     binary_arguments = "'" + "' '".join(cmd[binary_it +1 : ]) + "'" if (len(cmd)
                                                                         > binary_it + 1) else ""
 
     working_dir = base_image.attrs['Config']['WorkingDir']
+
+    manifest_dic = extract_manifest_keys(user_manifests[0])
 
     substitutions.update({
             "appImage" : image,
@@ -139,7 +163,8 @@ def prepare_substitutions(base_image, image, options, user_manifests):
             'binary_arguments': binary_arguments,
             'working_dir': working_dir,
             'user_manifests': ' '.join([os.path.basename(manifest)
-                                        for manifest in user_manifests[1:]])
+                                        for manifest in user_manifests[1:]]),
+            'enclave_size': get_enclave_size(manifest_dic)
             })
 
     return substitutions
