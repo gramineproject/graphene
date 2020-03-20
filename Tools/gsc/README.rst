@@ -21,7 +21,7 @@ Prerequisites to running GSC
 
 ::
 
-    sudo apt install docker.io python3
+    sudo apt install docker.io python3 python3-pip
     pip3 install docker
 
 **Kernel modules and services:**
