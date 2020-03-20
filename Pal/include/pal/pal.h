@@ -86,7 +86,7 @@ typedef union pal_handle
         PAL_IDX type;
         /* the PAL-level reference counting is deprecated */
     } hdr;
-} * PAL_HANDLE;
+}* PAL_HANDLE;
 
 # ifndef HANDLE_HDR
 #  define HANDLE_HDR(handle) (&((handle)->hdr))
@@ -237,7 +237,7 @@ typedef struct {
 # error "Unsupported architecture"
 #endif
 
-typedef struct {
+typedef struct PAL_CONTEXT_ {
 #ifdef __x86_64__
     PAL_NUM r8, r9, r10, r11, r12, r13, r14, r15;
     PAL_NUM rdi, rsi, rbp, rbx, rdx, rax, rcx;
@@ -275,9 +275,9 @@ enum {
 #define PAL_CHECK_TYPE(h, t)    (PAL_GET_TYPE(h) == pal_type_##t)
 #define UNKNOWN_HANDLE(handle)  (PAL_GET_TYPE(handle) >= PAL_HANDLE_TYPE_BOUND)
 
-typedef struct { PAL_PTR start, end; }  PAL_PTR_RANGE;
+typedef struct PAL_PTR_RANGE_ { PAL_PTR start, end; } PAL_PTR_RANGE;
 
-typedef struct {
+typedef struct PAL_CPU_INFO_ {
     PAL_NUM cpu_num;
     PAL_STR cpu_vendor;
     PAL_STR cpu_brand;
@@ -288,7 +288,7 @@ typedef struct {
     PAL_STR cpu_flags;
 } PAL_CPU_INFO;
 
-typedef struct {
+typedef struct PAL_MEM_INFO_ {
     PAL_NUM mem_total;
 } PAL_MEM_INFO;
 
@@ -743,7 +743,7 @@ enum PAL_EVENT {
     PAL_EVENT_NUM_BOUND        = 8,
 };
 
-typedef void (*PAL_EVENT_HANDLER) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT *);
+typedef void (*PAL_EVENT_HANDLER) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
 
 /*!
  * \brief Set the handler for the specific exception event.
