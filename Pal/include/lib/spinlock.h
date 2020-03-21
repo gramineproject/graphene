@@ -1,3 +1,9 @@
+/* NOTE: This spinlock library must be implemented in a secure way even when a spinlock is stored
+ *       in the untrusted memory and accessed by the enclave. Currently, the only sensitive field
+ *       is `lock` but there is no way to prevent tampering with it in untrusted memory: callers
+ *       must ensure that returning prematurely from such a spinlock leads only to DoS and not to
+ *       data corruptions. */
+
 #ifndef _SPINLOCK_H
 #define _SPINLOCK_H
 
@@ -28,13 +34,16 @@ typedef struct {
 #define SPINLOCK_LOCKED_NO_WAITERS   1  /* used for futex implementation */
 #define SPINLOCK_LOCKED_WITH_WAITERS 2  /* used for futex implementation */
 
-/* Use this to initialize spinlocks with *static* storage duration.
- * According to C standard, there only guarantee we have is that this initialization will happen
+/*!
+ * \brief Initialize spinlock with *static* storage duration.
+ *
+ * According to C standard, the only guarantee we have is that this initialization will happen
  * before main, which by itself is not enough (such store might not be visible before fist lock
  * acquire). Fortunately on gcc global zeroed variables will just end up in .bss - zeroed memory
  * mapped during process creation, hence we are fine.
  *
- * Rest of the struct is zeroed implicitly, hence no need for ifdef here. */
+ * Rest of the struct is zeroed implicitly, hence no need for ifdef here.
+ */
 #define INIT_SPINLOCK_UNLOCKED { .lock = SPINLOCK_UNLOCKED }
 
 #ifdef DEBUG_SPINLOCKS_SHIM
@@ -56,13 +65,19 @@ static inline void debug_spinlock_giveup_ownership(spinlock_t* lock) {
 #endif // DEBUG_SPINLOCKS_SHIM
 
 
-/* Use this to initialize spinlocks with *dynamic* storage duration. */
+/*!
+ * \brief Initialize spinlock with *dynamic* storage duration.
+ */
 static inline void spinlock_init(spinlock_t* lock) {
     debug_spinlock_giveup_ownership(lock);
     __atomic_store_n(&lock->lock, SPINLOCK_UNLOCKED, __ATOMIC_RELAXED);
 }
 
-/* Returns 0 if taking the lock succeded, 1 if it was already taken */
+/*!
+ * \brief Try to acquire spinlock.
+ *
+ * \return  0 if acquiring the lock succeeded, 1 if it was already taken.
+ */
 static inline int spinlock_trylock(spinlock_t* lock) {
     if (__atomic_exchange_n(&lock->lock, SPINLOCK_LOCKED, __ATOMIC_ACQUIRE) == SPINLOCK_UNLOCKED) {
         debug_spinlock_take_ownership(lock);
@@ -71,6 +86,9 @@ static inline int spinlock_trylock(spinlock_t* lock) {
     return 1;
 }
 
+/*!
+ * \brief Acquire spinlock.
+ */
 static inline void spinlock_lock(spinlock_t* lock) {
     int val;
 
@@ -87,14 +105,19 @@ static inline void spinlock_lock(spinlock_t* lock) {
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
         val = SPINLOCK_UNLOCKED;
-    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/1,
+    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/true,
                                           __ATOMIC_ACQUIRE, __ATOMIC_RELAXED));
 
 out:
     debug_spinlock_take_ownership(lock);
 }
 
-/* Returns 0 if taking the lock succeded; 1 if timed out (counted as number of iterations) */
+/*!
+ * \brief Try to acquire spinlock for some time.
+ *
+ * \param iterations  Number of iterations (tries) after which this function times out.
+ * \return            0 if acquiring the lock succeeded, 1 if timed out.
+ */
 static inline int spinlock_lock_timeout(spinlock_t* lock, unsigned long iterations) {
     int val;
 
@@ -115,7 +138,7 @@ static inline int spinlock_lock_timeout(spinlock_t* lock, unsigned long iteratio
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
         val = SPINLOCK_UNLOCKED;
-    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/1,
+    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/true,
                                           __ATOMIC_ACQUIRE, __ATOMIC_RELAXED));
 
 out_success:
@@ -123,15 +146,23 @@ out_success:
     return 0;
 }
 
-/* Semantics are the same as gcc's atomic_compare_exchange_n(): compares the contents of *lock with
- * the contents of *expected; if equal, writes `desired` into *lock. If unequal, current contents of
- * *lock are written into *expected. If `desired` is written into *lock then true is returned. */
+/*!
+ * \brief Compare the contents of `*lock` with the contents of `*expected`
+ *
+ * Semantics are the same as gcc's `atomic_compare_exchange_n()`. If the contents of `*lock` and
+ * `*expected` are equal, this function writes `desired` into `*lock`. Otherwise, current contents
+ * of `*lock` are written into `*expected`. If `desired` is written into `*lock` then true is
+ * returned.
+ */
 static inline int spinlock_cmpxchg(spinlock_t* lock, int* expected, int desired) {
     static_assert(SAME_TYPE(&lock->lock, expected), "spinlock is not implemented as int*");
-    return __atomic_compare_exchange_n(&lock->lock, expected, desired, /*weak=*/0,
+    return __atomic_compare_exchange_n(&lock->lock, expected, desired, /*weak=*/false,
                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
 }
 
+/*!
+ * \brief Release spinlock.
+ */
 static inline void spinlock_unlock(spinlock_t* lock) {
     debug_spinlock_giveup_ownership(lock);
     __atomic_store_n(&lock->lock, SPINLOCK_UNLOCKED, __ATOMIC_RELEASE);
