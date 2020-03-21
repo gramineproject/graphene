@@ -4,7 +4,7 @@
 #include <hex.h>
 
 #include "debugger/sgx_gdb.h"
-#include "rpcqueue.h"
+#include "rpc_queue.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
 #include "sgx_tls.h"

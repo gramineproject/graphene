@@ -73,7 +73,7 @@ void unmap_tcs(void) {
     spinlock_unlock(&tcs_lock);
 }
 
-int current_enclave_thread_num(void) {
+int current_enclave_thread_cnt(void) {
     int ret = 0;
     spinlock_lock(&tcs_lock);
     for (int i = 0; i < enclave_thread_num; i++)

@@ -4,7 +4,7 @@
 #include <api.h>
 
 #include "ecall_types.h"
-#include "rpcqueue.h"
+#include "rpc_queue.h"
 
 #define SGX_CAST(type, item) ((type)(item))
 
@@ -14,19 +14,19 @@ static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
 
 /* returns 0 if rpc_queue is valid/not requested, otherwise -1 */
 static int verify_and_init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
-    g_rpc_queue = untrusted_rpc_queue;
-    if (!g_rpc_queue) {
-        /* user app doesn't request RPC queue (i.e., the app doesn't request exitless syscalls) */
+    g_rpc_queue = NULL;
+
+    if (!untrusted_rpc_queue) {
+        /* user app didn't request RPC queue (i.e., the app didn't request exitless syscalls) */
         return 0;
     }
 
-    if (!sgx_is_completely_outside_enclave(g_rpc_queue, sizeof(*g_rpc_queue)))
+    if (!sgx_is_completely_outside_enclave(untrusted_rpc_queue, sizeof(*untrusted_rpc_queue))) {
+        /* malicious RPC queue object, return error */
         return -1;
+    }
 
-    if (g_rpc_queue->rpc_threads_num > MAX_RPC_THREADS)
-        return -1;
-
-    rpc_queue_init(g_rpc_queue); /* re-initialize rest fields for safety */
+    g_rpc_queue = untrusted_rpc_queue;
     return 0;
 }
 

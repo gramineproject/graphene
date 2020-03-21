@@ -25,8 +25,7 @@
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "pal_linux.h"
-#include "pal_linux.h"
-#include "rpcqueue.h"
+#include "rpc_queue.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
 
@@ -183,7 +182,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 
     /* send dummy signal to RPC threads so they interrupt blocked syscalls */
     if (g_rpc_queue)
-        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
@@ -202,10 +201,9 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
 {
     __UNUSED(info);
 
-    /* send dummy signal to RPC threads so they interrupt blocked syscalls;
-     * only do it on a benign SIGFPE signal (FP/div-by-zero exception) */
-    if (g_rpc_queue && signum == SIGFPE)
-        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+    /* send dummy signal to RPC threads so they interrupt blocked syscalls */
+    if (g_rpc_queue)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];

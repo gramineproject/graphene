@@ -2,7 +2,7 @@
 #include "ocall_types.h"
 #include "pal_linux_error.h"
 #include "pal_security.h"
-#include "rpcqueue.h"
+#include "rpc_queue.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
 
@@ -41,7 +41,7 @@ static long sgx_ocall_exit(void* pms)
 
     unmap_tcs();
 
-    if (!current_enclave_thread_num()) {
+    if (!current_enclave_thread_cnt()) {
         /* no enclave threads left, kill the whole process */
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
     }
@@ -684,8 +684,8 @@ static int rpc_thread_loop(void* arg) {
     INLINE_SYSCALL(rt_sigprocmask, 4, SIG_SETMASK, &mask, NULL, sizeof(mask));
 
     spinlock_lock(&g_rpc_queue->lock);
-    g_rpc_queue->rpc_threads[g_rpc_queue->rpc_threads_num] = mytid;
-    g_rpc_queue->rpc_threads_num++;
+    g_rpc_queue->rpc_threads[g_rpc_queue->rpc_threads_cnt] = mytid;
+    g_rpc_queue->rpc_threads_cnt++;
     spinlock_unlock(&g_rpc_queue->lock);
 
     while (1) {
@@ -696,9 +696,8 @@ static int rpc_thread_loop(void* arg) {
         }
 
         /* call actual function and notify awaiting enclave thread when done */
-        typedef int (*bridge_fn_t)(const void*);
-        bridge_fn_t bridge = (bridge_fn_t)(ocall_table[req->ocall_index]);
-        req->result = bridge(req->buffer);
+        sgx_ocall_fn_t f = ocall_table[req->ocall_index];
+        req->result = f(req->buffer);
 
         /* this code is based on Mutex 2 from Futexes are Tricky */
         int old_lock_state = __atomic_fetch_sub(&req->lock.lock, 1, __ATOMIC_ACQ_REL);
@@ -717,10 +716,10 @@ static int rpc_thread_loop(void* arg) {
 }
 
 static int start_rpc(size_t num_of_threads) {
-    g_rpc_queue = (rpc_queue_t*) INLINE_SYSCALL(mmap, 6, NULL,
-                                                ALIGN_UP(sizeof(rpc_queue_t), PRESET_PAGESIZE),
-                                                PROT_READ | PROT_WRITE,
-                                                MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    g_rpc_queue = (rpc_queue_t*)INLINE_SYSCALL(mmap, 6, NULL,
+                                               ALIGN_UP(sizeof(rpc_queue_t), PRESET_PAGESIZE),
+                                               PROT_READ | PROT_WRITE,
+                                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (IS_ERR_P(g_rpc_queue))
         return -ENOMEM;
 
@@ -752,7 +751,7 @@ static int start_rpc(size_t num_of_threads) {
     /* wait until all RPC threads are initialized in rpc_thread_loop */
     while (1) {
         spinlock_lock(&g_rpc_queue->lock);
-        size_t n = g_rpc_queue->rpc_threads_num;
+        size_t n = g_rpc_queue->rpc_threads_cnt;
         spinlock_unlock(&g_rpc_queue->lock);
         if (n == pal_enclave.rpc_thread_num)
             break;

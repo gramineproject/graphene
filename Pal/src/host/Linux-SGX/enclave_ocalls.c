@@ -15,7 +15,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_error.h"
-#include "rpcqueue.h"
+#include "rpc_queue.h"
 #include "spinlock.h"
 
 /* TODO: revise return value as long for sgx_ocall() and sgx_exitless_ocall() */
@@ -27,7 +27,7 @@
  * size of 8MB. Thus, 512KB limit also works well for the main thread. */
 #define MAX_UNTRUSTED_STACK_BUF (THREAD_STACK_SIZE / 4)
 
-/* global pointer to a single untrusted queue, requires proper synchronization */
+/* global pointer to a single untrusted queue, all accesses must be protected by g_rpc_queue->lock */
 rpc_queue_t* g_rpc_queue;
 
 static int sgx_exitless_ocall(int code, void* ms) {
@@ -55,8 +55,8 @@ static int sgx_exitless_ocall(int code, void* ms) {
      * and, after syscall is finished, release the request's spinlock */
     bool enqueued = rpc_enqueue(g_rpc_queue, req);
     if (!enqueued) {
-        /* no space in queue: all RPC threads are busy with outstanding ocalls;
-         * fallback to normal syscall path with enclave exit */
+        /* no space in queue: all RPC threads are busy with outstanding ocalls; fallback to normal
+         * syscall path with enclave exit; no need to free req since it was allocated on stack */
         return sgx_ocall(code, ms);
     }
 

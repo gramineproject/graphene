@@ -11,10 +11,13 @@
  * syscalls perform an enclave exit (as in previous versions of Graphene).
  *
  * All enclave and RPC threads work on a single shared RPC queue (global variable `g_rpc_queue`).
- * To issue syscall, enclave thread enqueues syscall request in the queue and spins waiting for
+ * To issue a syscall, enclave thread enqueues syscall request in the queue and spins waiting for
  * result. RPC threads spin waiting for syscall requests; when request comes, first lucky RPC
  * thread grabs request, issues syscall to OS, and notifies enclave thread by releasing the request
  * lock. RPC queue is implemented as a FIFO ring buffer with one global lock.
+ *
+ * The RPC queue with its ring buffer resides in *untrusted memory*. The enclave code accessing the
+ * RPC queue must be carefully written to withstand attacks tampering with the queue.
  *
  * RPC queue can have up to RPC_QUEUE_SIZE requests simultaneously. All requests are allocated on
  * the untrusted stack of the enclave thread; enclave thread owns its requests and pops them off
@@ -26,6 +29,12 @@
  * there are more RPC threads, CPU time is wasted. If there are less, some enclave threads may
  * starve, especially if there are many blocking syscalls by other enclave threads.
  *
+ * NOTE: The Exitless feature trades slow OCALLs/ECALLs for fast RPC-queue communication at the
+ * cost of occupying more CPU cores and burning more CPU cycles. For example, a single-threaded
+ * Redis instance on Linux becomes 5-threaded on Graphene-SGX. Therefore, Exitless may negatively
+ * impact throughput but may improve latency. Only a subset of applications may benefit from
+ * Exitless, in particular, single-threaded latency-sensitive apps that cannot be parallelized.
+ *
  * Prototype code was written by Meni Orenbach and adapted to Graphene by Dmitrii Kuvaiskii.
  */
 #ifndef QUEUE_H_
@@ -34,6 +43,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "spinlock.h"
 
 /* Number of iterations to spin before sleeping. We choose 1M as follows: we want to sleep on
@@ -43,12 +53,12 @@
  * works well in practice. */
 #define RPC_SPINLOCK_TIMEOUT 1000000
 
-#define RPC_QUEUE_SIZE 1024         /* max # of requests in RPC queue */
+#define RPC_QUEUE_SIZE  1024        /* max # of requests in RPC queue */
 #define MAX_RPC_THREADS 256         /* max number of RPC threads */
 
 typedef struct {
     spinlock_t lock;  /* can be UNLOCKED / LOCKED_NO_WAITERS / LOCKED_WITH_WAITERS */
-    int result;
+    long result;
     int ocall_index;
     void* buffer;
 } rpc_request_t;
@@ -58,7 +68,7 @@ typedef struct rpc_queue {
     uint64_t front, rear;             /* indexes into front and rear ends of q */
     rpc_request_t* q[RPC_QUEUE_SIZE]; /* queue of syscall requests */
     int rpc_threads[MAX_RPC_THREADS]; /* RPC threads (thread IDs) */
-    size_t rpc_threads_num;           /* number of RPC threads */
+    size_t rpc_threads_cnt;           /* number of RPC threads */
 } rpc_queue_t;
 
 extern rpc_queue_t* g_rpc_queue;  /* global RPC queue */
@@ -71,6 +81,12 @@ static inline void rpc_queue_init(rpc_queue_t* q) {
         q->q[i] = NULL;
 }
 
+/*!
+ * \brief Enqueue OCALL request `req` in the shared RPC queue `q`.
+ *
+ * This function is called from the enclave code and thus must be written carefully to withstand
+ * attacks tampering with untrusted `req` and untrusted `q`.
+ */
 static inline bool rpc_enqueue(rpc_queue_t* q, rpc_request_t* req) {
     bool ret = false;
     spinlock_lock(&q->lock);
@@ -94,6 +110,11 @@ out:
     return ret;
 }
 
+/*!
+ * \brief Dequeue OCALL request `req` from the shared RPC queue `q`.
+ *
+ * This function is called only from the untrusted code and thus has no security implications.
+ */
 static inline rpc_request_t* rpc_dequeue(rpc_queue_t* q) {
     if (__atomic_load_n(&q->front, __ATOMIC_RELAXED) == __atomic_load_n(&q->rear, __ATOMIC_RELAXED)) {
         /* quick check that queue is empty; this doesn't acquire a spinlock and thus lowers latency
