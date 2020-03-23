@@ -53,11 +53,11 @@ static int pipe_addr(int pipeid, struct sockaddr_un* addr) {
     int ret;
     if (pal_sec.pipe_prefix_id) {
         ret = snprintf(str, size, GRAPHENE_UNIX_PREFIX_FMT "/%08x",
-                        pal_sec.pipe_prefix_id, pipeid);
+                       pal_sec.pipe_prefix_id, pipeid);
     } else {
         ret = snprintf(str, size, "/graphene/%08x", pipeid);
     }
-    return ret >= 0 && ret < (int)size ? 0 : -EINVAL;
+    return ret >= 0 && (size_t)ret < size ? 0 : -EINVAL;
 }
 
 /*!
@@ -330,7 +330,7 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
  * \param[in] buffer  User-supplied buffer to write data from.
  * \return            Number of bytes written on success, negative PAL error code otherwise.
  */
-static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const void* buffer) {
+static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, size_t len, const void* buffer) {
     if (offset)
         return -PAL_ERROR_INVAL;
 

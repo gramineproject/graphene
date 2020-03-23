@@ -49,7 +49,7 @@ static int pipe_addr(int pipeid, struct sockaddr_un* addr) {
 
     /* pipe_prefix already contains a slash at the end, so not needed in the format string */
     int ret = snprintf(str, size, "%s%08x", pal_sec.pipe_prefix, pipeid);
-    return ret >= 0 && ret < (int)size ? 0 : -EINVAL;
+    return ret >= 0 && (size_t)ret < size ? 0 : -EINVAL;
 }
 
 /*!
