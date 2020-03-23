@@ -82,6 +82,8 @@ class SgxCpuChecker {
     bool flc_supported_ = false;
     bool sgx_virt_supported_ = false;
     bool sgx_mem_concurrency_supported_ = false;
+    bool cet_supported_ = false;
+    bool kss_supported_ = false;
     uint64_t maximum_enclave_size_x86_ = false;
     uint64_t maximum_enclave_size_x64_ = false;
     uint64_t epc_region_size_ = 0;
@@ -128,6 +130,8 @@ public:
         sgx2_supported_ = cpuid_12_0_eax & (1 << 1);
         sgx_virt_supported_ = cpuid_12_0_eax & (1 << 5);
         sgx_mem_concurrency_supported_ = cpuid_12_0_eax & (1 << 6);
+        cet_supported_ = cpuid_12_1_eax & (1 << 6);
+        kss_supported_ = cpuid_12_1_eax & (1 << 7);
         maximum_enclave_size_x86_ = saturating_exp2<uint64_t>(cpuid_12_0_edx & 0xFF);
         maximum_enclave_size_x64_ = saturating_exp2<uint64_t>((cpuid_12_0_edx >> 8) & 0xFF);
         // Check if there's any EPC region allocated by BIOS
@@ -160,6 +164,10 @@ public:
     bool sgx_virt_supported() const { return sgx_virt_supported_; }
     // Extensions for concurrent memory management (ETRACKC, ERDINFO, ELDBC, ELDUC).
     bool sgx_mem_concurrency_supported() const { return sgx_mem_concurrency_supported_; }
+    // CET enclave attributes support (See Table 37-5 in the SDM)
+    bool cet_supported() const { return cet_supported_; }
+    // Key separation and sharing (KSS) support (CONFIGID, CONFIGSVN, ISVEXTPRODID, ISVFAMILYID report fields)
+    bool kss_supported() const { return kss_supported_; }
     uint64_t maximum_enclave_size_x86() const { return maximum_enclave_size_x86_; }
     uint64_t maximum_enclave_size_x64() const { return maximum_enclave_size_x64_; }
     uint64_t epc_region_size() const { return epc_region_size_; }
@@ -201,6 +209,10 @@ void print_detailed_info(const SgxCpuChecker& cpu_checker) {
            bool2str(cpu_checker.sgx_virt_supported()));
     printf("Extensions for concurrent memory management (ETRACKC, ELDBC, ELDUC, ERDINFO): %s\n",
            bool2str(cpu_checker.sgx_mem_concurrency_supported()));
+    printf("CET enclave attributes support (See Table 37-5 in the SDM): %s\n",
+           bool2str(cpu_checker.cet_supported()));
+    printf("Key separation and sharing (KSS) support (CONFIGID, CONFIGSVN, ISVEXTPRODID, "
+           "ISVFAMILYID report fields): %s\n", bool2str(cpu_checker.kss_supported()));
     printf("Max enclave size (32-bit): 0x%" PRIx64 "\n", cpu_checker.maximum_enclave_size_x86());
     printf("Max enclave size (64-bit): 0x%" PRIx64 "\n", cpu_checker.maximum_enclave_size_x64());
     printf("EPC size: 0x%" PRIx64 "\n", cpu_checker.epc_region_size());
