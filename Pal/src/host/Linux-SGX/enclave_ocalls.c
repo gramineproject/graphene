@@ -675,7 +675,7 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
 
     ms->ms_fd = fd;
     ms->ms_size = size;
-    ms->ms_dirp = sgx_alloc_on_ustack(size);
+    ms->ms_dirp = sgx_alloc_on_ustack_aligned(size, alignof(*dirp));
 
     if (!ms->ms_dirp) {
         sgx_reset_ustack();
@@ -970,7 +970,7 @@ int ocall_recv (int sockfd, void * buf, unsigned int count,
     ms->ms_sockfd = sockfd;
     ms->ms_count = count;
     ms->ms_addrlen = addrlen;
-    ms->ms_addr = addr ? sgx_alloc_on_ustack(addrlen) : NULL;
+    ms->ms_addr = addr ? sgx_alloc_on_ustack_aligned(addrlen, alignof(*addr)) : NULL;
     ms->ms_controllen = controllen;
     ms->ms_control = control ? sgx_alloc_on_ustack(controllen) : NULL;
     if (obuf)

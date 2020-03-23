@@ -85,7 +85,10 @@ static inline void rpc_queue_init(rpc_queue_t* q) {
  * \brief Enqueue OCALL request `req` in the shared RPC queue `q`.
  *
  * This function is called from the enclave code and thus must be written carefully to withstand
- * attacks tampering with untrusted `req` and untrusted `q`.
+ * attacks tampering with untrusted `req` and untrusted `q`. In particular, `req` and `q` must not
+ * have arbitrary pointers (or alternatively the code below must sanitize possible pointer values)
+ * to prevent arbitrary writes to/reads from the enclave memory. Similarly, `q->q[idx]` code must
+ * ensure that `idx` points inside the `q->q` array to prevent buffer overflows.
  */
 static inline bool rpc_enqueue(rpc_queue_t* q, rpc_request_t* req) {
     bool ret = false;
