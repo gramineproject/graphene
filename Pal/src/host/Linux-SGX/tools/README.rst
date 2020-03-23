@@ -109,3 +109,40 @@ Example quote verification::
     IAS submission successful
     $ cat ias.report
     {"id":"205146415611480061439763344693868541328","timestamp":"2020-03-20T10:48:32.353294","version":3,"epidPseudonym":"Itmg0 [...]","isvEnclaveQuoteStatus":"GROUP_OUT_OF_DATE" [...]}
+
+
+Intel Attestation Report verifier
+---------------------------------
+
+Verifies attestation report retrieved from IAS (using ``ias_request`` for example). Also verifies
+that the quote from the report contains expected values::
+
+    Usage: verify_ias_report [options]
+    Available options:
+      --help, -h                Display this help
+      --verbose, -v             Enable verbose output
+      --report-path, -r PATH    Path to the IAS report
+      --sig-path, -s PATH       Path to the IAS report's signature
+      --allow-outdated-tcb, -o  Treat IAS status GROUP_OUT_OF_DATE as OK
+      --nonce, -n STRING        Nonce that's expected in the report (optional)
+      --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)
+      --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)
+      --report-data, -R STRING  Expected report_data field (hex string, optional)
+      --isv-prod-id, -P STRING  Expected isv_prod_id field (hex string, optional)
+      --isv-svn, -V STRING      Expected isv_svn field (hex string, optional)
+
+Example report verification with all options enabled::
+
+    $ verify_ias_report -r rp -s sp -n thisisnonce -o -S 577b180dbcdae37bd9f26444189e3ba78Ad85Bd03515bf26f5c4455c5284B214 -E 03b3b784d26f030f58451860b05d60b73fe71b6056b14ea5401f40402c10694d -v -R 0100000000000000722ce121e376a44b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 -P 0000 -V 0001
+    Verbose output enabled
+    IAS key: RSA, 2048 bits
+    Decoded IAS signature size: 256 bytes
+    IAS report: signature verified correctly
+    IAS report: allowing quote status GROUP_OUT_OF_DATE
+    IAS report: nonce OK
+    IAS report: quote decoded, size 432 bytes
+    [...quote dump...]
+    Quote: mr_signer OK
+    Quote: mr_enclave OK
+    Quote: isv_prod_id OK
+    verify_quote: Quote: invalid isv_svn (0 < expected 256)
