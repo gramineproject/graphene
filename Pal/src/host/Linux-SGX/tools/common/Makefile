@@ -1,11 +1,11 @@
 include ../../../../../../Scripts/Makefile.configs
 
 CFLAGS += -I../.. \
-		  -I../../../../../include/lib \
-		  -I../../../../../lib/crypto/mbedtls/install/include \
-		  -DCRYPTO_USE_MBEDTLS \
-		  -D_POSIX_C_SOURCE=200809L \
-		  -fPIC
+          -I../../../../../include/lib \
+          -I../../../../../lib/crypto/mbedtls/install/include \
+          -DCRYPTO_USE_MBEDTLS \
+          -D_POSIX_C_SOURCE=200809L \
+          -fPIC
 
 LDFLAGS += -L../../../../../lib/crypto/mbedtls/install/lib
 
