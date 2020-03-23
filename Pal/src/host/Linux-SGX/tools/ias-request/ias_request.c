@@ -66,7 +66,7 @@ void usage(const char* exec) {
     INFO("  --quote-path, -q PATH     Path to quote to submit\n");
     INFO("  --nonce, -n STRING        Nonce to use (optional)\n");
     INFO("  --report-path, -r PATH    Path to save IAS report to\n");
-    INFO("  --sig-path, -s PATH       Path to save IAS report's signature to (optional)\n");
+    INFO("  --sig-path, -s PATH       Path to save IAS report's signature to\n");
     INFO("  --cert-path, -c PATH      Path to save IAS certificate to (optional)\n");
     INFO("  --advisory-path, -a PATH  Path to save IAS advisories to (optional)\n");
     INFO("  --report-url, -R URL      URL for the IAS attestation report endpoint (default:\n"
@@ -226,8 +226,8 @@ int main(int argc, char* argv[]) {
     }
 
     if (mode[0] == 'r') {
-        if (!report_path) {
-            ERROR("Report path not specified\n");
+        if (!report_path || !sig_path) {
+            ERROR("Report or signature path not specified\n");
             return -1;
         }
         return report(ias, quote_path, nonce, report_path, sig_path, cert_path, advisory_path);
