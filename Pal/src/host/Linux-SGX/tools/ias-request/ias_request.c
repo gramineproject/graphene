@@ -12,7 +12,6 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -71,7 +70,7 @@ void usage(const char* exec) {
     INFO("  --cert-path, -c PATH      Path to save IAS certificate to (optional)\n");
     INFO("  --advisory-path, -a PATH  Path to save IAS advisories to (optional)\n");
     INFO("  --report-url, -R URL      URL for the IAS attestation report endpoint (default:\n"
-           "                            %s)\n", IAS_URL_REPORT);
+         "                            %s)\n", IAS_URL_REPORT);
 }
 
 int report(struct ias_context_t* ias, const char* quote_path, const char* nonce,
@@ -119,17 +118,10 @@ out:
 
 int sigrl(struct ias_context_t* ias, const char* gid_str, const char* sigrl_path) {
     uint8_t gid[4];
-    if (!gid_str || strlen(gid_str) != 8) {
+
+    if (parse_hex(gid_str, gid, sizeof(gid)) != 0) {
         ERROR("Invalid EPID group ID\n");
         return -1;
-    }
-
-    for (size_t i = 0; i < 4; i++) {
-        if (!isxdigit(gid_str[i * 2]) || !isxdigit(gid_str[i * 2 + 1])) {
-            ERROR("Invalid EPID group ID\n");
-            return -1;
-        }
-        sscanf(gid_str + i * 2, "%02hhx", &gid[i]);
     }
 
     size_t sigrl_size = 0;
