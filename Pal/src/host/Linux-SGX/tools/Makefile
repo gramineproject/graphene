@@ -8,3 +8,4 @@ $(targets):
 	$(MAKE) -C is-sgx-available $@
 	$(MAKE) -C quote-dump $@
 	$(MAKE) -C ias-request $@
+	$(MAKE) -C verify-ias-report $@

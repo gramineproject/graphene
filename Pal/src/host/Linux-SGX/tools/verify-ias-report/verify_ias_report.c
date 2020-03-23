@@ -1,0 +1,134 @@
+/* Copyright (C) 2018-2020 Invisible Things Lab
+                           Rafal Wojdyla <omeg@invisiblethingslab.com>
+   This file is part of Graphene Library OS.
+   Graphene Library OS is free software: you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+   Graphene Library OS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
+#include <getopt.h>
+#include <stdio.h>
+#include "attestation.h"
+#include "util.h"
+
+struct option g_options[] = {
+    { "help", no_argument, 0, 'h' },
+    { "verbose", no_argument, 0, 'v' },
+    { "report-path", required_argument, 0, 'r' },
+    { "sig-path", required_argument, 0, 's' },
+    { "allow-outdated-tcb", no_argument, 0, 'o' },
+    { "nonce", required_argument, 0, 'n' },
+    { "mr-signer", required_argument, 0, 'S' },
+    { "mr-enclave", required_argument, 0, 'E' },
+    { "report-data", required_argument, 0, 'R' },
+    { "isv-prod-id", required_argument, 0, 'P' },
+    { "isv-svn", required_argument, 0, 'S' },
+    { 0, 0, 0, 0 }
+};
+
+void usage(const char* exec) {
+    printf("Usage: %s [options]\n", exec);
+    printf("Available options:\n");
+    printf("  --help, -h                Display this help\n");
+    printf("  --verbose, -v             Enable verbose output\n");
+    printf("  --report-path, -r PATH    Path to the IAS report\n");
+    printf("  --sig-path, -s PATH       Path to the IAS report's signature\n");
+    printf("  --allow-outdated-tcb, -o  Treat IAS status GROUP_OUT_OF_DATE as OK\n");
+    printf("  --nonce, -n STRING        Nonce that's expected in the report (optional)\n");
+    printf("  --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)\n");
+    printf("  --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)\n");
+    printf("  --report-data, -R STRING  Expected report_data field (hex string, optional)\n");
+    printf("  --isv-prod-id, -P STRING  Expected isv_prod_id field (hex string, optional)\n");
+    printf("  --isv-svn, -V STRING      Expected isv_svn field (hex string, optional)\n");
+}
+
+int main(int argc, char* argv[]) {
+    int option              = 0;
+    char* report_path       = NULL;
+    ssize_t report_size     = 0;
+    char* sig_path          = NULL;
+    ssize_t sig_size        = 0;
+    char* nonce             = NULL;
+    bool allow_outdated_tcb = false;
+    char* mrsigner          = NULL;
+    char* mrenclave         = NULL;
+    char* report_data       = NULL;
+    char* isv_prod_id       = NULL;
+    char* isv_svn           = NULL;
+    int ret                 = -1;
+
+    // parse command line
+    while (true) {
+        option = getopt_long(argc, argv, "hvr:s:on:S:E:R:P:V:", g_options, NULL);
+        if (option == -1)
+            break;
+
+        switch (option) {
+            case 'h':
+                usage(argv[0]);
+                return 0;
+            case 'v':
+                set_verbose(true);
+                break;
+            case 'r':
+                report_path = optarg;
+                break;
+            case 's':
+                sig_path = optarg;
+                break;
+            case 'o':
+                allow_outdated_tcb = true;
+                break;
+            case 'n':
+                nonce = optarg;
+                break;
+            case 'S':
+                mrsigner = optarg;
+                break;
+            case 'E':
+                mrenclave = optarg;
+                break;
+            case 'R':
+                report_data = optarg;
+                break;
+            case 'P':
+                isv_prod_id = optarg;
+                break;
+            case 'V':
+                isv_svn = optarg;
+                break;
+            default:
+                usage(argv[0]);
+                return -1;
+        }
+    }
+
+    if (!report_path || !sig_path) {
+        usage(argv[0]);
+        goto out;
+    }
+
+    uint8_t* report = read_file(report_path, &report_size);
+    if (!report) {
+        ERROR("Failed to read report file '%s'\n", report_path);
+        goto out;
+    }
+
+    uint8_t* sig = read_file(sig_path, &sig_size);
+    if (!report) {
+        ERROR("Failed to read report signature file '%s'\n", sig_path);
+        goto out;
+    }
+
+    ret = verify_ias_report(report, report_size, sig, sig_size, allow_outdated_tcb, nonce,
+                            mrsigner, mrenclave, isv_prod_id, isv_svn, report_data);
+
+out:
+    return ret;
+}

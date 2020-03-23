@@ -14,7 +14,7 @@ PREFIX ?= /usr/local
 .PHONY: all
 all: libsgx_util.so
 
-libsgx_util.so: attestation.o ias.o util.o
+libsgx_util.so: attestation.o cJSON.o ias.o util.o
 	$(CC) $^ $(LDFLAGS) ../../.lib/crypto/adapters/mbedtls_encoding.o -lmbedcrypto -lcurl -shared -o $@
 
 .PHONY: install
