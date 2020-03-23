@@ -43,13 +43,21 @@ typedef __kernel_pid_t pid_t;
 static int pipe_addr(int pipeid, struct sockaddr_un* addr) {
     /* use abstract UNIX sockets for pipes, with name format "@/graphene/12345678" */
     addr->sun_family = AF_UNIX;
-    memset(addr->sun_path, 0, sizeof(addr->sun_path)); /* for abstract socket, first char must be NUL */
+    memset(addr->sun_path, 0, sizeof(addr->sun_path));
 
-    /* FIXME: This pipe-address creation is slightly different from Linux-SGX, not important though */
-    if (pal_sec.pipe_prefix_id)
-        return snprintf((char*)addr->sun_path + 1, sizeof(addr->sun_path) - 1,
-                        GRAPHENE_UNIX_PREFIX_FMT "/%08x", pal_sec.pipe_prefix_id, pipeid);
-    return snprintf((char*)addr->sun_path + 1, sizeof(addr->sun_path) - 1, "/graphene/%08x", pipeid);
+    /* for abstract sockets, first char is NUL */
+    char* str   = (char*)addr->sun_path + 1;
+    size_t size = sizeof(addr->sun_path) - 1;
+
+    /* FIXME: Below naming scheme is slightly different from Linux-SGX, not important though */
+    int ret;
+    if (pal_sec.pipe_prefix_id) {
+        ret = snprintf(str, size, GRAPHENE_UNIX_PREFIX_FMT "/%08x",
+                        pal_sec.pipe_prefix_id, pipeid);
+    } else {
+        ret = snprintf(str, size, "/graphene/%08x", pipeid);
+    }
+    return ret >= 0 && ret < (int)size ? 0 : -EINVAL;
 }
 
 /*!
@@ -99,7 +107,7 @@ static int pipe_listen(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
     }
 
     SET_HANDLE_TYPE(hdl, pipesrv);
-    HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write on listening socket */
+    HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write to a listening socket */
     hdl->pipe.fd            = fd;
     hdl->pipe.pipeid        = pipeid;
     hdl->pipe.nonblocking   = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
@@ -243,15 +251,17 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
  *                                               ends of an anonymous pipe).
  *
  * - `type` is URI_TYPE_PIPE_SRV: create `pipesrv` handle (intermediate listening socket) with
- *                                name in the form of "@/graphene/<pipeid>" where pipeid is URI
- *                                (caller is expected to call pipe_waitforclient() afterwards).
+ *                                name in the form of "@/graphene/<pipeid>" where pipeid is
+ *                                derived from `uri` via strtol(). Caller is expected to call
+ *                                pipe_waitforclient() afterwards.
  *
  * - `type` is URI_TYPE_PIPE: create `pipe` handle (connecting socket) with name in the form of
- *                            "@/graphene/<pipeid>" where pipeid is URI.
+ *                            "@/graphene/<pipeid>" where pipeid is derived from `uri` via
+ *                            strtol().
  *
  * \param[out] handle  Created PAL handle of type `pipeprv`, `pipesrv`, or `pipe`.
  * \param[in]  type    Can be URI_TYPE_PIPE or URI_TYPE_PIPE_SRV.
- * \param[in]  uri     Can be either NUL (for anonymous pipe) or an integer denoting pipeid.
+ * \param[in]  uri     Content is either NUL (for anonymous pipe) or an integer denoting pipeid.
  * \param[in]  access  Not used.
  * \param[in]  share   Not used.
  * \param[in]  create  Not used.
@@ -283,12 +293,12 @@ static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 }
 
 /*!
- * \brief Read from pipe (read end in case of `pipeprv`).
+ * \brief Read from pipe (from read end in case of `pipeprv`).
  *
  * \param[in]  handle  PAL handle of type `pipeprv`, `pipecli`, or `pipe`.
  * \param[in]  offset  Not used.
  * \param[in]  len     Size of user-supplied buffer.
- * \param[out] buffer  User-supplied buffer to read data in.
+ * \param[out] buffer  User-supplied buffer to read data to.
  * \return             Number of bytes read on success, negative PAL error code otherwise.
  */
 static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* buffer) {
@@ -312,7 +322,7 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
 }
 
 /*!
- * \brief Write to pipe (write end in case of `pipeprv`).
+ * \brief Write to pipe (to write end in case of `pipeprv`).
  *
  * \param[in] handle  PAL handle of type `pipeprv`, `pipecli`, or `pipe`.
  * \param[in] offset  Not used.
@@ -353,11 +363,9 @@ static int pipe_close(PAL_HANDLE handle) {
             INLINE_SYSCALL(close, 1, handle->pipeprv.fds[1]);
             handle->pipeprv.fds[1] = PAL_IDX_POISON;
         }
-    } else {
-        if (handle->pipe.fd != PAL_IDX_POISON) {
-            INLINE_SYSCALL(close, 1, handle->pipe.fd);
-            handle->pipe.fd = PAL_IDX_POISON;
-        }
+    } else if (handle->pipe.fd != PAL_IDX_POISON) {
+        INLINE_SYSCALL(close, 1, handle->pipe.fd);
+        handle->pipe.fd = PAL_IDX_POISON;
     }
 
     return 0;
@@ -387,18 +395,21 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
     }
 
     if (IS_HANDLE_TYPE(handle, pipeprv)) {
-        if (shutdown == SHUT_RD || shutdown == SHUT_RDWR) {
-            if (handle->pipeprv.fds[0] != PAL_IDX_POISON)
-                INLINE_SYSCALL(shutdown, 2, handle->pipeprv.fds[0], SHUT_RD);
+        /* pipeprv has two underlying FDs, shut down the requested one(s) */
+        if (handle->pipeprv.fds[0] != PAL_IDX_POISON &&
+            (shutdown == SHUT_RD || shutdown == SHUT_RDWR)) {
+            INLINE_SYSCALL(shutdown, 2, handle->pipeprv.fds[0], SHUT_RD);
         }
 
-        if (shutdown == SHUT_WR || shutdown == SHUT_RDWR) {
-            if (handle->pipeprv.fds[1] != PAL_IDX_POISON)
-                INLINE_SYSCALL(shutdown, 2, handle->pipeprv.fds[1], SHUT_WR);
+        if (handle->pipeprv.fds[1] != PAL_IDX_POISON &&
+            (shutdown == SHUT_WR || shutdown == SHUT_RDWR)) {
+            INLINE_SYSCALL(shutdown, 2, handle->pipeprv.fds[1], SHUT_WR);
         }
     } else {
-        if (handle->pipe.fd != PAL_IDX_POISON)
+        /* other types of pipes have a single underlying FD, shut it down */
+        if (handle->pipe.fd != PAL_IDX_POISON) {
             INLINE_SYSCALL(shutdown, 2, handle->pipe.fd, shutdown);
+        }
     }
 
     return 0;
@@ -498,7 +509,7 @@ static int pipe_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 /*!
  * \brief Retrieve full URI of PAL handle.
  *
- * Full URI is composed of the type and pipeid: "<URI_TYPE_PIPE_SRV>:<pipeid>".
+ * Full URI is composed of the type and pipeid: "<type>:<pipeid>".
  *
  * \param[in]  handle  PAL handle of type `pipeprv`, `pipesrv`, `pipecli`, or `pipe`.
  * \param[out] buffer  User-supplied buffer to write URI to.
