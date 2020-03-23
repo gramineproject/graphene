@@ -3,12 +3,10 @@ include ../../../../../../Scripts/Makefile.rules
 
 CFLAGS += -I../.. \
           -I../common \
+          -L../common \
           -D_GNU_SOURCE
 
-LDFLAGS += -L../common \
-           -L../../../../../lib/crypto/mbedtls/install/lib
-
-LDLIBS-ias_request += -lsgx_util
+LDLIBS += -lsgx_util
 
 PREFIX ?= /usr/local
 

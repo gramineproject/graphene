@@ -3,11 +3,10 @@ include ../../../../../../Scripts/Makefile.rules
 
 CFLAGS += -I../.. \
           -I../common \
+          -L../common \
           -D_GNU_SOURCE
 
-LDFLAGS += -L../common
-
-LDLIBS-quote_dump += -lsgx_util
+LDLIBS += -lsgx_util
 
 PREFIX ?= /usr/local
 
