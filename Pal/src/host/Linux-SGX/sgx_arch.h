@@ -21,6 +21,7 @@
 
 #ifndef __ASSEMBLER__
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "assert.h"
