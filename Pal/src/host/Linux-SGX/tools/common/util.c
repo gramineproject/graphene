@@ -12,6 +12,7 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include "util.h"
@@ -136,4 +137,25 @@ void hexdump_mem(const void* data, size_t size) {
     for (size_t i = 0; i < size; i++)
         INFO("%02x", ptr[i]);
     INFO("\n");
+}
+
+/* Parse hex string to buffer */
+int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
+    if (!hex || !buffer || buffer_size == 0)
+        return -1;
+
+    if (strlen(hex) != buffer_size * 2) {
+        ERROR("Invalid hex string (%s) length\n", hex);
+        return -1;
+    }
+
+    for (size_t i = 0; i < buffer_size; i++) {
+        if (!isxdigit(hex[i * 2]) || !isxdigit(hex[i * 2 + 1])) {
+            ERROR("Invalid hex string '%s'\n", hex);
+            return -1;
+        }
+
+        sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[i]);
+    }
+    return 0;
 }

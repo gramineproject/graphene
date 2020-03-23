@@ -57,6 +57,10 @@ int append_file(const char* path, size_t size, const void* buffer);
 /*! Print memory as hex */
 void hexdump_mem(const void* data, size_t size);
 
+/*! Print variable as hex */
 #define HEXDUMP(x) hexdump_mem((const void*)&(x), sizeof(x))
+
+/*! Parse hex string to buffer */
+int parse_hex(const char* hex, void* buffer, size_t buffer_size);
 
 #endif /* UTIL_H */
