@@ -2,8 +2,8 @@ include ../../../../../../Scripts/Makefile.configs
 include ../../../../../../Scripts/Makefile.rules
 
 CFLAGS += -I../.. \
-		  -I../common \
-		  -D_GNU_SOURCE
+          -I../common \
+          -D_GNU_SOURCE
 
 LDFLAGS += -L../common
 
