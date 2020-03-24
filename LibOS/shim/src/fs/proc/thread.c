@@ -478,35 +478,15 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
     if (!thread)
         return -ENOENT;
 
-    size_t count              = DEFAULT_VMA_COUNT;
-    struct shim_vma_val* vmas = malloc(sizeof(struct shim_vma_val) * count);
-
-    if (!vmas) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-retry_dump_vmas:
-    ret = dump_all_vmas(vmas, count);
-
-    if (ret == -EOVERFLOW) {
-        struct shim_vma_val* new_vmas = malloc(sizeof(struct shim_vma_val) * count * 2);
-        if (!new_vmas) {
-            ret = -ENOMEM;
-            goto err;
-        }
-        free(vmas);
-        vmas = new_vmas;
-        count *= 2;
-        goto retry_dump_vmas;
-    }
-
-    if (ret < 0)
+    size_t count;
+    struct shim_vma_info* vmas = NULL;
+    ret = dump_all_vmas(&vmas, &count);
+    if (ret < 0) {
         goto err;
+    }
 
 #define DEFAULT_VMA_BUFFER_SIZE 256
 
-    count              = ret;
     size_t buffer_size = DEFAULT_VMA_BUFFER_SIZE, offset = 0;
     buffer = malloc(buffer_size);
     if (!buffer) {
@@ -514,7 +494,7 @@ retry_dump_vmas:
         goto err;
     }
 
-    for (struct shim_vma_val* vma = vmas; vma < vmas + count; vma++) {
+    for (struct shim_vma_info* vma = vmas; vma < vmas + count; vma++) {
         size_t old_offset = offset;
         uintptr_t start   = (uintptr_t)vma->addr;
         uintptr_t end     = (uintptr_t)vma->addr + vma->length;
@@ -543,7 +523,7 @@ retry_dump_vmas:
             EMIT(ADDR_FMT(start), start);
             EMIT("-");
             EMIT(ADDR_FMT(end), end);
-            EMIT(" %c%c%c%c %08lx %02d:%02d %lu %s\n", pt[0], pt[1], pt[2], pr, vma->offset,
+            EMIT(" %c%c%c%c %08lx %02d:%02d %lu %s\n", pt[0], pt[1], pt[2], pr, vma->file_offset,
                  dev_major, dev_minor, ino, name);
         } else {
             EMIT(ADDR_FMT(start), start);
@@ -584,16 +564,16 @@ retry_dump_vmas:
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
     ret                = 0;
-out:
-    put_thread(thread);
-    if (vmas)
-        free_vma_val_array(vmas, count);
-    return ret;
 
 err:
-    if (buffer)
+    if (ret < 0) {
         free(buffer);
-    goto out;
+    }
+    if (vmas) {
+        free_vma_info_array(vmas, count);
+    }
+    put_thread(thread);
+    return ret;
 }
 
 static int proc_thread_maps_mode(const char* name, mode_t* mode) {

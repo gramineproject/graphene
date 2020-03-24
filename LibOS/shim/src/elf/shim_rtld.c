@@ -185,13 +185,16 @@ static int protect_page(struct link_map* l, void* addr, size_t size) {
     }
 
     if ((prot & (PROT_READ | PROT_WRITE)) == (PROT_READ | PROT_WRITE)) {
-        struct shim_vma_val vma;
+        struct shim_vma_info vma_info;
 
         /* the actual protection of the vma might be changed */
-        if (lookup_vma(addr, &vma) < 0)
+        if (lookup_vma(addr, &vma_info) < 0)
             return 0;
 
-        prot = vma.prot;
+        prot = vma_info.prot;
+        if (vma_info.file) {
+            put_handle(vma_info.file);
+        }
 
         if ((prot & (PROT_READ | PROT_WRITE)) == (PROT_READ | PROT_WRITE))
             return 0;
@@ -340,6 +343,8 @@ void setup_elf_hash(struct link_map* map) {
     map->l_chain = hash;
 }
 
+/* TODO: This function needs a cleanup and to be split into smaller parts. It is impossible to do
+ * a proper cleanup on any failure right now. */
 /* Map in the shared object NAME, actually located in REALNAME, and already
    opened on FD */
 static struct link_map* __map_elf_object(struct shim_handle* file, const void* fbp, size_t fbp_len,
@@ -508,22 +513,16 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
         ElfW(Addr) mappref = 0;
 
         if (type == OBJECT_LOAD) {
-            if (addr)
+            if (addr) {
                 mappref = (ElfW(Addr))c->mapstart + (ElfW(Addr))addr;
-            else
-                mappref = (ElfW(Addr))bkeep_unmapped_heap(
-                    ALLOC_ALIGN_UP(maplength), c->prot,
-                    c->flags | MAP_PRIVATE | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0), file,
-                    c->mapoff, NULL);
-
-            /* Remember which part of the address space this object uses.  */
-            ret = (*mmap)(file, (void**)&mappref, ALLOC_ALIGN_UP(maplength), c->prot,
-                          c->flags | MAP_PRIVATE, c->mapoff);
-
-            if (ret < 0) {
-            map_error:
-                errstring = "failed to map segment from shared object";
-                goto call_lose;
+            } else {
+                static_assert(sizeof(mappref) == sizeof(void*), "Pointers size mismatch?!");
+                ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(maplength), PROT_NONE, VMA_UNMAPPED, NULL,
+                                          0, NULL, (void**)&mappref);
+                if (ret < 0) {
+                    errstring = "failed to find an address for shared object";
+                    goto call_lose;
+                }
             }
         } else {
             mappref = (ElfW(Addr))addr;
@@ -539,10 +538,6 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                unallocated.  Then jump into the normal segment-mapping loop to
                handle the portion of the segment past the end of the file
                mapping.  */
-            if (type == OBJECT_LOAD)
-                DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
-                                       l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
-                                       PAL_PROT_NONE);
             if (type == OBJECT_MAPPED ||
 #if BOOKKEEP_INTERNAL_OBJ == 1
                 type == OBJECT_INTERNAL ||
@@ -553,13 +548,21 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
 #else
                 int flags = 0;
 #endif
-                bkeep_mprotect((void*)RELOCATE(l, c->mapend),
-                               l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend, PROT_NONE,
-                               flags);
+                ret = bkeep_mprotect((void*)RELOCATE(l, c->mapend),
+                                     l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend, PROT_NONE,
+                                     !!(flags & VMA_INTERNAL));
+                if (ret < 0) {
+                    errstring = "failed to change permissions";
+                    goto call_lose;
+                }
             }
+            if (type == OBJECT_LOAD)
+                DkVirtualMemoryProtect((void*)RELOCATE(l, c->mapend),
+                                       l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend,
+                                       PAL_PROT_NONE);
         }
 
-        goto postmap;
+        goto do_remap;
     }
 
     /* Remember which part of the address space this object uses.  */
@@ -572,24 +575,31 @@ do_remap:
         if (c->mapend > c->mapstart) {
             /* Map the segment contents from the file.  */
             void* mapaddr = (void*)RELOCATE(l, c->mapstart);
-            if (type == OBJECT_LOAD || type == OBJECT_REMAP) {
-                if ((*mmap)(file, &mapaddr, c->mapend - c->mapstart, c->prot,
-                            c->flags | MAP_FIXED | MAP_PRIVATE, c->mapoff) < 0)
-                    goto map_error;
-            }
 
 #if BOOKKEEP_INTERNAL_OBJ == 0
-            if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO)
+            if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
 #else
-            if (type != OBJECT_USER && type != OBJECT_VDSO)
+            if (type != OBJECT_USER && type != OBJECT_VDSO) {
 #endif
-                bkeep_mmap(mapaddr, c->mapend - c->mapstart, c->prot,
-                           c->flags | MAP_FIXED | MAP_PRIVATE |
-                               (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
-                           file, c->mapoff, NULL);
+                ret = bkeep_mmap_fixed(mapaddr, c->mapend - c->mapstart, c->prot,
+                                       c->flags | MAP_FIXED | MAP_PRIVATE
+                                           | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
+                                       file, c->mapoff, NULL);
+                if (ret < 0) {
+                    errstring = "failed to bookkeep address of segment from shared object";
+                    goto call_lose;
+                }
+            }
+
+            if (type == OBJECT_LOAD || type == OBJECT_REMAP) {
+                if ((*mmap)(file, &mapaddr, c->mapend - c->mapstart, c->prot,
+                            c->flags | MAP_FIXED | MAP_PRIVATE, c->mapoff) < 0) {
+                    errstring = "failed to map segment from shared object";
+                    goto call_lose;
+                }
+            }
         }
 
-    postmap:
         if (l->l_phdr == 0 && (ElfW(Off))c->mapoff <= header->e_phoff &&
             ((size_t)(c->mapend - c->mapstart + c->mapoff) >=
              header->e_phoff + header->e_phnum * sizeof(ElfW(Phdr))))
@@ -633,6 +643,21 @@ do_remap:
             }
 
             if (zeroend > zeropage) {
+#if BOOKKEEP_INTERNAL_OBJ == 0
+                if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
+#else
+                if (type != OBJECT_USER && type != OBJECT_VDSO) {
+#endif
+                    ret = bkeep_mmap_fixed((void*)zeropage, zeroend - zeropage, c->prot,
+                                           MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED
+                                               | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
+                                           NULL, 0, NULL);
+                    if (ret < 0) {
+                        errstring = "cannot bookkeep address of zero-fill pages";
+                        goto call_lose;
+                    }
+                }
+
                 if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL && type != OBJECT_USER &&
                     type != OBJECT_VDSO) {
                     PAL_PTR mapat =
@@ -643,16 +668,6 @@ do_remap:
                         goto call_lose;
                     }
                 }
-
-#if BOOKKEEP_INTERNAL_OBJ == 0
-                if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO)
-#else
-                if (type != OBJECT_USER && type != OBJECT_VDSO)
-#endif
-                    bkeep_mmap((void*)zeropage, zeroend - zeropage, c->prot,
-                               MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED |
-                                   (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
-                               NULL, 0, 0);
             }
         }
 
@@ -1430,11 +1445,12 @@ static int vdso_map_init(void) {
      * When LibOS is loaded at different address, it may overlap with the old vDSO
      * area.
      */
-    void* addr = bkeep_unmapped_heap(ALLOC_ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC, 0, NULL, 0,
-                                     "linux-vdso.so.1");
-    if (addr == NULL)
-        return -ENOMEM;
-    assert(addr == ALLOC_ALIGN_UP_PTR(addr));
+    void* addr = NULL;
+    int ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC,
+                                  MAP_PRIVATE | MAP_ANONYMOUS, NULL, 0, "linux-vdso.so.1", &addr);
+    if (ret < 0) {
+        return ret;
+    }
 
     void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size),
                                                  /*alloc_type=*/0, PAL_PROT_READ | PAL_PROT_WRITE);
@@ -1528,17 +1544,18 @@ out:
 
 int init_brk_from_executable(struct shim_handle* exec) {
     struct link_map* exec_map = __search_map_by_handle(exec);
-    if (exec_map) {
-        size_t data_segment_size = 0;
-        // Count all the data segments (including BSS)
-        struct loadcmd* c = exec_map->loadcmds;
-        for (; c < &exec_map->loadcmds[exec_map->nloadcmds]; c++)
-            if (!(c->prot & PROT_EXEC))
-                data_segment_size += c->allocend - c->mapstart;
-
-        return init_brk_region((void*)ALLOC_ALIGN_UP(exec_map->l_map_end), data_segment_size);
+    if (!exec_map) {
+        return -EINVAL;
     }
-    return 0;
+
+    size_t data_segment_size = 0;
+    // Count all the data segments (including BSS)
+    struct loadcmd* c = exec_map->loadcmds;
+    for (; c < &exec_map->loadcmds[exec_map->nloadcmds]; c++)
+        if (!(c->prot & PROT_EXEC))
+            data_segment_size += c->allocend - c->mapstart;
+
+    return init_brk_region((void*)ALLOC_ALIGN_UP(exec_map->l_map_end), data_segment_size);
 }
 
 int register_library(const char* name, unsigned long load_address) {

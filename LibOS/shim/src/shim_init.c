@@ -201,26 +201,33 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     int flags = STACK_FLAGS|(user ? 0 : VMA_INTERNAL);
 
     if (user) {
-        stack = bkeep_unmapped_heap(size + protect_size, PROT_NONE,
-                                    flags, NULL, 0, "stack");
-
-        if (!stack)
+        int ret = bkeep_mmap_any_aslr(size + protect_size, PROT_NONE, flags, NULL, 0, "stack",
+                                      &stack);
+        if (ret < 0) {
             return NULL;
+        }
 
-        stack = (void*)DkVirtualMemoryAlloc(stack, size + protect_size, 0, PAL_PROT_NONE);
+        if (!DkVirtualMemoryAlloc(stack, size + protect_size, 0, PAL_PROT_NONE)) {
+            void* tmp_vma = NULL;
+            if (bkeep_munmap(stack, size + protect_size, !user, &tmp_vma) < 0) {
+                BUG();
+            }
+            bkeep_remove_tmp_vma(tmp_vma);
+            return NULL;
+        }
     } else {
         stack = system_malloc(size + protect_size);
+        if (!stack) {
+            return NULL;
+        }
     }
-
-    if (!stack)
-        return NULL;
 
     stack += protect_size;
     // Ensure proper alignment for process' initial stack pointer value.
     stack = ALIGN_UP_PTR(stack, 16);
     DkVirtualMemoryProtect(stack, size, PAL_PROT_READ|PAL_PROT_WRITE);
 
-    if (bkeep_mprotect(stack, size, PROT_READ|PROT_WRITE, flags) < 0)
+    if (bkeep_mprotect(stack, size, PROT_READ|PROT_WRITE, !!(flags & VMA_INTERNAL)) < 0)
         return NULL;
 
     debug("allocated stack at %p (size = %ld)\n", stack, size);
@@ -407,13 +414,12 @@ static void __free (void * mem)
     free(mem);
 }
 
-int init_manifest (PAL_HANDLE manifest_handle)
-{
+int init_manifest (PAL_HANDLE manifest_handle) {
     int ret = 0;
-    void * addr = NULL;
+    void* addr = NULL;
     size_t size = 0, map_size = 0;
-
-#define MAP_FLAGS (MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL)
+    struct config_store* new_root_config = NULL;
+    bool stream_mapped = false;
 
     if (PAL_CB(manifest_preload.start)) {
         addr = PAL_CB(manifest_preload.start);
@@ -425,22 +431,23 @@ int init_manifest (PAL_HANDLE manifest_handle)
 
         size = attr.pending_size;
         map_size = ALLOC_ALIGN_UP(size);
-        addr = bkeep_unmapped_any(map_size, PROT_READ, MAP_FLAGS,
-                                  0, "manifest");
-        if (!addr)
-            return -ENOMEM;
+        ret = bkeep_mmap_any(map_size, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL, NULL,
+                             0, "manifest", &addr);
+        if (ret < 0) {
+            return ret;
+        }
 
         void* ret_addr = DkStreamMap(manifest_handle, addr, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(size));
 
         if (!ret_addr) {
-            bkeep_munmap(addr, map_size, MAP_FLAGS);
-            return -ENOMEM;
-        } else {
-            assert(addr == ret_addr);
+            ret = -ENOMEM;
+            goto fail;
         }
+        stream_mapped = true;
+        assert(addr == ret_addr);
     }
 
-    struct config_store * new_root_config = malloc(sizeof(struct config_store));
+    new_root_config = malloc(sizeof(struct config_store));
     if (!new_root_config) {
         ret = -ENOMEM;
         goto fail;
@@ -462,12 +469,18 @@ int init_manifest (PAL_HANDLE manifest_handle)
     return 0;
 
 fail:
-    if (map_size) {
-        DkStreamUnmap(addr, map_size);
-        if (bkeep_munmap(addr, map_size, MAP_FLAGS) < 0)
-            BUG();
-    }
     free(new_root_config);
+
+    if (map_size) {
+        void* tmp_vma = NULL;
+        if (bkeep_munmap(addr, map_size, /*is_internal=*/true, &tmp_vma) < 0) {
+            BUG();
+        }
+        if (stream_mapped) {
+            DkStreamUnmap(addr, map_size);
+        }
+        bkeep_remove_tmp_vma(tmp_vma);
+    }
     return ret;
 }
 

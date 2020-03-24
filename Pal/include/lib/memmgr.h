@@ -122,13 +122,11 @@ static inline void __set_free_mem_area(MEM_AREA area, MEM_MGR mgr) {
     mgr->active_area = area;
 }
 
-static inline MEM_MGR create_mem_mgr(unsigned int size) {
-    void* mem = system_malloc(__MAX_MEM_SIZE(size));
+static inline MEM_MGR create_mem_mgr_in_place(void* mem, unsigned int size) {
     MEM_AREA area;
     MEM_MGR mgr;
 
-    if (!mem)
-        return NULL;
+    assert(IS_ALIGNED_PTR(mem, __alignof__(*mgr)));
 
     mgr        = (MEM_MGR)mem;
     mgr->size  = 0;
@@ -143,6 +141,14 @@ static inline MEM_MGR create_mem_mgr(unsigned int size) {
     __set_free_mem_area(area, mgr);
 
     return mgr;
+}
+
+static inline MEM_MGR create_mem_mgr(unsigned int size) {
+    void* mem = system_malloc(__MAX_MEM_SIZE(size));
+    if (!mem) {
+        return NULL;
+    }
+    return create_mem_mgr_in_place(mem, size);
 }
 
 static inline MEM_MGR enlarge_mem_mgr(MEM_MGR mgr, unsigned int size) {

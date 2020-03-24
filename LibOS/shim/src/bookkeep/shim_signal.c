@@ -317,23 +317,25 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (context)
         debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", arg, context->IP);
 
-    struct shim_vma_val vma;
+    struct shim_vma_info vma_info;
     int signo = SIGSEGV;
     int code;
     if (!arg) {
         code = SEGV_MAPERR;
-    } else if (!lookup_vma((void *) arg, &vma)) {
-        if (vma.flags & VMA_INTERNAL) {
+    } else if (!lookup_vma((void *) arg, &vma_info)) {
+        if (vma_info.flags & VMA_INTERNAL) {
             internal_fault("Internal memory fault with VMA", arg, context);
         }
-        if (vma.file && vma.file->type == TYPE_FILE) {
+        struct shim_handle* file = vma_info.file;
+        if (file && file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
              * then return a SIGBUS. */
-            uintptr_t eof_in_vma = (uintptr_t) vma.addr + vma.offset + vma.file->info.file.size;
+            uintptr_t eof_in_vma = (uintptr_t)vma_info.addr + vma_info.file_offset
+                                    + file->info.file.size;
             if (arg > eof_in_vma) {
                 signo = SIGBUS;
                 code = BUS_ADRERR;
-            } else if ((context->err & 4) && !(vma.flags & PROT_WRITE)) {
+            } else if ((context->err & 4) && !(vma_info.flags & PROT_WRITE)) {
                 /* DEP 3/3/17: If the page fault gives a write error, and
                  * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
                 signo = SIGSEGV;
@@ -345,6 +347,10 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             }
         } else {
             code = SEGV_ACCERR;
+        }
+
+        if (file) {
+            put_handle(file);
         }
     } else {
         code = SEGV_MAPERR;
@@ -407,7 +413,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
 
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
     if (is_sgx_pal())
-        return !is_in_adjacent_vmas(addr, size);
+        return !is_in_adjacent_user_vmas(addr, size);
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
      * a byte of each page; invalid access will be caught in memfault_upcall */
@@ -469,7 +475,7 @@ bool test_user_string (const char * addr)
         do {
             maxlen = next - addr;
 
-            if (!access_ok(addr, maxlen) || !is_in_adjacent_vmas((void*) addr, maxlen))
+            if (!access_ok(addr, maxlen) || !is_in_adjacent_user_vmas((void*) addr, maxlen))
                 return true;
 
             size = strnlen(addr, maxlen);
@@ -534,12 +540,12 @@ void __attribute__((weak)) syscall_wrapper(void)
 
 static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    struct shim_vma_val vma;
+    struct shim_vma_info vma_info = { .file = NULL };
 
     if (!is_internal_tid(get_cur_tid()) &&
         !context_is_internal(context) &&
-        !(lookup_vma((void *) arg, &vma)) &&
-        !(vma.flags & VMA_INTERNAL)) {
+        !(lookup_vma((void *)arg, &vma_info)) &&
+        !(vma_info.flags & VMA_INTERNAL)) {
 
         assert(context);
         debug("illegal instruction at 0x%08lx\n", context->IP);
@@ -586,6 +592,10 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         }
     } else {
         internal_fault("Internal illegal fault", arg, context);
+    }
+
+    if (vma_info.file) {
+        put_handle(vma_info.file);
     }
     DkExceptionReturn(event);
 }

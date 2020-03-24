@@ -54,19 +54,12 @@ void* __system_malloc(size_t size) {
     size_t alloc_size = ALLOC_ALIGN_UP(size);
     void* addr;
     void* ret_addr;
-    int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
 
-    /*
-     * If vmas are initialized, we need to request a free address range
-     * using bkeep_unmapped_any(). The current mmap code uses this function
-     * to synchronize all address allocation, via a "publication"
-     * pattern. It is not safe to just call DkVirtualMemoryAlloc directly
-     * without reserving the vma region first.
-     */
-    addr = bkeep_unmapped_any(alloc_size, PROT_READ | PROT_WRITE, flags, 0, "slab");
-
-    if (!addr)
+    int ret = bkeep_mmap_any(alloc_size, PROT_READ | PROT_WRITE,
+                             MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL, NULL, 0, "slab", &addr);
+    if (ret < 0) {
         return NULL;
+    }
 
     do {
         ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0, PAL_PROT_WRITE | PAL_PROT_READ);
@@ -80,7 +73,11 @@ void* __system_malloc(size_t size) {
             }
 
             debug("failed to allocate memory (%ld)\n", -PAL_ERRNO);
-            bkeep_munmap(addr, alloc_size, flags);
+            void* tmp_vma = NULL;
+            if (bkeep_munmap(addr, alloc_size, /*is_internal=*/true, &tmp_vma) < 0) {
+                BUG();
+            }
+            bkeep_remove_tmp_vma(tmp_vma);
             return NULL;
         }
     } while (!ret_addr);
@@ -89,10 +86,12 @@ void* __system_malloc(size_t size) {
 }
 
 void __system_free(void* addr, size_t size) {
-    DkVirtualMemoryFree(addr, ALLOC_ALIGN_UP(size));
-
-    if (bkeep_munmap(addr, ALLOC_ALIGN_UP(size), VMA_INTERNAL) < 0)
+    void* tmp_vma = NULL;
+    if (bkeep_munmap(addr, ALLOC_ALIGN_UP(size), /*is_internal=*/true, &tmp_vma) < 0) {
         BUG();
+    }
+    DkVirtualMemoryFree(addr, ALLOC_ALIGN_UP(size));
+    bkeep_remove_tmp_vma(tmp_vma);
 }
 
 int init_slab(void) {

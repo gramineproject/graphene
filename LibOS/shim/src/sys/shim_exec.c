@@ -72,8 +72,6 @@ static int close_cloexec_handle(struct shim_handle_map* map) {
     return walk_handle_map(&close_on_exec, map);
 }
 
-int init_brk_from_executable(struct shim_handle* exec);
-
 struct execve_rtld_arg {
     void* old_stack_top;
     void* old_stack;
@@ -100,14 +98,20 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     update_fs_base(fs_base);
     debug("set fs_base to 0x%lx\n", fs_base);
 
-    DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
-    if (bkeep_munmap(old_stack, old_stack_top - old_stack, 0) < 0)
+    void* tmp_vma = NULL;
+    if (bkeep_munmap(old_stack, old_stack_top - old_stack, /*is_internal=*/false, &tmp_vma) < 0) {
         BUG();
+    }
+    DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
+    bkeep_remove_tmp_vma(tmp_vma);
 
     if (old_stack - old_stack_red > 0) {
+        if (bkeep_munmap(old_stack_red, old_stack - old_stack_red, /*is_internal=*/false,
+            &tmp_vma) < 0) {
+                BUG();
+        }
         DkVirtualMemoryFree(old_stack_red, old_stack - old_stack_red);
-        if (bkeep_munmap(old_stack_red, old_stack - old_stack_red, 0) < 0)
-            BUG();
+        bkeep_remove_tmp_vma(tmp_vma);
     }
 
     remove_loaded_libraries();
@@ -115,50 +119,26 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     reset_brk();
 
-    size_t count = DEFAULT_VMA_COUNT;
-    struct shim_vma_val* vmas = malloc(sizeof(struct shim_vma_val) * count);
-
-    if (!vmas) {
-        ret = -ENOMEM;
-        goto error;
-    }
-
-retry_dump_vmas:
-    ret = dump_all_vmas(vmas, count);
-
-    if (ret == -EOVERFLOW) {
-        struct shim_vma_val* new_vmas = malloc(sizeof(struct shim_vma_val) * count * 2);
-        if (!new_vmas) {
-            free(vmas);
-            ret = -ENOMEM;
-            goto error;
-        }
-        free(vmas);
-        vmas = new_vmas;
-        count *= 2;
-        goto retry_dump_vmas;
-    }
-
+    size_t count;
+    struct shim_vma_info* vmas;
+    ret = dump_all_vmas(&vmas, &count);
     if (ret < 0) {
-        free(vmas);
         goto error;
     }
 
-    count = ret;
-    for (struct shim_vma_val* vma = vmas; vma < vmas + count; vma++) {
+    for (struct shim_vma_info* vma = vmas; vma < vmas + count; vma++) {
         /* Don't free the current stack */
         if (vma->addr == cur_thread->stack)
             continue;
 
-        /* Free all the mapped VMAs */
-        if (!(vma->flags & VMA_UNMAPPED))
-            DkVirtualMemoryFree(vma->addr, vma->length);
-
-        /* Remove the VMAs */
-        bkeep_munmap(vma->addr, vma->length, vma->flags);
+        if (bkeep_munmap(vma->addr, vma->length, !!(vma->flags & VMA_INTERNAL), &tmp_vma) < 0) {
+            BUG();
+        }
+        DkVirtualMemoryFree(vma->addr, vma->length);
+        bkeep_remove_tmp_vma(tmp_vma);
     }
 
-    free_vma_val_array(vmas, count);
+    free_vma_info_array(vmas, count);
 
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
         goto error;

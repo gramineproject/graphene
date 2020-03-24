@@ -38,6 +38,8 @@
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 
+#define CP_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL)
+
 /* Based on Robert Jenkins' hash algorithm. */
 static uint64_t hash64(uint64_t key) {
     key = (~key) + (key << 21);
@@ -572,8 +574,8 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
         debug("try extend checkpoint store: %p-%p (size = %ld)\n",
               addr, addr + size, size);
 
-        if (bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
-                       NULL, 0, "cpstore") < 0)
+        if (bkeep_mmap_fixed(addr, size, PROT_READ|PROT_WRITE, CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE,
+                             NULL, 0, "cpstore") < 0)
             return NULL;
     } else {
         /*
@@ -597,17 +599,27 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
          * Allocating the checkpoint space at the first space found from the
          * top of the virtual address space.
          */
-        addr = bkeep_unmapped_any(size + reserve_size, PROT_READ|PROT_WRITE,
-                                  CP_VMA_FLAGS, 0, "cpstore");
-        if (!addr)
+        int ret = bkeep_mmap_any(size + reserve_size, PROT_READ|PROT_WRITE, CP_MMAP_FLAGS, NULL, 0,
+                                 "cpstore", &addr);
+        if (ret < 0) {
             return NULL;
+        }
 
-        bkeep_munmap(addr + size, reserve_size, CP_VMA_FLAGS);
+        void* tmp_vma = NULL;
+        if (bkeep_munmap(addr + size, reserve_size, /*is_internal=*/true, &tmp_vma) < 0) {
+            BUG();
+        }
+        bkeep_remove_tmp_vma(tmp_vma);
     }
 
     addr = (void*)DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!addr)
-        bkeep_munmap(addr, size, CP_VMA_FLAGS);
+    if (!addr) {
+        void* tmp_vma = NULL;
+        if (bkeep_munmap(addr, size, /*is_internal=*/true, &tmp_vma) < 0) {
+            BUG();
+        }
+        bkeep_remove_tmp_vma(tmp_vma);
+    }
 
     return addr;
 }
@@ -742,13 +754,16 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto out;
 
     /* Free the checkpoint space */
-    if ((ret = bkeep_munmap((void *) cpstore.base, cpstore.bound,
-                            CP_VMA_FLAGS)) < 0) {
+    void* tmp_vma = NULL;
+    ret = bkeep_munmap((void*)cpstore.base, cpstore.bound, /*is_internal=*/true, &tmp_vma);
+    if (ret < 0) {
         debug("failed unmaping checkpoint (ret = %d)\n", ret);
         goto out;
     }
 
     DkVirtualMemoryFree((PAL_PTR) cpstore.base, cpstore.bound);
+
+    bkeep_remove_tmp_vma(tmp_vma);
 
     /* Wait for the response from the new process */
     struct newproc_response res;
@@ -818,10 +833,11 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 {
     void * base = NULL;
     size_t size = hdr->hdr.size;
-    PAL_PTR mapaddr;
+    PAL_PTR mapaddr = NULL;
     PAL_NUM mapsize;
     long rebase;
     int ret = 0;
+    PAL_PTR mapped = NULL;
 
     /*
      * Allocate a large enough space to load the checkpoint data.
@@ -833,28 +849,26 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
      */
 
 #if CPSTORE_DERANDOMIZATION == 1
-    if (hdr->hdr.addr
-        && lookup_overlap_vma(hdr->hdr.addr, size, NULL) == -ENOENT) {
-
+    if (hdr->hdr.addr) {
         /* Try to load the checkpoint at the same address */
         base = hdr->hdr.addr;
         mapaddr = (PAL_PTR)ALLOC_ALIGN_DOWN_PTR(base);
         mapsize = (PAL_PTR)ALLOC_ALIGN_UP_PTR(base + size) - mapaddr;
 
-        /* Need to create VMA before allocation */
-        ret = bkeep_mmap((void *) mapaddr, mapsize,
-                         PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
-                         NULL, 0, "cpstore");
+        /* Try allocating at this address, but do not force if it overlaps with existing memory. */
+        ret = bkeep_mmap_fixed((void*)mapaddr, mapsize, PROT_READ | PROT_WRITE,
+                               CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
         if (ret < 0)
             base = NULL;
     }
 #endif
 
     if (!base) {
-        base = bkeep_unmapped_any(ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_VMA_FLAGS, 0,
-                                  "cpstore");
-        if (!base)
-            return -ENOMEM;
+        ret = bkeep_mmap_any(ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_MMAP_FLAGS, NULL, 0,
+                             "cpstore", &base);
+        if (ret < 0) {
+            return ret;
+        }
 
         mapaddr = (PAL_PTR)base;
         mapsize = (PAL_NUM)ALLOC_ALIGN_UP(size);
@@ -862,9 +876,11 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
     debug("checkpoint mapped at %p-%p\n", base, base + size);
 
-    PAL_PTR mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
-    if (!mapped)
-        return -PAL_ERRNO;
+    mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    if (!mapped) {
+        ret = -PAL_ERRNO;
+        goto out_unmap;
+    }
 
     assert(mapaddr == mapped);
     /*
@@ -882,7 +898,8 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
             if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
                     PAL_ERRNO == EWOULDBLOCK)
                 continue;
-            return -PAL_ERRNO;
+            ret = -PAL_ERRNO;
+            goto out_unmap;
         }
 
         total_bytes += bytes;
@@ -893,14 +910,28 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     /* Receive socket or RPC handles from the parent process. */
     ret = receive_handles_on_stream(&hdr->palhdl, (ptr_t) base, rebase);
     if (ret < 0) {
-        /* TODO: unload the checkpoint space */
-        return ret;
+        goto out_unmap;
     }
 
     migrated_memory_start = (void *) mapaddr;
     migrated_memory_end = (void *) mapaddr + mapsize;
     *cpptr = (void *) base;
     return 0;
+
+out_unmap: ;
+    void* tmp_vma = NULL;
+    if (mapaddr) {
+        if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0) {
+            BUG();
+        }
+    }
+    if (mapped) {
+        DkVirtualMemoryFree(mapped, mapsize);
+    }
+    if (mapaddr) {
+        bkeep_remove_tmp_vma(tmp_vma);
+    }
+    return ret;
 }
 
 void restore_context (struct shim_context * context)

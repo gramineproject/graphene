@@ -27,7 +27,7 @@ fs.mount.tmp.uri = file:/tmp
 
 # The line below may be causing problems on SGX, see
 # https://github.com/oscarlab/graphene/issues/1408.
-sys.brk.size = 32M
+sys.brk.max_size = 32M
 sys.stack.size = 4M
 
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
