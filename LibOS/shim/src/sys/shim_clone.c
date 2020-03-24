@@ -140,10 +140,15 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
 
     void * stack = arg->stack;
 
-    struct shim_vma_val vma;
-    lookup_vma(ALLOC_ALIGN_DOWN_PTR(stack), &vma);
-    my_thread->stack_top = vma.addr + vma.length;
-    my_thread->stack_red = my_thread->stack = vma.addr;
+    struct shim_vma_info vma_info;
+    if (lookup_vma(ALLOC_ALIGN_DOWN_PTR(stack), &vma_info) < 0) {
+        return -EFAULT;
+    }
+    my_thread->stack_top = (char*)vma_info.addr + vma_info.length;
+    my_thread->stack_red = my_thread->stack = vma_info.addr;
+    if (vma_info.file) {
+        put_handle(vma_info.file);
+    }
 
     /* until now we're not ready to be exposed to other thread */
     add_thread(my_thread);
@@ -199,12 +204,18 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         unsigned long old_stack_rsp = self->shim_tcb->context.regs->rsp;
 
         if (user_stack_addr) {
-            struct shim_vma_val vma;
-            lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma);
-            self->stack_top = vma.addr + vma.length;
-            self->stack_red = vma.addr;
-            self->stack     = vma.addr;
+            struct shim_vma_info vma_info;
+            if (lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma_info) < 0) {
+                return -EFAULT;
+            }
+            self->stack_top = (char*)vma_info.addr + vma_info.length;
+            self->stack_red = vma_info.addr;
+            self->stack     = vma_info.addr;
             self->shim_tcb->context.regs->rsp = (unsigned long)user_stack_addr;
+
+            if (vma_info.file) {
+                put_handle(vma_info.file);
+            }
         }
 
         /* FIXME: we ignore parent_tidptr, child_tidptr and tls; no application seems to use a
@@ -360,12 +371,19 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         thread->shim_tcb = &shim_tcb;
 
         if (user_stack_addr) {
-            struct shim_vma_val vma;
-            lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma);
-            thread->stack_top = vma.addr + vma.length;
-            thread->stack_red = thread->stack = vma.addr;
+            struct shim_vma_info vma_info;
+            if (lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma_info) < 0) {
+                ret = -EFAULT;
+                goto failed;
+            }
+            thread->stack_top = (char*)vma_info.addr + vma_info.length;
+            thread->stack_red = thread->stack = vma_info.addr;
             parent_stack = (void *)self->shim_tcb->context.regs->rsp;
             thread->shim_tcb->context.regs->rsp = (unsigned long)user_stack_addr;
+
+            if (vma_info.file) {
+                put_handle(vma_info.file);
+            }
         }
 
         thread->is_alive = true;

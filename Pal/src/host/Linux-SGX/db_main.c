@@ -55,9 +55,7 @@ unsigned long _DkGetAllocationAlignment (void)
     return g_page_size;
 }
 
-void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
-                                      PAL_PTR * hole_start, PAL_PTR * hole_end)
-{
+void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap) {
     *start = (PAL_PTR)pal_sec.heap_min;
     *end   = (PAL_PTR)get_enclave_heap_top();
 
@@ -70,8 +68,7 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
-    *hole_start = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, *start);
-    *hole_end   = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, *end);
+    *gap = MEMORY_GAP;
 }
 
 PAL_NUM _DkGetProcessId (void)
