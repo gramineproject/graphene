@@ -1,0 +1,82 @@
+# INSECURE!!!
+# These 3 lines are insecure by design and should never be used in production environments.
+# There is a lot of files that Blender uses (e.g. bundled Python) and listing them here would
+# be counter productive, as they may change between Blender releases and this is just a testing
+# manifest.
+# Additionally, Blender scenes could allow for code execution (e.g. via bundled scripts), so
+# running untrusted scenes should not be allowed. This can be achieved for example by adding scenes
+# to trusted files or uploading them to a running and attested enclave via secured connection.
+sgx.allowed_files.blender_dir = file:$(BLENDER_DIR)/$(BLENDER_VER)/
+sgx.allowed_files.blender_input = file:$(DATA_DIR)/scenes/
+sgx.allowed_files.blender_output = file:$(DATA_DIR)/images/
+
+
+loader.exec = file:$(BLENDER_DIR)/blender
+loader.execname = blender
+
+loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
+loader.debug_type = $(GRAPHENE_DEBUG)
+
+loader.env.LD_LIBRARY_PATH = /graphene_lib:/blender_lib:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu
+# Graphene implicitly copies host environment variables - overwriting troublesome one
+loader.env.PWD =
+
+fs.mount.graphene_lib.type = chroot
+fs.mount.graphene_lib.path = /graphene_lib
+fs.mount.graphene_lib.uri = file:$(GRAPHENE_DIR)/Runtime
+
+fs.mount.blender_lib.type = chroot
+fs.mount.blender_lib.path = /blender_lib
+fs.mount.blender_lib.uri = file:$(BLENDER_DIR)/lib
+
+fs.mount.usr_lib.type = chroot
+fs.mount.usr_lib.path = /usr/lib/x86_64-linux-gnu
+fs.mount.usr_lib.uri = file:/usr/lib/x86_64-linux-gnu
+
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib/x86_64-linux-gnu
+fs.mount.lib.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.scenes.type = chroot
+fs.mount.scenes.path = /data
+fs.mount.scenes.uri = file:$(DATA_DIR)
+
+fs.mount.blender.type = chroot
+fs.mount.blender.path = /blender
+fs.mount.blender.uri = file:$(BLENDER_DIR)
+
+
+sys.stack.size = 8M
+
+
+sgx.enclave_size = 2048M
+sgx.thread_num = 28
+
+
+sgx.trusted_files.ld = file:$(GRAPHENE_DIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENE_DIR)/Runtime/libc.so.6
+sgx.trusted_files.libdl = file:$(GRAPHENE_DIR)/Runtime/libdl.so.2
+sgx.trusted_files.libm = file:$(GRAPHENE_DIR)/Runtime/libm.so.6
+sgx.trusted_files.libpthread = file:$(GRAPHENE_DIR)/Runtime/libpthread.so.0
+sgx.trusted_files.libutil = file:$(GRAPHENE_DIR)/Runtime/libutil.so.1
+sgx.trusted_files.librt = file:$(GRAPHENE_DIR)/Runtime/librt.so.1
+
+sgx.trusted_files.libGL = file:$(BLENDER_DIR)/lib/libGL.so.1
+sgx.trusted_files.libglapi = file:$(BLENDER_DIR)/lib/libglapi.so.0
+
+sgx.trusted_files.libX11 = file:/usr/lib/x86_64-linux-gnu/libX11.so.6
+sgx.trusted_files.libXi = file:/usr/lib/x86_64-linux-gnu/libXi.so.6
+sgx.trusted_files.libXxf86vm = file:/usr/lib/x86_64-linux-gnu/libXxf86vm.so.1
+sgx.trusted_files.libXfixes = file:/usr/lib/x86_64-linux-gnu/libXfixes.so.3
+sgx.trusted_files.libXrender = file:/usr/lib/x86_64-linux-gnu/libXrender.so.1
+sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
+sgx.trusted_files.libXext = file:/usr/lib/x86_64-linux-gnu/libXext.so.6
+sgx.trusted_files.libxcb = file:/usr/lib/x86_64-linux-gnu/libxcb.so.1
+sgx.trusted_files.libXau = file:/usr/lib/x86_64-linux-gnu/libXau.so.6
+sgx.trusted_files.libXdmcp = file:/usr/lib/x86_64-linux-gnu/libXdmcp.so.6
+sgx.trusted_files.libstdcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+sgx.trusted_files.libnuma = file:/usr/lib/x86_64-linux-gnu/libnuma.so.1
+
+# Ubuntu version specific files
+# [Ubuntu18.04] sgx.trusted_files.libbsd = file:/lib/x86_64-linux-gnu/libbsd.so.0

@@ -1,0 +1,100 @@
+# Nginx manifest example
+#
+# This manifest was prepared and tested on Ubuntu 16.04.
+#
+# Nginx must be run with the pal_loader:
+#
+# ./pal_loader nginx.manifest -c conf/nginx-graphene.conf
+
+# The executable to load in Graphene.
+loader.exec = file:$(INSTALL_DIR)/sbin/nginx
+loader.execname = nginx
+
+# Graphene environment, including the path to the library OS and the debug
+# option (inline/none).
+loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+loader.debug_type = $(GRAPHENEDEBUG)
+
+# Environment variables
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
+
+# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
+# guest. Other parts of the host FS will not be available in the guest.
+
+# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+
+# Host-level libraries (/lib/x86_64-linux-gnu) required by Nginx.
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+# Host-level directory to NSS files required by Glibc + NSS libs.
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:/etc
+
+# Mount the current working directory
+fs.mount.cwd.type = chroot
+fs.mount.cwd.path = $(INSTALL_DIR_ABSPATH)
+fs.mount.cwd.uri = file:$(INSTALL_DIR)
+
+# SGX general options
+
+# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
+# size must be specified during signing. If Nginx needs more virtual memory
+# than the enclave size, Graphene will not be able to allocate it.
+sgx.enclave_size = 256M
+
+# Set the maximum number of enclave threads. For SGX v1, the number of enclave
+# TCSes must be specified during signing, so the application cannot use more
+# threads than the number of TCSes. Note that Graphene also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+#
+# We (somewhat arbitrarily) specify 4 threads since Nginx is single-threaded.
+sgx.thread_num = 4
+
+# SGX trusted libraries
+
+# Glibc libraries
+sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
+sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
+sgx.trusted_files.librt = file:$(GRAPHENEDIR)/Runtime/librt.so.1
+sgx.trusted_files.libutil = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
+sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+
+# Name Service Switch (NSS) libraries (Glibc dependencies)
+sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_files.libnssfiles = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnssnis = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+
+# libNSL is a dependency of libnss_compat above
+sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+
+# Nginx dependencies (shared libraries)
+$(NGINX_TRUSTED_LIBS)
+
+# Nginx configuration (trusted)
+sgx.trusted_files.conf1 = file:$(INSTALL_DIR)/conf/nginx-graphene.conf
+sgx.trusted_files.conf2 = file:$(INSTALL_DIR)/conf/mime.types
+
+# Nginx HTTP documents (trusted)
+# We only specify those documents used in our tests/benchmarks
+sgx.trusted_files.htdocs1 = file:$(INSTALL_DIR)/html/index.html
+sgx.trusted_files.htdocs2 = file:$(INSTALL_DIR)/html/random/10K.1.html
+
+# Nginx logs directory (untrusted and allowed, since log files are not security-critical)
+sgx.allowed_files.logs = file:$(INSTALL_DIR)/logs
+
+# Name Service Switch (NSS) files (Glibc reads these files)
+sgx.allowed_files.nsswitch = file:/etc/nsswitch.conf
+sgx.allowed_files.ethers = file:/etc/ethers
+sgx.allowed_files.hosts = file:/etc/hosts
+sgx.allowed_files.group = file:/etc/group
+sgx.allowed_files.passwd = file:/etc/passwd

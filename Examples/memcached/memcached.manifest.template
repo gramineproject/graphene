@@ -1,0 +1,198 @@
+# Memcached manifest file example
+#
+# This manifest was prepared and tested on Ubuntu 16.04.
+
+################################## RUNNING ####################################
+
+# Memcached must be run with the --user=<existing-user-name> argument:
+#
+# ./pal_loader ./memcached --user=nobody
+#
+# User argument is required because Graphene currently emulates real/effective
+# user ID as 0 (root). This leads Memcached to believe it is run under root. For
+# security reasons, Memcached drops privileges and assumes non-privileged user
+# ID which must be specified as command-line argument. The assumed user ID is
+# irrelevant for consequent Memcached execution, so it may be any existing
+# host-OS username (e.g. "nobody" or even "root").
+
+# Executable to load into Graphene and run. Note that Graphene tries its best
+# to find the corresponding manifest file (by appending ".manifest" or
+# ".manifest.sgx") based on the executable name, and vice versa. Still, it is
+# required to have the explicit name of the executable here.
+loader.exec = file:memcached
+
+################################## GRAPHENE ###################################
+
+# LibOS layer library of Graphene. There is currently only one implementation,
+# so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
+# to relative path to Graphene repository in the Makefile as part of the
+# build process.
+loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+
+# Show/hide debug log of Graphene ('inline' or 'none' respectively). Note that
+# GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
+# build process.
+loader.debug_type = $(GRAPHENEDEBUG)
+
+################################# ENV VARS  ###################################
+
+# Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
+# applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
+# paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
+#
+# In case of Memcached:
+# - /lib is searched for Glibc libraries (ld, libc, libpthread)
+# - /lib/x86_64-linux-gnu is searched for Name Service Switch (NSS) libraries
+# - /usr/lib/x86_64-linux-gnu is searched for libevent (the only explicit
+#                             Memcached dependency)
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+
+# Explicitly unset all environment variables used by Memcached. This is just a
+# precaution so that attacker cannot influence the default behavior of Memcached
+# by setting unexpected environment variables.
+#
+# TODO(dimakuv): Graphene's PAL incorrectly handles this currently. See
+# `read_environments()`, the end of function. Below strings create envvars
+# with empty strings, which forces Memcached to do incorrect things like
+# creating an empty-prefix .lck file (due to MEMCACHED_PORT_FILENAME=="").
+loader.env.MEMCACHED_PORT_FILENAME =
+loader.env.MEMCACHED_HASH_BULK_MOVE =
+loader.env.SASL_CONF_PATH =
+loader.env.MEMCACHED_SASL_PWDB =
+loader.env.T_MEMD_INITIAL_MALLOC =
+loader.env.MEMCACHED_SLAB_BULK_CHECK =
+
+################################# MOUNT FS  ###################################
+
+# General notes:
+# - There is only one supported type of mount points: 'chroot'.
+# - Directory names are (somewhat confusingly) prepended by 'file:'.
+# - Names of mount entries (lib, lib2, lib3) are irrelevant but must be unique.
+# - In-Graphene visible path names may be arbitrary but we reuse host-OS URIs
+#   for simplicity (except for the first 'lib' case).
+
+# Mount host-OS directory to Graphene glibc/runtime libraries (in 'uri') into
+# in-Graphene visible directory /lib (in 'path'). Note that GRAPHENEDIR macro
+# is expanded to relative path to Graphene repository in the Makefile as part
+# of the build process.
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+
+# Mount host-OS directory to Name Service Switch (NSS) libraries (in 'uri')
+# into in-Graphene visible directory /lib/x86_64-linux-gnu (in 'path').
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+# Mount host-OS directory to libevent lib required by Memcached (in 'uri')
+# into in-Graphene visible directory /usr/lib/x86_64-linux-gnu (in 'path').
+fs.mount.lib3.type = chroot
+fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
+fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+
+# Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
+# into in-Graphene visible directory /etc (in 'path').
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:/etc
+
+################################## NETWORK ####################################
+
+# Allow binding on any network interface but only on port 11211. This is the
+# default port used by Memcached. Note how a missing interface name means "any
+# interface".
+net.allow_bind.memcachedport = :11211
+
+############################### SGX: GENERAL ##################################
+
+# Set enclave size (somewhat arbitrarily) to 1024MB. Recall that SGX v1 requires
+# to specify enclave size at enclave creation time. If Memcached exhausts these
+# 1024MB then it will start failing with random errors. Greater enclave sizes
+# result in longer startup times, smaller enclave sizes are not enough for
+# typical Memcached workloads.
+#
+# NOTE: Memcached does not fail explicitly when enclave memory is exhausted.
+# Instead, Memcached goes into infinite loop without a listening socket. You
+# can trigger this incorrect behavior by increasing the number of threads
+# to 12 (each thread requires 128MB of memory): `memcached -t 12`. This is
+# an issue in Memcached source code, not related to Graphene.
+sgx.enclave_size = 1024M
+
+# Set maximum number of in-enclave threads (somewhat arbitrarily) to 16. Recall
+# that SGX v1 requires to specify the maximum number of simulteneous threads at
+# enclave creation time. If Memcached spawns more threads, Graphene-SGX fails.
+#
+# Note that internally Graphene may spawn two additional threads, one for IPC
+# and one for asynchronous events/alarms. Memcached spawns an additional main
+# thread which sits idle after spawning worker threads. Therefore, specifying
+# '16' allows to run a maximum of 13 Memcached threads (`--threads <= 13`).
+sgx.thread_num = 16
+
+############################# SGX: TRUSTED LIBS ###############################
+
+# Specify all libraries used by Memcached and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to libraries
+# are host-OS paths. These libraries will be searched for in in-Graphene visible
+# paths according to mount points above.
+#
+# As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
+# specified library, measures its hash, and outputs the hash in auto-generated
+# entry 'sgx.trusted_checksum.xxx' in auto-generated memcached.manifest.sgx.
+# Note that this happens on the developer machine.
+#
+# At runtime, during loading of this library, Graphene-SGX measures its hash
+# and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
+# match, this library is trusted and allowed to be loaded and used. Note that
+# this happens on the client machine.
+
+# Glibc libraries. ld and libc are needed for all apps; pthread is needed
+# because Memcached is multi-threaded.
+sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+
+# Name Service Switch (NSS) libraries. Glibc calls these libraries as part of
+# name-service information gathering. libnss_{compat,files,nis} are the
+# most widely used libraries, at least on Ubuntu.
+# For more info, see 'man nsswitch.conf'.
+sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_files.libnssfiles  = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnssnis  = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+
+# libNSL is a dependency of libnss_compat above. It is a good example of nested
+# library dependencies required by Graphene-SGX.
+sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+
+# libEvent is an explicit dependency of Memcached. We choose to install it on
+# host OS instead of downloading the sources, building, and linking Memcached
+# against the built library (which is possible but would require more effort).
+sgx.trusted_files.libevent = file:/usr/lib/x86_64-linux-gnu/libevent-2.0.so.5
+
+############################ SGX: TRUSTED FILES ###############################
+
+# Trusted no-library files include configuration files, read-only files, and
+# other static files. It is useful to specify such files here to make sure
+# they are not maliciously modified (modifications will be detected as hash
+# mismatch by Graphene-SGX).
+#
+# Memcached does not have any configuration files, so this section is empty.
+# sgx.trusted_files.config = file:<important-configuration-file>
+
+############################# SGX: ALLOWED FILES ###############################
+
+# Specify all non-static files used by app. These files may be opened by
+# Graphene-SGX but modifications to them are not detected (Graphene-SGX does
+# not measure their hashes). This may pose a security risk!
+
+# Name Service Switch (NSS) files. Glibc reads these files as part of name-
+# service information gathering. For more info, see 'man nsswitch.conf'.
+sgx.allowed_files.nsswitch  = file:/etc/nsswitch.conf
+sgx.allowed_files.ethers    = file:/etc/ethers
+sgx.allowed_files.hosts     = file:/etc/hosts
+sgx.allowed_files.group     = file:/etc/group
+sgx.allowed_files.passwd    = file:/etc/passwd
+
+# getaddrinfo(3) configuration file. Glibc reads this file to correctly find
+# network addresses. For more info, see 'man gai.conf'.
+sgx.allowed_files.gaiconf   = file:/etc/gai.conf

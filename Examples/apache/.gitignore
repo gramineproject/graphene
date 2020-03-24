@@ -1,0 +1,7 @@
+/httpd-*/*
+/*.tar.gz
+/install/*
+/result-*
+/OUTPUT
+/ssl/server.*
+/ssl/ca.*

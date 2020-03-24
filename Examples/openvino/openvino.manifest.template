@@ -1,0 +1,124 @@
+# OpenVINO (object_detection_sample_ssd) manifest example
+#
+# This manifest was prepared and tested on Ubuntu 16.04.
+#
+# OpenVINO must be run with the pal_loader:
+#
+# ./pal_loader openvino.manifest -i input/image.bmp -m model.xml -d CPU
+
+# The executable to load in Graphene.
+loader.exec = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
+loader.execname = object_detection_sample_ssd
+
+# Graphene environment, including the path to the library OS and the debug
+# option (inline/none).
+loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
+loader.debug_type = $(GRAPHENE_DEBUG)
+
+# Environment variables
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+
+# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
+# guest. Other parts of the host FS will not be available in the guest.
+
+# Default glibc files, mounted from the Runtime directory in GRAPHENE_DIR.
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(GRAPHENE_DIR)/Runtime
+
+# Host-level libraries (/lib/x86_64-linux-gnu) required by OpenVINO.
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+# More host-level libraries (/usr/lib/x86_64-linux-gnu) required by OpenVINO.
+fs.mount.lib3.type = chroot
+fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
+fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+
+# Host-level directory to NSS files required by Glibc + NSS libs.
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:/etc
+
+# Mount the current working directory
+fs.mount.cwd.type = chroot
+fs.mount.cwd.path = $(OPENVINO_DIR_ABSPATH)
+fs.mount.cwd.uri = file:$(OPENVINO_DIR)
+
+# SGX general options
+
+# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
+# size must be specified during signing. If OpenVINO needs more virtual memory
+# than the enclave size, Graphene will not be able to allocate it.
+sgx.enclave_size = 2G
+
+# Set the maximum number of enclave threads. For SGX v1, the number of enclave
+# TCSes must be specified during signing, so the application cannot use more
+# threads than the number of TCSes. Note that Graphene also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+#
+# We (somewhat arbitrarily) specify 16 threads since OpenVINO is multithreaded.
+sgx.thread_num = 16
+
+# Allow Graphene-SGX to create files (needed for output image out_0.bmp)
+sgx.allow_file_creation  = 1
+
+# SGX trusted libraries
+
+# Glibc libraries
+sgx.trusted_files.ld = file:$(GRAPHENE_DIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENE_DIR)/Runtime/libc.so.6
+sgx.trusted_files.libm = file:$(GRAPHENE_DIR)/Runtime/libm.so.6
+sgx.trusted_files.libdl = file:$(GRAPHENE_DIR)/Runtime/libdl.so.2
+sgx.trusted_files.librt = file:$(GRAPHENE_DIR)/Runtime/librt.so.1
+sgx.trusted_files.libutil = file:$(GRAPHENE_DIR)/Runtime/libutil.so.1
+sgx.trusted_files.libpthread = file:$(GRAPHENE_DIR)/Runtime/libpthread.so.0
+
+# Name Service Switch (NSS) libraries (Glibc dependencies)
+sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_files.libnssfiles = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnssnis = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+
+# libNSL is a dependency of libnss_compat above
+sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+
+# OpenVINO C++ dependencies
+sgx.trusted_files.libcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+sgx.trusted_files.libgcc = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+
+# OpenVINO main libraries
+sgx.trusted_files.libformatreader    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libformat_reader.so
+sgx.trusted_files.libcpuextension    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libcpu_extension.so
+sgx.trusted_files.libinferencenegine = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine.so
+sgx.trusted_files.libmkldnnplugin    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libMKLDNNPlugin.so
+sgx.trusted_files.libgnapplugin      = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libGNAPlugin.so
+sgx.trusted_files.libcldnnpplugin    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libclDNNPlugin.so
+sgx.trusted_files.libmyriadplugin    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libmyriadPlugin.so
+
+# OpenVINO OpenCV libraries
+sgx.trusted_files.libimgcodecs  = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.1.1_ubuntu16/lib/libopencv_imgcodecs.so.4.1
+sgx.trusted_files.libimgproc    = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.1.1_ubuntu16/lib/libopencv_imgproc.so.4.1
+sgx.trusted_files.libopencvcore = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.1.1_ubuntu16/lib/libopencv_core.so.4.1
+
+# OpenVINO TBB libraries
+sgx.trusted_files.libtbbmalloc = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbmalloc.so.2
+sgx.trusted_files.libtbb       = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbb.so.2
+$(LIBTBB_DEBUG)
+
+# OpenVINO SSD300 model
+sgx.trusted_files.pluginsxml = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/plugins.xml
+sgx.trusted_files.modelxml   = file:$(MODEL_DIR)/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml
+sgx.trusted_files.modelbin   = file:$(MODEL_DIR)/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.bin
+
+# OpenVINO images (allowed instead of trusted for simplicity)
+sgx.allowed_files.imagesdir   = file:images
+
+# Name Service Switch (NSS) files (Glibc reads these files)
+sgx.allowed_files.nsswitch = file:/etc/nsswitch.conf
+sgx.allowed_files.ethers = file:/etc/ethers
+sgx.allowed_files.hosts = file:/etc/hosts
+sgx.allowed_files.group = file:/etc/group
+sgx.allowed_files.passwd = file:/etc/passwd

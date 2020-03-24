@@ -1,0 +1,26 @@
+# Cap'n Proto and Addressbook example
+
+This directory contains the Makefile and the template manifest for the Addressbook example of the
+Cap'n Proto protocol. Addressbook is the sample application that uses Cap'n Proto from the official
+documentation (copied from the official GitHub repo, v0.7.0). We use the preinstalled libcapnp
+library on the host OS instead of downloading the sources, building, and linking Addressbook against
+the built library (which is possible but would require more effort). This was tested on machines
+with SGX v1 and Ubuntu 16.04/18.04.
+
+Please install the following prerequisites: `sudo apt install -y libcapnp-dev capnproto`.
+
+# Quick Start
+
+```sh
+# build Addressbook and the final manifest
+make SGX=1
+
+# run original Addressbook
+./addressbook write
+
+# run Addressbook in non-SGX Graphene
+./pal_loader addressbook write
+
+# run Addressbook in Graphene-SGX
+SGX=1 ./pal_loader addressbook write
+```
