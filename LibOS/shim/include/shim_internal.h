@@ -721,9 +721,6 @@ unsigned long parse_int (const char * str);
 extern void * initial_stack;
 extern const char ** initial_envp;
 
-void get_brk_region (void ** start, void ** end, void ** current);
-
-int reset_brk (void);
 struct shim_handle;
 int init_brk_from_executable (struct shim_handle * exec);
 int init_brk_region(void* brk_region, size_t data_segment_size);

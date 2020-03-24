@@ -108,12 +108,13 @@ Program Break (Heap) Size
 
 ::
 
-    sys.brk.size=[# of bytes (with K/M/G)]
+    sys.brk.max_size=[# of bytes (with K/M/G)]
 
-This specifies the program break (brk) size in each Graphene process. The
-default value of the program break size is determined by the library OS. Units
-like ``K`` (KiB), ``M`` (MiB), and ``G`` (GiB) can be appended to the values for
-convenience. For example, ``sys.brk.size=1M`` indicates a 1 |~| MiB brk size.
+This specifies the maximal program break (brk) size in each Graphene process.
+The default value of the program break size is determined by the library OS.
+Units like ``K`` (KiB), ``M`` (MiB), and ``G`` (GiB) can be appended to the
+values for convenience. For example, ``sys.brk.max_size=1M`` indicates
+a 1 |~| MiB brk size.
 
 Allowing eventfd
 ^^^^^^^^^^^^^^^^

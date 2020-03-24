@@ -39,13 +39,14 @@ struct debug_buf;
 
 typedef struct shim_tcb shim_tcb_t;
 struct shim_tcb {
-    uint64_t                canary;
-    shim_tcb_t *            self;
-    struct shim_thread *    tp;
-    struct shim_context     context;
-    unsigned int            tid;
-    int                     pal_errno;
-    struct debug_buf *      debug_buf;
+    uint64_t            canary;
+    shim_tcb_t*         self;
+    struct shim_thread* tp;
+    struct shim_context context;
+    unsigned int        tid;
+    int                 pal_errno;
+    struct debug_buf*   debug_buf;
+    void*               vma_cache;
 
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],
@@ -140,6 +141,7 @@ struct shim_tcb {
 static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
     shim_tcb->canary = SHIM_TCB_CANARY;
     shim_tcb->self = shim_tcb;
+    shim_tcb->vma_cache = NULL;
 }
 
 /* Call this function at the beginning of thread execution. */

@@ -144,9 +144,7 @@ unsigned long _DkGetAllocationAlignment (void)
     return g_page_size;
 }
 
-void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
-                                      PAL_PTR * hole_start, PAL_PTR * hole_end)
-{
+void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap) {
     void* end_addr = (void*)ALLOC_ALIGN_DOWN_PTR(TEXT_START);
     void* start_addr = (void*)USER_ADDRESS_LOWEST;
 
@@ -173,9 +171,7 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
     *end   = (PAL_PTR) end_addr;
     *start = (PAL_PTR) start_addr;
 
-    // Not used, so set it to an empty range.
-    *hole_start = start_addr;
-    *hole_end = start_addr;
+    *gap = 0;
 }
 
 PAL_NUM _DkGetProcessId (void)

@@ -1,4 +1,5 @@
 /* Copyright (C) 2014 Stony Brook University
+   Copyright (C) 2020 Invisible Things Lab
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -31,6 +32,24 @@
 #include <stdatomic.h>
 #include <sys/mman.h>
 
+#define LEGACY_MAP_MASK (MAP_SHARED \
+                | MAP_PRIVATE \
+                | MAP_FIXED \
+                | MAP_ANONYMOUS \
+                | MAP_DENYWRITE \
+                | MAP_EXECUTABLE \
+                | MAP_UNINITIALIZED \
+                | MAP_GROWSDOWN \
+                | MAP_LOCKED \
+                | MAP_NORESERVE \
+                | MAP_POPULATE \
+                | MAP_NONBLOCK \
+                | MAP_STACK \
+                | MAP_HUGETLB \
+                | MAP_32BIT \
+                | MAP_HUGE_2MB \
+                | MAP_HUGE_1GB)
+
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
     struct shim_handle* hdl = NULL;
     long ret                = 0;
@@ -51,92 +70,127 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
     if (!length || !access_ok(addr, length))
         return (void*)-EINVAL;
 
+    /* This check is Graphene specific. */
+    if (flags & (VMA_UNMAPPED | VMA_TAINTED | VMA_INTERNAL)) {
+        return (void*)-EINVAL;
+    }
+
+    if (flags & MAP_ANONYMOUS) {
+        switch (flags & MAP_TYPE) {
+            case MAP_SHARED:
+                break;
+            case MAP_PRIVATE:
+                break;
+            default:
+                return (void*)-EINVAL;
+        }
+    } else {
+        /* MAP_FILE is the opposite of MAP_ANONYMOUS and is implicit */
+        switch (flags & MAP_TYPE) {
+            case MAP_SHARED:
+                flags &= LEGACY_MAP_MASK;
+                /* fall through */
+            case MAP_SHARED_VALIDATE:
+                /* Currently we do not support additional flags like MAP_SYNC */
+                if (flags & ~LEGACY_MAP_MASK) {
+                    return (void*)-EOPNOTSUPP;
+                }
+                /* fall through */
+            case MAP_PRIVATE:
+                if (fd < 0) {
+                    return (void*)-EINVAL;
+                }
+
+                hdl = get_fd_handle(fd, NULL, NULL);
+                if (!hdl) {
+                    return (void*)-EBADF;
+                }
+
+                if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
+                    ret = -ENODEV;
+                    goto out_handle;
+                }
+
+                if (hdl->flags & O_WRONLY) {
+                    ret = -EACCES;
+                    goto out_handle;
+                }
+
+                if ((flags & MAP_SHARED) && (prot & PROT_WRITE) && !(hdl->flags & O_RDWR)) {
+                    ret = -EACCES;
+                    goto out_handle;
+                }
+
+                break;
+            default:
+                return (void*)-EINVAL;
+        }
+    }
+
     /* ignore MAP_32BIT when MAP_FIXED is set */
     if ((flags & (MAP_32BIT | MAP_FIXED)) == (MAP_32BIT | MAP_FIXED))
         flags &= ~MAP_32BIT;
 
-    assert(!(flags & (VMA_UNMAPPED | VMA_TAINTED)));
-
-    int pal_alloc_type = 0;
-
-    if ((flags & MAP_FIXED) || addr) {
-        struct shim_vma_val tmp;
-
-        if (addr < PAL_CB(user_address.start) || PAL_CB(user_address.end) <= addr ||
-            (uintptr_t)PAL_CB(user_address.end) - (uintptr_t)addr < length) {
-            debug(
-                "mmap: user specified address %p with length %lu "
-                "not in allowed user space, ignoring this hint\n",
-                addr, length);
-            if (flags & MAP_FIXED)
-                return (void*)-EINVAL;
-            addr = NULL;
-        } else if (!lookup_overlap_vma(addr, length, &tmp)) {
-            if (flags & MAP_FIXED)
-                debug(
-                    "mmap: allowing overlapping MAP_FIXED allocation at %p with "
-                    "length %lu\n",
-                    addr, length);
-            else
-                addr = NULL;
+    if (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) {
+        ret = bkeep_mmap_fixed(addr, length, prot, flags, hdl, offset, NULL);
+        if (ret < 0) {
+            goto out_handle;
         }
-    }
-
-    if ((flags & (MAP_ANONYMOUS | MAP_FILE)) == MAP_FILE) {
-        if (fd < 0)
-            return (void*)-EINVAL;
-
-        hdl = get_fd_handle(fd, NULL, NULL);
-        if (!hdl)
-            return (void*)-EBADF;
-
-        if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
-            put_handle(hdl);
-            return (void*)-ENODEV;
-        }
-    }
-
-    if (addr) {
-        bkeep_mmap(addr, length, prot, flags, hdl, offset, NULL);
     } else {
-        addr = bkeep_unmapped_heap(length, prot, flags, hdl, offset, NULL);
-        /*
-         * Let the library OS manages the address space. If we can't find
-         * proper space to allocate the memory, simply return failure.
-         */
-        if (!addr)
-            return (void*)-ENOMEM;
+        /* We know that `addr + length` does not overflow (`access_ok` above). */
+        if (addr && ((uintptr_t)addr + length <= (uintptr_t)PAL_CB(user_address.end))) {
+            ret = bkeep_mmap_any_in_range(PAL_CB(user_address.start), (char*)addr + length, length,
+                                          prot, flags, hdl, offset, NULL, &addr);
+        } else {
+            /* Hacky way to mark we had no hit and need to search below. */
+            ret = -1;
+        }
+        if (ret < 0) {
+            /* We either had no hinted address or could not allocate memory at it. */
+            ret = bkeep_mmap_any_aslr(length, prot, flags, hdl, offset, NULL, &addr);
+        }
+        if (ret < 0) {
+            ret = -ENOMEM;
+            goto out_handle;
+        }
     }
 
-    // Approximate check only, to help root out bugs.
-    void* cur_stack = current_stack();
-    __UNUSED(cur_stack);
-    assert(cur_stack < addr || cur_stack > addr + length);
-
-    /* addr needs to be kept for bkeep_munmap() below */
-    void* ret_addr = addr;
     if (!hdl) {
-        ret_addr = (void*)DkVirtualMemoryAlloc(ret_addr, length, pal_alloc_type, PAL_PROT(prot, 0));
-
-        if (!ret_addr) {
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED)
+        if (DkVirtualMemoryAlloc(addr, length, 0, PAL_PROT(prot, flags)) != addr) {
+            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED) {
                 ret = -EPERM;
-            else
+            } else {
                 ret = -PAL_ERRNO;
+            }
         }
     } else {
-        ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, PAL_PROT(prot, flags), flags, offset);
+        void* ret_addr = addr;
+        ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, prot, flags, offset);
+        if (ret_addr != addr) {
+            debug("Requested address (%p) differs from allocated (%p)!\n", addr, ret_addr);
+            BUG();
+        }
     }
-
-    if (hdl)
-        put_handle(hdl);
 
     if (ret < 0) {
-        bkeep_munmap(addr, length, flags);
-        return (void*)ret;
+        void* tmp_vma = NULL;
+        if (bkeep_munmap(addr, length, /*is_internal=*/false, &tmp_vma) < 0) {
+            debug("[mmap] Failed to remove bookkeeped memory that was not allocated at %p-%p!\n",
+                  addr, (char*)addr + length);
+            BUG();
+        }
+        bkeep_remove_tmp_vma(tmp_vma);
     }
 
-    return ret_addr;
+out_handle:
+    if (hdl) {
+        put_handle(hdl);
+    }
+
+    if (ret < 0) {
+        return (void*)ret;
+    }
+    return addr;
 }
 
 int shim_do_mprotect(void* addr, size_t length, int prot) {
@@ -150,8 +204,10 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
-    if (bkeep_mprotect(addr, length, prot, 0) < 0)
-        return -EPERM;
+    int ret = bkeep_mprotect(addr, length, prot, /*is_internal=*/false);
+    if (ret < 0) {
+        return ret;
+    }
 
     if (!DkVirtualMemoryProtect(addr, length, prot))
         return -PAL_ERRNO;
@@ -173,28 +229,15 @@ int shim_do_munmap(void* addr, size_t length) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
-    struct shim_vma_val vma;
-
-    if (lookup_overlap_vma(addr, length, &vma) < 0) {
-        debug("can't find addr %p - %p in map, quit unmapping\n", addr, addr + length);
-
-        /* Really not an error */
-        return -EFAULT;
+    void* tmp_vma = NULL;
+    int ret = bkeep_munmap(addr, length, /*is_internal=*/false, &tmp_vma);
+    if (ret < 0) {
+        return ret;
     }
-
-    /* lookup_overlap_vma() calls __dump_vma() which adds a reference to file */
-    if (vma.file)
-        put_handle(vma.file);
-
-    /* Protect first to make sure no overlapping with internal
-     * mappings */
-    if (bkeep_mprotect(addr, length, PROT_NONE, 0) < 0)
-        return -EPERM;
 
     DkVirtualMemoryFree(addr, length);
 
-    if (bkeep_munmap(addr, length, 0) < 0)
-        BUG();
+    bkeep_remove_tmp_vma(tmp_vma);
 
     return 0;
 }
@@ -214,19 +257,8 @@ int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (test_user_memory(vec, pages, true))
         return -EFAULT;
 
-    for (unsigned long i = 0; i < pages; i++) {
-        struct shim_vma_val vma;
-        if (lookup_overlap_vma(addr + i * g_pal_alloc_align, 1, &vma) < 0)
-            return -ENOMEM;
-        /*
-         * lookup_overlap_vma() calls __dump_vma() which adds a reference to
-         * file, remove the reference to file immediately since we don't use
-         * it anyway
-         */
-        if (vma.file)
-            put_handle(vma.file);
-        if (vma.flags & VMA_UNMAPPED)
-            return -ENOMEM;
+    if (!is_in_adjacent_user_vmas(addr, len)) {
+        return -ENOMEM;
     }
 
     static atomic_bool warned = false;

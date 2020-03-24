@@ -315,15 +315,8 @@ typedef struct PAL_CONTROL_ {
      */
     PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
-    /*!
-     * \brief Reserved memory range inside of user address.
-     *
-     * Used for example by SGX for exec area (including memory gap) in the
-     * middle of the heap. If unused set start == end.
-     */
-    PAL_PTR_RANGE user_address_hole;
-
     PAL_PTR_RANGE executable_range; /*!< address where executable is loaded */
+    PAL_NUM exec_memory_gap; /*!< Size of memory gap before and after executable */
     PAL_PTR_RANGE manifest_preload; /*!< manifest preloaded here */
 
     /*

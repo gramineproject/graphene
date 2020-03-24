@@ -402,8 +402,7 @@ noreturn void pal_main (
 
     _DkGetAvailableUserAddressRange(&__pal_control.user_address.start,
                                     &__pal_control.user_address.end,
-                                    &__pal_control.user_address_hole.start,
-                                    &__pal_control.user_address_hole.end);
+                                    &__pal_control.exec_memory_gap);
 
     __pal_control.alloc_align        = pal_state.alloc_align;
 
