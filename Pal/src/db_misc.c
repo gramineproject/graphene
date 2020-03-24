@@ -105,3 +105,15 @@ DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]) {
 
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
+
+PAL_BOL DkAttestationQuote(PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
+                           PAL_NUM* quote_size) {
+    ENTER_PAL_CALL(DkAttestationQuote);
+
+    int ret = _DkAttestationQuote(report_data, report_data_size, quote, quote_size);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
+}
