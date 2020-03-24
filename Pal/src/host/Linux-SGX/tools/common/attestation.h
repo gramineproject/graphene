@@ -49,16 +49,17 @@ void display_report_body(const sgx_report_body_t* body);
  *  \param[in] nonce              (Optional) Nonce that's expected in the report.
  *  \param[in] mr_signer          (Optional) Expected mr_signer quote field (hex string).
  *  \param[in] mr_enclave         (Optional) Expected mr_enclave quote field (hex string).
- *  \param[in] isv_prod_id        (Optional) Expected isv_prod_id quote field (hex string).
- *  \param[in] isv_svn            (Optional) Expected isv_svn quote field (hex string).
+ *  \param[in] isv_prod_id        (Optional) Expected isv_prod_id quote field (decimal string).
+ *  \param[in] isv_svn            (Optional) Expected isv_svn quote field (decimal string).
  *  \param[in] report_data        (Optional) Expected report_data quote field (hex string).
+ *  \param[in] ias_pub_key_pem    (Optional) IAS public RSA key (PEM format, NULL-terminated).
  *
- *  \return 0 on successful verification, nonzero on error.
+ *  \return 0 on successful verification, negative value on error.
  */
 int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t* ias_sig_b64,
                       size_t ias_sig_b64_size, bool allow_outdated_tcb, const char* nonce,
                       const char* mrsigner, const char* mrenclave, const char* isv_prod_id,
-                      const char* isv_svn, const char* report_data);
+                      const char* isv_svn, const char* report_data, const char* ias_pub_key_pem);
 
 /*!
  *  \brief Verify that the provided SGX quote contains expected values.
@@ -67,11 +68,11 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
  *  \param[in] quote_size  Size of \a quote_data in bytes.
  *  \param[in] mr_signer   (Optional) Expected mr_signer quote field (hex string).
  *  \param[in] mr_enclave  (Optional) Expected mr_enclave quote field (hex string).
- *  \param[in] isv_prod_id (Optional) Expected isv_prod_id quote field (hex string).
- *  \param[in] isv_svn     (Optional) Expected isv_svn quote field (hex string).
+ *  \param[in] isv_prod_id (Optional) Expected isv_prod_id quote field (decimal string).
+ *  \param[in] isv_svn     (Optional) Expected isv_svn quote field (decimal string).
  *  \param[in] report_data (Optional) Expected report_data quote field (hex string).
  *
- *  \return 0 on successful verification, nonzero on error.
+ *  \return 0 on successful verification, negative value on error.
  */
 int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signer,
                  const char* mr_enclave, const char* isv_prod_id, const char* isv_svn,

@@ -113,7 +113,7 @@ void display_quote(const void* quote_data, size_t quote_size) {
 int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t* ias_sig_b64,
                       size_t ias_sig_b64_size, bool allow_outdated_tcb, const char* nonce,
                       const char* mrsigner, const char* mrenclave, const char* isv_prod_id,
-                      const char* isv_svn, const char* report_data) {
+                      const char* isv_svn, const char* report_data, const char* ias_pub_key_pem) {
     mbedtls_pk_context ias_pub_key;
     int ret = -1;
     uint8_t* ias_sig = NULL;
@@ -122,8 +122,12 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
 
     // Load the IAS public key
     mbedtls_pk_init(&ias_pub_key);
-    ret = mbedtls_pk_parse_public_key(&ias_pub_key, (const unsigned char*)g_ias_public_key_pem,
-                                      strlen(g_ias_public_key_pem) + 1);
+
+    if (!ias_pub_key_pem)
+        ias_pub_key_pem = g_ias_public_key_pem;
+
+    ret = mbedtls_pk_parse_public_key(&ias_pub_key, (const unsigned char*)ias_pub_key_pem,
+                                      strlen(ias_pub_key_pem) + 1);
     if (ret != 0) {
         ERROR("Failed to parse IAS public key: %d\n", ret);
         goto out;
@@ -284,7 +288,7 @@ out:
     mbedtls_pk_free(&ias_pub_key);
     free(report_quote);
     free(ias_sig);
-    return ret;
+    return ret ? -1 : 0;
 }
 
 int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signer,
@@ -294,9 +298,10 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
     sgx_quote_t* quote = (sgx_quote_t*)quote_data;
 
     // Quote contained in the IAS report doesn't contain signature_len and signature fields
-    size_t expected_quote_size = sizeof(sgx_quote_t) - sizeof(quote->signature_len);
-    if (quote_size != expected_quote_size) {
-        ERROR("Quote: Bad size %zu (expected %zu)\n", quote_size, expected_quote_size);
+    // Reject any smaller quotes as invalid
+    size_t ias_quote_size = offsetof(sgx_quote_t, signature_len);
+    if (quote_size < ias_quote_size) {
+        ERROR("Quote: Bad size %zu < %zu\n", quote_size, ias_quote_size);
         goto out;
     }
 
@@ -344,9 +349,7 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
 
     // Product ID must match, security version must be greater or equal
     if (isv_prod_id) {
-        sgx_prod_id_t prod_id; // uint16_t
-        if (parse_hex(isv_prod_id, &prod_id, sizeof(prod_id)) != 0)
-            goto out;
+        sgx_prod_id_t prod_id = strtoul(isv_prod_id, NULL, 10);
 
         if (body->isv_prod_id != prod_id) {
             ERROR("Quote: invalid isv_prod_id (%u, expected %u)\n", body->isv_prod_id, prod_id);
@@ -357,9 +360,7 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
     }
 
     if (isv_svn) {
-        sgx_isv_svn_t svn; // uint16_t
-        if (parse_hex(isv_svn, &svn, sizeof(svn)) != 0)
-            goto out;
+        sgx_isv_svn_t svn = strtoul(isv_svn, NULL, 10);
 
         if (body->isv_svn < svn) {
             ERROR("Quote: invalid isv_svn (%u < expected %u)\n", body->isv_svn, svn);
