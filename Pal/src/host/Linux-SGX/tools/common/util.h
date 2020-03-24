@@ -24,9 +24,16 @@
 
 /* Miscellaneous helper functions */
 
+/*! Order of bytes for hex strings (display and parsing */
+typedef enum _endianess_t {
+    ENDIAN_LSB,
+    ENDIAN_MSB,
+} endianess_t;
+
 extern int g_stdout_fd;
 extern int g_stderr_fd;
 extern bool g_verbose;
+extern endianess_t g_endianess;
 
 /* Print functions */
 #define DBG(fmt, ...)   do { if (g_verbose) dprintf(g_stdout_fd, fmt, ##__VA_ARGS__); } while (0)
@@ -38,6 +45,12 @@ void set_verbose(bool verbose);
 
 /*! Get verbosity level */
 bool get_verbose();
+
+/*! Set endianess for hex strings */
+void set_endianess(endianess_t endianess);
+
+/*! Get endianess for hex strings */
+endianess_t get_endianess(void);
 
 /*! Set stdout/stderr descriptors */
 void util_set_fd(int stdout_fd, int stderr_fd);

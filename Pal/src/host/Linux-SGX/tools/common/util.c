@@ -26,6 +26,9 @@ int g_stderr_fd = 2;
 /*! Verbosity level */
 bool g_verbose = false;
 
+/*! Endianess for hex strings */
+endianess_t g_endianess = ENDIAN_LSB;
+
 void set_verbose(bool verbose) {
     g_verbose = verbose;
     if (verbose)
@@ -36,6 +39,20 @@ void set_verbose(bool verbose) {
 
 bool get_verbose() {
     return g_verbose;
+}
+
+void set_endianess(endianess_t endianess) {
+    g_endianess = endianess;
+    if (g_verbose) {
+        if (endianess == ENDIAN_LSB)
+            DBG("Endianess set to LSB\n");
+        else
+            DBG("Endianess set to MSB\n");
+    }
+}
+
+endianess_t get_endianess(void) {
+    return g_endianess;
 }
 
 /* return -1 on error */
@@ -134,8 +151,14 @@ void util_set_fd(int stdout_fd, int stderr_fd) {
 void hexdump_mem(const void* data, size_t size) {
     uint8_t* ptr = (uint8_t*)data;
 
-    for (size_t i = 0; i < size; i++)
-        INFO("%02x", ptr[i]);
+    for (size_t i = 0; i < size; i++) {
+        if (g_endianess == ENDIAN_LSB) {
+            INFO("%02x", ptr[i]);
+        } else {
+            INFO("%02x", ptr[size - i - 1]);
+        }
+    }
+
     INFO("\n");
 }
 
@@ -155,7 +178,10 @@ int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
             return -1;
         }
 
-        sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[i]);
+        if (g_endianess == ENDIAN_LSB)
+            sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[i]);
+        else
+            sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[buffer_size - i - 1]);
     }
     return 0;
 }

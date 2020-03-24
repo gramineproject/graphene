@@ -12,24 +12,67 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#include <getopt.h>
 #include <stdlib.h>
 
 #include "attestation.h"
 #include "util.h"
 
+struct option g_options[] = {
+    { "help", no_argument, 0, 'h' },
+    { "msb", no_argument, 0, 'm' },
+    { 0, 0, 0, 0 }
+};
+
+void usage(const char* exec) {
+    INFO("Usage: %s [options] <quote path>\n", exec);
+    INFO("Available options:\n");
+    INFO("  --help, -h  Display this help\n");
+    INFO("  --msb, -m   Display hex strings in big-endian order\n");
+}
+
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        ERROR("Usage: %s <filename>\n", argv[0]);
-        return -EINVAL;
+    if (argc < 2) {
+        usage(argv[0]);
+        return -1;
     }
 
-    const char* path = argv[1];
+    endianess_t endian = ENDIAN_LSB;
+
+    int option = 0;
+    // parse command line
+    while (true) {
+        option = getopt_long(argc, argv, "hm", g_options, NULL);
+        if (option == -1)
+            break;
+
+        switch (option) {
+            case 'h':
+                usage(argv[0]);
+                return 0;
+            case 'm':
+                endian = ENDIAN_MSB;
+                break;
+            default:
+                usage(argv[0]);
+                return -1;
+        }
+    }
+
+    if (optind >= argc) {
+        ERROR("Quote path not specified\n");
+        usage(argv[0]);
+        return -1;
+    }
+
+    const char* path = argv[optind++];
 
     ssize_t quote_size = 0;
     uint8_t* quote = read_file(path, &quote_size);
     if (!quote)
         return -1;
 
+    set_endianess(endian);
     display_quote(quote, quote_size);
     return 0;
 }

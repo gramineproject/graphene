@@ -34,6 +34,7 @@
 struct option g_options[] = {
     { "help", no_argument, 0, 'h' },
     { "verbose", no_argument, 0, 'v' },
+    { "msb", no_argument, 0, 'm' },
     { "quote-path", required_argument, 0, 'q' },
     { "api-key", required_argument, 0, 'k' },
     { "nonce", required_argument, 0, 'n' },
@@ -56,6 +57,7 @@ void usage(const char* exec) {
     INFO("Available general options:\n");
     INFO("  --help, -h                Display this help\n");
     INFO("  --verbose, -v             Enable verbose output\n");
+    INFO("  --msb, -m                 Print/parse hex strings in big-endian order\n");
     INFO("  --api-key, -k STRING      IAS API key\n");
     INFO("Available sigrl options:\n");
     INFO("  --gid, -g STRING          EPID group ID (hex string)\n");
@@ -153,10 +155,11 @@ int main(int argc, char* argv[]) {
     char* sigrl_path    = NULL;
     char* report_url    = IAS_URL_REPORT;
     char* sigrl_url     = IAS_URL_SIGRL;
+    endianess_t endian  = ENDIAN_LSB;
 
     // parse command line
     while (true) {
-        option = getopt_long(argc, argv, "hvq:k:n:r:s:c:a:g:i:R:S:", g_options, NULL);
+        option = getopt_long(argc, argv, "hvmq:k:n:r:s:c:a:g:i:R:S:", g_options, NULL);
         if (option == -1)
             break;
 
@@ -166,6 +169,9 @@ int main(int argc, char* argv[]) {
                 return 0;
             case 'v':
                 set_verbose(true);
+                break;
+            case 'm':
+                endian = ENDIAN_MSB;
                 break;
             case 'q':
                 quote_path = optarg;
@@ -206,13 +212,15 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    set_endianess(endian);
+
     if (optind >= argc) {
         ERROR("Request not specified\n");
         usage(argv[0]);
         return -1;
     }
 
-    mode = argv[optind++]; 
+    mode = argv[optind++];
 
     if (!api_key) {
         ERROR("API key not specified\n");

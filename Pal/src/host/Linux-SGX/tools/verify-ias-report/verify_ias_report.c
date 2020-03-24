@@ -22,6 +22,7 @@
 struct option g_options[] = {
     { "help", no_argument, 0, 'h' },
     { "verbose", no_argument, 0, 'v' },
+    { "msb", no_argument, 0, 'm' },
     { "report-path", required_argument, 0, 'r' },
     { "sig-path", required_argument, 0, 's' },
     { "allow-outdated-tcb", no_argument, 0, 'o' },
@@ -36,20 +37,21 @@ struct option g_options[] = {
 };
 
 void usage(const char* exec) {
-    printf("Usage: %s [options]\n", exec);
-    printf("Available options:\n");
-    printf("  --help, -h                Display this help\n");
-    printf("  --verbose, -v             Enable verbose output\n");
-    printf("  --report-path, -r PATH    Path to the IAS report\n");
-    printf("  --sig-path, -s PATH       Path to the IAS report's signature\n");
-    printf("  --allow-outdated-tcb, -o  Treat IAS status GROUP_OUT_OF_DATE as OK\n");
-    printf("  --nonce, -n STRING        Nonce that's expected in the report (optional)\n");
-    printf("  --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)\n");
-    printf("  --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)\n");
-    printf("  --report-data, -R STRING  Expected report_data field (hex string, optional)\n");
-    printf("  --isv-prod-id, -P NUMBER  Expected isv_prod_id field (uint16_t, optional)\n");
-    printf("  --isv-svn, -V NUMBER      Expected isv_svn field (uint16_t, optional)\n");
-    printf("  --ias-pubkey, -i PATH     Path to IAS public RSA key (PEM format, optional)\n");
+    INFO("Usage: %s [options]\n", exec);
+    INFO("Available options:\n");
+    INFO("  --help, -h                Display this help\n");
+    INFO("  --verbose, -v             Enable verbose output\n");
+    INFO("  --msb, -m                 Print/parse hex strings in big-endian order\n");
+    INFO("  --report-path, -r PATH    Path to the IAS report\n");
+    INFO("  --sig-path, -s PATH       Path to the IAS report's signature\n");
+    INFO("  --allow-outdated-tcb, -o  Treat IAS status GROUP_OUT_OF_DATE as OK\n");
+    INFO("  --nonce, -n STRING        Nonce that's expected in the report (optional)\n");
+    INFO("  --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)\n");
+    INFO("  --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)\n");
+    INFO("  --report-data, -R STRING  Expected report_data field (hex string, optional)\n");
+    INFO("  --isv-prod-id, -P NUMBER  Expected isv_prod_id field (uint16_t, optional)\n");
+    INFO("  --isv-svn, -V NUMBER      Expected isv_svn field (uint16_t, optional)\n");
+    INFO("  --ias-pubkey, -i PATH     Path to IAS public RSA key (PEM format, optional)\n");
 }
 
 int main(int argc, char* argv[]) {
@@ -66,10 +68,11 @@ int main(int argc, char* argv[]) {
     char* isv_prod_id       = NULL;
     char* isv_svn           = NULL;
     char* ias_pubkey_path   = NULL;
+    endianess_t endian      = ENDIAN_LSB;
 
     // parse command line
     while (true) {
-        option = getopt_long(argc, argv, "hvr:s:on:S:E:R:P:V:i:", g_options, NULL);
+        option = getopt_long(argc, argv, "hvmr:s:on:S:E:R:P:V:i:", g_options, NULL);
         if (option == -1)
             break;
 
@@ -79,6 +82,9 @@ int main(int argc, char* argv[]) {
                 return 0;
             case 'v':
                 set_verbose(true);
+                break;
+            case 'm':
+                endian = ENDIAN_MSB;
                 break;
             case 'r':
                 report_path = optarg;
@@ -115,6 +121,8 @@ int main(int argc, char* argv[]) {
                 return -1;
         }
     }
+
+    set_endianess(endian);
 
     if (!report_path || !sig_path) {
         usage(argv[0]);
