@@ -42,6 +42,9 @@ class TC_00_Basic(RegressionTestCase):
 
         self.assertIn("Success!\n", stderr)
 
+    def test_002_avl_tree(self):
+        _, _ = self.run_binary(['avl_tree_test'])
+
 class TC_01_Bootstrap(RegressionTestCase):
     def test_100_basic_boostrapping(self):
         stdout, stderr = self.run_binary(['Bootstrap'])

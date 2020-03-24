@@ -87,6 +87,7 @@ crypto/mbedtls/crypto/library/aes.c: crypto/mbedtls/CMakeLists.txt crypto/mbedtl
 $(filter-out crypto/mbedtls/crypto/library/aes.c,$(patsubst %.o,%.c,$(crypto_mbedtls_library_objs))): crypto/mbedtls/crypto/library/aes.c
 
 objs += \
+	avl_tree.o \
 	crypto/udivmodti4.o \
 	graphene/config.o \
 	graphene/path.o \
