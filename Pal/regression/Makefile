@@ -11,6 +11,7 @@ preloads = \
 executables = \
 	..Bootstrap \
 	AtomicMath \
+	avl_tree_test \
 	AvxDisable \
 	Bootstrap \
 	Bootstrap2 \

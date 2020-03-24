@@ -1,7 +1,5 @@
 #include <assert.h>
 #include "pal_debug.h"
-/* workaround: warn is not exported by pal. but pal_printf is */
-#define warn pal_printf
 
 #include "hex.h"
 
