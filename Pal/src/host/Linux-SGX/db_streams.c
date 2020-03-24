@@ -46,12 +46,13 @@ typedef __kernel_pid_t pid_t;
 #include <linux/wait.h>
 
 #define DUMMYPAYLOAD "dummypayload"
-#define DUMMYPAYLOADSIZE sizeof(DUMMYPAYLOAD)
+#define DUMMYPAYLOADSIZE (sizeof(DUMMYPAYLOAD))
 
 struct hdl_header {
-    unsigned short fds : (MAX_FDS);
-    unsigned short data_size : (16 - (MAX_FDS));
+    uint8_t fds;       /* bitmask of host file descriptors corresponding to PAL handle */
+    size_t  data_size; /* total size of serialized PAL handle */
 };
+static_assert((sizeof(((struct hdl_header*)0)->fds) * 8) >= MAX_FDS, "insufficient fds size");
 
 static size_t addr_size(const struct sockaddr* addr) {
     switch (addr->sa_family) {
@@ -171,7 +172,7 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size)
     memcpy(hdl, data, size);
     size_t hdlsz = handle_size(hdl);
 
-    /* update corresponding handle fields to point to serialized fields */
+    /* update handle fields to point to correct contents (located right after handle itself) */
     switch (PAL_GET_TYPE(hdl)) {
         case pal_type_file:
             hdl->file.realpath = hdl->file.realpath ? (PAL_STR)hdl + hdlsz : NULL;
@@ -246,7 +247,7 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
             fds[nfds++] = cargo->generic.fds[i];
         }
 
-    /* first send hdl_hdr so the recipient knows how many FDs were transfered + how large is cargo */
+    /* first send hdl_hdr so the recipient knows how many FDs were transferred + how large is cargo */
     ret = ocall_send(fd, &hdl_hdr, sizeof(struct hdl_header), NULL, 0, NULL, 0);
     if (IS_ERR(ret)) {
         free(hdl_data);
@@ -255,16 +256,16 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 
     /* construct ancillary data of FDs-to-transfer in a control message */
     size_t fds_size = nfds * sizeof(int);
-    char cbuf[sizeof(struct cmsghdr) + fds_size];
+    char control_buf[sizeof(struct cmsghdr) + fds_size];
 
-    struct cmsghdr* chdr = (struct cmsghdr*)cbuf;
-    chdr->cmsg_level     = SOL_SOCKET;
-    chdr->cmsg_type      = SCM_RIGHTS;
-    chdr->cmsg_len       = CMSG_LEN(fds_size);
-    memcpy(CMSG_DATA(chdr), fds, fds_size);
+    struct cmsghdr* control_hdr = (struct cmsghdr*)control_buf;
+    control_hdr->cmsg_level     = SOL_SOCKET;
+    control_hdr->cmsg_type      = SCM_RIGHTS;
+    control_hdr->cmsg_len       = CMSG_LEN(fds_size);
+    memcpy(CMSG_DATA(control_hdr), fds, fds_size);
 
     /* next send FDs-to-transfer as ancillary data */
-    ret = ocall_send(fd, DUMMYPAYLOAD, DUMMYPAYLOADSIZE, NULL, 0, chdr, chdr->cmsg_len);
+    ret = ocall_send(fd, DUMMYPAYLOAD, DUMMYPAYLOADSIZE, NULL, 0, control_hdr, control_hdr->cmsg_len);
     if (IS_ERR(ret)) {
         free(hdl_data);
         return unix_to_pal_error(ERRNO(ret));
@@ -277,13 +278,9 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
         ret = ocall_write(fd, hdl_data, hdl_hdr.data_size);
         ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
     }
-    if (IS_ERR(ret)) {
-        free(hdl_data);
-        return ret;
-    }
 
     free(hdl_data);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+    return IS_ERR(ret) ? ret : 0;
 }
 
 /*!
@@ -303,15 +300,15 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     struct hdl_header hdl_hdr;
     int fd = hdl->process.cargo;
 
-    /* first receive hdl_hdr so that we know how many FDs were transfered + how large is cargo */
+    /* first receive hdl_hdr so that we know how many FDs were transferred + how large is cargo */
     ret = ocall_recv(fd, &hdl_hdr, sizeof(hdl_hdr), NULL, NULL, NULL, NULL);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    if ((size_t)ret < sizeof(hdl_hdr)) {
+    if ((size_t)ret != sizeof(hdl_hdr)) {
         /* This check is to shield from a Iago attack. We know that ocall_send() in _DkSendHandle()
          * transfers the message atomically, and that our ocall_recv() receives it atomically. So
-         * the only valid values for ret must be 0 or the size of the header. */
+         * the only valid values for ret must be zero or the size of the header. */
         if (!ret)
             return -PAL_ERROR_TRYAGAIN;
         return -PAL_ERROR_DENIED;
@@ -323,19 +320,18 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
         if (hdl_hdr.fds & (1U << i))
             nfds++;
 
-    size_t fds_size  = nfds * sizeof(int);
-    size_t cbuf_size = sizeof(struct cmsghdr) + fds_size;
-
-    char hdl_data[hdl_hdr.data_size];
-    char cbuf[cbuf_size];
+    size_t control_buf_size = sizeof(struct cmsghdr) + nfds * sizeof(int);
+    char control_buf[control_buf_size];
 
     /* next receive FDs-to-transfer as ancillary data */
     char dummypayload[DUMMYPAYLOADSIZE];
-    ret = ocall_recv(fd, dummypayload, DUMMYPAYLOADSIZE, NULL, NULL, cbuf, &cbuf_size);
+    ret = ocall_recv(fd, dummypayload, DUMMYPAYLOADSIZE, NULL, NULL, control_buf, &control_buf_size);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
     /* finally receive the serialized cargo as payload (possibly encrypted) */
+    char hdl_data[hdl_hdr.data_size];
+
     if (hdl->process.ssl_ctx) {
         ret = _DkStreamSecureRead(hdl->process.ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
     } else {
@@ -345,10 +341,6 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     if (IS_ERR(ret))
         return ret;
 
-    struct cmsghdr* chdr = (struct cmsghdr*)cbuf;
-    if (chdr->cmsg_type != SCM_RIGHTS)
-        return -PAL_ERROR_DENIED;
-
     /* deserialize cargo handle from a blob hdl_data */
     PAL_HANDLE handle = NULL;
     ret = handle_deserialize(&handle, hdl_data, hdl_hdr.data_size);
@@ -356,11 +348,13 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
         return ret;
 
     /* restore cargo handle's FDs from the received FDs-to-transfer */
-    int fds[fds_size];
-    nfds = (chdr->cmsg_len - sizeof(struct cmsghdr)) / sizeof(int);
-    memcpy(fds, CMSG_DATA(chdr), nfds * sizeof(int));
+    struct cmsghdr* control_hdr = (struct cmsghdr*)control_buf;
+    if (!control_hdr || control_hdr->cmsg_type != SCM_RIGHTS)
+        return -PAL_ERROR_DENIED;
 
     int fds_idx = 0;
+    int* fds = (int*)CMSG_DATA(control_hdr);
+
     for (int i = 0; i < MAX_FDS; i++) {
         if (hdl_hdr.fds & (1U << i)) {
             if (fds_idx < nfds) {

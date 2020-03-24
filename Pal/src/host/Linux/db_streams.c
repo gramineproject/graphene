@@ -44,9 +44,10 @@ typedef __kernel_pid_t pid_t;
 #include <sys/socket.h>
 
 struct hdl_header {
-    unsigned short fds : (MAX_FDS);
-    unsigned short data_size : (16 - (MAX_FDS));
+    uint8_t fds;       /* bitmask of host file descriptors corresponding to PAL handle */
+    size_t  data_size; /* total size of serialized PAL handle */
 };
+static_assert((sizeof(((struct hdl_header*)0)->fds) * 8) >= MAX_FDS, "insufficient fds size");
 
 static size_t addr_size(const struct sockaddr* addr) {
     switch (addr->sa_family) {
@@ -182,7 +183,7 @@ int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
     memcpy(hdl, data, size);
     size_t hdlsz = handle_size(hdl);
 
-    /* update corresponding handle fields to point to serialized fields */
+    /* update handle fields to point to correct contents (located right after handle itself) */
     switch (PAL_GET_TYPE(hdl)) {
         case pal_type_file:
             hdl->file.realpath = hdl->file.realpath ? (PAL_STR)hdl + hdlsz : NULL;
@@ -252,48 +253,41 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
         }
 
 
-    /* first send hdl_hdr so the recipient knows how many FDs were transfered + how large is cargo */
-    struct msghdr hdr;
-    struct cmsghdr* chdr;
+    /* first send hdl_hdr so the recipient knows how many FDs were transferred + how large is cargo */
+    struct msghdr message_hdr = {0};
     struct iovec iov[1];
 
     iov[0].iov_base    = &hdl_hdr;
-    iov[0].iov_len     = sizeof(struct hdl_header);
-    hdr.msg_name       = NULL;
-    hdr.msg_namelen    = 0;
-    hdr.msg_iov        = iov;
-    hdr.msg_iovlen     = 1;
-    hdr.msg_control    = NULL;
-    hdr.msg_controllen = 0;
-    hdr.msg_flags      = 0;
+    iov[0].iov_len     = sizeof(hdl_hdr);
+    message_hdr.msg_iov    = iov;
+    message_hdr.msg_iovlen = 1;
 
-    ret = INLINE_SYSCALL(sendmsg, 3, fd, &hdr, MSG_NOSIGNAL);
+    ret = INLINE_SYSCALL(sendmsg, 3, fd, &message_hdr, MSG_NOSIGNAL);
     if (IS_ERR(ret)) {
         free(hdl_data);
         return unix_to_pal_error(ERRNO(ret));
     }
 
     /* construct ancillary data of FDs-to-transfer in a control message */
-    char cbuf[sizeof(struct cmsghdr) + MAX_FDS * sizeof(int)];
+    char control_buf[sizeof(struct cmsghdr) + MAX_FDS * sizeof(int)];
+    message_hdr.msg_control    = control_buf;
+    message_hdr.msg_controllen = sizeof(control_buf);
 
-    iov[0].iov_base = hdl_data;
-    iov[0].iov_len  = hdl_data_size;
+    struct cmsghdr* control_hdr = CMSG_FIRSTHDR(&message_hdr);
+    control_hdr->cmsg_level = SOL_SOCKET;
+    control_hdr->cmsg_type  = SCM_RIGHTS;
+    control_hdr->cmsg_len   = CMSG_LEN(sizeof(int) * nfds);
+    memcpy(CMSG_DATA(control_hdr), fds, sizeof(int) * nfds);
 
-    hdr.msg_iov        = iov;
-    hdr.msg_iovlen     = 1;
-    hdr.msg_control    = cbuf;
-    hdr.msg_controllen = sizeof(cbuf);
-
-    chdr             = CMSG_FIRSTHDR(&hdr);
-    chdr->cmsg_level = SOL_SOCKET;
-    chdr->cmsg_type  = SCM_RIGHTS;
-    chdr->cmsg_len   = CMSG_LEN(sizeof(int) * nfds);
-    memcpy(CMSG_DATA(chdr), fds, sizeof(int) * nfds);
-
-    hdr.msg_controllen = chdr->cmsg_len;
+    message_hdr.msg_controllen = control_hdr->cmsg_len;
 
     /* finally send the serialized cargo as payload and FDs-to-transfer as ancillary data */
-    ret = INLINE_SYSCALL(sendmsg, 3, fd, &hdr, 0);
+    iov[0].iov_base = hdl_data;
+    iov[0].iov_len  = hdl_data_size;
+    message_hdr.msg_iov    = iov;
+    message_hdr.msg_iovlen = 1;
+
+    ret = INLINE_SYSCALL(sendmsg, 3, fd, &message_hdr, 0);
     if (IS_ERR(ret)) {
         free(hdl_data);
         return unix_to_pal_error(ERRNO(ret));
@@ -318,28 +312,23 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     struct hdl_header hdl_hdr;
     int fd = hdl->process.cargo;
 
-    /* first receive hdl_hdr so that we know how many FDs were transfered + how large is cargo */
-    struct msghdr hdr;
+    /* first receive hdl_hdr so that we know how many FDs were transferred + how large is cargo */
+    struct msghdr message_hdr = {0};
     struct iovec iov[1];
 
-    iov[0].iov_base    = &hdl_hdr;
-    iov[0].iov_len     = sizeof(struct hdl_header);
-    hdr.msg_name       = NULL;
-    hdr.msg_namelen    = 0;
-    hdr.msg_iov        = iov;
-    hdr.msg_iovlen     = 1;
-    hdr.msg_control    = NULL;
-    hdr.msg_controllen = 0;
-    hdr.msg_flags      = 0;
+    iov[0].iov_base = &hdl_hdr;
+    iov[0].iov_len  = sizeof(hdl_hdr);
+    message_hdr.msg_iov    = iov;
+    message_hdr.msg_iovlen = 1;
 
-    ret = INLINE_SYSCALL(recvmsg, 3, fd, &hdr, 0);
+    ret = INLINE_SYSCALL(recvmsg, 3, fd, &message_hdr, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    if ((size_t)ret < sizeof(struct hdl_header)) {
-        /* This check is to shield from a Iago attack. We know that ocall_send() in _DkSendHandle()
-         * transfers the message atomically, and that our ocall_recv() receives it atomically. So
-         * the only valid values for ret must be 0 or the size of the header. */
+    if ((size_t)ret != sizeof(hdl_hdr)) {
+        /* This check is to shield from a Iago attack. We know that sendmsg() in _DkSendHandle()
+         * transfers the message atomically, and that our recvmsg() receives it atomically. So
+         * the only valid values for ret must be zero or the size of the header. */
         if (!ret)
             return -PAL_ERROR_TRYAGAIN;
         return -PAL_ERROR_DENIED;
@@ -351,28 +340,21 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
         if (hdl_hdr.fds & (1U << i))
             nfds++;
 
-    size_t fds_size  = nfds * sizeof(int);
-    size_t cbuf_size = sizeof(struct cmsghdr) + fds_size;
-
-    void* hdl_data[hdl_hdr.data_size];
-    char cbuf[cbuf_size];
+    char control_buf[sizeof(struct cmsghdr) + nfds * sizeof(int)];
+    message_hdr.msg_control    = control_buf;
+    message_hdr.msg_controllen = sizeof(control_buf);
 
     /* finally receive the serialized cargo as payload and FDs-to-transfer as ancillary data */
+    char hdl_data[hdl_hdr.data_size];
+
     iov[0].iov_base = hdl_data;
     iov[0].iov_len  = hdl_hdr.data_size;
+    message_hdr.msg_iov    = iov;
+    message_hdr.msg_iovlen = 1;
 
-    hdr.msg_iov        = iov;
-    hdr.msg_iovlen     = 1;
-    hdr.msg_control    = cbuf;
-    hdr.msg_controllen = sizeof(struct cmsghdr) + sizeof(int) * nfds;
-
-    ret = INLINE_SYSCALL(recvmsg, 3, fd, &hdr, 0);
+    ret = INLINE_SYSCALL(recvmsg, 3, fd, &message_hdr, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
-
-    struct cmsghdr* chdr = CMSG_FIRSTHDR(&hdr);
-    if (!chdr || chdr->cmsg_type != SCM_RIGHTS)
-        return -PAL_ERROR_DENIED;
 
     /* deserialize cargo handle from a blob hdl_data */
     PAL_HANDLE handle = NULL;
@@ -381,11 +363,13 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
         return ret;
 
     /* restore cargo handle's FDs from the received FDs-to-transfer */
-    int fds[fds_size];
-    nfds = (hdr.msg_controllen - sizeof(struct cmsghdr)) / sizeof(int);
-    memcpy(fds, CMSG_DATA(chdr), nfds * sizeof(int));
+    struct cmsghdr* control_hdr = CMSG_FIRSTHDR(&message_hdr);
+    if (!control_hdr || control_hdr->cmsg_type != SCM_RIGHTS)
+        return -PAL_ERROR_DENIED;
 
     int fds_idx = 0;
+    int* fds = (int*)CMSG_DATA(control_hdr);
+
     for (int i = 0; i < MAX_FDS; i++) {
         if (hdl_hdr.fds & (1U << i)) {
             if (fds_idx < nfds) {
