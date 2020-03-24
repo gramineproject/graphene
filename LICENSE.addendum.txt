@@ -30,6 +30,7 @@ A number of files taken from other C libraries:
  ** Pal/lib/string/ - the whole directory
  ** Pal/src/dynamic_link.h, do-rel.h , dl-machine-x86_64.h
  ** Pal/src/host/Linux/include/ - whole directory - for signal API definitions
+ ** Pal/src/host/Linux-SGX/tools/common/cJSON.{c,h}
  ** We also build a patched glibc, but this could be moved into a separate repo
 
 Some app and benchmark sources are redistributed under

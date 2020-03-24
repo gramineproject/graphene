@@ -14,6 +14,8 @@
 
 #include <getopt.h>
 #include <stdio.h>
+#include <stdlib.h>
+
 #include "attestation.h"
 #include "util.h"
 
@@ -29,6 +31,7 @@ struct option g_options[] = {
     { "report-data", required_argument, 0, 'R' },
     { "isv-prod-id", required_argument, 0, 'P' },
     { "isv-svn", required_argument, 0, 'S' },
+    { "ias-pubkey", required_argument, 0, 'i' },
     { 0, 0, 0, 0 }
 };
 
@@ -44,8 +47,9 @@ void usage(const char* exec) {
     printf("  --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)\n");
     printf("  --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)\n");
     printf("  --report-data, -R STRING  Expected report_data field (hex string, optional)\n");
-    printf("  --isv-prod-id, -P STRING  Expected isv_prod_id field (hex string, optional)\n");
-    printf("  --isv-svn, -V STRING      Expected isv_svn field (hex string, optional)\n");
+    printf("  --isv-prod-id, -P NUMBER  Expected isv_prod_id field (uint16_t, optional)\n");
+    printf("  --isv-svn, -V NUMBER      Expected isv_svn field (uint16_t, optional)\n");
+    printf("  --ias-pubkey, -i PATH     Path to IAS public RSA key (PEM format, optional)\n");
 }
 
 int main(int argc, char* argv[]) {
@@ -61,11 +65,11 @@ int main(int argc, char* argv[]) {
     char* report_data       = NULL;
     char* isv_prod_id       = NULL;
     char* isv_svn           = NULL;
-    int ret                 = -1;
+    char* ias_pubkey_path   = NULL;
 
     // parse command line
     while (true) {
-        option = getopt_long(argc, argv, "hvr:s:on:S:E:R:P:V:", g_options, NULL);
+        option = getopt_long(argc, argv, "hvr:s:on:S:E:R:P:V:i:", g_options, NULL);
         if (option == -1)
             break;
 
@@ -103,6 +107,9 @@ int main(int argc, char* argv[]) {
             case 'V':
                 isv_svn = optarg;
                 break;
+            case 'i':
+                ias_pubkey_path = optarg;
+                break;
             default:
                 usage(argv[0]);
                 return -1;
@@ -111,24 +118,45 @@ int main(int argc, char* argv[]) {
 
     if (!report_path || !sig_path) {
         usage(argv[0]);
-        goto out;
+        return -1;
     }
 
     uint8_t* report = read_file(report_path, &report_size);
     if (!report) {
         ERROR("Failed to read report file '%s'\n", report_path);
-        goto out;
+        return -1;
     }
 
     uint8_t* sig = read_file(sig_path, &sig_size);
-    if (!report) {
+    if (!sig) {
         ERROR("Failed to read report signature file '%s'\n", sig_path);
-        goto out;
+        return -1;
     }
 
-    ret = verify_ias_report(report, report_size, sig, sig_size, allow_outdated_tcb, nonce,
-                            mrsigner, mrenclave, isv_prod_id, isv_svn, report_data);
+    char* ias_pubkey = NULL;
+    ssize_t ias_pubkey_size = 0;
 
-out:
+    if (ias_pubkey_path) {
+        uint8_t* buf = read_file(ias_pubkey_path, &ias_pubkey_size);
+        if (!buf) {
+            ERROR("Failed to read IAS pubkey file '%s'\n", ias_pubkey_path);
+            return -1;
+        }
+
+        // Need to add NULL terminator
+        ias_pubkey = calloc(1, ias_pubkey_size + 1);
+        if (!ias_pubkey) {
+            ERROR("No memory\n");
+            return -1;
+        }
+
+        memcpy(ias_pubkey, buf, ias_pubkey_size);
+        free(buf);
+        DBG("Using IAS public key from file '%s'\n", ias_pubkey_path);
+    }
+
+    int ret = verify_ias_report(report, report_size, sig, sig_size, allow_outdated_tcb, nonce,
+                                mrsigner, mrenclave, isv_prod_id, isv_svn, report_data, ias_pubkey);
+
     return ret;
 }
