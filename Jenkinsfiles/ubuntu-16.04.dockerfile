@@ -67,10 +67,14 @@ RUN apt-get update \
 WORKDIR /leeroy
 
 # Specify the user to execute all commands below
-USER leeroy
+#USER leeroy
 
 # Set environment variables.
 ENV HOME /leeroy
 
-# Define default command.
-CMD ["bash"]
+# Sets docker group id to the one used in the socket
+# Adds leeroy to this docker gorup
+# Starts under user leeroy with command bash
+ENTRYPOINT groupmod -g $(stat -c "%g" /var/run/docker.sock) docker \
+        && usermod -aG docker leeroy \
+        && gosu leeroy bash
