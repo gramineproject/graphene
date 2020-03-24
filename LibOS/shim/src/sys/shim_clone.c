@@ -190,11 +190,48 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     int * set_parent_tid = NULL;
     int ret = 0;
 
-    /* special case for vfork. some runtime uses clone() for vfork */
-    if (flags == (CLONE_VFORK | CLONE_VM | SIGCHLD) &&
-        user_stack_addr == NULL && parent_tidptr == NULL &&
-        child_tidptr == NULL && tls == NULL) {
-        return shim_do_vfork();
+    /* special case of vfork: call shim_do_vfork() */
+    if (flags == (CLONE_VFORK | CLONE_VM | SIGCHLD)) {
+        /* some runtimes (e.g. Glibc 2.31+) specify user_stack_addr so that the child process
+         * must resume on this supplied stack; we mimic it by temporarily rewiring the current
+         * thread's stack values to the supplied user_stack_addr */
+        void* old_stack_top = self->stack_top;
+        void* old_stack_red = self->stack_red;
+        void* old_stack     = self->stack;
+        unsigned long old_stack_rsp = self->shim_tcb->context.regs->rsp;
+
+        if (user_stack_addr) {
+            struct shim_vma_val vma;
+            lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma);
+            self->stack_top = vma.addr + vma.length;
+            self->stack_red = vma.addr;
+            self->stack     = vma.addr;
+            self->shim_tcb->context.regs->rsp = (unsigned long)user_stack_addr;
+        }
+
+        /* FIXME: we ignore parent_tidptr, child_tidptr and tls; no application seems to use a
+         *        combination of clone(CLONE_VFORK) and these parameters */
+        if (parent_tidptr || child_tidptr || tls) {
+            debug("Emulation of clone(CLONE_VFORK) ignores");
+            if (parent_tidptr)
+                debug(" parent_tidptr = %p,", parent_tidptr);
+            if (child_tidptr)
+                debug(" child_tidptr = %p,", child_tidptr);
+            if (tls)
+                debug(" tls = %p,", tls);
+            debug(" taking into account only user_stack_addr = %p\n", user_stack_addr);
+        }
+
+        ret = shim_do_vfork();
+
+        /* parent process continues here, rewire stack values back to original ones */
+        if (user_stack_addr) {
+            self->stack_top = old_stack_top;
+            self->stack_red = old_stack_red;
+            self->stack     = old_stack;
+            self->shim_tcb->context.regs->rsp = old_stack_rsp;
+        }
+        return ret;
     }
 
     const int supported_flags =

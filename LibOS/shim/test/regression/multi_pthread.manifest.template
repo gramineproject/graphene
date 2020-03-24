@@ -13,3 +13,5 @@ sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 
 # app runs with 4 parallel threads + Graphene has couple internal threads
 sgx.thread_num = 8
+
+sgx.static_address = 1

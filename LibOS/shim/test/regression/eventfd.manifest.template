@@ -14,3 +14,5 @@ sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
 sgx.trusted_files.libdl = file:../../../../Runtime/libdl.so.2
 sgx.trusted_files.libm = file:../../../../Runtime/libm.so.6
 sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
+
+sgx.static_address = 1

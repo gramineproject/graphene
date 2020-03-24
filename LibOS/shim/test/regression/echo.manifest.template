@@ -1,3 +1,6 @@
+loader.exec = file:/bin/echo
+loader.execname = file:echo
+
 loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
 loader.debug_type = none
@@ -19,29 +22,7 @@ fs.mount.bin.type = chroot
 fs.mount.bin.path = /bin
 fs.mount.bin.uri = file:/bin
 
-# allow to bind on port 8000
-net.rules.1 = 127.0.0.1:8000:0.0.0.0:0-65535
-# allow to connect to port 8000
-net.rules.2 = 0.0.0.0:0-65535:127.0.0.1:8000
-
 sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
-sgx.trusted_files.libdl = file:../../../../Runtime/libdl.so.2
-sgx.trusted_files.libm = file:../../../../Runtime/libm.so.6
-sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
-sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
-sgx.trusted_files.libstdcxx = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
-
-sgx.trusted_files.victim = file:exec_victim
-sgx.trusted_children.victim = file:exec_victim.sig
-
-sgx.allow_file_creation = 1
-
-sgx.allowed_files.tmp_dir = file:tmp/
-
-sgx.thread_num = 6
 
 sgx.static_address = 1
-
-sgx.trusted_files.sh = file:/bin/sh
-sgx.trusted_children.sh = file:sh.sig
