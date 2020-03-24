@@ -1,0 +1,33 @@
+# Memcached
+
+This directory contains the Makefile and the template manifest for the most
+recent version of Memcached (as of this writing, commit 78eb770 on May 24,
+2019). This was tested on a machine with SGX v1 and Ubuntu 16.04.
+
+The Makefile and the template manifest contain extensive comments and are made
+self-explanatory. Please review them to gain understanding in Graphene-SGX
+and requirements for applications running under Graphene-SGX.
+
+# Quick Start
+
+```sh
+# build Memcached and the final manifest
+make SGX=1
+
+# run original Memcached against a benchmark (memtier_benchmark,
+# install the benchmark on your host OS first)
+./memcached &
+memtier_benchmark --port=11211 --protocol=memcache_binary --hide-histogram
+killall memcached
+
+# run Memcached in non-SGX Graphene against a benchmark
+# (note -u nobody, for explanation see memcached.manifest.template)
+./pal_loader memcached -u nobody &
+memtier_benchmark --port=11211 --protocol=memcache_binary --hide-histogram
+killall pal-Linux
+
+# run Memcached in Graphene-SGX against a benchmark
+SGX=1 ./pal_loader memcached -u nobody &
+memtier_benchmark --port=11211 --protocol=memcache_binary --hide-histogram
+killall pal-Linux-SGX
+```

@@ -1,0 +1,12 @@
+{
+  "name": "nodejs-express-server",
+  "version": "1.0.0",
+  "description": "Node.js express server hello world sample app.",
+  "main": "helloworld.js",
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "author": "Eduardo Rodriguez",
+  "email": "erodrig@us.ibm.com",
+  "license": "ISC"
+}

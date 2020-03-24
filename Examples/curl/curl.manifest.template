@@ -1,0 +1,76 @@
+# Curl manifest file example
+#
+# This manifest was prepared and tested on Ubuntu 16.04.
+
+# Executable to load into Graphene and run.
+loader.exec = file:$(CURL_DIR)curl
+loader.execname = file:curl
+
+# LibOS layer library of Graphene. There is currently only one implementation,
+# so it is always set to libsysdb.so. 
+loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+
+# Show/hide debug log of Graphene ('inline' or 'none' respectively).
+loader.debug_type = $(GRAPHENEDEBUG)
+
+# Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
+# applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
+# paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+
+# Mount host-OS directory to required libraries (in 'uri') into in-Graphene
+# visible directory /lib (in 'path').
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.lib3.type = chroot
+fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
+fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:/etc
+
+fs.mount.curl.type = chroot
+fs.mount.curl.path = $(CURL_DIR)
+fs.mount.curl.uri = file:$(CURL_DIR)
+
+# Set enclave size (somewhat arbitrarily) to 256MB. Recall that SGX v1 requires
+# to specify enclave size at enclave creation time.
+sgx.enclave_size = 256M
+
+# Set maximum number of in-enclave threads (somewhat arbitrarily) to 4. Recall
+# that SGX v1 requires to specify the maximum number of simultaneous threads at
+# enclave creation time.
+sgx.thread_num = 4
+
+# Specify all libraries used by curl and its dependencies (including all libs
+# which can be loaded at runtime via dlopen).
+sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
+sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
+sgx.trusted_files.librt = file:$(GRAPHENEDIR)/Runtime/librt.so.1
+sgx.trusted_files.libutil = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
+sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+sgx.trusted_files.libresolv = file:$(GRAPHENEDIR)/Runtime/libresolv.so.2
+sgx.trusted_files.libnssdns = file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2
+sgx.trusted_files.libnss_files = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnss_mdns4_minimal = file:/lib/x86_64-linux-gnu/libnss_mdns4_minimal.so.2
+$(CURL_TRUSTED_LIBS)
+
+# Name Service Switch (NSS) files. Glibc reads these files as part of name-
+# service information gathering. For more info, see 'man nsswitch.conf'.
+sgx.allowed_files.nsswitch   = file:/etc/nsswitch.conf
+sgx.allowed_files.hostconf   = file:/etc/host.conf
+sgx.allowed_files.resolvconf = file:/etc/resolv.conf
+sgx.allowed_files.ethers     = file:/etc/ethers
+sgx.allowed_files.hosts      = file:/etc/hosts
+sgx.allowed_files.group      = file:/etc/group
+sgx.allowed_files.passwd     = file:/etc/passwd
+sgx.allowed_files.gaiconf    = file:/etc/gai.conf

@@ -1,0 +1,49 @@
+# Redis
+
+This directory contains the Makefile and the template manifest for the most
+recent version of Redis (as of this writing, version 5.0.5). This was tested
+on a machine with SGX v1 and Ubuntu 16.04.
+
+The Makefile and the template manifest contain extensive comments and are made
+self-explanatory. Please review them to gain understanding of Graphene-SGX
+and requirements for applications running under Graphene-SGX.
+
+# Quick Start
+
+```sh
+# build Redis and the final manifest
+make SGX=1
+
+# run original Redis against a benchmark (redis-benchmark supplied with Redis)
+./redis-server --save '' --protected-mode no &
+src/src/redis-benchmark
+kill %%
+
+# run Redis in non-SGX Graphene against a benchmark
+./pal_loader redis-server --save '' --protected-mode no &
+src/src/redis-benchmark
+kill %%
+
+# run Redis in Graphene-SGX against a benchmark
+SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+src/src/redis-benchmark
+kill %%
+```
+
+# Why this Redis configuration?
+
+Notice that we run Redis with two parameters: `save ''` and `protected-mode no`:
+
+- `save ''` disables saving DB to disk (both RDB snapshots and AOF logs). We
+  use this parameter to side-step some bugs in Graphene triggered during the
+  graceful shutdown of Redis.
+
+- `protected-mode no` allows clients to connect to Redis on any network
+  interface. Even though we use the loopback interface (which is always allowed
+  in Redis), Graphene hides this information. Therefore, we ask Redis to allow
+  clients on all interfaces.
+
+# Redis with Select
+
+By default, Redis uses the epoll mechanism of Linux to monitor client connections.
+To test Redis with select, add `USE_SELECT=1`, e.g., `make SGX=1 USE_SELECT=1`.

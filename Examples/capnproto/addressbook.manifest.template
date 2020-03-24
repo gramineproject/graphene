@@ -1,0 +1,53 @@
+# Cap'n Proto sample (Addressbook) manifest file
+#
+# This manifest was prepared and tested on Ubuntu 16.04 and Ubuntu 18.04.
+
+# Addressbook is the sample application that uses Cap'n Proto from the official
+# documentation (copied from the official GitHub repo). Must be run like this:
+#
+# ./pal_loader ./addressbook [write | dwrite]
+
+# Executable to load into Graphene and run
+loader.exec = file:addressbook
+
+# LibOS layer library of Graphene (currently only one implementation, libsysdb)
+loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+
+# Show/hide debug log of Graphene ('inline' or 'none' respectively)
+loader.debug_type = $(GRAPHENEDEBUG)
+
+# Specify paths to search for libraries (usual LD_LIBRARY_PATH syntax)
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+
+# Mount host-OS directory to Graphene glibc/runtime libraries
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+
+# Mount host-OS directory to Name Service Switch (NSS) libraries
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+# Mount host-OS directory to libcapnp lib required by Addressbook
+fs.mount.lib3.type = chroot
+fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
+fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+
+# Mount host-OS directory to NSS files required by Glibc + NSS libs
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:/etc
+
+# Set enclave size (somewhat arbitrarily) to 256MB.
+sgx.enclave_size = 256M
+
+# Set maximum number of in-enclave threads (somewhat arbitrarily) to 8
+sgx.thread_num = 8
+
+# Glibc libraries
+sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
+sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+$(TRUSTEDLIBS)
