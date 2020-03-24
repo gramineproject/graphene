@@ -1,0 +1,95 @@
+# R manifest example
+#
+# This manifest was prepared and tested on Ubuntu 16.04.
+#
+# R must be run with the pal_loader:
+#
+# ./pal_loader R.manifest <script>
+
+# The executable to load in Graphene. By default, $(R_HOME) points to the R
+# system installation. To run R from a local installation, specify R_HOME
+# when running `make` in this directory.
+loader.exec = file:$(R_EXEC)
+
+# Graphene environment, including the path of the library OS and the debug
+# option (inline/none).
+loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+loader.debug_type = $(GRAPHENEDEBUG)
+
+# Environment variables for R
+loader.env.LD_LIBRARY_PATH = $(R_HOME)/lib:/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.PATH = $(R_HOME)/bin:/usr/bin:/bin
+loader.env.USERNAME =
+loader.env.HOME =
+loader.env.PWD =
+loader.env.R_ARCH =
+loader.env.R_HOME = $(R_HOME)
+
+# Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
+# guest. Other parts of the host FS will not be available in the guest.
+
+# Default glibc files, mounted from the Runtime directory in GRAPHENEDIR.
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+
+# Host-level libraries (/lib/x86_64-linux-gnu) required by the R executable
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+# Host-level directory (/usr) required by the R executable
+fs.mount.usr.type = chroot
+fs.mount.usr.path = /usr
+fs.mount.usr.uri = file:/usr
+
+# Mount $R_HOME
+fs.mount.r_home.type = chroot
+fs.mount.r_home.path = $(R_HOME)
+fs.mount.r_home.uri = file:$(R_HOME)
+
+# Mount /tmp
+fs.mount.tmp.type = chroot
+fs.mount.tmp.path = /tmp
+fs.mount.tmp.uri = file:/tmp
+
+
+# SGX general options
+
+# Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
+# size must be specified during signing. If R needs more virtual memory than
+# the enclave size, Graphene will not be able to allocate it.
+sgx.enclave_size = 1G
+
+# Set the maximum number of enclave threads. For SGX v1, the number of enclave
+# TCSes must be specified during signing, so the application cannot use more
+# threads than the number of TCSes. Note that Graphene also creates an internal
+# thread for handling inter-process communication (IPC), and potentially another
+# thread for asynchronous events. Therefore, the actual number of threads that
+# the application can create is (sgx.thread_num - 2).
+sgx.thread_num = 4
+
+# SGX trusted libraries
+
+# Glibc libraries
+sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
+sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
+sgx.trusted_files.librt = file:$(GRAPHENEDIR)/Runtime/librt.so.1
+sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+
+# Other libraries as dependencies of R (generated from ldd from the Makefile)
+sgx.trusted_files.stats_lib = file:$(R_HOME)/library/stats/libs/stats.so
+sgx.trusted_files.lapack = file:$(R_HOME)/modules/lapack.so
+$(R_TRUSTED_LIBS)
+
+# SGX untrusted (allowed) files/directories
+sgx.allowed_files.scripts = file:scripts
+sgx.allowed_files.tmp = file:/tmp
+sgx.allowed_files.r_etc = file:$(R_HOME)/etc
+sgx.allowed_files.r_lib = file:$(R_HOME)/library
+
+# Allow creating child enclaves for sh
+sgx.trusted_files.sh = file:/bin/sh
+sgx.trusted_children.sh = file:sh.sig
