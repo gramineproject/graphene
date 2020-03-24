@@ -32,8 +32,8 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-
 #include "sgx_api.h"
+#include "sgx_attest.h"
 
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
@@ -294,5 +294,67 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     sanity_check_cpuid(leaf, subleaf, values);
 
     add_cpuid_to_cache(leaf, subleaf, values);
+    return 0;
+}
+
+int _DkAttestationQuote(const PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
+                        PAL_NUM* quote_size) {
+    if (report_data_size != sizeof(sgx_report_data_t))
+        return -PAL_ERROR_INVAL;
+
+    char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
+    ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
+                             sizeof(spid_hex));
+    if (len <= 0) {
+        SGX_DBG(DBG_E, "No Software Provider ID (sgx.ra_client_spid) specified in the manifest. "
+                "Graphene can not perform SGX quote retrieval.\n");
+        return -PAL_ERROR_INVAL;
+    }
+
+    if (len != sizeof(sgx_spid_t) * 2) {
+        SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
+        return -PAL_ERROR_INVAL;
+    }
+
+    sgx_spid_t spid;
+    for (ssize_t i = 0; i < len; i++) {
+        int8_t val = hex2dec(spid_hex[i]);
+        if (val < 0) {
+            SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
+            return -PAL_ERROR_INVAL;
+        }
+        spid[i/2] = spid[i/2] * 16 + (uint8_t)val;
+    }
+
+    char buf[2];
+    len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
+    bool linkable = (len == 1 && buf[0] == '1');
+
+    sgx_quote_nonce_t nonce;
+    int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
+    if (ret < 0)
+        return ret;
+
+    char* pal_quote       = NULL;
+    size_t pal_quote_size = 0;
+
+    ret = sgx_get_quote(&spid, &nonce, report_data, linkable, &pal_quote, &pal_quote_size);
+    if (ret < 0)
+        return ret;
+
+    if (*quote_size < pal_quote_size) {
+        *quote_size = pal_quote_size;
+        free(pal_quote);
+        return -PAL_ERROR_NOMEM;
+    }
+
+    if (quote) {
+        /* quote may be NULL if caller only wants to know the size of the quote */
+        assert(pal_quote);
+        memcpy(quote, pal_quote, pal_quote_size);
+    }
+
+    *quote_size = pal_quote_size;
+    free(pal_quote);
     return 0;
 }

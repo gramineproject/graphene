@@ -378,8 +378,8 @@ Miscellaneous
 The ABI includes seven assorted calls to get wall clock time, generate
 cryptographically-strong random bits, flush portions of instruction caches,
 increment and decrement the reference counts on objects shared between threads,
-and to coordinate threads with the security monitor during process
-serialization.
+to coordinate threads with the security monitor during process serialization,
+and to obtain an attestation quote.
 
 .. doxygenfunction:: DkSystemTimeQuery
    :project: pal
@@ -400,4 +400,7 @@ serialization.
    :project: pal
 
 .. doxygenenum:: PAL_CPUID_WORD
+   :project: pal
+
+.. doxygenfunction:: DkAttestationQuote
    :project: pal

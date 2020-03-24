@@ -925,6 +925,22 @@ enum PAL_CPUID_WORD {
 PAL_BOL
 DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
 
+/*!
+ * \brief Obtain the attestation quote with `report_data` embedded into it.
+ *
+ * Currently, works only for Linux-SGX PAL, where `report_data` is a 64B blob and `quote` is an
+ * SGX quote obtained from the Quoting Enclave via AESM service.
+ *
+ * \param[in]     report_data       Report data with arbitrary contents (typically uniquely
+ *                                  identifies this Graphene instance).
+ * \param[in]     report_data_size  Size in bytes of report data.
+ * \param[out]    quote             Attestation quote with report data embedded.
+ * \param[in,out] quote_size        Caller specifies maximum size allocated for `quote`; on return,
+ *                                  contains actual size of `quote`.
+ */
+PAL_BOL DkAttestationQuote(PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
+                           PAL_NUM* quote_size);
+
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \
     __asm__ (".symver " #real "," #name "@@" #version "\n")
