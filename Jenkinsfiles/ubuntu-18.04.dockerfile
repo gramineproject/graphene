@@ -13,6 +13,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     gawk \
     gettext \
     git \
+    gosu \
     libapr1-dev \
     libaprutil1-dev \
     libelf-dev \
@@ -68,15 +69,18 @@ RUN mkdir -p /opt/intel && chown 1001 /opt/intel
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
 
-# Specify the user to execute all commands below
-#USER leeroy
-
 # Set environment variables.
 ENV HOME /leeroy
 
-# Sets docker group id to the one used in the socket
-# Adds leeroy to this docker gorup
-# Starts under user leeroy with command bash
-ENTRYPOINT groupmod -g $(stat -c "%g" /var/run/docker.sock) docker \
-        && usermod -aG docker leeroy \
-        && gosu leeroy bash
+# Copy entrypoint script
+COPY entrypoint.sh /
+
+# Make entrypoint script executable
+RUN chmod u+x /entrypoint.sh
+
+# Entrypoint script which a) assigns docker group the gid of /var/run/docker.sock, b) adds leeroy to
+# the (new) docker group id, and c) execs the specified or default command under user leeroy
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default starts bash
+CMD ["bash"]

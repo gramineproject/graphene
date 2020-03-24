@@ -1,6 +1,9 @@
 # Start with 16.04
 FROM ubuntu:16.04
 
+# Copy entrypoint script
+COPY entrypoint.sh /
+
 # Add steps here to set up dependencies
 RUN apt-get update \
     && apt-get install -y \
@@ -14,6 +17,7 @@ RUN apt-get update \
        gawk \
        gettext \
        git \
+       gosu \
        libapr1-dev \
        libaprutil1-dev \
        libexpat1 \
@@ -61,20 +65,20 @@ RUN apt-get update \
     && rm -f /leeroy/.rnd \
 
 # Make a directory for the intel driver
-    && mkdir -p /opt/intel && chown 1001 /opt/intel
+    && mkdir -p /opt/intel && chown 1001 /opt/intel \
+
+# Make entrypoint script executable
+    && chmod u+x /entrypoint.sh
 
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
 
-# Specify the user to execute all commands below
-#USER leeroy
-
 # Set environment variables.
 ENV HOME /leeroy
 
-# Sets docker group id to the one used in the socket
-# Adds leeroy to this docker gorup
-# Starts under user leeroy with command bash
-ENTRYPOINT groupmod -g $(stat -c "%g" /var/run/docker.sock) docker \
-        && usermod -aG docker leeroy \
-        && gosu leeroy bash
+# Entrypoint script which a) assigns docker group the gid of /var/run/docker.sock, b) adds leeroy to
+# the (new) docker group id, and c) execs the specified or default command under user leeroy
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default starts bash
+CMD ["bash"]
