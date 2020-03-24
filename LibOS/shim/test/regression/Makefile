@@ -51,6 +51,7 @@ c_executables = \
 	stat_invalid_args \
 	str_close_leak \
 	syscall \
+	system \
 	tcp_ipv6_v6only \
 	tcp_msg_peek \
 	udp \
@@ -61,6 +62,7 @@ cxx_executables = bootstrap-c++
 
 manifests = \
 	manifest \
+	echo.manifest \
 	eventfd.manifest \
 	exec_victim.manifest \
 	exit_group.manifest \
@@ -78,14 +80,17 @@ manifests = \
 	multi_pthread_exitless.manifest \
 	openmp.manifest \
 	proc-path.manifest \
+	sh.manifest \
 	shared_object.manifest
 
 exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
-	file_check_policy_strict.manifest \
+	echo.manifest \
 	file_check_policy_allow_all_but_log.manifest \
-	multi_pthread_exitless.manifest
+	file_check_policy_strict.manifest \
+	multi_pthread_exitless.manifest \
+	sh.manifest
 
 target = \
 	$(exec_target) \

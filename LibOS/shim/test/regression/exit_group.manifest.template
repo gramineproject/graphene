@@ -13,3 +13,5 @@ sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 
 # Test uses 5 threads plus Graphene has up to two internal threads.
 sgx.thread_num = 7
+
+sgx.static_address = 1

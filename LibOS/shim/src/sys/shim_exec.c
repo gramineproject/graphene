@@ -112,11 +112,14 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     UPDATE_PROFILE_INTERVAL();
 
     DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
-    DkVirtualMemoryFree(old_stack_red, old_stack - old_stack_red);
-
-    if (bkeep_munmap(old_stack, old_stack_top - old_stack, 0) < 0 ||
-        bkeep_munmap(old_stack_red, old_stack - old_stack_red, 0) < 0)
+    if (bkeep_munmap(old_stack, old_stack_top - old_stack, 0) < 0)
         BUG();
+
+    if (old_stack - old_stack_red > 0) {
+        DkVirtualMemoryFree(old_stack_red, old_stack - old_stack_red);
+        if (bkeep_munmap(old_stack_red, old_stack - old_stack_red, 0) < 0)
+            BUG();
+    }
 
     remove_loaded_libraries();
     clean_link_map_list();
