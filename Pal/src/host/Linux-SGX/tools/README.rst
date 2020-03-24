@@ -31,24 +31,29 @@ SGX quote dump
 
 Displays internal structure of an SGX quote::
 
-    > ./quote_dump enclave.quote
-    version           : 0200
-    sign_type         : 0100
-    epid_group_id     : ef0a0000
-    qe_svn            : 0700
-    pce_svn           : 0600
+    Usage: quote_dump [options] <quote path>
+    Available options:
+      --help, -h  Display this help
+      --msb, -m   Display hex strings in big-endian order
+
+    $ quote_dump -m gr.quote
+    version           : 0002
+    sign_type         : 0001
+    epid_group_id     : 00000aef
+    qe_svn            : 0007
+    pce_svn           : 0006
     xeid              : 00000000
-    basename          : 655afa33faa5b9cc5e9e241fa229b99400000000000000000000000000000000
+    basename          : 0000000000000000000000000000000094b929a21f249e5eccb9a5fa33fa5a65
     report_body       :
-     cpu_svn          : 080effff010200000000000000000000
+     cpu_svn          : 000000000000000000000201ffff0e08
      misc_select      : 00000000
      reserved1        : 000000000000000000000000
      isv_ext_prod_id  : 00000000000000000000000000000000
-     attributes.flags : 0700000000000000
-     attributes.xfrm  : 1f00000000000000
-     mr_enclave       : 03b3b784d26f030f58451860b05d60b73fe71b6056b14ea5401f40402c10694d
+     attributes.flags : 0000000000000007
+     attributes.xfrm  : 000000000000001f
+     mr_enclave       : 4d69102c40401f40a54eb156601be73fb7605db0601845580f036fd284b7b303
      reserved2        : 0000000000000000000000000000000000000000000000000000000000000000
-     mr_signer        : 577b180dbcdae37bd9f26444189e3ba78ad85bd03515bf26f5c4455c5284b214
+     mr_signer        : 14b284525c45c4f526bf1535d05bd88aa73b9e184464f2d97be3dabc0d187b57
      reserved3        : 0000000000000000000000000000000000000000000000000000000000000000
      config_id        : 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
      isv_prod_id      : 0000
@@ -56,9 +61,10 @@ Displays internal structure of an SGX quote::
      config_svn       : 0000
      reserved4        : 000000000000000000000000000000000000000000000000000000000000000000000000000000000000
      isv_family_id    : 00000000000000000000000000000000
-     report_data      : 0100000000000000722ce121e376a44b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+     report_data      : 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004ba476e321e12c720000000000000001
     signature_len     : 680 (0x2a8)
-    signature         : a22de3fa...
+    signature         : 2e13c6a3...
+
 
 Intel Attestation Service submitter
 -----------------------------------
@@ -73,6 +79,7 @@ and for verifying attestation evidence (enclave quote)::
     Available general options:
       --help, -h                Display this help
       --verbose, -v             Enable verbose output
+      --msb, -m                 Print/parse hex strings in big-endian order
       --api-key, -k STRING      IAS API key
     Available sigrl options:
       --gid, -g STRING          EPID group ID (hex string)
@@ -83,7 +90,7 @@ and for verifying attestation evidence (enclave quote)::
       --quote-path, -q PATH     Path to quote to submit
       --nonce, -n STRING        Nonce to use (optional)
       --report-path, -r PATH    Path to save IAS report to
-      --sig-path, -s PATH       Path to save IAS report's signature to (optional)
+      --sig-path, -s PATH       Path to save IAS report's signature to
       --cert-path, -c PATH      Path to save IAS certificate to (optional)
       --advisory-path, -a PATH  Path to save IAS advisories to (optional)
       --report-url, -R URL      URL for the IAS attestation report endpoint (default:
@@ -121,6 +128,7 @@ that the quote from the report contains expected values::
     Available options:
       --help, -h                Display this help
       --verbose, -v             Enable verbose output
+      --msb, -m                 Print/parse hex strings in big-endian order
       --report-path, -r PATH    Path to the IAS report
       --sig-path, -s PATH       Path to the IAS report's signature
       --allow-outdated-tcb, -o  Treat IAS status GROUP_OUT_OF_DATE as OK
@@ -128,13 +136,16 @@ that the quote from the report contains expected values::
       --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)
       --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)
       --report-data, -R STRING  Expected report_data field (hex string, optional)
-      --isv-prod-id, -P STRING  Expected isv_prod_id field (hex string, optional)
-      --isv-svn, -V STRING      Expected isv_svn field (hex string, optional)
+      --isv-prod-id, -P NUMBER  Expected isv_prod_id field (uint16_t, optional)
+      --isv-svn, -V NUMBER      Expected isv_svn field (uint16_t, optional)
+      --ias-pubkey, -i PATH     Path to IAS public RSA key (PEM format, optional)
 
 Example report verification with all options enabled::
 
-    $ verify_ias_report -r rp -s sp -n thisisnonce -o -S 577b180dbcdae37bd9f26444189e3ba78Ad85Bd03515bf26f5c4455c5284B214 -E 03b3b784d26f030f58451860b05d60b73fe71b6056b14ea5401f40402c10694d -v -R 0100000000000000722ce121e376a44b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 -P 0000 -V 0001
+    $ verify_ias_report -v -m -r rp -s sp -i ias.pem -o -n thisisnonce -S 14b284525c45c4f526bf1535d05bd88aa73b9e184464f2d97be3dabc0d187b57 -E 4d69102c40401f40a54eb156601be73fb7605db0601845580f036fd284b7b303 -R 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004ba476e321e12c720000000000000001 -P 0 -V 0
     Verbose output enabled
+    Endianess set to MSB
+    Using IAS public key from file 'ias.pem'
     IAS key: RSA, 2048 bits
     Decoded IAS signature size: 256 bytes
     IAS report: signature verified correctly
@@ -145,4 +156,5 @@ Example report verification with all options enabled::
     Quote: mr_signer OK
     Quote: mr_enclave OK
     Quote: isv_prod_id OK
-    verify_quote: Quote: invalid isv_svn (0 < expected 256)
+    Quote: isv_svn OK
+    Quote: report_data OK
