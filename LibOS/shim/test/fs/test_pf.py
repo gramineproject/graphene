@@ -85,6 +85,13 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.verify_open_close(stdout, stderr, input_path, output_path)
 
     # override to change input dir (from plaintext to encrypted)
+    def test_101_open_flags(self):
+        # the test binary expects a path to file that will get created
+        file_path = os.path.join(self.OUTPUT_DIR, 'test_101') # new file
+        stdout, stderr = self.run_binary(['open_flags', file_path])
+        self.verify_open_flags(stdout, stderr)
+
+    # override to change input dir (from plaintext to encrypted)
     def test_115_seek_tell(self):
         # the test binary expects a path to read-only (existing) file and two paths to files that
         # will get created

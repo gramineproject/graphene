@@ -73,11 +73,25 @@ class TC_00_FileSystem(RegressionTestCase):
         self.assertIn('fclose(' + output_path + ') output 1 OK', stdout)
         self.assertIn('fclose(' + output_path + ') output 2 OK', stdout)
 
+    def verify_open_flags(self, stdout, stderr):
+        self.assertNotIn('ERROR: ', stderr)
+        self.assertIn('open(O_CREAT|O_EXCL|O_RDWR) [doesn\'t exist] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_EXCL|O_RDWR) [exists] failed OK', stdout)
+        self.assertIn('open(O_CREAT|O_RDWR) [exists] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_RDWR) [doesn\'t exist] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_TRUNC|O_RDWR) [doesn\'t exist] succeeded OK', stdout)
+        self.assertIn('open(O_CREAT|O_TRUNC|O_RDWR) [exists] succeeded OK', stdout)
+
     def test_100_open_close(self):
         input_path = self.INPUT_FILES[-1] # existing file
         output_path = os.path.join(self.OUTPUT_DIR, 'test_100') # new file to be created
         stdout, stderr = self.run_binary(['open_close', input_path, output_path])
         self.verify_open_close(stdout, stderr, input_path, output_path)
+
+    def test_101_open_flags(self):
+        file_path = os.path.join(self.OUTPUT_DIR, 'test_101') # new file to be created
+        stdout, stderr = self.run_binary(['open_flags', file_path])
+        self.verify_open_flags(stdout, stderr)
 
     def test_110_read_write(self):
         file_path = os.path.join(self.OUTPUT_DIR, 'test_110') # new file to be created

@@ -10,6 +10,7 @@ execs = \
 	$(copy_execs) \
 	delete \
 	open_close \
+	open_flags \
 	read_write \
 	seek_tell \
 	stat \
