@@ -87,7 +87,7 @@ Here is an example manifest file::
 More examples can be found in the test directories (``LibOS/shim/test``). We
 have also tested several applications, such as GCC, Bash, and Apache.
 The manifest files for these applications are provided in the
-individual directories under ``LibOS/shim/test/apps``.
+individual directories under ``Examples``.
 
 For the full documentation of the Graphene manifest syntax, see the `Graphene
 documentation

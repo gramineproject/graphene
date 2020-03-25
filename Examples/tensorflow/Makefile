@@ -2,7 +2,7 @@ manifests = $(addsuffix .manifest,label_image)
 exec_target = $(manifests)
 target = label_image
 
-GRAPHENEDIR ?= ../../../../..
+GRAPHENEDIR ?= ../..
 TF_DIR ?= tensorflow
 BAZEL_BIN ?= $(HOME)/bin/bazel
 

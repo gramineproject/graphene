@@ -21,9 +21,7 @@ Quick Start
 
 4. Test LMBench Application::
 
-      cd ..
-      git submodule update --init apps
-      cd apps/lmbench
+      cd ../../../../Examples/lmbench
       make
       cd lmbench-2.5/bin/linux
       ./pal_loader lat_syscall null
@@ -90,9 +88,7 @@ the process status of :command:`aesm_service`.
 
 8. Test LMBench Application::
 
-      cd $GRAPHENE_DIR
-      git submodule update --init -- LibOS/shim/test/apps
-      cd $GRAPHENE_DIR/LibOS/shim/test/apps/lmbench
+      cd $GRAPHENE_DIR/Examples/lmbench
       make SGX=1
       cd lmbench-2.5/bin/linux
       SGX=1 ./pal_loader lat_syscall null

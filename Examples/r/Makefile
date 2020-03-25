@@ -14,7 +14,7 @@ R_HOME ?= /usr/lib/R
 R_EXEC = $(R_HOME)/bin/exec/R
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= ../../../../..
+GRAPHENEDIR ?= ../..
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline

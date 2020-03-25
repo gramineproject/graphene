@@ -17,7 +17,7 @@ INSTALLDIR = $(LMBENCHDIR)/bin/linux
 LMBENCHCONFIG = $(INSTALLDIR)$(shell $(LMBENCHDIR)/scripts/config)
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= ../../../../..
+GRAPHENEDIR ?= ../..
 
 # If GRAPHENEDIR is a relative path, extend the path from where LMBench is installed
 ifeq ($(patsubst /%,,$(GRAPHENEDIR)),)

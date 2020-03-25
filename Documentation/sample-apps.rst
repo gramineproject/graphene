@@ -13,11 +13,11 @@ LMBench
 -------
 
 The LMBench source and scripts are stored in the directory
-:file:`LibOS/shim/test/apps/lmbench`. Many convenient commands are written in
-the Makefile inside the directory. The following steps compile and run LMBench
-in a |~| native environment and under Graphene::
+:file:`Examples/lmbench`. Many convenient commands are written in the Makefile
+inside the directory. The following steps compile and run LMBench in a |~|
+native environment and under Graphene::
 
-   cd LibOS/shim/test/apps/lmbench
+   cd Examples/lmbench
    make                  # compile lmbench and set up manifests as target of Graphene tests
    make test-native      # run the whole package in native environment
    make test-graphene    # run the whole package in Graphene
@@ -33,7 +33,7 @@ The file with the largest number as suffix will be the latest output. For
 debugging purposes, you may want to test each LMBench test individually. To do
 that, run the following commands::
 
-   cd LibOS/shim/test/apps/lmbench
+   cd Examples/lmbench
    cd lmbench-2.5/bin/linux/
    ./lat_syscall null        # run the specific test, for example, lat_syscall
    ./pal lat_syscall null    # run lat_syscall in Graphene
@@ -55,7 +55,7 @@ Python
 
 To run Python, first prepare the manifest::
 
-   cd LibOS/shim/test/apps/python
+   cd Examples/python-simple
    make
 
    # or under SGX
@@ -79,7 +79,7 @@ R
 
 To run R, first prepare the manifest::
 
-   cd LibOS/shim/test/apps/r
+   cd Examples/r
    make
 
    # or under SGX:
@@ -99,7 +99,7 @@ GCC
 
 We prepared several C/C++ source files to test the performance of file I/O. The
 scripts and the tested source files can be found in
-:file:`LibOS/shim/test/apps/gcc/test_files`. The source files include:
+:file:`Examples/gcc/test_files`. The source files include:
 
 * :file:`helloworld.c`: an extremely small source file
 * :file:`gzip.c`: a |~| larger real-world application
@@ -110,7 +110,7 @@ scripts and the tested source files can be found in
 To test compilation of these source files, first prepare the GCC manifest to
 compile the program::
 
-   cd LibOS/shim/test/apps/gcc
+   cd Examples/gcc
    make
 
 To test GCC, run :command:`gcc.manifest` as an executable. The manifest file is
@@ -130,10 +130,9 @@ Lighttpd
 Lighttpd can be used to test the TCP latency and throughput of Graphene and/or
 Graphene-SGX, in either single-threaded or multi-threaded environment. The
 scripts and the source code for Lighttpd can be found in
-:file:`LibOS/shim/test/apps/lighttpd`. To build Lighttpd, run the following
-command::
+:file:`Examples/lighttpd`. To build Lighttpd, run the following commands::
 
-   cd LibOS/shim/test/apps/lighttpd
+   cd Examples/lighttpd
    make
    # or under SGX:
    make SGX=1
@@ -183,10 +182,9 @@ Apache
 
 Apache is a |~| commercial-class web server that can be used to test the TCP
 latency and throughput of Graphene. The scripts and the source code can be found
-in :file:`LibOS/shim/test/apps/apache`. To build Apache, run the following
-command::
+in :file:`Examples/apache`. To build Apache, run the following command::
 
-   cd LibOS/shim/test/apps/apache
+   cd Examples/apache
    make
    # or under SGX:
    make SGX=1
@@ -218,11 +216,10 @@ Busybox
 -------
 
 Busybox is a standalone shell including general-purpose system utilities. The
-scripts and the source code for Busybox is stored in
-:file:`LibOS/shim/apps/busybox`. To build the source code with the proper
-manifest, run the following commands::
+scripts and the source code for Busybox is stored in :file:`Examples/busybox`.
+To build the source code with the proper manifest, run the following commands::
 
-   cd LibOS/shim/test/apps/busybox
+   cd Examples/busybox
    make
    # or under SGX:
    make SGX=1
@@ -242,10 +239,10 @@ Bash
 ----
 
 Bash is the most commonly used shell utility in Linux. The scripts and the
-source code for Bash are stored in :file:`LibOS/shim/apps/bash`. To build the
-source code with the proper manifest, simply run the following commands::
+source code for Bash are stored in :file:`Examples/bash`. To build the source
+code with the proper manifest, simply run the following commands::
 
-   cd LibOS/shim/test/apps/bash
+   cd Examples/bash
    make
    # or under SGX:
    make SGX=1
