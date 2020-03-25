@@ -2,7 +2,7 @@
 FROM ubuntu:16.04
 
 # Copy entrypoint script
-COPY entrypoint.sh /
+COPY Jenkinsfiles/entrypoint.sh /
 
 # Add steps here to set up dependencies
 RUN apt-get update \

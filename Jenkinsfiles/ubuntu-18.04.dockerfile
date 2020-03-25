@@ -73,7 +73,7 @@ WORKDIR /leeroy
 ENV HOME /leeroy
 
 # Copy entrypoint script
-COPY entrypoint.sh /
+COPY Jenkinsfiles/entrypoint.sh /
 
 # Make entrypoint script executable
 RUN chmod u+x /entrypoint.sh
