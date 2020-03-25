@@ -932,8 +932,9 @@ DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM
  * SGX quote obtained from the Quoting Enclave via AESM service.
  *
  * \param[in]     report_data       Report data with arbitrary contents (typically uniquely
- *                                  identifies this Graphene instance).
- * \param[in]     report_data_size  Size in bytes of report data.
+ *                                  identifies this Graphene instance). Must be a 64B buffer
+ *                                  in case of SGX PAL.
+ * \param[in]     report_data_size  Size in bytes of report data. Must be 64 in case of SGX PAL.
  * \param[out]    quote             Attestation quote with report data embedded.
  * \param[in,out] quote_size        Caller specifies maximum size allocated for `quote`; on return,
  *                                  contains actual size of `quote`.
