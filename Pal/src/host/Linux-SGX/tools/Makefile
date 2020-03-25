@@ -1,6 +1,6 @@
 include ../../../../../Scripts/Makefile.configs
 
-targets = all clean install
+targets = all clean distclean install
 
 .PHONY: $(targets)
 $(targets):

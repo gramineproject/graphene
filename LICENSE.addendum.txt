@@ -12,8 +12,10 @@ RSA's MD5 algorithm (LibOS/shim/src/utils/md5.c) - RSA custom attribution licens
 
 Internet Software Consortium (permissive license): Pal/lib/network/inet_pton.c
 
-MIT JOS (mix of MIT and BSD licenses:
+MIT JOS (mix of MIT and BSD licenses):
 * Pal/lib/stdlib/printfmt.c
+
+cJSON - MIT
 
 A number of files taken from other C libraries:
 * musl - MIT
@@ -30,7 +32,6 @@ A number of files taken from other C libraries:
  ** Pal/lib/string/ - the whole directory
  ** Pal/src/dynamic_link.h, do-rel.h , dl-machine-x86_64.h
  ** Pal/src/host/Linux/include/ - whole directory - for signal API definitions
- ** Pal/src/host/Linux-SGX/tools/common/cJSON.{c,h}
  ** We also build a patched glibc, but this could be moved into a separate repo
 
 Some app and benchmark sources are redistributed under

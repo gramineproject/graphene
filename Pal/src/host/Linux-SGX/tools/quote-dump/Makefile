@@ -23,3 +23,6 @@ install:
 .PHONY: clean
 clean:
 	$(RM) *.o quote_dump
+
+.PHONY: distclean
+distclean: clean
