@@ -119,7 +119,7 @@ class Diff:
             # not on whitelist: always complain
             return True
 
-        # on whitelist and outside diff: don't complain
+        # on whitelist: don't complain
         return False
 
 def main():
