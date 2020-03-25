@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
     char* sigrl_path    = NULL;
     char* report_url    = IAS_URL_REPORT;
     char* sigrl_url     = IAS_URL_SIGRL;
-    endianess_t endian  = ENDIAN_LSB;
+    endianness_t endian = ENDIAN_LSB;
 
     // parse command line
     while (true) {
@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    set_endianess(endian);
+    set_endianness(endian);
 
     if (optind >= argc) {
         ERROR("Request not specified\n");

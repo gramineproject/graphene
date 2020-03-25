@@ -14,9 +14,11 @@
 
 #include <mbedtls/md.h>
 #include <mbedtls/pk.h>
+#include <stdalign.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "api.h"
 #include "attestation.h"
 #include "cJSON.h"
 #include "pal_crypto.h"
@@ -80,6 +82,7 @@ void display_quote(const void* quote_data, size_t quote_size) {
         return;
     }
 
+    assert(IS_ALIGNED_PTR_POW2(quote_data, alignof(sgx_quote_t)));
     sgx_quote_t* quote = (sgx_quote_t*)quote_data;
     INFO("version           : ");
     HEXDUMP(quote->version);
@@ -145,6 +148,12 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
     size_t ias_sig_size = 0;
 
     // Drop trailing newlines
+    if (ias_sig_b64_size == 0) {
+        ret = -1;
+        ERROR("Invalid signature size\n");
+        goto out;
+    }
+
     while (ias_sig_b64[ias_sig_b64_size - 1] == '\n' || ias_sig_b64[ias_sig_b64_size - 1] == '\r')
         ias_sig_b64[--ias_sig_b64_size] = '\0';
 
@@ -210,13 +219,9 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
     if (strcmp("OK", node->valuestring) == 0) {
         ret = 0;
         INFO("IAS report: quote status OK\n");
-    } else {
-        if (allow_outdated_tcb) {
-            if (strcmp("GROUP_OUT_OF_DATE", node->valuestring) == 0) {
-                INFO("IAS report: allowing quote status GROUP_OUT_OF_DATE\n");
-                ret = 0;
-            }
-        }
+    } else if (allow_outdated_tcb && strcmp("GROUP_OUT_OF_DATE", node->valuestring) == 0) {
+        ret = 0;
+        INFO("IAS report: allowing quote status GROUP_OUT_OF_DATE\n");
     }
 
     if (ret != 0) {
@@ -295,6 +300,8 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
                  const char* mr_enclave, const char* isv_prod_id, const char* isv_svn,
                  const char* report_data) {
     int ret = -1;
+
+    assert(IS_ALIGNED_PTR_POW2(quote_data, alignof(sgx_quote_t)));
     sgx_quote_t* quote = (sgx_quote_t*)quote_data;
 
     // Quote contained in the IAS report doesn't contain signature_len and signature fields

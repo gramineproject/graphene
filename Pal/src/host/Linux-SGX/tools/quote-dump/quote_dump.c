@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    endianess_t endian = ENDIAN_LSB;
+    endianness_t endian = ENDIAN_LSB;
 
     int option = 0;
     // parse command line
@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
     if (!quote)
         return -1;
 
-    set_endianess(endian);
+    set_endianness(endian);
     display_quote(quote, quote_size);
     return 0;
 }

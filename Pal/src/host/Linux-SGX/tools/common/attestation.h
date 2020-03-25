@@ -53,6 +53,7 @@ void display_report_body(const sgx_report_body_t* body);
  *  \param[in] isv_svn            (Optional) Expected isv_svn quote field (decimal string).
  *  \param[in] report_data        (Optional) Expected report_data quote field (hex string).
  *  \param[in] ias_pub_key_pem    (Optional) IAS public RSA key (PEM format, NULL-terminated).
+ *                                If not specified, a hardcoded Intel's key is used.
  *
  *  \return 0 on successful verification, negative value on error.
  */

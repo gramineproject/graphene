@@ -144,7 +144,7 @@ Example report verification with all options enabled::
 
     $ verify_ias_report -v -m -r rp -s sp -i ias.pem -o -n thisisnonce -S 14b284525c45c4f526bf1535d05bd88aa73b9e184464f2d97be3dabc0d187b57 -E 4d69102c40401f40a54eb156601be73fb7605db0601845580f036fd284b7b303 -R 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004ba476e321e12c720000000000000001 -P 0 -V 0
     Verbose output enabled
-    Endianess set to MSB
+    Endianness set to MSB
     Using IAS public key from file 'ias.pem'
     IAS key: RSA, 2048 bits
     Decoded IAS signature size: 256 bytes

@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     char* isv_prod_id       = NULL;
     char* isv_svn           = NULL;
     char* ias_pubkey_path   = NULL;
-    endianess_t endian      = ENDIAN_LSB;
+    endianness_t endian     = ENDIAN_LSB;
 
     // parse command line
     while (true) {
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    set_endianess(endian);
+    set_endianness(endian);
 
     if (!report_path || !sig_path) {
         usage(argv[0]);

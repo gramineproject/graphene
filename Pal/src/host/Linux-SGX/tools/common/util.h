@@ -25,15 +25,15 @@
 /* Miscellaneous helper functions */
 
 /*! Order of bytes for hex strings (display and parsing) */
-typedef enum _endianess_t {
+typedef enum _endianness_t {
     ENDIAN_LSB,
     ENDIAN_MSB,
-} endianess_t;
+} endianness_t;
 
 extern int g_stdout_fd;
 extern int g_stderr_fd;
 extern bool g_verbose;
-extern endianess_t g_endianess;
+extern endianness_t g_endianness;
 
 /* Print functions */
 #define DBG(fmt, ...)   do { if (g_verbose) dprintf(g_stdout_fd, fmt, ##__VA_ARGS__); } while (0)
@@ -46,11 +46,11 @@ void set_verbose(bool verbose);
 /*! Get verbosity level */
 bool get_verbose();
 
-/*! Set endianess for hex strings */
-void set_endianess(endianess_t endianess);
+/*! Set endianness for hex strings */
+void set_endianness(endianness_t endianness);
 
-/*! Get endianess for hex strings */
-endianess_t get_endianess(void);
+/*! Get endianness for hex strings */
+endianness_t get_endianness(void);
 
 /*! Set stdout/stderr descriptors */
 void util_set_fd(int stdout_fd, int stderr_fd);
@@ -75,5 +75,10 @@ void hexdump_mem(const void* data, size_t size);
 
 /*! Parse hex string to buffer */
 int parse_hex(const char* hex, void* buffer, size_t buffer_size);
+
+/* For PAL's assert compatibility */
+#ifndef warn
+#define warn ERROR
+#endif
 
 #endif /* UTIL_H */
