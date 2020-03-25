@@ -105,7 +105,8 @@ class Diff:
         except KeyError:
             return False
 
-    def message_is_important(self, message):
+    @staticmethod
+    def message_is_important(message):
         path = pathlib.Path(message['path'])
         for i in THE_BIG_LIST_OF_NAUGHTY_FILES:
             try:
@@ -116,10 +117,6 @@ class Diff:
                 pass
         else:
             # not on whitelist: always complain
-            return True
-
-        if (message['path'], message['line']) in self:
-            # on whitelist, but in diff: do complain
             return True
 
         # on whitelist and outside diff: don't complain
