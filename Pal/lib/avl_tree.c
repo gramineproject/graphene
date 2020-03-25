@@ -370,7 +370,8 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
 
     assert(!(node->left && node->right));
 
-    enum side side;
+    /* This initialization value has no meaning, it's just here to keep gcc happy. */
+    enum side side = LEFT;
 
     if (node->parent) {
         if (node->parent->left == node) {
