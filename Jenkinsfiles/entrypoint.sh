@@ -2,10 +2,15 @@
 
 set -e
 
+userid=`id -u $USER`
+rootid=`id -u root`
+if test "$userid" != "$rootid" ; then
+    exec $@
+else
+    if test -e "/var/run/docker.sock" ; then
+        groupmod -g $(stat -c '%g' /var/run/docker.sock) docker
+    fi
+    usermod -aG docker leeroy
 
-if test -e "/var/run/docker.sock" ; then
-    groupmod -g $(stat -c '%g' /var/run/docker.sock) docker
+    exec gosu leeroy $@
 fi
-usermod -aG docker leeroy
-
-gosu leeroy $@

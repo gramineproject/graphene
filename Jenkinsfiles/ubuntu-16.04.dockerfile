@@ -68,7 +68,8 @@ RUN apt-get update \
     && mkdir -p /opt/intel && chown 1001 /opt/intel \
 
 # Make entrypoint script executable
-    && chmod u+x /entrypoint.sh
+    && chmod u+x /entrypoint.sh \
+    && chown leeroy:leeroy /entrypoint.sh
 
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
