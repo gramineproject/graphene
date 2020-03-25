@@ -126,6 +126,21 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
     def test_140_file_truncate(self):
         self.fail()
 
+    def test_150_file_rename(self):
+        path1 = os.path.join(self.OUTPUT_DIR, 'test_150a')
+        path2 = os.path.join(self.OUTPUT_DIR, 'test_150b')
+        self.copy_input(self.ENCRYPTED_FILES[-1], path1)
+        shutil.copy(path1, path2)
+        # accessing renamed file should fail
+        cmd = [self.PF_CRYPT, 'd', '-V', '-w', self.WRAP_KEY, '-i', path2, '-o', path1]
+        try:
+            stdout, stderr = self.run_native_binary(cmd)
+        except subprocess.CalledProcessError as e:
+            self.assertNotEqual(e.returncode, 0)
+        else:
+            print('[!] Fail: successfully decrypted renamed file: ' + path2)
+            self.fail()
+
     # override to decrypt output
     def verify_copy_content(self, input, output):
         dp = os.path.join(self.OUTPUT_DIR, os.path.basename(output) + '.decrypted')
