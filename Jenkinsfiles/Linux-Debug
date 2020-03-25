@@ -39,49 +39,49 @@ pipeline {
                             make test
                             '''
                         sh '''
-                            cd LibOS/shim/test/apps/ltp
+                            cd LibOS/shim/test/ltp
                             make
                             make ltp.xml
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/python-simple
+                                cd Examples/python-simple
                                 make check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/python-scipy-insecure
+                                cd Examples/python-scipy-insecure
                                 make check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/bash
+                                cd Examples/bash
                                 make regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/curl
+                                cd Examples/curl
                                 make check
                            '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/gcc
+                                cd Examples/gcc
                                 make check
                            '''
                         }
                         timeout(time: 20, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/lmbench
+                                cd Examples/lmbench
                                 make test N_RUNS=1 ENOUGH=100
                             '''
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/redis
+                                cd Examples/redis
                                 make USE_SELECT=1
                                 make start-graphene-server &
                                 sleep 1
@@ -90,7 +90,7 @@ pipeline {
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/lighttpd
+                                cd Examples/lighttpd
                                 make
                                 make start-graphene-server &
                                 sleep 1
@@ -99,7 +99,7 @@ pipeline {
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/nginx
+                                cd Examples/nginx
                                 make
                                 make start-graphene-server &
                                 sleep 1
@@ -108,7 +108,7 @@ pipeline {
                         }
                         timeout(time: 20, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/apache
+                                cd Examples/apache
                                 make
                                 make start-graphene-server &
                                 sleep 1
@@ -118,13 +118,13 @@ pipeline {
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/blender
+                                cd Examples/blender
                                 make check
                             '''
                         }
                         sh '''
                            # Workaround LTP bug (see https://github.com/linux-test-project/ltp/issues/560 for upstream fix):
-                           git -C LibOS/shim/test/apps/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
+                           git -C LibOS/shim/test/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
 
                            ./Scripts/gitignore-test
                         '''
@@ -134,22 +134,22 @@ pipeline {
                            make GLIBC_VERSION=2.27 distclean
                            make -C LibOS/shim/test/regression clean
 
-                           make -C LibOS/shim/test/apps/ltp clean
+                           make -C LibOS/shim/test/ltp clean
                            # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
-                           rm -rf /tmp/graphene-debug.clean-check.clean/LibOS/shim/test/apps/ltp/src
-                           rm -rf LibOS/shim/test/apps/ltp/src
+                           rm -rf /tmp/graphene-debug.clean-check.clean/LibOS/shim/test/ltp/src
+                           rm -rf LibOS/shim/test/ltp/src
 
-                           make -C LibOS/shim/test/apps/python-simple clean
-                           make -C LibOS/shim/test/apps/python-scipy-insecure clean
-                           make -C LibOS/shim/test/apps/bash clean
-                           make -C LibOS/shim/test/apps/curl clean
-                           make -C LibOS/shim/test/apps/gcc clean
-                           make -C LibOS/shim/test/apps/lmbench distclean
-                           make -C LibOS/shim/test/apps/redis distclean
-                           make -C LibOS/shim/test/apps/lighttpd distclean
-                           make -C LibOS/shim/test/apps/nginx distclean
-                           make -C LibOS/shim/test/apps/apache distclean
-                           make -C LibOS/shim/test/apps/blender distclean
+                           make -C Examples/python-simple clean
+                           make -C Examples/python-scipy-insecure clean
+                           make -C Examples/bash clean
+                           make -C Examples/curl clean
+                           make -C Examples/gcc clean
+                           make -C Examples/lmbench distclean
+                           make -C Examples/redis distclean
+                           make -C Examples/lighttpd distclean
+                           make -C Examples/nginx distclean
+                           make -C Examples/apache distclean
+                           make -C Examples/blender distclean
                            make -C Pal/src PAL_HOST=Skeleton clean
 
                            ./Scripts/clean-check
@@ -157,11 +157,11 @@ pipeline {
                     }
                     post {
                         always {
-                            archiveArtifacts 'LibOS/shim/test/apps/ltp/ltp.xml'
+                            archiveArtifacts 'LibOS/shim/test/ltp/ltp.xml'
 
                             junit 'Pal/regression/pal-regression.xml'
                             junit 'LibOS/shim/test/regression/libos-regression.xml'
-                            junit 'LibOS/shim/test/apps/ltp/ltp.xml'
+                            junit 'LibOS/shim/test/ltp/ltp.xml'
                         }
                     }
                 }

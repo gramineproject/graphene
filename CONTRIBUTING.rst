@@ -181,7 +181,7 @@ currently only supported on the Linux host.
 
 To run these tests::
 
-   cd LibOS/shim/test/apps/ltp
+   cd LibOS/shim/test/ltp
    make
    make ltp.xml
    # or

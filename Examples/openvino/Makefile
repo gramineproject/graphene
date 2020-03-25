@@ -19,7 +19,7 @@ OPENVINO_DIR ?= $(THIS_DIR)openvino
 OPENVINO_COMMIT ?= ba6e22b1b5ee4cbefcc30e8d9493cddb0bb3dfdf  # corresponds to tag "2019_R2"
 
 # Relative path to Graphene root and key for enclave signing
-GRAPHENE_DIR ?= ../../../../..
+GRAPHENE_DIR ?= ../..
 GRAPHENE_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)

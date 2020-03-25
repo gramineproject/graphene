@@ -3,9 +3,9 @@ LTP_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-PALDIR  = $(LTP_DIR)/../../../../../Pal/src
-SHIMDIR = $(LTP_DIR)/../../../src
-RUNTIME = $(LTP_DIR)/../../../../../Runtime
+PALDIR  = $(LTP_DIR)/../../../../Pal/src
+SHIMDIR = $(LTP_DIR)/../../src
+RUNTIME = $(LTP_DIR)/../../../../Runtime
 
 ifeq ($(SGX),1)
 PAL_LOADER = pal_loader SGX

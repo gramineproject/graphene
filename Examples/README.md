@@ -1,17 +1,11 @@
-# Graphene Applications
+# Example Integrations
 
-This repository contains application samples for
-[Graphene Library OS](https://github.com/oscarlab/graphene).
-For how to build and run the Graphene Library OS,
-please see the README in the Graphene repository.
+This folder contains application integration examples.
 
 For instructions how to build and run each application under Graphene,
 please see the README or README.md in each subdirectory.
 
 ## How to Contribute?
-
-If you are interested in submitting an application sample for Graphene,
-please submit a pull request to this GitHub repository.
 
 Please put your application sample in a subdirectory with a
 comprehensible name. Ideally, the subdirectory name should be the same
@@ -51,16 +45,3 @@ application samples. If an application requires downloading the source
 code or binaries, please provide instructions in the `README.md`, or
 download them automatically and verify the checksums as part of the
 build process.
-
-## Contact
-
-For any questions or bug reports, please send an email to
-<support@graphene-project.io> or report an issue in the following
-GitHub repositories:
-
-- Graphene issues: <https://github.com/oscarlab/graphene/issues>
-- Application sample issues (manifest, configuration, scripts):
-  <https://github.com/oscarlab/graphene-tests/issues>
-
-Our mailing list is publicly archived
-[here](https://groups.google.com/forum/#!forum/graphene-support).

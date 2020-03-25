@@ -9,7 +9,7 @@
 #
 # Use `make clean` to remove Graphene-generated files.
 
-GRAPHENEDIR ?= ../../../../..
+GRAPHENEDIR ?= ../..
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
