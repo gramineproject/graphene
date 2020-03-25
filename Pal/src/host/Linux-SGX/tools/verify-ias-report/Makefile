@@ -23,3 +23,6 @@ install:
 .PHONY: clean
 clean:
 	$(RM) *.o verify_ias_report
+
+.PHONY: distclean
+distclean: clean

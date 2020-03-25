@@ -24,7 +24,7 @@
 
 /* Miscellaneous helper functions */
 
-/*! Order of bytes for hex strings (display and parsing */
+/*! Order of bytes for hex strings (display and parsing) */
 typedef enum _endianess_t {
     ENDIAN_LSB,
     ENDIAN_MSB,

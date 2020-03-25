@@ -23,3 +23,6 @@ install:
 .PHONY: clean
 clean:
 	$(RM) *.o ias_request
+
+.PHONY: distclean
+distclean: clean
