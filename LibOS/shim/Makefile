@@ -22,4 +22,4 @@ $(clean_targets):
 
 .PHONY: format
 format:
-	clang-format -i $(shell find . -path ./test/apps -prune -o \( -name '*.h' -o -name '*.c' \) -print)
+	clang-format -i $(shell find . -path ./test/ltp -prune -o \( -name '*.h' -o -name '*.c' \) -print)

@@ -11,7 +11,7 @@
 PROGRAMS = ls cat rm cp date
 
 # Relative path to Graphene root and key for enclave signing
-GRAPHENEDIR ?= ../../../../..
+GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)

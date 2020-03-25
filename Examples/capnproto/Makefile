@@ -12,7 +12,7 @@
 # additionally remove the Addressbook sources.
 
 # Relative path to Graphene root and key for enclave signing
-GRAPHENEDIR ?= ../../../../..
+GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src

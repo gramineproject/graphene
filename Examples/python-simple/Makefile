@@ -19,7 +19,7 @@ PYTHONDISTHOME := $(PYTHONPATH)/lib/python3/dist-packages
 PYTHONSHORTVERSION := $(subst python,,$(subst .,,$(PYTHONVERSION)))
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= ../../../../..
+GRAPHENEDIR ?= ../..
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline

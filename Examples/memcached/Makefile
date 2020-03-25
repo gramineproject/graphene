@@ -13,7 +13,7 @@
 ################################# CONSTANTS ###################################
 
 # Relative path to Graphene root
-GRAPHENEDIR = ../../../../..
+GRAPHENEDIR = ../..
 
 SRCDIR = src
 MEMCACHED_URL ?= https://memcached.org/files/memcached-1.5.21.tar.gz

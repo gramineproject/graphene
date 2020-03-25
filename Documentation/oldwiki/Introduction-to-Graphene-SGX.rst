@@ -81,7 +81,7 @@ Please note that all supporting binaries must be shipped and placed at the same 
 developer's machine. For security reasons, Graphene will not allow loading any binaries that are
 not signed/hashed.
 
-For applications that are prepared in the Graphene apps directory, such as GCC, Apache, and Bash
+For applications that are prepared in the Graphene Examples directory, such as GCC, Apache, and Bash
 (more are listed in [Run Applications in Graphene](Run-Applications-in-Graphene.md)), just type 'make SGX=1' in the corresponding
 directory. The scripts are automated to build the applications and sign their manifests in order
 to ship them to the untrusted host.
@@ -110,9 +110,9 @@ information), one can acquire an enclave token to launch Graphene with the appli
 token tool `Pal/src/host/Linux-SGX/signer/pal-sgx-get-token` to connect to the aesmd service
 and retrieve the token.
 
-For applications that are prepared in the Graphene apps directory (GCC, Apache, Bash, etc.), type
-`make SGX=1 sgx-tokens` in the corresponding directory. The scripts are automated to retrieve the
-tokens for the applications.
+For applications that are prepared in the Graphene Examples directory (GCC, Apache, Bash, etc.),
+type `make SGX=1 sgx-tokens` in the corresponding directory. The scripts are automated to retrieve
+the tokens for the applications.
 
 With the manifest (`.manifest.sgx`), the signature (`.sig`), and the token (`.token`) ready, one
 can launch Graphene-SGX to run the application. Graphene-SGX provides three options for specifying

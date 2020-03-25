@@ -1,7 +1,7 @@
 # assumes this makefile lies in cwd
 PWD := $(shell pwd)
 
-GRAPHENE_DIR = $(PWD)/../../../../..
+GRAPHENE_DIR = $(PWD)/../..
 
 BLENDER_DIR = $(PWD)/blender_dir
 BLENDER_URL ?= https://ftp.nluug.nl/pub/graphics/blender/release/Blender2.82/blender-2.82-linux64.tar.xz

@@ -13,7 +13,7 @@
 ################################# CONSTANTS ###################################
 
 # Relative path to Graphene root
-GRAPHENEDIR = ../../../../..
+GRAPHENEDIR = ../..
 
 SRCDIR = src
 BUSYBOX_URL ?= https://busybox.net/downloads/busybox-1.31.1.tar.bz2

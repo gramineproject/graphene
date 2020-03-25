@@ -25,7 +25,7 @@ LISTEN_HOST ?= 127.0.0.1
 LISTEN_PORT ?= 8002
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= $(THIS_DIR)../../../../..
+GRAPHENEDIR ?= $(THIS_DIR)../..
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline

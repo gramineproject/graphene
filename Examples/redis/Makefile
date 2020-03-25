@@ -17,7 +17,7 @@
 ################################# CONSTANTS ###################################
 
 # Relative path to Graphene root
-GRAPHENEDIR = ../../../../..
+GRAPHENEDIR = ../..
 
 SRCDIR = src
 COMMIT = 5.0.5

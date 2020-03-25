@@ -13,7 +13,7 @@ HOST ?= 127.0.0.1
 PORT ?= 8003
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= $(THIS_DIR)../../../../..
+GRAPHENEDIR ?= $(THIS_DIR)../..
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline

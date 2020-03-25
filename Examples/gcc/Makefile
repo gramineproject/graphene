@@ -1,7 +1,7 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 # Relative path to Graphene root
-GRAPHENEDIR ?= $(THIS_DIR)../../../../..
+GRAPHENEDIR ?= $(THIS_DIR)../..
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline

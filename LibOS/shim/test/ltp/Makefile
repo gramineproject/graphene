@@ -19,7 +19,7 @@ $(BUILDDIR)/runltp: $(SRCDIR)/configure
 	cd $(SRCDIR) && $(MAKE) "DESTDIR=$(PWD)" SKIP_IDCHECK=1 install
 
 $(TESTCASEDIR)/pal_loader: $(BUILDDIR)/runltp
-	ln -sf $(call relative-to,$(dir $@),../../../Runtime/pal_loader) $@
+	ln -sf $(call relative-to,$(dir $@),../../Runtime/pal_loader) $@
 
 build-manifest: $(TESTCASEDIR)/manifest.template $(TESTCASEDIR)/Makefile
 	cd $(TESTCASEDIR) && $(MAKE)

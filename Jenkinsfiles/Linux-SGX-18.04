@@ -77,13 +77,13 @@ pipeline {
 
                         // LTP is ignored under SGX because of random segfaults
                         sh '''
-                            cd LibOS/shim/test/apps/ltp
+                            cd LibOS/shim/test/ltp
                             make SGX=1 all sgx-tokens
                             make SGX=1 ltp-sgx.xml || :
                             '''
                         sh '''
                            # Workaround LTP bug (see https://github.com/linux-test-project/ltp/issues/560 for upstream fix):
-                           git -C LibOS/shim/test/apps/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
+                           git -C LibOS/shim/test/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
 
                            ./Scripts/gitignore-test
                         '''
@@ -93,23 +93,23 @@ pipeline {
                            rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
                            make SGX=1 distclean
                            make -C LibOS/shim/test/regression SGX=1 clean
-                           make -C LibOS/shim/test/apps/ltp clean
+                           make -C LibOS/shim/test/ltp clean
                            # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
-                           rm -rf /tmp/graphene-sgx-18.04.clean-check.clean/LibOS/shim/test/apps/ltp/src
-                           rm -rf LibOS/shim/test/apps/ltp/src
+                           rm -rf /tmp/graphene-sgx-18.04.clean-check.clean/LibOS/shim/test/ltp/src
+                           rm -rf LibOS/shim/test/ltp/src
 
                            ./Scripts/clean-check
                         '''
                     }
                     post {
                         always {
-                            archiveArtifacts 'LibOS/shim/test/apps/ltp/ltp-sgx.xml'
+                            archiveArtifacts 'LibOS/shim/test/ltp/ltp-sgx.xml'
 
                             junit 'Pal/regression/pal-regression.xml'
                             junit 'LibOS/shim/test/regression/libos-regression.xml'
 
                             // LTP is ignored under SGX because of random segfaults
-                            //junit 'LibOS/shim/test/apps/ltp/ltp-sgx.xml'
+                            //junit 'LibOS/shim/test/ltp/ltp-sgx.xml'
                         }
                     }
                 }
