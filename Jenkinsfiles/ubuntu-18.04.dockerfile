@@ -76,7 +76,7 @@ ENV HOME /leeroy
 COPY Jenkinsfiles/entrypoint.sh /
 
 # Make entrypoint script executable
-RUN chmod u+x /entrypoint.sh \
+RUN chmod ugo+x /entrypoint.sh \
     && chown leeroy:leeroy /entrypoint.sh
 
 # Entrypoint script which a) assigns docker group the gid of /var/run/docker.sock, b) adds leeroy to
