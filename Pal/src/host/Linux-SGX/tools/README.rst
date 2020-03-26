@@ -88,11 +88,11 @@ and for verifying attestation evidence (enclave quote)::
                                 https://api.trustedservices.intel.com/sgx/dev/attestation/v3/sigrl)
     Available report options:
       --quote-path, -q PATH     Path to quote to submit
-      --nonce, -n STRING        Nonce to use (optional)
       --report-path, -r PATH    Path to save IAS report to
       --sig-path, -s PATH       Path to save IAS report's signature to
+      --nonce, -n STRING        Nonce to use (optional)
       --cert-path, -c PATH      Path to save IAS certificate to (optional)
-      --advisory-path, -a PATH  Path to save IAS advisories to (optional)
+      --advisory-path, -a PATH  Path to save IAS security advisories to (optional)
       --report-url, -R URL      URL for the IAS attestation report endpoint (default:
                                 https://api.trustedservices.intel.com/sgx/dev/attestation/v3/report)
 
@@ -133,8 +133,8 @@ that the quote from the report contains expected values::
       --sig-path, -s PATH       Path to the IAS report's signature
       --allow-outdated-tcb, -o  Treat IAS status GROUP_OUT_OF_DATE as OK
       --nonce, -n STRING        Nonce that's expected in the report (optional)
-      --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)
-      --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)
+      --mr-signer, -S STRING    Expected mr_signer field (hex string, optional)
+      --mr-enclave, -E STRING   Expected mr_enclave field (hex string, optional)
       --report-data, -R STRING  Expected report_data field (hex string, optional)
       --isv-prod-id, -P NUMBER  Expected isv_prod_id field (uint16_t, optional)
       --isv-svn, -V NUMBER      Expected isv_svn field (uint16_t, optional)

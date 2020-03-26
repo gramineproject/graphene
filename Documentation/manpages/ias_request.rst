@@ -34,6 +34,10 @@ General options
 
    Print/parse hex strings in big-endian order.
 
+.. option:: -k, --api-key
+
+   IAS API key.
+
 Commands
 --------
 
