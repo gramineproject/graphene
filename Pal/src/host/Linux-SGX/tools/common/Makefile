@@ -3,6 +3,7 @@ include ../../../../../../Scripts/Makefile.configs
 CFLAGS += -I../.. \
           -I../../../../../include/lib \
           -I../../../../../lib/crypto/mbedtls/install/include \
+          -I../../../../../lib/crypto/mbedtls/crypto/include \
           -DCRYPTO_USE_MBEDTLS \
           -D_POSIX_C_SOURCE=200809L \
           -fPIC
