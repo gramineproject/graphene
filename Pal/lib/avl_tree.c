@@ -1,3 +1,21 @@
+/* Copyright (C) 2020 Invisible Things Lab
+                      Borys Popławski <borysp@invisiblethingslab.com>
+
+   This file is part of Graphene Library OS.
+
+   Graphene Library OS is free software: you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   Graphene Library OS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
 #include <stddef.h>
 
 #include "assert.h"
@@ -262,7 +280,7 @@ static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum s
              height_changed &= !height_increased;
         }
 
-        /* This sub-tree is balanced, but its height might have increased. */
+        /* This sub-tree is balanced, but its height might have changed. */
         if (!height_changed || !node->parent) {
             return node;
         }
@@ -302,6 +320,23 @@ void avl_tree_insert(struct avl_tree* tree, struct avl_tree_node* node) {
     if (!new_root->parent) {
         tree->root = new_root;
     }
+}
+
+void avl_tree_swap_node(struct avl_tree_node* old_node, struct avl_tree_node* new_node) {
+    avl_tree_init_node(new_node);
+
+    fixup_parent(old_node, new_node, old_node->parent);
+
+    new_node->left = old_node->left;
+    if (new_node->left) {
+        new_node->left->parent = new_node;
+    }
+    new_node->right = old_node->right;
+    if (new_node->right) {
+        new_node->right->parent = new_node;
+    }
+
+    new_node->balance = old_node->balance;
 }
 
 struct avl_tree_node* avl_tree_prev(struct avl_tree_node* node) {
@@ -348,7 +383,8 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
         signed char tmp_balance = next->balance;
 
         fixup_parent(node, next, node->parent);
-        /* In this order it works even if both next->left and next->right are NULL pointers. */
+        /* In this order it works even if both next->left and next->right are NULL pointers,
+         * because node->left is not NULL here. */
         fixup_parent(next->left, node->left, next);
         if (next == node->right) {
             next->right = node;
