@@ -46,8 +46,8 @@ void usage(const char* exec) {
     INFO("  --sig-path, -s PATH       Path to the IAS report's signature\n");
     INFO("  --allow-outdated-tcb, -o  Treat IAS status GROUP_OUT_OF_DATE as OK\n");
     INFO("  --nonce, -n STRING        Nonce that's expected in the report (optional)\n");
-    INFO("  --mr-signer, -S STRING    Expected quote MRSIGNER (hex string, optional)\n");
-    INFO("  --mr-enclave, -E STRING   Expected quote MRENCLAVE (hex string, optional)\n");
+    INFO("  --mr-signer, -S STRING    Expected mr_signer field (hex string, optional)\n");
+    INFO("  --mr-enclave, -E STRING   Expected mr_enclave field (hex string, optional)\n");
     INFO("  --report-data, -R STRING  Expected report_data field (hex string, optional)\n");
     INFO("  --isv-prod-id, -P NUMBER  Expected isv_prod_id field (uint16_t, optional)\n");
     INFO("  --isv-svn, -V NUMBER      Expected isv_svn field (uint16_t, optional)\n");
