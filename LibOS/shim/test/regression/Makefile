@@ -5,6 +5,7 @@ c_executables = \
 	bootstrap_pie \
 	bootstrap_static \
 	cpuid \
+	dev \
 	epoll_wait_timeout \
 	eventfd \
 	exec \
@@ -109,6 +110,7 @@ CFLAGS-eventfd = -pthread
 CFLAGS-futex_bitset = -pthread
 CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
+CFLAGS-proc = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -pthread
 CFLAGS-sigprocmask += -pthread
 

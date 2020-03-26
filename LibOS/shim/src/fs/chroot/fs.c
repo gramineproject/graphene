@@ -43,8 +43,6 @@
 
 #define URI_MAX_SIZE    STR_SIZE
 
-#define TTY_FILE_MODE   0666
-
 #define FILE_BUFMAP_SIZE (PAL_CB(alloc_align) * 4)
 #define FILE_BUF_SIZE (PAL_CB(alloc_align))
 
