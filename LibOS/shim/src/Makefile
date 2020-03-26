@@ -44,9 +44,14 @@ objs = \
 	fs/shim_dcache.o \
 	fs/shim_fs.o \
 	fs/shim_fs_hash.o \
+	fs/shim_fs_pseudo.o \
 	fs/shim_namei.o \
 	fs/chroot/fs.o \
 	fs/dev/fs.o \
+	fs/dev/null.o \
+	fs/dev/random.o \
+	fs/dev/std.o \
+	fs/dev/zero.o \
 	fs/eventfd/fs.o \
 	fs/pipe/fs.o \
 	fs/proc/fs.o \

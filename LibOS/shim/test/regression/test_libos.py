@@ -381,26 +381,47 @@ class TC_31_SyscallSGX(RegressionTestCase):
         self.assertIn('Hello world', stdout)
 
 class TC_40_FileSystem(RegressionTestCase):
-    def test_000_base(self):
+    def test_000_proc(self):
         stdout, _ = self.run_binary(['proc'])
-
-        # Base /proc files present
         self.assertIn('/proc/1/..', stdout)
         self.assertIn('/proc/1/cwd', stdout)
         self.assertIn('/proc/1/exe', stdout)
         self.assertIn('/proc/1/root', stdout)
         self.assertIn('/proc/1/fd', stdout)
         self.assertIn('/proc/1/maps', stdout)
+        self.assertIn('/proc/self/..', stdout)
+        self.assertIn('/proc/self/cwd', stdout)
+        self.assertIn('/proc/self/exe', stdout)
+        self.assertIn('/proc/self/root', stdout)
+        self.assertIn('/proc/self/fd', stdout)
+        self.assertIn('/proc/self/maps', stdout)
         self.assertIn('/proc/.', stdout)
         self.assertIn('/proc/1', stdout)
+        self.assertIn('/proc/2', stdout)
+        self.assertIn('/proc/3', stdout)
+        self.assertIn('/proc/4', stdout)
         self.assertIn('/proc/self', stdout)
         self.assertIn('/proc/meminfo', stdout)
         self.assertIn('/proc/cpuinfo', stdout)
+        self.assertIn('/proc/2/cwd/proc.c', stdout)
+        self.assertIn('/lib/libpthread.so', stdout)
+        self.assertIn('stack', stdout)
+        self.assertIn('vendor_id', stdout)
+
+    def test_001_dev(self):
+        stdout, _ = self.run_binary(['dev'])
+        self.assertIn('/dev/.', stdout)
+        self.assertIn('/dev/null', stdout)
+        self.assertIn('/dev/zero', stdout)
+        self.assertIn('/dev/random', stdout)
+        self.assertIn('/dev/urandom', stdout)
+        self.assertIn('/dev/stdin', stdout)
+        self.assertIn('/dev/stdout', stdout)
+        self.assertIn('/dev/stderr', stdout)
+        self.assertIn('Four bytes from /dev/urandom', stdout)
 
     def test_010_path(self):
         stdout, _ = self.run_binary(['proc-path'])
-
-        # Base /proc path present
         self.assertIn('proc path test success', stdout)
 
     def test_020_cpuinfo(self):

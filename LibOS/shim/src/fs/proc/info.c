@@ -1,40 +1,43 @@
-#define __KERNEL__
+/* Copyright (C) 2014 Stony Brook University
+   This file is part of Graphene Library OS.
 
-#include <asm/fcntl.h>
-#include <asm/mman.h>
-#include <asm/prctl.h>
-#include <asm/unistd.h>
-#include <errno.h>
-#include <linux/fcntl.h>
-#include <linux/stat.h>
-#include <stdarg.h>
+   Graphene Library OS is free software: you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_internal.h>
+   Graphene Library OS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
+/*!
+ * \file
+ *
+ * This file contains the implementation of `/proc/meminfo` and `/proc/cpuinfo`.
+ */
+
+#include "shim_fs.h"
 
 static int proc_info_mode(const char* name, mode_t* mode) {
-    // The path is implicitly set by calling this function
     __UNUSED(name);
-    *mode = 0444;
+    *mode = FILE_R_MODE | S_IFREG;
     return 0;
 }
 
 static int proc_info_stat(const char* name, struct stat* buf) {
-    // The path is implicitly set by calling this function
     __UNUSED(name);
     memset(buf, 0, sizeof(struct stat));
-    buf->st_dev = buf->st_ino = 1;
-    buf->st_mode              = 0444 | S_IFREG;
-    buf->st_uid               = 0;
-    buf->st_gid               = 0;
-    buf->st_size              = 0;
+    buf->st_dev  = 1;    /* dummy ID of device containing file */
+    buf->st_ino  = 1;    /* dummy inode number */
+    buf->st_mode = FILE_R_MODE | S_IFREG;
     return 0;
 }
 
 static int proc_meminfo_open(struct shim_handle* hdl, const char* name, int flags) {
-    // This function only serves one file
     __UNUSED(name);
     if (flags & (O_WRONLY | O_RDWR))
         return -EACCES;
@@ -187,13 +190,13 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
     return 0;
 }
 
-struct proc_fs_ops fs_meminfo = {
+struct pseudo_fs_ops fs_meminfo = {
     .mode = &proc_info_mode,
     .stat = &proc_info_stat,
     .open = &proc_meminfo_open,
 };
 
-struct proc_fs_ops fs_cpuinfo = {
+struct pseudo_fs_ops fs_cpuinfo = {
     .mode = &proc_info_mode,
     .stat = &proc_info_stat,
     .open = &proc_cpuinfo_open,

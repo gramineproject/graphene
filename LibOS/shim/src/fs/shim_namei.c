@@ -391,7 +391,12 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                         struct shim_dentry * root;
                         // not sure how to deal with this case if cur_thread isn't defined
                         assert(cur_thread);
+
+                        /* FIXME: below logic assumes that target file is under chroot; this misses
+                         *        cases like `/dev/stdin` which is a link to `/proc/self/fd/0`
+                         *        (i.e., Graphene currently fails if target is under pseudo-FS) */
                         root = cur_thread->root;
+
                         /*XXX: Check out path_reacquire here? */
                         // my_dent's refcount was incremented by lookup_dentry above,
                         // we need to not leak it here

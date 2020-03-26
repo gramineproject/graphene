@@ -171,7 +171,7 @@ static int proc_ipc_thread_link_follow_link(const char* name, struct shim_qstr* 
     return find_ipc_thread_link(name, link, NULL);
 }
 
-static const struct proc_fs_ops fs_ipc_thread_link = {
+static const struct pseudo_fs_ops fs_ipc_thread_link = {
     .open        = &proc_ipc_thread_link_open,
     .mode        = &proc_ipc_thread_link_mode,
     .stat        = &proc_ipc_thread_link_stat,
@@ -332,7 +332,7 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int 
             ;
 
         if ((void*)(ptr + 1) + l + 1 > buf_end) {
-            ret = -ENOBUFS;
+            ret = -ENOMEM;
             goto err;
         }
 
@@ -365,31 +365,27 @@ err:
     return ret;
 }
 
-const struct proc_nm_ops nm_ipc_thread = {
+const struct pseudo_name_ops nm_ipc_thread = {
     .match_name = &proc_match_ipc_thread,
     .list_name  = &proc_list_ipc_thread,
 };
 
-const struct proc_fs_ops fs_ipc_thread = {
+const struct pseudo_fs_ops fs_ipc_thread = {
     .mode = &proc_ipc_thread_dir_mode,
     .stat = &proc_ipc_thread_dir_stat,
 };
 
-const struct proc_dir dir_ipc_thread = {
-    .size = 0,
-    .ent =
-        {
-            {
-                .name   = "cwd",
+const struct pseudo_dir dir_ipc_thread = {
+    .size = 3,
+    .ent  = {
+              { .name   = "cwd",
                 .fs_ops = &fs_ipc_thread_link,
-            },
-            {
-                .name   = "exe",
+                .type   = LINUX_DT_LNK },
+              { .name   = "exe",
                 .fs_ops = &fs_ipc_thread_link,
-            },
-            {
-                .name   = "root",
+                .type   = LINUX_DT_LNK },
+              { .name   = "root",
                 .fs_ops = &fs_ipc_thread_link,
-            },
-        },
+                .type   = LINUX_DT_LNK },
+        }
 };

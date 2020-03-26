@@ -23,14 +23,16 @@
 #ifndef _SHIM_FS_H_
 #define _SHIM_FS_H_
 
+#define __KERNEL__
 #include <stdbool.h>
+#include <linux/stat.h>
 
-#include <list.h>
-#include <pal.h>
-#include <shim_defs.h>
-#include <shim_handle.h>
-#include <shim_types.h>
-#include <shim_utils.h>
+#include "list.h"
+#include "pal.h"
+#include "shim_defs.h"
+#include "shim_handle.h"
+#include "shim_types.h"
+#include "shim_utils.h"
 
 struct shim_handle;
 
@@ -521,48 +523,66 @@ extern struct shim_d_ops chroot_d_ops;
 extern struct shim_fs_ops str_fs_ops;
 extern struct shim_d_ops str_d_ops;
 
-extern struct shim_fs_ops dev_fs_ops;
-extern struct shim_d_ops dev_d_ops;
-
-extern struct shim_fs_ops config_fs_ops;
-extern struct shim_d_ops config_d_ops;
-
-extern struct shim_fs_ops proc_fs_ops;
-extern struct shim_d_ops proc_d_ops;
-
 extern struct shim_mount chroot_builtin_fs;
 extern struct shim_mount pipe_builtin_fs;
 extern struct shim_mount socket_builtin_fs;
 extern struct shim_mount epoll_builtin_fs;
 extern struct shim_mount eventfd_builtin_fs;
 
-/* proc file system */
-struct proc_nm_ops {
+/* pseudo file systems (separate treatment since they don't have associated dentries) */
+#define DIR_RX_MODE  0555
+#define FILE_RW_MODE 0666
+#define FILE_R_MODE  0444
+
+extern struct shim_fs_ops dev_fs_ops;
+extern struct shim_d_ops dev_d_ops;
+
+extern struct shim_fs_ops proc_fs_ops;
+extern struct shim_d_ops proc_d_ops;
+
+struct pseudo_name_ops {
     int (*match_name)(const char* name);
     int (*list_name)(const char* name, struct shim_dirent** buf, int count);
 };
 
-struct proc_fs_ops {
+struct pseudo_fs_ops {
     int (*open)(struct shim_handle* hdl, const char* name, int flags);
     int (*mode)(const char* name, mode_t* mode);
     int (*stat)(const char* name, struct stat* buf);
     int (*follow_link)(const char* name, struct shim_qstr* link);
 };
 
-struct proc_dir;
+struct pseudo_dir;
 
-struct proc_ent {
-    const char* name; /* A proc_callback should at least have a name or nm_ops. Otherwise, it is a
-                       * NULL-end. */
-    const struct proc_nm_ops* nm_ops;
-    const struct proc_fs_ops* fs_ops;
-    const struct proc_dir* dir;
+struct pseudo_ent {
+    /* pseudo-FS entry is identified by either hardcoded name or at-runtime name_ops */
+    const char* name;
+    const struct pseudo_name_ops* name_ops;
+    const struct pseudo_fs_ops* fs_ops;
+    const struct pseudo_dir* dir;  /* NULL if pseudo-FS entry is a file */
+    int type; /* LINUX_DT_REG, LINUX_DT_CHR, etc (if dir != NULL, then always LINUX_DT_DIR) */
 };
 
-struct proc_dir {
+struct pseudo_dir {
     int size;
-    const struct proc_ent ent[];
+    const struct pseudo_ent ent[];
 };
+
+int pseudo_mount(const char* uri, void** mount_data);
+int pseudo_unmount(void* mount_data);
+int pseudo_dir_mode(const char* name, mode_t* mode);
+int pseudo_dir_stat(const char* name, struct stat* buf);
+int pseudo_dir_open(struct shim_handle* hdl, const char* name, int flags);
+int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent* root_ent);
+int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent);
+int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
+                const struct pseudo_ent* root_ent);
+int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
+                   const struct pseudo_ent* root_ent);
+int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_ent* root_ent);
+int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_ent* root_ent);
+int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link,
+                       const struct pseudo_ent* root_ent);
 
 /* string-type file system */
 int str_add_dir(const char* path, mode_t mode, struct shim_dentry** dent);

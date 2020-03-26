@@ -12,6 +12,7 @@
 /bootstrap_pie
 /bootstrap_static
 /cpuid
+/dev
 /epoll_wait_timeout
 /eventfd
 /exec

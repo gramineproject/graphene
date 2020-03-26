@@ -202,7 +202,7 @@ static int proc_thread_link_follow_link(const char* name, struct shim_qstr* link
     return find_thread_link(name, link, NULL, NULL);
 }
 
-static const struct proc_fs_ops fs_thread_link = {
+static const struct pseudo_fs_ops fs_thread_link = {
     .open        = &proc_thread_link_open,
     .mode        = &proc_thread_link_mode,
     .stat        = &proc_thread_link_stat,
@@ -325,7 +325,7 @@ static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, 
     return err;
 }
 
-static const struct proc_nm_ops nm_thread_each_fd = {
+static const struct pseudo_name_ops nm_thread_each_fd = {
     .match_name = &proc_match_thread_each_fd,
     .list_name  = &proc_list_thread_each_fd,
 };
@@ -442,20 +442,21 @@ static int proc_thread_each_fd_follow_link(const char* name, struct shim_qstr* l
     return find_thread_each_fd(name, link, NULL);
 }
 
-static const struct proc_fs_ops fs_thread_each_fd = {
+static const struct pseudo_fs_ops fs_thread_each_fd = {
     .open        = &proc_thread_each_fd_open,
     .mode        = &proc_thread_each_fd_mode,
     .stat        = &proc_thread_each_fd_stat,
     .follow_link = &proc_thread_each_fd_follow_link,
 };
 
-static const struct proc_dir dir_fd = {
+static const struct pseudo_dir dir_fd = {
     .size = 1,
     .ent =
         {
             {
-                .nm_ops = &nm_thread_each_fd,
-                .fs_ops = &fs_thread_each_fd,
+                .name_ops = &nm_thread_each_fd,
+                .fs_ops   = &fs_thread_each_fd,
+                .type     = LINUX_DT_LNK,
             },
         },
 };
@@ -616,7 +617,7 @@ static int proc_thread_maps_stat(const char* name, struct stat* buf) {
     return 0;
 }
 
-static const struct proc_fs_ops fs_thread_maps = {
+static const struct pseudo_fs_ops fs_thread_maps = {
     .open = &proc_thread_maps_open,
     .mode = &proc_thread_maps_mode,
     .stat = &proc_thread_maps_stat,
@@ -673,7 +674,7 @@ static int proc_thread_dir_stat(const char* name, struct stat* buf) {
     return 0;
 }
 
-static const struct proc_fs_ops fs_thread_fd = {
+static const struct pseudo_fs_ops fs_thread_fd = {
     .mode = &proc_thread_dir_mode,
     .stat = &proc_thread_dir_stat,
 };
@@ -707,7 +708,7 @@ static int walk_cb(struct shim_thread* thread, void* arg, bool* unlocked) {
         ;
 
     if ((void*)(args->buf + 1) + l + 1 > (void*)args->buf_end)
-        return -ENOBUFS;
+        return -ENOMEM;
 
     struct shim_dirent* buf = args->buf;
 
@@ -738,41 +739,34 @@ static int proc_list_thread(const char* name, struct shim_dirent** buf, int len)
     return 0;
 }
 
-const struct proc_nm_ops nm_thread = {
+const struct pseudo_name_ops nm_thread = {
     .match_name = &proc_match_thread,
     .list_name  = &proc_list_thread,
 };
 
-const struct proc_fs_ops fs_thread = {
+const struct pseudo_fs_ops fs_thread = {
     .open = &proc_thread_dir_open,
     .mode = &proc_thread_dir_mode,
     .stat = &proc_thread_dir_stat,
 };
 
-const struct proc_dir dir_thread = {
+const struct pseudo_dir dir_thread = {
     .size = 5,
-    .ent =
-        {
-            {
-                .name   = "cwd",
+    .ent  = {
+              { .name   = "cwd",
                 .fs_ops = &fs_thread_link,
-            },
-            {
-                .name   = "exe",
+                .type   = LINUX_DT_LNK },
+              { .name   = "exe",
                 .fs_ops = &fs_thread_link,
-            },
-            {
-                .name   = "root",
+                .type   = LINUX_DT_LNK },
+              { .name   = "root",
                 .fs_ops = &fs_thread_link,
-            },
-            {
-                .name   = "fd",
-                .dir    = &dir_fd,
+                .type   = LINUX_DT_LNK },
+              { .name   = "fd",
                 .fs_ops = &fs_thread_fd,
-            },
-            {
-                .name   = "maps",
+                .dir    = &dir_fd },
+              { .name   = "maps",
                 .fs_ops = &fs_thread_maps,
-            },
-        },
+                .type   = LINUX_DT_REG },
+        }
 };
