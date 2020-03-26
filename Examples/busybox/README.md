@@ -30,4 +30,4 @@ ls
 ```
 
 Note that busybox can be started via manifest file (which contains path to
-the busybox binary). More about this can be read [here](https://github.com/oscarlab/graphene/wiki#run-an-application-in-the-graphene-library-os).
+the busybox binary). More about this can be read [here](https://graphene.readthedocs.io/en/latest/sample-apps.html#busybox).
