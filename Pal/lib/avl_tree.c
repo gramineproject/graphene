@@ -28,6 +28,8 @@ static void avl_tree_init_node(struct avl_tree_node* node) {
     node->balance = 0;
 }
 
+/* Inserts a node into tree, but leaves it unbalanced, i.e. all nodes on path from root to newly
+ * inserted node could have their balance field off by +1/-1 */
 static void avl_tree_insert_unbalanced(struct avl_tree* tree, struct avl_tree_node* node_to_insert) {
     assert(tree);
     assert(tree->root);
@@ -57,6 +59,8 @@ static void avl_tree_insert_unbalanced(struct avl_tree* tree, struct avl_tree_no
 }
 
 /* Maybe change name to fixup_link? */
+/* Replaces `old_node` with `new_node` fixing all necessary links. `parent` must be the parent of
+ * `old_node` before call to this. */
 static void fixup_parent(struct avl_tree_node* old_node,
                          struct avl_tree_node* new_node,
                          struct avl_tree_node* parent) {
@@ -73,6 +77,12 @@ static void fixup_parent(struct avl_tree_node* old_node,
         new_node->parent = parent;
     }
 }
+
+/*
+ * The next 4 functions do rotations (rot1 - signle, rot2 - double, which is a concatienation of two
+ * single rotations). L stands for left (counterclockwise) rotation and R for right (clockwise).
+ * The naming convention is: `p` is topmost node and parent of `q`, which in turn is parent of `r`.
+ */
 
 static void rot1L(struct avl_tree_node* q, struct avl_tree_node* p) {
     assert(q->parent == p);
@@ -206,7 +216,9 @@ static void rot2LR(struct avl_tree_node* r, struct avl_tree_node* q, struct avl_
     r->balance = 0;
 }
 
-/* Returns whether height might have changed. */
+/* Does appropriate rotation of node, which mush have disturbed balance (i.e. +2/-2).
+ * Returns whether height might have changed and sets `new_root_ptr` to root of this subtree after
+ * rotation. */
 static bool avl_tree_do_balance(struct avl_tree_node* node, struct avl_tree_node** new_root_ptr) {
     assert(node->balance == -2 || node->balance == 2);
 
@@ -247,7 +259,14 @@ enum side {
     RIGHT
 };
 
-/* Returns the root of the sub-tree that balancing stopped at. */
+/*
+ * Balances the tree going from `node` upwards, to the tree root, stopping if a subtree height
+ * did not change.
+ * `side` indicates which child of `node` had its height changed.
+ * `height_increased` is false if the subtree height decreased, true if increased.
+ *
+ * Returns the root of the subtree that balancing stopped at.
+ */
 static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum side side, bool height_increased) {
     assert(node);
 
@@ -298,7 +317,7 @@ static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum s
 void avl_tree_insert(struct avl_tree* tree, struct avl_tree_node* node) {
     avl_tree_init_node(node);
 
-    // inserting into empty tree
+    /* Inserting into an empty tree. */
     if (!tree->root) {
         tree->root = node;
         return;
@@ -368,6 +387,11 @@ struct avl_tree_node* avl_tree_next(struct avl_tree_node* node) {
 }
 
 void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
+    /* If `node` has both children, swap it with the next node. This might temporarily disturb
+     * the tree order, but only between `node` and `next`, which is ok, since we are about to
+     * remove `node` from the tree completely.
+     * This is done so that `node` has 1 child at most (if a node has 2 childern, then the next
+     * node cannot have its left child). */
     if (node->left && node->right) {
         struct avl_tree_node* next = avl_tree_next(node);
         assert(next->balance == 0 || next->balance == 1);
@@ -420,6 +444,7 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
 
     struct avl_tree_node* new_root = NULL;
 
+    /* Remove `node` from the tree. */
     if (!node->left && !node->right) {
         new_root = NULL;
         fixup_parent(node, NULL, node->parent);
@@ -431,6 +456,7 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
         fixup_parent(node, node->right, node->parent);
     }
 
+    /* After removal the tree might need balancing. */
     if (node->parent) {
         new_root = avl_tree_balance(node->parent, side, false);
     }
