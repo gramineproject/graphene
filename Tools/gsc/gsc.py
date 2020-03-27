@@ -188,7 +188,7 @@ def gsc_build(args):
     for arg in args:
         options += 1 if arg.startswith('-') else 0
 
-    if(len(args) < options + 2):
+    if len(args) < options + 2:
         print("Too few arguments.")
         print_usage("build")
         sys.exit(1)
