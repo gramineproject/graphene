@@ -132,6 +132,7 @@ static void do_test(int32_t (*get_num)(void)) {
     /* These two are equivalent, it's just an assert. */
     if (!found || !node) {
         pal_printf("avl_tree_lower_bound has not found the next element!\n");
+        DkProcessExit(1);
     }
 
     avl_tree_delete(&tree, &tmp.node);
@@ -162,12 +163,54 @@ static void do_test(int32_t (*get_num)(void)) {
     }
 }
 
+#define DIFF_ELEMENTS 0x10
+#define _STR(x) #x
+static void test_ordering(void) {
+    static_assert(ELEMENTS_COUNT > DIFF_ELEMENTS, "This test requires more than " _STR(DIFF_ELEMENTS) " elements!");
+    ssize_t i;
+
+    /* The newer node will be on the left, so we need to insert them in reverse order. */
+    for (i = ELEMENTS_COUNT - 1; i >= 0; i--) {
+        t[i].key = i / (ELEMENTS_COUNT / DIFF_ELEMENTS);
+        avl_tree_insert(&tree, &t[i].node);
+        if (!debug_avl_tree_is_balanced(&tree)) {
+            EXIT_UNBALANCED();
+        }
+    }
+
+    struct avl_tree_node* node = tree.root;
+    while (node->left) {
+        node = node->left;
+    }
+
+    struct avl_tree_node* prev = node;
+    node = avl_tree_next(prev);
+
+    while (node) {
+        /* These nodes are all a port of array `t`. */
+        if ((uintptr_t)prev >= (uintptr_t)node) {
+            pal_printf("Wrong ordering of nodes: %p %p\n", prev, node);
+            DkProcessExit(1);
+        }
+        prev = node;
+        node = avl_tree_next(prev);
+    }
+
+    for (i = 0; i < ELEMENTS_COUNT; i++) {
+        avl_tree_delete(&tree, &t[i].node);
+        if (!debug_avl_tree_is_balanced(&tree)) {
+            EXIT_UNBALANCED();
+        }
+    }
+}
+
 static int32_t rand_mod(void) {
     return rand() % 1000;
 }
 
 int main(void) {
     pal_printf("Running static tests: ");
+    test_ordering();
     srand(1337);
     do_test(rand_mod);
     do_test(rand);
