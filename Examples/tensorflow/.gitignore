@@ -1,2 +1,3 @@
 /tensorflow
 /tensorflow.tar.gz
+/bazel-*-installer-linux-*.sh
