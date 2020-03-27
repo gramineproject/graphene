@@ -20,6 +20,7 @@ endif
 
 headers = $(wildcard *.h) ../protected_files.h ../lru_cache.h
 objs = util pf_util pf_crypt
+#TODO: port pf_tamper to the new file format
 #bins = pf_crypt pf_tamper
 bins = pf_crypt
 

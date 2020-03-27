@@ -210,7 +210,7 @@ struct protected_file* load_protected_file(const char* path, int* fd, size_t siz
                                            pf_file_mode_t mode, bool create,
                                            struct protected_file* pf);
 
-/* Flush PF map buffers and optionally remove them.
+/* Flush PF map buffers and optionally remove and free them.
    If pf is NULL, process all maps containing given buffer.
    If buffer is NULL, process all maps for given pf. */
 int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove);

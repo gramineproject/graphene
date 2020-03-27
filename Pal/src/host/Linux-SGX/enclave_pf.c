@@ -468,7 +468,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     ret = 0;
 out:
     free(normpath);
-    if (ret != 0 && new)
+    if (ret < 0)
         free(new);
     return ret;
 }
@@ -482,9 +482,16 @@ static int register_protected_files(const char* key_prefix) {
         goto out;
 
     cfgbuf = malloc(cfgsize);
-    int nuris = get_config_entries(pal_state.root_config, key_prefix, cfgbuf, cfgsize);
-    if (nuris == -PAL_ERROR_INVAL)
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
         goto out;
+    }
+
+    int nuris = get_config_entries(pal_state.root_config, key_prefix, cfgbuf, cfgsize);
+    if (nuris == -PAL_ERROR_INVAL) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
 
     char key[CONFIG_MAX], uri[CONFIG_MAX];
     char* k = cfgbuf;

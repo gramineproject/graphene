@@ -70,10 +70,6 @@ typedef struct _meta_data_plain {
     uint8_t  minor_version;
 
     pf_keyid_t meta_data_key_id;
-    //sgx_cpu_svn_t    cpu_svn;
-    //sgx_isv_svn_t    isv_svn;
-    //uint8_t          use_user_kdk_key; // always true
-    //sgx_attributes_t attribute_mask;
 
     pf_mac_t meta_data_gmac;
     uint8_t  update_flag;
