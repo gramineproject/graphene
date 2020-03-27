@@ -66,15 +66,15 @@ label_image.manifest.sgx: label_image.manifest
 
 .PHONY: check
 check: default
-	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 1
+	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: run-native
 run-native: default
-	./label_image -m inception_v3.tflite -i image.bmp -t 1
+	./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: run-graphene
 run-graphene: default
-	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 1
+	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: clean
 clean:
@@ -84,7 +84,7 @@ clean:
 distclean: clean
 	$(RM) -r label_image
 	$(RM) inception_v3_2018_04_27.tgz inception_v3.pb inception_v3.tflite labels.txt image.bmp
-	$(RM) -r $(TF_DIR) tensorflow.tar.gz libtensorflow_framework.so
+	$(RM) -r $(TF_DIR) tensorflow.tar.gz libtensorflow_framework.so bazel-*-installer-linux-*.sh
 
 BAZEL_INSTALLER_HASH=17ab70344645359fd4178002f367885e9019ae7507c9c1ade8220f3628383444
 .PHONY: install-dependencies-ubuntu
