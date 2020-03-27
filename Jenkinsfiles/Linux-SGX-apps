@@ -2,7 +2,7 @@ pipeline {
         agent {
             dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile'
                          label 'sgx_slave'
-                         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx -v /var/run/docker.sock:/var/run/docker.sock"
+                         args "-u root:root -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx -v /var/run/docker.sock:/var/run/docker.sock"
                        }
         }
         stages {
