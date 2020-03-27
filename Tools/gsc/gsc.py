@@ -63,9 +63,11 @@ def generate_dockerfile(image, substitutions):
         instantiated_dfg = template_dfg.substitute(substitutions)
 
     # generate 2nd stage (based on application image)
-    with open('templates/Dockerfile.' + substitutions['distro'] + '.gscapp.template') as dfapp:
-        template_dfapp = string.Template(dfapp.read())
-        instantiated_dfapp = template_dfapp.substitute(substitutions)
+    instantiated_dfapp = ""
+    if not 'GSC_ONLY' in substitutions:
+        with open('templates/Dockerfile.' + substitutions['distro'] + '.gscapp.template') as dfapp:
+            template_dfapp = string.Template(dfapp.read())
+            instantiated_dfapp = template_dfapp.substitute(substitutions)
 
     with open('gsc-' + image + "/Dockerfile", "w") as dockerfile:
         dockerfile.write(instantiated_dfg)
@@ -96,22 +98,23 @@ def prepare_build_context(image, user_manifests, substitutions):
 def extract_manifest_keys(user_manifest):
     manifest_dic = {}
 
-    with open(user_manifest, "r") as file:
-        for line in file:
-            pound = line.find("#")
-            if pound != -1:
-                continue
+    if os.path.exists(user_manifest):
+        with open(user_manifest, "r") as file:
+            for line in file:
+                pound = line.find("#")
+                if pound != -1:
+                    continue
 
-            line = line.strip()
-            equal = line.find("=")
-            if equal != -1:
-                key = line[:equal].strip()
-                manifest_dic[key] = line[equal + 1:].strip()
+                line = line.strip()
+                equal = line.find("=")
+                if equal != -1:
+                    key = line[:equal].strip()
+                    manifest_dic[key] = line[equal + 1:].strip()
 
     return manifest_dic
 
 def get_enclave_size(manifest_dic):
-    return manifest_dic['sgx.enclave_size'] if 'sgx.enclave_size' in manifest_dic else 256
+    return manifest_dic['sgx.enclave_size'] if 'sgx.enclave_size' in manifest_dic else '256M'
 
 def prepare_substitutions(base_image, image, options, user_manifests):
     params = {
@@ -121,7 +124,10 @@ def prepare_substitutions(base_image, image, options, user_manifests):
             },
         '-L': {
                 'MAKE_LINUX_PAL': ' && make {DEBUG} WERROR=1'
-            }
+            },
+        '-G': {
+                'GSC_ONLY': ''
+        }
     }
     # default substitutions
     substitutions = {
@@ -139,6 +145,9 @@ def prepare_substitutions(base_image, image, options, user_manifests):
 
     config = load_config('config.json')
     substitutions.update(config)
+    if (config['distro'] == 'ubuntu16.04'
+        and '-L' in options):
+        substitutions['MAKE_LINUX_PAL'] += ' GLIBC_VERSION=2.27'
 
     # Image names follow the format distro/package:tag
     image_re = re.match(r'([^:]*)(:?)(.*)', image[image.rfind('/')+1:])
@@ -180,6 +189,11 @@ def gsc_build(args):
     options = 0
     for arg in args:
         options += 1 if arg.startswith('-') else 0
+
+    if(len(args) < options + 2):
+        print("Too few arguments.")
+        print_usage("build")
+        sys.exit(1)
 
     image = args[options]
     user_manifests = args[options+1:]

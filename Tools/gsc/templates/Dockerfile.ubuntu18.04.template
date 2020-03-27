@@ -1,9 +1,10 @@
 FROM ubuntu:18.04 AS graphene
 
 # Add steps here to set up dependencies
-RUN apt-get update \
-    && apt-get -y --force-yes upgrade \
-    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
+    && env DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes upgrade
+
+RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     apache2-utils \
     autoconf \
     bison \
