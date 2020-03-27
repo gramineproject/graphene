@@ -30,7 +30,8 @@ static void avl_tree_init_node(struct avl_tree_node* node) {
 
 /* Inserts a node into tree, but leaves it unbalanced, i.e. all nodes on path from root to newly
  * inserted node could have their balance field off by +1/-1 */
-static void avl_tree_insert_unbalanced(struct avl_tree* tree, struct avl_tree_node* node_to_insert) {
+static void avl_tree_insert_unbalanced(struct avl_tree* tree,
+                                       struct avl_tree_node* node_to_insert) {
     assert(tree);
     assert(tree->root);
     assert(node_to_insert);
@@ -79,7 +80,7 @@ static void fixup_parent(struct avl_tree_node* old_node,
 }
 
 /*
- * The next 4 functions do rotations (rot1 - signle, rot2 - double, which is a concatienation of two
+ * The next 4 functions do rotations (rot1 - signle, rot2 - double, which is a concatenation of two
  * single rotations). L stands for left (counterclockwise) rotation and R for right (clockwise).
  * The naming convention is: `p` is topmost node and parent of `q`, which in turn is parent of `r`.
  */
@@ -267,7 +268,8 @@ enum side {
  *
  * Returns the root of the subtree that balancing stopped at.
  */
-static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum side side, bool height_increased) {
+static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum side side,
+                                              bool height_increased) {
     assert(node);
 
     while (1) {
@@ -281,7 +283,7 @@ static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum s
                 height_changed = node->balance < 0;
                 node->balance += 1;
             }
-        } else { // side == RIGHT
+        } else {
             assert(side == RIGHT);
             if (height_increased) {
                 height_changed = node->balance >= 0;
@@ -330,10 +332,10 @@ void avl_tree_insert(struct avl_tree* tree, struct avl_tree_node* node) {
     struct avl_tree_node* new_root;
 
     if (node->parent->left == node) {
-        new_root = avl_tree_balance(node->parent, LEFT, true);
+        new_root = avl_tree_balance(node->parent, LEFT, /*height_increased=*/true);
     } else {
         assert(node->parent->right == node);
-        new_root = avl_tree_balance(node->parent, RIGHT, true);
+        new_root = avl_tree_balance(node->parent, RIGHT, /*height_increased=*/true);
     }
 
     if (!new_root->parent) {
@@ -390,7 +392,7 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     /* If `node` has both children, swap it with the next node. This might temporarily disturb
      * the tree order, but only between `node` and `next`, which is ok, since we are about to
      * remove `node` from the tree completely.
-     * This is done so that `node` has 1 child at most (if a node has 2 childern, then the next
+     * This is done so that `node` has 1 child at most (if a node has 2 children, then the next
      * node cannot have its left child). */
     if (node->left && node->right) {
         struct avl_tree_node* next = avl_tree_next(node);
@@ -430,7 +432,7 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
 
     assert(!(node->left && node->right));
 
-    /* This initialization value has no meaning, it's just here to keep gcc happy. */
+    /* This initialization value has no meaning, it's just here to keep GCC happy. */
     enum side side = LEFT;
 
     if (node->parent) {
@@ -451,22 +453,20 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     } else if (node->left && !node->right) {
         new_root = node->left;
         fixup_parent(node, node->left, node->parent);
-    } else if (!node->left && node->right) {
+    } else {
+        assert(!node->left && node->right);
         new_root = node->right;
         fixup_parent(node, node->right, node->parent);
     }
 
     /* After removal the tree might need balancing. */
     if (node->parent) {
-        new_root = avl_tree_balance(node->parent, side, false);
+        new_root = avl_tree_balance(node->parent, side, /*height_increased=*/false);
     }
 
     if ((new_root && !new_root->parent) || !node->parent) {
         tree->root = new_root;
     }
-
-    // TODO Needed?
-    avl_tree_init_node(node);
 }
 
 struct avl_tree_node* avl_tree_find_fn(struct avl_tree* tree,
