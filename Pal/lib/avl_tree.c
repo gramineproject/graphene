@@ -469,34 +469,15 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     }
 }
 
-struct avl_tree_node* avl_tree_find_fn(struct avl_tree* tree,
-                                       void* test_node,
-                                       int cmp(void*, struct avl_tree_node*)) {
-    struct avl_tree_node* node = tree->root;
-
-    while (node) {
-        int x = cmp(test_node, node);
-        if (x < 0) {
-            node = node->left;
-        } else if (x == 0) {
-            return node;
-        } else { // x > 0
-            node = node->right;
-        }
-    }
-
-    return NULL;
-}
-
 struct avl_tree_node* avl_tree_find_fn_to(struct avl_tree* tree,
-                                          struct avl_tree_node* test_node,
+                                          struct avl_tree_node* cmp_arg,
                                           bool cmp(struct avl_tree_node*, struct avl_tree_node*)) {
     struct avl_tree_node* node = tree->root;
 
     while (node) {
-        bool x = cmp(test_node, node);
+        bool x = cmp(cmp_arg, node);
         if (x) {
-            if (cmp(node, test_node)) {
+            if (cmp(node, cmp_arg)) {
                 return node;
             }
             node = node->left;
@@ -513,13 +494,13 @@ struct avl_tree_node* avl_tree_find(struct avl_tree* tree, struct avl_tree_node*
 }
 
 struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree,
-                                           void* test_node,
+                                           void* cmp_arg,
                                            int cmp(void*, struct avl_tree_node*)) {
     struct avl_tree_node* node = tree->root;
     struct avl_tree_node* ret = NULL;
 
     while (node) {
-        int x = cmp(test_node, node);
+        int x = cmp(cmp_arg, node);
         if (x <= 0) {
             ret = node;
             node = node->left;

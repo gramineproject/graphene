@@ -145,7 +145,7 @@ static void do_test(int32_t (*get_num)(void)) {
         if (!t[r].freed) {
             t[r].freed = true;
             avl_tree_delete(&tree, &t[r].node);
-            --i;
+            i--;
             if (!debug_avl_tree_is_balanced(&tree)) {
                 EXIT_UNBALANCED();
             }
