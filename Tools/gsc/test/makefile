@@ -1,5 +1,5 @@
 TESTCASES?=python3 hello-world nodejs bash numpy pytorch
-DISTRIBUTIONS?=ubuntu18.04 #ubuntu16.04
+DISTRIBUTIONS?=ubuntu18.04 ubuntu16.04
 TESTS=$(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 SGX_DEVICES=--device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
 
@@ -9,7 +9,7 @@ IMAGE_SUFFIX?=
 
 all: $(TESTS)
 	for d in $(DISTRIBUTIONS); do \
-		sed -i 's/\"distro\": \".*\"/\"distro\": \"'$${d}'\"/' ../config.json; \
+		sed 's/\"distro\": \".*\"/\"distro\": \"'$${d}'\"/' ../config.json.template > ../config.json; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
 	done
 
@@ -17,9 +17,9 @@ all: $(TESTS)
 	echo "Build base image $@.dockerfile"
 	docker build -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile .
 
-gsc-%-bash: %-bash.manifest ls.manifest
+gsc-%-bash:
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, $^)
+	cd .. && ./gsc build $(addsuffix $(IMAGE_SUFFIX), $*-bash) bash.manifest ls.manifest
 
 gsc-%-python3: %-python3.manifest
 	echo "Build graphenized image $@"
@@ -36,8 +36,7 @@ gsc-%:
 test: $(addprefix test-, $(DISTRIBUTIONS))
 	echo "[SUCCESS] Completed all GSC test cases"
 
-# FIXME: Test 9 - 11 currently not working properly
-MAXTESTNUM?=8
+MAXTESTNUM?=9
 
 test-1-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>/dev/null;
@@ -79,15 +78,15 @@ test-8-%:
 	grep -q "numpy version:" out;
 
 test-9-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' >out 2>/dev/null;
+	grep -q "ls.manifest.sgx" out;
 
 test-10-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' >out 2>/dev/null;
-	grep -q "finalize_manifests.py" out;
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")';
+	grep -q "ls.manifest.sgx" out;
 
 test-11-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' >out 2>/dev/null;
-	grep -q "finalize_manifests.py" out;
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py
 
 test-%:
 	echo "Testing $*."
