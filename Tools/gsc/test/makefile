@@ -116,6 +116,7 @@ cleanContainers:
 
 distclean: cleanContainers cleanBase cleanGSC
 	docker builder prune -a -f
+	rm ../config.json
 
 clean: cleanContainers
 	docker image prune -f
