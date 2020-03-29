@@ -3,6 +3,41 @@
 
 #include <stdbool.h>
 
+/*
+ * Example usage of this module:
+ *
+ * struct S {
+ *     int key;
+ *     struct avl_tree_node node;
+ * };
+ *
+ * bool cmp1(struct avl_tree_node* a, struct avl_tree_node* b) {
+ *     struct S* _a = container_of(a, struct S, node);
+ *     struct S* _b = container_of(b, struct S, node);
+ *     return _a->key <= _b->key;
+ * }
+ *
+ * int cmp2(void* v, struct avl_tree_node* n) {
+ *     int _v = *(int*)v;
+ *     int _n = container_of(n, struct S, node)->key;
+ *     if (_v < _n) {
+ *         return -1;
+ *     } else if (_v == _n) {
+ *         return 0;
+ *     } else { // _v > _n
+ *         return 1;
+ *     }
+ * }
+ *
+ * struct avl_tree tree = { .root = NULL, .cmp = cmp };
+ *
+ * struct S element = { .key = 42 };
+ * avl_tree_insert(&tree, &element.node);
+ *
+ * int v = 13;
+ * struct avl_tree_node* found = avl_tree_lower_bound(&tree, &v, cmp2);
+ */
+
 struct avl_tree_node {
     struct avl_tree_node* left;
     struct avl_tree_node* right;
@@ -21,26 +56,25 @@ struct avl_tree {
 void avl_tree_insert(struct avl_tree* tree, struct avl_tree_node* node);
 void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node);
 
-/* This function swaps `new_node` in place of `old_node`. `new_node` must not be in any tree (i.e.
+/*
+ * This function swaps `new_node` in place of `old_node`. `new_node` must not be in any tree (i.e.
  * it should really be a new node) and they both should compare equal with respect to tree.cmp or
- * bad things will happen. You have been warned. */
+ * bad things will happen. You have been warned. Probably the only usecase of this function is to
+ * optimize delete + insert of a node with the same key.
+ */
 void avl_tree_swap_node(struct avl_tree_node* old_node, struct avl_tree_node* new_node);
 
 /* These functions return respectively previous and next node or NULL if such does not exist.
- * O(log(n)) in worst case, but amortized O(1) */
-struct avl_tree_node* avl_tree_prev(struct avl_tree_node*);
-struct avl_tree_node* avl_tree_next(struct avl_tree_node*);
+ * O(log(n)) in worst case, but amortized O(1). */
+struct avl_tree_node* avl_tree_prev(struct avl_tree_node* node);
+struct avl_tree_node* avl_tree_next(struct avl_tree_node* node);
 
-/* Find a node that compares equal to `cmp_arg`. If `tree` has multiple nodes that compare equal,
+/*
+ * Find a node that compares equal to `cmp_arg`. If `tree` has multiple nodes that compare equal,
  * you could get *any* of them.
  * `cmp_arg` does not need to (and usually will not) be in `tree`, it is only passed as
- * an argument to `cmp`. `cmp` is used as a comparison function, so it has to be a total order (to)
- * and for all a, b: cmp(a, b) == tree->cmp(a, b) must hold. */
-struct avl_tree_node* avl_tree_find_fn_to(struct avl_tree* tree,
-                                          struct avl_tree_node* cmp_arg,
-                                          bool cmp(struct avl_tree_node*, struct avl_tree_node*));
-
-/* This is just a shorthand for `avl_tree_find_fn_to(tree, cmp_arg, tree->cmp)` */
+ * an argument to comparison function (`tree->cmp`).
+ */
 struct avl_tree_node* avl_tree_find(struct avl_tree* tree, struct avl_tree_node* cmp_arg);
 
 /*

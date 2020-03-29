@@ -77,6 +77,14 @@ __attribute__((unused)) static void debug_print(struct avl_tree_node* node) {
     pal_printf(")");
 }
 
+static size_t get_tree_size(struct avl_tree_node* node) {
+    if (!node) {
+        return 0;
+    }
+
+    return get_tree_size(node->left) + 1 + get_tree_size(node->right);
+}
+
 static void do_test(int32_t (*get_num)(void)) {
     size_t i;
 
@@ -89,6 +97,12 @@ static void do_test(int32_t (*get_num)(void)) {
         }
     }
 
+    size_t size = get_tree_size(tree.root);
+    if (size != ELEMENTS_COUNT) {
+        pal_printf("Tree has %lu elements instead of %u!", size, ELEMENTS_COUNT);
+        DkProcessExit(1);
+    }
+
     static_assert(ELEMENTS_COUNT >= 3, "This code needs at least 3 elements in the tree!");
     struct avl_tree_node* node = tree.root->left;
     while (node->right) {
@@ -98,7 +112,7 @@ static void do_test(int32_t (*get_num)(void)) {
     int64_t val = container_of(node, struct A, node)->key;
     struct avl_tree_node* found_node = avl_tree_lower_bound(&tree, &val, cmp_gen);
     if (!found_node || container_of(found_node, struct A, node)->key != val) {
-        pal_printf("avl_tree_lower_bound has not found exisitng node %ld, but returned ", val);
+        pal_printf("avl_tree_lower_bound has not found existing node %ld, but returned ", val);
         if (found_node) {
             pal_printf("%ld", container_of(found_node, struct A, node)->key);
         } else {
@@ -187,7 +201,7 @@ static void test_ordering(void) {
     node = avl_tree_next(prev);
 
     while (node) {
-        /* These nodes are all a port of array `t`. */
+        /* These nodes are all a part of array `t`. */
         if ((uintptr_t)prev >= (uintptr_t)node) {
             pal_printf("Wrong ordering of nodes: %p %p\n", prev, node);
             DkProcessExit(1);
@@ -205,7 +219,7 @@ static void test_ordering(void) {
 }
 
 static int32_t rand_mod(void) {
-    return rand() % 1000;
+    return rand() % (ELEMENTS_COUNT / 4);
 }
 
 int main(void) {

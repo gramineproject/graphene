@@ -80,7 +80,7 @@ static void fixup_parent(struct avl_tree_node* old_node,
 }
 
 /*
- * The next 4 functions do rotations (rot1 - signle, rot2 - double, which is a concatenation of two
+ * The next 4 functions do rotations (rot1 - single, rot2 - double, which is a concatenation of two
  * single rotations). L stands for left (counterclockwise) rotation and R for right (clockwise).
  * The naming convention is: `p` is topmost node and parent of `q`, which in turn is parent of `r`.
  */
@@ -298,7 +298,7 @@ static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum s
         if (node->balance == -2 || node->balance == 2) {
              height_changed = avl_tree_do_balance(node, &node);
              /* On inserting height never changes. */
-             height_changed &= !height_increased;
+             height_changed = height_increased ? false : height_changed;
         }
 
         /* This sub-tree is balanced, but its height might have changed. */
@@ -469,9 +469,10 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     }
 }
 
-struct avl_tree_node* avl_tree_find_fn_to(struct avl_tree* tree,
-                                          struct avl_tree_node* cmp_arg,
-                                          bool cmp(struct avl_tree_node*, struct avl_tree_node*)) {
+static struct avl_tree_node*
+    avl_tree_find_fn_to(struct avl_tree* tree,
+                        struct avl_tree_node* cmp_arg,
+                        bool cmp(struct avl_tree_node*, struct avl_tree_node*)) {
     struct avl_tree_node* node = tree->root;
 
     while (node) {
@@ -512,6 +513,8 @@ struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree,
     return ret;
 }
 
+/* This function returns whether a tree with root in `node` is avl-balanced and updates `*size`
+ * with height of the tree. */
 static bool avl_tree_is_balanced_size(struct avl_tree_node* node, size_t* size) {
     if (!node) {
         *size = 0;
