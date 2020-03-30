@@ -82,7 +82,7 @@ test-9-%:
 	grep -q "ls.manifest.sgx" out;
 
 test-10-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")';
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' >out 2>/dev/null;
 	grep -q "ls.manifest.sgx" out;
 
 test-11-%:
