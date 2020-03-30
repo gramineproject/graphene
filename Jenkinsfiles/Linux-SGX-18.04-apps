@@ -41,7 +41,7 @@ pipeline {
                         '''
                         sh '''
                             cd Tools/gsc/test
-                            sed -i 's/2.5/1.9/g' ../config.json
+                            sed -e 's/2.5/1.9/g' -e sed 's/\"distro\": \".*\"/\"distro\":\"'ubuntu18.04'\"/' ../config.json.template > ../config.json
                             make TESTCASES=python3 DISTRIBUTIONS=ubuntu18.04 IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
                         '''
                     }
