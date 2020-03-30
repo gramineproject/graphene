@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 
+#include "api.h"
 #include "assert.h"
 #include "avl_tree.h"
 
@@ -59,12 +60,11 @@ static void avl_tree_insert_unbalanced(struct avl_tree* tree,
     }
 }
 
-/* Maybe change name to fixup_link? */
 /* Replaces `old_node` with `new_node` fixing all necessary links. `parent` must be the parent of
  * `old_node` before call to this. */
-static void fixup_parent(struct avl_tree_node* old_node,
-                         struct avl_tree_node* new_node,
-                         struct avl_tree_node* parent) {
+static void fixup_link(struct avl_tree_node* old_node,
+                       struct avl_tree_node* new_node,
+                       struct avl_tree_node* parent) {
     if (parent) {
         if (parent->left == old_node) {
             parent->left = new_node;
@@ -91,7 +91,7 @@ static void rot1L(struct avl_tree_node* q, struct avl_tree_node* p) {
     assert(q->balance == 1 || q->balance == 0);
     assert(p->balance == 2);
 
-    fixup_parent(p, q, p->parent);
+    fixup_link(/*old_node=*/p, /*new_node=*/q, /*parent=*/p->parent);
 
     p->right = q->left;
     if (q->left) {
@@ -116,7 +116,7 @@ static void rot1R(struct avl_tree_node* q, struct avl_tree_node* p) {
     assert(q->balance == -1 || q->balance == 0);
     assert(p->balance == -2);
 
-    fixup_parent(p, q, p->parent);
+    fixup_link(/*old_node=*/p, /*new_node=*/q, /*parent=*/p->parent);
 
     p->left = q->right;
     if (q->right) {
@@ -145,7 +145,7 @@ static void rot2RL(struct avl_tree_node* r, struct avl_tree_node* q, struct avl_
     assert(q->left == r);
     assert(-1 <= r->balance && r->balance <= 1);
 
-    fixup_parent(p, r, p->parent);
+    fixup_link(/*old_node=*/p, /*new_node=*/r, /*parent=*/p->parent);
 
     p->right = r->left;
     if (r->left) {
@@ -186,7 +186,7 @@ static void rot2LR(struct avl_tree_node* r, struct avl_tree_node* q, struct avl_
     assert(q->right == r);
     assert(-1 <= r->balance && r->balance <= 1);
 
-    fixup_parent(p, r, p->parent);
+    fixup_link(/*old_node=*/p, /*new_node=*/r, /*parent=*/p->parent);
 
     q->right = r->left;
     if (r->left) {
@@ -346,7 +346,7 @@ void avl_tree_insert(struct avl_tree* tree, struct avl_tree_node* node) {
 void avl_tree_swap_node(struct avl_tree_node* old_node, struct avl_tree_node* new_node) {
     avl_tree_init_node(new_node);
 
-    fixup_parent(old_node, new_node, old_node->parent);
+    fixup_link(/*old_node=*/old_node, /*new_node=*/new_node, /*parent=*/old_node->parent);
 
     new_node->left = old_node->left;
     if (new_node->left) {
@@ -408,19 +408,19 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
         struct avl_tree_node* tmp_parent = next->parent;
         signed char tmp_balance = next->balance;
 
-        fixup_parent(node, next, node->parent);
+        fixup_link(/*old_node=*/node, /*new_node=*/next, /*parent=*/node->parent);
         /* In this order it works even if both next->left and next->right are NULL pointers,
          * because node->left is not NULL here. */
-        fixup_parent(next->left, node->left, next);
+        fixup_link(/*old_node=*/next->left, /*new_node=*/node->left, /*parent=*/next);
         if (next == node->right) {
             next->right = node;
             node->parent = next;
         } else {
-            fixup_parent(next->right, node->right, next);
-            fixup_parent(next, node, tmp_parent);
+            fixup_link(/*old_node=*/next->right, /*new_node=*/node->right, /*parent=*/next);
+            fixup_link(/*old_node=*/next, /*new_node=*/node, /*parent=*/tmp_parent);
         }
         node->left = NULL;
-        fixup_parent(node->right, tmp_right, node);
+        fixup_link(/*old_node=*/node->right, /*new_node=*/tmp_right, /*parent=*/node);
 
         next->balance = node->balance;
         node->balance = tmp_balance;
@@ -449,14 +449,14 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     /* Remove `node` from the tree. */
     if (!node->left && !node->right) {
         new_root = NULL;
-        fixup_parent(node, NULL, node->parent);
+        fixup_link(/*old_node=*/node, /*new_node=*/NULL, /*parent=*/node->parent);
     } else if (node->left && !node->right) {
         new_root = node->left;
-        fixup_parent(node, node->left, node->parent);
+        fixup_link(/*old_node=*/node, /*new_node=*/node->left, /*parent=*/node->parent);
     } else {
         assert(!node->left && node->right);
         new_root = node->right;
-        fixup_parent(node, node->right, node->parent);
+        fixup_link(/*old_node=*/node, /*new_node=*/node->right, /*parent=*/node->parent);
     }
 
     /* After removal the tree might need balancing. */
@@ -494,23 +494,31 @@ struct avl_tree_node* avl_tree_find(struct avl_tree* tree, struct avl_tree_node*
     return avl_tree_find_fn_to(tree, node, tree->cmp);
 }
 
-struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree,
-                                           void* cmp_arg,
-                                           int cmp(void*, struct avl_tree_node*)) {
+struct avl_tree_node* avl_tree_lower_bound_fn(struct avl_tree* tree,
+                                              void* cmp_arg,
+                                              bool cmp(void*, struct avl_tree_node*)) {
     struct avl_tree_node* node = tree->root;
     struct avl_tree_node* ret = NULL;
 
     while (node) {
-        int x = cmp(cmp_arg, node);
-        if (x <= 0) {
+        if (cmp(cmp_arg, node)) {
             ret = node;
             node = node->left;
-        } else { // x > 0
+        } else {
             node = node->right;
         }
     }
 
     return ret;
+}
+
+struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree,
+                                           struct avl_tree_node* cmp_arg) {
+    static_assert(SAME_TYPE(tree->cmp, bool (*)(struct avl_tree_node*, struct avl_tree_node*)),
+                  "If you change this function type, make sure the code below works properly!");
+    return avl_tree_lower_bound_fn(tree,
+                                   cmp_arg,
+                                   (bool (*)(void*, struct avl_tree_node*))tree->cmp);
 }
 
 /* This function returns whether a tree with root in `node` is avl-balanced and updates `*size`

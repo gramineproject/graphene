@@ -55,8 +55,8 @@ static bool cmp(struct avl_tree_node* x, struct avl_tree_node* y) {
     return container_of(x, struct A, node)->key <= container_of(y, struct A, node)->key;
 }
 
-static int cmp_gen(void* x, struct avl_tree_node* y) {
-    return *(int64_t*)x - container_of(y, struct A, node)->key;
+static bool cmp_gen(void* x, struct avl_tree_node* y) {
+    return *(int64_t*)x <= container_of(y, struct A, node)->key;
 }
 
 #define ELEMENTS_COUNT 0x1000
@@ -110,7 +110,7 @@ static void do_test(int32_t (*get_num)(void)) {
     }
 
     int64_t val = container_of(node, struct A, node)->key;
-    struct avl_tree_node* found_node = avl_tree_lower_bound(&tree, &val, cmp_gen);
+    struct avl_tree_node* found_node = avl_tree_lower_bound(&tree, node);
     if (!found_node || container_of(found_node, struct A, node)->key != val) {
         pal_printf("avl_tree_lower_bound has not found existing node %ld, but returned ", val);
         if (found_node) {
@@ -130,7 +130,7 @@ static void do_test(int32_t (*get_num)(void)) {
     }
 
     val += 1;
-    found_node = avl_tree_lower_bound(&tree, &val, cmp_gen);
+    found_node = avl_tree_lower_bound_fn(&tree, &val, cmp_gen);
     bool found = false;
 
     /* We can skip the initial node as we increased val. */

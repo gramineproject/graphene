@@ -79,17 +79,18 @@ struct avl_tree_node* avl_tree_find(struct avl_tree* tree, struct avl_tree_node*
 
 /*
  * Returns the smallest element in `tree` that is greater or equal to `cmp_arg`, i.e. for which
- * `cmp(cmp_arg, node) <= 0`. Note that if multiple elements compare equal to `cmp_arg`
+ * `cmp(cmp_arg, node)` is true. Note that if multiple elements compare equal to `cmp_arg`
  * the lately inserted will be returned (the one furthest on the left in the tree).
  * cmp(cmp_arg, node) should return:
- * - negative value if cmp_arg < node
- * - zero if cmp_arg == node
- * - positive value if cmp_arg > node
- * It must also be compatible with tree->cmp i.e. (cmp(a, b) <= 0) == tree->cmp(a, b) for all a, b.
+ * - true if cmp_arg <= node
+ * - false otherwise (if cmp_arg > node)
+ * It must also be compatible with tree->cmp i.e. cmp(f(a), b) == tree->cmp(a, b) for all a, b,
+ * where f is some function changing a tree node to whatever the type of first argument to `cmp` is.
  */
-struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree,
-                                           void* cmp_arg,
-                                           int cmp(void*, struct avl_tree_node*));
+struct avl_tree_node* avl_tree_lower_bound_fn(struct avl_tree* tree,
+                                              void* cmp_arg,
+                                              bool cmp(void*, struct avl_tree_node*));
+struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree, struct avl_tree_node* cmp_arg);
 
 bool debug_avl_tree_is_balanced(struct avl_tree* tree);
 
