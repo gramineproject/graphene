@@ -115,8 +115,11 @@ typedef ptrdiff_t ssize_t;
 #define XSTRINGIFY(x) STRINGIFY(x)
 #define STRINGIFY(x) #x
 
+/* fail build if str is not a static string */
+#define FORCE_LITERAL_CSTR(str) ("" str "")
+
 #define __UNUSED(x) do { (void)(x); } while (0)
-#define static_strlen(str) (ARRAY_SIZE(str) - 1)
+#define static_strlen(str) (ARRAY_SIZE(FORCE_LITERAL_CSTR(str)) - 1)
 
 /* Libc functions */
 
@@ -143,25 +146,20 @@ void *malloc(size_t size);
 void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 
-/* force failure if str is not a static string */
-#define force_literal_cstr(str)   ("" str "")
-
 /* check if the var is exactly the same as the static string */
-#define strcmp_static(var, str)                                               \
-    (memcmp(var,                                                              \
-            force_literal_cstr(str),                                          \
-            MIN(strlen(var) + 1, static_strlen(force_literal_cstr(str))) + 1))
+#define strcmp_static(var, str) \
+    (memcmp(var, str, MIN(strlen(var), static_strlen(str)) + 1))
 
 /* check if the var starts with the static string */
 #define strstartswith_static(var, str) \
-    (!memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str))))
+    (!memcmp(var, str, static_strlen(str)))
 
-/* copy static string and return the address of the null end (null if the dest
+/* copy static string and return the address of the NUL byte (NULL if the dest
  * is not large enough).*/
-#define strcpy_static(var, str, max)                                                      \
-    (static_strlen(force_literal_cstr(str)) + 1 > (max) ? NULL :                          \
-     memcpy((var), force_literal_cstr(str), static_strlen(force_literal_cstr(str)) + 1) + \
-     static_strlen(force_literal_cstr(str)))
+#define strcpy_static(var, str, max)                                  \
+    (static_strlen(str) + 1 > (max)                                   \
+     ? NULL                                                           \
+     : memcpy(var, str, static_strlen(str) + 1) + static_strlen(str))
 
 /* Copy a fixed size array. */
 #define COPY_ARRAY(dst, src)                                                    \
