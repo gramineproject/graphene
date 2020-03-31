@@ -312,7 +312,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
-    assert(sizeof(normpath) > URI_PREFIX_FILE_LEN);
+    static_assert(sizeof(normpath) > URI_PREFIX_FILE_LEN, "`normpath` is too small");
     memcpy(normpath, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
     size_t len = sizeof(normpath) - URI_PREFIX_FILE_LEN;
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
@@ -758,7 +758,7 @@ static int init_trusted_file (const char * key, const char * uri)
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
-    assert(sizeof(normpath) > URI_PREFIX_FILE_LEN);
+    static_assert(sizeof(normpath) > URI_PREFIX_FILE_LEN, "`normpath` is too small");
     memcpy(normpath, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
     size_t len = sizeof(normpath) - URI_PREFIX_FILE_LEN;
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
@@ -886,7 +886,7 @@ no_trusted:
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
-        assert(sizeof(norm_path) > URI_PREFIX_FILE_LEN);
+        static_assert(sizeof(norm_path) > URI_PREFIX_FILE_LEN, "`normpath` is too small");
         memcpy(norm_path, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
 
         size_t norm_path_len = sizeof(norm_path) - URI_PREFIX_FILE_LEN;
@@ -990,7 +990,8 @@ int init_enclave (void)
     __sgx_mem_aligned struct pal_enclave_state reportdata = {0};
     __sgx_mem_aligned sgx_report_t report;
 
-    assert(sizeof(reportdata) == sizeof(sgx_report_data_t));
+    static_assert(sizeof(reportdata) == sizeof(sgx_report_data_t),
+                  "incompatible `reportdata` size");
     int ret = sgx_report(&targetinfo, &reportdata, &report);
     if (ret) {
         SGX_DBG(DBG_E, "failed to get self report: %d\n", ret);

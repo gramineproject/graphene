@@ -978,7 +978,7 @@ ElfW(Sym) * check_match(ElfW(Sym) * sym, ElfW(Sym) * ref, const char * undef_nam
                         const char * strtab)
 {
     unsigned int stt = ELFW(ST_TYPE) (sym->st_info);
-    assert(ELF_RTYPE_CLASS_PLT == 1);
+    static_assert(ELF_RTYPE_CLASS_PLT == 1, "ELF_RTYPE_CLASS_PLT != 1 is not supported");
 
     if ((sym->st_value == 0 /* No value */ && stt != STT_TLS) || sym->st_shndx == SHN_UNDEF)
         return NULL;
