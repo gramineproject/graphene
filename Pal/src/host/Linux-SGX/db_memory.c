@@ -31,7 +31,7 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 
-extern struct atomic_int g_alloced_pages;
+extern struct atomic_int g_allocated_pages;
 extern size_t g_page_size;
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
@@ -96,5 +96,5 @@ uint64_t _DkMemoryQuota(void) {
 }
 
 uint64_t _DkMemoryAvailableQuota(void) {
-    return (pal_sec.heap_max - pal_sec.heap_min) - atomic_read(&g_alloced_pages) * g_page_size;
+    return (pal_sec.heap_max - pal_sec.heap_min) - atomic_read(&g_allocated_pages) * g_page_size;
 }
