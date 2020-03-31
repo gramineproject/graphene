@@ -61,7 +61,7 @@ int main(int argc, const char** argv) {
 
     /* test readdir: should not find a file that we just deleted */
     if (find_file(TEST_DIR, TEST_FILE)) {
-        perror("file " TEST_FILE " was unexpectedly found\n");
+        perror("file " TEST_FILE " was unexpectedly found");
         return 1;
     }
 
@@ -72,7 +72,7 @@ int main(int argc, const char** argv) {
     }
 
     if (!find_file(TEST_DIR, TEST_FILE)) {
-        perror("file " TEST_FILE " was not found\n");
+        perror("file " TEST_FILE " was not found");
         return 1;
     }
 

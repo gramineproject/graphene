@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
      * test_user_memory() spanning several adjacent VMAs. */
     cwd = getcwd(bss_cwd_buf, sizeof(bss_cwd_buf));
     if (!cwd) {
-        perror("[bss_cwd_buf] getcwd failed\n");
+        perror("[bss_cwd_buf] getcwd failed");
     } else {
         printf("[bss_cwd_buf] getcwd succeeded: %s\n", cwd);
     }
@@ -30,17 +30,17 @@ int main(int argc, char** argv) {
     void* mmapped_cwd_buf = mmap(NULL, 4096 * 2, PROT_READ | PROT_WRITE | PROT_EXEC,
                                  MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (mmapped_cwd_buf == MAP_FAILED) {
-        perror("mmap failed\n");
+        perror("mmap failed");
         return 1;
     }
     int ret = mprotect(mmapped_cwd_buf, 4096, PROT_READ | PROT_WRITE);
     if (ret < 0) {
-        perror("mprotect failed\n");
+        perror("mprotect failed");
         return 1;
     }
     cwd = getcwd(mmapped_cwd_buf, 4096 * 2);
     if (!cwd) {
-        perror("[mmapped_cwd_buf] getcwd failed\n");
+        perror("[mmapped_cwd_buf] getcwd failed");
     } else {
         printf("[mmapped_cwd_buf] getcwd succeeded: %s\n", cwd);
     }
