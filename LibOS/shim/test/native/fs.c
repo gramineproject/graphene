@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-int main() {
+int main(void) {
     int fd = open("test.open.file", O_CREAT | O_RDWR, S_IRWXU);
 
     int fd2 = open("fs.manifest", O_RDONLY);

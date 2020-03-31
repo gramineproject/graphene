@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int main() {
+int main(void) {
     pid_t pid = vfork();
     if (pid < 0) {
         printf("failed on vfork (%s)\n", strerror(errno));

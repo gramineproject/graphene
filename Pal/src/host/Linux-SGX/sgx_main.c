@@ -956,7 +956,7 @@ static int load_enclave (struct pal_enclave * enclave,
  * each stack page (Linux dynamically grows the stack of the main thread but gets confused with
  * huge-jump stack accesses coming from within the enclave). Note that other, non-main threads
  * are created manually via clone(.., THREAD_STACK_SIZE, ..) and thus do not need this hack. */
-static void __attribute__ ((noinline)) force_linux_to_grow_stack() {
+static void __attribute__ ((noinline)) force_linux_to_grow_stack(void) {
     char dummy[THREAD_STACK_SIZE];
     for (uint64_t i = 0; i < sizeof(dummy); i += PRESET_PAGESIZE) {
         /* touch each page on the stack just to make it is not optimized away */

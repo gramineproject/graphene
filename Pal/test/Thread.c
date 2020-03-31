@@ -22,7 +22,7 @@ int thread_2(void* args) {
     return 0;
 }
 
-int main() {
+int main(void) {
     pal_printf("Enter Main Thread\n");
 
     PAL_HANDLE thd1, thd2;

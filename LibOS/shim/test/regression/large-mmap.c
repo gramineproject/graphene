@@ -7,7 +7,7 @@
 #define TEST_LENGTH  0x10000f000
 #define TEST_LENGTH2 0x8000f000
 
-int main() {
+int main(void) {
     FILE* fp = fopen("testfile", "a+");
     if (!fp) {
         perror("fopen");

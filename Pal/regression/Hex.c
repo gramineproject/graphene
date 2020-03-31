@@ -11,7 +11,7 @@ noreturn void __abort(void) {
     DkProcessExit(-131);
 }
 
-int main() {
+int main(void) {
     char x[] = {0xde, 0xad, 0xbe, 0xef};
     char y[] = {0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd};
     pal_printf("Hex test 1 is %s\n", ALLOCA_BYTES2HEXSTR(x));

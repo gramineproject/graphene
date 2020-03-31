@@ -50,7 +50,7 @@ static inline void __free(void* addr, int size) {
 
 static SLAB_MGR untrusted_slabmgr = NULL;
 
-void init_untrusted_slab_mgr() {
+void init_untrusted_slab_mgr(void) {
     if (untrusted_slabmgr)
         return;
 

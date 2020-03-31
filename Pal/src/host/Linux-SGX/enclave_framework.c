@@ -489,7 +489,7 @@ failed:
     return ret;
 }
 
-int get_file_check_policy ()
+int get_file_check_policy(void)
 {
     return file_check_policy;
 }

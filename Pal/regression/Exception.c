@@ -54,7 +54,7 @@ void handler4(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 }
 
 
-static void red_zone_test() {
+static void red_zone_test(void) {
     uint64_t res = 0;
 
     // First call some function to ensure that gcc doesn't use the red zone

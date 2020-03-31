@@ -48,7 +48,7 @@ int thread4_run(void* args) {
 
 // If there's a thread limit, like on SGX, it should be set to exactly 2. There
 // should be only the main thread and only one other thread at a time.
-int main() {
+int main(void) {
     pal_printf("Thread 1 (main) started.\n");
 
     PAL_HANDLE thread2 = DkThreadCreate(thread2_run, NULL);

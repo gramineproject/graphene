@@ -81,7 +81,7 @@ void print_list_reverse(LISTP_TYPE(simple)* listp) {
     printf("End of list\n\n");
 }
 
-int main() {
+int main(void) {
     int i;
     struct simple* tmp;
     struct simple* tmp2;
