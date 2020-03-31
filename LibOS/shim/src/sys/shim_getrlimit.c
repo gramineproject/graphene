@@ -35,8 +35,8 @@
  */
 
 #define MAX_THREADS     (0x3fffffff / 2)
-#define DEFAULT_MAX_FDS (1024)
-#define MAX_MAX_FDS     (65536) /* 4096: Linux initial value */
+#define DEFAULT_MAX_FDS 1024
+#define MAX_MAX_FDS     65536 /* 4096: Linux initial value */
 #define MLOCK_LIMIT     (64 * 1024)
 #define MQ_BYTES_MAX    819200
 
