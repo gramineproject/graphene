@@ -13,16 +13,19 @@
 #define DEBUG_SPINLOCKS
 #endif // DEBUG
 
-#if defined DEBUG_SPINLOCKS && defined IN_SHIM
+#ifdef IN_SHIM
+#include <shim_internal.h>
+
+#ifdef DEBUG_SPINLOCKS
 #define DEBUG_SPINLOCKS_SHIM
-#include <shim_types.h>
-pid_t shim_do_gettid(void);
-#endif // defined DEBUG_SPINLOCKS && defined IN_SHIM
+#endif // DEBUG_SPINLOCKS
+
+#endif // IN_SHIM
 
 typedef struct {
     int lock;
 #ifdef DEBUG_SPINLOCKS_SHIM
-    pid_t owner;
+    unsigned int owner;
 #endif // DEBUG_SPINLOCKS_SHIM
 } spinlock_t;
 
@@ -48,7 +51,7 @@ typedef struct {
 
 #ifdef DEBUG_SPINLOCKS_SHIM
 static inline void debug_spinlock_take_ownership(spinlock_t* lock) {
-    __atomic_store_n(&lock->owner, shim_do_gettid(), __ATOMIC_RELAXED);
+    __atomic_store_n(&lock->owner, get_cur_tid(), __ATOMIC_RELAXED);
 }
 
 static inline void debug_spinlock_giveup_ownership(spinlock_t* lock) {
@@ -168,6 +171,18 @@ static inline void spinlock_unlock(spinlock_t* lock) {
     __atomic_store_n(&lock->lock, SPINLOCK_UNLOCKED, __ATOMIC_RELEASE);
 }
 
+#ifdef IN_SHIM
+static inline void spinlock_lock_signal_off(spinlock_t* lock) {
+    disable_preempt(NULL);
+    spinlock_lock(lock);
+}
+
+static inline void spinlock_unlock_signal_on(spinlock_t* lock) {
+    spinlock_unlock(lock);
+    enable_preempt(NULL);
+}
+#endif // IN_SHIM
+
 #ifdef DEBUG_SPINLOCKS
 static inline bool _spinlock_is_locked(spinlock_t* lock) {
     return __atomic_load_n(&lock->lock, __ATOMIC_SEQ_CST) != SPINLOCK_UNLOCKED;
@@ -178,9 +193,9 @@ static inline bool spinlock_is_locked(spinlock_t* lock) {
     if (!_spinlock_is_locked(lock)) {
         return false;
     }
-    pid_t owner = __atomic_load_n(&lock->owner, __ATOMIC_RELAXED);
-    if (owner != shim_do_gettid()) {
-        debug("Unexpected lock ownership: owned by: %d, checked in: %d", owner, shim_do_gettid());
+    unsigned int owner = __atomic_load_n(&lock->owner, __ATOMIC_RELAXED);
+    if (owner != get_cur_tid()) {
+        debug("Unexpected lock ownership: owned by: %d, checked in: %d", owner, get_cur_tid());
         return false;
     }
     return true;

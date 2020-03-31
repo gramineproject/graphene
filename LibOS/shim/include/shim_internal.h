@@ -36,10 +36,10 @@
 
 #include <api.h>
 #include <assert.h>
-#include <shim_types.h>
-#include <shim_defs.h>
 #include <atomic.h>
+#include <shim_defs.h>
 #include <shim_tcb.h>
+#include <shim_types.h>
 
 noreturn void shim_clean_and_exit(int exit_code);
 
