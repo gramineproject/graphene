@@ -27,7 +27,7 @@ int create_q(int key) {
 #endif
 
     if (r < 0) {
-        perror("msgget\n");
+        perror("msgget");
         exit(-1);
     }
 #ifndef DO_BENCH

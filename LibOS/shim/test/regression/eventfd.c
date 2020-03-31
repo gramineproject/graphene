@@ -87,7 +87,7 @@ int eventfd_using_poll() {
     ret = pthread_create(&tid, NULL, write_eventfd_thread, efds);
 
     if (ret != 0) {
-        perror("error in thread creation\n");
+        perror("error in thread creation");
         ret = 1;
         goto out;
     }
