@@ -568,7 +568,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
 
     do {
         while (bytes < expected_size) {
-            /* grow msg buffer to accomodate bigger messages */
+            /* grow msg buffer to accommodate bigger messages */
             if (expected_size + readahead > bufsize) {
                 while (expected_size + readahead > bufsize)
                     bufsize *= 2;

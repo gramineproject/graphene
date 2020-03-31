@@ -219,7 +219,7 @@ class TestRunner:
 
 
     def _prepare(self):
-        '''Common initalisation
+        '''Common initalization
 
         This is used in two ways, so was refactored to a separate function
         '''
@@ -492,7 +492,7 @@ class TestSuite:
         self.xml.append(element)
 
     def get_executable_names(self):
-        '''Return a list for all executables that would be run, without acutally
+        '''Return a list for all executables that would be run, without actually
         running them.'''
         names = {runner.get_executable_name() for runner in self.queue}
         names.discard(None)
@@ -547,7 +547,7 @@ def _getintset(value):
     return set(int(i) for i in value.strip().split())
 
 def load_config(files):
-    '''Load the configuration from a given files
+    '''Load the configuration from given files
 
     Returns:
         configparser.ConfigParser:

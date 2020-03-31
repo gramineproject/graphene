@@ -41,7 +41,7 @@ typedef struct {
  * \brief Initialize spinlock with *static* storage duration.
  *
  * According to C standard, the only guarantee we have is that this initialization will happen
- * before main, which by itself is not enough (such store might not be visible before fist lock
+ * before main, which by itself is not enough (such store might not be visible before first lock
  * acquire). Fortunately on gcc global zeroed variables will just end up in .bss - zeroed memory
  * mapped during process creation, hence we are fine.
  *

@@ -85,7 +85,7 @@ out:
  */
 
 /*
- * The problem here is that we have to gaurantee Atomic writev
+ * The problem here is that we have to guarantee atomic writev
  *
  * Upon successful completion, writev() shall return the number of bytes
  * actually written. Otherwise, it shall return a value of -1, the file-pointer

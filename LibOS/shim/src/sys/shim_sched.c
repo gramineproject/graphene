@@ -49,7 +49,7 @@ int shim_do_setpriority(int which, int who, int niceval) {
     return 0;
 }
 
-/* dummy implementation: always return the default nice value of 0 */
+/* dummy implementation: always return the default nice value of 20 */
 int shim_do_getpriority(int which, int who) {
     __UNUSED(who);
 

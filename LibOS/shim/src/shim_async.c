@@ -56,7 +56,7 @@ static int create_async_helper(void);
  * to Async Helper thread by triggering install_new_event. When event is
  * triggered in Async Helper thread, the corresponding event's callback with
  * arguments `arg` is called. This callback typically sends a signal to the
- * thread who registered the event (saved in `event->caller`).
+ * thread which registered the event (saved in `event->caller`).
  *
  * We distinguish between alarm/timer events and async IO events:
  *   - alarm/timer events set object = NULL and time = seconds

@@ -17,8 +17,7 @@
 /*
  * shim_parser.c
  *
- * This file contains codes for parsing system call arguements for debug
- * purpose.
+ * This file contains code for parsing system call arguments for debug purpose.
  */
 
 #include <asm/fcntl.h>
