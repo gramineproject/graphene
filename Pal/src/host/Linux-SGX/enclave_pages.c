@@ -6,7 +6,7 @@
 #include "pal_linux.h"
 #include "pal_security.h"
 
-struct atomic_int g_alloced_pages;
+struct atomic_int g_allocated_pages;
 
 static size_t g_page_size = PRESET_PAGESIZE;
 static void* g_heap_bottom;
@@ -101,7 +101,7 @@ int init_enclave_pages(void) {
         reserved_size += exec_vma->top - exec_vma->bottom;
     }
 
-    atomic_add(reserved_size / g_page_size, &g_alloced_pages);
+    atomic_add(reserved_size / g_page_size, &g_allocated_pages);
 
     SGX_DBG(DBG_M, "Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
     ret = 0;
@@ -213,7 +213,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
     assert(vma->top - vma->bottom >= (ptrdiff_t)freed);
     size_t allocated = vma->top - vma->bottom - freed;
-    atomic_add(allocated / g_page_size, &g_alloced_pages);
+    atomic_add(allocated / g_page_size, &g_allocated_pages);
     return addr;
 }
 
@@ -345,7 +345,7 @@ int free_enclave_pages(void* addr, size_t size) {
         }
     }
 
-    atomic_sub(freed / g_page_size, &g_alloced_pages);
+    atomic_sub(freed / g_page_size, &g_allocated_pages);
 
 out:
     _DkInternalUnlock(&g_heap_vma_lock);
