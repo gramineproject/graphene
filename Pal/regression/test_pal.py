@@ -124,7 +124,7 @@ class TC_01_Bootstrap(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX, 'need SGX')
     def test_107_manifest_with_nonelf_binary(self):
         manifest = self.get_manifest('nonelf_binary')
-        #Expect return code is -ENOEXEC(248 as unsigned char)
+        # Expected return code is -ENOEXEC (248 as unsigned char)
         with self.expect_returncode(248):
             self.run_binary([manifest])
 

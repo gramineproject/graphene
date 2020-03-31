@@ -31,7 +31,7 @@ not published.
    https://www.sphinx-doc.org/en/master/man/sphinx-build.html#cmdoption-sphinx-build-b.
    Sphinx can output many different formats, some of them have overlapping usage
    (both ``html`` and ``latex`` usually output full handbook, the difference is
-   screen vs print), some are specialised (``manpage`` processes only selected
+   screen vs print), some are specialized (``manpage`` processes only selected
    documents for man; those documents may or may not be also used by other
    builders).
 
@@ -123,7 +123,7 @@ Preferred reST style
 
 Documentation of the code should be organized into files by logical concepts,
 as they fit into programmer's mind. Ideally, this should match the source files,
-if those files were organised correctly in the first place, but the reality may
+if those files were organized correctly in the first place, but the reality may
 be different. In case of doubt, place them as they fit the narrative of the
 document, not as they are placed in the source files.
 

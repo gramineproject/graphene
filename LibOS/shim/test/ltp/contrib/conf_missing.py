@@ -24,7 +24,7 @@ import sys
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--config', '-c', metavar='FILENAME',
     type=argparse.FileType('r'),
-    help='location of ltp.cfg filfe')
+    help='location of ltp.cfg file')
 argparser.add_argument('file', metavar='FILENAME',
     type=argparse.FileType('r'), nargs='?', default='-',
     help='LTP scenario file')

@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (sigismember(&oldmask, SIGKILL) || sigismember(&oldmask, SIGSTOP)) {
-        printf("SIGKILL or SIGSTOP should be ignored, but not.\n");
+        printf("SIGKILL or SIGSTOP should be ignored, but is not.\n");
         return -1;
     }
 

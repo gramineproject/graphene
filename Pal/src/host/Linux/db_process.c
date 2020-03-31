@@ -268,7 +268,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     /* step 4: create a child thread which will execve in the future */
 
-    /* the first arguement must be the PAL */
+    /* the first argument must be the PAL */
     int argc = 0;
     if (args)
         for (; args[argc] ; argc++);

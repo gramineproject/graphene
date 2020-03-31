@@ -537,7 +537,7 @@ PAL_HANDLE
 DkStreamWaitForClient(PAL_HANDLE handle);
 
 /*!
- * \brief Read data from an opened stream.
+ * \brief Read data from an open stream.
  *
  * If the handle is a file, `offset` must be specified at each call of DkStreamRead. `source` and
  * `size` can be used to return the remote socket address if the handle is a UDP socket. If the
@@ -549,7 +549,7 @@ DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, P
              PAL_NUM size);
 
 /*!
- * \brief Write data to an opened stream.
+ * \brief Write data to an open stream.
  *
  * If the handle is a file, `offset` must be specified at each call of DkStreamWrite. `dest` can be
  * used to specify the remote socket address if the handle is a UDP socket.
@@ -652,7 +652,7 @@ PAL_BOL
 DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr);
 
 /*!
- * \brief Query the attributes of an opened stream.
+ * \brief Query the attributes of an open stream.
  *
  * This API applies to any stream handle.
  */
@@ -660,19 +660,19 @@ PAL_BOL
 DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
 /*!
- * \brief Set the attributes of an opened stream.
+ * \brief Set the attributes of an open stream.
  */
 PAL_BOL
 DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr);
 
 /*!
- * \brief Query the name of an opened stream.
+ * \brief Query the name of an open stream.
  */
 PAL_NUM
 DkStreamGetName(PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size);
 
 /*!
- * \brief This API changes the name of an opened stream.
+ * \brief This API changes the name of an open stream.
  */
 PAL_BOL
 DkStreamChangeName(PAL_HANDLE handle, PAL_STR uri);

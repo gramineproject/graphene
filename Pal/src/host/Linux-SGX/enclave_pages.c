@@ -324,7 +324,8 @@ int free_enclave_pages(void* addr, size_t size) {
             /* create VMA [vma->bottom, addr); this may leave VMA [addr + size, vma->top), see below */
             struct heap_vma* new = __alloc_vma();
             if (!new) {
-                SGX_DBG(DBG_E, "*** Cannot create split VMA during free of address %p ***\n", addr);
+                SGX_DBG(DBG_E, "*** Cannot create split VMA during freeing of address %p ***\n",
+                        addr);
                 ret = -PAL_ERROR_NOMEM;
                 goto out;
             }

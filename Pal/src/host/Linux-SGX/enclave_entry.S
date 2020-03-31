@@ -133,7 +133,7 @@ enclave_entry:
 
 	# At this point, the thread has completely exited from the point of view
 	# of LibOS. We can now set *clear_child_tid to 0, which will trigger
-	# async helper thread in LibOS, who will wake up parent thread if any.
+	# async helper thread in LibOS, which will wake up parent thread if any.
 	cmpq $0, %gs:SGX_CLEAR_CHILD_TID
 	je 1f
 	movq %gs:SGX_CLEAR_CHILD_TID, %rbx
