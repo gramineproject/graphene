@@ -9,7 +9,7 @@ noreturn void fatal_error(const char* fmt, ...) {
     exit(-1);
 }
 
-void setup() {
+void setup(void) {
     // set output to line-buffered for easier debugging
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IOLBF, 0);

@@ -62,7 +62,7 @@ void* write_eventfd_thread(void* arg) {
 
 /* This function used to test polling on a group of eventfd descriptors.
  * To support regression testing, positive value returned for error case. */
-int eventfd_using_poll() {
+int eventfd_using_poll(void) {
     int ret = 0;
     struct pollfd pollfds[MAX_EFDS];
     pthread_t tid    = 0;
@@ -140,7 +140,7 @@ out:
 /* This function used to test various flags supported while creating eventfd
  * descriptors.
  * To support regression testing, positive value returned for error case. */
-int eventfd_using_various_flags() {
+int eventfd_using_various_flags(void) {
     uint64_t count      = 0;
     int efd             = 0;
     ssize_t bytes       = 0;
@@ -216,7 +216,7 @@ int eventfd_using_various_flags() {
     return 0;
 }
 
-int eventfd_using_fork() {
+int eventfd_using_fork(void) {
     int status     = 0;
     int efd        = 0;
     uint64_t count = 0;

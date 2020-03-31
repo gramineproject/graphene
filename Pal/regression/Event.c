@@ -30,7 +30,7 @@ void pal_failure_handler(PAL_PTR event, PAL_NUM error, PAL_CONTEXT* context) {
     DkExceptionReturn(event);
 }
 
-int main() {
+int main(void) {
     pal_printf("Started main thread.\n");
 
     DkSetExceptionHandler(pal_failure_handler, PAL_EVENT_FAILURE);

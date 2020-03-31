@@ -37,7 +37,7 @@ void set_verbose(bool verbose) {
         DBG("Verbose output disabled\n");
 }
 
-bool get_verbose() {
+bool get_verbose(void) {
     return g_verbose;
 }
 
@@ -187,6 +187,6 @@ int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
 }
 
 /* For PAL's assert compatibility */
-void __abort() {
+void __abort(void) {
     ERROR("exiting\n");
 }
