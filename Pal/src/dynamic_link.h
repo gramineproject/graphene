@@ -157,9 +157,9 @@ elf_get_dynamic_info(ElfW(Dyn)* dyn, ElfW(Dyn)** l_info, ElfW(Addr) l_addr) {
 }
 
 #ifdef RTLD_BOOTSTRAP
-#define ELF_DURING_STARTUP (1)
+#define ELF_DURING_STARTUP 1
 #else
-#define ELF_DURING_STARTUP (0)
+#define ELF_DURING_STARTUP 0
 #endif
 
 /* Get the definitions of `elf_dynamic_do_rel' and `elf_dynamic_do_rela'.

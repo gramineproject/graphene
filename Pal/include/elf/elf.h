@@ -65,7 +65,7 @@ typedef Elf64_Half Elf64_Versym;
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 
-#define EI_NIDENT (16)
+#define EI_NIDENT 16
 
 typedef struct {
     unsigned char e_ident[EI_NIDENT]; /* Magic number and other info */
