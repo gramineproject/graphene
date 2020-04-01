@@ -25,7 +25,7 @@
  *
  * \param[in]     src  input data
  * \param[in]     slen size of input data
- * \param[in]     dst  buffer for the output
+ * \param[out]    dst  buffer for the output
  * \param[in,out] dlen in: size of \p dst, out: length after encoding
  *
  * If \p dst is NULL, `*dlen` is still set to expected size after encoding.
@@ -47,7 +47,7 @@ int lib_Base64Encode(const uint8_t* src, size_t slen, char* dst, size_t* dlen) {
  *
  * \param[in]     src  input data
  * \param[in]     slen size of input data
- * \param[in]     dst  buffer for the output
+ * \param[out]    dst  buffer for the output
  * \param[in,out] dlen in: size of \p dst, out: length after decoding
  *
  * If \p dst is NULL, `*dlen` is still set to expected size after decoding.
