@@ -194,7 +194,7 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
         goto out;
     }
 
-    memcpy(*quote, r->quote.data, actual_quote_size);
+    memcpy(mmapped, r->quote.data, actual_quote_size);
 
     *quote = mmapped;
     *quote_len = actual_quote_size;

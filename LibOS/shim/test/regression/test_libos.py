@@ -203,6 +203,15 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
         self.assertNotIn('Allowing access to an unknown file due to file_check_policy settings: file:trusted_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
+@unittest.skipUnless(HAS_SGX,
+    'This test is only meaningful on SGX PAL because only SGX supports attestation.')
+class TC_04_Attestation(RegressionTestCase):
+    def test_000_attestation(self):
+        stdout, _ = self.run_binary(['attestation'], timeout=60)
+        self.assertIn("Test resource leaks in attestation filesystem... SUCCESS", stdout)
+        self.assertIn("Test local attestation... SUCCESS", stdout)
+        self.assertIn("Test quote interface... SUCCESS", stdout)
+
 class TC_30_Syscall(RegressionTestCase):
     def test_000_getcwd(self):
         stdout, _ = self.run_binary(['getcwd'])

@@ -47,6 +47,7 @@ objs = \
 	fs/shim_fs_pseudo.o \
 	fs/shim_namei.o \
 	fs/chroot/fs.o \
+	fs/dev/attestation.o \
 	fs/dev/fs.o \
 	fs/dev/null.o \
 	fs/dev/random.o \
