@@ -14,8 +14,10 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
- * This file contains codes for implementation of 'dev' filesystem.
+/*!
+ * \file
+ *
+ * This file contains the implementation of `/dev` pseudo-filesystem.
  */
 
 #include "shim_fs.h"
@@ -152,7 +154,7 @@ int dev_update_dev_ops(struct shim_handle* hdl) {
     struct shim_dentry* dent = hdl->dentry;
     assert(dent);
 
-    /* simply reopen pseudofile, this will update dev_ops function pointers to correct values */
+    /* simply reopen pseudo-file, this will update dev_ops function pointers to correct values */
     return pseudo_open(hdl, dent, /*flags=*/0, &dev_root_ent);
 }
 

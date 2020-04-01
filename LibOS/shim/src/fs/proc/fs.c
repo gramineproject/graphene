@@ -14,8 +14,10 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
- * This file contains codes for implementation of 'proc' filesystem.
+/*!
+ * \file
+ *
+ * This file contains the implementation of `/proc` pseudo-filesystem.
  */
 
 #include "shim_fs.h"

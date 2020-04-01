@@ -15,14 +15,16 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
+/*!
+ * \file
+ *
  * This file contains common code for pseudo-filesystems (e.g., /dev and /proc).
  */
 
 #include "shim_fs.h"
 
 /*!
- * \brief Find entry corresponding to path, starting from `root_ent`.
+ * \brief Find entry corresponding to path, starting from \p root_ent.
  *
  * Generic function for pseudo-filesystems. Example usage for the `/proc` FS is
  * `pseudo_findent("/proc/3/cwd", proc_root_ent, &cwd_ent_for_third_thread)`.
@@ -86,7 +88,7 @@ static int pseudo_findent(const char* path, const struct pseudo_ent* root_ent,
     return 0;
 }
 
-/*! Populate supplied buffer with dirents (see `pseudo_readdir()` for details). */
+/*! Populate supplied buffer with dirents (see pseudo_readdir() for details). */
 static int populate_dirent(const char* path, const struct pseudo_dir* dir, struct shim_dirent* buf,
                            size_t buf_size) {
     if (!dir->size)
@@ -207,7 +209,7 @@ int pseudo_mode(struct shim_dentry* dent, mode_t* mode, const struct pseudo_ent*
     return ent->fs_ops->mode(rel_path, mode);
 }
 
-/*! Generic callback to check if an entry exists in a pseudo-filesystem (and populate dent). */
+/*! Generic callback to check if an entry exists in a pseudo-filesystem (and populate \p dent). */
 int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent) {
     if (qstrempty(&dent->rel_path)) {
         /* root of pseudo-FS */
@@ -232,7 +234,7 @@ int pseudo_lookup(struct shim_dentry* dent, const struct pseudo_ent* root_ent) {
     return 0;
 }
 
-/*! Generic callback to open an entry in a pseudo-filesystem (and populate hdl). */
+/*! Generic callback to open an entry in a pseudo-filesystem (and populate \p hdl). */
 int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
                 const struct pseudo_ent* root_ent) {
     const char* rel_path = qstrgetstr(&dent->rel_path);
@@ -256,12 +258,12 @@ int pseudo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags,
  * \brief Create and populate buffer with dirents.
  *
  * Generic function for pseudo-filesystems. Example usage for the `/proc` FS is
- * `pseudo_readdir("/proc/3", proc_root_ent, &dirents_of_third_thread)` -- this
+ * `pseudo_readdir("/proc/3", &dirents_of_third_thread, proc_root_ent)` -- this
  * returns a dirent list with "root", "cwd", "exe", "fd", etc.
  *
  * \param[in]  dent       Dentry with path to the requested directory.
+ * \param[out] dirent     Pointer to newly created buffer with dirents.
  * \param[in]  root_ent   Root entry to start search from (e.g., `proc_root_ent`).
- * \param[out] found_ent  Pointer to newly created buffer with dirents.
  * \return                0 if populated the buffer, negative Linux error code otherwise.
  */
 int pseudo_readdir(struct shim_dentry* dent, struct shim_dirent** dirent,
@@ -323,7 +325,7 @@ int pseudo_stat(struct shim_dentry* dent, struct stat* buf, const struct pseudo_
     return ent->fs_ops->stat(rel_path, buf);
 }
 
-/*! Generic callback to obtain stat of an entry in a pseudo-filesystem via its open hdl. */
+/*! Generic callback to obtain stat of an entry in a pseudo-filesystem via its open \p hdl. */
 int pseudo_hstat(struct shim_handle* hdl, struct stat* buf, const struct pseudo_ent* root_ent) {
     struct shim_dentry* dent = hdl->dentry;
     assert(dent);
