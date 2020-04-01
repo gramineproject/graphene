@@ -14,7 +14,9 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
+/*!
+ * \file
+ *
  * This file contains the implementation of local- and remote-attestation logic implemented via
  * `/dev/attestation/{report_data, target_info, my_target_info, report, quote}` pseudo-files.
  */
@@ -40,7 +42,7 @@ static int dev_attestation_readwrite_mode(const char* name, mode_t* mode) {
 static int dev_attestation_readonly_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
-	buf->st_dev  = 1;    /* dummy ID of device containing file */
+    buf->st_dev  = 1;    /* dummy ID of device containing file */
     buf->st_ino  = 1;    /* dummy inode number */
     buf->st_mode = FILE_R_MODE | S_IFREG;
     return 0;
@@ -49,7 +51,7 @@ static int dev_attestation_readonly_stat(const char* name, struct stat* buf) {
 static int dev_attestation_readwrite_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
-	buf->st_dev  = 1;    /* dummy ID of device containing file */
+    buf->st_dev  = 1;    /* dummy ID of device containing file */
     buf->st_ino  = 1;    /* dummy inode number */
     buf->st_mode = FILE_RW_MODE | S_IFREG;
     return 0;
@@ -278,7 +280,7 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
     if (!data)
         return -ENOMEM;
 
-    uint8_t quote[2048];
+    uint8_t quote[SGX_QUOTE_MAX_SIZE];
     size_t quote_size = sizeof(quote);
 
     /* this is the only pseudo-file that uses PAL; all other files are emulated entirely in LibOS */

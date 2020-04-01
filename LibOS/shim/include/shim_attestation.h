@@ -14,8 +14,8 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
- * shim_attestation.h
+/*!
+ * \file
  *
  * Definitions of types and functions for LibOS attestation pseudo-FS (currently only SGX).
  */
@@ -109,6 +109,9 @@ typedef struct _target_info_t {
 } sgx_target_info_t;
 static_assert(sizeof(sgx_target_info_t) == 512, "incorrect struct size");
 
+/* typical SGX quotes are around 1K in size, overapproximate to 2K */
+#define SGX_QUOTE_MAX_SIZE 2048
+
 #pragma pack(pop)
 
 #define ENCLU ".byte 0x0f, 0x01, 0xd7"
@@ -117,8 +120,8 @@ static_assert(sizeof(sgx_target_info_t) == 512, "incorrect struct size");
 /*!
  * \brief Low-level wrapper around EREPORT instruction leaf.
  *
- * Caller is responsible for parameter alignment: 512B for `targetinfo`, 128B for `reportdata`,
- * and 512B for `report`.
+ * Caller is responsible for parameter alignment: 512B for \p targetinfo, 128B for \p reportdata,
+ * and 512B for \p report.
  */
 static inline int sgx_report(const sgx_target_info_t* targetinfo,
                              const void* reportdata, sgx_report_t* report) {

@@ -284,7 +284,7 @@ static int test_quote_interface(void) {
         return FAILURE;
     }
 
-    uint8_t quote[2048];
+    uint8_t quote[SGX_QUOTE_MAX_SIZE];
     bytes = rw_file(fd, (char*)&quote, sizeof(quote), /*write=*/false);
     if (bytes < 0 || bytes > sizeof(quote)) {
         /* error is already printed by rw_file() */
