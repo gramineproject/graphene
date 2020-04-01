@@ -54,6 +54,7 @@ enum {
     SGX_LINKABLE_SIGNATURE
 };
 
+/* typical SGX quotes are around 1K in size, overapproximate to 2K */
 #define SGX_QUOTE_MAX_SIZE 2048
 
 /*!
