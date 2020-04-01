@@ -31,8 +31,11 @@ extern const struct pseudo_fs_ops dev_stdin_fs_ops;
 extern const struct pseudo_fs_ops dev_stdout_fs_ops;
 extern const struct pseudo_fs_ops dev_stderr_fs_ops;
 
+extern const struct pseudo_fs_ops dev_attestation_fs_ops;
+extern const struct pseudo_dir dev_attestation_dir;
+
 static const struct pseudo_dir dev_root_dir = {
-    .size = 8,
+    .size = 9,
     .ent =  {
               { .name   = "null",
                 .fs_ops = &dev_null_fs_ops,
@@ -58,6 +61,10 @@ static const struct pseudo_dir dev_root_dir = {
               { .name   = "stderr",
                 .fs_ops = &dev_stderr_fs_ops,
                 .type   = LINUX_DT_LNK },
+              { .name   = "attestation",
+                .fs_ops = &dev_attestation_fs_ops,
+                .type   = LINUX_DT_DIR,
+                .dir    = &dev_attestation_dir },
         },
 };
 
@@ -102,36 +109,66 @@ static int dev_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
 }
 
 static ssize_t dev_read(struct shim_handle* hdl, void* buf, size_t count) {
+    if (hdl->type == TYPE_STR) {
+        return str_read(hdl, buf, count);
+    }
+
+    assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.read)
         return -EACCES;
     return hdl->info.dev.dev_ops.read(hdl, buf, count);
 }
 
 static ssize_t dev_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    if (hdl->type == TYPE_STR) {
+        return str_write(hdl, buf, count);
+    }
+
+    assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.write)
         return -EACCES;
     return hdl->info.dev.dev_ops.write(hdl, buf, count);
 }
 
 static off_t dev_seek(struct shim_handle* hdl, off_t offset, int wence) {
+    if (hdl->type == TYPE_STR) {
+        return str_seek(hdl, offset, wence);
+    }
+
+    assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.seek)
         return -EACCES;
     return hdl->info.dev.dev_ops.seek(hdl, offset, wence);
 }
 
 static int dev_truncate(struct shim_handle* hdl, off_t len) {
+    if (hdl->type == TYPE_STR) {
+        return -EACCES;
+    }
+
+    assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.truncate)
         return -EACCES;
     return hdl->info.dev.dev_ops.truncate(hdl, len);
 }
 
 static int dev_flush(struct shim_handle* hdl) {
+    if (hdl->type == TYPE_STR) {
+        return str_flush(hdl);
+    }
+
+    assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.flush)
         return 0;
     return hdl->info.dev.dev_ops.flush(hdl);
 }
 
 static int dev_close(struct shim_handle* hdl) {
+    if (hdl->type == TYPE_STR) {
+        return str_close(hdl);
+    }
+
+    assert(hdl->type == TYPE_DEV);
     if (!hdl->info.dev.dev_ops.close)
         return 0;
     return hdl->info.dev.dev_ops.close(hdl);

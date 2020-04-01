@@ -1,6 +1,7 @@
 c_executables = \
 	abort \
 	abort_multithread \
+	attestation \
 	bootstrap \
 	bootstrap_pie \
 	bootstrap_static \
@@ -65,6 +66,7 @@ cxx_executables = bootstrap-c++
 
 manifests = \
 	manifest \
+	attestation.manifest \
 	echo.manifest \
 	eventfd.manifest \
 	exec_victim.manifest \
@@ -101,6 +103,10 @@ target = \
 
 clean-extra += clean-tmp
 
+extra_rules = \
+	-e 's:\$$(RA_CLIENT_SPID):$(if $(RA_CLIENT_SPID),$(RA_CLIENT_SPID),AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA):g' \
+	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g'
+
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
@@ -120,6 +126,11 @@ CFLAGS-futex_wake_op = -pthread
 CFLAGS-proc = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -pthread
 CFLAGS-sigprocmask += -pthread
+
+CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
+                      -I$(PALDIR)/host/Linux-SGX \
+                      -I$(PALDIR)/../include/pal
+LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.a
 
 %: %.c
 	$(call cmd,csingle)
