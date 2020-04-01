@@ -57,8 +57,6 @@ directory:
    (the ``main()`` function) and APIs to retrieve host-specific information. The
    definitions of the APIs are as follows:
 
-   + ``_DkGetPagesize`` (required): Return the architecture page size of the
-     target platform.
    + ``_DkGetAllocationAlignment`` (required): Return the allocation alignment
      (granularity) of the target platform. Some platforms have different
      allocation alignments rather than the usual page-size alignment.

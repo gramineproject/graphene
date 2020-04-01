@@ -139,11 +139,6 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
     *penvp = envp;
 }
 
-unsigned long _DkGetPagesize (void)
-{
-    return g_page_size;
-}
-
 unsigned long _DkGetAllocationAlignment (void)
 {
     return g_page_size;

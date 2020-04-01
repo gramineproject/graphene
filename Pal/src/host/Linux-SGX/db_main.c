@@ -48,11 +48,6 @@ struct pal_sec pal_sec;
 
 size_t g_page_size = PRESET_PAGESIZE;
 
-unsigned long _DkGetPagesize (void)
-{
-    return g_page_size;
-}
-
 unsigned long _DkGetAllocationAlignment (void)
 {
     return g_page_size;
