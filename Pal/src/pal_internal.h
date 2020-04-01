@@ -265,7 +265,6 @@ noreturn void pal_main(
     PAL_STR* arguments, PAL_STR* environments);
 
 /* For initialization */
-unsigned long _DkGetPagesize (void);
 unsigned long _DkGetAllocationAlignment (void);
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end, PAL_PTR * hole_start, PAL_PTR * hole_end);
 bool _DkCheckMemoryMappable (const void * addr, size_t size);

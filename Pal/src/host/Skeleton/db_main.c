@@ -35,11 +35,6 @@ void __stack_chk_fail(void)
 /* must implement "pal_start", and call "pal_main" inside */
 void pal_start (void);
 
-unsigned long _DkGetPagesize (void)
-{
-    return 0;
-}
-
 unsigned long _DkGetAllocationAlignment (void)
 {
     return 0;
