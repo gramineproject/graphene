@@ -36,7 +36,7 @@
 int str_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     struct shim_str_data* data = dent->data;
 
-    /* when str file is opened, it must have data */
+    /* when str file is opened, it must have non-NULL `data` field */
     if (!dent->data)
         return -ENOENT;
 
