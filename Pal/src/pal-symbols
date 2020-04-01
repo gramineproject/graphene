@@ -30,7 +30,6 @@ DkStreamAttributesQueryByHandle
 DkStreamAttributesQuery
 DkProcessCreate
 DkProcessExit
-DkProcessSandboxCreate
 DkSystemTimeQuery
 DkRandomBitsRead
 DkInstructionCacheFlush
