@@ -379,6 +379,22 @@ struct sockaddr {
     char sa_data[14];           /* Address data.  */
 };
 
+#define _SS_SIZE 128
+#define __SOCKADDR_COMMON_SIZE	(sizeof (unsigned short int))
+
+/* Structure large enough to hold any socket address (with the historical
+   exception of AF_UNIX).  */
+#define __ss_aligntype  unsigned long int
+#define _SS_PADSIZE \
+  (_SS_SIZE - __SOCKADDR_COMMON_SIZE - sizeof (__ss_aligntype))
+
+struct sockaddr_storage
+  {
+    __SOCKADDR_COMMON (ss_);    /* Address family, etc.  */
+    char __ss_padding[_SS_PADSIZE];
+    __ss_aligntype __ss_align;  /* Force desired alignment.  */
+  };
+
 /* linux/mqueue.h */
 struct __kernel_mq_attr {
     long    mq_flags;       /* message queue flags */
