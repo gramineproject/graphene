@@ -104,7 +104,9 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write to a listening socket */
     hdl->pipe.fd            = fd;
     hdl->pipe.nonblocking   = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
-    memcpy(&hdl->pipe.name.str, name, sizeof(hdl->pipe.name.str));
+
+    memset(&hdl->pipe.name.str, 0, sizeof(hdl->pipe.name.str));
+    memcpy(&hdl->pipe.name.str, name, strlen(name) + 1);
 
     *handle = hdl;
     return 0;
@@ -193,7 +195,9 @@ static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->pipe.fd            = fd;
     hdl->pipe.nonblocking   = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
-    memcpy(&hdl->pipe.name.str, name, sizeof(hdl->pipe.name.str));
+
+    memset(&hdl->pipe.name.str, 0, sizeof(hdl->pipe.name.str));
+    memcpy(&hdl->pipe.name.str, name, strlen(name) + 1);
 
     *handle = hdl;
     return 0;

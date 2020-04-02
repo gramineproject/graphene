@@ -24,6 +24,7 @@
 #include "api.h"
 #include "enclave_pages.h"
 #include "pal.h"
+#include "pal_crypto.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -96,10 +97,13 @@ int _DkStreamUnmap(void* addr, uint64_t size) {
 }
 
 static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
+    int ret;
     const void* d1;
     const void* d2;
     size_t dsz1 = 0;
     size_t dsz2 = 0;
+    bool free_d1 = false;
+    bool free_d2 = false;
 
     /* find fields to serialize (depends on the handle type) and assign them to d1/d2; note that
      * no handle type has more than two such fields, and some have none at all */
@@ -109,10 +113,17 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
             dsz1 = strlen(handle->file.realpath) + 1;
             break;
         case pal_type_pipe:
-        case pal_type_pipesrv:
         case pal_type_pipecli:
+            /* session key is part of handle but need to serialize SSL context */
+            if (handle->pipe.ssl_ctx) {
+                free_d1 = true;
+                ret = _DkStreamSecureSave(handle->pipe.ssl_ctx, (const uint8_t**)&d1, &dsz1);
+                if (ret < 0)
+                    return -PAL_ERROR_DENIED;
+            }
+            break;
+        case pal_type_pipesrv:
         case pal_type_pipeprv:
-            /* pipes have no fields to serialize */
             break;
         case pal_type_dev:
             if (handle->dev.realpath) {
@@ -160,11 +171,18 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
     if (dsz2)
         memcpy(buffer + hdlsz + dsz1, d2, dsz2);
 
+    if (free_d1)
+        free((void*)d1);
+    if (free_d2)
+        free((void*)d2);
+
     *data = buffer;
     return hdlsz + dsz1 + dsz2;
 }
 
-static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size) {
+static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size, int* fds) {
+    int ret;
+
     PAL_HANDLE hdl = malloc(size);
     if (!hdl)
         return -PAL_ERROR_NOMEM;
@@ -179,8 +197,18 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size)
             hdl->file.stubs    = (PAL_PTR)NULL;
             break;
         case pal_type_pipe:
-        case pal_type_pipesrv:
         case pal_type_pipecli:
+            /* session key is part of handle but need to deserialize SSL context */
+            hdl->pipe.fd = fds[0]; /* correct host FD must be passed to SSL context */
+            ret = _DkStreamSecureInit(hdl, hdl->pipe.is_server, &hdl->pipe.session_key,
+                                      (LIB_SSL_CONTEXT**)&hdl->pipe.ssl_ctx,
+                                      (const uint8_t*)hdl + hdlsz, size - hdlsz);
+            if (ret < 0) {
+                free(hdl);
+                return -PAL_ERROR_DENIED;
+            }
+            break;
+        case pal_type_pipesrv:
         case pal_type_pipeprv:
             break;
         case pal_type_dev:
@@ -208,6 +236,7 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size)
         case pal_type_eventfd:
             break;
         default:
+            free(hdl);
             return -PAL_ERROR_BADHANDLE;
     }
 
@@ -341,20 +370,21 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     if (IS_ERR(ret))
         return ret;
 
-    /* deserialize cargo handle from a blob hdl_data */
-    PAL_HANDLE handle = NULL;
-    ret = handle_deserialize(&handle, hdl_data, hdl_hdr.data_size);
-    if (IS_ERR(ret))
-        return ret;
-
-    /* restore cargo handle's FDs from the received FDs-to-transfer */
+    /* prepare array of FDs from the received FDs-to-transfer */
     struct cmsghdr* control_hdr = (struct cmsghdr*)control_buf;
     if (!control_hdr || control_hdr->cmsg_type != SCM_RIGHTS)
         return -PAL_ERROR_DENIED;
 
-    int fds_idx = 0;
     int* fds = (int*)CMSG_DATA(control_hdr);
 
+    /* deserialize cargo handle from a blob hdl_data */
+    PAL_HANDLE handle = NULL;
+    ret = handle_deserialize(&handle, hdl_data, hdl_hdr.data_size, fds);
+    if (IS_ERR(ret))
+        return ret;
+
+    /* restore cargo handle's FDs from the received FDs-to-transfer */
+    int fds_idx = 0;
     for (int i = 0; i < MAX_FDS; i++) {
         if (hdl_hdr.fds & (1U << i)) {
             if (fds_idx < nfds) {

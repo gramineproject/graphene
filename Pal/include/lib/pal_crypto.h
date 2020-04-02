@@ -134,8 +134,10 @@ int lib_Base64Decode(const char *src, size_t slen, uint8_t* dst, size_t* dlen);
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
                 const uint8_t* psk, size_t psk_size,
                 ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len),
-                ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len));
+                ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len),
+                const uint8_t* buf_load_ssl_ctx, size_t buf_size);
 int lib_SSLFree(LIB_SSL_CONTEXT* ssl_ctx);
 int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len);
 int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len);
+int lib_SSLSave(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len, size_t* olen);
 #endif
