@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
             pal_printf("Can't create process\n");
 
         DkObjectClose(proc);
-        DkThreadDelayExecution(30000000);
+        DkThreadDelayExecution(10000000);
     } else {
         count = atoi(argv[1]);
 
