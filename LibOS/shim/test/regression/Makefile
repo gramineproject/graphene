@@ -35,6 +35,7 @@ c_executables = \
 	mprotect_file_fork \
 	multi_pthread \
 	openmp \
+	pipe \
 	poll \
 	poll_many_types \
 	ppoll \

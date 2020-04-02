@@ -480,6 +480,10 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('pselect() on write event returned 1 file descriptors', stdout)
         self.assertIn('pselect() on read event returned 1 file descriptors', stdout)
 
+    def test_090_pipe(self):
+        stdout, _ = self.run_binary(['pipe'], timeout=60)
+        self.assertIn('read on pipe: Hello from write end of pipe!', stdout)
+
     def test_100_socket_unix(self):
         stdout, _ = self.run_binary(['unix'])
         self.assertIn('Data: This is packet 0', stdout)
