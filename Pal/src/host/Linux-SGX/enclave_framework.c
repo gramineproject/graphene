@@ -1302,11 +1302,14 @@ out:
 }
 
 int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* session_key,
-                        LIB_SSL_CONTEXT** out_ssl_ctx) {
+                        LIB_SSL_CONTEXT** out_ssl_ctx, const uint8_t* buf_load_ssl_ctx,
+                        size_t buf_size) {
     int stream_fd;
 
     if (IS_HANDLE_TYPE(stream, process))
         stream_fd = stream->process.stream;
+    else if (IS_HANDLE_TYPE(stream, pipe) || IS_HANDLE_TYPE(stream, pipecli))
+        stream_fd = stream->pipe.fd;
     else
         return -PAL_ERROR_BADHANDLE;
 
@@ -1317,7 +1320,7 @@ int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* sess
 
     int ret = lib_SSLInit(ssl_ctx, stream_fd, is_server,
                           (const uint8_t*)session_key, sizeof(*session_key),
-                          ocall_read, ocall_write);
+                          ocall_read, ocall_write, buf_load_ssl_ctx, buf_size);
 
     if (ret != 0) {
         free(ssl_ctx);
@@ -1340,4 +1343,32 @@ int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len) {
 
 int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len) {
     return lib_SSLWrite(ssl_ctx, buf, len);
+}
+
+int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* olen) {
+    assert(obuf);
+    assert(olen);
+
+    int ret;
+
+    /* figure out the required buffer size */
+    ret = lib_SSLSave(ssl_ctx, NULL, 0, olen);
+    if (ret != 0 && ret != -PAL_ERROR_NOMEM)
+        return ret;
+
+    /* create the required buffer */
+    size_t len   = *olen;
+    uint8_t* buf = malloc(len);
+    if (!buf)
+        return -PAL_ERROR_NOMEM;
+
+    /* now have buffer with sufficient size to save serialized context */
+    ret = lib_SSLSave(ssl_ctx, buf, len, olen);
+    if (ret != 0 || len != *olen) {
+        free(buf);
+        return -PAL_ERROR_DENIED;
+    }
+
+    *obuf = buf;
+    return 0;
 }

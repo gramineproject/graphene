@@ -8,17 +8,15 @@ int main(int argc, char** argv) {
     PAL_HANDLE handles[3];
 
     if (argc == 2 && !memcmp(argv[1], "Child", 6)) {
-        for (int i = 0; i < 3; i++) {
-            handles[i] = DkReceiveHandle(pal_control.parent_process);
-            if (handles[i])
-                pal_printf("Receive Handle OK\n");
-        }
-
         char buffer[20];
 
         for (int i = 0; i < 3; i++) {
-            if (!handles[i])
+            handles[i] = DkReceiveHandle(pal_control.parent_process);
+            if (handles[i]) {
+                pal_printf("Receive Handle OK\n");
+            } else {
                 continue;
+            }
 
             memset(buffer, 0, 20);
 

@@ -1,0 +1,78 @@
+diff --git a/library/ssl_tls.c b/library/ssl_tls.c
+index 63bc5c8..9acb471 100644
+--- a/library/ssl_tls.c
++++ b/library/ssl_tls.c
+@@ -5951,12 +5951,14 @@ int mbedtls_ssl_context_save( mbedtls_ssl_context *ssl,
+         MBEDTLS_SSL_DEBUG_MSG( 1, ( "There is pending outgoing data" ) );
+         return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+     }
++#if 0
+     /* Protocol must be DLTS, not TLS */
+     if( ssl->conf->transport != MBEDTLS_SSL_TRANSPORT_DATAGRAM )
+     {
+         MBEDTLS_SSL_DEBUG_MSG( 1, ( "Only DTLS is supported" ) );
+         return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+     }
++#endif
+     /* Version must be 1.2 */
+     if( ssl->major_ver != MBEDTLS_SSL_MAJOR_VERSION_3 )
+     {
+@@ -6125,6 +6127,15 @@ int mbedtls_ssl_context_save( mbedtls_ssl_context *ssl,
+     }
+ #endif /* MBEDTLS_SSL_ALPN */
+ 
++#if 1 /* FIXME: currently hardcoded for TLS */
++    used += 8;
++    if( used <= buf_len )
++    {
++        memcpy( p, ssl->in_ctr, 8 );
++        p += 8;
++    }
++#endif
++
+     /*
+      * Done
+      */
+@@ -6135,7 +6146,11 @@ int mbedtls_ssl_context_save( mbedtls_ssl_context *ssl,
+ 
+     MBEDTLS_SSL_DEBUG_BUF( 4, "saved context", buf, used );
+ 
++#if 0
+     return( mbedtls_ssl_session_reset_int( ssl, 0 ) );
++#else
++    return( 0 );
++#endif
+ }
+ 
+ /*
+@@ -6187,6 +6202,7 @@ static int ssl_context_load( mbedtls_ssl_context *ssl,
+         return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+     }
+ 
++#if 0
+     /*
+      * We can't check that the config matches the initial one, but we can at
+      * least check it matches the requirements for serializing.
+@@ -6203,6 +6219,7 @@ static int ssl_context_load( mbedtls_ssl_context *ssl,
+     {
+         return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+     }
++#endif
+ 
+     MBEDTLS_SSL_DEBUG_BUF( 4, "context to load", buf, len );
+ 
+@@ -6422,6 +6439,14 @@ static int ssl_context_load( mbedtls_ssl_context *ssl,
+     ssl->in_epoch = 1;
+ #endif
+ 
++#if 1 /* FIXME: currently hardcoded for TLS */
++    if( (size_t)( end - p ) < 8 )
++        return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
++
++    memcpy( ssl->in_ctr, p, 8 );
++    p += 8;
++#endif
++
+     /* mbedtls_ssl_reset() leaves the handshake sub-structure allocated,
+      * which we don't want - otherwise we'd end up freeing the wrong transform
+      * by calling mbedtls_ssl_handshake_wrapup_free_hs_transform()

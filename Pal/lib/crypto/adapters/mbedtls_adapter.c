@@ -378,7 +378,8 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
                 const uint8_t* psk, size_t psk_size,
                 ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len),
-                ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len)) {
+                ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len),
+                const uint8_t* buf_load_ssl_ctx, size_t buf_size) {
     int ret;
 
     memset(ssl_ctx, 0, sizeof(*ssl_ctx));
@@ -420,6 +421,13 @@ int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
 
     mbedtls_ssl_set_bio(&ssl_ctx->ssl, ssl_ctx, send_cb, recv_cb, NULL);
 
+    if (buf_load_ssl_ctx && buf_size) {
+        /* SSL context was serialized, must be restored from the supplied buffer */
+        ret = mbedtls_ssl_context_load(&ssl_ctx->ssl, buf_load_ssl_ctx, buf_size);
+        return ret != 0 ? -PAL_ERROR_DENIED : 0;
+    }
+
+    /* it is a new SSL context (not from buffer), so establish new connection via SSL handshake */
     while ((ret = mbedtls_ssl_handshake(&ssl_ctx->ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
             break;
@@ -450,4 +458,14 @@ int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len) {
     if (ret <= 0)
        return -PAL_ERROR_DENIED;
     return ret;
+}
+
+int lib_SSLSave(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len, size_t* olen) {
+    int ret = mbedtls_ssl_context_save(&ssl_ctx->ssl, buf, len, olen);
+    if (ret == MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL) {
+        return -PAL_ERROR_NOMEM;
+    } else if (ret < 0) {
+        return -PAL_ERROR_DENIED;
+    }
+    return 0;
 }

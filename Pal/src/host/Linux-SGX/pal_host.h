@@ -100,6 +100,10 @@ typedef struct pal_handle
             PAL_IDX fd;
             PAL_NUM pipeid;
             PAL_BOL nonblocking;
+            PAL_BOL is_server;
+            PAL_SESSION_KEY session_key;
+            PAL_NUM handshake_done;
+            void* ssl_ctx;
         } pipe;
 
         struct {
