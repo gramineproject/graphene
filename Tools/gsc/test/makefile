@@ -27,7 +27,7 @@ gsc-%-python3: %-python3.manifest
 
 gsc-%-pytorch: %-pytorch.manifest
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $^ sh.manifest)
+	cd .. && ./gsc build $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $^ sh.manifest uname.manifest)
 
 gsc-%:
 	echo "Build graphenized image $@"
@@ -36,7 +36,7 @@ gsc-%:
 test: $(addprefix test-, $(DISTRIBUTIONS))
 	echo "[SUCCESS] Completed all GSC test cases"
 
-MAXTESTNUM?=9
+MAXTESTNUM?=11
 
 test-1-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>/dev/null;
@@ -62,31 +62,32 @@ test-4-%:
 	rm -f out c.id output1 output1.clean output2;
 
 test-5-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-hello-world) > out 2>/dev/null;
-	grep -q "Hello World!" out;
-
-test-6-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) -e 'console.log("HelloWorld");' >out 2>/dev/null;
-	grep -q "HelloWorld" out;
-
-test-7-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) graphene-tests/nodejs/helloworld.js >out 2>/dev/null;
-	grep -q "Hello World" out;
-
-test-8-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-numpy) graphene-tests/python-scipy-insecure/scripts/test-numpy.py >out 2>/dev/null;
-	grep -q "numpy version:" out;
-
-test-9-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' >out 2>/dev/null;
-	grep -q "ls.manifest.sgx" out;
-
-test-10-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' >out 2>/dev/null;
 	grep -q "ls.manifest.sgx" out;
 
+test-6-%:
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-hello-world) > out 2>/dev/null;
+	grep -q "Hello World!" out;
+
+test-7-%:
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) -e 'console.log("HelloWorld");' >out 2>/dev/null;
+	grep -q "HelloWorld" out;
+
+test-8-%:
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) graphene-tests/nodejs/helloworld.js >out 2>/dev/null;
+	grep -q "Hello World" out;
+
+test-9-%:
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-numpy) graphene-tests/python-scipy-insecure/scripts/test-numpy.py >out 2>/dev/null;
+	grep -q "numpy version:" out;
+
+test-10-%:
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' >out 2>/dev/null;
+	grep -q "ls.manifest.sgx" out;
+
 test-11-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py >out 2>/dev/null;
+	grep -q "('Labrador retriever', 41.58518600463867)" out;
 
 test-%:
 	echo "Testing $*."
@@ -116,7 +117,7 @@ cleanContainers:
 
 distclean: cleanContainers cleanBase cleanGSC
 	docker builder prune -a -f
-	rm ../config.json
+	rm -f ../config.json
 
 clean: cleanContainers
 	docker image prune -f
