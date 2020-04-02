@@ -410,7 +410,7 @@ int get_cpu_count(void) {
         if (ptr == end)
             break;
 
-        if (*end == '\0' || *end == ',') {
+        if (*end == '\0' || *end == ',' || *end == '\n') {
             /* single CPU index, count as one more CPU */
             cpu_count++;
         } else if (*end == '-') {
