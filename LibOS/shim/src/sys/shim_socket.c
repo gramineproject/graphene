@@ -329,24 +329,41 @@ static int inet_check_addr(int domain, struct sockaddr* addr, socklen_t addrlen)
     return -EINVAL;
 }
 
-static int inet_copy_addr(int domain, struct sockaddr* saddr, const struct addr_inet* addr) {
-    if (domain == AF_INET) {
-        struct sockaddr_in* in = (struct sockaddr_in*)saddr;
+static int inet_copy_addr(int domain, struct sockaddr* saddr, socklen_t saddr_len,
+                          const struct addr_inet* addr) {
+    struct sockaddr_storage ss;
+    struct sockaddr_in *in;
+    struct sockaddr_in6 *in6;
+    int len;
+
+    switch (domain)
+      {
+      case AF_INET:
+        in = (struct sockaddr_in*)&ss;
         in->sin_family         = AF_INET;
         in->sin_port           = __htons(addr->port);
         in->sin_addr           = addr->addr.v4;
-        return sizeof(struct sockaddr_in);
-    }
 
-    if (domain == AF_INET6) {
-        struct sockaddr_in6* in6 = (struct sockaddr_in6*)saddr;
+        len = MIN(saddr_len, sizeof(struct sockaddr_in));
+        break;
+
+      case AF_INET6:
+        in6 = (struct sockaddr_in6*)&ss;
         in6->sin6_family         = AF_INET6;
         in6->sin6_port           = __htons(addr->port);
         in6->sin6_addr           = addr->addr.v6;
-        return sizeof(struct sockaddr_in6);
+
+        len = MIN(saddr_len, sizeof(struct sockaddr_in6));
+        break;
+
+      default:
+        len = 0;
     }
 
-    return sizeof(struct sockaddr);
+    if (len)
+        memcpy(saddr, &ss, len);
+
+    return len;
 }
 
 static void inet_save_addr(int domain, struct addr_inet* addr, const struct sockaddr* saddr) {
@@ -944,12 +961,9 @@ int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, sockl
         inet_rebase_port(true, cli_sock->domain, &cli_sock->addr.in.conn, false);
 
         if (addr) {
-            inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
-
-            if (addrlen) {
+            if (addrlen)
                 assert(sock->domain == AF_INET || sock->domain == AF_INET6);
-                *addrlen = minimal_addrlen(sock->domain);
-            }
+            *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &sock->addr.in.conn);
         }
     }
 
@@ -1305,13 +1319,10 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
                     debug("last packet received from %s\n", uri);
 
                     inet_rebase_port(true, sock->domain, &conn, false);
-                    inet_copy_addr(sock->domain, addr, &conn);
+                    *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &conn);
                 } else {
-                    inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+                    *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &sock->addr.in.conn);
                 }
-
-                *addrlen = (sock->domain == AF_INET) ? sizeof(struct sockaddr_in)
-                                                     : sizeof(struct sockaddr_in6);
             }
 
             address_received = true;
@@ -1486,14 +1497,8 @@ int shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
     struct shim_sock_handle* sock = &hdl->info.sock;
     lock(&hdl->lock);
 
-    struct sockaddr saddr;
-    int len = inet_copy_addr(sock->domain, &saddr, &sock->addr.in.bind);
+    *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &sock->addr.in.bind);
 
-    if (len < *addrlen)
-        len = *addrlen;
-
-    memcpy(addr, &saddr, len);
-    *addrlen = len;
     ret      = 0;
     unlock(&hdl->lock);
 out:
@@ -1538,14 +1543,7 @@ int shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
         goto out_locked;
     }
 
-    struct sockaddr saddr;
-    int len = inet_copy_addr(sock->domain, &saddr, &sock->addr.in.conn);
-
-    if (len < *addrlen)
-        len = *addrlen;
-
-    memcpy(addr, &saddr, len);
-    *addrlen = len;
+    *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &sock->addr.in.conn);
     ret      = 0;
 out_locked:
     unlock(&hdl->lock);
