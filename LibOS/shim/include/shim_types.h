@@ -379,6 +379,14 @@ struct sockaddr {
     char sa_data[14];           /* Address data.  */
 };
 
+/* From bits/socket.h */
+/* Structure large enough to hold any socket address (with the historical
+   exception of AF_UNIX).  */
+struct sockaddr_storage {
+    __SOCKADDR_COMMON(ss_);    /* Address family, etc.  */
+    char __ss_padding[128 - sizeof(sa_family_t)];
+};
+
 /* linux/mqueue.h */
 struct __kernel_mq_attr {
     long    mq_flags;       /* message queue flags */
