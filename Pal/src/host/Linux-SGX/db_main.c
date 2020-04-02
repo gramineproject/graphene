@@ -46,6 +46,8 @@
 struct pal_linux_state linux_state;
 struct pal_sec pal_sec;
 
+PAL_SESSION_KEY g_master_key = {0};
+
 size_t g_page_size = PRESET_PAGESIZE;
 
 unsigned long _DkGetAllocationAlignment (void)
@@ -348,6 +350,13 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     linux_state.process_id = (start_time & (~0xffff)) | pal_sec.pid;
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+
+    /* initialize master key (used for pipes' encryption for all enclaves of an application); it
+     * will be overwritten below in init_child_process() with inherited-from-parent master key if
+     * this enclave is child */
+    int ret = _DkRandomBitsRead(&g_master_key, sizeof(g_master_key));
+    if (ret < 0)
+        return;
 
     /* if there is a parent, create parent handle */
     if (pal_sec.ppid) {

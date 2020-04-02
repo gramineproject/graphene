@@ -23,6 +23,7 @@
 
 #include "api.h"
 #include "pal.h"
+#include "pal_crypto.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -50,6 +51,50 @@ static int pipe_addr(const char* name, struct sockaddr_un* addr) {
     /* pipe_prefix already contains a slash at the end, so not needed in the format string */
     int ret = snprintf(str, size, "%s%s", pal_sec.pipe_prefix, name);
     return ret >= 0 && (size_t)ret < size ? 0 : -EINVAL;
+}
+
+static int pipe_session_key(PAL_PIPE_NAME* name, PAL_SESSION_KEY* session_key) {
+    /* use SHA256 as a KDF; session key is KDF(g_master_key || pipe_name) */
+    int ret;
+    LIB_SHA256_CONTEXT sha;
+
+    ret = lib_SHA256Init(&sha);
+    if (ret < 0)
+        goto fail;
+
+    ret = lib_SHA256Update(&sha, (uint8_t*)&g_master_key, sizeof(g_master_key));
+    if (ret < 0)
+        goto fail;
+
+    ret = lib_SHA256Update(&sha, (uint8_t*)name->str, sizeof(name->str));
+    if (ret < 0)
+        goto fail;
+
+    ret = lib_SHA256Final(&sha, (uint8_t*)session_key);
+    if (ret < 0)
+        goto fail;
+
+    return 0;
+fail:
+    SGX_DBG(DBG_E, "Failed to derive the pre-shared key for pipe %s: %d\n", name->str, ret);
+    return ret;
+}
+
+int thread_handshake_func(void* param) {
+    PAL_HANDLE handle = (PAL_HANDLE)param;
+
+    assert(handle);
+    assert(IS_HANDLE_TYPE(handle, pipe));
+    assert(!handle->pipe.ssl_ctx);
+    assert(!handle->pipe.handshake_done);
+
+    int ret = _DkStreamSecureInit(handle, handle->pipe.is_server, &handle->pipe.session_key,
+                                  (LIB_SSL_CONTEXT**)&handle->pipe.ssl_ctx, NULL, 0);
+    if (ret < 0)
+        return ret;
+
+    __atomic_store_n(&handle->pipe.handshake_done, 1, __ATOMIC_RELEASE);
+    return ret;
 }
 
 /*!
@@ -93,7 +138,15 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write to a listening socket */
     hdl->pipe.fd            = ret;
     hdl->pipe.nonblocking   = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
-    memcpy(&hdl->pipe.name.str, name, sizeof(hdl->pipe.name.str));
+
+    memset(&hdl->pipe.name.str, 0, sizeof(hdl->pipe.name.str));
+    memcpy(&hdl->pipe.name.str, name, strlen(name) + 1);
+
+    /* pipesrv handle is only intermediate so it doesn't need SSL context or session key */
+    hdl->pipe.ssl_ctx        = NULL;
+    hdl->pipe.is_server      = false;
+    hdl->pipe.handshake_done = 1;  /* pipesrv doesn't do any handshake so consider it done */
+    memset(hdl->pipe.session_key, 0, sizeof(hdl->pipe.session_key));
 
     *handle = hdl;
     return 0;
@@ -135,6 +188,28 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
     clnt->pipe.fd            = ret;
     clnt->pipe.name          = handle->pipe.name;
     clnt->pipe.nonblocking   = PAL_FALSE; /* FIXME: must set nonblocking based on `handle` value */
+
+    /* create the SSL pre-shared key for this end of the pipe; note that SSL context is initialized
+     * lazily on first read/write on this pipe */
+    clnt->pipe.ssl_ctx        = NULL;
+    clnt->pipe.is_server      = false;
+    clnt->pipe.handshake_done = 0;
+
+    ret = pipe_session_key(&clnt->pipe.name, &clnt->pipe.session_key);
+    if (IS_ERR(ret)) {
+        ocall_close(clnt->pipe.fd);
+        free(clnt);
+        return -PAL_ERROR_DENIED;
+    }
+
+    ret = _DkStreamSecureInit(clnt, clnt->pipe.is_server, &clnt->pipe.session_key,
+                              (LIB_SSL_CONTEXT**)&clnt->pipe.ssl_ctx, NULL, 0);
+    if (ret < 0) {
+        ocall_close(clnt->pipe.fd);
+        free(clnt);
+        return ret;
+    }
+    __atomic_store_n(&clnt->pipe.handshake_done, 1, __ATOMIC_RELEASE);
 
     *client = clnt;
     return 0;
@@ -181,7 +256,32 @@ static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->pipe.fd            = ret;
     hdl->pipe.nonblocking   = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
-    memcpy(&hdl->pipe.name.str, name, sizeof(hdl->pipe.name.str));
+
+    memset(&hdl->pipe.name.str, 0, sizeof(hdl->pipe.name.str));
+    memcpy(&hdl->pipe.name.str, name, strlen(name) + 1);
+
+    /* create the SSL pre-shared key for this end of the pipe and initialize SSL context */
+    ret = pipe_session_key(&hdl->pipe.name, &hdl->pipe.session_key);
+    if (IS_ERR(ret)) {
+        ocall_close(hdl->pipe.fd);
+        free(hdl);
+        return -PAL_ERROR_DENIED;
+    }
+
+    hdl->pipe.ssl_ctx        = NULL;
+    hdl->pipe.is_server      = true;
+    hdl->pipe.handshake_done = 0;
+
+    /* create a helper thread to initialize the SSL context (by performing SSL handshake);
+     * we need a separate thread because the underlying handshake implementation is blocking
+     * and assumes that client and server are two parallel entities (e.g., two threads) */
+    PAL_HANDLE thread_hdl;
+    ret = _DkThreadCreate(&thread_hdl, thread_handshake_func, /*param=*/hdl);
+    if (IS_ERR(ret)) {
+        ocall_close(hdl->pipe.fd);
+        free(hdl);
+        return -PAL_ERROR_DENIED;
+    }
 
     *handle = hdl;
     return 0;
@@ -192,7 +292,7 @@ static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
  *
  * This function creates a PAL handle of type `pipeprv` (anonymous pipe). In contrast to other types
  * of pipes, `pipeprv` encapsulates both ends of the pipe, backed by a host-level socketpair. This
- * type of pipe is typically reserved for internal PAL uses, not for LibOS emulation.
+ * type of pipe is typically reserved for internal LibOS usages, e.g. events (see `create_event()`).
  *
  * \param[out] handle  PAL handle of type `pipeprv` backed by a host-level socketpair.
  * \param[in]  options May contain PAL_OPTION_NONBLOCK.
@@ -219,6 +319,9 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
     hdl->pipeprv.fds[0]      = fds[0];
     hdl->pipeprv.fds[1]      = fds[1];
     hdl->pipeprv.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
+
+    /* pipeprv handle is currently used only for LibOS event emulation and does not send any real
+     * messages (only dummy bytes to trigger events), so it doesn't need SSL context or key */
 
     *handle = hdl;
     return 0;
@@ -286,11 +389,22 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
 
-    int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] : handle->pipe.fd;
+    ssize_t bytes;
+    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+        /* pipeprv are currently not encrypted, see pipe_private() */
+        bytes = ocall_recv(handle->pipeprv.fds[0], buffer, len, NULL, NULL, NULL, NULL);
+        if (IS_ERR(bytes))
+            return unix_to_pal_error(ERRNO(bytes));
+    } else {
+        /* normal pipe, use a secure session (should be already initialized) */
+        while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE))
+            __asm__ volatile ("pause");
 
-    ssize_t bytes = ocall_recv(fd, buffer, len, NULL, NULL, NULL, NULL);
-    if (IS_ERR(bytes))
-        return unix_to_pal_error(ERRNO(bytes));
+        if (!handle->pipe.ssl_ctx)
+            return -PAL_ERROR_NOTCONNECTION;
+
+        bytes = _DkStreamSecureRead(handle->pipe.ssl_ctx, buffer, len);
+    }
 
     if (!bytes)
         return -PAL_ERROR_ENDOFSTREAM;
@@ -315,11 +429,22 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, cons
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
 
-    int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] : handle->pipe.fd;
+    ssize_t bytes;
+    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+        /* pipeprv are currently not encrypted, see pipe_private() */
+        bytes = ocall_send(handle->pipeprv.fds[1], buffer, len, NULL, 0, NULL, 0);
+        if (IS_ERR(bytes))
+            return unix_to_pal_error(ERRNO(bytes));
+    } else {
+        /* normal pipe, use a secure session (should be already initialized) */
+        while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE))
+            __asm__ volatile ("pause");
 
-    ssize_t bytes = ocall_send(fd, buffer, len, NULL, 0, NULL, 0);
-    if (IS_ERR(bytes))
-        return unix_to_pal_error(ERRNO(bytes));
+        if (!handle->pipe.ssl_ctx)
+            return -PAL_ERROR_NOTCONNECTION;
+
+        bytes = _DkStreamSecureWrite(handle->pipe.ssl_ctx, buffer, len);
+    }
 
     return bytes;
 }
@@ -341,6 +466,13 @@ static int pipe_close(PAL_HANDLE handle) {
             handle->pipeprv.fds[1] = PAL_IDX_POISON;
         }
     } else if (handle->pipe.fd != PAL_IDX_POISON) {
+        while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE))
+            __asm__ volatile ("pause");
+
+        if (handle->pipe.ssl_ctx) {
+            _DkStreamSecureFree((LIB_SSL_CONTEXT*)handle->pipe.ssl_ctx);
+            handle->pipe.ssl_ctx = NULL;
+        }
         ocall_close(handle->pipe.fd);
         handle->pipe.fd = PAL_IDX_POISON;
     }

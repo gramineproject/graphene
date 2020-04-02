@@ -164,6 +164,10 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
 
 typedef uint8_t sgx_sign_data_t[48];
 
+/* master key for all enclaves of one application, populated by the first enclave and inherited by
+ * all other enclaves (children, their children, etc.); used as master key in pipes' encryption */
+extern PAL_SESSION_KEY g_master_key;
+
 /* enclave state used for generating report */
 extern struct pal_enclave_state {
     uint64_t        enclave_flags;      // Reserved for flags
@@ -208,10 +212,12 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mr_enclave_t check_mr_enclave);
 
 int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* session_key,
-                        LIB_SSL_CONTEXT** out_ssl_ctx);
+                        LIB_SSL_CONTEXT** out_ssl_ctx, const uint8_t* buf_load_ssl_ctx,
+                        size_t buf_size);
 int _DkStreamSecureFree(LIB_SSL_CONTEXT* ssl_ctx);
 int _DkStreamSecureRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len);
 int _DkStreamSecureWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len);
+int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* olen);
 
 #include "sgx_arch.h"
 
