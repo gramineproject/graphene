@@ -82,8 +82,8 @@ crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC)
 	$(RM) crypto/mbedtls/crypto/include/mbedtls/config.h
 
 crypto/mbedtls/include/mbedtls/config.h: crypto/config.h crypto/mbedtls/CMakeLists.txt
-	cp crypto/config.h crypto/mbedtls/include/mbedtls
 	cp crypto/config.h crypto/mbedtls/crypto/include/mbedtls
+	cp crypto/config.h crypto/mbedtls/include/mbedtls
 
 crypto/mbedtls/crypto/library/aes.c: crypto/mbedtls/CMakeLists.txt crypto/mbedtls/include/mbedtls/config.h
 $(filter-out crypto/mbedtls/crypto/library/aes.c,$(patsubst %.o,%.c,$(crypto_mbedtls_library_objs))): crypto/mbedtls/crypto/library/aes.c
