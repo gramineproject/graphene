@@ -98,7 +98,6 @@ test-%:
 	done
 	echo "Successfully finished testing $*."
 
-
 cleanImage-%:
 	docker image rm -f $(addsuffix $(IMAGE_SUFFIX), $*);
 
@@ -117,7 +116,7 @@ cleanFiles:
 	for d in $(DISTRIBUTIONS); do \
 		for t in $(TESTCASES); do \
 			rm -rf ../gsc-$${d}-$${t} || exit 1; \
-		done; \
+		done \
 	done
 
 distclean: cleanContainers cleanBase cleanGSC cleanFiles
