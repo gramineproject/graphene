@@ -113,10 +113,17 @@ space +=
 cleanContainers:
 	docker container ls -a | grep -e '$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(TESTS)))\|$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(addprefix gsc-, $(TESTS))))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container rm -f
 
-distclean: cleanContainers cleanBase cleanGSC
+cleanFiles:
+	for d in $(DISTRIBUTIONS); do \
+		for t in $(TESTCASES); do \
+			rm -rf ../gsc-$${d}-$${t} || exit 1; \
+		done; \
+	done
+
+distclean: cleanContainers cleanBase cleanGSC cleanFiles
 	docker builder prune -a -f
 	docker image prune -f
 	rm -f ../config.json
 
-clean: cleanBase cleanGSC
+clean: cleanBase cleanGSC cleanFiles
 	rm -f ../config.json
