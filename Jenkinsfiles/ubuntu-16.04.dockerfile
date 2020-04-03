@@ -1,9 +1,6 @@
 # Start with 16.04
 FROM ubuntu:16.04
 
-# Copy entrypoint script
-COPY Jenkinsfiles/entrypoint.sh /
-
 # Add steps here to set up dependencies
 RUN apt-get update \
     && apt-get install -y \
@@ -12,12 +9,10 @@ RUN apt-get update \
        bison \
        build-essential \
        curl \
-       docker.io \
        flex \
        gawk \
        gettext \
        git \
-       gosu \
        libapr1-dev \
        libaprutil1-dev \
        libexpat1 \
@@ -51,7 +46,7 @@ RUN apt-get update \
        wget \
        zlib1g \
        zlib1g-dev \
-    && /usr/bin/pip3 install protobuf docker \
+    && /usr/bin/pip3 install protobuf \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
@@ -65,21 +60,16 @@ RUN apt-get update \
     && rm -f /leeroy/.rnd \
 
 # Make a directory for the intel driver
-    && mkdir -p /opt/intel && chown 1001 /opt/intel \
-
-# Make entrypoint script executable
-    && chmod ugo+x /entrypoint.sh \
-    && chown leeroy:leeroy /entrypoint.sh
+    && mkdir -p /opt/intel && chown 1001 /opt/intel
 
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
 
+# Specify the user to execute all commands below
+USER leeroy
+
 # Set environment variables.
 ENV HOME /leeroy
 
-# Entrypoint script which a) assigns docker group the gid of /var/run/docker.sock, b) adds leeroy to
-# the (new) docker group id, and c) execs the specified or default command under user leeroy
-ENTRYPOINT ["/entrypoint.sh"]
-
-# Default starts bash
+# Define default command.
 CMD ["bash"]

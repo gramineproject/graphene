@@ -2,7 +2,7 @@ pipeline {
         agent {
             dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile'
                          label 'sgx_slave'
-                         args "-u root:root -v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx  -v /var/run/docker.sock:/var/run/docker.sock"
+                         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx"
                        }
         }
         stages {
@@ -39,60 +39,55 @@ pipeline {
                         sh '''
                             make -j 8 SGX=1 WERROR=1
                         '''
-                        sh '''
-                            cd Tools/gsc/test
-                            sed -e 's/2.5/1.9/g' -e sed 's/\"distro\": \".*\"/\"distro\":\"'ubuntu18.04'\"/' ../config.json.template > ../config.json
-                            make TESTCASES=python3 DISTRIBUTIONS=ubuntu18.04 IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
-                        '''
                     }
                 }
                 stage('Test') {
                     steps {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/python-simple
+                                cd Examples/python-simple
                                 PYTHONVERSION=python3.6 make SGX=1
                                 PYTHONVERSION=python3.6 make SGX=1 check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/python-scipy-insecure
+                                cd Examples/python-scipy-insecure
                                 PYTHONVERSION=python3.6 make SGX=1
                                 PYTHONVERSION=python3.6 make SGX=1 check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/bash
+                                cd Examples/bash
                                 make SGX=1 all
                                 make SGX=1 regression
                            '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/curl
+                                cd Examples/curl
                                 make SGX=1 all
                                 make SGX=1 check
                            '''
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/gcc
+                                cd Examples/gcc
                                 make SGX=1 all
                                 make SGX=1 check
                            '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/lmbench
+                                cd Examples/lmbench
                                 make SGX=1 all
                                 make SGX=1 test N_RUNS=1 ENOUGH=100
                             '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/redis
+                                cd Examples/redis
                                 make SGX=1
                                 make SGX=1 start-graphene-server &
                                 sleep 30
@@ -101,7 +96,7 @@ pipeline {
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/lighttpd
+                                cd Examples/lighttpd
                                 make SGX=1
                                 make SGX=1 start-graphene-server &
                                 sleep 10
@@ -110,7 +105,7 @@ pipeline {
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/nginx
+                                cd Examples/nginx
                                 make SGX=1
                                 make SGX=1 start-graphene-server &
                                 sleep 30
@@ -119,7 +114,7 @@ pipeline {
                         }
                         timeout(time: 25, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/apache
+                                cd Examples/apache
                                 make SGX=1
                                 make SGX=1 start-graphene-server &
                                 sleep 30
@@ -129,7 +124,7 @@ pipeline {
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/blender
+                                cd Examples/blender
                                 make SGX=1
                                 make SGX=1 check
                            '''
@@ -143,30 +138,26 @@ pipeline {
                            rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
                            make SGX=1 distclean
 
-                           make -C LibOS/shim/test/apps/python-simple SGX=1 clean
-                           make -C LibOS/shim/test/apps/python-scipy-insecure SGX=1 clean
-                           make -C LibOS/shim/test/apps/bash SGX=1 clean
-                           make -C LibOS/shim/test/apps/curl SGX=1 clean
-                           make -C LibOS/shim/test/apps/gcc SGX=1 clean
-                           make -C LibOS/shim/test/apps/lmbench SGX=1 distclean
-                           make -C LibOS/shim/test/apps/redis SGX=1 distclean
-                           make -C LibOS/shim/test/apps/lighttpd SGX=1 distclean
-                           make -C LibOS/shim/test/apps/nginx SGX=1 distclean
-                           make -C LibOS/shim/test/apps/apache SGX=1 distclean
-                           make -C LibOS/shim/test/apps/blender SGX=1 distclean
+                           make -C Examples/python-simple SGX=1 clean
+                           make -C Examples/python-scipy-insecure SGX=1 clean
+                           make -C Examples/bash SGX=1 clean
+                           make -C Examples/curl SGX=1 clean
+                           make -C Examples/gcc SGX=1 clean
+                           make -C Examples/lmbench SGX=1 distclean
+                           make -C Examples/redis SGX=1 distclean
+                           make -C Examples/lighttpd SGX=1 distclean
+                           make -C Examples/nginx SGX=1 distclean
+                           make -C Examples/apache SGX=1 distclean
+                           make -C Examples/blender SGX=1 distclean
 
                            # Currently used release of LTP contains broken symlinks under
                            # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit
                            # rm of these symlinks, the clean-check utility fails. We should
                            # update to newer release of LTP where this issue will be fixed.
-                           rm -rf /tmp/graphene-sgx-18.04-apps.clean-check.clean/LibOS/shim/test/apps/ltp/src
-                           rm -rf LibOS/shim/test/apps/ltp/src
+                           rm -rf /tmp/graphene-sgx-18.04-apps.clean-check.clean/LibOS/shim/test/ltp/src
+                           rm -rf LibOS/shim/test/ltp/src
 
                            ./Scripts/clean-check
-                        '''
-                        sh '''
-                            cd Tools/gsc/test
-                            make test MAXTESTNUM=4 TESTCASES=python3 DISTRIBUTIONS=ubuntu18.04 IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
                         '''
                     }
                 }
@@ -185,12 +176,6 @@ pipeline {
                 }
                 unstable {
                         echo 'Pipeline marked as "unstable"'
-                }
-                cleanup {
-                    sh '''
-                        cd Tools/gsc/test
-                        make distclean TESTCASES=python3 DISTRIBUTIONS=ubuntu18.04 IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
-                    '''
                 }
         }
 }

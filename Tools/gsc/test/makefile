@@ -103,10 +103,8 @@ cleanImage-%:
 	docker image rm -f $(addsuffix $(IMAGE_SUFFIX), $*);
 
 cleanBase: $(addprefix cleanImage-, $(TESTS))
-	docker image prune -f
 
 cleanGSC: $(addprefix cleanImage-gsc-, $(TESTS))
-	docker image prune -f
 
 # Create a space to be used in subst
 space :=
@@ -117,7 +115,8 @@ cleanContainers:
 
 distclean: cleanContainers cleanBase cleanGSC
 	docker builder prune -a -f
+	docker image prune -f
 	rm -f ../config.json
 
-clean: cleanContainers
-	docker image prune -f
+clean: cleanBase cleanGSC
+	rm -f ../config.json

@@ -8,12 +8,10 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     bison \
     build-essential \
     curl \
-    docker.io \
     flex \
     gawk \
     gettext \
     git \
-    gosu \
     libapr1-dev \
     libaprutil1-dev \
     libelf-dev \
@@ -51,7 +49,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     zlib1g \
     zlib1g-dev
 
-RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark docker
+RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN groupadd -r leeroy -g 1001 && useradd -u 1001 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \
@@ -69,19 +67,11 @@ RUN mkdir -p /opt/intel && chown 1001 /opt/intel
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
 
+# Specify the user to execute all commands below
+USER leeroy
+
 # Set environment variables.
 ENV HOME /leeroy
 
-# Copy entrypoint script
-COPY Jenkinsfiles/entrypoint.sh /
-
-# Make entrypoint script executable
-RUN chmod ugo+x /entrypoint.sh \
-    && chown leeroy:leeroy /entrypoint.sh
-
-# Entrypoint script which a) assigns docker group the gid of /var/run/docker.sock, b) adds leeroy to
-# the (new) docker group id, and c) execs the specified or default command under user leeroy
-ENTRYPOINT ["/entrypoint.sh"]
-
-# Default starts bash
+# Define default command.
 CMD ["bash"]
