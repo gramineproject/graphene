@@ -69,6 +69,19 @@ ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d, $(executables)) $(addsuffix .i.d, $(executables)) $(addsuffix .s.d, $(executables))
 endif
 
+RUNTIME_DIR = $(CURDIR)/../../Runtime
+export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
+export PYTHONPATH=../../Scripts
+
+.PHONY: test
+test:
+	$(RM) pal-test.xml
+	$(MAKE) pal-test.xml
+
+pal-test.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(call expand_target_to_token,$(target))
+	python3 -m pytest --junit-xml $@ -v $<
+
+
 .PHONY: clean
 clean:
 	$(RM) -r pal_loader $(target) .lib *.cached *.sig *.token *.manifest.sgx \
