@@ -668,7 +668,7 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
     return &thread->signal_mask;
 }
 
-static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
+static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig, bool allow_reset) {
     assert(locked(&thread->lock));
 
     struct shim_signal_handle* sighdl = &thread->signal_handles[sig - 1];
@@ -685,7 +685,7 @@ static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
 # error "x86-32 support is heavily broken."
 #endif
         handler = (void*)act->k_sa_handler;
-        if (act->sa_flags & SA_RESETHAND) {
+        if (allow_reset && act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
             free(act);
         }
@@ -708,7 +708,7 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
     }
 
     lock(&thread->lock);
-    handler = __get_sighandler(thread, sig);
+    handler = __get_sighandler(thread, sig, /*allow_reset=*/true);
     unlock(&thread->lock);
 
     if (!handler)
@@ -799,7 +799,9 @@ void handle_signal (void)
 void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt) {
     assert(locked(&thread->lock));
 
-    __rt_sighandler_t handler = __get_sighandler(thread, sig);
+    /* only want to check if sighandler exists without actual invocation, so don't
+     * reset even if SA_RESETHAND */
+    __rt_sighandler_t handler = __get_sighandler(thread, sig, /*allow_reset=*/false);
 
     if (!handler) {
         // SIGSTOP and SIGKILL cannot be ignored
