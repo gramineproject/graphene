@@ -115,7 +115,7 @@ cleanContainers:
 cleanFiles:
 	for d in $(DISTRIBUTIONS); do \
 		for t in $(TESTCASES); do \
-			rm -rf ../gsc-$${d}-$${t} || exit 1; \
+			echo rm -rf ../gsc-$${d}-$${t}$(IMAGE_SUFFIX) || exit 1; \
 		done \
 	done
 
