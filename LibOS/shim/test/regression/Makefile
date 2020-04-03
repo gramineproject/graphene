@@ -47,6 +47,7 @@ c_executables = \
 	select \
 	shared_object \
 	sigaltstack \
+	sighandler_reset \
 	sigprocmask \
 	spinlock \
 	stat_invalid_args \
