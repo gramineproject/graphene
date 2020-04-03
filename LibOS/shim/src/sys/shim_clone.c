@@ -211,15 +211,16 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
         /* FIXME: we ignore parent_tidptr, child_tidptr and tls; no application seems to use a
          *        combination of clone(CLONE_VFORK) and these parameters */
-        if (parent_tidptr || child_tidptr || tls) {
-            debug("Emulation of clone(CLONE_VFORK) ignores");
-            if (parent_tidptr)
-                debug(" parent_tidptr = %p,", parent_tidptr);
-            if (child_tidptr)
-                debug(" child_tidptr = %p,", child_tidptr);
-            if (tls)
-                debug(" tls = %p,", tls);
-            debug(" taking into account only user_stack_addr = %p\n", user_stack_addr);
+        if (flags & (CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|CLONE_SETTLS)) {
+            debug("Emulation of clone(CLONE_VFORK) takes into account only user_stack_addr = %p. "
+                  "Additional parameters are ignored:", user_stack_addr);
+            if (flags & CLONE_PARENT_SETTID)
+                debug(" parent_tidptr = %p", parent_tidptr);
+            if (flags & (CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID))
+                debug(" child_tidptr = %p", child_tidptr);
+            if (flags & CLONE_SETTLS)
+                debug(" tls = %p", tls);
+            debug("\n");
         }
 
         ret = shim_do_vfork();
