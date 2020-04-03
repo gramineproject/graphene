@@ -369,6 +369,11 @@ class TC_30_Syscall(RegressionTestCase):
         # Scheduling Syscalls Test
         self.assertIn('Test completed successfully', stdout)
 
+    def test_090_sighandler_reset(self):
+        stdout, _ = self.run_binary(['sighandler_reset'])
+        self.assertIn('Got signal 17', stdout)
+        self.assertIn('Handler was invoked 1 time(s).', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
