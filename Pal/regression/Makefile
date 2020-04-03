@@ -19,22 +19,36 @@ executables = \
 	Bootstrap7 \
 	Directory \
 	Event \
+	Event2 \
 	Exception \
+	Exception2 \
 	Exit \
+	Failure \
 	File \
+	File2 \
+	HelloWorld \
 	Hex \
 	Memory \
 	Misc \
+	Pie \
 	Pipe \
 	Process \
 	Process2 \
 	Process3 \
+	Process4 \
+	Segment \
+	Select \
 	Semaphore \
 	SendHandle \
+	Sleep \
 	Socket \
 	Symbols \
+	Tcp \
 	Thread \
 	Thread2 \
+	Udp \
+	Wait \
+	Yield \
 	normalize_path
 
 manifests = \
@@ -87,6 +101,7 @@ crt_init-recurse:
 	@true
 
 CFLAGS-AvxDisable += -mavx
+CFLAGS-Pie = -fPIC -pie
 
 # workaround: File.manifest.template has strange reference
 # to ../regression/File

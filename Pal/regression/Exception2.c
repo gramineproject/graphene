@@ -1,5 +1,3 @@
-/* This Hello World simply print out "Hello World" */
-
 #include "pal.h"
 #include "pal_debug.h"
 

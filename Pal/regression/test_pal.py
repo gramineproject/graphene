@@ -45,6 +45,102 @@ class TC_00_Basic(RegressionTestCase):
     def test_002_avl_tree(self):
         _, _ = self.run_binary(['avl_tree_test'])
 
+
+@unittest.skipIf(HAS_SGX, "Not yet tested on SGX")
+class TC_00_BasicSet2(RegressionTestCase):
+    def test_Event2(self):
+        _, stderr = self.run_binary(['Event2'])
+        self.assertIn('Enter main thread', stderr)
+        self.assertIn('In thread 1', stderr)
+        self.assertIn('Success, leave main thread', stderr)
+
+    def test_Exception2(self):
+        _, stderr = self.run_binary(['Exception2'])
+        self.assertIn('Enter Main Thread', stderr)
+        self.assertIn('failure in the handler: 0x', stderr)
+        self.assertNotIn('Leave Main Thread', stderr)
+
+    def test_Failure(self):
+        _, stderr = self.run_binary(['Failure'])
+        self.assertIn('Enter Main Thread', stderr)
+        self.assertIn('Failure notified: Function not supported', stderr)
+        self.assertIn('Leave Main Thread', stderr)
+
+    def test_File2(self):
+        _, stderr = self.run_binary(['File2'])
+        self.assertIn('Enter Main Thread', stderr)
+        self.assertIn('Hello World', stderr)
+        self.assertIn('Leave Main Thread', stderr)
+
+    def test_HelloWorld(self):
+        stdout, _ = self.run_binary(['HelloWorld'])
+        self.assertIn('Hello World', stdout)
+
+    def test_Pie(self):
+        stdout, stderr = self.run_binary(['Pie'])
+        self.assertIn('start program: file:Pie', stderr)
+        self.assertIn('Hello World', stdout)
+
+    def test_Process4(self):
+        _, stderr = self.run_binary(['Process4'], timeout=5)
+        self.assertIn('In process: Process4', stderr)
+        self.assertIn('wall time = ', stderr)
+        for i in range(100):
+            self.assertIn('In process: Process4 %d ' % i, stderr)
+
+    def test_Segment(self):
+        _, stderr = self.run_binary(['Segment'])
+        self.assertIn('TLS = 0x', stderr)
+
+    def test_Select(self):
+        _, stderr = self.run_binary(['Select'])
+        self.assertIn('Enter main thread', stderr)
+        self.assertIn('Waiting on event', stderr)
+        self.assertIn('Enter thread', stderr)
+        self.assertIn('Thread sets event', stderr)
+        self.assertIn('Event was called', stderr)
+        self.assertIn('Leave main thread', stderr)
+        self.assertIn('Leave thread', stderr)
+
+    def test_Sleep(self):
+        _, stderr = self.run_binary(['Sleep'], timeout=3)
+        self.assertIn('Enter Main Thread', stderr)
+        self.assertIn('Sleeping 3000000 microsecond...', stderr)
+        self.assertIn('Leave Main Thread', stderr)
+
+    def test_Tcp(self):
+        _, stderr = self.run_binary(['Tcp'])
+        self.assertIn('start time = ', stderr)
+        self.assertIn('server bound on tcp.srv:127.0.0.1:8000', stderr)
+        self.assertIn('client accepted on tcp:127.0.0.1:8000:127.0.0.1:', stderr)
+        self.assertIn('client connected on tcp:127.0.0.1:', stderr)
+        self.assertIn('read from server: Hello World', stderr)
+
+    def test_Udp(self):
+        _, stderr = self.run_binary(['Udp'])
+        self.assertIn('server bound on udp.srv:127.0.0.1:8000', stderr)
+        self.assertIn('client connected on udp:127.0.0.1:8000', stderr)
+        self.assertIn('read on server (from udp:127.0.0.1:', stderr)
+        self.assertIn('Hello World', stderr)
+        self.assertIn('wall time = ', stderr)
+
+    def test_Wait(self):
+        _, stderr = self.run_binary(['Wait'])
+        self.assertIn('Enter Main Thread', stderr)
+        self.assertIn('DkStreamsWaitEvents did not return any events', stderr)
+        self.assertIn('Enter thread 2', stderr)
+        self.assertIn('Enter thread 1', stderr)
+        self.assertIn('Leave thread 2', stderr)
+        self.assertIn('Leave thread 1', stderr)
+
+    def test_Yield(self):
+        _, stderr = self.run_binary(['Yield'])
+        self.assertIn('Enter Parent Thread', stderr)
+        self.assertIn('Enter Child Thread', stderr)
+        self.assertIn('child yielded', stderr)
+        self.assertIn('parent yielded', stderr)
+
+
 class TC_01_Bootstrap(RegressionTestCase):
     def test_100_basic_boostrapping(self):
         stdout, stderr = self.run_binary(['Bootstrap'])
