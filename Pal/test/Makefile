@@ -6,15 +6,15 @@ CFLAGS += -fno-builtin -nostdlib -no-pie \
 
 executables = \
 	HelloWorld \
-	File \
+	File2 \
 	Failure \
-	Thread \
+	Thread3 \
 	Fork \
-	Event \
-	Process \
-	Exception \
-	Memory \
-	Pipe \
+	Event2 \
+	Process4 \
+	Exception2 \
+	Memory2 \
+	Pipe2 \
 	Tcp \
 	Udp \
 	Yield \

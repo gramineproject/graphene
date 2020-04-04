@@ -7,14 +7,14 @@ from regression import (
 )
 
 class TC_00_Basic(RegressionTestCase):
-    def test_Event(self):
-        _, stderr = self.run_binary(['Event'])
+    def test_Event2(self):
+        _, stderr = self.run_binary(['Event2'])
         self.assertIn('Enter main thread', stderr)
         self.assertIn('In thread 1', stderr)
         self.assertIn('Success, leave main thread', stderr)
 
-    def test_Exception(self):
-        _, stderr = self.run_binary(['Exception'])
+    def test_Exception2(self):
+        _, stderr = self.run_binary(['Exception2'])
         self.assertIn('Enter Main Thread', stderr)
         self.assertIn('failure in the handler: 0x', stderr)
         self.assertNotIn('Leave Main Thread', stderr)
@@ -25,8 +25,8 @@ class TC_00_Basic(RegressionTestCase):
         self.assertIn('Failure notified: Function not supported', stderr)
         self.assertIn('Leave Main Thread', stderr)
 
-    def test_File(self):
-        _, stderr = self.run_binary(['File'])
+    def test_File2(self):
+        _, stderr = self.run_binary(['File2'])
         self.assertIn('Enter Main Thread', stderr)
         self.assertIn('Hello World', stderr)
         self.assertIn('Leave Main Thread', stderr)
@@ -59,26 +59,26 @@ class TC_00_Basic(RegressionTestCase):
         stdout, _ = self.run_binary(['HelloWorld'])
         self.assertIn('Hello World', stdout)
 
-    def test_Memory(self):
-        _, _ = self.run_binary(['Memory'])
+    def test_Memory2(self):
+        _, _ = self.run_binary(['Memory2'])
 
     def test_Pie(self):
         stdout, stderr = self.run_binary(['Pie'])
         self.assertIn('start program: file:Pie', stderr)
         self.assertIn('Hello World', stdout)
 
-    def test_Pipe(self):
-        stdout, stderr = self.run_binary(['Pipe'])
+    def test_Pipe2(self):
+        stdout, stderr = self.run_binary(['Pipe2'])
         self.assertIn('pipe connect as pipe:', stderr)
         self.assertIn('pipe accepted as pipe.srv:', stderr)
         self.assertIn('read from server: Hello World', stderr)
 
-    def test_Process(self):
-        stdout, stderr = self.run_binary(['Process'], timeout=12)
-        self.assertIn('In process: Process', stderr)
+    def test_Process4(self):
+        stdout, stderr = self.run_binary(['Process4'], timeout=12)
+        self.assertIn('In process: Process4', stderr)
         self.assertIn('wall time = ', stderr)
         for i in range(100):
-            self.assertIn('In process: Process %d ' % i, stderr)
+            self.assertIn('In process: Process4 %d ' % i, stderr)
 
     def test_Segment(self):
         _, stderr = self.run_binary(['Segment'])
@@ -108,8 +108,8 @@ class TC_00_Basic(RegressionTestCase):
         self.assertIn('client connected on tcp:127.0.0.1:', stderr)
         self.assertIn('read from server: Hello World', stderr)
 
-    def test_Thread(self):
-        _, stderr = self.run_binary(['Thread'])
+    def test_Thread3(self):
+        _, stderr = self.run_binary(['Thread3'])
         self.assertIn('Enter Main Thread', stderr)
         self.assertIn('Leave Main Thread', stderr)
         self.assertIn('Enter Thread 2', stderr)
