@@ -19,22 +19,42 @@ executables = \
 	Bootstrap7 \
 	Directory \
 	Event \
+	Event2 \
 	Exception \
+	Exception2 \
 	Exit \
+	Failure \
 	File \
+	File2 \
+	Fork \
+	HandleSend \
+	HelloWorld \
 	Hex \
 	Memory \
+	Memory2 \
 	Misc \
+	Pie \
 	Pipe \
+	Pipe2 \
 	Process \
 	Process2 \
 	Process3 \
+	Process4 \
+	Segment \
+	Select \
+	Server \
 	Semaphore \
 	SendHandle \
+	Sleep \
 	Socket \
 	Symbols \
+	Tcp \
 	Thread \
 	Thread2 \
+	Thread3 \
+	Udp \
+	Wait \
+	Yield \
 	normalize_path
 
 manifests = \
