@@ -1,6 +1,6 @@
 include ../Scripts/Makefile.configs
 
-DIRS = src crt_init test regression
+DIRS = src crt_init regression
 
 .PHONY: all
 all:
@@ -12,7 +12,6 @@ clean_targets = clean distclean
 $(clean_targets):
 	$(MAKE) -C src $@
 	$(MAKE) -C crt_init $@
-	$(MAKE) -C test $@
 	$(MAKE) -C regression $@
 	$(MAKE) -C lib $@
 
@@ -20,12 +19,10 @@ $(clean_targets):
 test:
 	$(MAKE) -C src test
 	$(MAKE) -C crt_init test
-	$(MAKE) -C test
 	$(MAKE) -C regression
 
 .PHONY: sgx-tokens
 sgx-tokens:
-	$(MAKE) -C test sgx-tokens
 	$(MAKE) -C regression sgx-tokens
 
 .PHONY: format
