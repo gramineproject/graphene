@@ -14,6 +14,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     git \
     libapr1-dev \
     libaprutil1-dev \
+    libcurl4-openssl-dev \
     libelf-dev \
     libexpat1 \
     libexpat1-dev \

@@ -62,7 +62,7 @@ urts-asm-objs = sgx_entry.o
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
-all: sgx-driver/sgx.h $(host_files)
+all: sgx-driver/sgx.h $(host_files) tools
 
 libpal-Linux-SGX.a: $(enclave-objs) $(enclave-asm-objs)
 	$(call cmd,ar_a_o)
@@ -120,6 +120,10 @@ endif
 
 include ../../../../Scripts/Makefile.rules
 
+.PHONY: tools
+tools:
+	$(MAKE) -C tools
+
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
@@ -132,10 +136,12 @@ clean_:
 .PHONY: clean
 clean: clean_
 	$(MAKE) -C sgx-driver $@
+	$(MAKE) -C tools $@
 
 .PHONY: distclean
 distclean: clean_
 	$(MAKE) -C sgx-driver $@
+	$(MAKE) -C tools $@
 
 .PHONY: test
 test:

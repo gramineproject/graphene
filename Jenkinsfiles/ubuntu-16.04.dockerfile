@@ -15,6 +15,7 @@ RUN apt-get update \
        git \
        libapr1-dev \
        libaprutil1-dev \
+       libcurl4-openssl-dev \
        libexpat1 \
        libexpat1-dev \
        libnss-mdns \
