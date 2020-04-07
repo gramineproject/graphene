@@ -72,47 +72,14 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('Hello World', stderr)
         self.assertIn('Leave Main Thread', stderr)
 
-    def test_HandleSend(self):
-        _, stderr = self.run_binary(['HandleSend'])
-        self.assertIn('Parent: Executing the program', stderr)
-        self.assertIn('Parent: Creating handles', stderr)
-        self.assertIn('Parent: Forking child', stderr)
-        self.assertIn('Parent: Sending Handle 0', stderr)
-        self.assertIn('Parent: Sending Handle 1', stderr)
-        self.assertIn('Parent: Sending Handle 2', stderr)
-        self.assertIn('Parent: Sending Handle 3', stderr)
-        self.assertIn('Parent: Sending Handle 4', stderr)
-        self.assertIn('Parent: Finished execution', stderr)
-        self.assertIn('Child: Receiving Handle 0', stderr)
-        self.assertIn('Child: Receiving Handle 1', stderr)
-        self.assertIn('Child: Receiving Handle 2', stderr)
-        self.assertIn('Child: Receiving Handle 3', stderr)
-        self.assertIn('Child: Receiving Handle 4', stderr)
-        self.assertIn('Child: Reading the handles', stderr)
-        self.assertIn('Child: Handle 0 Type Pipe', stderr)
-        self.assertIn('Child: Handle 1 Type Udp', stderr)
-        self.assertIn('Child: Handle 2 Type File Data: Hello World2', stderr)
-        self.assertIn('Child: Handle 3 Type File Data: Hello World3', stderr)
-        self.assertIn('Child: Handle 4 Type File Data: Hello World4', stderr)
-        self.assertIn('Child: Finished execution', stderr)
-
     def test_HelloWorld(self):
         stdout, _ = self.run_binary(['HelloWorld'])
         self.assertIn('Hello World', stdout)
-
-    def test_Memory2(self):
-        _, _ = self.run_binary(['Memory2'])
 
     def test_Pie(self):
         stdout, stderr = self.run_binary(['Pie'])
         self.assertIn('start program: file:Pie', stderr)
         self.assertIn('Hello World', stdout)
-
-    def test_Pipe2(self):
-        _, stderr = self.run_binary(['Pipe2'])
-        self.assertIn('pipe connect as pipe:', stderr)
-        self.assertIn('pipe accepted as pipe.srv:', stderr)
-        self.assertIn('read from server: Hello World', stderr)
 
     def test_Process4(self):
         _, stderr = self.run_binary(['Process4'], timeout=5)
@@ -148,17 +115,6 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('client accepted on tcp:127.0.0.1:8000:127.0.0.1:', stderr)
         self.assertIn('client connected on tcp:127.0.0.1:', stderr)
         self.assertIn('read from server: Hello World', stderr)
-
-    def test_Thread3(self):
-        _, stderr = self.run_binary(['Thread3'])
-        self.assertIn('Enter Main Thread', stderr)
-        self.assertIn('Leave Main Thread', stderr)
-        self.assertIn('Enter Thread 2', stderr)
-        self.assertIn('Parent do suspension', stderr)
-        self.assertIn('Enter Thread 1', stderr)
-        self.assertIn('Parent do reload', stderr)
-        self.assertIn('Leave Thread 2', stderr)
-        self.assertIn('Leave Thread 1', stderr)
 
     def test_Udp(self):
         _, stderr = self.run_binary(['Udp'])

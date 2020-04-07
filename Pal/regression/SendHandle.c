@@ -1,5 +1,3 @@
-/* This Hello World demostrate a simple multithread program */
-
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
