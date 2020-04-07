@@ -26,8 +26,6 @@ executables = \
 	Failure \
 	File \
 	File2 \
-	Fork \
-	HandleSend \
 	HelloWorld \
 	Hex \
 	Memory \
@@ -35,7 +33,6 @@ executables = \
 	Misc \
 	Pie \
 	Pipe \
-	Pipe2 \
 	Process \
 	Process2 \
 	Process3 \
@@ -44,14 +41,12 @@ executables = \
 	Select \
 	Semaphore \
 	SendHandle \
-	Server \
 	Sleep \
 	Socket \
 	Symbols \
 	Tcp \
 	Thread \
 	Thread2 \
-	Thread3 \
 	Udp \
 	Wait \
 	Yield \

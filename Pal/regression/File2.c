@@ -1,11 +1,11 @@
-/* This Hello World simply print out "Hello World" */
+#include <string.h>
 
 #include "pal.h"
 #include "pal_debug.h"
 
 #define FILE_URI "file:test.txt"
 
-char str[12];
+char str[12] = "Hello World";
 
 int main(int argc, char** argv, char** envp) {
     pal_printf("Enter Main Thread\n");
@@ -18,20 +18,7 @@ int main(int argc, char** argv, char** envp) {
         return -1;
     }
 
-    str[0]  = 'H';
-    str[1]  = 'e';
-    str[2]  = 'l';
-    str[3]  = 'l';
-    str[4]  = 'o';
-    str[5]  = ' ';
-    str[6]  = 'W';
-    str[7]  = 'o';
-    str[8]  = 'r';
-    str[9]  = 'l';
-    str[10] = 'd';
-    str[11] = 0;
-
-    int bytes = DkStreamWrite(out, 0, 11, str, NULL);
+    int bytes = DkStreamWrite(out, 0, strlen(str), str, NULL);
 
     if (!bytes) {
         pal_printf("DkStreamWrite failed\n");
@@ -42,7 +29,7 @@ int main(int argc, char** argv, char** envp) {
 
     PAL_HANDLE in = DkStreamOpen(FILE_URI, PAL_ACCESS_RDONLY, 0, 0, 0);
 
-    bytes = DkStreamRead(in, 0, 20, str, NULL, 0);
+    bytes = DkStreamRead(in, 0, sizeof(str), str, NULL, 0);
 
     if (!bytes) {
         pal_printf("DkStreamRead failed\n");
