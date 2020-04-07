@@ -38,10 +38,10 @@ SGX SDK and the SGX driver no older than version 1.9 (or the DCAP SGX SDK and
 the driver version 1.4/1.5).
 
 If Intel SGX SDK and the SGX driver are not installed, please follow the READMEs
-in <https://github.com/01org/linux-sgx> and
-<https://github.com/01org/linux-sgx-driver> to download and install them.
-If you want to use the DCAP SDK and driver, please follow the READMEs in
-<https://github.com/intel/SGXDataCenterAttestationPrimitives>.
+in https://github.com/01org/linux-sgx and
+https://github.com/01org/linux-sgx-driver to download and install them.
+If you want to use the DCAP SDK and driver, please follow the README in
+https://github.com/intel/SGXDataCenterAttestationPrimitives.
 
 1. Ensure That Intel SGX is Enabled on Your Platform::
 

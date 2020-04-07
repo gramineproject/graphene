@@ -90,13 +90,13 @@ Prerequisites
    run Graphene on SGX. Download and install them from the official Intel
    GitHub repositories:
 
-   - <https://github.com/01org/linux-sgx>
-   - <https://github.com/01org/linux-sgx-driver>
+   - https://github.com/01org/linux-sgx
+   - https://github.com/01org/linux-sgx-driver
 
    Alternatively, if you want to use the DCAP versions of the SDK and driver,
-   download and install them from:
+   download and install it from:
 
-   - <https://github.com/intel/SGXDataCenterAttestationPrimitives>
+   - https://github.com/intel/SGXDataCenterAttestationPrimitives
 
 3. Build and install the Graphene SGX driver
    A Graphene-specific Linux driver must also be installed before running
