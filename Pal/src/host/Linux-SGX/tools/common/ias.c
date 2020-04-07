@@ -34,8 +34,8 @@
 /*! Context used in ias_*() calls */
 struct ias_context_t {
     CURL* curl;                 /*!< CURL context for this session */
-    const char* ias_verify_url; /*!< URL for IAS attestation verification API */
-    const char* ias_sigrl_url;  /*!< URL for IAS "Retrieve SigRL" API */
+    char* ias_verify_url;       /*!< URL for IAS attestation verification API */
+    char* ias_sigrl_url;        /*!< URL for IAS "Retrieve SigRL" API */
     struct curl_slist* headers; /*!< Request headers sent to IAS */
 };
 
@@ -223,8 +223,8 @@ struct ias_context_t* ias_init(const char* ias_api_key, const char* ias_verify_u
     snprintf(api_key_hdr, api_key_hdr_size, "%s%s", api_key_hdr_start, ias_api_key);
 
     // set IAS URLs
-    context->ias_verify_url = ias_verify_url;
-    context->ias_sigrl_url = ias_sigrl_url;
+    context->ias_verify_url = strdup(ias_verify_url);
+    context->ias_sigrl_url = strdup(ias_sigrl_url);
 
     if (get_verbose())
         curl_easy_setopt(context->curl, CURLOPT_VERBOSE, 1L);
@@ -274,6 +274,8 @@ void ias_cleanup(struct ias_context_t* context) {
         curl_slist_free_all(context->headers);
 
     curl_easy_cleanup(context->curl);
+    free(context->ias_sigrl_url);
+    free(context->ias_verify_url);
     free(context);
 
     // every curl_global_init() must have a corresponding curl_global_cleanup()
