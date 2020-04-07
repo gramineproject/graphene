@@ -439,6 +439,14 @@ static int register_protected_path(const char* path, struct protected_file** new
     }
 
     new->path_len = strlen(path);
+    /* This is never freed but so isn't the whole struct, PFs persist for the whole lifetime
+       of the process. */
+    new->path = malloc(new->path_len + 1);
+    if (!new->path) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
     memcpy(new->path, path, new->path_len + 1);
     new->refcount = 0;
 

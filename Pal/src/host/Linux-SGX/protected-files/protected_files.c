@@ -47,7 +47,6 @@
  *
  */
 
-#include <linux/fs.h>
 #include "protected_files_internal.h"
 
 #ifdef IN_PAL
@@ -68,9 +67,11 @@ char* strncpy(char* dest, const char* src, size_t n) {
 #define __UNUSED(x) (void)(x)
 #endif
 
-/* Function for scrubbing sensitive memory buffers. */
-static void erase_memory(void *buffer, size_t size) {
-    /* memset() can be optimized away and memset_s() is not available in PAL. */
+/* Function for scrubbing sensitive memory buffers.
+ * memset() can be optimized away and memset_s() is not available in PAL.
+ * FIXME: this implementation is inefficient (and used in perf-critical functions),
+ * replace with a better one. */
+ static void erase_memory(void *buffer, size_t size) {
     volatile unsigned char *p = buffer;
     while (size--)
         *p++ = 0;
@@ -120,29 +121,6 @@ static pf_random_f          cb_random          = NULL;
 static pf_iv_t g_empty_iv = {0};
 static bool g_initialized = false;
 pf_status_t g_last_error;
-
-// global/util
-
-/* Constant-time memory comparison to prevent leakage of secrets due to timing side channel. */
-static int consttime_memequal(const void *b1, const void *b2, size_t len) {
-    const unsigned char* c1 = b1;
-    const unsigned char* c2 = b2;
-    unsigned int res = 0;
-
-    while (len--)
-        res |= *c1++ ^ *c2++;
-
-    /*
-     * Map 0 to 1 and [1, 256) to 0 using only constant-time
-     * arithmetic.
-     *
-     * This is not simply `!res' because although many CPUs support
-     * branchless conditional moves and many compilers will take
-     * advantage of them, certain compilers generate branches on
-     * certain CPUs for `!res'.
-     */
-    return (1 & ((res - 1) >> 8));
-}
 
 // file_crypto.cpp
 #define MASTER_KEY_NAME       "SGX-PROTECTED-FS-MASTER-KEY"
@@ -383,13 +361,6 @@ static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool cre
     // for new file, this value will later be saved in the meta data plain part (init_new_file)
     // for existing file, we will later compare this value with the value from the file
     // (init_existing_file)
-    // omeg: is this comparison useful? all-zero keys are not weak for AES-GCM AFAIK
-    pf_key_t empty_key = {0};
-    if (consttime_memequal(kdk_key, &empty_key, sizeof(kdk_key))) {
-        DEBUG_PF("zero key\n");
-        g_last_error = PF_STATUS_INVALID_PARAMETER;
-        goto out;
-    }
     memcpy(&pf->user_kdk_key, kdk_key, sizeof(pf->user_kdk_key));
 
     // omeg: we require a canonical full path to file, so no stripping path to filename only
@@ -1110,11 +1081,11 @@ static bool ipf_erase_recovery_file(pf_context_t pf) {
     return true;
 }
 
-// seek beyond the current size is supported for SEEK_SET if the file is writable,
+// seek to a specified file offset from the beginning
+// seek beyond the current size is supported if the file is writable,
 // the file is then extended with zeros (SDK implementation didn't support extending)
-static bool ipf_seek(pf_context_t pf, int64_t new_offset, int origin) {
-    DEBUG_PF("pf %p, size %lu, offset %ld, origin %d\n", pf, pf->encrypted_part_plain.size,
-             new_offset, origin);
+static bool ipf_seek(pf_context_t pf, int64_t new_offset) {
+    DEBUG_PF("pf %p, size %lu, offset %ld\n", pf, pf->encrypted_part_plain.size, new_offset);
     if (PF_FAILURE(pf->file_status)) {
         g_last_error = pf->file_status;
         return false;
@@ -1122,34 +1093,14 @@ static bool ipf_seek(pf_context_t pf, int64_t new_offset, int origin) {
 
     bool result = false;
 
-    switch (origin) {
-    case SEEK_SET:
-        if (new_offset >= 0) {
-            if (new_offset <= pf->encrypted_part_plain.size) {
-                pf->offset = new_offset;
-                result = true;
-            } else if (pf->mode & PF_FILE_MODE_WRITE) {
-                // need to extend the file
-                result = PF_SUCCESS(pf_set_size(pf, new_offset));
-            }
-        }
-        break;
-
-    case SEEK_CUR:
-        if (pf->offset + new_offset >= 0 && pf->offset + new_offset <=
-            pf->encrypted_part_plain.size) {
-
-            pf->offset += new_offset;
+    if (new_offset >= 0) {
+        if (new_offset <= pf->encrypted_part_plain.size) {
+            pf->offset = new_offset;
             result = true;
+        } else if (pf->mode & PF_FILE_MODE_WRITE) {
+            // need to extend the file
+            result = PF_SUCCESS(pf_set_size(pf, new_offset));
         }
-        break;
-
-    case SEEK_END:
-        if (new_offset <= 0 && new_offset >= 0 - pf->encrypted_part_plain.size) {
-            pf->offset = pf->encrypted_part_plain.size + new_offset;
-            result = true;
-        }
-        break;
     }
 
     if (result)
@@ -1879,7 +1830,7 @@ pf_status_t pf_read(pf_context_t pf, uint64_t offset, size_t size, void* output)
     if (!g_initialized)
         return PF_STATUS_UNINITIALIZED;
 
-    if (!ipf_seek(pf, offset, SEEK_SET))
+    if (!ipf_seek(pf, offset))
         return g_last_error;
 
     if (ipf_read(pf, output, size) != size)
@@ -1891,7 +1842,7 @@ pf_status_t pf_write(pf_context_t pf, uint64_t offset, size_t size, const void* 
     if (!g_initialized)
         return PF_STATUS_UNINITIALIZED;
 
-    if (!ipf_seek(pf, offset, SEEK_SET))
+    if (!ipf_seek(pf, offset))
         return g_last_error;
 
     if (ipf_write(pf, input, size) != size)

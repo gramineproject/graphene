@@ -39,18 +39,24 @@ int main(int argc, char* argv[]) {
 
     // exists - should open existing
     OPEN_TEST(O_CREAT|O_RDWR, /*exists=*/true, /*expect_success=*/true);
-    unlink(argv[1]);
+
+    if (unlink(argv[1]) < 0)
+        fatal_error("unlink(%s) failed: %s\n", argv[1], strerror(errno));
 
     // doesn't exist - should create new
     OPEN_TEST(O_CREAT|O_RDWR, /*exists=*/false, /*expect_success=*/true);
-    unlink(argv[1]);
+
+    if (unlink(argv[1]) < 0)
+        fatal_error("unlink(%s) failed: %s\n", argv[1], strerror(errno));
 
     // doesn't exist - should create new
     OPEN_TEST(O_CREAT|O_TRUNC|O_RDWR, /*exists=*/false, /*expect_success=*/true);
 
     // exists - should truncate
     OPEN_TEST(O_CREAT|O_TRUNC|O_RDWR, /*exists=*/true, /*expect_success=*/true);
-    unlink(argv[1]);
+
+    if (unlink(argv[1]) < 0)
+        fatal_error("unlink(%s) failed: %s\n", argv[1], strerror(errno));
 
     return 0;
 }

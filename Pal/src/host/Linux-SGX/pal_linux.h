@@ -178,7 +178,7 @@ extern LISTP_TYPE(pf_map) g_pf_map_list;
 struct protected_file {
     UT_hash_handle hh;
     size_t path_len;
-    char path[URI_MAX];
+    char* path;
     pf_context_t context; /* NULL until PF is opened */
     int64_t refcount; /* used for deciding when to call unload_protected_file() */
 };

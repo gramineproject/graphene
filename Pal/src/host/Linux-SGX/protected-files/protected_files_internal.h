@@ -255,7 +255,7 @@ static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool cre
 static bool ipf_close(pf_context_t pf);
 static size_t ipf_read(pf_context_t pf, void* ptr, size_t size);
 static size_t ipf_write(pf_context_t pf, const void* ptr, size_t size);
-static bool ipf_seek(pf_context_t pf, int64_t new_offset, int origin);
+static bool ipf_seek(pf_context_t pf, int64_t new_offset);
 static void ipf_clear_error(pf_context_t pf);
 
 #endif
