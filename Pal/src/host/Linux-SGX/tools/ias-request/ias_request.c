@@ -88,18 +88,18 @@ int report(struct ias_context_t* ias, const char* quote_path, const char* nonce,
 
     ssize_t quote_size;
     quote_data = read_file(quote_path, &quote_size);
-    if (!quote_data) {
+    if (!quote_data || quote_size <= 0) {
         ERROR("Failed to read quote file '%s'\n", quote_path);
         goto out;
     }
 
-    if (quote_size < sizeof(sgx_quote_t)) {
+    if ((size_t)quote_size < sizeof(sgx_quote_t)) {
         ERROR("Quote is too small\n");
         goto out;
     }
 
     sgx_quote_t* quote = (sgx_quote_t*)quote_data;
-    if (quote_size < sizeof(sgx_quote_t) + quote->signature_len) {
+    if ((size_t)quote_size < sizeof(sgx_quote_t) + quote->signature_len) {
         ERROR("Quote is too small\n");
         goto out;
     }
