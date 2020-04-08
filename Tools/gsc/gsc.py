@@ -155,7 +155,7 @@ def prepare_substitutions(base_image, image, options, user_manifests):
     # Find command of image from base_image
     cmd = base_image.attrs['Config']['Cmd']
     binary_it = 0 #2 if cmd[0] == '/bin/sh' and cmd[1] == '-c' else 0
-    binary = cmd[binary_it]
+    binary = os.path.basename(cmd[binary_it])
     binary_arguments = "'" + "' '".join(cmd[binary_it +1 : ]) + "'" if (len(cmd)
                                                                         > binary_it + 1) else ""
 

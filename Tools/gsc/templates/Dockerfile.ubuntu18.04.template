@@ -2,54 +2,52 @@ FROM ubuntu:18.04 AS graphene
 
 # Add steps here to set up dependencies
 RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
-    && env DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes upgrade
-
-RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    apache2-utils \
-    autoconf \
-    bison \
-    build-essential \
-    curl \
-    flex \
-    gawk \
-    gettext \
-    git \
-    libapr1-dev \
-    libaprutil1-dev \
-    libelf-dev \
-    libexpat1 \
-    libexpat1-dev \
-    libnss-mdns \
-    libomp-dev \
-    libpcre2-dev \
-    libpcre3-dev \
-    libprotobuf-c-dev \
-    libssl-dev \
-    libxml2-dev \
-    linux-headers-`uname -r` \
-    net-tools \
-    protobuf-c-compiler \
-    pylint3 \
-    python \
-    python3-apport \
-    python3-apt \
-    python3-breathe \
-    python3-lxml \
-    python3-numpy \
-    python3-pip \
-    python3-protobuf \
-    python3-pytest \
-    python3-scipy \
-    shellcheck \
-    texinfo \
-    wget \
-    zlib1g \
-    zlib1g-dev
+    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        apache2-utils \
+        autoconf \
+        bison \
+        build-essential \
+        curl \
+        flex \
+        gawk \
+        gettext \
+        git \
+        libapr1-dev \
+        libaprutil1-dev \
+        libelf-dev \
+        libexpat1 \
+        libexpat1-dev \
+        libnss-mdns \
+        libomp-dev \
+        libpcre2-dev \
+        libpcre3-dev \
+        libprotobuf-c-dev \
+        libssl-dev \
+        libxml2-dev \
+        linux-headers-`uname -r` \
+        net-tools \
+        protobuf-c-compiler \
+        pylint3 \
+        python \
+        python3-apport \
+        python3-apt \
+        python3-breathe \
+        python3-lxml \
+        python3-numpy \
+        python3-pip \
+        python3-protobuf \
+        python3-pytest \
+        python3-scipy \
+        shellcheck \
+        texinfo \
+        wget \
+        zlib1g \
+        zlib1g-dev
 
 RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 
 # Clone graphene
-RUN git clone ${graphene_repository}
+RUN git clone ${graphene_repository} /graphene
 
 # Init submodules
 RUN cd /graphene \
