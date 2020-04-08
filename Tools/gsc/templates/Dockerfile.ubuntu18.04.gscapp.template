@@ -4,7 +4,6 @@ FROM ${appImage}
 
 # Update any packages
 RUN apt-get update \
-    && apt-get upgrade -y \
     && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
         python3 \
         python3-protobuf \
