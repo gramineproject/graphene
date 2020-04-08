@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "api.h"
 #include "attestation.h"
 #include "cJSON.h"
 #include "pal_crypto.h"
