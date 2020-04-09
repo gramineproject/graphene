@@ -70,6 +70,29 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
                       bool expected_as_str);
 
 /*!
+ *  \brief Same as verify_ias_report() but instead of verifying the quote contained in IAS report,
+ *         this function allocates enough memory to hold the quote and passes it to the user.
+ *
+ *  \param[in] ias_report         IAS attestation verification report.
+ *  \param[in] ias_report_size    Size of \a ias_report in bytes.
+ *  \param[in] ias_sig_b64        IAS report signature (base64-encoded as returned by IAS).
+ *  \param[in] ias_sig_b64_size   Size of \a ias_sig_b64 in bytes.
+ *  \param[in] allow_outdated_tcb Treat IAS status GROUP_OUT_OF_DATE as OK.
+ *  \param[in] nonce              (Optional) Nonce that's expected in the report.
+ *  \param[in] ias_pub_key_pem    (Optional) IAS public RSA key (PEM format, NULL-terminated).
+ *                                If not specified, a hardcoded Intel's key is used.
+ *  \param[out] out_quote         Buffer with quote. User is responsible for freeing it.
+ *  \param[out] out_quote_size    Size of \a out_quote in bytes.
+ *
+ *  \return 0 on successful verification, negative value on error.
+ */
+int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report_size,
+                                    uint8_t* ias_sig_b64, size_t ias_sig_b64_size,
+                                    bool allow_outdated_tcb, const char* nonce,
+                                    const char* ias_pub_key_pem, uint8_t** out_quote,
+                                    size_t* out_quote_size);
+
+/*!
  *  \brief Verify that the provided SGX quote contains expected values.
  *
  *  \param[in] quote_data      Quote to verify.

@@ -118,11 +118,11 @@ void display_quote(const void* quote_data, size_t quote_size) {
     }
 }
 
-int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t* ias_sig_b64,
-                      size_t ias_sig_b64_size, bool allow_outdated_tcb, const char* nonce,
-                      const char* mrsigner, const char* mrenclave, const char* isv_prod_id,
-                      const char* isv_svn, const char* report_data, const char* ias_pub_key_pem,
-                      bool expected_as_str) {
+int verify_ias_report_extract_quote(const uint8_t* ias_report, size_t ias_report_size,
+                                    uint8_t* ias_sig_b64, size_t ias_sig_b64_size,
+                                    bool allow_outdated_tcb, const char* nonce,
+                                    const char* ias_pub_key_pem, uint8_t** out_quote,
+                                    size_t* out_quote_size) {
     mbedtls_pk_context ias_pub_key;
     int ret = -1;
     uint8_t* ias_sig = NULL;
@@ -290,15 +290,42 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
     }
 
     DBG("IAS report: quote decoded, size %zu bytes\n", quote_size);
+    *out_quote      = report_quote;
+    *out_quote_size = quote_size;
+    ret = 0;
+out:
+    if (ret) {
+        free(report_quote);
+    }
+    if (json)
+        cJSON_Delete(json);
+    mbedtls_pk_free(&ias_pub_key);
+    free(ias_sig);
+    return ret ? -1 : 0;
+}
+
+int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t* ias_sig_b64,
+                      size_t ias_sig_b64_size, bool allow_outdated_tcb, const char* nonce,
+                      const char* mrsigner, const char* mrenclave, const char* isv_prod_id,
+                      const char* isv_svn, const char* report_data, const char* ias_pub_key_pem,
+                      bool expected_as_str) {
+    int ret;
+
+    uint8_t* report_quote = NULL;
+    size_t quote_size     = 0;
+
+    ret = verify_ias_report_extract_quote(ias_report, ias_report_size, ias_sig_b64,
+                                          ias_sig_b64_size, allow_outdated_tcb, nonce,
+                                          ias_pub_key_pem, &report_quote, &quote_size);
+    if (ret) {
+        goto out;
+    }
+
     ret = verify_quote(report_quote, quote_size, mrsigner, mrenclave, isv_prod_id, isv_svn,
                        report_data, expected_as_str);
 
 out:
-    if (json)
-        cJSON_Delete(json);
-    mbedtls_pk_free(&ias_pub_key);
     free(report_quote);
-    free(ias_sig);
     return ret ? -1 : 0;
 }
 

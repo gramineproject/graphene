@@ -158,3 +158,98 @@ Example report verification with all options enabled::
     Quote: isv_prod_id OK
     Quote: isv_svn OK
     Quote: report_data OK
+
+
+RA-TLS Libraries
+----------------
+
+RA-TLS integrates Intel SGX remote attestation into the TLS connection setup. Conceptually, it
+extends the standard X.509 certificate with SGX-related information. The additional information
+allows the receiver (verifier) of the certificate to verify that it is indeed communicating with
+an SGX enclave (attester). RA-TLS is shipped as three libraries: ``ra_tls_attest.so``, EPID-based
+``ra_tls_verify_epid.so`` and ECDSA-based (DCAP) ``ra_tls_verify_dcap.so``.
+
+``ra_tls_attest.so``
+^^^^^^^^^^^^^^^^^^^^
+
+This library creates the self-signed RA-TLS certificate. It must be loaded into the SGX enclave.
+This library relies on the pseudo-FS ``/dev/attestation`` to retrieve the SGX quote and embed it
+into the RA-TLS certificate. Typically linked into server applications. Not thread-safe.
+
+The library expects the following information in the manifest for EPID-based attestation:
+
+- ``sgx.ra_client_spid`` -- client SPID for EPID remote attestation.
+- ``sgx.ra_client_linkable`` -- client linkable/unlinkable attestation policy.
+
+For ECDSA-based (DCAP) attestation, the library expects instead:
+
+- ``sgx.attestation = 1`` -- DCAP remote attestation is enabled.
+
+The library uses the following environment variables if available:
+
+- ``RA_TLS_CERT_TIMESTAMP_NOT_BEFORE`` -- the generated RA-TLS certificate uses this
+  timestamp-not-before value, in the format "20010101000000" (this is also the default value if
+  environment variable is not available).
+- ``RA_TLS_CERT_TIMESTAMP_NOT_AFTER`` -- the generated RA-TLS certificate uses this
+  timestamp-not-after value, in the format "20301231235959" (this is also the default value if
+  environment variable is not available).
+
+``ra_tls_verify_epid.so``
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This library contains the verification callback that should be registered with the TLS library
+during verification of the TLS certificate. It verifies the RA-TLS certificate and the SGX quote by
+sending it to the Intel Attestation Service (IAS) and retrieving the attestation report from IAS.
+Typically linked into client applications. Not thread-safe.
+
+The library uses the following SGX-specific environment variables, representing SGX measurements,
+if available:
+
+- ``RA_TLS_MRSIGNER`` (optional) -- verify that the server enclave has this ``MRSIGNER``. This is a
+  hex string.
+- ``RA_TLS_MRENCLAVE`` (optional) -- verify that the server enclave has this ``MRENCLAVE``. This is
+  a hex string.
+- ``RA_TLS_ISV_PROD_ID`` (optional) -- verify that the server enclave has this ``ISV_PROD_ID``.
+  This is a decimal string.
+- ``RA_TLS_ISV_SVN`` (optional) -- verify that the server enclave has this ``ISV_SVN``. This is a
+  decimal string.
+
+The four SGX measurements above may be also verified via a user-specified callback with the
+signature ``int (*callback)(char* mrenclave, char* mrsigner, char* isv_prod_id, char* isv_svn)``.
+This callback must be registered via ``ra_tls_set_measurement_callback()``. The measurements from
+the received SGX quote are passed as four arguments. It is up to the user to implement the correct
+verification of SGX measurements in this callback (e.g., by comparing against expected values stored
+in a central database).
+
+The library also uses the following SGX-specific environment variable:
+
+- ``RA_TLS_ALLOW_OUTDATED_TCB_INSECURE`` (optional) -- whether to allow outdated TCB as returned in
+  the IAS attestation report or returned by the DCAP verification library. Values ``1/true/TRUE``
+  mean "allow outdated TCB". Note that allowing outdated TCB is **insecure** and should be used
+  only for debugging and testing. Outdated TCB is not allowed by default.
+
+The library uses the following EPID-specific environment variables if available:
+
+- ``RA_TLS_EPID_API_KEY`` (mandatory) -- client API key for EPID remote attestation.
+- ``RA_TLS_IAS_REPORT_URL`` (optional) -- URL for IAS "verify attestation evidence" API endpoint.
+  If not specified, the default hard-coded URL for IAS is used.
+- ``RA_TLS_IAS_SIGRL_URL`` (optional) -- URL for IAS "Retrieve SigRL" API endpoint. If not
+  specified, the default hard-coded URL for IAS is used.
+- ``RA_TLS_IAS_PUB_KEY_PEM`` (optional) -- public key of IAS. If not specified, the default
+  hard-coded public key is used.
+
+``ra_tls_verify_dcap.so``
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Similarly to ``ra_tls_verify_epid.so``, this library contains the verification callback that
+should be registered with the TLS library during verification of the TLS certificate. Verifies
+the RA-TLS certificate and the SGX quote by forwarding it to DCAP verification library
+(``libsgx_dcap_quoteverify.so``) and checking the result. Typically linked into client
+applications. Not thread-safe.
+
+The library uses the same SGX-specific environment variables as ``ra_tls_verify_epid.so`` and
+ignores the EPID-specific environment variables. Similarly to the EPID version, instead of using
+environment variables, the four SGX measurements may be verified via a user-specified callback
+registered via ``ra_tls_set_measurement_callback()``.
+
+The library expects all the DCAP infrastructure to be installed and working correctly on the host.
