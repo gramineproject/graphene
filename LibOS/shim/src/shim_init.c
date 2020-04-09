@@ -65,7 +65,7 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 }
 
 noreturn void __abort(void) {
-    PAUSE();
+    DEBUG_BREAK_ON_FAILURE();
     shim_clean_and_exit(-ENOTRECOVERABLE);
 }
 

@@ -145,20 +145,16 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     return shim_stdio;
 }
 
-#define USE_PAUSE       0
-
-static inline void do_pause (void);
-
-#if USE_PAUSE == 1
-# define PAUSE() do { do_pause(); } while (0)
+#if 0
+# define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()
 #else
-# define PAUSE() do { __asm__ volatile ("int $3"); } while (0)
+# define DEBUG_BREAK_ON_FAILURE() do {} while (0)
 #endif
 
 #define BUG()                                                               \
     do {                                                                    \
         __SYS_PRINTF("BUG() " __FILE__ ":%d\n", __LINE__);                  \
-        PAUSE();                                                            \
+        DEBUG_BREAK_ON_FAILURE();                                           \
         shim_clean_and_exit(-ENOTRECOVERABLE);                              \
     } while (0)
 
@@ -677,13 +673,6 @@ static inline void clear_event (AEVENTTYPE * e)
             n = DkStreamRead(e->event, 0, 100, bytes, NULL, 0);
         } while (n == 100);
     }
-}
-
-static inline void do_pause (void)
-{
-    bool go = false;
-    while (!go)
-        DkThreadDelayExecution(60 * 60 * 1000000ULL);
 }
 
 /* reference counter APIs */
