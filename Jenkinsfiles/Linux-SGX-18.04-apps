@@ -129,6 +129,18 @@ pipeline {
                                 make SGX=1 check
                            '''
                         }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd Examples/ra-tls-mbedtls
+                                if [ "${ra_client_spid}" != "" ]; then \
+                                    make check RA_CLIENT_SPID=${ra_client_spid} \
+                                               RA_TLS_EPID_API_KEY=${ra_client_key} \
+                                               RA_CLIENT_LINKABLE=0 RA_TLS_ALLOW_OUTDATED_TCB=1; \
+                                else \
+                                    sh 'echo Failure: no ra_client_spid and/or ra_client_key!'
+                                fi
+                            '''
+                        }
                         sh '''
                            ./Scripts/gitignore-test
                         '''
