@@ -25,6 +25,8 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
+# The line below may be causing problems on SGX, see
+# https://github.com/oscarlab/graphene/issues/1408.
 sys.brk.size = 32M
 sys.stack.size = 4M
 
