@@ -37,6 +37,12 @@ const char* g_ias_public_key_pem =
 "tQIDAQAB\n"
 "-----END PUBLIC KEY-----\n";
 
+// Copied from Graphene's api.h.
+// TODO: Remove after Graphene's C utils get refactored into a separate module/header (we can't
+// include it here, because these SGX tools should be independent of Graphene).
+#define IS_ALIGNED_POW2(val, alignment)     (((val) & ((alignment) - 1)) == 0)
+#define IS_ALIGNED_PTR_POW2(val, alignment) IS_ALIGNED_POW2((uintptr_t)(val), alignment)
+
 // TODO: decode some known values (flags etc)
 void display_report_body(const sgx_report_body_t* body) {
     INFO(" cpu_svn          : ");
