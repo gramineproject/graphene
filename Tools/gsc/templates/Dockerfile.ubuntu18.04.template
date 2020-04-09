@@ -1,7 +1,7 @@
 FROM ubuntu:18.04 AS graphene
 
 # Add steps here to set up dependencies
-RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
+RUN LINUX_VERSION=$$(uname -r); env DEBIAN_FRONTEND=noninteractive apt-get update \
     && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
         apache2-utils \
         autoconf \
@@ -25,7 +25,7 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
         libprotobuf-c-dev \
         libssl-dev \
         libxml2-dev \
-        linux-headers-`uname -r` \
+        linux-headers-$$LINUX_VERSION \
         net-tools \
         protobuf-c-compiler \
         pylint3 \
