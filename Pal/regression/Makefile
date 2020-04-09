@@ -11,8 +11,9 @@ preloads = \
 executables = \
 	..Bootstrap \
 	AtomicMath \
-	avl_tree_test \
+	AttestationReport \
 	AvxDisable \
+	avl_tree_test \
 	Bootstrap \
 	Bootstrap2 \
 	Bootstrap3 \
@@ -102,6 +103,7 @@ crt_init-recurse:
 
 CFLAGS-AvxDisable += -mavx
 CFLAGS-Pie = -fPIC -pie
+CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 
 # workaround: File.manifest.template has strange reference
 # to ../regression/File
