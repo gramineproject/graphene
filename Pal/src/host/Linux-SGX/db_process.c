@@ -292,7 +292,8 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
         goto failed;
 
     /* securely send the master key to child in the newly established SSL session */
-    ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&g_master_key, sizeof(g_master_key));
+    ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&g_master_key,
+                               sizeof(g_master_key));
     if (ret != sizeof(g_master_key))
         goto failed;
 
@@ -351,7 +352,8 @@ int init_child_process (PAL_HANDLE * parent_handle)
         return ret;
 
     /* securely receive the master key from parent in the newly established SSL session */
-    ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_master_key, sizeof(g_master_key));
+    ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_master_key,
+                              sizeof(g_master_key));
     if (ret != sizeof(g_master_key))
         return ret;
 

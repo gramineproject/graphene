@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 int main(int argc, char** argv) {
     int pipefds[2];
@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
             perror("read error");
             return 1;
         }
-        buffer[sizeof(buffer) - 1] = '\0';
+        buffer[bufsize - 1] = '\0';
 
         printf("read on pipe: %s\n", buffer);
     } else {

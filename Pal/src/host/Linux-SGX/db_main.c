@@ -357,7 +357,8 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
     /* initialize master key (used for pipes' encryption for all enclaves of an application); it
-     * will be overwritten below by inherited-from-parent master key if this enclave is child */
+     * will be overwritten below in init_child_process() with inherited-from-parent master key if
+     * this enclave is child */
     int ret = _DkRandomBitsRead(&g_master_key, sizeof(g_master_key));
     if (ret < 0)
         return;

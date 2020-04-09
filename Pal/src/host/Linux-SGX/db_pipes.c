@@ -90,6 +90,8 @@ int thread_handshake_func(void* param) {
 
     int ret = _DkStreamSecureInit(handle, handle->pipe.is_server, &handle->pipe.session_key,
                                   (LIB_SSL_CONTEXT**)&handle->pipe.ssl_ctx, NULL, 0);
+    if (ret < 0)
+        return ret;
 
     __atomic_store_n(&handle->pipe.handshake_done, 1, __ATOMIC_RELEASE);
     return ret;
