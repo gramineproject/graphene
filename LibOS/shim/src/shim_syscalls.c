@@ -224,10 +224,10 @@ SHIM_SYSCALL_PASSTHROUGH(shmat, 3, void*, int, shmid, const void*, shmaddr, int,
 SHIM_SYSCALL_PASSTHROUGH(shmctl, 3, int, int, shmid, int, cmd, struct shmid_ds*, buf)
 
 /* dup: sys/shim_dup.c */
-DEFINE_SHIM_SYSCALL(dup, 1, shim_do_dup, int, int, fd)
+DEFINE_SHIM_SYSCALL(dup, 1, shim_do_dup, int, unsigned int, fd)
 
 /* dup2: sys/shim_dup.c */
-DEFINE_SHIM_SYSCALL(dup2, 2, shim_do_dup2, int, int, oldfd, int, newfd)
+DEFINE_SHIM_SYSCALL(dup2, 2, shim_do_dup2, int, unsigned int, oldfd, unsigned int, newfd)
 
 /* pause: sys/shim_sleep.c */
 DEFINE_SHIM_SYSCALL(pause, 0, shim_do_pause, int)
@@ -989,7 +989,8 @@ DEFINE_SHIM_SYSCALL (eventfd2, 2, shim_do_eventfd2, int, unsigned int, count, in
 DEFINE_SHIM_SYSCALL(epoll_create1, 1, shim_do_epoll_create1, int, int, flags)
 
 /* dup3: sys/shim_dup.c */
-DEFINE_SHIM_SYSCALL(dup3, 3, shim_do_dup3, int, int, oldfd, int, newfd, int, flags)
+DEFINE_SHIM_SYSCALL(dup3, 3, shim_do_dup3, int, unsigned int, oldfd, unsigned int, newfd, int,
+                    flags)
 
 /* pipe2: sys/shim_pipe.c */
 DEFINE_SHIM_SYSCALL(pipe2, 2, shim_do_pipe2, int, int*, fildes, int, flags)

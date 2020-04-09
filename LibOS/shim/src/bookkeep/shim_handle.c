@@ -127,7 +127,7 @@ PAL_HANDLE shim_stdio = NULL;
 static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
                                int flags);
 
-static struct shim_handle_map* __enlarge_handle_map(struct shim_handle_map* map, FDTYPE size);
+static int __enlarge_handle_map(struct shim_handle_map* map, size_t size);
 
 int init_handle(void) {
     if (!create_lock(&handle_mgr_lock)) {
@@ -141,6 +141,7 @@ int init_handle(void) {
 }
 
 int init_important_handles(void) {
+    int ret;
     struct shim_thread* thread = get_cur_thread();
 
     if (thread->handle_map)
@@ -159,14 +160,14 @@ int init_important_handles(void) {
     lock(&handle_map->lock);
 
     if (handle_map->fd_size < 3) {
-        if (!__enlarge_handle_map(handle_map, INIT_HANDLE_MAP_SIZE)) {
+        ret = __enlarge_handle_map(handle_map, INIT_HANDLE_MAP_SIZE);
+        if (ret < 0) {
             unlock(&handle_map->lock);
-            return -ENOMEM;
+            return ret;
         }
     }
 
     struct shim_handle* hdl = NULL;
-    int ret;
 
     for (int fd = 0; fd < 3; fd++)
         if (!HANDLE_ALLOCATED(handle_map->map[fd])) {
@@ -328,8 +329,8 @@ int set_new_fd_handle(struct shim_handle* hdl, int flags, struct shim_handle_map
 
             if (fd >= handle_map->fd_size) {
                 // no space left, need to enlarge handle_map->map
-                if (!__enlarge_handle_map(handle_map, handle_map->fd_size * 2)) {
-                    ret = -ENOMEM;
+                ret = __enlarge_handle_map(handle_map, handle_map->fd_size * 2);
+                if (ret < 0) {
                     goto out;
                 }
             }
@@ -355,8 +356,8 @@ out:
 
 int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int flags,
                             struct shim_handle_map* handle_map) {
-    int new_size = 0;
-    int ret      = 0;
+    size_t new_size = 0;
+    int ret = 0;
 
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
         return -EBADF;
@@ -370,12 +371,14 @@ int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int flags,
         goto extend;
 
     if (fd >= handle_map->fd_size) {
-        new_size = handle_map->fd_size < new_size ? new_size : handle_map->fd_size;
+        if (handle_map->fd_size >= new_size)
+            new_size = handle_map->fd_size;
     extend:
-        while (new_size <= fd) new_size *= 2;
+        while (new_size <= fd)
+            new_size *= 2;
 
-        if (!__enlarge_handle_map(handle_map, new_size)) {
-            ret = -ENOMEM;
+        ret = __enlarge_handle_map(handle_map, new_size);
+        if (ret < 0) {
             goto out;
         }
     }
@@ -569,22 +572,24 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
     return handle_map;
 }
 
-static struct shim_handle_map* __enlarge_handle_map(struct shim_handle_map* map, FDTYPE size) {
+static int __enlarge_handle_map(struct shim_handle_map* map, size_t size) {
     assert(locked(&map->lock));
 
+    if (size > get_rlimit_cur(RLIMIT_NOFILE))
+        return -EBADF;
+
     if (size <= map->fd_size)
-        return map;
+        return 0;
 
     struct shim_fd_handle** new_map = calloc(size, sizeof(new_map[0]));
-
     if (!new_map)
-        return NULL;
+        return -ENOMEM;
 
     memcpy(new_map, map->map, map->fd_size * sizeof(new_map[0]));
     free(map->map);
     map->map     = new_map;
     map->fd_size = size;
-    return map;
+    return 0;
 }
 
 int dup_handle_map(struct shim_handle_map** new, struct shim_handle_map* old_map) {

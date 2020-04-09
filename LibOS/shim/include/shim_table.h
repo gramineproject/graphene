@@ -353,8 +353,8 @@ int shim_do_sched_yield(void);
 void* shim_do_mremap(void* addr, size_t old_len, size_t new_len, int flags, void* new_addr);
 int shim_do_msync(void* start, size_t len, int flags);
 int shim_do_mincore(void* start, size_t len, unsigned char* vec);
-int shim_do_dup(int fd);
-int shim_do_dup2(int oldfd, int newfd);
+int shim_do_dup(unsigned int fd);
+int shim_do_dup2(unsigned int oldfd, unsigned int newfd);
 int shim_do_pause(void);
 int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp);
 int shim_do_getitimer(int which, struct __kernel_itimerval* value);
@@ -486,7 +486,7 @@ int shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* l
 int shim_do_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxevents,
                         int timeout_ms, const __sigset_t* sigmask, size_t sigsetsize);
 int shim_do_accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int flags);
-int shim_do_dup3(int oldfd, int newfd, int flags);
+int shim_do_dup3(unsigned int oldfd, unsigned int newfd, int flags);
 int shim_do_epoll_create1(int flags);
 int shim_do_pipe2(int* fildes, int flags);
 ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags,
@@ -541,8 +541,8 @@ int shim_madvise(void* start, size_t len, int behavior);
 int shim_shmget(key_t key, size_t size, int shmflg);
 void* shim_shmat(int shmid, const void* shmaddr, int shmflg);
 int shim_shmctl(int shmid, int cmd, struct shmid_ds* buf);
-int shim_dup(int fd);
-int shim_dup2(int oldfd, int newfd);
+int shim_dup(unsigned int fd);
+int shim_dup2(unsigned int oldfd, unsigned int newfd);
 int shim_pause(void);
 int shim_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp);
 int shim_getitimer(int which, struct __kernel_itimerval* value);
@@ -806,7 +806,7 @@ int shim_accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int flag
 int shim_signalfd4(int ufd, __sigset_t* user_mask, size_t sizemask, int flags);
 int shim_eventfd2(unsigned int count, int flags);
 int shim_epoll_create1(int flags);
-int shim_dup3(int oldfd, int newfd, int flags);
+int shim_dup3(unsigned int oldfd, unsigned int newfd, int flags);
 int shim_pipe2(int* fildes, int flags);
 int shim_inotify_init1(int flags);
 int shim_preadv(unsigned long fd, const struct iovec* vec, unsigned long vlen, unsigned long pos_l,
