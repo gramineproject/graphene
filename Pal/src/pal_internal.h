@@ -354,6 +354,8 @@ int _DkSegmentRegisterSet (int reg, const void * addr);
 int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
+int _DkAttestationReport(PAL_PTR report_data, PAL_NUM* report_data_size, PAL_PTR target_info,
+                         PAL_NUM* target_info_size, PAL_PTR report, PAL_NUM* report_size);
 int _DkAttestationQuote(PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
                         PAL_NUM* quote_size);
 

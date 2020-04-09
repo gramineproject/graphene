@@ -43,6 +43,7 @@ DkStreamAttributesSetByHandle
 DkMemoryAvailableQuota
 DkDebugAttachBinary
 DkDebugDetachBinary
+DkAttestationReport
 DkAttestationQuote
 pal_printf
 pal_control_addr

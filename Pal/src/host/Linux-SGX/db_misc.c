@@ -297,9 +297,65 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     return 0;
 }
 
+int _DkAttestationReport(PAL_PTR report_data, PAL_NUM* report_data_size, PAL_PTR target_info,
+                         PAL_NUM* target_info_size, PAL_PTR report, PAL_NUM* report_size) {
+    __sgx_mem_aligned sgx_report_data_t stack_report_data = {0};
+    __sgx_mem_aligned sgx_target_info_t stack_target_info = {0};
+    __sgx_mem_aligned sgx_report_t stack_report           = {0};
+
+    if (!report_data_size || !target_info_size || !report_size)
+        return -PAL_ERROR_INVAL;
+
+    if (*report_data_size < sizeof(stack_report_data) ||
+        *target_info_size < sizeof(stack_target_info) || *report_size < sizeof(stack_report)) {
+        /* inform the caller of minimal sizes for report_data, target_info, and report */
+        goto out;
+    }
+
+    if (!report_data || !target_info) {
+        /* cannot produce report without report_data or target_info */
+        goto out;
+    }
+
+    bool populate_target_info = false;
+    if (!memcmp(target_info, &stack_target_info, sizeof(stack_target_info))) {
+        /* caller supplied all-zero target_info, wants to get this enclave's target info */
+        populate_target_info = true;
+    }
+
+    memcpy(&stack_report_data, report_data, sizeof(stack_report_data));
+    memcpy(&stack_target_info, target_info, sizeof(stack_target_info));
+
+    int ret = sgx_report(&stack_target_info, &stack_report_data, &stack_report);
+    if (ret < 0) {
+        /* caller already provided reasonable sizes, so just error out without updating them */
+        return -PAL_ERROR_INVAL;
+    }
+
+    if (populate_target_info) {
+        sgx_target_info_t* ti = (sgx_target_info_t*)target_info;
+        memcpy(&ti->attributes, &stack_report.body.attributes, sizeof(ti->attributes));
+        memcpy(&ti->config_id, &stack_report.body.config_id, sizeof(ti->config_id));
+        memcpy(&ti->config_svn, &stack_report.body.config_svn, sizeof(ti->config_svn));
+        memcpy(&ti->misc_select, &stack_report.body.misc_select, sizeof(ti->misc_select));
+        memcpy(&ti->mr_enclave, &stack_report.body.mr_enclave, sizeof(ti->mr_enclave));
+    }
+
+    if (report) {
+        /* report may be NULL if caller only wants to know the size of target_info and/or report */
+        memcpy(report, &stack_report, sizeof(stack_report));
+    }
+
+out:
+    *report_data_size = sizeof(stack_target_info);
+    *target_info_size = sizeof(stack_target_info);
+    *report_size = sizeof(stack_report);
+    return 0;
+}
+
 int _DkAttestationQuote(const PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
                         PAL_NUM* quote_size) {
-    if (report_data_size != sizeof(sgx_report_data_t))
+    if (report_data_size < sizeof(sgx_report_data_t))
         return -PAL_ERROR_INVAL;
 
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];

@@ -926,15 +926,44 @@ PAL_BOL
 DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
 
 /*!
- * \brief Obtain the attestation quote with `report_data` embedded into it.
+ * \brief Obtain the attestation report (local) with `report_data` embedded into it.
  *
- * Currently, works only for Linux-SGX PAL, where `report_data` is a 64B blob and `quote` is an
- * SGX quote obtained from the Quoting Enclave via AESM service.
+ * Currently, works only for Linux-SGX PAL, where `report_data` is a blob of at least 64B,
+ * `target_info` is an SGX target_info struct, and `report` is an SGX report obtained via the
+ * EREPORT instruction. If `target_info` contains all zeros, then this function additionally
+ * returns this enclave's target info in `target_info`. Useful for local attestation.
+ *
+ * The caller may specify `report_data_size`, `target_info_size`, and `report_size` as 0 and
+ * other fields as NULL to get actual sizes of these three structs.
  *
  * \param[in]     report_data       Report data with arbitrary contents (typically uniquely
- *                                  identifies this Graphene instance). Must be a 64B buffer
- *                                  in case of SGX PAL.
- * \param[in]     report_data_size  Size in bytes of report data. Must be 64 in case of SGX PAL.
+ *                                  identifies this Graphene instance). Must be a buffer of at
+ *                                  least 64B in case of SGX PAL.
+ * \param[in,out] report_data_size  Caller specifies maximum size allocated for `report_data`; on
+ *                                  return, contains actual size of `report_data`.
+ * \param[in,out] target_info       Target info of target enclave for attestation. If it contains
+ *                                  all zeros, it is populated with this enclave's target info.
+ * \param[in,out] target_info_size  Caller specifies maximum size allocated for `target_info`; on
+ *                                  return, contains actual size of `target_info`.
+ * \param[out]    report            Attestation report with report data embedded, targeted for
+ *                                  an enclave with provided target_info.
+ * \param[in,out] report_size       Caller specifies maximum size allocated for `report`; on
+ *                                  return, contains actual size of `report`.
+ */
+PAL_BOL DkAttestationReport(PAL_PTR report_data, PAL_NUM* report_data_size, PAL_PTR target_info,
+                            PAL_NUM* target_info_size, PAL_PTR report, PAL_NUM* report_size);
+
+/*!
+ * \brief Obtain the attestation quote with `report_data` embedded into it.
+ *
+ * Currently, works only for Linux-SGX PAL, where `report_data` is a blob of at least 64B (only
+ * first 64B are used) and `quote` is an SGX quote obtained from Quoting Enclave via AESM service.
+ *
+ * \param[in]     report_data       Report data with arbitrary contents (typically uniquely
+ *                                  identifies this Graphene instance). Must be a buffer of at
+ *                                  least 64B in case of SGX PAL.
+ * \param[in]     report_data_size  Size in bytes of report data. Must be at least 64B in case of
+ *                                  SGX PAL.
  * \param[out]    quote             Attestation quote with report data embedded.
  * \param[in,out] quote_size        Caller specifies maximum size allocated for `quote`; on return,
  *                                  contains actual size of `quote`.
