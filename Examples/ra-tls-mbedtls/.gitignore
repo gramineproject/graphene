@@ -1,0 +1,6 @@
+/*.tar.gz
+/server
+/client
+/mbedtls
+/*.so
+/*.so.*

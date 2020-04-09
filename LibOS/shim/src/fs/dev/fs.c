@@ -142,7 +142,7 @@ static off_t dev_seek(struct shim_handle* hdl, off_t offset, int wence) {
 
 static int dev_truncate(struct shim_handle* hdl, off_t len) {
     if (hdl->type == TYPE_STR) {
-        return -EACCES;
+        return 0; /* just ignore */
     }
 
     assert(hdl->type == TYPE_DEV);

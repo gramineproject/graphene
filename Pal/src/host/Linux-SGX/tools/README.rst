@@ -158,3 +158,21 @@ Example report verification with all options enabled::
     Quote: isv_prod_id OK
     Quote: isv_svn OK
     Quote: report_data OK
+
+
+RA-TLS Libraries
+----------------
+
+RA-TLS integrates Intel SGX remote attestation into the TLS connection setup. Conceptually, it
+extends the standard X.509 certificate with SGX-related information. The additional information
+allows the receiver (verifier) of the certificate to verify that it is indeed communicating with
+an SGX enclave (attester). RA-TLS is shipped as two libraries:
+
+- ``ra_tls_attest.so``: Creates the self-signed RA-TLS certificate. Must be loaded into the SGX
+  enclave, e.g., via ``LD_PRELOAD``. Relies on the pseudo-FS ``/dev/attestation`` to retrieve the
+  SGX quote and embed it into the RA-TLS certificate. Typically linked into server applications.
+
+- ``ra_tls_verify.so``: Contains the verification callback that should be registered with the
+  TLS library during verification of the TLS certificate. Verifies the RA-TLS certificate and the
+  SGX quote by sending it to the Intel Attestation Service (IAS) and retrieving the attestation
+  report from IAS. Typically linked into client applications.
