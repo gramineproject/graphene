@@ -278,7 +278,7 @@ static inline void internal_fault(const char* errstr,
                    addr, context ? context->IP : 0,
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
 
-    PAUSE();
+    DEBUG_BREAK_ON_FAILURE();
 }
 
 static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)

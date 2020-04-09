@@ -99,6 +99,8 @@ typedef ptrdiff_t ssize_t;
 #define ARRAY_SIZE(a) (FORCE_STATIC_ARRAY(a) + sizeof(a) / sizeof(a[0]))
 #endif
 
+#define DEBUG_BREAK() do { __asm__ volatile ("int $3"); } while (0)
+
 #ifndef container_of
 /**
  * container_of - cast a member of a structure out to the containing structure
