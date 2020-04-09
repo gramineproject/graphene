@@ -40,8 +40,8 @@ typedef __kernel_pid_t pid_t;
 #include <linux/un.h>
 #include <sys/socket.h>
 
-static int pipe_addr(int pipeid, struct sockaddr_un* addr) {
-    /* use abstract UNIX sockets for pipes, with name format "@/graphene/12345678" */
+static int pipe_addr(const char* name, struct sockaddr_un* addr) {
+    /* use abstract UNIX sockets for pipes, with name format "@/graphene/<pipename>" */
     addr->sun_family = AF_UNIX;
     memset(addr->sun_path, 0, sizeof(addr->sun_path));
 
@@ -50,35 +50,29 @@ static int pipe_addr(int pipeid, struct sockaddr_un* addr) {
     size_t size = sizeof(addr->sun_path) - 1;
 
     /* FIXME: Below naming scheme is slightly different from Linux-SGX, not important though */
-    int ret;
-    if (pal_sec.pipe_prefix_id) {
-        ret = snprintf(str, size, GRAPHENE_UNIX_PREFIX_FMT "/%08x",
-                       pal_sec.pipe_prefix_id, pipeid);
-    } else {
-        ret = snprintf(str, size, "/graphene/%08x", pipeid);
-    }
+    int ret = snprintf(str, size, "/graphene/%s", name);
     return ret >= 0 && (size_t)ret < size ? 0 : -EINVAL;
 }
 
 /*!
  * \brief Create a listening abstract UNIX socket as preparation for connecting two ends of a pipe.
  *
- * An abstract UNIX socket with name "@/graphene/<pipeid>" is opened for listening. A corresponding
+ * An abstract UNIX socket with name "@/graphene/<pipename>" is opened for listening. A corresponding
  * PAL handle with type `pipesrv` is created. This PAL handle typically serves only as an
  * intermediate step to connect two ends of the pipe (`pipecli` and `pipe`). As soon as the other
  * end of the pipe connects to this listening socket, a new accepted socket and the corresponding
  * PAL handle are created, and this `pipesrv` handle can be closed.
  *
  * \param[out] handle  PAL handle of type `pipesrv` with abstract UNIX socket opened for listening.
- * \param[in]  pipeid  Integer uniquely identifying the pipe.
+ * \param[in]  name    String uniquely identifying the pipe.
  * \param[in]  options May contain PAL_OPTION_NONBLOCK.
  * \return             0 on success, negative PAL error code otherwise.
  */
-static int pipe_listen(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
+static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     int ret;
 
     struct sockaddr_un addr;
-    ret = pipe_addr(pipeid, &addr);
+    ret = pipe_addr(name, &addr);
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
@@ -109,8 +103,8 @@ static int pipe_listen(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
     SET_HANDLE_TYPE(hdl, pipesrv);
     HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write to a listening socket */
     hdl->pipe.fd            = fd;
-    hdl->pipe.pipeid        = pipeid;
     hdl->pipe.nonblocking   = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
+    memcpy(&hdl->pipe.name.str, name, sizeof(hdl->pipe.name.str));
 
     *handle = hdl;
     return 0;
@@ -149,8 +143,8 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
     SET_HANDLE_TYPE(clnt, pipecli);
     HANDLE_HDR(clnt)->flags |= RFD(0) | WFD(0);
     clnt->pipe.fd            = newfd;
+    clnt->pipe.name          = handle->pipe.name;
     clnt->pipe.nonblocking   = PAL_FALSE; /* FIXME: must set nonblocking based on `handle` value */
-    clnt->pipe.pipeid        = handle->pipe.pipeid;
 
     *client = clnt;
     return 0;
@@ -160,20 +154,20 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
  * \brief Connect to the other end of the pipe and create PAL handle for our end of the pipe.
  *
  * This function connects to the other end of the pipe, represented as an abstract UNIX socket
- * "@/graphene/<pipeid>" opened for listening. When the connection succeeds, a new `pipe` PAL handle
+ * "@/graphene/<pipename>" opened for listening. When the connection succeeds, a new `pipe` PAL handle
  * is created with the corresponding underlying socket and is returned in `handle`. The other end of
  * the pipe is typically of type `pipecli`.
  *
  * \param[out] handle  PAL handle of type `pipe` with abstract UNIX socket connected to another end.
- * \param[in]  pipeid  Integer uniquely identifying the pipe.
+ * \param[in]  name    String uniquely identifying the pipe.
  * \param[in]  options May contain PAL_OPTION_NONBLOCK.
  * \return             0 on success, negative PAL error code otherwise.
  */
-static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
+static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     int ret;
 
     struct sockaddr_un addr;
-    ret = pipe_addr(pipeid, &addr);
+    ret = pipe_addr(name, &addr);
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
@@ -198,8 +192,8 @@ static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
     SET_HANDLE_TYPE(hdl, pipe);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->pipe.fd            = fd;
-    hdl->pipe.pipeid        = pipeid;
     hdl->pipe.nonblocking   = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
+    memcpy(&hdl->pipe.name.str, name, sizeof(hdl->pipe.name.str));
 
     *handle = hdl;
     return 0;
@@ -251,17 +245,15 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
  *                                               ends of an anonymous pipe).
  *
  * - `type` is URI_TYPE_PIPE_SRV: create `pipesrv` handle (intermediate listening socket) with
- *                                name in the form of "@/graphene/<pipeid>" where pipeid is
- *                                derived from `uri` via strtol(). Caller is expected to call
- *                                pipe_waitforclient() afterwards.
+ *                                name in the form of "@/graphene/<uri>". Caller is expected to
+ *                                call pipe_waitforclient() afterwards.
  *
  * - `type` is URI_TYPE_PIPE: create `pipe` handle (connecting socket) with name in the form of
- *                            "@/graphene/<pipeid>" where pipeid is derived from `uri` via
- *                            strtol().
+ *                            "@/graphene/<uri>".
  *
  * \param[out] handle  Created PAL handle of type `pipeprv`, `pipesrv`, or `pipe`.
  * \param[in]  type    Can be URI_TYPE_PIPE or URI_TYPE_PIPE_SRV.
- * \param[in]  uri     Content is either NUL (for anonymous pipe) or an integer denoting pipeid.
+ * \param[in]  uri     Content is either NUL (for anonymous pipe) or a string with pipe name.
  * \param[in]  access  Not used.
  * \param[in]  share   Not used.
  * \param[in]  create  Not used.
@@ -277,17 +269,14 @@ static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (!strcmp_static(type, URI_TYPE_PIPE) && !*uri)
         return pipe_private(handle, options);
 
-    char* endptr;
-    PAL_NUM pipeid = strtol(uri, &endptr, 10);
-
-    if (*endptr)
+    if (strlen(uri) + 1 > PIPE_NAME_MAX)
         return -PAL_ERROR_INVAL;
 
     if (!strcmp_static(type, URI_TYPE_PIPE_SRV))
-        return pipe_listen(handle, pipeid, options);
+        return pipe_listen(handle, uri, options);
 
     if (!strcmp_static(type, URI_TYPE_PIPE))
-        return pipe_connect(handle, pipeid, options);
+        return pipe_connect(handle, uri, options);
 
     return -PAL_ERROR_INVAL;
 }
@@ -509,7 +498,7 @@ static int pipe_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 /*!
  * \brief Retrieve full URI of PAL handle.
  *
- * Full URI is composed of the type and pipeid: "<type>:<pipeid>".
+ * Full URI is composed of the type and pipe name: "<type>:<pipename>".
  *
  * \param[in]  handle  PAL handle of type `pipeprv`, `pipesrv`, `pipecli`, or `pipe`.
  * \param[out] buffer  User-supplied buffer to write URI to.
@@ -546,7 +535,7 @@ static int pipe_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     buffer += prefix_len + 1;
     count -= prefix_len + 1;
 
-    ret = snprintf(buffer, count, "%lu\n", handle->pipe.pipeid);
+    ret = snprintf(buffer, count, "%s\n", handle->pipe.name.str);
     if (buffer[ret - 1] != '\n') {
         memset(buffer, 0, count);
         return -PAL_ERROR_OVERFLOW;

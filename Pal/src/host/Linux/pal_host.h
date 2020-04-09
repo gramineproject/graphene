@@ -59,6 +59,10 @@ typedef struct {
     PAL_HDR hdr;
 } PAL_RESERVED_HDR;
 
+typedef struct {
+    char str[PIPE_NAME_MAX];
+} PAL_PIPE_NAME;
+
 typedef struct pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE
@@ -86,7 +90,7 @@ typedef struct pal_handle
 
         struct {
             PAL_IDX fd;
-            PAL_NUM pipeid;
+            PAL_PIPE_NAME name;
             PAL_BOL nonblocking;
         } pipe;
 

@@ -27,7 +27,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-static int pipe_listen(PAL_HANDLE* handle, PAL_NUM pipeid, int create) {
+static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
@@ -35,41 +35,27 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, PAL_IDX connid, int create) {
+static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int pipe_private(PAL_HANDLE* handle) {
+static int pipe_private(PAL_HANDLE* handle, int options) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-/* 'open' operation of pipe stream. For each pipe stream, it is identified by a decimal number in
-   URI. There could be two types: pipe and pipe.srv. They behave pretty much the same, except they
-   are two ends of the pipe. */
 static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
     if (!strcmp_static(type, URI_TYPE_PIPE) && !*uri)
-        return pipe_private(handle);
+        return pipe_private(handle, options);
 
-    char* endptr;
-    PAL_NUM pipeid = strtol(uri, &endptr, 10);
-    PAL_IDX connid = 0;
-
-    if (*endptr == ':') {
-        if (create & PAL_CREATE_TRY)
-            return -PAL_ERROR_INVAL;
-
-        connid = strtol(endptr + 1, &endptr, 10);
-    }
-
-    if (*endptr)
+    if (strlen(uri) + 1 > PIPE_NAME_MAX)
         return -PAL_ERROR_INVAL;
 
     if (!strcmp_static(type, URI_TYPE_PIPE_SRV))
-        return pipe_listen(handle, pipeid, create);
+        return pipe_listen(handle, uri, options);
 
     if (!strcmp_static(type, URI_TYPE_PIPE))
-        return pipe_connect(handle, pipeid, connid, create);
+        return pipe_connect(handle, uri, options);
 
     return -PAL_ERROR_INVAL;
 }

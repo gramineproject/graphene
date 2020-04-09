@@ -27,8 +27,11 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include <pal.h>
-#include <pal_error.h>
+
+#include "hex.h"
+#include "pal.h"
+#include "pal_error.h"
+
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
 #include <shim_handle.h>
@@ -144,7 +147,7 @@ err:
     return ret;
 }
 
-static int unix_create_uri(char* uri, int count, enum shim_sock_state state, unsigned int pipeid) {
+static int unix_create_uri(char* uri, int count, enum shim_sock_state state, char* name) {
     int bytes = 0;
 
     switch (state) {
@@ -156,11 +159,11 @@ static int unix_create_uri(char* uri, int count, enum shim_sock_state state, uns
         case SOCK_BOUND:
         case SOCK_LISTENED:
         case SOCK_ACCEPTED:
-            bytes = snprintf(uri, count, URI_PREFIX_PIPE_SRV "%u", pipeid);
+            bytes = snprintf(uri, count, URI_PREFIX_PIPE_SRV "%s", name);
             break;
 
         case SOCK_CONNECTED:
-            bytes = snprintf(uri, count, URI_PREFIX_PIPE "%u", pipeid);
+            bytes = snprintf(uri, count, URI_PREFIX_PIPE "%s", name);
             break;
 
         default:
@@ -410,7 +413,7 @@ static int create_socket_uri(struct shim_handle* hdl) {
 
     if (sock->domain == AF_UNIX) {
         char uri_buf[32];
-        int bytes = unix_create_uri(uri_buf, 32, sock->sock_state, sock->addr.un.pipeid);
+        int bytes = unix_create_uri(uri_buf, 32, sock->sock_state, sock->addr.un.name);
         if (bytes < 0)
             return bytes;
 
@@ -445,6 +448,18 @@ static bool __socket_is_ipv6_v6only(struct shim_handle* hdl) {
         o = o->next;
     }
     return false;
+}
+
+static int hash_to_hex_string(HASHTYPE hash, char* buf, size_t size) {
+    static_assert(sizeof(hash) == 8, "Unsupported HASHTYPE size");
+    char hashbytes[8];
+
+    if (size < sizeof(hashbytes) * 2 + 1)
+        return -ENOMEM;
+
+    memcpy(hashbytes, &hash, sizeof(hash));
+    BYTES2HEXSTR(hashbytes, buf, size);
+    return 0;
 }
 
 
@@ -492,13 +507,14 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen) {
             goto out;
         }
 
-        struct shim_unix_data* data = malloc(sizeof(struct shim_unix_data));
+        /* instead of user-specified sun_path of UNIX socket, use its deterministic hash as name
+         * (deterministic so that independent parent and child connect to the same socket) */
+        ret = hash_to_hex_string(dent->rel_path.hash, sock->addr.un.name,
+                                 sizeof(sock->addr.un.name));
+        if (ret < 0)
+            goto out;
 
-        data->pipeid         = hashtype_to_idtype(dent->rel_path.hash);
-        sock->addr.un.pipeid = data->pipeid;
-        sock->addr.un.data   = data;
         sock->addr.un.dentry = dent;
-
     } else if (sock->domain == AF_INET || sock->domain == AF_INET6) {
         if ((ret = inet_check_addr(sock->domain, addr, addrlen)) < 0)
             goto out;
@@ -531,7 +547,7 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen) {
         dent->state ^= DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID | DENTRY_RECENTLY;
         dent->fs   = &socket_builtin_fs;
-        dent->data = sock->addr.un.data;
+        dent->data = NULL;
     }
 
     if (sock->domain == AF_INET || sock->domain == AF_INET6) {
@@ -561,11 +577,6 @@ out:
         if (sock->domain == AF_UNIX) {
             if (sock->addr.un.dentry)
                 put_dentry(sock->addr.un.dentry);
-
-            if (sock->addr.un.data) {
-                free(sock->addr.un.data);
-                sock->addr.un.data = NULL;
-            }
         }
     }
 
@@ -754,18 +765,19 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen) {
                 goto out;
         }
 
-        struct shim_unix_data* data = dent->data;
-
-        if (!(dent->state & DENTRY_VALID) || dent->state & DENTRY_NEGATIVE) {
-            data         = malloc(sizeof(struct shim_unix_data));
-            data->pipeid = hashtype_to_idtype(dent->rel_path.hash);
-        } else if (dent->fs != &socket_builtin_fs) {
+        if (dent->state & DENTRY_VALID && !(dent->state & DENTRY_NEGATIVE) &&
+                dent->fs != &socket_builtin_fs) {
             ret = -ECONNREFUSED;
             goto out;
         }
 
-        sock->addr.un.pipeid = data->pipeid;
-        sock->addr.un.data   = data;
+        /* instead of user-specified sun_path of UNIX socket, use its deterministic hash as name
+         * (deterministic so that independent parent and child connect to the same socket) */
+        ret = hash_to_hex_string(dent->rel_path.hash, sock->addr.un.name,
+                                 sizeof(sock->addr.un.name));
+        if (ret < 0)
+            goto out;
+
         sock->addr.un.dentry = dent;
         get_dentry(dent);
     }
@@ -805,7 +817,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen) {
         dent->state ^= DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID | DENTRY_RECENTLY;
         dent->fs   = &socket_builtin_fs;
-        dent->data = sock->addr.un.data;
+        dent->data = NULL;
         unlock(&dent->lock);
     }
 
@@ -837,11 +849,6 @@ out:
         if (sock->domain == AF_UNIX) {
             if (sock->addr.un.dentry)
                 put_dentry(sock->addr.un.dentry);
-
-            if (sock->addr.un.data) {
-                free(sock->addr.un.data);
-                sock->addr.un.data = NULL;
-            }
         }
     }
 
@@ -924,7 +931,7 @@ int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, sockl
     cli_sock->sock_state = SOCK_ACCEPTED;
 
     if (sock->domain == AF_UNIX) {
-        cli_sock->addr.un.pipeid = sock->addr.un.pipeid;
+        memcpy(cli_sock->addr.un.name, sock->addr.un.name, sizeof(cli_sock->addr.un.name));
         if (sock->addr.un.dentry) {
             get_dentry(sock->addr.un.dentry);
             cli_sock->addr.un.dentry = sock->addr.un.dentry;

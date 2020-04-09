@@ -30,13 +30,16 @@
 #include <shim_table.h>
 #include <shim_utils.h>
 
-int create_pipes(IDTYPE* pipeid, PAL_HANDLE* srv, PAL_HANDLE* cli, struct shim_qstr* qstr,
-                 int flags) {
-    PAL_HANDLE hdl0 = NULL, hdl1 = NULL, hdl2 = NULL;
+static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
+                        struct shim_qstr* qstr) {
     int ret = 0;
     char uri[PIPE_URI_SIZE];
 
-    if ((ret = create_pipe(pipeid, uri, PIPE_URI_SIZE, &hdl0, qstr,
+    PAL_HANDLE hdl0 = NULL;  /* server pipe (temporary, waits for connect from hdl2) */
+    PAL_HANDLE hdl1 = NULL;  /* one pipe end (accepted connect from hdl2) */
+    PAL_HANDLE hdl2 = NULL;  /* other pipe end (connects to hdl0 and talks to hdl1) */
+
+    if ((ret = create_pipe(name, uri, PIPE_URI_SIZE, &hdl0, qstr,
                            /*use_vmid_for_name=*/false)) < 0) {
         debug("pipe creation failure\n");
         return ret;
@@ -45,25 +48,26 @@ int create_pipes(IDTYPE* pipeid, PAL_HANDLE* srv, PAL_HANDLE* cli, struct shim_q
     if (!(hdl2 = DkStreamOpen(uri, 0, 0, 0, flags & O_NONBLOCK))) {
         ret = -PAL_ERRNO;
         debug("pipe connection failure\n");
-        goto err;
+        goto out;
     }
 
     if (!(hdl1 = DkStreamWaitForClient(hdl0))) {
         ret = -PAL_ERRNO;
         debug("pipe acception failure\n");
-        goto err;
+        goto out;
     }
 
-    DkStreamDelete(hdl0, 0);
-    DkObjectClose(hdl0);
     *srv = hdl1;
     *cli = hdl2;
-    return 0;
-err:
-    if (hdl1)
-        DkObjectClose(hdl1);
-    if (hdl2)
-        DkObjectClose(hdl2);
+    ret = 0;
+
+out:
+    if (ret < 0) {
+        if (hdl1)
+            DkObjectClose(hdl1);
+        if (hdl2)
+            DkObjectClose(hdl2);
+    }
     DkStreamDelete(hdl0, 0);
     DkObjectClose(hdl0);
     return ret;
@@ -93,11 +97,13 @@ int shim_do_pipe2(int* filedes, int flags) {
     hdl2->flags    = O_WRONLY;
     hdl2->acc_mode = MAY_WRITE;
 
-    if ((ret = create_pipes(&hdl1->info.pipe.pipeid, &hdl1->pal_handle, &hdl2->pal_handle,
-                            &hdl1->uri, flags)) < 0)
+    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, flags, hdl1->info.pipe.name,
+                       &hdl1->uri);
+    if (ret < 0)
         goto out;
 
-    qstrcopy(&hdl2->uri, &hdl2->uri);
+    memcpy(hdl2->info.pipe.name, hdl1->info.pipe.name, sizeof(hdl2->info.pipe.name));
+    qstrcopy(&hdl2->uri, &hdl1->uri);
 
     flags    = flags & O_CLOEXEC ? FD_CLOEXEC : 0;
     int vfd1 = set_new_fd_handle(hdl1, flags, NULL);
@@ -172,11 +178,12 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     sock2->protocol   = protocol;
     sock2->sock_state = SOCK_CONNECTED;
 
-    if ((ret = create_pipes(&sock1->addr.un.pipeid, &hdl1->pal_handle, &hdl2->pal_handle,
-                            &hdl1->uri, type & SOCK_NONBLOCK ? O_NONBLOCK : 0)) < 0)
+    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, type & SOCK_NONBLOCK ? O_NONBLOCK : 0,
+                       sock1->addr.un.name, &hdl1->uri);
+    if (ret < 0)
         goto out;
 
-    sock2->addr.un.pipeid = sock1->addr.un.pipeid;
+    memcpy(sock2->addr.un.name, sock1->addr.un.name, sizeof(sock2->addr.un.name));
     qstrcopy(&hdl2->uri, &hdl1->uri);
 
     int flags = type & SOCK_CLOEXEC ? FD_CLOEXEC : 0;

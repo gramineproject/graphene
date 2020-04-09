@@ -127,11 +127,7 @@ struct shim_dev_handle {
 };
 
 struct shim_pipe_handle {
-#if USE_SIMPLE_PIPE == 1
-    struct shim_handle* pair;
-#else
-    IDTYPE pipeid;
-#endif
+    char name[PIPE_URI_SIZE];
 };
 
 #define SOCK_STREAM   1
@@ -163,10 +159,6 @@ enum shim_sock_state {
     SOCK_SHUTDOWN,
 };
 
-struct shim_unix_data {
-    unsigned int pipeid;
-};
-
 struct shim_sock_handle {
     int domain;
     int sock_type;
@@ -190,8 +182,7 @@ struct shim_sock_handle {
         // UNIX addr
         struct addr_unix {
             struct shim_dentry* dentry;
-            unsigned int pipeid;
-            struct shim_unix_data* data;
+            char name[PIPE_URI_SIZE];
         } un;
     } addr;
 

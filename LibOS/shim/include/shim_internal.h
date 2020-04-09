@@ -827,10 +827,4 @@ static_always_inline void * current_stack(void)
 # error "Unsupported architecture"
 #endif /* __x86_64__ */
 
-static inline IDTYPE hashtype_to_idtype(HASHTYPE hash) {
-    static_assert(sizeof(HASHTYPE) == 8, "Unsupported HASHTYPE size");
-    static_assert(sizeof(IDTYPE) == 4, "Unsupported IDTYPE size");
-    return ((IDTYPE)hash) ^ ((IDTYPE)(hash >> 32));
-}
-
 #endif /* _PAL_INTERNAL_H_ */

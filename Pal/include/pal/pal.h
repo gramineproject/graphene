@@ -56,6 +56,9 @@ typedef bool          PAL_BOL;
  * since it is 3, across all host kernels. */
 #define MAX_FDS 3
 
+/* maximum length of pipe/FIFO name (should be less than Linux sockaddr_un.sun_path = 108) */
+#define PIPE_NAME_MAX 96
+
 #ifdef IN_PAL
 #include <atomic.h>
 typedef struct atomic_int PAL_REF;
@@ -516,9 +519,9 @@ enum PAL_OPTION {
  * * `%file:...`, `dir:...`: Files or directories on the host file system. If #PAL_CREATE_TRY is
  *   given in `create` flags, the file/directory will be created.
  * * `dev:...`: Open a device as a stream. For example, `dev:tty` represents the standard I/O.
- * * `pipe.srv:<ID>`, `pipe:<ID>`, `pipe:`: Open a byte stream that can be used for RPC between
- *   processes. Pipes are located by numeric IDs. The server side of a pipe can accept any number
- *   of connections. If `pipe:` is given as the URI, it will open an anonymous bidirectional pipe.
+ * * `pipe.srv:<name>`, `pipe:<name>`, `pipe:`: Open a byte stream that can be used for RPC between
+ *   processes. The server side of a pipe can accept any number of connections. If `pipe:` is given
+ *   as the URI (i.e., without a name), it will open an anonymous bidirectional pipe.
  * * `tcp.srv:<ADDR>:<PORT>`, `tcp:<ADDR>:<PORT>`: Open a TCP socket to listen or connect to
  *   a remote TCP socket.
  * * `udp.srv:<ADDR>:<PORT>`, `udp:<ADDR>:<PORT>`: Open a UDP socket to listen or connect to

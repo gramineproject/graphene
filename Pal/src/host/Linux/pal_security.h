@@ -62,9 +62,6 @@ extern struct pal_sec {
     unsigned int process_id;
     int random_device;
 
-    /* pipes and sockets */
-    unsigned long pipe_prefix_id;
-
     /* for debugger */
     void (*_dl_debug_state)(void);
     struct r_debug* _r_debug;

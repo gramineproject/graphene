@@ -36,7 +36,7 @@
 static inline __attribute__((always_inline))
 char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 {
-    static char * ch = "0123456789abcdef";
+    static const char* ch = "0123456789abcdef";
     __UNUSED(len);
     assert(len >= size * 2 + 1);
 
