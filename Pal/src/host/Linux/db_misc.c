@@ -232,10 +232,22 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     return 0;
 }
 
-int _DkAttestationQuote(PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
-                        PAL_NUM* quote_size) {
-    __UNUSED(report_data);
-    __UNUSED(report_data_size);
+int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
+                         PAL_PTR target_info, PAL_NUM* target_info_size,
+                         PAL_PTR report, PAL_NUM* report_size) {
+    __UNUSED(user_report_data);
+    __UNUSED(user_report_data_size);
+    __UNUSED(target_info);
+    __UNUSED(target_info_size);
+    __UNUSED(report);
+    __UNUSED(report_size);
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
+                        PAL_PTR quote, PAL_NUM* quote_size) {
+    __UNUSED(user_report_data);
+    __UNUSED(user_report_data_size);
     __UNUSED(quote);
     __UNUSED(quote_size);
     return -PAL_ERROR_NOTIMPLEMENTED;
