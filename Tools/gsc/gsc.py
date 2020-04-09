@@ -13,6 +13,11 @@ def gsc_image_name(name):
     return "gsc-" + name
 
 def load_config(file):
+    if not os.path.exists(file):
+        print("Please create file named 'config.json' based on the template configuration "
+              "file called 'config.json.template'.")
+        sys.exit(1)
+
     with open(file) as json_config_file:
         return json.load(json_config_file)
 

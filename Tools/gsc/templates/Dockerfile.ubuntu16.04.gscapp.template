@@ -10,7 +10,7 @@ RUN apt-get update \
         libprotobuf-c-dev \
         binutils \
         openssl \
-    && /usr/bin/pip3 install protobuf
+    && python3 -m pip install protobuf
 
 # Copy Graphene runtime and signer tools to /graphene
 RUN mkdir /graphene \

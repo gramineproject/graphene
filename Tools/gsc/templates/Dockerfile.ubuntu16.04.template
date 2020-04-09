@@ -14,6 +14,7 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
         git \
         libapr1-dev \
         libaprutil1-dev \
+        libcurl4-openssl-dev \
         libexpat1 \
         libexpat1-dev \
         libnss-mdns \
@@ -40,7 +41,7 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
         wget \
         zlib1g \
         zlib1g-dev \
-    && /usr/bin/pip3 install protobuf
+    && python3 -m pip install protobuf
 
 # Clone graphene
 RUN git clone ${graphene_repository}
