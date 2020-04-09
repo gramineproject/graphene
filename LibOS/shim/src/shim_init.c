@@ -841,7 +841,7 @@ static int name_pipe_rand(char* uri, size_t size, void* name) {
 static int name_pipe_vmid(char* uri, size_t size, void* name) {
     char pipename[PIPE_URI_SIZE];
 
-    size_t len = snprintf(pipename, sizeof(pipename), "vmid_%u", cur_process.vmid);
+    size_t len = snprintf(pipename, sizeof(pipename), "%u", cur_process.vmid);
     if (len >= sizeof(pipename))
         return -ERANGE;
 
