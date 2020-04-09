@@ -34,6 +34,8 @@ typedef struct mutex_handle {
 #define LOCK_INIT {}
 #define INIT_LOCK(lock) do {} while (0)
 
+typedef char PAL_PIPE_NAME[PIPE_NAME_MAX];
+
 typedef struct pal_handle {
     /* TSAI: Here we define the internal types of PAL_HANDLE in PAL design, user has not to access
      * the content inside the handle, also there is no need to allocate the internal handles, so we
