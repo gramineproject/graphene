@@ -515,4 +515,7 @@ struct shim_qstr {
     struct shim_str * oflow;
 };
 
+/* maximum length of pipe/FIFO name (should be less than Linux sockaddr_un.sun_path = 108) */
+#define PIPE_URI_SIZE 96
+
 #endif /* _SHIM_TYPES_H_ */

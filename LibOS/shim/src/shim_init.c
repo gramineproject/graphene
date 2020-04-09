@@ -33,9 +33,10 @@
 #include <shim_profile.h>
 #include <shim_vdso.h>
 
-#include <pal.h>
-#include <pal_debug.h>
-#include <pal_error.h>
+#include "hex.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_error.h"
 
 #include <sys/mman.h>
 #include <asm/unistd.h>
@@ -807,69 +808,85 @@ static int create_unique (int (*mkname) (char *, size_t, void *),
     }
 }
 
-static int name_pipe_rand (char * uri, size_t size, void * id)
-{
-    IDTYPE pipeid;
-    size_t len;
-    int ret = DkRandomBitsRead(&pipeid, sizeof(pipeid));
+static int get_256b_random_hex_string(char* buf, size_t size) {
+    char random[32];  /* 256-bit random value, sufficiently crypto secure */
+
+    if (size < sizeof(random) * 2 + 1)
+        return -ENOMEM;
+
+    int ret = DkRandomBitsRead(&random, sizeof(random));
     if (ret < 0)
         return -convert_pal_errno(-ret);
-    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%u\n", pipeid);
-    if ((len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%u", pipeid)) >= size)
-        return -ERANGE;
-    *((IDTYPE *)id) = pipeid;
-    return len;
-}
 
-static int name_pipe_vmid (char * uri, size_t size, void * id)
-{
-    IDTYPE pipeid = cur_process.vmid;
-    size_t len;
-    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%u\n", pipeid);
-    if ((len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%u", pipeid)) >= size)
-        return -ERANGE;
-    *((IDTYPE *)id) = pipeid;
-    return len;
-}
-
-static int open_pipe (const char * uri, void * obj)
-{
-    PAL_HANDLE pipe = DkStreamOpen(uri, 0, 0, 0, 0);
-    if (!pipe)
-        return PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST ? 1 :
-            -PAL_ERRNO;
-    if (obj)
-        *((PAL_HANDLE *) obj) = pipe;
-    else
-        DkObjectClose(pipe);
+    BYTES2HEXSTR(random, buf, size);
     return 0;
 }
 
-static int pipe_addr (char * uri, size_t size, const void * id,
-                      struct shim_qstr * qstr)
-{
-    IDTYPE pipeid = *((IDTYPE *) id);
-    size_t len;
-    if ((len = snprintf(uri, size, URI_PREFIX_PIPE "%u", pipeid)) == size)
+static int name_pipe_rand(char* uri, size_t size, void* name) {
+    char pipename[PIPE_URI_SIZE];
+
+    int ret = get_256b_random_hex_string(pipename, sizeof(pipename));
+    if (ret < 0)
+        return ret;
+
+    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
+    size_t len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
+    if (len >= size)
         return -ERANGE;
+
+    memcpy(name, pipename, sizeof(pipename));
+    return len;
+}
+
+static int name_pipe_vmid(char* uri, size_t size, void* name) {
+    char pipename[PIPE_URI_SIZE];
+
+    size_t len = snprintf(pipename, sizeof(pipename), "vmid_%u", cur_process.vmid);
+    if (len >= sizeof(pipename))
+        return -ERANGE;
+
+    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
+    len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
+    if (len >= size)
+        return -ERANGE;
+
+    memcpy(name, pipename, sizeof(pipename));
+    return len;
+}
+
+static int open_pipe(const char* uri, void* obj) {
+    assert(obj);
+
+    PAL_HANDLE pipe = DkStreamOpen(uri, 0, 0, 0, 0);
+    if (!pipe)
+        return PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST ? 1 : -PAL_ERRNO;
+
+    PAL_HANDLE* pal_hdl = (PAL_HANDLE*)obj;
+    *pal_hdl = pipe;
+    return 0;
+}
+
+static int pipe_addr(char* uri, size_t size, const void* name, struct shim_qstr* qstr) {
+    char* pipename = (char*)name;
+
+    size_t len = snprintf(uri, size, URI_PREFIX_PIPE "%s", pipename);
+    if (len >= size)
+        return -ERANGE;
+
     if (qstr)
         qstrsetstr(qstr, uri, len);
     return len;
 }
 
-int create_pipe (IDTYPE * id, char * uri, size_t size, PAL_HANDLE * hdl,
-                 struct shim_qstr * qstr, bool use_vmid_for_name)
-{
-    IDTYPE pipeid;
-    int ret;
-    if (use_vmid_for_name)
-        ret = create_unique(&name_pipe_vmid, &open_pipe, &pipe_addr,
-                            uri, size, &pipeid, hdl, qstr);
-    else
-        ret = create_unique(&name_pipe_rand, &open_pipe, &pipe_addr,
-                            uri, size, &pipeid, hdl, qstr);
-    if (ret > 0 && id)
-        *id = pipeid;
+int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim_qstr* qstr,
+                bool use_vmid_for_name) {
+    char pipename[PIPE_URI_SIZE];
+
+    int ret = create_unique(use_vmid_for_name ? &name_pipe_vmid : &name_pipe_rand, &open_pipe,
+                            &pipe_addr, uri, size, &pipename, hdl, qstr);
+    if (ret > 0 && name) {
+        memcpy(name, pipename, sizeof(pipename));
+    }
     return ret;
 }
 

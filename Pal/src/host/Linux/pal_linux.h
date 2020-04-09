@@ -44,8 +44,6 @@
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
-#define GRAPHENE_UNIX_PREFIX_FMT       "/graphene/%016lx"
-
 struct timespec;
 struct timeval;
 
