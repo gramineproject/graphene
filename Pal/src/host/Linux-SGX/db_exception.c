@@ -146,10 +146,7 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
 static bool handle_ud(sgx_cpu_context_t * uc)
 {
     uint8_t * instr = (uint8_t *) uc->rip;
-    if (instr[0] == 0xcc) { /* skip int 3 */
-        uc->rip++;
-        return true;
-    } else if (instr[0] == 0x0f && instr[1] == 0xa2) {
+    if (instr[0] == 0x0f && instr[1] == 0xa2) {
         /* cpuid */
         unsigned int values[4];
         if (!_DkCpuIdRetrieve(uc->rax & 0xffffffff,
