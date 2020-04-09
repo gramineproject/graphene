@@ -32,13 +32,13 @@
 
 int shim_do_dup(unsigned int fd) {
     struct shim_handle_map* handle_map = get_cur_handle_map(NULL);
-    int flags = 0;
 
-    struct shim_handle* hdl = get_fd_handle(fd, &flags, handle_map);
+    struct shim_handle* hdl = get_fd_handle(fd, NULL, handle_map);
     if (!hdl)
         return -EBADF;
 
-    int vfd = set_new_fd_handle(hdl, flags, handle_map);
+    // dup() always zeroes fd flags
+    int vfd = set_new_fd_handle(hdl, /*fd_flags=*/0, handle_map);
     put_handle(hdl);
     return vfd == -ENOMEM ? -EMFILE : vfd;
 }
@@ -57,7 +57,8 @@ int shim_do_dup2(unsigned int oldfd, unsigned int newfd) {
     if (new_hdl)
         put_handle(new_hdl);
 
-    int vfd = set_new_fd_handle_by_fd(newfd, hdl, 0, handle_map);
+    // dup2() always zeroes fd flags
+    int vfd = set_new_fd_handle_by_fd(newfd, hdl, /*fd_flags=*/0, handle_map);
     put_handle(hdl);
     return vfd == -ENOMEM ? -EMFILE : vfd;
 }
@@ -76,7 +77,8 @@ int shim_do_dup3(unsigned int oldfd, unsigned int newfd, int flags) {
     if (new_hdl)
         put_handle(new_hdl);
 
-    int vfd = set_new_fd_handle_by_fd(newfd, hdl, flags, handle_map);
+    int fd_flags = (flags & O_CLOEXEC) ? FD_CLOEXEC : 0;
+    int vfd = set_new_fd_handle_by_fd(newfd, hdl, fd_flags, handle_map);
     put_handle(hdl);
     return vfd == -ENOMEM ? -EMFILE : vfd;
 }

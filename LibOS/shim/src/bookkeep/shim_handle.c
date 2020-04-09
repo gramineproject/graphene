@@ -125,7 +125,7 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size);
 PAL_HANDLE shim_stdio = NULL;
 
 static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
-                               int flags);
+                               int fd_flags);
 
 static int __enlarge_handle_map(struct shim_handle_map* map, size_t size);
 
@@ -203,7 +203,7 @@ done:
     return 0;
 }
 
-struct shim_handle* __get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map* map) {
+struct shim_handle* __get_fd_handle(FDTYPE fd, int* fd_flags, struct shim_handle_map* map) {
     assert(locked(&map->lock));
 
     struct shim_fd_handle* fd_handle = NULL;
@@ -213,21 +213,21 @@ struct shim_handle* __get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_ma
         if (!HANDLE_ALLOCATED(fd_handle))
             return NULL;
 
-        if (flags)
-            *flags = fd_handle->flags;
+        if (fd_flags)
+            *fd_flags = fd_handle->flags;
 
         return fd_handle->handle;
     }
     return NULL;
 }
 
-struct shim_handle* get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map* map) {
+struct shim_handle* get_fd_handle(FDTYPE fd, int* fd_flags, struct shim_handle_map* map) {
     if (!map)
         map = get_cur_handle_map(NULL);
 
     struct shim_handle* hdl = NULL;
     lock(&map->lock);
-    if ((hdl = __get_fd_handle(fd, flags, map)))
+    if ((hdl = __get_fd_handle(fd, fd_flags, map)))
         get_handle(hdl);
     unlock(&map->lock);
     return hdl;
@@ -292,8 +292,9 @@ struct shim_handle* get_new_handle(void) {
 }
 
 static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
-                               int flags) {
+                               int fd_flags) {
     struct shim_fd_handle* new_handle = *fdhdl;
+    assert((fd_flags & ~FD_CLOEXEC) == 0);  // The only supported flag right now
 
     if (!new_handle) {
         new_handle = malloc(sizeof(struct shim_fd_handle));
@@ -303,13 +304,13 @@ static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct 
     }
 
     new_handle->vfd   = fd;
-    new_handle->flags = flags;
+    new_handle->flags = fd_flags;
     get_handle(hdl);
     new_handle->handle = hdl;
     return 0;
 }
 
-int set_new_fd_handle(struct shim_handle* hdl, int flags, struct shim_handle_map* handle_map) {
+int set_new_fd_handle(struct shim_handle* hdl, int fd_flags, struct shim_handle_map* handle_map) {
     int ret = -EMFILE;
 
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
@@ -339,7 +340,7 @@ int set_new_fd_handle(struct shim_handle* hdl, int flags, struct shim_handle_map
         fd = 0;
     }
 
-    if ((ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, flags)) < 0) {
+    if ((ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, fd_flags)) < 0) {
         goto out;
     }
 
@@ -354,7 +355,7 @@ out:
     return ret;
 }
 
-int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int flags,
+int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
                             struct shim_handle_map* handle_map) {
     size_t new_size = 0;
     int ret = 0;
@@ -403,7 +404,7 @@ int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int flags,
         handle_map->map[fd] = new_handle;
     }
 
-    ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, flags);
+    ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, fd_flags);
     if (ret < 0) {
         if (fd == handle_map->fd_top)
             handle_map->fd_top = fd ? fd - 1 : FD_NULL;

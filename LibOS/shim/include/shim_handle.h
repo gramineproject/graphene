@@ -409,8 +409,8 @@ struct shim_handle* get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map*
  * Creates mapping for the given handle to a new file descriptor which is then returned.
  * Uses the lowest, non-negative available number for the new fd.
  */
-int set_new_fd_handle(struct shim_handle* hdl, int flags, struct shim_handle_map* map);
-int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int flags,
+int set_new_fd_handle(struct shim_handle* hdl, int fd_flags, struct shim_handle_map* map);
+int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
                             struct shim_handle_map* map);
 struct shim_handle* __detach_fd_handle(struct shim_fd_handle* fd, int* flags,
                                        struct shim_handle_map* map);
