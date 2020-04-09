@@ -9,3 +9,4 @@ $(targets):
 	$(MAKE) -C quote-dump $@
 	$(MAKE) -C ias-request $@
 	$(MAKE) -C verify-ias-report $@
+	$(MAKE) -C ra-tls $@
