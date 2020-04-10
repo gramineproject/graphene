@@ -20,6 +20,8 @@
  * This file contains codes to handle signals and exceptions passed from PAL.
  */
 
+#include <stdnoreturn.h>
+
 #include <shim_internal.h>
 #include <shim_utils.h>
 #include <shim_table.h>
@@ -265,13 +267,11 @@ static inline bool context_is_internal(PAL_CONTEXT * context)
         (void *) context->IP < (void *) &__code_address_end;
 }
 
-static inline void internal_fault(const char* errstr,
-                                  PAL_NUM addr, PAL_CONTEXT * context)
-{
+static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEXT* context) {
     IDTYPE tid = get_cur_tid();
     if (context_is_internal(context))
         SYS_PRINTF("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
-                   addr, (void *) context->IP - (void *) &__load_address,
+                   addr, (void*)context->IP - (void*)&__load_address,
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
     else
         SYS_PRINTF("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr,
@@ -279,6 +279,7 @@ static inline void internal_fault(const char* errstr,
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
 
     DEBUG_BREAK_ON_FAILURE();
+    DkProcessExit(1);
 }
 
 static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
@@ -311,7 +312,6 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
     if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
         internal_fault("Internal memory fault", arg, context);
-        goto ret_exception;
     }
 
     if (context)
@@ -325,7 +325,6 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     } else if (!lookup_vma((void *) arg, &vma)) {
         if (vma.flags & VMA_INTERNAL) {
             internal_fault("Internal memory fault with VMA", arg, context);
-            goto ret_exception;
         }
         if (vma.file && vma.file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
