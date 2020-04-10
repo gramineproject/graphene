@@ -38,6 +38,9 @@ Prerequisites to running GSC
 
     sudo adduser $USER docker
 
+- Create a configuration file called ``config.json``. Please see the documentation on configuration
+options below and use the `config.json.template file <config.json.template>`__ as reference.
+
 Building graphenized Docker images
 ----------------------------------
 
