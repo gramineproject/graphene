@@ -71,7 +71,9 @@ struct pal_handle_thread {
     void * param;
 };
 
-typedef char PAL_PIPE_NAME[PIPE_NAME_MAX];
+typedef struct {
+    char str[PIPE_NAME_MAX];
+} PAL_PIPE_NAME;
 
 /* RPC streams are encrypted with 256-bit AES keys */
 typedef uint8_t PAL_SESSION_KEY[32];

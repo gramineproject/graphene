@@ -27,7 +27,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-static int pipe_listen(PAL_HANDLE* handle, const PAL_PIPE_NAME name, int options) {
+static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
@@ -35,7 +35,7 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int pipe_connect(PAL_HANDLE* handle, const PAL_PIPE_NAME name, int options) {
+static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
@@ -48,7 +48,7 @@ static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (!strcmp_static(type, URI_TYPE_PIPE) && !*uri)
         return pipe_private(handle, options);
 
-    if (strlen(uri) + 1 > sizeof(PAL_PIPE_NAME))
+    if (strlen(uri) + 1 > PIPE_NAME_MAX)
         return -PAL_ERROR_INVAL;
 
     if (!strcmp_static(type, URI_TYPE_PIPE_SRV))

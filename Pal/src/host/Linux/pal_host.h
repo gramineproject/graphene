@@ -59,7 +59,9 @@ typedef struct {
     PAL_HDR hdr;
 } PAL_RESERVED_HDR;
 
-typedef char PAL_PIPE_NAME[PIPE_NAME_MAX];
+typedef struct {
+    char str[PIPE_NAME_MAX];
+} PAL_PIPE_NAME;
 
 typedef struct pal_handle
 {

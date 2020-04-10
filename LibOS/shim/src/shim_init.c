@@ -822,7 +822,7 @@ static int get_256b_random_hex_string(char* buf, size_t size) {
     return 0;
 }
 
-static int name_pipe_rand(char* uri, size_t size, void* name) {
+static int name_pipe_rand(char* uri, size_t uri_size, void* name) {
     char pipename[PIPE_URI_SIZE];
 
     int ret = get_256b_random_hex_string(pipename, sizeof(pipename));
@@ -830,15 +830,15 @@ static int name_pipe_rand(char* uri, size_t size, void* name) {
         return ret;
 
     debug("creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
-    size_t len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
-    if (len >= size)
+    size_t len = snprintf(uri, uri_size, URI_PREFIX_PIPE_SRV "%s", pipename);
+    if (len >= uri_size)
         return -ERANGE;
 
     memcpy(name, pipename, sizeof(pipename));
     return len;
 }
 
-static int name_pipe_vmid(char* uri, size_t size, void* name) {
+static int name_pipe_vmid(char* uri, size_t uri_size, void* name) {
     char pipename[PIPE_URI_SIZE];
 
     size_t len = snprintf(pipename, sizeof(pipename), "%u", cur_process.vmid);
@@ -846,8 +846,8 @@ static int name_pipe_vmid(char* uri, size_t size, void* name) {
         return -ERANGE;
 
     debug("creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
-    len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
-    if (len >= size)
+    len = snprintf(uri, uri_size, URI_PREFIX_PIPE_SRV "%s", pipename);
+    if (len >= uri_size)
         return -ERANGE;
 
     memcpy(name, pipename, sizeof(pipename));

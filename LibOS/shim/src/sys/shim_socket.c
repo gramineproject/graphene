@@ -766,7 +766,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen) {
         }
 
         if (dent->state & DENTRY_VALID && !(dent->state & DENTRY_NEGATIVE) &&
-            dent->fs != &socket_builtin_fs) {
+                dent->fs != &socket_builtin_fs) {
             ret = -ECONNREFUSED;
             goto out;
         }

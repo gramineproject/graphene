@@ -30,7 +30,8 @@
 #include <shim_table.h>
 #include <shim_utils.h>
 
-static int pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name, struct shim_qstr* qstr) {
+static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
+                        struct shim_qstr* qstr) {
     int ret = 0;
     char uri[PIPE_URI_SIZE];
 
@@ -96,7 +97,8 @@ int shim_do_pipe2(int* filedes, int flags) {
     hdl2->flags    = O_WRONLY;
     hdl2->acc_mode = MAY_WRITE;
 
-    ret = pipes(&hdl1->pal_handle, &hdl2->pal_handle, flags, hdl1->info.pipe.name, &hdl1->uri);
+    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, flags, hdl1->info.pipe.name,
+                       &hdl1->uri);
     if (ret < 0)
         goto out;
 
@@ -176,8 +178,8 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     sock2->protocol   = protocol;
     sock2->sock_state = SOCK_CONNECTED;
 
-    ret = pipes(&hdl1->pal_handle, &hdl2->pal_handle, type & SOCK_NONBLOCK ? O_NONBLOCK : 0,
-                sock1->addr.un.name, &hdl1->uri);
+    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, type & SOCK_NONBLOCK ? O_NONBLOCK : 0,
+                       sock1->addr.un.name, &hdl1->uri);
     if (ret < 0)
         goto out;
 

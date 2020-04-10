@@ -40,7 +40,7 @@ typedef __kernel_pid_t pid_t;
 #include <linux/un.h>
 #include <sys/socket.h>
 
-static int pipe_addr(const PAL_PIPE_NAME name, struct sockaddr_un* addr) {
+static int pipe_addr(const char* name, struct sockaddr_un* addr) {
     /* use abstract UNIX sockets for pipes, with name format "@/graphene/<pipename>" */
     addr->sun_family = AF_UNIX;
     memset(addr->sun_path, 0, sizeof(addr->sun_path));
@@ -68,7 +68,7 @@ static int pipe_addr(const PAL_PIPE_NAME name, struct sockaddr_un* addr) {
  * \param[in]  options May contain PAL_OPTION_NONBLOCK.
  * \return             0 on success, negative PAL error code otherwise.
  */
-static int pipe_listen(PAL_HANDLE* handle, const PAL_PIPE_NAME name, int options) {
+static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     int ret;
 
     struct sockaddr_un addr;
@@ -104,7 +104,7 @@ static int pipe_listen(PAL_HANDLE* handle, const PAL_PIPE_NAME name, int options
     HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write to a listening socket */
     hdl->pipe.fd            = fd;
     hdl->pipe.nonblocking   = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
-    memcpy(&hdl->pipe.name, &name, sizeof(hdl->pipe.name));
+    memcpy(&hdl->pipe.name.str[0], name, sizeof(hdl->pipe.name.str));
 
     *handle = hdl;
     return 0;
@@ -143,8 +143,8 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
     SET_HANDLE_TYPE(clnt, pipecli);
     HANDLE_HDR(clnt)->flags |= RFD(0) | WFD(0);
     clnt->pipe.fd            = newfd;
+    clnt->pipe.name          = handle->pipe.name;
     clnt->pipe.nonblocking   = PAL_FALSE; /* FIXME: must set nonblocking based on `handle` value */
-    memcpy(&clnt->pipe.name, &handle->pipe.name, sizeof(clnt->pipe.name));
 
     *client = clnt;
     return 0;
@@ -163,7 +163,7 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
  * \param[in]  options May contain PAL_OPTION_NONBLOCK.
  * \return             0 on success, negative PAL error code otherwise.
  */
-static int pipe_connect(PAL_HANDLE* handle, const PAL_PIPE_NAME name, int options) {
+static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     int ret;
 
     struct sockaddr_un addr;
@@ -193,7 +193,7 @@ static int pipe_connect(PAL_HANDLE* handle, const PAL_PIPE_NAME name, int option
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->pipe.fd            = fd;
     hdl->pipe.nonblocking   = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
-    memcpy(&hdl->pipe.name, &name, sizeof(hdl->pipe.name));
+    memcpy(&hdl->pipe.name.str[0], name, sizeof(hdl->pipe.name.str));
 
     *handle = hdl;
     return 0;
@@ -269,7 +269,7 @@ static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (!strcmp_static(type, URI_TYPE_PIPE) && !*uri)
         return pipe_private(handle, options);
 
-    if (strlen(uri) + 1 > sizeof(PAL_PIPE_NAME))
+    if (strlen(uri) + 1 > PIPE_NAME_MAX)
         return -PAL_ERROR_INVAL;
 
     if (!strcmp_static(type, URI_TYPE_PIPE_SRV))
@@ -535,7 +535,7 @@ static int pipe_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     buffer += prefix_len + 1;
     count -= prefix_len + 1;
 
-    ret = snprintf(buffer, count, "%s\n", handle->pipe.name);
+    ret = snprintf(buffer, count, "%s\n", handle->pipe.name.str);
     if (buffer[ret - 1] != '\n') {
         memset(buffer, 0, count);
         return -PAL_ERROR_OVERFLOW;
