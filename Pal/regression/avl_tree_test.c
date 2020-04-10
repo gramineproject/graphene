@@ -117,7 +117,7 @@ static void do_test(int32_t (*get_num)(void)) {
         }
         prev = node;
         node = avl_tree_next(node);
-        ++size;
+        size++;
     }
     if (size != ELEMENTS_COUNT) {
         pal_printf("Tree iteration from the begining walked through %lu elements instead of %u!",
@@ -135,7 +135,7 @@ static void do_test(int32_t (*get_num)(void)) {
         }
         next = node;
         node = avl_tree_prev(node);
-        ++size;
+        size++;
     }
     if (size != ELEMENTS_COUNT) {
         pal_printf("Tree iteration from the end walked through %lu elements instead of %u!",
