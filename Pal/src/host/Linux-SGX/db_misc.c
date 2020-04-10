@@ -297,22 +297,23 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     return 0;
 }
 
-int _DkAttestationReport(PAL_PTR report_data, PAL_NUM* report_data_size, PAL_PTR target_info,
-                         PAL_NUM* target_info_size, PAL_PTR report, PAL_NUM* report_size) {
+int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
+                         PAL_PTR target_info, PAL_NUM* target_info_size,
+                         PAL_PTR report, PAL_NUM* report_size) {
     __sgx_mem_aligned sgx_report_data_t stack_report_data = {0};
     __sgx_mem_aligned sgx_target_info_t stack_target_info = {0};
     __sgx_mem_aligned sgx_report_t stack_report           = {0};
 
-    if (!report_data_size || !target_info_size || !report_size)
+    if (!user_report_data_size || !target_info_size || !report_size)
         return -PAL_ERROR_INVAL;
 
-    if (*report_data_size < sizeof(stack_report_data) ||
-        *target_info_size < sizeof(stack_target_info) || *report_size < sizeof(stack_report)) {
-        /* inform the caller of minimal sizes for report_data, target_info, and report */
+    if (*user_report_data_size != sizeof(stack_report_data) ||
+        *target_info_size != sizeof(stack_target_info) || *report_size != sizeof(stack_report)) {
+        /* inform the caller of SGX sizes for report_data, target_info, and report */
         goto out;
     }
 
-    if (!report_data || !target_info) {
+    if (!user_report_data || !target_info) {
         /* cannot produce report without report_data or target_info */
         goto out;
     }
@@ -323,7 +324,7 @@ int _DkAttestationReport(PAL_PTR report_data, PAL_NUM* report_data_size, PAL_PTR
         populate_target_info = true;
     }
 
-    memcpy(&stack_report_data, report_data, sizeof(stack_report_data));
+    memcpy(&stack_report_data, user_report_data, sizeof(stack_report_data));
     memcpy(&stack_target_info, target_info, sizeof(stack_target_info));
 
     int ret = sgx_report(&stack_target_info, &stack_report_data, &stack_report);
@@ -347,15 +348,15 @@ int _DkAttestationReport(PAL_PTR report_data, PAL_NUM* report_data_size, PAL_PTR
     }
 
 out:
-    *report_data_size = sizeof(stack_target_info);
-    *target_info_size = sizeof(stack_target_info);
-    *report_size = sizeof(stack_report);
+    *user_report_data_size = sizeof(stack_report_data);
+    *target_info_size      = sizeof(stack_target_info);
+    *report_size           = sizeof(stack_report);
     return 0;
 }
 
-int _DkAttestationQuote(const PAL_PTR report_data, PAL_NUM report_data_size, PAL_PTR quote,
-                        PAL_NUM* quote_size) {
-    if (report_data_size < sizeof(sgx_report_data_t))
+int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data_size,
+                        PAL_PTR quote, PAL_NUM* quote_size) {
+    if (user_report_data_size != sizeof(sgx_report_data_t))
         return -PAL_ERROR_INVAL;
 
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
@@ -394,7 +395,7 @@ int _DkAttestationQuote(const PAL_PTR report_data, PAL_NUM report_data_size, PAL
     char* pal_quote       = NULL;
     size_t pal_quote_size = 0;
 
-    ret = sgx_get_quote(&spid, &nonce, report_data, linkable, &pal_quote, &pal_quote_size);
+    ret = sgx_get_quote(&spid, &nonce, user_report_data, linkable, &pal_quote, &pal_quote_size);
     if (ret < 0)
         return ret;
 

@@ -696,3 +696,11 @@ class TC_40_AVXDisable(RegressionTestCase):
         # Disable AVX bit in XFRM
         _, stderr = self.run_binary(['AvxDisable'])
         self.assertIn('Illegal instruction executed in enclave', stderr)
+
+
+@unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
+class TC_50_Attestation(RegressionTestCase):
+    def test_000_attestation_report(self):
+        _, stderr = self.run_binary(['AttestationReport'])
+        self.assertNotIn('ERROR', stderr)
+        self.assertIn('Success', stderr)
