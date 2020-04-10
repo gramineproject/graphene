@@ -5,7 +5,7 @@ pipeline {
                     steps {
                         sh '''
                             cd Tools/gsc/test
-                            make TESTCASES=python3 DISTRIBUTIONS='ubuntu18.04 ubuntu16.04' IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
+                            make TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04 ubuntu16.04" IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
                         '''
                     }
                 }
@@ -13,7 +13,7 @@ pipeline {
                     steps {
                         sh '''
                             cd Tools/gsc/test
-                            make test MAXTESTNUM=4 TESTCASES=python3 DISTRIBUTIONS='ubuntu18.04 ubuntu16.04' IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
+                            make -s test MAXTESTNUM=4 TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04 ubuntu16.04" IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
                         '''
                     }
                 }
@@ -36,7 +36,7 @@ pipeline {
                 always {
                     sh '''
                         cd Tools/gsc/test
-                        make -s clean TESTCASES=python3 DISTRIBUTIONS='ubuntu18.04 ubuntu16.04' IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
+                        make -s clean TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04 ubuntu16.04" IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
                     '''
                 }
         }
