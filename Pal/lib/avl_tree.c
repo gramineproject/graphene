@@ -388,6 +388,32 @@ struct avl_tree_node* avl_tree_next(struct avl_tree_node* node) {
     return node->parent;
 }
 
+struct avl_tree_node* avl_tree_first(struct avl_tree* tree) {
+    struct avl_tree_node* node = tree->root;
+    if (!node) {
+        return NULL;
+    }
+
+    while (node->left) {
+        node = node->left;
+    }
+
+    return node;
+}
+
+struct avl_tree_node* avl_tree_last(struct avl_tree* tree) {
+    struct avl_tree_node* node = tree->root;
+    if (!node) {
+        return NULL;
+    }
+
+    while (node->right) {
+        node = node->right;
+    }
+
+    return node;
+}
+
 void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     /* If `node` has both children, swap it with the next node. This might temporarily disturb
      * the tree order, but only between `node` and `next`, which is ok, since we are about to

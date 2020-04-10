@@ -69,6 +69,9 @@ void avl_tree_swap_node(struct avl_tree_node* old_node, struct avl_tree_node* ne
 struct avl_tree_node* avl_tree_prev(struct avl_tree_node* node);
 struct avl_tree_node* avl_tree_next(struct avl_tree_node* node);
 
+struct avl_tree_node* avl_tree_first(struct avl_tree* tree);
+struct avl_tree_node* avl_tree_last(struct avl_tree* tree);
+
 /*
  * Find a node that compares equal to `cmp_arg`. If `tree` has multiple nodes that compare equal,
  * you could get *any* of them.
