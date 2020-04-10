@@ -55,8 +55,10 @@ test-4-%:
 	sleep 10
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) graphene-tests/python-simple/scripts/test-http.py `ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | grep -v 172.17` 8005 >output1 2>/dev/null;
 	cat output1 | tail -n 1 > output1.clean
+	cat output1.clean
 	wget -q http://localhost:8005/ -O output2
 	echo >> output2
+	cat output2
 	diff -q output1.clean output2
 	cat c.id | head -n 1 | xargs docker container rm -f >/dev/null 2>/dev/null;
 	rm -f out c.id output1 output1.clean output2;
