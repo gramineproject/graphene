@@ -51,12 +51,16 @@ struct A {
     bool freed;
 };
 
+static struct A* node2struct(struct avl_tree_node* node) {
+    return container_of(node, struct A, node);
+}
+
 static bool cmp(struct avl_tree_node* x, struct avl_tree_node* y) {
-    return container_of(x, struct A, node)->key <= container_of(y, struct A, node)->key;
+    return node2struct(x)->key <= node2struct(y)->key;
 }
 
 static bool cmp_gen(void* x, struct avl_tree_node* y) {
-    return *(int64_t*)x <= container_of(y, struct A, node)->key;
+    return *(int64_t*)x <= node2struct(y)->key;
 }
 
 #define ELEMENTS_COUNT 0x1000
@@ -70,7 +74,7 @@ __attribute__((unused)) static void debug_print(struct avl_tree_node* node) {
         pal_printf("LEAF");
         return;
     }
-    pal_printf("%ld (", container_of(node, struct A, node)->key);
+    pal_printf("%ld (", node2struct(node)->key);
     debug_print(node->left);
     pal_printf(") (");
     debug_print(node->right);
@@ -103,18 +107,54 @@ static void do_test(int32_t (*get_num)(void)) {
         DkProcessExit(1);
     }
 
+    struct avl_tree_node* node = avl_tree_first(&tree);
+    struct avl_tree_node* prev = NULL;
+    size = 0;
+    while (node) {
+        if (prev && node2struct(prev)->key > node2struct(node)->key) {
+            pal_printf("Found two elements in wrong order!\n");
+            DkProcessExit(1);
+        }
+        prev = node;
+        node = avl_tree_next(node);
+        ++size;
+    }
+    if (size != ELEMENTS_COUNT) {
+        pal_printf("Tree iteration from the begining walked through %lu elements instead of %u!",
+                   size, ELEMENTS_COUNT);
+        DkProcessExit(1);
+    }
+
+    node = avl_tree_last(&tree);
+    struct avl_tree_node* next = NULL;
+    size = 0;
+    while (node) {
+        if (next && node2struct(node)->key > node2struct(next)->key) {
+            pal_printf("Found two elements in wrong order while iterating backwards!\n");
+            DkProcessExit(1);
+        }
+        next = node;
+        node = avl_tree_prev(node);
+        ++size;
+    }
+    if (size != ELEMENTS_COUNT) {
+        pal_printf("Tree iteration from the end walked through %lu elements instead of %u!",
+                   size, ELEMENTS_COUNT);
+        DkProcessExit(1);
+    }
+
     static_assert(ELEMENTS_COUNT >= 3, "This code needs at least 3 elements in the tree!");
-    struct avl_tree_node* node = tree.root->left;
+    node = tree.root->left;
     while (node->right) {
         node = node->right;
     }
 
-    int64_t val = container_of(node, struct A, node)->key;
+    int64_t val = node2struct(node)->key;
     struct avl_tree_node* found_node = avl_tree_lower_bound(&tree, node);
-    if (!found_node || container_of(found_node, struct A, node)->key != val) {
+    if (!found_node || node2struct(found_node)->key != val) {
         pal_printf("avl_tree_lower_bound has not found existing node %ld, but returned ", val);
         if (found_node) {
-            pal_printf("%ld", container_of(found_node, struct A, node)->key);
+            pal_printf("%ld", node2struct(found_node)->key);
         } else {
             pal_printf("NULL");
         }
@@ -192,13 +232,8 @@ static void test_ordering(void) {
         }
     }
 
-    struct avl_tree_node* node = tree.root;
-    while (node->left) {
-        node = node->left;
-    }
-
-    struct avl_tree_node* prev = node;
-    node = avl_tree_next(prev);
+    struct avl_tree_node* prev = avl_tree_first(&tree);
+    struct avl_tree_node* node = avl_tree_next(prev);
 
     while (node) {
         /* These nodes are all a part of array `t`. */
