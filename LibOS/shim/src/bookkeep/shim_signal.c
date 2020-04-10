@@ -279,7 +279,7 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
 
     DEBUG_BREAK_ON_FAILURE();
-    shim_clean_and_exit(-ENOTRECOVERABLE);
+    DkProcessExit(1);
 }
 
 static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
