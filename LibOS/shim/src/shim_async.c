@@ -218,6 +218,7 @@ static void shim_async_helper(void* arg) {
 
         struct async_event* tmp;
         struct async_event* n;
+        bool other_event = false;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
             /* repopulate `pals` with IO events and find the next expiring alarm/timer */
             if (tmp->object) {
@@ -258,6 +259,9 @@ static void shim_async_helper(void* arg) {
                     /* use time of the next expiring alarm/timer */
                     next_expire_time = tmp->expire_time;
                 }
+            } else {
+                /* cleanup events do not have an object nor a timeout */
+                other_event = true;
             }
         }
 
@@ -265,7 +269,7 @@ static void shim_async_helper(void* arg) {
         if (next_expire_time) {
             sleep_time  = next_expire_time - now;
             idle_cycles = 0;
-        } else if (pals_cnt) {
+        } else if (pals_cnt || other_event) {
             sleep_time = NO_TIMEOUT;
             idle_cycles = 0;
         } else {
