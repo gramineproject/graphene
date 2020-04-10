@@ -41,55 +41,63 @@ MAXTESTNUM?=11
 test-1-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>/dev/null;
 	grep -q "HelloWorld!" out;
+	rm -f out
 
 test-2-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene-tests/python-simple/scripts/helloworld.py >out 2>/dev/null
 	grep -q "Hello World" out;
+	rm -f out
 
 test-3-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene-tests/python-simple/scripts/fibonacci.py >out 2>/dev/null;
 	grep -q "fib2              55" out;
+	rm -f out
 
 test-4-%:
+	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' >out 2>/dev/null;
+	grep -q "ls.manifest.sgx" out;
+	rm -f out
+
+test-5-%:
 	docker run $(SGX_DEVICES) -d -p 8005:8005 $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) graphene-tests/python-simple/scripts/dummy-web-server.py 8005 >c.id 2>/dev/null;
 	sleep 10
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) graphene-tests/python-simple/scripts/test-http.py `ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | grep -v 172.17` 8005 >output1 2>/dev/null;
 	cat output1 | tail -n 1 > output1.clean
-	cat output1.clean
 	wget -q http://localhost:8005/ -O output2
 	echo >> output2
-	cat output2
 	diff -q output1.clean output2
 	cat c.id | head -n 1 | xargs docker container rm -f >/dev/null 2>/dev/null;
 	rm -f out c.id output1 output1.clean output2;
 
-test-5-%:
-	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' >out 2>/dev/null;
-	grep -q "ls.manifest.sgx" out;
-
 test-6-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-hello-world) > out 2>/dev/null;
 	grep -q "Hello World!" out;
+	rm -f out
 
 test-7-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) -e 'console.log("HelloWorld");' >out 2>/dev/null;
 	grep -q "HelloWorld" out;
+	rm -f out
 
 test-8-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) graphene-tests/nodejs/helloworld.js >out 2>/dev/null;
 	grep -q "Hello World" out;
+	rm -f out
 
 test-9-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-numpy) graphene-tests/python-scipy-insecure/scripts/test-numpy.py >out 2>/dev/null;
 	grep -q "numpy version:" out;
+	rm -f out
 
 test-10-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' >out 2>/dev/null;
 	grep -q "ls.manifest.sgx" out;
+	rm -f out
 
 test-11-%:
 	docker run $(SGX_DEVICES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py >out 2>/dev/null;
 	grep -q "('Labrador retriever', 41.58518600463867)" out;
+	rm -f out
 
 test-%:
 	echo "Testing $*."

@@ -13,7 +13,7 @@ pipeline {
                     steps {
                         sh '''
                             cd Tools/gsc/test
-                            make test MAXTESTNUM=5 TESTCASES=python3 DISTRIBUTIONS='ubuntu18.04 ubuntu16.04' IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
+                            make test MAXTESTNUM=4 TESTCASES=python3 DISTRIBUTIONS='ubuntu18.04 ubuntu16.04' IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
                         '''
                     }
                 }
