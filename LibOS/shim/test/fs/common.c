@@ -32,11 +32,16 @@ void read_fd(const char* path, int fd, void* buffer, size_t size) {
         ssize_t ret = read(fd, buffer + offset, size);
         if (ret == -EINTR)
             continue;
-        if (ret <= 0)
+        if (ret < 0)
             fatal_error("Failed to read file %s: %s\n", path, strerror(errno));
+        if (ret == 0)
+            break;
         size -= ret;
         offset += ret;
     }
+
+    if (size != 0)
+        fatal_error("Failed to read file %s: EOF\n", path);
 }
 
 void seek_fd(const char* path, int fd, ssize_t offset, int mode) {
@@ -65,7 +70,7 @@ void write_fd(const char* path, int fd, const void* buffer, size_t size) {
         ssize_t ret = write(fd, buffer + offset, size);
         if (ret == -EINTR)
             continue;
-        if (ret <= 0)
+        if (ret < 0)
             fatal_error("Failed to write file %s: %s\n", path, strerror(errno));
         size -= ret;
         offset += ret;
