@@ -45,6 +45,14 @@ static void* mem_pool_end = &mem_pool[POOL_SIZE];
 
 #define STARTUP_SIZE 2
 
+static inline void* __malloc(int size);
+static inline void __free(void* addr, int size);
+#define system_malloc(size) __malloc(size)
+#define system_free(addr, size) __free(addr, size)
+
+#include "slabmgr.h"
+
+
 /* This function is protected by slab_mgr_lock. */
 static inline void* __malloc(int size) {
     void* addr = NULL;
@@ -61,8 +69,6 @@ static inline void* __malloc(int size) {
     return addr;
 }
 
-#define system_malloc(size) __malloc(size)
-
 static inline void __free(void* addr, int size) {
     if (!addr)
         return;
@@ -73,10 +79,6 @@ static inline void __free(void* addr, int size) {
 
     _DkVirtualMemoryFree(addr, size);
 }
-
-#define system_free(addr, size) __free(addr, size)
-
-#include "slabmgr.h"
 
 static SLAB_MGR slab_mgr = NULL;
 
