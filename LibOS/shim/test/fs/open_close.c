@@ -1,3 +1,5 @@
+#include <ctype.h>
+
 #include "common.h"
 
 void open_close_input_fd(const char* input_path) {
@@ -66,13 +68,17 @@ void open_close_output_stdio(const char* output_path) {
 
 int main(int argc, char* argv[]) {
     if (argc < 3)
-        fatal_error("Usage: %s <input_path> <output_path>\n", argv[0]);
+        fatal_error("Usage: %s {R|W} <path>\n", argv[0]);
 
     setup();
-    open_close_input_fd(argv[1]);
-    open_close_input_stdio(argv[1]);
-    open_close_output_fd(argv[2]);
-    open_close_output_stdio(argv[2]);
+
+    if (toupper(argv[1][0]) == 'R') {
+        open_close_input_fd(argv[2]);
+        open_close_input_stdio(argv[2]);
+    } else {
+        open_close_output_fd(argv[2]);
+        open_close_output_stdio(argv[2]);
+    }
 
     return 0;
 }
