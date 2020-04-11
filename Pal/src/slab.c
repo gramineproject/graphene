@@ -23,8 +23,6 @@
 #include "api.h"
 #include "pal_internal.h"
 
-#ifndef NO_INTERNAL_ALLOC
-
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -170,5 +168,3 @@ void free(void* ptr) {
     pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
 #endif
 }
-
-#endif /* !NO_INTERNAL_ALLOC */

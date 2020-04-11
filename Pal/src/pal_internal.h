@@ -331,14 +331,12 @@ int load_elf_object (const char * uri, enum object_type type);
 int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type);
 int add_elf_object(void * addr, PAL_HANDLE handle, int type);
 
-#ifndef NO_INTERNAL_ALLOC
 void init_slab_mgr (int alignment);
 void * malloc (size_t size);
 void * malloc_copy(const void * mem, size_t size);
 void * calloc (size_t nmem, size_t size);
 char * strdup(const char *source);
 void free (void * mem);
-#endif
 
 #ifdef __GNUC__
 # define __attribute_hidden __attribute__ ((visibility ("hidden")))
