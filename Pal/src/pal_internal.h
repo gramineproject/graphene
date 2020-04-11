@@ -183,14 +183,6 @@ extern struct pal_internal_state {
     PAL_HANDLE      console;
 
     unsigned long   start_time;
-#if PROFILING == 1
-    unsigned long   relocation_time;
-    unsigned long   linking_time;
-    unsigned long   manifest_loading_time;
-    unsigned long   slab_time;
-    unsigned long   tail_startup_time;
-    unsigned long   process_create_time;
-#endif
 } pal_state;
 
 extern PAL_CONTROL __pal_control;

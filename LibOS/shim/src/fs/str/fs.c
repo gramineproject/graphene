@@ -31,7 +31,6 @@
 #include <pal_error.h>
 #include <shim_fs.h>
 #include <shim_internal.h>
-#include <shim_profile.h>
 
 int str_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     struct shim_str_data* data = dent->data;

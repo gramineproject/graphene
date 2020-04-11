@@ -24,14 +24,12 @@
 #include <errno.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_unistd.h>
 
 int get_pid_port(IDTYPE pid, IDTYPE* dest, struct shim_ipc_port** port);
 
 int shim_do_benchmark_rpc(pid_t pid, int times, const void* buf, size_t size) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     int ret = 0;
     IDTYPE dest;
     struct shim_ipc_port* port = NULL;

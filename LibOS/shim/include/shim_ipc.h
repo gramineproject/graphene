@@ -61,9 +61,6 @@ struct shim_ipc_msg {
     size_t size;
     IDTYPE src, dst;
     unsigned long seq;
-#ifdef PROFILE
-    unsigned long time;
-#endif
     char msg[];
 } __attribute__((packed));
 
@@ -132,9 +129,6 @@ int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port
 #define IPC_CLD_BASE IPC_BASE_BOUND
 enum {
     IPC_CLD_EXIT = IPC_CLD_BASE,
-#ifdef PROFILE
-    IPC_CLD_PROFILE,
-#endif
     IPC_CLD_BOUND,
 };
 
@@ -143,26 +137,10 @@ struct shim_ipc_cld_exit {
     IDTYPE ppid, tid;
     unsigned int exitcode;
     unsigned int term_signal;
-#ifdef PROFILE
-    unsigned long time;
-#endif
 } __attribute__((packed));
 
 int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-
-#ifdef PROFILE
-#include <shim_profile.h>
-
-struct shim_ipc_cld_profile {
-    unsigned long time;
-    int nprofile;
-    struct profile_val profile[];
-} __attribute__((packed));
-
-int ipc_cld_profile_send(void);
-int ipc_cld_profile_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-#endif
 
 /* Message code to namespace manager */
 #define IPC_PID_BASE IPC_CLD_BOUND

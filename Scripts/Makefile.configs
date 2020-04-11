@@ -46,9 +46,5 @@ CFLAGS += -Werror
 CXXFLAGS += -Werror
 endif
 
-ifeq ($(PROFILING),1)
-CFLAGS += -DPROFILING=1
-endif
-
 MAKEFILE_CONFIGS_INCLUDED = y
 include $(MAKEFILE_CONFIGS_DIR)/Makefile.Host

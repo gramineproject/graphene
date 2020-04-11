@@ -77,10 +77,6 @@ SECTIONS
   {
     /* the rest of data segment */
     *(.data .data.*);
-    . = ALIGN(64);
-    __profile = .;
-    *(SORT(.profile));
-    __profile_end = .;
     . = ALIGN(CONSTANT(COMMONPAGESIZE));
     __migratable = .;
     *(.migratable);

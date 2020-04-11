@@ -29,7 +29,6 @@
 #include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_thread.h>
 #include <shim_unistd.h>
 #include <shim_utils.h>
@@ -55,9 +54,6 @@ struct shim_process cur_process;
 #define CLIENT_HASH(vmid)  ((vmid)&CLIENT_HASH_MASK)
 DEFINE_LISTP(shim_ipc_info);
 static LISTP_TYPE(shim_ipc_info) info_hlist[CLIENT_HASH_NUM];
-
-DEFINE_PROFILE_CATEGORY(ipc, );
-DEFINE_PROFILE_OCCURENCE(syscall_use_ipc, ipc);
 
 int init_ipc_ports(void);
 int init_ns_pid(void);
@@ -454,14 +450,10 @@ int get_ipc_info_cur_process(struct shim_ipc_info** info) {
     return 0;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_checkpoint_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_checkpoint_callback, ipc);
-
 /* Graphene's checkpoint() syscall broadcasts a msg to all processes
  * asking to checkpoint their state and save in process-unique file in
  * directory cpdir under session cpsession. */
 int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
-    BEGIN_PROFILE_INTERVAL();
     int ret;
     size_t len = strlen(cpdir);
 
@@ -478,7 +470,6 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
     /* broadcast to all including myself (so I can also checkpoint) */
     ret = broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT,
                         /*exclude_port=*/NULL);
-    SAVE_PROFILE_INTERVAL(ipc_checkpoint_send);
     return ret;
 }
 
@@ -487,8 +478,7 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
  *   all to stop and join the checkpoint for consistent state),
  * - broadcasts checkpoint msg further to other processes. */
 int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                           = 0;
+    int ret = 0;
     struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint*)msg->msg;
 
     debug("IPC callback from %u: IPC_CHECKPOINT(%u, %s)\n", msg->src, msgin->cpsession,
@@ -501,7 +491,6 @@ int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port
     kill_all_threads(NULL, msgin->cpsession, SIGCP);
     broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, port);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_checkpoint_callback);
     return ret;
 }
 

@@ -109,9 +109,6 @@ struct proc_args {
     PAL_NUM         parent_process_id;
     struct pal_sec  pal_sec;
 
-#if PROFILING == 1
-    unsigned long   process_create_time;
-#endif
     unsigned long   memory_quota;
 
     unsigned int    parent_data_size;
@@ -163,9 +160,6 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     PAL_HANDLE exec = NULL;
     PAL_HANDLE parent_handle = NULL, child_handle = NULL;
     int ret;
-#if PROFILING == 1
-    unsigned long before_create = _DkSystemTimeQuery();
-#endif
 
     /* step 1: open uri and check whether it is an executable */
 
@@ -277,10 +271,6 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     if (args)
         memcpy(&param.argv[1], args, sizeof(const char *) * argc);
     param.argv[argc + 1] = NULL;
-
-#if PROFILING == 1
-    proc_args->process_create_time = before_create;
-#endif
 
     /* Child's signal handler may mess with parent's memory during vfork(),
      * so block signals
@@ -412,9 +402,6 @@ void init_child_process (PAL_HANDLE * parent_handle,
 no_data:
     linux_state.parent_process_id = proc_args->parent_process_id;
     linux_state.memory_quota = proc_args->memory_quota;
-#if PROFILING == 1
-    pal_state.process_create_time = proc_args->process_create_time;
-#endif
     memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
 }
 

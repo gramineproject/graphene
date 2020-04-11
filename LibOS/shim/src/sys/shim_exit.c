@@ -59,10 +59,6 @@ int thread_exit(struct shim_thread* self, bool send_ipc) {
         return 0;
     }
 
-    #ifdef PROFILE
-    self->exit_time = GET_PROFILE_INTERVAL();
-    #endif
-
     int exit_code = self->exit_code;
 
     if (!self->in_vm) {
@@ -171,7 +167,6 @@ noreturn void thread_or_process_exit(int error_code, int term_signal) {
 
 noreturn int shim_do_exit_group (int error_code)
 {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();
     assert(!is_internal(cur_thread));
 
@@ -202,18 +197,11 @@ noreturn int shim_do_exit_group (int error_code)
     }
 
     debug("now exit the process\n");
-
-#ifdef PROFILE
-    if (ENTER_TIME)
-        SAVE_PROFILE_INTERVAL_SINCE(syscall_exit_group, ENTER_TIME);
-#endif
-
     thread_or_process_exit(error_code, 0);
 }
 
 noreturn int shim_do_exit (int error_code)
 {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();
     __UNUSED(cur_thread);
     assert(!is_internal(cur_thread));
@@ -227,11 +215,6 @@ noreturn int shim_do_exit (int error_code)
         thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
-#endif
-
-#ifdef PROFILE
-    if (ENTER_TIME)
-        SAVE_PROFILE_INTERVAL_SINCE(syscall_exit, ENTER_TIME);
 #endif
 
     thread_or_process_exit(error_code, 0);

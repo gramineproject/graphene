@@ -25,7 +25,6 @@
 #include <pal.h>
 #include <shim_checkpoint.h>
 #include <shim_internal.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_utils.h>
 #include <shim_vma.h>
@@ -40,10 +39,6 @@ struct shim_brk_info {
 };
 
 static struct shim_brk_info region;
-
-DEFINE_PROFILE_OCCURENCE(brk, memory);
-DEFINE_PROFILE_OCCURENCE(brk_count, memory);
-DEFINE_PROFILE_OCCURENCE(brk_migrate_count, memory);
 
 void get_brk_region(void** start, void** end, void** current) {
     MASTER_LOCK();
@@ -153,9 +148,6 @@ int init_brk_region(void* brk_region, size_t data_segment_size) {
         bkeep_munmap(brk_region, brk_max_size, flags);
         return -ENOMEM;
     }
-
-    ADD_PROFILE_OCCURENCE(brk, brk_max_size);
-    INC_PROFILE_OCCURENCE(brk_count);
 
     end_brk_region = brk_region + BRK_SIZE;
 
@@ -297,9 +289,6 @@ BEGIN_RS_FUNC(brk) {
         void* ptr = DkVirtualMemoryAlloc(alloc_addr, alloc_size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
         __UNUSED(ptr);
         assert(ptr == alloc_addr);
-        ADD_PROFILE_OCCURENCE(brk, alloc_size);
-        INC_PROFILE_OCCURENCE(brk_migrate_count);
-
         debug("brk reserved area: %p - %p\n", alloc_addr, alloc_addr + alloc_size);
     }
 

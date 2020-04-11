@@ -27,7 +27,6 @@
 #include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_sysv.h>
 #include <shim_table.h>
 #include <shim_utils.h>
@@ -44,8 +43,6 @@ static LISTP_TYPE(shim_sem_handle) sem_list;
 static LISTP_TYPE(shim_sem_handle) sem_key_hlist[SEM_HASH_NUM];
 static LISTP_TYPE(shim_sem_handle) sem_sid_hlist[SEM_HASH_NUM];
 static struct shim_lock sem_list_lock;
-
-DEFINE_PROFILE_CATEGORY(sysv_sem, );
 
 #define SEM_TO_HANDLE(semhdl) container_of((semhdl), struct shim_handle, info.sem)
 
@@ -226,7 +223,6 @@ int del_sem_handle(struct shim_sem_handle* sem) {
 }
 
 int shim_do_semget(key_t key, int nsems, int semflg) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     IDTYPE semid = 0;
     int ret;
 
@@ -362,14 +358,11 @@ static int __do_semop(int semid, struct sembuf* sops, unsigned int nsops, unsign
 }
 
 int shim_do_semop(int semid, struct sembuf* sops, unsigned int nsops) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     return __do_semop(semid, sops, nsops, IPC_SEM_NOTIMEOUT);
 }
 
 int shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
                        const struct timespec* timeout) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
-
     unsigned long timeout_ns = IPC_SEM_NOTIMEOUT;
     if (timeout) {
         timeout_ns = timeout->tv_sec * 1000000000ULL + timeout->tv_nsec;
@@ -379,7 +372,6 @@ int shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
 }
 
 int shim_do_semctl(int semid, int semnum, int cmd, unsigned long arg) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_sem_handle* sem;
     int ret;
 
@@ -643,23 +635,9 @@ static struct sysv_balance_policy sem_policy = {
 };
 #endif
 
-DEFINE_PROFILE_CATEGORY(submit_sysv_sem, sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_prepare_stat, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_lock_handle, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_count_score, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_handle_by_shared_semaphore, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_send_ipc_movres, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_send_ipc_semop, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_handle_one_sysv_sem, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_send_ipc_response, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_alloc_semop, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_append_semop, submit_sysv_sem);
-DEFINE_PROFILE_INTERVAL(sem_wait_for_complete, submit_sysv_sem);
-
 int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
                     unsigned long timeout, struct sysv_client* client) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                 = 0;
+    int ret = 0;
     struct shim_handle* hdl = SEM_TO_HANDLE(sem);
     struct sem_ops* sem_ops = NULL;
     bool malloced           = false;
@@ -669,10 +647,8 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
     stat.timeout   = timeout;
     stat.completed = false;
     stat.failed    = false;
-    SAVE_PROFILE_INTERVAL(sem_prepare_stat);
 
     lock(&hdl->lock);
-    SAVE_PROFILE_INTERVAL(sem_lock_handle);
 
     if (sem->deleted) {
         ret = -EIDRM;
@@ -697,7 +673,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             sendreply = true;
         }
     }
-    SAVE_PROFILE_INTERVAL(sem_count_score);
 
     if (sem->deleted) {
         if (!client || sendreply) {
@@ -729,8 +704,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             ret = owner ? ipc_sysv_movres_send(client, owner->vmid, qstrgetstr(&owner->uri),
                                                sem->lease, sem->semid, SYSV_SEM)
                         : -ECONNREFUSED;
-
-            SAVE_PROFILE_INTERVAL(sem_send_ipc_movres);
             goto out_locked;
         }
 
@@ -741,7 +714,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             goto out;
 
         lock(&hdl->lock);
-        SAVE_PROFILE_INTERVAL(sem_send_ipc_semop);
         if (!sem->owned)
             goto out_locked;
     }
@@ -762,7 +734,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
     }
 
     __handle_one_sysv_sem(sem, &stat, sops);
-    SAVE_PROFILE_INTERVAL(sem_handle_one_sysv_sem);
 
     if (stat.completed || stat.failed) {
         ret = stat.completed ? 0 : -EAGAIN;
@@ -777,8 +748,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
 
             ret = send_ipc_message(resp_msg, client->port);
         }
-
-        SAVE_PROFILE_INTERVAL(sem_send_ipc_response);
         goto out_locked;
     }
 
@@ -796,7 +765,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             sem_ops->client.seq  = 0;
             INIT_LIST_HEAD(sem_ops, progress);
             malloced = true;
-            SAVE_PROFILE_INTERVAL(sem_alloc_semop);
         }
     } else {
         if (!sem_ops) {
@@ -805,7 +773,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
             sem_ops->client.port = NULL;
             sem_ops->client.seq  = 0;
             INIT_LIST_HEAD(sem_ops, progress);
-            SAVE_PROFILE_INTERVAL(sem_alloc_semop);
         }
     }
 
@@ -819,7 +786,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
     LISTP_ADD_TAIL(sem_ops, next_ops, progress);
     // CHECK_LIST_HEAD(next_ops);
     sem->nreqs++;
-    SAVE_PROFILE_INTERVAL(sem_append_semop);
 
     if (client) {
         assert(sendreply);
@@ -842,7 +808,6 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
         unlock(&hdl->lock);
         object_wait_with_retry(sem->event);
         lock(&hdl->lock);
-        SAVE_PROFILE_INTERVAL(sem_wait_for_complete);
     }
 
     ret = sem_ops->stat.completed ? 0 : -EAGAIN;

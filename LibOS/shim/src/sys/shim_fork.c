@@ -31,7 +31,6 @@
 #include <shim_checkpoint.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_thread.h>
 
@@ -67,7 +66,6 @@ int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
 
 int shim_do_fork(void) {
     int ret = 0;
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     if ((ret = prepare_ns_leaders()) < 0)
         return ret;

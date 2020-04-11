@@ -27,7 +27,6 @@
 #include <shim_thread.h>
 #include <shim_utils.h>
 #include <shim_checkpoint.h>
-#include <shim_profile.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -184,7 +183,6 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 {
     //The Clone Implementation in glibc has setup the child's stack
     //with the function pointer and the argument to the funciton.
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * self = get_cur_thread();
     assert(self);
     int * set_parent_tid = NULL;

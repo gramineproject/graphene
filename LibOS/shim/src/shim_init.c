@@ -30,7 +30,6 @@
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_vdso.h>
 
 #include "hex.h"
@@ -189,9 +188,6 @@ void update_fs_base (unsigned long fs_base)
     assert(shim_tcb_check_canary());
 }
 
-DEFINE_PROFILE_OCCURENCE(alloc_stack, memory);
-DEFINE_PROFILE_OCCURENCE(alloc_stack_count, memory);
-
 #define STACK_FLAGS     (MAP_PRIVATE|MAP_ANONYMOUS)
 
 void * allocate_stack (size_t size, size_t protect_size, bool user)
@@ -220,9 +216,6 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 
     if (!stack)
         return NULL;
-
-    ADD_PROFILE_OCCURENCE(alloc_stack, size + protect_size);
-    INC_PROFILE_OCCURENCE(alloc_stack_count);
 
     stack += protect_size;
     // Ensure proper alignment for process' initial stack pointer value.
@@ -480,10 +473,6 @@ fail:
     return ret;
 }
 
-#ifdef PROFILE
-struct shim_profile profile_root;
-#endif
-
 # define FIND_ARG_COMPONENTS(cookie, argc, argv, envp, auxp)        \
     do {                                                            \
         void *_tmp = (cookie);                                      \
@@ -494,116 +483,16 @@ struct shim_profile profile_root;
         (auxp) = _tmp + sizeof(char *);                             \
     } while (0)
 
-
-#ifdef PROFILE
-static void set_profile_enabled (const char ** envp)
-{
-    const char ** p;
-    for (p = envp ; (*p) ; p++)
-        if (strstartswith_static(*p, "PROFILE_ENABLED="))
-            break;
-    if (!(*p))
-        return;
-
-    for (size_t i = 0 ; i < N_PROFILE ; i++)
-         PROFILES[i].disabled = true;
-
-    const char * str = (*p) + 16;
-    bool enabled = false;
-    while (*str) {
-        const char * next = str;
-        for ( ; (*next) && (*next) != ',' ; next++);
-        if (next > str) {
-            size_t len = next - str;
-            for (size_t i = 0 ; i < N_PROFILE ; i++) {
-                struct shim_profile * profile = &PROFILES[i];
-                if (!memcmp(profile->name, str, len) && !profile->name[len]) {
-                    profile->disabled = false;
-                    if (profile->type == CATEGORY)
-                        enabled = true;
-                }
-            }
-        }
-        str = (*next) ? next + 1 : next;
-    }
-
-    while (enabled) {
-        enabled = false;
-        for (size_t i = 0 ; i < N_PROFILE ; i++) {
-            struct shim_profile * profile = &PROFILES[i];
-            if (!profile->disabled || profile->root == &profile_)
-                continue;
-            if (!profile->root->disabled) {
-                profile->disabled = false;
-                if (profile->type == CATEGORY)
-                    enabled = true;
-            }
-        }
-    }
-
-    for (size_t i = 0 ; i < N_PROFILE ; i++) {
-        struct shim_profile * profile = &PROFILES[i];
-        if (profile->type == CATEGORY || profile->disabled)
-            continue;
-        for (profile = profile->root ;
-             profile != &profile_ && profile->disabled ;
-             profile = profile->root)
-            profile->disabled = false;
-    }
-}
-#endif
-
 static int init_newproc (struct newproc_header * hdr)
 {
-    BEGIN_PROFILE_INTERVAL();
-
     PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0,
                                  sizeof(struct newproc_header), hdr,
                                  NULL, 0);
     if (bytes == PAL_STREAM_ERROR)
         return -PAL_ERRNO;
 
-    SAVE_PROFILE_INTERVAL(child_wait_header);
-    SAVE_PROFILE_INTERVAL_SINCE(child_receive_header, hdr->write_proc_time);
     return hdr->failure;
 }
-
-DEFINE_PROFILE_CATEGORY(pal, );
-DEFINE_PROFILE_INTERVAL(pal_startup_time,               pal);
-DEFINE_PROFILE_INTERVAL(pal_host_specific_startup_time, pal);
-DEFINE_PROFILE_INTERVAL(pal_relocation_time,            pal);
-DEFINE_PROFILE_INTERVAL(pal_linking_time,               pal);
-DEFINE_PROFILE_INTERVAL(pal_manifest_loading_time,      pal);
-DEFINE_PROFILE_INTERVAL(pal_allocation_time,            pal);
-DEFINE_PROFILE_INTERVAL(pal_tail_startup_time,          pal);
-DEFINE_PROFILE_INTERVAL(pal_child_creation_time,        pal);
-
-DEFINE_PROFILE_CATEGORY(init, );
-DEFINE_PROFILE_INTERVAL(init_vma,                   init);
-DEFINE_PROFILE_INTERVAL(init_slab,                  init);
-DEFINE_PROFILE_INTERVAL(init_str_mgr,               init);
-DEFINE_PROFILE_INTERVAL(init_internal_map,          init);
-DEFINE_PROFILE_INTERVAL(init_rlimit,                init);
-DEFINE_PROFILE_INTERVAL(init_fs,                    init);
-DEFINE_PROFILE_INTERVAL(init_dcache,                init);
-DEFINE_PROFILE_INTERVAL(init_handle,                init);
-DEFINE_PROFILE_INTERVAL(read_from_checkpoint,       init);
-DEFINE_PROFILE_INTERVAL(read_from_file,             init);
-DEFINE_PROFILE_INTERVAL(init_newproc,               init);
-DEFINE_PROFILE_INTERVAL(init_mount_root,            init);
-DEFINE_PROFILE_INTERVAL(init_from_checkpoint_file,  init);
-DEFINE_PROFILE_INTERVAL(restore_from_file,          init);
-DEFINE_PROFILE_INTERVAL(init_manifest,              init);
-DEFINE_PROFILE_INTERVAL(init_ipc,                   init);
-DEFINE_PROFILE_INTERVAL(init_thread,                init);
-DEFINE_PROFILE_INTERVAL(init_important_handles,     init);
-DEFINE_PROFILE_INTERVAL(init_mount,                 init);
-DEFINE_PROFILE_INTERVAL(init_async,                 init);
-DEFINE_PROFILE_INTERVAL(init_stack,                 init);
-DEFINE_PROFILE_INTERVAL(read_environs,              init);
-DEFINE_PROFILE_INTERVAL(init_loader,                init);
-DEFINE_PROFILE_INTERVAL(init_ipc_helper,            init);
-DEFINE_PROFILE_INTERVAL(init_signal,                init);
 
 #define CALL_INIT(func, args ...)   func(args)
 
@@ -614,7 +503,6 @@ DEFINE_PROFILE_INTERVAL(init_signal,                init);
             SYS_PRINTF("shim_init() in " #func " (%d)\n", _err);        \
             shim_clean_and_exit(_err);                                  \
         }                                                               \
-        SAVE_PROFILE_INTERVAL(func);                                    \
     } while (0)
 
 extern PAL_HANDLE thread_start_event;
@@ -630,10 +518,6 @@ noreturn void* shim_init (int argc, void * args)
     __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
     debug_setbuf(shim_get_tcb(), true);
-
-#ifdef PROFILE
-    unsigned long begin_time = GET_PROFILE_INTERVAL();
-#endif
 
     debug("host: %s\n", PAL_CB(host_type));
 
@@ -657,17 +541,9 @@ noreturn void* shim_init (int argc, void * args)
     /* call to figure out where the arguments are */
     FIND_ARG_COMPONENTS(args, argc, argv, envp, auxp);
 
-#ifdef PROFILE
-    set_profile_enabled(envp);
-#endif
-
     struct newproc_header hdr;
     void * cpaddr = NULL;
-#ifdef PROFILE
-    unsigned long begin_create_time = 0;
-#endif
 
-    BEGIN_PROFILE_INTERVAL();
     RUN_INIT(init_vma);
     RUN_INIT(init_slab);
     RUN_INIT(read_environs, envp);
@@ -693,12 +569,6 @@ noreturn void* shim_init (int argc, void * args)
 
     if (!cpaddr && PAL_CB(parent_process)) {
         RUN_INIT(init_newproc, &hdr);
-        SAVE_PROFILE_INTERVAL_SET(child_created_in_new_process,
-                                  hdr.create_time, begin_time);
-#ifdef PROFILE
-        begin_create_time = hdr.begin_create_time;
-#endif
-
         if (hdr.checkpoint.hdr.size)
             RUN_INIT(do_migration, &hdr.checkpoint, &cpaddr);
     }
@@ -746,27 +616,6 @@ noreturn void* shim_init (int argc, void * args)
     }
 
     debug("shim process initialized\n");
-
-#ifdef PROFILE
-    if (begin_create_time)
-        SAVE_PROFILE_INTERVAL_SINCE(child_total_migration_time,
-                                    begin_create_time);
-#endif
-
-    SAVE_PROFILE_INTERVAL_SET(pal_startup_time, 0, pal_control.startup_time);
-    SAVE_PROFILE_INTERVAL_SET(pal_host_specific_startup_time, 0,
-                              pal_control.host_specific_startup_time);
-    SAVE_PROFILE_INTERVAL_SET(pal_relocation_time, 0,
-                              pal_control.relocation_time);
-    SAVE_PROFILE_INTERVAL_SET(pal_linking_time, 0, pal_control.linking_time);
-    SAVE_PROFILE_INTERVAL_SET(pal_manifest_loading_time, 0,
-                              pal_control.manifest_loading_time);
-    SAVE_PROFILE_INTERVAL_SET(pal_allocation_time, 0,
-                              pal_control.allocation_time);
-    SAVE_PROFILE_INTERVAL_SET(pal_tail_startup_time, 0,
-                              pal_control.tail_startup_time);
-    SAVE_PROFILE_INTERVAL_SET(pal_child_creation_time, 0,
-                              pal_control.child_creation_time);
 
     if (thread_start_event)
         DkEventSet(thread_start_event);
@@ -1055,59 +904,6 @@ void check_stack_hook (void)
     }
 }
 
-#ifdef PROFILE
-static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
-                                  int level)
-{
-    unsigned long total_interval_time = 0;
-    unsigned long total_interval_count = 0;
-    for (size_t i = 0 ; i < N_PROFILE ; i++) {
-        struct shim_profile * profile = &PROFILES[i];
-        if (profile->root != root || profile->disabled)
-            continue;
-        switch (profile->type) {
-            case OCCURENCE: {
-                unsigned int count =
-                    atomic_read(&profile->val.occurence.count);
-                if (count) {
-                    for (int j = 0 ; j < level ; j++)
-                        __SYS_FPRINTF(hdl, "  ");
-                    __SYS_FPRINTF(hdl, "- %s: %u times\n", profile->name, count);
-                }
-                break;
-            }
-            case INTERVAL: {
-                unsigned int count =
-                    atomic_read(&profile->val.interval.count);
-                if (count) {
-                    unsigned long time =
-                        atomic_read(&profile->val.interval.time);
-                    unsigned long ind_time = time / count;
-                    total_interval_time += time;
-                    total_interval_count += count;
-                    for (int j = 0 ; j < level ; j++)
-                        __SYS_FPRINTF(hdl, "  ");
-                    __SYS_FPRINTF(hdl, "- (%11.11lu) %s: %u times, %lu msec\n",
-                                  time, profile->name, count, ind_time);
-                }
-                break;
-            }
-            case CATEGORY:
-                for (int j = 0 ; j < level ; j++)
-                    __SYS_FPRINTF(hdl, "  ");
-                __SYS_FPRINTF(hdl, "- %s:\n", profile->name);
-                print_profile_result(hdl, profile, level + 1);
-                break;
-        }
-    }
-    if (total_interval_count) {
-        __SYS_FPRINTF(hdl, "                - (%11.11lu) total: %lu times, %lu msec\n",
-                      total_interval_time, total_interval_count,
-                      total_interval_time / total_interval_count);
-    }
-}
-#endif /* PROFILE */
-
 noreturn void shim_clean_and_exit(int exit_code) {
     static int in_terminate = 0;
     if (__atomic_add_fetch(&in_terminate, 1, __ATOMIC_RELAXED) > 1) {
@@ -1117,38 +913,7 @@ noreturn void shim_clean_and_exit(int exit_code) {
     }
 
     cur_process.exit_code = exit_code;
-
     store_all_msg_persist();
-
-#ifdef PROFILE
-    if (ENTER_TIME) {
-        switch (shim_get_tcb()->context.orig_rax) {
-            case __NR_exit_group:
-                SAVE_PROFILE_INTERVAL_SINCE(syscall_exit_group, ENTER_TIME);
-                break;
-            case __NR_exit:
-                SAVE_PROFILE_INTERVAL_SINCE(syscall_exit, ENTER_TIME);
-                break;
-        }
-    }
-
-    if (ipc_cld_profile_send()) {
-        MASTER_LOCK();
-
-        PAL_HANDLE hdl = __open_shim_stdio();
-
-        if (hdl) {
-            __SYS_FPRINTF(hdl, "******************************\n");
-            __SYS_FPRINTF(hdl, "profiling:\n");
-            print_profile_result(hdl, &profile_root, 0);
-            __SYS_FPRINTF(hdl, "******************************\n");
-        }
-
-        MASTER_UNLOCK();
-        DkObjectClose(hdl);
-    }
-#endif
-
     del_all_ipc_ports();
 
     if (shim_stdio && shim_stdio != (PAL_HANDLE) -1)

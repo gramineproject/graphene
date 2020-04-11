@@ -39,7 +39,6 @@ int shim_do_vfork(void) {
     return shim_do_fork();
 #else
     /* NOTE: leaving this old implementation for historical reference */
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     /* DEP 7/7/12 - Why r13?
      *

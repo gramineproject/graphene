@@ -26,13 +26,10 @@
 #include <shim_fs.h>
 #include <shim_handle.h>
 #include <shim_internal.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_vma.h>
 #include <stdatomic.h>
 #include <sys/mman.h>
-
-DEFINE_PROFILE_OCCURENCE(mmap, memory);
 
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
     struct shim_handle* hdl = NULL;
@@ -139,7 +136,6 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
         return (void*)ret;
     }
 
-    ADD_PROFILE_OCCURENCE(mmap, length);
     return ret_addr;
 }
 

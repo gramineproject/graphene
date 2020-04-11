@@ -51,12 +51,8 @@ int init_ns_sysv(void) {
     return init_namespace();
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_delres_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_delres_callback, ipc);
-
 int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
                          enum sysv_type type) {
-    BEGIN_PROFILE_INTERVAL();
     int ret    = 0;
     bool owned = false;
 
@@ -95,15 +91,13 @@ int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
     ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_delres_send);
     return ret;
 }
 
 int ipc_sysv_delres_callback(IPC_CALLBACK_ARGS) {
     __UNUSED(port);
 
-    BEGIN_PROFILE_INTERVAL();
-    int ret                            = 0;
+    int ret = 0;
     struct shim_ipc_sysv_delres* msgin = (struct shim_ipc_sysv_delres*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_DELRES(%u, %s)\n", msg->src, msgin->resid,
@@ -136,17 +130,11 @@ int ipc_sysv_delres_callback(IPC_CALLBACK_ARGS) {
     if (!ret)
         ret = owned ? RESPONSE_CALLBACK : 0;
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_delres_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_movres_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_movres_callback, ipc);
-
 int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, LEASETYPE lease,
                          IDTYPE resid, enum sysv_type type) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret = 0;
     int len = strlen(uri);
 
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_movres) + len);
@@ -163,14 +151,11 @@ int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* u
     debug("ipc send to %u: IPC_SYSV_MOVRES(%u, %s, %u, %s)\n", client->vmid, resid,
           SYSV_TYPE_STR(type), owner, uri);
 
-    ret = send_ipc_message(msg, client->port);
-    SAVE_PROFILE_INTERVAL(ipc_sysv_movres_send);
-    return ret;
+    return send_ipc_message(msg, client->port);
 }
 
 int ipc_sysv_movres_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                            = 0;
+    int ret = 0;
     struct shim_ipc_sysv_movres* msgin = (struct shim_ipc_sysv_movres*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_MOVRES(%u, %s, %u, %s)\n", msg->src, msgin->resid,
@@ -196,16 +181,11 @@ int ipc_sysv_movres_callback(IPC_CALLBACK_ARGS) {
         thread_wakeup(obj->thread);
 
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_movres_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_msgsnd_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_msgsnd_callback, ipc);
-
 int ipc_sysv_msgsnd_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, long msgtype,
                          const void* buf, size_t size, unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
     int ret    = 0;
     bool owned = true;
 
@@ -232,13 +212,11 @@ int ipc_sysv_msgsnd_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, 
     if (!owned)
         put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_msgsnd_send);
     return ret;
 }
 
 int ipc_sysv_msgsnd_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                            = 0;
+    int ret = 0;
     struct shim_ipc_sysv_msgsnd* msgin = (struct shim_ipc_sysv_msgsnd*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_MSGSND(%u, %ld)\n", msg->src, msgin->msgid,
@@ -281,15 +259,10 @@ int ipc_sysv_msgsnd_callback(IPC_CALLBACK_ARGS) {
     }
 
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_msgsnd_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_msgrcv_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_msgrcv_callback, ipc);
-
 int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_t size) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE owner;
     struct shim_ipc_port* port = NULL;
     int ret                    = 0;
@@ -319,13 +292,11 @@ int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_
     ret = send_ipc_message_duplex(msg, port, NULL, buf);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_msgrcv_send);
     return ret;
 }
 
 int ipc_sysv_msgrcv_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                            = 0;
+    int ret = 0;
     struct shim_ipc_sysv_msgrcv* msgin = (struct shim_ipc_sysv_msgrcv*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_MSGRCV(%u, %ld)\n", msg->src, msgin->msgid,
@@ -354,16 +325,11 @@ int ipc_sysv_msgrcv_callback(IPC_CALLBACK_ARGS) {
 
     put_msg_handle(msgq);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_msgrcv_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_msgmov_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_msgmov_callback, ipc);
-
 int ipc_sysv_msgmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, LEASETYPE lease,
                          struct sysv_score* scores, int nscores) {
-    BEGIN_PROFILE_INTERVAL();
     size_t total_msg_size =
         get_ipc_msg_size(sizeof(struct shim_ipc_sysv_msgmov) + sizeof(struct sysv_score) * nscores);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -377,16 +343,13 @@ int ipc_sysv_msgmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, 
         memcpy(msgin->scores, scores, sizeof(struct sysv_score) * nscores);
 
     debug("ipc send to %u: IPC_SYSV_MSGMOV(%d)\n", dest, msgid);
-    int ret = send_ipc_message(msg, port);
-    SAVE_PROFILE_INTERVAL(ipc_sysv_msgmov_send);
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
 int ipc_sysv_msgmov_callback(IPC_CALLBACK_ARGS) {
     __UNUSED(port);
 
-    BEGIN_PROFILE_INTERVAL();
-    int ret                            = 0;
+    int ret = 0;
     struct shim_ipc_sysv_msgmov* msgin = (struct shim_ipc_sysv_msgmov*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_MSGMOV(%d)\n", msg->src, msgin->msgid);
@@ -417,16 +380,11 @@ int ipc_sysv_msgmov_callback(IPC_CALLBACK_ARGS) {
 
     put_msg_handle(msgq);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_msgmov_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semop_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semop_callback, ipc);
-
 int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned long timeout,
                         unsigned long* seq) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE owner;
     struct shim_ipc_port* port = NULL;
     int ret                    = 0;
@@ -485,13 +443,11 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
     ret = send_ipc_message_duplex(msg, port, seq, NULL);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semop_send);
     return ret;
 }
 
 int ipc_sysv_semop_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                           = 0;
+    int ret = 0;
     struct shim_ipc_sysv_semop* msgin = (struct shim_ipc_sysv_semop*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_SEMOP(%u, %ld, %u)\n", msg->src, msgin->semid,
@@ -510,15 +466,10 @@ int ipc_sysv_semop_callback(IPC_CALLBACK_ARGS) {
     ret         = submit_sysv_sem(sem, msgin->sops, msgin->nsops, msgin->timeout, &client);
     put_sem_handle(sem);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semop_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semctl_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semctl_callback, ipc);
-
 int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t valsize) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE owner;
     struct shim_ipc_port* port = NULL;
     int ret                    = 0;
@@ -546,13 +497,11 @@ int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t v
     ret = send_ipc_message_duplex(msg, port, NULL, vals);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semctl_send);
     return ret;
 }
 
 int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                            = 0;
+    int ret = 0;
     struct shim_ipc_sysv_semctl* msgin = (struct shim_ipc_sysv_semctl*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_SEMCTL(%u, %d, %d)\n", msg->src, msgin->semid,
@@ -636,17 +585,11 @@ int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS) {
 semret:
     ret = ipc_sysv_semret_send(port, msg->src, vals, valsize, msg->seq);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semctl_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semret_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semret_callback, ipc);
-
 int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, size_t valsize,
                          unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                  = 0;
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_semret) + valsize);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_SYSV_SEMRET, total_msg_size, dest);
@@ -658,13 +601,10 @@ int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, si
 
     debug("ipc send to %u: IPC_SYSV_SEMRET\n", dest);
 
-    ret = send_ipc_message(msg, port);
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semret_send);
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
 int ipc_sysv_semret_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_sysv_semret* semret = (struct shim_ipc_sysv_semret*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_SEMRET\n", msg->src);
@@ -695,17 +635,12 @@ int ipc_sysv_semret_callback(IPC_CALLBACK_ARGS) {
             thread_wakeup(obj->thread);
     }
 
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semret_callback);
     return 0;
 }
-
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semmov_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semmov_callback, ipc);
 
 int ipc_sysv_semmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, LEASETYPE lease,
                          struct sem_backup* sems, int nsems, struct sem_client_backup* srcs,
                          int nsrcs, struct sysv_score* scores, int nscores) {
-    BEGIN_PROFILE_INTERVAL();
     size_t total_msg_size = get_ipc_msg_size(
         sizeof(struct shim_ipc_sysv_semmov) + sizeof(struct sem_backup) * nsems +
         sizeof(struct sem_client_backup) * nsrcs + sizeof(struct sysv_score) * nscores);
@@ -728,16 +663,13 @@ int ipc_sysv_semmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, 
 
     debug("ipc send to : IPC_SYSV_SEMMOV(%d)\n", semid);
 
-    int ret = send_ipc_message(msg, port);
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semmov_send);
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
 int ipc_sysv_semmov_callback(IPC_CALLBACK_ARGS) {
     __UNUSED(port);
 
-    BEGIN_PROFILE_INTERVAL();
-    int ret                            = 0;
+    int ret = 0;
     struct shim_ipc_sysv_semmov* msgin = (struct shim_ipc_sysv_semmov*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_SEMMOV(%d)\n", msg->src, msgin->semid);
@@ -772,17 +704,12 @@ int ipc_sysv_semmov_callback(IPC_CALLBACK_ARGS) {
 
     put_sem_handle(sem);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semmov_callback);
     return ret;
 }
 
 #ifdef USE_SHARED_SEMAPHORE
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semquery_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semquery_callback, ipc);
-
 int ipc_sysv_semquery_send(IDTYPE semid, int* nsems, PAL_NUM** host_sem_ids) {
-    BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     IDTYPE dest;
     struct shim_ipc_port* port = NULL;
@@ -812,13 +739,11 @@ int ipc_sysv_semquery_send(IDTYPE semid, int* nsems, PAL_NUM** host_sem_ids) {
         ret    = 0;
     }
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semquery_send);
     return ret;
 }
 
 int ipc_sysv_semquery_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                              = 0;
+    int ret = 0;
     struct shim_ipc_sysv_semquery* msgin = (struct shim_ipc_sysv_semquery*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_SEMQUERY(%u)\n", msg->src, msgin->semid);
@@ -832,17 +757,11 @@ int ipc_sysv_semquery_callback(IPC_CALLBACK_ARGS) {
     ret = send_sem_host_ids(sem, port, msg->src, msg->seq);
     put_sem_handle(sem);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semreply_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semreply_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_sysv_semreply_callback, ipc);
-
 int ipc_sysv_semreply_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, int nsems,
                            PAL_NUM* host_sem_ids, unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret = 0;
     size_t total_msg_size =
         get_ipc_msg_size(sizeof(struct shim_ipc_sysv_semreply) + sizeof(PAL_NUM) * nsems);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -857,14 +776,11 @@ int ipc_sysv_semreply_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid
 
     debug("ipc send to %u: IPC_SYSV_SEMREPLY(%u, %d)\n", dest, semid, nsems);
 
-    ret = send_ipc_message(msg, port);
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semreply_send);
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
 int ipc_sysv_semreply_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                              = 0;
+    int ret = 0;
     struct shim_ipc_sysv_semreply* msgin = (struct shim_ipc_sysv_semreply*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_SEMREPLY(%u, %d)\n", msg->src, msgin->semid,
@@ -882,7 +798,6 @@ int ipc_sysv_semreply_callback(IPC_CALLBACK_ARGS) {
     if (obj->thread)
         thread_wakeup(obj->thread);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_semreply_callback);
     return ret;
 }
 

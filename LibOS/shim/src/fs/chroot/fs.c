@@ -26,7 +26,6 @@
 #include <shim_vma.h>
 #include <shim_fs.h>
 #include <shim_utils.h>
-#include <shim_profile.h>
 
 #include <pal.h>
 #include <pal_error.h>

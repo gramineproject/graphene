@@ -28,7 +28,6 @@
 #include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
 
@@ -64,10 +63,6 @@ static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
 
     /* parents and children */
     /* CLD_EXIT         */ &ipc_cld_exit_callback,
-
-#ifdef PROFILE
-    /* CLD_PROFILE      */ &ipc_cld_profile_callback,
-#endif
 
     /* pid namespace */
     IPC_NS_CALLBACKS(pid)

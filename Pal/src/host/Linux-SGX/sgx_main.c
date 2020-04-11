@@ -919,12 +919,6 @@ static int load_enclave (struct pal_enclave * enclave,
     /* start running trusted PAL */
     ecall_enclave_start(args, args_size, env, env_size);
 
-#if PRINT_ENCLAVE_STAT == 1
-    PAL_NUM exit_time = 0;
-    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
-    exit_time = tv.tv_sec * 1000000UL + tv.tv_usec;
-#endif
-
     unmap_tcs();
     INLINE_SYSCALL(munmap, 2, alt_stack, ALT_STACK_SIZE);
     INLINE_SYSCALL(exit, 0);

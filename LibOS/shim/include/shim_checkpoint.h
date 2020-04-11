@@ -28,7 +28,6 @@
 #include <pal.h>
 #include <shim_defs.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 
 #ifdef __i386__
 #error "x86-32 support is heavily broken."
@@ -244,18 +243,12 @@ enum {
     const cp_func cp_func_##name __attribute__((section(".cp_func." #name))) = &cp_##name; \
     const rs_func rs_func_##name __attribute__((section(".rs_func." #name))) = &rs_##name; \
                                                                                            \
-    DEFINE_PROFILE_INTERVAL(cp_##name, checkpoint_func);                                   \
-    DEFINE_PROFILE_INTERVAL(rs_##name, resume_func);                                       \
-                                                                                           \
     DEFINE_CP_FUNC(name) {                                                                 \
         int CP_FUNC_TYPE __attribute__((unused))         = CP_FUNC(name);                  \
         const char* CP_FUNC_NAME __attribute__((unused)) = #name;                          \
-        ptr_t base __attribute__((unused))               = store->base;                    \
-        BEGIN_PROFILE_INTERVAL();                                                          \
-        ASSIGN_PROFILE_INTERVAL(cp_##name);
+        ptr_t base __attribute__((unused))               = store->base;
 
 #define END_CP_FUNC(name)                 \
-        SAVE_PROFILE_INTERVAL_ASSIGNED(); \
         return 0;                         \
     }
 
@@ -272,12 +265,9 @@ enum {
 #define BEGIN_RS_FUNC(name)                                               \
     DEFINE_RS_FUNC(name) {                                                \
         int CP_FUNC_TYPE __attribute__((unused))         = CP_FUNC(name); \
-        const char* CP_FUNC_NAME __attribute__((unused)) = #name;         \
-        BEGIN_PROFILE_INTERVAL();                                         \
-        ASSIGN_PROFILE_INTERVAL(rs_##name);
+        const char* CP_FUNC_NAME __attribute__((unused)) = #name;
 
 #define END_RS_FUNC(name)                 \
-        SAVE_PROFILE_INTERVAL_ASSIGNED(); \
         return 0;                         \
     }
 
@@ -352,32 +342,21 @@ struct shim_cp_map_entry* get_cp_map_entry(void* map, void* addr, bool create);
 #define DEBUG_RS(...) do {} while (0)
 #endif
 
-#include <shim_profile.h>
-
 #define START_MIGRATE(store, name, ...)                                    \
     ({                                                                     \
         int ret = 0;                                                       \
         do {                                                               \
-            BEGIN_PROFILE_INTERVAL();                                      \
-                                                                           \
             if (!((store)->cp_map = create_cp_map())) {                    \
                 ret = -ENOMEM;                                             \
                 goto out;                                                  \
             }                                                              \
-            SAVE_PROFILE_INTERVAL(checkpoint_create_map);                  \
-                                                                           \
             ret = migrate_cp_##name(store, ##__VA_ARGS__);                 \
             if (ret < 0)                                                   \
                 goto out;                                                  \
                                                                            \
-            SAVE_PROFILE_INTERVAL(checkpoint_copy);                        \
-            ADD_PROFILE_OCCURENCE(checkpoint_total_size, (store)->offset); \
-            INC_PROFILE_OCCURENCE(checkpoint_count);                       \
-                                                                           \
             debug("complete checkpointing data\n");                        \
         out:                                                               \
             destroy_cp_map((store)->cp_map);                               \
-            SAVE_PROFILE_INTERVAL(checkpoint_destroy_map);                 \
         } while (0);                                                       \
         ret;                                                               \
     })
@@ -401,11 +380,6 @@ struct newproc_cp_header {
 struct newproc_header {
     struct newproc_cp_header checkpoint;
     int failure;
-#ifdef PROFILE
-    unsigned long begin_create_time;
-    unsigned long create_time;
-    unsigned long write_proc_time;
-#endif
 };
 
 struct newproc_response {
