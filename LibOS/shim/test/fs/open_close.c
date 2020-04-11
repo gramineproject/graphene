@@ -1,4 +1,5 @@
 #include <ctype.h>
+
 #include "common.h"
 
 void open_close_input_fd(const char* input_path) {
@@ -71,7 +72,7 @@ int main(int argc, char* argv[]) {
 
     setup();
 
-    if (tolower(argv[1][0]) == 'r') {
+    if (toupper(argv[1][0]) == 'R') {
         open_close_input_fd(argv[2]);
         open_close_input_stdio(argv[2]);
     } else {
