@@ -16,7 +16,7 @@ char g_data = 'x';
         if (expect_success) {                                   \
             printf("open(" #flags ") %s succeeded OK\n", s);    \
             if (do_write)                                       \
-                write(fd, &g_data, sizeof(g_data));             \
+                write_fd(argv[1], fd, &g_data, sizeof(g_data)); \
         } else {                                                \
             fatal_error("open(" #flags ") %s succeeded!\n", s); \
         }                                                       \
