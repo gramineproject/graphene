@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-set -exo pipefail
+set -ex
 
 # Generate EINITOKEN for all applications
 for manifest in ${binary}.manifest ${user_manifests};

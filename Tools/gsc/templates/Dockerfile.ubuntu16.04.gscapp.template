@@ -32,5 +32,5 @@ RUN chmod u+x apploader.sh \
     && rm -f finalize_manifests.py
 
 # Define default command
-ENTRYPOINT  ["/bin/bash", "./apploader.sh"]
-CMD []
+ENTRYPOINT  ["/bin/sh", "./apploader.sh"]
+CMD [${cmd}]

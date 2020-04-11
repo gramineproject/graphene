@@ -121,6 +121,35 @@ def extract_manifest_keys(user_manifest):
 def get_enclave_size(manifest_dic):
     return manifest_dic['sgx.enclave_size'] if 'sgx.enclave_size' in manifest_dic else '256M'
 
+def extract_binary_cmd_from_image_config(config):
+    entrypoint = config['Entrypoint'] if isinstance(config['Entrypoint'], list) else []
+    entrypoint_len = len(entrypoint)
+    cmd = config['Cmd'] if isinstance(config['Cmd'], list) else []
+    entrypoint.extend(cmd)
+
+    if len(entrypoint) > 1:
+        binary_it = 2 if entrypoint[0] == '/bin/sh' and entrypoint[1] == '-c' else 0
+    elif len(entrypoint) is 1:
+        binary_it = 0
+    else: # == 0
+        print('Could not find the entrypoint binary to the application image.')
+        sys.exit(1)
+
+    binary = os.path.basename(entrypoint[binary_it])
+    # check if we have fixed binary arguments as part of entrypoint
+    if entrypoint_len > 1:
+        last_bin_arg = entrypoint_len
+        binary_arguments = '"' + '", "'.join(entrypoint[binary_it + 1
+                                                       : last_bin_arg]) + '"'
+    else:
+        last_bin_arg = binary_it
+        binary_arguments = ""
+
+    cmd = '"' + '", "'.join(entrypoint[last_bin_arg + 1 : ]) + '"' if (len(entrypoint)
+                                                                    > last_bin_arg + 1) else ""
+
+    return binary, binary_arguments, cmd
+
 def prepare_substitutions(base_image, image, options, user_manifests):
     params = {
         '-d': {
@@ -157,22 +186,19 @@ def prepare_substitutions(base_image, image, options, user_manifests):
     # Image names follow the format distro/package:tag
     image_re = re.match(r'([^:]*)(:?)(.*)', image[image.rfind('/')+1:])
 
-    # Find command of image from base_image
-    cmd = base_image.attrs['Config']['Cmd']
-    binary_it = 0 #2 if cmd[0] == '/bin/sh' and cmd[1] == '-c' else 0
-    binary = os.path.basename(cmd[binary_it])
-    binary_arguments = "'" + "' '".join(cmd[binary_it +1 : ]) + "'" if (len(cmd)
-                                                                        > binary_it + 1) else ""
+    # Extract binary and command from base_image
+    binary, binary_arguments, cmd = extract_binary_cmd_from_image_config(base_image.attrs['Config'])
 
     working_dir = base_image.attrs['Config']['WorkingDir']
 
     manifest_dic = extract_manifest_keys(user_manifests[0])
 
     substitutions.update({
-            "appImage" : image,
-            "app" : image_re.group(1),
-            "binary" : binary,
-            'binary_arguments': binary_arguments,
+            'appImage' : image,
+            'app' : image_re.group(1),
+            'binary' : binary,
+            'binary_arguments' : binary_arguments,
+            'cmd' : cmd,
             'working_dir': working_dir,
             'user_manifests': ' '.join([os.path.basename(manifest)
                                         for manifest in user_manifests[1:]]),
