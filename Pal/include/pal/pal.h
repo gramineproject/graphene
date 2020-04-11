@@ -341,16 +341,6 @@ typedef struct PAL_CONTROL_ {
 
     PAL_CPU_INFO cpu_info; /*!< CPU information (only required ones) */
     PAL_MEM_INFO mem_info; /*!< memory information (only required ones) */
-
-    /* Purely for profiling */
-    PAL_NUM startup_time;
-    PAL_NUM host_specific_startup_time;
-    PAL_NUM relocation_time;
-    PAL_NUM linking_time;
-    PAL_NUM manifest_loading_time;
-    PAL_NUM allocation_time;
-    PAL_NUM tail_startup_time;
-    PAL_NUM child_creation_time;
 } PAL_CONTROL;
 
 #define pal_control (*pal_control_addr())

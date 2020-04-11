@@ -24,7 +24,6 @@
 #include <errno.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_utils.h>
 
 #ifndef INCLUDE_IPC_NSIMPL
@@ -952,11 +951,7 @@ out:
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(findns), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(findns), ipc);
-
 int NS_SEND(findns)(bool block) {
-    BEGIN_PROFILE_INTERVAL();
     int ret = -ESRCH;
     lock(&cur_process.lock);
     if (!cur_process.parent || !cur_process.parent->port) {
@@ -990,13 +985,10 @@ int NS_SEND(findns)(bool block) {
 out_port:
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(NS_SEND(findns));
     return ret;
 }
 
 int NS_CALLBACK(findns)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-
     debug("ipc callback from %u: " NS_CODE_STR(FINDNS) "\n", msg->src);
 
     int ret = 0;
@@ -1021,16 +1013,11 @@ int NS_CALLBACK(findns)(IPC_CALLBACK_ARGS) {
         }
     }
     unlock(&cur_process.lock);
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(findns));
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(tellns), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(tellns), ipc);
-
 int NS_SEND(tellns)(struct shim_ipc_port* port, IDTYPE dest, struct shim_ipc_info* leader,
                     unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
     size_t total_msg_size    = get_ipc_msg_size(leader->uri.len + sizeof(NS_MSG_TYPE(tellns)));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, NS_CODE(TELLNS), total_msg_size, dest);
@@ -1043,12 +1030,10 @@ int NS_SEND(tellns)(struct shim_ipc_port* port, IDTYPE dest, struct shim_ipc_inf
     debug("ipc send to %u: " NS_CODE_STR(TELLNS) "(%u, %s)\n", dest, leader->vmid, msgin->uri);
 
     int ret = send_ipc_message(msg, port);
-    SAVE_PROFILE_INTERVAL(NS_SEND(tellns));
     return ret;
 }
 
 int NS_CALLBACK(tellns)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     NS_MSG_TYPE(tellns)* msgin = (void*)&msg->msg;
     int ret                    = 0;
 
@@ -1087,15 +1072,10 @@ int NS_CALLBACK(tellns)(IPC_CALLBACK_ARGS) {
 
 out:
     unlock(&cur_process.lock);
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(tellns));
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(lease), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(lease), ipc);
-
 int NS_SEND(lease)(LEASETYPE* lease) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE leader;
     struct shim_ipc_port* port = NULL;
     struct shim_ipc_info* self = NULL;
@@ -1129,12 +1109,10 @@ int NS_SEND(lease)(LEASETYPE* lease) {
 out:
     if (port)
         put_ipc_port(port);
-    SAVE_PROFILE_INTERVAL(NS_SEND(lease));
     return ret;
 }
 
 int NS_CALLBACK(lease)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     NS_MSG_TYPE(lease)* msgin = (void*)&msg->msg;
 
     debug("ipc callback from %u: " NS_CODE_STR(LEASE) "(%s)\n", msg->src, msgin->uri);
@@ -1149,16 +1127,11 @@ int NS_CALLBACK(lease)(IPC_CALLBACK_ARGS) {
     ret = NS_SEND(offer)(port, msg->src, base, RANGE_SIZE, lease, msg->seq);
 
 out:
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(lease));
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(offer), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(offer), ipc);
-
 int NS_SEND(offer)(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE size,
                    LEASETYPE lease, unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
     int ret                  = 0;
     size_t total_msg_size    = get_ipc_msg_size(sizeof(NS_MSG_TYPE(offer)));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -1172,12 +1145,10 @@ int NS_SEND(offer)(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE 
 
     debug("ipc send to %u: " NS_CODE_STR(OFFER) "(%u, %u, %lu)\n", port->vmid, base, size, lease);
     ret = send_ipc_message(msg, port);
-    SAVE_PROFILE_INTERVAL(NS_SEND(offer));
     return ret;
 }
 
 int NS_CALLBACK(offer)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     NS_MSG_TYPE(offer)* msgin = (void*)&msg->msg;
 
     debug("ipc callback from %u: " NS_CODE_STR(OFFER) "(%u, %u, %lu)\n", msg->src, msgin->base,
@@ -1211,15 +1182,10 @@ int NS_CALLBACK(offer)(IPC_CALLBACK_ARGS) {
         thread_wakeup(obj->thread);
 
 out:
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(offer));
     return 0;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(renew), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(renew), ipc);
-
 int NS_SEND(renew)(IDTYPE base, IDTYPE size) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE leader;
     struct shim_ipc_port* port = NULL;
     int ret                    = 0;
@@ -1239,12 +1205,10 @@ int NS_SEND(renew)(IDTYPE base, IDTYPE size) {
     ret = send_ipc_message(msg, port);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(NS_SEND(renew));
     return ret;
 }
 
 int NS_CALLBACK(renew)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     NS_MSG_TYPE(renew)* msgin = (void*)&msg->msg;
     int ret                   = 0;
 
@@ -1276,15 +1240,10 @@ int NS_CALLBACK(renew)(IPC_CALLBACK_ARGS) {
     ret = NS_SEND(offer)(port, msg->src, msgin->base, msgin->size, lease, msg->seq);
 
 out:
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(renew));
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(sublease), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(sublease), ipc);
-
 int NS_SEND(sublease)(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lease) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE leader;
     struct shim_ipc_port* port = NULL;
     int ret                    = 0;
@@ -1314,12 +1273,10 @@ int NS_SEND(sublease)(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lea
 out:
     if (port)
         put_ipc_port(port);
-    SAVE_PROFILE_INTERVAL(NS_SEND(sublease));
     return ret;
 }
 
 int NS_CALLBACK(sublease)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     NS_MSG_TYPE(sublease)* msgin = (void*)&msg->msg;
 
     debug("ipc callback from %u: " NS_CODE_STR(SUBLEASE) "(%u, %u, %s)\n", msg->src, msgin->idx,
@@ -1329,15 +1286,10 @@ int NS_CALLBACK(sublease)(IPC_CALLBACK_ARGS) {
     int ret         = CONCAT3(add, NS, subrange)(msgin->idx, msgin->tenant, msgin->uri, &lease);
 
     ret = NS_SEND(offer)(port, msg->src, msgin->idx, 1, lease, msg->seq);
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(sublease));
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(query), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(query), ipc);
-
 int NS_SEND(query)(IDTYPE idx) {
-    BEGIN_PROFILE_INTERVAL();
     struct CONCAT2(NS, range) range;
     IDTYPE leader;
     struct shim_ipc_port* port = NULL;
@@ -1368,12 +1320,10 @@ int NS_SEND(query)(IDTYPE idx) {
 out:
     if (port)
         put_ipc_port(port);
-    SAVE_PROFILE_INTERVAL(NS_SEND(query));
     return ret;
 }
 
 int NS_CALLBACK(query)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     NS_MSG_TYPE(query)* msgin = (void*)&msg->msg;
 
     debug("ipc callback from %u: " NS_CODE_STR(QUERY) "(%u)\n", msg->src, msgin->idx);
@@ -1403,15 +1353,10 @@ int NS_CALLBACK(query)(IPC_CALLBACK_ARGS) {
 
     ret = NS_SEND(answer)(port, msg->src, 1, &ans, 1, &owner, &ownerdatasz, msg->seq);
 out:
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(query));
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(queryall), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(queryall), ipc);
-
 int NS_SEND(queryall)(void) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE leader;
     struct shim_ipc_port* port = NULL;
     int ret                    = 0;
@@ -1431,13 +1376,10 @@ int NS_SEND(queryall)(void) {
     ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(NS_SEND(queryall));
     return ret;
 }
 
 int NS_CALLBACK(queryall)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-
     debug("ipc callback from %u: " NS_CODE_STR(QUERYALL) "\n", msg->src);
 
     LISTP_TYPE(range)* list = &offered_ranges;
@@ -1516,18 +1458,12 @@ retry:
     ret = NS_SEND(answer)(port, msg->src, nanswers, answers, nowners, ownerdata, ownerdatasz,
                           msg->seq);
 
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(queryall));
     return ret;
 }
-
-DEFINE_PROFILE_INTERVAL(NS_SEND(answer), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(answer), ipc);
 
 int NS_SEND(answer)(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
                     struct ipc_ns_offered* answers, int nowners, struct ipc_ns_client** ownerdata,
                     int* ownerdatasz, unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
-
     int owner_offset      = sizeof(NS_MSG_TYPE(answer)) + sizeof(struct ipc_ns_offered) * nanswers;
     int total_ownerdatasz = 0;
     for (int i = 0; i < nowners; i++) {
@@ -1557,14 +1493,10 @@ int NS_SEND(answer)(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
         debug("ipc send to %u: " NS_CODE_STR(ANSWER) "([%u, %u], ...)\n", dest, answers[0].base,
               answers[0].size);
 
-    int ret = send_ipc_message(msg, port);
-
-    SAVE_PROFILE_INTERVAL(NS_SEND(answer));
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
 int NS_CALLBACK(answer)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     NS_MSG_TYPE(answer)* msgin = (void*)&msg->msg;
 
     if (msgin->nanswers == 1)
@@ -1594,7 +1526,6 @@ int NS_CALLBACK(answer)(IPC_CALLBACK_ARGS) {
     if (obj && obj->thread)
         thread_wakeup(obj->thread);
 
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(answer));
     return 0;
 }
 
@@ -1665,11 +1596,7 @@ int CONCAT2(NS, get_key)(NS_KEY* key, bool delete) {
     return id;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(findkey), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(findkey), ipc);
-
 int NS_SEND(findkey)(NS_KEY* key) {
-    BEGIN_PROFILE_INTERVAL();
     int ret = 0;
 
     ret = CONCAT2(NS, get_key)(key, false);
@@ -1702,13 +1629,11 @@ int NS_SEND(findkey)(NS_KEY* key) {
     if (!ret)
         ret = CONCAT2(NS, get_key)(key, false);
 out:
-    SAVE_PROFILE_INTERVAL(NS_SEND(findkey));
     return ret;
 }
 
 int NS_CALLBACK(findkey)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                     = 0;
+    int ret = 0;
     NS_MSG_TYPE(findkey)* msgin = (void*)&msg->msg;
 
     debug("ipc callback from %u: " NS_CODE_STR(FINDKEY) "(%lu)\n", msg->src, KEY_HASH(&msgin->key));
@@ -1719,16 +1644,11 @@ int NS_CALLBACK(findkey)(IPC_CALLBACK_ARGS) {
 
     ret = NS_SEND(tellkey)(port, msg->src, &msgin->key, ret, msg->seq);
 out:
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(findkey));
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(NS_SEND(tellkey), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(tellkey), ipc);
-
 int NS_SEND(tellkey)(struct shim_ipc_port* port, IDTYPE dest, NS_KEY* key, IDTYPE id,
                      unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
     bool owned = true;
     int ret    = 0;
 
@@ -1774,13 +1694,11 @@ int NS_SEND(tellkey)(struct shim_ipc_port* port, IDTYPE dest, NS_KEY* key, IDTYP
     ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(NS_SEND(tellkey));
     return ret;
 }
 
 int NS_CALLBACK(tellkey)(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                     = 0;
+    int ret = 0;
     NS_MSG_TYPE(tellkey)* msgin = (void*)&msg->msg;
 
     debug("ipc callback from %u: " NS_CODE_STR(TELLKEY) "(%lu, %u)\n", msg->src,
@@ -1798,7 +1716,6 @@ int NS_CALLBACK(tellkey)(IPC_CALLBACK_ARGS) {
         thread_wakeup(obj->thread);
 
 out:
-    SAVE_PROFILE_INTERVAL(ipc_sysv_tellkey_callback);
     return ret;
 }
 

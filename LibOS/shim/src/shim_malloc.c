@@ -29,7 +29,6 @@
 #include <pal_debug.h>
 #include <shim_checkpoint.h>
 #include <shim_internal.h>
-#include <shim_profile.h>
 #include <shim_utils.h>
 #include <shim_vma.h>
 
@@ -49,8 +48,6 @@ static struct shim_lock slab_mgr_lock;
 #include <slabmgr.h>
 
 static SLAB_MGR slab_mgr = NULL;
-
-DEFINE_PROFILE_CATEGORY(memory, );
 
 /* Returns NULL on failure */
 void* __system_malloc(size_t size) {
@@ -119,61 +116,12 @@ int reinit_slab(void) {
     return 0;
 }
 
-DEFINE_PROFILE_OCCURENCE(malloc_0, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_1, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_2, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_3, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_4, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_5, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_6, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_7, memory);
-DEFINE_PROFILE_OCCURENCE(malloc_big, memory);
-
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
 void* __malloc_debug(size_t size, const char* file, int line)
 #else
 void* malloc(size_t size)
 #endif
 {
-#ifdef PROFILE
-    int level = -1;
-
-    for (size_t i = 0; i < SLAB_LEVEL; i++)
-        if (size < slab_levels[i]) {
-            level = i;
-            break;
-        }
-    switch (level) {
-        case 0:
-            INC_PROFILE_OCCURENCE(malloc_0);
-            break;
-        case 1:
-            INC_PROFILE_OCCURENCE(malloc_1);
-            break;
-        case 2:
-            INC_PROFILE_OCCURENCE(malloc_2);
-            break;
-        case 3:
-            INC_PROFILE_OCCURENCE(malloc_3);
-            break;
-        case 4:
-            INC_PROFILE_OCCURENCE(malloc_4);
-            break;
-        case 5:
-            INC_PROFILE_OCCURENCE(malloc_5);
-            break;
-        case 6:
-            INC_PROFILE_OCCURENCE(malloc_6);
-            break;
-        case 7:
-            INC_PROFILE_OCCURENCE(malloc_7);
-            break;
-        case -1:
-            INC_PROFILE_OCCURENCE(malloc_big);
-            break;
-    }
-#endif
-
 #ifdef SLAB_DEBUG_TRACE
     void* mem = slab_alloc_debug(slab_mgr, size, file, line);
 #else
@@ -260,17 +208,6 @@ void* malloc_copy(const void* mem, size_t size)
 EXTERN_ALIAS(malloc_copy);
 #endif
 
-DEFINE_PROFILE_OCCURENCE(free_0, memory);
-DEFINE_PROFILE_OCCURENCE(free_1, memory);
-DEFINE_PROFILE_OCCURENCE(free_2, memory);
-DEFINE_PROFILE_OCCURENCE(free_3, memory);
-DEFINE_PROFILE_OCCURENCE(free_4, memory);
-DEFINE_PROFILE_OCCURENCE(free_5, memory);
-DEFINE_PROFILE_OCCURENCE(free_6, memory);
-DEFINE_PROFILE_OCCURENCE(free_7, memory);
-DEFINE_PROFILE_OCCURENCE(free_big, memory);
-DEFINE_PROFILE_OCCURENCE(free_migrated, memory);
-
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
 void __free_debug(void* mem, const char* file, int line)
 #else
@@ -280,43 +217,8 @@ void free(void* mem)
     if (!mem)
         return;
     if (memory_migrated(mem)) {
-        INC_PROFILE_OCCURENCE(free_migrated);
         return;
     }
-
-#ifdef PROFILE
-    int level = RAW_TO_LEVEL(mem);
-    switch (level) {
-        case 0:
-            INC_PROFILE_OCCURENCE(free_0);
-            break;
-        case 1:
-            INC_PROFILE_OCCURENCE(free_1);
-            break;
-        case 2:
-            INC_PROFILE_OCCURENCE(free_2);
-            break;
-        case 3:
-            INC_PROFILE_OCCURENCE(free_3);
-            break;
-        case 4:
-            INC_PROFILE_OCCURENCE(free_4);
-            break;
-        case 5:
-            INC_PROFILE_OCCURENCE(free_5);
-            break;
-        case 6:
-            INC_PROFILE_OCCURENCE(free_6);
-            break;
-        case 7:
-            INC_PROFILE_OCCURENCE(free_7);
-            break;
-        case -1:
-        case 255:
-            INC_PROFILE_OCCURENCE(free_big);
-            break;
-    }
-#endif
 
 #ifdef SLAB_DEBUG_PRINT
     debug("free(%p) (%s:%d)\n", mem, file, line);

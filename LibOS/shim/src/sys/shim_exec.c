@@ -31,7 +31,6 @@
 #include <shim_fs.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_thread.h>
 
@@ -73,14 +72,6 @@ static int close_cloexec_handle(struct shim_handle_map* map) {
     return walk_handle_map(&close_on_exec, map);
 }
 
-DEFINE_PROFILE_CATEGORY(exec_rtld, exec);
-DEFINE_PROFILE_INTERVAL(alloc_new_stack_for_exec, exec_rtld);
-DEFINE_PROFILE_INTERVAL(arrange_arguments_for_exec, exec_rtld);
-DEFINE_PROFILE_INTERVAL(unmap_executable_for_exec, exec_rtld);
-DEFINE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec, exec_rtld);
-DEFINE_PROFILE_INTERVAL(unmap_all_vmas_for_exec, exec_rtld);
-DEFINE_PROFILE_INTERVAL(load_new_executable_for_exec, exec_rtld);
-
 int init_brk_from_executable(struct shim_handle* exec);
 
 struct execve_rtld_arg {
@@ -109,8 +100,6 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     update_fs_base(fs_base);
     debug("set fs_base to 0x%lx\n", fs_base);
 
-    UPDATE_PROFILE_INTERVAL();
-
     DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
     if (bkeep_munmap(old_stack, old_stack_top - old_stack, 0) < 0)
         BUG();
@@ -123,7 +112,6 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     remove_loaded_libraries();
     clean_link_map_list();
-    SAVE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec);
 
     reset_brk();
 
@@ -172,8 +160,6 @@ retry_dump_vmas:
 
     free_vma_val_array(vmas, count);
 
-    SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
-
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
         goto error;
 
@@ -182,14 +168,7 @@ retry_dump_vmas:
 
     load_elf_interp(cur_thread->exec);
 
-    SAVE_PROFILE_INTERVAL(load_new_executable_for_exec);
-
     cur_thread->robust_list = NULL;
-
-#ifdef PROFILE
-    if (ENTER_TIME)
-        SAVE_PROFILE_INTERVAL_SINCE(syscall_execve, ENTER_TIME);
-#endif
 
     debug("execve: start execution\n");
     execute_elf_object(cur_thread->exec, new_argcp, new_argp, new_auxp);
@@ -201,15 +180,11 @@ error:
 }
 
 static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const char** envp) {
-    BEGIN_PROFILE_INTERVAL();
-
     struct shim_thread* cur_thread = get_cur_thread();
     int ret;
 
     if ((ret = close_cloexec_handle(cur_thread->handle_map)) < 0)
         return ret;
-
-    SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
 
     put_handle(cur_thread->exec);
     get_handle(hdl);
@@ -234,7 +209,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
         return ret;
 
     __disable_preempt(shim_get_tcb());  // Temporarily disable preemption during execve().
-    SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
 
     struct execve_rtld_arg arg = {
         .old_stack_top = old_stack_top,
@@ -249,11 +223,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
 }
 
 #include <shim_checkpoint.h>
-
-DEFINE_PROFILE_CATEGORY(exec, );
-DEFINE_PROFILE_INTERVAL(search_and_check_file_for_exec, exec);
-DEFINE_PROFILE_INTERVAL(open_file_for_exec, exec);
-DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);
 
 static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
                            const char** envp) {
@@ -274,8 +243,6 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
     const char** envp = va_arg(ap, const char**);
     int ret;
 
-    BEGIN_PROFILE_INTERVAL();
-
     if ((ret = dup_handle_map(&handle_map, thread->handle_map)) < 0)
         return ret;
 
@@ -283,8 +250,6 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
 
     if ((ret = close_cloexec_handle(handle_map)) < 0)
         return ret;
-
-    SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
 
     return START_MIGRATE(cpstore, execve, thread, process, envp);
 }
@@ -318,8 +283,6 @@ int shim_do_execve(const char* file, const char** argv, const char** envp) {
             return -EFAULT;
     }
 
-    BEGIN_PROFILE_INTERVAL();
-
     DEFINE_LIST(sharg);
     struct sharg {
         LIST_TYPE(sharg) list;
@@ -352,8 +315,6 @@ reopen:
         if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
             goto err;
     }
-
-    SAVE_PROFILE_INTERVAL(search_and_check_file_for_exec);
 
     struct shim_handle* exec = NULL;
 
@@ -451,8 +412,6 @@ reopen:
         }
     }
 
-    SAVE_PROFILE_INTERVAL(open_file_for_exec);
-
     bool use_same_process = check_last_thread(cur_thread) == 0;
     if (use_same_process && !strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* for SGX PALs, can use same process only if it is the same executable (because a different
@@ -470,8 +429,6 @@ reopen:
         return shim_do_execve_rtld(exec, argv, envp);
     }
     debug("execve() in a new process\n");
-
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     if (!LISTP_EMPTY(&shargs)) {
         struct sharg* sh;

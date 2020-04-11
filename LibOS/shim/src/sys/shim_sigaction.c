@@ -31,7 +31,6 @@
 #include <pal_error.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
@@ -493,8 +492,6 @@ int kill_all_threads(struct shim_thread* cur, IDTYPE sender, int sig) {
 }
 
 int shim_do_kill(pid_t pid, int sig) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
-
     if (sig < 0 || sig > NUM_SIGS)
         return -EINVAL;
 
@@ -578,8 +575,6 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
 }
 
 int shim_do_tkill(pid_t tid, int sig) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
-
     if (tid <= 0)
         return -EINVAL;
 
@@ -600,8 +595,6 @@ int shim_do_tkill(pid_t tid, int sig) {
 }
 
 int shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
-
     if (tgid < -1 || tgid == 0 || tid <= 0)
         return -EINVAL;
 

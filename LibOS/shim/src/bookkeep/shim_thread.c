@@ -822,7 +822,6 @@ static int resume_wrapper (void * param)
 
     shim_tcb_t* tcb = shim_get_tcb();
     tcb->context.regs = saved_tcb->context.regs;
-    tcb->context.enter_time = saved_tcb->context.enter_time;
     tcb->context.preempt = saved_tcb->context.preempt;
     debug_setbuf(tcb, false);
     debug("set fs_base to 0x%lx\n", fs_base);

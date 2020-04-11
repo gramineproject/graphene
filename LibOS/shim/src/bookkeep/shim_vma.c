@@ -1142,25 +1142,16 @@ BEGIN_CP_FUNC(vma)
 }
 END_CP_FUNC(vma)
 
-DEFINE_PROFILE_CATEGORY(inside_rs_vma, resume_func);
-DEFINE_PROFILE_INTERVAL(vma_add_bookkeep,   inside_rs_vma);
-DEFINE_PROFILE_INTERVAL(vma_map_file,       inside_rs_vma);
-DEFINE_PROFILE_INTERVAL(vma_map_anonymous,  inside_rs_vma);
-
 BEGIN_RS_FUNC(vma)
 {
     struct shim_vma_val * vma = (void *) (base + GET_CP_FUNC_ENTRY());
     void * need_mapped = (void *) GET_CP_ENTRY(ADDR);
-    BEGIN_PROFILE_INTERVAL();
-
     CP_REBASE(vma->file);
 
     int ret = bkeep_mmap(vma->addr, vma->length, vma->prot, vma->flags,
                          vma->file, vma->offset, vma->comment);
     if (ret < 0)
         return ret;
-
-    SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
 
     DEBUG_RS("vma: %p-%p flags %x prot 0x%08x\n",
              vma->addr, vma->addr + vma->length, vma->flags, vma->prot);
@@ -1192,7 +1183,6 @@ BEGIN_RS_FUNC(vma)
                     return -EACCES;
 
                 need_mapped += vma->length;
-                SAVE_PROFILE_INTERVAL(vma_map_file);
             }
         }
 
@@ -1203,7 +1193,6 @@ BEGIN_RS_FUNC(vma)
                                      vma->addr + vma->length - need_mapped,
                                      pal_alloc_type, pal_prot)) {
                 need_mapped += vma->length;
-                SAVE_PROFILE_INTERVAL(vma_map_anonymous);
             }
         }
 

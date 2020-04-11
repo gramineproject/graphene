@@ -66,7 +66,6 @@ int init_ns_pid(void) {
 }
 
 int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int signum) {
-    BEGIN_PROFILE_INTERVAL();
     int ret;
 
     if (!signum) {
@@ -108,15 +107,10 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
     }
 
 out:
-    SAVE_PROFILE_INTERVAL(ipc_pid_kill_send);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_pid_kill_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_pid_kill_callback, ipc);
-
 int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)msg->msg;
 
     debug("IPC callback from %u: IPC_PID_KILL(%u, %d, %u, %d)\n", msg->src & 0xFFFF, msgin->sender,
@@ -139,19 +133,11 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             kill_all_threads(NULL, msgin->sender, msgin->signum);
             break;
     }
-
-    SAVE_PROFILE_INTERVAL(ipc_pid_kill_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_pid_getstatus_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_pid_getstatus_callback, ipc);
-
 int ipc_pid_getstatus_send(struct shim_ipc_port* port, IDTYPE dest, int npids, IDTYPE* pids,
                            struct pid_status** status) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret;
-
     size_t total_msg_size =
         get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_getstatus) + sizeof(IDTYPE) * npids);
     struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
@@ -163,10 +149,7 @@ int ipc_pid_getstatus_send(struct shim_ipc_port* port, IDTYPE dest, int npids, I
 
     debug("ipc send to %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n", dest, npids, pids[0]);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, status);
-
-    SAVE_PROFILE_INTERVAL(ipc_pid_getstatus_send);
-    return ret;
+    return send_ipc_message_duplex(msg, port, NULL, status);
 }
 
 struct thread_status {
@@ -193,7 +176,6 @@ int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
 }
 
 int ipc_pid_getstatus_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)msg->msg;
     int ret = 0;
 
@@ -212,18 +194,11 @@ int ipc_pid_getstatus_callback(IPC_CALLBACK_ARGS) {
 
     ret = ipc_pid_retstatus_send(port, msg->src, status.nstatus, status.status, msg->seq);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_pid_getstatus_callback);
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_pid_retstatus_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_pid_retstatus_callback, ipc);
-
 int ipc_pid_retstatus_send(struct shim_ipc_port* port, IDTYPE dest, int nstatus,
                            struct pid_status* status, unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret;
-
     size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retstatus) +
                                              sizeof(struct pid_status) * nstatus);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -240,14 +215,10 @@ int ipc_pid_retstatus_send(struct shim_ipc_port* port, IDTYPE dest, int nstatus,
     else
         debug("ipc send to %u: IPC_PID_RETSTATUS(0, [])\n", dest);
 
-    ret = send_ipc_message(msg, port);
-
-    SAVE_PROFILE_INTERVAL(ipc_pid_retstatus_send);
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
 int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_pid_retstatus* msgin = (struct shim_ipc_pid_retstatus*)msg->msg;
 
     if (msgin->nstatus)
@@ -270,7 +241,6 @@ int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS) {
             thread_wakeup(obj->thread);
     }
 
-    SAVE_PROFILE_INTERVAL(ipc_pid_retstatus_callback);
     return 0;
 }
 
@@ -430,9 +400,6 @@ retry:
     return nstatus;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_pid_getmeta_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_pid_getmeta_callback, ipc);
-
 static const char* pid_meta_code_str[4] = {
     "CRED",
     "EXEC",
@@ -441,7 +408,6 @@ static const char* pid_meta_code_str[4] = {
 };
 
 int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data) {
-    BEGIN_PROFILE_INTERVAL();
     IDTYPE dest;
     struct shim_ipc_port* port = NULL;
     int ret;
@@ -462,12 +428,10 @@ int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data) {
     ret = send_ipc_message_duplex(msg, port, NULL, data);
     put_ipc_port(port);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_pid_getmeta_send);
     return ret;
 }
 
 int ipc_pid_getmeta_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)msg->msg;
     int ret = 0;
 
@@ -526,19 +490,12 @@ int ipc_pid_getmeta_callback(IPC_CALLBACK_ARGS) {
 
     ret = ipc_pid_retmeta_send(port, msg->src, msgin->pid, msgin->code, data, datasize, msg->seq);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_pid_getmeta_callback);
     return ret;
 }
-
-DEFINE_PROFILE_INTERVAL(ipc_pid_retmeta_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_pid_retmeta_callback, ipc);
 
 int ipc_pid_retmeta_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE pid,
                          enum pid_meta_code code, const void* data, int datasize,
                          unsigned long seq) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret;
-
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retmeta) + datasize);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_PID_RETMETA, total_msg_size, dest);
@@ -553,14 +510,10 @@ int ipc_pid_retmeta_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE pid,
     debug("ipc send to %u: IPC_PID_RETMETA(%d, %s, %d)\n", dest, pid, pid_meta_code_str[code],
           datasize);
 
-    ret = send_ipc_message(msg, port);
-
-    SAVE_PROFILE_INTERVAL(ipc_pid_retmeta_send);
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
 int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_pid_retmeta* msgin = (struct shim_ipc_pid_retmeta*)msg->msg;
 
     debug("ipc callback from %u: IPC_PID_RETMETA(%u, %s, %d)\n", msg->src, msgin->pid,
@@ -579,7 +532,6 @@ int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS) {
             thread_wakeup(obj->thread);
     }
 
-    SAVE_PROFILE_INTERVAL(ipc_pid_retmeta_callback);
     return 0;
 }
 
@@ -596,11 +548,7 @@ int get_pid_port(IDTYPE pid, IDTYPE* dest, struct shim_ipc_port** port) {
     return 0;
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_pid_nop_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_pid_nop_callback, ipc);
-
 int ipc_pid_nop_send(struct shim_ipc_port* port, IDTYPE dest, int count, const void* buf, int len) {
-    BEGIN_PROFILE_INTERVAL();
     size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_nop) + len);
     struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
     init_ipc_msg_duplex(msg, IPC_PID_NOP, total_msg_size, dest);
@@ -611,13 +559,10 @@ int ipc_pid_nop_send(struct shim_ipc_port* port, IDTYPE dest, int count, const v
 
     debug("ipc send to %u: IPC_PID_NOP(%d)\n", dest, count * 2);
 
-    SAVE_PROFILE_INTERVAL(ipc_pid_nop_send);
-
     return send_ipc_message_duplex(msg, port, NULL, NULL);
 }
 
 int ipc_pid_nop_callback(IPC_CALLBACK_ARGS) {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_pid_nop* msgin = (struct shim_ipc_pid_nop*)&msg->msg;
 
     debug("ipc callback from %u: IPC_PID_NOP(%d)\n", msg->src, msgin->count);
@@ -626,25 +571,15 @@ int ipc_pid_nop_callback(IPC_CALLBACK_ARGS) {
         struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
         if (obj && obj->thread)
             thread_wakeup(obj->thread);
-
-        SAVE_PROFILE_INTERVAL(ipc_pid_nop_callback);
         return 0;
     }
 
-    SAVE_PROFILE_INTERVAL(ipc_pid_nop_callback);
-
     debug("ipc send to %u: IPC_PID_NOP(%d)\n", msg->src, msgin->count);
 
-    int ret = send_ipc_message(msg, port);
-    SAVE_PROFILE_INTERVAL(ipc_pid_nop_send);
-    return ret;
+    return send_ipc_message(msg, port);
 }
 
-DEFINE_PROFILE_INTERVAL(ipc_pid_sendrpc_send, ipc);
-DEFINE_PROFILE_INTERVAL(ipc_pid_sendrpc_callback, ipc);
-
 int ipc_pid_sendrpc_send(IDTYPE pid, IDTYPE sender, const void* buf, int len) {
-    BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     IDTYPE dest;
     struct shim_ipc_port* port = NULL;
@@ -664,7 +599,6 @@ int ipc_pid_sendrpc_send(IDTYPE pid, IDTYPE sender, const void* buf, int len) {
 
     ret = send_ipc_message(msg, port);
     put_ipc_port(port);
-    SAVE_PROFILE_INTERVAL(ipc_pid_sendrpc_send);
     return ret;
 }
 
@@ -736,7 +670,6 @@ int get_rpc_msg(IDTYPE* sender, void* buf, int len) {
 
 int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
     __UNUSED(port);  // API compatibility
-    BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_pid_sendrpc* msgin = (struct shim_ipc_pid_sendrpc*)msg->msg;
 
@@ -774,6 +707,5 @@ int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS) {
 out_unlock:
     unlock(&rpc_queue_lock);
 out:
-    SAVE_PROFILE_INTERVAL(ipc_pid_sendrpc_callback);
     return ret;
 }

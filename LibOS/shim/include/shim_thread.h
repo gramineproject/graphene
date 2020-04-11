@@ -102,10 +102,6 @@ struct shim_thread {
 
     REFTYPE ref_count;
     struct shim_lock lock;
-
-#ifdef PROFILE
-    unsigned long exit_time;
-#endif
 };
 
 DEFINE_LIST(shim_simple_thread);
@@ -125,10 +121,6 @@ struct shim_simple_thread {
 
     REFTYPE ref_count;
     struct shim_lock lock;
-
-#ifdef PROFILE
-    unsigned long exit_time;
-#endif
 };
 
 int init_thread (void);

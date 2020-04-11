@@ -59,18 +59,9 @@ static void load_libraries (void)
     for (;; c++)
         if (*c == ',' || !(*c)) {
             if (c > library_name) {
-#if PROFILING == 1
-                unsigned long before_load_library = _DkSystemTimeQuery();
-#endif
-
                 *c = 0;
                 if ((ret = load_elf_object(library_name, OBJECT_PRELOAD)) < 0)
                     INIT_FAIL(-ret, "Unable to load preload library");
-
-#if PROFILING == 1
-                pal_state.linking_time +=
-                        _DkSystemTimeQuery() - before_load_library;
-#endif
             }
 
             if (c == cfgbuf + len)
@@ -227,11 +218,6 @@ noreturn void pal_main (
         PAL_STR *  environments      /* environment variables */
     )
 {
-#if PROFILING == 1
-    __pal_control.host_specific_startup_time =
-            _DkSystemTimeQuery() - pal_state.start_time;
-#endif
-
     pal_state.instance_id = instance_id;
     pal_state.alloc_align = _DkGetAllocationAlignment();
     assert(IS_POWER_OF_2(pal_state.alloc_align));
@@ -262,10 +248,6 @@ noreturn void pal_main (
         if (!exec_handle)
             INIT_FAIL(PAL_ERROR_INVAL, "Must have manifest or executable");
 
-#if PROFILING == 1
-        unsigned long before_find_manifest = _DkSystemTimeQuery();
-#endif
-
         /* try open "<execname>.manifest" */
         size_t len = sizeof(uri_buf);
         ret = get_norm_path(exec_uri, uri_buf, &len);
@@ -281,11 +263,6 @@ noreturn void pal_main (
             ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY,
                                 0, 0, 0);
             if (ret) {
-#if PROFILING == 1
-                pal_state.manifest_loading_time +=
-                    _DkSystemTimeQuery() - before_find_manifest;
-#endif
-
                 /* well, there is no manifest file, leave it alone */
                 printf("Can't find any manifest, will run without one.\n");
             }
@@ -294,10 +271,6 @@ noreturn void pal_main (
 
     /* load manifest if there is one */
     if (!pal_state.root_config && manifest_handle) {
-#if PROFILING == 1
-        unsigned long before_load_manifest = _DkSystemTimeQuery();
-#endif
-
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQueryByHandle(manifest_handle, &attr);
         if (ret < 0)
@@ -326,11 +299,6 @@ noreturn void pal_main (
         }
 
         pal_state.root_config = root_config;
-
-#if PROFILING == 1
-        pal_state.manifest_loading_time +=
-                        _DkSystemTimeQuery() - before_load_manifest;
-#endif
     }
 
     /* if there is no executable, try to find one in the manifest */
@@ -412,10 +380,6 @@ noreturn void pal_main (
         load_libraries();
 
     if (exec_handle) {
-#if PROFILING == 1
-        unsigned long before_load_exec = _DkSystemTimeQuery();
-#endif
-
         if (exec_loaded_addr) {
             ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
         } else {
@@ -424,15 +388,7 @@ noreturn void pal_main (
 
         if (ret < 0)
             INIT_FAIL(ret, pal_strerror(ret));
-
-#if PROFILING == 1
-        pal_state.linking_time += _DkSystemTimeQuery() - before_load_exec;
-#endif
     }
-
-#if PROFILING == 1
-    unsigned long before_tail = _DkSystemTimeQuery();
-#endif
 
     set_debug_type();
 
@@ -455,18 +411,6 @@ noreturn void pal_main (
         goto out_fail;
     }
     __pal_control.mem_info.mem_total = _DkMemoryQuota();
-
-#if PROFILING == 1
-    pal_state.tail_startup_time      += _DkSystemTimeQuery() - before_tail;
-
-    __pal_control.relocation_time     = pal_state.relocation_time;
-    __pal_control.linking_time        = pal_state.linking_time;
-    __pal_control.manifest_loading_time
-                                      = pal_state.manifest_loading_time;
-    __pal_control.allocation_time     = pal_state.slab_time;
-    __pal_control.child_creation_time = (parent_process == NULL) ? 0 : pal_state.start_time -
-                                        pal_state.process_create_time;
-#endif
 
     /* Now we will start the execution */
     start_execution(arguments, environments);

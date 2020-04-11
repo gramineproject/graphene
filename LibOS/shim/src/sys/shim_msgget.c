@@ -31,7 +31,6 @@
 #include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 #include <shim_sysv.h>
 #include <shim_unistd.h>
 #include <shim_utils.h>
@@ -51,8 +50,6 @@ static struct shim_lock msgq_list_lock;
 
 static int __load_msg_persist(struct shim_msg_handle* msgq, bool readmsg);
 static int __store_msg_persist(struct shim_msg_handle* msgq);
-
-DEFINE_PROFILE_CATEGORY(sysv_msg, );
 
 #define MSG_TO_HANDLE(msghdl) container_of((msghdl), struct shim_handle, info.msg)
 
@@ -265,7 +262,6 @@ int del_msg_handle(struct shim_msg_handle* msgq) {
 }
 
 int shim_do_msgget(key_t key, int msgflg) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     IDTYPE msgid = 0;
     int ret;
 
@@ -361,7 +357,6 @@ out:
 }
 
 int shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
     // Issue #755 - https://github.com/oscarlab/graphene/issues/755
     __UNUSED(msgflg);
 
@@ -393,8 +388,6 @@ int shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg) {
 }
 
 int shim_do_msgrcv(int msqid, void* msgp, size_t msgsz, long msgtype, int msgflg) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
-
     // Issue #755 - https://github.com/oscarlab/graphene/issues/755
     __UNUSED(msgflg);
 
@@ -421,8 +414,6 @@ int shim_do_msgrcv(int msqid, void* msgp, size_t msgsz, long msgtype, int msgflg
 }
 
 int shim_do_msgctl(int msqid, int cmd, struct msqid_ds* buf) {
-    INC_PROFILE_OCCURENCE(syscall_use_ipc);
-
     // Issue #756 - https://github.com/oscarlab/graphene/issues/756
     __UNUSED(buf);
 
@@ -578,12 +569,8 @@ static struct sysv_balance_policy msg_policy = {
 };
 #endif
 
-DEFINE_PROFILE_INTERVAL(add_sysv_msg, sysv_msg);
-
 int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const void* data,
                  struct sysv_client* src) {
-    BEGIN_PROFILE_INTERVAL();
-
     struct shim_handle* hdl = MSG_TO_HANDLE(msgq);
     int ret                 = 0;
     lock(&hdl->lock);
@@ -613,7 +600,6 @@ int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const voi
 out_locked:
     unlock(&hdl->lock);
 out:
-    SAVE_PROFILE_INTERVAL(add_sysv_msg);
     return ret;
 }
 
@@ -651,12 +637,9 @@ static int __add_msg_req(struct shim_msg_handle* msgq, struct msg_type* mtype, i
     return 0;
 }
 
-DEFINE_PROFILE_INTERVAL(get_sysv_msg, sysv_msg);
-
 int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* data, int flags,
                  struct sysv_client* src) {
-    BEGIN_PROFILE_INTERVAL();
-    int ret                   = 0;
+    int ret = 0;
     struct shim_handle* hdl   = MSG_TO_HANDLE(msgq);
     struct msg_item* msg      = NULL;
     struct msg_type* alltypes = NULL;
@@ -742,7 +725,6 @@ int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* dat
 out_locked:
     unlock(&hdl->lock);
 out:
-    SAVE_PROFILE_INTERVAL(get_sysv_msg);
     return ret;
 }
 

@@ -86,24 +86,13 @@ void init_slab_mgr(int alignment) {
     if (slab_mgr)
         return;
 
-#if PROFILING == 1
-    unsigned long before_slab = _DkSystemTimeQuery();
-#endif
-
     slab_alignment = alignment;
     slab_mgr       = create_slab_mgr();
     if (!slab_mgr)
         INIT_FAIL(PAL_ERROR_NOMEM, "cannot initialize slab manager");
-
-#if PROFILING == 1
-    pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
-#endif
 }
 
 void* malloc(size_t size) {
-#if PROFILING == 1
-    unsigned long before_slab = _DkSystemTimeQuery();
-#endif
     void* ptr = slab_alloc(slab_mgr, size);
 
 #ifdef DEBUG
@@ -122,10 +111,6 @@ void* malloc(size_t size) {
         printf("******** Out-of-memory in PAL ********\n");
         _DkProcessExit(-ENOMEM);
     }
-
-#if PROFILING == 1
-    pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
-#endif
     return ptr;
 }
 
@@ -161,12 +146,5 @@ void* calloc(size_t nmem, size_t size) {
 void free(void* ptr) {
     if (!ptr)
         return;
-#if PROFILING == 1
-    unsigned long before_slab = _DkSystemTimeQuery();
-#endif
     slab_free(slab_mgr, ptr);
-
-#if PROFILING == 1
-    pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
-#endif
 }

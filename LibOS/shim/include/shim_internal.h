@@ -171,22 +171,6 @@ void syscall_wrapper_after_syscalldb(void);
 
 #define SHIM_ARG_TYPE long
 
-#ifdef PROFILE
-# define ENTER_TIME     shim_get_tcb()->context.enter_time
-# define BEGIN_SYSCALL_PROFILE()        \
-    do { ENTER_TIME = GET_PROFILE_INTERVAL(); } while (0)
-# define END_SYSCALL_PROFILE(name)      \
-    do { unsigned long _interval = GET_PROFILE_INTERVAL();          \
-         if (_interval - ENTER_TIME > 1000)                         \
-             SAVE_PROFILE_INTERVAL_SET(syscall_##name##_slow, ENTER_TIME, _interval); \
-         else                                                       \
-             SAVE_PROFILE_INTERVAL_SET(syscall_##name, ENTER_TIME, _interval); \
-         ENTER_TIME = 0; } while (0)
-#else
-# define BEGIN_SYSCALL_PROFILE()        do {} while (0)
-# define END_SYSCALL_PROFILE(name)      do {} while (0)
-#endif
-
 void check_stack_hook (void);
 
 static inline int64_t get_cur_preempt (void) {
@@ -201,19 +185,15 @@ static inline int64_t get_cur_preempt (void) {
         int64_t preempt = get_cur_preempt();                \
         __UNUSED(preempt);                                  \
         /* handle_signal(); */                              \
-        /* check_stack_hook(); */                           \
-        BEGIN_SYSCALL_PROFILE();
+        /* check_stack_hook(); */
 
 #define END_SHIM(name)                                      \
-        END_SYSCALL_PROFILE(name);                          \
         handle_signal();                                    \
         assert(preempt == get_cur_preempt());               \
         return ret;                                         \
     }
 
 #define DEFINE_SHIM_SYSCALL(name, n, func, ...)             \
-    DEFINE_PROFILE_INTERVAL(syscall_##name##_slow, syscall); \
-    DEFINE_PROFILE_INTERVAL(syscall_##name, syscall);       \
     SHIM_SYSCALL_##n (name, func, __VA_ARGS__)              \
     EXPORT_SHIM_SYSCALL (name, n, __VA_ARGS__)
 
@@ -418,8 +398,6 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
 #define DO_SYSCALL_6(sysno, ...) DO_SYSCALL(6, sysno, SHIM_PASS_ARGS_6)
 
 #define SHIM_SYSCALL_PASSTHROUGH(name, n, ...)                      \
-    DEFINE_PROFILE_INTERVAL(syscall_##name##_slow, syscall);        \
-    DEFINE_PROFILE_INTERVAL(syscall_##name, syscall);               \
     BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                           \
         debug("WARNING: shim_" #name " not implemented\n");         \
         SHIM_UNUSED_ARGS_##n();                                     \

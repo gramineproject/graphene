@@ -29,7 +29,6 @@
 #include <shim_fs.h>
 #include <shim_checkpoint.h>
 #include <shim_ipc.h>
-#include <shim_profile.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -38,28 +37,6 @@
 #include <stdarg.h>
 #include <asm/fcntl.h>
 #include <asm/mman.h>
-
-DEFINE_PROFILE_CATEGORY(migrate, );
-
-DEFINE_PROFILE_CATEGORY(checkpoint, migrate);
-DEFINE_PROFILE_INTERVAL(checkpoint_create_map,  checkpoint);
-DEFINE_PROFILE_INTERVAL(checkpoint_copy,        checkpoint);
-DEFINE_PROFILE_CATEGORY(checkpoint_func,        checkpoint);
-DEFINE_PROFILE_INTERVAL(checkpoint_destroy_map, checkpoint);
-
-DEFINE_PROFILE_OCCURENCE(checkpoint_count,      checkpoint);
-DEFINE_PROFILE_OCCURENCE(checkpoint_total_size, checkpoint);
-
-DEFINE_PROFILE_CATEGORY(resume, migrate);
-DEFINE_PROFILE_INTERVAL(child_created_in_new_process,  resume);
-DEFINE_PROFILE_INTERVAL(child_wait_header,             resume);
-DEFINE_PROFILE_INTERVAL(child_receive_header,          resume);
-DEFINE_PROFILE_INTERVAL(do_migration,                  resume);
-DEFINE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe, resume);
-DEFINE_PROFILE_INTERVAL(child_receive_handles,         resume);
-DEFINE_PROFILE_INTERVAL(restore_checkpoint,            resume);
-DEFINE_PROFILE_CATEGORY(resume_func,                   resume);
-DEFINE_PROFILE_INTERVAL(child_total_migration_time,    resume);
 
 /* Based on Robert Jenkins' hash algorithm. */
 static uint64_t hash64(uint64_t key)
@@ -391,8 +368,6 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         bytes += ret;
     } while (bytes < total_bytes);
 
-    ADD_PROFILE_OCCURENCE(migrate_send_on_stream, total_bytes);
-
     for (int i = 0 ; i < mem_nentries ; i++) {
         size_t mem_size = mem_entries[i]->size;
         void * mem_addr = mem_entries[i]->addr;
@@ -431,7 +406,6 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
             return error;
 
         mem_entries[i]->size = mem_size;
-        ADD_PROFILE_OCCURENCE(migrate_send_on_stream, mem_size);
     }
 
     return 0;
@@ -741,18 +715,6 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
     return addr;
 }
 
-DEFINE_PROFILE_CATEGORY(migrate_proc, migrate);
-DEFINE_PROFILE_INTERVAL(migrate_create_process,   migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_connect_ipc,      migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_init_checkpoint,  migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_save_checkpoint,  migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_send_header,      migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_send_checkpoint,  migrate_proc);
-DEFINE_PROFILE_OCCURENCE(migrate_send_on_stream,  migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_send_pal_handles, migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_free_checkpoint,  migrate_proc);
-DEFINE_PROFILE_INTERVAL(migrate_wait_response,    migrate_proc);
-
 /*
  * Create a new process and migrate the process states to the new process.
  *
@@ -776,12 +738,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     PAL_NUM bytes;
     memset(&hdr, 0, sizeof(hdr));
 
-#ifdef PROFILE
-    unsigned long begin_create_time = GET_PROFILE_INTERVAL();
-    unsigned long create_time = begin_create_time;
-#endif
-    BEGIN_PROFILE_INTERVAL();
-
     /*
      * Create the process first. The new process requires some time
      * to initialize before starting to receive checkpoint data.
@@ -796,16 +752,12 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto out;
     }
 
-    SAVE_PROFILE_INTERVAL(migrate_create_process);
-
     /* Create process and IPC bookkeepings */
     new_process = create_process(exec ? /*execve case*/ true : /*fork case*/ false);
     if (!new_process) {
         ret = -EACCES;
         goto out;
     }
-
-    SAVE_PROFILE_INTERVAL(migrate_connect_ipc);
 
     /* Allocate a space for dumping the checkpoint data. */
     struct shim_cp_store cpstore;
@@ -833,8 +785,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto out;
     }
 
-    SAVE_PROFILE_INTERVAL(migrate_init_checkpoint);
-
     /* Calling the migration function defined by caller. The thread argument
      * is new thread in case of fork/clone and cur_thread in case of execve. */
     va_list ap;
@@ -846,14 +796,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto out;
     }
 
-    SAVE_PROFILE_INTERVAL(migrate_save_checkpoint);
-
-    unsigned long checkpoint_time = GET_PROFILE_INTERVAL();
     unsigned long checkpoint_size = cpstore.offset + cpstore.mem_size;
 
     /* Checkpoint data created. */
-    debug("checkpoint of %lu bytes created, %lu microsecond is spent.\n",
-          checkpoint_size, checkpoint_time);
+    debug("checkpoint of %lu bytes created\n", checkpoint_size);
 
     hdr.checkpoint.hdr.addr = (void *) cpstore.base;
     hdr.checkpoint.hdr.size = checkpoint_size;
@@ -870,12 +816,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         hdr.checkpoint.palhdl.nentries  = cpstore.palhdl_nentries;
     }
 
-#ifdef PROFILE
-    hdr.begin_create_time  = begin_create_time;
-    hdr.create_time = create_time;
-    hdr.write_proc_time = GET_PROFILE_INTERVAL();
-#endif
-
     /*
      * Sending a header to the new process through the RPC stream to
      * notify the process to start receiving the checkpoint.
@@ -890,9 +830,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto out;
     }
 
-    ADD_PROFILE_OCCURENCE(migrate_send_on_stream, bytes);
-    SAVE_PROFILE_INTERVAL(migrate_send_header);
-
     ret = send_checkpoint_on_stream(proc, &cpstore);
 
     if (ret < 0) {
@@ -900,16 +837,12 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto out;
     }
 
-    SAVE_PROFILE_INTERVAL(migrate_send_checkpoint);
-
     /*
      * For socket and RPC streams, we need to migrate the PAL handles
      * to the new process using PAL calls.
      */
     if ((ret = send_handles_on_stream(proc, &cpstore)) < 0)
         goto out;
-
-    SAVE_PROFILE_INTERVAL(migrate_send_pal_handles);
 
     /* Free the checkpoint space */
     if ((ret = bkeep_munmap((void *) cpstore.base, cpstore.bound,
@@ -919,8 +852,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     }
 
     DkVirtualMemoryFree((PAL_PTR) cpstore.base, cpstore.bound);
-
-    SAVE_PROFILE_INTERVAL(migrate_free_checkpoint);
 
     /* Wait for the response from the new process */
     struct newproc_response res;
@@ -943,8 +874,6 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         ret = -PAL_ERRNO;
         goto out;
     }
-
-    SAVE_PROFILE_INTERVAL(migrate_wait_response);
 
     /* exec != NULL implies the execve case so the new process "replaces"
      * this current process: no need to notify the leader or establish IPC */
@@ -996,7 +925,6 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     PAL_NUM mapsize;
     long rebase;
     int ret = 0;
-    BEGIN_PROFILE_INTERVAL();
 
     /*
      * Allocate a large enough space to load the checkpoint data.
@@ -1065,7 +993,6 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         total_bytes += bytes;
     }
 
-    SAVE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe);
     debug("%lu bytes read on stream\n", total_bytes);
 
     /* Receive socket or RPC handles from the parent process. */
@@ -1074,8 +1001,6 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         /* TODO: unload the checkpoint space */
         return ret;
     }
-
-    SAVE_PROFILE_INTERVAL(child_receive_handles);
 
     migrated_memory_start = (void *) mapaddr;
     migrated_memory_end = (void *) mapaddr + mapsize;

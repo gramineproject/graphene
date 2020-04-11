@@ -1174,16 +1174,8 @@ static int relocate_elf_object (struct link_map * l)
             textrels = r;
         }
 
-#if PROFILING == 1
-    unsigned long before_relocate = _DkSystemTimeQuery();
-#endif
-
     /* Do the actual relocation of the object's GOT and other data.  */
     ELF_DYNAMIC_RELOCATE(l);
-
-#if PROFILING == 1
-    pal_state.relocation_time += _DkSystemTimeQuery() - before_relocate;
-#endif
 
     while (textrels) {
        ret = _DkVirtualMemoryProtect((void *) textrels->start, textrels->len,
@@ -1313,10 +1305,6 @@ noreturn void start_execution(const char** arguments, const char** environs) {
         __pal_control.executable_range.end   = (PAL_PTR) exec_map->l_map_end;
     }
 
-#if PROFILING == 1
-    unsigned long before_tail = _DkSystemTimeQuery();
-#endif
-
     int narguments = 0;
     for (const char** a = arguments; *a ; a++, narguments++);
 
@@ -1352,12 +1340,6 @@ noreturn void start_execution(const char** arguments, const char** environs) {
     ElfW(auxv_t) * auxv = (ElfW(auxv_t) *) &cookies[cnt];
     auxv[0].a_type = AT_NULL;
     auxv[0].a_un.a_val = 0;
-
-#if PROFILING == 1
-    __pal_control.startup_time = _DkSystemTimeQuery() - pal_state.start_time;
-    __pal_control.tail_startup_time =
-            pal_state.tail_startup_time += _DkSystemTimeQuery() - before_tail;
-#endif
 
     for (struct link_map * l = loaded_maps; l ; l = l->l_next)
         if (l->l_type == OBJECT_PRELOAD && l->l_entry)

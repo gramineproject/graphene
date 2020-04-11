@@ -27,7 +27,6 @@
 #include <pal.h>
 #include <pal_error.h>
 #include <shim_internal.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_thread.h>
 #include <shim_tcb.h>
@@ -37,8 +36,6 @@
 long int if_call_defined(long int sys_no) {
     return shim_table[sys_no] != 0;
 }
-
-DEFINE_PROFILE_CATEGORY(syscall, );
 
 //////////////////////////////////////////////////
 //  Mappings from system calls to shim calls

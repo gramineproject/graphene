@@ -30,7 +30,6 @@
 #include <shim_fs.h>
 #include <shim_handle.h>
 #include <shim_internal.h>
-#include <shim_profile.h>
 #include <shim_table.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
@@ -1688,12 +1687,6 @@ BEGIN_CP_FUNC(library) {
 }
 END_CP_FUNC(library)
 
-DEFINE_PROFILE_CATEGORY(inside_rs_library, resume_func);
-DEFINE_PROFILE_INTERVAL(clean_up_library, inside_rs_library);
-DEFINE_PROFILE_INTERVAL(search_library_vma, inside_rs_library);
-DEFINE_PROFILE_INTERVAL(relocate_library, inside_rs_library);
-DEFINE_PROFILE_INTERVAL(add_or_replace_library, inside_rs_library);
-
 BEGIN_RS_FUNC(library) {
     __UNUSED(offset);
     struct link_map* map = (void*)(base + GET_CP_FUNC_ENTRY());
@@ -1707,26 +1700,19 @@ BEGIN_RS_FUNC(library) {
         CP_REBASE(map->l_info);
     }
 
-    BEGIN_PROFILE_INTERVAL();
-
     struct link_map* old_map = __search_map_by_name(map->l_name);
 
     if (old_map)
         remove_r_debug((void*)old_map->l_addr);
 
-    SAVE_PROFILE_INTERVAL(clean_up_library);
-
     if (internal_map && (!map->l_resolved || map->l_resolved_map != internal_map->l_addr)) {
         do_relocate_object(map);
-        SAVE_PROFILE_INTERVAL(relocate_library);
     }
 
     if (old_map)
         replace_link_map(map, old_map);
     else
         add_link_map(map);
-
-    SAVE_PROFILE_INTERVAL(add_or_replace_library);
 
     DEBUG_RS("base=0x%08lx,name=%s", map->l_addr, map->l_name);
 }
