@@ -638,7 +638,7 @@ out:
 
 static void create_instance (struct pal_sec * pal_sec)
 {
-    PAL_NUM id = (rdrand() << (uint64_t)32) | rdrand();
+    PAL_NUM id = ((uint64_t)rdrand() << 32) | rdrand();
     snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix), "/graphene/%016lx/", id);
     pal_sec->instance_id = id;
 }
