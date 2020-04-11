@@ -5,6 +5,7 @@
 
 #include "debugger/sgx_gdb.h"
 #include "rpc_queue.h"
+#include "sgx_api.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
 #include "sgx_tls.h"
@@ -635,28 +636,9 @@ out:
     return ret;
 }
 
-static unsigned long randval = 0;
-
-void getrand (void * buffer, size_t size)
-{
-    size_t bytes = 0;
-
-    while (bytes + sizeof(uint64_t) <= size) {
-        *(uint64_t*) (buffer + bytes) = randval;
-        randval = hash64(randval);
-        bytes += sizeof(uint64_t);
-    }
-
-    if (bytes < size) {
-        memcpy(buffer + bytes, &randval, size - bytes);
-        randval = hash64(randval);
-    }
-}
-
 static void create_instance (struct pal_sec * pal_sec)
 {
-    PAL_NUM id;
-    getrand(&id, sizeof(id));
+    PAL_NUM id = ((uint64_t)rdrand() << 32) | rdrand();
     snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix), "/graphene/%016lx/", id);
     pal_sec->instance_id = id;
 }
@@ -767,9 +749,9 @@ static int load_enclave (struct pal_enclave * enclave,
 {
     struct pal_sec * pal_sec = &enclave->pal_sec;
     int ret;
-    struct timeval tv;
 
 #if PRINT_ENCLAVE_STAT == 1
+    struct timeval tv;
     INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
     pal_sec->start_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 #endif
@@ -780,9 +762,6 @@ static int load_enclave (struct pal_enclave * enclave,
 
     if (!is_wrfsbase_supported())
         return -EPERM;
-
-    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
-    randval = tv.tv_sec * 1000000UL + tv.tv_usec;
 
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
     pal_sec->uid = INLINE_SYSCALL(getuid, 0);

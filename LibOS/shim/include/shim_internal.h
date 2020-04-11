@@ -707,30 +707,6 @@ static inline int __ref_dec (REFTYPE * ref)
 
 #define REF_DEC(ref) __ref_dec(&(ref))
 
-/* integer hash functions */
-static inline uint32_t hash32 (uint32_t key)
-{
-    key = ~key + (key << 15);
-    key = key ^ (key >> 12);
-    key = key + (key << 2);
-    key = key ^ (key >> 4);
-    key = (key + (key << 3)) + (key << 11);
-    key = key ^ (key >> 16);
-    return key;
-}
-
-static inline uint64_t hash64 (uint64_t key)
-{
-    key = (~key) + (key << 21);
-    key = key ^ (key >> 24);
-    key = (key + (key << 3)) + (key << 8);
-    key = key ^ (key >> 14);
-    key = (key + (key << 2)) + (key << 4);
-    key = key ^ (key >> 28);
-    key = key + (key << 31);
-    return key;
-}
-
 #ifndef __alloca
 # define __alloca __builtin_alloca
 #endif

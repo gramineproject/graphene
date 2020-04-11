@@ -61,8 +61,20 @@ DEFINE_PROFILE_INTERVAL(restore_checkpoint,            resume);
 DEFINE_PROFILE_CATEGORY(resume_func,                   resume);
 DEFINE_PROFILE_INTERVAL(child_total_migration_time,    resume);
 
-#define CP_HASH_SIZE    256
-#define CP_HASH(addr) ((hashfunc((ptr_t)(addr))) & (CP_HASH_SIZE - 1))
+/* Based on Robert Jenkins' hash algorithm. */
+static uint64_t hash64(uint64_t key) {
+    key = (~key) + (key << 21);
+    key = key ^ (key >> 24);
+    key = (key + (key << 3)) + (key << 8);
+    key = key ^ (key >> 14);
+    key = (key + (key << 2)) + (key << 4);
+    key = key ^ (key >> 28);
+    key = key + (key << 31);
+    return key;
+}
+
+#define CP_HASH_SIZE  256
+#define CP_HASH(addr) ((hash64((ptr_t)(addr))) & (CP_HASH_SIZE - 1))
 
 typedef uint16_t FASTHASHTYPE;
 

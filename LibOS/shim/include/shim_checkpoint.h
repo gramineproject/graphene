@@ -35,7 +35,6 @@
 #endif
 
 typedef uint64_t ptr_t;
-#define hashfunc hash64
 
 #define __attribute_migratable __attribute__((section(".migratable")))
 

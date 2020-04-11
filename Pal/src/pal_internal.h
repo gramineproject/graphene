@@ -132,32 +132,6 @@ static inline const struct handle_ops * HANDLE_OPS (PAL_HANDLE handle)
     return pal_handle_ops[_type];
 }
 
-/* integer hash functions defined inline. The algorithm we used here
-  is based on Robert Jenkins developed in 96', the algorithm has two
-  versions, 32-bit one and 64-bit one. */
-static inline uint32_t hash32 (uint32_t key)
-{
-    key = ~key + (key << 15);
-    key = key ^ (key >> 12);
-    key = key + (key << 2);
-    key = key ^ (key >> 4);
-    key = (key + (key << 3)) + (key << 11);
-    key = key ^ (key >> 16);
-    return key;
-}
-
-static inline uint64_t hash64 (uint64_t key)
-{
-    key = (~key) + (key << 21);
-    key = key ^ (key >> 24);
-    key = (key + (key << 3)) + (key << 8);
-    key = key ^ (key >> 14);
-    key = (key + (key << 2)) + (key << 4);
-    key = key ^ (key >> 28);
-    key = key + (key << 31);
-    return key;
-}
-
 /* We allow dynamic size handle allocation. Here is some macro to help
    deciding the actual size of the handle */
 extern PAL_HANDLE _h;
