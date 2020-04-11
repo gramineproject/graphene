@@ -158,8 +158,6 @@ int _DkStreamOpen(PAL_HANDLE* handle, const char* uri, int access, int share, in
     struct handle_ops* ops = NULL;
     char* type             = NULL;
 
-    log_stream(uri);
-
     int ret = parse_stream_uri(&uri, &type, &ops);
 
     if (ret < 0)
@@ -383,8 +381,6 @@ DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
-
-    log_stream(uri);
 
     PAL_STREAM_ATTR attr_buf;
 

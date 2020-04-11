@@ -475,28 +475,3 @@ noreturn void pal_main (
     /* We wish we will never reached here */
     INIT_FAIL(PAL_ERROR_DENIED, "unexpected termination");
 }
-
-void write_log (int nstrs, ...)
-{
-    const char ** strs = __alloca(sizeof(const char *) * nstrs);
-    int len = 0;
-    va_list ap;
-
-    va_start(ap, nstrs);
-    for (int i = 0 ; i < nstrs ; i++) {
-        strs[i] = va_arg(ap, char *);
-        len += strlen(strs[i]);
-    }
-    va_end(ap);
-
-    char * buf = __alloca(len);
-    int cnt = 0;
-
-    for (int i = 0 ; i < nstrs ; i++) {
-        int l = strlen(strs[i]);
-        memcpy(buf + cnt, strs[i], l);
-        cnt += l;
-    }
-
-    _DkStreamWrite(pal_state.log_stream, 0, cnt, buf, NULL, 0);
-}

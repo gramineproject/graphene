@@ -43,8 +43,6 @@ DkProcessCreate(PAL_STR uri, PAL_STR* args) {
     if (!uri)
         uri = pal_control.executable;
 
-    log_stream(uri);
-
     PAL_HANDLE handle = NULL;
     int ret           = _DkProcessCreate(&handle, uri, args);
 

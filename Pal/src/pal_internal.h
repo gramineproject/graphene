@@ -200,14 +200,6 @@ extern struct pal_internal_state {
     const char *    exec;
     PAL_HANDLE      exec_handle;
 
-    PAL_HANDLE      log_stream;
-    enum {
-        LOG_FILE    = 0x01,
-        LOG_PIPE    = 0x02,
-        LOG_SOCKET  = 0x04,
-        LOG_GENERIC_TYPES = 0x08,
-    } log_types;
-
     struct config_store * root_config;
 
     /* May not be the same as page size, see e.g. SYSTEM_INFO::dwAllocationGranularity on Windows.
@@ -407,34 +399,6 @@ void _DkPrintConsole (const void * buf, int size);
 int printf  (const char  *fmt, ...) __attribute__((format (printf, 1, 2)));
 #include <stdarg.h>
 int vprintf(const char * fmt, va_list ap) __attribute__((format (printf, 1, 0)));
-void write_log (int nstrs, ...);
-
-static inline void log_stream (const char * uri)
-{
-    if (!uri || !pal_state.log_stream)
-        return;
-
-    bool logging = false;
-
-    if ((pal_state.log_types & LOG_FILE) &&
-        uri[0] == 'f' && uri[1] == 'i' && uri[2] == 'l' && uri[3] == 'e')
-        logging = true;
-
-    if ((pal_state.log_types & LOG_PIPE) &&
-        uri[0] == 'p' && uri[1] == 'i' && uri[2] == 'p' && uri[3] == 'e')
-        logging = true;
-
-    if ((pal_state.log_types & LOG_SOCKET) &&
-        uri[0] == 't' && uri[1] == 'c' && uri[2] == 'p')
-        logging = true;
-
-    if ((pal_state.log_types & LOG_SOCKET) &&
-        uri[0] == 'u' && uri[1] == 'd' && uri[2] == 'p')
-        logging = true;
-
-    if (logging)
-        write_log(2, uri, "\n");
-}
 
 /* errval is negative value, see pal_strerror */
 static inline void print_error(const char* errstring, int errval) {
