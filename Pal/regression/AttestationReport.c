@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
     }
 
     if (user_report_data_size != sizeof(sgx_report_data_t)) {
-        pal_printf("ERROR: DkAttestationReport() returned incorrect report_data size\n");
+        pal_printf("ERROR: DkAttestationReport() returned incorrect user_report_data size\n");
         return -1;
     }
 
@@ -52,8 +52,7 @@ int main(int argc, char** argv) {
     }
 
     sgx_report_t* sgx_report = (sgx_report_t*)&report;
-    if (sgx_report->body.report_data.d[0] != 'A' ||
-        memcmp(&sgx_report->body.report_data.d, &user_report_data,
+    if (memcmp(&sgx_report->body.report_data.d, &user_report_data,
            sizeof(sgx_report->body.report_data.d))) {
         pal_printf("ERROR: DkAttestationReport() returned SGX report with wrong report_data\n");
         return -1;
@@ -67,7 +66,8 @@ int main(int argc, char** argv) {
         memcmp(&sgx_report->body.reserved3, &zerobuf, sizeof(sgx_report->body.reserved3)) ||
         memcmp(&sgx_report->body.reserved4, &zerobuf, sizeof(sgx_report->body.reserved4)))
     {
-        pal_printf("ERROR: DkAttestationReport() returned SGX report with non-zero reserved\n");
+        pal_printf("ERROR: DkAttestationReport() returned SGX report with non-zero reserved "
+                   "fields\n");
         return -1;
     }
 

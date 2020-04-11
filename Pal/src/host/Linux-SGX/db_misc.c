@@ -309,12 +309,12 @@ int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_siz
 
     if (*user_report_data_size != sizeof(stack_report_data) ||
         *target_info_size != sizeof(stack_target_info) || *report_size != sizeof(stack_report)) {
-        /* inform the caller of SGX sizes for report_data, target_info, and report */
+        /* inform the caller of SGX sizes for user_report_data, target_info, and report */
         goto out;
     }
 
     if (!user_report_data || !target_info) {
-        /* cannot produce report without report_data or target_info */
+        /* cannot produce report without user_report_data or target_info */
         goto out;
     }
 
