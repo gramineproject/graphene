@@ -219,15 +219,6 @@ extern struct pal_internal_state {
 #endif
 } pal_state;
 
-#ifdef __GNUC__
-#define BREAK()                         \
-    do {                                \
-        __asm__ volatile ("int $3");    \
-    } while (0)
-#else
-#define BREAK()
-#endif
-
 extern PAL_CONTROL __pal_control;
 
 #define IS_ALLOC_ALIGNED(addr)     IS_ALIGNED_POW2(addr, pal_state.alloc_align)
