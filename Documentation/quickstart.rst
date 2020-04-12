@@ -41,7 +41,8 @@ If Intel SGX SDK and the SGX driver are not installed, please follow the READMEs
 in https://github.com/01org/linux-sgx and
 https://github.com/01org/linux-sgx-driver to download and install them.
 If you want to use the DCAP SDK and driver, please follow the README in
-https://github.com/intel/SGXDataCenterAttestationPrimitives.
+https://github.com/intel/SGXDataCenterAttestationPrimitives. Please note, that
+the DCAP driver requires Graphene to run as a root user to access it.
 
 1. Ensure That Intel SGX is Enabled on Your Platform::
 
