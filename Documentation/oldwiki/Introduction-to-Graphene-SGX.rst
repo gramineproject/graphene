@@ -9,7 +9,7 @@ What is Intel SGX?
 ------------------
 
 SGX (Software Guard Extenstions) is a security feature of the latest Intel CPUs. According to
-<https://github.com/ayeks/SGX-hardware>, SGX is available in Intel CPUs that were launched after
+https://github.com/ayeks/SGX-hardware, SGX is available in Intel CPUs that were launched after
 October 1st, 2015.
 
 Intel SGX is designed to protect critical applications against a potentially malicious system stack,
@@ -23,7 +23,7 @@ Why use Graphene for Intel SGX?
 
 Porting applications to an Intel SGX platform can be cumbersome. To secure an application with SGX,
 developers must recompile the application executable with the Intel SGX SDK
-(<https://github.com/01org/linux-sgx>). Moreover, an in-enclave application has *no* access to
+(https://github.com/01org/linux-sgx). Moreover, an in-enclave application has *no* access to
 OS features, such as opening a file, creating a network connection, or cloning a thread. For any
 interaction with the host, developers must define untrusted interfaces that the application must
 use to exit the enclave, perform the OS system call, and re-enter the enclave.

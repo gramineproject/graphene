@@ -103,7 +103,7 @@ For any questions, please send an email to <support@graphene-project.io>
 (`public archive <https://groups.google.com/forum/#!forum/graphene-support>`__).
 
 For bug reports, post an issue on our GitHub repository:
-<https://github.com/oscarlab/graphene/issues>.
+https://github.com/oscarlab/graphene/issues.
 
 
 Deprecated Code

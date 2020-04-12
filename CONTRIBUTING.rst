@@ -33,7 +33,7 @@ Major reorganizations, architectural changes, or code reorganization are best
 discussed with the maintainers in advance of writing code. We welcome
 contributions, and would hate for anyone to waste time implementing a change
 that will not be accepted for a design flaw. It is much better to reach out for
-advice first by emailing <support@graphene-project.io>.
+advice first by emailing support@graphene-project.io.
 
 Or you can see the archives at this google group:
 https://groups.google.com/forum/#!forum/graphene-support
