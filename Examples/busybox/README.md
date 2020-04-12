@@ -29,5 +29,14 @@ ls
 # should run program `ls` which lists current working directory
 ```
 
-Note that busybox can be started via manifest file (which contains path to
-the busybox binary). More about this can be read [here](https://graphene.readthedocs.io/en/latest/sample-apps.html#busybox).
+Note that busybox can also be started via a manifest file (which contains path
+to the busybox binary):
+
+```sh
+   ./busybox.manifest sh         # to run a shell
+   ./busybox.manifest ls -l      # to list local directory
+
+   # or under SGX:
+   ./busybox.manifest.sgx sh     # to run a shell
+   ./busybox.manifest.sgx ls -l  # to list local directory
+```

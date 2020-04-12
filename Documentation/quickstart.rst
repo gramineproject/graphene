@@ -29,6 +29,8 @@ Quick Start
       ./pal_loader lat_syscall read
       ./pal_loader lat_proc fork
 
+#. For more complex examples, see :file:`Examples` directory.
+
 SGX Quick Start
 ---------------
 
