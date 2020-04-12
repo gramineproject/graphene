@@ -68,7 +68,7 @@ Building with Intel SGX Support
 Prerequisites
 ^^^^^^^^^^^^^
 
-1. Generate signing keys
+#. Generate signing keys
 
    A 3072-bit RSA private key (PEM format) is required for signing the manifest.
    If you don't have a private key, create it with the following command::
@@ -84,7 +84,7 @@ Prerequisites
    extension), the signature (``.sig`` extension), and the aesmd init token
    (``.token`` extension) to execute on another SGX-enabled host.
 
-2. Install the Intel SGX SDK and driver
+#. Install the Intel SGX SDK and driver
 
    The Intel SGX Linux SDK and the Intel SGX driver are required to compile and
    run Graphene on SGX. Download and install them from the official Intel
@@ -98,7 +98,7 @@ Prerequisites
 
    - https://github.com/intel/SGXDataCenterAttestationPrimitives
 
-3. Build and install the Graphene SGX driver
+#. Build and install the Graphene SGX driver
    A Graphene-specific Linux driver must also be installed before running
    Graphene in an SGX environment. Simply run the following commands to build
    the driver::
