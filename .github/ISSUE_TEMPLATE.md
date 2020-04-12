@@ -1,20 +1,21 @@
 <!-- Thanks for reporting a bug.
 
 Please provide as much information as possible.
-Paste any logs using the backticks (```).
+Paste any logs using three backticks (```).
 
 IMPORTANT: please do not post general questions here;
 if you have questions, please use mailing list: support@graphene-project.io
 -->
 
-## Description of the problem:
+## Description of the problem
 
-## Steps to reproduce:
+## Steps to reproduce
 <!-- NOTE: please specify the exact commit ID on which you reproduced the issue
 -->
 
-## Expected results:
+## Expected results
 
-## Actual results:
+## Actual results
 
-## Additional information: <!-- if applicable -->
+<!-- ## Additional information -->
+<!-- if applicable, uncomment and fill this section -->

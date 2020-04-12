@@ -5,11 +5,11 @@ Introduction to Graphene
 What is Graphene Library OS?
 ============================
 
-Graphene is a |~| lightweight guest OS, designed to run a |~| single application
-with minimal host requirements. Graphene can run applications in an isolated
-environment with benefits comparable to running a |~| complete OS in a |~|
-virtual machine -- including guest customization, ease of porting to different
-OSes, and process migration.
+Graphene is a |~| lightweight guest OS, designed to run a |~| single Linux
+application with minimal host requirements. Graphene can run applications in an
+isolated environment with benefits comparable to running a |~| complete OS in a
+|~| virtual machine -- including guest customization, ease of porting to
+different host OSes, and process migration.
 
 Graphene supports running Linux applications using the :term:`Intel SGX <SGX>`
 (Software Guard Extensions) technology (we call this version **Graphene-SGX**).

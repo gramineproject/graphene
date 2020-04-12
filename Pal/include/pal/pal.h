@@ -515,7 +515,7 @@ enum PAL_OPTION {
  * \return If the resource is successfully opened or created, a PAL handle will be returned for
  * further access such as reading or writing.
  *
- * The following is a list of URIs that are supported:
+ * Supported URI types:
  * * `%file:...`, `dir:...`: Files or directories on the host file system. If #PAL_CREATE_TRY is
  *   given in `create` flags, the file/directory will be created.
  * * `dev:...`: Open a device as a stream. For example, `dev:tty` represents the standard I/O.
@@ -902,7 +902,7 @@ enum PAL_SEGMENT {
  * \param addr the address to be set; if `NULL`, return the current value of the
  *  segment register.
  *
- * \todo what is being returned if not `NULL`?
+ * \todo Please note that this API is broken and doesn't allow setting segment base to 0.
  */
 PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr);
 
