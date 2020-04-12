@@ -15,9 +15,9 @@ Fork in Graphene-SGX
 Fork() system call is intercepted in the `shim_do_fork()` LibOS function.
 This function performs three tasks:
 
-1. discovers the namespace leader,
-2. creates a LibOS `shim_thread` structure for a new thread, and
-3. calls `do_migrate_process()`.
+#. discovers the namespace leader,
+#. creates a LibOS `shim_thread` structure for a new thread, and
+#. calls `do_migrate_process()`.
 
 The first two tasks are trivial, so we concentrate on the third one.
 
@@ -33,7 +33,7 @@ for events from the child process (such as death of the child).
 To implement this logic, `do_migrate_process()` calls the following
 functions:
 
-1. `_DkProcessCreate()` -- PAL-specific creation of the process in the
+#. `_DkProcessCreate()` -- PAL-specific creation of the process in the
    underlying OS. For SGX PAL, this function performs ``clone()`` + ``execve()``
    system calls in underlying Linux to create a new process. The new (child)
    process can communicate with the parent process via Unix pipes. Using these
@@ -46,7 +46,7 @@ functions:
    the parent who verifies it, and the parent sends its REPORT to the child, who
    in turn verifies it.
 
-2. ``*migrate()`` -- function pointer to collect checkpoint data from the parent
+#. ``*migrate()`` -- function pointer to collect checkpoint data from the parent
    process (e.g., shim structures for process metadata, threads metadata, loaded
    libraries metadata, mounted points with FS metadata, VMAs, etc.). The
    checkpoint is created in trusted enclave memory and is never persisted (so it
@@ -54,7 +54,7 @@ functions:
    `migrate_fork()`. This function collects absolutely all shim data on
    the current state of the parent process.
 
-3. `send_checkpoint_on_stream()` -- sends the whole checkpoint to the
+#. `send_checkpoint_on_stream()` -- sends the whole checkpoint to the
    child using :func:`DkStreamWrite()`. The only interesting thing about this
    function is that data is sent in plaintext. For SGX, the data must be
    encrypted in this function.
@@ -75,19 +75,19 @@ memory, and finally jumps to checkpointed RIP.
 
 In particular, these are the important child functions for fork:
 
-1. `init_child_process()` -- a counterpart function to parent's
+#. `init_child_process()` -- a counterpart function to parent's
    `_DkProcessCreate()`. It inherits Unix pipes to communicate with the parent.
    Using these pipes, the child establishes a share secret via DH key exchange
    with the parent. The rest is similar to the logic in
    :func:`DkProcessCreate()`. At the end of this function, the child
    successfully authenticated the parent process.
 
-2. `do_migration()` -- reads the checkpoint from the network using
+#. `do_migration()` -- reads the checkpoint from the network using
    :func:`DkStreamRead()`. You can think of `do_migration()` as
    a |~| counterpart to `send_checkpoint_on_stream()`. This function is
    called from `shim_init()`.
 
-3. `restore_checkpoint()` -- restores checkpoint in child enclave's
+#. `restore_checkpoint()` -- restores checkpoint in child enclave's
    memory. You can think of `restore_checkpoint()` as a |~| counterpart
    to `migrate_fork()`. This function is called from `shim_init()`.
 

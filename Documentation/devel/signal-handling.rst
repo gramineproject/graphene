@@ -759,11 +759,11 @@ Bugs and Issues
 
 * TODO: Sigsuspend fix ( https://github.com/oscarlab/graphene/issues/453 ). In `shim_do_sigsuspend`:
 
-  1. unlock before thread_setwait + thread_sleep
+  #. unlock before thread_setwait + thread_sleep
 
-  2. lock and unlock around last set_sig_mask
+  #. lock and unlock around last set_sig_mask
 
-  3. add code similar to `__handle_signal`, but on all possible signal numbers and without
+  #. add code similar to `__handle_signal`, but on all possible signal numbers and without
      `DkThreadYieldExecution` and without unsetting `SIGNAL_DELAYED` (?).
      Allow all pending signals to be delivered
      (see https://stackoverflow.com/questions/40592066/sigsuspend-vs-additional-signals-delivered-during-handler-execution).

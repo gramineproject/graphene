@@ -53,7 +53,7 @@ the library OS in the form of Linux ELF binaries. To start the implemention of
 PAL loader, we suggest you begin with the following APIs in your host-specific
 directory:
 
-1. :file:`db_main.c`: This file must contain the entry function of your loader
+#. :file:`db_main.c`: This file must contain the entry function of your loader
    (the ``main()`` function) and APIs to retrieve host-specific information. The
    definitions of the APIs are as follows:
 
@@ -75,21 +75,21 @@ point :func:`pal_main()`. The definition of :func:`pal_main()` is:
 .. doxygenfunction:: pal_main
    :project: pal
 
-2. :file:`pal_host.h`: This file needs to define the member of
+#. :file:`pal_host.h`: This file needs to define the member of
    :type:`PAL_HANDLE` for handles of files, devices, pipes, sockets, threads,
    processes, etc.
 
-3. :file:`db_files.c`: To implement a basic loader, you have to specify how to
+#. :file:`db_files.c`: To implement a basic loader, you have to specify how to
    open, read, and map an executable file. At least `file_open`, `file_read`,
    `file_map`, `file_attrquery`, `file_attrquerybyhdl` must be implemented to
    load a basic ``HelloWorld`` program.
 
-4. :file:`db_memory.c`: The same as :file:`db_files.c`, this file also contain
+#. :file:`db_memory.c`: The same as :file:`db_files.c`, this file also contain
    APIs essential to PAL loader. At least `_DkCheckMemoryMappable`,
    `_DkVirtualMemoryAlloc`, `_DkVirtualMemoryFree`, `_DkVirtualMemoryProtect`
    must be implemented.
 
-5. :file:`db_rtld.c`: This file must handle how symbols are resolved against the
+#. :file:`db_rtld.c`: This file must handle how symbols are resolved against the
    PAL loader itself, to discover the entry address of the host ABI. If the PAL
    loader is a Linux ELF binary, you may simply add a `link_map` to the
    `loaded_maps` list. Otherwise, you need to implement `resolve_rtld` function

@@ -44,11 +44,11 @@ Code formatting
 
    See our :file:`.clang-format` config for precise rules.
 
-1. Indentation: 4 spaces per level.
+#. Indentation: 4 spaces per level.
 
-2. Maximal line length: 100 characters.
+#. Maximal line length: 100 characters.
 
-3. Brace placement::
+#. Brace placement::
 
       void f() {
           if (a && b) {
@@ -56,7 +56,7 @@ Code formatting
           }
       }
 
-4. ``if-else`` formatting::
+#. ``if-else`` formatting::
 
       if (x == y) {
           ...
@@ -66,14 +66,14 @@ Code formatting
           ...
       }
 
-5. Asterisks (``*``) should be placed on the left, with the type. Multiple
+#. Asterisks (``*``) should be placed on the left, with the type. Multiple
    pointer declarations in one line are disallowed. Example::
 
       int* pointer;
       int* another_pointer;
       int non_pointer_a, non_pointer_b, non_pointer_c;
 
-6. Function call/declaration folding: aligned to a matching parenthesis.
+#. Function call/declaration folding: aligned to a matching parenthesis.
    Required only if the one-line version would exceed the line length limit.
    Examples::
 
@@ -87,54 +87,54 @@ Code formatting
                           789),
                 many_args(1, 2, 3));
 
-7. ``if``, ``else``, ``do``, ``for``, ``while``, ``switch`` and ``union`` should
+#. ``if``, ``else``, ``do``, ``for``, ``while``, ``switch`` and ``union`` should
    be followed by a space.
 
-8. Includes should be grouped and then sorted lexicographically. Groups should
+#. Includes should be grouped and then sorted lexicographically. Groups should
    be separated using a |~| single empty line.
 
    Groups:
 
-   1. Matching :file:`.h` header for :file:`.c` files.
-   2. Standard library headers.
-   3. Non-standard headers not included in Graphene's repository (e.g. from
+   #. Matching :file:`.h` header for :file:`.c` files.
+   #. Standard library headers.
+   #. Non-standard headers not included in Graphene's repository (e.g. from
       external dependencies, like :file:`curl.h`).
-   4. Graphene's headers.
+   #. Graphene's headers.
 
 Conventions and High-level Style
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-1. Variable and function names should be sane and easy to understand (example:
+#. Variable and function names should be sane and easy to understand (example:
    ``nofpts`` is bad, ``points_cnt`` is ok).
 
-2. All non-static function interfaces should be documented in comments
+#. All non-static function interfaces should be documented in comments
    (especially pointer ownerships). Same for public macros.
 
-3. Prefer readable code and meaningful variable/function names to explaining
+#. Prefer readable code and meaningful variable/function names to explaining
    implementation details in comments within a |~| function. Only tricky or
    unintuitive code should be commented.
 
-4. Magic numbers (e.g. buffer sizes) shouldn’t be hardcoded in the
+#. Magic numbers (e.g. buffer sizes) shouldn’t be hardcoded in the
    implementation. Use ``#define``.
 
-5. Naming:
+#. Naming:
 
-   1. Macros and global constants should be ``NAMED_THIS_WAY``.
-   2. Functions, structures and variables should be ``named_this_way``.
-   3. Global variables should be prefixed with ``g_`` (e.g. ``g_thread_list``).
+   #. Macros and global constants should be ``NAMED_THIS_WAY``.
+   #. Functions, structures and variables should be ``named_this_way``.
+   #. Global variables should be prefixed with ``g_`` (e.g. ``g_thread_list``).
 
-6. Types:
+#. Types:
 
-    1. All in-memory sizes and array indexes should be stored using ``size_t``.
-    2. All file offsets and sizes should be stored using ``uint64_t``.
-    3. In general, C99 types should be used where possible (although some code
+    #. All in-memory sizes and array indexes should be stored using ``size_t``.
+    #. All file offsets and sizes should be stored using ``uint64_t``.
+    #. In general, C99 types should be used where possible (although some code
        is "grandfathered" in, it should also be changed as time allows).
 
-7. ``goto`` may be used only for error handling.
+#. ``goto`` may be used only for error handling.
 
-8. `Yoda conditions <https://en.wikipedia.org/wiki/Yoda_conditions>`__
+#. `Yoda conditions <https://en.wikipedia.org/wiki/Yoda_conditions>`__
    (e.g. ``if (42 == x)``) or any other similar constructions are not allowed.
 
-9. Prefer ``sizeof(instance)`` to ``sizeof(type)``, it’s less error-prone.
+#. Prefer ``sizeof(instance)`` to ``sizeof(type)``, it’s less error-prone.
 
 Python
 ------

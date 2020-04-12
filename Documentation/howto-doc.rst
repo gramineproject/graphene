@@ -66,12 +66,12 @@ Preferred reST style
 
 - For headers, use Python convention for header hierarchy:
 
-  1. ``#`` with overline,
-  2. ``*`` with overline,
-  3. ``=``,
-  4. ``-``,
-  5. ``^``,
-  6. ``"``.
+  #. ``#`` with overline,
+  #. ``*`` with overline,
+  #. ``=``,
+  #. ``-``,
+  #. ``^``,
+  #. ``"``.
 
   Example::
 
@@ -134,7 +134,7 @@ included in TOC in the main document and also in sidebar on RTD.
 Preferred Doxygen style
 -----------------------
 
-1. Prefer Qt-style ``/*!`` and ``\param``:
+#. Prefer Qt-style ``/*!`` and ``\param``:
 
    .. code-block:: c
 
@@ -159,12 +159,12 @@ Preferred Doxygen style
 
       It's an example function, but is documented!
 
-2. In reST, do not use ``autodoxygen`` directives, and especially do not use
+#. In reST, do not use ``autodoxygen`` directives, and especially do not use
    ``.. doxygenfile::``, because documentation should be written as prose, not
    a |~| coredump. Write an explanation, how the things go together and place
    the ``.. doxygenfunction::`` directives where aproppriate.
 
-3. You can use ``\rst`` and ``\endrst`` to write reST in Doxygen comments:
+#. You can use ``\rst`` and ``\endrst`` to write reST in Doxygen comments:
 
    .. code-block:: c
 

@@ -3,23 +3,23 @@ Quick Start
 
 .. highlight:: sh
 
-1. Clone the Graphene Repository::
+#. Clone the Graphene Repository::
 
       git clone https://github.com/oscarlab/graphene.git
 
-2. Build Graphene::
+#. Build Graphene::
 
       sudo apt-get install -y build-essential autoconf gawk bison
       cd graphene
       make
 
-3. Build and Run :program:`helloworld`::
+#. Build and Run :program:`helloworld`::
 
       cd LibOS/shim/test/native
       make
       ./pal_loader helloworld
 
-4. Test LMBench Application::
+#. Test LMBench Application::
 
       cd ../../../../Examples/lmbench
       make
@@ -44,7 +44,7 @@ If you want to use the DCAP SDK and driver, please follow the README in
 https://github.com/intel/SGXDataCenterAttestationPrimitives. Please note, that
 the DCAP driver requires Graphene to run as a root user to access it.
 
-1. Ensure That Intel SGX is Enabled on Your Platform::
+#. Ensure That Intel SGX is Enabled on Your Platform::
 
       lsmod | grep sgx
       ps ax | grep [a]esm_service
@@ -52,26 +52,26 @@ the DCAP driver requires Graphene to run as a root user to access it.
 The first command should list :command:`isgx` (or :command:`sgx`) and the
 second command should list the process status of :command:`aesm_service`.
 
-2. Clone the Repository and Set the Home Directory of Graphene::
+#. Clone the Repository and Set the Home Directory of Graphene::
 
       git clone https://github.com/oscarlab/graphene.git
       cd graphene
       git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
       export GRAPHENE_DIR=$PWD
 
-3. Prepare a Signing Key::
+#. Prepare a Signing Key::
 
       cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
       openssl genrsa -3 -out enclave-key.pem 3072
 
-4. Build and Install Graphene SGX Driver::
+#. Build and Install Graphene SGX Driver::
 
       cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver
       make
       # the console will prompt you for the path of the Intel SGX driver code
       sudo insmod gsgx.ko
 
-5. Build Graphene-SGX::
+#. Build Graphene-SGX::
 
       sudo apt-get install -y \
          build-essential autoconf gawk bison \
@@ -79,18 +79,18 @@ second command should list the process status of :command:`aesm_service`.
       cd $GRAPHENE_DIR
       make SGX=1
 
-6. Set ``vm.mmap_min_addr=0`` in the System::
+#. Set ``vm.mmap_min_addr=0`` in the System::
 
       sudo sysctl vm.mmap_min_addr=0
 
-7. Build and Run :program:`helloworld`::
+#. Build and Run :program:`helloworld`::
 
       cd $GRAPHENE_DIR/LibOS/shim/test/native
       make SGX=1
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
 
-8. Test LMBench Application::
+#. Test LMBench Application::
 
       cd $GRAPHENE_DIR/Examples/lmbench
       make SGX=1
