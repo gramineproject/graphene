@@ -18,6 +18,14 @@ Reporting Bugs
 In order to report a |nbsp| problem, please open an issue in the `issue tracker
 <https://github.com/oscarlab/graphene/issues>`__.
 
+Reporting Security Vulnerabilities
+----------------------------------
+
+Currently, we aren't aware of any production usage of Graphene, so feel free to
+report them using GitHub issues. Please note that this guideline may change
+quite soon, so please always check it before publicly reporting any
+vulnerabilities.
+
 Architectural Changes
 ---------------------
 
@@ -29,6 +37,9 @@ advice first by emailing <support@graphene-project.io>.
 
 Or you can see the archives at this google group:
 https://groups.google.com/forum/#!forum/graphene-support
+
+Please verify that your change doesn't introduce any insecure-by-default
+functionality. If an option allows users to introduce a security risk, the option should have a name prefixed with ``insecure__`` and be disabled by default.
 
 Simple bugfixes need not have advance discussion, but we welcome queries from
 newcomers.
