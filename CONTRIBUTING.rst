@@ -9,8 +9,8 @@ Contributing to Graphene
 
 First off, thank you for your interest in contributing to Graphene!
 
-In general, code contributions should be submitted to the Graphene project using
-a |nbsp| pull request.
+In general, code contributions should be submitted to the Graphene project
+using a |nbsp| `pull request <https://github.com/oscarlab/graphene/pulls>`__.
 
 Reporting Bugs
 --------------
@@ -64,10 +64,9 @@ The primary mechanism for submitting code changes is with a pull request (PR).
 
 In general, a |nbsp| PR should:
 
-#. Address a single problem; i.e., it should add one feature or fix one issue.
-   Fixes for distinct issues should be separated into multiple PRs.
+#. Address a single problem.
 #. Clearly explain the problem and solution in the PR and commit messages, using
-   grammatically correct English.
+   grammatically correct American English.
 #. Include unit tests for the new behavior or bugfix, except in special
    circumstances, namely: when designing a unit test is difficult (e.g., the
    code is deep enough in Graphene that it would require extra hooks for
@@ -77,6 +76,14 @@ In general, a |nbsp| PR should:
 
 PR Life Cycle
 ^^^^^^^^^^^^^
+We use git-rebase workflow and Reviewable.io for reviews.
+
+TL;DR: Merge commits are never allowed and force-pushes are not allowed after a
+review has started. Before merging, commits will be cleaned up, rebased onto the
+current master and tested again in CI.
+
+Detailed explanation:
+
 #. A PR is created. If the authors know a good candidate for the review (e.g.,
    the author of the specific component) they should assign a suggested reviewer
    on GitHub.
@@ -84,16 +91,15 @@ PR Life Cycle
    reviewers' permission before doing a force-push.
 #. Reviewers shouldn't push commits to the PR, only the authors are allowed to
    do so.
-#. Reviewers add comments to the changes.
-#. The author discusses the remarks and implements fixes in separate commits.
-   Loop to point 4. until all comments are resolved and all reviewers mark the
-   PR as approved.
-#. The author squashes fix-up commits with original ones, rebases them to
-   current master (in case of conflicts) and, if needed and approved by the
-   reviewers, does a force-push to share the final version of the changes.
-#. The reviewer is responsible for ensuring that the squash is a real squash
-   without any additional changes (except resolving conflicts). Only after that
-   they can execute rebase+merge to master.
+#. Reviewers add comments to the changes using Reviewable.io integration.
+#. The author discusses the remarks and implements fixes in separate commits
+   (ideally, using ``git commit --fixup``). Loop to point 4. until the PR is
+   approved (see :ref:`merging_policy`).
+#. One of the maintainers squashes fix-up commits with original ones, rebases
+   them onto the current master and force-pushes it to share and test the final
+   version of the changes.
+
+.. _merging_policy:
 
 PR Merging Policy
 ^^^^^^^^^^^^^^^^^
@@ -108,10 +114,10 @@ Before a pull request is merged, it must:
 #. Have a quorum of approving reviews from maintainers and/or waited an
    appropriate amount of time. This can be:
 
-   - 3 approving reviews
-   - 2 approving reviews and 5 days since the PR was created
-   - 1 approving review and 10 days since the PR was created, if the author is
-     a |nbsp| maintainer
+   - 3 approving maintainers
+   - 2 approving maintainers and 5 days since the PR was created
+
+   If the author is a |nbsp| maintainer the limits are lowered by 1.
 
 Additional reviews from anyone are welcome.
 
@@ -121,10 +127,10 @@ Reviewing Guidelines
    formatting fixes mixed with features, no moving files and changing them at
    the same time).
 #. Meaningful commit messages (it's much easier to get them right if commits are
-   really atomic). Should include which component was changed ({Linux,SGX} PAL
-   / shim / glibc) in the format "[component] change description".
+   really atomic). Should include which component was changed (Pal-{Linux,SGX}
+   / LibOS / Docs / CI) in the format "[component] change description".
 #. Every PR description should include: what's the purpose of the changes, what
-   is changed (and how, in case of redesigning a component), how to test the
+   is changed (and how, in case of redesigning a component), and how to test the
    changes.
 #. Is it possible to implement this change in a significantly better way?
 #. It's C, so check for common problems: correct buffer sizes, integer
@@ -136,8 +142,8 @@ Reviewing Guidelines
    invariants after a complex operation.
 #. Check for possibilities of undefined behaviours (e.g. signed overflow).
 #. If the PR fixed a bug, there should be a regression test included in the
-    change. The commit containing it should be committed before the fix, so the
-    reviewer can easily run it before and after the fix.
+   change. The commit containing it should be committed before the fix, so the
+   reviewer can easily run it before and after the fix.
 #. Code style must follow our guidelines (see below).
 
 Style Guidelines
@@ -189,7 +195,7 @@ LTP
 ^^^
 Graphene passes a |nbsp| subset of the LTP tests. New changes should not break
 currently passing LTP tests (and, ideally, might add new passing tests). LTP is
-currently only supported on the Linux host.
+currently only supported on the Linux PAL.
 
 To run these tests::
 
