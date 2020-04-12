@@ -43,9 +43,9 @@ How to Contact the Maintainers?
 ===============================
 
 For bug reports, post an issue on our GitHub repository:
-<https://github.com/oscarlab/graphene/issues>.
+https://github.com/oscarlab/graphene/issues.
 
-For any questions, please send an email to <support@graphene-project.io>
+For any questions, please send an email to support@graphene-project.io
 (`public archive <https://groups.google.com/forum/#!forum/graphene-support>`__).
 
 How Do I Contribute to the Project?
