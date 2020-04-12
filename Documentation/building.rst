@@ -76,8 +76,8 @@ Prerequisites
       openssl genrsa -3 -out enclave-key.pem 3072
 
    You can either place the generated enclave key in the default path,
-   :file:`host/Linux-SGX/signer/enclave-key.pem`, or specify the key's location
-   through the environment variable ``SGX_SIGNER_KEY``.
+   :file:`Pal/src/host/Linux-SGX/signer/enclave-key.pem`, or specify the key's
+   location through the environment variable ``SGX_SIGNER_KEY``.
 
    After signing the application's manifest, users may ship the application and
    Graphene binaries, along with an SGX-specific manifest (``.manifest.sgx``
