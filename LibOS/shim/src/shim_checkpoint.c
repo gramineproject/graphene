@@ -39,8 +39,7 @@
 #include <asm/mman.h>
 
 /* Based on Robert Jenkins' hash algorithm. */
-static uint64_t hash64(uint64_t key)
-{
+static uint64_t hash64(uint64_t key) {
     key = (~key) + (key << 21);
     key = key ^ (key >> 24);
     key = (key + (key << 3)) + (key << 8);
