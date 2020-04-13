@@ -33,8 +33,9 @@ static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
         case EISDIR:
             return -PAL_ERROR_STREAMISDIR;
         case ECONNRESET:
-        case EPIPE:
             return -PAL_ERROR_CONNFAILED;
+        case EPIPE:
+            return -PAL_ERROR_CONNFAILED_PIPE;
         case EAFNOSUPPORT:
             return -PAL_ERROR_AFNOSUPPORT;
         default:
