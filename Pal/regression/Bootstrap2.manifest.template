@@ -1,1 +1,2 @@
 loader.debug_type = inline
+loader.execname = Bootstrap2

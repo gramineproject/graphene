@@ -16,6 +16,9 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 # Show/hide debug log of Graphene ('inline' or 'none' respectively)
 loader.debug_type = $(GRAPHENEDEBUG)
 
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 # Specify paths to search for libraries (usual LD_LIBRARY_PATH syntax)
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 

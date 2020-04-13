@@ -2,6 +2,7 @@ loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib:/usrlib
 loader.debug_type = none
 loader.syscall_symbol = syscalldb
+loader.execname = openmp
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib

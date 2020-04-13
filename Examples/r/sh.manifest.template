@@ -10,6 +10,9 @@ loader.exec = file:/bin/sh
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 # Environment variables
 loader.env.LD_LIBRARY_PATH = /lib
 

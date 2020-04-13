@@ -14,6 +14,9 @@ sgx.allowed_files.blender_output = file:$(DATA_DIR)/images/
 loader.exec = file:$(BLENDER_DIR)/blender
 loader.execname = blender
 
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENE_DEBUG)
 

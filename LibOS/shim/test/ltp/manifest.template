@@ -4,6 +4,7 @@ loader.env.PATH = /bin:/usr/bin:.
 loader.env.LD_PRELOAD = /usr/$(ARCH_LIBDIR)/coreutils/libstdbuf.so
 loader.env._STDBUF_O = L
 loader.debug_type = none
+loader.insecure__use_cmdline_argv = 1
 
 fs.mount.shm.type = chroot
 fs.mount.shm.path = /dev/shm

@@ -34,7 +34,12 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 # build process.
 loader.debug_type = $(GRAPHENEDEBUG)
 
-################################# ENV VARS  ###################################
+################################# ARGUMENTS ###################################
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
+################################# ENV VARS ####################################
 
 # Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
 # applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,

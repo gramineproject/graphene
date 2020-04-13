@@ -1,3 +1,5 @@
+loader.execname = AvxDisable
+
 sgx.require_avx = 0
 sgx.require_avx512 = 0
 sgx.allowed_files.res = file:avxRes
