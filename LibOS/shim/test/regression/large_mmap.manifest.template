@@ -2,6 +2,7 @@ loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib
 loader.debug_type = none
 loader.syscall_symbol = syscalldb
+loader.execname = large_mmap
 
 # application allocates 2GB and 4GB memory regions which may occasionally fail
 # in an SGX enclave restricted to 8GB of virtual space if ASLR is enabled

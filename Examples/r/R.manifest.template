@@ -16,6 +16,9 @@ loader.exec = file:$(R_EXEC)
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 # Environment variables for R
 loader.env.LD_LIBRARY_PATH = $(R_HOME)/lib:/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 loader.env.PATH = $(R_HOME)/bin:/usr/bin:/bin

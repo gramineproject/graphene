@@ -16,6 +16,9 @@ loader.exec = file:$(PYTHONEXEC)
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 # Environment variables for Python
 loader.env.LD_LIBRARY_PATH = $(PYTHONHOME)/lib:/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 loader.env.PATH = $(PYTHONHOME)/bin:/usr/bin:/bin

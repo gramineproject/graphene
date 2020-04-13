@@ -1,5 +1,8 @@
+# This file is used by test_204_system test
+
 loader.exec = file:/bin/echo
 loader.execname = echo
+loader.insecure__use_cmdline_argv = 1
 
 loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)

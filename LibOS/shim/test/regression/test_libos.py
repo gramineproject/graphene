@@ -37,16 +37,31 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('argv[3] = c', stdout)
         self.assertIn('argv[4] = d', stdout)
 
+    def test_102_argv_from_file(self):
+        args = ['bootstrap', 'THIS', 'SHOULD GO', 'TO', '\nTHE\n', 'APP']
+        result = subprocess.run(['../../../../Tools/argv_serializer'] + args,
+                                stdout=subprocess.PIPE, check=True)
+        with open('argv_test_input', 'wb') as f:
+            f.write(result.stdout)
+        try:
+            manifest = self.get_manifest('argv_from_file')
+            stdout, _ = self.run_binary([manifest, 'WRONG', 'ARGUMENTS'])
+            self.assertIn('# of Arguments: %d' % len(args), stdout)
+            for i, arg in enumerate(args):
+                self.assertIn('argv[%d] = %s' % (i, arg), stdout)
+        finally:
+            os.remove('argv_test_input')
+
     @unittest.skipUnless(HAS_SGX,
         'This test is only meaningful on SGX PAL because only SGX catches raw '
         'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
         'Linux PAL, then we should allow this test on Linux PAL as well.')
-    def test_102_basic_bootstrapping_static(self):
+    def test_103_basic_bootstrapping_static(self):
         # bootstrap_static
         stdout, _ = self.run_binary(['bootstrap_static'])
         self.assertIn('Hello world (bootstrap_static)!', stdout)
 
-    def test_103_basic_bootstrapping_pie(self):
+    def test_104_basic_bootstrapping_pie(self):
         # bootstrap_pie
         stdout, _ = self.run_binary(['bootstrap_pie'])
         self.assertIn('User program started', stdout)

@@ -5,6 +5,9 @@ loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 loader.env.PATH = /bin:/usr/bin
 loader.debug_type = $(GRAPHENEDEBUG)
 
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 fs.mount.lib1.type = chroot
 fs.mount.lib1.path = /lib
 fs.mount.lib1.uri = file:$(GRAPHENEDIR)/Runtime

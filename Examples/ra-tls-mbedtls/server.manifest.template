@@ -3,6 +3,7 @@
 # This manifest was prepared and tested on Ubuntu 18.04.
 
 loader.exec = file:server
+loader.execname = server
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
@@ -10,6 +11,9 @@ loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
 
 # RA-TLS library is preloaded (without it, server uses normal X.509 PKI flows)
 loader.env.LD_PRELOAD = libra_tls_attest.so
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
 
 # Request remote attestation functionality from Graphene
 sgx.remote_attestation = 1

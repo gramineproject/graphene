@@ -71,6 +71,7 @@ cxx_executables = bootstrap_c++
 
 manifests = \
 	manifest \
+	argv_from_file.manifest \
 	attestation.manifest \
 	echo.manifest \
 	eventfd.manifest \
@@ -96,6 +97,7 @@ manifests = \
 exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
+	argv_from_file.manifest \
 	echo.manifest \
 	file_check_policy_allow_all_but_log.manifest \
 	file_check_policy_strict.manifest \
