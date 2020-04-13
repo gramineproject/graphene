@@ -11,6 +11,9 @@ loader.exec = file:busybox
 # file (`./pal_loader busybox.manifest`).
 loader.execname = busybox
 
+# Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
 # to relative path to Graphene repository in the Makefile as part of the

@@ -15,6 +15,9 @@ loader.execname = lighttpd
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
+# Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
 # Environment variables for lighttpd
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):$(INSTALL_DIR)/lib
 

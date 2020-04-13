@@ -14,3 +14,4 @@ $(targets):
 	$(MAKE) -C Pal $@
 	$(MAKE) -C LibOS $@
 	$(MAKE) -C Runtime $@
+	$(MAKE) -C Tools $@
