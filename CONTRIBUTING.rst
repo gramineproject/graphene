@@ -51,7 +51,8 @@ For work in progress (for team members), please use your name/userid as
 a |nbsp| prefix in the branch name.  For example, if user ``jane`` is adding
 feature ``foo``, the branch should be named: ``jane/foo``.
 
-For new contributors, the branch will likely be on a |nbsp| fork of the repository.
+For new contributors, the branch will likely be on a |nbsp| fork of the
+repository.
 
 Otherwise, branches without this prefix should only be created for
 a |nbsp| specific purpose, as approved by the maintainers.
@@ -95,8 +96,8 @@ Detailed explanation:
    (ideally, using ``git commit --fixup``). Loop to point 4. until the PR is
    approved (see :ref:`merging_policy`).
 #. One of the maintainers squashes fix-up commits with original ones, rebases
-   them onto the current master and force-pushes it to share and test the final
-   version of the changes.
+   the branch onto the current master and force-pushes the branch to GitHub to
+   share.
 
 .. _merging_policy:
 
