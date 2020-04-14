@@ -52,6 +52,9 @@ struct pal_sec {
     /* Need to pass in the number of cores */
     PAL_NUM         num_cpus;
 
+    /* STDOUT is TTY (app prints to term) or non-TTY (app prints to pipe/file) */
+    PAL_BOL         is_stdout_tty;
+
 #ifdef DEBUG
     PAL_BOL         in_gdb;
 #endif

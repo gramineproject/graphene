@@ -10,16 +10,17 @@
 #include "sgx_internal.h"
 #include "sgx_tls.h"
 
+#include <asm/errno.h>
 #include <asm/fcntl.h>
+#include <asm/ioctls.h>
 #include <asm/socket.h>
+#include <ctype.h>
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include <asm/errno.h>
-#include <ctype.h>
-
 #include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
+#include <termios.h>
 
 size_t g_page_size = PRESET_PAGESIZE;
 
@@ -788,6 +789,15 @@ static int load_enclave (struct pal_enclave * enclave,
         env_i += strnlen(&env[env_i], env_size - env_i) + 1;
     }
 #endif
+
+    struct termios term;
+    ret = INLINE_SYSCALL(ioctl, 3, STDOUT_FILENO, TCGETS, &term);
+    if (IS_ERR(ret)) {
+        /* mark STDOUT as not TTY (app writes to pipe/file); Glibc considers it fully-buffered */
+        pal_sec->is_stdout_tty = false;
+    }
+    /* mark STDOUT as TTY (app writes to terminal); Glibc considers it line-buffered */
+    pal_sec->is_stdout_tty = true;
 
     enclave->manifest = manifest_fd;
 

@@ -82,6 +82,11 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
+PAL_BOL _DkIsStdoutTty(void) {
+    /* is_stdout_tty is initialized in untrusted runtime during enclave creation and buffered */
+    return pal_sec.is_stdout_tty;
+}
+
 #include "elf-x86_64.h"
 #include "dynamic_link.h"
 #include <asm/errno.h>
@@ -272,6 +277,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
     pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
+    pal_sec.is_stdout_tty = sec_info.is_stdout_tty;
 #ifdef DEBUG
     pal_sec.in_gdb = sec_info.in_gdb;
 #endif

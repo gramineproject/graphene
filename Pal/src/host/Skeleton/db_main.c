@@ -56,6 +56,12 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
+PAL_BOL _DkIsStdoutTty(void) {
+    /* mark STDOUT as not TTY (app writes to pipe/file); Glibc considers it fully-buffered */
+    return false;
+}
+
+int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     /* needs to be implemented */

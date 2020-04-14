@@ -395,6 +395,7 @@ noreturn void pal_main (
     __pal_control.host_type          = XSTRINGIFY(HOST_TYPE);
     __pal_control.process_id         = _DkGetProcessId();
     __pal_control.host_id            = _DkGetHostId();
+    __pal_control.is_stdout_tty      = _DkIsStdoutTty();
     __pal_control.manifest_handle    = manifest_handle;
     __pal_control.executable         = exec_uri;
     __pal_control.parent_process     = parent_process;

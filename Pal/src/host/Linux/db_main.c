@@ -37,6 +37,7 @@
 #include <asm/mman.h>
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
+#include <termios.h>
 
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
@@ -186,6 +187,18 @@ PAL_NUM _DkGetProcessId (void)
 PAL_NUM _DkGetHostId (void)
 {
     return 0;
+}
+
+PAL_BOL _DkIsStdoutTty(void) {
+    struct termios term;
+    int ret = INLINE_SYSCALL(ioctl, 3, STDOUT_FILENO, TCGETS, &term);
+    if (IS_ERR(ret)) {
+        /* mark STDOUT as not TTY (app writes to pipe/file); Glibc considers it fully-buffered */
+        return false;
+    }
+
+    /* mark STDOUT as TTY (app writes to terminal); Glibc considers it line-buffered */
+    return true;
 }
 
 #include "dynamic_link.h"

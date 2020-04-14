@@ -341,6 +341,11 @@ typedef struct PAL_CONTROL_ {
 
     PAL_CPU_INFO cpu_info; /*!< CPU information (only required ones) */
     PAL_MEM_INFO mem_info; /*!< memory information (only required ones) */
+
+    /*
+     * Misc
+     */
+    PAL_BOL is_stdout_tty; /*!< STDOUT is TTY (app prints to term) or non-TTY (to pipe/file) */
 } PAL_CONTROL;
 
 #define pal_control (*pal_control_addr())

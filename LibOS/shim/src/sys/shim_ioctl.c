@@ -41,7 +41,7 @@
 #define TERM_DEFAULT_CFLAG (B38400 | CS8 | CREAD)
 #define TERM_DEFAULT_LFLAG (ICANON | ECHO | ECHOE | ECHOK | ECHOCTL | ECHOKE | IEXTEN)
 
-static int ioctl_termios(struct shim_handle* hdl, unsigned int cmd, unsigned long arg) {
+static int ioctl_termios(int fd, struct shim_handle* hdl, unsigned int cmd, unsigned long arg) {
     if (hdl->type != TYPE_FILE || hdl->info.file.type != FILE_TTY)
         return -ENOTTY;
 
@@ -58,14 +58,21 @@ static int ioctl_termios(struct shim_handle* hdl, unsigned int cmd, unsigned lon
             return -EINVAL;
 
         case TCGETS: {
-#if 0
-            struct termios * termios = (struct termios *) arg;
+            /* proactively set termios, it doesn't hurt */
+            struct termios* termios = (struct termios*)arg;
             termios->c_iflag = TERM_DEFAULT_IFLAG;
             termios->c_oflag = TERM_DEFAULT_OFLAG;
             termios->c_cflag = TERM_DEFAULT_CFLAG;
             termios->c_lflag = TERM_DEFAULT_LFLAG;
-            return 0;
-#endif
+
+            if (fd == STDOUT_FILENO) {
+                /* special case: Glibc wants to know whether STDOUT is TTY (app writes to terminal)
+                 * or non-TTY (app writes to pipe/file); Graphene buffers this info in PAL's
+                 * is_stdout_tty field */
+                if (PAL_CB(is_stdout_tty))
+                    return 0;
+            }
+
             return -EINVAL;
         }
 
@@ -346,7 +353,7 @@ int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
         case TIOCSETD:
         case TIOCGETD:
         case TCSBRKP:
-            ret = ioctl_termios(hdl, cmd, arg);
+            ret = ioctl_termios(fd, hdl, cmd, arg);
             break;
         case FIONBIO:
             if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->setflags)
@@ -374,7 +381,7 @@ int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
         case TIOCSERGETLSR:
         case TIOCSERGETMULTI:
         case TIOCSERSETMULTI:
-            ret = ioctl_termios(hdl, cmd, arg);
+            ret = ioctl_termios(fd, hdl, cmd, arg);
             break;
 
         case FDCLRPRM:

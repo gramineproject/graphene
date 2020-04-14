@@ -219,6 +219,7 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end, PAL_PTR * 
 bool _DkCheckMemoryMappable (const void * addr, size_t size);
 PAL_NUM _DkGetProcessId (void);
 PAL_NUM _DkGetHostId (void);
+PAL_BOL _DkIsStdoutTty(void);
 unsigned long _DkMemoryQuota (void);
 unsigned long _DkMemoryAvailableQuota (void);
 // Returns 0 on success, negative PAL code on failure
