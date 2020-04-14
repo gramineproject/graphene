@@ -484,107 +484,6 @@ next:
     return 0;
 }
 
-int init_from_checkpoint_file (const char * filename,
-                               struct newproc_cp_header * hdr,
-                               void ** cpptr)
-{
-    struct shim_dentry * dir = NULL;
-    int ret;
-
-    /* XXX: Not sure what to do here yet */
-    __abort();
-    ret = path_lookupat(NULL, filename, LOOKUP_ACCESS|LOOKUP_DIRECTORY, &dir, NULL);
-    if (ret < 0)
-        return ret;
-
-    struct shim_mount * fs = dir->fs;
-    struct shim_dirent * dirent;
-
-    if (!fs->d_ops || !fs->d_ops->readdir) {
-        ret = -EACCES;
-        goto out;
-    }
-
-    if ((ret = fs->d_ops->readdir(dir, &dirent)) < 0)
-        goto out;
-
-    struct shim_dentry * first = NULL;
-    struct shim_dirent * d = dirent;
-    for ( ; d ; d = d->next) {
-        struct shim_dentry * file;
-        if ((ret = lookup_dentry(dir, d->name, strlen(d->name),
-                                 &file, dir->fs)) < 0)
-            continue;
-        if (file->state & DENTRY_NEGATIVE)
-            continue;
-
-        if (!first) {
-            first = file;
-            continue;
-        }
-
-        const char * argv[3];
-        argv[0] = "-resume-file";
-        argv[1] = dentry_get_path(file, true, NULL);
-        argv[2] = 0;
-
-        PAL_HANDLE proc = DkProcessCreate(NULL, argv);
-        if (!proc) {
-            ret = -PAL_ERRNO;
-            goto out;
-        }
-
-        put_dentry(file);
-    }
-
-    if (first) {
-        ret = restore_from_file(dentry_get_path(first, true, NULL), hdr, cpptr);
-        put_dentry(first);
-    }
-
-    free(dirent);
-out:
-    put_dentry(dir);
-    return ret;
-}
-
-int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
-                       void ** cpptr)
-{
-    struct shim_handle * file = get_new_handle();
-    if (!file)
-        return -ENOMEM;
-
-    int ret = open_namei(file, NULL, filename, O_RDWR, 0, NULL);
-    if (ret < 0) {
-        put_handle(file);
-        return ret;
-    }
-
-    struct shim_mount * fs = file->fs;
-    get_handle(file);
-    debug("restore %s\n", filename);
-
-    struct cp_header cphdr;
-    ret = fs->fs_ops->read(file, &cphdr, sizeof(struct cp_header));
-    if (ret < 0)
-        goto out;
-
-    void * cpaddr = cphdr.addr;
-    ret = fs->fs_ops->mmap(file, &cpaddr, ALLOC_ALIGN_UP(cphdr.size), PROT_READ|PROT_WRITE,
-                           MAP_PRIVATE|MAP_FILE, 0);
-    if (ret < 0)
-        goto out;
-
-    hdr->hdr = cphdr;
-    *cpptr = cpaddr;
-    migrated_memory_start = cpaddr;
-    migrated_memory_end = cpaddr + hdr->hdr.size;
-out:
-    put_handle(file);
-    return ret;
-}
-
 int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store * store)
 {
     int nentries = store->palhdl_nentries;
@@ -911,7 +810,7 @@ out:
 }
 
 /*
- * Loading the checkpoint from the parent process or a checkpoint file
+ * Load a checkpoint from the parent process
  *
  * @hdr: checkpoint header
  * @cpptr: returning the pointer of the loaded checkpoint

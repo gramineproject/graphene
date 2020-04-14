@@ -27,17 +27,6 @@ int benchmark_rpc(pid_t pid, int times, const void* buf, size_t size);
 size_t send_rpc(pid_t pid, const void* buf, size_t size);
 size_t recv_rpc(pid_t* pid, void* buf, size_t size);
 
-struct nameinfo {
-    char* host;
-    size_t hostlen;
-    char* serv;
-    size_t servlen;
-};
-
-#define __NR_checkpoint (LIBOS_SYSCALL_BASE + 5)
-
-int checkpoint(const char* filename);
-
 struct sigcp {
     int si_session;
 };

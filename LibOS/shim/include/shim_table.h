@@ -320,7 +320,6 @@ long __shim_msgpersist(long, long);
 long __shim_benchmark_rpc(long, long, long, long);
 long __shim_send_rpc(long, long, long);
 long __shim_recv_rpc(long, long, long);
-long __shim_checkpoint(long);
 
 /* syscall implementation */
 size_t shim_do_read(int fd, void* buf, size_t count);
@@ -502,7 +501,6 @@ int shim_do_msgpersist(int msqid, int cmd);
 int shim_do_benchmark_rpc(pid_t pid, int times, const void* buf, size_t size);
 size_t shim_do_send_rpc(pid_t pid, const void* buf, size_t size);
 size_t shim_do_recv_rpc(pid_t* pid, void* buf, size_t size);
-int shim_do_checkpoint(const char* filename);
 
 #endif /* ! IN_SHIM */
 
@@ -827,6 +825,5 @@ int shim_msgpersist(int msqid, int cmd);
 int shim_benchmark_rpc(pid_t pid, int times, const void* buf, size_t size);
 size_t shim_send_rpc(pid_t pid, const void* buf, size_t size);
 size_t shim_recv_rpc(pid_t* pid, void* buf, size_t size);
-int shim_checkpoint(const char* filename);
 
 #endif /* _SHIM_TABLE_H_ */

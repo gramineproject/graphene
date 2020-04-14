@@ -252,34 +252,3 @@ static int finish_checkpoint(struct cp_session* cpsession) {
     put_handle(cpstore->cp_file);
     return 0;
 }
-
-int shim_do_checkpoint(const char* filename) {
-    IDTYPE session = 0;
-    int ret        = 0;
-
-    ret = shim_do_mkdir(filename, 0700);
-    if (ret < 0)
-        return ret;
-
-    shim_tcb_t* tcb = shim_get_tcb();
-    assert(tcb && tcb->tp);
-    struct shim_signal signal;
-    __store_context(tcb, NULL, &signal);
-
-    ret = create_checkpoint(filename, &session);
-    if (ret < 0) {
-        shim_do_rmdir(filename);
-        return ret;
-    }
-
-    ipc_checkpoint_send(filename, session);
-    kill_all_threads(tcb->tp, session, SIGCP);
-
-    ret = join_checkpoint(tcb->tp, session);
-    if (ret < 0) {
-        shim_do_rmdir(filename);
-        return ret;
-    }
-
-    return 0;
-}

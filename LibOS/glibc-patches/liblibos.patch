@@ -78,20 +78,13 @@ new file mode 100644
 index 0000000..8785629
 --- /dev/null
 +++ b/libos/wrapper.c
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,34 @@
 +#include <errno.h>
 +#include <kernel-features.h>
 +#include <shim_unistd.h>
 +#include <sysdep.h>
 +#include <sysdep-cancel.h>
 +#include <sys/syscall.h>
-+
-+#ifdef __NR_checkpoint
-+int checkpoint (const char *filename)
-+{
-+	return INLINE_SYSCALL (checkpoint, 1, filename);
-+}
-+#endif
 +
 +#ifdef __NR_msgpersist
 +int msgpersist (int msqid, int cmd)

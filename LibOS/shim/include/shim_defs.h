@@ -2,11 +2,11 @@
 #define _SHIM_DEFS_H_
 
 /*
- * If enable CPSTORE_DERANDOMIZATION, the library OS will try to
- * load the checkpoint (either from the parent or a file) at the
- * exact address it was created. Currently this option is disabled
- * to prevent internal fragmentation of virtual memory space.
+ * If enable CPSTORE_DERANDOMIZATION, the library OS will try to load the checkpoint (from the
+ * parent) at the exact address it was created. Currently this option is disabled to prevent
+ * internal fragmentation of virtual memory space.
  */
+
 #define CPSTORE_DERANDOMIZATION     1
 
 /* This macro disables current vfork implementation and aliases it to fork.

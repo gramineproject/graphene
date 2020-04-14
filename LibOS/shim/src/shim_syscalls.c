@@ -1046,5 +1046,3 @@ DEFINE_SHIM_SYSCALL(send_rpc, 3, shim_do_send_rpc, size_t, pid_t, pid, const voi
                     size)
 
 DEFINE_SHIM_SYSCALL(recv_rpc, 3, shim_do_recv_rpc, size_t, pid_t*, pid, void*, buf, size_t, size)
-
-DEFINE_SHIM_SYSCALL(checkpoint, 1, shim_do_checkpoint, int, const char*, filename)

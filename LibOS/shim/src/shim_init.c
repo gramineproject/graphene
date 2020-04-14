@@ -507,7 +507,7 @@ static int init_newproc (struct newproc_header * hdr)
 
 extern PAL_HANDLE thread_start_event;
 
-noreturn void* shim_init (int argc, void * args)
+noreturn void* shim_init(int argc, void* args)
 {
     debug_handle = PAL_CB(debug_stream);
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
@@ -555,17 +555,6 @@ noreturn void* shim_init (int argc, void * args)
     RUN_INIT(init_handle);
 
     debug("shim loaded at %p, ready to initialize\n", &__load_address);
-
-    if (argc && argv[0][0] == '-') {
-        if (!strcmp_static(argv[0], "-resume") && argc >= 2) {
-            const char * filename = *(argv + 1);
-            argc -= 2;
-            argv += 2;
-            RUN_INIT(init_mount_root);
-            RUN_INIT(init_from_checkpoint_file, filename, &hdr.checkpoint,
-                     &cpaddr);
-        }
-    }
 
     if (!cpaddr && PAL_CB(parent_process)) {
         RUN_INIT(init_newproc, &hdr);

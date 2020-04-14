@@ -393,8 +393,6 @@ int do_migrate_process(int (*migrate)(struct shim_cp_store*, struct shim_thread*
                                       struct shim_process*, va_list),
                        struct shim_handle* exec, const char** argv, struct shim_thread* thread,
                        ...);
-int init_from_checkpoint_file(const char* filename, struct newproc_cp_header* hdr, void** cpptr);
-int restore_from_file(const char* filename, struct newproc_cp_header* hdr, void** cpptr);
 void restore_context(struct shim_context* context);
 int create_checkpoint(const char* cpdir, IDTYPE* session);
 int join_checkpoint(struct shim_thread* cur, IDTYPE sid);
