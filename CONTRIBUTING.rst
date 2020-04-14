@@ -38,9 +38,8 @@ advice first by emailing support@graphene-project.io.
 Or you can see the archives at this google group:
 https://groups.google.com/forum/#!forum/graphene-support
 
-Please verify whether your change doesn't introduce any insecure-by-default
-functionality. Doing risky things by the users should always require manually
-enabling a properly marked option (e.g. prefixed with ``insecure__``).
+Please verify that your change doesn't introduce any insecure-by-default
+functionality. If an option allows users to introduce a security risk, the option should have a name prefixed with ``insecure__`` and be disabled by default.
 
 Simple bugfixes need not have advance discussion, but we welcome queries from
 newcomers.
