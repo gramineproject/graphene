@@ -62,7 +62,6 @@ PAL_BOL _DkIsStdoutTty(void) {
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
-int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     /* needs to be implemented */
     return 0;
