@@ -366,10 +366,9 @@ out:
     return ret;
 }
 
-int ias_verify_quote(struct ias_context_t* context, const void* quote, size_t quote_size,
-                     const char* nonce, const char* report_path, const char* sig_path,
-                     const char* cert_path, const char* advisory_path) {
-    struct ias_request_resp ias_resp = { 0 };
+/*! Send request to IAS and save response in \a ias_resp; caller is responsible for its cleanup */
+static int ias_send_request(struct ias_context_t* context, struct ias_request_resp* ias_resp,
+                            const void* quote, size_t quote_size, const char* nonce) {
     int ret = -1;
     long response_code;
     char* quote_b64 = NULL;
@@ -430,11 +429,11 @@ int ias_verify_quote(struct ias_context_t* context, const void* quote, size_t qu
         goto out;
 
     /* place to store result */
-    curl_ret = curl_easy_setopt(context->curl, CURLOPT_HEADERDATA, &ias_resp);
+    curl_ret = curl_easy_setopt(context->curl, CURLOPT_HEADERDATA, ias_resp);
     if (CURL_FAIL("set CURLOPT_HEADERDATA", curl_ret))
         goto out;
 
-    curl_ret = curl_easy_setopt(context->curl, CURLOPT_WRITEDATA, &ias_resp);
+    curl_ret = curl_easy_setopt(context->curl, CURLOPT_WRITEDATA, ias_resp);
     if (CURL_FAIL("set CURLOPT_WRITEDATA", curl_ret))
         goto out;
 
@@ -454,9 +453,31 @@ int ias_verify_quote(struct ias_context_t* context, const void* quote, size_t qu
 
     DBG("IAS response: %ld\n", response_code);
 
-    if (!ias_resp.signature || !ias_resp.data) {
+    if (!ias_resp->signature || !ias_resp->data) {
         /* XXX should it be fatal? */
         ERROR("IAS response: missing headers or data\n");
+        goto out;
+    }
+
+    ret = 0;
+
+out:
+    /* cleanup */
+    free(quote_b64);
+    free(quote_json);
+
+    return ret;
+}
+
+int ias_verify_quote(struct ias_context_t* context, const void* quote, size_t quote_size,
+                     const char* nonce, const char* report_path, const char* sig_path,
+                     const char* cert_path, const char* advisory_path) {
+    int ret;
+    struct ias_request_resp ias_resp = { 0 };
+
+    ret = ias_send_request(context, &ias_resp, quote, quote_size, nonce);
+    if (ret < 0) {
+        ERROR("Failed to send request to IAS and receive its response\n");
         goto out;
     }
 
@@ -531,8 +552,105 @@ out:
     free(ias_resp.advisory_url);
     free(ias_resp.advisory_ids);
     free(ias_resp.data);
-    free(quote_b64);
-    free(quote_json);
+
+    return ret;
+}
+
+int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_t quote_size,
+                         const char* nonce, char** report_data_ptr, char** sig_data_ptr,
+                         char** cert_data_ptr, char** advisory_data_ptr) {
+    int ret;
+    struct ias_request_resp ias_resp = { 0 };
+
+    char* report_data   = NULL;
+    char* sig_data      = NULL;
+    char* cert_data     = NULL;
+    char* advisory_data = NULL;
+
+    ret = ias_send_request(context, &ias_resp, quote, quote_size, nonce);
+    if (ret < 0) {
+        ERROR("Failed to send request to IAS and receive its response\n");
+        goto out;
+    }
+
+    /* body_callback and header_callback always add terminating \0, but
+     * don't count it in respective resp_data->*_size, finalize the process
+     */
+    ias_resp.data_size++;
+    ias_resp.signature_size++;
+
+    ret = -1;
+
+    if (report_data_ptr) {
+        report_data = malloc(ias_resp.data_size);
+        if (!report_data) {
+            ERROR("Failed to allocate memory for IAS report\n");
+            goto out;
+        }
+        memcpy(report_data, ias_resp.data, ias_resp.data_size);
+        *report_data_ptr = report_data;
+    }
+
+    if (sig_data_ptr) {
+        sig_data = malloc(ias_resp.signature_size);
+        if (!sig_data) {
+            ERROR("Failed to allocate memory for IAS signature\n");
+            goto out;
+        }
+        memcpy(sig_data, ias_resp.signature, ias_resp.signature_size);
+        *sig_data_ptr = sig_data;
+    }
+
+    if (cert_data_ptr) {
+        urldecode(ias_resp.certificate, ias_resp.certificate);
+        ias_resp.certificate_size = strlen(ias_resp.certificate) + 1;
+
+        cert_data = malloc(ias_resp.certificate_size);
+        if (!cert_data) {
+            ERROR("Failed to allocate memory for IAS certificate\n");
+            goto out;
+        }
+        memcpy(cert_data, ias_resp.certificate, ias_resp.certificate_size);
+        *cert_data_ptr = cert_data;
+    }
+
+    if (advisory_data_ptr) {
+        if (ias_resp.advisory_url_size > 0 || ias_resp.advisory_ids_size > 0) {
+            size_t dummy_size_t_int;
+            if (__builtin_add_overflow(ias_resp.advisory_url_size, ias_resp.advisory_ids_size,
+                    &dummy_size_t_int)) {
+                ERROR("Sum of sizes of IAS advisory URL and advisory IDs overflows\n");
+                goto out;
+            }
+            advisory_data = malloc(ias_resp.advisory_url_size + ias_resp.advisory_ids_size);
+            if (!advisory_data) {
+                ERROR("Failed to allocate memory for IAS advisory URL and IDs\n");
+                goto out;
+            }
+            memcpy(advisory_data, ias_resp.advisory_url, ias_resp.advisory_url_size);
+            memcpy(advisory_data + ias_resp.advisory_url_size, ias_resp.advisory_ids,
+                   ias_resp.advisory_ids_size);
+
+        }
+        *advisory_data_ptr = advisory_data;
+    }
+
+    ret = 0;
+
+out:
+    /* cleanup */
+    free(ias_resp.signature);
+    free(ias_resp.certificate);
+    free(ias_resp.advisory_url);
+    free(ias_resp.advisory_ids);
+    free(ias_resp.data);
+
+    if (ret < 0) {
+        free(report_data);
+        free(sig_data);
+        free(cert_data);
+        free(advisory_data);
+    }
 
     return ret;
 }
