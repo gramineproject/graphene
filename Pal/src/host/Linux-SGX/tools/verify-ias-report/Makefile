@@ -19,7 +19,7 @@ verify_ias_report: verify_ias_report.o
 
 .PHONY: install
 install:
-	install verify_ias_report ${PREFIX}/bin
+	install -D verify_ias_report -t ${PREFIX}/bin
 
 .PHONY: clean
 clean:

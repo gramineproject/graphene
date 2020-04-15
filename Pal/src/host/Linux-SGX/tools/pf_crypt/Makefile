@@ -20,7 +20,7 @@ all: pf_crypt
 
 .PHONY: install
 install:
-	install pf_crypt ${PREFIX}/bin
+	install -D pf_crypt -t ${PREFIX}/bin
 
 .PHONY: clean
 clean:
