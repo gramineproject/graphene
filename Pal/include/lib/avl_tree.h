@@ -58,11 +58,12 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node);
 
 /*
  * This function swaps `new_node` in place of `old_node`. `new_node` must not be in any tree (i.e.
- * it should really be a new node) and they both should compare equal with respect to tree.cmp or
+ * it should really be a new node) and they both should compare equal with respect to `tree.cmp` or
  * bad things will happen. You have been warned. Probably the only usecase of this function is to
  * optimize delete + insert of a node with the same key.
  */
-void avl_tree_swap_node(struct avl_tree_node* old_node, struct avl_tree_node* new_node);
+void avl_tree_swap_node(struct avl_tree* tree, struct avl_tree_node* old_node,
+                        struct avl_tree_node* new_node);
 
 /* These functions return respectively previous and next node or NULL if such does not exist.
  * O(log(n)) in worst case, but amortized O(1). */

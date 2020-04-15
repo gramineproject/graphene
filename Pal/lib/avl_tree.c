@@ -343,7 +343,10 @@ void avl_tree_insert(struct avl_tree* tree, struct avl_tree_node* node) {
     }
 }
 
-void avl_tree_swap_node(struct avl_tree_node* old_node, struct avl_tree_node* new_node) {
+void avl_tree_swap_node(struct avl_tree* tree, struct avl_tree_node* old_node,
+                        struct avl_tree_node* new_node) {
+    assert(tree->cmp(old_node, new_node) && tree->cmp(new_node, old_node));
+
     avl_tree_init_node(new_node);
 
     fixup_link(/*old_node=*/old_node, /*new_node=*/new_node, /*parent=*/old_node->parent);
@@ -358,6 +361,10 @@ void avl_tree_swap_node(struct avl_tree_node* old_node, struct avl_tree_node* ne
     }
 
     new_node->balance = old_node->balance;
+
+    if (tree->root == old_node) {
+        tree->root = new_node;
+    }
 }
 
 struct avl_tree_node* avl_tree_prev(struct avl_tree_node* node) {

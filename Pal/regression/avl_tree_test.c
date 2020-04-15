@@ -89,6 +89,34 @@ static size_t get_tree_size(struct avl_tree_node* node) {
     return get_tree_size(node->left) + 1 + get_tree_size(node->right);
 }
 
+static void try_node_swap(struct avl_tree_node* node, struct avl_tree_node* swap_node) {
+    avl_tree_swap_node(&tree, node, swap_node);
+    node->left = (void*)1;
+    node->right = (void*)2;
+    node->parent = (void*)3;
+    if (!debug_avl_tree_is_balanced(&tree)) {
+        EXIT_UNBALANCED();
+    }
+    size_t size = get_tree_size(tree.root);
+    if (size != ELEMENTS_COUNT) {
+        pal_printf("Tree has %lu elements instead of %u!", size, ELEMENTS_COUNT);
+        DkProcessExit(1);
+    }
+
+    avl_tree_swap_node(&tree, swap_node, node);
+    swap_node->left = (void*)1;
+    swap_node->right = (void*)2;
+    swap_node->parent = (void*)3;
+    if (!debug_avl_tree_is_balanced(&tree)) {
+        EXIT_UNBALANCED();
+    }
+    size = get_tree_size(tree.root);
+    if (size != ELEMENTS_COUNT) {
+        pal_printf("Tree has %lu elements instead of %u!", size, ELEMENTS_COUNT);
+        DkProcessExit(1);
+    }
+}
+
 static void do_test(int32_t (*get_num)(void)) {
     size_t i;
 
@@ -144,6 +172,15 @@ static void do_test(int32_t (*get_num)(void)) {
     }
 
     static_assert(ELEMENTS_COUNT >= 3, "This code needs at least 3 elements in the tree!");
+
+    node = tree.root->left;
+    struct A swap_node = { .key = node2struct(node)->key };
+    try_node_swap(node, &swap_node.node);
+
+    node = tree.root;
+    swap_node.key = node2struct(node)->key;
+    try_node_swap(node, &swap_node.node);
+
     node = tree.root->left;
     while (node->right) {
         node = node->right;
