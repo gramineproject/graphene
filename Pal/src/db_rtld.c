@@ -461,7 +461,7 @@ int check_elf_object (PAL_HANDLE handle)
     unsigned char buffer[ELF_MAGIC_SIZE];
     int64_t len = _DkStreamRead(handle, 0, sizeof(buffer), buffer, NULL, 0);
 
-    if (__builtin_expect(len < 0, 0))
+    if (len < 0)
         return len;
     return check_elf_magic(buffer, len);
 }
