@@ -30,13 +30,6 @@ typedef ptrdiff_t ssize_t;
 
 /* Macros */
 
-#ifndef likely
-# define likely(x)	__builtin_expect((!!(x)),1)
-#endif
-#ifndef unlikely
-# define unlikely(x)	__builtin_expect((!!(x)),0)
-#endif
-
 #ifndef MIN
 #define MIN(a,b) \
    ({ __typeof__(a) _a = (a); \
