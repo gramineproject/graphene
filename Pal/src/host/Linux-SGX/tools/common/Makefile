@@ -12,7 +12,8 @@ CFLAGS += -I../.. \
 
 LDFLAGS += -L../../../../../lib/crypto/mbedtls/install/lib
 
-PREFIX ?= /usr/local
+DEFAULT_PREFIX := /usr/local
+PREFIX ?= $(DEFAULT_PREFIX)
 
 .PHONY: all
 all: libsgx_util.so
@@ -42,9 +43,11 @@ libsgx_util.so: attestation.o cJSON.o ias.o lru_cache.o pf_util.o protected_file
 
 .PHONY: install
 install:
-	install libsgx_util.so ${PREFIX}/lib
-	install ../../../../../lib/crypto/mbedtls/install/lib/libmbedcrypto.so ${PREFIX}/lib
+	install -D libsgx_util.so -t ${PREFIX}/lib
+	install -D ../../../../../lib/crypto/mbedtls/install/lib/libmbedcrypto.so -t ${PREFIX}/lib
+ifeq ($(PREFIX), $(DEFAULT_PREFIX))
 	ldconfig
+endif
 
 .PHONY: clean
 clean:

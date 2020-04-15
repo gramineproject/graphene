@@ -19,7 +19,7 @@ quote_dump: quote_dump.o
 
 .PHONY: install
 install:
-	install quote_dump ${PREFIX}/bin
+	install -D quote_dump -t ${PREFIX}/bin
 
 .PHONY: clean
 clean:
