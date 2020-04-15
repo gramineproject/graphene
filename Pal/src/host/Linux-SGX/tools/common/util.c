@@ -147,6 +147,27 @@ void util_set_fd(int stdout_fd, int stderr_fd) {
     g_stderr_fd = stderr_fd;
 }
 
+/* Print memory as hex in buffer */
+int hexdump_mem_to_buffer(const void* data, size_t size, char* buffer, size_t buffer_size) {
+    uint8_t* ptr = (uint8_t*)data;
+
+    if (buffer_size < size * 2 + 1) {
+        ERROR("Insufficiently large buffer to dump data as hex string\n");
+        return -1;
+    }
+
+    for (size_t i = 0; i < size; i++) {
+        if (g_endianness == ENDIAN_LSB) {
+            sprintf(buffer + i * 2, "%02x", ptr[i]);
+        } else {
+            sprintf(buffer + i * 2, "%02x", ptr[size - i - 1]);
+        }
+    }
+
+    buffer[size * 2] = 0; /* end of string */
+    return 0;
+}
+
 /* Print memory as hex */
 void hexdump_mem(const void* data, size_t size) {
     uint8_t* ptr = (uint8_t*)data;

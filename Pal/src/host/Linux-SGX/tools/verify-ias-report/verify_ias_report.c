@@ -164,7 +164,8 @@ int main(int argc, char* argv[]) {
     }
 
     int ret = verify_ias_report(report, report_size, sig, sig_size, allow_outdated_tcb, nonce,
-                                mrsigner, mrenclave, isv_prod_id, isv_svn, report_data, ias_pubkey);
+                                mrsigner, mrenclave, isv_prod_id, isv_svn, report_data, ias_pubkey,
+                                /*expected_as_str=*/true);
 
     return ret;
 }
