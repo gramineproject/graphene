@@ -121,7 +121,8 @@ void display_quote(const void* quote_data, size_t quote_size) {
 int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t* ias_sig_b64,
                       size_t ias_sig_b64_size, bool allow_outdated_tcb, const char* nonce,
                       const char* mrsigner, const char* mrenclave, const char* isv_prod_id,
-                      const char* isv_svn, const char* report_data, const char* ias_pub_key_pem) {
+                      const char* isv_svn, const char* report_data, const char* ias_pub_key_pem,
+                      bool expected_as_str) {
     mbedtls_pk_context ias_pub_key;
     int ret = -1;
     uint8_t* ias_sig = NULL;
@@ -290,7 +291,7 @@ int verify_ias_report(const uint8_t* ias_report, size_t ias_report_size, uint8_t
 
     DBG("IAS report: quote decoded, size %zu bytes\n", quote_size);
     ret = verify_quote(report_quote, quote_size, mrsigner, mrenclave, isv_prod_id, isv_svn,
-                       report_data);
+                       report_data, expected_as_str);
 
 out:
     if (json)
@@ -303,7 +304,7 @@ out:
 
 int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signer,
                  const char* mr_enclave, const char* isv_prod_id, const char* isv_svn,
-                 const char* report_data) {
+                 const char* report_data, bool expected_as_str) {
     int ret = -1;
 
     assert(IS_ALIGNED_PTR_POW2(quote_data, alignof(sgx_quote_t)));
@@ -324,8 +325,12 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
 
     sgx_measurement_t expected_mr;
     if (mr_signer) {
-        if (parse_hex(mr_signer, &expected_mr, sizeof(expected_mr)) != 0)
-            goto out;
+        if (expected_as_str) {
+            if (parse_hex(mr_signer, &expected_mr, sizeof(expected_mr)) != 0)
+                goto out;
+        } else {
+            memcpy(&expected_mr, mr_signer, sizeof(expected_mr));
+        }
 
         if (memcmp(&body->mr_signer, &expected_mr, sizeof(expected_mr)) != 0) {
             ERROR("Quote: mr_signer doesn't match the expected value\n");
@@ -342,8 +347,12 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
     }
 
     if (mr_enclave) {
-        if (parse_hex(mr_enclave, &expected_mr, sizeof(expected_mr)) != 0)
-            goto out;
+        if (expected_as_str) {
+            if (parse_hex(mr_enclave, &expected_mr, sizeof(expected_mr)) != 0)
+                goto out;
+        } else {
+            memcpy(&expected_mr, mr_enclave, sizeof(expected_mr));
+        }
 
         if (memcmp(&body->mr_enclave, &expected_mr, sizeof(expected_mr)) != 0) {
             ERROR("Quote: mr_enclave doesn't match the expected value\n");
@@ -361,7 +370,13 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
 
     // Product ID must match, security version must be greater or equal
     if (isv_prod_id) {
-        sgx_prod_id_t prod_id = strtoul(isv_prod_id, NULL, 10);
+        sgx_prod_id_t prod_id;
+
+        if (expected_as_str) {
+            prod_id = strtoul(isv_prod_id, NULL, 10);
+        } else {
+            memcpy(&prod_id, isv_prod_id, sizeof(prod_id));
+        }
 
         if (body->isv_prod_id != prod_id) {
             ERROR("Quote: invalid isv_prod_id (%u, expected %u)\n", body->isv_prod_id, prod_id);
@@ -372,7 +387,13 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
     }
 
     if (isv_svn) {
-        sgx_isv_svn_t svn = strtoul(isv_svn, NULL, 10);
+        sgx_isv_svn_t svn;
+
+        if (expected_as_str) {
+            svn = strtoul(isv_svn, NULL, 10);
+        } else {
+            memcpy(&svn, isv_svn, sizeof(svn));
+        }
 
         if (body->isv_svn < svn) {
             ERROR("Quote: invalid isv_svn (%u < expected %u)\n", body->isv_svn, svn);
@@ -384,8 +405,13 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
 
     if (report_data) {
         sgx_report_data_t rd;
-        if (parse_hex(report_data, &rd, sizeof(rd)) != 0)
-            goto out;
+
+        if (expected_as_str) {
+            if (parse_hex(report_data, &rd, sizeof(rd)) != 0)
+                goto out;
+        } else {
+            memcpy(&rd, report_data, sizeof(rd));
+        }
 
         if (memcmp(&body->report_data, &rd, sizeof(rd)) != 0) {
             ERROR("Quote: report_data doesn't match the expected value\n");
