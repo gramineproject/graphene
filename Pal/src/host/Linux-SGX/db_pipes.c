@@ -90,11 +90,13 @@ int thread_handshake_func(void* param) {
 
     int ret = _DkStreamSecureInit(handle, handle->pipe.is_server, &handle->pipe.session_key,
                                   (LIB_SSL_CONTEXT**)&handle->pipe.ssl_ctx, NULL, 0);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Failed to initialize secure pipe %s: %d\n", handle->pipe.name.str, ret);
+        _DkProcessExit(1);
+    }
 
     __atomic_store_n(&handle->pipe.handshake_done, 1, __ATOMIC_RELEASE);
-    return ret;
+    return 0;
 }
 
 /*!

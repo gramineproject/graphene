@@ -1319,13 +1319,27 @@ int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* sess
     if (!ssl_ctx)
         return -PAL_ERROR_NOMEM;
 
+    /* mbedTLS init routines are not thread safe, so we use a spinlock to protect them */
+    static spinlock_t ssl_init_lock = INIT_SPINLOCK_UNLOCKED;
+
+    spinlock_lock(&ssl_init_lock);
     int ret = lib_SSLInit(ssl_ctx, stream_fd, is_server,
                           (const uint8_t*)session_key, sizeof(*session_key),
                           ocall_read, ocall_write, buf_load_ssl_ctx, buf_size);
+    spinlock_unlock(&ssl_init_lock);
 
     if (ret != 0) {
         free(ssl_ctx);
         return ret;
+    }
+
+    if (!buf_load_ssl_ctx) {
+        /* TLS context was not restored from the buffer, need to perform handshake */
+        ret = lib_SSLHandshake(ssl_ctx);
+        if (ret != 0) {
+            free(ssl_ctx);
+            return ret;
+        }
     }
 
     *out_ssl_ctx = ssl_ctx;
