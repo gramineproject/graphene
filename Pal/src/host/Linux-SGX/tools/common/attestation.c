@@ -339,8 +339,8 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
                 HEXDUMP(body->mr_signer);
                 ERROR("Expected mr_signer:\n");
                 HEXDUMP(expected_mr);
-                goto out;
             }
+            goto out;
         }
 
         DBG("Quote: mr_signer OK\n");
@@ -361,8 +361,8 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
                 HEXDUMP(body->mr_enclave);
                 ERROR("Expected mr_enclave:\n");
                 HEXDUMP(expected_mr);
-                goto out;
             }
+            goto out;
         }
 
         DBG("Quote: mr_enclave OK\n");
@@ -421,6 +421,7 @@ int verify_quote(const void* quote_data, size_t quote_size, const char* mr_signe
                 ERROR("Expected report_data:\n");
                 HEXDUMP(rd);
             }
+            goto out;
         }
 
         DBG("Quote: report_data OK\n");
