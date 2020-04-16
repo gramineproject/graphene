@@ -21,11 +21,13 @@
 #include <stdint.h>
 
 #include "api.h"
+#include "assert.h"
 #include "pal.h"
 #include "pal_crypto.h"
-#include "pal_error.h"
 #include "pal_debug.h"
-#include "assert.h"
+#include "pal_error.h"
+#include "spinlock.h"
+
 #include "mbedtls/aes.h"
 #include "mbedtls/cmac.h"
 #include "mbedtls/error.h"
@@ -375,6 +377,9 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
     return ret;
 }
 
+/* mbedTLS init routines are not thread safe, so we use a spinlock to protect them */
+static spinlock_t g_ssl_init_lock = INIT_SPINLOCK_UNLOCKED;
+
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
                 const uint8_t* psk, size_t psk_size,
                 ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len),
@@ -391,51 +396,73 @@ int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
     ssl_ctx->pal_send_cb = pal_send_cb;
     ssl_ctx->stream_fd   = stream_fd;
 
+    spinlock_lock(&g_ssl_init_lock);
+
     mbedtls_entropy_init(&ssl_ctx->entropy);
     mbedtls_ctr_drbg_init(&ssl_ctx->ctr_drbg);
     mbedtls_ssl_config_init(&ssl_ctx->conf);
     mbedtls_ssl_init(&ssl_ctx->ssl);
 
     ret = mbedtls_ctr_drbg_seed(&ssl_ctx->ctr_drbg, mbedtls_entropy_func, &ssl_ctx->entropy, NULL, 0);
-    if (ret != 0)
-        return -PAL_ERROR_DENIED;
+    if (ret != 0) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
 
     ret = mbedtls_ssl_config_defaults(&ssl_ctx->conf,
                                       is_server ? MBEDTLS_SSL_IS_SERVER : MBEDTLS_SSL_IS_CLIENT,
                                       MBEDTLS_SSL_TRANSPORT_STREAM,
                                       MBEDTLS_SSL_PRESET_DEFAULT);
-    if (ret != 0)
-        return -PAL_ERROR_DENIED;
+    if (ret != 0) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
 
     mbedtls_ssl_conf_rng(&ssl_ctx->conf, mbedtls_ctr_drbg_random, &ssl_ctx->ctr_drbg);
     mbedtls_ssl_conf_ciphersuites(&ssl_ctx->conf, ssl_ctx->ciphersuites);
 
     const unsigned char psk_identity[] = "dummy";
     ret = mbedtls_ssl_conf_psk(&ssl_ctx->conf, psk, psk_size, psk_identity, sizeof(psk_identity) - 1);
-    if (ret != 0)
-        return -PAL_ERROR_DENIED;
+    if (ret != 0) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
 
     ret = mbedtls_ssl_setup(&ssl_ctx->ssl, &ssl_ctx->conf);
-    if (ret != 0)
-        return -PAL_ERROR_DENIED;
+    if (ret != 0) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
 
     mbedtls_ssl_set_bio(&ssl_ctx->ssl, ssl_ctx, send_cb, recv_cb, NULL);
 
     if (buf_load_ssl_ctx && buf_size) {
         /* SSL context was serialized, must be restored from the supplied buffer */
         ret = mbedtls_ssl_context_load(&ssl_ctx->ssl, buf_load_ssl_ctx, buf_size);
-        return ret != 0 ? -PAL_ERROR_DENIED : 0;
+        if (ret != 0)
+            ret = -PAL_ERROR_DENIED;
+
+        goto out;
     }
 
-    /* it is a new SSL context (not from buffer), so establish new connection via SSL handshake */
+    /* it is a new SSL context (not from buffer), so establish new connection via SSL handshake;
+     * release lock since TLS handshake performs blocking syscalls (and we don't need it now) */
+    spinlock_unlock(&g_ssl_init_lock);
     while ((ret = mbedtls_ssl_handshake(&ssl_ctx->ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
             break;
     }
-    if (ret != 0)
-        return -PAL_ERROR_DENIED;
+    spinlock_lock(&g_ssl_init_lock);
 
-    return 0;
+    if (ret != 0) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
+
+    ret = 0;
+out:
+    spinlock_unlock(&g_ssl_init_lock);
+    return ret;
 }
 
 int lib_SSLFree(LIB_SSL_CONTEXT* ssl_ctx) {
