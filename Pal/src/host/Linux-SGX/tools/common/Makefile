@@ -53,7 +53,7 @@ endif
 
 .PHONY: clean
 clean:
-	$(RM) *.gz *.o *.so
+	$(RM) *.d *.gz *.o *.so
 
 .PHONY: distclean
 distclean: clean
