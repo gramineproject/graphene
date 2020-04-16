@@ -47,6 +47,8 @@ install:
 	install -D ../../../../../lib/crypto/mbedtls/install/lib/libmbedcrypto.so -t ${PREFIX}/lib
 ifeq ($(PREFIX), $(DEFAULT_PREFIX))
 	ldconfig
+else
+	ldconfig -n ${PREFIX}/lib
 endif
 
 .PHONY: clean
