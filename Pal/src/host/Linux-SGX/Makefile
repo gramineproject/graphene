@@ -135,6 +135,7 @@ CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.
 clean_:
 	$(RM) -r *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
 	         signer/__pycache__
+	$(RM) -r protected-files/*.o protected-files/*.d
 
 .PHONY: clean
 clean: clean_
