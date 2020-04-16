@@ -377,6 +377,7 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
     return ret;
 }
 
+/*! This function is not thread-safe; caller is responsible for proper synchronization. */
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
                 const uint8_t* psk, size_t psk_size,
                 ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len),
