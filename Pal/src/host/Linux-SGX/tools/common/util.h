@@ -67,6 +67,9 @@ int write_file(const char* path, size_t size, const void* buffer);
 /*! Append buffer to file */
 int append_file(const char* path, size_t size, const void* buffer);
 
+/*! Print memory as hex to buffer */
+int hexdump_mem_to_buffer(const void* data, size_t size, char* buffer, size_t buffer_size);
+
 /*! Print memory as hex */
 void hexdump_mem(const void* data, size_t size);
 
