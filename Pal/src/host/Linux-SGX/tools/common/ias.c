@@ -616,6 +616,12 @@ int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_
 
     if (advisory_data_ptr) {
         if (ias_resp.advisory_url_size > 0 || ias_resp.advisory_ids_size > 0) {
+            size_t dummy_size_t_int;
+            if (__builtin_add_overflow(ias_resp.advisory_url_size, ias_resp.advisory_ids_size,
+                    &dummy_size_t_int)) {
+                ERROR("Sum of sizes of IAS advisory URL and advisory IDs overflows\n");
+                goto out;
+            }
             advisory_data = malloc(ias_resp.advisory_url_size + ias_resp.advisory_ids_size);
             if (!advisory_data) {
                 ERROR("Failed to allocate memory for IAS advisory URL and IDs\n");
