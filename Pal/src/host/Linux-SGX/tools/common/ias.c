@@ -557,8 +557,10 @@ out:
 }
 
 int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_t quote_size,
-                         const char* nonce, char** report_data_ptr, char** sig_data_ptr,
-                         char** cert_data_ptr, char** advisory_data_ptr) {
+                         const char* nonce, char** report_data_ptr, size_t* report_data_size,
+                         char** sig_data_ptr, size_t* sig_data_size, char** cert_data_ptr,
+                         size_t* cert_data_size, char** advisory_data_ptr,
+                         size_t* advisory_data_size) {
     int ret;
     struct ias_request_resp ias_resp = { 0 };
 
@@ -582,26 +584,36 @@ int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_
     ret = -1;
 
     if (report_data_ptr) {
+        assert(report_data_size);
+
         report_data = malloc(ias_resp.data_size);
         if (!report_data) {
             ERROR("Failed to allocate memory for IAS report\n");
             goto out;
         }
         memcpy(report_data, ias_resp.data, ias_resp.data_size);
-        *report_data_ptr = report_data;
+
+        *report_data_ptr  = report_data;
+        *report_data_size = ias_resp.data_size;
     }
 
     if (sig_data_ptr) {
+        assert(sig_data_size);
+
         sig_data = malloc(ias_resp.signature_size);
         if (!sig_data) {
             ERROR("Failed to allocate memory for IAS signature\n");
             goto out;
         }
         memcpy(sig_data, ias_resp.signature, ias_resp.signature_size);
-        *sig_data_ptr = sig_data;
+
+        *sig_data_ptr  = sig_data;
+        *sig_data_size = ias_resp.signature_size;
     }
 
     if (cert_data_ptr) {
+        assert(cert_data_size);
+
         urldecode(ias_resp.certificate, ias_resp.certificate);
         ias_resp.certificate_size = strlen(ias_resp.certificate) + 1;
 
@@ -611,10 +623,17 @@ int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_
             goto out;
         }
         memcpy(cert_data, ias_resp.certificate, ias_resp.certificate_size);
-        *cert_data_ptr = cert_data;
+
+        *cert_data_ptr  = cert_data;
+        *cert_data_size = ias_resp.certificate_size;
     }
 
     if (advisory_data_ptr) {
+        assert(advisory_data_size);
+
+        *advisory_data_ptr  = NULL;
+        *advisory_data_size = 0;
+
         if (ias_resp.advisory_url_size > 0 || ias_resp.advisory_ids_size > 0) {
             size_t dummy_size_t_int;
             if (__builtin_add_overflow(ias_resp.advisory_url_size, ias_resp.advisory_ids_size,
@@ -631,8 +650,9 @@ int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_
             memcpy(advisory_data + ias_resp.advisory_url_size, ias_resp.advisory_ids,
                    ias_resp.advisory_ids_size);
 
+            *advisory_data_ptr  = advisory_data;
+            *advisory_data_size = ias_resp.advisory_url_size + ias_resp.advisory_ids_size;
         }
-        *advisory_data_ptr = advisory_data;
     }
 
     ret = 0;
