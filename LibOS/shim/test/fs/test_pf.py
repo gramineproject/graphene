@@ -21,13 +21,14 @@ from regression import (
 class TC_50_ProtectedFiles(TC_00_FileSystem):
     @classmethod
     def setUpClass(c):
-        c.PF_CRYPT = 'pf_crypt'
-        c.PF_TAMPER = 'pf_tamper'
+        c.PF_CRYPT = 'bin/pf_crypt'
+        c.PF_TAMPER = 'bin/pf_tamper'
         c.WRAP_KEY = os.path.join(c.TEST_DIR, 'wrap-key')
         # CONST_WRAP_KEY must match the one in manifest
         c.CONST_WRAP_KEY = [0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]
         c.ENCRYPTED_DIR = os.path.join(c.TEST_DIR, 'pf_input')
         c.ENCRYPTED_FILES = [os.path.join(c.ENCRYPTED_DIR, str(v)) for v in c.FILE_SIZES]
+        c.LIB_PATH = os.path.join(os.getcwd(), 'lib')
 
         super().setUpClass()
         if not os.path.exists(c.ENCRYPTED_DIR):
@@ -38,7 +39,11 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         c.set_default_key(c)
         for i in c.INDEXES:
             cmd = [c.PF_CRYPT, 'e', '-w', c.WRAP_KEY, '-i', c.INPUT_FILES[i], '-o', c.ENCRYPTED_FILES[i]]
-            c.run_native_binary(c, cmd)
+            c.run_native_binary(c, cmd, libpath=os.path.join(os.getcwd(), 'lib'))
+
+    def pf_crypt(self, args):
+        args.insert(0, self.PF_CRYPT)
+        return self.run_native_binary(args, libpath=os.path.join(os.getcwd(), 'lib'))
 
     def set_default_key(self):
         with open(self.WRAP_KEY, 'wb') as file:
@@ -49,20 +54,20 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.encrypt_file(input, output)
 
     def encrypt_file(self, input, output):
-        cmd = [self.PF_CRYPT, 'e', '-w', self.WRAP_KEY, '-i', input, '-o', output]
-        stdout, stderr = self.run_native_binary(cmd)
+        args = ['e', '-w', self.WRAP_KEY, '-i', input, '-o', output]
+        stdout, stderr = self.pf_crypt(args)
         return (stdout, stderr)
 
     def decrypt_file(self, input, output):
-        cmd = [self.PF_CRYPT, 'd', '-w', self.WRAP_KEY, '-i', input, '-o', output]
-        stdout, stderr = self.run_native_binary(cmd)
+        args = ['d', '-w', self.WRAP_KEY, '-i', input, '-o', output]
+        stdout, stderr = self.pf_crypt(args)
         return (stdout, stderr)
 
     def test_000_gen_key(self):
         # test random key generation
         key_path = os.path.join(self.TEST_DIR, next(tempfile._get_candidate_names()))
-        cmd = [self.PF_CRYPT, 'g', '-w', key_path]
-        stdout, stderr = self.run_native_binary(cmd)
+        args = ['g', '-w', key_path]
+        stdout, stderr = self.pf_crypt(args)
         self.assertIn('Wrap key saved to: ' + key_path, stdout)
         self.assertEqual(os.path.getsize(key_path), 16)
         os.remove(key_path)
@@ -142,9 +147,9 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.copy_input(self.ENCRYPTED_FILES[-1], path1)
         shutil.copy(path1, path2)
         # accessing renamed file should fail
-        cmd = [self.PF_CRYPT, 'd', '-V', '-w', self.WRAP_KEY, '-i', path2, '-o', path1]
+        args = ['d', '-V', '-w', self.WRAP_KEY, '-i', path2, '-o', path1]
         try:
-            stdout, stderr = self.run_native_binary(cmd)
+            stdout, stderr = self.pf_crypt(args)
         except subprocess.CalledProcessError as e:
             self.assertNotEqual(e.returncode, 0)
         else:
@@ -205,7 +210,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             should_pass = any(s in name for s in SHOULD_PASS)
 
             try:
-                self.run_native_binary([self.PF_CRYPT, 'd', '-V', '-w', self.WRAP_KEY, '-i', input, '-o', output])
+                args = ['d', '-V', '-w', self.WRAP_KEY, '-i', input, '-o', output]
+                stdout, stderr = self.pf_crypt(args)
             except subprocess.CalledProcessError as e:
                 if should_pass:
                     self.assertEqual(e.returncode, 0)
