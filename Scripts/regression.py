@@ -48,12 +48,17 @@ class RegressionTestCase(unittest.TestCase):
 
         return stdout.decode(), stderr.decode()
 
-    def run_native_binary(self, args, *, timeout=None, **kwds):
+    def run_native_binary(self, args, timeout=None, libpath=None, **kwds):
         timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
             else self.DEFAULT_TIMEOUT)
 
-        with subprocess.Popen([*args],
+        my_env = os.environ.copy()
+        if not libpath is None:
+            my_env["LD_LIBRARY_PATH"] = libpath
+
+        with subprocess.Popen(args,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env=my_env,
                 preexec_fn=os.setpgrp,
                 **kwds) as process:
             try:
