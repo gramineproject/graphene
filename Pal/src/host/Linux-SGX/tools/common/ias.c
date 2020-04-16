@@ -639,10 +639,12 @@ out:
     free(ias_resp.advisory_ids);
     free(ias_resp.data);
 
-    free(report_data);
-    free(sig_data);
-    free(cert_data);
-    free(advisory_data);
+    if (ret < 0) {
+        free(report_data);
+        free(sig_data);
+        free(cert_data);
+        free(advisory_data);
+    }
 
     return ret;
 }
