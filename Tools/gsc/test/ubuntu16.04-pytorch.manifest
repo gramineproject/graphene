@@ -1,0 +1,15 @@
+sgx.allow_file_creation = 1
+sgx.enclave_size = 4G
+sgx.thread_num = 32
+sys.stack.size = 2M
+
+sgx.allowed_files.etchosts = file:/etc/hosts
+sgx.allowed_files.alexnetpth = file:/root/.cache/torch/checkpoints/alexnet-owt-4df8aa71.pth
+sgx.allowed_files.cpupossible = file:/sys/devices/system/cpu/possible
+sgx.allowed_files.cpukernelmax = file:/sys/devices/system/cpu/kernel_max
+sgx.allowed_files.cpupresent = file:/sys/devices/system/cpu/present
+
+sgx.trusted_files.sslcert1 = file:/usr/lib/ssl/certs/ce5e74ef.0
+sgx.trusted_files.sslcert2 = file:/usr/lib/ssl/certs/09789157.0
+sgx.trusted_files.sslcert3 = file:/usr/lib/ssl/certs/f387163d.0
+sgx.trusted_files.sslcert4 = file:/usr/lib/ssl/certs/f387163d.0

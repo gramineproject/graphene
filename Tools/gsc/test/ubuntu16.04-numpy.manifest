@@ -1,0 +1,4 @@
+sgx.allow_file_creation = 1
+sgx.enclave_size = 2G
+sgx.thread_num = 32
+sys.stack.size = 2M
