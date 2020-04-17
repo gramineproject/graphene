@@ -145,6 +145,7 @@ html_static_path = ['_static']
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('manpages/pal_loader', 'pal_loader', 'FIXME Loader', [author], 1),
+    ('manpages/gsc', 'gsc', 'Graphene Shielded Containers', [author], 1),
     ('manpages/is_sgx_available', 'is_sgx_available', 'Check SGX compatibility', [author], 1),
     ('manpages/quote_dump', 'quote_dump', 'Display SGX quote', [author], 1),
     ('manpages/ias_request', 'ias_request', 'Submit Intel Attestation Service request', [author], 1),

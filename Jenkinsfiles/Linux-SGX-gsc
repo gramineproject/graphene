@@ -1,0 +1,63 @@
+pipeline {
+        agent { label 'sgx_bionic' }
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            cd Tools/gsc/test
+                            # Jenkins may automatically merge master into submitted commit (but
+                            # maybe not): choose the original submitted commit for GSC (third
+                            # commit in below git-log output if merged or first commit if not
+                            # merged)
+                            export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
+                                                                {print $1} else {print $3}}'`
+                            make TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04" \
+                                 IMAGE_SUFFIX=-${COMMIT} GRAPHENE_BRANCH=${COMMIT}
+                        '''
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd Tools/gsc/test
+                            # Jenkins may automatically merge master into submitted commit (but
+                            # maybe not): choose the original submitted commit for GSC (third
+                            # commit in below git-log output if merged or first commit if not merged)
+                            export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
+                                                                {print $1} else {print $3}}'`
+                            make test MAXTESTNUM=2 TESTCASES=python3 \
+                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                        '''
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+                always {
+                    sh '''
+                        cd Tools/gsc/test
+                        # Jenkins may automatically merge master into submitted commit (but
+                        # maybe not): choose the original submitted commit for GSC (third
+                        # commit in below git-log output if merged or first commit if not merged)
+                        export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
+                                                            {print $1} else {print $3}}'`
+                        make clean TESTCASES=python3 \
+                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                        docker image prune -f
+                    '''
+                }
+        }
+}
