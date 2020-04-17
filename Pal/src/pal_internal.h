@@ -321,8 +321,8 @@ int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
 #define DEFAULT_OBJECT_EXEC_ADDR ((void*)0x00400000)
 enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
 
-int check_elf_magic (const void* header, size_t len);
-int check_elf_object (PAL_HANDLE handle);
+bool has_elf_magic(const void* header, size_t len);
+bool is_elf_object(PAL_HANDLE handle);
 int load_elf_object (const char * uri, enum object_type type);
 int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type);
 int add_elf_object(void * addr, PAL_HANDLE handle, int type);

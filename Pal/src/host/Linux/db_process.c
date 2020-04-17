@@ -167,7 +167,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
         if ((ret = _DkStreamOpen(&exec, uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
             return ret;
 
-        if (check_elf_object(exec) < 0) {
+        if (!is_elf_object(exec)) {
             ret = -PAL_ERROR_INVAL;
             goto out;
         }

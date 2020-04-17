@@ -297,7 +297,7 @@ void pal_linux_main (void * args)
     }
     file->file.realpath = path;
 
-    if (!check_elf_object(file)) {
+    if (is_elf_object(file)) {
         exec = file;
         goto done_init;
     }
