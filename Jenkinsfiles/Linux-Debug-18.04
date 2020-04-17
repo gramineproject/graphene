@@ -101,7 +101,7 @@ pipeline {
                                 cd Examples/nginx
                                 make
                                 make start-graphene-server &
-                                sleep 1
+                                sleep 5
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
                             '''
                         }
