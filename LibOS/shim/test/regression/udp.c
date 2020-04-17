@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
         return client();
     } else {
         int ret = server();
-        if (waitpid(pid, NULL, -1) == -1) {
+        if (waitpid(pid, NULL, 0) == -1) {
             perror("waitpid error");
             ret = 1;
         }
