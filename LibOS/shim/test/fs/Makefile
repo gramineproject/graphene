@@ -1,7 +1,9 @@
-copy_execs = \
+copy_mmap_execs = \
 	copy_mmap_rev \
 	copy_mmap_seq \
 	copy_mmap_whole \
+copy_execs = \
+	$(copy_mmap_execs) \
 	copy_rev \
 	copy_seq \
 	copy_whole
@@ -38,6 +40,8 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(execs): common.o
 
 $(copy_execs): common_copy.o
+
+$(copy_mmap_execs): CFLAGS += -DCOPY_MMAP
 
 %.o: %.c
 	$(call cmd,cc_o_c)

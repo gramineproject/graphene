@@ -1,5 +1,11 @@
 #include "common.h"
 
+#ifdef COPY_MMAP
+#define RDWR_OUTPUT_OPEN true
+#else
+#define RDWR_OUTPUT_OPEN false
+#endif
+
 void copy_file(const char* input_path, const char* output_path, size_t size) {
     int fi = open_input_fd(input_path);
     printf("open(%zu) input OK\n", size);
@@ -11,7 +17,7 @@ void copy_file(const char* input_path, const char* output_path, size_t size) {
         fatal_error("Size mismatch: expected %zu, got %zu\n", size, st.st_size);
     printf("fstat(%zu) input OK\n", size);
 
-    int fo = open_output_fd(output_path);
+    int fo = open_output_fd(output_path, /*rdwr=*/RDWR_OUTPUT_OPEN);
     printf("open(%zu) output OK\n", size);
 
     if (fstat(fo, &st) < 0)

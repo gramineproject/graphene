@@ -3,7 +3,7 @@
 void file_delete(const char* file_path_1, const char* file_path_2, bool writable) {
     const char* type = writable ? "output" : "input";
 
-    int fd = writable ? open_output_fd(file_path_1) : open_input_fd(file_path_1);
+    int fd = writable ? open_output_fd(file_path_1, /*rdwr=*/false) : open_input_fd(file_path_1);
     printf("open(%s) %s 1 OK\n", file_path_1, type);
 
     close_fd(file_path_1, fd);
@@ -13,7 +13,7 @@ void file_delete(const char* file_path_1, const char* file_path_2, bool writable
         fatal_error("Failed to unlink file %s: %s\n", file_path_1, strerror(errno));
     printf("unlink(%s) %s 1 OK\n", file_path_1, type);
 
-    fd = writable ? open_output_fd(file_path_2) : open_input_fd(file_path_2);
+    fd = writable ? open_output_fd(file_path_2, /*rdwr=*/false) : open_input_fd(file_path_2);
     printf("open(%s) %s 2 OK\n", file_path_2, type);
 
     if (unlink(file_path_2) != 0)

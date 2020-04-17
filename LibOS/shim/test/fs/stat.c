@@ -8,7 +8,7 @@ void file_stat(const char* file_path, bool writable) {
         fatal_error("Failed to stat file %s: %s\n", file_path, strerror(errno));
     printf("stat(%s) %s 1 OK: %zu\n", file_path, type, st.st_size);
 
-    int fd = writable ? open_output_fd(file_path) : open_input_fd(file_path);
+    int fd = writable ? open_output_fd(file_path, /*rdwr=*/false) : open_input_fd(file_path);
     printf("open(%s) %s 2 OK\n", file_path, type);
 
     if (stat(file_path, &st) != 0)

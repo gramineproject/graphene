@@ -35,14 +35,14 @@ void open_close_input_stdio(const char* input_path) {
 }
 
 void open_close_output_fd(const char* output_path) {
-    int fo = open_output_fd(output_path);
+    int fo = open_output_fd(output_path, /*rdwr=*/false);
     printf("open(%s) output OK\n", output_path);
     close_fd(output_path, fo);
     printf("close(%s) output OK\n", output_path);
 
-    int f1 = open_output_fd(output_path);
+    int f1 = open_output_fd(output_path, /*rdwr=*/false);
     printf("open(%s) output 1 OK\n", output_path);
-    int f2 = open_output_fd(output_path);
+    int f2 = open_output_fd(output_path, /*rdwr=*/false);
     printf("open(%s) output 2 OK\n", output_path);
     close_fd(output_path, f1);
     printf("close(%s) output 1 OK\n", output_path);
