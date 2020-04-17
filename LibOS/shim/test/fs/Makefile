@@ -1,7 +1,8 @@
 copy_mmap_execs = \
 	copy_mmap_rev \
 	copy_mmap_seq \
-	copy_mmap_whole \
+	copy_mmap_whole
+
 copy_execs = \
 	$(copy_mmap_execs) \
 	copy_rev \
