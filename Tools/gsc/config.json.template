@@ -1,0 +1,7 @@
+{
+    "distro": "ubuntu18.04",
+    "graphene_repository": "https://github.com/oscarlab/graphene.git",
+    "graphene_branch": "master",
+    "sgxdriver_repository": "https://github.com/01org/linux-sgx-driver.git",
+    "sgxdriver_branch": "sgx_driver_1.9"
+}
