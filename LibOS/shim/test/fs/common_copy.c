@@ -11,7 +11,7 @@ void copy_file(const char* input_path, const char* output_path, size_t size) {
         fatal_error("Size mismatch: expected %zu, got %zu\n", size, st.st_size);
     printf("fstat(%zu) input OK\n", size);
 
-    int fo = open_output_fd(output_path, /*rdwr=*/false);
+    int fo = open_output_fd(output_path);
     printf("open(%zu) output OK\n", size);
 
     if (fstat(fo, &st) < 0)

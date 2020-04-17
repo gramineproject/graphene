@@ -57,8 +57,8 @@ off_t tell_fd(const char* path, int fd) {
     return pos;
 }
 
-int open_output_fd(const char* path, bool rdwr) {
-    int fd = open(path, rdwr ? O_RDWR|O_CREAT : O_WRONLY|O_CREAT, 0664);
+int open_output_fd(const char* path) {
+    int fd = open(path, O_RDWR|O_CREAT, 0664);
     if (fd < 0)
         fatal_error("Failed to open output file %s: %s\n", path, strerror(errno));
     return fd;

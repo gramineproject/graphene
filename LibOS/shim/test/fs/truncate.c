@@ -5,7 +5,7 @@ void file_truncate(const char* file_path_1, const char* file_path_2, size_t size
         fatal_error("Failed to truncate file %s to %zu: %s\n", file_path_1, size, strerror(errno));
     printf("truncate(%s) to %zu OK\n", file_path_1, size);
 
-    int fd = open_output_fd(file_path_2, /*rdwr=*/false);
+    int fd = open_output_fd(file_path_2);
     printf("open(%s) output OK\n", file_path_2);
 
     if (ftruncate(fd, size) != 0)

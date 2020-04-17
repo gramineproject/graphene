@@ -38,7 +38,7 @@ void seek_input_stdio(const char* path) {
 
 void seek_output_fd(const char* path) {
     uint8_t buf[EXTEND_SIZE + 1] = {1};
-    int f = open_output_fd(path, /*rdwr=*/true);
+    int f = open_output_fd(path);
     printf("open(%s) output OK\n", path);
     seek_fd(path, f, 0, SEEK_SET);
     printf("seek(%s) output start OK\n", path);
