@@ -1,0 +1,14 @@
+# We sign the image in a multi-stage build to ensure that the signing key is never part of the
+# final image.
+FROM {{image}} as unsigned_image
+
+COPY gsc-signer-key.pem /gsc-signer-key.pem
+
+RUN python3 -B sign_manifests.py signing_order.txt
+
+FROM {{image}}
+
+COPY --from=unsigned_image {{working_dir}}*.sig ./
+COPY --from=unsigned_image {{working_dir}}*.sgx ./
+
+RUN rm signing_order.txt sign_manifests.py /graphene/signer/pal-sgx-sign /graphene/signer/pal_sgx_sign.py
