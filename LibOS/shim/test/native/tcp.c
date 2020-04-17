@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
             client();
         else {
             server();
-            waitpid(pid, NULL, -1);
+            waitpid(pid, NULL, 0);
         }
     }
 
