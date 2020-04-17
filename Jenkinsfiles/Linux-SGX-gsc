@@ -1,0 +1,43 @@
+pipeline {
+        agent any
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            cd Tools/gsc/test
+                            make TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04 ubuntu16.04" IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
+                        '''
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd Tools/gsc/test
+                            make -s test MAXTESTNUM=4 TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04 ubuntu16.04" IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
+                        '''
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+                always {
+                    sh '''
+                        cd Tools/gsc/test
+                        make -s clean TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04 ubuntu16.04" IMAGE_SUFFIX=-`git log -1 --pretty=format:"%H"`
+                    '''
+                }
+        }
+}
