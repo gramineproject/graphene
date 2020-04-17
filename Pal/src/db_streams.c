@@ -150,16 +150,14 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
     return 0;
 }
 
-/* _DkStreamOpen for internal use. Open stream based on uri.
-   access/share/create/options are the same flags defined for
-   DkStreamOpen. */
+/* _DkStreamOpen for internal use. Open stream based on uri. access/share/create/options are the
+ * same flags defined for DkStreamOpen. */
 int _DkStreamOpen(PAL_HANDLE* handle, const char* uri, int access, int share, int create,
                   int options) {
     struct handle_ops* ops = NULL;
-    char* type             = NULL;
+    char* type = NULL;
 
     int ret = parse_stream_uri(&uri, &type, &ops);
-
     if (ret < 0)
         return ret;
 

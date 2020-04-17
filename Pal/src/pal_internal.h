@@ -309,12 +309,11 @@ int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_siz
 int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
                         PAL_PTR quote, PAL_NUM* quote_size);
 
-#define INIT_FAIL(exitcode, reason)                                     \
-    do {                                                                \
-        printf("PAL failed at " __FILE__  ":%s:%u (exitcode = %u, reason=%s)\n", \
-               __FUNCTION__, (unsigned int)__LINE__,                    \
-               (unsigned int) (exitcode), (const char *) (reason));     \
-        _DkProcessExit(exitcode);                                       \
+#define INIT_FAIL(exitcode, reason)                                                     \
+    do {                                                                                \
+        printf("PAL failed at " __FILE__  ":%s:%u (exitcode = %u, reason=%s)\n",        \
+               __FUNCTION__, (unsigned int)__LINE__, (unsigned int)(exitcode), reason); \
+        _DkProcessExit(exitcode);                                                       \
     } while (0)
 
 /* function and definition for loading binaries */

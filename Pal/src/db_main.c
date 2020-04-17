@@ -207,17 +207,15 @@ static int loader_filter (const char * key, int len)
 }
 
 /* 'pal_main' must be called by the host-specific bootloader */
-noreturn void pal_main (
+noreturn void pal_main(
         PAL_NUM    instance_id,      /* current instance id */
         PAL_HANDLE manifest_handle,  /* manifest handle if opened */
         PAL_HANDLE exec_handle,      /* executable handle if opened */
         PAL_PTR    exec_loaded_addr, /* executable addr if loaded */
         PAL_HANDLE parent_process,   /* parent process if it's a child */
         PAL_HANDLE first_thread,     /* first thread handle */
-        PAL_STR *  arguments,        /* application arguments */
-        PAL_STR *  environments      /* environment variables */
-    )
-{
+        PAL_STR*   arguments,        /* application arguments */
+        PAL_STR*   environments      /* environment variables */) {
     pal_state.instance_id = instance_id;
     pal_state.alloc_align = _DkGetAllocationAlignment();
     assert(IS_POWER_OF_2(pal_state.alloc_align));
