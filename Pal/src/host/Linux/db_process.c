@@ -111,9 +111,9 @@ struct proc_args {
 
     unsigned long   memory_quota;
 
-    unsigned int    parent_data_size;
-    unsigned int    exec_data_size;
-    unsigned int    manifest_data_size;
+    size_t parent_data_size;
+    size_t exec_data_size;
+    size_t manifest_data_size;
 };
 
 /*
@@ -133,10 +133,6 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
         return ret;
 
     /* child */
-    ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream, PROC_INIT_FD);
-    if (IS_ERR(ret))
-        goto failed;
-
     if (proc_param->parent)
         handle_set_cloexec(proc_param->parent,   false);
     if (proc_param->exec)
@@ -144,12 +140,11 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
     if (proc_param->manifest)
         handle_set_cloexec(proc_param->manifest, false);
 
-    INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv,
-                   linux_state.environ);
-
-failed:
-    /* fail is it gets here */
-    return -PAL_ERROR_DENIED;
+    int res = INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv, linux_state.environ);
+    /* execve failed, but we're after vfork, so we can't do anything more than just exit */
+    INLINE_SYSCALL(exit_group, 1, ERRNO(res));
+    /* UNREACHABLE */
+    while (1) {}
 }
 
 int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
@@ -262,11 +257,15 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     int argc = 0;
     if (args)
         for (; args[argc] ; argc++);
-    param.argv = __alloca(sizeof(const char *) * (argc + 2));
+    param.argv = __alloca(sizeof(const char*) * (argc + 4));
     param.argv[0] = PAL_LOADER;
+    param.argv[1] = "child";
+    char parent_fd_str[16];
+    snprintf(parent_fd_str, sizeof(parent_fd_str), "%u", parent_handle->process.stream);
+    param.argv[2] = parent_fd_str;
     if (args)
-        memcpy(&param.argv[1], args, sizeof(const char *) * argc);
-    param.argv[argc + 1] = NULL;
+        memcpy(&param.argv[3], args, sizeof(const char*) * argc);
+    param.argv[argc + 3] = NULL;
 
     /* Child's signal handler may mess with parent's memory during vfork(),
      * so block signals
@@ -315,46 +314,32 @@ out:
     return ret;
 }
 
-void init_child_process (PAL_HANDLE * parent_handle,
-                         PAL_HANDLE * exec_handle,
-                         PAL_HANDLE * manifest_handle)
-{
+void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDLE* exec_handle,
+                        PAL_HANDLE* manifest_handle) {
     int ret = 0;
 
     /* try to do a very large reading, so it doesn't have to be read for the
        second time */
-    struct proc_args * proc_args = __alloca(sizeof(struct proc_args));
-    struct proc_args * new_proc_args;
+    struct proc_args* proc_args = __alloca(sizeof(struct proc_args));
+    struct proc_args* new_proc_args;
 
-    int bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_args,
-                               sizeof(*proc_args));
-
+    int bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, proc_args, sizeof(*proc_args));
     if (IS_ERR(bytes)) {
-        if (ERRNO(bytes) != EBADF)
-            INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
-
-        /* in the first process */
-        /* occupy PROC_INIT_FD so no one will use it */
-        INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
-        return;
+        INIT_FAIL(-unix_to_pal_error(ERRNO(bytes)), "communication with parent failed");
     }
 
     /* a child must have parent handle and an executable */
     if (!proc_args->parent_data_size)
         INIT_FAIL(PAL_ERROR_INVAL, "invalid process created");
 
-    int datasz = proc_args->parent_data_size + proc_args->exec_data_size +
-                 proc_args->manifest_data_size;
-
-    if (!datasz)
-        goto no_data;
-
+    size_t datasz = proc_args->parent_data_size + proc_args->exec_data_size
+                    + proc_args->manifest_data_size;
     new_proc_args = __alloca(sizeof(*proc_args) + datasz);
     memcpy(new_proc_args, proc_args, sizeof(*proc_args));
     proc_args = new_proc_args;
-    void * data = (void *) (proc_args + 1);
+    void* data = (void*)(proc_args + 1);
 
-    bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, data, datasz);
+    bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, datasz);
     if (IS_ERR(bytes))
         INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
 
@@ -365,9 +350,6 @@ void init_child_process (PAL_HANDLE * parent_handle,
         INIT_FAIL(-ret, "cannot deserialize parent process handle");
     data += proc_args->parent_data_size;
     *parent_handle = parent;
-
-    /* occupy PROC_INIT_FD so no one will use it */
-    INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
 
     /* deserialize the executable handle */
     if (proc_args->exec_data_size) {
@@ -394,8 +376,6 @@ void init_child_process (PAL_HANDLE * parent_handle,
         data += proc_args->manifest_data_size;
         *manifest_handle = manifest;
     }
-
-no_data:
     linux_state.parent_process_id = proc_args->parent_process_id;
     linux_state.memory_quota = proc_args->memory_quota;
     memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));

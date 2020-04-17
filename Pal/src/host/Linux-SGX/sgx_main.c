@@ -939,11 +939,9 @@ static void __attribute__ ((noinline)) force_linux_to_grow_stack(void) {
     }
 }
 
-int main (int argc, char ** argv, char ** envp)
-{
-    char * manifest_uri = NULL;
-    char * exec_uri = NULL;
-    const char * pal_loader = argv[0];
+int main(int argc, char* argv[], char* envp[]) {
+    char* manifest_uri = NULL;
+    char* exec_uri = NULL;
     int fd = -1;
     int ret = 0;
     bool exec_uri_inferred = false; // Handle the case where the exec uri is
@@ -952,28 +950,29 @@ int main (int argc, char ** argv, char ** envp)
 
     force_linux_to_grow_stack();
 
-    argc--;
-    argv++;
+    if (argc < 3)
+        goto usage;
 
-    int is_child = sgx_init_child_process(&pal_enclave.pal_sec);
-    if (is_child < 0) {
-        ret = is_child;
-        goto out;
+    // Are we the first in this Graphene's namespace?
+    bool first_process = !strcmp_static(argv[1], "init");
+    if (!first_process && strcmp_static(argv[1], "child")) {
+        goto usage;
     }
 
-    if (!is_child) {
-        /* occupy PROC_INIT_FD so no one will use it */
-        INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
-
-        if (!argc)
+    if (first_process) {
+        /* We're the first process created. */
+        if (argc < 3) {
             goto usage;
-
-        if (!strcmp_static(argv[0], URI_PREFIX_FILE)) {
-            exec_uri = alloc_concat(argv[0], -1, NULL, -1);
-        } else {
-            exec_uri = alloc_concat(URI_PREFIX_FILE, -1, argv[0], -1);
         }
+
+        exec_uri = alloc_concat(URI_PREFIX_FILE, -1, argv[2], -1);
     } else {
+        /* We're one of the children spawned to host new processes started inside Graphene.
+         * We'll receive our argv and config via IPC. */
+        int parent_pipe_fd = atoi(argv[2]);
+        ret = sgx_init_child_process(parent_pipe_fd, &pal_enclave.pal_sec);
+        if (ret < 0)
+            goto out;
         exec_uri = alloc_concat(pal_enclave.pal_sec.exec_name, -1, NULL, -1);
     }
 
@@ -985,7 +984,6 @@ int main (int argc, char ** argv, char ** envp)
     fd = INLINE_SYSCALL(open, 3, exec_uri + URI_PREFIX_FILE_LEN, O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(fd)) {
         SGX_DBG(DBG_E, "Input file not found: %s\n", exec_uri);
-        ret = fd;
         goto usage;
     }
 
@@ -1071,14 +1069,21 @@ int main (int argc, char ** argv, char ** envp)
      * continuous we know that we are running on Linux, which does this. This
      * saves us creating a copy of all argv and envp strings.
      */
-    char * args = argv[0];
-    size_t args_size = argc > 0 ? (argv[argc - 1] - argv[0]) + strlen(argv[argc - 1]) + 1: 0;
+    char* args;
+    size_t args_size;
+    if (first_process) {
+        args = argv[2];
+        args_size = argc > 2 ? (argv[argc - 1] - args) + strlen(argv[argc - 1]) + 1 : 0;
+    } else {
+        args = argv[3];
+        args_size = argc > 3 ? (argv[argc - 1] - args) + strlen(argv[argc - 1]) + 1 : 0;
+    }
 
     int envc = 0;
     while (envp[envc] != NULL) {
         envc++;
     }
-    char * env = envp[0];
+    char* env = envp[0];
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
 
     ret = load_enclave(&pal_enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env, env_size,
@@ -1098,8 +1103,13 @@ out:
 
     return ret;
 
-usage:
-    SGX_DBG(DBG_E, "USAGE: %s [executable|manifest] args ...\n", pal_loader);
-    ret = -EINVAL;
+usage:;
+    const char* self = argv[0] ? argv[0] : "<this program>";
+    printf("USAGE:\n"
+           "\tFirst process: %s init [<executable>|<manifest>] args...\n"
+           "\tChildren:      %s child <parent_pipe_fd> args...\n",
+           self, self);
+    printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
+    ret = 1;
     goto out;
 }

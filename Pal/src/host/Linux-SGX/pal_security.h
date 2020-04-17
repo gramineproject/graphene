@@ -68,6 +68,4 @@ extern struct pal_sec pal_sec;
 #define GRAPHENE_TEMPDIR        "/tmp/graphene"
 #define GRAPHENE_PIPEDIR        (GRAPHENE_TEMPDIR "/pipes")
 
-#define PROC_INIT_FD    255
-
 #endif /* PAL_SECURITY_H */

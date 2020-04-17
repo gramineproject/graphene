@@ -32,7 +32,7 @@ class RegressionTestCase(unittest.TestCase):
         if not pathlib.Path(loader).exists():
             self.skipTest('loader ({}) not found'.format(loader))
 
-        with subprocess.Popen([loader, *args],
+        with subprocess.Popen([loader, 'init', *args],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 preexec_fn=os.setpgrp,
                 **kwds) as process:
