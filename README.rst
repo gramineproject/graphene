@@ -93,6 +93,11 @@ For the full documentation of the Graphene manifest syntax, see the `Graphene
 documentation
 <https://graphene.readthedocs.io/en/latest/manifest-syntax.html>`__.
 
+Automatically running applications via Graphene Shielded Containers (GSC)
+-----------------------------------------------------------------------
+
+Applications deployed as Docker images may be graphenized via the `gsc tool
+<https://graphene.readthedocs.io/en/latest/manpages/gsc.html>`__.
 
 Graphene is *not a production-ready software* (yet)
 ===================================================
@@ -102,7 +107,6 @@ more reliable piece of software. The most important problems (which include
 major security issues) are tracked in
 `#1544 (Production blockers) <https://github.com/oscarlab/graphene/issues/1544>`__.
 You should read it before installing and using Graphene.
-
 
 Getting help
 ============
@@ -121,13 +125,6 @@ Deprecated Code
 ===============
 
 We have some branches with legacy code (use at your own risk).
-
-Docker support
---------------
-
-We are actively working on adding a proper Docker support. You can find the old
-and deprecated implementation on `DEPRECATED/gsc
-<https://github.com/oscarlab/graphene/tree/DEPRECATED/gsc>`__ branch.
 
 Build with Kernel-Level Sandboxing
 ----------------------------------
