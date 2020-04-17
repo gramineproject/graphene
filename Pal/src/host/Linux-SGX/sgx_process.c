@@ -56,23 +56,19 @@ struct proc_args {
  * NOTE: more tricks may be needed to prevent unexpected optimization for
  * future compiler.
  */
-static int __attribute_noinline
-vfork_exec(int child_stream, int parent_stream, const char** argv) {
+static int __attribute_noinline vfork_exec(int parent_stream, const char** argv) {
     int ret = ARCH_VFORK();
     if (ret)
         return ret;
 
-    /* child: close parent's FDs, rewire child stream to init FD, and execve */
+    /* child: close parent's FDs and execve */
     INLINE_SYSCALL(close, 1, parent_stream);
 
-    ret = INLINE_SYSCALL(dup2, 2, child_stream, PROC_INIT_FD);
-    if (!IS_ERR(ret)) {
-        extern char** environ;
-        ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
+    extern char** environ;
+    ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
 
-        /* shouldn't get to here */
-        SGX_DBG(DBG_E, "unexpected failure of new process\n");
-    }
+    /* shouldn't get to here */
+    SGX_DBG(DBG_E, "unexpected failure of execve\n");
     __asm__ volatile ("hlt");
     return 0;
 }
@@ -88,10 +84,14 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
     if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds))))
         goto out;
 
-    const char ** argv = __alloca(sizeof(const char *) * (nargs + 2));
+    const char** argv = __alloca(sizeof(const char*) * (nargs + 4));
     argv[0] = PAL_LOADER;
-    memcpy(argv + 1, args, sizeof(const char *) * nargs);
-    argv[nargs + 1] = NULL;
+    argv[1] = "child";
+    char parent_fd_str[16];
+    snprintf(parent_fd_str, sizeof(parent_fd_str), "%u", fds[0]);
+    argv[2] = parent_fd_str;
+    memcpy(argv + 3, args, sizeof(const char *) * nargs);
+    argv[nargs + 3] = NULL;
 
     /* child's signal handler may mess with parent's memory during vfork(), so block signals */
     ret = block_async_signals(true);
@@ -100,7 +100,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
         goto out;
     }
 
-    ret = vfork_exec(/*child_stream=*/fds[0], /*parent_stream=*/fds[1], argv);
+    ret = vfork_exec(/*parent_stream=*/fds[1], argv);
     if (IS_ERR(ret))
         goto out;
 
@@ -158,11 +158,10 @@ out:
     return ret;
 }
 
-int sgx_init_child_process (struct pal_sec * pal_sec)
-{
+int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec) {
     struct proc_args proc_args;
 
-    int ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, &proc_args, sizeof(struct proc_args));
+    int ret = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(struct proc_args));
     if (IS_ERR(ret)) {
         if (ERRNO(ret) == EBADF)
             return 0;
@@ -170,7 +169,7 @@ int sgx_init_child_process (struct pal_sec * pal_sec)
     }
 
     int child_status = 0;
-    ret = INLINE_SYSCALL(write, 3, PROC_INIT_FD, &child_status, sizeof(int));
+    ret = INLINE_SYSCALL(write, 3, parent_pipe_fd, &child_status, sizeof(int));
     if (IS_ERR(ret))
         return ret;
 

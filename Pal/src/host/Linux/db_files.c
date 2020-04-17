@@ -38,30 +38,29 @@ typedef __kernel_pid_t pid_t;
 #include <asm/errno.h>
 
 /* 'open' operation for file streams */
-static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
-                      int access, int share, int create, int options)
-{
+static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
+                     int create, int options) {
     if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
     /* try to do the real open */
-    int ret = INLINE_SYSCALL(open, 3, uri,
-                             HOST_ACCESS(access)|create|options|O_CLOEXEC,
-                             share);
+    int ret = INLINE_SYSCALL(open, 3, uri, HOST_ACCESS(access)|create|options|O_CLOEXEC, share);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
     /* if try_create_path succeeded, prepare for the file handle */
-    size_t len = strlen(uri);
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len + 1);
+    size_t uri_size = strlen(uri) + 1;
+    PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + uri_size);
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0);
     hdl->file.fd = ret;
     hdl->file.map_start = NULL;
-    char * path = (void *) hdl + HANDLE_SIZE(file);
-    memcpy(path, uri, len + 1);
-    hdl->file.realpath = (PAL_STR) path;
+    char* path = (void*)hdl + HANDLE_SIZE(file);
+    ret = get_norm_path(uri, path, &uri_size);
+    if (ret < 0)
+        return ret;
+    hdl->file.realpath = (PAL_STR)path;
     *handle = hdl;
     return 0;
 }

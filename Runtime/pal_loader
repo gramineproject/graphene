@@ -79,13 +79,18 @@ do
 	break
 done
 
+if [ "$MANIFEST" == "" ]; then
+	echo "Usage: $0 [<executable_path>|<manifest_path>] <args>..."
+	exit 1
+fi
+
 if [ ! -f "$PAL_CMD" ]; then
-	echo "$PAL_CMD is not built, or security mode is not supported"
+	echo "$PAL_CMD is not built"
 	exit 1
 fi
 
 if [ ${#PREFIX[@]} -eq 0 ]; then
-    exec "$PAL_CMD" "$MANIFEST" "$@"
+    exec "$PAL_CMD" init "$MANIFEST" "$@"
 else
-    exec "${PREFIX[@]}" "$PAL_CMD" "$MANIFEST" "$@"
+    exec "${PREFIX[@]}" "$PAL_CMD" init "$MANIFEST" "$@"
 fi

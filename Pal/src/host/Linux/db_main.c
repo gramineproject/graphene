@@ -38,15 +38,15 @@
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
 
-/* At the begining of entry point, rsp starts at argc, then argvs,
-   envps and auxvs. Here we store rsp to rdi, so it will not be
-   messed up by function calls */
-__asm__ (".global pal_start\n"
-     "  .type pal_start,@function\n"
-     "pal_start:\n"
-     "  movq %rsp, %rdi\n"
-     "  andq $~15, %rsp\n"
-     "  call pal_linux_main\n");
+__asm__ (
+    ".global pal_start\n"
+    "    .type pal_start,@function\n"
+    "pal_start:\n"
+    "    movq %rsp, %rdi\n" /* 1st arg for pal_linux_main: initial RSP */
+    "    movq %rdx, %rsi\n" /* 2nd arg: fini callback */
+    "    xorq %rbp, %rbp\n" /* mark the last stack frame with RBP == 0 (for debuggers) */
+    "    andq $~15, %rsp\n"
+    "    call pal_linux_main\n");
 
 #define RTLD_BOOTSTRAP
 
@@ -70,48 +70,37 @@ static int uid, gid;
 static ElfW(Addr) sysinfo_ehdr;
 #endif
 
-static void pal_init_bootstrap (void * args, const char ** pal_name,
-                                int * pargc,
-                                const char *** pargv,
-                                const char *** penvp)
-{
-    /*
-     * fetch arguments and environment variables, the previous stack
-     * pointer is in rdi (arg). The stack structure starting at rdi
-     * will look like:
-     *            auxv[m - 1] = AT_NULL
-     *            ...
-     *            auxv[0]
-     *            envp[n - 1] = NULL
-     *            ...
-     *            envp[0]
-     *            argv[argc] = NULL
-     *            argv[argc - 1]
-     *            ...
+static void read_args_from_stack(void* initial_rsp, int* out_argc, const char*** out_argv,
+                                 const char*** out_envp) {
+    /* The stack layout on program entry is:
+     *
+     *            argc                  <-- `initial_rsp` points here
      *            argv[0]
-     *            argc
-     *       ---------------------------------------
-     *            user stack
+     *            ...
+     *            argv[argc - 1]
+     *            argv[argc] = NULL
+     *            envp[0]
+     *            ...
+     *            envp[n - 1] = NULL
+     *            auxv[0]
+     *            ...
+     *            auxv[m - 1] = AT_NULL
      */
-    const char ** all_args = (const char **) args;
-    int argc = (uintptr_t) all_args[0];
-    const char ** argv = &all_args[1];
-    const char ** envp = argv + argc + 1;
+    const char** stack = (const char**)initial_rsp;
+    int argc = (uintptr_t)stack[0];
+    const char** argv = &stack[1];
+    const char** envp = argv + argc + 1;
+    assert(argv[argc] == NULL);
 
-    /* fetch environment information from aux vectors */
-    const char ** e = envp;
+    const char** e = envp;
+    for (; *e ; e++) {
 #ifdef DEBUG
-    for (; *e ; e++)
-        if ((*e)[0] == 'I' && (*e)[1] == 'N' && (*e)[2] == '_' &&
-            (*e)[3] == 'G' && (*e)[4] == 'D' && (*e)[5] == 'B' &&
-            (*e)[6] == '=' && (*e)[7] == '1' && !(*e)[8])
+        if (!strcmp_static(*e, "IN_GDB=1"))
             linux_state.in_gdb = true;
-#else
-    for (; *e ; e++);
 #endif
+    }
 
-    ElfW(auxv_t) *av;
-    for (av = (ElfW(auxv_t) *) (e + 1) ; av->a_type != AT_NULL ; av++)
+    for (ElfW(auxv_t)* av = (ElfW(auxv_t)*)(e + 1); av->a_type != AT_NULL ; av++) {
         switch (av->a_type) {
             case AT_PAGESZ:
                 g_page_size = av->a_un.a_val;
@@ -130,13 +119,10 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
                 break;
 #endif
         }
-
-    *pal_name = argv[0];
-    argv++;
-    argc--;
-    *pargc = argc;
-    *pargv = argv;
-    *penvp = envp;
+    }
+    *out_argc = argc;
+    *out_argv = argv;
+    *out_envp = envp;
 }
 
 unsigned long _DkGetAllocationAlignment (void)
@@ -204,23 +190,40 @@ static struct link_map pal_map;
 # error "unsupported architecture"
 #endif
 
-void pal_linux_main (void * args)
-{
-    const char * pal_name = NULL;
-    PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
-    const char ** argv, ** envp;
-    int argc;
-    PAL_HANDLE first_thread;
+noreturn static void print_usage_and_exit(const char* argv_0) {
+    const char* self = argv_0 ? argv_0 : "<this program>";
+    printf("USAGE:\n"
+           "\tFirst process: %s init [<executable>|<manifest>] args...\n"
+           "\tChildren:      %s child <parent_pipe_fd> args...\n",
+           self, self);
+    printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
+    _DkProcessExit(1);
+}
+
+void pal_linux_main(void* initial_rsp, void* fini_callback) {
+    __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
 
     unsigned long start_time = _DkSystemTimeQueryEarly();
+    pal_state.start_time = start_time;
 
-    /* parse argc, argv, envp and auxv */
-    pal_init_bootstrap(args, &pal_name, &argc, &argv, &envp);
+    int argc;
+    const char** argv;
+    const char** envp;
+    read_args_from_stack(initial_rsp, &argc, &argv, &envp);
+
+    if (argc < 3)
+        print_usage_and_exit(argv[0]);  // may be NULL!
+
+    // Are we the first in this Graphene's namespace?
+    bool first_process = !strcmp_static(argv[1], "init");
+    if (!first_process && strcmp_static(argv[1], "child")) {
+        print_usage_and_exit(argv[0]);
+    }
 
     pal_map.l_addr = elf_machine_load_address();
-    pal_map.l_name = pal_name;
-    elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
-                         pal_map.l_info, pal_map.l_addr);
+    pal_map.l_name = argv[0];
+    elf_get_dynamic_info((void*)pal_map.l_addr + elf_machine_dynamic(), pal_map.l_info,
+                         pal_map.l_addr);
 
     ELF_DYNAMIC_RELOCATE(&pal_map);
 
@@ -228,24 +231,24 @@ void pal_linux_main (void * args)
 
     init_slab_mgr(g_page_size);
 
-    first_thread = malloc(HANDLE_SIZE(thread));
+    PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     if (!first_thread)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
 
-    void * alt_stack = calloc(1, ALT_STACK_SIZE);
+    void* alt_stack = calloc(1, ALT_STACK_SIZE);
     if (!alt_stack)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
     first_thread->thread.stack = alt_stack;
 
     // Initialize TCB at the top of the alternative stack.
-    PAL_TCB_LINUX * tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
+    PAL_TCB_LINUX* tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
     tcb->common.self = &tcb->common;
-    tcb->handle    = first_thread;
-    tcb->alt_stack = alt_stack; // Stack bottom
-    tcb->callback  = NULL;
-    tcb->param     = NULL;
+    tcb->handle      = first_thread;
+    tcb->alt_stack   = alt_stack; // Stack bottom
+    tcb->callback    = NULL;
+    tcb->param       = NULL;
     pal_thread_init(tcb);
 
     setup_pal_map(&pal_map);
@@ -255,8 +258,12 @@ void pal_linux_main (void * args)
         setup_vdso_map(sysinfo_ehdr);
 #endif
 
-    pal_state.start_time = start_time;
-    init_child_process(&parent, &exec, &manifest);
+    PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
+    if (!first_process) {
+        // Children receive their argv and config via IPC.
+        int parent_pipe_fd = atoi(argv[2]);
+        init_child_process(parent_pipe_fd, &parent, &exec, &manifest);
+    }
 
     if (!pal_sec.process_id)
         pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
@@ -269,53 +276,33 @@ void pal_linux_main (void * args)
     if (!linux_state.parent_process_id)
         linux_state.parent_process_id = linux_state.process_id;
 
-    if (parent)
-        goto done_init;
+    if (first_process) {
+        // We need to find a binary to run.
+        const char* exec_target = argv[2];
+        size_t size = URI_PREFIX_FILE_LEN + strlen(exec_target) + 1;
+        char* uri = malloc(size);
+        if (!uri)
+            INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+        snprintf(uri, size, URI_PREFIX_FILE "%s", exec_target);
+        PAL_HANDLE file;
+        // FIXME: `options` should be `PAL_OPTION_CLOEXEC`, but _DkStreamOpen is totally broken.
+        int ret = _DkStreamOpen(&file, uri, PAL_ACCESS_RDONLY, 0, 0, 0);
+        free(uri);
+        if (ret < 0)
+            INIT_FAIL(-ret, "Failed to open file to execute");
 
-    int fd = INLINE_SYSCALL(open, 3, argv[0], O_RDONLY|O_CLOEXEC, 0);
-    if (IS_ERR(fd)) {
-        // DEP 10/20/16: Don't silently swallow permission errors
-        // accessing the manifest
-        if (fd == -13) {
-            printf("Warning: Attempt to open file %s failed with permission denied\n", argv[0]);
+        if (is_elf_object(file)) {
+            exec = file;
+        } else {
+            manifest = file;
         }
-        goto done_init;
-    }
-
-    size_t len = strlen(argv[0]) + 1;
-    PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len);
-    SET_HANDLE_TYPE(file, file);
-    HANDLE_HDR(file)->flags |= RFD(0)|WFD(0);
-    file->file.fd = fd;
-    file->file.map_start = NULL;
-
-    char * path = (void *) file + HANDLE_SIZE(file);
-    int ret = get_norm_path(argv[0], path, &len);
-    if (ret < 0) {
-        printf("Could not normalize path (%s): %s\n", argv[0], pal_strerror(ret));
-        goto done_init;
-    }
-    file->file.realpath = path;
-
-    if (is_elf_object(file)) {
-        exec = file;
-        goto done_init;
-    }
-
-    manifest = file;
-
-done_init:
-    if (!parent && !exec && !manifest) {
-        printf("Executable not found\n");
-        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
-        _DkProcessExit(0);
     }
 
     signal_setup();
 
     /* call to main function */
-    pal_main((PAL_NUM) linux_state.parent_process_id,
-             manifest, exec, NULL, parent, first_thread, argv, envp);
+    pal_main((PAL_NUM)linux_state.parent_process_id, manifest, exec, NULL, parent, first_thread,
+             first_process ? argv + 2 : argv + 3, envp);
 }
 
 /* the following code is borrowed from CPUID */

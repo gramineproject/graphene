@@ -67,8 +67,6 @@ extern struct pal_sec {
     struct r_debug* _r_debug;
 } pal_sec;
 
-#define PROC_INIT_FD 255
-
 #define RANDGEN_DEVICE "/dev/urandom"
 
 #endif /* PAL_SECURITY_H */

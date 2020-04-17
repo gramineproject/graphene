@@ -157,8 +157,8 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size);
 
 bool stataccess (struct stat * stats, int acc);
 
-void init_child_process (PAL_HANDLE * parent, PAL_HANDLE * exec,
-                         PAL_HANDLE * manifest);
+void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, PAL_HANDLE* exec,
+                        PAL_HANDLE* manifest);
 
 void cpuid (unsigned int leaf, unsigned int subleaf,
             unsigned int words[]);
@@ -197,8 +197,7 @@ typedef struct pal_tcb_linux {
     };
 } PAL_TCB_LINUX;
 
-noreturn void pal_linux_main (void * args);
-int pal_thread_init (void * tcbptr);
+int pal_thread_init(void* tcbptr);
 
 static inline PAL_TCB_LINUX * get_tcb_linux (void)
 {
