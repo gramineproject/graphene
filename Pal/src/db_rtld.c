@@ -23,6 +23,8 @@
  * Library.
  */
 
+#include <stdbool.h>
+
 #include "pal_defs.h"
 #include "pal.h"
 #include "pal_internal.h"
@@ -433,37 +435,17 @@ postmap:
     return l;
 }
 
-int check_elf_magic (const void* header, size_t len)
-{
-#define ELF_MAGIC_SIZE EI_CLASS
-    if (len < ELF_MAGIC_SIZE)
-        return -PAL_ERROR_INVAL;
-
-    ElfW(Ehdr) * ehdr = (ElfW(Ehdr) *) header;
-
-    static const unsigned char expected[EI_CLASS] =
-    {
-        [EI_MAG0] = ELFMAG0,
-        [EI_MAG1] = ELFMAG1,
-        [EI_MAG2] = ELFMAG2,
-        [EI_MAG3] = ELFMAG3,
-    };
-
-    /* See whether the ELF header is what we expect.  */
-    if (memcmp(ehdr->e_ident, expected, ELF_MAGIC_SIZE) != 0)
-        return -PAL_ERROR_INVAL;
-
-    return 0;
+bool has_elf_magic(const void* header, size_t len) {
+    return len >= SELFMAG && !memcmp(header, ELFMAG, SELFMAG);
 }
 
-int check_elf_object (PAL_HANDLE handle)
-{
-    unsigned char buffer[ELF_MAGIC_SIZE];
+bool is_elf_object(PAL_HANDLE handle) {
+    unsigned char buffer[SELFMAG];
     int64_t len = _DkStreamRead(handle, 0, sizeof(buffer), buffer, NULL, 0);
 
     if (len < 0)
-        return len;
-    return check_elf_magic(buffer, len);
+        return false;
+    return has_elf_magic(buffer, len);
 }
 
 void free_elf_object (struct link_map * map)
