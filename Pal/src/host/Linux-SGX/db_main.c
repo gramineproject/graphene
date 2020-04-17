@@ -144,7 +144,7 @@ static int loader_filter (const char * key, int len)
 
 /*
  * Takes a pointer+size to an untrusted memory region containing a
- * NUL-separated list of strings. It builds a argv-style list in trusted memory
+ * NUL-separated list of strings. It builds an argv-style list in trusted memory
  * with those strings.
  *
  * It is responsible for handling the access to untrusted memory safely
@@ -155,44 +155,45 @@ static int loader_filter (const char * key, int len)
  * to free it (For argv and envp we rely on auto free on termination in
  * practice).
  */
-static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
-    const char **argv;
+static const char** make_argv_list(void* uptr_src, size_t src_size) {
+    const char** argv;
 
     if (src_size == 0) {
         argv = malloc(sizeof(char *));
-        argv[0] = NULL;
+        if (argv)
+            argv[0] = NULL;
         return argv;
     }
 
-    char * data = malloc(src_size);
+    char* data = malloc(src_size);
     if (!data) {
         return NULL;
     }
 
     if (!sgx_copy_to_enclave(data, src_size, uptr_src, src_size)) {
-        goto free_and_err;
+        goto fail;
     }
     data[src_size - 1] = '\0';
 
-    uint64_t argc = 0;
-    for (uint64_t i = 0; i < src_size; i++) {
+    size_t argc = 0;
+    for (size_t i = 0; i < src_size; i++) {
         if (data[i] == '\0') {
             argc++;
         }
     }
 
     size_t argv_size;
-    if (__builtin_mul_overflow(argc + 1, sizeof(char *), &argv_size)) {
-        goto free_and_err;
+    if (__builtin_mul_overflow(argc + 1, sizeof(char*), &argv_size)) {
+        goto fail;
     }
     argv = malloc(argv_size);
     if (!argv) {
-        goto free_and_err;
+        goto fail;
     }
     argv[argc] = NULL;
 
-    uint64_t data_i = 0;
-    for (uint64_t arg_i = 0; arg_i < argc; arg_i++) {
+    size_t data_i = 0;
+    for (size_t arg_i = 0; arg_i < argc; arg_i++) {
         argv[arg_i] = &data[data_i];
         while (data[data_i] != '\0') {
             data_i++;
@@ -202,7 +203,7 @@ static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
 
     return argv;
 
-free_and_err:
+fail:
     free(data);
     return NULL;
 }
@@ -334,11 +335,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     if (args_size > MAX_ARGS_SIZE || env_size > MAX_ENV_SIZE) {
         return;
     }
-    const char ** arguments = make_argv_list(uptr_args, args_size);
+    const char** arguments = make_argv_list(uptr_args, args_size);
     if (!arguments) {
         return;
     }
-    const char ** environments = make_argv_list(uptr_env, env_size);
+    const char** environments = make_argv_list(uptr_env, env_size);
     if (!environments) {
         return;
     }
@@ -389,8 +390,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     void* manifest_addr = enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
 
     /* parse manifest data into config storage */
-    struct config_store * root_config =
-            malloc(sizeof(struct config_store));
+    struct config_store* root_config = malloc(sizeof(struct config_store));
     root_config->raw_data = manifest_addr;
     root_config->raw_size = manifest_size;
     root_config->malloc = malloc;

@@ -127,9 +127,7 @@ struct proc_args {
  * NOTE: more tricks may be needed to prevent unexpected optimization for
  * future compiler.
  */
-static int __attribute_noinline
-child_process (struct proc_param * proc_param)
-{
+static int __attribute_noinline child_process(struct proc_param* proc_param) {
     int ret = ARCH_VFORK();
     if (ret)
         return ret;
@@ -154,9 +152,7 @@ failed:
     return -PAL_ERROR_DENIED;
 }
 
-int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
-{
-
+int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     PAL_HANDLE exec = NULL;
     PAL_HANDLE parent_handle = NULL, child_handle = NULL;
     int ret;
@@ -177,7 +173,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
          * tell its address to forked process.
          */
         size_t len;
-        const char * file_uri = URI_PREFIX_FILE;
+        const char* file_uri = URI_PREFIX_FILE;
         if (exec_map && exec_map->l_name &&
             (len = strlen(uri)) >= URI_PREFIX_FILE_LEN && !memcmp(uri, file_uri, URI_PREFIX_FILE_LEN) &&
             /* skip "file:"*/
@@ -187,7 +183,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
             exec->file.map_start = (PAL_PTR)exec_map->l_map_start;
     }
 
-    /* step 2: create parant and child process handle */
+    /* step 2: create parent and child process handle */
 
     struct proc_param param;
     ret = create_process_handle(&parent_handle, &child_handle);
@@ -198,12 +194,12 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     param.exec = exec;
     param.manifest = pal_state.manifest_handle;
 
-    /* step 3: compose process parameter */
+    /* step 3: compose process parameters */
 
     size_t parent_datasz = 0, exec_datasz = 0, manifest_datasz = 0;
-    void * parent_data = NULL;
-    void * exec_data = NULL;
-    void * manifest_data = NULL;
+    void* parent_data = NULL;
+    void* exec_data = NULL;
+    void* manifest_data = NULL;
 
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
@@ -230,7 +226,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     }
 
     size_t datasz = parent_datasz + exec_datasz + manifest_datasz;
-    struct proc_args * proc_args = __alloca(sizeof(struct proc_args) + datasz);
+    struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + datasz);
 
     proc_args->parent_process_id = linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
@@ -238,7 +234,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     proc_args->pal_sec._r_debug = NULL;
     proc_args->memory_quota = linux_state.memory_quota;
 
-    void * data = (void *) (proc_args + 1);
+    void* data = (void*)(proc_args + 1);
 
     memcpy(data, parent_data, parent_datasz);
     data += (proc_args->parent_data_size = parent_datasz);
@@ -366,7 +362,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
     PAL_HANDLE parent = NULL;
     ret = handle_deserialize(&parent, data, proc_args->parent_data_size);
     if (ret < 0)
-        INIT_FAIL(-ret, "cannot deseilaize parent process handle");
+        INIT_FAIL(-ret, "cannot deserialize parent process handle");
     data += proc_args->parent_data_size;
     *parent_handle = parent;
 
