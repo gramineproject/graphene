@@ -279,22 +279,16 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
 #define APPEND_WRITECOPY(prot) ((prot)|PAL_PROT_WRITECOPY)
 
     if (e_type == ET_DYN) {
-        /* This is a position-independent shared object.  We can let the
-           kernel map it anywhere it likes, but we must have space for all
-           the segments in their specified positions relative to the first.
-           So we map the first segment without MAP_FIXED, but with its
-           extent increased to cover all the segments.  Then we remove
-           access from excess portion, and there is known sufficient space
-           there to remap from the later segments.
+        /* This is a position-independent shared object. Graphene allows
+         * libraries to be mapped anywhere in address space, but the
+         * executable must be mapped at the exact address. This is because
+         * Graphene copies libraries during fork but does not copy executable.
+         * We must enforce that executable segments are located at the same
+         * addresses across forks: simply use a predefined base address. */
+        void* mapaddr = type == OBJECT_EXEC ? DEFAULT_OBJECT_EXEC_ADDR : NULL;
 
-           As a refinement, sometimes we have an address that we would
-           prefer to map such objects at; but this is only a preference,
-           the OS can do whatever it likes. */
-        void * mapaddr = NULL;
-        /* Remember which part of the address space this object uses.  */
         ret = _DkStreamMap(handle, (void **) &mapaddr,
                            APPEND_WRITECOPY(c->prot), c->mapoff, maplength);
-
         if (ret < 0) {
             print_error("failed to map dynamic segment from shared object",
                         ret);

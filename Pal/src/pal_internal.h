@@ -318,6 +318,7 @@ int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
     } while (0)
 
 /* function and definition for loading binaries */
+#define DEFAULT_OBJECT_EXEC_ADDR ((void*)0x00400000)
 enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
 
 int check_elf_magic (const void* header, size_t len);
