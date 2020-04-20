@@ -69,7 +69,8 @@ endif
 # First, build mbedtls library against system's glibc and install in ../install. This library is
 # used by, for example, LibOS test cases. Second, prepare mbedtls directory to be used during PAL
 # build. A custom config.h header replaces libc dependencies with PAL-specific alternatives.
-crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC)
+crypto/mbedtls/CMakeLists.txt: crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls-$(MBEDTLS_VERSION).diff
+	$(RM) -r crypto/mbedtls
 	cd crypto && tar -mxzf $(MBEDTLS_SRC)
 	cd crypto && tar -mxzf $(MBEDCRYPTO_SRC)
 	mv crypto/mbedtls-mbedtls-$(MBEDTLS_VERSION) crypto/mbedtls
