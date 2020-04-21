@@ -556,7 +556,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
             }
         }
 
-        goto postmap;
+        goto do_remap;
     }
 
     /* Remember which part of the address space this object uses.  */
@@ -586,7 +586,6 @@ do_remap:
                            file, c->mapoff, NULL);
         }
 
-    postmap:
         if (l->l_phdr == 0 && (ElfW(Off))c->mapoff <= header->e_phoff &&
             ((size_t)(c->mapend - c->mapstart + c->mapoff) >=
              header->e_phoff + header->e_phnum * sizeof(ElfW(Phdr))))
