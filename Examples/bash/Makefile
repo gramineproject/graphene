@@ -112,24 +112,24 @@ pal_loader:
 
 .PHONY: regression
 regression: all
-	@mkdir -p scripts/testdir
+	mkdir -p scripts/testdir
 
 	./pal_loader bash.manifest -c "ls" > OUTPUT
-	@grep -q "Makefile" OUTPUT && echo "[ Success 1/6 ]"
-	@rm OUTPUT
+	grep -q "Makefile" OUTPUT && echo "[ Success 1/6 ]"
+	rm OUTPUT
 
-	./pal_loader bash.manifest -c "cd scripts && bash bash_test.sh 1" > OUTPUT
-	@grep -q "hello 1" OUTPUT      && echo "[ Success 2/6 ]"
-	@grep -q "createdfile" OUTPUT  && echo "[ Success 3/6 ]"
-	@grep -q "somefile" OUTPUT     && echo "[ Success 4/6 ]"
-	@grep -q "current date" OUTPUT && echo "[ Success 5/6 ]"
-	@rm OUTPUT
+	./pal_loader bash.manifest -c "cd scripts && bash bash_test.sh 1" | tee OUTPUT
+	grep -q "hello 1" OUTPUT      && echo "[ Success 2/6 ]"
+	grep -q "createdfile" OUTPUT  && echo "[ Success 3/6 ]"
+	grep -q "somefile" OUTPUT     && echo "[ Success 4/6 ]"
+	grep -q "current date" OUTPUT && echo "[ Success 5/6 ]"
+	rm OUTPUT
 
 	./pal_loader bash.manifest -c "cd scripts && bash bash_test.sh 3" > OUTPUT
-	@grep -q "hello 3" OUTPUT      && echo "[ Success 6/6 ]"
-	@rm OUTPUT
+	grep -q "hello 3" OUTPUT      && echo "[ Success 6/6 ]"
+	rm OUTPUT
 
-	@rm -rf scripts/testdir
+	rm -rf scripts/testdir
 
 
 .PHONY: clean

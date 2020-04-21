@@ -42,89 +42,48 @@ pipeline {
                     steps {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd Examples/python-simple
-                                make SGX=1
-                                make SGX=1 check
-                            '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/python-scipy-insecure
-                                make SGX=1
-                                make SGX=1 check
-                            '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                                echo run1
                                 cd Examples/bash
                                 make SGX=1 all
                                 make SGX=1 regression
+                                make SGX=1 clean
                            '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd Examples/curl
+                                echo run2
+                                cd Examples/bash
                                 make SGX=1 all
-                                make SGX=1 check
+                                make SGX=1 regression
+                                make SGX=1 clean
                            '''
-                        }
-                        timeout(time: 10, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/gcc
-                                make SGX=1 all
-                                make SGX=1 check
-                           '''
-                        }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/lmbench
-                                make SGX=1 all
-                                make SGX=1 test N_RUNS=1 ENOUGH=100
-                            '''
-                        }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/redis
-                                make SGX=1 USE_SELECT=1
-                                make SGX=1 start-graphene-server &
-                                sleep 30
-                                ./src/src/redis-benchmark
-                            '''
-                        }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/lighttpd
-                                make SGX=1
-                                make SGX=1 start-graphene-server &
-                                sleep 10
-                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
-                            '''
-                        }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/nginx
-                                make SGX=1
-                                make SGX=1 start-graphene-server &
-                                sleep 30
-                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
-                            '''
-                        }
-                        timeout(time: 25, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/apache
-                                make SGX=1
-                                make SGX=1 start-graphene-server &
-                                sleep 30
-                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
-                                LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
-                            '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd Examples/blender
-                                make SGX=1
-                                make SGX=1 check
-                            '''
+                                echo run3
+                                cd Examples/bash
+                                make SGX=1 all
+                                make SGX=1 regression
+                                make SGX=1 clean
+                           '''
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                echo run4
+                                cd Examples/bash
+                                make SGX=1 all
+                                make SGX=1 regression
+                                make SGX=1 clean
+                           '''
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                echo run5
+                                cd Examples/bash
+                                make SGX=1 all
+                                make SGX=1 regression
+                                make SGX=1 clean
+                           '''
                         }
                         sh '''
                            ./Scripts/gitignore-test
