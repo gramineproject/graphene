@@ -130,7 +130,9 @@ CFLAGS-sigprocmask += -pthread
 CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
                       -I$(PALDIR)/host/Linux-SGX \
                       -I$(PALDIR)/../include/pal
-LDLIBS-attestation += -static -L$(PALDIR)/../lib/crypto/mbedtls/install/lib -lmbedcrypto
+LDLIBS-attestation += -Wl,--whole-archive \
+	                  $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.a \
+					  -Wl,--no-whole-archive
 
 %: %.c
 	$(call cmd,csingle)

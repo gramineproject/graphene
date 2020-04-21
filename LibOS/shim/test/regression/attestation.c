@@ -148,6 +148,9 @@ static int test_local_attestation(void) {
 
     /* 3. write some custom data to `user_report_data` file */
     sgx_report_data_t user_report_data = {0};
+    static_assert(sizeof(user_report_data) >= sizeof(user_report_data_str),
+                  "insufficient size of user_report_data");
+
     memcpy((void*)&user_report_data, (void*)user_report_data_str, sizeof(user_report_data_str));
 
     bytes = rw_file("/dev/attestation/user_report_data", (char*)&user_report_data,
@@ -222,6 +225,9 @@ static int test_quote_interface(void) {
 
     /* 1. write some custom data to `user_report_data` file */
     sgx_report_data_t user_report_data = {0};
+    static_assert(sizeof(user_report_data) >= sizeof(user_report_data_str),
+                  "insufficient size of user_report_data");
+
     memcpy((void*)&user_report_data, (void*)user_report_data_str, sizeof(user_report_data_str));
 
     bytes = rw_file("/dev/attestation/user_report_data", (char*)&user_report_data,

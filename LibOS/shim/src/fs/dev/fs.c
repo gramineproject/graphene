@@ -63,6 +63,7 @@ static const struct pseudo_dir dev_root_dir = {
                 .type   = LINUX_DT_LNK },
               { .name   = "attestation",
                 .fs_ops = &dev_attestation_fs_ops,
+                .type   = LINUX_DT_DIR,
                 .dir    = &dev_attestation_dir },
         },
 };

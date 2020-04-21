@@ -30,7 +30,7 @@
 
 #include "shim_fs.h"
 
-/* user_report_data, target_info, quote are opaque blobs of predefined maximum sizes. Currently
+/* user_report_data, target_info and quote are opaque blobs of predefined maximum sizes. Currently
  * these sizes are overapproximations of SGX requirements (report_data is 64B, target_info is
  * 512B, quote is about 1024B). */
 #define USER_REPORT_DATA_MAX_SIZE 256
@@ -210,6 +210,12 @@ static int dev_attestation_target_info_open(struct shim_handle* hdl, const char*
  */
 static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
+    int ret;
+
+    char* user_report_data     = NULL;
+    char* target_info          = NULL;
+    struct shim_str_data* data = NULL;
+    char* data_str_ti          = NULL;
 
     if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
@@ -226,32 +232,43 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
     size_t target_info_size      = g_target_info_size;
     size_t report_size           = g_report_size;
 
-    char user_report_data[user_report_data_size];
-    char target_info[target_info_size];
+    user_report_data = calloc(1, user_report_data_size);
+    if (!user_report_data) {
+        ret = -ENOMEM;
+        goto out;
+    }
 
-    memset(&user_report_data, 0, user_report_data_size);
-    memset(&target_info, 0, target_info_size);
+    target_info = calloc(1, target_info_size);
+    if (!target_info) {
+        ret = -ENOMEM;
+        goto out;
+    }
 
-    /* below invocation returns this enclave's target info because we zeroed out target_info */
-    int ret = DkAttestationReport(&user_report_data, &user_report_data_size,
-                                  &target_info, &target_info_size,
-                                  /*report=*/NULL, &report_size);
-    if (ret < 0)
-        return -EACCES;
+    /* below invocation returns this enclave's target info because we zeroed out (via calloc)
+     * target_info: it's a hint to function to update target_info with this enclave's info */
+    ret = DkAttestationReport(user_report_data, &user_report_data_size,
+                              target_info, &target_info_size,
+                              /*report=*/NULL, &report_size);
+    if (ret < 0) {
+        ret = -EACCES;
+        goto out;
+    }
 
     /* sanity checks: returned struct sizes must be the same as previously obtained ones */
     assert(user_report_data_size == g_user_report_data_size);
     assert(target_info_size == g_target_info_size);
     assert(report_size == g_report_size);
 
-    struct shim_str_data* data = calloc(1, sizeof(*data));
-    if (!data)
-        return -ENOMEM;
+    data = calloc(1, sizeof(*data));
+    if (!data) {
+        ret = -ENOMEM;
+        goto out;
+    }
 
-    char* data_str_ti = calloc(1, target_info_size);
+    data_str_ti = calloc(1, target_info_size);
     if (!data_str_ti) {
-        free(data);
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
 
     memcpy(data_str_ti, target_info, target_info_size);
@@ -264,7 +281,16 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
     hdl->info.str.ptr  = data_str_ti;
-    return 0;
+
+    ret = 0;
+out:
+    if (ret < 0) {
+        free(data_str_ti);
+        free(data);
+    }
+    free(user_report_data);
+    free(target_info);
+    return ret;
 }
 
 /*!
@@ -280,6 +306,11 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
  */
 static int dev_attestation_report_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
+    int ret;
+
+    char* report               = NULL;
+    struct shim_str_data* data = NULL;
+    char* data_str_report      = NULL;
 
     if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
@@ -292,24 +323,33 @@ static int dev_attestation_report_open(struct shim_handle* hdl, const char* name
     if (flags & (O_WRONLY | O_RDWR))
         return -EACCES;
 
-    char stack_report[g_report_size];
-    int ret = DkAttestationReport(&g_user_report_data, &g_user_report_data_size,
-                                  &g_target_info, &g_target_info_size,
-                                  &stack_report, &g_report_size);
-    if (ret < 0)
-        return -EACCES;
-
-    struct shim_str_data* data = calloc(1, sizeof(*data));
-    if (!data)
-        return -ENOMEM;
-
-    char* data_str_report = calloc(1, g_report_size);
-    if (!data_str_report) {
-        free(data);
-        return -ENOMEM;
+    report = calloc(1, g_report_size);
+    if (!report) {
+        ret = -ENOMEM;
+        goto out;
     }
 
-    memcpy(data_str_report, &stack_report, g_report_size);
+    ret = DkAttestationReport(&g_user_report_data, &g_user_report_data_size,
+                              &g_target_info, &g_target_info_size,
+                              report, &g_report_size);
+    if (ret < 0) {
+        ret = -EACCES;
+        goto out;
+    }
+
+    data = calloc(1, sizeof(*data));
+    if (!data) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    data_str_report = calloc(1, g_report_size);
+    if (!data_str_report) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    memcpy(data_str_report, report, g_report_size);
 
     data->str      = data_str_report;
     data->buf_size = g_report_size;
@@ -319,7 +359,15 @@ static int dev_attestation_report_open(struct shim_handle* hdl, const char* name
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
     hdl->info.str.ptr  = data_str_report;
-    return 0;
+
+    ret = 0;
+out:
+    if (ret < 0) {
+        free(data_str_report);
+        free(data);
+    }
+    free(report);
+    return ret;
 }
 
 /*!
@@ -338,6 +386,11 @@ static int dev_attestation_report_open(struct shim_handle* hdl, const char* name
  */
 static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
+    int ret;
+
+    uint8_t* quote             = NULL;
+    char* data_str_quote       = NULL;
+    struct shim_str_data* data = NULL;
 
     if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
@@ -350,24 +403,30 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
     if (flags & (O_WRONLY | O_RDWR))
         return -EACCES;
 
-    struct shim_str_data* data = calloc(1, sizeof(*data));
-    if (!data)
-        return -ENOMEM;
-
-    uint8_t quote[QUOTE_MAX_SIZE];
-    size_t quote_size = sizeof(quote);
-
-    int ret = DkAttestationQuote(&g_user_report_data, g_user_report_data_size,
-                                 &quote, &quote_size);
-    if (ret < 0) {
-        free(data);
-        return -EACCES;
+    size_t quote_size = QUOTE_MAX_SIZE;
+    quote = calloc(1, quote_size);
+    if (!quote) {
+        ret = -ENOMEM;
+        goto out;
     }
 
-    char* data_str_quote = calloc(1, quote_size);
+    ret = DkAttestationQuote(&g_user_report_data, g_user_report_data_size,
+                             quote, &quote_size);
+    if (ret < 0) {
+        ret = -EACCES;
+        goto out;
+    }
+
+    data = calloc(1, sizeof(*data));
+    if (!data) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    data_str_quote = calloc(1, quote_size);
     if (!data_str_quote) {
-        free(data);
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
 
     memcpy(data_str_quote, quote, quote_size);
@@ -380,7 +439,15 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
     hdl->info.str.ptr  = data_str_quote;
-    return 0;
+
+    ret = 0;
+out:
+    if (ret < 0) {
+        free(data_str_quote);
+        free(data);
+    }
+    free(quote);
+    return ret;
 }
 
 static struct pseudo_fs_ops dev_attestation_user_report_data_fs_ops = {
