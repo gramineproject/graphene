@@ -32,7 +32,11 @@
 #include <shim_table.h>
 
 int shim_do_sched_yield(void) {
+#if 0
+    /* ONLY FOR PERFORMANCE TESTING: sched_yield() is a no-op to test SGX performance on
+     * multi-threaded synchronization-heavy workloads like OpenVINO. */
     DkThreadYieldExecution();
+#endif
     return 0;
 }
 
