@@ -99,7 +99,7 @@ Getting help
 For the full documentation of the Graphene, see the `Graphene documentation
 <https://graphene.readthedocs.io/en/latest/>`__.
 
-For any questions, please send an email to <support@graphene-project.io>
+For any questions, please send an email to support@graphene-project.io
 (`public archive <https://groups.google.com/forum/#!forum/graphene-support>`__).
 
 For bug reports, post an issue on our GitHub repository:
