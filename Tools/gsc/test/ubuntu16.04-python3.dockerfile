@@ -1,10 +1,10 @@
 From ubuntu:16.04
 
-RUN apt-get update \
-    && apt-get upgrade -y
+RUN apt-get update
 
-RUN apt-get install -y python3 git
+RUN apt-get install -y python3 \
+    && mkdir -p /graphene/Examples
 
-RUN git clone https://github.com/oscarlab/graphene-tests.git
+COPY python-simple/ /graphene/Examples
 
 CMD ["python3"]

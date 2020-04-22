@@ -100,27 +100,6 @@ def prepare_build_context(image, user_manifests, substitutions):
     # copy markTrustedFiles.sh
     shutil.copyfile("finalize_manifests.py", 'gsc-' + image + "/finalize_manifests.py")
 
-def extract_manifest_keys(user_manifest):
-    manifest_dic = {}
-
-    if os.path.exists(user_manifest):
-        with open(user_manifest, "r") as file:
-            for line in file:
-                pound = line.find("#")
-                if pound != -1:
-                    continue
-
-                line = line.strip()
-                equal = line.find("=")
-                if equal != -1:
-                    key = line[:equal].strip()
-                    manifest_dic[key] = line[equal + 1:].strip()
-
-    return manifest_dic
-
-def get_enclave_size(manifest_dic):
-    return manifest_dic['sgx.enclave_size'] if 'sgx.enclave_size' in manifest_dic else '256M'
-
 def extract_binary_cmd_from_image_config(config):
     entrypoint = config['Entrypoint'] if isinstance(config['Entrypoint'], list) else []
     entrypoint_len = len(entrypoint)
@@ -140,8 +119,7 @@ def extract_binary_cmd_from_image_config(config):
     # Check if we have fixed binary arguments as part of entrypoint
     if entrypoint_len > 1:
         last_bin_arg = entrypoint_len
-        binary_arguments = '"' + '", "'.join(entrypoint[1
-                                                       : last_bin_arg]) + '"'
+        binary_arguments = '"' + '", "'.join(entrypoint[1: last_bin_arg]) + '"'
     else:
         last_bin_arg = 0
         binary_arguments = ""
@@ -149,8 +127,8 @@ def extract_binary_cmd_from_image_config(config):
     # Place the remaining optional arguments previously specified as command, in the
     # new command. This is necessary, since the first element of the command may be the
     # binary of the resulting image.
-    cmd = '"' + '", "'.join(entrypoint[last_bin_arg + 1 : ]) + '"' if (len(entrypoint)
-                                                                    > last_bin_arg + 1) else ""
+    remaining_args = '"' + '", "'.join(entrypoint[last_bin_arg + 1 : ]) + '"'
+    cmd = remaining_args if len(entrypoint) > last_bin_arg + 1 else ""
 
     return binary, binary_arguments, cmd
 
@@ -195,8 +173,6 @@ def prepare_substitutions(base_image, image, options, user_manifests):
 
     working_dir = base_image.attrs['Config']['WorkingDir']
 
-    manifest_dic = extract_manifest_keys(user_manifests[0])
-
     substitutions.update({
             'appImage' : image,
             'app' : image_re.group(1),
@@ -205,8 +181,7 @@ def prepare_substitutions(base_image, image, options, user_manifests):
             'cmd' : cmd,
             'working_dir': working_dir,
             'user_manifests': ' '.join([os.path.basename(manifest)
-                                        for manifest in user_manifests[1:]]),
-            'enclave_size': get_enclave_size(manifest_dic)
+                                        for manifest in user_manifests[1:]])
             })
 
     return substitutions

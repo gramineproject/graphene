@@ -11,12 +11,11 @@ fs.root.type = chroot
 fs.root.path = /
 fs.root.uri = file:/
 
+# With fs.root Graphene's working directory is '/', settig fs.start_dir changes the
+# working directory to the desired location
 fs.start_dir = ${working_dir}
 
-# start at static addresses (otherwise breaks when static and PIE executables are used)
+# Start at static addresses (otherwise breaks when static and PIE executables are used)
 sgx.static_address = 1
-
-# specify enclave size
-sgx.enclave_size = ${enclave_size}
 
 # All trusted files and the user defined manifest specifications should be after this line

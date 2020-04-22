@@ -1,11 +1,11 @@
 From ubuntu:16.04
 
-RUN apt-get update \
-    && apt-get upgrade -y
+RUN apt-get update
 
-RUN apt-get install -y python3 python3-pip git \
-    && pip3 install numpy
+RUN apt-get install -y python3 python3-pip \
+    && pip3 install numpy \
+    && mkdir -p /graphene/Examples
 
-RUN git clone https://github.com/oscarlab/graphene-tests.git
+COPY python-scipy-insecure/ /graphene/Examples
 
 CMD ["python3"]

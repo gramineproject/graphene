@@ -13,7 +13,7 @@ RUN apt-get update \
     && python3 -m pip install protobuf
 
 # Copy Graphene runtime and signer tools to /graphene
-RUN mkdir /graphene \
+RUN mkdir -p /graphene \
     && mkdir -p /graphene/Runtime \
     && mkdir -p /graphene/signer \
     && mkdir -p /graphene/Pal/src

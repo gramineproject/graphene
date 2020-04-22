@@ -1,12 +1,13 @@
 From ubuntu:16.04
 
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y python3 python3-pip git \
-    && pip3 install torch torchvision
+RUN apt-get update
 
-RUN git clone https://github.com/oscarlab/graphene-tests.git
+RUN apt-get install -y python3 python3-pip \
+    && pip3 install torch torchvision \
+    && mkdir -p /graphene/Examples
 
-WORKDIR /graphene-tests/pytorch
+COPY pytorch/ /graphene/Examples
+
+WORKDIR /graphene/Examples
 
 CMD ["python3"]

@@ -23,7 +23,7 @@ enclave using the Graphene Library OS. It follows the common Docker approach to
 first build an image and subsequently run a container of an image. It provides
 the ``build`` command and allows to subsequently use ``docker run``.
 
-Prerequisits
+Prerequisites
 ======================
 
 Software packages
@@ -45,7 +45,7 @@ services.
 
 - `Intel SGX driver <https://github.com/intel/linux-sgx-driver>`__
 - `Intel SGX SDK <https://01.org/intel-software-guard-extensions/downloads>`__
-- `Graphene Kernel Module <https://github.com/oscarlab/graphene>`__
+- `Graphene Kernel Module <https://github.com/oscarlab/graphene-sgx-driver>`__
 
 Host Configuration
 ------------------
@@ -103,7 +103,8 @@ Commands
 
       .. option:: -G
 
-      Build and compile Graphene only and ignore the application image
+      Build Graphene only and ignore the application image (useful for Graphene
+      development, irrelevant for end users of GSC)
 
 **Application-specific Manifest Files**
 
@@ -122,7 +123,7 @@ In this case ``gsc`` generates a generic manifest file.
 
 Depending on the use case, a Docker container may execute multiple applications.
 The Docker image defines the entrypoint application which could fork additional
-applications. A common patter in Docker images is an entrypoint shell script
+applications. A common pattern in Docker images is an entrypoint shell script
 which calls the intended application.
 
 To support these constructs, ``gsc`` allows to specify chains of applications.
@@ -143,32 +144,34 @@ following parameters.
 
    .. option:: graphene_repository
 
-      Source repository of Graphene.
+      Source repository of Graphene. Default value:
+      https://github.com/oscarlab/graphene
 
    .. option:: graphene_branch
 
-      Branch of the ``grapehene_repository``.
+      Branch of the ``graphene_repository``. Default value: master
 
    .. option:: sgxdriver_repository
 
-      Source repository of the Intel SGX driver.
+      Source repository of the Intel SGX driver. Default value:
+      https://github.com/01org/linux-sgx-driver.git
 
    .. option:: sgxdriver_branch
 
-      Branch of the ``sgxdriver_repository``.
+      Branch of the ``sgxdriver_repository``. Default value: sgx_driver_1.9
 
 Run graphenized Docker images
 =============================
 
-Execute Docker run command via Docker CLI and provide gsgx and isgx device, and
-the PSW/AESM socket. Additional Docker options and application arguments may be
-supplied to the Docker run command.
+Execute Docker run command via Docker CLI and provide gsgx and isgx/sgx device,
+and the PSW/AESM socket. Additional Docker options and application arguments may
+be supplied to the Docker run command.
 
 :command:`docker` run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*>[:<*TAG*>] [<*APPLICATION-ARGUMENTS*>]
 
    .. option:: IMAGE-NAME
 
-      Name of image without GSC build.
+      Name of original image (without GSC build).
 
    .. option:: TAG
 
@@ -201,24 +204,24 @@ variable ``LINUX_PAL`` as an option to the Docker ``run`` command.
 Example
 =======
 
-This example shows how to graphenize the public Docker image of python. This
-example assumes that all prerequisits are installed and configured. For more
-examples refer ot the test folder of ``gsc``.
+This example shows how to graphenize the public Docker image of Python3. This
+example assumes that all prerequisites are installed and configured. For more
+examples refer to the test folder of ``gsc``.
 
-1) Pull public Python image from Dockerhub
+1) Pull public Python image from Dockerhub:
 
 .. code-block:: bash
 
    docker pull python
 
-2) Graphenize the Python image using ``gsc``
+2) Graphenize the Python image using ``gsc``:
 
 .. code-block:: bash
 
    cd Tools/gsc
    gsc build python test/ubuntu18.04-python3.manifest
 
-3) Test the graphenized Docker image
+3) Test the graphenized Docker image:
 
 .. code-block:: bash
 

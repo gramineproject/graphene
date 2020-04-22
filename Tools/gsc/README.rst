@@ -33,9 +33,9 @@ executable path and the library path, and scanning the entire image to generate 
 files. GSC excludes files from ``/boot``, ``/dev``, ``/proc``, ``/var``, ``/sys`` and ``/etc/rc``
 folders, since checksums are required which either don't exist or may vary across different
 deployment machines. GSC combines these values and list of trusted files to a new manifest file.
-Graphene's signer tool generates Intel SGX enclave measurement or signature, and the Intel
-SGX-specific manifest file. In a last step the entrypoint is changed to launch the ``apploader.sh``
-script which generates Intel SGX token and starts the ``pal-Linux-SGX`` loader.
+Graphene's signer tool generates a SIGSTRUCT file for SGX enclaveinitialization. This tool also generates
+an SGX-specific manifest file. In a last step the entrypoint is changed to launch the ``apploader.sh``
+script which generates an Intel SGX token and starts the ``pal-Linux-SGX`` loader.
 
 Running graphenized Docker images
 ---------------------------------
@@ -48,7 +48,7 @@ as a volume.
 Limitations
 -----------
 
-Dependence on Ubuntu 16.04/18.04
+Dependency on Ubuntu 16.04/18.04
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Docker images not based on Ubuntu 16.04 or 18.04 may not be compatible with GSC. GSC relies on
@@ -76,7 +76,7 @@ Integration of Docker Secrets
 
 Docker Secrets are automatically pulled by Docker and the results are stored either in environment
 variables or mounted as files. GSC is currently unaware of such files and hence, cannot mark them
-trusted. Similar to trusted data these files may be added to the image specific manifest file.
+trusted. Similar to trusted data, these files may be added to the image specific manifest file.
 
 Access to files in excluded folders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
