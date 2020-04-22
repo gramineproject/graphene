@@ -215,7 +215,6 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
     char* user_report_data     = NULL;
     char* target_info          = NULL;
     struct shim_str_data* data = NULL;
-    char* data_str_ti          = NULL;
 
     if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
@@ -265,31 +264,22 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
         goto out;
     }
 
-    data_str_ti = calloc(1, target_info_size);
-    if (!data_str_ti) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    memcpy(data_str_ti, target_info, target_info_size);
-
-    data->str       = data_str_ti;
+    data->str       = target_info;
     data->buf_size  = target_info_size;
     data->len       = target_info_size;
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-    hdl->info.str.ptr  = data_str_ti;
+    hdl->info.str.ptr  = target_info;
 
     ret = 0;
 out:
     if (ret < 0) {
-        free(data_str_ti);
+        free(target_info);
         free(data);
     }
     free(user_report_data);
-    free(target_info);
     return ret;
 }
 
