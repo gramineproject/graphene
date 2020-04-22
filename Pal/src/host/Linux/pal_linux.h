@@ -122,24 +122,7 @@ extern struct pal_linux_state {
 
 #define PRESET_PAGESIZE (1 << 12)
 
-#define DEFAULT_BACKLOG     2048
-
-static inline int HOST_FLAGS (int alloc_type, int prot)
-{
-    return ((alloc_type & PAL_ALLOC_RESERVE) ? MAP_NORESERVE|MAP_UNINITIALIZED : 0) |
-           ((prot & PAL_PROT_WRITECOPY) ? MAP_PRIVATE : MAP_SHARED);
-}
-
-static inline int HOST_PROT (int prot)
-{
-    return prot & (PAL_PROT_READ|PAL_PROT_WRITE|PAL_PROT_EXEC);
-}
-
-static inline int HOST_ACCESS (int access)
-{
-    return (access & (PAL_ACCESS_RDONLY|PAL_ACCESS_WRONLY|PAL_ACCESS_RDWR)) |
-           ((access & PAL_ACCESS_APPEND) ? O_APPEND|O_WRONLY : 0);
-}
+#define DEFAULT_BACKLOG 2048
 
 int clone (int (*__fn) (void * __arg), void * __child_stack,
            int __flags, const void * __arg, ...);

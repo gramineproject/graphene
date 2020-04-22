@@ -31,13 +31,13 @@
 #include "hex.h"
 #include "pal.h"
 #include "pal_error.h"
-
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_utils.h>
+#include "shim_checkpoint.h"
+#include "shim_flags_conv.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_utils.h"
 
 /*
  * User-settable options (used with setsockopt).
@@ -533,7 +533,8 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen) {
         create_flags &= ~PAL_CREATE_DUALSTACK;
     }
 
-    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, create_flags, hdl->flags & O_NONBLOCK);
+    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, create_flags,
+                                      hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0);
 
     if (!pal_hdl) {
         ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ? -EADDRINUSE : -PAL_ERRNO;
@@ -802,7 +803,8 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen) {
     if ((ret = create_socket_uri(hdl)) < 0)
         goto out;
 
-    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, 0, hdl->flags & O_NONBLOCK);
+    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri), 0, 0, 0,
+                                      hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0);
 
     if (!pal_hdl) {
         ret = (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED) ? -ECONNREFUSED : -PAL_ERRNO;
@@ -1061,7 +1063,8 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         }
 
         if (sock->sock_state == SOCK_CREATED && !pal_hdl) {
-            pal_hdl = DkStreamOpen(URI_PREFIX_UDP, 0, 0, 0, hdl->flags & O_NONBLOCK);
+            pal_hdl = DkStreamOpen(URI_PREFIX_UDP, 0, 0, 0,
+                                   hdl->flags & O_NONBLOCK ? PAL_OPTION_NONBLOCK : 0);
             if (!pal_hdl) {
                 ret = -PAL_ERRNO;
                 goto out_locked;

@@ -605,8 +605,7 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
         bkeep_munmap(addr + size, reserve_size, CP_VMA_FLAGS);
     }
 
-    addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
-                                         PAL_PROT_READ|PAL_PROT_WRITE);
+    addr = (void*)DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!addr)
         bkeep_munmap(addr, size, CP_VMA_FLAGS);
 
@@ -863,9 +862,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
     debug("checkpoint mapped at %p-%p\n", base, base + size);
 
-    PAL_FLG pal_prot = PAL_PROT_READ|PAL_PROT_WRITE;
-
-    PAL_PTR mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, pal_prot);
+    PAL_PTR mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!mapped)
         return -PAL_ERRNO;
 

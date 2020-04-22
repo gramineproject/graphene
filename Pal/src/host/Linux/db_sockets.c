@@ -339,7 +339,9 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
         return -PAL_ERROR_INVAL;
 #endif
 
-    fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_STREAM | SOCK_CLOEXEC | options, 0);
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
+    fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_STREAM | SOCK_CLOEXEC | sock_options,
+                        0);
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
@@ -411,7 +413,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     socklen_t addrlen = sizeof(struct sockaddr);
     int ret           = 0;
 
-    int newfd = INLINE_SYSCALL(accept4, 4, handle->sock.fd, &buffer, &addrlen, O_CLOEXEC);
+    int newfd = INLINE_SYSCALL(accept4, 4, handle->sock.fd, &buffer, &addrlen, SOCK_CLOEXEC);
 
     if (IS_ERR(newfd))
         switch (ERRNO(newfd)) {
@@ -460,7 +462,9 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     if (bind_addr && bind_addr->sa_family != dest_addr->sa_family)
         return -PAL_ERROR_INVAL;
 
-    fd = INLINE_SYSCALL(socket, 3, dest_addr->sa_family, SOCK_STREAM | SOCK_CLOEXEC | options, 0);
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
+    fd = INLINE_SYSCALL(socket, 3, dest_addr->sa_family, SOCK_STREAM | SOCK_CLOEXEC | sock_options,
+                        0);
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
 
@@ -521,9 +525,13 @@ failed:
 /* 'open' operation of tcp stream */
 static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK) || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK))
-        return -PAL_ERROR_INVAL;
+    __UNUSED(access);
+    __UNUSED(share);
+
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     size_t uri_len = strlen(uri) + 1;
 
@@ -626,7 +634,9 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
         return -PAL_ERROR_INVAL;
 #endif
 
-    fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_DGRAM | SOCK_CLOEXEC | options, 0);
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
+    fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_DGRAM | SOCK_CLOEXEC | sock_options,
+                        0);
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
@@ -687,8 +697,9 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
         return -PAL_ERROR_INVAL;
 #endif
 
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, dest_addr ? dest_addr->sa_family : AF_INET,
-                        SOCK_DGRAM | SOCK_CLOEXEC | options, 0);
+                        SOCK_DGRAM | SOCK_CLOEXEC | sock_options, 0);
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
@@ -737,9 +748,13 @@ failed:
 
 static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK) || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(options, PAL_OPTION_MASK))
-        return -PAL_ERROR_INVAL;
+    __UNUSED(access);
+    __UNUSED(share);
+
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     char buf[PAL_SOCKADDR_SIZE];
     size_t len = strlen(uri);

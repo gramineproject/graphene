@@ -20,19 +20,19 @@
  * This file contains code to maintain bookkeeping of VMAs in library OS.
  */
 
-#include <shim_internal.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-
-#include <pal.h>
-#include <list.h>
-
 #include <asm/mman.h>
 #include <errno.h>
 #include <stdbool.h>
+
+#include "list.h"
+#include "pal.h"
+#include "shim_checkpoint.h"
+#include "shim_flags_conv.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_thread.h"
+#include "shim_vma.h"
 
 /*
  * Internal bookkeeping for VMAs (virtual memory areas). This data
@@ -1080,7 +1080,7 @@ BEGIN_CP_FUNC(vma)
 
     struct shim_vma_val * vma = (struct shim_vma_val *) obj;
     struct shim_vma_val * new_vma = NULL;
-    PAL_FLG pal_prot = PAL_PROT(vma->prot, 0);
+    PAL_FLG pal_prot = LINUX_PROT_TO_PAL(vma->prot, /*map_flags=*/0);
 
     ptr_t off = GET_FROM_CP_MAP(obj);
 
@@ -1187,11 +1187,9 @@ BEGIN_RS_FUNC(vma)
         }
 
         if (need_mapped < vma->addr + vma->length) {
-            int pal_alloc_type = 0;
-            int pal_prot = vma->prot;
-            if (DkVirtualMemoryAlloc(need_mapped,
-                                     vma->addr + vma->length - need_mapped,
-                                     pal_alloc_type, pal_prot)) {
+            if (DkVirtualMemoryAlloc(need_mapped, vma->addr + vma->length - need_mapped,
+                                     /*alloc_type=*/0,
+                                     LINUX_PROT_TO_PAL(vma->prot, /*map_flags=*/0))) {
                 need_mapped += vma->length;
             }
         }

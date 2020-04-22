@@ -21,15 +21,17 @@
  */
 
 #include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_vma.h>
 #include <stdatomic.h>
 #include <sys/mman.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_flags_conv.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_vma.h"
 
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
     struct shim_handle* hdl = NULL;
@@ -116,7 +118,8 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
     /* addr needs to be kept for bkeep_munmap() below */
     void* ret_addr = addr;
     if (!hdl) {
-        ret_addr = (void*)DkVirtualMemoryAlloc(ret_addr, length, pal_alloc_type, PAL_PROT(prot, 0));
+        ret_addr = (void*)DkVirtualMemoryAlloc(ret_addr, length, pal_alloc_type,
+                                               LINUX_PROT_TO_PAL(prot, /*map_flags=*/0));
 
         if (!ret_addr) {
             if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED)
@@ -125,7 +128,7 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
                 ret = -PAL_ERRNO;
         }
     } else {
-        ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, PAL_PROT(prot, flags), flags, offset);
+        ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, prot, flags, offset);
     }
 
     if (hdl)
@@ -153,7 +156,7 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (bkeep_mprotect(addr, length, prot, 0) < 0)
         return -EPERM;
 
-    if (!DkVirtualMemoryProtect(addr, length, prot))
+    if (!DkVirtualMemoryProtect(addr, length, LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))
         return -PAL_ERRNO;
 
     return 0;

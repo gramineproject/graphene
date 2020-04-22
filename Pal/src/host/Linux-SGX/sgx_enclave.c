@@ -114,13 +114,13 @@ static long sgx_ocall_cpuid(void * pms)
     return 0;
 }
 
-static long sgx_ocall_open(void * pms)
-{
-    ms_ocall_open_t * ms = (ms_ocall_open_t *) pms;
+static long sgx_ocall_open(void* pms) {
+    ms_ocall_open_t* ms = (ms_ocall_open_t*)pms;
     long ret;
     ODEBUG(OCALL_OPEN, ms);
-    ret = INLINE_SYSCALL(open, 3, ms->ms_pathname, ms->ms_flags|O_CLOEXEC,
-                         ms->ms_mode);
+    // FIXME: No idea why someone hardcoded O_CLOEXEC here. We should drop it and carefully
+    // investigate if this cause any descriptor leaks.
+    ret = INLINE_SYSCALL(open, 3, ms->ms_pathname, ms->ms_flags | O_CLOEXEC, ms->ms_mode);
     return ret;
 }
 

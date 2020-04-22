@@ -352,8 +352,10 @@ PAL_CONTROL * pal_control_addr (void);
 
 /*! Memory Allocation Flags */
 enum PAL_ALLOC {
-    PAL_ALLOC_RESERVE  = 0x0001, /*!< Only reserve the memory */
-    PAL_ALLOC_INTERNAL = 0x8000, /*!< Allocate for PAL (valid only if #IN_PAL) */
+    PAL_ALLOC_RESERVE  = 0x1, /*!< Only reserve the memory */
+    PAL_ALLOC_INTERNAL = 0x2, /*!< Allocate for PAL (valid only if #IN_PAL) */
+
+    PAL_ALLOC_MASK     = 0x3,
 };
 
 /*! Memory Protection Flags */
@@ -447,44 +449,49 @@ DkProcessExit(PAL_NUM exitCode);
 
 /*! Stream Access Flags */
 enum PAL_ACCESS {
-    PAL_ACCESS_RDONLY = 00,
-    PAL_ACCESS_WRONLY = 01,
-    PAL_ACCESS_RDWR   = 02,
-    PAL_ACCESS_APPEND = 04,
-    PAL_ACCESS_MASK   = 07,
+    PAL_ACCESS_RDONLY = 0,
+    PAL_ACCESS_WRONLY = 1,
+    PAL_ACCESS_RDWR   = 2,
+    PAL_ACCESS_APPEND = 4,
+    PAL_ACCESS_MASK   = 7,
 };
 
 /*! Stream Sharing Flags */
+// FIXME: These flags currently must correspond 1-1 to Linux flags, which is totally unportable.
+//        They should be redesigned when we'll be rewriting the filesystem layer.
 enum PAL_SHARE {
-    PAL_SHARE_GLOBAL_X =   01,
-    PAL_SHARE_GLOBAL_W =   02,
-    PAL_SHARE_GLOBAL_R =   04,
-    PAL_SHARE_GROUP_X  =  010,
-    PAL_SHARE_GROUP_W  =  020,
-    PAL_SHARE_GROUP_R  =  040,
-    PAL_SHARE_OWNER_X  = 0100,
-    PAL_SHARE_OWNER_W  = 0200,
-    PAL_SHARE_OWNER_R  = 0400,
-    PAL_SHARE_MASK     = 0777,
+    PAL_SHARE_GLOBAL_X =    01,
+    PAL_SHARE_GLOBAL_W =    02,
+    PAL_SHARE_GLOBAL_R =    04,
+    PAL_SHARE_GROUP_X  =   010,
+    PAL_SHARE_GROUP_W  =   020,
+    PAL_SHARE_GROUP_R  =   040,
+    PAL_SHARE_OWNER_X  =  0100,
+    PAL_SHARE_OWNER_W  =  0200,
+    PAL_SHARE_OWNER_R  =  0400,
+    PAL_SHARE_STICKY   = 01000,
+    PAL_SHARE_SET_GID  = 02000,
+    PAL_SHARE_SET_UID  = 04000,
+
+    PAL_SHARE_MASK     = 07777,
 };
 
 /*! Stream Create Flags */
 enum PAL_CREATE {
-    PAL_CREATE_TRY       = 0100,  /*!< Create file if file not exist (O_CREAT) */
-    PAL_CREATE_ALWAYS    = 0200,  /*!< Create file and fail if file already exist
-                                       (O_CREAT|O_EXCL) */
-    PAL_CREATE_DUALSTACK = 0400,  /*!< Create dual-stack socket (opposite of IPV6_V6ONLY) */
+    PAL_CREATE_TRY       = 1,  /*!< Create file if file does not exist */
+    PAL_CREATE_ALWAYS    = 2,  /*!< Create file and fail if file already exists */
+    PAL_CREATE_DUALSTACK = 4,  /*!< Create dual-stack socket (opposite of IPV6_V6ONLY) */
 
-    PAL_CREATE_MASK      = 0700,
+    PAL_CREATE_MASK      = 7,
 };
 
 /*! Stream Option Flags */
 enum PAL_OPTION {
-    PAL_OPTION_CLOEXEC       = 01000,
-    PAL_OPTION_EFD_SEMAPHORE = 02000, /*!< specific to `eventfd` syscall */
-    PAL_OPTION_NONBLOCK      = 04000,
+    PAL_OPTION_CLOEXEC       = 1,
+    PAL_OPTION_EFD_SEMAPHORE = 2, /*!< specific to `eventfd` syscall */
+    PAL_OPTION_NONBLOCK      = 4,
 
-    PAL_OPTION_MASK          = 07000,
+    PAL_OPTION_MASK          = 7,
 };
 
 
@@ -551,8 +558,8 @@ PAL_NUM
 DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, PAL_STR dest);
 
 enum PAL_DELETE {
-    PAL_DELETE_RD = 01, /*!< shut down the read side only */
-    PAL_DELETE_WR = 02, /*!< shut down the write side only */
+    PAL_DELETE_RD = 1, /*!< shut down the read side only */
+    PAL_DELETE_WR = 2, /*!< shut down the write side only */
 };
 
 /*!
@@ -560,8 +567,7 @@ enum PAL_DELETE {
  *
  * \param access which side to shut down (#PAL_DELETE), or both if 0 is given.
  */
-void
-DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
+void DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
 
 /*!
  * \brief Map a file to a virtual memory address in the current process.

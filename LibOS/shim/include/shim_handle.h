@@ -350,7 +350,7 @@ struct shim_handle {
 
     struct shim_dir_handle dir_info;
 
-    int flags;
+    int flags; /* Linux' O_* flags */
     int acc_mode;
     IDTYPE owner;
     struct shim_lock lock;

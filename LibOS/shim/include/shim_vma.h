@@ -80,22 +80,6 @@ static inline void free_vma_val_array(struct shim_vma_val* vmas, size_t count) {
 #define NEED_MIGRATE_MEMORY(vma) \
     (((vma)->flags & VMA_TAINTED || !(vma)->file) && !((vma)->flags & VMA_UNMAPPED))
 
-static inline PAL_FLG PAL_PROT(int prot, int flags) {
-    PAL_FLG pal_prot = 0;
-
-    if (prot & PROT_READ)
-        pal_prot |= PAL_PROT_READ;
-    if (prot & PROT_WRITE)
-        pal_prot |= PAL_PROT_WRITE;
-    if (prot & PROT_EXEC)
-        pal_prot |= PAL_PROT_EXEC;
-
-    if (flags & MAP_PRIVATE)
-        pal_prot |= PAL_PROT_WRITECOPY;
-
-    return pal_prot;
-}
-
 int init_vma(void);
 
 /* Bookkeeping mmap() system call */

@@ -207,9 +207,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
         if (!stack)
             return NULL;
 
-        stack = (void *)
-            DkVirtualMemoryAlloc(stack, size + protect_size,
-                                 0, PAL_PROT_NONE);
+        stack = (void*)DkVirtualMemoryAlloc(stack, size + protect_size, 0, PAL_PROT_NONE);
     } else {
         stack = system_malloc(size + protect_size);
     }

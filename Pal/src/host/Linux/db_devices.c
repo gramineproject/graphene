@@ -113,12 +113,17 @@ static int open_standard_term(PAL_HANDLE* handle, const char* param, int access)
 /* 'open' operation for terminal stream */
 static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
+    __UNUSED(share);
+    __UNUSED(create);
+    __UNUSED(options);
+
     if (strcmp_static(type, "tty"))
         return -PAL_ERROR_INVAL;
 
-    if (!WITHIN_MASK(share, PAL_SHARE_MASK) || !WITHIN_MASK(create, PAL_CREATE_MASK) ||
-        !WITHIN_MASK(options, PAL_OPTION_MASK))
-        return -PAL_ERROR_INVAL;
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     const char* term  = NULL;
     const char* param = NULL;

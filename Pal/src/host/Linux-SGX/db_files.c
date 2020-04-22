@@ -29,6 +29,7 @@
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
+#include "pal_flags_conv.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
@@ -48,7 +49,10 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
     /* try to do the real open */
-    int fd = ocall_open(uri, access | create | options, share);
+    int fd = ocall_open(uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
+                             PAL_CREATE_TO_LINUX_OPEN(create)  |
+                             PAL_OPTION_TO_LINUX_OPEN(options),
+                        share);
 
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
@@ -184,7 +188,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
      * does not request a specific address.
      */
     if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
-        ret = ocall_mmap_untrusted(handle->file.fd, offset, size, HOST_PROT(prot), &mem);
+        ret = ocall_mmap_untrusted(handle->file.fd, offset, size, PAL_PROT_TO_LINUX(prot), &mem);
         if (!IS_ERR(ret))
             *addr = mem;
         return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
@@ -394,13 +398,19 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
 
     int ret;
 
-    if (create & PAL_CREATE_TRY) {
+    if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {
         ret = ocall_mkdir(uri, share);
-        if (IS_ERR(ret) && ERRNO(ret) == EEXIST && create & PAL_CREATE_ALWAYS)
-            return -PAL_ERROR_STREAMEXIST;
+
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == EEXIST && create & PAL_CREATE_ALWAYS)
+                return -PAL_ERROR_STREAMEXIST;
+            if (ERRNO(ret) != EEXIST)
+                return unix_to_pal_error(ERRNO(ret));
+            assert(ERRNO(ret) == EEXIST && create & PAL_CREATE_TRY);
+        }
     }
 
-    ret = ocall_open(uri, O_DIRECTORY | options, 0);
+    ret = ocall_open(uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options), 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
