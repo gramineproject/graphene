@@ -29,10 +29,7 @@ def generate_manifest(image, substitutions, user_manifest):
     user_mf = ""
     if os.path.exists(user_manifest):
         with open(user_manifest, 'r') as user_manifest_file:
-            for line in user_manifest_file:
-                # exclude memory specifications
-                if not line.startswith('sgx.enclave_size'):
-                    user_mf += line
+            user_mf = user_manifest_file.read()
 
     with open('templates/manifest.template') as manifest_template:
         template_mf = string.Template(manifest_template.read())
