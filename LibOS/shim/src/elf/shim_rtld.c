@@ -26,18 +26,19 @@
 #include <asm/mman.h>
 #include <asm/prctl.h>
 #include <errno.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
-#include <shim_vdso.h>
-#include <shim_vma.h>
 
 #include "elf.h"
 #include "ldsodefs.h"
+#include "shim_checkpoint.h"
+#include "shim_flags_conv.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
+#include "shim_vdso.h"
+#include "shim_vma.h"
 
 #ifndef DT_THISPROCNUM
 #define DT_THISPROCNUM 0
@@ -199,7 +200,8 @@ static int protect_page(struct link_map* l, void* addr, size_t size) {
     void* start = ALLOC_ALIGN_DOWN_PTR(addr);
     void* end   = ALLOC_ALIGN_UP_PTR(addr + size);
 
-    if (!DkVirtualMemoryProtect(start, end - start, PAL_PROT_READ | PAL_PROT_WRITE | prot))
+    if (!DkVirtualMemoryProtect(start, end - start,
+            PAL_PROT_READ | PAL_PROT_WRITE | LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))
         return -PAL_ERRNO;
 
     if (!c)
@@ -237,7 +239,8 @@ static int reprotect_map(struct link_map* l) {
         t           = next;
         l->textrels = t;
 
-        if (c && !DkVirtualMemoryProtect((void*)start, end - start, prot)) {
+        if (c && !DkVirtualMemoryProtect((void*)start, end - start,
+                                         LINUX_PROT_TO_PAL(prot, /*map_flags=*/0))) {
             ret = -PAL_ERRNO;
             break;
         }
@@ -613,13 +616,14 @@ do_remap:
                 if ((c->prot & PROT_WRITE) == 0) {
                     /* Dag nab it.  */
                     if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                c->prot | PAL_PROT_WRITE)) {
+                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0)
+                                                    | PAL_PROT_WRITE)) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
                     memset((void*)zero, '\0', zeropage - zero);
                     if (!DkVirtualMemoryProtect((caddr_t)ALLOC_ALIGN_DOWN(zero), g_pal_alloc_align,
-                                                c->prot)) {
+                                                LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0))) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
@@ -632,7 +636,8 @@ do_remap:
                 if (type != OBJECT_MAPPED && type != OBJECT_INTERNAL && type != OBJECT_USER &&
                     type != OBJECT_VDSO) {
                     PAL_PTR mapat =
-                        DkVirtualMemoryAlloc((void*)zeropage, zeroend - zeropage, 0, c->prot);
+                        DkVirtualMemoryAlloc((void*)zeropage, zeroend - zeropage, /*alloc_type=*/0,
+                                             LINUX_PROT_TO_PAL(c->prot, /*map_flags=*/0));
                     if (!mapat) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
@@ -1431,8 +1436,8 @@ static int vdso_map_init(void) {
         return -ENOMEM;
     assert(addr == ALLOC_ALIGN_UP_PTR(addr));
 
-    void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size), 0,
-                                                 PAL_PROT_READ | PAL_PROT_WRITE);
+    void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size),
+                                                 /*alloc_type=*/0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!ret_addr)
         return -PAL_ERRNO;
     assert(addr == ret_addr);

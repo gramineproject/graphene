@@ -85,7 +85,7 @@ struct shim_mem_entry {
     void* addr;
     size_t size;
     void** paddr;
-    int prot;
+    int prot; /*< Combination of PAL_PROT_* flags */
     void* data;
 };
 

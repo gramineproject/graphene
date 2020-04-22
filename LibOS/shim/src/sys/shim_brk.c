@@ -140,8 +140,8 @@ int init_brk_region(void* brk_region, size_t data_segment_size) {
     void* end_brk_region = NULL;
 
     /* Allocate the whole brk region */
-    void* ret =
-        (void*)DkVirtualMemoryAlloc(brk_region, brk_max_size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    void* ret = (void*)DkVirtualMemoryAlloc(brk_region, brk_max_size, /*alloc_type=*/0,
+                                            PAL_PROT_READ | PAL_PROT_WRITE);
 
     /* Checking if the PAL call succeeds. */
     if (!ret) {
@@ -286,7 +286,8 @@ BEGIN_RS_FUNC(brk) {
         if (ret < 0)
             return ret;
 
-        void* ptr = DkVirtualMemoryAlloc(alloc_addr, alloc_size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+        void* ptr = DkVirtualMemoryAlloc(alloc_addr, alloc_size, /*alloc_type=*/0,
+                                         PAL_PROT_READ | PAL_PROT_WRITE);
         __UNUSED(ptr);
         assert(ptr == alloc_addr);
         debug("brk reserved area: %p - %p\n", alloc_addr, alloc_addr + alloc_size);

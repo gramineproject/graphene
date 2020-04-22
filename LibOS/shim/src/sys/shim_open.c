@@ -114,6 +114,14 @@ int shim_do_open (const char * file, int flags, mode_t mode)
     if (file[0] == '\0')
         return -EINVAL;
 
+    if (!(flags & O_CREAT)) {
+        /* `mode` should be ignored if O_CREAT is not specified, according to man */
+        mode = 0;
+    } else {
+        /* This isn't documented, but that's what Linux does. */
+        mode &= 07777;
+    }
+
     struct shim_handle * hdl = get_new_handle();
     if (!hdl)
         return -ENOMEM;
@@ -138,6 +146,14 @@ int shim_do_openat (int dfd, const char * filename, int flags, int mode)
 {
     if (!filename || test_user_string(filename))
         return -EFAULT;
+
+    if (!(flags & O_CREAT)) {
+        /* `mode` should be ignored if O_CREAT is not specified, according to man */
+        mode = 0;
+    } else {
+        /* This isn't documented, but that's what Linux does. */
+        mode &= 07777;
+    }
 
     struct shim_dentry * dir = NULL;
     int ret = 0;

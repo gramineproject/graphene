@@ -24,6 +24,7 @@
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
+#include "pal_flags_conv.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_error.h"
@@ -43,8 +44,19 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
+
     /* try to do the real open */
-    int ret = INLINE_SYSCALL(open, 3, uri, HOST_ACCESS(access)|create|options|O_CLOEXEC, share);
+    // FIXME: No idea why someone hardcoded O_CLOEXEC here. We should drop it and carefully
+    // investigate if this cause any descriptor leaks.
+    int ret = INLINE_SYSCALL(open, 3, uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
+                                           PAL_CREATE_TO_LINUX_OPEN(create)  |
+                                           PAL_OPTION_TO_LINUX_OPEN(options) |
+                                           O_CLOEXEC,
+                             share);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -124,11 +136,9 @@ static int file_delete (PAL_HANDLE handle, int access)
 }
 
 /* 'map' operation for file stream. */
-static int file_map (PAL_HANDLE handle, void ** addr, int prot,
-                     uint64_t offset, uint64_t size)
-{
+static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
     int fd = handle->file.fd;
-    void * mem = *addr;
+    void* mem = *addr;
     /*
      * work around for fork emulation
      * the first exec image to be loaded has to be at same address
@@ -139,12 +149,11 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
         /* this address is used. don't over-map it later */
         handle->file.map_start = NULL;
     }
-    int flags = MAP_FILE|HOST_FLAGS(0, prot)|(mem ? MAP_FIXED : 0);
-    prot = HOST_PROT(prot);
+    int flags = MAP_FILE | PAL_MEM_FLAGS_TO_LINUX(0, prot) | (mem ? MAP_FIXED : 0);
+    prot = PAL_PROT_TO_LINUX(prot);
 
-    /* The memory will always allocated with flag MAP_PRIVATE
-       and MAP_FILE */
-    mem = (void *) ARCH_MMAP(mem, size, prot, flags, fd, offset);
+    /* The memory will always be allocated with flag MAP_PRIVATE and MAP_FILE */
+    mem = (void*)ARCH_MMAP(mem, size, prot, flags, fd, offset);
 
     if (IS_ERR_P(mem))
         return -PAL_ERROR_DENIED;
@@ -320,9 +329,8 @@ struct handle_ops file_ops = {
 /* 'open' operation for directory stream. Directory stream does not have a
    specific type prefix, its URI looks the same file streams, plus it
    ended with slashes. dir_open will be called by file_open. */
-static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
-                     int access, int share, int create, int options)
-{
+static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
+                    int create, int options) {
     if (strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
@@ -330,15 +338,20 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
     int ret = 0;
 
-    if (create & PAL_CREATE_TRY) {
+    if (create & PAL_CREATE_TRY || create & PAL_CREATE_ALWAYS) {
         ret = INLINE_SYSCALL(mkdir, 2, uri, share);
 
-        if (IS_ERR(ret) && ERRNO(ret) == EEXIST &&
-            create & PAL_CREATE_ALWAYS)
-            return -PAL_ERROR_STREAMEXIST;
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == EEXIST && create & PAL_CREATE_ALWAYS)
+                return -PAL_ERROR_STREAMEXIST;
+            if (ERRNO(ret) != EEXIST)
+                return unix_to_pal_error(ERRNO(ret));
+            assert(ERRNO(ret) == EEXIST && create & PAL_CREATE_TRY);
+        }
     }
 
-    ret = INLINE_SYSCALL(open, 3, uri, O_DIRECTORY|options|O_CLOEXEC, 0);
+    ret = INLINE_SYSCALL(open, 3, uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options) | O_CLOEXEC,
+                         0);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -348,7 +361,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
     SET_HANDLE_TYPE(hdl, dir);
     HANDLE_HDR(hdl)->flags |= RFD(0);
     hdl->dir.fd = ret;
-    char * path = (void *) hdl + HANDLE_SIZE(dir);
+    char* path = (void *) hdl + HANDLE_SIZE(dir);
     memcpy(path, uri, len + 1);
     hdl->dir.realpath = (PAL_STR) path;
     hdl->dir.buf = (PAL_PTR) NULL;

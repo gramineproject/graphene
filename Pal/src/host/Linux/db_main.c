@@ -285,8 +285,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
         snprintf(uri, size, URI_PREFIX_FILE "%s", exec_target);
         PAL_HANDLE file;
-        // FIXME: `options` should be `PAL_OPTION_CLOEXEC`, but _DkStreamOpen is totally broken.
-        int ret = _DkStreamOpen(&file, uri, PAL_ACCESS_RDONLY, 0, 0, 0);
+        int ret = _DkStreamOpen(&file, uri, PAL_ACCESS_RDONLY, 0, 0, PAL_OPTION_CLOEXEC);
         free(uri);
         if (ret < 0)
             INIT_FAIL(-ret, "Failed to open file to execute");

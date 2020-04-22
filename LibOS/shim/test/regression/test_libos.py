@@ -2,6 +2,7 @@
 
 import os
 import unittest
+import shutil
 import subprocess
 
 from regression import (
@@ -240,6 +241,9 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('fstat returned the fd type as S_IFDIR', stdout)
 
     def test_020_getdents(self):
+        if os.path.exists("root"):
+            shutil.rmtree("root")
+
         # This doesn't catch extraneous entries, but should be fine
         # until the LTP test can be run (need symlink support)
 
@@ -261,6 +265,8 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('getdents64: dir3 [0x4]', stdout)
 
     def test_021_getdents_large_dir(self):
+        if os.path.exists("tmp/large_dir"):
+            shutil.rmtree("tmp/large_dir")
         stdout, _ = self.run_binary(['large_dir_read', 'tmp/large_dir', '3000'])
 
         self.assertIn('Success!', stdout)

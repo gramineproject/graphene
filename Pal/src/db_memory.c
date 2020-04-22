@@ -27,8 +27,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-PAL_PTR
-DkVirtualMemoryAlloc(PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot) {
+PAL_PTR DkVirtualMemoryAlloc(PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot) {
     ENTER_PAL_CALL(DkVirtualMemoryAlloc);
     void* map_addr = (void*)addr;
 

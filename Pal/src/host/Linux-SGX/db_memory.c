@@ -26,6 +26,7 @@
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
+#include "pal_flags_conv.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
@@ -47,7 +48,10 @@ bool _DkCheckMemoryMappable(const void* addr, size_t size) {
 }
 
 int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot) {
-    if (!size || !WITHIN_MASK(prot, PAL_PROT_MASK))
+    assert(WITHIN_MASK(alloc_type, PAL_ALLOC_MASK));
+    assert(WITHIN_MASK(prot,       PAL_PROT_MASK));
+
+    if (!size)
         return -PAL_ERROR_INVAL;
 
     void* addr = *paddr;
@@ -84,6 +88,8 @@ int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
     __UNUSED(addr);
     __UNUSED(size);
     __UNUSED(prot);
+
+    assert(WITHIN_MASK(prot, PAL_PROT_MASK));
 
     static struct atomic_int at_cnt = {.counter = 0};
     if (atomic_cmpxchg(&at_cnt, 0, 1) == 0)

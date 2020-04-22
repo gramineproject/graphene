@@ -20,25 +20,24 @@
  * This file contains codes for implementation of 'chroot' filesystem.
  */
 
-#include <shim_internal.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
-#include <shim_fs.h>
-#include <shim_utils.h>
-
-#include <pal.h>
-#include <pal_error.h>
-
-#include <errno.h>
-
-#include <linux/stat.h>
-#include <linux/fcntl.h>
+// FIXME: Sorting these includes causes a bunch of "error: ‘S_IFREG’ undeclared" errors.
+#include "shim_flags_conv.h"
+#include "shim_internal.h"
+#include "shim_thread.h"
+#include "shim_handle.h"
+#include "shim_vma.h"
+#include "shim_fs.h"
+#include "shim_utils.h"
+#include "pal.h"
+#include "pal_error.h"
 
 #include <asm/fcntl.h>
 #include <asm/mman.h>
-#include <asm/unistd.h>
 #include <asm/prctl.h>
+#include <asm/unistd.h>
+#include <errno.h>
+#include <linux/fcntl.h>
+#include <linux/stat.h>
 
 #define URI_MAX_SIZE    STR_SIZE
 
@@ -382,11 +381,8 @@ static int chroot_lookup (struct shim_dentry * dent)
     return query_dentry(dent, NULL, NULL, NULL);
 }
 
-static int __chroot_open (struct shim_dentry * dent,
-                          const char * uri, int flags, mode_t mode,
-                          struct shim_handle * hdl,
-                          struct shim_file_data * data)
-{
+static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, mode_t mode,
+                         struct shim_handle* hdl, struct shim_file_data* data) {
     int ret = 0;
 
     if (!uri) {
@@ -394,13 +390,12 @@ static int __chroot_open (struct shim_dentry * dent,
     }
 
     int version = atomic_read(&data->version);
-    int oldmode = flags & O_ACCMODE;
+    int oldmode = LINUX_ACCESS_TO_LINUX_OPEN(flags);
     int accmode = oldmode;
-    int creat   = flags & PAL_CREATE_MASK;
-    int option  = flags & PAL_OPTION_MASK;
+    int create  = LINUX_OPEN_FLAGS_TO_PAL_CREATE(flags);
+    int options = LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(flags);
 
-    if ((data->type == FILE_REGULAR || data->type == FILE_UNKNOWN)
-        && accmode == O_WRONLY)
+    if ((data->type == FILE_REGULAR || data->type == FILE_UNKNOWN) && accmode == O_WRONLY)
         accmode = O_RDWR;
 
     PAL_HANDLE palhdl;
@@ -408,12 +403,11 @@ static int __chroot_open (struct shim_dentry * dent,
     if (hdl && hdl->pal_handle) {
         palhdl = hdl->pal_handle;
     } else {
-        palhdl = DkStreamOpen(uri, accmode, mode, creat, option);
+        palhdl = DkStreamOpen(uri, accmode, mode, create, options);
 
         if (!palhdl) {
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED &&
-                accmode != oldmode)
-                palhdl = DkStreamOpen(uri, oldmode, mode, creat, option);
+            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED && accmode != oldmode)
+                palhdl = DkStreamOpen(uri, oldmode, mode, create, options);
 
             if (!palhdl)
                 return -PAL_ERRNO;
@@ -421,7 +415,7 @@ static int __chroot_open (struct shim_dentry * dent,
 
         /* If DENTRY_LISTED is set on the parent dentry, list_directory_dentry() will not update
          * dent's ino, so ino will be actively updated here. */
-        if (creat)
+        if (create)
             chroot_update_ino(dent);
     }
 
@@ -445,11 +439,9 @@ static int __chroot_open (struct shim_dentry * dent,
     return ret;
 }
 
-static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
-                        int flags)
-{
+static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     int ret = 0;
-    struct shim_file_data * data;
+    struct shim_file_data* data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
@@ -529,7 +521,7 @@ static int chroot_mkdir (struct shim_dentry * dir, struct shim_dentry * dent,
             return ret;
     }
 
-    ret = __chroot_open(dent, NULL, O_CREAT|O_EXCL, mode, NULL, data);
+    ret = __chroot_open(dent, NULL, O_CREAT | O_EXCL, mode, NULL, data);
 
     /* Increment the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
@@ -726,7 +718,7 @@ static int chroot_mmap (struct shim_handle * hdl, void ** addr, size_t size,
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
 
-    int pal_prot = PAL_PROT(prot, flags);
+    int pal_prot = LINUX_PROT_TO_PAL(prot, flags);
 
 #if MAP_FILE == 0
     if (flags & MAP_ANONYMOUS)

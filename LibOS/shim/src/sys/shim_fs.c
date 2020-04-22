@@ -195,6 +195,9 @@ int shim_do_chmod(const char* path, mode_t mode) {
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
+    /* This isn't documented, but that's what Linux does. */
+    mode &= 07777;
+
     if (test_user_string(path))
         return -EFAULT;
 
@@ -220,6 +223,9 @@ int shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
 
     if (test_user_string(filename))
         return -EFAULT;
+
+    /* This isn't documented, but that's what Linux does. */
+    mode &= 07777;
 
     struct shim_dentry* dir = NULL;
     struct shim_dentry* dent = NULL;
@@ -250,6 +256,9 @@ int shim_do_fchmod(int fd, mode_t mode) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
+
+    /* This isn't documented, but that's what Linux does. */
+    mode &= 07777;
 
     struct shim_dentry* dent = hdl->dentry;
     int ret = 0;

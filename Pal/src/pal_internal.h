@@ -226,8 +226,8 @@ int _DkGetCPUInfo (PAL_CPU_INFO * info);
 
 /* Internal DK calls, in case any of the internal routines needs to use them */
 /* DkStream calls */
-int _DkStreamOpen (PAL_HANDLE * handle, const char * uri,
-                   int access, int share, int create, int options);
+int _DkStreamOpen(PAL_HANDLE* handle, const char* uri, int access, int share, int create,
+                  int options);
 int _DkStreamDelete (PAL_HANDLE handle, int access);
 int64_t _DkStreamRead (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                        void * buf, char * addr, int addrlen);

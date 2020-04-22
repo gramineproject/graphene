@@ -157,6 +157,11 @@ int _DkStreamOpen(PAL_HANDLE* handle, const char* uri, int access, int share, in
     struct handle_ops* ops = NULL;
     char* type = NULL;
 
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
+
     int ret = parse_stream_uri(&uri, &type, &ops);
     if (ret < 0)
         return ret;
@@ -169,13 +174,17 @@ int _DkStreamOpen(PAL_HANDLE* handle, const char* uri, int access, int share, in
 
 /* PAL call DkStreamOpen: Open stream based on uri, as given access/share/
    create/options flags. DkStreamOpen return a PAL_HANDLE to access the
-   stream, or return NULL. Error code is notified. */
-PAL_HANDLE
-DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share, PAL_FLG create, PAL_FLG options) {
+   stream, or return NULL. Error code is notified.
+
+   FIXME: Currently `share` must match 1-1 to Linux open() `mode` argument. This isn't really
+   portable and will cause problems when implementing other PALs.
+ */
+PAL_HANDLE DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share, PAL_FLG create,
+                        PAL_FLG options) {
     ENTER_PAL_CALL(DkStreamOpen);
 
     PAL_HANDLE handle = NULL;
-    int ret           = _DkStreamOpen(&handle, uri, access, share, create, options);
+    int ret = _DkStreamOpen(&handle, uri, access, share, create, options);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -221,6 +230,8 @@ DkStreamWaitForClient(PAL_HANDLE handle) {
    the stream. For example, file will be deleted, socket witll be
    disconnected, etc */
 int _DkStreamDelete(PAL_HANDLE handle, int access) {
+    assert(access == 0 || access == PAL_DELETE_RD || access == PAL_DELETE_WR);
+
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
     if (!ops)
@@ -371,8 +382,7 @@ int _DkStreamAttributesQuery(const char* uri, PAL_STREAM_ATTR* attr) {
 /* PAL call DkStreamAttributeQuery: query attribute of a stream by its
    URI, attr is memory given by user space. Return the pointer of attr
    if succeeded, or NULL if failed. Error code is notified */
-PAL_BOL
-DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr) {
+PAL_BOL DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr) {
     ENTER_PAL_CALL(DkStreamAttributesQuery);
 
     if (!uri || !attr) {
@@ -410,8 +420,7 @@ int _DkStreamAttributesQueryByHandle(PAL_HANDLE hdl, PAL_STREAM_ATTR* attr) {
 /* PAL call DkStreamAttributesQueryByHandle: Query attribute of a stream by
    its handle, attr is memory given by user space. Return the pointer of attr
    if succeeded, or NULL if failed. Error code is notified */
-PAL_BOL
-DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+PAL_BOL DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     ENTER_PAL_CALL(DkStreamAttributesQueryByHandle);
 
     if (!handle || !attr) {
@@ -432,8 +441,7 @@ DkStreamAttributesQueryByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 /* PAL call DkStreamAttributesSetByHandle: Set attribute of a stream by
    its handle, attr is memory given by user space. Return the pointer of attr
    if succeeded, or NULL if failed. Error code is notified */
-PAL_BOL
-DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+PAL_BOL DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     ENTER_PAL_CALL(DkStreamAttributesSetByHandle);
 
     if (!handle || !attr) {
@@ -507,6 +515,8 @@ int _DkStreamMap(PAL_HANDLE handle, void** paddr, int prot, uint64_t offset, uin
     void* addr = *paddr;
     int ret;
 
+    assert(WITHIN_MASK(prot, PAL_PROT_MASK));
+
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
     if (!ops)
@@ -526,8 +536,7 @@ int _DkStreamMap(PAL_HANDLE handle, void** paddr, int prot, uint64_t offset, uin
    space. prot/offset/size are the protection, offset and size of the memory
    mapping. Return the address if succeeded or NULL if failed. Error code
    is notified. */
-PAL_PTR
-DkStreamMap(PAL_HANDLE handle, PAL_PTR addr, PAL_FLG prot, PAL_NUM offset, PAL_NUM size) {
+PAL_PTR DkStreamMap(PAL_HANDLE handle, PAL_PTR addr, PAL_FLG prot, PAL_NUM offset, PAL_NUM size) {
     ENTER_PAL_CALL(DkStreamMap);
     void* map_addr = (void*)addr;
 
@@ -598,8 +607,7 @@ int64_t _DkStreamSetLength(PAL_HANDLE handle, uint64_t length) {
 
 /* PAL call DkStreamSetLength: Truncate the stream at certain length.
    Return the length if succeeded or 0 if failed. Error code is notified. */
-PAL_NUM
-DkStreamSetLength(PAL_HANDLE handle, PAL_NUM length) {
+PAL_NUM DkStreamSetLength(PAL_HANDLE handle, PAL_NUM length) {
     PAL_NUM rv = 0;
     ENTER_PAL_CALL(DkStreamSetLength);
 
