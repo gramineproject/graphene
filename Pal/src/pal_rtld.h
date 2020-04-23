@@ -87,12 +87,6 @@ struct link_map {
     const ElfW(Addr) * l_gnu_bitmask;
     const Elf32_Word * l_gnu_buckets;
     const Elf32_Word * l_gnu_chain_zero;
-
-#if CACHE_LOADED_BINARIES == 1
-#define NRELOCS 64
-    ElfW(Addr) * relocs[NRELOCS];
-    int nrelocs;
-#endif
 };
 
 struct link_gdb_map {

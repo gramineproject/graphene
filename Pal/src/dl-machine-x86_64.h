@@ -93,13 +93,6 @@ static void elf_machine_rela(struct link_map* l, Elf64_Rela* reloc, Elf64_Sym* s
             assert(sym);
             value = sym_map->l_addr + sym->st_value;
         }
-
-#if CACHE_LOADED_BINARIES == 1
-        if (!sym_map || sym_map->l_type == OBJECT_RTLD) {
-            assert(l->nrelocs < NRELOCS);
-            l->relocs[l->nrelocs++] = reloc_addr;
-        }
-#endif
     }
 #endif
 
