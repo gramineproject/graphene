@@ -71,12 +71,9 @@ def generate_signature(manifest):
 def extract_enclave_size(manifest):
     with open(manifest, "r") as file:
         for line in file:
-            pound = line.find("#")
-            if pound != -1:
-                continue
-
             if not line.strip().startswith("sgx.enclave_size"):
                 continue
+
             tokens = line.split("=")
             if len(tokens) != 2 or "#" in tokens[1]:
                 continue
