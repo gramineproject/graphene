@@ -75,7 +75,6 @@ def extract_enclave_size(manifest):
             if pound != -1:
                 continue
 
-            line = line.strip()
             if not line.strip().startswith("sgx.enclave_size"):
                 continue
             tokens = line.split("=")
@@ -145,7 +144,7 @@ def main(args=None):
         trusted_signatures.append('sgx.trusted_children.child' + str(len(trusted_signatures))
                                     + ' = file:' + executable + '.sig')
 
-    # In case multiple manifest files were generated, ensure that their enclave sizes is compatible
+    # In case multiple manifest files were generated, ensure that their enclave sizes are compatible
     if len(args.manifests) > 1:
         main_encl_size = extract_enclave_size(args.manifests[0] + ".sgx")
         for manifest in args.manifests[1:]:
