@@ -76,10 +76,12 @@ def extract_enclave_size(manifest):
                 continue
 
             line = line.strip()
-            equal = line.find("=")
-            key = line[:equal].strip()
-            if equal is not -1 and key is "sgx.enclave_size":
-                return line[equal + 1:].strip()
+            if not line.strip().startswith("sgx.enclave_size"):
+                continue
+            tokens = line.split("=")
+            if len(tokens) != 2 or "#" in tokens[1]:
+                continue
+            return tokens[1].strip()
 
     return "0M"
 
@@ -143,13 +145,13 @@ def main(args=None):
         trusted_signatures.append('sgx.trusted_children.child' + str(len(trusted_signatures))
                                     + ' = file:' + executable + '.sig')
 
-    # In case multiple manifest files where generated, ensure that their enclave size is compatible
+    # In case multiple manifest files were generated, ensure that their enclave sizes is compatible
     if len(args.manifests) > 1:
-        min_encl_size = extract_enclave_size(args.manifests[0])
+        main_encl_size = extract_enclave_size(args.manifests[0] + ".sgx")
         for manifest in args.manifests[1:]:
-            if min_encl_size > extract_enclave_size(manifest):
-                print("Error: Detected a child manifest with an enclave size smaller than its "
-                    "partent.")
+            if main_encl_size != extract_enclave_size(manifest + ".sgx"):
+                print("Error: Detected a child manifest with an enclave size different than its "
+                    "parent.")
                 sys.exit(1)
 
 if __name__ == '__main__':

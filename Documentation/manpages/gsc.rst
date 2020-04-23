@@ -45,7 +45,7 @@ services.
 
 - `Intel SGX driver <https://github.com/intel/linux-sgx-driver>`__
 - `Intel SGX SDK <https://01.org/intel-software-guard-extensions/downloads>`__
-- `Graphene Kernel Module <https://github.com/oscarlab/graphene-sgx-driver>`__
+- `Graphene SGX Driver (kernel module) <https://github.com/oscarlab/graphene-sgx-driver>`__
 
 Host Configuration
 ------------------

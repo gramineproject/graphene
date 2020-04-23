@@ -11,8 +11,8 @@ The ``gsc`` command line tool follows the common Docker approach to first build 
 subsequently run a container of an image. It provides the ``build`` command and allows to
 subsequently use ``docker run``.
 
-The `test directory <test/README.rst>`__ provides sample Docker images and scripts to graphenize them
-using ``gsc``.
+The `test directory <test/README.rst>`__ provides sample Docker images and scripts to graphenize
+them using ``gsc``.
 
 See `gsc documentation <../../Documentation/manpages/gsc.rst>`__ for detailed description of the
 command. The remainder of this document describes the implementation.
@@ -33,9 +33,9 @@ executable path and the library path, and scanning the entire image to generate 
 files. GSC excludes files from ``/boot``, ``/dev``, ``/proc``, ``/var``, ``/sys`` and ``/etc/rc``
 folders, since checksums are required which either don't exist or may vary across different
 deployment machines. GSC combines these values and list of trusted files to a new manifest file.
-Graphene's signer tool generates a SIGSTRUCT file for SGX enclaveinitialization. This tool also generates
-an SGX-specific manifest file. In a last step the entrypoint is changed to launch the ``apploader.sh``
-script which generates an Intel SGX token and starts the ``pal-Linux-SGX`` loader.
+Graphene's signer tool generates a SIGSTRUCT file for SGX enclave initialization. This tool also
+generates an SGX-specific manifest file. In a last step the entrypoint is changed to launch the
+``apploader.sh`` script which generates an Intel SGX token and starts the ``pal-Linux-SGX`` loader.
 
 Running graphenized Docker images
 ---------------------------------
@@ -81,9 +81,9 @@ trusted. Similar to trusted data, these files may be added to the image specific
 Access to files in excluded folders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The manifest generation excludes all files in ``/boot``, ``/dev``, ``/proc``, ``/var``, ``/sys``, and
-``/etc/rc`` directories from the list of trusted files. If your application relies on some files in these
-directories, you must manually add them to the application-specific manifest::
+The manifest generation excludes all files in ``/boot``, ``/dev``, ``/proc``, ``/var``, ``/sys``,
+and ``/etc/rc`` directories from the list of trusted files. If your application relies on some files
+in these directories, you must manually add them to the application-specific manifest::
 
     sgx.trusted_file.specialFile=file:PATH_TO_FILE
     or
