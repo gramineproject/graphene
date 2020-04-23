@@ -514,23 +514,12 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                 mappref = (ElfW(Addr))c->mapstart + (ElfW(Addr))addr;
             } else {
                 static_assert(sizeof(mappref) == sizeof(void*), "Pointers size mismatch?!");
-                ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(maplength), c->prot,
-                                          c->flags | MAP_PRIVATE, file, c->mapoff, NULL,
-                                          (void**)&mappref);
+                ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(maplength), PROT_NONE, VMA_UNMAPPED, NULL,
+                                          0, NULL, (void**)&mappref);
                 if (ret < 0) {
                     errstring = "failed to find an address for shared object";
                     goto call_lose;
                 }
-            }
-
-            /* Remember which part of the address space this object uses.  */
-            ret = (*mmap)(file, (void**)&mappref, ALLOC_ALIGN_UP(maplength), c->prot,
-                          c->flags | MAP_PRIVATE, c->mapoff);
-
-            if (ret < 0) {
-            map_error:
-                errstring = "failed to map segment from shared object";
-                goto call_lose;
             }
         } else {
             mappref = (ElfW(Addr))addr;
@@ -570,7 +559,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                                        PAL_PROT_NONE);
         }
 
-        goto postmap;
+        goto do_remap;
     }
 
     /* Remember which part of the address space this object uses.  */
@@ -602,12 +591,13 @@ do_remap:
 
             if (type == OBJECT_LOAD || type == OBJECT_REMAP) {
                 if ((*mmap)(file, &mapaddr, c->mapend - c->mapstart, c->prot,
-                            c->flags | MAP_FIXED | MAP_PRIVATE, c->mapoff) < 0)
-                    goto map_error;
+                            c->flags | MAP_FIXED | MAP_PRIVATE, c->mapoff) < 0) {
+                    errstring = "failed to map segment from shared object";
+                    goto call_lose;
+                }
             }
         }
 
-    postmap:
         if (l->l_phdr == 0 && (ElfW(Off))c->mapoff <= header->e_phoff &&
             ((size_t)(c->mapend - c->mapstart + c->mapoff) >=
              header->e_phoff + header->e_phnum * sizeof(ElfW(Phdr))))
