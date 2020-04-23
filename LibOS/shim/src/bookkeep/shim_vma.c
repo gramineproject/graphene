@@ -655,7 +655,9 @@ static bool is_file_prot_matching(struct shim_handle* file_hdl, int prot) {
 
 int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags,
                      struct shim_handle* file, off_t offset, const char* comment) {
-    assert(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE));
+    if (!(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
+        return -EINVAL;
+    }
 
     if (!length || !IS_ALLOC_ALIGNED(length) || !IS_ALLOC_ALIGNED_PTR(addr)) {
         return -EINVAL;

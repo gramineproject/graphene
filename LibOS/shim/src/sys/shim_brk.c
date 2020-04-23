@@ -32,9 +32,10 @@
 
 static struct {
     size_t data_segment_size;
-    void* brk_start;
-    void* brk_end;
-} brk_region = { .data_segment_size = -1ul };
+    char* brk_start;
+    char* brk_current;
+    char* brk_end;
+} brk_region;
 
 static struct shim_lock brk_lock;
 
@@ -48,106 +49,132 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
             brk_max_size = parse_int(brk_cfg);
     }
 
-    if ((uintptr_t)PAL_CB(user_address.end) < brk_max_size
-            || (uintptr_t)PAL_CB(user_address.end) - brk_max_size <= (uintptr_t)brk_start) {
-        debug("There is not enough space for brk. Consider reducing sys.brk.max_size.\n");
-        /* Not reporting an error here - we just do not have brk. Let the app live without it. */
-        return 0;
+    if (brk_start && !IS_ALLOC_ALIGNED_PTR(brk_start)) {
+        debug("Starting brk address is not aligned!\n");
+        return -EINVAL;
     }
+    if (!IS_ALLOC_ALIGNED(brk_max_size)) {
+        debug("Max brk size is not aligned!\n");
+        return -EINVAL;
+    }
+
+    if (brk_start && brk_start <= PAL_CB(user_address.end)
+            && brk_max_size <= (uintptr_t)PAL_CB(user_address.end)
+            && (uintptr_t)brk_start < (uintptr_t)PAL_CB(user_address.end) - brk_max_size) {
+        size_t offset = 0;
+#if ENABLE_ASLR == 1
+        int ret = DkRandomBitsRead(&offset, sizeof(offset));
+        if (ret < 0) {
+            return -convert_pal_errno(-ret);
+        }
+        /* Linux randomizes brk at offset from 0 to 0x2000000 from main executable data section
+         * https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/kernel/process.c#L914 */
+        offset %= MIN((size_t)0x2000000,
+                      (size_t)((char*)PAL_CB(user_address.end) - brk_max_size - (char*)brk_start));
+        offset = ALLOC_ALIGN_DOWN(offset);
+#endif
+        brk_start = (char*)brk_start + offset;
+
+        ret = bkeep_mmap_fixed(brk_start, brk_max_size, PROT_NONE,
+                               MAP_FIXED_NOREPLACE | VMA_UNMAPPED, NULL, 0, "heap");
+        if (ret == -EEXIST) {
+            /* Let's try mapping brk anywhere. */
+            brk_start = NULL;
+            ret = 0;
+        }
+        if (ret < 0) {
+            return ret;
+        }
+    } else {
+        /* Let's try mapping brk anywhere. */
+        brk_start = NULL;
+    }
+
+    if (!brk_start) {
+        int ret;
+#if ENABLE_ASLR == 1
+        ret = bkeep_mmap_any_aslr
+#else
+        ret = bkeep_mmap_any
+#endif
+                            (brk_max_size, PROT_NONE, VMA_UNMAPPED, NULL, 0, "heap", &brk_start);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    brk_region.brk_start = brk_start;
+    brk_region.brk_current = brk_region.brk_start;
+    brk_region.brk_end = (char*)brk_start + brk_max_size;
+    brk_region.data_segment_size = data_segment_size;
+
+    set_rlimit_cur(RLIMIT_DATA, brk_max_size + data_segment_size);
 
     if (!create_lock(&brk_lock)) {
         debug("Creating brk_lock failed!\n");
         return -ENOMEM;
     }
 
-    size_t offset = 0;
-#if ENABLE_ASLR == 1
-    int ret = DkRandomBitsRead(&offset, sizeof(offset));
-    if (ret < 0) {
-        return -convert_pal_errno(-ret);
-    }
-    /* Linux randomizes brk at offset from 0 to 0x2000000 from main executable data section
-     * https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/kernel/process.c#L914 */
-    offset %= MIN((size_t)0x2000000,
-                  (size_t)((char*)PAL_CB(user_address.end) - brk_max_size - (char*)brk_start));
-    offset = ALLOC_ALIGN_DOWN(offset);
-#endif
-
-    brk_region.brk_start = (char*)brk_start + offset;
-    brk_region.brk_end = brk_region.brk_start;
-    brk_region.data_segment_size = data_segment_size;
-
-    set_rlimit_cur(RLIMIT_DATA, brk_max_size + data_segment_size);
-
-
     return 0;
 }
 
-void* shim_do_brk(void* brk) {
+void* shim_do_brk(void* _brk) {
+    char* brk = _brk;
     size_t size = 0;
-    void* brk_aligned = ALLOC_ALIGN_UP_PTR(brk);
-
-    if (__atomic_load_n(&brk_region.data_segment_size, __ATOMIC_RELAXED) == -1ul) {
-        /* We do not have brk. */
-        return NULL;
-    }
+    char* brk_aligned = ALLOC_ALIGN_UP_PTR(brk);
 
     lock(&brk_lock);
 
-    void* end_aligned = ALLOC_ALIGN_UP_PTR(brk_region.brk_end);
+    char* brk_current = ALLOC_ALIGN_UP_PTR(brk_region.brk_current);
 
     if (brk < brk_region.brk_start) {
         goto out;
-    } else if (brk <= end_aligned) {
-        size = (char*)end_aligned - (char*)brk_aligned;
+    } else if (brk <= brk_current) {
+        size = brk_current - brk_aligned;
 
         if (size) {
-            void* tmp_vma = NULL;
-            if (bkeep_munmap(brk_aligned, size, /*is_internal=*/false, &tmp_vma) < 0) {
+            if (bkeep_mmap_fixed(brk_aligned, brk_region.brk_end - brk_aligned, PROT_NONE,
+                                 MAP_FIXED | VMA_UNMAPPED, NULL, 0, "heap")) {
                 goto out;
             }
 
             DkVirtualMemoryFree(brk_aligned, size);
-
-            bkeep_remove_tmp_vma(tmp_vma);
         }
 
-        brk_region.brk_end = brk;
+        brk_region.brk_current = brk;
         goto out;
     }
 
     uint64_t rlim_data = get_rlimit_cur(RLIMIT_DATA);
-    size = (char*)brk_aligned - (char*)brk_region.brk_start;
+    size = brk_aligned - brk_region.brk_start;
 
     if (rlim_data < brk_region.data_segment_size
             || rlim_data - brk_region.data_segment_size < size) {
         goto out;
     }
 
-    size = (char*)brk_aligned - (char*)end_aligned;
-    if (size) {
-        if (bkeep_mmap_fixed(end_aligned, size, PROT_READ | PROT_WRITE,
-                             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE,
-                             NULL, 0, "heap") < 0) {
-            goto out;
-        }
+    size = brk_aligned - brk_current;
+    /* brk_aligned >= brk > brk_current */
+    assert(size);
 
-        if (!DkVirtualMemoryAlloc(end_aligned, size, 0, PAL_PROT_READ | PAL_PROT_WRITE)) {
-            void* tmp_vma = NULL;
-            if (bkeep_munmap(end_aligned, size, /*is_internal=*/false, &tmp_vma) < 0) {
-                debug("[brk] Failed to remove bookkeeped memory that was not allocated at %p-%p!\n",
-                      end_aligned, (char*)end_aligned + size);
-                BUG();
-            }
-            bkeep_remove_tmp_vma(tmp_vma);
-            goto out;
-        }
+    if (bkeep_mmap_fixed(brk_current, size, PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+                         NULL, 0, "heap") < 0) {
+        goto out;
     }
 
-    brk_region.brk_end = brk;
+    if (!DkVirtualMemoryAlloc(brk_current, size, 0, PAL_PROT_READ | PAL_PROT_WRITE)) {
+        if (bkeep_mmap_fixed(brk_current, brk_region.brk_end - brk_current, PROT_NONE,
+                             MAP_FIXED | VMA_UNMAPPED, NULL, 0, "heap") < 0) {
+            BUG();
+        }
+        goto out;
+    }
+
+    brk_region.brk_current = brk;
 
 out:
-    brk = brk_region.brk_end;
+    brk = brk_region.brk_current;
     unlock(&brk_lock);
     return brk;
 }
@@ -157,18 +184,27 @@ BEGIN_CP_FUNC(brk) {
     __UNUSED(size);
     __UNUSED(objp);
     ADD_CP_FUNC_ENTRY((ptr_t)brk_region.brk_start);
-    ADD_CP_ENTRY(SIZE, (char*)brk_region.brk_end - (char*)brk_region.brk_start);
+    ADD_CP_ENTRY(SIZE, brk_region.brk_current - brk_region.brk_start);
+    ADD_CP_ENTRY(SIZE, brk_region.brk_end - brk_region.brk_start);
     ADD_CP_ENTRY(SIZE, brk_region.data_segment_size);
 }
 END_CP_FUNC(brk)
 
 BEGIN_RS_FUNC(brk) {
     __UNUSED(rebase);
-    brk_region.brk_start         = (void*)GET_CP_FUNC_ENTRY();
-    brk_region.brk_end           = (char*)brk_region.brk_start + GET_CP_ENTRY(SIZE);
+    brk_region.brk_start         = (char*)GET_CP_FUNC_ENTRY();
+    brk_region.brk_current       = brk_region.brk_start + GET_CP_ENTRY(SIZE);
+    brk_region.brk_end           = brk_region.brk_start + GET_CP_ENTRY(SIZE);
     brk_region.data_segment_size = GET_CP_ENTRY(SIZE);
 
-    debug("migrated brk area: %p - %p\n", brk_region.brk_start, brk_region.brk_end);
+    char* current = ALLOC_ALIGN_UP_PTR(brk_region.brk_current);
+    int ret = bkeep_mmap_fixed(current, brk_region.brk_end - current, PROT_NONE,
+                               MAP_FIXED_NOREPLACE | VMA_UNMAPPED, NULL, 0, "heap");
+    if (ret < 0) {
+        return ret;
+    }
+
+    debug("migrated reserved brk area: %p - %p\n", current, brk_region.brk_end);
 
 }
 END_RS_FUNC(brk)
