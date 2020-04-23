@@ -349,7 +349,7 @@ static int recv_cb(void* ctx, uint8_t* buf, size_t len) {
     ssize_t ret = ssl_ctx->pal_recv_cb(fd, buf, len);
 
     if (ret < 0) {
-        if (ret == -EINTR)
+        if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK)
             return MBEDTLS_ERR_SSL_WANT_READ;
         return MBEDTLS_ERR_NET_RECV_FAILED;
     }
@@ -369,7 +369,7 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
     }
     ssize_t ret = ssl_ctx->pal_send_cb(fd, buf, len);
     if (ret < 0) {
-        if (ret == -EINTR)
+        if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK)
             return MBEDTLS_ERR_SSL_WANT_WRITE;
         return MBEDTLS_ERR_NET_SEND_FAILED;
     }
