@@ -53,7 +53,7 @@ if [ "$GDB" == "1" ]; then
 fi
 
 if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
-	PREFIX=("$GDB")
+	PREFIX=("$GDB" -q)
 	if [ -n "$INSIDE_EMACS" ]; then
 		PREFIX+=("-i=mi")
 	fi
