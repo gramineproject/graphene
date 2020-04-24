@@ -385,7 +385,7 @@ static void remove_from_thread_vma_cache(struct shim_vma* to_remove) {
 static struct shim_vma* alloc_vma(void) {
     struct shim_vma* vma = get_from_thread_vma_cache();
     if (vma) {
-        return vma;
+        goto out;
     }
 
     lock(&vma_mgr_lock);
@@ -430,10 +430,18 @@ static struct shim_vma* alloc_vma(void) {
 
 out_unlock:
     unlock(&vma_mgr_lock);
+out:
+    if (vma) {
+        memset(vma, 0, sizeof(*vma));
+    }
     return vma;
 }
 
 static void free_vma(struct shim_vma* vma) {
+    if (vma->file) {
+        put_handle(vma->file);
+    }
+
     if (add_to_thread_vma_cache(vma)) {
         return;
     }
@@ -446,9 +454,6 @@ static void free_vma(struct shim_vma* vma) {
 static void free_vmas_freelist(struct shim_vma* vma) {
     while (vma) {
         struct shim_vma* next = vma->next_free;
-        if (vma->file) {
-            put_handle(vma->file);
-        }
         free_vma(vma);
         vma = next;
     }
@@ -742,9 +747,6 @@ int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags,
     }
 
     if (ret < 0) {
-        if (new_vma->file) {
-            put_handle(new_vma->file);
-        }
         free_vma(new_vma);
     }
     return ret;
@@ -985,9 +987,6 @@ out_found:
 out:
     spinlock_unlock_signal_on(&vma_tree_lock);
     if (new_vma) {
-        if (new_vma->file) {
-            put_handle(new_vma->file);
-        }
         free_vma(new_vma);
     }
     if (ret >= 0) {
