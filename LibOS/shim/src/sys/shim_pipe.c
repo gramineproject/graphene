@@ -22,13 +22,15 @@
 
 #include <asm/fcntl.h>
 #include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_utils.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_flags_conv.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_utils.h"
 
 static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
                         struct shim_qstr* qstr) {
