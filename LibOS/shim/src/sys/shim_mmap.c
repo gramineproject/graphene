@@ -18,19 +18,20 @@
 /*
  * shim_mmap.c
  *
- * Implementation of system call "mmap", "munmap" and "mprotect".
+ * Implementation of system calls "mmap", "munmap" and "mprotect".
  */
 
 #include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_vma.h>
 #include <stdatomic.h>
 #include <sys/mman.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_vma.h"
 
 #define LEGACY_MAP_MASK (MAP_SHARED \
                 | MAP_PRIVATE \
@@ -154,6 +155,8 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
             goto out_handle;
         }
     }
+
+    /* From now on `addr` contains the actual address we want to map (and already bookkeeped). */
 
     if (!hdl) {
         if (DkVirtualMemoryAlloc(addr, length, 0, PAL_PROT(prot, flags)) != addr) {

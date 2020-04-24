@@ -26,7 +26,7 @@
 #include "avl_tree.h"
 #include "shim_checkpoint.h"
 #include "shim_defs.h"
-/* TODO: remove the include of "shim_fs.h" once the circualr dependency of it and "shim_handle.h"
+/* TODO: remove the include of "shim_fs.h" once the circular dependency of it and "shim_handle.h"
  * is fixed. */
 #include "shim_fs.h"
 #include "shim_handle.h"
@@ -49,9 +49,12 @@ struct shim_vma {
     int prot;
     int flags;
     struct shim_handle* file;
-    off_t offset;
+    off_t offset; // offset inside `file`, where `begin` starts
     union {
+        /* If this `vma` is used, it is included in `vma_tree` using this node. */
         struct avl_tree_node tree_node;
+        /* Otherwise it might be cached in per thread vma cache, or might be on a temporary list
+         * of to-be-freed vmas (used by _vma_bkeep_remove). Such lists use this filed below. */
         struct shim_vma* next_free;
     };
     char comment[VMA_COMMENT_LEN];
@@ -87,7 +90,7 @@ static bool is_addr_in_vma(uintptr_t addr, struct shim_vma* vma) {
     return vma->begin <= addr && addr < vma->end;
 }
 
-/* Reutrns whether `addr` is smaller or inside a vma (`node`). */
+/* Returns whether `addr` is smaller or inside a vma (`node`). */
 static bool cmp_addr_to_vma(void* addr, struct avl_tree_node* node) {
     struct shim_vma* vma = container_of(node, struct shim_vma, tree_node);
 
@@ -126,8 +129,8 @@ static struct shim_vma* _get_first_vma(void) {
     return node2vma(avl_tree_first(&vma_tree));
 }
 
-/* Returns the vma that cointains `addr`. If there is no such vma, returns the closest vma with
- * higher addresses. */
+/* Returns the vma that contains `addr`. If there is no such vma, returns the closest vma with
+ * higher address. */
 static struct shim_vma* _lookup_vma(uintptr_t addr) {
     assert(spinlock_is_locked(&vma_tree_lock));
 
@@ -293,14 +296,30 @@ static struct shim_lock vma_mgr_lock;
 static MEM_MGR vma_mgr = NULL;
 static alignas(MEM_MGR_TYPE) char _vma_mgr_data[__MAX_MEM_SIZE(DEFAULT_VMA_COUNT)];
 
+/*
+ * We use a following per thread caching mechanism of VMAs:
+ * Each thread has a singly linked list of free VMAs, with maximal length of 3.
+ * Allocation first checks if there is a cached VMA, deallocation adds it to cache, unless it is
+ * full (3 entries already present).
+ * Note that 3 is configurable number as long as it is a power of 2 minus 1 and `struct shim_vma`
+ * alignment is not less that it. This is needed for storing the list length in lower bits of
+ * the pointer (small optimization not to add more fields to TCB - can be removed if the max list
+ * size needs to be increased).
+ */
+
+#define VMA_CACHE_SIZE 3ull
+static_assert((VMA_CACHE_SIZE & (VMA_CACHE_SIZE + 1)) == 0,
+              "VMA_CACHE_SIZE must be a power of 2 minus 1!");
+
 static struct shim_vma* cache2ptr(void* vma) {
-    static_assert(alignof(struct shim_vma) >= 4,
-                  "We need 2 lower bits of pointers to `struct shim_vma` for this optimization!");
-    return (struct shim_vma*)((uintptr_t)vma & ~3ull);
+    static_assert(alignof(struct shim_vma) >= VMA_CACHE_SIZE + 1,
+                  "We need some lower bits of pointers to `struct shim_vma` for this optimization!"
+                  );
+    return (struct shim_vma*)((uintptr_t)vma & ~VMA_CACHE_SIZE);
 }
 
 static size_t cache2size(void* vma) {
-    return (size_t)((uintptr_t)vma & 3ull);
+    return (size_t)((uintptr_t)vma & VMA_CACHE_SIZE);
 }
 
 static struct shim_vma* get_from_thread_vma_cache(void) {
@@ -313,10 +332,11 @@ static struct shim_vma* get_from_thread_vma_cache(void) {
 }
 
 static bool add_to_thread_vma_cache(struct shim_vma* vma) {
+    assert(cache2size(vma) == 0);
     void* ptr = SHIM_TCB_GET(vma_cache);
     size_t size = cache2size(ptr);
 
-    if (size >= 3) {
+    if (size >= VMA_CACHE_SIZE) {
         return false;
     }
 
@@ -328,19 +348,36 @@ static bool add_to_thread_vma_cache(struct shim_vma* vma) {
 static void remove_from_thread_vma_cache(struct shim_vma* to_remove) {
     assert(to_remove);
 
-    struct shim_vma* vma = cache2ptr(SHIM_TCB_GET(vma_cache));
+    struct shim_vma* first_vma = cache2ptr(SHIM_TCB_GET(vma_cache));
 
-    if (vma == to_remove) {
-        SHIM_TCB_SET(vma_cache, vma->next_free);
+    if (first_vma == to_remove) {
+        SHIM_TCB_SET(vma_cache, first_vma->next_free);
         return;
     }
 
+    struct shim_vma* vma = first_vma;
+    bool found = false;
+    while (vma) {
+        struct shim_vma* next = cache2ptr(vma->next_free);
+        if (next == to_remove) {
+            found = true;
+            break;
+        }
+        vma = next;
+    }
+    if (!found) {
+        return;
+    }
+
+    SHIM_TCB_SET(vma_cache, (void*)((uintptr_t)first_vma | (cache2size(first_vma) - 1)));
+    vma = first_vma;
     while (vma) {
         struct shim_vma* next = cache2ptr(vma->next_free);
         if (next == to_remove) {
             vma->next_free = next->next_free;
             return;
         }
+        vma->next_free = (void*)((uintptr_t)next | (cache2size(vma->next_free) - 1));
         vma = next;
     }
 }
@@ -606,7 +643,7 @@ int bkeep_munmap(void* addr, size_t length, bool is_internal, void** tmp_vma_ptr
     if (!vma1) {
         return -ENOMEM;
     }
-    /* Unmapping might succeeed even without this vma, so if this allocation fails we move on. */
+    /* Unmapping might succeed even without this vma, so if this allocation fails we move on. */
     struct shim_vma* vma2 = alloc_vma();
 
     struct shim_vma* vmas_to_free = NULL;
@@ -667,7 +704,7 @@ int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags,
     if (!new_vma) {
         return -ENOMEM;
     }
-    /* Unmapping might succeeed even without this vma, so if this allocation fails we move on. */
+    /* Unmapping might succeed even without this vma, so if this allocation fails we move on. */
     struct shim_vma* vma1 = alloc_vma();
 
     new_vma->begin = (uintptr_t)addr;
@@ -1084,7 +1121,7 @@ int dump_all_vmas(struct shim_vma_info** ret_infos, size_t* ret_count) {
     size_t count = DEFAULT_VMA_COUNT;
 
     while (true) {
-        struct shim_vma_info* vmas = malloc(sizeof(*vmas) * count);
+        struct shim_vma_info* vmas = calloc(count, sizeof(*vmas));
         if (!vmas) {
             return -ENOMEM;
         }
@@ -1101,8 +1138,8 @@ int dump_all_vmas(struct shim_vma_info** ret_infos, size_t* ret_count) {
     }
 }
 
-void free_vma_info_array(struct shim_vma_info* vma_infos, size_t size) {
-    for (size_t i = 0; i < size; i++) {
+void free_vma_info_array(struct shim_vma_info* vma_infos, size_t count) {
+    for (size_t i = 0; i < count; i++) {
         if (vma_infos[i].file) {
             put_handle(vma_infos[i].file);
         }

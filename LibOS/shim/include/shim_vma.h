@@ -57,7 +57,8 @@ struct shim_vma_info {
 #define VMA_UNMAPPED 0x10000000
 /* vma is used internally */
 #define VMA_INTERNAL 0x20000000
-/* vma has been protected as writable, so it has to be checkpointed during migration */
+/* vma is backed by a file and has been protected as writable, so it has to be checkpointed during
+ * migration */
 #define VMA_TAINTED 0x40000000
 
 static inline PAL_FLG PAL_PROT(int prot, int flags) {
@@ -87,6 +88,9 @@ int init_vma(void);
  * if (bkeep_munmap(ptr, len, false, &tmp_vma) < 0) handle_errors();
  * DkVirtualMemoryFree(ptr, len);
  * bkeep_remove_tmp_vma((tmp_vma);
+ *
+ * Such a way of freeing is needed, so that no other thread will map the same memory in the window
+ * between `bkeep_munmap` and `DkVirtualMemoryFree`.
  */
 int bkeep_munmap(void* addr, size_t length, bool is_internal, void** tmp_vma_ptr);
 void bkeep_remove_tmp_vma(void* vma);
@@ -96,7 +100,7 @@ int bkeep_mprotect(void* addr, size_t length, int prot, bool is_internal);
 
 /*
  * Bookkeeping an allocation of memory at a fixed address. `flags` must contain either MAP_FIXED or
- * MAP_FIXED_NOREPLACE - the former forces bookkeeping, removing any overlapping VMAs, the latter
+ * MAP_FIXED_NOREPLACE - the former forces bookkeeping and removes any overlapping VMAs, the latter
  * atomically checks for overlaps and fails if one is found.
  */
 int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags, struct shim_handle* file,
@@ -104,8 +108,8 @@ int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags, struct shim
 
 /*
  * Bookkeeping an allocation of memory at any address in the range [`bottom_addr`, `top_addr`).
- * The search is top-down, starting from `top_addr` - `length` and returning the first area capable
- * of fitting the requested size.
+ * The search is top-down, starting from `top_addr` - `length` and returning the first unoccupied
+ * area capable of fitting the requested size.
  * Start of bookkept range is returned in `*ret_val_ptr`.
  */
 int bkeep_mmap_any_in_range(void* bottom_addr, void* top_addr, size_t length, int prot, int flags,
@@ -122,7 +126,8 @@ int bkeep_mmap_any(size_t length, int prot, int flags, struct shim_handle* file,
 int bkeep_mmap_any_aslr(size_t length, int prot, int flags, struct shim_handle* file, off_t offset,
                         const char* comment, void** ret_val_ptr);
 
-/* Looking up VMA that contains `addr`. If one is found, returns its description in `vma_info`. */
+/* Looking up VMA that contains `addr`. If one is found, returns its description in `vma_info`.
+ * This function increases ref-count of `vma_info->file` by one (if it is not NULL). */
 int lookup_vma(void* addr, struct shim_vma_info* vma_info);
 
 /* Returns true if the whole range [`addr`, `addr` + `length`) is mapped as user memory. */
@@ -130,12 +135,12 @@ bool is_in_adjacent_user_vmas(void* addr, size_t length);
 
 /*
  * Dumps all non-internal and mapped VMAs.
- * On success returns 0 and puts the pointer to result array into `*vma_infos` and its size into
- * `*size`. On error returns negated error code.
+ * On success returns 0 and puts the pointer to result array into `*vma_infos` and its length into
+ * `*count`. On error returns negated error code.
  * The returned array can be subsequently freed by `free_vma_info_array`.
  */
-int dump_all_vmas(struct shim_vma_info** vma_infos, size_t* size);
-void free_vma_info_array(struct shim_vma_info* vma_infos, size_t size);
+int dump_all_vmas(struct shim_vma_info** vma_infos, size_t* count);
+void free_vma_info_array(struct shim_vma_info* vma_infos, size_t count);
 
 void debug_print_all_vmas(void);
 
