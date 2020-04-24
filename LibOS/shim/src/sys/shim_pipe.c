@@ -39,13 +39,18 @@ static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
     PAL_HANDLE hdl1 = NULL;  /* one pipe end (accepted connect from hdl2) */
     PAL_HANDLE hdl2 = NULL;  /* other pipe end (connects to hdl0 and talks to hdl1) */
 
+    if (flags & O_DIRECT) {
+        debug("create_pipes(): tried to create O_DIRECT pipe, which is not supported.\n");
+        flags &= ~O_DIRECT;
+    }
+
     if ((ret = create_pipe(name, uri, PIPE_URI_SIZE, &hdl0, qstr,
                            /*use_vmid_for_name=*/false)) < 0) {
         debug("pipe creation failure\n");
         return ret;
     }
 
-    if (!(hdl2 = DkStreamOpen(uri, 0, 0, 0, flags & O_NONBLOCK))) {
+    if (!(hdl2 = DkStreamOpen(uri, 0, 0, 0, LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(flags)))) {
         ret = -PAL_ERRNO;
         debug("pipe connection failure\n");
         goto out;
