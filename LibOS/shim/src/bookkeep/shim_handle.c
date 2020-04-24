@@ -328,6 +328,11 @@ int set_new_fd_handle(struct shim_handle* hdl, int fd_flags, struct shim_handle_
         if (fd > handle_map->fd_top) {
             // no free fd found (fd == handle_map->fd_top + 1)
 
+            if (fd >= get_rlimit_cur(RLIMIT_NOFILE)) {
+                ret = -EMFILE;
+                goto out;
+            }
+
             if (fd >= handle_map->fd_size) {
                 // no space left, need to enlarge handle_map->map
                 ret = __enlarge_handle_map(handle_map, handle_map->fd_size * 2);
@@ -361,6 +366,9 @@ int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
     int ret = 0;
 
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
+        return -EBADF;
+
+    if (fd >= get_rlimit_cur(RLIMIT_NOFILE))
         return -EBADF;
 
     lock(&handle_map->lock);
@@ -575,9 +583,6 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
 
 static int __enlarge_handle_map(struct shim_handle_map* map, size_t size) {
     assert(locked(&map->lock));
-
-    if (size > get_rlimit_cur(RLIMIT_NOFILE))
-        return -EBADF;
 
     if (size <= map->fd_size)
         return 0;
