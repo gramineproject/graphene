@@ -54,7 +54,7 @@ struct shim_vma {
         /* If this `vma` is used, it is included in `vma_tree` using this node. */
         struct avl_tree_node tree_node;
         /* Otherwise it might be cached in per thread vma cache, or might be on a temporary list
-         * of to-be-freed vmas (used by _vma_bkeep_remove). Such lists use this filed below. */
+         * of to-be-freed vmas (used by _vma_bkeep_remove). Such lists use the field below. */
         struct shim_vma* next_free;
     };
     char comment[VMA_COMMENT_LEN];
@@ -411,8 +411,10 @@ static struct shim_vma* alloc_vma(void) {
         }
 
         spinlock_lock_signal_off(&vma_tree_lock);
+        /* Currently `tmp_vma` is always used (added to `vma_tree`), but this assumption could
+         * easily be changed (e.g. if we implement VMAs merging).*/
         struct avl_tree_node* node = &tmp_vma.tree_node;
-        if (node->parent || node->left || node->right || vma_tree.root == node) {
+        if (node->parent || vma_tree.root == node) {
             /* `tmp_vma` is in `vma_tree`, we need to migrate it. */
             copy_vma(&tmp_vma, vma_migrate);
             avl_tree_swap_node(&vma_tree, node, &vma_migrate->tree_node);
