@@ -113,6 +113,10 @@ static int open_standard_term(PAL_HANDLE* handle, const char* param, int access)
 /* 'open' operation for terminal stream */
 static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
+    __UNUSED(share);
+    __UNUSED(create);
+    __UNUSED(options);
+
     if (strcmp_static(type, "tty"))
         return -PAL_ERROR_INVAL;
 
