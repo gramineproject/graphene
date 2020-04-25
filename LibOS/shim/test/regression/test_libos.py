@@ -53,7 +53,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('argv[0] = bootstrap_pie', stdout)
 
     def test_110_basic_bootstrapping_cxx(self):
-        stdout, _ = self.run_binary(['bootstrap-c++'])
+        stdout, _ = self.run_binary(['bootstrap_c++'])
 
         # Basic Bootstrapping (C++)
         self.assertIn('User Program Started', stdout)
@@ -308,7 +308,7 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('Test successful!', stdout)
 
     def test_050_mmap(self):
-        stdout, _ = self.run_binary(['mmap-file'], timeout=60)
+        stdout, _ = self.run_binary(['mmap_file'], timeout=60)
 
         # Private mmap beyond file range
         self.assertIn('mmap test 6 passed', stdout)
@@ -324,21 +324,21 @@ class TC_30_Syscall(RegressionTestCase):
         'On SGX, SIGBUS isn\'t always implemented correctly, for lack '
         'of memory protection. For now, some of these cases won\'t work.')
     def test_051_mmap_sgx(self):
-        stdout, _ = self.run_binary(['mmap-file'], timeout=60)
+        stdout, _ = self.run_binary(['mmap_file'], timeout=60)
 
         # SIGBUS test
         self.assertIn('mmap test 5 passed', stdout)
         self.assertIn('mmap test 8 passed', stdout)
 
     def test_052_large_mmap(self):
-        stdout, _ = self.run_binary(['large-mmap'], timeout=480)
+        stdout, _ = self.run_binary(['large_mmap'], timeout=480)
 
         # Ftruncate
-        self.assertIn('large-mmap: ftruncate OK', stdout)
+        self.assertIn('large_mmap: ftruncate OK', stdout)
 
         # Large mmap
-        self.assertIn('large-mmap: mmap 1 completed OK', stdout)
-        self.assertIn('large-mmap: mmap 2 completed OK', stdout)
+        self.assertIn('large_mmap: mmap 1 completed OK', stdout)
+        self.assertIn('large_mmap: mmap 2 completed OK', stdout)
 
     def test_053_mprotect_file_fork(self):
         stdout, _ = self.run_binary(['mprotect_file_fork'])
@@ -435,7 +435,7 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('Four bytes from /dev/urandom', stdout)
 
     def test_010_path(self):
-        stdout, _ = self.run_binary(['proc-path'])
+        stdout, _ = self.run_binary(['proc_path'])
         self.assertIn('proc path test success', stdout)
 
     def test_020_cpuinfo(self):

@@ -30,9 +30,9 @@ c_executables = \
 	getsockopt \
 	host_root_fs \
 	init_fail \
-	large-mmap \
+	large_mmap \
 	large_dir_read \
-	mmap-file \
+	mmap_file \
 	mprotect_file_fork \
 	multi_pthread \
 	openmp \
@@ -41,7 +41,7 @@ c_executables = \
 	poll_many_types \
 	ppoll \
 	proc \
-	proc-path \
+	proc_path \
 	proc_cpuinfo \
 	pselect \
 	readdir \
@@ -62,7 +62,7 @@ c_executables = \
 	unix \
 	vfork_and_exec
 
-cxx_executables = bootstrap-c++
+cxx_executables = bootstrap_c++
 
 manifests = \
 	manifest \
@@ -79,12 +79,12 @@ manifests = \
 	getdents.manifest \
 	host_root_fs.manifest \
 	init_fail.manifest \
-	large-mmap.manifest \
-	mmap-file.manifest \
+	large_mmap.manifest \
+	mmap_file.manifest \
 	multi_pthread.manifest \
 	multi_pthread_exitless.manifest \
 	openmp.manifest \
-	proc-path.manifest \
+	proc_path.manifest \
 	sh.manifest \
 	shared_object.manifest
 

@@ -9,7 +9,7 @@
 /abort_multithread
 /attestation
 /bootstrap
-/bootstrap-c++
+/bootstrap_c++
 /bootstrap_pie
 /bootstrap_static
 /cpuid
@@ -29,7 +29,6 @@
 /fork_and_exec
 /fstat_cwd
 /futex
-/futex-timeout
 /futex_bitset
 /futex_requeue
 /futex_timeout
@@ -39,9 +38,9 @@
 /getsockopt
 /host_root_fs
 /init_fail
-/large-mmap
 /large_dir_read
-/mmap-file
+/large_mmap
+/mmap_file
 /mprotect_file_fork
 /multi_pthread
 /openmp
@@ -50,8 +49,8 @@
 /poll_many_types
 /ppoll
 /proc
-/proc-path
 /proc_cpuinfo
+/proc_path
 /pselect
 /readdir
 /sched
@@ -65,10 +64,10 @@
 /str_close_leak
 /syscall
 /system
-/testfile
-/tmp
 /tcp_ipv6_v6only
 /tcp_msg_peek
+/testfile
+/tmp
 /udp
 /unix
 /vfork_and_exec

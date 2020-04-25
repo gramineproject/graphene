@@ -18,7 +18,7 @@ int main(void) {
         perror("ftruncate");
         return 1;
     } else {
-        printf("large-mmap: ftruncate OK\n");
+        printf("large_mmap: ftruncate OK\n");
     }
 
     void* a = mmap(NULL, TEST_LENGTH2, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
@@ -27,7 +27,7 @@ int main(void) {
         return 1;
     }
     ((char*)a)[0x80000000] = 0xff;
-    printf("large-mmap: mmap 1 completed OK\n");
+    printf("large_mmap: mmap 1 completed OK\n");
 
     rv = munmap(a, TEST_LENGTH2);
     if (rv) {
@@ -41,7 +41,7 @@ int main(void) {
         return 1;
     }
     ((char*)a)[0x100000000] = 0xff;
-    printf("large-mmap: mmap 2 completed OK\n");
+    printf("large_mmap: mmap 2 completed OK\n");
 
     return 0;
 }
