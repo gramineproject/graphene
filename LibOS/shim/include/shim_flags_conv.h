@@ -36,7 +36,7 @@ static inline int LINUX_PROT_TO_PAL(int prot, int map_flags) {
            (map_flags & MAP_PRIVATE ? PAL_PROT_WRITECOPY : 0);
 }
 
-static inline int LINUX_ACCESS_TO_LINUX_OPEN(int access) {
+static inline int LINUX_OPEN_FLAGS_TO_PAL_ACCESS(int access) {
     return (access & O_RDONLY ? PAL_ACCESS_RDONLY : 0) |
            (access & O_WRONLY ? PAL_ACCESS_WRONLY : 0) |
            (access & O_RDWR   ? PAL_ACCESS_RDWR   : 0) |

@@ -390,7 +390,7 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
     }
 
     int version = atomic_read(&data->version);
-    int oldmode = LINUX_ACCESS_TO_LINUX_OPEN(flags);
+    int oldmode = LINUX_OPEN_FLAGS_TO_PAL_ACCESS(flags);
     int accmode = oldmode;
     int create  = LINUX_OPEN_FLAGS_TO_PAL_CREATE(flags);
     int options = LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(flags);

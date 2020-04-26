@@ -222,7 +222,7 @@ static int socket_parse_uri(char* uri, struct sockaddr** bind_addr, size_t* bind
 }
 
 /* fill in the PAL handle based on the file descriptors and address given. */
-static inline PAL_HANDLE socket_create_handle(int type, int fd, int pal_options,
+static inline PAL_HANDLE socket_create_handle(int type, int fd, int options,
                                               struct sockaddr* bind_addr, size_t bind_addrlen,
                                               struct sockaddr* dest_addr, size_t dest_addrlen) {
     PAL_HANDLE hdl =
@@ -251,7 +251,7 @@ static inline PAL_HANDLE socket_create_handle(int type, int fd, int pal_options,
         hdl->sock.conn = (PAL_PTR)NULL;
     }
 
-    hdl->sock.nonblocking = (pal_options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
+    hdl->sock.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
     hdl->sock.linger      = 0;
 
     if (type == pal_type_tcpsrv) {
@@ -320,7 +320,7 @@ static bool check_any_addr(struct sockaddr* addr) {
 }
 
 /* listen on a tcp socket */
-static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int pal_options) {
+static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
     size_t bind_addrlen;
@@ -339,7 +339,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int pal_options
         return -PAL_ERROR_INVAL;
 #endif
 
-    int sock_options = pal_options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_STREAM | SOCK_CLOEXEC | sock_options,
                         0);
 
@@ -386,8 +386,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int pal_options
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
-    *handle = socket_create_handle(pal_type_tcpsrv, fd, pal_options, bind_addr, bind_addrlen, NULL,
-                                   0);
+    *handle = socket_create_handle(pal_type_tcpsrv, fd, options, bind_addr, bind_addrlen, NULL, 0);
     if (!(*handle)) {
         ret = -PAL_ERROR_NOMEM;
         goto failed;
@@ -445,7 +444,7 @@ failed:
 }
 
 /* connect on a tcp socket */
-static int tcp_connect(PAL_HANDLE* handle, char* uri, int pal_options) {
+static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr buffer[3];
     struct sockaddr* bind_addr = buffer;
     struct sockaddr* dest_addr = buffer + 1;
@@ -463,7 +462,7 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int pal_options) {
     if (bind_addr && bind_addr->sa_family != dest_addr->sa_family)
         return -PAL_ERROR_INVAL;
 
-    int sock_options = pal_options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, dest_addr->sa_family, SOCK_STREAM | SOCK_CLOEXEC | sock_options,
                         0);
     if (IS_ERR(fd))
@@ -508,8 +507,8 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int pal_options) {
             bind_addr = NULL;
     }
 
-    *handle = socket_create_handle(pal_type_tcp, fd, pal_options, bind_addr, bind_addrlen,
-                                   dest_addr, dest_addrlen);
+    *handle = socket_create_handle(pal_type_tcp, fd, options, bind_addr, bind_addrlen, dest_addr,
+                                   dest_addrlen);
 
     if (!(*handle)) {
         ret = -PAL_ERROR_NOMEM;
@@ -525,10 +524,14 @@ failed:
 
 /* 'open' operation of tcp stream */
 static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
-                    int create, int pal_options) {
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK) || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(pal_options, PAL_OPTION_MASK))
-        return -PAL_ERROR_INVAL;
+                    int create, int options) {
+    __UNUSED(access);
+    __UNUSED(share);
+
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     size_t uri_len = strlen(uri) + 1;
 
@@ -539,10 +542,10 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     memcpy(uri_buf, uri, uri_len);
 
     if (!strcmp_static(type, URI_TYPE_TCP_SRV))
-        return tcp_listen(handle, uri_buf, create, pal_options);
+        return tcp_listen(handle, uri_buf, create, options);
 
     if (!strcmp_static(type, URI_TYPE_TCP))
-        return tcp_connect(handle, uri_buf, pal_options);
+        return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
 }
@@ -612,7 +615,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, size_t len, const v
 }
 
 /* used by 'open' operation of tcp stream for bound socket */
-static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int pal_options) {
+static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
     size_t bind_addrlen;
@@ -631,7 +634,7 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int pal_options) 
         return -PAL_ERROR_INVAL;
 #endif
 
-    int sock_options = pal_options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_DGRAM | SOCK_CLOEXEC | sock_options,
                         0);
 
@@ -662,7 +665,7 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int pal_options) 
         }
     }
 
-    *handle = socket_create_handle(pal_type_udpsrv, fd, pal_options, bind_addr, bind_addrlen, NULL, 0);
+    *handle = socket_create_handle(pal_type_udpsrv, fd, options, bind_addr, bind_addrlen, NULL, 0);
 
     if (!(*handle)) {
         ret = -ENOMEM;
@@ -677,7 +680,7 @@ failed:
 }
 
 /* used by 'open' operation of tcp stream for connected socket */
-static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int pal_options) {
+static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer[2];
     struct sockaddr* bind_addr = buffer;
     struct sockaddr* dest_addr = buffer + 1;
@@ -694,7 +697,7 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int pal_option
         return -PAL_ERROR_INVAL;
 #endif
 
-    int sock_options = pal_options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
+    int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, dest_addr ? dest_addr->sa_family : AF_INET,
                         SOCK_DGRAM | SOCK_CLOEXEC | sock_options, 0);
 
@@ -728,7 +731,7 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int pal_option
         }
     }
 
-    *handle = socket_create_handle(dest_addr ? pal_type_udp : pal_type_udpsrv, fd, pal_options,
+    *handle = socket_create_handle(dest_addr ? pal_type_udp : pal_type_udpsrv, fd, options,
                                    bind_addr, bind_addrlen, dest_addr, dest_addrlen);
 
     if (!(*handle)) {
@@ -744,10 +747,14 @@ failed:
 }
 
 static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int access, int share,
-                    int create, int pal_options) {
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK) || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(pal_options, PAL_OPTION_MASK))
-        return -PAL_ERROR_INVAL;
+                    int create, int options) {
+    __UNUSED(access);
+    __UNUSED(share);
+
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     char buf[PAL_SOCKADDR_SIZE];
     size_t len = strlen(uri);
@@ -758,10 +765,10 @@ static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int acce
     memcpy(buf, uri, len + 1);
 
     if (!strcmp_static(type, URI_TYPE_UDP_SRV))
-        return udp_bind(hdl, buf, create, pal_options);
+        return udp_bind(hdl, buf, create, options);
 
     if (!strcmp_static(type, URI_TYPE_UDP))
-        return udp_connect(hdl, buf, create, pal_options);
+        return udp_connect(hdl, buf, create, options);
 
     return -PAL_ERROR_NOTSUPPORT;
 }

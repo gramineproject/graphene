@@ -478,8 +478,8 @@ enum PAL_SHARE {
 
 /*! Stream Create Flags */
 enum PAL_CREATE {
-    PAL_CREATE_TRY       = 1,  /*!< Create file if file not exist */
-    PAL_CREATE_ALWAYS    = 2,  /*!< Create file and fail if file already exist */
+    PAL_CREATE_TRY       = 1,  /*!< Create file if file does not exist */
+    PAL_CREATE_ALWAYS    = 2,  /*!< Create file and fail if file already exists */
     PAL_CREATE_DUALSTACK = 4,  /*!< Create dual-stack socket (opposite of IPV6_V6ONLY) */
 
     PAL_CREATE_MASK      = 7,

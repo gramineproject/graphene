@@ -1188,7 +1188,8 @@ BEGIN_RS_FUNC(vma)
 
         if (need_mapped < vma->addr + vma->length) {
             if (DkVirtualMemoryAlloc(need_mapped, vma->addr + vma->length - need_mapped,
-                                     /*alloc_type=*/0, vma->prot)) {
+                                     /*alloc_type=*/0,
+                                     LINUX_PROT_TO_PAL(vma->prot, /*map_flags=*/0))) {
                 need_mapped += vma->length;
             }
         }

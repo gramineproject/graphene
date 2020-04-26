@@ -436,9 +436,13 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
 /* 'open' operation of tcp stream */
 static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK) || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(options, PAL_OPTION_MASK))
-        return -PAL_ERROR_INVAL;
+    __UNUSED(access);
+    __UNUSED(share);
+
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     int uri_len = strlen(uri) + 1;
 
@@ -589,9 +593,13 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
 
 static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    if (!WITHIN_MASK(access, PAL_ACCESS_MASK) || !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(options, PAL_OPTION_MASK))
-        return -PAL_ERROR_INVAL;
+    __UNUSED(access);
+    __UNUSED(share);
+
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+    assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     char buf[PAL_SOCKADDR_SIZE];
     int len = strlen(uri);

@@ -119,8 +119,9 @@ static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     __UNUSED(create);
     __UNUSED(options);
 
-    assert(WITHIN_MASK(share, PAL_SHARE_MASK));
-    assert(WITHIN_MASK(create, PAL_CREATE_MASK));
+    assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
+    assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
+    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
     assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     if (strcmp_static(type, "tty"))

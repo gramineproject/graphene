@@ -51,7 +51,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     /* try to do the real open */
     // FIXME: No idea why someone hardcoded O_CLOEXEC here. We should drop it and carefully
-    // investigate if this cause any descriptor leaks.
+    // investigate if this causes any descriptor leaks.
     int ret = INLINE_SYSCALL(open, 3, uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
                                            PAL_CREATE_TO_LINUX_OPEN(create)  |
                                            PAL_OPTION_TO_LINUX_OPEN(options) |
@@ -361,7 +361,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     SET_HANDLE_TYPE(hdl, dir);
     HANDLE_HDR(hdl)->flags |= RFD(0);
     hdl->dir.fd = ret;
-    char* path = (void *) hdl + HANDLE_SIZE(dir);
+    char* path = (void*)hdl + HANDLE_SIZE(dir);
     memcpy(path, uri, len + 1);
     hdl->dir.realpath = (PAL_STR) path;
     hdl->dir.buf = (PAL_PTR) NULL;
