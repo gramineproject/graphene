@@ -40,7 +40,7 @@
                                  value (because Graphene-internal fds in the PAL also counts towards
                                  the host limit). Ideally, we should have a PAL API which tells
                                  LibOS how many PAL handles it can use simultaneously. */
-#define MAX_MAX_FDS     65536 /* 4096: Linux initial value */
+#define MAX_MAX_FDS     65536
 #define MLOCK_LIMIT     (64 * 1024)
 #define MQ_BYTES_MAX    819200
 
