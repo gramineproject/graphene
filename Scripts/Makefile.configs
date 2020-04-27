@@ -27,6 +27,9 @@ ARCH := $(word 1,$(subst -, -, $(SYS)))
 
 # where libraries are found, e.g., /lib/x86_64-linux-gnu
 ARCH_LIBDIR := /lib/$(SYS)
+ifeq ($(wildcard $(ARCH_LIBDIR)/*),)
+    ARCH_LIBDIR := /lib64
+endif
 
 # part of filenames and dirs like /usr/lib/gcc/$(ARCH_LONG)
 ARCH_LONG := $(SYS)
