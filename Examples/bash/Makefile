@@ -26,6 +26,8 @@ ifeq ($(SGX),1)
 all: bash.token $(addsuffix .token,$(PROGRAMS))
 endif
 
+include ../../Scripts/Makefile.configs
+
 # Program dependencies (generate from ldd):
 #
 # For SGX, the manifest needs to list all the libraries loaded during the
@@ -69,6 +71,7 @@ bash.manifest: manifest.template trusted-children bash.trusted-libs
 		-e 's|$$(EXECPATH)|'"$(shell which bash)"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat bash.trusted-libs`"'|g' \
 		-e 's|$$(TRUSTED_CHILDREN)|'"`cat trusted-children`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
@@ -78,6 +81,7 @@ $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
 		-e 's|$$(EXECPATH)|'"$(shell which $(basename $@))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat $(basename $@).trusted-libs`"'|g' \
 		-e 's|$$(TRUSTED_CHILDREN)||g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generating the SGX-specific manifest (*.manifest.sgx), the enclave signature,

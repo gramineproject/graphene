@@ -16,7 +16,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR
 fs.mount.lib.type = chroot
@@ -25,8 +25,8 @@ fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime/
 
 # More libraries required by PyTorch
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.usr.type = chroot
 fs.mount.usr.path = /usr
@@ -82,37 +82,37 @@ sgx.trusted_files.libresolv   = file:$(GRAPHENEDIR)/Runtime/libresolv.so.2
 sgx.trusted_files.librt       = file:$(GRAPHENEDIR)/Runtime/librt.so.1
 sgx.trusted_files.libutil     = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
 
-sgx.trusted_files.libstdc     = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
-sgx.trusted_files.libgccs     = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
-sgx.trusted_files.libaptpkg   = file:/usr/lib/x86_64-linux-gnu/libapt-pkg.so.5.0
-sgx.trusted_files.liblz4      = file:/usr/lib/x86_64-linux-gnu/liblz4.so.1
-sgx.trusted_files.libsystemd  = file:/lib/x86_64-linux-gnu/libsystemd.so.0
-sgx.trusted_files.libselinux  = file:/lib/x86_64-linux-gnu/libselinux.so.1
-sgx.trusted_files.libgcrypt   = file:/lib/x86_64-linux-gnu/libgcrypt.so.20
-sgx.trusted_files.libpcre     = file:/lib/x86_64-linux-gnu/libpcre.so.3
-sgx.trusted_files.libgpgerror = file:/lib/x86_64-linux-gnu/libgpg-error.so.0
-sgx.trusted_files.libexpat    = file:/lib/x86_64-linux-gnu/libexpat.so.1
-sgx.trusted_files.libz        = file:/lib/x86_64-linux-gnu/libz.so.1
-sgx.trusted_files.libz2       = file:/lib/x86_64-linux-gnu/libbz2.so.1.0
-sgx.trusted_files.liblzma     = file:/lib/x86_64-linux-gnu/liblzma.so.5
-sgx.trusted_files.libmpdec    = file:/usr/lib/x86_64-linux-gnu/libmpdec.so.2
+sgx.trusted_files.libstdc     = file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6
+sgx.trusted_files.libgccs     = file:$(ARCH_LIBDIR)/libgcc_s.so.1
+sgx.trusted_files.libaptpkg   = file:/usr/$(ARCH_LIBDIR)/libapt-pkg.so.5.0
+sgx.trusted_files.liblz4      = file:/usr/$(ARCH_LIBDIR)/liblz4.so.1
+sgx.trusted_files.libsystemd  = file:$(ARCH_LIBDIR)/libsystemd.so.0
+sgx.trusted_files.libselinux  = file:$(ARCH_LIBDIR)/libselinux.so.1
+sgx.trusted_files.libgcrypt   = file:$(ARCH_LIBDIR)/libgcrypt.so.20
+sgx.trusted_files.libpcre     = file:$(ARCH_LIBDIR)/libpcre.so.3
+sgx.trusted_files.libgpgerror = file:$(ARCH_LIBDIR)/libgpg-error.so.0
+sgx.trusted_files.libexpat    = file:$(ARCH_LIBDIR)/libexpat.so.1
+sgx.trusted_files.libz        = file:$(ARCH_LIBDIR)/libz.so.1
+sgx.trusted_files.libz2       = file:$(ARCH_LIBDIR)/libbz2.so.1.0
+sgx.trusted_files.liblzma     = file:$(ARCH_LIBDIR)/liblzma.so.5
+sgx.trusted_files.libmpdec    = file:/usr/$(ARCH_LIBDIR)/libmpdec.so.2
 
-# Ubuntu16.04 sgx.trusted_files.libcrypto = file:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0
-# Ubuntu16.04 sgx.trusted_files.libssl    = file:/lib/x86_64-linux-gnu/libssl.so.1.0.0
-# Ubuntu18.04 sgx.trusted_files.libcrypto = file:/usr/lib/x86_64-linux-gnu/libcrypto.so.1.1
-# Ubuntu18.04 sgx.trusted_files.libssl    = file:/usr/lib/x86_64-linux-gnu/libssl.so.1.1
+# Ubuntu16.04 sgx.trusted_files.libcrypto = file:$(ARCH_LIBDIR)/libcrypto.so.1.0.0
+# Ubuntu16.04 sgx.trusted_files.libssl    = file:$(ARCH_LIBDIR)/libssl.so.1.0.0
+# Ubuntu18.04 sgx.trusted_files.libcrypto = file:/usr/$(ARCH_LIBDIR)/libcrypto.so.1.1
+# Ubuntu18.04 sgx.trusted_files.libssl    = file:/usr/$(ARCH_LIBDIR)/libssl.so.1.1
 
 # Name Service Switch (NSS) libraries (Glibc dependencies)
-sgx.trusted_files.libnssfiles  = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
-sgx.trusted_files.libnssnis    = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
-sgx.trusted_files.libnsl       = file:/lib/x86_64-linux-gnu/libnsl.so.1
+sgx.trusted_files.libnssfiles  = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
+sgx.trusted_files.libnssnis    = file:$(ARCH_LIBDIR)/libnss_nis.so.2
+sgx.trusted_files.libnsl       = file:$(ARCH_LIBDIR)/libnsl.so.1
 
 # The script to run
 sgx.trusted_files.script  = file:pytorchexample.py
 
 # required by Python package ctypes (lib/python3.6/lib-dynload/ctypes.cpython-36m-x86_64-linux-gnu.so)
-# Ubuntu18.04 sgx.trusted_files.libffi = file:/usr/lib/x86_64-linux-gnu/libffi.so.6
+# Ubuntu18.04 sgx.trusted_files.libffi = file:/usr/$(ARCH_LIBDIR)/libffi.so.6
 
 # File containing the classes, i.e., things the classifier has been trained to distinguish between
 sgx.trusted_files.classes = file:classes.txt

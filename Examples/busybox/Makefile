@@ -32,6 +32,8 @@ ifeq ($(SGX),1)
 all: busybox.manifest.sgx
 endif
 
+include ../../Scripts/Makefile.configs
+
 ############################ BUSYBOX EXECUTABLE ###############################
 
 # Busybox is built as usual, without any changes to the build process. The
@@ -66,6 +68,7 @@ $(SRCDIR)/busybox: $(SRCDIR)/.config
 busybox.manifest: busybox.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This

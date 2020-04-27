@@ -33,8 +33,8 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # In case of Busybox:
 # - /lib is searched for Glibc libraries (ld, libc, libresolv) provided by
 #   graphene,
-# - /lib/x86_64-linux-gnu is searched for libcrypt, NSS libraries.
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
+# - $(ARCH_LIBDIR) is searched for libcrypt, NSS libraries.
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
 
 # Explicitly set some environment variables used by Busybox.
 loader.env.PATH = /:/usr/sbin:/usr/bin:/sbin:/bin
@@ -61,8 +61,8 @@ fs.mount.lib1.uri = file:$(GRAPHENEDIR)/Runtime
 
 # Mount host-OS directory contanining libcrypt and NSS libraries.
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libraries.
 fs.mount.etc.type = chroot
@@ -95,19 +95,19 @@ sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
 # libcrypt is an explicit dependency of Busybox. We choose to install it on
 # host OS instead of downloading the sources, building, and linking Busybox
 # against the built library (which is possible but would require more effort).
-sgx.trusted_files.libcrypt = file:/lib/x86_64-linux-gnu/libcrypt.so.1
+sgx.trusted_files.libcrypt = file:$(ARCH_LIBDIR)/libcrypt.so.1
 
 # Name Service Switch (NSS) libraries. Glibc calls these libraries as part of
 # name-service information gathering. libnss_{compat,files,nis} are the
 # most widely used libraries, at least on Ubuntu.
 # For more info, see 'man nsswitch.conf'.
-sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
-sgx.trusted_files.libnssfiles  = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnssnis  = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
+sgx.trusted_files.libnssfiles  = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
 
 # libNSL is a dependency of libnss_compat above. It is a good example of nested
 # library dependencies required by Graphene-SGX.
-sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 
 ############################ SGX: TRUSTED FILES ###############################
 

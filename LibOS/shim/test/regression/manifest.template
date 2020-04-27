@@ -1,5 +1,5 @@
 loader.preload = file:../../src/libsysdb.so
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 loader.debug_type = none
 loader.syscall_symbol = syscalldb
 
@@ -8,12 +8,12 @@ fs.mount.graphene_lib.path = /lib
 fs.mount.graphene_lib.uri = file:../../../../Runtime
 
 fs.mount.host_lib.type = chroot
-fs.mount.host_lib.path = /lib/x86_64-linux-gnu
-fs.mount.host_lib.uri = file:/lib/x86_64-linux-gnu
+fs.mount.host_lib.path = $(ARCH_LIBDIR)
+fs.mount.host_lib.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.host_usr_lib.type = chroot
-fs.mount.host_usr_lib.path = /usr/lib/x86_64-linux-gnu
-fs.mount.host_usr_lib.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.host_usr_lib.path = /usr/$(ARCH_LIBDIR)
+fs.mount.host_usr_lib.uri = file:/usr/$(ARCH_LIBDIR)
 
 fs.mount.bin.type = chroot
 fs.mount.bin.path = /bin
@@ -29,8 +29,8 @@ sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
 sgx.trusted_files.libdl = file:../../../../Runtime/libdl.so.2
 sgx.trusted_files.libm = file:../../../../Runtime/libm.so.6
 sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
-sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
-sgx.trusted_files.libstdcxx = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+sgx.trusted_files.libgcc_s = file:$(ARCH_LIBDIR)/libgcc_s.so.1
+sgx.trusted_files.libstdcxx = file:/usr$(ARCH_LIBDIR)/libstdc++.so.6
 
 sgx.trusted_files.victim = file:exec_victim
 sgx.trusted_children.victim = file:exec_victim.sig

@@ -42,10 +42,10 @@ loader.debug_type = $(GRAPHENEDEBUG)
 #
 # In case of Memcached:
 # - /lib is searched for Glibc libraries (ld, libc, libpthread)
-# - /lib/x86_64-linux-gnu is searched for Name Service Switch (NSS) libraries
-# - /usr/lib/x86_64-linux-gnu is searched for libevent (the only explicit
+# - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
+# - /usr/$(ARCH_LIBDIR) is searched for libevent (the only explicit
 #                             Memcached dependency)
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Explicitly unset all environment variables used by Memcached. This is just a
 # precaution so that attacker cannot influence the default behavior of Memcached
@@ -80,16 +80,16 @@ fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
 # Mount host-OS directory to Name Service Switch (NSS) libraries (in 'uri')
-# into in-Graphene visible directory /lib/x86_64-linux-gnu (in 'path').
+# into in-Graphene visible directory e.g., /lib/x86_64-linux-gnu (in 'path').
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount host-OS directory to libevent lib required by Memcached (in 'uri')
-# into in-Graphene visible directory /usr/lib/x86_64-linux-gnu (in 'path').
+# into in-Graphene visible directory e.g., /usr/lib/x86_64-linux-gnu (in 'path').
 fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
-fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.lib3.path = /usr/$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
 # into in-Graphene visible directory /etc (in 'path').
@@ -156,18 +156,18 @@ sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 # name-service information gathering. libnss_{compat,files,nis} are the
 # most widely used libraries, at least on Ubuntu.
 # For more info, see 'man nsswitch.conf'.
-sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
-sgx.trusted_files.libnssfiles  = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnssnis  = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
+sgx.trusted_files.libnssfiles  = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
 
 # libNSL is a dependency of libnss_compat above. It is a good example of nested
 # library dependencies required by Graphene-SGX.
-sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 
 # libEvent is an explicit dependency of Memcached. We choose to install it on
 # host OS instead of downloading the sources, building, and linking Memcached
 # against the built library (which is possible but would require more effort).
-sgx.trusted_files.libevent = file:/usr/lib/x86_64-linux-gnu/libevent-2.0.so.5
+sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.0.so.5
 
 ############################ SGX: TRUSTED FILES ###############################
 
