@@ -17,7 +17,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables for Python
-loader.env.LD_LIBRARY_PATH = $(PYTHONHOME)/lib:/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = $(PYTHONHOME)/lib:/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 loader.env.PATH = $(PYTHONHOME)/bin:/usr/bin:/bin
 loader.env.PYTHONHOME = $(PYTHONHOME)
 loader.env.PYTHONPATH = $(PYTHONHOME):$(PYTHONHOME)/plat-x86_64-linux-gnu:$(PYTHONDISTHOME):$(PYTHONHOME)/lib-dynload
@@ -30,10 +30,10 @@ fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
-# Host-level libraries (/lib/x86_64-linux-gnu) required by the Python executable
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the Python executable
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Host-level directory (/usr) required by the Python executable
 fs.mount.usr.type = chroot
@@ -93,10 +93,10 @@ sgx.trusted_files.libutil = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
 sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 
 # Other libraries
-sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
-sgx.trusted_files.libbz2 = file:/lib/x86_64-linux-gnu/libbz2.so.1.0
-sgx.trusted_files.liblzma = file:/lib/x86_64-linux-gnu/liblzma.so.5
-sgx.trusted_files.libexpat = file:/lib/x86_64-linux-gnu/libexpat.so.1
+sgx.trusted_files.libz = file:$(ARCH_LIBDIR)/libz.so.1
+sgx.trusted_files.libbz2 = file:$(ARCH_LIBDIR)/libbz2.so.1.0
+sgx.trusted_files.liblzma = file:$(ARCH_LIBDIR)/liblzma.so.5
+sgx.trusted_files.libexpat = file:$(ARCH_LIBDIR)/libexpat.so.1
 $(PYTHON_TRUSTED_LIBS)
 
 # SGX untrusted (allowed) files/directories

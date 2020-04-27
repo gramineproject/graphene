@@ -40,6 +40,8 @@ ifeq ($(SGX),1)
 all: sgx
 endif
 
+include ../../Scripts/Makefile.configs
+
 # Building LMBench binaries
 
 $(INSTALLDIR)/lmbench: $(LMBENCHDIR)/src/Makefile
@@ -62,6 +64,7 @@ $(INSTALLDIR)/lmbench-test-ci.sh:
 $(MANIFESTS): $(INSTALLDIR)/%: %.template $(INSTALLDIR)/lmbench
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR_FROM_INSTALLDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(ARCH_LONG)|'"$(ARCH_LONG)"'|g' \
 		$< > $@
 
 # Generating the manifests for SGX
