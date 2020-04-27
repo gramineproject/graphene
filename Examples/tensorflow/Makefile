@@ -99,3 +99,11 @@ install-dependencies-ubuntu:
 		--url https://github.com/bazelbuild/bazel/releases/download/0.16.1/bazel-0.16.1-installer-linux-x86_64.sh
 	chmod +x bazel-0.16.1-installer-linux-x86_64.sh
 	./bazel-0.16.1-installer-linux-x86_64.sh --user
+
+.PHONY: install-dependencies-fedora
+install-dependencies-fedora:
+	dnf -y install python3-devel python3-pip wget git pkg-config zip gcc-g++ zlib-devel unzip
+	$(GRAPHENEDIR)/Scripts/download --output bazel-0.16.1-installer-linux-x86_64.sh --sha256 $(BAZEL_INSTALLER_HASH)\
+		--url https://github.com/bazelbuild/bazel/releases/download/0.16.1/bazel-0.16.1-installer-linux-x86_64.sh
+	chmod +x bazel-0.16.1-installer-linux-x86_64.sh
+	./bazel-0.16.1-installer-linux-x86_64.sh --user
