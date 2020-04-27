@@ -16,7 +16,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables for lighttpd
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:$(INSTALL_DIR)/lib
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):$(INSTALL_DIR)/lib
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -26,10 +26,10 @@ fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
-# Host-level libraries (/lib/x86_64-linux-gnu) required by the lighttpd executable
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by the lighttpd executable
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Host-level directory (/usr) required by the lighttpd executable
 fs.mount.usr.type = chroot
@@ -71,8 +71,8 @@ sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
 sgx.trusted_files.librt = file:$(GRAPHENEDIR)/Runtime/librt.so.1
 sgx.trusted_files.libutil = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
 sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
-sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
-sgx.trusted_files.nss_files = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libz = file:$(ARCH_LIBDIR)/libz.so.1
+sgx.trusted_files.nss_files = file:$(ARCH_LIBDIR)/libnss_files.so.2
 
 # lighttpd modules and dependencies
 $(LIGHTTPD_TRUSTED_MODS)

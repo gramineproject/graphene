@@ -39,6 +39,8 @@ ifeq ($(SGX),1)
 all: nginx.manifest.sgx nginx.sig nginx.token
 endif
 
+include ../../Scripts/Makefile.configs
+
 # The make targets for downloading and compiling the Nginx source code, and
 # installing the binaries.
 # Note that Graphene doesn't support eventfd() and PR_SET_DUMPABLE, so we manually
@@ -97,6 +99,7 @@ nginx.manifest: nginx.manifest.template nginx-trusted-libs
 		-e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
 		-e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
 		-e 's|$$(NGINX_TRUSTED_LIBS)|'"`cat nginx-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generating the SGX-specific manifest (nginx.manifest.sgx), the enclave signature,

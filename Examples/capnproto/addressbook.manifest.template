@@ -17,7 +17,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Specify paths to search for libraries (usual LD_LIBRARY_PATH syntax)
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Mount host-OS directory to Graphene glibc/runtime libraries
 fs.mount.lib.type = chroot
@@ -26,13 +26,13 @@ fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
 # Mount host-OS directory to Name Service Switch (NSS) libraries
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount host-OS directory to libcapnp lib required by Addressbook
 fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
-fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.lib3.path = /usr/$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libs
 fs.mount.etc.type = chroot

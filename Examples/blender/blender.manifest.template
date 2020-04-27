@@ -17,7 +17,7 @@ loader.execname = blender
 loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENE_DEBUG)
 
-loader.env.LD_LIBRARY_PATH = /graphene_lib:/blender_lib:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /graphene_lib:/blender_lib:/usr/$(ARCH_LIBDIR):$(ARCH_LIBDIR)
 # Graphene implicitly copies host environment variables - overwriting troublesome one
 loader.env.PWD =
 
@@ -30,12 +30,12 @@ fs.mount.blender_lib.path = /blender_lib
 fs.mount.blender_lib.uri = file:$(BLENDER_DIR)/lib
 
 fs.mount.usr_lib.type = chroot
-fs.mount.usr_lib.path = /usr/lib/x86_64-linux-gnu
-fs.mount.usr_lib.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.usr_lib.path = /usr/$(ARCH_LIBDIR)
+fs.mount.usr_lib.uri = file:/usr/$(ARCH_LIBDIR)
 
 fs.mount.lib.type = chroot
-fs.mount.lib.path = /lib/x86_64-linux-gnu
-fs.mount.lib.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib.path = $(ARCH_LIBDIR)
+fs.mount.lib.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.scenes.type = chroot
 fs.mount.scenes.path = /data
@@ -64,19 +64,19 @@ sgx.trusted_files.librt = file:$(GRAPHENE_DIR)/Runtime/librt.so.1
 sgx.trusted_files.libGL = file:$(BLENDER_DIR)/lib/libGL.so.1
 sgx.trusted_files.libglapi = file:$(BLENDER_DIR)/lib/libglapi.so.0
 
-sgx.trusted_files.libX11 = file:/usr/lib/x86_64-linux-gnu/libX11.so.6
-sgx.trusted_files.libXi = file:/usr/lib/x86_64-linux-gnu/libXi.so.6
-sgx.trusted_files.libXxf86vm = file:/usr/lib/x86_64-linux-gnu/libXxf86vm.so.1
-sgx.trusted_files.libXfixes = file:/usr/lib/x86_64-linux-gnu/libXfixes.so.3
-sgx.trusted_files.libXrender = file:/usr/lib/x86_64-linux-gnu/libXrender.so.1
-sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
-sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
-sgx.trusted_files.libXext = file:/usr/lib/x86_64-linux-gnu/libXext.so.6
-sgx.trusted_files.libxcb = file:/usr/lib/x86_64-linux-gnu/libxcb.so.1
-sgx.trusted_files.libXau = file:/usr/lib/x86_64-linux-gnu/libXau.so.6
-sgx.trusted_files.libXdmcp = file:/usr/lib/x86_64-linux-gnu/libXdmcp.so.6
-sgx.trusted_files.libstdcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
-sgx.trusted_files.libnuma = file:/usr/lib/x86_64-linux-gnu/libnuma.so.1
+sgx.trusted_files.libX11 = file:/usr/$(ARCH_LIBDIR)/libX11.so.6
+sgx.trusted_files.libXi = file:/usr/$(ARCH_LIBDIR)/libXi.so.6
+sgx.trusted_files.libXxf86vm = file:/usr/$(ARCH_LIBDIR)/libXxf86vm.so.1
+sgx.trusted_files.libXfixes = file:/usr/$(ARCH_LIBDIR)/libXfixes.so.3
+sgx.trusted_files.libXrender = file:/usr/$(ARCH_LIBDIR)/libXrender.so.1
+sgx.trusted_files.libgcc_s = file:$(ARCH_LIBDIR)/libgcc_s.so.1
+sgx.trusted_files.libz = file:$(ARCH_LIBDIR)/libz.so.1
+sgx.trusted_files.libXext = file:/usr/$(ARCH_LIBDIR)/libXext.so.6
+sgx.trusted_files.libxcb = file:/usr/$(ARCH_LIBDIR)/libxcb.so.1
+sgx.trusted_files.libXau = file:/usr/$(ARCH_LIBDIR)/libXau.so.6
+sgx.trusted_files.libXdmcp = file:/usr/$(ARCH_LIBDIR)/libXdmcp.so.6
+sgx.trusted_files.libstdcpp = file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6
+sgx.trusted_files.libnuma = file:/usr/$(ARCH_LIBDIR)/libnuma.so.1
 
 # Ubuntu version specific files
-# [Ubuntu18.04] sgx.trusted_files.libbsd = file:/lib/x86_64-linux-gnu/libbsd.so.0
+# [Ubuntu18.04] sgx.trusted_files.libbsd = file:$(ARCH_LIBDIR)/libbsd.so.0

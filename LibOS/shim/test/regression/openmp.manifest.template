@@ -13,7 +13,7 @@ fs.mount.bin.uri = file:/bin
 
 fs.mount.usrlib.type = chroot
 fs.mount.usrlib.path = /usrlib
-fs.mount.usrlib.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.usrlib.uri = file:/usr/$(ARCH_LIBDIR)
 
 sgx.thread_num = 32
 
@@ -21,6 +21,6 @@ sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
 sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 sgx.trusted_files.libdl = file:../../../../Runtime/libdl.so.2
-sgx.trusted_files.libgomp = file:/usr/lib/x86_64-linux-gnu/libgomp.so.1
+sgx.trusted_files.libgomp = file:/usr$(ARCH_LIBDIR)/libgomp.so.1
 
 sgx.static_address = 1

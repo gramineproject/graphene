@@ -16,7 +16,7 @@ loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENE_DEBUG)
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -26,15 +26,15 @@ fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENE_DIR)/Runtime
 
-# Host-level libraries (/lib/x86_64-linux-gnu) required by OpenVINO.
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by OpenVINO.
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
-# More host-level libraries (/usr/lib/x86_64-linux-gnu) required by OpenVINO.
+# More host-level libraries (e.g., /usr/lib/x86_64-linux-gnu) required by OpenVINO.
 fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
-fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.lib3.path = /usr/$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
 
 # Host-level directory to NSS files required by Glibc + NSS libs.
 fs.mount.etc.type = chroot
@@ -78,16 +78,16 @@ sgx.trusted_files.libutil = file:$(GRAPHENE_DIR)/Runtime/libutil.so.1
 sgx.trusted_files.libpthread = file:$(GRAPHENE_DIR)/Runtime/libpthread.so.0
 
 # Name Service Switch (NSS) libraries (Glibc dependencies)
-sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
-sgx.trusted_files.libnssfiles = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnssnis = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
+sgx.trusted_files.libnssfiles = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnssnis = file:$(ARCH_LIBDIR)/libnss_nis.so.2
 
 # libNSL is a dependency of libnss_compat above
-sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 
 # OpenVINO C++ dependencies
-sgx.trusted_files.libcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
-sgx.trusted_files.libgcc = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+sgx.trusted_files.libcpp = file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6
+sgx.trusted_files.libgcc = file:$(ARCH_LIBDIR)/libgcc_s.so.1
 
 # OpenVINO main libraries
 sgx.trusted_files.libformatreader    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libformat_reader.so

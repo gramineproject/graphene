@@ -1,7 +1,7 @@
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.exec = file:/usr/bin/gcc
 loader.execname = /usr/bin/gcc
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 loader.env.PATH = /bin:/usr/bin
 loader.debug_type = $(GRAPHENEDEBUG)
 
@@ -10,8 +10,8 @@ fs.mount.lib1.path = /lib
 fs.mount.lib1.uri = file:$(GRAPHENEDIR)/Runtime
 
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.usr.type = chroot
 fs.mount.usr.path = /usr

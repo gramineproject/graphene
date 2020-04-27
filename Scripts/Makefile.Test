@@ -38,6 +38,7 @@ manifest_rules = \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):$(abspath $(RUNTIME))/libsysdb.so:g' \
 	-e 's:\$$(LIBCDIR):$(abspath $(RUNTIME)):g' \
+	-e 's:\$$(ARCH_LIBDIR):$(ARCH_LIBDIR):g' \
 	$(extra_rules)
 else
 manifest_rules= \
@@ -46,6 +47,7 @@ manifest_rules= \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):$(RUNTIME)/libsysdb.so:g' \
 	-e 's:\$$(LIBCDIR):$(RUNTIME):g' \
+	-e 's:\$$(ARCH_LIBDIR):$(ARCH_LIBDIR):g' \
 	$(extra_rules)
 endif
 
