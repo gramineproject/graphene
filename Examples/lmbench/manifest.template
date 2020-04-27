@@ -41,8 +41,8 @@ fs.mount.var_tmp.uri = file:/var/tmp
 
 # Mount /usr/include/x84_64-linux-gnu/ (used by LMBench for file tests)
 fs.mount.inc.type = chroot
-fs.mount.inc.path = /usr/include/x86_64-linux-gnu/
-fs.mount.inc.uri = file:/usr/include/x86_64-linux-gnu/
+fs.mount.inc.path = /usr/include/$(ARCH_LONG)
+fs.mount.inc.uri = file:/usr/include/$(ARCH_LONG)
 
 # Network related rules. These rules are used only for sandboxing, which is
 # currently an EXPERIMENTAL feature.
@@ -77,7 +77,7 @@ sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 # SGX untrusted (allowed) files/directories
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.var_tmp = file:/var/tmp
-sgx.allowed_files.inc = file:/usr/include/x86_64-linux-gnu
+sgx.allowed_files.inc = file:/usr/include/$(ARCH_LONG)
 
 # Trusted signature for creating child enclaves (by execve())
 sgx.trusted_children.hello = file:hello.sig

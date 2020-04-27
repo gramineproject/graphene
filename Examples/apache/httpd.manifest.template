@@ -16,7 +16,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -26,10 +26,10 @@ fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
-# Host-level libraries (/lib/x86_64-linux-gnu) required by Apache 
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by Apache
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Host-level directory (/usr) required by Apache (needed for libaprutil-1.so)
 fs.mount.usr.type = chroot
@@ -76,11 +76,11 @@ sgx.trusted_files.libutil = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
 sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 
 # Other libraries required by Apache
-sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
-sgx.trusted_files.nss_files = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
-sgx.trusted_files.libnssnis  = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
-sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+sgx.trusted_files.libgcc_s = file:$(ARCH_LIBDIR)/libgcc_s.so.1
+sgx.trusted_files.nss_files = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
+sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
+sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 
 # Apache modules and dependencies
 $(HTTPD_TRUSTED_MODS)

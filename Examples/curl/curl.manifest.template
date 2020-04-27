@@ -16,7 +16,7 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
 # applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
 # paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Mount host-OS directory to required libraries (in 'uri') into in-Graphene
 # visible directory /lib (in 'path').
@@ -25,12 +25,12 @@ fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
-fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.lib3.path = /usr$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
 
 fs.mount.etc.type = chroot
 fs.mount.etc.path = /etc
@@ -60,8 +60,8 @@ sgx.trusted_files.libutil = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
 sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 sgx.trusted_files.libresolv = file:$(GRAPHENEDIR)/Runtime/libresolv.so.2
 sgx.trusted_files.libnssdns = file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2
-sgx.trusted_files.libnss_files = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnss_mdns4_minimal = file:/lib/x86_64-linux-gnu/libnss_mdns4_minimal.so.2
+sgx.trusted_files.libnss_files = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnss_mdns4_minimal = file:$(ARCH_LIBDIR)/libnss_mdns4_minimal.so.2
 $(CURL_TRUSTED_LIBS)
 
 # Name Service Switch (NSS) files. Glibc reads these files as part of name-

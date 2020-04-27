@@ -1,7 +1,7 @@
 loader.preload = file:$(SHIMPATH)
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib64
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/lib:/usr/lib64
 loader.env.PATH = /bin:/usr/bin:.
-loader.env.LD_PRELOAD = /usr/lib/x86_64-linux-gnu/coreutils/libstdbuf.so
+loader.env.LD_PRELOAD = /usr/$(ARCH_LIBDIR)/coreutils/libstdbuf.so
 loader.env._STDBUF_O = L
 loader.debug_type = none
 
@@ -14,8 +14,8 @@ fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(LIBCDIR)
 
 fs.mount.lib64.type = chroot
-fs.mount.lib64.path = /lib/x86_64-linux-gnu
-fs.mount.lib64.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib64.path = $(ARCH_LIBDIR)
+fs.mount.lib64.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.usr.type = chroot
 fs.mount.usr.path = /usr
@@ -36,6 +36,6 @@ sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
 sgx.trusted_files.librt = file:$(LIBCDIR)/librt.so.1
-sgx.trusted_files.libstdbuf = file:/usr/lib/x86_64-linux-gnu/coreutils/libstdbuf.so
+sgx.trusted_files.libstdbuf = file:/usr/$(ARCH_LIBDIR)/coreutils/libstdbuf.so
 
 sgx.allowed_files.tmp = file:/tmp

@@ -32,6 +32,8 @@ ifeq ($(SGX),1)
 all: $(RUN_DIR)/blender.manifest.sgx
 endif
 
+include ../../Scripts/Makefile.configs
+
 $(BLENDER_DIR)/blender:
 	$(GRAPHENE_DIR)/Scripts/download --output blender.tar.xz \
 		--sha256 $(BLENDER_SHA256) --url $(BLENDER_URL)
@@ -48,6 +50,7 @@ $(RUN_DIR)/blender.manifest: blender.manifest.template $(RUN_DIR)
 		-e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
 		-e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
 		-e 's|# \['"$(UBUNTU_VER)"'\] ||g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 $(RUN_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manifest $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so $(RUN_DIR)

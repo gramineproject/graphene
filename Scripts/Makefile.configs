@@ -23,6 +23,14 @@ OBJCOPY ?= objcopy
 SYS ?= $(shell $(CC) -dumpmachine)
 export SYS
 
+ARCH := $(word 1,$(subst -, -, $(SYS)))
+
+# where libraries are found, e.g., /lib/x86_64-linux-gnu
+ARCH_LIBDIR := /lib/$(SYS)
+
+# part of filenames and dirs like /usr/lib/gcc/$(ARCH_LONG)
+ARCH_LONG := $(SYS)
+
 DEBUG ?=
 export DEBUG
 

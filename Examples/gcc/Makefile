@@ -9,13 +9,15 @@ else
 GRAPHENEDEBUG = none
 endif
 
+include ../../Scripts/Makefile.configs
+
 # All the tools/executables required for this example (alphabetic order).
 TOOLS = as cc1 collect2 gcc ld
 
 # awk '{print $NF}' ...  print last field.
 BINUTILS_VERSION ?= $(shell ld -v | awk '{print $$NF}')
 GCC_MAJOR_VERSION ?= $(shell gcc -v 2>&1 | tail -n1 | awk '{print $$3}' | awk 'BEGIN {FS="."}{print $$1}')
-GCC_LIB_PATH ?= /usr/lib/gcc/x86_64-linux-gnu
+GCC_LIB_PATH ?= /usr/lib/gcc/$(ARCH_LONG)
 
 .PHONY: all
 ifeq ($(SGX),1)
@@ -32,6 +34,7 @@ endif
 		-e 's|$$(GCC_LIB_PATH)|'"$(GCC_LIB_PATH)"'|g' \
 		-e 's|$$(CC1_TRUSTED_LIBS)|'"`cat cc1-trusted-libs`"'|g' \
 		-e 's|$$(LD_TRUSTED_FILES)|'"`cat ld-gcc-$(GCC_MAJOR_VERSION)-trusted-files`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Prevent .manifest/.manifest.sgx from automatically being deleted by make
