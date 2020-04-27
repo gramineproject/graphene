@@ -28,6 +28,9 @@ export ARCH
 
 # where libraries are found, e.g., /lib/x86_64-linux-gnu
 ARCH_LIBDIR := /lib/$(SYS)
+ifeq ($(wildcard $(ARCH_LIBDIR)/*),)
+    ARCH_LIBDIR := /lib64
+endif
 export ARCH_LIBDIR
 
 # part of filenames and dirs like /usr/lib/gcc/$(ARCH_LONG)
