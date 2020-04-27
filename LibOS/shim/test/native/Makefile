@@ -68,6 +68,7 @@ target = \
 	$(exec_target) \
 	$(manifests)
 
+include ../../../../Scripts/Makefile.Arch
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test

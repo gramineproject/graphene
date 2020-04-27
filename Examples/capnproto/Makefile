@@ -36,6 +36,8 @@ ifeq ($(SGX),1)
 all: addressbook.token
 endif
 
+include ../../Scripts/Makefile.Arch
+
 $(SRCDIR)/addressbook.c++:
 	mkdir -p $(SRCDIR)
 	$(GRAPHENEDIR)/Scripts/download --output $(SRCDIR)/addressbook.c++ \
@@ -78,6 +80,7 @@ addressbook.manifest: addressbook.manifest.template addressbook-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(TRUSTEDLIBS)|'"`cat addressbook-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 addressbook.manifest.sgx: addressbook.manifest $(SRCDIR)/addressbook

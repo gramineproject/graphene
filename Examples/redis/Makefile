@@ -35,6 +35,8 @@ ifeq ($(SGX),1)
 all: redis-server.manifest.sgx
 endif
 
+include ../../Scripts/Makefile.Arch
+
 ############################## REDIS EXECUTABLE ###############################
 
 # Redis is built as usual, without any changes to the build process (except to
@@ -67,6 +69,7 @@ endif
 redis-server.manifest: redis-server.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This

@@ -14,7 +14,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -24,10 +24,10 @@ fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
-# Host-level libraries (/lib/x86_64-linux-gnu) required by Bash
+# Host-level libraries (e.g., /lib/x86_64-linux-gnu) required by Bash
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount /bin
 fs.mount.bin.type = chroot

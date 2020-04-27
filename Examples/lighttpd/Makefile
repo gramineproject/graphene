@@ -34,6 +34,8 @@ ifeq ($(SGX),1)
 all: lighttpd.token
 endif
 
+include ../../Scripts/Makefile.Arch
+
 # The commands for downloading and compiling the lighttpd source code, and
 # installing the binaries.
 $(INSTALL_DIR)/sbin/lighttpd: $(LIGHTTPD_SRC)/configure
@@ -95,6 +97,7 @@ lighttpd.manifest: lighttpd.manifest.template lighttpd-trusted-libs lighttpd-tru
 		-e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
 		-e 's|$$(LIGHTTPD_TRUSTED_MODS)|'"`cat lighttpd-trusted-mods`"'|g' \
 		-e 's|$$(LIGHTTPD_TRUSTED_LIBS)|'"`cat lighttpd-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token

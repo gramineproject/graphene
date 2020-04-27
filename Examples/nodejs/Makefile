@@ -26,6 +26,8 @@ ifeq ($(SGX),1)
 all: nodejs.token
 endif
 
+include ../../Scripts/Makefile.Arch
+
 # Node.js dependencies (generated from ldd). For SGX, the manifest needs to list all the libraries
 # loaded during execution, so that the signer can include the file hashes.
 
@@ -55,6 +57,7 @@ nodejs.manifest: nodejs.manifest.template nodejs-trusted-libs
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(NODEJS_DIR)|'"$(NODEJS_DIR)"'|g' \
 		-e 's|$$(NODEJS_TRUSTED_LIBS)|'"`cat nodejs-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization

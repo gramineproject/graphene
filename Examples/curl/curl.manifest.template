@@ -16,7 +16,7 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
 # applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
 # paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Mount host-OS directory to required libraries (in 'uri') into in-Graphene
 # visible directory /lib (in 'path').
@@ -25,12 +25,12 @@ fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
-fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.lib3.path = /usr$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
 
 fs.mount.etc.type = chroot
 fs.mount.etc.path = /etc

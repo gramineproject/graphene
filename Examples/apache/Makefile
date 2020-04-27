@@ -42,6 +42,8 @@ ifeq ($(SGX),1)
 all: httpd.manifest.sgx httpd.sig httpd.token
 endif
 
+include ../../Scripts/Makefile.Arch
+
 # The make targets for downloading and compiling the Apache source code, and
 # installing the binaries.
 
@@ -117,6 +119,7 @@ httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
 		-e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
 		-e 's|$$(HTTPD_TRUSTED_MODS)|'"`cat httpd-trusted-mods`"'|g' \
 		-e 's|$$(HTTPD_TRUSTED_LIBS)|'"`cat httpd-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generating the SGX-specific manifest (httpd.manifest.sgx), the enclave signature,

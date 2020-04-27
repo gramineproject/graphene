@@ -32,7 +32,7 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # In case of Redis:
 # - /lib is searched for Glibc libraries (ld, libc, libpthread)
 # - /lib/x86_64-linux-gnu is searched for Name Service Switch (NSS) libraries
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
 
 ################################# MOUNT FS  ###################################
 
@@ -54,8 +54,8 @@ fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 # Mount host-OS directory to Name Service Switch (NSS) libraries (in 'uri')
 # into in-Graphene visible directory /lib/x86_64-linux-gnu (in 'path').
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
 # into in-Graphene visible directory /etc (in 'path').

@@ -5,6 +5,7 @@ exec_target =
 
 clean-extra = clean-build
 
+include ../../../../Scripts/Makefile.Arch
 include Makefile.Test
 
 $(SRCDIR)/Makefile:
@@ -25,7 +26,8 @@ build-manifest: $(TESTCASEDIR)/manifest.template $(TESTCASEDIR)/Makefile
 	cd $(TESTCASEDIR) && $(MAKE)
 
 $(TESTCASEDIR)/manifest.template: manifest.template
-	cp -f $< $@
+	sed -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+		$< > $@
 
 $(TESTCASEDIR)/Makefile: Makefile.testcases
 	ln -sf $(abspath $<) $@

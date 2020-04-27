@@ -38,6 +38,8 @@ ifeq ($(SGX),1)
 all: openvino.manifest.sgx openvino.sig openvino.token
 endif
 
+include ../../Scripts/Makefile.Arch
+
 $(MODEL_DIR)/README.md:
 	git clone https://github.com/opencv/open_model_zoo.git $(MODEL_DIR)
 	cd $(MODEL_DIR) && git checkout $(MODEL_COMMIT)
@@ -69,6 +71,7 @@ openvino.manifest: openvino.manifest.template
 		-e 's|$$(MODEL_DIR)|'"$(MODEL_DIR)"'|g' \
 		-e 's|$$(OPENVINO_BUILD)|'"$(OPENVINO_BUILD)"'|g' \
 		-e 's|$$(LIBTBB_DEBUG)|'$(LIBTBB_DEBUG)'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generating the SGX-specific manifest (openvino.manifest.sgx), the enclave signature,

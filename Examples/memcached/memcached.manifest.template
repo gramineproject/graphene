@@ -45,7 +45,7 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # - /lib/x86_64-linux-gnu is searched for Name Service Switch (NSS) libraries
 # - /usr/lib/x86_64-linux-gnu is searched for libevent (the only explicit
 #                             Memcached dependency)
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Explicitly unset all environment variables used by Memcached. This is just a
 # precaution so that attacker cannot influence the default behavior of Memcached
@@ -82,14 +82,14 @@ fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 # Mount host-OS directory to Name Service Switch (NSS) libraries (in 'uri')
 # into in-Graphene visible directory /lib/x86_64-linux-gnu (in 'path').
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount host-OS directory to libevent lib required by Memcached (in 'uri')
 # into in-Graphene visible directory /usr/lib/x86_64-linux-gnu (in 'path').
 fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/lib/x86_64-linux-gnu
-fs.mount.lib3.uri = file:/usr/lib/x86_64-linux-gnu
+fs.mount.lib3.path = /usr/$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
 # into in-Graphene visible directory /etc (in 'path').

@@ -34,7 +34,7 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # - /lib is searched for Glibc libraries (ld, libc, libresolv) provided by
 #   graphene,
 # - /lib/x86_64-linux-gnu is searched for libcrypt, NSS libraries.
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
 
 # Explicitly set some environment variables used by Busybox.
 loader.env.PATH = /:/usr/sbin:/usr/bin:/sbin:/bin
@@ -61,8 +61,8 @@ fs.mount.lib1.uri = file:$(GRAPHENEDIR)/Runtime
 
 # Mount host-OS directory contanining libcrypt and NSS libraries.
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libraries.
 fs.mount.etc.type = chroot

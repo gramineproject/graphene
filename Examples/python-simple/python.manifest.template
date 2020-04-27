@@ -18,10 +18,10 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables for Python
-loader.env.LD_LIBRARY_PATH = $(PYTHONHOME)/lib:/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = $(PYTHONHOME)/lib:/lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 loader.env.PATH = $(PYTHONHOME)/bin:/usr/bin:/bin
 loader.env.PYTHONHOME = $(PYTHONHOME)
-loader.env.PYTHONPATH = $(PYTHONHOME):$(PYTHONHOME)/plat-x86_64-linux-gnu:$(PYTHONDISTHOME):$(PYTHONHOME)/lib-dynload
+loader.env.PYTHONPATH = $(PYTHONHOME):$(PYTHONHOME)/plat-$(ARCH_LONG):$(PYTHONDISTHOME):$(PYTHONHOME)/lib-dynload
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -33,8 +33,8 @@ fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 
 # Host-level libraries (/lib/x86_64-linux-gnu) required by the Python executable
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Host-level directory (/usr) required by the Python executable
 fs.mount.usr.type = chroot

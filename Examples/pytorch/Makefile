@@ -33,6 +33,8 @@ else
 default: pytorch.manifest python3.manifest pal_loader
 endif
 
+include ../../Scripts/Makefile.Arch
+
 pytorch.sig: python3.sig
 
 # .manifest.template contains stanzas for both Ubuntu 16 and 18. The last rule selectively enables
@@ -42,6 +44,7 @@ pytorch.sig: python3.sig
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(HOME)|'"$(HOME)"'|g' \
 		-e 's|# '"$(UBUNTU_VERSION)"' ||g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 pytorch.sig: pytorch.manifest

@@ -1,0 +1,17 @@
+SYS ?= $(shell gcc -dumpmachine)
+ARCH := $(word 1,$(subst -, -, $(SYS)))
+
+# where libraries are found, e.g., /lib/x86_64-linux-gnu
+ARCH_LIBDIR := /lib/$(SYS)
+
+# part of filenames
+ARCH_LONG := $(SYS)
+
+# /usr/lib/gcc/$(GCC_ARCH_DIR)
+GCC_ARCH_DIR := $(SYS)
+
+export ARCH
+export ARCH_LIBDIR
+export ARCH_LONG
+export GCC_ARCH_DIR
+

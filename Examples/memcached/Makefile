@@ -31,6 +31,8 @@ ifeq ($(SGX),1)
 all: memcached.manifest.sgx
 endif
 
+include ../../Scripts/Makefile.Arch
+
 ############################ MEMCACHED EXECUTABLE #############################
 
 # Memcached is built as usual, without any changes to the build process. The
@@ -57,6 +59,7 @@ $(SRCDIR)/memcached: $(SRCDIR)/configure
 memcached.manifest: memcached.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This

@@ -31,6 +31,8 @@ ifeq ($(SGX),1)
 all: R.manifest.sgx R.sig R.token sh.manifest.sgx sh.sig sh.token
 endif
 
+include ../../Scripts/Makefile.Arch
+
 # R dependencies (generate from ldd):
 #
 # For SGX, the manifest needs to list all the libraries loaded during the
@@ -79,6 +81,7 @@ R.manifest: R.manifest.template R-trusted-libs
 		-e 's|$$(R_HOME)|'"$(R_HOME)"'|g' \
 		-e 's|$$(R_EXEC)|'"$(R_EXEC)"'|g' \
 		-e 's|$$(R_TRUSTED_LIBS)|'"`cat R-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 sh.manifest: sh.manifest.template

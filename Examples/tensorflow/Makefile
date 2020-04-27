@@ -15,6 +15,8 @@ ifeq ($(SGX),1)
 default: label_image.manifest.sgx
 endif
 
+include ../../Scripts/Makefile.Arch
+
 $(TF_DIR)/configure:
 	$(GRAPHENEDIR)/Scripts/download --output tensorflow.tar.gz --sha256 $(TAR_SHA256)\
 	       --url https://github.com/tensorflow/tensorflow/archive/$(GIT_COMMIT).tar.gz
@@ -43,10 +45,10 @@ image.bmp: $(TF_DIR)/tensorflow/contrib/lite/examples/label_image/testdata/grace
 	cp $^ $@
 
 $(GRAPHENEDIR)/Runtime/libgcc_s.so.1:
-	cp /lib/x86_64-linux-gnu/libgcc_s.so.1 $@
+	cp $(ARCH_LIBDIR)/libgcc_s.so.1 $@
 
 $(GRAPHENEDIR)/Runtime/libstdc++.so.6:
-	cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 $@
+	cp /usr/$(ARCH_LIBDIR)/libstdc++.so.6 $@
 
 label_image.manifest: libtensorflow_framework.so label_image inception_v3.tflite labels.txt image.bmp
 label_image.manifest: $(GRAPHENEDIR)/Runtime/libgcc_s.so.1 $(GRAPHENEDIR)/Runtime/libstdc++.so.6

@@ -107,6 +107,7 @@ extra_rules = \
 	-e 's:\$$(RA_CLIENT_SPID):$(if $(RA_CLIENT_SPID),$(RA_CLIENT_SPID),AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA):g' \
 	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g'
 
+include ../../../../Scripts/Makefile.Arch
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test

@@ -33,6 +33,8 @@ ifeq ($(SGX),1)
 all: python.manifest.sgx python.token python.sig
 endif
 
+include ../../Scripts/Makefile.Arch
+
 # Python dependencies (generate from ldd):
 #
 # For SGX, the manifest needs to list all the libraries loaded during the
@@ -46,12 +48,12 @@ endif
 GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libutil libpthread
 
 # Define the python libraries which are dynamically loaded.
-PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so
+PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(ARCH_LONG).so \
+	  $(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(ARCH_LONG).so \
+	  $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(ARCH_LONG).so \
+	  $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(ARCH_LONG).so
 
 PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
 	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
@@ -88,6 +90,7 @@ python.manifest: python.manifest.template python-trusted-libs
 		-e 's|$$(PYTHONHOME)|'"$(PYTHONHOME)"'|g' \
 		-e 's|$$(PYTHONEXEC)|'"$(PYTHONEXEC)"'|g' \
 		-e 's|$$(PYTHON_TRUSTED_LIBS)|'"`cat python-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Python manifests for SGX:

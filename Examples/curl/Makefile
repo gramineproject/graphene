@@ -26,6 +26,8 @@ ifeq ($(SGX),1)
 all: curl.token
 endif
 
+include ../../Scripts/Makefile.Arch
+
 # curl dependencies (generated from ldd). For SGX, the manifest needs to list all the libraries
 # loaded during execution, so that the signer can include the file hashes.
 
@@ -55,6 +57,7 @@ curl.manifest: curl.manifest.template curl-trusted-libs
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(CURL_DIR)|'"$(CURL_DIR)"'|g' \
 		-e 's|$$(CURL_TRUSTED_LIBS)|'"`cat curl-trusted-libs`"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization

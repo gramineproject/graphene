@@ -16,7 +16,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR
 fs.mount.lib.type = chroot
@@ -25,8 +25,8 @@ fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime/
 
 # More libraries required by PyTorch
 fs.mount.lib2.type = chroot
-fs.mount.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 fs.mount.usr.type = chroot
 fs.mount.usr.path = /usr
