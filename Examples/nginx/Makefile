@@ -135,7 +135,7 @@ $(INSTALL_DIR)/conf/nginx-graphene.conf: $(INSTALL_DIR)/conf/nginx.conf
 		-e "s|listen[[:space:]]\+80;|listen $(LISTEN_PORT);|g" \
 		-e "s|server_name[[:space:]]\+localhost;|server_name $(LISTEN_HOST);|g" \
 	$< > $@
-	echo "\n\
+	echo -e "\n\
 daemon off;\n" >> $@
 
 # HTTP docs:
