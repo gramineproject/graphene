@@ -9,16 +9,8 @@
 
 include ../../Scripts/Makefile.configs
 
-# Constants
-
-# By default, Graphene runs the system Python 3.5 executable.
-PYTHONVERSION ?= python3.5
-PYTHONPATH ?= /usr
-
-PYTHONHOME = $(PYTHONPATH)/lib/$(PYTHONVERSION)
-PYTHONEXEC = $(PYTHONPATH)/bin/$(PYTHONVERSION)
-PYTHONDISTHOME = $(PYTHONPATH)/lib/python3/dist-packages
-PYTHONSHORTVERSION = $(subst python,,$(subst .,,$(PYTHONVERSION)))
+# Python constants are declared in Makefile.python
+include ../../Scripts/Makefile.python
 
 # Relative path to Graphene root
 GRAPHENEDIR ?= ../..
