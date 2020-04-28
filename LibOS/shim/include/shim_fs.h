@@ -525,6 +525,7 @@ extern struct shim_d_ops str_d_ops;
 
 extern struct shim_mount chroot_builtin_fs;
 extern struct shim_mount pipe_builtin_fs;
+extern struct shim_mount fifo_builtin_fs;
 extern struct shim_mount socket_builtin_fs;
 extern struct shim_mount epoll_builtin_fs;
 extern struct shim_mount eventfd_builtin_fs;

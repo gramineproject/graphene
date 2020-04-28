@@ -150,6 +150,53 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
     return 0;
 }
 
+static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
+    assert(hdl);
+    assert(dent && dent->data);
+
+    if (flags & O_NONBLOCK) {
+        /* we currently disallow non-blocking FIFOs */
+        return -EINVAL;
+    }
+
+    if (flags & O_RDWR) {
+        /* POSIX disallows FIFOs opened for read-write */
+        return -EINVAL;
+    }
+
+    int fd = -1;
+    if (flags & O_WRONLY) {
+        /* write end of FIFO is stashed in upper bits of dentry's data */
+        fd = (uint32_t)((uint64_t)dent->data >> 32);
+    } else {
+        /* read end of FIFO is stashed in lower bits of dentry's data */
+        fd = (uint32_t)((uint64_t)dent->data);
+    }
+
+    struct shim_handle* fifo_hdl = get_fd_handle(fd, /*fd_flags=*/NULL, /*map=*/NULL);
+    if (!fifo_hdl) {
+        return -ENOENT;
+    }
+
+    /* rewire new hdl to contents of intermediate FIFO hdl */
+    hdl->type       = fifo_hdl->type;
+    hdl->acc_mode   = fifo_hdl->acc_mode;
+    hdl->owner      = fifo_hdl->owner;
+    hdl->info       = fifo_hdl->info;
+    hdl->pal_handle = fifo_hdl->pal_handle;
+    qstrcopy(&hdl->uri, &fifo_hdl->uri);
+
+    fifo_hdl->pal_handle = NULL;  /* ownership of PAL handle is transferred to hdl */
+
+    /* can remove intermediate FIFO hdl and its fd now */
+    struct shim_handle* tmp = detach_fd_handle(fd, NULL, NULL);
+    assert(tmp == fifo_hdl);
+    put_handle(tmp);      /* to undo get_fd_handle() above */
+    put_handle(fifo_hdl); /* to destroy intermediate FIFO hdl */
+
+    return 0;
+}
+
 struct shim_fs_ops pipe_fs_ops = {
     .read     = &pipe_read,
     .write    = &pipe_write,
@@ -159,7 +206,17 @@ struct shim_fs_ops pipe_fs_ops = {
     .setflags = &pipe_setflags,
 };
 
+struct shim_d_ops fifo_d_ops = {
+    .open = &fifo_open,
+};
+
 struct shim_mount pipe_builtin_fs = {
     .type   = URI_TYPE_PIPE,
     .fs_ops = &pipe_fs_ops,
+};
+
+struct shim_mount fifo_builtin_fs = {
+    .type   = "fifo",
+    .fs_ops = &pipe_fs_ops,
+    .d_ops  = &fifo_d_ops,
 };

@@ -215,7 +215,7 @@ struct parser_table {
         {.slow = 1, .parser = {NULL}},                      /* rt_sigsuspend */
         {.slow = 0, .parser = {NULL}},                      /* sigaltstack */
         {.slow = 0, .parser = {NULL}},                      /* utime */
-        {.slow = 0, .parser = {NULL}},                      /* mknod */
+        {.slow = 1, .parser = {NULL, &parse_open_mode}},    /* mknod */
         {.slow = 0, .parser = {NULL}},                      /* uselib */
         {.slow = 0, .parser = {NULL}},                      /* personality */
         {.slow = 0, .parser = {NULL}},                      /* ustat */
@@ -342,7 +342,7 @@ struct parser_table {
         {.slow   = 0,
          .parser = {&parse_at_fdcwd, NULL, &parse_open_flags, &parse_open_mode}}, /* openat */
         {.slow = 0, .parser = {&parse_at_fdcwd}}, /* mkdirat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* mknodat */
+        {.slow = 0, .parser = {&parse_at_fdcwd, NULL, &parse_open_mode}},    /* mknodat */
         {.slow = 0, .parser = {&parse_at_fdcwd}}, /* fchownat */
         {.slow = 0, .parser = {&parse_at_fdcwd}}, /* futimesat */
         {.slow = 0, .parser = {&parse_at_fdcwd}}, /* newfstatat */

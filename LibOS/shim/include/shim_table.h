@@ -488,6 +488,8 @@ int shim_do_accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int f
 int shim_do_dup3(unsigned int oldfd, unsigned int newfd, int flags);
 int shim_do_epoll_create1(int flags);
 int shim_do_pipe2(int* fildes, int flags);
+int shim_do_mknod(const char *pathname, mode_t mode, dev_t dev);
+int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev);
 ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags,
                          struct __kernel_timespec* timeout);
 int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,

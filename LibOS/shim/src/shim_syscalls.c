@@ -520,7 +520,7 @@ DEFINE_SHIM_SYSCALL(sigaltstack, 2, shim_do_sigaltstack, int, const stack_t*, ss
 
 SHIM_SYSCALL_PASSTHROUGH(utime, 2, int, char*, filename, struct utimbuf*, times)
 
-SHIM_SYSCALL_PASSTHROUGH(mknod, 3, int, const char*, filename, int, mode, unsigned, dev)
+DEFINE_SHIM_SYSCALL(mknod, 3, shim_do_mknod, int, const char*, filename, int, mode, unsigned, dev)
 
 SHIM_SYSCALL_PASSTHROUGH(uselib, 1, int, const char*, library)
 
@@ -886,7 +886,8 @@ DEFINE_SHIM_SYSCALL(openat, 4, shim_do_openat, int, int, dfd, const char*, filen
 /* mkdirat: sys/shim_fs.c */
 DEFINE_SHIM_SYSCALL(mkdirat, 3, shim_do_mkdirat, int, int, dfd, const char*, pathname, int, mode)
 
-SHIM_SYSCALL_PASSTHROUGH(mknodat, 4, int, int, dfd, const char*, filename, int, mode, unsigned, dev)
+DEFINE_SHIM_SYSCALL(mknodat, 4, shim_do_mknodat, int, int, dfd, const char*, filename, int, mode,
+                    unsigned, dev)
 
 DEFINE_SHIM_SYSCALL(fchownat, 5, shim_do_fchownat, int, int, dfd, const char*, filename, uid_t,
                     user, gid_t, group, int, flag)

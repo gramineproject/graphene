@@ -57,11 +57,12 @@ struct shim_fs mountable_fs[NUM_MOUNTABLE_FS] = {
     },
 };
 
-#define NUM_BUILTIN_FS 5
+#define NUM_BUILTIN_FS 6
 
 struct shim_mount* builtin_fs[NUM_BUILTIN_FS] = {
     &chroot_builtin_fs,
     &pipe_builtin_fs,
+    &fifo_builtin_fs,
     &socket_builtin_fs,
     &epoll_builtin_fs,
     &eventfd_builtin_fs,
