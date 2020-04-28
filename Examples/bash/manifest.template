@@ -31,8 +31,8 @@ fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount /bin
 fs.mount.bin.type = chroot
-fs.mount.bin.path = /bin
-fs.mount.bin.uri = file:/bin
+fs.mount.bin.path = $(EXECDIR)
+fs.mount.bin.uri = file:$(EXECDIR)
 
 # SGX general options
 
