@@ -147,7 +147,7 @@ retry_dump_vmas:
     count = ret;
     for (struct shim_vma_val* vma = vmas; vma < vmas + count; vma++) {
         /* Don't free the current stack */
-        if (vma->addr == cur_thread->stack)
+        if (vma->addr == cur_thread->stack || vma->addr == cur_thread->stack_red)
             continue;
 
         /* Free all the mapped VMAs */
