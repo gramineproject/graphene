@@ -40,27 +40,27 @@ endif
 GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libutil libpthread
 
 # Define the python libraries which are dynamically loaded.
-PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so
+PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so
 
-PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.ssl = file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.bz2 = file:$(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.lzma = file:$(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.json = file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.aptpkg = file:$(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n"
+PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.ssl = file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.bz2 = file:$(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.lzma = file:$(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.json = file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.aptpkg = file:$(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n"
 
 ifeq ($(PYTHONSHORTVERSION),35)
 PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = file:$(PYTHONHOME)/_sysconfigdata.py\\\\n" \
-	  "sgx.trusted_files.python22 = file:$(PYTHONHOME)/plat-x86_64-linux-gnu/_sysconfigdata_m.py\\\\n"
+	  "sgx.trusted_files.python22 = file:$(PYTHONHOME)/plat-$(PYTHON_ARCH_LONG)/_sysconfigdata_m.py\\\\n"
 else
-PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = file:$(PYTHONHOME)/_sysconfigdata_m_linux_x86_64-linux-gnu.py\\\\n"
+PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = file:$(PYTHONHOME)/_sysconfigdata_m_linux_$(PYTHON_ARCH_LONG).py\\\\n"
 endif
 
 # Listing all the Python dependencies, besides Glibc libraries

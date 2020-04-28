@@ -40,19 +40,19 @@ endif
 GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libutil libpthread
 
 # Define the python libraries which are dynamically loaded.
-PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so
+PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
+	  $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so
 
-PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.ssl = file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.lapack_lite = file:$(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.multiarray = file:$(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.sparsetools = file:$(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n"
+PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.ssl = file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.lapack_lite = file:$(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.multiarray = file:$(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
+	  "sgx.trusted_files.sparsetools = file:$(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n"
 
 # Listing all the Python dependencies, besides Glibc libraries
 .INTERMEDIATE: python-ldd
