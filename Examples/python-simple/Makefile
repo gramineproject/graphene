@@ -45,16 +45,14 @@ PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_
 	  $(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
 	  $(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
 	  $(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so \
-	  $(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so
+	  $(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so
 
 PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
 	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
 	  "sgx.trusted_files.ssl = file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
 	  "sgx.trusted_files.bz2 = file:$(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
 	  "sgx.trusted_files.lzma = file:$(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.json = file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n" \
-	  "sgx.trusted_files.aptpkg = file:$(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n"
+	  "sgx.trusted_files.json = file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-x86_64-linux-gnu.so\\\\n"
 
 ifeq ($(PYTHONSHORTVERSION),35)
 PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = file:$(PYTHONHOME)/_sysconfigdata.py\\\\n" \
