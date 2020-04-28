@@ -2,7 +2,22 @@
 PYTHONVERSION ?= python3.5
 PYTHONPATH ?= /usr
 
-PYTHONHOME := $(PYTHONPATH)/lib/$(PYTHONVERSION)
+# Fedora/RedHat use /usr/lib64, Ubuntu /usr/lib
+ifneq ($(wildcard $(PYTHONPATH)/lib64/*),)
+	PYTHONLIBDIR = lib64
+else
+	PYTHONLIBDIR = lib
+endif
+PYTHONHOME := $(PYTHONPATH)/$(PYTHONLIBDIR)/$(PYTHONVERSION)
+
+PYTHONDISTHOME := $(PYTHONPATH)/$(PYTHONLIBDIR)/python3/dist-packages
+ifeq ($(wildcard $(PYTHONDISTHOME)/*),)
+	# Fedora/RedHat case
+	PYTHONDISTHOME := $(PYTHONPATH)/$(PYTHONLIBDIR)/$(PYTHONVERSION)/site-packages
+endif
+
 PYTHONEXEC := $(PYTHONPATH)/bin/$(PYTHONVERSION)
-PYTHONDISTHOME := $(PYTHONPATH)/lib/python3/dist-packages
 PYTHONSHORTVERSION := $(subst python,,$(subst .,,$(PYTHONVERSION)))
+
+# Fedora/Redhat and Ubuntu use for example x86_64-linux-gnu
+PYTHON_ARCH_LONG := $(ARCH)-linux-gnu
