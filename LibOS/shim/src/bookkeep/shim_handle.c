@@ -755,7 +755,7 @@ BEGIN_CP_FUNC(handle) {
         DO_CP_IN_MEMBER(qstr, new_hdl, path);
         DO_CP_IN_MEMBER(qstr, new_hdl, uri);
 
-        if (fs && hdl->dentry) {
+        if (fs && fs != &fifo_builtin_fs && hdl->dentry) {
             DO_CP_MEMBER(mount, hdl, new_hdl, fs);
         } else {
             new_hdl->fs = NULL;

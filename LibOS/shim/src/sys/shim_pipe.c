@@ -17,7 +17,7 @@
 /*
  * shim_pipe.c
  *
- * Implementation of system call "pipe", "pipe2" and "socketpair".
+ * Implementation of system calls "pipe", "pipe2", "socketpair", "mknod", and "mknodat".
  */
 
 #include <asm/fcntl.h>
@@ -30,6 +30,7 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_table.h"
+#include "shim_types.h"
 #include "shim_utils.h"
 
 static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
@@ -80,11 +81,22 @@ out:
     return ret;
 }
 
+static void undo_set_fd_handle(int fd) {
+    if (fd >= 0) {
+        struct shim_handle* hdl = detach_fd_handle(fd, NULL, NULL);
+        if (hdl)
+            put_handle(hdl);
+    }
+}
+
 int shim_do_pipe2(int* filedes, int flags) {
+    int ret = 0;
+
     if (!filedes || test_user_memory(filedes, 2 * sizeof(int), true))
         return -EFAULT;
 
-    int ret = 0;
+    int vfd1 = -1;
+    int vfd2 = -1;
 
     struct shim_handle* hdl1 = get_new_handle();
     struct shim_handle* hdl2 = get_new_handle();
@@ -104,6 +116,9 @@ int shim_do_pipe2(int* filedes, int flags) {
     hdl2->flags    = O_WRONLY;
     hdl2->acc_mode = MAY_WRITE;
 
+    hdl1->info.pipe.ready_for_ops = true;
+    hdl2->info.pipe.ready_for_ops = true;
+
     ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, flags, hdl1->info.pipe.name,
                        &hdl1->uri);
     if (ret < 0)
@@ -112,28 +127,27 @@ int shim_do_pipe2(int* filedes, int flags) {
     memcpy(hdl2->info.pipe.name, hdl1->info.pipe.name, sizeof(hdl2->info.pipe.name));
     qstrcopy(&hdl2->uri, &hdl1->uri);
 
-    flags    = flags & O_CLOEXEC ? FD_CLOEXEC : 0;
-    int vfd1 = set_new_fd_handle(hdl1, flags, NULL);
-    int vfd2 = set_new_fd_handle(hdl2, flags, NULL);
+    vfd1 = set_new_fd_handle(hdl1, flags & O_CLOEXEC ? FD_CLOEXEC : 0, NULL);
+    if (vfd1 < 0) {
+        ret = vfd1;
+        goto out;
+    }
 
-    if (vfd1 < 0 || vfd2 < 0) {
-        if (vfd1 >= 0) {
-            struct shim_handle* tmp = detach_fd_handle(vfd1, NULL, NULL);
-            if (tmp)
-                put_handle(tmp);
-        }
-        if (vfd2 >= 0) {
-            struct shim_handle* tmp = detach_fd_handle(vfd2, NULL, NULL);
-            if (tmp)
-                put_handle(tmp);
-        }
-        ret = (vfd1 < 0) ? vfd1 : vfd2;
+    vfd2 = set_new_fd_handle(hdl2, flags & O_CLOEXEC ? FD_CLOEXEC : 0, NULL);
+    if (vfd2 < 0) {
+        ret = vfd2;
         goto out;
     }
 
     filedes[0] = vfd1;
     filedes[1] = vfd2;
+
+    ret = 0;
 out:
+    if (ret < 0) {
+        undo_set_fd_handle(vfd1);
+        undo_set_fd_handle(vfd2);
+    }
     if (hdl1)
         put_handle(hdl1);
     if (hdl2)
@@ -146,6 +160,8 @@ int shim_do_pipe(int* filedes) {
 }
 
 int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
+    int ret = 0;
+
     if (domain != AF_UNIX)
         return -EAFNOSUPPORT;
 
@@ -155,7 +171,9 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     if (!sv || test_user_memory(sv, 2 * sizeof(int), true))
         return -EFAULT;
 
-    int ret                  = 0;
+    int vfd1 = -1;
+    int vfd2 = -1;
+
     struct shim_handle* hdl1 = get_new_handle();
     struct shim_handle* hdl2 = get_new_handle();
 
@@ -193,31 +211,170 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     memcpy(sock2->addr.un.name, sock1->addr.un.name, sizeof(sock2->addr.un.name));
     qstrcopy(&hdl2->uri, &hdl1->uri);
 
-    int flags = type & SOCK_CLOEXEC ? FD_CLOEXEC : 0;
-    int vfd1  = set_new_fd_handle(hdl1, flags, NULL);
-    int vfd2  = set_new_fd_handle(hdl2, flags, NULL);
+    vfd1 = set_new_fd_handle(hdl1, type & SOCK_CLOEXEC ? FD_CLOEXEC : 0, NULL);
+    if (vfd1 < 0) {
+        ret = vfd1;
+        goto out;
+    }
 
-    if (vfd1 < 0 || vfd2 < 0) {
-        if (vfd1 >= 0) {
-            struct shim_handle* tmp = detach_fd_handle(vfd1, NULL, NULL);
-            if (tmp)
-                put_handle(tmp);
-        }
-        if (vfd2 >= 0) {
-            struct shim_handle* tmp = detach_fd_handle(vfd2, NULL, NULL);
-            if (tmp)
-                put_handle(tmp);
-        }
-        ret = (vfd1 < 0) ? vfd1 : vfd2;
+    vfd2 = set_new_fd_handle(hdl2, type & SOCK_CLOEXEC ? FD_CLOEXEC : 0, NULL);
+    if (vfd2 < 0) {
+        ret = vfd2;
         goto out;
     }
 
     sv[0] = vfd1;
     sv[1] = vfd2;
+
+    ret = 0;
 out:
+    if (ret < 0) {
+        undo_set_fd_handle(vfd1);
+        undo_set_fd_handle(vfd2);
+    }
     if (hdl1)
         put_handle(hdl1);
     if (hdl2)
         put_handle(hdl2);
     return ret;
+}
+
+int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
+    int ret = 0;
+    __UNUSED(dev);
+
+    /* corner case of regular file: emulate via open() + close() */
+    if (!(mode & S_IFMT) || S_ISREG(mode)) {
+        mode &= ~S_IFREG;
+        /* FIXME: Graphene assumes that file is at least readable by owner, in particular, see
+         *        unlink() emulation that uses DkStreamOpen(). We change empty mode to readable
+         *        by user here to allow a consequent unlink. Was detected on LTP mknod tests. */
+        int fd = shim_do_openat(dirfd, pathname, O_CREAT | O_EXCL, mode ? : S_IRUSR);
+        if (fd < 0)
+            return fd;
+        return shim_do_close(fd);
+    }
+
+    int vfd1 = -1;
+    int vfd2 = -1;
+
+    struct shim_handle* hdl1 = NULL;
+    struct shim_handle* hdl2 = NULL;
+
+    if (!S_ISFIFO(mode))
+        return -EINVAL;
+
+    if (!pathname || test_user_string(pathname))
+        return -EFAULT;
+
+    if (pathname[0] == '\0')
+        return -ENOENT;
+
+    /* add named pipe as a pseudo entry to file system (relative to dfd) */
+    struct shim_dentry* dir  = NULL;
+    struct shim_dentry* dent = NULL;
+
+    ret = get_dirfd_dentry(dirfd, &dir);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = path_lookupat(dir, pathname, LOOKUP_CREATE, &dent, NULL);
+    if (ret < 0 && ret != -ENOENT) {
+        goto out;
+    }
+
+    if (!dent) {
+        ret = -ENOENT; /* impossible path, file cannot be created, mknod must return ENOENT */
+        goto out;
+    }
+
+    if (dent->state & DENTRY_VALID && !(dent->state & DENTRY_NEGATIVE)) {
+        ret = -EEXIST;
+        goto out;
+    }
+
+    dent->fs = &fifo_builtin_fs;
+
+    /* create two pipe ends */
+    hdl1 = get_new_handle();
+    hdl2 = get_new_handle();
+
+    if (!hdl1 || !hdl2) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    hdl1->type = TYPE_PIPE;
+    set_handle_fs(hdl1, &fifo_builtin_fs);
+    hdl1->flags    = O_RDONLY;
+    hdl1->acc_mode = MAY_READ;
+    get_dentry(dent);
+    hdl1->dentry = dent;
+
+    hdl2->type = TYPE_PIPE;
+    set_handle_fs(hdl2, &fifo_builtin_fs);
+    hdl2->flags    = O_WRONLY;
+    hdl2->acc_mode = MAY_WRITE;
+    get_dentry(dent);
+    hdl2->dentry = dent;
+
+    /* FIFO must be open'ed to start read/write operations, mark as not ready */
+    hdl1->info.pipe.ready_for_ops = false;
+    hdl2->info.pipe.ready_for_ops = false;
+
+    /* FIFO pipes are created in blocking mode; they will be changed to non-blocking if open()'ed
+     * in non-blocking mode later (see fifo_open) */
+    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, /*flags=*/0, hdl1->info.pipe.name,
+                       &hdl1->uri);
+    if (ret < 0)
+        goto out;
+
+    memcpy(hdl2->info.pipe.name, hdl1->info.pipe.name, sizeof(hdl2->info.pipe.name));
+    qstrcopy(&hdl2->uri, &hdl1->uri);
+
+    /* assign virtual FDs to both handles; ideally FDs must be assigned during open(<named-pipe>)
+     * but then checkpointing after mknod() would not migrate the prepared hdl1 and hdl2; also FDs
+     * are easier to bind to dentry created here */
+    vfd1 = set_new_fd_handle(hdl1, /*fd_flags=*/0, NULL);
+    if (vfd1 < 0) {
+        ret = vfd1;
+        goto out;
+    }
+
+    vfd2 = set_new_fd_handle(hdl2, /*fd_flags=*/0, NULL);
+    if (vfd2 < 0) {
+        ret = vfd2;
+        goto out;
+    }
+
+    /* mark pseudo entry in file system as valid and stash FDs in data */
+    dent->state &= ~DENTRY_NEGATIVE;
+    dent->state |= DENTRY_VALID | DENTRY_RECENTLY;
+
+    static_assert(sizeof(vfd1) == sizeof(uint32_t) && sizeof(vfd2) == sizeof(uint32_t),
+                  "FDs must be 4B in size");
+    static_assert(sizeof(dent->data) >= sizeof(uint64_t),
+                  "dentry's data must be at least 8B in size");
+    dent->data = (void*)((uint64_t)vfd2 << 32 | (uint64_t)vfd1);
+
+    ret = 0;
+out:
+    if (ret < 0) {
+        undo_set_fd_handle(vfd1);
+        undo_set_fd_handle(vfd2);
+    }
+    if (dir)
+        put_dentry(dir);
+    if (dent)
+        put_dentry(dent);
+    if (hdl1)
+        put_handle(hdl1);
+    if (hdl2)
+        put_handle(hdl2);
+    return ret;
+}
+
+int shim_do_mknod(const char *pathname, mode_t mode, dev_t dev) {
+    return shim_do_mknodat(AT_FDCWD, pathname, mode, dev);
 }

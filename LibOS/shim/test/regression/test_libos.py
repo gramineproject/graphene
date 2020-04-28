@@ -500,6 +500,10 @@ class TC_80_Socket(RegressionTestCase):
         stdout, _ = self.run_binary(['pipe'], timeout=60)
         self.assertIn('read on pipe: Hello from write end of pipe!', stdout)
 
+    def test_095_mkfifo(self):
+        stdout, _ = self.run_binary(['mkfifo'], timeout=60)
+        self.assertIn('read on FIFO: Hello from write end of FIFO!', stdout)
+
     def test_100_socket_unix(self):
         stdout, _ = self.run_binary(['unix'])
         self.assertIn('Data: This is packet 0', stdout)

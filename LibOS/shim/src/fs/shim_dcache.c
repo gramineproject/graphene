@@ -353,14 +353,21 @@ BEGIN_CP_FUNC(dentry) {
         INIT_LIST_HEAD(new_dent, list);
         INIT_LISTP(&new_dent->children);
         INIT_LIST_HEAD(new_dent, siblings);
-        new_dent->data = NULL;
         clear_lock(&new_dent->lock);
         REF_SET(new_dent->ref_count, 0);
+
+        if (new_dent->fs == &fifo_builtin_fs) {
+            /* FIFO pipe, do not try to checkpoint its fs */
+            new_dent->fs = NULL;
+        } else {
+            /* not FIFO, no need to keep data (FIFOs stash internal FDs into data field) */
+            new_dent->data = NULL;
+        }
 
         DO_CP_IN_MEMBER(qstr, new_dent, rel_path);
         DO_CP_IN_MEMBER(qstr, new_dent, name);
 
-        if (dent->fs)
+        if (new_dent->fs)
             DO_CP_MEMBER(mount, dent, new_dent, fs);
 
         if (dent->parent)
@@ -394,6 +401,11 @@ BEGIN_RS_FUNC(dentry) {
 
     if (!create_lock(&dent->lock)) {
         return -ENOMEM;
+    }
+
+    if (!dent->fs) {
+        /* special case of FIFO pipe: use built-in FIFO FS */
+        dent->fs = &fifo_builtin_fs;
     }
 
     /* DEP 6/16/17: I believe the point of this line is to
