@@ -69,6 +69,7 @@ bash.manifest: manifest.template trusted-children bash.trusted-libs
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(EXECNAME)|bash|g' \
 		-e 's|$$(EXECPATH)|'"$(shell which bash)"'|g' \
+		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which bash))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat bash.trusted-libs`"'|g' \
 		-e 's|$$(TRUSTED_CHILDREN)|'"`cat trusted-children`"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
@@ -79,6 +80,7 @@ $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(EXECNAME)|'"$(basename $@)"'|g' \
 		-e 's|$$(EXECPATH)|'"$(shell which $(basename $@))"'|g' \
+		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which $(basename $@)))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat $(basename $@).trusted-libs`"'|g' \
 		-e 's|$$(TRUSTED_CHILDREN)||g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
