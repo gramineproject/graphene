@@ -294,7 +294,6 @@ static void _vma_free(void* ptr, size_t size) {
 
 static struct shim_lock vma_mgr_lock;
 static MEM_MGR vma_mgr = NULL;
-static alignas(MEM_MGR_TYPE) char _vma_mgr_data[__MAX_MEM_SIZE(DEFAULT_VMA_COUNT)];
 
 /*
  * We use a following per thread caching mechanism of VMAs:
@@ -478,6 +477,7 @@ static void* aslr_addr_top = NULL;
 
 int init_vma(void) {
     struct shim_vma init_vmas[] = {
+        { .begin = 0 }, // vma for creation of memory manager
         {
             .begin = (uintptr_t)&__load_address,
             .end = (uintptr_t)ALLOC_ALIGN_UP_PTR(&__load_address_end),
@@ -528,7 +528,8 @@ int init_vma(void) {
 
     spinlock_lock_signal_off(&vma_tree_lock);
     int ret = 0;
-    for (size_t i = 0; i < ARRAY_SIZE(init_vmas); ++i) {
+    /* First init_vmas is reserved for later usage. */
+    for (size_t i = 1; i < ARRAY_SIZE(init_vmas); ++i) {
         assert(init_vmas[i].begin <= init_vmas[i].end);
         /* Skip empty areas. */
         if (init_vmas[i].begin == init_vmas[i].end) {
@@ -584,13 +585,18 @@ int init_vma(void) {
     }
 #endif
 
-    if (!create_lock(&vma_mgr_lock)) {
+    /* We need 1 vma to create the memmgr. */
+    if (!add_to_thread_vma_cache(&init_vmas[0])) {
+        debug("Failed to add tmp vma to cache!\n");
+        BUG();
+    }
+    vma_mgr = create_mem_mgr(DEFAULT_VMA_COUNT);
+    if (!vma_mgr) {
+        debug("Failed to create VMA memory manager!\n");
         return -ENOMEM;
     }
 
-    vma_mgr = create_mem_mgr_in_place(_vma_mgr_data, DEFAULT_VMA_COUNT);
-    if (!vma_mgr) {
-        debug("Failed to create VMA memory manager!\n");
+    if (!create_lock(&vma_mgr_lock)) {
         return -ENOMEM;
     }
 
