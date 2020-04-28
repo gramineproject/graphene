@@ -118,6 +118,8 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     remove_loaded_libraries();
     clean_link_map_list();
 
+    reset_brk();
+
     size_t count;
     struct shim_vma_info* vmas;
     ret = dump_all_vmas(&vmas, &count);

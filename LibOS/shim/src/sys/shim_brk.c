@@ -118,6 +118,28 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     return 0;
 }
 
+void reset_brk(void) {
+    lock(&brk_lock);
+
+    void* tmp_vma = NULL;
+    size_t allocated_size = ALLOC_ALIGN_UP_PTR(brk_region.brk_current) - brk_region.brk_start;
+    if (bkeep_munmap(brk_region.brk_start, brk_region.brk_end - brk_region.brk_start,
+                     /*is_internal=*/false, &tmp_vma) < 0) {
+        BUG();
+    }
+
+    DkVirtualMemoryFree(brk_region.brk_start, allocated_size);
+    bkeep_remove_tmp_vma(tmp_vma);
+
+    brk_region.brk_start = NULL;
+    brk_region.brk_current = NULL;
+    brk_region.brk_end = NULL;
+    brk_region.data_segment_size = 0;
+    unlock(&brk_lock);
+
+    destroy_lock(&brk_lock);
+}
+
 void* shim_do_brk(void* _brk) {
     char* brk = _brk;
     size_t size = 0;
