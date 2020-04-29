@@ -150,6 +150,18 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
     return 0;
 }
 
+static int fifo_setflags(struct shim_handle* hdl, int flags) {
+    if (!hdl->pal_handle)
+        return 0;
+
+    if (flags & O_NONBLOCK) {
+        /* FIFOs are currently only blocking and cannot be changed at runtime */
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     assert(hdl);
     assert(dent && dent->data);
@@ -197,7 +209,7 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
     return 0;
 }
 
-struct shim_fs_ops pipe_fs_ops = {
+static struct shim_fs_ops pipe_fs_ops = {
     .read     = &pipe_read,
     .write    = &pipe_write,
     .hstat    = &pipe_hstat,
@@ -206,7 +218,14 @@ struct shim_fs_ops pipe_fs_ops = {
     .setflags = &pipe_setflags,
 };
 
-struct shim_d_ops fifo_d_ops = {
+static struct shim_fs_ops fifo_fs_ops = {
+    .read     = &pipe_read,
+    .write    = &pipe_write,
+    .poll     = &pipe_poll,
+    .setflags = &fifo_setflags,
+};
+
+static struct shim_d_ops fifo_d_ops = {
     .open = &fifo_open,
 };
 
@@ -217,6 +236,6 @@ struct shim_mount pipe_builtin_fs = {
 
 struct shim_mount fifo_builtin_fs = {
     .type   = "fifo",
-    .fs_ops = &pipe_fs_ops,
+    .fs_ops = &fifo_fs_ops,
     .d_ops  = &fifo_d_ops,
 };

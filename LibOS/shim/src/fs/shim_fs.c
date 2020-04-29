@@ -37,9 +37,7 @@ struct shim_fs {
     struct shim_d_ops* d_ops;
 };
 
-#define NUM_MOUNTABLE_FS 3
-
-struct shim_fs mountable_fs[NUM_MOUNTABLE_FS] = {
+struct shim_fs mountable_fs[] = {
     {
         .name   = "chroot",
         .fs_ops = &chroot_fs_ops,
@@ -57,9 +55,7 @@ struct shim_fs mountable_fs[NUM_MOUNTABLE_FS] = {
     },
 };
 
-#define NUM_BUILTIN_FS 6
-
-struct shim_mount* builtin_fs[NUM_BUILTIN_FS] = {
+struct shim_mount* builtin_fs[] = {
     &chroot_builtin_fs,
     &pipe_builtin_fs,
     &fifo_builtin_fs,
@@ -260,7 +256,7 @@ static inline struct shim_fs* find_fs(const char* type) {
     struct shim_fs* fs = NULL;
     size_t len = strlen(type);
 
-    for (int i = 0; i < NUM_MOUNTABLE_FS; i++)
+    for (size_t i = 0; i < ARRAY_SIZE(mountable_fs); i++)
         if (!memcmp(type, mountable_fs[i].name, len + 1)) {
             fs = &mountable_fs[i];
             break;
@@ -272,7 +268,7 @@ static inline struct shim_fs* find_fs(const char* type) {
 int search_builtin_fs(const char* type, struct shim_mount** fs) {
     size_t len = strlen(type);
 
-    for (int i = 0; i < NUM_BUILTIN_FS; i++)
+    for (size_t i = 0; i < ARRAY_SIZE(builtin_fs); i++)
         if (!memcmp(type, builtin_fs[i]->type, len + 1)) {
             *fs = builtin_fs[i];
             return 0;
