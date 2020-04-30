@@ -22,7 +22,7 @@
 #define SHIM_FLAGS_CONV_H
 
 #include <asm/fcntl.h>
-#include <asm/mman.h>
+#include <linux/mman.h>
 #include <linux/fcntl.h>
 
 #include "assert.h"

@@ -536,7 +536,7 @@ int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS) {
 }
 
 int get_pid_port(IDTYPE pid, IDTYPE* dest, struct shim_ipc_port** port) {
-    IDTYPE owner;
+    IDTYPE owner = 0;
     int ret;
 
     if ((ret = connect_owner(pid, port, &owner)) < 0)

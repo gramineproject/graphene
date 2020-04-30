@@ -480,7 +480,13 @@ int load_elf_object (const char * uri, enum object_type type)
 
 int add_elf_object(void * addr, PAL_HANDLE handle, int type)
 {
+    if (!addr)
+        return -PAL_ERROR_INVAL;
+
     struct link_map * map = new_elf_object(_DkStreamRealpath(handle), type);
+    if (!map)
+        return -PAL_ERROR_NOMEM;
+
     const ElfW(Ehdr) * header = (void *) addr;
     const ElfW(Phdr) * ph, * phdr =
             (ElfW(Phdr) *) ((char *) addr + header->e_phoff);
@@ -944,11 +950,13 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
     __UNUSED(uri);
     __UNUSED(start_addr);
 #else
-    if (!strstartswith_static(uri, URI_PREFIX_FILE))
+    if (!strstartswith_static(uri, URI_PREFIX_FILE) || !start_addr)
         return;
 
     const char * realname = uri + URI_PREFIX_FILE_LEN;
     struct link_map * l = new_elf_object(realname, OBJECT_EXTERNAL);
+    if (!l)
+        return;
 
     /* This is the ELF header.  We read it in `open_verify'.  */
     const ElfW(Ehdr) * header = (ElfW(Ehdr) *) start_addr;
