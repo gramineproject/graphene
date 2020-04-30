@@ -300,7 +300,8 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     get_dentry(dent);
     hdl2->dentry = dent;
 
-    /* NOTE: FIFO pipes are created in blocking mode; we currently disallow non-blocking FIFOs */
+    /* FIFO pipes are created in blocking mode; they will be changed to non-blocking if open()'ed
+     * in non-blocking mode later (see fifo_open) */
     ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, /*flags=*/0, hdl1->info.pipe.name,
                        &hdl1->uri);
     if (ret < 0)

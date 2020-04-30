@@ -150,26 +150,13 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
     return 0;
 }
 
-static int fifo_setflags(struct shim_handle* hdl, int flags) {
-    if (!hdl->pal_handle)
-        return 0;
-
-    if (flags & O_NONBLOCK) {
-        /* FIFOs are currently only blocking and cannot be changed at runtime */
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
 static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     assert(hdl);
     assert(dent && dent->data);
 
-    if (flags & O_NONBLOCK) {
-        /* we currently disallow non-blocking FIFOs */
-        return -EINVAL;
-    }
+    /* FIXME: man 7 fifo says "[with non-blocking flag], opening for write-only fails with ENXIO
+     *        unless the other end has already been opened". We cannot enforce this failure since
+     *        Graphene doesn't know whether the other process already opened this FIFO. */
 
     if (flags & O_RDWR) {
         /* POSIX disallows FIFOs opened for read-write */
@@ -188,6 +175,15 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
     struct shim_handle* fifo_hdl = get_fd_handle(fd, /*fd_flags=*/NULL, /*map=*/NULL);
     if (!fifo_hdl) {
         return -ENOENT;
+    }
+
+    if (flags & O_NONBLOCK) {
+        /* FIFOs were created in blocking mode (see shim_do_mknodat), change their attributes */
+        int ret = pipe_setflags(fifo_hdl, flags);
+        if (ret < 0) {
+            put_handle(fifo_hdl);
+            return ret;
+        }
     }
 
     /* rewire new hdl to contents of intermediate FIFO hdl */
@@ -222,7 +218,7 @@ static struct shim_fs_ops fifo_fs_ops = {
     .read     = &pipe_read,
     .write    = &pipe_write,
     .poll     = &pipe_poll,
-    .setflags = &fifo_setflags,
+    .setflags = &pipe_setflags,
 };
 
 static struct shim_d_ops fifo_d_ops = {

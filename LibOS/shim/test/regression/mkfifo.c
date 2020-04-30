@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,15 +27,22 @@ int main(int argc, char** argv) {
         return 1;
     } else if (pid == 0) {
         /* client */
-        fd = open(FIFO_PATH, O_RDONLY, S_IRWXU);
+        fd = open(FIFO_PATH, O_NONBLOCK | O_RDONLY, S_IRWXU);
         if (fd < 0) {
             perror("[child] open error");
             return 1;
         }
 
-        if (read(fd, &buffer, bufsize) < 0) {
-            perror("[child] read error");
-            return 1;
+        /* note that Linux guarantees either no read message or the complete message on FIFO */
+        ssize_t bytes = 0;
+        while (bytes <= 0) {
+            errno = 0;
+            bytes = read(fd, &buffer, bufsize);
+            if (bytes < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+                perror("[child] read error");
+                return 1;
+            }
+            sleep(0);
         }
         buffer[bufsize - 1] = '\0';
 
@@ -46,12 +54,19 @@ int main(int argc, char** argv) {
         printf("read on FIFO: %s\n", buffer);
     } else {
         /* server */
-        fd = open(FIFO_PATH, O_WRONLY, S_IRWXU);
-        if (fd < 0) {
-            perror("[parent] open error");
-            return 1;
+        fd = -1;
+        while (fd < 0) {
+            /* wait until client is ready for read */
+            errno = 0;
+            fd = open(FIFO_PATH, O_NONBLOCK | O_WRONLY, S_IRWXU);
+            if (fd < 0 && errno != ENXIO) {
+                perror("[parent] open error");
+                return 1;
+            }
+            sleep(0);
         }
 
+        /* note that Linux guarantees sending the complete message on FIFO */
         snprintf(buffer, bufsize, "Hello from write end of FIFO!");
         if (write(fd, &buffer, strlen(buffer) + 1) < 0) {
             perror("[parent] write error");
