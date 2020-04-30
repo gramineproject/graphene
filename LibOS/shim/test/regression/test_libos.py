@@ -82,8 +82,9 @@ class TC_01_Bootstrap(RegressionTestCase):
             stdout)
 
     def test_201_exec_same(self):
-        stdout, _ = self.run_binary(['exec_same'])
-        self.assertIn('hello from execv process', stdout)
+        args = [str(i) for i in range(50)]
+        stdout, _ = self.run_binary(['exec_same'] + args, timeout=40)
+        self.assertIn('\n'.join(args), stdout)
 
     def test_202_fork_and_exec(self):
         stdout, _ = self.run_binary(['fork_and_exec'], timeout=60)
