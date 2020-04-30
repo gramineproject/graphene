@@ -76,7 +76,7 @@ second command should list the process status of :command:`aesm_service`.
 #. Build Graphene-SGX::
 
       sudo apt-get install -y \
-         build-essential autoconf gawk bison \
+         build-essential autoconf gawk bison libcurl4-openssl-dev \
          python3-protobuf libprotobuf-c-dev protobuf-c-compiler
       cd $GRAPHENE_DIR
       make SGX=1

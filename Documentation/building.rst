@@ -32,7 +32,8 @@ Run the following command on Ubuntu to install dependencies for Graphene::
 
 For building Graphene for SGX, run the following command in addition::
 
-    sudo apt-get install -y libprotobuf-c-dev protobuf-c-compiler
+    sudo apt-get install -y libprotobuf-c-dev protobuf-c-compiler \
+       libcurl4-openssl-dev
 
     # For Ubuntu 18.04
     sudo apt-get install -y python3-protobuf
