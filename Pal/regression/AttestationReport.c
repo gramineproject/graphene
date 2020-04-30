@@ -3,6 +3,8 @@
 #include "pal_debug.h"
 #include "sgx_arch.h"
 
+char zerobuf[sizeof(sgx_report_t)] = {0};
+
 int main(int argc, char** argv) {
     bool ret;
 
@@ -35,9 +37,25 @@ int main(int argc, char** argv) {
     pal_printf("user_report_data_size = %lu, target_info_size = %lu, report_size = %lu\n",
                user_report_data_size, target_info_size, report_size);
 
-    char user_report_data[user_report_data_size];
-    char target_info[target_info_size];
-    char report[report_size];
+    char* user_report_data = DkVirtualMemoryAlloc(NULL, user_report_data_size, 0,
+		                                  PAL_PROT_READ | PAL_PROT_WRITE);
+    if (!user_report_data) {
+        pal_printf("ERROR: Cannot allocate memory for user_report_data\n");
+        return -1;
+    }
+
+    char* target_info = DkVirtualMemoryAlloc(NULL, target_info_size, 0,
+                                             PAL_PROT_READ | PAL_PROT_WRITE);
+    if (!target_info) {
+        pal_printf("ERROR: Cannot allocate memory for target_info\n");
+        return -1;
+    }
+
+    char* report = DkVirtualMemoryAlloc(NULL, report_size, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    if (!report) {
+        pal_printf("ERROR: Cannot allocate memory for report\n");
+        return -1;
+    }
 
     memset(&user_report_data, 'A', sizeof(user_report_data));
     memset(&target_info, 0, sizeof(target_info));
@@ -58,9 +76,6 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    char zerobuf[report_size];
-    memset(&zerobuf, 0, sizeof(zerobuf));
-
     if (memcmp(&sgx_report->body.reserved1, &zerobuf, sizeof(sgx_report->body.reserved1)) ||
         memcmp(&sgx_report->body.reserved2, &zerobuf, sizeof(sgx_report->body.reserved2)) ||
         memcmp(&sgx_report->body.reserved3, &zerobuf, sizeof(sgx_report->body.reserved3)) ||
@@ -70,6 +85,10 @@ int main(int argc, char** argv) {
                    "fields\n");
         return -1;
     }
+
+    DkVirtualMemoryFree(user_report_data, user_report_data_size);
+    DkVirtualMemoryFree(target_info, target_info_size);
+    DkVirtualMemoryFree(report, report_size);
 
     pal_printf("Success\n");
     return 0;

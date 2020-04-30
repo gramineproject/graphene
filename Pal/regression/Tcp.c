@@ -5,15 +5,17 @@
 #define PORT   8000
 #define NTRIES 10
 
+char addr[40];
+char time_arg[24];
+char buffer[12];
+
 int main(int argc, char** argv) {
-    char addr[40];
     int i;
 
     if (argc == 1) {
         unsigned long time = DkSystemTimeQuery();
         pal_printf("start time = %lu\n", time);
 
-        char time_arg[24];
         snprintf(time_arg, 24, "%ld", time);
 
         const char* newargs[4] = {"Tcp", time_arg, NULL};
@@ -67,7 +69,6 @@ int main(int argc, char** argv) {
             DkStreamGetName(cli, addr, 40);
             pal_printf("client connected on %s\n", addr);
 
-            char buffer[12];
             int bytes = DkStreamRead(cli, 0, 12, buffer, NULL, 0);
 
             if (!bytes) {

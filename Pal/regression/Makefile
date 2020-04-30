@@ -1,7 +1,7 @@
 include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 
-CFLAGS	+= -Wp,-U_FORTIFY_SOURCE -fno-stack-protector -fno-builtin -nostdlib \
+CFLAGS	+= -Wp,-U_FORTIFY_SOURCE -fno-builtin -nostdlib \
 	  -I../include/pal -I../include/lib -I../src
 
 preloads = \
