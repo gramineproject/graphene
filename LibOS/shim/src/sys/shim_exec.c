@@ -74,9 +74,6 @@ static int close_cloexec_handle(struct shim_handle_map* map) {
 
 
 struct execve_rtld_arg {
-    void* old_stack_top;
-    void* old_stack;
-    void* old_stack_red;
     const char** new_argp;
     int* new_argcp;
     elf_auxv_t* new_auxp;
@@ -85,9 +82,6 @@ struct execve_rtld_arg {
 noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct execve_rtld_arg arg;
     memcpy(&arg, __arg, sizeof(arg));
-    void* old_stack_top   = arg.old_stack_top;
-    void* old_stack       = arg.old_stack;
-    void* old_stack_red   = arg.old_stack_red;
     const char** new_argp = arg.new_argp;
     int* new_argcp        = arg.new_argcp;
     elf_auxv_t* new_auxp  = arg.new_auxp;
@@ -98,22 +92,6 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     unsigned long fs_base = 0;
     update_fs_base(fs_base);
     debug("set fs_base to 0x%lx\n", fs_base);
-
-    void* tmp_vma = NULL;
-    if (bkeep_munmap(old_stack, old_stack_top - old_stack, /*is_internal=*/false, &tmp_vma) < 0) {
-        BUG();
-    }
-    DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
-    bkeep_remove_tmp_vma(tmp_vma);
-
-    if (old_stack - old_stack_red > 0) {
-        if (bkeep_munmap(old_stack_red, old_stack - old_stack_red, /*is_internal=*/false,
-            &tmp_vma) < 0) {
-                BUG();
-        }
-        DkVirtualMemoryFree(old_stack_red, old_stack - old_stack_red);
-        bkeep_remove_tmp_vma(tmp_vma);
-    }
 
     remove_loaded_libraries();
     clean_link_map_list();
@@ -132,6 +110,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
         if (vma->addr == cur_thread->stack || vma->addr == cur_thread->stack_red)
             continue;
 
+        void* tmp_vma = NULL;
         if (bkeep_munmap(vma->addr, vma->length, !!(vma->flags & VMA_INTERNAL), &tmp_vma) < 0) {
             BUG();
         }
@@ -171,9 +150,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     get_handle(hdl);
     cur_thread->exec = hdl;
 
-    void* old_stack_top   = cur_thread->stack_top;
-    void* old_stack       = cur_thread->stack;
-    void* old_stack_red   = cur_thread->stack_red;
     cur_thread->stack_top = NULL;
     cur_thread->stack     = NULL;
     cur_thread->stack_red = NULL;
@@ -192,9 +168,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     __disable_preempt(shim_get_tcb());  // Temporarily disable preemption during execve().
 
     struct execve_rtld_arg arg = {
-        .old_stack_top = old_stack_top,
-        .old_stack     = old_stack,
-        .old_stack_red = old_stack_red,
         .new_argp      = new_argp,
         .new_argcp     = new_argcp,
         .new_auxp      = new_auxp
