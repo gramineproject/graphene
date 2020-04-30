@@ -341,7 +341,7 @@ int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
  * Assumes dcache_lock is held; main difference from path_lookupat is that dcache_lock is not
  * released on return.
  *
- * The refcount is dropped by one on the returned dentry.
+ * The refcount is raised by one on the returned dentry.
  *
  * The make_ancestor flag creates pseudo-dentries for any parent paths that are not in cache and do
  * not exist on the underlying file system. This is intended for use only in setting up the
