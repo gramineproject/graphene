@@ -107,10 +107,10 @@ int shim_do_socket(int family, int type, int protocol) {
         return -ENOMEM;
 
     struct shim_sock_handle* sock = &hdl->info.sock;
-    hdl->type                     = TYPE_SOCK;
+    hdl->type     = TYPE_SOCK;
     set_handle_fs(hdl, &socket_builtin_fs);
-    hdl->flags      = type & SOCK_NONBLOCK ? O_NONBLOCK : 0;
-    hdl->acc_mode   = 0;
+    hdl->flags    = type & SOCK_NONBLOCK ? O_NONBLOCK : 0;
+    hdl->acc_mode = 0;
     sock->domain    = family;
     sock->sock_type = type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
     sock->protocol  = protocol;
@@ -141,7 +141,7 @@ int shim_do_socket(int family, int type, int protocol) {
     }
 
     sock->sock_state = SOCK_CREATED;
-    ret              = set_new_fd_handle(hdl, type & SOCK_CLOEXEC ? FD_CLOEXEC : 0, NULL);
+    ret = set_new_fd_handle(hdl, type & SOCK_CLOEXEC ? FD_CLOEXEC : 0, NULL);
 err:
     put_handle(hdl);
     return ret;
@@ -680,7 +680,7 @@ int shim_do_listen(int sockfd, int backlog) {
     lock(&hdl->lock);
 
     enum shim_sock_state state = sock->sock_state;
-    int ret                    = -EINVAL;
+    int ret = -EINVAL;
 
     if (state != SOCK_BOUND && state != SOCK_LISTENED) {
         debug("shim_listen: listen on unbound socket\n");
@@ -769,6 +769,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen) {
         if (dent->state & DENTRY_VALID && !(dent->state & DENTRY_NEGATIVE) &&
                 dent->fs != &socket_builtin_fs) {
             ret = -ECONNREFUSED;
+            put_dentry(dent);
             goto out;
         }
 
@@ -776,11 +777,12 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen) {
          * (deterministic so that independent parent and child connect to the same socket) */
         ret = hash_to_hex_string(dent->rel_path.hash, sock->addr.un.name,
                                  sizeof(sock->addr.un.name));
-        if (ret < 0)
+        if (ret < 0) {
+            put_dentry(dent);
             goto out;
+        }
 
         sock->addr.un.dentry = dent;
-        get_dentry(dent);
     }
 
     if (state == SOCK_BOUND) {
@@ -873,13 +875,13 @@ int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, sockl
     }
 
     if (addr) {
-        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), false))
+        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true))
             return -EINVAL;
 
         if (*addrlen < minimal_addrlen(sock->domain))
             return -EINVAL;
 
-        if (test_user_memory(addr, *addrlen, true))
+        if (test_user_memory(addr, *addrlen, /*write=*/true))
             return -EINVAL;
     }
 
@@ -937,6 +939,8 @@ int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, sockl
         if (sock->addr.un.dentry) {
             get_dentry(sock->addr.un.dentry);
             cli_sock->addr.un.dentry = sock->addr.un.dentry;
+        } else {
+            cli_sock->addr.un.dentry = NULL;
         }
 
         qstrsetstr(&cli->uri, qstrgetstr(&hdl->uri), hdl->uri.len);
@@ -1147,8 +1151,10 @@ ssize_t shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
 }
 
 ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags) {
-    ssize_t total = 0;
+    if (test_user_memory(msg, vlen, /*write=*/true))
+        return -EFAULT;
 
+    ssize_t total = 0;
     for (size_t i = 0; i * sizeof(struct mmsghdr) < vlen; i++) {
         struct msghdr* m = &msg[i].msg_hdr;
 
@@ -1164,45 +1170,55 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags
     return total;
 }
 
-static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, struct sockaddr* addr,
-                          socklen_t* addrlen) {
-    if (flags & ~MSG_PEEK) {
-        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK is supported).\n");
-        return -EOPNOTSUPP;
-    }
-
+static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
+                          struct sockaddr* addr, socklen_t* addrlen) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
-    struct shim_peek_buffer* peek_buffer = NULL;
-    int ret = -ENOTSOCK;
-    if (hdl->type != TYPE_SOCK)
+    int ret;
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
         goto out;
+    }
 
+    struct shim_peek_buffer* peek_buffer = NULL;
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (addr) {
         ret = -EINVAL;
-        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), false))
+        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true))
             goto out;
 
         if (*addrlen < minimal_addrlen(sock->domain))
             goto out;
 
-        if (test_user_memory(addr, *addrlen, true))
+        if (test_user_memory(addr, *addrlen, /*write=*/true))
             goto out;
     }
 
+    size_t bufs_size;
+    if (__builtin_mul_overflow(sizeof(*bufs), nbufs, &bufs_size)) {
+        ret = -EMSGSIZE;
+        goto out;
+    }
+
     ret = -EFAULT;
-    if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
+    if (!bufs || test_user_memory(bufs, bufs_size, /*write=*/false))
         goto out;
 
     size_t expected_size = 0;
-    for (int i = 0; i < nbufs; i++) {
-        if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len, true))
+    for (size_t i = 0; i < nbufs; i++) {
+        if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len,
+                                                  /*write=*/true))
             goto out;
         expected_size += bufs[i].iov_len;
+    }
+
+    if (flags & ~MSG_PEEK) {
+        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK is supported).\n");
+        ret = -EOPNOTSUPP;
+        goto out;
     }
 
     lock(&hdl->lock);
@@ -1287,7 +1303,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, int nbufs, int flags, stru
     bool address_received = false;
     size_t total_bytes    = 0;
 
-    for (int i = 0; i < nbufs; i++) {
+    for (size_t i = 0; i < nbufs; i++) {
         size_t iov_bytes = 0;
         if (peek_buffer) {
             /* some data left to read from peek buffer */
@@ -1402,8 +1418,10 @@ ssize_t shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
 
 ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags,
                          struct __kernel_timespec* timeout) {
-    ssize_t total = 0;
+    if (test_user_memory(msg, vlen, /*write=*/true))
+        return -EFAULT;
 
+    ssize_t total = 0;
     // Issue # 753 - https://github.com/oscarlab/graphene/issues/753
     /* TODO(donporter): timeout properly. For now, explicitly return an error. */
     if (timeout) {
@@ -1435,7 +1453,7 @@ int shim_do_shutdown(int sockfd, int how) {
     if (!hdl)
         return -EBADF;
 
-    int ret                       = 0;
+    int ret = 0;
     struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (hdl->type != TYPE_SOCK) {
@@ -1479,23 +1497,28 @@ out:
 }
 
 int shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
-    if (!addr || !addrlen)
-        return -EFAULT;
-
-    if (*addrlen <= 0)
-        return -EINVAL;
-
-    if (test_user_memory(addr, *addrlen, true))
-        return -EFAULT;
-
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
-    int ret = -EINVAL;
-
+    int ret = 0;
     if (hdl->type != TYPE_SOCK) {
         ret = -ENOTSOCK;
+        goto out;
+    }
+
+    if (!addr || !addrlen || test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true)) {
+        ret = -EFAULT;
+        goto out;
+    }
+
+    if (*addrlen <= 0) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if (test_user_memory(addr, *addrlen, true)) {
+        ret = -EFAULT;
         goto out;
     }
 
@@ -1504,7 +1527,6 @@ int shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
 
     *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &sock->addr.in.bind);
 
-    ret      = 0;
     unlock(&hdl->lock);
 out:
     put_handle(hdl);
@@ -1512,23 +1534,28 @@ out:
 }
 
 int shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
-    if (!addr || !addrlen)
-        return -EFAULT;
-
-    if (*addrlen <= 0)
-        return -EINVAL;
-
-    if (test_user_memory(addr, *addrlen, true))
-        return -EFAULT;
-
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
-    int ret = -EINVAL;
-
+    int ret = 0;
     if (hdl->type != TYPE_SOCK) {
         ret = -ENOTSOCK;
+        goto out;
+    }
+
+    if (!addr || !addrlen || test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true)) {
+        ret = -EFAULT;
+        goto out;
+    }
+
+    if (*addrlen <= 0) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if (test_user_memory(addr, *addrlen, true)) {
+        ret = -EFAULT;
         goto out;
     }
 
@@ -1549,7 +1576,6 @@ int shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
     }
 
     *addrlen = inet_copy_addr(sock->domain, addr, *addrlen, &sock->addr.in.conn);
-    ret      = 0;
 out_locked:
     unlock(&hdl->lock);
 out:
@@ -1778,20 +1804,19 @@ out:
 }
 
 int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen) {
-    if (!optlen || test_user_memory(optlen, sizeof(*optlen), /*write=*/true))
-        return -EFAULT;
-
-    if (!optval || test_user_memory(optval, *optlen, /*write=*/true))
-        return -EFAULT;
-
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
     int ret = 0;
-
     if (hdl->type != TYPE_SOCK) {
         ret = -ENOTSOCK;
+        goto out;
+    }
+
+    if (!optlen || test_user_memory(optlen, sizeof(*optlen), /*write=*/true)
+        || !optval || test_user_memory(optval, *optlen, /*write=*/true)) {
+        ret = -EFAULT;
         goto out;
     }
 
@@ -1800,8 +1825,8 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
 
     int* intval = (int*)optval;
 
-    if (level != SOL_SOCKET && level != SOL_TCP && level != IPPROTO_IPV6)
-        goto unknown;
+    if (level != SOL_SOCKET && level != SOL_TCP && level != IPPROTO_IPV6 && level != IPPROTO_IP)
+        goto unknown_level;
 
     if (level == SOL_SOCKET) {
         switch (optname) {
@@ -1823,7 +1848,7 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
                         *intval = IPPROTO_UDP;
                         break;
                     default:
-                        goto unknown;
+                        goto unknown_opt;
                 }
                 goto out;
             case SO_TYPE:
@@ -1838,7 +1863,7 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
             case SO_REUSEADDR:
                 break;
             default:
-                goto unknown;
+                goto unknown_opt;
         }
     }
 
@@ -1848,8 +1873,12 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
             case TCP_NODELAY:
                 break;
             default:
-                goto unknown;
+                goto unknown_opt;
         }
+    }
+
+    if (level == IPPROTO_IP) {
+        goto unknown_opt;
     }
 
     if (level == IPPROTO_IPV6) {
@@ -1857,7 +1886,7 @@ int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen
             case IPV6_V6ONLY:
                 break;
             default:
-                goto unknown;
+                goto unknown_opt;
         }
     }
 
@@ -1937,7 +1966,11 @@ out:
     put_handle(hdl);
     return ret;
 
-unknown:
+unknown_level:
+    ret = -EOPNOTSUPP;  /* Kernel seems to return this value despite `man` saying that it can
+                         * return only ENOPROTOOPT. */
+    goto out;
+unknown_opt:
     ret = -ENOPROTOOPT;
     goto out;
 }

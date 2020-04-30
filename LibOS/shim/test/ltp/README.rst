@@ -47,49 +47,5 @@ Another config file path can be specified using ``--config`` argument to
 ``./runltp_xml.py``. Options can be overridden as parameters to ``-o`` argument.
 See ``--help``.
 
-
-Flaky tests
------------
-
-::
-
-   clone02 - Invokes clone with CLONE_VM but without either of CLONE_THREAD or CLONE_VFORK, i.e., a
-   process sharing its parents address space. Graphene doesn't support this exotic model. Bug exposed by #1034.
-
-   waitpid03,1 and 2 - fails about 20% of the time
-   preadv01 - fails intermittently in CI - perhaps an unrelated bug?
-   preadv01,2
-   preadv01,3
-   preadv01,4
-
-   waitpid02 - Gets a segfault in debug build fairly often
-   waitpid02,1
-   waitpid02,2
-   waitpid02,3
-
-   clock_nanosleep01,11 - Pretty prone to hanging, don't think it is a timeout
-
-   sendfile05,1 - pretty prone to a segfault, perhaps an unrelated issue
-   Internal memory fault at 0x8 (IP = +0x34f1a, VMID = 3902099696, TID = 1)
-
-   Prone to hanging - I think a memory corruption issue that may have a pending fix
-   recvfrom01,1
-   recvfrom01,2
-
-   futex_wait03,1 (see https://github.com/oscarlab/graphene/pull/180#issuecomment-368970338)
-
-   Intermittent seg fault
-   kill03,1
-
-   Intermittent hang
-   send01,1
-   send01,2
-   sendto01,1
-   sendto01,2
-   sendto01,3
-   recv01,1
-   recv01,2
-
-   Intermittent failure on Linux debug host
-   recvmsg01,1
-   recvmsg01,2
+A lot of LTP tests cause problems in Graphene. The ones we've already analyzed
+should have an appropriate comment in the ``ltp.cfg`` file.

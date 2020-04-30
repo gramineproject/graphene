@@ -191,6 +191,12 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
         goto out;
 
     memcpy(sock2->addr.un.name, sock1->addr.un.name, sizeof(sock2->addr.un.name));
+    if (sock1->addr.un.dentry) {
+        get_dentry(sock1->addr.un.dentry);
+        sock2->addr.un.dentry = sock1->addr.un.dentry;
+    } else {
+        sock2->addr.un.dentry = NULL;
+    }
     qstrcopy(&hdl2->uri, &hdl1->uri);
 
     int flags = type & SOCK_CLOEXEC ? FD_CLOEXEC : 0;
