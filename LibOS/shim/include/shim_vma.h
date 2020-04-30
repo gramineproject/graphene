@@ -139,7 +139,7 @@ bool is_in_adjacent_user_vmas(void* addr, size_t length);
  * `*count`. On error returns negated error code.
  * The returned array can be subsequently freed by `free_vma_info_array`.
  */
-int dump_all_vmas(struct shim_vma_info** vma_infos, size_t* count);
+int dump_all_vmas(struct shim_vma_info** vma_infos, size_t* count, bool include_unmapped);
 void free_vma_info_array(struct shim_vma_info* vma_infos, size_t count);
 
 void debug_print_all_vmas(void);

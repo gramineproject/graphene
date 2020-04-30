@@ -1101,7 +1101,8 @@ out:
     return ret;
 }
 
-static size_t dump_all_vmas_with_buf(struct shim_vma_info* infos, size_t max_count) {
+static size_t dump_all_vmas_with_buf(struct shim_vma_info* infos, size_t max_count,
+                                     bool include_unmapped) {
     size_t size = 0;
     struct shim_vma_info* vma_info = infos;
 
@@ -1109,7 +1110,7 @@ static size_t dump_all_vmas_with_buf(struct shim_vma_info* infos, size_t max_cou
     struct shim_vma* vma;
 
     for (vma = _get_first_vma(); vma; vma = _get_next_vma(vma)) {
-        if (vma->flags & (VMA_UNMAPPED | VMA_INTERNAL)) {
+        if (vma->flags & ((include_unmapped ? 0 : VMA_UNMAPPED) | VMA_INTERNAL)) {
             continue;
         }
         if (size < max_count) {
@@ -1124,7 +1125,7 @@ static size_t dump_all_vmas_with_buf(struct shim_vma_info* infos, size_t max_cou
     return size;
 }
 
-int dump_all_vmas(struct shim_vma_info** ret_infos, size_t* ret_count) {
+int dump_all_vmas(struct shim_vma_info** ret_infos, size_t* ret_count, bool include_unmapped) {
     size_t count = DEFAULT_VMA_COUNT;
 
     while (true) {
@@ -1133,7 +1134,7 @@ int dump_all_vmas(struct shim_vma_info** ret_infos, size_t* ret_count) {
             return -ENOMEM;
         }
 
-        size_t needed_count = dump_all_vmas_with_buf(vmas, count);
+        size_t needed_count = dump_all_vmas_with_buf(vmas, count, include_unmapped);
         if (needed_count <= count) {
             *ret_infos = vmas;
             *ret_count = needed_count;
@@ -1306,7 +1307,7 @@ BEGIN_CP_FUNC(all_vmas)
     __UNUSED(objp);
     size_t count;
     struct shim_vma_info* vmas;
-    int ret = dump_all_vmas(&vmas, &count);
+    int ret = dump_all_vmas(&vmas, &count, /*include_unmapped=*/true);
     if (ret < 0) {
         return ret;
     }

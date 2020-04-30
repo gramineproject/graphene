@@ -480,7 +480,7 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
 
     size_t count;
     struct shim_vma_info* vmas = NULL;
-    ret = dump_all_vmas(&vmas, &count);
+    ret = dump_all_vmas(&vmas, &count, /*include_unmapped=*/false);
     if (ret < 0) {
         goto err;
     }
