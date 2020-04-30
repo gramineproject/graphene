@@ -128,7 +128,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     for (struct shim_vma_info* vma = vmas; vma < vmas + count; vma++) {
         /* Don't free the current stack */
-        if (vma->addr == cur_thread->stack)
+        if (vma->addr == cur_thread->stack || vma->addr == cur_thread->stack_red)
             continue;
 
         if (bkeep_munmap(vma->addr, vma->length, !!(vma->flags & VMA_INTERNAL), &tmp_vma) < 0) {
