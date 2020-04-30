@@ -4,8 +4,10 @@
 
 #define NTRIES 10
 
+char addr[40];
+char buffer[20];
+
 int main(int argc, char** argv) {
-    char addr[40];
     int i;
 
     if (argc == 1) {
@@ -26,7 +28,6 @@ int main(int argc, char** argv) {
         PAL_HANDLE proc = DkProcessCreate("file:Udp", newargs);
 
         for (i = 0; i < NTRIES; i++) {
-            char buffer[20];
             int bytes = DkStreamRead(srv, 0, 20, buffer, addr, 40);
 
             if (!bytes) {

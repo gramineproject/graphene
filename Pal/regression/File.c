@@ -3,20 +3,24 @@
 #include "pal_debug.h"
 
 #define NUM_TO_HEX(num) ((num) >= 10 ? 'a' + ((num) - 10) : '0' + (num))
+#define BUF_SIZE 40
 
-static __attribute__((noinline)) void print_hex(char* fmt, const void* data, int len) {
-    char* buf    = __alloca(len * 2 + 1);
-    buf[len * 2] = '\0';
+char buffer1[BUF_SIZE];
+char buffer2[BUF_SIZE];
+char buffer3[BUF_SIZE];
+char hex_buf[BUF_SIZE * 2 + 1];
+
+static void print_hex(char* fmt, const void* data, int len) {
+    hex_buf[len * 2] = '\0';
     for (int i = 0; i < len; i++) {
         unsigned char b = ((unsigned char*)data)[i];
-        buf[i * 2]      = NUM_TO_HEX(b >> 4);
-        buf[i * 2 + 1]  = NUM_TO_HEX(b & 0xf);
+        hex_buf[i * 2]      = NUM_TO_HEX(b >> 4);
+        hex_buf[i * 2 + 1]  = NUM_TO_HEX(b & 0xf);
     }
-    pal_printf(fmt, buf);
+    pal_printf(fmt, hex_buf);
 }
 
 int main(int argc, char** argv, char** envp) {
-    char buffer1[40], buffer2[40], buffer3[40];
     int ret;
 
     /* test regular file opening */

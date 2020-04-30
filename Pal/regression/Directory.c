@@ -2,6 +2,8 @@
 #include "pal.h"
 #include "pal_debug.h"
 
+char buffer[80];
+
 int main(int argc, char** argv, char** envp) {
     /* test regular directory opening */
 
@@ -13,7 +15,6 @@ int main(int argc, char** argv, char** envp) {
         if (DkStreamAttributesQueryByHandle(dir1, &attr1))
             pal_printf("Query by Handle: type = %d\n", attr1.handle_type);
 
-        char buffer[80];
         int bytes = DkStreamRead(dir1, 0, 80, buffer, NULL, 0);
         if (bytes) {
             for (char* c = buffer; c < buffer + bytes; c += strlen(c) + 1)

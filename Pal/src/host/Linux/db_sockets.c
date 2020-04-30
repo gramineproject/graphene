@@ -329,7 +329,9 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
         return ret;
 
-    assert(bind_addr);
+    if (!bind_addr)
+        return -PAL_ERROR_DENIED;
+
     assert(bind_addrlen == addr_size(bind_addr));
 
 #if ALLOW_BIND_ANY == 0
@@ -624,7 +626,9 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
         return ret;
 
-    assert(bind_addr);
+    if (!bind_addr)
+        return -PAL_ERROR_DENIED;
+
     assert(bind_addrlen == addr_size(bind_addr));
 
 #if ALLOW_BIND_ANY == 0
