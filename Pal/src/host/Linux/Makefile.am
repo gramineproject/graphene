@@ -1,7 +1,7 @@
 # Add host-specific compilation rules here
 SEC_DIR = security/$(PAL_HOST)
 
-CFLAGS += -fPIC -U_FORTIFY_SOURCE \
+CFLAGS += -fPIC -Wp,-U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin -Wtrampolines
 
 CFLAGS += -Wextra $(call cc-option,-Wnull-dereference)

@@ -1,6 +1,6 @@
 # Add host-specific compilation rules here
 
-CFLAGS += -fPIC -maes -U_FORTIFY_SOURCE \
+CFLAGS += -fPIC -maes -Wp,-U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin -Wtrampolines
 
 CFLAGS += -Wextra $(call cc-option,-Wnull-dereference)
