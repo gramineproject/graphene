@@ -330,7 +330,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         if (file && file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
              * then return a SIGBUS. */
-            uintptr_t eof_in_vma = (uintptr_t)vma_info.addr + vma_info.offset
+            uintptr_t eof_in_vma = (uintptr_t)vma_info.addr + vma_info.file_offset
                                     + file->info.file.size;
             if (arg > eof_in_vma) {
                 signo = SIGBUS;

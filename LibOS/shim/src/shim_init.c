@@ -207,15 +207,20 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
             return NULL;
         }
 
-        stack = (void *)
-            DkVirtualMemoryAlloc(stack, size + protect_size,
-                                 0, PAL_PROT_NONE);
+        if (!DkVirtualMemoryAlloc(stack, size + protect_size, 0, PAL_PROT_NONE)) {
+            void* tmp_vma = NULL;
+            if (bkeep_munmap(stack, size + protect_size, !user, &tmp_vma) < 0) {
+                BUG();
+            }
+            bkeep_remove_tmp_vma(tmp_vma);
+            return NULL;
+        }
     } else {
         stack = system_malloc(size + protect_size);
+        if (!stack) {
+            return NULL;
+        }
     }
-
-    if (!stack)
-        return NULL;
 
     stack += protect_size;
     // Ensure proper alignment for process' initial stack pointer value.
@@ -464,9 +469,8 @@ int init_manifest (PAL_HANDLE manifest_handle) {
     return 0;
 
 fail:
-    if (new_root_config) {
-        free(new_root_config);
-    }
+    free(new_root_config);
+
     if (map_size) {
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr, map_size, /*is_internal=*/true, &tmp_vma) < 0) {

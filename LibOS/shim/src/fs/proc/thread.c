@@ -523,7 +523,7 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
             EMIT(ADDR_FMT(start), start);
             EMIT("-");
             EMIT(ADDR_FMT(end), end);
-            EMIT(" %c%c%c%c %08lx %02d:%02d %lu %s\n", pt[0], pt[1], pt[2], pr, vma->offset,
+            EMIT(" %c%c%c%c %08lx %02d:%02d %lu %s\n", pt[0], pt[1], pt[2], pr, vma->file_offset,
                  dev_major, dev_minor, ino, name);
         } else {
             EMIT(ADDR_FMT(start), start);
@@ -566,7 +566,7 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
     ret                = 0;
 
 err:
-    if (ret < 0 && buffer) {
+    if (ret < 0) {
         free(buffer);
     }
     if (vmas) {

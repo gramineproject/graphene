@@ -856,8 +856,8 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         mapaddr = (PAL_PTR)ALLOC_ALIGN_DOWN_PTR(base);
         mapsize = (PAL_PTR)ALLOC_ALIGN_UP_PTR(base + size) - mapaddr;
 
-        /* Try allocating at this address, but do not force, if it overlaps with existing memory. */
-        ret = bkeep_mmap_fixed((void *)mapaddr, mapsize, PROT_READ | PROT_WRITE,
+        /* Try allocating at this address, but do not force if it overlaps with existing memory. */
+        ret = bkeep_mmap_fixed((void*)mapaddr, mapsize, PROT_READ | PROT_WRITE,
                                CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
         if (ret < 0)
             base = NULL;

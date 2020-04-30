@@ -33,23 +33,23 @@
 #include "shim_table.h"
 #include "shim_vma.h"
 
-#define LEGACY_MAP_MASK (MAP_SHARED \
-                | MAP_PRIVATE \
-                | MAP_FIXED \
-                | MAP_ANONYMOUS \
-                | MAP_DENYWRITE \
-                | MAP_EXECUTABLE \
-                | MAP_UNINITIALIZED \
-                | MAP_GROWSDOWN \
-                | MAP_LOCKED \
-                | MAP_NORESERVE \
-                | MAP_POPULATE \
-                | MAP_NONBLOCK \
-                | MAP_STACK \
-                | MAP_HUGETLB \
-                | MAP_32BIT \
-                | MAP_HUGE_2MB \
-                | MAP_HUGE_1GB)
+#define LEGACY_MAP_MASK (MAP_SHARED         \
+                       | MAP_PRIVATE        \
+                       | MAP_FIXED          \
+                       | MAP_ANONYMOUS      \
+                       | MAP_DENYWRITE      \
+                       | MAP_EXECUTABLE     \
+                       | MAP_UNINITIALIZED  \
+                       | MAP_GROWSDOWN      \
+                       | MAP_LOCKED         \
+                       | MAP_NORESERVE      \
+                       | MAP_POPULATE       \
+                       | MAP_NONBLOCK       \
+                       | MAP_STACK          \
+                       | MAP_HUGETLB        \
+                       | MAP_32BIT          \
+                       | MAP_HUGE_2MB       \
+                       | MAP_HUGE_1GB)
 
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
     struct shim_handle* hdl = NULL;

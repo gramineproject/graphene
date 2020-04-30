@@ -72,7 +72,6 @@ static int close_cloexec_handle(struct shim_handle_map* map) {
     return walk_handle_map(&close_on_exec, map);
 }
 
-
 struct execve_rtld_arg {
     const char** new_argp;
     int* new_argcp;

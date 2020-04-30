@@ -37,10 +37,10 @@
 struct shim_vma_info {
     void* addr;
     size_t length;
-    int prot;
-    int flags;
-    off_t offset;
+    int prot; // memory protection flags: PROT_*
+    int flags; // MAP_* and VMA_*
     struct shim_handle* file;
+    off_t file_offset;
     char comment[VMA_COMMENT_LEN];
 };
 
@@ -85,9 +85,11 @@ int init_vma(void);
  * should be done only *AFTER* the memory deallocation itself. For example:
  *
  * void* tmp_vma = NULL;
- * if (bkeep_munmap(ptr, len, false, &tmp_vma) < 0) handle_errors();
+ * if (bkeep_munmap(ptr, len, is_internal, &tmp_vma) < 0) {
+ *     handle_errors();
+ * }
  * DkVirtualMemoryFree(ptr, len);
- * bkeep_remove_tmp_vma((tmp_vma);
+ * bkeep_remove_tmp_vma(tmp_vma);
  *
  * Such a way of freeing is needed, so that no other thread will map the same memory in the window
  * between `bkeep_munmap` and `DkVirtualMemoryFree`.

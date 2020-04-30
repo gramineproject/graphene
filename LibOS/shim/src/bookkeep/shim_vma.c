@@ -36,6 +36,8 @@
 #include "shim_vma.h"
 #include "spinlock.h"
 
+/* Filter flags that will be saved in `struct shim_vma`. For example there is no need for saving
+ * MAP_FIXED or unsupported flags. */
 static int filter_saved_flags(int flags) {
     return flags & (MAP_SHARED | MAP_SHARED_VALIDATE | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FILE
                     | MAP_GROWSDOWN | MAP_HUGETLB | MAP_HUGE_2MB | MAP_HUGE_1GB | MAP_STACK
@@ -97,7 +99,7 @@ static bool cmp_addr_to_vma(void* addr, struct avl_tree_node* node) {
     return (uintptr_t)addr < vma->end;
 }
 
-/* "vma_tree" holds all vmas with the assumption that no 2 do overlap
+/* "vma_tree" holds all vmas with the assumption that no 2 overlap
  * (though they could be adjacent). */
 static struct avl_tree vma_tree = { .cmp = vma_tree_cmp };
 static spinlock_t vma_tree_lock = INIT_SPINLOCK_UNLOCKED;
@@ -154,8 +156,10 @@ static void split_vma(struct shim_vma* old_vma, struct shim_vma* new_vma, uintpt
 }
 
 /*
- * This functions needs a preallocated `new_vma`. It returns a list of vmas that need to be freed
- * in `vmas_to_free`.
+ * This function might need a preallocated vma in `new_vma_ptr`, because it might need to split
+ * an existing vma into two parts. If the vma is provided and this function happens to use it,
+ * `*new_vma_ptr` will be set to NULL.
+ * It returns a list of vmas that need to be freed in `vmas_to_free`.
  * Range [begin, end) can consist of multiple vmas even with holes in between, but they all must be
  * either internal or non-internal.
  */
@@ -187,9 +191,9 @@ static int _vma_bkeep_remove(uintptr_t begin, uintptr_t end, bool is_internal,
 
     if (!is_ok) {
         if (is_internal) {
-            debug("LibOS trying to free user vma!\n");
+            debug("Warning: LibOS tried to free a user vma!\n");
         } else {
-            debug("User app trying to free internal vma!\n");
+            debug("Warning: user app tried to free an internal vma!\n");
         }
         return -EACCES;
     }
@@ -199,7 +203,7 @@ static int _vma_bkeep_remove(uintptr_t begin, uintptr_t end, bool is_internal,
     if (vma->begin < begin) {
         if (end < vma->end) {
             if (!new_vma_ptr) {
-                debug("Need additional vma to free this range!\n");
+                debug("Warning: need an additional vma to free this range!\n");
                 return -ENOMEM;
             }
             struct shim_vma* new_vma = *new_vma_ptr;
@@ -296,15 +300,20 @@ static struct shim_lock vma_mgr_lock;
 static MEM_MGR vma_mgr = NULL;
 
 /*
- * We use a following per thread caching mechanism of VMAs:
+ * We use a following per-thread caching mechanism of VMAs:
  * Each thread has a singly linked list of free VMAs, with maximal length of 3.
  * Allocation first checks if there is a cached VMA, deallocation adds it to cache, unless it is
  * full (3 entries already present).
  * Note that 3 is configurable number as long as it is a power of 2 minus 1 and `struct shim_vma`
  * alignment is not less that it. This is needed for storing the list length in lower bits of
  * the pointer (small optimization not to add more fields to TCB - can be removed if the max list
- * size needs to be increased).
+ * size needs to be increased or any supported architecture does not allow for it).
  */
+#ifndef __x86_64__
+/* If this optimization will work on the architecture you port graphene to, add it to the check
+ * above. */
+#error "This optimization requires specific representation of pointers."
+#endif
 
 #define VMA_CACHE_SIZE 3ull
 static_assert((VMA_CACHE_SIZE & (VMA_CACHE_SIZE + 1)) == 0,
@@ -315,6 +324,11 @@ static struct shim_vma* cache2ptr(void* vma) {
                   "We need some lower bits of pointers to `struct shim_vma` for this optimization!"
                   );
     return (struct shim_vma*)((uintptr_t)vma & ~VMA_CACHE_SIZE);
+}
+
+static void* create_cache_ptr(struct shim_vma* vma, size_t size) {
+    assert(size <= VMA_CACHE_SIZE);
+    return (void*)((uintptr_t)vma | size);
 }
 
 static size_t cache2size(void* vma) {
@@ -340,7 +354,7 @@ static bool add_to_thread_vma_cache(struct shim_vma* vma) {
     }
 
     vma->next_free = ptr;
-    SHIM_TCB_SET(vma_cache, (void*)((uintptr_t)vma | (size + 1)));
+    SHIM_TCB_SET(vma_cache, create_cache_ptr(vma, size + 1));
     return true;
 }
 
@@ -368,7 +382,7 @@ static void remove_from_thread_vma_cache(struct shim_vma* to_remove) {
         return;
     }
 
-    SHIM_TCB_SET(vma_cache, (void*)((uintptr_t)first_vma | (cache2size(first_vma) - 1)));
+    SHIM_TCB_SET(vma_cache, create_cache_ptr(first_vma, cache2size(first_vma) - 1));
     vma = first_vma;
     while (vma) {
         struct shim_vma* next = cache2ptr(vma->next_free);
@@ -376,7 +390,7 @@ static void remove_from_thread_vma_cache(struct shim_vma* to_remove) {
             vma->next_free = next->next_free;
             return;
         }
-        vma->next_free = (void*)((uintptr_t)next | (cache2size(vma->next_free) - 1));
+        vma->next_free = create_cache_ptr(next, cache2size(vma->next_free) - 1);
         vma = next;
     }
 }
@@ -473,7 +487,9 @@ static int _bkeep_init_vma(struct shim_vma* new_vma) {
 }
 
 #define ASLR_BITS 12
-static void* aslr_addr_top = NULL;
+/* This variable is written to only once, during initialization, so it does not need to
+ * be atomic. */
+static void* g_aslr_addr_top = NULL;
 
 int init_vma(void) {
     struct shim_vma init_vmas[] = {
@@ -528,12 +544,13 @@ int init_vma(void) {
 
     spinlock_lock_signal_off(&vma_tree_lock);
     int ret = 0;
-    /* First init_vmas is reserved for later usage. */
-    for (size_t i = 1; i < ARRAY_SIZE(init_vmas); ++i) {
+    /* First of init_vmas is reserved for later usage. */
+    for (size_t i = 1; i < ARRAY_SIZE(init_vmas); i++) {
         assert(init_vmas[i].begin <= init_vmas[i].end);
         /* Skip empty areas. */
         if (init_vmas[i].begin == init_vmas[i].end) {
-            debug("Skipping bookkeeping of empty region at 0x%lx\n", init_vmas[i].begin);
+            debug("Skipping bookkeeping of empty region at 0x%lx (comment: \"%s\")\n",
+                  init_vmas[i].begin, init_vmas[i].comment);
             continue;
         }
         if (!IS_ALLOC_ALIGNED(init_vmas[i].begin) || !IS_ALLOC_ALIGNED(init_vmas[i].end)) {
@@ -562,7 +579,7 @@ int init_vma(void) {
         return ret;
     }
 
-    aslr_addr_top = PAL_CB(user_address.end);
+    g_aslr_addr_top = PAL_CB(user_address.end);
 
 #if ENABLE_ASLR == 1
     /* Inspired by: https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/mm/mmap.c#L80 */
@@ -576,12 +593,13 @@ int init_vma(void) {
             return -convert_pal_errno(-ret);
         }
 
+        /* Resulting distribution is not ideal, but it should not be an issue here. */
         gap = ALLOC_ALIGN_DOWN(gap % gap_max_size);
-        aslr_addr_top = (char*)aslr_addr_top - gap;
+        g_aslr_addr_top = (char*)g_aslr_addr_top - gap;
 
-        debug("ASLR top address adjusted to %p\n", aslr_addr_top);
+        debug("ASLR top address adjusted to %p\n", g_aslr_addr_top);
     } else {
-        debug("Not enough space to make meaningful randomization.\n");
+        debug("Not enough space to make meaningful address space randomization.\n");
     }
 #endif
 
@@ -602,7 +620,7 @@ int init_vma(void) {
 
     /* Now we need to migrate temporary initial vmas. */
     struct shim_vma* migrate_vmas[ARRAY_SIZE(init_vmas)];
-    for (size_t i = 0; i < ARRAY_SIZE(migrate_vmas); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(migrate_vmas); i++) {
         migrate_vmas[i] = alloc_vma();
         if (!migrate_vmas[i]) {
             return -ENOMEM;
@@ -610,7 +628,7 @@ int init_vma(void) {
     }
 
     spinlock_lock_signal_off(&vma_tree_lock);
-    for (size_t i = 0; i < ARRAY_SIZE(init_vmas); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(init_vmas); i++) {
         /* Skip empty areas. */
         if (init_vmas[i].begin == init_vmas[i].end) {
             continue;
@@ -621,7 +639,7 @@ int init_vma(void) {
     }
     spinlock_unlock_signal_on(&vma_tree_lock);
 
-    for (size_t i = 0; i < ARRAY_SIZE(migrate_vmas); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(migrate_vmas); i++) {
         if (migrate_vmas[i]) {
             free_vma(migrate_vmas[i]);
         }
@@ -656,7 +674,7 @@ int bkeep_munmap(void* addr, size_t length, bool is_internal, void** tmp_vma_ptr
     if (!vma1) {
         return -ENOMEM;
     }
-    /* Unmapping might succeed even without this vma, so if this allocation fails we move on. */
+    /* Unmapping may succeed even without this vma, so if this allocation fails we move on. */
     struct shim_vma* vma2 = alloc_vma();
 
     struct shim_vma* vmas_to_free = NULL;
@@ -697,17 +715,12 @@ void bkeep_remove_tmp_vma(void* _vma) {
 }
 
 static bool is_file_prot_matching(struct shim_handle* file_hdl, int prot) {
-    if ((prot & PROT_WRITE) && !(file_hdl->flags & O_RDWR)) {
-        return false;
-    }
-    return true;
+    return !(prot & PROT_WRITE) || (file_hdl->flags & O_RDWR);
 }
 
 int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags,
                      struct shim_handle* file, off_t offset, const char* comment) {
-    if (!(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
-        return -EINVAL;
-    }
+    assert(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE));
 
     if (!length || !IS_ALLOC_ALIGNED(length) || !IS_ALLOC_ALIGNED_PTR(addr)) {
         return -EINVAL;
@@ -717,7 +730,7 @@ int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags,
     if (!new_vma) {
         return -ENOMEM;
     }
-    /* Unmapping might succeed even without this vma, so if this allocation fails we move on. */
+    /* Unmapping may succeed even without this vma, so if this allocation fails we move on. */
     struct shim_vma* vma1 = alloc_vma();
 
     new_vma->begin = (uintptr_t)addr;
@@ -788,13 +801,14 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
     bool is_continuous = true;
     bool is_ok = true;
 
-    while (vma->end < end) {
+    while (1) {
         is_ok &= !!(vma->flags & VMA_INTERNAL) == is_internal;
         if (vma->file && (vma->flags & MAP_SHARED)) {
             is_ok &= is_file_prot_matching(vma->file, prot);
         }
-        if (prev) {
-            is_continuous &= prev->end == vma->begin;
+
+        if (end <= vma->end) {
+            break;
         }
 
         prev = vma;
@@ -804,16 +818,8 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
             is_continuous = false;
             break;
         }
-    }
 
-    if (vma) {
-        is_ok &= !!(vma->flags & VMA_INTERNAL) == is_internal;
-        if (vma->file && (vma->flags & MAP_SHARED)) {
-            is_ok &= is_file_prot_matching(vma->file, prot);
-        }
-        if (prev) {
-            is_continuous &= prev->end == vma->begin;
-        }
+        is_continuous &= prev->end == vma->begin;
     }
 
     if (!is_continuous) {
@@ -912,9 +918,11 @@ int bkeep_mprotect(void* addr, size_t length, int prot, bool is_internal) {
 }
 
 /* TODO consider:
- * maybe it's worth to keep another tree, complimentary to `vma_tree`, that would hold free areas.
+ * maybe it's worth to keep another tree, complementary to `vma_tree`, that would hold free areas.
  * It would give O(logn) unmapped lookup, which now is O(n) in the worst case, but it would also
- * double the memory usage of this subsystem and add some complexity. */
+ * double the memory usage of this subsystem and add some complexity.
+ * Another idea is to merge adjacent vmas, that are not backed by any file and have the same prot
+ * and flags (the question is whether that happens often). */
 /* This function allocates at most 1 vma. If in the future it uses more, `_vma_malloc` should be
  * updated as well. */
 int bkeep_mmap_any_in_range(void* _bottom_addr, void* _top_addr, size_t length, int prot, int flags,
@@ -935,7 +943,7 @@ int bkeep_mmap_any_in_range(void* _bottom_addr, void* _top_addr, size_t length, 
     uintptr_t ret_val = 0;
 
     if (flags & MAP_32BIT) {
-        /* Only consider first 2 Gigabytes. */
+        /* Only consider first 2 gigabytes. */
         top_addr = MIN(top_addr, 1ul << 31);
         if (bottom_addr >= top_addr) {
             return -ENOMEM;
@@ -1012,7 +1020,7 @@ int bkeep_mmap_any(size_t length, int prot, int flags, struct shim_handle* file,
 int bkeep_mmap_any_aslr(size_t length, int prot, int flags, struct shim_handle* file, off_t offset,
                         const char* comment, void** ret_val_ptr) {
     int ret;
-    ret = bkeep_mmap_any_in_range(PAL_CB(user_address.start), aslr_addr_top, length, prot, flags,
+    ret = bkeep_mmap_any_in_range(PAL_CB(user_address.start), g_aslr_addr_top, length, prot, flags,
                                   file, offset, comment, ret_val_ptr);
     if (ret >= 0) {
         return ret;
@@ -1026,7 +1034,7 @@ static void dump_vma(struct shim_vma_info* vma_info, struct shim_vma* vma) {
     vma_info->length = vma->end - vma->begin;
     vma_info->prot = vma->prot;
     vma_info->flags = vma->flags;
-    vma_info->offset = vma->offset;
+    vma_info->file_offset = vma->offset;
     vma_info->file = vma->file;
     if (vma_info->file) {
         get_handle(vma_info->file);
@@ -1052,29 +1060,6 @@ out:
     spinlock_unlock_signal_on(&vma_tree_lock);
     return ret;
 }
-
-/*
-int lookup_first_overlapping_vma(void* addr, size_t length, void** start_ptr, void** end_ptr) {
-    int ret = 0;
-
-    spinlock_lock_signal_off(&vma_tree_lock);
-    struct shim_vma* vma = _lookup_vma((uintptr_t)addr);
-    if (!vma || (uintptr_t)addr + length <= vma->begin) {
-        ret = -ENOENT;
-        goto out;
-    }
-
-    if (start_ptr) {
-        *start_ptr = (void*)vma->begin;
-    }
-    if (end_ptr) {
-        *end_ptr = (void*)vma->end;
-    }
-out:
-    spinlock_unlock_signal_on(&vma_tree_lock);
-    return ret;
-}
-*/
 
 bool is_in_adjacent_user_vmas(void* addr, size_t length) {
     uintptr_t begin = (uintptr_t)addr;
@@ -1179,6 +1164,7 @@ BEGIN_CP_FUNC(vma)
 
         void * need_mapped = vma->addr;
 
+        /* Check whether we need to checkpoint memory this vma bookkeeps. */
         if ((vma->flags & VMA_TAINTED || !vma->file) && !(vma->flags & VMA_UNMAPPED)) {
             void* send_addr  = vma->addr;
             size_t send_size = vma->length;
@@ -1200,9 +1186,9 @@ BEGIN_CP_FUNC(vma)
                  */
                 off_t file_len = get_file_size(vma->file);
                 if (file_len >= 0 &&
-                    (off_t)(vma->offset + vma->length) > file_len) {
-                    send_size = file_len > vma->offset ?
-                                file_len - vma->offset : 0;
+                    (off_t)(vma->file_offset + vma->length) > file_len) {
+                    send_size = file_len > vma->file_offset ?
+                                file_len - vma->file_offset : 0;
                     send_size = ALLOC_ALIGN_UP(send_size);
                 }
             }
@@ -1231,11 +1217,11 @@ BEGIN_RS_FUNC(vma)
     void * need_mapped = (void *) GET_CP_ENTRY(ADDR);
     CP_REBASE(vma->file);
 
-    DEBUG_RS("vma: %p-%p flags %x prot 0x%08x\n",
-             vma->addr, vma->addr + vma->length, vma->flags, vma->prot);
+    DEBUG_RS("vma: %p-%p flags 0x%x prot 0x%08x comment \"%s\"\n",
+             vma->addr, vma->addr + vma->length, vma->flags, vma->prot, vma->comment);
 
     int ret = bkeep_mmap_fixed(vma->addr, vma->length, vma->prot, vma->flags | MAP_FIXED,
-                               vma->file, vma->offset, vma->comment);
+                               vma->file, vma->file_offset, vma->comment);
     if (ret < 0)
         return ret;
 
@@ -1256,7 +1242,7 @@ BEGIN_RS_FUNC(vma)
                                            need_mapped,
                                            vma->prot,
                                            vma->flags | MAP_FIXED,
-                                           vma->offset +
+                                           vma->file_offset +
                                            (need_mapped - vma->addr));
 
                 if (ret < 0)
@@ -1291,12 +1277,12 @@ BEGIN_RS_FUNC(vma)
     if (vma->file)
         DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld,path=%s,uri=%s",
                  vma->addr, vma->addr + vma->length, vma->length,
-                 vma->prot, vma->flags, vma->offset,
+                 vma->prot, vma->flags, vma->file_offset,
                  qstrgetstr(&vma->file->path), qstrgetstr(&vma->file->uri));
     else
         DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld",
                  vma->addr, vma->addr + vma->length, vma->length,
-                 vma->prot, vma->flags, vma->offset);
+                 vma->prot, vma->flags, vma->file_offset);
 }
 END_RS_FUNC(vma)
 

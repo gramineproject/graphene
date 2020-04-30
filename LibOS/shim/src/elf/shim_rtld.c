@@ -574,11 +574,10 @@ do_remap:
             void* mapaddr = (void*)RELOCATE(l, c->mapstart);
 
 #if BOOKKEEP_INTERNAL_OBJ == 0
-            if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO)
+            if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
 #else
-            if (type != OBJECT_USER && type != OBJECT_VDSO)
+            if (type != OBJECT_USER && type != OBJECT_VDSO) {
 #endif
-            {
                 ret = bkeep_mmap_fixed(mapaddr, c->mapend - c->mapstart, c->prot,
                                        c->flags | MAP_FIXED | MAP_PRIVATE
                                            | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
@@ -641,11 +640,10 @@ do_remap:
 
             if (zeroend > zeropage) {
 #if BOOKKEEP_INTERNAL_OBJ == 0
-                if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO)
+                if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
 #else
-                if (type != OBJECT_USER && type != OBJECT_VDSO)
+                if (type != OBJECT_USER && type != OBJECT_VDSO) {
 #endif
-                {
                     ret = bkeep_mmap_fixed((void*)zeropage, zeroend - zeropage, c->prot,
                                            MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED
                                                | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
