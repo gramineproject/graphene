@@ -382,6 +382,8 @@ int shim_do_msgsnd(int msqid, const void* msgp, size_t msgsz, int msgflg) {
     if ((ret = connect_msg_handle(msqid, &msgq)) < 0)
         return ret;
 
+    // FIXME: This call crashes Graphene, causing NULL dereference in add_sysv_msg. Everything in
+    // this file seems to be broken, so probably better to just rewrite it?
     ret = add_sysv_msg(msgq, msgbuf->mtype, msgsz, msgbuf->mtext, NULL);
     put_msg_handle(msgq);
     return ret;
@@ -572,7 +574,8 @@ static struct sysv_balance_policy msg_policy = {
 int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const void* data,
                  struct sysv_client* src) {
     struct shim_handle* hdl = MSG_TO_HANDLE(msgq);
-    int ret                 = 0;
+    int ret = 0;
+
     lock(&hdl->lock);
 
     if (msgq->deleted) {
@@ -582,6 +585,7 @@ int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const voi
 
     if (!msgq->owned) {
         unlock(&hdl->lock);
+        assert(src);
         ret = ipc_sysv_msgsnd_send(src->port, src->vmid, msgq->msqid, type, data, size, src->seq);
         goto out;
     }
