@@ -105,6 +105,12 @@ int mbedtls_to_pal_error(int error)
         case MBEDTLS_ERR_RSA_RNG_FAILED:
             return -PAL_ERROR_CRYPTO_RNG_FAILED;
 
+        case MBEDTLS_ERR_SSL_WANT_READ:
+        case MBEDTLS_ERR_SSL_WANT_WRITE:
+        case MBEDTLS_ERR_SSL_ASYNC_IN_PROGRESS:
+        case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
+            return -PAL_ERROR_TRYAGAIN;
+
         default:
             return -PAL_ERROR_DENIED;
     }
@@ -456,15 +462,15 @@ int lib_SSLHandshake(LIB_SSL_CONTEXT* ssl_ctx) {
 
 int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len) {
     int ret = mbedtls_ssl_read(&ssl_ctx->ssl, buf, len);
-    if (ret <= 0)
-       return -PAL_ERROR_DENIED;
+    if (ret < 0)
+       return mbedtls_to_pal_error(ret);
     return ret;
 }
 
 int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len) {
     int ret = mbedtls_ssl_write(&ssl_ctx->ssl, buf, len);
-    if (ret <= 0)
-       return -PAL_ERROR_DENIED;
+    if (ret < 0)
+       return mbedtls_to_pal_error(ret);
     return ret;
 }
 
