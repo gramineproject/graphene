@@ -220,15 +220,5 @@ BEGIN_RS_FUNC(brk) {
     brk_region.brk_current       = brk_region.brk_start + GET_CP_ENTRY(SIZE);
     brk_region.brk_end           = brk_region.brk_start + GET_CP_ENTRY(SIZE);
     brk_region.data_segment_size = GET_CP_ENTRY(SIZE);
-
-    char* current = ALLOC_ALIGN_UP_PTR(brk_region.brk_current);
-    int ret = bkeep_mmap_fixed(current, brk_region.brk_end - current, PROT_NONE,
-                               MAP_FIXED_NOREPLACE | VMA_UNMAPPED, NULL, 0, "heap");
-    if (ret < 0) {
-        return ret;
-    }
-
-    debug("migrated reserved brk area: %p - %p\n", current, brk_region.brk_end);
-
 }
 END_RS_FUNC(brk)

@@ -121,7 +121,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
 
     size_t count;
     struct shim_vma_info* vmas;
-    ret = dump_all_vmas(&vmas, &count);
+    ret = dump_all_vmas(&vmas, &count, /*include_unmapped=*/true);
     if (ret < 0) {
         goto error;
     }
