@@ -8,8 +8,8 @@ For example, assume we are implementing :manpage:`sched_setaffinity(2)`. You
 must find the definition of ``sched_setaffinity`` in
 :file:`shim_syscalls.c`, which will be the following code::
 
-   SHIM_SYSCALL_PASSTHROUGH(sched_setaffinity, 3, int, pid_t, pid, size_t, len,
-                           __kernel_cpu_set_t*, user_mask_ptr)
+   SHIM_SYSCALL_RETURN_ENOSYS(sched_setaffinity, 3, int, pid_t, pid, size_t,
+                              len, __kernel_cpu_set_t*, user_mask_ptr)
 
 Change this line to ``DEFINE_SHIM_SYSCALL(...)`` to name the function that
 implements this system call: ``shim_do_sched_setaffinity`` (this is the naming

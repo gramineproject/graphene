@@ -354,55 +354,34 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
         __UNUSED(__arg1);                       \
     } while (0)
 #define SHIM_UNUSED_ARGS_2() do {               \
-        __UNUSED(__arg1);                       \
+        SHIM_UNUSED_ARGS_1();                   \
         __UNUSED(__arg2);                       \
     } while (0)
 #define SHIM_UNUSED_ARGS_3() do {               \
-        __UNUSED(__arg1);                       \
-        __UNUSED(__arg2);                       \
+        SHIM_UNUSED_ARGS_2();                   \
         __UNUSED(__arg3);                       \
     } while (0)
 #define SHIM_UNUSED_ARGS_4() do {               \
-        __UNUSED(__arg1);                       \
-        __UNUSED(__arg2);                       \
-        __UNUSED(__arg3);                       \
+        SHIM_UNUSED_ARGS_3();                   \
         __UNUSED(__arg4);                       \
     } while (0)
 
 #define SHIM_UNUSED_ARGS_5() do {               \
-        __UNUSED(__arg1);                       \
-        __UNUSED(__arg2);                       \
-        __UNUSED(__arg3);                       \
-        __UNUSED(__arg4);                       \
+        SHIM_UNUSED_ARGS_4();                   \
         __UNUSED(__arg5);                       \
     } while (0)
 
 #define SHIM_UNUSED_ARGS_6() do {               \
-        __UNUSED(__arg1);                       \
-        __UNUSED(__arg2);                       \
-        __UNUSED(__arg3);                       \
-        __UNUSED(__arg4);                       \
-        __UNUSED(__arg5);                       \
+        SHIM_UNUSED_ARGS_5();                   \
         __UNUSED(__arg6);                       \
     } while (0)
 
-#define DO_SYSCALL(...) DO_SYSCALL2(__VA_ARGS__)
-#define DO_SYSCALL2(n, ...) -ENOSYS
-
-#define DO_SYSCALL_0(sysno) -ENOSYS
-#define DO_SYSCALL_1(sysno, ...) DO_SYSCALL(1, sysno, SHIM_PASS_ARGS_1)
-#define DO_SYSCALL_2(sysno, ...) DO_SYSCALL(2, sysno, SHIM_PASS_ARGS_2)
-#define DO_SYSCALL_3(sysno, ...) DO_SYSCALL(3, sysno, SHIM_PASS_ARGS_3)
-#define DO_SYSCALL_4(sysno, ...) DO_SYSCALL(4, sysno, SHIM_PASS_ARGS_4)
-#define DO_SYSCALL_5(sysno, ...) DO_SYSCALL(5, sysno, SHIM_PASS_ARGS_5)
-#define DO_SYSCALL_6(sysno, ...) DO_SYSCALL(6, sysno, SHIM_PASS_ARGS_6)
-
-#define SHIM_SYSCALL_PASSTHROUGH(name, n, ...)                      \
-    BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                           \
-        debug("WARNING: shim_" #name " not implemented\n");         \
-        SHIM_UNUSED_ARGS_##n();                                     \
-        ret = DO_SYSCALL_##n(__NR_##name);                          \
-    END_SHIM(name)                                                  \
+#define SHIM_SYSCALL_RETURN_ENOSYS(name, n, ...)                                   \
+    BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                                          \
+        debug("WARNING: syscall " #name " not implemented. Returning -ENOSYS.\n"); \
+        SHIM_UNUSED_ARGS_##n();                                                    \
+        ret = -ENOSYS;                                                             \
+    END_SHIM(name)                                                                 \
     EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
 
 #define CONCAT2(t1, t2) __CONCAT2(t1, t2)
