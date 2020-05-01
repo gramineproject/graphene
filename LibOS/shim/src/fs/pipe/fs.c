@@ -159,8 +159,8 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
      *        Graphene doesn't know whether the other process already opened this FIFO. */
 
     if (flags & O_RDWR) {
-        /* POSIX disallows FIFOs opened for read-write */
-        return -EINVAL;
+        /* POSIX disallows FIFOs opened for read-write, but Linux treats them as read-only */
+        flags = O_RDONLY;
     }
 
     int fd = -1;

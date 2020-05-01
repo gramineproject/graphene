@@ -239,6 +239,16 @@ out:
 int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     int ret = 0;
 
+    /* corner case of regular file: emulate via open() + close() */
+    if (S_ISREG(mode)) {
+        mode &= ~S_IFREG;
+        int fd = shim_do_openat(dirfd, pathname, O_CREAT | O_EXCL, mode ? : S_IRUSR);
+        if (fd < 0)
+            return fd;
+        ret = shim_do_close(fd);
+        return ret;
+    }
+
     int vfd1 = -1;
     int vfd2 = -1;
 
@@ -250,6 +260,9 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
 
     if (!pathname || test_user_string(pathname))
         return -EFAULT;
+
+    if (pathname[0] =='\0')
+        return -ENOENT;
 
     /* add named pipe as a pseudo entry to file system (relative to dfd) */
     struct shim_dentry* dir  = NULL;
@@ -266,7 +279,7 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     }
 
     if (!dent) {
-        ret = -EACCES;
+        ret = -ENOENT; /* actually couldn't create file, mknod must return ENOENT */
         goto out;
     }
 

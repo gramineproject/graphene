@@ -313,7 +313,11 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
     }
 
     assert(fs);
-    assert(start->state & DENTRY_ISDIRECTORY);
+
+    if (!(start->state & DENTRY_ISDIRECTORY)) {
+        err = -ENOTDIR;
+        goto out;
+    }
 
     // Peel off any preceeding slashes
     path = eat_slashes(path);
