@@ -9,7 +9,7 @@ BAZEL_BIN ?= $(HOME)/bin/bazel
 GIT_COMMIT ?= v1.9.0
 TAR_SHA256 ?= ffc3151b06823d57b4a408261ba8efe53601563dfe93af0866751d4f6ca5068c
 
-PHONY: default
+.PHONY: default
 default: label_image.manifest
 ifeq ($(SGX),1)
 default: label_image.manifest.sgx
