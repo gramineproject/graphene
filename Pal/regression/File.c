@@ -10,7 +10,7 @@ char buffer2[BUF_SIZE];
 char buffer3[BUF_SIZE];
 char hex_buf[BUF_SIZE * 2 + 1];
 
-static __attribute__((noinline)) void print_hex(char* fmt, const void* data, int len) {
+static void print_hex(char* fmt, const void* data, int len) {
     hex_buf[len * 2] = '\0';
     for (int i = 0; i < len; i++) {
         unsigned char b = ((unsigned char*)data)[i];
