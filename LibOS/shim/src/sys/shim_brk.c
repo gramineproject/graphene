@@ -165,6 +165,8 @@ void* shim_do_brk(void* _brk) {
 
         brk_region.brk_current = brk;
         goto out;
+    } else if (brk > brk_region.brk_end) {
+        goto out;
     }
 
     uint64_t rlim_data = get_rlimit_cur(RLIMIT_DATA);

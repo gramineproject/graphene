@@ -44,7 +44,8 @@ static int filter_saved_flags(int flags) {
                     | VMA_UNMAPPED | VMA_INTERNAL | VMA_TAINTED);
 }
 
-/* TODO: split flags into internal (Graphene) and linux */
+/* TODO: split flags into internal (Graphene) and Linux; also to consider: completely remove Linux
+ * flags - we only need MAP_SHARED/MAP_PRIVATE and possibly MAP_STACK/MAP_GROWSDOWN */
 struct shim_vma {
     uintptr_t begin;
     uintptr_t end;
@@ -99,8 +100,11 @@ static bool cmp_addr_to_vma(void* addr, struct avl_tree_node* node) {
     return (uintptr_t)addr < vma->end;
 }
 
-/* "vma_tree" holds all vmas with the assumption that no 2 overlap
- * (though they could be adjacent). */
+/*
+ * "vma_tree" holds all vmas with the assumption that no 2 overlap (though they could be adjacent).
+ * Currently we do not merge similar adjacent vmas - if we ever start doing it, this code needs
+ * to be revisited as there might be some optimizations that would break due to it.
+ */
 static struct avl_tree vma_tree = { .cmp = vma_tree_cmp };
 static spinlock_t vma_tree_lock = INIT_SPINLOCK_UNLOCKED;
 
@@ -177,26 +181,19 @@ static int _vma_bkeep_remove(uintptr_t begin, uintptr_t end, bool is_internal,
 
     struct shim_vma* first_vma = vma;
 
-    bool is_ok = true;
-
-    while (vma && vma->end <= end) {
-        is_ok &= !!(vma->flags & VMA_INTERNAL) == is_internal;
+    while (vma && vma->begin < end) {
+        if (!!(vma->flags & VMA_INTERNAL) != is_internal) {
+            if (is_internal) {
+                debug("Warning: LibOS tried to free a user vma!\n");
+            } else {
+                debug("Warning: user app tried to free an internal vma!\n");
+            }
+            return -EACCES;
+        }
 
         vma = _get_next_vma(vma);
     }
 
-    if (vma && vma->begin < end) {
-        is_ok &= !!(vma->flags & VMA_INTERNAL) == is_internal;
-    }
-
-    if (!is_ok) {
-        if (is_internal) {
-            debug("Warning: LibOS tried to free a user vma!\n");
-        } else {
-            debug("Warning: user app tried to free an internal vma!\n");
-        }
-        return -EACCES;
-    }
 
     vma = first_vma;
 
@@ -310,7 +307,7 @@ static MEM_MGR vma_mgr = NULL;
  * size needs to be increased or any supported architecture does not allow for it).
  */
 #ifndef __x86_64__
-/* If this optimization will work on the architecture you port graphene to, add it to the check
+/* If this optimization will work on the architecture you port Graphene to, add it to the check
  * above. */
 #error "This optimization requires specific representation of pointers."
 #endif
@@ -474,7 +471,7 @@ static void free_vmas_freelist(struct shim_vma* vma) {
     }
 }
 
-static int _bkeep_init_vma(struct shim_vma* new_vma) {
+static int _bkeep_initial_vma(struct shim_vma* new_vma) {
     assert(spinlock_is_locked(&vma_tree_lock));
 
     struct shim_vma* tmp_vma = _lookup_vma(new_vma->begin);
@@ -559,7 +556,7 @@ int init_vma(void) {
             ret = -EINVAL;
             break;
         }
-        ret = _bkeep_init_vma(&init_vmas[i]);
+        ret = _bkeep_initial_vma(&init_vmas[i]);
         if (ret < 0) {
             debug("Failed to bookkeep initial VMA region 0x%lx-0x%lx (%s)\n", init_vmas[i].begin,
                                                                               init_vmas[i].end,
@@ -619,10 +616,10 @@ int init_vma(void) {
     }
 
     /* Now we need to migrate temporary initial vmas. */
-    struct shim_vma* migrate_vmas[ARRAY_SIZE(init_vmas)];
-    for (size_t i = 0; i < ARRAY_SIZE(migrate_vmas); i++) {
-        migrate_vmas[i] = alloc_vma();
-        if (!migrate_vmas[i]) {
+    struct shim_vma* vmas_to_migrate_to[ARRAY_SIZE(init_vmas)];
+    for (size_t i = 0; i < ARRAY_SIZE(vmas_to_migrate_to); i++) {
+        vmas_to_migrate_to[i] = alloc_vma();
+        if (!vmas_to_migrate_to[i]) {
             return -ENOMEM;
         }
     }
@@ -633,15 +630,15 @@ int init_vma(void) {
         if (init_vmas[i].begin == init_vmas[i].end) {
             continue;
         }
-        copy_vma(&init_vmas[i], migrate_vmas[i]);
-        avl_tree_swap_node(&vma_tree, &init_vmas[i].tree_node, &migrate_vmas[i]->tree_node);
-        migrate_vmas[i] = NULL;
+        copy_vma(&init_vmas[i], vmas_to_migrate_to[i]);
+        avl_tree_swap_node(&vma_tree, &init_vmas[i].tree_node, &vmas_to_migrate_to[i]->tree_node);
+        vmas_to_migrate_to[i] = NULL;
     }
     spinlock_unlock_signal_on(&vma_tree_lock);
 
-    for (size_t i = 0; i < ARRAY_SIZE(migrate_vmas); i++) {
-        if (migrate_vmas[i]) {
-            free_vma(migrate_vmas[i]);
+    for (size_t i = 0; i < ARRAY_SIZE(vmas_to_migrate_to); i++) {
+        if (vmas_to_migrate_to[i]) {
+            free_vma(vmas_to_migrate_to[i]);
         }
     }
 

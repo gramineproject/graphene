@@ -79,7 +79,6 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
     if (flags & MAP_ANONYMOUS) {
         switch (flags & MAP_TYPE) {
             case MAP_SHARED:
-                break;
             case MAP_PRIVATE:
                 break;
             default:
