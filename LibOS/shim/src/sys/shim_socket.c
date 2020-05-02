@@ -939,8 +939,6 @@ int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, sockl
         if (sock->addr.un.dentry) {
             get_dentry(sock->addr.un.dentry);
             cli_sock->addr.un.dentry = sock->addr.un.dentry;
-        } else {
-            cli_sock->addr.un.dentry = NULL;
         }
 
         qstrsetstr(&cli->uri, qstrgetstr(&hdl->uri), hdl->uri.len);
@@ -1517,7 +1515,7 @@ int shim_do_getsockname(int sockfd, struct sockaddr* addr, int* addrlen) {
         goto out;
     }
 
-    if (test_user_memory(addr, *addrlen, true)) {
+    if (test_user_memory(addr, *addrlen, /*write=*/true)) {
         ret = -EFAULT;
         goto out;
     }
@@ -1554,7 +1552,7 @@ int shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen) {
         goto out;
     }
 
-    if (test_user_memory(addr, *addrlen, true)) {
+    if (test_user_memory(addr, *addrlen, /*write=*/true)) {
         ret = -EFAULT;
         goto out;
     }
