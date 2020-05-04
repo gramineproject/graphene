@@ -20,11 +20,9 @@ endif
 DISTRIB_ID ?= $(shell lsb_release --short --id)
 DISTRIB_RELEASE ?= $(shell lsb_release --short --release)
 
-ifneq ($(DISTRIB_ID),Ubuntu)
-$(error This example requires Ubuntu.)
-endif
-
-UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
+#ifneq ($(DISTRIB_ID),Ubuntu)
+#$(error This example requires Ubuntu.)
+#endif
 
 .PHONY: default
 ifeq ($(SGX),1)
