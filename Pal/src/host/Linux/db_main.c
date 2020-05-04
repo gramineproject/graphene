@@ -184,11 +184,7 @@ void setup_vdso_map (ElfW(Addr) addr);
 
 static struct link_map pal_map;
 
-#ifdef __x86_64__
-# include "elf-x86_64.h"
-#else
-# error "unsupported architecture"
-#endif
+#include "elf-arch.h"
 
 noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ? argv_0 : "<this program>";

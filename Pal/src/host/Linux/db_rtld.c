@@ -37,7 +37,7 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 
-#include "elf-x86_64.h"
+#include "elf-arch.h"
 
 /* This structure communicates dl state to the debugger.  The debugger
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
