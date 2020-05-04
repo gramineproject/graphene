@@ -2,7 +2,7 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 
 CFLAGS	+= -Wp,-U_FORTIFY_SOURCE -fno-builtin -nostdlib \
-	  -I../include/pal -I../include/lib -I../src
+	  -I../include/pal -I../include/lib -I../include/arch/$(ARCH) -I../src
 
 preloads = \
 	Preload1.so \

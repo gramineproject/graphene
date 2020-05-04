@@ -21,7 +21,7 @@
  * The source code is imported and modified from the GNU C Library.
  */
 
-#include <dl-machine-x86_64.h>
+#include <dl-machine.h>
 #include <elf/elf.h>
 #include <pal_internal.h>
 #include <pal_rtld.h>

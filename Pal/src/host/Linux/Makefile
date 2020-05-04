@@ -3,8 +3,8 @@ include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
 	-I../../../include/host/Linux -I../../../include/lib \
-	-I../../../include/host/Linux-common
-ASFLAGS += -I. -Iinclude -I../.. -I../../../include
+	-I../../../include/host/Linux-common -I../../../include/arch/$(ARCH)
+ASFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/arch/$(ARCH)
 
 host_files = libpal-Linux.a pal.map
 
