@@ -1,5 +1,5 @@
 #include <sys/syscall.h>
-#include <sysdep-x86_64.h>
+#include <sysdep-arch.h>
 
 int main(int argc, char** argv) {
     const char buf[] = "Hello world\n";
