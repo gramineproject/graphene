@@ -20,8 +20,10 @@ endif
 DISTRIB_ID ?= $(shell lsb_release --short --id)
 DISTRIB_RELEASE ?= $(shell lsb_release --short --release)
 
+ifeq ($(SGX), 1)
 ifneq ($(DISTRIB_ID),Ubuntu)
-$(error This example requires Ubuntu.)
+$(error This example requires Ubuntu when building for SGX.)
+endif
 endif
 
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
