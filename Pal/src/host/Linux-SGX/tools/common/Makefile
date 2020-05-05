@@ -1,10 +1,10 @@
 include ../../../../../../Scripts/Makefile.configs
 include ../../../../../../Scripts/Makefile.rules
 
+# IN_PAL is defined on 18.04 Jenkins pipeline for some reason, override it since we're NOT in PAL
+CFLAGS := $(filter-out -DIN_PAL, $(CFLAGS))
 CFLAGS += -I../.. \
-          -I../../../.. \
           -I../../../../../include/lib \
-          -I../../../../../include/pal \
           -I../../../../../lib/crypto/mbedtls/install/include \
           -I../../../../../lib/crypto/mbedtls/crypto/include \
           -I../../protected-files \
