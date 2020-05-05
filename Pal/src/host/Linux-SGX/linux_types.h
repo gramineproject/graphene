@@ -18,8 +18,8 @@ typedef __kernel_size_t size_t;
 #endif
 
 struct linux_dirent64 {
-    unsigned long d_ino;
-    unsigned long d_off;
+    uint64_t d_ino;
+    int64_t d_off;
     unsigned short d_reclen;
     unsigned char d_type;
     char d_name[];

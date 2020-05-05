@@ -252,7 +252,7 @@ typedef struct {
 
 typedef struct {
     struct pollfd* ms_fds;
-    int ms_nfds;
+    size_t ms_nfds;
     int64_t ms_timeout_us;
 } ms_ocall_poll_t;
 
