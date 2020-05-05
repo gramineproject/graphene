@@ -2,6 +2,7 @@ include ../../../../../../Scripts/Makefile.configs
 include ../../../../../../Scripts/Makefile.rules
 
 CFLAGS += -I../.. \
+          -I../../../.. \
           -I../../../../../include/lib \
           -I../../../../../include/pal \
           -I../../../../../lib/crypto/mbedtls/install/include \
