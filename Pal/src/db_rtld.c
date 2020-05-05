@@ -60,7 +60,7 @@ static struct link_map * resolve_map (const char **strtab, ElfW(Sym) ** ref)
 #define RESOLVE_MAP(strtab, ref)    resolve_map(strtab, ref)
 
 #include "dynamic_link.h"
-#include "dl-machine-x86_64.h"
+#include "dl-machine.h"
 
 /* Allocate a `struct link_map' for a new object being loaded,
    and enter it into the _dl_loaded list.  */
