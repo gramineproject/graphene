@@ -39,6 +39,9 @@
 #include <shim_thread.h>
 
 static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
+    if (hdl->info.pipe.not_ready)
+        return -EACCES;
+
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
     if (bytes == PAL_STREAM_ERROR)
@@ -48,6 +51,9 @@ static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
 }
 
 static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    if (hdl->info.pipe.not_ready)
+        return -EACCES;
+
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (bytes == PAL_STREAM_ERROR)
@@ -91,6 +97,9 @@ static int pipe_checkout(struct shim_handle* hdl) {
 
 static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     off_t ret = 0;
+
+    if (hdl->info.pipe.not_ready)
+        return -EACCES;
 
     lock(&hdl->lock);
 
@@ -152,24 +161,35 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
 
 static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     assert(hdl);
-    assert(dent && dent->data);
+    assert(dent && dent->data && sizeof(dent->data) >= sizeof(uint64_t) && dent->fs);
 
     /* FIXME: man 7 fifo says "[with non-blocking flag], opening for write-only fails with ENXIO
      *        unless the other end has already been opened". We cannot enforce this failure since
      *        Graphene doesn't know whether the other process already opened this FIFO. */
 
     if (flags & O_RDWR) {
-        /* POSIX disallows FIFOs opened for read-write, but Linux treats them as read-only */
+        /* POSIX disallows FIFOs opened for read-write, but Linux allows it. We must choose only
+         * one end (read or write) in our emulation, so we treat such FIFOs as read-only. This
+         * covers most apps seen in the wild (in particular, LTP apps). */
+        debug("FIFO (named pipe) '%s' cannot be opened in read-write mode in Graphene. "
+              "Treating it as read-only.", qstrgetstr(&dent->fs->path));
         flags = O_RDONLY;
     }
 
     int fd = -1;
     if (flags & O_WRONLY) {
-        /* write end of FIFO is stashed in upper bits of dentry's data */
+        /* write end of FIFO is stashed in upper bits of dentry's data; invalidate afterwards */
         fd = (uint32_t)((uint64_t)dent->data >> 32);
+        dent->data = (void*)((uint64_t)dent->data | 0xFFFFFFFF00000000ULL);
     } else {
-        /* read end of FIFO is stashed in lower bits of dentry's data */
+        /* read end of FIFO is stashed in lower bits of dentry's data; invalidate afterwards */
         fd = (uint32_t)((uint64_t)dent->data);
+        dent->data = (void*)((uint64_t)dent->data | 0x00000000FFFFFFFFULL);
+    }
+
+    if (fd == -1) {
+        /* fd is invalid, this happens if app tries to open the same FIFO end twice */
+        return -EOPNOTSUPP;
     }
 
     struct shim_handle* fifo_hdl = get_fd_handle(fd, /*fd_flags=*/NULL, /*map=*/NULL);
@@ -194,13 +214,15 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
     hdl->pal_handle = fifo_hdl->pal_handle;
     qstrcopy(&hdl->uri, &fifo_hdl->uri);
 
-    fifo_hdl->pal_handle = NULL;  /* ownership of PAL handle is transferred to hdl */
+    hdl->info.pipe.not_ready = false; /* FIFO is ready for read/write operations */
+
+    fifo_hdl->pal_handle = NULL; /* ownership of PAL handle is transferred to hdl */
 
     /* can remove intermediate FIFO hdl and its fd now */
     struct shim_handle* tmp = detach_fd_handle(fd, NULL, NULL);
     assert(tmp == fifo_hdl);
-    put_handle(tmp);      /* to undo get_fd_handle() above */
-    put_handle(fifo_hdl); /* to destroy intermediate FIFO hdl */
+    put_handle(tmp);      /* matches detach_fd_handle() */
+    put_handle(fifo_hdl); /* matches get_fd_handle() */
 
     return 0;
 }

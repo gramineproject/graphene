@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,21 +14,20 @@
 int main(int argc, char** argv) {
     int fd;
     char buffer[1024];
-    size_t bufsize = sizeof(buffer);
 
     if (mkfifo(FIFO_PATH, S_IRWXU) < 0) {
         perror("mkfifo error");
         return 1;
     }
 
-    int pid = fork();
+    pid_t pid = fork();
 
     if (pid < 0) {
         perror("fork error");
         return 1;
     } else if (pid == 0) {
         /* client */
-        fd = open(FIFO_PATH, O_NONBLOCK | O_RDONLY, S_IRWXU);
+        fd = open(FIFO_PATH, O_NONBLOCK | O_RDONLY);
         if (fd < 0) {
             perror("[child] open error");
             return 1;
@@ -37,14 +37,14 @@ int main(int argc, char** argv) {
         ssize_t bytes = 0;
         while (bytes <= 0) {
             errno = 0;
-            bytes = read(fd, &buffer, bufsize);
+            bytes = read(fd, &buffer, sizeof(buffer));
             if (bytes < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
                 perror("[child] read error");
                 return 1;
             }
-            sleep(0);
+            sched_yield();
         }
-        buffer[bufsize - 1] = '\0';
+        buffer[sizeof(buffer) - 1] = '\0';
 
         if (close(fd) < 0) {
             perror("[child] close error");
@@ -58,16 +58,16 @@ int main(int argc, char** argv) {
         while (fd < 0) {
             /* wait until client is ready for read */
             errno = 0;
-            fd = open(FIFO_PATH, O_NONBLOCK | O_WRONLY, S_IRWXU);
+            fd = open(FIFO_PATH, O_NONBLOCK | O_WRONLY);
             if (fd < 0 && errno != ENXIO) {
                 perror("[parent] open error");
                 return 1;
             }
-            sleep(0);
+            sched_yield();
         }
 
         /* note that Linux guarantees sending the complete message on FIFO */
-        snprintf(buffer, bufsize, "Hello from write end of FIFO!");
+        snprintf(buffer, sizeof(buffer), "Hello from write end of FIFO!");
         if (write(fd, &buffer, strlen(buffer) + 1) < 0) {
             perror("[parent] write error");
             return 1;
@@ -78,7 +78,11 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        wait(NULL); /* wait for child termination, just for sanity */
+        pid = wait(NULL); /* wait for child termination, just for sanity */
+        if (pid < 0) {
+            perror("[parent] wait error");
+            return 1;
+        }
 
         if (unlink(FIFO_PATH) < 0) {
             perror("[parent] unlink error");

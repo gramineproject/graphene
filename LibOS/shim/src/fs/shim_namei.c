@@ -92,7 +92,8 @@ int __permission(struct shim_dentry* dent, mode_t mask) {
      * just NO_MODE.
      */
     if (dent->mode == NO_MODE) {
-        if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->mode) {
+        assert(dent->fs);
+        if (!dent->fs->d_ops || !dent->fs->d_ops->mode) {
             /* dentry is emulated in LibOS (AF_UNIX socket or FIFO pipe): no permission check */
             return 0;
         }

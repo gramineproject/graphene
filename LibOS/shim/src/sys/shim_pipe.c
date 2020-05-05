@@ -238,15 +238,18 @@ out:
 
 int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     int ret = 0;
+    __UNUSED(dev);
 
     /* corner case of regular file: emulate via open() + close() */
     if (S_ISREG(mode)) {
         mode &= ~S_IFREG;
+        /* FIXME: Graphene assumes that file is at least readable by owner, in particular, see
+         *        unlink() emulation that uses DkStreamOpen(). We change empty mode to readable
+         *        by user here to allow a consequent unlink. Was detected on LTP mknod tests. */
         int fd = shim_do_openat(dirfd, pathname, O_CREAT | O_EXCL, mode ? : S_IRUSR);
         if (fd < 0)
             return fd;
-        ret = shim_do_close(fd);
-        return ret;
+        return shim_do_close(fd);
     }
 
     int vfd1 = -1;
@@ -255,7 +258,7 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     struct shim_handle* hdl1 = NULL;
     struct shim_handle* hdl2 = NULL;
 
-    if (!S_ISFIFO(mode) || dev != 0)
+    if (!S_ISFIFO(mode))
         return -EINVAL;
 
     if (!pathname || test_user_string(pathname))
@@ -279,7 +282,7 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     }
 
     if (!dent) {
-        ret = -ENOENT; /* actually couldn't create file, mknod must return ENOENT */
+        ret = -ENOENT; /* impossible path, file cannot be created, mknod must return ENOENT */
         goto out;
     }
 
@@ -313,6 +316,10 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     get_dentry(dent);
     hdl2->dentry = dent;
 
+    /* FIFO must be open'ed to start read/write operations, mark as not ready */
+    hdl1->info.pipe.not_ready = true;
+    hdl2->info.pipe.not_ready = true;
+
     /* FIFO pipes are created in blocking mode; they will be changed to non-blocking if open()'ed
      * in non-blocking mode later (see fifo_open) */
     ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, /*flags=*/0, hdl1->info.pipe.name,
@@ -344,7 +351,8 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
 
     static_assert(sizeof(vfd1) == sizeof(uint32_t) && sizeof(vfd2) == sizeof(uint32_t),
                   "FDs must be 4B in size");
-    static_assert(sizeof(dent->data) >= sizeof(uint64_t), "dentry's data must be 8B in size");
+    static_assert(sizeof(dent->data) >= sizeof(uint64_t),
+                  "dentry's data must be at least 8B in size");
     dent->data = (void*)((uint64_t)vfd2 << 32 | (uint64_t)vfd1);
 
     ret = 0;

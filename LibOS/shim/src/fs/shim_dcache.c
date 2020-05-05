@@ -357,10 +357,10 @@ BEGIN_CP_FUNC(dentry) {
         REF_SET(new_dent->ref_count, 0);
 
         if (new_dent->fs == &fifo_builtin_fs) {
-            /* it is FIFO pipe, do not try to checkpoint its fs */
+            /* FIFO pipe, do not try to checkpoint its fs */
             new_dent->fs = NULL;
         } else {
-            /* it is not FIFO, no need to keep data (FIFOs stash in data corresponding FDs) */
+            /* not FIFO, no need to keep data (FIFOs stash internal FDs into data field) */
             new_dent->data = NULL;
         }
 

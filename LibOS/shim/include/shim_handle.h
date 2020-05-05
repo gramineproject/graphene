@@ -127,6 +127,7 @@ struct shim_dev_handle {
 };
 
 struct shim_pipe_handle {
+    bool not_ready; /* not ready for ops (e.g., FIFO that was mknod'ed but not open'ed) */
     char name[PIPE_URI_SIZE];
 };
 
