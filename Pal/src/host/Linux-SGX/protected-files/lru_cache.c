@@ -56,7 +56,6 @@
 #include "lru_cache.h"
 
 #ifdef IN_PAL
-    #include "pal_internal.h"
     #include "pal_linux.h"
 #else
     #include <stdio.h>
