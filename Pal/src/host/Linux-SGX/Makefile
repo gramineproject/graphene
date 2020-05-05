@@ -2,12 +2,12 @@ include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
 CFLAGS += -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
-          -I../../../include/arch/$(ARCH) \
+          -I../../../include/arch/$(ARCH) -I../../../include/arch/$(ARCH)/Linux \
           -I../../../lib/crypto/mbedtls/include -I../../../lib/crypto/mbedtls/crypto/include \
           -I../../../include/host/Linux-SGX \
           -I../../../include/host/Linux-common \
           -I../../../include/lib -I../../../include/lib/$(ARCH) -Isgx-driver
-ASFLAGS += -I. -I../.. -I../../../include
+ASFLAGS += -I. -I../.. -I../../../include -I../../../include/arch/$(ARCH)/Linux
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py
 

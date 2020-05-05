@@ -35,9 +35,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifdef __x86_64__
-# include "sysdep-x86_64.h"
-#endif
+#include "sysdep-arch.h"
 
 #define IS_ERR INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P

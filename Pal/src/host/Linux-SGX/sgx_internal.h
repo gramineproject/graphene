@@ -28,7 +28,7 @@
 #include "pal_security.h"
 #include "api.h"
 
-#include "sysdep-x86_64.h"
+#include "sysdep-arch.h"
 #include <sys/syscall.h>
 
 #define IS_ERR INTERNAL_SYSCALL_ERROR
