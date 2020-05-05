@@ -34,9 +34,7 @@
 
 #include <linux/mman.h>
 
-#ifdef __x86_64__
-# include "sysdep-x86_64.h"
-#endif
+#include "sysdep-arch.h"
 
 #define ENCLAVE_PAL_FILENAME RUNTIME_FILE("libpal-Linux-SGX.so")
 

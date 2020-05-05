@@ -28,7 +28,7 @@
 #include <asm/unistd.h>
 #include <asm/errno.h>
 
-#include "sysdep-x86_64.h"
+#include "sysdep-arch.h"
 
 #define CLONE_VM	0x00000100
 #define CLONE_THREAD	0x00010000
