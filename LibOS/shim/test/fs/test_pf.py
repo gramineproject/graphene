@@ -4,8 +4,6 @@ import filecmp
 import os
 import shutil
 import subprocess
-import sys
-import tempfile
 import unittest
 
 from test_fs import (
@@ -20,65 +18,68 @@ from regression import (
 @unittest.skipUnless(HAS_SGX, 'Protected files require SGX support')
 class TC_50_ProtectedFiles(TC_00_FileSystem):
     @classmethod
-    def setUpClass(c):
-        c.PF_CRYPT = 'bin/pf_crypt'
-        c.PF_TAMPER = 'bin/pf_tamper'
-        c.WRAP_KEY = os.path.join(c.TEST_DIR, 'wrap-key')
+    def setUpClass(cls):
+        cls.PF_CRYPT = 'bin/pf_crypt'
+        cls.PF_TAMPER = 'bin/pf_tamper'
+        cls.WRAP_KEY = os.path.join(cls.TEST_DIR, 'wrap-key')
         # CONST_WRAP_KEY must match the one in manifest
-        c.CONST_WRAP_KEY = [0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]
-        c.ENCRYPTED_DIR = os.path.join(c.TEST_DIR, 'pf_input')
-        c.ENCRYPTED_FILES = [os.path.join(c.ENCRYPTED_DIR, str(v)) for v in c.FILE_SIZES]
-        c.LIB_PATH = os.path.join(os.getcwd(), 'lib')
+        cls.CONST_WRAP_KEY = [0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88,
+                              0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]
+        cls.ENCRYPTED_DIR = os.path.join(cls.TEST_DIR, 'pf_input')
+        cls.ENCRYPTED_FILES = [os.path.join(cls.ENCRYPTED_DIR, str(v)) for v in cls.FILE_SIZES]
+        cls.LIB_PATH = os.path.join(os.getcwd(), 'lib')
 
         super().setUpClass()
-        if not os.path.exists(c.ENCRYPTED_DIR):
-            os.mkdir(c.ENCRYPTED_DIR)
-        c.OUTPUT_DIR   = os.path.join(c.TEST_DIR, 'pf_output')
-        c.OUTPUT_FILES = [os.path.join(c.OUTPUT_DIR, str(x)) for x in c.FILE_SIZES]
+        if not os.path.exists(cls.ENCRYPTED_DIR):
+            os.mkdir(cls.ENCRYPTED_DIR)
+        cls.OUTPUT_DIR = os.path.join(cls.TEST_DIR, 'pf_output')
+        cls.OUTPUT_FILES = [os.path.join(cls.OUTPUT_DIR, str(x)) for x in cls.FILE_SIZES]
         # create encrypted files
-        c.set_default_key(c)
-        for i in c.INDEXES:
-            cmd = [c.PF_CRYPT, 'e', '-w', c.WRAP_KEY, '-i', c.INPUT_FILES[i], '-o', c.ENCRYPTED_FILES[i]]
-            c.run_native_binary(c, cmd, libpath=os.path.join(os.getcwd(), 'lib'))
+        cls.__set_default_key(cls)
+        for i in cls.INDEXES:
+            cmd = [cls.PF_CRYPT, 'e', '-w', cls.WRAP_KEY, '-i', cls.INPUT_FILES[i], '-o',
+                   cls.ENCRYPTED_FILES[i]]
+            cls.run_native_binary(cls, cmd, libpath=os.path.join(os.getcwd(), 'lib'))
 
-    def pf_crypt(self, args):
+    def __pf_crypt(self, args):
         args.insert(0, self.PF_CRYPT)
         return self.run_native_binary(args, libpath=os.path.join(os.getcwd(), 'lib'))
 
-    def set_default_key(self):
+    def __set_default_key(self):
         with open(self.WRAP_KEY, 'wb') as file:
             file.write(bytes(self.CONST_WRAP_KEY))
 
     # override to encrypt the file
-    def copy_input(self, input, output):
-        self.encrypt_file(input, output)
+    def copy_input(self, input_path, output_path):
+        self.__encrypt_file(input_path, output_path)
 
-    def encrypt_file(self, input, output):
-        args = ['e', '-w', self.WRAP_KEY, '-i', input, '-o', output]
-        stdout, stderr = self.pf_crypt(args)
+    def __encrypt_file(self, input_path, output_path):
+        args = ['e', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
+        stdout, stderr = self.__pf_crypt(args)
         return (stdout, stderr)
 
-    def decrypt_file(self, input, output):
-        args = ['d', '-w', self.WRAP_KEY, '-i', input, '-o', output]
-        stdout, stderr = self.pf_crypt(args)
+    def __decrypt_file(self, input_path, output_path):
+        args = ['d', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
+        stdout, stderr = self.__pf_crypt(args)
         return (stdout, stderr)
 
     def test_000_gen_key(self):
         # test random key generation
-        key_path = os.path.join(self.TEST_DIR, next(tempfile._get_candidate_names()))
+        key_path = os.path.join(self.TEST_DIR, 'tmpkey')
         args = ['g', '-w', key_path]
-        stdout, stderr = self.pf_crypt(args)
-        self.assertIn('Wrap key saved to: ' + key_path, stdout)
+        out = self.__pf_crypt(args)
+        self.assertIn('Wrap key saved to: ' + key_path, out[0])
         self.assertEqual(os.path.getsize(key_path), 16)
         os.remove(key_path)
 
     def test_010_encrypt_decrypt(self):
         for i in self.INDEXES:
-            stdout, stderr = self.encrypt_file(self.INPUT_FILES[i], self.OUTPUT_FILES[i])
+            self.__encrypt_file(self.INPUT_FILES[i], self.OUTPUT_FILES[i])
             self.assertFalse(filecmp.cmp(self.INPUT_FILES[i], self.OUTPUT_FILES[i], shallow=False))
-            dp = os.path.join(self.OUTPUT_DIR, os.path.basename(self.OUTPUT_FILES[i]) + '.decrypted')
-            stdout, stderr = self.decrypt_file(self.OUTPUT_FILES[i], dp)
-            self.assertTrue(filecmp.cmp(self.INPUT_FILES[i], dp, shallow=False))
+            dec_path = os.path.join(self.OUTPUT_DIR,
+                                    os.path.basename(self.OUTPUT_FILES[i]) + '.dec')
+            self.__decrypt_file(self.OUTPUT_FILES[i], dec_path)
+            self.assertTrue(filecmp.cmp(self.INPUT_FILES[i], dec_path, shallow=False))
 
     # override to change input dir (from plaintext to encrypted)
     def test_100_open_close(self):
@@ -92,8 +93,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         try:
             stdout, stderr = self.run_binary(['open_close', 'W', output_path])
             self.assertIn('ERROR: Failed to open output file', stderr)
-        except subprocess.CalledProcessError as e:
-            self.assertNotEqual(e.returncode, 0)
+        except subprocess.CalledProcessError as exc:
+            self.assertNotEqual(exc.returncode, 0)
             self.assertTrue(os.path.isfile(output_path))
         else:
             print('[!] Fail: open_close returned 0')
@@ -117,7 +118,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.copy_input(plaintext_path, output_path_1) # encrypt
         self.copy_input(plaintext_path, output_path_2)
         stdout, stderr = self.run_binary(['seek_tell', input_path, output_path_1, output_path_2])
-        self.verify_seek_tell(stdout, stderr, input_path, output_path_1, output_path_2, self.FILE_SIZES[-1])
+        self.verify_seek_tell(stdout, stderr, input_path, output_path_1, output_path_2,
+                              self.FILE_SIZES[-1])
 
     # override to change input dir (from plaintext to encrypted)
     def test_130_file_stat(self):
@@ -133,13 +135,14 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
 
     # override to decrypt output
     def verify_size(self, file, size):
-        dp = os.path.join(self.OUTPUT_DIR, os.path.basename(file) + '.decrypted')
-        self.decrypt_file(file, dp)
-        self.assertEqual(os.stat(dp).st_size, size)
+        dec_path = os.path.join(self.OUTPUT_DIR, os.path.basename(file) + '.dec')
+        self.__decrypt_file(file, dec_path)
+        self.assertEqual(os.stat(dec_path).st_size, size)
 
-    @expectedFailureIf(HAS_SGX) # TODO: port these to the new file format
+    @expectedFailureIf(HAS_SGX)
+    # pylint: disable=fixme
     def test_140_file_truncate(self):
-        self.fail()
+        self.fail() # TODO: port these to the new file format
 
     def test_150_file_rename(self):
         path1 = os.path.join(self.OUTPUT_DIR, 'test_150a')
@@ -149,23 +152,24 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         # accessing renamed file should fail
         args = ['d', '-V', '-w', self.WRAP_KEY, '-i', path2, '-o', path1]
         try:
-            stdout, stderr = self.pf_crypt(args)
-        except subprocess.CalledProcessError as e:
-            self.assertNotEqual(e.returncode, 0)
+            self.__pf_crypt(args)
+        except subprocess.CalledProcessError as exc:
+            self.assertNotEqual(exc.returncode, 0)
         else:
             print('[!] Fail: successfully decrypted renamed file: ' + path2)
             self.fail()
 
     # override to decrypt output
-    def verify_copy_content(self, input, output):
-        dp = os.path.join(self.OUTPUT_DIR, os.path.basename(output) + '.decrypted')
-        self.decrypt_file(output, dp)
-        self.assertTrue(filecmp.cmp(input, dp, shallow=False))
+    def verify_copy_content(self, input_path, output_path):
+        dec_path = os.path.join(self.OUTPUT_DIR, os.path.basename(output_path) + '.dec')
+        self.__decrypt_file(output_path, dec_path)
+        self.assertTrue(filecmp.cmp(input_path, dec_path, shallow=False))
 
     # override to change input dir (from plaintext to encrypted)
-    def do_copy_test(self, exec, timeout):
-        stdout, stderr = self.run_binary([exec, self.ENCRYPTED_DIR, self.OUTPUT_DIR], timeout=timeout)
-        self.verify_copy(stdout, stderr, self.ENCRYPTED_DIR, exec)
+    def do_copy_test(self, executable, timeout):
+        stdout, stderr = self.run_binary([executable, self.ENCRYPTED_DIR, self.OUTPUT_DIR],
+                                         timeout=timeout)
+        self.verify_copy(stdout, stderr, self.ENCRYPTED_DIR, executable)
 
     # override copy_dir_mmap* to not skip them on SGX
     def test_203_copy_dir_mmap_whole(self):
@@ -178,45 +182,48 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.do_copy_test('copy_mmap_rev', 60)
 
     def test_210_copy_dir_mounted(self):
-        exec = 'copy_whole'
-        stdout, stderr = self.run_binary([exec, '/mounted/pf_input', '/mounted/pf_output'], timeout=30)
-        self.verify_copy(stdout, stderr, '/mounted/pf_input', exec)
+        executable = 'copy_whole'
+        stdout, stderr = self.run_binary([executable, '/mounted/pf_input', '/mounted/pf_output'],
+                                         timeout=30)
+        self.verify_copy(stdout, stderr, '/mounted/pf_input', executable)
 
-    def corrupt_file(self, input, output):
-        cmd = [self.PF_TAMPER, '-w', self.WRAP_KEY, '-i', input, '-o', output]
-        stdout, stderr = self.run_native_binary(cmd)
-        return (stdout, stderr)
+    def __corrupt_file(self, input_path, output_path):
+        cmd = [self.PF_TAMPER, '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
+        return self.run_native_binary(cmd)
 
     # invalid/corrupted files
-    @expectedFailureIf(HAS_SGX) # TODO: port these to the new file format
+    @expectedFailureIf(HAS_SGX)
+    # pylint: disable=fixme
     def test_500_invalid(self):
-        INVALID_DIR = os.path.join(self.TEST_DIR, 'pf_invalid')
+        # TODO: port these to the new file format
+        invalid_dir = os.path.join(self.TEST_DIR, 'pf_invalid')
         # files below should work normally (benign modifications)
-        SHOULD_PASS = ['chunk_padding_1_fixed', 'chunk_padding_2_fixed', 'chunk_data_3', 'chunk_data_3_fixed', 'chunk_data_4', 'chunk_data_4_fixed']
-        if not os.path.exists(INVALID_DIR):
-            os.mkdir(INVALID_DIR)
+        should_pass = ['chunk_padding_1_fixed', 'chunk_padding_2_fixed', 'chunk_data_3',
+                       'chunk_data_3_fixed', 'chunk_data_4', 'chunk_data_4_fixed']
+        if not os.path.exists(invalid_dir):
+            os.mkdir(invalid_dir)
         # prepare valid encrypted file (largest one for maximum possible corruptions)
         original_input = self.OUTPUT_FILES[-1]
-        self.encrypt_file(self.INPUT_FILES[-1], original_input)
+        self.__encrypt_file(self.INPUT_FILES[-1], original_input)
         # generate invalid files based on the above
-        self.corrupt_file(original_input, INVALID_DIR)
+        self.__corrupt_file(original_input, invalid_dir)
         # try to decrypt invalid files
-        for name in os.listdir(INVALID_DIR):
-            invalid = os.path.join(INVALID_DIR, name)
-            output  = os.path.join(self.OUTPUT_DIR, name)
-            input   = os.path.join(INVALID_DIR, os.path.basename(original_input))
+        for name in os.listdir(invalid_dir):
+            invalid = os.path.join(invalid_dir, name)
+            output_path = os.path.join(self.OUTPUT_DIR, name)
+            input_path = os.path.join(invalid_dir, os.path.basename(original_input))
             # copy the file so it has the original file name (for allowed path check)
-            shutil.copy(invalid, input)
-            should_pass = any(s in name for s in SHOULD_PASS)
+            shutil.copy(invalid, input_path)
+            should_pass = any(s in name for s in should_pass)
 
             try:
-                args = ['d', '-V', '-w', self.WRAP_KEY, '-i', input, '-o', output]
-                stdout, stderr = self.pf_crypt(args)
-            except subprocess.CalledProcessError as e:
+                args = ['d', '-V', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
+                self.__pf_crypt(args)
+            except subprocess.CalledProcessError as exc:
                 if should_pass:
-                    self.assertEqual(e.returncode, 0)
+                    self.assertEqual(exc.returncode, 0)
                 else:
-                    self.assertNotEqual(e.returncode, 0)
+                    self.assertNotEqual(exc.returncode, 0)
             else:
                 if not should_pass:
                     print('[!] Fail: successfully decrypted file: ' + name)
