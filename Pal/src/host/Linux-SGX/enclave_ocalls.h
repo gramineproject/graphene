@@ -86,7 +86,7 @@ int ocall_sleep (unsigned long * microsec);
 
 int ocall_socketpair (int domain, int type, int protocol, int sockfds[2]);
 
-int ocall_poll(struct pollfd* fds, int nfds, int64_t timeout_us);
+int ocall_poll(struct pollfd* fds, size_t nfds, int64_t timeout_us);
 
 int ocall_rename (const char * oldpath, const char * newpath);
 
