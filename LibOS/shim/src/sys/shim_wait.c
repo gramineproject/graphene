@@ -38,6 +38,10 @@ pid_t shim_do_wait4(pid_t pid, int* status, int option, struct __kernel_rusage* 
     int ret                    = 0;
     __UNUSED(ru);
 
+    if (option & ~(WNOHANG | WUNTRACED | WCONTINUED | __WNOTHREAD | __WCLONE | __WALL)) {
+        return -EINVAL;
+    }
+
     if (pid > 0) {
         if (!(thread = lookup_thread(pid)))
             return -ECHILD;
