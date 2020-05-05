@@ -43,8 +43,6 @@ Copyright (C) 2005-2014 Rich Felker, et al.
 
 #include <stdint.h>
 
-/* Optimization barrier */
-#define COMPILER_BARRIER() __asm__ __volatile__("": : :"memory")
 #define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory")
 
 #ifdef __i386__
