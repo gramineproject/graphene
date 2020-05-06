@@ -297,16 +297,8 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                 param.count, param.length);
         return -ERRNO(ret);
     }
-
-    /* newer DCAP driver requires to change permissions for EADDed pages; actual permissions
-     * are capped by permissions specified in SECINFO so here we specify the broadest set */
-    ret = mprotect(secs->base + addr, size, PROT_READ | PROT_WRITE | PROT_EXEC);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_I, "Changing protections of EADDed pages returned %d\n", ret);
-        return -ERRNO(ret);
-    }
 #else
-    /* older DCAP driver (version 1.5-) only supports adding one page at a time */
+    /* older drivers (DCAP v1.5- and old out-of-tree) only supports adding one page at a time */
     struct sgx_enclave_add_page param = {
         .addr       = secs->base + (uint64_t) addr,
         .src        = (uint64_t) (user_addr ? : zero_pages),
@@ -322,19 +314,19 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             return -ERRNO(ret);
         }
 
-        /* need to change permissions for EADDed pages; actual permissions are capped by
-         * permissions specified in SECINFO so here we specify the broadest set */
-        ret = mprotect((void*)param.addr, g_page_size, PROT_READ | PROT_WRITE | PROT_EXEC);
-        if (IS_ERR(ret)) {
-            SGX_DBG(DBG_I, "Changing protections of EADDed page returned %d\n", ret);
-            return -ERRNO(ret);
-        }
-
         param.addr += g_page_size;
         if (param.src != (uint64_t)zero_pages) param.src += g_page_size;
         added_size += g_page_size;
     }
 #endif /* SGX_DCAP_NEW */
+
+    /* need to change permissions for EADDed pages; actual permissions are capped by
+     * permissions specified in SECINFO so here we specify the broadest set */
+    ret = mprotect(secs->base + addr, size, PROT_READ | PROT_WRITE | PROT_EXEC);
+    if (IS_ERR(ret)) {
+        SGX_DBG(DBG_I, "Changing protections of EADDed pages returned %d\n", ret);
+        return -ERRNO(ret);
+    }
 
     return 0;
 }
