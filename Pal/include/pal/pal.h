@@ -97,15 +97,6 @@ typedef union pal_handle
 
 #endif /* !IN_PAL */
 
-#define PAL_LIBOS_TCB_SIZE  256
-
-typedef struct pal_tcb {
-    struct pal_tcb * self;
-    /* uint64_t for alignment */
-    uint64_t libos_tcb[(PAL_LIBOS_TCB_SIZE + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
-    /* data private to PAL implementation follows this struct. */
-} PAL_TCB;
-
 #include "pal-arch.h"
 
 /********** PAL TYPE DEFINITIONS **********/
