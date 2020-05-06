@@ -2,6 +2,7 @@
 PWD := $(shell pwd)
 
 GRAPHENE_DIR = $(PWD)/../..
+SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 BLENDER_DIR = $(PWD)/blender_dir
 BLENDER_URL ?= https://ftp.nluug.nl/pub/graphics/blender/release/Blender2.82/blender-2.82-linux64.tar.xz
@@ -57,7 +58,7 @@ $(RUN_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manif
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-output $@ \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $(RUN_DIR)/blender.manifest \
 		-exec $<
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \

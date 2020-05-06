@@ -15,6 +15,7 @@ R_EXEC = $(R_HOME)/bin/exec/R
 
 # Relative path to Graphene root
 GRAPHENEDIR ?= ../..
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -96,7 +97,7 @@ sh.manifest: sh.manifest.template
 R.manifest.sgx: R.manifest sh.manifest.sgx
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
 R.sig: R.manifest.sgx
@@ -109,7 +110,7 @@ R.token: R.sig
 sh.manifest.sgx: sh.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
 sh.sig: sh.manifest.sgx

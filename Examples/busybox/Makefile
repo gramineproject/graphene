@@ -14,6 +14,7 @@
 
 # Relative path to Graphene root
 GRAPHENEDIR = ../..
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src
 BUSYBOX_URL ?= https://busybox.net/downloads/busybox-1.31.1.tar.bz2
@@ -85,7 +86,7 @@ busybox.manifest: busybox.manifest.template
 busybox.manifest.sgx: busybox.manifest busybox
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@ \
 		-exec busybox
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \

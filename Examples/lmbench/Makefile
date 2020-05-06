@@ -25,6 +25,7 @@ GRAPHENEDIR_FROM_INSTALLDIR = $(GRAPHENEDIR)
 else
 GRAPHENEDIR_FROM_INSTALLDIR = ../../../$(GRAPHENEDIR)
 endif
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR_FROM_INSTALLDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -82,7 +83,7 @@ sgx: $(INSTALLDIR)/lmbench $(INSTALLDIR)/sh.manifest.sgx $(INSTALLDIR)/hello.man
 		if [ ! -f $$f.manifest.sgx ]; then \
 			$(GRAPHENEDIR_FROM_INSTALLDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 				-libpal $(GRAPHENEDIR_FROM_INSTALLDIR)/Runtime/libpal-Linux-SGX.so \
-				-key $(GRAPHENEDIR_FROM_INSTALLDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+				-key $(SGX_SIGNER_KEY) \
 				-manifest manifest -exec $$f -output $$f.manifest.sgx && \
 			$(GRAPHENEDIR_FROM_INSTALLDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 				-output $$f.token -sig $$f.sig; \
@@ -93,7 +94,7 @@ $(INSTALLDIR)/sh.manifest.sgx $(INSTALLDIR)/hello.manifest.sgx: %.sgx: %
 	cd $(INSTALLDIR) && \
 	$(GRAPHENEDIR_FROM_INSTALLDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR_FROM_INSTALLDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR_FROM_INSTALLDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $(abspath $<) -output $(abspath $@) && \
 	$(GRAPHENEDIR_FROM_INSTALLDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output $(abspath $(basename $<).token) -sig $(abspath $(basename $<).sig)

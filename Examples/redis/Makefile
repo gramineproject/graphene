@@ -18,6 +18,7 @@
 
 # Relative path to Graphene root
 GRAPHENEDIR = ../..
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src
 COMMIT = 5.0.5
@@ -86,7 +87,7 @@ redis-server.manifest: redis-server.manifest.template
 redis-server.manifest.sgx: redis-server.manifest $(SRCDIR)/src/redis-server
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@ \
 		-exec $(SRCDIR)/src/redis-server
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \

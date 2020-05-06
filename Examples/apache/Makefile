@@ -29,6 +29,7 @@ LISTEN_PORT ?= 8001
 
 # Relative path to Graphene root
 GRAPHENEDIR ?= $(THIS_DIR)../..
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -127,7 +128,7 @@ httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
 httpd.manifest.sgx: httpd.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
 httpd.sig: httpd.manifest.sgx
