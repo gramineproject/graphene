@@ -12,7 +12,7 @@ CURL_DIR ?= /usr/bin/
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
-GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -64,7 +64,7 @@ curl.manifest: curl.manifest.template curl-trusted-libs
 curl.manifest.sgx: curl.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
 curl.sig: curl.manifest.sgx
