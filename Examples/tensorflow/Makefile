@@ -3,6 +3,7 @@ exec_target = $(manifests)
 target = label_image
 
 GRAPHENEDIR ?= ../..
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 TF_DIR ?= tensorflow
 BAZEL_BIN ?= $(HOME)/bin/bazel
 
@@ -60,7 +61,7 @@ label_image.manifest: label_image.manifest.template
 label_image.manifest.sgx: label_image.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@ \
 		-exec label_image
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \

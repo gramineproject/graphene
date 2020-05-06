@@ -14,6 +14,7 @@
 
 # Relative path to Graphene root
 GRAPHENEDIR = ../..
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src
 MEMCACHED_URL ?= https://memcached.org/files/memcached-1.5.21.tar.gz
@@ -76,7 +77,7 @@ memcached.manifest: memcached.manifest.template
 memcached.manifest.sgx: memcached.manifest $(SRCDIR)/memcached
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@ \
 		-exec $(SRCDIR)/memcached
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \

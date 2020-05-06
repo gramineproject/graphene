@@ -10,6 +10,7 @@
 # Use `make clean` to remove Graphene-generated files.
 
 GRAPHENEDIR ?= ../..
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -52,7 +53,7 @@ pytorch.sig: python3.sig
 pytorch.sig: pytorch.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-output pytorch.manifest.sgx -exec /usr/bin/python3 -manifest $<
 
 %.token: %.sig
@@ -67,7 +68,7 @@ python3.manifest: pytorch.manifest
 python3.sig: python3.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem \
+		-key $(SGX_SIGNER_KEY) \
 		-output python3.manifest.sgx -exec /usr/bin/python3 -manifest $<
 
 pal_loader:
