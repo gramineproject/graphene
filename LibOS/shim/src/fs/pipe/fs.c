@@ -161,7 +161,9 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
 
 static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     assert(hdl);
-    assert(dent && dent->data && sizeof(dent->data) >= sizeof(uint64_t) && dent->fs);
+    static_assert(sizeof(dent->data) >= sizeof(uint64_t),
+                  "dentry's data must be at least 8B in size");
+    assert(dent && dent->data && dent->fs);
 
     /* FIXME: man 7 fifo says "[with non-blocking flag], opening for write-only fails with ENXIO
      *        unless the other end has already been opened". We cannot enforce this failure since
@@ -188,7 +190,8 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
     }
 
     if (fd == -1) {
-        /* fd is invalid, this happens if app tries to open the same FIFO end twice */
+        /* fd is invalid, happens if app tries to open the same FIFO end twice; this is ok in
+         * normal Linux but Graphene uses TLS-encrypted pipes which are inherently point-to-point */
         return -EOPNOTSUPP;
     }
 
