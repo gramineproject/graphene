@@ -3,7 +3,7 @@
 #include <stdatomic.h>
 #include <inttypes.h>
 
-#include "pal.h"
+#include "pal_tcb.h"
 #include "pal_debug.h"
 
 static void* get_stack(void) {

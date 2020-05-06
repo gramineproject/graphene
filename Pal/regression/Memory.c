@@ -1,5 +1,5 @@
 #include "api.h"
-#include "pal.h"
+#include "pal_tcb.h"
 #include "pal_debug.h"
 
 #define UNIT (pal_control.alloc_align)

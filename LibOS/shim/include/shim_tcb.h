@@ -3,7 +3,7 @@
 
 #include <assert.h>
 #include <atomic.h>
-#include <pal.h>
+#include <pal_tcb.h>
 
 #define SHIM_TCB_CANARY 0xdeadbeef
 
