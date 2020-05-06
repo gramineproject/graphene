@@ -12,7 +12,7 @@ PROGRAMS = ls cat rm cp date
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
-GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -91,7 +91,7 @@ $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
 bash.manifest.sgx: bash.manifest $(addsuffix .manifest.sgx,$(PROGRAMS))
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
 bash.sig: bash.manifest.sgx
@@ -103,7 +103,7 @@ bash.token: bash.sig
 $(addsuffix .manifest.sgx,$(PROGRAMS)): %.manifest.sgx: %.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
 $(addsuffix .sig,$(PROGRAMS)): %.sig: %.manifest.sgx
