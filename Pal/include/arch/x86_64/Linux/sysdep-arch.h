@@ -16,8 +16,8 @@
 
 /* This file is imported and modified from the GNU C Library */
 
-#ifndef _LINUX_X86_64_SYSDEP_H
-#define _LINUX_X86_64_SYSDEP_H 1
+#ifndef _LINUX_X86_64_SYSDEP_ARCH_H
+#define _LINUX_X86_64_SYSDEP_ARCH_H 1
 
 #include <sysdeps/generic/sysdep.h>
 
@@ -220,4 +220,4 @@
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* linux/x86_64/sysdep.h */
+#endif /* include/arch/x86_64/Linux/sysdep-arch.h */
