@@ -191,7 +191,8 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
 
     if (fd == -1) {
         /* fd is invalid, happens if app tries to open the same FIFO end twice; this is ok in
-         * normal Linux but Graphene uses TLS-encrypted pipes which are inherently point-to-point */
+         * normal Linux but Graphene uses TLS-encrypted pipes which are inherently point-to-point;
+         * if this changes, should remove this error case (see GitHub issue #1417) */
         return -EOPNOTSUPP;
     }
 
