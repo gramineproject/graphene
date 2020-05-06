@@ -7,7 +7,8 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
-	  -I../include -I../../../Pal/include/lib -I../../../Pal/include/pal \
+	  -I../include -I../include/arch/$(ARCH) \
+	  -I../../../Pal/include/lib -I../../../Pal/include/pal \
 	  -I../../../Pal/include/elf -I../../../Pal/include/lib/$(ARCH) \
 	  -I../../../Pal/include/arch/$(ARCH)
 
