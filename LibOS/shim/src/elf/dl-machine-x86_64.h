@@ -26,7 +26,7 @@
 
 #define ELF_MACHINE_NAME "x86_64"
 
-#include "ldsodefs.h"
+#include "elf/ldsodefs.h"
 
 /* Return nonzero iff ELF header is compatible with the running host.  */
 static inline int __attribute__((unused)) elf_machine_matches_host(const Elf64_Ehdr* ehdr) {
