@@ -21,9 +21,7 @@ typedef Elf64_Xword d_tag_utype, d_val_utype;
     ((__typeof__(addr))(IN_RANGE((l), (addr)) ? (ElfW(Addr))(addr) \
                                               : (ElfW(Addr))(addr) + (ElfW(Addr))((l)->l_addr)))
 
-#ifdef __x86_64__
-#include "dl-machine-x86_64.h"
-#endif
+#include "shim_dl-machine.h"
 
 /* Read the dynamic section at DYN and fill in INFO with indices DT_*.  */
 static inline void __attribute__((unused, always_inline)) elf_get_dynamic_info(struct link_map* l) {

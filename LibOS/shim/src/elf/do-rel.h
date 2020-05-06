@@ -22,7 +22,7 @@
  * Most of the source codes are imported from GNU C library.
  */
 
-#include "dl-machine-x86_64.h"
+#include "shim_dl-machine.h"
 
 #define elf_dynamic_do_rel       elf_dynamic_do_rela
 #define RELCOUNT_IDX             VERSYMIDX(DT_RELACOUNT)
