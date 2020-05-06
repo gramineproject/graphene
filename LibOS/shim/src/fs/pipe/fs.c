@@ -161,9 +161,9 @@ static int pipe_setflags(struct shim_handle* hdl, int flags) {
 
 static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
     assert(hdl);
+    assert(dent && dent->data && dent->fs);
     static_assert(sizeof(dent->data) >= sizeof(uint64_t),
                   "dentry's data must be at least 8B in size");
-    assert(dent && dent->data && dent->fs);
 
     /* FIXME: man 7 fifo says "[with non-blocking flag], opening for write-only fails with ENXIO
      *        unless the other end has already been opened". We cannot enforce this failure since
