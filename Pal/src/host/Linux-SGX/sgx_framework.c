@@ -322,9 +322,9 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             return -ERRNO(ret);
         }
 
-        /* newer DCAP driver requires to change permissions for EADDed pages; actual permissions
-         * are capped by permissions specified in SECINFO so here we specify the broadest set */
-        ret = mprotect(param.addr, g_page_size, PROT_READ | PROT_WRITE | PROT_EXEC);
+        /* need to change permissions for EADDed pages; actual permissions are capped by
+         * permissions specified in SECINFO so here we specify the broadest set */
+        ret = mprotect((void*)param.addr, g_page_size, PROT_READ | PROT_WRITE | PROT_EXEC);
         if (IS_ERR(ret)) {
             SGX_DBG(DBG_I, "Changing protections of EADDed page returned %d\n", ret);
             return -ERRNO(ret);
