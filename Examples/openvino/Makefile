@@ -20,7 +20,7 @@ OPENVINO_COMMIT ?= ba6e22b1b5ee4cbefcc30e8d9493cddb0bb3dfdf  # corresponds to ta
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENE_DIR ?= ../..
-GRAPHENE_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_DEBUG = inline
@@ -79,7 +79,7 @@ openvino.manifest: openvino.manifest.template
 openvino.manifest.sgx: openvino.manifest
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENE_KEY) \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
 openvino.sig: openvino.manifest.sgx

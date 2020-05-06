@@ -13,7 +13,7 @@
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
-GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src
 CAPNPROTO_SRC_URL ?= https://raw.githubusercontent.com/capnproto/capnproto/v0.7.0
@@ -86,7 +86,7 @@ addressbook.manifest: addressbook.manifest.template addressbook-trusted-libs
 addressbook.manifest.sgx: addressbook.manifest $(SRCDIR)/addressbook
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(GRAPHENEKEY) \
+		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@ \
 		-exec $(SRCDIR)/addressbook
 
