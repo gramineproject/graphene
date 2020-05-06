@@ -220,4 +220,4 @@
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* include/arch/x86_64/Linux/sysdep-arch.h */
+#endif /* _LINUX_X86_64_SYSDEP_ARCH_H */
