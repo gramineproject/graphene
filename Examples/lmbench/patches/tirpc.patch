@@ -1,0 +1,77 @@
+---
+ src/Makefile |   21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
+
+Index: lmbench-2.5/src/Makefile
+===================================================================
+--- lmbench-2.5.orig/src/Makefile
++++ lmbench-2.5/src/Makefile
+@@ -48,7 +48,10 @@ SAMPLES=lmbench/Results/aix/rs6000 lmben
+ 	lmbench/Results/irix/indigo2 lmbench/Results/linux/pentium \
+ 	lmbench/Results/osf1/alpha lmbench/Results/solaris/ss20*
+ 
+-COMPILE=$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
++TIRPC_CFLAGS=$(shell pkg-config --cflags libtirpc 2>/dev/null)
++TIRPC_LIBS=$(shell pkg-config --libs libtirpc 2>/dev/null)
++
++COMPILE=$(CC) $(TIRPC_CFLAGS) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+ 
+ INCS =	bench.h lib_tcp.h lib_udp.h stats.h timing.h
+ 
+@@ -199,10 +202,10 @@ $O/lat_ctx: lat_ctx.c timing.h stats.h b
+ 	$(COMPILE) -o $O/lat_ctx lat_ctx.c $O/lmbench.a $(LDLIBS)
+ 
+ $O/lmhttp:  lmhttp.c timing.h stats.h bench.h $O/lmbench.a
+-	$(COMPILE) -o $O/lmhttp lmhttp.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/lmhttp lmhttp.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/lat_http:  lat_http.c timing.h stats.h bench.h $O/lmbench.a
+-	$(COMPILE) -o $O/lat_http lat_http.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/lat_http lat_http.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/bw_file_rd:  bw_file_rd.c timing.h stats.h bench.h $O/lmbench.a
+ 	$(COMPILE) -o $O/bw_file_rd bw_file_rd.c $O/lmbench.a $(LDLIBS)
+@@ -217,7 +220,7 @@ $O/bw_pipe:  bw_pipe.c timing.h stats.h
+ 	$(COMPILE) -o $O/bw_pipe bw_pipe.c $O/lmbench.a $(LDLIBS)
+ 
+ $O/bw_tcp:  bw_tcp.c bench.h timing.h stats.h lib_tcp.h $O/lmbench.a
+-	$(COMPILE) -o $O/bw_tcp bw_tcp.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/bw_tcp bw_tcp.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/bw_unix:  bw_unix.c timing.h stats.h bench.h $O/lmbench.a
+ 	$(COMPILE) -o $O/bw_unix bw_unix.c $O/lmbench.a $(LDLIBS)
+@@ -235,7 +238,7 @@ $O/lat_alarm:  lat_alarm.c timing.h stat
+ 	$(COMPILE) -o $O/lat_alarm lat_alarm.c $O/lmbench.a $(LDLIBS)
+ 
+ $O/lat_connect:  lat_connect.c lib_tcp.c bench.h lib_tcp.h timing.h stats.h $O/lmbench.a
+-	$(COMPILE) -o $O/lat_connect lat_connect.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/lat_connect lat_connect.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/lat_unix_connect:  lat_unix_connect.c lib_tcp.c bench.h lib_tcp.h timing.h stats.h $O/lmbench.a
+ 	$(COMPILE) -o $O/lat_unix_connect lat_unix_connect.c $O/lmbench.a $(LDLIBS)
+@@ -277,7 +280,7 @@ $O/lat_proc:  lat_proc.c timing.h stats.
+ 	$(COMPILE) -o $O/lat_proc lat_proc.c $O/lmbench.a $(LDLIBS)
+ 
+ $O/lat_rpc:  lat_rpc.c timing.h stats.h bench.h $O/lmbench.a
+-	$(COMPILE) -o $O/lat_rpc lat_rpc.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/lat_rpc lat_rpc.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/lat_sig:  lat_sig.c timing.h stats.h bench.h $O/lmbench.a
+ 	$(COMPILE) -o $O/lat_sig lat_sig.c $O/lmbench.a $(LDLIBS)
+@@ -286,13 +289,13 @@ $O/lat_syscall:  lat_syscall.c timing.h
+ 	$(COMPILE) -o $O/lat_syscall lat_syscall.c $O/lmbench.a $(LDLIBS)
+ 
+ $O/lat_select:  lat_select.c timing.h stats.h bench.h $O/lmbench.a
+-	$(COMPILE) -o $O/lat_select lat_select.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/lat_select lat_select.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/lat_tcp:  lat_tcp.c timing.h stats.h bench.h lib_tcp.h $O/lmbench.a
+-	$(COMPILE) -o $O/lat_tcp lat_tcp.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/lat_tcp lat_tcp.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/lat_udp:  lat_udp.c timing.h stats.h bench.h lib_udp.h $O/lmbench.a
+-	$(COMPILE) -o $O/lat_udp lat_udp.c $O/lmbench.a $(LDLIBS)
++	$(COMPILE) -o $O/lat_udp lat_udp.c $O/lmbench.a $(LDLIBS) $(TIRPC_LIBS)
+ 
+ $O/lat_unix:  lat_unix.c timing.h stats.h bench.h $O/lmbench.a
+ 	$(COMPILE) -o $O/lat_unix lat_unix.c $O/lmbench.a $(LDLIBS)

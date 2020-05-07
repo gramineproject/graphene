@@ -14,7 +14,7 @@ loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables for LMBench
-loader.env.LD_LIBRARY_PATH = /lib
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -23,6 +23,11 @@ loader.env.LD_LIBRARY_PATH = /lib
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+
+# Host-level libraries (e.g., /lib64) required by tests
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
 
 # Mount /bin (mainly needed for running /bin/sh)
 fs.mount.bin.type = chroot
@@ -39,10 +44,10 @@ fs.mount.var_tmp.type = chroot
 fs.mount.var_tmp.path = /var/tmp
 fs.mount.var_tmp.uri = file:/var/tmp
 
-# Mount /usr/include/x84_64-linux-gnu/ (used by LMBench for file tests)
+# Mount /usr/include/ (used by LMBench for file tests)
 fs.mount.inc.type = chroot
-fs.mount.inc.path = /usr/include/$(ARCH_LONG)
-fs.mount.inc.uri = file:/usr/include/$(ARCH_LONG)
+fs.mount.inc.path = /usr/include/
+fs.mount.inc.uri = file:/usr/include/
 
 # Network related rules. These rules are used only for sandboxing, which is
 # currently an EXPERIMENTAL feature.
@@ -73,6 +78,9 @@ sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
 sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
 sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
 sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+
+# tirpc libraries
+$(TIRPC_TRUSTED_LIBS)
 
 # SGX untrusted (allowed) files/directories
 sgx.allowed_files.tmp = file:/tmp
