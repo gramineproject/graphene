@@ -748,17 +748,19 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int dirp_size
             retval = -EPERM;
             goto out;
         }
-        while (size > offsetof(struct linux_dirent64, d_name)) {
+
+        unsigned int size_left = size;
+        while (size_left > offsetof(struct linux_dirent64, d_name)) {
             /* `drip->d_off` is understandable only by the fs driver in kernel, we have no way of
              * validating it. */
-            if (dirp->d_reclen > size) {
+            if (dirp->d_reclen > size_left) {
                 retval = -EPERM;
                 goto out;
             }
-            size -= dirp->d_reclen;
+            size_left -= dirp->d_reclen;
             dirp = (struct linux_dirent64*)((char*)dirp + dirp->d_reclen);
         }
-        if (size != 0) {
+        if (size_left != 0) {
             retval = -EPERM;
             goto out;
         }
