@@ -10,7 +10,9 @@
 
 # Constants
 
-LMBENCHURL = https://sourceforge.net/projects/lmbench/files/lmbench/2.5/lmbench-2.5.tgz/download
+LMBENCHURLS = https://sourceforge.net/projects/lmbench/files/lmbench/2.5/lmbench-2.5.tgz/download \
+	https://fossies.org/linux/privat/old/lmbench-2.5.tgz \
+	https://borysp.com/lmbench-2.5.tgz
 LMBENCHHASH = e7431530a4cf4c44b5068e23454f95765dc0b51e7d98bc2bd70451b17d505bd9
 LMBENCHDIR = lmbench-2.5
 INSTALLDIR = $(LMBENCHDIR)/bin/linux
@@ -54,7 +56,7 @@ $(LMBENCHDIR)/src/Makefile: $(LMBENCHDIR).tgz
 	touch $@
 
 $(LMBENCHDIR).tgz:
-	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LMBENCHHASH) --url $(LMBENCHURL)
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LMBENCHHASH) $(foreach url,$(LMBENCHURLS),--url $(url))
 
 $(INSTALLDIR)/lmbench-test-ci.sh:
 	cp lmbench-test-ci.sh $@
