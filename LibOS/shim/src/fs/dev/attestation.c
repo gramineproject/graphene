@@ -32,10 +32,10 @@
 
 /* user_report_data, target_info and quote are opaque blobs of predefined maximum sizes. Currently
  * these sizes are overapproximations of SGX requirements (report_data is 64B, target_info is
- * 512B, quote is about 1024B). */
+ * 512B, EPID quote is about 1KB, DCAP quote is about 4KB). */
 #define USER_REPORT_DATA_MAX_SIZE 256
 #define TARGET_INFO_MAX_SIZE 1024
-#define QUOTE_MAX_SIZE 2048
+#define QUOTE_MAX_SIZE 8192
 
 static char g_user_report_data[USER_REPORT_DATA_MAX_SIZE] = {0};
 static size_t g_user_report_data_size = 0;
@@ -52,10 +52,10 @@ static int init_attestation_struct_sizes(void) {
         return 0;
     }
 
-    int ret = DkAttestationReport(/*user_report_data=*/NULL, &g_user_report_data_size,
+    bool ok = DkAttestationReport(/*user_report_data=*/NULL, &g_user_report_data_size,
                                   /*target_info=*/NULL, &g_target_info_size,
                                   /*report=*/NULL, &g_report_size);
-    if (ret < 0)
+    if (!ok)
         return -EACCES;
 
     assert(g_user_report_data_size && g_user_report_data_size <= sizeof(g_user_report_data));
@@ -245,10 +245,10 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
 
     /* below invocation returns this enclave's target info because we zeroed out (via calloc)
      * target_info: it's a hint to function to update target_info with this enclave's info */
-    ret = DkAttestationReport(user_report_data, &user_report_data_size,
-                              target_info, &target_info_size,
-                              /*report=*/NULL, &report_size);
-    if (ret < 0) {
+    bool ok = DkAttestationReport(user_report_data, &user_report_data_size,
+                                  target_info, &target_info_size,
+                                  /*report=*/NULL, &report_size);
+    if (!ok) {
         ret = -EACCES;
         goto out;
     }
@@ -319,10 +319,10 @@ static int dev_attestation_report_open(struct shim_handle* hdl, const char* name
         goto out;
     }
 
-    ret = DkAttestationReport(&g_user_report_data, &g_user_report_data_size,
-                              &g_target_info, &g_target_info_size,
-                              report, &g_report_size);
-    if (ret < 0) {
+    bool ok = DkAttestationReport(&g_user_report_data, &g_user_report_data_size,
+                                  &g_target_info, &g_target_info_size,
+                                  report, &g_report_size);
+    if (!ok) {
         ret = -EACCES;
         goto out;
     }
@@ -400,9 +400,9 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
         goto out;
     }
 
-    ret = DkAttestationQuote(&g_user_report_data, g_user_report_data_size,
-                             quote, &quote_size);
-    if (ret < 0) {
+    bool ok = DkAttestationQuote(&g_user_report_data, g_user_report_data_size,
+                                 quote, &quote_size);
+    if (!ok) {
         ret = -EACCES;
         goto out;
     }
