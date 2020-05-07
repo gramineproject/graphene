@@ -37,9 +37,20 @@ static struct {
     char* brk_end;
 } brk_region;
 
-static struct shim_lock brk_lock;
+static struct shim_lock brk_lock = { .lock = NULL };
 
 int init_brk_region(void* brk_start, size_t data_segment_size) {
+    if (!create_lock(&brk_lock)) {
+        debug("Creating brk_lock failed!\n");
+        return -ENOMEM;
+    }
+
+    /* TODO: this needs a better fix. Currently after fork, in the new child process, `shim_init`
+     * is run, hence this function too - but forked process will get its brk from checkpoints. */
+    if (brk_region.brk_start) {
+        return 0;
+    }
+
     size_t brk_max_size = DEFAULT_BRK_MAX_SIZE;
     data_segment_size = ALLOC_ALIGN_UP(data_segment_size);
 
@@ -109,11 +120,6 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     brk_region.data_segment_size = data_segment_size;
 
     set_rlimit_cur(RLIMIT_DATA, brk_max_size + data_segment_size);
-
-    if (!create_lock(&brk_lock)) {
-        debug("Creating brk_lock failed!\n");
-        return -ENOMEM;
-    }
 
     return 0;
 }
