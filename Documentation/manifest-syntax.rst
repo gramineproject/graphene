@@ -315,3 +315,24 @@ access. If the file check policy is ``allow_all_but_log``, all files other than
 trusted and allowed are allowed for access, and Graphene-SGX emits a warning
 message for every such file. This is a convenient way to determine the set of
 files that the ported application uses.
+
+Attestation and Quotes
+^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.attestation=[1|0]
+    (Default: 0)
+    sgx.ra_client_linkable=[1|0]
+    (Default: 0)
+    sgx.ra_client_spid=[HEX]
+
+This syntax specifies the parameters for remote attestation.
+
+For ECDSA/DCAP based attestation, ``attestation`` must be set to ``1``. Other
+parameters are not used in ECDSA/DCAP and are not required to be specified.
+
+For EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
+be specified (linkable/unlinkable mode and SPID of the client respectively).
+It is not required to specify ``attestation`` additionally (but is preferable
+for readability).

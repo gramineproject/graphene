@@ -16,6 +16,8 @@
 #include "sgx_arch.h"
 #include "sgx_attest.h"
 
+uint8_t g_quote[SGX_QUOTE_MAX_SIZE];
+
 char user_report_data_str[] = "This is user-provided report data";
 
 enum { SUCCESS = 0, FAILURE = -1 };
@@ -238,8 +240,7 @@ static int test_quote_interface(void) {
     }
 
     /* 2. read `quote` file */
-    uint8_t quote[SGX_QUOTE_MAX_SIZE];
-    bytes = rw_file("/dev/attestation/quote", (char*)&quote, sizeof(quote), /*do_write=*/false);
+    bytes = rw_file("/dev/attestation/quote", (char*)&g_quote, sizeof(g_quote), /*do_write=*/false);
     if (bytes < 0) {
         /* error is already printed by rw_file() */
         return FAILURE;
@@ -252,7 +253,13 @@ static int test_quote_interface(void) {
         return FAILURE;
     }
 
-    sgx_quote_t* typed_quote = (sgx_quote_t*)quote;
+    sgx_quote_t* typed_quote = (sgx_quote_t*)g_quote;
+
+    if (typed_quote->version != /*EPID*/2 && typed_quote->version != /*DCAP*/3) {
+        fprintf(stderr, "version of SGX quote is not EPID (2) and not ECDSA/DCAP (3)\n");
+        return FAILURE;
+    }
+
     int ret = memcmp(typed_quote->report_body.report_data.d, user_report_data.d,
                      sizeof(user_report_data));
     if (ret) {

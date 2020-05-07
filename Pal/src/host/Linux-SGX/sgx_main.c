@@ -897,8 +897,9 @@ static int load_enclave (struct pal_enclave * enclave,
     if (ret < 0)
         return ret;
 
-    if (get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0) {
-        /* initialize communication with Quoting Enclave only if app requests Quote retrieval */
+    if (get_config(enclave->config, "sgx.attestation", cfgbuf, sizeof(cfgbuf)) > 0 ||
+            get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0) {
+        /* initialize communication with Quoting Enclave only if app requests attestation */
         ret = init_quoting_enclave_targetinfo(&pal_sec->qe_targetinfo);
         if (ret < 0)
             return ret;
