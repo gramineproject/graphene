@@ -74,6 +74,9 @@ sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
 sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
 sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 
+# tirpc libraries
+sgx.trusted_files.libtirpc = file:$(GRAPHENEDIR)/Runtime/libtirpc.so.0
+
 # SGX untrusted (allowed) files/directories
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.var_tmp = file:/var/tmp

@@ -52,6 +52,8 @@ $(INSTALLDIR)/lmbench: $(LMBENCHDIR)/src/Makefile
 $(LMBENCHDIR)/src/Makefile: $(LMBENCHDIR).tgz
 	tar -xzf $<
 	touch $@
+	cd $(LMBENCHDIR) && patch -p1 < ../patches/tirpc.patch
+	cd $(LMBENCHDIR) && patch -p1 < ../patches/llseek.patch
 
 $(LMBENCHDIR).tgz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LMBENCHHASH) --url $(LMBENCHURL)
