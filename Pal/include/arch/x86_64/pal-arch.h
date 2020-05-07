@@ -157,12 +157,13 @@ typedef struct {
     PAL_XSTATE_HEADER header;
 } __attribute__((packed, aligned(PAL_XSTATE_ALIGN))) PAL_XREGS_STATE;
 
-typedef struct PAL_CONTEXT_ {
+struct PAL_CONTEXT_ {
     PAL_NUM r8, r9, r10, r11, r12, r13, r14, r15;
     PAL_NUM rdi, rsi, rbp, rbx, rdx, rax, rcx;
     PAL_NUM rsp, rip;
     PAL_NUM efl, csgsfs, err, trapno, oldmask, cr2;
     PAL_XREGS_STATE* fpregs;
-} PAL_CONTEXT;
+};
+typedef struct PAL_CONTEXT_ PAL_CONTEXT;
 
 #endif /* PAL_ARCH_H */
