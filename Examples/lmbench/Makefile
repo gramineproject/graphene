@@ -68,6 +68,7 @@ $(MANIFESTS): $(INSTALLDIR)/%: %.template $(INSTALLDIR)/lmbench
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR_FROM_INSTALLDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(ARCH_LONG)|'"$(ARCH_LONG)"'|g' \
+		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
 # Generating the manifests for SGX
