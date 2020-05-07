@@ -25,6 +25,33 @@
 
 #pragma pack(push, 1)
 
+/* different attestation key algorithms */
+typedef enum {
+    SGX_QL_ALG_EPID       = 0, /* EPID 2.0 - Anonymous */
+    SGX_QL_ALG_RESERVED_1 = 1, /* reserved */
+    SGX_QL_ALG_ECDSA_P256 = 2, /* ECDSA-256-with-P-256 curve, non-anonymous */
+    SGX_QL_ALG_ECDSA_P384 = 3, /* ECDSA-384-with-P-384 curve, non-anonymous */
+    SGX_QL_ALG_CNT        = 4,
+} sgx_ql_attestation_algorithm_id_t;
+
+/* generic attestation key format */
+typedef struct _att_key_id_t {
+    uint8_t     att_key_id[256];
+} sgx_att_key_id_t;
+
+/* single DCAP attestation key, contains both QE identity and the attestation algorithm ID */
+typedef struct _sgx_ql_att_key_id_t {
+    uint16_t    id;                   /* structure ID */
+    uint16_t    version;              /* structure version */
+    uint16_t    mrsigner_length;      /* number of valid bytes in MRSIGNER */
+    uint8_t     mrsigner[48];         /* SHA256 or SHA384 hash of public key that signed QE */
+    uint32_t    prod_id;              /* legacy Product ID of QE */
+    uint8_t     extended_prod_id[16]; /* extended Product ID of QE (all 0's for legacy) */
+    uint8_t     config_id[64];        /* Config ID of QE */
+    uint8_t     family_id[16];        /* Family ID of QE */
+    uint32_t    algorithm_id;         /* Identity of the attestation key algorithm */
+} sgx_ql_att_key_id_t;
+
 typedef uint8_t sgx_epid_group_id_t[4];
 
 typedef struct _sgx_basename_t {
@@ -54,8 +81,8 @@ enum {
     SGX_LINKABLE_SIGNATURE
 };
 
-/* typical SGX quotes are around 1K in size, overapproximate to 2K */
-#define SGX_QUOTE_MAX_SIZE 2048
+/* EPID SGX quotes are ~1K in size, DCAP SGX quotes ~4K, overapproximate to 8K */
+#define SGX_QUOTE_MAX_SIZE 8192
 
 /*!
  * \brief Obtain SGX Quote from the Quoting Enclave (communicate via AESM).

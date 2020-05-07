@@ -316,6 +316,25 @@ trusted and allowed are allowed for access, and Graphene-SGX emits a warning
 message for every such file. This is a convenient way to determine the set of
 files that the ported application uses.
 
+Attestation and Quotes
+^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.remote_attestation=[1|0]
+    (Default: 0)
+    sgx.ra_client_linkable=[1|0]
+    (Default: 0)
+    sgx.ra_client_spid=[HEX]
+
+This syntax specifies the parameters for remote attestation. To enable it,
+``remote_attestation`` must be set to ``1``.
+
+For ECDSA/DCAP based attestation, no additional parameters are required. For
+EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
+be additionally specified (linkable/unlinkable mode and SPID of the client
+respectively).
+
 Printing per-thread and process-wide SGX stats
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
