@@ -173,22 +173,22 @@ void *calloc(size_t nmemb, size_t size);
     } while (0)
 
 #ifdef __x86_64__
-#define COMPILER_BARIER() ({ __asm__ __volatile__ ("" ::: "memory"); })
+#define COMPILER_BARRIER() ({ __asm__ __volatile__ ("" ::: "memory"); })
 #endif // __x86_64__
 
-/* Idea taken from: https://elixir.bootlin.com/linux/latest/source/include/linux/compiler.h */
+/* Idea taken from: https://elixir.bootlin.com/linux/v5.6/source/include/linux/compiler.h */
 #define READ_ONCE(x) ({                     \
     __typeof__(x) _y;                       \
-    COMPILER_BARIER();                      \
+    COMPILER_BARRIER();                     \
     __builtin_memcpy(&_y, &(x), sizeof(x)); \
-    COMPILER_BARIER();                      \
+    COMPILER_BARRIER();                     \
     _y; })
 
 #define WRITE_ONCE(x, y) ({                 \
     __typeof__(x) _y = (__typeof__(x))(y);  \
-    COMPILER_BARIER();                      \
+    COMPILER_BARRIER();                     \
     __builtin_memcpy(&(x), &_y, sizeof(x)); \
-    COMPILER_BARIER();                      \
+    COMPILER_BARRIER();                     \
     _y; })
 
 /* Libc printf functions. stdio.h/stdarg.h. */
