@@ -32,10 +32,10 @@
 
 /* user_report_data, target_info and quote are opaque blobs of predefined maximum sizes. Currently
  * these sizes are overapproximations of SGX requirements (report_data is 64B, target_info is
- * 512B, quote is about 1024B). */
+ * 512B, EPID quote is about 1KB, DCAP quote is about 4KB). */
 #define USER_REPORT_DATA_MAX_SIZE 256
 #define TARGET_INFO_MAX_SIZE 1024
-#define QUOTE_MAX_SIZE 2048
+#define QUOTE_MAX_SIZE 8192
 
 static char g_user_report_data[USER_REPORT_DATA_MAX_SIZE] = {0};
 static size_t g_user_report_data_size = 0;

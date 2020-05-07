@@ -1,4 +1,5 @@
 /* Copyright (C) 2019, Texas A&M University.
+                 2020, Intel Labs.
 
    This file is part of Graphene Library OS.
 
@@ -16,11 +17,43 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <asm/errno.h>
-#include <linux/fs.h>
 #include <linux/un.h>
+#include <stdbool.h>
 
+#include "gsgx.h"
 #include "quote/aesm.pb-c.h"
+#include "sgx_attest.h"
 #include "sgx_internal.h"
+
+#ifdef SGX_DCAP
+/* hard-coded production attestation key of Intel reference QE (the only supported one) */
+/* FIXME: should allow other attestation keys from non-Intel QEs */
+static const sgx_ql_att_key_id_t g_default_ecdsa_p256_att_key_id = {
+    .id               = 0,
+    .version          = 0,
+    .mrsigner_length  = 32,
+    .mrsigner         = { 0x8c, 0x4f, 0x57, 0x75, 0xd7, 0x96, 0x50, 0x3e,
+                          0x96, 0x13, 0x7f, 0x77, 0xc6, 0x8a, 0x82, 0x9a,
+                          0x00, 0x56, 0xac, 0x8d, 0xed, 0x70, 0x14, 0x0b,
+                          0x08, 0x1b, 0x09, 0x44, 0x90, 0xc5, 0x7b, 0xff,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+    .prod_id          = 1,
+    .extended_prod_id = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+    .config_id        = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+    .family_id        = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+    .algorithm_id     = SGX_QL_ALG_ECDSA_P256,
+};
+#endif
 
 /*
  * Connect to the AESM service to interact with the architectural enclave. Must reconnect
@@ -100,8 +133,25 @@ err:
 
 int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_target_info) {
     Request req = REQUEST__INIT;
+
+#ifdef SGX_DCAP
+    sgx_att_key_id_t default_att_key_id;
+    memset(&default_att_key_id, 0, sizeof(default_att_key_id));
+    memcpy(&default_att_key_id, &g_default_ecdsa_p256_att_key_id,
+           sizeof(g_default_ecdsa_p256_att_key_id));
+
+    Request__InitQuoteExRequest initexreq = REQUEST__INIT_QUOTE_EX_REQUEST__INIT;
+    initexreq.has_att_key_id  = true;
+    initexreq.att_key_id.data = (uint8_t*)&default_att_key_id;
+    initexreq.att_key_id.len  = sizeof(default_att_key_id);
+    initexreq.b_pub_key_id    = true;
+    initexreq.has_buf_size    = true;
+    initexreq.buf_size        = SGX_HASH_SIZE;
+    req.initquoteexreq = &initexreq;
+#else
     Request__InitQuoteRequest initreq = REQUEST__INIT_QUOTE_REQUEST__INIT;
     req.initquotereq = &initreq;
+#endif
 
     Response* res = NULL;
     int ret = request_aesm_service(&req, &res);
@@ -109,23 +159,39 @@ int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_target_info) {
         return ret;
 
     ret = -EPERM;
+#ifdef SGX_DCAP
+    if (!res->initquoteexres) {
+#else
     if (!res->initquoteres) {
+#endif
         SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
         goto failed;
     }
 
+#ifdef SGX_DCAP
+    Response__InitQuoteExResponse* r = res->initquoteexres;
+#else
     Response__InitQuoteResponse* r = res->initquoteres;
+#endif
     if (r->errorcode != 0) {
         SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
         goto failed;
     }
 
+#ifdef SGX_DCAP
+    if (r->target_info.len != sizeof(*qe_target_info)) {
+#else
     if (r->targetinfo.len != sizeof(*qe_target_info)) {
+#endif
         SGX_DBG(DBG_E, "Quoting Enclave returned invalid target info\n");
         goto failed;
     }
 
+#ifdef SGX_DCAP
+    memcpy(qe_target_info, r->target_info.data, sizeof(*qe_target_info));
+#else
     memcpy(qe_target_info, r->targetinfo.data, sizeof(*qe_target_info));
+#endif
     ret = 0;
 failed:
     response__free_unpacked(res, NULL);
@@ -134,11 +200,36 @@ failed:
 
 int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
                    const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len) {
+#ifdef SGX_DCAP
+    __UNUSED(spid);
+    __UNUSED(linkable);
+    __UNUSED(nonce);
+#endif
+
     int ret = connect_aesm_service();
     if (ret < 0)
         return ret;
 
     Request req = REQUEST__INIT;
+
+#ifdef SGX_DCAP
+    sgx_att_key_id_t default_att_key_id;
+    memset(&default_att_key_id, 0, sizeof(default_att_key_id));
+    memcpy(&default_att_key_id, &g_default_ecdsa_p256_att_key_id,
+           sizeof(g_default_ecdsa_p256_att_key_id));
+
+    Request__GetQuoteExRequest getreq = REQUEST__GET_QUOTE_EX_REQUEST__INIT;
+    getreq.report.data         = (uint8_t*)report;
+    getreq.report.len          = SGX_REPORT_ACTUAL_SIZE;
+    getreq.has_att_key_id      = true;
+    getreq.att_key_id.data     = (uint8_t*)&default_att_key_id;
+    getreq.att_key_id.len      = sizeof(default_att_key_id);
+    getreq.has_qe_report_info  = false; /* used to detect early that QE was spoofed; ignore now */
+    getreq.qe_report_info.data = NULL;
+    getreq.qe_report_info.len  = 0;
+    getreq.buf_size            = SGX_QUOTE_MAX_SIZE;
+    req.getquoteexreq          = &getreq;
+#else
     Request__GetQuoteRequest getreq = REQUEST__GET_QUOTE_REQUEST__INIT;
     getreq.report.data   = (uint8_t*)report;
     getreq.report.len    = SGX_REPORT_ACTUAL_SIZE;
@@ -152,6 +243,7 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
     getreq.has_qe_report = true;
     getreq.qe_report     = true;
     req.getquotereq      = &getreq;
+#endif
 
     Response* res = NULL;
     ret = request_aesm_service(&req, &res);
@@ -159,21 +251,27 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
         return ret;
 
     ret = -EPERM;
-
+#ifdef SGX_DCAP
+    if (!res->getquoteexres) {
+#else
     if (!res->getquoteres) {
+#endif
         SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
         goto out;
     }
 
+#ifdef SGX_DCAP
+    Response__GetQuoteExResponse* r = res->getquoteexres;
+#else
     Response__GetQuoteResponse* r = res->getquoteres;
+#endif
     if (r->errorcode != 0) {
         SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
         goto out;
     }
 
-    if (!r->has_quote     || r->quote.len < sizeof(sgx_quote_t) ||
-        !r->has_qe_report || r->qe_report.len != SGX_REPORT_ACTUAL_SIZE) {
-        SGX_DBG(DBG_E, "aesm_service returned invalid quote or report\n");
+    if (!r->has_quote || r->quote.len < sizeof(sgx_quote_t)) {
+        SGX_DBG(DBG_E, "aesm_service returned invalid quote\n");
         goto out;
     }
 
