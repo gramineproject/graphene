@@ -43,6 +43,10 @@ endif
 
 include ../../Scripts/Makefile.configs
 
+ifneq (,$(wildcard $(ARCH_LIBDIR)/libtirpc.so))
+TIRPC_TRUSTED_LIBS=sgx.trusted_files.libtirpc = file:$(ARCH_LIBDIR)/libtirpc.so
+endif
+
 # Building LMBench binaries
 
 $(INSTALLDIR)/lmbench: $(LMBENCHDIR)/src/Makefile
@@ -69,6 +73,7 @@ $(MANIFESTS): $(INSTALLDIR)/%: %.template $(INSTALLDIR)/lmbench
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(ARCH_LONG)|'"$(ARCH_LONG)"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+		-e 's|$$(TIRPC_TRUSTED_LIBS)|'"$(TIRPC_TRUSTED_LIBS)"'|g' \
 		$< > $@
 
 # Generating the manifests for SGX
