@@ -23,15 +23,8 @@
 
 #include <asm/prctl.h>
 #include <asm/unistd.h>
-#include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_tcb.h>
-#include <shim_unistd.h>
-#include <shim_utils.h>
 
 long int if_call_defined(long int sys_no) {
     return shim_table[sys_no] != 0;

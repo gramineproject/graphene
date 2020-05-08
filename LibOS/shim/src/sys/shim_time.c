@@ -20,13 +20,7 @@
  * Implementation of system call "gettimeofday", "time" and "clock_gettime".
  */
 
-#include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
 #include <shim_internal.h>
-#include <shim_table.h>
 
 int shim_do_gettimeofday(struct __kernel_timeval* tv, struct __kernel_timezone* tz) {
     if (!tv)

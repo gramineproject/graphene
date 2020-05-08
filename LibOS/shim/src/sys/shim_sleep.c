@@ -20,16 +20,7 @@
  * Implementation of system call "pause" and "nanosleep".
  */
 
-#include <errno.h>
-
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_utils.h>
-#include <shim_vma.h>
 
 static bool signal_pending(void) {
     struct shim_thread* cur = get_cur_thread();

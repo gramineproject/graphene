@@ -20,15 +20,8 @@
  * Implementation of system call "getcwd", "chdir" and "fchdir".
  */
 
-#include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_utils.h>
 
 #ifndef ERANGE
 #define ERANGE 34

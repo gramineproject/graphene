@@ -20,15 +20,7 @@
  * Implementation of system call "dup", "dup2" and "dup3".
  */
 
-#include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_utils.h>
 
 int shim_do_dup(unsigned int fd) {
     struct shim_handle_map* handle_map = get_cur_handle_map(NULL);

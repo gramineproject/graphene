@@ -20,18 +20,8 @@
  * Implementation of system call "vfork".
  */
 
-#include <asm/prctl.h>
-#include <errno.h>
-#include <linux/futex.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_internal.h>
 #include <shim_table.h>
-#include <shim_thread.h>
 #include <shim_utils.h>
-#include <sys/mman.h>
-#include <sys/syscall.h>
 
 int shim_do_vfork(void) {
 #ifdef ALIAS_VFORK_AS_FORK

@@ -20,16 +20,9 @@
  * Implementation of system call "fcntl".
  */
 
-#include <errno.h>
 #include <linux/fcntl.h>
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_utils.h>
 
 int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
     struct shim_handle_map* handle_map = get_cur_handle_map(NULL);

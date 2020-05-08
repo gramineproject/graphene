@@ -23,21 +23,10 @@
  */
 
 #include <asm/socket.h>
-#include <errno.h>
-#include <linux/fcntl.h>
-#include <linux/in.h>
-#include <linux/in6.h>
 
 #include "hex.h"
-#include "pal.h"
-#include "pal_error.h"
 #include "shim_checkpoint.h"
-#include "shim_flags_conv.h"
 #include "shim_fs.h"
-#include "shim_handle.h"
-#include "shim_internal.h"
-#include "shim_table.h"
-#include "shim_utils.h"
 
 /*
  * User-settable options (used with setsockopt).

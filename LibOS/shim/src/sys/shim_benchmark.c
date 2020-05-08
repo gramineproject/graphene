@@ -21,11 +21,7 @@
  * (These system calls are added for benchmarking purpose.)
  */
 
-#include <errno.h>
-#include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_unistd.h>
 
 int get_pid_port(IDTYPE pid, IDTYPE* dest, struct shim_ipc_port** port);
 

@@ -20,27 +20,12 @@
  * This file contains code for parsing system call arguments for debug purpose.
  */
 
-#include <asm/fcntl.h>
 #include <asm/ioctls.h>
-#include <asm/mman.h>
-#include <asm/prctl.h>
-#include <asm/unistd.h>
-#include <errno.h>
 #include <linux/fcntl.h>
-#include <linux/futex.h>
-#include <linux/in.h>
-#include <linux/in6.h>
 #include <linux/sched.h>
-#include <linux/stat.h>
-#include <linux/un.h>
 #include <linux/wait.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_tcb.h>
-#include <shim_utils.h>
 
 static void parse_open_flags(va_list);
 static void parse_open_mode(va_list);

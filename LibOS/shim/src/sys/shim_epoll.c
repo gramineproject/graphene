@@ -21,16 +21,9 @@
  * and "epoll_wait".
  */
 
-#include <errno.h>
 #include <linux/eventpoll.h>
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
 
 /* Avoid duplicated definitions */
 #ifndef EPOLLIN

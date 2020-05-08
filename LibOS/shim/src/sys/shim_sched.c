@@ -23,13 +23,9 @@
  * "sched_setaffinity", "sched_getaffinity".
  */
 
-#include <api.h>
-#include <errno.h>
 #include <linux/resource.h>
 #include <linux/sched.h>
-#include <pal.h>
 #include <shim_internal.h>
-#include <shim_table.h>
 
 int shim_do_sched_yield(void) {
     DkThreadYieldExecution();

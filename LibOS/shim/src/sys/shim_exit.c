@@ -20,23 +20,7 @@
  * Implementation of system call "exit" and "exit_group".
  */
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
 #include <shim_ipc.h>
-#include <shim_utils.h>
-#include <shim_checkpoint.h>
-
-#include <pal.h>
-#include <pal_error.h>
-
-#include <errno.h>
-#include <sys/syscall.h>
-#include <sys/mman.h>
-#include <asm/prctl.h>
-#include <linux/futex.h>
 
 void release_robust_list (struct robust_list_head * head);
 

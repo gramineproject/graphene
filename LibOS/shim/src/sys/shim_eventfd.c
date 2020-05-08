@@ -22,16 +22,9 @@
  * they must be explicitly allowed through the "sys.allow_insecure_eventfd" manifest key.
  */
 
-#include <asm/fcntl.h>
 #include <sys/eventfd.h>
 
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_utils.h>
 
 static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
     if (!root_config) {

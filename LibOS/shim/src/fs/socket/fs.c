@@ -22,18 +22,7 @@
 
 #define __KERNEL__
 
-#include <asm/fcntl.h>
-#include <asm/mman.h>
-#include <asm/prctl.h>
-#include <asm/unistd.h>
-#include <errno.h>
-#include <linux/fcntl.h>
-#include <linux/stat.h>
-
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_fs.h>
-#include <shim_internal.h>
 
 static int socket_close(struct shim_handle* hdl) {
     /* XXX: Shouldn't this do something? */

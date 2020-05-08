@@ -21,12 +21,9 @@
  * This file contains codes for maintaining directory cache in library OS.
  */
 
-#include <list.h>
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
-#include <shim_handle.h>
 #include <shim_internal.h>
-#include <shim_types.h>
 
 static struct shim_lock dcache_mgr_lock;
 

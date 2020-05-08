@@ -21,10 +21,7 @@
  */
 
 #include <shim_internal.h>
-#include <shim_signal.h>
-#include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_utils.h>
 
 static void signal_alarm(IDTYPE target, void* arg) {
     // Kept for API compatibility wtih signal_itimer

@@ -20,24 +20,8 @@
  * This file contains codes for implementation of 'chroot' filesystem.
  */
 
-// FIXME: Sorting these includes causes a bunch of "error: ‘S_IFREG’ undeclared" errors.
 #include "shim_flags_conv.h"
-#include "shim_internal.h"
-#include "shim_thread.h"
-#include "shim_handle.h"
-#include "shim_vma.h"
 #include "shim_fs.h"
-#include "shim_utils.h"
-#include "pal.h"
-#include "pal_error.h"
-
-#include <asm/fcntl.h>
-#include <asm/mman.h>
-#include <asm/prctl.h>
-#include <asm/unistd.h>
-#include <errno.h>
-#include <linux/fcntl.h>
-#include <linux/stat.h>
 
 #define URI_MAX_SIZE    STR_SIZE
 

@@ -20,18 +20,7 @@
  * Implementation of system call "execve".
  */
 
-#include <asm/prctl.h>
-#include <errno.h>
-#include <linux/futex.h>
-#include <sys/mman.h>
-#include <sys/syscall.h>
-
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_fs.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
 #include <shim_thread.h>
 
 /* returns 0 if normalized URIs are the same; assumes file URIs */

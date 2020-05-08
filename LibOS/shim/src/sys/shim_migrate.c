@@ -20,19 +20,8 @@
  * Implementation of system call "checkpoint" and "restore".
  */
 
-#include <asm/mman.h>
-#include <errno.h>
-#include <linux/fcntl.h>
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_vma.h>
 
 /* cp_session objects are on the cp_sessions list, by the list field */
 /* cp_threads are organized onto a list, handing off of the

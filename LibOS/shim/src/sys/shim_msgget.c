@@ -24,16 +24,8 @@
  * it someday.
  */
 
-#include <errno.h>
-#include <list.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_sysv.h>
 #include <shim_unistd.h>
-#include <shim_utils.h>
 
 #define MSGQ_HASH_LEN  8
 #define MSGQ_HASH_NUM  (1 << MSGQ_HASH_LEN)

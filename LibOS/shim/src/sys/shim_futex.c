@@ -28,16 +28,9 @@
  */
 
 #include <linux/futex.h>
-#include <linux/time.h>
 #include <stdint.h>
 
-#include "api.h"
-#include "assert.h"
-#include "list.h"
-#include "pal.h"
-#include "shim_internal.h"
 #include "shim_thread.h"
-#include "shim_types.h"
 #include "spinlock.h"
 
 struct shim_futex;

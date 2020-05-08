@@ -22,21 +22,8 @@
  * "fsync", "truncate" and "ftruncate".
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
 #include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
 #include <shim_fs.h>
-
-#include <pal.h>
-#include <pal_error.h>
-
-#include <errno.h>
-#include <dirent.h>
-
-#include <linux/stat.h>
-#include <linux/fcntl.h>
 
 int do_handle_read (struct shim_handle * hdl, void * buf, int count)
 {

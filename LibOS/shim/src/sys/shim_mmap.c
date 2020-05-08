@@ -21,17 +21,10 @@
  * Implementation of system calls "mmap", "munmap" and "mprotect".
  */
 
-#include <errno.h>
 #include <stdatomic.h>
-#include <sys/mman.h>
 
-#include "pal.h"
-#include "pal_error.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"
-#include "shim_handle.h"
-#include "shim_internal.h"
-#include "shim_table.h"
 #include "shim_vma.h"
 
 #define LEGACY_MAP_MASK (MAP_SHARED         \

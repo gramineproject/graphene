@@ -21,19 +21,13 @@
  * "kill", "tkill" and "tgkill".
  */
 
-#include <errno.h>
 #include <stddef.h>  // FIXME(mkow): Without this we get:
                      //     asm/signal.h:126:2: error: unknown type name ‘size_t’
                      // It definitely shouldn't behave like this...
 #include <linux/signal.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_internal.h>
 #include <shim_ipc.h>
 #include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
 
 int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
                       struct __kernel_sigaction* oldact, size_t sigsetsize) {

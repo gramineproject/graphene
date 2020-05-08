@@ -20,16 +20,8 @@
  * This file contains codes for creating filesystems in library OS.
  */
 
-#include <linux/fcntl.h>
-
-#include <list.h>
-#include <pal.h>
-#include <pal_debug.h>
-#include <pal_error.h>
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
-#include <shim_internal.h>
-#include <shim_utils.h>
 
 struct shim_fs {
     char name[8];

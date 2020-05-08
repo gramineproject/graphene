@@ -23,22 +23,12 @@
  * Most of the source codes are imported from GNU C library.
  */
 
-#include <asm/mman.h>
-#include <asm/prctl.h>
-#include <errno.h>
-
-#include "elf.h"
 #include "ldsodefs.h"
 #include "shim_checkpoint.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"
-#include "shim_handle.h"
-#include "shim_internal.h"
 #include "shim_table.h"
-#include "shim_thread.h"
-#include "shim_utils.h"
 #include "shim_vdso.h"
-#include "shim_vma.h"
 
 #ifndef DT_THISPROCNUM
 #define DT_THISPROCNUM 0

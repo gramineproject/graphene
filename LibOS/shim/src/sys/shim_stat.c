@@ -20,15 +20,9 @@
  * Implementation of system call "stat", "lstat", "fstat" and "readlink".
  */
 
-#include <errno.h>
 #include <linux/fcntl.h>
 
-#include <pal.h>
-#include <pal_error.h>
 #include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
 #include <shim_thread.h>
 
 int shim_do_stat(const char* file, struct stat* stat) {

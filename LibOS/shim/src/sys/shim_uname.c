@@ -20,13 +20,7 @@
  * Implementation of system call "uname".
  */
 
-#include <errno.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
 #include <shim_utils.h>
-#include <sys/utsname.h>
 
 /* DP: Damned lies */
 static struct old_utsname graphene_uname = {.sysname  = "Linux",
