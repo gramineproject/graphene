@@ -44,7 +44,7 @@ fs.mount.var_tmp.type = chroot
 fs.mount.var_tmp.path = /var/tmp
 fs.mount.var_tmp.uri = file:/var/tmp
 
-# Mount /usr/include/x84_64-linux-gnu/ (used by LMBench for file tests)
+# Mount /usr/include/ (used by LMBench for file tests)
 fs.mount.inc.type = chroot
 fs.mount.inc.path = /usr/include/
 fs.mount.inc.uri = file:/usr/include/
