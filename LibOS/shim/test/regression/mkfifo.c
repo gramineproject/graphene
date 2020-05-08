@@ -33,7 +33,8 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        /* note that Linux guarantees either no read message or the complete message on FIFO */
+        /* note that Linux guarantees either no read message or the complete message on FIFO since
+         * message size is less than PIPE_BUF; see man pipe(7) */
         ssize_t bytes = 0;
         while (bytes <= 0) {
             errno = 0;
@@ -69,7 +70,8 @@ int main(int argc, char** argv) {
             sched_yield();
         }
 
-        /* note that Linux guarantees sending the complete message on FIFO */
+        /* note that Linux guarantees sending the complete message on FIFO since message size is
+         * less than PIPE_BUF and there are no signals possible in this test; see man pipe(7) */
         snprintf(buffer, sizeof(buffer), "Hello from write end of FIFO!");
         if (write(fd, &buffer, strlen(buffer) + 1) < 0) {
             perror("[parent] write error");
