@@ -92,11 +92,7 @@ unsigned long _DkSystemTimeQuery(void) {
         ret = linux_state.vdso_gettimeofday(&time, NULL);
     } else {
 #endif
-#if USE_VSYSCALL_GETTIME == 1
-        ret = __gettimeofday(&time, NULL);
-#else
         ret = INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
-#endif
 #if USE_VDSO_GETTIME == 1
     }
 #endif
