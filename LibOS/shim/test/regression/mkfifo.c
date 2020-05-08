@@ -44,7 +44,10 @@ int main(int argc, char** argv) {
             }
             sched_yield();
         }
+
         buffer[sizeof(buffer) - 1] = '\0';
+        if (bytes < sizeof(buffer))
+            buffer[bytes] = '\0';
 
         if (close(fd) < 0) {
             perror("[child] close error");

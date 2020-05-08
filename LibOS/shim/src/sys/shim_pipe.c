@@ -116,6 +116,9 @@ int shim_do_pipe2(int* filedes, int flags) {
     hdl2->flags    = O_WRONLY;
     hdl2->acc_mode = MAY_WRITE;
 
+    hdl1->info.pipe.ready_for_ops = true;
+    hdl2->info.pipe.ready_for_ops = true;
+
     ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, flags, hdl1->info.pipe.name,
                        &hdl1->uri);
     if (ret < 0)
@@ -241,7 +244,7 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     __UNUSED(dev);
 
     /* corner case of regular file: emulate via open() + close() */
-    if (S_ISREG(mode)) {
+    if (!(mode & S_IFMT) || S_ISREG(mode)) {
         mode &= ~S_IFREG;
         /* FIXME: Graphene assumes that file is at least readable by owner, in particular, see
          *        unlink() emulation that uses DkStreamOpen(). We change empty mode to readable
@@ -264,7 +267,7 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     if (!pathname || test_user_string(pathname))
         return -EFAULT;
 
-    if (pathname[0] =='\0')
+    if (pathname[0] == '\0')
         return -ENOENT;
 
     /* add named pipe as a pseudo entry to file system (relative to dfd) */
@@ -317,8 +320,8 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     hdl2->dentry = dent;
 
     /* FIFO must be open'ed to start read/write operations, mark as not ready */
-    hdl1->info.pipe.not_ready = true;
-    hdl2->info.pipe.not_ready = true;
+    hdl1->info.pipe.ready_for_ops = false;
+    hdl2->info.pipe.ready_for_ops = false;
 
     /* FIFO pipes are created in blocking mode; they will be changed to non-blocking if open()'ed
      * in non-blocking mode later (see fifo_open) */

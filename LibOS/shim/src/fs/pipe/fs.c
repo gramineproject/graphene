@@ -39,7 +39,7 @@
 #include <shim_thread.h>
 
 static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
-    if (hdl->info.pipe.not_ready)
+    if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
@@ -51,7 +51,7 @@ static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
 }
 
 static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count) {
-    if (hdl->info.pipe.not_ready)
+    if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
@@ -98,7 +98,7 @@ static int pipe_checkout(struct shim_handle* hdl) {
 static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     off_t ret = 0;
 
-    if (hdl->info.pipe.not_ready)
+    if (!hdl->info.pipe.ready_for_ops)
         return -EACCES;
 
     lock(&hdl->lock);
@@ -218,7 +218,7 @@ static int fifo_open(struct shim_handle* hdl, struct shim_dentry* dent, int flag
     hdl->pal_handle = fifo_hdl->pal_handle;
     qstrcopy(&hdl->uri, &fifo_hdl->uri);
 
-    hdl->info.pipe.not_ready = false; /* FIFO is ready for read/write operations */
+    hdl->info.pipe.ready_for_ops = true;
 
     fifo_hdl->pal_handle = NULL; /* ownership of PAL handle is transferred to hdl */
 
