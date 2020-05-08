@@ -31,10 +31,26 @@ pipeline {
                            cd linux-sgx-driver
                            git checkout sgx_driver_1.9
                            make
+
+                           cd /opt/intel
+                           git clone https://github.com/intel/SGXDataCenterAttestationPrimitives.git
+                           cd SGXDataCenterAttestationPrimitives
+                           git checkout DCAP_1.6
+                           # no need to build, we only need the SGX header file (sgx_oot.h)
+                        '''
+                        sh '''
+                            # test the build with the DCAP driver v1.6 and clean up afterwards
+                            cd Pal/src/host/Linux-SGX/sgx-driver
+                            ISGX_DRIVER_PATH=/opt/intel/SGXDataCenterAttestationPrimitives/driver/linux make
+                            cd ../../../../../
+                            make -j 8 SGX=1 WERROR=1
+                            make -j 8 SGX=1 clean
+                            cd Pal/src/host/Linux-SGX/sgx-driver
+                            make distclean
                         '''
                         sh '''
                             cd Pal/src/host/Linux-SGX/sgx-driver
-                            ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
+                            ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver make
                         '''
                         sh '''
                             make -j 8 SGX=1 WERROR=1

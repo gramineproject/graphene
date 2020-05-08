@@ -181,7 +181,7 @@ void dummy(void)
 #ifdef SGX_DCAP
     DEFINE(SGX_DCAP, SGX_DCAP);
 #endif
-#ifdef SGX_DCAP_NEW
-    DEFINE(SGX_DCAP_NEW, SGX_DCAP_NEW);
+#ifdef SGX_DCAP_16_OR_LATER
+    DEFINE(SGX_DCAP_16_OR_LATER, SGX_DCAP_16_OR_LATER);
 #endif
 }
