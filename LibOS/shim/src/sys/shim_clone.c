@@ -21,21 +21,10 @@
  * implemented yet.)
  */
 
-#include <shim_types.h>
-#include <shim_internal.h>
 #include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
 #include <shim_checkpoint.h>
 
-#include <pal.h>
-#include <pal_error.h>
-
-#include <errno.h>
-#include <sys/syscall.h>
-#include <sys/mman.h>
 #include <linux/sched.h>
-#include <asm/prctl.h>
 
 void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
 {
