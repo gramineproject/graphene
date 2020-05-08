@@ -133,6 +133,12 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
         flags &= ~MAP_32BIT;
 
     if (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) {
+        /* We know that `addr + length` does not overflow (`access_ok` above). */
+        if (addr < PAL_CB(user_address.start)
+                || (uintptr_t)PAL_CB(user_address.end) < (uintptr_t)addr + length) {
+            ret = -EINVAL;
+            goto out_handle;
+        }
         ret = bkeep_mmap_fixed(addr, length, prot, flags, hdl, offset, NULL);
         if (ret < 0) {
             goto out_handle;
@@ -204,8 +210,16 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (!addr || !IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
+    if (length == 0) {
+        return 0;
+    }
+
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
+
+    if (!access_ok(addr, length)) {
+        return -EINVAL;
+    }
 
     int ret = bkeep_mprotect(addr, length, prot, /*is_internal=*/false);
     if (ret < 0) {

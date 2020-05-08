@@ -524,7 +524,7 @@ int init_vma(void) {
             .begin = (uintptr_t)PAL_CB(executable_range.start) - PAL_CB(exec_memory_gap),
             .end = (uintptr_t)PAL_CB(executable_range.start),
             .prot = PROT_NONE,
-            .flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_UNMAPPED | VMA_INTERNAL,
+            .flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_UNMAPPED,
             .file = NULL,
             .offset = 0,
             .comment = "guard_page",
@@ -533,7 +533,7 @@ int init_vma(void) {
             .begin = (uintptr_t)PAL_CB(executable_range.end),
             .end = (uintptr_t)PAL_CB(executable_range.end) + PAL_CB(exec_memory_gap),
             .prot = PROT_NONE,
-            .flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_UNMAPPED | VMA_INTERNAL,
+            .flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_UNMAPPED,
             .file = NULL,
             .offset = 0,
             .comment = "guard_page",
@@ -782,6 +782,7 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
                              struct shim_vma** new_vma_ptr2) {
     assert(spinlock_is_locked(&vma_tree_lock));
     assert(IS_ALLOC_ALIGNED_PTR(begin) && IS_ALLOC_ALIGNED_PTR(end));
+    assert(begin < end);
 
     struct shim_vma* vma = _lookup_vma(begin);
     if (!vma) {
