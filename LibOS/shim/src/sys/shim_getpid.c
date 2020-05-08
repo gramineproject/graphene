@@ -23,7 +23,6 @@
  * "setsid" and "getsid".
  */
 
-#include <asm/prctl.h>
 #include <errno.h>
 #include <pal.h>
 #include <pal_error.h>

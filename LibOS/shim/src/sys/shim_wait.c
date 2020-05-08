@@ -20,7 +20,6 @@
  * Implementation of system call "wait4".
  */
 
-#include <asm/prctl.h>
 #include <errno.h>
 #include <linux/wait.h>
 #include <pal.h>

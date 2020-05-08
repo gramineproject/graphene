@@ -20,7 +20,6 @@
  * Implementation of system call "execve".
  */
 
-#include <asm/prctl.h>
 #include <errno.h>
 #include <linux/futex.h>
 #include <sys/mman.h>
