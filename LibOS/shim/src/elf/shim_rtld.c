@@ -24,7 +24,6 @@
  */
 
 #include <asm/mman.h>
-#include <asm/prctl.h>
 #include <errno.h>
 
 #include "elf.h"

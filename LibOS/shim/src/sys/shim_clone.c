@@ -35,7 +35,6 @@
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <linux/sched.h>
-#include <asm/prctl.h>
 
 void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
 {

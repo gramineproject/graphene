@@ -24,7 +24,7 @@
 
 #include <asm/fcntl.h>
 #include <asm/mman.h>
-#include <asm/prctl.h>
+//#include <asm/prctl.h>
 #include <asm/unistd.h>
 #include <errno.h>
 #include <linux/fcntl.h>
