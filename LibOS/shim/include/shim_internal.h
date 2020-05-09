@@ -613,9 +613,6 @@ static inline void wait_event (AEVENTTYPE * e)
         char byte;
         int n = 0;
         do {
-            if (!DkSynchronizationObjectWait(e->event, NO_TIMEOUT))
-                continue;
-
             n = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
         } while (!n);
     }
