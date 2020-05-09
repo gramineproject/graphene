@@ -100,7 +100,7 @@ struct parser_table {
          .parser = {NULL, &parse_access_mode}},
         {.slow   = 0, /* pipe */
          .parser = {&parse_pipe_fds}},
-        {.slow = 0, .parser = {NULL}},                           /* select */
+        {.slow = 1, .parser = {NULL}},                           /* select */
         {.slow = 0, .parser = {NULL}},                           /* sched_yield */
         {.slow = 0, .parser = {NULL}},                           /* mremap */
         {.slow = 0, .parser = {NULL}},                           /* msync */
@@ -353,7 +353,7 @@ struct parser_table {
         {.slow = 0, .parser = {&parse_at_fdcwd}}, /* readlinkat */
         {.slow = 0, .parser = {&parse_at_fdcwd}}, /* fchmodat */
         {.slow = 0, .parser = {&parse_at_fdcwd}}, /* faccessat */
-        {.slow = 0, .parser = {NULL}}, /* pselect6 */
+        {.slow = 1, .parser = {NULL}}, /* pselect6 */
         {.slow = 1, .parser = {NULL}}, /* ppoll */
         {.slow = 0, .parser = {NULL}}, /* unshare */
         {.slow = 0, .parser = {NULL}}, /* set_robust_list */

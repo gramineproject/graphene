@@ -215,7 +215,7 @@ int shim_do_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds
 
     if (!nfds) {
         if (!tsv)
-            return -EINVAL;
+            return shim_do_pause();
 
         /* special case of select(0, ..., tsv) used for sleep */
         struct __kernel_timespec tsp;
