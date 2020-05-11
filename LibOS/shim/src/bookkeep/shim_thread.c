@@ -896,23 +896,3 @@ BEGIN_RS_FUNC(running_thread)
     DEBUG_RS("tid=%d", thread->tid);
 }
 END_RS_FUNC(running_thread)
-
-BEGIN_CP_FUNC(all_running_threads)
-{
-    __UNUSED(obj);
-    __UNUSED(size);
-    __UNUSED(objp);
-    struct shim_thread * thread;
-    lock(&thread_list_lock);
-
-    LISTP_FOR_EACH_ENTRY(thread, &thread_list, list) {
-        if (!thread->in_vm || !thread->is_alive)
-            continue;
-
-        DO_CP(running_thread, thread, NULL);
-        DO_CP(handle_map, thread->handle_map, NULL);
-    }
-
-    unlock(&thread_list_lock);
-}
-END_CP_FUNC_NO_RS(all_running_threads)
