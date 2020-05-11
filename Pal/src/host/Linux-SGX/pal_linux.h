@@ -19,7 +19,7 @@
 
 #include "api.h"
 #include "assert.h"
-#include "pal_tcb.h"
+#include "pal.h"
 #include "pal_crypto.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"

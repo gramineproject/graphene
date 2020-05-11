@@ -97,6 +97,8 @@ typedef union pal_handle
 
 #endif /* !IN_PAL */
 
+#include "pal-arch.h"
+
 /********** PAL TYPE DEFINITIONS **********/
 enum {
     pal_type_file,
@@ -581,8 +583,6 @@ enum PAL_EVENT {
 
     PAL_EVENT_NUM_BOUND        = 8,
 };
-
-typedef struct PAL_CONTEXT_ PAL_CONTEXT;
 
 typedef void (*PAL_EVENT_HANDLER) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
 
