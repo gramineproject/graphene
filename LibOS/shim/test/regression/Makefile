@@ -52,6 +52,7 @@ c_executables = \
 	sigaction_per_process \
 	sigaltstack \
 	sighandler_reset \
+	sighandler_sigpipe \
 	sigprocmask \
 	spinlock \
 	stat_invalid_args \

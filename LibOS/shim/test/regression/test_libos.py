@@ -394,6 +394,20 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['sigaction_per_process'])
         self.assertIn('TEST OK', stdout)
 
+    @unittest.skipIf(HAS_SGX, 'No SIGPIPE support on SGX, yet.')
+    def test_092_sighandler_sigpipe(self):
+        try:
+            self.run_binary(['sighandler_sigpipe'])
+            self.fail('expected to return nonzero')
+        except subprocess.CalledProcessError as e:
+            # FIXME: It's unclear what Graphene process should return when the app
+            # inside dies due to a signal.
+            self.assertTrue(e.returncode in [13, 141])
+            stdout = e.stdout.decode()
+            self.assertIn('Got signal 13', stdout)
+            self.assertIn('Got 1 SIGPIPE signal(s)', stdout)
+            self.assertIn('Could not write to pipe: Broken pipe', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
