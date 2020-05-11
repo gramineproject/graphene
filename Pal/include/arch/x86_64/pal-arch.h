@@ -25,6 +25,8 @@
 
 #include <stdint.h>
 
+#define PRESET_PAGESIZE (1 << 12)
+
 typedef struct pal_tcb PAL_TCB;
 
 static inline PAL_TCB * pal_get_tcb (void)
