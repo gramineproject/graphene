@@ -17,6 +17,8 @@
 #ifndef PAL_USER_H
 #define PAL_USER_H
 
-#define PRESET_PAGESIZE (1 << 12)
+#define PAGE_SIZE       (1 << 12)
+
+#define PRESET_PAGESIZE PAGE_SIZE
 
 #endif /* PAL_USER_H */
