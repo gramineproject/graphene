@@ -82,15 +82,17 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
     __be16* port_buf;
     size_t slen;
 
+    assert(addrlen);
+
     if (tmp[0] == '[') {
         /* for IPv6, the address will be in the form of
            "[xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]:port". */
         struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)addr;
 
-        if (*addrlen < sizeof(*addr_in6))
+        slen = sizeof(*addr_in6);
+        if (*addrlen < slen)
             goto inval;
 
-        slen = sizeof(struct sockaddr_in6);
         memset(addr, 0, slen);
 
         end = strchr(tmp + 1, ']');
@@ -109,10 +111,10 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
         /* for IP, the address will be in the form of "x.x.x.x:port". */
         struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
 
-        if (*addrlen < sizeof(*addr_in))
+        slen = sizeof(*addr_in);
+        if (*addrlen < slen)
             goto inval;
 
-        slen = sizeof(struct sockaddr_in);
         memset(addr, 0, slen);
 
         end = strchr(tmp, ':');
@@ -140,8 +142,7 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
     *port_buf = __htons(atoi(port_str));
     *uri      = *end ? end + 1 : NULL;
 
-    if (addrlen)
-        *addrlen = slen;
+    *addrlen = slen;
 
     return 0;
 
