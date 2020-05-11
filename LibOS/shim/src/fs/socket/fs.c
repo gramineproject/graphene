@@ -104,15 +104,8 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (bytes == PAL_STREAM_ERROR) {
-        int err;
-        switch (PAL_NATIVE_ERRNO) {
-            case PAL_ERROR_CONNFAILED:
-                err = EPIPE;
-                break;
-            default:
-                err = PAL_ERRNO;
-                break;
-        }
+        int err = PAL_ERRNO;
+
         lock(&hdl->lock);
         sock->error = err;
         unlock(&hdl->lock);
