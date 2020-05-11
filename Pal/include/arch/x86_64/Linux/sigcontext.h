@@ -16,8 +16,8 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#ifndef _BITS_SIGCONTEXT_H
-#define _BITS_SIGCONTEXT_H 1
+#ifndef _LINUX_X86_64_BITS_SIGCONTEXT_H
+#define _LINUX_X86_64_BITS_SIGCONTEXT_H 1
 
 #include <bits/wordsize.h>
 #include <stdint.h>
@@ -144,4 +144,4 @@ struct sigcontext {
 
 #endif /* __WORDSIZE == 64 */
 
-#endif /* _BITS_SIGCONTEXT_H */
+#endif /* _LINUX_X86_64_BITS_SIGCONTEXT_H */
