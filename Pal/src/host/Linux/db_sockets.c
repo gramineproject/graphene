@@ -417,8 +417,8 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
 
     struct sockaddr* bind_addr = (struct sockaddr*)handle->sock.bind;
     size_t bind_addrlen        = addr_size(bind_addr);
-    struct sockaddr buffer;
-    socklen_t addrlen = sizeof(struct sockaddr);
+    struct sockaddr_storage buffer;
+    socklen_t addrlen = sizeof(buffer);
     int ret           = 0;
 
     int newfd = INLINE_SYSCALL(accept4, 4, handle->sock.fd, &buffer, &addrlen, SOCK_CLOEXEC);
@@ -433,7 +433,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
                 return unix_to_pal_error(ERRNO(newfd));
         }
 
-    struct sockaddr* dest_addr = &buffer;
+    struct sockaddr* dest_addr = (struct sockaddr *)&buffer;
     size_t dest_addrlen        = addrlen;
 
     *client = socket_create_handle(pal_type_tcp, newfd, 0, bind_addr, bind_addrlen, dest_addr,
