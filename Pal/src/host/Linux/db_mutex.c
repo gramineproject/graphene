@@ -115,7 +115,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
             waittimep        = &waittime;
         }
 
-        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, MUTEX_LOCKED, waittimep, NULL, 0);
+        ret = INLINE_SYSCALL(futex, 6, &m->locked, FUTEX_WAIT, MUTEX_LOCKED, waittimep, NULL, 0);
 
         if (IS_ERR(ret)) {
             if (ERRNO(ret) == EWOULDBLOCK) {
@@ -177,7 +177,7 @@ int _DkMutexUnlock(struct mutex_handle* m) {
 
     /* If we need to wake someone up... */
     if (need_wake)
-        INLINE_SYSCALL(futex, 6, m, FUTEX_WAKE, 1, NULL, NULL, 0);
+        INLINE_SYSCALL(futex, 6, &m->locked, FUTEX_WAKE, 1, NULL, NULL, 0);
 
     return ret;
 }
