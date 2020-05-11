@@ -58,7 +58,7 @@ int main(int argc, char** argv, char** envp) {
 
         /* test file map */
 
-        void* mem1 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, 4096);
+        void* mem1 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, PAGE_SIZE);
         if (mem1) {
             memcpy(buffer1, mem1, 40);
             print_hex("Map Test 1 (0th - 40th): %s\n", buffer1, 40);
@@ -66,14 +66,14 @@ int main(int argc, char** argv, char** envp) {
             memcpy(buffer2, mem1 + 200, 40);
             print_hex("Map Test 2 (200th - 240th): %s\n", buffer2, 40);
 
-            DkStreamUnmap(mem1, 4096);
+            DkStreamUnmap(mem1, PAGE_SIZE);
         } else {
             pal_printf("Map Test 1 & 2: Failed to map buffer\n");
         }
 
         /* DEP 11/24/17: For SGX writecopy exercises a different path in the PAL */
         void* mem2 =
-            (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 4096, 4096);
+            (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 4096, PAGE_SIZE);
         if (mem2) {
             memcpy(buffer3, mem2, 40);
             print_hex("Map Test 3 (4096th - 4136th): %s\n", buffer3, 40);
@@ -81,7 +81,7 @@ int main(int argc, char** argv, char** envp) {
             memcpy(buffer3, mem2 + 200, 40);
             print_hex("Map Test 4 (4296th - 4336th): %s\n", buffer3, 40);
 
-            DkStreamUnmap(mem2, 4096);
+            DkStreamUnmap(mem2, PAGE_SIZE);
         }
 
         DkObjectClose(file1);
