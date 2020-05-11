@@ -644,6 +644,14 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
+static void pipe_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    if (!is_internal_tid(get_cur_tid()))
+        deliver_signal(ALLOC_SIGINFO(SIGPIPE, 0, si_pid, 0), /*context=*/NULL);
+    else
+        internal_fault("Internal SIGPIPE fault", arg, context);
+    DkExceptionReturn(event);
+}
+
 int init_signal (void)
 {
     DkSetExceptionHandler(&arithmetic_error_upcall,     PAL_EVENT_ARITHMETIC_ERROR);
@@ -652,6 +660,7 @@ int init_signal (void)
     DkSetExceptionHandler(&quit_upcall,        PAL_EVENT_QUIT);
     DkSetExceptionHandler(&suspend_upcall,     PAL_EVENT_SUSPEND);
     DkSetExceptionHandler(&resume_upcall,      PAL_EVENT_RESUME);
+    DkSetExceptionHandler(&pipe_upcall,        PAL_EVENT_PIPE);
     return 0;
 }
 
@@ -917,7 +926,12 @@ static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
         /* SIGUSR1 */   &sighandler_kill,
         /* SIGSEGV */   &sighandler_core,
         /* SIGUSR2 */   &sighandler_kill,
-        /* SIGPIPE */   &sighandler_kill,
+        /* SIGPIPE */   &sighandler_core, /* FIXME: Should be sighandler_kill, but we use
+                                           * sighandler_core which for some reason ends the
+                                           * process with 0x80 + SIGPIPE (sighandler_kill
+                                           * ends it with just SIGPIPE), which emulates bash
+                                           * behavior. To fix this properly, we need to
+                                           * separate Graphene and app exit statuses. */
         /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
         /* SIGSTKFLT */ &sighandler_kill,

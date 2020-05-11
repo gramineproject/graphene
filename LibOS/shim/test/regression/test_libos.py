@@ -390,7 +390,19 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('Got signal 17', stdout)
         self.assertIn('Handler was invoked 1 time(s).', stdout)
 
-    def test_091_sigaction_per_process(self):
+    @unittest.skipIf(HAS_SGX, 'No SIGPIPE support on SGX, yet.')
+    def test_091_sighandler_sigpipe(self):
+        try:
+            self.run_binary(['sighandler_sigpipe'])
+            self.fail('expected to return nonzero')
+        except subprocess.CalledProcessError as e:
+            self.assertTrue(e.returncode == 141)
+            stdout = e.stdout.decode()
+            self.assertIn('Got signal 13', stdout)
+            self.assertIn('Got 1 SIGPIPE signal(s)', stdout)
+            self.assertIn('Could not write to pipe: Broken pipe', stdout)
+
+    def test_092_sigaction_per_process(self):
         stdout, _ = self.run_binary(['sigaction_per_process'])
         self.assertIn('TEST OK', stdout)
 
