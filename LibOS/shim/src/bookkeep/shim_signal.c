@@ -637,6 +637,15 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
+static void pipe_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context)
+{
+    if (!is_internal_tid(get_cur_tid()))
+        deliver_signal(ALLOC_SIGINFO(SIGPIPE, 0, si_pid, 0), NULL);
+    else
+        internal_fault("Internal SIGPIPE fault", arg, context);
+    DkExceptionReturn(event);
+}
+
 int init_signal (void)
 {
     DkSetExceptionHandler(&arithmetic_error_upcall,     PAL_EVENT_ARITHMETIC_ERROR);
@@ -645,6 +654,7 @@ int init_signal (void)
     DkSetExceptionHandler(&quit_upcall,        PAL_EVENT_QUIT);
     DkSetExceptionHandler(&suspend_upcall,     PAL_EVENT_SUSPEND);
     DkSetExceptionHandler(&resume_upcall,      PAL_EVENT_RESUME);
+    DkSetExceptionHandler(&pipe_upcall,        PAL_EVENT_PIPE);
     return 0;
 }
 
@@ -913,7 +923,7 @@ static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
         /* SIGUSR1 */   &sighandler_kill,
         /* SIGSEGV */   &sighandler_core,
         /* SIGUSR2 */   &sighandler_kill,
-        /* SIGPIPE */   &sighandler_kill,
+        /* SIGPIPE */   &sighandler_core,
         /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
         /* SIGSTKFLT */ &sighandler_kill,

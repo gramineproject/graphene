@@ -173,6 +173,7 @@ static int get_event_num (int signum)
         case SIGTERM:               return PAL_EVENT_QUIT;
         case SIGINT:                return PAL_EVENT_SUSPEND;
         case SIGCONT:               return PAL_EVENT_RESUME;
+        case SIGPIPE:               return PAL_EVENT_PIPE;
         default: return -1;
     }
 }
@@ -295,14 +296,15 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 static void _DkPipeSighandler (int signum, siginfo_t * info,
                                struct ucontext * uc)
 {
-    __UNUSED(signum);
     __UNUSED(info);
+
     assert(signum == SIGPIPE);
 
-    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
-    __UNUSED(rip);
-    assert(ADDR_IN_PAL(rip)); // This signal can only happens inside PAL
-    return;
+    int event_num = get_event_num(signum);
+    assert(event_num == PAL_EVENT_PIPE);
+
+    if (!_DkGenericSignalHandle(event_num, NULL, uc))
+        _DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
 /*
@@ -355,6 +357,8 @@ struct signal_ops on_signals[] = {
                                          .handler = _DkTerminateSighandler },
         [PAL_EVENT_RESUME]           = { .signum = { SIGCONT, 0 },
                                          .handler = _DkTerminateSighandler },
+        [PAL_EVENT_PIPE]             = { .signum = { SIGPIPE, 0 },
+                                         .handler = _DkPipeSighandler },
     };
 
 static int _DkPersistentSighandlerSetup (int event_num)

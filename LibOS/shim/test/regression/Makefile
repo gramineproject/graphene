@@ -51,6 +51,7 @@ c_executables = \
 	shared_object \
 	sigaltstack \
 	sighandler_reset \
+	sighandler_sigpipe \
 	sigprocmask \
 	spinlock \
 	stat_invalid_args \
