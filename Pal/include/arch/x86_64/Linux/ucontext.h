@@ -16,8 +16,8 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#ifndef _UCONTEXT_H
-#define _UCONTEXT_H 1
+#ifndef _LINUX_X86_64_UCONTEXT_H
+#define _LINUX_X86_64_UCONTEXT_H 1
 
 #include <bits/wordsize.h>
 #include <stdint.h>
@@ -231,4 +231,4 @@ typedef struct ucontext {
 
 #endif /* __WORDSIZE == 32 */
 
-#endif /* ucontext.h */
+#endif /* _LINUX_X86_64_UCONTEXT_H */
