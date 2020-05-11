@@ -9,11 +9,11 @@ endif
 all: $(files_to_build)
 test:
 
-user_start.o: user_start.S
+user_start.o: user_start-$(ARCH).S
 	$(call cmd,as_o_S)
 
 ASFLAGS-user_shared_start.o = -DSHARED -fPIC
-user_shared_start.o: user_start.S
+user_shared_start.o: user_start-$(ARCH).S
 	$(call cmd,as_o_S)
 
 include $(wildcard *.d)
