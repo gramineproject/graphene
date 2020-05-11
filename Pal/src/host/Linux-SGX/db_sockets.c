@@ -78,14 +78,19 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, unsigned int* addrl
     void* addr_buf;
     int addr_len;
     __be16* port_buf;
-    int slen;
+    unsigned int slen;
+
+    assert(addrlen);
 
     if (tmp[0] == '[') {
         /* for IPv6, the address will be in the form of
            "[xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]:port". */
         struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)addr;
 
-        slen = sizeof(struct sockaddr_in6);
+        slen = sizeof(*addr_in6);
+        if (*addrlen < slen)
+            goto inval;
+
         memset(addr, 0, slen);
 
         end = strchr(tmp + 1, ']');
@@ -104,7 +109,10 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, unsigned int* addrl
         /* for IP, the address will be in the form of "x.x.x.x:port". */
         struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
 
-        slen = sizeof(struct sockaddr_in);
+        slen = sizeof(*addr_in);
+        if (*addrlen < slen)
+            goto inval;
+
         memset(addr, 0, slen);
 
         end = strchr(tmp, ':');
@@ -132,8 +140,7 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, unsigned int* addrl
     *port_buf = __htons(atoi(port_str));
     *uri      = *end ? end + 1 : NULL;
 
-    if (addrlen)
-        *addrlen = slen;
+    *addrlen = slen;
 
     return 0;
 
@@ -318,7 +325,7 @@ static inline int sock_type(int type, int options) {
 static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
-    unsigned int bind_addrlen;
+    unsigned int bind_addrlen = sizeof(buffer);
     int ret;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
@@ -363,7 +370,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     struct sockaddr* bind_addr = (struct sockaddr*)handle->sock.bind;
     unsigned int bind_addrlen  = addr_size(bind_addr);
     struct sockaddr dest_addr;
-    unsigned int dest_addrlen = sizeof(struct sockaddr);
+    unsigned int dest_addrlen = sizeof(dest_addr);
     int ret                   = 0;
 
     struct sockopt sock_options;
@@ -389,9 +396,10 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
 /* connect on a tcp socket */
 static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr buffer[2];
-    struct sockaddr* bind_addr = buffer;
-    struct sockaddr* dest_addr = buffer + 1;
-    unsigned int bind_addrlen, dest_addrlen;
+    struct sockaddr* bind_addr = &buffer[0];
+    unsigned int bind_addrlen = sizeof(buffer[0]);
+    struct sockaddr* dest_addr = &buffer[1];
+    unsigned int dest_addrlen = sizeof(buffer[1]);
     int ret;
 
     /* accepting two kind of different uri:
@@ -511,7 +519,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
 static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
-    unsigned int bind_addrlen;
+    unsigned int bind_addrlen = sizeof(buffer);
     int ret = 0;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
@@ -552,9 +560,10 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
 /* used by 'open' operation of tcp stream for connected socket */
 static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer[2];
-    struct sockaddr* bind_addr = buffer;
-    struct sockaddr* dest_addr = buffer + 1;
-    unsigned int bind_addrlen, dest_addrlen;
+    struct sockaddr* bind_addr = &buffer[0];
+    unsigned int bind_addrlen = sizeof(buffer[0]);
+    struct sockaddr* dest_addr = &buffer[1];
+    unsigned int dest_addrlen = sizeof(buffer[1]);
     int ret;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, &dest_addr, &dest_addrlen)) < 0)
@@ -650,7 +659,7 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
         return -PAL_ERROR_INVAL;
 
     struct sockaddr conn_addr;
-    socklen_t conn_addrlen = sizeof(struct sockaddr);
+    socklen_t conn_addrlen = sizeof(conn_addr);
 
     ssize_t bytes = ocall_recv(handle->sock.fd, buf, len, &conn_addr, &conn_addrlen, NULL, NULL);
 
@@ -712,7 +721,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     memcpy(addrbuf, addr, addrlen);
 
     struct sockaddr conn_addr;
-    unsigned int conn_addrlen = sizeof(struct sockaddr);
+    unsigned int conn_addrlen = sizeof(conn_addr);
 
     int ret = inet_parse_uri(&addrbuf, &conn_addr, &conn_addrlen);
     if (ret < 0)

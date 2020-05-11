@@ -82,12 +82,17 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
     __be16* port_buf;
     size_t slen;
 
+    assert(addrlen);
+
     if (tmp[0] == '[') {
         /* for IPv6, the address will be in the form of
            "[xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]:port". */
         struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)addr;
 
-        slen = sizeof(struct sockaddr_in6);
+        slen = sizeof(*addr_in6);
+        if (*addrlen < slen)
+            goto inval;
+
         memset(addr, 0, slen);
 
         end = strchr(tmp + 1, ']');
@@ -106,7 +111,10 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
         /* for IP, the address will be in the form of "x.x.x.x:port". */
         struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
 
-        slen = sizeof(struct sockaddr_in);
+        slen = sizeof(*addr_in);
+        if (*addrlen < slen)
+            goto inval;
+
         memset(addr, 0, slen);
 
         end = strchr(tmp, ':');
@@ -134,8 +142,7 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
     *port_buf = __htons(atoi(port_str));
     *uri      = *end ? end + 1 : NULL;
 
-    if (addrlen)
-        *addrlen = slen;
+    *addrlen = slen;
 
     return 0;
 
@@ -323,7 +330,7 @@ static bool check_any_addr(struct sockaddr* addr) {
 static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
-    size_t bind_addrlen;
+    size_t bind_addrlen = sizeof(buffer);
     int ret, fd = -1;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
@@ -448,9 +455,10 @@ failed:
 /* connect on a tcp socket */
 static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr buffer[3];
-    struct sockaddr* bind_addr = buffer;
-    struct sockaddr* dest_addr = buffer + 1;
-    size_t bind_addrlen, dest_addrlen;
+    struct sockaddr* bind_addr = &buffer[0];
+    size_t bind_addrlen = sizeof(buffer[0]);
+    struct sockaddr* dest_addr = &buffer[1];
+    size_t dest_addrlen = sizeof(buffer[1]);
     int ret, fd = -1;
 
     /* accepting two kind of different uri:
@@ -501,8 +509,8 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
 
     if (!bind_addr) {
         /* save some space to get socket address */
-        bind_addr    = buffer + 2;
-        bind_addrlen = sizeof(struct sockaddr);
+        bind_addr    = &buffer[2];
+        bind_addrlen = sizeof(buffer[2]);
 
         /* call getsockname to get socket address */
         if ((ret = INLINE_SYSCALL(getsockname, 3, fd, bind_addr, &bind_addrlen)) < 0)
@@ -620,7 +628,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, size_t len, const v
 static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer;
     struct sockaddr* bind_addr = &buffer;
-    size_t bind_addrlen;
+    size_t bind_addrlen = sizeof(buffer);
     int ret = 0, fd = -1;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
@@ -686,9 +694,10 @@ failed:
 /* used by 'open' operation of tcp stream for connected socket */
 static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr buffer[2];
-    struct sockaddr* bind_addr = buffer;
-    struct sockaddr* dest_addr = buffer + 1;
-    size_t bind_addrlen, dest_addrlen;
+    struct sockaddr* bind_addr = &buffer[0];
+    size_t bind_addrlen = sizeof(buffer[0]);
+    struct sockaddr* dest_addr = &buffer[1];
+    size_t dest_addrlen = sizeof(buffer[1]);
     int ret, fd = -1;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, &dest_addr, &dest_addrlen)) < 0)
@@ -899,7 +908,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, size_t len, co
     memcpy(addrbuf, addr, addrlen);
 
     struct sockaddr conn_addr;
-    size_t conn_addrlen;
+    size_t conn_addrlen = sizeof(conn_addr);
 
     int ret = inet_parse_uri(&addrbuf, &conn_addr, &conn_addrlen);
     if (ret < 0)
