@@ -450,50 +450,6 @@ int get_ipc_info_cur_process(struct shim_ipc_info** info) {
     return 0;
 }
 
-/* Graphene's checkpoint() syscall broadcasts a msg to all processes
- * asking to checkpoint their state and save in process-unique file in
- * directory cpdir under session cpsession. */
-int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
-    int ret;
-    size_t len = strlen(cpdir);
-
-    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_checkpoint) + len + 1);
-    struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_CHECKPOINT, total_msg_size, 0);
-
-    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint*)&msg->msg;
-    msgin->cpsession                  = cpsession;
-    memcpy(&msgin->cpdir, cpdir, len + 1);
-
-    debug("IPC broadcast to all: IPC_CHECKPOINT(%u, %s)\n", cpsession, cpdir);
-
-    /* broadcast to all including myself (so I can also checkpoint) */
-    ret = broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT,
-                        /*exclude_port=*/NULL);
-    return ret;
-}
-
-/* This process is asked to create a checkpoint, so it:
- * - sends a Graphene-specific SIGCP signal to all its threads (for
- *   all to stop and join the checkpoint for consistent state),
- * - broadcasts checkpoint msg further to other processes. */
-int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
-    int ret = 0;
-    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint*)msg->msg;
-
-    debug("IPC callback from %u: IPC_CHECKPOINT(%u, %s)\n", msg->src, msgin->cpsession,
-          msgin->cpdir);
-
-    ret = create_checkpoint(msgin->cpdir, &msgin->cpsession);
-    if (ret < 0)
-        goto out;
-
-    kill_all_threads(NULL, msgin->cpsession, SIGCP);
-    broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, port);
-out:
-    return ret;
-}
-
 BEGIN_CP_FUNC(ipc_info) {
     __UNUSED(size);
     assert(size == sizeof(struct shim_ipc_info));

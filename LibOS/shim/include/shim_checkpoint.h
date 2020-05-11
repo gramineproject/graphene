@@ -394,7 +394,5 @@ int do_migrate_process(int (*migrate)(struct shim_cp_store*, struct shim_thread*
                        struct shim_handle* exec, const char** argv, struct shim_thread* thread,
                        ...);
 void restore_context(struct shim_context* context);
-int create_checkpoint(const char* cpdir, IDTYPE* session);
-int join_checkpoint(struct shim_thread* cur, IDTYPE sid);
 
 #endif /* _SHIM_CHECKPOINT_H_ */

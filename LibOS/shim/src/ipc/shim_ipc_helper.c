@@ -59,7 +59,6 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 
 static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
     /* RESP             */ &ipc_resp_callback,
-    /* CHECKPOINT       */ &ipc_checkpoint_callback,
 
     /* parents and children */
     /* CLD_EXIT         */ &ipc_cld_exit_callback,

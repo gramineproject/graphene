@@ -107,7 +107,6 @@ typedef int (*ipc_callback)(struct shim_ipc_msg* msg, struct shim_ipc_port* port
 /* Basic message codes */
 enum {
     IPC_RESP = 0,
-    IPC_CHECKPOINT,
     IPC_BASE_BOUND,
 };
 
@@ -115,15 +114,6 @@ enum {
 struct shim_ipc_resp {
     int retval;
 } __attribute__((packed));
-
-/* PID_CHECKPOINT: broadcast checkpointing */
-struct shim_ipc_checkpoint {
-    IDTYPE cpsession;
-    char cpdir[];
-};
-
-int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession);
-int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* Message code from child to parent */
 #define IPC_CLD_BASE IPC_BASE_BOUND

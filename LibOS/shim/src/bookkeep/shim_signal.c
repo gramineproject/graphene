@@ -711,11 +711,6 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
     struct shim_thread* thread = (struct shim_thread*)tcb->tp;
     __rt_sighandler_t handler = NULL;
 
-    if (signal->info.si_signo == SIGCP) {
-        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
-        return;
-    }
-
     lock(&thread->lock);
     handler = __get_sighandler(thread, sig, /*allow_reset=*/true);
     unlock(&thread->lock);

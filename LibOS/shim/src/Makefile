@@ -85,7 +85,6 @@ objs = \
 	sys/shim_getpid.o \
 	sys/shim_getrlimit.o \
 	sys/shim_ioctl.o \
-	sys/shim_migrate.o \
 	sys/shim_mmap.o \
 	sys/shim_msgget.o \
 	sys/shim_open.o \

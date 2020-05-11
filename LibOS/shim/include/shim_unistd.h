@@ -31,10 +31,6 @@ struct sigcp {
     int si_session;
 };
 
-#define SI_CP_SESSION(info) (((struct sigcp*)&(info)->_sifields)->si_session)
-
-#define SIGCP 33
-
 #include "shim_unistd_defs.h"
 
 #endif /* _SHIM_UNISTD_H_ */
