@@ -924,7 +924,7 @@ static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
         /* SIGUSR1 */   &sighandler_kill,
         /* SIGSEGV */   &sighandler_core,
         /* SIGUSR2 */   &sighandler_kill,
-        /* SIGPIPE */   &sighandler_kill,
+        /* SIGPIPE */   &sighandler_core,
         /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
         /* SIGSTKFLT */ &sighandler_kill,
