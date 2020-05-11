@@ -78,7 +78,7 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, unsigned int* addrl
     void* addr_buf;
     int addr_len;
     __be16* port_buf;
-    unsigned int slen;
+    size_t slen;
 
     assert(addrlen);
 
@@ -323,8 +323,8 @@ static inline int sock_type(int type, int options) {
 
 /* listen on a tcp socket */
 static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
-    struct sockaddr buffer;
-    struct sockaddr* bind_addr = &buffer;
+    struct sockaddr_storage buffer;
+    struct sockaddr* bind_addr = (struct sockaddr*)&buffer;
     unsigned int bind_addrlen = sizeof(buffer);
     int ret;
 
@@ -368,8 +368,8 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
         return -PAL_ERROR_BADHANDLE;
 
     struct sockaddr* bind_addr = (struct sockaddr*)handle->sock.bind;
-    unsigned int bind_addrlen  = addr_size(bind_addr);
-    struct sockaddr dest_addr;
+    size_t bind_addrlen  = addr_size(bind_addr);
+    struct sockaddr_storage dest_addr;
     unsigned int dest_addrlen = sizeof(dest_addr);
     int ret                   = 0;
 
@@ -378,12 +378,13 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_accept(handle->sock.fd, &dest_addr, &dest_addrlen, &sock_options);
+    ret = ocall_accept(handle->sock.fd, (struct sockaddr*)&dest_addr, &dest_addrlen,
+                       &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    *client = socket_create_handle(pal_type_tcp, ret, 0, bind_addr, bind_addrlen, &dest_addr,
-                                   dest_addrlen, &sock_options);
+    *client = socket_create_handle(pal_type_tcp, ret, 0, bind_addr, bind_addrlen,
+                                   (struct sockaddr*)&dest_addr, dest_addrlen, &sock_options);
 
     if (!(*client)) {
         ocall_close(ret);
@@ -395,10 +396,10 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
 
 /* connect on a tcp socket */
 static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
-    struct sockaddr buffer[2];
-    struct sockaddr* bind_addr = &buffer[0];
+    struct sockaddr_storage buffer[2];
+    struct sockaddr* bind_addr = (struct sockaddr*)&buffer[0];
     unsigned int bind_addrlen = sizeof(buffer[0]);
-    struct sockaddr* dest_addr = &buffer[1];
+    struct sockaddr* dest_addr = (struct sockaddr*)&buffer[1];
     unsigned int dest_addrlen = sizeof(buffer[1]);
     int ret;
 
@@ -517,8 +518,8 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
 
 /* used by 'open' operation of tcp stream for bound socket */
 static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
-    struct sockaddr buffer;
-    struct sockaddr* bind_addr = &buffer;
+    struct sockaddr_storage buffer;
+    struct sockaddr* bind_addr = (struct sockaddr*)&buffer;
     unsigned int bind_addrlen = sizeof(buffer);
     int ret = 0;
 
@@ -559,10 +560,10 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
 
 /* used by 'open' operation of tcp stream for connected socket */
 static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
-    struct sockaddr buffer[2];
-    struct sockaddr* bind_addr = &buffer[0];
+    struct sockaddr_storage buffer[2];
+    struct sockaddr* bind_addr = (struct sockaddr*)&buffer[0];
     unsigned int bind_addrlen = sizeof(buffer[0]);
-    struct sockaddr* dest_addr = &buffer[1];
+    struct sockaddr* dest_addr = (struct sockaddr*)&buffer[1];
     unsigned int dest_addrlen = sizeof(buffer[1]);
     int ret;
 
@@ -658,10 +659,11 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (len != (uint32_t)len)
         return -PAL_ERROR_INVAL;
 
-    struct sockaddr conn_addr;
+    struct sockaddr_storage conn_addr;
     socklen_t conn_addrlen = sizeof(conn_addr);
 
-    ssize_t bytes = ocall_recv(handle->sock.fd, buf, len, &conn_addr, &conn_addrlen, NULL, NULL);
+    ssize_t bytes = ocall_recv(handle->sock.fd, buf, len,
+                               (struct sockaddr*)&conn_addr, &conn_addrlen, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -670,7 +672,8 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (!addr_uri)
         return -PAL_ERROR_OVERFLOW;
 
-    int ret = inet_create_uri(addr_uri, addr + addrlen - addr_uri, &conn_addr, conn_addrlen);
+    int ret = inet_create_uri(addr_uri, addr + addrlen - addr_uri,
+                              (struct sockaddr*)&conn_addr, conn_addrlen);
     if (ret < 0)
         return ret;
 
@@ -720,14 +723,15 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     char* addrbuf = __alloca(addrlen);
     memcpy(addrbuf, addr, addrlen);
 
-    struct sockaddr conn_addr;
+    struct sockaddr_storage conn_addr;
     unsigned int conn_addrlen = sizeof(conn_addr);
 
-    int ret = inet_parse_uri(&addrbuf, &conn_addr, &conn_addrlen);
+    int ret = inet_parse_uri(&addrbuf, (struct sockaddr*)&conn_addr, &conn_addrlen);
     if (ret < 0)
         return ret;
 
-    ssize_t bytes = ocall_send(handle->sock.fd, buf, len, &conn_addr, conn_addrlen, NULL, 0);
+    ssize_t bytes = ocall_send(handle->sock.fd, buf, len,
+                               (struct sockaddr*)&conn_addr, conn_addrlen, NULL, 0);
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
 
