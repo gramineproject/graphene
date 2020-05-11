@@ -22,6 +22,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux_error.h"
+#include "pal_user.h"
 #include "list.h"
 
 #define PAL_LOADER RUNTIME_FILE("pal-Linux")
@@ -117,8 +118,6 @@ extern struct pal_linux_state {
 # define ARCH_VFORK()                                                       \
     (INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
 #endif
-
-#define PRESET_PAGESIZE (1 << 12)
 
 #define DEFAULT_BACKLOG 2048
 

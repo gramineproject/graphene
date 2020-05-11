@@ -23,6 +23,7 @@
 #include "pal_crypto.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
+#include "pal_user.h"
 
 #include "linux_types.h"
 #include "sgx_api.h"
@@ -61,8 +62,6 @@ extern struct pal_linux_state {
 } linux_state;
 
 #include <asm/mman.h>
-
-#define PRESET_PAGESIZE (1 << 12)
 
 #define DEFAULT_BACKLOG 2048
 
