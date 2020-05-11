@@ -118,8 +118,6 @@ extern struct pal_linux_state {
     (INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
 #endif
 
-#define PRESET_PAGESIZE (1 << 12)
-
 #define DEFAULT_BACKLOG 2048
 
 int clone (int (*__fn) (void * __arg), void * __child_stack,

@@ -62,8 +62,6 @@ extern struct pal_linux_state {
 
 #include <asm/mman.h>
 
-#define PRESET_PAGESIZE (1 << 12)
-
 #define DEFAULT_BACKLOG 2048
 
 #define ACCESS_R    4
