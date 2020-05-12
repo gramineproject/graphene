@@ -104,32 +104,28 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
 static IDTYPE get_pid(void) {
     IDTYPE idx;
 
+    lock(&thread_list_lock);
     while (1) {
-        IDTYPE old_idx = tid_alloc_idx;
-        IDTYPE max = 0;
-        idx = old_idx + 1;
-
-        do {
-            if ((idx = allocate_pid(idx, max)))
-                break;
-
-            tid_alloc_idx = idx;
-            if (!idx) {
-                if (max == old_idx)
-                    break;
-
-                max = old_idx;
-            }
-        } while (idx != tid_alloc_idx);
-
-        if (idx != tid_alloc_idx)
+        IDTYPE new_idx_hint = READ_ONCE(tid_alloc_idx) + 1;
+        idx = allocate_pid(new_idx_hint, 0);
+        if (idx) {
             break;
+        }
+        idx = allocate_pid(1, new_idx_hint);
+        if (idx) {
+            break;
+        }
 
-        if (ipc_pid_lease_send(NULL) < 0)
+        unlock(&thread_list_lock);
+        if (ipc_pid_lease_send(NULL) < 0) {
             return 0;
+        }
+        lock(&thread_list_lock);
     }
 
     tid_alloc_idx = idx;
+
+    unlock(&thread_list_lock);
     return idx;
 }
 
@@ -163,7 +159,10 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 {
     if (!new_tid) {
         new_tid = get_pid();
-        assert(new_tid);
+        if (!new_tid) {
+            debug("get_new_thread: could not allocate a pid!\n");
+            return NULL;
+        }
     }
 
     struct shim_thread * thread = alloc_new_thread();
@@ -174,11 +173,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
     thread->signal_logs = signal_logs_alloc();
     if (!thread->signal_logs) {
-        free(thread);
-        release_pid(new_tid);
-        return NULL;
+        goto out_error;
     }
-
 
     struct shim_thread * cur_thread = get_cur_thread();
     thread->tid = new_tid;
@@ -210,6 +206,9 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
             thread->signal_handles[i].action =
                     malloc_copy(cur_thread->signal_handles[i].action,
                                 sizeof(*thread->signal_handles[i].action));
+            if (!thread->signal_handles[i].action) {
+                goto out_error;
+            }
         }
 
         memcpy(&thread->signal_mask, &cur_thread->signal_mask,
@@ -223,7 +222,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         set_handle_map(thread, map);
     } else {
         /* default pid and pgid equals to tid */
-        thread->ppid = thread->pgid = thread->tgid = new_tid;
+        thread->pgid = thread->tgid = new_tid;
+        thread->ppid = 0;
         /* This case should fall back to the global root of the file system.
          */
         path_lookupat(NULL, "/", 0, &thread->root, NULL);
@@ -248,7 +248,9 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     return thread;
 
 out_error:
-    signal_logs_free(thread->signal_logs);
+    if (thread->signal_logs) {
+        signal_logs_free(thread->signal_logs);
+    }
     if (thread->handle_map) {
         put_handle_map(thread->handle_map);
     }
@@ -264,6 +266,7 @@ out_error:
     if (thread->exec) {
         put_handle(thread->exec);
     }
+    release_pid(new_tid);
     free(thread);
     return NULL;
 }
@@ -271,7 +274,9 @@ out_error:
 struct shim_thread * get_new_internal_thread (void)
 {
     IDTYPE new_tid = get_internal_pid();
-    assert(new_tid);
+    if (!new_tid) {
+        return NULL;
+    }
 
     struct shim_thread * thread = alloc_new_thread();
     if (!thread)
@@ -355,12 +360,6 @@ void put_thread (struct shim_thread * thread)
 #endif
 
     if (!ref_count) {
-        if (thread->exec)
-            put_handle(thread->exec);
-
-        if (!is_internal(thread))
-            release_pid(thread->tid);
-
         if (thread->pal_handle &&
             thread->pal_handle != PAL_CB(first_thread))
             DkObjectClose(thread->pal_handle);
@@ -371,11 +370,34 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->exit_event);
         if (thread->child_exit_event)
             DkObjectClose(thread->child_exit_event);
+
+        if (thread->signal_logs) {
+            signal_logs_free(thread->signal_logs);
+        }
+        if (thread->handle_map) {
+            put_handle_map(thread->handle_map);
+        }
+        if (thread->root) {
+            put_dentry(thread->root);
+        }
+        if (thread->cwd) {
+            put_dentry(thread->cwd);
+        }
+
+        for (int i = 0; i < NUM_SIGS; i++) {
+            free(thread->signal_handles[i].action);
+        }
+
+        if (thread->exec)
+            put_handle(thread->exec);
+
+        if (!is_internal(thread))
+            release_pid(thread->tid);
+
         if (lock_created(&thread->lock)) {
             destroy_lock(&thread->lock);
         }
 
-        signal_logs_free(thread->signal_logs);
         free(thread);
     }
 }
@@ -674,6 +696,7 @@ void switch_dummy_thread (struct shim_thread * thread)
                      : "g"(real_thread->frameptr),
                        "a"(child)
                      : "memory");
+    __builtin_unreachable();
 }
 #endif
 
