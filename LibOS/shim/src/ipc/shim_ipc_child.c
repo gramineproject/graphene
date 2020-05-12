@@ -36,30 +36,6 @@ struct thread_info {
     unsigned int term_signal;
 };
 
-/* walk_simple_thread_list callback; exit each simple thread of child process vmid. */
-static int child_sthread_exit(struct shim_simple_thread* thread, void* arg, bool* unlocked) {
-    __UNUSED(unlocked); /* FYI: notifies about unlocked thread_list_lock */
-
-    struct thread_info* info = (struct thread_info*)arg;
-    int found_exiting_thread = 0;
-
-    lock(&thread->lock);
-    if (thread->vmid == info->vmid) {
-        found_exiting_thread = 1;
-
-        if (thread->is_alive) {
-            thread->exit_code   = -info->exitcode;
-            thread->term_signal = info->term_signal;
-            thread->is_alive    = false;
-
-            /* arrange exit event for subsequent wait4(thread->tid) */
-            DkEventSet(thread->exit_event);
-        }
-    }
-    unlock(&thread->lock);
-    return found_exiting_thread;
-}
-
 /* walk_thread_list callback; exit each thread of child process vmid. */
 static int child_thread_exit(struct shim_thread* thread, void* arg, bool* unlocked) {
     __UNUSED(unlocked); /* FYI: notifies about unlocked thread_list_lock */
@@ -115,8 +91,6 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
     int exited_threads_cnt = 0;
 
     if ((ret = walk_thread_list(&child_thread_exit, &info)) > 0)
-        exited_threads_cnt += ret;
-    if ((ret = walk_simple_thread_list(&child_sthread_exit, &info)) > 0)
         exited_threads_cnt += ret;
 
     debug(
@@ -189,25 +163,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     } else {
         /* Uncommon case: remote child thread was already exited and deleted
          * (probably because the same message was already received earlier).
-         * Find or create a simple thread for a sole purpose of arranging
-         * exit events for subsequent wait4(). */
-        struct shim_simple_thread* sthread = lookup_simple_thread(msgin->tid);
-
-        if (!sthread) {
-            sthread       = get_new_simple_thread();
-            sthread->vmid = msg->src;
-            sthread->tid  = msgin->tid;
-            add_simple_thread(sthread);
-        }
-
-        lock(&sthread->lock);
-        sthread->is_alive    = false;
-        sthread->exit_code   = -msgin->exitcode;
-        sthread->term_signal = msgin->term_signal;
-        unlock(&sthread->lock);
-
-        DkEventSet(sthread->exit_event); /* for wait4(msgin->tid) */
-        put_simple_thread(sthread);
+         * We can simply do nothing here and ignore this message. */
     }
 
     return ret;

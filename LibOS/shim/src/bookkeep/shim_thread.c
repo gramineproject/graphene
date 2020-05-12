@@ -37,8 +37,6 @@
 static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 
 static LISTP_TYPE(shim_thread) thread_list = LISTP_INIT;
-DEFINE_LISTP(shim_simple_thread);
-static LISTP_TYPE(shim_simple_thread) simple_thread_list = LISTP_INIT;
 struct shim_lock thread_list_lock;
 
 static IDTYPE internal_tid_alloc_idx = INTERNAL_TID_BASE;
@@ -293,51 +291,6 @@ struct shim_thread * get_new_internal_thread (void)
     return thread;
 }
 
-struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid)
-{
-    assert(locked(&thread_list_lock));
-
-    struct shim_simple_thread * tmp;
-
-    LISTP_FOR_EACH_ENTRY(tmp, &simple_thread_list, list) {
-        if (tmp->tid == tid) {
-            get_simple_thread(tmp);
-            return tmp;
-        }
-    }
-
-    return NULL;
-}
-
-struct shim_simple_thread * lookup_simple_thread (IDTYPE tid)
-{
-    lock(&thread_list_lock);
-    struct shim_simple_thread * thread = __lookup_simple_thread(tid);
-    unlock(&thread_list_lock);
-    return thread;
-}
-
-struct shim_simple_thread * get_new_simple_thread (void)
-{
-    struct shim_simple_thread * thread =
-                    malloc(sizeof(struct shim_simple_thread));
-
-    if (!thread)
-        return NULL;
-
-    memset(thread, 0, sizeof(struct shim_simple_thread));
-
-    INIT_LIST_HEAD(thread, list);
-
-    if (!create_lock(&thread->lock)) {
-        free(thread);
-        return NULL;
-    }
-    thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
-
-    return thread;
-}
-
 void get_thread (struct shim_thread * thread)
 {
 #ifdef DEBUG_REF
@@ -402,32 +355,6 @@ void put_thread (struct shim_thread * thread)
     }
 }
 
-void get_simple_thread (struct shim_simple_thread * thread)
-{
-    REF_INC(thread->ref_count);
-}
-
-static void __put_simple_thread(struct shim_simple_thread* thread) {
-    assert(locked(&thread_list_lock));
-
-    int ref_count = REF_DEC(thread->ref_count);
-
-    if (!ref_count) {
-        /* Simple threads always live on the simple thread list */
-        LISTP_DEL(thread, &simple_thread_list, list);
-        if (thread->exit_event)
-            DkObjectClose(thread->exit_event);
-        destroy_lock(&thread->lock);
-        free(thread);
-    }
-}
-
-void put_simple_thread(struct shim_simple_thread* thread) {
-    lock(&thread_list_lock);
-    __put_simple_thread(thread);
-    unlock(&thread_list_lock);
-}
-
 void set_as_child (struct shim_thread * parent,
                    struct shim_thread * child)
 {
@@ -488,42 +415,6 @@ void del_thread (struct shim_thread * thread)
     LISTP_DEL_INIT(thread, &thread_list, list);
     unlock(&thread_list_lock);
     put_thread(thread);
-}
-
-void add_simple_thread (struct shim_simple_thread * thread)
-{
-    if (!LIST_EMPTY(thread, list))
-        return;
-
-    struct shim_simple_thread * tmp, * prev = NULL;
-    lock(&thread_list_lock);
-
-    /* keep it sorted */
-    LISTP_FOR_EACH_ENTRY_REVERSE(tmp, &simple_thread_list, list) {
-        if (tmp->tid == thread->tid) {
-            unlock(&thread_list_lock);
-            return;
-        }
-        if (tmp->tid < thread->tid) {
-            prev = tmp;
-            break;
-        }
-    }
-
-    get_simple_thread(thread);
-    LISTP_ADD_AFTER(thread, prev, &simple_thread_list, list);
-    unlock(&thread_list_lock);
-}
-
-void del_simple_thread (struct shim_simple_thread * thread)
-{
-    if (LIST_EMPTY(thread, list))
-        return;
-
-    lock(&thread_list_lock);
-    LISTP_DEL_INIT(thread, &simple_thread_list, list);
-    __put_simple_thread(thread);
-    unlock(&thread_list_lock);
 }
 
 static int _check_last_thread(struct shim_thread* self) {
@@ -603,44 +494,6 @@ relock:
         if (tmp->tid <= min_tid)
             continue;
 
-        bool unlocked = false;
-        ret = (*callback) (tmp, arg, &unlocked);
-        if (ret < 0 && ret != -ESRCH) {
-            if (unlocked)
-                goto out;
-            else
-                goto out_locked;
-        }
-        if (ret > 0)
-            srched = true;
-        if (unlocked) {
-            min_tid = tmp->tid;
-            goto relock;
-        }
-    }
-
-    ret = srched ? 0 : -ESRCH;
-out_locked:
-    unlock(&thread_list_lock);
-out:
-    return ret;
-}
-
-int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
-                                              void *, bool *),
-                             void * arg)
-{
-    struct shim_simple_thread * tmp, * n;
-    bool srched = false;
-    int ret;
-    IDTYPE min_tid = 0;
-
-relock:
-    lock(&thread_list_lock);
-
-    LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &simple_thread_list, list) {
-        if (tmp->tid <= min_tid)
-            continue;
         bool unlocked = false;
         ret = (*callback) (tmp, arg, &unlocked);
         if (ret < 0 && ret != -ESRCH) {

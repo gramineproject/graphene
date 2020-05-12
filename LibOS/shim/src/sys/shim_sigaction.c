@@ -318,26 +318,6 @@ out:
     return srched;
 }
 
-static int __kill_proc_simple(struct shim_simple_thread* sthread, void* arg, bool* unlocked) {
-    struct walk_arg* warg = (struct walk_arg*)arg;
-    int srched = 0;
-
-    if (sthread->tgid != warg->id)
-        return 0;
-
-    lock(&sthread->lock);
-
-    if (sthread->is_alive) {
-        unlock(&sthread->lock);
-        unlock(&thread_list_lock);
-        *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS, warg->sig)) ? 1 : 0;
-    }
-
-    unlock(&sthread->lock);
-    return srched;
-}
-
 int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
     struct shim_thread* cur = get_cur_thread();
 
@@ -360,9 +340,6 @@ int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
 
     if (!use_ipc || srched)
         goto out;
-
-    if (!walk_simple_thread_list(__kill_proc_simple, &arg))
-        srched = true;
 
     if (!srched && !ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig))
         srched = true;
@@ -406,26 +383,6 @@ out:
     return srched;
 }
 
-static int __kill_pgroup_simple(struct shim_simple_thread* sthread, void* arg, bool* unlocked) {
-    struct walk_arg* warg = (struct walk_arg*)arg;
-    int srched = 0;
-
-    if (sthread->pgid != warg->id)
-        return 0;
-
-    lock(&sthread->lock);
-
-    if (sthread->is_alive) {
-        unlock(&sthread->lock);
-        unlock(&thread_list_lock);
-        *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP, warg->sig)) ? 1 : 0;
-    }
-
-    unlock(&sthread->lock);
-    return srched;
-}
-
 int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
     struct shim_thread* cur = get_cur_thread();
 
@@ -447,9 +404,6 @@ int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
 
     if (!use_ipc || srched)
         goto out;
-
-    if (!walk_simple_thread_list(__kill_pgroup_simple, &arg))
-        srched = true;
 
     if (!srched && !ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig))
         srched = true;
