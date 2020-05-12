@@ -645,6 +645,7 @@ static void pipe_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
     if (!is_internal_tid(get_cur_tid()))
         deliver_signal(ALLOC_SIGINFO(SIGPIPE, 0, si_pid, 0), NULL);
+    DkExceptionReturn(event);
 }
 
 int init_signal (void)
