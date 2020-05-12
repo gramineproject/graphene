@@ -390,6 +390,7 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('Got signal 17', stdout)
         self.assertIn('Handler was invoked 1 time(s).', stdout)
 
+    @unittest.skipIf(HAS_SGX, 'No SIGPIPE support on SGX, yet.')
     def test_091_sighandler_sigpipe(self):
         try:
             self.run_binary(['sighandler_sigpipe'])
