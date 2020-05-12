@@ -130,4 +130,22 @@ struct sockopt {
     int tcp_nodelay : 1;
 };
 
+/* POSIX.1g specifies this type name for the `sa_family' member.  */
+typedef unsigned short int sa_family_t;
+
+/* This macro is used to declare the initial common members
+   of the data types used for socket addresses, `struct sockaddr',
+   `struct sockaddr_in', `struct sockaddr_un', etc.  */
+
+#define __SOCKADDR_COMMON(sa_prefix) \
+  sa_family_t sa_prefix##family
+
+/* From bits/socket.h */
+/* Structure large enough to hold any socket address (with the historical
+   exception of AF_UNIX).  */
+struct sockaddr_storage {
+    __SOCKADDR_COMMON(ss_);    /* Address family, etc.  */
+    char __ss_padding[128 - sizeof(sa_family_t)];
+};
+
 #endif
