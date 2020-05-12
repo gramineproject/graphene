@@ -274,10 +274,11 @@ int set_config (struct config_store * cfg, const char * key, const char * val);
 
 #define URI_PREFIX_FILE_LEN     (static_strlen(URI_PREFIX_FILE))
 
+#ifdef __x86_64__
 static inline bool __range_not_ok(uintptr_t addr, size_t size) {
     addr += size;
     if (addr < size) {
-        /* pointer arithmetic overflow */
+        /* pointer arithmetic overflow, this check is x86-64 specific */
         return true;
     }
     return false;
@@ -288,5 +289,9 @@ static inline bool __range_not_ok(uintptr_t addr, size_t size) {
 static inline bool access_ok(const volatile void* addr, size_t size) {
     return !__range_not_ok((uintptr_t)addr, size);
 }
+
+#else
+# error "Unsupported architecture"
+#endif /* __x86_64__ */
 
 #endif /* API_H */
