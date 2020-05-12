@@ -215,9 +215,12 @@ variable ``LINUX_PAL`` as an option to the Docker ``run`` command.
 Example
 =======
 
-This example shows how to graphenize the public Docker image of Python3. This
-example assumes that all prerequisites are installed and configured. For more
-examples refer to the test folder of ``gsc``.
+The ``test`` folder in ``Tools/gsc`` describes how to graphenize Docker images
+and test them with sample inputs. The samples include Ubuntu-based Docker images
+of Bash, Python, nodejs, Numpy, and Pytorch.
+
+The example below shows how to graphenize the public Docker image of Python3.
+This example assumes that all prerequisites are installed and configured.
 
 1) Pull public Python image from Dockerhub:
 
@@ -230,10 +233,10 @@ examples refer to the test folder of ``gsc``.
 .. code-block:: bash
 
    cd Tools/gsc
-   gsc build python test/ubuntu18.04-python3.manifest
+   ./gsc build python test/ubuntu18.04-python3.manifest
 
 3) Test the graphenized Docker image:
 
 .. code-block:: bash
 
-   docker run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket python -c 'print("HelloWorld!")'
+   docker run --device=/dev/gsgx --device=/dev/*sgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-python -c 'print("HelloWorld!")'

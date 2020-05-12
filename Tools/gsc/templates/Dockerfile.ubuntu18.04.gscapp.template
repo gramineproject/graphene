@@ -6,10 +6,12 @@ FROM ${appImage}
 RUN apt-get update \
     && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
         python3 \
+        python3-pip \
         python3-protobuf \
         libprotobuf-c-dev \
         binutils \
-        openssl
+        openssl \
+    && python3 -m pip install protobuf
 
 # Copy Graphene runtime and signer tools to /graphene
 RUN mkdir -p /graphene \
