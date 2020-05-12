@@ -18,7 +18,9 @@ include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
 
-CFLAGS += -I $(PALDIR)/../include/arch/$(ARCH)
+CFLAGS += \
+	-I $(PALDIR)/../include/arch/$(ARCH) \
+	-I ../../include/arch/$(ARCH)
 
 .PHONY: crt_init-recurse
 crt_init-recurse:
