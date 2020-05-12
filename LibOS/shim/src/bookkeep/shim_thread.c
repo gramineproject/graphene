@@ -37,8 +37,6 @@
 static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 
 static LISTP_TYPE(shim_thread) thread_list = LISTP_INIT;
-DEFINE_LISTP(shim_simple_thread);
-static LISTP_TYPE(shim_simple_thread) simple_thread_list = LISTP_INIT;
 struct shim_lock thread_list_lock;
 
 static IDTYPE internal_tid_alloc_idx = INTERNAL_TID_BASE;
@@ -104,32 +102,29 @@ struct shim_thread* lookup_thread(IDTYPE tid) {
 static IDTYPE get_pid(void) {
     IDTYPE idx;
 
+    lock(&thread_list_lock);
     while (1) {
-        IDTYPE old_idx = tid_alloc_idx;
-        IDTYPE max = 0;
-        idx = old_idx + 1;
-
-        do {
-            if ((idx = allocate_pid(idx, max)))
-                break;
-
-            tid_alloc_idx = idx;
-            if (!idx) {
-                if (max == old_idx)
-                    break;
-
-                max = old_idx;
-            }
-        } while (idx != tid_alloc_idx);
-
-        if (idx != tid_alloc_idx)
+        IDTYPE new_idx_hint = READ_ONCE(tid_alloc_idx) + 1;
+        idx = allocate_pid(new_idx_hint, 0);
+        if (idx) {
             break;
+        }
+        idx = allocate_pid(1, new_idx_hint);
+        if (idx) {
+            break;
+        }
 
-        if (ipc_pid_lease_send(NULL) < 0)
+        unlock(&thread_list_lock);
+        /* We've probably run out of pids - let's get a new range. */
+        if (ipc_pid_lease_send(NULL) < 0) {
             return 0;
+        }
+        lock(&thread_list_lock);
     }
 
     tid_alloc_idx = idx;
+
+    unlock(&thread_list_lock);
     return idx;
 }
 
@@ -163,7 +158,10 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 {
     if (!new_tid) {
         new_tid = get_pid();
-        assert(new_tid);
+        if (!new_tid) {
+            debug("get_new_thread: could not allocate a pid!\n");
+            return NULL;
+        }
     }
 
     struct shim_thread * thread = alloc_new_thread();
@@ -174,11 +172,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
     thread->signal_logs = signal_logs_alloc();
     if (!thread->signal_logs) {
-        free(thread);
-        release_pid(new_tid);
-        return NULL;
+        goto out_error;
     }
-
 
     struct shim_thread * cur_thread = get_cur_thread();
     thread->tid = new_tid;
@@ -210,6 +205,9 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
             thread->signal_handles[i].action =
                     malloc_copy(cur_thread->signal_handles[i].action,
                                 sizeof(*thread->signal_handles[i].action));
+            if (!thread->signal_handles[i].action) {
+                goto out_error;
+            }
         }
 
         memcpy(&thread->signal_mask, &cur_thread->signal_mask,
@@ -223,7 +221,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         set_handle_map(thread, map);
     } else {
         /* default pid and pgid equals to tid */
-        thread->ppid = thread->pgid = thread->tgid = new_tid;
+        thread->pgid = thread->tgid = new_tid;
+        thread->ppid = 0;
         /* This case should fall back to the global root of the file system.
          */
         path_lookupat(NULL, "/", 0, &thread->root, NULL);
@@ -248,7 +247,9 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     return thread;
 
 out_error:
-    signal_logs_free(thread->signal_logs);
+    if (thread->signal_logs) {
+        signal_logs_free(thread->signal_logs);
+    }
     if (thread->handle_map) {
         put_handle_map(thread->handle_map);
     }
@@ -264,6 +265,7 @@ out_error:
     if (thread->exec) {
         put_handle(thread->exec);
     }
+    release_pid(new_tid);
     free(thread);
     return NULL;
 }
@@ -271,7 +273,9 @@ out_error:
 struct shim_thread * get_new_internal_thread (void)
 {
     IDTYPE new_tid = get_internal_pid();
-    assert(new_tid);
+    if (!new_tid) {
+        return NULL;
+    }
 
     struct shim_thread * thread = alloc_new_thread();
     if (!thread)
@@ -285,51 +289,6 @@ struct shim_thread * get_new_internal_thread (void)
         return NULL;
     }
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
-    return thread;
-}
-
-struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid)
-{
-    assert(locked(&thread_list_lock));
-
-    struct shim_simple_thread * tmp;
-
-    LISTP_FOR_EACH_ENTRY(tmp, &simple_thread_list, list) {
-        if (tmp->tid == tid) {
-            get_simple_thread(tmp);
-            return tmp;
-        }
-    }
-
-    return NULL;
-}
-
-struct shim_simple_thread * lookup_simple_thread (IDTYPE tid)
-{
-    lock(&thread_list_lock);
-    struct shim_simple_thread * thread = __lookup_simple_thread(tid);
-    unlock(&thread_list_lock);
-    return thread;
-}
-
-struct shim_simple_thread * get_new_simple_thread (void)
-{
-    struct shim_simple_thread * thread =
-                    malloc(sizeof(struct shim_simple_thread));
-
-    if (!thread)
-        return NULL;
-
-    memset(thread, 0, sizeof(struct shim_simple_thread));
-
-    INIT_LIST_HEAD(thread, list);
-
-    if (!create_lock(&thread->lock)) {
-        free(thread);
-        return NULL;
-    }
-    thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
-
     return thread;
 }
 
@@ -355,12 +314,6 @@ void put_thread (struct shim_thread * thread)
 #endif
 
     if (!ref_count) {
-        if (thread->exec)
-            put_handle(thread->exec);
-
-        if (!is_internal(thread))
-            release_pid(thread->tid);
-
         if (thread->pal_handle &&
             thread->pal_handle != PAL_CB(first_thread))
             DkObjectClose(thread->pal_handle);
@@ -371,39 +324,36 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->exit_event);
         if (thread->child_exit_event)
             DkObjectClose(thread->child_exit_event);
+
+        if (thread->signal_logs) {
+            signal_logs_free(thread->signal_logs);
+        }
+        if (thread->handle_map) {
+            put_handle_map(thread->handle_map);
+        }
+        if (thread->root) {
+            put_dentry(thread->root);
+        }
+        if (thread->cwd) {
+            put_dentry(thread->cwd);
+        }
+
+        for (int i = 0; i < NUM_SIGS; i++) {
+            free(thread->signal_handles[i].action);
+        }
+
+        if (thread->exec)
+            put_handle(thread->exec);
+
+        if (!is_internal(thread))
+            release_pid(thread->tid);
+
         if (lock_created(&thread->lock)) {
             destroy_lock(&thread->lock);
         }
 
-        signal_logs_free(thread->signal_logs);
         free(thread);
     }
-}
-
-void get_simple_thread (struct shim_simple_thread * thread)
-{
-    REF_INC(thread->ref_count);
-}
-
-static void __put_simple_thread(struct shim_simple_thread* thread) {
-    assert(locked(&thread_list_lock));
-
-    int ref_count = REF_DEC(thread->ref_count);
-
-    if (!ref_count) {
-        /* Simple threads always live on the simple thread list */
-        LISTP_DEL(thread, &simple_thread_list, list);
-        if (thread->exit_event)
-            DkObjectClose(thread->exit_event);
-        destroy_lock(&thread->lock);
-        free(thread);
-    }
-}
-
-void put_simple_thread(struct shim_simple_thread* thread) {
-    lock(&thread_list_lock);
-    __put_simple_thread(thread);
-    unlock(&thread_list_lock);
 }
 
 void set_as_child (struct shim_thread * parent,
@@ -466,42 +416,6 @@ void del_thread (struct shim_thread * thread)
     LISTP_DEL_INIT(thread, &thread_list, list);
     unlock(&thread_list_lock);
     put_thread(thread);
-}
-
-void add_simple_thread (struct shim_simple_thread * thread)
-{
-    if (!LIST_EMPTY(thread, list))
-        return;
-
-    struct shim_simple_thread * tmp, * prev = NULL;
-    lock(&thread_list_lock);
-
-    /* keep it sorted */
-    LISTP_FOR_EACH_ENTRY_REVERSE(tmp, &simple_thread_list, list) {
-        if (tmp->tid == thread->tid) {
-            unlock(&thread_list_lock);
-            return;
-        }
-        if (tmp->tid < thread->tid) {
-            prev = tmp;
-            break;
-        }
-    }
-
-    get_simple_thread(thread);
-    LISTP_ADD_AFTER(thread, prev, &simple_thread_list, list);
-    unlock(&thread_list_lock);
-}
-
-void del_simple_thread (struct shim_simple_thread * thread)
-{
-    if (LIST_EMPTY(thread, list))
-        return;
-
-    lock(&thread_list_lock);
-    LISTP_DEL_INIT(thread, &simple_thread_list, list);
-    __put_simple_thread(thread);
-    unlock(&thread_list_lock);
 }
 
 static int _check_last_thread(struct shim_thread* self) {
@@ -604,44 +518,6 @@ out:
     return ret;
 }
 
-int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
-                                              void *, bool *),
-                             void * arg)
-{
-    struct shim_simple_thread * tmp, * n;
-    bool srched = false;
-    int ret;
-    IDTYPE min_tid = 0;
-
-relock:
-    lock(&thread_list_lock);
-
-    LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &simple_thread_list, list) {
-        if (tmp->tid <= min_tid)
-            continue;
-        bool unlocked = false;
-        ret = (*callback) (tmp, arg, &unlocked);
-        if (ret < 0 && ret != -ESRCH) {
-            if (unlocked)
-                goto out;
-            else
-                goto out_locked;
-        }
-        if (ret > 0)
-            srched = true;
-        if (unlocked) {
-            min_tid = tmp->tid;
-            goto relock;
-        }
-    }
-
-    ret = srched ? 0 : -ESRCH;
-out_locked:
-    unlock(&thread_list_lock);
-out:
-    return ret;
-}
-
 #ifndef ALIAS_VFORK_AS_FORK
 void switch_dummy_thread (struct shim_thread * thread)
 {
@@ -674,6 +550,7 @@ void switch_dummy_thread (struct shim_thread * thread)
                      : "g"(real_thread->frameptr),
                        "a"(child)
                      : "memory");
+    __builtin_unreachable();
 }
 #endif
 
