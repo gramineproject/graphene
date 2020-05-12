@@ -104,25 +104,6 @@ struct shim_thread {
     struct shim_lock lock;
 };
 
-DEFINE_LIST(shim_simple_thread);
-struct shim_simple_thread {
-    /* VMID and PIDs */
-    IDTYPE vmid;
-    IDTYPE pgid, tgid, tid;
-
-    /* exit event and status */
-    PAL_HANDLE exit_event;
-    int exit_code;
-    int term_signal;
-    bool is_alive;
-
-    /* nodes in global handles */
-    LIST_TYPE(shim_simple_thread) list;
-
-    REFTYPE ref_count;
-    struct shim_lock lock;
-};
-
 int init_thread (void);
 
 static inline bool is_internal(struct shim_thread *thread)
@@ -132,8 +113,6 @@ static inline bool is_internal(struct shim_thread *thread)
 
 void get_thread (struct shim_thread * thread);
 void put_thread (struct shim_thread * thread);
-void get_simple_thread (struct shim_simple_thread * thread);
-void put_simple_thread (struct shim_simple_thread * thread);
 
 void update_fs_base (unsigned long fs_base);
 
@@ -284,21 +263,16 @@ extern struct shim_lock thread_list_lock;
  * Increases refcount of the returned thread.
  */
 struct shim_thread* lookup_thread(IDTYPE tid);
-struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid);
-struct shim_simple_thread * lookup_simple_thread (IDTYPE tid);
 
 void set_as_child (struct shim_thread * parent, struct shim_thread * child);
 
 /* creating and revoking thread objects */
 struct shim_thread * get_new_thread (IDTYPE new_tid);
 struct shim_thread * get_new_internal_thread (void);
-struct shim_simple_thread * get_new_simple_thread (void);
 
 /* thread list utilities */
 void add_thread (struct shim_thread * thread);
 void del_thread (struct shim_thread * thread);
-void add_simple_thread (struct shim_simple_thread * thread);
-void del_simple_thread (struct shim_simple_thread * thread);
 
 void cleanup_thread(IDTYPE caller, void* thread);
 int check_last_thread(struct shim_thread* self);
@@ -309,9 +283,6 @@ void switch_dummy_thread (struct shim_thread * thread);
 
 int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
                       void * arg);
-int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
-                                              void *, bool *),
-                             void * arg);
 
 /* reference counting of handle maps */
 void get_handle_map (struct shim_handle_map * map);
