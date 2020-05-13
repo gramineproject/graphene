@@ -78,7 +78,7 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, unsigned int* addrl
     void* addr_buf;
     int addr_len;
     __be16* port_buf;
-    unsigned int slen;
+    size_t slen;
 
     assert(addrlen);
 
@@ -368,7 +368,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
         return -PAL_ERROR_BADHANDLE;
 
     struct sockaddr* bind_addr = (struct sockaddr*)handle->sock.bind;
-    unsigned int bind_addrlen  = addr_size(bind_addr);
+    size_t bind_addrlen  = addr_size(bind_addr);
     struct sockaddr_storage dest_addr;
     unsigned int dest_addrlen = sizeof(dest_addr);
     int ret                   = 0;
