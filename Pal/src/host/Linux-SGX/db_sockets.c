@@ -69,7 +69,7 @@ static size_t addr_size(const struct sockaddr* addr) {
 
 /* parsing the string of uri, and fill in the socket address structure.
    the latest pointer of uri, length of socket address are returned. */
-static int inet_parse_uri(char** uri, struct sockaddr* addr, unsigned int* addrlen) {
+static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
     char* tmp      = *uri;
     char* end;
     char* addr_str = NULL;
@@ -78,7 +78,7 @@ static int inet_parse_uri(char** uri, struct sockaddr* addr, unsigned int* addrl
     void* addr_buf;
     int addr_len;
     __be16* port_buf;
-    unsigned int slen;
+    size_t slen;
 
     assert(addrlen);
 
@@ -188,8 +188,8 @@ static int inet_create_uri(char* uri, int count, struct sockaddr* addr, int addr
    address and connecting address, or connecting address only. The form
    of uri will be either "bind-addr:bind-port:connect-addr:connect-port"
    or "addr:port". */
-static int socket_parse_uri(char* uri, struct sockaddr** bind_addr, unsigned int* bind_addrlen,
-                            struct sockaddr** dest_addr, unsigned int* dest_addrlen) {
+static int socket_parse_uri(char* uri, struct sockaddr** bind_addr, size_t* bind_addrlen,
+                            struct sockaddr** dest_addr, size_t* dest_addrlen) {
     int ret;
 
     if (!bind_addr && !dest_addr)
@@ -325,7 +325,7 @@ static inline int sock_type(int type, int options) {
 static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr_storage buffer;
     struct sockaddr* bind_addr = (struct sockaddr*)&buffer;
-    unsigned int bind_addrlen = sizeof(buffer);
+    size_t bind_addrlen = sizeof(buffer);
     int ret;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
@@ -345,7 +345,7 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
     ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_STREAM, options), 0, ipv6_v6only,
-                       bind_addr, &bind_addrlen, &sock_options);
+                       bind_addr, (unsigned int*)&bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -368,9 +368,9 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
         return -PAL_ERROR_BADHANDLE;
 
     struct sockaddr* bind_addr = (struct sockaddr*)handle->sock.bind;
-    unsigned int bind_addrlen  = addr_size(bind_addr);
+    size_t bind_addrlen  = addr_size(bind_addr);
     struct sockaddr_storage dest_addr;
-    unsigned int dest_addrlen = sizeof(dest_addr);
+    size_t dest_addrlen = sizeof(dest_addr);
     int ret                   = 0;
 
     struct sockopt sock_options;
@@ -378,7 +378,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     memset(&sock_options, 0, sizeof(sock_options));
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
-    ret = ocall_accept(handle->sock.fd, (struct sockaddr*)&dest_addr, &dest_addrlen,
+    ret = ocall_accept(handle->sock.fd, (struct sockaddr*)&dest_addr, (unsigned int *)&dest_addrlen,
                        &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -398,9 +398,9 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
 static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr_storage buffer[2];
     struct sockaddr* bind_addr = (struct sockaddr*)&buffer[0];
-    unsigned int bind_addrlen = sizeof(buffer[0]);
+    size_t bind_addrlen = sizeof(buffer[0]);
     struct sockaddr* dest_addr = (struct sockaddr*)&buffer[1];
-    unsigned int dest_addrlen = sizeof(buffer[1]);
+    size_t dest_addrlen = sizeof(buffer[1]);
     int ret;
 
     /* accepting two kind of different uri:
@@ -427,7 +427,8 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     sock_options.reuseaddr = 1; /* sockets are always set as reusable in Graphene */
 
     ret = ocall_connect(dest_addr->sa_family, sock_type(SOCK_STREAM, options), 0, /*ipv6_v6only=*/0,
-                        dest_addr, dest_addrlen, bind_addr, &bind_addrlen, &sock_options);
+                        dest_addr, dest_addrlen, bind_addr, (unsigned int *)&bind_addrlen,
+                        &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -520,7 +521,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
 static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr_storage buffer;
     struct sockaddr* bind_addr = (struct sockaddr*)&buffer;
-    unsigned int bind_addrlen = sizeof(buffer);
+    size_t bind_addrlen = sizeof(buffer);
     int ret = 0;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
@@ -543,7 +544,7 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
     ret = ocall_listen(bind_addr->sa_family, sock_type(SOCK_DGRAM, options), 0, ipv6_v6only,
-                       bind_addr, &bind_addrlen, &sock_options);
+                       bind_addr, (unsigned int *)&bind_addrlen, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
@@ -562,9 +563,9 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
 static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr_storage buffer[2];
     struct sockaddr* bind_addr = (struct sockaddr*)&buffer[0];
-    unsigned int bind_addrlen = sizeof(buffer[0]);
+    size_t bind_addrlen = sizeof(buffer[0]);
     struct sockaddr* dest_addr = (struct sockaddr*)&buffer[1];
-    unsigned int dest_addrlen = sizeof(buffer[1]);
+    size_t dest_addrlen = sizeof(buffer[1]);
     int ret;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, &dest_addr, &dest_addrlen)) < 0)
@@ -584,8 +585,8 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
     ret = ocall_connect(dest_addr ? dest_addr->sa_family : AF_INET, sock_type(SOCK_DGRAM, options),
-                        0, ipv6_v6only, dest_addr, dest_addrlen, bind_addr, &bind_addrlen,
-                        &sock_options);
+                        0, ipv6_v6only, dest_addr, dest_addrlen, bind_addr,
+                        (unsigned int *)&bind_addrlen, &sock_options);
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -724,7 +725,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     memcpy(addrbuf, addr, addrlen);
 
     struct sockaddr_storage conn_addr;
-    unsigned int conn_addrlen = sizeof(conn_addr);
+    size_t conn_addrlen = sizeof(conn_addr);
 
     int ret = inet_parse_uri(&addrbuf, (struct sockaddr*)&conn_addr, &conn_addrlen);
     if (ret < 0)
