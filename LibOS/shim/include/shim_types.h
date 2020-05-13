@@ -34,7 +34,6 @@ typedef unsigned int        __u32;
 typedef unsigned long int   nfds_t;
 typedef unsigned long int   nlink_t;
 
-typedef uint32_t            socklen_t;
 typedef __kernel_uid_t      uid_t;
 typedef __kernel_gid_t      gid_t;
 typedef __kernel_pid_t      pid_t;
@@ -342,18 +341,15 @@ enum
 
 struct msghdr {
     void *msg_name;         /* Address to send to/receive from.  */
-    socklen_t msg_namelen;  /* Length of address data.  */
+    int msg_namelen;        /* Length of address data.  */
 
     struct iovec *msg_iov;  /* Vector of data to send/receive into.  */
     size_t msg_iovlen;      /* Number of elements in the vector.  */
 
     void *msg_control;      /* Ancillary data (eg BSD filedesc passing). */
-    size_t msg_controllen;  /* Ancillary data buffer length.
-                               !! The type should be socklen_t but the
-                               definition of the kernel is incompatible
-                               with this.  */
+    size_t msg_controllen;  /* Ancillary data buffer length. */
 
-    int msg_flags;          /* Flags on received message.  */
+    unsigned int msg_flags; /* Flags on received message.  */
 };
 
 /* For `recvmmsg'.  */
@@ -457,18 +453,6 @@ struct linux_file_handle {
     unsigned int handle_bytes;
     int handle_type;
     unsigned char f_handle[0];
-};
-
-struct __kernel_addrinfo
-{
-  int ai_flags;                 /* Input flags.  */
-  int ai_family;                /* Protocol family for socket.  */
-  int ai_socktype;              /* Socket type.  */
-  int ai_protocol;              /* Protocol for socket.  */
-  socklen_t ai_addrlen;         /* Length of socket address.  */
-  struct sockaddr *ai_addr;     /* Socket address for socket.  */
-  char *ai_canonname;           /* Canonical name for service location.  */
-  struct addrinfo *ai_next;     /* Pointer to next in list.  */
 };
 
 #include "elf.h"

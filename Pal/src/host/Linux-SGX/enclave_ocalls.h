@@ -48,27 +48,22 @@ int ocall_mkdir (const char *pathname, unsigned short mode);
 
 int ocall_getdents (int fd, struct linux_dirent64 *dirp, unsigned int size);
 
-int ocall_listen(int domain, int type, int protocol, int ipv6_v6only,
-                 struct sockaddr* addr, unsigned int* addrlen, struct sockopt* sockopt);
+int ocall_listen(int domain, int type, int protocol, int ipv6_v6only, struct sockaddr* addr,
+                 size_t* addrlen, struct sockopt* sockopt);
 
-int ocall_accept (int sockfd, struct sockaddr * addr,
-                  unsigned int * addrlen, struct sockopt * opt);
+int ocall_accept(int sockfd, struct sockaddr* addr, size_t* addrlen, struct sockopt* opt);
 
-int ocall_connect(int domain, int type, int protocol, int ipv6_v6only,
-                  const struct sockaddr* addr, unsigned int addrlen,
-                  struct sockaddr* bind_addr, unsigned int* bind_addrlen,
+int ocall_connect(int domain, int type, int protocol, int ipv6_v6only, const struct sockaddr* addr,
+                  size_t addrlen, struct sockaddr* bind_addr, size_t* bind_addrlen,
                   struct sockopt* sockopt);
 
-ssize_t ocall_recv(int sockfd, void* buf, size_t count,
-                   struct sockaddr* addr, unsigned int* addrlenptr,
-                   void* control, uint64_t* controllenptr);
+ssize_t ocall_recv(int sockfd, void* buf, size_t count, struct sockaddr* addr, size_t* addrlenptr,
+                   void* control, size_t* controllenptr);
 
-ssize_t ocall_send(int sockfd, const void* buf, size_t count,
-                   const struct sockaddr* addr, unsigned int addrlen,
-                   void* control, uint64_t controllen);
+ssize_t ocall_send(int sockfd, const void* buf, size_t count, const struct sockaddr* addr,
+                   size_t addrlen, void* control, size_t controllen);
 
-int ocall_setsockopt (int sockfd, int level, int optname,
-                      const void * optval, unsigned int optlen);
+int ocall_setsockopt(int sockfd, int level, int optname, const void* optval, size_t optlen);
 
 int ocall_shutdown (int sockfd, int how);
 

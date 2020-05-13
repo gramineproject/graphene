@@ -266,12 +266,12 @@ static inline PAL_HANDLE socket_create_handle(int type, int fd, int options,
         hdl->sock.sendbuf    = 0;
     } else {
         int ret, val;
-        socklen_t len = sizeof(int);
+        int len = sizeof(int);
 
-        ret                  = INLINE_SYSCALL(getsockopt, 5, fd, SOL_SOCKET, SO_RCVBUF, &val, &len);
+        ret = INLINE_SYSCALL(getsockopt, 5, fd, SOL_SOCKET, SO_RCVBUF, &val, &len);
         hdl->sock.receivebuf = IS_ERR(ret) ? 0 : val;
 
-        ret               = INLINE_SYSCALL(getsockopt, 5, fd, SOL_SOCKET, SO_SNDBUF, &val, &len);
+        ret = INLINE_SYSCALL(getsockopt, 5, fd, SOL_SOCKET, SO_SNDBUF, &val, &len);
         hdl->sock.sendbuf = IS_ERR(ret) ? 0 : val;
     }
 
@@ -419,7 +419,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     struct sockaddr* bind_addr = (struct sockaddr*)handle->sock.bind;
     size_t bind_addrlen        = addr_size(bind_addr);
     struct sockaddr_storage buffer;
-    socklen_t addrlen = sizeof(buffer);
+    int addrlen = sizeof(buffer);
     int ret           = 0;
 
     int newfd = INLINE_SYSCALL(accept4, 4, handle->sock.fd, &buffer, &addrlen, SOCK_CLOEXEC);
@@ -435,7 +435,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
         }
 
     struct sockaddr* dest_addr = (struct sockaddr*)&buffer;
-    size_t dest_addrlen        = addrlen;
+    size_t dest_addrlen = addrlen;
 
     *client = socket_create_handle(pal_type_tcp, newfd, 0, bind_addr, bind_addrlen, dest_addr,
                                    dest_addrlen);
@@ -828,14 +828,13 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, size_t len,
         return -PAL_ERROR_BADHANDLE;
 
     struct sockaddr_storage conn_addr;
-    socklen_t conn_addrlen = sizeof(conn_addr);
 
     struct msghdr hdr;
     struct iovec iov;
     iov.iov_base       = buf;
     iov.iov_len        = len;
     hdr.msg_name       = &conn_addr;
-    hdr.msg_namelen    = conn_addrlen;
+    hdr.msg_namelen    = sizeof(conn_addr);
     hdr.msg_iov        = &iov;
     hdr.msg_iovlen     = 1;
     hdr.msg_control    = NULL;

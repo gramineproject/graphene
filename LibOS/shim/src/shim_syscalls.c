@@ -259,20 +259,18 @@ DEFINE_SHIM_SYSCALL(connect, 3, shim_do_connect, int, int, sockfd, struct sockad
                     addrlen)
 
 /* accept: sys/shim_socket.c */
-DEFINE_SHIM_SYSCALL(accept, 3, shim_do_accept, int, int, fd, struct sockaddr*, addr, socklen_t*,
-                    addrlen)
+DEFINE_SHIM_SYSCALL(accept, 3, shim_do_accept, int, int, fd, struct sockaddr*, addr, int*, addrlen)
 
 /* sendto: sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(sendto, 6, shim_do_sendto, ssize_t, int, fd, const void*, buf, size_t, len, int,
-                    flags, const struct sockaddr*, dest_addr, socklen_t, addrlen)
+                    flags, const struct sockaddr*, dest_addr, int, addrlen)
 
 /* recvfrom : sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(recvfrom, 6, shim_do_recvfrom, ssize_t, int, fd, void*, buf, size_t, len, int,
-                    flags, struct sockaddr*, addr, socklen_t*, addrlen)
+                    flags, struct sockaddr*, addr, int*, addrlen)
 
 /* bind: sys/shim_socket.c */
-DEFINE_SHIM_SYSCALL(bind, 3, shim_do_bind, int, int, sockfd, struct sockaddr*, addr, socklen_t,
-                    addrlen)
+DEFINE_SHIM_SYSCALL(bind, 3, shim_do_bind, int, int, sockfd, struct sockaddr*, addr, int, addrlen)
 
 /* listen: sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(listen, 2, shim_do_listen, int, int, sockfd, int, backlog)
@@ -977,7 +975,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(timerfd_gettime, 2, int, int, ufd, struct __kernel_it
 
 /* accept4: sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(accept4, 4, shim_do_accept4, int, int, sockfd, struct sockaddr*, addr,
-                    socklen_t*, addrlen, int, flags)
+                    int*, addrlen, int, flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(signalfd4, 4, int, int, ufd, __sigset_t*, user_mask, size_t, sizemask,
                            int, flags)
@@ -1010,8 +1008,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(rt_tgsigqueueinfo, 4, int, pid_t, tgid, pid_t, pid, i
 SHIM_SYSCALL_RETURN_ENOSYS(perf_event_open, 5, int, struct perf_event_attr*, attr_uptr, pid_t, pid,
                            int, cpu, int, group_fd, int, flags)
 
-DEFINE_SHIM_SYSCALL(recvmmsg, 5, shim_do_recvmmsg, ssize_t, int, fd, struct mmsghdr*, msg, size_t,
-                    vlen, int, flags, struct __kernel_timespec*, timeout)
+DEFINE_SHIM_SYSCALL(recvmmsg, 5, shim_do_recvmmsg, ssize_t, int, fd, struct mmsghdr*, msg,
+                    unsigned int, vlen, int, flags, struct __kernel_timespec*, timeout)
 
 SHIM_SYSCALL_RETURN_ENOSYS(fanotify_init, 2, int, int, flags, int, event_f_flags)
 
@@ -1031,8 +1029,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(clock_adjtime, 2, int, clockid_t, which_clock, struct
 
 SHIM_SYSCALL_RETURN_ENOSYS(syncfs, 1, int, int, fd)
 
-DEFINE_SHIM_SYSCALL(sendmmsg, 4, shim_do_sendmmsg, ssize_t, int, fd, struct mmsghdr*, msg, size_t,
-                    vlen, int, flags)
+DEFINE_SHIM_SYSCALL(sendmmsg, 4, shim_do_sendmmsg, ssize_t, int, fd, struct mmsghdr*, msg,
+                    unsigned int, vlen, int, flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(setns, 2, int, int, fd, int, nstype)
 

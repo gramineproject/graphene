@@ -86,11 +86,9 @@ struct sockaddr {
 #define SHUT_RDWR 2
 #endif
 
-typedef unsigned int socklen_t;
-
 struct msghdr {
     void* msg_name;
-    socklen_t msg_namelen;
+    int msg_namelen;
     struct iovec* msg_iov;
     size_t msg_iovlen;
     void* msg_control;
