@@ -881,10 +881,10 @@ int ocall_socketpair (int domain, int type, int protocol,
 }
 
 int ocall_listen(int domain, int type, int protocol, int ipv6_v6only,
-                 struct sockaddr* addr, unsigned int* addrlen, struct sockopt* sockopt) {
+                 struct sockaddr* addr, size_t* addrlen, struct sockopt* sockopt) {
     int retval = 0;
-    unsigned int copied;
-    unsigned int len = addrlen ? *addrlen : 0;
+    size_t copied;
+    size_t len = addrlen ? *addrlen : 0;
     ms_ocall_listen_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -928,13 +928,11 @@ int ocall_listen(int domain, int type, int protocol, int ipv6_v6only,
     return retval;
 }
 
-int ocall_accept (int sockfd, struct sockaddr * addr,
-                  unsigned int * addrlen, struct sockopt * sockopt)
-{
+int ocall_accept(int sockfd, struct sockaddr* addr, size_t* addrlen, struct sockopt* sockopt) {
     int retval = 0;
-    unsigned int copied;
-    unsigned int len = addrlen ? *addrlen : 0;
-    ms_ocall_accept_t * ms;
+    size_t copied;
+    size_t len = addrlen ? *addrlen : 0;
+    ms_ocall_accept_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
@@ -956,8 +954,8 @@ int ocall_accept (int sockfd, struct sockaddr * addr,
 
     if (retval >= 0) {
         if (addr && len) {
-            copied = sgx_copy_to_enclave(addr, len,
-                                         READ_ONCE(ms->ms_addr), READ_ONCE(ms->ms_addrlen));
+            copied = sgx_copy_to_enclave(addr, len, READ_ONCE(ms->ms_addr),
+                                         READ_ONCE(ms->ms_addrlen));
             if (!copied) {
                 sgx_reset_ustack(old_ustack);
                 return -EPERM;
@@ -974,13 +972,12 @@ int ocall_accept (int sockfd, struct sockaddr * addr,
     return retval;
 }
 
-int ocall_connect(int domain, int type, int protocol, int ipv6_v6only,
-                  const struct sockaddr* addr, unsigned int addrlen,
-                  struct sockaddr* bind_addr, unsigned int* bind_addrlen,
+int ocall_connect(int domain, int type, int protocol, int ipv6_v6only, const struct sockaddr* addr,
+                  size_t addrlen, struct sockaddr* bind_addr, size_t* bind_addrlen,
                   struct sockopt* sockopt) {
     int retval = 0;
-    unsigned int copied;
-    unsigned int bind_len = bind_addrlen ? *bind_addrlen : 0;
+    size_t copied;
+    size_t bind_len = bind_addrlen ? *bind_addrlen : 0;
     ms_ocall_connect_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1027,17 +1024,15 @@ int ocall_connect(int domain, int type, int protocol, int ipv6_v6only,
     return retval;
 }
 
-ssize_t ocall_recv(int sockfd, void* buf, size_t count,
-                   struct sockaddr* addr, unsigned int* addrlenptr,
-                   void* control, uint64_t* controllenptr)
-{
+ssize_t ocall_recv(int sockfd, void* buf, size_t count, struct sockaddr* addr, size_t* addrlenptr,
+                   void* control, size_t* controllenptr) {
     ssize_t retval = 0;
-    void * obuf = NULL;
+    void* obuf = NULL;
     bool is_obuf_mapped = false;
-    unsigned int copied;
-    unsigned int addrlen = addrlenptr ? *addrlenptr : 0;
-    uint64_t controllen  = controllenptr ? *controllenptr : 0;
-    ms_ocall_recv_t * ms;
+    size_t copied;
+    size_t addrlen = addrlenptr ? *addrlenptr : 0;
+    size_t controllen  = controllenptr ? *controllenptr : 0;
+    ms_ocall_recv_t* ms;
     bool need_munmap = false;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1116,14 +1111,12 @@ out:
     return retval;
 }
 
-ssize_t ocall_send (int sockfd, const void* buf, size_t count,
-                    const struct sockaddr* addr, unsigned int addrlen,
-                    void* control, uint64_t controllen)
-{
+ssize_t ocall_send(int sockfd, const void* buf, size_t count, const struct sockaddr* addr,
+                   size_t addrlen, void* control, size_t controllen) {
     ssize_t retval = 0;
-    void * obuf = NULL;
+    void* obuf = NULL;
     bool is_obuf_mapped = false;
-    ms_ocall_send_t * ms;
+    ms_ocall_send_t* ms;
     bool need_munmap;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1185,11 +1178,9 @@ out:
     return retval;
 }
 
-int ocall_setsockopt (int sockfd, int level, int optname,
-                      const void * optval, unsigned int optlen)
-{
+int ocall_setsockopt(int sockfd, int level, int optname, const void* optval, size_t optlen) {
     int retval = 0;
-    ms_ocall_setsockopt_t * ms;
+    ms_ocall_setsockopt_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));

@@ -259,20 +259,18 @@ DEFINE_SHIM_SYSCALL(connect, 3, shim_do_connect, int, int, sockfd, struct sockad
                     addrlen)
 
 /* accept: sys/shim_socket.c */
-DEFINE_SHIM_SYSCALL(accept, 3, shim_do_accept, int, int, fd, struct sockaddr*, addr, socklen_t*,
-                    addrlen)
+DEFINE_SHIM_SYSCALL(accept, 3, shim_do_accept, int, int, fd, struct sockaddr*, addr, int*, addrlen)
 
 /* sendto: sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(sendto, 6, shim_do_sendto, ssize_t, int, fd, const void*, buf, size_t, len, int,
-                    flags, const struct sockaddr*, dest_addr, socklen_t, addrlen)
+                    flags, const struct sockaddr*, dest_addr, int, addrlen)
 
 /* recvfrom : sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(recvfrom, 6, shim_do_recvfrom, ssize_t, int, fd, void*, buf, size_t, len, int,
-                    flags, struct sockaddr*, addr, socklen_t*, addrlen)
+                    flags, struct sockaddr*, addr, int*, addrlen)
 
 /* bind: sys/shim_socket.c */
-DEFINE_SHIM_SYSCALL(bind, 3, shim_do_bind, int, int, sockfd, struct sockaddr*, addr, socklen_t,
-                    addrlen)
+DEFINE_SHIM_SYSCALL(bind, 3, shim_do_bind, int, int, sockfd, struct sockaddr*, addr, int, addrlen)
 
 /* listen: sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(listen, 2, shim_do_listen, int, int, sockfd, int, backlog)
@@ -977,7 +975,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(timerfd_gettime, 2, int, int, ufd, struct __kernel_it
 
 /* accept4: sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(accept4, 4, shim_do_accept4, int, int, sockfd, struct sockaddr*, addr,
-                    socklen_t*, addrlen, int, flags)
+                    int*, addrlen, int, flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(signalfd4, 4, int, int, ufd, __sigset_t*, user_mask, size_t, sizemask,
                            int, flags)

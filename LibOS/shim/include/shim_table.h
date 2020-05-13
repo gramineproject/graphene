@@ -364,12 +364,12 @@ pid_t shim_do_getpid(void);
 ssize_t shim_do_sendfile(int out_fd, int in_fd, off_t* offset, size_t count);
 int shim_do_socket(int family, int type, int protocol);
 int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen);
-int shim_do_accept(int fd, struct sockaddr* addr, socklen_t* addrlen);
+int shim_do_accept(int fd, struct sockaddr* addr, int* addrlen);
 ssize_t shim_do_sendto(int fd, const void* buf, size_t len, int flags,
-                       const struct sockaddr* dest_addr, socklen_t addrlen);
+                       const struct sockaddr* dest_addr, int addrlen);
 ssize_t shim_do_recvfrom(int fd, void* buf, size_t len, int flags, struct sockaddr* addr,
-                         socklen_t* addrlen);
-int shim_do_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen);
+                         int* addrlen);
+int shim_do_bind(int sockfd, struct sockaddr* addr, int addrlen);
 int shim_do_listen(int sockfd, int backlog);
 ssize_t shim_do_sendmsg(int fd, struct msghdr* msg, int flags);
 ssize_t shim_do_recvmsg(int fd, struct msghdr* msg, int flags);
@@ -484,13 +484,13 @@ int shim_do_set_robust_list(struct robust_list_head* head, size_t len);
 int shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* len);
 int shim_do_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxevents,
                         int timeout_ms, const __sigset_t* sigmask, size_t sigsetsize);
-int shim_do_accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int flags);
+int shim_do_accept4(int sockfd, struct sockaddr* addr, int* addrlen, int flags);
 int shim_do_dup3(unsigned int oldfd, unsigned int newfd, int flags);
 int shim_do_epoll_create1(int flags);
 int shim_do_pipe2(int* fildes, int flags);
 int shim_do_mknod(const char *pathname, mode_t mode, dev_t dev);
 int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev);
-ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags,
+ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
                          struct __kernel_timespec* timeout);
 int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
                       struct __kernel_rlimit64* old_rlim);
@@ -552,12 +552,12 @@ pid_t shim_getpid(void);
 ssize_t shim_sendfile(int out_fd, int in_fd, off_t* offset, size_t count);
 int shim_socket(int family, int type, int protocol);
 int shim_connect(int sockfd, struct sockaddr* addr, int addrlen);
-int shim_accept(int fd, struct sockaddr* addr, socklen_t* addrlen);
+int shim_accept(int fd, struct sockaddr* addr, int* addrlen);
 ssize_t shim_sendto(int fd, const void* buf, size_t len, int flags,
-                    const struct sockaddr* dest_addr, socklen_t addrlen);
+                    const struct sockaddr* dest_addr, int addrlen);
 ssize_t shim_recvfrom(int fd, void* buf, size_t len, int flags, struct sockaddr* addr,
-                      socklen_t* addrlen);
-int shim_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen);
+                      int* addrlen);
+int shim_bind(int sockfd, struct sockaddr* addr, int addrlen);
 int shim_listen(int sockfd, int backlog);
 ssize_t shim_sendmsg(int fd, struct msghdr* msg, int flags);
 ssize_t shim_recvmsg(int fd, struct msghdr* msg, int flags);
@@ -802,7 +802,7 @@ int shim_fallocate(int fd, int mode, loff_t offset, loff_t len);
 int shim_timerfd_settime(int ufd, int flags, const struct __kernel_itimerspec* utmr,
                          struct __kernel_itimerspec* otmr);
 int shim_timerfd_gettime(int ufd, struct __kernel_itimerspec* otmr);
-int shim_accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int flags);
+int shim_accept4(int sockfd, struct sockaddr* addr, int* addrlen, int flags);
 int shim_signalfd4(int ufd, __sigset_t* user_mask, size_t sizemask, int flags);
 int shim_eventfd2(unsigned int count, int flags);
 int shim_epoll_create1(int flags);

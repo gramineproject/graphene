@@ -122,7 +122,7 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
         return -PAL_ERROR_DENIED;
 
     struct sockopt sock_options;
-    unsigned int addrlen = sizeof(struct sockaddr_un);
+    size_t addrlen = sizeof(struct sockaddr_un);
     int nonblock = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
 
     ret = ocall_listen(AF_UNIX, SOCK_STREAM | nonblock, 0, /*ipv6_v6only=*/0,

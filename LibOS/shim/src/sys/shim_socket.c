@@ -312,7 +312,7 @@ static inline void unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* de
     memcpy(un->sun_path, path, size + 1);
 }
 
-static int inet_check_addr(int domain, struct sockaddr* addr, socklen_t addrlen) {
+static int inet_check_addr(int domain, struct sockaddr* addr, size_t addrlen) {
     if (domain == AF_INET) {
         if (addr->sa_family != AF_INET)
             return -EAFNOSUPPORT;
@@ -332,12 +332,12 @@ static int inet_check_addr(int domain, struct sockaddr* addr, socklen_t addrlen)
     return -EINVAL;
 }
 
-static socklen_t inet_copy_addr(int domain, struct sockaddr* saddr, socklen_t saddr_len,
-                                const struct addr_inet* addr) {
+static size_t inet_copy_addr(int domain, struct sockaddr* saddr, size_t saddr_len,
+                             const struct addr_inet* addr) {
     struct sockaddr_storage ss;
     struct sockaddr_in* in;
     struct sockaddr_in6* in6;
-    socklen_t len = 0;
+    size_t len = 0;
 
     switch (domain) {
       case AF_INET:
@@ -463,7 +463,10 @@ static int hash_to_hex_string(HASHTYPE hash, char* buf, size_t size) {
 }
 
 
-int shim_do_bind(int sockfd, struct sockaddr* addr, socklen_t addrlen) {
+int shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
+    if (_addrlen < 0)
+        return -EINVAL;
+    size_t addrlen = _addrlen;
     if (!addr || test_user_memory(addr, addrlen, false))
         return -EFAULT;
 
@@ -708,7 +711,11 @@ out:
  * connect again for that socket for one of two reasons: 1. To
  * specify a new IP address and port 2. To unconnect the socket.
  */
-int shim_do_connect(int sockfd, struct sockaddr* addr, int addrlen) {
+int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
+    if (_addrlen < 0)
+        return -EINVAL;
+    size_t addrlen = _addrlen;
+
     if (!addr || test_user_memory(addr, addrlen, false))
         return -EFAULT;
 
@@ -861,7 +868,7 @@ out:
     return ret;
 }
 
-int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, socklen_t* addrlen) {
+int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, int* addrlen) {
     if (hdl->type != TYPE_SOCK)
         return -ENOTSOCK;
 
@@ -878,7 +885,7 @@ int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, sockl
         if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true))
             return -EINVAL;
 
-        if (*addrlen < minimal_addrlen(sock->domain))
+        if (*addrlen < 0 || (size_t)*addrlen < minimal_addrlen(sock->domain))
             return -EINVAL;
 
         if (test_user_memory(addr, *addrlen, /*write=*/true))
@@ -985,7 +992,7 @@ out:
     return ret;
 }
 
-int shim_do_accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
+int shim_do_accept(int fd, struct sockaddr* addr, int* addrlen) {
     int flags;
     struct shim_handle* hdl = get_fd_handle(fd, &flags, NULL);
     if (!hdl)
@@ -996,7 +1003,7 @@ int shim_do_accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
     return ret;
 }
 
-int shim_do_accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
+int shim_do_accept4(int fd, struct sockaddr* addr, int* addrlen, int flags) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1009,7 +1016,7 @@ int shim_do_accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags
 }
 
 static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
-                          const struct sockaddr* addr, socklen_t addrlen) {
+                          const struct sockaddr* addr, int addrlen) {
     // Issue #752 - https://github.com/oscarlab/graphene/issues/752
     __UNUSED(flags);
 
@@ -1135,7 +1142,7 @@ out:
 }
 
 ssize_t shim_do_sendto(int sockfd, const void* buf, size_t len, int flags,
-                       const struct sockaddr* addr, socklen_t addrlen) {
+                       const struct sockaddr* addr, int addrlen) {
     struct iovec iovbuf;
     iovbuf.iov_base = (void*)buf;
     iovbuf.iov_len  = len;
@@ -1169,7 +1176,7 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags
 }
 
 static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
-                          struct sockaddr* addr, socklen_t* addrlen) {
+                          struct sockaddr* addr, int* addrlen) {
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1188,7 +1195,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
         if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), /*write=*/true))
             goto out;
 
-        if (*addrlen < minimal_addrlen(sock->domain))
+        if (*addrlen < 0 || (size_t)*addrlen < minimal_addrlen(sock->domain))
             goto out;
 
         if (test_user_memory(addr, *addrlen, /*write=*/true))
@@ -1401,7 +1408,7 @@ out:
 }
 
 ssize_t shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct sockaddr* addr,
-                         socklen_t* addrlen) {
+                         int* addrlen) {
     struct iovec iovbuf;
     iovbuf.iov_base = (void*)buf;
     iovbuf.iov_len  = len;
@@ -1414,7 +1421,7 @@ ssize_t shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
                       &msg->msg_namelen);
 }
 
-ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags,
+ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
                          struct __kernel_timespec* timeout) {
     if (test_user_memory(msg, vlen, /*write=*/true))
         return -EFAULT;

@@ -186,14 +186,14 @@ typedef struct {
     int ms_protocol;
     int ms_ipv6_v6only;
     const struct sockaddr* ms_addr;
-    unsigned int ms_addrlen;
+    size_t ms_addrlen;
     struct sockopt ms_sockopt;
 } ms_ocall_listen_t;
 
 typedef struct {
     int ms_sockfd;
-    struct sockaddr * ms_addr;
-    unsigned int ms_addrlen;
+    struct sockaddr* ms_addr;
+    size_t ms_addrlen;
     struct sockopt ms_sockopt;
 } ms_ocall_accept_t;
 
@@ -203,38 +203,38 @@ typedef struct {
     int ms_protocol;
     int ms_ipv6_v6only;
     const struct sockaddr* ms_addr;
-    unsigned int ms_addrlen;
+    size_t ms_addrlen;
     struct sockaddr* ms_bind_addr;
-    unsigned int ms_bind_addrlen;
+    size_t ms_bind_addrlen;
     struct sockopt ms_sockopt;
 } ms_ocall_connect_t;
 
 typedef struct {
     PAL_IDX ms_sockfd;
-    void * ms_buf;
-    unsigned int ms_count;
-    struct sockaddr * ms_addr;
-    unsigned int ms_addrlen;
-    void * ms_control;
-    uint64_t ms_controllen;
+    void* ms_buf;
+    size_t ms_count;
+    struct sockaddr* ms_addr;
+    size_t ms_addrlen;
+    void* ms_control;
+    size_t ms_controllen;
 } ms_ocall_recv_t;
 
 typedef struct {
     PAL_IDX ms_sockfd;
-    const void * ms_buf;
-    unsigned int ms_count;
-    const struct sockaddr * ms_addr;
-    unsigned int ms_addrlen;
-    void * ms_control;
-    uint64_t ms_controllen;
+    const void* ms_buf;
+    size_t ms_count;
+    const struct sockaddr* ms_addr;
+    size_t ms_addrlen;
+    void* ms_control;
+    size_t ms_controllen;
 } ms_ocall_send_t;
 
 typedef struct {
     int ms_sockfd;
     int ms_level;
     int ms_optname;
-    const void * ms_optval;
-    unsigned int ms_optlen;
+    const void* ms_optval;
+    size_t ms_optlen;
 } ms_ocall_setsockopt_t;
 
 typedef struct {
