@@ -42,6 +42,13 @@
 
 typedef void (*__rt_sighandler_t)(int, siginfo_t*, void*);
 
+void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
+    sig_action->k_sa_handler = (void*)SIG_DFL;
+    sig_action->sa_flags = 0;
+    sig_action->sa_restorer = NULL;
+    sig_action->sa_mask = 0;
+}
+
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
 #define MAX_SIGNAL_LOG 32
@@ -678,32 +685,31 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
 }
 
 static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig, bool allow_reset) {
-    assert(locked(&thread->lock));
+    lock(&thread->signal_handles->lock);
+    struct __kernel_sigaction* sig_action = &thread->signal_handles->actions[sig - 1];
 
-    struct shim_signal_handle* sighdl = &thread->signal_handles[sig - 1];
-    __rt_sighandler_t handler = NULL;
-
-    if (sighdl->action) {
-        struct __kernel_sigaction * act = sighdl->action;
-        /*
-         * on amd64, sa_handler can be treated as sa_sigaction
-         * because 1-3 arguments are passed by register and
-         * sa_handler simply ignores 2nd and 3rd argument.
-         */
-#ifdef __i386__
-# error "x86-32 support is heavily broken."
+    /*
+     * on amd64, sa_handler can be treated as sa_sigaction
+     * because 1-3 arguments are passed by register and
+     * sa_handler simply ignores 2nd and 3rd argument.
+     */
+#ifndef __x86_64__
+# error "__get_sighandler: see the commen above"
 #endif
-        handler = (void*)act->k_sa_handler;
-        if (allow_reset && act->sa_flags & SA_RESETHAND) {
-            sighdl->action = NULL;
-            free(act);
-        }
+
+    __rt_sighandler_t handler = (void*)sig_action->k_sa_handler;
+    if (allow_reset && sig_action->sa_flags & SA_RESETHAND) {
+        sigaction_make_defaults(sig_action);
     }
 
-    if ((void*)handler == SIG_IGN)
-        return NULL;
+    if ((void*)handler == (void*)SIG_IGN) {
+        handler = NULL;
+    } else if ((void*)handler == (void*)SIG_DFL) {
+        handler = default_sighandler[sig - 1];
+    }
 
-    return handler ? : default_sighandler[sig - 1];
+    unlock(&thread->signal_handles->lock);
+    return handler;
 }
 
 static void
@@ -711,9 +717,7 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
     struct shim_thread* thread = (struct shim_thread*)tcb->tp;
     __rt_sighandler_t handler = NULL;
 
-    lock(&thread->lock);
     handler = __get_sighandler(thread, sig, /*allow_reset=*/true);
-    unlock(&thread->lock);
 
     if (!handler)
         return;

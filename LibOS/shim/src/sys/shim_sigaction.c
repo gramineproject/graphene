@@ -49,39 +49,23 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
         return -EFAULT;
 
     struct shim_thread* cur = get_cur_thread();
-    int err = 0;
 
     assert(!act || (void*)act->k_sa_handler != (void*)0x11);
 
-    struct shim_signal_handle* sighdl = &cur->signal_handles[signum - 1];
+    lock(&cur->signal_handles->lock);
 
-    lock(&cur->lock);
+    struct __kernel_sigaction* sigaction = &cur->signal_handles->actions[signum - 1];
 
     if (oldact) {
-        if (sighdl->action) {
-            memcpy(oldact, sighdl->action, sizeof(struct __kernel_sigaction));
-        } else {
-            memset(oldact, 0, sizeof(struct __kernel_sigaction));
-            oldact->k_sa_handler = SIG_DFL;
-        }
+        memcpy(oldact, sigaction, sizeof(*oldact));
     }
 
     if (act) {
-        if (!(sighdl->action))
-            sighdl->action = malloc(sizeof(struct __kernel_sigaction));
-
-        if (!(sighdl->action)) {
-            err = -ENOMEM;
-            goto out;
-        }
-
-        memcpy(sighdl->action, act, sizeof(struct __kernel_sigaction));
+        memcpy(sigaction, act, sizeof(*sigaction));
     }
 
-    err = 0;
-out:
-    unlock(&cur->lock);
-    return err;
+    unlock(&cur->signal_handles->lock);
+    return 0;
 }
 
 int shim_do_sigreturn(int __unused) {

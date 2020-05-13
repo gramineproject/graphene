@@ -28,6 +28,12 @@ struct wake_queue_head {
     struct wake_queue_node* first;
 };
 
+struct shim_signal_handles {
+    struct __kernel_sigaction actions[NUM_SIGS];
+    struct shim_lock lock;
+    REFTYPE ref_count;
+};
+
 DEFINE_LIST(shim_thread);
 DEFINE_LISTP(shim_thread);
 struct shim_thread {
@@ -67,7 +73,7 @@ struct shim_thread {
 
     /* signal handling */
     __sigset_t signal_mask;
-    struct shim_signal_handle signal_handles[NUM_SIGS];
+    struct shim_signal_handles* signal_handles;
     struct atomic_int has_signal;
     struct shim_signal_log * signal_logs;
     bool suspend_on_signal;
@@ -110,6 +116,9 @@ static inline bool is_internal(struct shim_thread *thread)
 {
     return thread->tid >= INTERNAL_TID_BASE;
 }
+
+void get_signal_handles(struct shim_signal_handles* handles);
+void put_signal_handles(struct shim_signal_handles* handles);
 
 void get_thread (struct shim_thread * thread);
 void put_thread (struct shim_thread * thread);

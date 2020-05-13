@@ -816,6 +816,7 @@ int shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* l
     if (pid) {
         thread = lookup_thread(pid);
         if (!thread) {
+            /* We only support get_robust_list on threads in the same thread group. */
             return -ESRCH;
         }
     } else {
