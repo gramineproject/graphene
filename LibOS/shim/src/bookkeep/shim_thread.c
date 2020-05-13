@@ -154,6 +154,24 @@ struct shim_thread * alloc_new_thread (void)
     return thread;
 }
 
+static struct shim_signal_handles* alloc_default_signal_handles(void) {
+        struct shim_signal_handles* handles = malloc(sizeof(*handles));
+        if (!handles) {
+            return NULL;
+        }
+
+        if (!create_lock(&handles->lock)) {
+            free(handles);
+            return NULL;
+        }
+        REF_SET(handles->ref_count, 1);
+        for (size_t i = 0; i < ARRAY_SIZE(handles->actions); i++) {
+            sigaction_make_defaults(&handles->actions[i]);
+        }
+
+        return handles;
+}
+
 struct shim_thread * get_new_thread (IDTYPE new_tid)
 {
     if (!new_tid) {
@@ -198,17 +216,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         thread->exec        = cur_thread->exec;
         get_handle(cur_thread->exec);
 
-        for (int i = 0 ; i < NUM_SIGS ; i++) {
-            if (!cur_thread->signal_handles[i].action)
-                continue;
-
-            thread->signal_handles[i].action =
-                    malloc_copy(cur_thread->signal_handles[i].action,
-                                sizeof(*thread->signal_handles[i].action));
-            if (!thread->signal_handles[i].action) {
-                goto out_error;
-            }
-        }
+        thread->signal_handles_TODO = cur_thread->signal_handles_TODO;
+        get_signal_handles(thread->signal_handles_TODO);
 
         memcpy(&thread->signal_mask, &cur_thread->signal_mask,
                sizeof(sigset_t));
@@ -233,6 +242,11 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         } else if (thread->root) {
             get_dentry(thread->root);
             thread->cwd = thread->root;
+        }
+
+        thread->signal_handles_TODO = alloc_default_signal_handles();
+        if (!thread->signal_handles_TODO) {
+            goto out_error;
         }
     }
 
@@ -259,8 +273,8 @@ out_error:
     if (thread->cwd) {
         put_dentry(thread->cwd);
     }
-    for (int i = 0; i < NUM_SIGS; i++) {
-        free(thread->signal_handles[i].action);
+    if (thread->signal_handles_TODO) {
+        put_signal_handles(thread->signal_handles_TODO);
     }
     if (thread->exec) {
         put_handle(thread->exec);
@@ -290,6 +304,28 @@ struct shim_thread * get_new_internal_thread (void)
     }
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     return thread;
+}
+
+void get_signal_handles(struct shim_signal_handles* handles) {
+    int ref_count = REF_INC(handles->ref_count);
+#ifdef DEBUG_REF
+    debug("get_signal_handles %p ref_count = %d\n", handles, ref_count);
+#else
+    __UNUSED(ref_count);
+#endif
+}
+
+void put_signal_handles(struct shim_signal_handles* handles) {
+    int ref_count = REF_DEC(handles->ref_count);
+
+#ifdef DEBUG_REF
+    debug("put_signal_handles %p ref_count = %d\n", handles, ref_count);
+#endif
+
+    if (!ref_count) {
+        destroy_lock(&handles->lock);
+        free(handles);
+    }
 }
 
 void get_thread (struct shim_thread * thread)
@@ -338,8 +374,8 @@ void put_thread (struct shim_thread * thread)
             put_dentry(thread->cwd);
         }
 
-        for (int i = 0; i < NUM_SIGS; i++) {
-            free(thread->signal_handles[i].action);
+        if (thread->signal_handles_TODO) {
+            put_signal_handles(thread->signal_handles_TODO);
         }
 
         if (thread->exec)
@@ -554,6 +590,53 @@ void switch_dummy_thread (struct shim_thread * thread)
 }
 #endif
 
+BEGIN_CP_FUNC(signal_handles)
+{
+    __UNUSED(size);
+    assert(size == sizeof(struct shim_signal_handles));
+
+    struct shim_signal_handles* handles = (struct shim_signal_handles*)obj;
+    struct shim_signal_handles* new_handles = NULL;
+
+    ptr_t off = GET_FROM_CP_MAP(obj);
+
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_signal_handles));
+        ADD_TO_CP_MAP(obj, off);
+        new_handles = (struct shim_signal_handles*)(base + off);
+
+        lock(&handles->lock);
+
+        memcpy(new_handles, handles, sizeof(*handles));
+        clear_lock(&new_handles->lock);
+        REF_SET(new_handles->ref_count, 0);
+
+        unlock(&handles->lock);
+
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
+        new_handles = (struct shim_signal_handles*)(base + off);
+    }
+
+    if (objp) {
+        *objp = (void*)new_handles;
+    }
+
+}
+END_CP_FUNC(signal_handles)
+
+BEGIN_RS_FUNC(signal_handles)
+{
+    __UNUSED(offset);
+    __UNUSED(rebase);
+    struct shim_signal_handles* handles = (void*)(base + GET_CP_FUNC_ENTRY());
+
+    if (!create_lock(&handles->lock)) {
+        return -ENOMEM;
+    }
+}
+END_RS_FUNC(signal_handles)
+
 BEGIN_CP_FUNC(thread)
 {
     __UNUSED(size);
@@ -587,15 +670,7 @@ BEGIN_CP_FUNC(thread)
         new_thread->robust_list = NULL;
         REF_SET(new_thread->ref_count, 0);
 
-        for (int i = 0 ; i < NUM_SIGS ; i++)
-            if (thread->signal_handles[i].action) {
-                ptr_t soff = ADD_CP_OFFSET(sizeof(struct __kernel_sigaction));
-                new_thread->signal_handles[i].action
-                        = (struct __kernel_sigaction *) (base + soff);
-                memcpy(new_thread->signal_handles[i].action,
-                       thread->signal_handles[i].action,
-                       sizeof(struct __kernel_sigaction));
-            }
+        DO_CP_MEMBER(signal_handles, thread, new_thread, signal_handles_TODO);
 
         DO_CP_MEMBER(handle, thread, new_thread, exec);
         DO_CP_MEMBER(handle_map, thread, new_thread, handle_map);
@@ -624,7 +699,7 @@ BEGIN_RS_FUNC(thread)
     CP_REBASE(thread->handle_map);
     CP_REBASE(thread->root);
     CP_REBASE(thread->cwd);
-    CP_REBASE(thread->signal_handles);
+    CP_REBASE(thread->signal_handles_TODO);
 
     if (!create_lock(&thread->lock)) {
         return -ENOMEM;
@@ -646,6 +721,10 @@ BEGIN_RS_FUNC(thread)
 
     if (thread->cwd)
         get_dentry(thread->cwd);
+
+    if (thread->signal_handles_TODO) {
+        get_signal_handles(thread->signal_handles_TODO);
+    }
 
     DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p,shim_tcb=%p",
              thread->tid, thread->tgid,
