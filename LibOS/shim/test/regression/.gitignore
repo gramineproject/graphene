@@ -57,6 +57,7 @@
 /sched
 /select
 /shared_object
+/sigaction_per_process
 /sigaltstack
 /sighandler_reset
 /sigprocmask

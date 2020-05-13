@@ -4,10 +4,7 @@
 #include <shim_types.h>
 #include <shim_defs.h>
 
-struct shim_signal_handle {
-    /* sigaction */
-    struct __kernel_sigaction * action;
-};
+void sigaction_make_defaults(struct __kernel_sigaction* sig_action);
 
 # define BITS_PER_WORD (8 * sizeof(unsigned long))
 /* The standard def of this macro is dumb */
