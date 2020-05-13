@@ -49,6 +49,7 @@ c_executables = \
 	sched \
 	select \
 	shared_object \
+	sigaction_per_process \
 	sigaltstack \
 	sighandler_reset \
 	sigprocmask \
@@ -126,6 +127,7 @@ CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
 CFLAGS-proc = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -pthread
+CFLAGS-sigaction_per_process += -pthread
 CFLAGS-sigprocmask += -pthread
 
 CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
