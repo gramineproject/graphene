@@ -50,8 +50,6 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
 
     struct shim_thread* cur = get_cur_thread();
 
-    assert(!act || (void*)act->k_sa_handler != (void*)0x11);
-
     lock(&cur->signal_handles->lock);
 
     struct __kernel_sigaction* sigaction = &cur->signal_handles->actions[signum - 1];

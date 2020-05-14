@@ -1,3 +1,9 @@
+/*
+ * Test that signal disposition is per-process: set SIGTERM handler in a child thread, but send
+ * SIGTERM signal to the main thread specifically. Verify that signal handler was called in the
+ * main thread and it was called only once.
+ */
+
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <signal.h>
@@ -11,21 +17,21 @@ static pid_t gettid(void) {
     return syscall(SYS_gettid);
 }
 
-static int tkill(int tid, int sig) {
+static int tkill(pid_t tid, int sig) {
     return syscall(SYS_tkill, tid, sig);
 }
 
 static pid_t who1 = 0;
 static pid_t who2 = 0;
 
-static void handler(int signum) {
+static void sigterm_handler(int signum) {
     pid_t v = 0;
     pid_t my_tid = gettid();
     if (!__atomic_compare_exchange_n(&who1, &v, my_tid, /*weak=*/0,
                                      __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
         __atomic_store_n(&who2, my_tid, __ATOMIC_SEQ_CST);
     }
-    printf("handler called in: %d\n", my_tid);
+    printf("sigterm_handler called in: %d\n", my_tid);
 }
 
 static int sync_var = 0;
@@ -44,7 +50,7 @@ static void* f(void* x) {
     printf("thread id: %d\n", gettid());
 
     struct sigaction action = { 0 };
-    action.sa_handler = handler;
+    action.sa_handler = sigterm_handler;
 
     int ret = sigaction(SIGTERM, &action, NULL);
     if (ret < 0) {

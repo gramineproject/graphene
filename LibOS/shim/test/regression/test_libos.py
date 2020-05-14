@@ -391,7 +391,7 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('Handler was invoked 1 time(s).', stdout)
 
     def test_091_sigaction_per_process(self):
-        stdout, _ = self.run_binary(['sigaction_per_process'], timeout = 10)
+        stdout, _ = self.run_binary(['sigaction_per_process'])
         self.assertIn('TEST OK', stdout)
 
 @unittest.skipUnless(HAS_SGX,

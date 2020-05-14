@@ -684,7 +684,7 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
     return &thread->signal_mask;
 }
 
-static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig, bool allow_reset) {
+static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, bool allow_reset) {
     lock(&thread->signal_handles->lock);
     struct __kernel_sigaction* sig_action = &thread->signal_handles->actions[sig - 1];
 
@@ -694,7 +694,7 @@ static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig, b
      * sa_handler simply ignores 2nd and 3rd argument.
      */
 #ifndef __x86_64__
-# error "__get_sighandler: see the commen above"
+# error "get_sighandler: see the comment above"
 #endif
 
     __rt_sighandler_t handler = (void*)sig_action->k_sa_handler;
@@ -717,7 +717,7 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
     struct shim_thread* thread = (struct shim_thread*)tcb->tp;
     __rt_sighandler_t handler = NULL;
 
-    handler = __get_sighandler(thread, sig, /*allow_reset=*/true);
+    handler = get_sighandler(thread, sig, /*allow_reset=*/true);
 
     if (!handler)
         return;
@@ -809,7 +809,7 @@ void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool ne
 
     /* only want to check if sighandler exists without actual invocation, so don't
      * reset even if SA_RESETHAND */
-    __rt_sighandler_t handler = __get_sighandler(thread, sig, /*allow_reset=*/false);
+    __rt_sighandler_t handler = get_sighandler(thread, sig, /*allow_reset=*/false);
 
     if (!handler) {
         // SIGSTOP and SIGKILL cannot be ignored
