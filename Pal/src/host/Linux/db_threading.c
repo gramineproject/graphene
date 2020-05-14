@@ -36,12 +36,6 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-#if defined(__i386__)
-#include <asm/ldt.h>
-#else
-#include <asm/prctl.h>
-#endif
-
 /* Linux PAL cannot use mmap/unmap to manage thread stacks because this may overlap with
  * pal_control.user_address. Linux PAL also cannot just use malloc/free because DkThreadExit
  * needs to use raw system calls and inline asm. Thus, we resort to recycling thread stacks
@@ -105,7 +99,7 @@ int pal_thread_init (void * tcbptr)
     PAL_TCB_LINUX * tcb = tcbptr;
     int ret;
 
-    ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
+    ret = pal_set_PAL_TCB_LINUX(tcb);
     if (IS_ERR(ret))
         return -ERRNO(ret);
 
@@ -246,7 +240,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
         ss.ss_size  = 0;
 
         // Take precautions to unset the TCB and alternative stack first.
-        INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, 0);
+        pal_set_PAL_TCB_LINUX(NULL);
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
     }
 
