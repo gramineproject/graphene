@@ -17,6 +17,19 @@
 /*
  * pal_host-arch.h
  *
- * This file contains Skeleton-specific functions related to the PAL.
+ * This file contains Linux on x86_64 specific functions related to the PAL.
  */
 
+#include <syscall.h>
+
+#if defined(__i386__)
+#include <asm/ldt.h>
+#else
+#include <asm/prctl.h>
+#endif
+
+#include "sysdep-arch.h"
+
+static inline int pal_set_tcb (PAL_TCB* tcb) {
+    return INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
+}
