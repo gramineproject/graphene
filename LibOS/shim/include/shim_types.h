@@ -29,6 +29,8 @@
 #include <asm/siginfo.h>
 #include <asm/poll.h>
 
+#include "shim_types-arch.h"
+
 typedef unsigned int        __u32;
 
 typedef unsigned long int   nfds_t;
@@ -161,14 +163,6 @@ struct __kernel_sigaction {
 /* linux/aio_abi.h (for io_setup which has no glibc wrapper) */
 typedef unsigned long aio_context_t;
 
-/* asm/signal.h */
-#define NUM_SIGS            64
-#define NUM_KNOWN_SIGS      32
-
-typedef struct {
-    unsigned long __val[NUM_SIGS / (8 * sizeof(unsigned long))];
-} __sigset_t;
-
 /* linux/rlimit.h */
 struct __kernel_rusage {
     struct __kernel_timeval ru_utime;    /* user time used */
@@ -212,8 +206,6 @@ __attribute__((packed));
 #else
 ;
 #endif
-
-#include "shim_types-arch.h"
 
 /* bits/ustat.h */
 struct __kernel_ustat
