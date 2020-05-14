@@ -9,15 +9,13 @@
 
 static atomic_int sigpipe_ctr = 0;
 
-static void sigpipe_handler(int signum, siginfo_t* si, void* uc)
-{
+static void sigpipe_handler(int signum, siginfo_t* si, void* uc) {
     printf("Got signal %d\n", signum);
     if (signum == SIGPIPE)
         sigpipe_ctr++;
 }
 
-int main(void)
-{
+int main(void) {
     int fds[2];
     int n;
     ssize_t written;

@@ -382,10 +382,6 @@ void signal_setup (void)
 #endif
         set_sighandler(&sig, 1, NULL);
 
-    sig = SIGPIPE;
-    if ((ret = set_sighandler(&sig, 1, &_DkPipeSighandler)) < 0)
-        goto err;
-
     int events[] = {
         PAL_EVENT_ARITHMETIC_ERROR,
         PAL_EVENT_MEMFAULT,
@@ -393,6 +389,7 @@ void signal_setup (void)
         PAL_EVENT_QUIT,
         PAL_EVENT_SUSPEND,
         PAL_EVENT_RESUME,
+        PAL_EVENT_PIPE,
     };
 
     for (size_t e = 0; e < ARRAY_SIZE(events); e++)
