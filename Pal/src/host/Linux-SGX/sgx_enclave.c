@@ -381,6 +381,7 @@ static long sgx_ocall_accept(void* pms) {
     long ret;
     int fd;
     ODEBUG(OCALL_ACCEPT, ms);
+
     if (ms->ms_addrlen > INT_MAX) {
         ret = -EINVAL;
         goto err;

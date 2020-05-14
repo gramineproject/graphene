@@ -494,7 +494,7 @@ ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int
                          struct __kernel_timespec* timeout);
 int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
                       struct __kernel_rlimit64* old_rlim);
-ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags);
+ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags);
 int shim_do_eventfd2(unsigned int count, int flags);
 int shim_do_eventfd(unsigned int count);
 
@@ -816,11 +816,11 @@ int shim_pwritev(unsigned long fd, const struct iovec* vec, unsigned long vlen, 
 int shim_rt_tgsigqueueinfo(pid_t tgid, pid_t pid, int sig, siginfo_t* uinfo);
 int shim_perf_event_open(struct perf_event_attr* attr_uptr, pid_t pid, int cpu, int group_fd,
                          int flags);
-ssize_t shim_recvmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags,
+ssize_t shim_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
                       struct __kernel_timespec* timeout);
 int shim_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
                    struct __kernel_rlimit64* old_rlim);
-ssize_t shim_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags);
+ssize_t shim_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags);
 
 /* libos call wrappers */
 int shim_msgpersist(int msqid, int cmd);

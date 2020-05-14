@@ -1155,7 +1155,7 @@ ssize_t shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
                       msg->msg_namelen);
 }
 
-ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, size_t vlen, int flags) {
+ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags) {
     if (test_user_memory(msg, vlen, /*write=*/true))
         return -EFAULT;
 
