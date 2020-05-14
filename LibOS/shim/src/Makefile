@@ -8,9 +8,9 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  $(cc-option, -Wnull-dereference) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
 	  -I../include -I../include/arch/$(ARCH) \
-	  -I../../../Pal/include/lib -I../../../Pal/include/pal \
+	  -I../../../Pal/include -I../../../Pal/include/lib -I../../../Pal/include/pal \
 	  -I../../../Pal/include/elf -I../../../Pal/include/lib/$(ARCH) \
-	  -I../../../Pal/include/arch/$(ARCH)
+	  -I../../../Pal/include/arch/$(ARCH) -I../../../Pal/include/arch/$(ARCH)/$(PAL_HOST)
 
 CFLAGS += -Wextra
 
