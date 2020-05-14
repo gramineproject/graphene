@@ -19,12 +19,15 @@
 #ifndef _LINUX_X86_64_UCONTEXT_H
 #define _LINUX_X86_64_UCONTEXT_H 1
 
+#include <assert.h>
 #include <bits/wordsize.h>
 #include <stdint.h>
 
 /* We need the signal context definitions even if they are not used
    included in <signal.h>.  */
 #include <sigcontext.h>
+
+#include "pal-arch.h"
 
 #if __WORDSIZE == 64
 
@@ -132,6 +135,22 @@ typedef struct ucontext {
     __sigset_t uc_sigmask;
     struct _libc_fpstate __fpregs_mem;
 } ucontext_t;
+
+/* fpregs is shallow copied by only setting a pointer */
+static inline void ucontext_to_pal_context(PAL_CONTEXT* context, ucontext_t* uc) {
+    static_assert(sizeof(uc->uc_mcontext.gregs) == offsetof(struct PAL_CONTEXT_, fpregs),
+                  "uc's gregs and PAL_CONTEXT sizes are different");
+    memcpy(&context->r8, uc->uc_mcontext.gregs, sizeof(uc->uc_mcontext.gregs));
+    context->fpregs = (PAL_XREGS_STATE*)uc->uc_mcontext.fpregs;
+}
+
+/* fpregs is shallow copied by only setting a pointer */
+static inline void pal_context_to_ucontext(ucontext_t* uc, PAL_CONTEXT* context) {
+    static_assert(sizeof(uc->uc_mcontext.gregs) == offsetof(struct PAL_CONTEXT_, fpregs),
+                  "uc's gregs and PAL_CONTEXT sizes are different");
+    memcpy(uc->uc_mcontext.gregs, &context->r8, sizeof(uc->uc_mcontext.gregs));
+    uc->uc_mcontext.fpregs = (struct _libc_fpstate*)context->fpregs;
+}
 
 #else /* __WORDSIZE == 32 */
 
