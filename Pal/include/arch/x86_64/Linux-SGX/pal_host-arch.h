@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Stony Brook University
+/*
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -17,6 +17,6 @@
 /*
  * pal_host-arch.h
  *
- * This file contains Linux-SGX specific functions related to the PAL.
+ * This file contains Linux-SGX-specific functions related to the PAL.
  */
 
