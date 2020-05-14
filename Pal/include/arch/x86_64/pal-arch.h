@@ -24,6 +24,15 @@
 #define PAL_ARCH_H
 
 #include <stdint.h>
+#include <syscall.h>
+
+#if defined(__i386__)
+#include <asm/ldt.h>
+#else
+#include <asm/prctl.h>
+#endif
+
+#include "sysdep-arch.h"
 
 #define PAGE_SIZE       (1 << 12)
 #define PRESET_PAGESIZE PAGE_SIZE
@@ -39,13 +48,16 @@ typedef struct pal_tcb {
     /* data private to PAL implementation follows this struct. */
 } PAL_TCB;
 
-static inline PAL_TCB * pal_get_tcb (void)
-{
+static inline PAL_TCB* pal_get_tcb(void) {
     PAL_TCB * tcb;
     __asm__ ("movq %%gs:%c1,%q0"
              : "=r" (tcb)
              : "i" (offsetof(struct pal_tcb, self)));
     return tcb;
+}
+
+static inline int pal_set_tcb(PAL_TCB* tcb) {
+    return INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
 }
 
 union pal_csgsfs {
