@@ -179,4 +179,17 @@ struct PAL_CONTEXT_ {
 };
 typedef struct PAL_CONTEXT_ PAL_CONTEXT;
 
+/* copy from ucontext_t to PAL_CONTEXT */
+#define PAL_COPY_TO_CONTEXT(context, uc)						\
+    assert(sizeof(uc->uc_mcontext.gregs) == offsetof(struct PAL_CONTEXT_, fpregs));	\
+    memcpy(&context.r8, uc->uc_mcontext.gregs, sizeof(uc->uc_mcontext.gregs));		\
+    context.fpregs = (PAL_XREGS_STATE *)uc->uc_mcontext.fpregs;
+
+/* copy from PAL_CONTEXT to ucontext_t */
+#define PAL_COPY_FROM_CONTEXT(context, uc)						\
+    assert(sizeof(uc->uc_mcontext.gregs) == offsetof(struct PAL_CONTEXT_, fpregs));	\
+    memcpy(uc->uc_mcontext.gregs, &context.r8, sizeof(uc->uc_mcontext.gregs));		\
+    uc->uc_mcontext.fpregs = (struct _libc_fpstate*)context.fpregs;
+
+
 #endif /* PAL_ARCH_H */

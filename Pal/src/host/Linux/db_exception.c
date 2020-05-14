@@ -185,12 +185,10 @@ static void _DkGenericEventTrigger(PAL_EVENT_HANDLER upcall,
     }
 
     PAL_CONTEXT context;
-    memcpy(&context, uc->uc_mcontext.gregs, sizeof(uc->uc_mcontext.gregs));
-    context.fpregs = (PAL_XREGS_STATE*)uc->uc_mcontext.fpregs;
+    PAL_COPY_TO_CONTEXT(context, uc);
     (*upcall)(NULL, arg, &context);
     /* copy the context back to ucontext */
-    memcpy(uc->uc_mcontext.gregs, &context, sizeof(uc->uc_mcontext.gregs));
-    uc->uc_mcontext.fpregs = (struct _libc_fpstate*)context.fpregs;
+    PAL_COPY_FROM_CONTEXT(context, uc);
 }
 
 static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
