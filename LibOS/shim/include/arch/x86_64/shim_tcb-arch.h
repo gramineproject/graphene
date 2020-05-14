@@ -24,4 +24,4 @@ struct shim_regs {
     uint64_t    rip;
 };
 
-#endif /* SHIM_TCB_ARCH_H */
+#endif /* _SHIM_TCB_ARCH_H */
