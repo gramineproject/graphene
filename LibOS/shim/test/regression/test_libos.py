@@ -395,12 +395,14 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('TEST OK', stdout)
 
     @unittest.skipIf(HAS_SGX, 'No SIGPIPE support on SGX, yet.')
-    def test_091_sighandler_sigpipe(self):
+    def test_092_sighandler_sigpipe(self):
         try:
             self.run_binary(['sighandler_sigpipe'])
             self.fail('expected to return nonzero')
         except subprocess.CalledProcessError as e:
-            self.assertTrue(e.returncode == 141)
+            # FIXME: It's unclear what Graphene process should return when the app
+            # inside dies due to a signal.
+            self.assertTrue(e.returncode in [13, 141])
             stdout = e.stdout.decode()
             self.assertIn('Got signal 13', stdout)
             self.assertIn('Got 1 SIGPIPE signal(s)', stdout)
