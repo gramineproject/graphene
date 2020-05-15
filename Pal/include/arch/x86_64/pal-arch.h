@@ -179,4 +179,12 @@ struct PAL_CONTEXT_ {
 };
 typedef struct PAL_CONTEXT_ PAL_CONTEXT;
 
+
+/*
+ * Vararg parameters: On x86_64 a va_list parameter can be passed to any function using
+ *                    'va_list ap'. Therefore VA_AP is 'ap'.
+ */
+#define VA_AP       ap
+#define VA_AP_PARAM ap
+
 #endif /* PAL_ARCH_H */
