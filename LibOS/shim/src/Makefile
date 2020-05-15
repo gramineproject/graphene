@@ -35,7 +35,7 @@ objs = \
 	shim_object.o \
 	shim_parser.o \
 	shim_syscalls.o \
-	shim_table.o \
+	shim_table-$(ARCH).o \
 	start.o \
 	syscallas-$(ARCH).o \
 	bookkeep/shim_handle.o \
