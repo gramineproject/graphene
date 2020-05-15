@@ -635,6 +635,10 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (!tcb || !tcb->tp)
         return;
 
+    if (tcb->tp->time_to_die) {
+        thread_exit(0, 0);
+    }
+
     if (!is_internal_tid(get_cur_tid())) {
         int64_t preempt = __disable_preempt(tcb);
         if (preempt <= 1)
@@ -861,39 +865,12 @@ void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool ne
 
 #define __WCOREDUMP_BIT 0x80
 
-static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
-{
-    struct shim_thread* cur_thread = get_cur_thread();
-    int sig_without_coredump_bit   = sig & ~(__WCOREDUMP_BIT);
-
+static void sighandler_kill(int sig, siginfo_t* info, void* ucontext) {
+    __UNUSED(info);
     __UNUSED(ucontext);
-    debug("killed by %s\n", signal_name(sig_without_coredump_bit));
+    debug("killed by %s\n", signal_name(sig & ~__WCOREDUMP_BIT));
 
-    if (sig_without_coredump_bit == SIGABRT ||
-        (!info->si_pid && /* signal is sent from host OS, not from another process */
-         (sig_without_coredump_bit == SIGTERM || sig_without_coredump_bit == SIGINT))) {
-        /* Received signal to kill the process:
-         *   - SIGABRT must always kill the whole process (even if sent by Graphene itself),
-         *   - SIGTERM/SIGINT must kill the whole process if signal sent from host OS. */
-
-        /* If several signals arrive simultaneously, only one signal proceeds past this
-         * point. For more information, see shim_do_exit_group(). */
-        static struct atomic_int first = ATOMIC_INIT(0);
-        if (atomic_cmpxchg(&first, 0, 1) == 1) {
-            while (1)
-                DkThreadYieldExecution();
-        }
-
-        do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
-
-        /* Ensure that the current thread wins in setting the process code/signal.
-         * For more information, see shim_do_exit_group(). */
-        while (check_last_thread(cur_thread)) {
-            DkThreadYieldExecution();
-        }
-    }
-
-    thread_or_process_exit(0, sig);
+    process_exit(0, sig);
 }
 
 static void sighandler_core (int sig, siginfo_t * info, void * ucontext)

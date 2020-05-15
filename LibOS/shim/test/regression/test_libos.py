@@ -394,6 +394,10 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['sigaction_per_process'])
         self.assertIn('TEST OK', stdout)
 
+    def test_092_signal_multithread(self):
+        stdout, _ = self.run_binary(['signal_multithread'], timeout = 10)
+        self.assertIn('TEST OK', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

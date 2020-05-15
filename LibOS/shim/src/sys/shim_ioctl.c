@@ -28,13 +28,15 @@
 #include <errno.h>
 #include <linux/fd.h>
 #include <linux/sockios.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
+#include <stdint.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
 
 #define TERM_DEFAULT_IFLAG (ICRNL | IUTF8)
 #define TERM_DEFAULT_OFLAG (OPOST | ONLCR)
@@ -287,20 +289,9 @@ passthrough:
     return -EAGAIN;
 }
 
-void signal_io(IDTYPE target, void* arg) {
-    // Kept for compatibility with signal_itimer
-    __UNUSED(arg);
-
-    debug("detecting input, signaling thread %u\n", target);
-
-    struct shim_thread* thread = lookup_thread(target);
-    if (!thread)
-        return;
-
-    lock(&thread->lock);
-    append_signal(thread, SIGIO, NULL, true);
-    unlock(&thread->lock);
-    put_thread(thread);
+void signal_io(IDTYPE caller, void* arg) {
+    __UNUSED(caller);
+    (void)do_kill_proc(get_cur_thread()->tid, (IDTYPE)(uintptr_t)arg, SIGIO, /*use_ipc=*/false);
 }
 
 int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
@@ -363,7 +354,8 @@ int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
             ret = 0;
             break;
         case FIOASYNC:
-            ret = install_async_event(hdl->pal_handle, 0, &signal_io, NULL);
+            ret = install_async_event(hdl->pal_handle, 0, &signal_io,
+                                      (void*)(uintptr_t)get_cur_thread()->tgid);
             break;
         case TIOCSERCONFIG:
         case TIOCSERGWILD:

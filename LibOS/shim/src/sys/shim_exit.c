@@ -20,26 +20,19 @@
  * Implementation of system call "exit" and "exit_group".
  */
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_ipc.h>
-#include <shim_utils.h>
-#include <shim_checkpoint.h>
-
 #include <pal.h>
 #include <pal_error.h>
 
-#include <errno.h>
-#include <sys/syscall.h>
-#include <sys/mman.h>
-#include <linux/futex.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_ipc.h>
+#include <shim_table.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 
 void release_robust_list (struct robust_list_head * head);
 
-int thread_exit(struct shim_thread* self, bool send_ipc) {
+int thread_destroy(struct shim_thread* self, bool send_ipc) {
     bool sent_exit_msg = false;
 
     /* Chia-Che: Broadcast exit message as early as possible,
@@ -58,12 +51,9 @@ int thread_exit(struct shim_thread* self, bool send_ipc) {
         return 0;
     }
 
-    int exit_code = self->exit_code;
+    self->is_alive = false;
 
-    if (!self->in_vm) {
-        /* thread is in another process, we cannot rely on Async Helper thread to clean it */
-        self->is_alive = false;
-    }
+    int exit_code = self->exit_code;
 
     if (is_internal(self))
         goto out;
@@ -122,15 +112,36 @@ int thread_exit(struct shim_thread* self, bool send_ipc) {
     return 0;
 }
 
-/* note that term_signal argument may contain WCOREDUMP bit (0x80) */
-noreturn void thread_or_process_exit(int error_code, int term_signal) {
-    struct shim_thread * cur_thread = get_cur_thread();
+static noreturn void libos_exit(int error_code, int term_signal) {
+    struct shim_thread* async_thread = terminate_async_helper();
+    if (async_thread) {
+        /* TODO: wait for the thread to exit in host.
+         * This is tracked by the following issue.
+         * https://github.com/oscarlab/graphene/issues/440
+         */
+        put_thread(async_thread);
+    }
+
+    struct shim_thread* ipc_thread = terminate_ipc_helper();
+    if (ipc_thread) {
+        /* TODO: wait for the thread to exit in host.
+         * This is tracked by the following issue.
+         * https://github.com/oscarlab/graphene/issues/440
+         */
+        put_thread(ipc_thread);
+    }
+
+    shim_clean_and_exit(term_signal ? term_signal : error_code);
+}
+
+noreturn void thread_exit(int error_code, int term_signal) {
+    struct shim_thread* cur_thread = get_cur_thread();
 
     cur_thread->exit_code = -error_code;
     cur_thread->term_signal = term_signal;
 
-    if (cur_thread->in_vm)
-        thread_exit(cur_thread, true);
+    assert(cur_thread->in_vm);
+    thread_destroy(cur_thread, true);
 
     if (check_last_thread(cur_thread)) {
         /* ask Async Helper thread to cleanup this thread */
@@ -145,76 +156,79 @@ noreturn void thread_or_process_exit(int error_code, int term_signal) {
         DkThreadExit(&cur_thread->clear_child_tid_pal);
     }
 
-    struct shim_thread * async_thread = terminate_async_helper();
-    if (async_thread)
-        /* TODO: wait for the thread to exit in host.
-         * This is tracked by the following issue.
-         * https://github.com/oscarlab/graphene/issues/440
-         */
-        put_thread(async_thread); /* free resources of the thread */
-
-    struct shim_thread * ipc_thread = terminate_ipc_helper();
-    if (ipc_thread)
-        /* TODO: wait for the thread to exit in host.
-         * This is tracked by the following issue.
-         * https://github.com/oscarlab/graphene/issues/440
-         */
-        put_thread(ipc_thread); /* free resources of the thread */
-
-    shim_clean_and_exit(term_signal ? term_signal : error_code);
+    libos_exit(error_code, term_signal);
 }
 
-noreturn int shim_do_exit_group (int error_code)
-{
-    struct shim_thread * cur_thread = get_cur_thread();
-    assert(!is_internal(cur_thread));
+static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
+    if (thread == (struct shim_thread*)arg) {
+        return 0;
+    }
 
-    /* If exit_group() is invoked multiple times, only a single invocation proceeds past this
-     * point. Kill signals are delivered asynchronously, which will eventually kick the execution
-     * out of this loop.*/
+    lock(&thread->lock);
+    thread->time_to_die = true;
+    unlock(&thread->lock);
+
+    thread_wakeup(thread);
+    DkThreadResume(thread->pal_handle);
+    return 1;
+}
+
+noreturn void process_exit(int error_code, int term_signal) {
+    struct shim_thread* cur_thread = get_cur_thread();
+
+    /* If process_exit is invoked multiple times, only a single invocation proceeds past this
+     * point. */
     static struct atomic_int first = ATOMIC_INIT(0);
     if (atomic_cmpxchg(&first, 0, 1) == 1) {
-        while (1)
-            DkThreadYieldExecution();
+        /* Just exit current thread. */
+        thread_exit(error_code, term_signal);
     }
+
+    /* Tell other threads to exit. We can't do anything on failuers. */
+    (void)walk_thread_list(mark_thread_to_die, cur_thread, /*one_shot=*/false);
+
+    /* Wait for all other threads to exit. */
+    while (check_last_thread(cur_thread)) {
+        DkThreadYieldExecution();
+    }
+
+    /* Now quit our thread. Since we are the last one, this will exit the whole LibOS. */
+    thread_exit(error_code, term_signal);
+}
+
+noreturn int shim_do_exit_group(int error_code) {
+    assert(!is_internal(get_cur_thread()));
 
     if (debug_handle)
         sysparser_printf("---- shim_exit_group (returning %d)\n", error_code);
 
 #ifndef ALIAS_VFORK_AS_FORK
+    struct shim_thread* cur_thread = get_cur_thread();
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
-        thread_exit(cur_thread, true);
+        thread_destroy(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
 #endif
 
-    debug("now kill other threads in the process\n");
-    do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
-    while (check_last_thread(cur_thread)) {
-        DkThreadYieldExecution();
-    }
-
     debug("now exit the process\n");
-    thread_or_process_exit(error_code, 0);
+    process_exit(error_code, 0);
 }
 
-noreturn int shim_do_exit (int error_code)
-{
-    struct shim_thread * cur_thread = get_cur_thread();
-    __UNUSED(cur_thread);
-    assert(!is_internal(cur_thread));
+noreturn int shim_do_exit(int error_code) {
+    assert(!is_internal(get_cur_thread()));
 
     if (debug_handle)
         sysparser_printf("---- shim_exit (returning %d)\n", error_code);
 
 #ifndef ALIAS_VFORK_AS_FORK
+    struct shim_thread* cur_thread = get_cur_thread();
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
-        thread_exit(cur_thread, true);
+        thread_destroy(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
 #endif
 
-    thread_or_process_exit(error_code, 0);
+    thread_exit(error_code, 0);
 }

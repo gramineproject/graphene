@@ -91,6 +91,7 @@ struct shim_thread {
     int term_signal; // Store the terminating signal, if any; needed for
                      // wait() and friends
     bool is_alive;
+    bool time_to_die;
 
     PAL_HANDLE child_exit_event;
     LISTP_TYPE(shim_thread) exited_children;
@@ -290,8 +291,7 @@ int check_last_thread(struct shim_thread* self);
 void switch_dummy_thread (struct shim_thread * thread);
 #endif
 
-int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
-                      void * arg);
+int walk_thread_list(int (*callback)(struct shim_thread*, void*), void* arg, bool one_shot);
 
 /* reference counting of handle maps */
 void get_handle_map (struct shim_handle_map * map);
@@ -322,8 +322,9 @@ void set_handle_map (struct shim_thread * thread,
     thread->handle_map = map;
 }
 
-int thread_exit(struct shim_thread* self, bool send_ipc);
-noreturn void thread_or_process_exit(int error_code, int term_signal);
+int thread_destroy(struct shim_thread* self, bool send_ipc);
+noreturn void thread_exit(int error_code, int term_signal);
+noreturn void process_exit(int error_code, int term_signal);
 
 void release_robust_list(struct robust_list_head* head);
 

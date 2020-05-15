@@ -677,9 +677,7 @@ struct walk_thread_arg {
     struct shim_dirent *buf, *buf_end;
 };
 
-static int walk_cb(struct shim_thread* thread, void* arg, bool* unlocked) {
-    // unlocked needed for kill
-    __UNUSED(unlocked);
+static int walk_cb(struct shim_thread* thread, void* arg) {
     struct walk_thread_arg* args = (struct walk_thread_arg*)arg;
     IDTYPE pid                   = thread->tid;
     int p = pid, l = 0;
@@ -710,7 +708,7 @@ static int proc_list_thread(const char* name, struct shim_dirent** buf, int len)
         .buf_end = (void*)*buf + len,
     };
 
-    int ret = walk_thread_list(&walk_cb, &args);
+    int ret = walk_thread_list(&walk_cb, &args, /*one_shot=*/false);
     if (ret < 0)
         return ret;
 

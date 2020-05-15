@@ -461,9 +461,12 @@ static int _check_last_thread(struct shim_thread* self) {
 
     struct shim_thread* thread;
     LISTP_FOR_EACH_ENTRY(thread, &thread_list, list) {
+        lock(&thread->lock);
         if (thread->tid && thread->tid != self_tid && thread->in_vm && thread->is_alive) {
+            unlock(&thread->lock);
             return thread->tid;
         }
+        unlock(&thread->lock);
     }
     return 0;
 }
@@ -486,8 +489,6 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     struct shim_thread* thread = (struct shim_thread*)arg;
     assert(thread);
 
-    int exit_code = thread->term_signal ? : thread->exit_code;
-
     /* wait on clear_child_tid_pal; this signals that PAL layer exited child thread */
     while (__atomic_load_n(&thread->clear_child_tid_pal, __ATOMIC_RELAXED) != 0) {
         __asm__ volatile ("pause");
@@ -498,59 +499,38 @@ void cleanup_thread(IDTYPE caller, void* arg) {
 
     /* clean up the thread itself */
     lock(&thread_list_lock);
-    thread->is_alive = false;
     LISTP_DEL_INIT(thread, &thread_list, list);
-
     put_thread(thread);
-
-    if (!_check_last_thread(NULL)) {
-        /* corner case when all application threads exited via exit(), only Async helper
-         * and IPC helper threads are left at this point so simply exit process (recall
-         * that typically processes exit via exit_group()) */
-        unlock(&thread_list_lock);
-        shim_clean_and_exit(exit_code);
-    }
-
     unlock(&thread_list_lock);
 }
 
-int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
-                      void * arg)
-{
-    struct shim_thread * tmp, * n;
-    bool srched = false;
-    int ret;
-    IDTYPE min_tid = 0;
+int walk_thread_list(int (*callback)(struct shim_thread*, void*), void* arg, bool one_shot) {
+    struct shim_thread* tmp;
+    struct shim_thread* n;
+    bool success = false;
+    int ret = -ESRCH;
 
-relock:
     lock(&thread_list_lock);
 
     debug("walk_thread_list(callback=%p)\n", callback);
 
     LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &thread_list, list) {
-        if (tmp->tid <= min_tid)
-            continue;
-
-        bool unlocked = false;
-        ret = (*callback) (tmp, arg, &unlocked);
+        ret = callback(tmp, arg);
         if (ret < 0 && ret != -ESRCH) {
-            if (unlocked)
-                goto out;
-            else
-                goto out_locked;
+            goto out;
         }
-        if (ret > 0)
-            srched = true;
-        if (unlocked) {
-            min_tid = tmp->tid;
-            goto relock;
+        if (ret > 0) {
+            if (one_shot) {
+                ret = 0;
+                goto out;
+            }
+            success = true;
         }
     }
 
-    ret = srched ? 0 : -ESRCH;
-out_locked:
-    unlock(&thread_list_lock);
+    ret = success ? 0 : -ESRCH;
 out:
+    unlock(&thread_list_lock);
     return ret;
 }
 
