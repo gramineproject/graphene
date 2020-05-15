@@ -333,10 +333,12 @@ struct __kernel_ustat
 /* bits/socket.h */
 enum
 {
-    MSG_OOB  = 0x01, /* Process out-of-band data. */
-    MSG_PEEK = 0x02, /* Peek at incoming messages. */
+    MSG_OOB      = 0x01, /* Process out-of-band data. */
+    MSG_PEEK     = 0x02, /* Peek at incoming messages. */
+    MSG_DONTWAIT = 0x40, /* Nonblocking IO.  */
 #define MSG_OOB MSG_OOB
 #define MSG_PEEK MSG_PEEK
+#define MSG_DONTWAIT MSG_DONTWAIT
 };
 
 struct msghdr {
@@ -357,6 +359,17 @@ struct mmsghdr {
     struct msghdr msg_hdr;  /* Actual message header.  */
     unsigned int msg_len;   /* Number of received bytes for the entry.  */
 };
+
+/* Structure used for storage of ancillary data object information. */
+struct cmsghdr {
+    size_t cmsg_len;
+    int cmsg_level;
+    int cmsg_type;
+};
+
+#ifndef SCM_RIGHTS
+#define SCM_RIGHTS 1
+#endif
 
 /* POSIX.1g specifies this type name for the `sa_family' member.  */
 typedef unsigned short int sa_family_t;

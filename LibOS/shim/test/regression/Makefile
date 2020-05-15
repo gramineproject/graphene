@@ -47,6 +47,7 @@ c_executables = \
 	pselect \
 	readdir \
 	sched \
+	scm_rights \
 	select \
 	shared_object \
 	sigaltstack \

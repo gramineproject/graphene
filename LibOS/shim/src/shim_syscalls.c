@@ -1008,7 +1008,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(rt_tgsigqueueinfo, 4, int, pid_t, tgid, pid_t, pid, i
 SHIM_SYSCALL_RETURN_ENOSYS(perf_event_open, 5, int, struct perf_event_attr*, attr_uptr, pid_t, pid,
                            int, cpu, int, group_fd, int, flags)
 
-DEFINE_SHIM_SYSCALL(recvmmsg, 5, shim_do_recvmmsg, ssize_t, int, fd, struct mmsghdr*, msg,
+DEFINE_SHIM_SYSCALL(recvmmsg, 5, shim_do_recvmmsg, int, int, fd, struct mmsghdr*, msg,
                     unsigned int, vlen, int, flags, struct __kernel_timespec*, timeout)
 
 SHIM_SYSCALL_RETURN_ENOSYS(fanotify_init, 2, int, int, flags, int, event_f_flags)
@@ -1029,7 +1029,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(clock_adjtime, 2, int, clockid_t, which_clock, struct
 
 SHIM_SYSCALL_RETURN_ENOSYS(syncfs, 1, int, int, fd)
 
-DEFINE_SHIM_SYSCALL(sendmmsg, 4, shim_do_sendmmsg, ssize_t, int, fd, struct mmsghdr*, msg,
+DEFINE_SHIM_SYSCALL(sendmmsg, 4, shim_do_sendmmsg, int, int, fd, struct mmsghdr*, msg,
                     unsigned int, vlen, int, flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(setns, 2, int, int, fd, int, nstype)

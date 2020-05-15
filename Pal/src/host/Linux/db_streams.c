@@ -222,6 +222,23 @@ int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
     return 0;
 }
 
+static int get_fd_from_handle(PAL_HANDLE hdl, int* fd) {
+    assert(hdl && fd);
+    switch (PAL_GET_TYPE(hdl)) {
+        case pal_type_pipe:
+        case pal_type_pipesrv:
+        case pal_type_pipecli:
+            *fd = hdl->pipe.fd;
+            break;
+        case pal_type_process:
+            *fd = hdl->process.stream;
+            break;
+        default:
+            return -1;
+    }
+    return 0;
+}
+
 /*!
  * \brief Send `cargo` handle to a process identified via `hdl` handle.
  *
@@ -230,8 +247,10 @@ int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
-    if (!IS_HANDLE_TYPE(hdl, process))
+    int fd = -1;
+    if (get_fd_from_handle(hdl, &fd) < 0)
         return -PAL_ERROR_BADHANDLE;
+    assert(fd >= 0);
 
     /* serialize cargo handle into a blob hdl_data */
     void* hdl_data = NULL;
@@ -241,7 +260,6 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 
     ssize_t ret;
     struct hdl_header hdl_hdr = {.fds = 0, .data_size = hdl_data_size};
-    int fd = hdl->process.stream;
 
     /* apply bitmask of FDs-to-transfer to hdl_hdr.fds and populate `fds` with these FDs */
     int fds[MAX_FDS];
@@ -304,12 +322,13 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
-    if (!IS_HANDLE_TYPE(hdl, process))
+    int fd = -1;
+    if (get_fd_from_handle(hdl, &fd) < 0)
         return -PAL_ERROR_BADHANDLE;
+    assert(fd >= 0);
 
     ssize_t ret;
     struct hdl_header hdl_hdr;
-    int fd = hdl->process.stream;
 
     /* first receive hdl_hdr so that we know how many FDs were transferred + how large is cargo */
     struct msghdr message_hdr = {0};

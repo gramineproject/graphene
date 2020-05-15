@@ -505,7 +505,7 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('read on FIFO: Hello from write end of FIFO!', stdout)
 
     def test_100_socket_unix(self):
-        stdout, _ = self.run_binary(['unix'])
+        stdout, _ = self.run_binary(['unix'], timeout=60)
         self.assertIn('Data: This is packet 0', stdout)
         self.assertIn('Data: This is packet 1', stdout)
         self.assertIn('Data: This is packet 2', stdout)
@@ -516,6 +516,13 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('Data: This is packet 7', stdout)
         self.assertIn('Data: This is packet 8', stdout)
         self.assertIn('Data: This is packet 9', stdout)
+
+    def test_101_scm_rights(self):
+        stdout, _ = self.run_binary(['scm_rights'], timeout=60)
+        self.assertIn('one', stdout)
+        self.assertIn('two', stdout)
+        self.assertIn('three', stdout)
+        self.assertIn('read on received pipe: hello world', stdout)
 
     def test_200_socket_udp(self):
         stdout, _ = self.run_binary(['udp'], timeout=50)

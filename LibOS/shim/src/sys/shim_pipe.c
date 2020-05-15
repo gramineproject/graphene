@@ -33,6 +33,43 @@
 #include "shim_types.h"
 #include "shim_utils.h"
 
+/* TODO: create a "dummy" shim handle as in socketpair() for SCM_RIGHTS emulation;
+ *       remove this once Graphene has proper serialization of shim_handles */
+int bind_dummy_socket_to_pal_handle(PAL_HANDLE pal_hdl, struct shim_handle** out_hdl) {
+    switch (PAL_GET_TYPE(pal_hdl)) {
+        case pal_type_pipe:
+        case pal_type_pipesrv:
+        case pal_type_pipecli:
+            /* only underlying PAL pipes are allowed */
+            break;
+        default:
+            DkObjectClose(pal_hdl);
+            return -EINVAL;
+    }
+
+    struct shim_handle* hdl = get_new_handle();
+    if (!hdl) {
+        DkObjectClose(pal_hdl);
+        return -ENOMEM;
+    }
+
+    struct shim_sock_handle* sock = &hdl->info.sock;
+
+    hdl->type = TYPE_SOCK;
+    set_handle_fs(hdl, &socket_builtin_fs);
+    hdl->pal_handle  = pal_hdl;
+    hdl->flags       = O_RDWR;
+    hdl->acc_mode    = MAY_READ | MAY_WRITE;
+    sock->domain     = AF_UNIX;
+    sock->sock_type  = SOCK_STREAM;
+    sock->protocol   = 0;
+    sock->sock_state = SOCK_CONNECTED;
+    /* we don't set URI/name: they don't matter for already opened pipes/sockets */
+
+    *out_hdl = hdl;
+    return 0;
+}
+
 static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
                         struct shim_qstr* qstr) {
     int ret = 0;

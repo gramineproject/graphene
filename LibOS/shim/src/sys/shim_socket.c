@@ -59,6 +59,10 @@
 
 #define AF_UNSPEC 0
 
+/* macros for emulating send/recv of ancillary data */
+#define HANDLES_SCM_RIGHTS_MAX 32
+#define HANDLES_SCM_RIGHTS_HDR "GRAPHENE_SCM_RIGHTS:"
+
 static int rebase_on_lo __attribute_migratable = -1;
 
 static size_t minimal_addrlen(int domain) {
@@ -1016,9 +1020,13 @@ int shim_do_accept4(int fd, struct sockaddr* addr, int* addrlen, int flags) {
 }
 
 static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
-                          const struct sockaddr* addr, int addrlen) {
+                          const struct sockaddr* addr, int addrlen,
+                          void* msg_control, size_t msg_controllen) {
     // Issue #752 - https://github.com/oscarlab/graphene/issues/752
     __UNUSED(flags);
+
+    struct shim_handle* hdls_to_send[HANDLES_SCM_RIGHTS_MAX];
+    size_t hdls_to_send_cnt = 0;
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
@@ -1042,12 +1050,51 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
             goto out;
     }
 
+    if (msg_control && test_user_memory(msg_control, msg_controllen, /*write=*/false))
+        goto out;
+
     lock(&hdl->lock);
 
     PAL_HANDLE pal_hdl = hdl->pal_handle;
     char* uri          = NULL;
 
-    /* Data gram sock need not be conneted or bound at all */
+    if (msg_control) {
+        /* prepare ancillary data to be sent (we support only SCM_RIGHTS on UNIX sockets) */
+        if (sock->domain != AF_UNIX) {
+            ret = -EINVAL;
+            goto out_locked;
+        }
+
+        struct cmsghdr* cmsg = (struct cmsghdr*)msg_control;
+        while ((char*)cmsg < (char*)msg_control + msg_controllen) {
+            ssize_t cmsg_data_len = cmsg->cmsg_len - sizeof(*cmsg);
+            if (cmsg_data_len <= 0 || cmsg->cmsg_level != SOL_SOCKET
+                    || cmsg->cmsg_type != SCM_RIGHTS) {
+                ret = -EINVAL;
+                goto out_locked;
+            }
+
+            int* fds_to_send       = (int*)((char*)cmsg + sizeof(*cmsg));
+            size_t fds_to_send_cnt = cmsg_data_len / sizeof(*fds_to_send);
+
+            for (size_t i = 0; i < fds_to_send_cnt; i++) {
+                if (hdls_to_send_cnt == HANDLES_SCM_RIGHTS_MAX) {
+                    ret = -EINVAL;
+                    goto out_locked;
+                }
+
+                struct shim_handle* hdl_to_send = get_fd_handle(fds_to_send[i], NULL, NULL);
+                if (!hdl_to_send) {
+                    ret = -EBADF;
+                    goto out_locked;
+                }
+                hdls_to_send[hdls_to_send_cnt++] = hdl_to_send;
+            }
+
+            cmsg = (struct cmsghdr*)((char*)cmsg + ALIGN_UP(cmsg->cmsg_len, sizeof(size_t)));
+        }
+    }
+
     if (sock->sock_type == SOCK_STREAM && sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED && sock->sock_state != SOCK_ACCEPTED) {
         ret = -ENOTCONN;
@@ -1109,6 +1156,32 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         debug("next packet send to %s\n", uri);
     }
 
+    /* send ancillary data: first header with number of handles to send, then each handle */
+    if (hdls_to_send_cnt) {
+        char hdls_to_send_hdr[sizeof(HANDLES_SCM_RIGHTS_HDR) + sizeof(hdls_to_send_cnt)];
+        memcpy(hdls_to_send_hdr, HANDLES_SCM_RIGHTS_HDR, sizeof(HANDLES_SCM_RIGHTS_HDR));
+        memcpy(hdls_to_send_hdr + sizeof(HANDLES_SCM_RIGHTS_HDR), &hdls_to_send_cnt,
+               sizeof(hdls_to_send_cnt));
+
+        PAL_NUM pal_ret = DkStreamWrite(pal_hdl, /*offset=*/0, sizeof(hdls_to_send_hdr),
+                                        hdls_to_send_hdr, uri);
+        if (pal_ret == PAL_STREAM_ERROR) {
+            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ? -ECONNABORTED : -PAL_ERRNO;
+            lock(&hdl->lock);
+            goto out_locked;
+        }
+        assert(pal_ret == sizeof(hdls_to_send_hdr));  /* always true for UNIX sockets */
+
+        for (size_t i = 0; i < hdls_to_send_cnt; i++) {
+            if (!DkSendHandle(pal_hdl, hdls_to_send[i]->pal_handle)) {
+                ret = -PAL_ERRNO;
+                lock(&hdl->lock);
+                goto out_locked;
+            }
+        }
+    }
+
+    /* send regular data */
     int bytes = 0;
     ret       = 0;
 
@@ -1137,6 +1210,8 @@ out_locked:
 
     unlock(&hdl->lock);
 out:
+    for (size_t i = 0; i < hdls_to_send_cnt; i++)
+        put_handle(hdls_to_send[i]);
     put_handle(hdl);
     return ret;
 }
@@ -1147,28 +1222,28 @@ ssize_t shim_do_sendto(int sockfd, const void* buf, size_t len, int flags,
     iovbuf.iov_base = (void*)buf;
     iovbuf.iov_len  = len;
 
-    return do_sendmsg(sockfd, &iovbuf, 1, flags, addr, addrlen);
+    return do_sendmsg(sockfd, &iovbuf, 1, flags, addr, addrlen, NULL, 0);
 }
 
 ssize_t shim_do_sendmsg(int sockfd, struct msghdr* msg, int flags) {
-    return do_sendmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags, msg->msg_name,
-                      msg->msg_namelen);
-}
-
-ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags) {
-    if (test_user_memory(msg, vlen, /*write=*/true))
+    if (test_user_memory(msg, sizeof(*msg), /*write=*/false))
         return -EFAULT;
 
-    ssize_t total = 0;
-    for (size_t i = 0; i * sizeof(struct mmsghdr) < vlen; i++) {
-        struct msghdr* m = &msg[i].msg_hdr;
+    return do_sendmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags, msg->msg_name,
+                      msg->msg_namelen, msg->msg_control, msg->msg_controllen);
+}
 
-        ssize_t bytes =
-            do_sendmsg(sockfd, m->msg_iov, m->msg_iovlen, flags, m->msg_name, m->msg_namelen);
+int shim_do_sendmmsg(int sockfd, struct mmsghdr* msgvec, unsigned int vlen, int flags) {
+    if (test_user_memory(msgvec, vlen * sizeof(*msgvec), /*write=*/true))
+        return -EFAULT;
+
+    int total = 0;
+    for (size_t i = 0; i < vlen; i++) {
+        ssize_t bytes = shim_do_sendmsg(sockfd, &msgvec[i].msg_hdr, flags);
         if (bytes < 0)
             return total > 0 ? total : bytes;
 
-        msg[i].msg_len = bytes;
+        msgvec[i].msg_len = bytes;
         total++;
     }
 
@@ -1176,7 +1251,13 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int
 }
 
 static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
-                          struct sockaddr* addr, int* addrlen) {
+                          struct sockaddr* addr, int* addrlen,
+                          void* msg_control, size_t* msg_controllen) {
+    size_t hdls_to_recv_cnt = 0;
+
+    struct shim_handle* received_hdls[HANDLES_SCM_RIGHTS_MAX];
+    size_t received_hdls_cnt = 0;
+
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1220,10 +1301,22 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
         expected_size += bufs[i].iov_len;
     }
 
-    if (flags & ~MSG_PEEK) {
-        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK is supported).\n");
+    if (msg_control && msg_controllen && test_user_memory(msg_control, *msg_controllen, /*write=*/true))
+        goto out;
+
+    if (flags & ~(MSG_PEEK | MSG_DONTWAIT)) {
+        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK and MSG_DONTWAIT are"
+              " supported).\n");
         ret = -EOPNOTSUPP;
         goto out;
+    }
+
+    if (flags & MSG_DONTWAIT) {
+        if (!(hdl->flags & O_NONBLOCK)) {
+            debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a read that"
+                  " unexpectedly blocks.\n");
+        }
+        flags &= ~MSG_DONTWAIT;
     }
 
     lock(&hdl->lock);
@@ -1254,6 +1347,103 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
     }
 
     unlock(&hdl->lock);
+
+    if (msg_control) {
+        assert(msg_controllen);
+
+        if (sock->domain != AF_UNIX || flags & MSG_PEEK || peek_buffer) {
+            /* TODO: unclear what to do if we have both ancillary data and peeks */
+            ret = -EINVAL;
+            lock(&hdl->lock);
+            goto out_locked;
+        }
+
+        /* assume that if user supplied msg_control, then we expect ancillary data;
+         * we will return partial read if data is just normal */
+        char hdls_to_recv_hdr[sizeof(HANDLES_SCM_RIGHTS_HDR) + sizeof(hdls_to_recv_cnt)];
+
+        PAL_NUM pal_ret = DkStreamRead(pal_hdl, /*offset=*/0, sizeof(hdls_to_recv_hdr),
+                                       hdls_to_recv_hdr, uri, uri ? SOCK_URI_SIZE : 0);
+        if (pal_ret == PAL_STREAM_ERROR) {
+            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ? -ECONNABORTED : -PAL_ERRNO;
+            lock(&hdl->lock);
+            goto out_locked;
+        }
+
+        if (pal_ret < sizeof(hdls_to_recv_hdr) ||
+                strcmp_static(hdls_to_recv_hdr, HANDLES_SCM_RIGHTS_HDR)) {
+            /* looks like we have a "normal" message, try to return whatever was read in bufs */
+            *msg_controllen = 0;
+            ret = -EINVAL;
+
+            if (nbufs && pal_ret < bufs[0].iov_len) {
+                memcpy(bufs[0].iov_base, hdls_to_recv_hdr, pal_ret);
+                ret = pal_ret;
+            }
+
+            if (ret >= 0 && addr) {
+                unix_copy_addr(addr, sock->addr.un.dentry);
+                *addrlen = sizeof(struct sockaddr_un);
+            }
+
+            lock(&hdl->lock);
+            goto out_locked;
+        }
+
+        memcpy(&hdls_to_recv_cnt, hdls_to_recv_hdr + sizeof(HANDLES_SCM_RIGHTS_HDR),
+               sizeof(hdls_to_recv_cnt));
+        if (hdls_to_recv_cnt > HANDLES_SCM_RIGHTS_MAX) {
+            ret = -EINVAL;
+            lock(&hdl->lock);
+            goto out_locked;
+        }
+
+        size_t cmsg_len = sizeof(struct cmsghdr) + hdls_to_recv_cnt * sizeof(int);
+        cmsg_len        = ALIGN_UP(cmsg_len, sizeof(size_t));
+        if (*msg_controllen < cmsg_len) {
+            ret = -ENOMEM;
+            lock(&hdl->lock);
+            goto out_locked;
+        }
+
+        struct cmsghdr* cmsg = (struct cmsghdr*)msg_control;
+        cmsg->cmsg_len   = cmsg_len;
+        cmsg->cmsg_level = SOL_SOCKET;
+        cmsg->cmsg_type  = SCM_RIGHTS;
+
+        int* cmsg_vfds = (int*)((char*)msg_control + sizeof(*cmsg));
+
+        for (size_t i = 0; i < hdls_to_recv_cnt; i++) {
+            PAL_HANDLE received_pal_hdl = DkReceiveHandle(pal_hdl);
+            if (!received_pal_hdl) {
+                ret = -PAL_ERRNO;
+                lock(&hdl->lock);
+                goto out_locked;
+            }
+
+            /* FIXME: currently only allow to receive pipes and UNIX domain sockets */
+            struct shim_handle* received_hdl = NULL;
+            ret = bind_dummy_socket_to_pal_handle(received_pal_hdl, &received_hdl);
+            if (ret < 0) {
+                lock(&hdl->lock);
+                goto out_locked;
+            }
+
+            assert(received_hdl);
+            received_hdls[received_hdls_cnt++] = received_hdl;
+
+            int vfd = set_new_fd_handle(received_hdl, 0, NULL);
+            if (vfd < 0) {
+                ret = vfd;
+                lock(&hdl->lock);
+                goto out_locked;
+            }
+
+            cmsg_vfds[i] = vfd;
+        }
+
+        *msg_controllen = cmsg_len;
+    }
 
     if (flags & MSG_PEEK) {
         if (!peek_buffer) {
@@ -1398,8 +1588,12 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
     goto out;
 
 out_locked:
-    if (ret < 0)
+    if (ret < 0) {
+        for (size_t i = 0; i < received_hdls_cnt; i++)
+            put_handle(received_hdls[i]);
         sock->error = -ret;
+    }
+
     unlock(&hdl->lock);
     free(peek_buffer);
 out:
@@ -1413,36 +1607,34 @@ ssize_t shim_do_recvfrom(int sockfd, void* buf, size_t len, int flags, struct so
     iovbuf.iov_base = (void*)buf;
     iovbuf.iov_len  = len;
 
-    return do_recvmsg(sockfd, &iovbuf, 1, flags, addr, addrlen);
+    return do_recvmsg(sockfd, &iovbuf, 1, flags, addr, addrlen, NULL, NULL);
 }
 
 ssize_t shim_do_recvmsg(int sockfd, struct msghdr* msg, int flags) {
-    return do_recvmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags, msg->msg_name,
-                      &msg->msg_namelen);
-}
-
-ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
-                         struct __kernel_timespec* timeout) {
-    if (test_user_memory(msg, vlen, /*write=*/true))
+    if (test_user_memory(msg, sizeof(*msg), /*write=*/true))
         return -EFAULT;
 
-    ssize_t total = 0;
-    // Issue # 753 - https://github.com/oscarlab/graphene/issues/753
-    /* TODO(donporter): timeout properly. For now, explicitly return an error. */
+    return do_recvmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags, msg->msg_name,
+                      &msg->msg_namelen, msg->msg_control, &msg->msg_controllen);
+}
+
+int shim_do_recvmmsg(int sockfd, struct mmsghdr* msgvec, unsigned int vlen, int flags,
+                     struct __kernel_timespec* timeout) {
+    if (test_user_memory(msgvec, vlen * sizeof(*msgvec), /*write=*/true))
+        return -EFAULT;
+
     if (timeout) {
         debug("recvmmsg(): timeout parameter unsupported.\n");
         return -EOPNOTSUPP;
     }
 
-    for (size_t i = 0; i * sizeof(struct mmsghdr) < vlen; i++) {
-        struct msghdr* m = &msg[i].msg_hdr;
-
-        ssize_t bytes =
-            do_recvmsg(sockfd, m->msg_iov, m->msg_iovlen, flags, m->msg_name, &m->msg_namelen);
+    int total = 0;
+    for (size_t i = 0; i < vlen; i++) {
+        ssize_t bytes = shim_do_recvmsg(sockfd, &msgvec[i].msg_hdr, flags);
         if (bytes < 0)
-            return total > 0 ? total : bytes;
+            return total > 0 ? total : (int)bytes;
 
-        msg[i].msg_len = bytes;
+        msgvec[i].msg_len = bytes;
         total++;
     }
 

@@ -244,6 +244,24 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
     return 0;
 }
 
+static int get_secure_fd_from_handle(PAL_HANDLE hdl, int* fd, void** ssl_ctx) {
+    assert(hdl && fd && ssl_ctx);
+    switch (PAL_GET_TYPE(hdl)) {
+        case pal_type_pipe:
+        case pal_type_pipesrv:
+        case pal_type_pipecli:
+            *fd      = hdl->pipe.fd;
+            *ssl_ctx = hdl->pipe.ssl_ctx;
+            break;
+        case pal_type_process:
+            *fd      = hdl->process.stream;
+            *ssl_ctx = hdl->process.ssl_ctx;
+            break;
+        default:
+            return -1;
+    }
+    return 0;
+}
 /*!
  * \brief Send `cargo` handle to a process identified via `hdl` handle.
  *
@@ -254,8 +272,11 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
-    if (!IS_HANDLE_TYPE(hdl, process))
+    int fd        = -1;
+    void* ssl_ctx = NULL;
+    if (get_secure_fd_from_handle(hdl, &fd, &ssl_ctx) < 0)
         return -PAL_ERROR_BADHANDLE;
+    assert(fd >= 0);
 
     /* serialize cargo handle into a blob hdl_data */
     void* hdl_data = NULL;
@@ -265,7 +286,6 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 
     ssize_t ret;
     struct hdl_header hdl_hdr = {.fds = 0, .data_size = hdl_data_size};
-    int fd = hdl->process.stream;
 
     /* apply bitmask of FDs-to-transfer to hdl_hdr.fds and populate `fds` with these FDs */
     int fds[MAX_FDS];
@@ -301,8 +321,8 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     }
 
     /* finally send the serialized cargo as payload (possibly encrypted) */
-    if (hdl->process.ssl_ctx) {
-        ret = _DkStreamSecureWrite(hdl->process.ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
+    if (ssl_ctx) {
+        ret = _DkStreamSecureWrite(ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
     } else {
         ret = ocall_write(fd, hdl_data, hdl_hdr.data_size);
         ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
@@ -322,12 +342,14 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
  * \return           0 on success, negative PAL error code otherwise.
  */
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
-    if (!IS_HANDLE_TYPE(hdl, process))
+    int fd        = -1;
+    void* ssl_ctx = NULL;
+    if (get_secure_fd_from_handle(hdl, &fd, &ssl_ctx) < 0)
         return -PAL_ERROR_BADHANDLE;
+    assert(fd >= 0);
 
     ssize_t ret;
     struct hdl_header hdl_hdr;
-    int fd = hdl->process.stream;
 
     /* first receive hdl_hdr so that we know how many FDs were transferred + how large is cargo */
     ret = ocall_recv(fd, &hdl_hdr, sizeof(hdl_hdr), NULL, NULL, NULL, NULL);
@@ -361,8 +383,8 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     /* finally receive the serialized cargo as payload (possibly encrypted) */
     char hdl_data[hdl_hdr.data_size];
 
-    if (hdl->process.ssl_ctx) {
-        ret = _DkStreamSecureRead(hdl->process.ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
+    if (ssl_ctx) {
+        ret = _DkStreamSecureRead(ssl_ctx, (uint8_t*)hdl_data, hdl_hdr.data_size);
     } else {
         ret = ocall_read(fd, hdl_data, hdl_hdr.data_size);
         ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;

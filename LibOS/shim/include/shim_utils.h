@@ -211,6 +211,7 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
 int create_dir(const char* prefix, char* path, size_t size, struct shim_handle** hdl);
 int create_file(const char* prefix, char* path, size_t size, struct shim_handle** hdl);
 int create_handle(const char* prefix, char* path, size_t size, PAL_HANDLE* hdl, unsigned int* id);
+int bind_dummy_socket_to_pal_handle(PAL_HANDLE pal_hdl, struct shim_handle** out_hdl);
 
 /* Asynchronous event support */
 int init_async(void);
