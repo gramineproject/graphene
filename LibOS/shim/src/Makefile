@@ -35,9 +35,9 @@ objs = \
 	shim_object.o \
 	shim_parser.o \
 	shim_syscalls.o \
-	shim_table.o \
-	start.o \
-	syscallas.o \
+	shim_table-$(ARCH).o \
+	start-$(ARCH).o \
+	syscallas-$(ARCH).o \
 	bookkeep/shim_handle.o \
 	bookkeep/shim_signal.o \
 	bookkeep/shim_thread.o \
@@ -124,15 +124,15 @@ endif
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
 
-LDFLAGS-libsysdb.so += --version-script shim.map -T shim.lds
+LDFLAGS-libsysdb.so += --version-script shim.map -T shim-$(ARCH).lds
 libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
-	     $(graphene_lib) $(pal_lib) shim.map shim.lds
+	     $(graphene_lib) $(pal_lib) shim.map shim-$(ARCH).lds
 	$(call cmd,ld_so_o)
 
-LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim.lds
-libsysdb_debug.so: $(filter-out syscallas.o,$(objs)) \
+LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim-$(ARCH).lds
+libsysdb_debug.so: $(filter-out syscallas-$(ARCH).o,$(objs)) \
 		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
-		   $(graphene_lib) $(pal_lib) shim-debug.map shim.lds
+		   $(graphene_lib) $(pal_lib) shim-debug.map shim-$(ARCH).lds
 	$(call cmd,ld_so_o)
 
 .PHONY: graphene_lib_recurse
@@ -160,7 +160,7 @@ libsysdb.a: $(objs)
 %.s: %.S
 	$(call cmd,cpp_s_S)
 
-syscallas.S shim_checkpoint.c: asm-offsets.h
+syscallas-$(ARCH).S shim_checkpoint.c: asm-offsets.h
 
 include ../../../Scripts/Makefile.rules
 
@@ -168,9 +168,9 @@ LDFLAGS-vdso/vdso.so.dbg = -nostdlib -shared \
 	--hash-style=both --build-id -Bsymbolic \
 	-m elf_x86_64 --no-undefined \
 	-z max-page-size=4096 -z common-page-size=4096 \
-	-T vdso/vdso.lds -soname linux-vdso.so.1
+	-T vdso/vdso-$(ARCH).lds -soname linux-vdso.so.1
 vdso/vdso.so.dbg: LDFLAGS =
-vdso/vdso.so.dbg: vdso/vdso.lds vdso/vdso.o vdso/vdso-note.o | vdso/.vdso-no-reloc-checked
+vdso/vdso.so.dbg: vdso/vdso-$(ARCH).lds vdso/vdso.o vdso/vdso-note.o | vdso/.vdso-no-reloc-checked
 	$(call cmd,ld)
 
 # vdso.so is required to have no relocations. This rule checks it.
