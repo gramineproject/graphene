@@ -124,15 +124,15 @@ endif
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
 
-LDFLAGS-libsysdb.so += --version-script shim.map -T shim.lds
+LDFLAGS-libsysdb.so += --version-script shim.map -T shim-$(ARCH).lds
 libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
-	     $(graphene_lib) $(pal_lib) shim.map shim.lds
+	     $(graphene_lib) $(pal_lib) shim.map shim-$(ARCH).lds
 	$(call cmd,ld_so_o)
 
-LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim.lds
+LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim-$(ARCH).lds
 libsysdb_debug.so: $(filter-out syscallas.o,$(objs)) \
 		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
-		   $(graphene_lib) $(pal_lib) shim-debug.map shim.lds
+		   $(graphene_lib) $(pal_lib) shim-debug.map shim-$(ARCH).lds
 	$(call cmd,ld_so_o)
 
 .PHONY: graphene_lib_recurse
