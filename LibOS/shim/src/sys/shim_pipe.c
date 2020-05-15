@@ -196,7 +196,7 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
 
     hdl2->type = TYPE_SOCK;
     set_handle_fs(hdl2, &socket_builtin_fs);
-    hdl1->flags       = O_WRONLY;
+    hdl2->flags       = O_WRONLY;
     hdl2->acc_mode    = MAY_READ | MAY_WRITE;
     sock2->domain     = domain;
     sock2->sock_type  = type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
