@@ -42,4 +42,3 @@ RUN cd /graphene && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/sgx-driver
 RUN for f in $$(find /graphene/Runtime -type l);do cp --remove-destination $$(readlink $$f) $$f;done;
 
 # Finished building Graphene
-# ------------------------------------------

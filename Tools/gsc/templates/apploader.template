@@ -1,9 +1,9 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 set -ex
 
 # Generate EINITOKEN for all applications
-for manifest in ${binary}.manifest ${user_manifests};
+for manifest in ${binary}.manifest ${user_manifests}
 do
     # Remove .manifest from file
     executable=$${manifest%.manifest}

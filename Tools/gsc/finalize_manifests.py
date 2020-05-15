@@ -25,11 +25,10 @@ def generate_trusted_files(root_dir):
                 and is_ascii(filename)
                 and os.path.isfile(filename)
                 and filename != script_file):
-                trusted_files += 'sgx.trusted_files.file{} = file:{}\n'.format(num_trusted,
-                                                                                filename)
+                trusted_files += f'sgx.trusted_files.file{num_trusted} = file:{filename}\n'
                 num_trusted += 1
 
-    print('Found ' + str(num_trusted) + ' files in \'' + root_dir + '\'.')
+    print(f'Found {str(num_trusted)} files in \'{root_dir}\'.')
 
     return trusted_files
 
@@ -44,7 +43,7 @@ def generate_library_paths():
     return ''.join(ld_paths)
 
 def get_binary_path(executable):
-    path = subprocess.check_output('which ' + executable,
+    path = subprocess.check_output(f'which {executable}',
            stderr=subprocess.STDOUT, shell=True).decode()
     return path.replace('\n', '')
 
@@ -53,7 +52,7 @@ def generate_signature(manifest):
         '/graphene/signer/pal-sgx-sign',
         '-libpal', '/graphene/Runtime/libpal-Linux-SGX.so',
         '-key', '/graphene/signer/enclave-key.pem',
-        '-output', manifest + '.sgx',
+        '-output', f'{manifest}.sgx',
         '-manifest', manifest
         ],
         stdout=subprocess.PIPE,
@@ -64,22 +63,22 @@ def generate_signature(manifest):
     if (sign_process.returncode != 0
         or not os.path.exists(os.path.join(os.getcwd(), manifest + '.sgx'))):
         print(err.decode())
-        print("Finalize manifests failed due to pal-sgx-sign failure.")
+        print('Finalize manifests failed due to pal-sgx-sign failure.')
         sys.exit(1)
 
 # Iterate over manifest file to find enclave size definition and return it
 def extract_enclave_size(manifest):
-    with open(manifest, "r") as file:
+    with open(manifest, 'r') as file:
         for line in file:
-            if not line.strip().startswith("sgx.enclave_size"):
+            if not line.strip().startswith('sgx.enclave_size'):
                 continue
 
-            tokens = line.split("=")
-            if len(tokens) != 2 or "#" in tokens[1]:
+            tokens = line.split('=')
+            if len(tokens) != 2 or '#' in tokens[1]:
                 continue
             return tokens[1].strip()
 
-    return "0M"
+    return '0M'
 
 ARGPARSER = argparse.ArgumentParser()
 ARGPARSER.add_argument('finalize_manifests.py', metavar='SCRIPT',
@@ -109,15 +108,15 @@ def main(args=None):
     # User must specify manifest files in the order of parent to child. Here we reverse the list
     # of manifests to include the signatures of children in the parent.
     for manifest in reversed(args.manifests):
-        print(manifest + ':')
+        print(f'{manifest}:')
 
         executable = manifest[:manifest.rfind('.manifest')] if (
                                     manifest.rfind('.manifest') != -1) else manifest
         binary_path = get_binary_path(executable)
 
-        print('\tSetting exec file to \'' + binary_path + '\'.')
+        print(f'\tSetting exec file to \'{binary_path}\'.')
 
-        with open(manifest, "r") as manifest_file:
+        with open(manifest, 'r') as manifest_file:
             mf_template = string.Template(manifest_file.read())
 
         mf_instance = mf_template.substitute({
@@ -126,28 +125,28 @@ def main(args=None):
                                 })
 
         # Write final manifest file with trusted files and children
-        with open(manifest, "w") as manifest_file:
+        with open(manifest, 'w') as manifest_file:
             manifest_file.write('\n'.join((mf_instance,
                                            trusted_files,
                                            '\n'.join(trusted_signatures),
                                            '\n')))
 
-        print('\tWrote ' + manifest + '.')
+        print(f'\tWrote {manifest}.')
 
         generate_signature(manifest)
 
-        print('\tGenerated ' + manifest + '.sgx and generated signature.')
+        print(f'\tGenerated {manifest}.sgx and generated signature.')
 
-        trusted_signatures.append('sgx.trusted_children.child' + str(len(trusted_signatures))
-                                    + ' = file:' + executable + '.sig')
+        trusted_signatures.append(f'sgx.trusted_children.child{str(len(trusted_signatures))}'
+                                  f' = file:{executable}.sig')
 
     # In case multiple manifest files were generated, ensure that their enclave sizes are compatible
     if len(args.manifests) > 1:
-        main_encl_size = extract_enclave_size(args.manifests[0] + ".sgx")
+        main_encl_size = extract_enclave_size(args.manifests[0] + '.sgx')
         for manifest in args.manifests[1:]:
-            if main_encl_size != extract_enclave_size(manifest + ".sgx"):
-                print("Error: Detected a child manifest with an enclave size different than its "
-                    "parent.")
+            if main_encl_size != extract_enclave_size(manifest + '.sgx'):
+                print('Error: Detected a child manifest with an enclave size different than its '
+                    'parent.')
                 sys.exit(1)
 
 if __name__ == '__main__':

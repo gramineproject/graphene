@@ -10,12 +10,12 @@ import shutil
 import docker
 
 def gsc_image_name(name):
-    return "gsc-" + name
+    return 'gsc-' + name
 
 def load_config(file):
     if not os.path.exists(file):
-        print("Please create file named 'config.json' based on the template configuration "
-              "file called 'config.json.template'.")
+        print('Please create file named \'config.json\' based on the template configuration '
+              'file called \'config.json.template\'.')
         sys.exit(1)
 
     with open(file) as json_config_file:
@@ -26,7 +26,7 @@ def load_config(file):
 # finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
 def generate_manifest(image, substitutions, user_manifest):
 
-    user_mf = ""
+    user_mf = ''
     if os.path.exists(user_manifest):
         with open(user_manifest, 'r') as user_manifest_file:
             user_mf = user_manifest_file.read()
@@ -37,9 +37,9 @@ def generate_manifest(image, substitutions, user_manifest):
 
     with open('gsc-' + image + '/' + substitutions['binary'] + '.manifest', 'w') as app_manifest:
         app_manifest.write(instantiated_mf)
-        app_manifest.write("\n")
+        app_manifest.write('\n')
         app_manifest.write(user_mf)
-        app_manifest.write("\n")
+        app_manifest.write('\n')
 
 # Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
@@ -48,7 +48,7 @@ def generate_app_loader(image, substitutions):
         template_apl = string.Template(apl.read())
         instantiated_apl = template_apl.substitute(substitutions)
 
-    with open('gsc-' + image + '/apploader.sh', 'w') as apploader:
+    with open(f'gsc-{image}/apploader.sh', 'w') as apploader:
         apploader.write(instantiated_apl)
 
 # Generate a dockerfile that compiles Graphene and includes the application image. This dockerfile
@@ -60,24 +60,24 @@ def generate_app_loader(image, substitutions):
 # manifest generation and generates the signature.
 def generate_dockerfile(image, substitutions):
     # generate stage 1 from distribution template
-    with open('templates/Dockerfile.' + substitutions['distro'] + '.template') as dfg:
+    with open(f'templates/Dockerfile.{substitutions["distro"]}.template') as dfg:
         template_dfg = string.Template(dfg.read())
         instantiated_dfg = template_dfg.substitute(substitutions)
 
     # generate 2nd stage (based on application image)
-    instantiated_dfapp = ""
+    instantiated_dfapp = ''
     if not 'GSC_ONLY' in substitutions:
-        with open('templates/Dockerfile.' + substitutions['distro'] + '.gscapp.template') as dfapp:
+        with open(f'templates/Dockerfile.{substitutions["distro"]}.gscapp.template') as dfapp:
             template_dfapp = string.Template(dfapp.read())
             instantiated_dfapp = template_dfapp.substitute(substitutions)
 
-    with open('gsc-' + image + "/Dockerfile", "w") as dockerfile:
+    with open(f'gsc-{image}/Dockerfile', 'w') as dockerfile:
         dockerfile.write(instantiated_dfg)
         dockerfile.write(instantiated_dfapp)
 
 def prepare_build_context(image, user_manifests, substitutions):
     # create directory for image specific files
-    os.makedirs('gsc-' + image, exist_ok=True)
+    os.makedirs(f'gsc-{image}', exist_ok=True)
 
     # generate dockerfile to build graphenized docker image
     generate_dockerfile(image, substitutions)
@@ -95,7 +95,7 @@ def prepare_build_context(image, user_manifests, substitutions):
         generate_manifest(image, substitutions, user_manifest)
 
     # copy markTrustedFiles.sh
-    shutil.copyfile("finalize_manifests.py", 'gsc-' + image + "/finalize_manifests.py")
+    shutil.copyfile('finalize_manifests.py', f'gsc-{image}/finalize_manifests.py')
 
 def extract_binary_cmd_from_image_config(config):
     entrypoint = config['Entrypoint'] if isinstance(config['Entrypoint'], list) else []
@@ -119,13 +119,13 @@ def extract_binary_cmd_from_image_config(config):
         binary_arguments = '"' + '", "'.join(entrypoint[1: last_bin_arg]) + '"'
     else:
         last_bin_arg = 0
-        binary_arguments = ""
+        binary_arguments = ''
 
     # Place the remaining optional arguments previously specified as command, in the
     # new command. This is necessary, since the first element of the command may be the
     # binary of the resulting image.
     remaining_args = '"' + '", "'.join(entrypoint[last_bin_arg + 1 : ]) + '"'
-    cmd = remaining_args if len(entrypoint) > last_bin_arg + 1 else ""
+    cmd = remaining_args if len(entrypoint) > last_bin_arg + 1 else ''
 
     return binary, binary_arguments, cmd
 
@@ -187,7 +187,7 @@ def prepare_substitutions(base_image, image, options, user_manifests):
 # [<app2.manifest> ...].
 def gsc_build(args):
     if len(args) < 2:
-        print("Too few arguments to command build")
+        print('Too few arguments to command build')
         print_build_help()
         sys.exit(1)
 
@@ -196,8 +196,8 @@ def gsc_build(args):
         options += 1 if arg.startswith('-') else 0
 
     if len(args) < options + 2:
-        print("Too few arguments.")
-        print_usage("build")
+        print('Too few arguments.')
+        print_usage('build')
         sys.exit(1)
 
     image = args[options]
@@ -207,17 +207,17 @@ def gsc_build(args):
 
     try:
         docker_socket.images.get(gsc_image_name(image))
-        print("Image " + gsc_image_name(image) + " already exists, no gsc build required.")
+        print(f'Image {gsc_image_name(image)} already exists, no gsc build required.')
         sys.exit(0)
 
     except (docker.errors.ImageNotFound, docker.errors.APIError):
         try:
             base_image = docker_socket.images.get(image)
         except (docker.errors.ImageNotFound, docker.errors.APIError):
-            print("Unable to find base image " + image)
+            print(f'Unable to find base image {image}')
             sys.exit(1)
 
-        print("Building graphenized image from base image " + image)
+        print(f'Building graphenized image from base image {image}')
 
         substitutions = prepare_substitutions(base_image, image, args[0:options], user_manifests)
 
@@ -239,48 +239,48 @@ def gsc_build(args):
         try:
             base_image = docker_socket.images.get(gsc_image_name(image))
 
-            print("Successfully graphenized docker image " + image + " into docker image "
+            print(f'Successfully graphenized docker image {image} into docker image '
                     + gsc_image_name(image))
 
         except (docker.errors.ImageNotFound, docker.errors.APIError):
-            print("Failed to build graphenized image for " + image)
+            print('Failed to build graphenized image for {image}')
             sys.exit(1)
 
 def print_build_help():
-    print("Build command usage:")
-    print("   gsc build [<options>] <image-name>[:<tag>] <app>.manifest [<app2>.manifest ...]")
-    print("      Options:")
-    print("         -d - compile Graphene with debug")
-    print("      image-name - name of the base image to be graphenized")
-    print("      tag - tag of the image")
-    print("      <app>.manifest - application-specific manifest for the first executable")
-    print("      <app2>.manifest -  application-specific manifest for the second executable "
-                        + "(child of the first executable)")
+    print('Build command usage:')
+    print('   gsc build [<options>] <image-name>[:<tag>] <app>.manifest [<app2>.manifest ...]')
+    print('      Options:')
+    print('         -d - compile Graphene with debug')
+    print('      image-name - name of the base image to be graphenized')
+    print('      tag - tag of the image')
+    print('      <app>.manifest - application-specific manifest for the first executable')
+    print('      <app2>.manifest -  application-specific manifest for the second executable '
+                 '(child of the first executable)')
 
 
 def print_usage(cmd):
     #pylint: disable=unused-argument
-    print("Usage:")
-    print("gsc <cmd> [<cmd arguments>]\n")
-    print("List of Commands:")
-    print("   build - build a graphenized docker image")
-    print("   help - print this information\n")
+    print('Usage:')
+    print('gsc <cmd> [<cmd arguments>]\n')
+    print('List of Commands:')
+    print('   build - build a graphenized docker image')
+    print('   help - print this information\n')
 
     print_build_help()
 
-    print("\nTo run a graphenized Docker image, execute:")
-    print("docker run --device=/dev/gsgx --device=/dev/isgx -v "
-        "/var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [options] gsc-<image-name>[:<tag>]"
-        " [application arguments]")
+    print('\nTo run a graphenized Docker image, execute:')
+    print('docker run --device=/dev/gsgx --device=/dev/isgx -v '
+        '/var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [options] gsc-<image-name>[:<tag>]'
+        ' [application arguments]')
 
 def main(args):
     if len(args) < 2:
-        print_usage("")
+        print_usage('')
         sys.exit(1)
 
     gsc_cmds = {
         'build': gsc_build,
-        'help': print_usage
+        '--help': print_usage
     }
 
     # GSC command is the first argument if not provided print usage
