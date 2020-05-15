@@ -37,7 +37,7 @@ objs = \
 	shim_syscalls.o \
 	shim_table.o \
 	start.o \
-	syscallas.o \
+	syscallas-$(ARCH).o \
 	bookkeep/shim_handle.o \
 	bookkeep/shim_signal.o \
 	bookkeep/shim_thread.o \
@@ -130,7 +130,7 @@ libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 	$(call cmd,ld_so_o)
 
 LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim-$(ARCH).lds
-libsysdb_debug.so: $(filter-out syscallas.o,$(objs)) \
+libsysdb_debug.so: $(filter-out syscallas-$(ARCH).o,$(objs)) \
 		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
 		   $(graphene_lib) $(pal_lib) shim-debug.map shim-$(ARCH).lds
 	$(call cmd,ld_so_o)
@@ -160,7 +160,7 @@ libsysdb.a: $(objs)
 %.s: %.S
 	$(call cmd,cpp_s_S)
 
-syscallas.S shim_checkpoint.c: asm-offsets.h
+syscallas-$(ARCH).S shim_checkpoint.c: asm-offsets.h
 
 include ../../../Scripts/Makefile.rules
 
