@@ -40,42 +40,42 @@ static int printnum(int (*_fputch)(void*, int, void*), void* f, void* putdat, un
 // Get an unsigned int of various possible sizes from a varargs list,
 // depending on the lflag parameter.
 #if !defined(__i386__)
-static inline unsigned long long getuint(va_list ap, int lflag)
+static inline unsigned long long getuint(va_list* ap, int lflag)
 #else
-static inline unsigned long getuint(va_list ap, int lflag)
+static inline unsigned long getuint(va_list* ap, int lflag)
 #endif
 {
 #if !defined(__i386__)
     if (lflag >= 2)
-        return va_arg(ap, unsigned long long);
+        return va_arg(*ap, unsigned long long);
 #endif
     if (lflag)
-        return va_arg(ap, unsigned long);
-    return va_arg(ap, unsigned int);
+        return va_arg(*ap, unsigned long);
+    return va_arg(*ap, unsigned int);
 }
 
 // Same as getuint but signed - can't use getuint
 // because of sign extension
 #if !defined(__i386__)
-static inline long long getint(va_list ap, int lflag)
+static inline long long getint(va_list* ap, int lflag)
 #else
-static inline long getint(va_list ap, int lflag)
+static inline long getint(va_list* ap, int lflag)
 #endif
 {
 #if !defined(__i386__)
     if (lflag >= 2)
-        return va_arg(ap, long long);
+        return va_arg(*ap, long long);
 #endif
     if (lflag)
-        return va_arg(ap, long);
-    return va_arg(ap, int);
+        return va_arg(*ap, long);
+    return va_arg(*ap, int);
 }
 
 // Main function to format and print a string.
 void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt, ...);
 
 void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt,
-                va_list ap) {
+                va_list* ap) {
     register const char* p;
     register int ch;
 #if !defined(__i386__)
@@ -131,7 +131,7 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
                 goto process_precision;
 
             case '*':
-                precision = va_arg(ap, int);
+                precision = va_arg(*ap, int);
                 goto process_precision;
 
             case '.':
@@ -155,13 +155,13 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
 
             // character
             case 'c':
-                if ((*_fputch)(f, va_arg(ap, int), putdat) == -1)
+                if ((*_fputch)(f, va_arg(*ap, int), putdat) == -1)
                     return;
                 break;
 
             // string
             case 's':
-                if ((p = va_arg(ap, char*)) == NULL)
+                if ((p = va_arg(*ap, char*)) == NULL)
                     p = "(null)";
                 if (width > 0 && padc != '-')
                     for (width -= strnlen(p, precision); width > 0; width--)
@@ -220,9 +220,9 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
                 if ((*_fputch)(f, 'x', putdat) == -1)
                     return;
 #if !defined(__i386__)
-                num = (unsigned long long)(uintptr_t)va_arg(ap, void*);
+                num = (unsigned long long)(uintptr_t)va_arg(*ap, void*);
 #else
-                num = (unsigned long)(uintptr_t)va_arg(ap, void*);
+                num = (unsigned long)(uintptr_t)va_arg(*ap, void*);
 #endif
                 base = 16;
                 goto number;
@@ -261,7 +261,7 @@ void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const c
     va_list ap;
 
     va_start(ap, fmt);
-    vfprintfmt(_fputch, f, putdat, fmt, ap);
+    vfprintfmt(_fputch, f, putdat, fmt, &ap);
     va_end(ap);
 }
 
@@ -288,7 +288,7 @@ int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap) {
         return 0;
 
     // print the string to the buffer
-    vfprintfmt((void*)sprintputch, (void*)0, &b, fmt, ap);
+    vfprintfmt((void*)sprintputch, (void*)0, &b, fmt, (va_list *)&ap);
 
     // null terminate the buffer
     if (b.cnt < n)

@@ -54,7 +54,7 @@ vprintf(const char * fmt, va_list ap)
 
     b.idx = 0;
     b.cnt = 0;
-    vfprintfmt((void *) &fputch, NULL, &b, fmt, ap);
+    vfprintfmt((void *) &fputch, NULL, &b, fmt, (va_list *)&ap);
     _DkPrintConsole(b.buf, b.idx);
 
     return b.cnt;

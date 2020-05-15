@@ -99,7 +99,7 @@ void debug_putch(int ch) {
 }
 
 void debug_vprintf(const char* fmt, va_list ap) {
-    vfprintfmt((void*)debug_fputch, NULL, shim_get_tcb()->debug_buf, fmt, ap);
+    vfprintfmt((void*)debug_fputch, NULL, shim_get_tcb()->debug_buf, fmt, (va_list*)&ap);
 }
 
 void debug_printf(const char* fmt, ...) {
@@ -153,7 +153,7 @@ static void sys_fputch(void* f, int ch, void* b) {
 }
 
 static void sys_vfprintf(PAL_HANDLE hdl, const char* fmt, va_list ap) {
-    vfprintfmt((void*)&sys_fputch, hdl, NULL, fmt, ap);
+    vfprintfmt((void*)&sys_fputch, hdl, NULL, fmt, (va_list *)&ap);
 }
 
 void handle_printf(PAL_HANDLE hdl, const char* fmt, ...) {
