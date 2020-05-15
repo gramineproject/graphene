@@ -1,3 +1,5 @@
+#ifndef __LINUX_X86_64_PAL_HOST_ARCH_H__
+#define __LINUX_X86_64_PAL_HOST_ARCH_H__
 /*
    This file is part of Graphene Library OS.
 
@@ -28,6 +30,12 @@
 
 #include "sysdep-arch.h"
 
+#ifdef IN_PAL
+
 static inline int pal_set_tcb(PAL_TCB* tcb) {
     return INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
 }
+
+#endif
+
+#endif /* __LINUX_X86_64_PAL_HOST_ARCH_H__ */
