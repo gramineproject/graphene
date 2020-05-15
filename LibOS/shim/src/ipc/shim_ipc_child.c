@@ -37,9 +37,7 @@ struct thread_info {
 };
 
 /* walk_thread_list callback; exit each thread of child process vmid. */
-static int child_thread_exit(struct shim_thread* thread, void* arg, bool* unlocked) {
-    __UNUSED(unlocked); /* FYI: notifies about unlocked thread_list_lock */
-
+static int child_thread_exit(struct shim_thread* thread, void* arg) {
     struct thread_info* info = (struct thread_info*)arg;
     int found_exiting_thread = 0;
 
@@ -55,7 +53,7 @@ static int child_thread_exit(struct shim_thread* thread, void* arg, bool* unlock
             /* remote thread is "virtually" exited: SIGCHLD is generated for
              * the parent thread and exit events are arranged for subsequent
              * wait4(). */
-            thread_exit(thread, /*send_ipc=*/false);
+            thread_destroy(thread, /*send_ipc=*/false);
             goto out;
         }
     }
@@ -90,7 +88,7 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
     int ret;
     int exited_threads_cnt = 0;
 
-    if ((ret = walk_thread_list(&child_thread_exit, &info)) > 0)
+    if ((ret = walk_thread_list(&child_thread_exit, &info, /*one_shot=*/false)) > 0)
         exited_threads_cnt += ret;
 
     debug(
@@ -158,7 +156,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 
         /* Remote thread is "virtually" exited: SIGCHLD is generated for the
          * parent thread and exit events are arranged for subsequent wait4(). */
-        ret = thread_exit(thread, /*send_ipc=*/false);
+        ret = thread_destroy(thread, /*send_ipc=*/false);
         put_thread(thread);
     } else {
         /* Uncommon case: remote child thread was already exited and deleted

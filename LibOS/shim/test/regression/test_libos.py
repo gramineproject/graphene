@@ -408,6 +408,10 @@ class TC_30_Syscall(RegressionTestCase):
             self.assertIn('Got 1 SIGPIPE signal(s)', stdout)
             self.assertIn('Could not write to pipe: Broken pipe', stdout)
 
+    def test_093_signal_multithread(self):
+        stdout, _ = self.run_binary(['signal_multithread'])
+        self.assertIn('TEST OK', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

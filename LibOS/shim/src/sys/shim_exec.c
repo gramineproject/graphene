@@ -364,7 +364,7 @@ reopen:
         }
     }
 
-    bool use_same_process = check_last_thread(cur_thread) == 0;
+    bool use_same_process = check_last_thread(cur_thread, /*mark_self_dead=*/false) == 0;
     if (use_same_process && !strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* for SGX PALs, can use same process only if it is the same executable (because a different
          * executable has a different measurement and thus requires a new enclave); this special

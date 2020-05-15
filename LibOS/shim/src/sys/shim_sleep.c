@@ -31,37 +31,7 @@
 #include <shim_utils.h>
 #include <shim_vma.h>
 
-static bool signal_pending(void) {
-    struct shim_thread* cur = get_cur_thread();
-    if (!cur)
-        return false;
-
-    lock(&cur->lock);
-
-    if (!cur->signal_logs || !cur->has_signal.counter) {
-        unlock(&cur->lock);
-        return false;
-    }
-
-    for (int sig = 1; sig <= NUM_SIGS; sig++) {
-        if (signal_logs_pending(cur->signal_logs, sig)) {
-            /* at least one signal of type sig... */
-            if (!__sigismember(&cur->signal_mask, sig)) {
-                /* ...and this type is not blocked  */
-                unlock(&cur->lock);
-                return true;
-            }
-        }
-    }
-
-    unlock(&cur->lock);
-    return false;
-}
-
 int shim_do_pause(void) {
-    if (signal_pending())
-        return -EINTR;
-
     /* ~0ULL micro sec ~= 805675 years */
     DkThreadDelayExecution(~((PAL_NUM)0));
     return -EINTR;
@@ -70,15 +40,6 @@ int shim_do_pause(void) {
 int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_timespec* rmtp) {
     if (!rqtp)
         return -EFAULT;
-
-    if (signal_pending()) {
-        if (rmtp) {
-            /* no time elapsed, so copy time interval from rqtp to rmtp */
-            rmtp->tv_sec  = rqtp->tv_sec;
-            rmtp->tv_nsec = rqtp->tv_nsec;
-        }
-        return -EINTR;
-    }
 
     unsigned long time = rqtp->tv_sec * 1000000L + rqtp->tv_nsec / 1000;
     unsigned long ret = DkThreadDelayExecution(time);

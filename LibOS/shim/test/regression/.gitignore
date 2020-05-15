@@ -61,6 +61,7 @@
 /sigaltstack
 /sighandler_reset
 /sighandler_sigpipe
+/signal_multithread
 /sigprocmask
 /spinlock
 /stat_invalid_args

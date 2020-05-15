@@ -25,15 +25,16 @@
 #include <stddef.h>  // FIXME(mkow): Without this we get:
                      //     asm/signal.h:126:2: error: unknown type name ‘size_t’
                      // It definitely shouldn't behave like this...
+#include <limits.h>
 #include <linux/signal.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
                       struct __kernel_sigaction* oldact, size_t sigsetsize) {
@@ -175,37 +176,31 @@ int shim_do_sigsuspend(const __sigset_t* mask) {
     if (!mask || test_user_memory((void*)mask, sizeof(*mask), false))
         return -EFAULT;
 
-    __sigset_t* old;
-    __sigset_t tmp;
+    __sigset_t old;
     struct shim_thread* cur = get_cur_thread();
 
+    __atomic_store_n(&cur->signal_handled, false, __ATOMIC_RELAXED);
+
     lock(&cur->lock);
-
-    /* return immediately on some pending unblocked signal */
-    for (int sig = 1; sig <= NUM_SIGS; sig++) {
-        if (signal_logs_pending(cur->signal_logs, sig)) {
-            /* at least one signal of type sig... */
-            if (!__sigismember(mask, sig)) {
-                /* ...and this type is not blocked in supplied mask */
-                unlock(&cur->lock);
-                return -EINTR;
-            }
-        }
-    }
-
-    old = get_sig_mask(cur);
-    memcpy(&tmp, old, sizeof(__sigset_t));
-    old = &tmp;
+    memcpy(&old, get_sig_mask(cur), sizeof(old));
 
     set_sig_mask(cur, mask);
-    cur->suspend_on_signal = true;
     unlock(&cur->lock);
 
+    /* We might have unblocked some pending signals. */
+    handle_signals();
+
     thread_setwait(NULL, NULL);
+
+    if (__atomic_load_n(&cur->signal_handled, __ATOMIC_RELAXED)) {
+        goto out;
+    }
+
     thread_sleep(NO_TIMEOUT);
 
+out:
     lock(&cur->lock);
-    set_sig_mask(cur, old);
+    set_sig_mask(cur, &old);
     unlock(&cur->lock);
     return -EINTR;
 }
@@ -221,262 +216,186 @@ int shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
 
     __sigemptyset(set);
 
-    if (!cur->signal_logs)
-        return 0;
-
-    for (int sig = 1; sig <= NUM_SIGS; sig++) {
-        if (signal_logs_pending(cur->signal_logs, sig))
-            __sigaddset(set, sig);
-    }
+    get_pending_signals(cur, set);
 
     return 0;
 }
 
-struct walk_arg {
-    struct shim_thread* current;
-    IDTYPE sender;
-    IDTYPE id;
-    int sig;
-    bool use_ipc;
-};
+static inline bool _append_signal(struct shim_thread* thread, int sig, IDTYPE sender) {
+    assert(!thread || locked(&thread->lock));
 
-// Need to hold thread->lock
-static inline void __append_signal(struct shim_thread* thread, int sig, IDTYPE sender) {
-    assert(locked(&thread->lock));
-
-    debug("Thread %d killed by signal %d\n", thread->tid, sig);
-    siginfo_t info;
-    memset(&info, 0, sizeof(siginfo_t));
+    siginfo_t info = { 0 };
     info.si_signo = sig;
     info.si_pid   = sender;
-    append_signal(thread, sig, &info, true);
+
+    return append_signal(thread, &info);
 }
 
-static int __kill_proc(struct shim_thread* thread, void* arg, bool* unlocked) {
-    struct walk_arg* warg = (struct walk_arg*)arg;
-    int srched = 0;
+enum signal_thread_arg_type {
+    TGID = 1,
+    PGID,
+};
 
-    if (!warg->use_ipc && !thread->in_vm)
-        return 0;
+struct signal_thread_arg {
+    int sig;
+    IDTYPE sender;
+    IDTYPE cmp_val;
+    enum signal_thread_arg_type cmp_type;
+    bool sent;
+};
 
-    if (thread->tgid != warg->id)
-        return 0;
-
-    if (warg->current == thread)
-        return 1;
-
-    /* DEP: Let's do a racy read of is_alive and in_vm.
-     * If either of these are zero it is a stable condition,
-     * and we can elide the lock acquire (which helps perf).
-     */
-    if (!thread->is_alive)
-        goto out;
-
-    if (!thread->in_vm) {
-        unlock(&thread_list_lock);
-        *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS, warg->sig)) ? 1 : 0;
-    } else {
-        lock(&thread->lock);
-
-        if (!thread->is_alive)
-            goto out_locked;
-
-        if (thread->in_vm) {
-            if (warg->sig > 0)
-                __append_signal(thread, warg->sig, warg->sender);
-            srched = 1;
-        } else {
-            /* This double-check case is probably unnecessary, but keep it for now */
-            unlock(&thread->lock);
-            unlock(&thread_list_lock);
-            *unlocked = true;
-            return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS, warg->sig)) ? 1 : 0;
-        }
-    }
-out_locked:
-    unlock(&thread->lock);
-out:
-    return srched;
-}
-
-int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
-    struct shim_thread* cur = get_cur_thread();
-
-    if (!tgid) {
-        /* DEP: cur->tgid never changes.  No lock needed */
-        tgid = cur->tgid;
-    }
-
-    struct walk_arg arg;
-    arg.current = cur;
-    arg.sender  = sender;
-    arg.id      = tgid;
-    arg.sig     = sig;
-    arg.use_ipc = use_ipc;
-
-    bool srched = false;
-
-    if (!walk_thread_list(__kill_proc, &arg))
-        srched = true;
-
-    if (!use_ipc || srched)
-        goto out;
-
-    if (!srched && !ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig))
-        srched = true;
-
-out:
-    return srched ? 0 : -ESRCH;
-}
-
-static int __kill_pgroup(struct shim_thread* thread, void* arg, bool* unlocked) {
-    struct walk_arg* warg = (struct walk_arg*)arg;
-    int srched = 0;
-
-    if (!warg->use_ipc && !thread->in_vm)
-        return 0;
-
-    if (thread->pgid != warg->id)
-        return 0;
-
-    if (warg->current == thread)
-        return 1;
+static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
+    struct signal_thread_arg* arg = (struct signal_thread_arg*)_arg;
+    int ret = 0;
 
     lock(&thread->lock);
 
-    if (!thread->is_alive)
+    if (!thread->in_vm || !thread->is_alive) {
         goto out;
+    }
 
-    if (thread->in_vm) {
-        if (warg->sig > 0)
-            __append_signal(thread, warg->sig, warg->sender);
+    switch (arg->cmp_type) {
+        case TGID:
+            if (thread->tgid != arg->cmp_val) {
+                goto out;
+            }
+            break;
+        case PGID:
+            if (thread->pgid != arg->cmp_val) {
+                goto out;
+            }
+            break;
+        default:
+            debug("Invalid signal_thread_arg_type: %d\n", arg->cmp_type);
+            BUG();
+    }
 
-        srched = 1;
-    } else {
-        unlock(&thread->lock);
-        unlock(&thread_list_lock);
-        *unlocked = true;
-        return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP, warg->sig)) ? 1 : 0;
+    /* Appending the signal to the whole process. */
+    if (!arg->sent) {
+        if (_append_signal(NULL, arg->sig, arg->sender)) {
+            arg->sent = true;
+        }
+    }
+    if (arg->sent && !__sigismember(&thread->signal_mask, arg->sig)) {
+        if (thread == get_cur_thread()) {
+            /* We are ending this walk anyway, lets reuse sent field to mark that current thread
+             * needs to handle a signal. */
+            arg->sent = false;
+        } else {
+            thread_wakeup(thread);
+            DkThreadResume(thread->pal_handle);
+        }
+        ret = 1;
     }
 
 out:
     unlock(&thread->lock);
-    return srched;
+    return ret;
+}
+
+int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
+    /* This might be called by internal thread like IPC, need to do a search. */
+    struct signal_thread_arg arg = {
+        .sig = sig,
+        .sender = sender,
+        .cmp_val = tgid,
+        .cmp_type = TGID,
+        .sent = false,
+    };
+    int ret = walk_thread_list(_signal_one_thread, &arg, /*one_shot=*/true);
+    if (ret < 0 && ret != -ESRCH) {
+        return ret;
+    }
+
+    /* We delivered the signal to self, now need to handle it. */
+    if (ret == 0) {
+        if (!arg.sent) {
+            handle_signals();
+        }
+        return 0;
+    }
+
+    assert(ret == -ESRCH);
+
+    if (arg.sent) {
+        /* We've sent the signal successfully, but all threads have it blocked for now. */
+        return 0;
+    }
+
+    if (use_ipc) {
+        return ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig);
+    }
+
+    return -ESRCH;
 }
 
 int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
     struct shim_thread* cur = get_cur_thread();
+    int ret = 0;
 
     if (!pgid) {
         pgid = cur->pgid;
     }
 
-    struct walk_arg arg;
-    arg.current = cur;
-    arg.sender  = sender;
-    arg.id      = pgid;
-    arg.sig     = sig;
-    arg.use_ipc = use_ipc;
-
-    bool srched = false;
-
-    if (!walk_thread_list(__kill_pgroup, &arg))
-        srched = true;
-
-    if (!use_ipc || srched)
-        goto out;
-
-    if (!srched && !ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig))
-        srched = true;
-
-out:
-    return srched ? 0 : -ESRCH;
-}
-
-static int __kill_all_threads(struct shim_thread* thread, void* arg, bool* unlocked) {
-    __UNUSED(unlocked);  // Retained for API compatibility
-    int srched = 0;
-    struct walk_arg* warg = (struct walk_arg*)arg;
-
-    if (thread->tgid != thread->tid)
-        return 0;
-
-    if (warg->current == thread)
-        return 1;
-
-    lock(&thread->lock);
-
-    if (thread->in_vm) {
-        __append_signal(thread, warg->sig, warg->sender);
-        srched = 1;
-    }
-
-    unlock(&thread->lock);
-    return srched;
-}
-
-int kill_all_threads(struct shim_thread* cur, IDTYPE sender, int sig) {
-    struct walk_arg arg;
-    arg.current = cur;
-    arg.sender  = sender;
-    arg.id      = 0;
-    arg.sig     = sig;
-    arg.use_ipc = false;
-    walk_thread_list(__kill_all_threads, &arg);
-    return 0;
-}
-
-int shim_do_kill(pid_t pid, int sig) {
-    if (sig < 0 || sig > NUM_SIGS)
-        return -EINVAL;
-
-    struct shim_thread* cur = get_cur_thread();
-    int ret = 0;
-    bool send_to_self = false;
-
-    /* If pid equals 0, then sig is sent to every process in the process group
-       of the calling process. */
-    if (pid == 0) {
-        ret = do_kill_pgroup(cur->tgid, 0, sig, true);
-        send_to_self = true;
-    }
-
-    /* If pid equals -1, then sig is sent to every process for which the
-       calling process has permission to send */
-    else if (pid == -1) {
-        ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
-        kill_all_threads(cur, cur->tid, sig);
-        send_to_self = true;
-    }
-
-    /* If pid is positive, then signal sig is sent to the process with the ID
-       specified by pid. */
-    else if (pid > 0) {
-        ret = do_kill_proc(cur->tid, pid, sig, true);
-        send_to_self = (IDTYPE)pid == cur->tgid;
-    }
-
-    /* If pid is less than -1, then sig is sent to every process in the
-       process group whose id is -pid */
-    else {
-        ret = do_kill_pgroup(cur->tid, -pid, sig, true);
-        send_to_self = (IDTYPE)-pid == cur->pgid;
-    }
-
-    if (send_to_self) {
-        if (ret == -ESRCH)
-            ret = 0;
-        if (sig) {
-            siginfo_t info;
-            memset(&info, 0, sizeof(siginfo_t));
-            info.si_signo = sig;
-            info.si_pid   = cur->tid;
-            deliver_signal(&info, NULL);
+    if (use_ipc) {
+        ret = ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig);
+        if (ret < 0 && ret != -ESRCH) {
+            return ret;
         }
     }
 
-    return ret < 0 ? ret : 0;
+    /* This might be called by internal thread like IPC, need to do a search. */
+    struct signal_thread_arg arg = {
+        .sig = sig,
+        .sender = sender,
+        .cmp_val = pgid,
+        .cmp_type = PGID,
+        .sent = false,
+    };
+    ret = walk_thread_list(_signal_one_thread, &arg, /*one_shot=*/true);
+
+    /* We delivered the signal to self, now need to handle it. */
+    if (ret == 0 && !arg.sent) {
+        handle_signals();
+    }
+
+    if (ret == -ESRCH && arg.sent) {
+        /* We've sent the signal successfully, but all threads have it blocked for now. */
+        ret = 0;
+    }
+
+    return ret;
+}
+
+int shim_do_kill(pid_t pid, int sig) {
+    if (sig < 0 || sig > NUM_SIGS) {
+        return -EINVAL;
+    }
+
+    if (pid == INT_MIN) {
+        /* We should not negate INT_MIN. */
+        return -ESRCH;
+    }
+
+    struct shim_thread* cur = get_cur_thread();
+
+    if (pid > 0) {
+        /* If `pid` is positive, then signal is sent to the process with that pid. */
+        return do_kill_proc(cur->tid, pid, sig, true);
+    } else if (pid == -1) {
+        /* If `pid` equals -1, then signal is sent to every process for which the calling process
+         * has permission to send, which means all processes in Graphene. */
+        ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
+        return do_kill_proc(cur->tid, cur->tgid, sig, true);
+    } else if (pid == 0) {
+        /* If `pid` equals 0, then signal is sent to every process in the process group of
+         * the calling process. */
+        return do_kill_pgroup(cur->tid, 0, sig, true);
+    } else { // pid < -1
+        /* If `pid` is less than -1, then signal is sent to every process in the process group
+         * `-pid`. */
+        return do_kill_pgroup(cur->tid, -pid, sig, true);
+    }
 }
 
 int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc) {
@@ -491,7 +410,10 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
 
         if (thread->in_vm) {
             if (!tgid || thread->tgid == tgid) {
-                __append_signal(thread, sig, sender);
+                if (_append_signal(thread, sig, sender)) {
+                    thread_wakeup(thread);
+                    DkThreadResume(thread->pal_handle);
+                }
                 ret = 0;
             }
             use_ipc = false;

@@ -53,6 +53,7 @@ c_executables = \
 	sigaltstack \
 	sighandler_reset \
 	sighandler_sigpipe \
+	signal_multithread \
 	sigprocmask \
 	spinlock \
 	stat_invalid_args \
@@ -130,6 +131,7 @@ CFLAGS-proc_common = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -pthread
 CFLAGS-sigaction_per_process += -pthread
 CFLAGS-sigprocmask += -pthread
+CFLAGS-signal_multithread += -pthread
 
 CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
                       -I$(PALDIR)/host/Linux-SGX \

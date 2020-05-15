@@ -95,10 +95,7 @@ struct shim_signal {
     PAL_CONTEXT * pal_context;
 };
 
-struct shim_signal_log;
-struct shim_signal_log* signal_logs_alloc(void);
-void signal_logs_free(struct shim_signal_log* signal_log);
-bool signal_logs_pending(const struct shim_signal_log* signal_log, int sig);
+void get_pending_signals(struct shim_thread* thread, __sigset_t* set);
 
 extern const char * const siglist[NUM_KNOWN_SIGS + 1];
 
@@ -130,8 +127,7 @@ int init_signal (void);
 void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
                       struct shim_signal * signal);
 
-// Need to hold thread->lock when calling this function
-void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt);
+bool append_signal(struct shim_thread* thread, siginfo_t* info);
 
 void deliver_signal(siginfo_t* info, PAL_CONTEXT* context);
 
@@ -143,7 +139,5 @@ int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
                     bool use_ipc);
 int do_kill_proc (IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc);
 int do_kill_pgroup (IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc);
-
-int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig);
 
 #endif /* _SHIM_SIGNAL_H_ */

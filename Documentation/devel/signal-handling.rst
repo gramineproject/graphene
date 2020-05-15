@@ -742,12 +742,7 @@ raised purely by LibOS.
 Bugs and Issues
 ---------------
 
-* BUG? Graphene LibOS performs `DkThreadYieldExecution()` in `__handle_signal()` (i.e., yield
-  thread execution after handling one pending signal). Looks useless.
-
 * TODO: clean-up `install_async_event()`, redundant logic in `async_list` checking
-
-* TODO: `suspend_on_signal` is useless
 
 * BUG? `return_from_ocall` remembers RDI = -PAL_ERROR_INTERRUPTED, but `_DkExceptionReturn` never
   returns back to after `_DkHandleExternalEvent` in `return_from_ocall`. Thus, the PAL return code

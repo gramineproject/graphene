@@ -39,8 +39,7 @@
 #define INCLUDE_IPC_NSIMPL
 #include "shim_ipc_nsimpl.h"
 
-static int thread_add_subrange(struct shim_thread* thread, void* arg, bool* unlocked) {
-    __UNUSED(unlocked);  // Kept for API compatibility - used by some callbacks
+static int thread_add_subrange(struct shim_thread* thread, void* arg) {
     if (!thread->in_vm)
         return 0;
 
@@ -61,7 +60,7 @@ int init_ns_pid(void) {
     if ((ret = get_ipc_info_cur_process(&info)) < 0)
         return ret;
 
-    walk_thread_list(&thread_add_subrange, info);
+    walk_thread_list(&thread_add_subrange, info, /*one_shot=*/false);
     return 0;
 }
 
@@ -130,7 +129,7 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             break;
         case KILL_ALL:
             broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, port);
-            kill_all_threads(NULL, msgin->sender, msgin->signum);
+            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, true);
             break;
     }
     return ret;
@@ -159,9 +158,11 @@ struct thread_status {
     struct pid_status* status;
 };
 
-int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
-    __UNUSED(unlocked);  // Kept for API compatibility
+int check_thread(struct shim_thread* thread, void* arg) {
     struct thread_status* status = (struct thread_status*)arg;
+    int ret = 0;
+
+    lock(&thread->lock);
 
     for (int i = 0; i < status->npids; i++)
         if (status->pids[i] == thread->tid && thread->in_vm && thread->is_alive) {
@@ -169,10 +170,13 @@ int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
             status->status[status->nstatus].tgid = thread->tgid;
             status->status[status->nstatus].pgid = thread->pgid;
             status->nstatus++;
-            return 1;
+            ret = 1;
+            goto out;
         }
 
-    return 0;
+out:
+    unlock(&thread->lock);
+    return ret;
 }
 
 int ipc_pid_getstatus_callback(IPC_CALLBACK_ARGS) {
@@ -188,7 +192,7 @@ int ipc_pid_getstatus_callback(IPC_CALLBACK_ARGS) {
     status.nstatus = 0;
     status.status  = __alloca(sizeof(struct pid_status) * msgin->npids);
 
-    ret = walk_thread_list(&check_thread, &status);
+    ret = walk_thread_list(&check_thread, &status, /*one_shot=*/false);
     if (ret < 0 && ret != -ESRCH)
         goto out;
 

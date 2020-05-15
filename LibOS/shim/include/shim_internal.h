@@ -162,7 +162,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
 
 /* definition for syscall table */
-void handle_signal (void);
+void handle_signals(void);
 long convert_pal_errno (long err);
 void syscall_wrapper(void);
 void syscall_wrapper_after_syscalldb(void);
@@ -184,11 +184,11 @@ static inline int64_t get_cur_preempt (void) {
         SHIM_ARG_TYPE ret = 0;                              \
         int64_t preempt = get_cur_preempt();                \
         __UNUSED(preempt);                                  \
-        /* handle_signal(); */                              \
+        /* handle_signals(); */                             \
         /* check_stack_hook(); */
 
 #define END_SHIM(name)                                      \
-        handle_signal();                                    \
+        handle_signals();                                   \
         assert(preempt == get_cur_preempt());               \
         return ret;                                         \
     }
@@ -441,7 +441,7 @@ static inline void __enable_preempt (shim_tcb_t * tcb)
     //debug("enable preempt: %d\n", preempt);
 }
 
-void __handle_signal (shim_tcb_t * tcb, int sig);
+void __handle_signals(shim_tcb_t* tcb);
 
 static inline void enable_preempt (shim_tcb_t * tcb)
 {
@@ -453,7 +453,7 @@ static inline void enable_preempt (shim_tcb_t * tcb)
         return;
 
     if (preempt == 1)
-        __handle_signal(tcb, 0);
+        __handle_signals(tcb);
 
     __enable_preempt(tcb);
 }
