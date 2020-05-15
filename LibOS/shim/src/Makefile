@@ -36,7 +36,7 @@ objs = \
 	shim_parser.o \
 	shim_syscalls.o \
 	shim_table-$(ARCH).o \
-	start.o \
+	start-$(ARCH).o \
 	syscallas-$(ARCH).o \
 	bookkeep/shim_handle.o \
 	bookkeep/shim_signal.o \
