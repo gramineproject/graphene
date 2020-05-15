@@ -1,9 +1,16 @@
 include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
-CFLAGS  += -I. -I../.. -I../../../include  -I../../../include/pal \
+CFLAGS  += \
+	-I. \
+	-I../.. \
+	-I../../../include  \
 	-I../../../include/arch/$(ARCH) \
-	-I../../../include/host/Skeleton -I../../../include/lib -I../../../include/lib/$(ARCH)
+	-I../../../include/arch/$(ARCH)/$(PAL_HOST) \
+	-I../../../include/host/Skeleton \
+	-I../../../include/lib \
+	-I../../../include/lib/$(ARCH) \
+	-I../../../include/pal
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Skeleton.a pal.map
