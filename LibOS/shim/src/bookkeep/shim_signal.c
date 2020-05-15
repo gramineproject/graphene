@@ -71,118 +71,160 @@ void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
-#define MAX_SIGNAL_LOG 32
+static struct shim_signal_queue process_signal_queue = { 0 };
+/* This is just an optimization, not to have to check the queue for pending signals. A thread will
+ * be woken up after signal is appended to its queue and will handle all unblocked pending signals
+ * no matter what is the relative ordering of increasing this variable vs. appending signal to
+ * the queue. */
+static uint64_t process_pending_signals_cnt = 0;
 
-struct shim_signal_log {
-    /* FIXME: This whole structure needs a rewrite, it can't be implemented correctly lock-free. */
-    /*
-     * ring buffer of pending same-type signals (e.g. all pending SIGINTs).
-     * [tail, head) for used area (with wrap around)
-     * [head, tail) for free area (with wrap around)
-     */
-    struct atomic_int head;
-    struct atomic_int tail;
-    struct shim_signal* logs[MAX_SIGNAL_LOG];
-};
+/*
+ * These checks are racy, but we can't do better anyway: signal can be delivered in any moment.
+ * Worst case scenario we report a real-time signal queue being empty just when a signal is being
+ * appended.
+ *
+ * TODO: we need to consider removing the ability of outside world to deliver signals to a app
+ * running inside Graphene (this might be important on Linux-SGX PAL). In such case it would be
+ * probably impossible for an app to be preempted while appending a signal and needing to append
+ * another one. This would allow for using proper locking scheme here.
+ */
+static bool is_rt_sq_empty(struct shim_rt_signal_queue* queue) {
+    return __atomic_load_n(&queue->get_idx, __ATOMIC_ACQUIRE)
+            == __atomic_load_n(&queue->put_idx, __ATOMIC_ACQUIRE);
+}
 
-struct shim_signal_log* signal_logs_alloc(void) {
-    struct shim_signal_log* signal_logs = malloc(sizeof(*signal_logs) * NUM_SIGS);
-    if (!signal_logs)
-        return NULL;
-    for (int sig = 0; sig < NUM_SIGS; sig++) {
-        atomic_set(&signal_logs[sig].head, 0);
-        atomic_set(&signal_logs[sig].tail, 0);
+static bool has_standard_signal(struct shim_signal** queue) {
+    return !!__atomic_load_n(queue, __ATOMIC_ACQUIRE);
+}
+
+void get_pending_signals(struct shim_thread* thread, __sigset_t* set) {
+    __sigemptyset(set);
+
+    if (__atomic_load_n(&thread->pending_signals, __ATOMIC_ACQUIRE) == 0
+            && __atomic_load_n(&process_pending_signals_cnt, __ATOMIC_ACQUIRE) == 0) {
+        return;
     }
-    return signal_logs;
-}
 
-void signal_logs_free(struct shim_signal_log* signal_logs) {
-    for (int sig = 0; sig < NUM_SIGS; sig++) {
-        struct shim_signal_log* log = &signal_logs[sig];
-        int tail = atomic_read(&log->tail);
-        int head = atomic_read(&log->head);
-        if (head < tail) {
-            for (int i = tail; i < MAX_SIGNAL_LOG; i++) {
-                free(log->logs[i]);
-            }
-            tail = 0;
-        }
-        for (int i = tail; i < head; i++) {
-            free(log->logs[i]);
+    for (int sig = 1; sig < SIGRTMIN; sig++) {
+        if (has_standard_signal(&thread->signal_queue.standard_signals[sig - 1])
+                || has_standard_signal(&process_signal_queue.standard_signals[sig - 1])) {
+            __sigaddset(set, sig);
         }
     }
-    free(signal_logs);
+
+    for (int sig = SIGRTMIN; sig <= NUM_SIGS; sig++) {
+        if (!is_rt_sq_empty(&thread->signal_queue.rt_signal_queues[sig - SIGRTMIN])
+                || !is_rt_sq_empty(&process_signal_queue.rt_signal_queues[sig - SIGRTMIN])) {
+            __sigaddset(set, sig);
+        }
+    }
 }
 
-bool signal_logs_pending(const struct shim_signal_log* signal_log, int sig) {
-    /* FIXME: race condition between reading two atomic variables */
-    return atomic_read(&signal_log[sig - 1].tail) != atomic_read(&signal_log[sig - 1].head);
+static bool append_standard_signal(struct shim_signal** signal_slot, struct shim_signal* signal) {
+    struct shim_signal* old = NULL;
+    return __atomic_compare_exchange_n(signal_slot, &old, signal, /*weak=*/false,
+                                       __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
 }
 
-static struct shim_signal **
-allocate_signal_log (struct shim_thread * thread, int sig)
-{
-    if (!thread->signal_logs)
-        return NULL;
-
-    struct shim_signal_log * log = &thread->signal_logs[sig - 1];
-    int tail, head, old_head;
-
-    /* FIXME: race condition between allocating the slot and populating the slot. */
+/* In theory `get_idx` and `put_idx` could overflow, but adding signals with 1GHz (10**9 signals
+ * per second) gives a 544 years running time before overflow, which we consider a "safe margin"
+ * for now. */
+static bool append_rt_signal(struct shim_rt_signal_queue* queue,
+                                    struct shim_signal* signal) {
+    uint64_t get_idx;
+    uint64_t put_idx = __atomic_load_n(&queue->put_idx, __ATOMIC_ACQUIRE);
     do {
-        tail = atomic_read(&log->tail);
-        old_head = head = atomic_read(&log->head);
+        get_idx = __atomic_load_n(&queue->get_idx, __ATOMIC_ACQUIRE);
+        assert(put_idx >= get_idx);
 
-        if (tail == head + 1 || (!tail && head == (MAX_SIGNAL_LOG - 1)))
-            return NULL;
+        /* This is a bit racy i.e. it might report full queue, when it's just being emptied, but
+         * it's the best we can do. Note that `get_idx` can only be increased, but never past
+         * `put_idx`. */
+        if (put_idx - get_idx >= ARRAY_SIZE(queue->queue)) {
+            return false;
+        }
+    } while (!__atomic_compare_exchange_n(&queue->put_idx, &put_idx, put_idx + 1, /*weak=*/true,
+                                          __ATOMIC_RELEASE, __ATOMIC_ACQUIRE));
 
-        head = (head == MAX_SIGNAL_LOG - 1) ? 0 : head + 1;
-    } while (!atomic_cmpxchg(&log->head, old_head, head));
-
-    debug("signal_logs[%d]: tail=%d, head=%d (counter = %ld)\n", sig - 1,
-          tail, head, thread->has_signal.counter + 1);
-
-    atomic_inc(&thread->has_signal);
-
-    return &log->logs[old_head];
+    queue->queue[put_idx % ARRAY_SIZE(queue->queue)] = signal;
+    return true;
 }
 
-static struct shim_signal *
-fetch_signal_log (struct shim_thread * thread, int sig)
-{
-    struct shim_signal_log * log = &thread->signal_logs[sig - 1];
-    struct shim_signal * signal = NULL;
-    int tail, head, old_tail;
+static bool queue_append_signal(struct shim_signal_queue* queue, struct shim_signal* signal) {
+    int sig = signal->info.si_signo;
 
-    /* FIXME: race condition between finding the slot and clearing the slot. */
-    while (1) {
-        old_tail = tail = atomic_read(&log->tail);
-        head = atomic_read(&log->head);
-
-        if (tail == head)
-            return NULL;
-
-        if (!(signal = log->logs[tail]))
-            return NULL;
-
-        log->logs[tail] = NULL;
-        tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
-
-        if (atomic_cmpxchg(&log->tail, old_tail, tail))
-            break;
-
-        log->logs[old_tail] = signal;
+    if (sig < 1 || sig > NUM_SIGS) {
+        return false;
+    } else if (sig < SIGRTMIN) {
+        return append_standard_signal(&queue->standard_signals[sig - 1], signal);
+    } else {
+        return append_rt_signal(&queue->rt_signal_queues[sig - SIGRTMIN], signal);
     }
+}
 
-    debug("signal_logs[%d]: tail=%d, head=%d\n", sig -1, tail, head);
+static bool append_thread_signal(struct shim_thread* thread, struct shim_signal* signal) {
+    bool ret = queue_append_signal(&thread->signal_queue, signal);
+    if (ret) {
+        (void)__atomic_add_fetch(&thread->pending_signals, 1, __ATOMIC_RELEASE);
+    }
+    return ret;
+}
 
-    atomic_dec(&thread->has_signal);
+static bool append_process_signal(struct shim_signal* signal) {
+    bool ret = queue_append_signal(&process_signal_queue, signal);
+    if (ret) {
+        (void)__atomic_add_fetch(&process_pending_signals_cnt, 1, __ATOMIC_RELEASE);
+    }
+    return ret;
+}
 
+static struct shim_signal* pop_standard_signal(struct shim_signal** signal_slot) {
+    return __atomic_exchange_n(signal_slot, NULL, __ATOMIC_ACQ_REL);
+}
+
+static struct shim_signal* pop_rt_signal(struct shim_rt_signal_queue* queue) {
+    uint64_t put_idx;
+    uint64_t get_idx = __atomic_load_n(&queue->get_idx, __ATOMIC_ACQUIRE);
+    do {
+        put_idx = __atomic_load_n(&queue->put_idx, __ATOMIC_ACQUIRE);
+        assert(put_idx >= get_idx);
+
+        if (put_idx == get_idx) {
+            return NULL;
+        }
+    } while (!__atomic_compare_exchange_n(&queue->get_idx, &get_idx, get_idx + 1, /*weak=*/true,
+                                          __ATOMIC_RELEASE, __ATOMIC_ACQUIRE));
+
+    return queue->queue[get_idx % ARRAY_SIZE(queue->queue)];
+}
+
+static struct shim_signal* queue_pop_signal(struct shim_signal_queue* queue, int sig) {
+    if (sig < 1 || sig > NUM_SIGS) {
+        return NULL;
+    } else if (sig < SIGRTMIN) {
+        return pop_standard_signal(&queue->standard_signals[sig - 1]);
+    } else {
+        return pop_rt_signal(&queue->rt_signal_queues[sig - SIGRTMIN]);
+    }
+}
+
+static struct shim_signal* thread_pop_signal(struct shim_thread* thread, int sig) {
+    struct shim_signal* signal = queue_pop_signal(&thread->signal_queue, sig);
+    if (signal) {
+        (void)__atomic_sub_fetch(&thread->pending_signals, 1, __ATOMIC_ACQUIRE);
+    }
     return signal;
 }
 
-static void
-__handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal);
+static struct shim_signal* process_pop_signal(int sig) {
+    struct shim_signal* signal = queue_pop_signal(&process_signal_queue, sig);
+    if (signal) {
+        (void)__atomic_sub_fetch(&process_pending_signals_cnt, 1, __ATOMIC_ACQUIRE);
+    }
+    return signal;
+}
+
+static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal);
 
 static void __store_info (siginfo_t * info, struct shim_signal * signal)
 {
@@ -216,12 +258,12 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb);
 
+    struct shim_thread* cur_thread = (struct shim_thread*)tcb->tp;
     // Signals should not be delivered before the user process starts
     // or after the user process dies.
-    if (!tcb->tp || !cur_thread_is_alive())
+    if (!cur_thread || !cur_thread->is_alive)
         return;
 
-    struct shim_thread * cur_thread = (struct shim_thread *) tcb->tp;
     int sig = info->si_signo;
 
     int64_t preempt = __disable_preempt(tcb);
@@ -233,21 +275,18 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __store_context(tcb, context, signal);
     signal->pal_context = context;
 
-    if (preempt > 1 ||
-        __sigismember(&cur_thread->signal_mask, sig)) {
-        struct shim_signal ** signal_log = NULL;
-        if ((signal = malloc_copy(signal,sizeof(struct shim_signal))) &&
-            (signal_log = allocate_signal_log(cur_thread, sig))) {
-            *signal_log = signal;
-        }
-        if (signal && !signal_log) {
-            SYS_PRINTF("signal queue is full (TID = %u, SIG = %d)\n",
-                       tcb->tid, sig);
-            free(signal);
+    if (preempt > 1 || __sigismember(&cur_thread->signal_mask, sig)) {
+        signal = malloc_copy(signal,sizeof(struct shim_signal));
+        if (signal) {
+            if (!append_thread_signal(cur_thread, signal)) {
+                debug("Signal %d queue of thread %u is full, dropping the incoming signal\n",
+                      sig, tcb->tid);
+                free(signal);
+            }
         }
     } else {
-        __handle_signal(tcb, sig);
-        __handle_one_signal(tcb, sig, signal);
+        __handle_one_signal(tcb, signal);
+        __handle_signals(tcb);
     }
 
     __enable_preempt(tcb);
@@ -615,7 +654,7 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     __UNUSED(arg);
     __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
-        deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
+        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGTERM, /*use_ipc=*/false);
     }
     DkExceptionReturn(event);
 }
@@ -625,7 +664,7 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     __UNUSED(arg);
     __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
-        deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
+        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGINT, /*use_ipc=*/false);
     }
     DkExceptionReturn(event);
 }
@@ -641,7 +680,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (!is_internal_tid(get_cur_tid())) {
         int64_t preempt = __disable_preempt(tcb);
         if (preempt <= 1)
-            __handle_signal(tcb, 0);
+            __handle_signals(tcb);
         __enable_preempt(tcb);
     }
     DkExceptionReturn(event);
@@ -649,7 +688,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void pipe_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (!is_internal_tid(get_cur_tid()))
-        deliver_signal(ALLOC_SIGINFO(SIGPIPE, 0, si_pid, 0), /*context=*/NULL);
+        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGPIPE, /*use_ipc=*/false);
     else
         internal_fault("Internal SIGPIPE fault", arg, context);
     DkExceptionReturn(event);
@@ -725,16 +764,18 @@ static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, boo
 }
 
 static void
-__handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
+__handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
     struct shim_thread* thread = (struct shim_thread*)tcb->tp;
     __rt_sighandler_t handler = NULL;
+
+    int sig = signal->info.si_signo;
 
     handler = get_sighandler(thread, sig, /*allow_reset=*/true);
 
     if (!handler)
         return;
 
-    debug("%s handled\n", signal_name(sig));
+    debug("signal %d handled\n", sig);
 
     // If the context is never stored in the signal, it means the signal is handled during
     // system calls, and before the thread is resumed.
@@ -754,6 +795,8 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
 
     (*handler) (sig, &signal->info, &signal->context);
 
+    __atomic_store_n(&thread->signal_handled, true, __ATOMIC_RELEASE);
+
     if (context)
         tcb->context = *context;
 
@@ -761,150 +804,105 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
         ucontext_to_pal_context(signal->pal_context, &signal->context);
 }
 
-void __handle_signal (shim_tcb_t * tcb, int sig)
-{
-    struct shim_thread * thread = tcb->tp;
+void __handle_signals(shim_tcb_t* tcb) {
+    struct shim_thread* thread = tcb->tp;
     assert(thread);
-    int begin_sig = 1, end_sig = NUM_KNOWN_SIGS;
 
-    if (sig)
-        end_sig = (begin_sig = sig) + 1;
+    if (is_internal(thread)) {
+        return;
+    }
 
-    sig = begin_sig;
+    if (thread->time_to_die) {
+        thread_exit(/*error_code=*/0, /*term_signal=*/0);
+    }
 
-    while (atomic_read(&thread->has_signal)) {
-        struct shim_signal * signal = NULL;
+    while (__atomic_load_n(&thread->pending_signals, __ATOMIC_ACQUIRE)
+           || __atomic_load_n(&process_pending_signals_cnt, __ATOMIC_ACQUIRE)) {
+        struct shim_signal* signal = NULL;
 
-        for ( ; sig < end_sig ; sig++)
-            if (!__sigismember(&thread->signal_mask, sig) &&
-                (signal = fetch_signal_log(thread, sig)))
-                break;
+        for (int sig = 1; sig <= NUM_SIGS; sig++) {
+            if (!__sigismember(&thread->signal_mask, sig)) {
+                if ((signal = thread_pop_signal(thread, sig))) {
+                    break;
+                }
+                if ((signal = process_pop_signal(sig))) {
+                    break;
+                }
+            }
+        }
 
-        if (!signal)
+        if (!signal) {
             break;
+        }
 
-        if (!signal->context_stored)
+        if (!signal->context_stored) {
             __store_context(tcb, NULL, signal);
+        }
 
-        __handle_one_signal(tcb, sig, signal);
+        __handle_one_signal(tcb, signal);
         free(signal);
-        DkThreadYieldExecution();
     }
 }
 
-void handle_signal (void)
-{
+void handle_signals(void) {
     shim_tcb_t * tcb = shim_get_tcb();
     assert(tcb);
-
-    struct shim_thread * thread = (struct shim_thread *) tcb->tp;
-
-    /* Fast path */
-    if (!thread || !thread->has_signal.counter)
-        return;
 
     int64_t preempt = __disable_preempt(tcb);
 
     if (preempt > 1)
         debug("signal delayed (%ld)\n", preempt);
     else
-        __handle_signal(tcb, 0);
+        __handle_signals(tcb);
 
     __enable_preempt(tcb);
-    debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
-// Need to hold thread->lock when calling this function
-void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt) {
-    assert(locked(&thread->lock));
+int append_signal(struct shim_thread* thread, siginfo_t* info) {
+    assert(info);
 
-    /* only want to check if sighandler exists without actual invocation, so don't
-     * reset even if SA_RESETHAND */
-    __rt_sighandler_t handler = get_sighandler(thread, sig, /*allow_reset=*/false);
+    // TODO: ignore SIGCHLD even if it's masked, when handler is set to SIG_IGN (probably not here)
 
-    if (!handler) {
-        // SIGSTOP and SIGKILL cannot be ignored
-        assert(sig != SIGSTOP && sig != SIGKILL);
-        /*
-         * If signal is ignored and unmasked, the signal can be discarded
-         * directly. Otherwise it causes memory leak.
-         *
-         * SIGCHLD can be discarded even if it's masked.
-         * For Linux implementation, please refer to
-         * do_notify_parent() in linux/kernel/signal.c
-         * For standard, please refer to
-         * https://pubs.opengroup.org/onlinepubs/9699919799/functions/_Exit.html
-         */
-        if (!__sigismember(&thread->signal_mask, sig) || sig == SIGCHLD)
-            return;
-
-        // If a signal is set to be ignored, append the signal but don't interrupt the thread
-        need_interrupt = false;
+    struct shim_signal* signal = malloc(sizeof(*signal));
+    if (!signal) {
+        return -ENOMEM;
     }
-
-    struct shim_signal * signal = malloc(sizeof(struct shim_signal));
-    if (!signal)
-        return;
 
     /* save in signal */
-    if (info) {
-        __store_info(info, signal);
-        signal->context_stored = false;
-    } else {
-        memset(signal, 0, sizeof(struct shim_signal));
-    }
+    __store_info(info, signal);
+    signal->context_stored = false;
 
-    struct shim_signal ** signal_log = allocate_signal_log(thread, sig);
-
-    if (signal_log) {
-        *signal_log = signal;
-        if (need_interrupt) {
-            debug("resuming thread %u\n", thread->tid);
-            thread_wakeup(thread);
-            DkThreadResume(thread->pal_handle);
+    if (thread) {
+        if (append_thread_signal(thread, signal)) {
+            return 0;
         }
     } else {
-        SYS_PRINTF("signal queue is full (TID = %u, SIG = %d)\n",
-                   thread->tid, sig);
-        free(signal);
+        if (append_process_signal(signal)) {
+            return 0;
+        }
     }
+
+    debug("Signal %d queue of ", info->si_signo);
+    if (thread) {
+        debug("thread %u", thread->tid);
+    } else {
+        debug("process");
+    }
+    debug(" is full, dropping the incoming signal\n");
+    free(signal);
+    /* This is counter-intuitive, but we report success here: after all signal was successfully
+     * delivered, just the queue was full. */
+    return 0;
 }
 
 #define __WCOREDUMP_BIT 0x80
 
-static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
-{
-    struct shim_thread* cur_thread = get_cur_thread();
-    int sig_without_coredump_bit   = sig & ~(__WCOREDUMP_BIT);
-
+static void sighandler_kill(int sig, siginfo_t* info, void* ucontext) {
+    __UNUSED(info);
     __UNUSED(ucontext);
-    debug("killed by %s\n", signal_name(sig_without_coredump_bit));
+    debug("killed by signal %d\n", sig & ~__WCOREDUMP_BIT);
 
-    if (sig_without_coredump_bit == SIGABRT ||
-        (!info->si_pid && /* signal is sent from host OS, not from another process */
-         (sig_without_coredump_bit == SIGTERM || sig_without_coredump_bit == SIGINT))) {
-        /* Received signal to kill the process:
-         *   - SIGABRT must always kill the whole process (even if sent by Graphene itself),
-         *   - SIGTERM/SIGINT must kill the whole process if signal sent from host OS. */
-
-        /* If several signals arrive simultaneously, only one signal proceeds past this
-         * point. For more information, see shim_do_exit_group(). */
-        static struct atomic_int first = ATOMIC_INIT(0);
-        if (!atomic_cmpxchg(&first, 0, 1)) {
-            while (1)
-                DkThreadYieldExecution();
-        }
-
-        do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
-
-        /* Ensure that the current thread wins in setting the process code/signal.
-         * For more information, see shim_do_exit_group(). */
-        while (check_last_thread(cur_thread)) {
-            DkThreadYieldExecution();
-        }
-    }
-
-    thread_or_process_exit(0, sig);
+    process_exit(0, sig);
 }
 
 static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
@@ -948,3 +946,75 @@ static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
         /* SIGPWR  */   &sighandler_kill,
         /* SIGSYS  */   &sighandler_core
     };
+
+BEGIN_CP_FUNC(pending_signals)
+{
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
+
+    /* This is a bit racy, but we cannot do any better. If an app gets spammed with signals while
+     * doing execve, some pending signals might not get checkpointed; we add an arbitrary number of
+     * safe margin slots. */
+    const size_t SAFE_MARGIN_SLOTS = 10;
+    uint64_t n = __atomic_load_n(&process_pending_signals_cnt, __ATOMIC_ACQUIRE)
+                    + SAFE_MARGIN_SLOTS;
+    uint64_t i = 0;
+    assert(n <= SIGRTMIN - 1 + (NUM_SIGS - SIGRTMIN + 1) * MAX_SIGNAL_LOG + SAFE_MARGIN_SLOTS);
+    siginfo_t infos[n];
+    memset(&infos, 0, sizeof(infos));
+
+    for (int sig = 1; sig < SIGRTMIN && i < n; sig++) {
+        struct shim_signal** q = &process_signal_queue.standard_signals[sig - 1];
+        /* This load might look racy, but the only scenario that this signal is removed from
+         * the queue is another thread handling it. We are doing an execve, so we are the only
+         * thread existing. */
+        struct shim_signal* signal = __atomic_load_n(q, __ATOMIC_ACQUIRE);
+        if (signal) {
+            memcpy(&infos[i], &signal->info, sizeof(infos[i]));
+            i++;
+        }
+    }
+
+    for (int sig = SIGRTMIN; sig <= NUM_SIGS && i < n; sig++) {
+        struct shim_rt_signal_queue* q = &process_signal_queue.rt_signal_queues[sig - SIGRTMIN];
+        uint64_t idx = __atomic_load_n(&q->put_idx, __ATOMIC_ACQUIRE);
+        while (__atomic_load_n(&q->get_idx, __ATOMIC_ACQUIRE) < idx && i < n) {
+            memcpy(&infos[i], &q->queue[(idx - 1) % ARRAY_SIZE(q->queue)]->info, sizeof(infos[i]));
+            idx--;
+            i++;
+        }
+    }
+
+    size_t off = ADD_CP_OFFSET(sizeof(i) + sizeof(infos[0]) * i);
+    memcpy((char*)base + off, &i, sizeof(i));
+    memcpy((char*)base + off + sizeof(i), &infos, sizeof(infos[0]) * i);
+    ADD_CP_FUNC_ENTRY(off);
+}
+END_CP_FUNC(pending_signals)
+
+BEGIN_RS_FUNC(pending_signals)
+{
+    __UNUSED(offset);
+    __UNUSED(rebase);
+
+    size_t off = GET_CP_FUNC_ENTRY();
+    size_t n = *(size_t*)((char*)base + off);
+    siginfo_t* infos = (siginfo_t*)((char*)base + off + sizeof(n));
+    for (size_t i = 0; i < n; i++) {
+        struct shim_signal* signal = malloc(sizeof(*signal));
+        if (!signal) {
+            return -ENOMEM;
+        }
+
+        assert(infos[i].si_signo);
+
+        memcpy(&signal->info, &infos[i], sizeof(signal->info));
+        signal->context_stored = false;
+        signal->pal_context = NULL;
+        if (!append_process_signal(signal)) {
+            return -EAGAIN;
+        }
+    }
+}
+END_RS_FUNC(pending_signals)

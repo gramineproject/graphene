@@ -34,6 +34,7 @@
 #include <linux/un.h>
 #include <linux/wait.h>
 
+#include "api.h"
 #include "pal.h"
 #include "pal_error.h"
 
@@ -398,6 +399,57 @@ struct parser_table {
         [__NR_recv_rpc]      = {.slow = 1, .parser = {NULL}},
 };
 
+#define S(sig) #sig
+
+const char* const siglist[SIGRTMIN] = {
+    [0]         = "BAD SIGNAL",
+    [SIGHUP]    = S(SIGHUP),
+    [SIGINT]    = S(SIGINT),
+    [SIGQUIT]   = S(SIGQUIT),
+    [SIGILL]    = S(SIGILL),
+    [SIGTRAP]   = S(SIGTRAP),
+    [SIGABRT]   = S(SIGABRT),
+    [SIGBUS]    = S(SIGBUS),
+    [SIGFPE]    = S(SIGFPE),
+    [SIGKILL]   = S(SIGKILL),
+    [SIGUSR1]   = S(SIGUSR1),
+    [SIGSEGV]   = S(SIGSEGV),
+    [SIGUSR2]   = S(SIGUSR2),
+    [SIGPIPE]   = S(SIGPIPE),
+    [SIGALRM]   = S(SIGALRM),
+    [SIGTERM]   = S(SIGTERM),
+    [SIGSTKFLT] = S(SIGSTKFLT),
+    [SIGCHLD]   = S(SIGCHLD),
+    [SIGCONT]   = S(SIGCONT),
+    [SIGSTOP]   = S(SIGSTOP),
+    [SIGTSTP]   = S(SIGTSTP),
+    [SIGTTIN]   = S(SIGTTIN),
+    [SIGTTOU]   = S(SIGTTOU),
+    [SIGURG]    = S(SIGURG),
+    [SIGXCPU]   = S(SIGXCPU),
+    [SIGXFSZ]   = S(SIGXFSZ),
+    [SIGVTALRM] = S(SIGVTALRM),
+    [SIGPROF]   = S(SIGPROF),
+    [SIGWINCH]  = S(SIGWINCH),
+    [SIGIO]     = S(SIGIO),
+    [SIGPWR]    = S(SIGPWR),
+    [SIGSYS]    = S(SIGSYS),
+};
+
+static const char* signal_name(int sig, char str[6]) {
+    if (sig <= 0 || sig > NUM_SIGS) {
+        return "BAD SIGNAL";
+    }
+
+    if (sig < SIGRTMIN)
+        return siglist[sig];
+
+    assert(sig <= 99);
+    /* Cannot use `sizeof(buf)` here because `typeof(str)` is `char*`, thanks C! */
+    snprintf(str, 6, "SIG%02d", sig);
+    return str;
+}
+
 static inline int is_pointer(const char* type) {
     return type[strlen(type) - 1] == '*' || !strcmp_static(type, "long") ||
            !strcmp_static(type, "unsigned long");
@@ -663,10 +715,8 @@ static void parse_clone_flags(va_list* ap) {
     int exit_signal = flags & CLONE_SIGNAL_MASK;
     flags &= ~CLONE_SIGNAL_MASK;
     if (exit_signal) {
-        if (exit_signal >= 0 && exit_signal <= NUM_KNOWN_SIGS)
-            PRINTF("|%s", signal_name(exit_signal));
-        else
-            PRINTF("|[SIG %d]", exit_signal);
+        char str[6];
+        PRINTF("|[%s]", signal_name(exit_signal, str));
     }
 
     if (flags)
@@ -806,23 +856,10 @@ static void parse_pipe_fds(va_list* ap) {
     PRINTF("[%d, %d]", fds[0], fds[1]);
 }
 
-#define S(sig) #sig
-
-const char* const siglist[NUM_KNOWN_SIGS + 1] = {
-    S(SIGUNUSED), S(SIGHUP),  S(SIGINT),    S(SIGQUIT), S(SIGILL),   S(SIGTRAP),   S(SIGABRT),
-    S(SIGBUS),    S(SIGFPE),  S(SIGKILL),   S(SIGUSR1), S(SIGSEGV),  S(SIGUSR2),   S(SIGPIPE),
-    S(SIGALRM),   S(SIGTERM), S(SIGSTKFLT), S(SIGCHLD), S(SIGCONT),  S(SIGSTOP),   S(SIGTSTP),
-    S(SIGTTIN),   S(SIGTTOU), S(SIGURG),    S(SIGXCPU), S(SIGXFSZ),  S(SIGVTALRM), S(SIGPROF),
-    S(SIGWINCH),  S(SIGIO),   S(SIGPWR),    S(SIGSYS),  S(SIGRTMIN),
-};
-
 static void parse_signum(va_list* ap) {
     int signum = va_arg(*ap, int);
-
-    if (signum >= 0 && signum <= NUM_KNOWN_SIGS)
-        PUTS(signal_name(signum));
-    else
-        PRINTF("[SIG %d]", signum);
+    char str[6];
+    PRINTF("[%s]", signal_name(signum, str));
 }
 
 static void parse_sigmask(va_list* ap) {
@@ -842,7 +879,8 @@ static void parse_sigmask(va_list* ap) {
 
     for (size_t signum = 1; signum <= sizeof(sigset) * 8; signum++)
         if (__sigismember(sigset, signum)) {
-            PUTS(signal_name(signum));
+            char str[6];
+            PUTS(signal_name(signum, str));
             PUTS(",");
         }
 

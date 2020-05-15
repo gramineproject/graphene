@@ -151,9 +151,10 @@ class TC_01_Bootstrap(RegressionTestCase):
         with self.expect_returncode(134):
             self.run_binary(['abort_multithread'])
 
-    def test_404_sigprocmask(self):
-        with self.expect_returncode(113):
-            self.run_binary(['sigprocmask'])
+    def test_404_sigprocmask_pending(self):
+        stdout, _ = self.run_binary(['sigprocmask_pending'], timeout=60)
+        self.assertIn('Child OK', stdout)
+        self.assertIn('All tests OK', stdout)
 
     def test_500_init_fail(self):
         try:
@@ -420,6 +421,10 @@ class TC_30_Syscall(RegressionTestCase):
             self.assertIn('Got signal 13', stdout)
             self.assertIn('Got 1 SIGPIPE signal(s)', stdout)
             self.assertIn('Could not write to pipe: Broken pipe', stdout)
+
+    def test_093_signal_multithread(self):
+        stdout, _ = self.run_binary(['signal_multithread'])
+        self.assertIn('TEST OK', stdout)
 
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '

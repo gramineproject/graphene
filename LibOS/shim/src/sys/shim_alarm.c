@@ -20,32 +20,23 @@
  * Implementation of system call "alarm", "setitmer" and "getitimer".
  */
 
-#include <shim_internal.h>
-#include <shim_signal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+#include <stdint.h>
 
-static void signal_alarm(IDTYPE target, void* arg) {
-    // Kept for API compatibility wtih signal_itimer
-    __UNUSED(arg);
+#include "shim_internal.h"
+#include "shim_signal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
-    debug("alarm goes off, signaling thread %u\n", target);
-
-    struct shim_thread* thread = lookup_thread(target);
-    if (!thread)
-        return;
-
-    lock(&thread->lock);
-    append_signal(thread, SIGALRM, NULL, true);
-    unlock(&thread->lock);
-    put_thread(thread);
+static void signal_alarm(IDTYPE caller, void* arg) {
+    (void)do_kill_proc(caller, (IDTYPE)(uintptr_t)arg, SIGALRM, /*use_ipc=*/false);
 }
 
 int shim_do_alarm(unsigned int seconds) {
     uint64_t usecs = 1000000ULL * seconds;
 
-    int64_t ret = install_async_event(NULL, usecs, &signal_alarm, NULL);
+    int64_t ret = install_async_event(NULL, usecs, &signal_alarm,
+                                      (void*)(uintptr_t)get_cur_thread()->tgid);
     if (ret < 0)
         return ret;
 

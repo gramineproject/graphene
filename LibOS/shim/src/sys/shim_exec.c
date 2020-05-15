@@ -183,6 +183,7 @@ static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_proce
     DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
+    DEFINE_MIGRATE(pending_signals, NULL, 0);
     DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
     DEFINE_MIGRATE(migratable, NULL, 0);
     DEFINE_MIGRATE(environ, envp, 0);
@@ -366,8 +367,20 @@ reopen:
         }
     }
 
-    bool use_same_process = check_last_thread(cur_thread) == 0;
-    if (use_same_process && !strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    /* If `execve` is invoked concurrently by multiple threads, let only one succeed. */
+    static unsigned int first = 0;
+    if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) != 0) {
+        /* Just exit current thread. */
+        thread_exit(/*error_code=*/0, /*term_signal=*/0);
+    }
+    bool threads_killed = kill_other_threads();
+
+    /* All other threads are dead. Restoring initial value in case we stay inside same process
+     * instance and call execve again. */
+    __atomic_store_n(&first, 0, __ATOMIC_RELAXED);
+
+    bool use_same_process = true;
+    if (!strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* for SGX PALs, can use same process only if it is the same executable (because a different
          * executable has a different measurement and thus requires a new enclave); this special
          * case is to correctly handle e.g. Bash process replacing itself */
@@ -380,7 +393,13 @@ reopen:
 
     if (use_same_process) {
         debug("execve() in the same process\n");
-        return shim_do_execve_rtld(exec, argv, envp);
+        ret = shim_do_execve_rtld(exec, argv, envp);
+        if (threads_killed) {
+            /* We have killed some threads and execve failed internally. User app might now be in
+             * undefined state, we would better blow everything up. */
+            process_exit(ENOTRECOVERABLE, 0);
+        }
+        return ret;
     }
     debug("execve() in a new process\n");
 
@@ -432,6 +451,11 @@ reopen:
         /* execve failed, so reanimate this thread as if nothing happened */
         cur_thread->in_vm = true;
         unlock(&cur_thread->lock);
+        if (threads_killed) {
+            /* We have killed some threads and execve failed internally. User app might now be in
+             * undefined state, we would better blow everything up. */
+            process_exit(ENOTRECOVERABLE, 0);
+        }
         return ret;
     }
 
