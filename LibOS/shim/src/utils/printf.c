@@ -98,14 +98,14 @@ void debug_putch(int ch) {
     debug_fputch(NULL, ch, shim_get_tcb()->debug_buf);
 }
 
-void debug_vprintf(const char* fmt, va_list ap) {
-    vfprintfmt((void*)debug_fputch, NULL, shim_get_tcb()->debug_buf, fmt, (va_list*)&ap);
+void debug_vprintf(const char* fmt, va_list* ap) {
+    vfprintfmt((void*)debug_fputch, NULL, shim_get_tcb()->debug_buf, fmt, ap);
 }
 
 void debug_printf(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    debug_vprintf(fmt, ap);
+    debug_vprintf(fmt, &ap);
     va_end(ap);
 }
 
