@@ -40,7 +40,7 @@ def generate_library_paths():
     # indentation.
     ld_paths = (line for line in ld_paths if not re.match(r'(^\s)', line))
 
-    return ''.join(ld_paths)
+    return ''.join(ld_paths) + os.getenv('LD_LIBRARY_PATH')[1:]
 
 def get_binary_path(executable):
     path = subprocess.check_output(f'which {executable}',
