@@ -24,6 +24,14 @@ static inline void shim_context_set_sp(struct shim_context* sc, unsigned long sp
     shim_regs_set_sp(sc->regs, sp);
 }
 
+static inline unsigned long shim_context_get_orig_reg(struct shim_context* sc) {
+    return shim_regs_get_orig_reg(sc->regs);
+}
+
+static inline void shim_context_set_orig_reg(struct shim_context* sc, unsigned long orig_reg) {
+    shim_regs_set_orig_reg(sc->regs, orig_reg);
+}
+
 struct debug_buf;
 
 typedef struct shim_tcb shim_tcb_t;
