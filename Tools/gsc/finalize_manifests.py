@@ -95,12 +95,13 @@ def main(args=None):
     args = ARGPARSER.parse_args(args)
 
     if not os.path.isdir(args.directory):
-        ARGPARSER.error('Could not find directory ' + args.directory + '.')
+        ARGPARSER.error(f'Could not find directory {args.directory}.')
 
     trusted_files = generate_trusted_files(args.directory)
     library_paths = generate_library_paths()
+    env_path = os.getenv('PATH')
 
-    print('Setting LD_LIBRARY_PATH to \'' + library_paths + '\'.')
+    print(f'LD_LIBRARY_PATH to \'{library_paths}\'\n'f'$PATH to \'{env_path}\'.')
 
     trusted_signatures = []
 
@@ -121,7 +122,8 @@ def main(args=None):
 
         mf_instance = mf_template.substitute({
                                 'binary_path': binary_path,
-                                'library_paths': library_paths
+                                'library_paths': library_paths,
+                                'env_path': env_path
                                 })
 
         # Write final manifest file with trusted files and children
