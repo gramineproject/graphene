@@ -768,7 +768,7 @@ static int resume_wrapper (void * param)
        based on saved thread->shim_tcb */
     shim_tcb_init();
     shim_tcb_t* saved_tcb = thread->shim_tcb;
-    assert(saved_tcb->context.regs && saved_tcb->context.regs->rsp);
+    assert(saved_tcb->context.regs && shim_context_get_sp(&saved_tcb->context));
     set_cur_thread(thread);
     unsigned long fs_base = saved_tcb->context.fs_base;
     assert(fs_base);
@@ -825,7 +825,7 @@ BEGIN_RS_FUNC(running_thread)
             __shim_tcb_init(tcb);
             set_cur_thread(thread);
 
-            assert(tcb->context.regs && tcb->context.regs->rsp);
+            assert(tcb->context.regs && shim_context_get_sp(&tcb->context));
             update_fs_base(tcb->context.fs_base);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
