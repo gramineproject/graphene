@@ -16,6 +16,14 @@ struct shim_context {
     struct atomic_int       preempt;
 };
 
+static inline unsigned long shim_context_get_sp(struct shim_context* sc) {
+    return shim_regs_get_sp(sc->regs);
+}
+
+static inline void shim_context_set_sp(struct shim_context* sc, unsigned long sp) {
+    shim_regs_set_sp(sc->regs, sp);
+}
+
 struct debug_buf;
 
 typedef struct shim_tcb shim_tcb_t;

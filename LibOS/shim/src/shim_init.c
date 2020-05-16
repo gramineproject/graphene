@@ -624,7 +624,7 @@ noreturn void* shim_init(int argc, void* args)
     shim_tcb_t * cur_tcb = shim_get_tcb();
     struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
 
-    if (cur_tcb->context.regs && cur_tcb->context.regs->rsp) {
+    if (cur_tcb->context.regs && shim_context_get_sp(&cur_tcb->context)) {
         vdso_map_migrate();
         restore_context(&cur_tcb->context);
     }

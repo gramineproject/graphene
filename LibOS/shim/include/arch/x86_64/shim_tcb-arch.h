@@ -24,4 +24,12 @@ struct shim_regs {
     uint64_t    rip;
 };
 
+static inline uint64_t shim_regs_get_sp(struct shim_regs* sr) {
+    return sr->rsp;
+}
+
+static inline void shim_regs_set_sp(struct shim_regs* sr, uint64_t sp) {
+    sr->rsp = sp;
+}
+
 #endif /* _SHIM_TCB_ARCH_H_ */

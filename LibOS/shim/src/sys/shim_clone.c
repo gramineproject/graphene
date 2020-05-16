@@ -166,7 +166,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
 
     tcb->context.regs = &regs;
     fixup_child_context(tcb->context.regs);
-    tcb->context.regs->rsp = (unsigned long)stack;
+    shim_context_set_sp(&tcb->context, (unsigned long)stack);
 
     put_thread(my_thread);
 
@@ -200,7 +200,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         void* old_stack_top = self->stack_top;
         void* old_stack_red = self->stack_red;
         void* old_stack     = self->stack;
-        unsigned long old_stack_rsp = self->shim_tcb->context.regs->rsp;
+        unsigned long old_stack_rsp = shim_context_get_sp(&self->shim_tcb->context);
 
         if (user_stack_addr) {
             struct shim_vma_info vma_info;
@@ -210,7 +210,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             self->stack_top = (char*)vma_info.addr + vma_info.length;
             self->stack_red = vma_info.addr;
             self->stack     = vma_info.addr;
-            self->shim_tcb->context.regs->rsp = (unsigned long)user_stack_addr;
+            shim_context_set_sp(&self->shim_tcb->context, (unsigned long)user_stack_addr);
 
             if (vma_info.file) {
                 put_handle(vma_info.file);
@@ -238,7 +238,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             self->stack_top = old_stack_top;
             self->stack_red = old_stack_red;
             self->stack     = old_stack;
-            self->shim_tcb->context.regs->rsp = old_stack_rsp;
+            shim_context_set_sp(&self->shim_tcb->context, old_stack_rsp);
         }
         return ret;
     }
@@ -377,8 +377,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             }
             thread->stack_top = (char*)vma_info.addr + vma_info.length;
             thread->stack_red = thread->stack = vma_info.addr;
-            parent_stack = (void *)self->shim_tcb->context.regs->rsp;
-            thread->shim_tcb->context.regs->rsp = (unsigned long)user_stack_addr;
+            parent_stack = (void*)shim_context_get_sp(&self->shim_tcb->context);
+            shim_context_set_sp(&thread->shim_tcb->context, (unsigned long)user_stack_addr);
 
             if (vma_info.file) {
                 put_handle(vma_info.file);
@@ -394,7 +394,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         thread->shim_tcb = NULL; /* cpu context of forked thread isn't
                                   * needed any more */
         if (parent_stack)
-            self->shim_tcb->context.regs->rsp = (unsigned long)parent_stack;
+            shim_context_set_sp(&self->shim_tcb->context, (unsigned long)parent_stack);
         if (ret < 0)
             goto failed;
 
