@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "shim_tcb-arch.h"
+
 /* asm/signal.h */
 #define NUM_SIGS            64
 #define NUM_KNOWN_SIGS      32
@@ -117,6 +119,36 @@ typedef struct ucontext {
     __sigset_t uc_sigmask;
     struct _libc_fpstate __fpregs_mem;
 } ucontext_t;
+
+static inline void shim_regs_to_ucontext(ucontext_t* context, struct shim_regs* regs) {
+    // FIXME: possibly add missing registers to shim_regs and put in same order as gregs
+    //        to use memcpy
+    context->uc_mcontext.gregs[REG_R8]  = regs->r8;
+    context->uc_mcontext.gregs[REG_R9]  = regs->r9;
+    context->uc_mcontext.gregs[REG_R10] = regs->r10;
+    context->uc_mcontext.gregs[REG_R11] = regs->r11;
+    context->uc_mcontext.gregs[REG_R12] = regs->r12;
+    context->uc_mcontext.gregs[REG_R13] = regs->r13;
+    context->uc_mcontext.gregs[REG_R14] = regs->r14;
+    context->uc_mcontext.gregs[REG_R15] = regs->r15;
+    context->uc_mcontext.gregs[REG_RDI] = regs->rdi;
+    context->uc_mcontext.gregs[REG_RSI] = regs->rsi;
+    context->uc_mcontext.gregs[REG_RBP] = regs->rbp;
+    context->uc_mcontext.gregs[REG_RBX] = regs->rbx;
+    context->uc_mcontext.gregs[REG_RDX] = regs->rdx;
+    context->uc_mcontext.gregs[REG_RAX] = 0;
+    context->uc_mcontext.gregs[REG_RCX] = regs->rcx;
+    context->uc_mcontext.gregs[REG_RSP] = regs->rsp;
+    context->uc_mcontext.gregs[REG_RIP] = regs->rip;
+    context->uc_mcontext.gregs[REG_EFL] = regs->rflags;
+    context->uc_mcontext.gregs[REG_CSGSFS] = 0;
+    context->uc_mcontext.gregs[REG_ERR] = 0;
+    context->uc_mcontext.gregs[REG_TRAPNO] = 0;
+    context->uc_mcontext.gregs[REG_OLDMASK] = 0;
+    context->uc_mcontext.gregs[REG_CR2] = 0;
+
+    context->uc_mcontext.fpregs = NULL;
+}
 
 #define RED_ZONE_SIZE   128
 
