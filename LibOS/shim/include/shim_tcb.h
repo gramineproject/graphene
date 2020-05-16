@@ -24,6 +24,14 @@ static inline void shim_context_set_sp(struct shim_context* sc, unsigned long sp
     shim_regs_set_sp(sc->regs, sp);
 }
 
+static inline unsigned long shim_context_get_syscallnr(struct shim_context* sc) {
+    return shim_regs_get_syscallnr(sc->regs);
+}
+
+static inline void shim_context_set_syscallnr(struct shim_context* sc, unsigned long sc_num) {
+    shim_regs_set_syscallnr(sc->regs, sc_num);
+}
+
 struct debug_buf;
 
 typedef struct shim_tcb shim_tcb_t;
