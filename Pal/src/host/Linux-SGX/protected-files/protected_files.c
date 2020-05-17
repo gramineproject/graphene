@@ -5,6 +5,8 @@
  */
 
 #include "api.h"
+#include "protected_files.h"
+#include "protected_files_format.h"
 #include "protected_files_internal.h"
 
 #ifndef IN_PAL
@@ -64,20 +66,6 @@ static pf_random_f          g_cb_random          = NULL;
 
 static pf_iv_t g_empty_iv = {0};
 static bool g_initialized = false;
-
-#define METADATA_KEY_NAME "SGX-PROTECTED-FS-METADATA-KEY"
-#define MAX_LABEL_SIZE    64
-
-static_assert(sizeof(METADATA_KEY_NAME) <= MAX_LABEL_SIZE, "label too long");
-
-#pragma pack(push, 1)
-typedef struct {
-    uint32_t index;
-    char label[MAX_LABEL_SIZE]; // must be NULL terminated
-    pf_keyid_t nonce;
-    uint32_t output_len; // in bits
-} kdf_input_t;
-#pragma pack(pop)
 
 // The key derivation function follow recommendations from NIST Special Publication 800-108:
 // Recommendation for Key Derivation Using Pseudorandom Functions
