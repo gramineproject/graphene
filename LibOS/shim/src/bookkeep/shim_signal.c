@@ -313,7 +313,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         && (void *) arg <= tcb->test_range.end) {
         assert(context);
         tcb->test_range.has_fault = true;
-        context->rip = (PAL_NUM) tcb->test_range.cont_addr;
+        pal_context_set_ip(context, (PAL_NUM) tcb->test_range.cont_addr);
         goto ret_exception;
     }
 
