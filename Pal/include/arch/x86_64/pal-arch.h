@@ -179,4 +179,8 @@ struct PAL_CONTEXT_ {
 };
 typedef struct PAL_CONTEXT_ PAL_CONTEXT;
 
+static inline void pal_context_set_ip(PAL_CONTEXT *context, PAL_NUM insnptr) {
+    context->rip = insnptr;
+}
+
 #endif /* PAL_ARCH_H */
