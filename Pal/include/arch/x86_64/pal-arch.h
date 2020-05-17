@@ -183,4 +183,12 @@ typedef struct PAL_CONTEXT_ PAL_CONTEXT;
 
 #define DEFAULT_OBJECT_EXEC_ADDR ((void*)0x555555554000) /* Linux base location for PIE binaries */
 
+static inline void pal_context_set_ip(PAL_CONTEXT* context, PAL_NUM insnptr) {
+    context->rip = insnptr;
+}
+
+static inline PAL_NUM pal_context_get_ip(PAL_CONTEXT *context) {
+    return context->rip;
+}
+
 #endif /* PAL_ARCH_H */

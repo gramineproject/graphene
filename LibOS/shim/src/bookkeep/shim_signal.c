@@ -261,28 +261,28 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
         _info;                                              \
     })
 
-#ifdef __x86_64__
-#define IP rip
-#else
-#define IP eip
-#endif
-
 static inline bool context_is_internal(PAL_CONTEXT * context)
 {
-    return context &&
-        (void *) context->IP >= (void *) &__code_address &&
-        (void *) context->IP < (void *) &__code_address_end;
+    if (!context)
+        return false;
+
+    void* ip = (void*)pal_context_get_ip(context);
+
+    return ip >= (void*)&__code_address &&
+           ip  < (void*)&__code_address_end;
 }
 
 static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEXT* context) {
     IDTYPE tid = get_cur_tid();
+    PAL_NUM ip = pal_context_get_ip(context);
+
     if (context_is_internal(context))
         SYS_PRINTF("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
-                   addr, (void*)context->IP - (void*)&__load_address,
+                   addr, (void*)ip - (void*)&__load_address,
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
     else
         SYS_PRINTF("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr,
-                   addr, context ? context->IP : 0,
+                   addr, context ? ip : 0,
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
 
     DEBUG_BREAK_ON_FAILURE();
@@ -295,7 +295,7 @@ static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * c
         internal_fault("Internal arithmetic fault", arg, context);
     } else {
         if (context)
-            debug("arithmetic fault at 0x%08lx\n", context->IP);
+            debug("arithmetic fault at 0x%08lx\n", pal_context_get_ip(context));
 
         deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV,
                                      si_addr, (void *) arg), context);
@@ -313,7 +313,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         && (void *) arg <= tcb->test_range.end) {
         assert(context);
         tcb->test_range.has_fault = true;
-        context->rip = (PAL_NUM) tcb->test_range.cont_addr;
+        pal_context_set_ip(context, (PAL_NUM)tcb->test_range.cont_addr);
         goto ret_exception;
     }
 
@@ -322,7 +322,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     }
 
     if (context)
-        debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", arg, context->IP);
+        debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", arg, pal_context_get_ip(context));
 
     struct shim_vma_info vma_info;
     int signo = SIGSEGV;
@@ -556,7 +556,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
         assert(context);
 
-        uint8_t * rip = (uint8_t*)context->IP;
+        uint8_t* rip = (uint8_t*)pal_context_get_ip(context);
         /*
          * Emulate syscall instruction (opcode 0x0f 0x05);
          * syscall instruction is prohibited in
@@ -593,8 +593,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             context->r11 = context->efl;
             context->rip = (long)&syscall_wrapper;
         } else {
-            debug("Illegal instruction during app execution at 0x%08lx; delivering to app\n",
-                  context->IP);
+            debug("Illegal instruction during app execution at 0x%08lx; delivering to app\n", rip);
             deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
                                          si_addr, (void *) arg), context);
         }
