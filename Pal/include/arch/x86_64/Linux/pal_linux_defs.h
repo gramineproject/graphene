@@ -1,6 +1,19 @@
 #ifndef PAL_LINUX_DEFS_H
 #define PAL_LINUX_DEFS_H
 
+/* Macro to call pal_linux_main */
+#define CALL_PAL_LINUX_MAIN(PAL_START) \
+__asm__ (                              \
+    ".global "#PAL_START"\n"            \
+    "   .type "#PAL_START",@function\n" \
+    #PAL_START":\n"                     \
+    "   movq %rsp, %rdi\n" /* 1st arg for pal_linux_main: initial RSP */ \
+    "   movq %rdx, %rsi\n" /* 2nd arg: fini callback */                  \
+    "   xorq %rbp, %rbp\n" /* mark the last stack frame with RBP == 0 (for debuggers) */ \
+    "   andq $~15, %rsp\n"             \
+    "   call pal_linux_main\n"         \
+)
+
 #define USER_ADDRESS_LOWEST 0x10000
 
 #define THREAD_STACK_SIZE (PRESET_PAGESIZE * 2)   /* 8KB initial stack (grows automatically) */

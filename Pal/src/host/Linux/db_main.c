@@ -38,15 +38,7 @@
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
 
-__asm__ (
-    ".global pal_start\n"
-    "    .type pal_start,@function\n"
-    "pal_start:\n"
-    "    movq %rsp, %rdi\n" /* 1st arg for pal_linux_main: initial RSP */
-    "    movq %rdx, %rsi\n" /* 2nd arg: fini callback */
-    "    xorq %rbp, %rbp\n" /* mark the last stack frame with RBP == 0 (for debuggers) */
-    "    andq $~15, %rsp\n"
-    "    call pal_linux_main\n");
+CALL_PAL_LINUX_MAIN(pal_start);
 
 #define RTLD_BOOTSTRAP
 
