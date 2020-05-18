@@ -533,7 +533,7 @@ struct shim_mount* find_mount_from_uri(const char* uri) {
         if (qstrempty(&mount->uri))
             continue;
 
-        if (!memcmp(qstrgetstr(&mount->uri), uri, mount->uri.len) && uri[mount->uri.len] == '/') {
+        if (!memcmp(qstrgetstr(&mount->uri), uri, mount->uri.len)) {
             if (mount->path.len > longest_path) {
                 longest_path = mount->path.len;
                 found = mount;

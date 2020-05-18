@@ -421,7 +421,7 @@ class TC_31_SyscallSGX(RegressionTestCase):
 
 class TC_40_FileSystem(RegressionTestCase):
     def test_000_proc(self):
-        stdout, _ = self.run_binary(['proc'])
+        stdout, _ = self.run_binary(['proc_common'])
         self.assertIn('/proc/1/..', stdout)
         self.assertIn('/proc/1/cwd', stdout)
         self.assertIn('/proc/1/exe', stdout)
@@ -442,7 +442,8 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('/proc/self', stdout)
         self.assertIn('/proc/meminfo', stdout)
         self.assertIn('/proc/cpuinfo', stdout)
-        self.assertIn('/proc/2/cwd/proc.c', stdout)
+        self.assertIn('symlink /proc/self/exec resolves to /proc_common', stdout)
+        self.assertIn('/proc/2/cwd/proc_common.c', stdout)
         self.assertIn('/lib/libpthread.so', stdout)
         self.assertIn('stack', stdout)
         self.assertIn('vendor_id', stdout)

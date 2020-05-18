@@ -41,9 +41,9 @@ c_executables = \
 	poll \
 	poll_many_types \
 	ppoll \
-	proc \
-	proc_path \
+	proc_common \
 	proc_cpuinfo \
+	proc_path \
 	pselect \
 	readdir \
 	sched \
@@ -126,7 +126,7 @@ CFLAGS-eventfd = -pthread
 CFLAGS-futex_bitset = -pthread
 CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
-CFLAGS-proc = -pthread
+CFLAGS-proc_common = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -pthread
 CFLAGS-sigaction_per_process += -pthread
 CFLAGS-sigprocmask += -pthread

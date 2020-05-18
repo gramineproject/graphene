@@ -49,7 +49,7 @@
 /poll
 /poll_many_types
 /ppoll
-/proc
+/proc_common
 /proc_cpuinfo
 /proc_path
 /pselect
