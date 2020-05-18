@@ -33,7 +33,8 @@ objs = \
 	db_sockets.o \
 	db_streams.o \
 	db_threading.o \
-	$(commons_objs)
+	$(commons_objs) \
+	pal_start-$(ARCH).o
 
 graphene_lib = .lib/graphene-lib.a
 
