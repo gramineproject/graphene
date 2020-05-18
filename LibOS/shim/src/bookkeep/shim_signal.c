@@ -555,7 +555,6 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         !(vma_info.flags & VMA_INTERNAL)) {
 
         assert(context);
-        debug("illegal instruction at 0x%08lx\n", context->IP);
 
         uint8_t * rip = (uint8_t*)context->IP;
         /*
@@ -594,11 +593,13 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             context->r11 = context->efl;
             context->rip = (long)&syscall_wrapper;
         } else {
+            debug("Illegal instruction during app execution at 0x%08lx; delivering to app\n",
+                  context->IP);
             deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
                                          si_addr, (void *) arg), context);
         }
     } else {
-        internal_fault("Internal illegal fault", arg, context);
+        internal_fault("Illegal instruction during Graphene internal execution", arg, context);
     }
 
     if (vma_info.file) {
