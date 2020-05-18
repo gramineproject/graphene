@@ -179,4 +179,6 @@ struct PAL_CONTEXT_ {
 };
 typedef struct PAL_CONTEXT_ PAL_CONTEXT;
 
+#define DEFAULT_OBJECT_EXEC_ADDR ((void*)0x555555554000) /* Linux base location for PIE binaries */
+
 #endif /* PAL_ARCH_H */
