@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -130,6 +131,16 @@ int main(int argc, char** argv) {
         perror("closedir /proc");
         return 1;
     }
+
+    printf("===== Reading /proc/self/exe symlink\n");
+    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (len < 0) {
+        perror("readlink /proc/self/exe");
+        return 1;
+    }
+
+    buf[len] = '\0';
+    printf("symlink /proc/self/exec resolves to %s\n", buf);
 
     /* this outputs all files in this current dir: a good test of realloced getdents buffer */
     printf("===== Contents of /proc/2/cwd\n");
