@@ -721,11 +721,11 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
     if (!signal->context_stored)
         __store_context(tcb, NULL, signal);
 
-    struct shim_context * context = NULL;
+    struct shim_context* context = NULL;
 
     if (tcb->context.regs && shim_context_get_syscallnr(&tcb->context)) {
         context = __alloca(sizeof(struct shim_context));
-        memcpy(context, &tcb->context, sizeof(struct shim_context));
+        *context = tcb->context;
         shim_context_set_syscallnr(&tcb->context, 0);
         tcb->context.next = context;
     }
@@ -736,7 +736,7 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
     (*handler) (sig, &signal->info, &signal->context);
 
     if (context)
-        memcpy(&tcb->context, context, sizeof(struct shim_context));
+        tcb->context = *context;
 
     if (signal->pal_context)
         memcpy(signal->pal_context, signal->context.uc_mcontext.gregs, sizeof(PAL_CONTEXT));
