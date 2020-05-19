@@ -36,7 +36,7 @@ install the Docker client python package via pip.
 .. code-block:: sh
 
    sudo apt install docker.io python3 python3-pip
-   pip3 install docker
+   pip3 install docker pyyaml
 
 Kernel Modules and Services
 ---------------------------
@@ -57,9 +57,9 @@ To create Docker images, the user must have access to Docker daemon.
 
     sudo adduser $USER docker
 
-Create a configuration file called :file:`config.json`. Please see the documentation
-on configuration options below and use the :file:`config.json.template` as
-reference.
+Create a configuration file called :file:`config.yaml`. Please see the
+documentation on configuration options below and use the
+:file:`config.yaml.template` as reference.
 
 Command line arguments
 ======================
@@ -67,11 +67,13 @@ Command line arguments
 Commands
 --------
 
-.. option:: help
+.. option:: --help
 
    Display usage.
 
 .. option:: build
+
+   .. program:: gsc-build
 
    Synopsis:
 
@@ -145,7 +147,8 @@ may call ``app2`` or ``app3``, and ``app2`` may call ``app3``, but ``app2`` may
 
    gsc build image app1.manifest app2.manifest app3.manifest
 
-**Configuration**
+Configuration
+^^^^^^^^^^^^^
 
 GSC is configured via a configuration file called :file:`config.json` with the
 following parameters.
@@ -176,13 +179,13 @@ following parameters.
 Run graphenized Docker images
 =============================
 
-Execute Docker run command via Docker CLI and provide gsgx and isgx/sgx device,
-and the PSW/AESM socket. Additional Docker options and application arguments may
-be supplied to the Docker run command.
+Execute  :command:`docker run` command via Docker CLI and provide gsgx and
+isgx/sgx device, and the PSW/AESM socket. Additional Docker options and
+application arguments may be supplied to the  :command:`docker run` command.
 
 .. program:: docker
 
-:command:`docker` run --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*>[:<*TAG*>] [<*APPLICATION-ARGUMENTS*>]
+:command:`docker run` --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*>[:<*TAG*>] [<*APPLICATION-ARGUMENTS*>]
 
    .. option:: IMAGE-NAME
 
@@ -199,8 +202,8 @@ be supplied to the Docker run command.
 
    .. option:: OPTIONS
 
-      Docker run options. Common options include ``-it`` (interactive with
-      terminal) or ``-d`` (detached). Please see
+      :command:`docker run` options. Common options include ``-it`` (interactive
+      with terminal) or ``-d`` (detached). Please see
       `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__
       for details.
 
@@ -208,13 +211,18 @@ be supplied to the Docker run command.
 Execute with Linux PAL instead of Linux-SGX PAL
 -----------------------------------------------
 
-When specifying ``-L`` during GSC :command:`build`, you may select the Linux PAL
-at Docker run time instead of the Linux-SGX PAL by specifying the environment
-variable ``LINUX_PAL`` as an option to the Docker ``run`` command.
+When specifying :option:`-L <gsc-build -L>`  during GSC :command:`build`, you
+may select the Linux PAL at Docker run time instead of the Linux-SGX PAL by
+specifying the environment variable ``GSC_PAL`` as an option to the
+:command:`docker run` command.
+
+.. envvar:: GSC_PAL
+
+   Specifies the pal loader
 
 .. code-block:: sh
 
-    docker run ... --env LINUX_PAL=linux gsc-<image-name> ...
+    docker run ... --env PAL=Linux gsc-<image-name> ...
 
 Example
 =======
@@ -228,19 +236,19 @@ This example assumes that all prerequisites are installed and configured.
 
 1. Pull public Python image from Dockerhub:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   docker pull python
+      docker pull python
 
 2. Graphenize the Python image using :program:`gsc`:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   cd Tools/gsc
-   ./gsc build python test/ubuntu18.04-python3.manifest
+      cd Tools/gsc
+      ./gsc build python test/ubuntu18.04-python3.manifest
 
 3. Test the graphenized Docker image:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   docker run --device=/dev/gsgx --device=/dev/*sgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-python -c 'print("HelloWorld!")'
+      docker run --device=/dev/gsgx --device=/dev/*sgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-python -c 'print("HelloWorld!")'

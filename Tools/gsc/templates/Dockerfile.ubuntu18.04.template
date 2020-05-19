@@ -16,28 +16,71 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
         wget
 
 # Clone graphene
-RUN git clone ${graphene_repository} /graphene
+RUN git clone {{Graphene.Repository}} /graphene
 
 # Init submodules
 RUN cd /graphene \
-    && git fetch origin ${graphene_branch} \
-    && git checkout ${graphene_branch} \
+    && git fetch origin {{Graphene.Branch}} \
+    && git checkout {{Graphene.Branch}} \
     && git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
-
 
 # Create keys for signing
 RUN cd /graphene/Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
 
 # Create SGX driver for header files
 RUN cd /graphene/Pal/src/host/Linux-SGX/sgx-driver \
-    && git clone ${sgxdriver_repository} linux-sgx-driver \
+    && git clone {{SGXDriver.Repository}} linux-sgx-driver \
     && cd linux-sgx-driver \
-    && git checkout ${sgxdriver_branch}
+    && git checkout {{SGXDriver.Branch}}
 
-# Build Grapehene-SGX
-RUN cd /graphene && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver make -s -j4 SGX=1 ${DEBUG} WERROR=1 ${MAKE_LINUX_PAL}
+# Build Graphene-SGX
+RUN cd /graphene && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver \
+    make -s -j4 SGX=1 {{DEBUG}} WERROR=1 {% if MAKE_LINUX_PAL %} \
+    && make WERROR=1 {{DEBUG}} {% endif %}
 
 # Translate runtime symlinks to files
-RUN for f in $$(find /graphene/Runtime -type l);do cp --remove-destination $$(readlink $$f) $$f;done;
+RUN for f in $(find /graphene/Runtime -type l);do cp --remove-destination $(readlink $f) $f;done;
 
 # Finished building Graphene
+
+{% if not GSC_ONLY %}
+
+# Integrate Graphene into the app image
+# This file is used in a multistage docker build process, in which the previous image is named "graphene"
+FROM {{appImage}}
+
+# Update any packages
+RUN apt-get update \
+    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        python3 \
+        python3-pip \
+        python3-protobuf \
+        libprotobuf-c-dev \
+        binutils \
+        openssl \
+    && python3 -m pip install protobuf jinja2
+
+# Copy Graphene runtime and signer tools to /graphene
+RUN mkdir -p /graphene \
+    && mkdir -p /graphene/Runtime \
+    && mkdir -p /graphene/signer \
+    && mkdir -p /graphene/Pal/src
+COPY --from=graphene /graphene/Runtime/ /graphene/Runtime
+COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/signer/ /graphene/signer
+COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/generated_offsets.py /graphene/signer/
+
+# Copy template scripts and manifests
+COPY apploader.sh ./
+COPY *.manifest ./
+COPY finalize_manifests.py /
+
+# Mark apploader.sh executable, finalize manifests, and remove intermediate scripts
+RUN chmod u+x apploader.sh \
+    && python3 /finalize_manifests.py / {{binary}}.manifest {{user_manifests}} \
+    && rm -f /finalize_manifests.py
+
+# Define default command
+ENTRYPOINT  ["/bin/sh", "./apploader.sh"]
+CMD [{{cmd}}]
+
+{% endif %}

@@ -3,17 +3,17 @@
 set -ex
 
 # Generate EINITOKEN for all applications
-for manifest in ${binary}.manifest ${user_manifests}
+for manifest in {{binary}}.manifest {{user_manifests}}
 do
     # Remove .manifest from file
-    executable=$${manifest%.manifest}
-    /graphene/signer/pal-sgx-get-token -output $${executable}.token -sig $${executable}.sig
+    executable=${manifest%.manifest}
+    /graphene/signer/pal-sgx-get-token -output ${executable}.token -sig ${executable}.sig
 done
 
 # Run the application with arguments given to it
-if [ -z "$$LINUX_PAL" ]
+if [ -z "$GSC_PAL" ]
 then
-    SGX=1 /graphene/Runtime/pal-Linux-SGX init ${binary}.manifest.sgx ${binary_arguments} "$${@}"
+    SGX=1 /graphene/Runtime/pal-Linux-SGX init {{binary}}.manifest.sgx {{binary_arguments}} "${@}"
 else
-    /graphene/Runtime/pal-Linux init ${binary}.manifest ${binary_arguments} "$${@}"
+    /graphene/Runtime/pal-$GSC_PAL init {{binary}}.manifest {{binary_arguments}} "${@}"
 fi

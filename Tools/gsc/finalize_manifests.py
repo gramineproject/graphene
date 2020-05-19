@@ -4,8 +4,8 @@ import os
 import sys
 import subprocess
 import re
-import string
 import argparse
+import jinja2
 
 def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
@@ -40,7 +40,9 @@ def generate_library_paths():
     # indentation.
     ld_paths = (line for line in ld_paths if not re.match(r'(^\s)', line))
 
-    return ''.join(ld_paths) + os.getenv('LD_LIBRARY_PATH')[1:]
+    ld_library_paths = os.getenv('LD_LIBRARY_PATH')
+
+    return ''.join(ld_paths) + (ld_library_paths[1:] if ld_library_paths is not None else '')
 
 def get_binary_path(executable):
     path = subprocess.check_output(f'which {executable}',
@@ -81,18 +83,16 @@ def extract_enclave_size(manifest):
     return '0M'
 
 ARGPARSER = argparse.ArgumentParser()
-ARGPARSER.add_argument('finalize_manifests.py', metavar='SCRIPT',
-    help='Script to be run.')
-ARGPARSER.add_argument('directory', metavar='DIRNAME',
+ARGPARSER.add_argument('directory', default='/',
     help='Search the directory tree from this root for files and generate list of trusted files')
-ARGPARSER.add_argument('manifests', metavar='APP.manifest',
+ARGPARSER.add_argument('manifests',
     nargs='+',
-    help='Application-specific manifest files. The first manifest will be used for the entry point '
-        'of the docker image. If file does not exist, manifest will be generated without '
-        'application-specific values.')
+    help='Application-specific manifest files. The first manifest will be used for the entry '
+         'point of the docker image. If file does not exist, manifest will be generated '
+         'without application-specific values.')
 
 def main(args=None):
-    args = ARGPARSER.parse_args(args)
+    args = ARGPARSER.parse_args(args[1:])
 
     if not os.path.isdir(args.directory):
         ARGPARSER.error(f'Could not find directory {args.directory}.')
@@ -102,6 +102,13 @@ def main(args=None):
     env_path = os.getenv('PATH')
 
     print(f'LD_LIBRARY_PATH to \'{library_paths}\'\n'f'$PATH to \'{env_path}\'.')
+
+    substitutions = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+    substitutions.globals['debug'] = 'debug'
+    substitutions.globals.update({
+                                'library_paths': library_paths,
+                                'env_path': env_path
+                                })
 
     trusted_signatures = []
 
@@ -117,21 +124,13 @@ def main(args=None):
 
         print(f'\tSetting exec file to \'{binary_path}\'.')
 
-        with open(manifest, 'r') as manifest_file:
-            mf_template = string.Template(manifest_file.read())
-
-        mf_instance = mf_template.substitute({
-                                'binary_path': binary_path,
-                                'library_paths': library_paths,
-                                'env_path': env_path
-                                })
-
         # Write final manifest file with trusted files and children
+        rendered_manifest = substitutions.get_template(manifest).render(binary_path=binary_path)
         with open(manifest, 'w') as manifest_file:
-            manifest_file.write('\n'.join((mf_instance,
-                                           trusted_files,
-                                           '\n'.join(trusted_signatures),
-                                           '\n')))
+            manifest_file.write('\n'.join((rendered_manifest,
+                                trusted_files,
+                                '\n'.join(trusted_signatures),
+                                '\n')))
 
         print(f'\tWrote {manifest}.')
 

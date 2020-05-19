@@ -1,8 +1,6 @@
 TESTCASES?=python3 hello-world nodejs bash numpy pytorch
-DISTRIBUTIONS?=ubuntu18.04 ubuntu16.04
+DISTRIBUTIONS?=ubuntu18.04
 DEBUG?=
-GRAPHENE_REPOSITORY?=https://github.com/oscarlab/graphene.git
-GRAPHENE_BRANCH?=master
 TESTS=$(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 MAXTESTNUM?=11
 ifeq ($(wildcard /dev/isgx), )
@@ -18,10 +16,8 @@ IMAGE_SUFFIX?=
 
 all: $(TESTS)
 	for d in $(DISTRIBUTIONS); do \
-		sed -e 's/\"distro\": \".*\"/\"distro\": \"'$${d}'\"/' \
-			-e 's,\"graphene_repository\": \".*\",\"graphene_repository\": \"$(GRAPHENE_REPOSITORY)\",' \
-			-e 's/\"graphene_branch\": \".*\"/\"graphene_branch\": \"$(GRAPHENE_BRANCH)\"/' \
-			../config.json.template > ../config.json; \
+		sed -e 's/\"Distro\": \".*\"/\"Distro\": \"'$${d}'\"/' \
+			../config.yaml.template > ../config.yaml; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
 	done
 
@@ -142,7 +138,7 @@ cleanFiles:
 distclean: cleanContainers cleanBase cleanGSC cleanFiles
 	docker builder prune -a -f
 	docker image prune -f
-	rm -f ../config.json
+	rm -f ../config.yaml
 
 clean: cleanBase cleanGSC cleanFiles
-	rm -f ../config.json
+	rm -f ../config.yaml

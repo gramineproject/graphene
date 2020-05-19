@@ -1,11 +1,11 @@
 loader.preload = file:/graphene/Runtime/libsysdb.so
 
 # Get path of binary
-loader.exec = file:$${binary_path}
-loader.execname = ${binary}
-loader.env.LD_LIBRARY_PATH = /graphene/Runtime:$${library_paths}
-loader.env.PATH = $${env_path}
-loader.debug_type = ${debug_output}
+loader.exec = file:{{"{{binary_path}}"}}
+loader.execname = {{binary}}
+loader.env.LD_LIBRARY_PATH = /graphene/Runtime:{{"{{library_paths}}"}}
+loader.env.PATH = {{"{{env_path}}"}}
+loader.debug_type = {{debug_output}}
 
 fs.root.type = chroot
 fs.root.path = /
@@ -13,7 +13,7 @@ fs.root.uri = file:/
 
 # With fs.root Graphene's working directory is '/', settig fs.start_dir changes the
 # working directory to the desired location
-fs.start_dir = ${working_dir}
+fs.start_dir = {{working_dir}}
 
 # Start at static addresses (otherwise breaks when static and PIE executables are used)
 sgx.static_address = 1
