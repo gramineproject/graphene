@@ -3,3 +3,4 @@ loader.execname = Thread2
 
 sgx.thread_num = 2
 sgx.rpc_thread_num = 2
+sgx.print_stats = 1

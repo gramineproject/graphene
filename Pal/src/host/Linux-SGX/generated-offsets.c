@@ -108,6 +108,9 @@ void dummy(void)
 
     /* struct pal_tcb_urts aka PAL_TCB_URTS */
     OFFSET(PAL_TCB_URTS_TCS, pal_tcb_urts, tcs);
+    OFFSET(PAL_TCB_URTS_EENTER_CNT, pal_tcb_urts, eenter_cnt);
+    OFFSET(PAL_TCB_URTS_EEXIT_CNT, pal_tcb_urts, eexit_cnt);
+    OFFSET(PAL_TCB_URTS_AEX_CNT, pal_tcb_urts, aex_cnt);
 
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_FLAGS, sgx_arch_tcs_t, flags);

@@ -324,6 +324,11 @@ int initialize_enclave (struct pal_enclave * enclave)
         heap_min = 0;
     }
 
+    if (get_config(enclave->config, "sgx.print_stats", cfgbuf, sizeof(cfgbuf)) > 0 &&
+            cfgbuf[0] == '1') {
+        g_sgx_print_stats = true;
+    }
+
     ret = read_enclave_token(enclave->token, &enclave_token);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Reading enclave token failed: %d\n", -ret);

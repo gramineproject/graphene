@@ -315,3 +315,17 @@ access. If the file check policy is ``allow_all_but_log``, all files other than
 trusted and allowed are allowed for access, and Graphene-SGX emits a warning
 message for every such file. This is a convenient way to determine the set of
 files that the ported application uses.
+
+Printing per-thread and process-wide SGX stats
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.print_stats=[1|0]
+    (Default: 0)
+
+This syntax specifies whether to print SGX enclave-specific statistics. The
+currently supported stats are: number of EENTERs (corresponds to ECALLs plus
+returns from OCALLs), number of EEXITs (corresponds to OCALLs plus returns from
+ECALLs) and number of AEXs (corresponds to interrupts/exceptions/signals during
+enclave execution). Set it to ``1`` to print per-thread and per-process stats.

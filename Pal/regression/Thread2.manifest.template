@@ -1,1 +1,2 @@
 sgx.thread_num = 2
+sgx.print_stats = 1

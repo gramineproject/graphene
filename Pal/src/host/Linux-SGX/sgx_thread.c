@@ -22,11 +22,51 @@ static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
 
+bool g_sgx_print_stats = false;
+
+void update_and_print_stats(bool process_wide) {
+    static atomic_ulong g_eenter_cnt = 0;
+    static atomic_ulong g_eexit_cnt  = 0;
+    static atomic_ulong g_aex_cnt    = 0;
+
+    if (!g_sgx_print_stats)
+        return;
+
+    PAL_TCB_URTS* tcb = get_tcb_urts();
+
+    int tid = INLINE_SYSCALL(gettid, 0);
+    assert(tid > 0);
+    pal_printf("----- SGX stats for thread %d -----\n"
+               "  # of EENTERs: %lu\n"
+               "  # of EEXITs:  %lu\n"
+               "  # of AEXs:    %lu\n",
+               tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt);
+
+    g_eenter_cnt += tcb->eenter_cnt;
+    g_eexit_cnt  += tcb->eexit_cnt;
+    g_aex_cnt    += tcb->aex_cnt;
+
+    if (process_wide) {
+        int pid = INLINE_SYSCALL(getpid, 0);
+        assert(pid > 0);
+
+        pal_printf("----- Total SGX stats for process %d -----\n"
+                   "  # of EENTERs: %lu\n"
+                   "  # of EEXITs:  %lu\n"
+                   "  # of AEXs:    %lu\n",
+                   pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt);
+    }
+}
+
 void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
     tcb->self = tcb;
     tcb->tcs = NULL;    /* initialized by child thread */
     tcb->stack = stack;
     tcb->alt_stack = alt_stack;
+
+    tcb->eenter_cnt = 0;
+    tcb->eexit_cnt  = 0;
+    tcb->aex_cnt    = 0;
 }
 
 static spinlock_t tcs_lock = INIT_SPINLOCK_UNLOCKED;
@@ -148,6 +188,8 @@ noreturn void thread_exit(int status) {
     /* technically, async signals were already blocked before calling this function
      * (by sgx_ocall_exit()) but we keep it here for future proof */
     block_async_signals(true);
+
+    update_and_print_stats(/*process_wide=*/false);
 
     if (tcb->alt_stack) {
         stack_t ss;

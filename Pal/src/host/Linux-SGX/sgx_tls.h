@@ -1,7 +1,9 @@
 #ifndef __SGX_TLS_H__
 #define __SGX_TLS_H__
 
-#include <pal.h>
+#include <stdatomic.h>
+
+#include "pal.h"
 
 struct untrusted_area {
     void* mem;
@@ -81,9 +83,12 @@ static inline struct enclave_tls* get_tcb_trts(void) {
 /* private to untrusted Linux PAL, unique to each untrusted thread */
 typedef struct pal_tcb_urts {
     struct pal_tcb_urts* self;
-    sgx_arch_tcs_t*     tcs;       /* TCS page of SGX corresponding to thread, for EENTER */
-    void*               stack;     /* bottom of stack, for later freeing when thread exits */
-    void*               alt_stack; /* bottom of alt stack, for child thread to init alt stack */
+    sgx_arch_tcs_t*     tcs;        /* TCS page of SGX corresponding to thread, for EENTER */
+    void*               stack;      /* bottom of stack, for later freeing when thread exits */
+    void*               alt_stack;  /* bottom of alt stack, for child thread to init alt stack */
+    atomic_ulong        eenter_cnt; /* # of EENTERs, corresponds to # of ECALLs */
+    atomic_ulong        eexit_cnt;  /* # of EEXITs, corresponds to # of OCALLs */
+    atomic_ulong        aex_cnt;    /* # of AEXs, corresponds to # of interrupts/signals */
 } PAL_TCB_URTS;
 
 extern void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack);
@@ -95,6 +100,9 @@ static inline PAL_TCB_URTS* get_tcb_urts(void) {
              : "i" (offsetof(PAL_TCB_URTS, self)));
     return tcb;
 }
+
+extern bool g_sgx_print_stats;
+void update_and_print_stats(bool process_wide);
 # endif
 
 #endif /* __SGX_TLS_H__ */
