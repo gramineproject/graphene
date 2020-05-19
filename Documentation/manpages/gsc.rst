@@ -275,7 +275,9 @@ This example assumes that all prerequisites are installed and configured.
 
    .. code-block:: sh
 
-      docker run --device=/dev/gsgx --device=/dev/*sgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-python -c 'print("HelloWorld!")'
+      docker run --device=/dev/gsgx --device=/dev/*sgx \
+         -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket \
+         gsc-python -c 'print("HelloWorld!")'
 
 Limitations
 -----------
