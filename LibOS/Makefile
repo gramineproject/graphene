@@ -12,7 +12,6 @@ GLIBC_LIBS = \
 	csu/crti.o \
 	csu/crtn.o \
 	dlfcn/libdl.so.2 \
-	elf/ld-linux-x86-64.so.2 \
 	libc.so \
 	libc.so.6 \
 	libos/liblibos.so.1 \
@@ -23,6 +22,10 @@ GLIBC_LIBS = \
 	resolv/libnss_dns.so.2 \
 	resolv/libresolv.so.2 \
 	rt/librt.so.1
+ifeq ($(ARCH),x86_64)
+GLIBC_LIBS += elf/ld-linux-x86-64.so.2
+endif
+
 GLIBC_TARGET = $(addprefix $(BUILD_DIR)/, $(GLIBC_LIBS))
 GLIBC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GLIBC_TARGET)))
 
