@@ -38,7 +38,7 @@ Build and Test
 
       git clone https://github.com/oscarlab/graphene.git
       cd graphene
-      git submodule update --init -- graphene/Pal/src/host/Linux-SGX/sgx-driver/
+      git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
 
 #. Prepare the signing keys and Graphene kernel driver::
 
@@ -51,8 +51,8 @@ Build and Test
 
 #. Build Graphene::
 
-      ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ make \
-            SGX=1
+      ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ \
+            make SGX=1
 
 #. Set ``vm.mmap_min_addr=0`` in the system::
 
