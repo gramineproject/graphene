@@ -84,6 +84,7 @@ python.manifest: python.manifest.template python-trusted-libs
 		-e 's|$$(PYTHONEXEC)|'"$(PYTHONEXEC)"'|g' \
 		-e 's|$$(PYTHON_TRUSTED_LIBS)|'"`cat python-trusted-libs`"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+		-e 's|$$(SYS)|'"$(SYS)"'|g' \
 		$< > $@
 
 # Python manifests for SGX:
