@@ -23,6 +23,9 @@ sgx_ecall:
 	pushq %r15
 
 .Ldo_ecall:
+	# increment per-thread eenter counter for stats
+	lock incq %gs:PAL_TCB_URTS_EENTER_CNT
+
 	# RBX has to be the TCS of the thread
 	movq %gs:PAL_TCB_URTS_TCS, %rbx
 
@@ -46,7 +49,9 @@ sgx_ecall:
 	.type async_exit_pointer, @function
 
 async_exit_pointer:
-	ENCLU
+	# increment per-thread aex counter for stats
+	lock incq %gs:PAL_TCB_URTS_AEX_CNT
+	ENCLU   # perform ERESUME
 
 	.global sgx_raise
 	.type sgx_raise, @function
@@ -57,8 +62,11 @@ sgx_raise:
 
 .Lsgx_entry:
 	# arguments: RDI - code, RSI - ms
-
 	.cfi_startproc
+
+	# increment per-thread eexit counter for stats
+	lock incq %gs:PAL_TCB_URTS_EEXIT_CNT
+
 	leaq ocall_table(%rip), %rbx
 	movq (%rbx,%rdi,8), %rbx
 	movq %rsi, %rdi

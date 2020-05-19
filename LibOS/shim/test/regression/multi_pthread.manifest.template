@@ -15,3 +15,4 @@ sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 sgx.thread_num = 8
 
 sgx.static_address = 1
+sgx.print_stats = 1
