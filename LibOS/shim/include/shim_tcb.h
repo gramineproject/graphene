@@ -12,7 +12,6 @@
 struct shim_context {
     struct shim_regs *      regs;
     uint64_t                fs_base;
-    struct shim_context *   next;
     struct atomic_int       preempt;
 };
 
