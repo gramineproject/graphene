@@ -150,7 +150,7 @@ may call ``app2`` or ``app3``, and ``app2`` may call ``app3``, but ``app2`` may
 Configuration
 ^^^^^^^^^^^^^
 
-GSC is configured via a configuration file called :file:`config.json` with the
+GSC is configured via a configuration file called :file:`config.yaml` with the
 following parameters.
 
    .. option:: distro
