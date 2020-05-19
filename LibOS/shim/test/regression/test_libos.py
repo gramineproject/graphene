@@ -442,7 +442,7 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('/proc/self', stdout)
         self.assertIn('/proc/meminfo', stdout)
         self.assertIn('/proc/cpuinfo', stdout)
-        self.assertIn('symlink /proc/self/exec resolves to /proc-common', stdout)
+        self.assertIn('symlink /proc/self/exec resolves to /proc_common', stdout)
         self.assertIn('/proc/2/cwd/proc_common.c', stdout)
         self.assertIn('/lib/libpthread.so', stdout)
         self.assertIn('stack', stdout)
