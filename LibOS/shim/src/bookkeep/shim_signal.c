@@ -727,7 +727,6 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
         context = __alloca(sizeof(struct shim_context));
         *context = tcb->context;
         shim_context_set_syscallnr(&tcb->context, 0);
-        tcb->context.next = context;
     }
 
     debug("run signal handler %p (%d, %p, %p)\n", handler, sig, &signal->info,
