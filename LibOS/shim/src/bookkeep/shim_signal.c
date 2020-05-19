@@ -46,7 +46,7 @@ void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
     sig_action->k_sa_handler = (void*)SIG_DFL;
     sig_action->sa_flags = 0;
     sig_action->sa_restorer = NULL;
-    sig_action->sa_mask = 0;
+    memset(&sig_action->sa_mask, 0, sizeof(sig_action->sa_mask));
 }
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
