@@ -156,7 +156,7 @@ struct __kernel_sigaction {
     __sighandler_t k_sa_handler;
     unsigned long sa_flags;
     void (*sa_restorer) (void);
-    sigset_t sa_mask;
+    __sigset_t sa_mask;
 };
 
 /* linux/aio_abi.h (for io_setup which has no glibc wrapper) */
