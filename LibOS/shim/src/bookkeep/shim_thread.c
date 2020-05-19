@@ -714,7 +714,6 @@ BEGIN_CP_FUNC(running_thread)
         /* don't export stale pointers */
         new_tcb->self = NULL;
         new_tcb->tp = NULL;
-        new_tcb->context.next = NULL;
         new_tcb->debug_buf = NULL;
     }
 }
