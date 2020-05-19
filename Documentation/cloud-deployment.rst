@@ -43,8 +43,8 @@ Build and Test
 #. Prepare the signing keys and Graphene kernel driver::
 
       openssl genrsa -3 -out enclave-key.pem 3072
-      cp enclave-key.pem graphene/Pal/src/host/Linux-SGX/signer
-      cd graphene/Pal/src/host/Linux-SGX/sgx-driver
+      cp enclave-key.pem Pal/src/host/Linux-SGX/signer
+      cd Pal/src/host/Linux-SGX/sgx-driver
       ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ make
       sudo insmod gsgx.ko
       cd -
@@ -60,6 +60,6 @@ Build and Test
 
 #. Build and Run :program:`helloworld`::
 
-      cd graphene/LibOS/shim/test/native
+      cd LibOS/shim/test/native
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
