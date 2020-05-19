@@ -147,34 +147,58 @@ may call ``app2`` or ``app3``, and ``app2`` may call ``app3``, but ``app2`` may
 
    gsc build image app1.manifest app2.manifest app3.manifest
 
+Stages of building graphenized Docker images
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The build process of a graphenized Docker image from image ``<image-name>``
+follows two main stages and produces an image named ``gsc-<image-name>``.
+
+Graphene build:
+
+    The first stage compiles Graphene based on the provided configuration (see
+    :file:`config.yaml`) which includes the distribution (e.g., Ubuntu18.04) and
+    the Intel SGX driver details.
+
+Graphenizing the base image:
+
+    The second stage copies the important Graphene artifacts (e.g., the runtime
+    and signer tool) from the first stage. It then prepares image-specific
+    variables such as the executable path and the library path, and scanning the
+    entire image to generate a list of trusted files. GSC excludes files from
+    :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
+    :file:`/etc/rc` folders, since checksums are required which either don't
+    exist or may vary across different deployment machines. GSC combines these
+    values and list of trusted files to a new manifest file. Graphene's signer
+    tool generates a SIGSTRUCT file for SGX enclave initialization. This tool
+    also generates an SGX-specific manifest file. In a last step the entrypoint
+    is changed to launch the :file:`apploader.sh` script which generates an
+    Intel SGX token and starts the :program:`pal-Linux-SGX` loader.
+
 Configuration
 ^^^^^^^^^^^^^
 
 GSC is configured via a configuration file called :file:`config.yaml` with the
 following parameters.
 
-   .. option:: distro
+   Distro:
+         Defines Linux distribution to be used to build Graphene in. Currently
+         supported values are ``ubuntu18.04``.
 
-      Defines Linux distribution to be used to build Graphene in. Currently
-      supported values are ``ubuntu18.04``/``ubuntu16.04``.
+   Graphene:
+      Repository:
+         Source repository of Graphene. Default value:
+         https://github.com/oscarlab/graphene
 
-   .. option:: graphene_repository
+      Branch:
+         Branch of the ``graphene_repository``. Default value: master
 
-      Source repository of Graphene. Default value:
-      https://github.com/oscarlab/graphene
+   SGXDriver:
+      Repository:
+         Source repository of the Intel SGX driver. Default value:
+         https://github.com/01org/linux-sgx-driver.git
 
-   .. option:: graphene_branch
-
-      Branch of the ``graphene_repository``. Default value: master
-
-   .. option:: sgxdriver_repository
-
-      Source repository of the Intel SGX driver. Default value:
-      https://github.com/01org/linux-sgx-driver.git
-
-   .. option:: sgxdriver_branch
-
-      Branch of the ``sgxdriver_repository``. Default value: sgx_driver_1.9
+      Branch:
+         Branch of the ``sgxdriver_repository``. Default value: sgx_driver_1.9
 
 Run graphenized Docker images
 =============================
@@ -252,3 +276,68 @@ This example assumes that all prerequisites are installed and configured.
    .. code-block:: sh
 
       docker run --device=/dev/gsgx --device=/dev/*sgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc-python -c 'print("HelloWorld!")'
+
+Limitations
+-----------
+
+Dependency on Ubuntu 18.04
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Docker images not based on Ubuntu 18.04 may not be compatible with GSC. GSC
+relies on Graphene to execute Linux applications inside Intel SGX enclaves and
+the installation of prerequisites depends on package manager and package
+repositories.
+
+GSC can simply be extended to support other distributions by providing a
+template for this distribution in :file:`Tools/gsc/templates`.
+
+Trusted data in Docker volumes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Data mounted as Docker volumes at runtime is not included in the general search
+for trusted files during the image build. As a result, Graphene denies access to
+these files, since they are neither allowed nor trusted files. This will likely
+break applications using files stored in Docker volumes.
+
+Work around:
+
+    Trusted files can be added to image specific manifest file (first argument
+    to :command:`gsc build` command) at build time. This work around does not
+    allow these files to change between build and run, or over multiple runs.
+    This only provides integrity for files and not confidentiality.
+
+Allowing dynamic file contents via Graphene protected file systems:
+
+    Once protected file systems are supported by Graphene, Docker volumes could
+    include protected file systems. As a result Graphene can open these
+    protected file systems without knowing the exact contents as long as the
+    protected file system was specified in the applicaiton-specific manifest.
+
+Integration of Docker Secrets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Docker Secrets are automatically pulled by Docker and the results are stored
+either in environment variables or mounted as files. GSC is currently unaware of
+such files and hence, cannot mark them trusted. Similar to trusted data, these
+files may be added to the application-specific manifest.
+
+Access to files in excluded folders
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The manifest generation excludes all files in :file:`/boot`, :file:`/dev`,
+:file:`/proc`, :file:`/var`, :file:`/sys`, and :file:`/etc/rc` directories from
+the list of trusted files. If your application relies on some files in these
+directories, you must manually add them to the application-specific manifest::
+
+    sgx.trusted_file.specialFile=file:PATH_TO_FILE
+    or
+    sgx.allowed_file.specialFile=file:PATH_TO_FILE
+
+Docker images with non-executables as entrypoint
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Docker images may contain a script entrypoint which is not executable.
+:program:`gsc` fails to recognize such entrypoints and fails during the image
+build. A workaround relies on creating an image from the application image which
+has an entrypoint of the script interpreter with the script as an argument. This
+allows :program:`gsc` to start the interpreter instead of the script.
