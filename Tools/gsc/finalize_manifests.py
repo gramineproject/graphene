@@ -105,9 +105,9 @@ def main(args=None):
 
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
     env.globals.update({
-                                'library_paths': library_paths,
-                                'env_path': env_path
-                                })
+                        'library_paths': library_paths,
+                        'env_path': env_path
+                        })
 
     trusted_signatures = []
 
