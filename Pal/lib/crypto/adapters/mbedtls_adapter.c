@@ -332,8 +332,12 @@ int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t*
 
     unsigned long long rand64;
     for (size_t i = 0; i < len; i += sizeof(rand64)) {
+#if defined(__i386__) || defined(__x86_64__)
         while (__builtin_ia32_rdrand64_step(&rand64) == 0)
             /*nop*/;
+#else
+# error Unsupported architecture
+#endif
         size_t over = i + sizeof(rand64) < len ? 0 : i + sizeof(rand64) - len;
         memcpy(output + i, &rand64, sizeof(rand64) - over);
     }
