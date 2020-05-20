@@ -36,12 +36,11 @@ void update_and_print_stats(bool process_wide) {
 
     int tid = INLINE_SYSCALL(gettid, 0);
     assert(tid > 0);
-    SGX_DBG(DBG_E,
-            "----- SGX stats for thread %d -----\n"
-            "  # of EENTERs: %lu\n"
-            "  # of EEXITs:  %lu\n"
-            "  # of AEXs:    %lu\n",
-            tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt);
+    pal_printf("----- SGX stats for thread %d -----\n"
+               "  # of EENTERs: %lu\n"
+               "  # of EEXITs:  %lu\n"
+               "  # of AEXs:    %lu\n",
+               tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt);
 
     g_eenter_cnt += tcb->eenter_cnt;
     g_eexit_cnt  += tcb->eexit_cnt;
@@ -51,11 +50,11 @@ void update_and_print_stats(bool process_wide) {
         int pid = INLINE_SYSCALL(getpid, 0);
         assert(pid > 0);
 
-        SGX_DBG(DBG_E, "----- Total SGX stats for process %d -----\n"
-                "  # of EENTERs: %lu\n"
-                "  # of EEXITs:  %lu\n"
-                "  # of AEXs:    %lu\n",
-                pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt);
+        pal_printf("----- Total SGX stats for process %d -----\n"
+                   "  # of EENTERs: %lu\n"
+                   "  # of EEXITs:  %lu\n"
+                   "  # of AEXs:    %lu\n",
+                   pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt);
     }
 }
 
