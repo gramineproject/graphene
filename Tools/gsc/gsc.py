@@ -120,7 +120,7 @@ def extract_binary_cmd_from_image_config(config):
 def prepare_env(base_image, image, args, user_manifests):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
 
-    env.globals.update(vars(args))
+    env.globals.update({'args': args})
     config = load_config('config.yaml')
     env.globals.update(config)
 
@@ -198,16 +198,16 @@ def gsc_build(args):
 
 ARGPARSER = argparse.ArgumentParser()
 ARGPARSER.set_defaults(command='help')
-subcommands = ARGPARSER.add_subparsers()
-sub_build = subcommands.add_parser('build')
+subcommands = ARGPARSER.add_subparsers(metavar = '<command>')
+sub_build = subcommands.add_parser('build', help="Build graphenized Docker image")
 sub_build.set_defaults(command=gsc_build)
-sub_build.add_argument('-d', action='store_true',
+sub_build.add_argument( '-d','--debug', action='store_true',
     help='Compile Graphene with debug flags and output')
-sub_build.add_argument('-L', action='store_true',
+sub_build.add_argument( '-L','--Linux', action='store_true',
     help='Compile Graphene with Linux PAL in addition to Linux-SGX PAL')
-sub_build.add_argument('-G', action='store_true',
+sub_build.add_argument( '-G','--GSC-only', action='store_true',
     help='Build Graphene only and ignore the application image (useful for Graphene development, '
-         'irrelevant for end users of GSC')
+         'irrelevant for end users of GSC)')
 sub_build.add_argument('image',
     help='Name of the application Docker image')
 sub_build.add_argument('manifests',
@@ -221,8 +221,7 @@ def main(args):
 
     try:
         return args.command(args)
+
     except TypeError:
         ARGPARSER.print_help()
-        print('\n')
-        sub_build.print_help()
         sys.exit(1)

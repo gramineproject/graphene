@@ -35,15 +35,15 @@ RUN cd /graphene/Pal/src/host/Linux-SGX/sgx-driver \
 
 # Build Graphene-SGX
 RUN cd /graphene && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver \
-    make -s -j4 SGX=1 {% if d %} DEBUG=1 {% endif %} WERROR=1 {% if MAKE_LINUX_PAL %} \
-    && make WERROR=1 {% if d %} DEBUG=1 {% endif %} {% endif %}
+    make -s -j4 SGX=1 {% if args.d %} DEBUG=1 {% endif %} WERROR=1 {% if args.L %} \
+     && make WERROR=1 {% if args.d %} DEBUG=1 {% endif %} {% endif %}
 
 # Translate runtime symlinks to files
 RUN for f in $(find /graphene/Runtime -type l);do cp --remove-destination $(readlink $f) $f;done;
 
 # Finished building Graphene
 
-{% if not GSC_ONLY %}
+{% if not args.G %}
 
 # Integrate Graphene into the app image
 # This file is used in a multistage docker build process, in which the previous image is named "graphene"

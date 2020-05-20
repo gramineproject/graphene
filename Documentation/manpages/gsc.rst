@@ -185,25 +185,25 @@ following parameters. A template configuration file is provided in
 
 .. describe:: Graphene:
 
-   .. describe:: Repository:
+   Repository:
 
       Source repository of Graphene. Default value:
       `https://github.com/oscarlab/graphene
       <https://github.com/oscarlab/graphene>`__
 
-   .. describe:: Branch:
+   Branch:
 
       Use this branch of the repository. Default value: master
 
 .. describe:: SGXDriver:
 
-   .. describe:: Repository:
+   Repository:
 
       Source repository of the Intel SGX driver. Default value:
       `https://github.com/01org/linux-sgx-driver.git
       <https://github.com/01org/linux-sgx-driver.git>`__
 
-   .. describe:: Branch:
+   Branch:
 
       Use this branch of the repository. Default value: sgx_driver_1.9
 
@@ -242,8 +242,8 @@ application arguments may be supplied to the  :command:`docker run` command.
 Execute with Linux PAL instead of Linux-SGX PAL
 -----------------------------------------------
 
-When specifying :option:`-L <gsc-build -L>`  during GSC :program:`gsc-build`, you
-may select the Linux PAL at Docker run time instead of the Linux-SGX PAL by
+When specifying :option:`-L <gsc-build -L>`  during GSC :command:`gsc build`,
+you may select the Linux PAL at Docker run time instead of the Linux-SGX PAL by
 specifying the environment variable :envvar:`GSC_PAL` as an option to the
 :command:`docker run` command.
 
