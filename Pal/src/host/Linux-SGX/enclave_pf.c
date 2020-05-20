@@ -541,9 +541,11 @@ int init_protected_files(void) {
     char key_hex[PF_KEY_SIZE * 2 + 1];
     ssize_t len = get_config(g_pal_state.root_config, PF_MANIFEST_KEY_PREFIX, key_hex,
                              sizeof(key_hex));
-    if (len <= 0 && get_config_entries_size(g_pal_state.root_config, PF_MANIFEST_PATH_PREFIX) > 0) {
-        SGX_DBG(DBG_E, "*** No protected files wrap key specified in the manifest. "
-                "Protected files will not be available. ***\n");
+    if (len <= 0) {
+        if (get_config_entries_size(g_pal_state.root_config, PF_MANIFEST_PATH_PREFIX) > 0) {
+            SGX_DBG(DBG_E, "*** No protected files wrap key specified in the manifest. "
+                    "Protected files will not be available. ***\n");
+        }
         return 0;
     }
 
