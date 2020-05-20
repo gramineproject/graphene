@@ -1,31 +1,31 @@
-How to deploy Graphene in the Cloud?
-========================================
+How to deploy Graphene in the cloud?
+====================================
 
-Graphene without Intel SGX can be deployed on arbitrary Cloud VMs. Please see
+Graphene without Intel SGX can be deployed on arbitrary cloud VMs. Please see
 our :doc:`quickstart` guide for the details.
 
-To deploy Graphene with Intel SGX, the Cloud VM has to enable Intel SGX. Please
-see the installation and usage guide for each Cloud VM offering individually
+To deploy Graphene with Intel SGX, the cloud VM has to support Intel SGX. Please
+see the installation and usage guide for each cloud VM offering individually
 below (currently only for Microsoft Azure).
 
-Azure Confidential Compute VMs
+Azure Confidential Computing VMs
 ------------------------------
 
-`Azure Confidential Compute services
+`Azure confidential computing services
 <https://azure.microsoft.com/en-us/solutions/confidential-compute/>`__ are
 generally available and provide access to VMs with Intel SGX enabled in `DCsv2
 VM instances
-<https://docs.microsoft.com/en-us/azure/virtual-machines/dcv2-series>`__. We
-provide the description to install Graphene based on a VM using Ubuntu 18.04
-and the preinstalled `Intel SGX DCAP driver
+<https://docs.microsoft.com/en-us/azure/virtual-machines/dcv2-series>`__. The
+description below uses a VM running Ubuntu 18.04 with a the preinstalled `Intel
+SGX DCAP driver
 <https://github.com/intel/SGXDataCenterAttestationPrimitives/tree/LD_1.22>`__
-(version ``LD_1.22``). To use a different driver, please follow the instructions
-to uninstall the driver.
+(version ``LD_1.22``). To use a different Intel SGX driver, please follow the
+instructions to uninstall the driver.
 
 Prerequisites
 ^^^^^^^^^^^^^
 
-Update and install the required packages to install Graphene:
+Update and install the required packages for Graphene:
 
       .. code-block:: sh
 

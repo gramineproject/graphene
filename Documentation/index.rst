@@ -37,8 +37,8 @@ How to Build and Run Graphene?
 ==============================
 
 See :doc:`quickstart` for instructions how to quickly build and run Graphene.
-For full build instructions, see :doc:`building`. For descriptions on deploying
-Graphene in the cloud, see :doc:`cloud-deployment`.
+For full build instructions, see :doc:`building`. To deploy Graphene in the
+cloud, see :doc:`cloud-deployment`.
 
 How to Contact the Maintainers?
 ===============================
