@@ -48,7 +48,7 @@ The ``tools`` directory contains the ``pf_crypt`` utility that converts files to
 format.
 
 Internal protected file format in this version was ported from the `SGX SDK
-<https://github.com/intel/linux-sgx/tree/master/sdk/protected_fs>`_.
+<https://github.com/intel/linux-sgx/tree/1eaa4551d4b02677eec505684412dc288e6d6361/sdk/protected_fs>`_.
 
 Tests
 =====

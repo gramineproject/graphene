@@ -16,6 +16,7 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#include <assert.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -34,10 +35,12 @@
 
 /* High-level protected files helper functions. */
 
+static_assert(PF_NODE_SIZE <= SSIZE_MAX, "PF_NODE_SIZE <= SSIZE_MAX");
+
 /* PF callbacks usable in a standard Linux environment.
    Assume that pf handle is a pointer to file's fd. */
 
-static pf_status_t linux_read(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
+static pf_status_t linux_read(pf_handle_t handle, void* buffer, uint64_t offset, size_t size) {
     int fd = *(int*)handle;
     DBG("linux_read: fd %d, buf %p, offset %zu, size %zu\n", fd, buffer, offset, size);
     if (lseek(fd, offset, SEEK_SET) < 0) {
@@ -45,12 +48,12 @@ static pf_status_t linux_read(pf_handle_t handle, void* buffer, size_t offset, s
         return PF_STATUS_CALLBACK_FAILED;
     }
 
-    off_t offs = 0;
+    uint64_t offs = 0;
     while (size > 0) {
         ssize_t ret = read(fd, buffer + offs, size);
         if (ret == -EINTR)
             continue;
-        if (ret < 0) {
+        if (ret <= 0) { /* EOF is an error condition, we want to read exactly `size` bytes */
             ERROR("read failed: %s\n", strerror(errno));
             return PF_STATUS_CALLBACK_FAILED;
         }
@@ -61,7 +64,8 @@ static pf_status_t linux_read(pf_handle_t handle, void* buffer, size_t offset, s
     return PF_STATUS_SUCCESS;
 }
 
-static pf_status_t linux_write(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
+static pf_status_t linux_write(pf_handle_t handle, const void* buffer, uint64_t offset,
+                               size_t size) {
     int fd = *(int*)handle;
     DBG("linux_write: fd %d, buf %p, offset %zu, size %zu\n", fd, buffer, offset, size);
     if (lseek(fd, offset, SEEK_SET) < 0) {
@@ -69,12 +73,12 @@ static pf_status_t linux_write(pf_handle_t handle, void* buffer, size_t offset, 
         return PF_STATUS_CALLBACK_FAILED;
     }
 
-    off_t offs = 0;
+    uint64_t offs = 0;
     while (size > 0) {
         ssize_t ret = write(fd, buffer + offs, size);
         if (ret == -EINTR)
             continue;
-        if (ret < 0) {
+        if (ret <= 0) { /* EOF is an error condition, we want to write exactly `size` bytes */
             ERROR("write failed: %s\n", strerror(errno));
         }
         size -= ret;
@@ -83,7 +87,7 @@ static pf_status_t linux_write(pf_handle_t handle, void* buffer, size_t offset, 
     return PF_STATUS_SUCCESS;
 }
 
-static pf_status_t linux_truncate(pf_handle_t handle, size_t size) {
+static pf_status_t linux_truncate(pf_handle_t handle, uint64_t size) {
     int fd  = *(int*)handle;
     DBG("linux_truncate: fd %d, size %zu\n", fd, size);
     int ret = ftruncate(fd, size);
@@ -109,7 +113,7 @@ static pf_status_t linux_flush(pf_handle_t handle) {
 
 /* this callback is only used for creating recovery files and during recovery */
 static pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
-                              size_t* size) {
+                              uint64_t* size) {
     DBG("linux_open: '%s', mode %d\n", path, mode);
 
     int flags;
@@ -327,7 +331,7 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const pf_ke
     int output         = -1;
     void* input_mem    = MAP_FAILED;
     ssize_t input_size = 0;
-    pf_context_t pf    = NULL;
+    pf_context_t* pf   = NULL;
     size_t chunk_size;
 
     input = open(input_path, O_RDONLY);
@@ -408,7 +412,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
     int input        = -1;
     int output       = -1;
     void* output_mem = MAP_FAILED;
-    pf_context_t pf  = NULL;
+    pf_context_t* pf = NULL;
 
     input = open(input_path, O_RDONLY);
     if (input < 0) {

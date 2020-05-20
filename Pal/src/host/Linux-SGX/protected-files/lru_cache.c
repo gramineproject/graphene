@@ -47,20 +47,21 @@
  *
  */
 
-/* Least-recently used cache, used by the protected file implementation for optimizing
-   data and MHT node access */
+/* TODO: add regression tests for this */
+
+#include "lru_cache.h"
 
 #include <assert.h>
-#include <list.h>
-#include <uthash.h>
-#include "lru_cache.h"
+
+#include "api.h"
+#include "list.h"
+#include "uthash.h"
 
 #ifdef IN_PAL
     #include "pal_linux.h"
 #else
     #include <stdio.h>
     #include <stdlib.h>
-    #include <string.h>
 #endif
 
 DEFINE_LIST(_lruc_list_node);
@@ -83,11 +84,11 @@ struct lruc_context {
      */
     LISTP_TYPE(_lruc_list_node) list;
     lruc_map_node_t* map;
-    lruc_list_node_t* current;
+    lruc_list_node_t* current; /* current head of the cache */
 };
 
-lruc_context_t lruc_create(void) {
-    lruc_context_t lruc = calloc(1, sizeof(*lruc));
+lruc_context_t* lruc_create(void) {
+    lruc_context_t* lruc = calloc(1, sizeof(*lruc));
     if (!lruc)
         return NULL;
 
@@ -97,13 +98,13 @@ lruc_context_t lruc_create(void) {
     return lruc;
 }
 
-static lruc_map_node_t* get_map_node(lruc_context_t lruc, uint64_t key) {
+static lruc_map_node_t* get_map_node(lruc_context_t* lruc, uint64_t key) {
     lruc_map_node_t* mn = NULL;
     HASH_FIND(hh, lruc->map, &key, sizeof(key), mn);
     return mn;
 }
 
-void lruc_destroy(lruc_context_t lruc) {
+void lruc_destroy(lruc_context_t* lruc) {
     struct _lruc_list_node* ln;
     struct _lruc_list_node* tmp;
     lruc_map_node_t* mn;
@@ -123,7 +124,7 @@ void lruc_destroy(lruc_context_t lruc) {
     free(lruc);
 }
 
-bool lruc_add(lruc_context_t lruc, uint64_t key, void* data) {
+bool lruc_add(lruc_context_t* lruc, uint64_t key, void* data) {
     lruc_map_node_t* map_node = calloc(1, sizeof(*map_node));
     if (!map_node)
         return false;
@@ -137,7 +138,8 @@ bool lruc_add(lruc_context_t lruc, uint64_t key, void* data) {
     list_node->key = key;
     map_node->key = key;
     LISTP_ADD(list_node, &lruc->list, list);
-    __attribute__((unused)) lruc_map_node_t* mn = get_map_node(lruc, key);
+    lruc_map_node_t* mn = get_map_node(lruc, key);
+    __UNUSED(mn);
     assert(mn == NULL);
     map_node->data = data;
     map_node->list_ptr = list_node;
@@ -145,14 +147,14 @@ bool lruc_add(lruc_context_t lruc, uint64_t key, void* data) {
     return true;
 }
 
-void* lruc_find(lruc_context_t lruc, uint64_t key) {
+void* lruc_find(lruc_context_t* lruc, uint64_t key) {
     lruc_map_node_t* mn = get_map_node(lruc, key);
     if (mn)
         return mn->data;
     return NULL;
 }
 
-void* lruc_get(lruc_context_t lruc, uint64_t key) {
+void* lruc_get(lruc_context_t* lruc, uint64_t key) {
     lruc_map_node_t* mn = get_map_node(lruc, key);
     if (!mn)
         return NULL;
@@ -164,17 +166,11 @@ void* lruc_get(lruc_context_t lruc, uint64_t key) {
     return mn->data;
 }
 
-/* TODO: sync with list macro changes (use LISTP_GET_SIZE) */
-size_t lruc_size(lruc_context_t lruc) {
-    lruc_list_node_t* ln;
-    size_t count = 0;
-    LISTP_FOR_EACH_ENTRY(ln, &lruc->list, list)
-        count++;
-    assert(count == HASH_COUNT(lruc->map));
-    return count;
+size_t lruc_size(lruc_context_t* lruc) {
+    return HASH_COUNT(lruc->map);
 }
 
-void* lruc_get_first(lruc_context_t lruc) {
+void* lruc_get_first(lruc_context_t* lruc) {
     if (LISTP_EMPTY(&lruc->list))
         return NULL;
 
@@ -184,7 +180,7 @@ void* lruc_get_first(lruc_context_t lruc) {
     return mn->data;
 }
 
-void* lruc_get_next(lruc_context_t lruc) {
+void* lruc_get_next(lruc_context_t* lruc) {
     if (LISTP_EMPTY(&lruc->list) || !lruc->current)
         return NULL;
 
@@ -197,7 +193,7 @@ void* lruc_get_next(lruc_context_t lruc) {
     return mn->data;
 }
 
-void* lruc_get_last(lruc_context_t lruc) {
+void* lruc_get_last(lruc_context_t* lruc) {
     if (LISTP_EMPTY(&lruc->list))
         return NULL;
 
@@ -207,7 +203,7 @@ void* lruc_get_last(lruc_context_t lruc) {
     return mn->data;
 }
 
-void lruc_remove_last(lruc_context_t lruc) {
+void lruc_remove_last(lruc_context_t* lruc) {
     if (LISTP_EMPTY(&lruc->list))
         return;
 
@@ -219,77 +215,3 @@ void lruc_remove_last(lruc_context_t lruc) {
     free(ln);
     free(mn);
 }
-
-#ifndef IN_PAL
-void lruc_test(void) {
-    uint64_t a=1, b=2, c=3, d=4;
-    printf("\n=== LRUC TEST ===\n");
-    lruc_context_t lruc = lruc_create();
-    printf("empty size: %zu\n", lruc_size(lruc));
-
-    lruc_add(lruc, a, &a);
-    printf("after add 1 size: %zu\n", lruc_size(lruc));
-    uint64_t* x = lruc_find(lruc, a);
-    #define X (x?*x:0)
-    printf("find(1): %lu\n", X);
-
-    lruc_add(lruc, b, &b);
-    printf("after add 2 size: %zu\n", lruc_size(lruc));
-    x = lruc_find(lruc, a);
-    printf("find(1): %lu\n", X);
-    x = lruc_find(lruc, b);
-    printf("find(2): %lu\n", X);
-
-    lruc_add(lruc, c, &c);
-    printf("after add 3 size: %zu\n", lruc_size(lruc));
-    x = lruc_find(lruc, a);
-    printf("find(1): %lu\n", X);
-    x = lruc_find(lruc, b);
-    printf("find(2): %lu\n", X);
-    x = lruc_find(lruc, c);
-    printf("find(3): %lu\n", X);
-
-    lruc_add(lruc, d, &d);
-    printf("after add 4 size: %zu\n", lruc_size(lruc));
-    x = lruc_find(lruc, a);
-    printf("find(1): %lu\n", X);
-    x = lruc_find(lruc, b);
-    printf("find(2): %lu\n", X);
-    x = lruc_find(lruc, c);
-    printf("find(3): %lu\n", X);
-    x = lruc_find(lruc, d);
-    printf("find(4): %lu\n", X);
-
-    x = lruc_get(lruc, a);
-    printf("after get 1 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_get(lruc, b);
-    printf("after get 2 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_get(lruc, c);
-    printf("after get 3 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_get(lruc, d);
-    printf("after get 4 size: %zu, %lu\n", lruc_size(lruc), X);
-
-    lruc_remove_last(lruc);
-    x = lruc_get(lruc, a);
-    printf("after get 1 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_get(lruc, b);
-    printf("after get 2 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_get(lruc, c);
-    printf("after get 3 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_get(lruc, d);
-    printf("after get 4 size: %zu, %lu\n", lruc_size(lruc), X);
-
-    x = lruc_get(lruc, b);
-    lruc_remove_last(lruc);
-    x = lruc_find(lruc, a);
-    printf("after find 1 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_find(lruc, b);
-    printf("after find 2 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_find(lruc, c);
-    printf("after find 3 size: %zu, %lu\n", lruc_size(lruc), X);
-    x = lruc_find(lruc, d);
-    printf("after find 4 size: %zu, %lu\n", lruc_size(lruc), X);
-#undef X
-    lruc_destroy(lruc);
-}
-#endif

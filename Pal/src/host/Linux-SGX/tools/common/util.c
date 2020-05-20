@@ -64,7 +64,6 @@ void* read_file(const char* path, size_t* size, void* buffer) {
     if (!size || !path)
         return NULL;
 
-    DBG("read_file '%s' %zu\n", path, *size);
     f = fopen(path, "rb");
     if (!f) {
         ERROR("Failed to open file '%s' for reading: %s\n", path, strerror(errno));
