@@ -24,6 +24,9 @@ SYS ?= $(shell $(CC) -dumpmachine)
 export SYS
 
 ARCH := $(word 1,$(subst -, -, $(SYS)))
+ifneq ($(ARCH),$(filter $(ARCH),x86_64))
+$(error $(ARCH) is not supported)
+endif
 
 # where libraries are found, e.g., /lib/x86_64-linux-gnu
 ARCH_LIBDIR := /lib/$(SYS)

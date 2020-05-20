@@ -5,7 +5,7 @@ $(error do not include Makefile.Host directly. include Makefile.configs)
 endif
 
 ifeq ($(PAL_HOST),)
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
+ifeq ($(findstring linux,$(SYS)),linux)
 PAL_HOST := Linux
 else
 $(error Unsupported platform: $(SYS))
