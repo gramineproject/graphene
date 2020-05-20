@@ -1,8 +1,8 @@
 .. program:: gsc
 
-==================================================================
+============================================
 :program:`gsc` -- Graphene Secure Containers
-==================================================================
+============================================
 
 Synopsis
 ========
@@ -36,7 +36,7 @@ install the Docker client python package via pip.
 .. code-block:: sh
 
    sudo apt install docker.io python3 python3-pip
-   pip3 install docker pyyaml
+   pip3 install docker pyyaml jinja2
 
 Kernel Modules and Services
 ---------------------------
@@ -64,50 +64,47 @@ documentation on configuration options below and use the
 Command line arguments
 ======================
 
-Commands
---------
-
 .. option:: --help
 
    Display usage.
 
-.. option:: build
+.. program:: gsc-build
 
-   .. program:: gsc-build
+:command:`gsc build` -- build GSC
+---------------------------------
 
-   Synopsis:
+Builds a graphenized Docker image of an application image.
 
-   :command:`gsc build` [*OPTION*] <*IMAGE-NAME*> <*APP1.MANIFEST*> [<*APP2.MANIFEST*> ... <*APPN.MANIFEST*>]
+Synopsis:
 
-   Builds graphenized Docker image of application image `image-name`.
+:command:`gsc build` [*OPTION*] <*IMAGE-NAME*> <*APP1.MANIFEST*> [<*APP2.MANIFEST*> ... <*APPN.MANIFEST*>]
 
-   .. option:: IMAGE-NAME
+.. option:: -d
 
-      Name of the application Docker image
+   Compile Graphene with debug flags and output
 
-   .. option:: APP1.MANIFEST
+.. option:: -L
 
-      Application-specific manifest file for the executable entrypoint of the
-      Docker image
+   Compile Graphene with Linux PAL in addition to Linux-SGX PAL
 
-   .. option:: APPN.MANIFEST
+.. option:: -G
 
-      Application-specific Manifest for the n-th application
+   Build Graphene only and ignore the application image (useful for Graphene
+   development, irrelevant for end users of GSC)
 
-   Possible :command:`build` options:
+.. option:: IMAGE-NAME
 
-      .. option:: -d
+   Name of the application Docker image
 
-      Compile Graphene with debug flags and output
+.. option:: APP1.MANIFEST
 
-      .. option:: -L
+   Application-specific manifest file for the executable entrypoint of the
+   Docker image
 
-      Compile Graphene with Linux PAL in addition to Linux-SGX PAL
+.. option:: APPN.MANIFEST
 
-      .. option:: -G
+   Application-specific Manifest for the n-th application
 
-      Build Graphene only and ignore the application image (useful for Graphene
-      development, irrelevant for end users of GSC)
 
 Application-specific Manifest Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -153,13 +150,13 @@ Stages of building graphenized Docker images
 The build process of a graphenized Docker image from image ``<image-name>``
 follows two main stages and produces an image named ``gsc-<image-name>``.
 
-Graphene build:
+.. describe:: Graphene build:
 
     The first stage compiles Graphene based on the provided configuration (see
     :file:`config.yaml`) which includes the distribution (e.g., Ubuntu18.04) and
     the Intel SGX driver details.
 
-Graphenizing the base image:
+.. describe:: Graphenizing the base image:
 
     The second stage copies the important Graphene artifacts (e.g., the runtime
     and signer tool) from the first stage. It then prepares image-specific
@@ -178,27 +175,37 @@ Configuration
 ^^^^^^^^^^^^^
 
 GSC is configured via a configuration file called :file:`config.yaml` with the
-following parameters.
+following parameters. A template configuration file is provided in
+:file:`config.yaml.template`.
 
-   Distro:
-         Defines Linux distribution to be used to build Graphene in. Currently
-         supported values are ``ubuntu18.04``.
+.. describe:: Distro:
 
-   Graphene:
-      Repository:
-         Source repository of Graphene. Default value:
-         https://github.com/oscarlab/graphene
+   Defines Linux distribution to be used to build Graphene in. Currently
+   supported value is ``ubuntu18.04``.
 
-      Branch:
-         Branch of the ``graphene_repository``. Default value: master
+.. describe:: Graphene:
 
-   SGXDriver:
-      Repository:
-         Source repository of the Intel SGX driver. Default value:
-         https://github.com/01org/linux-sgx-driver.git
+   .. describe:: Repository:
 
-      Branch:
-         Branch of the ``sgxdriver_repository``. Default value: sgx_driver_1.9
+      Source repository of Graphene. Default value:
+      `https://github.com/oscarlab/graphene
+      <https://github.com/oscarlab/graphene>`__
+
+   .. describe:: Branch:
+
+      Use this branch of the repository. Default value: master
+
+.. describe:: SGXDriver:
+
+   .. describe:: Repository:
+
+      Source repository of the Intel SGX driver. Default value:
+      `https://github.com/01org/linux-sgx-driver.git
+      <https://github.com/01org/linux-sgx-driver.git>`__
+
+   .. describe:: Branch:
+
+      Use this branch of the repository. Default value: sgx_driver_1.9
 
 Run graphenized Docker images
 =============================
@@ -211,33 +218,33 @@ application arguments may be supplied to the  :command:`docker run` command.
 
 :command:`docker run` --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*>[:<*TAG*>] [<*APPLICATION-ARGUMENTS*>]
 
-   .. option:: IMAGE-NAME
+.. option:: IMAGE-NAME
 
-      Name of original image (without GSC build).
+   Name of original image (without GSC build).
 
-   .. option:: TAG
+.. option:: TAG
 
-      Tag of the image to be used.
+   Tag of the image to be used.
 
-   .. option:: APPLICATION-ARGUMENTS
+.. option:: APPLICATION-ARGUMENTS
 
-      Application arguments to be supplied to the application launching inside
-      the Docker container and Graphene.
+   Application arguments to be supplied to the application launching inside
+   the Docker container and Graphene.
 
-   .. option:: OPTIONS
+.. option:: OPTIONS
 
-      :command:`docker run` options. Common options include ``-it`` (interactive
-      with terminal) or ``-d`` (detached). Please see
-      `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__
-      for details.
+   :command:`docker run` options. Common options include ``-it`` (interactive
+   with terminal) or ``-d`` (detached). Please see
+   `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__
+   for details.
 
 
 Execute with Linux PAL instead of Linux-SGX PAL
 -----------------------------------------------
 
-When specifying :option:`-L <gsc-build -L>`  during GSC :command:`build`, you
+When specifying :option:`-L <gsc-build -L>`  during GSC :program:`gsc-build`, you
 may select the Linux PAL at Docker run time instead of the Linux-SGX PAL by
-specifying the environment variable ``GSC_PAL`` as an option to the
+specifying the environment variable :envvar:`GSC_PAL` as an option to the
 :command:`docker run` command.
 
 .. envvar:: GSC_PAL
@@ -283,7 +290,7 @@ Limitations
 -----------
 
 Dependency on Ubuntu 18.04
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Docker images not based on Ubuntu 18.04 may not be compatible with GSC. GSC
 relies on Graphene to execute Linux applications inside Intel SGX enclaves and

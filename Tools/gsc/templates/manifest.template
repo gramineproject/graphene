@@ -5,7 +5,7 @@ loader.exec = file:{{"{{binary_path}}"}}
 loader.execname = {{binary}}
 loader.env.LD_LIBRARY_PATH = /graphene/Runtime:{{"{{library_paths}}"}}
 loader.env.PATH = {{"{{env_path}}"}}
-loader.debug_type = {{debug_output}}
+loader.debug_type = {% if d %} inline {% else %} none {% endif %}
 
 fs.root.type = chroot
 fs.root.path = /

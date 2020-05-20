@@ -103,9 +103,8 @@ def main(args=None):
 
     print(f'LD_LIBRARY_PATH to \'{library_paths}\'\n'f'$PATH to \'{env_path}\'.')
 
-    substitutions = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
-    substitutions.globals['debug'] = 'debug'
-    substitutions.globals.update({
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+    env.globals.update({
                                 'library_paths': library_paths,
                                 'env_path': env_path
                                 })
@@ -125,7 +124,7 @@ def main(args=None):
         print(f'\tSetting exec file to \'{binary_path}\'.')
 
         # Write final manifest file with trusted files and children
-        rendered_manifest = substitutions.get_template(manifest).render(binary_path=binary_path)
+        rendered_manifest = env.get_template(manifest).render(binary_path=binary_path)
         with open(manifest, 'w') as manifest_file:
             manifest_file.write('\n'.join((rendered_manifest,
                                 trusted_files,
