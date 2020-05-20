@@ -36,7 +36,7 @@ void update_and_print_stats(bool process_wide) {
 
     int tid = INLINE_SYSCALL(gettid, 0);
     assert(tid > 0);
-    SGX_DBG(DBG_I,
+    SGX_DBG(DBG_E,
             "----- SGX stats for thread %d -----\n"
             "  # of EENTERs: %lu\n"
             "  # of EEXITs:  %lu\n"
@@ -51,7 +51,7 @@ void update_and_print_stats(bool process_wide) {
         int pid = INLINE_SYSCALL(getpid, 0);
         assert(pid > 0);
 
-        SGX_DBG(DBG_I, "----- Total SGX stats for process %d -----\n"
+        SGX_DBG(DBG_E, "----- Total SGX stats for process %d -----\n"
                 "  # of EENTERs: %lu\n"
                 "  # of EEXITs:  %lu\n"
                 "  # of AEXs:    %lu\n",
