@@ -9,7 +9,7 @@ see the installation and usage guide for each cloud VM offering individually
 below (currently only for Microsoft Azure).
 
 Azure Confidential Computing VMs
-------------------------------
+--------------------------------
 
 `Azure confidential computing services
 <https://azure.microsoft.com/en-us/solutions/confidential-compute/>`__ are
