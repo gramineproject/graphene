@@ -16,14 +16,14 @@ message Request {
         optional   uint32      timeout         = 9;
     }
 
-    message InitQuoteExRequest{
+    message InitQuoteExRequest {
         optional    bytes  att_key_id              = 1;
         required    bool   b_pub_key_id            = 3;
         optional    uint64 buf_size                = 4;
         optional    uint32 timeout                 = 9;
     }
 
-    message GetQuoteExRequest{
+    message GetQuoteExRequest {
         required    bytes   report          = 1;
         optional    bytes   att_key_id      = 2;
         optional    bytes   qe_report_info  = 3;
@@ -50,14 +50,14 @@ message Response {
         optional   bytes       qe_report       = 3;
     }
 
-    message InitQuoteExResponse{
+    message InitQuoteExResponse {
         required    uint32 errorCode       = 1 [default = 1];
         optional    bytes  target_info     = 2;
         optional    uint64 pub_key_id_size = 3;
         optional    bytes  pub_key_id      = 4;
     }
 
-    message GetQuoteExResponse{
+    message GetQuoteExResponse {
         required    uint32 errorCode      = 1 [default = 1];
         optional    bytes  quote          = 2;
         optional    bytes  qe_report_info = 3;

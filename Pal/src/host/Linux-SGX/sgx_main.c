@@ -897,8 +897,16 @@ static int load_enclave (struct pal_enclave * enclave,
     if (ret < 0)
         return ret;
 
-    if (get_config(enclave->config, "sgx.attestation", cfgbuf, sizeof(cfgbuf)) > 0 ||
-            get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0) {
+    if (get_config(enclave->config, "sgx.remote_attestation", cfgbuf, sizeof(cfgbuf)) < 0 &&
+            (get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0 ||
+             get_config(enclave->config, "sgx.ra_client_linkable", cfgbuf, sizeof(cfgbuf)) > 0)) {
+        SGX_DBG(DBG_E, "Detected EPID remote attestation parameters \'ra_client_spid\' and/or "
+                "\'ra_client_linkable\' in the manifest but no \'remote_attestation\' parameter. "
+                "Please add \'sgx.remote_attestation = 1\' to the manifest.\n");
+        return -EINVAL;
+    }
+
+    if (get_config(enclave->config, "sgx.remote_attestation", cfgbuf, sizeof(cfgbuf)) > 0) {
         /* initialize communication with Quoting Enclave only if app requests attestation */
         ret = init_quoting_enclave_targetinfo(&pal_sec->qe_targetinfo);
         if (ret < 0)

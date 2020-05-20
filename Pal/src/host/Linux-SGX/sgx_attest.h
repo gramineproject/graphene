@@ -31,7 +31,7 @@ typedef enum {
     SGX_QL_ALG_RESERVED_1 = 1, /* reserved */
     SGX_QL_ALG_ECDSA_P256 = 2, /* ECDSA-256-with-P-256 curve, non-anonymous */
     SGX_QL_ALG_ECDSA_P384 = 3, /* ECDSA-384-with-P-384 curve, non-anonymous */
-    SGX_QL_ALG_MAX        = 4,
+    SGX_QL_ALG_CNT        = 4,
 } sgx_ql_attestation_algorithm_id_t;
 
 /* generic attestation key format */

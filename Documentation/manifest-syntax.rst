@@ -321,18 +321,16 @@ Attestation and Quotes
 
 ::
 
-    sgx.attestation=[1|0]
+    sgx.remote_attestation=[1|0]
     (Default: 0)
     sgx.ra_client_linkable=[1|0]
     (Default: 0)
     sgx.ra_client_spid=[HEX]
 
-This syntax specifies the parameters for remote attestation.
+This syntax specifies the parameters for remote attestation. To enable it,
+``remote_attestation`` must be set to ``1``.
 
-For ECDSA/DCAP based attestation, ``attestation`` must be set to ``1``. Other
-parameters are not used in ECDSA/DCAP and are not required to be specified.
-
-For EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
-be specified (linkable/unlinkable mode and SPID of the client respectively).
-It is not required to specify ``attestation`` additionally (but is preferable
-for readability).
+For ECDSA/DCAP based attestation, no additional parameters are required. For
+EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
+be additionally specified (linkable/unlinkable mode and SPID of the client
+respectively).
