@@ -11,14 +11,8 @@
 
 // Print a number (base <= 16) in reverse order,
 // using specified fputch function and associated pointer putdat.
-#if !defined(__i386__)
 static int printnum(int (*_fputch)(void*, int, void*), void* f, void* putdat,
-                    unsigned long long num, unsigned base, int width, int padc)
-#else
-static int printnum(int (*_fputch)(void*, int, void*), void* f, void* putdat, unsigned long num,
-                    unsigned base, int width, int padc)
-#endif
-{
+                    unsigned long long num, unsigned base, int width, int padc) {
     // first recursively print all preceding (more significant) digits
     if (num >= base) {
         if (printnum(_fputch, f, putdat, num / base, base, width - 1, padc) == -1)
@@ -37,52 +31,32 @@ static int printnum(int (*_fputch)(void*, int, void*), void* f, void* putdat, un
     return 0;
 }
 
-// Get an unsigned int of various possible sizes from a varargs list,
-// depending on the lflag parameter.
-#if !defined(__i386__)
-static inline unsigned long long getuint(va_list ap, int lflag)
-#else
-static inline unsigned long getuint(va_list ap, int lflag)
-#endif
-{
-#if !defined(__i386__)
-    if (lflag >= 2)
-        return va_arg(ap, unsigned long long);
-#endif
-    if (lflag)
-        return va_arg(ap, unsigned long);
-    return va_arg(ap, unsigned int);
-}
+// Get an unsigned integer of various possible sizes from a varargs list, depending on the lflag
+// parameter.
+// Defined as macro because it alters `ap` and passing `va_list` by pointer turns out to be tricky
+// - on some archs it's defined as array and then `&ap` has a different type than `va_list*` if `ap`
+// is a function parameter.
+#define GET_UINT(ap, lflag)          \
+    (((lflag) >= 2)                  \
+    ? va_arg(ap, unsigned long long) \
+    : (lflag)                        \
+        ? va_arg(ap, unsigned long)  \
+        : va_arg(ap, unsigned int))
 
-// Same as getuint but signed - can't use getuint
-// because of sign extension
-#if !defined(__i386__)
-static inline long long getint(va_list ap, int lflag)
-#else
-static inline long getint(va_list ap, int lflag)
-#endif
-{
-#if !defined(__i386__)
-    if (lflag >= 2)
-        return va_arg(ap, long long);
-#endif
-    if (lflag)
-        return va_arg(ap, long);
-    return va_arg(ap, int);
-}
-
-// Main function to format and print a string.
-void fprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt, ...);
+// Same as GET_UINT but signed
+#define GET_INT(ap, lflag)  \
+    (((lflag) >= 2)         \
+    ? va_arg(ap, long long) \
+    : (lflag)               \
+        ? va_arg(ap, long)  \
+        : va_arg(ap, int))
 
 void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const char* fmt,
                 va_list ap) {
     register const char* p;
     register int ch;
-#if !defined(__i386__)
-    unsigned long long num;
-#else
-    unsigned long num;
-#endif
+    unsigned long long num_u;
+    long long num_s;
     int base, lflag, width, precision, altflag;
     char padc;
 
@@ -122,9 +96,9 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
             case '7':
             case '8':
             case '9':
-                for (precision = 0;; ++fmt) {
+                for (precision = 0;; fmt++) {
                     precision = precision * 10 + ch - '0';
-                    ch        = *fmt;
+                    ch = *fmt;
                     if (ch < '0' || ch > '9')
                         break;
                 }
@@ -144,8 +118,10 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
                 goto reswitch;
 
             process_precision:
-                if (width < 0)
-                    width = precision, precision = -1;
+                if (width < 0) {
+                    width = precision;
+                    precision = -1;
+                }
                 goto reswitch;
 
             // long flag (doubled for long long)
@@ -183,35 +159,30 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
             // (signed) decimal
             case 'd':
             case 'i':
-                num = getint(ap, lflag);
-#if !defined(__i386__)
-                if ((long long)num < 0) {
+                num_s = GET_INT(ap, lflag);
+                if (num_s < 0) {
                     if ((*_fputch)(f, '-', putdat) == -1)
                         return;
-                    num = -(long long)num;
+                    num_u = -(num_s + 1); // This way we evade a potential UB (negation of the
+                                          // smallest int value)
+                    num_u++;
+                } else {
+                    num_u = num_s;
                 }
-#else
-                if ((long)num < 0) {
-                    if ((*_fputch)(f, '-', putdat) == -1)
-                        return;
-                    num = -(long)num;
-                }
-#endif
                 base = 10;
-                goto number;
+                goto print_unsigned;
 
             // unsigned decimal
             case 'u':
-                num  = getuint(ap, lflag);
+                num_u = GET_UINT(ap, lflag);
                 base = 10;
-                goto number;
+                goto print_unsigned;
 
             // (unsigned) octal
             case 'o':
-                // Replace this with your code.
-                num  = getuint(ap, lflag);
+                num_u  = GET_UINT(ap, lflag);
                 base = 8;
-                goto number;
+                goto print_unsigned;
 
             // pointer
             case 'p':
@@ -219,20 +190,16 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
                     return;
                 if ((*_fputch)(f, 'x', putdat) == -1)
                     return;
-#if !defined(__i386__)
-                num = (unsigned long long)(uintptr_t)va_arg(ap, void*);
-#else
-                num = (unsigned long)(uintptr_t)va_arg(ap, void*);
-#endif
+                num_u = (unsigned long long)(uintptr_t)va_arg(ap, void*);
                 base = 16;
-                goto number;
+                goto print_unsigned;
 
             // (unsigned) hexadecimal
             case 'x':
-                num  = getuint(ap, lflag);
+                num_u = GET_UINT(ap, lflag);
                 base = 16;
-            number:
-                if (printnum(_fputch, f, putdat, num, base, width, padc) == -1)
+            print_unsigned:
+                if (printnum(_fputch, f, putdat, num_u, base, width, padc) == -1)
                     return;
                 break;
 
@@ -282,7 +249,11 @@ static int sprintputch(void* f, int ch, struct sprintbuf* b) {
 }
 
 int vsnprintf(char* buf, size_t n, const char* fmt, va_list ap) {
-    struct sprintbuf b = {0, n, buf};
+    struct sprintbuf b = {
+        .cnt = 0,
+        .max = n,
+        .buf = buf,
+    };
 
     if (!buf || n < 1)
         return 0;
