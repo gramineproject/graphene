@@ -115,7 +115,10 @@ objs += \
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/crypto/library/aes.c
 
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
-CFLAGS += -DCRYPTO_USE_MBEDTLS -mrdrnd
+CFLAGS += -DCRYPTO_USE_MBEDTLS
+ifeq ($(ARCH),x86_64)
+CFLAGS += -mrdrnd
+endif
 objs += crypto/adapters/mbedtls_adapter.o
 objs += crypto/adapters/mbedtls_dh.o
 objs += crypto/adapters/mbedtls_encoding.o
