@@ -835,7 +835,6 @@ int ecall_thread_reset(void) {
 }
 
 noreturn void __abort(void) {
-    update_and_print_stats(/*process_wide=*/true);
     INLINE_SYSCALL(exit_group, 1, -1);
     while (true) {
         /* nothing */;
