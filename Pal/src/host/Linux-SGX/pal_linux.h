@@ -180,12 +180,12 @@ struct protected_file {
     UT_hash_handle hh;
     size_t path_len;
     char* path;
-    pf_context_t context; /* NULL until PF is opened */
+    pf_context_t* context; /* NULL until PF is opened */
     int64_t refcount; /* used for deciding when to call unload_protected_file() */
 };
 
 /* Initialize the PF library, register PFs from the manifest */
-int init_protected_files();
+int init_protected_files(void);
 
 /* Take ownership of the global PF lock */
 void pf_lock(void);
@@ -333,8 +333,10 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
 #ifdef IN_ENCLAVE
 #undef uthash_fatal
 #define uthash_fatal(msg) \
-    __UNUSED(msg); \
-    DkProcessExit(-PAL_ERROR_NOMEM);
+    do { \
+        __UNUSED(msg); \
+        DkProcessExit(-PAL_ERROR_NOMEM); \
+    } while (0)
 
 #define SGX_DBG(class, fmt...) \
     do { if ((class) & DBG_LEVEL) printf(fmt); } while (0)

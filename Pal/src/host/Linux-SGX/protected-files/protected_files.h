@@ -47,22 +47,7 @@
  *
  */
 
-/* Protected files (PF) are a new type of file that can be specified in the manifest (SGX only).
- * They are encrypted on disk and transparently decrypted when accessed by Graphene or by
- * application running inside Graphene.
- *
- * Features:
- * - Data is encrypted (confidentiality) and integrity protected (tamper resistance).
- * - File swap protection (a PF can only be accessed when in a specific path).
- * - Transparency (Graphene application sees PFs as regular files, no need to modify
- *   the application).
- *
- * Internal PF format is based on the SGX SDK implementation:
- * https://github.com/intel/linux-sgx/tree/master/sdk/protected_fs
- *
- * Note: Graphene PFs can't be read by the SGX SDK (nor the other way around) due to some
- *       differences in internal structures.
- */
+/* See README.rst for protected files overview */
 
 #ifndef PROTECTED_FILES_H_
 #define PROTECTED_FILES_H_
@@ -83,7 +68,7 @@
 typedef uint8_t pf_iv_t[PF_IV_SIZE];
 typedef uint8_t pf_mac_t[PF_MAC_SIZE];
 typedef uint8_t pf_key_t[PF_KEY_SIZE];
-typedef uint8_t pf_keyid_t[32];
+typedef uint8_t pf_keyid_t[32]; /* key derivation material */
 
 typedef enum _pf_status_t {
     PF_STATUS_SUCCESS              = 0,
@@ -125,12 +110,12 @@ typedef void* pf_handle_t;
  * \brief File read callback
  *
  * \param [in] handle File handle
- * \param [in] buffer Buffer to read to
+ * \param [out] buffer Buffer to read to
  * \param [in] offset Offset to read from
  * \param [in] size Number of bytes to read
  * \return PF status
  */
-typedef pf_status_t (*pf_read_f)(pf_handle_t handle, void* buffer, size_t offset, size_t size);
+typedef pf_status_t (*pf_read_f)(pf_handle_t handle, void* buffer, uint64_t offset, size_t size);
 
 /*!
  * \brief File write callback
@@ -141,7 +126,8 @@ typedef pf_status_t (*pf_read_f)(pf_handle_t handle, void* buffer, size_t offset
  * \param [in] size Number of bytes to write
  * \return PF status
  */
-typedef pf_status_t (*pf_write_f)(pf_handle_t handle, void* buffer, size_t offset, size_t size);
+typedef pf_status_t (*pf_write_f)(pf_handle_t handle, const void* buffer, uint64_t offset,
+                                  size_t size);
 
 /*!
  * \brief File truncate callback
@@ -150,7 +136,7 @@ typedef pf_status_t (*pf_write_f)(pf_handle_t handle, void* buffer, size_t offse
  * \param [in] size Target file size
  * \return PF status
  */
-typedef pf_status_t (*pf_truncate_f)(pf_handle_t handle, size_t size);
+typedef pf_status_t (*pf_truncate_f)(pf_handle_t handle, uint64_t size);
 
 /*!
  * \brief File flush callback
@@ -170,7 +156,7 @@ typedef pf_status_t (*pf_flush_f)(pf_handle_t handle);
  * \return PF status
  */
 typedef pf_status_t (*pf_open_f)(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
-                                 size_t* size);
+                                 uint64_t* size);
 
 /*!
  * \brief File close callback (recovery only)
@@ -264,14 +250,14 @@ void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f trunca
                       pf_debug_f debug_f);
 
 /*! Context representing an open protected file */
-typedef struct pf_context* pf_context_t;
+typedef struct pf_context pf_context_t;
 
 /* Public API */
 
 /*!
  * \brief Open a protected file
  *
- * \param [in] handle Opened underlying file handle
+ * \param [in] handle Open underlying file handle
  * \param [in] path Path to the file. If NULL and \a create is false, don't check path for validity.
  * \param [in] underlying_size Underlying file size
  * \param [in] mode Access mode
@@ -281,9 +267,9 @@ typedef struct pf_context* pf_context_t;
  * \param [out] context PF context for later calls
  * \return PF status
  */
-pf_status_t pf_open(pf_handle_t handle, const char* path, size_t underlying_size,
+pf_status_t pf_open(pf_handle_t handle, const char* path, uint64_t underlying_size,
                     pf_file_mode_t mode, bool create, bool enable_recovery, const pf_key_t* key,
-                    pf_context_t* context);
+                    pf_context_t** context);
 
 /*!
  * \brief Close a protected file and commit all changes to disk
@@ -291,7 +277,7 @@ pf_status_t pf_open(pf_handle_t handle, const char* path, size_t underlying_size
  * \param [in] pf PF context
  * \return PF status
  */
-pf_status_t pf_close(pf_context_t pf);
+pf_status_t pf_close(pf_context_t* pf);
 
 /*!
  * \brief Read from a protected file
@@ -302,7 +288,7 @@ pf_status_t pf_close(pf_context_t pf);
  * \param [out] output Destination buffer
  * \return PF status
  */
-pf_status_t pf_read(pf_context_t pf, uint64_t offset, size_t size, void* output);
+pf_status_t pf_read(pf_context_t* pf, uint64_t offset, size_t size, void* output);
 
 /*!
  * \brief Write to a protected file
@@ -313,7 +299,7 @@ pf_status_t pf_read(pf_context_t pf, uint64_t offset, size_t size, void* output)
  * \param [in] input Source buffer
  * \return PF status
  */
-pf_status_t pf_write(pf_context_t pf, uint64_t offset, size_t size, const void* input);
+pf_status_t pf_write(pf_context_t* pf, uint64_t offset, size_t size, const void* input);
 
 /*!
  * \brief Get data size of a PF
@@ -322,7 +308,7 @@ pf_status_t pf_write(pf_context_t pf, uint64_t offset, size_t size, const void* 
  * \param [out] size Data size of \a pf
  * \return PF status
  */
-pf_status_t pf_get_size(pf_context_t pf, size_t* size);
+pf_status_t pf_get_size(pf_context_t* pf, uint64_t* size);
 
 /*!
  * \brief Set data size of a PF
@@ -330,8 +316,10 @@ pf_status_t pf_get_size(pf_context_t pf, size_t* size);
  * \param [in] pf PF context
  * \param [in] size Data size to set
  * \return PF status
+ * \details If the file is extended, added bytes are zero.
+ *          Truncation is not implemented yet (TODO).
  */
-pf_status_t pf_set_size(pf_context_t pf, size_t size);
+pf_status_t pf_set_size(pf_context_t* pf, uint64_t size);
 
 /*!
  * \brief Get underlying handle of a PF
@@ -340,7 +328,7 @@ pf_status_t pf_set_size(pf_context_t pf, size_t size);
  * \param [out] handle Handle to the backing file
  * \return PF status
  */
-pf_status_t pf_get_handle(pf_context_t pf, pf_handle_t* handle);
+pf_status_t pf_get_handle(pf_context_t* pf, pf_handle_t* handle);
 
 /*!
  * \brief Flush any pending data of a protected file to disk
@@ -348,6 +336,6 @@ pf_status_t pf_get_handle(pf_context_t pf, pf_handle_t* handle);
  * \param [in] pf PF context
  * \return PF status
  */
-pf_status_t pf_flush(pf_context_t pf);
+pf_status_t pf_flush(pf_context_t* pf);
 
-#endif
+#endif /* PROTECTED_FILES_H_ */

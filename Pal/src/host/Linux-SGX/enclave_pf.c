@@ -17,34 +17,35 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <linux/fs.h>
+
+#include "pal_crypto.h"
+#include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_error.h"
-#include "pal_internal.h"
-#include "pal_crypto.h"
 #include "spinlock.h"
 
 /*
-At startup, protected file paths are read from the manifest and the specified files
-or directories registered. For supported I/O operations, handlers (in db_files.c)
-check if the file is a PF to perform the required operation transparently.
-
-Since PF's "logical" size is different than the real FS size (and to avoid potential
-infinite recursion in FS handlers) we don't use PAL file APIs here, but raw OCALLs.
-*/
+ * At startup, protected file paths are read from the manifest and the specified files
+ * or directories registered. For supported I/O operations, handlers (in db_files.c)
+ * check if the file is a PF to perform the required operation transparently.
+ *
+ * Since PF's "logical" size is different than the real FS size (and to avoid potential
+ * infinite recursion in FS handlers) we don't use PAL file APIs here, but raw OCALLs.
+ */
 
 /* List of map buffers */
 LISTP_TYPE(pf_map) g_pf_map_list = LISTP_INIT;
 
 /* Callbacks for protected files handling */
-static pf_status_t cb_read(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
+static pf_status_t cb_read(pf_handle_t handle, void* buffer, uint64_t offset, size_t size) {
     int fd = *(int*)handle;
-    size_t offs = 0;
+    uint64_t offs = 0;
     size_t to_read = size;
     while (to_read > 0) {
         ssize_t read = ocall_pread(fd, buffer + offs, to_read, offset + offs);
         if (read == -EINTR)
             continue;
-        if (IS_ERR(read)) {
+        if (read <= 0) { /* EOF is an error condition, we want to read exactly `size` bytes */
             SGX_DBG(DBG_E, "cb_read(%d, %p, %lu, %lu): read failed: %ld\n",
                     fd, buffer, offset, size, read);
             return PF_STATUS_CALLBACK_FAILED;
@@ -55,15 +56,15 @@ static pf_status_t cb_read(pf_handle_t handle, void* buffer, size_t offset, size
     return PF_STATUS_SUCCESS;
 }
 
-static pf_status_t cb_write(pf_handle_t handle, void* buffer, size_t offset, size_t size) {
-    int fd  = *(int*)handle;
-    size_t offs = 0;
+static pf_status_t cb_write(pf_handle_t handle, const void* buffer, uint64_t offset, size_t size) {
+    int fd = *(int*)handle;
+    uint64_t offs = 0;
     size_t to_write = size;
     while (to_write > 0) {
         ssize_t written = ocall_pwrite(fd, buffer + offs, to_write, offset + offs);
         if (written == -EINTR)
             continue;
-        if (IS_ERR(written)) {
+        if (written <= 0) { /* EOF is an error condition, we want to write exactly `size` bytes */
             SGX_DBG(DBG_E, "cb_write(%d, %p, %lu, %lu): write failed: %ld\n",
                     fd, buffer, offset, size, written);
             return PF_STATUS_CALLBACK_FAILED;
@@ -74,8 +75,8 @@ static pf_status_t cb_write(pf_handle_t handle, void* buffer, size_t offset, siz
     return PF_STATUS_SUCCESS;
 }
 
-static pf_status_t cb_truncate(pf_handle_t handle, size_t size) {
-    int fd  = *(int*)handle;
+static pf_status_t cb_truncate(pf_handle_t handle, uint64_t size) {
+    int fd = *(int*)handle;
     int ret = ocall_ftruncate(fd, size);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "cb_truncate(%d, %lu): ocall failed: %d\n", fd, size, ret);
@@ -85,7 +86,7 @@ static pf_status_t cb_truncate(pf_handle_t handle, size_t size) {
 }
 
 static pf_status_t cb_flush(pf_handle_t handle) {
-    int fd  = *(int*)handle;
+    int fd = *(int*)handle;
     int ret = ocall_fsync(fd);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "cb_flush(%d): ocall failed: %d\n", fd, ret);
@@ -96,7 +97,7 @@ static pf_status_t cb_flush(pf_handle_t handle) {
 
 /* this callback is only used for creating recovery files and during recovery */
 static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
-                           size_t* size) {
+                           uint64_t* size) {
     SGX_DBG(DBG_D, "cb_open(%s): mode %d\n", path, mode);
 
     int flags;
@@ -138,7 +139,7 @@ static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* h
 }
 
 static pf_status_t cb_close(pf_handle_t handle) {
-    int fd  = *(int*)handle;
+    int fd = *(int*)handle;
     int ret = ocall_close(fd);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "cb_close(%d): ocall failed: %d\n", fd, ret);
@@ -223,7 +224,7 @@ void pf_unlock(void) {
 
 /* Exact match of path in g_protected_files */
 struct protected_file* find_protected_file(const char* path) {
-    struct protected_file* pf  = NULL;
+    struct protected_file* pf = NULL;
 
     pf_lock();
     HASH_FIND_STR(g_protected_files, path, pf);
@@ -233,15 +234,15 @@ struct protected_file* find_protected_file(const char* path) {
 
 /* Find registered pf directory starting with the given path */
 struct protected_file* find_protected_dir(const char* path) {
-    struct protected_file* pf  = NULL;
+    struct protected_file* pf = NULL;
     struct protected_file* tmp = NULL;
-    size_t len                 = strlen(path);
+    size_t len = strlen(path);
 
     pf_lock();
     for (tmp = g_protected_dirs; tmp != NULL; tmp = tmp->hh.next) {
         if (tmp->path_len < len &&
-            !memcmp(tmp->path, path, tmp->path_len) &&
-            (!path[tmp->path_len] || path[tmp->path_len] == '/')) {
+                !memcmp(tmp->path, path, tmp->path_len) &&
+                (!path[tmp->path_len] || path[tmp->path_len] == '/')) {
             pf = tmp;
             break;
         }
@@ -262,13 +263,14 @@ struct protected_file* find_protected_file_handle(PAL_HANDLE handle) {
         return NULL;
 
     /* uri is prefixed by "file:", we need path */
+    assert(strstartswith_static(uri, URI_PREFIX_FILE));
     return find_protected_file(uri + URI_PREFIX_FILE_LEN);
 }
 
 static int register_protected_path(const char* path, struct protected_file** new_pf);
 
 /* Return a registered PF that matches specified path
-   (or the path is contained in a registered PF directory) */
+   (or the path that is contained in a registered PF directory) */
 struct protected_file* get_protected_file(const char* path) {
     struct protected_file* pf = find_protected_file(path);
     if (pf)
@@ -278,7 +280,8 @@ struct protected_file* get_protected_file(const char* path) {
     if (pf) {
         /* path not registered but matches registered dir */
         SGX_DBG(DBG_D, "get_pf: registering new PF '%s' in dir '%s'\n", path, pf->path);
-        __attribute__((unused)) int ret = register_protected_path(path, &pf);
+        int ret = register_protected_path(path, &pf);
+        __UNUSED(ret);
         assert(ret == 0);
         /* return newly registered PF */
     }
@@ -288,7 +291,7 @@ out:
     return pf;
 }
 
-#define	S_ISDIR(m)	((m & 0170000) == 0040000)
+#define S_ISDIR(m) ((m & 0170000) == 0040000)
 
 static int is_directory(const char* path, bool* is_dir) {
     int fd = -1;
@@ -314,8 +317,8 @@ static int is_directory(const char* path, bool* is_dir) {
 
 out:
     if (fd >= 0) {
-        int rv;
-        if ((rv = ocall_close(fd)) < 0) {
+        int rv = ocall_close(fd);
+        if (IS_ERR(rv)) {
             SGX_DBG(DBG_E, "is_directory(%s): close failed: %d\n", path, rv);
         }
     }
@@ -325,10 +328,10 @@ out:
 
 /* Register all files from the given directory recursively */
 static int register_protected_dir(const char* path) {
-    int fd         = -1;
-    int ret        = -PAL_ERROR_NOMEM;
+    int fd = -1;
+    int ret = -PAL_ERROR_NOMEM;
     size_t bufsize = 1024;
-    void* buf      = malloc(bufsize);
+    void* buf = malloc(bufsize);
 
     if (!buf)
         return -PAL_ERROR_NOMEM;
@@ -361,7 +364,7 @@ static int register_protected_dir(const char* path) {
                 goto next;
 
             /* register file */
-            size_t sub_path_size = strlen(dir->d_name) + 1 + path_size + URI_PREFIX_FILE_LEN;
+            size_t sub_path_size = path_size + URI_PREFIX_FILE_LEN + 1 + strlen(dir->d_name);
             char* sub_path = malloc(sub_path_size);
             ret = -PAL_ERROR_NOMEM;
             if (!sub_path)
@@ -435,7 +438,7 @@ static int register_protected_path(const char* path, struct protected_file** new
 
     bool is_dir;
     ret = is_directory(path, &is_dir);
-    if (ret != 0)
+    if (ret < 0)
         goto out;
 
     SGX_DBG(DBG_D, "register_protected_path: [%s] %s = %p\n", is_dir ? "dir" : "file", path, new);
@@ -459,15 +462,18 @@ static int register_protected_path(const char* path, struct protected_file** new
     ret = 0;
 out:
     free(normpath);
-    if (ret < 0)
+    if (ret < 0) {
+        if (new)
+            free(new->path);
         free(new);
+    }
     return ret;
 }
 
 /* Read PF paths from manifest and register them */
 static int register_protected_files(const char* key_prefix) {
-    char* cfgbuf    = NULL;
-    int ret         = -PAL_ERROR_DENIED;
+    char* cfgbuf = NULL;
+    int ret = -PAL_ERROR_DENIED;
     ssize_t cfgsize = get_config_entries_size(pal_state.root_config, key_prefix);
     if (cfgsize <= 0)
         goto out;
@@ -478,24 +484,25 @@ static int register_protected_files(const char* key_prefix) {
         goto out;
     }
 
-    int nuris = get_config_entries(pal_state.root_config, key_prefix, cfgbuf, cfgsize);
-    if (nuris == -PAL_ERROR_INVAL) {
+    int uris_count = get_config_entries(pal_state.root_config, key_prefix, cfgbuf, cfgsize);
+    if (uris_count == -PAL_ERROR_INVAL) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    char key[CONFIG_MAX], uri[CONFIG_MAX];
-    char* k = cfgbuf;
+    char key[CONFIG_MAX];
+    char uri[CONFIG_MAX];
+    char* key_suffix = cfgbuf;
 
-    for (int i = 0 ; i < nuris ; i++) {
-        size_t len = strlen(k);
-        snprintf(key, CONFIG_MAX, "%s.%s", key_prefix, k);
-        k += len + 1;
+    for (int i = 0; i < uris_count; i++) {
+        size_t len = strlen(key_suffix);
+        snprintf(key, CONFIG_MAX, "%s.%s", key_prefix, key_suffix);
+        key_suffix += len + 1;
         len = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
         if (len > 0) {
             if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
-                SGX_DBG(DBG_E, "Invalid URI [%s]: Protected files must start with 'file:'\n",
-                        uri);
+                SGX_DBG(DBG_E, "Invalid URI [%s]: URIs of protected files must start with '"
+                        URI_PREFIX_FILE "'\n", uri);
             } else {
                 register_protected_path(uri, NULL);
             }
@@ -514,6 +521,9 @@ out:
     return ret;
 }
 
+#define PF_MANIFEST_KEY_PREFIX "sgx.protected_files_key"
+#define PF_MANIFEST_PATH_PREFIX "sgx.protected_files"
+
 /* Initialize the PF library, register PFs from the manifest */
 int init_protected_files(void) {
     pf_debug_f debug_callback = NULL;
@@ -529,16 +539,16 @@ int init_protected_files(void) {
        In the future, this key should be provisioned after local/remote attestation. */
 
     char key_hex[PF_KEY_SIZE * 2 + 1];
-    ssize_t len = get_config(pal_state.root_config, "sgx.protected_files_key", key_hex,
+    ssize_t len = get_config(pal_state.root_config, PF_MANIFEST_KEY_PREFIX, key_hex,
                              sizeof(key_hex));
-    if (len <= 0) {
+    if (len <= 0 && get_config_entries_size(pal_state.root_config, PF_MANIFEST_PATH_PREFIX) > 0) {
         SGX_DBG(DBG_E, "*** No protected files wrap key specified in the manifest. "
                 "Protected files will not be available. ***\n");
         return 0;
     }
 
     if (len != sizeof(key_hex) - 1) {
-        SGX_DBG(DBG_E, "Malformed sgx.protected_files_key value in the manifest\n");
+        SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");
         return -PAL_ERROR_INVAL;
     }
 
@@ -546,14 +556,14 @@ int init_protected_files(void) {
     for (ssize_t i = 0; i < len; i++) {
         int8_t val = hex2dec(key_hex[i]);
         if (val < 0) {
-            SGX_DBG(DBG_E, "Malformed sgx.protected_files_key value in the manifest\n");
+            SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");
             return -PAL_ERROR_INVAL;
         }
         g_pf_wrap_key[i/2] = g_pf_wrap_key[i/2] * 16 + (uint8_t)val;
     }
 
-    if (register_protected_files("sgx.protected_files") < 0) {
-        SGX_DBG(DBG_E, "sgx.protected_files key not found in manifest, "
+    if (register_protected_files(PF_MANIFEST_PATH_PREFIX) < 0) {
+        SGX_DBG(DBG_E, PF_MANIFEST_PATH_PREFIX "key not found in manifest, "
                 "protected files will not be available\n");
     }
 
@@ -562,7 +572,7 @@ int init_protected_files(void) {
 
 /* Open/create a PF */
 static int open_protected_file(const char* path, struct protected_file* pf, pf_handle_t handle,
-                               size_t size, pf_file_mode_t mode, bool create) {
+                               uint64_t size, pf_file_mode_t mode, bool create) {
     pf_status_t pfs;
     /* TODO: enable_recovery is always false for now */
     pfs = pf_open(handle, path, size, mode, create, /*enable_recovery=*/false, &g_pf_wrap_key,
@@ -577,7 +587,7 @@ static int open_protected_file(const char* path, struct protected_file* pf, pf_h
 /* Prepare a PF for I/O
    This function registers the PF if path is in a registered PF directory, then
    calls the appropriate PF function to open/create it (if allowed) */
-struct protected_file* load_protected_file(const char* path, int* fd, size_t size,
+struct protected_file* load_protected_file(const char* path, int* fd, uint64_t size,
                                            pf_file_mode_t mode, bool create,
                                            struct protected_file* pf) {
     SGX_DBG(DBG_D, "load_protected_file: %s, fd %d, size %lu, mode %d, create %d, pf %p\n",
@@ -601,16 +611,17 @@ struct protected_file* load_protected_file(const char* path, int* fd, size_t siz
 }
 
 /* Flush PF map buffers and optionally remove and free them.
-   If pf is NULL, process all maps containing given buffer.
-   If buffer is NULL, process all maps for given pf. */
+ * If pf is NULL, process all maps containing given buffer.
+ * If buffer is NULL, process all maps for given pf.
+ * If both pf and buffer are NULL, process all maps for all PFs.
+ */
 int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
     struct pf_map* map;
     struct pf_map* tmp;
-    size_t pf_size;
+    uint64_t pf_size;
     pf_status_t pfs;
 
     SGX_DBG(DBG_D, "flush_pf_maps: pf %p, buf %p, remove %d\n", pf, buffer, remove);
-    assert(pf || buffer);
 
     pf_lock();
     LISTP_FOR_EACH_ENTRY_SAFE(map, tmp, &g_pf_map_list, list) {
@@ -620,21 +631,21 @@ int flush_pf_maps(struct protected_file* pf, void* buffer, bool remove) {
         if (buffer && map->buffer != buffer)
             continue;
 
-        size_t size = map->size;
+        size_t map_size = map->size;
         struct protected_file* map_pf = pf ? pf : map->pf;
 
         pfs = pf_get_size(map_pf->context, &pf_size);
         assert(PF_SUCCESS(pfs));
 
-        SGX_DBG(DBG_D, "flush_pf_maps: pf %p, buf %p, size %lu, offset %lu\n",
-                map_pf, map->buffer, size, map->offset);
+        SGX_DBG(DBG_D, "flush_pf_maps: pf %p, buf %p, map size %lu, offset %lu\n",
+                map_pf, map->buffer, map_size, map->offset);
 
         assert(pf_size >= map->offset);
-        if (map->offset + size > pf_size)
-            size = pf_size - map->offset;
+        if (map->offset + map_size > pf_size)
+            map_size = pf_size - map->offset;
 
-        if (size > 0) {
-            pfs = pf_write(map_pf->context, map->offset, size, map->buffer);
+        if (map_size > 0) {
+            pfs = pf_write(map_pf->context, map->offset, map_size, map->buffer);
             if (PF_FAILURE(pfs)) {
                 SGX_DBG(DBG_E, "flush_pf_maps: pf_write failed: %d\n", pfs);
                 pf_unlock();
@@ -658,8 +669,10 @@ int unload_protected_file(struct protected_file* pf) {
     int ret = flush_pf_maps(pf, NULL, true);
     if (ret < 0)
         return ret;
-    __attribute__((unused)) pf_status_t pfs = pf_close(pf->context);
-    assert(PF_SUCCESS(pfs));
+    pf_status_t pfs = pf_close(pf->context);
+    if (PF_FAILURE(pfs)) {
+        SGX_DBG(DBG_E, "unload_protected_file(%p) failed: %d\n", pf, pfs);
+    }
 
     pf->context = NULL;
     return 0;

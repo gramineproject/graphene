@@ -516,7 +516,7 @@ static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 }
 
 static int pf_file_attrquery(struct protected_file* pf, int fd_from_attrquery, const char* path,
-                             size_t real_size, PAL_STREAM_ATTR* attr) {
+                             uint64_t real_size, PAL_STREAM_ATTR* attr) {
     pf = load_protected_file(path, &fd_from_attrquery, real_size, PAL_PROT_READ, /*create=*/false,
                              pf);
     if (!pf) {

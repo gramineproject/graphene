@@ -50,8 +50,6 @@
 #ifndef PROTECTED_FILES_INTERNAL_H_
 #define PROTECTED_FILES_INTERNAL_H_
 
-/* for SSIZE_MAX */
-#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <limits.h>
 #include "list.h"
@@ -77,17 +75,14 @@ typedef struct _meta_data_plain {
 
 // these are all defined as relative to node size, so we can decrease node size in tests
 // and have deeper tree
-#define FILENAME_MAX_LEN      260
-#define PATHNAME_MAX_LEN      (512)
-#define FULLNAME_MAX_LEN      (PATHNAME_MAX_LEN + FILENAME_MAX_LEN)
-#define RECOVERY_FILE_MAX_LEN (FULLNAME_MAX_LEN + 10)
-
+#define PATH_MAX_SIZE          (260 + 512)
+#define RECOVERY_PATH_MAX_SIZE (PATH_MAX_SIZE + 10)
 
 #define MD_USER_DATA_SIZE (PF_NODE_SIZE*3/4)  // 3072
 static_assert(MD_USER_DATA_SIZE == 3072, "bad struct size");
 
 typedef struct _meta_data_encrypted {
-    char     clean_filename[FULLNAME_MAX_LEN];
+    char     clean_filename[PATH_MAX_SIZE];
     int64_t  size;
     pf_key_t mht_key;
     pf_mac_t mht_gmac;
@@ -97,7 +92,6 @@ typedef struct _meta_data_encrypted {
 typedef uint8_t meta_data_encrypted_blob_t[sizeof(meta_data_encrypted_t)];
 
 #define META_DATA_NODE_SIZE PF_NODE_SIZE
-static_assert(PF_NODE_SIZE <= SSIZE_MAX, "PF_NODE_SIZE <= SSIZE_MAX");
 
 typedef uint8_t meta_data_padding_t[META_DATA_NODE_SIZE
     - (sizeof(meta_data_plain_t) + sizeof(meta_data_encrypted_blob_t))];
@@ -193,69 +187,70 @@ struct pf_context {
         recovery_node_t meta_data_recovery_node;
     };
 
+    pf_status_t last_error;
     meta_data_encrypted_t encrypted_part_plain; // encrypted part of meta data node, decrypted
     file_node_t root_mht; // the root of the mht is always needed (for files bigger than 3KB)
     pf_handle_t file;
     pf_file_mode_t mode;
     int64_t offset; // current file position (user's view)
     bool end_of_file;
-    size_t real_file_size;
+    uint64_t real_file_size;
     bool need_writing;
     pf_status_t file_status;
     pf_key_t user_kdk_key;
     pf_key_t cur_key;
     pf_key_t session_master_key;
     uint32_t master_key_count;
-    char recovery_filename[RECOVERY_FILE_MAX_LEN]; // might include full path to the file
-    lruc_context_t cache;
+    char recovery_path[RECOVERY_PATH_MAX_SIZE];
+    lruc_context_t* cache;
 #ifdef DEBUG
     char* debug_buffer; // buffer for debug output
 #endif
 };
 
-static bool ipf_init_fields(pf_context_t pf);
-static bool ipf_file_recovery(pf_context_t pf, const char* filename);
-static bool ipf_init_existing_file(pf_context_t pf, const char* filename);
-static bool ipf_init_new_file(pf_context_t pf, const char* clean_filename);
+static bool ipf_init_fields(pf_context_t* pf);
+static bool ipf_file_recovery(pf_context_t* pf, const char* filename);
+static bool ipf_init_existing_file(pf_context_t* pf, const char* filename);
+static bool ipf_init_new_file(pf_context_t* pf, const char* clean_filename);
 
-static bool ipf_read_node(pf_context_t pf, pf_handle_t handle, uint64_t node_number, void* buffer,
+static bool ipf_read_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_number, void* buffer,
                           uint32_t node_size);
-static bool ipf_write_node(pf_context_t pf, pf_handle_t handle, uint64_t node_number, void* buffer,
+static bool ipf_write_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_number, void* buffer,
                            uint32_t node_size);
 
-static bool ipf_generate_secure_blob(pf_context_t pf, pf_key_t* key, const char* label,
+static bool ipf_generate_secure_blob(pf_context_t* pf, pf_key_t* key, const char* label,
                                      uint64_t physical_node_number, pf_mac_t* output);
-static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t pf, bool restore);
-static bool ipf_init_session_master_key(pf_context_t pf);
-static bool ipf_derive_random_node_key(pf_context_t pf, uint64_t physical_node_number);
-static bool ipf_generate_random_meta_data_key(pf_context_t pf);
-static bool ipf_restore_current_meta_data_key(pf_context_t pf);
+static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restore);
+static bool ipf_init_session_master_key(pf_context_t* pf);
+static bool ipf_derive_random_node_key(pf_context_t* pf, uint64_t physical_node_number);
+static bool ipf_generate_random_meta_data_key(pf_context_t* pf);
+static bool ipf_restore_current_meta_data_key(pf_context_t* pf);
 
-static file_node_t* ipf_get_data_node(pf_context_t pf);
-static file_node_t* ipf_read_data_node(pf_context_t pf);
-static file_node_t* ipf_append_data_node(pf_context_t pf);
-static file_node_t* ipf_get_mht_node(pf_context_t pf);
-static file_node_t* ipf_read_mht_node(pf_context_t pf, uint64_t mht_node_number);
-static file_node_t* ipf_append_mht_node(pf_context_t pf, uint64_t mht_node_number);
+static file_node_t* ipf_get_data_node(pf_context_t* pf);
+static file_node_t* ipf_read_data_node(pf_context_t* pf);
+static file_node_t* ipf_append_data_node(pf_context_t* pf);
+static file_node_t* ipf_get_mht_node(pf_context_t* pf);
+static file_node_t* ipf_read_mht_node(pf_context_t* pf, uint64_t mht_node_number);
+static file_node_t* ipf_append_mht_node(pf_context_t* pf, uint64_t mht_node_number);
 
-static bool ipf_write_recovery_file(pf_context_t pf);
-static bool ipf_set_update_flag(pf_context_t pf, bool flush_to_disk);
-static void ipf_clear_update_flag(pf_context_t pf);
-static bool ipf_update_all_data_and_mht_nodes(pf_context_t pf);
-static bool ipf_update_meta_data_node(pf_context_t pf);
-static bool ipf_write_all_changes_to_disk(pf_context_t pf, bool flush_to_disk);
-static bool ipf_erase_recovery_file(pf_context_t pf);
-static bool ipf_internal_flush(pf_context_t pf, bool flush_to_disk);
-static bool ipf_do_file_recovery(pf_context_t pf, const char* filename, uint32_t node_size);
-static bool ipf_pre_close(pf_context_t pf);
+static bool ipf_write_recovery_file(pf_context_t* pf);
+static bool ipf_set_update_flag(pf_context_t* pf, bool flush_to_disk);
+static void ipf_clear_update_flag(pf_context_t* pf);
+static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf);
+static bool ipf_update_meta_data_node(pf_context_t* pf);
+static bool ipf_write_all_changes_to_disk(pf_context_t* pf, bool flush_to_disk);
+static bool ipf_erase_recovery_file(pf_context_t* pf);
+static bool ipf_internal_flush(pf_context_t* pf, bool flush_to_disk);
+static bool ipf_do_file_recovery(pf_context_t* pf, const char* filename, uint32_t node_size);
+static bool ipf_pre_close(pf_context_t* pf);
 
-static pf_context_t ipf_open(const char* filename, pf_file_mode_t mode, bool create,
-                             pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
-                             bool enable_recovery);
-static bool ipf_close(pf_context_t pf);
-static size_t ipf_read(pf_context_t pf, void* ptr, size_t size);
-static size_t ipf_write(pf_context_t pf, const void* ptr, size_t size);
-static bool ipf_seek(pf_context_t pf, int64_t new_offset);
-static void ipf_clear_error(pf_context_t pf);
+static pf_context_t* ipf_open(const char* filename, pf_file_mode_t mode, bool create,
+                              pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
+                              bool enable_recovery, pf_status_t* status);
+static bool ipf_close(pf_context_t* pf);
+static size_t ipf_read(pf_context_t* pf, void* ptr, size_t size);
+static size_t ipf_write(pf_context_t* pf, const void* ptr, size_t size);
+static bool ipf_seek(pf_context_t* pf, int64_t new_offset);
+static void ipf_clear_error(pf_context_t* pf);
 
 #endif
