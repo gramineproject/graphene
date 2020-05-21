@@ -34,7 +34,8 @@ static int printnum(int (*_fputch)(void*, int, void*), void* f, void* putdat,
 // Get an unsigned integer of various possible sizes from a varargs list, depending on the lflag
 // parameter.
 // Defined as macro because it alters `ap` and passing `va_list` by pointer turns out to be tricky
-//  - on some archs it's defined as array and then `&ap` has a different type than `va_list*`.
+// - on some archs it's defined as array and then `&ap` has a different type than `va_list*` if `ap`
+// is a function parameter.
 #define GET_UINT(ap, lflag)          \
     (((lflag) >= 2)                  \
     ? va_arg(ap, unsigned long long) \
