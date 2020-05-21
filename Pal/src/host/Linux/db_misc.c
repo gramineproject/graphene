@@ -154,7 +154,7 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
 
 #if defined(__i386__)
 #include <asm/ldt.h>
-#else
+#elif defined(__x86_64__)
 #include <asm/prctl.h>
 #endif
 
