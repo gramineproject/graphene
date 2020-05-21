@@ -1,5 +1,4 @@
 #define _GNU_SOURCE
-#include <asm/prctl.h>
 #include <assert.h>
 #include <errno.h>
 #include <linux/futex.h>
