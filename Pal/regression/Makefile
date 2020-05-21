@@ -84,10 +84,6 @@ pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 
-ifneq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-$(error unsupported platform. $(SYS))
-endif
-
 .PHONY: all
 all: $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(preloads)
 
