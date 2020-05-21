@@ -11,7 +11,11 @@ CFLAGS  += \
 	-I../../../include/lib \
 	-I../../../include/lib/$(ARCH) \
 	-I../../../include/pal
-ASFLAGS += -I. -I../.. -I../../../include
+
+ASFLAGS += \
+	-I. \
+	-I../.. \
+	-I../../../include
 
 host_files = libpal-Skeleton.a pal.map
 
