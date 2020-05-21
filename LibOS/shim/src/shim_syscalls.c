@@ -21,7 +21,9 @@
  * table in library OS.
  */
 
+#if defined(__i386__) || defined(__x86_64__)
 #include <asm/prctl.h>
+#endif
 #include <asm/unistd.h>
 #include <errno.h>
 #include <pal.h>
@@ -573,6 +575,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(_sysctl, 1, int, struct __kernel_sysctl_args*, args)
 SHIM_SYSCALL_RETURN_ENOSYS(prctl, 5, int, int, option, unsigned long, arg2, unsigned long, arg3,
                            unsigned long, arg4, unsigned long, arg5)
 
+#if defined(__i386__) || defined(__x86_64__)
 DEFINE_SHIM_SYSCALL(arch_prctl, 2, shim_do_arch_prctl, void*, int, code, void*, addr)
 
 void* shim_do_arch_prctl(int code, void* addr) {
@@ -596,6 +599,7 @@ void* shim_do_arch_prctl(int code, void* addr) {
 
     return (void*)-ENOSYS;
 }
+#endif
 
 SHIM_SYSCALL_RETURN_ENOSYS(adjtimex, 1, int, struct ____kernel_timex*, txc_p)
 
@@ -627,9 +631,11 @@ SHIM_SYSCALL_RETURN_ENOSYS(sethostname, 2, int, char*, name, int, len)
 
 SHIM_SYSCALL_RETURN_ENOSYS(setdomainname, 2, int, char*, name, int, len)
 
+#if defined(__i386__) || defined(__x86_64__)
 SHIM_SYSCALL_RETURN_ENOSYS(iopl, 1, int, int, level)
 
 SHIM_SYSCALL_RETURN_ENOSYS(ioperm, 3, int, unsigned long, from, unsigned long, num, int, on)
+#endif
 
 SHIM_SYSCALL_RETURN_ENOSYS(create_module, 2, int, const char*, name, size_t, size)
 
@@ -719,7 +725,9 @@ DEFINE_SHIM_SYSCALL(sched_setaffinity, 3, shim_do_sched_setaffinity, int, pid_t,
 DEFINE_SHIM_SYSCALL(sched_getaffinity, 3, shim_do_sched_getaffinity, int, pid_t, pid, size_t, len,
                     __kernel_cpu_set_t*, user_mask_ptr)
 
+#if defined(__i386__) || defined(__x86_64__)
 SHIM_SYSCALL_RETURN_ENOSYS(set_thread_area, 1, int, struct user_desc*, u_info)
+#endif
 
 /* no glibc wrapper */
 
@@ -736,7 +744,9 @@ SHIM_SYSCALL_RETURN_ENOSYS(io_submit, 3, int, aio_context_t, ctx_id, long, nr, s
 SHIM_SYSCALL_RETURN_ENOSYS(io_cancel, 3, int, aio_context_t, ctx_id, struct iocb*, iocb,
                            struct io_event*, result)
 
+#if defined(__i386__) || defined(__x86_64__)
 SHIM_SYSCALL_RETURN_ENOSYS(get_thread_area, 1, int, struct user_desc*, u_info)
+#endif
 
 SHIM_SYSCALL_RETURN_ENOSYS(lookup_dcookie, 3, int, unsigned long, cookie64, char*, buf, size_t, len)
 
