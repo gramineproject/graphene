@@ -179,32 +179,28 @@ GSC is configured via a configuration file called :file:`config.yaml` with the
 following parameters. A template configuration file is provided in
 :file:`config.yaml.template`.
 
-.. describe:: Distro:
+.. describe:: config['Distro']
 
    Defines Linux distribution to be used to build Graphene in. Currently
    supported value is ``ubuntu18.04``.
 
-.. describe:: Graphene:
-
-   Repository:
+.. describe:: config['Graphene']['Repository']
 
       Source repository of Graphene. Default value:
       `https://github.com/oscarlab/graphene
       <https://github.com/oscarlab/graphene>`__
 
-   Branch:
+.. describe:: config['Graphene']['Branch']
 
       Use this branch of the repository. Default value: master
 
-.. describe:: SGXDriver:
-
-   Repository:
+.. describe:: config['SGXDriver']['Repository']
 
       Source repository of the Intel SGX driver. Default value:
       `https://github.com/01org/linux-sgx-driver.git
       <https://github.com/01org/linux-sgx-driver.git>`__
 
-   Branch:
+.. describe:: config['SGXDriver']['Branch']
 
       Use this branch of the repository. Default value: sgx_driver_1.9
 
