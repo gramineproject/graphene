@@ -197,8 +197,8 @@ def gsc_build(args):
             sys.exit(1)
 
 ARGPARSER = argparse.ArgumentParser()
-ARGPARSER.set_defaults(command='help')
-subcommands = ARGPARSER.add_subparsers(metavar = '<command>')
+subcommands = ARGPARSER.add_subparsers(metavar='<command>')
+subcommands.required = True
 sub_build = subcommands.add_parser('build', help="Build graphenized Docker image")
 sub_build.set_defaults(command=gsc_build)
 sub_build.add_argument( '-d','--debug', action='store_true',
@@ -219,9 +219,4 @@ def main(args):
 
     args = ARGPARSER.parse_args()
 
-    try:
-        return args.command(args)
-
-    except TypeError:
-        ARGPARSER.print_help()
-        sys.exit(1)
+    return args.command(args)
