@@ -24,7 +24,9 @@
 #include <asm/posix_types.h>
 #include <asm/statfs.h>
 #include <asm/stat.h>
+#if defined(__i386__) || defined(__x86_64__)
 #include <asm/ldt.h>
+#endif
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 #include <asm/poll.h>
