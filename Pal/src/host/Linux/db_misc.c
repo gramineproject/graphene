@@ -167,7 +167,7 @@ int _DkSegmentRegisterSet(int reg, const void* addr) {
     u_info->base_addr    = (unsigned int)addr;
 
     ret = INLINE_SYSCALL(set_thread_area, 1, &u_info);
-#else
+#elif defined(__x86_64__)
     if (reg == PAL_SEGMENT_FS) {
         ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
     } else if (reg == PAL_SEGMENT_GS) {
@@ -175,6 +175,8 @@ int _DkSegmentRegisterSet(int reg, const void* addr) {
     } else {
         return -PAL_ERROR_INVAL;
     }
+#else
+#error Unsupported architecture
 #endif
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
@@ -194,7 +196,7 @@ int _DkSegmentRegisterGet(int reg, void** addr) {
         return -PAL_ERROR_DENIED;
 
     *addr = (void*)u_info->base_addr;
-#else
+#elif defined(__x86_64__)
     unsigned long ret_addr;
 
     if (reg == PAL_SEGMENT_FS) {
@@ -210,6 +212,8 @@ int _DkSegmentRegisterGet(int reg, void** addr) {
         return -PAL_ERROR_DENIED;
 
     *addr = (void*)ret_addr;
+#else
+#error Unsupported architecture
 #endif
     return 0;
 }
