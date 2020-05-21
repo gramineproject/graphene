@@ -31,7 +31,8 @@ Software packages
 -----------------
 
 Please install the docker.io, python3, python3-pip packages. In addition,
-install the Docker client python package via pip.
+install the Docker client python package via pip. GSC required Python 3.6 or
+later.
 
 .. code-block:: sh
 
