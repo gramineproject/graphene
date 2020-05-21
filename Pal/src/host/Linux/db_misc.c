@@ -152,12 +152,6 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
 }
 #endif
 
-#if defined(__i386__)
-#include <asm/ldt.h>
-#else
-#include <asm/prctl.h>
-#endif
-
 int _DkSegmentRegisterSet(int reg, const void* addr) {
     int ret = 0;
 
