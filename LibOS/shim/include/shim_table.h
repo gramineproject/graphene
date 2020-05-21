@@ -4,6 +4,9 @@
 #include <shim_types.h>
 #include <shim_unistd.h>
 #include <stdnoreturn.h>
+#if defined(__i386__) || defined (__x86_64__)
+#include <asm/ldt.h>
+#endif
 
 #ifdef IN_SHIM
 
@@ -711,14 +714,18 @@ time_t shim_time(time_t* tloc);
 int shim_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val3);
 int shim_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
 int shim_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
+#if defined(__i386__) || defined(__x86_64__)
 int shim_set_thread_area(struct user_desc* u_info);
+#endif
 int shim_io_setup(unsigned nr_reqs, aio_context_t* ctx);
 int shim_io_destroy(aio_context_t ctx);
 int shim_io_getevents(aio_context_t ctx_id, long min_nr, long nr, struct io_event* events,
                       struct timespec* timeout);
 int shim_io_submit(aio_context_t ctx_id, long nr, struct iocb** iocbpp);
 int shim_io_cancel(aio_context_t ctx_id, struct iocb* iocb, struct io_event* result);
+#if defined(__i386__) || defined(__x86_64__)
 int shim_get_thread_area(struct user_desc* u_info);
+#endif
 int shim_lookup_dcookie(unsigned long cookie64, char* buf, size_t len);
 int shim_epoll_create(int size);
 int shim_remap_file_pages(void* start, size_t size, int prot, ssize_t pgoff, int flags);
