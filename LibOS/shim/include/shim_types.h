@@ -24,7 +24,6 @@
 #include <asm/posix_types.h>
 #include <asm/statfs.h>
 #include <asm/stat.h>
-#include <asm/ldt.h>
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 #include <asm/poll.h>
