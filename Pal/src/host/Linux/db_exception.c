@@ -37,7 +37,7 @@
 #include <ucontext.h>
 #include <asm/errno.h>
 
-#if !defined(__i386__)
+#if defined(__x86_64__)
 /* In x86_64 kernels, sigaction is required to have a user-defined
  * restorer. Also, they not yet support SA_INFO. The reference:
  * http://lxr.linux.no/linux+v2.6.35/arch/x86/kernel/signal.c#L448
@@ -90,7 +90,7 @@ int set_sighandler (int * sigs, int nsig, void * handler)
     if (handler) {
         action.sa_handler = (void (*)(int)) handler;
         action.sa_flags = SA_SIGINFO | SA_ONSTACK;
-#if !defined(__i386__)
+#if defined(__x86_64__)
         action.sa_flags |= SA_RESTORER;
         action.sa_restorer = __restore_rt;
 #endif
