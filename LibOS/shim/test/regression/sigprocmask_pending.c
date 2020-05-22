@@ -1,0 +1,165 @@
+#define _XOPEN_SOURCE 700
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#define CHECK(x) do {   \
+    if (x) {            \
+        perror(#x);     \
+        exit(1);        \
+    }                   \
+} while (0)
+
+static int seen_signal = 0;
+
+static void signal_handler(int signal) {
+    __atomic_add_fetch(&seen_signal, 1, __ATOMIC_RELAXED);
+    printf("signal handled: %d\n", signal);
+}
+
+static void ignore_signal(int sig) {
+    sigset_t newmask;
+    sigemptyset(&newmask);
+    if (sig) {
+        sigaddset(&newmask, sig);
+    }
+
+    CHECK(sigprocmask(SIG_SETMASK, &newmask, NULL) < 0);
+}
+
+static void set_signalm_handler(int sig, void* handler) {
+    struct sigaction act = {
+        .sa_handler = handler,
+    };
+    CHECK(sigaction(sig, &act, NULL) < 0);
+}
+
+static void test_sigprocmask(void) {
+    sigset_t newmask;
+    sigset_t oldmask;
+    sigemptyset(&newmask);
+    sigemptyset(&oldmask);
+    sigaddset(&newmask, SIGKILL);
+    sigaddset(&newmask, SIGSTOP);
+
+    CHECK(sigprocmask(SIG_SETMASK, &newmask, NULL) < 0);
+
+    CHECK(sigprocmask(SIG_SETMASK, NULL, &oldmask) < 0);
+
+    if (sigismember(&oldmask, SIGKILL) || sigismember(&oldmask, SIGSTOP)) {
+        printf("SIGKILL or SIGSTOP should be ignored, but is not.\n");
+        exit(1);
+    }
+}
+
+static void clean_pending_signals(void) {
+    set_signalm_handler(SIGALRM, signal_handler);
+    ignore_signal(0);
+    __atomic_store_n(&seen_signal, 0, __ATOMIC_RELAXED);
+}
+
+static void test_multiple_pending(void) {
+    ignore_signal(SIGALRM);
+
+    set_signalm_handler(SIGALRM, signal_handler);
+
+    CHECK(kill(getpid(), SIGALRM) < 0);
+    CHECK(kill(getpid(), SIGALRM) < 0);
+
+    ignore_signal(0);
+
+    if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 1) {
+        printf("Multiple or none instances of simple signal were queued!\n");
+        exit(1);
+    }
+
+    __atomic_store_n(&seen_signal, 0, __ATOMIC_RELAXED);
+
+    int sig = SIGRTMIN;
+    ignore_signal(sig);
+
+    CHECK(kill(getpid(), sig) < 0);
+    CHECK(kill(getpid(), sig) < 0);
+
+    set_signalm_handler(sig, signal_handler);
+
+    ignore_signal(0);
+
+    if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 2) {
+        printf("Multiple instances of real-time signal were NOT queued!\n");
+        exit(1);
+    }
+}
+
+static void test_fork(void) {
+    ignore_signal(SIGALRM);
+
+    set_signalm_handler(SIGALRM, SIG_DFL);
+
+    CHECK(kill(getpid(), SIGALRM) < 0);
+
+    pid_t p = fork();
+    CHECK(p < 0);
+    if (p == 0) {
+        set_signalm_handler(SIGALRM, signal_handler);
+
+        ignore_signal(0);
+
+        if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 0) {
+            printf("Pending signal was inherited after fork!\n");
+            exit(1);
+        }
+
+        puts("Child OK");
+        exit(0);
+    }
+
+    CHECK(waitpid(p, NULL, 0) != p);
+}
+
+static void test_execve_start(char* self) {
+    ignore_signal(SIGALRM);
+
+    set_signalm_handler(SIGALRM, SIG_DFL);
+
+    CHECK(kill(getpid(), SIGALRM) < 0);
+
+    char* argv[] = { self, "cont", NULL };
+    CHECK(execve(self, argv, NULL));
+}
+
+static void test_execve_continue(void) {
+    set_signalm_handler(SIGALRM, signal_handler);
+
+    ignore_signal(0);
+
+    if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 1) {
+        printf("Pending signal was NOT preserved across execve!\n");
+        exit(1);
+    }
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 1) {
+        return 1;
+    } else if (argc > 1) {
+        test_execve_continue();
+        puts("All tests OK");
+        return 0;
+    }
+
+    test_sigprocmask();
+
+    clean_pending_signals();
+    test_multiple_pending();
+
+    clean_pending_signals();
+    test_fork();
+
+    clean_pending_signals();
+    test_execve_start(argv[0]);
+    return 1;
+}

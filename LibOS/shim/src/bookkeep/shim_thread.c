@@ -631,7 +631,7 @@ BEGIN_CP_FUNC(thread)
         new_thread->handle_map = NULL;
         new_thread->root   = NULL;
         new_thread->cwd    = NULL;
-        memset(new_thread->thread_signal_queues, 0, sizeof(new_thread->thread_signal_queues));
+        memset(&new_thread->signal_queue, 0, sizeof(new_thread->signal_queue));
         new_thread->robust_list = NULL;
         REF_SET(new_thread->ref_count, 0);
 

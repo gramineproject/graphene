@@ -97,29 +97,6 @@ struct shim_signal {
 
 void get_pending_signals(struct shim_thread* thread, __sigset_t* set);
 
-extern const char * const siglist[NUM_KNOWN_SIGS + 1];
-
-static_always_inline
-const char * signal_name (int sig)
-{
-    if (sig <= NUM_KNOWN_SIGS)
-        return siglist[sig];
-
-    if (sig >= NUM_SIGS)
-        return "BAD SIGNAL";
-
-    char * str = __alloca(6);
-
-    str[0] = 'S';
-    str[1] = 'I';
-    str[2] = 'G';
-    str[3] = '0' + sig / 10;
-    str[4] = '0' + sig % 10;
-    str[5] = 0;
-
-    return str;
-}
-
 struct shim_thread;
 
 int init_signal (void);

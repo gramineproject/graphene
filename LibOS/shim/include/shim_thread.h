@@ -33,12 +33,18 @@ struct shim_signal_handles {
     REFTYPE ref_count;
 };
 
+/* For more info see: man signal(7) */
 #define MAX_SIGNAL_LOG 32
 
-struct shim_signal_queue {
+struct shim_rt_signal_queue {
     uint64_t put_idx;
     uint64_t get_idx;
     struct shim_signal* queue[MAX_SIGNAL_LOG];
+};
+
+struct shim_signal_queue {
+    struct shim_signal* standard_signal_queues[SIGRTMIN - 1];
+    struct shim_rt_signal_queue rt_signal_queues[NUM_SIGS - SIGRTMIN + 1];
 };
 
 DEFINE_LIST(shim_thread);
@@ -81,7 +87,7 @@ struct shim_thread {
     /* signal handling */
     __sigset_t signal_mask;
     struct shim_signal_handles* signal_handles;
-    struct shim_signal_queue thread_signal_queues[NUM_SIGS];
+    struct shim_signal_queue signal_queue;
     uint64_t pending_signals;
     bool signal_handled;
     stack_t signal_altstack;

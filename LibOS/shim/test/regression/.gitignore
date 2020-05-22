@@ -62,7 +62,7 @@
 /sighandler_reset
 /sighandler_sigpipe
 /signal_multithread
-/sigprocmask
+/sigprocmask_pending
 /spinlock
 /stat_invalid_args
 /str_close_leak

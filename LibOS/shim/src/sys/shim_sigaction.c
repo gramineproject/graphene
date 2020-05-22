@@ -214,8 +214,6 @@ int shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
 
     struct shim_thread* cur = get_cur_thread();
 
-    __sigemptyset(set);
-
     get_pending_signals(cur, set);
 
     return 0;

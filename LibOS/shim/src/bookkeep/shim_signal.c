@@ -51,30 +51,55 @@ void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
-static struct shim_signal_queue process_signal_queues[NUM_SIGS] = { 0 };
+static struct shim_signal_queue process_signal_queue = { 0 };
 static uint64_t process_pending_signals = 0;
 
-/* This check is racy, but we can't do better anyway: signal can be delivered in any moment. */
-static bool is_signal_queue_empty(const struct shim_signal_queue* queue) {
+/* This checks are racy, but we can't do better anyway: signal can be delivered in any moment. */
+static bool is_rt_sq_empty(struct shim_rt_signal_queue* queue) {
     return __atomic_load_n(&queue->get_idx, __ATOMIC_RELAXED)
             == __atomic_load_n(&queue->put_idx, __ATOMIC_RELAXED);
 }
+static bool is_standard_sq_empty(struct shim_signal** queue) {
+    return !__atomic_load_n(queue, __ATOMIC_RELAXED);
+}
 
 void get_pending_signals(struct shim_thread* thread, __sigset_t* set) {
+    __sigemptyset(set);
+
     if (__atomic_load_n(&thread->pending_signals, __ATOMIC_RELAXED) == 0
             && __atomic_load_n(&process_pending_signals, __ATOMIC_RELAXED) == 0) {
         return;
     }
 
-    for (int sig = 1; sig <= NUM_SIGS; sig++) {
-        if (!is_signal_queue_empty(&thread->thread_signal_queues[sig - 1])
-                || !is_signal_queue_empty(&process_signal_queues[sig - 1])) {
+    for (int sig = 1; sig < SIGRTMIN; sig++) {
+        if (!is_standard_sq_empty(&thread->signal_queue.standard_signal_queues[sig - 1])
+                || !is_standard_sq_empty(&process_signal_queue.standard_signal_queues[sig - 1])) {
+            __sigaddset(set, sig);
+        }
+    }
+
+    for (int sig = SIGRTMIN; sig <= NUM_SIGS; sig++) {
+        if (!is_rt_sq_empty(&thread->signal_queue.rt_signal_queues[sig - SIGRTMIN])
+                || !is_rt_sq_empty(&process_signal_queue.rt_signal_queues[sig - SIGRTMIN])) {
             __sigaddset(set, sig);
         }
     }
 }
 
-static bool queue_produce_signal(struct shim_signal_queue* queue, struct shim_signal* signal) {
+static bool queue_produce_standard_signal(struct shim_signal** queue, struct shim_signal* signal) {
+    struct shim_signal* old;
+    do {
+        old = __atomic_load_n(queue, __ATOMIC_RELAXED);
+        if (old) {
+            return false;
+        }
+    } while (!__atomic_compare_exchange_n(queue, &old, signal, /*weak=*/true,
+                                          __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+    return true;
+}
+
+static bool queue_produce_rt_signal(struct shim_rt_signal_queue* queue,
+                                    struct shim_signal* signal) {
     uint64_t get_idx;
     uint64_t put_idx = __atomic_load_n(&queue->put_idx, __ATOMIC_RELAXED);
     do {
@@ -94,9 +119,20 @@ static bool queue_produce_signal(struct shim_signal_queue* queue, struct shim_si
     return true;
 }
 
+static bool queue_produce_signal(struct shim_signal_queue* queue, struct shim_signal* signal) {
+    int sig = signal->info.si_signo;
+
+    if (sig < 1 || sig > NUM_SIGS) {
+        return false;
+    } else if (sig < SIGRTMIN) {
+        return queue_produce_standard_signal(&queue->standard_signal_queues[sig - 1], signal);
+    } else {
+        return queue_produce_rt_signal(&queue->rt_signal_queues[sig - SIGRTMIN], signal);
+    }
+}
+
 static bool append_thread_signal(struct shim_thread* thread, struct shim_signal* signal) {
-    bool ret = queue_produce_signal(&thread->thread_signal_queues[signal->info.si_signo - 1],
-                                    signal);
+    bool ret = queue_produce_signal(&thread->signal_queue, signal);
     if (ret) {
         (void)__atomic_add_fetch(&thread->pending_signals, 1, __ATOMIC_RELAXED);
     }
@@ -104,14 +140,26 @@ static bool append_thread_signal(struct shim_thread* thread, struct shim_signal*
 }
 
 static bool append_process_signal(struct shim_signal* signal) {
-    bool ret = queue_produce_signal(&process_signal_queues[signal->info.si_signo - 1], signal);
+    bool ret = queue_produce_signal(&process_signal_queue, signal);
     if (ret) {
         (void)__atomic_add_fetch(&process_pending_signals, 1, __ATOMIC_RELAXED);
     }
     return ret;
 }
 
-static bool queue_consume_signal(struct shim_signal_queue* queue, struct shim_signal** signal) {
+static struct shim_signal* queue_consume_standard_signal(struct shim_signal** queue) {
+    struct shim_signal* old;
+    do {
+        old = __atomic_load_n(queue, __ATOMIC_RELAXED);
+        if (!old) {
+            return NULL;
+        }
+    } while (!__atomic_compare_exchange_n(queue, &old, NULL, /*weak=*/true,
+                                          __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+    return old;
+}
+
+static struct shim_signal* queue_consume_rt_signal(struct shim_rt_signal_queue* queue) {
     uint64_t put_idx;
     uint64_t get_idx = __atomic_load_n(&queue->get_idx, __ATOMIC_RELAXED);
     do {
@@ -119,29 +167,38 @@ static bool queue_consume_signal(struct shim_signal_queue* queue, struct shim_si
         assert(put_idx >= get_idx);
 
         if (put_idx <= get_idx) {
-            return false;
+            return NULL;
         }
     } while (!__atomic_compare_exchange_n(&queue->get_idx, &get_idx, get_idx + 1, /*weak=*/true,
                                           __ATOMIC_RELAXED, __ATOMIC_RELAXED));
 
-    *signal = queue->queue[get_idx % ARRAY_SIZE(queue->queue)];
-    return true;
+    return queue->queue[get_idx % ARRAY_SIZE(queue->queue)];
 }
 
-static bool consume_thread_signal(struct shim_thread* thread, int sig, struct shim_signal** signal) {
-    bool ret = queue_consume_signal(&thread->thread_signal_queues[sig - 1], signal);
-    if (ret) {
+static struct shim_signal* queue_consume_signal(int sig, struct shim_signal_queue* queue) {
+    if (sig < 1 || sig > NUM_SIGS) {
+        return NULL;
+    } else if (sig < SIGRTMIN) {
+        return queue_consume_standard_signal(&queue->standard_signal_queues[sig - 1]);
+    } else {
+        return queue_consume_rt_signal(&queue->rt_signal_queues[sig - SIGRTMIN]);
+    }
+}
+
+static struct shim_signal* consume_thread_signal(struct shim_thread* thread, int sig) {
+    struct shim_signal* signal = queue_consume_signal(sig, &thread->signal_queue);
+    if (signal) {
         (void)__atomic_sub_fetch(&thread->pending_signals, 1, __ATOMIC_RELAXED);
     }
-    return ret;
+    return signal;
 }
 
-static bool consume_process_signal(int sig, struct shim_signal** signal) {
-    bool ret = queue_consume_signal(&process_signal_queues[sig - 1], signal);
-    if (ret) {
+static struct shim_signal* consume_process_signal(int sig) {
+    struct shim_signal* signal = queue_consume_signal(sig, &process_signal_queue);
+    if (signal) {
         (void)__atomic_sub_fetch(&process_pending_signals, 1, __ATOMIC_RELAXED);
     }
-    return ret;
+    return signal;
 }
 
 static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal);
@@ -216,8 +273,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     if (preempt > 1 || __sigismember(&cur_thread->signal_mask, sig)) {
         signal = malloc_copy(signal,sizeof(struct shim_signal));
         if (!signal || !append_thread_signal(cur_thread, signal)) {
-            SYS_PRINTF("signal queue is full (TID = %u, SIG = %d)\n",
-                       tcb->tid, sig);
+            debug("signal queue is full (TID = %u, SIG = %d)\n", tcb->tid, sig);
             free(signal);
         }
     } else {
@@ -711,7 +767,7 @@ __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
     if (!handler)
         return;
 
-    debug("%s handled\n", signal_name(sig));
+    debug("signal %d handled\n", sig);
 
     // If the context is never stored in the signal, it means the signal is handled during
     // system calls, and before the thread is resumed.
@@ -759,10 +815,10 @@ void __handle_signals(shim_tcb_t* tcb) {
 
         for (int sig = 1; sig <= NUM_SIGS; sig++) {
             if (!__sigismember(&thread->signal_mask, sig)) {
-                if (consume_thread_signal(thread, sig, &signal)) {
+                if ((signal = consume_thread_signal(thread, sig))) {
                     break;
                 }
-                if (consume_process_signal(sig, &signal)) {
+                if ((signal = consume_process_signal(sig))) {
                     break;
                 }
             }
@@ -793,7 +849,6 @@ void handle_signals(void) {
         __handle_signals(tcb);
 
     __enable_preempt(tcb);
-    debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
 bool append_signal(struct shim_thread* thread, siginfo_t* info) {
@@ -821,11 +876,13 @@ bool append_signal(struct shim_thread* thread, siginfo_t* info) {
         }
     }
 
-    SYS_PRINTF("signal queue is full (TID = %u%s, SIG = %d)\n",
-               thread ? thread->tid : 0, thread ? "" : "(process)",
-               info->si_signo);
+    debug("signal queue is full (TID = %u%s, SIG = %d)\n",
+          thread ? thread->tid : 0, thread ? "" : "(process)",
+          info->si_signo);
     free(signal);
-    return false;
+    /* This is counter-intuitive, but we report success here: after all signal was successfully
+     * delivered, just the queue was full. */
+    return true;
 }
 
 #define __WCOREDUMP_BIT 0x80
@@ -833,7 +890,7 @@ bool append_signal(struct shim_thread* thread, siginfo_t* info) {
 static void sighandler_kill(int sig, siginfo_t* info, void* ucontext) {
     __UNUSED(info);
     __UNUSED(ucontext);
-    debug("killed by %s\n", signal_name(sig & ~__WCOREDUMP_BIT));
+    debug("killed by signal %d\n", sig & ~__WCOREDUMP_BIT);
 
     process_exit(0, sig);
 }
@@ -879,3 +936,69 @@ static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
         /* SIGPWR  */   &sighandler_kill,
         /* SIGSYS  */   &sighandler_core
     };
+
+BEGIN_CP_FUNC(pending_signals)
+{
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
+
+    /* This is a bit racy, but we cannot do any better. If a app spams itself with signals while
+     * doing execve, some pending signals might not get checkpointed. /me shrugs */
+    uint64_t n = __atomic_load_n(&process_pending_signals, __ATOMIC_RELAXED);
+    uint64_t i = 0;
+    assert(n <= SIGRTMIN - 1 + (NUM_SIGS - SIGRTMIN + 1) * MAX_SIGNAL_LOG);
+    siginfo_t infos[n];
+    memset(&infos, 0, sizeof(infos));
+
+    for (int sig = 1; sig < SIGRTMIN && i < n; sig++) {
+        struct shim_signal** q = &process_signal_queue.standard_signal_queues[sig - 1];
+        struct shim_signal* signal = __atomic_load_n(q, __ATOMIC_RELAXED);
+        if (signal) {
+            memcpy(&infos[i], &signal->info, sizeof(infos[i]));
+            i++;
+        }
+    }
+
+    for (int sig = SIGRTMIN; sig <= NUM_SIGS && i < n; sig++) {
+        struct shim_rt_signal_queue* q = &process_signal_queue.rt_signal_queues[sig - SIGRTMIN];
+        uint64_t idx = __atomic_load_n(&q->put_idx, __ATOMIC_RELAXED);
+        while (__atomic_load_n(&q->get_idx, __ATOMIC_RELAXED) < idx && i < n) {
+            memcpy(&infos[i], &q->queue[(idx - 1) % ARRAY_SIZE(q->queue)]->info, sizeof(infos[i]));
+            idx--;
+            i++;
+        }
+    }
+
+    size_t off = ADD_CP_OFFSET(sizeof(i) + sizeof(infos[0]) * i);
+    memcpy((char*)base + off, &i, sizeof(i));
+    memcpy((char*)base + off + sizeof(i), &infos, sizeof(infos[0]) * i);
+    ADD_CP_FUNC_ENTRY(off);
+}
+END_CP_FUNC(pending_signals)
+
+BEGIN_RS_FUNC(pending_signals)
+{
+    __UNUSED(offset);
+    __UNUSED(rebase);
+
+    size_t off = GET_CP_FUNC_ENTRY();
+    size_t n = *(size_t*)((char*)base + off);
+    siginfo_t* infos = (siginfo_t*)((char*)base + off + sizeof(n));
+    for (size_t i = 0; i < n; i++) {
+        struct shim_signal* signal = malloc(sizeof(*signal));
+        if (!signal) {
+            return -ENOMEM;
+        }
+        if (!infos[i].si_signo) {
+            continue;
+        }
+        memcpy(&signal->info, &infos[i], sizeof(signal->info));
+        signal->context_stored = false;
+        signal->pal_context = NULL;
+        if (!append_process_signal(signal)) {
+            return -EAGAIN;
+        }
+    }
+}
+END_RS_FUNC(pending_signals)

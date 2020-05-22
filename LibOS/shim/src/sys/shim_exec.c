@@ -181,6 +181,7 @@ static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_proce
     DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
+    DEFINE_MIGRATE(pending_signals, NULL, 0);
     DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
     DEFINE_MIGRATE(migratable, NULL, 0);
     DEFINE_MIGRATE(environ, envp, 0);

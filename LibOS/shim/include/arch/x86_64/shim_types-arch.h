@@ -5,7 +5,7 @@
 
 /* asm/signal.h */
 #define NUM_SIGS            64
-#define NUM_KNOWN_SIGS      32
+#define SIGRTMIN            32
 
 typedef struct {
     unsigned long __val[NUM_SIGS / (8 * sizeof(unsigned long))];

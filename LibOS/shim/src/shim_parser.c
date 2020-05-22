@@ -393,6 +393,40 @@ struct parser_table {
         {.slow = 1, .parser = {NULL}}, /* recv_rpc */
 };
 
+#define S(sig) #sig
+
+const char* const siglist[SIGRTMIN - 1] = {
+    S(SIGHUP),  S(SIGINT),    S(SIGQUIT), S(SIGILL),   S(SIGTRAP),   S(SIGABRT),
+    S(SIGBUS),    S(SIGFPE),  S(SIGKILL),   S(SIGUSR1), S(SIGSEGV),  S(SIGUSR2),   S(SIGPIPE),
+    S(SIGALRM),   S(SIGTERM), S(SIGSTKFLT), S(SIGCHLD), S(SIGCONT),  S(SIGSTOP),   S(SIGTSTP),
+    S(SIGTTIN),   S(SIGTTOU), S(SIGURG),    S(SIGXCPU), S(SIGXFSZ),  S(SIGVTALRM), S(SIGPROF),
+    S(SIGWINCH),  S(SIGIO),   S(SIGPWR),    S(SIGSYS),
+};
+
+static_always_inline
+const char * signal_name (int sig)
+{
+    if (sig <= 0)
+        return "BAD SIGNAL";
+
+    if (sig < SIGRTMIN)
+        return siglist[sig - 1];
+
+    if (sig > NUM_SIGS)
+        return "BAD SIGNAL";
+
+    char * str = __alloca(6);
+
+    str[0] = 'S';
+    str[1] = 'I';
+    str[2] = 'G';
+    str[3] = '0' + sig / 10;
+    str[4] = '0' + sig % 10;
+    str[5] = 0;
+
+    return str;
+}
+
 static inline int is_pointer(const char* type) {
     return type[strlen(type) - 1] == '*' || !strcmp_static(type, "long") ||
            !strcmp_static(type, "unsigned long");
@@ -658,10 +692,7 @@ static void parse_clone_flags(va_list ap) {
     int exit_signal = flags & CLONE_SIGNAL_MASK;
     flags &= ~CLONE_SIGNAL_MASK;
     if (exit_signal) {
-        if (exit_signal >= 0 && exit_signal <= NUM_KNOWN_SIGS)
-            PRINTF("|%s", signal_name(exit_signal));
-        else
-            PRINTF("|[SIG %d]", exit_signal);
+        PRINTF("|[%s]", signal_name(exit_signal));
     }
 
     if (flags)
@@ -801,20 +832,10 @@ static void parse_pipe_fds(va_list ap) {
     PRINTF("[%d, %d]", fds[0], fds[1]);
 }
 
-#define S(sig) #sig
-
-const char* const siglist[NUM_KNOWN_SIGS + 1] = {
-    S(SIGUNUSED), S(SIGHUP),  S(SIGINT),    S(SIGQUIT), S(SIGILL),   S(SIGTRAP),   S(SIGABRT),
-    S(SIGBUS),    S(SIGFPE),  S(SIGKILL),   S(SIGUSR1), S(SIGSEGV),  S(SIGUSR2),   S(SIGPIPE),
-    S(SIGALRM),   S(SIGTERM), S(SIGSTKFLT), S(SIGCHLD), S(SIGCONT),  S(SIGSTOP),   S(SIGTSTP),
-    S(SIGTTIN),   S(SIGTTOU), S(SIGURG),    S(SIGXCPU), S(SIGXFSZ),  S(SIGVTALRM), S(SIGPROF),
-    S(SIGWINCH),  S(SIGIO),   S(SIGPWR),    S(SIGSYS),  S(SIGRTMIN),
-};
-
 static void parse_signum(va_list ap) {
     int signum = va_arg(ap, int);
 
-    if (signum >= 0 && signum <= NUM_KNOWN_SIGS)
+    if (signum > 0 && signum < SIGRTMIN)
         PUTS(signal_name(signum));
     else
         PRINTF("[SIG %d]", signum);

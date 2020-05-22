@@ -54,7 +54,7 @@ c_executables = \
 	sighandler_reset \
 	sighandler_sigpipe \
 	signal_multithread \
-	sigprocmask \
+	sigprocmask_pending \
 	spinlock \
 	stat_invalid_args \
 	str_close_leak \
@@ -130,7 +130,6 @@ CFLAGS-futex_wake_op = -pthread
 CFLAGS-proc_common = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -pthread
 CFLAGS-sigaction_per_process += -pthread
-CFLAGS-sigprocmask += -pthread
 CFLAGS-signal_multithread += -pthread
 
 CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
