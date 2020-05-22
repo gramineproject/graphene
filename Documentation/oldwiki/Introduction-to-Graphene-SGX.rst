@@ -98,13 +98,8 @@ https://github.com/01org/linux-sgx and https://github.com/01org/linux-sgx-driver
 to use the DCAP SDK and driver, please download and install from:
 https://github.com/intel/SGXDataCenterAttestationPrimitives.
 
-A Graphene SGX driver (gsgx) also needs to be installed on the untrusted host. Simply run the
-following commands to build the driver::
-
-    cd Pal/src/host/Linux-SGX/sgx-driver
-    make
-    # the console will prompt you for the path of the Intel SGX driver code
-    sudo insmod gsgx.ko
+A Graphene SGX driver (gsgx) also needs to be installed on the untrusted host. For details, refer
+to https://github.com/oscarlab/graphene-sgx-driver.
 
 If the Graphene SGX driver is successfully installed, and the Intel SDK aesmd service is up and
 running (see [here](https://github.com/01org/linux-sgx#start-or-stop-aesmd-service) for more
