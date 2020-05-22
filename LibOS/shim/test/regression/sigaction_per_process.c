@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-static pid_t gettid(void) {
+static pid_t mygettid(void) {
     return syscall(SYS_gettid);
 }
 
@@ -26,7 +26,7 @@ static pid_t who2 = 0;
 
 static void sigterm_handler(int signum) {
     pid_t v = 0;
-    pid_t my_tid = gettid();
+    pid_t my_tid = mygettid();
     if (!__atomic_compare_exchange_n(&who1, &v, my_tid, /*weak=*/0,
                                      __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
         __atomic_store_n(&who2, my_tid, __ATOMIC_SEQ_CST);
@@ -47,7 +47,7 @@ static void wait_for(int x) {
 }
 
 static void* f(void* x) {
-    printf("thread id: %d\n", gettid());
+    printf("thread id: %d\n", mygettid());
 
     struct sigaction action = { 0 };
     action.sa_handler = sigterm_handler;
@@ -77,7 +77,7 @@ int main() {
 
     wait_for(1);
 
-    pid_t tid = gettid();
+    pid_t tid = mygettid();
 
     printf("parent tid: %d\n", tid);
 
