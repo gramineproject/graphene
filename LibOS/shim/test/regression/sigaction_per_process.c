@@ -41,9 +41,8 @@ static void set(int x) {
 }
 
 static void wait_for(int x) {
-    while (__atomic_load_n(&sync_var, __ATOMIC_SEQ_CST) != x) {
-        __asm__ volatile("pause");
-    }
+    while (__atomic_load_n(&sync_var, __ATOMIC_SEQ_CST) != x)
+        ;
 }
 
 static void* f(void* x) {
