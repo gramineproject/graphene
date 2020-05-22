@@ -8,6 +8,7 @@
 #define _SPINLOCK_H
 
 #include <api.h>
+#include <cpu.h>
 
 #ifdef DEBUG
 #define DEBUG_SPINLOCKS
@@ -102,9 +103,8 @@ static inline void spinlock_lock(spinlock_t* lock) {
 
     do {
         /* This check imposes no inter-thread ordering, thus does not slow other threads. */
-        while (__atomic_load_n(&lock->lock, __ATOMIC_RELAXED) != SPINLOCK_UNLOCKED) {
-            __asm__ volatile ("pause");
-        }
+        while (__atomic_load_n(&lock->lock, __ATOMIC_RELAXED) != SPINLOCK_UNLOCKED)
+            cpu_pause();
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
         val = SPINLOCK_UNLOCKED;
@@ -136,7 +136,7 @@ static inline int spinlock_lock_timeout(spinlock_t* lock, unsigned long iteratio
                 return 1;
             }
             iterations--;
-            __asm__ volatile ("pause");
+            cpu_pause();
         }
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
