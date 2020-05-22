@@ -33,7 +33,7 @@
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha256.h"
-#include "mbedtls_adapter-arch.h"
+#include "rng-arch.h"
 
 int mbedtls_to_pal_error(int error)
 {
