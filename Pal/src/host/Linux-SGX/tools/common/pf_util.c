@@ -124,71 +124,6 @@ static pf_status_t linux_truncate(pf_handle_t handle, uint64_t size) {
     return PF_STATUS_SUCCESS;
 }
 
-/* this callback is only used for creating recovery files and during recovery */
-static pf_status_t linux_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
-                              uint64_t* size) {
-    DBG("linux_open: '%s', mode %d\n", path, mode);
-
-    int flags;
-    if (mode == PF_FILE_MODE_READ)
-        flags = O_RDONLY;
-    else if (mode == PF_FILE_MODE_WRITE) /* create recovery file */
-        flags = O_WRONLY | O_CREAT | O_TRUNC;
-    else /* PF_FILE_MODE_READ|PF_FILE_MODE_WRITE */
-        flags = O_RDWR;
-
-    int fd = open(path, flags, 0600);
-
-    if (fd < 0) {
-        ERROR("open failed: %s\n", strerror(errno));
-        return PF_STATUS_CALLBACK_FAILED;
-    }
-
-    if (size) {
-        struct stat64 st;
-        if (fstat64(fd, &st) < 0) {
-            ERROR("fstat64 failed: %s\n", strerror(errno));
-            close(fd);
-            return PF_STATUS_CALLBACK_FAILED;
-        }
-
-        *size = st.st_size;
-    }
-
-    *handle = malloc(sizeof(int));
-    if (!*handle) {
-        close(fd);
-        return PF_STATUS_NO_MEMORY;
-    }
-
-    *(int*)*handle = fd;
-
-    return PF_STATUS_SUCCESS;
-}
-
-static pf_status_t linux_close(pf_handle_t handle) {
-    int fd  = *(int*)handle;
-    DBG("linux_close: fd %d\n", fd);
-    int ret = close(fd);
-    if (ret < 0) {
-        ERROR("close failed: %s\n", strerror(errno));
-        return PF_STATUS_CALLBACK_FAILED;
-    }
-
-    free(handle);
-    return PF_STATUS_SUCCESS;
-}
-
-static pf_status_t linux_delete(const char* path) {
-    DBG("linux_delete: '%s'\n", path);
-    int ret = unlink(path);
-    if (ret < 0) {
-        ERROR("unlink failed: %s\n", strerror(errno));
-        return PF_STATUS_CALLBACK_FAILED;
-    }
-    return PF_STATUS_SUCCESS;
-}
-
 /* Crypto callbacks for mbedTLS */
 
 pf_status_t mbedtls_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
@@ -277,8 +212,8 @@ static int pf_set_linux_callbacks(pf_debug_f debug_f) {
 
     mbedtls_entropy_free(&entropy);
 
-    pf_set_callbacks(linux_read, linux_write, linux_truncate, linux_open, linux_close, linux_delete,
-                     mbedtls_aes_gcm_encrypt, mbedtls_aes_gcm_decrypt, mbedtls_random, debug_f);
+    pf_set_callbacks(linux_read, linux_write, linux_truncate, mbedtls_aes_gcm_encrypt,
+                     mbedtls_aes_gcm_decrypt, mbedtls_random, debug_f);
     return 0;
 }
 
@@ -361,8 +296,8 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const pf_ke
     INFO("Encrypting: %s\n", input_path);
 
     pf_handle_t handle = (pf_handle_t)&output;
-    pf_status_t pfs = pf_open(handle, output_path, /*size=*/0, PF_FILE_MODE_WRITE,
-                              /*create=*/true, /*enable_recovery=*/false, wrap_key, &pf);
+    pf_status_t pfs = pf_open(handle, output_path, /*size=*/0, PF_FILE_MODE_WRITE, /*create=*/true,
+                              wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
         ERROR("Failed to open output PF: %d\n", pfs);
         goto out;
@@ -453,7 +388,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
 
     const char* path = verify_path ? input_path : NULL;
     pf_status_t pfs = pf_open((pf_handle_t)&input, path, input_size, PF_FILE_MODE_READ,
-                              /*create=*/false, /*enable_recovery=*/false, wrap_key, &pf);
+                              /*create=*/false, wrap_key, &pf);
     if (PF_FAILURE(pfs)) {
         ERROR("Opening protected input file failed: %d\n", pfs);
         goto out;

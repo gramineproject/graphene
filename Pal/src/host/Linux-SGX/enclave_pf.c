@@ -102,68 +102,6 @@ static pf_status_t cb_truncate(pf_handle_t handle, uint64_t size) {
     return PF_STATUS_SUCCESS;
 }
 
-/* this callback is only used for creating recovery files and during recovery */
-static pf_status_t cb_open(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
-                           uint64_t* size) {
-    SGX_DBG(DBG_D, "cb_open(%s): mode %d\n", path, mode);
-
-    int flags;
-    if (mode == PF_FILE_MODE_READ)
-        flags = O_RDONLY;
-    else if (mode == PF_FILE_MODE_WRITE) /* create recovery file */
-        flags = O_WRONLY | O_CREAT | O_TRUNC;
-    else /* PF_FILE_MODE_READ|PF_FILE_MODE_WRITE */
-        flags = O_RDWR;
-
-    int fd = ocall_open(path, flags, 0600);
-
-    if (IS_ERR(fd)) {
-        SGX_DBG(DBG_E, "cb_open(%s): open failed: %d\n", path, fd);
-        return PF_STATUS_CALLBACK_FAILED;
-    }
-
-    if (size) {
-        struct stat st;
-        int ret = ocall_fstat(fd, &st);
-        if (IS_ERR(ret)) {
-            SGX_DBG(DBG_E, "cb_open(%s): fstat failed: %d\n", path, ret);
-            ocall_close(fd);
-            return PF_STATUS_CALLBACK_FAILED;
-        }
-
-        *size = st.st_size;
-    }
-
-    *handle = malloc(sizeof(int));
-    if (!*handle) {
-        ocall_close(fd);
-        return PF_STATUS_NO_MEMORY;
-    }
-
-    *(int*)*handle = fd;
-
-    return PF_STATUS_SUCCESS;
-}
-
-static pf_status_t cb_close(pf_handle_t handle) {
-    int fd = *(int*)handle;
-    int ret = ocall_close(fd);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "cb_close(%d): ocall failed: %d\n", fd, ret);
-        return PF_STATUS_CALLBACK_FAILED;
-    }
-    return PF_STATUS_SUCCESS;
-}
-
-static pf_status_t cb_delete(const char* path) {
-    int ret = ocall_delete(path);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "cb_delete(%s): ocall failed: %d\n", path, ret);
-        return PF_STATUS_CALLBACK_FAILED;
-    }
-    return PF_STATUS_SUCCESS;
-}
-
 #ifdef DEBUG
 static void cb_debug(const char* msg) {
     SGX_DBG(DBG_D, "%s", msg);
@@ -539,8 +477,8 @@ int init_protected_files(void) {
     debug_callback = cb_debug;
 #endif
 
-    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_open, cb_close, cb_delete,
-                     cb_aes_gcm_encrypt, cb_aes_gcm_decrypt, cb_random, debug_callback);
+    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_gcm_encrypt, cb_aes_gcm_decrypt,
+                     cb_random, debug_callback);
 
     /* TODO: development only: get SECRET WRAP KEY FOR PROTECTED FILES from manifest
        In the future, this key should be provisioned after local/remote attestation. */
@@ -583,9 +521,7 @@ int init_protected_files(void) {
 static int open_protected_file(const char* path, struct protected_file* pf, pf_handle_t handle,
                                uint64_t size, pf_file_mode_t mode, bool create) {
     pf_status_t pfs;
-    /* TODO: enable_recovery is always false for now */
-    pfs = pf_open(handle, path, size, mode, create, /*enable_recovery=*/false, &g_pf_wrap_key,
-                  &pf->context);
+    pfs = pf_open(handle, path, size, mode, create, &g_pf_wrap_key, &pf->context);
     if (PF_FAILURE(pfs)) {
         SGX_DBG(DBG_E, "pf_open(%d, %s) failed: %d\n", *(int*)handle, path, pfs);
         return -PAL_ERROR_DENIED;
