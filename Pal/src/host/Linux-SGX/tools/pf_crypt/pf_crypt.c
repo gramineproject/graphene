@@ -33,7 +33,7 @@ struct option g_options[] = {
     { 0, 0, 0, 0 }
 };
 
-void usage() {
+void usage(void) {
     INFO("\nUsage: pf_crypt mode [options]\n");
     INFO("Available modes:\n");
     INFO("  gen-key                 Generate and save wrap key to file\n");

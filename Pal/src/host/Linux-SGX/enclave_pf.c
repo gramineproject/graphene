@@ -39,38 +39,55 @@ LISTP_TYPE(pf_map) g_pf_map_list = LISTP_INIT;
 /* Callbacks for protected files handling */
 static pf_status_t cb_read(pf_handle_t handle, void* buffer, uint64_t offset, size_t size) {
     int fd = *(int*)handle;
-    uint64_t offs = 0;
+    size_t buffer_offset = 0;
     size_t to_read = size;
     while (to_read > 0) {
-        ssize_t read = ocall_pread(fd, buffer + offs, to_read, offset + offs);
+        ssize_t read = ocall_pread(fd, buffer + buffer_offset, to_read, offset + buffer_offset);
         if (read == -EINTR)
             continue;
-        if (read <= 0) { /* EOF is an error condition, we want to read exactly `size` bytes */
+
+        if (read < 0) {
             SGX_DBG(DBG_E, "cb_read(%d, %p, %lu, %lu): read failed: %ld\n",
                     fd, buffer, offset, size, read);
             return PF_STATUS_CALLBACK_FAILED;
         }
+
+        /* EOF is an error condition, we want to read exactly `size` bytes */
+        if (read == 0) {
+            SGX_DBG(DBG_E, "cb_read(%d, %p, %lu, %lu): EOF\n", fd, buffer, offset, size);
+            return PF_STATUS_CALLBACK_FAILED;
+        }
+
         to_read -= read;
-        offs += read;
+        buffer_offset += read;
     }
     return PF_STATUS_SUCCESS;
 }
 
 static pf_status_t cb_write(pf_handle_t handle, const void* buffer, uint64_t offset, size_t size) {
     int fd = *(int*)handle;
-    uint64_t offs = 0;
+    size_t buffer_offset = 0;
     size_t to_write = size;
     while (to_write > 0) {
-        ssize_t written = ocall_pwrite(fd, buffer + offs, to_write, offset + offs);
+        ssize_t written = ocall_pwrite(fd, buffer + buffer_offset, to_write,
+                                       offset + buffer_offset);
         if (written == -EINTR)
             continue;
-        if (written <= 0) { /* EOF is an error condition, we want to write exactly `size` bytes */
+
+        if (written < 0) {
             SGX_DBG(DBG_E, "cb_write(%d, %p, %lu, %lu): write failed: %ld\n",
                     fd, buffer, offset, size, written);
             return PF_STATUS_CALLBACK_FAILED;
         }
+
+        /* EOF is an error condition, we want to write exactly `size` bytes */
+        if (written == 0) {
+            SGX_DBG(DBG_E, "cb_write(%d, %p, %lu, %lu): EOF\n", fd, buffer, offset, size);
+            return PF_STATUS_CALLBACK_FAILED;
+        }
+
         to_write -= written;
-        offs += written;
+        buffer_offset += written;
     }
     return PF_STATUS_SUCCESS;
 }
@@ -80,16 +97,6 @@ static pf_status_t cb_truncate(pf_handle_t handle, uint64_t size) {
     int ret = ocall_ftruncate(fd, size);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "cb_truncate(%d, %lu): ocall failed: %d\n", fd, size, ret);
-        return PF_STATUS_CALLBACK_FAILED;
-    }
-    return PF_STATUS_SUCCESS;
-}
-
-static pf_status_t cb_flush(pf_handle_t handle) {
-    int fd = *(int*)handle;
-    int ret = ocall_fsync(fd);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "cb_flush(%d): ocall failed: %d\n", fd, ret);
         return PF_STATUS_CALLBACK_FAILED;
     }
     return PF_STATUS_SUCCESS;
@@ -364,7 +371,7 @@ static int register_protected_dir(const char* path) {
                 goto next;
 
             /* register file */
-            size_t sub_path_size = path_size + URI_PREFIX_FILE_LEN + 1 + strlen(dir->d_name);
+            size_t sub_path_size = URI_PREFIX_FILE_LEN + path_size + 1 + strlen(dir->d_name);
             char* sub_path = malloc(sub_path_size);
             ret = -PAL_ERROR_NOMEM;
             if (!sub_path)
@@ -532,7 +539,7 @@ int init_protected_files(void) {
     debug_callback = cb_debug;
 #endif
 
-    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_flush, cb_open, cb_close, cb_delete,
+    pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_open, cb_close, cb_delete,
                      cb_aes_gcm_encrypt, cb_aes_gcm_decrypt, cb_random, debug_callback);
 
     /* TODO: development only: get SECRET WRAP KEY FOR PROTECTED FILES from manifest

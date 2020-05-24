@@ -37,7 +37,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         # create encrypted files
         cls.__set_default_key(cls)
         for i in cls.INDEXES:
-            cmd = [cls.PF_CRYPT, 'e', '-w', cls.WRAP_KEY, '-i', cls.INPUT_FILES[i], '-o',
+            cmd = [cls.PF_CRYPT, 'encrypt', '-w', cls.WRAP_KEY, '-i', cls.INPUT_FILES[i], '-o',
                    cls.ENCRYPTED_FILES[i]]
             cls.run_native_binary(cls, cmd, libpath=os.path.join(os.getcwd(), 'lib'))
 
@@ -49,26 +49,26 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         with open(self.WRAP_KEY, 'wb') as file:
             file.write(bytes(self.CONST_WRAP_KEY))
 
-    # override to encrypt the file
+    # override TC_00_FileSystem to encrypt the file instead of just copying
     def copy_input(self, input_path, output_path):
         self.__encrypt_file(input_path, output_path)
 
     def __encrypt_file(self, input_path, output_path):
-        args = ['e', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
+        args = ['encrypt', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
         stdout, stderr = self.__pf_crypt(args)
         return (stdout, stderr)
 
     def __decrypt_file(self, input_path, output_path):
-        args = ['d', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
+        args = ['decrypt', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
         stdout, stderr = self.__pf_crypt(args)
         return (stdout, stderr)
 
     def test_000_gen_key(self):
         # test random key generation
         key_path = os.path.join(self.TEST_DIR, 'tmpkey')
-        args = ['g', '-w', key_path]
-        out = self.__pf_crypt(args)
-        self.assertIn('Wrap key saved to: ' + key_path, out[0])
+        args = ['gen-key', '-w', key_path]
+        stdout, _ = self.__pf_crypt(args)
+        self.assertIn('Wrap key saved to: ' + key_path, stdout)
         self.assertEqual(os.path.getsize(key_path), 16)
         os.remove(key_path)
 
@@ -89,7 +89,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         output_path = os.path.join(self.OUTPUT_DIR, 'test_100') # new file
         stdout, stderr = self.run_binary(['open_close', 'R', input_path])
         self.verify_open_close(stdout, stderr, input_path, 'input')
-        # this should fail, multiple open handles to a single PF are denied
+        # the following test tries to open multiple handles to a single writable PF, should fail
         try:
             stdout, stderr = self.run_binary(['open_close', 'W', output_path])
             self.assertIn('ERROR: Failed to open output file', stderr)
@@ -150,7 +150,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.copy_input(self.ENCRYPTED_FILES[-1], path1)
         shutil.copy(path1, path2)
         # accessing renamed file should fail
-        args = ['d', '-V', '-w', self.WRAP_KEY, '-i', path2, '-o', path1]
+        args = ['decrypt', '-V', '-w', self.WRAP_KEY, '-i', path2, '-o', path1]
         try:
             self.__pf_crypt(args)
         except subprocess.CalledProcessError as exc:
@@ -217,7 +217,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             should_pass = any(s in name for s in should_pass)
 
             try:
-                args = ['d', '-V', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
+                args = ['decrypt', '-V', '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
                 self.__pf_crypt(args)
             except subprocess.CalledProcessError as exc:
                 if should_pass:

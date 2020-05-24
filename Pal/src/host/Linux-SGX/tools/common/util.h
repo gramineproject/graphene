@@ -20,7 +20,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 
 /* Miscellaneous helper functions */
 
@@ -55,8 +54,8 @@ endianness_t get_endianness(void);
 /*! Set stdout/stderr descriptors */
 void util_set_fd(int stdout_fd, int stderr_fd);
 
-/*! Get file size, return -1 on error */
-ssize_t get_file_size(int fd);
+/*! Get file size, return (uint64_t)-1 on error */
+uint64_t get_file_size(int fd);
 
 /*!
  *  \brief Read file contents
@@ -67,6 +66,7 @@ ssize_t get_file_size(int fd);
  *  \param[in]     buffer Buffer to read data to. If NULL, this function allocates one.
  *  \return On success, pointer to the data buffer. If \p buffer was NULL, caller should free this.
  *          On failure, NULL.
+ *  \details If \a buffer is not NULL, \a size must contain valid buffer size.
  */
 void* read_file(const char* path, size_t* size, void* buffer);
 

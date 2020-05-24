@@ -139,14 +139,6 @@ typedef pf_status_t (*pf_write_f)(pf_handle_t handle, const void* buffer, uint64
 typedef pf_status_t (*pf_truncate_f)(pf_handle_t handle, uint64_t size);
 
 /*!
- * \brief File flush callback
- *
- * \param [in] handle File handle
- * \return PF status
- */
-typedef pf_status_t (*pf_flush_f)(pf_handle_t handle);
-
-/*!
  * \brief File open callback (recovery only)
  *
  * \param [in] path File path
@@ -232,7 +224,6 @@ typedef pf_status_t (*pf_random_f)(uint8_t* buffer, size_t size);
  * \param [in] read_f File read callback
  * \param [in] write_f File write callback
  * \param [in] truncate_f File truncate callback
- * \param [in] flush_f File flush callback
  * \param [in] open_f File open callback
  * \param [in] close_f File close callback
  * \param [in] delete_f File delete callback
@@ -244,7 +235,7 @@ typedef pf_status_t (*pf_random_f)(uint8_t* buffer, size_t size);
  * \details Must be called before any actual APIs
  */
 void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f truncate_f,
-                      pf_flush_f flush_f, pf_open_f open_f, pf_close_f close_f,
+                      pf_open_f open_f, pf_close_f close_f,
                       pf_delete_f delete_f, pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
                       pf_aes_gcm_decrypt_f aes_gcm_decrypt_f, pf_random_f random_f,
                       pf_debug_f debug_f);

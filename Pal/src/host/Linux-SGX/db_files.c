@@ -47,7 +47,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         return -PAL_ERROR_INVAL;
 
     SGX_DBG(DBG_D, "file_open: uri %s, access 0x%x, share 0x%x, create 0x%x, options 0x%x\n",
-        uri, access, share, create, options);
+            uri, access, share, create, options);
 
     /* prepare the file handle */
     size_t len     = strlen(uri) + 1;
@@ -108,11 +108,6 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         ret = -PAL_ERROR_DENIED;
         pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, pf_create, pf);
         if (pf) {
-            if (pf->refcount == INT64_MAX) {
-                SGX_DBG(DBG_E, "file_open(%s): maximum refcount exceeded\n", path);
-                goto out;
-            }
-
             pf->refcount++;
         } else {
             SGX_DBG(DBG_E, "load_protected_file(%s, %d) failed\n", path, hdl->file.fd);
@@ -160,7 +155,7 @@ static int64_t pf_file_read(struct protected_file* pf, PAL_HANDLE handle, uint64
     int fd = handle->file.fd;
 
     if (!pf->context) {
-        SGX_DBG(DBG_E, "pf_file_read: PF fd %d not initialized\n", fd);
+        SGX_DBG(DBG_E, "pf_file_read(PF fd %d): PF not initialized\n", fd);
         return -PAL_ERROR_BADHANDLE;
     }
 
@@ -217,7 +212,7 @@ static int64_t pf_file_write(struct protected_file* pf, PAL_HANDLE handle, uint6
     int fd = handle->file.fd;
 
     if (!pf->context) {
-        SGX_DBG(DBG_E, "pf_file_write: PF fd %d not initialized\n", fd);
+        SGX_DBG(DBG_E, "pf_file_write(PF fd %d): PF not initialized\n", fd);
         return -PAL_ERROR_BADHANDLE;
     }
 
@@ -257,7 +252,7 @@ static int pf_file_close(struct protected_file* pf, PAL_HANDLE handle) {
     int fd = handle->file.fd;
 
     if (pf->refcount == 0) {
-        SGX_DBG(DBG_E, "pf_file_close(PF fd %d) refcount == 0\n", fd);
+        SGX_DBG(DBG_E, "pf_file_close(PF fd %d): refcount == 0\n", fd);
         return -PAL_ERROR_INVAL;
     }
 
@@ -311,6 +306,7 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     if (size == 0)
         return -PAL_ERROR_INVAL;
 
+    assert(WITHIN_MASK(prot, PAL_PROT_MASK));
     if ((prot & PAL_PROT_READ) && (prot & PAL_PROT_WRITE)) {
         SGX_DBG(DBG_E, "pf_file_map(PF fd %d): trying to map with R+W access\n", fd);
         return -PAL_ERROR_NOTSUPPORT;
@@ -322,11 +318,12 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     }
 
     uint64_t pf_size;
-    __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &pf_size);
+    pf_status_t pfs = pf_get_size(pf->context, &pf_size);
+    __UNUSED(pfs);
     assert(PF_SUCCESS(pfs));
 
-    SGX_DBG(DBG_D, "pf_file_map: pf %p, fd %d, addr %p, prot %d, offset %lu, size %lu\n",
-            pf, fd, *addr, prot, offset, size);
+    SGX_DBG(DBG_D, "pf_file_map(PF fd %d): pf %p, addr %p, prot %d, offset %lu, size %lu\n",
+            fd, pf, *addr, prot, offset, size);
 
     /* LibOS always provides preallocated buffer for file maps */
     assert(*addr);
@@ -352,9 +349,7 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
             return -PAL_ERROR_INVAL;
         }
 
-        uint64_t copy_size = size;
-        if (size > pf_size - offset)
-            copy_size = pf_size - offset;
+        uint64_t copy_size = MIN(size, pf_size - offset);
 
         pf_status_t pf_ret = pf_read(pf->context, offset, copy_size, *addr);
         if (PF_FAILURE(pf_ret)) {
@@ -530,7 +525,8 @@ static int pf_file_attrquery(struct protected_file* pf, int fd_from_attrquery, c
     }
 
     uint64_t size;
-    __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &size);
+    pf_status_t pfs = pf_get_size(pf->context, &size);
+    __UNUSED(pfs);
     assert(PF_SUCCESS(pfs));
     attr->pending_size = size;
 
@@ -604,7 +600,8 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         struct protected_file* pf = find_protected_file_handle(handle);
         if (pf) {
             uint64_t size;
-            __attribute__((unused)) pf_status_t pfs = pf_get_size(pf->context, &size);
+            pf_status_t pfs = pf_get_size(pf->context, &size);
+            __UNUSED(pfs);
             assert(PF_SUCCESS(pfs));
             attr->pending_size = size;
         }

@@ -52,25 +52,24 @@
 
 #include <assert.h>
 #include <limits.h>
+
 #include "list.h"
 #include "lru_cache.h"
 #include "protected_files.h"
 
-#define SGX_FILE_ID            0x5347585F46494C45 /* SGX_FILE */
-#define SGX_FILE_MAJOR_VERSION 0x01
-#define SGX_FILE_MINOR_VERSION 0x00
+#define PF_FILE_ID       0x46505f4850415247 /* GRAPH_PF */
+#define PF_MAJOR_VERSION 0x01
+#define PF_MINOR_VERSION 0x00
 
 #pragma pack(push, 1)
 
 typedef struct _meta_data_plain {
-    uint64_t file_id;
-    uint8_t  major_version;
-    uint8_t  minor_version;
-
+    uint64_t   file_id;
+    uint8_t    major_version;
+    uint8_t    minor_version;
     pf_keyid_t meta_data_key_id;
-
-    pf_mac_t meta_data_gmac;
-    uint8_t  update_flag;
+    pf_mac_t   meta_data_gmac; /* GCM mac */
+    uint8_t    update_flag; /* if 1, file was being updated and was not closed correctly */
 } meta_data_plain_t;
 
 // these are all defined as relative to node size, so we can decrease node size in tests
@@ -83,7 +82,7 @@ static_assert(MD_USER_DATA_SIZE == 3072, "bad struct size");
 
 typedef struct _meta_data_encrypted {
     char     clean_filename[PATH_MAX_SIZE];
-    int64_t  size;
+    uint64_t size;
     pf_key_t mht_key;
     pf_mac_t mht_gmac;
     uint8_t  data[MD_USER_DATA_SIZE];
@@ -170,9 +169,9 @@ typedef struct _file_node {
         recovery_node_t recovery_node;
     };
     union { // decrypted data
-        mht_node_t mht_plain;
-        data_node_t data_plain;
-    };
+        mht_node_t mht;
+        data_node_t data;
+    } decrypted;
 } file_node_t;
 DEFINE_LISTP(_file_node);
 
@@ -192,7 +191,7 @@ struct pf_context {
     file_node_t root_mht; // the root of the mht is always needed (for files bigger than 3KB)
     pf_handle_t file;
     pf_file_mode_t mode;
-    int64_t offset; // current file position (user's view)
+    uint64_t offset; // current file position (user's view)
     bool end_of_file;
     uint64_t real_file_size;
     bool need_writing;
@@ -234,15 +233,14 @@ static file_node_t* ipf_read_mht_node(pf_context_t* pf, uint64_t mht_node_number
 static file_node_t* ipf_append_mht_node(pf_context_t* pf, uint64_t mht_node_number);
 
 static bool ipf_write_recovery_file(pf_context_t* pf);
-static bool ipf_set_update_flag(pf_context_t* pf, bool flush_to_disk);
+static bool ipf_set_update_flag(pf_context_t* pf);
 static void ipf_clear_update_flag(pf_context_t* pf);
 static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf);
 static bool ipf_update_meta_data_node(pf_context_t* pf);
-static bool ipf_write_all_changes_to_disk(pf_context_t* pf, bool flush_to_disk);
+static bool ipf_write_all_changes_to_disk(pf_context_t* pf);
 static bool ipf_erase_recovery_file(pf_context_t* pf);
-static bool ipf_internal_flush(pf_context_t* pf, bool flush_to_disk);
+static bool ipf_internal_flush(pf_context_t* pf);
 static bool ipf_do_file_recovery(pf_context_t* pf, const char* filename, uint32_t node_size);
-static bool ipf_pre_close(pf_context_t* pf);
 
 static pf_context_t* ipf_open(const char* filename, pf_file_mode_t mode, bool create,
                               pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
@@ -250,7 +248,7 @@ static pf_context_t* ipf_open(const char* filename, pf_file_mode_t mode, bool cr
 static bool ipf_close(pf_context_t* pf);
 static size_t ipf_read(pf_context_t* pf, void* ptr, size_t size);
 static size_t ipf_write(pf_context_t* pf, const void* ptr, size_t size);
-static bool ipf_seek(pf_context_t* pf, int64_t new_offset);
-static void ipf_clear_error(pf_context_t* pf);
+static bool ipf_seek(pf_context_t* pf, uint64_t new_offset);
+static void ipf_try_clear_error(pf_context_t* pf);
 
-#endif
+#endif /* PROTECTED_FILES_INTERNAL_H_ */

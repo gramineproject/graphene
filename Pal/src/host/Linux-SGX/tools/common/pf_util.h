@@ -20,12 +20,13 @@
 #define PF_UTIL_H
 
 #include <stdint.h>
+
 #include "protected_files.h"
 
 /* High-level protected files helper functions */
 
 /*! Initialize protected files for native environment */
-int pf_init();
+int pf_init(void);
 
 /*! Generate random PF key and save it to file */
 int pf_generate_wrap_key(const char* wrap_key_path);
