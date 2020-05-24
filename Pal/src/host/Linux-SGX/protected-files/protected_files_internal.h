@@ -69,14 +69,12 @@ typedef struct _meta_data_plain {
     uint8_t    minor_version;
     pf_keyid_t meta_data_key_id;
     pf_mac_t   meta_data_gmac; /* GCM mac */
-    uint8_t    update_flag; /* if 1, file was being updated and was not closed correctly */
 } meta_data_plain_t;
+
+#define PATH_MAX_SIZE          (260 + 512)
 
 // these are all defined as relative to node size, so we can decrease node size in tests
 // and have deeper tree
-#define PATH_MAX_SIZE          (260 + 512)
-#define RECOVERY_PATH_MAX_SIZE (PATH_MAX_SIZE + 10)
-
 #define MD_USER_DATA_SIZE (PF_NODE_SIZE*3/4)  // 3072
 static_assert(MD_USER_DATA_SIZE == 3072, "bad struct size");
 
@@ -137,11 +135,6 @@ typedef struct _encrypted_node {
 
 static_assert(sizeof(encrypted_node_t) == PF_NODE_SIZE, "sizeof(encrypted_node_t)");
 
-typedef struct _recovery_node {
-    uint64_t physical_node_number;
-    uint8_t  node_data[PF_NODE_SIZE];
-} recovery_node_t;
-
 #define MAX_PAGES_IN_CACHE 48
 
 typedef enum {
@@ -161,12 +154,9 @@ typedef struct _file_node {
     struct _file_node* parent;
     bool need_writing;
     bool new_node;
-    union {
-        struct {
-            uint64_t physical_node_number;
-            encrypted_node_t encrypted; // the actual data from the disk
-        };
-        recovery_node_t recovery_node;
+    struct {
+        uint64_t physical_node_number;
+        encrypted_node_t encrypted; // the actual data from the disk
     };
     union { // decrypted data
         mht_node_t mht;
@@ -178,14 +168,7 @@ DEFINE_LISTP(_file_node);
 #pragma pack(pop)
 
 struct pf_context {
-    union {
-        struct {
-            uint64_t meta_data_node_number; // for recovery purpose, so it is easy to write this node
-            meta_data_node_t file_meta_data; // actual data from disk's meta data node
-        };
-        recovery_node_t meta_data_recovery_node;
-    };
-
+    meta_data_node_t file_meta_data; // actual data from disk's meta data node
     pf_status_t last_error;
     meta_data_encrypted_t encrypted_part_plain; // encrypted part of meta data node, decrypted
     file_node_t root_mht; // the root of the mht is always needed (for files bigger than 3KB)
@@ -200,7 +183,6 @@ struct pf_context {
     pf_key_t cur_key;
     pf_key_t session_master_key;
     uint32_t master_key_count;
-    char recovery_path[RECOVERY_PATH_MAX_SIZE];
     lruc_context_t* cache;
 #ifdef DEBUG
     char* debug_buffer; // buffer for debug output
@@ -208,7 +190,6 @@ struct pf_context {
 };
 
 static bool ipf_init_fields(pf_context_t* pf);
-static bool ipf_file_recovery(pf_context_t* pf, const char* filename);
 static bool ipf_init_existing_file(pf_context_t* pf, const char* filename);
 static bool ipf_init_new_file(pf_context_t* pf, const char* clean_filename);
 
@@ -232,19 +213,14 @@ static file_node_t* ipf_get_mht_node(pf_context_t* pf);
 static file_node_t* ipf_read_mht_node(pf_context_t* pf, uint64_t mht_node_number);
 static file_node_t* ipf_append_mht_node(pf_context_t* pf, uint64_t mht_node_number);
 
-static bool ipf_write_recovery_file(pf_context_t* pf);
-static bool ipf_set_update_flag(pf_context_t* pf);
-static void ipf_clear_update_flag(pf_context_t* pf);
 static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf);
 static bool ipf_update_meta_data_node(pf_context_t* pf);
 static bool ipf_write_all_changes_to_disk(pf_context_t* pf);
-static bool ipf_erase_recovery_file(pf_context_t* pf);
 static bool ipf_internal_flush(pf_context_t* pf);
-static bool ipf_do_file_recovery(pf_context_t* pf, const char* filename, uint32_t node_size);
 
 static pf_context_t* ipf_open(const char* filename, pf_file_mode_t mode, bool create,
                               pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
-                              bool enable_recovery, pf_status_t* status);
+                              pf_status_t* status);
 static bool ipf_close(pf_context_t* pf);
 static size_t ipf_read(pf_context_t* pf, void* ptr, size_t size);
 static size_t ipf_write(pf_context_t* pf, const void* ptr, size_t size);

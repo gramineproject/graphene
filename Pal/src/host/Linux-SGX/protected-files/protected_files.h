@@ -89,7 +89,6 @@ typedef enum _pf_status_t {
     PF_STATUS_CRYPTO_ERROR         = -15,
     PF_STATUS_CORRUPTED            = -16,
     PF_STATUS_WRITE_TO_DISK_FAILED = -17,
-    PF_STATUS_RECOVERY_IMPOSSIBLE  = -18,
 } pf_status_t;
 
 #define PF_SUCCESS(status) ((status) == PF_STATUS_SUCCESS)
@@ -137,34 +136,6 @@ typedef pf_status_t (*pf_write_f)(pf_handle_t handle, const void* buffer, uint64
  * \return PF status
  */
 typedef pf_status_t (*pf_truncate_f)(pf_handle_t handle, uint64_t size);
-
-/*!
- * \brief File open callback (recovery only)
- *
- * \param [in] path File path
- * \param [in] mode Open mode
- * \param [out] handle File handle
- * \param [out] size (optional) File size
- * \return PF status
- */
-typedef pf_status_t (*pf_open_f)(const char* path, pf_file_mode_t mode, pf_handle_t* handle,
-                                 uint64_t* size);
-
-/*!
- * \brief File close callback (recovery only)
- *
- * \param [in] handle File handle
- * \return PF status
- */
-typedef pf_status_t (*pf_close_f)(pf_handle_t handle);
-
-/*!
- * \brief File delete callback (recovery only)
- *
- * \param [in] path File path
- * \return PF status
- */
-typedef pf_status_t (*pf_delete_f)(const char* path);
 
 /*!
  * \brief Debug print callback
@@ -224,9 +195,6 @@ typedef pf_status_t (*pf_random_f)(uint8_t* buffer, size_t size);
  * \param [in] read_f File read callback
  * \param [in] write_f File write callback
  * \param [in] truncate_f File truncate callback
- * \param [in] open_f File open callback
- * \param [in] close_f File close callback
- * \param [in] delete_f File delete callback
  * \param [in] aes_gcm_encrypt_f AES-GCM encrypt callback
  * \param [in] aes_gcm_decrypt_f AES-GCM decrypt callback
  * \param [in] random_f Cryptographic random number generator callback
@@ -235,8 +203,7 @@ typedef pf_status_t (*pf_random_f)(uint8_t* buffer, size_t size);
  * \details Must be called before any actual APIs
  */
 void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f truncate_f,
-                      pf_open_f open_f, pf_close_f close_f,
-                      pf_delete_f delete_f, pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
+                      pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
                       pf_aes_gcm_decrypt_f aes_gcm_decrypt_f, pf_random_f random_f,
                       pf_debug_f debug_f);
 
@@ -253,14 +220,12 @@ typedef struct pf_context pf_context_t;
  * \param [in] underlying_size Underlying file size
  * \param [in] mode Access mode
  * \param [in] create Overwrite file contents if true
- * \param [in] enable_recovery Enable the recovery file feature
  * \param [in] key Wrap key
  * \param [out] context PF context for later calls
  * \return PF status
  */
 pf_status_t pf_open(pf_handle_t handle, const char* path, uint64_t underlying_size,
-                    pf_file_mode_t mode, bool create, bool enable_recovery, const pf_key_t* key,
-                    pf_context_t** context);
+                    pf_file_mode_t mode, bool create, const pf_key_t* key, pf_context_t** context);
 
 /*!
  * \brief Close a protected file and commit all changes to disk
