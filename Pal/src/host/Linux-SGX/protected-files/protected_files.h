@@ -94,7 +94,7 @@ typedef enum _pf_status_t {
 #define PF_SUCCESS(status) ((status) == PF_STATUS_SUCCESS)
 #define PF_FAILURE(status) ((status) != PF_STATUS_SUCCESS)
 
-#define PF_NODE_SIZE 4096
+#define PF_NODE_SIZE 4096U
 
 /*! PF open modes */
 typedef enum _pf_file_mode_t {
