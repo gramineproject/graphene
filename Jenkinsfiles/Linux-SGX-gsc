@@ -1,5 +1,5 @@
 pipeline {
-        agent { label 'sgx_slave' }
+        agent { label 'sgx_bionic' }
         stages {
                 stage('Build') {
                     steps {
