@@ -410,7 +410,8 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
     uint64_t input_offset = 0;
 
     while (true) {
-        uint64_t chunk_size = MIN(data_size - input_offset, PF_NODE_SIZE);
+        assert(input_offset <= data_size);
+        uint64_t chunk_size = MIN((uint64_t)(data_size - input_offset), PF_NODE_SIZE);
         if (chunk_size == 0)
             break;
 
