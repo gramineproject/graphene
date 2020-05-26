@@ -33,13 +33,15 @@
 #include <linux/stat.h>
 #include <linux/un.h>
 #include <linux/wait.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_tcb.h>
-#include <shim_utils.h>
+
+#include "api.h"
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_tcb.h"
+#include "shim_utils.h"
 
 static void parse_open_flags(va_list);
 static void parse_open_mode(va_list);
@@ -403,9 +405,7 @@ const char* const siglist[SIGRTMIN - 1] = {
     S(SIGWINCH),  S(SIGIO),   S(SIGPWR),    S(SIGSYS),
 };
 
-static_always_inline
-const char * signal_name (int sig)
-{
+static const char* signal_name(int sig, char str[6]) {
     if (sig <= 0)
         return "BAD SIGNAL";
 
@@ -415,15 +415,9 @@ const char * signal_name (int sig)
     if (sig > NUM_SIGS)
         return "BAD SIGNAL";
 
-    char * str = __alloca(6);
-
-    str[0] = 'S';
-    str[1] = 'I';
-    str[2] = 'G';
-    str[3] = '0' + sig / 10;
-    str[4] = '0' + sig % 10;
-    str[5] = 0;
-
+    assert(sig <= 99);
+    /* Cannot use `sizeof(buf)` here because `typeof(str)` is `char*`, thanks C! */
+    snprintf(str, 6, "SIG%02d", sig);
     return str;
 }
 
@@ -692,7 +686,8 @@ static void parse_clone_flags(va_list ap) {
     int exit_signal = flags & CLONE_SIGNAL_MASK;
     flags &= ~CLONE_SIGNAL_MASK;
     if (exit_signal) {
-        PRINTF("|[%s]", signal_name(exit_signal));
+        char str[6];
+        PRINTF("|[%s]", signal_name(exit_signal, str));
     }
 
     if (flags)
@@ -834,11 +829,8 @@ static void parse_pipe_fds(va_list ap) {
 
 static void parse_signum(va_list ap) {
     int signum = va_arg(ap, int);
-
-    if (signum > 0 && signum < SIGRTMIN)
-        PUTS(signal_name(signum));
-    else
-        PRINTF("[SIG %d]", signum);
+    char str[6];
+    PRINTF("[%s]", signal_name(signum, str));
 }
 
 static void parse_sigmask(va_list ap) {
@@ -858,7 +850,8 @@ static void parse_sigmask(va_list ap) {
 
     for (size_t signum = 1; signum <= sizeof(sigset) * 8; signum++)
         if (__sigismember(sigset, signum)) {
-            PUTS(signal_name(signum));
+            char str[6];
+            PUTS(signal_name(signum, str));
             PUTS(",");
         }
 

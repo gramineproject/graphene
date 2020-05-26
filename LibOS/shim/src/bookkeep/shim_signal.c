@@ -54,7 +54,7 @@ static __rt_sighandler_t default_sighandler[NUM_SIGS];
 static struct shim_signal_queue process_signal_queue = { 0 };
 static uint64_t process_pending_signals = 0;
 
-/* This checks are racy, but we can't do better anyway: signal can be delivered in any moment. */
+/* These checks are racy, but we can't do better anyway: signal can be delivered in any moment. */
 static bool is_rt_sq_empty(struct shim_rt_signal_queue* queue) {
     return __atomic_load_n(&queue->get_idx, __ATOMIC_RELAXED)
             == __atomic_load_n(&queue->put_idx, __ATOMIC_RELAXED);
@@ -72,8 +72,8 @@ void get_pending_signals(struct shim_thread* thread, __sigset_t* set) {
     }
 
     for (int sig = 1; sig < SIGRTMIN; sig++) {
-        if (!is_standard_sq_empty(&thread->signal_queue.standard_signal_queues[sig - 1])
-                || !is_standard_sq_empty(&process_signal_queue.standard_signal_queues[sig - 1])) {
+        if (!is_standard_sq_empty(&thread->signal_queue.standard_signals[sig - 1])
+                || !is_standard_sq_empty(&process_signal_queue.standard_signals[sig - 1])) {
             __sigaddset(set, sig);
         }
     }
@@ -98,6 +98,9 @@ static bool queue_produce_standard_signal(struct shim_signal** queue, struct shi
     return true;
 }
 
+/* In teory `get_idx` and `put_idx` could overflow, but adding signals with 1GHz (10**9 signals
+ * per second) gives a 544 years running time before overflow, which we consider a "safe margin"
+ * for now. */
 static bool queue_produce_rt_signal(struct shim_rt_signal_queue* queue,
                                     struct shim_signal* signal) {
     uint64_t get_idx;
@@ -125,7 +128,7 @@ static bool queue_produce_signal(struct shim_signal_queue* queue, struct shim_si
     if (sig < 1 || sig > NUM_SIGS) {
         return false;
     } else if (sig < SIGRTMIN) {
-        return queue_produce_standard_signal(&queue->standard_signal_queues[sig - 1], signal);
+        return queue_produce_standard_signal(&queue->standard_signals[sig - 1], signal);
     } else {
         return queue_produce_rt_signal(&queue->rt_signal_queues[sig - SIGRTMIN], signal);
     }
@@ -147,16 +150,8 @@ static bool append_process_signal(struct shim_signal* signal) {
     return ret;
 }
 
-static struct shim_signal* queue_consume_standard_signal(struct shim_signal** queue) {
-    struct shim_signal* old;
-    do {
-        old = __atomic_load_n(queue, __ATOMIC_RELAXED);
-        if (!old) {
-            return NULL;
-        }
-    } while (!__atomic_compare_exchange_n(queue, &old, NULL, /*weak=*/true,
-                                          __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-    return old;
+static struct shim_signal* consume_standard_signal(struct shim_signal** queue) {
+    return __atomic_exchange_n(queue, NULL, __ATOMIC_RELAXED);
 }
 
 static struct shim_signal* queue_consume_rt_signal(struct shim_rt_signal_queue* queue) {
@@ -166,7 +161,7 @@ static struct shim_signal* queue_consume_rt_signal(struct shim_rt_signal_queue* 
         put_idx = __atomic_load_n(&queue->put_idx, __ATOMIC_RELAXED);
         assert(put_idx >= get_idx);
 
-        if (put_idx <= get_idx) {
+        if (put_idx == get_idx) {
             return NULL;
         }
     } while (!__atomic_compare_exchange_n(&queue->get_idx, &get_idx, get_idx + 1, /*weak=*/true,
@@ -175,18 +170,18 @@ static struct shim_signal* queue_consume_rt_signal(struct shim_rt_signal_queue* 
     return queue->queue[get_idx % ARRAY_SIZE(queue->queue)];
 }
 
-static struct shim_signal* queue_consume_signal(int sig, struct shim_signal_queue* queue) {
+static struct shim_signal* queue_consume_signal(struct shim_signal_queue* queue, int sig) {
     if (sig < 1 || sig > NUM_SIGS) {
         return NULL;
     } else if (sig < SIGRTMIN) {
-        return queue_consume_standard_signal(&queue->standard_signal_queues[sig - 1]);
+        return consume_standard_signal(&queue->standard_signals[sig - 1]);
     } else {
         return queue_consume_rt_signal(&queue->rt_signal_queues[sig - SIGRTMIN]);
     }
 }
 
 static struct shim_signal* consume_thread_signal(struct shim_thread* thread, int sig) {
-    struct shim_signal* signal = queue_consume_signal(sig, &thread->signal_queue);
+    struct shim_signal* signal = queue_consume_signal(&thread->signal_queue, sig);
     if (signal) {
         (void)__atomic_sub_fetch(&thread->pending_signals, 1, __ATOMIC_RELAXED);
     }
@@ -194,7 +189,7 @@ static struct shim_signal* consume_thread_signal(struct shim_thread* thread, int
 }
 
 static struct shim_signal* consume_process_signal(int sig) {
-    struct shim_signal* signal = queue_consume_signal(sig, &process_signal_queue);
+    struct shim_signal* signal = queue_consume_signal(&process_signal_queue, sig);
     if (signal) {
         (void)__atomic_sub_fetch(&process_pending_signals, 1, __ATOMIC_RELAXED);
     }
@@ -272,9 +267,11 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 
     if (preempt > 1 || __sigismember(&cur_thread->signal_mask, sig)) {
         signal = malloc_copy(signal,sizeof(struct shim_signal));
-        if (!signal || !append_thread_signal(cur_thread, signal)) {
-            debug("signal queue is full (TID = %u, SIG = %d)\n", tcb->tid, sig);
-            free(signal);
+        if (signal) {
+            if (!append_thread_signal(cur_thread, signal)) {
+                debug("signal queue is full (TID = %u, SIG = %d)\n", tcb->tid, sig);
+                free(signal);
+            }
         }
     } else {
         __handle_signals(tcb);
@@ -952,7 +949,7 @@ BEGIN_CP_FUNC(pending_signals)
     memset(&infos, 0, sizeof(infos));
 
     for (int sig = 1; sig < SIGRTMIN && i < n; sig++) {
-        struct shim_signal** q = &process_signal_queue.standard_signal_queues[sig - 1];
+        struct shim_signal** q = &process_signal_queue.standard_signals[sig - 1];
         struct shim_signal* signal = __atomic_load_n(q, __ATOMIC_RELAXED);
         if (signal) {
             memcpy(&infos[i], &signal->info, sizeof(infos[i]));

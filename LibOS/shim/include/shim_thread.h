@@ -43,7 +43,7 @@ struct shim_rt_signal_queue {
 };
 
 struct shim_signal_queue {
-    struct shim_signal* standard_signal_queues[SIGRTMIN - 1];
+    struct shim_signal* standard_signals[SIGRTMIN - 1];
     struct shim_rt_signal_queue rt_signal_queues[NUM_SIGS - SIGRTMIN + 1];
 };
 

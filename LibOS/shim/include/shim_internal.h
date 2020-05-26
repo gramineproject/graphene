@@ -184,7 +184,6 @@ static inline int64_t get_cur_preempt (void) {
         SHIM_ARG_TYPE ret = 0;                              \
         int64_t preempt = get_cur_preempt();                \
         __UNUSED(preempt);                                  \
-        /* handle_signals(); */                             \
         /* check_stack_hook(); */
 
 #define END_SHIM(name)                                      \
