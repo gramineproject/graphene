@@ -24,8 +24,8 @@ installation.
 - `pip3 install --user torchvision pillow` to install the torchvision and pillow Python packages and
   their dependencies (usually in $HOME/.local). WARNING: This downloads several hundred megabytes of
   data!
-- `python3 -c 'import torchvision ; torchvision.models.alexnet(pretrained=True)'` to download the
-  pre-trained model ($HOME/.cache/torch). WARNING: This downloads about 200MB of data!
+- `make download_model` to download and save the pre-trained model.
+  WARNING: this downloads about 200MB of data!
 
 # Build
 

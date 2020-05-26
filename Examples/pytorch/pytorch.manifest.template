@@ -43,9 +43,10 @@ fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
 # PyTorch loads its pre-trained models from here
-fs.mount.torch.type = chroot
-fs.mount.torch.path = $(HOME)/.cache/torch
-fs.mount.torch.uri = file:$(HOME)/.cache/torch
+# Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
+# fs.mount.torch.type = chroot
+# fs.mount.torch.path = $(HOME)/.cache/torch
+# fs.mount.torch.uri = file:$(HOME)/.cache/torch
 
 # When run as `pip install --user ...`, pip installs Python packages here
 fs.mount.pip.type = chroot
@@ -117,14 +118,21 @@ sgx.trusted_files.script  = file:pytorchexample.py
 # File containing the classes, i.e., things the classifier has been trained to distinguish between
 sgx.trusted_files.classes = file:classes.txt
 
-# File containing the pre-trained model
-sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/checkpoints/alexnet-owt-4df8aa71.pth
-
 # Input image
 sgx.trusted_files.image   = file:input.jpg
 
+# File containing the pre-trained model
+# Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
+# sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/checkpoints/alexnet-owt-4df8aa71.pth
+
+# Pre-trained model saved as a file
+sgx.trusted_files.model   = file:alexnet-pretrained.pt
+
 # Scratch space
 sgx.allowed_files.tmp     = file:/tmp
+
+# Output file
+sgx.allow_file_creation   = 1
 
 # The workload needs to fork/execve; this allows it to do so
 sgx.trusted_children.fork = file:python3.sig
