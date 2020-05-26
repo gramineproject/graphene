@@ -30,6 +30,7 @@
 #include <shim_vma.h>
 #include <shim_checkpoint.h>
 #include <shim_signal.h>
+#include <shim_ucontext-arch.h>
 #include <shim_unistd.h>
 
 #include <pal.h>
@@ -186,7 +187,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
     }
 
     if (pal_context) {
-        memcpy(context->uc_mcontext.gregs, pal_context, sizeof(PAL_CONTEXT));
+        pal_context_to_ucontext(context, pal_context);
         signal->context_stored = true;
     }
 }
@@ -738,7 +739,7 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
         tcb->context = *context;
 
     if (signal->pal_context)
-        memcpy(signal->pal_context, signal->context.uc_mcontext.gregs, sizeof(PAL_CONTEXT));
+        ucontext_to_pal_context(signal->pal_context, &signal->context);
 }
 
 void __handle_signal (shim_tcb_t * tcb, int sig)
