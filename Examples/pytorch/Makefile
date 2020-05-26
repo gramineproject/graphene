@@ -8,9 +8,9 @@
 # See README for details.
 #
 # Use `make clean` to remove Graphene-generated files.
-
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+PYTHON3 ?= /usr/bin/python3
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -28,12 +28,13 @@ endif
 endif
 
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
+all: default
 
 .PHONY: default
 ifeq ($(SGX),1)
-default: pytorch.token python3.token pal_loader
+default: pytorch.token python3.token pal_loader 
 else
-default: pytorch.manifest python3.manifest pal_loader
+default: pytorch.manifest python3.manifest pal_loader 
 endif
 
 include ../../Scripts/Makefile.configs
@@ -54,7 +55,7 @@ pytorch.sig: pytorch.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-output pytorch.manifest.sgx -exec /usr/bin/python3 -manifest $<
+		-output pytorch.manifest.sgx -exec $(PYTHON3) -manifest $<
 
 %.token: %.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
@@ -69,14 +70,17 @@ python3.sig: python3.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-output python3.manifest.sgx -exec /usr/bin/python3 -manifest $<
+		-output python3.manifest.sgx -exec $(PYTHON3) -manifest $<
 
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
+download_model:
+	$(PYTHON3) download-pretrained-model.py	
+
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader
+	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader *.pt
 
 .PHONY: distclean
 distclean: clean

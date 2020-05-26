@@ -4,8 +4,8 @@
 from torchvision import models
 import torch
 
-# Load the model.
-alexnet = models.alexnet(pretrained=True)
+# Load the model from a file
+alexnet = torch.load("alexnet-pretrained.pt")
 
 # Prepare a transform to get the input image into a format (e.g., x,y dimensions) the classifier
 # expects.
