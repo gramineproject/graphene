@@ -4,6 +4,8 @@
 #include <shim_types.h>
 #include <shim_defs.h>
 
+#include <ucontext.h> /* from PAL! */
+
 void sigaction_make_defaults(struct __kernel_sigaction* sig_action);
 
 # define BITS_PER_WORD (8 * sizeof(unsigned long))
