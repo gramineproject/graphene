@@ -29,7 +29,6 @@
 #include "shim_utils.h"
 
 static void signal_alarm(IDTYPE caller, void* arg) {
-    __UNUSED(caller);
     (void)do_kill_proc(caller, (IDTYPE)(uintptr_t)arg, SIGALRM, /*use_ipc=*/false);
 }
 

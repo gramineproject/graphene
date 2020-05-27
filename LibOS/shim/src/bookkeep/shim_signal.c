@@ -952,7 +952,7 @@ BEGIN_CP_FUNC(pending_signals)
 
     for (int sig = 1; sig < SIGRTMIN && i < n; sig++) {
         struct shim_signal** q = &process_signal_queue.standard_signals[sig - 1];
-        /* This load might look racy, but only scenario that this signal gets taken of the queue
+        /* This load might look racy, but only scenario that this signal is removed from the queue
          * is another thread handling it. We are doing an execve, so we are the only thread
          * existing. */
         struct shim_signal* signal = __atomic_load_n(q, __ATOMIC_RELAXED);
