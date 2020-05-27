@@ -5,6 +5,7 @@
  */
 
 #define _GNU_SOURCE
+#include <cpu.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -41,9 +42,8 @@ static void set(int x) {
 }
 
 static void wait_for(int x) {
-    while (__atomic_load_n(&sync_var, __ATOMIC_SEQ_CST) != x) {
-        __asm__ volatile("pause");
-    }
+    while (__atomic_load_n(&sync_var, __ATOMIC_SEQ_CST) != x)
+        cpu_pause();
 }
 
 static void* f(void* x) {
