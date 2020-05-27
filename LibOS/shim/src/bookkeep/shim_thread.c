@@ -554,42 +554,6 @@ out:
     return ret;
 }
 
-#ifndef ALIAS_VFORK_AS_FORK
-void switch_dummy_thread (struct shim_thread * thread)
-{
-    struct shim_thread * real_thread = thread->dummy;
-    IDTYPE child = thread->tid;
-
-    assert(thread->frameptr);
-    assert(real_thread->stack);
-    assert(real_thread->stack_top > real_thread->stack);
-
-    memcpy(thread->frameptr, real_thread->stack,
-           real_thread->stack_top - real_thread->stack);
-
-    real_thread->stack     = thread->stack;
-    real_thread->stack_top = thread->stack_top;
-    real_thread->frameptr  = thread->frameptr;
-
-    DkSegmentRegister(PAL_SEGMENT_FS, real_thread->tcb);
-    set_cur_thread(real_thread);
-    debug("set tcb to %p\n", real_thread->tcb);
-
-    debug("jump to the stack %p\n", real_thread->frameptr);
-    debug("shim_vfork success (returning %d)\n", child);
-
-    /* jump onto old stack
-       we actually pop rbp as rsp, and later we will call 'ret' */
-    __asm__ volatile("movq %0, %%rbp\r\n"
-                     "leaveq\r\n"
-                     "retq\r\n" :
-                     : "g"(real_thread->frameptr),
-                       "a"(child)
-                     : "memory");
-    __builtin_unreachable();
-}
-#endif
-
 BEGIN_CP_FUNC(signal_handles)
 {
     __UNUSED(size);
@@ -660,9 +624,6 @@ BEGIN_CP_FUNC(thread)
 
         new_thread->in_vm  = false;
         new_thread->parent = NULL;
-#ifndef ALIAS_VFORK_AS_FORK
-        new_thread->dummy  = NULL;
-#endif
         new_thread->handle_map = NULL;
         new_thread->root   = NULL;
         new_thread->cwd    = NULL;
