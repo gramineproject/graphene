@@ -21,6 +21,7 @@
  * host, and the methods to pass the exceptions to the upcalls.
  */
 
+#include "cpu.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
@@ -236,7 +237,7 @@ void _DkExceptionHandler(
 #ifdef DEBUG
         printf("pausing for debug\n");
         while (true)
-            __asm__ volatile("pause");
+            cpu_pause();
 #endif
         _DkThreadExit(/*clear_child_tid=*/NULL);
     }

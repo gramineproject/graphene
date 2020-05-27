@@ -22,6 +22,7 @@
  */
 
 #include "api.h"
+#include "cpu.h"
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
@@ -402,7 +403,7 @@ static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void*
     } else {
         /* normal pipe, use a secure session (should be already initialized) */
         while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE))
-            __asm__ volatile ("pause");
+            cpu_pause();
 
         if (!handle->pipe.ssl_ctx)
             return -PAL_ERROR_NOTCONNECTION;
@@ -442,7 +443,7 @@ static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, cons
     } else {
         /* normal pipe, use a secure session (should be already initialized) */
         while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE))
-            __asm__ volatile ("pause");
+            cpu_pause();
 
         if (!handle->pipe.ssl_ctx)
             return -PAL_ERROR_NOTCONNECTION;
@@ -471,7 +472,7 @@ static int pipe_close(PAL_HANDLE handle) {
         }
     } else if (handle->pipe.fd != PAL_IDX_POISON) {
         while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE))
-            __asm__ volatile ("pause");
+            cpu_pause();
 
         if (handle->pipe.ssl_ctx) {
             _DkStreamSecureFree((LIB_SSL_CONTEXT*)handle->pipe.ssl_ctx);
