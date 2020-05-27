@@ -82,7 +82,7 @@ download_model:
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader *.pt
+	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader *.pt result.txt
 
 .PHONY: distclean
 distclean: clean
