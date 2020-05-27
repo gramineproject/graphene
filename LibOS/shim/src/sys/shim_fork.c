@@ -105,6 +105,6 @@ int shim_do_fork(void) {
  * is negligible (Graphene has to migrate internal state anyway which is slow) and apps do not rely
  * on insane Linux-specific semantics of vfork().  */
 int shim_do_vfork(void) {
-    debug("vfork() is an alias to fork() in Graphene, calling fork() now\n");
+    debug("vfork() was called by the application, implemented as alias to fork() in Graphene\n");
     return shim_do_fork();
 }
