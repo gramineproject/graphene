@@ -56,7 +56,7 @@ To create Docker images, the user must have access to Docker daemon.
 
 .. code-block:: sh
 
-    sudo adduser $USER docker
+   sudo adduser $USER docker
 
 Create a configuration file called :file:`config.yaml`. Please see the
 documentation on configuration options below and use the
@@ -153,24 +153,24 @@ follows two main stages and produces an image named ``gsc-<image-name>``.
 
 .. describe:: Graphene build:
 
-    The first stage compiles Graphene based on the provided configuration (see
-    :file:`config.yaml`) which includes the distribution (e.g., Ubuntu18.04) and
-    the Intel SGX driver details.
+   The first stage compiles Graphene based on the provided configuration (see
+   :file:`config.yaml`) which includes the distribution (e.g., Ubuntu18.04) and
+   the Intel SGX driver details.
 
 .. describe:: Graphenizing the base image:
 
-    The second stage copies the important Graphene artifacts (e.g., the runtime
-    and signer tool) from the first stage. It then prepares image-specific
-    variables such as the executable path and the library path, and scanning the
-    entire image to generate a list of trusted files. GSC excludes files from
-    :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
-    :file:`/etc/rc` folders, since checksums are required which either don't
-    exist or may vary across different deployment machines. GSC combines these
-    values and list of trusted files to a new manifest file. Graphene's signer
-    tool generates a SIGSTRUCT file for SGX enclave initialization. This tool
-    also generates an SGX-specific manifest file. In a last step the entrypoint
-    is changed to launch the :file:`apploader.sh` script which generates an
-    Intel SGX token and starts the :program:`pal-Linux-SGX` loader.
+   The second stage copies the important Graphene artifacts (e.g., the runtime
+   and signer tool) from the first stage. It then prepares image-specific
+   variables such as the executable path and the library path, and scanning the
+   entire image to generate a list of trusted files. GSC excludes files from
+   :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
+   :file:`/etc/rc` folders, since checksums are required which either don't
+   exist or may vary across different deployment machines. GSC combines these
+   values and list of trusted files to a new manifest file. Graphene's signer
+   tool generates a SIGSTRUCT file for SGX enclave initialization. This tool
+   also generates an SGX-specific manifest file. In a last step the entrypoint
+   is changed to launch the :file:`apploader.sh` script which generates an Intel
+   SGX token and starts the :program:`pal-Linux-SGX` loader.
 
 Configuration
 ^^^^^^^^^^^^^
@@ -186,23 +186,23 @@ following parameters. A template configuration file is provided in
 
 .. describe:: config['Graphene']['Repository']
 
-      Source repository of Graphene. Default value:
-      `https://github.com/oscarlab/graphene
-      <https://github.com/oscarlab/graphene>`__
+   Source repository of Graphene. Default value:
+   `https://github.com/oscarlab/graphene
+   <https://github.com/oscarlab/graphene>`__
 
 .. describe:: config['Graphene']['Branch']
 
-      Use this branch of the repository. Default value: master
+   Use this branch of the repository. Default value: master
 
 .. describe:: config['SGXDriver']['Repository']
 
-      Source repository of the Intel SGX driver. Default value:
-      `https://github.com/01org/linux-sgx-driver.git
-      <https://github.com/01org/linux-sgx-driver.git>`__
+   Source repository of the Intel SGX driver. Default value:
+   `https://github.com/01org/linux-sgx-driver.git
+   <https://github.com/01org/linux-sgx-driver.git>`__
 
 .. describe:: config['SGXDriver']['Branch']
 
-      Use this branch of the repository. Default value: sgx_driver_1.9
+   Use this branch of the repository. Default value: sgx_driver_1.9
 
 Run graphenized Docker images
 =============================
@@ -250,7 +250,7 @@ specifying the environment variable :envvar:`GSC_PAL` as an option to the
 
 .. code-block:: sh
 
-    docker run ... --env PAL=Linux gsc-<image-name> ...
+   docker run ... --env PAL=Linux gsc-<image-name> ...
 
 Example
 =======
@@ -307,17 +307,17 @@ break applications using files stored in Docker volumes.
 
 Work around:
 
-    Trusted files can be added to image specific manifest file (first argument
-    to :command:`gsc build` command) at build time. This work around does not
-    allow these files to change between build and run, or over multiple runs.
-    This only provides integrity for files and not confidentiality.
+   Trusted files can be added to image specific manifest file (first argument to
+   :command:`gsc build` command) at build time. This work around does not allow
+   these files to change between build and run, or over multiple runs. This only
+   provides integrity for files and not confidentiality.
 
 Allowing dynamic file contents via Graphene protected file systems:
 
-    Once protected file systems are supported by Graphene, Docker volumes could
-    include protected file systems. As a result Graphene can open these
-    protected file systems without knowing the exact contents as long as the
-    protected file system was specified in the applicaiton-specific manifest.
+   Once protected file systems are supported by Graphene, Docker volumes could
+   include protected file systems. As a result Graphene can open these protected
+   file systems without knowing the exact contents as long as the protected file
+   system was specified in the applicaiton-specific manifest.
 
 Integration of Docker Secrets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -335,9 +335,9 @@ The manifest generation excludes all files in :file:`/boot`, :file:`/dev`,
 the list of trusted files. If your application relies on some files in these
 directories, you must manually add them to the application-specific manifest::
 
-    sgx.trusted_file.specialFile=file:PATH_TO_FILE
-    or
-    sgx.allowed_file.specialFile=file:PATH_TO_FILE
+   sgx.trusted_file.specialFile=file:PATH_TO_FILE
+   or
+   sgx.allowed_file.specialFile=file:PATH_TO_FILE
 
 Docker images with non-executables as entrypoint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
