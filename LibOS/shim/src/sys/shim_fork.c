@@ -17,7 +17,7 @@
 /*
  * shim_fork.c
  *
- * Implementation of system call "fork".
+ * Implementation of system calls "fork" and "vfork".
  */
 
 #include <errno.h>
@@ -98,4 +98,13 @@ int shim_do_fork(void) {
     IDTYPE tid = new_thread->tid;
     put_thread(new_thread);
     return tid;
+}
+
+/* Instead of trying to support Linux semantics for vfork() -- which requires adding corner-cases in
+ * signal handling and syscalls -- we simply treat vfork() as fork(). We assume that performance hit
+ * is negligible (Graphene has to migrate internal state anyway which is slow) and apps do not rely
+ * on insane Linux-specific semantics of vfork().  */
+int shim_do_vfork(void) {
+    debug("vfork() was called by the application, implemented as alias to fork() in Graphene\n");
+    return shim_do_fork();
 }

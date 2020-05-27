@@ -99,7 +99,6 @@ objs = \
 	sys/shim_stat.o \
 	sys/shim_time.o \
 	sys/shim_uname.o \
-	sys/shim_vfork.o \
 	sys/shim_wait.o \
 	sys/shim_wrappers.o \
 	utils/md5.o \
