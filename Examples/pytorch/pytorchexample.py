@@ -4,9 +4,6 @@
 from torchvision import models
 import torch
 
-# Open output file
-outfile = open("result.txt", "w")
-
 # Load the model from a file
 alexnet = torch.load("alexnet-pretrained.pt")
 
@@ -47,4 +44,5 @@ _, indices = torch.sort(out, descending=True)
 percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
 
 # Print the 5 most likely predictions.
-outfile.write(str([(classes[idx], percentage[idx].item()) for idx in indices[0][:5]]))
+with open("result.txt", "w") as outfile:
+    outfile.write(str([(classes[idx], percentage[idx].item()) for idx in indices[0][:5]]))

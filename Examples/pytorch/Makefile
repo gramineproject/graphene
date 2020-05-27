@@ -30,13 +30,11 @@ endif
 
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
-default: all
-
-.PHONY: all
+.PHONY: default
 ifeq ($(SGX),1)
-all: pytorch.token python3.token pal_loader
+default: pytorch.token python3.token pal_loader
 else
-all: pytorch.manifest python3.manifest pal_loader
+default: pytorch.manifest python3.manifest pal_loader
 endif
 
 include ../../Scripts/Makefile.configs
@@ -78,7 +76,7 @@ pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
 download_model:
-	$(PYTHON3) download-pretrained-model.py	
+	$(PYTHON3) download-pretrained-model.py
 
 .PHONY: clean
 clean:
