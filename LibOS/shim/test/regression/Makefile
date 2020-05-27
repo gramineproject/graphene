@@ -128,7 +128,7 @@ CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
 CFLAGS-proc_common = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -I$(PALDIR)/../include/arch/$(ARCH) -pthread
-CFLAGS-sigaction_per_process += -pthread
+CFLAGS-sigaction_per_process += -pthread -I$(PALDIR)/../include/arch/$(ARCH)
 CFLAGS-sigprocmask += -pthread
 
 CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
