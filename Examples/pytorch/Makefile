@@ -30,11 +30,11 @@ endif
 
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
-.PHONY: default
+.PHONY: all
 ifeq ($(SGX),1)
-default: pytorch.token python3.token pal_loader
+all: pytorch.token python3.token pal_loader
 else
-default: pytorch.manifest python3.manifest pal_loader
+all: pytorch.manifest python3.manifest pal_loader
 endif
 
 include ../../Scripts/Makefile.configs
