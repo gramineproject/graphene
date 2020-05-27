@@ -8,6 +8,7 @@
 # See README for details.
 #
 # Use `make clean` to remove Graphene-generated files.
+
 GRAPHENEDIR ?= ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 PYTHON3 ?= /usr/bin/python3
@@ -28,13 +29,14 @@ endif
 endif
 
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
-all: default
 
-.PHONY: default
+default: all
+
+.PHONY: all
 ifeq ($(SGX),1)
-default: pytorch.token python3.token pal_loader 
+all: pytorch.token python3.token pal_loader
 else
-default: pytorch.manifest python3.manifest pal_loader 
+all: pytorch.manifest python3.manifest pal_loader
 endif
 
 include ../../Scripts/Makefile.configs
