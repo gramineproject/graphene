@@ -406,14 +406,12 @@ const char* const siglist[SIGRTMIN - 1] = {
 };
 
 static const char* signal_name(int sig, char str[6]) {
-    if (sig <= 0)
+    if (sig <= 0 || sig > NUM_SIGS) {
         return "BAD SIGNAL";
+    }
 
     if (sig < SIGRTMIN)
         return siglist[sig - 1];
-
-    if (sig > NUM_SIGS)
-        return "BAD SIGNAL";
 
     assert(sig <= 99);
     /* Cannot use `sizeof(buf)` here because `typeof(str)` is `char*`, thanks C! */

@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 700
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +31,7 @@ static void ignore_signal(int sig) {
     CHECK(sigprocmask(SIG_SETMASK, &newmask, NULL) < 0);
 }
 
-static void set_signalm_handler(int sig, void* handler) {
+static void set_signal_handler(int sig, void* handler) {
     struct sigaction act = {
         .sa_handler = handler,
     };
@@ -55,8 +56,11 @@ static void test_sigprocmask(void) {
     }
 }
 
-static void clean_pending_signals(void) {
-    set_signalm_handler(SIGALRM, signal_handler);
+static void clean_mask_and_pending_signals(void) {
+    /* We should not have any pending signals other than SIGALRM. */
+    set_signal_handler(SIGALRM, signal_handler);
+    /* This assumes that unblocking a signal will cause its immediate delivery. Unfortunatey
+     * Graphene does not support sigtimedwait yet, so there is no other way. */
     ignore_signal(0);
     __atomic_store_n(&seen_signal, 0, __ATOMIC_RELAXED);
 }
@@ -64,15 +68,20 @@ static void clean_pending_signals(void) {
 static void test_multiple_pending(void) {
     ignore_signal(SIGALRM);
 
-    set_signalm_handler(SIGALRM, signal_handler);
+    set_signal_handler(SIGALRM, signal_handler);
 
     CHECK(kill(getpid(), SIGALRM) < 0);
     CHECK(kill(getpid(), SIGALRM) < 0);
+
+    if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 0) {
+        printf("Handled a blocked standard signal!\n");
+        exit(1);
+    }
 
     ignore_signal(0);
 
     if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 1) {
-        printf("Multiple or none instances of simple signal were queued!\n");
+        printf("Multiple or none instances of standard signal were queued!\n");
         exit(1);
     }
 
@@ -84,7 +93,12 @@ static void test_multiple_pending(void) {
     CHECK(kill(getpid(), sig) < 0);
     CHECK(kill(getpid(), sig) < 0);
 
-    set_signalm_handler(sig, signal_handler);
+    set_signal_handler(sig, signal_handler);
+
+    if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 0) {
+        printf("Handled a blocked real-time signal!\n");
+        exit(1);
+    }
 
     ignore_signal(0);
 
@@ -97,15 +111,13 @@ static void test_multiple_pending(void) {
 static void test_fork(void) {
     ignore_signal(SIGALRM);
 
-    set_signalm_handler(SIGALRM, SIG_DFL);
+    set_signal_handler(SIGALRM, signal_handler);
 
     CHECK(kill(getpid(), SIGALRM) < 0);
 
     pid_t p = fork();
     CHECK(p < 0);
     if (p == 0) {
-        set_signalm_handler(SIGALRM, signal_handler);
-
         ignore_signal(0);
 
         if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 0) {
@@ -117,13 +129,15 @@ static void test_fork(void) {
         exit(0);
     }
 
+    set_signal_handler(SIGALRM, SIG_DFL);
+
     CHECK(waitpid(p, NULL, 0) != p);
 }
 
 static void test_execve_start(char* self) {
     ignore_signal(SIGALRM);
 
-    set_signalm_handler(SIGALRM, SIG_DFL);
+    set_signal_handler(SIGALRM, SIG_DFL);
 
     CHECK(kill(getpid(), SIGALRM) < 0);
 
@@ -132,7 +146,12 @@ static void test_execve_start(char* self) {
 }
 
 static void test_execve_continue(void) {
-    set_signalm_handler(SIGALRM, signal_handler);
+    set_signal_handler(SIGALRM, signal_handler);
+
+    if (__atomic_load_n(&seen_signal, __ATOMIC_RELAXED) != 0) {
+        printf("Seen a unexpected signal!\n");
+        exit(1);
+    }
 
     ignore_signal(0);
 
@@ -153,13 +172,13 @@ int main(int argc, char* argv[]) {
 
     test_sigprocmask();
 
-    clean_pending_signals();
+    clean_mask_and_pending_signals();
     test_multiple_pending();
 
-    clean_pending_signals();
+    clean_mask_and_pending_signals();
     test_fork();
 
-    clean_pending_signals();
+    clean_mask_and_pending_signals();
     test_execve_start(argv[0]);
     return 1;
 }

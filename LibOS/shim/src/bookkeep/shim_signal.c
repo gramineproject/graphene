@@ -59,8 +59,8 @@ static bool is_rt_sq_empty(struct shim_rt_signal_queue* queue) {
     return __atomic_load_n(&queue->get_idx, __ATOMIC_RELAXED)
             == __atomic_load_n(&queue->put_idx, __ATOMIC_RELAXED);
 }
-static bool is_standard_sq_empty(struct shim_signal** queue) {
-    return !__atomic_load_n(queue, __ATOMIC_RELAXED);
+static bool has_standard_signal(struct shim_signal** queue) {
+    return !!__atomic_load_n(queue, __ATOMIC_RELAXED);
 }
 
 void get_pending_signals(struct shim_thread* thread, __sigset_t* set) {
@@ -72,8 +72,8 @@ void get_pending_signals(struct shim_thread* thread, __sigset_t* set) {
     }
 
     for (int sig = 1; sig < SIGRTMIN; sig++) {
-        if (!is_standard_sq_empty(&thread->signal_queue.standard_signals[sig - 1])
-                || !is_standard_sq_empty(&process_signal_queue.standard_signals[sig - 1])) {
+        if (has_standard_signal(&thread->signal_queue.standard_signals[sig - 1])
+                || has_standard_signal(&process_signal_queue.standard_signals[sig - 1])) {
             __sigaddset(set, sig);
         }
     }
@@ -86,19 +86,13 @@ void get_pending_signals(struct shim_thread* thread, __sigset_t* set) {
     }
 }
 
-static bool queue_produce_standard_signal(struct shim_signal** queue, struct shim_signal* signal) {
-    struct shim_signal* old;
-    do {
-        old = __atomic_load_n(queue, __ATOMIC_RELAXED);
-        if (old) {
-            return false;
-        }
-    } while (!__atomic_compare_exchange_n(queue, &old, signal, /*weak=*/true,
-                                          __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-    return true;
+static bool produce_standard_signal(struct shim_signal** signal_slot, struct shim_signal* signal) {
+    struct shim_signal* old = NULL;
+    return __atomic_compare_exchange_n(signal_slot, &old, signal, /*weak=*/false,
+                                       __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }
 
-/* In teory `get_idx` and `put_idx` could overflow, but adding signals with 1GHz (10**9 signals
+/* In theory `get_idx` and `put_idx` could overflow, but adding signals with 1GHz (10**9 signals
  * per second) gives a 544 years running time before overflow, which we consider a "safe margin"
  * for now. */
 static bool queue_produce_rt_signal(struct shim_rt_signal_queue* queue,
@@ -128,7 +122,7 @@ static bool queue_produce_signal(struct shim_signal_queue* queue, struct shim_si
     if (sig < 1 || sig > NUM_SIGS) {
         return false;
     } else if (sig < SIGRTMIN) {
-        return queue_produce_standard_signal(&queue->standard_signals[sig - 1], signal);
+        return produce_standard_signal(&queue->standard_signals[sig - 1], signal);
     } else {
         return queue_produce_rt_signal(&queue->rt_signal_queues[sig - SIGRTMIN], signal);
     }
@@ -150,8 +144,8 @@ static bool append_process_signal(struct shim_signal* signal) {
     return ret;
 }
 
-static struct shim_signal* consume_standard_signal(struct shim_signal** queue) {
-    return __atomic_exchange_n(queue, NULL, __ATOMIC_RELAXED);
+static struct shim_signal* consume_standard_signal(struct shim_signal** signal_slot) {
+    return __atomic_exchange_n(signal_slot, NULL, __ATOMIC_RELAXED);
 }
 
 static struct shim_signal* queue_consume_rt_signal(struct shim_rt_signal_queue* queue) {
@@ -269,13 +263,14 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
         signal = malloc_copy(signal,sizeof(struct shim_signal));
         if (signal) {
             if (!append_thread_signal(cur_thread, signal)) {
-                debug("signal queue is full (TID = %u, SIG = %d)\n", tcb->tid, sig);
+                debug("Signal %d queue of thread %u is full, dropping the incoming signal\n",
+                      sig, tcb->tid);
                 free(signal);
             }
         }
     } else {
-        __handle_signals(tcb);
         __handle_one_signal(tcb, signal);
+        __handle_signals(tcb);
     }
 
     __enable_preempt(tcb);
@@ -848,7 +843,7 @@ void handle_signals(void) {
     __enable_preempt(tcb);
 }
 
-bool append_signal(struct shim_thread* thread, siginfo_t* info) {
+int append_signal(struct shim_thread* thread, siginfo_t* info) {
     assert(!thread || locked(&thread->lock));
     assert(info);
 
@@ -856,7 +851,7 @@ bool append_signal(struct shim_thread* thread, siginfo_t* info) {
 
     struct shim_signal* signal = malloc(sizeof(*signal));
     if (!signal) {
-        return false;
+        return -ENOMEM;
     }
 
     /* save in signal */
@@ -865,21 +860,25 @@ bool append_signal(struct shim_thread* thread, siginfo_t* info) {
 
     if (thread) {
         if (append_thread_signal(thread, signal)) {
-            return true;
+            return 0;
         }
     } else {
         if (append_process_signal(signal)) {
-            return true;
+            return 0;
         }
     }
 
-    debug("signal queue is full (TID = %u%s, SIG = %d)\n",
-          thread ? thread->tid : 0, thread ? "" : "(process)",
-          info->si_signo);
+    debug("Signal %d queue of ", info->si_signo);
+    if (thread) {
+        debug("thread %u", thread->tid);
+    } else {
+        debug("process");
+    }
+    debug(" is full, dropping the incoming signal\n");
     free(signal);
     /* This is counter-intuitive, but we report success here: after all signal was successfully
      * delivered, just the queue was full. */
-    return true;
+    return 0;
 }
 
 #define __WCOREDUMP_BIT 0x80
@@ -940,16 +939,22 @@ BEGIN_CP_FUNC(pending_signals)
     __UNUSED(size);
     __UNUSED(objp);
 
-    /* This is a bit racy, but we cannot do any better. If a app spams itself with signals while
-     * doing execve, some pending signals might not get checkpointed. /me shrugs */
-    uint64_t n = __atomic_load_n(&process_pending_signals, __ATOMIC_RELAXED);
+    /* This is a bit racy, but we cannot do any better. If a app gets spamed with signals while
+     * doing execve, some pending signals might not get checkpointed; we add an arbitrary number of
+     * safe margin slots. */
+#define SAFE_MARGIN_SLOTS 10
+    uint64_t n = __atomic_load_n(&process_pending_signals, __ATOMIC_RELAXED) + SAFE_MARGIN_SLOTS;
     uint64_t i = 0;
-    assert(n <= SIGRTMIN - 1 + (NUM_SIGS - SIGRTMIN + 1) * MAX_SIGNAL_LOG);
+    assert(n <= SIGRTMIN - 1 + (NUM_SIGS - SIGRTMIN + 1) * MAX_SIGNAL_LOG + SAFE_MARGIN_SLOTS);
     siginfo_t infos[n];
     memset(&infos, 0, sizeof(infos));
+#undef SAFE_MARGIN_SLOTS
 
     for (int sig = 1; sig < SIGRTMIN && i < n; sig++) {
         struct shim_signal** q = &process_signal_queue.standard_signals[sig - 1];
+        /* This load might look racy, but only scenario that this signal gets taken of the queue
+         * is another thread handling it. We are doing an execve, so we are the only thread
+         * existing. */
         struct shim_signal* signal = __atomic_load_n(q, __ATOMIC_RELAXED);
         if (signal) {
             memcpy(&infos[i], &signal->info, sizeof(infos[i]));
@@ -987,9 +992,9 @@ BEGIN_RS_FUNC(pending_signals)
         if (!signal) {
             return -ENOMEM;
         }
-        if (!infos[i].si_signo) {
-            continue;
-        }
+
+        assert(infos[i].si_signo);
+
         memcpy(&signal->info, &infos[i], sizeof(signal->info));
         signal->context_stored = false;
         signal->pal_context = NULL;

@@ -104,7 +104,7 @@ int init_signal (void);
 void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
                       struct shim_signal * signal);
 
-bool append_signal(struct shim_thread* thread, siginfo_t* info);
+int append_signal(struct shim_thread* thread, siginfo_t* info);
 
 void deliver_signal(siginfo_t* info, PAL_CONTEXT* context);
 

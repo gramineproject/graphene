@@ -219,16 +219,6 @@ int shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
     return 0;
 }
 
-static inline bool _append_signal(struct shim_thread* thread, int sig, IDTYPE sender) {
-    assert(!thread || locked(&thread->lock));
-
-    siginfo_t info = { 0 };
-    info.si_signo = sig;
-    info.si_pid   = sender;
-
-    return append_signal(thread, &info);
-}
-
 enum signal_thread_arg_type {
     TGID = 1,
     PGID,
@@ -270,9 +260,15 @@ static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
 
     /* Appending the signal to the whole process. */
     if (!arg->sent) {
-        if (_append_signal(NULL, arg->sig, arg->sender)) {
-            arg->sent = true;
+        siginfo_t info = {
+            .si_signo = arg->sig,
+            .si_pid   = arg->sender,
+        };
+        ret = append_signal(NULL, &info);
+        if (ret < 0) {
+            goto out;
         }
+        arg->sent = true;
     }
     if (arg->sent && !__sigismember(&thread->signal_mask, arg->sig)) {
         if (thread == get_cur_thread()) {
@@ -292,7 +288,8 @@ out:
 }
 
 int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
-    /* This might be called by internal thread like IPC, need to do a search. */
+    /* This might be called by an internal thread (like IPC), so we cannot inspect `cur_thread` ids
+     * to check whether `sig` is targetted at it, but need to do a full search. */
     struct signal_thread_arg arg = {
         .sig = sig,
         .sender = sender,
@@ -305,9 +302,9 @@ int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
         return ret;
     }
 
-    /* We delivered the signal to self, now need to handle it. */
     if (ret == 0) {
         if (!arg.sent) {
+            /* We delivered the signal to self, now need to handle it. */
             handle_signals();
         }
         return 0;
@@ -342,7 +339,8 @@ int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
         }
     }
 
-    /* This might be called by internal thread like IPC, need to do a search. */
+    /* This might be called by an internal thread (like IPC), so we cannot inspect `cur_thread` ids
+     * to check whether `sig` is targetted at it, but need to do a full search. */
     struct signal_thread_arg arg = {
         .sig = sig,
         .sender = sender,
@@ -352,8 +350,8 @@ int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
     };
     ret = walk_thread_list(_signal_one_thread, &arg, /*one_shot=*/true);
 
-    /* We delivered the signal to self, now need to handle it. */
     if (ret == 0 && !arg.sent) {
+        /* We delivered the signal to self, now need to handle it. */
         handle_signals();
     }
 
@@ -408,11 +406,15 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
 
         if (thread->in_vm) {
             if (!tgid || thread->tgid == tgid) {
-                if (_append_signal(thread, sig, sender)) {
+                siginfo_t info = {
+                    .si_signo = sig,
+                    .si_pid   = sender,
+                };
+                ret = append_signal(thread, &info);
+                if (ret >= 0) {
                     thread_wakeup(thread);
                     DkThreadResume(thread->pal_handle);
                 }
-                ret = 0;
             }
             use_ipc = false;
         } else {

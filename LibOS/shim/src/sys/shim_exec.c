@@ -365,7 +365,19 @@ reopen:
         }
     }
 
-    bool use_same_process = check_last_thread(cur_thread, /*mark_self_dead=*/false) == 0;
+    /* If `execve` is invoked concurrently by multiple threads, let only one succeed. */
+    static unsigned int first = 0;
+    if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) != 0) {
+        /* Just exit current thread. */
+        thread_exit(0, 0);
+    }
+    kill_other_threads();
+
+    /* All other threds are dead. Restoring initial value in case we stay inside same process
+     * instance and call execve again. */
+    __atomic_store_n(&first, 0, __ATOMIC_RELAXED);
+
+    bool use_same_process = true;
     if (use_same_process && !strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         /* for SGX PALs, can use same process only if it is the same executable (because a different
          * executable has a different measurement and thus requires a new enclave); this special

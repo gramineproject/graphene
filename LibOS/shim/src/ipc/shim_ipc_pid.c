@@ -158,7 +158,7 @@ struct thread_status {
     struct pid_status* status;
 };
 
-int check_thread(struct shim_thread* thread, void* arg) {
+static int check_thread(struct shim_thread* thread, void* arg) {
     struct thread_status* status = (struct thread_status*)arg;
     int ret = 0;
 

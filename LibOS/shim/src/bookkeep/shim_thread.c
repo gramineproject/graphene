@@ -453,7 +453,7 @@ static int _check_last_thread(struct shim_thread* self) {
 /*
  * Searches for any alive thread excluding `self`.
  * Returns tid of the first found alive thread or 0 if there are no alive threads.
- * If `self` is NULL, all threads are checked. If `makr_self_dead` is true, atomically marks `self`
+ * If `self` is NULL, all threads are checked. If `mark_self_dead` is true, atomically marks `self`
  * as dead (wrt. searching).
  */
 int check_last_thread(struct shim_thread* self, bool mark_self_dead) {

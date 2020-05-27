@@ -291,7 +291,8 @@ passthrough:
 
 void signal_io(IDTYPE caller, void* arg) {
     __UNUSED(caller);
-    (void)do_kill_proc(get_cur_thread()->tid, (IDTYPE)(uintptr_t)arg, SIGIO, /*use_ipc=*/false);
+    /* This signal is originating from the kernel/LibOS, so we are setting the sender to `0`. */
+    (void)do_kill_proc(0, (IDTYPE)(uintptr_t)arg, SIGIO, /*use_ipc=*/false);
 }
 
 int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {

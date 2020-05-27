@@ -323,6 +323,7 @@ void set_handle_map (struct shim_thread * thread,
 }
 
 int thread_destroy(struct shim_thread* self, bool send_ipc);
+void kill_other_threads(void);
 noreturn void thread_exit(int error_code, int term_signal);
 noreturn void process_exit(int error_code, int term_signal);
 

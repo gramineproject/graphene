@@ -20,17 +20,15 @@
  * Implementation of system call "exit" and "exit_group".
  */
 
-#include <pal.h>
-#include <pal_error.h>
+#include "pal.h"
+#include "pal_error.h"
 
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
-
-void release_robust_list (struct robust_list_head * head);
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 int thread_destroy(struct shim_thread* thread, bool send_ipc) {
     bool sent_exit_msg = false;
@@ -82,7 +80,7 @@ int thread_destroy(struct shim_thread* thread, bool send_ipc) {
             info.si_uid   = thread->uid;
             info.si_status = (exit_code & 0xff) << 8;
 
-            if (append_signal(parent, &info)) {
+            if (append_signal(parent, &info) >= 0) {
                 thread_wakeup(thread);
                 DkThreadResume(thread->pal_handle);
             }
@@ -168,29 +166,36 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
     thread->time_to_die = true;
     unlock(&thread->lock);
 
+    /* Now let's kick `thread`, so that it notices (in `__handle_signals`) the flag `time_to_die`
+     * set above. */
     thread_wakeup(thread);
     DkThreadResume(thread->pal_handle);
     return 1;
 }
 
-noreturn void process_exit(int error_code, int term_signal) {
+void kill_other_threads(void) {
     struct shim_thread* cur_thread = get_cur_thread();
 
-    /* If process_exit is invoked multiple times, only a single invocation proceeds past this
-     * point. */
-    static struct atomic_int first = ATOMIC_INIT(0);
-    if (atomic_cmpxchg(&first, 0, 1) == 1) {
-        /* Just exit current thread. */
-        thread_exit(error_code, term_signal);
-    }
-
-    /* Tell other threads to exit. We can't do anything on failuers. */
+    /* Tell other threads to exit. Since `mark_thread_to_die` never returns an error, this call
+     * cannot fail. */
     (void)walk_thread_list(mark_thread_to_die, cur_thread, /*one_shot=*/false);
 
     /* Wait for all other threads to exit. */
     while (check_last_thread(cur_thread, /*mark_self_dead=*/false)) {
         DkThreadYieldExecution();
     }
+}
+
+noreturn void process_exit(int error_code, int term_signal) {
+    /* If process_exit is invoked multiple times, only a single invocation proceeds past this
+     * point. */
+    static int first = 0;
+    if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) != 0) {
+        /* Just exit current thread. */
+        thread_exit(error_code, term_signal);
+    }
+
+    kill_other_threads();
 
     /* Now quit our thread. Since we are the last one, this will exit the whole LibOS. */
     thread_exit(error_code, term_signal);

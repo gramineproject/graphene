@@ -56,6 +56,8 @@ int main() {
         return 1;
     }
 
+    /* Poor man's way of allowing the other thread to handle the signal, if it was delivered to it.
+     * That thread calls sched_yield in a loop, so 1ms should be enough. */
     usleep(1000);
 
     set(2);
