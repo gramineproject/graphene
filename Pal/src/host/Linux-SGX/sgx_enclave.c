@@ -1,3 +1,4 @@
+#include "cpu.h"
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "pal_linux_error.h"
@@ -728,7 +729,7 @@ static int rpc_thread_loop(void* arg) {
     while (1) {
         rpc_request_t* req = rpc_dequeue(g_rpc_queue);
         if (!req) {
-            __asm__ volatile("pause");
+            cpu_pause();
             continue;
         }
 
