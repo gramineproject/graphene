@@ -285,7 +285,8 @@ void add_thread (struct shim_thread * thread);
 void del_thread (struct shim_thread * thread);
 
 void cleanup_thread(IDTYPE caller, void* thread);
-int check_last_thread(struct shim_thread* self, bool mark_self_dead);
+bool mark_self_dead(void);
+bool check_last_thread(void);
 
 #ifndef ALIAS_VFORK_AS_FORK
 void switch_dummy_thread (struct shim_thread * thread);

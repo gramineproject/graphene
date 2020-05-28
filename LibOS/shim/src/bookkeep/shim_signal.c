@@ -844,7 +844,6 @@ void handle_signals(void) {
 }
 
 int append_signal(struct shim_thread* thread, siginfo_t* info) {
-    assert(!thread || locked(&thread->lock));
     assert(info);
 
     // TODO: ignore SIGCHLD even if it's masked, when handler is set to SIG_IGN (probably not here)

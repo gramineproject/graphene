@@ -311,6 +311,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         set_parent_tid = parent_tidptr;
     }
 
+    disable_preempt(NULL);
+
     struct shim_thread * thread = get_new_thread(0);
     if (!thread) {
         ret = -ENOMEM;
@@ -410,6 +412,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             *set_parent_tid = tid;
 
         put_thread(thread);
+        enable_preempt(NULL);
         return tid;
     }
 
@@ -462,6 +465,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     object_wait_with_retry(new_args.initialize_event);
     DkObjectClose(new_args.initialize_event);
     put_thread(thread);
+    enable_preempt(NULL);
     return tid;
 
 clone_thread_failed:
@@ -472,5 +476,6 @@ clone_thread_failed:
 failed:
     if (thread)
         put_thread(thread);
+    enable_preempt(NULL);
     return ret;
 }

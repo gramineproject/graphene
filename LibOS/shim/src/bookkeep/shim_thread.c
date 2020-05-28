@@ -433,39 +433,55 @@ void del_thread (struct shim_thread * thread)
     put_thread(thread);
 }
 
-static int _check_last_thread(struct shim_thread* self) {
-    assert(locked(&thread_list_lock));
+/*
+ * Atomically marks current thread as dead and returns whether it was the last thread alive.
+ */
+bool mark_self_dead(void) {
+    struct shim_thread* self = get_cur_thread();
+    bool ret = true;
 
-    IDTYPE self_tid = self ? self->tid : 0;
+    lock(&thread_list_lock);
+
+    lock(&self->lock);
+    self->is_alive = false;
+    unlock(&self->lock);
 
     struct shim_thread* thread;
     LISTP_FOR_EACH_ENTRY(thread, &thread_list, list) {
         lock(&thread->lock);
-        if (thread->tid && thread->tid != self_tid && thread->in_vm && thread->is_alive) {
+        if (thread->in_vm && thread != self && thread->is_alive) {
             unlock(&thread->lock);
-            return thread->tid;
+            ret = false;
+            break;
         }
         unlock(&thread->lock);
     }
-    return 0;
+
+    unlock(&thread_list_lock);
+    return ret;
 }
 
 /*
- * Searches for any alive thread excluding `self`.
- * Returns tid of the first found alive thread or 0 if there are no alive threads.
- * If `self` is NULL, all threads are checked. If `mark_self_dead` is true, atomically marks `self`
- * as dead (wrt. searching).
+ * Checks whether there are any other threds on `thread_list`.
  */
-int check_last_thread(struct shim_thread* self, bool mark_self_dead) {
+bool check_last_thread(void) {
+    struct shim_thread* self = get_cur_thread();
+    bool ret = true;
+
     lock(&thread_list_lock);
-    if (mark_self_dead) {
-        lock(&self->lock);
-        self->is_alive = false;
-        unlock(&self->lock);
+
+    struct shim_thread* thread;
+    LISTP_FOR_EACH_ENTRY(thread, &thread_list, list) {
+        lock(&thread->lock);
+        if (thread->in_vm && thread != self) {
+            unlock(&thread->lock);
+            ret = false;
+            break;
+        }
+        unlock(&thread->lock);
     }
-    int alive_thread_tid = _check_last_thread(self);
     unlock(&thread_list_lock);
-    return alive_thread_tid;
+    return ret;
 }
 
 /* This function is called by Async Helper thread to wait on thread->clear_child_tid_pal to be
@@ -485,7 +501,7 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     /* notify parent if any */
     release_clear_child_tid(thread->clear_child_tid);
 
-    /* clean up the thread itself */
+    /* Clean up the thread itself - it will be removed from `thread_list`. */
     del_thread(thread);
 }
 
@@ -496,8 +512,6 @@ int walk_thread_list(int (*callback)(struct shim_thread*, void*), void* arg, boo
     int ret = -ESRCH;
 
     lock(&thread_list_lock);
-
-    debug("walk_thread_list(callback=%p)\n", callback);
 
     LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &thread_list, list) {
         ret = callback(tmp, arg);

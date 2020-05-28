@@ -68,6 +68,7 @@ int thread_destroy(struct shim_thread* thread, bool send_ipc) {
         lock(&parent->lock);
         LISTP_DEL_INIT(thread, &parent->children, siblings);
         LISTP_ADD_TAIL(thread, &parent->exited_children, siblings);
+        unlock(&parent->lock);
 
         if (!thread->in_vm) {
             debug("deliver SIGCHLD (thread = %d, exitval = %d)\n",
@@ -85,7 +86,6 @@ int thread_destroy(struct shim_thread* thread, bool send_ipc) {
                 DkThreadResume(thread->pal_handle);
             }
         }
-        unlock(&parent->lock);
 
         DkEventSet(parent->child_exit_event);
     } else if (!sent_exit_msg) {
@@ -141,7 +141,7 @@ noreturn void thread_exit(int error_code, int term_signal) {
 
     thread_destroy(cur_thread, true);
 
-    if (check_last_thread(cur_thread, /*mark_self_dead=*/true)) {
+    if (!mark_self_dead()) {
         /* ask Async Helper thread to cleanup this thread */
         cur_thread->clear_child_tid_pal = 1; /* any non-zero value suffices */
         int64_t ret = install_async_event(NULL, 0, &cleanup_thread, cur_thread);
@@ -154,6 +154,8 @@ noreturn void thread_exit(int error_code, int term_signal) {
         DkThreadExit(&cur_thread->clear_child_tid_pal);
     }
 
+    /* At this point other threads might be still in the middle of an exit routine, but we don't
+     * care since the below will call `exit_group` eventually. */
     libos_exit(error_code, term_signal);
 }
 
@@ -162,26 +164,35 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
         return 0;
     }
 
+    bool need_wakeup = false;
+
     lock(&thread->lock);
+    if (!thread->time_to_die) {
+        need_wakeup = true;
+    }
     thread->time_to_die = true;
     unlock(&thread->lock);
 
     /* Now let's kick `thread`, so that it notices (in `__handle_signals`) the flag `time_to_die`
-     * set above. */
-    thread_wakeup(thread);
-    DkThreadResume(thread->pal_handle);
+     * set above (but only if we really set that flag). */
+    if (need_wakeup) {
+        thread_wakeup(thread);
+        DkThreadResume(thread->pal_handle);
+    }
     return 1;
 }
 
 void kill_other_threads(void) {
-    struct shim_thread* cur_thread = get_cur_thread();
-
     /* Tell other threads to exit. Since `mark_thread_to_die` never returns an error, this call
      * cannot fail. */
-    (void)walk_thread_list(mark_thread_to_die, cur_thread, /*one_shot=*/false);
+    (void)walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false);
+    DkThreadYieldExecution();
 
     /* Wait for all other threads to exit. */
-    while (check_last_thread(cur_thread, /*mark_self_dead=*/false)) {
+    while (!check_last_thread()) {
+        /* Tell other threads to exit again - the previous anouncement could be missed by threads
+         * that were just being created. */
+        (void)walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false);
         DkThreadYieldExecution();
     }
 }
