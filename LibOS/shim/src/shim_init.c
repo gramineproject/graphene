@@ -20,6 +20,7 @@
  * This file contains entry and exit functions of library OS.
  */
 
+#include <shim_context.h>
 #include <shim_defs.h>
 #include <shim_internal.h>
 #include <shim_table.h>

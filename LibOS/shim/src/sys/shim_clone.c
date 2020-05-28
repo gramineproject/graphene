@@ -21,7 +21,7 @@
  * implemented yet.)
  */
 
-
+#include "shim_context.h"
 #include "shim_fork.h"
 #include "shim_types.h"
 #include "shim_internal.h"

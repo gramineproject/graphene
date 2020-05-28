@@ -2,8 +2,10 @@
 #define _SHIM_TCB_H_
 
 #include <assert.h>
-#include <atomic.h>
-#include <pal.h>
+
+#include "api.h"
+#include "atomic.h"
+#include "pal.h"
 
 #include "shim_tcb-arch.h"
 
