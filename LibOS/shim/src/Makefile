@@ -34,6 +34,7 @@ ASFLAGS += $(defs)
 objs = \
 	shim_async.o \
 	shim_checkpoint.o \
+	shim_context-$(ARCH).o \
 	shim_debug.o \
 	shim_init.o \
 	shim_malloc.o \

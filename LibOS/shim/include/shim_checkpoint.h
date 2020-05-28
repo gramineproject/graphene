@@ -393,6 +393,5 @@ int do_migrate_process(int (*migrate)(struct shim_cp_store*, struct shim_thread*
                                       struct shim_process*, va_list),
                        struct shim_handle* exec, const char** argv, struct shim_thread* thread,
                        ...);
-void restore_context(struct shim_context* context);
 
 #endif /* _SHIM_CHECKPOINT_H_ */

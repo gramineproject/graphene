@@ -26,6 +26,7 @@
 #include <shim_handle.h>
 #include <shim_vma.h>
 #include <shim_fs.h>
+#include <shim_context.h>
 #include <shim_checkpoint.h>
 #include <shim_utils.h>
 

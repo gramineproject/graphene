@@ -27,6 +27,7 @@
 #include <shim_thread.h>
 #include <shim_utils.h>
 #include <shim_checkpoint.h>
+#include <shim_context.h>
 
 #include <pal.h>
 #include <pal_error.h>

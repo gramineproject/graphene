@@ -64,7 +64,7 @@ static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
 static inline void shim_tcb_init(void) {
     PAL_TCB* tcb = pal_get_tcb();
     shim_tcb_t* shim_tcb = (shim_tcb_t*)tcb->libos_tcb;
-    memset(shim_tcb, 0, sizeof(*shim_tcb));
+    __builtin_memset(shim_tcb, 0, sizeof(*shim_tcb));
     __shim_tcb_init(shim_tcb);
 }
 
