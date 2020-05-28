@@ -638,7 +638,7 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     __UNUSED(arg);
     __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
-        deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
+        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGTERM, /*use_ipc=*/false);
     }
     DkExceptionReturn(event);
 }
@@ -648,7 +648,7 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     __UNUSED(arg);
     __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
-        deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
+        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGINT, /*use_ipc=*/false);
     }
     DkExceptionReturn(event);
 }
@@ -672,7 +672,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void pipe_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (!is_internal_tid(get_cur_tid()))
-        deliver_signal(ALLOC_SIGINFO(SIGPIPE, 0, si_pid, 0), /*context=*/NULL);
+        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGPIPE, /*use_ipc=*/false);
     else
         internal_fault("Internal SIGPIPE fault", arg, context);
     DkExceptionReturn(event);
