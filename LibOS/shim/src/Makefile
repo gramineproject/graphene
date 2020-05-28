@@ -34,6 +34,7 @@ ASFLAGS += $(defs)
 objs = \
 	shim_async.o \
 	shim_checkpoint.o \
+	shim_context-$(ARCH).o \
 	shim_debug.o \
 	shim_init.o \
 	shim_malloc.o \
@@ -164,7 +165,7 @@ libsysdb.a: $(objs)
 %.s: %.S
 	$(call cmd,cpp_s_S)
 
-syscallas-$(ARCH).S shim_checkpoint.c: asm-offsets.h
+syscallas-$(ARCH).S shim_context-$(ARCH).c: asm-offsets.h
 
 include ../../../Scripts/Makefile.rules
 
