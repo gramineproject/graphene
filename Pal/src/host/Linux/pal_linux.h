@@ -141,7 +141,6 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, PAL_HANDLE* exec
 
 void cpuid (unsigned int leaf, unsigned int subleaf,
             unsigned int words[]);
-int block_signals (bool block, const int * sigs, int nsig);
 int block_async_signals (bool block);
 void signal_setup (void);
 
@@ -156,19 +155,14 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define ADDR_IN_PAL(addr) \
         ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
-DEFINE_LIST(event_queue);
-struct event_queue {
-    LIST_TYPE(event_queue) list;
-    int event_num;
-};
+#define MAX_SIGNAL_LOG 32
 
-DEFINE_LISTP(event_queue);
 typedef struct pal_tcb_linux {
     PAL_TCB common;
     struct {
         /* private to Linux PAL */
-        int         pending_event;
-        LISTP_TYPE(event_queue) pending_queue;
+        int         pending_events[MAX_SIGNAL_LOG];
+        int         pending_events_num;
         PAL_HANDLE  handle;
         void *      alt_stack;
         int         (*callback) (void *);

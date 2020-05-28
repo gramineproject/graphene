@@ -111,6 +111,9 @@ int mbedtls_to_pal_error(int error)
         case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
             return -PAL_ERROR_TRYAGAIN;
 
+        case MBEDTLS_ERR_NET_CONN_RESET:
+            return -PAL_ERROR_CONNFAILED_PIPE;
+
         default:
             return -PAL_ERROR_DENIED;
     }
@@ -357,6 +360,8 @@ static int recv_cb(void* ctx, uint8_t* buf, size_t len) {
     if (ret < 0) {
         if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK)
             return MBEDTLS_ERR_SSL_WANT_READ;
+        if (ret == -EPIPE)
+            return MBEDTLS_ERR_NET_CONN_RESET;
         return MBEDTLS_ERR_NET_RECV_FAILED;
     }
 
@@ -377,6 +382,8 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
     if (ret < 0) {
         if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK)
             return MBEDTLS_ERR_SSL_WANT_WRITE;
+        if (ret == -EPIPE)
+            return MBEDTLS_ERR_NET_CONN_RESET;
         return MBEDTLS_ERR_NET_SEND_FAILED;
     }
 

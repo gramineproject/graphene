@@ -580,10 +580,8 @@ enum PAL_EVENT {
     PAL_EVENT_RESUME           = 6,
     /*! failure within PAL calls */
     PAL_EVENT_FAILURE          = 7,
-    /*! pipe event */
-    PAL_EVENT_PIPE             = 8,
 
-    PAL_EVENT_NUM_BOUND        = 9,
+    PAL_EVENT_NUM_BOUND        = 8,
 };
 
 typedef void (*PAL_EVENT_HANDLER) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT*);
