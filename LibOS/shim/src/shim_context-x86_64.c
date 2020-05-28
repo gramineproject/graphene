@@ -62,3 +62,22 @@ void restore_context(struct shim_context* context) {
                      "jmp *-"XSTRINGIFY(RED_ZONE_SIZE)"-8(%%rsp)\r\n"
                      :: "g"(&regs) : "memory");
 }
+
+/*
+ * See syscall_wrapper @ syscalldb.S and illegal_upcall() @ shim_signal.c
+ * for details.
+ * child thread can _not_ use parent stack. So return right after syscall
+ * instruction as if syscall_wrapper is executed.
+ */
+void fixup_child_context(struct shim_regs* regs) {
+    if (regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
+        /*
+         * we don't need to emulate stack pointer change because %rsp is
+         * initialized to new child user stack passed to clone() system call.
+         * See the caller of fixup_child_context().
+         */
+        /* regs->rsp += RED_ZONE_SIZE; */
+        regs->rflags = regs->r11;
+        regs->rip = regs->rcx;
+    }
+}

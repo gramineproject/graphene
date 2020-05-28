@@ -47,26 +47,6 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
      */
 }
 
-/*
- * See syscall_wrapper @ syscalldb.S and illegal_upcall() @ shim_signal.c
- * for details.
- * child thread can _not_ use parent stack. So return right after syscall
- * instruction as if syscall_wrapper is executed.
- */
-static void fixup_child_context(struct shim_regs * regs)
-{
-    if (regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
-        /*
-         * we don't need to emulate stack pointer change because %rsp is
-         * initialized to new child user stack passed to clone() system call.
-         * See the caller of fixup_child_context().
-         */
-        /* regs->rsp += RED_ZONE_SIZE; */
-        regs->rflags = regs->r11;
-        regs->rip = regs->rcx;
-    }
-}
-
 /* from **sysdeps/unix/sysv/linux/x86_64/clone.S:
    The userland implementation is:
    int clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg),
