@@ -1,4 +1,5 @@
 /* Copyright (C) 2014 Stony Brook University
+                 2020 Intel Labs
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -15,46 +16,27 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
- * db_signal.c
+ * db_exception.c
  *
- * This file contains APIs to set up handlers of exceptions issued by the
- * host, and the methods to pass the exceptions to the upcalls.
+ * This file contains APIs to set up signal handlers.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_debug.h"
-#include "pal_error.h"
+#include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "api.h"
 
-#include <atomic.h>
-#include <sigset.h>
 #include <linux/signal.h>
+#include <sigset.h>
 #include <ucontext.h>
-#include <asm/errno.h>
 
 #if defined(__x86_64__)
-/* In x86_64 kernels, sigaction is required to have a user-defined
- * restorer. Also, they not yet support SA_INFO. The reference:
- * http://lxr.linux.no/linux+v2.6.35/arch/x86/kernel/signal.c#L448
- *
- *     / * x86-64 should always use SA_RESTORER. * /
- *     if (ka->sa.sa_flags & SA_RESTORER) {
- *             put_user_ex(ka->sa.sa_restorer, &frame->pretcode);
- *     } else {
- *             / * could use a vstub here * /
- *             err |= -EFAULT;
- *     }
- */
-
-#ifndef SA_RESTORER
-#define SA_RESTORER  0x04000000
-#endif
-
+/* in x86_64 kernels, sigaction is required to have a user-defined restorer */
 #define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
 #define DEFINE_RESTORE_RT2(syscall)                 \
     __asm__ (                                       \
@@ -65,342 +47,235 @@
          "__restore_rt:\n"                          \
          "    movq $" #syscall ", %rax\n"           \
          "    syscall\n");
-
 DEFINE_RESTORE_RT(__NR_rt_sigreturn)
 
-/* Workaround for an old GAS (2.27) bug that incorrectly
- * omits relocations when referencing this symbol */
+/* workaround for an old GAS (2.27) bug that incorrectly omits relocations when referencing this
+ * symbol */
 __attribute__((visibility("hidden"))) void __restore_rt(void);
+#endif  /* defined(__x86_64__) */
 
-#endif
+static const int async_signals[] = {SIGTERM, SIGINT, SIGCONT};
 
-static const int async_signals[] =
-{
-    SIGTERM,
-    SIGINT,
-    SIGCONT,
-};
-static const int nasync_signals = ARRAY_SIZE(async_signals);
-
-
-static int set_sighandler (int * sigs, int nsig, void * handler)
-{
-    struct sigaction action;
-
-    if (handler) {
-        action.sa_handler = (void (*)(int)) handler;
-        action.sa_flags = SA_SIGINFO | SA_ONSTACK;
-#if defined(__x86_64__)
-        action.sa_flags |= SA_RESTORER;
-        action.sa_restorer = __restore_rt;
-#endif
-    } else {
-        action.sa_flags = 0x0u;
-        action.sa_handler = SIG_IGN;
-    }
-
-#ifdef DEBUG
-    if (!linux_state.in_gdb)
-#endif
-        action.sa_flags |= SA_NOCLDWAIT;
-
-    __sigemptyset((__sigset_t *) &action.sa_mask);
-    __sigaddset((__sigset_t *) &action.sa_mask, SIGCONT);
-
-    for (int i = 0 ; i < nsig ; i++) {
-#if defined(__i386__)
-        int ret = INLINE_SYSCALL(sigaction, 3, sigs[i], &action, NULL)
-#else
-        int ret = INLINE_SYSCALL(rt_sigaction, 4, sigs[i], &action, NULL,
-                                 sizeof(sigset_t));
-#endif
-        if (IS_ERR(ret))
-            return -PAL_ERROR_DENIED;
-    }
-
-    int ret = 0;
-    __sigset_t mask;
-    __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        __sigaddset(&mask, sigs[i]);
-
-#if defined(__i386__)
-    ret = INLINE_SYSCALL(sigprocmask, 3, SIG_UNBLOCK, &mask, NULL)
-#else
-    ret = INLINE_SYSCALL(rt_sigprocmask, 4, SIG_UNBLOCK, &mask, NULL,
-                         sizeof(sigset_t));
-#endif
-
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
-
-    return 0;
-}
-
-int block_signals (bool block, const int * sigs, int nsig)
-{
+static int block_signal(int sig, bool block) {
     int how = block? SIG_BLOCK: SIG_UNBLOCK;
-    int ret = 0;
+
     __sigset_t mask;
     __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        __sigaddset(&mask, sigs[i]);
+    __sigaddset(&mask, sig);
 
-#if defined(__i386__)
-    ret = INLINE_SYSCALL(sigprocmask, 3, how, &mask, NULL)
-#else
-    ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL,
-                         sizeof(sigset_t));
-#endif
+    int ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL, sizeof(__sigset_t));
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+}
 
+static int set_signal_handler(int sig, void* handler) {
+    struct sigaction action = {0};
+    action.sa_handler  = handler;
+    action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER;
+    action.sa_restorer = __restore_rt;
+
+    /* disallow nested asynchronous signals during exception handling */
+    __sigemptyset((__sigset_t*)&action.sa_mask);
+    for (size_t i = 0; i < ARRAY_SIZE(async_signals); i++)
+        __sigaddset((__sigset_t*)&action.sa_mask, async_signals[i]);
+
+    int ret = INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
+    return block_signal(sig, /*block=*/false);
+}
+
+int block_async_signals(bool block) {
+    for (size_t i = 0; i < ARRAY_SIZE(async_signals); i++) {
+        int ret = block_signal(async_signals[i], block);
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
+    }
     return 0;
 }
 
-int block_async_signals (bool block)
-{
-    return block_signals(block, async_signals, nasync_signals);
-}
-
-static int get_event_num (int signum)
-{
-    switch(signum) {
-        case SIGFPE:                return PAL_EVENT_ARITHMETIC_ERROR;
-        case SIGSEGV: case SIGBUS:  return PAL_EVENT_MEMFAULT;
-        case SIGILL:  case SIGSYS:  return PAL_EVENT_ILLEGAL;
-        case SIGTERM:               return PAL_EVENT_QUIT;
-        case SIGINT:                return PAL_EVENT_SUSPEND;
-        case SIGCONT:               return PAL_EVENT_RESUME;
-        case SIGPIPE:               return PAL_EVENT_PIPE;
-        default: return -1;
+static int get_pal_event(int sig) {
+    switch(sig) {
+        case SIGFPE:
+            return PAL_EVENT_ARITHMETIC_ERROR;
+        case SIGSEGV:
+        case SIGBUS:
+            return PAL_EVENT_MEMFAULT;
+        case SIGILL:
+        case SIGSYS:
+            return PAL_EVENT_ILLEGAL;
+        case SIGTERM:
+            return PAL_EVENT_QUIT;
+        case SIGINT:
+            return PAL_EVENT_SUSPEND;
+        case SIGCONT:
+            return PAL_EVENT_RESUME;
+        default:
+            return -1;
     }
 }
 
-static void _DkGenericEventTrigger(PAL_EVENT_HANDLER upcall,
-                                   PAL_NUM arg, ucontext_t* uc) {
-    if (!uc) {
-        (*upcall)(NULL, arg, NULL);
+static void perform_signal_handling(int event, siginfo_t* info, ucontext_t* uc) {
+    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
+    if (!upcall)
         return;
+
+    PAL_NUM arg = 0;
+    if (info) {
+        switch (event) {
+            case PAL_EVENT_ARITHMETIC_ERROR:
+            case PAL_EVENT_MEMFAULT:
+            case PAL_EVENT_ILLEGAL:
+                arg = (PAL_NUM)info->si_addr;
+                break;
+        }
     }
 
     PAL_CONTEXT context;
     ucontext_to_pal_context(&context, uc);
-
-    (*upcall)(NULL, arg, &context);
-
-    /* copy the context back to ucontext */
+    (*upcall)(/*event=*/NULL, arg, &context);
     pal_context_to_ucontext(uc, &context);
 }
 
-static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
-                                    ucontext_t * uc)
-{
-    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
-
-    if (upcall) {
-        PAL_NUM arg = 0;
-
-        if (event_num == PAL_EVENT_ARITHMETIC_ERROR ||
-            event_num == PAL_EVENT_MEMFAULT ||
-            event_num == PAL_EVENT_ILLEGAL)
-            arg = (PAL_NUM) (info ? info->si_addr : 0);
-
-        _DkGenericEventTrigger(upcall, arg, uc);
-        return true;
-    }
-
-    return false;
-}
-
-static void _DkGenericSighandler (int signum, siginfo_t * info,
-                                  struct ucontext * uc)
-{
-    int event_num = get_event_num(signum);
-    if (event_num == -1)
-        return;
+static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
+    int event = get_pal_event(signum);
+    assert(event > 0);
 
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
-    if (ADDR_IN_PAL(rip)) {
-        // We expect none of the memory faults, illegal instructions, or arithmetic exceptions
-        // will happen in PAL. If these exceptions happen in PAL, exit the thread with loud warning.
-        int pid = INLINE_SYSCALL(getpid, 0);
-        int tid = INLINE_SYSCALL(gettid, 0);
-        const char * name = "exception";
-        switch(event_num) {
-            case PAL_EVENT_ARITHMETIC_ERROR: name = "arithmetic exception"; break;
-            case PAL_EVENT_MEMFAULT:         name = "memory fault"; break;
-            case PAL_EVENT_ILLEGAL:          name = "illegal instruction"; break;
-        }
-
-        printf("*** An unexpected %s occurred inside PAL. Exiting the thread. "
-               "(PID = %d, TID = %d, RIP = +0x%08lx) ***\n",
-               name, pid, tid, rip - (uintptr_t) TEXT_START);
-
-#ifdef DEBUG
-        // Hang for debugging
-        while (true) {
-            struct timespec sleeptime;
-            sleeptime.tv_sec = 36000;
-            sleeptime.tv_nsec = 0;
-            INLINE_SYSCALL(nanosleep, 2, &sleeptime, NULL);
-        }
-#endif
-        _DkThreadExit(/*clear_child_tid=*/NULL);
+    if (!ADDR_IN_PAL(rip)) {
+        /* exception happened in application or LibOS code, normal benign case */
+        perform_signal_handling(event, info, uc);
         return;
     }
 
-    _DkGenericSignalHandle(event_num, info, uc);
+    /* exception happened in PAL code: this is fatal in Graphene */
+    const char* name = "exception";
+    switch (event) {
+        case PAL_EVENT_ARITHMETIC_ERROR:
+            name = "arithmetic exception";
+            break;
+        case PAL_EVENT_MEMFAULT:
+            name = "memory fault";
+            break;
+        case PAL_EVENT_ILLEGAL:
+            name = "illegal instruction";
+            break;
+    }
+
+    printf("*** Unexpected %s occurred inside PAL (PID = %ld, TID = %ld, RIP = +0x%08lx)! ***\n",
+           name, INLINE_SYSCALL(getpid, 0), INLINE_SYSCALL(gettid, 0),
+           rip - (uintptr_t)TEXT_START);
+
+    _DkProcessExit(1);
+    return;
 }
 
-static void _DkTerminateSighandler (int signum, siginfo_t * info,
-                                    struct ucontext * uc)
-{
-    __UNUSED(info);
-
-    int event_num = get_event_num(signum);
-    if (event_num == -1)
-        return;
+static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {
+    int event = get_pal_event(signum);
+    assert(event > 0);
 
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
 
-    // If the signal arrives in the middle of a PAL call, add the event
-    // to pending in the current TCB.
-    if (ADDR_IN_PAL(rip)) {
-        PAL_TCB_LINUX * tcb = get_tcb_linux();
-        assert(tcb);
-        if (!tcb->pending_event) {
-            // Use the preserved pending event slot
-            tcb->pending_event = event_num;
-        } else {
-            // If there is already a pending event, add the new event to the queue.
-            // (a relatively rare case.)
-            struct event_queue * ev = malloc(sizeof(*ev));
-            if (!ev)
-                return;
-
-            INIT_LIST_HEAD(ev, list);
-            ev->event_num = event_num;
-            LISTP_ADD_TAIL(ev, &tcb->pending_queue, list);
-        }
+    if (!ADDR_IN_PAL(rip)) {
+        /* signal arrived while in application or LibOS code, normal benign case */
+        perform_signal_handling(event, info, uc);
         return;
     }
 
-    // Call the event handler. If there is no handler, terminate the thread
-    // unless it is a resuming event (then ignore the event).
-    if (!_DkGenericSignalHandle(event_num, NULL, uc) && event_num != PAL_EVENT_RESUME)
-        _DkThreadExit(/*clear_child_tid=*/NULL);
-}
-
-static void _DkPipeSighandler (int signum, siginfo_t * info,
-                               struct ucontext * uc)
-{
-    __UNUSED(info);
-
-    assert(signum == SIGPIPE);
-
-    int event_num = get_event_num(signum);
-    assert(event_num == PAL_EVENT_PIPE);
-
-    if (!_DkGenericSignalHandle(event_num, NULL, uc))
-        _DkThreadExit(/*clear_child_tid=*/NULL);
-}
-
-/*
- * __check_pending_event(): checks the existence of a pending event in the TCB
- * and handles the event consequently.
- */
-void __check_pending_event (void)
-{
-    PAL_TCB_LINUX * tcb = get_tcb_linux();
+    /* signal arrived while in PAL code, add as pending for this thread; note that there is no race
+     * on pending_events as TCB is thread-local and async signals are blocked during signal
+     * handling */
+    PAL_TCB_LINUX* tcb = get_tcb_linux();
     assert(tcb);
-    if (tcb->pending_event) {
-        int event = tcb->pending_event;
-        tcb->pending_event = 0;
-        _DkGenericSignalHandle(event, NULL, NULL);
+    if (tcb->pending_events_num < MAX_SIGNAL_LOG)
+        tcb->pending_events[tcb->pending_events_num++] = event;
+}
 
-        if (!LISTP_EMPTY(&tcb->pending_queue)) {
-            // If there are more than one pending events, process them from the queue
-            struct event_queue * ev, * n;
-            LISTP_FOR_EACH_ENTRY_SAFE(ev, n, &tcb->pending_queue, list) {
-                LISTP_DEL(ev, &tcb->pending_queue, list);
-                _DkGenericSignalHandle(ev->event_num, NULL, NULL);
-                free(ev);
-            }
+void __check_pending_event(void) {
+    PAL_TCB_LINUX* tcb = get_tcb_linux();
+    assert(tcb);
+
+    if (!tcb->pending_events_num)
+        return;
+
+    /* block signals while delivering pending events to avoid races on pending_events */
+    int ret = block_async_signals(/*block=*/true);
+    if (IS_ERR(ret))
+        return;
+
+    for (int i = 0; i < tcb->pending_events_num; i++) {
+        PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(tcb->pending_events[i]);
+        if (upcall) {
+            (*upcall)(/*event=*/NULL, /*arg=*/0, /*context=*/NULL);
         }
     }
+    tcb->pending_events_num = 0;
+
+    (void)block_async_signals(/*block=*/false);
 }
 
 void _DkRaiseFailure(int error) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
     if (upcall) {
-        _DkGenericEventTrigger(upcall, error, NULL);
+        (*upcall)(/*event=*/NULL, error, /*context=*/NULL);
     }
-}
-
-struct signal_ops {
-    int signum[3];
-    void (*handler) (int signum, siginfo_t * info, ucontext_t * uc);
-};
-
-struct signal_ops on_signals[] = {
-        [PAL_EVENT_ARITHMETIC_ERROR] = { .signum = { SIGFPE, 0 },
-                                         .handler = _DkGenericSighandler },
-        [PAL_EVENT_MEMFAULT]         = { .signum = { SIGSEGV, SIGBUS, 0 },
-                                         .handler = _DkGenericSighandler },
-        [PAL_EVENT_ILLEGAL]          = { .signum = { SIGILL,  SIGSYS, 0 },
-                                         .handler = _DkGenericSighandler },
-        [PAL_EVENT_QUIT]             = { .signum = { SIGTERM, 0, 0 },
-                                         .handler = _DkTerminateSighandler },
-        [PAL_EVENT_SUSPEND]          = { .signum = { SIGINT, 0 },
-                                         .handler = _DkTerminateSighandler },
-        [PAL_EVENT_RESUME]           = { .signum = { SIGCONT, 0 },
-                                         .handler = _DkTerminateSighandler },
-        [PAL_EVENT_PIPE]             = { .signum = { SIGPIPE, 0 },
-                                         .handler = _DkPipeSighandler },
-    };
-
-static int _DkPersistentSighandlerSetup (int event_num)
-{
-    int nsigs, * sigs = on_signals[event_num].signum;
-    for (nsigs = 0 ; sigs[nsigs] ; nsigs++);
-
-    int ret = set_sighandler(sigs, nsigs, on_signals[event_num].handler);
-    if (ret < 0)
-        return ret;
-
-    return 0;
-}
-
-void signal_setup (void)
-{
-    int ret, sig = SIGCHLD;
-
-#ifdef DEBUG
-    if (!linux_state.in_gdb)
-#endif
-        set_sighandler(&sig, 1, NULL);
-
-    int events[] = {
-        PAL_EVENT_ARITHMETIC_ERROR,
-        PAL_EVENT_MEMFAULT,
-        PAL_EVENT_ILLEGAL,
-        PAL_EVENT_QUIT,
-        PAL_EVENT_SUSPEND,
-        PAL_EVENT_RESUME,
-        PAL_EVENT_PIPE,
-    };
-
-    for (size_t e = 0; e < ARRAY_SIZE(events); e++)
-        if ((ret = _DkPersistentSighandlerSetup(events[e])) < 0)
-            goto err;
-
-    return;
-err:
-    INIT_FAIL(-ret, "cannot setup signal handlers");
 }
 
 void _DkExceptionReturn(void* event) {
     __UNUSED(event);
+}
+
+void signal_setup(void) {
+    int ret;
+
+    /* SIGPIPE and SIGCHLD are emulated completely inside LibOS */
+    ret = set_signal_handler(SIGPIPE, SIG_IGN);
+    if (ret < 0)
+        goto err;
+
+    /* Even though SIG_DFL defaults to "ignore", this is not the same as SIG_IGN; man waitpid says:
+     * "...if the disposition of SIGCHLD is set to SIG_IGN ..., then children that terminate do not
+     * become zombies". In other words, if we would set_signal_handler(SIGCHLD, SIG_IGN) here,
+     * children would not become zombies and would die before the parent checks their status. */
+    ret = set_signal_handler(SIGCHLD, SIG_DFL);
+    if (ret < 0)
+        goto err;
+
+    /* register synchronous signals (exceptions) in host Linux */
+    ret = set_signal_handler(SIGFPE, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGSEGV, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGBUS, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGILL, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGSYS, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    /* register asynchronous signals in host Linux */
+    ret = set_signal_handler(SIGTERM, handle_async_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGINT, handle_async_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGCONT, handle_async_signal);
+    if (ret < 0)
+        goto err;
+
+    return;
+err:
+    INIT_FAIL(-ret, "Cannot setup signal handlers!");
 }

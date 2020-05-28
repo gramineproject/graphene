@@ -1,4 +1,5 @@
 /* Copyright (C) 2014 Stony Brook University
+                 2020 Intel Labs
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -15,10 +16,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
- * db_signal.c
+ * db_exception.c
  *
- * This file contains APIs to set up handlers of exceptions issued by the
- * host, and the methods to pass the exceptions to the upcalls.
+ * This file contains APIs to set up signal handlers.
  */
 
 #include "api.h"
@@ -30,29 +30,12 @@
 #include "sgx_internal.h"
 
 #include <asm/errno.h>
-#include <atomic.h>
 #include <linux/signal.h>
 #include <sigset.h>
 #include <ucontext.h>
 
-#if !defined(__i386__)
-/* In x86_64 kernels, sigaction is required to have a user-defined
- * restorer. Also, they not yet support SA_INFO. The reference:
- * http://lxr.linux.no/linux+v2.6.35/arch/x86/kernel/signal.c#L448
- *
- *     / * x86-64 should always use SA_RESTORER. * /
- *     if (ka->sa.sa_flags & SA_RESTORER) {
- *             put_user_ex(ka->sa.sa_restorer, &frame->pretcode);
- *     } else {
- *             / * could use a vstub here * /
- *             err |= -EFAULT;
- *     }
- */
-
-#ifndef SA_RESTORER
-#define SA_RESTORER  0x04000000
-#endif
-
+#if defined(__x86_64__)
+/* in x86_64 kernels, sigaction is required to have a user-defined restorer */
 #define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
 #define DEFINE_RESTORE_RT2(syscall)                 \
     __asm__ (                                       \
@@ -63,120 +46,80 @@
          "__restore_rt:\n"                          \
          "    movq $" #syscall ", %rax\n"           \
          "    syscall\n");
-
 DEFINE_RESTORE_RT(__NR_rt_sigreturn)
 
-/* Workaround for fixing an old GAS (2.27) bug that incorrectly
- * omits relocations when referencing this symbol */
+/* workaround for an old GAS (2.27) bug that incorrectly omits relocations when referencing this
+ * symbol */
 __attribute__((visibility("hidden"))) void __restore_rt(void);
+#endif  /* defined(__x86_64__) */
 
-#endif
+void sgx_entry_return(void);
 
-static const int async_signals[] =
-{
-    SIGTERM,
-    SIGINT,
-    SIGCONT,
-};
+static const int async_signals[] = {SIGTERM, SIGINT, SIGCONT};
 
-static const int nasync_signals = ARRAY_SIZE(async_signals);
+static int block_signal(int sig, bool block) {
+    int how = block? SIG_BLOCK: SIG_UNBLOCK;
 
-static int set_sighandler(int* sigs, int nsig, void* handler) {
-    struct sigaction action;
-    action.sa_handler = (void (*)(int)) handler;
-    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+    __sigset_t mask;
+    __sigemptyset(&mask);
+    __sigaddset(&mask, sig);
 
-#if !defined(__i386__)
-    action.sa_flags |= SA_RESTORER;
+    int ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL, sizeof(__sigset_t));
+    return IS_ERR(ret) ? -ERRNO(ret) : 0;
+}
+
+static int set_signal_handler(int sig, void* handler) {
+    struct sigaction action = {0};
+    action.sa_handler  = handler;
+    action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER;
     action.sa_restorer = __restore_rt;
-#endif
 
-    /* Disallow nested asynchronous signals during enclave exception handling.
-     */
-    __sigemptyset((__sigset_t *) &action.sa_mask);
-    for (int i = 0; i < nasync_signals; i++)
-        __sigaddset((__sigset_t *) &action.sa_mask, async_signals[i]);
+    /* disallow nested asynchronous signals during enclave exception handling */
+    __sigemptyset((__sigset_t*)&action.sa_mask);
+    for (size_t i = 0; i < ARRAY_SIZE(async_signals); i++)
+        __sigaddset((__sigset_t*)&action.sa_mask, async_signals[i]);
 
-    for (int i = 0 ; i < nsig ; i++) {
-        if (sigs[i] == SIGCHLD)
-            action.sa_flags |= SA_NOCLDSTOP|SA_NOCLDWAIT;
+    int ret = INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
 
-#if defined(__i386__)
-        int ret = INLINE_SYSCALL(sigaction, 3, sigs[i], &action, NULL)
-#else
-        int ret = INLINE_SYSCALL(rt_sigaction, 4, sigs[i], &action, NULL,
-                                 sizeof(sigset_t));
-#endif
+    return block_signal(sig, /*block=*/false);
+}
+
+int block_async_signals(bool block) {
+    for (size_t i = 0; i < ARRAY_SIZE(async_signals); i++) {
+        int ret = block_signal(async_signals[i], block);
         if (IS_ERR(ret))
             return -ERRNO(ret);
-
-        action.sa_flags &= ~(SA_NOCLDSTOP|SA_NOCLDWAIT);
     }
-
-    int ret = 0;
-    __sigset_t mask;
-    __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        __sigaddset(&mask, sigs[i]);
-
-#if defined(__i386__)
-    ret = INLINE_SYSCALL(sigprocmask, 3, SIG_UNBLOCK, &mask, NULL)
-#else
-    ret = INLINE_SYSCALL(rt_sigprocmask, 4, SIG_UNBLOCK, &mask, NULL,
-                         sizeof(sigset_t));
-#endif
-
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
     return 0;
 }
 
-int block_signals (bool block, const int * sigs, int nsig)
-{
-    int how = block? SIG_BLOCK: SIG_UNBLOCK;
-    int ret = 0;
-    __sigset_t mask;
-    __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        __sigaddset(&mask, sigs[i]);
-
-#if defined(__i386__)
-    ret = INLINE_SYSCALL(sigprocmask, 3, how, &mask, NULL)
-#else
-    ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL,
-                         sizeof(sigset_t));
-#endif
-
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    return 0;
-}
-
-int block_async_signals (bool block)
-{
-    return block_signals(block, async_signals, nasync_signals);
-}
-
-static int get_event_num (int signum)
-{
-    switch(signum) {
-        case SIGFPE:                return PAL_EVENT_ARITHMETIC_ERROR;
-        case SIGSEGV: case SIGBUS:  return PAL_EVENT_MEMFAULT;
-        case SIGILL:                return PAL_EVENT_ILLEGAL;
-        case SIGTERM:               return PAL_EVENT_QUIT;
-        case SIGINT:                return PAL_EVENT_SUSPEND;
-        case SIGCONT:               return PAL_EVENT_RESUME;
-        default: return -1;
+static int get_pal_event(int sig) {
+    switch(sig) {
+        case SIGFPE:
+            return PAL_EVENT_ARITHMETIC_ERROR;
+        case SIGSEGV:
+        case SIGBUS:
+            return PAL_EVENT_MEMFAULT;
+        case SIGILL:
+        case SIGSYS:
+            return PAL_EVENT_ILLEGAL;
+        case SIGTERM:
+            return PAL_EVENT_QUIT;
+        case SIGINT:
+            return PAL_EVENT_SUSPEND;
+        case SIGCONT:
+            return PAL_EVENT_RESUME;
+        default:
+            return -1;
     }
 }
 
-void sgx_entry_return (void);
+static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
+    int event = get_pal_event(signum);
+    assert(event > 0);
 
-static void _DkTerminateSighandler (int signum, siginfo_t * info,
-                                    struct ucontext * uc)
-{
     __UNUSED(info);
 
     /* send dummy signal to RPC threads so they interrupt blocked syscalls */
@@ -186,41 +129,18 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
-    if (rip != (unsigned long) async_exit_pointer) {
-        uc->uc_mcontext.gregs[REG_RIP] = (uint64_t) sgx_entry_return;
-        uc->uc_mcontext.gregs[REG_RDI] = -EINTR;
-        uc->uc_mcontext.gregs[REG_RSI] = get_event_num(signum);
-    } else {
-        sgx_raise(get_event_num(signum));
-    }
-}
-
-static void _DkResumeSighandler (int signum, siginfo_t * info,
-                                 struct ucontext * uc)
-{
-    __UNUSED(info);
-
-    /* send dummy signal to RPC threads so they interrupt blocked syscalls */
-    if (g_rpc_queue)
-        for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
-            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
-
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
-
-    if (rip != (unsigned long) async_exit_pointer) {
+    if (rip != (unsigned long)async_exit_pointer) {
+        /* exception happened in untrusted PAL code (during syscall handling): fatal in Graphene */
         switch (signum) {
             case SIGSEGV:
                 SGX_DBG(DBG_E, "Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
                 break;
-
             case SIGILL:
                 SGX_DBG(DBG_E, "Illegal Instruction in Untrusted Code (RIP = %08lx)\n", rip);
                 break;
-
             case SIGFPE:
                 SGX_DBG(DBG_E, "Arithmetic Exception in Untrusted Code (RIP = %08lx)\n", rip);
                 break;
-
             case SIGBUS:
                 SGX_DBG(DBG_E, "Memory Mapping Exception in Untrusted Code (RIP = %08lx)\n", rip);
                 break;
@@ -228,43 +148,102 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
         INLINE_SYSCALL(exit, 1, 1);
     }
 
-    int event = get_event_num(signum);
     sgx_raise(event);
 }
 
-static void _DkEmptySighandler(int signum, siginfo_t* info, struct ucontext* uc) {
+static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {
+    int event = get_pal_event(signum);
+    assert(event > 0);
+
+    __UNUSED(info);
+
+    /* send dummy signal to RPC threads so they interrupt blocked syscalls */
+    if (g_rpc_queue)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
+            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
+
+    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+
+    if (rip != (unsigned long)async_exit_pointer) {
+        /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if
+         * syscall was interrupted */
+        uc->uc_mcontext.gregs[REG_RIP] = (uint64_t)sgx_entry_return;
+        uc->uc_mcontext.gregs[REG_RDI] = -EINTR;
+        uc->uc_mcontext.gregs[REG_RSI] = event;
+    } else {
+        /* signal arrived while in app/LibOS/trusted PAL code, handle signal inside enclave */
+        sgx_raise(event);
+    }
+}
+
+static void handle_dummy_signal(int signum, siginfo_t* info, struct ucontext* uc) {
     __UNUSED(signum);
     __UNUSED(info);
     __UNUSED(uc);
     /* we need this handler to interrupt blocking syscalls in RPC threads */
 }
 
-int sgx_signal_setup (void)
-{
-    int ret, sig[4];
+int sgx_signal_setup(void) {
+    int ret;
 
-    sig[0] = SIGTERM;
-    sig[1] = SIGINT;
-    sig[2] = SIGCONT;
-    if ((ret = set_sighandler(sig, 3, &_DkTerminateSighandler)) < 0)
+    /* SIGCHLD and SIGPIPE are emulated completely inside LibOS */
+    ret = set_signal_handler(SIGPIPE, SIG_IGN);
+    if (ret < 0)
         goto err;
 
-    sig[0] = SIGSEGV;
-    sig[1] = SIGILL;
-    sig[2] = SIGFPE;
-    sig[3] = SIGBUS;
-    if ((ret = set_sighandler(sig, 4, &_DkResumeSighandler)) < 0)
+    /* Even though SIG_DFL defaults to "ignore", this is not the same as SIG_IGN; man waitpid says:
+     * "...if the disposition of SIGCHLD is set to SIG_IGN ..., then children that terminate do not
+     * become zombies". In other words, if we would set_signal_handler(SIGCHLD, SIG_IGN) here,
+     * children would not become zombies and would die before the parent checks their status. */
+    ret = set_signal_handler(SIGCHLD, SIG_DFL);
+    if (ret < 0)
+        goto err;
+
+    /* register synchronous signals (exceptions) in host Linux */
+    ret = set_signal_handler(SIGFPE, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGSEGV, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGBUS, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGILL, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGSYS, handle_sync_signal);
+    if (ret < 0)
+        goto err;
+
+    /* register asynchronous signals in host Linux */
+    ret = set_signal_handler(SIGTERM, handle_async_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGINT, handle_async_signal);
+    if (ret < 0)
+        goto err;
+
+    ret = set_signal_handler(SIGCONT, handle_async_signal);
+    if (ret < 0)
         goto err;
 
     /* SIGUSR2 is reserved for Graphene usage: interrupting blocking syscalls in RPC threads.
      * We block SIGUSR2 in enclave threads; it is unblocked by each RPC thread explicitly. */
-    sig[0] = SIGUSR2;
-    if ((ret = set_sighandler(sig, 1, &_DkEmptySighandler)) < 0)
-        goto err;
-    if (block_signals(true, sig, 1) < 0)
+    ret = set_signal_handler(SIGUSR2, handle_dummy_signal);
+    if (ret < 0)
         goto err;
 
-    return 0;
+    ret = block_signal(SIGUSR2, /*block=*/true);
+    if (ret < 0)
+        goto err;
+
+    ret = 0;
 err:
     return ret;
 }
