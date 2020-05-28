@@ -1116,6 +1116,12 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         PAL_NUM pal_ret = DkStreamWrite(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri);
 
         if (pal_ret == PAL_STREAM_ERROR) {
+            if (PAL_ERRNO == EPIPE) {
+                struct shim_thread* cur = get_cur_thread();
+                assert(cur);
+                (void)do_kill_proc(cur->tid, cur->tgid, SIGPIPE, /*use_ipc=*/false);
+            }
+
             ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ? -ECONNABORTED : -PAL_ERRNO;
             break;
         }

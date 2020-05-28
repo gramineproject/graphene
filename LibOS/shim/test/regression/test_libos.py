@@ -408,7 +408,6 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['sigaction_per_process'])
         self.assertIn('TEST OK', stdout)
 
-    @unittest.skipIf(HAS_SGX, 'No SIGPIPE support on SGX, yet.')
     def test_092_sighandler_sigpipe(self):
         try:
             self.run_binary(['sighandler_sigpipe'])
