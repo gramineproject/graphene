@@ -38,6 +38,7 @@
 #include <assert.h>
 #include <atomic.h>
 #include <shim_defs.h>
+#include <shim_internal-arch.h>
 #include <shim_tcb.h>
 #include <shim_types.h>
 
@@ -717,30 +718,5 @@ int object_wait_with_retry(PAL_HANDLE handle);
 void release_clear_child_tid(int* clear_child_tid);
 
 void delete_from_epoll_handles(struct shim_handle* handle);
-
-#ifdef __x86_64__
-#define __SWITCH_STACK(stack_top, func, arg)                    \
-    do {                                                        \
-        /* 16 Bytes align of stack */                           \
-        uintptr_t __stack_top = (uintptr_t)(stack_top);         \
-        __stack_top &= ~0xf;                                    \
-        __stack_top -= 8;                                       \
-        __asm__ volatile (                                      \
-            "movq %0, %%rbp\n"                                  \
-            "movq %0, %%rsp\n"                                  \
-            "jmpq *%1\n"                                        \
-            ::"r"(__stack_top), "r"(func), "D"(arg): "memory"); \
-    } while (0)
-
-static_always_inline void * current_stack(void)
-{
-    void * _rsp;
-    __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");
-    return _rsp;
-}
-
-#else
-# error "Unsupported architecture"
-#endif /* __x86_64__ */
 
 #endif /* _PAL_INTERNAL_H_ */
