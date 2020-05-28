@@ -68,6 +68,7 @@ Table of Contents
    manifest-syntax
    supported-syscalls
    sample-apps
+   sgx-intro
    glossary
    howto-doc
 
