@@ -8,6 +8,7 @@
 /abort
 /abort_multithread
 /attestation
+/attestation_stdio
 /bootstrap
 /bootstrap_c++
 /bootstrap_pie
