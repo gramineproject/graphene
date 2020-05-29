@@ -34,7 +34,7 @@ static long sgx_ocall_exit(void* pms)
 
         int wstatus;
         int ret = INLINE_SYSCALL(wait4, 4, /*any child*/-1, &wstatus, /*options=*/0, /*rusage=*/NULL);
-        if (IS_ERR(ret) && ret != -ECHILD) {
+        if (IS_ERR(ret)) {
             /* it's too late to recover from errors, just log it and set some reasonable exit code */
             SGX_DBG(DBG_I, "Temporary process waited for child to exit but received error %d\n", ret);
             ms->ms_exitcode = ECHILD;

@@ -184,7 +184,7 @@ int sgx_signal_setup(void) {
     int ret;
 
     /* SIGCHLD and SIGPIPE are emulated completely inside LibOS */
-    ret = set_signal(SIGCHLD, SIG_IGN);
+    ret = set_signal(SIGCHLD, SIG_DFL);
     if (ret < 0)
         goto err;
 
