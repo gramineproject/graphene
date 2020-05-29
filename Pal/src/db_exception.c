@@ -47,7 +47,6 @@ struct pal_event_handler handlers[] = {
     [PAL_EVENT_SUSPEND]          = INIT_EVENT_HANDLER,
     [PAL_EVENT_RESUME]           = INIT_EVENT_HANDLER,
     [PAL_EVENT_FAILURE]          = INIT_EVENT_HANDLER,
-    [PAL_EVENT_PIPE]             = INIT_EVENT_HANDLER,
 };
 
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event) {

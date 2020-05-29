@@ -89,7 +89,11 @@ int do_handle_write (struct shim_handle * hdl, const void * buf, int count)
     if (hdl->type == TYPE_DIR)
         return -EISDIR;
 
-    return fs->fs_ops->write(hdl, buf, count);
+    int ret = fs->fs_ops->write(hdl, buf, count);
+    if (ret == -EPIPE)
+        do_epipe_upcall();
+
+    return ret;
 }
 
 size_t shim_do_write (int fd, const void * buf, size_t count)

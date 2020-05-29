@@ -26,6 +26,7 @@
 #include <shim_fs.h>
 #include <shim_handle.h>
 #include <shim_internal.h>
+#include <shim_signal.h>
 #include <shim_table.h>
 #include <shim_utils.h>
 
@@ -125,6 +126,8 @@ ssize_t shim_do_writev(int fd, const struct iovec* vec, int vlen) {
 
         b_vec = hdl->fs->fs_ops->write(hdl, vec[i].iov_base, vec[i].iov_len);
         if (b_vec < 0) {
+            if (b_vec == -EPIPE)
+                do_epipe_upcall();
             ret = bytes ?: b_vec;
             goto out;
         }

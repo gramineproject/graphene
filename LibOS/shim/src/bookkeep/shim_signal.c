@@ -628,12 +628,11 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
-static void pipe_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+void do_epipe_upcall(void) {
     if (!is_internal_tid(get_cur_tid()))
         deliver_signal(ALLOC_SIGINFO(SIGPIPE, 0, si_pid, 0), /*context=*/NULL);
-    else
-        internal_fault("Internal SIGPIPE fault", arg, context);
-    DkExceptionReturn(event);
+     else
+        internal_fault("Internal SIGPIPE fault", 0, NULL);
 }
 
 int init_signal (void)
@@ -644,7 +643,6 @@ int init_signal (void)
     DkSetExceptionHandler(&quit_upcall,        PAL_EVENT_QUIT);
     DkSetExceptionHandler(&suspend_upcall,     PAL_EVENT_SUSPEND);
     DkSetExceptionHandler(&resume_upcall,      PAL_EVENT_RESUME);
-    DkSetExceptionHandler(&pipe_upcall,        PAL_EVENT_PIPE);
     return 0;
 }
 

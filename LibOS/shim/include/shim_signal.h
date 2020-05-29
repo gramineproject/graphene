@@ -126,6 +126,8 @@ const char * signal_name (int sig)
 
 struct shim_thread;
 
+void do_epipe_upcall(void);
+
 int init_signal (void);
 
 void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
