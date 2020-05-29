@@ -173,7 +173,6 @@ static int get_event_num (int signum)
         case SIGTERM:               return PAL_EVENT_QUIT;
         case SIGINT:                return PAL_EVENT_SUSPEND;
         case SIGCONT:               return PAL_EVENT_RESUME;
-        case SIGPIPE:               return PAL_EVENT_PIPE;
         default: return -1;
     }
 }
@@ -293,20 +292,6 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
         _DkThreadExit(/*clear_child_tid=*/NULL);
 }
 
-static void _DkPipeSighandler (int signum, siginfo_t * info,
-                               struct ucontext * uc)
-{
-    __UNUSED(info);
-
-    assert(signum == SIGPIPE);
-
-    int event_num = get_event_num(signum);
-    assert(event_num == PAL_EVENT_PIPE);
-
-    if (!_DkGenericSignalHandle(event_num, NULL, uc))
-        _DkThreadExit(/*clear_child_tid=*/NULL);
-}
-
 /*
  * __check_pending_event(): checks the existence of a pending event in the TCB
  * and handles the event consequently.
@@ -357,8 +342,6 @@ struct signal_ops on_signals[] = {
                                          .handler = _DkTerminateSighandler },
         [PAL_EVENT_RESUME]           = { .signum = { SIGCONT, 0 },
                                          .handler = _DkTerminateSighandler },
-        [PAL_EVENT_PIPE]             = { .signum = { SIGPIPE, 0 },
-                                         .handler = _DkPipeSighandler },
     };
 
 static int _DkPersistentSighandlerSetup (int event_num)
@@ -389,12 +372,15 @@ void signal_setup (void)
         PAL_EVENT_QUIT,
         PAL_EVENT_SUSPEND,
         PAL_EVENT_RESUME,
-        PAL_EVENT_PIPE,
     };
 
     for (size_t e = 0; e < ARRAY_SIZE(events); e++)
         if ((ret = _DkPersistentSighandlerSetup(events[e])) < 0)
             goto err;
+
+    sig = SIGPIPE;
+    if ((ret = set_sighandler(&sig, 1, NULL)) < 0)
+        goto err;
 
     return;
 err:
