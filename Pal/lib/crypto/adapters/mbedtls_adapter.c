@@ -26,6 +26,7 @@
 #include "pal_crypto.h"
 #include "pal_error.h"
 #include "pal_debug.h"
+#include "spinlock.h"
 #include "assert.h"
 #include "mbedtls/aes.h"
 #include "mbedtls/cmac.h"
@@ -34,6 +35,8 @@
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha256.h"
 #include "rng-arch.h"
+
+static spinlock_t g_mbedtls_lock = INIT_SPINLOCK_UNLOCKED;
 
 int mbedtls_to_pal_error(int error)
 {
@@ -136,8 +139,10 @@ static int RandomWrapper(void *private, unsigned char *data, size_t size)
 
 int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
+    spinlock_lock(&g_mbedtls_lock);
     mbedtls_sha256_init(context);
     mbedtls_sha256_starts(context, 0 /* 0 = use SSH256 */);
+    spinlock_unlock(&g_mbedtls_lock);
     return 0;
 }
 
@@ -149,23 +154,30 @@ int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
     if (len > UINT32_MAX) {
         return -PAL_ERROR_INVAL;
     }
+    spinlock_lock(&g_mbedtls_lock);
     mbedtls_sha256_update(context, data, len);
+    spinlock_unlock(&g_mbedtls_lock);
     return 0;
 }
 
 int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
 {
+    spinlock_lock(&g_mbedtls_lock);
     mbedtls_sha256_finish(context, output);
     /* This function is called free, but it doesn't actually free the memory.
      * It zeroes out the context to avoid potentially leaking information
      * about the hash that was just performed. */
     mbedtls_sha256_free(context);
+    spinlock_unlock(&g_mbedtls_lock);
     return 0;
 }
 
 int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
                 uint64_t input_len, uint8_t *mac, uint64_t mac_len) {
     mbedtls_cipher_type_t cipher;
+    int ret = 0;
+
+    spinlock_lock(&g_mbedtls_lock);
 
     switch (key_len) {
     case 16:
@@ -178,23 +190,33 @@ int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
         cipher = MBEDTLS_CIPHER_AES_256_ECB;
         break;
     default:
-        return -PAL_ERROR_INVAL;
+        ret = -PAL_ERROR_INVAL;
+        goto out;
     }
 
     const mbedtls_cipher_info_t *cipher_info =
         mbedtls_cipher_info_from_type(cipher);
 
     if (mac_len < cipher_info->block_size) {
-        return -PAL_ERROR_INVAL;
+        ret = -PAL_ERROR_INVAL;
+        goto out;
     }
 
-    int ret = mbedtls_cipher_cmac(cipher_info, key, key_len * BITS_PER_BYTE, input, input_len, mac);
-    return mbedtls_to_pal_error(ret);
+    ret = mbedtls_cipher_cmac(cipher_info, key, key_len * BITS_PER_BYTE, input, input_len, mac);
+    ret = mbedtls_to_pal_error(ret);
+
+out:
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
                     const uint8_t *key, uint64_t key_len)
 {
+    int ret = 0;
+
+    spinlock_lock(&g_mbedtls_lock);
+
     switch (key_len) {
     case 16:
         context->cipher = MBEDTLS_CIPHER_AES_128_ECB;
@@ -206,30 +228,41 @@ int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
         context->cipher = MBEDTLS_CIPHER_AES_256_ECB;
         break;
     default:
-        return -PAL_ERROR_INVAL;
+        ret = -PAL_ERROR_INVAL;
+        goto out;
     }
 
     const mbedtls_cipher_info_t *cipher_info =
         mbedtls_cipher_info_from_type(context->cipher);
 
-    int ret = mbedtls_cipher_setup(&context->ctx, cipher_info);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    ret = mbedtls_cipher_setup(&context->ctx, cipher_info);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     ret = mbedtls_cipher_cmac_starts(&context->ctx, key, key_len * BITS_PER_BYTE);
-    return mbedtls_to_pal_error(ret);
+    ret = mbedtls_to_pal_error(ret);
+
+out:
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT * context, const uint8_t * input,
                       uint64_t input_len)
 {
+    spinlock_lock(&g_mbedtls_lock);
     int ret = mbedtls_cipher_cmac_update(&context->ctx, input, input_len);
-    return mbedtls_to_pal_error(ret);
+    ret = mbedtls_to_pal_error(ret);
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, uint8_t * mac,
                       uint64_t mac_len)
 {
+    spinlock_lock(&g_mbedtls_lock);
     const mbedtls_cipher_info_t *cipher_info =
         mbedtls_cipher_info_from_type(context->cipher);
 
@@ -242,11 +275,13 @@ int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, uint8_t * mac,
 
 exit:
     mbedtls_cipher_free( &context->ctx );
+    spinlock_unlock(&g_mbedtls_lock);
     return ret;
 }
 
 int lib_RSAInitKey(LIB_RSA_KEY *key)
 {
+    spinlock_lock(&g_mbedtls_lock);
     /* For now, we only need PKCS_V15 type padding. If we need to support
      * multiple padding types, I guess we'll need to add the padding type
      * to this API. We might need to add a wrapper type around the crypto
@@ -256,6 +291,7 @@ int lib_RSAInitKey(LIB_RSA_KEY *key)
     /* Last parameter here is the hash type, which is only used for
      * PKCS padding type 2.0. */
     mbedtls_rsa_init(key, MBEDTLS_RSA_PKCS_V15, 0);
+    spinlock_unlock(&g_mbedtls_lock);
     return 0;
 }
 
@@ -267,63 +303,89 @@ int lib_RSAGenerateKey(LIB_RSA_KEY *key, uint64_t length_in_bits, uint64_t expon
     if (exponent > UINT_MAX || (int) exponent < 0)
         return -PAL_ERROR_INVAL;
 
+    spinlock_lock(&g_mbedtls_lock);
     int ret = mbedtls_rsa_gen_key(key, RandomWrapper, NULL, length_in_bits, exponent);
-    return mbedtls_to_pal_error(ret);
+    ret = mbedtls_to_pal_error(ret);
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_RSAExportPublicKey(LIB_RSA_KEY *key, uint8_t *e, uint64_t *e_size,
                            uint8_t *n, uint64_t *n_size)
 {
+    spinlock_lock(&g_mbedtls_lock);
     /* Public exponent. */
     int ret = mbedtls_mpi_write_binary(&key->E, e, *e_size);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     /* Modulus. */
     ret = mbedtls_mpi_write_binary(&key->N, n, *n_size);
-    return mbedtls_to_pal_error(ret);
+    ret = mbedtls_to_pal_error(ret);
+
+out:
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
                            const uint8_t *n, uint64_t n_size)
 {
-    int ret;
+    spinlock_lock(&g_mbedtls_lock);
 
     /* Public exponent. */
-    ret = mbedtls_mpi_read_binary(&key->E, e, e_size);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    int ret = mbedtls_mpi_read_binary(&key->E, e, e_size);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     /* Modulus. */
     ret = mbedtls_mpi_read_binary(&key->N, n, n_size);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     /* This length is in bytes. */
     key->len = (mbedtls_mpi_bitlen(&key->N) + 7) >> 3;
 
-    return 0;
+    ret = 0;
+out:
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_RSAVerifySHA256(LIB_RSA_KEY* key, const uint8_t* hash, uint64_t hash_len,
                         const uint8_t* signature, uint64_t signature_len) {
+    int ret = 0;
+    spinlock_lock(&g_mbedtls_lock);
 
     /* The mbedtls decrypt API assumes that you have a memory buffer that
      * is as large as the key size and take the length as a parameter. We
      * check, so that in the event the caller makes a mistake, you'll get
      * an error instead of reading off the end of the buffer. */
-    if (signature_len != key->len)
-        return -PAL_ERROR_INVAL;
+    if (signature_len != key->len) {
+        ret = -PAL_ERROR_INVAL;
+        goto out;
+    }
 
-    int ret = mbedtls_rsa_pkcs1_verify(key, NULL, NULL, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256,
-                                       hash_len, hash, signature);
+    ret = mbedtls_rsa_pkcs1_verify(key, NULL, NULL, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256,
+                                   hash_len, hash, signature);
+    ret = mbedtls_to_pal_error(ret);
 
-    return mbedtls_to_pal_error(ret);
+out:
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_RSAFreeKey(LIB_RSA_KEY *key)
 {
+    spinlock_lock(&g_mbedtls_lock);
     mbedtls_rsa_free(key);
+    spinlock_unlock(&g_mbedtls_lock);
     return 0;
 }
 
@@ -384,13 +446,14 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t len) {
     return ret;
 }
 
-/*! This function is not thread-safe; caller is responsible for proper synchronization. */
 int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
                 const uint8_t* psk, size_t psk_size,
                 ssize_t (*pal_recv_cb)(int fd, void* buf, size_t len),
                 ssize_t (*pal_send_cb)(int fd, const void* buf, size_t len),
                 const uint8_t* buf_load_ssl_ctx, size_t buf_size) {
-    int ret;
+    int ret = 0;
+
+    spinlock_lock(&g_mbedtls_lock);
 
     memset(ssl_ctx, 0, sizeof(*ssl_ctx));
 
@@ -407,80 +470,109 @@ int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
     mbedtls_ssl_init(&ssl_ctx->ssl);
 
     ret = mbedtls_ctr_drbg_seed(&ssl_ctx->ctr_drbg, mbedtls_entropy_func, &ssl_ctx->entropy, NULL, 0);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     ret = mbedtls_ssl_config_defaults(&ssl_ctx->conf,
                                       is_server ? MBEDTLS_SSL_IS_SERVER : MBEDTLS_SSL_IS_CLIENT,
                                       MBEDTLS_SSL_TRANSPORT_STREAM,
                                       MBEDTLS_SSL_PRESET_DEFAULT);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     mbedtls_ssl_conf_rng(&ssl_ctx->conf, mbedtls_ctr_drbg_random, &ssl_ctx->ctr_drbg);
     mbedtls_ssl_conf_ciphersuites(&ssl_ctx->conf, ssl_ctx->ciphersuites);
 
     const unsigned char psk_identity[] = "dummy";
     ret = mbedtls_ssl_conf_psk(&ssl_ctx->conf, psk, psk_size, psk_identity, sizeof(psk_identity) - 1);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     ret = mbedtls_ssl_setup(&ssl_ctx->ssl, &ssl_ctx->conf);
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
     mbedtls_ssl_set_bio(&ssl_ctx->ssl, ssl_ctx, send_cb, recv_cb, NULL);
 
     if (buf_load_ssl_ctx && buf_size) {
         /* SSL context was serialized, must be restored from the supplied buffer */
         ret = mbedtls_ssl_context_load(&ssl_ctx->ssl, buf_load_ssl_ctx, buf_size);
-        if (ret != 0)
-            return mbedtls_to_pal_error(ret);
+        if (ret != 0) {
+            ret = mbedtls_to_pal_error(ret);
+            goto out;
+        }
     }
 
-    return 0;
+    ret = 0;
+out:
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_SSLFree(LIB_SSL_CONTEXT* ssl_ctx) {
+    spinlock_lock(&g_mbedtls_lock);
     mbedtls_ssl_free(&ssl_ctx->ssl);
     mbedtls_ssl_config_free(&ssl_ctx->conf);
     mbedtls_ctr_drbg_free(&ssl_ctx->ctr_drbg);
     mbedtls_entropy_free(&ssl_ctx->entropy);
+    spinlock_unlock(&g_mbedtls_lock);
     return 0;
 }
 
 int lib_SSLHandshake(LIB_SSL_CONTEXT* ssl_ctx) {
     int ret;
+    spinlock_lock(&g_mbedtls_lock);
     while ((ret = mbedtls_ssl_handshake(&ssl_ctx->ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
             break;
     }
-    if (ret != 0)
-        return mbedtls_to_pal_error(ret);
+    if (ret != 0) {
+        ret = mbedtls_to_pal_error(ret);
+        goto out;
+    }
 
-    return 0;
+    ret = 0;
+out:
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
 
 int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len) {
+    spinlock_lock(&g_mbedtls_lock);
     int ret = mbedtls_ssl_read(&ssl_ctx->ssl, buf, len);
     if (ret < 0)
-       return mbedtls_to_pal_error(ret);
+       ret = mbedtls_to_pal_error(ret);
+    spinlock_unlock(&g_mbedtls_lock);
     return ret;
 }
 
 int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t len) {
+    spinlock_lock(&g_mbedtls_lock);
     int ret = mbedtls_ssl_write(&ssl_ctx->ssl, buf, len);
     if (ret < 0)
-       return mbedtls_to_pal_error(ret);
+       ret = mbedtls_to_pal_error(ret);
+    spinlock_unlock(&g_mbedtls_lock);
     return ret;
 }
 
 int lib_SSLSave(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t len, size_t* olen) {
+    spinlock_lock(&g_mbedtls_lock);
     int ret = mbedtls_ssl_context_save(&ssl_ctx->ssl, buf, len, olen);
     if (ret == MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL) {
-        return -PAL_ERROR_NOMEM;
+        ret = -PAL_ERROR_NOMEM;
     } else if (ret < 0) {
-        return -PAL_ERROR_DENIED;
+        ret = -PAL_ERROR_DENIED;
+    } else {
+        ret = 0;
     }
-    return 0;
+    spinlock_unlock(&g_mbedtls_lock);
+    return ret;
 }
