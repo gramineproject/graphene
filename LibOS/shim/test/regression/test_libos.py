@@ -210,10 +210,16 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
         self.assertIn('file_check_policy succeeded', stdout)
 
 @unittest.skipUnless(HAS_SGX,
-    'This test is only meaningful on SGX PAL because only SGX supports attestation.')
+    'These tests are only meaningful on SGX PAL because only SGX supports attestation.')
 class TC_04_Attestation(RegressionTestCase):
     def test_000_attestation(self):
         stdout, _ = self.run_binary(['attestation'], timeout=60)
+        self.assertIn("Test resource leaks in attestation filesystem... SUCCESS", stdout)
+        self.assertIn("Test local attestation... SUCCESS", stdout)
+        self.assertIn("Test quote interface... SUCCESS", stdout)
+
+    def test_001_attestation_stdio(self):
+        stdout, _ = self.run_binary(['attestation', 'test_stdio'], timeout=60)
         self.assertIn("Test resource leaks in attestation filesystem... SUCCESS", stdout)
         self.assertIn("Test local attestation... SUCCESS", stdout)
         self.assertIn("Test quote interface... SUCCESS", stdout)
