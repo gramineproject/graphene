@@ -231,10 +231,10 @@ int init_enclave_key (void)
 DEFINE_LIST(trusted_file);
 struct trusted_file {
     LIST_TYPE(trusted_file) list;
-    int64_t index;
     uint64_t size;
     size_t uri_len;
     char uri[URI_MAX];
+    bool allowed;
     sgx_checksum_t checksum;
     sgx_stub_t * stubs;
 };
@@ -242,7 +242,6 @@ struct trusted_file {
 DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static spinlock_t trusted_file_lock = INIT_SPINLOCK_UNLOCKED;
-static int trusted_file_indexes = 0;
 static bool allow_file_creation = 0;
 static int file_check_policy = FILE_CHECK_POLICY_STRICT;
 
@@ -345,7 +344,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     spinlock_unlock(&trusted_file_lock);
 
-    if (!tf || !tf->index) {
+    if (!tf || tf->allowed) {
         if (!tf) {
             if (get_file_check_policy() != FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG)
                 return -PAL_ERROR_DENIED;
@@ -365,9 +364,6 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         return 0;
     }
 
-    if (tf->index < 0)
-        return tf->index;
-
     sgx_stub_t* stubs = NULL;
     /* mmap the whole trusted file in untrusted memory for future reads/writes; it is
      * caller's responsibility to unmap those areas after use */
@@ -381,13 +377,13 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         }
     }
 
-#if CACHE_FILE_STUBS == 1
+    spinlock_lock(&trusted_file_lock);
     if (tf->stubs) {
         *stubptr = tf->stubs;
-        *sizeptr = tf->size;
+        spinlock_unlock(&trusted_file_lock);
         return 0;
     }
-#endif
+    spinlock_unlock(&trusted_file_lock);
 
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
@@ -466,12 +462,15 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     }
 
     spinlock_lock(&trusted_file_lock);
-    if (tf->stubs || tf->index == -PAL_ERROR_DENIED)
-        free(tf->stubs);
+    if (tf->stubs) {
+        *stubptr = tf->stubs;
+        spinlock_unlock(&trusted_file_lock);
+        free(stubs);
+        return 0;
+    }
     *stubptr = tf->stubs = stubs;
-    ret = tf->index;
     spinlock_unlock(&trusted_file_lock);
-    return ret;
+    return 0;
 
 failed:
     if (*umem) {
@@ -479,12 +478,6 @@ failed:
         ocall_munmap_untrusted(*umem, *sizeptr);
     }
     free(stubs);
-
-    spinlock_lock(&trusted_file_lock);
-    if (!tf->stubs) {
-        tf->index = -PAL_ERROR_DENIED;
-    }
-    spinlock_unlock(&trusted_file_lock);
 
     return ret;
 }
@@ -666,6 +659,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
     memcpy(new->uri, uri, uri_len + 1);
     new->size = 0;
     new->stubs = NULL;
+    new->allowed = false;
 
     if (checksum_str) {
         PAL_STREAM_ATTR attr;
@@ -711,12 +705,11 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
             return -PAL_ERROR_INVAL;
         }
 
-        new->index = (++trusted_file_indexes);
-        SGX_DBG(DBG_S, "trusted: [%ld] %s %s\n", new->index,
+        SGX_DBG(DBG_S, "trusted: %s %s\n",
                 checksum_text, new->uri);
     } else {
         memset(&new->checksum, 0, sizeof(sgx_checksum_t));
-        new->index = 0;
+        new->allowed = true;
         SGX_DBG(DBG_S, "allowed: %s\n", new->uri);
     }
 
