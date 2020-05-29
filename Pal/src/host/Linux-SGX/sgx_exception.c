@@ -64,8 +64,6 @@ static int block_signal(int sig, bool block) {
 }
 
 static int set_signal(int sig, void* handler) {
-    assert(handler);
-
     struct sigaction action = {0};
     action.sa_handler  = handler;
     action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER;
