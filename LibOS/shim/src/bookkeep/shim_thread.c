@@ -462,7 +462,7 @@ bool mark_self_dead(void) {
 }
 
 /*
- * Checks whether there are any other threds on `thread_list`.
+ * Checks whether there are any other threads on `thread_list`.
  */
 bool check_last_thread(void) {
     struct shim_thread* self = get_cur_thread();
