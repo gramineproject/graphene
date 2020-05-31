@@ -380,7 +380,6 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     spinlock_lock(&trusted_file_lock);
     if (tf->stubs) {
         *stubptr = tf->stubs;
-        *sizeptr = tf->size;
         spinlock_unlock(&trusted_file_lock);
         return 0;
     }
@@ -465,7 +464,6 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     spinlock_lock(&trusted_file_lock);
     if (tf->stubs) {
         *stubptr = tf->stubs;
-        *sizeptr = tf->size;
         spinlock_unlock(&trusted_file_lock);
         free(stubs);
         return 0;
