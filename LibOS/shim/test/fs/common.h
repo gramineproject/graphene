@@ -21,7 +21,7 @@
 #include <sys/types.h>
 
 noreturn void fatal_error(const char* fmt, ...);
-void setup();
+void setup(void);
 int open_input_fd(const char* path);
 void read_fd(const char* path, int fd, void* buffer, size_t size);
 void seek_fd(const char* path, int fd, off_t offset, int mode);

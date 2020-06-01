@@ -6,7 +6,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 
-int func(void* arg) {
+static int func(void* arg) {
     return 0;
 }
 

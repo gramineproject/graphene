@@ -29,6 +29,8 @@
 #include <shim_sysv.h>
 #include <shim_thread.h>
 
+#include "shim_ipc_sysv.h"
+
 #define SYSV_RANGE_SIZE 128
 #define SYSV_LEASE_TIME 1000
 

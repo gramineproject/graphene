@@ -9,7 +9,7 @@
 
 atomic_int counter = 0;
 
-void* inc(void* arg) {
+static void* inc(void* arg) {
     counter++;
     return NULL;
 }

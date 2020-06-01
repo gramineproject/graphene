@@ -77,11 +77,6 @@ void warn (const char *format, ...)
     va_end (args);
 }
 
-
-void __stack_chk_fail (void)
-{
-}
-
 static int pal_errno_to_unix_errno [PAL_ERROR_NATIVE_COUNT + 1] = {
         /* reserved                  */  0,
         /* PAL_ERROR_NOTIMPLEMENTED  */  ENOSYS,
@@ -358,7 +353,7 @@ int init_stack (const char ** argv, const char ** envp,
     return 0;
 }
 
-int read_environs (const char ** envp)
+static int read_environs (const char** envp)
 {
     for (const char ** e = envp ; *e ; e++) {
         if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {

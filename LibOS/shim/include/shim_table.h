@@ -332,6 +332,8 @@ int shim_do_close(int fd);
 int shim_do_stat(const char* file, struct stat* statbuf);
 int shim_do_fstat(int fd, struct stat* statbuf);
 int shim_do_lstat(const char* file, struct stat* stat);
+int shim_do_statfs(const char* path, struct statfs* buf);
+int shim_do_fstatfs(int fd, struct statfs* buf);
 int shim_do_poll(struct pollfd* fds, nfds_t nfds, int timeout);
 off_t shim_do_lseek(int fd, off_t offset, int origin);
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset);

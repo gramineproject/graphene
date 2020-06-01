@@ -19,7 +19,7 @@
 #define OVERHEAD_TIMES 30000
 #define TEST_TIMES     30
 
-void get_time(char* time_arg, unsigned long overhead) {
+static void get_time(char* time_arg, unsigned long overhead) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     unsigned long long msec = tv.tv_sec * 1000000ULL + tv.tv_usec;
