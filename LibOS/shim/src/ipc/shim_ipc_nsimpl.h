@@ -110,7 +110,7 @@ static inline LEASETYPE get_lease(void) {
     return DkSystemTimeQuery() + CONCAT2(NS_CAP, LEASE_TIME);
 }
 
-static void CONCAT3(debug_print, NS, ranges)(void) {
+void CONCAT3(debug_print, NS, ranges)(void) {
     lock(&range_map_lock);
     SYS_PRINTF(NS_STR " ranges in process %010u:\n", cur_process.vmid);
 
