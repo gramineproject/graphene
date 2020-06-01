@@ -624,8 +624,9 @@ int initialize_enclave (struct pal_enclave * enclave)
         dbg->pid = INLINE_SYSCALL(getpid, 0);
         dbg->base = enclave->baseaddr;
         dbg->size = enclave->size;
-        dbg->ssaframesize = enclave->ssaframesize;
-        dbg->aep  = async_exit_pointer;
+        dbg->ssaframesize   = enclave->ssaframesize;
+        dbg->aep            = async_exit_pointer;
+        dbg->eresume        = eresume_pointer;
         dbg->thread_tids[0] = dbg->pid;
         for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
             dbg->tcs_addrs[i] = tcs_addrs[i];

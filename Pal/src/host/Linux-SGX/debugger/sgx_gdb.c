@@ -404,7 +404,8 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
     memdevs[memdevs_cnt].pid                = eib.pid;
     memdevs[memdevs_cnt].memdev             = fd;
     memdevs[memdevs_cnt].ei                 = eib;
-    memdevs[memdevs_cnt].ei.thread_stepping = 0;
+    memset(memdevs[memdevs_cnt].ei.thread_stepping, 0,
+           sizeof(memdevs[memdevs_cnt].ei.thread_stepping));
 
     *memdev = fd;
     *ei     = &memdevs[memdevs_cnt].ei;
@@ -584,9 +585,24 @@ long int ptrace(enum __ptrace_request request, ...) {
             if (!in_enclave)
                 return host_ptrace(PTRACE_SINGLESTEP, tid, addr, data);
 
+            struct user_regs_struct regs;
+            ret = host_ptrace(PTRACE_GETREGS, tid, NULL, &regs);
+            if (ret < 0) {
+                errno = EFAULT;
+                return -1;
+            }
+            regs.rip = (unsigned long long)ei->eresume;
+            ret = host_ptrace(PTRACE_SETREGS, tid, NULL, &regs);
+            if (ret < 0) {
+                DEBUG("Cannot set RIP to ERESUME to continue single-step in enclave thread %d\n",
+                      tid);
+                errno = EFAULT;
+                return -1;
+            }
+
             for (int i = 0; i < MAX_DBG_THREADS; i++) {
                 if (ei->thread_tids[i] == tid) {
-                    ei->thread_stepping |= 1ULL << i;
+                    ei->thread_stepping[i / 64] |= 1ULL << (i % 64);
                     return host_ptrace(PTRACE_SINGLESTEP, tid, addr, data);
                 }
             }
@@ -648,8 +664,8 @@ pid_t waitpid(pid_t tid, int* status, int options) {
         /* for singlestepping case, unset enclave thread's stepping bit */
         for (int i = 0; i < MAX_DBG_THREADS; i++) {
             if (ei->thread_tids[i] == tid) {
-                if (ei->thread_stepping & (1ULL << i)) {
-                    ei->thread_stepping &= ~(1ULL << i);
+                if (ei->thread_stepping[i / 64] & (1ULL << (i % 64))) {
+                    ei->thread_stepping[i / 64] &= ~(1ULL << (i % 64));
                     return wait_res;
                 }
                 break;

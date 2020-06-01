@@ -51,6 +51,12 @@ sgx_ecall:
 async_exit_pointer:
 	# increment per-thread AEX counter for stats
 	lock incq %gs:PAL_TCB_URTS_AEX_CNT
+	# fall-through to ERESUME
+
+	.global eresume_pointer
+	.type eresume_pointer, @function
+
+eresume_pointer:
 	ENCLU   # perform ERESUME
 
 	.global sgx_raise
