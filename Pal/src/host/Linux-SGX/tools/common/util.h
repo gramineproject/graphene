@@ -44,7 +44,7 @@ extern endianness_t g_endianness;
 void set_verbose(bool verbose);
 
 /*! Get verbosity level */
-bool get_verbose();
+bool get_verbose(void);
 
 /*! Set endianness for hex strings */
 void set_endianness(endianness_t endianness);
@@ -78,6 +78,9 @@ void hexdump_mem(const void* data, size_t size);
 
 /*! Parse hex string to buffer */
 int parse_hex(const char* hex, void* buffer, size_t buffer_size);
+
+/*! abort */
+void __abort(void);
 
 /* For PAL's assert compatibility */
 #ifndef warn

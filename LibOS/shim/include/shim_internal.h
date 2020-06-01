@@ -41,6 +41,8 @@
 #include <shim_tcb.h>
 #include <shim_types.h>
 
+void* shim_init(int argc, void* args);
+
 noreturn void shim_clean_and_exit(int exit_code);
 
 /* important macros and static inline functions */

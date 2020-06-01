@@ -140,8 +140,6 @@ void _DkDebugDelMap (struct link_map * map)
     ocall_load_debug(buffer);
 }
 
-void setup_elf_hash (struct link_map *map);
-
 extern void * section_text, * section_rodata, * section_dynamic,
             * section_data, * section_bss;
 

@@ -5,8 +5,8 @@
 pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condvar      = PTHREAD_COND_INITIALIZER;
 
-void* function1();
-void* function2();
+static void* function1(void*);
+static void* function2(void*);
 int count = 0;
 
 #define COUNT_DONE  10
@@ -26,7 +26,7 @@ int main(int argc, const char** argv) {
     return 0;
 }
 
-void* function1(void) {
+static void* function1(void* unused) {
     for (;;) {
         // Lock mutex and then wait for signal to relase mutex
         pthread_mutex_lock(&count_mutex);
@@ -44,7 +44,7 @@ void* function1(void) {
     }
 }
 
-void* function2(void) {
+static void* function2(void* unused) {
     for (;;) {
         pthread_mutex_lock(&count_mutex);
 

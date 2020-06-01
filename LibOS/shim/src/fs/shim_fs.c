@@ -277,7 +277,7 @@ int search_builtin_fs(const char* type, struct shim_mount** fs) {
     return -ENOENT;
 }
 
-int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
+static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
     assert(locked(&dcache_lock));
 
     int ret = 0;

@@ -30,6 +30,8 @@
 #include <shim_ipc.h>
 #include <shim_thread.h>
 
+#include "shim_ipc_pid.h"
+
 #define PID_RANGE_SIZE 32
 #define PID_LEASE_TIME 1000
 
@@ -159,7 +161,7 @@ struct thread_status {
     struct pid_status* status;
 };
 
-int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
+static int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
     __UNUSED(unlocked);  // Kept for API compatibility
     struct thread_status* status = (struct thread_status*)arg;
 

@@ -2,7 +2,7 @@
 
 #define EXTEND_SIZE 4097
 
-void seek_input_fd(const char* path) {
+static void seek_input_fd(const char* path) {
     int f = open_input_fd(path);
     printf("open(%s) input OK\n", path);
     seek_fd(path, f, 0, SEEK_SET);
@@ -19,7 +19,7 @@ void seek_input_fd(const char* path) {
     printf("close(%s) input OK\n", path);
 }
 
-void seek_input_stdio(const char* path) {
+static void seek_input_stdio(const char* path) {
     FILE* f = open_input_stdio(path);
     printf("fopen(%s) input OK\n", path);
     seek_stdio(path, f, 0, SEEK_SET);
@@ -36,7 +36,7 @@ void seek_input_stdio(const char* path) {
     printf("fclose(%s) input OK\n", path);
 }
 
-void seek_output_fd(const char* path) {
+static void seek_output_fd(const char* path) {
     uint8_t buf[EXTEND_SIZE + 1] = {1};
     int f = open_output_fd(path, /*rdwr=*/true);
     printf("open(%s) output OK\n", path);
@@ -67,7 +67,7 @@ void seek_output_fd(const char* path) {
     printf("close(%s) output OK\n", path);
 }
 
-void seek_output_stdio(const char* path) {
+static void seek_output_stdio(const char* path) {
     uint8_t buf[EXTEND_SIZE + 1] = {1};
     FILE* f = open_output_stdio(path, /*rdwr=*/true);
     printf("fopen(%s) output OK\n", path);

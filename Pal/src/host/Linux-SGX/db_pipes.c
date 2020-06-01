@@ -81,7 +81,7 @@ fail:
     return ret;
 }
 
-int thread_handshake_func(void* param) {
+static int thread_handshake_func(void* param) {
     PAL_HANDLE handle = (PAL_HANDLE)param;
 
     assert(handle);

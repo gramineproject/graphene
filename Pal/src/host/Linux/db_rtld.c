@@ -23,6 +23,7 @@
  * Library.
  */
 
+#include "db_rtld.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
@@ -149,8 +150,6 @@ void _DkDebugDelMap (struct link_map * map)
     __UNUSED(map);
 #endif
 }
-
-extern void setup_elf_hash (struct link_map *map);
 
 void setup_pal_map (struct link_map * pal_map)
 {

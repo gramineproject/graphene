@@ -9,7 +9,7 @@
 
 static const char* message;
 
-void SIGBUS_handler(int sig) {
+static void SIGBUS_handler(int sig) {
     puts(message);
     exit(0);
 }

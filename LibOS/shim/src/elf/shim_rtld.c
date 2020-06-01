@@ -28,6 +28,7 @@
 
 #include "elf.h"
 #include "elf/ldsodefs.h"
+#include "glibc-version.h"
 #include "shim_checkpoint.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"
@@ -257,7 +258,7 @@ static int reprotect_map(struct link_map* l) {
 
 #include "rel.h"
 
-struct link_map* new_elf_object(const char* realname, int type) {
+static struct link_map* new_elf_object(const char* realname, int type) {
     struct link_map* new;
 
     new = (struct link_map*)malloc(sizeof(struct link_map));
@@ -289,7 +290,7 @@ struct link_map* new_elf_object(const char* realname, int type) {
 #endif
 
 /* Cache the location of MAP's hash table.  */
-void setup_elf_hash(struct link_map* map) {
+static void setup_elf_hash(struct link_map* map) {
     Elf_Symndx* hash;
 
     if (map->l_info[DT_ADDRTAGIDX(DT_GNU_HASH) + DT_NUM + DT_THISPROCNUM +
@@ -823,16 +824,6 @@ static int __free_elf_object(struct link_map* l) {
     return 0;
 }
 
-int free_elf_object(struct shim_handle* file) {
-    struct link_map* l = __search_map_by_handle(file);
-    if (!l)
-        return -ENOENT;
-
-    __free_elf_object(l);
-    put_handle(file);
-    return 0;
-}
-
 static int __check_elf_header(void* fbp, size_t len) {
     const char* errstring __attribute__((unused));
 
@@ -1035,24 +1026,6 @@ static int __load_elf_object(struct shim_handle* file, void* addr, int type,
 
 out:
     return ret;
-}
-
-int reload_elf_object(struct shim_handle* file) {
-    struct link_map* map = loaded_libraries;
-
-    while (map) {
-        if (map->l_file == file)
-            break;
-        map = map->l_next;
-    }
-
-    if (!map)
-        return -ENOENT;
-
-    debug("reloading %s as runtime object loaded at 0x%08lx-0x%08lx\n", qstrgetstr(&file->uri),
-          map->l_map_start, map->l_map_end);
-
-    return __load_elf_object(file, NULL, OBJECT_REMAP, map);
 }
 
 struct sym_val {

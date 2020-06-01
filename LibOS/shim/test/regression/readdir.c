@@ -12,7 +12,7 @@
 #define TEST_FILE "__testfile__"
 
 /* return true if file_name exists, otherwise false */
-bool find_file(char* dir_name, char* file_name) {
+static bool find_file(char* dir_name, char* file_name) {
     bool found = false;
     DIR* dir = opendir(dir_name);
     if (dir == NULL) {

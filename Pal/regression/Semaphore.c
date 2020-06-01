@@ -2,7 +2,7 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-void helper_timeout(PAL_NUM timeout) {
+static void helper_timeout(PAL_NUM timeout) {
     /* Create a binary semaphore */
 
     PAL_HANDLE sem1 = DkMutexCreate(1);
@@ -22,7 +22,7 @@ void helper_timeout(PAL_NUM timeout) {
     DkObjectClose(sem1);
 }
 
-void helper_success(PAL_NUM timeout) {
+static void helper_success(PAL_NUM timeout) {
     /* Create a binary semaphore */
 
     PAL_HANDLE sem1 = DkMutexCreate(0);

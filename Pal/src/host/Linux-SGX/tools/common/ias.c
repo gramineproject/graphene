@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <strings.h>
 
+#include "ias.h"
 #include "pal_crypto.h"
 #include "util.h"
 
@@ -59,7 +60,7 @@ struct ias_request_resp {
  *  \param[in]  src NULL-terminated URL-encoded input.
  *  \param[out] dst Buffer to write decoded output to. Can be the same as \a src.
  */
-void urldecode(const char* src, char* dst) {
+static void urldecode(const char* src, char* dst) {
     char a, b;
     while (*src) {
         if (*src == '%' && (a = src[1]) && (b = src[2]) && isxdigit(a) && isxdigit(b)) {

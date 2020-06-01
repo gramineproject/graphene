@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Stony Brook University
+/*
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -14,27 +14,19 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
- * db_rtld.c
- *
- * This file contains utilities to load ELF binaries into the memory
- * and link them against each other.
- * The source code in this file is imported and modified from the GNU C
- * Library.
- */
+#ifndef _SHIM_IPC_PID_H_
+#define _SHIM_IPC_PID_H_
 
-#include <api.h>
-#include <pal_internal.h>
+#include <shim_ipc.h>
 
-#include "sgx_internal.h"
+int init_ipc_ports(void);
+int init_ns_pid(void);
+int init_ns_sysv(void);
 
-__asm__(".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
-        ".byte 1\r\n"
-        ".asciz \"" PAL_FILE("host/Linux-SGX/debugger/pal-gdb.py") "\"\r\n"
-        ".popsection\r\n");
+void debug_print_pid_ranges(void);
 
-/* This function is hooked by our gdb integration script and should be
- * left as is. */
-void load_gdb_command(const char* command) {
-    __UNUSED(command);
-}
+int get_pid_port(IDTYPE pid, IDTYPE* dest, struct shim_ipc_port** port);
+int get_rpc_msg(IDTYPE* sender, void* buf, int len);
+int get_all_pid_status(struct pid_status** status);
+
+#endif /* _SHIM_IPC_PID_H_ */

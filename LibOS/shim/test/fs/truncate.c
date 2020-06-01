@@ -1,6 +1,6 @@
 #include "common.h"
 
-void file_truncate(const char* file_path_1, const char* file_path_2, size_t size) {
+static void file_truncate(const char* file_path_1, const char* file_path_2, size_t size) {
     if (truncate(file_path_1, size) != 0)
         fatal_error("Failed to truncate file %s to %zu: %s\n", file_path_1, size, strerror(errno));
     printf("truncate(%s) to %zu OK\n", file_path_1, size);
