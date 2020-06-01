@@ -140,7 +140,7 @@ void setup_elf_hash (struct link_map *map)
 
 /* Map in the shared object NAME, actually located in REALNAME, and already
    opened on FD */
-struct link_map *
+static struct link_map*
 map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
                           void * fbp, size_t fbp_len,
                           bool do_copy_dyn)

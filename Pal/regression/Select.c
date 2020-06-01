@@ -3,7 +3,7 @@
 
 PAL_HANDLE wakeup;
 
-int thread_func(void* args) {
+static int thread_func(void* args) {
     pal_printf("Enter thread\n");
 
     DkThreadDelayExecution(3000000);

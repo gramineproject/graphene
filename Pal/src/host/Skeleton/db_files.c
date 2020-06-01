@@ -88,7 +88,7 @@ static int file_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-const char* file_getrealpath(PAL_HANDLE handle) {
+static const char* file_getrealpath(PAL_HANDLE handle) {
     return NULL;
 }
 
@@ -117,7 +117,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
 }
 
 /* 'read' operation for directory stream. Directory stream will not need a 'write' operation. */
-int64_t dir_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buf) {
+static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buf) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

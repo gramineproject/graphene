@@ -150,8 +150,6 @@ void _DkDebugDelMap (struct link_map * map)
 #endif
 }
 
-extern void setup_elf_hash (struct link_map *map);
-
 void setup_pal_map (struct link_map * pal_map)
 {
     const ElfW(Ehdr) * header = (void *) pal_map->l_addr;

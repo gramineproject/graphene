@@ -4,7 +4,7 @@
 
 int handled = 0;
 
-void FailureHandler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+static void FailureHandler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     pal_printf("Failure notified: %s\n", pal_strerror((unsigned long)arg));
 
     handled = 1;

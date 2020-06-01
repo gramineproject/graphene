@@ -6,7 +6,7 @@ void* private2 = "Hello World 2";
 
 static volatile int count1 = 0;
 
-int callback1(void* args) {
+static int callback1(void* args) {
     pal_printf("Run in Child Thread: %s\n", (char*)args);
 
     while (count1 < 10) {
