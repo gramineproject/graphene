@@ -639,7 +639,7 @@ static inline int __ref_inc (REFTYPE * ref)
     do {
         _c = atomic_read(ref);
         assert(_c >= 0);
-    } while (atomic_cmpxchg(ref, _c, _c + 1) != _c);
+    } while (!atomic_cmpxchg(ref, _c, _c + 1));
     return _c + 1;
 }
 
@@ -655,7 +655,7 @@ static inline int __ref_dec (REFTYPE * ref)
             BUG();
             return 0;
         }
-    } while (atomic_cmpxchg(ref, _c, _c - 1) != _c);
+    } while (!atomic_cmpxchg(ref, _c, _c - 1));
     return _c - 1;
 }
 

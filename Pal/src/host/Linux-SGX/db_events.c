@@ -54,7 +54,7 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
 
     if (event->event.isnotification) {
         // Leave it signaled, wake all
-        if (atomic_cmpxchg(event->event.signaled, 0, 1) == 0) {
+        if (atomic_cmpxchg(event->event.signaled, 0, 1)) {
             int nwaiters = atomic_read(&event->event.nwaiters);
             if (nwaiters) {
                 if (wakeup != -1 && nwaiters > wakeup)
