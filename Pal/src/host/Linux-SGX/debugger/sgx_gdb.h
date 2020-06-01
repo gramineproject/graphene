@@ -14,7 +14,8 @@ struct __attribute__((aligned(__alignof__(long)))) enclave_dbginfo {
     unsigned long base, size;
     unsigned long ssaframesize;
     void* aep;
+    void* eresume;
     int thread_tids[MAX_DBG_THREADS];
     void* tcs_addrs[MAX_DBG_THREADS];
-    unsigned long long thread_stepping;
+    unsigned long long thread_stepping[MAX_DBG_THREADS/64]; /* bit vector */
 };

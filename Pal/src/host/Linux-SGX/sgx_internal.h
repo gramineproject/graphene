@@ -133,7 +133,8 @@ void exit_process (int status, uint64_t start_exiting);
 int sgx_ecall (long ecall_no, void * ms);
 int sgx_raise (int event);
 
-void async_exit_pointer (void);
+void async_exit_pointer(void);
+void eresume_pointer(void);
 
 int interrupt_thread (void * tcs);
 int clone_thread (void);
