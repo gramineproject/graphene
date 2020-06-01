@@ -285,6 +285,8 @@ int check_last_thread(struct shim_thread* self);
 int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
                       void * arg);
 
+void dump_threads(void);
+
 /* reference counting of handle maps */
 void get_handle_map (struct shim_handle_map * map);
 void put_handle_map (struct shim_handle_map * map);
