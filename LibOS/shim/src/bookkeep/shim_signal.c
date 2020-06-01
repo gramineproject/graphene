@@ -33,6 +33,7 @@
 #include <shim_ucontext-arch.h>
 #include <shim_unistd.h>
 
+#include <cpu.h>
 #include <pal.h>
 
 #include <asm/signal.h>
@@ -136,7 +137,7 @@ allocate_signal_log (struct shim_thread * thread, int sig)
             return NULL;
 
         head = (head == MAX_SIGNAL_LOG - 1) ? 0 : head + 1;
-    } while (atomic_cmpxchg(&log->head, old_head, head) == head);
+    } while (!atomic_cmpxchg(&log->head, old_head, head));
 
     debug("signal_logs[%d]: tail=%d, head=%d (counter = %ld)\n", sig - 1,
           tail, head, thread->has_signal.counter + 1);
@@ -167,7 +168,7 @@ fetch_signal_log (struct shim_thread * thread, int sig)
         log->logs[tail] = NULL;
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
 
-        if (atomic_cmpxchg(&log->tail, old_tail, tail) == old_tail)
+        if (atomic_cmpxchg(&log->tail, old_tail, tail))
             break;
 
         log->logs[old_tail] = signal;
@@ -889,7 +890,7 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
         /* If several signals arrive simultaneously, only one signal proceeds past this
          * point. For more information, see shim_do_exit_group(). */
         static struct atomic_int first = ATOMIC_INIT(0);
-        if (atomic_cmpxchg(&first, 0, 1) == 1) {
+        if (!atomic_cmpxchg(&first, 0, 1)) {
             while (1)
                 DkThreadYieldExecution();
         }

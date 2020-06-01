@@ -11,8 +11,7 @@ CFLAGS	+= \
 	-I../../../include/arch/$(ARCH)/Linux \
 	-I../../../include/host/Linux \
 	-I../../../include/host/Linux-common \
-	-I../../../include/lib \
-	-I../../../include/lib/$(ARCH)
+	-I../../../include/lib
 
 ASFLAGS += \
 	-I. \
