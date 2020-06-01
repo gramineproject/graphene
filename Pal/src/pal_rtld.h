@@ -153,7 +153,8 @@ ELF_PREFERRED_ADDRESS_DATA;
 
 struct link_map *
 new_elf_object (const char * realname, enum object_type type);
-void free_elf_object (struct link_map * map);
+void free_elf_object(struct link_map* map);
+void setup_elf_hash(struct link_map* map);
 
 static inline uint_fast32_t elf_fast_hash (const char *s)
 {

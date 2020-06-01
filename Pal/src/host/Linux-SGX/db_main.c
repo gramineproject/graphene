@@ -85,14 +85,7 @@ PAL_NUM _DkGetHostId (void)
 #include "dynamic_link.h"
 #include <asm/errno.h>
 
-void setup_pal_map (struct link_map * map);
 static struct link_map pal_map;
-
-void init_untrusted_slab_mgr(void);
-int init_enclave(void);
-int init_enclave_key(void);
-int init_child_process(PAL_HANDLE* parent_handle);
-void init_cpuid(void);
 
 /*
  * Creates a dummy file handle with the given name.

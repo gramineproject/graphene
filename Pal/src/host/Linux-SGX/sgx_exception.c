@@ -81,8 +81,7 @@ static const int async_signals[] =
 
 static const int nasync_signals = ARRAY_SIZE(async_signals);
 
-int set_sighandler (int * sigs, int nsig, void * handler)
-{
+static int set_sighandler(int* sigs, int nsig, void* handler) {
     struct sigaction action;
     action.sa_handler = (void (*)(int)) handler;
     action.sa_flags = SA_SIGINFO | SA_ONSTACK;

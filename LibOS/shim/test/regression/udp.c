@@ -19,7 +19,7 @@ int do_fork                    = 0;
 
 int pipefds[2];
 
-int server(void) {
+static int server(void) {
     struct sockaddr_in si_me, si_other;
     int s, i;
     socklen_t slen = sizeof(si_other);
@@ -73,7 +73,7 @@ int server(void) {
     return 0;
 }
 
-int client(void) {
+static int client(void) {
     struct sockaddr_in si_other;
     int s, i;
     socklen_t slen   = sizeof(si_other);

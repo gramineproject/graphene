@@ -187,7 +187,7 @@ void _DkMutexRelease(PAL_HANDLE handle) {
     return;
 }
 
-bool _DkMutexIsLocked(struct mutex_handle* m) {
+static bool _DkMutexIsLocked(struct mutex_handle* m) {
     if (!m->locked) {
         return false;
     }

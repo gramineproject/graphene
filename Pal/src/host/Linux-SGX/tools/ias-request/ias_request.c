@@ -49,7 +49,7 @@ struct option g_options[] = {
     { 0, 0, 0, 0 }
 };
 
-void usage(const char* exec) {
+static void usage(const char* exec) {
     INFO("Usage: %s <request> [options]\n", exec);
     INFO("Available requests:\n");
     INFO("  sigrl                     Retrieve signature revocation list for a given EPID group\n");
@@ -75,9 +75,9 @@ void usage(const char* exec) {
          "                            %s)\n", IAS_URL_REPORT);
 }
 
-int report(struct ias_context_t* ias, const char* quote_path, const char* nonce,
-           const char* report_path, const char* sig_path, const char* cert_path,
-           const char* advisory_path) {
+static int report(struct ias_context_t* ias, const char* quote_path, const char* nonce,
+                  const char* report_path, const char* sig_path, const char* cert_path,
+                  const char* advisory_path) {
     int ret = -1;
     void* quote_data = NULL;
 
@@ -118,7 +118,7 @@ out:
     return ret;
 }
 
-int sigrl(struct ias_context_t* ias, const char* gid_str, const char* sigrl_path) {
+static int sigrl(struct ias_context_t* ias, const char* gid_str, const char* sigrl_path) {
     uint8_t gid[4];
 
     if (parse_hex(gid_str, gid, sizeof(gid)) != 0) {

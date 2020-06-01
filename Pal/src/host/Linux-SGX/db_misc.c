@@ -93,7 +93,7 @@ static struct pal_cpuid {
 static int pal_cpuid_cache_top      = 0;
 static unsigned int pal_cpuid_clock = 0;
 
-int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
+static int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     _DkInternalLock(&cpuid_cache_lock);
 
     for (int i = 0; i < pal_cpuid_cache_top; i++)
@@ -111,7 +111,7 @@ int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigned int v
     return -PAL_ERROR_DENIED;
 }
 
-void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
+static void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     struct pal_cpuid* chosen;
     _DkInternalLock(&cpuid_cache_lock);
 

@@ -9,7 +9,7 @@
 
 static int count = 0;
 
-void handler(int signum) {
+static void handler(int signum) {
     printf("Got signal %d\n", signum);
     fflush(stdout);
     count++;

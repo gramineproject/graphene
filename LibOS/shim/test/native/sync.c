@@ -8,7 +8,7 @@
 pthread_mutex_t mutex;
 double target;
 
-void* opponent(void* arg) {
+static void* opponent(void* arg) {
     int i;
     for (i = 0; i < ITERATIONS; ++i) {
         // Lock the mutex

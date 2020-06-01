@@ -19,7 +19,7 @@ struct msg_buf {
 #define TEST_TIMES 1000
 #define DO_BENCH   1
 
-int create_q(int key) {
+static int create_q(int key) {
     int r = msgget(key, IPC_CREAT | 0600);
 
 #ifndef DO_BENCH
@@ -38,7 +38,7 @@ int create_q(int key) {
     return r;
 }
 
-int connect_q(int key) {
+static int connect_q(int key) {
     int r = msgget(key, 0);
 
 #ifndef DO_BENCH
@@ -62,7 +62,7 @@ int pipefds[4];
 int keys[TEST_TIMES];
 
 /* server always creates queues */
-void server(void) {
+static void server(void) {
     struct timeval tv1, tv2;
     int i;
 
@@ -100,7 +100,7 @@ void server(void) {
 }
 
 /* client always connects queues */
-void client(void) {
+static void client(void) {
     struct timeval tv1, tv2;
     int i;
     int ids[TEST_TIMES];

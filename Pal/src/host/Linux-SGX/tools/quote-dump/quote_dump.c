@@ -24,7 +24,7 @@ struct option g_options[] = {
     { 0, 0, 0, 0 }
 };
 
-void usage(const char* exec) {
+static void usage(const char* exec) {
     INFO("Usage: %s [options] <quote path>\n", exec);
     INFO("Available options:\n");
     INFO("  --help, -h  Display this help\n");

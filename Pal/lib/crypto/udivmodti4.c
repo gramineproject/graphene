@@ -14,14 +14,7 @@
 
 #include <limits.h>
 
-typedef          long long di_int;
-typedef unsigned long long du_int;
-
-typedef          int si_int;
-typedef unsigned int su_int;
-
-typedef          int ti_int __attribute__((mode (TI)));
-typedef unsigned int tu_int __attribute__((mode (TI)));
+#include "udivmodti4.h"
 
 typedef union
 {
@@ -49,7 +42,7 @@ typedef union
 
 /* Translated from Figure 3-40 of The PowerPC Compiler Writer's Guide */
 
-tu_int
+static tu_int
 __udivmodti4(tu_int a, tu_int b, tu_int* rem)
 {
     const unsigned n_udword_bits = sizeof(du_int) * CHAR_BIT;

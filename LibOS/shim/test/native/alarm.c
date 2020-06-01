@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void handler(int signal) {
+static void handler(int signal) {
     printf("alarm goes off\n");
 }
 

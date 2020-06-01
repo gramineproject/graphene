@@ -661,6 +661,11 @@ DkEventSet(PAL_HANDLE eventHandle);
 void
 DkEventClear(PAL_HANDLE eventHandle);
 
+/*!
+ * \brief Wait for an event.
+ */
+void DkEventWait(PAL_HANDLE handle);
+
 /*! block until the handle's event is triggered */
 #define NO_TIMEOUT ((PAL_NUM)-1)
 

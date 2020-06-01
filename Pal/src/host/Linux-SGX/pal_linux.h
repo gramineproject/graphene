@@ -71,6 +71,8 @@ extern struct pal_linux_state {
 struct stat;
 bool stataccess (struct stat * stats, int acc);
 
+int init_child_process(PAL_HANDLE* parent);
+
 #ifdef IN_ENCLAVE
 
 struct pal_sec;
@@ -78,6 +80,9 @@ void pal_linux_main(char * uptr_args, size_t args_size,
                     char * uptr_env, size_t env_size,
                     struct pal_sec * uptr_sec_info);
 void pal_start_thread (void);
+
+struct link_map;
+void setup_pal_map(struct link_map* map);
 
 /* Locking and unlocking of Mutexes */
 int __DkMutexCreate (struct mutex_handle * mut);
@@ -110,7 +115,12 @@ void save_xregs(PAL_XREGS_STATE* xsave_area);
 void restore_xregs(const PAL_XREGS_STATE* xsave_area);
 noreturn void _restore_sgx_context(sgx_cpu_context_t* uc, PAL_XREGS_STATE* xsave_area);
 
+void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
+void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
+
+
 int init_trusted_files (void);
+void init_cpuid(void);
 
 /* Function: load_trusted_file
  * checks if the file to be opened is trusted or allowed,
@@ -143,6 +153,11 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mr_enclave_str);
+
+int init_enclave(void);
+int init_enclave_key(void);
+
+void init_untrusted_slab_mgr(void);
 
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);

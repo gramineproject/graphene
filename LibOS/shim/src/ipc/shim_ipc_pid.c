@@ -20,6 +20,8 @@
  * This file contains functions and callbacks to handle IPC of PID namespace.
  */
 
+#include "shim_ipc_pid.h"
+
 #include <errno.h>
 
 #include <pal.h>
@@ -159,7 +161,7 @@ struct thread_status {
     struct pid_status* status;
 };
 
-int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
+static int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
     __UNUSED(unlocked);  // Kept for API compatibility
     struct thread_status* status = (struct thread_status*)arg;
 

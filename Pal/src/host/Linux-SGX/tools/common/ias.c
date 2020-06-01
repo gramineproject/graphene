@@ -12,6 +12,8 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#include "ias.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <curl/curl.h>
@@ -59,7 +61,7 @@ struct ias_request_resp {
  *  \param[in]  src NULL-terminated URL-encoded input.
  *  \param[out] dst Buffer to write decoded output to. Can be the same as \a src.
  */
-void urldecode(const char* src, char* dst) {
+static void urldecode(const char* src, char* dst) {
     char a, b;
     while (*src) {
         if (*src == '%' && (a = src[1]) && (b = src[2]) && isxdigit(a) && isxdigit(b)) {

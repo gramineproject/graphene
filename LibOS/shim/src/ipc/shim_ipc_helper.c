@@ -21,6 +21,8 @@
  * of IPC ports.
  */
 
+#include "shim_ipc_helper.h"
+
 #include <list.h>
 #include <pal.h>
 #include <pal_error.h>

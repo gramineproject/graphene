@@ -10,7 +10,7 @@ static atomic_bool thread3_started = false;
 static atomic_bool thread3_exit_ok = true;
 static atomic_bool thread4_started = false;
 
-int thread2_run(void* args) {
+static int thread2_run(void* args) {
     pal_printf("Thread 2 started.\n");
 
     thread2_started = true;
@@ -19,7 +19,7 @@ int thread2_run(void* args) {
     return 0;
 }
 
-int thread3_run(void* args) {
+static int thread3_run(void* args) {
     pal_printf("Thread 3 started.\n");
 
     thread3_started = true;
@@ -37,7 +37,7 @@ int thread3_run(void* args) {
     return 0;
 }
 
-int thread4_run(void* args) {
+static int thread4_run(void* args) {
     pal_printf("Thread 4 started.\n");
 
     thread4_started = true;

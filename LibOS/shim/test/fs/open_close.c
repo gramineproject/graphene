@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-void open_close_input_fd(const char* input_path) {
+static void open_close_input_fd(const char* input_path) {
     int fi = open_input_fd(input_path);
     printf("open(%s) input OK\n", input_path);
     close_fd(input_path, fi);
@@ -18,7 +18,7 @@ void open_close_input_fd(const char* input_path) {
     printf("close(%s) input 2 OK\n", input_path);
 }
 
-void open_close_input_stdio(const char* input_path) {
+static void open_close_input_stdio(const char* input_path) {
     FILE* fi = open_input_stdio(input_path);
     printf("fopen(%s) input OK\n", input_path);
     close_stdio(input_path, fi);
@@ -34,7 +34,7 @@ void open_close_input_stdio(const char* input_path) {
     printf("fclose(%s) input 2 OK\n", input_path);
 }
 
-void open_close_output_fd(const char* output_path) {
+static void open_close_output_fd(const char* output_path) {
     int fo = open_output_fd(output_path, /*rdwr=*/false);
     printf("open(%s) output OK\n", output_path);
     close_fd(output_path, fo);
@@ -50,7 +50,7 @@ void open_close_output_fd(const char* output_path) {
     printf("close(%s) output 2 OK\n", output_path);
 }
 
-void open_close_output_stdio(const char* output_path) {
+static void open_close_output_stdio(const char* output_path) {
     FILE* fo = open_output_stdio(output_path, /*rdwr=*/false);
     printf("fopen(%s) output OK\n", output_path);
     close_stdio(output_path, fo);

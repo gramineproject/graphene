@@ -1,6 +1,6 @@
 #include "common.h"
 
-void file_delete(const char* file_path_1, const char* file_path_2, bool writable) {
+static void file_delete(const char* file_path_1, const char* file_path_2, bool writable) {
     const char* type = writable ? "output" : "input";
 
     int fd = writable ? open_output_fd(file_path_1, /*rdwr=*/false) : open_input_fd(file_path_1);
