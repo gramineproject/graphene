@@ -28,8 +28,7 @@ CFLAGS += \
 	-I../include/$(HOST_DIR) \
 	-I../include/arch/$(ARCH) \
 	-I../include/arch/$(ARCH)/$(PAL_HOST) \
-	-I../include/lib \
-	-I../include/lib/$(ARCH)
+	-I../include/lib
 
 PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 

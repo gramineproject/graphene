@@ -94,7 +94,7 @@ int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
     assert(WITHIN_MASK(prot, PAL_PROT_MASK));
 
     static struct atomic_int at_cnt = {.counter = 0};
-    if (atomic_cmpxchg(&at_cnt, 0, 1) == 0)
+    if (atomic_cmpxchg(&at_cnt, 0, 1))
         SGX_DBG(DBG_M, "[Warning] DkVirtualMemoryProtect is unimplemented in Linux-SGX PAL");
     return 0;
 }
