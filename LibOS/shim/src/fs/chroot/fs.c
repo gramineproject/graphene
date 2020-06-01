@@ -580,7 +580,7 @@ static void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle*
                 file->size = size;
                 break;
             }
-        } while ((off_t)atomic_cmpxchg(&data->size, size, file->size) != size);
+        } while (!atomic_cmpxchg(&data->size, size, file->size));
     }
 }
 

@@ -14,7 +14,6 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -I../../../Pal/include/arch/$(ARCH)/$(PAL_HOST) \
 	  -I../../../Pal/include/elf \
 	  -I../../../Pal/include/lib \
-	  -I../../../Pal/include/lib/$(ARCH) \
 	  -I../../../Pal/include/pal
 
 CFLAGS += -Wextra
