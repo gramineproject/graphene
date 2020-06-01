@@ -19,7 +19,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <shim_types.h>
+#include "vdso.h"
 
 /*
  * The symbols below need to be exported for libsysdb to inject those values,

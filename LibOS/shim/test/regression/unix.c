@@ -20,7 +20,7 @@ int do_fork                    = 0;
 
 int pipefds[2];
 
-int server_dummy_socket(void) {
+static int server_dummy_socket(void) {
     int create_socket;
     struct sockaddr_un address;
 
@@ -46,7 +46,7 @@ int server_dummy_socket(void) {
     return 0;
 }
 
-int server(void) {
+static int server(void) {
     int create_socket, new_socket;
     socklen_t addrlen;
     int bufsize  = 1024;
@@ -116,7 +116,7 @@ int server(void) {
     return 0;
 }
 
-int client(void) {
+static int client(void) {
     int count, create_socket;
     int bufsize  = 1024;
     char* buffer = malloc(bufsize);

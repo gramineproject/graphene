@@ -33,6 +33,8 @@
 #include <shim_table.h>
 #include <shim_thread.h>
 
+#include "shim_fork.h"
+
 static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread, struct shim_process* process) {
     DEFINE_MIGRATE(process, process, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);

@@ -31,6 +31,8 @@
 #include <shim_thread.h>
 #include <shim_utils.h>
 
+#include "shim_ipc_helper.h"
+
 #define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 
 static struct shim_lock ipc_port_mgr_lock;

@@ -21,6 +21,8 @@
  * implemented yet.)
  */
 
+#include "shim_fork.h"
+
 #include <shim_types.h>
 #include <shim_internal.h>
 #include <shim_table.h>
@@ -173,10 +175,6 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
     restore_context(&tcb->context);
     return 0;
 }
-
-int migrate_fork (struct shim_cp_store * cpstore,
-                  struct shim_thread * thread,
-                  struct shim_process * process, va_list ap);
 
 /*  long int __arg0 - flags
  *  long int __arg1 - 16 bytes ( 2 words ) offset into the child stack allocated

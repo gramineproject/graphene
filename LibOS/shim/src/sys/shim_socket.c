@@ -868,7 +868,7 @@ out:
     return ret;
 }
 
-int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, int* addrlen) {
+static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr, int* addrlen) {
     if (hdl->type != TYPE_SOCK)
         return -ENOTSOCK;
 

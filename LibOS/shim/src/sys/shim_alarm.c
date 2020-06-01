@@ -61,7 +61,7 @@ static struct {
     unsigned long reset;
 } real_itimer;
 
-void signal_itimer(IDTYPE target, void* arg) {
+static void signal_itimer(IDTYPE target, void* arg) {
     // XXX: Can we simplify this code or streamline with the other callback?
     __UNUSED(target);
 

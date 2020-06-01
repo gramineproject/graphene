@@ -3,7 +3,7 @@
 const int g_mode = 0664;
 const char g_data = 'x';
 
-size_t get_file_size(const char* path) {
+static size_t get_file_size(const char* path) {
     struct stat st;
     if (stat(path, &st) < 0)
         fatal_error("Failed to stat file '%s': %s\n", path, strerror(errno));
@@ -11,8 +11,8 @@ size_t get_file_size(const char* path) {
     return st.st_size;
 }
 
-void open_test__(const char* path, int flags, const char* flags_str, bool exists,
-                 bool expect_success, bool do_write) {
+static void open_test__(const char* path, int flags, const char* flags_str, bool exists,
+                        bool expect_success, bool do_write) {
     const char* exists_str = exists ? "exists" : "doesn't exist";
     int fd = open(path, flags, g_mode);
     if (fd < 0) {

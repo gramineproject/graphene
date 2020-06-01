@@ -5,6 +5,8 @@
 #include <shim_internal.h>
 #include <shim_tcb.h>
 
+void dummy(void);
+
 void dummy(void)
 {
     OFFSET_T(SHIM_TCB_OFFSET, PAL_TCB, libos_tcb);
@@ -17,4 +19,3 @@ void dummy(void)
     /* definitions */
     DEFINE(RED_ZONE_SIZE, RED_ZONE_SIZE);
 }
-

@@ -6,11 +6,11 @@
 
 #define OVERHEAD_TIMES 30000
 
-double my_sqrt(double num) {
+static double my_sqrt(double num) {
     return sqrt(num);
 }
 
-pthread_t my_pthread_self(void) {
+static pthread_t my_pthread_self(void) {
     return pthread_self();
 }
 

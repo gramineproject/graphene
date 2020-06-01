@@ -22,7 +22,7 @@ char user_report_data_str[] = "This is user-provided report data";
 
 enum { SUCCESS = 0, FAILURE = -1 };
 
-ssize_t rw_file(const char* path, char* buf, size_t bytes, bool do_write) {
+static ssize_t rw_file(const char* path, char* buf, size_t bytes, bool do_write) {
     ssize_t rv = 0;
     ssize_t ret = 0;
 

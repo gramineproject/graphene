@@ -17,7 +17,7 @@
 #define TEST_DIR  "tmp"
 #define TEST_FILE "__testfile__"
 
-ssize_t rw_file(int fd, char* buf, size_t bytes, bool write_flag) {
+static ssize_t rw_file(int fd, char* buf, size_t bytes, bool write_flag) {
     ssize_t rv = 0;
     ssize_t ret;
 

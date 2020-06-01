@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void* print1(void* arg) {
+static void* print1(void* arg) {
     printf("This is Function 1 - go to sleep\n");
     sleep(5);
     printf("Function1 out of sleep\n");
@@ -10,7 +10,7 @@ void* print1(void* arg) {
     return NULL;
 }
 
-void* print2(void* arg) {
+static void* print2(void* arg) {
     printf("This is Function 2 - go to sleep\n");
     sleep(5);
     printf("Function2 out of sleep\n");
@@ -18,7 +18,7 @@ void* print2(void* arg) {
     return NULL;
 }
 
-void* func(void* arg) {
+static void* func(void* arg) {
     int* ptr = (int*)arg;
     printf("Parent gave %d\n", *ptr);
     return NULL;

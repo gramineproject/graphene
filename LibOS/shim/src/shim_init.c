@@ -358,7 +358,7 @@ int init_stack (const char ** argv, const char ** envp,
     return 0;
 }
 
-int read_environs (const char ** envp)
+static int read_environs (const char** envp)
 {
     for (const char ** e = envp ; *e ; e++) {
         if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {
