@@ -12,7 +12,6 @@ CFLAGS += \
 	-I../../../include/host/Linux-SGX \
 	-I../../../include/host/Linux-common \
 	-I../../../include/lib \
-	-I../../../include/lib/$(ARCH) \
 	-I../../../lib/crypto/mbedtls/include \
 	-I../../../lib/crypto/mbedtls/crypto/include \
 	-Isgx-driver

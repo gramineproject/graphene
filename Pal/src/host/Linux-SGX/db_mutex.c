@@ -60,7 +60,7 @@ int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
 int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     int ret = 0;
 
-    if (MUTEX_UNLOCKED == cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
+    if (cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
         goto success;
 
     if (timeout_us == 0) {
@@ -71,7 +71,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     // Bump up the waiters count; we are probably going to block
     atomic_inc(&m->nwaiters);
 
-    while (MUTEX_LOCKED == cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
+    while (!cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
         /*
          * Chia-Che 12/7/2017: m->locked points to untrusted memory, so
          * can be used for futex. Potentially this design may allow

@@ -6,7 +6,6 @@ CFLAGS	+= -Wp,-U_FORTIFY_SOURCE -fno-builtin -nostdlib \
 	  -I../include \
 	  -I../include/pal \
 	  -I../include/lib \
-	  -I../include/lib/$(ARCH) \
 	  -I../include/arch/$(ARCH) \
 	  -I../include/arch/$(ARCH)/$(PAL_HOST)
 

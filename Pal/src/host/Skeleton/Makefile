@@ -9,7 +9,6 @@ CFLAGS  += \
 	-I../../../include/arch/$(ARCH)/$(PAL_HOST) \
 	-I../../../include/host/Skeleton \
 	-I../../../include/lib \
-	-I../../../include/lib/$(ARCH) \
 	-I../../../include/pal
 
 ASFLAGS += \
