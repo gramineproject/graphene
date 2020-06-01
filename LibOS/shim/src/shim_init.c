@@ -36,6 +36,7 @@
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
+#include "shim_init.h"
 
 #include <sys/mman.h>
 #include <asm/unistd.h>
