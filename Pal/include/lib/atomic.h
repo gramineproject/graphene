@@ -55,7 +55,7 @@ static inline int64_t atomic_read(const struct atomic_int* v)
 {
     //  Effectively:
     //      return v->counter;
-    return __atomic_load_n(&v->counter, __ATOMIC_SEQ_CST);
+    return __atomic_load_n(&v->counter, __ATOMIC_RELAXED);
 }
 
 /* Does a blind write to the atomic variable */
@@ -63,45 +63,45 @@ static inline void atomic_set(struct atomic_int* v, int64_t i)
 {
     //  Effectively:
     //      v->counter = i;
-    __atomic_store_n(&v->counter, i, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&v->counter, i, __ATOMIC_RELAXED);
 }
 
 /* Helper function that atomically adds a value to an atomic_int,
  * and returns the _new_ value. */
 static inline int64_t _atomic_add (int64_t i, struct atomic_int * v)
 {
-    return __atomic_add_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
+    return __atomic_add_fetch(&v->counter, i, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically adds i to v.  Does not return a value. */
 static inline void atomic_add(int64_t i, struct atomic_int* v)
 {
-    __atomic_add_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
+    __atomic_add_fetch(&v->counter, i, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically substracts i from v.  Does not return a value. */
 static inline void atomic_sub(int64_t i, struct atomic_int* v)
 {
-    __atomic_sub_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
+    __atomic_sub_fetch(&v->counter, i, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically adds 1 to v.  Does not return a value. */
 static inline void atomic_inc(struct atomic_int* v)
 {
-    __atomic_add_fetch(&v->counter, 1, __ATOMIC_SEQ_CST);
+    __atomic_add_fetch(&v->counter, 1, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically substracts 1 from v.  Does not return a value. */
 static inline void atomic_dec (struct atomic_int* v)
 {
-    __atomic_sub_fetch(&v->counter, 1, __ATOMIC_SEQ_CST);
+    __atomic_sub_fetch(&v->counter, 1, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically substracts 1 from v.  Returns 1 if this causes the
    value to reach 0; returns 0 otherwise. */
 static inline int64_t atomic_dec_and_test (struct atomic_int* v)
 {
-    return __atomic_sub_fetch(&v->counter, 1, __ATOMIC_SEQ_CST) == 0;
+    return __atomic_sub_fetch(&v->counter, 1, __ATOMIC_ACQUIRE) == 0;
 }
 
 #define atomic_add_return(i, v)  _atomic_add(i, v)
@@ -112,7 +112,7 @@ static inline int64_t atomic_dec_and_test (struct atomic_int* v)
  * the value originally in p. */
 static inline bool cmpxchg(volatile int64_t* p, int64_t t, int64_t s)
 {
-    return __atomic_compare_exchange_n(p, &t, s, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    return __atomic_compare_exchange_n(p, &t, s, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
 }
 
 /* Helper function to atomically compare-and-swap the value in v.
