@@ -2,9 +2,16 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 include ../src/host/$(PAL_HOST)/Makefile.am
 
-CFLAGS += -I../include/lib -I../include -I../include/pal -I../include/arch/$(ARCH) \
-          -I../include/arch/$(ARCH)/$(PAL_HOST) -I../include/host/$(PAL_HOST) \
-          -I../src/host/$(PAL_HOST) -Icrypto/mbedtls/include -Icrypto/mbedtls/crypto/include
+CFLAGS += \
+	-I../include \
+	-I../include/arch/$(ARCH) \
+	-I../include/arch/$(ARCH)/$(PAL_HOST) \
+	-I../include/host/$(PAL_HOST) \
+	-I../include/lib \
+	-I../include/pal \
+	-I../src/host/$(PAL_HOST) \
+	-Icrypto/mbedtls/include \
+	-Icrypto/mbedtls/crypto/include
 
 CRYPTO_PROVIDER ?= mbedtls
 

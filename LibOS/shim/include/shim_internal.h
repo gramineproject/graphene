@@ -384,6 +384,34 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
     END_SHIM(name)                                                                 \
     EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
 
+#define SHIM_SYSCALL_RETURN_ENOSYS_0(NAME, RTYPE) \
+    RTYPE shim_##NAME(void);                      \
+    SHIM_SYSCALL_RETURN_ENOSYS(NAME, 0, RTYPE)
+
+#define SHIM_SYSCALL_RETURN_ENOSYS_1(NAME, RTYPE, T1, P1) \
+    RTYPE shim_##NAME(T1 P1);                             \
+    SHIM_SYSCALL_RETURN_ENOSYS(NAME, 1, RTYPE, T1, P1)
+
+#define SHIM_SYSCALL_RETURN_ENOSYS_2(NAME, RTYPE, T1, P1, T2, P2) \
+    RTYPE shim_##NAME(T1 P1, T2 P2);                              \
+    SHIM_SYSCALL_RETURN_ENOSYS(NAME, 2, RTYPE, T1, P1, T2, P2)
+
+#define SHIM_SYSCALL_RETURN_ENOSYS_3(NAME, RTYPE, T1, P1, T2, P2, T3, P3) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3);                               \
+    SHIM_SYSCALL_RETURN_ENOSYS(NAME, 3, RTYPE, T1, P1, T2, P2, T3, P3)
+
+#define SHIM_SYSCALL_RETURN_ENOSYS_4(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4);                                \
+    SHIM_SYSCALL_RETURN_ENOSYS(NAME, 4, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4)
+
+#define SHIM_SYSCALL_RETURN_ENOSYS_5(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4, T5 P5);                                 \
+    SHIM_SYSCALL_RETURN_ENOSYS(NAME, 5, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5)
+
+#define SHIM_SYSCALL_RETURN_ENOSYS_6(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5, T6, P6) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4, T5 P5, T6 P6);                                  \
+    SHIM_SYSCALL_RETURN_ENOSYS(NAME, 6, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5, T6, P6)
+
 #define CONCAT2(t1, t2) __CONCAT2(t1, t2)
 #define __CONCAT2(t1, t2) t1##_##t2
 

@@ -33,6 +33,10 @@
 #include <shim_unistd.h>
 #include <shim_utils.h>
 
+#include "shim_ipc_helper.h"
+#include "shim_ipc_pid.h"
+#include "shim_ipc_sysv.h"
+
 static struct shim_lock ipc_info_mgr_lock;
 
 #define SYSTEM_LOCK()   lock(&ipc_info_mgr_lock)
@@ -54,10 +58,6 @@ struct shim_process cur_process;
 #define CLIENT_HASH(vmid)  ((vmid)&CLIENT_HASH_MASK)
 DEFINE_LISTP(shim_ipc_info);
 static LISTP_TYPE(shim_ipc_info) info_hlist[CLIENT_HASH_NUM];
-
-int init_ipc_ports(void);
-int init_ns_pid(void);
-int init_ns_sysv(void);
 
 int init_ipc(void) {
     int ret = 0;

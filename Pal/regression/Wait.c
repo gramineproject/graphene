@@ -4,7 +4,7 @@
 PAL_HANDLE event1;
 PAL_HANDLE event2;
 
-int thread1_func(void* args) {
+static int thread1_func(void* args) {
     pal_printf("Enter thread 1\n");
 
     DkThreadDelayExecution(3000);
@@ -14,7 +14,7 @@ int thread1_func(void* args) {
     return 0;
 }
 
-int thread2_func(void* args) {
+static int thread2_func(void* args) {
     pal_printf("Enter thread 2\n");
 
     DkThreadDelayExecution(5000);

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void* thread_func(void* arg) {
+static void* thread_func(void* arg) {
     exit(113);
     return NULL;
 }

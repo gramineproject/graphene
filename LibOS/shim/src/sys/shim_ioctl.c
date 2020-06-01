@@ -287,7 +287,7 @@ passthrough:
     return -EAGAIN;
 }
 
-void signal_io(IDTYPE target, void* arg) {
+static void signal_io(IDTYPE target, void* arg) {
     // Kept for compatibility with signal_itimer
     __UNUSED(arg);
 

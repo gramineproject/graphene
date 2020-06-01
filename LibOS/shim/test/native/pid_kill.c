@@ -13,13 +13,13 @@ int secondpid;
 
 int count = 0;
 
-void sighand1(int signum, siginfo_t* sinfo, void* ucontext) {
+static void sighand1(int signum, siginfo_t* sinfo, void* ucontext) {
     count++;
     printf("firstpid receive a SIGUSR from %d (count = %d)\n", sinfo->si_pid, count);
     kill(secondpid, SIGUSR1);
 }
 
-void sighand2(int signum, siginfo_t* sinfo, void* ucontext) {
+static void sighand2(int signum, siginfo_t* sinfo, void* ucontext) {
     count++;
     printf("secondpid receive a SIGUSR from %d (count = %d)\n", sinfo->si_pid, count);
     kill(firstpid, SIGUSR1);

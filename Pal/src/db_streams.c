@@ -197,7 +197,7 @@ PAL_HANDLE DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share, PAL_FLG crea
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-int _DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client) {
+static int _DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client) {
     if (UNKNOWN_HANDLE(handle))
         return -PAL_ERROR_BADHANDLE;
 

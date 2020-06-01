@@ -3,7 +3,7 @@
 
 PAL_HANDLE parent_thread, child_thread;
 
-int child(void* args) {
+static int child(void* args) {
     int i;
     pal_printf("Enter Child Thread\n");
 

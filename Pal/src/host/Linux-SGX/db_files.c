@@ -365,7 +365,7 @@ static int file_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     return tmp + len - buffer;
 }
 
-const char* file_getrealpath(PAL_HANDLE handle) {
+static const char* file_getrealpath(PAL_HANDLE handle) {
     return handle->file.realpath;
 }
 

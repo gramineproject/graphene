@@ -162,8 +162,6 @@ PAL_NUM _DkGetHostId (void)
 
 #include "dynamic_link.h"
 
-void setup_pal_map (struct link_map * map);
-
 #if USE_VDSO_GETTIME == 1
 void setup_vdso_map (ElfW(Addr) addr);
 #endif
@@ -353,7 +351,7 @@ static char * cpu_flags[]
  * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
  * Understands complex formats like "1,3-5,6".
  */
-int get_cpu_count(void) {
+static int get_cpu_count(void) {
     int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
     if (fd < 0)
         return unix_to_pal_error(ERRNO(fd));
