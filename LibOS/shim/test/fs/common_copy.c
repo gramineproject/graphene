@@ -6,7 +6,7 @@
 #define RDWR_OUTPUT_OPEN false
 #endif
 
-void copy_file(const char* input_path, const char* output_path, size_t size) {
+static void copy_file(const char* input_path, const char* output_path, size_t size) {
     int fi = open_input_fd(input_path);
     printf("open(%zu) input OK\n", size);
 

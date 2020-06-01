@@ -7,7 +7,7 @@
 static PAL_HANDLE event1;
 atomic_int timeouts = 0;
 
-int thread2_run(void* args) {
+static int thread2_run(void* args) {
     pal_printf("Second thread started.\n");
     DkThreadDelayExecution(3000000);
 
@@ -19,7 +19,7 @@ int thread2_run(void* args) {
     return 0;
 }
 
-void pal_failure_handler(PAL_PTR event, PAL_NUM error, PAL_CONTEXT* context) {
+static void pal_failure_handler(PAL_PTR event, PAL_NUM error, PAL_CONTEXT* context) {
     pal_printf("pal_failure_handler called\n");
 
     if (error == PAL_ERROR_TRYAGAIN) {

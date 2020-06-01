@@ -12,7 +12,7 @@ static void* get_stack(void) {
     return stack;
 }
 
-void handler1 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
+static void handler1(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context)
 {
     pal_printf("Arithmetic Exception Handler 1: 0x%08lx, rip = 0x%08lx\n",
                arg, context->rip);
@@ -25,7 +25,7 @@ void handler1 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
-void handler2 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
+static void handler2(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context)
 {
     pal_printf("Arithmetic Exception Handler 2: 0x%08lx, rip = 0x%08lx\n",
                arg, context->rip);
@@ -36,7 +36,7 @@ void handler2 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
-void handler3 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
+static void handler3(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context)
 {
     pal_printf("Memory Fault Exception Handler: 0x%08lx, rip = 0x%08lx\n",
                arg, context->rip);
@@ -49,7 +49,7 @@ void handler3 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 atomic_bool handler4_called = false;
 
-void handler4(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
+static void handler4(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context)
 {
     pal_printf("Arithmetic Exception Handler 4: 0x%" PRIx64 ", rip = 0x%" PRIx64 "\n", arg, context->rip);
 
@@ -60,7 +60,6 @@ void handler4(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
     DkExceptionReturn(event);
 }
-
 
 static void red_zone_test(void) {
     uint64_t res = 0;

@@ -25,7 +25,7 @@ int do_fork                    = 0;
 
 int pipefds[2];
 
-int server(void) {
+static int server(void) {
     int conn, create_socket, new_socket, fd;
     socklen_t addrlen;
     int bufsize  = 1024;
@@ -104,7 +104,7 @@ int server(void) {
     return 0;
 }
 
-int client(void) {
+static int client(void) {
     int count, create_socket;
     int bufsize  = 1024;
     char* buffer = malloc(bufsize);

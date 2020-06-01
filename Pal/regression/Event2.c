@@ -5,7 +5,7 @@ static PAL_HANDLE event1;
 
 int count = 0;
 
-int thread_func(void* args) {
+static int thread_func(void* args) {
     DkThreadDelayExecution(1000);
 
     pal_printf("In thread 1\n");

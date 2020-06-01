@@ -20,7 +20,7 @@ enum { PARALLEL, SERIAL, IN_PROCESS } mode = PARALLEL;
 int pipefds[4], key;
 
 /* server always sends messages */
-void server(void) {
+static void server(void) {
     struct timeval tv1, tv2;
     int msqid;
     alignas(struct msgbuf) char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE];
@@ -71,7 +71,7 @@ void server(void) {
 }
 
 /* client always sends messages */
-void client(void) {
+static void client(void) {
     struct timeval tv1, tv2;
     int msqid;
     alignas(struct msgbuf) char _data[sizeof(struct msgbuf) + PAYLOAD_SIZE];

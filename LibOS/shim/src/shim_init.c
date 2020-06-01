@@ -29,6 +29,7 @@
 #include <shim_vma.h>
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
+#include "shim_init.h"
 #include <shim_ipc.h>
 #include <shim_vdso.h>
 
@@ -75,11 +76,6 @@ void warn (const char *format, ...)
     va_start (args, format);
     __SYS_VPRINTF(format, args);
     va_end (args);
-}
-
-
-void __stack_chk_fail (void)
-{
 }
 
 static int pal_errno_to_unix_errno [PAL_ERROR_NATIVE_COUNT + 1] = {
@@ -358,8 +354,7 @@ int init_stack (const char ** argv, const char ** envp,
     return 0;
 }
 
-int read_environs (const char ** envp)
-{
+static int read_environs(const char** envp) {
     for (const char ** e = envp ; *e ; e++) {
         if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {
             /* populate library_paths with entries from LD_LIBRARY_PATH envvar */

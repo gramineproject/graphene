@@ -11,7 +11,7 @@ uint8_t* sig_stack;
 size_t sig_stack_size = SIGSTKSZ;
 _Atomic int count     = 0;
 
-void handler(int signal, siginfo_t* info, void* ucontext) {
+static void handler(int signal, siginfo_t* info, void* ucontext) {
     int ret;
     count++;
 

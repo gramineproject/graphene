@@ -20,7 +20,7 @@ static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeo
     return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
 }
 
-void* thread_function(void* argument) {
+static void* thread_function(void* argument) {
     int* ptr = (int*)argument;
     long rv;
 

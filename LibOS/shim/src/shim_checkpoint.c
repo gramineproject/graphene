@@ -486,8 +486,7 @@ next:
     return 0;
 }
 
-int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store * store)
-{
+static int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store* store) {
     int nentries = store->palhdl_nentries;
     if (!nentries)
         return 0;
@@ -517,9 +516,7 @@ int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store * store)
     return 0;
 }
 
-int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
-                               long rebase)
-{
+static int receive_handles_on_stream(struct palhdl_header* hdr, ptr_t base, long rebase) {
     struct shim_palhdl_entry * palhdl_entries =
                             (void *) (base + hdr->entoffset);
     int nentries = hdr->nentries;

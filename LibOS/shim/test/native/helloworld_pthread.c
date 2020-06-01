@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void* print(void* arg) {
+static void* print(void* arg) {
     printf("child: pid %d\n", getpid());
     puts((char*)arg);
     return NULL;

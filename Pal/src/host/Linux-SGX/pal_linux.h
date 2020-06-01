@@ -110,6 +110,10 @@ void save_xregs(PAL_XREGS_STATE* xsave_area);
 void restore_xregs(const PAL_XREGS_STATE* xsave_area);
 noreturn void _restore_sgx_context(sgx_cpu_context_t* uc, PAL_XREGS_STATE* xsave_area);
 
+void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
+void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
+
+
 int init_trusted_files (void);
 
 /* Function: load_trusted_file

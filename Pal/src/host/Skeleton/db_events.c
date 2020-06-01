@@ -30,10 +30,6 @@ int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-void _DkEventDestroy(PAL_HANDLE handle) {
-    /* needs to be implemented */
-}
-
 int _DkEventSet(PAL_HANDLE event, int wakeup) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
