@@ -46,6 +46,7 @@ static inline void __free(void* addr, int size) {
 
 #define system_free(addr, size) __free(addr, size)
 
+#include "enclave_untrusted.h"
 #include "slabmgr.h"
 
 static SLAB_MGR untrusted_slabmgr = NULL;

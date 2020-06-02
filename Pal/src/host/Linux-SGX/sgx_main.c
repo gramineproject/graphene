@@ -233,7 +233,7 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
     return 0;
 }
 
-int initialize_enclave (struct pal_enclave * enclave)
+static int initialize_enclave (struct pal_enclave* enclave)
 {
     int ret = 0;
     int                    enclave_image = -1;

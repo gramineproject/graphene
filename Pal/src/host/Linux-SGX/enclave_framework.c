@@ -10,6 +10,7 @@
 #include <spinlock.h>
 #include <stdbool.h>
 
+#include "enclave_framework.h"
 #include "enclave_pages.h"
 
 __sgx_mem_aligned struct pal_enclave_state pal_enclave_state;

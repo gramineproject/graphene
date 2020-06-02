@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Stony Brook University
+/*
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -14,27 +14,9 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
- * db_rtld.c
- *
- * This file contains utilities to load ELF binaries into the memory
- * and link them against each other.
- * The source code in this file is imported and modified from the GNU C
- * Library.
- */
+#ifndef _ENCLAVE_ECALLS_H_
+#define _ENCLAVE_ECALLS_H_
 
-#include <api.h>
-#include <pal_internal.h>
+void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* enclave_base_addr);
 
-#include "sgx_internal.h"
-
-__asm__(".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
-        ".byte 1\r\n"
-        ".asciz \"" PAL_FILE("host/Linux-SGX/debugger/pal-gdb.py") "\"\r\n"
-        ".popsection\r\n");
-
-/* This function is hooked by our gdb integration script and should be
- * left as is. */
-void load_gdb_command(const char* command) {
-    __UNUSED(command);
-}
+#endif /* _ENCLAVE_ECALLS_H_ */

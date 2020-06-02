@@ -19,6 +19,9 @@
 
 #include <generated-offsets-build.h>
 
+/* required due to -Wmissing-prototypes */
+void dummy(void);
+
 void dummy(void)
 {
     /* defines in sgx_arch.h */

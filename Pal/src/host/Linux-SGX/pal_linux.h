@@ -71,6 +71,8 @@ extern struct pal_linux_state {
 struct stat;
 bool stataccess (struct stat * stats, int acc);
 
+int init_child_process(PAL_HANDLE* parent);
+
 #ifdef IN_ENCLAVE
 
 struct pal_sec;
@@ -78,6 +80,9 @@ void pal_linux_main(char * uptr_args, size_t args_size,
                     char * uptr_env, size_t env_size,
                     struct pal_sec * uptr_sec_info);
 void pal_start_thread (void);
+
+struct link_map;
+void setup_pal_map(struct link_map* map);
 
 /* Locking and unlocking of Mutexes */
 int __DkMutexCreate (struct mutex_handle * mut);
@@ -115,6 +120,7 @@ void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STAT
 
 
 int init_trusted_files (void);
+void init_cpuid(void);
 
 /* Function: load_trusted_file
  * checks if the file to be opened is trusted or allowed,
