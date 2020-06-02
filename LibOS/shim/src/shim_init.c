@@ -29,7 +29,6 @@
 #include <shim_vma.h>
 #include <shim_checkpoint.h>
 #include <shim_fs.h>
-#include "shim_init.h"
 #include <shim_ipc.h>
 #include <shim_vdso.h>
 
