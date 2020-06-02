@@ -222,8 +222,9 @@ The current members of the management team are:
 * Mona Vij (Intel)
 * Isaku Yamahata (Intel)
 
-The procedure of joining/leaving the MT:
-----------------------------------------
+The procedure for adding and removing maintainers
+-------------------------------------------------
+
 + Joining: # of PRs submitted & merged + # of PRs reviewed + # of issues closed >= 20 (this means that a PR which fixes 3 issues counts as 4). Only complete and thorough reviews count.
 + Leaving: a member may be removed if not active or notoriously breaking rules from this document.
 + Additionally, at least 60% (rounded up) of current members have to agree to make any change to the team membership.
