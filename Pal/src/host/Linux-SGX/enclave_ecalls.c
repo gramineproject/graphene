@@ -5,7 +5,6 @@
 
 #include "ecall_types.h"
 #include "enclave_ecalls.h"
-#include "enclave_framework.h"
 #include "rpc_queue.h"
 
 #define SGX_CAST(type, item) ((type)(item))

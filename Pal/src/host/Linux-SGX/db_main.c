@@ -38,9 +38,7 @@
 #include <sysdeps/generic/ldsodefs.h>
 
 #include "ecall_types.h"
-#include "enclave_framework.h"
 #include "enclave_pages.h"
-#include "enclave_untrusted.h"
 
 #define RTLD_BOOTSTRAP
 #define _ENTRY enclave_entry

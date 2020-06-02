@@ -154,6 +154,11 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mr_enclave_str);
 
+int init_enclave(void);
+int init_enclave_key(void);
+
+void init_untrusted_slab_mgr(void);
+
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
 
