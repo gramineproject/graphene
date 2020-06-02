@@ -51,56 +51,44 @@ struct atomic_int {
 #define ATOMIC_INIT(i)      { (i) }
 
 /* Read the value currently stored in the atomic_int */
-static inline int64_t atomic_read(const struct atomic_int* v)
-{
-    //  Effectively:
-    //      return v->counter;
+static inline int64_t atomic_read(const struct atomic_int* v) {
     return __atomic_load_n(&v->counter, __ATOMIC_RELAXED);
 }
 
 /* Does a blind write to the atomic variable */
-static inline void atomic_set(struct atomic_int* v, int64_t i)
-{
-    //  Effectively:
-    //      v->counter = i;
+static inline void atomic_set(struct atomic_int* v, int64_t i) {
     __atomic_store_n(&v->counter, i, __ATOMIC_RELAXED);
 }
 
 /* Helper function that atomically adds a value to an atomic_int,
  * and returns the _new_ value. */
-static inline int64_t _atomic_add (int64_t i, struct atomic_int * v)
-{
+static inline int64_t _atomic_add(int64_t i, struct atomic_int* v) {
     return __atomic_add_fetch(&v->counter, i, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically adds i to v.  Does not return a value. */
-static inline void atomic_add(int64_t i, struct atomic_int* v)
-{
+static inline void atomic_add(int64_t i, struct atomic_int* v) {
     __atomic_add_fetch(&v->counter, i, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically substracts i from v.  Does not return a value. */
-static inline void atomic_sub(int64_t i, struct atomic_int* v)
-{
+static inline void atomic_sub(int64_t i, struct atomic_int* v) {
     __atomic_sub_fetch(&v->counter, i, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically adds 1 to v.  Does not return a value. */
-static inline void atomic_inc(struct atomic_int* v)
-{
+static inline void atomic_inc(struct atomic_int* v) {
     __atomic_add_fetch(&v->counter, 1, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically substracts 1 from v.  Does not return a value. */
-static inline void atomic_dec (struct atomic_int* v)
-{
+static inline void atomic_dec(struct atomic_int* v) {
     __atomic_sub_fetch(&v->counter, 1, __ATOMIC_ACQUIRE);
 }
 
 /* Atomically substracts 1 from v.  Returns 1 if this causes the
    value to reach 0; returns 0 otherwise. */
-static inline int64_t atomic_dec_and_test (struct atomic_int* v)
-{
+static inline int64_t atomic_dec_and_test(struct atomic_int* v) {
     return __atomic_sub_fetch(&v->counter, 1, __ATOMIC_ACQUIRE) == 0;
 }
 
@@ -108,18 +96,16 @@ static inline int64_t atomic_dec_and_test (struct atomic_int* v)
 #define atomic_inc_return(v)     _atomic_add(1, v)
 
 /* Helper function to atomically compare-and-swap the value pointed to by p.
- * t is the old value, s is the new value.  Returns
- * the value originally in p. */
-static inline bool cmpxchg(volatile int64_t* p, int64_t t, int64_t s)
-{
+ * t is the old value, s is the new value.
+ * Returns true if s was written to *p, false otherwise. */
+static inline bool cmpxchg(volatile int64_t* p, int64_t t, int64_t s) {
     return __atomic_compare_exchange_n(p, &t, s, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
 }
 
 /* Helper function to atomically compare-and-swap the value in v.
  * If v == old, it sets v = new.
- * Returns the value originally in v. */
-static inline bool atomic_cmpxchg(struct atomic_int* v, int64_t old, int64_t new)
-{
+ * Returns true if new was written to v, false otherwise. */
+static inline bool atomic_cmpxchg(struct atomic_int* v, int64_t old, int64_t new) {
     return cmpxchg(&v->counter, old, new);
 }
 
