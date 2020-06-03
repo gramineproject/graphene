@@ -73,7 +73,6 @@ manifests = \
 	attestation.manifest \
 	echo.manifest \
 	eventfd.manifest \
-	exec_fork.manifest \
 	exec_victim.manifest \
 	exit_group.manifest \
 	file_check_policy_allow_all_but_log.manifest \

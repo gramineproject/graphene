@@ -92,7 +92,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     debug("set fs_base to 0x%lx\n", fs_base);
 
     for (size_t i = 0; i < ARRAY_SIZE(cur_thread->signal_handles->actions); i++) {
-        sigaction_make_defaults(&cur_thread->signal_handles->actions[i]);
+        sigaction_reset_on_execve(&cur_thread->signal_handles->actions[i]);
     }
 
     remove_loaded_libraries();

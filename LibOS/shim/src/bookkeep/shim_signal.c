@@ -50,6 +50,22 @@ void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
     __sigemptyset(&sig_action->sa_mask);
 }
 
+void sigaction_reset_on_execve(struct __kernel_sigaction* sig_action) {
+    if (!sig_action)
+        return;
+
+    if (sig_action->k_sa_handler == (void*)SIG_DFL || sig_action->k_sa_handler == (void*)SIG_IGN) {
+        /* POSIX.1: dispositions of any signals that are ignored or set to the default are left
+         * unchanged. On Linux, this rule applies to SIGCHLD as well. */
+        return;
+    }
+
+    sig_action->k_sa_handler = (void*)SIG_DFL;
+    sig_action->sa_flags = 0;
+    sig_action->sa_restorer = NULL;
+    __sigemptyset(&sig_action->sa_mask);
+}
+
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
 #define MAX_SIGNAL_LOG 32
