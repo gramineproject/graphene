@@ -801,6 +801,9 @@ BEGIN_RS_FUNC(running_thread)
              * shim_tcb = NULL
              * in_vm = false
              */
+            if (thread->signal_handles)
+                thread_sigaction_reset_on_execve(thread);
+
             set_cur_thread(thread);
             debug_setbuf(thread->shim_tcb, false);
         }

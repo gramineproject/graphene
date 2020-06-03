@@ -6,6 +6,7 @@
 #include <ucontext.h>
 
 void sigaction_make_defaults(struct __kernel_sigaction* sig_action);
+void thread_sigaction_reset_on_execve(struct shim_thread* thread);
 
 # define BITS_PER_WORD (8 * sizeof(unsigned long))
 /* The standard def of this macro is dumb */
