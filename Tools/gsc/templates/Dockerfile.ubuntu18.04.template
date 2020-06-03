@@ -35,15 +35,15 @@ RUN cd /graphene/Pal/src/host/Linux-SGX/sgx-driver \
 
 # Build Graphene-SGX
 RUN cd /graphene && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver \
-    make -s -j4 SGX=1 {% if args.d %} DEBUG=1 {% endif %} WERROR=1 {% if args.L %} \
-     && make WERROR=1 {% if args.d %} DEBUG=1 {% endif %} {% endif %}
+    make -s -j4 SGX=1 {% if args.debug %} DEBUG=1 {% endif %} WERROR=1 {% if args.Linux %} \
+     && make WERROR=1 {% if args.debug %} DEBUG=1 {% endif %} {% endif %}
 
 # Translate runtime symlinks to files
 RUN for f in $(find /graphene/Runtime -type l);do cp --remove-destination $(readlink $f) $f;done;
 
 # Finished building Graphene
 
-{% if not args.G %}
+{% if not args.graphene %}
 
 # Integrate Graphene into the app image
 # This file is used in a multistage docker build process, in which the previous image is named "graphene"
@@ -60,6 +60,15 @@ RUN apt-get update \
         openssl \
     && python3 -m pip install protobuf jinja2
 
+{% if args.debug %}
+# Install GDB and related tools when Debug is enabled
+RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        gdb \
+        less \
+        strace \
+        vim
+{% endif %}
+
 # Copy Graphene runtime and signer tools to /graphene
 RUN mkdir -p /graphene \
     && mkdir -p /graphene/Runtime \
@@ -68,6 +77,10 @@ RUN mkdir -p /graphene \
 COPY --from=graphene /graphene/Runtime/ /graphene/Runtime
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/signer/ /graphene/signer
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/generated_offsets.py /graphene/signer/
+{% if args.debug %}
+COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/debugger/sgx_gdb.so /graphene/Runtime
+COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/debugger/pal-gdb.py /graphene/Runtime
+{% endif %}
 
 # Copy template scripts and manifests
 COPY apploader.sh ./

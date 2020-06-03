@@ -31,7 +31,7 @@ Software packages
 -----------------
 
 Please install the docker.io, python3, python3-pip packages. In addition,
-install the Docker client python package via pip. GSC required Python 3.6 or
+install the Docker client python package via pip. GSC requires Python 3.6 or
 later.
 
 .. code-block:: sh
@@ -135,7 +135,7 @@ We define the parent-child relationship by overestimating the set of possible
 children. Multiple applications are specified as arguments to :program:`gsc`.
 The example below creates a Docker image with three applications. Based on the
 specified chain of applications, :program:`gsc` generates parent-child
-relationships betweenn application ``appi`` and all applications behind them in
+relationships between application ``appi`` and all applications after it in
 the chain (``> appi``). This overestimates the set of trusted children and may
 not map to the actual partent-child relationship. In the example below ``app1``
 may call ``app2`` or ``app3``, and ``app2`` may call ``app3``, but ``app2`` may
@@ -166,7 +166,7 @@ follows two main stages and produces an image named ``gsc-<image-name>``.
    :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
    :file:`/etc/rc` folders, since checksums are required which either don't
    exist or may vary across different deployment machines. GSC combines these
-   values and list of trusted files to a new manifest file. Graphene's signer
+   variables and list of trusted files to a new manifest file. Graphene's signer
    tool generates a SIGSTRUCT file for SGX enclave initialization. This tool
    also generates an SGX-specific manifest file. In a last step the entrypoint
    is changed to launch the :file:`apploader.sh` script which generates an Intel
@@ -250,7 +250,7 @@ specifying the environment variable :envvar:`GSC_PAL` as an option to the
 
 .. code-block:: sh
 
-   docker run ... --env PAL=Linux gsc-<image-name> ...
+   docker run ... --env GSC_PAL=Linux gsc-<image-name> ...
 
 Example
 =======

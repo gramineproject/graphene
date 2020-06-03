@@ -50,12 +50,10 @@ def generate_app_loader(image, env, binary):
         apploader.write(env.get_template('apploader.template').render(binary=binary))
 
 # Generate a dockerfile that compiles Graphene and includes the application image. This dockerfile
-# is generated from two templates (templates/Dockerfile.$distro.template and
-# templates/Dockerfile.distro.gscapp.template). It follows a docker multistage build with two
-# stages. The first stage is based on Dockerfile.$distro.template which compiles Graphene for the
-# specified distribution. The second stage based on Dockerfile.gscapp.template builds the final
-# image based on the previously built Graphene and the base image. In addition, it completes the
-# manifest generation and generates the signature.
+# is generated from a template (templates/Dockerfile.$distro.template. It follows a docker
+# multistage build with two stages. The first stage compiles Graphene for the specified
+# distribution. The second stage builds the final image based on the previously built Graphene and
+# the base image. In addition, it completes the manifest generation and generates the signature.
 def generate_dockerfile(image, env, binary):
 
     dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile')
@@ -81,7 +79,6 @@ def prepare_build_context(image, user_manifests, env, binary):
         generate_manifest(image, env, user_manifest,
             user_manifest[user_manifest.rfind('/') + 1 : user_manifest.rfind('.manifest')])
 
-    # copy markTrustedFiles.sh
     fm_path = (pathlib.Path(gsc_image_name(image)) / 'finalize_manifests').with_suffix('.py')
     shutil.copyfile('finalize_manifests.py', fm_path)
 
@@ -203,9 +200,9 @@ sub_build = subcommands.add_parser('build', help="Build graphenized Docker image
 sub_build.set_defaults(command=gsc_build)
 sub_build.add_argument( '-d','--debug', action='store_true',
     help='Compile Graphene with debug flags and output')
-sub_build.add_argument( '-L','--Linux', action='store_true',
+sub_build.add_argument( '-L','--linux', action='store_true',
     help='Compile Graphene with Linux PAL in addition to Linux-SGX PAL')
-sub_build.add_argument( '-G','--GSC-only', action='store_true',
+sub_build.add_argument( '-G','--graphene', action='store_true',
     help='Build Graphene only and ignore the application image (useful for Graphene development, '
          'irrelevant for end users of GSC)')
 sub_build.add_argument('image',
