@@ -10,6 +10,7 @@ c_executables = \
 	epoll_wait_timeout \
 	eventfd \
 	exec \
+	exec_fork \
 	exec_invalid_args \
 	exec_same \
 	exec_victim \
@@ -72,6 +73,7 @@ manifests = \
 	attestation.manifest \
 	echo.manifest \
 	eventfd.manifest \
+	exec_fork.manifest \
 	exec_victim.manifest \
 	exit_group.manifest \
 	file_check_policy_allow_all_but_log.manifest \

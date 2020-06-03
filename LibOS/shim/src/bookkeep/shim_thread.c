@@ -801,6 +801,10 @@ BEGIN_RS_FUNC(running_thread)
              * shim_tcb = NULL
              * in_vm = false
              */
+            if (thread->signal_handles)
+                put_signal_handles(thread->signal_handles);
+            thread->signal_handles = alloc_default_signal_handles();
+
             set_cur_thread(thread);
             debug_setbuf(thread->shim_tcb, false);
         }

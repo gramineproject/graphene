@@ -105,6 +105,13 @@ class TC_01_Bootstrap(RegressionTestCase):
         stdout, _ = self.run_binary(['system'], timeout=60)
         self.assertIn('hello from system', stdout)
 
+    def test_205_exec_fork(self):
+        stdout, _ = self.run_binary(['exec_fork'], timeout=60)
+        self.assertNotIn('Handled SIGCHLD', stdout)
+        self.assertIn('Set up handler for SIGCHLD', stdout)
+        self.assertIn('child exited with status: 0', stdout)
+        self.assertIn('test completed successfully', stdout)
+
     def test_210_exec_invalid_args(self):
         stdout, _ = self.run_binary(['exec_invalid_args'])
 
