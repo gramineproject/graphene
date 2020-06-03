@@ -25,7 +25,7 @@ int main(int argc, const char** argv, const char** envp) {
             /* parent waits for child termination */
             int status;
             pid_t pid = wait(&status);
-            if (pid < 0) {
+            if (pid != child_pid) {
                 perror("wait failed");
                 return 1;
             }

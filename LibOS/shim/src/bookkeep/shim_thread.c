@@ -802,9 +802,11 @@ BEGIN_RS_FUNC(running_thread)
              * in_vm = false
              */
             if (thread->signal_handles) {
+                lock(&thread->signal_handles->lock);
                 for (size_t i = 0; i < ARRAY_SIZE(thread->signal_handles->actions); i++) {
                     sigaction_reset_on_execve(&thread->signal_handles->actions[i]);
                 }
+                unlock(&thread->signal_handles->lock);
             }
 
             set_cur_thread(thread);

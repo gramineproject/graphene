@@ -60,10 +60,7 @@ void sigaction_reset_on_execve(struct __kernel_sigaction* sig_action) {
         return;
     }
 
-    sig_action->k_sa_handler = (void*)SIG_DFL;
-    sig_action->sa_flags = 0;
-    sig_action->sa_restorer = NULL;
-    __sigemptyset(&sig_action->sa_mask);
+    sigaction_make_defaults(sig_action);
 }
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
