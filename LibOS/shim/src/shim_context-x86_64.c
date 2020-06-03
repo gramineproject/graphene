@@ -23,8 +23,7 @@
 #include "asm-offsets.h"
 #include <shim_internal.h>
 
-void restore_context(struct shim_context* context)
-{
+void restore_context(struct shim_context* context) {
     assert(context->regs);
     struct shim_regs regs = *context->regs;
     debug("restore context: SP = 0x%08lx, IP = 0x%08lx\n", regs.rsp, regs.rip);
@@ -70,8 +69,7 @@ void restore_context(struct shim_context* context)
  * child thread can _not_ use parent stack. So return right after syscall
  * instruction as if syscall_wrapper is executed.
  */
-void fixup_child_context(struct shim_regs* regs)
-{
+void fixup_child_context(struct shim_regs* regs) {
     if (regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
         /*
          * we don't need to emulate stack pointer change because %rsp is

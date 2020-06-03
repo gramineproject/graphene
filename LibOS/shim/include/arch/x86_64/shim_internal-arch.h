@@ -34,8 +34,7 @@
             ::"r"(__stack_top), "r"(func), "D"(arg): "memory"); \
     } while (0)
 
-static_always_inline void * current_stack(void)
-{
+static_always_inline void* current_stack(void) {
     void * _rsp;
     __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");
     return _rsp;
