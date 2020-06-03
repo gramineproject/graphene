@@ -2,7 +2,6 @@ c_executables = \
 	abort \
 	abort_multithread \
 	attestation \
-	attestation_stdio \
 	bootstrap \
 	bootstrap_pie \
 	bootstrap_static \
@@ -71,7 +70,6 @@ cxx_executables = bootstrap_c++
 manifests = \
 	manifest \
 	attestation.manifest \
-	attestation_stdio.manifest \
 	echo.manifest \
 	eventfd.manifest \
 	exec_victim.manifest \
@@ -137,11 +135,6 @@ CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
                       -I$(PALDIR)/host/Linux-SGX \
                       -I$(PALDIR)/../include/pal
 LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.a
-
-CFLAGS-attestation_stdio += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
-                            -I$(PALDIR)/host/Linux-SGX \
-                            -I$(PALDIR)/../include/pal
-LDLIBS-attestation_stdio += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.a
 
 %: %.c
 	$(call cmd,csingle)

@@ -219,7 +219,7 @@ class TC_04_Attestation(RegressionTestCase):
         self.assertIn("Test quote interface... SUCCESS", stdout)
 
     def test_001_attestation_stdio(self):
-        stdout, _ = self.run_binary(['attestation_stdio'], timeout=60)
+        stdout, _ = self.run_binary(['attestation', 'test_stdio'], timeout=60)
         self.assertIn("Test resource leaks in attestation filesystem... SUCCESS", stdout)
         self.assertIn("Test local attestation... SUCCESS", stdout)
         self.assertIn("Test quote interface... SUCCESS", stdout)
