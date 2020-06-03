@@ -24,7 +24,7 @@ enum { SUCCESS = 0, FAILURE = -1 };
 
 ssize_t (*rw_file_f)(const char* path, char* buf, size_t bytes, bool do_write);
 
-static ssize_t rw_file(const char* path, char* buf, size_t bytes, bool do_write) {
+static ssize_t rw_file_posix(const char* path, char* buf, size_t bytes, bool do_write) {
     ssize_t rv = 0;
     ssize_t ret = 0;
 
@@ -76,7 +76,7 @@ static ssize_t rw_file_stdio(const char* path, char* buf, size_t bytes, bool do_
     size_t rv = 0;
     size_t ret = 0;
 
-    FILE* f = fopen(path, do_write ? "w" : "r");
+    FILE* f = fopen(path, do_write ? "wb" : "rb");
     if (!f) {
         fprintf(stderr, "opening %s failed\n", path);
         return -1;
@@ -325,7 +325,7 @@ static int test_quote_interface(void) {
 }
 
 int main(int argc, char** argv) {
-    rw_file_f = rw_file;
+    rw_file_f = rw_file_posix;
     if (argc > 1) {
         /* simple trick to test stdio-style interface to pseudo-files in our tests */
         rw_file_f = rw_file_stdio;
@@ -336,6 +336,6 @@ int main(int argc, char** argv) {
     printf("Test quote interface... %s\n",
            test_quote_interface() == SUCCESS ? "SUCCESS" : "FAIL");
     printf("Test resource leaks in attestation filesystem... %s\n",
-            test_resource_leak() == SUCCESS ? "SUCCESS" : "FAIL");
+           test_resource_leak() == SUCCESS ? "SUCCESS" : "FAIL");
     return 0;
 }
