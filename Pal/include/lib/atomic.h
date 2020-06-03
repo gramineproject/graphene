@@ -1,5 +1,5 @@
-#ifndef _ATOMIC_INT_H_
-#define _ATOMIC_INT_H_
+#ifndef _ATOMIC_H_
+#define _ATOMIC_H_
 
 /* Copyright (C) 2014 Stony Brook University
  * Copyright (C) 2017 Fortanix Inc, and University of North Carolina
@@ -57,7 +57,7 @@ static inline int64_t atomic_read(const struct atomic_int* v) {
 
 /* Does a blind write to the atomic variable */
 static inline void atomic_set(struct atomic_int* v, int64_t i) {
-    __atomic_store_n(&v->counter, i, __ATOMIC_RELAXED);
+    __atomic_store_n(&v->counter, i, __ATOMIC_ACQUIRE);
 }
 
 /* Helper function that atomically adds a value to an atomic_int,
@@ -86,9 +86,9 @@ static inline void atomic_dec(struct atomic_int* v) {
     __atomic_sub_fetch(&v->counter, 1, __ATOMIC_ACQUIRE);
 }
 
-/* Atomically substracts 1 from v.  Returns 1 if this causes the
-   value to reach 0; returns 0 otherwise. */
-static inline int64_t atomic_dec_and_test(struct atomic_int* v) {
+/* Atomically substracts 1 from v.  Returns true if this causes the
+   value to reach 0; returns false otherwise. */
+static inline bool atomic_dec_and_test(struct atomic_int* v) {
     return __atomic_sub_fetch(&v->counter, 1, __ATOMIC_ACQUIRE) == 0;
 }
 
@@ -104,9 +104,9 @@ static inline bool cmpxchg(volatile int64_t* p, int64_t t, int64_t s) {
 
 /* Helper function to atomically compare-and-swap the value in v.
  * If v == old, it sets v = new.
- * Returns true if new was written to v, false otherwise. */
+ * Returns true if `new` was written to v, false otherwise. */
 static inline bool atomic_cmpxchg(struct atomic_int* v, int64_t old, int64_t new) {
     return cmpxchg(&v->counter, old, new);
 }
 
-#endif /* _ATOMIC_INT_H_ */
+#endif /* _ATOMIC_H_ */
