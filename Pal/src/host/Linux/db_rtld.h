@@ -18,11 +18,10 @@
 #define _DB_RTLD_H_
 
 #include "pal_linux_defs.h"
-
-#include <sysdeps/generic/ldsodefs.h>
+#include "sysdeps/generic/ldsodefs.h"
 
 #if USE_VDSO_GETTIME == 1
-void setup_vdso_map (ElfW(Addr) addr);
+void setup_vdso_map(ElfW(Addr) addr);
 #endif /* USE_VDSO_GETTIME */
 
 #endif /* _DB_RTLD_H_ */

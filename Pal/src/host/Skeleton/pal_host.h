@@ -34,7 +34,7 @@ typedef struct mutex_handle {
 #define LOCK_INIT {}
 #define INIT_LOCK(lock) do {} while (0)
 
-/* Locking and unlocking of Mutexes */
+/* Locking and unlocking of mutexes */
 int _DkMutexLock(struct mutex_handle* mut);
 int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
 int _DkMutexUnlock(struct mutex_handle* mut);

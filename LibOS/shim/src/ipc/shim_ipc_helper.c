@@ -21,6 +21,8 @@
  * of IPC ports.
  */
 
+#include "shim_ipc_helper.h"
+
 #include <list.h>
 #include <pal.h>
 #include <pal_error.h>
@@ -30,8 +32,6 @@
 #include <shim_ipc.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
-
-#include "shim_ipc_helper.h"
 
 #define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 

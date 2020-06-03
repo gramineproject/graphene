@@ -24,6 +24,7 @@
  */
 
 #include "db_rtld.h"
+
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
@@ -35,8 +36,8 @@
 #include "pal_rtld.h"
 #include "api.h"
 
-#include <sysdeps/generic/ldsodefs.h>
-#include <elf/elf.h>
+#include "sysdeps/generic/ldsodefs.h"
+#include "elf/elf.h"
 
 #include "elf-arch.h"
 

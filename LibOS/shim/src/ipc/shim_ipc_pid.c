@@ -20,6 +20,8 @@
  * This file contains functions and callbacks to handle IPC of PID namespace.
  */
 
+#include "shim_ipc_pid.h"
+
 #include <errno.h>
 
 #include <pal.h>
@@ -29,8 +31,6 @@
 #include <shim_internal.h>
 #include <shim_ipc.h>
 #include <shim_thread.h>
-
-#include "shim_ipc_pid.h"
 
 #define PID_RANGE_SIZE 32
 #define PID_LEASE_TIME 1000

@@ -21,17 +21,17 @@
  * implemented yet.)
  */
 
+
 #include "shim_fork.h"
+#include "shim_types.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
+#include "shim_checkpoint.h"
 
-#include <shim_types.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
-#include <shim_checkpoint.h>
-
-#include <pal.h>
-#include <pal_error.h>
+#include "pal.h"
+#include "pal_error.h"
 
 #include <errno.h>
 #include <sys/syscall.h>
