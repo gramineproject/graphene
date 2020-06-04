@@ -33,13 +33,15 @@
 #include <linux/stat.h>
 #include <linux/un.h>
 #include <linux/wait.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_tcb.h>
-#include <shim_utils.h>
+
+#include "pal.h"
+#include "pal_error.h"
+
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_tcb.h"
+#include "shim_utils.h"
 
 static void parse_open_flags(va_list*);
 static void parse_open_mode(va_list*);
@@ -70,327 +72,329 @@ struct parser_table {
     void (*parser[6])(va_list*);
 } syscall_parser_table[LIBOS_SYSCALL_BOUND] =
     {
-        {.slow = 1, .parser = {NULL}}, /* read */
-        {.slow = 1, .parser = {NULL}}, /* write */
-        {.slow = 1,                    /* open */
-         .parser = {NULL, &parse_open_flags, &parse_open_mode}},
-        {.slow = 0, .parser = {NULL}},                    /* close */
-        {.slow = 0, .parser = {NULL}},                    /* stat */
-        {.slow = 0, .parser = {NULL}},                    /* fstat */
-        {.slow = 0, .parser = {NULL}},                    /* lstat */
-        {.slow = 1, .parser = {NULL}},                    /* poll */
-        {.slow = 0, .parser = {NULL, NULL, &parse_seek}}, /* lseek */
-        {.slow   = 1,                                     /* mmap */
-         .parser = {NULL, NULL, &parse_mmap_prot, &parse_mmap_flags}},
-        {.slow   = 1, /* mprotect */
-         .parser = {NULL, NULL, &parse_mmap_prot}},
-        {.slow = 1, .parser = {NULL}},          /* munmap */
-        {.slow = 0, .parser = {NULL}},          /* brk */
-        {.slow = 0, .parser = {&parse_signum}}, /* rt_sigaction */
-        {.slow   = 0,                           /* rt_sigprocmask */
-         .parser = {&parse_sigprocmask_how, &parse_sigmask, &parse_sigmask}},
-        {.slow = 0, .parser = {NULL}},                 /* rt_sigreturn */
-        {.slow = 1, .parser = {NULL, &parse_ioctlop}}, /* ioctl */
-        {.slow = 1, .parser = {NULL}},                 /* pread64 */
-        {.slow = 0, .parser = {NULL}},                 /* pwrite64 */
-        {.slow = 1, .parser = {NULL}},                 /* readv */
-        {.slow = 0, .parser = {NULL}},                 /* writev */
-        {.slow   = 0,                                  /* access */
-         .parser = {NULL, &parse_access_mode}},
-        {.slow   = 0, /* pipe */
-         .parser = {&parse_pipe_fds}},
-        {.slow = 1, .parser = {NULL}},                           /* select */
-        {.slow = 0, .parser = {NULL}},                           /* sched_yield */
-        {.slow = 0, .parser = {NULL}},                           /* mremap */
-        {.slow = 0, .parser = {NULL}},                           /* msync */
-        {.slow = 0, .parser = {NULL}},                           /* mincore */
-        {.slow = 0, .parser = {NULL}},                           /* madvise */
-        {.slow = 0, .parser = {NULL}},                           /* shmget */
-        {.slow = 0, .parser = {NULL}},                           /* shmat */
-        {.slow = 0, .parser = {NULL}},                           /* shmctl */
-        {.slow = 0, .parser = {NULL}},                           /* dup */
-        {.slow = 0, .parser = {NULL}},                           /* dup2 */
-        {.slow = 1, .parser = {NULL}},                           /* pause */
-        {.slow = 1, .parser = {&parse_timespec}},                /* nanosleep */
-        {.slow = 0, .parser = {NULL}},                           /* getitimer */
-        {.slow = 0, .parser = {NULL}},                           /* alarm */
-        {.slow = 0, .parser = {NULL}},                           /* setitimer */
-        {.slow = 0, .parser = {NULL}},                           /* getpid */
-        {.slow = 0, .parser = {NULL}},                           /* sendfile */
-        {.slow = 0, .parser = {&parse_domain, &parse_socktype}}, /* socket */
-
-        {.slow = 1, .parser = {NULL, &parse_sockaddr}}, /* connect */
-        {.slow = 1, .parser = {NULL}},                  /* accept */
-        {.slow = 0, .parser = {NULL}},                  /* sendto */
-        {.slow = 0, .parser = {NULL}},                  /* recvfrom */
-        {.slow = 0, .parser = {NULL}},                  /* sendmsg */
-        {.slow = 1, .parser = {NULL}},                  /* recvmsg */
-        {.slow = 0, .parser = {NULL}},                  /* shutdown */
-        {.slow = 0, .parser = {NULL}},                  /* bind */
-        {.slow = 0, .parser = {NULL}},                  /* listen */
-        {.slow = 0, .parser = {NULL}},                  /* getsockname */
-        {.slow = 0, .parser = {NULL}},                  /* getpeername */
-        {.slow   = 0,                                   /* socketpair */
-         .stop   = 3,
-         .parser = {&parse_domain, &parse_socktype, NULL, &parse_pipe_fds}},
-        {.slow = 0, .parser = {NULL}},               /* setsockopt */
-        {.slow = 0, .parser = {NULL}},               /* getsockopt */
-        {.slow = 1, .parser = {&parse_clone_flags}}, /* clone */
-        {.slow = 1, .parser = {NULL}},               /* fork */
-        {.slow = 1, .parser = {NULL}},               /* vfork */
-        {.slow   = 1,                                /* execve */
-         .parser = {NULL, &parse_exec_args, &parse_exec_envp}},
-        {.slow = 0, .parser = {NULL}},                                 /* exit */
-        {.slow = 1, .parser = {NULL, NULL, &parse_wait_option, NULL}}, /* wait4 */
-        {.slow   = 0,                                                  /* kill */
-         .parser = {NULL, &parse_signum, }},
-        {.slow = 0, .parser = {NULL}},                      /* uname */
-        {.slow = 0, .parser = {NULL}},                      /* semget */
-        {.slow = 1, .parser = {NULL}},                      /* semop */
-        {.slow = 0, .parser = {NULL}},                      /* semctl */
-        {.slow = 0, .parser = {NULL}},                      /* shmdt */
-        {.slow = 1, .parser = {NULL}},                      /* msgget */
-        {.slow = 1, .parser = {NULL}},                      /* msgsnd */
-        {.slow = 1, .parser = {NULL}},                      /* msgrcv */
-        {.slow = 1, .parser = {NULL}},                      /* msgctl */
-        {.slow = 0, .parser = {NULL, &parse_fcntlop}},      /* fcntl */
-        {.slow = 0, .parser = {NULL}},                      /* flock */
-        {.slow = 0, .parser = {NULL}},                      /* fsync */
-        {.slow = 0, .parser = {NULL}},                      /* fdatasync */
-        {.slow = 0, .parser = {NULL}},                      /* truncate */
-        {.slow = 0, .parser = {NULL}},                      /* ftruncate */
-        {.slow = 0, .parser = {NULL}},                      /* getdents */
-        {.slow = 0, .parser = {NULL}},                      /* getcwd */
-        {.slow = 0, .parser = {NULL}},                      /* chdir */
-        {.slow = 0, .parser = {NULL}},                      /* fchdir */
-        {.slow = 0, .parser = {NULL}},                      /* rename */
-        {.slow = 0, .parser = {NULL}},                      /* mkdir */
-        {.slow = 0, .parser = {NULL}},                      /* rmdir */
-        {.slow = 0, .parser = {NULL, &parse_open_mode}},    /* creat */
-        {.slow = 0, .parser = {NULL}},                      /* link */
-        {.slow = 0, .parser = {NULL}},                      /* unlink */
-        {.slow = 0, .parser = {NULL}},                      /* symlink */
-        {.slow = 0, .parser = {NULL}},                      /* readlink */
-        {.slow = 0, .parser = {NULL}},                      /* chmod */
-        {.slow = 0, .parser = {NULL}},                      /* fchmod */
-        {.slow = 0, .parser = {NULL}},                      /* chown */
-        {.slow = 0, .parser = {NULL}},                      /* fchown */
-        {.slow = 0, .parser = {NULL}},                      /* lchown */
-        {.slow = 0, .parser = {NULL}},                      /* umask */
-        {.slow = 0, .parser = {NULL}},                      /* gettimeofday */
-        {.slow = 0, .parser = {NULL}},                      /* getrlimit */
-        {.slow = 0, .parser = {NULL}},                      /* getrusage */
-        {.slow = 0, .parser = {NULL}},                      /* sysinfo */
-        {.slow = 0, .parser = {NULL}},                      /* times */
-        {.slow = 0, .parser = {NULL}},                      /* ptrace */
-        {.slow = 0, .parser = {NULL}},                      /* getuid */
-        {.slow = 0, .parser = {NULL}},                      /* syslog */
-        {.slow = 0, .parser = {NULL}},                      /* getgid */
-        {.slow = 0, .parser = {NULL}},                      /* setuid */
-        {.slow = 0, .parser = {NULL}},                      /* setgid */
-        {.slow = 0, .parser = {NULL}},                      /* geteuid */
-        {.slow = 0, .parser = {NULL}},                      /* getegid */
-        {.slow = 0, .parser = {NULL}},                      /* setpgid */
-        {.slow = 0, .parser = {NULL}},                      /* getppid */
-        {.slow = 0, .parser = {NULL}},                      /* getpgrp */
-        {.slow = 0, .parser = {NULL}},                      /* setsid */
-        {.slow = 0, .parser = {NULL}},                      /* setreuid */
-        {.slow = 0, .parser = {NULL}},                      /* setregid */
-        {.slow = 0, .parser = {NULL}},                      /* getgroups */
-        {.slow = 0, .parser = {NULL}},                      /* setgroups */
-        {.slow = 0, .parser = {NULL}},                      /* setresuid */
-        {.slow = 0, .parser = {NULL}},                      /* getresuid */
-        {.slow = 0, .parser = {NULL}},                      /* setresgid */
-        {.slow = 0, .parser = {NULL}},                      /* getresgid */
-        {.slow = 0, .parser = {NULL}},                      /* getpgid */
-        {.slow = 0, .parser = {NULL}},                      /* setfsuid */
-        {.slow = 0, .parser = {NULL}},                      /* setfsgid */
-        {.slow = 0, .parser = {NULL}},                      /* getsid */
-        {.slow = 0, .parser = {NULL}},                      /* capget */
-        {.slow = 0, .parser = {NULL}},                      /* capset */
-        {.slow = 0, .parser = {NULL}},                      /* rt_sigpending */
-        {.slow = 0, .parser = {NULL}},                      /* rt_sigtimedwait */
-        {.slow = 0, .parser = {NULL}},                      /* rt_sigqueueinfo */
-        {.slow = 1, .parser = {NULL}},                      /* rt_sigsuspend */
-        {.slow = 0, .parser = {NULL}},                      /* sigaltstack */
-        {.slow = 0, .parser = {NULL}},                      /* utime */
-        {.slow = 1, .parser = {NULL, &parse_open_mode}},    /* mknod */
-        {.slow = 0, .parser = {NULL}},                      /* uselib */
-        {.slow = 0, .parser = {NULL}},                      /* personality */
-        {.slow = 0, .parser = {NULL}},                      /* ustat */
-        {.slow = 0, .parser = {NULL}},                      /* statfs */
-        {.slow = 0, .parser = {NULL}},                      /* fstatfs */
-        {.slow = 0, .parser = {NULL}},                      /* sysfs */
-        {.slow = 0, .parser = {NULL}},                      /* getpriority */
-        {.slow = 0, .parser = {NULL}},                      /* setpriority */
-        {.slow = 0, .parser = {NULL}},                      /* sched_setparam */
-        {.slow = 0, .parser = {NULL}},                      /* sched_getparam */
-        {.slow = 0, .parser = {NULL}},                      /* sched_setscheduler */
-        {.slow = 0, .parser = {NULL}},                      /* sched_getscheduler */
-        {.slow = 0, .parser = {NULL}},                      /* sched_get_priority_max */
-        {.slow = 0, .parser = {NULL}},                      /* sched_get_priority_min */
-        {.slow = 0, .parser = {NULL}},                      /* sched_rr_get_interval */
-        {.slow = 0, .parser = {NULL}},                      /* mlock */
-        {.slow = 0, .parser = {NULL}},                      /* munlock */
-        {.slow = 0, .parser = {NULL}},                      /* mlockall */
-        {.slow = 0, .parser = {NULL}},                      /* munlockall */
-        {.slow = 0, .parser = {NULL}},                      /* vhangup */
-        {.slow = 0, .parser = {NULL}},                      /* modify_ldt */
-        {.slow = 0, .parser = {NULL}},                      /* pivot_root */
-        {.slow = 0, .parser = {NULL}},                      /* _sysctl */
-        {.slow = 0, .parser = {NULL}},                      /* prctl */
-        {.slow = 0, .parser = {NULL}},                      /* arch_prctl */
-        {.slow = 0, .parser = {NULL}},                      /* adjtimex */
-        {.slow = 0, .parser = {NULL}},                      /* setrlimit */
-        {.slow = 0, .parser = {NULL}},                      /* chroot */
-        {.slow = 0, .parser = {NULL}},                      /* sync */
-        {.slow = 0, .parser = {NULL}},                      /* acct */
-        {.slow = 0, .parser = {NULL}},                      /* settimeofday */
-        {.slow = 0, .parser = {NULL}},                      /* mount */
-        {.slow = 0, .parser = {NULL}},                      /* umount2 */
-        {.slow = 0, .parser = {NULL}},                      /* swapon */
-        {.slow = 0, .parser = {NULL}},                      /* swapoff */
-        {.slow = 0, .parser = {NULL}},                      /* reboot */
-        {.slow = 0, .parser = {NULL}},                      /* sethostname */
-        {.slow = 0, .parser = {NULL}},                      /* setdomainname */
-        {.slow = 0, .parser = {NULL}},                      /* iopl */
-        {.slow = 0, .parser = {NULL}},                      /* ioperm */
-        {.slow = 0, .parser = {NULL}},                      /* create_module */
-        {.slow = 0, .parser = {NULL}},                      /* init_module */
-        {.slow = 0, .parser = {NULL}},                      /* delete_module */
-        {.slow = 0, .parser = {NULL}},                      /* get_kernel_syms */
-        {.slow = 0, .parser = {NULL}},                      /* query_module */
-        {.slow = 0, .parser = {NULL}},                      /* quotactl */
-        {.slow = 0, .parser = {NULL}},                      /* nfsservctl */
-        {.slow = 0, .parser = {NULL}},                      /* getpmsg */
-        {.slow = 0, .parser = {NULL}},                      /* putpmsg */
-        {.slow = 0, .parser = {NULL}},                      /* afs_syscall */
-        {.slow = 0, .parser = {NULL}},                      /* tuxcall */
-        {.slow = 0, .parser = {NULL}},                      /* security */
-        {.slow = 0, .parser = {NULL}},                      /* gettid */
-        {.slow = 0, .parser = {NULL}},                      /* readahead */
-        {.slow = 0, .parser = {NULL}},                      /* setxattr */
-        {.slow = 0, .parser = {NULL}},                      /* lsetxattr */
-        {.slow = 0, .parser = {NULL}},                      /* fsetxattr */
-        {.slow = 0, .parser = {NULL}},                      /* getxattr */
-        {.slow = 0, .parser = {NULL}},                      /* lgetxattr */
-        {.slow = 0, .parser = {NULL}},                      /* fgetxattr */
-        {.slow = 0, .parser = {NULL}},                      /* listxattr */
-        {.slow = 0, .parser = {NULL}},                      /* llistxattr */
-        {.slow = 0, .parser = {NULL}},                      /* flistxattr */
-        {.slow = 0, .parser = {NULL}},                      /* removexattr */
-        {.slow = 0, .parser = {NULL}},                      /* lremovexattr */
-        {.slow = 0, .parser = {NULL}},                      /* fremovexattr */
-        {.slow = 0, .parser = {NULL, &parse_signum}},       /* tkill */
-        {.slow = 0, .parser = {NULL}},                      /* time */
-        {.slow = 1, .parser = {NULL, &parse_futexop}},      /* futex */
-        {.slow = 0, .parser = {NULL}},                      /* sched_setaffinity */
-        {.slow = 0, .parser = {NULL}},                      /* sched_getaffinity */
-        {.slow = 0, .parser = {NULL}},                      /* set_thread_area */
-        {.slow = 0, .parser = {NULL}},                      /* io_setup */
-        {.slow = 0, .parser = {NULL}},                      /* io_destroy */
-        {.slow = 0, .parser = {NULL}},                      /* io_getevents */
-        {.slow = 0, .parser = {NULL}},                      /* io_submit */
-        {.slow = 0, .parser = {NULL}},                      /* io_cancel */
-        {.slow = 0, .parser = {NULL}},                      /* get_thread_area */
-        {.slow = 0, .parser = {NULL}},                      /* lookup_dcookie */
-        {.slow = 0, .parser = {NULL}},                      /* epoll_create */
-        {.slow = 0, .parser = {NULL}},                      /* epoll_ctl_old */
-        {.slow = 0, .parser = {NULL}},                      /* epoll_wait_old */
-        {.slow = 0, .parser = {NULL}},                      /* remap_file_pages */
-        {.slow = 0, .parser = {NULL}},                      /* getdents64 */
-        {.slow = 0, .parser = {NULL}},                      /* set_tid_address */
-        {.slow = 0, .parser = {NULL}},                      /* restart_syscall */
-        {.slow = 0, .parser = {NULL}},                      /* semtimedop */
-        {.slow = 0, .parser = {NULL}},                      /* fadvise64 */
-        {.slow = 0, .parser = {NULL}},                      /* timer_create */
-        {.slow = 0, .parser = {NULL}},                      /* timer_settime */
-        {.slow = 0, .parser = {NULL}},                      /* timer_gettime */
-        {.slow = 0, .parser = {NULL}},                      /* timer_getoverrun */
-        {.slow = 0, .parser = {NULL}},                      /* timer_delete */
-        {.slow = 0, .parser = {NULL}},                      /* clock_settime */
-        {.slow = 0, .parser = {NULL}},                      /* clock_gettime */
-        {.slow = 0, .parser = {NULL}},                      /* clock_getres */
-        {.slow = 0, .parser = {NULL}},                      /* clock_nanosleep */
-        {.slow = 0, .parser = {NULL}},                      /* exit_group */
-        {.slow = 1, .parser = {NULL}},                      /* epoll_wait */
-        {.slow = 0, .parser = {NULL}},                      /* epoll_ctl */
-        {.slow = 0, .parser = {NULL, NULL, &parse_signum}}, /* tgkill */
-        {.slow = 0, .parser = {NULL}},                      /* utimes */
-        {.slow = 0, .parser = {NULL}},                      /* vserver */
-        {.slow = 0, .parser = {NULL}},                      /* mbind */
-        {.slow = 0, .parser = {NULL}},                      /* set_mempolicy */
-        {.slow = 0, .parser = {NULL}},                      /* get_mempolicy */
-        {.slow = 0, .parser = {NULL}},                      /* mq_open */
-        {.slow = 0, .parser = {NULL}},                      /* mq_unlink */
-        {.slow = 0, .parser = {NULL}},                      /* mq_timedsend */
-        {.slow = 0, .parser = {NULL}},                      /* mq_timedreceive */
-        {.slow = 0, .parser = {NULL}},                      /* mq_notify */
-        {.slow = 0, .parser = {NULL}},                      /* mq_getsetattr */
-        {.slow = 0, .parser = {NULL}},                      /* kexec_load */
-        {.slow = 1, .parser = {NULL}},                      /* waitid */
-        {.slow = 0, .parser = {NULL}},                      /* add_key */
-        {.slow = 0, .parser = {NULL}},                      /* request_key */
-        {.slow = 0, .parser = {NULL}},                      /* keyctl */
-        {.slow = 0, .parser = {NULL}},                      /* ioprio_set */
-        {.slow = 0, .parser = {NULL}},                      /* ioprio_get */
-        {.slow = 0, .parser = {NULL}},                      /* inotify_init */
-        {.slow = 0, .parser = {NULL}},                      /* inotify_add_watch */
-        {.slow = 0, .parser = {NULL}},                      /* inotify_rm_watch */
-        {.slow = 0, .parser = {NULL}},                      /* migrate_pages */
-        {.slow   = 0,
-         .parser = {&parse_at_fdcwd, NULL, &parse_open_flags, &parse_open_mode}}, /* openat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* mkdirat */
-        {.slow = 0, .parser = {&parse_at_fdcwd, NULL, &parse_open_mode}},    /* mknodat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* fchownat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* futimesat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* newfstatat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* unlinkat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* renameat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* linkat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* symlinkat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* readlinkat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* fchmodat */
-        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* faccessat */
-        {.slow = 1, .parser = {NULL}}, /* pselect6 */
-        {.slow = 1, .parser = {NULL}}, /* ppoll */
-        {.slow = 0, .parser = {NULL}}, /* unshare */
-        {.slow = 0, .parser = {NULL}}, /* set_robust_list */
-        {.slow = 0, .parser = {NULL}}, /* get_robust_list */
-        {.slow = 0, .parser = {NULL}}, /* splice */
-        {.slow = 0, .parser = {NULL}}, /* tee */
-        {.slow = 0, .parser = {NULL}}, /* sync_file_range */
-        {.slow = 0, .parser = {NULL}}, /* vmsplice */
-        {.slow = 0, .parser = {NULL}}, /* move_pages */
-        {.slow = 0, .parser = {NULL}}, /* utimensat */
-        {.slow = 1, .parser = {NULL}}, /* epoll_pwait */
-        {.slow = 0, .parser = {NULL}}, /* signalfd */
-        {.slow = 0, .parser = {NULL}}, /* timerfd_create */
-        {.slow = 0, .parser = {NULL}}, /* eventfd */
-        {.slow = 0, .parser = {NULL}}, /* fallocate */
-        {.slow = 0, .parser = {NULL}}, /* timerfd_settime */
-        {.slow = 0, .parser = {NULL}}, /* timerfd_gettime */
-        {.slow = 1, .parser = {NULL}}, /* accept4 */
-        {.slow = 0, .parser = {NULL}}, /* signalfd4 */
-        {.slow = 0, .parser = {NULL}}, /* eventfd2 */
-        {.slow = 0, .parser = {NULL}}, /* epoll_create1 */
-        {.slow = 0, .parser = {NULL}}, /* dup3 */
-        {.slow = 0, .parser = {NULL}}, /* pipe2 */
-        {.slow = 0, .parser = {NULL}}, /* inotify_init1 */
-        {.slow = 0, .parser = {NULL}}, /* preadv */
-        {.slow = 0, .parser = {NULL}}, /* pwritev */
-        {.slow = 0, .parser = {NULL}}, /* rt_tgsigqueueinfo */
-        {.slow = 0, .parser = {NULL}}, /* perf_event_open */
-        {.slow = 0, .parser = {NULL}}, /* recvmmsg */
+        [__NR_read]     = {.slow = 1, .parser = {NULL}},
+        [__NR_write]    = {.slow = 1, .parser = {NULL}},
+        [__NR_open]     = {.slow = 1, .parser = {NULL, &parse_open_flags, &parse_open_mode}},
+        [__NR_close]    = {.slow = 0, .parser = {NULL}},
+        [__NR_stat]     = {.slow = 0, .parser = {NULL}},
+        [__NR_fstat]    = {.slow = 0, .parser = {NULL}},
+        [__NR_lstat]    = {.slow = 0, .parser = {NULL}},
+        [__NR_poll]     = {.slow = 1, .parser = {NULL}},
+        [__NR_lseek]    = {.slow = 0, .parser = {NULL, NULL, &parse_seek}},
+        [__NR_mmap]     = {.slow = 1, .parser = {NULL, NULL, &parse_mmap_prot, &parse_mmap_flags}},
+        [__NR_mprotect] = {.slow = 1, .parser = {NULL, NULL, &parse_mmap_prot}},
+        [__NR_munmap]   = {.slow = 1, .parser = {NULL}},
+        [__NR_brk]      = {.slow = 0, .parser = {NULL}},
+        [__NR_rt_sigaction]   = {.slow = 0, .parser = {&parse_signum}},
+        [__NR_rt_sigprocmask] = {.slow = 0,
+                                 .parser = {&parse_sigprocmask_how, &parse_sigmask, &parse_sigmask}},
+        [__NR_rt_sigreturn]   = {.slow = 0, .parser = {NULL}},
+        [__NR_ioctl]          = {.slow = 1, .parser = {NULL, &parse_ioctlop}},
+        [__NR_pread64]        = {.slow = 1, .parser = {NULL}},
+        [__NR_pwrite64]       = {.slow = 0, .parser = {NULL}},
+        [__NR_readv]          = {.slow = 1, .parser = {NULL}},
+        [__NR_writev]         = {.slow = 0, .parser = {NULL}},
+        [__NR_access]         = {.slow = 0, .parser = {NULL, &parse_access_mode}},
+        [__NR_pipe]           = {.slow = 0, .parser = {&parse_pipe_fds}},
+        [__NR_select]         = {.slow = 1, .parser = {NULL}},
+        [__NR_sched_yield] = {.slow = 0, .parser = {NULL}},
+        [__NR_mremap]      = {.slow = 0, .parser = {NULL}},
+        [__NR_msync]       = {.slow = 0, .parser = {NULL}},
+        [__NR_mincore]     = {.slow = 0, .parser = {NULL}},
+        [__NR_madvise]     = {.slow = 0, .parser = {NULL}},
+        [__NR_shmget]      = {.slow = 0, .parser = {NULL}},
+        [__NR_shmat]       = {.slow = 0, .parser = {NULL}},
+        [__NR_shmctl]      = {.slow = 0, .parser = {NULL}},
+        [__NR_dup]         = {.slow = 0, .parser = {NULL}},
+        [__NR_dup2]        = {.slow = 0, .parser = {NULL}},
+        [__NR_pause]       = {.slow = 1, .parser = {NULL}},
+        [__NR_nanosleep]   = {.slow = 1, .parser = {&parse_timespec}},
+        [__NR_getitimer]   = {.slow = 0, .parser = {NULL}},
+        [__NR_alarm]       = {.slow = 0, .parser = {NULL}},
+        [__NR_setitimer]   = {.slow = 0, .parser = {NULL}},
+        [__NR_getpid]      = {.slow = 0, .parser = {NULL}},
+        [__NR_sendfile]    = {.slow = 0, .parser = {NULL}},
+        [__NR_socket]      = {.slow = 0, .parser = {&parse_domain, &parse_socktype}},
+        [__NR_connect]     = {.slow = 1, .parser = {NULL, &parse_sockaddr}},
+        [__NR_accept]      = {.slow = 1, .parser = {NULL}},
+        [__NR_sendto]      = {.slow = 0, .parser = {NULL}},
+        [__NR_recvfrom]    = {.slow = 0, .parser = {NULL}},
+        [__NR_sendmsg]     = {.slow = 0, .parser = {NULL}},
+        [__NR_recvmsg]     = {.slow = 1, .parser = {NULL}},
+        [__NR_shutdown]    = {.slow = 0, .parser = {NULL}},
+        [__NR_bind]        = {.slow = 0, .parser = {NULL}},
+        [__NR_listen]      = {.slow = 0, .parser = {NULL}},
+        [__NR_getsockname] = {.slow = 0, .parser = {NULL}},
+        [__NR_getpeername] = {.slow = 0, .parser = {NULL}},
+        [__NR_socketpair]  = {.slow = 0,
+                              .stop = 3,
+                              .parser = {&parse_domain, &parse_socktype, NULL, &parse_pipe_fds}},
+        [__NR_setsockopt]  = {.slow = 0, .parser = {NULL}},
+        [__NR_getsockopt]  = {.slow = 0, .parser = {NULL}},
+        [__NR_clone]    = {.slow = 1, .parser = {&parse_clone_flags}},
+        [__NR_fork]     = {.slow = 1, .parser = {NULL}},
+        [__NR_vfork]    = {.slow = 1, .parser = {NULL}},
+        [__NR_execve]   = {.slow   = 1,
+                           .parser = {NULL, &parse_exec_args, &parse_exec_envp}},
+        [__NR_exit]     = {.slow = 0, .parser = {NULL}},
+        [__NR_wait4]    = {.slow = 1, .parser = {NULL, NULL, &parse_wait_option, NULL}},
+        [__NR_kill]     = {.slow = 0, .parser = {NULL, &parse_signum, }},
+        [__NR_uname]    = {.slow = 0, .parser = {NULL}},
+        [__NR_semget]   = {.slow = 0, .parser = {NULL}},
+        [__NR_semctl]   = {.slow = 0, .parser = {NULL}},
+        [__NR_shmdt]    = {.slow = 0, .parser = {NULL}},
+        [__NR_msgget]   = {.slow = 1, .parser = {NULL}},
+        [__NR_msgsnd]   = {.slow = 1, .parser = {NULL}},
+        [__NR_msgrcv]   = {.slow = 1, .parser = {NULL}},
+        [__NR_msgctl]   = {.slow = 1, .parser = {NULL}},
+        [__NR_fcntl]    = {.slow = 0, .parser = {NULL, &parse_fcntlop}},
+        [__NR_flock]    = {.slow = 0, .parser = {NULL}},
+        [__NR_fsync]    = {.slow = 0, .parser = {NULL}},
+        [__NR_fdatasync] = {.slow = 0, .parser = {NULL}},
+        [__NR_truncate]  = {.slow = 0, .parser = {NULL}},
+        [__NR_ftruncate] = {.slow = 0, .parser = {NULL}},
+        [__NR_getdents]  = {.slow = 0, .parser = {NULL}},
+        [__NR_getcwd]   = {.slow = 0, .parser = {NULL}},
+        [__NR_chdir]    = {.slow = 0, .parser = {NULL}},
+        [__NR_fchdir]   = {.slow = 0, .parser = {NULL}},
+        [__NR_rename]   = {.slow = 0, .parser = {NULL}},
+        [__NR_mkdir]    = {.slow = 0, .parser = {NULL}},
+        [__NR_rmdir]    = {.slow = 0, .parser = {NULL}},
+        [__NR_creat]    = {.slow = 0, .parser = {NULL, &parse_open_mode}},
+        [__NR_link]     = {.slow = 0, .parser = {NULL}},
+        [__NR_unlink]   = {.slow = 0, .parser = {NULL}},
+        [__NR_symlink]  = {.slow = 0, .parser = {NULL}},
+        [__NR_readlink] = {.slow = 0, .parser = {NULL}},
+        [__NR_chmod]    = {.slow = 0, .parser = {NULL}},
+        [__NR_fchmod]   = {.slow = 0, .parser = {NULL}},
+        [__NR_chown]    = {.slow = 0, .parser = {NULL}},
+        [__NR_fchown]   = {.slow = 0, .parser = {NULL}},
+        [__NR_lchown]   = {.slow = 0, .parser = {NULL}},
+        [__NR_umask]    = {.slow = 0, .parser = {NULL}},
+        [__NR_gettimeofday] = {.slow = 0, .parser = {NULL}},
+        [__NR_getrlimit]    = {.slow = 0, .parser = {NULL}},
+        [__NR_getrusage]    = {.slow = 0, .parser = {NULL}},
+        [__NR_sysinfo]   = {.slow = 0, .parser = {NULL}},
+        [__NR_times]     = {.slow = 0, .parser = {NULL}},
+        [__NR_ptrace]    = {.slow = 0, .parser = {NULL}},
+        [__NR_getuid]    = {.slow = 0, .parser = {NULL}},
+        [__NR_syslog]    = {.slow = 0, .parser = {NULL}},
+        [__NR_getgid]    =  {.slow = 0, .parser = {NULL}},
+        [__NR_setuid]    = {.slow = 0, .parser = {NULL}},
+        [__NR_setgid]    = {.slow = 0, .parser = {NULL}},
+        [__NR_geteuid]   = {.slow = 0, .parser = {NULL}},
+        [__NR_getegid]   = {.slow = 0, .parser = {NULL}},
+        [__NR_setpgid]   = {.slow = 0, .parser = {NULL}},
+        [__NR_getppid]   = {.slow = 0, .parser = {NULL}},
+        [__NR_getpgrp]   = {.slow = 0, .parser = {NULL}},
+        [__NR_setsid]    = {.slow = 0, .parser = {NULL}},
+        [__NR_setreuid]  = {.slow = 0, .parser = {NULL}},
+        [__NR_setregid]  = {.slow = 0, .parser = {NULL}},
+        [__NR_getgroups] = {.slow = 0, .parser = {NULL}},
+        [__NR_setgroups] = {.slow = 0, .parser = {NULL}},
+        [__NR_setresuid] = {.slow = 0, .parser = {NULL}},
+        [__NR_getresuid] = {.slow = 0, .parser = {NULL}},
+        [__NR_setresgid] = {.slow = 0, .parser = {NULL}},
+        [__NR_getresgid] = {.slow = 0, .parser = {NULL}},
+        [__NR_getpgid]   = {.slow = 0, .parser = {NULL}},
+        [__NR_setfsuid]  = {.slow = 0, .parser = {NULL}},
+        [__NR_setfsgid]  = {.slow = 0, .parser = {NULL}},
+        [__NR_getsid]    = {.slow = 0, .parser = {NULL}},
+        [__NR_capget]    = {.slow = 0, .parser = {NULL}},
+        [__NR_capset]    = {.slow = 0, .parser = {NULL}},
+        [__NR_rt_sigpending]   = {.slow = 0, .parser = {NULL}},
+        [__NR_rt_sigtimedwait] = {.slow = 0, .parser = {NULL}},
+        [__NR_rt_sigqueueinfo] = {.slow = 0, .parser = {NULL}},
+        [__NR_rt_sigsuspend]   = {.slow = 1, .parser = {NULL}},
+        [__NR_sigaltstack]     = {.slow = 0, .parser = {NULL}},
+        [__NR_utime]       = {.slow = 0, .parser = {NULL}},
+        [__NR_mknod]       = {.slow = 0, .parser = {NULL, &parse_open_mode}},
+        [__NR_uselib]      = {.slow = 0, .parser = {NULL}},
+        [__NR_personality] = {.slow = 0, .parser = {NULL}},
+        [__NR_ustat]       = {.slow = 0, .parser = {NULL}},
+        [__NR_statfs]      = {.slow = 0, .parser = {NULL}},
+        [__NR_fstatfs]     = {.slow = 0, .parser = {NULL}},
+        [__NR_sysfs]       = {.slow = 0, .parser = {NULL}},
+        [__NR_getpriority]    = {.slow = 0, .parser = {NULL}},
+        [__NR_setpriority]    = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_setparam] = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_getparam] = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_setscheduler]     = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_getscheduler]     = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_get_priority_max] = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_get_priority_min] = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_rr_get_interval]  = {.slow = 0, .parser = {NULL}},
+        [__NR_mlock]      = {.slow = 0, .parser = {NULL}},
+        [__NR_munlock]    = {.slow = 0, .parser = {NULL}},
+        [__NR_mlockall]   = {.slow = 0, .parser = {NULL}},
+        [__NR_munlockall] = {.slow = 0, .parser = {NULL}},
+        [__NR_vhangup]    = {.slow = 0, .parser = {NULL}},
+        [__NR_modify_ldt] = {.slow = 0, .parser = {NULL}},
+        [__NR_pivot_root] = {.slow = 0, .parser = {NULL}},
+        [__NR__sysctl]    = {.slow = 0, .parser = {NULL}},
+        [__NR_prctl]      = {.slow = 0, .parser = {NULL}},
+#ifdef __NR_arch_prctl
+        [__NR_arch_prctl] = {.slow = 0, .parser = {NULL}},
+#endif
+        [__NR_adjtimex]  = {.slow = 0, .parser = {NULL}},
+        [__NR_setrlimit] = {.slow = 0, .parser = {NULL}},
+        [__NR_chroot]    = {.slow = 0, .parser = {NULL}},
+        [__NR_sync]      = {.slow = 0, .parser = {NULL}},
+        [__NR_acct]      = {.slow = 0, .parser = {NULL}},
+        [__NR_settimeofday]  = {.slow = 0, .parser = {NULL}},
+        [__NR_mount]         = {.slow = 0, .parser = {NULL}},
+        [__NR_umount2]       = { .slow = 0, .parser = {NULL}},
+        [__NR_swapon]        = {.slow = 0, .parser = {NULL}},
+        [__NR_swapoff]       = {.slow = 0, .parser = {NULL}},
+        [__NR_reboot]        = {.slow = 0, .parser = {NULL}},
+        [__NR_sethostname]   = {.slow = 0, .parser = {NULL}},
+        [__NR_setdomainname] = {.slow = 0, .parser = {NULL}},
+#ifdef __NR_iopl
+        [__NR_iopl]          = {.slow = 0, .parser = {NULL}},
+#endif
+#ifdef __NR_ioperm
+        [__NR_ioperm]        = {.slow = 0, .parser = {NULL}},
+#endif
+        [__NR_create_module]   = {.slow = 0, .parser = {NULL}},
+        [__NR_init_module]     = {.slow = 0, .parser = {NULL}},
+        [__NR_delete_module]   = {.slow = 0, .parser = {NULL}},
+        [__NR_get_kernel_syms] = {.slow = 0, .parser = {NULL}},
+        [__NR_query_module]    = {.slow = 0, .parser = {NULL}},
+        [__NR_quotactl]     = {.slow = 0, .parser = {NULL}},
+        [__NR_nfsservctl]   = {.slow = 0, .parser = {NULL}},
+        [__NR_getpmsg]      = {.slow = 0, .parser = {NULL}},
+        [__NR_putpmsg]      = {.slow = 0, .parser = {NULL}},
+        [__NR_afs_syscall]  = {.slow = 0, .parser = {NULL}},
+        [__NR_tuxcall]      = {.slow = 0, .parser = {NULL}},
+        [__NR_security]     = {.slow = 0, .parser = {NULL}},
+        [__NR_gettid]       = {.slow = 0, .parser = {NULL}},
+        [__NR_readahead]    = {.slow = 0, .parser = {NULL}},
+        [__NR_setxattr]     = {.slow = 0, .parser = {NULL}},
+        [__NR_lsetxattr]    = {.slow = 0, .parser = {NULL}},
+        [__NR_fsetxattr]    = {.slow = 0, .parser = {NULL}},
+        [__NR_getxattr]     = {.slow = 0, .parser = {NULL}},
+        [__NR_lgetxattr]    = {.slow = 0, .parser = {NULL}},
+        [__NR_fgetxattr]    = {.slow = 0, .parser = {NULL}},
+        [__NR_listxattr]    = {.slow = 0, .parser = {NULL}},
+        [__NR_llistxattr]   = {.slow = 0, .parser = {NULL}},
+        [__NR_flistxattr]   = {.slow = 0, .parser = {NULL}},
+        [__NR_removexattr]  = {.slow = 0, .parser = {NULL}},
+        [__NR_lremovexattr] = {.slow = 0, .parser = {NULL}},
+        [__NR_fremovexattr] = {.slow = 0, .parser = {NULL}},
+        [__NR_tkill]        = {.slow = 0, .parser = {NULL, &parse_signum}},
+        [__NR_time]         = {.slow = 0, .parser = {NULL}},
+        [__NR_futex]        = {.slow = 1, .parser = {NULL, &parse_futexop}},
+        [__NR_sched_setaffinity] = {.slow = 0, .parser = {NULL}},
+        [__NR_sched_getaffinity] = {.slow = 0, .parser = {NULL}},
+#ifdef __NR_set_thread_area
+        [__NR_set_thread_area]   = {.slow = 0, .parser = {NULL}},
+#endif
+        [__NR_io_setup]     = {.slow = 0, .parser = {NULL}},
+        [__NR_io_destroy]   = {.slow = 0, .parser = {NULL}},
+        [__NR_io_getevents] = {.slow = 0, .parser = {NULL}},
+        [__NR_io_submit]    = {.slow = 0, .parser = {NULL}},
+        [__NR_io_cancel]    = {.slow = 0, .parser = {NULL}},
+#ifdef __NR_get_thread_area
+        [__NR_get_thread_area]  = {.slow = 0, .parser = {NULL}},
+#endif
+        [__NR_lookup_dcookie]   = {.slow = 0, .parser = {NULL}},
+        [__NR_epoll_create]     = {.slow = 0, .parser = {NULL}},
+        [__NR_epoll_ctl_old]    = {.slow = 0, .parser = {NULL}},
+        [__NR_epoll_wait_old]   = {.slow = 0, .parser = {NULL}},
+        [__NR_remap_file_pages] = {.slow = 0, .parser = {NULL}},
+        [__NR_getdents64]       = {.slow = 0, .parser = {NULL}},
+        [__NR_set_tid_address]  = {.slow = 0, .parser = {NULL}},
+        [__NR_restart_syscall]  = {.slow = 0, .parser = {NULL}},
+        [__NR_semtimedop]       = {.slow = 0, .parser = {NULL}},
+        [__NR_fadvise64]        = {.slow = 0, .parser = {NULL}},
+        [__NR_timer_create]     = {.slow = 0, .parser = {NULL}},
+        [__NR_timer_settime]    = {.slow = 0, .parser = {NULL}},
+        [__NR_timer_gettime]    = {.slow = 0, .parser = {NULL}},
+        [__NR_timer_getoverrun] = {.slow = 0, .parser = {NULL}},
+        [__NR_timer_delete]     = {.slow = 0, .parser = {NULL}},
+        [__NR_clock_settime]    = {.slow = 0, .parser = {NULL}},
+        [__NR_clock_gettime]    = {.slow = 0, .parser = {NULL}},
+        [__NR_clock_getres]     = {.slow = 0, .parser = {NULL}},
+        [__NR_clock_nanosleep]  = {.slow = 0, .parser = {NULL}},
+        [__NR_exit_group]       = {.slow = 0, .parser = {NULL}},
+        [__NR_epoll_wait]       = {.slow = 1, .parser = {NULL}},
+        [__NR_epoll_ctl]        = {.slow = 0, .parser = {NULL}},
+        [__NR_tgkill]           = {.slow = 0, .parser = {NULL, NULL, &parse_signum}},
+        [__NR_utimes]           = {.slow = 0, .parser = {NULL}},
+#ifdef __NR_vserver
+        [__NR_vserver]          = {.slow = 0, .parser = {NULL}},
+#endif
+        [__NR_mbind]           = {.slow = 0, .parser = {NULL}},
+        [__NR_set_mempolicy]   = {.slow = 0, .parser = {NULL}},
+        [__NR_get_mempolicy]   = {.slow = 0, .parser = {NULL}},
+        [__NR_mq_open]         = {.slow = 0, .parser = {NULL}},
+        [__NR_mq_unlink]       = {.slow = 0, .parser = {NULL}},
+        [__NR_mq_timedsend]    = {.slow = 0, .parser = {NULL}},
+        [__NR_mq_timedreceive] = {.slow = 0, .parser = {NULL}},
+        [__NR_mq_notify]       = {.slow = 0, .parser = {NULL}},
+        [__NR_mq_getsetattr]   = {.slow = 0, .parser = {NULL}},
+        [__NR_kexec_load]      = {.slow = 0, .parser = {NULL}},
+        [__NR_waitid]      = {.slow = 1, .parser = {NULL}},
+        [__NR_add_key]     = {.slow = 0, .parser = {NULL}},
+        [__NR_request_key] = {.slow = 0, .parser = {NULL}},
+        [__NR_keyctl]      = {.slow = 0, .parser = {NULL}},
+        [__NR_ioprio_set]  = {.slow = 0, .parser = {NULL}},
+        [__NR_ioprio_get]  = {.slow = 0, .parser = {NULL}},
+        [__NR_inotify_init]      = {.slow = 0, .parser = {NULL}},
+        [__NR_inotify_add_watch] = {.slow = 0, .parser = {NULL}},
+        [__NR_inotify_rm_watch]  = {.slow = 0, .parser = {NULL}},
+        [__NR_migrate_pages]     = {.slow = 0, .parser = {NULL}},
+        [__NR_openat]     = {.slow   = 0,
+                             .parser = {&parse_at_fdcwd, NULL, &parse_open_flags, &parse_open_mode}},
+        [__NR_mkdirat]    = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_mknodat]    = {.slow = 0, .parser = {&parse_at_fdcwd, NULL, &parse_open_mode}},
+        [__NR_fchownat]   = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_futimesat]  = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_newfstatat] = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_unlinkat]   = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_renameat]   = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_linkat]     = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_symlinkat]  = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_readlinkat] = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_fchmodat]   = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_faccessat]  = {.slow = 0, .parser = {&parse_at_fdcwd}},
+        [__NR_pselect6]   = {.slow = 1, .parser = {NULL}},
+        [__NR_ppoll]      = {.slow = 1, .parser = {NULL}},
+        [__NR_unshare]    = {.slow = 0, .parser = {NULL}},
+        [__NR_set_robust_list] = {.slow = 0, .parser = {NULL}},
+        [__NR_get_robust_list] = {.slow = 0, .parser = {NULL}},
+        [__NR_splice]          = {.slow = 0, .parser = {NULL}},
+        [__NR_tee]             = {.slow = 0, .parser = {NULL}},
+        [__NR_sync_file_range] = {.slow = 0, .parser = {NULL}},
+        [__NR_vmsplice]        = {.slow = 0, .parser = {NULL}},
+        [__NR_move_pages]      = {.slow = 0, .parser = {NULL}},
+        [__NR_utimensat]       = {.slow = 0, .parser = {NULL}},
+        [__NR_epoll_pwait]     = {.slow = 1, .parser = {NULL}},
+        [__NR_signalfd]        = {.slow = 0, .parser = {NULL}},
+        [__NR_timerfd_create]  = {.slow = 0, .parser = {NULL}},
+        [__NR_eventfd]         = {.slow = 0, .parser = {NULL}},
+        [__NR_fallocate]       = {.slow = 0, .parser = {NULL}},
+        [__NR_timerfd_settime] = {.slow = 0, .parser = {NULL}},
+        [__NR_timerfd_gettime] = {.slow = 0, .parser = {NULL}},
+        [__NR_accept4]       = {.slow = 1, .parser = {NULL}},
+        [__NR_signalfd4]     = {.slow = 0, .parser = {NULL}},
+        [__NR_eventfd2]      = {.slow = 0, .parser = {NULL}},
+        [__NR_epoll_create1] = {.slow = 0, .parser = {NULL}},
+        [__NR_dup3]          = {.slow = 0, .parser = {NULL}},
+        [__NR_pipe2]         = {.slow = 0, .parser = {NULL}},
+        [__NR_inotify_init1] = {.slow = 0, .parser = {NULL}},
+        [__NR_preadv]        = {.slow = 0, .parser = {NULL}},
+        [__NR_pwritev]       = {.slow = 0, .parser = {NULL}},
+        [__NR_rt_tgsigqueueinfo] = {.slow = 0, .parser = {NULL}},
+        [__NR_perf_event_open]   = {.slow = 0, .parser = {NULL}},
+        [__NR_recvmmsg]          = {.slow = 0, .parser = {NULL}},
 
         [LIBOS_SYSCALL_BASE] = {.slow = 0, .parser = {NULL}},
 
-        {.slow = 1, .parser = {NULL}}, /* checkpoint */
-        {.slow = 1, .parser = {NULL}}, /* restore */
-        {.slow = 1, .parser = {NULL}}, /* msgpersist */
-        {.slow = 1, .parser = {NULL}}, /* benchmark_ipc */
-        {.slow = 1, .parser = {NULL}}, /* send_rpc */
-        {.slow = 1, .parser = {NULL}}, /* recv_rpc */
+        [__NR_msgpersist]    = {.slow = 1, .parser = {NULL}},
+        [__NR_benchmark_rpc] = {.slow = 1, .parser = {NULL}},
+        [__NR_send_rpc]      = {.slow = 1, .parser = {NULL}},
+        [__NR_recv_rpc]      = {.slow = 1, .parser = {NULL}},
 };
 
 static inline int is_pointer(const char* type) {
