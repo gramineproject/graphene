@@ -88,6 +88,8 @@ struct shim_thread {
     __sigset_t signal_mask;
     struct shim_signal_handles* signal_handles;
     struct shim_signal_queue signal_queue;
+    /* For the field below, see the explanation in "LibOS/shim/src/bookkeep/shim_signal.c" near
+     * `process_pending_signals_cnt`. */
     uint64_t pending_signals;
     bool signal_handled;
     stack_t signal_altstack;

@@ -179,7 +179,7 @@ int shim_do_sigsuspend(const __sigset_t* mask) {
     __sigset_t old;
     struct shim_thread* cur = get_cur_thread();
 
-    __atomic_store_n(&cur->signal_handled, false, __ATOMIC_RELAXED);
+    __atomic_store_n(&cur->signal_handled, false, __ATOMIC_RELEASE);
 
     lock(&cur->lock);
     memcpy(&old, get_sig_mask(cur), sizeof(old));
@@ -192,7 +192,7 @@ int shim_do_sigsuspend(const __sigset_t* mask) {
 
     thread_setwait(NULL, NULL);
 
-    if (__atomic_load_n(&cur->signal_handled, __ATOMIC_RELAXED)) {
+    if (__atomic_load_n(&cur->signal_handled, __ATOMIC_ACQUIRE)) {
         goto out;
     }
 
