@@ -21,7 +21,7 @@
  */
 
 #include "asm-offsets.h"
-#include <shim_internal.h>
+#include "shim_internal.h"
 
 void restore_context(struct shim_context* context) {
     assert(context->regs);
