@@ -127,7 +127,8 @@ long strtol (const char *s, char **endptr, int base);
 int atoi (const char *nptr);
 long int atol (const char *nptr);
 
-char * strchr (const char *s, int c_in);
+char* strchr(const char* s, int c_in);
+const char* strstr(const char* haystack, const char* needle);
 
 void * memcpy (void *dstpp, const void *srcpp, size_t len);
 void * memmove (void *dstpp, const void *srcpp, size_t len);
