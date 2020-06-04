@@ -20,7 +20,7 @@
  * Implementation of system calls "sched_yield", "setpriority", "getpriority",
  * "sched_setparam", "sched_getparam", "sched_setscheduler", "sched_getscheduler",
  * "sched_get_priority_max", "sched_get_priority_min", "sched_rr_get_interval",
- * "sched_setaffinity", "sched_getaffinity".
+ * "sched_setaffinity", "sched_getaffinity", "getcpu".
  */
 
 #include <api.h>
@@ -196,4 +196,25 @@ int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
     /* imitate the Linux kernel implementation
      * See SYSCALL_DEFINE3(sched_getaffinity) */
     return bitmask_size_in_bytes;
+}
+
+/* dummy implementation: always return cpu0  */
+int shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
+    __UNUSED(unused);
+
+    if (cpu) {
+        if (test_user_memory(cpu, sizeof(*cpu), /*write=*/true)) {
+            return -EFAULT;
+        }
+        *cpu = 0;
+    }
+
+    if (node) {
+        if (test_user_memory(node, sizeof(*node), /*write=*/true)) {
+            return -EFAULT;
+        }
+        *node = 0;
+    }
+
+    return 0;
 }

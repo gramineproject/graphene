@@ -505,6 +505,7 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
 ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags);
 int shim_do_eventfd2(unsigned int count, int flags);
 int shim_do_eventfd(unsigned int count);
+int shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused);
 
 /* libos call implementation */
 int shim_do_msgpersist(int msqid, int cmd);
@@ -833,6 +834,7 @@ ssize_t shim_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int fl
 int shim_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
                    struct __kernel_rlimit64* old_rlim);
 ssize_t shim_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags);
+int shim_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused);
 
 /* libos call wrappers */
 int shim_msgpersist(int msqid, int cmd);
