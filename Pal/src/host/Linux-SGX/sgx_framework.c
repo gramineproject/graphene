@@ -14,21 +14,24 @@ static int g_isgx_device = -1;
 static void* g_zero_pages       = NULL;
 static size_t g_zero_pages_size = 0;
 
-int open_gsgx(void)
-{
-    g_gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR | O_CLOEXEC, 0);
-    if (IS_ERR(g_gsgx_device)) {
-        SGX_DBG(DBG_E, "Cannot open device " GSGX_FILE ". Please make sure the"
-                " Graphene SGX kernel module is loaded.\n");
-        return -ERRNO(g_gsgx_device);
+int open_sgx_driver(bool need_gsgx) {
+    if (need_gsgx) {
+        g_gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR | O_CLOEXEC, 0);
+        if (IS_ERR(g_gsgx_device)) {
+            SGX_DBG(DBG_E, "Cannot open device " GSGX_FILE ". Please make sure the"
+                    " Graphene SGX kernel module is loaded.\n");
+            return -ERRNO(g_gsgx_device);
+        }
     }
 
     g_isgx_device = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR | O_CLOEXEC, 0);
     if (IS_ERR(g_isgx_device)) {
         SGX_DBG(DBG_E, "Cannot open device " ISGX_FILE ". Please make sure the"
                 " Intel SGX kernel module is loaded.\n");
-        INLINE_SYSCALL(close, 1, g_gsgx_device);
-        g_gsgx_device = -1;
+        if (need_gsgx) {
+            INLINE_SYSCALL(close, 1, g_gsgx_device);
+            g_gsgx_device = -1;
+        }
         return -ERRNO(g_isgx_device);
     }
 

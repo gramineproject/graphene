@@ -10,14 +10,14 @@
 #include "sgx_internal.h"
 #include "sgx_tls.h"
 
+#include <asm/errno.h>
 #include <asm/fcntl.h>
 #include <asm/socket.h>
+#include <ctype.h>
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include <asm/errno.h>
-#include <ctype.h>
-
+#include <sys/auxv.h>
 #include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
 
@@ -744,14 +744,9 @@ static int get_cpu_count(void) {
     return cpu_count;
 }
 
-static int load_enclave (struct pal_enclave * enclave,
-                         int manifest_fd,
-                         char * manifest_uri,
-                         char * exec_uri,
-                         char * args, size_t args_size,
-                         char * env, size_t env_size,
-                         bool exec_uri_inferred)
-{
+static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_uri,
+                        char* exec_uri, char* args, size_t args_size, char* env, size_t env_size,
+                        bool exec_uri_inferred, bool need_gsgx) {
     struct pal_sec * pal_sec = &enclave->pal_sec;
     int ret;
 
@@ -761,7 +756,7 @@ static int load_enclave (struct pal_enclave * enclave,
     pal_sec->start_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 #endif
 
-    ret = open_gsgx();
+    ret = open_sgx_driver(need_gsgx);
     if (ret < 0)
         return ret;
 
@@ -961,11 +956,17 @@ int main(int argc, char* argv[], char* envp[]) {
     bool exec_uri_inferred = false; // Handle the case where the exec uri is
                                     // inferred from the manifest name somewhat
                                     // differently
+    bool need_gsgx = true;
 
     force_linux_to_grow_stack();
 
     if (argc < 3)
         goto usage;
+
+    /* check whether host kernel supports FSGSBASE feature, otherwise we need the GSGX driver */
+    if (getauxval(AT_HWCAP2) & 0x2) {
+        need_gsgx = false;
+    }
 
     // Are we the first in this Graphene's namespace?
     bool first_process = !strcmp_static(argv[1], "init");
@@ -1101,7 +1102,7 @@ int main(int argc, char* argv[], char* envp[]) {
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
 
     ret = load_enclave(&pal_enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env, env_size,
-                       exec_uri_inferred);
+                       exec_uri_inferred, need_gsgx);
 
 out:
     if (pal_enclave.exec >= 0)
