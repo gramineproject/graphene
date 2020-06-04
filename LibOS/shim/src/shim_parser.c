@@ -141,6 +141,7 @@ struct parser_table {
         [__NR_kill]     = {.slow = 0, .parser = {NULL, &parse_signum, }},
         [__NR_uname]    = {.slow = 0, .parser = {NULL}},
         [__NR_semget]   = {.slow = 0, .parser = {NULL}},
+        [__NR_semop]    = {.slow = 1, .parser = {NULL}},
         [__NR_semctl]   = {.slow = 0, .parser = {NULL}},
         [__NR_shmdt]    = {.slow = 0, .parser = {NULL}},
         [__NR_msgget]   = {.slow = 1, .parser = {NULL}},
