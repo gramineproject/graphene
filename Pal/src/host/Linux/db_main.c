@@ -416,7 +416,7 @@ static double get_bogomips(void) {
         return 0.0;
     buf[len] = 0;
 
-    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf, len));
+    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf));
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
