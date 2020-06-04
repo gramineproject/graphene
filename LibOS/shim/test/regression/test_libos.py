@@ -12,7 +12,7 @@ from regression import (
 
 class TC_00_Unittests(RegressionTestCase):
     def test_000_spinlock(self):
-        stdout, _ = self.run_binary(['spinlock'])
+        stdout, _ = self.run_binary(['spinlock'], timeout=20)
 
         self.assertIn('Test successful!', stdout)
 
