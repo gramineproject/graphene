@@ -165,7 +165,7 @@ libsysdb.a: $(objs)
 %.s: %.S
 	$(call cmd,cpp_s_S)
 
-syscallas-$(ARCH).S shim_checkpoint.c shim_context-$(ARCH).c: asm-offsets.h
+syscallas-$(ARCH).S shim_context-$(ARCH).c: asm-offsets.h
 
 include ../../../Scripts/Makefile.rules
 
