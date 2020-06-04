@@ -54,8 +54,6 @@ void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
     lock(&thread->signal_handles->lock);
     for (size_t i = 0; i < ARRAY_SIZE(thread->signal_handles->actions); i++) {
         struct __kernel_sigaction* sig_action = &thread->signal_handles->actions[i];
-        if (!sig_action)
-            continue;
 
         __sighandler_t handler = sig_action->k_sa_handler;
         if (handler == (void*)SIG_DFL || handler == (void*)SIG_IGN) {
