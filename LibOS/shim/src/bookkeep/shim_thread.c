@@ -501,7 +501,7 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     /* notify parent if any */
     release_clear_child_tid(thread->clear_child_tid);
 
-    /* Clean up the thread itself - it will be removed from `thread_list`. */
+    /* Clean up the thread itself - this call will remove it from `thread_list`. */
     del_thread(thread);
 }
 

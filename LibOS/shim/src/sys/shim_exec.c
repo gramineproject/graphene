@@ -369,9 +369,9 @@ reopen:
     static unsigned int first = 0;
     if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) != 0) {
         /* Just exit current thread. */
-        thread_exit(0, 0);
+        thread_exit(/*error_code=*/0, /*term_signal=*/0);
     }
-    kill_other_threads();
+    bool threads_killed = kill_other_threads();
 
     /* All other threads are dead. Restoring initial value in case we stay inside same process
      * instance and call execve again. */
@@ -391,7 +391,13 @@ reopen:
 
     if (use_same_process) {
         debug("execve() in the same process\n");
-        return shim_do_execve_rtld(exec, argv, envp);
+        ret = shim_do_execve_rtld(exec, argv, envp);
+        if (threads_killed) {
+            /* We have killed some threads and execve failed internally. User app might now be in
+             * undefined state, we would better blow everything up. */
+            process_exit(ENOTRECOVERABLE, 0);
+        }
+        return ret;
     }
     debug("execve() in a new process\n");
 
@@ -443,6 +449,11 @@ reopen:
         /* execve failed, so reanimate this thread as if nothing happened */
         cur_thread->in_vm = true;
         unlock(&cur_thread->lock);
+        if (threads_killed) {
+            /* We have killed some threads and execve failed internally. User app might now be in
+             * undefined state, we would better blow everything up. */
+            process_exit(ENOTRECOVERABLE, 0);
+        }
         return ret;
     }
 

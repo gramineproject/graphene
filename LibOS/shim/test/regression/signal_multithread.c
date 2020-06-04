@@ -7,7 +7,7 @@
 
 static int counter = 0;
 
-static void handler(int signum) {
+static void sigterm_handler(int signum) {
     __atomic_add_fetch(&counter, 1, __ATOMIC_SEQ_CST);
 }
 
@@ -23,7 +23,7 @@ static void wait_for(int x) {
     }
 }
 
-static void* f(void* x) {
+static void* thread_func(void* x) {
     set(1);
     wait_for(2);
     return x;
@@ -34,7 +34,7 @@ int main() {
     setbuf(stderr, NULL);
 
     struct sigaction action = { 0 };
-    action.sa_handler = handler;
+    action.sa_handler = sigterm_handler;
 
     int ret = sigaction(SIGTERM, &action, NULL);
     if (ret < 0) {
@@ -44,7 +44,7 @@ int main() {
 
     pthread_t th;
 
-    if (pthread_create(&th, NULL, f, NULL)) {
+    if (pthread_create(&th, NULL, thread_func, NULL)) {
         fprintf(stderr, "pthread_create failed: %m\n");
         return 1;
     }
@@ -69,7 +69,7 @@ int main() {
 
     int t = __atomic_load_n(&counter, __ATOMIC_SEQ_CST);
     if (t != 1) {
-        fprintf(stderr, "test failed: handler was run %d times\n", t);
+        fprintf(stderr, "test failed: sigerm_handler was run %d times\n", t);
         return 1;
     }
 

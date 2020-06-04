@@ -182,19 +182,26 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
     return 1;
 }
 
-void kill_other_threads(void) {
+bool kill_other_threads(void) {
+    bool killed = false;
     /* Tell other threads to exit. Since `mark_thread_to_die` never returns an error, this call
      * cannot fail. */
-    (void)walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false);
+    if (walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false) != -ESRCH) {
+        killed = true;
+    }
     DkThreadYieldExecution();
 
     /* Wait for all other threads to exit. */
     while (!check_last_thread()) {
-        /* Tell other threads to exit again - the previous anouncement could be missed by threads
-         * that were just being created. */
-        (void)walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false);
+        /* Tell other threads to exit again - the previous announcement could have been missed by
+         * threads that were just being created. */
+        if (walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false) != -ESRCH) {
+            killed = true;
+        }
         DkThreadYieldExecution();
     }
+
+    return killed;
 }
 
 noreturn void process_exit(int error_code, int term_signal) {
@@ -206,7 +213,7 @@ noreturn void process_exit(int error_code, int term_signal) {
         thread_exit(error_code, term_signal);
     }
 
-    kill_other_threads();
+    (void)kill_other_threads();
 
     /* Now quit our thread. Since we are the last one, this will exit the whole LibOS. */
     thread_exit(error_code, term_signal);
