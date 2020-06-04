@@ -23,44 +23,30 @@ static double proc_cpuinfo_atod(const char* s) {
     return ret;
 }
 
-double get_bogomips_from_cpuinfo_buf(const char* buf, size_t size) {
-    /* We could use strstr if graphene had one. */
-    /* Each prefix of the word "bogomips" occurs only once in the whole word, hence this works. */
-    const char* const word = "bogomips";
-    const size_t word_size = strlen(word);
-    size_t i = 0,
-           j = 0;
+/* Find an entry starting with a `word` in the NULL-terminated `cpuinfo` description.
+ * This function will return a pointer to the string at the position after the ': '
+ * found in that line, NULL otherwise.
+ */
+static const char* find_entry_in_cpuinfo(const char* cpuinfo, const char* word) {
+    const char* start = strstr(cpuinfo, word);
+    if (!start)
+        return NULL;
 
-    if (word_size > size) {
+    unsigned int o = strlen(word);
+    while (start[o] && (start[o] == '\t' || start[o] == ' '))
+        o++;
+
+    if (start[o] == ':' && start[o + 1] == ' ')
+        return &start[o + 2];
+
+    return NULL;
+}
+
+double get_bogomips_from_cpuinfo_buf(const char* buf) {
+    const char* start = find_entry_in_cpuinfo(buf, "bogomips");
+    if (!start)
         return 0.0;
-    }
-
-    while (i < size - word_size && buf[i]) {
-        j = 0;
-        while (j < word_size && buf[i + j] == word[j]) {
-            j++;
-        }
-
-        if (j) {
-            i += j;
-        } else {
-            i += 1;
-        }
-
-        if (j == word_size) {
-            /* buf is null-terminated, so no need to check size. word does not contain neither
-             * spaces nor tabs, hence we can forward global index `i`, even if we do not return
-             * here. */
-            while (buf[i] == ' ' || buf[i] == '\t') {
-                i++;
-            }
-            if (buf[i] == ':') {
-                return proc_cpuinfo_atod(&buf[i + 1]);
-            }
-        }
-    }
-
-    return 0.0;
+    return proc_cpuinfo_atod(start);
 }
 
 double sanitize_bogomips_value(double v) {
