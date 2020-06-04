@@ -801,13 +801,8 @@ BEGIN_RS_FUNC(running_thread)
              * shim_tcb = NULL
              * in_vm = false
              */
-            if (thread->signal_handles) {
-                lock(&thread->signal_handles->lock);
-                for (size_t i = 0; i < ARRAY_SIZE(thread->signal_handles->actions); i++) {
-                    sigaction_reset_on_execve(&thread->signal_handles->actions[i]);
-                }
-                unlock(&thread->signal_handles->lock);
-            }
+            if (thread->signal_handles)
+                thread_sigaction_reset_on_execve(thread);
 
             set_cur_thread(thread);
             debug_setbuf(thread->shim_tcb, false);

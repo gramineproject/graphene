@@ -50,17 +50,24 @@ void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
     __sigemptyset(&sig_action->sa_mask);
 }
 
-void sigaction_reset_on_execve(struct __kernel_sigaction* sig_action) {
-    if (!sig_action)
-        return;
+void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
+    lock(&thread->signal_handles->lock);
+    for (size_t i = 0; i < ARRAY_SIZE(thread->signal_handles->actions); i++) {
+        struct __kernel_sigaction* sig_action = &thread->signal_handles->actions[i];
+        if (!sig_action)
+            continue;
 
-    if (sig_action->k_sa_handler == (void*)SIG_DFL || sig_action->k_sa_handler == (void*)SIG_IGN) {
-        /* POSIX.1: dispositions of any signals that are ignored or set to the default are left
-         * unchanged. On Linux, this rule applies to SIGCHLD as well. */
-        return;
+        __sighandler_t handler = sig_action->k_sa_handler;
+        if (handler == (void*)SIG_DFL || handler == (void*)SIG_IGN) {
+            /* POSIX.1: dispositions of any signals that are ignored or set to the default are left
+             * unchanged. On Linux, this rule applies to SIGCHLD as well. */
+            continue;
+        }
+
+        /* app installed its own signal handler, reset it to default */
+        sigaction_make_defaults(sig_action);
     }
-
-    sigaction_make_defaults(sig_action);
+    unlock(&thread->signal_handles->lock);
 }
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];

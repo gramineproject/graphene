@@ -91,11 +91,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     update_fs_base(fs_base);
     debug("set fs_base to 0x%lx\n", fs_base);
 
-    lock(&cur_thread->signal_handles->lock);
-    for (size_t i = 0; i < ARRAY_SIZE(cur_thread->signal_handles->actions); i++) {
-        sigaction_reset_on_execve(&cur_thread->signal_handles->actions[i]);
-    }
-    unlock(&cur_thread->signal_handles->lock);
+    thread_sigaction_reset_on_execve(cur_thread);
 
     remove_loaded_libraries();
     clean_link_map_list();
