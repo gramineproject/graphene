@@ -52,7 +52,7 @@ struct atomic_int {
 
 /* Read the value currently stored in the atomic_int */
 static inline int64_t atomic_read(const struct atomic_int* v) {
-    return __atomic_load_n(&v->counter, __ATOMIC_RELAXED);
+    return __atomic_load_n(&v->counter, __ATOMIC_SEQ_CST);
 }
 
 /* Does a blind write to the atomic variable */
@@ -99,7 +99,7 @@ static inline bool atomic_dec_and_test(struct atomic_int* v) {
  * t is the old value, s is the new value.
  * Returns true if s was written to *p, false otherwise. */
 static inline bool cmpxchg(volatile int64_t* p, int64_t t, int64_t s) {
-    return __atomic_compare_exchange_n(p, &t, s, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
+    return __atomic_compare_exchange_n(p, &t, s, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
 
 /* Helper function to atomically compare-and-swap the value in v.
