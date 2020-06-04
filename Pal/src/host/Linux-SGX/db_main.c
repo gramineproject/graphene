@@ -490,22 +490,21 @@ static char * cpu_flags[]
         };
 
 static double get_bogomips(void) {
-    int fd = -1;
-    char buf[0x800] = { 0 };
+    int fd;
+    char buf[2048];
 
     fd = ocall_open("/proc/cpuinfo", O_RDONLY, 0);
-    if (fd < 0) {
+    if (fd < 0)
         return 0.0;
-    }
 
     /* Although the whole file might not fit in this size, the first cpu description should. */
-    int x = ocall_read(fd, buf, sizeof(buf) - 1);
+    ssize_t len = ocall_read(fd, buf, sizeof(buf) - 1);
     ocall_close(fd);
-    if (x < 0) {
+    if (len < 0)
         return 0.0;
-    }
+    buf[len] = 0;
 
-    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf, sizeof(buf)));
+    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf));
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)

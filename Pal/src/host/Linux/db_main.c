@@ -394,23 +394,29 @@ static int get_cpu_count(void) {
     return cpu_count;
 }
 
-static double get_bogomips(void) {
-    int fd = -1;
-    char buf[0x800] = { 0 };
+static ssize_t read_file_buffer(const char* filename, char* buf, size_t buflen) {
+    int fd;
 
-    fd = INLINE_SYSCALL(open, 2, "/proc/cpuinfo", O_RDONLY);
-    if (fd < 0) {
-        return 0.0;
-    }
+    fd = INLINE_SYSCALL(open, 2, filename, O_RDONLY);
+    if (fd < 0)
+        return fd;
 
-    /* Although the whole file might not fit in this size, the first cpu description should. */
-    long x = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
+    ssize_t n = INLINE_SYSCALL(read, 3, fd, buf, buflen);
     INLINE_SYSCALL(close, 1, fd);
-    if (x < 0) {
-        return 0.0;
-    }
 
-    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf, sizeof(buf)));
+    return n;
+}
+
+static double get_bogomips(void) {
+    char buf[2048];
+    ssize_t len;
+
+    len = read_file_buffer("/proc/cpuinfo", buf, sizeof(buf) - 1);
+    if (len < 0)
+        return 0.0;
+    buf[len] = 0;
+
+    return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf, len));
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
