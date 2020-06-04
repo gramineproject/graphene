@@ -16,19 +16,25 @@ static size_t g_zero_pages_size = 0;
 
 int open_gsgx(void)
 {
+    // Temporary hack
+#if 0
     g_gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR | O_CLOEXEC, 0);
     if (IS_ERR(g_gsgx_device)) {
         SGX_DBG(DBG_E, "Cannot open device " GSGX_FILE ". Please make sure the"
                 " Graphene SGX kernel module is loaded.\n");
         return -ERRNO(g_gsgx_device);
     }
+#endif
 
     g_isgx_device = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR | O_CLOEXEC, 0);
     if (IS_ERR(g_isgx_device)) {
         SGX_DBG(DBG_E, "Cannot open device " ISGX_FILE ". Please make sure the"
                 " Intel SGX kernel module is loaded.\n");
+        // Temporary hack
+#if 0
         INLINE_SYSCALL(close, 1, g_gsgx_device);
         g_gsgx_device = -1;
+#endif
         return -ERRNO(g_isgx_device);
     }
 
