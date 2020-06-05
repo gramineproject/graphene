@@ -28,9 +28,14 @@ library `ra_tls_attest.so` is not preloaded, the server falls back to using norm
 
 ## RA-TLS client
 
-The client is supposed to run on a trusted machine (not in the SGX enclave).  If RA-TLS library
+The client is supposed to run on a trusted machine (*not* in an SGX enclave). If RA-TLS library
 `ra_tls_verify_epid.so` or `ra_tls_verify_dcap.so` is not preloaded, the client falls back to using
 normal X.509 PKI flows.
+
+If client is run without command-line options, it uses default RA-TLS verification callback that
+compares `MRENCLAVE`, `MRSIGNER`, `ISV_PROD_ID` and `ISV_SVN` against the corresonding `RA_TLS_*`
+environment variables. To run the client with its own verification callback, execute it with four
+command-line options (see the source code for details).
 
 
 # Quick Start
@@ -38,44 +43,68 @@ normal X.509 PKI flows.
 - Normal non-RA-TLS flows; without SGX and without Graphene:
 
 ```sh
-make
+make app
 ./server &
 ./client
-# client will succesfully connect to the server via normal x.509 PKI flows
+# client will successfully connect to the server via normal x.509 PKI flows
 kill %%
 ```
 
 - RA-TLS flows with SGX and with Graphene, EPID-based (IAS) attestation:
 
 ```sh
+# replace dummy values with your SPID, linkable setting, API key, MRENCLAVE, etc!
+make clean
 RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app epid
 
 SGX=1 ./pal_loader ./server &
 
-RA_TLS_EPID_API_KEY=12345678901234567890123456789012 RA_TLS_ALLOW_OUTDATED_TCB=1 \
+RA_TLS_EPID_API_KEY=12345678901234567890123456789012 \
+RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 \
 RA_TLS_MRENCLAVE=1234567890123456789012345678901234567890123456789012345678901234 \
 RA_TLS_MRSIGNER=1234567890123456789012345678901234567890123456789012345678901234 \
 RA_TLS_ISV_PROD_ID=0 RA_TLS_ISV_SVN=0 \
 LD_PRELOAD="$PWD/libra_tls_verify_epid.so" ./client
 
-# client will succesfully connect to the server via normal x.509 PKI flows
+# client will successfully connect to the server via RA-TLS/EPID flows
 kill %%
 ```
 
 - RA-TLS flows with SGX and with Graphene, ECDSA-based (DCAP) attestation:
 
 ```sh
+# replace dummy values with your MRENCLAVE, MRSIGNER, etc!
+make clean
 make app dcap
 
 SGX=1 ./pal_loader ./server &
 
-RA_TLS_ALLOW_OUTDATED_TCB=1 \
+RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 \
 RA_TLS_MRENCLAVE=1234567890123456789012345678901234567890123456789012345678901234 \
 RA_TLS_MRSIGNER=1234567890123456789012345678901234567890123456789012345678901234 \
 RA_TLS_ISV_PROD_ID=0 RA_TLS_ISV_SVN=0 \
 LD_PRELOAD="libsgx_urts.so $PWD/libra_tls_verify_dcap.so" \
 ./client
 
-# client will succesfully connect to the server via normal x.509 PKI flows
+# client will successfully connect to the server via RA-TLS/DCAP flows
+kill %%
+```
+
+- RA-TLS flows with SGX and with Graphene, client with its own verification callback:
+
+```sh
+# replace dummy values with your MRENCLAVE, MRSIGNER, etc!
+make clean
+make app dcap
+
+SGX=1 ./pal_loader ./server &
+
+# arguments are: MRENCLAVE in hex, MRSIGNER in hex, ISV_PROD_ID as dec, ISV_SVN as dec
+LD_PRELOAD="libsgx_urts.so $PWD/libra_tls_verify_dcap.so" ./client \
+    1234567890123456789012345678901234567890123456789012345678901234 \
+    1234567890123456789012345678901234567890123456789012345678901234 \
+    0 0
+
+# client will successfully connect to the server via RA-TLS/DCAP flows
 kill %%
 ```

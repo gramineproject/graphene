@@ -41,10 +41,12 @@
 #include "sgx_attest.h"
 #include "util.h"
 
-#include "ra_tls_verify_common.c"
+extern verify_measurements_cb_t g_verify_measurements_cb;
 
 /* we cannot include libsgx_dcap_verify headers because they conflict with Graphene SGX headers,
  * so we declare the used types and functions below */
+
+/* QL stands for Quoting Library; QV stands for Quote Verification */
 #define SGX_QL_QV_MK_ERROR(x) (0x0000A000|(x))
 typedef enum _sgx_ql_qv_result_t {
     /* quote verification passed and is at the latest TCB level */
@@ -68,7 +70,7 @@ typedef enum _sgx_ql_qv_result_t {
     /* TCB level of the platform is up to date, but SGX SW hardening is needed */
     SGX_QL_QV_RESULT_SW_HARDENING_NEEDED = SGX_QL_QV_MK_ERROR(0x0007),
     /* TCB level of the platform is up to date, but additional configuration of the platform at its
-     * current patching level may be needed; moreove, SGX SW hardening is also needed */
+     * current patching level may be needed; moreover, SGX SW hardening is also needed */
     SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED = SGX_QL_QV_MK_ERROR(0x0008),
 } sgx_ql_qv_result_t;
 
@@ -79,6 +81,7 @@ int sgx_qv_verify_quote(const uint8_t* p_quote, uint32_t quote_size, void* p_quo
                         sgx_ql_qv_result_t* p_quote_verification_result, void* p_qve_report_info,
                         uint32_t supplemental_data_size, uint8_t* p_supplemental_data);
 
+
 int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_t* flags) {
     (void)data;
 
@@ -88,8 +91,8 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
     uint32_t supplemental_data_size = 0;
 
     if (depth != 0) {
-        /* only interested in peer cert (at the end of cert chain): it contains RA-TLS info */
-        return 0;
+        /* the cert chain in RA-TLS consists of single self-signed cert, so we expect depth 0 */
+        return MBEDTLS_ERR_X509_INVALID_FORMAT;
     }
 
     if (flags) {
@@ -175,52 +178,17 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
             break;
     }
 
-    /* verify all components of the SGX quote against user-supplied parameters */
-    const char* mrsigner_hex;
-    const char* mrenclave_hex;
-    const char* isv_prod_id_dec;
-    const char* isv_svn_dec;
-    ret = getenv_enclave_measurements(&mrsigner_hex, &mrenclave_hex, &isv_prod_id_dec,
-                                      &isv_svn_dec);
-    if (ret < 0) {
-        ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
-        goto out;
+    /* verify all measurements from the SGX quote */
+    if (g_verify_measurements_cb) {
+        /* use user-supplied callback to verify measurements */
+        ret = g_verify_measurements_cb((const char*)&quote->report_body.mr_enclave,
+                                       (const char*)&quote->report_body.mr_signer,
+                                       (const char*)&quote->report_body.isv_prod_id,
+                                       (const char*)&quote->report_body.isv_svn);
+    } else {
+        /* use default logic to verify measurements */
+        ret = verify_quote_against_envvar_measurements(quote, quote_size);
     }
-
-    sgx_measurement_t expected_mrsigner;
-    if (mrsigner_hex) {
-        if (parse_hex(mrsigner_hex, &expected_mrsigner, sizeof(expected_mrsigner)) != 0) {
-            ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
-            goto out;
-        }
-    }
-
-    sgx_measurement_t expected_mrenclave;
-    if (mrenclave_hex) {
-        if (parse_hex(mrenclave_hex, &expected_mrenclave, sizeof(expected_mrenclave)) != 0) {
-            ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
-            goto out;
-        }
-    }
-
-    sgx_prod_id_t expected_isv_prod_id;
-    if (isv_prod_id_dec) {
-        expected_isv_prod_id = strtoul(isv_prod_id_dec, NULL, 10);
-    }
-
-    sgx_isv_svn_t expected_isv_svn;
-    if (isv_svn_dec) {
-        expected_isv_svn = strtoul(isv_svn_dec, NULL, 10);
-    }
-
-    char* user_report_data = (char*)quote->report_body.report_data.d;
-
-    ret = verify_quote((uint8_t*)quote, quote_size,
-                       mrsigner_hex ? (char*)&expected_mrsigner : NULL,
-                       mrenclave_hex ? (char*)&expected_mrenclave : NULL,
-                       isv_prod_id_dec ? (char*)&expected_isv_prod_id : NULL,
-                       isv_svn_dec ? (char*)&expected_isv_svn : NULL,
-                       user_report_data, /*expected_as_str=*/false);
     if (ret < 0) {
         ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
         goto out;

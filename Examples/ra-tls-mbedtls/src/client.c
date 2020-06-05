@@ -23,6 +23,9 @@
 
 #include "mbedtls/config.h"
 
+#include <assert.h>
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +45,13 @@
 #include "mbedtls/ssl.h"
 
 /* RA-TLS: on client, only need to register ra_tls_verify_callback() for cert verification */
-#include "ra_tls.h"
+__attribute__((weak))
+int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_t* flags);
+
+/* RA-TLS: if specified in command-line options, use our own callback to verify SGX measurements */
+__attribute__((weak))
+int ra_tls_measurement_callback(int (*function_cb)(const char* mrenclave, const char* mrsigner,
+                                                   const char* isv_prod_id, const char* isv_svn));
 
 #define SERVER_PORT "4433"
 #define SERVER_NAME "localhost"
@@ -53,12 +62,61 @@
 static void my_debug(void* ctx, int level, const char* file, int line, const char* str) {
     ((void)level);
 
-    mbedtls_fprintf((FILE*)ctx, "%s:%04d: %s", file, line, str);
+    mbedtls_fprintf((FILE*)ctx, "%s:%04d: %s\n", file, line, str);
     fflush((FILE*)ctx);
 }
 
-int main(void) {
-    int ret       = 1, len;
+int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
+    if (strlen(hex) != buffer_size * 2)
+        return -1;
+
+    for (size_t i = 0; i < buffer_size; i++) {
+        if (!isxdigit(hex[i * 2]) || !isxdigit(hex[i * 2 + 1]))
+            return -1;
+        sscanf(hex + i * 2, "%02hhx", &((uint8_t*)buffer)[i]);
+    }
+    return 0;
+}
+
+
+/* expected SGX measurements in binary form */
+static char g_expected_mrenclave[32];
+static char g_expected_mrsigner[32];
+static char g_expected_isv_prod_id[2];
+static char g_expected_isv_svn[2];
+
+static bool g_verify_mrenclave   = false;
+static bool g_verify_mrsigner    = false;
+static bool g_verify_isv_prod_id = false;
+static bool g_verify_isv_svn     = false;
+
+/* RA-TLS: our own callback to verify SGX measurements */
+static int my_verify_measurements(const char* mrenclave, const char* mrsigner,
+                                  const char* isv_prod_id, const char* isv_svn) {
+    assert(mrenclave && mrsigner && isv_prod_id && isv_svn);
+
+    if (g_verify_mrenclave &&
+            memcmp(mrenclave, g_expected_mrenclave, sizeof(g_expected_mrenclave)))
+        return -1;
+
+    if (g_verify_mrsigner &&
+            memcmp(mrsigner, g_expected_mrsigner, sizeof(g_expected_mrsigner)))
+        return -1;
+
+    if (g_verify_isv_prod_id &&
+            memcmp(isv_prod_id, g_expected_isv_prod_id, sizeof(g_expected_isv_prod_id)))
+        return -1;
+
+    if (g_verify_isv_svn &&
+            memcmp(isv_svn, g_expected_isv_svn, sizeof(g_expected_isv_svn)))
+        return -1;
+
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    int ret;
+    size_t len;
     int exit_code = MBEDTLS_EXIT_FAILURE;
     mbedtls_net_context server_fd;
     uint32_t flags;
@@ -81,12 +139,65 @@ int main(void) {
     mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_x509_crt_init(&cacert);
 
+    if (argc > 1 && ra_tls_measurement_callback) {
+        if (argc != 5) {
+            mbedtls_printf("USAGE: %s <expected mrenclave> <expected mrsigner>"
+                           " <expected isv_prod_id> <expected isv_svn>\n"
+                           "       (first two in hex, last two as decimal; set to 0 to ignore)\n",
+                           argv[0]);
+            return 1;
+        }
+
+        mbedtls_printf("[ using our own SGX-measurement verification callback"
+                       " (via command line options) ]\n");
+
+        g_verify_mrenclave   = true;
+        g_verify_mrsigner    = true;
+        g_verify_isv_prod_id = true;
+        g_verify_isv_svn     = true;
+
+        (void)ra_tls_measurement_callback(my_verify_measurements);
+
+        if (parse_hex(argv[1], g_expected_mrenclave, sizeof(g_expected_mrenclave)) < 0) {
+            mbedtls_printf("  - cannot parse MRENCLAVE, ignoring it\n");
+            g_verify_mrenclave = false;
+        }
+
+        if (parse_hex(argv[2], g_expected_mrsigner, sizeof(g_expected_mrsigner)) < 0) {
+            mbedtls_printf("  - cannot parse MRSIGNER, ignoring it\n");
+            g_verify_mrsigner = false;
+        }
+
+        uint16_t isv_prod_id = (uint16_t)atoi(argv[3]);
+        if (!isv_prod_id) {
+            mbedtls_printf("  - cannot parse ISV_PROD_ID (or it is equal to zero), ignoring it\n");
+            g_verify_isv_prod_id = false;
+        } else {
+            memcpy(g_expected_isv_prod_id, &isv_prod_id, sizeof(isv_prod_id));
+        }
+
+        uint16_t isv_svn = (uint16_t)atoi(argv[4]);
+        if (!isv_svn) {
+            mbedtls_printf("  - cannot parse ISV_SVN (or it is equal to zero), ignoring it\n");
+            g_verify_isv_svn = false;
+        } else {
+            memcpy(g_expected_isv_svn, &isv_svn, sizeof(isv_svn));
+        }
+    } else if (ra_tls_measurement_callback) {
+        mbedtls_printf("[ using default SGX-measurement verification callback"
+                       " (via RA_TLS_* environment variables) ]\n");
+        (void)ra_tls_measurement_callback(NULL); /* just to test RA-TLS code */
+    } else {
+        mbedtls_printf("[ using normal TLS flows ]\n");
+    }
+
     mbedtls_printf("\n  . Seeding the random number generator...");
     fflush(stdout);
 
     mbedtls_entropy_init(&entropy);
-    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                                     (const unsigned char*)pers, strlen(pers))) != 0) {
+    ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                                (const unsigned char*)pers, strlen(pers));
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret);
         goto exit;
     }
@@ -96,8 +207,8 @@ int main(void) {
     mbedtls_printf("  . Connecting to tcp/%s/%s...", SERVER_NAME, SERVER_PORT);
     fflush(stdout);
 
-    if ((ret = mbedtls_net_connect(&server_fd, SERVER_NAME, SERVER_PORT, MBEDTLS_NET_PROTO_TCP)) !=
-        0) {
+    ret = mbedtls_net_connect(&server_fd, SERVER_NAME, SERVER_PORT, MBEDTLS_NET_PROTO_TCP);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_net_connect returned %d\n\n", ret);
         goto exit;
     }
@@ -107,9 +218,9 @@ int main(void) {
     mbedtls_printf("  . Setting up the SSL/TLS structure...");
     fflush(stdout);
 
-    if ((ret =
-             mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
-                                         MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
+    ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
+                                      MBEDTLS_SSL_PRESET_DEFAULT);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ssl_config_defaults returned %d\n\n", ret);
         goto exit;
     }
@@ -120,7 +231,7 @@ int main(void) {
     fflush(stdout);
 
     ret = mbedtls_x509_crt_parse(&cacert, (const unsigned char*)mbedtls_test_cas_pem,
-            mbedtls_test_cas_pem_len);
+                                 mbedtls_test_cas_pem_len);
     if (ret < 0) {
         mbedtls_printf( " failed\n  !  mbedtls_x509_crt_parse returned -0x%x\n\n", -ret );
         goto exit;
@@ -141,12 +252,14 @@ int main(void) {
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
     mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 
-    if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
+    ret = mbedtls_ssl_setup(&ssl, &conf);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ssl_setup returned %d\n\n", ret);
         goto exit;
     }
 
-    if ((ret = mbedtls_ssl_set_hostname(&ssl, SERVER_NAME)) != 0) {
+    ret = mbedtls_ssl_set_hostname(&ssl, SERVER_NAME);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ssl_set_hostname returned %d\n\n", ret);
         goto exit;
     }
@@ -167,17 +280,18 @@ int main(void) {
 
     mbedtls_printf("  . Verifying peer X.509 certificate...");
 
-    /* In real life, we probably want to bail out when ret != 0 */
-    if ((flags = mbedtls_ssl_get_verify_result(&ssl)) != 0) {
+    flags = mbedtls_ssl_get_verify_result(&ssl);
+    if (flags != 0) {
         char vrfy_buf[512];
-
         mbedtls_printf(" failed\n");
-
         mbedtls_x509_crt_verify_info(vrfy_buf, sizeof(vrfy_buf), "  ! ", flags);
-
         mbedtls_printf("%s\n", vrfy_buf);
-    } else
+
+        /* verification failed for whatever reason, fail loudly */
+        goto exit;
+    } else {
         mbedtls_printf(" ok\n");
+    }
 
     mbedtls_printf("  > Write to server:");
     fflush(stdout);
@@ -192,7 +306,7 @@ int main(void) {
     }
 
     len = ret;
-    mbedtls_printf(" %d bytes written\n\n%s", len, (char*)buf);
+    mbedtls_printf(" %lu bytes written\n\n%s", len, (char*)buf);
 
     mbedtls_printf("  < Read from server:");
     fflush(stdout);
@@ -219,19 +333,16 @@ int main(void) {
         }
 
         len = ret;
-        mbedtls_printf(" %d bytes read\n\n%s", len, (char*)buf);
+        mbedtls_printf(" %lu bytes read\n\n%s", len, (char*)buf);
     } while (1);
 
     mbedtls_ssl_close_notify(&ssl);
-
     exit_code = MBEDTLS_EXIT_SUCCESS;
-
 exit:
-
 #ifdef MBEDTLS_ERROR_C
     if (exit_code != MBEDTLS_EXIT_SUCCESS) {
         char error_buf[100];
-        mbedtls_strerror(ret, error_buf, 100);
+        mbedtls_strerror(ret, error_buf, sizeof(error_buf));
         mbedtls_printf("Last error was: %d - %s\n\n", ret, error_buf);
     }
 #endif
@@ -244,5 +355,5 @@ exit:
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
 
-    return (exit_code);
+    return exit_code;
 }

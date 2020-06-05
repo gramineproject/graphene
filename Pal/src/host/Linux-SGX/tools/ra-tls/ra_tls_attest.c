@@ -44,25 +44,25 @@
 #include "sgx_arch.h"
 
 #define CERT_SUBJECT_NAME_VALUES  "CN=RATLS,O=GrapheneDevelopers,C=US"
-#define CERT_TIMESTAMP_NOT_BEFORE "20010101000000"
-#define CERT_TIMESTAMP_NOT_AFTER  "20301231235959"
+#define CERT_TIMESTAMP_NOT_BEFORE_DEFAULT "20010101000000"
+#define CERT_TIMESTAMP_NOT_AFTER_DEFAULT  "20301231235959"
 
-static ssize_t rw_file(const char* path, uint8_t* buf, size_t bytes, bool do_write) {
-    ssize_t rv = 0;
-    ssize_t ret = 0;
+static ssize_t rw_file(const char* path, uint8_t* buf, size_t len, bool do_write) {
+    ssize_t bytes = 0;
+    ssize_t ret   = 0;
 
     int fd = open(path, do_write ? O_WRONLY : O_RDONLY);
     if (fd < 0)
         return fd;
 
-    while ((ssize_t)bytes > rv) {
+    while ((ssize_t)len > bytes) {
         if (do_write)
-            ret = write(fd, buf + rv, bytes - rv);
+            ret = write(fd, buf + bytes, len - bytes);
         else
-            ret = read(fd, buf + rv, bytes - rv);
+            ret = read(fd, buf + bytes, len - bytes);
 
         if (ret > 0) {
-            rv += ret;
+            bytes += ret;
         } else if (ret == 0) {
             /* end of file */
             break;
@@ -74,7 +74,7 @@ static ssize_t rw_file(const char* path, uint8_t* buf, size_t bytes, bool do_wri
     }
 
     close(fd);
-    return ret < 0 ? ret : rv;
+    return ret < 0 ? ret : bytes;
 }
 
 /*! given public key \p pk, generate an RA-TLS certificate \p writecrt with \p quote embedded */
@@ -112,11 +112,11 @@ static int generate_x509(mbedtls_pk_context* pk, const uint8_t* quote, size_t qu
 
     char* cert_timestamp_not_before = getenv(RA_TLS_CERT_TIMESTAMP_NOT_BEFORE);
     if (!cert_timestamp_not_before)
-        cert_timestamp_not_before = CERT_TIMESTAMP_NOT_BEFORE;
+        cert_timestamp_not_before = CERT_TIMESTAMP_NOT_BEFORE_DEFAULT;
 
     char* cert_timestamp_not_after = getenv(RA_TLS_CERT_TIMESTAMP_NOT_AFTER);
     if (!cert_timestamp_not_after)
-        cert_timestamp_not_after = CERT_TIMESTAMP_NOT_AFTER;
+        cert_timestamp_not_after = CERT_TIMESTAMP_NOT_AFTER_DEFAULT;
 
     ret = mbedtls_x509write_crt_set_validity(writecrt, cert_timestamp_not_before,
                                              cert_timestamp_not_after);
@@ -192,7 +192,7 @@ static int create_x509(mbedtls_pk_context* pk, mbedtls_x509write_cert* writecrt)
 }
 
 static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt,
-                              uint8_t* crt_der, size_t* crt_der_size) {
+                              uint8_t** crt_der, size_t* crt_der_size) {
     int ret;
 
     if (!key || !crt)
@@ -207,6 +207,7 @@ static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt,
     mbedtls_x509write_cert writecrt;
     mbedtls_x509write_crt_init(&writecrt);
 
+    uint8_t* crt_der_buf   = NULL;
     uint8_t* output_buf    = NULL;
     size_t output_buf_size = 16 * 1024;  /* enough for any X.509 certificate */
 
@@ -243,12 +244,16 @@ static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt,
         goto out;
     }
 
-    /* note that previous function wrote data at the end of the output_buf */
     if (crt_der && crt_der_size) {
-        if (*crt_der_size >= (size_t)size) {
-            /* populate crt_der only if user provided sufficiently big buffer */
-            memcpy(crt_der, output_buf + output_buf_size - size, size);
+        crt_der_buf = malloc(size);
+        if (!crt_der_buf) {
+            ret = MBEDTLS_ERR_X509_ALLOC_FAILED;
+            goto out;
         }
+
+        /* note that mbedtls_x509write_crt_der() wrote data at the end of the output_buf */
+        memcpy(crt_der_buf, output_buf + output_buf_size - size, size);
+        *crt_der      = crt_der_buf;
         *crt_der_size = size;
     }
 
@@ -260,6 +265,9 @@ static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt,
 
     ret = 0;
 out:
+    if (ret < 0) {
+        free(crt_der_buf);
+    }
     mbedtls_x509write_crt_free(&writecrt);
     mbedtls_entropy_free(&entropy);
     mbedtls_ctr_drbg_free(&ctr_drbg);
@@ -271,13 +279,17 @@ int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt) {
     return create_key_and_crt(key, crt, NULL, NULL);
 }
 
-int ra_tls_create_key_and_crt_der(uint8_t* der_key, size_t* der_key_size,
-                                  uint8_t* der_crt, size_t* der_crt_size) {
+int ra_tls_create_key_and_crt_der(uint8_t** der_key, size_t* der_key_size,
+                                  uint8_t** der_crt, size_t* der_crt_size) {
     int ret;
+
+    if (!der_key || !der_key_size || !der_crt || !der_crt_size)
+        return -EINVAL;
 
     mbedtls_pk_context key;
     mbedtls_pk_init(&key);
 
+    uint8_t* der_key_buf   = NULL;
     uint8_t* output_buf    = NULL;
     size_t output_buf_size = 1024;  /* enough for any public key */
 
@@ -299,15 +311,22 @@ int ra_tls_create_key_and_crt_der(uint8_t* der_key, size_t* der_key_size,
         goto out;
     }
 
-    /* note that previous function wrote data at the end of the output_buf */
-    if (*der_key_size >= (size_t)size) {
-        /* populate der_key only if user provided sufficiently big buffer */
-        memcpy(der_key, output_buf + sizeof(output_buf) - size, size);
+    der_key_buf = malloc(size);
+    if (!der_key_buf) {
+        ret = MBEDTLS_ERR_X509_ALLOC_FAILED;
+        goto out;
     }
+
+    /* note that mbedtls_pk_write_key_der() wrote data at the end of the output_buf */
+    memcpy(der_key_buf, output_buf + sizeof(output_buf) - size, size);
+    *der_key      = der_key_buf;
     *der_key_size = size;
 
     ret = 0;
 out:
+    if (ret < 0) {
+        free(der_key_buf);
+    }
     mbedtls_pk_free(&key);
     free(output_buf);
     return ret;

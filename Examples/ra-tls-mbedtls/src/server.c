@@ -40,7 +40,8 @@
 #include "mbedtls/x509.h"
 
 /* RA-TLS: on server, only need ra_tls_create_key_and_crt() to create keypair and X.509 cert */
-#include "ra_tls.h"
+__attribute__((weak))
+int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
 
 #define HTTP_RESPONSE                                    \
     "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n" \
@@ -52,13 +53,15 @@
 static void my_debug(void* ctx, int level, const char* file, int line, const char* str) {
     ((void)level);
 
-    mbedtls_fprintf((FILE*)ctx, "%s:%04d: %s", file, line, str);
+    mbedtls_fprintf((FILE*)ctx, "%s:%04d: %s\n", file, line, str);
     fflush((FILE*)ctx);
 }
 
 int main(void) {
-    int ret, len;
-    mbedtls_net_context listen_fd, client_fd;
+    int ret;
+    size_t len;
+    mbedtls_net_context listen_fd;
+    mbedtls_net_context client_fd;
     unsigned char buf[1024];
     const char* pers = "ssl_server";
 
@@ -121,7 +124,8 @@ int main(void) {
     mbedtls_printf("  . Bind on https://localhost:4433/ ...");
     fflush(stdout);
 
-    if ((ret = mbedtls_net_bind(&listen_fd, NULL, "4433", MBEDTLS_NET_PROTO_TCP)) != 0) {
+    ret = mbedtls_net_bind(&listen_fd, NULL, "4433", MBEDTLS_NET_PROTO_TCP);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_net_bind returned %d\n\n", ret);
         goto exit;
     }
@@ -131,8 +135,9 @@ int main(void) {
     mbedtls_printf("  . Seeding the random number generator...");
     fflush(stdout);
 
-    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                                     (const unsigned char*)pers, strlen(pers))) != 0) {
+    ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                                (const unsigned char*)pers, strlen(pers));
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret);
         goto exit;
     }
@@ -142,9 +147,9 @@ int main(void) {
     mbedtls_printf("  . Setting up the SSL data....");
     fflush(stdout);
 
-    if ((ret =
-             mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM,
-                                         MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
+    ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM,
+                                      MBEDTLS_SSL_PRESET_DEFAULT);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ssl_config_defaults returned %d\n\n", ret);
         goto exit;
     }
@@ -157,12 +162,14 @@ int main(void) {
         mbedtls_ssl_conf_ca_chain(&conf, srvcert.next, NULL);
     }
 
-    if ((ret = mbedtls_ssl_conf_own_cert(&conf, &srvcert, &pkey)) != 0) {
+    ret = mbedtls_ssl_conf_own_cert(&conf, &srvcert, &pkey);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ssl_conf_own_cert returned %d\n\n", ret);
         goto exit;
     }
 
-    if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
+    ret = mbedtls_ssl_setup(&ssl, &conf);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_ssl_setup returned %d\n\n", ret);
         goto exit;
     }
@@ -173,7 +180,7 @@ reset:
 #ifdef MBEDTLS_ERROR_C
     if (ret != 0) {
         char error_buf[100];
-        mbedtls_strerror(ret, error_buf, 100);
+        mbedtls_strerror(ret, error_buf, sizeof(error_buf));
         mbedtls_printf("Last error was: %d - %s\n\n", ret, error_buf);
     }
 #endif
@@ -185,7 +192,8 @@ reset:
     mbedtls_printf("  . Waiting for a remote connection ...");
     fflush(stdout);
 
-    if ((ret = mbedtls_net_accept(&listen_fd, &client_fd, NULL, 0, NULL)) != 0) {
+    ret = mbedtls_net_accept(&listen_fd, &client_fd, NULL, 0, NULL);
+    if (ret != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_net_accept returned %d\n\n", ret);
         goto exit;
     }
@@ -236,7 +244,7 @@ reset:
         }
 
         len = ret;
-        mbedtls_printf(" %d bytes read\n\n%s", len, (char*)buf);
+        mbedtls_printf(" %lu bytes read\n\n%s", len, (char*)buf);
 
         if (ret > 0)
             break;
@@ -260,7 +268,7 @@ reset:
     }
 
     len = ret;
-    mbedtls_printf(" %d bytes written\n\n%s\n", len, (char*)buf);
+    mbedtls_printf(" %lu bytes written\n\n%s\n", len, (char*)buf);
 
     mbedtls_printf("  . Closing the connection...");
 
@@ -277,11 +285,10 @@ reset:
     goto reset;
 
 exit:
-
 #ifdef MBEDTLS_ERROR_C
     if (ret != 0) {
         char error_buf[100];
-        mbedtls_strerror(ret, error_buf, 100);
+        mbedtls_strerror(ret, error_buf, sizeof(error_buf));
         mbedtls_printf("Last error was: %d - %s\n\n", ret, error_buf);
     }
 #endif
@@ -296,5 +303,5 @@ exit:
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
 
-    return (ret);
+    return ret;
 }

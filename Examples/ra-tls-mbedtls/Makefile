@@ -1,7 +1,7 @@
 # Build mbedTLS client/server example with RA-TLS as follows:
 #
-# - make          -- create SGX no-debug-log manifest
-# - make DEBUG=1  -- create SGX debug-log manifest
+# - make          -- build SGX version with apps built in release mode and no logs
+# - make DEBUG=1  -- build SGX version with apps built in debug mode and with logs
 #
 # Any of these invocations clones mbedTLS' git repository (version 2.21.0) and
 # builds it in default configuration. Also, server and client programs are
@@ -78,8 +78,7 @@ mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include \
-		  -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
+CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include
 LFLAGS += -Wl,-rpath,. -L. -lmbedcrypto -lmbedtls -lmbedx509
 
 server: src/server.c libmbedcrypto.so libmbedtls.so libmbedx509.so
@@ -135,24 +134,32 @@ server.manifest.sgx: server.manifest server libra_tls_attest.so
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output server.token -sig server.sig
 
-################################## SGX CHECK ##################################
+############################### SGX CHECKS FOR CI #############################
 
 .PHONY: check_epid
 check_epid: app epid
-	SGX=1 ./pal_loader server & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
 	LD_PRELOAD="$(PWD)/libra_tls_verify_epid.so" ./client > OUTPUT; \
-	kill -9 $$SERVER_ID;
-	@grep "Verifying peer X.509 certificate... ok" OUTPUT && echo "[ Success 1/1 ]"
+	LD_PRELOAD="$(PWD)/libra_tls_verify_epid.so" ./client 0 0 0 0 >> OUTPUT; \
+	kill -9 $$SERVER_ID
+	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
+	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
+	@grep -q "Verifying peer X.509 certificate... ok" OUTPUT && echo "[ Success 3/4 ]"
+	@(exit `grep -c "failed" "OUTPUT"`) && echo "[ Success 4/4 ]"
 	@rm OUTPUT
 
 .PHONY: check_dcap
 check_dcap: app dcap
-	SGX=1 ./pal_loader server & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
 	LD_PRELOAD="libsgx_urts.so $(PWD)/libra_tls_verify_dcap.so" ./client > OUTPUT; \
-	kill -9 $$SERVER_ID;
-	@grep "Verifying peer X.509 certificate... ok" OUTPUT && echo "[ Success 1/1 ]"
+	LD_PRELOAD="libsgx_urts.so $(PWD)/libra_tls_verify_dcap.so" ./client 0 0 0 0 >> OUTPUT; \
+	kill -9 $$SERVER_ID
+	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
+	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
+	@grep -q "Verifying peer X.509 certificate... ok" OUTPUT && echo "[ Success 3/4 ]"
+	@(exit `grep -c "failed" "OUTPUT"`) && echo "[ Success 4/4 ]"
 	@rm OUTPUT
 
 ################################## CLEANUP ####################################

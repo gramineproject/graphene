@@ -41,7 +41,7 @@
 #include "sgx_attest.h"
 #include "util.h"
 
-#include "ra_tls_verify_common.c"
+extern verify_measurements_cb_t g_verify_measurements_cb;
 
 /** Default base URL for IAS API endpoints. Remove "/dev" for production environment. */
 #define IAS_URL_BASE "https://api.trustedservices.intel.com/sgx/dev"
@@ -52,71 +52,33 @@
 /** Default URL for IAS "Retrieve SigRL" API endpoint. EPID group id is added at the end. */
 #define IAS_URL_SIGRL IAS_URL_BASE "/attestation/v3/sigrl"
 
-static char* g_api_key         = NULL;
-static char* g_report_url      = NULL;
-static char* g_sigrl_url       = NULL;
+static char* g_api_key    = NULL;
+static char* g_report_url = NULL;
+static char* g_sigrl_url  = NULL;
 
-static int init_api_key(void) {
-    if (g_api_key) {
+static int init_from_env(char** ptr, const char* env_name, char* default_val) {
+    if (*ptr) {
         /* already initialized */
         return 0;
     }
 
-    char* envvar_key = getenv(RA_TLS_EPID_API_KEY);
-    if (!envvar_key)
-        return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
+    char* env_val = getenv(env_name);
+    if (!env_val) {
+        if (!default_val)
+            return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
 
-    size_t envvar_key_size = strlen(envvar_key) + 1;
-    g_api_key = malloc(envvar_key_size);
-    if (!g_api_key)
+        *ptr = default_val;
+        return 0;
+    }
+
+    size_t env_val_size = strlen(env_val) + 1;
+    *ptr = malloc(env_val_size);
+    if (!*ptr)
         return MBEDTLS_ERR_X509_ALLOC_FAILED;
 
-    memcpy(g_api_key, envvar_key, envvar_key_size);
+    memcpy(*ptr, env_val, env_val_size);
     return 0;
-}
 
-static int init_report_url(void) {
-    if (g_report_url) {
-        /* already initialized */
-        return 0;
-    }
-
-    char* envvar_url = getenv(RA_TLS_IAS_REPORT_URL);
-    if (!envvar_url) {
-        /* use default report URL */
-        g_report_url = IAS_URL_REPORT;
-        return 0;
-    }
-
-    size_t envvar_url_size = strlen(envvar_url) + 1;
-    g_report_url = malloc(envvar_url_size);
-    if (!g_report_url)
-        return MBEDTLS_ERR_X509_ALLOC_FAILED;
-
-    memcpy(g_report_url, envvar_url, envvar_url_size);
-    return 0;
-}
-
-static int init_sigrl_url(void) {
-    if (g_sigrl_url) {
-        /* already initialized */
-        return 0;
-    }
-
-    char* envvar_url = getenv(RA_TLS_IAS_SIGRL_URL);
-    if (!envvar_url) {
-        /* use default signature revocation list URL */
-        g_sigrl_url = IAS_URL_SIGRL;
-        return 0;
-    }
-
-    size_t envvar_url_size = strlen(envvar_url) + 1;
-    g_sigrl_url = malloc(envvar_url_size);
-    if (!g_sigrl_url)
-        return MBEDTLS_ERR_X509_ALLOC_FAILED;
-
-    memcpy(g_sigrl_url, envvar_url, envvar_url_size);
-    return 0;
 }
 
 static int generate_nonce(char* buf, size_t size) {
@@ -126,7 +88,7 @@ static int generate_nonce(char* buf, size_t size) {
 
     char random_data[IAS_REQUEST_NONCE_LEN / 2];
 
-    FILE* f = fopen("/dev/urandom", "r");
+    FILE* f = fopen("/dev/urandom", "rb");
     if (!f)
         return MBEDTLS_ERR_X509_FILE_IO_ERROR;
 
@@ -166,9 +128,12 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
     size_t cert_data_size     = 0;
     size_t advisory_data_size = 0;
 
+    uint8_t* quote_from_ias    = NULL;
+    size_t quote_from_ias_size = 0;
+
     if (depth != 0) {
-        /* only interested in peer cert (at the end of cert chain): it contains RA-TLS info */
-        return 0;
+        /* the cert chain in RA-TLS consists of single self-signed cert, so we expect depth 0 */
+        return MBEDTLS_ERR_X509_INVALID_FORMAT;
     }
 
     if (flags) {
@@ -178,15 +143,15 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
         *flags = 0;
     }
 
-    ret = init_api_key();
+    ret = init_from_env(&g_api_key, RA_TLS_EPID_API_KEY, /*default_val=*/NULL);
     if (ret < 0)
         goto out;
 
-    ret = init_report_url();
+    ret = init_from_env(&g_report_url, RA_TLS_IAS_REPORT_URL, IAS_URL_REPORT);
     if (ret < 0)
         goto out;
 
-    ret = init_sigrl_url();
+    ret = init_from_env(&g_sigrl_url, RA_TLS_IAS_SIGRL_URL, IAS_URL_SIGRL);
     if (ret < 0)
         goto out;
 
@@ -243,49 +208,12 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
     /* TODO: obtain cert revocation lists via ias_get_sigrl(); currently they are not used during
      *       IAS attestation report verification, so we don't obtain them */
 
-    /* verify all components of the received IAS attestation report */
+    /* verify the received IAS attestation report */
     bool allow_outdated_tcb;
     ret = getenv_allow_outdated_tcb(&allow_outdated_tcb);
     if (ret < 0) {
         ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
         goto out;
-    }
-
-    const char* mrsigner_hex;
-    const char* mrenclave_hex;
-    const char* isv_prod_id_dec;
-    const char* isv_svn_dec;
-    ret = getenv_enclave_measurements(&mrsigner_hex, &mrenclave_hex, &isv_prod_id_dec,
-                                      &isv_svn_dec);
-    if (ret < 0) {
-        ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
-        goto out;
-    }
-
-    sgx_measurement_t expected_mrsigner;
-    if (mrsigner_hex) {
-        if (parse_hex(mrsigner_hex, &expected_mrsigner, sizeof(expected_mrsigner)) != 0) {
-            ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
-            goto out;
-        }
-    }
-
-    sgx_measurement_t expected_mrenclave;
-    if (mrenclave_hex) {
-        if (parse_hex(mrenclave_hex, &expected_mrenclave, sizeof(expected_mrenclave)) != 0) {
-            ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
-            goto out;
-        }
-    }
-
-    sgx_prod_id_t expected_isv_prod_id;
-    if (isv_prod_id_dec) {
-        expected_isv_prod_id = strtoul(isv_prod_id_dec, NULL, 10);
-    }
-
-    sgx_isv_svn_t expected_isv_svn;
-    if (isv_svn_dec) {
-        expected_isv_svn = strtoul(isv_svn_dec, NULL, 10);
     }
 
     const char* ias_pub_key_pem;
@@ -295,16 +223,33 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
         goto out;
     }
 
-    char* user_report_data = (char*)quote->report_body.report_data.d;
+    ret = verify_ias_report_extract_quote((uint8_t*)report_data, report_data_size,
+                                          (uint8_t*)sig_data, sig_data_size,
+                                          allow_outdated_tcb, nonce,
+                                          ias_pub_key_pem, &quote_from_ias, &quote_from_ias_size);
+    if (ret < 0) {
+        ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+        goto out;
+    }
 
-    ret = verify_ias_report((uint8_t*)report_data, report_data_size,
-                            (uint8_t*)sig_data, sig_data_size,
-                            allow_outdated_tcb, nonce,
-                            mrsigner_hex ? (char*)&expected_mrsigner : NULL,
-                            mrenclave_hex ? (char*)&expected_mrenclave : NULL,
-                            isv_prod_id_dec ? (char*)&expected_isv_prod_id : NULL,
-                            isv_svn_dec ? (char*)&expected_isv_svn : NULL,
-                            user_report_data, ias_pub_key_pem, /*expected_as_str=*/false);
+    /* verify all measurements from the SGX quote (extracted from IAS report) */
+    if (g_verify_measurements_cb) {
+        /* use user-supplied callback to verify measurements */
+        size_t min_quote_size = offsetof(sgx_quote_t, signature_len);
+        if (quote_from_ias_size < min_quote_size || quote_from_ias_size > QUOTE_MAX_SIZE) {
+            ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+            goto out;
+        }
+
+        sgx_quote_t* q = (sgx_quote_t*)quote_from_ias;
+        ret = g_verify_measurements_cb((const char*)&q->report_body.mr_enclave,
+                                       (const char*)&q->report_body.mr_signer,
+                                       (const char*)&q->report_body.isv_prod_id,
+                                       (const char*)&q->report_body.isv_svn);
+    } else {
+        /* use default logic to verify measurements */
+        ret = verify_quote_against_envvar_measurements(quote_from_ias, quote_from_ias_size);
+    }
     if (ret < 0) {
         ret = MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
         goto out;
@@ -315,6 +260,7 @@ out:
     if (ias)
         ias_cleanup(ias);
 
+    free(quote_from_ias);
     free(report_data);
     free(sig_data);
     free(cert_data);

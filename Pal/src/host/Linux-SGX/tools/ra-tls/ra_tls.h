@@ -11,12 +11,15 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <stdint.h>
 #include <mbedtls/x509_crt.h>
+#include <stdint.h>
+
+#include "sgx_arch.h"
+#include "sgx_attest.h"
 
 #define RA_TLS_EPID_API_KEY "RA_TLS_EPID_API_KEY"
 
-#define RA_TLS_ALLOW_OUTDATED_TCB "RA_TLS_ALLOW_OUTDATED_TCB"
+#define RA_TLS_ALLOW_OUTDATED_TCB_INSECURE "RA_TLS_ALLOW_OUTDATED_TCB_INSECURE"
 
 #define RA_TLS_MRSIGNER    "RA_TLS_MRSIGNER"
 #define RA_TLS_MRENCLAVE   "RA_TLS_MRENCLAVE"
@@ -42,6 +45,40 @@ static const uint8_t quote_oid[] = OID(0x06);
 static const size_t quote_oid_len = sizeof(quote_oid);
 #define QUOTE_MAX_SIZE 8192
 
+typedef int (*verify_measurements_cb_t)(const char* mrenclave, const char* mrsigner,
+                                        const char* isv_prod_id, const char* isv_svn);
+
+/* internally used functions, not exported */
+__attribute__ ((visibility("hidden")))
+int getenv_allow_outdated_tcb(bool* allow_outdated_tcb);
+
+__attribute__ ((visibility("hidden")))
+int find_oid(const uint8_t* exts, size_t exts_len, const uint8_t* oid, size_t oid_len,
+             uint8_t** val, size_t* len);
+
+__attribute__ ((visibility("hidden")))
+int cmp_crt_pk_against_quote_report_data(mbedtls_x509_crt* crt, sgx_quote_t* quote);
+
+__attribute__ ((visibility("hidden")))
+int verify_quote_against_envvar_measurements(const void* quote, size_t quote_size);
+
+/*!
+ * \brief Callback for user-specific verification of measurements in SGX quote.
+ *
+ * If this callback is registered before RA-TLS session, then RA-TLS verification will invoke this
+ * callback to allow for user-specific checks on SGX measurements reported in the SGX quote. If no
+ * callback is registered (or registered as NULL), then RA-TLS defaults to verifying SGX
+ * measurements against `RA_TLS_*` environment variables (if any).
+ *
+ * \param[in] function_cb  Callback for user-specific verification; RA-TLS passes pointers to
+ *                         MRENCLAVE, MRSIGNER, ISV_PROD_ID, ISV_SVN measurements in SGX quote.
+ *                         Use NULL to revert to default behavior of RA-TLS.
+ *
+ * \return           0 on success, specific error code (negative int) otherwise.
+ */
+__attribute__ ((visibility("default"))) __attribute__((weak))
+int ra_tls_measurement_callback(verify_measurements_cb_t function_cb);
+
 /*!
  * \brief mbedTLS-suitable verification callback for EPID-based (IAS) or ECDSA-based (DCAP)
  * quote verification.
@@ -57,8 +94,8 @@ static const size_t quote_oid_len = sizeof(quote_oid);
  *
  * \return           0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__((weak)) int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth,
-                                                 uint32_t* flags);
+__attribute__ ((visibility("default"))) __attribute__((weak))
+int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_t* flags);
 
 /*!
  * \brief Generic verification callback for EPID-based (IAS) or ECDSA-based (DCAP) quote
@@ -74,7 +111,8 @@ __attribute__((weak)) int ra_tls_verify_callback(void* data, mbedtls_x509_crt* c
  *
  * \return                  0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__((weak)) int ra_tls_verify_callback_der(uint8_t *der_crt, size_t der_crt_size);
+__attribute__ ((visibility("default"))) __attribute__((weak))
+int ra_tls_verify_callback_der(uint8_t* der_crt, size_t der_crt_size);
 
 /*!
  * \brief mbedTLS-suitable function to generate a key and a corresponding RA-TLS certificate.
@@ -89,20 +127,23 @@ __attribute__((weak)) int ra_tls_verify_callback_der(uint8_t *der_crt, size_t de
  *
  * \return           0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__((weak)) int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
+__attribute__ ((visibility("default"))) __attribute__((weak))
+int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
 
 /*!
  * \brief Generic function to generate a key and a corresponding RA-TLS certificate (DER format).
  *
  * The function behaves the same as ra_tls_create_key_and_crt() but generates key and certificate
- * in the DER format.
+ * in the DER format. The function allocates memory for key and certificate; user is expected to
+ * free them after use.
  *
- * \param[out]    der_key       Buffer populated with a generated RSA keypair in DER format.
- * \param[in,out] der_key_size  Caller specifies size of buffer; actual size of key on return.
- * \param[out]    der_crt       Buffer populated with a self-signed RA-TLS certificate.
- * \param[in,out] der_crt_size  Caller specifies size of buffer; actual size of cert on return.
+ * \param[out] der_key       Pointer to buffer populated with generated RSA keypair in DER format.
+ * \param[out] der_key_size  Pointer to size of generated RSA keypair.
+ * \param[out] der_crt       Pointer to buffer populated with self-signed RA-TLS certificate.
+ * \param[out] der_crt_size  Pointer to size of self-signed RA-TLS certicate.
  *
- * \return                      0 on success, specific mbedTLS error code (negative int) otherwise.
+ * \return                   0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__((weak)) int ra_tls_create_key_and_crt_der(uint8_t* der_key, size_t* der_key_size,
-                                                        uint8_t* der_crt, size_t* der_crt_size);
+__attribute__ ((visibility("default"))) __attribute__((weak))
+int ra_tls_create_key_and_crt_der(uint8_t** der_key, size_t* der_key_size, uint8_t** der_crt,
+                                  size_t* der_crt_size);

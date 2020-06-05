@@ -4,7 +4,7 @@ CFLAGS += -I../.. \
           -I../common \
           -I../../../../../lib/crypto/mbedtls/install/include \
           -I../../../../../lib/crypto/mbedtls/crypto/include \
-          -fPIC
+          -fPIC -fvisibility=hidden
 
 LDFLAGS += -L../../../../../lib/crypto/mbedtls/install/lib -Wl,-rpath,.
 
@@ -18,12 +18,12 @@ epid: libra_tls_attest.so libra_tls_verify_epid.so
 dcap: libra_tls_attest.so libra_tls_verify_dcap.so
 
 libra_tls_attest.so: ra_tls_attest.o
-	$(CC) $^ $(LDFLAGS) -l:libmbedcrypto.a -l:libmbedx509.a -shared -o $@
+	$(CC) $^ $(LDFLAGS) -l:libmbedx509.a -l:libmbedcrypto.a -shared -o $@
 
-libra_tls_verify_epid.so: ra_tls_verify_epid.o
+libra_tls_verify_epid.so: ra_tls_verify_common.o ra_tls_verify_epid.o
 	$(CC) $^ $(LDFLAGS) -L../common -lsgx_util -lmbedcrypto -lmbedx509 -shared -o $@
 
-libra_tls_verify_dcap.so: ra_tls_verify_dcap.o
+libra_tls_verify_dcap.so: ra_tls_verify_common.o ra_tls_verify_dcap.o
 	$(CC) $^ $(LDFLAGS) -L../common -lsgx_util -lmbedcrypto -lmbedx509 -lsgx_dcap_quoteverify -shared -o $@
 
 .PHONY: clean
