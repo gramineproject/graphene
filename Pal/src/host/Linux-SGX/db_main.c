@@ -489,17 +489,25 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
-static double get_bogomips(void) {
+static ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size) {
     int fd;
-    char buf[2048];
 
-    fd = ocall_open("/proc/cpuinfo", O_RDONLY, 0);
+    fd = ocall_open(filename, O_RDONLY, 0);
     if (fd < 0)
-        return 0.0;
+        return fd;
 
     /* Although the whole file might not fit in this size, the first cpu description should. */
-    ssize_t len = ocall_read(fd, buf, sizeof(buf) - 1);
+    ssize_t n = ocall_read(fd, buf, buf_size);
     ocall_close(fd);
+
+    return n;
+}
+
+static double get_bogomips(void) {
+    char buf[2048];
+    ssize_t len;
+
+    len = read_file_buffer("/proc/cpuinfo", buf, sizeof(buf) - 1);
     if (len < 0)
         return 0.0;
     buf[len] = 0;

@@ -394,14 +394,14 @@ static int get_cpu_count(void) {
     return cpu_count;
 }
 
-static ssize_t read_file_buffer(const char* filename, char* buf, size_t buflen) {
+static ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size) {
     int fd;
 
     fd = INLINE_SYSCALL(open, 2, filename, O_RDONLY);
     if (fd < 0)
         return fd;
 
-    ssize_t n = INLINE_SYSCALL(read, 3, fd, buf, buflen);
+    ssize_t n = INLINE_SYSCALL(read, 3, fd, buf, buf_size);
     INLINE_SYSCALL(close, 1, fd);
 
     return n;
