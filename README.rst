@@ -98,8 +98,10 @@ Graphene is *not a production-ready software* (yet)
 ===================================================
 
 We are still in a process of transition from a research proof-of-concept into a
-more reliable piece of software. The most important problems are tracked in
+more reliable piece of software. The most important problems (which include
+major security issues) are tracked in
 `#1544 (Production blockers) <https://github.com/oscarlab/graphene/issues/1544>`__.
+You should read it before installing and using Graphene.
 
 
 Getting help
