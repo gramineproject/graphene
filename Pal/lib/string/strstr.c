@@ -25,6 +25,9 @@ const char* strstr(const char* haystack, const char* needle) {
     if (n_len == 0)
         return haystack;
 
+    if (h_len < n_len)
+        return NULL;
+
     while (o <= h_len - n_len) {
         unsigned int i = 0;
         while (i < n_len && haystack[o + i] == needle[i])
