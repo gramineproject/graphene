@@ -93,7 +93,7 @@ int getenv_allow_outdated_tcb(bool* allow_outdated_tcb) {
         return 0;
 
     size_t size = strlen(str) + 1;
-    if (strncmp(str, "1", size) || strncmp(str, "true", size) || strncmp(str, "TRUE", size))
+    if (!strncmp(str, "1", size) || !strncmp(str, "true", size) || !strncmp(str, "TRUE", size))
         *allow_outdated_tcb = true;
 
     return 0;
