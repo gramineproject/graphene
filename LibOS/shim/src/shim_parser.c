@@ -1142,7 +1142,7 @@ static void parse_fcntlop(va_list* ap) {
 }
 
 static void parse_ioctlop(va_list* ap) {
-    int op = va_arg(*ap, int);
+    unsigned int op = va_arg(*ap, unsigned int);
 
     if (op >= TCGETS && op <= TIOCVHANGUP) {
         const char* opnames[] = {
