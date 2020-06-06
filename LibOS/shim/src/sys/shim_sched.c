@@ -203,14 +203,14 @@ int shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
     __UNUSED(unused);
 
     if (cpu) {
-        if (test_user_memory(cpu, sizeof(*cpu), true)) {
+        if (test_user_memory(cpu, sizeof(*cpu), /*write=*/true)) {
             return -EFAULT;
         }
         *cpu = 0;
     }
 
     if (node) {
-        if (test_user_memory(node, sizeof(*node), true)) {
+        if (test_user_memory(node, sizeof(*node), /*write=*/true)) {
             return -EFAULT;
         }
         *node = 0;

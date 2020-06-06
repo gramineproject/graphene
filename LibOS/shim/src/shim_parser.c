@@ -389,6 +389,7 @@ struct parser_table {
         [__NR_rt_tgsigqueueinfo] = {.slow = 0, .parser = {NULL}},
         [__NR_perf_event_open]   = {.slow = 0, .parser = {NULL}},
         [__NR_recvmmsg]          = {.slow = 0, .parser = {NULL}},
+        [__NR_getcpu]        = {.slow = 0, .parser = {NULL}},
 
         [LIBOS_SYSCALL_BASE] = {.slow = 0, .parser = {NULL}},
 
