@@ -26,6 +26,7 @@
 #include <shim_handle.h>
 #include <shim_vma.h>
 #include <shim_fs.h>
+#include <shim_context.h>
 #include <shim_checkpoint.h>
 #include <shim_utils.h>
 
@@ -139,7 +140,7 @@ static IDTYPE get_internal_pid (void)
     return idx;
 }
 
-struct shim_thread * alloc_new_thread (void)
+static struct shim_thread * alloc_new_thread (void)
 {
     struct shim_thread * thread = calloc(1, sizeof(struct shim_thread));
     if (!thread)
@@ -801,6 +802,9 @@ BEGIN_RS_FUNC(running_thread)
              * shim_tcb = NULL
              * in_vm = false
              */
+            if (thread->signal_handles)
+                thread_sigaction_reset_on_execve(thread);
+
             set_cur_thread(thread);
             debug_setbuf(thread->shim_tcb, false);
         }

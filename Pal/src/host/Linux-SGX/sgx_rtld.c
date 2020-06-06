@@ -26,6 +26,8 @@
 #include <api.h>
 #include <pal_internal.h>
 
+#include "sgx_internal.h"
+
 __asm__(".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
         ".byte 1\r\n"
         ".asciz \"" PAL_FILE("host/Linux-SGX/debugger/pal-gdb.py") "\"\r\n"

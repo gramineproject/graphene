@@ -15,7 +15,7 @@ int secondpid;
 
 int count = 0;
 
-void sighand1(int signum) {
+static void sighand1(int signum) {
     count++;
 #ifndef DO_BENCH
     printf("%d receive a SIGUSR (count = %d)\n", getpid(), count);
@@ -23,7 +23,7 @@ void sighand1(int signum) {
     kill(secondpid, SIGUSR1);
 }
 
-void sighand2(int signum) {
+static void sighand2(int signum) {
     count++;
 #ifndef DO_BENCH
     printf("%d receive a SIGUSR (count = %d)\n", getpid(), count);

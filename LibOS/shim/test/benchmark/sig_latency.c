@@ -16,7 +16,7 @@ int pids[TEST_TIMES][2];
 int firstpid;
 int secondpid;
 
-void sighand1(int signum, siginfo_t* sinfo, void* ucontext) {
+static void sighand1(int signum, siginfo_t* sinfo, void* ucontext) {
     count++;
 #ifndef DO_BENCH
     if (count % 100 == 0)
@@ -28,7 +28,7 @@ void sighand1(int signum, siginfo_t* sinfo, void* ucontext) {
     kill(secondpid, SIGUSR1);
 }
 
-void sighand2(int signum, siginfo_t* sinfo, void* ucontext) {
+static void sighand2(int signum, siginfo_t* sinfo, void* ucontext) {
     count++;
 #ifndef DO_BENCH
     if (count % 100 == 0)
@@ -42,7 +42,7 @@ void sighand2(int signum, siginfo_t* sinfo, void* ucontext) {
 
 void (*sighand)(int signum, siginfo_t* sinfo, void* ucontext) = NULL;
 
-void sigact(int signum, siginfo_t* sinfo, void* ucontext) {
+static void sigact(int signum, siginfo_t* sinfo, void* ucontext) {
     if (sighand)
         sighand(signum, sinfo, ucontext);
 }

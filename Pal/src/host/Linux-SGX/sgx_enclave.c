@@ -649,8 +649,6 @@ static long sgx_ocall_eventfd (void * pms)
     return ret;
 }
 
-void load_gdb_command (const char * command);
-
 static long sgx_ocall_load_debug(void * pms)
 {
     const char * command = (const char *) pms;

@@ -2,8 +2,10 @@
 #define _SHIM_TCB_H_
 
 #include <assert.h>
-#include <atomic.h>
-#include <pal.h>
+
+#include "api.h"
+#include "atomic.h"
+#include "pal.h"
 
 #include "shim_tcb-arch.h"
 
@@ -53,86 +55,6 @@ struct shim_tcb {
         bool has_fault;
     } test_range;
 };
-
-#define SHIM_TCB_GET(member)                                            \
-    ({                                                                  \
-        shim_tcb_t* tcb;                                                \
-        __typeof__(tcb->member) ret;                                    \
-        static_assert(sizeof(ret) == 8 ||                               \
-                      sizeof(ret) == 4 ||                               \
-                      sizeof(ret) == 2 ||                               \
-                      sizeof(ret) == 1,                                 \
-                      "SHIM_TCB_GET can be used only for "              \
-                      "8, 4, 2, or 1-byte(s) members");                 \
-        switch (sizeof(ret)) {                                          \
-        case 8:                                                         \
-            __asm__("movq %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        case 4:                                                         \
-            __asm__("movl %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        case 2:                                                         \
-            __asm__("movw %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        case 1:                                                         \
-            __asm__("movb %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        default:                                                        \
-            __abort();                                                  \
-        }                                                               \
-        ret;                                                            \
-    })
-
-#define SHIM_TCB_SET(member, value)                                     \
-    do {                                                                \
-        shim_tcb_t* tcb;                                                \
-        static_assert(sizeof(tcb->member) == 8 ||                       \
-                      sizeof(tcb->member) == 4 ||                       \
-                      sizeof(tcb->member) == 2 ||                       \
-                      sizeof(tcb->member) == 1,                         \
-                      "SHIM_TCB_SET can be used only for "              \
-                      "8, 4, 2, or 1-byte(s) members");                 \
-        switch (sizeof(tcb->member)) {                                  \
-        case 8:                                                         \
-            __asm__("movq %0, %%gs:%c1\n"                               \
-                    :: "ir"(value),                                     \
-                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
-            break;                                                      \
-        case 4:                                                         \
-            __asm__("movl %0, %%gs:%c1\n"                               \
-                    :: "ir"(value),                                     \
-                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
-            break;                                                      \
-        case 2:                                                         \
-            __asm__("movw %0, %%gs:%c1\n"                               \
-                    :: "ir"(value),                                     \
-                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
-            break;                                                      \
-        case 1:                                                         \
-            __asm__("movb %0, %%gs:%c1\n"                               \
-                    :: "ir"(value),                                     \
-                     "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
-            break;                                                      \
-        default:                                                        \
-            __abort();                                                  \
-        }                                                               \
-    } while (0)
 
 static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
     shim_tcb->canary = SHIM_TCB_CANARY;

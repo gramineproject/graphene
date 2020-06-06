@@ -14,13 +14,13 @@
 
 __thread int mypid = 0;
 
-unsigned long gettls(void) {
+static unsigned long gettls(void) {
     unsigned long tls;
     syscall(__NR_arch_prctl, ARCH_GET_FS, &tls);
     return tls;
 }
 
-int thread_function(void* argument) {
+static int thread_function(void* argument) {
     mypid    = getpid();
     int* ptr = (int*)argument;
     printf("in the child: pid (%016lx) = %d\n", (unsigned long)&mypid, mypid);

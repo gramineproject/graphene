@@ -20,18 +20,20 @@
  * Implementation of system calls "fork" and "vfork".
  */
 
+#include "shim_fork.h"
+
 #include <errno.h>
 #include <linux/futex.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_thread.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_table.h"
+#include "shim_thread.h"
 
 static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread, struct shim_process* process) {
     DEFINE_MIGRATE(process, process, sizeof(struct shim_process));

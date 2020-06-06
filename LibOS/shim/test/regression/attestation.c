@@ -22,7 +22,9 @@ char user_report_data_str[] = "This is user-provided report data";
 
 enum { SUCCESS = 0, FAILURE = -1 };
 
-ssize_t rw_file(const char* path, char* buf, size_t bytes, bool do_write) {
+ssize_t (*rw_file_f)(const char* path, char* buf, size_t bytes, bool do_write);
+
+static ssize_t rw_file_posix(const char* path, char* buf, size_t bytes, bool do_write) {
     ssize_t rv = 0;
     ssize_t ret = 0;
 
@@ -66,6 +68,56 @@ out:
     if (ret < 0) {
         fprintf(stderr, "closing %s failed\n", path);
         return ret;
+    }
+    return rv;
+}
+
+static ssize_t rw_file_stdio(const char* path, char* buf, size_t bytes, bool do_write) {
+    size_t rv = 0;
+    size_t ret = 0;
+
+    FILE* f = fopen(path, do_write ? "wb" : "rb");
+    if (!f) {
+        fprintf(stderr, "opening %s failed\n", path);
+        return -1;
+    }
+
+    while (bytes > rv) {
+        if (do_write)
+            ret = fwrite(buf + rv, /*size=*/1, /*nmemb=*/bytes - rv, f);
+        else
+            ret = fread(buf + rv, /*size=*/1, /*nmemb=*/bytes - rv, f);
+
+        if (ret > 0) {
+            rv += ret;
+        } else {
+            if (feof(f)) {
+                if (rv) {
+                    /* read some bytes from file, success */
+                    break;
+                }
+                assert(rv == 0);
+                fprintf(stderr, "%s failed: unexpected end of file\n", do_write ? "write" : "read");
+                fclose(f);
+                return -1;
+            }
+
+            assert(ferror(f));
+
+            if (errno == EAGAIN || errno == EINTR) {
+                continue;
+            }
+
+            fprintf(stderr, "%s failed: %s\n", do_write ? "write" : "read", strerror(errno));
+            fclose(f);
+            return -1;
+        }
+    }
+
+    int close_ret = fclose(f);
+    if (close_ret) {
+        fprintf(stderr, "closing %s failed\n", path);
+        return -1;
     }
     return rv;
 }
@@ -133,18 +185,18 @@ static int test_local_attestation(void) {
 
     /* 1. read `my_target_info` file */
     sgx_target_info_t target_info;
-    bytes = rw_file("/dev/attestation/my_target_info", (char*)&target_info, sizeof(target_info),
-                    /*do_write=*/false);
+    bytes = rw_file_f("/dev/attestation/my_target_info", (char*)&target_info, sizeof(target_info),
+                      /*do_write=*/false);
     if (bytes != sizeof(target_info)) {
-        /* error is already printed by rw_file() */
+        /* error is already printed by rw_file_f() */
         return FAILURE;
     }
 
     /* 2. write data from `my_target_info` to `target_info` file */
-    bytes = rw_file("/dev/attestation/target_info", (char*)&target_info, sizeof(target_info),
-                    /*do_write=*/true);
+    bytes = rw_file_f("/dev/attestation/target_info", (char*)&target_info, sizeof(target_info),
+                      /*do_write=*/true);
     if (bytes != sizeof(target_info)) {
-        /* error is already printed by rw_file() */
+        /* error is already printed by rw_file_f() */
         return FAILURE;
     }
 
@@ -155,18 +207,19 @@ static int test_local_attestation(void) {
 
     memcpy((void*)&user_report_data, (void*)user_report_data_str, sizeof(user_report_data_str));
 
-    bytes = rw_file("/dev/attestation/user_report_data", (char*)&user_report_data,
-                    sizeof(user_report_data), /*do_write=*/true);
+    bytes = rw_file_f("/dev/attestation/user_report_data", (char*)&user_report_data,
+                      sizeof(user_report_data), /*do_write=*/true);
     if (bytes != sizeof(user_report_data)) {
-        /* error is already printed by rw_file() */
+        /* error is already printed by rw_file_f() */
         return FAILURE;
     }
 
     /* 4. read `report` file */
     sgx_report_t report;
-    bytes = rw_file("/dev/attestation/report", (char*)&report, sizeof(report), /*do_write=*/false);
+    bytes = rw_file_f("/dev/attestation/report", (char*)&report, sizeof(report),
+                      /*do_write=*/false);
     if (bytes != sizeof(report)) {
-        /* error is already printed by rw_file() */
+        /* error is already printed by rw_file_f() */
         return FAILURE;
     }
 
@@ -232,17 +285,18 @@ static int test_quote_interface(void) {
 
     memcpy((void*)&user_report_data, (void*)user_report_data_str, sizeof(user_report_data_str));
 
-    bytes = rw_file("/dev/attestation/user_report_data", (char*)&user_report_data,
-                    sizeof(user_report_data), /*do_write=*/true);
+    bytes = rw_file_f("/dev/attestation/user_report_data", (char*)&user_report_data,
+                      sizeof(user_report_data), /*do_write=*/true);
     if (bytes != sizeof(user_report_data)) {
-        /* error is already printed by rw_file() */
+        /* error is already printed by rw_file_f() */
         return FAILURE;
     }
 
     /* 2. read `quote` file */
-    bytes = rw_file("/dev/attestation/quote", (char*)&g_quote, sizeof(g_quote), /*do_write=*/false);
+    bytes = rw_file_f("/dev/attestation/quote", (char*)&g_quote, sizeof(g_quote),
+                      /*do_write=*/false);
     if (bytes < 0) {
-        /* error is already printed by rw_file() */
+        /* error is already printed by rw_file_f() */
         return FAILURE;
     }
 
@@ -271,15 +325,17 @@ static int test_quote_interface(void) {
 }
 
 int main(int argc, char** argv) {
-    if (argc == 1) {
-        /* for debugging, we skip this test by adding any command-line arg */
-        printf("Test resource leaks in attestation filesystem... %s\n",
-               test_resource_leak() == SUCCESS ? "SUCCESS" : "FAIL");
+    rw_file_f = rw_file_posix;
+    if (argc > 1) {
+        /* simple trick to test stdio-style interface to pseudo-files in our tests */
+        rw_file_f = rw_file_stdio;
     }
 
     printf("Test local attestation... %s\n",
            test_local_attestation() == SUCCESS ? "SUCCESS" : "FAIL");
     printf("Test quote interface... %s\n",
            test_quote_interface() == SUCCESS ? "SUCCESS" : "FAIL");
+    printf("Test resource leaks in attestation filesystem... %s\n",
+           test_resource_leak() == SUCCESS ? "SUCCESS" : "FAIL");
     return 0;
 }

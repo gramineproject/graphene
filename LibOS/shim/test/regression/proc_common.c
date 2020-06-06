@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-void* fn(void* arg) {
+static void* fn(void* arg) {
     /* not to consume CPU, each thread simply sleeps */
     sleep(10000);
     return NULL;

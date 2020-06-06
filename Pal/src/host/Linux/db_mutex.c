@@ -30,6 +30,7 @@
 #include <unistd.h>
 
 #include "api.h"
+#include "cpu.h"
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -92,7 +93,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     /* Spin and try to take lock.  Ignore any contribution this makes toward
      * the timeout.*/
     for (i = 0; i < iterations; i++) {
-        if (MUTEX_UNLOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
+        if (cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
             goto success;
         CPU_RELAX();
     }
@@ -105,7 +106,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     // Bump up the waiters count; we are probably going to block
     atomic_inc(&m->nwaiters);
 
-    while (MUTEX_LOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
+    while (!cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
         struct timespec waittime, *waittimep = NULL;
         if (timeout_us >= 0) {
             int64_t sec      = timeout_us / 1000000;
@@ -187,7 +188,7 @@ void _DkMutexRelease(PAL_HANDLE handle) {
     return;
 }
 
-bool _DkMutexIsLocked(struct mutex_handle* m) {
+static bool _DkMutexIsLocked(struct mutex_handle* m) {
     if (!m->locked) {
         return false;
     }

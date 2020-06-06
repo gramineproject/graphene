@@ -12,7 +12,7 @@ from regression import (
 
 class TC_00_Unittests(RegressionTestCase):
     def test_000_spinlock(self):
-        stdout, _ = self.run_binary(['spinlock'])
+        stdout, _ = self.run_binary(['spinlock'], timeout=20)
 
         self.assertIn('Test successful!', stdout)
 
@@ -104,6 +104,13 @@ class TC_01_Bootstrap(RegressionTestCase):
     def test_204_system(self):
         stdout, _ = self.run_binary(['system'], timeout=60)
         self.assertIn('hello from system', stdout)
+
+    def test_205_exec_fork(self):
+        stdout, _ = self.run_binary(['exec_fork'], timeout=60)
+        self.assertNotIn('Handled SIGCHLD', stdout)
+        self.assertIn('Set up handler for SIGCHLD', stdout)
+        self.assertIn('child exited with status: 0', stdout)
+        self.assertIn('test completed successfully', stdout)
 
     def test_210_exec_invalid_args(self):
         stdout, _ = self.run_binary(['exec_invalid_args'])
@@ -210,10 +217,16 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
         self.assertIn('file_check_policy succeeded', stdout)
 
 @unittest.skipUnless(HAS_SGX,
-    'This test is only meaningful on SGX PAL because only SGX supports attestation.')
+    'These tests are only meaningful on SGX PAL because only SGX supports attestation.')
 class TC_04_Attestation(RegressionTestCase):
     def test_000_attestation(self):
         stdout, _ = self.run_binary(['attestation'], timeout=60)
+        self.assertIn("Test resource leaks in attestation filesystem... SUCCESS", stdout)
+        self.assertIn("Test local attestation... SUCCESS", stdout)
+        self.assertIn("Test quote interface... SUCCESS", stdout)
+
+    def test_001_attestation_stdio(self):
+        stdout, _ = self.run_binary(['attestation', 'test_stdio'], timeout=60)
         self.assertIn("Test resource leaks in attestation filesystem... SUCCESS", stdout)
         self.assertIn("Test local attestation... SUCCESS", stdout)
         self.assertIn("Test quote interface... SUCCESS", stdout)

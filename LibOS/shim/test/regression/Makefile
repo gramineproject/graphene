@@ -10,6 +10,7 @@ c_executables = \
 	epoll_wait_timeout \
 	eventfd \
 	exec \
+	exec_fork \
 	exec_invalid_args \
 	exec_same \
 	exec_victim \

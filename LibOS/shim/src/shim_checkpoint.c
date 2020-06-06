@@ -20,7 +20,6 @@
  * This file contains codes for checkpoint / migration scheme of library OS.
  */
 
-#include "asm-offsets.h"
 #include <shim_internal.h>
 #include <shim_utils.h>
 #include <shim_thread.h>
@@ -486,8 +485,7 @@ next:
     return 0;
 }
 
-int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store * store)
-{
+static int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store* store) {
     int nentries = store->palhdl_nentries;
     if (!nentries)
         return 0;
@@ -517,9 +515,7 @@ int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store * store)
     return 0;
 }
 
-int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
-                               long rebase)
-{
+static int receive_handles_on_stream(struct palhdl_header* hdr, ptr_t base, long rebase) {
     struct shim_palhdl_entry * palhdl_entries =
                             (void *) (base + hdr->entoffset);
     int nentries = hdr->nentries;
@@ -932,45 +928,4 @@ out_unmap: ;
         bkeep_remove_tmp_vma(tmp_vma);
     }
     return ret;
-}
-
-void restore_context (struct shim_context * context)
-{
-    assert(context->regs);
-    struct shim_regs regs = *context->regs;
-    debug("restore context: SP = 0x%08lx, IP = 0x%08lx\n", regs.rsp, regs.rip);
-
-    /* don't clobber redzone. If sigaltstack is used,
-     * this area won't be clobbered by signal context */
-    *(unsigned long*) (regs.rsp - RED_ZONE_SIZE - 8) = regs.rip;
-
-    /* Ready to resume execution, re-enable preemption. */
-    shim_tcb_t * tcb = shim_get_tcb();
-    __enable_preempt(tcb);
-
-    unsigned long fs_base = context->fs_base;
-    memset(context, 0, sizeof(struct shim_context));
-    context->fs_base = fs_base;
-
-    __asm__ volatile("movq %0, %%rsp\r\n"
-                     "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */
-                     "popq %%r15\r\n"
-                     "popq %%r14\r\n"
-                     "popq %%r13\r\n"
-                     "popq %%r12\r\n"
-                     "popq %%r11\r\n"
-                     "popq %%r10\r\n"
-                     "popq %%r9\r\n"
-                     "popq %%r8\r\n"
-                     "popq %%rcx\r\n"
-                     "popq %%rdx\r\n"
-                     "popq %%rsi\r\n"
-                     "popq %%rdi\r\n"
-                     "popq %%rbx\r\n"
-                     "popq %%rbp\r\n"
-                     "popfq\r\n"
-                     "movq "XSTRINGIFY(SHIM_REGS_RSP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
-                     "movq $0, %%rax\r\n"
-                     "jmp *-"XSTRINGIFY(RED_ZONE_SIZE)"-8(%%rsp)\r\n"
-                     :: "g"(&regs) : "memory");
 }

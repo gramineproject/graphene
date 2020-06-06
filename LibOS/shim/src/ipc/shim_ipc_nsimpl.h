@@ -578,7 +578,7 @@ failed:
     return ret;
 }
 
-int CONCAT3(renew, NS, range)(IDTYPE idx, LEASETYPE* lease) {
+static int CONCAT3(renew, NS, range)(IDTYPE idx, LEASETYPE* lease) {
     IDTYPE off = (idx - 1) / RANGE_SIZE;
 
     lock(&range_map_lock);
@@ -596,7 +596,7 @@ int CONCAT3(renew, NS, range)(IDTYPE idx, LEASETYPE* lease) {
     return 0;
 }
 
-int CONCAT3(renew, NS, subrange)(IDTYPE idx, LEASETYPE* lease) {
+static int CONCAT3(renew, NS, subrange)(IDTYPE idx, LEASETYPE* lease) {
     IDTYPE off  = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
 

@@ -35,10 +35,6 @@
 #include <shim_unistd.h>
 #include <shim_utils.h>
 
-long int if_call_defined(long int sys_no) {
-    return shim_table[sys_no] != 0;
-}
-
 //////////////////////////////////////////////////
 //  Mappings from system calls to shim calls
 ///////////////////////////////////////////////////

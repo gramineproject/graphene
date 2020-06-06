@@ -34,6 +34,11 @@ typedef struct mutex_handle {
 #define LOCK_INIT {}
 #define INIT_LOCK(lock) do {} while (0)
 
+/* Locking and unlocking of mutexes */
+int _DkMutexLock(struct mutex_handle* mut);
+int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
+int _DkMutexUnlock(struct mutex_handle* mut);
+
 typedef struct pal_handle {
     /* TSAI: Here we define the internal types of PAL_HANDLE in PAL design, user has not to access
      * the content inside the handle, also there is no need to allocate the internal handles, so we

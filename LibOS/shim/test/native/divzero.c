@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void handler(int signal) {
+static void handler(int signal) {
     printf("get signal: %d\n", signal);
     exit(0);
 }

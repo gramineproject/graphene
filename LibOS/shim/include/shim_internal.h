@@ -38,8 +38,11 @@
 #include <assert.h>
 #include <atomic.h>
 #include <shim_defs.h>
+#include <shim_internal-arch.h>
 #include <shim_tcb.h>
 #include <shim_types.h>
+
+void* shim_init(int argc, void* args);
 
 noreturn void shim_clean_and_exit(int exit_code);
 
@@ -376,7 +379,29 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
         __UNUSED(__arg6);                       \
     } while (0)
 
+#define SHIM_SYSCALL_PROTO_0(NAME, RTYPE) \
+    RTYPE shim_##NAME(void)
+
+#define SHIM_SYSCALL_PROTO_1(NAME, RTYPE, T1, P1) \
+    RTYPE shim_##NAME(T1 P1)
+
+#define SHIM_SYSCALL_PROTO_2(NAME, RTYPE, T1, P1, T2, P2) \
+    RTYPE shim_##NAME(T1 P1, T2 P2)
+
+#define SHIM_SYSCALL_PROTO_3(NAME, RTYPE, T1, P1, T2, P2, T3, P3) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3)
+
+#define SHIM_SYSCALL_PROTO_4(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4)
+
+#define SHIM_SYSCALL_PROTO_5(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4, T5 P5)
+
+#define SHIM_SYSCALL_PROTO_6(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5, T6, P6) \
+    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4, T5 P5, T6 P6)
+
 #define SHIM_SYSCALL_RETURN_ENOSYS(name, n, ...)                                   \
+    SHIM_SYSCALL_PROTO_##n(name, __VA_ARGS__);                                     \
     BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                                          \
         debug("WARNING: syscall " #name " not implemented. Returning -ENOSYS.\n"); \
         SHIM_UNUSED_ARGS_##n();                                                    \
@@ -639,7 +664,7 @@ static inline int __ref_inc (REFTYPE * ref)
     do {
         _c = atomic_read(ref);
         assert(_c >= 0);
-    } while (atomic_cmpxchg(ref, _c, _c + 1) != _c);
+    } while (!atomic_cmpxchg(ref, _c, _c + 1));
     return _c + 1;
 }
 
@@ -655,7 +680,7 @@ static inline int __ref_dec (REFTYPE * ref)
             BUG();
             return 0;
         }
-    } while (atomic_cmpxchg(ref, _c, _c - 1) != _c);
+    } while (!atomic_cmpxchg(ref, _c, _c - 1));
     return _c - 1;
 }
 
@@ -717,30 +742,5 @@ int object_wait_with_retry(PAL_HANDLE handle);
 void release_clear_child_tid(int* clear_child_tid);
 
 void delete_from_epoll_handles(struct shim_handle* handle);
-
-#ifdef __x86_64__
-#define __SWITCH_STACK(stack_top, func, arg)                    \
-    do {                                                        \
-        /* 16 Bytes align of stack */                           \
-        uintptr_t __stack_top = (uintptr_t)(stack_top);         \
-        __stack_top &= ~0xf;                                    \
-        __stack_top -= 8;                                       \
-        __asm__ volatile (                                      \
-            "movq %0, %%rbp\n"                                  \
-            "movq %0, %%rsp\n"                                  \
-            "jmpq *%1\n"                                        \
-            ::"r"(__stack_top), "r"(func), "D"(arg): "memory"); \
-    } while (0)
-
-static_always_inline void * current_stack(void)
-{
-    void * _rsp;
-    __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");
-    return _rsp;
-}
-
-#else
-# error "Unsupported architecture"
-#endif /* __x86_64__ */
 
 #endif /* _PAL_INTERNAL_H_ */

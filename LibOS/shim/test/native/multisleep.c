@@ -13,7 +13,7 @@
 
 int proc;
 
-int thread_function(void* arg) {
+static int thread_function(void* arg) {
     int thread = (int)((unsigned long)arg);
     printf("in process %d thread %d\n", proc, thread);
     for (int i = 0; i < SLEEP_TIME; i++) {

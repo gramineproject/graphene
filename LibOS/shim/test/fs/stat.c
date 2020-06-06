@@ -1,6 +1,6 @@
 #include "common.h"
 
-void file_stat(const char* file_path, bool writable) {
+static void file_stat(const char* file_path, bool writable) {
     struct stat st;
     const char* type = writable ? "output" : "input";
 

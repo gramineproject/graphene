@@ -540,24 +540,6 @@ off_t get_file_size(struct shim_handle* hdl) {
     return 0;
 }
 
-void dup_fd_handle(struct shim_handle_map* map, const struct shim_fd_handle* old,
-                   struct shim_fd_handle* new) {
-    struct shim_handle* replaced = NULL;
-
-    lock(&map->lock);
-
-    if (old->vfd != FD_NULL) {
-        get_handle(old->handle);
-        replaced    = new->handle;
-        new->handle = old->handle;
-    }
-
-    unlock(&map->lock);
-
-    if (replaced)
-        put_handle(replaced);
-}
-
 static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
     struct shim_handle_map* handle_map = calloc(1, sizeof(struct shim_handle_map));
 
