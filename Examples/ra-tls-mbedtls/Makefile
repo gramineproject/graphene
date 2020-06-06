@@ -143,6 +143,7 @@ check_epid: app epid
 	LD_PRELOAD="$(PWD)/libra_tls_verify_epid.so" ./client > OUTPUT; \
 	LD_PRELOAD="$(PWD)/libra_tls_verify_epid.so" ./client 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
+	cat OUTPUT
 	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
 	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
 	@grep -q "Verifying peer X.509 certificate... ok" OUTPUT && echo "[ Success 3/4 ]"
