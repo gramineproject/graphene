@@ -4,7 +4,7 @@
 
 # Executable to load into Graphene and run.
 loader.exec = file:$(CURL_DIR)curl
-loader.execname = file:curl
+loader.execname = curl
 
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so. 

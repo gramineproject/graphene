@@ -6,7 +6,7 @@
 # The executable to load in Graphene. We replace EXECPATH and EXECNAME for
 # each program that a manifest is generated for.
 loader.exec = file:$(EXECPATH)
-loader.execname = file:$(EXECNAME)
+loader.execname = $(EXECNAME)
 
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).

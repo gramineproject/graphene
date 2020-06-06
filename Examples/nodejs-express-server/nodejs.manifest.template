@@ -4,7 +4,7 @@
 
 # Executable to load into Graphene and run.
 loader.exec = file:$(NODEJS_DIR)nodejs
-loader.execname = file:nodejs
+loader.execname = nodejs
 
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so.
