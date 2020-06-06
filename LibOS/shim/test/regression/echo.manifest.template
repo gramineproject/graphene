@@ -1,5 +1,5 @@
 loader.exec = file:/bin/echo
-loader.execname = file:echo
+loader.execname = echo
 
 loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
