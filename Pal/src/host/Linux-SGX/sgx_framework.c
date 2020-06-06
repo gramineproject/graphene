@@ -52,7 +52,10 @@ int read_enclave_token(int token_file, sgx_arch_token_t * token)
     if (IS_ERR(bytes))
         return -ERRNO(bytes);
 
-    SGX_DBG(DBG_I, "read token:\n");
+#ifdef SGX_DCAP
+    SGX_DBG(DBG_I, "Read dummy DCAP token\n");
+#else
+    SGX_DBG(DBG_I, "Read token:\n");
     SGX_DBG(DBG_I, "    valid:                 0x%08x\n",   token->body.valid);
     SGX_DBG(DBG_I, "    attr.flags:            0x%016lx\n", token->body.attributes.flags);
     SGX_DBG(DBG_I, "    attr.xfrm:             0x%016lx\n", token->body.attributes.xfrm);
@@ -64,6 +67,7 @@ int read_enclave_token(int token_file, sgx_arch_token_t * token)
     SGX_DBG(DBG_I, "    LE masked_misc_select: 0x%08x\n",   token->masked_misc_select_le);
     SGX_DBG(DBG_I, "    LE attr.flags:         0x%016lx\n", token->attributes_le.flags);
     SGX_DBG(DBG_I, "    LE attr.xfrm:          0x%016lx\n", token->attributes_le.xfrm);
+#endif
 
     return 0;
 }
@@ -343,10 +347,7 @@ int init_enclave(sgx_arch_secs_t * secs,
 
     SGX_DBG(DBG_I, "enclave initializing:\n");
     SGX_DBG(DBG_I, "    enclave id:   0x%016lx\n", enclave_valid_addr);
-    SGX_DBG(DBG_I, "    enclave hash:");
-    for (size_t i = 0 ; i < sizeof(sgx_measurement_t) ; i++)
-        SGX_DBG(DBG_I, " %02x", sigstruct->body.enclave_hash.m[i]);
-    SGX_DBG(DBG_I, "\n");
+    SGX_DBG(DBG_I, "    mr_enclave:   %s\n", ALLOCA_BYTES2HEXSTR(sigstruct->body.enclave_hash.m));
 
     struct sgx_enclave_init param = {
 #ifndef SGX_DCAP_16_OR_LATER

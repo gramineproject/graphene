@@ -3,6 +3,7 @@
 
 import argparse
 import array
+import hashlib
 import os
 import socket
 import struct
@@ -163,7 +164,7 @@ argparser.add_argument('--sig', '-sig', metavar='SIGNATURE',
                        type=argparse.FileType('rb'), required=True,
                        help='Input .sig file (contains SIGSTRUCT)')
 argparser.add_argument('--output', '-output', metavar='OUTPUT',
-                       type=argparse.FileType('wb'), required=True,
+                       type=argparse.FileType('wb'), required=False,
                        help='Output .token file (contains EINITTOKEN)')
 
 
@@ -174,8 +175,13 @@ def main(args=None):
     attr = read_sigstruct(args.sig.read())
     set_optional_sgx_features(attr)
 
+    # calculate MRSIGNER as sha256 hash over RSA public key's modulus
+    mrsigner = hashlib.sha256()
+    mrsigner.update(attr['modulus'])
+
     print("Attributes:")
     print("    mr_enclave:  %s" % attr['enclave_hash'].hex())
+    print("    mr_signer:   %s" % mrsigner.digest().hex())
     print("    isv_prod_id: %d" % attr['isv_prod_id'])
     print("    isv_svn:     %d" % attr['isv_svn'])
     print("    attr.flags:  %016x" % int.from_bytes(attr['flags'], byteorder='big'))
@@ -192,7 +198,8 @@ def main(args=None):
     else:
         token = connect_aesmd(attr)
 
-    args.output.write(token)
+    if args.output:
+        args.output.write(token)
     return 0
 
 
