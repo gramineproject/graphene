@@ -2,6 +2,7 @@ loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 loader.debug_type = none
 loader.syscall_symbol = syscalldb
+loader.insecure__use_cmdline_argv = 1
 
 fs.mount.graphene_lib.type = chroot
 fs.mount.graphene_lib.path = /lib
