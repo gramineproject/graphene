@@ -43,11 +43,14 @@ class TC_01_Bootstrap(RegressionTestCase):
                                 stdout=subprocess.PIPE, check=True)
         with open('argv_test_input', 'wb') as f:
             f.write(result.stdout)
-        manifest = self.get_manifest('argv_from_file')
-        stdout, _ = self.run_binary([manifest, 'WRONG', 'ARGUMENTS'])
-        self.assertIn('# of Arguments: %d' % len(args), stdout)
-        for i, arg in enumerate(args):
-            self.assertIn('argv[%d] = %s' % (i, arg), stdout)
+        try:
+            manifest = self.get_manifest('argv_from_file')
+            stdout, _ = self.run_binary([manifest, 'WRONG', 'ARGUMENTS'])
+            self.assertIn('# of Arguments: %d' % len(args), stdout)
+            for i, arg in enumerate(args):
+                self.assertIn('argv[%d] = %s' % (i, arg), stdout)
+        finally:
+            os.remove('argv_test_input')
 
     @unittest.skipUnless(HAS_SGX,
         'This test is only meaningful on SGX PAL because only SGX catches raw '

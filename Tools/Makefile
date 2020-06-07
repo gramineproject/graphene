@@ -16,7 +16,7 @@ format:
 
 .PHONY: clean
 clean:
-	$(RM) argv_serializer
+	$(RM) argv_serializer *.d
 
 .PHONY: distclean
 distclean: clean
