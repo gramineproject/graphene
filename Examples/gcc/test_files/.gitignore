@@ -1,1 +1,7 @@
-bzip2.copy
+/bzip2
+/bzip2.c
+/bzip2.copy
+/gzip
+/gzip.c
+/gzip_broken.c
+/hello

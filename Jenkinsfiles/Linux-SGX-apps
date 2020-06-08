@@ -139,7 +139,7 @@ pipeline {
                            make -C Examples/python-scipy-insecure SGX=1 clean
                            make -C Examples/bash SGX=1 clean
                            make -C Examples/curl SGX=1 clean
-                           make -C Examples/gcc SGX=1 clean
+                           make -C Examples/gcc SGX=1 distclean
                            make -C Examples/lmbench SGX=1 distclean
                            make -C Examples/redis SGX=1 distclean
                            make -C Examples/lighttpd SGX=1 distclean

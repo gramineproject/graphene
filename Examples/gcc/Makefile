@@ -3,6 +3,10 @@ THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 # Relative path to Graphene root
 GRAPHENEDIR ?= $(THIS_DIR)../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
+BZIP2_URL ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/bzip2.c
+BZIP2_HASH ?= 89f331ce93cbf0ee7318802f440f1d7594bb78cf1a82069f2288e0459ec8d729
+GZIP_URL ?= https://people.csail.mit.edu/smcc/projects/single-file-programs/gzip.c
+GZIP_HASH ?= 7ec7d87822e6497648580064756f64e47dbd085727910ebbc52a7c240a88dc27
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
@@ -22,9 +26,9 @@ GCC_LIB_PATH ?= /usr/lib/gcc/$(ARCH_LONG)
 
 .PHONY: all
 ifeq ($(SGX),1)
-all: $(addsuffix .token, $(TOOLS)) pal_loader
+all: $(addsuffix .token, $(TOOLS)) pal_loader test_files/bzip2.c test_files/gzip.c
 else
-all: $(addsuffix .manifest, $(TOOLS)) pal_loader
+all: $(addsuffix .manifest, $(TOOLS)) pal_loader test_files/bzip2.c test_files/gzip.c
 endif
 
 %.manifest: %.manifest.template
@@ -68,6 +72,16 @@ pal_loader:
 gcc.manifest.sgx: as.sig cc1.sig collect2.sig
 collect2.manifest.sgx: ld.sig
 cc1.manifest: cc1-trusted-libs
+
+test_files/bzip2.c:
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(BZIP2_HASH) --url $(BZIP2_URL)
+
+# the file hosted by the authors doesn't compile...
+test_files/gzip_broken.c:
+	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(GZIP_HASH) --url $(GZIP_URL)
+
+test_files/gzip.c: test_files/gzip_broken.c test_files/gzip.patch
+	patch test_files/gzip_broken.c -i test_files/gzip.patch -o $@
 
 # We need to replace Glibc dependencies with Graphene-specific Glibc. The Glibc
 # binaries are already listed in the manifest template, so we can skip them
@@ -124,7 +138,8 @@ check: all
 clean:
 	$(RM) *.manifest *.manifest.sgx *.sig *.token pal_loader
 	$(RM) *-deps *-ldd *-trusted-libs
-	$(RM) test_files/bzip2.copy
+	$(RM) test_files/gzip.copy test_files/bzip2.copy
 
 .PHONY: distclean
 distclean: clean
+	$(RM) test_files/gzip_broken.c test_files/bzip2.c test_files/gzip.c
