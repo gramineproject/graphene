@@ -31,33 +31,10 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-#define INIT_EVENT_HANDLER { .lock = LOCK_INIT, .upcall = NULL }
-
-struct pal_event_handler {
-    PAL_LOCK lock;
-    PAL_EVENT_HANDLER upcall;
-};
-
-struct pal_event_handler handlers[] = {
-    [0]                          = INIT_EVENT_HANDLER,
-    [PAL_EVENT_ARITHMETIC_ERROR] = INIT_EVENT_HANDLER,
-    [PAL_EVENT_MEMFAULT]         = INIT_EVENT_HANDLER,
-    [PAL_EVENT_ILLEGAL]          = INIT_EVENT_HANDLER,
-    [PAL_EVENT_QUIT]             = INIT_EVENT_HANDLER,
-    [PAL_EVENT_SUSPEND]          = INIT_EVENT_HANDLER,
-    [PAL_EVENT_RESUME]           = INIT_EVENT_HANDLER,
-    [PAL_EVENT_FAILURE]          = INIT_EVENT_HANDLER,
-    [PAL_EVENT_PIPE]             = INIT_EVENT_HANDLER,
-};
+PAL_EVENT_HANDLER handlers[PAL_EVENT_NUM_BOUND] = { 0 };
 
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event) {
-    struct pal_event_handler* eh = &handlers[event];
-
-    _DkInternalLock(&eh->lock);
-    PAL_EVENT_HANDLER upcall = eh->upcall;
-    _DkInternalUnlock(&eh->lock);
-
-    return upcall;
+    return __atomic_load_n(&handlers[event], __ATOMIC_ACQUIRE);
 }
 
 PAL_BOL
@@ -69,12 +46,7 @@ DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    struct pal_event_handler* eh = &handlers[event];
-
-    _DkInternalLock(&eh->lock);
-    eh->upcall = handler;
-    _DkInternalUnlock(&eh->lock);
-
+    __atomic_store_n(&handlers[event], handler, __ATOMIC_RELEASE);
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
