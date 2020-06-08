@@ -24,7 +24,6 @@
 #include <linux/time.h>
 
 #include "api.h"
-#include "gsgx.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
