@@ -11,12 +11,12 @@ set -um
 
 # TODO support more options: peak, footprint, sampling rate, etc.
 
-pgid=`ps -o pgid= $$`
+pgid=$(ps -o pgid= $$)
 
-command="$@"
+command="$*"
 
 # make sure we're in a separate process group
-if [ $pgid = $(ps -o pgid= $(ps -o ppid= $$)) ]; then
+if [ "$pgid" = "$(ps -o pgid= $(ps -o ppid= $$))" ]; then
     cmd=
     set -- "$0" "$@"
     for a; do cmd+="'${a//"'"/"'\\''"}' "; done
