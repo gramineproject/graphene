@@ -1,0 +1,4 @@
+2020c2020
+< static char *
+---
+> char *
