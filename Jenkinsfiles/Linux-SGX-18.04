@@ -49,6 +49,10 @@ pipeline {
                             make distclean
                         '''
                         sh '''
+                           cd Pal/src/host/Linux-SGX/sgx-driver
+                           ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ./link-sgx-driver.py
+                        '''
+                        sh '''
                             make -j 8 SGX=1 WERROR=1
                             make -j 8 SGX=1 WERROR=1 test
                         '''
