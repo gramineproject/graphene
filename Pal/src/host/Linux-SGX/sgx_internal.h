@@ -156,4 +156,6 @@ int block_async_signals (bool block);
 
 void load_gdb_command(const char* command);
 
+void set_unique_thread_affinity_hack(void);
+
 #endif

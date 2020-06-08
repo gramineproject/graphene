@@ -154,6 +154,8 @@ int pal_thread_init(void* tcbptr) {
         }
     }
 
+    set_unique_thread_affinity_hack();
+
     int tid = INLINE_SYSCALL(gettid, 0);
     map_tcs(tid);  /* updates tcb->tcs */
 

@@ -744,6 +744,28 @@ static int get_cpu_count(void) {
     return cpu_count;
 }
 
+/* FIXME: hack to set thread affinity to a single CPU in a round-robin fashion */
+void set_unique_thread_affinity_hack(void) {
+    static int cur_thread_id = 0;
+    static int cpu_count     = 0;
+
+    int prev = __atomic_fetch_add(&cur_thread_id, 1, __ATOMIC_SEQ_CST);
+
+    if (prev == 0) {
+        /* first thread, let's init */
+        cpu_count = get_cpu_count();
+    }
+
+    assert(cpu_count > 0);
+    int cur_thread_cpu = prev % cpu_count;
+
+    uint8_t cpuset[128] = {0};
+    cpuset[cur_thread_cpu / 8] |= 1 << (cur_thread_cpu % 8);
+
+    int ret = INLINE_SYSCALL(sched_setaffinity, 3, /*pid=*/0, 128, (unsigned long*)cpuset);
+    assert(ret == 0);
+}
+
 static int load_enclave (struct pal_enclave * enclave,
                          int manifest_fd,
                          char * manifest_uri,
