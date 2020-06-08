@@ -126,9 +126,9 @@ pipeline {
                                 make SGX=1 check
                             '''
                         }
-                        sh '''
-                           ./Scripts/gitignore-test
-                        '''
+#                        sh '''
+#                           ./Scripts/gitignore-test
+#                        '''
                         sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
