@@ -221,7 +221,7 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
     if (event_num == -1)
         return;
 
-    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    uintptr_t rip = pal_ucontext_get_ip(uc);
     if (ADDR_IN_PAL(rip)) {
         // We expect none of the memory faults, illegal instructions, or arithmetic exceptions
         // will happen in PAL. If these exceptions happen in PAL, exit the thread with loud warning.
@@ -263,7 +263,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
     if (event_num == -1)
         return;
 
-    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    uintptr_t rip = pal_ucontext_get_ip(uc);
 
     // If the signal arrives in the middle of a PAL call, add the event
     // to pending in the current TCB.
