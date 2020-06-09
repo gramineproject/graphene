@@ -152,6 +152,10 @@ static inline void pal_context_to_ucontext(ucontext_t* uc, PAL_CONTEXT* context)
     uc->uc_mcontext.fpregs = (struct _libc_fpstate*)context->fpregs;
 }
 
+static inline uint64_t pal_ucontext_get_ip(ucontext_t* uc) {
+    return uc->uc_mcontext.gregs[REG_RIP];
+}
+
 #else /* __WORDSIZE == 32 */
 
 /* Type for general register.  */

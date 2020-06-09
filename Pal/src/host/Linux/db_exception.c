@@ -141,7 +141,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     int event = get_pal_event(signum);
     assert(event > 0);
 
-    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    uintptr_t rip = pal_ucontext_get_ip(uc);
     if (!ADDR_IN_PAL(rip)) {
         /* exception happened in application or LibOS code, normal benign case */
         perform_signal_handling(event, info, uc);
@@ -174,8 +174,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     int event = get_pal_event(signum);
     assert(event > 0);
 
-    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
-
+    uintptr_t rip = pal_ucontext_get_ip(uc);
     if (!ADDR_IN_PAL(rip)) {
         /* signal arrived while in application or LibOS code, normal benign case */
         perform_signal_handling(event, info, uc);

@@ -127,7 +127,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+    unsigned long rip = pal_ucontext_get_ip(uc);
 
     if (rip != (unsigned long)async_exit_pointer) {
         /* exception happened in untrusted PAL code (during syscall handling): fatal in Graphene */
@@ -162,7 +162,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+    unsigned long rip = pal_ucontext_get_ip(uc);
 
     if (rip != (unsigned long)async_exit_pointer) {
         /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if
