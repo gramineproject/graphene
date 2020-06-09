@@ -49,23 +49,21 @@ static int getenv_enclave_measurements(sgx_measurement_t* mrsigner, bool* valida
     const char* isv_svn_dec;
 
     /* any of the below variables may be NULL (and then not used in validation) */
-    mrsigner_hex    = getenv(RA_TLS_MRSIGNER);
-    mrenclave_hex   = getenv(RA_TLS_MRENCLAVE);
-    isv_prod_id_dec = getenv(RA_TLS_ISV_PROD_ID);
-    isv_svn_dec     = getenv(RA_TLS_ISV_SVN);
-
+    mrsigner_hex = getenv(RA_TLS_MRSIGNER);
     if (mrsigner_hex) {
         if (parse_hex(mrsigner_hex, mrsigner, sizeof(*mrsigner)) != 0)
             return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
         *validate_mrsigner = true;
     }
 
+    mrenclave_hex = getenv(RA_TLS_MRENCLAVE);
     if (mrenclave_hex) {
         if (parse_hex(mrenclave_hex, mrenclave, sizeof(*mrenclave)) != 0)
             return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
         *validate_mrenclave = true;
     }
 
+    isv_prod_id_dec = getenv(RA_TLS_ISV_PROD_ID);
     if (isv_prod_id_dec) {
         errno = 0;
         *isv_prod_id = strtoul(isv_prod_id_dec, NULL, 10);
@@ -74,6 +72,7 @@ static int getenv_enclave_measurements(sgx_measurement_t* mrsigner, bool* valida
         *validate_isv_prod_id = true;
     }
 
+    isv_svn_dec = getenv(RA_TLS_ISV_SVN);
     if (isv_svn_dec) {
         errno = 0;
         *isv_svn = strtoul(isv_svn_dec, NULL, 10);
@@ -92,8 +91,7 @@ int getenv_allow_outdated_tcb(bool* allow_outdated_tcb) {
     if (!str)
         return 0;
 
-    size_t size = strlen(str) + 1;
-    if (!strncmp(str, "1", size) || !strncmp(str, "true", size) || !strncmp(str, "TRUE", size))
+    if (!strcmp(str, "1") || !strcmp(str, "true") || !strcmp(str, "TRUE"))
         *allow_outdated_tcb = true;
 
     return 0;
@@ -188,10 +186,9 @@ int cmp_crt_pk_against_quote_report_data(mbedtls_x509_crt* crt, sgx_quote_t* quo
     return 0;
 }
 
-int ra_tls_measurement_callback(int (*function_cb)(const char* mrenclave, const char* mrsigner,
-                                                   const char* isv_prod_id, const char* isv_svn)) {
-    g_verify_measurements_cb = function_cb;
-    return 0;
+void ra_tls_set_measurement_callback(int (*f_cb)(const char* mrenclave, const char* mrsigner,
+                                                 const char* isv_prod_id, const char* isv_svn)) {
+    g_verify_measurements_cb = f_cb;
 }
 
 int ra_tls_verify_callback_der(uint8_t* der_crt, size_t der_crt_size) {

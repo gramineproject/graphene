@@ -70,14 +70,14 @@ int verify_quote_against_envvar_measurements(const void* quote, size_t quote_siz
  * callback is registered (or registered as NULL), then RA-TLS defaults to verifying SGX
  * measurements against `RA_TLS_*` environment variables (if any).
  *
- * \param[in] function_cb  Callback for user-specific verification; RA-TLS passes pointers to
- *                         MRENCLAVE, MRSIGNER, ISV_PROD_ID, ISV_SVN measurements in SGX quote.
- *                         Use NULL to revert to default behavior of RA-TLS.
+ * \param[in] f_cb  Callback for user-specific verification; RA-TLS passes pointers to MRENCLAVE,
+ *                  MRSIGNER, ISV_PROD_ID, ISV_SVN measurements in SGX quote. Use NULL to revert to
+ *                  default behavior of RA-TLS.
  *
- * \return           0 on success, specific error code (negative int) otherwise.
+ * \return          0 on success, specific error code (negative int) otherwise.
  */
 __attribute__ ((visibility("default"))) __attribute__((weak))
-int ra_tls_measurement_callback(verify_measurements_cb_t function_cb);
+void ra_tls_set_measurement_callback(verify_measurements_cb_t f_cb);
 
 /*!
  * \brief mbedTLS-suitable verification callback for EPID-based (IAS) or ECDSA-based (DCAP)
@@ -140,7 +140,7 @@ int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
  * \param[out] der_key       Pointer to buffer populated with generated RSA keypair in DER format.
  * \param[out] der_key_size  Pointer to size of generated RSA keypair.
  * \param[out] der_crt       Pointer to buffer populated with self-signed RA-TLS certificate.
- * \param[out] der_crt_size  Pointer to size of self-signed RA-TLS certicate.
+ * \param[out] der_crt_size  Pointer to size of self-signed RA-TLS certificate.
  *
  * \return                   0 on success, specific mbedTLS error code (negative int) otherwise.
  */

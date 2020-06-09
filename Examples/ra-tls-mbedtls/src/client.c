@@ -50,8 +50,8 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
 
 /* RA-TLS: if specified in command-line options, use our own callback to verify SGX measurements */
 __attribute__((weak))
-int ra_tls_measurement_callback(int (*function_cb)(const char* mrenclave, const char* mrsigner,
-                                                   const char* isv_prod_id, const char* isv_svn));
+void ra_tls_set_measurement_callback(int (*f_cb)(const char* mrenclave, const char* mrsigner,
+                                                 const char* isv_prod_id, const char* isv_svn));
 
 #define SERVER_PORT "4433"
 #define SERVER_NAME "localhost"
@@ -66,7 +66,7 @@ static void my_debug(void* ctx, int level, const char* file, int line, const cha
     fflush((FILE*)ctx);
 }
 
-int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
+static int parse_hex(const char* hex, void* buffer, size_t buffer_size) {
     if (strlen(hex) != buffer_size * 2)
         return -1;
 
@@ -138,8 +138,9 @@ int main(int argc, char** argv) {
     mbedtls_ssl_config_init(&conf);
     mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_x509_crt_init(&cacert);
+    mbedtls_entropy_init(&entropy);
 
-    if (argc > 1 && ra_tls_measurement_callback) {
+    if (argc > 1 && ra_tls_set_measurement_callback) {
         if (argc != 5) {
             mbedtls_printf("USAGE: %s <expected mrenclave> <expected mrsigner>"
                            " <expected isv_prod_id> <expected isv_svn>\n"
@@ -156,37 +157,51 @@ int main(int argc, char** argv) {
         g_verify_isv_prod_id = true;
         g_verify_isv_svn     = true;
 
-        (void)ra_tls_measurement_callback(my_verify_measurements);
+        ra_tls_set_measurement_callback(my_verify_measurements);
 
-        if (parse_hex(argv[1], g_expected_mrenclave, sizeof(g_expected_mrenclave)) < 0) {
-            mbedtls_printf("  - cannot parse MRENCLAVE, ignoring it\n");
+        if (!strcmp(argv[1], "0")) {
+            mbedtls_printf("  - ignoring MRENCLAVE\n");
             g_verify_mrenclave = false;
+        } else if (parse_hex(argv[1], g_expected_mrenclave, sizeof(g_expected_mrenclave)) < 0) {
+            mbedtls_printf("Cannot parse MRENCLAVE!\n");
+            return 1;
         }
 
-        if (parse_hex(argv[2], g_expected_mrsigner, sizeof(g_expected_mrsigner)) < 0) {
-            mbedtls_printf("  - cannot parse MRSIGNER, ignoring it\n");
+        if (!strcmp(argv[2], "0")) {
+            mbedtls_printf("  - ignoring MRSIGNER\n");
             g_verify_mrsigner = false;
+        } else if (parse_hex(argv[2], g_expected_mrsigner, sizeof(g_expected_mrsigner)) < 0) {
+            mbedtls_printf("Cannot parse MRSIGNER!\n");
+            return 1;
         }
 
-        uint16_t isv_prod_id = (uint16_t)atoi(argv[3]);
-        if (!isv_prod_id) {
-            mbedtls_printf("  - cannot parse ISV_PROD_ID (or it is equal to zero), ignoring it\n");
+        if (!strcmp(argv[3], "0")) {
+            mbedtls_printf("  - ignoring ISV_PROD_ID\n");
             g_verify_isv_prod_id = false;
         } else {
+            uint16_t isv_prod_id = (uint16_t)atoi(argv[3]);
+            if (!isv_prod_id) {
+                mbedtls_printf("Cannot parse ISV_PROD_ID!\n");
+                return 1;
+            }
             memcpy(g_expected_isv_prod_id, &isv_prod_id, sizeof(isv_prod_id));
         }
 
-        uint16_t isv_svn = (uint16_t)atoi(argv[4]);
-        if (!isv_svn) {
-            mbedtls_printf("  - cannot parse ISV_SVN (or it is equal to zero), ignoring it\n");
+        if (!strcmp(argv[4], "0")) {
+            mbedtls_printf("  - ignoring ISV_SVN\n");
             g_verify_isv_svn = false;
         } else {
+            uint16_t isv_svn = (uint16_t)atoi(argv[4]);
+            if (!isv_svn) {
+                mbedtls_printf("Cannot parse ISV_SVN\n");
+                return 1;
+            }
             memcpy(g_expected_isv_svn, &isv_svn, sizeof(isv_svn));
         }
-    } else if (ra_tls_measurement_callback) {
+    } else if (ra_tls_set_measurement_callback) {
         mbedtls_printf("[ using default SGX-measurement verification callback"
                        " (via RA_TLS_* environment variables) ]\n");
-        (void)ra_tls_measurement_callback(NULL); /* just to test RA-TLS code */
+        ra_tls_set_measurement_callback(NULL); /* just to test RA-TLS code */
     } else {
         mbedtls_printf("[ using normal TLS flows ]\n");
     }
@@ -194,7 +209,6 @@ int main(int argc, char** argv) {
     mbedtls_printf("\n  . Seeding the random number generator...");
     fflush(stdout);
 
-    mbedtls_entropy_init(&entropy);
     ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                                 (const unsigned char*)pers, strlen(pers));
     if (ret != 0) {

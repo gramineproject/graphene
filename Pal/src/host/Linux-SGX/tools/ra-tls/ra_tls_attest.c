@@ -23,6 +23,7 @@
  * applications. This library is *not* thread-safe.
  */
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -81,6 +82,8 @@ static ssize_t rw_file(const char* path, uint8_t* buf, size_t len, bool do_write
 static int generate_x509(mbedtls_pk_context* pk, const uint8_t* quote, size_t quote_size,
                          mbedtls_x509write_cert* writecrt) {
     int ret;
+    char* cert_timestamp_not_before = NULL;
+    char* cert_timestamp_not_after  = NULL;
 
     mbedtls_mpi serial;
     mbedtls_mpi_init(&serial);
@@ -110,13 +113,19 @@ static int generate_x509(mbedtls_pk_context* pk, const uint8_t* quote, size_t qu
     if (ret < 0)
         goto out;
 
-    char* cert_timestamp_not_before = getenv(RA_TLS_CERT_TIMESTAMP_NOT_BEFORE);
-    if (!cert_timestamp_not_before)
-        cert_timestamp_not_before = CERT_TIMESTAMP_NOT_BEFORE_DEFAULT;
+    cert_timestamp_not_before = strdup(getenv(RA_TLS_CERT_TIMESTAMP_NOT_BEFORE) ? :
+                                       CERT_TIMESTAMP_NOT_BEFORE_DEFAULT);
+    if (!cert_timestamp_not_before) {
+        ret = MBEDTLS_ERR_X509_ALLOC_FAILED;
+        goto out;
+    }
 
-    char* cert_timestamp_not_after = getenv(RA_TLS_CERT_TIMESTAMP_NOT_AFTER);
-    if (!cert_timestamp_not_after)
-        cert_timestamp_not_after = CERT_TIMESTAMP_NOT_AFTER_DEFAULT;
+    cert_timestamp_not_after = strdup(getenv(RA_TLS_CERT_TIMESTAMP_NOT_AFTER) ? :
+                                      CERT_TIMESTAMP_NOT_AFTER_DEFAULT);
+    if (!cert_timestamp_not_after) {
+        ret = MBEDTLS_ERR_X509_ALLOC_FAILED;
+        goto out;
+    }
 
     ret = mbedtls_x509write_crt_set_validity(writecrt, cert_timestamp_not_before,
                                              cert_timestamp_not_after);
@@ -143,6 +152,8 @@ static int generate_x509(mbedtls_pk_context* pk, const uint8_t* quote, size_t qu
 
     ret = 0;
 out:
+    free(cert_timestamp_not_before);
+    free(cert_timestamp_not_after);
     mbedtls_mpi_free(&serial);
     return ret;
 }

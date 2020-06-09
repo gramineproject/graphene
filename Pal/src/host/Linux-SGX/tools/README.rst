@@ -216,8 +216,8 @@ if available:
 
 The four SGX measurements above may be also verified via a user-specified callback with the
 signature ``int (*callback)(char* mrenclave, char* mrsigner, char* isv_prod_id, char* isv_svn)``.
-This callback must be registered via ``ra_tls_measurement_callback()``. The measurements from the
-received SGX quote are passed as four arguments. It is up to the user to implement the correct
+This callback must be registered via ``ra_tls_set_measurement_callback()``. The measurements from
+the received SGX quote are passed as four arguments. It is up to the user to implement the correct
 verification of SGX measurements in this callback (e.g., by comparing against expected values stored
 in a central database).
 
@@ -250,6 +250,6 @@ applications. Not thread-safe.
 The library uses the same SGX-specific environment variables as ``ra_tls_verify_epid.so`` and
 ignores the EPID-specific environment variables. Similarly to the EPID version, instead of using
 environment variables, the four SGX measurements may be verified via a user-specified callback
-registered via ``ra_tls_measurement_callback()``.
+registered via ``ra_tls_set_measurement_callback()``.
 
 The library expects all the DCAP infrastructure to be installed and working correctly on the host.

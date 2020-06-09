@@ -21,8 +21,10 @@
  *  limitations under the License.
  */
 
+#define _GNU_SOURCE
 #include "mbedtls/config.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +52,8 @@ int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
 
 #define DEBUG_LEVEL 0
 
+#define MALICIOUS_STR "MALICIOUS DATA"
+
 static void my_debug(void* ctx, int level, const char* file, int line, const char* str) {
     ((void)level);
 
@@ -57,7 +61,7 @@ static void my_debug(void* ctx, int level, const char* file, int line, const cha
     fflush((FILE*)ctx);
 }
 
-int main(void) {
+int main(int argc, char** argv) {
     int ret;
     size_t len;
     mbedtls_net_context listen_fd;
@@ -95,8 +99,36 @@ int main(void) {
             mbedtls_printf(" failed\n  !  ra_tls_create_key_and_crt returned %d\n\n", ret);
             goto exit;
         }
+
+        mbedtls_printf(" ok\n");
+
+        if (argc > 1) {
+            /* user asks to maliciously modify the embedded SGX quote (for testing purposes) */
+            mbedtls_printf("  . Maliciously modifying SGX quote embedded in RA-TLS cert...");
+            fflush(stdout);
+
+            uint8_t oid[] = {0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF8, 0x4D, 0x8A, 0x39, 0x06};
+            uint8_t* p = memmem(srvcert.v3_ext.p, srvcert.v3_ext.len, oid, sizeof(oid));
+            if (!p) {
+                mbedtls_printf(" failed\n  !  No embedded SGX quote found\n\n");
+                goto exit;
+            }
+
+            p += sizeof(oid);
+            p += 5; /* jump somewhere in the middle of the SGX quote */
+            if (p + sizeof(MALICIOUS_STR) > srvcert.v3_ext.p + srvcert.v3_ext.len) {
+                mbedtls_printf(" failed\n  !  Size of embedded SGX quote is too small\n\n");
+                goto exit;
+            }
+
+            memcpy(p, MALICIOUS_STR, sizeof(MALICIOUS_STR));
+            mbedtls_printf(" ok\n");
+        }
     } else {
         /* no RA-TLS attest library present, use embedded test certificate */
+        mbedtls_printf("\n  . Creating normal server cert and key...");
+        fflush(stdout);
+
         ret = mbedtls_x509_crt_parse(&srvcert, (const unsigned char*)mbedtls_test_srv_crt,
                                      mbedtls_test_srv_crt_len);
         if (ret != 0) {
@@ -117,9 +149,9 @@ int main(void) {
             mbedtls_printf(" failed\n  !  mbedtls_pk_parse_key returned %d\n\n", ret);
             goto exit;
         }
-    }
 
-    mbedtls_printf(" ok\n");
+        mbedtls_printf(" ok\n");
+    }
 
     mbedtls_printf("  . Bind on https://localhost:4433/ ...");
     fflush(stdout);

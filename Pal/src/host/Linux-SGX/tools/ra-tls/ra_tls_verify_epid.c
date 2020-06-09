@@ -57,6 +57,8 @@ static char* g_report_url = NULL;
 static char* g_sigrl_url  = NULL;
 
 static int init_from_env(char** ptr, const char* env_name, char* default_val) {
+    assert(ptr == &g_api_key || ptr == &g_report_url || ptr == &g_sigrl_url);
+
     if (*ptr) {
         /* already initialized */
         return 0;
@@ -106,9 +108,19 @@ static int generate_nonce(char* buf, size_t size) {
     return 0;
 }
 
-static int getenv_ias_pub_key_pem(const char** ias_pub_key_pem) {
-    /* may be NULL (and then a hard-coded public key of IAS is used) */
-    *ias_pub_key_pem = getenv(RA_TLS_IAS_PUB_KEY_PEM);
+static int getenv_ias_pub_key_pem(char** ias_pub_key_pem) {
+    char* tmp = getenv(RA_TLS_IAS_PUB_KEY_PEM);
+    if (!tmp) {
+        /* return as NULL, and then a hard-coded public key of IAS is used */
+        *ias_pub_key_pem = NULL;
+        return 0;
+    }
+
+    tmp = strdup(tmp);
+    if (!tmp)
+        return MBEDTLS_ERR_X509_ALLOC_FAILED;
+
+    *ias_pub_key_pem = tmp;
     return 0;
 }
 
@@ -117,6 +129,7 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
 
     int ret;
     struct ias_context_t* ias = NULL;
+    char* ias_pub_key_pem     = NULL;
 
     char* report_data   = NULL;
     char* sig_data      = NULL;
@@ -216,12 +229,9 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
         goto out;
     }
 
-    const char* ias_pub_key_pem;
     ret = getenv_ias_pub_key_pem(&ias_pub_key_pem);
-    if (ret < 0) {
-        ret = MBEDTLS_ERR_X509_BAD_INPUT_DATA;
+    if (ret < 0)
         goto out;
-    }
 
     ret = verify_ias_report_extract_quote((uint8_t*)report_data, report_data_size,
                                           (uint8_t*)sig_data, sig_data_size,
@@ -260,6 +270,7 @@ out:
     if (ias)
         ias_cleanup(ias);
 
+    free(ias_pub_key_pem);
     free(quote_from_ias);
     free(report_data);
     free(sig_data);

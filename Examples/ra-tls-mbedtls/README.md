@@ -25,6 +25,9 @@ more documentation, refer to `Pal/src/host/Linux-SGX/tools/README.rst`.
 The server is supposed to run in the SGX enclave with Graphene and RA-TLS preloaded. If RA-TLS
 library `ra_tls_attest.so` is not preloaded, the server falls back to using normal X.509 PKI flows.
 
+If server is run with any command-line options (the only important thing is to have at least one
+option), then the server will maliciously modify the SGX quote before sending to the client. This
+is useful for testing purposes.
 
 ## RA-TLS client
 
@@ -106,5 +109,18 @@ LD_PRELOAD="libsgx_urts.so $PWD/libra_tls_verify_dcap.so" ./client \
     0 0
 
 # client will successfully connect to the server via RA-TLS/DCAP flows
+kill %%
+```
+
+- RA-TLS flows with SGX and with Graphene, server sends malicious SGX quote:
+
+```sh
+make clean
+make app dcap
+
+SGX=1 ./pal_loader ./server dummy-option &
+LD_PRELOAD="libsgx_urts.so $PWD/libra_tls_verify_dcap.so" ./client
+
+# client will fail to verify the malicious SGX quote and will *not* connect to the server
 kill %%
 ```
