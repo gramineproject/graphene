@@ -146,7 +146,7 @@ pipeline {
                            '''
                         }
                         sh '''
-#                           ./Scripts/gitignore-test
+                           ./Scripts/gitignore-test
                         '''
                         sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
