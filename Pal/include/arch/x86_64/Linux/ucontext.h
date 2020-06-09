@@ -160,7 +160,6 @@ static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* fu
                                                         size_t count, ...) {
     const unsigned int param_regs[] = { REG_RDI, REG_RSI, REG_RDX, REG_RCX };
     va_list ap;
-    size_t i;
 
     assert(count <= ARRAY_SIZE(param_regs));
 
@@ -168,7 +167,7 @@ static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* fu
 
     va_start(ap, count);
 
-    for (i = 0; i < count; i++)
+    for (size_t i = 0; i < count; i++)
         uc->uc_mcontext.gregs[param_regs[i]] = va_arg(ap, greg_t);
 
     va_end(ap);
