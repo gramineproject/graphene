@@ -146,7 +146,6 @@ pipeline {
                            make -C Examples/nginx SGX=1 distclean
                            make -C Examples/apache SGX=1 distclean
                            make -C Examples/blender SGX=1 distclean
-                           make -C Examples/ra-tls-mbedtls SGX=1 distclean
 
                            # Currently used release of LTP contains broken symlinks under
                            # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit

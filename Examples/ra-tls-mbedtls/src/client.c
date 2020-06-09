@@ -25,6 +25,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -179,8 +180,9 @@ int main(int argc, char** argv) {
             mbedtls_printf("  - ignoring ISV_PROD_ID\n");
             g_verify_isv_prod_id = false;
         } else {
-            uint16_t isv_prod_id = (uint16_t)atoi(argv[3]);
-            if (!isv_prod_id) {
+            errno = 0;
+            uint16_t isv_prod_id = (uint16_t)strtoul(argv[3], NULL, 10);
+            if (errno) {
                 mbedtls_printf("Cannot parse ISV_PROD_ID!\n");
                 return 1;
             }
@@ -191,8 +193,9 @@ int main(int argc, char** argv) {
             mbedtls_printf("  - ignoring ISV_SVN\n");
             g_verify_isv_svn = false;
         } else {
-            uint16_t isv_svn = (uint16_t)atoi(argv[4]);
-            if (!isv_svn) {
+            errno = 0;
+            uint16_t isv_svn = (uint16_t)strtoul(argv[4], NULL, 10);
+            if (errno) {
                 mbedtls_printf("Cannot parse ISV_SVN\n");
                 return 1;
             }
