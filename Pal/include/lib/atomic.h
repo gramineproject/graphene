@@ -2,8 +2,7 @@
 #define _ATOMIC_H_
 
 /* Copyright (C) 2014 Stony Brook University
- * Copyright (C) 2017 Fortanix Inc, and University of North Carolina
- * at Chapel Hill.
+ * Copyright (C) 2017 Fortanix Inc, and University of North Carolina at Chapel Hill.
  *
  * This file defines atomic operations (And barriers) for use in
  * Graphene.

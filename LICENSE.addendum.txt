@@ -1,4 +1,4 @@
-Graphene itself is licensed under the LGPL.
+Graphene itself is licensed under the LGPL-3.0-or-later.
 
 Graphene on an SGX host requires a kernel driver (in
 Pal/src/host/Linux-SGX/sgx-driver), which is separately licensed under
@@ -32,4 +32,4 @@ A number of files taken from other C libraries:
  ** Pal/lib/string/ - the whole directory
  ** Pal/src/dynamic_link.h, do-rel.h , dl-machine-x86_64.h
  ** Pal/include/arch/x86_64/Linux/ - whole directory - for signal API definitions
- ** We also build a patched glibc, but this could be moved into a separate repo
+ ** We also build a patched glibc
