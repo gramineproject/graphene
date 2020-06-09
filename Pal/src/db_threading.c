@@ -83,3 +83,29 @@ PAL_BOL DkThreadResume(PAL_HANDLE threadHandle) {
 
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
+
+PAL_NUM DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask) {
+    ENTER_PAL_CALL(DkThreadSetCpuAffinity);
+
+    int ret = _DkThreadSetCpuAffinity(thread, cpu_mask_size, cpu_mask);
+
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(ret);
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}
+
+PAL_NUM DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask) {
+    ENTER_PAL_CALL(DkThreadGetCpuAffinity);
+
+    int ret = _DkThreadGetCpuAffinity(thread, cpu_mask_size, cpu_mask);
+
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(ret);
+    }
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}

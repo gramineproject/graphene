@@ -240,7 +240,7 @@ noreturn void thread_exit(int status) {
     }
 }
 
-int clone_thread(void) {
+int clone_thread(PAL_IDX* parent_tid) {
     int ret = 0;
 
     void* stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, THREAD_STACK_SIZE + ALT_STACK_SIZE,
@@ -270,13 +270,12 @@ int clone_thread(void) {
     /* align child_stack to 16 */
     child_stack_top = ALIGN_DOWN_PTR(child_stack_top, 16);
 
-    int dummy_parent_tid_field = 0;
     // TODO: pal_thread_init() may fail during initialization (e.g. on TCS exhaustion), we should
     // check its result (but this happens asynchronously, so it's not trivial to do).
     ret = clone(pal_thread_init, child_stack_top,
-                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND |
-                    CLONE_PARENT_SETTID,
-                (void*)tcb, &dummy_parent_tid_field, NULL);
+                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD |
+                CLONE_SIGHAND | CLONE_PARENT_SETTID,
+                (void*)tcb, parent_tid, NULL);
 
     if (IS_ERR(ret)) {
         INLINE_SYSCALL(munmap, 2, stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);

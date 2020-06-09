@@ -120,8 +120,8 @@ void async_exit_pointer(void);
 void eresume_pointer(void);
 void async_exit_pointer_end(void);
 
-int interrupt_thread(void* tcs);
-int clone_thread(void);
+int interrupt_thread (void * tcs);
+int clone_thread (PAL_IDX* parent_tid);
 
 void create_tcs_mapper(void* tcs_base, unsigned int thread_num);
 int pal_thread_init(void* tcbptr);

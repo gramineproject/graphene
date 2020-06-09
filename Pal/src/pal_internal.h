@@ -229,11 +229,14 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo);
 /* DkProcess and DkThread calls */
 int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* param);
 noreturn void _DkThreadExit(int* clear_child_tid);
-int _DkThreadDelayExecution(uint64_t* duration_us);
-void _DkThreadYieldExecution(void);
-int _DkThreadResume(PAL_HANDLE threadHandle);
-int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args);
-noreturn void _DkProcessExit(int exitCode);
+int _DkThreadDelayExecution (unsigned long * duration);
+void _DkThreadYieldExecution (void);
+int _DkThreadResume (PAL_HANDLE threadHandle);
+int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_len, PAL_PTR cpu_mask);
+int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_len, PAL_PTR cpu_mask);
+int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
+                      const char ** args);
+noreturn void _DkProcessExit (int exitCode);
 
 /* DkMutex calls */
 int _DkMutexCreate(PAL_HANDLE* handle, int initialCount);

@@ -41,6 +41,8 @@ enum {
     OCALL_MKDIR,
     OCALL_GETDENTS,
     OCALL_RESUME_THREAD,
+    OCALL_SCHED_SETAFFINITY,
+    OCALL_SCHED_GETAFFINITY,
     OCALL_CLONE_THREAD,
     OCALL_CREATE_PROCESS,
     OCALL_FUTEX,
@@ -171,6 +173,18 @@ typedef struct {
 } ms_ocall_create_process_t;
 
 typedef struct {
+    int ms_tid;
+    size_t ms_cpu_mask_size;
+    void* ms_cpu_mask;
+} ms_ocall_sched_setaffinity_t;
+
+typedef struct {
+    int ms_tid;
+    size_t ms_cpu_mask_size;
+    void* ms_cpu_mask;
+} ms_ocall_sched_getaffinity_t;
+
+typedef struct {
     uint32_t* ms_futex;
     int ms_op, ms_val;
     int64_t ms_timeout_us;
@@ -279,5 +293,9 @@ typedef struct {
     char*             ms_quote;
     size_t            ms_quote_len;
 } ms_ocall_get_quote_t;
+
+typedef struct {
+    PAL_IDX ms_tid;
+} ms_ocall_clone_thread_t;
 
 #pragma pack(pop)

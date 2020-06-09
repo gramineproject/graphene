@@ -514,6 +514,10 @@ noreturn void DkThreadExit(PAL_PTR clear_child_tid);
  */
 PAL_BOL DkThreadResume(PAL_HANDLE thread);
 
+PAL_NUM DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_len, PAL_PTR cpu_mask);
+
+PAL_NUM DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_len, PAL_PTR cpu_mask);
+
 /*
  * Exception Handling
  */
