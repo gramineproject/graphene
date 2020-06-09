@@ -156,7 +156,8 @@ static inline uint64_t pal_ucontext_get_ip(ucontext_t* uc) {
     return uc->uc_mcontext.gregs[REG_RIP];
 }
 
-static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* func, size_t count, ...) {
+static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* func,
+                                                        size_t count, ...) {
     const unsigned int param_regs[] = { REG_RDI, REG_RSI, REG_RDX, REG_RCX };
     va_list ap;
     size_t i;
