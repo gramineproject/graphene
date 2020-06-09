@@ -167,9 +167,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     if (rip != (unsigned long)async_exit_pointer) {
         /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if
          * syscall was interrupted */
-        uc->uc_mcontext.gregs[REG_RIP] = (uint64_t)sgx_entry_return;
-        uc->uc_mcontext.gregs[REG_RDI] = -EINTR;
-        uc->uc_mcontext.gregs[REG_RSI] = event;
+        pal_ucontext_set_function_parameters(uc, sgx_entry_return, 2, -EINTR, event);
     } else {
         /* signal arrived while in app/LibOS/trusted PAL code, handle signal inside enclave */
         sgx_raise(event);
