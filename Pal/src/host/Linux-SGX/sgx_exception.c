@@ -184,7 +184,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+    unsigned long rip = pal_ucontext_get_ip(uc);
 
     if (rip != (unsigned long) async_exit_pointer) {
         uc->uc_mcontext.gregs[REG_RIP] = (uint64_t) sgx_entry_return;
@@ -205,7 +205,7 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+    unsigned long rip = pal_ucontext_get_ip(uc);
 
     if (rip != (unsigned long) async_exit_pointer) {
         switch (signum) {
