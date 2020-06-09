@@ -143,12 +143,18 @@ check_epid: app epid
 	LD_PRELOAD="libra_tls_verify_epid.so" ./client > OUTPUT; \
 	LD_PRELOAD="libra_tls_verify_epid.so" ./client 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
-	cat OUTPUT
 	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
 	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
 	@grep -q "Verifying peer X.509 certificate... ok" OUTPUT && echo "[ Success 3/4 ]"
 	@(exit `grep -c "failed" "OUTPUT"`) && echo "[ Success 4/4 ]"
 	@rm OUTPUT
+
+.PHONY: check_epid_fail
+check_epid_fail: app epid
+	SGX=1 ./pal_loader server dummy-option >/dev/null & SERVER_ID=$$!; \
+	sleep 30; \
+	LD_PRELOAD="libra_tls_verify_epid.so" ./client && exit 1 || echo "[ Success 1/1 ]"; \
+	kill -9 $$SERVER_ID
 
 .PHONY: check_dcap
 check_dcap: app dcap
@@ -162,6 +168,13 @@ check_dcap: app dcap
 	@grep -q "Verifying peer X.509 certificate... ok" OUTPUT && echo "[ Success 3/4 ]"
 	@(exit `grep -c "failed" "OUTPUT"`) && echo "[ Success 4/4 ]"
 	@rm OUTPUT
+
+.PHONY: check_dcap_fail
+check_dcap_fail: app dcap
+	SGX=1 ./pal_loader server dummy-option >/dev/null & SERVER_ID=$$!; \
+	sleep 30; \
+	LD_PRELOAD="libsgx_urts.so libra_tls_verify_dcap.so" ./client && exit 1 || echo "[ Success 1/1 ]"; \
+	kill -9 $$SERVER_ID
 
 ################################## CLEANUP ####################################
 
