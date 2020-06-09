@@ -252,6 +252,8 @@ noreturn void _DkThreadExit(int* clear_child_tid);
 int _DkThreadDelayExecution (unsigned long * duration);
 void _DkThreadYieldExecution (void);
 int _DkThreadResume (PAL_HANDLE threadHandle);
+int _DkThreadSetCPUAffinity(PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr);
+int _DkThreadGetCPUAffinity(PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr);
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
                       const char ** args);
 noreturn void _DkProcessExit (int exitCode);

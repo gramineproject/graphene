@@ -65,7 +65,8 @@ c_executables = \
 	tcp_msg_peek \
 	udp \
 	unix \
-	vfork_and_exec
+	vfork_and_exec \
+	sched_set_get_cpuaffinity
 
 cxx_executables = bootstrap_c++
 

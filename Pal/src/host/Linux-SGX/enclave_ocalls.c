@@ -265,6 +265,13 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
                  unsigned int values[4])
 {
     int retval = 0;
+    int notrpc = 0;
+
+    /* the cpu topology info retrieved for  current thread rather than rpc thread */
+    if (leaf == 0xb) {
+        notrpc = 1;
+    }
+
     ms_ocall_cpuid_t * ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -277,7 +284,7 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
     WRITE_ONCE(ms->ms_leaf, leaf);
     WRITE_ONCE(ms->ms_subleaf, subleaf);
 
-    retval = sgx_exitless_ocall(OCALL_CPUID, ms);
+    retval = notrpc ? sgx_ocall(OCALL_CPUID, ms) : sgx_exitless_ocall(OCALL_CPUID, ms);
 
     if (!retval) {
         values[0] = READ_ONCE(ms->ms_values[0]);
@@ -774,6 +781,67 @@ out:
 int ocall_resume_thread (void * tcs)
 {
     return sgx_exitless_ocall(OCALL_RESUME_THREAD, tcs);
+}
+
+int ocall_setaffinity_thread (PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr)
+{
+    int retval = 0;
+    ms_ocall_setaffinity_thread_t * ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_pid, pid);
+    WRITE_ONCE(ms->ms_len, len);
+    void* untrusted_user_mask_ptr = sgx_copy_to_ustack(user_mask_ptr, len);
+    if (!untrusted_user_mask_ptr) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+    WRITE_ONCE(ms->ms_user_mask_ptr, untrusted_user_mask_ptr);
+
+    retval = sgx_exitless_ocall(OCALL_SETAFFINITY_THREAD, ms);
+
+    sgx_reset_ustack(old_ustack);
+
+    return retval;
+}
+
+int ocall_getaffinity_thread (PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr)
+{
+    int retval = 0;
+    ms_ocall_getaffinity_thread_t * ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_pid, pid);
+    WRITE_ONCE(ms->ms_len, len);
+    void* untrusted_user_mask_ptr = sgx_copy_to_ustack(user_mask_ptr, len);
+    if (!untrusted_user_mask_ptr) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+    WRITE_ONCE(ms->ms_user_mask_ptr, untrusted_user_mask_ptr);
+
+    retval = sgx_exitless_ocall(OCALL_GETAFFINITY_THREAD, ms);
+
+    if (retval > 0) {
+        retval = sgx_copy_to_enclave(user_mask_ptr, len,
+                                     READ_ONCE(ms->ms_user_mask_ptr), retval);
+    }
+
+    sgx_reset_ustack(old_ustack);
+
+    return retval;
 }
 
 int ocall_clone_thread (void)

@@ -69,6 +69,10 @@ int ocall_shutdown (int sockfd, int how);
 
 int ocall_resume_thread (void * tcs);
 
+int ocall_setaffinity_thread(PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr);
+
+int ocall_getaffinity_thread(PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr);
+
 int ocall_clone_thread (void);
 
 int ocall_create_process(const char* uri, int nargs, const char** args, int* stream_fd, unsigned int* pid);

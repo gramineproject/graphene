@@ -265,6 +265,24 @@ static long sgx_ocall_resume_thread(void * pms)
     return interrupt_thread(pms);
 }
 
+static long sgx_ocall_setaffinity_thread(void * pms)
+{
+    ms_ocall_setaffinity_thread_t * ms = (ms_ocall_setaffinity_thread_t *) pms;
+    ODEBUG(OCALL_SETAFFINITY_THREAD, ms);
+    long ret = INLINE_SYSCALL(sched_setaffinity, 3,
+                              ms->ms_pid, ms->ms_len, ms->ms_user_mask_ptr);
+    return ret;
+}
+
+static long sgx_ocall_getaffinity_thread(void * pms)
+{
+    ms_ocall_getaffinity_thread_t * ms = (ms_ocall_getaffinity_thread_t *) pms;
+    ODEBUG(OCALL_GETAFFINITY_THREAD, ms);
+    long ret = INLINE_SYSCALL(sched_getaffinity, 3,
+                              ms->ms_pid, ms->ms_len, ms->ms_user_mask_ptr);
+    return ret;
+}
+
 static long sgx_ocall_clone_thread(void * pms)
 {
     __UNUSED(pms);
@@ -684,6 +702,8 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_MKDIR]            = sgx_ocall_mkdir,
         [OCALL_GETDENTS]         = sgx_ocall_getdents,
         [OCALL_RESUME_THREAD]    = sgx_ocall_resume_thread,
+        [OCALL_SETAFFINITY_THREAD] = sgx_ocall_setaffinity_thread,
+        [OCALL_GETAFFINITY_THREAD] = sgx_ocall_getaffinity_thread,
         [OCALL_CLONE_THREAD]     = sgx_ocall_clone_thread,
         [OCALL_CREATE_PROCESS]   = sgx_ocall_create_process,
         [OCALL_FUTEX]            = sgx_ocall_futex,

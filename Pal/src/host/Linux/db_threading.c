@@ -293,6 +293,32 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
     return 0;
 }
 
+int _DkThreadSetCPUAffinity(PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr)
+{
+    int ret = INLINE_SYSCALL(sched_setaffinity, 3,
+                             pid,
+                             len,
+                             user_mask_ptr);
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    return 0;
+}
+
+int _DkThreadGetCPUAffinity(PAL_NUM pid, PAL_NUM len, PAL_PTR user_mask_ptr)
+{
+    int ret = INLINE_SYSCALL(sched_getaffinity, 3,
+                             pid,
+                             len,
+                             user_mask_ptr);
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    return 0;
+}
+
 struct handle_ops thread_ops = {
     /* nothing */
 };

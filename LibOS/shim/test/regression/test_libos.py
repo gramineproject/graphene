@@ -425,6 +425,10 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['signal_multithread'])
         self.assertIn('TEST OK', stdout)
 
+    def test_094_sched_set_get_cpuaffinity(self):
+        stdout, _ = self.run_binary(['sched_set_get_cpuaffinity'])
+        self.assertIn('TEST OK', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
