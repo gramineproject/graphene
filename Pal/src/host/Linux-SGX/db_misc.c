@@ -286,7 +286,14 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
 }
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    if (!get_cpuid_from_cache(leaf, subleaf, values))
+    int notcache = 0;
+
+    /* the cpu topology info subjects to thread affinity */
+    if (leaf == 0xb) {
+        notcache = 1;
+    }
+
+    if (!notcache && !get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
     if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
@@ -294,7 +301,9 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     sanity_check_cpuid(leaf, subleaf, values);
 
-    add_cpuid_to_cache(leaf, subleaf, values);
+    if (!notcache)
+        add_cpuid_to_cache(leaf, subleaf, values);
+
     return 0;
 }
 
