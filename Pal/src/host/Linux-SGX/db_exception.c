@@ -123,8 +123,8 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
     }
 }
 
-/* return value: true if #UD is handled and execution can be continued without propagating #UD;
- *               false if #UD is not handled and exception needs to be raised up to LibOS/app */
+/* return value: true if #UD was handled and execution can be continued without propagating #UD;
+ *               false if #UD was not handled and exception needs to be raised up to LibOS/app */
 static bool handle_ud(sgx_cpu_context_t* uc) {
     uint8_t* instr = (uint8_t*)uc->rip;
     if (instr[0] == 0x0f && instr[1] == 0xa2) {

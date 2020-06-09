@@ -35,6 +35,7 @@
 #include <sigset.h>
 #include <ucontext.h>
 
+#if defined(__x86_64__)
 /* in x86_64 kernels, sigaction is required to have a user-defined restorer */
 #define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
 #define DEFINE_RESTORE_RT2(syscall)                 \
@@ -47,7 +48,11 @@
          "    movq $" #syscall ", %rax\n"           \
          "    syscall\n");
 DEFINE_RESTORE_RT(__NR_rt_sigreturn)
+
+/* workaround for an old GAS (2.27) bug that incorrectly omits relocations when referencing this
+ * symbol */
 __attribute__((visibility("hidden"))) void __restore_rt(void);
+#endif  /* defined(__x86_64__) */
 
 static const int async_signals[] = {SIGTERM, SIGINT, SIGCONT};
 
@@ -62,11 +67,16 @@ static int block_signal(int sig, bool block) {
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-static int set_signal(int sig, void* handler) {
+static int set_signal_handler(int sig, void* handler) {
     struct sigaction action = {0};
     action.sa_handler  = handler;
     action.sa_flags    = SA_SIGINFO | SA_ONSTACK | SA_RESTORER;
     action.sa_restorer = __restore_rt;
+
+    /* disallow nested asynchronous signals during exception handling */
+    __sigemptyset((__sigset_t*)&action.sa_mask);
+    for (size_t i = 0; i < ARRAY_SIZE(async_signals); i++)
+        __sigaddset((__sigset_t*)&action.sa_mask, async_signals[i]);
 
     int ret = INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
     if (IS_ERR(ret))
@@ -133,12 +143,12 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
 
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
     if (!ADDR_IN_PAL(rip)) {
-        /* exception happens in application or LibOS code, normal benign case */
+        /* exception happened in application or LibOS code, normal benign case */
         perform_signal_handling(event, info, uc);
         return;
     }
 
-    /* exception happens in PAL code: this is fatal in Graphene */
+    /* exception happened in PAL code: this is fatal in Graphene */
     const char* name = "exception";
     switch (event) {
         case PAL_EVENT_ARITHMETIC_ERROR:
@@ -167,12 +177,14 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
 
     if (!ADDR_IN_PAL(rip)) {
-        /* signal arrives while in application or LibOS code, normal benign case */
+        /* signal arrived while in application or LibOS code, normal benign case */
         perform_signal_handling(event, info, uc);
         return;
     }
 
-    /* signal arrives while in PAL code: add as pending for this thread */
+    /* signal arrived while in PAL code, add as pending for this thread; note that there is no race
+     * on pending_events as TCB is thread-local and async signals are blocked during signal
+     * handling */
     PAL_TCB_LINUX* tcb = get_tcb_linux();
     assert(tcb);
     if (tcb->pending_events_num < MAX_SIGNAL_LOG)
@@ -217,49 +229,49 @@ void signal_setup(void) {
     int ret;
 
     /* SIGPIPE and SIGCHLD are emulated completely inside LibOS */
-    ret = set_signal(SIGPIPE, SIG_IGN);
+    ret = set_signal_handler(SIGPIPE, SIG_IGN);
     if (ret < 0)
         goto err;
 
     /* Even though SIG_DFL defaults to "ignore", this is not the same as SIG_IGN; man waitpid says:
      * "...if the disposition of SIGCHLD is set to SIG_IGN ..., then children that terminate do not
-     * become zombies". In other words, if we would set_signal(SIGCHLD, SIG_IGN) here, children
-     * would not become zombies and would die before the parent checks their status. */
-    ret = set_signal(SIGCHLD, SIG_DFL);
+     * become zombies". In other words, if we would set_signal_handler(SIGCHLD, SIG_IGN) here,
+     * children would not become zombies and would die before the parent checks their status. */
+    ret = set_signal_handler(SIGCHLD, SIG_DFL);
     if (ret < 0)
         goto err;
 
     /* register synchronous signals (exceptions) in host Linux */
-    ret = set_signal(SIGFPE, handle_sync_signal);
+    ret = set_signal_handler(SIGFPE, handle_sync_signal);
     if (ret < 0)
         goto err;
 
-    ret = set_signal(SIGSEGV, handle_sync_signal);
+    ret = set_signal_handler(SIGSEGV, handle_sync_signal);
     if (ret < 0)
         goto err;
 
-    ret = set_signal(SIGBUS, handle_sync_signal);
+    ret = set_signal_handler(SIGBUS, handle_sync_signal);
     if (ret < 0)
         goto err;
 
-    ret = set_signal(SIGILL, handle_sync_signal);
+    ret = set_signal_handler(SIGILL, handle_sync_signal);
     if (ret < 0)
         goto err;
 
-    ret = set_signal(SIGSYS, handle_sync_signal);
+    ret = set_signal_handler(SIGSYS, handle_sync_signal);
     if (ret < 0)
         goto err;
 
     /* register asynchronous signals in host Linux */
-    ret = set_signal(SIGTERM, handle_async_signal);
+    ret = set_signal_handler(SIGTERM, handle_async_signal);
     if (ret < 0)
         goto err;
 
-    ret = set_signal(SIGINT, handle_async_signal);
+    ret = set_signal_handler(SIGINT, handle_async_signal);
     if (ret < 0)
         goto err;
 
-    ret = set_signal(SIGCONT, handle_async_signal);
+    ret = set_signal_handler(SIGCONT, handle_async_signal);
     if (ret < 0)
         goto err;
 
