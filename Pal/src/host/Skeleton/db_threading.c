@@ -43,6 +43,16 @@ int _DkThreadResume(PAL_HANDLE threadHandle) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
+int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
 struct handle_ops thread_ops = {
     /* nothing */
 };
