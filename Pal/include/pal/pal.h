@@ -15,6 +15,10 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#if defined(__i386__) || defined(__x86_64__)
+#include "cpu.h"
+#endif
+
 typedef uint64_t      PAL_NUM; /*!< a number */
 typedef const char *  PAL_STR; /*!< a pointer to a C-string */
 typedef void *        PAL_PTR; /*!< a pointer to memory or buffer (something other than string) */
@@ -113,17 +117,6 @@ enum {
 #define UNKNOWN_HANDLE(handle)  (PAL_GET_TYPE(handle) >= PAL_HANDLE_TYPE_BOUND)
 
 typedef struct PAL_PTR_RANGE_ { PAL_PTR start, end; } PAL_PTR_RANGE;
-
-typedef struct PAL_CPU_INFO_ {
-    PAL_NUM cpu_num;
-    PAL_STR cpu_vendor;
-    PAL_STR cpu_brand;
-    PAL_NUM cpu_family;
-    PAL_NUM cpu_model;
-    PAL_NUM cpu_stepping;
-    double  cpu_bogomips;
-    PAL_STR cpu_flags;
-} PAL_CPU_INFO;
 
 typedef struct PAL_MEM_INFO_ {
     PAL_NUM mem_total;
@@ -741,22 +734,6 @@ PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr);
  */
 PAL_NUM DkMemoryAvailableQuota(void);
 
-enum PAL_CPUID_WORD {
-    PAL_CPUID_WORD_EAX = 0,
-    PAL_CPUID_WORD_EBX = 1,
-    PAL_CPUID_WORD_ECX = 2,
-    PAL_CPUID_WORD_EDX = 3,
-    PAL_CPUID_WORD_NUM = 4,
-};
-
-/*!
- * \brief Return CPUID information, based on the leaf/subleaf.
- *
- * \param[out] values the array of the results
- */
-PAL_BOL
-DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
-
 /*!
  * \brief Obtain the attestation report (local) with `user_report_data` embedded into it.
  *
@@ -814,6 +791,15 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
     __asm__ (".symver " #real "," #name "@@" #version "\n")
 #else
 # define symbol_version_default(real, name, version)
+#endif
+
+#if defined(__i386__) || defined(__x86_64__)
+/*!
+ * \brief Return CPUID information, based on the leaf/subleaf.
+ *
+ * \param[out] values the array of the results
+ */
+PAL_BOL DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
 #endif
 
 #endif /* PAL_H */

@@ -92,26 +92,13 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t * sig)
     return 0;
 }
 
-#define SE_LEAF    0x12
-
-static inline void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t info[4])
-{
-    __asm__ volatile("cpuid"
-                 : "=a"(info[0]),
-                   "=b"(info[1]),
-                   "=c"(info[2]),
-                   "=d"(info[3])
-                 : "a"(leaf),
-                   "c"(subleaf));
-}
-
 static size_t get_ssaframesize (uint64_t xfrm)
 {
     uint32_t cpuinfo[4];
     uint64_t xfrm_ex;
     size_t xsave_size = 0;
 
-    cpuid(SE_LEAF, 1, cpuinfo);
+    cpuid(INTEL_SGX_LEAF, 1, cpuinfo);
     xfrm_ex = ((uint64_t) cpuinfo[3] << 32) + cpuinfo[2];
 
     for (int i = 2; i < 64; i++)
