@@ -12,6 +12,8 @@
 
 #include <stdint.h>
 
+#include "cpu.h"
+
 #define PAGE_SIZE       (1 << 12)
 #define PRESET_PAGESIZE PAGE_SIZE
 
@@ -181,5 +183,17 @@ static inline PAL_NUM pal_context_get_ip(PAL_CONTEXT* context) {
 static inline bool pal_context_has_user_pagefault(PAL_CONTEXT* context) {
     return !!(context->err & 4);
 }
+
+/* PAL_CPU_INFO holds /proc/cpuinfo data */
+typedef struct PAL_CPU_INFO_ {
+    PAL_NUM cpu_num;
+    PAL_STR cpu_vendor;
+    PAL_STR cpu_brand;
+    PAL_NUM cpu_family;
+    PAL_NUM cpu_model;
+    PAL_NUM cpu_stepping;
+    double  cpu_bogomips;
+    PAL_STR cpu_flags;
+} PAL_CPU_INFO;
 
 #endif /* PAL_ARCH_H */
