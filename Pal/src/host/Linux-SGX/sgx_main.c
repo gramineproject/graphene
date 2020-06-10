@@ -756,14 +756,23 @@ void set_unique_thread_affinity_hack(void) {
         cpu_count = get_cpu_count();
     }
 
+    if (prev == 1) {
+        /* this is IPC thread; ignore it, let Linux schedule it wherever */
+        return;
+    }
+
+    if (prev > 1) {
+        /* we ignored IPC thread with prev==0, so adjust affinity of all next threads */
+        prev -= 1;
+    }
+
     assert(cpu_count > 0);
     int cur_thread_cpu = prev % cpu_count;
 
     uint8_t cpuset[128] = {0};
     cpuset[cur_thread_cpu / 8] |= 1 << (cur_thread_cpu % 8);
 
-    int ret = INLINE_SYSCALL(sched_setaffinity, 3, /*pid=*/0, 128, (unsigned long*)cpuset);
-    assert(ret == 0);
+    (void)INLINE_SYSCALL(sched_setaffinity, 3, /*pid=*/0, 128, (unsigned long*)cpuset);
 }
 
 static int load_enclave (struct pal_enclave * enclave,
