@@ -127,17 +127,6 @@ enum {
 
 typedef struct PAL_PTR_RANGE_ { PAL_PTR start, end; } PAL_PTR_RANGE;
 
-typedef struct PAL_CPU_INFO_ {
-    PAL_NUM cpu_num;
-    PAL_STR cpu_vendor;
-    PAL_STR cpu_brand;
-    PAL_NUM cpu_family;
-    PAL_NUM cpu_model;
-    PAL_NUM cpu_stepping;
-    double  cpu_bogomips;
-    PAL_STR cpu_flags;
-} PAL_CPU_INFO;
-
 typedef struct PAL_MEM_INFO_ {
     PAL_NUM mem_total;
 } PAL_MEM_INFO;
