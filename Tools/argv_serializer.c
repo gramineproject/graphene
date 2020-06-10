@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Invisible Things Lab
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+ */
+
 /* Helper tool for protected argv ("loader.argv_src_file" manifest option). See Graphene
  * documentation for usage.
  */

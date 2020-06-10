@@ -15,7 +15,7 @@ loader.execname = object_detection_sample_ssd
 loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENE_DEBUG)
 
-# Don't use this on production!
+# Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
 # Environment variables

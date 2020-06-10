@@ -9,7 +9,8 @@
 # The executable to load in Graphene.
 loader.exec = file:$(INSTALL_DIR)/bin/httpd
 loader.execname = httpd
-# Don't use this on production!
+
+# Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
 # Graphene environment, including the path to the library OS and the debug

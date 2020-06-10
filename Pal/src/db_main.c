@@ -373,9 +373,9 @@ noreturn void pal_main(
      */
     bool using_loader_execname = false;
     if (pal_state.root_config) {
-        /* loader.execname specified, override argv[0] */
         ret = get_config(pal_state.root_config, "loader.execname", cfgbuf, sizeof(cfgbuf));
         if (ret > 0) {
+            /* loader.execname specified, override argv[0] */
             using_loader_execname = true;
             if (!arguments[0]) {
                 arguments = malloc(sizeof(const char*) * 2);
@@ -414,9 +414,13 @@ noreturn void pal_main(
         ret = _DkStreamRead(argv_handle, 0, argv_file_size, buf, NULL, 0);
         if (ret < 0)
             INIT_FAIL(-ret, "can't read loader.argv_src_file");
-        if (argv_file_size == 0 || buf[argv_file_size - 1] != 0)
+        if (argv_file_size == 0 || buf[argv_file_size - 1] != '\0')
             INIT_FAIL(PAL_ERROR_INVAL, "loader.argv_src_file should contain a "
                                        "list of C-strings");
+        ret = _DkObjectClose(argv_handle);
+        if (ret < 0)
+            INIT_FAIL(-ret, "closing loader.argv_src_file failed");
+
         /* Create argv array from the file contents. */
         size_t argc = 0;
         for (size_t i = 0; i < argv_file_size; i++)
@@ -431,13 +435,9 @@ noreturn void pal_main(
         *(argv_it++) = buf;
         assert(argv_file_size > 0);
         for (size_t i = 0; i < argv_file_size - 1; i++)
-            if (buf[i] == '\0') {
+            if (buf[i] == '\0')
                 *(argv_it++) = buf + i + 1;
-            }
         arguments = argv;
-        ret = _DkObjectClose(argv_handle);
-        if (ret < 0)
-            INIT_FAIL(-ret, "closing loader.argv_src_file failed");
     } else if (!using_loader_execname || (arguments[0] && arguments[1])) {
         INIT_FAIL(PAL_ERROR_INVAL, "argv handling wasn't configured in the manifest, but cmdline "
                   "arguments were specified.");

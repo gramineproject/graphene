@@ -25,7 +25,7 @@ loader.debug_type = $(GRAPHENEDEBUG)
 
 ################################# ARGUMENTS ###################################
 
-# Don't use this on production!
+# Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
 ################################# ENV VARS ####################################

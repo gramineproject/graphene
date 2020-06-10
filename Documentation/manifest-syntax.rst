@@ -60,8 +60,8 @@ is run via the manifest (e.g. ``./app.manifest arg1 arg2 ...``). If the string
 is not specified in the manifest, the PAL will use the path to the manifest
 itself (standard UNIX convention).
 
-Arguments
-^^^^^^^^^
+Command-Line Arguments
+^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
