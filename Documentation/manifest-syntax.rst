@@ -143,7 +143,7 @@ Allowing eventfd
 
 ::
 
-    sys.allow_insecure_eventfd=[1|0]
+    sys.insecure__allow_eventfd=[1|0]
     (Default: 0)
 
 This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
