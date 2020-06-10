@@ -21,6 +21,28 @@ static inline void cpu_pause(void) {
     __asm__ volatile("pause");
 }
 
+enum PAL_CPUID_WORD {
+    PAL_CPUID_WORD_EAX = 0,
+    PAL_CPUID_WORD_EBX = 1,
+    PAL_CPUID_WORD_ECX = 2,
+    PAL_CPUID_WORD_EDX = 3,
+    PAL_CPUID_WORD_NUM = 4,
+};
+
+#define SE_LEAF    0x12
+
+/* the following code is borrowed from CPUID */
+static inline void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]) {
+    __asm__ ("cpuid"
+             : "=a" (words[PAL_CPUID_WORD_EAX]),
+               "=b" (words[PAL_CPUID_WORD_EBX]),
+               "=c" (words[PAL_CPUID_WORD_ECX]),
+               "=d" (words[PAL_CPUID_WORD_EDX])
+             : "a" (leaf),
+               "c" (subleaf));
+}
+
+
 #define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory")
 
 /*

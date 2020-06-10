@@ -30,7 +30,7 @@
 
 /* the following code is borrowed from CPUID */
 
-static void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]) {
+static void sgx_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]) {
     _DkCpuIdRetrieve(leaf, subleaf, words);
 }
 
@@ -116,7 +116,7 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
 
     const size_t VENDOR_ID_SIZE = 13;
     char* vendor_id = malloc(VENDOR_ID_SIZE);
-    cpuid(0, 0, words);
+    sgx_cpuid(0, 0, words);
 
     FOUR_CHARS_VALUE(&vendor_id[0], words[PAL_CPUID_WORD_EBX]);
     FOUR_CHARS_VALUE(&vendor_id[4], words[PAL_CPUID_WORD_EDX]);
@@ -131,11 +131,11 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
 
     const size_t BRAND_SIZE = 49;
     char* brand = malloc(BRAND_SIZE);
-    cpuid(0x80000002, 0, words);
+    sgx_cpuid(0x80000002, 0, words);
     memcpy(&brand[ 0], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
-    cpuid(0x80000003, 0, words);
+    sgx_cpuid(0x80000003, 0, words);
     memcpy(&brand[16], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
-    cpuid(0x80000004, 0, words);
+    sgx_cpuid(0x80000004, 0, words);
     memcpy(&brand[32], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
@@ -144,7 +144,7 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
      * instead, this is passed in via pal_sec at start-up time. */
     ci->cpu_num = pal_sec.num_cpus;
 
-    cpuid(1, 0, words);
+    sgx_cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
                        BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 20, 28);
     ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  4,  8) +

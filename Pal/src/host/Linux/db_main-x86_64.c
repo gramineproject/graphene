@@ -22,18 +22,8 @@
 
 #include "api.h"
 #include "bogomips.h"
+#include "cpu.h"
 #include "pal_linux.h"
-
-/* the following code is borrowed from CPUID */
-void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]) {
-    __asm__ ("cpuid"
-             : "=a" (words[PAL_CPUID_WORD_EAX]),
-               "=b" (words[PAL_CPUID_WORD_EBX]),
-               "=c" (words[PAL_CPUID_WORD_ECX]),
-               "=d" (words[PAL_CPUID_WORD_EDX])
-             : "a" (leaf),
-               "c" (subleaf));
-}
 
 static double get_bogomips(void) {
     char buf[2048];

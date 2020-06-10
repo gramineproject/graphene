@@ -744,22 +744,6 @@ PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr);
  */
 PAL_NUM DkMemoryAvailableQuota(void);
 
-enum PAL_CPUID_WORD {
-    PAL_CPUID_WORD_EAX = 0,
-    PAL_CPUID_WORD_EBX = 1,
-    PAL_CPUID_WORD_ECX = 2,
-    PAL_CPUID_WORD_EDX = 3,
-    PAL_CPUID_WORD_NUM = 4,
-};
-
-/*!
- * \brief Return CPUID information, based on the leaf/subleaf.
- *
- * \param[out] values the array of the results
- */
-PAL_BOL
-DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
-
 /*!
  * \brief Obtain the attestation report (local) with `user_report_data` embedded into it.
  *

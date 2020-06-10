@@ -92,19 +92,6 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t * sig)
     return 0;
 }
 
-#define SE_LEAF    0x12
-
-static inline void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t info[4])
-{
-    __asm__ volatile("cpuid"
-                 : "=a"(info[0]),
-                   "=b"(info[1]),
-                   "=c"(info[2]),
-                   "=d"(info[3])
-                 : "a"(leaf),
-                   "c"(subleaf));
-}
-
 static size_t get_ssaframesize (uint64_t xfrm)
 {
     uint32_t cpuinfo[4];

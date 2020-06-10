@@ -25,6 +25,8 @@
 
 #include <stdint.h>
 
+#include "cpu.h"
+
 #define PAGE_SIZE       (1 << 12)
 #define PRESET_PAGESIZE PAGE_SIZE
 
@@ -202,5 +204,13 @@ typedef struct PAL_CPU_INFO_ {
     double  cpu_bogomips;
     PAL_STR cpu_flags;
 } PAL_CPU_INFO;
+
+/*!
+ * \brief Return CPUID information, based on the leaf/subleaf.
+ *
+ * \param[out] values the array of the results
+ */
+PAL_BOL
+DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
 
 #endif /* PAL_ARCH_H */
