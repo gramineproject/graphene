@@ -724,12 +724,33 @@ static int rpc_thread_loop(void* arg) {
     g_rpc_queue->rpc_threads_cnt++;
     spinlock_unlock(&g_rpc_queue->lock);
 
+    static const uint64_t SPIN_ATTEMPTS_MAX = 10000;                /* rather arbitrary */
+    static const uint64_t SLEEP_TIME_MAX    = 100000000;            /* nanoseconds (0.1 seconds) */
+    static const uint64_t SLEEP_TIME_STEP   = SLEEP_TIME_MAX / 100; /* 100 steps before capped */
+
+    /* no races possible since vars are thread-local and RPC threads don't receive signals */
+    uint64_t spin_attempts = 0;
+    uint64_t sleep_time    = 0;
+
     while (1) {
         rpc_request_t* req = rpc_dequeue(g_rpc_queue);
         if (!req) {
-            cpu_pause();
+            if (spin_attempts == SPIN_ATTEMPTS_MAX) {
+                if (sleep_time < SLEEP_TIME_MAX)
+                    sleep_time += SLEEP_TIME_STEP;
+
+                struct timespec tv = {.tv_sec = 0, .tv_nsec = sleep_time};
+                (void)INLINE_SYSCALL(nanosleep, 2, &tv, /*rem=*/NULL);
+            } else {
+                spin_attempts++;
+                cpu_pause();
+            }
             continue;
         }
+
+        /* new request came, reset spin/sleep heuristics */
+        spin_attempts = 0;
+        sleep_time    = 0;
 
         /* call actual function and notify awaiting enclave thread when done */
         sgx_ocall_fn_t f = ocall_table[req->ocall_index];
