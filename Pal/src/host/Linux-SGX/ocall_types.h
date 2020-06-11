@@ -170,7 +170,7 @@ typedef struct {
 } ms_ocall_create_process_t;
 
 typedef struct {
-    int* ms_futex;
+    uint32_t* ms_futex;
     int ms_op, ms_val;
     int64_t ms_timeout_us;
 } ms_ocall_futex_t;

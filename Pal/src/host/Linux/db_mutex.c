@@ -80,7 +80,9 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     /* Spin and try to take lock.  Ignore any contribution this makes toward
      * the timeout.*/
     for (i = 0; i < iterations; i++) {
-        if (cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
+        uint32_t t = MUTEX_UNLOCKED;
+        if (__atomic_compare_exchange_n(&m->locked, &t, MUTEX_LOCKED, /*weak=*/true,
+                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
             goto success;
         CPU_RELAX();
     }
@@ -93,7 +95,12 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     // Bump up the waiters count; we are probably going to block
     atomic_inc(&m->nwaiters);
 
-    while (!cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
+    while (true) {
+        uint32_t t = MUTEX_UNLOCKED;
+        if (__atomic_compare_exchange_n(&m->locked, &t, MUTEX_LOCKED, /*weak=*/true,
+                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+            break;
+
         struct timespec waittime, *waittimep = NULL;
         if (timeout_us >= 0) {
             int64_t sec      = timeout_us / 1000000;
@@ -156,10 +163,7 @@ int _DkMutexUnlock(struct mutex_handle* m) {
 #endif
 
     /* Unlock */
-    m->locked = 0;
-    /* We need to make sure the write to locked is visible to lock-ers
-     * before we read the waiter count. */
-    MB();
+    __atomic_store_n(&m->locked, 0, __ATOMIC_SEQ_CST);
 
     need_wake = atomic_read(&m->nwaiters);
 
@@ -176,7 +180,7 @@ void _DkMutexRelease(PAL_HANDLE handle) {
 }
 
 static bool _DkMutexIsLocked(struct mutex_handle* m) {
-    if (!m->locked) {
+    if (!__atomic_load_n(&m->locked, __ATOMIC_SEQ_CST)) {
         return false;
     }
 
