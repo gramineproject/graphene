@@ -1,20 +1,21 @@
+#include <stdatomic.h>
+
 #include "pal.h"
 #include "pal_debug.h"
 
-void* private1 = "Hello World 1";
-void* private2 = "Hello World 2";
+const char* private1 = "Hello World 1";
+const char* private2 = "Hello World 2";
 
-static volatile int count1 = 0;
+static atomic_int count = 0;
 
-static int callback1(void* args) {
+static void callback(void* args) {
     pal_printf("Run in Child Thread: %s\n", (char*)args);
 
-    while (count1 < 10) {
-        while (!(count1 % 2)) {
+    while (count < 10) {
+        while (!(count % 2)) {
             DkThreadYieldExecution();
         }
-        count1++;
-        __asm__ volatile("nop" ::: "memory");
+        count++;
     }
 
     pal_printf("Threads Run in Parallel OK\n");
@@ -24,45 +25,33 @@ static int callback1(void* args) {
     __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr2)::"memory");
     pal_printf("Private Message (FS Segment) 2: %s\n", ptr2);
 
-    count1 = 100;
-    __asm__ volatile("nop" ::: "memory");
+    count = 100;
     DkThreadExit(/*clear_child_tid=*/NULL);
-    count1 = 101;
-    __asm__ volatile("nop" ::: "memory");
-
-    return 0;
+    /* UNREACHABLE */
 }
 
-int main(int argc, const char** argv, const char** envp) {
+int main() {
     DkSegmentRegister(PAL_SEGMENT_FS, &private1);
     const char* ptr1;
     __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr1)::"memory");
     pal_printf("Private Message (FS Segment) 1: %s\n", ptr1);
 
-    PAL_HANDLE thread1 = DkThreadCreate(callback1, "Hello World");
+    PAL_HANDLE thread1 = DkThreadCreate(callback, "Hello World");
+    if (!thread1)
+        return 1;
 
-    if (thread1) {
-        pal_printf("Child Thread Created\n");
+    pal_printf("Child Thread Created\n");
 
-        while (count1 < 10) {
-            while (!!(count1 % 2)) {
-                DkThreadYieldExecution();
-            }
-            count1++;
-            __asm__ volatile("nop" ::: "memory");
-        }
-
-        while (count1 < 100) {
+    while (count < 9) {
+        while (!!(count % 2)) {
             DkThreadYieldExecution();
         }
-        for (int i = 0; i < 500; i++) {
-            DkThreadYieldExecution();
-        }
-
-        __asm__ volatile("nop" ::: "memory");
-        if (count1 == 100)
-            pal_printf("Child Thread Exited\n");
+        count++;
     }
 
+    while (count != 100) {
+        DkThreadYieldExecution();
+    }
+    pal_printf("Child Thread Exited\n");
     return 0;
 }
