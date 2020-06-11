@@ -874,8 +874,7 @@ void check_stack_hook (void)
 {
     struct shim_thread * cur_thread = get_cur_thread();
 
-    void * rsp;
-    __asm__ volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
+    void* rsp = current_stack();
 
     if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
         if ((uintptr_t)rsp - (uintptr_t)cur_thread->stack < PAL_CB(alloc_align))
