@@ -1604,18 +1604,8 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     shim_tcb_t* tcb = shim_get_tcb();
     __enable_preempt(tcb);
 
-#if defined(__x86_64__)
-    __asm__ volatile(
-        "pushq $0\r\n"
-        "popfq\r\n"
-        "movq %%rbx, %%rsp\r\n"
-        "jmp *%%rax\r\n"
-        :
-        : "a"(entry), "b"(argcp), "d"(0)
-        : "memory", "cc");
-#else
-#error "architecture not supported"
-#endif
+    CALL_ENTRY(entry, argcp);
+
     while (true)
         /* nothing */;
 }
