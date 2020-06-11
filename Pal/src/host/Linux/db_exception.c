@@ -176,7 +176,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
 
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
 
-    if (!ADDR_IN_PAL(rip)) {
+    if (signum == SIGTERM || !ADDR_IN_PAL(rip)) {
         /* signal arrived while in application or LibOS code, normal benign case */
         perform_signal_handling(event, info, uc);
         return;
