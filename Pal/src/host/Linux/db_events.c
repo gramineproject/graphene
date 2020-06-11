@@ -25,9 +25,9 @@ int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
     PAL_HANDLE ev = malloc(HANDLE_SIZE(event));
     SET_HANDLE_TYPE(ev, event);
     ev->event.isnotification = isnotification;
-    atomic_set(&ev->event.signaled, initialState ? 1 : 0);
     atomic_set(&ev->event.nwaiters, 0);
     *event = ev;
+    __atomic_store_n(&ev->event.signaled, initialState ? 1 : 0, __ATOMIC_SEQ_CST);
     return 0;
 }
 
@@ -36,7 +36,9 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
 
     if (event->event.isnotification) {
         // Leave it signaled, wake all
-        if (atomic_cmpxchg(&event->event.signaled, 0, 1)) {
+        uint32_t t = 0;
+        if (__atomic_compare_exchange_n(&event->event.signaled, &t, 1, /*weak=*/true,
+                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
             int nwaiters = atomic_read(&event->event.nwaiters);
             if (nwaiters) {
                 if (wakeup != -1 && nwaiters > wakeup)
@@ -45,7 +47,7 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
                 ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, nwaiters, NULL,
                                      NULL, 0);
                 if (IS_ERR(ret))
-                    atomic_set(&event->event.signaled, 0);
+                    __atomic_store_n(&event->event.signaled, 0, __ATOMIC_SEQ_CST);
             }
         }
     } else {
@@ -62,7 +64,8 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     if (timeout_us < 0)
         return _DkEventWait(event);
 
-    if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
+    if (!event->event.isnotification ||
+        !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST)) {
         struct timespec waittime;
         int64_t sec      = timeout_us / 1000000UL;
         int64_t microsec = timeout_us - (sec * 1000000UL);
@@ -83,7 +86,8 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
                     break;
                 }
             }
-        } while (event->event.isnotification && !atomic_read(&event->event.signaled));
+        } while (event->event.isnotification &&
+                 !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -94,7 +98,9 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
 int _DkEventWait(PAL_HANDLE event) {
     int ret = 0;
 
-    if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
+    if (!event->event.isnotification ||
+        !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST)) {
+
         atomic_inc(&event->event.nwaiters);
 
         do {
@@ -108,7 +114,8 @@ int _DkEventWait(PAL_HANDLE event) {
                     break;
                 }
             }
-        } while (event->event.isnotification && !atomic_read(&event->event.signaled));
+        } while (event->event.isnotification &&
+                 !__atomic_load_n(&event->event.signaled, __ATOMIC_SEQ_CST));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -117,7 +124,7 @@ int _DkEventWait(PAL_HANDLE event) {
 }
 
 int _DkEventClear(PAL_HANDLE event) {
-    atomic_set(&event->event.signaled, 0);
+    __atomic_store_n(&event->event.signaled, 0, __ATOMIC_SEQ_CST);
     return 0;
 }
 

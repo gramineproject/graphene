@@ -826,11 +826,11 @@ int ocall_create_process(const char* uri, int nargs, const char** args, int* str
     return retval;
 }
 
-int ocall_futex(int* futex, int op, int val, int64_t timeout_us) {
+int ocall_futex(uint32_t* futex, int op, int val, int64_t timeout_us) {
     int retval = 0;
     ms_ocall_futex_t * ms;
 
-    if (!sgx_is_completely_outside_enclave(futex, sizeof(int))) {
+    if (!sgx_is_completely_outside_enclave(futex, sizeof(uint32_t))) {
         return -EINVAL;
     }
 
