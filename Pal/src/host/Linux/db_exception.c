@@ -202,13 +202,17 @@ void __check_pending_event(void) {
     if (IS_ERR(ret))
         return;
 
-    for (int i = 0; i < tcb->pending_events_num; i++) {
+    /* LibOS signal handler may call PAL functions which in turn may call this function again,
+     * so we force TCB's pending_events_num to zero to avoid nesting of this function */
+    int num = tcb->pending_events_num;
+    tcb->pending_events_num = 0;
+
+    for (int i = 0; i < num; i++) {
         PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(tcb->pending_events[i]);
         if (upcall) {
             (*upcall)(/*event=*/NULL, /*arg=*/0, /*context=*/NULL);
         }
     }
-    tcb->pending_events_num = 0;
 
     (void)block_async_signals(/*block=*/false);
 }
