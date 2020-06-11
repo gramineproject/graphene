@@ -42,16 +42,13 @@ void free_untrusted (void * mem);
 
 #include <list.h>
 
-/* Simpler mutex design: a single variable that tracks whether the mutex
- * is locked (just waste a 64 bit word for now).  State is 1 (locked) or
- * 0 (unlocked).
- *
+/*
  * Keep a count of how many threads are waiting on the mutex.
  *
  * If DEBUG_MUTEX is defined, mutex_handle will record the owner of
  * mutex locking. */
 struct mutex_handle {
-    volatile int64_t * locked;
+    uint32_t* locked;
     struct atomic_int nwaiters;
 #ifdef DEBUG_MUTEX
     int owner;
