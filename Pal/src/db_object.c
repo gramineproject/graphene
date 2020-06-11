@@ -75,7 +75,7 @@ PAL_BOL DkSynchronizationObjectWait(PAL_HANDLE handle, PAL_NUM timeout_us) {
 
     if (!handle) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL_RETURN(NULL);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
     int ret = _DkSynchronizationObjectWait(handle, timeout_us);
