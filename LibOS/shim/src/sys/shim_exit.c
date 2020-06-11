@@ -149,9 +149,11 @@ noreturn void thread_exit(int error_code, int term_signal) {
             debug("failed to set up async cleanup_thread (exiting without clear child tid),"
                   " return code: %ld\n", ret);
             DkThreadExit(NULL);
+            /* UNREACHABLE */
         }
 
         DkThreadExit(&cur_thread->clear_child_tid_pal);
+        /* UNREACHABLE */
     }
 
     /* At this point other threads might be still in the middle of an exit routine, but we don't

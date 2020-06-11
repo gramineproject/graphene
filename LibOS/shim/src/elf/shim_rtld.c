@@ -1595,6 +1595,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     if (ret < 0) {
         debug("execute_elf_object: DkRandomBitsRead failed.\n");
         DkThreadExit(/*clear_child_tid=*/NULL);
+        /* UNREACHABLE */
     }
     auxp[5].a_un.a_val = random;
 

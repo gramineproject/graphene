@@ -74,10 +74,7 @@ void DkThreadYieldExecution(void) {
 noreturn void DkThreadExit(PAL_PTR clear_child_tid) {
     ENTER_PAL_CALL(DkThreadExit);
     _DkThreadExit((int*)clear_child_tid);
-    _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
-    while (true)
-        /* nothing */;
-    LEAVE_PAL_CALL();
+    /* UNREACHABLE */
 }
 
 /* PAL call DkThreadResume: resume the execution of a thread

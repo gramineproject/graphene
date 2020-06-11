@@ -15,8 +15,7 @@ static int thread2_run(void* args) {
     DkEventSet(event1);
     pal_printf("End of second thread.\n");
     DkThreadExit(/*clear_child_tid=*/NULL);
-
-    return 0;
+    /* UNREACHABLE */
 }
 
 static void pal_failure_handler(PAL_PTR event, PAL_NUM error, PAL_CONTEXT* context) {

@@ -826,6 +826,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
     debug("IPC helper thread terminated\n");
 
     DkThreadExit(/*clear_child_tid=*/NULL);
+    /* UNREACHABLE */
 
 out_err_unlock:
     unlock(&ipc_helper_lock);
@@ -855,7 +856,7 @@ static void shim_ipc_helper_prepare(void* arg) {
         free(stack);
         put_thread(self);
         DkThreadExit(/*clear_child_tid=*/NULL);
-        return;
+        /* UNREACHABLE */
     }
 
     debug("IPC helper thread started\n");
