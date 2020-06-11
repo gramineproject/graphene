@@ -15,7 +15,7 @@ static int thread_func(void* args) {
 
     DkEventSet(event1);
     DkThreadExit(/*clear_child_tid=*/NULL);
-    return 0; /* NOTREACHED */
+    /* UNREACHABLE */
 }
 
 int main(int argc, char** argv) {

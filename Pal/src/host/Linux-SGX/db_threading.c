@@ -79,6 +79,7 @@ void pal_start_thread (void)
     memset(&pal_tcb->libos_tcb, 0, sizeof(pal_tcb->libos_tcb));
     callback((void *) param);
     _DkThreadExit(/*clear_child_tid=*/NULL);
+    /* UNREACHABLE */
 }
 
 /* _DkThreadCreate for internal use. Create an internal thread

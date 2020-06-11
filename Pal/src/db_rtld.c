@@ -1085,4 +1085,5 @@ noreturn void start_execution(const char** arguments, const char** environs) {
         CALL_ENTRY(exec_map, cookies);
 
     _DkThreadExit(/*clear_child_tid=*/NULL);
+    /* UNREACHABLE */
 }

@@ -152,7 +152,7 @@ static void shim_async_helper(void* arg) {
     if (notme) {
         put_thread(self);
         DkThreadExit(/*clear_child_tid=*/NULL);
-        return;
+        /* UNREACHABLE */
     }
 
     /* Assume async helper thread will not drain the stack that PAL provides,
@@ -345,7 +345,7 @@ static void shim_async_helper(void* arg) {
     free(pal_events);
 
     DkThreadExit(/*clear_child_tid=*/NULL);
-    return;
+    /* UNREACHABLE */
 
 out_err_unlock:
     unlock(&async_helper_lock);
