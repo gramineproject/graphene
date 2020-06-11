@@ -605,8 +605,8 @@ int64_t _DkStreamSetLength(PAL_HANDLE handle, uint64_t length) {
 }
 
 /* PAL call DkStreamSetLength: Truncate the stream at certain length.
-   Return 0 if succeeded or positive errno if failed. Error code is
-   notified. */
+   Return 0 if succeeded or positive error code if failed. Error code
+   is additionally notified. */
 PAL_NUM DkStreamSetLength(PAL_HANDLE handle, PAL_NUM length) {
     ENTER_PAL_CALL(DkStreamSetLength);
 
