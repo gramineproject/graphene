@@ -29,9 +29,8 @@ enum PAL_CPUID_WORD {
     PAL_CPUID_WORD_NUM = 4,
 };
 
-#define SE_LEAF    0x12
+#define INTEL_SGX_LEAF    0x12  /* Intel SGX Capabilities: CPUID Leaf 12H, Sub-Leaf 0 */
 
-/* the following code is borrowed from CPUID */
 static inline void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]) {
     __asm__ ("cpuid"
              : "=a" (words[PAL_CPUID_WORD_EAX]),
