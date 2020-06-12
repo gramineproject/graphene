@@ -370,7 +370,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             if (arg > eof_in_vma) {
                 signo = SIGBUS;
                 code = BUS_ADRERR;
-            } else if ((context->err & 4) && !(vma_info.flags & PROT_WRITE)) {
+            } else if (pal_context_has_user_pagefault(context) && !(vma_info.flags & PROT_WRITE)) {
                 /* DEP 3/3/17: If the page fault gives a write error, and
                  * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
                 signo = SIGSEGV;
