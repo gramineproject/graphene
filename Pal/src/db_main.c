@@ -362,6 +362,14 @@ noreturn void pal_main(
     pal_state.exec            = exec_uri;
     pal_state.exec_handle     = exec_handle;
 
+    bool disable_aslr = false;
+    if (pal_state.root_config) {
+        char aslr_cfg[2];
+        ssize_t len = get_config(pal_state.root_config, "loader.insecure__disable_aslr", aslr_cfg,
+                                 sizeof(aslr_cfg));
+        disable_aslr = len == 1 && aslr_cfg[0] == '1';
+    }
+
     if (pal_state.root_config && *arguments
         && (strendswith(*arguments, ".manifest") || strendswith(*arguments, ".manifest.sgx"))) {
         /* Run as a manifest file,
@@ -397,6 +405,7 @@ noreturn void pal_main(
     __pal_control.executable         = exec_uri;
     __pal_control.parent_process     = parent_process;
     __pal_control.first_thread       = first_thread;
+    __pal_control.disable_aslr       = disable_aslr;
 
     _DkGetAvailableUserAddressRange(&__pal_control.user_address.start,
                                     &__pal_control.user_address.end,
