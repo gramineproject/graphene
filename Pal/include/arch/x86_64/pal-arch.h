@@ -205,12 +205,4 @@ typedef struct PAL_CPU_INFO_ {
     PAL_STR cpu_flags;
 } PAL_CPU_INFO;
 
-/*!
- * \brief Return CPUID information, based on the leaf/subleaf.
- *
- * \param[out] values the array of the results
- */
-PAL_BOL
-DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
-
 #endif /* PAL_ARCH_H */

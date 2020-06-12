@@ -803,4 +803,12 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
 # define symbol_version_default(real, name, version)
 #endif
 
+/*!
+ * \brief Return CPUID information, based on the leaf/subleaf.
+ *
+ * \param[out] values the array of the results
+ */
+PAL_BOL
+DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
+
 #endif /* PAL_H */
