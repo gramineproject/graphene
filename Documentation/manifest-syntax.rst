@@ -86,6 +86,18 @@ is ``none``, no debug output will be printed to standard output. If the debug
 type is ``inline``, a dmesg-like debug output will be printed inlined with
 standard output.
 
+Disabling ASLR
+^^^^^^^^^^^^^^
+
+::
+
+    loader.insecure__disable_aslr=[1|0]
+    (Default: 0)
+
+This specifies whether to disable Address Space Layout Randomization (ASLR).
+Since disabling ASLR worsens security of the application, ASLR is enabled by
+default.
+
 
 System-related (Required by LibOS)
 ----------------------------------

@@ -579,27 +579,27 @@ int init_vma(void) {
 
     g_aslr_addr_top = PAL_CB(user_address.end);
 
-#if ENABLE_ASLR == 1
-    /* Inspired by: https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/mm/mmap.c#L80 */
-    size_t gap_max_size = (PAL_CB(user_address.end) - PAL_CB(user_address.start)) / 6 * 5;
-    /* We do address space randomization only if we have at least ASLR_BITS to randomize. */
-    if (gap_max_size / ALLOC_ALIGNMENT >= (1ul << ASLR_BITS)) {
-        size_t gap = 0;
+    if (!PAL_CB(disable_aslr)) {
+        /* Inspired by: https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/mm/mmap.c#L80 */
+        size_t gap_max_size = (PAL_CB(user_address.end) - PAL_CB(user_address.start)) / 6 * 5;
+        /* We do address space randomization only if we have at least ASLR_BITS to randomize. */
+        if (gap_max_size / ALLOC_ALIGNMENT >= (1ul << ASLR_BITS)) {
+            size_t gap = 0;
 
-        int ret = DkRandomBitsRead(&gap, sizeof(gap));
-        if (ret < 0) {
-            return -convert_pal_errno(-ret);
+            int ret = DkRandomBitsRead(&gap, sizeof(gap));
+            if (ret < 0) {
+                return -convert_pal_errno(-ret);
+            }
+
+            /* Resulting distribution is not ideal, but it should not be an issue here. */
+            gap = ALLOC_ALIGN_DOWN(gap % gap_max_size);
+            g_aslr_addr_top = (char*)g_aslr_addr_top - gap;
+
+            debug("ASLR top address adjusted to %p\n", g_aslr_addr_top);
+        } else {
+            debug("Not enough space to make meaningful address space randomization.\n");
         }
-
-        /* Resulting distribution is not ideal, but it should not be an issue here. */
-        gap = ALLOC_ALIGN_DOWN(gap % gap_max_size);
-        g_aslr_addr_top = (char*)g_aslr_addr_top - gap;
-
-        debug("ASLR top address adjusted to %p\n", g_aslr_addr_top);
-    } else {
-        debug("Not enough space to make meaningful address space randomization.\n");
     }
-#endif
 
     /* We need 1 vma to create the memmgr. */
     if (!add_to_thread_vma_cache(&init_vmas[0])) {

@@ -160,6 +160,7 @@ typedef struct PAL_CONTROL_ {
     /*
      * Memory layout
      */
+    PAL_BOL disable_aslr; /*!< disable ASLR (may be necessary for restricted environments) */
     PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
     PAL_PTR_RANGE executable_range; /*!< address where executable is loaded */

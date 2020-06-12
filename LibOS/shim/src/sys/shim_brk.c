@@ -73,7 +73,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
             && brk_max_size <= (uintptr_t)PAL_CB(user_address.end)
             && (uintptr_t)brk_start < (uintptr_t)PAL_CB(user_address.end) - brk_max_size) {
         size_t offset = 0;
-#if ENABLE_ASLR == 1
+
         int ret = DkRandomBitsRead(&offset, sizeof(offset));
         if (ret < 0) {
             return -convert_pal_errno(-ret);
@@ -83,7 +83,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
         offset %= MIN((size_t)0x2000000,
                       (size_t)((char*)PAL_CB(user_address.end) - brk_max_size - (char*)brk_start));
         offset = ALLOC_ALIGN_DOWN(offset);
-#endif
+
         brk_start = (char*)brk_start + offset;
 
         ret = bkeep_mmap_fixed(brk_start, brk_max_size, PROT_NONE,
@@ -103,12 +103,8 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
 
     if (!brk_start) {
         int ret;
-#if ENABLE_ASLR == 1
-        ret = bkeep_mmap_any_aslr
-#else
-        ret = bkeep_mmap_any
-#endif
-                            (brk_max_size, PROT_NONE, VMA_UNMAPPED, NULL, 0, "heap", &brk_start);
+        ret = bkeep_mmap_any_aslr(brk_max_size, PROT_NONE, VMA_UNMAPPED, NULL, 0, "heap",
+                                  &brk_start);
         if (ret < 0) {
             return ret;
         }
