@@ -94,8 +94,8 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
      * the timeout.*/
     for (i = 0; i < iterations; i++) {
         int t = MUTEX_UNLOCKED;
-        if (__atomic_compare_exchange_n(&m->locked, &t, MUTEX_LOCKED, false,
-                                        __ATOMIC_SEQ_CST, __ATOMIC_RELAXED))
+        if (__atomic_compare_exchange_n(&m->locked, &t, MUTEX_LOCKED, /*weak=*/true,
+                                        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
             goto success;
         CPU_RELAX();
     }
@@ -109,9 +109,9 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     atomic_inc(&m->nwaiters);
 
     while (true) {
-        int t = MUTEX_UNLOCKED ;
-        if (__atomic_compare_exchange_n(&m->locked, &t, MUTEX_LOCKED, false,
-            __ATOMIC_SEQ_CST, __ATOMIC_RELAXED))
+        int t = MUTEX_UNLOCKED;
+        if (__atomic_compare_exchange_n(&m->locked, &t, MUTEX_LOCKED, /*weak=*/true,
+            __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
             break;
 
         struct timespec waittime, *waittimep = NULL;
@@ -176,7 +176,7 @@ int _DkMutexUnlock(struct mutex_handle* m) {
 #endif
 
     /* Unlock */
-    __atomic_store_n(&m->locked, 0, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&m->locked, 0, __ATOMIC_RELEASE);
     /* We need to make sure the write to locked is visible to lock-ers
      * before we read the waiter count. */
     MB();
