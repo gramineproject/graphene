@@ -9,7 +9,7 @@ loader.exec = file:busybox
 
 # Name of the executable e.g. as visible through argv[0] when ran as manifest
 # file (`./pal_loader busybox.manifest`).
-loader.execname = busybox
+loader.argv0_override = busybox
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1

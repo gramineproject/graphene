@@ -362,15 +362,14 @@ noreturn void pal_main(
     /* Load argv */
     /* TODO: Add an option to specify argv inline in the manifest. This requires an upgrade to the
      * manifest syntax. See https://github.com/oscarlab/graphene/issues/870 (Use YAML or TOML syntax
-     * for manifests). 'loader.execname' won't be needed after implementing this feature and
+     * for manifests). 'loader.argv0_override' won't be needed after implementing this feature and
      * resolving https://github.com/oscarlab/graphene/issues/1053 (RFC: graphene invocation).
      */
-    bool using_loader_execname = false;
+    bool argv0_overridden = false;
     if (pal_state.root_config) {
-        ret = get_config(pal_state.root_config, "loader.execname", cfgbuf, sizeof(cfgbuf));
+        ret = get_config(pal_state.root_config, "loader.argv0_override", cfgbuf, sizeof(cfgbuf));
         if (ret > 0) {
-            /* loader.execname specified, override argv[0] */
-            using_loader_execname = true;
+            argv0_overridden = true;
             if (!arguments[0]) {
                 arguments = malloc(sizeof(const char*) * 2);
                 if (!arguments)
@@ -432,7 +431,7 @@ noreturn void pal_main(
             if (buf[i] == '\0')
                 *(argv_it++) = buf + i + 1;
         arguments = argv;
-    } else if (!using_loader_execname || (arguments[0] && arguments[1])) {
+    } else if (!argv0_overridden || (arguments[0] && arguments[1])) {
         INIT_FAIL(PAL_ERROR_INVAL, "argv handling wasn't configured in the manifest, but cmdline "
                   "arguments were specified.");
     }

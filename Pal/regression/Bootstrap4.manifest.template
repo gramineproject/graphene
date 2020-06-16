@@ -1,4 +1,4 @@
 #!$(PAL)
 
 loader.exec = file:Bootstrap
-loader.execname = Bootstrap
+loader.argv0_override = Bootstrap

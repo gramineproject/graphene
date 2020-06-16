@@ -1,4 +1,4 @@
-loader.execname = File
+loader.argv0_override = File
 loader.debug_type = inline
 
 fs.mount.root.uri = file:
