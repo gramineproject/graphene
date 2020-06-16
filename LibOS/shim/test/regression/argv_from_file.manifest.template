@@ -1,5 +1,5 @@
 loader.exec = file:bootstrap
-loader.execname = bootstrap
+loader.argv0_override = bootstrap
 
 loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib

@@ -1,7 +1,7 @@
 # This file is used by test_204_system test
 
 loader.exec = file:/bin/sh
-loader.execname = sh
+loader.argv0_override = sh
 loader.insecure__use_cmdline_argv = 1
 
 loader.preload = file:../../src/libsysdb.so

@@ -52,13 +52,13 @@ Executable Name
 
 ::
 
-   loader.execname=[STRING]
+   loader.argv0_override=[STRING]
 
 This syntax specifies an arbitrary string (typically the executable name) that
-will be passed as the first argument (``argv[0]``) to the executable only if it
-is run via the manifest (e.g. ``./app.manifest arg1 arg2 ...``). If the string
-is not specified in the manifest, the PAL will use the path to the manifest
-itself (standard UNIX convention).
+will be passed as the first argument (``argv[0]``) to the executable.
+
+If the string is not specified in the manifest, the application will get
+``argv[0]`` from :program:`pal_loader` invocation.
 
 Command-Line Arguments
 ^^^^^^^^^^^^^^^^^^^^^^

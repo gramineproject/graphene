@@ -1,5 +1,5 @@
 loader.exec = file:multi_pthread
-loader.execname = multi_pthread
+loader.argv0_override = multi_pthread
 
 loader.preload = file:../../src/libsysdb.so
 loader.env.LD_LIBRARY_PATH = /lib

@@ -1,4 +1,4 @@
-loader.execname = Process
+loader.argv0_override = Process
 loader.insecure__use_cmdline_argv = 1
 loader.debug_type = inline
 

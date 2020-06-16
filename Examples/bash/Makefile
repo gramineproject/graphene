@@ -67,7 +67,7 @@ trusted-children:
 bash.manifest: manifest.template trusted-children bash.trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(EXECNAME)|bash|g' \
+		-e 's|$$(ARGV0_OVERRIDE)|bash|g' \
 		-e 's|$$(EXECPATH)|'"$(shell which bash)"'|g' \
 		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which bash))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat bash.trusted-libs`"'|g' \
@@ -78,7 +78,7 @@ bash.manifest: manifest.template trusted-children bash.trusted-libs
 $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(EXECNAME)|'"$(basename $@)"'|g' \
+		-e 's|$$(ARGV0_OVERRIDE)|'"$(basename $@)"'|g' \
 		-e 's|$$(EXECPATH)|'"$(shell which $(basename $@))"'|g' \
 		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which $(basename $@)))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat $(basename $@).trusted-libs`"'|g' \

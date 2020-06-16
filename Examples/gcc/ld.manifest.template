@@ -1,6 +1,6 @@
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.exec = file:/usr/bin/ld
-loader.execname = /usr/bin/ld
+loader.argv0_override = /usr/bin/ld
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
 loader.env.PATH = /bin:/usr/bin
 loader.debug_type = $(GRAPHENEDEBUG)

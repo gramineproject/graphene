@@ -1,7 +1,7 @@
 loader.preload = file:$(SHIMPATH)
 loader.env.LD_LIBRARY_PATH = /lib
 loader.debug_type = inline
-loader.execname = getdents
+loader.argv0_override = getdents
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib

@@ -7,8 +7,8 @@
 # ./pal_loader pytorch.manifest pytorchexample.py
 
 # The executable to load in Graphene
-loader.exec     = file:/usr/bin/python3
-loader.execname = python3
+loader.exec = file:/usr/bin/python3
+loader.argv0_override = python3
 
 # Graphene environment, including the path to the library OS and the debug
 # option (inline/none)
