@@ -96,13 +96,6 @@ pipeline {
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
-                                cd Examples/lmbench
-                                make SGX=1 all
-                                make SGX=1 test N_RUNS=1 ENOUGH=100
-                            '''
-                        }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            sh '''
                                 cd Examples/redis
                                 make SGX=1
                                 make SGX=1 start-graphene-server &
@@ -178,7 +171,6 @@ pipeline {
                            make -C Examples/bash SGX=1 clean
                            make -C Examples/curl SGX=1 clean
                            make -C Examples/gcc SGX=1 distclean
-                           make -C Examples/lmbench SGX=1 distclean
                            make -C Examples/redis SGX=1 distclean
                            make -C Examples/lighttpd SGX=1 distclean
                            make -C Examples/nginx SGX=1 distclean

@@ -74,12 +74,6 @@ pipeline {
                                 make check
                            '''
                         }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/lmbench
-                                make test N_RUNS=1 ENOUGH=100
-                            '''
-                        }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/redis
@@ -147,7 +141,6 @@ pipeline {
                            make -C Examples/bash clean
                            make -C Examples/curl clean
                            make -C Examples/gcc distclean
-                           make -C Examples/lmbench distclean
                            make -C Examples/redis distclean
                            make -C Examples/lighttpd distclean
                            make -C Examples/nginx distclean
