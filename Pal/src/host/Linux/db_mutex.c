@@ -193,7 +193,7 @@ void _DkMutexRelease(PAL_HANDLE handle) {
 }
 
 static bool _DkMutexIsLocked(struct mutex_handle* m) {
-    if (!m->locked) {
+    if (!__atomic_load_n(&m->locked, __ATOMIC_SEQ_CST)) {
         return false;
     }
 
