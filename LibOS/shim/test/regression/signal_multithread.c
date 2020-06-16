@@ -51,6 +51,12 @@ int main() {
 
     wait_for(1);
 
+    /* the below dummy kill (no signal is sent) is for sanity */
+    if (kill(getpid(), /*sig=*/0)) {
+        fprintf(stderr, "kill(sig=0) failed: %m\n");
+        return 1;
+    }
+
     if (kill(getpid(), SIGTERM)) {
         fprintf(stderr, "kill failed: %m\n");
         return 1;

@@ -245,6 +245,13 @@ static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
             BUG();
     }
 
+    if (!arg->sig) {
+        /* special case of sig == 0: don't really send signal but simply report success */
+        arg->sent = true;
+        ret = 1;
+        goto out;
+    }
+
     /* Appending the signal to the whole process. */
     if (!arg->sent) {
         siginfo_t info = {
@@ -386,6 +393,12 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
         return -EINVAL;
 
     struct shim_thread* thread = lookup_thread(tid);
+
+    if (!sig) {
+        /* special case of sig == 0: don't really send signal but report success if found thread */
+        return thread ? 0 : -ESRCH;
+    }
+
     int ret = -ESRCH;
 
     if (thread) {
