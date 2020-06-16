@@ -19,16 +19,6 @@ Quick Start
       make
       ./pal_loader helloworld
 
-#. Test LMBench Application::
-
-      cd ../../../../Examples/lmbench
-      make
-      cd lmbench-2.5/bin/linux
-      ./pal_loader lat_syscall null
-      ./pal_loader lat_syscall open
-      ./pal_loader lat_syscall read
-      ./pal_loader lat_proc fork
-
 #. For more complex examples, see :file:`Examples` directory.
 
 SGX Quick Start
@@ -91,13 +81,3 @@ second command should list the process status of :command:`aesm_service`.
       make SGX=1
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
-
-#. Test LMBench Application::
-
-      cd $GRAPHENE_DIR/Examples/lmbench
-      make SGX=1
-      cd lmbench-2.5/bin/linux
-      SGX=1 ./pal_loader lat_syscall null
-      SGX=1 ./pal_loader lat_syscall open
-      SGX=1 ./pal_loader lat_syscall read
-      SGX=1 ./pal_loader lat_proc fork
