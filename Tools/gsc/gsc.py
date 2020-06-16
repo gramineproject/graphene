@@ -112,7 +112,6 @@ def extract_binary_cmd_from_image_config(config):
     # Place the remaining optional arguments previously specified as command, in the
     # new command. This is necessary, since the first element of the command may be the
     # binary of the resulting image.
-    remaining_args = '"' + '", "'.join(entrypoint[last_bin_arg + 1 : ]) + '"'
     cmd = entrypoint[last_bin_arg + 1 : ] if len(entrypoint) > last_bin_arg + 1 else ''
 
     return binary, binary_arguments, cmd
