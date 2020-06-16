@@ -167,7 +167,7 @@ typedef struct pal_handle
             } mutex;
 
             struct {
-                struct atomic_int * signaled;
+                uint32_t* signaled;
                 struct atomic_int nwaiters;
                 PAL_BOL isnotification;
             } event;

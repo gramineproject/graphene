@@ -176,7 +176,7 @@ int _DkMutexUnlock(struct mutex_handle* m) {
 #endif
 
     /* Unlock */
-    __atomic_store_n(&m->locked, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&m->locked, 0, __ATOMIC_SEQ_CST);
 
     need_wake = atomic_read(&m->nwaiters);
 
