@@ -80,6 +80,12 @@ int main() {
 
     printf("parent tid: %d\n", tid);
 
+    /* the below dummy tkill (no signal is sent) is for sanity */
+    if (tkill(tid, /*sig=*/0)) {
+        fprintf(stderr, "tkill(sig=0) failed: %m\n");
+        return 1;
+    }
+
     if (tkill(tid, SIGTERM)) {
         fprintf(stderr, "tkill failed: %m\n");
         return 1;

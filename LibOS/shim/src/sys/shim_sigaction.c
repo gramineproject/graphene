@@ -245,6 +245,13 @@ static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
             BUG();
     }
 
+    if (!arg->sig) {
+        /* special case of sig == 0: don't really send signal but simply report success */
+        arg->sent = true;
+        ret = 1;
+        goto out;
+    }
+
     /* Appending the signal to the whole process. */
     if (!arg->sent) {
         siginfo_t info = {
@@ -393,6 +400,13 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
 
         if (thread->in_vm) {
             if (!tgid || thread->tgid == tgid) {
+                if (!sig) {
+                    /* special case of sig == 0: don't really send signal but report success */
+                    unlock(&thread->lock);
+                    put_thread(thread);
+                    return 0;
+                }
+
                 siginfo_t info = {
                     .si_signo = sig,
                     .si_pid   = sender,
