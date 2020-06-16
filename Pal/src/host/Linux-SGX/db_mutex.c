@@ -52,8 +52,8 @@ int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
         free(mut);
         return -PAL_ERROR_NOMEM;
     }
-    __atomic_store_n(mut->mutex.mut.locked, initialCount, __ATOMIC_RELAXED);
     *handle                  = mut;
+    __atomic_store_n(mut->mutex.mut.locked, initialCount, __ATOMIC_SEQ_CST);
     return 0;
 }
 

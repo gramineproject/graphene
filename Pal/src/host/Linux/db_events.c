@@ -38,9 +38,9 @@ int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
     PAL_HANDLE ev = malloc(HANDLE_SIZE(event));
     SET_HANDLE_TYPE(ev, event);
     ev->event.isnotification = isnotification;
-    __atomic_store_n(&ev->event.signaled, initialState ? 1 : 0, __ATOMIC_RELAXED);
     atomic_set(&ev->event.nwaiters, 0);
     *event = ev;
+    __atomic_store_n(&ev->event.signaled, initialState ? 1 : 0, __ATOMIC_SEQ_CST);
     return 0;
 }
 
