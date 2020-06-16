@@ -251,8 +251,7 @@ noreturn void pal_main(
             ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY,
                                 0, 0, 0);
             if (ret) {
-                /* well, there is no manifest file, leave it alone */
-                printf("Can't find any manifest, will run without one.\n");
+                INIT_FAIL(PAL_ERROR_DENIED, "cannot find manifest file");
             }
         }
     }
@@ -321,7 +320,7 @@ noreturn void pal_main(
         if (success) {
             exec_uri = malloc(exec_strlen + 1);
             if (!exec_uri)
-                INIT_FAIL(-PAL_ERROR_NOMEM, "Cannot allocate URI buf");
+                INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate URI buf");
             memcpy (exec_uri, manifest_uri, exec_strlen);
             exec_uri[exec_strlen] = '\0';
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
@@ -451,7 +450,7 @@ noreturn void pal_main(
         }
 
         if (ret < 0)
-            INIT_FAIL(ret, pal_strerror(ret));
+            INIT_FAIL(-ret, pal_strerror(ret));
     }
 
     set_debug_type();
