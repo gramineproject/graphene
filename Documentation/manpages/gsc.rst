@@ -1,8 +1,13 @@
 .. program:: gsc
 
-============================================
+==============================================
 :program:`gsc` -- Graphene Shielded Containers
-============================================
+==============================================
+
+.. warning::
+    GSC is still under development and must not be used in production! Please
+    see `issue #1520 <https://github.com/oscarlab/graphene/issues/1520>`__ for a
+    description of missing features and security caveats.
 
 Synopsis
 ========
@@ -93,6 +98,16 @@ Synopsis:
    Build Graphene only and ignore the application image (useful for Graphene
    development, irrelevant for end users of GSC)
 
+.. option:: --insecure-args
+
+   Allow untrusted arguments to be specified at :command:`docker run`. Otherwise
+   any arguments specified during :command:`docker run` are ignored.
+
+.. option:: -nc
+
+   Disable Docker's caches during :command:`gsc build`. This builds the
+   graphenized image from scratch.
+
 .. option:: IMAGE-NAME
 
    Name of the application Docker image
@@ -106,6 +121,14 @@ Synopsis:
 
    Application-specific Manifest for the n-th application
 
+Using Graphene's trusted command line arguments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When :option:`--insecure-args` is not specified, :command:`gsc build` uses the
+existing Docker image's entrypoint and cmd fields to identify the trusted
+arguments. These arguments are stored :file:`trusted_argv`. This file is only
+generated, when :option:`--insecure-args` is not specified. As a result any
+arguments spefied during :command:`docker run` are ignored.
 
 Application-specific Manifest Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

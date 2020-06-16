@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright (C) 2020 Intel Corp.
+#                    Anjo Vahldiek-Oberwagner <anjo.lucas.vahldiek-oberagner@intel.com>
 
 import os
 import sys

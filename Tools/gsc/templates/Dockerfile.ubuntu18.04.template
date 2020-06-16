@@ -73,10 +73,12 @@ RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y \
 RUN mkdir -p /graphene \
     && mkdir -p /graphene/Runtime \
     && mkdir -p /graphene/signer \
-    && mkdir -p /graphene/Pal/src
+    && mkdir -p /graphene/Pal/src \
+    && mkdir -p /graphene/Tools
 COPY --from=graphene /graphene/Runtime/ /graphene/Runtime
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/signer/ /graphene/signer
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/generated_offsets.py /graphene/signer/
+COPY --from=graphene /graphene/Tools/argv_serializer /graphene/Tools
 {% if args.debug %}
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/debugger/sgx_gdb.so /graphene/Runtime
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/debugger/pal-gdb.py /graphene/Runtime
@@ -87,6 +89,11 @@ COPY apploader.sh ./
 COPY *.manifest ./
 COPY finalize_manifests.py /
 
+{% if not args.insecure_args %}
+# Generate trusted arguments
+RUN /graphene/Tools/argv_serializer {{binary}} {{binary_arguments}} '{{"' '".join(cmd)}}' > trusted_argv
+{% endif %}
+
 # Mark apploader.sh executable, finalize manifests, and remove intermediate scripts
 RUN chmod u+x apploader.sh \
     && python3 /finalize_manifests.py / {{binary}}.manifest {{user_manifests}} \
@@ -94,6 +101,6 @@ RUN chmod u+x apploader.sh \
 
 # Define default command
 ENTRYPOINT  ["/bin/sh", "./apploader.sh"]
-CMD [{{cmd}}]
+CMD [{% if args.insecure_args %} "{{'", "'.join(cmd)}}" {% endif %}]
 
 {% endif %}

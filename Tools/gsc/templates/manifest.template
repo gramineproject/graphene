@@ -18,4 +18,14 @@ fs.start_dir = {{working_dir}}
 # Start at static addresses (otherwise breaks when static and PIE executables are used)
 sgx.static_address = 1
 
+{% if args.insecure_args %}
+# !! INSECURE !! Allow passing command-line arguments from the host without validation
+# Most Docker images rely on runtime arguments and hence, a more general technique is required.
+# The issue is documented for future release of GSC in issue #1520.
+loader.insecure__use_cmdline_argv = 1
+{% else %}
+loader.argv_src_file = file:trusted_argv
+sgx.trusted_files.trusted_argv = file:trusted_argv
+{% endif %}
+
 # All trusted files and the user defined manifest specifications should be after this line

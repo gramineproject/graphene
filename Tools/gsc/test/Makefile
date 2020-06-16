@@ -27,19 +27,19 @@ all: $(TESTS)
 
 gsc-%-bash:
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
+	cd .. && ./gsc build --insecure-args $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
 
 gsc-%-python3: %-python3.manifest
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $^ sh.manifest ls.manifest)
+	cd .. && ./gsc build --insecure-args $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $^ sh.manifest ls.manifest)
 
 gsc-%-pytorch: %-pytorch.manifest
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $^ sh.manifest uname.manifest)
+	cd .. && ./gsc build --insecure-args $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $^ sh.manifest uname.manifest)
 
 gsc-%:
 	echo "Build graphenized image $@"
-	cd .. && ./gsc build $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
+	cd .. && ./gsc build --insecure-args $(DEBUG) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
 
 test: $(addprefix test-, $(DISTRIBUTIONS))
 	echo "[SUCCESS] Completed all GSC test cases"

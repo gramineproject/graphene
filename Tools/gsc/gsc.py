@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright (C) 2020 Intel Corp.
+#                    Anjo Vahldiek-Oberwagner <anjo.lucas.vahldiek-oberagner@intel.com>
 
 import os
 import re
@@ -110,7 +113,7 @@ def extract_binary_cmd_from_image_config(config):
     # new command. This is necessary, since the first element of the command may be the
     # binary of the resulting image.
     remaining_args = '"' + '", "'.join(entrypoint[last_bin_arg + 1 : ]) + '"'
-    cmd = remaining_args if len(entrypoint) > last_bin_arg + 1 else ''
+    cmd = entrypoint[last_bin_arg + 1 : ] if len(entrypoint) > last_bin_arg + 1 else ''
 
     return binary, binary_arguments, cmd
 
@@ -172,7 +175,8 @@ def gsc_build(args):
 
         docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
         # docker build returns stream of json output
-        stream = docker_api.build(path='gsc-' + image, tag=gsc_image_name(image))
+        stream = docker_api.build(path='gsc-' + image, tag=gsc_image_name(image),
+                                  nocache=args.no_cache)
 
         # print continuously the stream of output by docker build
         for chunk in stream:
@@ -198,13 +202,18 @@ subcommands = ARGPARSER.add_subparsers(metavar='<command>')
 subcommands.required = True
 sub_build = subcommands.add_parser('build', help="Build graphenized Docker image")
 sub_build.set_defaults(command=gsc_build)
-sub_build.add_argument( '-d','--debug', action='store_true',
+sub_build.add_argument('-d', '--debug', action='store_true',
     help='Compile Graphene with debug flags and output')
-sub_build.add_argument( '-L','--linux', action='store_true',
+sub_build.add_argument('-L', '--linux', action='store_true',
     help='Compile Graphene with Linux PAL in addition to Linux-SGX PAL')
-sub_build.add_argument( '-G','--graphene', action='store_true',
+sub_build.add_argument('-G', '--graphene', action='store_true',
     help='Build Graphene only and ignore the application image (useful for Graphene development, '
          'irrelevant for end users of GSC)')
+sub_build.add_argument('--insecure-args', action='store_true',
+    help='Allow to specify untrusted arguments during Docker run. '
+         'Otherwise arguments are ignored.')
+sub_build.add_argument('-nc', '--no-cache', action='store_true',
+    help='Build graphenized Docker image without any cached images.')
 sub_build.add_argument('image',
     help='Name of the application Docker image')
 sub_build.add_argument('manifests',
