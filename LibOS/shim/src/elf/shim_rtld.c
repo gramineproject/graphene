@@ -1604,7 +1604,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     shim_tcb_t* tcb = shim_get_tcb();
     __enable_preempt(tcb);
 
-    CALL_ENTRY(entry, argcp);
+    CALL_ELF_ENTRY(entry, argcp);
 
     while (true)
         /* nothing */;

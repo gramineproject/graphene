@@ -40,7 +40,7 @@ static_always_inline void* current_stack(void) {
     return _rsp;
 }
 
-#define CALL_ENTRY(ENTRY, ARGCP)         \
+#define CALL_ELF_ENTRY(ENTRY, ARGCP)     \
     __asm__ volatile(                    \
         "pushq $0\r\n"                   \
         "popfq\r\n"                      \
