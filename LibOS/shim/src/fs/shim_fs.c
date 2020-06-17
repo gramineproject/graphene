@@ -542,7 +542,7 @@ BEGIN_CP_FUNC(mount) {
     struct shim_mount* mount     = (struct shim_mount*)obj;
     struct shim_mount* new_mount = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_mount));

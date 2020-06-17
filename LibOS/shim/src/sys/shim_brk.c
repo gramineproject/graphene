@@ -200,7 +200,7 @@ BEGIN_CP_FUNC(brk) {
     __UNUSED(obj);
     __UNUSED(size);
     __UNUSED(objp);
-    ADD_CP_FUNC_ENTRY((ptr_t)brk_region.brk_start);
+    ADD_CP_FUNC_ENTRY((uintptr_t)brk_region.brk_start);
     ADD_CP_ENTRY(SIZE, brk_region.brk_current - brk_region.brk_start);
     ADD_CP_ENTRY(SIZE, brk_region.brk_end - brk_region.brk_start);
     ADD_CP_ENTRY(SIZE, brk_region.data_segment_size);

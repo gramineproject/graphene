@@ -443,7 +443,7 @@ BEGIN_CP_FUNC(ipc_info) {
     struct shim_ipc_info* info     = (struct shim_ipc_info*)obj;
     struct shim_ipc_info* new_info = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_ipc_info));
@@ -483,7 +483,7 @@ BEGIN_CP_FUNC(process) {
     struct shim_process* process     = (struct shim_process*)obj;
     struct shim_process* new_process = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_process));

@@ -426,7 +426,7 @@ reopen:
     cur_thread->in_vm     = false;
     unlock(&cur_thread->lock);
 
-    ret = do_migrate_process(&migrate_execve, exec, argv, cur_thread, envp);
+    ret = create_process_and_send_checkpoint(&migrate_execve, exec, argv, cur_thread, envp);
 
     lock(&cur_thread->lock);
     cur_thread->stack     = stack;

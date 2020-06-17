@@ -1137,7 +1137,7 @@ BEGIN_CP_FUNC(vma)
     struct shim_vma_info* vma = (struct shim_vma_info*) obj;
     struct shim_vma_info* new_vma = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(*vma));

@@ -529,7 +529,7 @@ BEGIN_CP_FUNC(signal_handles)
     struct shim_signal_handles* handles = (struct shim_signal_handles*)obj;
     struct shim_signal_handles* new_handles = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_signal_handles));
@@ -576,7 +576,7 @@ BEGIN_CP_FUNC(thread)
     struct shim_thread * thread = (struct shim_thread *) obj;
     struct shim_thread * new_thread = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_thread));
@@ -671,10 +671,10 @@ BEGIN_CP_FUNC(running_thread)
     struct shim_thread * new_thread = NULL;
 
     DO_CP(thread, thread, &new_thread);
-    ADD_CP_FUNC_ENTRY((ptr_t) new_thread - base);
+    ADD_CP_FUNC_ENTRY((uintptr_t)new_thread - base);
 
     if (thread->shim_tcb) {
-        ptr_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
+        size_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
         new_thread->shim_tcb = (void *)(base + toff);
         struct shim_tcb* new_tcb = new_thread->shim_tcb;
         memcpy(new_tcb, thread->shim_tcb, sizeof(*new_tcb));

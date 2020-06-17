@@ -477,17 +477,6 @@ fail:
         (auxp) = _tmp + sizeof(char *);                             \
     } while (0)
 
-static int init_newproc (struct newproc_header * hdr)
-{
-    PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0,
-                                 sizeof(struct newproc_header), hdr,
-                                 NULL, 0);
-    if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO();
-
-    return hdr->failure;
-}
-
 #define CALL_INIT(func, args ...)   func(args)
 
 #define RUN_INIT(func, ...)                                             \
@@ -535,8 +524,6 @@ noreturn void* shim_init(int argc, void* args)
     /* call to figure out where the arguments are */
     FIND_ARG_COMPONENTS(args, argc, argv, envp, auxp);
 
-    struct newproc_header hdr;
-    void * cpaddr = NULL;
 
     RUN_INIT(init_vma);
     RUN_INIT(init_slab);
@@ -550,17 +537,17 @@ noreturn void* shim_init(int argc, void* args)
 
     debug("shim loaded at %p, ready to initialize\n", &__load_address);
 
-    if (!cpaddr && PAL_CB(parent_process)) {
-        RUN_INIT(init_newproc, &hdr);
-        if (hdr.checkpoint.hdr.size)
-            RUN_INIT(do_migration, &hdr.checkpoint, &cpaddr);
-    }
+    if (PAL_CB(parent_process)) {
+        struct checkpoint_hdr hdr;
 
-    if (cpaddr) {
+        PAL_NUM ret = DkStreamRead(PAL_CB(parent_process), 0, sizeof(hdr), &hdr, NULL, 0);
+        if (ret == PAL_STREAM_ERROR || ret != sizeof(hdr))
+            shim_do_exit(-PAL_ERRNO());
+
         thread_start_event = DkNotificationEventCreate(PAL_FALSE);
-        RUN_INIT(restore_checkpoint,
-                 &hdr.checkpoint.hdr, &hdr.checkpoint.mem,
-                 (ptr_t) cpaddr, 0);
+
+        assert(hdr.size);
+        RUN_INIT(receive_checkpoint_and_restore, &hdr);
     }
 
     if (PAL_CB(manifest_handle))
@@ -579,15 +566,13 @@ noreturn void* shim_init(int argc, void* args)
 
     if (PAL_CB(parent_process)) {
         /* Notify the parent process */
-        struct newproc_response res;
-        res.child_vmid = cur_process.vmid;
-        res.failure = 0;
-        PAL_NUM ret = DkStreamWrite(PAL_CB(parent_process), 0,
-                                    sizeof(struct newproc_response),
-                                    &res, NULL);
-        if (ret == PAL_STREAM_ERROR)
+        IDTYPE child_vmid = cur_process.vmid;
+        PAL_NUM ret = DkStreamWrite(PAL_CB(parent_process), 0, sizeof(child_vmid), &child_vmid,
+                                    NULL);
+        if (ret == PAL_STREAM_ERROR || ret != sizeof(child_vmid))
             shim_do_exit(-PAL_ERRNO());
 
+        /* FIXME: We shouldn't downgrade communication */
         /* Downgrade communication with parent to non-secure (only checkpoint recv is secure).
          * Currently only relevant to SGX PAL, other PALs ignore this. */
         PAL_STREAM_ATTR attr;
