@@ -404,7 +404,7 @@ int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
             } else if (hdl->pal_handle) {
                 PAL_STREAM_ATTR attr;
                 if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-                    ret = -PAL_ERRNO;
+                    ret = -PAL_ERRNO();
                     break;
                 }
                 size = attr.pending_size;

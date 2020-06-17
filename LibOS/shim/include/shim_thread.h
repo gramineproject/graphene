@@ -213,7 +213,7 @@ static inline int thread_sleep (uint64_t timeout_us)
         return -EINVAL;
 
     if (!DkSynchronizationObjectWait(event, timeout_us))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     return 0;
 }

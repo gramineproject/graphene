@@ -831,7 +831,7 @@ static int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr) {
 
         if (!pal_handle) {
             unlock(&cur_process.lock);
-            return -PAL_ERRNO;
+            return -PAL_ERRNO();
         }
 
         add_ipc_port_by_id(NS_LEADER->vmid, pal_handle, IPC_PORT_LDR | IPC_PORT_LISTEN,
@@ -907,7 +907,7 @@ static int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* own
         PAL_HANDLE pal_handle = DkStreamOpen(qstrgetstr(&range.uri), 0, 0, 0, 0);
 
         if (!pal_handle) {
-            ret = -PAL_ERRNO ?: -EACCES;
+            ret = -PAL_ERRNO() ?: -EACCES;
             goto out;
         }
 

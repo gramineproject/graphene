@@ -38,7 +38,7 @@ static inline unsigned int get_cur_tid(void) {
     return SHIM_TCB_GET(tid);
 }
 
-#define PAL_NATIVE_ERRNO        (SHIM_TCB_GET(pal_errno))
+#define PAL_NATIVE_ERRNO()      SHIM_TCB_GET(pal_errno)
 
 #define INTERNAL_TID_BASE       ((IDTYPE) 1 << (sizeof(IDTYPE) * 8 - 1))
 
@@ -153,11 +153,11 @@ static inline PAL_HANDLE __open_shim_stdio (void)
 
 /* definition for syscall table */
 void handle_signals(void);
-long convert_pal_errno (long err);
+long convert_pal_errno(long err);
 void syscall_wrapper(void);
 void syscall_wrapper_after_syscalldb(void);
 
-#define PAL_ERRNO  convert_pal_errno(PAL_NATIVE_ERRNO)
+#define PAL_ERRNO() convert_pal_errno(PAL_NATIVE_ERRNO())
 
 #define SHIM_ARG_TYPE long
 

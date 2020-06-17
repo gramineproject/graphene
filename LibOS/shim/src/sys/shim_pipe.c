@@ -41,13 +41,13 @@ static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
     }
 
     if (!(hdl2 = DkStreamOpen(uri, 0, 0, 0, LINUX_OPEN_FLAGS_TO_PAL_OPTIONS(flags)))) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         debug("pipe connection failure\n");
         goto out;
     }
 
     if (!(hdl1 = DkStreamWaitForClient(hdl0))) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         debug("pipe acception failure\n");
         goto out;
     }

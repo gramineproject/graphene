@@ -192,7 +192,7 @@ static int protect_page(struct link_map* l, void* addr, size_t size) {
 
     if (!DkVirtualMemoryProtect(start, end - start,
             PAL_PROT_READ | PAL_PROT_WRITE | LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     if (!c)
         return 0;
@@ -231,7 +231,7 @@ static int reprotect_map(struct link_map* l) {
 
         if (c && !DkVirtualMemoryProtect((void*)start, end - start,
                                          LINUX_PROT_TO_PAL(prot, /*map_flags=*/0))) {
-            ret = -PAL_ERRNO;
+            ret = -PAL_ERRNO();
             break;
         }
     }
@@ -1414,7 +1414,7 @@ static int vdso_map_init(void) {
     void* ret_addr = (void*)DkVirtualMemoryAlloc(addr, ALLOC_ALIGN_UP(vdso_so_size),
                                                  /*alloc_type=*/0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!ret_addr)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
     assert(addr == ret_addr);
 
     memcpy(addr, &vdso_so, vdso_so_size);
@@ -1433,7 +1433,7 @@ static int vdso_map_init(void) {
     }
 
     if (!DkVirtualMemoryProtect(addr, ALLOC_ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     vdso_addr = addr;
     return 0;
@@ -1445,7 +1445,7 @@ int vdso_map_migrate(void) {
 
     if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
                                 PAL_PROT_READ | PAL_PROT_WRITE))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     /* adjust funcs to loaded address for newly loaded libsysdb */
     for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
@@ -1454,7 +1454,7 @@ int vdso_map_migrate(void) {
 
     if (!DkVirtualMemoryProtect(vdso_addr, ALLOC_ALIGN_UP(vdso_so_size),
                                 PAL_PROT_READ | PAL_PROT_EXEC))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
     return 0;
 }
 

@@ -25,7 +25,7 @@ static ssize_t eventfd_read(struct shim_handle* hdl, void* buf, size_t count) {
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
     if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     return (ssize_t)bytes;
 }
@@ -37,7 +37,7 @@ static ssize_t eventfd_write(struct shim_handle* hdl, const void* buf, size_t co
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     return (ssize_t)bytes;
 }
@@ -54,7 +54,7 @@ static off_t eventfd_poll(struct shim_handle* hdl, int poll_type) {
 
     PAL_STREAM_ATTR attr;
     if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 

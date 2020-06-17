@@ -375,7 +375,7 @@ static int create_async_helper(void) {
         async_helper_thread = NULL;
         async_helper_state  = HELPER_NOTALIVE;
         put_thread(new);
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
     }
 
     new->pal_handle = handle;

@@ -54,12 +54,12 @@ void* __system_malloc(size_t size) {
         if (!ret_addr) {
             /* If the allocation is interrupted by signal, try to handle the
              * signal and then retry the allocation. */
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED) {
+            if (PAL_NATIVE_ERRNO() == PAL_ERROR_INTERRUPTED) {
                 handle_signals();
                 continue;
             }
 
-            debug("failed to allocate memory (%ld)\n", -PAL_ERRNO);
+            debug("failed to allocate memory (%ld)\n", -PAL_ERRNO());
             void* tmp_vma = NULL;
             if (bkeep_munmap(addr, alloc_size, /*is_internal=*/true, &tmp_vma) < 0) {
                 BUG();

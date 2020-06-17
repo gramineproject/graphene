@@ -410,7 +410,7 @@ int init_manifest (PAL_HANDLE manifest_handle) {
     } else {
         PAL_STREAM_ATTR attr;
         if (!DkStreamAttributesQueryByHandle(manifest_handle, &attr))
-            return -PAL_ERRNO;
+            return -PAL_ERRNO();
 
         size = attr.pending_size;
         map_size = ALLOC_ALIGN_UP(size);
@@ -483,7 +483,7 @@ static int init_newproc (struct newproc_header * hdr)
                                  sizeof(struct newproc_header), hdr,
                                  NULL, 0);
     if (bytes == PAL_STREAM_ERROR)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     return hdr->failure;
 }
@@ -586,16 +586,16 @@ noreturn void* shim_init(int argc, void* args)
                                     sizeof(struct newproc_response),
                                     &res, NULL);
         if (ret == PAL_STREAM_ERROR)
-            shim_do_exit(-PAL_ERRNO);
+            shim_do_exit(-PAL_ERRNO());
 
         /* Downgrade communication with parent to non-secure (only checkpoint recv is secure).
          * Currently only relevant to SGX PAL, other PALs ignore this. */
         PAL_STREAM_ATTR attr;
         if (!DkStreamAttributesQueryByHandle(PAL_CB(parent_process), &attr))
-            shim_do_exit(-PAL_ERRNO);
+            shim_do_exit(-PAL_ERRNO());
         attr.secure = PAL_FALSE;
         if (!DkStreamAttributesSetByHandle(PAL_CB(parent_process), &attr))
-            shim_do_exit(-PAL_ERRNO);
+            shim_do_exit(-PAL_ERRNO());
     }
 
     debug("shim process initialized\n");
@@ -691,7 +691,7 @@ static int open_pipe(const char* uri, void* obj) {
 
     PAL_HANDLE pipe = DkStreamOpen(uri, 0, 0, 0, 0);
     if (!pipe)
-        return PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST ? 1 : -PAL_ERRNO;
+        return PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST ? 1 : -PAL_ERRNO();
 
     PAL_HANDLE* pal_hdl = (PAL_HANDLE*)obj;
     *pal_hdl = pipe;
@@ -794,10 +794,10 @@ static int open_pal_handle (const char * uri, void * obj)
                            0);
 
     if (!hdl) {
-        if (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST)
+        if (PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST)
             return 0;
         else
-            return -PAL_ERRNO;
+            return -PAL_ERRNO();
     }
 
     if (obj) {
@@ -941,17 +941,17 @@ int message_confirm (const char * message, const char * options)
     PAL_NUM pal_ret;
     pal_ret = DkStreamWrite(hdl, 0, strlen(message), (void*)message, NULL);
     if (pal_ret == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
     pal_ret = DkStreamWrite(hdl, 0, noptions * 2 + 3, option_str, NULL);
     if (pal_ret == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
     pal_ret = DkStreamRead(hdl, 0, 1, &answer, NULL, 0);
     if (pal_ret == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 

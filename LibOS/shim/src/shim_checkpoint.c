@@ -346,10 +346,10 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
                                    (void *) store->base + bytes, NULL);
 
         if (ret == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
-                PAL_ERRNO == EWOULDBLOCK)
+            if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN ||
+                PAL_ERRNO() == EWOULDBLOCK)
                 continue;
-            return -PAL_ERRNO;
+            return -PAL_ERRNO();
         }
 
         bytes += ret;
@@ -362,7 +362,7 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         if (!(mem_entries[i]->prot & PAL_PROT_READ) && mem_size > 0) {
             /* Make the area readable */
             if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot | PAL_PROT_READ))
-                return -PAL_ERRNO;
+                return -PAL_ERRNO();
         }
 
         bytes = 0;
@@ -371,10 +371,10 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
             PAL_NUM ret = DkStreamWrite(stream, 0, mem_size - bytes,
                                        mem_addr + bytes, NULL);
             if (ret == PAL_STREAM_ERROR) {
-                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
-                    PAL_ERRNO == EWOULDBLOCK)
+                if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN ||
+                    PAL_ERRNO() == EWOULDBLOCK)
                     continue;
-                error = -PAL_ERRNO;
+                error = -PAL_ERRNO();
                 break;
             }
 
@@ -385,7 +385,7 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
             /* the area was made readable above; revert to original permissions */
             if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot)) {
                 if (!error) {
-                    error = -PAL_ERRNO;
+                    error = -PAL_ERRNO();
                 }
             }
         }
@@ -433,7 +433,7 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
 
                 if (!DkVirtualMemoryAlloc(addr, size, 0, prot|PAL_PROT_WRITE)) {
                     debug("failed allocating %p-%p\n", addr, addr + size);
-                    return -PAL_ERRNO;
+                    return -PAL_ERRNO();
                 }
 
                 CP_REBASE(entry->data);
@@ -640,7 +640,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                                       pal_control.executable, argv);
 
     if (!proc) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 
@@ -714,7 +714,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
      */
     bytes = DkStreamWrite(proc, 0, sizeof(struct newproc_header), &hdr, NULL);
     if (bytes == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         debug("failed writing to process stream (ret = %d)\n", ret);
         goto out;
     } else if (bytes < sizeof(struct newproc_header)) {
@@ -753,7 +753,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     bytes = DkStreamRead(proc, 0, sizeof(struct newproc_response), &res,
                          NULL, 0);
     if (bytes == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 
@@ -761,12 +761,12 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
      * Currently only relevant to SGX PAL, other PALs ignore this. */
     PAL_STREAM_ATTR attr;
     if (!DkStreamAttributesQueryByHandle(proc, &attr)) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
     attr.secure = PAL_FALSE;
     if (!DkStreamAttributesSetByHandle(proc, &attr)) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 
@@ -861,7 +861,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
     mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!mapped) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out_unmap;
     }
 
@@ -878,10 +878,10 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
                                      (void*)base + total_bytes, NULL, 0);
 
         if (bytes == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
-                    PAL_ERRNO == EWOULDBLOCK)
+            if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN ||
+                    PAL_ERRNO() == EWOULDBLOCK)
                 continue;
-            ret = -PAL_ERRNO;
+            ret = -PAL_ERRNO();
             goto out_unmap;
         }
 

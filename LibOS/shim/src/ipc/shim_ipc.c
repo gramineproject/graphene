@@ -313,12 +313,12 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
             DkStreamWrite(port->pal_handle, 0, total_bytes - bytes, (void*)msg + bytes, NULL);
 
         if (ret == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
+            if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
                 continue;
 
             debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
             del_ipc_port_fini(port, -ECHILD);
-            return -PAL_ERRNO;
+            return -PAL_ERRNO();
         }
 
         bytes += ret;

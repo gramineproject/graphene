@@ -388,13 +388,13 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
     new_args.create_event = DkNotificationEventCreate(PAL_FALSE);
     if (!new_args.create_event) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto clone_thread_failed;
     }
 
     new_args.initialize_event = DkNotificationEventCreate(PAL_FALSE);
     if (!new_args.initialize_event) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto clone_thread_failed;
     }
 
@@ -415,7 +415,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     PAL_HANDLE pal_handle = thread_create(clone_implementation_wrapper,
                                           &new_args);
     if (!pal_handle) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         put_thread(new_args.thread);
         goto clone_thread_failed;
     }

@@ -143,7 +143,7 @@ static int init_ns_ipc_port(int ns_idx) {
             DkStreamOpen(qstrgetstr(&cur_process.ns[ns_idx]->uri), 0, 0, 0, 0);
         if (!cur_process.ns[ns_idx]->pal_handle) {
             unlock(&cur_process.lock);
-            return -PAL_ERRNO;
+            return -PAL_ERRNO();
         }
     }
 
@@ -570,13 +570,13 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                              (void*)msg + bytes, NULL, 0);
 
             if (read == PAL_STREAM_ERROR) {
-                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
+                if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
                     continue;
 
                 debug("Port %p (handle %p) closed while receiving IPC message\n", port,
                       port->pal_handle);
                 del_ipc_port_fini(port, -ECHILD);
-                ret = -PAL_ERRNO;
+                ret = -PAL_ERRNO();
                 goto out;
             }
 
@@ -604,7 +604,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                     if (ret < 0) {
                         debug("Sending IPC_RESP msg on port %p (handle %p) to %u failed\n", port,
                               port->pal_handle, msg->src & 0xFFFF);
-                        ret = -PAL_ERRNO;
+                        ret = -PAL_ERRNO();
                         goto out;
                     }
                 }
@@ -793,7 +793,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
                     } else {
                         debug("Port %p (handle %p) was removed during attr querying\n",
                               polled_port, polled_port->pal_handle);
-                        del_ipc_port_fini(polled_port, -PAL_ERRNO);
+                        del_ipc_port_fini(polled_port, -PAL_ERRNO());
                     }
                 }
             }
@@ -871,7 +871,7 @@ static int create_ipc_helper(void) {
     PAL_HANDLE handle = thread_create(shim_ipc_helper_prepare, new);
 
     if (!handle) {
-        int ret = -PAL_ERRNO;  /* put_thread() may overwrite errno */
+        int ret = -PAL_ERRNO();  /* put_thread() may overwrite errno */
         ipc_helper_thread = NULL;
         ipc_helper_state  = HELPER_NOTALIVE;
         put_thread(new);

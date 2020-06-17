@@ -733,7 +733,7 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
 
     PAL_HANDLE file = DkStreamOpen(fileuri, PAL_ACCESS_RDWR, 0600, PAL_CREATE_TRY, 0);
     if (!file) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 
@@ -821,7 +821,7 @@ static int __load_msg_persist(struct shim_msg_handle* msgq, bool readmsg) {
     size_t bytes = DkStreamRead(file, 0, sizeof(struct msg_handle_backup), &mback, NULL, 0);
 
     if (bytes == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
     if (bytes < sizeof(struct msg_handle_backup)) {
@@ -840,7 +840,7 @@ static int __load_msg_persist(struct shim_msg_handle* msgq, bool readmsg) {
     void* mem = (void*)DkStreamMap(file, NULL, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(expected_size));
 
     if (!mem) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 

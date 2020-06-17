@@ -53,11 +53,11 @@ static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
     if (bytes == PAL_STREAM_ERROR)
-        switch (PAL_NATIVE_ERRNO) {
+        switch (PAL_NATIVE_ERRNO()) {
             case PAL_ERROR_ENDOFSTREAM:
                 return 0;
             default: {
-                int err = PAL_ERRNO;
+                int err = PAL_ERRNO();
                 lock(&hdl->lock);
                 sock->error = err;
                 unlock(&hdl->lock);
@@ -92,7 +92,7 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
     PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (bytes == PAL_STREAM_ERROR) {
-        int err = PAL_ERRNO;
+        int err = PAL_ERRNO();
         if (err == EPIPE) {
             struct shim_thread* cur = get_cur_thread();
             assert(cur);
@@ -115,7 +115,7 @@ static int socket_hstat(struct shim_handle* hdl, struct stat* stat) {
     PAL_STREAM_ATTR attr;
 
     if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     memset(stat, 0, sizeof(struct stat));
 
@@ -174,7 +174,7 @@ static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
 
     PAL_STREAM_ATTR attr;
     if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-        ret = -PAL_ERRNO;
+        ret = -PAL_ERRNO();
         goto out;
     }
 
@@ -208,7 +208,7 @@ static int socket_setflags(struct shim_handle* hdl, int flags) {
     PAL_STREAM_ATTR attr;
 
     if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     if (attr.nonblocking) {
         if (flags & O_NONBLOCK)
@@ -223,7 +223,7 @@ static int socket_setflags(struct shim_handle* hdl, int flags) {
     }
 
     if (!DkStreamAttributesSetByHandle(hdl->pal_handle, &attr))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     return 0;
 }

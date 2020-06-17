@@ -165,10 +165,10 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
 
     if (!hdl) {
         if (DkVirtualMemoryAlloc(addr, length, 0, LINUX_PROT_TO_PAL(prot, flags)) != addr) {
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED) {
+            if (PAL_NATIVE_ERRNO() == PAL_ERROR_DENIED) {
                 ret = -EPERM;
             } else {
-                ret = -PAL_ERRNO;
+                ret = -PAL_ERRNO();
             }
         }
     } else {
@@ -226,7 +226,7 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     }
 
     if (!DkVirtualMemoryProtect(addr, length, LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     return 0;
 }

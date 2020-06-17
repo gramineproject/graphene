@@ -205,7 +205,7 @@ static int __query_attr (struct shim_dentry * dent,
     if (pal_handle ?
         !DkStreamAttributesQueryByHandle(pal_handle, &pal_attr) :
         !DkStreamAttributesQuery(qstrgetstr(&data->host_uri), &pal_attr))
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     /* need to correct the data type */
     if (data->type == FILE_UNKNOWN)
@@ -392,11 +392,11 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
         palhdl = DkStreamOpen(uri, accmode, mode, create, options);
 
         if (!palhdl) {
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED && accmode != oldmode)
+            if (PAL_NATIVE_ERRNO() == PAL_ERROR_DENIED && accmode != oldmode)
                 palhdl = DkStreamOpen(uri, oldmode, mode, create, options);
 
             if (!palhdl)
-                return -PAL_ERRNO;
+                return -PAL_ERRNO();
         }
 
         /* If DENTRY_LISTED is set on the parent dentry, list_directory_dentry() will not update
@@ -644,7 +644,7 @@ static ssize_t chroot_read (struct shim_handle * hdl, void * buf, size_t count)
         if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, pal_ret, &file->marker))
             BUG();
     } else {
-        ret = PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO;
+        ret = PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO();
     }
 
     unlock(&hdl->lock);
@@ -689,7 +689,7 @@ static ssize_t chroot_write (struct shim_handle * hdl, const void * buf, size_t 
             chroot_update_size(hdl, file, FILE_HANDLE_DATA(hdl));
         }
     } else {
-        ret = PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO;
+        ret = PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO();
     }
 
     unlock(&hdl->lock);
@@ -717,7 +717,7 @@ static int chroot_mmap (struct shim_handle * hdl, void ** addr, size_t size,
         (void *) DkStreamMap(hdl->pal_handle, *addr, pal_prot, offset, size);
 
     if (!alloc_addr)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     *addr = alloc_addr;
     return 0;
@@ -836,7 +836,7 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
 
     pal_hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!pal_hdl)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     buf = malloc(buf_size);
     if (!buf) {
@@ -848,13 +848,13 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
         /* DkStreamRead for directory will return as many entries as fits into the buffer. */
         PAL_NUM bytes = DkStreamRead(pal_hdl, 0, buf_size, buf, NULL, 0);
         if (bytes == PAL_STREAM_ERROR) {
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM) {
+            if (PAL_NATIVE_ERRNO() == PAL_ERROR_ENDOFSTREAM) {
                 /* End of directory listing */
                 ret = 0;
                 break;
             }
 
-            ret = -PAL_ERRNO;
+            ret = -PAL_ERRNO();
             goto out;
         }
         /* Last entry must be null-terminated */
@@ -1004,7 +1004,7 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
 
     PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&data->host_uri), 0, 0, 0, 0);
     if (!pal_hdl)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     DkStreamDelete(pal_hdl, 0);
     DkObjectClose(pal_hdl);
@@ -1077,12 +1077,12 @@ static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
 
     PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&old_data->host_uri), 0, 0, 0, 0);
     if (!pal_hdl) {
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
     }
 
     if (!DkStreamChangeName(pal_hdl, qstrgetstr(&new_data->host_uri))) {
         DkObjectClose(pal_hdl);
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
     }
 
     new->mode = new_data->mode = old_data->mode;
@@ -1109,13 +1109,13 @@ static int chroot_chmod (struct shim_dentry * dent, mode_t mode)
 
     PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&data->host_uri), 0, 0, 0, 0);
     if (!pal_hdl)
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
 
     PAL_STREAM_ATTR attr = { .share_flags = mode };
 
     if (!DkStreamAttributesSetByHandle(pal_hdl, &attr)) {
         DkObjectClose(pal_hdl);
-        return -PAL_ERRNO;
+        return -PAL_ERRNO();
     }
 
     DkObjectClose(pal_hdl);
