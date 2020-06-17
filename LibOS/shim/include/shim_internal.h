@@ -161,8 +161,6 @@ void syscall_wrapper_after_syscalldb(void);
 
 #define SHIM_ARG_TYPE long
 
-void check_stack_hook (void);
-
 static inline int64_t get_cur_preempt (void) {
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
@@ -173,8 +171,7 @@ static inline int64_t get_cur_preempt (void) {
     SHIM_ARG_TYPE __shim_##name(args) {                     \
         SHIM_ARG_TYPE ret = 0;                              \
         int64_t preempt = get_cur_preempt();                \
-        __UNUSED(preempt);                                  \
-        /* check_stack_hook(); */
+        __UNUSED(preempt);
 
 #define END_SHIM(name)                                      \
         handle_signals();                                   \

@@ -870,22 +870,6 @@ int create_handle (const char * prefix, char * uri, size_t size,
                          id ? : &suffix, hdl, NULL);
 }
 
-void check_stack_hook (void)
-{
-    struct shim_thread * cur_thread = get_cur_thread();
-
-    void* rsp = current_stack();
-
-    if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
-        if ((uintptr_t)rsp - (uintptr_t)cur_thread->stack < PAL_CB(alloc_align))
-            SYS_PRINTF("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
-                       rsp, cur_thread->stack, cur_thread->stack_top);
-    } else {
-        SYS_PRINTF("*** context dismatched with thread stack (RSP = %p, stack = %p-%p) ***\n",
-                   rsp, cur_thread->stack, cur_thread->stack_top);
-    }
-}
-
 noreturn void shim_clean_and_exit(int exit_code) {
     static int in_terminate = 0;
     if (__atomic_add_fetch(&in_terminate, 1, __ATOMIC_RELAXED) > 1) {
