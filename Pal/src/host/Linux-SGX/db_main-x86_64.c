@@ -1,18 +1,5 @@
-/* Copyright (C) 2014 Stony Brook University
-   This file is part of Graphene Library OS.
-
-   Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
-
-   Graphene Library OS is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2014 Stony Brook University */
 
 /*
  * db_main-x86_64.c
@@ -36,12 +23,12 @@
 
 #define BPI  32
 #define POWER2(power) \
-   (1ULL << (power))
+    (1ULL << (power))
 #define RIGHTMASK(width) \
-   (((unsigned long)(width) >= BPI) ? ~0ULL : POWER2(width) - 1ULL)
+    (((unsigned long)(width) >= BPI) ? ~0ULL : POWER2(width) - 1ULL)
 
 #define BIT_EXTRACT_LE(value, start, after) \
-   (((unsigned long)(value) & RIGHTMASK(after)) >> start)
+    (((unsigned long)(value) & RIGHTMASK(after)) >> start)
 
 static char* cpu_flags[] = {
     "fpu",    // "x87 FPU on chip"
