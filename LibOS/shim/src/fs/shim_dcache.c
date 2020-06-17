@@ -328,7 +328,7 @@ BEGIN_CP_FUNC(dentry) {
     struct shim_dentry* dent     = (struct shim_dentry*)obj;
     struct shim_dentry* new_dent = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_dentry));

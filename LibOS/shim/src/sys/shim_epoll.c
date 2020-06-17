@@ -460,7 +460,7 @@ BEGIN_CP_FUNC(epoll_item) {
     INIT_LISTP(new_list);
 
     LISTP_FOR_EACH_ENTRY(epoll_item, old_list, list) {
-        ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_epoll_item));
+        size_t off = ADD_CP_OFFSET(sizeof(struct shim_epoll_item));
 
         struct shim_epoll_item* new_epoll_item = (struct shim_epoll_item*)(base + off);
 
@@ -474,7 +474,7 @@ BEGIN_CP_FUNC(epoll_item) {
         DO_CP(handle, epoll_item->handle, &new_epoll_item->handle);
     }
 
-    ADD_CP_FUNC_ENTRY((ptr_t)objp - base);
+    ADD_CP_FUNC_ENTRY((uintptr_t)objp - base);
 }
 END_CP_FUNC(epoll_item)
 

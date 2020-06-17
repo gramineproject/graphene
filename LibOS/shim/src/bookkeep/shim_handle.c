@@ -703,7 +703,7 @@ BEGIN_CP_FUNC(handle) {
     struct shim_handle* hdl     = (struct shim_handle*)obj;
     struct shim_handle* new_hdl = NULL;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_handle));
@@ -806,7 +806,7 @@ BEGIN_CP_FUNC(fd_handle) {
     struct shim_fd_handle* fdhdl     = (struct shim_fd_handle*)obj;
     struct shim_fd_handle* new_fdhdl = NULL;
 
-    ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_fd_handle));
+    size_t off = ADD_CP_OFFSET(sizeof(struct shim_fd_handle));
     new_fdhdl = (struct shim_fd_handle*)(base + off);
     memcpy(new_fdhdl, fdhdl, sizeof(struct shim_fd_handle));
     DO_CP(handle, fdhdl->handle, &new_fdhdl->handle);
@@ -831,7 +831,7 @@ BEGIN_CP_FUNC(handle_map) {
 
     size = sizeof(struct shim_handle_map) + (sizeof(struct shim_fd_handle*) * fd_size);
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off            = ADD_CP_OFFSET(size);

@@ -18,6 +18,18 @@ struct shim_handle;
 
 void sysparser_printf(const char* fmt, ...);
 
+/* quick hash function based on Robert Jenkins' hash algorithm */
+static inline uint64_t hash64(uint64_t key) {
+    key = (~key) + (key << 21);
+    key = key ^ (key >> 24);
+    key = (key + (key << 3)) + (key << 8);
+    key = key ^ (key >> 14);
+    key = (key + (key << 2)) + (key << 4);
+    key = key ^ (key >> 28);
+    key = key + (key << 31);
+    return key;
+}
+
 /* string object */
 struct shim_str* get_str_obj(void);
 int free_str_obj(struct shim_str* str);

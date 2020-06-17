@@ -1615,7 +1615,7 @@ BEGIN_CP_FUNC(library) {
     struct link_map* map = (struct link_map*)obj;
     struct link_map* new_map;
 
-    ptr_t off = GET_FROM_CP_MAP(obj);
+    size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct link_map));
@@ -1718,7 +1718,7 @@ BEGIN_CP_FUNC(loaded_libraries) {
         map = map->l_next;
     }
 
-    ADD_CP_FUNC_ENTRY((ptr_t)new_interp_map);
+    ADD_CP_FUNC_ENTRY((uintptr_t)new_interp_map);
 }
 END_CP_FUNC(loaded_libraries)
 

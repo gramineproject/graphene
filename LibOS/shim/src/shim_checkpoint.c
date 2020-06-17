@@ -4,50 +4,33 @@
 /*
  * shim_checkpoint.c
  *
- * This file contains codes for checkpoint / migration scheme of library OS.
+ * This file contains implementation of checkpoint and migration.
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
-#include <shim_fs.h>
-#include <shim_checkpoint.h>
-#include <shim_ipc.h>
-
-#include <pal.h>
-#include <pal_error.h>
-#include <list.h>
-
-#include <stdarg.h>
 #include <asm/fcntl.h>
 #include <asm/mman.h>
+#include <stdarg.h>
+#include <stdint.h>
+
+#include "list.h"
+#include "pal.h"
+#include "pal_error.h"
+
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
+#include "shim_vma.h"
 
 #define CP_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL)
-
-/* Based on Robert Jenkins' hash algorithm. */
-static uint64_t hash64(uint64_t key) {
-    key = (~key) + (key << 21);
-    key = key ^ (key >> 24);
-    key = (key + (key << 3)) + (key << 8);
-    key = key ^ (key >> 14);
-    key = (key + (key << 2)) + (key << 4);
-    key = key ^ (key >> 28);
-    key = key + (key << 31);
-    return key;
-}
-
-#define CP_HASH_SIZE  256
-#define CP_HASH(addr) ((hash64((ptr_t)(addr))) & (CP_HASH_SIZE - 1))
-
-typedef uint16_t FASTHASHTYPE;
-
 #define CP_MAP_ENTRY_NUM 64
+#define CP_HASH_SIZE  256
 
 DEFINE_LIST(cp_map_entry);
-struct cp_map_entry
-{
+struct cp_map_entry {
     LIST_TYPE(cp_map_entry) hlist;
     struct shim_cp_map_entry entry;
 };
@@ -55,111 +38,107 @@ struct cp_map_entry
 DEFINE_LISTP(cp_map_entry);
 struct cp_map {
     struct cp_map_buffer {
-        struct cp_map_buffer * next;
-        int num, cnt;
+        struct cp_map_buffer* next;
+        size_t num;
+        size_t cnt;
         struct cp_map_entry entries[0];
-    } * buffers;
+    }* buffers;
 
-    struct hash_map {
+    struct {
         LISTP_TYPE(cp_map_entry) head[CP_HASH_SIZE];
     } map;
 };
 
-void * create_cp_map (void)
-{
-    void * data = malloc(sizeof(struct cp_map) + sizeof(struct cp_map_buffer) +
-                         sizeof(struct cp_map_entry) * CP_MAP_ENTRY_NUM);
-
-    if (!data)
-        return NULL;
-
-    struct cp_map * map = (struct cp_map *) data;
-    struct cp_map_buffer * buffer =
-                    (struct cp_map_buffer *) (data + sizeof(struct cp_map));
-
-    memset(map, 0, sizeof(*map));
-    map->buffers = buffer;
-    buffer->next = NULL;
-    buffer->num  = CP_MAP_ENTRY_NUM;
-    buffer->cnt  = 0;
-
-    return (void *) map;
-}
-
-void destroy_cp_map (void * map)
-{
-    struct cp_map * m = (struct cp_map *) map;
-    struct cp_map_buffer * buffer = m->buffers, * next;
-
-    for (next = buffer ? buffer->next : NULL ;
-         buffer && next ;
-         buffer = next, next = next ? next->next : NULL)
-        free(buffer);
-
-    free(m);
-}
-
-static inline
-struct cp_map_buffer * extend_cp_map (struct cp_map * map)
-{
-    struct cp_map_buffer * buffer =
-                malloc(sizeof(struct cp_map_buffer) +
-                       sizeof(struct cp_map_entry) * CP_MAP_ENTRY_NUM);
-
+static struct cp_map_buffer* extend_cp_map(struct cp_map* map) {
+    struct cp_map_buffer* buffer = malloc(sizeof(struct cp_map_buffer) +
+                                          sizeof(struct cp_map_entry) * CP_MAP_ENTRY_NUM);
     if (!buffer)
         return NULL;
 
     buffer->next = map->buffers;
-    map->buffers = buffer;
     buffer->num  = CP_MAP_ENTRY_NUM;
     buffer->cnt  = 0;
-
+    map->buffers = buffer;
     return buffer;
 }
 
-struct shim_cp_map_entry *
-get_cp_map_entry (void * map, void * addr, bool create)
-{
-    struct cp_map * m = (struct cp_map *) map;
+void* create_cp_map(void) {
+    struct cp_map* map = malloc(sizeof(*map));
+    if (!map)
+        return NULL;
 
-    FASTHASHTYPE hash = CP_HASH(addr);
-    LISTP_TYPE(cp_map_entry) * head = &m->map.head[hash];
-    struct cp_map_entry * tmp;
-    struct shim_cp_map_entry * e = NULL;
+    memset(map, 0, sizeof(*map));
 
+    struct cp_map_buffer* buffer = extend_cp_map(map);
+    if (!buffer) {
+        free(map);
+        return NULL;
+    }
+
+    return (void*)map;
+}
+
+void destroy_cp_map(void* _map) {
+    struct cp_map* map = (struct cp_map*)_map;
+
+    struct cp_map_buffer* buffer = map->buffers;
+    while (buffer) {
+        struct cp_map_buffer* next = buffer->next;
+        free(buffer);
+        buffer = next;
+    }
+
+    free(map);
+}
+
+struct shim_cp_map_entry* get_cp_map_entry(void* _map, void* addr, bool create) {
+    struct cp_map * map = (struct cp_map*)_map;
+
+    struct shim_cp_map_entry* e = NULL;
+
+    /* check if object at this addr was already added to the checkpoint */
+    uint64_t hash = hash64((uint64_t)addr) & (CP_HASH_SIZE - 1);
+    LISTP_TYPE(cp_map_entry)* head = &map->map.head[hash];
+
+    struct cp_map_entry* tmp;
     LISTP_FOR_EACH_ENTRY(tmp, head, hlist)
         if (tmp->entry.addr == addr)
             e = &tmp->entry;
 
-    if (create && !e) {
-        struct cp_map_buffer * buffer = m->buffers;
+    if (e)
+        return e;
 
-        if (buffer->cnt == buffer->num)
-            buffer = extend_cp_map(m);
+    /* object at this addr wasn't yet added to the checkpoint */
+    if (!create)
+        return NULL;
 
-        struct cp_map_entry *new = &buffer->entries[buffer->cnt++];
-        INIT_LIST_HEAD(new, hlist);
-        LISTP_ADD(new, head, hlist);
+    struct cp_map_buffer* buffer = map->buffers;
 
-        new->entry.addr = addr;
-        new->entry.off  = 0;
-        e = &new->entry;
+    if (buffer->cnt == buffer->num) {
+        buffer = extend_cp_map(map);
+        if (!buffer)
+            return NULL;
     }
 
-    return e;
+    struct cp_map_entry* new = &buffer->entries[buffer->cnt++];
+    INIT_LIST_HEAD(new, hlist);
+    LISTP_ADD(new, head, hlist);
+
+    new->entry.addr = addr;
+    new->entry.off  = 0;
+    return &new->entry;
 }
 
-BEGIN_CP_FUNC(memory)
-{
-    struct shim_mem_entry * entry =
-            (void *) (base + ADD_CP_OFFSET(sizeof(struct shim_mem_entry)));
+BEGIN_CP_FUNC(memory) {
+    struct shim_mem_entry* entry = (void*)(base + ADD_CP_OFFSET(sizeof(*entry)));
 
     entry->addr  = obj;
     entry->size  = size;
     entry->paddr = NULL;
-    entry->prot  = PAL_PROT_READ|PAL_PROT_WRITE;
+    entry->prot  = PAL_PROT_READ | PAL_PROT_WRITE;
     entry->data  = NULL;
     entry->prev  = store->last_mem_entry;
+
     store->last_mem_entry = entry;
     store->mem_nentries++;
     store->mem_size += size;
@@ -169,88 +148,71 @@ BEGIN_CP_FUNC(memory)
 }
 END_CP_FUNC_NO_RS(memory)
 
-BEGIN_CP_FUNC(palhdl)
-{
+BEGIN_CP_FUNC(palhdl) {
     __UNUSED(size);
-    ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_palhdl_entry));
-    struct shim_palhdl_entry * entry = (void *) (base + off);
+    size_t off = ADD_CP_OFFSET(sizeof(struct shim_palhdl_entry));
+    struct shim_palhdl_entry* entry = (void*)(base + off);
 
     entry->handle = (PAL_HANDLE) obj;
     entry->uri = NULL;
     entry->phandle = NULL;
     entry->prev = store->last_palhdl_entry;
+
     store->last_palhdl_entry = entry;
     store->palhdl_nentries++;
 
     ADD_CP_FUNC_ENTRY(off);
-
     if (objp)
         *objp = entry;
 }
-END_CP_FUNC(palhdl)
+END_CP_FUNC_NO_RS(palhdl)
 
-BEGIN_RS_FUNC(palhdl)
-{
-    __UNUSED(offset);
-    __UNUSED(rebase);
-
-    struct shim_palhdl_entry * ent = (void *) (base + GET_CP_FUNC_ENTRY());
-
-    if (ent->phandle && !ent->phandle && ent->uri) {
-        /* XXX: reopen the stream */
-    }
-}
-END_RS_FUNC(palhdl)
-
-BEGIN_CP_FUNC(migratable)
-{
+BEGIN_CP_FUNC(migratable) {
     __UNUSED(obj);
     __UNUSED(size);
     __UNUSED(objp);
-    struct shim_mem_entry * mem_entry;
 
-    DO_CP_SIZE(memory, &__migratable, &__migratable_end - &__migratable,
-               &mem_entry);
+    struct shim_mem_entry* mem_entry;
 
-    struct shim_cp_entry * entry = ADD_CP_FUNC_ENTRY(0UL);
-    mem_entry->paddr = (void **) &entry->cp_un.cp_val;
+    DO_CP_SIZE(memory, &__migratable, &__migratable_end - &__migratable, &mem_entry);
+
+    struct shim_cp_entry* entry = ADD_CP_FUNC_ENTRY(0);
+    mem_entry->paddr = (void**)&entry->cp_val;
 }
 END_CP_FUNC(migratable)
 
-BEGIN_RS_FUNC(migratable)
-{
+BEGIN_RS_FUNC(migratable) {
     __UNUSED(base);
     __UNUSED(offset);
 
-    void * data = (void *) GET_CP_FUNC_ENTRY();
+    void* data = (void*)GET_CP_FUNC_ENTRY();
     CP_REBASE(data);
     memcpy(&__migratable, data, &__migratable_end - &__migratable);
 }
 END_RS_FUNC(migratable)
 
-BEGIN_CP_FUNC(environ)
-{
+BEGIN_CP_FUNC(environ) {
     __UNUSED(size);
     __UNUSED(objp);
 
-    const char ** e, ** envp = (void *) obj;
+    const char** envp = (const char**)obj;
     int nenvp = 0;
-    int envp_bytes = 0;
+    size_t envp_bytes = 0;
 
-    for (e = envp ; *e ; e++) {
+    for (const char** e = envp; *e; e++) {
         nenvp++;
         envp_bytes += strlen(*e) + 1;
     }
 
-    ptr_t off = ADD_CP_OFFSET(sizeof(char *) * (nenvp + 1) + envp_bytes);
-    const char ** new_envp = (void *) base + off;
-    char * ptr = (void *) base + off + sizeof(char *) * (nenvp + 1);
+    size_t off = ADD_CP_OFFSET(sizeof(char*) * (nenvp + 1) + envp_bytes);
+    const char** new_envp = (void*)base + off;
+    char* new_env_str = (void*)new_envp + sizeof(char*) * (nenvp + 1);
 
-    for (int i = 0 ; i < nenvp ; i++) {
-        int len = strlen(envp[i]);
-        new_envp[i] = ptr;
-        memcpy(ptr, envp[i], len + 1);
-        ptr += len + 1;
+    for (int i = 0; i < nenvp; i++) {
+        size_t len = strlen(envp[i]);
+        new_envp[i] = new_env_str;
+        memcpy(new_env_str, envp[i], len + 1);
+        new_env_str += len + 1;
     }
 
     new_envp[nenvp] = NULL;
@@ -258,336 +220,305 @@ BEGIN_CP_FUNC(environ)
 }
 END_CP_FUNC(environ)
 
-BEGIN_RS_FUNC(environ)
-{
+BEGIN_RS_FUNC(environ) {
     __UNUSED(offset);
 
-    const char ** envp = (void *) base + GET_CP_FUNC_ENTRY();
-    const char ** e;
-
-    for (e = envp ; *e ; e++) {
+    const char** envp = (void*)base + GET_CP_FUNC_ENTRY();
+    for (const char** e = envp; *e; e++)
         CP_REBASE(*e);
-        DEBUG_RS("%s", *e);
-    }
 
     initial_envp = envp;
 }
 END_RS_FUNC(environ)
 
-BEGIN_CP_FUNC(qstr)
-{
+BEGIN_CP_FUNC(qstr) {
     __UNUSED(size);
     __UNUSED(objp);
 
-    struct shim_qstr * qstr = (struct shim_qstr *) obj;
+    struct shim_qstr* qstr = (struct shim_qstr*)obj;
 
-    /* qstr is always embedded as sub-object in other objects so it is
-     * automatically checkpointed as part of other checkpoint routines.
-     * However, its oflow string resides in some other memory region
-     * and must be checkpointed and restored explicitly. Copy oflow
-     * string inside checkpoint right before qstr cp entry. */
+    /* qstr is always embedded as sub-object in other objects so it is automatically checkpointed as
+     * part of other checkpoint routines.  However, its oflow string resides in some other memory
+     * region and must be checkpointed and restored explicitly. Copy oflow string inside checkpoint
+     * right before qstr cp entry. */
     if (qstr->oflow) {
-        struct shim_str * str =
-            (void *) (base + ADD_CP_OFFSET(qstr->len + 1));
+        struct shim_str* str = (struct shim_str*)(base + ADD_CP_OFFSET(qstr->len + 1));
         memcpy(str, qstr->oflow, qstr->len + 1);
-        ADD_CP_FUNC_ENTRY((ptr_t) qstr - base);
+        ADD_CP_FUNC_ENTRY((uintptr_t)qstr - base);
     }
 }
 END_CP_FUNC(qstr)
 
-BEGIN_RS_FUNC(qstr)
-{
+BEGIN_RS_FUNC(qstr) {
     __UNUSED(offset);
     __UNUSED(rebase);
 
-    /* If we are here, qstr has oflow string. We know that oflow string
-     * is right before this qstr cp entry (aligned to 8B). Calculate
-     * oflow string's base address and update qstr to point to it. */
-    struct shim_qstr * qstr = (void *) (base + GET_CP_FUNC_ENTRY());
+    /* If we are here, qstr has oflow string. We know that oflow string is right before this qstr cp
+     * entry (aligned to 8B). Calculate oflow string's base and update qstr to point to it. */
+    struct shim_qstr* qstr = (struct shim_qstr*)(base + GET_CP_FUNC_ENTRY());
     size_t size = qstr->len + 1;
-    size = ALIGN_UP(size, sizeof(void*));
-    qstr->oflow = (void *)entry - size;
+    size = ALIGN_UP(size, sizeof(uintptr_t));
+    qstr->oflow = (void*)entry - size;
 }
 END_RS_FUNC(qstr)
 
-static int send_checkpoint_on_stream (PAL_HANDLE stream,
-                                      struct shim_cp_store * store)
-{
+static int send_checkpoint_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
+    int ret = 0;
+    struct shim_mem_entry** mem_entries = NULL;
+
     int mem_nentries = store->mem_nentries;
-    struct shim_mem_entry ** mem_entries;
 
     if (mem_nentries) {
-        mem_entries = __alloca(sizeof(struct shim_mem_entry *) * mem_nentries);
-        int mem_cnt = mem_nentries;
-        struct shim_mem_entry * mem_ent = store->last_mem_entry;
+        mem_entries = malloc(sizeof(*mem_entries) * mem_nentries);
 
-        for (; mem_ent ; mem_ent = mem_ent->prev) {
-            if (!mem_cnt)
-                return -EINVAL;
-            mem_entries[--mem_cnt] = mem_ent;
+        /* memory entries were added in reverse order, let's first populate them */
+        struct shim_mem_entry* mem_entry = store->last_mem_entry;
+        for (int i = mem_nentries - 1; i >= 0; i--) {
+            assert(mem_entry);
+            mem_entries[i] = mem_entry;
+            mem_entry = mem_entry->prev;
         }
+        assert(!mem_entry);
 
-        void * mem_addr = (void *) store->base + store->offset;
-        mem_entries  += mem_cnt;
-        mem_nentries -= mem_cnt;
-
-        for (int i = 0 ; i < mem_nentries ; i++) {
-            int mem_size = mem_entries[i]->size;
+        /* now we can traverse memory entries in correct order and assign checkpoint addresses */
+        void* mem_addr = (void*)store->base + store->offset;
+        for (int i = 0; i < mem_nentries; i++) {
             mem_entries[i]->data = mem_addr;
-            mem_addr += mem_size;
+            mem_addr += mem_entries[i]->size;
         }
     }
 
+    /* first send non-memory entries found at [store->base, store->base + store->offset] */
     size_t total_bytes = store->offset;
     size_t bytes = 0;
+    PAL_NUM written;
 
     do {
-        PAL_NUM ret = DkStreamWrite(stream, 0, total_bytes - bytes,
-                                   (void *) store->base + bytes, NULL);
-
-        if (ret == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
-                PAL_ERRNO == EWOULDBLOCK)
+        written = DkStreamWrite(stream, 0, total_bytes - bytes, (void*)store->base + bytes, NULL);
+        if (written == PAL_STREAM_ERROR) {
+            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
                 continue;
-            return -PAL_ERRNO;
+            ret = -PAL_ERRNO;
+            goto out;
         }
-
-        bytes += ret;
+        bytes += written;
     } while (bytes < total_bytes);
 
-    for (int i = 0 ; i < mem_nentries ; i++) {
+    /* next send all memory entries collected above */
+    for (int i = 0; i < mem_nentries; i++) {
         size_t mem_size = mem_entries[i]->size;
-        void * mem_addr = mem_entries[i]->addr;
+        void* mem_addr  = mem_entries[i]->addr;
+        int mem_prot    = mem_entries[i]->prot;
 
-        if (!(mem_entries[i]->prot & PAL_PROT_READ) && mem_size > 0) {
-            /* Make the area readable */
-            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot | PAL_PROT_READ))
-                return -PAL_ERRNO;
+        if (!(mem_prot & PAL_PROT_READ) && mem_size > 0) {
+            /* make the area readable */
+            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_prot | PAL_PROT_READ)) {
+                ret = -PAL_ERRNO;
+                goto out;
+            }
         }
 
         bytes = 0;
-        int error = 0;
         do {
-            PAL_NUM ret = DkStreamWrite(stream, 0, mem_size - bytes,
-                                       mem_addr + bytes, NULL);
-            if (ret == PAL_STREAM_ERROR) {
-                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
-                    PAL_ERRNO == EWOULDBLOCK)
+            written = DkStreamWrite(stream, 0, mem_size - bytes, mem_addr + bytes, NULL);
+            if (written == PAL_STREAM_ERROR) {
+                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
                     continue;
-                error = -PAL_ERRNO;
+                ret = -PAL_ERRNO;
                 break;
             }
 
-            bytes += ret;
-        } while (bytes < mem_entries[i]->size);
+            bytes += written;
+        } while (bytes < mem_size);
 
-        if (!(mem_entries[i]->prot & PAL_PROT_READ) && mem_size > 0) {
+        if (!(mem_prot & PAL_PROT_READ) && mem_size > 0) {
             /* the area was made readable above; revert to original permissions */
-            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot)) {
-                if (!error) {
-                    error = -PAL_ERRNO;
-                }
+            if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_prot)) {
+                if (!ret)
+                    ret = -PAL_ERRNO;
             }
         }
-        if (error < 0)
-            return error;
 
-        mem_entries[i]->size = mem_size;
+        if (ret < 0)
+            goto out;
     }
 
-    return 0;
+    ret = 0;
+out:
+    free(mem_entries);
+    return ret;
 }
 
-int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
-                        ptr_t base, ptr_t type)
-{
-    ptr_t cpoffset = cphdr->offset;
-    ptr_t * offset = &cpoffset;
-    long rebase = base - (ptr_t) cphdr->addr;
-    int ret = 0;
+static int send_handles_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
+    int ret;
 
-    if (type)
-        debug("restore checkpoint at 0x%08lx rebased from %p (%s only)\n",
-              base, cphdr->addr, CP_FUNC_NAME(type));
-    else
-        debug("restore checkpoint at 0x%08lx rebased from %p\n",
-              base, cphdr->addr);
+    int nentries = store->palhdl_nentries;
+    if (!nentries)
+        return 0;
 
-    if (memhdr && memhdr->nentries) {
-        struct shim_mem_entry * entry =
-                    (void *) (base + memhdr->entoffset);
+    struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * nentries);
+    if (!entries)
+        return -ENOMEM;
 
-        for (; entry ; entry = entry->prev) {
+    /* PAL-handle entries were added in reverse order, let's first populate them */
+    struct shim_palhdl_entry* entry = store->last_palhdl_entry;
+    for (int i = nentries - 1; i >= 0; i--) {
+        assert(entry);
+        entries[i] = entry;
+        entry = entry->prev;
+    }
+    assert(!entry);
+
+    /* now we can traverse PAL-handle entries in correct order and send them one by one */
+    for (int i = 0; i < nentries; i++) {
+        /* we need to abort migration if DkSendHandle() returned error, otherwise app may fail */
+        if (!DkSendHandle(stream, entries[i]->handle)) {
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    free(entries);
+    return ret;
+}
+
+static int restore_checkpoint(struct checkpoint_hdr* hdr, uintptr_t base) {
+    size_t cpoffset = hdr->offset;
+    size_t* offset  = &cpoffset;
+
+    ssize_t rebase = base - (uintptr_t)hdr->addr;
+
+    debug("restoring checkpoint at 0x%08lx rebased from %p\n", base, hdr->addr);
+
+    if (hdr->mem_nentries) {
+        struct shim_mem_entry* entry = (struct shim_mem_entry*)(base + hdr->mem_offset);
+
+        for (; entry; entry = entry->prev) {
             CP_REBASE(entry->prev);
             CP_REBASE(entry->paddr);
 
             if (entry->paddr) {
                 *entry->paddr = entry->data;
-            } else {
-                debug("memory entry [%p]: %p-%p\n", entry, entry->addr,
-                      entry->addr + entry->size);
+                continue;
+            }
 
-                PAL_PTR addr = ALLOC_ALIGN_DOWN_PTR(entry->addr);
-                PAL_NUM size = ALLOC_ALIGN_UP_PTR(entry->addr + entry->size) - (void*)addr;
-                PAL_FLG prot = entry->prot;
+            debug("memory entry [%p]: %p-%p\n", entry, entry->addr, entry->addr + entry->size);
 
-                if (!DkVirtualMemoryAlloc(addr, size, 0, prot|PAL_PROT_WRITE)) {
-                    debug("failed allocating %p-%p\n", addr, addr + size);
-                    return -PAL_ERRNO;
-                }
+            PAL_PTR addr = ALLOC_ALIGN_DOWN_PTR(entry->addr);
+            PAL_NUM size = ALLOC_ALIGN_UP_PTR(entry->addr + entry->size) - (void*)addr;
+            PAL_FLG prot = entry->prot;
 
-                CP_REBASE(entry->data);
-                memcpy(entry->addr, entry->data, entry->size);
+            if (!DkVirtualMemoryAlloc(addr, size, 0, prot | PAL_PROT_WRITE)) {
+                debug("failed allocating %p-%p\n", addr, addr + size);
+                return -PAL_ERRNO;
+            }
 
-                if (!(entry->prot & PAL_PROT_WRITE) &&
-                    !DkVirtualMemoryProtect(addr, size, prot)) {
-                    debug("failed protecting %p-%p (ignored)\n", addr, addr + size);
-                }
+            CP_REBASE(entry->data);
+            memcpy(entry->addr, entry->data, entry->size);
+
+            if (!(entry->prot & PAL_PROT_WRITE) && !DkVirtualMemoryProtect(addr, size, prot)) {
+                debug("failed protecting %p-%p (ignored)\n", addr, addr + size);
             }
         }
     }
 
-    struct shim_cp_entry * cpent = NEXT_CP_ENTRY();
+    struct shim_cp_entry* cpent = NEXT_CP_ENTRY();
 
     while (cpent) {
-        if (cpent->cp_type < CP_FUNC_BASE)
-            goto next;
-        if (type && cpent->cp_type != type)
-            goto next;
+        if (cpent->cp_type < CP_FUNC_BASE) {
+            cpent = NEXT_CP_ENTRY();
+            continue;
+        }
 
-        rs_func rs = (&__rs_func) [cpent->cp_type - CP_FUNC_BASE];
-        ret = (*rs) (cpent, base, offset, rebase);
+        rs_func rs = (&__rs_func)[cpent->cp_type - CP_FUNC_BASE];
+        int ret = (*rs)(cpent, base, offset, rebase);
         if (ret < 0) {
-            SYS_PRINTF("restore_checkpoint() at %s (%d)\n",
-                       CP_FUNC_NAME(cpent->cp_type), ret);
+            debug("failed restoring checkpoint at %s (%d)\n", CP_FUNC_NAME(cpent->cp_type), ret);
             return ret;
         }
-next:
         cpent = NEXT_CP_ENTRY();
     }
 
-    debug("successfully restore checkpoint loaded at 0x%08lx - 0x%08lx\n",
-          base, base + cphdr->size);
-
+    debug("successfully restored checkpoint at 0x%08lx - 0x%08lx\n", base, base + hdr->size);
     return 0;
 }
 
-static int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store* store) {
-    int nentries = store->palhdl_nentries;
+static int receive_handles_on_stream(struct checkpoint_hdr* hdr, void* base, ssize_t rebase) {
+    int ret;
+
+    struct shim_palhdl_entry* palhdl_entries = (struct shim_palhdl_entry*)(base +
+                                                                           hdr->palhdl_offset);
+
+    int nentries = hdr->palhdl_nentries;
     if (!nentries)
         return 0;
 
-    struct shim_palhdl_entry ** entries =
-            __alloca(sizeof(struct shim_palhdl_entry *) * nentries);
+    debug("receiving %d PAL handles\n", nentries);
 
-    struct shim_palhdl_entry * entry = store->last_palhdl_entry;
-    int cnt = nentries;
+    struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * nentries);
 
-    for ( ; entry ; entry = entry->prev)
-        if (entry->handle) {
-            if (!cnt)
-                return -EINVAL;
-            entries[--cnt] = entry;
-        }
-
-    entries  += cnt;
-    nentries -= cnt;
-
-    for (int i = 0 ; i < nentries ; i++) {
-        /* We need to abort migration from parent to child if DkSendHandle() returned error,
-         * otherwise the application may fail. */
-        if (!DkSendHandle(stream, entries[i]->handle))
-            return -EINVAL;
-    }
-    return 0;
-}
-
-static int receive_handles_on_stream(struct palhdl_header* hdr, ptr_t base, long rebase) {
-    struct shim_palhdl_entry * palhdl_entries =
-                            (void *) (base + hdr->entoffset);
-    int nentries = hdr->nentries;
-
-    if (!nentries)
-        return 0;
-
-    debug("receive handles: %d entries\n", nentries);
-
-    struct shim_palhdl_entry ** entries =
-            __alloca(sizeof(struct shim_palhdl_entry *) * nentries);
-
-    struct shim_palhdl_entry * entry = palhdl_entries;
-    int cnt = nentries;
-
-    for ( ; entry ; entry = entry->prev) {
+    /* entries are extracted from checkpoint in reverse order, let's first populate them */
+    struct shim_palhdl_entry* entry = palhdl_entries;
+    for (int i = nentries - 1; i >= 0; i--) {
+        assert(entry);
         CP_REBASE(entry->prev);
         CP_REBASE(entry->phandle);
-        if (!cnt)
-            return -EINVAL;
-        entries[--cnt] = entry;
+        entries[i] = entry;
+        entry = entry->prev;
     }
+    assert(!entry);
 
-    entries  += cnt;
-    nentries -= cnt;
-
-    for (int i = 0 ; i < nentries ; i++) {
+    /* now we can traverse PAL-handle entries in correct order and receive them one by one */
+    for (int i = 0; i < nentries; i++) {
         entry = entries[i];
-        if (entry->handle) {
-            PAL_HANDLE hdl = DkReceiveHandle(PAL_CB(parent_process));
-            /* We need to abort migration from parent to child if DkReceiveHandle() returned error,
-             * otherwise the application may fail. */
-            if (!hdl)
-                return -EINVAL;
+        if (!entry->handle)
+            continue;
 
-            *entry->phandle = hdl;
+        PAL_HANDLE hdl = DkReceiveHandle(PAL_CB(parent_process));
+        /* need to abort migration if DkReceiveHandle() returned error, otherwise app may fail */
+        if (!hdl) {
+            ret = -EINVAL;
+            goto out;
         }
+        *entry->phandle = hdl;
     }
 
-    return 0;
+    ret = 0;
+out:
+    free(entries);
+    return ret;
 }
 
-static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
-{
-    // Keeping for api compatibility; not 100% sure this is needed
-    __UNUSED(store);
+static void* cp_alloc(void* addr, size_t size) {
     if (addr) {
-        /*
-         * If the checkpoint needs more space, try to extend the checkpoint
-         * store at the current address.
-         */
-        debug("try extend checkpoint store: %p-%p (size = %ld)\n",
-              addr, addr + size, size);
+        debug("extending checkpoint store: %p-%p (size = %lu)\n", addr, addr + size, size);
 
-        if (bkeep_mmap_fixed(addr, size, PROT_READ|PROT_WRITE, CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE,
+        if (bkeep_mmap_fixed(addr, size, PROT_READ | PROT_WRITE,
+                             CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE,
                              NULL, 0, "cpstore") < 0)
             return NULL;
     } else {
-        /*
-         * Here we use a strategy to reduce internal fragmentation of virtual
-         * memory space. Because we need a relatively large, continuous space
-         * for dumping the checkpoint data, internal fragmentation can cause
-         * the process to drain the virtual address space after forking a few
-         * times. The previous space used for checkpoint may be fragmented
-         * at the next fork.
-         *
-         * A simple trick we use here is to reserve some space right after the
-         * checkpoint space. The reserved space is half of the size of the
-         * checkpoint space, but can be further fine-tuned.
-         */
+        /* FIXME: It is unclear if the below strategy helps */
+        /* Here we use a strategy to reduce internal fragmentation of virtual memory space. Because
+         * we need a relatively large, continuous space for dumping the checkpoint data, internal
+         * fragmentation can cause the process to drain the virtual address space after forking a
+         * few times. The previous space used for checkpoint may be fragmented at the next fork.
+         * A simple trick we use here is to reserve some space right after the checkpoint space. The
+         * reserved space is half of the size of the checkpoint space. */
         size_t reserve_size = ALLOC_ALIGN_UP(size >> 1);
 
-        debug("try allocate checkpoint store (size = %ld, reserve = %ld)\n",
-              size, reserve_size);
+        debug("allocating checkpoint store (size = %ld, reserve = %ld)\n", size, reserve_size);
 
-        /*
-         * Allocating the checkpoint space at the first space found from the
-         * top of the virtual address space.
-         */
-        int ret = bkeep_mmap_any(size + reserve_size, PROT_READ|PROT_WRITE, CP_MMAP_FLAGS, NULL, 0,
-                                 "cpstore", &addr);
+        int ret = bkeep_mmap_any(size + reserve_size, PROT_READ | PROT_WRITE, CP_MMAP_FLAGS,
+                                 NULL, 0, "cpstore", &addr);
         if (ret < 0) {
             return NULL;
         }
 
+        /* we reserved [addr, addr + size + reserve_size] to reduce fragmentation (see above); now
+         * we unmap [addr + size, addr + size + reserve_size] to reclaim this memory region */
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr + size, reserve_size, /*is_internal=*/true, &tmp_vma) < 0) {
             BUG();
@@ -607,62 +538,51 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
     return addr;
 }
 
-/*
- * Create a new process and migrate the process states to the new process.
+/*!
+ * \brief Create child process and migrate current-process state to it.
  *
- * @migrate: migration function defined by the caller
- * @exec: the executable to load in the new process
- * @argv: arguments passed to the new process
- * @thread: thread handle to be migrated to the new process
+ * Called in parent process during fork/clone/execve.
+ *
+ * \param migrate_func Migration function defined by the caller.
+ * \param exec         Executable to load in the child process.
+ * \param argv         Arguments passed to the child process.
+ * \param thread       Main-thread handle to be migrated to the child process.
  *
  * The remaining arguments are passed into the migration function.
+ *
+ * \return 0 on success, negative POSIX error code on failure.
  */
-int do_migrate_process (int (*migrate) (struct shim_cp_store *,
-                                        struct shim_thread *,
-                                        struct shim_process *, va_list),
-                        struct shim_handle * exec,
-                        const char ** argv,
-                        struct shim_thread * thread, ...)
-{
+int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
+                                       const char** argv, struct shim_thread* thread, ...) {
     int ret = 0;
-    struct shim_process * new_process = NULL;
-    struct newproc_header hdr;
-    PAL_NUM bytes;
-    memset(&hdr, 0, sizeof(hdr));
+    struct shim_process* process = NULL;
 
-    /*
-     * Create the process first. The new process requires some time
-     * to initialize before starting to receive checkpoint data.
-     * Parallizing the process creation and checkpointing can improve
-     * the latency of forking.
-     */
-    PAL_HANDLE proc = DkProcessCreate(exec ? qstrgetstr(&exec->uri) :
-                                      pal_control.executable, argv);
-
-    if (!proc) {
+    /* FIXME: Child process requires some time to initialize before starting to receive checkpoint
+     * data. Parallelizing process creation and checkpointing could improve latency of forking. */
+    const char* exec_uri = exec ? /*execve*/ qstrgetstr(&exec->uri)
+                                : /*fork*/ pal_control.executable;
+    PAL_HANDLE pal_process = DkProcessCreate(exec_uri, argv);
+    if (!pal_process) {
         ret = -PAL_ERRNO;
         goto out;
     }
 
-    /* Create process and IPC bookkeepings */
-    new_process = create_process(exec ? /*execve case*/ true : /*fork case*/ false);
-    if (!new_process) {
+    /* create LibOS process object and IPC bookkeepings */
+    process = create_process(exec ? /*execve*/ true : /*fork*/ false);
+    if (!process) {
         ret = -EACCES;
         goto out;
     }
 
-    /* Allocate a space for dumping the checkpoint data. */
+    /* allocate a space for dumping the checkpoint data */
     struct shim_cp_store cpstore;
     memset(&cpstore, 0, sizeof(cpstore));
     cpstore.alloc    = cp_alloc;
     cpstore.bound    = CP_INIT_VMA_SIZE;
 
     while (1) {
-        /*
-         * Try allocating a space of a certain size. If the allocation fails,
-         * continue to try with smaller sizes.
-         */
-        cpstore.base = (ptr_t) cp_alloc(&cpstore, 0, cpstore.bound);
+        /* try allocating checkpoint; if allocation fails, try with smaller sizes */
+        cpstore.base = (uintptr_t)cp_alloc(0, cpstore.bound);
         if (cpstore.base)
             break;
 
@@ -673,246 +593,223 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (!cpstore.base) {
         ret = -ENOMEM;
-        debug("failed creating checkpoint store\n");
+        debug("failed allocating enough memory for checkpoint\n");
         goto out;
     }
 
-    /* Calling the migration function defined by caller. The thread argument
-     * is new thread in case of fork/clone and cur_thread in case of execve. */
     va_list ap;
     va_start(ap, thread);
-    ret = (*migrate) (&cpstore, thread, new_process, ap);
+    ret = (*migrate_func)(&cpstore, thread, process, ap);
     va_end(ap);
     if (ret < 0) {
         debug("failed creating checkpoint (ret = %d)\n", ret);
         goto out;
     }
 
-    unsigned long checkpoint_size = cpstore.offset + cpstore.mem_size;
-
-    /* Checkpoint data created. */
+    size_t checkpoint_size = cpstore.offset + cpstore.mem_size;
     debug("checkpoint of %lu bytes created\n", checkpoint_size);
 
-    hdr.checkpoint.hdr.addr = (void *) cpstore.base;
-    hdr.checkpoint.hdr.size = checkpoint_size;
+    struct checkpoint_hdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+
+    hdr.addr = (void*)cpstore.base;
+    hdr.size = checkpoint_size;
 
     if (cpstore.mem_nentries) {
-        hdr.checkpoint.mem.entoffset =
-                    (ptr_t) cpstore.last_mem_entry - cpstore.base;
-        hdr.checkpoint.mem.nentries  = cpstore.mem_nentries;
+        hdr.mem_offset   = (uintptr_t)cpstore.last_mem_entry - cpstore.base;
+        hdr.mem_nentries = cpstore.mem_nentries;
     }
 
     if (cpstore.palhdl_nentries) {
-        hdr.checkpoint.palhdl.entoffset =
-                    (ptr_t) cpstore.last_palhdl_entry - cpstore.base;
-        hdr.checkpoint.palhdl.nentries  = cpstore.palhdl_nentries;
+        hdr.palhdl_offset   = (uintptr_t)cpstore.last_palhdl_entry - cpstore.base;
+        hdr.palhdl_nentries = cpstore.palhdl_nentries;
     }
 
-    /*
-     * Sending a header to the new process through the RPC stream to
-     * notify the process to start receiving the checkpoint.
-     */
-    bytes = DkStreamWrite(proc, 0, sizeof(struct newproc_header), &hdr, NULL);
+    /* send a checkpoint header to child process to notify it to start receiving checkpoint */
+    PAL_NUM bytes;
+    bytes = DkStreamWrite(pal_process, 0, sizeof(hdr), &hdr, NULL);
     if (bytes == PAL_STREAM_ERROR) {
         ret = -PAL_ERRNO;
-        debug("failed writing to process stream (ret = %d)\n", ret);
+        debug("failed writing checkpoint header to child process (ret = %d)\n", ret);
         goto out;
-    } else if (bytes < sizeof(struct newproc_header)) {
+    } else if (bytes < sizeof(hdr)) {
         ret = -EACCES;
         goto out;
     }
 
-    ret = send_checkpoint_on_stream(proc, &cpstore);
-
+    ret = send_checkpoint_on_stream(pal_process, &cpstore);
     if (ret < 0) {
         debug("failed sending checkpoint (ret = %d)\n", ret);
         goto out;
     }
 
-    /*
-     * For socket and RPC streams, we need to migrate the PAL handles
-     * to the new process using PAL calls.
-     */
-    if ((ret = send_handles_on_stream(proc, &cpstore)) < 0)
+    ret = send_handles_on_stream(pal_process, &cpstore);
+    if (ret < 0) {
+        debug("failed sending PAL handles as part of checkpoint (ret = %d)\n", ret);
         goto out;
+    }
 
-    /* Free the checkpoint space */
     void* tmp_vma = NULL;
     ret = bkeep_munmap((void*)cpstore.base, cpstore.bound, /*is_internal=*/true, &tmp_vma);
     if (ret < 0) {
         debug("failed unmaping checkpoint (ret = %d)\n", ret);
         goto out;
     }
-
-    DkVirtualMemoryFree((PAL_PTR) cpstore.base, cpstore.bound);
-
+    DkVirtualMemoryFree((PAL_PTR)cpstore.base, cpstore.bound);
     bkeep_remove_tmp_vma(tmp_vma);
 
-    /* Wait for the response from the new process */
-    struct newproc_response res;
-    bytes = DkStreamRead(proc, 0, sizeof(struct newproc_response), &res,
-                         NULL, 0);
+    /* wait for final ack from child process (contains VMID of child) */
+    IDTYPE child_vmid = 0;
+    bytes = DkStreamRead(pal_process, 0, sizeof(child_vmid), &child_vmid, NULL, 0);
     if (bytes == PAL_STREAM_ERROR) {
         ret = -PAL_ERRNO;
         goto out;
+    } else if (bytes != sizeof(child_vmid)) {
+        ret = -EACCES;
+        goto out;
     }
 
+    /* FIXME: We shouldn't downgrade communication */
     /* Downgrade communication with child to non-secure (only checkpoint send is secure).
      * Currently only relevant to SGX PAL, other PALs ignore this. */
     PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQueryByHandle(proc, &attr)) {
+    if (!DkStreamAttributesQueryByHandle(pal_process, &attr)) {
         ret = -PAL_ERRNO;
         goto out;
     }
     attr.secure = PAL_FALSE;
-    if (!DkStreamAttributesSetByHandle(proc, &attr)) {
+    if (!DkStreamAttributesSetByHandle(pal_process, &attr)) {
         ret = -PAL_ERRNO;
         goto out;
     }
 
-    /* exec != NULL implies the execve case so the new process "replaces"
-     * this current process: no need to notify the leader or establish IPC */
-    if (!exec) {
-        /* fork/clone case: new process is an actual child process for this
-         * current process, so notify the leader regarding subleasing of TID
-         * (child must create self-pipe with convention of pipe:child-vmid) */
-        char new_process_self_uri[256];
-        snprintf(new_process_self_uri, sizeof(new_process_self_uri), URI_PREFIX_PIPE "%u", res.child_vmid);
-        ipc_pid_sublease_send(res.child_vmid, thread->tid, new_process_self_uri, NULL);
+    if (exec) {
+        /* execve case: child process "replaces" this current process: no need to notify the leader
+         * or establish IPC, so do nothing here */
+    } else {
+        /* fork/clone case: new process is an actual child process for this current process, so
+         * notify the leader regarding subleasing of TID (child must create self-pipe with
+         * convention of pipe:child-vmid) */
+        char process_self_uri[256];
+        snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
+        ipc_pid_sublease_send(child_vmid, thread->tid, process_self_uri, NULL);
 
         /* listen on the new IPC port to the new child process */
-        add_ipc_port_by_id(res.child_vmid, proc,
-                IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
-                &ipc_port_with_child_fini,
-                NULL);
+        add_ipc_port_by_id(child_vmid, pal_process,
+                           IPC_PORT_DIRCLD | IPC_PORT_LISTEN | IPC_PORT_KEEPALIVE,
+                           &ipc_port_with_child_fini, NULL);
     }
 
-    /* remote child thread has VMID of the child process (note that we don't
-     * care about execve case because the parent "intermediate" process will
-     * die right after this anyway) */
-    thread->vmid = res.child_vmid;
+    /* remote child thread has VMID of the child process (note that we don't care about execve case
+     * because the parent "intermediate" process will die right after this anyway) */
+    thread->vmid = child_vmid;
 
     ret = 0;
 out:
-    if (new_process)
-        free_process(new_process);
+    if (process)
+        free_process(process);
 
     if (ret < 0) {
-        if (proc)
-            DkObjectClose(proc);
-        SYS_PRINTF("process creation failed\n");
+        if (pal_process)
+            DkObjectClose(pal_process);
+        debug("process creation failed\n");
     }
 
     return ret;
 }
 
-/*
- * Load a checkpoint from the parent process
+/*!
+ * \brief Receive a checkpoint from parent process and restore state based on it.
  *
- * @hdr: checkpoint header
- * @cpptr: returning the pointer of the loaded checkpoint
+ * Called in child process during initialization.
+ *
+ * \param[in] hdr     Checkpoint header already received from the parent.
+ * \param[out] cpptr  Pointer to the received checkpoint.
+ *
+ * \return 0 on success, negative POSIX error code on failure.
  */
-int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
-{
-    void * base = NULL;
-    size_t size = hdr->hdr.size;
-    PAL_PTR mapaddr = NULL;
-    PAL_NUM mapsize;
-    long rebase;
+int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
     int ret = 0;
     PAL_PTR mapped = NULL;
 
-    /*
-     * Allocate a large enough space to load the checkpoint data.
-     *
-     * If CPSTORE_DERANDOMIZATION is enabled, try to allocate the space
-     * at the exact address where the checkpoint is created. Otherwise,
-     * just allocate at the first space we found from the top of the virtual
-     * memory space.
-     */
+    void* base = hdr->addr;
+    PAL_PTR mapaddr = (PAL_PTR)ALLOC_ALIGN_DOWN_PTR(base);
+    PAL_NUM mapsize = (PAL_PTR)ALLOC_ALIGN_UP_PTR(base + hdr->size) - mapaddr;
 
-#if CPSTORE_DERANDOMIZATION == 1
-    if (hdr->hdr.addr) {
-        /* Try to load the checkpoint at the same address */
-        base = hdr->hdr.addr;
-        mapaddr = (PAL_PTR)ALLOC_ALIGN_DOWN_PTR(base);
-        mapsize = (PAL_PTR)ALLOC_ALIGN_UP_PTR(base + size) - mapaddr;
-
-        /* Try allocating at this address, but do not force if it overlaps with existing memory. */
-        ret = bkeep_mmap_fixed((void*)mapaddr, mapsize, PROT_READ | PROT_WRITE,
-                               CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
-        if (ret < 0)
-            base = NULL;
+    /* first try allocating at address used by parent process */
+    ret = bkeep_mmap_fixed((void*)mapaddr, mapsize, PROT_READ | PROT_WRITE,
+            CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
+    if (ret < 0) {
+        /* the address used by parent overlaps with this child's memory regions */
+        base = NULL;
     }
-#endif
 
     if (!base) {
-        ret = bkeep_mmap_any(ALLOC_ALIGN_UP(size), PROT_READ|PROT_WRITE, CP_MMAP_FLAGS, NULL, 0,
-                             "cpstore", &base);
+        /* address used by parent process is occupied; allocate checkpoint anywhere */
+        ret = bkeep_mmap_any(ALLOC_ALIGN_UP(hdr->size), PROT_READ|PROT_WRITE, CP_MMAP_FLAGS, NULL,
+                             0, "cpstore", &base);
         if (ret < 0) {
             return ret;
         }
 
         mapaddr = (PAL_PTR)base;
-        mapsize = (PAL_NUM)ALLOC_ALIGN_UP(size);
+        mapsize = (PAL_NUM)ALLOC_ALIGN_UP(hdr->size);
     }
 
-    debug("checkpoint mapped at %p-%p\n", base, base + size);
+    debug("checkpoint mapped at %p-%p\n", base, base + hdr->size);
 
     mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!mapped) {
         ret = -PAL_ERRNO;
-        goto out_unmap;
+        goto out;
     }
-
     assert(mapaddr == mapped);
-    /*
-     * If the checkpoint is loaded at a different address from where it is
-     * created, we need to rebase the pointers in the checkpoint.
-     */
-    rebase = (long) ((uintptr_t) base - (uintptr_t) hdr->hdr.addr);
+
+    /* if checkpoint is loaded at a different address in child from where it was created in parent,
+     * need to rebase the pointers in the checkpoint */
+    ssize_t rebase = (ssize_t)(base - hdr->addr);
 
     size_t total_bytes = 0;
-    while (total_bytes < size) {
-        PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0, size - total_bytes,
-                                     (void*)base + total_bytes, NULL, 0);
+    while (total_bytes < hdr->size) {
+        PAL_NUM bytes = DkStreamRead(PAL_CB(parent_process), 0, hdr->size - total_bytes,
+                                     base + total_bytes, NULL, 0);
 
         if (bytes == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
-                    PAL_ERRNO == EWOULDBLOCK)
+            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
                 continue;
             ret = -PAL_ERRNO;
-            goto out_unmap;
+            goto out;
         }
 
         total_bytes += bytes;
     }
 
-    debug("%lu bytes read on stream\n", total_bytes);
+    debug("read checkpoint of %lu bytes from parent\n", total_bytes);
 
-    /* Receive socket or RPC handles from the parent process. */
-    ret = receive_handles_on_stream(&hdr->palhdl, (ptr_t) base, rebase);
+    ret = receive_handles_on_stream(hdr, base, rebase);
     if (ret < 0) {
-        goto out_unmap;
+        goto out;
     }
 
-    migrated_memory_start = (void *) mapaddr;
-    migrated_memory_end = (void *) mapaddr + mapsize;
-    *cpptr = (void *) base;
-    return 0;
+    migrated_memory_start = (void*)mapaddr;
+    migrated_memory_end = (void*)mapaddr + mapsize;
 
-out_unmap: ;
-    void* tmp_vma = NULL;
-    if (mapaddr) {
-        if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0) {
-            BUG();
-        }
+    ret = restore_checkpoint(hdr, (uintptr_t)base);
+    if (ret < 0) {
+        goto out;
     }
-    if (mapped) {
-        DkVirtualMemoryFree(mapped, mapsize);
-    }
-    if (mapaddr) {
-        bkeep_remove_tmp_vma(tmp_vma);
+
+    ret = 0;
+out:
+    if (ret < 0) {
+        void* tmp_vma = NULL;
+        if (mapaddr)
+            if (bkeep_munmap(mapaddr, mapsize, /*is_internal=*/true, &tmp_vma) < 0)
+                BUG();
+        if (mapped)
+            DkVirtualMemoryFree(mapped, mapsize);
+        if (mapaddr)
+            bkeep_remove_tmp_vma(tmp_vma);
     }
     return ret;
 }
