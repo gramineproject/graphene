@@ -1,5 +1,3 @@
-#!$(PAL)
-
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.exec = file:label_image
 loader.env.LD_LIBRARY_PATH = /lib:.

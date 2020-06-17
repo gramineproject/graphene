@@ -33,7 +33,6 @@ sgx-tokens: $(call expand_target_to_token,$(exec_target))
 
 ifeq ($(ABSPATH_IN_MANIFEST),yes)
 manifest_rules = \
-	-e 's:\$$(PAL):$(abspath $(RUNTIME))/pal_loader:g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):$(abspath $(RUNTIME))/libsysdb.so:g' \
@@ -42,7 +41,6 @@ manifest_rules = \
 	$(extra_rules)
 else
 manifest_rules= \
-	-e 's:\$$(PAL):$(abspath $(RUNTIME))/pal_loader:g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):$(RUNTIME)/libsysdb.so:g' \
