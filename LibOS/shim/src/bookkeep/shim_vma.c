@@ -1283,8 +1283,11 @@ BEGIN_CP_FUNC(all_vmas)
         return ret;
     }
 
-    for (struct shim_vma_info* vma = &vmas[count - 1] ; vma >= vmas ; vma--)
+    for (struct shim_vma_info* vma = &vmas[count - 1];; vma--) {
         DO_CP(vma, vma, NULL);
+        if (vma == vmas)
+            break;
+    }
 
     free_vma_info_array(vmas, count);
 }
