@@ -126,8 +126,8 @@ Using Graphene's trusted command line arguments
 
 When :option:`--insecure-args` is not specified, :command:`gsc build` uses the
 existing Docker image's entrypoint and cmd fields to identify the trusted
-arguments. These arguments are stored :file:`trusted_argv`. This file is only
-generated, when :option:`--insecure-args` is not specified. As a result any
+arguments. These arguments are stored in :file:`trusted_argv`. This file is only
+generated when :option:`--insecure-args` is not specified. As a result any
 arguments spefied during :command:`docker run` are ignored.
 
 Application-specific Manifest Files
