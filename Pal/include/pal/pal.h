@@ -28,6 +28,10 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#if defined(__i386__) || defined(__x86_64__)
+#include "cpu.h"
+#endif
+
 typedef uint64_t      PAL_NUM; /*!< a number */
 typedef const char *  PAL_STR; /*!< a pointer to a C-string */
 typedef void *        PAL_PTR; /*!< a pointer to memory or buffer (something other than string) */
@@ -803,11 +807,13 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
 # define symbol_version_default(real, name, version)
 #endif
 
+#if defined(__i386__) || defined(__x86_64__)
 /*!
  * \brief Return CPUID information, based on the leaf/subleaf.
  *
  * \param[out] values the array of the results
  */
-PAL_BOL DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
+PAL_BOL DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
+#endif
 
 #endif /* PAL_H */
