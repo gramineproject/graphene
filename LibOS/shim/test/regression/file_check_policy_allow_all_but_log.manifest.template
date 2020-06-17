@@ -1,5 +1,3 @@
-#!$(PAL)
-
 loader.exec = file:file_check_policy
 loader.argv0_override = file_check_policy
 loader.preload = file:$(SHIMPATH)

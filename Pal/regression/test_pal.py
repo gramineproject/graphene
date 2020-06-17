@@ -210,15 +210,8 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Loaded Executable: file:Bootstrap', stderr)
 
-    def test_106_manifest_with_shebang(self):
-        manifest = self.get_manifest('Bootstrap4')
-        _, stderr = self.run_binary(['./' + manifest])
-        self.assertIn('Loaded Manifest: file:' + manifest, stderr)
-        self.assertIn('Loaded Executable: file:Bootstrap', stderr)
-        self.assertIn('argv[0] = Bootstrap', stderr)
-
     @unittest.skipUnless(HAS_SGX, 'need SGX')
-    def test_107_manifest_with_nonelf_binary(self):
+    def test_106_manifest_with_nonelf_binary(self):
         manifest = self.get_manifest('nonelf_binary')
         # Expected return code is -ENOEXEC (248 as unsigned char)
         with self.expect_returncode(248):
