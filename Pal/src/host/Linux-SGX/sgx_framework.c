@@ -145,8 +145,6 @@ int create_enclave(sgx_arch_secs_t * secs,
     assert(secs->size && IS_POWER_OF_2(secs->size));
     assert(IS_ALIGNED(secs->base, secs->size));
 
-    int flags = MAP_SHARED;
-
     secs->ssa_frame_size = get_ssaframesize(token->body.attributes.xfrm) / g_page_size;
     secs->misc_select = token->masked_misc_select_le;
     memcpy(&secs->attributes, &token->body.attributes, sizeof(sgx_attributes_t));
@@ -159,15 +157,19 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->base, secs->size,
                                    PROT_NONE, /* newer DCAP driver requires such initial mmap */
-                                   flags|MAP_FIXED, g_isgx_device, 0);
+#ifdef SGX_DCAP_16_OR_LATER
+                                   MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#else
+                                   MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
+#endif
 
     if (IS_ERR_P(addr)) {
-        if (ERRNO_P(addr) == 1 && (flags | MAP_FIXED))
+        if (ERRNO_P(addr) == EPERM) {
             pal_printf("Permission denied on mapping enclave. "
                        "You may need to set sysctl vm.mmap_min_addr to zero\n");
+        }
 
-        SGX_DBG(DBG_I, "enclave ECREATE failed in allocating EPC memory "
-                "(errno = %ld)\n", ERRNO_P(addr));
+        SGX_DBG(DBG_I, "ECREATE failed in allocating EPC memory (errno = %ld)\n", ERRNO_P(addr));
         return -ENOMEM;
     }
 
@@ -179,12 +181,12 @@ int create_enclave(sgx_arch_secs_t * secs,
     int ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_CREATE, &param);
 
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_I, "enclave ECREATE failed in enclave creation ioctl - %d\n", ERRNO(ret));
+        SGX_DBG(DBG_I, "ECREATE failed in enclave creation ioctl (errno = %d)\n", ERRNO(ret));
         return -ERRNO(ret);
     }
 
     if (ret) {
-        SGX_DBG(DBG_I, "enclave ECREATE failed - %d\n", ret);
+        SGX_DBG(DBG_I, "ECREATE failed (errno = %d)\n", ret);
         return -EPERM;
     }
 
@@ -301,6 +303,14 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                 param.count, param.length);
         return -ERRNO(ret);
     }
+
+    /* ask Intel SGX driver to actually mmap the added enclave pages */
+    uint64_t mapped = INLINE_SYSCALL(mmap, 6, secs->base + addr, size, prot,
+                                     MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
+    if (IS_ERR_P(mapped)) {
+        SGX_DBG(DBG_I, "Cannot map enclave pages %ld\n", ERRNO_P(mapped));
+        return -EACCES;
+    }
 #else
     /* older drivers (DCAP v1.5- and old out-of-tree) only supports adding one page at a time */
     struct sgx_enclave_add_page param = {
@@ -323,15 +333,14 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             param.src += g_page_size;
         added_size += g_page_size;
     }
-#endif /* SGX_DCAP_16_OR_LATER */
 
-    /* need to change permissions for EADDed pages; actual permissions are capped by
-     * permissions specified in SECINFO so here we specify the broadest set */
-    ret = mprotect(secs->base + addr, size, PROT_READ | PROT_WRITE | PROT_EXEC);
+    /* need to change permissions for EADDed pages since the initial mmap was with PROT_NONE */
+    ret = mprotect(secs->base + addr, size, prot);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_I, "Changing protections of EADDed pages returned %d\n", ret);
         return -ERRNO(ret);
     }
+#endif /* SGX_DCAP_16_OR_LATER */
 
     return 0;
 }

@@ -401,7 +401,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     areas[area_num] = (struct mem_area) {
         .desc = "tcs", .skip_eextend = false, .fd = -1,
         .is_binary = false, .addr = 0, .size = enclave->thread_num * g_page_size,
-        .prot = 0, .type = SGX_PAGE_TCS
+        .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_TCS
     };
     struct mem_area* tcs_area = &areas[area_num++];
 
