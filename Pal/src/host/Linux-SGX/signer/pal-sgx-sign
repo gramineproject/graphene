@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 # This is just a wrapper that provides the cmdline tool. All code should go
 # into pal_sgx_sign.py.
