@@ -2,6 +2,7 @@ loader.preload = file:$(SHIMPATH)
 loader.exec = file:/bin/ls
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
 loader.debug_type = none
+loader.insecure__use_cmdline_argv = 1
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
