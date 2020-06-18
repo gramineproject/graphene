@@ -9,7 +9,6 @@
 
 #include <asm/fcntl.h>
 #include <linux/time.h>
-
 #include "api.h"
 #include "gsgx.h"
 #include "pal.h"
@@ -23,11 +22,125 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
+bool is_tsc_usable(void);
+unsigned long get_tsc_khz(void);
+unsigned long get_tsc(void);
+
+volatile int64_t _TSC_khz, _Recal_usec, _Recal_tsc, _Recal_shift;
+volatile int64_t  _Start_tsc, _Start_usec, _TSC_usable;
+
+/* this function determines whether TSC is reliable to use */
+bool is_tsc_usable(void)
+{
+    bool retval = 0;
+    unsigned int words[PAL_CPUID_WORD_NUM];
+
+    if (_TSC_usable != 0)
+        return _TSC_usable > 0;
+
+    _DkCpuIdRetrieve(0x80000007, 0, words);
+    retval = words[PAL_CPUID_WORD_EDX] && 1 << 8;
+    if (retval) {
+        __atomic_store_n(&_TSC_usable, 1L, __ATOMIC_SEQ_CST);
+    } else {
+        __atomic_store_n(&_TSC_usable, -1L, __ATOMIC_SEQ_CST);
+        SGX_DBG(DBG_I, "This system has no reliable TSC to use.\n");
+    }
+    return retval;
+}
+
+/* this function is used to fetch and cache the baseline freq of TSC */
+unsigned long get_tsc_khz(void)
+{
+    unsigned long retval = 0;
+    unsigned int words[PAL_CPUID_WORD_NUM];
+    unsigned int crystal_khz;
+
+    if (!is_tsc_usable())
+        return 0;
+
+    if (_TSC_khz > 0)
+        return _TSC_khz;
+
+    _DkCpuIdRetrieve(0x15, 0, words);
+    if (words[PAL_CPUID_WORD_EBX] == 0 || words[PAL_CPUID_WORD_EAX] == 0) {
+        __atomic_store_n(&_TSC_usable, -1, __ATOMIC_SEQ_CST);
+        return 0;
+    }
+    crystal_khz = words[PAL_CPUID_WORD_ECX] / 1000;
+    if (crystal_khz > 0) {
+        retval = crystal_khz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
+        __atomic_store_n(&_TSC_khz, retval, __ATOMIC_SEQ_CST);
+    } else {
+        __atomic_store_n(&_TSC_usable, -1, __ATOMIC_SEQ_CST);
+        return 0;
+    }
+    return retval;
+}
+
+/* this function is used to get TSC cycle */
+unsigned long get_tsc(void)
+{
+    unsigned long lo, hi, ret;
+    __asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));
+    ret = lo | (hi << 32);
+    return ret;
+}
+
 unsigned long _DkSystemTimeQuery(void) {
-    unsigned long microsec;
-    int ret = ocall_gettime(&microsec);
-    if (ret)
-        return -PAL_ERROR_DENIED;
+    unsigned long microsec = 0, tsc_usec = 0, tsc_cyc1, tsc_cyc2;
+    unsigned long tsc_khz = get_tsc_khz(), tsc_khz_recal;
+    long tsc_khz_recal_diff;
+    int64_t exp;
+    int ret;
+
+    if (is_tsc_usable()) {
+        if (tsc_khz > 0) {
+            if (_Start_tsc > 0 && _Start_usec > 0) {
+                /* calculate the TSC based time */
+                tsc_usec = _Start_usec +
+                    ((unsigned long long)(get_tsc() - _Start_tsc) * 1000 / tsc_khz);
+                /* determine whether it needs to be refined */
+                if ((long)tsc_usec < _Recal_usec + (10000000L << _Recal_shift)) {
+                    return tsc_usec;
+                }
+            }
+        }
+
+        tsc_cyc1 = get_tsc();
+        ret = ocall_gettime(&microsec);
+        tsc_cyc2 = get_tsc();
+        if (ret)
+            return -PAL_ERROR_DENIED;
+        if (_Start_tsc == 0 || _Start_usec == 0) {
+            /* setup baseline data */
+            __atomic_store_n(&_Start_usec, microsec, __ATOMIC_SEQ_CST);
+            __atomic_store_n(&_Start_tsc, tsc_cyc2, __ATOMIC_SEQ_CST);
+        }
+
+        exp = 0;
+        if (__atomic_compare_exchange_n(&_Recal_tsc, &exp, 1,
+                                        false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
+            __atomic_store_n(&_Recal_usec, microsec, __ATOMIC_SEQ_CST);
+            tsc_khz_recal = (((tsc_cyc2 - tsc_cyc1) >> 1) + tsc_cyc1 - _Start_tsc);
+            tsc_khz_recal = (double)tsc_khz_recal * 1000 / (microsec - _Start_usec);
+            tsc_khz_recal_diff = tsc_khz_recal - _TSC_khz;
+            if (tsc_khz_recal_diff < 0)
+                tsc_khz_recal_diff *= -1;
+            /* the change cannot exceed 10% derail */
+            if (tsc_khz_recal_diff * 100 / _TSC_khz < 10)
+                __atomic_store_n(&_TSC_khz, tsc_khz_recal, __ATOMIC_SEQ_CST);
+            /* reduce the chance to refine it again */
+            if (tsc_khz_recal_diff < 3)
+                __atomic_add_fetch(&_Recal_shift, 1, __ATOMIC_SEQ_CST);
+            __atomic_store_n(&_Recal_tsc, 0, __ATOMIC_SEQ_CST);
+        }
+    } else {
+        /* fallback to gettimeofday syscall */
+        ret = ocall_gettime(&microsec);
+        if (ret)
+            return -PAL_ERROR_DENIED;
+    }
     return microsec;
 }
 
