@@ -7,6 +7,13 @@ static inline void cpu_pause(void) {
     __asm__ volatile("pause");
 }
 
+/* this function is used to get TSC cycle */
+static inline unsigned long get_tsc(void) {
+    unsigned long lo, hi;
+    __asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));
+    return lo | (hi << 32);
+}
+
 #define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory")
 
 /*

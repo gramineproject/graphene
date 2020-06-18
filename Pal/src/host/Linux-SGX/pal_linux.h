@@ -107,6 +107,7 @@ void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STAT
 
 
 int init_trusted_files (void);
+void init_tsc(void);
 void init_cpuid(void);
 
 /* Function: load_trusted_file
