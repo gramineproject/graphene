@@ -294,6 +294,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     init_enclave_pages();
     init_enclave_key();
 
+    init_tsc();
     init_cpuid();
 
     /* now we can add a link map for PAL itself */

@@ -23,12 +23,123 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
+#define CPUID_LEAF_INVARIANT_TSC 0x80000007
+#define CPUID_LEAF_TSC_FREQ 0x15
+#define TSC_REFINE_INIT_TIMEOUT_USECS 10000000L
+#define TSC_REFINE_THRESHOLD_PERCENT 10
+#define TSC_REFINE_SHIFT_THRESHOLD 3
+
+static volatile int64_t g_tsc_khz = 0;
+static volatile int64_t g_recal_usec = 0;
+static volatile int64_t g_recal_shift = 0;
+static volatile int64_t g_start_tsc = 0;
+static volatile int64_t g_start_usec = 0;
+static PAL_LOCK g_tsc_lock = LOCK_INIT;
+
+/* this function determines whether TSC is reliable to use */
+static bool is_tsc_usable(void) {
+    bool retval = false;
+    unsigned int words[PAL_CPUID_WORD_NUM];
+
+    _DkCpuIdRetrieve(CPUID_LEAF_INVARIANT_TSC, 0, words);
+    retval = (words[PAL_CPUID_WORD_EDX] & 1 << 8) && true;
+
+    return retval;
+}
+
+/* this function is used to fetch the baseline freq of TSC */
+static int64_t get_tsc_khz(void) {
+    int64_t retval = 0;
+    unsigned int words[PAL_CPUID_WORD_NUM];
+    int64_t crys_khz;
+
+    _DkCpuIdRetrieve(CPUID_LEAF_TSC_FREQ, 0, words);
+    if (words[PAL_CPUID_WORD_EBX] > 0 && words[PAL_CPUID_WORD_EAX] > 0) {
+        /* nominal frequency of the core crystal clock in kHz */
+        crys_khz = words[PAL_CPUID_WORD_ECX] / 1000;
+        if (crys_khz > 0) {
+            retval = crys_khz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
+        }
+    }
+    return retval;
+}
+
+/**
+ * Initialize the data structures used for CPUID emulation.
+ */
+void init_tsc(void) {
+    if (is_tsc_usable()) {
+        g_tsc_khz = get_tsc_khz();
+    }
+}
+
+/* this function is used to get TSC cycle */
+static unsigned long get_tsc(void) {
+    unsigned long lo, hi;
+    __asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));
+    return lo | (hi << 32);
+}
+
 unsigned long _DkSystemTimeQuery(void) {
-    unsigned long microsec;
-    int ret = ocall_gettime(&microsec);
-    if (ret)
-        return -PAL_ERROR_DENIED;
-    return microsec;
+    unsigned long usec = 0;
+    int64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc;
+    int64_t tsc_khz = g_tsc_khz, tsc_khz_recal;
+    long tsc_khz_recal_diff;
+    int ret;
+
+    if (tsc_khz > 0) {
+        _DkInternalLock(&g_tsc_lock);
+        if (g_start_tsc > 0 && g_start_usec > 0) {
+            /* calculate the TSC based time */
+            tsc_usec = g_start_usec +
+                ((get_tsc() - g_start_tsc) * 1000 / tsc_khz);
+            /* determine whether it needs to be refined */
+            if (tsc_usec < g_recal_usec +
+                (TSC_REFINE_INIT_TIMEOUT_USECS << g_recal_shift)) {
+                usec = tsc_usec;
+            }
+        }
+
+        if (!usec) {
+            /* refining the TSC freq */
+            tsc_cyc1 = get_tsc();
+            ret = ocall_gettime(&usec);
+            tsc_cyc2 = get_tsc();
+            if (!ret) {
+                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) >> 1) + tsc_cyc1;
+                if (g_start_tsc == 0 && g_start_usec == 0) {
+                    /* setup baseline data */
+                    g_start_usec = usec;
+                    g_start_tsc = tsc_cyc;
+                } else {
+                    g_recal_usec = usec;
+                    tsc_khz_recal = (double)(tsc_cyc - g_start_tsc) *
+                        1000 / (usec - g_start_usec);
+                    tsc_khz_recal_diff = tsc_khz_recal - g_tsc_khz;
+                    if (tsc_khz_recal_diff < 0)
+                        tsc_khz_recal_diff *= -1;
+                    /* the change cannot exceed 10% derail */
+                    if (tsc_khz_recal_diff * 100 / g_tsc_khz <
+                        TSC_REFINE_THRESHOLD_PERCENT) {
+                        g_tsc_khz = tsc_khz_recal;
+                        /* reduce the chance to refine it again */
+                        if (tsc_khz_recal_diff < TSC_REFINE_SHIFT_THRESHOLD)
+                            ++g_recal_shift;
+                    }
+                }
+            } else {
+                _DkInternalUnlock(&g_tsc_lock);
+                _DkRaiseFailure(PAL_ERROR_DENIED);
+            }
+        }
+        _DkInternalUnlock(&g_tsc_lock);
+    } else {
+        /* fallback to gettimeofday syscall */
+        ret = ocall_gettime(&usec);
+        if (ret)
+            _DkRaiseFailure(PAL_ERROR_DENIED);
+    }
+    return usec;
 }
 
 size_t _DkRandomBitsRead(void* buffer, size_t size) {
