@@ -807,12 +807,12 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
 # define symbol_version_default(real, name, version)
 #endif
 
+#if defined(__i386__) || defined(__x86_64__)
 /*!
  * \brief Return CPUID information, based on the leaf/subleaf.
  *
  * \param[out] values the array of the results
  */
-#if defined(__i386__) || defined(__x86_64__)
 PAL_BOL DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[PAL_CPUID_WORD_NUM]);
 #endif
 
