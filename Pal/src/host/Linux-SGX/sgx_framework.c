@@ -159,7 +159,12 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->base, secs->size,
                                    PROT_NONE, /* newer DCAP driver requires such initial mmap */
+#ifdef SGX_DCAP_16_OR_LATER
+                                   (MAP_FIXED + MAP_PRIVATE + MAP_ANONYMOUS), g_isgx_device, 0);
+                                   /* DCAP 1.5 requires private and anonymous */                                   
+#else
                                    flags|MAP_FIXED, g_isgx_device, 0);
+#endif
 
     if (IS_ERR_P(addr)) {
         if (ERRNO_P(addr) == 1 && (flags | MAP_FIXED))
@@ -231,6 +236,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             return -EPERM;
         case SGX_PAGE_TCS:
             secinfo.flags |= SGX_SECINFO_FLAGS_TCS;
+            prot = PROT_READ | PROT_WRITE;
             break;
         case SGX_PAGE_REG:
             secinfo.flags |= SGX_SECINFO_FLAGS_REG;
@@ -301,6 +307,14 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                 param.count, param.length);
         return -ERRNO(ret);
     }
+    
+    /* need to change permissions for EADDed pages; actual permissions are capped by
+     * permissions specified in SECINFO */
+    long int mret = (long int) mmap(secs->base + addr, size, prot, (MAP_SHARED + MAP_FIXED), g_isgx_device, 0);
+    if (mret == -1) {
+        SGX_DBG(DBG_I, "Changing protections of EADDed pages returned %ld\n", mret);
+        return -ERRNO(mret);
+    }
 #else
     /* older drivers (DCAP v1.5- and old out-of-tree) only supports adding one page at a time */
     struct sgx_enclave_add_page param = {
@@ -323,7 +337,6 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             param.src += g_page_size;
         added_size += g_page_size;
     }
-#endif /* SGX_DCAP_16_OR_LATER */
 
     /* need to change permissions for EADDed pages; actual permissions are capped by
      * permissions specified in SECINFO so here we specify the broadest set */
@@ -332,6 +345,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
         SGX_DBG(DBG_I, "Changing protections of EADDed pages returned %d\n", ret);
         return -ERRNO(ret);
     }
+#endif /* SGX_DCAP_16_OR_LATER */
 
     return 0;
 }
