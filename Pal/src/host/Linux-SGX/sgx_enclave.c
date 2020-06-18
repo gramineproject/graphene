@@ -724,9 +724,9 @@ static int rpc_thread_loop(void* arg) {
     g_rpc_queue->rpc_threads_cnt++;
     spinlock_unlock(&g_rpc_queue->lock);
 
-    static const uint64_t SPIN_ATTEMPTS_MAX = 10000;                /* rather arbitrary */
-    static const uint64_t SLEEP_TIME_MAX    = 100000000;            /* nanoseconds (0.1 seconds) */
-    static const uint64_t SLEEP_TIME_STEP   = SLEEP_TIME_MAX / 100; /* 100 steps before capped */
+    static const uint64_t SPIN_ATTEMPTS_MAX = 10000;      /* rather arbitrary */
+    static const uint64_t SLEEP_TIME_MAX    = 100000000;  /* nanoseconds (0.1 seconds) */
+    static const uint64_t SLEEP_TIME_STEP   = 1000000;    /* 100 steps before capped */
 
     /* no races possible since vars are thread-local and RPC threads don't receive signals */
     uint64_t spin_attempts = 0;
