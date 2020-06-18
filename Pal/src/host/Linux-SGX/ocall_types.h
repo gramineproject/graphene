@@ -243,7 +243,7 @@ typedef struct {
 } ms_ocall_shutdown_t;
 
 typedef struct {
-    unsigned long ms_microsec;
+    uint64_t ms_microsec;
 } ms_ocall_gettime_t;
 
 typedef struct {

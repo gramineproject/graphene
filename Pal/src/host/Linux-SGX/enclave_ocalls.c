@@ -1233,10 +1233,9 @@ int ocall_shutdown (int sockfd, int how)
     return retval;
 }
 
-int ocall_gettime (unsigned long * microsec)
-{
+int ocall_gettime(uint64_t* microsec) {
     int retval = 0;
-    ms_ocall_gettime_t * ms;
+    ms_ocall_gettime_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
