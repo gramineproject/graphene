@@ -23,12 +23,69 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
+#define TSC_REFINE_INIT_TIMEOUT_USECS 10000000L
+
+static int64_t g_tsc_hz = 0;
+static int64_t g_start_tsc = 0;
+static int64_t g_start_usec = 0;
+static PAL_LOCK g_tsc_lock = LOCK_INIT;
+
+/**
+ * Initialize the data structures used for CPUID emulation.
+ */
+void init_tsc(void) {
+    if (is_tsc_usable()) {
+        g_tsc_hz = get_tsc_hz();
+    }
+}
+
 unsigned long _DkSystemTimeQuery(void) {
-    unsigned long microsec;
-    int ret = ocall_gettime(&microsec);
-    if (ret)
-        return -PAL_ERROR_DENIED;
-    return microsec;
+    unsigned long usec = 0;
+    int64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc;
+    int ret;
+
+    if (g_tsc_hz > 0) {
+        _DkInternalLock(&g_tsc_lock);
+        if (g_start_tsc > 0 && g_start_usec > 0) {
+            /* calculate the TSC based time */
+            tsc_usec = g_start_usec +
+                ((double)(get_tsc() - g_start_tsc) * 1000000 / g_tsc_hz);
+            /* determine whether it needs to be refined periodically */
+            if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
+                usec = tsc_usec;
+            }
+        }
+        _DkInternalUnlock(&g_tsc_lock);
+
+        if (!usec) {
+            /* refining the TSC freq */
+            tsc_cyc1 = get_tsc();
+            ret = ocall_gettime(&usec);
+            tsc_cyc2 = get_tsc();
+            if (!ret) {
+                /* the ocall_gettime() is a time consuming operation.   *
+                 * it includes EENTER and EEXIT instructions, our best  *
+                 * estimation is the timestamp obtained in the middle   *
+                 * time point, therefore, the tsc_cyc as baseline will  *
+                 * be calibrated precisely in this way.                 */
+                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) >> 1) + tsc_cyc1;
+                _DkInternalLock(&g_tsc_lock);
+                /* refresh the baseline data*/
+                g_start_usec = usec;
+                g_start_tsc = tsc_cyc;
+                _DkInternalUnlock(&g_tsc_lock);
+
+            } else {
+                _DkRaiseFailure(PAL_ERROR_DENIED);
+            }
+        }
+    } else {
+        /* fallback to gettimeofday syscall */
+        ret = ocall_gettime(&usec);
+        if (ret)
+            _DkRaiseFailure(PAL_ERROR_DENIED);
+    }
+    return usec;
 }
 
 int _DkInstructionCacheFlush(const void* addr, int size) {

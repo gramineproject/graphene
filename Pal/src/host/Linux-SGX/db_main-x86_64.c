@@ -30,6 +30,9 @@
 #define BIT_EXTRACT_LE(value, start, after) \
     (((unsigned long)(value) & RIGHTMASK(after)) >> start)
 
+#define CPUID_LEAF_INVARIANT_TSC 0x80000007
+#define CPUID_LEAF_TSC_FREQ 0x15
+
 static char* cpu_flags[] = {
     "fpu",    // "x87 FPU on chip"
     "vme",    // "virtual-8086 mode enhancement"
@@ -89,6 +92,35 @@ static double get_bogomips(void) {
     buf[len] = 0;
 
     return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf));
+}
+
+/* this function determines whether TSC is reliable to use */
+bool is_tsc_usable(void) {
+    bool retval = false;
+    unsigned int words[PAL_CPUID_WORD_NUM];
+
+    _DkCpuIdRetrieve(CPUID_LEAF_INVARIANT_TSC, 0, words);
+    retval = words[PAL_CPUID_WORD_EDX] & 1 << 8;
+
+    return retval;
+}
+
+/* this function is used to fetch the baseline freq of TSC */
+int64_t get_tsc_hz(void) {
+    int64_t retval = 0;
+    unsigned int words[PAL_CPUID_WORD_NUM];
+    int64_t crys_hz;
+
+    _DkCpuIdRetrieve(CPUID_LEAF_TSC_FREQ, 0, words);
+    if (words[PAL_CPUID_WORD_EBX] > 0 && words[PAL_CPUID_WORD_EAX] > 0) {
+        /* nominal frequency of the core crystal clock in kHz */
+        crys_hz = words[PAL_CPUID_WORD_ECX];
+        if (crys_hz > 0 && words[PAL_CPUID_WORD_EAX] > 0) {
+            retval = (double)crys_hz * words[PAL_CPUID_WORD_EBX] /
+                words[PAL_CPUID_WORD_EAX];
+        }
+    }
+    return retval;
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
