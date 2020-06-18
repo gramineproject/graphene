@@ -28,6 +28,13 @@ static inline void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int w
 }
 
 
+/* this function is used to get TSC cycle */
+static inline unsigned long get_tsc(void) {
+    unsigned long lo, hi;
+    __asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));
+    return lo | (hi << 32);
+}
+
 #define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory")
 
 /* some non-Intel clones support out of order store; WMB() ceases to be a nop for these */
