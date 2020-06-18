@@ -111,6 +111,10 @@ void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STAT
 int init_trusted_files (void);
 void init_cpuid(void);
 
+bool is_tsc_usable(void);
+uint64_t get_tsc_hz(void);
+void init_tsc(void);
+
 /* Function: load_trusted_file
  * checks if the file to be opened is trusted or allowed,
  * according to the setting in manifest

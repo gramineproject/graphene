@@ -9,6 +9,7 @@
 
 #include <asm/fcntl.h>
 #include <linux/time.h>
+#include <stdint.h>
 
 #include "api.h"
 #include "pal.h"
@@ -28,14 +29,74 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
-unsigned long _DkSystemTimeQuery(void) {
-    unsigned long microsec;
-    int ret = ocall_gettime(&microsec);
-    if (ret)
-        return -PAL_ERROR_DENIED;
+#define TSC_REFINE_INIT_TIMEOUT_USECS 10000000
 
-    /* TODO: result comes from the untrusted host, introduce some schielding */
-    return microsec;
+static uint64_t g_tsc_hz = 0;
+static uint64_t g_start_tsc = 0;
+static uint64_t g_start_usec = 0;
+static PAL_LOCK g_tsc_lock = LOCK_INIT;
+
+/**
+ * Initialize the data structures used for date/time emulation using TSC
+ */
+void init_tsc(void) {
+    if (is_tsc_usable()) {
+        g_tsc_hz = get_tsc_hz();
+    }
+}
+
+/* TODO: result comes from the untrusted host, introduce some schielding */
+int _DkSystemTimeQuery(uint64_t* out_usec) {
+    uint64_t usec = 0;
+    uint64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_diff;
+    int ret;
+
+    if (g_tsc_hz > 0) {
+        _DkInternalLock(&g_tsc_lock);
+        if (g_start_tsc > 0 && g_start_usec > 0) {
+            /* calculate the TSC-based time */
+            tsc_diff = get_tsc() - g_start_tsc;
+            if (tsc_diff < INT64_MAX / 1000000) {
+                tsc_usec = g_start_usec + (tsc_diff * 1000000 / g_tsc_hz);
+                if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
+                    /* no need to refine yet */
+                    usec = tsc_usec;
+                }
+            }
+        }
+        _DkInternalUnlock(&g_tsc_lock);
+
+        if (!usec) {
+            /* refresh the baseline usec and TSC to contain the drift */
+            tsc_cyc1 = get_tsc();
+            ret = ocall_gettime(&usec);
+            tsc_cyc2 = get_tsc();
+            if (!ret) {
+                /* the ocall_gettime() is a time consuming operation.   *
+                 * it includes EENTER and EEXIT instructions, our best  *
+                 * estimation is the timestamp obtained in the middle   *
+                 * time point, therefore, the tsc_cyc as baseline will  *
+                 * be calibrated precisely in this way.                 */
+                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) / 2) + tsc_cyc1;
+                _DkInternalLock(&g_tsc_lock);
+                /* refresh the baseline data if no other thread updated g_start_tsc */
+                if (g_start_tsc < tsc_cyc) {
+                    g_start_usec = usec;
+                    g_start_tsc = tsc_cyc;
+                }
+                _DkInternalUnlock(&g_tsc_lock);
+            } else {
+                return -PAL_ERROR_DENIED;
+            }
+        }
+    } else {
+        /* fallback to the slow ocall */
+        ret = ocall_gettime(&usec);
+        if (ret < 0)
+            return -PAL_ERROR_DENIED;
+    }
+    *out_usec = usec;
+    return 0;
 }
 
 int _DkInstructionCacheFlush(const void* addr, int size) {

@@ -15,8 +15,14 @@
 
 PAL_NUM DkSystemTimeQuery(void) {
     ENTER_PAL_CALL(DkSystemTimeQuery);
-    unsigned long time = _DkSystemTimeQuery();
-    return time;
+    uint64_t time;
+    int ret = _DkSystemTimeQuery(&time);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        // TODO: Fix this interface to allow returning errors.
+        time = 0;
+    }
+    LEAVE_PAL_CALL_RETURN(time);
 }
 
 PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size) {

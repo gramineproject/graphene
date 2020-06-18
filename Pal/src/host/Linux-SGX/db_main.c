@@ -22,6 +22,7 @@
 #include <asm/ioctls.h>
 #include <asm/mman.h>
 #include <elf/elf.h>
+#include <stdint.h>
 #include <sysdeps/generic/ldsodefs.h>
 
 #include "ecall_types.h"
@@ -189,8 +190,14 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
      */
 
     PAL_HANDLE parent = NULL;
-    unsigned long start_time = _DkSystemTimeQuery();
     int rv;
+    uint64_t start_time;
+
+    rv = _DkSystemTimeQuery(&start_time);
+    if (rv < 0) {
+        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", rv);
+        ocall_exit(rv, /*is_exitgroup=*/true);
+    }
 
     struct pal_sec sec_info;
     if (!sgx_copy_to_enclave(&sec_info, sizeof(sec_info), uptr_sec_info, sizeof(sec_info))) {
@@ -290,6 +297,7 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
     init_enclave_key();
 
     init_cpuid();
+    init_tsc();
 
     /* now we can add a link map for PAL itself */
     setup_pal_map(&g_pal_map);
@@ -399,9 +407,14 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
     }
 
 #if PRINT_ENCLAVE_STAT == 1
-    printf("                >>>>>>>> "
-           "Enclave loading time =      %10ld milliseconds\n",
-           _DkSystemTimeQuery() - g_pal_sec.start_time);
+    uint64_t end_time;
+    rv = _DkSystemTimeQuery(&end_time);
+    if (rv < 0) {
+        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", rv);
+        ocall_exit(rv, /*is_exitgroup=*/true);
+    }
+    printf("                >>>>>>>> Enclave loading time =      %10ld milliseconds\n",
+           end_time - g_pal_sec.start_time);
 #endif
 
     /* set up thread handle */
