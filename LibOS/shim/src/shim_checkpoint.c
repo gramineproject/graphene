@@ -4,7 +4,7 @@
 /*
  * shim_checkpoint.c
  *
- * This file contains implementation of checkpoint and migration.
+ * This file contains implementation of checkpoint and restore.
  */
 
 #include <asm/fcntl.h>
@@ -27,7 +27,7 @@
 
 #define CP_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL)
 #define CP_MAP_ENTRY_NUM 64
-#define CP_HASH_SIZE  256
+#define CP_HASH_SIZE 256
 
 DEFINE_LIST(cp_map_entry);
 struct cp_map_entry {
@@ -43,10 +43,7 @@ struct cp_map {
         size_t cnt;
         struct cp_map_entry entries[0];
     }* buffers;
-
-    struct {
-        LISTP_TYPE(cp_map_entry) head[CP_HASH_SIZE];
-    } map;
+    LISTP_TYPE(cp_map_entry) head[CP_HASH_SIZE];
 };
 
 static struct cp_map_buffer* extend_cp_map(struct cp_map* map) {
@@ -92,13 +89,13 @@ void destroy_cp_map(void* _map) {
 }
 
 struct shim_cp_map_entry* get_cp_map_entry(void* _map, void* addr, bool create) {
-    struct cp_map * map = (struct cp_map*)_map;
+    struct cp_map* map = (struct cp_map*)_map;
 
     struct shim_cp_map_entry* e = NULL;
 
     /* check if object at this addr was already added to the checkpoint */
-    uint64_t hash = hash64((uint64_t)addr) & (CP_HASH_SIZE - 1);
-    LISTP_TYPE(cp_map_entry)* head = &map->map.head[hash];
+    uint64_t hash = hash64((uint64_t)addr) % CP_HASH_SIZE;
+    LISTP_TYPE(cp_map_entry)* head = &map->head[hash];
 
     struct cp_map_entry* tmp;
     LISTP_FOR_EACH_ENTRY(tmp, head, hlist)
@@ -140,7 +137,7 @@ BEGIN_CP_FUNC(memory) {
     entry->prev  = store->last_mem_entry;
 
     store->last_mem_entry = entry;
-    store->mem_nentries++;
+    store->mem_entries_cnt++;
     store->mem_size += size;
 
     if (objp)
@@ -159,7 +156,7 @@ BEGIN_CP_FUNC(palhdl) {
     entry->prev = store->last_palhdl_entry;
 
     store->last_palhdl_entry = entry;
-    store->palhdl_nentries++;
+    store->palhdl_entries_cnt++;
 
     ADD_CP_FUNC_ENTRY(off);
     if (objp)
@@ -196,26 +193,26 @@ BEGIN_CP_FUNC(environ) {
     __UNUSED(objp);
 
     const char** envp = (const char**)obj;
-    int nenvp = 0;
-    size_t envp_bytes = 0;
+    size_t env_cnt    = 0;
+    size_t env_bytes  = 0;
 
     for (const char** e = envp; *e; e++) {
-        nenvp++;
-        envp_bytes += strlen(*e) + 1;
+        env_cnt++;
+        env_bytes += strlen(*e) + 1;
     }
 
-    size_t off = ADD_CP_OFFSET(sizeof(char*) * (nenvp + 1) + envp_bytes);
+    size_t off = ADD_CP_OFFSET(sizeof(char*) * (env_cnt + 1) + env_bytes);
     const char** new_envp = (void*)base + off;
-    char* new_env_str = (void*)new_envp + sizeof(char*) * (nenvp + 1);
+    char* new_env_str = (void*)new_envp + sizeof(char*) * (env_cnt + 1);
 
-    for (int i = 0; i < nenvp; i++) {
+    for (size_t i = 0; i < env_cnt; i++) {
         size_t len = strlen(envp[i]);
         new_envp[i] = new_env_str;
         memcpy(new_env_str, envp[i], len + 1);
         new_env_str += len + 1;
     }
 
-    new_envp[nenvp] = NULL;
+    new_envp[env_cnt] = NULL;
     ADD_CP_FUNC_ENTRY(off);
 }
 END_CP_FUNC(environ)
@@ -238,7 +235,7 @@ BEGIN_CP_FUNC(qstr) {
     struct shim_qstr* qstr = (struct shim_qstr*)obj;
 
     /* qstr is always embedded as sub-object in other objects so it is automatically checkpointed as
-     * part of other checkpoint routines.  However, its oflow string resides in some other memory
+     * part of other checkpoint routines. However, its oflow string resides in some other memory
      * region and must be checkpointed and restored explicitly. Copy oflow string inside checkpoint
      * right before qstr cp entry. */
     if (qstr->oflow) {
@@ -266,29 +263,29 @@ static int send_checkpoint_on_stream(PAL_HANDLE stream, struct shim_cp_store* st
     int ret = 0;
     struct shim_mem_entry** mem_entries = NULL;
 
-    int mem_nentries = store->mem_nentries;
+    size_t mem_entries_cnt = store->mem_entries_cnt;
 
-    if (mem_nentries) {
-        mem_entries = malloc(sizeof(*mem_entries) * mem_nentries);
+    if (mem_entries_cnt) {
+        mem_entries = malloc(sizeof(*mem_entries) * mem_entries_cnt);
 
         /* memory entries were added in reverse order, let's first populate them */
         struct shim_mem_entry* mem_entry = store->last_mem_entry;
-        for (int i = mem_nentries - 1; i >= 0; i--) {
+        for (size_t i = mem_entries_cnt; i > 0; i--) {
             assert(mem_entry);
-            mem_entries[i] = mem_entry;
+            mem_entries[i - 1] = mem_entry;
             mem_entry = mem_entry->prev;
         }
         assert(!mem_entry);
 
         /* now we can traverse memory entries in correct order and assign checkpoint addresses */
         void* mem_addr = (void*)store->base + store->offset;
-        for (int i = 0; i < mem_nentries; i++) {
+        for (size_t i = 0; i < mem_entries_cnt; i++) {
             mem_entries[i]->data = mem_addr;
             mem_addr += mem_entries[i]->size;
         }
     }
 
-    /* first send non-memory entries found at [store->base, store->base + store->offset] */
+    /* first send non-memory entries found at [store->base, store->base + store->offset) */
     size_t total_bytes = store->offset;
     size_t bytes = 0;
     PAL_NUM written;
@@ -305,7 +302,7 @@ static int send_checkpoint_on_stream(PAL_HANDLE stream, struct shim_cp_store* st
     } while (bytes < total_bytes);
 
     /* next send all memory entries collected above */
-    for (int i = 0; i < mem_nentries; i++) {
+    for (size_t i = 0; i < mem_entries_cnt; i++) {
         size_t mem_size = mem_entries[i]->size;
         void* mem_addr  = mem_entries[i]->addr;
         int mem_prot    = mem_entries[i]->prot;
@@ -352,25 +349,25 @@ out:
 static int send_handles_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
     int ret;
 
-    int nentries = store->palhdl_nentries;
-    if (!nentries)
+    size_t entries_cnt = store->palhdl_entries_cnt;
+    if (!entries_cnt)
         return 0;
 
-    struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * nentries);
+    struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * entries_cnt);
     if (!entries)
         return -ENOMEM;
 
     /* PAL-handle entries were added in reverse order, let's first populate them */
     struct shim_palhdl_entry* entry = store->last_palhdl_entry;
-    for (int i = nentries - 1; i >= 0; i--) {
+    for (size_t i = entries_cnt; i > 0; i--) {
         assert(entry);
-        entries[i] = entry;
+        entries[i - 1] = entry;
         entry = entry->prev;
     }
     assert(!entry);
 
     /* now we can traverse PAL-handle entries in correct order and send them one by one */
-    for (int i = 0; i < nentries; i++) {
+    for (size_t i = 0; i < entries_cnt; i++) {
         /* we need to abort migration if DkSendHandle() returned error, otherwise app may fail */
         if (!DkSendHandle(stream, entries[i]->handle)) {
             ret = -EINVAL;
@@ -392,7 +389,7 @@ static int restore_checkpoint(struct checkpoint_hdr* hdr, uintptr_t base) {
 
     debug("restoring checkpoint at 0x%08lx rebased from %p\n", base, hdr->addr);
 
-    if (hdr->mem_nentries) {
+    if (hdr->mem_entries_cnt) {
         struct shim_mem_entry* entry = (struct shim_mem_entry*)(base + hdr->mem_offset);
 
         for (; entry; entry = entry->prev) {
@@ -451,27 +448,27 @@ static int receive_handles_on_stream(struct checkpoint_hdr* hdr, void* base, ssi
     struct shim_palhdl_entry* palhdl_entries = (struct shim_palhdl_entry*)(base +
                                                                            hdr->palhdl_offset);
 
-    int nentries = hdr->palhdl_nentries;
-    if (!nentries)
+    size_t entries_cnt = hdr->palhdl_entries_cnt;
+    if (!entries_cnt)
         return 0;
 
-    debug("receiving %d PAL handles\n", nentries);
+    debug("receiving %d PAL handles\n", entries_cnt);
 
-    struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * nentries);
+    struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * entries_cnt);
 
     /* entries are extracted from checkpoint in reverse order, let's first populate them */
     struct shim_palhdl_entry* entry = palhdl_entries;
-    for (int i = nentries - 1; i >= 0; i--) {
+    for (size_t i = entries_cnt; i > 0; i--) {
         assert(entry);
         CP_REBASE(entry->prev);
         CP_REBASE(entry->phandle);
-        entries[i] = entry;
+        entries[i - 1] = entry;
         entry = entry->prev;
     }
     assert(!entry);
 
     /* now we can traverse PAL-handle entries in correct order and receive them one by one */
-    for (int i = 0; i < nentries; i++) {
+    for (size_t i = 0; i < entries_cnt; i++) {
         entry = entries[i];
         if (!entry->handle)
             continue;
@@ -517,8 +514,8 @@ static void* cp_alloc(void* addr, size_t size) {
             return NULL;
         }
 
-        /* we reserved [addr, addr + size + reserve_size] to reduce fragmentation (see above); now
-         * we unmap [addr + size, addr + size + reserve_size] to reclaim this memory region */
+        /* we reserved [addr, addr + size + reserve_size) to reduce fragmentation (see above); now
+         * we unmap [addr + size, addr + size + reserve_size) to reclaim this memory region */
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr + size, reserve_size, /*is_internal=*/true, &tmp_vma) < 0) {
             BUG();
@@ -538,20 +535,6 @@ static void* cp_alloc(void* addr, size_t size) {
     return addr;
 }
 
-/*!
- * \brief Create child process and migrate current-process state to it.
- *
- * Called in parent process during fork/clone/execve.
- *
- * \param migrate_func Migration function defined by the caller.
- * \param exec         Executable to load in the child process.
- * \param argv         Arguments passed to the child process.
- * \param thread       Main-thread handle to be migrated to the child process.
- *
- * The remaining arguments are passed into the migration function.
- *
- * \return 0 on success, negative POSIX error code on failure.
- */
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
                                        const char** argv, struct shim_thread* thread, ...) {
     int ret = 0;
@@ -615,14 +598,14 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     hdr.addr = (void*)cpstore.base;
     hdr.size = checkpoint_size;
 
-    if (cpstore.mem_nentries) {
-        hdr.mem_offset   = (uintptr_t)cpstore.last_mem_entry - cpstore.base;
-        hdr.mem_nentries = cpstore.mem_nentries;
+    if (cpstore.mem_entries_cnt) {
+        hdr.mem_offset      = (uintptr_t)cpstore.last_mem_entry - cpstore.base;
+        hdr.mem_entries_cnt = cpstore.mem_entries_cnt;
     }
 
-    if (cpstore.palhdl_nentries) {
-        hdr.palhdl_offset   = (uintptr_t)cpstore.last_palhdl_entry - cpstore.base;
-        hdr.palhdl_nentries = cpstore.palhdl_nentries;
+    if (cpstore.palhdl_entries_cnt) {
+        hdr.palhdl_offset      = (uintptr_t)cpstore.last_palhdl_entry - cpstore.base;
+        hdr.palhdl_entries_cnt = cpstore.palhdl_entries_cnt;
     }
 
     /* send a checkpoint header to child process to notify it to start receiving checkpoint */
@@ -718,16 +701,6 @@ out:
     return ret;
 }
 
-/*!
- * \brief Receive a checkpoint from parent process and restore state based on it.
- *
- * Called in child process during initialization.
- *
- * \param[in] hdr     Checkpoint header already received from the parent.
- * \param[out] cpptr  Pointer to the received checkpoint.
- *
- * \return 0 on success, negative POSIX error code on failure.
- */
 int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
     int ret = 0;
     PAL_PTR mapped = NULL;
@@ -738,7 +711,7 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
 
     /* first try allocating at address used by parent process */
     ret = bkeep_mmap_fixed((void*)mapaddr, mapsize, PROT_READ | PROT_WRITE,
-            CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
+                           CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
     if (ret < 0) {
         /* the address used by parent overlaps with this child's memory regions */
         base = NULL;

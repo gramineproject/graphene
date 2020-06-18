@@ -126,7 +126,7 @@ BEGIN_CP_FUNC(gdb_map) {
 
     while (m) {
         size_t off = ADD_CP_OFFSET(sizeof(struct gdb_link_map));
-        newm      = (struct gdb_link_map*)(base + off);
+        newm       = (struct gdb_link_map*)(base + off);
 
         memcpy(newm, m, sizeof(struct gdb_link_map));
         newm->l_prev = newm->l_next = NULL;

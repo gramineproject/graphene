@@ -85,12 +85,12 @@ struct shim_cp_store {
 
     /* VMA entries */
     struct shim_mem_entry* last_mem_entry;
-    int mem_nentries;
+    size_t mem_entries_cnt;
     size_t mem_size;
 
     /* PAL-handle entries */
     struct shim_palhdl_entry* last_palhdl_entry;
-    int palhdl_nentries;
+    size_t palhdl_entries_cnt;
 };
 
 #define CP_FUNC_ARGS struct shim_cp_store* store, void* obj, size_t size, void** objp
@@ -330,17 +330,41 @@ struct checkpoint_hdr {
     size_t offset;
 
     size_t mem_offset;
-    int mem_nentries;
+    size_t mem_entries_cnt;
 
     size_t palhdl_offset;
-    int palhdl_nentries;
+    size_t palhdl_entries_cnt;
 };
 
 typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_thread*, struct shim_process*,
                               va_list);
 
+/*!
+ * \brief Create child process and migrate current-process state to it.
+ *
+ * Called in parent process during fork/clone/execve.
+ *
+ * \param migrate_func Migration function defined by the caller.
+ * \param exec         Executable to load in the child process.
+ * \param argv         Arguments passed to the child process.
+ * \param thread       Main-thread handle to be migrated to the child process.
+ *
+ * The remaining arguments are passed into the migration function.
+ *
+ * \return             0 on success, negative POSIX error code on failure.
+ */
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
                                        const char** argv, struct shim_thread* thread, ...);
+
+/*!
+ * \brief Receive a checkpoint from parent process and restore state based on it.
+ *
+ * Called in child process during initialization.
+ *
+ * \param[in] hdr  Checkpoint header already received from the parent.
+ *
+ * \return         0 on success, negative POSIX error code on failure.
+ */
 int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr);
 
 #endif /* _SHIM_CHECKPOINT_H_ */
