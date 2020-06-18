@@ -452,7 +452,7 @@ static int receive_handles_on_stream(struct checkpoint_hdr* hdr, void* base, ssi
     if (!entries_cnt)
         return 0;
 
-    debug("receiving %d PAL handles\n", entries_cnt);
+    debug("receiving %lu PAL handles\n", entries_cnt);
 
     struct shim_palhdl_entry** entries = malloc(sizeof(*entries) * entries_cnt);
 
