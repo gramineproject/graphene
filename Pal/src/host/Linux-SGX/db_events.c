@@ -92,7 +92,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
         } while (event->event.isnotification &&
                  !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST));
 
-        atomic_dec(&event->event.nwaiters);
+        __atomic_sub_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
     }
 
     return ret;
@@ -119,7 +119,7 @@ int _DkEventWait(PAL_HANDLE event) {
         } while (event->event.isnotification &&
                  !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST));
 
-        atomic_dec(&event->event.nwaiters);
+        __atomic_sub_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
     }
 
     return ret;
