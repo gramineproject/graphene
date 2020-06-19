@@ -49,11 +49,4 @@ struct atomic_int {
 
 #define ATOMIC_INIT(i)      { (i) }
 
-/* Helper function to atomically compare-and-swap the value pointed to by p.
- * t is the old value, s is the new value.
- * Returns true if s was written to *p, false otherwise. */
-static inline bool cmpxchg(volatile int64_t* p, int64_t t, int64_t s) {
-    return __atomic_compare_exchange_n(p, &t, s, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
-}
-
 #endif /* _ATOMIC_H_ */
