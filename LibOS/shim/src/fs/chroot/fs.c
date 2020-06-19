@@ -567,7 +567,8 @@ static void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle*
                 file->size = size;
                 break;
             }
-        } while (!cmpxchg(&data->size.counter, size, file->size));
+        } while (!__atomic_compare_exchange_n(&data->size.counter, &size, file->size,
+                                              /*weak=*/false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
     }
 }
 
