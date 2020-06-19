@@ -116,7 +116,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
             if (ERRNO(ret) == EWOULDBLOCK) {
                 if (timeout_us >= 0) {
                     ret = -PAL_ERROR_TRYAGAIN;
-                    atomic_dec(&m->nwaiters);
+                    __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
                     goto out;
                 }
             } else {
@@ -124,13 +124,13 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
                 printf("futex failed (err = %d)\n", ERRNO(ret));
 #endif
                 ret = unix_to_pal_error(ERRNO(ret));
-                atomic_dec(&m->nwaiters);
+                __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
                 goto out;
             }
         }
     }
 
-    atomic_dec(&m->nwaiters);
+    __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
 success:
 #ifdef DEBUG_MUTEX
