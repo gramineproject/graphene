@@ -81,8 +81,6 @@ static inline bool atomic_dec_and_test(struct atomic_int* v) {
     return __atomic_sub_fetch(&v->counter, 1, __ATOMIC_SEQ_CST) == 0;
 }
 
-#define atomic_add_return(i, v)  _atomic_add(i, v)
-
 /* Helper function to atomically compare-and-swap the value pointed to by p.
  * t is the old value, s is the new value.
  * Returns true if s was written to *p, false otherwise. */

@@ -442,7 +442,7 @@ static inline void disable_preempt (shim_tcb_t * tcb)
 
 static inline void __enable_preempt (shim_tcb_t * tcb)
 {
-    int64_t preempt = atomic_add_return(-1, &tcb->context.preempt);
+    int64_t preempt = __atomic_sub_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
     /* Assert if this counter underflows */
     __UNUSED(preempt);
     assert(preempt >= 0);
