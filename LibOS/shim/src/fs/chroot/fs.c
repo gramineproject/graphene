@@ -189,7 +189,7 @@ static int create_data (struct shim_dentry * dent, const char * uri, size_t len)
             return ret;
     }
 
-    atomic_set(&data->version, 0);
+    __atomic_store_n(&data->version.counter, 0, __ATOMIC_SEQ_CST);
     return 0;
 }
 
@@ -219,7 +219,7 @@ static int __query_attr (struct shim_dentry * dent,
                  (pal_attr.writable ? S_IWUSR : 0) |
                  (pal_attr.runnable ? S_IXUSR : 0);
 
-    atomic_set(&data->size, pal_attr.pending_size);
+    __atomic_store_n(&data->size.counter, pal_attr.pending_size, __ATOMIC_SEQ_CST);
 
     if (data->type == FILE_DIR) {
         int ret;
@@ -783,8 +783,8 @@ static int chroot_truncate (struct shim_handle * hdl, off_t len)
     file->size = len;
 
     if (check_version(hdl)) {
-        struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-        atomic_set(&data->size, len);
+        struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
+        __atomic_store_n(&data->size.counter, len, __ATOMIC_SEQ_CST);
     }
 
     PAL_NUM rv = DkStreamSetLength(hdl->pal_handle, len);
@@ -1013,7 +1013,7 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
     data->mode = 0;
 
     atomic_inc(&data->version);
-    atomic_set(&data->size, 0);
+    __atomic_store_n(&data->size.counter, 0, __ATOMIC_SEQ_CST);
 
     /* Drop the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
@@ -1094,7 +1094,7 @@ static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
     DkObjectClose(pal_hdl);
 
     atomic_inc(&old_data->version);
-    atomic_set(&old_data->size, 0);
+    __atomic_store_n(&old_data->size.counter, 0, __ATOMIC_SEQ_CST);
     atomic_inc(&new_data->version);
 
     return 0;

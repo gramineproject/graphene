@@ -9,7 +9,7 @@
 int main(int argc, char** argv, char** envp) {
     int64_t my_int = 0;
     struct atomic_int a_int;
-    atomic_set(&a_int, 0);
+    __atomic_store_n(&a_int.counter, 0, __ATOMIC_SEQ_CST);
 
     /* Check that INT_MIN and INT_MAX wrap around consistently
      * with atomic values.
@@ -25,7 +25,7 @@ int main(int argc, char** argv, char** envp) {
         pal_printf("Subtract INT_MIN: Values do not match %ld, %ld\n",
                    my_int, __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST));
 
-    atomic_set(&a_int, 0);
+    __atomic_store_n(&a_int.counter, 0, __ATOMIC_SEQ_CST);
     my_int = 0;
 
     my_int -= INT_MAX;
@@ -38,7 +38,7 @@ int main(int argc, char** argv, char** envp) {
                    my_int, __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST));
 
     /* Check that 64-bit signed values also wrap properly. */
-    atomic_set(&a_int, 0);
+    __atomic_store_n(&a_int.counter, 0, __ATOMIC_SEQ_CST);
     my_int = 0;
 
     my_int -= LLONG_MIN;
@@ -50,7 +50,7 @@ int main(int argc, char** argv, char** envp) {
         pal_printf("Subtract LLONG_MIN: Values do not match %ld, %ld\n", my_int,
                    __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST));
 
-    atomic_set(&a_int, 0);
+    __atomic_store_n(&a_int.counter, 0, __ATOMIC_SEQ_CST);
     my_int = 0;
 
     my_int -= LLONG_MAX;

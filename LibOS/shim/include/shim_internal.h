@@ -639,7 +639,7 @@ static inline void clear_event (AEVENTTYPE * e)
 
 /* reference counter APIs */
 #define REF_GET(ref)            __atomic_load_n(&(ref).counter, __ATOMIC_SEQ_CST)
-#define REF_SET(ref, count)     atomic_set(&(ref), count)
+#define REF_SET(ref, count)     __atomic_store_n(&(ref).counter, count, __ATOMIC_SEQ_CST);
 
 static inline int __ref_inc (REFTYPE * ref)
 {
