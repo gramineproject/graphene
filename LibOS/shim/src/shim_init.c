@@ -164,14 +164,6 @@ char ** library_paths = NULL;
 struct shim_lock __master_lock;
 bool lock_enabled;
 
-void update_fs_base (unsigned long fs_base)
-{
-    shim_tcb_t * shim_tcb = shim_get_tcb();
-    shim_tcb->context.fs_base = fs_base;
-    DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
-    assert(shim_tcb_check_canary());
-}
-
 #define STACK_FLAGS     (MAP_PRIVATE|MAP_ANONYMOUS)
 
 void * allocate_stack (size_t size, size_t protect_size, bool user)

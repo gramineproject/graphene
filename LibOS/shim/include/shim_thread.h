@@ -135,8 +135,6 @@ void put_signal_handles(struct shim_signal_handles* handles);
 void get_thread (struct shim_thread * thread);
 void put_thread (struct shim_thread * thread);
 
-void update_fs_base (unsigned long fs_base);
-
 void debug_setprefix (shim_tcb_t * tcb);
 
 static inline
