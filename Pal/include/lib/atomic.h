@@ -82,7 +82,6 @@ static inline bool atomic_dec_and_test(struct atomic_int* v) {
 }
 
 #define atomic_add_return(i, v)  _atomic_add(i, v)
-#define atomic_inc_return(v)     _atomic_add(1, v)
 
 /* Helper function to atomically compare-and-swap the value pointed to by p.
  * t is the old value, s is the new value.
