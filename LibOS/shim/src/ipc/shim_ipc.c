@@ -357,7 +357,7 @@ int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_por
         thread_setwait(&msg->thread, thread);
 
     static struct atomic_int ipc_seq_counter;
-    msg->msg.seq = atomic_inc_return(&ipc_seq_counter);
+    msg->msg.seq = __atomic_add_fetch(&ipc_seq_counter.counter, 1, __ATOMIC_SEQ_CST);
 
     /* save the message to list of port msgs together with its private data */
     lock(&port->msgs_lock);
