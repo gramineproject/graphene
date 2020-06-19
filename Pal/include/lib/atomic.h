@@ -49,12 +49,6 @@ struct atomic_int {
 
 #define ATOMIC_INIT(i)      { (i) }
 
-/* Helper function that atomically adds a value to an atomic_int,
- * and returns the _new_ value. */
-static inline int64_t _atomic_add(int64_t i, struct atomic_int* v) {
-    return __atomic_add_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
-}
-
 /* Atomically adds i to v.  Does not return a value. */
 static inline void atomic_add(int64_t i, struct atomic_int* v) {
     __atomic_add_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
