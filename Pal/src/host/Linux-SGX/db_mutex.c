@@ -58,7 +58,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     }
 
     // Bump up the waiters count; we are probably going to block
-    atomic_inc(&m->nwaiters);
+    __atomic_add_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
     while (true) {
         uint32_t t = MUTEX_UNLOCKED;
