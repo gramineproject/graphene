@@ -164,7 +164,7 @@ void syscall_wrapper_after_syscalldb(void);
 static inline int64_t get_cur_preempt (void) {
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
-    return atomic_read(&tcb->context.preempt);
+    return __atomic_load_n(&tcb->context.preempt.counter, __ATOMIC_SEQ_CST);
 }
 
 #define BEGIN_SHIM(name, args ...)                          \
@@ -425,7 +425,7 @@ static inline PAL_HANDLE thread_create (void * func, void * arg)
 static inline int64_t __disable_preempt (shim_tcb_t * tcb)
 {
     //tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
-    int64_t preempt = atomic_inc_return(&tcb->context.preempt);
+    int64_t preempt = __atomic_add_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
     /* Assert if this counter overflows */
     assert(preempt != 0);
     //debug("disable preempt: %d\n", preempt);
@@ -442,7 +442,7 @@ static inline void disable_preempt (shim_tcb_t * tcb)
 
 static inline void __enable_preempt (shim_tcb_t * tcb)
 {
-    int64_t preempt = atomic_add_return(-1, &tcb->context.preempt);
+    int64_t preempt = __atomic_sub_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
     /* Assert if this counter underflows */
     __UNUSED(preempt);
     assert(preempt >= 0);
@@ -456,7 +456,7 @@ static inline void enable_preempt (shim_tcb_t * tcb)
     if (!tcb && !(tcb = shim_get_tcb()))
         return;
 
-    int64_t preempt = atomic_read(&tcb->context.preempt);
+    int64_t preempt = __atomic_load_n(&tcb->context.preempt.counter, __ATOMIC_SEQ_CST);
     if (!preempt)
         return;
 
@@ -638,16 +638,17 @@ static inline void clear_event (AEVENTTYPE * e)
 }
 
 /* reference counter APIs */
-#define REF_GET(ref)            atomic_read(&(ref))
-#define REF_SET(ref, count)     atomic_set(&(ref), count)
+#define REF_GET(ref)            __atomic_load_n(&(ref).counter, __ATOMIC_SEQ_CST)
+#define REF_SET(ref, count)     __atomic_store_n(&(ref).counter, count, __ATOMIC_SEQ_CST);
 
 static inline int __ref_inc (REFTYPE * ref)
 {
-    register int _c;
+    int64_t _c;
     do {
-        _c = atomic_read(ref);
+        _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         assert(_c >= 0);
-    } while (!atomic_cmpxchg(ref, _c, _c + 1));
+    } while (!__atomic_compare_exchange_n(&ref->counter, &_c, _c + 1, /*weak=*/false,
+                                          __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
     return _c + 1;
 }
 
@@ -655,15 +656,16 @@ static inline int __ref_inc (REFTYPE * ref)
 
 static inline int __ref_dec (REFTYPE * ref)
 {
-    register int _c;
+    int64_t _c;
     do {
-        _c = atomic_read(ref);
+        _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         if (!_c) {
             debug("Fail: Trying to drop reference count below 0\n");
             BUG();
             return 0;
         }
-    } while (!atomic_cmpxchg(ref, _c, _c - 1));
+    } while (!__atomic_compare_exchange_n(&ref->counter, &_c, _c - 1, /*weak=*/false,
+                                          __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
     return _c - 1;
 }
 

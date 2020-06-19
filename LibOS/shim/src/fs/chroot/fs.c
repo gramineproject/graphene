@@ -189,7 +189,7 @@ static int create_data (struct shim_dentry * dent, const char * uri, size_t len)
             return ret;
     }
 
-    atomic_set(&data->version, 0);
+    __atomic_store_n(&data->version.counter, 0, __ATOMIC_SEQ_CST);
     return 0;
 }
 
@@ -219,7 +219,7 @@ static int __query_attr (struct shim_dentry * dent,
                  (pal_attr.writable ? S_IWUSR : 0) |
                  (pal_attr.runnable ? S_IXUSR : 0);
 
-    atomic_set(&data->size, pal_attr.pending_size);
+    __atomic_store_n(&data->size.counter, pal_attr.pending_size, __ATOMIC_SEQ_CST);
 
     if (data->type == FILE_DIR) {
         int ret;
@@ -326,7 +326,7 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
         stat->st_mode   = (mode_t) data->mode;
         stat->st_dev    = (dev_t) mdata->ino_base;
         stat->st_ino    = (ino_t) dent->ino;
-        stat->st_size   = (off_t) atomic_read(&data->size);
+        stat->st_size   = (off_t) __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
         stat->st_atime  = (time_t) data->atime;
         stat->st_mtime  = (time_t) data->mtime;
         stat->st_ctime  = (time_t) data->ctime;
@@ -375,7 +375,7 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
         uri = qstrgetstr(&data->host_uri);
     }
 
-    int version = atomic_read(&data->version);
+    int version = __atomic_load_n(&data->version.counter, __ATOMIC_SEQ_CST);
     int oldmode = LINUX_OPEN_FLAGS_TO_PAL_ACCESS(flags);
     int accmode = oldmode;
     int create  = LINUX_OPEN_FLAGS_TO_PAL_CREATE(flags);
@@ -419,7 +419,7 @@ static int __chroot_open(struct shim_dentry* dent, const char* uri, int flags, m
     hdl->pal_handle        = palhdl;
     hdl->info.file.type    = data->type;
     hdl->info.file.version = version;
-    hdl->info.file.size    = atomic_read(&data->size);
+    hdl->info.file.size    = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
     hdl->info.file.data    = data;
 
     return ret;
@@ -442,7 +442,7 @@ static int chroot_open(struct shim_handle* hdl, struct shim_dentry* dent, int fl
         return ret;
 
     struct shim_file_handle * file = &hdl->info.file;
-    off_t size = atomic_read(&data->size);
+    off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type       = TYPE_FILE;
@@ -471,7 +471,7 @@ static int chroot_creat (struct shim_handle * hdl, struct shim_dentry * dir,
         return 0;
 
     struct shim_file_handle * file = &hdl->info.file;
-    off_t size = atomic_read(&data->size);
+    off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type       = TYPE_FILE;
@@ -554,7 +554,7 @@ static int chroot_recreate (struct shim_handle * hdl)
 
 static inline bool check_version (struct shim_handle * hdl)
 {
-    return atomic_read(&FILE_HANDLE_DATA(hdl)->version)
+    return __atomic_load_n(&FILE_HANDLE_DATA(hdl)->version.counter, __ATOMIC_SEQ_CST)
            == hdl->info.file.version;
 }
 
@@ -563,11 +563,12 @@ static void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle*
     if (check_version(hdl)) {
         off_t size;
         do {
-            if ((size = atomic_read(&data->size)) >= file->size) {
+            if ((size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST)) >= file->size) {
                 file->size = size;
                 break;
             }
-        } while (!atomic_cmpxchg(&data->size, size, file->size));
+        } while (!__atomic_compare_exchange_n(&data->size.counter, &size, file->size,
+                                              /*weak=*/false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
     }
 }
 
@@ -783,8 +784,8 @@ static int chroot_truncate (struct shim_handle * hdl, off_t len)
     file->size = len;
 
     if (check_version(hdl)) {
-        struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-        atomic_set(&data->size, len);
+        struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
+        __atomic_store_n(&data->size.counter, len, __ATOMIC_SEQ_CST);
     }
 
     PAL_NUM rv = DkStreamSetLength(hdl->pal_handle, len);
@@ -1012,8 +1013,8 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
     dent->mode = NO_MODE;
     data->mode = 0;
 
-    atomic_inc(&data->version);
-    atomic_set(&data->size, 0);
+    __atomic_add_fetch(&data->version.counter, 1, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&data->size.counter, 0, __ATOMIC_SEQ_CST);
 
     /* Drop the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
@@ -1034,7 +1035,7 @@ static off_t chroot_poll (struct shim_handle * hdl, int poll_type)
         return ret;
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    off_t size = atomic_read(&data->size);
+    off_t size = __atomic_load_n(&data->size.counter, __ATOMIC_SEQ_CST);
 
     if (poll_type == FS_POLL_SZ)
         return size;
@@ -1093,9 +1094,9 @@ static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
 
     DkObjectClose(pal_hdl);
 
-    atomic_inc(&old_data->version);
-    atomic_set(&old_data->size, 0);
-    atomic_inc(&new_data->version);
+    __atomic_add_fetch(&old_data->version.counter, 1, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&old_data->size.counter, 0, __ATOMIC_SEQ_CST);
+    __atomic_add_fetch(&new_data->version.counter, 1, __ATOMIC_SEQ_CST);
 
     return 0;
 }

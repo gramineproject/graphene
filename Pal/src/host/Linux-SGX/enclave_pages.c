@@ -101,7 +101,7 @@ int init_enclave_pages(void) {
         reserved_size += exec_vma->top - exec_vma->bottom;
     }
 
-    atomic_add(reserved_size / g_page_size, &g_allocated_pages);
+    __atomic_add_fetch(&g_allocated_pages.counter, reserved_size / g_page_size, __ATOMIC_SEQ_CST);
 
     SGX_DBG(DBG_M, "Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
     ret = 0;
@@ -213,7 +213,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
     assert(vma->top - vma->bottom >= (ptrdiff_t)freed);
     size_t allocated = vma->top - vma->bottom - freed;
-    atomic_add(allocated / g_page_size, &g_allocated_pages);
+    __atomic_add_fetch(&g_allocated_pages.counter, allocated / g_page_size, __ATOMIC_SEQ_CST);
     return addr;
 }
 
@@ -345,7 +345,7 @@ int free_enclave_pages(void* addr, size_t size) {
         }
     }
 
-    atomic_sub(freed / g_page_size, &g_allocated_pages);
+    __atomic_sub_fetch(&g_allocated_pages.counter, freed / g_page_size, __ATOMIC_SEQ_CST);
 
 out:
     _DkInternalUnlock(&g_heap_vma_lock);

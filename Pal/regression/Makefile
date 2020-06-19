@@ -15,7 +15,6 @@ preloads = \
 
 executables = \
 	..Bootstrap \
-	AtomicMath \
 	AttestationReport \
 	avl_tree_test \
 	Bootstrap \

@@ -407,7 +407,7 @@ void add_thread (struct shim_thread * thread)
 void del_thread (struct shim_thread * thread)
 {
     debug("del_thread(%p, %d, %ld)\n", thread, thread ? (int) thread->tid : -1,
-          atomic_read(&thread->ref_count));
+          __atomic_load_n(&thread->ref_count.counter, __ATOMIC_SEQ_CST));
 
     if (is_internal(thread)) {
         debug("del_thread: internal\n");

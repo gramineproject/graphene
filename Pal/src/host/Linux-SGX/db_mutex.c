@@ -33,7 +33,7 @@
 int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
     PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
     SET_HANDLE_TYPE(mut, mutex);
-    atomic_set(&mut->mutex.mut.nwaiters, 0);
+    __atomic_store_n(&mut->mutex.mut.nwaiters.counter, 0, __ATOMIC_SEQ_CST);
     mut->mutex.mut.locked = malloc_untrusted(sizeof(uint32_t));
     if (!mut->mutex.mut.locked) {
         free(mut);
@@ -58,7 +58,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     }
 
     // Bump up the waiters count; we are probably going to block
-    atomic_inc(&m->nwaiters);
+    __atomic_add_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
     while (true) {
         uint32_t t = MUTEX_UNLOCKED;
@@ -75,16 +75,15 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
         if (IS_ERR(ret)) {
             if (ERRNO(ret) == EWOULDBLOCK) {
                 ret = -PAL_ERROR_TRYAGAIN;
-                atomic_dec(&m->nwaiters);
             } else {
                 ret = unix_to_pal_error(ERRNO(ret));
-                atomic_dec(&m->nwaiters);
             }
+            __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
             goto out;
         }
     }
 
-    atomic_dec(&m->nwaiters);
+    __atomic_sub_fetch(&m->nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
 success:
     ret = 0;
@@ -107,7 +106,7 @@ int _DkMutexUnlock(struct mutex_handle* m) {
     /* Unlock */
     __atomic_store_n(m->locked, MUTEX_UNLOCKED, __ATOMIC_SEQ_CST);
 
-    need_wake = atomic_read(&m->nwaiters);
+    need_wake = __atomic_load_n(&m->nwaiters.counter, __ATOMIC_SEQ_CST);
 
     /* If we need to wake someone up... */
     if (need_wake)

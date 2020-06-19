@@ -30,7 +30,7 @@ int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
         free(ev);
         return -PAL_ERROR_NOMEM;
     }
-    atomic_set(&ev->event.nwaiters, 0);
+    __atomic_store_n(&ev->event.nwaiters.counter, 0, __ATOMIC_SEQ_CST);
     __atomic_store_n(ev->event.signaled, initialState ? 1 : 0, __ATOMIC_SEQ_CST);
     *event = ev;
     return 0;
@@ -44,7 +44,7 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
         uint32_t t = 0;
         if (__atomic_compare_exchange_n(event->event.signaled, &t, 1, /*weak=*/true,
                                         __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-            int nwaiters = atomic_read(&event->event.nwaiters);
+            int nwaiters = __atomic_load_n(&event->event.nwaiters.counter, __ATOMIC_SEQ_CST);
             if (nwaiters) {
                 if (wakeup != -1 && nwaiters > wakeup)
                     nwaiters = wakeup;
@@ -76,7 +76,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     if (!event->event.isnotification ||
         !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
 
-        atomic_inc(&event->event.nwaiters);
+        __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
         do {
             ret = ocall_futex(event->event.signaled, FUTEX_WAIT, 0, timeout_us);
@@ -92,7 +92,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
         } while (event->event.isnotification &&
                  !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST));
 
-        atomic_dec(&event->event.nwaiters);
+        __atomic_sub_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
     }
 
     return ret;
@@ -104,7 +104,7 @@ int _DkEventWait(PAL_HANDLE event) {
     if (!event->event.isnotification ||
         !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
 
-        atomic_inc(&event->event.nwaiters);
+        __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
         do {
             ret = ocall_futex(event->event.signaled, FUTEX_WAIT, 0, -1);
@@ -119,7 +119,7 @@ int _DkEventWait(PAL_HANDLE event) {
         } while (event->event.isnotification &&
                  !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST));
 
-        atomic_dec(&event->event.nwaiters);
+        __atomic_sub_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
     }
 
     return ret;

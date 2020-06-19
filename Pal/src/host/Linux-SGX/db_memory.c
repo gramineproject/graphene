@@ -81,7 +81,9 @@ int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
     assert(WITHIN_MASK(prot, PAL_PROT_MASK));
 
     static struct atomic_int at_cnt = {.counter = 0};
-    if (atomic_cmpxchg(&at_cnt, 0, 1))
+    int64_t t = 0;
+    if (__atomic_compare_exchange_n(&at_cnt.counter, &t, 1, /*weak=*/false,
+                                    __ATOMIC_SEQ_CST, __ATOMIC_RELAXED))
         SGX_DBG(DBG_M, "[Warning] DkVirtualMemoryProtect is unimplemented in Linux-SGX PAL");
     return 0;
 }
@@ -91,5 +93,6 @@ uint64_t _DkMemoryQuota(void) {
 }
 
 uint64_t _DkMemoryAvailableQuota(void) {
-    return (pal_sec.heap_max - pal_sec.heap_min) - atomic_read(&g_allocated_pages) * g_page_size;
+    return (pal_sec.heap_max - pal_sec.heap_min) -
+           __atomic_load_n(&g_allocated_pages.counter, __ATOMIC_SEQ_CST) * g_page_size;
 }
