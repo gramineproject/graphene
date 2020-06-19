@@ -560,6 +560,7 @@ static inline bool check_version (struct shim_handle * hdl)
 
 static void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle* file,
                                struct shim_file_data* data) {
+    int t;
     if (check_version(hdl)) {
         off_t size;
         do {
@@ -567,7 +568,9 @@ static void chroot_update_size(struct shim_handle* hdl, struct shim_file_handle*
                 file->size = size;
                 break;
             }
-        } while (!cmpxchg(&data->size.counter, size, file->size));
+            t = size;
+        } while (!__atomic_compare_exchange_n(&data->size.counter, &t, file->size, false,
+                                              __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
     }
 }
 

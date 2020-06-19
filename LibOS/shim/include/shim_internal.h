@@ -644,10 +644,13 @@ static inline void clear_event (AEVENTTYPE * e)
 static inline int __ref_inc (REFTYPE * ref)
 {
     register int _c;
+    int t;
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         assert(_c >= 0);
-    } while (!cmpxchg(&ref->counter, _c, _c + 1));
+        t = _c;
+    } while (!__atomic_compare_exchange_n(&ref->counter, &t, _c + 1, false,
+                                          __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
     return _c + 1;
 }
 
@@ -656,6 +659,7 @@ static inline int __ref_inc (REFTYPE * ref)
 static inline int __ref_dec (REFTYPE * ref)
 {
     register int _c;
+    int t;
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
         if (!_c) {
@@ -663,7 +667,9 @@ static inline int __ref_dec (REFTYPE * ref)
             BUG();
             return 0;
         }
-    } while (!cmpxchg(&ref->counter, _c, _c - 1));
+        t = _c;
+    } while (!__atomic_compare_exchange_n(&ref->counter, &t, _c - 1, false,
+                                          __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
     return _c - 1;
 }
 
