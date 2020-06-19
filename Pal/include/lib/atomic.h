@@ -56,11 +56,4 @@ static inline bool cmpxchg(volatile int64_t* p, int64_t t, int64_t s) {
     return __atomic_compare_exchange_n(p, &t, s, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
 
-/* Helper function to atomically compare-and-swap the value in v.
- * If v == old, it sets v = new.
- * Returns true if `new` was written to v, false otherwise. */
-static inline bool atomic_cmpxchg(struct atomic_int* v, int64_t old, int64_t new) {
-    return cmpxchg(&v->counter, old, new);
-}
-
 #endif /* _ATOMIC_H_ */
