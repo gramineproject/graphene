@@ -69,51 +69,109 @@ Building with Intel SGX Support
 Prerequisites
 ^^^^^^^^^^^^^
 
-#. Generate signing keys
+1. Install the Linux kernel patched with FSGSBASE
+"""""""""""""""""""""""""""""""""""""""""""""""""
 
-   A 3072-bit RSA private key (PEM format) is required for signing the manifest.
-   If you don't have a private key, create it with the following command::
+FSGSBASE is a feature in recent processors which allows direct access to the FS
+and GS segment base addresses. For more information about FSGSBASE and its
+benefits, see `this discussion <https://lwn.net/Articles/821719>`__.
 
-      openssl genrsa -3 -out enclave-key.pem 3072
+Work is being done to include FSGSBASE enabling in the upstream Linux kernel.
+Currently, the FSGSBASE enabling code is out-of-tree, requiring some patches to
+the kernel.
 
-   You can either place the generated enclave key in the default path,
-   :file:`Pal/src/host/Linux-SGX/signer/enclave-key.pem`, or specify the key's
-   location through the environment variable ``SGX_SIGNER_KEY``.
+Enabling FSGSBASE support requires building and installing a custom kernel with
+backported patches. The instructions to patch and compile a Linux kernel with
+FSGSBASE support below are written around Ubuntu 18.04 LTS (Bionic Beaver) with
+a Linux 5.7 stable kernel but can be adapted for other distros as necessary.
+These instructions ensure that the resulting kernel has FSGSBASE support and up
+to date security mitigations.
 
-   After signing the application's manifest, users may ship the application and
-   Graphene binaries, along with an SGX-specific manifest (``.manifest.sgx``
-   extension), the signature (``.sig`` extension), and the aesmd init token
-   (``.token`` extension) to execute on another SGX-enabled host.
+#. Setup a build environment for kernel development following `the instructions
+   in the Ubuntu wiki <https://wiki.ubuntu.com/KernelTeam/GitKernelBuild>`__.
+   Choose Linux version 5.7 via::
 
-#. Install the Intel SGX SDK and driver
+       cd linux && git checkout v5.7
 
-   The Intel SGX Linux SDK and the Intel SGX driver are required to compile and
-   run Graphene on SGX. Download and install them from the official Intel
-   GitHub repositories:
+#. Obtain the patch series from the Linux kernel mailing list::
 
-   - https://github.com/01org/linux-sgx
-   - https://github.com/01org/linux-sgx-driver
+       wget -O fsgsbase.patch https://lore.kernel.org/patchwork/series/446124/mbox
 
-   Alternatively, if you want to use the DCAP versions of the SDK and driver,
-   download and install it from:
+   The conversation regarding this patchset can be found in the kernel mailing
+   list archives `here
+   <https://lore.kernel.org/lkml/20200528201402.1708239-1-sashal@kernel.org>`__.
 
-   - https://github.com/intel/SGXDataCenterAttestationPrimitives
+#. Apply the patch series to the kernel source tree::
 
-#. Build and install the Graphene SGX driver
-   A Graphene-specific Linux driver must also be installed before running
-   Graphene in an SGX environment. Simply run the following commands to build
-   the driver::
+       git am fsgsbase.patch
 
-      cd Pal/src/host/Linux-SGX/sgx-driver
-      make
-      # The console will be prompted to ask for the path of Intel SGX driver code
-      sudo insmod gsgx.ko
-      sudo sysctl vm.mmap_min_addr = 0
+#. Build and install the kernel following `the instructions in the Ubuntu wiki
+   <https://wiki.ubuntu.com/KernelTeam/GitKernelBuild>`__.
 
-   We note that this last command is a |~| temporary work-around for some issues
-   with the Intel SGX driver. This is an inadvisable configuration for
-   production systems. We hope to remove this step in a |~| future version of
-   Graphene, once the SGX driver is upstreamed to Linux.
+#. After rebooting, verify the patched kernel is the one that has been booted
+   and is running::
+
+       uname -r
+
+#. Also verify that the patched kernel supports FSGSBASE (the below command
+   must return that bit 2 is set)::
+
+       LD_SHOW_AUXV=1 /bin/true | grep AT_HWCAP2
+
+After the patched Linux kernel is installed, you may proceed with installations
+of other SGX software infrastructure: the Intel SGX Linux driver, the Intel SGX
+SDK/PSW, and Graphene itself (see next steps). Note that older versions of
+these software packages may not work with recent Linux kernels like 5.7. We
+recommend to use commit ``b7ccf6f`` of the Intel SGX Linux Driver for Intel SGX
+DCAP and commit ``0e71c22`` of the Intel SGX SDK/PSW.
+
+
+2. Generate signing keys
+""""""""""""""""""""""""
+
+A 3072-bit RSA private key (PEM format) is required for signing the manifest.
+If you don't have a private key, create it with the following command::
+
+   openssl genrsa -3 -out enclave-key.pem 3072
+
+You can either place the generated enclave key in the default path,
+:file:`Pal/src/host/Linux-SGX/signer/enclave-key.pem`, or specify the key's
+location through the environment variable ``SGX_SIGNER_KEY``.
+
+After signing the application's manifest, users may ship the application and
+Graphene binaries, along with an SGX-specific manifest (``.manifest.sgx``
+extension), the signature (``.sig`` extension), and the aesmd init token
+(``.token`` extension) to execute on another SGX-enabled host.
+
+3. Install the Intel SGX driver and SDK/PSW
+"""""""""""""""""""""""""""""""""""""""""""
+
+The Intel SGX Linux SDK and the Intel SGX driver are required to compile and
+run Graphene on SGX. Download and install them from the official Intel
+GitHub repositories:
+
+- https://github.com/01org/linux-sgx
+- https://github.com/01org/linux-sgx-driver
+
+Alternatively, if you want to use the DCAP versions of the SDK and driver,
+download and install it from:
+
+- https://github.com/intel/SGXDataCenterAttestationPrimitives
+
+4. Install the Graphene SGX driver (not for production)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+If you followed step 1 and installed the patched Linux kernel, skip this step.
+Otherwise, you will need a Graphene-specific Linux driver that enables the
+FSGSBASE feature available in recent processors.
+
+To install the Graphene SGX driver, run the following commands::
+
+   cd Pal/src/host/Linux-SGX/sgx-driver
+   make
+   # The console will be prompted to ask for the path of Intel SGX driver code
+   sudo insmod gsgx.ko
+
 
 Building Graphene-SGX
 ^^^^^^^^^^^^^^^^^^^^^
