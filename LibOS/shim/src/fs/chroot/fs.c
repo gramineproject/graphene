@@ -1012,7 +1012,7 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
     dent->mode = NO_MODE;
     data->mode = 0;
 
-    atomic_inc(&data->version);
+    __atomic_add_fetch(&data->version.counter, 1, __ATOMIC_SEQ_CST);
     __atomic_store_n(&data->size.counter, 0, __ATOMIC_SEQ_CST);
 
     /* Drop the parent's link count */
@@ -1093,9 +1093,9 @@ static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
 
     DkObjectClose(pal_hdl);
 
-    atomic_inc(&old_data->version);
+    __atomic_add_fetch(&old_data->version.counter, 1, __ATOMIC_SEQ_CST);
     __atomic_store_n(&old_data->size.counter, 0, __ATOMIC_SEQ_CST);
-    atomic_inc(&new_data->version);
+    __atomic_add_fetch(&new_data->version.counter, 1, __ATOMIC_SEQ_CST);
 
     return 0;
 }
