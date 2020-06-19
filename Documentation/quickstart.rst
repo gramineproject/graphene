@@ -24,6 +24,10 @@ Quick Start
 SGX Quick Start
 ---------------
 
+Graphene-SGX requires that the FSGSBASE feature of recent processors is enabled
+in the Linux kernel. For the ways to enable the FSGSBASE feature, please refer
+to :doc:`building`.
+
 Before you run any applications in Graphene-SGX, please make sure that Intel SGX
 SDK and the SGX driver are installed on your system. We recommend using Intel
 SGX SDK and the SGX driver no older than version 1.9 (or the DCAP SGX SDK and
@@ -56,13 +60,6 @@ second command should list the process status of :command:`aesm_service`.
       cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
       openssl genrsa -3 -out enclave-key.pem 3072
 
-#. Build and Install Graphene SGX Driver::
-
-      cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver
-      make
-      # the console will prompt you for the path of the Intel SGX driver code
-      sudo insmod gsgx.ko
-
 #. Build Graphene-SGX::
 
       sudo apt-get install -y \
@@ -70,14 +67,17 @@ second command should list the process status of :command:`aesm_service`.
          python3-protobuf libprotobuf-c-dev protobuf-c-compiler
       cd $GRAPHENE_DIR
       make SGX=1
+      # the console will prompt you for the path of the Intel SGX driver code
 
-#. Set ``vm.mmap_min_addr=0`` in the System::
+#. Set ``vm.mmap_min_addr=0`` in the system::
 
       sudo sysctl vm.mmap_min_addr=0
+
+   Note that this is an inadvisable configuration for production systems. This
+   temporary workaround will not be required in the future.
 
 #. Build and Run :program:`helloworld`::
 
       cd $GRAPHENE_DIR/LibOS/shim/test/native
-      make SGX=1
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
