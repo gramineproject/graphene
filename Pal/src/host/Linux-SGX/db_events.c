@@ -44,7 +44,7 @@ int _DkEventSet(PAL_HANDLE event, int wakeup) {
         uint32_t t = 0;
         if (__atomic_compare_exchange_n(event->event.signaled, &t, 1, /*weak=*/true,
                                         __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-            int nwaiters = atomic_read(&event->event.nwaiters);
+            int nwaiters = __atomic_load_n(&event->event.nwaiters.counter, __ATOMIC_SEQ_CST);
             if (nwaiters) {
                 if (wakeup != -1 && nwaiters > wakeup)
                     nwaiters = wakeup;

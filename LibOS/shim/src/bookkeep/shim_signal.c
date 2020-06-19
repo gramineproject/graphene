@@ -418,7 +418,7 @@ static bool is_sgx_pal(void) {
     static struct atomic_int sgx_pal = { .counter = 0 };
     static struct atomic_int inited  = { .counter = 0 };
 
-    if (!atomic_read(&inited)) {
+    if (!__atomic_load_n(&inited.counter, __ATOMIC_SEQ_CST)) {
         /* Ensure that is_sgx_pal is updated before initialized */
         atomic_set(&sgx_pal, !strcmp_static(PAL_CB(host_type), "Linux-SGX"));
         MB();
@@ -426,7 +426,7 @@ static bool is_sgx_pal(void) {
     }
     MB();
 
-    return atomic_read(&sgx_pal) != 0;
+    return __atomic_load_n(&sgx_pal.counter, __ATOMIC_SEQ_CST) != 0;
 }
 
 /*

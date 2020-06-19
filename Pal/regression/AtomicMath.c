@@ -19,10 +19,11 @@ int main(int argc, char** argv, char** envp) {
     my_int -= INT_MIN;
     atomic_sub(INT_MIN, &a_int);
 
-    if (my_int == atomic_read(&a_int))
+    if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract INT_MIN: Both values match %ld\n", my_int);
     else
-        pal_printf("Subtract INT_MIN: Values do not match %ld, %ld\n", my_int, atomic_read(&a_int));
+        pal_printf("Subtract INT_MIN: Values do not match %ld, %ld\n",
+                   my_int, __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST));
 
     atomic_set(&a_int, 0);
     my_int = 0;
@@ -30,10 +31,11 @@ int main(int argc, char** argv, char** envp) {
     my_int -= INT_MAX;
     atomic_sub(INT_MAX, &a_int);
 
-    if (my_int == atomic_read(&a_int))
+    if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract INT_MAX: Both values match %ld\n", my_int);
     else
-        pal_printf("Subtract INT_MAX: Values do not match %ld, %ld\n", my_int, atomic_read(&a_int));
+        pal_printf("Subtract INT_MAX: Values do not match %ld, %ld\n",
+                   my_int, __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST));
 
     /* Check that 64-bit signed values also wrap properly. */
     atomic_set(&a_int, 0);
@@ -42,11 +44,11 @@ int main(int argc, char** argv, char** envp) {
     my_int -= LLONG_MIN;
     atomic_sub(LLONG_MIN, &a_int);
 
-    if (my_int == atomic_read(&a_int))
+    if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract LLONG_MIN: Both values match %ld\n", my_int);
     else
         pal_printf("Subtract LLONG_MIN: Values do not match %ld, %ld\n", my_int,
-                   atomic_read(&a_int));
+                   __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST));
 
     atomic_set(&a_int, 0);
     my_int = 0;
@@ -54,11 +56,11 @@ int main(int argc, char** argv, char** envp) {
     my_int -= LLONG_MAX;
     atomic_sub(LLONG_MAX, &a_int);
 
-    if (my_int == atomic_read(&a_int))
+    if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract LLONG_MAX: Both values match %ld\n", my_int);
     else
         pal_printf("Subtract LLONG_MAX: Values do not match %ld, %ld\n", my_int,
-                   atomic_read(&a_int));
+                   __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST));
 
     return 0;
 }

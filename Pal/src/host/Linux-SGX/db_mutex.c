@@ -107,7 +107,7 @@ int _DkMutexUnlock(struct mutex_handle* m) {
     /* Unlock */
     __atomic_store_n(m->locked, MUTEX_UNLOCKED, __ATOMIC_SEQ_CST);
 
-    need_wake = atomic_read(&m->nwaiters);
+    need_wake = __atomic_load_n(&m->nwaiters.counter, __ATOMIC_SEQ_CST);
 
     /* If we need to wake someone up... */
     if (need_wake)

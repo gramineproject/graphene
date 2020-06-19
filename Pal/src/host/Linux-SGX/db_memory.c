@@ -91,5 +91,6 @@ uint64_t _DkMemoryQuota(void) {
 }
 
 uint64_t _DkMemoryAvailableQuota(void) {
-    return (pal_sec.heap_max - pal_sec.heap_min) - atomic_read(&g_allocated_pages) * g_page_size;
+    return (pal_sec.heap_max - pal_sec.heap_min) -
+           __atomic_load_n(&g_allocated_pages.counter, __ATOMIC_SEQ_CST) * g_page_size;
 }

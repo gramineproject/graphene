@@ -49,11 +49,6 @@ struct atomic_int {
 
 #define ATOMIC_INIT(i)      { (i) }
 
-/* Read the value currently stored in the atomic_int */
-static inline int64_t atomic_read(const struct atomic_int* v) {
-    return __atomic_load_n(&v->counter, __ATOMIC_SEQ_CST);
-}
-
 /* Does a blind write to the atomic variable */
 static inline void atomic_set(struct atomic_int* v, int64_t i) {
     __atomic_store_n(&v->counter, i, __ATOMIC_SEQ_CST);
