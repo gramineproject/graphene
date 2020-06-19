@@ -63,7 +63,7 @@
 int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
     PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
     SET_HANDLE_TYPE(mut, mutex);
-    atomic_set(&mut->mutex.mut.nwaiters, 0);
+    __atomic_store_n(&mut->mutex.mut.nwaiters.counter, 0, __ATOMIC_SEQ_CST);
     mut->mutex.mut.locked = initialCount;
     *handle               = mut;
     return 0;

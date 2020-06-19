@@ -49,11 +49,6 @@ struct atomic_int {
 
 #define ATOMIC_INIT(i)      { (i) }
 
-/* Does a blind write to the atomic variable */
-static inline void atomic_set(struct atomic_int* v, int64_t i) {
-    __atomic_store_n(&v->counter, i, __ATOMIC_SEQ_CST);
-}
-
 /* Helper function that atomically adds a value to an atomic_int,
  * and returns the _new_ value. */
 static inline int64_t _atomic_add(int64_t i, struct atomic_int* v) {

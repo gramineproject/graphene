@@ -30,7 +30,7 @@ int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
         free(ev);
         return -PAL_ERROR_NOMEM;
     }
-    atomic_set(&ev->event.nwaiters, 0);
+    __atomic_store_n(&ev->event.nwaiters.counter, 0, __ATOMIC_SEQ_CST);
     __atomic_store_n(ev->event.signaled, initialState ? 1 : 0, __ATOMIC_SEQ_CST);
     *event = ev;
     return 0;

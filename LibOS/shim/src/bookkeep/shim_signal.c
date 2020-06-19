@@ -420,11 +420,11 @@ static bool is_sgx_pal(void) {
 
     if (!__atomic_load_n(&inited.counter, __ATOMIC_SEQ_CST)) {
         /* Ensure that is_sgx_pal is updated before initialized */
-        atomic_set(&sgx_pal, !strcmp_static(PAL_CB(host_type), "Linux-SGX"));
-        MB();
-        atomic_set(&inited, 1);
+        __atomic_store_n(&sgx_pal.counter,
+                         !strcmp_static(PAL_CB(host_type), "Linux-SGX"),
+                         __ATOMIC_SEQ_CST);
+        __atomic_store_n(&inited.counter, 1, __ATOMIC_SEQ_CST);
     }
-    MB();
 
     return __atomic_load_n(&sgx_pal.counter, __ATOMIC_SEQ_CST) != 0;
 }
