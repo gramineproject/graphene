@@ -46,7 +46,7 @@ extern void * enclave_base;
 static PAL_IDX pal_assign_tid(void)
 {
     static struct atomic_int tid = ATOMIC_INIT(0);
-    return _atomic_add(1, &tid);
+    return __atomic_add_fetch(&tid.counter, 1, __ATOMIC_SEQ_CST);
 }
 
 void pal_start_thread (void)
