@@ -47,25 +47,6 @@ int _DkInstructionCacheFlush(const void* addr, int size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSegmentRegisterSet(int reg, const void* addr) {
-    /* GS is internally used, denied any access to it */
-    if (reg != PAL_SEGMENT_FS)
-        return -PAL_ERROR_DENIED;
-
-    SET_ENCLAVE_TLS(fsbase, (void*)addr);
-    wrfsbase((uint64_t)addr);
-    return 0;
-}
-
-int _DkSegmentRegisterGet(int reg, void** addr) {
-    /* GS is internally used, denied any access to it */
-    if (reg != PAL_SEGMENT_FS)
-        return -PAL_ERROR_DENIED;
-
-    *addr = (void*)GET_ENCLAVE_TLS(fsbase);
-    return 0;
-}
-
 #define CPUID_CACHE_SIZE    64
 #define CPUID_CACHE_INVALID ((unsigned int)-1)
 
