@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "pal.h"
+
 struct shim_regs {
     uint64_t    orig_rax;
     uint64_t    rsp;
@@ -120,5 +122,8 @@ static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num
         }                                                               \
     } while (0)
 
+static inline void shim_arch_update_fs_base(unsigned long fs_base) {
+    DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
+}
 
 #endif /* _SHIM_TCB_ARCH_H_ */
