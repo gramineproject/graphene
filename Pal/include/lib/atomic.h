@@ -49,11 +49,6 @@ struct atomic_int {
 
 #define ATOMIC_INIT(i)      { (i) }
 
-/* Atomically substracts i from v.  Does not return a value. */
-static inline void atomic_sub(int64_t i, struct atomic_int* v) {
-    __atomic_sub_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
-}
-
 /* Atomically adds 1 to v.  Does not return a value. */
 static inline void atomic_inc(struct atomic_int* v) {
     __atomic_add_fetch(&v->counter, 1, __ATOMIC_SEQ_CST);

@@ -17,7 +17,7 @@ int main(int argc, char** argv, char** envp) {
      * Check atomic_sub specifically.
      */
     my_int -= INT_MIN;
-    atomic_sub(INT_MIN, &a_int);
+    __atomic_sub_fetch(&a_int.counter, INT_MIN, __ATOMIC_SEQ_CST);
 
     if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract INT_MIN: Both values match %ld\n", my_int);
@@ -29,7 +29,7 @@ int main(int argc, char** argv, char** envp) {
     my_int = 0;
 
     my_int -= INT_MAX;
-    atomic_sub(INT_MAX, &a_int);
+    __atomic_sub_fetch(&a_int.counter, INT_MAX, __ATOMIC_SEQ_CST);
 
     if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract INT_MAX: Both values match %ld\n", my_int);
@@ -42,7 +42,7 @@ int main(int argc, char** argv, char** envp) {
     my_int = 0;
 
     my_int -= LLONG_MIN;
-    atomic_sub(LLONG_MIN, &a_int);
+    __atomic_sub_fetch(&a_int.counter, LLONG_MIN, __ATOMIC_SEQ_CST);
 
     if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract LLONG_MIN: Both values match %ld\n", my_int);
@@ -54,7 +54,7 @@ int main(int argc, char** argv, char** envp) {
     my_int = 0;
 
     my_int -= LLONG_MAX;
-    atomic_sub(LLONG_MAX, &a_int);
+    __atomic_sub_fetch(&a_int.counter, LLONG_MAX, __ATOMIC_SEQ_CST);
 
     if (my_int == __atomic_load_n(&a_int.counter, __ATOMIC_SEQ_CST))
         pal_printf("Subtract LLONG_MAX: Both values match %ld\n", my_int);
