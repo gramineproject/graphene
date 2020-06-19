@@ -345,7 +345,7 @@ int free_enclave_pages(void* addr, size_t size) {
         }
     }
 
-    atomic_sub(freed / g_page_size, &g_allocated_pages);
+    __atomic_sub_fetch(&g_allocated_pages.counter, freed / g_page_size, __ATOMIC_SEQ_CST);
 
 out:
     _DkInternalUnlock(&g_heap_vma_lock);
