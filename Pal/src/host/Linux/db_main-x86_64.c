@@ -7,11 +7,7 @@
  * This file contains x86_64-specific functions of the PAL loader.
  */
 
-#if defined(__i386__)
-#include <asm/ldt.h>
-#elif defined(__x86_64__)
 #include <asm/prctl.h>
-#endif
 
 #include "api.h"
 #include "bogomips.h"
@@ -161,20 +157,11 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
 #if USE_ARCH_RDRAND == 1
 int _DkRandomBitsRead(void* buffer, int size) {
-    int total_bytes = 0;
-    do {
-        unsigned long rand;
-        asm volatile(".Lretry: rdrand %%rax\r\n jnc .Lretry\r\n" : "=a"(rand)::"memory", "cc");
-
-        if (total_bytes + sizeof(rand) <= size) {
-            *(unsigned long*)(buffer + total_bytes) = rand;
-            total_bytes += sizeof(rand);
-        } else {
-            for (int i = 0; i < size - total_bytes; i++)
-                *(unsigned char*)(buffer + total_bytes + i) = ((unsigned char*)&rand)[i];
-            total_bytes = size;
-        }
-    } while (total_bytes < size);
+    uint32_t rand;
+    for (size_t i = 0; i < size; i += sizeof(rand)) {
+        rand = rdrand();
+        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
+    }
     return 0;
 }
 #endif /* USE_ARCH_RD_RAND == 1*/
