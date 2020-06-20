@@ -31,15 +31,6 @@ unsigned long _DkSystemTimeQuery(void) {
     return microsec;
 }
 
-size_t _DkRandomBitsRead(void* buffer, size_t size) {
-    uint32_t rand;
-    for (size_t i = 0; i < size; i += sizeof(rand)) {
-        rand = rdrand();
-        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
-    }
-    return 0;
-}
-
 int _DkInstructionCacheFlush(const void* addr, int size) {
     __UNUSED(addr);
     __UNUSED(size);

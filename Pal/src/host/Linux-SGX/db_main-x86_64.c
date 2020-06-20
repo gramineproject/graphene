@@ -165,6 +165,15 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
     return rv;
 }
 
+size_t _DkRandomBitsRead(void* buffer, size_t size) {
+    uint32_t rand;
+    for (size_t i = 0; i < size; i += sizeof(rand)) {
+        rand = rdrand();
+        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
+    }
+    return 0;
+}
+
 int _DkSegmentRegisterSet(int reg, const void* addr) {
     /* GS is internally used, denied any access to it */
     if (reg != PAL_SEGMENT_FS)
