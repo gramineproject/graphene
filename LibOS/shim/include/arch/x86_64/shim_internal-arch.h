@@ -26,14 +26,14 @@ static_always_inline void* current_stack(void) {
     return _rsp;
 }
 
-#define CALL_ELF_ENTRY(ENTRY, ARGCP)     \
+#define CALL_ELF_ENTRY(ENTRY, ARGP)      \
     __asm__ volatile(                    \
         "pushq $0\r\n"                   \
         "popfq\r\n"                      \
         "movq %%rbx, %%rsp\r\n"          \
         "jmp *%%rax\r\n"                 \
         :                                \
-        : "a"(ENTRY), "b"(ARGCP), "d"(0) \
+        : "a"(ENTRY), "b"(ARGP), "d"(0)  \
         : "memory", "cc")
 
 #endif /* _SHIM_INTERNAL_ARCH_H_ */
