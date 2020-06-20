@@ -164,19 +164,16 @@ char ** library_paths = NULL;
 struct shim_lock __master_lock;
 bool lock_enabled;
 
-#define STACK_FLAGS     (MAP_PRIVATE|MAP_ANONYMOUS)
+void* allocate_stack(size_t size, size_t protect_size, bool user) {
+    void* stack = NULL;
 
-void * allocate_stack (size_t size, size_t protect_size, bool user)
-{
     size = ALLOC_ALIGN_UP(size);
     protect_size = ALLOC_ALIGN_UP(protect_size);
 
-    /* preserve a non-readable, non-writable page below the user
-       stack to stop user program to clobber other vmas */
-    void * stack = NULL;
-    int flags = STACK_FLAGS|(user ? 0 : VMA_INTERNAL);
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS | (user ? 0 : VMA_INTERNAL);
 
     if (user) {
+        /* reserve non-readable non-writable page below the user stack to catch stack overflows */
         int ret = bkeep_mmap_any_aslr(size + protect_size, PROT_NONE, flags, NULL, 0, "stack",
                                       &stack);
         if (ret < 0) {
@@ -199,103 +196,123 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     }
 
     stack += protect_size;
-    // Ensure proper alignment for process' initial stack pointer value.
+    /* ensure proper alignment for process' initial stack */
     stack = ALIGN_UP_PTR(stack, 16);
-    DkVirtualMemoryProtect(stack, size, PAL_PROT_READ|PAL_PROT_WRITE);
+    DkVirtualMemoryProtect(stack, size, PAL_PROT_READ | PAL_PROT_WRITE);
 
-    if (bkeep_mprotect(stack, size, PROT_READ|PROT_WRITE, !!(flags & VMA_INTERNAL)) < 0)
+    if (bkeep_mprotect(stack, size, PROT_READ | PROT_WRITE, !!(flags & VMA_INTERNAL)) < 0)
         return NULL;
 
     debug("allocated stack at %p (size = %ld)\n", stack, size);
     return stack;
 }
 
-static int populate_user_stack (void * stack, size_t stack_size,
-                                elf_auxv_t ** auxpp, int ** argcpp,
-                                const char *** argvp, const char *** envpp)
-{
-    const int argc = **argcpp;
-    const char ** argv = *argvp, ** envp = *envpp;
-    const char ** new_argv = NULL, ** new_envp = NULL;
-    elf_auxv_t *new_auxp = NULL;
-    void * stack_bottom = stack;
-    void * stack_top = stack + stack_size;
+/* populate already-allocated stack with copied argv and envp and space for auxv;
+ * returns a pointer to first stack frame (starting with argc, then argv pointers, and so on)
+ * and a pointer inside first stack frame (with auxv[0], auxv[1], and so on) */
+static int populate_stack(void* stack, size_t stack_size, const char** argv, const char** envp,
+                          const char*** out_argp, elf_auxv_t** out_auxv) {
+    void* stack_bottom = stack;
+    void* stack_top    = stack + stack_size;
 
-#define ALLOCATE_TOP(size)      \
-    ({ if ((stack_top -= (size)) < stack_bottom) return -ENOMEM;    \
+#define ALLOCATE_TOP(size)                       \
+    ({ if ((stack_top -= (size)) < stack_bottom) \
+           return -ENOMEM;                       \
        stack_top; })
 
-#define ALLOCATE_BOTTOM(size)   \
-    ({ if ((stack_bottom += (size)) > stack_top) return -ENOMEM;    \
+#define ALLOCATE_BOTTOM(size)                    \
+    ({ if ((stack_bottom += (size)) > stack_top) \
+           return -ENOMEM;                       \
        stack_bottom - (size); })
 
-    /* ld.so expects argc as long on stack, not int. */
-    long * argcp = ALLOCATE_BOTTOM(sizeof(long));
-    *argcp = **argcpp;
-
-    if (!argv) {
-        *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
-        goto copy_envp;
+    /* create stack layout as follows for ld.so (here stacks grow towards lower addresses):
+     *
+     *                 +-------------------+
+     * out_argp +--->  |  argc             | long
+     *                 |  ptr to argv[0]   | char*
+     *                 |  ...              | char*
+     *                 |  NULL             | char*
+     *                 |  ptr to envp[0]   | char*
+     *                 |  ...              | char*
+     *                 |  NULL             | char*
+     * out_auxv +--->  |  <space for auxv> |
+     *                 |  envp[0] string   |
+     *                 |  ...              |
+     *                 |  argv[0] string   |
+     *                 |  ...              |
+     *                 +-------------------+
+     */
+    size_t argc      = 0;
+    size_t argv_size = 0;
+    for (const char** a = argv; *a; a++) {
+        argv_size += strlen(*a) + 1;
+        argc++;
     }
 
-    new_argv = stack_bottom;
-    while (argv) {
-        /* Even though the SysV ABI does not specify the order of argv strings,
-           some applications (notably Node.js's libuv) assume the compact
-           encoding of argv where (1) all strings are located adjacently and
-           (2) in increasing order. */
-        int argv_size = 0;
-        for (const char ** a = argv ; *a ; a++)
-            argv_size += strlen(*a) + 1;
-        char * argv_bottom = ALLOCATE_TOP(argv_size);
+    long* argc_ptr = ALLOCATE_BOTTOM(sizeof(long));
+    *argc_ptr = argc;
 
-        for (const char ** a = argv ; *a ; a++) {
-            const char ** t = ALLOCATE_BOTTOM(sizeof(const char *));
-            int len = strlen(*a) + 1;
-            char * abuf = argv_bottom;
-            argv_bottom += len;
-            memcpy(abuf, *a, len);
-            *t = abuf;
-        }
+    /* pre-allocate enough space to hold all argv strings */
+    char* argv_str = ALLOCATE_TOP(argv_size);
 
-        *((const char **) ALLOCATE_BOTTOM(sizeof(const char *))) = NULL;
-copy_envp:
-        if (!envp)
-            break;
-        new_envp = stack_bottom;
-        argv = envp;
-        envp = NULL;
+    /* Even though the SysV ABI does not specify the order of argv strings, some applications
+     * (notably Node.js's libuv) assume the compact encoding of argv where (1) all strings are
+     * located adjacently and (2) in increasing order. */
+    const char** new_argv = stack_bottom;
+    for (const char** a = argv; *a; a++) {
+        size_t len = strlen(*a) + 1;
+        const char** argv_ptr = ALLOCATE_BOTTOM(sizeof(const char*)); /* ptr to argv[i] */
+        memcpy(argv_str, *a, len);                                    /* argv[i] string */
+        *argv_ptr = argv_str;
+        argv_str += len;
     }
+    *((const char**)ALLOCATE_BOTTOM(sizeof(const char*))) = NULL;
 
-    if (!new_envp)
-        *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
+    /* populate envp on stack similarly to argv */
+    size_t envp_size = 0;
+    for (const char** e = envp; *e; e++) {
+        envp_size += strlen(*e) + 1;
+    }
+    char* envp_str = ALLOCATE_TOP(envp_size);
 
-    /* reserve space for ELF aux vectors, populated later by LibOS */
-    new_auxp = ALLOCATE_BOTTOM(REQUIRED_ELF_AUXV * sizeof(elf_auxv_t) +
-                               REQUIRED_ELF_AUXV_SPACE);
+    const char** new_envp = stack_bottom;
+    for (const char** e = envp; *e; e++) {
+        size_t len = strlen(*e) + 1;
+        const char** envp_ptr = ALLOCATE_BOTTOM(sizeof(const char*)); /* ptr to envp[i] */
+        memcpy(envp_str, *e, len);                                    /* envp[i] string */
+        *envp_ptr = envp_str;
+        envp_str += len;
+    }
+    *((const char**)ALLOCATE_BOTTOM(sizeof(const char*))) = NULL;
 
-    /* x86_64 ABI requires 16 bytes alignment on stack on every function
-       call. */
+    /* reserve space for ELF aux vectors, populated later in execute_elf_object() */
+    elf_auxv_t* new_auxv = ALLOCATE_BOTTOM(REQUIRED_ELF_AUXV * sizeof(elf_auxv_t) +
+                                           REQUIRED_ELF_AUXV_SPACE);
+
+    /* x86_64 ABI requires 16 bytes alignment on stack on every func call, including first one */
     size_t move_size = stack_bottom - stack;
-    *argcpp = stack_top - move_size;
-    *argcpp = ALIGN_DOWN_PTR(*argcpp, 16UL);
-    **argcpp = argc;
-    size_t shift = (void*)(*argcpp) - stack;
+    void* frame_bottom = stack_top - move_size;
+    frame_bottom = ALIGN_DOWN_PTR(frame_bottom, 16UL);
+    size_t shift = frame_bottom - stack;
 
-    memmove(*argcpp, stack, move_size);
-    *argvp = new_argv ? (void *) new_argv + shift : NULL;
-    *envpp = new_envp ? (void *) new_envp + shift : NULL;
-    *auxpp = new_auxp ? (void *) new_auxp + shift : NULL;
+    memmove(frame_bottom, stack, move_size);
+    new_argv = (void*)new_argv + shift;
+    new_envp = (void*)new_envp + shift;
+    new_auxv = (void*)new_auxv + shift;
 
     /* clear working area at the bottom */
     memset(stack, 0, shift);
+
+    /* set global envp pointer for future checkpoint/migration */
+    initial_envp = new_envp;
+
+    *out_argp = frame_bottom;
+    *out_auxv = new_auxv;
     return 0;
 }
 
-int init_stack (const char ** argv, const char ** envp,
-                int ** argcpp, const char *** argpp,
-                elf_auxv_t ** auxpp)
-{
+int init_stack(const char** argv, const char** envp, const char*** out_argp,
+               elf_auxv_t** out_auxv) {
     uint64_t stack_size = get_rlimit_cur(RLIMIT_STACK);
 
     if (root_config) {
@@ -306,30 +323,24 @@ int init_stack (const char ** argv, const char ** envp,
         }
     }
 
-    struct shim_thread * cur_thread = get_cur_thread();
-
+    struct shim_thread* cur_thread = get_cur_thread();
     if (!cur_thread || cur_thread->stack)
         return 0;
 
-    void * stack = allocate_stack(stack_size, g_pal_alloc_align, true);
+    void* stack = allocate_stack(stack_size, g_pal_alloc_align, /*user=*/true);
     if (!stack)
         return -ENOMEM;
 
     if (initial_envp)
         envp = initial_envp;
 
-    int ret = populate_user_stack(stack, stack_size,
-                                  auxpp, argcpp, &argv, &envp);
+    int ret = populate_stack(stack, stack_size, argv, envp, out_argp, out_auxv);
     if (ret < 0)
         return ret;
-
-    *argpp = argv;
-    initial_envp = envp;
 
     cur_thread->stack_top = stack + stack_size;
     cur_thread->stack     = stack;
     cur_thread->stack_red = stack - g_pal_alloc_align;
-
     return 0;
 }
 
@@ -459,16 +470,6 @@ fail:
     return ret;
 }
 
-# define FIND_ARG_COMPONENTS(cookie, argc, argv, envp, auxp)        \
-    do {                                                            \
-        void *_tmp = (cookie);                                      \
-        (argv) = _tmp;                                              \
-        _tmp += sizeof(char *) * ((argc) + 1);                      \
-        (envp) = _tmp;                                              \
-        for ( ; *(char **) _tmp; _tmp += sizeof(char *));           \
-        (auxp) = _tmp + sizeof(char *);                             \
-    } while (0)
-
 #define CALL_INIT(func, args ...)   func(args)
 
 #define RUN_INIT(func, ...)                                             \
@@ -482,8 +483,7 @@ fail:
 
 extern PAL_HANDLE thread_start_event;
 
-noreturn void* shim_init(int argc, void* args)
-{
+noreturn void* shim_init(int argc, void* args) {
     debug_handle = PAL_CB(debug_stream);
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
 
@@ -509,13 +509,8 @@ noreturn void* shim_init(int argc, void* args)
         shim_clean_and_exit(-ENOMEM);
     }
 
-    int * argcp = &argc;
-    const char ** argv, ** envp, ** argp = NULL;
-    elf_auxv_t * auxp;
-
-    /* call to figure out where the arguments are */
-    FIND_ARG_COMPONENTS(args, argc, argv, envp, auxp);
-
+    const char** argv = args;
+    const char** envp = args + sizeof(char*) * ((argc) + 1);
 
     RUN_INIT(init_vma);
     RUN_INIT(init_slab);
@@ -551,7 +546,11 @@ noreturn void* shim_init(int argc, void* args)
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
-    RUN_INIT(init_stack, argv, envp, &argcp, &argp, &auxp);
+
+    const char** new_argp;
+    elf_auxv_t* new_auxv;
+    RUN_INIT(init_stack, argv, envp, &new_argp, &new_auxv);
+
     RUN_INIT(init_loader);
     RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
@@ -589,7 +588,7 @@ noreturn void* shim_init(int argc, void* args)
     }
 
     if (cur_thread->exec)
-        execute_elf_object(cur_thread->exec, argcp, argp, auxp);
+        execute_elf_object(cur_thread->exec, new_argp, new_auxv);
     shim_do_exit(0);
 }
 
