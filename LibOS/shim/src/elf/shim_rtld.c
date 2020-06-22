@@ -25,6 +25,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 #include "shim_vdso.h"
+#include "shim_vdso-arch.h"
 #include "shim_vma.h"
 
 #ifndef DT_THISPROCNUM
@@ -1406,7 +1407,8 @@ static int vdso_map_init(void) {
      */
     void* addr = NULL;
     int ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC,
-                                  MAP_PRIVATE | MAP_ANONYMOUS, NULL, 0, "linux-vdso.so.1", &addr);
+                                  MAP_PRIVATE | MAP_ANONYMOUS, NULL, 0, LINUX_VDSO_FILENAME,
+                                  &addr);
     if (ret < 0) {
         return ret;
     }
