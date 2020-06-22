@@ -153,7 +153,8 @@ unsigned long parse_int (const char * str)
 void * migrated_memory_start;
 void * migrated_memory_end;
 
-const char ** initial_envp __attribute_migratable;
+const char** migrated_argv __attribute_migratable;
+const char** migrated_envp __attribute_migratable;
 
 /* library_paths is populated with LD_PRELOAD entries once during LibOS
  * initialization and is used in __load_interp_object() to search for ELF
@@ -212,33 +213,37 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
  * and a pointer inside first stack frame (with auxv[0], auxv[1], and so on) */
 static int populate_stack(void* stack, size_t stack_size, const char** argv, const char** envp,
                           const char*** out_argp, elf_auxv_t** out_auxv) {
-    void* stack_bottom = stack;
-    void* stack_top    = stack + stack_size;
+    void* stack_low_addr  = stack;
+    void* stack_high_addr = stack + stack_size;
 
-#define ALLOCATE_TOP(size)                       \
-    ({ if ((stack_top -= (size)) < stack_bottom) \
-           return -ENOMEM;                       \
-       stack_top; })
+#define ALLOCATE_FROM_HIGH_ADDR(size)                    \
+    ({ if ((stack_high_addr -= (size)) < stack_low_addr) \
+           return -ENOMEM;                               \
+       stack_high_addr; })
 
-#define ALLOCATE_BOTTOM(size)                    \
-    ({ if ((stack_bottom += (size)) > stack_top) \
-           return -ENOMEM;                       \
-       stack_bottom - (size); })
+#define ALLOCATE_FROM_LOW_ADDR(size)                     \
+    ({ if ((stack_low_addr += (size)) > stack_high_addr) \
+           return -ENOMEM;                               \
+       stack_low_addr - (size); })
 
-    /* create stack layout as follows for ld.so (here stacks grow towards lower addresses):
+    /* create stack layout as follows for ld.so:
      *
      *                 +-------------------+
      * out_argp +--->  |  argc             | long
      *                 |  ptr to argv[0]   | char*
+     *                 |  ptr to argv[1]   | char*
      *                 |  ...              | char*
      *                 |  NULL             | char*
      *                 |  ptr to envp[0]   | char*
+     *                 |  ptr to envp[1]   | char*
      *                 |  ...              | char*
      *                 |  NULL             | char*
      * out_auxv +--->  |  <space for auxv> |
      *                 |  envp[0] string   |
+     *                 |  envp[1] string   |
      *                 |  ...              |
      *                 |  argv[0] string   |
+     *                 |  argv[1] string   |
      *                 |  ...              |
      *                 +-------------------+
      */
@@ -249,53 +254,62 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
         argc++;
     }
 
-    long* argc_ptr = ALLOCATE_BOTTOM(sizeof(long));
+    /* we populate the stack memory region from two ends:
+     *   - memory at high addresses contains buffers with argv + envp strings
+     *   - memory at low addresses contains argc and pointer-arrays of argv, envp, and auxv */
+    long* argc_ptr = ALLOCATE_FROM_LOW_ADDR(sizeof(long));
     *argc_ptr = argc;
 
     /* pre-allocate enough space to hold all argv strings */
-    char* argv_str = ALLOCATE_TOP(argv_size);
+    char* argv_str = ALLOCATE_FROM_HIGH_ADDR(argv_size);
 
     /* Even though the SysV ABI does not specify the order of argv strings, some applications
      * (notably Node.js's libuv) assume the compact encoding of argv where (1) all strings are
      * located adjacently and (2) in increasing order. */
-    const char** new_argv = stack_bottom;
+    const char** new_argv = stack_low_addr;
     for (const char** a = argv; *a; a++) {
         size_t len = strlen(*a) + 1;
-        const char** argv_ptr = ALLOCATE_BOTTOM(sizeof(const char*)); /* ptr to argv[i] */
-        memcpy(argv_str, *a, len);                                    /* argv[i] string */
+        const char** argv_ptr = ALLOCATE_FROM_LOW_ADDR(sizeof(const char*)); /* ptr to argv[i] */
+        memcpy(argv_str, *a, len);                                           /* argv[i] string */
         *argv_ptr = argv_str;
         argv_str += len;
     }
-    *((const char**)ALLOCATE_BOTTOM(sizeof(const char*))) = NULL;
+    *((const char**)ALLOCATE_FROM_LOW_ADDR(sizeof(const char*))) = NULL;
 
     /* populate envp on stack similarly to argv */
     size_t envp_size = 0;
     for (const char** e = envp; *e; e++) {
         envp_size += strlen(*e) + 1;
     }
-    char* envp_str = ALLOCATE_TOP(envp_size);
+    char* envp_str = ALLOCATE_FROM_HIGH_ADDR(envp_size);
 
-    const char** new_envp = stack_bottom;
+    const char** new_envp = stack_low_addr;
     for (const char** e = envp; *e; e++) {
         size_t len = strlen(*e) + 1;
-        const char** envp_ptr = ALLOCATE_BOTTOM(sizeof(const char*)); /* ptr to envp[i] */
-        memcpy(envp_str, *e, len);                                    /* envp[i] string */
+        const char** envp_ptr = ALLOCATE_FROM_LOW_ADDR(sizeof(const char*)); /* ptr to envp[i] */
+        memcpy(envp_str, *e, len);                                           /* envp[i] string */
         *envp_ptr = envp_str;
         envp_str += len;
     }
-    *((const char**)ALLOCATE_BOTTOM(sizeof(const char*))) = NULL;
+    *((const char**)ALLOCATE_FROM_LOW_ADDR(sizeof(const char*))) = NULL;
 
     /* reserve space for ELF aux vectors, populated later in execute_elf_object() */
-    elf_auxv_t* new_auxv = ALLOCATE_BOTTOM(REQUIRED_ELF_AUXV * sizeof(elf_auxv_t) +
-                                           REQUIRED_ELF_AUXV_SPACE);
+    elf_auxv_t* new_auxv = ALLOCATE_FROM_LOW_ADDR(REQUIRED_ELF_AUXV * sizeof(elf_auxv_t) +
+                                                  REQUIRED_ELF_AUXV_SPACE);
 
-    /* x86_64 ABI requires 16 bytes alignment on stack on every func call, including first one */
-    size_t move_size = stack_bottom - stack;
-    void* frame_bottom = stack_top - move_size;
-    frame_bottom = ALIGN_DOWN_PTR(frame_bottom, 16UL);
-    size_t shift = frame_bottom - stack;
+    /* we have now low part of stack (with argc and pointer-arrays of argv, envp, auxv), high part
+     * of stack (with argv and envp strings) and an empty space in the middle: we must remove the
+     * empty middle by moving the low part of stack adjacent to the high part */
+    size_t move_size         = stack_low_addr - stack;
+    void* new_stack_low_addr = stack_high_addr - move_size;
 
-    memmove(frame_bottom, stack, move_size);
+    /* x86-64 SysV ABI requires 16B alignment of stack on ELF entrypoint */
+    new_stack_low_addr = ALIGN_DOWN_PTR(new_stack_low_addr, 16UL);
+    memmove(new_stack_low_addr, stack, move_size);
+
+    /* pointer-arrays of argv, envp, and auxv were allocated on low part of stack and shifted via
+     * memmove above, need to shift pointers to their bases */
+    size_t shift = new_stack_low_addr - stack;
     new_argv = (void*)new_argv + shift;
     new_envp = (void*)new_envp + shift;
     new_auxv = (void*)new_auxv + shift;
@@ -303,10 +317,12 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
     /* clear working area at the bottom */
     memset(stack, 0, shift);
 
-    /* set global envp pointer for future checkpoint/migration */
-    initial_envp = new_envp;
+    /* set global envp pointer for future checkpoint/migration: this is required for fork/clone
+     * case (so that migrated envp points to envvars on the migrated stack) and redundant for
+     * execve case (because execve passes an explicit list of envvars to child process) */
+    migrated_envp = new_envp;
 
-    *out_argp = frame_bottom;
+    *out_argp = new_stack_low_addr;
     *out_auxv = new_auxv;
     return 0;
 }
@@ -331,8 +347,9 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     if (!stack)
         return -ENOMEM;
 
-    if (initial_envp)
-        envp = initial_envp;
+    /* if there are argv/envp inherited from parent, use them */
+    argv = migrated_argv ? : argv;
+    envp = migrated_envp ? : envp;
 
     int ret = populate_stack(stack, stack_size, argv, envp, out_argp, out_auxv);
     if (ret < 0)

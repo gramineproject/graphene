@@ -346,7 +346,6 @@ typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_thread*, struct
  *
  * \param migrate_func Migration function defined by the caller.
  * \param exec         Executable to load in the child process.
- * \param argv         Arguments passed to the child process.
  * \param thread       Main-thread handle to be migrated to the child process.
  *
  * The remaining arguments are passed into the migration function.
@@ -354,7 +353,7 @@ typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_thread*, struct
  * \return             0 on success, negative POSIX error code on failure.
  */
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
-                                       const char** argv, struct shim_thread* thread, ...);
+                                       struct shim_thread* thread, ...);
 
 /*!
  * \brief Receive a checkpoint from parent process and restore state based on it.

@@ -357,8 +357,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         add_thread(thread);
         set_as_child(self, thread);
 
-        ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, /*argv=*/NULL,
-                                                 thread);
+        ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, thread);
         thread->shim_tcb = NULL; /* cpu context of forked thread isn't
                                   * needed any more */
         if (parent_stack)

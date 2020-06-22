@@ -71,8 +71,7 @@ int shim_do_fork(void) {
     add_thread(new_thread);
     set_as_child(cur_thread, new_thread);
 
-    ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, /*argv=*/NULL,
-                                             new_thread);
+    ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, new_thread);
     if (ret < 0) {
         put_thread(new_thread);
         return ret;

@@ -1548,7 +1548,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     struct link_map* exec_map = __search_map_by_handle(exec);
     assert(exec_map);
 
-    /* at this point, stack looks like this (here stacks grow towards lower addresses):
+    /* at this point, stack looks like this:
      *
      *               +-------------------+
      *   argp +--->  |  argc             | long
