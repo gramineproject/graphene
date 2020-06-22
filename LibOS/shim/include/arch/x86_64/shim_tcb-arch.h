@@ -34,6 +34,10 @@ static inline void shim_regs_set_sp(struct shim_regs* sr, uint64_t sp) {
     sr->rsp = sp;
 }
 
+static inline uint64_t shim_regs_get_ip(struct shim_regs* sr) {
+    return sr->rip;
+}
+
 static inline uint64_t shim_regs_get_syscallnr(struct shim_regs* sr) {
     return sr->orig_rax;
 }

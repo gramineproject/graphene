@@ -131,7 +131,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
     //user_stack_addr[1] ==> arguments to user provided function.
 
     debug("child swapping stack to %p return 0x%lx: %d\n",
-          stack, regs.rip, my_thread->tid);
+          stack, shim_regs_get_ip(&regs), my_thread->tid);
 
     tcb->context.regs = &regs;
     fixup_child_context(tcb->context.regs);
