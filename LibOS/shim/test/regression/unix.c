@@ -95,7 +95,9 @@ static int server(void) {
 
     if (do_fork) {
         if (fork() > 0) {
+#if defined(__i386__) || defined(__x86_64__)
             __asm__ volatile ("int $3");
+#endif
             close(new_socket);
             wait(NULL);
             return 0;

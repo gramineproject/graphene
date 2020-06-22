@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
+#if defined(__x86_64__)
 #include <asm/prctl.h>
+#endif
 #include <malloc.h>
 #include <sched.h>
 #include <signal.h>
@@ -14,11 +16,15 @@
 
 __thread int mypid = 0;
 
+#if defined(__x86_64__)
 static unsigned long gettls(void) {
     unsigned long tls;
     syscall(__NR_arch_prctl, ARCH_GET_FS, &tls);
     return tls;
 }
+#else
+#error Unsupported architecture
+#endif
 
 static int thread_function(void* argument) {
     mypid    = getpid();
