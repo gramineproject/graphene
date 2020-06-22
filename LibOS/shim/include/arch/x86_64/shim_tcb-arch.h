@@ -130,4 +130,9 @@ static inline void shim_arch_update_fs_base(unsigned long fs_base) {
     DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
 }
 
+/* On x86_64 the fs_base is the same as the tls parameter to 'clone' */
+static inline unsigned long tls_to_fs_base(unsigned long tls) {
+    return tls;
+}
+
 #endif /* _SHIM_TCB_ARCH_H_ */

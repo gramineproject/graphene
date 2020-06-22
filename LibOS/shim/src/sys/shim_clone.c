@@ -303,7 +303,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             ret = -EINVAL;
             goto failed;
         }
-        fs_base = (unsigned long)tls;
+        fs_base = tls_to_fs_base((unsigned long)tls);
     }
 
     if (!(flags & CLONE_THREAD))
