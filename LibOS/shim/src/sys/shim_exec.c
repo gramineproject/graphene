@@ -137,7 +137,8 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     cur_thread->stack     = NULL;
     cur_thread->stack_red = NULL;
 
-    initial_envp = NULL;
+    migrated_argv = NULL;
+    migrated_envp = NULL;
 
     const char** new_argp;
     elf_auxv_t* new_auxv;
@@ -158,13 +159,14 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
 #include <shim_checkpoint.h>
 
 static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
-                           const char** envp) {
+                           const char** argv, const char** envp) {
     DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
     DEFINE_MIGRATE(pending_signals, NULL, 0);
     DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
     DEFINE_MIGRATE(migratable, NULL, 0);
+    DEFINE_MIGRATE(arguments, argv, 0);
     DEFINE_MIGRATE(environ, envp, 0);
 }
 END_MIGRATION_DEF(execve)
@@ -174,6 +176,7 @@ END_MIGRATION_DEF(execve)
 static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thread,
                           struct shim_process* process, va_list ap) {
     struct shim_handle_map* handle_map;
+    const char** argv = va_arg(ap, const char**);
     const char** envp = va_arg(ap, const char**);
     int ret;
 
@@ -185,7 +188,7 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
     if ((ret = close_cloexec_handle(handle_map)) < 0)
         return ret;
 
-    return START_MIGRATE(cpstore, execve, thread, process, envp);
+    return START_MIGRATE(cpstore, execve, thread, process, argv, envp);
 }
 
 int shim_do_execve(const char* file, const char** argv, const char** envp) {
@@ -206,7 +209,7 @@ int shim_do_execve(const char* file, const char** argv, const char** envp) {
     }
 
     if (!envp)
-        envp = initial_envp;
+        envp = migrated_envp;
 
     for (const char** e = envp; /* no condition*/; e++) {
         if (test_user_memory(e, sizeof(*e), false))
@@ -418,7 +421,7 @@ reopen:
     cur_thread->in_vm     = false;
     unlock(&cur_thread->lock);
 
-    ret = create_process_and_send_checkpoint(&migrate_execve, exec, argv, cur_thread, envp);
+    ret = create_process_and_send_checkpoint(&migrate_execve, exec, cur_thread, argv, envp);
 
     lock(&cur_thread->lock);
     cur_thread->stack     = stack;

@@ -702,8 +702,8 @@ extern void * __code_address, * __code_address_end;
 
 unsigned long parse_int (const char * str);
 
-extern void * initial_stack;
-extern const char ** initial_envp;
+extern const char** migrated_argv;
+extern const char** migrated_envp;
 
 struct shim_handle;
 int init_brk_from_executable (struct shim_handle * exec);

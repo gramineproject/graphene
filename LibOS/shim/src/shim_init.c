@@ -153,7 +153,8 @@ unsigned long parse_int (const char * str)
 void * migrated_memory_start;
 void * migrated_memory_end;
 
-const char ** initial_envp __attribute_migratable;
+const char** migrated_argv __attribute_migratable;
+const char** migrated_envp __attribute_migratable;
 
 /* library_paths is populated with LD_PRELOAD entries once during LibOS
  * initialization and is used in __load_interp_object() to search for ELF
@@ -312,7 +313,7 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
     memset(stack, 0, shift);
 
     /* set global envp pointer for future checkpoint/migration */
-    initial_envp = new_envp;
+    migrated_envp = new_envp;
 
     *out_argp = frame_bottom;
     *out_auxv = new_auxv;
@@ -339,8 +340,9 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     if (!stack)
         return -ENOMEM;
 
-    if (initial_envp)
-        envp = initial_envp;
+    /* if there are argv/envp inherited from parent, use them */
+    argv = migrated_argv ? : argv;
+    envp = migrated_envp ? : envp;
 
     int ret = populate_stack(stack, stack_size, argv, envp, out_argp, out_auxv);
     if (ret < 0)

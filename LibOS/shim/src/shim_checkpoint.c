@@ -188,6 +188,46 @@ BEGIN_RS_FUNC(migratable) {
 }
 END_RS_FUNC(migratable)
 
+BEGIN_CP_FUNC(arguments) {
+    __UNUSED(size);
+    __UNUSED(objp);
+
+    const char** argv = (const char**)obj;
+    size_t arg_cnt    = 0;
+    size_t arg_bytes  = 0;
+
+    for (const char** a = argv; *a; a++) {
+        arg_cnt++;
+        arg_bytes += strlen(*a) + 1;
+    }
+
+    size_t off = ADD_CP_OFFSET(sizeof(char*) * (arg_cnt + 1) + arg_bytes);
+    const char** new_argv = (void*)base + off;
+    char* new_arg_str = (void*)new_argv + sizeof(char*) * (arg_cnt + 1);
+
+    for (size_t i = 0; i < arg_cnt; i++) {
+        size_t len = strlen(argv[i]);
+        new_argv[i] = new_arg_str;
+        memcpy(new_arg_str, argv[i], len + 1);
+        new_arg_str += len + 1;
+    }
+
+    new_argv[arg_cnt] = NULL;
+    ADD_CP_FUNC_ENTRY(off);
+}
+END_CP_FUNC(arguments)
+
+BEGIN_RS_FUNC(arguments) {
+    __UNUSED(offset);
+
+    const char** argv = (void*)base + GET_CP_FUNC_ENTRY();
+    for (const char** a = argv; *a; a++)
+        CP_REBASE(*a);
+
+    migrated_argv = argv;
+}
+END_RS_FUNC(arguments)
+
 BEGIN_CP_FUNC(environ) {
     __UNUSED(size);
     __UNUSED(objp);
@@ -224,7 +264,7 @@ BEGIN_RS_FUNC(environ) {
     for (const char** e = envp; *e; e++)
         CP_REBASE(*e);
 
-    initial_envp = envp;
+    migrated_envp = envp;
 }
 END_RS_FUNC(environ)
 
@@ -536,7 +576,7 @@ static void* cp_alloc(void* addr, size_t size) {
 }
 
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
-                                       const char** argv, struct shim_thread* thread, ...) {
+                                       struct shim_thread* thread, ...) {
     int ret = 0;
     struct shim_process* process = NULL;
 
@@ -544,7 +584,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
      * data. Parallelizing process creation and checkpointing could improve latency of forking. */
     const char* exec_uri = exec ? /*execve*/ qstrgetstr(&exec->uri)
                                 : /*fork*/ pal_control.executable;
-    PAL_HANDLE pal_process = DkProcessCreate(exec_uri, argv);
+    PAL_HANDLE pal_process = DkProcessCreate(exec_uri, /*args=*/NULL);
     if (!pal_process) {
         ret = -PAL_ERRNO();
         goto out;
