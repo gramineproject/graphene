@@ -55,6 +55,7 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 
     /* collect all FDs of all PAL handles that may report read/write events */
     size_t nfds = 0;
+    int ret_events_updated = 0;
     for (size_t i = 0; i < count; i++) {
         ret_events[i] = 0;
 
@@ -70,7 +71,15 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
             if (hdl->generic.fds[j] == PAL_IDX_POISON)
                 continue;
             if (flags & ERROR(j))
+            {
+                /* try to read or write FD already marked error */
+                if (events[i] & (PAL_WAIT_READ | PAL_WAIT_WRITE))
+                {
+                    ret_events[i] |= PAL_WAIT_ERROR;
+                    ret_events_updated ++;
+                }
                 continue;
+            }
 
             int fdevents = 0;
             fdevents |= ((flags & RFD(j)) && (events[i] & PAL_WAIT_READ)) ? POLLIN : 0;
@@ -87,8 +96,12 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
     }
 
     if (!nfds) {
-        /* did not find any waitable FDs (LibOS supplied closed/errored FDs or empty events) */
-        ret = -PAL_ERROR_TRYAGAIN;
+        if (ret_events_updated > 0)
+            /* ret_events has been updated */
+            ret = 0;
+        else
+            /* did not find any waitable FDs (LibOS supplied closed/errored FDs or empty events) */
+            ret = -PAL_ERROR_TRYAGAIN;
         goto out;
     }
 
