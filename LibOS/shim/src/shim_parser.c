@@ -738,6 +738,24 @@ static void parse_mmap_prot(va_list* ap) {
 
         PUTS("PROT_EXEC");
     }
+    if (prot & PROT_SEM) {
+        if (nflags++)
+            PUTS("|");
+
+        PUTS("PROT_SEM");
+    }
+    if (prot & PROT_GROWSDOWN) {
+        if (nflags++)
+            PUTS("|");
+
+        PUTS("PROT_GROWSDOWN");
+    }
+    if (prot & PROT_GROWSUP) {
+        if (nflags++)
+            PUTS("|");
+
+        PUTS("PROT_GROWSUP");
+    }
 }
 
 static void parse_mmap_flags(va_list* ap) {
