@@ -739,6 +739,10 @@ static void parse_mmap_prot(va_list* ap) {
         PUTS("PROT_EXEC");
     }
 
+    if (prot & PROT_SEM) {
+        PUTS("|PROT_SEM");
+    }
+
     if (prot & PROT_GROWSDOWN) {
         PUTS("|PROT_GROWSDOWN");
     }
