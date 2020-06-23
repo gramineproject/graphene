@@ -156,7 +156,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 }
 
 #if USE_ARCH_RDRAND == 1
-int _DkRandomBitsRead(void* buffer, int size) {
+int _DkRandomBitsRead(void* buffer, size_t size) {
     uint32_t rand;
     for (size_t i = 0; i < size; i += sizeof(rand)) {
         rand = rdrand();
@@ -164,7 +164,7 @@ int _DkRandomBitsRead(void* buffer, int size) {
     }
     return 0;
 }
-#endif /* USE_ARCH_RD_RAND == 1*/
+#endif
 
 int _DkSegmentRegisterSet(int reg, const void* addr) {
     int ret = 0;

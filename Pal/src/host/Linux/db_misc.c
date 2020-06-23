@@ -119,7 +119,7 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
 
     return 0;
 }
-#endif /* USE_ARCH_RD_RAND != 1 */
+#endif
 
 int _DkInstructionCacheFlush(const void* addr, int size) {
     __UNUSED(addr);
