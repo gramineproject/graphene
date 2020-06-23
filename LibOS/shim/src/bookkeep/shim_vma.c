@@ -772,6 +772,13 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
     assert(IS_ALLOC_ALIGNED_PTR(begin) && IS_ALLOC_ALIGNED_PTR(end));
     assert(begin < end);
 
+    if ((prot & (PROT_GROWSDOWN | PROT_GROWSUP)) == (PROT_GROWSDOWN | PROT_GROWSUP))
+        return -EINVAL;
+
+    /* not supported */
+    if (prot & PROT_GROWSUP)
+        return -EINVAL;
+
     struct shim_vma* vma = _lookup_vma(begin);
     if (!vma) {
         return -ENOMEM;
@@ -818,15 +825,30 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
     vma = first_vma;
 
     if (vma->begin < begin) {
-        struct shim_vma* new_vma1 = *new_vma_ptr1;
-        *new_vma_ptr1 = NULL;
+        struct shim_vma* new_vma1;
 
-        split_vma(vma, new_vma1, begin);
-        vma_update_prot(new_vma1, prot);
+        if (prot & PROT_GROWSDOWN) {
+            if (!(vma->flags & MAP_GROWSDOWN))
+                return -EINVAL;
+            /* no split because of 'begin' */
+            if (vma->end == end) {
+                /* no split at all; done */
+                vma_update_prot(vma, prot);
+                return 0;
+            }
+            new_vma1 = vma;
+            /* now check end */
+        } else {
+            new_vma1 = *new_vma_ptr1;
+            *new_vma_ptr1 = NULL;
+
+            split_vma(vma, new_vma1, begin);
+            vma_update_prot(new_vma1, prot);
+
+            avl_tree_insert(&vma_tree, &new_vma1->tree_node);
+        }
 
         struct shim_vma* next = _get_next_vma(vma);
-
-        avl_tree_insert(&vma_tree, &new_vma1->tree_node);
 
         if (end < new_vma1->end) {
             struct shim_vma* new_vma2 = *new_vma_ptr2;
@@ -834,6 +856,9 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
 
             split_vma(new_vma1, new_vma2, end);
             vma_update_prot(new_vma2, vma->prot);
+
+            if (prot & PROT_GROWSDOWN)
+                vma_update_prot(vma, prot);
 
             avl_tree_insert(&vma_tree, &new_vma2->tree_node);
             return 0;
