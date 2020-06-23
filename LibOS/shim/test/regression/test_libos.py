@@ -532,6 +532,12 @@ class TC_80_Socket(RegressionTestCase):
         stdout, _ = self.run_binary(['poll_many_types'])
         self.assertIn('poll(POLLIN) returned 3 file descriptors', stdout)
 
+    def test_022_poll_closed_fd(self):
+        stdout, _ = self.run_binary(['poll_closed_fd'], timeout=60)
+        self.assertNotIn('poll with POLLIN failed', stdout)
+        self.assertIn('read on pipe: Hello from write end of pipe!', stdout)
+        self.assertIn('the peer closed its end of the pipe', stdout)
+
     def test_030_ppoll(self):
         stdout, _ = self.run_binary(['ppoll'])
         self.assertIn('ppoll(POLLOUT) returned 1 file descriptors', stdout)

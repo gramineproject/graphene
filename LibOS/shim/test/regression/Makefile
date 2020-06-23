@@ -40,6 +40,7 @@ c_executables = \
 	openmp \
 	pipe \
 	poll \
+	poll_closed_fd \
 	poll_many_types \
 	ppoll \
 	proc_common \
