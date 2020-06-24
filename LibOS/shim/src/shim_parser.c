@@ -782,15 +782,62 @@ static void parse_mmap_flags(va_list* ap) {
         flags &= ~MAP_FIXED;
     }
 
+#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+    if (flags & MAP_UNINITIALIZED) {
+        PUTS("|MAP_UNINITIALIZED");
+        flags &= ~MAP_UNINITIALIZED;
+    }
+#endif
+
     if (flags & MAP_GROWSDOWN) {
         PUTS("|MAP_GROWSDOWN");
         flags &= ~MAP_GROWSDOWN;
     }
 
-#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
-    if (flags & MAP_UNINITIALIZED) {
-        PUTS("|MAP_UNINITIALIZED");
-        flags &= ~MAP_UNINITIALIZED;
+    if (flags & MAP_DENYWRITE) {
+        PUTS("|MAP_DENYWRITE");
+        flags &= ~MAP_DENYWRITE;
+    }
+
+    if (flags & MAP_EXECUTABLE) {
+        PUTS("|MAP_EXECUTABLE");
+        flags &= ~MAP_EXECUTABLE;
+    }
+
+    if (flags & MAP_LOCKED) {
+        PUTS("|MAP_LOCKED");
+        flags &= ~MAP_LOCKED;
+    }
+
+    if (flags & MAP_NORESERVE) {
+        PUTS("|MAP_NORESERVE");
+        flags &= ~MAP_NORESERVE;
+    }
+
+    if (flags & MAP_POPULATE) {
+        PUTS("|MAP_POPULATE");
+        flags &= ~MAP_POPULATE;
+    }
+
+    if (flags & MAP_NONBLOCK) {
+        PUTS("|MAP_NONBLOCK");
+        flags &= ~MAP_NONBLOCK;
+    }
+
+    if (flags & MAP_STACK) {
+        PUTS("|MAP_STACK");
+        flags &= ~MAP_STACK;
+    }
+
+    if (flags & MAP_HUGETLB) {
+        PUTS("|MAP_HUGETLB");
+        flags &= ~MAP_HUGETLB;
+    }
+
+#ifdef MAP_SYNC
+    if (flags & MAP_SYNC) {
+        PUTS("|MAP_SYNC");
+        flags &= ~MAP_SYNC;
     }
 #endif
 
