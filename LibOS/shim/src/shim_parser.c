@@ -786,6 +786,11 @@ static void parse_mmap_flags(va_list* ap) {
         flags &= ~MAP_FIXED;
     }
 
+    if (flags & MAP_GROWSDOWN) {
+        PUTS("|MAP_GROWSDOWN");
+        flags &= ~MAP_GROWSDOWN;
+    }
+
 #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
     if (flags & MAP_UNINITIALIZED) {
         PUTS("|MAP_UNINITIALIZED");
