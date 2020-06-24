@@ -15,7 +15,6 @@ preloads = \
 
 executables = \
 	..Bootstrap \
-	AtomicMath \
 	AttestationReport \
 	AvxDisable \
 	avl_tree_test \

@@ -30,13 +30,6 @@ CPUINFO_FLAGS_WHITELIST = [
 
 
 class TC_00_Basic(RegressionTestCase):
-    def test_000_atomic_math(self):
-        _, stderr = self.run_binary(['AtomicMath'])
-        self.assertIn('Subtract INT_MIN: Both values match 2147483648', stderr)
-        self.assertIn('Subtract INT_MAX: Both values match -2147483647', stderr)
-        self.assertIn('Subtract LLONG_MIN: Both values match -9223372036854775808', stderr)
-        self.assertIn('Subtract LLONG_MAX: Both values match -9223372036854775807', stderr)
-
     def test_001_path_normalization(self):
         _, stderr = self.run_binary(['normalize_path'])
 
