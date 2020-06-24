@@ -3,4 +3,4 @@ loader.argv0_override = Thread2
 
 sgx.thread_num = 2
 sgx.rpc_thread_num = 2
-sgx.print_stats = 1
+sgx.enable_stats = 1

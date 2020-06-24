@@ -243,6 +243,8 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     unsigned long          enclave_entry_addr;
     unsigned long          heap_min = DEFAULT_HEAP_MIN;
 
+    int enclave_mem = -1;
+
     /* this array may overflow the stack, so we allocate it in BSS */
     static void* tcs_addrs[MAX_DBG_THREADS];
 
@@ -323,9 +325,9 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         heap_min = 0;
     }
 
-    if (get_config(enclave->config, "sgx.print_stats", cfgbuf, sizeof(cfgbuf)) > 0 &&
+    if (get_config(enclave->config, "sgx.enable_stats", cfgbuf, sizeof(cfgbuf)) > 0 &&
             cfgbuf[0] == '1') {
-        g_sgx_print_stats = true;
+        g_sgx_enable_stats = true;
     }
 
     ret = read_enclave_token(enclave->token, &enclave_token);
@@ -631,11 +633,43 @@ static int initialize_enclave(struct pal_enclave* enclave) {
             dbg->tcs_addrs[i] = tcs_addrs[i];
     }
 
+    if (g_sgx_enable_stats) {
+        /* set TCS.FLAGS.DBGOPTIN in all enclave threads to enable perf counters, Intel PT, etc */
+        enclave_mem = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDWR | O_LARGEFILE, 0);
+        if (IS_ERR(enclave_mem)) {
+            SGX_DBG(DBG_E, "Setting TCS.FLAGS.DBGOPTIN failed: %d\n", -enclave_mem);
+            goto out;
+        }
+
+        for (size_t i = 0; i < enclave->thread_num; i++) {
+            uint64_t tcs_flags;
+            uint64_t* tcs_flags_ptr = tcs_addrs[i] + offsetof(sgx_arch_tcs_t, flags);
+
+            ret = INLINE_SYSCALL(pread, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
+                                 (off_t)tcs_flags_ptr);
+            if (IS_ERR(ret)) {
+                SGX_DBG(DBG_E, "Reading TCS.FLAGS.DBGOPTIN failed: %d\n", -ret);
+                goto out;
+            }
+
+            tcs_flags |= TCS_FLAGS_DBGOPTIN;
+
+            ret = INLINE_SYSCALL(pwrite, 4, enclave_mem, &tcs_flags, sizeof(tcs_flags),
+                                 (off_t)tcs_flags_ptr);
+            if (IS_ERR(ret)) {
+                SGX_DBG(DBG_E, "Writing TCS.FLAGS.DBGOPTIN failed: %d\n", -ret);
+                goto out;
+            }
+        }
+    }
+
     ret = 0;
 
 out:
     if (enclave_image >= 0)
         INLINE_SYSCALL(close, 1, enclave_image);
+    if (enclave_mem >= 0)
+        INLINE_SYSCALL(close, 1, enclave_mem);
     free(enclave_uri);
 
     return ret;

@@ -101,7 +101,7 @@ static inline PAL_TCB_URTS* get_tcb_urts(void) {
     return tcb;
 }
 
-extern bool g_sgx_print_stats;
+extern bool g_sgx_enable_stats;
 void update_and_print_stats(bool process_wide);
 # endif
 

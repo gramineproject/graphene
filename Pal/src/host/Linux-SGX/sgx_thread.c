@@ -22,14 +22,14 @@ static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
 
-bool g_sgx_print_stats = false;
+bool g_sgx_enable_stats = false;
 
 void update_and_print_stats(bool process_wide) {
     static atomic_ulong g_eenter_cnt = 0;
     static atomic_ulong g_eexit_cnt  = 0;
     static atomic_ulong g_aex_cnt    = 0;
 
-    if (!g_sgx_print_stats)
+    if (!g_sgx_enable_stats)
         return;
 
     PAL_TCB_URTS* tcb = get_tcb_urts();
