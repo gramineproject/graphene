@@ -239,15 +239,19 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
      *                 +-------------------+
      * out_argp +--->  |  argc             | long
      *                 |  ptr to argv[0]   | char*
+     *                 |  ptr to argv[1]   | char*
      *                 |  ...              | char*
      *                 |  NULL             | char*
      *                 |  ptr to envp[0]   | char*
+     *                 |  ptr to envp[1]   | char*
      *                 |  ...              | char*
      *                 |  NULL             | char*
      * out_auxv +--->  |  <space for auxv> |
      *                 |  envp[0] string   |
+     *                 |  envp[1] string   |
      *                 |  ...              |
      *                 |  argv[0] string   |
+     *                 |  argv[1] string   |
      *                 |  ...              |
      *                 +-------------------+
      */
@@ -307,7 +311,7 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
     size_t move_size         = stack_low_addr - stack;
     void* new_stack_low_addr = stack_high_addr - move_size;
 
-    /* x86_64 ABI requires 16 bytes alignment on stack on every func call, including first one */
+    /* x86-64 SysV ABI requires 16B alignment of stack on ELF entrypoint */
     new_stack_low_addr = ALIGN_DOWN_PTR(new_stack_low_addr, 16UL);
     memmove(new_stack_low_addr, stack, move_size);
 
