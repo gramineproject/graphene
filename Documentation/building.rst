@@ -70,14 +70,14 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 1. Install the Linux kernel patched with FSGSBASE
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""""""""""""""""""""""""""""""
 
 FSGSBASE is a feature in recent processors which allows direct access to the FS
 and GS segment base addresses. For more information about FSGSBASE and its
 benefits, see `this discussion <https://lwn.net/Articles/821719>`__.
 
 Work is being done to include FSGSBASE enabling in the upstream Linux kernel.
-Currently, the FSGSBASE enabling code is out-of-tree requiring some patches to
+Currently, the FSGSBASE enabling code is out-of-tree, requiring some patches to
 the kernel.
 
 Enabling FSGSBASE support requires building and installing a custom kernel with
@@ -97,7 +97,7 @@ to date security mitigations.
 
        wget -O fsgsbase.patch https://lore.kernel.org/patchwork/series/446124/mbox
 
-   The conversation regarding this patch set can be found in the kernel mailing
+   The conversation regarding this patchset can be found in the kernel mailing
    list archives `here
    <https://lore.kernel.org/lkml/20200528201402.1708239-1-sashal@kernel.org>`__.
 
@@ -114,7 +114,7 @@ to date security mitigations.
        uname -r
 
 #. Also verify that the patched kernel supports FSGSBASE (the below command
-   must return ``0x2``)::
+   must return that bit 2 is set)::
 
        LD_SHOW_AUXV=1 /bin/true | grep AT_HWCAP2
 
@@ -127,7 +127,7 @@ DCAP and commit ``0e71c22`` of the Intel SGX SDK/PSW.
 
 
 2. Generate signing keys
-~~~~~~~~~~~~~~~~~~~~~~~~
+""""""""""""""""""""""""
 
 A 3072-bit RSA private key (PEM format) is required for signing the manifest.
 If you don't have a private key, create it with the following command::
@@ -144,7 +144,7 @@ extension), the signature (``.sig`` extension), and the aesmd init token
 (``.token`` extension) to execute on another SGX-enabled host.
 
 3. Install the Intel SGX driver and SDK/PSW
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""""""""""""""""""""""""""""""""""""""""""
 
 The Intel SGX Linux SDK and the Intel SGX driver are required to compile and
 run Graphene on SGX. Download and install them from the official Intel
@@ -158,13 +158,12 @@ download and install it from:
 
 - https://github.com/intel/SGXDataCenterAttestationPrimitives
 
-4. Install the Graphene SGX driver (deprecated)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4. Install the Graphene SGX driver (not for production)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 If you followed step 1 and installed the patched Linux kernel, skip this step.
 Otherwise, you will need a Graphene-specific Linux driver that enables the
-FSGSBASE feature available in recent processors. **Warning:** this is an
-inadvisable configuration for production systems!
+FSGSBASE feature available in recent processors.
 
 To install the Graphene SGX driver, run the following commands::
 

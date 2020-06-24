@@ -3,7 +3,7 @@ Quick Start
 
 .. highlight:: sh
 
-#. Clone the Graphene Repository::
+#. Clone the Graphene repository::
 
       git clone https://github.com/oscarlab/graphene.git
 
@@ -13,7 +13,7 @@ Quick Start
       cd graphene
       make
 
-#. Build and Run :program:`helloworld`::
+#. Build and run :program:`helloworld`::
 
       cd LibOS/shim/test/native
       make
@@ -48,14 +48,14 @@ the DCAP driver requires Graphene to run as a root user to access it.
 The first command should list :command:`isgx` (or :command:`sgx`) and the
 second command should list the process status of :command:`aesm_service`.
 
-#. Clone the Repository and Set the Home Directory of Graphene::
+#. Clone the repository and set the home directory of Graphene::
 
       git clone https://github.com/oscarlab/graphene.git
       cd graphene
       git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
       export GRAPHENE_DIR=$PWD
 
-#. Prepare a Signing Key::
+#. Prepare a signing key::
 
       cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
       openssl genrsa -3 -out enclave-key.pem 3072
@@ -67,7 +67,7 @@ second command should list the process status of :command:`aesm_service`.
          python3-protobuf libprotobuf-c-dev protobuf-c-compiler
       cd $GRAPHENE_DIR
       make SGX=1
-      # the console will prompt you for the path of the Intel SGX driver code
+      # the console will prompt you for the path to the Intel SGX driver code
 
 #. Set ``vm.mmap_min_addr=0`` in the system::
 
@@ -76,7 +76,7 @@ second command should list the process status of :command:`aesm_service`.
    Note that this is an inadvisable configuration for production systems. This
    temporary workaround will not be required in the future.
 
-#. Build and Run :program:`helloworld`::
+#. Build and run :program:`helloworld`::
 
       cd $GRAPHENE_DIR/LibOS/shim/test/native
       make SGX=1 sgx-tokens
