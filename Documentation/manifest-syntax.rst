@@ -369,16 +369,26 @@ EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
 be additionally specified (linkable/unlinkable mode and SPID of the client
 respectively).
 
-Printing per-thread and process-wide SGX stats
+Enabling per-thread and process-wide SGX stats
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
-    sgx.print_stats=[1|0]
+    sgx.enable_stats=[1|0]
     (Default: 0)
 
-This syntax specifies whether to print SGX enclave-specific statistics. The
-currently supported stats are: number of EENTERs (corresponds to ECALLs plus
-returns from OCALLs), number of EEXITs (corresponds to OCALLs plus returns from
-ECALLs) and number of AEXs (corresponds to interrupts/exceptions/signals during
-enclave execution). Set it to ``1`` to print per-thread and per-process stats.
+This syntax specifies whether to enable SGX enclave-specific statistics:
+
+#. ``TCS.FLAGS.DBGOPTIN`` flag. This flag is set in all enclave threads and
+   enables certain debug and profiling features with enclaves, including
+   breakpoints, performance counters, Intel PT, etc.
+
+#. Printing the stats on SGX-specific events. Currently supported stats are:
+   number of EENTERs (corresponds to ECALLs plus returns from OCALLs), number
+   of EEXITs (corresponds to OCALLs plus returns from ECALLs) and number of
+   AEXs (corresponds to interrupts/exceptions/signals during enclave
+   execution). Prints per-thread and per-process stats.
+
+*Note:* this option is insecure and cannot be used with production enclaves
+(``sgx.debug = 0``). If the production enclave is started with this option set,
+Graphene will fail initialization of the enclave.

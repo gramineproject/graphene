@@ -862,8 +862,8 @@ def main_sign(args):
     if manifest.get('sgx.allow_file_creation', None) is None:
         manifest['sgx.allow_file_creation'] = '0'
 
-    if manifest.get('sgx.print_stats', None) is None:
-        manifest['sgx.print_stats'] = '0'
+    if manifest.get('sgx.enable_stats', None) is None:
+        manifest['sgx.enable_stats'] = '0'
 
     output_manifest(args['output'], manifest, manifest_layout)
 
