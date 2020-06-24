@@ -27,6 +27,7 @@ PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size) {
     LEAVE_PAL_CALL_RETURN(ret);
 }
 
+#if defined(__x86_64__)
 PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr) {
     ENTER_PAL_CALL(DkSegmentRegister);
     void* seg_addr = (void*)addr;
@@ -45,6 +46,7 @@ PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr) {
 
     LEAVE_PAL_CALL_RETURN((PAL_PTR)seg_addr);
 }
+#endif
 
 PAL_BOL DkInstructionCacheFlush(PAL_PTR addr, PAL_NUM size) {
     ENTER_PAL_CALL(DkInstructionCacheFlush);
