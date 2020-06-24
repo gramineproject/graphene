@@ -11,7 +11,6 @@
 #include <linux/time.h>
 
 #include "api.h"
-#include "gsgx.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -20,6 +19,12 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
+/* sgx.h is required to define SGX_DCAP,
+ * and doesn't have a definition for __packed */
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
+#include "sgx.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
