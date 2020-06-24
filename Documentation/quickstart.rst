@@ -40,7 +40,7 @@ If you want to use the DCAP SDK and driver, please follow the README in
 https://github.com/intel/SGXDataCenterAttestationPrimitives. Please note, that
 the DCAP driver requires Graphene to run as a root user to access it.
 
-#. Ensure That Intel SGX is Enabled on Your Platform::
+#. Ensure that Intel SGX is enabled on your platform::
 
       lsmod | grep sgx
       ps ax | grep [a]esm_service
