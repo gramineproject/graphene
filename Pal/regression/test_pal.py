@@ -14,6 +14,7 @@ import unittest
 
 from regression import (
     HAS_SGX,
+    ON_X86,
     RegressionTestCase,
     expectedFailureIf,
 )
@@ -293,9 +294,10 @@ class TC_02_Symbols(RegressionTestCase):
         'DkSystemTimeQuery',
         'DkRandomBitsRead',
         'DkInstructionCacheFlush',
-        'DkSegmentRegister',
         'DkMemoryAvailableQuota',
     ]
+    if ON_X86:
+        ALL_SYMBOLS.append('DkSegmentRegister')
 
     def test_000_symbols(self):
         _, stderr = self.run_binary(['Symbols'])
