@@ -17,6 +17,7 @@ $(SRCDIR)/configure: $(SRCDIR)/Makefile
 $(BUILDDIR)/runltp: $(SRCDIR)/configure
 	cd $(SRCDIR) && ./configure
 	cd $(SRCDIR) && $(MAKE) FILTER_OUT_DIRS=delete_module -C testcases/kernel/syscalls
+	cd $(SRCDIR) && $(MAKE) FILTER_OUT_DIRS=delete_module "DESTDIR=$(PWD)" -C runtest SKIP_IDCHECK=1 install
 	cd $(SRCDIR) && $(MAKE) FILTER_OUT_DIRS=delete_module "DESTDIR=$(PWD)" -C testcases/kernel/syscalls SKIP_IDCHECK=1 install
 
 $(TESTCASEDIR)/pal_loader: $(BUILDDIR)/runltp
