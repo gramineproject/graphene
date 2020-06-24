@@ -46,6 +46,14 @@ ifeq ($(WERROR),1)
 CFLAGS += -Werror
 endif
 
+COREUTILS_LIBDIR := /usr/$(ARCH_LIBDIR)/coreutils
+ifeq ($(wildcard $(COREUTILS_LIBDIR)/*),)
+    COREUTILS_LIBDIR := /usr/libexec/coreutils
+    ifeq ($(wildcard $(COREUTILS_LIBDIR)/*),)
+        $(error Cannot determine coreutils libdir)
+    endif
+endif
+
 ifeq ($(ABSPATH_IN_MANIFEST),yes)
 manifest_rules = \
 	-e 's:\$$(PWD):$(PWD):g' \
@@ -53,6 +61,7 @@ manifest_rules = \
 	-e 's:\$$(SHIMPATH):$(abspath $(RUNTIME))/libsysdb.so:g' \
 	-e 's:\$$(LIBCDIR):$(abspath $(RUNTIME)):g' \
 	-e 's:\$$(ARCH_LIBDIR):$(ARCH_LIBDIR):g' \
+	-e 's:\$$(COREUTILS_LIBDIR):$(COREUTILS_LIBDIR):g' \
 	$(extra_rules)
 else
 manifest_rules= \
@@ -61,6 +70,7 @@ manifest_rules= \
 	-e 's:\$$(SHIMPATH):'$$RELDIR'$(RUNTIME)/libsysdb.so:g' \
 	-e 's:\$$(LIBCDIR):'$$RELDIR'$(RUNTIME):g' \
 	-e 's:\$$(ARCH_LIBDIR):$(ARCH_LIBDIR):g' \
+	-e 's:\$$(COREUTILS_LIBDIR):$(COREUTILS_LIBDIR):g' \
 	$(extra_rules)
 endif
 
