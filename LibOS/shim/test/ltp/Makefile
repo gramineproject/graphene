@@ -6,6 +6,8 @@ exec_target =
 clean-extra = clean-build
 
 include ../../../../Scripts/Makefile.configs
+# Make ARCH_LIBDIR visible in Makefile.Test
+export ARCH_LIBDIR
 include Makefile.Test
 
 $(SRCDIR)/Makefile:
