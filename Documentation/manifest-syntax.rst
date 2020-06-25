@@ -388,3 +388,7 @@ This syntax specifies whether to enable SGX enclave-specific statistics:
    of EEXITs (corresponds to OCALLs plus returns from ECALLs) and number of
    AEXs (corresponds to interrupts/exceptions/signals during enclave
    execution). Prints per-thread and per-process stats.
+
+*Note:* this option is insecure and cannot be used with production enclaves
+(``sgx.debug = 0``). If the production enclave is started with this option set,
+Graphene will fail initialization of the enclave.
