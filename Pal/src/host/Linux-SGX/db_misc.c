@@ -19,6 +19,8 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
+/* sgx.h is required to define SGX_DCAP */
+#include "sgx.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
