@@ -55,7 +55,7 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('In thread 1', stderr)
         self.assertIn('Success, leave main thread', stderr)
 
-    @unittest.skipUnless(ON_X86, "only works on x86")
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_Exception2(self):
         _, stderr = self.run_binary(['Exception2'])
         self.assertIn('Enter Main Thread', stderr)
@@ -90,7 +90,7 @@ class TC_00_BasicSet2(RegressionTestCase):
         for i in range(100):
             self.assertIn('In process: Process4 %d ' % i, stderr)
 
-    @unittest.skipUnless(ON_X86, "only works on x86")
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_Segment(self):
         _, stderr = self.run_binary(['Segment'])
         self.assertIn('TLS = 0x', stderr)
@@ -325,7 +325,7 @@ class TC_10_Exception(RegressionTestCase):
             return False
         return True
 
-    @unittest.skipUnless(ON_X86, "only works on x86")
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_000_exception(self):
         _, stderr = self.run_binary(['Exception'])
 
@@ -573,7 +573,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('UDP Write 4 OK', stderr)
         self.assertIn('UDP Read 4: Hello World 2', stderr)
 
-    @unittest.skipUnless(ON_X86, "only works on x86")
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_500_thread(self):
         _, stderr = self.run_binary(['Thread'])
 
