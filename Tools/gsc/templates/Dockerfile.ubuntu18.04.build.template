@@ -55,7 +55,7 @@ RUN apt-get update \
         libprotobuf-c-dev \
         binutils \
         openssl \
-    && python3 -m pip install protobuf jinja2
+    && python3 -B -m pip install protobuf jinja2
 
 {% if args.debug %}
 # Install GDB and related tools when Debug is enabled

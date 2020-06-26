@@ -2,8 +2,6 @@
 
 set -ex
 
-echo hallo
-
 # Generate EINITOKEN for all applications
 for manifest in {{binary}}.manifest {{user_manifests}}
 do

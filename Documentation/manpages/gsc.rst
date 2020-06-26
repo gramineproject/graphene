@@ -392,10 +392,15 @@ This example assumes that all prerequisites are installed and configured.
          gsc-python -c 'print("HelloWorld!")'
 
 Limitations
------------
+===========
+
+This document focuses on the most important limitations of GSC.
+`issue #1520 <https://github.com/oscarlab/graphene/issues/1520>`__ provides the
+complete list of known limitations and serves as a discussion board for
+workarounds.
 
 Dependency on Ubuntu 18.04
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------
 
 Docker images not based on Ubuntu 18.04 may not be compatible with GSC. GSC
 relies on Graphene to execute Linux applications inside Intel SGX enclaves and
@@ -406,7 +411,7 @@ GSC can simply be extended to support other distributions by providing a
 template for this distribution in :file:`Tools/gsc/templates`.
 
 Trusted data in Docker volumes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------
 
 Data mounted as Docker volumes at runtime is not included in the general search
 for trusted files during the image build. As a result, Graphene denies access to
@@ -414,6 +419,7 @@ these files, since they are neither allowed nor trusted files. This will likely
 break applications using files stored in Docker volumes.
 
 Workaround:
+^^^^^^^^^^^
 
    Trusted files can be added to image specific manifest file (first argument to
    :command:`gsc build` command) at build time. This workaround does not allow
@@ -421,6 +427,7 @@ Workaround:
    provides integrity for files and not confidentiality.
 
 Allowing dynamic file contents via Graphene protected files:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
    Once protected files are supported by Graphene, Docker volumes could include
    protected files. As a result Graphene can open these protected files without
@@ -429,7 +436,7 @@ Allowing dynamic file contents via Graphene protected files:
    files may require additional steps.
 
 Integration of Docker Secrets
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------
 
 Docker Secrets are automatically pulled by Docker and the results are stored
 either in environment variables or mounted as files. GSC is currently unaware of
@@ -437,7 +444,7 @@ such files and hence, cannot mark them trusted. Similar to trusted data, these
 files may be added to the application-specific manifest.
 
 Access to files in excluded folders
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------
 
 The manifest generation excludes all files in :file:`/boot`, :file:`/dev`,
 :file:`/proc`, :file:`/var`, :file:`/sys`, and :file:`/etc/rc` directories from
@@ -449,7 +456,7 @@ directories, you must manually add them to the application-specific manifest::
    sgx.allowed_file.some_special_file_unique_name=file:PATH_TO_FILE
 
 Docker images with non-executables as entrypoint
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------------------------
 
 Docker images may contain a script entrypoint which is not an ELF executable.
 :program:`gsc` fails to recognize such entrypoints and fails during the image
