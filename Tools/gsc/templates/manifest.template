@@ -11,7 +11,7 @@ fs.root.type = chroot
 fs.root.path = /
 fs.root.uri = file:/
 
-# With fs.root Graphene's working directory is '/', settig fs.start_dir changes the
+# With fs.root Graphene's working directory is '/', setting fs.start_dir changes the
 # working directory to the desired location
 fs.start_dir = {{working_dir}}
 
@@ -22,6 +22,7 @@ sgx.static_address = 1
 # !! INSECURE !! Allow passing command-line arguments from the host without validation
 # Most Docker images rely on runtime arguments and hence, a more general technique is required.
 # The issue is documented for future release of GSC in issue #1520.
+# https://github.com/oscarlab/graphene/issues/1520
 loader.insecure__use_cmdline_argv = 1
 {% else %}
 loader.argv_src_file = file:trusted_argv

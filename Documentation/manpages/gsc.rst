@@ -26,18 +26,23 @@ The :program:`gsc` tool transforms existing Docker images into a new image
 files, Intel SGX related information, and executes the application inside an
 Intel SGX enclave using the Graphene Library OS. It follows the common Docker
 approach to first build an image and subsequently run a container of an image.
-It provides the :command:`build` command and allows to subsequently use
-:command:`docker run`.
+At first a Docker image has to be graphenized via the :command:`gsc build`
+command. When the graphenized image should run within an Intel SGX enclave, the
+image has to be signed via a :command:`gsc sign-image` command. Subsequently,
+the image can be run using :command:`docker run`.
 
 Prerequisites
 =============
 
+The installation descriptions of prerequisites are for Ubuntu 18.04 and may
+differ when using a different Ubuntu version or or distribution.
+
 Software packages
 -----------------
 
-Please install the docker.io, python3, python3-pip packages. In addition,
-install the Docker client python package via pip. GSC requires Python 3.6 or
-later.
+Please install the ``docker.io``, ``python3``, ``python3-pip`` packages. In
+addition, install the Docker client python package via pip. GSC requires Python
+3.6 or later.
 
 .. code-block:: sh
 
@@ -59,6 +64,11 @@ Host Configuration
 
 To create Docker images, the user must have access to Docker daemon.
 
+.. warning::
+    Please use this step with caution. By granting the user access to the Docker
+    group, the user may acquire root privileges via :command:`docker run`.
+    Instead, you could also run commands as root.
+
 .. code-block:: sh
 
    sudo adduser $USER docker
@@ -76,10 +86,10 @@ Command line arguments
 
 .. program:: gsc-build
 
-:command:`gsc build` -- build GSC
----------------------------------
+:command:`gsc build` -- build graphenized Image
+-----------------------------------------------
 
-Builds a graphenized Docker image of an application image.
+Builds an unsigned graphenized Docker image of an application image.
 
 Synopsis:
 
@@ -121,17 +131,39 @@ Synopsis:
 
    Application-specific Manifest for the n-th application
 
-Using Graphene's trusted command line arguments
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When :option:`--insecure-args` is not specified, :command:`gsc build` uses the
-existing Docker image's entrypoint and cmd fields to identify the trusted
-arguments. These arguments are stored in :file:`trusted_argv`. This file is only
-generated when :option:`--insecure-args` is not specified. As a result any
-arguments spefied during :command:`docker run` are ignored.
+.. program:: gsc-sign-image
+
+:command:`gsc sign-image` -- signs a graphenized Image
+------------------------------------------------------
+
+Signs the enclave of an unsigned graphenized Docker image.
+
+Synopsis:
+
+:command:`gsc build` <*IMAGE-NAME*> <*KEY-FILE*>
+
+.. option:: IMAGE-NAME
+
+   Name of the application Docker image
+
+.. option:: KEY-FILE
+
+   Used to sign the Intel SGX enclave
+
+
+Using Graphene's trusted command line arguments
+-----------------------------------------------
+
+When :option:`--insecure-args <gsc-build --insecure-args>` is not specified,
+:command:`gsc build` uses the existing Docker image's entrypoint and cmd fields
+to identify the trusted arguments. These arguments are stored in
+:file:`trusted_argv`. This file is only generated when :option:`--insecure-args
+<gsc-build --insecure-args>` is not specified. As a result any arguments spefied
+during :command:`docker run` are ignored.
 
 Application-specific Manifest Files
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------
 
 Each application loaded by Graphene requires a separate manifest file.
 :program:`gsc` semi-automatically generates these manifest files. It generates a
@@ -139,14 +171,14 @@ list of trusted files, assumes values for the number of stacks and memory size,
 and generates the chain of trusted children (see below for details). To allow
 specializing each application manifest, :program:`gsc` allows the user to
 augment each generated manifest. In particular this allows to add additional
-trusted or allowed files, and specify a higher memory or number of stacks
-requirement.
+trusted or allowed files, and specify a higher memory or number thread control
+structures (TCS) requirement.
 
-:program:`gsc` allows application specific manifest files to be empty or not to
+:program:`gsc` allows application-specific manifest files to be empty or not to
 exist. In this case :program:`gsc` generates a generic manifest file.
 
 Docker Images starting multiple Applications
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------
 
 Depending on the use case, a Docker container may execute multiple applications.
 The Docker image defines the entrypoint application which could fork additional
@@ -168,75 +200,103 @@ may call ``app2`` or ``app3``, and ``app2`` may call ``app3``, but ``app2`` may
 
    gsc build image app1.manifest app2.manifest app3.manifest
 
-Stages of building graphenized Docker images
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Stages of building graphenized SGX Docker images
+------------------------------------------------
 
 The build process of a graphenized Docker image from image ``<image-name>``
-follows two main stages and produces an image named ``gsc-<image-name>``.
+follows four main stages and produces an image named ``gsc-<image-name>``.
+:command:`gsc build` generates the first two stages (Graphene build and
+graphenizing the base image) and :command:`gsc sign-image` generates the last
+two stages (signing the Intel SGX encalve and generating the final Docker
+image).
 
-.. describe:: Graphene build:
+Graphene build
+^^^^^^^^^^^^^^
 
-   The first stage compiles Graphene based on the provided configuration (see
-   :file:`config.yaml`) which includes the distribution (e.g., Ubuntu18.04) and
-   the Intel SGX driver details.
+The first stage compiles Graphene based on the provided configuration (see
+:file:`config.yaml`) which includes the distribution (e.g., Ubuntu 18.04) and the
+Intel SGX driver details.
 
-.. describe:: Graphenizing the base image:
+Graphenizing the base image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   The second stage copies the important Graphene artifacts (e.g., the runtime
-   and signer tool) from the first stage. It then prepares image-specific
-   variables such as the executable path and the library path, and scanning the
-   entire image to generate a list of trusted files. GSC excludes files from
-   :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and
-   :file:`/etc/rc` folders, since checksums are required which either don't
-   exist or may vary across different deployment machines. GSC combines these
-   variables and list of trusted files to a new manifest file. Graphene's signer
-   tool generates a SIGSTRUCT file for SGX enclave initialization. This tool
-   also generates an SGX-specific manifest file. In a last step the entrypoint
-   is changed to launch the :file:`apploader.sh` script which generates an Intel
-   SGX token and starts the :program:`pal-Linux-SGX` loader.
+The second stage copies the important Graphene artifacts (e.g., the runtime and
+signer tool) from the first stage. It then prepares image-specific variables
+such as the executable path and the library path, and scanning the entire image
+to generate a list of trusted files. GSC excludes files from :file:`/boot`,
+:file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys` and :file:`/etc/rc`
+folders, since checksums are required which either don't exist or may vary
+across different deployment machines. GSC combines these variables and list of
+trusted files to a new manifest file. In a last step the entrypoint is changed
+to launch the :file:`apploader.sh` script which generates an Intel SGX token and
+starts the :program:`pal-Linux-SGX` loader. The generated image
+(``gsc-<image-name>-untrusted``) cannot successfully load an Intel SGX encalve,
+since esscetial files and the signing of the enclave is missing.
+
+Signing the Intel SGX enclave
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The third stage uses Graphene's signer tool to generate a SIGSTRUCT file for SGX
+enclave initialization. This tool also generates an SGX-specific manifest file.
+The required signing key is provided by the user via the :command:`gsc
+sign-image` command and copied into this Docker build stage.
+
+Generating a signed graphenized Docker image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The last stage combines the graphenized Docker image with the signed enclave and
+manifest files. Therefore it copies the SIGSTRUCT files and the SGX-specific
+manifest file from the previous stage into the graphenized Docker image from the
+second stage. The resulting image is called `gsc-<image-name>` and includes all
+necessary files to start an Intel SGX enclave.
 
 Configuration
-^^^^^^^^^^^^^
+=============
 
 GSC is configured via a configuration file called :file:`config.yaml` with the
 following parameters. A template configuration file is provided in
 :file:`config.yaml.template`.
 
-.. describe:: config['Distro']
+.. describe:: Distro
 
-   Defines Linux distribution to be used to build Graphene in. Currently
-   supported value is ``ubuntu18.04``.
+   Defines Linux distribution to be used to build Graphene in. Currently the
+   only supported value is ``ubuntu18.04``.
 
-.. describe:: config['Graphene']['Repository']
+.. describe:: Graphene.Repository
 
    Source repository of Graphene. Default value:
    `https://github.com/oscarlab/graphene
    <https://github.com/oscarlab/graphene>`__
 
-.. describe:: config['Graphene']['Branch']
+.. describe:: Graphene.Branch
 
    Use this branch of the repository. Default value: master
 
-.. describe:: config['SGXDriver']['Repository']
+.. describe:: SGXDriver.Repository
 
    Source repository of the Intel SGX driver. Default value:
    `https://github.com/01org/linux-sgx-driver.git
    <https://github.com/01org/linux-sgx-driver.git>`__
 
-.. describe:: config['SGXDriver']['Branch']
+.. describe:: SGXDriver.Branch
 
    Use this branch of the repository. Default value: sgx_driver_1.9
 
 Run graphenized Docker images
 =============================
 
-Execute  :command:`docker run` command via Docker CLI and provide gsgx and
+Execute :command:`docker run` command via Docker CLI and provide gsgx and
 isgx/sgx device, and the PSW/AESM socket. Additional Docker options and
-application arguments may be supplied to the  :command:`docker run` command.
+application arguments may be supplied to the :command:`docker run` command.
+
+.. warning::
+   Forwarding devices to a container lowers security of the host. GSC should
+   never be used as a sandbox for applications (i.e. it only shields the app
+   from the host, not the other way).
 
 .. program:: docker
 
-:command:`docker run` --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*>[:<*TAG*>] [<*APPLICATION-ARGUMENTS*>]
+:command:`docker run` --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTION*] gsc-<*IMAGE-NAME*>[:<*TAG*>] [<*APPLICATION-ARGUMENTS*>]
 
 .. option:: IMAGE-NAME
 
@@ -248,10 +308,12 @@ application arguments may be supplied to the  :command:`docker run` command.
 
 .. option:: APPLICATION-ARGUMENTS
 
-   Application arguments to be supplied to the application launching inside
-   the Docker container and Graphene.
+   Application arguments to be supplied to the application launching inside the
+   Docker container and Graphene. Such arguments may only be provided when
+   :option:`--insecure-args <gsc-build --insecure-args>` was specified during
+   :command:`gsc build`.
 
-.. option:: OPTIONS
+.. option:: OPTION
 
    :command:`docker run` options. Common options include ``-it`` (interactive
    with terminal) or ``-d`` (detached). Please see
@@ -265,7 +327,8 @@ Execute with Linux PAL instead of Linux-SGX PAL
 When specifying :option:`-L <gsc-build -L>`  during GSC :command:`gsc build`,
 you may select the Linux PAL at Docker run time instead of the Linux-SGX PAL by
 specifying the environment variable :envvar:`GSC_PAL` as an option to the
-:command:`docker run` command.
+:command:`docker run` command. When using the Linux Pal, it is not necessary to
+sign the image via a :command:`gsc sign-image` command.
 
 .. envvar:: GSC_PAL
 
@@ -282,6 +345,11 @@ The :file:`test` folder in :file:`Tools/gsc` describes how to graphenize Docker
 images and test them with sample inputs. The samples include Ubuntu-based Docker
 images of Bash, Python, nodejs, Numpy, and Pytorch.
 
+.. warning::
+   All test images rely on insecure arguments to be able to set test specific
+   arguments to each application. These images are not build for production
+   environments.
+
 The example below shows how to graphenize the public Docker image of Python3.
 This example assumes that all prerequisites are installed and configured.
 
@@ -291,14 +359,31 @@ This example assumes that all prerequisites are installed and configured.
 
       docker pull python
 
-2. Graphenize the Python image using :program:`gsc`:
+2. Create a configuration file:
+
+   .. code-block:: sh
+
+      cp config.yaml.template config.yaml
+      # Adopt config.yaml to the installed Intel SGX driver and desired Graphene
+      # repository.
+
+3. Graphenize the Python image using :command:`gsc build`:
 
    .. code-block:: sh
 
       cd Tools/gsc
-      ./gsc build python test/ubuntu18.04-python3.manifest
+      ./gsc build --insecure-args python test/ubuntu18.04-python3.manifest
 
-3. Test the graphenized Docker image:
+4. Sign the graphenized Docker image using :command:`gsc sign-image`:
+
+   .. code-block:: sh
+
+      # Generate signing key (if you don't already have a key)
+      openssl genrsa -3 -out enclave-key.pem 3072
+      # Sign graphenzied Docker image with the key
+      ./gsc sign-image python enclave-key.pem
+
+4. Test the graphenized Docker image:
 
    .. code-block:: sh
 
@@ -328,19 +413,20 @@ for trusted files during the image build. As a result, Graphene denies access to
 these files, since they are neither allowed nor trusted files. This will likely
 break applications using files stored in Docker volumes.
 
-Work around:
+Workaround:
 
    Trusted files can be added to image specific manifest file (first argument to
-   :command:`gsc build` command) at build time. This work around does not allow
+   :command:`gsc build` command) at build time. This workaround does not allow
    these files to change between build and run, or over multiple runs. This only
    provides integrity for files and not confidentiality.
 
-Allowing dynamic file contents via Graphene protected file systems:
+Allowing dynamic file contents via Graphene protected files:
 
-   Once protected file systems are supported by Graphene, Docker volumes could
-   include protected file systems. As a result Graphene can open these protected
-   file systems without knowing the exact contents as long as the protected file
-   system was specified in the applicaiton-specific manifest.
+   Once protected files are supported by Graphene, Docker volumes could include
+   protected files. As a result Graphene can open these protected files without
+   knowing the exact contents as long as the protected file was configured in
+   the applicaiton-specific manifest. The complete and secure use of protected
+   files may require additional steps.
 
 Integration of Docker Secrets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -358,14 +444,14 @@ The manifest generation excludes all files in :file:`/boot`, :file:`/dev`,
 the list of trusted files. If your application relies on some files in these
 directories, you must manually add them to the application-specific manifest::
 
-   sgx.trusted_file.specialFile=file:PATH_TO_FILE
+   sgx.trusted_file.some_special_file_unique_name=file:PATH_TO_FILE
    or
-   sgx.allowed_file.specialFile=file:PATH_TO_FILE
+   sgx.allowed_file.some_special_file_unique_name=file:PATH_TO_FILE
 
 Docker images with non-executables as entrypoint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Docker images may contain a script entrypoint which is not executable.
+Docker images may contain a script entrypoint which is not an ELF executable.
 :program:`gsc` fails to recognize such entrypoints and fails during the image
 build. A workaround relies on creating an image from the application image which
 has an entrypoint of the script interpreter with the script as an argument. This

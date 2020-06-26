@@ -5,9 +5,14 @@ pipeline {
                     steps {
                         sh '''
                             cd Tools/gsc/test
-                            # Jenkins may automatically merge master into submitted commit (but maybe not): choose the original submitted commit for GSC (third commit in below git-log output if merged or first commit if not merged)
-                            export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) {print $1} else {print $3}}'`
-                            make TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT} GRAPHENE_BRANCH=${COMMIT}
+                            # Jenkins may automatically merge master into submitted commit (but
+                            # maybe not): choose the original submitted commit for GSC (third
+                            # commit in below git-log output if merged or first commit if not
+                            # merged)
+                            export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
+                                                                {print $1} else {print $3}}'`
+                            make TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04" \
+                                 IMAGE_SUFFIX=-${COMMIT} GRAPHENE_BRANCH=${COMMIT}
                         '''
                     }
                 }
@@ -15,9 +20,13 @@ pipeline {
                     steps {
                         sh '''
                             cd Tools/gsc/test
-                            # Jenkins may automatically merge master into submitted commit (but maybe not): choose the original submitted commit for GSC (third commit in below git-log output if merged or first commit if not merged)
-                            export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) {print $1} else {print $3}}'`
-                            make test -s MAXTESTNUM=2 TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                            # Jenkins may automatically merge master into submitted commit (but
+                            # maybe not): choose the original submitted commit for GSC (third
+                            # commit in below git-log output if merged or first commit if not merged)
+                            export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
+                                                                {print $1} else {print $3}}'`
+                            make test -s MAXTESTNUM=2 TESTCASES=python3 \
+                                         DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
                         '''
                     }
                 }
@@ -40,9 +49,13 @@ pipeline {
                 always {
                     sh '''
                         cd Tools/gsc/test
-                        # Jenkins may automatically merge master into submitted commit (but maybe not): choose the original submitted commit for GSC (third commit in below git-log output if merged or first commit if not merged)
-                        export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) {print $1} else {print $3}}'`
-                        make -s clean TESTCASES=python3 DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                        # Jenkins may automatically merge master into submitted commit (but
+                        # maybe not): choose the original submitted commit for GSC (third
+                        # commit in below git-log output if merged or first commit if not merged)
+                        export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
+                                                            {print $1} else {print $3}}'`
+                        make -s clean TESTCASES=python3
+                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
                     '''
                 }
         }

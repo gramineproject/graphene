@@ -9,21 +9,23 @@ This folder includes sample images and test cases for GSC:
    `Graphene Examples <https://github.com/oscarlab/graphene/tree/master/Examples>`__
    from python-simple
 -  NodeJS (print "Hello World")
--  Pytorch script also from
+-  Pytorch script, from
     `Graphene Examples <https://github.com/oscarlab/graphene/tree/master/Examples>`__
 
 Each sample consists of two files ``<distro>-<image-name>.dockerfile`` and
-``<distro>-<image-name>.manifest`` where ``<distro>`` specifies the underlying Linux distribution
-and ``<image-name>`` specifies the test case. The manifest file may not exist, since the standard
-arguments for manifest files suffice.
+``<distro>-<image-name>.manifest`` where ``<distro>`` specifies the underlying
+Linux distribution and ``<image-name>`` specifies the test case. The manifest
+file may not exist, since the standard arguments for manifest files often
+suffice.
 
-*\*.dockerfile* describes the basic image and its application. It builds the Docker image by
-installing required software packages, configuring the application and changing the Docker
-entrypoint to start the application.
+*\*.dockerfile* describes the basic image and its application. It builds the
+Docker image by installing required software packages, configuring the
+application and changing the Docker entrypoint to start the application.
 
-*\*.manifest* describes the specific Graphene manifest changes required to run this application
-reliably. For instance, this includes the memory size and the number of threads. In some cases this
-file might be empty, but its existence is required for the makefile structure.
+*\*.manifest* describes the specific Graphene manifest changes required to run
+this application reliably. For instance, this includes the memory size and the
+number of threads. In some cases this file might be empty, but its existence is
+required for the makefile structure.
 
 Building sample images
 ----------------------
@@ -40,9 +42,10 @@ To build a graphenized image named ``<image-name>``::
 
     make gsc-<image-name>
 
-To build a graphenized image named ``<image-name>`` with Debug::
+To build a graphenized image named ``<image-name>`` with additional `gsc build`
+arguments::
 
-    make DEBUG=-d gsc-<image-name>
+    make FLAGS=-d gsc-<image-name>
 
 Run sample images with test arguments
 -------------------------------------
@@ -51,7 +54,7 @@ Run sample images with test arguments
 
     make test
 
-To run the first `n` tests, specify `MAXTESTNUM`.
+To run the first ``n`` tests, specify ``MAXTESTNUM``.
 
 ::
 

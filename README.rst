@@ -94,7 +94,7 @@ documentation
 <https://graphene.readthedocs.io/en/latest/manifest-syntax.html>`__.
 
 Automatically running applications via Graphene Shielded Containers (GSC)
------------------------------------------------------------------------
+-------------------------------------------------------------------------
 
 Applications deployed as Docker images may be graphenized via the `gsc tool
 <https://graphene.readthedocs.io/en/latest/manpages/gsc.html>`__.

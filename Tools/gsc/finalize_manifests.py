@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # Copyright (C) 2020 Intel Corp.
-#                    Anjo Vahldiek-Oberwagner <anjo.lucas.vahldiek-oberagner@intel.com>
+#                    Anjo Vahldiek-Oberwagner <anjo.lucas.vahldiek-oberwagner@intel.com>
 
 import os
 import sys
@@ -15,7 +15,7 @@ def is_ascii(chars):
 
 def generate_trusted_files(root_dir):
     # Exclude directories from list of trusted files
-    exclude_dirs = ['boot', 'dev', 'etc/rc', 'proc', 'sys', 'var']
+    exclude_dirs = ['boot', 'dev', 'etc/rc', 'finalize_manifests.py', 'proc', 'sys', 'var']
     exclude_re = re.compile('^/(' + '|'.join(exclude_dirs) + ').*')
     num_trusted = 0
     trusted_files = ''
@@ -25,19 +25,21 @@ def generate_trusted_files(root_dir):
         for file in files:
             filename = os.path.join(root, file)
             if  (not exclude_re.match(filename)
+                # The check for ascii-only characters is required, since the manifest syntax does
+                # not support other encodings (e.g., UTF-8).
                 and is_ascii(filename)
                 and os.path.isfile(filename)
                 and filename != script_file):
                 trusted_files += f'sgx.trusted_files.file{num_trusted} = file:{filename}\n'
                 num_trusted += 1
 
-    print(f'Found {str(num_trusted)} files in \'{root_dir}\'.')
+    print(f'Found {num_trusted} files in \'{root_dir}\'.')
 
     return trusted_files
 
 def generate_library_paths():
     ld_paths = subprocess.check_output('ldconfig -v',
-           stderr=subprocess.PIPE, shell=True).decode().splitlines()
+                                       stderr=subprocess.PIPE, shell=True).decode().splitlines()
 
     # Library paths start without whitespace. Libraries found under a path start with an
     # indentation.
@@ -49,43 +51,8 @@ def generate_library_paths():
 
 def get_binary_path(executable):
     path = subprocess.check_output(f'which {executable}',
-           stderr=subprocess.STDOUT, shell=True).decode()
+                                   stderr=subprocess.STDOUT, shell=True).decode()
     return path.replace('\n', '')
-
-def generate_signature(manifest):
-    sign_process = subprocess.Popen([
-        '/graphene/signer/pal-sgx-sign',
-        '-libpal', '/graphene/Runtime/libpal-Linux-SGX.so',
-        '-key', '/graphene/signer/enclave-key.pem',
-        '-output', f'{manifest}.sgx',
-        '-manifest', manifest
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
-
-    _, err = sign_process.communicate()
-
-    if (sign_process.returncode != 0
-        or not os.path.exists(os.path.join(os.getcwd(), manifest + '.sgx'))
-        or not os.path.exists(os.path.join(os.getcwd(),
-                     manifest[:manifest.rfind('.manifest')] + '.sig'))):
-        print(err.decode())
-        print('Finalize manifests failed due to pal-sgx-sign failure.')
-        sys.exit(1)
-
-# Iterate over manifest file to find enclave size definition and return it
-def extract_enclave_size(manifest):
-    with open(manifest, 'r') as file:
-        for line in file:
-            if not line.strip().startswith('sgx.enclave_size'):
-                continue
-
-            tokens = line.split('=')
-            if len(tokens) != 2 or '#' in tokens[1]:
-                continue
-            return tokens[1].strip()
-
-    return '0M'
 
 ARGPARSER = argparse.ArgumentParser()
 ARGPARSER.add_argument('directory', default='/',
@@ -106,7 +73,7 @@ def main(args=None):
     library_paths = generate_library_paths()
     env_path = os.getenv('PATH')
 
-    print(f'LD_LIBRARY_PATH to \'{library_paths}\'\n'f'$PATH to \'{env_path}\'.')
+    print(f'LD_LIBRARY_PATH = \'{library_paths}\'\n'f'$PATH = \'{env_path}\'.')
 
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
     env.globals.update({
@@ -118,12 +85,13 @@ def main(args=None):
 
     # To deal with multi-process applications, we allow multiple manifest files to be specified.
     # User must specify manifest files in the order of parent to child. Here we reverse the list
-    # of manifests to include the signatures of children in the parent.
+    # of manifests to include the signature files of children in the parent. The actual signatures
+    # are generated during 'gsc sign-image' command in a second step.
     for manifest in reversed(args.manifests):
         print(f'{manifest}:')
 
         executable = manifest[:manifest.rfind('.manifest')] if (
-                                    manifest.rfind('.manifest') != -1) else manifest
+            manifest.rfind('.manifest') != -1) else manifest
         binary_path = get_binary_path(executable)
 
         print(f'\tSetting exec file to \'{binary_path}\'.')
@@ -138,21 +106,11 @@ def main(args=None):
 
         print(f'\tWrote {manifest}.')
 
-        generate_signature(manifest)
-
-        print(f'\tGenerated {manifest}.sgx and generated signature.')
-
-        trusted_signatures.append(f'sgx.trusted_children.child{str(len(trusted_signatures))}'
+        trusted_signatures.append(f'sgx.trusted_children.child{len(trusted_signatures)}'
                                   f' = file:{executable}.sig')
 
-    # In case multiple manifest files were generated, ensure that their enclave sizes are compatible
-    if len(args.manifests) > 1:
-        main_encl_size = extract_enclave_size(args.manifests[0] + '.sgx')
-        for manifest in args.manifests[1:]:
-            if main_encl_size != extract_enclave_size(manifest + '.sgx'):
-                print('Error: Detected a child manifest with an enclave size different than its '
-                    'parent.')
-                sys.exit(1)
+        with open('signature_order.txt', 'a+') as sig_order:
+            print(manifest, file=sig_order)
 
 if __name__ == '__main__':
     main(sys.argv)
