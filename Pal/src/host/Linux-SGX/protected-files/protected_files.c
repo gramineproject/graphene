@@ -50,17 +50,7 @@
 #include "api.h"
 #include "protected_files_internal.h"
 
-#ifdef IN_PAL
-char* strncpy(char* dest, const char* src, size_t n) {
-    size_t i;
-    for (i = 0; i < n && src[i] != '\0'; i++)
-        dest[i] = src[i];
-    for ( ; i < n; i++)
-        dest[i] = '\0';
-
-    return dest;
-}
-#else
+#ifndef IN_PAL
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,7 +59,9 @@ char* strncpy(char* dest, const char* src, size_t n) {
 /* Function for scrubbing sensitive memory buffers.
  * memset() can be optimized away and memset_s() is not available in PAL.
  * FIXME: this implementation is inefficient (and used in perf-critical functions),
- * replace with a better one. */
+ * replace with a better one.
+ * TODO: is this really needed? Intel's implementation uses similar function as "defense in depth".
+ */
  static void erase_memory(void *buffer, size_t size) {
     volatile unsigned char *p = buffer;
     while (size--)
@@ -146,14 +138,14 @@ static bool ipf_generate_secure_blob(pf_context_t* pf, pf_key_t* key, const char
     kdf_input_t buf = {0};
 
     DEBUG_PF("label: %s, node: %lu\n", label, physical_node_number);
-    size_t len = strlen(label);
-    if (len > MAX_LABEL_SIZE - 1) {
+    size_t label_len = strlen(label);
+    if (label_len > MAX_LABEL_SIZE - 1) {
         pf->last_error = PF_STATUS_INVALID_PARAMETER;
         return false;
     }
 
     buf.index = 1;
-    strncpy(buf.label, label, len);
+    memcpy(buf.label, label, label_len + 1);
     buf.node_number = physical_node_number;
 
     pf_status_t status = cb_random((uint8_t*)&buf.nonce, sizeof(buf.nonce));
@@ -182,7 +174,8 @@ static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restor
 
     DEBUG_PF("pf %p, restore: %d\n", pf, restore);
     buf.index = 1;
-    strncpy(buf.label, METADATA_KEY_NAME, strlen(METADATA_KEY_NAME));
+    if (!strcpy_static(buf.label, METADATA_KEY_NAME, MAX_LABEL_SIZE))
+        return false;
     buf.node_number = 0;
 
     if (!restore) {
@@ -441,9 +434,9 @@ static bool ipf_init_existing_file(pf_context_t* pf, const char* path) {
     DEBUG_PF("data size %lu\n", pf->encrypted_part_plain.size);
 
     if (path) {
-        size_t name_len = strlen(pf->encrypted_part_plain.clean_filename);
-        if (name_len != strlen(path)
-                || memcmp(path, pf->encrypted_part_plain.clean_filename, name_len) != 0) {
+        size_t path_len = strlen(pf->encrypted_part_plain.path);
+        if (path_len != strlen(path)
+                || memcmp(path, pf->encrypted_part_plain.path, path_len) != 0) {
             pf->last_error = PF_STATUS_INVALID_PATH;
             return false;
         }
@@ -473,12 +466,13 @@ static bool ipf_init_existing_file(pf_context_t* pf, const char* path) {
 }
 
 static bool ipf_init_new_file(pf_context_t* pf, const char* path) {
-    DEBUG_PF("pf %p, filename '%s'\n", pf, path);
+    DEBUG_PF("pf %p, path '%s'\n", pf, path);
     pf->file_meta_data.plain_part.file_id = PF_FILE_ID;
     pf->file_meta_data.plain_part.major_version = PF_MAJOR_VERSION;
     pf->file_meta_data.plain_part.minor_version = PF_MINOR_VERSION;
 
-    strncpy(pf->encrypted_part_plain.clean_filename, path, PATH_MAX_SIZE);
+    // path length is checked in ipf_open()
+    memcpy(pf->encrypted_part_plain.path, path, strlen(path) + 1);
 
     pf->need_writing = true;
 
@@ -515,7 +509,7 @@ static bool ipf_close(pf_context_t* pf) {
     erase_memory(&pf->cur_key, sizeof(pf->cur_key));
     erase_memory(&pf->session_master_key, sizeof(pf->session_master_key));
 
-    // scrub first 3KB of user data and the gmac_key
+    // scrub first MD_USER_DATA_SIZE of file data and the gmac_key
     erase_memory(&pf->encrypted_part_plain, sizeof(pf->encrypted_part_plain));
 
     lruc_destroy(pf->cache);
@@ -566,58 +560,47 @@ static bool ipf_internal_flush(pf_context_t* pf) {
     return true;
 }
 
-// sort function, we need the mht nodes sorted before we start to update their gmac's
-static bool mht_sort(const void* first, const void* second) {
-    // higher (lower tree level) node number first
-    if (!first || !second)
-        return false;
+void swap_nodes(file_node_t** data, size_t idx1, size_t idx2) {
+    if (idx1 == idx2)
+        return;
 
-    return (((file_node_t*)first)->node_number >
-            ((file_node_t*)second)->node_number);
+    file_node_t* tmp = data[idx1];
+    data[idx1] = data[idx2];
+    data[idx2] = tmp;
 }
 
-// TODO: faster sort
-#define LISTP_SORT(LISTP, STRUCT_NAME, SORT_FUNC)                                       \
-    do {                                                                                \
-        struct STRUCT_NAME* head  = NULL;                                               \
-        struct STRUCT_NAME* outer = NULL;                                               \
-        struct STRUCT_NAME* inner = NULL;                                               \
-        head                = LISTP_FIRST_ENTRY(LISTP, STRUCT_NAME, list);              \
-        outer               = head;                                                     \
-        bool adjacent_nodes = false;                                                    \
-        while (outer != NULL) {                                                         \
-            inner = LISTP_NEXT_ENTRY(outer, LISTP, list);                               \
-            while (inner != NULL) {                                                     \
-                if (!SORT_FUNC(outer, inner)) {                                         \
-                    struct STRUCT_NAME* for_swap = NULL;                                \
-                    adjacent_nodes =                                                    \
-                        (LISTP_NEXT_ENTRY(outer, LISTP, list) == inner) ? true : false; \
-                    if (!adjacent_nodes) {                                              \
-                        struct STRUCT_NAME* prev_of_inner =                             \
-                            LISTP_PREV_ENTRY(inner, LISTP, list);                       \
-                        struct STRUCT_NAME* prev_of_outer =                             \
-                            LISTP_PREV_ENTRY(outer, LISTP, list);                       \
-                        LISTP_DEL(inner, LISTP, list);                                  \
-                        LISTP_DEL(outer, LISTP, list);                                  \
-                        LISTP_ADD_AFTER(inner, prev_of_outer, LISTP, list);             \
-                        LISTP_ADD_AFTER(outer, prev_of_inner, LISTP, list);             \
-                    } else {                                                            \
-                        LISTP_DEL(outer, LISTP, list);                                  \
-                        LISTP_ADD_AFTER(outer, inner, LISTP, list);                     \
-                    }                                                                   \
-                    for_swap = inner;                                                   \
-                    inner    = outer;                                                   \
-                    outer    = for_swap;                                                \
-                }                                                                       \
-                inner = LISTP_NEXT_ENTRY(inner, LISTP, list);                           \
-            }                                                                           \
-            outer = LISTP_NEXT_ENTRY(outer, LISTP, list);                               \
-        }                                                                               \
-    } while (0)
+size_t partition(file_node_t** data, size_t low, size_t high) {
+    file_node_t* pivot = data[high];
+    size_t i = low;
+
+    for (size_t j = low; j <= high - 1; j++) {
+        if (data[j]->node_number < pivot->node_number) {
+            swap_nodes(data, i, j);
+            i++;
+        }
+    }
+
+    swap_nodes(data, i, high);
+
+    return i;
+}
+
+void sort_nodes(file_node_t** data, size_t low, size_t high) {
+    if (high - low == 1) {
+        if (data[low]->node_number > data[high]->node_number)
+            swap_nodes(data, low, high);
+        return;
+    }
+    if (low < high) {
+        size_t pi = partition(data, low, high);
+        sort_nodes(data, low, pi - 1);
+        sort_nodes(data, pi + 1, high);
+    }
+}
 
 static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
-    DEBUG_PF("pf %p\n", pf);
-    LISTP_TYPE(_file_node) mht_list = LISTP_INIT;
+    bool ret = false;
+    file_node_t** mht_array = NULL;
     file_node_t* file_mht_node;
     pf_status_t status;
     void* data = lruc_get_first(pf->cache);
@@ -631,7 +614,7 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
 
             if (data_node->need_writing) {
                 if (!ipf_derive_random_node_key(pf, data_node->physical_node_number))
-                    return false;
+                    goto out;
 
                 gcm_crypto_data_t* gcm_crypto_data = &data_node->parent->decrypted.mht
                     .data_nodes_crypto[data_node->node_number % ATTACHED_DATA_NODES_COUNT];
@@ -644,7 +627,7 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
                                             &gcm_crypto_data->gmac);
                 if (PF_FAILURE(status)) {
                     pf->last_error = status;
-                    return false;
+                    goto out;
                 }
 
                 // save the key used for this encryption
@@ -663,35 +646,51 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
         data = lruc_get_next(pf->cache);
     }
 
-    // add all the mht nodes that needs writing to a list
+    size_t dirty_count = 0;
+
+    // count dirty mht nodes
     data = lruc_get_first(pf->cache);
     while (data != NULL) {
         if (((file_node_t*)data)->type == FILE_MHT_NODE_TYPE) {
-            // type is in the same offset in both node types
+            if (((file_node_t*)data)->need_writing)
+                dirty_count++;
+        }
+        data = lruc_get_next(pf->cache);
+    }
+
+    // add all the mht nodes that needs writing to a list
+    mht_array = malloc(dirty_count * sizeof(*mht_array));
+    if (!mht_array) {
+        pf->last_error = PF_STATUS_NO_MEMORY;
+        goto out;
+    }
+
+    data = lruc_get_first(pf->cache);
+    uint64_t dirty_idx = 0;
+    while (data != NULL) {
+        if (((file_node_t*)data)->type == FILE_MHT_NODE_TYPE) {
             file_mht_node = (file_node_t*)data;
 
             if (file_mht_node->need_writing)
-                LISTP_ADD(file_mht_node, &mht_list, list);
+                mht_array[dirty_idx++] = file_mht_node;
         }
 
         data = lruc_get_next(pf->cache);
     }
 
     // sort the list from the last node to the first (bottom layers first)
-    LISTP_SORT(&mht_list, _file_node, mht_sort);
+    if (dirty_count > 0)
+        sort_nodes(mht_array, 0, dirty_count - 1);
 
     // update the gmacs in the parents
-    struct _file_node* node;
-    struct _file_node* tmp;
-
-    LISTP_FOR_EACH_ENTRY_SAFE(node, tmp, &mht_list, list) {
-        file_mht_node = node;
+    for (dirty_idx = 0; dirty_idx < dirty_count; dirty_idx++) {
+        file_mht_node = mht_array[dirty_idx];
 
         gcm_crypto_data_t* gcm_crypto_data = &file_mht_node->parent->decrypted.mht
             .mht_nodes_crypto[(file_mht_node->node_number - 1) % CHILD_MHT_NODES_COUNT];
 
         if (!ipf_derive_random_node_key(pf, file_mht_node->physical_node_number)) {
-            return false;
+            goto out;
         }
 
         status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
@@ -701,18 +700,16 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
                                     &gcm_crypto_data->gmac);
         if (PF_FAILURE(status)) {
             pf->last_error = status;
-            return false;
+            goto out;
         }
 
         // save the key used for this gmac
         COPY_ARRAY(gcm_crypto_data->key, pf->cur_key);
-
-        LISTP_DEL(node, &mht_list, list);
     }
 
     // update mht root gmac in the meta data node
     if (!ipf_derive_random_node_key(pf, pf->root_mht.physical_node_number))
-        return false;
+        goto out;
 
     status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
                                 NULL, 0,
@@ -721,13 +718,16 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
                                 &pf->encrypted_part_plain.mht_gmac);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
-        return false;
+        goto out;
     }
 
     // save the key used for this gmac
     COPY_ARRAY(pf->encrypted_part_plain.mht_key, pf->cur_key);
+    ret = true;
 
-    return true;
+out:
+    free(mht_array);
+    return ret;
 }
 
 static bool ipf_update_meta_data_node(pf_context_t* pf) {
@@ -1009,8 +1009,7 @@ static size_t ipf_read(pf_context_t* pf, void* ptr, size_t size) {
         size_t data_left_in_node = PF_NODE_SIZE - offset_in_node;
         size_t size_to_read = MIN(data_left_to_read, data_left_in_node);
 
-        memcpy(out_buffer, &file_data_node->decrypted.data.data[offset_in_node],
-               size_to_read);
+        memcpy(out_buffer, &file_data_node->decrypted.data.data[offset_in_node], size_to_read);
         pf->offset += size_to_read;
         out_buffer += size_to_read;
         data_left_to_read -= size_to_read;
