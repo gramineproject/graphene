@@ -849,6 +849,7 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
     /* save in signal */
     __store_info(info, signal);
     signal->context_stored = false;
+    signal->pal_context = NULL;
 
     if (thread) {
         if (append_thread_signal(thread, signal)) {
