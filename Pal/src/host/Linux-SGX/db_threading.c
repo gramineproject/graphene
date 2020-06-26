@@ -7,20 +7,20 @@
  * This file contain APIs to create, exit and yield a thread.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_linux.h"
-#include "pal_linux_error.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "api.h"
 #include "ecall_types.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_defs.h"
+#include "pal_linux_error.h"
 
-#include <linux/signal.h>
 #include <linux/mman.h>
 #include <linux/sched.h>
+#include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
