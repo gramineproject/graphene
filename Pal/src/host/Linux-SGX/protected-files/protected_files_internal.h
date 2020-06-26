@@ -79,7 +79,7 @@ typedef struct _meta_data_plain {
 static_assert(MD_USER_DATA_SIZE == 3072, "bad struct size");
 
 typedef struct _meta_data_encrypted {
-    char     clean_filename[PATH_MAX_SIZE];
+    char     path[PATH_MAX_SIZE];
     uint64_t size;
     pf_key_t mht_key;
     pf_mac_t mht_gmac;
@@ -189,9 +189,10 @@ struct pf_context {
 #endif
 };
 
+/* ipf prefix means "Intel protected files", these are functions from the SGX SDK implementation */
 static bool ipf_init_fields(pf_context_t* pf);
-static bool ipf_init_existing_file(pf_context_t* pf, const char* filename);
-static bool ipf_init_new_file(pf_context_t* pf, const char* clean_filename);
+static bool ipf_init_existing_file(pf_context_t* pf, const char* path);
+static bool ipf_init_new_file(pf_context_t* pf, const char* path);
 
 static bool ipf_read_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_number, void* buffer,
                           uint32_t node_size);
@@ -218,9 +219,8 @@ static bool ipf_update_meta_data_node(pf_context_t* pf);
 static bool ipf_write_all_changes_to_disk(pf_context_t* pf);
 static bool ipf_internal_flush(pf_context_t* pf);
 
-static pf_context_t* ipf_open(const char* filename, pf_file_mode_t mode, bool create,
-                              pf_handle_t file, size_t real_size, const pf_key_t* kdk_key,
-                              pf_status_t* status);
+static pf_context_t* ipf_open(const char* path, pf_file_mode_t mode, bool create, pf_handle_t file,
+                              size_t real_size, const pf_key_t* kdk_key, pf_status_t* status);
 static bool ipf_close(pf_context_t* pf);
 static size_t ipf_read(pf_context_t* pf, void* ptr, size_t size);
 static size_t ipf_write(pf_context_t* pf, const void* ptr, size_t size);

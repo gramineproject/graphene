@@ -49,7 +49,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         with open(self.WRAP_KEY, 'wb') as file:
             file.write(bytes(self.CONST_WRAP_KEY))
 
-    # override TC_00_FileSystem to encrypt the file instead of just copying
+    # overrides TC_00_FileSystem to encrypt the file instead of just copying
     def copy_input(self, input_path, output_path):
         self.__encrypt_file(input_path, output_path)
 
@@ -81,7 +81,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             self.__decrypt_file(self.OUTPUT_FILES[i], dec_path)
             self.assertTrue(filecmp.cmp(self.INPUT_FILES[i], dec_path, shallow=False))
 
-    # override to change input dir (from plaintext to encrypted)
+    # overrides TC_00_FileSystem to change input dir (from plaintext to encrypted)
     def test_100_open_close(self):
         # the test binary expects a path to read-only (existing) file or a path to file that
         # will get created
@@ -100,14 +100,14 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             print('[!] Fail: open_close returned 0')
             self.fail()
 
-    # override to change input dir (from plaintext to encrypted)
+    # overrides TC_00_FileSystem to change input dir (from plaintext to encrypted)
     def test_101_open_flags(self):
         # the test binary expects a path to file that will get created
         file_path = os.path.join(self.OUTPUT_DIR, 'test_101') # new file
         stdout, stderr = self.run_binary(['open_flags', file_path])
         self.verify_open_flags(stdout, stderr)
 
-    # override to change input dir (from plaintext to encrypted)
+    # overrides TC_00_FileSystem to change input dir (from plaintext to encrypted)
     def test_115_seek_tell(self):
         # the test binary expects a path to read-only (existing) file and two paths to files that
         # will get created
@@ -121,7 +121,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         self.verify_seek_tell(stdout, stderr, input_path, output_path_1, output_path_2,
                               self.FILE_SIZES[-1])
 
-    # override to change input dir (from plaintext to encrypted)
+    # overrides TC_00_FileSystem to change input dir (from plaintext to encrypted)
     def test_130_file_stat(self):
         # the test binary expects a path to read-only (existing) file and a path to file that
         # will get created
@@ -133,7 +133,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             stdout, stderr = self.run_binary(['stat', input_path, output_path])
             self.verify_stat(stdout, stderr, input_path, output_path, size)
 
-    # override to decrypt output
+    # overrides TC_00_FileSystem to decrypt output
     def verify_size(self, file, size):
         dec_path = os.path.join(self.OUTPUT_DIR, os.path.basename(file) + '.dec')
         self.__decrypt_file(file, dec_path)
@@ -159,28 +159,31 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             print('[!] Fail: successfully decrypted renamed file: ' + path2)
             self.fail()
 
-    # override to decrypt output
+    # overrides TC_00_FileSystem to decrypt output
     def verify_copy_content(self, input_path, output_path):
         dec_path = os.path.join(self.OUTPUT_DIR, os.path.basename(output_path) + '.dec')
         self.__decrypt_file(output_path, dec_path)
         self.assertTrue(filecmp.cmp(input_path, dec_path, shallow=False))
 
-    # override to change input dir (from plaintext to encrypted)
+    # overrides TC_00_FileSystem to change input dir (from plaintext to encrypted)
     def do_copy_test(self, executable, timeout):
         stdout, stderr = self.run_binary([executable, self.ENCRYPTED_DIR, self.OUTPUT_DIR],
                                          timeout=timeout)
         self.verify_copy(stdout, stderr, self.ENCRYPTED_DIR, executable)
 
-    # override copy_dir_mmap* to not skip them on SGX
+    # overrides TC_00_FileSystem to not skip this on SGX
     def test_203_copy_dir_mmap_whole(self):
         self.do_copy_test('copy_mmap_whole', 30)
 
+    # overrides TC_00_FileSystem to not skip this on SGX
     def test_204_copy_dir_mmap_seq(self):
         self.do_copy_test('copy_mmap_seq', 60)
 
+    # overrides TC_00_FileSystem to not skip this on SGX
     def test_205_copy_dir_mmap_rev(self):
         self.do_copy_test('copy_mmap_rev', 60)
 
+    # overrides TC_00_FileSystem to change dirs (from plaintext to encrypted)
     def test_210_copy_dir_mounted(self):
         executable = 'copy_whole'
         stdout, stderr = self.run_binary([executable, '/mounted/pf_input', '/mounted/pf_output'],
