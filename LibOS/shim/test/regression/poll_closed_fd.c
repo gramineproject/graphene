@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     int pipefds[2];
     char buffer[1024];
     size_t bufsize = sizeof(buffer);
-    int bytes;
+    ssize_t bytes;
 
     if (pipe(pipefds) < 0) {
         perror("pipe error\n");
@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
         };
         /* parent (server) expects to receive one message from client (via POLLIN) and
          * then get an error (via POLLHUP) because the client connection was closed */
-        for(;;) {
+        for (;;) {
             ret = poll(infds, 1, -1);
             if (ret <= 0) {
                 perror("poll with POLLIN failed\n");
@@ -50,8 +50,8 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
-            if(infds[0].revents & POLLIN) {
-                bytes = read(pipefds[0], &buffer, bufsize);
+            if (infds[0].revents & POLLIN) {
+                bytes = read(pipefds[0], &buffer, bufsize - 1);
                 if (bytes  < 0) {
                     perror("read error\n");
                     close(pipefds[0]);
@@ -61,12 +61,17 @@ int main(int argc, char** argv) {
                     printf("read on pipe: %s\n", buffer);
                 }
             }
-            if(infds[0].revents & (POLLHUP | POLLERR | POLLNVAL)) {
+            if (infds[0].revents & (POLLHUP | POLLERR | POLLNVAL)) {
                 printf("the peer closed its end of the pipe\n");
                 break;
             }
         }
-        wait(NULL); /* wait for child termination, just for sanity */
+        int wstatus;
+        if (wait(&wstatus) < 0) {
+            perror("wait error\n");
+        } else if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus)){
+            perror("child process didn't exit successfully\n");
+        }
         close(pipefds[0]);
     }
 
