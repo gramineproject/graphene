@@ -69,8 +69,12 @@ int main(int argc, char** argv) {
         int wstatus;
         if (wait(&wstatus) < 0) {
             perror("wait error\n");
+            close(pipefds[0]);
+            return 1;
         } else if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus)){
             perror("child process didn't exit successfully\n");
+            close(pipefds[0]);
+            return 1;
         }
         close(pipefds[0]);
     }
