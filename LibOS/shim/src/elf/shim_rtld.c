@@ -25,6 +25,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 #include "shim_vdso.h"
+#include "shim_vdso-arch.h"
 #include "shim_vma.h"
 
 #ifndef DT_THISPROCNUM
@@ -1406,7 +1407,8 @@ static int vdso_map_init(void) {
      */
     void* addr = NULL;
     int ret = bkeep_mmap_any_aslr(ALLOC_ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC,
-                                  MAP_PRIVATE | MAP_ANONYMOUS, NULL, 0, "linux-vdso.so.1", &addr);
+                                  MAP_PRIVATE | MAP_ANONYMOUS, NULL, 0, LINUX_VDSO_FILENAME,
+                                  &addr);
     if (ret < 0) {
         return ret;
     }
@@ -1536,9 +1538,7 @@ int register_library(const char* name, unsigned long load_address) {
     return 0;
 }
 
-noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const char** argp,
-                                 ElfW(auxv_t)* auxp) {
-    __UNUSED(argp);
+noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
         SYS_PRINTF("Could not initialize vDSO (error code = %d)", ret);
@@ -1547,8 +1547,25 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
 
     struct link_map* exec_map = __search_map_by_handle(exec);
     assert(exec_map);
-    assert(IS_ALIGNED_PTR(argcp, 16)); /* stack must be 16B-aligned */
-    assert((void*)argcp + sizeof(long) == argp || argp == NULL);
+
+    /* at this point, stack looks like this:
+     *
+     *               +-------------------+
+     *   argp +--->  |  argc             | long
+     *               |  ptr to argv[0]   | char*
+     *               |  ...              | char*
+     *               |  NULL             | char*
+     *               |  ptr to envp[0]   | char*
+     *               |  ...              | char*
+     *               |  NULL             | char*
+     *               |  <space for auxv> |
+     *               |  envp[0] string   |
+     *               |  ...              |
+     *               |  argv[0] string   |
+     *               |  ...              |
+     *               +-------------------+
+     */
+    assert(IS_ALIGNED_PTR(argp, 16)); /* stack must be 16B-aligned */
 
     static_assert(REQUIRED_ELF_AUXV >= 8, "not enough space on stack for auxv");
     auxp[0].a_type     = AT_PHDR;
@@ -1592,7 +1609,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     shim_tcb_t* tcb = shim_get_tcb();
     __enable_preempt(tcb);
 
-    CALL_ELF_ENTRY(entry, argcp);
+    CALL_ELF_ENTRY(entry, argp);
 
     while (true)
         /* nothing */;

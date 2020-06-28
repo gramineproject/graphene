@@ -131,7 +131,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
     //user_stack_addr[1] ==> arguments to user provided function.
 
     debug("child swapping stack to %p return 0x%lx: %d\n",
-          stack, regs.rip, my_thread->tid);
+          stack, shim_regs_get_ip(&regs), my_thread->tid);
 
     tcb->context.regs = &regs;
     fixup_child_context(tcb->context.regs);
@@ -303,7 +303,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             ret = -EINVAL;
             goto failed;
         }
-        fs_base = (unsigned long)tls;
+        fs_base = tls_to_fs_base((unsigned long)tls);
     }
 
     if (!(flags & CLONE_THREAD))
@@ -357,8 +357,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         add_thread(thread);
         set_as_child(self, thread);
 
-        ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, /*argv=*/NULL,
-                                                 thread);
+        ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, thread);
         thread->shim_tcb = NULL; /* cpu context of forked thread isn't
                                   * needed any more */
         if (parent_stack)

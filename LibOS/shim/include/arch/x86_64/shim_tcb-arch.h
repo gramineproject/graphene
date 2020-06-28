@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "pal.h"
+
 struct shim_regs {
     uint64_t    orig_rax;
     uint64_t    rsp;
@@ -30,6 +32,10 @@ static inline uint64_t shim_regs_get_sp(struct shim_regs* sr) {
 
 static inline void shim_regs_set_sp(struct shim_regs* sr, uint64_t sp) {
     sr->rsp = sp;
+}
+
+static inline uint64_t shim_regs_get_ip(struct shim_regs* sr) {
+    return sr->rip;
 }
 
 static inline uint64_t shim_regs_get_syscallnr(struct shim_regs* sr) {
@@ -120,5 +126,13 @@ static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num
         }                                                               \
     } while (0)
 
+static inline void shim_arch_update_fs_base(unsigned long fs_base) {
+    DkSegmentRegister(PAL_SEGMENT_FS, (PAL_PTR)fs_base);
+}
+
+/* On x86_64 the fs_base is the same as the tls parameter to 'clone' */
+static inline unsigned long tls_to_fs_base(unsigned long tls) {
+    return tls;
+}
 
 #endif /* _SHIM_TCB_ARCH_H_ */

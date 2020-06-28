@@ -14,6 +14,7 @@ import unittest
 
 from regression import (
     HAS_SGX,
+    ON_X86,
     RegressionTestCase,
     expectedFailureIf,
 )
@@ -30,13 +31,6 @@ CPUINFO_FLAGS_WHITELIST = [
 
 
 class TC_00_Basic(RegressionTestCase):
-    def test_000_atomic_math(self):
-        _, stderr = self.run_binary(['AtomicMath'])
-        self.assertIn('Subtract INT_MIN: Both values match 2147483648', stderr)
-        self.assertIn('Subtract INT_MAX: Both values match -2147483647', stderr)
-        self.assertIn('Subtract LLONG_MIN: Both values match -9223372036854775808', stderr)
-        self.assertIn('Subtract LLONG_MAX: Both values match -9223372036854775807', stderr)
-
     def test_001_path_normalization(self):
         _, stderr = self.run_binary(['normalize_path'])
 
@@ -54,6 +48,7 @@ class TC_00_BasicSet2(RegressionTestCase):
         self.assertIn('In thread 1', stderr)
         self.assertIn('Success, leave main thread', stderr)
 
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_Exception2(self):
         _, stderr = self.run_binary(['Exception2'])
         self.assertIn('Enter Main Thread', stderr)
@@ -88,6 +83,7 @@ class TC_00_BasicSet2(RegressionTestCase):
         for i in range(100):
             self.assertIn('In process: Process4 %d ' % i, stderr)
 
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_Segment(self):
         _, stderr = self.run_binary(['Segment'])
         self.assertIn('TLS = 0x', stderr)
@@ -293,9 +289,10 @@ class TC_02_Symbols(RegressionTestCase):
         'DkSystemTimeQuery',
         'DkRandomBitsRead',
         'DkInstructionCacheFlush',
-        'DkSegmentRegister',
         'DkMemoryAvailableQuota',
     ]
+    if ON_X86:
+        ALL_SYMBOLS.append('DkSegmentRegister')
 
     def test_000_symbols(self):
         _, stderr = self.run_binary(['Symbols'])
@@ -321,6 +318,7 @@ class TC_10_Exception(RegressionTestCase):
             return False
         return True
 
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_000_exception(self):
         _, stderr = self.run_binary(['Exception'])
 
@@ -568,6 +566,7 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertIn('UDP Write 4 OK', stderr)
         self.assertIn('UDP Read 4: Hello World 2', stderr)
 
+    @unittest.skipUnless(ON_X86, "x86-specific")
     def test_500_thread(self):
         _, stderr = self.run_binary(['Thread'])
 

@@ -58,7 +58,9 @@ int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkSystemTimeQuery);
     PRINT_SYMBOL(DkRandomBitsRead);
     PRINT_SYMBOL(DkInstructionCacheFlush);
+#if defined(__x86_64__)
     PRINT_SYMBOL(DkSegmentRegister);
+#endif
     PRINT_SYMBOL(DkMemoryAvailableQuota);
 
     return 0;

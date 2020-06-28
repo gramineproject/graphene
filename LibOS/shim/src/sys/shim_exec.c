@@ -59,17 +59,13 @@ static int close_cloexec_handle(struct shim_handle_map* map) {
 }
 
 struct execve_rtld_arg {
-    const char** new_argp;
-    int* new_argcp;
-    elf_auxv_t* new_auxp;
+    void* new_argp;       /* pointer to beginning of first stack frame (argc, argv[0], ...) */
+    elf_auxv_t* new_auxv; /* pointer inside first stack frame (auxv[0], auxv[1], ...) */
 };
 
 noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct execve_rtld_arg arg;
     memcpy(&arg, __arg, sizeof(arg));
-    const char** new_argp = arg.new_argp;
-    int* new_argcp        = arg.new_argcp;
-    elf_auxv_t* new_auxp  = arg.new_auxp;
 
     struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
@@ -118,7 +114,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     cur_thread->robust_list = NULL;
 
     debug("execve: start execution\n");
-    execute_elf_object(cur_thread->exec, new_argcp, new_argp, new_auxp);
+    execute_elf_object(cur_thread->exec, arg.new_argp, arg.new_auxv);
     /* NOTREACHED */
 
 error:
@@ -141,38 +137,36 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     cur_thread->stack     = NULL;
     cur_thread->stack_red = NULL;
 
-    initial_envp = NULL;
-    int new_argc = 0;
-    for (const char** a = argv; *a; a++, new_argc++)
-        ;
+    migrated_argv = NULL;
+    migrated_envp = NULL;
 
-    int* new_argcp = &new_argc;
     const char** new_argp;
-    elf_auxv_t* new_auxp;
-    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
+    elf_auxv_t* new_auxv;
+    ret = init_stack(argv, envp, &new_argp, &new_auxv);
+    if (ret < 0)
         return ret;
 
     __disable_preempt(shim_get_tcb());  // Temporarily disable preemption during execve().
 
     struct execve_rtld_arg arg = {
-        .new_argp      = new_argp,
-        .new_argcp     = new_argcp,
-        .new_auxp      = new_auxp
+        .new_argp = new_argp,
+        .new_auxv = new_auxv
     };
-    __SWITCH_STACK(new_argcp, &__shim_do_execve_rtld, &arg);
+    __SWITCH_STACK(new_argp, &__shim_do_execve_rtld, &arg);
     return 0;
 }
 
 #include <shim_checkpoint.h>
 
 static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
-                           const char** envp) {
+                           const char** argv, const char** envp) {
     DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
     DEFINE_MIGRATE(pending_signals, NULL, 0);
     DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
     DEFINE_MIGRATE(migratable, NULL, 0);
+    DEFINE_MIGRATE(arguments, argv, 0);
     DEFINE_MIGRATE(environ, envp, 0);
 }
 END_MIGRATION_DEF(execve)
@@ -182,6 +176,7 @@ END_MIGRATION_DEF(execve)
 static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thread,
                           struct shim_process* process, va_list ap) {
     struct shim_handle_map* handle_map;
+    const char** argv = va_arg(ap, const char**);
     const char** envp = va_arg(ap, const char**);
     int ret;
 
@@ -193,7 +188,7 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
     if ((ret = close_cloexec_handle(handle_map)) < 0)
         return ret;
 
-    return START_MIGRATE(cpstore, execve, thread, process, envp);
+    return START_MIGRATE(cpstore, execve, thread, process, argv, envp);
 }
 
 int shim_do_execve(const char* file, const char** argv, const char** envp) {
@@ -214,7 +209,7 @@ int shim_do_execve(const char* file, const char** argv, const char** envp) {
     }
 
     if (!envp)
-        envp = initial_envp;
+        envp = migrated_envp;
 
     for (const char** e = envp; /* no condition*/; e++) {
         if (test_user_memory(e, sizeof(*e), false))
@@ -426,7 +421,7 @@ reopen:
     cur_thread->in_vm     = false;
     unlock(&cur_thread->lock);
 
-    ret = create_process_and_send_checkpoint(&migrate_execve, exec, argv, cur_thread, envp);
+    ret = create_process_and_send_checkpoint(&migrate_execve, exec, cur_thread, argv, envp);
 
     lock(&cur_thread->lock);
     cur_thread->stack     = stack;

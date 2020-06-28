@@ -74,7 +74,9 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
     SET_ENCLAVE_TLS(clear_child_tid, NULL);
     SET_ENCLAVE_TLS(untrusted_area_cache.in_use, 0UL);
 
-    if (atomic_cmpxchg(&enclave_start_called, 0, 1)) {
+    int64_t t = 0;
+    if (__atomic_compare_exchange_n(&enclave_start_called.counter, &t, 1, /*weak=*/false,
+                                    __ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) {
         // ENCLAVE_START not yet called, so only valid ecall is ENCLAVE_START.
         if (ecall_index != ECALL_ENCLAVE_START) {
             // To keep things simple, we treat an invalid ecall_index like an

@@ -11,7 +11,6 @@
 #include <linux/time.h>
 
 #include "api.h"
-#include "gsgx.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -20,6 +19,12 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
+/* sgx.h is required to define SGX_DCAP,
+ * and doesn't have a definition for __packed */
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
+#include "sgx.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
@@ -31,39 +36,11 @@ unsigned long _DkSystemTimeQuery(void) {
     return microsec;
 }
 
-size_t _DkRandomBitsRead(void* buffer, size_t size) {
-    uint32_t rand;
-    for (size_t i = 0; i < size; i += sizeof(rand)) {
-        rand = rdrand();
-        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
-    }
-    return 0;
-}
-
 int _DkInstructionCacheFlush(const void* addr, int size) {
     __UNUSED(addr);
     __UNUSED(size);
 
     return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
-int _DkSegmentRegisterSet(int reg, const void* addr) {
-    /* GS is internally used, denied any access to it */
-    if (reg != PAL_SEGMENT_FS)
-        return -PAL_ERROR_DENIED;
-
-    SET_ENCLAVE_TLS(fsbase, (void*)addr);
-    wrfsbase((uint64_t)addr);
-    return 0;
-}
-
-int _DkSegmentRegisterGet(int reg, void** addr) {
-    /* GS is internally used, denied any access to it */
-    if (reg != PAL_SEGMENT_FS)
-        return -PAL_ERROR_DENIED;
-
-    *addr = (void*)GET_ENCLAVE_TLS(fsbase);
-    return 0;
 }
 
 #define CPUID_CACHE_SIZE    64

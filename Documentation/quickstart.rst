@@ -3,7 +3,7 @@ Quick Start
 
 .. highlight:: sh
 
-#. Clone the Graphene Repository::
+#. Clone the Graphene repository::
 
       git clone https://github.com/oscarlab/graphene.git
 
@@ -13,7 +13,7 @@ Quick Start
       cd graphene
       make
 
-#. Build and Run :program:`helloworld`::
+#. Build and run :program:`helloworld`::
 
       cd LibOS/shim/test/native
       make
@@ -23,6 +23,10 @@ Quick Start
 
 SGX Quick Start
 ---------------
+
+Graphene-SGX requires that the FSGSBASE feature of recent processors is enabled
+in the Linux kernel. For the ways to enable the FSGSBASE feature, please refer
+to :doc:`building`.
 
 Before you run any applications in Graphene-SGX, please make sure that Intel SGX
 SDK and the SGX driver are installed on your system. We recommend using Intel
@@ -36,7 +40,7 @@ If you want to use the DCAP SDK and driver, please follow the README in
 https://github.com/intel/SGXDataCenterAttestationPrimitives. Please note, that
 the DCAP driver requires Graphene to run as a root user to access it.
 
-#. Ensure That Intel SGX is Enabled on Your Platform::
+#. Ensure that Intel SGX is enabled on your platform::
 
       lsmod | grep sgx
       ps ax | grep [a]esm_service
@@ -44,24 +48,17 @@ the DCAP driver requires Graphene to run as a root user to access it.
 The first command should list :command:`isgx` (or :command:`sgx`) and the
 second command should list the process status of :command:`aesm_service`.
 
-#. Clone the Repository and Set the Home Directory of Graphene::
+#. Clone the repository and set the home directory of Graphene::
 
       git clone https://github.com/oscarlab/graphene.git
       cd graphene
       git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
       export GRAPHENE_DIR=$PWD
 
-#. Prepare a Signing Key::
+#. Prepare a signing key::
 
       cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
       openssl genrsa -3 -out enclave-key.pem 3072
-
-#. Build and Install Graphene SGX Driver::
-
-      cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver
-      make
-      # the console will prompt you for the path of the Intel SGX driver code
-      sudo insmod gsgx.ko
 
 #. Build Graphene-SGX::
 
@@ -70,14 +67,17 @@ second command should list the process status of :command:`aesm_service`.
          python3-protobuf libprotobuf-c-dev protobuf-c-compiler
       cd $GRAPHENE_DIR
       make SGX=1
+      # the console will prompt you for the path to the Intel SGX driver code
 
-#. Set ``vm.mmap_min_addr=0`` in the System::
+#. Set ``vm.mmap_min_addr=0`` in the system::
 
       sudo sysctl vm.mmap_min_addr=0
 
-#. Build and Run :program:`helloworld`::
+   Note that this is an inadvisable configuration for production systems. This
+   temporary workaround will not be required in the future.
+
+#. Build and run :program:`helloworld`::
 
       cd $GRAPHENE_DIR/LibOS/shim/test/native
-      make SGX=1
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
