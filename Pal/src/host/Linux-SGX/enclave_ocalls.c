@@ -215,7 +215,8 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munm
     *need_munmap = false;
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
     uint64_t in_use = 0;
-    if (!__atomic_compare_exchange_n(&cache->in_use, &in_use, 1, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+    if (!__atomic_compare_exchange_n(&cache->in_use, &in_use, 1, /*weak=*/false,
+                                     __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
         /* AEX signal handling case: cache is in use, so make explicit mmap/munmap */
         int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
         if (IS_ERR(retval)) {
