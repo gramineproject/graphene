@@ -55,6 +55,7 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
 
     /* collect all FDs of all PAL handles that may report read/write events */
     size_t nfds = 0;
+    size_t ret_events_updated = 0;
     for (size_t i = 0; i < count; i++) {
         ret_events[i] = 0;
 
@@ -69,8 +70,15 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
             /* hdl might be a mutex/event/non-pollable object, simply ignore it */
             if (hdl->generic.fds[j] == PAL_IDX_POISON)
                 continue;
-            if (flags & ERROR(j))
+            if (flags & ERROR(j)) {
+                /* PAL handle is requested for read/write but already marked with error:
+                 * skip it but update its ret_events */
+                if (events[i] & (PAL_WAIT_READ | PAL_WAIT_WRITE)) {
+                    ret_events[i] |= PAL_WAIT_ERROR;
+                    ret_events_updated++;
+                }
                 continue;
+            }
 
             int fdevents = 0;
             fdevents |= ((flags & RFD(j)) && (events[i] & PAL_WAIT_READ)) ? POLLIN : 0;
@@ -87,8 +95,13 @@ int _DkStreamsWaitEvents(size_t count, PAL_HANDLE* handle_array, PAL_FLG* events
     }
 
     if (!nfds) {
-        /* did not find any waitable FDs (LibOS supplied closed/errored FDs or empty events) */
-        ret = -PAL_ERROR_TRYAGAIN;
+        if (ret_events_updated > 0) {
+            /* we skip actual ppoll, but there was at least one PAL handle with updated ret_events */
+            ret = 0;
+        } else {
+            /* did not find any waitable FDs (LibOS supplied closed/errored FDs or empty events) */
+            ret = -PAL_ERROR_TRYAGAIN;
+        }
         goto out;
     }
 
