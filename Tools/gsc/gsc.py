@@ -188,9 +188,9 @@ def gsc_build(args):
     docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
     # docker build returns stream of json output
     stream = docker_api.build(path=gsc_image_name(image),
-                                tag=gsc_unsigned_image_name(image),
-                                nocache=args.no_cache,
-                                dockerfile='Dockerfile.build')
+                              tag=gsc_unsigned_image_name(image),
+                              nocache=args.no_cache,
+                              dockerfile='Dockerfile.build')
 
     # print continuously the stream of output by docker build
     for chunk in stream:
@@ -240,8 +240,8 @@ def gsc_sign_image(args):
     docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
     # docker build returns stream of json output
     stream = docker_api.build(path=gsc_image_name(image),
-                                tag=gsc_image_name(image),
-                                dockerfile='Dockerfile.sign_manifests')
+                              tag=gsc_image_name(image),
+                              dockerfile='Dockerfile.sign_manifests')
 
     # print continuously the stream of output by docker build
     for chunk in stream:
