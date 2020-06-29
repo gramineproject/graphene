@@ -2,7 +2,7 @@ FROM {{image}} as unsigned_image
 
 COPY gsc-signer-key.pem /gsc-signer-key.pem
 
-RUN python3 -B sign_manifests.py
+RUN python3 -B /sign_manifests.py
 
 FROM {{image}}
 
