@@ -108,7 +108,7 @@ static inline void spinlock_lock(spinlock_t* lock) {
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
         val = SPINLOCK_UNLOCKED;
-    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/true,
+    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/false,
                                           __ATOMIC_ACQUIRE, __ATOMIC_RELAXED));
 
 out:
@@ -141,7 +141,7 @@ static inline int spinlock_lock_timeout(spinlock_t* lock, unsigned long iteratio
         /* Seen lock as free, check if it still is, this time with acquire semantics (but only
          * if we really take it). */
         val = SPINLOCK_UNLOCKED;
-    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/true,
+    } while (!__atomic_compare_exchange_n(&lock->lock, &val, SPINLOCK_LOCKED, /*weak=*/false,
                                           __ATOMIC_ACQUIRE, __ATOMIC_RELAXED));
 
 out_success:

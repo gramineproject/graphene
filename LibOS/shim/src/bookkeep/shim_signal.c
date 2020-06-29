@@ -130,7 +130,7 @@ static bool append_rt_signal(struct shim_rt_signal_queue* queue,
         if (put_idx - get_idx >= ARRAY_SIZE(queue->queue)) {
             return false;
         }
-    } while (!__atomic_compare_exchange_n(&queue->put_idx, &put_idx, put_idx + 1, /*weak=*/true,
+    } while (!__atomic_compare_exchange_n(&queue->put_idx, &put_idx, put_idx + 1, /*weak=*/false,
                                           __ATOMIC_RELEASE, __ATOMIC_ACQUIRE));
 
     queue->queue[put_idx % ARRAY_SIZE(queue->queue)] = signal;
@@ -179,7 +179,7 @@ static struct shim_signal* pop_rt_signal(struct shim_rt_signal_queue* queue) {
         if (put_idx == get_idx) {
             return NULL;
         }
-    } while (!__atomic_compare_exchange_n(&queue->get_idx, &get_idx, get_idx + 1, /*weak=*/true,
+    } while (!__atomic_compare_exchange_n(&queue->get_idx, &get_idx, get_idx + 1, /*weak=*/false,
                                           __ATOMIC_RELEASE, __ATOMIC_ACQUIRE));
 
     return queue->queue[get_idx % ARRAY_SIZE(queue->queue)];
