@@ -853,7 +853,7 @@ static bool handle_futex_death(uint32_t* uaddr) {
         uint32_t new_val = (val & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
 
         if (__atomic_compare_exchange_n(uaddr, &val, new_val,
-                                        /*weak=*/true, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+                                        /*weak=*/false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
             /* Successfully set the new value, end the loop. */
             break;
         }

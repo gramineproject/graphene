@@ -48,7 +48,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     int ret = 0;
 
     uint32_t t = MUTEX_UNLOCKED;
-    if (__atomic_compare_exchange_n(m->locked, &t, MUTEX_LOCKED, /*weak=*/true,
+    if (__atomic_compare_exchange_n(m->locked, &t, MUTEX_LOCKED, /*weak=*/false,
                                     __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
         goto success;
 
@@ -62,7 +62,7 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
 
     while (true) {
         uint32_t t = MUTEX_UNLOCKED;
-        if (__atomic_compare_exchange_n(m->locked, &t, MUTEX_LOCKED, /*weak=*/true,
+        if (__atomic_compare_exchange_n(m->locked, &t, MUTEX_LOCKED, /*weak=*/false,
                                         __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
             break;
         /*
