@@ -924,6 +924,8 @@ typedef struct {
 
 #define AT_RANDOM 25 /* Address of 16 random bytes.  */
 
+#define AT_HWCAP2 26 /* More machine-dependent hints about processor capabilities.  */
+
 #define AT_EXECFN 31 /* Filename of executable.  */
 
 /* Pointer to the global system page used for system calls and other
