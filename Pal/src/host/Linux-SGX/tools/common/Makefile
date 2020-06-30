@@ -21,11 +21,17 @@ CJSON_URI ?= https://github.com/DaveGamble/cJSON/archive/
 CJSON_CHECKSUM ?= 760687665ab41a5cff9c40b1053c19572bcdaadef1194e5cba1b5e6f824686e7
 DOWNLOAD_SCRIPT := ../../../../../../Scripts/download
 
-cJSON.c cJSON.h:
+$(CJSON_SRC):
 	$(DOWNLOAD_SCRIPT) --output $(CJSON_SRC) --url $(CJSON_URI)/$(CJSON_SRC) --sha256 $(CJSON_CHECKSUM)
-	tar -mxzf $(CJSON_SRC)
-	cp cJSON-$(CJSON_VERSION)/cJSON.c .
-	cp cJSON-$(CJSON_VERSION)/cJSON.h .
+
+cJSON-$(CJSON_VERSION):
+	mkdir -p $@
+
+cJSON-$(CJSON_VERSION)/cJSON.h cJSON-$(CJSON_VERSION)/cJSON.c: $(CJSON_SRC) | cJSON-$(CJSON_VERSION)
+	tar -zxvf $^ $@
+
+cJSON.c cJSON.h: %: cJSON-$(CJSON_VERSION)/%
+	cp cJSON-$(CJSON_VERSION)/$@ .
 
 attestation.o: cJSON.h
 
