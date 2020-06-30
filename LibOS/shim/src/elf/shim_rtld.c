@@ -34,8 +34,6 @@
 
 typedef ElfW(Word) Elf_Symndx;
 
-#define BOOKKEEP_INTERNAL_OBJ 0
-
 enum object_type {
     OBJECT_INTERNAL = 0,
     OBJECT_LOAD     = 1,
@@ -526,19 +524,10 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                unallocated.  Then jump into the normal segment-mapping loop to
                handle the portion of the segment past the end of the file
                mapping.  */
-            if (type == OBJECT_MAPPED ||
-#if BOOKKEEP_INTERNAL_OBJ == 1
-                type == OBJECT_INTERNAL ||
-#endif
-                type == OBJECT_LOAD) {
-#if BOOKKEEP_INTERNAL_OBJ == 1
-                int flags = (type == OBJECT_INTERNVAL) ? VMA_INTERVAL : 0;
-#else
-                int flags = 0;
-#endif
+            if (type == OBJECT_MAPPED || type == OBJECT_LOAD) {
                 ret = bkeep_mprotect((void*)RELOCATE(l, c->mapend),
                                      l->loadcmds[l->nloadcmds - 1].mapstart - c->mapend, PROT_NONE,
-                                     !!(flags & VMA_INTERNAL));
+                                     /*is_internal=*/false);
                 if (ret < 0) {
                     errstring = "failed to change permissions";
                     goto call_lose;
@@ -564,11 +553,7 @@ do_remap:
             /* Map the segment contents from the file.  */
             void* mapaddr = (void*)RELOCATE(l, c->mapstart);
 
-#if BOOKKEEP_INTERNAL_OBJ == 0
             if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
-#else
-            if (type != OBJECT_USER && type != OBJECT_VDSO) {
-#endif
                 ret = bkeep_mmap_fixed(mapaddr, c->mapend - c->mapstart, c->prot,
                                        c->flags | MAP_FIXED | MAP_PRIVATE
                                            | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
@@ -631,11 +616,7 @@ do_remap:
             }
 
             if (zeroend > zeropage) {
-#if BOOKKEEP_INTERNAL_OBJ == 0
                 if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
-#else
-                if (type != OBJECT_USER && type != OBJECT_VDSO) {
-#endif
                     ret = bkeep_mmap_fixed((void*)zeropage, zeroend - zeropage, c->prot,
                                            MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED
                                                | (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
