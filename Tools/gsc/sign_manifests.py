@@ -22,9 +22,8 @@ def generate_signature(manifest):
     _, err = sign_process.communicate()
 
     if (sign_process.returncode != 0
-        or not os.path.exists(os.path.join(os.path.abspath(os.sep), manifest + '.sgx'))
-        or not os.path.exists(os.path.join(os.path.abspath(os.sep),
-                                           manifest[:manifest.rfind('.manifest')] + '.sig'))):
+        or not os.path.exists(os.path.join('/', manifest + '.sgx'))
+        or not os.path.exists(os.path.join('/', manifest[:manifest.rfind('.manifest')] + '.sig'))):
         print(err.decode())
         print('Finalize manifests failed due to pal-sgx-sign failure.')
         sys.exit(1)

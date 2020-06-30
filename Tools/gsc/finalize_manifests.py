@@ -14,9 +14,10 @@ def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
 
 def generate_trusted_files(root_dir):
-    # Exclude directories from list of trusted files
-    exclude_dirs = ['boot', 'dev', 'etc/rc', 'finalize_manifests.py', 'proc', 'sys', 'var']
-    exclude_re = re.compile('^/(' + '|'.join(exclude_dirs) + ').*')
+    # Exclude files and paths from list of trusted files starting with
+    excluded_paths = ['boot', 'dev', 'etc/rc', 'sign_manifests.py', 'finalize_manifests.py',
+                      'proc', 'sys', 'var']
+    exclude_re = re.compile('^/(' + '|'.join(excluded_paths) + ').*')
     num_trusted = 0
     trusted_files = ''
     script_file = os.path.basename(__file__)
@@ -73,7 +74,7 @@ def main(args=None):
     library_paths = generate_library_paths()
     env_path = os.getenv('PATH')
 
-    print(f'LD_LIBRARY_PATH = \'{library_paths}\'\n'f'$PATH = \'{env_path}\'.')
+    print(f'LD_LIBRARY_PATH = \'{library_paths}\'\n$PATH = \'{env_path}\'.')
 
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
     env.globals.update({
