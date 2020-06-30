@@ -184,6 +184,7 @@ struct protected_file* find_protected_dir(const char* path) {
     size_t len = strlen(path);
 
     pf_lock();
+    // TODO: avoid linear lookup
     for (tmp = g_protected_dirs; tmp != NULL; tmp = tmp->hh.next) {
         if (tmp->path_len < len &&
                 !memcmp(tmp->path, path, tmp->path_len) &&
@@ -380,6 +381,7 @@ static int register_protected_path(const char* path, struct protected_file** new
 
     memcpy(new->path, path, new->path_len + 1);
     new->refcount = 0;
+    new->writable_fd = -1;
 
     bool is_dir;
     ret = is_directory(path, &is_dir);

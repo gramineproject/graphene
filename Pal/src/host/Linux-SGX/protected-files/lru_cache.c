@@ -126,6 +126,9 @@ void lruc_destroy(lruc_context_t* lruc) {
 }
 
 bool lruc_add(lruc_context_t* lruc, uint64_t key, void* data) {
+    if (get_map_node(lruc, key))
+        return false;
+
     lruc_map_node_t* map_node = calloc(1, sizeof(*map_node));
     if (!map_node)
         return false;
@@ -139,9 +142,6 @@ bool lruc_add(lruc_context_t* lruc, uint64_t key, void* data) {
     list_node->key = key;
     map_node->key = key;
     LISTP_ADD(list_node, &lruc->list, list);
-    lruc_map_node_t* mn = get_map_node(lruc, key);
-    __UNUSED(mn);
-    assert(mn == NULL);
     map_node->data = data;
     map_node->list_ptr = list_node;
     HASH_ADD(hh, lruc->map, key, sizeof(key), map_node);

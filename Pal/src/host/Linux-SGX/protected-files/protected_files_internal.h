@@ -63,13 +63,13 @@
 
 #pragma pack(push, 1)
 
-typedef struct _meta_data_plain {
+typedef struct _metadata_plain {
     uint64_t   file_id;
     uint8_t    major_version;
     uint8_t    minor_version;
-    pf_keyid_t meta_data_key_id;
-    pf_mac_t   meta_data_gmac; /* GCM mac */
-} meta_data_plain_t;
+    pf_keyid_t metadata_key_id;
+    pf_mac_t   metadata_gmac; /* GCM mac */
+} metadata_plain_t;
 
 #define PATH_MAX_SIZE          (260 + 512)
 
@@ -78,28 +78,28 @@ typedef struct _meta_data_plain {
 #define MD_USER_DATA_SIZE (PF_NODE_SIZE*3/4)  // 3072
 static_assert(MD_USER_DATA_SIZE == 3072, "bad struct size");
 
-typedef struct _meta_data_encrypted {
+typedef struct _metadata_encrypted {
     char     path[PATH_MAX_SIZE];
     uint64_t size;
     pf_key_t mht_key;
     pf_mac_t mht_gmac;
     uint8_t  data[MD_USER_DATA_SIZE];
-} meta_data_encrypted_t;
+} metadata_encrypted_t;
 
-typedef uint8_t meta_data_encrypted_blob_t[sizeof(meta_data_encrypted_t)];
+typedef uint8_t metadata_encrypted_blob_t[sizeof(metadata_encrypted_t)];
 
-#define META_DATA_NODE_SIZE PF_NODE_SIZE
+#define METADATA_NODE_SIZE PF_NODE_SIZE
 
-typedef uint8_t meta_data_padding_t[META_DATA_NODE_SIZE
-    - (sizeof(meta_data_plain_t) + sizeof(meta_data_encrypted_blob_t))];
+typedef uint8_t metadata_padding_t[METADATA_NODE_SIZE
+    - (sizeof(metadata_plain_t) + sizeof(metadata_encrypted_blob_t))];
 
-typedef struct _meta_data_node {
-    meta_data_plain_t          plain_part;
-    meta_data_encrypted_blob_t encrypted_part;
-    meta_data_padding_t        padding;
-} meta_data_node_t;
+typedef struct _metadata_node {
+    metadata_plain_t          plain_part;
+    metadata_encrypted_blob_t encrypted_part;
+    metadata_padding_t        padding;
+} metadata_node_t;
 
-static_assert(sizeof(meta_data_node_t) == PF_NODE_SIZE, "sizeof(meta_data_node_t)");
+static_assert(sizeof(metadata_node_t) == PF_NODE_SIZE, "sizeof(metadata_node_t)");
 
 typedef struct _data_node_crypto {
     pf_key_t key;
@@ -168,9 +168,9 @@ DEFINE_LISTP(_file_node);
 #pragma pack(pop)
 
 struct pf_context {
-    meta_data_node_t file_meta_data; // actual data from disk's meta data node
+    metadata_node_t file_metadata; // actual data from disk's meta data node
     pf_status_t last_error;
-    meta_data_encrypted_t encrypted_part_plain; // encrypted part of meta data node, decrypted
+    metadata_encrypted_t encrypted_part_plain; // encrypted part of metadata node, decrypted
     file_node_t root_mht; // the root of the mht is always needed (for files bigger than 3KB)
     pf_handle_t file;
     pf_file_mode_t mode;
@@ -181,8 +181,6 @@ struct pf_context {
     pf_status_t file_status;
     pf_key_t user_kdk_key;
     pf_key_t cur_key;
-    pf_key_t session_master_key;
-    uint32_t master_key_count;
     lruc_context_t* cache;
 #ifdef DEBUG
     char* debug_buffer; // buffer for debug output
@@ -199,13 +197,9 @@ static bool ipf_read_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_nu
 static bool ipf_write_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_number, void* buffer,
                            uint32_t node_size);
 
-static bool ipf_generate_secure_blob(pf_context_t* pf, pf_key_t* key, const char* label,
-                                     uint64_t physical_node_number, pf_mac_t* output);
-static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restore);
-static bool ipf_init_session_master_key(pf_context_t* pf);
-static bool ipf_derive_random_node_key(pf_context_t* pf, uint64_t physical_node_number);
-static bool ipf_generate_random_meta_data_key(pf_context_t* pf);
-static bool ipf_restore_current_meta_data_key(pf_context_t* pf);
+static bool ipf_import_metadata_key(pf_context_t* pf, bool restore);
+static bool ipf_generate_random_key(pf_context_t* pf);
+static bool ipf_restore_current_metadata_key(pf_context_t* pf);
 
 static file_node_t* ipf_get_data_node(pf_context_t* pf);
 static file_node_t* ipf_read_data_node(pf_context_t* pf);
@@ -215,7 +209,7 @@ static file_node_t* ipf_read_mht_node(pf_context_t* pf, uint64_t mht_node_number
 static file_node_t* ipf_append_mht_node(pf_context_t* pf, uint64_t mht_node_number);
 
 static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf);
-static bool ipf_update_meta_data_node(pf_context_t* pf);
+static bool ipf_update_metadata_node(pf_context_t* pf);
 static bool ipf_write_all_changes_to_disk(pf_context_t* pf);
 static bool ipf_internal_flush(pf_context_t* pf);
 
