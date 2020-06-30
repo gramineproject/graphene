@@ -15,6 +15,13 @@ static void* inc(void* arg) {
 }
 
 int main(int argc, char** argv) {
+    /* hack: opening /dev/null prints out SGX stats on this thread */
+    FILE* f = fopen("/dev/null", "w");
+    if (!f) {
+        perror("fopen /dev/null");
+        return 1;
+    }
+
     for (int i = 0; i < THREAD_NUM; i++) {
         pthread_t thread[CONC_THREAD_NUM];
 

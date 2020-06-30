@@ -58,7 +58,7 @@ static long sgx_ocall_exit(void* pms)
 
     /* exit the whole process if exit_group() */
     if (ms->ms_is_exitgroup) {
-        update_and_print_stats(/*process_wide=*/true);
+        update_and_print_stats(/*thread_exits=*/true, /*process_wide=*/true);
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
     }
 
@@ -70,7 +70,7 @@ static long sgx_ocall_exit(void* pms)
 
     if (!current_enclave_thread_cnt()) {
         /* no enclave threads left, kill the whole process */
-        update_and_print_stats(/*process_wide=*/true);
+        update_and_print_stats(/*thread_exits=*/true, /*process_wide=*/true);
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
     }
 
@@ -578,10 +578,23 @@ static long sgx_ocall_sleep(void * pms)
     ms_ocall_sleep_t * ms = (ms_ocall_sleep_t *) pms;
     long ret;
     ODEBUG(OCALL_SLEEP, ms);
+
+    if (ms->ms_microsec == (unsigned long)-42 || ms->ms_microsec == (unsigned long)-41) {
+        /* hack: DkThreadDelayExecution(-42/-41) is used to print current stats of enclave thread;
+         *       note that sleep OCALL is non-exitless and thus we have EEXITed enclave thread */
+        if (ms->ms_microsec == (unsigned long)-42)
+            pal_printf("----- [SGX stats right-before handing control to Glibc and app] -----\n");
+        else if (ms->ms_microsec == (unsigned long)-41)
+            pal_printf("----- [SGX stats explicitly requested by app] -----\n");
+        update_and_print_stats(/*thread_exits=*/false, /*process_wide=*/false);
+        return 0;
+    }
+
     if (!ms->ms_microsec) {
         INLINE_SYSCALL(sched_yield, 0);
         return 0;
     }
+
     struct timespec req, rem;
     unsigned long microsec = ms->ms_microsec;
     const unsigned long VERY_LONG_TIME_IN_US = 1000000L * 60 * 60 * 24 * 365 * 128;

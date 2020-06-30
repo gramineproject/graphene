@@ -179,6 +179,12 @@ err:
 
 int _DkThreadDelayExecution (unsigned long * duration)
 {
+    if (*duration == (unsigned long)-42 || *duration == (unsigned long)-41) {
+        /* hack: DkThreadDelayExecution(-42/-41) is used to print current stats of enclave thread;
+         *       just ignore this SGX-specific hack in Linux PAL */
+        return 0;
+    }
+
     struct timespec sleeptime;
     struct timespec remainingtime;
 

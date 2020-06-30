@@ -1586,6 +1586,9 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
 
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 
+    /* hack: print out stats of main thread right-before passing control to Glibc and app */
+    DkThreadDelayExecution((unsigned long)-42);
+
     /* Ready to start execution, re-enable preemption. */
     shim_tcb_t* tcb = shim_get_tcb();
     __enable_preempt(tcb);

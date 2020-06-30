@@ -52,6 +52,9 @@ static int dev_null_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(name);
     __UNUSED(flags);
 
+    /* hack: print out stats of main thread when requested by app (via opening /dev/null) */
+    DkThreadDelayExecution((unsigned long)-41);
+
     struct shim_dev_ops ops = {.read     = &dev_null_read,
                                .write    = &dev_null_write,
                                .truncate = &dev_null_truncate,

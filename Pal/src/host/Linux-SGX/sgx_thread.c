@@ -24,7 +24,7 @@ static struct thread_map * enclave_thread_map;
 
 bool g_sgx_enable_stats = false;
 
-void update_and_print_stats(bool process_wide) {
+void update_and_print_stats(bool thread_exits, bool process_wide) {
     static atomic_ulong g_eenter_cnt = 0;
     static atomic_ulong g_eexit_cnt  = 0;
     static atomic_ulong g_aex_cnt    = 0;
@@ -42,9 +42,11 @@ void update_and_print_stats(bool process_wide) {
                "  # of AEXs:    %lu\n",
                tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt);
 
-    g_eenter_cnt += tcb->eenter_cnt;
-    g_eexit_cnt  += tcb->eexit_cnt;
-    g_aex_cnt    += tcb->aex_cnt;
+    if (thread_exits) {
+        g_eenter_cnt += tcb->eenter_cnt;
+        g_eexit_cnt  += tcb->eexit_cnt;
+        g_aex_cnt    += tcb->aex_cnt;
+    }
 
     if (process_wide) {
         int pid = INLINE_SYSCALL(getpid, 0);
@@ -189,7 +191,7 @@ noreturn void thread_exit(int status) {
      * (by sgx_ocall_exit()) but we keep it here for future proof */
     block_async_signals(true);
 
-    update_and_print_stats(/*process_wide=*/false);
+    update_and_print_stats(/*thread_exits=*/true, /*process_wide=*/false);
 
     if (tcb->alt_stack) {
         stack_t ss;
