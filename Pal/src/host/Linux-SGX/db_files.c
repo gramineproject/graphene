@@ -81,10 +81,12 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             pf_mode = PF_FILE_MODE_READ;
 
         /* disallow opening more than one writable handle to a PF */
-        if ((pf_mode & PF_FILE_MODE_WRITE) && pf->refcount > 0) {
-            SGX_DBG(DBG_D, "file_open(%s): disallowing concurrent writable handle\n", path);
-            ret = -PAL_ERROR_DENIED;
-            goto out;
+        if (pf_mode & PF_FILE_MODE_WRITE) {
+            if (pf->writable_fd >= 0) {
+                SGX_DBG(DBG_D, "file_open(%s): disallowing concurrent writable handle\n", path);
+                ret = -PAL_ERROR_DENIED;
+                goto out;
+            }
         }
 
         /* get real file size */
@@ -100,6 +102,9 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, pf_create, pf);
         if (pf) {
             pf->refcount++;
+            if (pf_mode & PF_FILE_MODE_WRITE) {
+                pf->writable_fd = fd;
+            }
         } else {
             SGX_DBG(DBG_E, "load_protected_file(%s, %d) failed\n", path, hdl->file.fd);
             goto out;
@@ -248,6 +253,10 @@ static int pf_file_close(struct protected_file* pf, PAL_HANDLE handle) {
     }
 
     pf->refcount--;
+
+    if (pf->writable_fd == fd)
+        pf->writable_fd = -1;
+
     if (pf->refcount == 0)
         return unload_protected_file(pf);
 

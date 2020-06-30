@@ -151,67 +151,26 @@ static pf_random_f          cb_random          = NULL;
 static pf_iv_t g_empty_iv = {0};
 static bool g_initialized = false;
 
-#define MASTER_KEY_NAME       "SGX-PROTECTED-FS-MASTER-KEY"
-#define RANDOM_KEY_NAME       "SGX-PROTECTED-FS-RANDOM-KEY"
 #define METADATA_KEY_NAME     "SGX-PROTECTED-FS-METADATA-KEY"
 #define MAX_LABEL_SIZE        64
-#define MAX_MASTER_KEY_USAGES 65536
 
-static_assert(sizeof(MASTER_KEY_NAME) <= MAX_LABEL_SIZE, "label too long");
-static_assert(sizeof(RANDOM_KEY_NAME) <= MAX_LABEL_SIZE, "label too long");
 static_assert(sizeof(METADATA_KEY_NAME) <= MAX_LABEL_SIZE, "label too long");
 
 #pragma pack(push, 1)
 typedef struct {
     uint32_t index;
     char label[MAX_LABEL_SIZE]; // must be NULL terminated
-    uint64_t node_number; // context 1
     pf_keyid_t nonce;
     uint32_t output_len; // in bits
 } kdf_input_t;
 #pragma pack(pop)
 
-// The key derivation functions follow recommendations from NIST Special Publication 800-108:
+// The key derivation function follow recommendations from NIST Special Publication 800-108:
 // Recommendation for Key Derivation Using Pseudorandom Functions
 // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf
 
-// derive a new random key from another key
-static bool ipf_generate_secure_blob(pf_context_t* pf, pf_key_t* key, const char* label,
-                                     uint64_t physical_node_number, pf_key_t* output) {
-    kdf_input_t buf = {0};
-
-    DEBUG_PF("label: %s, node: %lu\n", label, physical_node_number);
-    size_t label_len = strlen(label);
-    if (label_len > MAX_LABEL_SIZE - 1) {
-        pf->last_error = PF_STATUS_INVALID_PARAMETER;
-        return false;
-    }
-
-    buf.index = 1;
-    memcpy(buf.label, label, label_len + 1);
-    buf.node_number = physical_node_number;
-
-    pf_status_t status = cb_random((uint8_t*)&buf.nonce, sizeof(buf.nonce));
-    if (PF_FAILURE(status)) {
-        pf->last_error = status;
-        return false;
-    }
-
-    // length of output (128 bits)
-    buf.output_len = 0x80;
-
-    status = cb_aes_gcm_encrypt(key, &g_empty_iv, &buf, sizeof(buf), NULL, 0, NULL, output);
-    if (PF_FAILURE(status)) {
-        pf->last_error = status;
-        return false;
-    }
-
-    erase_memory(&buf, sizeof(buf));
-    return true;
-}
-
 // derive a metadata key from user key (if restore is false, the derived key is randomized)
-static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restore) {
+static bool ipf_import_metadata_key(pf_context_t* pf, bool restore) {
     kdf_input_t buf = {0};
     pf_status_t status;
 
@@ -219,7 +178,6 @@ static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restor
     buf.index = 1;
     if (!strcpy_static(buf.label, METADATA_KEY_NAME, MAX_LABEL_SIZE))
         return false;
-    buf.node_number = 0;
 
     if (!restore) {
         status = cb_random((uint8_t*)&buf.nonce, sizeof(buf.nonce));
@@ -228,7 +186,7 @@ static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restor
             return false;
         }
     } else {
-        COPY_ARRAY(buf.nonce, pf->file_meta_data.plain_part.meta_data_key_id);
+        COPY_ARRAY(buf.nonce, pf->file_metadata.plain_part.metadata_key_id);
     }
 
     // length of output (128 bits)
@@ -242,7 +200,7 @@ static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restor
     }
 
     if (!restore) {
-        COPY_ARRAY(pf->file_meta_data.plain_part.meta_data_key_id, buf.nonce);
+        COPY_ARRAY(pf->file_metadata.plain_part.metadata_key_id, buf.nonce);
     }
 
     erase_memory(&buf, sizeof(buf));
@@ -250,45 +208,25 @@ static bool ipf_generate_secure_blob_from_user_kdk(pf_context_t* pf, bool restor
     return true;
 }
 
-// generate a new randomized node master key
-static bool ipf_init_session_master_key(pf_context_t* pf) {
+static bool ipf_generate_random_key(pf_context_t* pf) {
     DEBUG_PF("pf %p\n", pf);
-    pf_key_t empty_key = {0};
-
-    if (!ipf_generate_secure_blob(pf, &empty_key, MASTER_KEY_NAME, 0, &pf->session_master_key)) {
-        return false;
-    }
-
-    pf->master_key_count = 0;
-
-    return true;
-}
-
-// derive a new randomized node key from master key
-static bool ipf_derive_random_node_key(pf_context_t* pf, uint64_t physical_node_number) {
-    DEBUG_PF("pf %p, node: %lu\n", pf, physical_node_number);
-    if (pf->master_key_count++ >= MAX_MASTER_KEY_USAGES) {
-        if (!ipf_init_session_master_key(pf)) {
-            return false;
-        }
-    }
-
-    if (!ipf_generate_secure_blob(pf, &pf->session_master_key, RANDOM_KEY_NAME, physical_node_number,
-                                  &pf->cur_key)) {
+    pf_status_t status = cb_random((uint8_t*)&pf->cur_key, sizeof(pf->cur_key));
+    if (PF_FAILURE(status)) {
+        pf->last_error = status;
         return false;
     }
 
     return true;
 }
 
-static bool ipf_generate_random_meta_data_key(pf_context_t* pf) {
+static bool ipf_generate_random_metadata_key(pf_context_t* pf) {
     DEBUG_PF("pf %p\n", pf);
-    return ipf_generate_secure_blob_from_user_kdk(pf, /*restore=*/false);
+    return ipf_import_metadata_key(pf, /*restore=*/false);
 }
 
-static bool ipf_restore_current_meta_data_key(pf_context_t* pf) {
+static bool ipf_restore_current_metadata_key(pf_context_t* pf) {
     DEBUG_PF("pf %p\n", pf);
-    return ipf_generate_secure_blob_from_user_kdk(pf, /*restore=*/true);
+    return ipf_import_metadata_key(pf, /*restore=*/true);
 }
 
 static bool ipf_init_fields(pf_context_t* pf) {
@@ -299,7 +237,7 @@ static bool ipf_init_fields(pf_context_t* pf) {
         return false;
     }
 #endif
-    memset(&pf->file_meta_data, 0, sizeof(pf->file_meta_data));
+    memset(&pf->file_metadata, 0, sizeof(pf->file_metadata));
     memset(&pf->encrypted_part_plain, 0, sizeof(pf->encrypted_part_plain));
     memset(&g_empty_iv, 0, sizeof(g_empty_iv));
     memset(&pf->root_mht, 0, sizeof(pf->root_mht));
@@ -317,7 +255,6 @@ static bool ipf_init_fields(pf_context_t* pf) {
     pf->file_status = PF_STATUS_UNINITIALIZED;
     pf->last_error = PF_STATUS_SUCCESS;
     pf->real_file_size = 0;
-    pf->master_key_count = 0;
 
     pf->cache = lruc_create();
     return true;
@@ -346,11 +283,6 @@ static pf_context_t* ipf_open(const char* path, pf_file_mode_t mode, bool create
 
     if (path && strlen(path) > PATH_MAX_SIZE - 1) {
         pf->last_error = PF_STATUS_PATH_TOO_LONG;
-        goto out;
-    }
-
-    if (!ipf_init_session_master_key(pf)) {
-        // last_error already set
         goto out;
     }
 
@@ -443,31 +375,31 @@ static bool ipf_init_existing_file(pf_context_t* pf, const char* path) {
 
     DEBUG_PF("pf %p, path '%s'\n", pf, path);
     // read meta-data node
-    if (!ipf_read_node(pf, pf->file, /*node_number=*/0, (uint8_t*)&pf->file_meta_data,
+    if (!ipf_read_node(pf, pf->file, /*node_number=*/0, (uint8_t*)&pf->file_metadata,
                        PF_NODE_SIZE)) {
         return false;
     }
 
-    if (pf->file_meta_data.plain_part.file_id != PF_FILE_ID) {
+    if (pf->file_metadata.plain_part.file_id != PF_FILE_ID) {
         // such a file exists, but it is not a protected file
         pf->last_error = PF_STATUS_INVALID_HEADER;
         return false;
     }
 
-    if (pf->file_meta_data.plain_part.major_version != PF_MAJOR_VERSION) {
+    if (pf->file_metadata.plain_part.major_version != PF_MAJOR_VERSION) {
         pf->last_error = PF_STATUS_INVALID_VERSION;
         return false;
     }
 
-    if (!ipf_restore_current_meta_data_key(pf))
+    if (!ipf_restore_current_metadata_key(pf))
         return false;
 
     // decrypt the encrypted part of the meta-data
     status = cb_aes_gcm_decrypt(&pf->cur_key, &g_empty_iv, NULL, 0,
-                                &pf->file_meta_data.encrypted_part,
-                                sizeof(pf->file_meta_data.encrypted_part),
+                                &pf->file_metadata.encrypted_part,
+                                sizeof(pf->file_metadata.encrypted_part),
                                 &pf->encrypted_part_plain,
-                                &pf->file_meta_data.plain_part.meta_data_gmac);
+                                &pf->file_metadata.plain_part.metadata_gmac);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         DEBUG_PF("failed to decrypt metadata: %d\n", status);
@@ -510,9 +442,9 @@ static bool ipf_init_existing_file(pf_context_t* pf, const char* path) {
 
 static bool ipf_init_new_file(pf_context_t* pf, const char* path) {
     DEBUG_PF("pf %p, path '%s'\n", pf, path);
-    pf->file_meta_data.plain_part.file_id = PF_FILE_ID;
-    pf->file_meta_data.plain_part.major_version = PF_MAJOR_VERSION;
-    pf->file_meta_data.plain_part.minor_version = PF_MINOR_VERSION;
+    pf->file_metadata.plain_part.file_id = PF_FILE_ID;
+    pf->file_metadata.plain_part.major_version = PF_MAJOR_VERSION;
+    pf->file_metadata.plain_part.minor_version = PF_MINOR_VERSION;
 
     // path length is checked in ipf_open()
     memcpy(pf->encrypted_part_plain.path, path, strlen(path) + 1);
@@ -550,7 +482,6 @@ static bool ipf_close(pf_context_t* pf) {
 
     // scrub the last encryption key and the session key
     erase_memory(&pf->cur_key, sizeof(pf->cur_key));
-    erase_memory(&pf->session_master_key, sizeof(pf->session_master_key));
 
     // scrub first MD_USER_DATA_SIZE of file data and the gmac_key
     erase_memory(&pf->encrypted_part_plain, sizeof(pf->encrypted_part_plain));
@@ -584,7 +515,7 @@ static bool ipf_internal_flush(pf_context_t* pf) {
         }
     }
 
-    if (!ipf_update_meta_data_node(pf)) {
+    if (!ipf_update_metadata_node(pf)) {
         // this is something that shouldn't happen, can't fix this...
         pf->file_status = PF_STATUS_CRYPTO_ERROR;
         DEBUG_PF("failed to update metadata nodes\n");
@@ -604,28 +535,29 @@ static bool ipf_internal_flush(pf_context_t* pf) {
 }
 
 static void swap_nodes(file_node_t** data, size_t idx1, size_t idx2) {
-    if (idx1 == idx2)
-        return;
-
     file_node_t* tmp = data[idx1];
     data[idx1] = data[idx2];
     data[idx2] = tmp;
 }
 
+// TODO: better sort?
 static size_t partition(file_node_t** data, size_t low, size_t high) {
-    file_node_t* pivot = data[high];
+    assert(low <= high);
+    file_node_t* pivot = data[(low + high) / 2];
     size_t i = low;
+    size_t j = high;
 
-    for (size_t j = low; j <= high - 1; j++) {
-        if (data[j]->node_number < pivot->node_number) {
-            swap_nodes(data, i, j);
+    while (true) {
+        while (data[i]->node_number < pivot->node_number)
             i++;
-        }
+        while (data[j]->node_number > pivot->node_number)
+            j--;
+        if (i >= j)
+            return j;
+        swap_nodes(data, i, j);
+        i++;
+        j--;
     }
-
-    swap_nodes(data, i, high);
-
-    return i;
 }
 
 static void sort_nodes(file_node_t** data, size_t low, size_t high) {
@@ -636,7 +568,8 @@ static void sort_nodes(file_node_t** data, size_t low, size_t high) {
     }
     if (low < high) {
         size_t pi = partition(data, low, high);
-        sort_nodes(data, low, pi - 1);
+        if (pi > 0)
+            sort_nodes(data, low, pi);
         sort_nodes(data, pi + 1, high);
     }
 }
@@ -656,7 +589,7 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
             file_node_t* data_node = (file_node_t*)data;
 
             if (data_node->need_writing) {
-                if (!ipf_derive_random_node_key(pf, data_node->physical_node_number))
+                if (!ipf_generate_random_key(pf))
                     goto out;
 
                 gcm_crypto_data_t* gcm_crypto_data = &data_node->parent->decrypted.mht
@@ -732,7 +665,7 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
         gcm_crypto_data_t* gcm_crypto_data = &file_mht_node->parent->decrypted.mht
             .mht_nodes_crypto[(file_mht_node->node_number - 1) % CHILD_MHT_NODES_COUNT];
 
-        if (!ipf_derive_random_node_key(pf, file_mht_node->physical_node_number)) {
+        if (!ipf_generate_random_key(pf)) {
             goto out;
         }
 
@@ -751,7 +684,7 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
     }
 
     // update mht root gmac in the meta data node
-    if (!ipf_derive_random_node_key(pf, pf->root_mht.physical_node_number))
+    if (!ipf_generate_random_key(pf))
         goto out;
 
     status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
@@ -773,12 +706,12 @@ out:
     return ret;
 }
 
-static bool ipf_update_meta_data_node(pf_context_t* pf) {
+static bool ipf_update_metadata_node(pf_context_t* pf) {
     pf_status_t status;
 
     DEBUG_PF("pf %p\n", pf);
     // randomize a new key, saves the key _id_ in the meta data plain part
-    if (!ipf_generate_random_meta_data_key(pf)) {
+    if (!ipf_generate_random_metadata_key(pf)) {
         // last error already set
         return false;
     }
@@ -786,9 +719,9 @@ static bool ipf_update_meta_data_node(pf_context_t* pf) {
     // encrypt meta data encrypted part, also updates the gmac in the meta data plain part
     status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
                                 NULL, 0,
-                                &pf->encrypted_part_plain, sizeof(meta_data_encrypted_t),
-                                &pf->file_meta_data.encrypted_part,
-                                &pf->file_meta_data.plain_part.meta_data_gmac);
+                                &pf->encrypted_part_plain, sizeof(metadata_encrypted_t),
+                                &pf->file_metadata.encrypted_part,
+                                &pf->file_metadata.plain_part.metadata_gmac);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -832,7 +765,7 @@ static bool ipf_write_all_changes_to_disk(pf_context_t* pf) {
         pf->root_mht.new_node = false;
     }
 
-    if (!ipf_write_node(pf, pf->file, /*node_number=*/0, &pf->file_meta_data, PF_NODE_SIZE)) {
+    if (!ipf_write_node(pf, pf->file, /*node_number=*/0, &pf->file_metadata, PF_NODE_SIZE)) {
         return false;
     }
 
