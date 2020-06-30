@@ -89,6 +89,8 @@ typedef struct pal_tcb_urts {
     atomic_ulong        eenter_cnt; /* # of EENTERs, corresponds to # of ECALLs */
     atomic_ulong        eexit_cnt;  /* # of EEXITs, corresponds to # of OCALLs */
     atomic_ulong        aex_cnt;    /* # of AEXs, corresponds to # of interrupts/signals */
+    atomic_ulong        sync_cnt;   /* # of sync signals, corresponds to # of SIGSEGV/SIGILL/.. */
+    atomic_ulong        async_cnt;  /* # of async signals, corresponds to # of SIGINT/SIGCONT/.. */
 } PAL_TCB_URTS;
 
 extern void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack);
