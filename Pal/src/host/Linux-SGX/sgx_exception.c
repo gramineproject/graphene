@@ -126,6 +126,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
 
     if (interrupted_in_enclave(uc)) {
         /* exception happened in app/LibOS/trusted PAL code, handle signal inside enclave */
+        get_tcb_urts()->sync_signal_cnt++;
         sgx_raise(event);
         return;
     }
@@ -162,6 +163,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
 
     if (interrupted_in_enclave(uc)) {
         /* signal arrived while in app/LibOS/trusted PAL code, handle signal inside enclave */
+        get_tcb_urts()->async_signal_cnt++;
         sgx_raise(event);
         return;
     }

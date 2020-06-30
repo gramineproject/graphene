@@ -24,10 +24,13 @@ static struct thread_map * enclave_thread_map;
 
 bool g_sgx_enable_stats = false;
 
+/* this function is called only on thread/process exit (never in the middle of thread exec) */
 void update_and_print_stats(bool process_wide) {
-    static atomic_ulong g_eenter_cnt = 0;
-    static atomic_ulong g_eexit_cnt  = 0;
-    static atomic_ulong g_aex_cnt    = 0;
+    static atomic_ulong g_eenter_cnt       = 0;
+    static atomic_ulong g_eexit_cnt        = 0;
+    static atomic_ulong g_aex_cnt          = 0;
+    static atomic_ulong g_sync_signal_cnt  = 0;
+    static atomic_ulong g_async_signal_cnt = 0;
 
     if (!g_sgx_enable_stats)
         return;
@@ -37,24 +40,32 @@ void update_and_print_stats(bool process_wide) {
     int tid = INLINE_SYSCALL(gettid, 0);
     assert(tid > 0);
     pal_printf("----- SGX stats for thread %d -----\n"
-               "  # of EENTERs: %lu\n"
-               "  # of EEXITs:  %lu\n"
-               "  # of AEXs:    %lu\n",
-               tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt);
+               "  # of EENTERs:        %lu\n"
+               "  # of EEXITs:         %lu\n"
+               "  # of AEXs:           %lu\n"
+               "  # of sync signals:   %lu\n"
+               "  # of async signals:  %lu\n",
+               tid, tcb->eenter_cnt, tcb->eexit_cnt, tcb->aex_cnt,
+               tcb->sync_signal_cnt, tcb->async_signal_cnt);
 
-    g_eenter_cnt += tcb->eenter_cnt;
-    g_eexit_cnt  += tcb->eexit_cnt;
-    g_aex_cnt    += tcb->aex_cnt;
+    g_eenter_cnt       += tcb->eenter_cnt;
+    g_eexit_cnt        += tcb->eexit_cnt;
+    g_aex_cnt          += tcb->aex_cnt;
+    g_sync_signal_cnt  += tcb->sync_signal_cnt;
+    g_async_signal_cnt += tcb->async_signal_cnt;
 
     if (process_wide) {
         int pid = INLINE_SYSCALL(getpid, 0);
         assert(pid > 0);
 
         pal_printf("----- Total SGX stats for process %d -----\n"
-                   "  # of EENTERs: %lu\n"
-                   "  # of EEXITs:  %lu\n"
-                   "  # of AEXs:    %lu\n",
-                   pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt);
+                   "  # of EENTERs:        %lu\n"
+                   "  # of EEXITs:         %lu\n"
+                   "  # of AEXs:           %lu\n"
+                   "  # of sync signals:   %lu\n"
+                   "  # of async signals:  %lu\n",
+                   pid, g_eenter_cnt, g_eexit_cnt, g_aex_cnt,
+                   g_sync_signal_cnt, g_async_signal_cnt);
     }
 }
 
@@ -64,9 +75,11 @@ void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
     tcb->stack = stack;
     tcb->alt_stack = alt_stack;
 
-    tcb->eenter_cnt = 0;
-    tcb->eexit_cnt  = 0;
-    tcb->aex_cnt    = 0;
+    tcb->eenter_cnt       = 0;
+    tcb->eexit_cnt        = 0;
+    tcb->aex_cnt          = 0;
+    tcb->sync_signal_cnt  = 0;
+    tcb->async_signal_cnt = 0;
 }
 
 static spinlock_t tcs_lock = INIT_SPINLOCK_UNLOCKED;
