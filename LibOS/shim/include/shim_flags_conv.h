@@ -20,7 +20,8 @@
 #include "pal.h"
 
 static inline int LINUX_PROT_TO_PAL(int prot, int map_flags) {
-    assert(WITHIN_MASK(prot, PROT_READ | PROT_WRITE | PROT_EXEC));
+    assert(WITHIN_MASK(prot, PROT_NONE | PROT_READ | PROT_WRITE | PROT_EXEC
+                                | PROT_GROWSDOWN | PROT_GROWSUP));
     return (prot & PROT_READ  ? PAL_PROT_READ  : 0) |
            (prot & PROT_WRITE ? PAL_PROT_WRITE : 0) |
            (prot & PROT_EXEC  ? PAL_PROT_EXEC  : 0) |

@@ -202,6 +202,20 @@ out_handle:
 }
 
 int shim_do_mprotect(void* addr, size_t length, int prot) {
+    if (prot & ~(PROT_NONE | PROT_READ | PROT_WRITE | PROT_EXEC | PROT_GROWSDOWN | PROT_GROWSUP
+                    | PROT_SEM)) {
+        return -EINVAL;
+    }
+
+    if ((prot & (PROT_GROWSDOWN | PROT_GROWSUP)) == (PROT_GROWSDOWN | PROT_GROWSUP)) {
+        return -EINVAL;
+    }
+
+    /* We do not support these flags (at least yet). */
+    if (prot & (PROT_GROWSUP | PROT_SEM)) {
+        return -EOPNOTSUPP;
+    }
+
     /*
      * According to the manpage, addr has to be page-aligned, but not the
      * length. mprotect() will automatically round up the length.
@@ -216,13 +230,30 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
+
     if (!access_ok(addr, length)) {
         return -EINVAL;
     }
 
+    /* `bkeep_mprotect` and then `DkVirtualMemoryProtect` is racy, but it's hard to do it properly.
+     * On the other hand if this race happens, it means user app is buggy, so not a huge problem. */
+
     int ret = bkeep_mprotect(addr, length, prot, /*is_internal=*/false);
     if (ret < 0) {
         return ret;
+    }
+
+    if (prot & PROT_GROWSDOWN) {
+        struct shim_vma_info vma_info = { 0 };
+        if (lookup_vma(addr, &vma_info) >= 0) {
+            addr = vma_info.addr;
+            if (vma_info.file) {
+                put_handle(vma_info.file);
+            }
+        } else {
+            warn("Memory that was about to be mprotected was unmapped, your program is buggy!\n");
+            return -ENOTRECOVERABLE;
+        }
     }
 
     if (!DkVirtualMemoryProtect(addr, length, LINUX_PROT_TO_PAL(prot, /*map_flags=*/0)))

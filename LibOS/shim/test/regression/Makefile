@@ -36,6 +36,7 @@ c_executables = \
 	mkfifo \
 	mmap_file \
 	mprotect_file_fork \
+	mprotect_prot_growsdown \
 	multi_pthread \
 	openmp \
 	pipe \
