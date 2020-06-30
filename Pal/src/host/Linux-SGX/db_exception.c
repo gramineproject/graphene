@@ -135,6 +135,7 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
         /* cpuid */
         unsigned int values[4];
         if (!_DkCpuIdRetrieve(uc->rax & 0xffffffff, uc->rcx & 0xffffffff, values)) {
+            SGX_DBG(DBG_I, "CPUID emulated during app execution at RIP 0x%016lx\n", uc->rip);
             uc->rip += 2;
             uc->rax = values[0];
             uc->rbx = values[1];

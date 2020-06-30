@@ -620,6 +620,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             context->rcx = (long)rip + 2;
             context->r11 = context->efl;
             context->rip = (long)&syscall_wrapper;
+            debug("SYSCALL emulated during app execution at 0x%08lx\n", (unsigned long)rip);
         } else {
             debug("Illegal instruction during app execution at 0x%08lx; delivering to app\n",
                   (unsigned long)rip);
