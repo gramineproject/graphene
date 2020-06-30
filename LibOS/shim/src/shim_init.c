@@ -171,7 +171,7 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
     size = ALLOC_ALIGN_UP(size);
     protect_size = ALLOC_ALIGN_UP(protect_size);
 
-    int flags = MAP_PRIVATE | MAP_ANONYMOUS | (user ? 0 : VMA_INTERNAL);
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS | (user ? 0 : VMA_INTERNAL) | MAP_GROWSDOWN;
 
     if (user) {
         /* reserve non-readable non-writable page below the user stack to catch stack overflows */

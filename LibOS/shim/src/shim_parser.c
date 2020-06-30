@@ -715,9 +715,9 @@ static void parse_mmap_prot(va_list* ap) {
     int prot   = va_arg(*ap, int);
     int nflags = 0;
 
-    if (prot == PROT_NONE) {
+    if (!(prot & (PROT_READ | PROT_WRITE | PROT_EXEC))) {
+        nflags++;
         PUTS("PROT_NONE");
-        return;
     }
 
     if (prot & PROT_READ) {
@@ -738,17 +738,27 @@ static void parse_mmap_prot(va_list* ap) {
 
         PUTS("PROT_EXEC");
     }
+
+    if (prot & PROT_GROWSDOWN) {
+        PUTS("|PROT_GROWSDOWN");
+    }
+
+    if (prot & PROT_GROWSUP) {
+        PUTS("|PROT_GROWSUP");
+    }
 }
 
 static void parse_mmap_flags(va_list* ap) {
     int flags = va_arg(*ap, int);
 
-    if (flags & MAP_SHARED) {
+    if (flags & MAP_SHARED_VALIDATE) {
+        PUTS("MAP_SHARED_VALIDATE");
+        flags &= ~MAP_SHARED_VALIDATE;
+    } else if (flags & MAP_SHARED) {
         PUTS("MAP_SHARED");
         flags &= ~MAP_SHARED;
-    }
-
-    if (flags & MAP_PRIVATE) {
+    } else {
+        assert(flags & MAP_PRIVATE);
         PUTS("MAP_PRIVATE");
         flags &= ~MAP_PRIVATE;
     }
@@ -766,6 +776,11 @@ static void parse_mmap_flags(va_list* ap) {
     if (flags & MAP_FIXED) {
         PUTS("|MAP_FIXED");
         flags &= ~MAP_FIXED;
+    }
+
+    if (flags & MAP_GROWSDOWN) {
+        PUTS("|MAP_GROWSDOWN");
+        flags &= ~MAP_GROWSDOWN;
     }
 
 #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED

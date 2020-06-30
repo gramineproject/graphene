@@ -381,6 +381,11 @@ class TC_30_Syscall(RegressionTestCase):
 
         self.assertIn('Test successful!', stdout)
 
+    def test_054_mprotect_prot_growsdown(self):
+        stdout, _ = self.run_binary(['mprotect_prot_growsdown'])
+
+        self.assertIn('TEST OK', stdout)
+
     @unittest.skip('sigaltstack isn\'t correctly implemented')
     def test_060_sigaltstack(self):
         stdout, _ = self.run_binary(['sigaltstack'])
