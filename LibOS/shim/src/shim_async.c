@@ -13,8 +13,8 @@
 #include <shim_thread.h>
 #include <shim_utils.h>
 
-#define IDLE_SLEEP_TIME 1000
-#define MAX_IDLE_CYCLES 100
+#define IDLE_SLEEP_TIME 1000000
+#define MAX_IDLE_CYCLES 10000
 
 DEFINE_LIST(async_event);
 struct async_event {
