@@ -100,13 +100,10 @@ test-4-%: gsc-%-python3
 test-5-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) -d -p 8005:8005 $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/dummy-web-server.py 8005 >c.id 2>/dev/null
 	sleep 30
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/test-http.py `ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | grep -v 172.17` 8005 >output1 2>/dev/null
-	cat output1 | tail -n 1 > output1.clean
-	wget -q http://localhost:8005/ -O output2
-	echo >> output2
-	diff -q output1.clean output2
+	wget -q http://localhost:8005/ -O output
+	grep -q "hi!" output
 	cat c.id | head -n 1 | xargs docker container rm -f >/dev/null 2>/dev/null
-	rm -f out c.id output1 output1.clean output2
+	rm -f c.id output
 
 .PHONY: test-6-%
 test-6-%: gsc-%-hello-world
