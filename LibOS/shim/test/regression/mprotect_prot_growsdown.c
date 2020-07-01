@@ -12,7 +12,7 @@ int main(void) {
 
     int x = mprotect(ptr + 0x1000, 0x1000, PROT_READ | PROT_WRITE | PROT_GROWSDOWN);
     if (x >= 0) {
-        printf("mprotect succedded unexpectedly!\n");
+        printf("mprotect succeeded unexpectedly!\n");
         return 1;
     }
     if (errno != EINVAL) {
