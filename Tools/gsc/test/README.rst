@@ -71,20 +71,16 @@ Remove images & containers from Docker daemon
 
 Remove GSC built sample images::
 
-    make cleanGSC
+    make clean-gsc
 
 Remove base sample images::
 
-    make cleanBase
+    make clean-base
 
 Remove containers::
 
-    make cleanContainers
+    make clean-containers
 
 Remove all containers built by this test folder (images are kept)::
 
     make clean
-
-Remove all images and containers built by this test folder::
-
-    make distclean

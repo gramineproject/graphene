@@ -15,9 +15,9 @@ def is_ascii(chars):
 
 def generate_trusted_files(root_dir):
     # Exclude files and paths from list of trusted files starting with
-    excluded_paths = ['boot', 'dev', 'etc/rc', 'sign_manifests.py', 'finalize_manifests.py',
-                      'proc', 'sys', 'var']
-    exclude_re = re.compile('^/(' + '|'.join(excluded_paths) + ').*')
+    excluded_paths = [r'boot/', r'dev/', r'etc/rc(\d|.)\.d/', r'sign_manifests.py',
+                      r'finalize_manifests.py', r'proc/', r'sys/', r'var/']
+    exclude_re = re.compile(r'^/(' + r'|'.join(excluded_paths) + r').*')
     num_trusted = 0
     trusted_files = ''
     script_file = os.path.basename(__file__)
@@ -55,20 +55,20 @@ def get_binary_path(executable):
                                    stderr=subprocess.STDOUT, shell=True).decode()
     return path.replace('\n', '')
 
-ARGPARSER = argparse.ArgumentParser()
-ARGPARSER.add_argument('directory', default='/',
+argparser = argparse.ArgumentParser()
+argparser.add_argument('directory', default='/',
     help='Search the directory tree from this root for files and generate list of trusted files')
-ARGPARSER.add_argument('manifests',
+argparser.add_argument('manifests',
     nargs='+',
     help='Application-specific manifest files. The first manifest will be used for the entry '
          'point of the docker image. If file does not exist, manifest will be generated '
          'without application-specific values.')
 
 def main(args=None):
-    args = ARGPARSER.parse_args(args[1:])
+    args = argparser.parse_args(args[1:])
 
     if not os.path.isdir(args.directory):
-        ARGPARSER.error(f'Could not find directory {args.directory}.')
+        argparser.error(f'Could not find directory {args.directory}.')
 
     trusted_files = generate_trusted_files(args.directory)
     library_paths = generate_library_paths()

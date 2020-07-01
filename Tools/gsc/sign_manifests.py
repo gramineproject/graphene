@@ -42,14 +42,17 @@ def extract_enclave_size(manifest):
 
     return '0M'
 
-ARGPARSER = argparse.ArgumentParser()
+argparser = argparse.ArgumentParser()
+argparser.add_argument('signing_order', default='signature_order.txt',
+    help='File specifying the order in which manifest should be signed. '
+         'Default: signature_order.txt')
 
 def main(args=None):
-    args = ARGPARSER.parse_args(args[1:])
+    args = argparser.parse_args(args[1:])
 
     print('Signing manifests:')
 
-    sig_order_file = 'signature_order.txt'
+    sig_order_file = args.signing_order
     if not os.path.exists(sig_order_file):
         print(f'Failed to generate signatures, since image misses {sig_order_file}.')
 

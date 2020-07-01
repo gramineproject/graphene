@@ -13,7 +13,7 @@ DEVICES_VOLUMES = --device=/dev/gsgx --device=/dev/${SGX_DEVICE} -v /var/run/aes
 
 IMAGE_SUFFIX ?=
 
-.PHONY:
+.PHONY: all
 all: $(KEYFILE) $(TESTS)
 	for d in $(DISTRIBUTIONS); do \
 		sed -e 's/\"Distro\": \".*\"/\"Distro\": \"'$${d}'\"/' \
@@ -24,65 +24,80 @@ all: $(KEYFILE) $(TESTS)
 $(KEYFILE):
 	openssl genrsa -3 -out $(KEYFILE) 3072
 
-.PHONY:
+.PRECIOUS: %
 %: %.dockerfile
 	echo "Building base image $@.dockerfile..."
 	docker build -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
+	touch $@
 
-.PHONY:
-gsc-%-bash:
+.PRECIOUS: gsc-%-bash
+gsc-%-bash: %-bash
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEYFILE))
+	touch $@
 
-.PHONY:
-gsc-%-python3: %-python3.manifest
+.PRECIOUS: gsc-%-python3
+gsc-%-python3: %-python3 %-python3.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $^ sh.manifest ls.manifest)
+	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEYFILE))
+	touch $@
 
-.PHONY:
-gsc-%-pytorch: %-pytorch.manifest
+.PRECIOUS: gsc-%-pytorch
+gsc-%-pytorch: %-pytorch %-pytorch.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $^ sh.manifest uname.manifest)
+	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $*-pytorch.manifest sh.manifest uname.manifest)
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEYFILE))
+	touch $@
 
-.PHONY:
-gsc-%:
+.PRECIOUS: gsc-%
+gsc-%: %
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEYFILE))
+	touch $@
 
-.PHONY:
-test: $(addprefix test-, $(DISTRIBUTIONS))
+.PHONY: test
+test: $(addprefix test-distro-, $(DISTRIBUTIONS))
 	echo "[SUCCESS] Completed all GSC test cases"
 
+.PHONY: test-%
+test-distro-%:
+	echo "Testing $*."
+	for t in $(shell seq 1 $(MAXTESTNUM)); do \
+		printf "$${t}/$(MAXTESTNUM): "; \
+		$(MAKE) test-$${t}-$* || exit 1; \
+		printf "[SUCCESS]\\n"; \
+	done
+	echo "Successfully finished testing $*."
+
 .PHONY:
-test-1-%:
+test-1-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>&1
 	grep -q "HelloWorld!" out
 	rm -f out
 
-.PHONY:
-test-2-%:
+.PHONY: test-2-%
+test-2-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py >out 2>&1
 	grep -q "Hello World" out
 	rm -f out
 
-.PHONY:
-test-3-%:
+.PHONY: test-3-%
+test-3-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/fibonacci.py >out 2>&1
 	grep -q "fib2              55" out
 	rm -f out
 
-.PHONY:
-test-4-%:
+.PHONY: test-4-%
+test-4-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' >out 2>&1
 	grep -q "ls.manifest.sgx" out
 	rm -f out
 
-.PHONY:
-test-5-%:
+.PHONY: test-5-%
+test-5-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) -d -p 8005:8005 $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/dummy-web-server.py 8005 >c.id 2>/dev/null
 	sleep 30
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/test-http.py `ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | grep -v 172.17` 8005 >output1 2>/dev/null
@@ -93,78 +108,68 @@ test-5-%:
 	cat c.id | head -n 1 | xargs docker container rm -f >/dev/null 2>/dev/null
 	rm -f out c.id output1 output1.clean output2
 
-.PHONY:
-test-6-%:
+.PHONY: test-6-%
+test-6-%: gsc-%-hello-world
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-hello-world) > out 2>/dev/null
 	grep -q "Hello World!" out
 	rm -f out
 
-.PHONY:
-test-7-%:
+.PHONY: test-7-%
+test-7-%: gsc-%-nodejs
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) -e 'console.log("HelloWorld");' >out 2>/dev/null
 	grep -q "HelloWorld" out
 	rm -f out
 
-.PHONY:
-test-8-%:
+.PHONY: test-8-%
+test-8-%: gsc-%-nodejs
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) /graphene/Examples/helloworld.js >out 2>/dev/null
 	grep -q "Hello World" out
 	rm -f out
 
-.PHONY:
-test-9-%:
+.PHONY: test-9-%
+test-9-%: gsc-%-numpy
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-numpy) /graphene/Examples/scripts/test-numpy.py >out 2>/dev/null
 	grep -q "numpy version:" out
 	rm -f out
 
-.PHONY:
-test-10-%:
+.PHONY: test-10-%
+test-10-%: gsc-%-bash
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' >out 2>/dev/null
 	grep -q "ls.manifest.sgx" out
 	rm -f out
 
-.PHONY:
-test-11-%:
+.PHONY: test-11-%
+test-11-%: gsc-%-pytorch
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py >out 2>/dev/null
 	grep -q "('Labrador retriever'" out
 	rm -f out
 
-.PHONY:
-test-%:
-	echo "Testing $*."
-	for t in $(shell seq 1 $(MAXTESTNUM)); do \
-		printf "$${t}/$(MAXTESTNUM): "; \
-		$(MAKE) test-$${t}-$* || exit 1; \
-		printf "[SUCCESS]\\n"; \
-	done
-	echo "Successfully finished testing $*."
-
-.PHONY:
-cleanImage-%:
+.PHONY: clean-image-%
+clean-image-%:
 	docker image rm -f $(addsuffix $(IMAGE_SUFFIX), $*)
 
-.PHONY:
-cleanBase: $(addprefix cleanImage-, $(TESTS))
+.PHONY: clean-base
+clean-base: $(addprefix clean-image-, $(TESTS))
 
-.PHONY:
-cleanGSC: $(addprefix cleanImage-gsc-, $(TESTS)) $(addsuffix -unsigned, $(addprefix cleanImage-gsc-, $(TESTS)))
+.PHONY: clean-gsc
+clean-gsc: $(addprefix clean-image-gsc-, $(TESTS)) $(addsuffix -unsigned, $(addprefix clean-image-gsc-, $(TESTS)))
 
 # Create a space to be used in subst
 space :=
 space +=
 
-.PHONY:
-cleanContainers:
+.PHONY: clean-containers
+clean-containers:
 	docker container ls -a | grep -e '$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(TESTS)))\|$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(addprefix gsc-, $(TESTS))))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container rm -f
 
-.PHONY:
-cleanFiles:
+.PHONY: clean-files
+clean-files:
 	for d in $(DISTRIBUTIONS); do \
 		for t in $(TESTCASES); do \
-			echo rm -rf ../gsc-$${d}-$${t}$(IMAGE_SUFFIX) || exit 1; \
+			rm -rf ../gsc-$${d}-$${t}$(IMAGE_SUFFIX) || exit 1; \
+			rm -f gsc-$${d}-$${t}$(IMAGE_SUFFIX) $${d}-$${t}$(IMAGE_SUFFIX); \
 		done \
 	done
 
-.PHONY:
-clean: cleanBase cleanGSC cleanFiles
-	rm -f ../config.yaml
+.PHONY: clean
+clean: clean-base clean-gsc clean-files

@@ -109,7 +109,7 @@ def extract_binary_cmd_from_image_config(config):
     # Check if we have fixed binary arguments as part of entrypoint
     if num_starting_entrypoint_items > 1:
         last_bin_arg = num_starting_entrypoint_items
-        escaped_args = [s.replace('"', '\\"')
+        escaped_args = [s.replace('\\', '\\\\').replace('"', '\\"')
                         for s in entrypoint[1:last_bin_arg]]
         binary_arguments = '"' + '", "'.join(escaped_args) + '"'
     else:
@@ -120,14 +120,14 @@ def extract_binary_cmd_from_image_config(config):
     # new command. This is necessary, since the first element of the command may be the
     # binary of the resulting image.
     cmd = entrypoint[last_bin_arg + 1 : ] if len(entrypoint) > last_bin_arg + 1 else ''
-    cmd = [s.replace('"', '\\"') for s in cmd]
+    cmd = [s.replace('\\', '\\\\').replace('"', '\\"') for s in cmd]
 
     return binary, binary_arguments, cmd
 
 def prepare_env(base_image, image, args, user_manifests):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
 
-    env.globals.update({'args': args})
+    env.globals.update(vars(args))
     config = load_config('config.yaml')
     env.globals.update(config)
 
@@ -158,7 +158,7 @@ def get_docker_image(docker_socket, image):
         return docker_image
 
     except (docker.errors.ImageNotFound, docker.errors.APIError):
-        return False
+        return None
 
 # Build graphenized docker image. args has to follow [<options>] <base_image> <app.manifest>
 # [<app2.manifest> ...].
@@ -169,12 +169,12 @@ def gsc_build(args):
 
     docker_socket = docker.from_env()
 
-    if get_docker_image(docker_socket, gsc_image_name(image)):
+    if get_docker_image(docker_socket, gsc_image_name(image)) is not None:
         print(f'Image {gsc_image_name(image)} already exists, no gsc build required.')
         sys.exit(0)
 
     base_image = get_docker_image(docker_socket, image)
-    if not base_image:
+    if base_image is None:
         print(f'Unable to find base image {image}')
         sys.exit(1)
 
@@ -201,7 +201,7 @@ def gsc_build(args):
                 print(line)
 
     # Check if docker build failed
-    if not get_docker_image(docker_socket, gsc_unsigned_image_name(image)):
+    if get_docker_image(docker_socket, gsc_unsigned_image_name(image)) is None:
         print(f'Failed to build graphenized image for {image}')
         sys.exit(1)
 
@@ -233,7 +233,7 @@ def gsc_sign_image(args):
     docker_socket = docker.from_env()
 
     gsc_image = get_docker_image(docker_socket, gsc_unsigned_image_name(image))
-    if not gsc_image:
+    if gsc_image is None:
         print(f'Could not find graphenized Docker image of {image}.\n'
               f'Please make sure to build the graphenized image first by using gsc build command.')
 
@@ -252,15 +252,15 @@ def gsc_sign_image(args):
                 print(line)
 
     # Check if docker build failed
-    if not get_docker_image(docker_socket, gsc_image_name(image)):
+    if get_docker_image(docker_socket, gsc_image_name(image)) is None:
         print(f'Failed to sign graphenized image for {image}')
         sys.exit(1)
 
     print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker image '
           f'{gsc_image_name(image)}.')
 
-ARGPARSER = argparse.ArgumentParser()
-subcommands = ARGPARSER.add_subparsers(metavar='<command>')
+argparser = argparse.ArgumentParser()
+subcommands = argparser.add_subparsers(metavar='<command>')
 subcommands.required = True
 sub_build = subcommands.add_parser('build', help="Build graphenized Docker image")
 sub_build.set_defaults(command=gsc_build)
@@ -289,8 +289,8 @@ sub_sign.set_defaults(command=gsc_sign_image)
 sub_sign.add_argument('image',
     help='Name of the application Docker image')
 sub_sign.add_argument('key',
-    help='Provided key will be used to sign the image')
+    help='Key for signing the image')
 
 def main(args):
-    args = ARGPARSER.parse_args()
+    args = argparser.parse_args()
     return args.command(args)
