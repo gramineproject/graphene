@@ -163,6 +163,9 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     vma->top             = addr + size;
     vma->is_pal_internal = is_pal_internal;
 
+    /* initialize the contents of the new VMA to zero */
+    memset(vma->bottom, 0, vma->top - vma->bottom);
+
     /* how much memory was freed because [addr, addr + size) overlapped with VMAs */
     size_t freed = 0;
 

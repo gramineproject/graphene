@@ -207,23 +207,6 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
     g_pal_sec.exec_addr = GET_ENCLAVE_TLS(exec_addr);
     g_pal_sec.exec_size = GET_ENCLAVE_TLS(exec_size);
 
-    /* Zero the heap. We need to take care to not zero the exec area. */
-
-    void* zero1_start = g_pal_sec.heap_min;
-    void* zero1_end = g_pal_sec.heap_max;
-
-    void* zero2_start = g_pal_sec.heap_max;
-    void* zero2_end = g_pal_sec.heap_max;
-
-    if (g_pal_sec.exec_addr != NULL) {
-        zero1_end = MIN(zero1_end, SATURATED_P_SUB(g_pal_sec.exec_addr, MEMORY_GAP, 0));
-        zero2_start = SATURATED_P_ADD(g_pal_sec.exec_addr + g_pal_sec.exec_size, MEMORY_GAP,
-                                      zero2_end);
-    }
-
-    memset(zero1_start, 0, zero1_end - zero1_start);
-    memset(zero2_start, 0, zero2_end - zero2_start);
-
     /* relocate PAL itself */
     g_pal_map.l_addr = elf_machine_load_address();
     g_pal_map.l_name = ENCLAVE_PAL_FILENAME;
