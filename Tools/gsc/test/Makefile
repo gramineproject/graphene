@@ -169,4 +169,5 @@ clean-files:
 	done
 
 .PHONY: clean
-clean: clean-base clean-gsc clean-files
+clean: clean-base clean-gsc clean-containers clean-files
+	docker image prune $(FLAGS)
