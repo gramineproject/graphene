@@ -19,6 +19,9 @@ cJSON - MIT
 
 A number of files taken from other C libraries:
 * musl - MIT
+ ** Pal/lib/string/memcmp.c
+ ** Pal/lib/string/memcpy.c
+ ** Pal/lib/string/strcmp.c
 * glibc - LGPL
  ** clone, sysdeps.h (and variants) used in code
  ** Pal/src/host/Linux/clone-x86_64.S
@@ -26,10 +29,12 @@ A number of files taken from other C libraries:
  ** LibOS/shim/src/elf/ - basically the whole directory, and most code related to linking and loading (e.g., Pal/src/db_rtld.c)
  ** Pal/include/elf/elf.h
  ** Pal/include/sysdeps/generic/ldsodefs.h
- ** Pal/include/sysdeps/generic/memcopy.h
  ** Pal/include/sysdeps/generic/sysdep.h
  ** Pal/lib/network/hton.c
- ** Pal/lib/string/ - the whole directory
+ ** Pal/lib/string/atoi.c
+ ** Pal/lib/string/memset.c
+ ** Pal/lib/string/strchr.c
+ ** Pal/lib/string/strlen.c
  ** Pal/src/dynamic_link.h, do-rel.h , dl-machine-x86_64.h
  ** Pal/include/arch/x86_64/Linux/ - whole directory - for signal API definitions
  ** We also build a patched glibc
