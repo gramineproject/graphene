@@ -14,7 +14,7 @@ def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
 
 def generate_trusted_files(root_dir):
-    # Exclude files and paths from list of trusted files starting with
+    # Exclude files and paths from list of trusted files
     excluded_paths_regex = (r'^/(boot/.*'
                             r'|dev/.*'
                             r'|etc/rc(\d|.)\.d/.*'

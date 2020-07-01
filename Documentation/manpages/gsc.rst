@@ -177,9 +177,9 @@ Each application loaded by Graphene requires a separate manifest file.
 list of trusted files, assumes values for the number of stacks and memory size,
 and generates the chain of trusted children (see below for details). To allow
 specializing each application manifest, :program:`gsc` allows the user to
-augment each generated manifest. In particular this allows to add additional
-trusted or allowed files, and specify a higher memory or number thread control
-structures (TCS) requirement.
+augment each generated manifest. In particular, this allows to add additional
+trusted or allowed files and specify a particular enclave size or number of
+Thread Control Structures (TCS).
 
 :program:`gsc` allows application-specific manifest files to be empty or not to
 exist. In this case :program:`gsc` generates a generic manifest file.
@@ -402,7 +402,7 @@ Limitations
 ===========
 
 This document focuses on the most important limitations of GSC.
-`issue #1520 <https://github.com/oscarlab/graphene/issues/1520>`__ provides the
+`Issue #1520 <https://github.com/oscarlab/graphene/issues/1520>`__ provides the
 complete list of known limitations and serves as a discussion board for
 workarounds.
 
@@ -439,7 +439,7 @@ Allowing dynamic file contents via Graphene protected files
    Once protected files are supported by Graphene, Docker volumes could include
    protected files. As a result Graphene can open these protected files without
    knowing the exact contents as long as the protected file was configured in
-   the applicaiton-specific manifest. The complete and secure use of protected
+   the application-specific manifest. The complete and secure use of protected
    files may require additional steps.
 
 Integration of Docker Secrets
@@ -450,7 +450,7 @@ either in environment variables or mounted as files. GSC is currently unaware of
 such files and hence, cannot mark them trusted. Similar to trusted data, these
 files may be added to the application-specific manifest.
 
-Access to files in excluded Paths
+Access to files in excluded paths
 -----------------------------------
 
 The manifest generation excludes all files and paths starting with
