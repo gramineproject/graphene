@@ -160,6 +160,22 @@ def get_docker_image(docker_socket, image):
     except (docker.errors.ImageNotFound, docker.errors.APIError):
         return None
 
+def build_docker_image(path, name, dockerfile, args):
+    docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
+    # Docker build returns stream of json output
+    stream = docker_api.build(path=path,
+                              tag=name,
+                              nocache=args.no_cache,
+                              dockerfile=dockerfile)
+
+    # Print continuously the stream of output by docker build
+    for chunk in stream:
+        json_output = json.loads(chunk.decode(sys.stdout.encoding
+                                    if sys.stdout.encoding is not None else 'UTF-8'))
+        if 'stream' in json_output:
+            for line in json_output['stream'].splitlines():
+                print(line)
+
 # Build graphenized docker image. args has to follow [<options>] <base_image> <app.manifest>
 # [<app2.manifest> ...].
 def gsc_build(args):
@@ -185,20 +201,8 @@ def gsc_build(args):
 
     prepare_build_context(image, user_manifests, env, binary)
 
-    docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
-    # Docker build returns stream of json output
-    stream = docker_api.build(path=gsc_image_name(image),
-                              tag=gsc_unsigned_image_name(image),
-                              nocache=args.no_cache,
-                              dockerfile='Dockerfile.build')
-
-    # Print continuously the stream of output by docker build
-    for chunk in stream:
-        json_output = json.loads(chunk.decode(sys.stdout.encoding
-                                    if sys.stdout.encoding is not None else 'UTF-8'))
-        if 'stream' in json_output:
-            for line in json_output['stream'].splitlines():
-                print(line)
+    build_docker_image(gsc_image_name(image), gsc_unsigned_image_name(image), 'Dockerfile.build',
+                       args)
 
     # Check if docker build failed
     if get_docker_image(docker_socket, gsc_unsigned_image_name(image)) is None:
@@ -238,19 +242,8 @@ def gsc_sign_image(args):
     fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
     shutil.copyfile(os.path.abspath(key), fk_path)
 
-    docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
-    # Docker build returns stream of json output
-    stream = docker_api.build(path=gsc_image_name(image),
-                              tag=gsc_image_name(image),
-                              dockerfile='Dockerfile.sign_manifests')
-
-    # Print continuously the stream of output by docker build
-    for chunk in stream:
-        json_output = json.loads(chunk.decode(sys.stdout.encoding
-                                    if sys.stdout.encoding is not None else 'UTF-8'))
-        if 'stream' in json_output:
-            for line in json_output['stream'].splitlines():
-                print(line)
+    build_docker_image(gsc_image_name(image), gsc_image_name(image), 'Dockerfile.sign_manifests',
+                       args)
 
     # Remove key file from the temporary folder
     os.remove(fk_path)
@@ -287,9 +280,10 @@ sub_build.add_argument('manifests',
     help='Application-specific manifest files. The first manifest will be used for the entry '
          'point of the Docker image.')
 
-
 sub_sign = subcommands.add_parser('sign-image', help="Sign graphenized Docker image")
 sub_sign.set_defaults(command=gsc_sign_image)
+sub_sign.add_argument('-nc', '--no-cache', action='store_true',
+    help='Build graphenized Docker image without any cached images.')
 sub_sign.add_argument('image',
     help='Name of the application Docker image')
 sub_sign.add_argument('key',

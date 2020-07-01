@@ -117,7 +117,7 @@ Synopsis:
 .. option:: -nc
 
    Disable Docker's caches during :command:`gsc build`. This builds the
-   graphenized image from scratch.
+   unsigned graphenized image from scratch.
 
 .. option:: IMAGE-NAME
 
@@ -143,7 +143,12 @@ Docker image called ``gsc-<IMAGE-NAME>``.
 
 Synopsis:
 
-:command:`gsc sign-image` <*IMAGE-NAME*> <*KEY-FILE*>
+:command:`gsc sign-image` [*OPTIONS*] <*IMAGE-NAME*> <*KEY-FILE*>
+
+.. option:: -nc
+
+   Disable Docker's caches during :command:`gsc sign-image`. This signs the
+   graphenized image from scratch.
 
 .. option:: IMAGE-NAME
 
