@@ -24,7 +24,7 @@ all: $(KEYFILE) $(TESTS)
 $(KEYFILE):
 	openssl genrsa -3 -out $(KEYFILE) 3072
 
-.PRECIOUS: %
+.PRECIOUS: %: %.dockerfile
 %: %.dockerfile
 	echo "Building base image $@.dockerfile..."
 	docker build -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
@@ -62,7 +62,7 @@ gsc-%: %
 test: $(addprefix test-distro-, $(DISTRIBUTIONS))
 	echo "[SUCCESS] Completed all GSC test cases"
 
-.PHONY: test-%
+.PHONY: test-distro-%
 test-distro-%:
 	echo "Testing $*."
 	for t in $(shell seq 1 $(MAXTESTNUM)); do \
@@ -76,25 +76,25 @@ test-distro-%:
 test-1-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>&1
 	grep -q "HelloWorld!" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-2-%
 test-2-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py >out 2>&1
 	grep -q "Hello World" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-3-%
 test-3-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/fibonacci.py >out 2>&1
 	grep -q "fib2              55" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-4-%
 test-4-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' >out 2>&1
 	grep -q "ls.manifest.sgx" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-5-%
 test-5-%: gsc-%-python3
@@ -102,48 +102,48 @@ test-5-%: gsc-%-python3
 	sleep 30
 	wget -q http://localhost:8005/ -O output
 	grep -q "hi!" output
-	cat c.id | head -n 1 | xargs docker container rm -f >/dev/null 2>/dev/null
-	rm -f c.id output
+	cat c.id | head -n 1 | xargs docker container $(RM) >/dev/null 2>/dev/null
+	$(RM) c.id output
 
 .PHONY: test-6-%
 test-6-%: gsc-%-hello-world
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-hello-world) > out 2>/dev/null
 	grep -q "Hello World!" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-7-%
 test-7-%: gsc-%-nodejs
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) -e 'console.log("HelloWorld");' >out 2>/dev/null
 	grep -q "HelloWorld" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-8-%
 test-8-%: gsc-%-nodejs
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) /graphene/Examples/helloworld.js >out 2>/dev/null
 	grep -q "Hello World" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-9-%
 test-9-%: gsc-%-numpy
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-numpy) /graphene/Examples/scripts/test-numpy.py >out 2>/dev/null
 	grep -q "numpy version:" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-10-%
 test-10-%: gsc-%-bash
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' >out 2>/dev/null
 	grep -q "ls.manifest.sgx" out
-	rm -f out
+	$(RM) out
 
 .PHONY: test-11-%
 test-11-%: gsc-%-pytorch
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py >out 2>/dev/null
 	grep -q "('Labrador retriever'" out
-	rm -f out
+	$(RM) out
 
 .PHONY: clean-image-%
 clean-image-%:
-	docker image rm -f $(addsuffix $(IMAGE_SUFFIX), $*)
+	docker image $(RM) $(addsuffix $(IMAGE_SUFFIX), $*)
 
 .PHONY: clean-base
 clean-base: $(addprefix clean-image-, $(TESTS))
@@ -157,14 +157,14 @@ space +=
 
 .PHONY: clean-containers
 clean-containers:
-	docker container ls -a | grep -e '$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(TESTS)))\|$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(addprefix gsc-, $(TESTS))))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container rm -f
+	docker container ls -a | grep -e '$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(TESTS)))\|$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(addprefix gsc-, $(TESTS))))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container $(RM)
 
 .PHONY: clean-files
 clean-files:
 	for d in $(DISTRIBUTIONS); do \
 		for t in $(TESTCASES); do \
-			rm -rf ../gsc-$${d}-$${t}$(IMAGE_SUFFIX) || exit 1; \
-			rm -f gsc-$${d}-$${t}$(IMAGE_SUFFIX) $${d}-$${t}$(IMAGE_SUFFIX); \
+			$(RM) -r ../gsc-$${d}-$${t}$(IMAGE_SUFFIX) || exit 1; \
+			$(RM) gsc-$${d}-$${t}$(IMAGE_SUFFIX) $${d}-$${t}$(IMAGE_SUFFIX); \
 		done \
 	done
 

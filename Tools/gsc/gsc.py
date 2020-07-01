@@ -87,8 +87,8 @@ def prepare_build_context(image, user_manifests, env, binary):
 
     fm_path = (pathlib.Path(gsc_image_name(image)) / 'finalize_manifests').with_suffix('.py')
     shutil.copyfile('finalize_manifests.py', fm_path)
-    fm_path = (pathlib.Path(gsc_image_name(image)) / 'sign_manifests').with_suffix('.py')
-    shutil.copyfile('sign_manifests.py', fm_path)
+    sm_path = (pathlib.Path(gsc_image_name(image)) / 'sign_manifests').with_suffix('.py')
+    shutil.copyfile('sign_manifests.py', sm_path)
 
 def extract_binary_cmd_from_image_config(config):
     entrypoint = config['Entrypoint'] or []
@@ -186,13 +186,13 @@ def gsc_build(args):
     prepare_build_context(image, user_manifests, env, binary)
 
     docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
-    # docker build returns stream of json output
+    # Docker build returns stream of json output
     stream = docker_api.build(path=gsc_image_name(image),
                               tag=gsc_unsigned_image_name(image),
                               nocache=args.no_cache,
                               dockerfile='Dockerfile.build')
 
-    # print continuously the stream of output by docker build
+    # Print continuously the stream of output by docker build
     for chunk in stream:
         json_output = json.loads(chunk.decode(sys.stdout.encoding
                                     if sys.stdout.encoding is not None else 'UTF-8'))
@@ -221,35 +221,39 @@ def gsc_sign_image(args):
     image = args.image
     key = args.key
 
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
-    config = load_config('config.yaml')
-    env.globals.update(config)
-
-    generate_dockerfile_sign_manifests(image, env)
-
-    fm_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
-    shutil.copyfile(os.path.abspath(key), fm_path)
-
     docker_socket = docker.from_env()
 
     gsc_image = get_docker_image(docker_socket, gsc_unsigned_image_name(image))
     if gsc_image is None:
         print(f'Could not find graphenized Docker image of {image}.\n'
               f'Please make sure to build the graphenized image first by using gsc build command.')
+        sys.exit(1)
+
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
+    config = load_config('config.yaml')
+    env.globals.update(config)
+
+    generate_dockerfile_sign_manifests(image, env)
+
+    fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
+    shutil.copyfile(os.path.abspath(key), fk_path)
 
     docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
-    # docker build returns stream of json output
+    # Docker build returns stream of json output
     stream = docker_api.build(path=gsc_image_name(image),
                               tag=gsc_image_name(image),
                               dockerfile='Dockerfile.sign_manifests')
 
-    # print continuously the stream of output by docker build
+    # Print continuously the stream of output by docker build
     for chunk in stream:
         json_output = json.loads(chunk.decode(sys.stdout.encoding
                                     if sys.stdout.encoding is not None else 'UTF-8'))
         if 'stream' in json_output:
             for line in json_output['stream'].splitlines():
                 print(line)
+
+    # Remove key file from the temporary folder
+    os.remove(fk_path)
 
     # Check if docker build failed
     if get_docker_image(docker_socket, gsc_image_name(image)) is None:
