@@ -14,15 +14,19 @@ def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
 
 def generate_trusted_files(root_dir):
+    cwd = os.getcwd() if len(os.getcwd()) > 1 else ''
     # Exclude files and paths from list of trusted files
-    excluded_paths_regex = (r'^/(boot/.*'
-                            r'|dev/.*'
-                            r'|etc/rc(\d|.)\.d/.*'
-                            r'|proc/.*'
-                            r'|sys/.*'
-                            r'|var/.*'
-                            r'|finalize_manifests.py'
-                            r'|sign_manifests.py)')
+    excluded_paths_regex = (r'^/('
+                                r'boot/.*'
+                                r'|dev/.*'
+                                r'|etc/rc(\d|.)\.d/.*'
+                                r'|proc/.*'
+                                r'|sys/.*'
+                                r'|var/.*)'
+                            f'|^{cwd}/('
+                                r'.*\.manifest'
+                                r'|finalize_manifests\.py'
+                                r'|sign_manifests\.py)')
     exclude_re = re.compile(excluded_paths_regex)
     num_trusted = 0
     trusted_files = ''

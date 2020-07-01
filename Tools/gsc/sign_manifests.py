@@ -13,7 +13,7 @@ def generate_signature(manifest):
         '/graphene/signer/pal-sgx-sign',
         '-libpal', '/graphene/Runtime/libpal-Linux-SGX.so',
         '-key', '/gsc-signer-key.pem',
-        '-output', f'/{manifest}.sgx',
+        '-output', f'{manifest}.sgx',
         '-manifest', manifest
         ],
         stdout=subprocess.PIPE,
@@ -22,8 +22,8 @@ def generate_signature(manifest):
     _, err = sign_process.communicate()
 
     if (sign_process.returncode != 0
-        or not os.path.exists(os.path.join('/', manifest + '.sgx'))
-        or not os.path.exists(os.path.join('/', manifest[:manifest.rfind('.manifest')] + '.sig'))):
+        or not os.path.exists(os.path.join('./', manifest + '.sgx'))
+        or not os.path.exists(os.path.join('./', manifest[:manifest.rfind('.manifest')] + '.sig'))):
         print(err.decode())
         print('Finalize manifests failed due to pal-sgx-sign failure.')
         sys.exit(1)

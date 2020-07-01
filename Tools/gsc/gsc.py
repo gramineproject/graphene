@@ -124,6 +124,15 @@ def extract_binary_cmd_from_image_config(config):
 
     return binary, binary_arguments, cmd
 
+def extract_working_dir(image):
+    working_dir = image.attrs['Config']['WorkingDir']
+    if working_dir == '':
+        working_dir = '/'
+    elif working_dir[-1] != '/':
+        working_dir = working_dir + '/'
+
+    return working_dir
+
 def prepare_env(base_image, image, args, user_manifests):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
 
@@ -138,7 +147,7 @@ def prepare_env(base_image, image, args, user_manifests):
     binary, binary_arguments, cmd = extract_binary_cmd_from_image_config(
         base_image.attrs['Config'])
 
-    working_dir = base_image.attrs['Config']['WorkingDir']
+    working_dir = extract_working_dir(base_image)
 
     env.globals.update({
             'app_image': image,
@@ -236,6 +245,7 @@ def gsc_sign_image(args):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
     config = load_config('config.yaml')
     env.globals.update(config)
+    env.globals.update({'working_dir': extract_working_dir(gsc_image)})
 
     generate_dockerfile_sign_manifests(image, env)
 
