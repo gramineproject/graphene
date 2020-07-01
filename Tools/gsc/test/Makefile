@@ -72,7 +72,7 @@ test-distro-%:
 	done
 	echo "Successfully finished testing $*."
 
-.PHONY:
+.PHONY: test-1-%
 test-1-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>&1
 	grep -q "HelloWorld!" out
