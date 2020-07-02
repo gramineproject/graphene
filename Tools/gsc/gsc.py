@@ -249,10 +249,10 @@ def gsc_sign_image(args):
 
     generate_dockerfile_sign_manifests(image, env)
 
-    try:
-        fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
-        shutil.copyfile(os.path.abspath(key), fk_path)
+    fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
+    shutil.copyfile(os.path.abspath(key), fk_path)
 
+    try:
         build_docker_image(gsc_image_name(image), gsc_image_name(image),
                            'Dockerfile.sign_manifests', args)
 
