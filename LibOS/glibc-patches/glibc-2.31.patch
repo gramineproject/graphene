@@ -447,3 +447,16 @@ index e7c1416eec4a490312ed56cc51a03a33eaa8e222..0d3b7babb0827f6abb9828e87f5982a4
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
+diff --git a/Makerules b/Makerules
+index 1e9c18f0d866731910d29327b975e359dbb3ea33..3fa0d4a52489b6d05111e76ade0a68cc618f2679 100644
+--- a/Makerules
++++ b/Makerules
+@@ -829,7 +829,7 @@ verbose	:=
+ endif						# not -s
+ 
+ ARFLAGS := r$(verbose)
+-CREATE_ARFLAGS := cru$(verbose)
++CREATE_ARFLAGS := cr$(verbose)
+ 
+ # This makes all the object files in the parent library archive.
+ 
