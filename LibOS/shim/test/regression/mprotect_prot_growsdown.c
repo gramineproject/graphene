@@ -40,12 +40,9 @@ int main(void) {
         err(1, "mprotect");
     }
 
-    __asm__ volatile("movb $0x61, (%0)"
-            :
-            : "r"(ptr)
-            : "memory");
+    *(volatile char*)ptr = 'a';
 
-    if (ptr[0] != 'a') {
+    if (*(volatile char*)ptr != 'a') {
         printf("Value was not written to memory!\n");
         return 1;
     }
