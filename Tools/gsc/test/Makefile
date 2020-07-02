@@ -1,6 +1,6 @@
 TESTCASES ?= python3 hello-world nodejs bash numpy pytorch
 DISTRIBUTIONS ?= ubuntu18.04
-FLAGS ?=
+FLAGS ?= --no-cache
 TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 MAXTESTNUM ?= 11
 KEYFILE ?= ../enclave-key.pem
@@ -27,35 +27,35 @@ $(KEYFILE):
 .PRECIOUS: %: %.dockerfile
 %: %.dockerfile
 	echo "Building base image $@.dockerfile..."
-	docker build -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
+	docker build $(FLAGS) -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
 	touch $@
 
 .PRECIOUS: gsc-%-bash
 gsc-%-bash: %-bash
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
-	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEYFILE))
+	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEYFILE))
 	touch $@
 
 .PRECIOUS: gsc-%-python3
 gsc-%-python3: %-python3 %-python3.manifest
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
-	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEYFILE))
+	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEYFILE))
 	touch $@
 
 .PRECIOUS: gsc-%-pytorch
 gsc-%-pytorch: %-pytorch %-pytorch.manifest
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $*-pytorch.manifest sh.manifest uname.manifest)
-	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEYFILE))
+	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEYFILE))
 	touch $@
 
 .PRECIOUS: gsc-%
 gsc-%: %
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
-	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEYFILE))
+	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEYFILE))
 	touch $@
 
 .PHONY: test

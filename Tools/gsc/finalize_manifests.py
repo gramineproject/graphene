@@ -14,7 +14,7 @@ def is_ascii(chars):
     return all(ord(c) < 128 for c in chars)
 
 def generate_trusted_files(root_dir):
-    cwd = os.getcwd() if len(os.getcwd()) > 1 else ''
+    cwd = os.getcwd() if os.getcwd() != '/' else ''
     # Exclude files and paths from list of trusted files
     excluded_paths_regex = (r'^/('
                                 r'boot/.*'
