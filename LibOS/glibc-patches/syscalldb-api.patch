@@ -1,6 +1,6 @@
 diff --git a/elf/syscallas.S b/elf/syscallas.S
 new file mode 120000
-index 0000000..107bd13
+index 0000000000000000000000000000000000000000..107bd13a746036488e8bd7d4dc4aee265ceabffa
 --- /dev/null
 +++ b/elf/syscallas.S
 @@ -0,0 +1 @@
@@ -8,7 +8,7 @@ index 0000000..107bd13
 \ No newline at end of file
 diff --git a/elf/syscalldb.c b/elf/syscalldb.c
 new file mode 120000
-index 0000000..61dca52
+index 0000000000000000000000000000000000000000..61dca527ee3bd1027a81a28264d82a96faaa76a2
 --- /dev/null
 +++ b/elf/syscalldb.c
 @@ -0,0 +1 @@
@@ -16,7 +16,7 @@ index 0000000..61dca52
 \ No newline at end of file
 diff --git a/syscallas.S b/syscallas.S
 new file mode 100644
-index 0000000..07c6ffc
+index 0000000000000000000000000000000000000000..07c6ffce0f3b1bc57e5b1ca26086a567dfbf5a41
 --- /dev/null
 +++ b/syscallas.S
 @@ -0,0 +1,11 @@
@@ -33,7 +33,7 @@ index 0000000..07c6ffc
 +	.size syscalldb,.-syscalldb
 diff --git a/syscalldb.c b/syscalldb.c
 new file mode 100644
-index 0000000..7a56162
+index 0000000000000000000000000000000000000000..47b17de10f831f28b645686995c5df007bb375d3
 --- /dev/null
 +++ b/syscalldb.c
 @@ -0,0 +1,11 @@
@@ -50,7 +50,7 @@ index 0000000..7a56162
 +}
 diff --git a/syscalldb.h b/syscalldb.h
 new file mode 100644
-index 0000000..2833def
+index 0000000000000000000000000000000000000000..4914e280d8cd6a62ab1ea4c9aa41601763167e7d
 --- /dev/null
 +++ b/syscalldb.h
 @@ -0,0 +1,33 @@
@@ -89,7 +89,7 @@ index 0000000..2833def
 +#endif /* _SYSCALLDB_H */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/syscalldb.h b/sysdeps/unix/sysv/linux/x86_64/syscalldb.h
 new file mode 120000
-index 0000000..55ab305
+index 0000000000000000000000000000000000000000..55ab305032a38796e4abc8ce7a208bdaefe8639e
 --- /dev/null
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscalldb.h
 @@ -0,0 +1 @@

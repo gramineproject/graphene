@@ -1,11 +1,13 @@
 diff --git a/sysdeps/x86_64/hp-timing.h b/sysdeps/x86_64/hp-timing.h
-index d88206c..886c500 100644
+index ec543bef03b6c2d138c28c2ffd813c6649f7b9e8..1b84ecfe9540f4d3ff1f6c62928ecb64ed71c4be 100644
 --- a/sysdeps/x86_64/hp-timing.h
 +++ b/sysdeps/x86_64/hp-timing.h
-@@ -19,22 +19,5 @@
+@@ -17,24 +17,7 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
  #ifndef _HP_TIMING_H
 -#define _HP_TIMING_H	1
--
+ 
 -/* We always assume having the timestamp register.  */
 -#define HP_TIMING_AVAIL		(1)
 -#define HP_SMALL_TIMING_AVAIL	(1)
@@ -23,7 +25,6 @@ index d88206c..886c500 100644
 -     (Var) = ((unsigned long long int) _hi << 32) | _lo; })
 -
 -#include <hp-timing-common.h>
-+
 +#include <sysdeps/generic/hp-timing.h>
  
  #endif /* hp-timing.h */
