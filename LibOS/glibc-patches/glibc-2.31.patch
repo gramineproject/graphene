@@ -35,6 +35,19 @@ index 8f0a93aceb..37c6356629 100644
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
+diff --git a/Makerules b/Makerules
+index 1e9c18f0..3fa0d4a5 100644
+--- a/Makerules
++++ b/Makerules
+@@ -829,7 +829,7 @@ verbose	:=
+ endif						# not -s
+ 
+ ARFLAGS := r$(verbose)
+-CREATE_ARFLAGS := cru$(verbose)
++CREATE_ARFLAGS := cr$(verbose)
+ 
+ # This makes all the object files in the parent library archive.
+ 
 diff --git a/elf/Makefile b/elf/Makefile
 index 632a4d8b0f..d9def31d16 100644
 --- a/elf/Makefile
