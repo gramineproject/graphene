@@ -26,7 +26,7 @@ def generate_trusted_files(root_dir):
                             f'|^{cwd}/('
                                 r'.*\.manifest'
                                 r'|finalize_manifests\.py'
-                                r'|sign_manifests\.py)')
+                                r'|sign_manifests\.py)$')
     exclude_re = re.compile(excluded_paths_regex)
     num_trusted = 0
     trusted_files = ''
