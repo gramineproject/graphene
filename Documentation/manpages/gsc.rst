@@ -148,7 +148,7 @@ Synopsis:
 .. option:: -nc
 
    Disable Docker's caches during :command:`gsc sign-image`. This signs the
-   graphenized image from scratch.
+   graphenized image without relying on the Docker cache.
 
 .. option:: IMAGE-NAME
 

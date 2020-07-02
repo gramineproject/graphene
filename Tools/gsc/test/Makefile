@@ -102,7 +102,7 @@ test-5-%: gsc-%-python3
 	sleep 30
 	wget -q http://localhost:8005/ -O output
 	grep -q "hi!" output
-	cat c.id | head -n 1 | xargs docker container $(RM) >/dev/null 2>/dev/null
+	cat c.id | head -n 1 | xargs docker container rm -f >/dev/null 2>/dev/null
 	$(RM) c.id output
 
 .PHONY: test-6-%
@@ -143,7 +143,7 @@ test-11-%: gsc-%-pytorch
 
 .PHONY: clean-image-%
 clean-image-%:
-	docker image $(RM) $(addsuffix $(IMAGE_SUFFIX), $*)
+	docker image rm -f $(addsuffix $(IMAGE_SUFFIX), $*)
 
 .PHONY: clean-base
 clean-base: $(addprefix clean-image-, $(TESTS))
@@ -157,7 +157,7 @@ space +=
 
 .PHONY: clean-containers
 clean-containers:
-	docker container ls -a | grep -e '$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(TESTS)))\|$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(addprefix gsc-, $(TESTS))))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container $(RM)
+	docker container ls -a | grep -e '$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(TESTS)))\|$(subst $(space),\|,$(addsuffix $(IMAGE_SUFFIX), $(addprefix gsc-, $(TESTS))))' | cut -d ' ' -f 1 | grep -v CONTAINER | xargs -r docker container rm -f
 
 .PHONY: clean-files
 clean-files:
@@ -170,4 +170,3 @@ clean-files:
 
 .PHONY: clean
 clean: clean-base clean-gsc clean-containers clean-files
-	docker image prune $(FLAGS)

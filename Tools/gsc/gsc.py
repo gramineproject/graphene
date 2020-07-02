@@ -249,22 +249,24 @@ def gsc_sign_image(args):
 
     generate_dockerfile_sign_manifests(image, env)
 
-    fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
-    shutil.copyfile(os.path.abspath(key), fk_path)
+    try:
+        fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
+        shutil.copyfile(os.path.abspath(key), fk_path)
 
-    build_docker_image(gsc_image_name(image), gsc_image_name(image), 'Dockerfile.sign_manifests',
-                       args)
+        build_docker_image(gsc_image_name(image), gsc_image_name(image), 'Dockerfile.sign_manifests',
+                        args)
 
-    # Remove key file from the temporary folder
-    os.remove(fk_path)
+    finally:
+        # Remove key file from the temporary folder
+        os.remove(fk_path)
 
-    # Check if docker build failed
-    if get_docker_image(docker_socket, gsc_image_name(image)) is None:
-        print(f'Failed to sign graphenized image for {image}')
-        sys.exit(1)
+        # Check if docker build failed
+        if get_docker_image(docker_socket, gsc_image_name(image)) is None:
+            print(f'Failed to sign graphenized image for {image}')
+            sys.exit(1)
 
-    print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker image '
-          f'{gsc_image_name(image)}.')
+        print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker image '
+            f'{gsc_image_name(image)}.')
 
 argparser = argparse.ArgumentParser()
 subcommands = argparser.add_subparsers(metavar='<command>')
