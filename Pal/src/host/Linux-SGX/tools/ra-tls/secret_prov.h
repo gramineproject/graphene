@@ -1,18 +1,15 @@
-/* Copyright (C) 2018-2020 Intel Labs
-   This file is part of Graphene Library OS.
-   Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
-   Graphene Library OS is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Labs */
 
 #include <stdint.h>
 #include <mbedtls/ssl.h>
+
+#define SECRET_PROVISION_WARNING_TEST_CERTS \
+    "********************************************************************\n" \
+    "*** Secret Provisioning library detected mbedTLS test certificates *\n" \
+    "*** loaded into it. If this is a production system, please         *\n" \
+    "*** terminate this application.                                    *\n" \
+    "********************************************************************\n"
 
 /* envvars for client (attester) */
 #define SECRET_PROVISION_CONSTRUCTOR    "SECRET_PROVISION_CONSTRUCTOR"
@@ -32,10 +29,14 @@
 
 #define DEFAULT_SERVERS "localhost:4433"
 
+struct ra_tls_ctx {
+    void* ssl;
+};
+
 typedef int (*verify_measurements_cb_t)(const char* mrenclave, const char* mrsigner,
                                         const char* isv_prod_id, const char* isv_svn);
 
-typedef int (*secret_provision_cb_t)(void* ssl);
+typedef int (*secret_provision_cb_t)(struct ra_tls_ctx* ctx);
 
 /*!
  * \brief Write arbitrary data in an established RA-TLS session.
@@ -43,15 +44,15 @@ typedef int (*secret_provision_cb_t)(void* ssl);
  * This function can be called after an RA-TLS session is established via client-side call to
  * secret_provision_start() or in the server-side callback secret_provision_cb_t().
  *
- * \param[in] ssl  Established RA-TLS session, obtained from secret_provision_start() or in
- *                 secret_provision_cb_t() callback.
- * \param[in] buf  Buffer with arbitrary data to write.
- * \param[in] len  Size of buffer.
+ * \param[in] ctx   Established RA-TLS session, obtained from secret_provision_start() or in
+ *                  secret_provision_cb_t() callback.
+ * \param[in] buf   Buffer with arbitrary data to write.
+ * \param[in] size  Size of buffer.
  *
- * \return         0 on success, specific error code (negative int) otherwise.
+ * \return          0 on success, specific error code (negative int) otherwise.
  */
 __attribute__ ((visibility("default"))) __attribute__((weak))
-int secret_provision_write(void* ssl, const uint8_t* buf, size_t len);
+int secret_provision_write(struct ra_tls_ctx* ctx, const uint8_t* buf, size_t size);
 
 /*!
  * \brief Read arbitrary data in an established RA-TLS session.
@@ -59,15 +60,15 @@ int secret_provision_write(void* ssl, const uint8_t* buf, size_t len);
  * This function can be called after an RA-TLS session is established via client-side call to
  * secret_provision_start() or in the server-side callback secret_provision_cb_t().
  *
- * \param[in] ssl  Established RA-TLS session, obtained from secret_provision_start() or in
- *                 secret_provision_cb_t() callback.
- * \param[out] buf Buffer with arbitrary data to read.
- * \param[in] len  Size of buffer.
+ * \param[in]  ctx    Established RA-TLS session, obtained from secret_provision_start() or in
+ *                   secret_provision_cb_t() callback.
+ * \param[out] buf   Buffer with arbitrary data to read.
+ * \param[in]  size  Size of buffer.
  *
- * \return         0 on success, specific error code (negative int) otherwise.
+ * \return           0 on success, specific error code (negative int) otherwise.
  */
 __attribute__ ((visibility("default"))) __attribute__((weak))
-int secret_provision_read(void* ssl, uint8_t* buf, size_t len);
+int secret_provision_read(struct ra_tls_ctx* ctx, uint8_t* buf, size_t size);
 
 /*!
  * \brief Close an established RA-TLS session.
@@ -77,12 +78,12 @@ int secret_provision_read(void* ssl, uint8_t* buf, size_t len);
  * application-specific protocol to provision secrets is implemented via secret_provision_read()
  * and secret_provision_write(), and this function is called to finish secret provisioning.
  *
- * \param[in] ssl  Established RA-TLS session.
+ * \param[in] ctx  Established RA-TLS session.
  *
  * \return         0 on success, specific error code (negative int) otherwise.
  */
 __attribute__ ((visibility("default"))) __attribute__((weak))
-int secret_provision_close(void* ssl);
+int secret_provision_close(struct ra_tls_ctx* ctx);
 
 /*!
  * \brief Get a provisioned secret.
@@ -92,13 +93,13 @@ int secret_provision_close(void* ssl);
  * save it in enclave memory. After that, the client can call this function to retrieve the
  * secret from memory.
  *
- * \param[out] out_secret      Pointer to buffer with secret (allocated by the library).
- * \param[out] out_secret_len  Size of allocated buffer.
+ * \param[out] out_secret       Pointer to buffer with secret (allocated by the library).
+ * \param[out] out_secret_size  Size of allocated buffer.
  *
- * \return                     0 on success, specific error code (negative int) otherwise.
+ * \return                      0 on success, specific error code (negative int) otherwise.
  */
 __attribute__ ((visibility("default"))) __attribute__((weak))
-int secret_provision_get(uint8_t** out_secret, size_t* out_secret_len);
+int secret_provision_get(uint8_t** out_secret, size_t* out_secret_size);
 
 /*!
  * \brief Destroy a provisioned secret.
@@ -127,17 +128,18 @@ void secret_provision_destroy(void);
  *                              environment variable `SECRET_PROVISION_CA_CHAIN_PATH` is used. If
  *                              the environment variable is also not specified, function returns
  *                              with error code EINVAL.
- * \param[out] out_ssl          Pointer to an established RA-TLS session. If user supplies NULL,
+ * \param[out] out_ctx          Pointer to an established RA-TLS session. If user supplies NULL,
  *                              then only the first secret is retrieved from the server and the
  *                              RA-TLS session is closed.
  *
  * \return                      0 on success, specific error code (negative int) otherwise.
  */
 __attribute__ ((visibility("default"))) __attribute__((weak))
-int secret_provision_start(const char* in_servers, const char* in_ca_chain_path, void** out_ssl);
+int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
+                           struct ra_tls_ctx* out_ctx);
 
 /*!
- * \brief Start a secret provisioning service (sever-side).
+ * \brief Start a secret provisioning service (server-side).
  *
  * This function starts a multi-threaded secret provisioning server. It listens to client
  * connections on \a port. For each new client, it spawns a new thread in which the RA-TLS
@@ -151,7 +153,7 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
  *
  * \param[in] secret      First secret (arbitrary binary blob) to send to client after
  *                        establishing RA-TLS session.
- * \param[in] secret_len  Size of first secret.
+ * \param[in] secret_size Size of first secret.
  * \param[in] port        Listening port of the server.
  * \param[in] cert_path   Path to X.509 certificate of the server.
  * \param[in] key_path    Path to private key of the server.
@@ -164,6 +166,6 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
  * \return                0 on success, specific error code (negative int) otherwise.
  */
 __attribute__ ((visibility("default"))) __attribute__((weak))
-int secret_provision_start_server(uint8_t* secret, size_t secret_len, const char* port,
+int secret_provision_start_server(uint8_t* secret, size_t secret_size, const char* port,
                                   const char* cert_path, const char* key_path,
                                   verify_measurements_cb_t m_cb, secret_provision_cb_t f_cb);

@@ -1,18 +1,9 @@
-/* Copyright (C) 2018-2020 Intel Labs
-   This file is part of Graphene Library OS.
-   Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
-   Graphene Library OS is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Labs */
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,62 +11,71 @@
 
 #include "secret_prov.h"
 
+#define SEND_STRING "MORE"
+
 int main(int argc, char** argv) {
     int ret;
     int bytes;
-    void* ssl_session = NULL;
+
+    struct ra_tls_ctx ctx = {.ssl = NULL};
 
     uint8_t* secret1   = NULL;
-    size_t secret1_len = 0;
-    uint64_t secret2   = 0;
+    size_t secret1_size = 0;
+
+    uint8_t secret2[3] = {0}; /* we expect second secret to be 2-char string */
 
     if (!secret_provision_start) {
         puts("No secret provision library (libsecret_prov_attest.so) detected, exiting.");
         return 1;
     }
 
-    char* secret_prov_constructor_str = getenv(SECRET_PROVISION_CONSTRUCTOR);
-    if (!secret_prov_constructor_str) {
+    bool is_constructor = false;
+    char* str = getenv(SECRET_PROVISION_CONSTRUCTOR);
+    if (str && (!strcmp(str, "1") || !strcmp(str, "true") || !strcmp(str, "TRUE")))
+        is_constructor = true;
+
+    if (!is_constructor) {
         /* secret provisioning was not run as part of initialization, run it now */
         ret = secret_provision_start("dummyserver:80;localhost:4433;anotherdummy:4433",
-                                     "certs/test-ca-sha256.crt", &ssl_session);
+                                     "certs/test-ca-sha256.crt", &ctx);
         if (ret < 0) {
             fprintf(stderr, "[error] secret_provision_start() returned %d\n", ret);
             goto out;
         }
+    }
 
+    ret = secret_provision_get(&secret1, &secret1_size);
+    if (ret < 0) {
+        fprintf(stderr, "[error] secret_provision_get() returned %d\n", ret);
+        goto out;
+    }
+
+    assert(secret1_size);
+    secret1[secret1_size - 1] = '\0';
+
+    if (ctx.ssl) {
         /* let's ask for another secret (just to show communication with secret-prov server) */
-        bytes = secret_provision_write(ssl_session, "MORE", strlen("MORE"));
+        bytes = secret_provision_write(&ctx, (uint8_t*)SEND_STRING, sizeof(SEND_STRING));
         if (bytes < 0) {
             fprintf(stderr, "[error] secret_provision_write() returned %d\n", bytes);
             goto out;
         }
 
-        /* the secret we expect in return is a 64-bit unsigned integer */
-        uint8_t buf[128] = {0};
-        bytes = secret_provision_read(ssl_session, buf, sizeof(secret2));
+        /* the secret we expect in return is a 2-char string */
+        bytes = secret_provision_read(&ctx, secret2, sizeof(secret2));
         if (bytes < 0) {
             fprintf(stderr, "[error] secret_provision_read() returned %d\n", bytes);
             goto out;
         }
 
         assert(bytes == sizeof(secret2));
-        memcpy(&secret2, buf, bytes);
+        secret2[bytes - 1] = '\0';
     }
 
-    ret = secret_provision_get(&secret1, &secret1_len);
-    if (ret < 0) {
-        fprintf(stderr, "[error] secret_provision_get() returned %d\n", ret);
-        goto out;
-    }
-
-    assert(secret1_len);
-    secret1[secret1_len - 1] = '\0';
-
-    printf("--- Received secret1 = '%s', secret2 = %lu ---\n", secret1, secret2);
+    printf("--- Received secret1 = '%s', secret2 = '%s' ---\n", secret1, secret2);
     ret = 0;
 out:
     secret_provision_destroy();
-    secret_provision_close(ssl_session);
+    secret_provision_close(&ctx);
     return ret;
 }

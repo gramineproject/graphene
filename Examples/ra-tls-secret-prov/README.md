@@ -1,14 +1,14 @@
 # Secret Provisioning Minimal Examples
 
 This directory contains the Makefile, the template client manifests, and the minimal server and
-clients written against the Secret Provisioning ld-preloaded library.  This was tested on a machine
-with SGX v1 and Ubuntu 18.04.
+clients written against the Secret Provisioning library.  This was tested on a machine with SGX v1
+and Ubuntu 18.04.
 
 This example uses the Secret Provisioning libraries `secret_prov_attest.so` for clients and
-`secret_prov_verify_epid.so`/`secret_prov_verify_dcap.so` for server. These libraries are found
+`secret_prov_verify_epid.so`/`secret_prov_verify_dcap.so` for server. These libraries can be found
 under `Pal/src/host/Linux-SGX/tools/ra-tls`. Additionally, mbedTLS libraries are required. For
-ECDSA/DCAP attestation, the DCAP software infrastructure must be installed and working correctly
-on the host.
+ECDSA/DCAP attestation, the DCAP software infrastructure must be installed and working correctly on
+the host.
 
 The current examples work with both EPID (IAS) and ECDSA (DCAP) remote attestation schemes. For
 more documentation, refer to `Pal/src/host/Linux-SGX/tools/README.rst`.
@@ -40,6 +40,8 @@ exits with error message.
 
 
 # Quick Start
+
+Please make sure that the corresponding RA-TLS libraries (EPID or DCAP versions) are built.
 
 - Secret Provisioning flows, EPID-based (IAS) attestation:
 

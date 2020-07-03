@@ -1,7 +1,7 @@
 # Build Secret Provisioning client/server example (backed by RA-TLS) as follows:
 #
-# - make          -- create SGX no-debug-log manifest
-# - make DEBUG=1  -- create SGX debug-log manifest
+# - make          -- build SGX version with apps built in release mode and no logs
+# - make DEBUG=1  -- build SGX version with apps built in debug mode and with logs
 #
 # Any of these invocations clones mbedTLS' git repository (version 2.21.0) and
 # builds it in default configuration. Also, server and client programs are
@@ -79,7 +79,7 @@ mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include \
+CFLAGS += -Wall -std=c11 -I./mbedtls/install/include -I./mbedtls/crypto/include \
 		  -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
 LFLAGS += -Wl,-rpath,. -L. -lmbedcrypto -lmbedtls -lmbedx509
 
@@ -167,7 +167,7 @@ check_epid: app epid
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
 	@grep "Received secret = 'This is a secret string!'" OUTPUT && echo "[ Success 1/2 ]"
-	@grep "Received secret1 = 'This is a secret string!', secret2 = 42" OUTPUT && echo "[ Success 2/2 ]"
+	@grep "Received secret1 = 'This is a secret string!', secret2 = '42'" OUTPUT && echo "[ Success 2/2 ]"
 	@rm OUTPUT
 
 .PHONY: check_dcap
@@ -178,7 +178,7 @@ check_dcap: app dcap
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
 	@grep "Received secret = 'This is a secret string!'" OUTPUT && echo "[ Success 1/2 ]"
-	@grep "Received secret1 = 'This is a secret string!', secret2 = 42" OUTPUT && echo "[ Success 2/2 ]"
+	@grep "Received secret1 = 'This is a secret string!', secret2 = '42'" OUTPUT && echo "[ Success 2/2 ]"
 	@rm OUTPUT
 
 ################################## CLEANUP ####################################

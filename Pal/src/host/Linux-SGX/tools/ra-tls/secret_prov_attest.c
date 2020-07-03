@@ -1,15 +1,5 @@
-/* Copyright (C) 2018-2020 Intel Labs
-   This file is part of Graphene Library OS.
-   Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
-   Graphene Library OS is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Labs */
 
 /*!
  * \file
@@ -24,6 +14,7 @@
  */
 
 #define _XOPEN_SOURCE 700
+#include <arpa/inet.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -53,27 +44,32 @@ static mbedtls_ssl_context g_ssl;
 static mbedtls_pk_context g_my_ratls_key;
 static mbedtls_x509_crt g_my_ratls_cert;
 
-static uint8_t* provisioned_secret   = NULL;
-static size_t provisioned_secret_len = 0;
+static uint8_t* provisioned_secret    = NULL;
+static size_t provisioned_secret_size = 0;
 
-int secret_provision_get(uint8_t** out_secret, size_t* out_secret_len) {
-    if (!out_secret || !out_secret_len)
+int secret_provision_get(uint8_t** out_secret, size_t* out_secret_size) {
+    if (!out_secret || !out_secret_size)
         return -EINVAL;
 
-    *out_secret     = provisioned_secret;
-    *out_secret_len = provisioned_secret_len;
+    *out_secret      = provisioned_secret;
+    *out_secret_size = provisioned_secret_size;
     return 0;
 }
 
 void secret_provision_destroy(void) {
-    if (provisioned_secret && provisioned_secret_len)
-        memset(provisioned_secret, 0, provisioned_secret_len);
+    if (provisioned_secret && provisioned_secret_size)
+#ifdef __STDC_LIB_EXT1__
+        memset_s(provisioned_secret, 0, provisioned_secret_size);
+#else
+        memset(provisioned_secret, 0, provisioned_secret_size);
+#endif
     free(provisioned_secret);
-    provisioned_secret     = NULL;
-    provisioned_secret_len = 0;
+    provisioned_secret      = NULL;
+    provisioned_secret_size = 0;
 }
 
-int secret_provision_start(const char* in_servers, const char* in_ca_chain_path, void** out_ssl) {
+int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
+                           struct ra_tls_ctx* out_ctx) {
     int ret;
 
     char* servers       = NULL;
@@ -127,7 +123,7 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
     char* saveptr1;
     char* saveptr2;
     char* str1;
-	for (str1 = servers; /*no condition*/; str1 = NULL) {
+    for (str1 = servers; /*no condition*/; str1 = NULL) {
         ret = -ECONNREFUSED;
         char* token = strtok_r(str1, ",; ", &saveptr1);
         if (!token)
@@ -161,6 +157,14 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
     if (ret != 0) {
         goto out;
     }
+
+    char crt_issuer[256];
+    ret = mbedtls_x509_dn_gets(crt_issuer, sizeof(crt_issuer), &g_verifier_ca_chain.issuer);
+    if (ret < 0) {
+        goto out;
+    }
+    if (strstr(crt_issuer, "PolarSSL Test CA"))
+        printf("%s", SECRET_PROVISION_WARNING_TEST_CERTS);
 
     mbedtls_ssl_conf_authmode(&g_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     mbedtls_ssl_conf_ca_chain(&g_conf, &g_verifier_ca_chain, NULL);
@@ -211,20 +215,24 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
         goto out;
     }
 
+    struct ra_tls_ctx ctx = {.ssl = &g_ssl};
     uint8_t buf[128];
-    size_t len;
+    size_t size;
 
-    len = sprintf((char*)buf, SECRET_PROVISION_REQUEST);
+    size = sprintf((char*)buf, SECRET_PROVISION_REQUEST);
 
-    ret = secret_provision_write(&g_ssl, buf, len);
+    ret = secret_provision_write(&ctx, buf, size);
     if (ret < 0) {
         goto out;
     }
 
-    memset(buf, 0, sizeof(buf));
-    len = SECRET_PROVISION_RESPONSE_LEN + sizeof(provisioned_secret_len);
+    /* remote verifier sends 32-bit integer over network; we need to ntoh it */
+    uint32_t received_secret_size;
 
-    ret = secret_provision_read(&g_ssl, buf, len);
+    memset(buf, 0, sizeof(buf));
+    size = SECRET_PROVISION_RESPONSE_LEN + sizeof(received_secret_size);
+
+    ret = secret_provision_read(&ctx, buf, size);
     if (ret < 0) {
         goto out;
     }
@@ -234,28 +242,31 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
         goto out;
     }
 
-    memcpy(&provisioned_secret_len, buf + SECRET_PROVISION_RESPONSE_LEN,
-           sizeof(provisioned_secret_len));
-    if (provisioned_secret_len > INT_MAX) {
+    memcpy(&received_secret_size, buf + SECRET_PROVISION_RESPONSE_LEN,
+           sizeof(received_secret_size));
+
+    received_secret_size = ntohl(received_secret_size);
+    if (received_secret_size > INT_MAX) {
         ret = -EINVAL;
         goto out;
     }
 
-    provisioned_secret = malloc(provisioned_secret_len);
+    provisioned_secret_size = received_secret_size;
+    provisioned_secret = malloc(provisioned_secret_size);
     if (!provisioned_secret) {
         ret = -ENOMEM;
         goto out;
     }
 
-    ret = secret_provision_read(&g_ssl, provisioned_secret, provisioned_secret_len);
+    ret = secret_provision_read(&ctx, provisioned_secret, provisioned_secret_size);
     if (ret < 0) {
         goto out;
     }
 
-    if (out_ssl) {
-        *out_ssl = &g_ssl;
+    if (out_ctx) {
+        out_ctx->ssl = ctx.ssl;
     } else {
-        secret_provision_close(&g_ssl);
+        secret_provision_close(&ctx);
     }
 
     ret = 0;
@@ -264,7 +275,7 @@ out:
         secret_provision_destroy();
     }
 
-    if (ret < 0 || !out_ssl) {
+    if (ret < 0 || !out_ctx) {
         mbedtls_x509_crt_free(&g_my_ratls_cert);
         mbedtls_pk_free(&g_my_ratls_key);
         mbedtls_net_free(&g_verifier_fd);
@@ -288,23 +299,20 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
 
     if (!strcmp(e, "1") || !strcmp(e, "true") || !strcmp(e, "TRUE")) {
         /* user wants to provision secret before application runs */
-        uint8_t* secret   = NULL;
-        size_t secret_len = 0;
+        uint8_t* secret    = NULL;
+        size_t secret_size = 0;
 
-        setenv(SECRET_PROVISION_SECRET_STRING, "CANNOT RETRIEVE SECRET", /*overwrite=*/1);
+        unsetenv(SECRET_PROVISION_SECRET_STRING);
 
         int ret = secret_provision_start(/*in_servers=*/NULL, /*in_ca_chain_path=*/NULL,
-                                         /*out_ssl=*/NULL);
+                                         /*out_ctx=*/NULL);
         if (!ret) {
             /* succeessfully retrieved the secret, put it in an envvar if fits */
-            ret = secret_provision_get(&secret, &secret_len);
-            if (!ret && secret && secret_len > 0 && secret_len <= PATH_MAX) {
+            ret = secret_provision_get(&secret, &secret_size);
+            if (!ret && secret && secret_size > 0 && secret_size <= PATH_MAX) {
                 /* secret fits in an envvar, copy it in envvar */
-                secret[secret_len - 1] = '\0';
+                secret[secret_size - 1] = '\0';
                 setenv(SECRET_PROVISION_SECRET_STRING, (const char*)secret, /*overwrite=*/1);
-            } else {
-                setenv(SECRET_PROVISION_SECRET_STRING, "CANNOT REPRESENT SECRET AS STRING",
-                       /*overwrite=*/1);
             }
             secret_provision_destroy();
         }

@@ -1,15 +1,5 @@
-/* Copyright (C) 2018-2020 Intel Labs
-   This file is part of Graphene Library OS.
-   Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
-   Graphene Library OS is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Labs */
 
 /*!
  * \file
@@ -32,16 +22,17 @@
 
 #include "secret_prov.h"
 
-int secret_provision_write(void* ssl, const uint8_t* buf, size_t len) {
+int secret_provision_write(struct ra_tls_ctx* ctx, const uint8_t* buf, size_t size) {
     int ret;
-    mbedtls_ssl_context* _ssl = (mbedtls_ssl_context*)ssl;
 
-    if (!_ssl || len > INT_MAX)
+    if (!ctx || !ctx->ssl || size > INT_MAX)
         return -EINVAL;
 
+    mbedtls_ssl_context* _ssl = (mbedtls_ssl_context*)ctx->ssl;
+
     size_t written = 0;
-    while (written < len) {
-        ret = mbedtls_ssl_write(_ssl, buf + written, len - written);
+    while (written < size) {
+        ret = mbedtls_ssl_write(_ssl, buf + written, size - written);
         if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE)
             continue;
         if (ret < 0) {
@@ -50,20 +41,21 @@ int secret_provision_write(void* ssl, const uint8_t* buf, size_t len) {
         }
         written += (size_t)ret;
     }
-    assert(written == len);
+    assert(written == size);
     return (int)written;
 }
 
-int secret_provision_read(void* ssl, uint8_t* buf, size_t len) {
+int secret_provision_read(struct ra_tls_ctx* ctx, uint8_t* buf, size_t size) {
     int ret;
-    mbedtls_ssl_context* _ssl = (mbedtls_ssl_context*)ssl;
 
-    if (!_ssl || len > INT_MAX)
+    if (!ctx || !ctx->ssl || size > INT_MAX)
         return -EINVAL;
 
+    mbedtls_ssl_context* _ssl = (mbedtls_ssl_context*)ctx->ssl;
+
     size_t read = 0;
-    while (read < len) {
-        ret = mbedtls_ssl_read(_ssl, buf + read, len - read);
+    while (read < size) {
+        ret = mbedtls_ssl_read(_ssl, buf + read, size - read);
         if (!ret)
             return -ECONNRESET;
         if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE)
@@ -75,15 +67,15 @@ int secret_provision_read(void* ssl, uint8_t* buf, size_t len) {
         read += (size_t)ret;
     }
 
-    assert(read == len);
+    assert(read == size);
     return (int)read;
 }
 
-int secret_provision_close(void* ssl) {
-    mbedtls_ssl_context* _ssl = (mbedtls_ssl_context*)ssl;
-
-    if (!_ssl)
+int secret_provision_close(struct ra_tls_ctx* ctx) {
+    if (!ctx || !ctx->ssl)
         return 0;
+
+    mbedtls_ssl_context* _ssl = (mbedtls_ssl_context*)ctx->ssl;
 
     int ret = -1;
     while (ret < 0) {

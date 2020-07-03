@@ -1,15 +1,5 @@
-/* Copyright (C) 2018-2020 Intel Labs
-   This file is part of Graphene Library OS.
-   Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
-   License, or (at your option) any later version.
-   Graphene Library OS is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Labs */
 
 /*!
  * \file
@@ -23,6 +13,7 @@
  * into the secret provisioning server. This library is *not* thread-safe.
  */
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
@@ -46,7 +37,7 @@ struct thread_info {
     mbedtls_net_context client_fd;
     mbedtls_ssl_config* conf;
     uint8_t* secret;
-    size_t secret_len;
+    size_t secret_size;
     secret_provision_cb_t f_cb;
 };
 
@@ -88,10 +79,11 @@ static void* client_connection(void* data) {
         goto out;
     }
 
+    struct ra_tls_ctx ctx = {.ssl = &ssl};
     uint8_t buf[128] = {0};
-    size_t len = SECRET_PROVISION_REQUEST_LEN;
+    size_t size = SECRET_PROVISION_REQUEST_LEN;
 
-    ret = secret_provision_read(&ssl, buf, len);
+    ret = secret_provision_read(&ctx, buf, size);
     if (ret < 0) {
         goto out;
     }
@@ -100,17 +92,25 @@ static void* client_connection(void* data) {
         goto out;
     }
 
+    /* remote attester receives 32-bit integer over network; we need to hton it */
+    if (ti->secret_size > INT_MAX) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    uint32_t send_secret_size = htonl((uint32_t)ti->secret_size);
+
     memset(buf, 0, sizeof(buf));
     memcpy(buf, SECRET_PROVISION_RESPONSE, SECRET_PROVISION_RESPONSE_LEN);
-    memcpy(buf + SECRET_PROVISION_RESPONSE_LEN, &ti->secret_len, sizeof(ti->secret_len));
-    len = SECRET_PROVISION_RESPONSE_LEN + sizeof(ti->secret_len);
+    memcpy(buf + SECRET_PROVISION_RESPONSE_LEN, &send_secret_size, sizeof(send_secret_size));
+    size = SECRET_PROVISION_RESPONSE_LEN + sizeof(send_secret_size);
 
-    ret = secret_provision_write(&ssl, buf, len);
+    ret = secret_provision_write(&ctx, buf, size);
     if (ret < 0) {
         goto out;
     }
 
-    ret = secret_provision_write(&ssl, ti->secret, ti->secret_len);
+    ret = secret_provision_write(&ctx, ti->secret, ti->secret_size);
     if (ret < 0) {
         goto out;
     }
@@ -118,9 +118,9 @@ static void* client_connection(void* data) {
     if (ti->f_cb) {
         /* pass ownership of SSL session with client to the caller; it is caller's responsibility
          * to gracefuly terminate the session using secret_provision_close() */
-        ti->f_cb(&ssl);
+        ti->f_cb(&ctx);
     } else {
-        secret_provision_close(&ssl);
+        secret_provision_close(&ctx);
     }
 
 out:
@@ -130,12 +130,12 @@ out:
     return NULL;
 }
 
-int secret_provision_start_server(uint8_t* secret, size_t secret_len, const char* port,
+int secret_provision_start_server(uint8_t* secret, size_t secret_size, const char* port,
                                   const char* cert_path, const char* key_path,
                                   verify_measurements_cb_t m_cb, secret_provision_cb_t f_cb) {
     int ret;
 
-    if (!secret || !secret_len || !cert_path || !key_path)
+    if (!secret || !secret_size || !cert_path || !key_path)
         return -EINVAL;
 
     ret = pthread_mutex_init(&g_handshake_lock, NULL);
@@ -169,6 +169,14 @@ int secret_provision_start_server(uint8_t* secret, size_t secret_len, const char
     if (ret != 0) {
         goto out;
     }
+
+    char crt_issuer[256];
+    ret = mbedtls_x509_dn_gets(crt_issuer, sizeof(crt_issuer), &srvcert.issuer);
+    if (ret < 0) {
+        goto out;
+    }
+    if (strstr(crt_issuer, "PolarSSL Test CA"))
+        printf("%s", SECRET_PROVISION_WARNING_TEST_CERTS);
 
     ret = mbedtls_pk_parse_keyfile(&srvkey, key_path, /*password=*/NULL);
     if (ret < 0) {
@@ -206,52 +214,52 @@ int secret_provision_start_server(uint8_t* secret, size_t secret_len, const char
         goto out;
     }
 
+    /* wait for new clients */
+    while (true) {
+        ret = mbedtls_net_accept(&listen_fd, &client_fd, NULL, 0, NULL);
+        if (ret < 0) {
+            mbedtls_net_free(&client_fd);
+            continue;
+        }
 
-new_client:
-    ret = mbedtls_net_accept(&listen_fd, &client_fd, NULL, 0, NULL);
-    if (ret < 0) {
-        mbedtls_net_free(&client_fd);
-        goto new_client;
-    }
+        struct thread_info* ti = calloc(1, sizeof(*ti));
+        if (!ti) {
+            mbedtls_net_free(&client_fd);
+            continue;
+        }
 
-    struct thread_info* ti = calloc(1, sizeof(*ti));
-    if (!ti) {
-        mbedtls_net_free(&client_fd);
-        goto new_client;
-    }
+        /* client_fd is reused for multiple threads, so pass ownership of its copy to new thread */
+        memcpy(&ti->client_fd, &client_fd, sizeof(client_fd));
+        ti->conf        = &conf;
+        ti->secret      = secret;
+        ti->secret_size = secret_size;
+        ti->f_cb        = f_cb;
 
-    /* client_fd is reused for multiple threads, so pass ownership of its copy to new thread */
-    memcpy(&ti->client_fd, &client_fd, sizeof(client_fd));
-    ti->conf       = &conf;
-    ti->secret     = secret;
-    ti->secret_len = secret_len;
-    ti->f_cb       = f_cb;
+        pthread_attr_t tattr;
+        ret = pthread_attr_init(&tattr);
+        if (ret < 0) {
+            free(ti);
+            mbedtls_net_free(&client_fd);
+            continue;
+        }
 
-    pthread_attr_t tattr;
-    ret = pthread_attr_init(&tattr);
-    if (ret < 0) {
-        free(ti);
-        mbedtls_net_free(&client_fd);
-        goto new_client;
-    }
+        ret = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+        if (ret < 0) {
+            free(ti);
+            pthread_attr_destroy(&tattr);
+            mbedtls_net_free(&client_fd);
+            continue;
+        }
 
-    ret = pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-    if (ret < 0) {
-        free(ti);
+        pthread_t tid;
+        ret = pthread_create(&tid, &tattr, client_connection, ti);
+        if (ret < 0) {
+            free(ti);
+            mbedtls_net_free(&client_fd);
+        }
+
         pthread_attr_destroy(&tattr);
-        mbedtls_net_free(&client_fd);
-        goto new_client;
     }
-
-    pthread_t tid;
-    ret = pthread_create(&tid, &tattr, client_connection, ti);
-    if (ret < 0) {
-        free(ti);
-        mbedtls_net_free(&client_fd);
-    }
-
-    pthread_attr_destroy(&tattr);
-    goto new_client;
 
 out:
     mbedtls_x509_crt_free(&srvcert);
