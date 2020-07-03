@@ -35,6 +35,10 @@ The client is supposed to run on a trusted machine (*not* in an SGX enclave). If
 `ra_tls_verify_epid.so` or `ra_tls_verify_dcap.so` is not preloaded, the client falls back to using
 normal X.509 PKI flows.
 
+For ECDSA/DCAP attestation, it is also possible to run the client in an SGX enclave. Such example
+is useful in creating a secure channel between two Graphene SGX process running on different
+machines.
+
 If client is run without command-line options, it uses default RA-TLS verification callback that
 compares `MRENCLAVE`, `MRSIGNER`, `ISV_PROD_ID` and `ISV_SVN` against the corresonding `RA_TLS_*`
 environment variables. To run the client with its own verification callback, execute it with four
