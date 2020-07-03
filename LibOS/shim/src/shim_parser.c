@@ -820,10 +820,12 @@ static void parse_mmap_flags(va_list* ap) {
         flags &= ~MAP_HUGETLB;
     }
 
+#ifdef MAP_SYNC
     if (flags & MAP_SYNC) {
         PUTS("|MAP_SYNC");
         flags &= ~MAP_SYNC;
     }
+#endif
 
     if (flags)
         PRINTF("|0x%x", flags);
