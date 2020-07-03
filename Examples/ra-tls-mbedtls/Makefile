@@ -190,6 +190,8 @@ client_dcap.manifest.sgx: client_dcap.manifest client libra_tls_verify_dcap_grap
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output client_dcap.token -sig client_dcap.sig
 
+########################### CLIENT (EPID) MANIFEST ############################
+
 # List all the epid dependencies, besides Glibc libraries
 .INTERMEDIATE: client_epid-list
 client_epid-list: client libra_tls_verify_epid.so

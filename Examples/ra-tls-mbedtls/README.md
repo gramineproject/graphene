@@ -35,9 +35,8 @@ The client is supposed to run on a trusted machine (*not* in an SGX enclave). If
 `ra_tls_verify_epid.so` or `ra_tls_verify_dcap.so` is not preloaded, the client falls back to using
 normal X.509 PKI flows.
 
-For ECDSA/DCAP attestation, it is also possible to run the client in an SGX enclave. Such example
-is useful in creating a secure channel between two Graphene SGX process running on different
-machines.
+It is also possible to run the client in an SGX enclave. Such example is useful in creating a
+secure channel between two Graphene SGX process running on different machines.
 
 If client is run without command-line options, it uses default RA-TLS verification callback that
 compares `MRENCLAVE`, `MRSIGNER`, `ISV_PROD_ID` and `ISV_SVN` against the corresonding `RA_TLS_*`
@@ -126,5 +125,37 @@ SGX=1 ./pal_loader ./server dummy-option &
 LD_PRELOAD="libsgx_urts.so $PWD/libra_tls_verify_dcap.so" ./client
 
 # client will fail to verify the malicious SGX quote and will *not* connect to the server
+kill %%
+```
+
+- RA-TLS flows with SGX and with Graphene, running EPID client in SGX:
+
+Note: if needed, add envirionment variables to client.manifest.template, such as
+RA_TLS_ALLOW_OUTDATED_TCB_INSECURE, RA_TLS_MRENCLAVE, RA_TLS_MRSIGNER, RA_TLS_ISV_PROD_ID
+and RA_TLS_ISV_SVN.
+
+```sh
+make clean
+RA_CLIENT_SPID=... RA_CLIENT_LINKABLE=... RA_TLS_EPID_API_KEY=... make app client_epid.manifest.sgx
+
+SGX=1 ./pal_loader ./server &
+
+SGX=1 ./pal_loader client_epid.manifest.sgx
+
+# client will successfully connect to the server via RA-TLS/EPID flows
+kill %%
+```
+
+- RA-TLS flows with SGX and with Graphene, running DCAP client in SGX:
+
+```sh
+make clean
+make app client_dcap.manifest.sgx
+
+SGX=1 ./pal_loader ./server &
+
+SGX=1 ./pal_loader client_dcap.manifest.sgx
+
+# client will successfully connect to the server via RA-TLS/DCAP flows
 kill %%
 ```
