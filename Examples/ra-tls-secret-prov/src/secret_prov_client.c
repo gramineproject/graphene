@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     int ret;
     int bytes;
 
-    struct ra_tls_ctx ctx = {.ssl = NULL};
+    struct ra_tls_ctx ctx = {0};
 
     uint8_t* secret1   = NULL;
     size_t secret1_size = 0;
@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
     assert(secret1_size);
     secret1[secret1_size - 1] = '\0';
 
-    if (ctx.ssl) {
+    if (!is_constructor) {
         /* let's ask for another secret (just to show communication with secret-prov server) */
         bytes = secret_provision_write(&ctx, (uint8_t*)SEND_STRING, sizeof(SEND_STRING));
         if (bytes < 0) {
