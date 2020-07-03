@@ -399,16 +399,7 @@ void get_dentry(struct shim_dentry* dent);
 /* Decrement the reference count on dent */
 void put_dentry(struct shim_dentry* dent);
 
-static_always_inline void fast_pathcpy(char* dst, const char* src, size_t size, char** ptr) {
-    char* d       = dst;
-    const char* s = src;
-    for (size_t i = 0; i < size; i++, s++, d++)
-        *d = *s;
-    *ptr = d;
-}
-
-static_always_inline char* dentry_get_path(struct shim_dentry* dent, bool on_stack,
-                                           size_t* sizeptr) {
+static inline __attribute__((always_inline)) char* dentry_get_path(struct shim_dentry* dent, bool on_stack, size_t* sizeptr) {
     struct shim_mount* fs = dent->fs;
     char* buffer;
     char* c;
@@ -424,8 +415,10 @@ static_always_inline char* dentry_get_path(struct shim_dentry* dent, bool on_sta
             return NULL;
     }
 
-    if (fs && !qstrempty(&fs->path))
-        fast_pathcpy(c, qstrgetstr(&fs->path), fs->path.len, &c);
+    if (fs && !qstrempty(&fs->path)) {
+        memcpy(c, qstrgetstr(&fs->path), fs->path.len);
+        c += fs->path.len;
+    }
 
     if (dent->rel_path.len) {
         const char* path = qstrgetstr(&dent->rel_path);
@@ -439,7 +432,8 @@ static_always_inline char* dentry_get_path(struct shim_dentry* dent, bool on_sta
                 *(c++) = '/';
         }
 
-        fast_pathcpy(c, path, len, &c);
+        memcpy(c, path, len);
+        c += len;
     }
 
     if (sizeptr)
@@ -449,7 +443,7 @@ static_always_inline char* dentry_get_path(struct shim_dentry* dent, bool on_sta
     return buffer;
 }
 
-static_always_inline const char* dentry_get_name(struct shim_dentry* dent) {
+static inline const char* dentry_get_name(struct shim_dentry* dent) {
     return qstrgetstr(&dent->name);
 }
 

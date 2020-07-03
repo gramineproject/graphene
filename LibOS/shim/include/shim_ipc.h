@@ -428,12 +428,12 @@ struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size
 void put_ipc_info_in_list(struct shim_ipc_info* info);
 struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid);
 
-static_always_inline size_t get_ipc_msg_size(size_t payload) {
+static inline size_t get_ipc_msg_size(size_t payload) {
     size_t size = sizeof(struct shim_ipc_msg) + payload;
     return (size > IPC_MSG_MINIMAL_SIZE) ? size : IPC_MSG_MINIMAL_SIZE;
 }
 
-static_always_inline size_t get_ipc_msg_duplex_size(size_t payload) {
+static inline size_t get_ipc_msg_duplex_size(size_t payload) {
     static_assert(sizeof(struct shim_ipc_msg_duplex) >= sizeof(struct shim_ipc_msg),
                   "Incorrect shim_ipc_msg_duplex size");
     return get_ipc_msg_size(payload) +

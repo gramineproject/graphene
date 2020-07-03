@@ -325,10 +325,7 @@ void free (void * mem);
 # define __attribute_unused __attribute__((unused))
 # define __attribute_noinline __attribute__((noinline))
 #else
-# define __attribute_hidden
-# define __attribute_always_inline
-# define __attribute_unused
-# define __attribute_noinline
+# error Unsupported compiler
 #endif
 
 #define ALIAS_STR(name) #name
