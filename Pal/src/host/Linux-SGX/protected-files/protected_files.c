@@ -127,7 +127,7 @@ typedef struct {
 // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf
 
 // derive a metadata key from user key (if restore is false, the derived key is randomized)
-static bool ipf_import_metadata_key(pf_context_t* pf, bool restore) {
+static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* output) {
     kdf_input_t buf = {0};
     pf_status_t status;
 
@@ -150,7 +150,7 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore) {
     buf.output_len = 0x80;
 
     status = cb_aes_gcm_encrypt(&pf->user_kdk_key, &g_empty_iv, &buf, sizeof(buf), NULL, 0, NULL,
-                                &pf->cur_key);
+                                output);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -165,9 +165,9 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore) {
     return true;
 }
 
-static bool ipf_generate_random_key(pf_context_t* pf) {
+static bool ipf_generate_random_key(pf_context_t* pf, pf_key_t* output) {
     DEBUG_PF("pf %p\n", pf);
-    pf_status_t status = cb_random((uint8_t*)&pf->cur_key, sizeof(pf->cur_key));
+    pf_status_t status = cb_random((uint8_t*)output, sizeof(*output));
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -176,14 +176,14 @@ static bool ipf_generate_random_key(pf_context_t* pf) {
     return true;
 }
 
-static bool ipf_generate_random_metadata_key(pf_context_t* pf) {
+static bool ipf_generate_random_metadata_key(pf_context_t* pf, pf_key_t* output) {
     DEBUG_PF("pf %p\n", pf);
-    return ipf_import_metadata_key(pf, /*restore=*/false);
+    return ipf_import_metadata_key(pf, /*restore=*/false, output);
 }
 
-static bool ipf_restore_current_metadata_key(pf_context_t* pf) {
+static bool ipf_restore_current_metadata_key(pf_context_t* pf, pf_key_t* output) {
     DEBUG_PF("pf %p\n", pf);
-    return ipf_import_metadata_key(pf, /*restore=*/true);
+    return ipf_import_metadata_key(pf, /*restore=*/true, output);
 }
 
 static bool ipf_init_fields(pf_context_t* pf) {
@@ -348,11 +348,12 @@ static bool ipf_init_existing_file(pf_context_t* pf, const char* path) {
         return false;
     }
 
-    if (!ipf_restore_current_metadata_key(pf))
+    pf_key_t key;
+    if (!ipf_restore_current_metadata_key(pf, &key))
         return false;
 
     // decrypt the encrypted part of the meta-data
-    status = cb_aes_gcm_decrypt(&pf->cur_key, &g_empty_iv, NULL, 0,
+    status = cb_aes_gcm_decrypt(&key, &g_empty_iv, NULL, 0,
                                 &pf->file_metadata.encrypted_part,
                                 sizeof(pf->file_metadata.encrypted_part),
                                 &pf->encrypted_part_plain,
@@ -436,9 +437,6 @@ static bool ipf_close(pf_context_t* pf) {
         free(file_node);
         lruc_remove_last(pf->cache);
     }
-
-    // scrub the last encryption key and the session key
-    erase_memory(&pf->cur_key, sizeof(pf->cur_key));
 
     // scrub first MD_USER_DATA_SIZE of file data and the gmac_key
     erase_memory(&pf->encrypted_part_plain, sizeof(pf->encrypted_part_plain));
@@ -546,14 +544,15 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
             file_node_t* data_node = (file_node_t*)data;
 
             if (data_node->need_writing) {
-                if (!ipf_generate_random_key(pf))
-                    goto out;
 
                 gcm_crypto_data_t* gcm_crypto_data = &data_node->parent->decrypted.mht
                     .data_nodes_crypto[data_node->node_number % ATTACHED_DATA_NODES_COUNT];
 
+                if (!ipf_generate_random_key(pf, &gcm_crypto_data->key))
+                    goto out;
+
                 // encrypt the data, this also saves the gmac of the operation in the mht crypto node
-                status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
+                status = cb_aes_gcm_encrypt(&gcm_crypto_data->key, &g_empty_iv,
                                             NULL, 0, // aad
                                             data_node->decrypted.data.data, PF_NODE_SIZE,
                                             data_node->encrypted.cipher,
@@ -562,9 +561,6 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
                     pf->last_error = status;
                     goto out;
                 }
-
-                // save the key used for this encryption
-                COPY_ARRAY(gcm_crypto_data->key, pf->cur_key);
 
                 file_mht_node = data_node->parent;
 #ifdef DEBUG
@@ -622,11 +618,11 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
         gcm_crypto_data_t* gcm_crypto_data = &file_mht_node->parent->decrypted.mht
             .mht_nodes_crypto[(file_mht_node->node_number - 1) % CHILD_MHT_NODES_COUNT];
 
-        if (!ipf_generate_random_key(pf)) {
+        if (!ipf_generate_random_key(pf, &gcm_crypto_data->key)) {
             goto out;
         }
 
-        status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
+        status = cb_aes_gcm_encrypt(&gcm_crypto_data->key, &g_empty_iv,
                                     NULL, 0,
                                     &file_mht_node->decrypted.mht, PF_NODE_SIZE,
                                     &file_mht_node->encrypted.cipher,
@@ -635,16 +631,13 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
             pf->last_error = status;
             goto out;
         }
-
-        // save the key used for this gmac
-        COPY_ARRAY(gcm_crypto_data->key, pf->cur_key);
     }
 
     // update mht root gmac in the meta data node
-    if (!ipf_generate_random_key(pf))
+    if (!ipf_generate_random_key(pf, &pf->encrypted_part_plain.mht_key))
         goto out;
 
-    status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
+    status = cb_aes_gcm_encrypt(&pf->encrypted_part_plain.mht_key, &g_empty_iv,
                                 NULL, 0,
                                 &pf->root_mht.decrypted.mht, PF_NODE_SIZE,
                                 &pf->root_mht.encrypted.cipher,
@@ -654,8 +647,6 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
         goto out;
     }
 
-    // save the key used for this gmac
-    COPY_ARRAY(pf->encrypted_part_plain.mht_key, pf->cur_key);
     ret = true;
 
 out:
@@ -665,16 +656,17 @@ out:
 
 static bool ipf_update_metadata_node(pf_context_t* pf) {
     pf_status_t status;
+    pf_key_t key;
 
     DEBUG_PF("pf %p\n", pf);
     // randomize a new key, saves the key _id_ in the meta data plain part
-    if (!ipf_generate_random_metadata_key(pf)) {
+    if (!ipf_generate_random_metadata_key(pf, &key)) {
         // last error already set
         return false;
     }
 
     // encrypt meta data encrypted part, also updates the gmac in the meta data plain part
-    status = cb_aes_gcm_encrypt(&pf->cur_key, &g_empty_iv,
+    status = cb_aes_gcm_encrypt(&key, &g_empty_iv,
                                 NULL, 0,
                                 &pf->encrypted_part_plain, sizeof(metadata_encrypted_t),
                                 &pf->file_metadata.encrypted_part,

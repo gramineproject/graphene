@@ -197,9 +197,9 @@ static bool ipf_read_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_nu
 static bool ipf_write_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_number, void* buffer,
                            uint32_t node_size);
 
-static bool ipf_import_metadata_key(pf_context_t* pf, bool restore);
-static bool ipf_generate_random_key(pf_context_t* pf);
-static bool ipf_restore_current_metadata_key(pf_context_t* pf);
+static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* output);
+static bool ipf_generate_random_key(pf_context_t* pf, pf_key_t* output);
+static bool ipf_restore_current_metadata_key(pf_context_t* pf, pf_key_t* output);
 
 static file_node_t* ipf_get_data_node(pf_context_t* pf);
 static file_node_t* ipf_read_data_node(pf_context_t* pf);
