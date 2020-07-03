@@ -162,6 +162,7 @@ client_dcap-deps: client_dcap-list
 	@cat $< | \
 		awk '{if ($$2 =="=>") {print $$3}}' | \
 		sort | uniq | grep -v $(patsubst %,-e %,$(GLIBC_DEPS)) > $@
+	@echo "/usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so.1" >> $@
 
 # Generate manifest rules for dcap dependencies
 .INTERMEDIATE: client_dcap-trusted-libs

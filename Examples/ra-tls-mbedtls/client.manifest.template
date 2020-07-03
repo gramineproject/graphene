@@ -65,9 +65,6 @@ sgx.trusted_files.libnss_files = file:$(ARCH_LIBDIR)/libnss_files.so.2
 
 sgx.trusted_files.libratlsattest = file:$(LD_PRELOAD)
 
-sgx.trusted_files.quoteverify = file:/usr/$(ARCH_LIBDIR)/libsgx_dcap_quoteverify.so
-sgx.trusted_files.quoteprov = file:/usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so.1
-
 $(CLIENT_TRUSTED_LIBS)
 
 # Name Service Switch (NSS) files. Glibc reads these files as part of name-
