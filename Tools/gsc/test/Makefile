@@ -1,9 +1,10 @@
 TESTCASES ?= python3 hello-world nodejs bash numpy pytorch
 DISTRIBUTIONS ?= ubuntu18.04
-FLAGS ?= --no-cache
+DOCKER_BUILD_FLAGS ?= --rm --no-cache
+GSC_BUILD_FLAGS ?= --rm --no-cache
 TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
 MAXTESTNUM ?= 11
-KEYFILE ?= ../enclave-key.pem
+KEY_FILE ?= ../enclave-key.pem
 ifeq ($(wildcard /dev/isgx), )
 	SGX_DEVICE = sgx
 else
@@ -14,48 +15,48 @@ DEVICES_VOLUMES = --device=/dev/gsgx --device=/dev/${SGX_DEVICE} -v /var/run/aes
 IMAGE_SUFFIX ?=
 
 .PHONY: all
-all: $(KEYFILE) $(TESTS)
+all: $(KEY_FILE) $(TESTS)
 	for d in $(DISTRIBUTIONS); do \
 		sed -e 's/\"Distro\": \".*\"/\"Distro\": \"'$${d}'\"/' \
 			../config.yaml.template > ../config.yaml; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
 	done
 
-$(KEYFILE):
-	openssl genrsa -3 -out $(KEYFILE) 3072
+$(KEY_FILE):
+	openssl genrsa -3 -out $(KEY_FILE) 3072
 
 .PRECIOUS: %: %.dockerfile
 %: %.dockerfile
 	echo "Building base image $@.dockerfile..."
-	docker build $(FLAGS) -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
+	docker build $(DOCKER_BUILD_FLAGS) -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
 	touch $@
 
 .PRECIOUS: gsc-%-bash
 gsc-%-bash: %-bash
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
-	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEYFILE))
+	cd .. && ./gsc build --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
+	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-python3
 gsc-%-python3: %-python3 %-python3.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
-	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEYFILE))
+	cd .. && ./gsc build --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
+	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-pytorch
 gsc-%-pytorch: %-pytorch %-pytorch.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $*-pytorch.manifest sh.manifest uname.manifest)
-	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEYFILE))
+	cd .. && ./gsc build --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $*-pytorch.manifest sh.manifest uname.manifest)
+	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%
 gsc-%: %
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
-	cd .. && ./gsc sign-image $(FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEYFILE))
+	cd .. && ./gsc build --insecure-args $(BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
+	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEY_FILE))
 	touch $@
 
 .PHONY: test
@@ -143,13 +144,13 @@ test-11-%: gsc-%-pytorch
 
 .PHONY: clean-image-%
 clean-image-%:
-	docker image rm -f $(addsuffix $(IMAGE_SUFFIX), $*)
+	docker image rm -f $*
 
 .PHONY: clean-base
-clean-base: $(addprefix clean-image-, $(TESTS))
+clean-base: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-, $(TESTS)))
 
 .PHONY: clean-gsc
-clean-gsc: $(addprefix clean-image-gsc-, $(TESTS)) $(addsuffix -unsigned, $(addprefix clean-image-gsc-, $(TESTS)))
+clean-gsc: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-gsc-, $(TESTS))) $(addsuffix $(IMAGE_SUFFIX)-unsigned, $(addprefix clean-image-gsc-, $(TESTS)))
 
 # Create a space to be used in subst
 space :=

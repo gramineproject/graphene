@@ -17,7 +17,8 @@ def generate_signature(manifest):
         '-manifest', manifest
         ],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
+        stderr=subprocess.PIPE,
+        env=os.environ.update({'PYTHONDONTWRITEBYTECODE':'1'}))
 
     _, err = sign_process.communicate()
 

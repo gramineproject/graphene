@@ -34,18 +34,38 @@ Run::
 
     make
 
-To build base images named ``<image-name>``::
+To build base Docker images named ``<image-name>``::
 
     make <image-name>
 
-To build a graphenized image named ``<image-name>``::
+To build a graphenized Docker image of ``<image-name>``::
 
     make gsc-<image-name>
 
-To build a graphenized image named ``<image-name>`` with additional `gsc build`
-arguments::
+To build a graphenized image of ``<image-name>`` with additional `gsc build`
+arguments (e.g., -d, --no-cache, or --rm)::
 
-    make FLAGS=-d gsc-<image-name>
+    make BUILD_FLAGS=-d gsc-<image-name>
+
+To build the baes Docker image named ``<image-name>`` with additional
+Docker `build` arguments (e.g., --no-cache, or --rm)::
+
+    make DOCKER_BUILD_FLAGS=--nocache <image-name>
+
+To sign the graphenized image of ``<image-name>`` with a cutom siging key
+<your_signing_key.pem>, specify ``KEY_FILE`` (default: ``../enclave_key.pem``)::
+
+    make KEY_FILE=<your_signing_key.pem>
+
+To make a specific distribution, specify ``DISTRIBUTION`` (default:
+``ubuntu18.04``)::
+
+    make DISTRIBUTION=ubuntu18.04
+
+To make a specific test case (here ``python3``), specify ``TESTCASES`` (default:
+python3 hello-world nodejs bash numpy pytorch)
+
+    make TESTCASES=python3
 
 Run sample images with test arguments
 -------------------------------------
@@ -53,6 +73,9 @@ Run sample images with test arguments
 ::
 
     make test
+
+``make test`` may also be restricted with the ``DISTRIBUTION`` and ``TESTCASES``
+arguments.
 
 To run the first ``n`` tests, specify ``MAXTESTNUM``.
 
@@ -68,6 +91,9 @@ To run a specific test case, specify the test number and distribution.
 
 Remove images & containers from Docker daemon
 ---------------------------------------------
+
+All clean targets can be combined with ``DISTRIBUTION`` and ``TESTCASES`` to
+restrict the images to clean.
 
 Remove GSC built sample images::
 

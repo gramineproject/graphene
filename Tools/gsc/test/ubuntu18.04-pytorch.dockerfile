@@ -12,4 +12,6 @@ COPY pytorch/ /graphene/Examples
 
 WORKDIR /graphene/Examples
 
+RUN python3 download-pretrained-model.py
+
 CMD ["python3"]

@@ -3,17 +3,16 @@
 # Copyright (C) 2020 Intel Corp.
 #                    Anjo Vahldiek-Oberwagner <anjo.lucas.vahldiek-oberwagner@intel.com>
 
-import os
-import re
-import sys
-import shutil
-import json
 import argparse
+import os
+import json
+import re
 import pathlib
-import yaml
+import shutil
+import sys
 import jinja2
-
 import docker
+import yaml
 
 def gsc_image_name(name):
     return f'gsc-{name}'
@@ -34,7 +33,6 @@ def load_config(file):
 # The generated manifest is only partially completed. Later, during the docker build it is
 # finished by adding the list of trusted files, the path to the binary, and LD_LIBRARY_PATH.
 def generate_manifest(image, env, user_manifest, binary):
-
     user_mf = ''
     if os.path.exists(user_manifest):
         with open(user_manifest, 'r') as user_manifest_file:
@@ -50,7 +48,6 @@ def generate_manifest(image, env, user_manifest, binary):
 # Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
 def generate_app_loader(image, env, binary):
-
     apploader_path = (pathlib.Path(gsc_image_name(image)) / 'apploader').with_suffix('.sh')
     with open(apploader_path, 'w') as apploader:
         apploader.write(env.get_template('apploader.template').render(binary=binary))
@@ -59,9 +56,8 @@ def generate_app_loader(image, env, binary):
 # is generated from a template (templates/Dockerfile.$distro.build.template). It follows a docker
 # multistage build with two stages. The first stage compiles Graphene for the specified
 # distribution. The second stage builds the final image based on the previously built Graphene and
-# the base image. In addition, it completes the manifest generation and generates the signature.
+# the base image.
 def generate_dockerfile(image, env, binary):
-
     dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile.build')
     with open(dockerfile_path, 'w') as dockerfile:
         dockerfile.write(env.get_template(
@@ -81,7 +77,6 @@ def prepare_build_context(image, user_manifests, env, binary):
     generate_manifest(image, env, user_manifests[0], binary)
 
     for user_manifest in user_manifests[1:]:
-
         generate_manifest(image, env, user_manifest,
             user_manifest[user_manifest.rfind('/') + 1 : user_manifest.rfind('.manifest')])
 
@@ -169,13 +164,13 @@ def get_docker_image(docker_socket, image):
     except (docker.errors.ImageNotFound, docker.errors.APIError):
         return None
 
-def build_docker_image(path, name, dockerfile, args):
+def build_docker_image(path, name, dockerfile, **kwargs):
     docker_api = docker.APIClient(base_url='unix://var/run/docker.sock')
     # Docker build returns stream of json output
     stream = docker_api.build(path=path,
                               tag=name,
-                              nocache=args.no_cache,
-                              dockerfile=dockerfile)
+                              dockerfile=dockerfile,
+                              **kwargs)
 
     # Print continuously the stream of output by docker build
     for chunk in stream:
@@ -188,7 +183,6 @@ def build_docker_image(path, name, dockerfile, args):
 # Build graphenized docker image. args has to follow [<options>] <base_image> <app.manifest>
 # [<app2.manifest> ...].
 def gsc_build(args):
-
     image = args.image
     user_manifests = args.manifests
 
@@ -205,13 +199,12 @@ def gsc_build(args):
 
     print(f'Building graphenized image from base image {image}')
 
-    env, binary = prepare_env(base_image, image, args,
-                                                    user_manifests)
+    env, binary = prepare_env(base_image, image, args, user_manifests)
 
     prepare_build_context(image, user_manifests, env, binary)
 
     build_docker_image(gsc_image_name(image), gsc_unsigned_image_name(image), 'Dockerfile.build',
-                       args)
+                       rm=args.rm, nocache=args.no_cache)
 
     # Check if docker build failed
     if get_docker_image(docker_socket, gsc_unsigned_image_name(image)) is None:
@@ -219,7 +212,7 @@ def gsc_build(args):
         sys.exit(1)
 
     print(f'Successfully graphenized docker image {image} into docker image '
-            + gsc_unsigned_image_name(image))
+          f'{gsc_unsigned_image_name(image)}')
 
 def generate_dockerfile_sign_manifests(image, env):
 
@@ -252,21 +245,23 @@ def gsc_sign_image(args):
     fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
     shutil.copyfile(os.path.abspath(key), fk_path)
 
-    try:
-        build_docker_image(gsc_image_name(image), gsc_image_name(image),
-                           'Dockerfile.sign_manifests', args)
+    #try:
+        # We force the removal of intermediate Docker images to not leave the signing
+        # key in a Docker container.
+    build_docker_image(gsc_image_name(image), gsc_image_name(image),
+                        'Dockerfile.sign_manifests', forcerm=True)
 
-    finally:
+    #finally:
         # Remove key file from the temporary folder
-        os.remove(fk_path)
+    os.remove(fk_path)
 
-        # Check if docker build failed
-        if get_docker_image(docker_socket, gsc_image_name(image)) is None:
-            print(f'Failed to sign graphenized image for {image}')
-            sys.exit(1)
+    # Check if docker build failed
+    if get_docker_image(docker_socket, gsc_image_name(image)) is None:
+        print(f'Failed to sign graphenized image for {image}')
+        sys.exit(1)
 
-        print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker '
-              f'image {gsc_image_name(image)}.')
+    print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker '
+            f'image {gsc_image_name(image)}.')
 
 argparser = argparse.ArgumentParser()
 subcommands = argparser.add_subparsers(metavar='<command>')
@@ -274,19 +269,21 @@ subcommands.required = True
 sub_build = subcommands.add_parser('build', help="Build graphenized Docker image")
 sub_build.set_defaults(command=gsc_build)
 sub_build.add_argument('-d', '--debug', action='store_true',
-    help='Compile Graphene with debug flags and output')
+    help='Compile Graphene with debug flags and output.')
 sub_build.add_argument('-L', '--linux', action='store_true',
-    help='Compile Graphene with Linux PAL in addition to Linux-SGX PAL')
+    help='Compile Graphene with Linux PAL in addition to Linux-SGX PAL.')
 sub_build.add_argument('-G', '--graphene', action='store_true',
     help='Build Graphene only and ignore the application image (useful for Graphene development, '
-         'irrelevant for end users of GSC)')
+         'irrelevant for end users of GSC).')
 sub_build.add_argument('--insecure-args', action='store_true',
     help='Allow to specify untrusted arguments during Docker run. '
          'Otherwise arguments are ignored.')
 sub_build.add_argument('-nc', '--no-cache', action='store_true',
     help='Build graphenized Docker image without any cached images.')
+sub_build.add_argument('--rm', action='store_true',
+    help='Remove intermediate Docker images when Build is successful.')
 sub_build.add_argument('image',
-    help='Name of the application Docker image')
+    help='Name of the application Docker image.')
 sub_build.add_argument('manifests',
     nargs='+',
     help='Application-specific manifest files. The first manifest will be used for the entry '
@@ -294,12 +291,10 @@ sub_build.add_argument('manifests',
 
 sub_sign = subcommands.add_parser('sign-image', help="Sign graphenized Docker image")
 sub_sign.set_defaults(command=gsc_sign_image)
-sub_sign.add_argument('-nc', '--no-cache', action='store_true',
-    help='Build graphenized Docker image without any cached images.')
 sub_sign.add_argument('image',
-    help='Name of the application Docker image')
+    help='Name of the application Docker image.')
 sub_sign.add_argument('key',
-    help='Key for signing the image')
+    help='Key for signing the image.')
 
 def main(args):
     args = argparser.parse_args()

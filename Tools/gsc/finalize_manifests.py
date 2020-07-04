@@ -3,11 +3,12 @@
 # Copyright (C) 2020 Intel Corp.
 #                    Anjo Vahldiek-Oberwagner <anjo.lucas.vahldiek-oberwagner@intel.com>
 
-import os
-import sys
-import subprocess
-import re
+
 import argparse
+import os
+import re
+import subprocess
+import sys
 import jinja2
 
 def is_ascii(chars):
@@ -84,7 +85,7 @@ def main(args=None):
     library_paths = generate_library_paths()
     env_path = os.getenv('PATH')
 
-    print(f'LD_LIBRARY_PATH = \'{library_paths}\'\n$PATH = \'{env_path}\'.')
+    print(f'LD_LIBRARY_PATH = \'{library_paths}\'\nPATH = \'{env_path}\'.')
 
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
     env.globals.update({
@@ -120,7 +121,7 @@ def main(args=None):
         trusted_signatures.append(f'sgx.trusted_children.child{len(trusted_signatures)}'
                                   f' = file:{executable}.sig')
 
-        with open('signature_order.txt', 'a+') as sig_order:
+        with open('signing_order.txt', 'a+') as sig_order:
             print(manifest, file=sig_order)
 
 if __name__ == '__main__':
