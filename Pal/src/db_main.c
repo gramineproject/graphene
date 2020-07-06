@@ -29,8 +29,7 @@ PAL_CONTROL* pal_control_addr(void) {
 
 struct pal_internal_state g_pal_state;
 
-static void load_libraries (void)
-{
+static void load_libraries(void) {
     /* we will not make any assumption for where the libraries are loaded */
     char cfgbuf[CONFIG_MAX];
     ssize_t len, ret = 0;
@@ -38,14 +37,14 @@ static void load_libraries (void)
     /* loader.preload:
        any other libraries to preload. The can be multiple URIs,
        seperated by commas */
-    len = get_config(g_pal_state.root_config, "loader.preload", cfgbuf,
-                     sizeof(cfgbuf));
+    len = get_config(g_pal_state.root_config, "loader.preload", cfgbuf, sizeof(cfgbuf));
     if (len <= 0)
         return;
 
-    char * c = cfgbuf, * library_name = c;
+    char* c = cfgbuf;
+    char* library_name = c;
     for (;; c++)
-        if (*c == ',' || !(*c)) {
+        if (*c == ',' || !*c) {
             if (c > library_name) {
                 *c = 0;
                 if ((ret = load_elf_object(library_name, OBJECT_PRELOAD)) < 0)
@@ -59,39 +58,37 @@ static void load_libraries (void)
         }
 }
 
-static void read_environments (const char *** envpp)
-{
-    struct config_store * store = g_pal_state.root_config;
-    const char ** envp = *envpp;
+static int insert_envs_from_manifest(const char*** envpp) {
+    assert(envpp);
 
-    /* loader.env.*: rewriting host environment variables */
+    struct config_store* store = g_pal_state.root_config;
+    if (!store)
+        return -PAL_ERROR_INVAL;
+
     struct setenv {
-        const char * str;
+        const char* str;
         int len, idx;
-    } * setenvs = NULL;
-    int nsetenvs = 0;
-
-    if (!g_pal_state.root_config)
-        return;
+    }* setenvs = NULL;
+    int setenvs_cnt = 0;
 
     ssize_t cfgsize_envs = get_config_entries_size(store, "loader.env");
-    /* XXX Propagate this error? */
     if (cfgsize_envs < 0)
-        return;
+        return 0;  /* No entries found. */
 
-    char * cfgbuf_envs = malloc(cfgsize_envs);
-    assert(cfgbuf_envs);
-    nsetenvs = get_config_entries(store, "loader.env", cfgbuf_envs, cfgsize_envs);
-    if (nsetenvs <= 0) {
+    char* cfgbuf_envs = malloc(cfgsize_envs);
+    if (!cfgbuf_envs)
+        return -PAL_ERROR_NOMEM;
+    setenvs_cnt = get_config_entries(store, "loader.env", cfgbuf_envs, cfgsize_envs);
+    if (setenvs_cnt <= 0) {
         free(cfgbuf_envs);
-        return;
+        return 0;
     }
 
-    setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
-    char * cfg = cfgbuf_envs;
-    for (int i = 0 ; i < nsetenvs ; i++) {
+    setenvs = __alloca(sizeof(struct setenv) * setenvs_cnt);
+    char* cfg = cfgbuf_envs;
+    for (int i = 0; i < setenvs_cnt; i++) {
         size_t len = strlen(cfg);
-        char * str = __alloca(len + 1);
+        char* str = __alloca(len + 1);
         setenvs[i].str = str;
         setenvs[i].len = len;
         setenvs[i].idx = -1;
@@ -100,9 +97,10 @@ static void read_environments (const char *** envpp)
     }
     free(cfgbuf_envs);
 
-    int nenvs = 0, noverwrite = 0;
-    for (const char ** e = envp ; *e ; e++, nenvs++)
-        for (int i = 0 ; i < nsetenvs ; i++)
+    int nenvs = 0;
+    int noverwrite = 0;
+    for (const char** e = *envpp; *e; e++, nenvs++)
+        for (int i = 0; i < setenvs_cnt; i++)
             if (!memcmp(setenvs[i].str, *e, setenvs[i].len) &&
                 (*e)[setenvs[i].len] == '=') {
                 setenvs[i].idx = nenvs;
@@ -113,31 +111,30 @@ static void read_environments (const char *** envpp)
     /* TODO: This code appears to rely on the memory buffer being zero-
      * initialized, so we use calloc here to get zeroed memory. We should
      * audit this code to verify that it's correct. */
-    const char ** new_envp =
-        calloc((nenvs + nsetenvs - noverwrite + 1), sizeof(const char *));
-    memcpy(new_envp, envp, sizeof(const char *) * nenvs);
-    envp = new_envp;
-
+    const char** new_envp = calloc((nenvs + setenvs_cnt - noverwrite + 1), sizeof(const char*));
+    if (nenvs)
+        memcpy(new_envp, *envpp, sizeof(**envpp) * nenvs);
+    
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
-    const char ** ptr;
+    const char** ptr;
     char cfgbuf[CONFIG_MAX];
 
-    for (int i = 0 ; i < nsetenvs ; i++) {
-        const char * str = setenvs[i].str;
+    for (int i = 0; i < setenvs_cnt; i++) {
+        const char* str = setenvs[i].str;
         int len = setenvs[i].len;
         int idx = setenvs[i].idx;
         ssize_t bytes;
-        ptr = &envp[(idx == -1) ? nenvs++ : idx];
+        ptr = &new_envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
         if ((bytes = get_config(store, key, cfgbuf, sizeof(cfgbuf))) > 0) {
-            char * e = malloc(len + bytes + 2);
+            char* e = malloc(len + bytes + 2);
             memcpy(e, str, len);
             e[len] = '=';
             memcpy(e + len + 1, cfgbuf, bytes + 1);
             *ptr = e;
         } else {
-            char * e = malloc(len + 2);
+            char* e = malloc(len + 2);
             memcpy(e, str, len);
             e[len] = '=';
             e[len + 1] = 0;
@@ -145,7 +142,8 @@ static void read_environments (const char *** envpp)
         }
     }
 
-    *envpp = envp;
+    *envpp = new_envp;
+    return 0;
 }
 
 static void set_debug_type (void)
@@ -185,11 +183,67 @@ static void set_debug_type (void)
     g_pal_control.debug_stream = handle;
 }
 
-static int loader_filter (const char * key, int len)
-{
-    /* try to do this as fast as possible */
-    return (len > 7 && key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
-            key[4] == 'e' && key[5] == 'r' && key[6] == '.') ? 0 : 1;
+static bool loader_filter(const char* key, size_t len) {
+    // beware: `key` may not be NUL-terminated!
+    return (len >= strlen("loader.") && !memcmp(key, "loader.", strlen("loader.")));
+}
+
+/* Loads a file containing a concatenation of C-strings. The resulting array of pointers is
+ * NULL-terminated. All C-strings inside it reside in a single malloc-ed buffer starting at
+ * (*res)[0].
+ */
+static int load_cstring_array(const char* uri, const char*** res) {
+    PAL_HANDLE hdl;
+    PAL_STREAM_ATTR attr;
+    char* buf = NULL;
+    const char** array = NULL;
+    int ret;
+
+    ret = _DkStreamOpen(&hdl, uri, PAL_ACCESS_RDONLY, 0, 0, 0);
+    if (ret < 0)
+        return ret;
+    ret = _DkStreamAttributesQueryByHandle(hdl, &attr);
+    if (ret < 0)
+        goto out_fail;
+    size_t file_size = attr.pending_size;
+    buf = malloc(file_size);
+    if (!buf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out_fail;
+    }
+    ret = _DkStreamRead(hdl, 0, file_size, buf, NULL, 0);
+    if (ret < 0)
+        goto out_fail;
+    if (file_size > 0 && buf[file_size - 1] != '\0') {
+        ret = -PAL_ERROR_INVAL;
+        goto out_fail;
+    }
+
+    size_t count = 0;
+    for (size_t i = 0; i < file_size; i++)
+        if (buf[i] == '\0')
+            count++;
+    array = malloc(sizeof(char*) * (count + 1));
+    if (!array) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out_fail;
+    }
+    array[count] = NULL;
+    if (file_size > 0) {
+        const char** argv_it = array;
+        *(argv_it++) = buf;
+        for (size_t i = 0; i < file_size - 1; i++)
+            if (buf[i] == '\0')
+                *(argv_it++) = buf + i + 1;
+    }
+    *res = array;
+    return _DkObjectClose(hdl);
+
+out_fail:
+    (void)_DkObjectClose(hdl);
+    free(buf);
+    free(array);
+    return ret;
 }
 
 /* 'pal_main' must be called by the host-specific bootloader */
@@ -277,8 +331,6 @@ noreturn void pal_main(
 
         const char * errstring = NULL;
         if ((ret = read_config(root_config, loader_filter, &errstring)) < 0) {
-            if (_DkStreamGetName(manifest_handle, uri_buf, URI_MAX) > 0)
-                printf("reading manifest \"%s\" failed\n", uri_buf);
             INIT_FAIL(-ret, errstring);
         }
 
@@ -389,51 +441,45 @@ noreturn void pal_main(
             printf("Discarding cmdline arguments (%s %s [...]) because loader.argv_src_file was "
                    "specified in the manifest.\n", arguments[0], arguments[1]);
 
-        PAL_HANDLE argv_handle;
-        PAL_STREAM_ATTR attr;
-        ret = _DkStreamOpen(&argv_handle, cfgbuf, PAL_ACCESS_RDONLY, 0, 0, 0);
+        ret = load_cstring_array(cfgbuf, &arguments);
         if (ret < 0)
-            INIT_FAIL(-ret, "can't open loader.argv_src_file");
-        ret = _DkStreamAttributesQueryByHandle(argv_handle, &attr);
-        if (ret < 0)
-            INIT_FAIL(-ret, "can't read attributes of loader.argv_src_file");
-        size_t argv_file_size = attr.pending_size;
-        char* buf = malloc(argv_file_size);
-        if (!buf)
-            INIT_FAIL(PAL_ERROR_NOMEM, "malloc failed");
-        ret = _DkStreamRead(argv_handle, 0, argv_file_size, buf, NULL, 0);
-        if (ret < 0)
-            INIT_FAIL(-ret, "can't read loader.argv_src_file");
-        if (argv_file_size == 0 || buf[argv_file_size - 1] != '\0')
-            INIT_FAIL(PAL_ERROR_INVAL, "loader.argv_src_file should contain a "
-                                       "list of C-strings");
-        ret = _DkObjectClose(argv_handle);
-        if (ret < 0)
-            INIT_FAIL(-ret, "closing loader.argv_src_file failed");
-
-        /* Create argv array from the file contents. */
-        size_t argc = 0;
-        for (size_t i = 0; i < argv_file_size; i++)
-            if (buf[i] == '\0')
-                argc++;
-        const char** argv = malloc(sizeof(const char*) * (argc + 1));
-        if (!argv)
-            INIT_FAIL(PAL_ERROR_NOMEM, "malloc() failed");
-        assert(argc > 0);
-        argv[argc] = NULL;
-        const char** argv_it = argv;
-        *(argv_it++) = buf;
-        assert(argv_file_size > 0);
-        for (size_t i = 0; i < argv_file_size - 1; i++)
-            if (buf[i] == '\0')
-                *(argv_it++) = buf + i + 1;
-        arguments = argv;
+            INIT_FAIL(-ret, "can't load loader.argv_src_file");
     } else if (!argv0_overridden || (arguments[0] && arguments[1])) {
         INIT_FAIL(PAL_ERROR_INVAL, "argv handling wasn't configured in the manifest, but cmdline "
                   "arguments were specified.");
     }
 
-    read_environments(&environments);
+    bool using_host_env = false;
+    if (get_config(g_pal_state.root_config, "loader.insecure__use_host_env",
+                   cfgbuf, CONFIG_MAX) > 0) {
+        using_host_env = true;
+        printf("WARNING: Forwarding host environment variables to the app is enabled. Don't use "
+               "this configuration in production!\n");
+    } else {
+        environments = malloc(sizeof(*environments));
+        if (!environments)
+            INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+        environments[0] = NULL;
+    }
+
+    if (get_config(g_pal_state.root_config, "loader.env_src_file", cfgbuf, CONFIG_MAX) > 0) {
+        if (using_host_env)
+            INIT_FAIL(PAL_ERROR_INVAL, "Wrong manifest configuration - cannot use "
+                                       "loader.insecure__use_host_env and loader.env_src_file at "
+                                       "the same time.");
+
+        /* Insert environment variables from a file. We trust the file contents (this can be
+         * achieved using protected or trusted files). */
+        ret = load_cstring_array(cfgbuf, &environments);
+        if (ret < 0)
+            INIT_FAIL(-ret, "can't load loader.env_src_file");
+    }
+
+    // TODO: Envs from file should be able to override ones from the manifest, but current
+    // code makes this hard to implement.
+    ret = insert_envs_from_manifest(&environments);
+    if (ret < 0)
+        INIT_FAIL(-ret, "Inserting environment variables from the manifest failed");
 
     if (g_pal_state.root_config)
         load_libraries();
