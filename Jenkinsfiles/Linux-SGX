@@ -24,9 +24,9 @@ pipeline {
                         '''
                         sh '''
                            cd /opt/intel
-                           git clone https://github.com/01org/linux-sgx-driver.git
+                           git clone https://github.com/donporter/linux-sgx-driver.git
                            cd linux-sgx-driver
-                           git checkout 7acda57e771d49d9e2142059b346b778349f653a
+                           git checkout don/fix-5.8-build
                            make
                         '''
                         sh '''
