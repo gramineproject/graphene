@@ -140,9 +140,8 @@ test-10-%: gsc-%-bash
 
 .PHONY: test-11-%
 test-11-%: gsc-%-pytorch
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py >out 2>/dev/null
-	grep -q "('Labrador retriever'" out
-	$(RM) out
+	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py
+	grep -q "('Labrador retriever'" result.txt
 
 .PHONY: clean-image-%
 clean-image-%:
