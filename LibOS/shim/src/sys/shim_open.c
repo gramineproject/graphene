@@ -98,9 +98,6 @@ int shim_do_open (const char * file, int flags, mode_t mode)
     if (!file || test_user_string(file))
         return -EFAULT;
 
-    if (file[0] == '\0')
-        return -EINVAL;
-
     if (!(flags & O_CREAT)) {
         /* `mode` should be ignored if O_CREAT is not specified, according to man */
         mode = 0;
