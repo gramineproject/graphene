@@ -47,12 +47,12 @@ arguments (e.g., -d, --no-cache, or --rm)::
 
     make BUILD_FLAGS=-d gsc-<image-name>
 
-To build the baes Docker image named ``<image-name>`` with additional
+To build the base Docker image named ``<image-name>`` with additional
 Docker `build` arguments (e.g., --no-cache, or --rm)::
 
-    make DOCKER_BUILD_FLAGS=--nocache <image-name>
+    make DOCKER_BUILD_FLAGS=--no-cache <image-name>
 
-To sign the graphenized image of ``<image-name>`` with a cutom siging key
+To sign the graphenized image of ``<image-name>`` with a custom signing key
 <your_signing_key.pem>, specify ``KEY_FILE`` (default: ``../enclave_key.pem``)::
 
     make KEY_FILE=<your_signing_key.pem>
@@ -63,7 +63,7 @@ To make a specific distribution, specify ``DISTRIBUTION`` (default:
     make DISTRIBUTION=ubuntu18.04
 
 To make a specific test case (here ``python3``), specify ``TESTCASES`` (default:
-python3 hello-world nodejs bash numpy pytorch)
+``python3 hello-world nodejs bash numpy pytorch``)
 
     make TESTCASES=python3
 

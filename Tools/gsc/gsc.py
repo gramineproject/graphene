@@ -245,23 +245,23 @@ def gsc_sign_image(args):
     fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
     shutil.copyfile(os.path.abspath(key), fk_path)
 
-    #try:
+    try:
         # We force the removal of intermediate Docker images to not leave the signing
         # key in a Docker container.
-    build_docker_image(gsc_image_name(image), gsc_image_name(image),
-                        'Dockerfile.sign_manifests', forcerm=True)
+        build_docker_image(gsc_image_name(image), gsc_image_name(image),
+                           'Dockerfile.sign_manifests', forcerm=True)
 
-    #finally:
+    finally:
         # Remove key file from the temporary folder
-    os.remove(fk_path)
+        os.remove(fk_path)
 
-    # Check if docker build failed
-    if get_docker_image(docker_socket, gsc_image_name(image)) is None:
-        print(f'Failed to sign graphenized image for {image}')
-        sys.exit(1)
+        # Check if docker build failed
+        if get_docker_image(docker_socket, gsc_image_name(image)) is None:
+            print(f'Failed to sign graphenized image for {image}')
+            sys.exit(1)
 
-    print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker '
-            f'image {gsc_image_name(image)}.')
+        print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker '
+              f'image {gsc_image_name(image)}.')
 
 argparser = argparse.ArgumentParser()
 subcommands = argparser.add_subparsers(metavar='<command>')
@@ -281,7 +281,7 @@ sub_build.add_argument('--insecure-args', action='store_true',
 sub_build.add_argument('-nc', '--no-cache', action='store_true',
     help='Build graphenized Docker image without any cached images.')
 sub_build.add_argument('--rm', action='store_true',
-    help='Remove intermediate Docker images when Build is successful.')
+    help='Remove intermediate Docker images when build is successful.')
 sub_build.add_argument('image',
     help='Name of the application Docker image.')
 sub_build.add_argument('manifests',

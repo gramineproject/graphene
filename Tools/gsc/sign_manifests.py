@@ -44,9 +44,9 @@ def extract_enclave_size(manifest):
     return '0M'
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument('signing_order', default='signature_order.txt',
+argparser.add_argument('signing_order', default='signing_order.txt',
     help='File specifying the order in which manifest should be signed. '
-         'Default: signature_order.txt')
+         'Default: signing_order.txt')
 
 def main(args=None):
     args = argparser.parse_args(args[1:])
