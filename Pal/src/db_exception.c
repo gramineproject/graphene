@@ -18,22 +18,22 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-PAL_EVENT_HANDLER handlers[PAL_EVENT_NUM_BOUND] = { 0 };
+PAL_EVENT_HANDLER g_handlers[PAL_EVENT_NUM_BOUND] = { 0 };
 
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event) {
-    return __atomic_load_n(&handlers[event], __ATOMIC_ACQUIRE);
+    return __atomic_load_n(&g_handlers[event], __ATOMIC_ACQUIRE);
 }
 
 PAL_BOL
 DkSetExceptionHandler(PAL_EVENT_HANDLER handler, PAL_NUM event) {
     ENTER_PAL_CALL(DkSetExceptionHandler);
 
-    if (!handler || event == 0 || event >= ARRAY_SIZE(handlers)) {
+    if (!handler || event == 0 || event >= ARRAY_SIZE(g_handlers)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    __atomic_store_n(&handlers[event], handler, __ATOMIC_RELEASE);
+    __atomic_store_n(&g_handlers[event], handler, __ATOMIC_RELEASE);
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 

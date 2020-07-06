@@ -55,7 +55,7 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     SET_HANDLE_TYPE(phdl, process);
     HANDLE_HDR(phdl)->flags  |= RFD(0)|WFD(0);
     phdl->process.stream      = fds[0];
-    phdl->process.pid         = linux_state.pid;
+    phdl->process.pid         = g_linux_state.pid;
     phdl->process.nonblocking = PAL_FALSE;
 
     chdl = malloc(HANDLE_SIZE(process));
@@ -127,7 +127,7 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
     if (proc_param->manifest)
         handle_set_cloexec(proc_param->manifest, false);
 
-    int res = INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv, linux_state.environ);
+    int res = INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv, g_linux_state.environ);
     /* execve failed, but we're after vfork, so we can't do anything more than just exit */
     INLINE_SYSCALL(exit_group, 1, ERRNO(res));
     /* UNREACHABLE */
@@ -156,13 +156,13 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
          */
         size_t len;
         const char* file_uri = URI_PREFIX_FILE;
-        if (exec_map && exec_map->l_name &&
+        if (g_exec_map && g_exec_map->l_name &&
             (len = strlen(uri)) >= URI_PREFIX_FILE_LEN && !memcmp(uri, file_uri, URI_PREFIX_FILE_LEN) &&
             /* skip "file:"*/
-            strlen(exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
+            strlen(g_exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
             /* + 1 for lasting * NUL */
-            !memcmp(exec_map->l_name, uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
-            exec->file.map_start = (PAL_PTR)exec_map->l_map_start;
+            !memcmp(g_exec_map->l_name, uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
+            exec->file.map_start = (PAL_PTR)g_exec_map->l_map_start;
     }
 
     /* step 2: create parent and child process handle */
@@ -174,7 +174,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     param.parent = parent_handle;
     param.exec = exec;
-    param.manifest = pal_state.manifest_handle;
+    param.manifest = g_pal_state.manifest_handle;
 
     /* step 3: compose process parameters */
 
@@ -197,8 +197,8 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
         exec_datasz = (size_t)ret;
     }
 
-    if (pal_state.manifest_handle) {
-        ret = handle_serialize(pal_state.manifest_handle, &manifest_data);
+    if (g_pal_state.manifest_handle) {
+        ret = handle_serialize(g_pal_state.manifest_handle, &manifest_data);
         if (ret < 0) {
             free(parent_data);
             free(exec_data);
@@ -210,11 +210,11 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     size_t datasz = parent_datasz + exec_datasz + manifest_datasz;
     struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + datasz);
 
-    proc_args->parent_process_id = linux_state.parent_process_id;
-    memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
+    proc_args->parent_process_id = g_linux_state.parent_process_id;
+    memcpy(&proc_args->pal_sec, &g_pal_sec, sizeof(struct pal_sec));
     proc_args->pal_sec._dl_debug_state = NULL;
     proc_args->pal_sec._r_debug = NULL;
-    proc_args->memory_quota = linux_state.memory_quota;
+    proc_args->memory_quota = g_linux_state.memory_quota;
 
     void* data = (void*)(proc_args + 1);
 
@@ -363,9 +363,9 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDL
         data += proc_args->manifest_data_size;
         *manifest_handle = manifest;
     }
-    linux_state.parent_process_id = proc_args->parent_process_id;
-    linux_state.memory_quota = proc_args->memory_quota;
-    memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
+    g_linux_state.parent_process_id = proc_args->parent_process_id;
+    g_linux_state.memory_quota = proc_args->memory_quota;
+    memcpy(&g_pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
 }
 
 noreturn void _DkProcessExit (int exitcode)

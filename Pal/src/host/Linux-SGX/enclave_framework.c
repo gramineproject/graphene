@@ -12,7 +12,7 @@
 
 #include "enclave_pages.h"
 
-__sgx_mem_aligned struct pal_enclave_state pal_enclave_state;
+__sgx_mem_aligned struct pal_enclave_state g_pal_enclave_state;
 
 void * enclave_base, * enclave_top;
 
@@ -125,7 +125,7 @@ static sgx_key_128bit_t enclave_key;
 static int __sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
                             sgx_report_t* report) {
     __sgx_mem_aligned struct pal_enclave_state state;
-    memcpy(&state, &pal_enclave_state, sizeof(state));
+    memcpy(&state, &g_pal_enclave_state, sizeof(state));
     memcpy(&state.enclave_data, data, sizeof(*data));
 
     int ret = sgx_report(target_info, &state, report);
@@ -742,7 +742,7 @@ static int init_trusted_file (const char * key, const char * uri)
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
-    ssize_t ret = get_config(pal_state.root_config, cskey, checksum, sizeof(checksum));
+    ssize_t ret = get_config(g_pal_state.root_config, cskey, checksum, sizeof(checksum));
     if (ret < 0)
         return 0;
 
@@ -767,7 +767,7 @@ static int init_trusted_file (const char * key, const char * uri)
 }
 
 int init_trusted_files (void) {
-    struct config_store* store = pal_state.root_config;
+    struct config_store* store = g_pal_state.root_config;
     char* cfgbuf = NULL;
     ssize_t cfgsize;
     int nuris, ret;
@@ -776,8 +776,8 @@ int init_trusted_files (void) {
     char* k;
     char* tmp;
 
-    if (pal_sec.exec_name[0] != '\0') {
-        ret = init_trusted_file("exec", pal_sec.exec_name);
+    if (g_pal_sec.exec_name[0] != '\0') {
+        ret = init_trusted_file("exec", g_pal_sec.exec_name);
         if (ret < 0)
             goto out;
     }
@@ -913,7 +913,7 @@ out:
 
 int init_trusted_children (void)
 {
-    struct config_store * store = pal_state.root_config;
+    struct config_store * store = g_pal_state.root_config;
 
     char key[CONFIG_MAX], mrkey[CONFIG_MAX];
     char uri[CONFIG_MAX], mr_enclave[CONFIG_MAX];
@@ -955,7 +955,7 @@ int init_trusted_children (void)
 int init_file_check_policy (void)
 {
     char cfgbuf[CONFIG_MAX];
-    ssize_t ret = get_config(pal_state.root_config, "sgx.file_check_policy",
+    ssize_t ret = get_config(g_pal_state.root_config, "sgx.file_check_policy",
                              cfgbuf, sizeof(cfgbuf));
 
     if (ret > 0) {
@@ -991,17 +991,17 @@ int init_enclave (void)
         return -PAL_ERROR_INVAL;
     }
 
-    memcpy(&pal_sec.mr_enclave, &report.body.mr_enclave, sizeof(pal_sec.mr_enclave));
-    memcpy(&pal_sec.mr_signer, &report.body.mr_signer, sizeof(pal_sec.mr_signer));
-    pal_sec.enclave_attributes = report.body.attributes;
+    memcpy(&g_pal_sec.mr_enclave, &report.body.mr_enclave, sizeof(g_pal_sec.mr_enclave));
+    memcpy(&g_pal_sec.mr_signer, &report.body.mr_signer, sizeof(g_pal_sec.mr_signer));
+    g_pal_sec.enclave_attributes = report.body.attributes;
 
     /*
      * The enclave id is uniquely created for each enclave as a token
      * for authenticating the enclave as the sender of attestation.
      * See 'host/Linux-SGX/db_process.c' for further explanation.
      */
-    ret = _DkRandomBitsRead(&pal_enclave_state.enclave_id,
-                            sizeof(pal_enclave_state.enclave_id));
+    ret = _DkRandomBitsRead(&g_pal_enclave_state.enclave_id,
+                            sizeof(g_pal_enclave_state.enclave_id));
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to generate a random id: %d\n", ret);
         return ret;
@@ -1114,8 +1114,8 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     /* A -> B: targetinfo[A] */
     memset(&target_info, 0, sizeof(target_info));
-    memcpy(&target_info.mr_enclave,  &pal_sec.mr_enclave, sizeof(sgx_measurement_t));
-    memcpy(&target_info.attributes, &pal_sec.enclave_attributes, sizeof(sgx_attributes_t));
+    memcpy(&target_info.mr_enclave, &g_pal_sec.mr_enclave, sizeof(sgx_measurement_t));
+    memcpy(&target_info.attributes, &g_pal_sec.enclave_attributes, sizeof(sgx_attributes_t));
 
     for (bytes = 0, ret = 0; bytes < SGX_TARGETINFO_FILLED_SIZE; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,

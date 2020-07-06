@@ -14,20 +14,20 @@
 #include "pal_defs.h"
 #include "pal_error.h"
 
-static int slab_alignment;
-static PAL_LOCK slab_mgr_lock = LOCK_INIT;
+static int g_slab_alignment;
+static PAL_LOCK g_slab_mgr_lock = LOCK_INIT;
 
-#define SYSTEM_LOCK()   _DkInternalLock(&slab_mgr_lock)
-#define SYSTEM_UNLOCK() _DkInternalUnlock(&slab_mgr_lock)
-#define SYSTEM_LOCKED() _DkInternalIsLocked(&slab_mgr_lock)
+#define SYSTEM_LOCK()   _DkInternalLock(&g_slab_mgr_lock)
+#define SYSTEM_UNLOCK() _DkInternalUnlock(&g_slab_mgr_lock)
+#define SYSTEM_LOCKED() _DkInternalIsLocked(&g_slab_mgr_lock)
 
 #if STATIC_SLAB == 1
 #define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
-static char mem_pool[POOL_SIZE];
-static void* bump         = mem_pool;
-static void* mem_pool_end = &mem_pool[POOL_SIZE];
+static char g_mem_pool[POOL_SIZE];
+static void* g_bump = g_mem_pool;
+static void* g_mem_pool_end = &g_mem_pool[POOL_SIZE];
 #else
-#define ALLOC_ALIGNMENT slab_alignment
+#define ALLOC_ALIGNMENT g_slab_alignment
 #endif
 
 #define STARTUP_SIZE 2
@@ -40,14 +40,14 @@ static inline void __free(void* addr, int size);
 #include "slabmgr.h"
 
 
-/* This function is protected by slab_mgr_lock. */
+/* This function is protected by g_slab_mgr_lock. */
 static inline void* __malloc(int size) {
     void* addr = NULL;
 
 #if STATIC_SLAB == 1
-    if (bump + size <= mem_pool_end) {
-        addr = bump;
-        bump += size;
+    if (g_bump + size <= g_mem_pool_end) {
+        addr = g_bump;
+        g_bump += size;
         return addr;
     }
 #endif
@@ -60,27 +60,27 @@ static inline void __free(void* addr, int size) {
     if (!addr)
         return;
 #if STATIC_SLAB == 1
-    if (addr >= (void*)mem_pool && addr < mem_pool_end)
+    if (addr >= (void*)g_mem_pool && addr < g_mem_pool_end)
         return;
 #endif
 
     _DkVirtualMemoryFree(addr, size);
 }
 
-static SLAB_MGR slab_mgr = NULL;
+static SLAB_MGR g_slab_mgr = NULL;
 
 void init_slab_mgr(int alignment) {
-    if (slab_mgr)
+    if (g_slab_mgr)
         return;
 
-    slab_alignment = alignment;
-    slab_mgr       = create_slab_mgr();
-    if (!slab_mgr)
+    g_slab_alignment = alignment;
+    g_slab_mgr       = create_slab_mgr();
+    if (!g_slab_mgr)
         INIT_FAIL(PAL_ERROR_NOMEM, "cannot initialize slab manager");
 }
 
 void* malloc(size_t size) {
-    void* ptr = slab_alloc(slab_mgr, size);
+    void* ptr = slab_alloc(g_slab_mgr, size);
 
 #ifdef DEBUG
     /* In debug builds, try to break code that uses uninitialized heap
@@ -133,5 +133,5 @@ void* calloc(size_t nmem, size_t size) {
 void free(void* ptr) {
     if (!ptr)
         return;
-    slab_free(slab_mgr, ptr);
+    slab_free(g_slab_mgr, ptr);
 }

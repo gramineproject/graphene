@@ -270,7 +270,7 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 int _DkThreadResume (PAL_HANDLE threadHandle)
 {
     int ret = INLINE_SYSCALL(tgkill, 3,
-                             linux_state.pid,
+                             g_linux_state.pid,
                              threadHandle->thread.tid,
                              SIGCONT);
 

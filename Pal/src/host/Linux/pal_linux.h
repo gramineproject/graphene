@@ -59,7 +59,7 @@ extern struct pal_linux_state {
     long int (*vdso_gettimeofday) (struct timeval *, void *);
 # endif
 #endif
-} linux_state;
+} g_linux_state;
 
 
 #include <asm/mman.h>
@@ -97,7 +97,7 @@ extern struct pal_linux_state {
 
 #ifdef DEBUG
 # define ARCH_VFORK()                                                       \
-    (linux_state.in_gdb ?                                                   \
+    (g_linux_state.in_gdb ?                                                 \
      INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK|SIGCHLD, 0, NULL, NULL) :\
      INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
 #else

@@ -170,16 +170,16 @@ extern struct pal_internal_state {
     PAL_HANDLE      console;
 
     unsigned long   start_time;
-} pal_state;
+} g_pal_state;
 
-extern PAL_CONTROL __pal_control;
+extern PAL_CONTROL g_pal_control;
 
-#define IS_ALLOC_ALIGNED(addr)     IS_ALIGNED_POW2(addr, pal_state.alloc_align)
-#define IS_ALLOC_ALIGNED_PTR(addr) IS_ALIGNED_PTR_POW2(addr, pal_state.alloc_align)
-#define ALLOC_ALIGN_UP(addr)       ALIGN_UP_POW2(addr, pal_state.alloc_align)
-#define ALLOC_ALIGN_UP_PTR(addr)   ALIGN_UP_PTR_POW2(addr, pal_state.alloc_align)
-#define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, pal_state.alloc_align)
-#define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, pal_state.alloc_align)
+#define IS_ALLOC_ALIGNED(addr)     IS_ALIGNED_POW2(addr, g_pal_state.alloc_align)
+#define IS_ALLOC_ALIGNED_PTR(addr) IS_ALIGNED_PTR_POW2(addr, g_pal_state.alloc_align)
+#define ALLOC_ALIGN_UP(addr)       ALIGN_UP_POW2(addr, g_pal_state.alloc_align)
+#define ALLOC_ALIGN_UP_PTR(addr)   ALIGN_UP_PTR_POW2(addr, g_pal_state.alloc_align)
+#define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, g_pal_state.alloc_align)
+#define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, g_pal_state.alloc_align)
 
 /*!
  * \brief Main initialization function

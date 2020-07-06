@@ -23,8 +23,8 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 
-struct link_map * loaded_maps = NULL;
-struct link_map * exec_map = NULL;
+struct link_map* g_loaded_maps = NULL;
+struct link_map* g_exec_map = NULL;
 
 struct link_map * lookup_symbol (const char *undef_name, ElfW(Sym) **ref);
 
@@ -345,7 +345,7 @@ postmap:
                 {
                     /* Dag nab it.  */
                     ret = _DkVirtualMemoryProtect(
-                        (void*)ALLOC_ALIGN_DOWN(zero), pal_state.alloc_align,
+                        (void*)ALLOC_ALIGN_DOWN(zero), g_pal_state.alloc_align,
                         c->prot | PAL_PROT_WRITE);
                     if (ret < 0) {
                         print_error("cannot change memory protections", ret);
@@ -355,7 +355,7 @@ postmap:
                 memset ((void *) zero, '\0', zerosec - zero);
                 if ((c->prot & PAL_PROT_WRITE) == 0)
                     _DkVirtualMemoryProtect((void*)ALLOC_ALIGN_DOWN(zero),
-                                            pal_state.alloc_align, c->prot);
+                                            g_pal_state.alloc_align, c->prot);
             }
 
             if (zeroend > zerosec) {
@@ -443,8 +443,8 @@ void free_elf_object (struct link_map * map)
     _DkDebugDelMap(map);
 #endif
 
-    if (loaded_maps == map)
-        loaded_maps = map->l_next;
+    if (g_loaded_maps == map)
+        g_loaded_maps = map->l_next;
 
     free(map);
 }
@@ -518,11 +518,11 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
      * manifest, e.g., loader.preload)
      */
     map->l_next = NULL;
-    if (!loaded_maps) {
+    if (!g_loaded_maps) {
         map->l_prev = NULL;
-        loaded_maps = map;
+        g_loaded_maps = map;
     } else {
-        struct link_map * end = loaded_maps;
+        struct link_map* end = g_loaded_maps;
         while (end->l_next)
             end = end->l_next;
         end->l_next = map;
@@ -530,7 +530,7 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
     }
 
     if (type == OBJECT_EXEC)
-        exec_map = map;
+        g_exec_map = map;
 
 #ifdef DEBUG
     _DkDebugAddMap(map);
@@ -624,11 +624,11 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
      * manifest, e.g., loader.preload)
      */
     map->l_next = NULL;
-    if (!loaded_maps) {
+    if (!g_loaded_maps) {
         map->l_prev = NULL;
-        loaded_maps = map;
+        g_loaded_maps = map;
     } else {
-        struct link_map * end = loaded_maps;
+        struct link_map* end = g_loaded_maps;
         while (end->l_next)
             end = end->l_next;
         end->l_next = map;
@@ -636,7 +636,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     }
 
     if (map->l_type == OBJECT_EXEC)
-        exec_map = map;
+        g_exec_map = map;
 
 #ifdef DEBUG
     _DkDebugAddMap(map);
@@ -803,7 +803,7 @@ static int do_lookup (const char * undef_name, ElfW(Sym) * ref,
     const uint_fast32_t fast_hash = elf_fast_hash(undef_name);
     const long int hash = elf_hash(undef_name);
     ElfW(Sym) * sym;
-    struct link_map * map = loaded_maps;
+    struct link_map* map = g_loaded_maps;
     struct sym_val weak_result = { .s = NULL, .m = NULL };
 
     for (; map ; map = map->l_next) {
@@ -998,7 +998,7 @@ void DkDebugDetachBinary (PAL_PTR start_addr)
 #ifndef DEBUG
     __UNUSED(start_addr);
 #else
-    for (struct link_map * l = loaded_maps; l; l = l->l_next)
+    for (struct link_map* l = g_loaded_maps; l; l = l->l_next)
         if (l->l_map_start == (ElfW(Addr)) start_addr) {
             _DkDebugDelMap(l);
 
@@ -1036,9 +1036,9 @@ void * stack_before_call __attribute_unused = NULL;
 noreturn void start_execution(const char** arguments, const char** environs) {
     /* First we will try to run all the preloaded libraries which come with
        entry points */
-    if (exec_map) {
-        __pal_control.executable_range.start = (PAL_PTR)ALLOC_ALIGN_DOWN_PTR(exec_map->l_map_start);
-        __pal_control.executable_range.end   = (PAL_PTR)ALLOC_ALIGN_UP_PTR(exec_map->l_map_end);
+    if (g_exec_map) {
+        g_pal_control.executable_range.start = (PAL_PTR)ALLOC_ALIGN_DOWN(g_exec_map->l_map_start);
+        g_pal_control.executable_range.end   = (PAL_PTR)ALLOC_ALIGN_UP(g_exec_map->l_map_end);
     }
 
     int narguments = 0;
@@ -1077,12 +1077,12 @@ noreturn void start_execution(const char** arguments, const char** environs) {
     auxv[0].a_type = AT_NULL;
     auxv[0].a_un.a_val = 0;
 
-    for (struct link_map * l = loaded_maps; l ; l = l->l_next)
+    for (struct link_map* l = g_loaded_maps; l; l = l->l_next)
         if (l->l_type == OBJECT_PRELOAD && l->l_entry)
             CALL_ENTRY(l, cookies);
 
-    if (exec_map)
-        CALL_ENTRY(exec_map, cookies);
+    if (g_exec_map)
+        CALL_ENTRY(g_exec_map, cookies);
 
     _DkThreadExit(/*clear_child_tid=*/NULL);
     /* UNREACHABLE */

@@ -29,8 +29,8 @@
 #define RTLD_BOOTSTRAP
 #define _ENTRY enclave_entry
 
-struct pal_linux_state linux_state;
-struct pal_sec pal_sec;
+struct pal_linux_state g_linux_state;
+struct pal_sec g_pal_sec;
 
 PAL_SESSION_KEY g_master_key = {0};
 
@@ -42,7 +42,7 @@ unsigned long _DkGetAllocationAlignment (void)
 }
 
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap) {
-    *start = (PAL_PTR)pal_sec.heap_min;
+    *start = (PAL_PTR)g_pal_sec.heap_min;
     *end   = (PAL_PTR)get_enclave_heap_top();
 
     /* FIXME: hack to keep some heap for internal PAL objects allocated at runtime (recall that
@@ -59,7 +59,7 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap)
 
 PAL_NUM _DkGetProcessId (void)
 {
-    return linux_state.process_id;
+    return g_linux_state.process_id;
 }
 
 PAL_NUM _DkGetHostId (void)
@@ -71,7 +71,7 @@ PAL_NUM _DkGetHostId (void)
 #include "dynamic_link.h"
 #include <asm/errno.h>
 
-static struct link_map pal_map;
+static struct link_map g_pal_map;
 
 /*
  * Creates a dummy file handle with the given name.
@@ -187,13 +187,10 @@ fail:
 extern void * enclave_base;
 extern void * enclave_top;
 
-void pal_linux_main(char * uptr_args, uint64_t args_size,
-                    char * uptr_env, uint64_t env_size,
-                    struct pal_sec * uptr_sec_info)
-{
+void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_t env_size,
+                    struct pal_sec* uptr_sec_info) {
     /*
-     * Our arguments are comming directly from the urts. We are responsible to
-     * check them.
+     * Our arguments are coming directly from the urts. We are responsible to check them.
      */
 
     PAL_HANDLE parent = NULL;
@@ -205,57 +202,58 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         return;
     }
 
-    pal_sec.heap_min = GET_ENCLAVE_TLS(heap_min);
-    pal_sec.heap_max = GET_ENCLAVE_TLS(heap_max);
-    pal_sec.exec_addr = GET_ENCLAVE_TLS(exec_addr);
-    pal_sec.exec_size = GET_ENCLAVE_TLS(exec_size);
+    g_pal_sec.heap_min = GET_ENCLAVE_TLS(heap_min);
+    g_pal_sec.heap_max = GET_ENCLAVE_TLS(heap_max);
+    g_pal_sec.exec_addr = GET_ENCLAVE_TLS(exec_addr);
+    g_pal_sec.exec_size = GET_ENCLAVE_TLS(exec_size);
 
     /* Zero the heap. We need to take care to not zero the exec area. */
 
-    void* zero1_start = pal_sec.heap_min;
-    void* zero1_end = pal_sec.heap_max;
+    void* zero1_start = g_pal_sec.heap_min;
+    void* zero1_end = g_pal_sec.heap_max;
 
-    void* zero2_start = pal_sec.heap_max;
-    void* zero2_end = pal_sec.heap_max;
+    void* zero2_start = g_pal_sec.heap_max;
+    void* zero2_end = g_pal_sec.heap_max;
 
-    if (pal_sec.exec_addr != NULL) {
-        zero1_end = MIN(zero1_end, SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, 0));
-        zero2_start = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, zero2_end);
+    if (g_pal_sec.exec_addr != NULL) {
+        zero1_end = MIN(zero1_end, SATURATED_P_SUB(g_pal_sec.exec_addr, MEMORY_GAP, 0));
+        zero2_start = SATURATED_P_ADD(g_pal_sec.exec_addr + g_pal_sec.exec_size, MEMORY_GAP,
+                                      zero2_end);
     }
 
     memset(zero1_start, 0, zero1_end - zero1_start);
     memset(zero2_start, 0, zero2_end - zero2_start);
 
     /* relocate PAL itself */
-    pal_map.l_addr = elf_machine_load_address();
-    pal_map.l_name = ENCLAVE_PAL_FILENAME;
-    elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
-                         pal_map.l_info, pal_map.l_addr);
+    g_pal_map.l_addr = elf_machine_load_address();
+    g_pal_map.l_name = ENCLAVE_PAL_FILENAME;
+    elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
+                         g_pal_map.l_addr);
 
-    ELF_DYNAMIC_RELOCATE(&pal_map);
+    ELF_DYNAMIC_RELOCATE(&g_pal_map);
 
     /*
      * We can't verify the following arguments from the urts. So we copy
      * them directly but need to be careful when we use them.
      */
 
-    pal_sec.instance_id = sec_info.instance_id;
+    g_pal_sec.instance_id = sec_info.instance_id;
 
-    COPY_ARRAY(pal_sec.exec_name, sec_info.exec_name);
-    pal_sec.exec_name[sizeof(pal_sec.exec_name) - 1] = '\0';
+    COPY_ARRAY(g_pal_sec.exec_name, sec_info.exec_name);
+    g_pal_sec.exec_name[sizeof(g_pal_sec.exec_name) - 1] = '\0';
 
-    COPY_ARRAY(pal_sec.manifest_name, sec_info.manifest_name);
-    pal_sec.manifest_name[sizeof(pal_sec.manifest_name) - 1] = '\0';
+    COPY_ARRAY(g_pal_sec.manifest_name, sec_info.manifest_name);
+    g_pal_sec.manifest_name[sizeof(g_pal_sec.manifest_name) - 1] = '\0';
 
-    pal_sec.stream_fd = sec_info.stream_fd;
+    g_pal_sec.stream_fd = sec_info.stream_fd;
 
-    COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
-    pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
+    COPY_ARRAY(g_pal_sec.pipe_prefix, sec_info.pipe_prefix);
+    g_pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
 #ifdef DEBUG
-    pal_sec.in_gdb = sec_info.in_gdb;
+    g_pal_sec.in_gdb = sec_info.in_gdb;
 #endif
 #if PRINT_ENCLAVE_STAT == 1
-    pal_sec.start_time = sec_info.start_time;
+    g_pal_sec.start_time = sec_info.start_time;
 #endif
 
     /* For {p,u,g}ids we can at least do some minimal checking. */
@@ -265,24 +263,24 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     if (sec_info.ppid > INT32_MAX) {
         return;
     }
-    pal_sec.ppid = sec_info.ppid;
+    g_pal_sec.ppid = sec_info.ppid;
 
     /* As ppid but we always have a pid, so 0 is invalid. */
     if (sec_info.pid > INT32_MAX || sec_info.pid == 0) {
         return;
     }
-    pal_sec.pid = sec_info.pid;
+    g_pal_sec.pid = sec_info.pid;
 
     /* -1 is treated as special value for example by chown. */
     if (sec_info.uid == (PAL_IDX)-1 || sec_info.gid == (PAL_IDX)-1) {
         return;
     }
-    pal_sec.uid = sec_info.uid;
-    pal_sec.gid = sec_info.gid;
+    g_pal_sec.uid = sec_info.uid;
+    g_pal_sec.gid = sec_info.gid;
 
     int num_cpus = sec_info.num_cpus;
     if (num_cpus >= 1 && num_cpus <= (1 << 16)) {
-        pal_sec.num_cpus = num_cpus;
+        g_pal_sec.num_cpus = num_cpus;
     } else {
         return;
     }
@@ -296,10 +294,10 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     init_cpuid();
 
     /* now we can add a link map for PAL itself */
-    setup_pal_map(&pal_map);
+    setup_pal_map(&g_pal_map);
 
     /* Set the alignment early */
-    pal_state.alloc_align = g_page_size;
+    g_pal_state.alloc_align = g_page_size;
 
     /* initialize enclave properties */
     rv = init_enclave();
@@ -320,11 +318,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         return;
     }
 
-    pal_state.start_time = start_time;
+    g_pal_state.start_time = start_time;
 
-    linux_state.uid = pal_sec.uid;
-    linux_state.gid = pal_sec.gid;
-    linux_state.process_id = (start_time & (~0xffff)) | pal_sec.pid;
+    g_linux_state.uid = g_pal_sec.uid;
+    g_linux_state.gid = g_pal_sec.gid;
+    g_linux_state.process_id = (start_time & (~0xffff)) | g_pal_sec.pid;
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
@@ -336,7 +334,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         return;
 
     /* if there is a parent, create parent handle */
-    if (pal_sec.ppid) {
+    if (g_pal_sec.ppid) {
         if ((rv = init_child_process(&parent)) < 0) {
             SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", rv);
             ocall_exit(rv, /*is_exitgroup=*/true);
@@ -344,7 +342,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     }
 
     /* now let's mark our enclave as initialized */
-    pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
+    g_pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
 
     /*
      * We create dummy handles for exec and manifest here to make the logic in
@@ -354,10 +352,10 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     PAL_HANDLE manifest, exec = NULL;
 
-    manifest = setup_dummy_file_handle(pal_sec.manifest_name);
+    manifest = setup_dummy_file_handle(g_pal_sec.manifest_name);
 
-    if (pal_sec.exec_name[0] != '\0') {
-        exec = setup_dummy_file_handle(pal_sec.exec_name);
+    if (g_pal_sec.exec_name[0] != '\0') {
+        exec = setup_dummy_file_handle(g_pal_sec.exec_name);
     } else {
         SGX_DBG(DBG_I, "Run without executable\n");
     }
@@ -378,9 +376,9 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         ocall_exit(rv, /*is_exitgroup=*/true);
     }
 
-    pal_state.root_config = root_config;
-    __pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
-    __pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
+    g_pal_state.root_config = root_config;
+    g_pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
+    g_pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
 
     if ((rv = init_trusted_files()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", rv);
@@ -400,7 +398,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "
            "Enclave loading time =      %10ld milliseconds\n",
-           _DkSystemTimeQuery() - pal_sec.start_time);
+           _DkSystemTimeQuery() - g_pal_sec.start_time);
 #endif
 
     /* set up thread handle */
@@ -408,12 +406,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tcs =
         enclave_base + GET_ENCLAVE_TLS(tcs_offset);
-    __pal_control.first_thread = first_thread;
+    g_pal_control.first_thread = first_thread;
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
 
     /* call main function */
-    pal_main(pal_sec.instance_id, manifest, exec,
-             pal_sec.exec_addr, parent, first_thread,
+    pal_main(g_pal_sec.instance_id, manifest, exec, g_pal_sec.exec_addr, parent, first_thread,
              arguments, environments);
 }
 

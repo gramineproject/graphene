@@ -89,10 +89,10 @@ int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
 }
 
 uint64_t _DkMemoryQuota(void) {
-    return pal_sec.heap_max - pal_sec.heap_min;
+    return g_pal_sec.heap_max - g_pal_sec.heap_min;
 }
 
 uint64_t _DkMemoryAvailableQuota(void) {
-    return (pal_sec.heap_max - pal_sec.heap_min) -
+    return (g_pal_sec.heap_max - g_pal_sec.heap_min) -
            __atomic_load_n(&g_allocated_pages.counter, __ATOMIC_SEQ_CST) * g_page_size;
 }
