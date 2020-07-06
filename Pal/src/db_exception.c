@@ -4,7 +4,7 @@
 /*
  * db_exception.c
  *
- * This file contains APIs to set up g_handlers of exceptions issued by the
+ * This file contains APIs to set up handlers of exceptions issued by the
  * host, and the methods to pass the exceptions to the upcalls.
  */
 
