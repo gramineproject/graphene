@@ -145,7 +145,7 @@ Synopsis:
 
 Signs the enclave of an unsigned graphenized Docker image and creates a new
 Docker image called ``gsc-<IMAGE-NAME>``. :command:`gsc sign-image` always
-removes interemediate Docker images, if successful or not, to ensure the removal
+removes intermediate Docker images, if successful or not, to ensure the removal
 of the signing key in intermediate Docker images.
 
 Synopsis:
