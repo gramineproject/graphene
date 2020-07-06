@@ -45,7 +45,7 @@ extern struct pal_linux_state {
 
     /* enclave */
     const char *    runtime_dir;
-} linux_state;
+} g_linux_state;
 
 #include <asm/mman.h>
 
@@ -160,8 +160,9 @@ extern struct pal_enclave_state {
     uint64_t        enclave_flags;      // Reserved for flags
     uint64_t        enclave_id;         // Unique identifier for authentication
     sgx_sign_data_t enclave_data;       // Reserved for signing other data
-} __attribute__((packed)) pal_enclave_state;
-static_assert(sizeof(pal_enclave_state) == sizeof(sgx_report_data_t), "incorrect struct size");
+} __attribute__((packed)) g_pal_enclave_state;
+static_assert(sizeof(struct pal_enclave_state) == sizeof(sgx_report_data_t),
+              "incorrect struct size");
 
 /*
  * sgx_verify_report: verify a CPU-signed report from another local enclave

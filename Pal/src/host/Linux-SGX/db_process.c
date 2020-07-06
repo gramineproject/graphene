@@ -212,7 +212,7 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
         return 1;
 
     /* Always accept the same mr_enclave as child process */
-    if (!memcmp(mr_enclave, &pal_sec.mr_enclave, sizeof(sgx_measurement_t))) {
+    if (!memcmp(mr_enclave, &g_pal_sec.mr_enclave, sizeof(sgx_measurement_t))) {
         SGX_DBG(DBG_S, "trusted child: <forked>\n");
         return 0;
     }
@@ -264,7 +264,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
         goto failed;
 
     sgx_sign_data_t sign_data;
-    ret = generate_sign_data(&child->process.session_key, pal_enclave_state.enclave_id,
+    ret = generate_sign_data(&child->process.session_key, g_pal_enclave_state.enclave_id,
                              &sign_data);
     if (ret < 0)
         goto failed;
@@ -314,8 +314,8 @@ int init_child_process (PAL_HANDLE * parent_handle)
     SET_HANDLE_TYPE(parent, process);
     HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0);
 
-    parent->process.stream      = pal_sec.stream_fd;
-    parent->process.pid         = pal_sec.ppid;
+    parent->process.stream      = g_pal_sec.stream_fd;
+    parent->process.pid         = g_pal_sec.ppid;
     parent->process.nonblocking = PAL_FALSE;
     parent->process.ssl_ctx     = NULL;
 
@@ -324,7 +324,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
         return ret;
 
     sgx_sign_data_t sign_data;
-    ret = generate_sign_data(&parent->process.session_key, pal_enclave_state.enclave_id,
+    ret = generate_sign_data(&parent->process.session_key, g_pal_enclave_state.enclave_id,
                              &sign_data);
     if (ret < 0)
         return ret;

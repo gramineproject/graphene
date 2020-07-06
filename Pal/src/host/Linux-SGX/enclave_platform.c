@@ -11,7 +11,7 @@ int sgx_get_quote(const sgx_spid_t* spid, const sgx_quote_nonce_t* nonce,
                   char** quote, size_t* quote_len) {
     /* must align all arguments to sgx_report() so that EREPORT doesn't complain */
     __sgx_mem_aligned sgx_report_t report;
-    __sgx_mem_aligned sgx_target_info_t targetinfo = pal_sec.qe_targetinfo;
+    __sgx_mem_aligned sgx_target_info_t targetinfo = g_pal_sec.qe_targetinfo;
     __sgx_mem_aligned sgx_report_data_t _report_data = *report_data;
 
     int ret = sgx_report(&targetinfo, &_report_data, &report);

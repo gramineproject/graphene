@@ -86,9 +86,9 @@ struct link_gdb_map {
     struct link_map * l_next, * l_prev;     /* Chain of loaded objects.     */
 };
 
-extern struct link_map * loaded_maps;
-extern struct link_map * rtld_map;
-extern struct link_map * exec_map;
+extern struct link_map* g_loaded_maps;
+extern struct link_map* g_rtld_map;
+extern struct link_map* g_exec_map;
 
 /* Some systems link their relocatable objects for another base address
    than 0.  We want to know the base address for these such that we can

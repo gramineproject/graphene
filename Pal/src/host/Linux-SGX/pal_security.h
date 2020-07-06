@@ -49,7 +49,7 @@ struct pal_sec {
 };
 
 #ifdef IN_ENCLAVE
-extern struct pal_sec pal_sec;
+extern struct pal_sec g_pal_sec;
 #endif
 
 #define GRAPHENE_TEMPDIR        "/tmp/graphene"

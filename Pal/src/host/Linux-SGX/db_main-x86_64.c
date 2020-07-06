@@ -122,8 +122,8 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
     ci->cpu_brand = brand;
 
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
-     * instead, this is passed in via pal_sec at start-up time. */
-    ci->cpu_num = pal_sec.num_cpus;
+     * instead, this is passed in via g_pal_sec at start-up time. */
+    ci->cpu_num = g_pal_sec.num_cpus;
 
     _DkCpuIdRetrieve(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +

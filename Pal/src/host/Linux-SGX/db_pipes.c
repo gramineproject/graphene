@@ -37,7 +37,7 @@ static int pipe_addr(const char* name, struct sockaddr_un* addr) {
     size_t size = sizeof(addr->sun_path) - 1;
 
     /* pipe_prefix already contains a slash at the end, so not needed in the format string */
-    int ret = snprintf(str, size, "%s%s", pal_sec.pipe_prefix, name);
+    int ret = snprintf(str, size, "%s%s", g_pal_sec.pipe_prefix, name);
     return ret >= 0 && (size_t)ret < size ? 0 : -EINVAL;
 }
 
