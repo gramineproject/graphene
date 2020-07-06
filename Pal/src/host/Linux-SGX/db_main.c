@@ -107,16 +107,10 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     return handle;
 }
 
-static int loader_filter (const char * key, int len)
-{
-    if (len > 7 && key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
-        key[4] == 'e' && key[5] == 'r' && key[6] == '.')
-        return 0;
-
-    if (len > 4 && key[0] == 's' && key[1] == 'g' && key[2] == 'x' && key[3] == '.')
-        return 0;
-
-    return 1;
+static bool loader_filter(const char* key, size_t len) {
+    // beware: `key` may not be NUL-terminated!
+    return (len >= strlen("loader.") && !memcmp(key, "loader.", strlen("loader.")))
+        || (len >= strlen("sgx.") && !memcmp(key, "sgx.", strlen("sgx.")));
 }
 
 /*

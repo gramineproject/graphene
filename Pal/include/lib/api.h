@@ -223,8 +223,8 @@ struct config_store {
     void             (*free) (void *);
 };
 
-int read_config (struct config_store * store, int (*filter) (const char *, int),
-                 const char ** errstring);
+int read_config(struct config_store* store, bool (*filter)(const char*, size_t),
+                const char** errstring);
 int free_config (struct config_store * store);
 int copy_config (struct config_store * store, struct config_store * new_store);
 int write_config (void * file, int (*write) (void *, void *, int),

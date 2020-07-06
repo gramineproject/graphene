@@ -36,7 +36,7 @@ extern struct pal_linux_state {
     PAL_NUM         parent_process_id;
     PAL_NUM         process_id;
 
-    const char **   environ;
+    const char**    host_environ;
 
     /* credentials */
     unsigned int    uid, gid;

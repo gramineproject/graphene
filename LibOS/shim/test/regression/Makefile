@@ -76,6 +76,8 @@ manifests = \
 	argv_from_file.manifest \
 	attestation.manifest \
 	echo.manifest \
+	env_from_file.manifest \
+	env_from_host.manifest \
 	eventfd.manifest \
 	exec_victim.manifest \
 	exit_group.manifest \
@@ -100,6 +102,8 @@ exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
 	argv_from_file.manifest \
+	env_from_file.manifest \
+	env_from_host.manifest \
 	echo.manifest \
 	file_check_policy_allow_all_but_log.manifest \
 	file_check_policy_strict.manifest \

@@ -75,7 +75,8 @@ or
 
 If you want your application to use commandline arguments you need to either set
 ``loader.insecure__use_cmdline_argv`` (insecure in almost all cases) or point
-``loader.argv_src_file`` to a file containing output of :file:`Tools/argv_serializer`.
+``loader.argv_src_file`` to a file containing output of
+:file:`Tools/argv_serializer`.
 
 ``loader.argv_src_file`` is intended to point to either a trusted file or a
 protected file. The former allows to securely hardcode arguments (current
@@ -87,13 +88,34 @@ Environment Variables
 
 ::
 
-   loader.env.[ENVIRON]=[VALUE]
+   loader.insecure__use_host_env = 1
 
-By default, the environment variables on the host will be passed to the library
-OS (this is insecure and will be fixed in the future). Specifying an environment
-variable using this syntax adds/overwrites it and passes to the library OS. This
-syntax can be used multiple times to specify more than one environment variable.
-An environment variable can be deleted by giving it an empty value.
+By default, environment variables from the host will *not* be passed to the app.
+This can be overridden by the option above, but most applications and runtime
+libraries trust their environment variables and are completely insecure when
+these are attacker-controlled. For example, an attacker can execute an
+additional dynamic library by specifying ``LD_PRELOAD`` variable.
+
+To securely set up the execution environment for an app you should use one or
+both of the following options:
+
+::
+
+   loader.env.[ENVIRON]=[VALUE]
+   loader.env_src_file = file:file_with_serialized_envs
+
+``loader.env.[ENVIRON]`` adds/overwrites a single environment variable and can
+be used multiple times to specify more than one variable.
+
+``loader.env_src_file`` allows to specify a URI to a file containing serialized
+environment, which can be generated using :file:`Tools/argv_serializer`. This
+option is intended to point to either a trusted file or a protected file. The
+former allows to securely hardcode environments (in a more flexible way than
+``loader.env.[ENVIRON]`` option), the latter allows the arguments to be provided
+at runtime from an external (trusted) source.
+
+If the same variable is set in both, then ``loader.env.[ENVIRON]`` takes
+precedence.
 
 Debug Type
 ^^^^^^^^^^
