@@ -28,8 +28,9 @@ void* memcpy(void* restrict dst, const void* restrict src, size_t n) {
      * previous implementation taken from Glibc 2.23. */
     __asm__ volatile("rep movsb" : "+D" (d) : "c"(n), "S"(src) : "cc", "memory");
 #else
+    const char* s = src;
     for (; n; n--)
-        *d++ = *src++;
+        *d++ = *s++;
 #endif
     return dst;
 }
