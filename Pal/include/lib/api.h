@@ -129,13 +129,15 @@ void *malloc(size_t size);
 void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 
-/* check if the var is exactly the same as the static string */
+/* check if `var` is exactly the same as a static string */
 #define strcmp_static(var, str) \
     (memcmp(var, str, MIN(strlen(var), static_strlen(str)) + 1))
 
-/* check if the var starts with the static string */
-#define strstartswith_static(var, str) \
-    (!memcmp(var, str, static_strlen(str)))
+/* check if `str` starts with a static string */
+#define strstartswith_static(str, prefix)          \
+    (strlen(str) >= static_strlen(prefix)          \
+     ? !memcmp(str, prefix, static_strlen(prefix)) \
+     : false)
 
 /* copy static string and return the address of the NUL byte (NULL if the dest
  * is not large enough).*/
