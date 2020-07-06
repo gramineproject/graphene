@@ -76,12 +76,14 @@ test-distro-%:
 .PHONY: test-1-%
 test-1-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>&1
+	cat out
 	grep -q "HelloWorld!" out
 	$(RM) out
 
 .PHONY: test-2-%
 test-2-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py >out 2>&1
+	cat out
 	grep -q "Hello World" out
 	$(RM) out
 
