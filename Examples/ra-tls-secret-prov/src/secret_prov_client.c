@@ -49,8 +49,11 @@ int main(int argc, char** argv) {
         fprintf(stderr, "[error] secret_provision_get() returned %d\n", ret);
         goto out;
     }
+    if (!secret1_size) {
+        fprintf(stderr, "[error] secret_provision_get() returned secret with size 0\n");
+        goto out;
+    }
 
-    assert(secret1_size);
     secret1[secret1_size - 1] = '\0';
 
     if (!is_constructor) {
@@ -67,8 +70,12 @@ int main(int argc, char** argv) {
             fprintf(stderr, "[error] secret_provision_read() returned %d\n", bytes);
             goto out;
         }
+        if (bytes != sizeof(secret2)) {
+            fprintf(stderr, "[error] secret_provision_read() returned secret with size %d"
+                    " (expected %lu)\n", bytes, sizeof(secret2));
+            goto out;
+        }
 
-        assert(bytes == sizeof(secret2));
         secret2[bytes - 1] = '\0';
     }
 

@@ -81,14 +81,15 @@ static void* client_connection(void* data) {
 
     struct ra_tls_ctx ctx = {.ssl = &ssl};
     uint8_t buf[128] = {0};
-    size_t size = SECRET_PROVISION_REQUEST_LEN;
+    static_assert(sizeof(buf) >= sizeof(SECRET_PROVISION_REQUEST),
+                  "buffer must be sufficiently large to hold SECRET_PROVISION_REQUEST");
 
-    ret = secret_provision_read(&ctx, buf, size);
+    ret = secret_provision_read(&ctx, buf, sizeof(SECRET_PROVISION_REQUEST));
     if (ret < 0) {
         goto out;
     }
 
-    if (memcmp(buf, SECRET_PROVISION_REQUEST, SECRET_PROVISION_REQUEST_LEN)) {
+    if (memcmp(buf, SECRET_PROVISION_REQUEST, sizeof(SECRET_PROVISION_REQUEST))) {
         goto out;
     }
 
@@ -99,13 +100,15 @@ static void* client_connection(void* data) {
     }
 
     uint32_t send_secret_size = htonl((uint32_t)ti->secret_size);
+    static_assert(sizeof(buf) >= sizeof(SECRET_PROVISION_RESPONSE) + sizeof(send_secret_size),
+                  "buffer must be sufficiently large to hold SECRET_PROVISION_RESPONSE + int32");
 
     memset(buf, 0, sizeof(buf));
-    memcpy(buf, SECRET_PROVISION_RESPONSE, SECRET_PROVISION_RESPONSE_LEN);
-    memcpy(buf + SECRET_PROVISION_RESPONSE_LEN, &send_secret_size, sizeof(send_secret_size));
-    size = SECRET_PROVISION_RESPONSE_LEN + sizeof(send_secret_size);
+    memcpy(buf, SECRET_PROVISION_RESPONSE, sizeof(SECRET_PROVISION_RESPONSE));
+    memcpy(buf + sizeof(SECRET_PROVISION_RESPONSE), &send_secret_size, sizeof(send_secret_size));
 
-    ret = secret_provision_write(&ctx, buf, size);
+    ret = secret_provision_write(&ctx, buf, sizeof(SECRET_PROVISION_RESPONSE) +
+                                 sizeof(send_secret_size));
     if (ret < 0) {
         goto out;
     }

@@ -2,7 +2,6 @@
 /* Copyright (C) 2020 Intel Labs */
 
 #include <stdint.h>
-#include <mbedtls/ssl.h>
 
 #define SECRET_PROVISION_WARNING_TEST_CERTS \
     "********************************************************************\n" \
@@ -22,10 +21,7 @@
 
 /* internal secret-provisioning protocol message format */
 #define SECRET_PROVISION_REQUEST  "SECRET_PROVISION_RA_TLS_REQUEST_V1"
-#define SECRET_PROVISION_REQUEST_LEN (sizeof(SECRET_PROVISION_REQUEST) - 1)
-
 #define SECRET_PROVISION_RESPONSE "SECRET_PROVISION_RA_TLS_RESPONSE_V1:" // 8B secret size follows
-#define SECRET_PROVISION_RESPONSE_LEN (sizeof(SECRET_PROVISION_RESPONSE) - 1)
 
 #define DEFAULT_SERVERS "localhost:4433"
 

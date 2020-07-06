@@ -79,8 +79,7 @@ mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -Wall -std=c11 -I./mbedtls/install/include -I./mbedtls/crypto/include \
-		  -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
+CFLAGS += -Wall -std=c11 -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
 LFLAGS += -Wl,-rpath,. -L. -lmbedcrypto -lmbedtls -lmbedx509
 
 secret_prov_server: src/secret_prov_server.c libmbedcrypto.so libmbedtls.so libmbedx509.so

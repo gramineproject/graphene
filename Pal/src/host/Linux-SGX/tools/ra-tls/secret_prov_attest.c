@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#define STDC_WANT_LIB_EXT1 1
 #include <string.h>
 
 #include "mbedtls/config.h"
@@ -216,33 +217,36 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
     }
 
     struct ra_tls_ctx ctx = {.ssl = &g_ssl};
-    uint8_t buf[128];
+    uint8_t buf[128] = {0};
     size_t size;
 
+    static_assert(sizeof(buf) >= sizeof(SECRET_PROVISION_REQUEST),
+                  "buffer must be sufficiently large to hold SECRET_PROVISION_REQUEST");
     size = sprintf((char*)buf, SECRET_PROVISION_REQUEST);
 
-    ret = secret_provision_write(&ctx, buf, size);
+    ret = secret_provision_write(&ctx, buf, size + 1); /* include null byte */
     if (ret < 0) {
         goto out;
     }
 
     /* remote verifier sends 32-bit integer over network; we need to ntoh it */
     uint32_t received_secret_size;
+    static_assert(sizeof(buf) >= sizeof(SECRET_PROVISION_RESPONSE) + sizeof(received_secret_size),
+                  "buffer must be sufficiently large to hold SECRET_PROVISION_RESPONSE + int32");
 
     memset(buf, 0, sizeof(buf));
-    size = SECRET_PROVISION_RESPONSE_LEN + sizeof(received_secret_size);
-
-    ret = secret_provision_read(&ctx, buf, size);
+    ret = secret_provision_read(&ctx, buf, sizeof(SECRET_PROVISION_RESPONSE) +
+                                sizeof(received_secret_size));
     if (ret < 0) {
         goto out;
     }
 
-    if (memcmp(buf, SECRET_PROVISION_RESPONSE, SECRET_PROVISION_RESPONSE_LEN)) {
+    if (memcmp(buf, SECRET_PROVISION_RESPONSE, sizeof(SECRET_PROVISION_RESPONSE))) {
         ret = -EINVAL;
         goto out;
     }
 
-    memcpy(&received_secret_size, buf + SECRET_PROVISION_RESPONSE_LEN,
+    memcpy(&received_secret_size, buf + sizeof(SECRET_PROVISION_RESPONSE),
            sizeof(received_secret_size));
 
     received_secret_size = ntohl(received_secret_size);
@@ -309,9 +313,9 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
         if (!ret) {
             /* succeessfully retrieved the secret, put it in an envvar if fits */
             ret = secret_provision_get(&secret, &secret_size);
-            if (!ret && secret && secret_size > 0 && secret_size <= PATH_MAX) {
-                /* secret fits in an envvar, copy it in envvar */
-                secret[secret_size - 1] = '\0';
+            if (!ret && secret && secret_size > 0 && secret_size <= PATH_MAX &&
+                    secret[secret_size - 1] == '\0') {
+                /* secret is a null-terminated string and fits in envvar, copy it in envvar */
                 setenv(SECRET_PROVISION_SECRET_STRING, (const char*)secret, /*overwrite=*/1);
             }
             secret_provision_destroy();
