@@ -56,8 +56,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 
     struct protected_file* pf = get_protected_file(path);
     /* whether to re-initialize the PF */
-    /* TODO: PAL_OPTION_CLOEXEC is O_TRUNC in reality, should be renamed */
-    bool pf_create = (create & PAL_CREATE_ALWAYS) || (options & PAL_OPTION_CLOEXEC);
+    bool pf_create = (create & PAL_CREATE_ALWAYS) || (options & PAL_CREATE_TRY);
 
     /* try to do the real open */
     int fd = ocall_open(uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |

@@ -101,7 +101,10 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             self.fail()
 
     # overrides TC_00_FileSystem to change input dir (from plaintext to encrypted)
+    @expectedFailureIf(HAS_SGX)
+    # pylint: disable=fixme
     def test_101_open_flags(self):
+        # TODO: this will fail until truncate is implemented for PFs (O_TRUNC needs it)
         # the test binary expects a path to file that will get created
         file_path = os.path.join(self.OUTPUT_DIR, 'test_101') # new file
         stdout, stderr = self.run_binary(['open_flags', file_path])

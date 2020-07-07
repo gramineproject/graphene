@@ -48,55 +48,12 @@
  */
 
 #include "protected_files_internal.h"
+#include "api.h"
 
 #ifndef IN_PAL
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifndef MIN
-#define MIN(a,b) \
-   ({ __typeof__(a) _a = (a); \
-      __typeof__(b) _b = (b); \
-      _a < _b ? _a : _b; })
-#endif
-
-/* Copy a fixed size array. */
-#define SAME_TYPE(a, b) __builtin_types_compatible_p(__typeof__(a), __typeof__(b))
-#define IS_STATIC_ARRAY(a) (!SAME_TYPE(a, &*(a)))
-#define FORCE_STATIC_ARRAY(a) sizeof(int[IS_STATIC_ARRAY(a) - 1]) // evaluates to 0
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) (FORCE_STATIC_ARRAY(a) + sizeof(a) / sizeof(a[0]))
-#endif
-
-#define COPY_ARRAY(dst, src)                                                    \
-    do {                                                                        \
-        /* Using pointers because otherwise the compiler would try to allocate  \
-         * memory for the fixed size arrays and complain about invalid          \
-         * initializers.                                                        \
-         */                                                                     \
-        __typeof__(src)* _s = &(src);                                           \
-        __typeof__(dst)* _d = &(dst);                                           \
-                                                                                \
-        static_assert(SAME_TYPE((*_s)[0], (*_d)[0]), "types must match");       \
-        static_assert(ARRAY_SIZE(*_s) == ARRAY_SIZE(*_d), "sizes must match");  \
-                                                                                \
-        memcpy(*_d, *_s, sizeof(*_d));                                          \
-    } while (0)
-
-/* fail build if str is not a static string */
-#define FORCE_LITERAL_CSTR(str) ("" str "")
-
-#define static_strlen(str) (ARRAY_SIZE(FORCE_LITERAL_CSTR(str)) - 1)
-
-#define strcpy_static(var, str, max)                                  \
-    (static_strlen(str) + 1 > (max)                                   \
-     ? NULL                                                           \
-     : memcpy(var, str, static_strlen(str) + 1) + static_strlen(str))
-
-#else
-    #include "api.h"
 #endif
 
 /* Function for scrubbing sensitive memory buffers.
