@@ -13,13 +13,13 @@
  * into the SGX application that needs to receive secrets. This library is *not* thread-safe.
  */
 
+#define STDC_WANT_LIB_EXT1 1
 #define _XOPEN_SOURCE 700
 #include <arpa/inet.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define STDC_WANT_LIB_EXT1 1
 #include <string.h>
 
 #include "mbedtls/config.h"
