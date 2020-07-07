@@ -223,8 +223,9 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
     static_assert(sizeof(buf) >= sizeof(SECRET_PROVISION_REQUEST),
                   "buffer must be sufficiently large to hold SECRET_PROVISION_REQUEST");
     size = sprintf((char*)buf, SECRET_PROVISION_REQUEST);
+    size += 1; /* include null byte */
 
-    ret = secret_provision_write(&ctx, buf, size + 1); /* include null byte */
+    ret = secret_provision_write(&ctx, buf, size);
     if (ret < 0) {
         goto out;
     }
