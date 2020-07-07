@@ -31,14 +31,14 @@ endif
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/CMakeLists.txt secret_prov_server pal_loader \
+app: mbedtls/CMakeLists.txt pal_loader \
      secret_prov_min_client.manifest.sgx secret_prov_client.manifest.sgx
 
 .PHONY: epid
-epid: libsecret_prov_attest.so libsecret_prov_verify_epid.so
+epid: secret_prov_server_epid libsecret_prov_attest.so libsecret_prov_verify_epid.so
 
 .PHONY: dcap
-dcap: libsecret_prov_attest.so libsecret_prov_verify_dcap.so
+dcap: secret_prov_server_dcap libsecret_prov_attest.so libsecret_prov_verify_dcap.so
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
@@ -79,14 +79,20 @@ mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -Wall -std=c11 -fPIC -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
+CFLAGS += -Wall -std=c11 -I$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/ra-tls
 LFLAGS += -Wl,-rpath,. -L. -lmbedcrypto -lmbedtls -lmbedx509
 
-secret_prov_server: src/secret_prov_server.c libmbedcrypto.so libmbedtls.so libmbedx509.so
-	$(CC) $< $(CFLAGS) $(LFLAGS) -pthread -o $@
+secret_prov_server_epid: src/secret_prov_server.c libsecret_prov_verify_epid.so \
+                         libmbedcrypto.so libmbedtls.so libmbedx509.so
+	$(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_verify_epid -pthread -o $@
 
-secret_prov_client: src/secret_prov_client.c libmbedcrypto.so libmbedtls.so libmbedx509.so
-	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
+secret_prov_server_dcap: src/secret_prov_server.c libsecret_prov_verify_dcap.so \
+                         libmbedcrypto.so libmbedtls.so libmbedx509.so
+	$(CC) $< $(CFLAGS) $(LFLAGS) -Wl,--no-as-needed -lsgx_urts -lsecret_prov_verify_dcap -pthread -o $@
+
+secret_prov_client: src/secret_prov_client.c libsecret_prov_attest.so \
+                    libmbedcrypto.so libmbedtls.so libmbedx509.so
+	$(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_attest -o $@
 
 secret_prov_min_client: src/secret_prov_min_client.c libmbedcrypto.so libmbedtls.so libmbedx509.so
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
@@ -160,7 +166,7 @@ secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov
 
 .PHONY: check_epid
 check_epid: app epid
-	LD_PRELOAD="libsecret_prov_verify_epid.so" ./secret_prov_server >/dev/null & SERVER_ID=$$!; \
+	./secret_prov_server_epid >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
@@ -171,7 +177,7 @@ check_epid: app epid
 
 .PHONY: check_dcap
 check_dcap: app dcap
-	LD_PRELOAD="libsgx_urts.so libsecret_prov_verify_dcap.so" ./secret_prov_server >/dev/null & SERVER_ID=$$!; \
+	./secret_prov_server_dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
@@ -185,7 +191,8 @@ check_dcap: app dcap
 .PHONY: clean
 clean:
 	$(RM) *.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pal_loader \
-          secret_prov_server secret_prov_client secret_prov_min_client
+          secret_prov_server_epid secret_prov_server_dcap \
+          secret_prov_client secret_prov_min_client
 
 .PHONY: distclean
 distclean: clean

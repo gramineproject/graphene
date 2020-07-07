@@ -22,8 +22,8 @@ and the embedded SGX quote and, if verification succeeds, sends the first secret
 (hard-coded dummy string `This is a secret string!`). If the client requests a second secret, the
 server sends the dummy integer `42` as the second secret.
 
-If the Secret Provisioning library `libsecret_prov_verify_epid.so`/`libsecret_prov_verify_dcap.so`
-is not preloaded, then the server exits with error message.
+There are two versions of the server: the EPID one and the DCAP one. Each of them links against
+the corresponding EPID/DCAP secret-provisioning library at build time.
 
 
 ## Secret Provisioning clients
@@ -35,8 +35,9 @@ from the server. As part of secret provisioning flow, both clients create a self
 certificate with the embedded SGX quote, send it to the server for verification, and expect secrets
 in return.
 
-If the Secret Provisioning library `libsecret_prov_attest.so` is not preloaded, then the client
-exits with error message.
+The minimal client relies on `LD_PRELOAD` trick that preloads `libsecret_prov_attest.so` and runs
+it before the client's main logic. The second client links against `libsecret_prov_attest.so`
+explicitly at build time.
 
 
 # Quick Start
@@ -49,8 +50,7 @@ Please make sure that the corresponding RA-TLS libraries (EPID or DCAP versions)
 RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app epid
 
 RA_TLS_EPID_API_KEY=12345678901234567890123456789012 \
-RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 \
-LD_PRELOAD="libsecret_prov_verify_epid.so" ./secret_prov_server &
+RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 ./secret_prov_server_epid &
 
 # test minimal client
 SGX=1 ./pal_loader ./secret_prov_min_client
@@ -66,8 +66,7 @@ kill %%
 ```sh
 make app dcap
 
-RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 \
-LD_PRELOAD="libsgx_urts.so libsecret_prov_verify_dcap.so" ./secret_prov_server &
+RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1 ./secret_prov_server_dcap &
 
 # test minimal client
 SGX=1 ./pal_loader ./secret_prov_min_client

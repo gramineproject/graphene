@@ -47,7 +47,7 @@ typedef int (*secret_provision_cb_t)(struct ra_tls_ctx* ctx);
  *
  * \return          0 on success, specific error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int secret_provision_write(struct ra_tls_ctx* ctx, const uint8_t* buf, size_t size);
 
 /*!
@@ -63,7 +63,7 @@ int secret_provision_write(struct ra_tls_ctx* ctx, const uint8_t* buf, size_t si
  *
  * \return           0 on success, specific error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int secret_provision_read(struct ra_tls_ctx* ctx, uint8_t* buf, size_t size);
 
 /*!
@@ -78,7 +78,7 @@ int secret_provision_read(struct ra_tls_ctx* ctx, uint8_t* buf, size_t size);
  *
  * \return         0 on success, specific error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int secret_provision_close(struct ra_tls_ctx* ctx);
 
 /*!
@@ -94,7 +94,7 @@ int secret_provision_close(struct ra_tls_ctx* ctx);
  *
  * \return                      0 on success, specific error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int secret_provision_get(uint8_t** out_secret, size_t* out_secret_size);
 
 /*!
@@ -102,7 +102,7 @@ int secret_provision_get(uint8_t** out_secret, size_t* out_secret_size);
  *
  * This function zeroes out the memory where provisioned secret is stored and frees it.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 void secret_provision_destroy(void);
 
 /*!
@@ -130,7 +130,7 @@ void secret_provision_destroy(void);
  *
  * \return                      0 on success, specific error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
                            struct ra_tls_ctx* out_ctx);
 
@@ -161,7 +161,7 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
  *
  * \return                0 on success, specific error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int secret_provision_start_server(uint8_t* secret, size_t secret_size, const char* port,
                                   const char* cert_path, const char* key_path,
                                   verify_measurements_cb_t m_cb, secret_provision_cb_t f_cb);

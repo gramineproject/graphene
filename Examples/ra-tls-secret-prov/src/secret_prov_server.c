@@ -90,11 +90,6 @@ out:
 int main(int argc, char** argv) {
     int ret;
 
-    if (!secret_provision_start_server) {
-        puts("No secret provision library (libsecret_prov_verify_{epid,dcap}.so) detected, exiting.");
-        return 1;
-    }
-
     ret = pthread_mutex_init(&g_print_lock, NULL);
     if (ret < 0)
         return ret;

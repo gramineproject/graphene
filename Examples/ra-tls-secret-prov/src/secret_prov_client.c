@@ -24,11 +24,6 @@ int main(int argc, char** argv) {
 
     uint8_t secret2[3] = {0}; /* we expect second secret to be 2-char string */
 
-    if (!secret_provision_start) {
-        puts("No secret provision library (libsecret_prov_attest.so) detected, exiting.");
-        return 1;
-    }
-
     bool is_constructor = false;
     char* str = getenv(SECRET_PROVISION_CONSTRUCTOR);
     if (str && (!strcmp(str, "1") || !strcmp(str, "true") || !strcmp(str, "TRUE")))
