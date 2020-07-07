@@ -78,7 +78,7 @@ mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
-CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include
+CFLAGS += -Wall -std=c11 -fPIC -I./mbedtls/install/include -I./mbedtls/crypto/include
 LFLAGS += -Wl,-rpath,. -L. -lmbedcrypto -lmbedtls -lmbedx509
 
 server: src/server.c libmbedcrypto.so libmbedtls.so libmbedx509.so
