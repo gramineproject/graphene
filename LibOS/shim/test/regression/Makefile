@@ -1,3 +1,5 @@
+include ../../../../Scripts/Makefile.configs
+
 c_executables = \
 	abort \
 	abort_multithread \
@@ -69,6 +71,11 @@ c_executables = \
 	unix \
 	vfork_and_exec
 
+ifeq ($(ARCH),x86_64)
+c_executables += \
+	rdtsc
+endif
+
 cxx_executables = bootstrap_c++
 
 manifests = \
@@ -120,7 +127,6 @@ extra_rules = \
 	-e 's:\$$(RA_CLIENT_SPID):$(if $(RA_CLIENT_SPID),$(RA_CLIENT_SPID),AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA):g' \
 	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g'
 
-include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
 

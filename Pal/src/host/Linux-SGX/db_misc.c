@@ -33,6 +33,8 @@ unsigned long _DkSystemTimeQuery(void) {
     int ret = ocall_gettime(&microsec);
     if (ret)
         return -PAL_ERROR_DENIED;
+
+    /* TODO: result comes from the untrusted host, introduce some schielding */
     return microsec;
 }
 

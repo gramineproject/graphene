@@ -7,6 +7,7 @@ import subprocess
 
 from regression import (
     HAS_SGX,
+    ON_X86,
     RegressionTestCase,
 )
 
@@ -643,3 +644,11 @@ class TC_90_CpuidSGX(RegressionTestCase):
     def test_000_cpuid(self):
         stdout, _ = self.run_binary(['cpuid'])
         self.assertIn('CPUID test passed.', stdout)
+
+# note that `rdtsc` also correctly runs on non-SGX PAL, but non-SGX CPU may not have rdtscp
+@unittest.skipUnless(HAS_SGX,
+    'This test is only meaningful on SGX PAL because only SGX emulates RDTSC/RDTSCP.')
+class TC_91_RdtscSGX(RegressionTestCase):
+    def test_000_rdtsc(self):
+        stdout, _ = self.run_binary(['rdtsc'])
+        self.assertIn('TEST OK', stdout)
