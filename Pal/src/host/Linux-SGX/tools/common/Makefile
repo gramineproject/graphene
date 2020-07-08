@@ -24,7 +24,10 @@ DOWNLOAD_SCRIPT := ../../../../../../Scripts/download
 $(CJSON_SRC):
 	$(DOWNLOAD_SCRIPT) --output $(CJSON_SRC) --url $(CJSON_URI)/$(CJSON_SRC) --sha256 $(CJSON_CHECKSUM)
 
-cJSON-$(CJSON_VERSION)/cJSON.h cJSON-$(CJSON_VERSION)/cJSON.c: $(CJSON_SRC)
+cJSON-$(CJSON_VERSION):
+	mkdir -p $@
+
+cJSON-$(CJSON_VERSION)/cJSON.h cJSON-$(CJSON_VERSION)/cJSON.c: $(CJSON_SRC) | cJSON-$(CJSON_VERSION)
 	tar -zxvf $^ $@
 
 cJSON.c cJSON.h: %: cJSON-$(CJSON_VERSION)/%
