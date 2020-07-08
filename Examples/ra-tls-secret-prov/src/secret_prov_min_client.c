@@ -5,6 +5,11 @@
 #include <stdlib.h>
 
 int main(int argc, char** argv) {
-    printf("--- Received secret = '%s' ---\n", getenv("SECRET_PROVISION_SECRET_STRING"));
+    char* secret = getenv("SECRET_PROVISION_SECRET_STRING");
+    if (secret)
+        printf("--- Received secret = '%s' ---\n", secret);
+    else
+        printf("--- Did not receive any secret! ---\n");
+
     return 0;
 }

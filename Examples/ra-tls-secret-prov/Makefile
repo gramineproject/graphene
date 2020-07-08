@@ -86,6 +86,9 @@ secret_prov_server_epid: src/secret_prov_server.c libsecret_prov_verify_epid.so 
                          libmbedcrypto.so libmbedtls.so libmbedx509.so
 	$(CC) $< $(CFLAGS) $(LFLAGS) -lsecret_prov_verify_epid -pthread -o $@
 
+# linker option --no-as-needed is required because SGX DCAP library (libsgx_dcap_quoteverify.so)
+# does dlopen() instead of directly linking against libsgx_urts.so, and without this option
+# compilers remove the "seemingly unused" libsgx_urts.so
 secret_prov_server_dcap: src/secret_prov_server.c libsecret_prov_verify_dcap.so \
                          libmbedcrypto.so libmbedtls.so libmbedx509.so
 	$(CC) $< $(CFLAGS) $(LFLAGS) -Wl,--no-as-needed -lsgx_urts -lsecret_prov_verify_dcap -pthread -o $@
