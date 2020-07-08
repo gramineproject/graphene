@@ -43,12 +43,12 @@ To build a graphenized Docker image of ``<image-name>``::
     make gsc-<image-name>
 
 To build a graphenized image of ``<image-name>`` with additional `gsc build`
-arguments (e.g., -d, --no-cache, or --rm)::
+arguments (e.g., ``-d``, ``--no-cache``, or ``--rm``)::
 
     make BUILD_FLAGS=-d gsc-<image-name>
 
 To build the base Docker image named ``<image-name>`` with additional
-Docker `build` arguments (e.g., --no-cache, or --rm)::
+Docker `build` arguments (e.g., ``--no-cache``, or ``--rm``)::
 
     make DOCKER_BUILD_FLAGS=--no-cache <image-name>
 

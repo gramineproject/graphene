@@ -21,7 +21,7 @@ Docker containers are widely used to deploy applications in the cloud. Using
 Graphene Shielded Containers (GSC) we provide the infrastructure to deploy Docker
 containers protected by Intel SGX enclaves using the Graphene Library OS.
 
-The :program:`gsc` tool transforms existing Docker images into a new image
+The :program:`gsc` tool transforms a Docker image into a new image
 (called ``gsc-<image-name>``) which includes the Graphene Library OS, manifest
 files, Intel SGX related information, and executes the application inside an
 Intel SGX enclave using the Graphene Library OS. It follows the common Docker
@@ -98,7 +98,7 @@ Synopsis:
 
 .. option:: -d
 
-   Compile Graphene with debug flags and output
+   Compile Graphene with debug flags and debug output
 
 .. option:: -L
 
@@ -164,12 +164,18 @@ Synopsis:
 Using Graphene's trusted command line arguments
 -----------------------------------------------
 
-When :option:`--insecure-args <gsc-build --insecure-args>` is *not* specified,
+Most applications aren't designed to run with attacker-controlled arguments.
+Allowing an attacker to control application arguments can break the security of
+the resulting enclave.
+
 :command:`gsc build` uses the existing Docker image's entrypoint and cmd fields
 to identify the trusted arguments. These arguments are stored in
 :file:`trusted_argv`. This file is only generated when :option:`--insecure-args
 <gsc-build --insecure-args>` is *not* specified. As a result any arguments
 specified during :command:`docker run` are ignored.
+
+To be able to provide insecure arguments at runtime, the image build has to
+enable this via the option :option:`--insecure-args <gsc-build --insecure-args>`.
 
 Application-specific manifest files
 -----------------------------------
@@ -245,8 +251,8 @@ since essential files and the signing of the enclave are missing.
 Signing the Intel SGX enclave
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The third stage uses Graphene's signer tool to generate a SIGSTRUCT file for SGX
-enclave initialization. This tool also generates an SGX-specific manifest file.
+The third stage uses Graphene's signer tool to generate SIGSTRUCT files for SGX
+enclave initialization. This tool also generates an SGX-specific manifest files.
 The required signing key is provided by the user via the :command:`gsc
 sign-image` command and copied into this Docker build stage.
 
@@ -274,8 +280,8 @@ following parameters. A template configuration file is provided in
 .. describe:: Graphene.Repository
 
    Source repository of Graphene. Default value:
-   `https://github.com/oscarlab/graphene
-   <https://github.com/oscarlab/graphene>`__
+   `https://github.com/oscarlab/graphene.git
+   <https://github.com/oscarlab/graphene.git>`__
 
 .. describe:: Graphene.Branch
 
@@ -305,22 +311,7 @@ application arguments may be supplied to the :command:`docker run` command.
 
 .. program:: docker
 
-:command:`docker run` --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*>[:<*TAG*>] [<*APPLICATION-ARGUMENTS*>]
-
-.. option:: IMAGE-NAME
-
-   Name of original image (without GSC build).
-
-.. option:: TAG
-
-   Tag of the image to be used.
-
-.. option:: APPLICATION-ARGUMENTS
-
-   Application arguments to be supplied to the application launching inside the
-   Docker container and Graphene. Such arguments may only be provided when
-   :option:`--insecure-args <gsc-build --insecure-args>` was specified during
-   :command:`gsc build`.
+:command:`docker run` --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket [*OPTIONS*] gsc-<*IMAGE-NAME*> [<*ARGUMENTS*>]
 
 .. option:: OPTIONS
 
@@ -328,6 +319,17 @@ application arguments may be supplied to the :command:`docker run` command.
    with terminal) or ``-d`` (detached). Please see
    `Docker manual <https://docs.docker.com/engine/reference/commandline/run/>`__
    for details.
+
+.. option:: IMAGE-NAME
+
+   Name of original image (without GSC build).
+
+.. option:: ARGUMENTS
+
+   Application arguments to be supplied to the application launching inside the
+   Docker container and Graphene. Such arguments may only be provided when
+   :option:`--insecure-args <gsc-build --insecure-args>` was specified during
+   :command:`gsc build`.
 
 
 Execute with Linux PAL instead of Linux-SGX PAL

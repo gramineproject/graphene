@@ -75,15 +75,13 @@ test-distro-%:
 
 .PHONY: test-1-%
 test-1-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")'
-	#cat out
-	#grep -q "HelloWorld!" out
-	#$(RM) out
+	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>/dev/null
+	grep -q "HelloWorld!" out
+	$(RM) out
 
 .PHONY: test-2-%
 test-2-%: gsc-%-python3
 	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py >out 2>&1
-	cat out
 	grep -q "Hello World" out
 	$(RM) out
 
@@ -140,8 +138,11 @@ test-10-%: gsc-%-bash
 
 .PHONY: test-11-%
 test-11-%: gsc-%-pytorch
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py >/dev/null 2>&1
+	CONTAINERID=`docker run -d $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py`
+	docker wait $${CONTAINERID}
+	docker cp $${CONTAINERID}:results.txt .
 	grep -q "('Labrador retriever'" result.txt
+	$(RM) results.txt
 
 .PHONY: clean-image-%
 clean-image-%:
