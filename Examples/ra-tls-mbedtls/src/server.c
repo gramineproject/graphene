@@ -92,7 +92,13 @@ int main(int argc, char** argv) {
     mbedtls_debug_set_threshold(DEBUG_LEVEL);
 #endif
 
-    if (getenv("USE_RA_TLS_EPID") || getenv("USE_RA_TLS_DCAP")) {
+    if (argc < 2 ||
+            (strcmp(argv[1], "native") && strcmp(argv[1], "epid") && strcmp(argv[1], "dcap"))) {
+        mbedtls_printf("USAGE: %s native|epid|dcap [SGX measurements]\n", argv[0]);
+        return 1;
+    }
+
+    if (!strcmp(argv[1], "epid") || !strcmp(argv[1], "dcap")) {
         ra_tls_attest_lib = dlopen("libra_tls_attest.so", RTLD_LAZY);
         if (!ra_tls_attest_lib) {
             mbedtls_printf("User requested RA-TLS attestation but cannot find lib\n");
@@ -119,7 +125,7 @@ int main(int argc, char** argv) {
 
         mbedtls_printf(" ok\n");
 
-        if (argc > 1) {
+        if (argc > 2) {
             /* user asks to maliciously modify the embedded SGX quote (for testing purposes) */
             mbedtls_printf("  . Maliciously modifying SGX quote embedded in RA-TLS cert...");
             fflush(stdout);

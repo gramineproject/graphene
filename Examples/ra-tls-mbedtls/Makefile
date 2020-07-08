@@ -138,10 +138,10 @@ server.manifest.sgx: server.manifest server libra_tls_attest.so
 
 .PHONY: check_epid
 check_epid: app epid
-	USE_RA_TLS_EPID=1 SGX=1 ./pal_loader server >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server epid >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	USE_RA_TLS_EPID=1 ./client > OUTPUT; \
-	USE_RA_TLS_EPID=1 ./client 0 0 0 0 >> OUTPUT; \
+	./client epid > OUTPUT; \
+	./client epid 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
 	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
 	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
@@ -151,17 +151,17 @@ check_epid: app epid
 
 .PHONY: check_epid_fail
 check_epid_fail: app epid
-	USE_RA_TLS_EPID=1 SGX=1 ./pal_loader server dummy-option >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server epid dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	USE_RA_TLS_EPID=1 ./client && exit 1 || echo "[ Success 1/1 ]"; \
+	./client epid && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
 .PHONY: check_dcap
 check_dcap: app dcap
-	USE_RA_TLS_DCAP=1 SGX=1 ./pal_loader server >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	USE_RA_TLS_DCAP=1 ./client > OUTPUT; \
-	USE_RA_TLS_DCAP=1 ./client 0 0 0 0 >> OUTPUT; \
+	./client dcap > OUTPUT; \
+	./client dcap 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
 	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
 	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
@@ -171,9 +171,9 @@ check_dcap: app dcap
 
 .PHONY: check_dcap_fail
 check_dcap_fail: app dcap
-	USE_RA_TLS_DCAP=1 SGX=1 ./pal_loader server dummy-option >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server dcap dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	USE_RA_TLS_DCAP=1 ./client && exit 1 || echo "[ Success 1/1 ]"; \
+	./client dcap && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
 ################################## CLEANUP ####################################
