@@ -48,6 +48,7 @@ c_executables = \
 	proc_cpuinfo \
 	proc_path \
 	pselect \
+	rdtsc \
 	readdir \
 	sched \
 	select \

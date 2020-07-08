@@ -611,3 +611,8 @@ class TC_90_CpuidSGX(RegressionTestCase):
     def test_000_cpuid(self):
         stdout, _ = self.run_binary(['cpuid'])
         self.assertIn('CPUID test passed.', stdout)
+
+class TC_91_Rdtsc(RegressionTestCase):
+    def test_000_rdtsc(self):
+        stdout, _ = self.run_binary(['rdtsc'])
+        self.assertIn('TEST OK', stdout)
