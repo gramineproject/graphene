@@ -9,9 +9,6 @@ loader.debug_type = $(GRAPHENEDEBUG)
 
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
 
-# RA-TLS library is preloaded (without it, server uses normal X.509 PKI flows)
-loader.env.LD_PRELOAD = libra_tls_attest.so
-
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
@@ -37,6 +34,7 @@ fs.mount.etc.uri = file:/etc
 sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
 sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
+sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
 
 sgx.trusted_files.libnsscompat = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
 sgx.trusted_files.libnssfiles  = file:/lib/x86_64-linux-gnu/libnss_files.so.2

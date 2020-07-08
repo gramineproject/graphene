@@ -66,7 +66,7 @@ int verify_quote_against_envvar_measurements(const void* quote, size_t quote_siz
  *
  * \return          0 on success, specific error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 void ra_tls_set_measurement_callback(verify_measurements_cb_t f_cb);
 
 /*!
@@ -84,7 +84,7 @@ void ra_tls_set_measurement_callback(verify_measurements_cb_t f_cb);
  *
  * \return           0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_t* flags);
 
 /*!
@@ -101,7 +101,7 @@ int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_
  *
  * \return                  0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int ra_tls_verify_callback_der(uint8_t* der_crt, size_t der_crt_size);
 
 /*!
@@ -117,7 +117,7 @@ int ra_tls_verify_callback_der(uint8_t* der_crt, size_t der_crt_size);
  *
  * \return           0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
 
 /*!
@@ -134,6 +134,6 @@ int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
  *
  * \return                   0 on success, specific mbedTLS error code (negative int) otherwise.
  */
-__attribute__ ((visibility("default"))) __attribute__((weak))
+__attribute__ ((visibility("default")))
 int ra_tls_create_key_and_crt_der(uint8_t** der_key, size_t* der_key_size, uint8_t** der_crt,
                                   size_t* der_crt_size);
