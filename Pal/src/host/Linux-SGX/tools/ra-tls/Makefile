@@ -32,3 +32,6 @@ clean:
 
 .PHONY: distclean
 distclean: clean
+
+.PHONY: install
+install: ;
