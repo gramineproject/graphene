@@ -170,11 +170,6 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
     mbedtls_ssl_conf_authmode(&g_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     mbedtls_ssl_conf_ca_chain(&g_conf, &g_verifier_ca_chain, NULL);
 
-    if (!ra_tls_create_key_and_crt) {
-        ret = -EINVAL;
-        goto out;
-    }
-
     ret = ra_tls_create_key_and_crt(&g_my_ratls_key, &g_my_ratls_cert);
     if (ret < 0) {
         goto out;

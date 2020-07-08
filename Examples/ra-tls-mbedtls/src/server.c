@@ -2,7 +2,7 @@
  *  SSL server demonstration program (with RA-TLS)
  *  This program is heavily based on an mbedTLS 2.21.0 example ssl_server.c
  *  but uses RA-TLS flows (SGX Remote Attestation flows) if RA-TLS library
- *  is preloaded.
+ *  is required by user.
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
  *                2020, Intel Labs
@@ -25,6 +25,7 @@
 #include "mbedtls/config.h"
 
 #include <assert.h>
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,8 +43,7 @@
 #include "mbedtls/x509.h"
 
 /* RA-TLS: on server, only need ra_tls_create_key_and_crt() to create keypair and X.509 cert */
-__attribute__((weak))
-int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
+int (*ra_tls_create_key_and_crt_f)(mbedtls_pk_context* key, mbedtls_x509_crt* crt);
 
 #define HTTP_RESPONSE                                    \
     "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n" \
@@ -69,6 +69,9 @@ int main(int argc, char** argv) {
     unsigned char buf[1024];
     const char* pers = "ssl_server";
 
+    void* ra_tls_attest_lib     = NULL;
+    ra_tls_create_key_and_crt_f = NULL;
+
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
     mbedtls_ssl_context ssl;
@@ -89,12 +92,32 @@ int main(int argc, char** argv) {
     mbedtls_debug_set_threshold(DEBUG_LEVEL);
 #endif
 
-    if (ra_tls_create_key_and_crt) {
-        /* RA-TLS attest library is present, use RA-TLS generated cert and key */
+    if (argc < 2 ||
+            (strcmp(argv[1], "native") && strcmp(argv[1], "epid") && strcmp(argv[1], "dcap"))) {
+        mbedtls_printf("USAGE: %s native|epid|dcap [SGX measurements]\n", argv[0]);
+        return 1;
+    }
+
+    if (!strcmp(argv[1], "epid") || !strcmp(argv[1], "dcap")) {
+        ra_tls_attest_lib = dlopen("libra_tls_attest.so", RTLD_LAZY);
+        if (!ra_tls_attest_lib) {
+            mbedtls_printf("User requested RA-TLS attestation but cannot find lib\n");
+            return 1;
+        }
+
+        char* error;
+        ra_tls_create_key_and_crt_f = dlsym(ra_tls_attest_lib, "ra_tls_create_key_and_crt");
+        if ((error = dlerror()) != NULL) {
+            mbedtls_printf("%s\n", error);
+            return 1;
+        }
+    }
+
+    if (ra_tls_attest_lib) {
         mbedtls_printf("\n  . Creating the RA-TLS server cert and key...");
         fflush(stdout);
 
-        ret = ra_tls_create_key_and_crt(&pkey, &srvcert);
+        ret = (*ra_tls_create_key_and_crt_f)(&pkey, &srvcert);
         if (ret != 0) {
             mbedtls_printf(" failed\n  !  ra_tls_create_key_and_crt returned %d\n\n", ret);
             goto exit;
@@ -102,7 +125,7 @@ int main(int argc, char** argv) {
 
         mbedtls_printf(" ok\n");
 
-        if (argc > 1) {
+        if (argc > 2) {
             /* user asks to maliciously modify the embedded SGX quote (for testing purposes) */
             mbedtls_printf("  . Maliciously modifying SGX quote embedded in RA-TLS cert...");
             fflush(stdout);
@@ -125,7 +148,7 @@ int main(int argc, char** argv) {
             mbedtls_printf(" ok\n");
         }
     } else {
-        /* no RA-TLS attest library present, use embedded test certificate */
+        /* no RA-TLS, use embedded test certificate */
         mbedtls_printf("\n  . Creating normal server cert and key...");
         fflush(stdout);
 
@@ -189,7 +212,7 @@ int main(int argc, char** argv) {
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
     mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 
-    if (!ra_tls_create_key_and_crt) {
+    if (!ra_tls_attest_lib) {
         /* no RA-TLS attest library present, use embedded CA chain */
         mbedtls_ssl_conf_ca_chain(&conf, srvcert.next, NULL);
     }
@@ -324,6 +347,9 @@ exit:
         mbedtls_printf("Last error was: %d - %s\n\n", ret, error_buf);
     }
 #endif
+
+    if (ra_tls_attest_lib)
+        dlclose(ra_tls_attest_lib);
 
     mbedtls_net_free(&client_fd);
     mbedtls_net_free(&listen_fd);

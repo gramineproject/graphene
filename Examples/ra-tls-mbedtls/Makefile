@@ -79,7 +79,7 @@ mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
 ######################### CLIENT/SERVER EXECUTABLES ###########################
 
 CFLAGS += -I./mbedtls/install/include -I./mbedtls/crypto/include
-LFLAGS += -Wl,-rpath,. -L. -lmbedcrypto -lmbedtls -lmbedx509
+LFLAGS += -Wl,-rpath,. -L. -ldl -lmbedcrypto -lmbedtls -lmbedx509
 
 server: src/server.c libmbedcrypto.so libmbedtls.so libmbedx509.so
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
@@ -138,10 +138,10 @@ server.manifest.sgx: server.manifest server libra_tls_attest.so
 
 .PHONY: check_epid
 check_epid: app epid
-	SGX=1 ./pal_loader server >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server epid >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	LD_PRELOAD="libra_tls_verify_epid.so" ./client > OUTPUT; \
-	LD_PRELOAD="libra_tls_verify_epid.so" ./client 0 0 0 0 >> OUTPUT; \
+	./client epid > OUTPUT; \
+	./client epid 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
 	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
 	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
@@ -151,17 +151,17 @@ check_epid: app epid
 
 .PHONY: check_epid_fail
 check_epid_fail: app epid
-	SGX=1 ./pal_loader server dummy-option >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server epid dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	LD_PRELOAD="libra_tls_verify_epid.so" ./client && exit 1 || echo "[ Success 1/1 ]"; \
+	./client epid && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
 .PHONY: check_dcap
 check_dcap: app dcap
-	SGX=1 ./pal_loader server >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	LD_PRELOAD="libsgx_urts.so libra_tls_verify_dcap.so" ./client > OUTPUT; \
-	LD_PRELOAD="libsgx_urts.so libra_tls_verify_dcap.so" ./client 0 0 0 0 >> OUTPUT; \
+	./client dcap > OUTPUT; \
+	./client dcap 0 0 0 0 >> OUTPUT; \
 	kill -9 $$SERVER_ID
 	@grep -q "using default SGX-measurement verification callback" OUTPUT && echo "[ Success 1/4 ]"
 	@grep -q "using our own SGX-measurement verification callback" OUTPUT && echo "[ Success 2/4 ]"
@@ -171,9 +171,9 @@ check_dcap: app dcap
 
 .PHONY: check_dcap_fail
 check_dcap_fail: app dcap
-	SGX=1 ./pal_loader server dummy-option >/dev/null & SERVER_ID=$$!; \
+	SGX=1 ./pal_loader server dcap dummy-option >/dev/null & SERVER_ID=$$!; \
 	sleep 30; \
-	LD_PRELOAD="libsgx_urts.so libra_tls_verify_dcap.so" ./client && exit 1 || echo "[ Success 1/1 ]"; \
+	./client dcap && exit 1 || echo "[ Success 1/1 ]"; \
 	kill -9 $$SERVER_ID
 
 ################################## CLEANUP ####################################

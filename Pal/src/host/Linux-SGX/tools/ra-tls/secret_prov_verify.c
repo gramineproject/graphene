@@ -204,11 +204,6 @@ int secret_provision_start_server(uint8_t* secret, size_t secret_size, const cha
     /* the below CA chain is a dummy (RA-TLS verify callback ignores it) but required by mbedTLS */
     mbedtls_ssl_conf_ca_chain(&conf, &srvcert, NULL);
 
-    if (!ra_tls_verify_callback || !ra_tls_set_measurement_callback) {
-        ret = -EINVAL;
-        goto out;
-    }
-
     ra_tls_set_measurement_callback(m_cb);
     mbedtls_ssl_conf_verify(&conf, ra_tls_verify_callback, NULL);
 
