@@ -1,25 +1,42 @@
-diff -ruNp a/elf/dl-load.c b/elf/dl-load.c
---- a/elf/dl-load.c
-+++ b/elf/dl-load.c
-@@ -45,6 +45,7 @@
- #include <dl-machine-reject-phdr.h>
- #include <dl-sysdep-open.h>
+diff --git a/Makeconfig b/Makeconfig
+index 87a22e88bed375d073663063dd4a93444d72ba25..b69ff41077a5f279bde52aac11f03604fa61ae65 100644
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -841,7 +841,8 @@ endif	# $(+cflags) == ""
+ # current directory.
+ +includes = -I$(..)include $(if $(subdir),$(objpfx:%/=-I%)) \
+ 	    $(+sysdep-includes) $(includes) \
+-	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes)
++	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes) \
++	    -I$(common-objpfx)../shim/include
  
-+#include <glibc-version.h>
+ # Since libio has several internal header files, we use a -I instead
+ # of many little headers in the include directory.
+@@ -1098,6 +1099,9 @@ all-subdirs = csu assert ctype locale intl catgets math setjmp signal	    \
+ 	      crypt localedata timezone rt conform debug mathvec	    \
+ 	      $(add-on-subdirs) dlfcn elf
  
- #include <endian.h>
- #if BYTE_ORDER == BIG_ENDIAN
-@@ -1415,6 +1416,9 @@ cannot enable executable stack as shared
-   DL_AFTER_LOAD (l);
- #endif
- 
-+  /* register the library to SHIM */
-+  register_library(l->l_name, l->l_addr);
++# Add libos for Graphene
++all-subdirs += libos
 +
-   /* Now that the object is fully initialized add it to the object list.  */
-   _dl_add_to_namespace_list (l, nsid);
+ ifndef avoid-generated
+ # sysd-sorted itself will contain rules making the sysd-sorted target
+ # depend on Depend files.  But if you just added a Depend file to an
+diff --git a/Makefile b/Makefile
+index 7fc92ae3a278e5014b4dc1c5ccccb799cc378fdd..75811230906df19d159ca780102a656f9738babe 100644
+--- a/Makefile
++++ b/Makefile
+@@ -178,6 +178,8 @@ $(inst_includedir)/gnu/stubs.h: $(+force)
+ install-others-nosubdir: $(installed-stubs)
+ endif
  
-diff -ruNp a/elf/Makefile b/elf/Makefile
++# For Graphene
++CFLAGS-syscalldb.c = -fPIC
+ 
+ # Since stubs.h is never needed when building the library, we simplify the
+ # hairy installation process by producing it in place only as the last part
+diff --git a/elf/Makefile b/elf/Makefile
+index 63a535502c15e32eb4f21feaefa3cbf5be6d8afa..f27aeaf665cb2d7a4c0b9a1a0d025aba6e303556 100644
 --- a/elf/Makefile
 +++ b/elf/Makefile
 @@ -21,7 +21,7 @@ subdir		:= elf
@@ -31,7 +48,7 @@ diff -ruNp a/elf/Makefile b/elf/Makefile
  routines	= $(all-dl-routines) dl-support dl-iteratephdr \
  		  dl-addr enbl-secure dl-profstub \
  		  dl-origin dl-libc dl-sym dl-tsd dl-sysdep
-@@ -31,7 +31,8 @@ routines	= $(all-dl-routines) dl-support
+@@ -31,7 +31,8 @@ routines	= $(all-dl-routines) dl-support dl-iteratephdr \
  dl-routines	= $(addprefix dl-,load lookup object reloc deps hwcaps \
  				  runtime error init fini debug misc \
  				  version profile conflict tls origin scope \
@@ -41,10 +58,45 @@ diff -ruNp a/elf/Makefile b/elf/Makefile
  ifeq (yes,$(use-ldconfig))
  dl-routines += dl-cache
  endif
-diff -ruNp a/elf/rtld.c b/elf/rtld.c
+diff --git a/elf/Versions b/elf/Versions
+index 23deda984ff1eda4b648495a321505dadd578e7d..3136787df7f228dd4497c622681cabb3ff55f7d2 100644
+--- a/elf/Versions
++++ b/elf/Versions
+@@ -65,4 +65,7 @@ ld {
+     # Pointer protection.
+     __pointer_chk_guard;
+   }
++  SHIM {
++    syscalldb; glibc_version; register_library;
++  }
+ }
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index c0d6249373fb4cb1b5971fe953cbcbf6ae28c1f4..916d6339f0851be2b78e952c59e27488a1da1f3e 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -45,6 +45,7 @@
+ #include <dl-machine-reject-phdr.h>
+ #include <dl-sysdep-open.h>
+ 
++#include <glibc-version.h>
+ 
+ #include <endian.h>
+ #if BYTE_ORDER == BIG_ENDIAN
+@@ -1415,6 +1416,9 @@ cannot enable executable stack as shared object requires");
+   DL_AFTER_LOAD (l);
+ #endif
+ 
++  /* register the library to SHIM */
++  register_library(l->l_name, l->l_addr);
++
+   /* Now that the object is fully initialized add it to the object list.  */
+   _dl_add_to_namespace_list (l, nsid);
+ 
+diff --git a/elf/rtld.c b/elf/rtld.c
+index 647661ca45901d6e42c3c52475030d8dd06b61ab..fd1324eedaef598170f4dce47e1807c74f032d58 100644
 --- a/elf/rtld.c
 +++ b/elf/rtld.c
-@@ -332,6 +332,23 @@ _dl_start_final (void *arg, struct dl_st
+@@ -332,6 +332,23 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
    return start_addr;
  }
  
@@ -78,51 +130,36 @@ diff -ruNp a/elf/rtld.c b/elf/rtld.c
    /* Now life is sane; we can call functions and access global data.
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
-diff -ruNp a/elf/Versions b/elf/Versions
---- a/elf/Versions
-+++ b/elf/Versions
-@@ -65,4 +68,7 @@ ld {
-     # Pointer protection.
-     __pointer_chk_guard;
-   }
-+  SHIM {
-+    syscalldb; glibc_version; register_library;
-+  }
- }
-diff -ruNp a/Makeconfig b/Makeconfig
---- a/Makeconfig
-+++ b/Makeconfig
-@@ -841,7 +841,8 @@ endif	# $(+cflags) == ""
- # current directory.
- +includes = -I$(..)include $(if $(subdir),$(objpfx:%/=-I%)) \
- 	    $(+sysdep-includes) $(includes) \
--	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes)
-+	    $(patsubst %/,-I%,$(..)) $(libio-include) -I. $(sysincludes) \
-+	    -I$(common-objpfx)../shim/include
+diff --git a/shlib-versions b/shlib-versions
+index fa3cf1da44807240b15f7e4d4da3fde43abeca0c..6cc5524eee60b6415dfc38700a7085a57ab7f63d 100644
+--- a/shlib-versions
++++ b/shlib-versions
+@@ -29,6 +29,9 @@ ld=ld.so.1
+ # The -ldl interface (see <dlfcn.h>) is the same on all platforms.
+ libdl=2
  
- # Since libio has several internal header files, we use a -I instead
- # of many little headers in the include directory.
-@@ -1100,4 +1100,7 @@ all-subdirs = csu assert ctype locale in
- 	      $(add-on-subdirs) dlfcn elf
- 
-+# Add libos for Graphene
-+all-subdirs += libos
++# Interface for Graphene
++liblibos=1
 +
- ifndef avoid-generated
- # sysd-sorted itself will contain rules making the sysd-sorted target
-diff -ruNp a/Makefile b/Makefile
---- a/Makefile
-+++ b/Makefile
-@@ -178,6 +178,8 @@ $(inst_includedir)/gnu/stubs.h: $(+force
- install-others-nosubdir: $(installed-stubs)
- endif
- 
-+# For Graphene
-+CFLAGS-syscalldb.c = -fPIC
- 
- # Since stubs.h is never needed when building the library, we simplify the
- # hairy installation process by producing it in place only as the last part
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
+ # So far the -lutil interface is the same on all platforms, except for the
+ # `struct utmp' format, which depends on libc.
+ libutil=1
+diff --git a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
+index fca9dc08e2470c5e31c9008d4ea4222bc75b8d37..bddf501d72a1fa3febcb77b7afc1ba1cfc390cf4 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
++++ b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
+@@ -84,7 +84,8 @@ ENTRY(____longjmp_chk)
+ 	xorl	%edi, %edi
+ 	lea	-sizeSS(%rsp), %RSI_LP
+ 	movl	$__NR_sigaltstack, %eax
+-	syscall
++	SYSCALLDB
++
+ 	/* Without working sigaltstack we cannot perform the test.  */
+ 	testl	%eax, %eax
+ 	jne	.Lok2
+diff --git a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
+index 687057dba3f7e05e73f2a6d67a8896b7f014a949..f35c6b79fbe60d195d5142102d2486878f0eda01 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 @@ -111,7 +111,7 @@ ENTRY(__pthread_disable_asynccancel)
@@ -134,7 +171,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/l
  	movl	%fs:CANCELHANDLING, %eax
  	jmp	3b
  END(__pthread_disable_asynccancel)
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x86_64/clone.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x86_64/clone.S
+index 382568a3e9ebad911eb2fe05094deb8b09231639..1a6a671899299c8cb5577e7cde832f3f7204e8ed 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/clone.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/clone.S
 @@ -76,7 +76,7 @@ ENTRY (__clone)
@@ -155,7 +193,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x8
  2:	movl	%eax, %fs:PID
  	movl	%eax, %fs:TID
  1:
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
+index 79bdc018ec80ca9da4441ac64369faeeee9c5711..febf5e8ee8161445b709d021a56ffa2e1d1c5768 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 @@ -75,7 +75,7 @@ ENTRY(__getcontext)
@@ -167,20 +206,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/lin
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
---- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
-+++ b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
-@@ -84,7 +84,8 @@ ENTRY(____longjmp_chk)
- 	xorl	%edi, %edi
- 	lea	-sizeSS(%rsp), %RSI_LP
- 	movl	$__NR_sigaltstack, %eax
--	syscall
-+	SYSCALLDB
-+
- 	/* Without working sigaltstack we cannot perform the test.  */
- 	testl	%eax, %eax
- 	jne	.Lok2
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S b/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S b/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
+index 4f9483e0be01cd08e49c87ad963c3ad5dc496487..a3b7b07c4cbe62df855e702df1d656782f573069 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
 @@ -90,7 +90,7 @@ __lll_lock_wait_private:
@@ -246,7 +273,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S b/sysdeps/unix/sysv/l
  
  	cmpl	$0, (%rdi)
  	jne	1f
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S b/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S b/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
+index b08d8992fd6fd21d46c1ca56cc34a1dd0e526a50..056aa99d2c4d46d5eeee61d08965cbf5dfa0446f 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
 @@ -80,7 +80,7 @@ __lll_robust_lock_wait:
@@ -276,7 +304,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S b/sysdeps/unix/
  	movq	%rax, %rcx
  
  	movl	(%r12), %eax
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
+index de455dda4ffd00fd6d88f4e7d078afc7b50127e6..19239d264f9512a47bdcd1bbbb29fc81f56aa24c 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
 @@ -87,7 +87,7 @@ ENTRY(__pthread_cond_broadcast)
@@ -306,7 +335,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S b/sysdeps/u
  	jmp	10b
  END(__pthread_cond_broadcast)
  
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
+index da14bc30bc4776b7f2b6c0441d9c87ddb4283a8a..6477e90bfd6d63310d52fc9eda46329886a999ac 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
 @@ -78,7 +78,7 @@ ENTRY(__pthread_cond_signal)
@@ -336,7 +366,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S b/sysdeps/unix
  
  	/* Unlock.  */
  4:	LOCK
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
+index 9a63314b6e536068b326e283642f67c25530f6e8..2b4cd6b86c2f264cbd47e79cf90602c64364c601 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
 @@ -175,7 +175,7 @@ __pthread_cond_timedwait:
@@ -384,7 +415,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S b/sysdeps/u
  
  	/* Lock the mutex only if we don't own it already.  This only happens
  	   in case of PI mutexes, if we got cancelled after a successful
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
+index ed93d5d29c88af1c7bacc9b7c860a40c596bb7f1..43377128c0b25fca179676afc26a661c72a3736b 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
 @@ -138,7 +138,7 @@ __pthread_cond_wait:
@@ -432,7 +464,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S b/sysdeps/unix/s
  
  	/* Lock the mutex only if we don't own it already.  This only happens
  	   in case of PI mutexes, if we got cancelled after a successful
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
+index 56e085685804f51e49eef4c21ad9efdf0d21e59e..81038f485616592419c5fb2f63c0c887bd95a6ce 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 @@ -43,7 +43,7 @@ ENTRY(__setcontext)
@@ -444,7 +477,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/lin
  	popq	%rdi			/* Reload %rdi, adjust stack.  */
  	cfi_adjust_cfa_offset(-8)
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
+diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
+index 71ac05c4bc01c560935f3bbd4306e3aeacb6d9be..c6e28bb2362b07cfa3f3ade189ae337195671830 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 @@ -120,7 +120,7 @@ asm									\
@@ -456,7 +490,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linu
     ".LEND_" #name ":\n"							\
     ".section .eh_frame,\"a\",@progbits\n"				\
     ".LSTARTFRAME_" #name ":\n"						\
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
+index b201244933d27c055e2b2fbd9a9913b682a88280..cfee5c6b5e5f9e59db4c0b21902b6edbf86594b1 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 @@ -75,7 +75,7 @@ ENTRY(__swapcontext)
@@ -468,7 +503,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/li
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
+index 62437a1cca713173ab3df2457c74d0f9ff44b451..91e6afb56c8a437fded7340578fff96294246ec6 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
 @@ -34,7 +34,7 @@ ENTRY (syscall)
@@ -480,7 +516,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/
  	cmpq $-4095, %rax	/* Check %rax for error.  */
  	jae SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  	ret			/* Return to caller.  */
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
+diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
+index d023d68174d3dfb4e698160b31ae31ad291802e1..ed5c1bb1df7a69d80eb66955c92dff4f2a628413 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 +++ b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 @@ -22,6 +22,7 @@
@@ -500,7 +537,7 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */
-@@ -227,6 +239,6 @@
+@@ -227,7 +228,7 @@
      LOAD_ARGS_##nr (args)						      \
      LOAD_REGS_##nr							      \
      asm volatile (							      \
@@ -508,7 +545,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
 +    SYSCALLDB								      \
      : "=a" (resultvar)							      \
      : "0" (name) ASM_ARGS_##nr : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);   \
-@@ -241,7 +259,7 @@
+     (long int) resultvar; })
+@@ -241,7 +242,7 @@
      LOAD_ARGS_TYPES_##nr (args)						      \
      LOAD_REGS_TYPES_##nr (args)						      \
      asm volatile (							      \
@@ -517,7 +555,8 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
      : "=a" (resultvar)							      \
      : "0" (name) ASM_ARGS_##nr : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);   \
      (long int) resultvar; })
-diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
+diff --git a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
+index 8332ade9fb0c6812000fab39fd8519b14dbd7901..92db5d46ff337a239dc52f82c811ab5b94376d81 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/vfork.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/vfork.S
 @@ -46,7 +46,7 @@ ENTRY (__vfork)
@@ -529,10 +568,11 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x8
  
  	/* Push back the return PC.  */
  	pushq	%rdi
-diff -ruNp a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
+diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
+index 980ca73cf2f6a468860e72858e5ec461d86814a7..b3525fc8fee08fc4a4e711c0171b77e3c413578f 100644
 --- a/sysdeps/x86_64/dl-machine.h
 +++ b/sysdeps/x86_64/dl-machine.h
-@@ -554,7 +554,8 @@ elf_machine_lazy_rel (struct link_map *m
+@@ -554,7 +554,8 @@ elf_machine_lazy_rel (struct link_map *map,
  	value = ((ElfW(Addr) (*) (void)) value) ();
        *reloc_addr = value;
      }
@@ -542,7 +582,8 @@ diff -ruNp a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
      _dl_reloc_bad_type (map, r_type, 1);
  }
  
-diff -ruNp a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
+diff --git a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
+index 2b061a07c6c59575e93de08d699b7c69720faf03..e0fea4445f43dad1b812381da4afbd428a4a1ed6 100644
 --- a/sysdeps/x86_64/nptl/tls.h
 +++ b/sysdeps/x86_64/nptl/tls.h
 @@ -28,6 +28,7 @@
@@ -553,7 +594,7 @@ diff -ruNp a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
  
  /* Replacement type for __m128 since this file is included by ld.so,
     which is compiled with -mno-sse.  It must not change the alignment
-@@ -155,7 +160,7 @@ typedef struct
+@@ -155,7 +156,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \
       /* It is a simple syscall to set the %fs value for the thread.  */	      \
@@ -562,17 +603,16 @@ diff -ruNp a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
-diff --git a/shlib-versions b/shlib-versions
-index 78b0ad7..5c3dcf2 100644
---- a/shlib-versions
-+++ b/shlib-versions
-@@ -64,6 +64,9 @@ sh.*-.*-linux.*		ld=ld-linux.so.2	GLIBC_
- # The -ldl interface (see <dlfcn.h>) is the same on all platforms.
- libdl=2
+diff --git a/Makerules b/Makerules
+index 53eabfaba82a127221089112b40a51dc5e6949ea..fcb9f92ccee70fdaf5d4acd2430668e5964d57e3 100644
+--- a/Makerules
++++ b/Makerules
+@@ -802,7 +802,7 @@ verbose	:=
+ endif						# not -s
  
-+# Interface for Graphene
-+liblibos=1
-+
- # So far the -lutil interface is the same on all platforms, except for the
- # `struct utmp' format, which depends on libc.
- libutil=1
+ ARFLAGS := r$(verbose)
+-CREATE_ARFLAGS := cru$(verbose)
++CREATE_ARFLAGS := cr$(verbose)
+ 
+ # This makes all the object files in the parent library archive.
+ 

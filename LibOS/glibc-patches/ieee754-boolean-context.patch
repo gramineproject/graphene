@@ -1,8 +1,8 @@
 diff --git a/sysdeps/ieee754/dbl-64/e_pow.c b/sysdeps/ieee754/dbl-64/e_pow.c
-index 663fa39..bd758b5 100644
+index 663fa392c29bba640ad9ac87d1964976dee846a9..bd758b5979aeabc57f0f774d8c8cab948ba10f2f 100644
 --- a/sysdeps/ieee754/dbl-64/e_pow.c
 +++ b/sysdeps/ieee754/dbl-64/e_pow.c
-@@ -466,15 +466,15 @@  checkint (double x)
+@@ -466,15 +466,15 @@ checkint (double x)
      return (n & 1) ? -1 : 1;	/* odd or even */
    if (k > 20)
      {

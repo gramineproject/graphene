@@ -1,5 +1,5 @@
 diff --git a/Makeconfig b/Makeconfig
-index f252842979..4e22deb595 100644
+index f252842979a1d777e0f0c2bdafa7a65aee0805cd..4e22deb595ad6e5dd36571aec01d5b1e39f10f16 100644
 --- a/Makeconfig
 +++ b/Makeconfig
 @@ -930,7 +930,8 @@ endif	# $(+cflags) == ""
@@ -23,7 +23,7 @@ index f252842979..4e22deb595 100644
  all-subdirs += crypt
  rpath-dirs += crypt
 diff --git a/Makefile b/Makefile
-index 8f0a93aceb..37c6356629 100644
+index 8f0a93aceb824e556f519847d322cbe5ee5eec7d..37c6356629cfe430fc667a4ca47939937cff536d 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -434,6 +434,8 @@ $(inst_includedir)/gnu/stubs.h: $(+force)
@@ -36,7 +36,7 @@ index 8f0a93aceb..37c6356629 100644
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
 diff --git a/elf/Makefile b/elf/Makefile
-index 632a4d8b0f..d9def31d16 100644
+index 632a4d8b0f6a30e5be7e9d675a81b6e3fd0fdcad..d9def31d16c6e0f64b8410dbe01931cf3bb0f106 100644
 --- a/elf/Makefile
 +++ b/elf/Makefile
 @@ -21,7 +21,7 @@ subdir		:= elf
@@ -59,7 +59,7 @@ index 632a4d8b0f..d9def31d16 100644
  dl-routines += dl-cache
  endif
 diff --git a/elf/Versions b/elf/Versions
-index 3b09901f6c..7b5c35a55b 100644
+index 3b09901f6c31e3d41c926c0b35246cb7db3c4f10..b7e555aded71595d937b5f22e359f753abba1fdd 100644
 --- a/elf/Versions
 +++ b/elf/Versions
 @@ -79,4 +79,7 @@ ld {
@@ -71,7 +71,7 @@ index 3b09901f6c..7b5c35a55b 100644
 +  }
  }
 diff --git a/elf/dl-load.c b/elf/dl-load.c
-index a6b80f9395..92ac9703f7 100644
+index a6b80f93957199e1ef2bcbbcc12302830caae978..92ac9703f750755e350c86fc13fd382347931950 100644
 --- a/elf/dl-load.c
 +++ b/elf/dl-load.c
 @@ -73,6 +73,8 @@ struct filebuf
@@ -94,7 +94,7 @@ index a6b80f9395..92ac9703f7 100644
    _dl_add_to_namespace_list (l, nsid);
  
 diff --git a/elf/rtld.c b/elf/rtld.c
-index 553cfbd1b7..11fac22f32 100644
+index 553cfbd1b74e05467e3c30e291f694ce40c4b0f4..09a0826d2d8fac85e358fbb9a08bb5c67e97b537 100644
 --- a/elf/rtld.c
 +++ b/elf/rtld.c
 @@ -458,6 +458,23 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
@@ -132,7 +132,7 @@ index 553cfbd1b7..11fac22f32 100644
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
 diff --git a/shlib-versions b/shlib-versions
-index b9cb99d2fb..2d91a6c7f7 100644
+index b9cb99d2fbb07f302aee85e6c367fe2c74d7705c..2d91a6c7f757cbc3ab9b9a77bbc649ea3b617d63 100644
 --- a/shlib-versions
 +++ b/shlib-versions
 @@ -29,6 +29,9 @@ ld=ld.so.1
@@ -146,7 +146,7 @@ index b9cb99d2fb..2d91a6c7f7 100644
  # `struct utmp' format, which depends on libc.
  libutil=1
 diff --git a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
-index cbce00832c..ac5d209ccf 100644
+index cbce00832cfbb3ab56c27b4887170dbc54480671..ac5d209ccfabd89db49eb1ea1283ec316c85a68d 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 @@ -89,7 +89,7 @@ ENTRY(____longjmp_chk)
@@ -159,7 +159,7 @@ index cbce00832c..ac5d209ccf 100644
  	testl	%eax, %eax
  	jne	.Lok2
 diff --git a/sysdeps/unix/sysv/linux/x86_64/__start_context.S b/sysdeps/unix/sysv/linux/x86_64/__start_context.S
-index 9f7b00afbe..c3679598b2 100644
+index 9f7b00afbe636a39aac5976398b091534fc9440b..c3679598b2a406944436cee7a8246d2c5ae5888c 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/__start_context.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/__start_context.S
 @@ -52,7 +52,7 @@ ENTRY(__push___start_context)
@@ -172,7 +172,7 @@ index 9f7b00afbe..c3679598b2 100644
  	jne	L(hlt)		/* This should never happen.  */
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
-index 256529c9f6..5170ab579e 100644
+index 256529c9f63c0799ec0d94b379bbebfe7521089b..5170ab579e1559e4daeca7e38138a4112ea2698f 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 @@ -98,7 +98,7 @@ ENTRY(__pthread_disable_asynccancel)
@@ -185,7 +185,7 @@ index 256529c9f6..5170ab579e 100644
  	jmp	3b
  END(__pthread_disable_asynccancel)
 diff --git a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x86_64/clone.S
-index 5ae90f06d3..200b96b0a9 100644
+index 5ae90f06d344fd4822d327937c7c98eec6e6cd84..200b96b0a9de44df041ffdee8019da72d4524e80 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/clone.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/clone.S
 @@ -73,7 +73,7 @@ ENTRY (__clone)
@@ -207,7 +207,7 @@ index 5ae90f06d3..200b96b0a9 100644
  
  	cfi_startproc;
 diff --git a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
-index debdd891ab..fcb1307cbf 100644
+index debdd891ab03ea9b2b7911247e76e9614e88f719..fcb1307cbfd0660693fe6a233fecba4ba7a1f025 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 @@ -73,7 +73,7 @@ ENTRY(__getcontext)
@@ -229,7 +229,7 @@ index debdd891ab..fcb1307cbf 100644
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
-index 31bbc9dbe4..e1bfe2f13e 100644
+index 31bbc9dbe4bec944bb0037d24900120535d08504..e1bfe2f13eb1a6f00e461973e09ef4262ba17b82 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 @@ -44,7 +44,7 @@ ENTRY(__setcontext)
@@ -242,7 +242,7 @@ index 31bbc9dbe4..e1bfe2f13e 100644
  	   leaving RDI and RSI available for use later can avoid
  	   shuffling values.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
-index c58a77c5c6..f1b413ea73 100644
+index c58a77c5c6a3547a3bff5437c1a2b13368f2f48b..f1b413ea733966eb3e649bb30a49ffc3c65d2fa9 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 @@ -78,7 +78,7 @@ asm									\
@@ -255,7 +255,7 @@ index c58a77c5c6..f1b413ea73 100644
     ".section .eh_frame,\"a\",@progbits\n"				\
     ".LSTARTFRAME_" #name ":\n"						\
 diff --git a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
-index e071ef6347..4f09c105f8 100644
+index e071ef634723230c85d0d854a887ad5644027832..4f09c105f8fcfdafdc4f7be7469997041086712c 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 @@ -77,7 +77,7 @@ ENTRY(__swapcontext)
@@ -277,7 +277,7 @@ index e071ef6347..4f09c105f8 100644
  	jz	L(continue_no_err)
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-index 6c93fc6304..e390f0dcc1 100644
+index 6c93fc630459b93ffeeefb9c1ed27c50606c3bd3..e390f0dcc1c907fa904ca44caad347de52d1d769 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
 @@ -34,7 +34,7 @@ ENTRY (syscall)
@@ -290,7 +290,7 @@ index 6c93fc6304..e390f0dcc1 100644
  	jae SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  	ret			/* Return to caller.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
-index c2eb37e575..c8910d8330 100644
+index c2eb37e5753bc14359d05262db23307df18987fc..c8910d833058eef9645a82e5a6b16889d3da8f5f 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 +++ b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 @@ -22,6 +22,7 @@
@@ -374,7 +374,7 @@ index c2eb37e575..c8910d8330 100644
      : "0" (number), "r" (_a1), "r" (_a2), "r" (_a3), "r" (_a4),		\
        "r" (_a5), "r" (_a6)						\
 diff --git a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
-index 776d2fc610..9fc94470d6 100644
+index 776d2fc610751b7efdcf5b39aa42728504b14080..9fc94470d650f3c80e9c0a4ec04c8754476d64a8 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/vfork.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/vfork.S
 @@ -51,7 +51,7 @@ ENTRY (__vfork)
@@ -387,7 +387,7 @@ index 776d2fc610..9fc94470d6 100644
  #if !SHSTK_ENABLED
  	/* Push back the return PC.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/x32/times.c b/sysdeps/unix/sysv/linux/x86_64/x32/times.c
-index fb93cb609c..c36fd5264e 100644
+index fb93cb609c09831cbcee1c0cc57ff7a6bbe12ff5..c36fd5264edc96398e49ac98bcf213b7f761f4d5 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/x32/times.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/x32/times.c
 @@ -26,7 +26,7 @@
@@ -400,7 +400,7 @@ index fb93cb609c..c36fd5264e 100644
      : "0" (number), "r" (_a1)						\
      : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);			\
 diff --git a/sysdeps/unix/x86_64/sysdep.h b/sysdeps/unix/x86_64/sysdep.h
-index c549dce4db..eb12d98b18 100644
+index c549dce4dbc5937d819b2db35cb69672eb9c4c8b..eb12d98b1874db11eea8a2ff1b7d463e2614e127 100644
 --- a/sysdeps/unix/x86_64/sysdep.h
 +++ b/sysdeps/unix/x86_64/sysdep.h
 @@ -25,7 +25,7 @@
@@ -413,7 +413,7 @@ index c549dce4db..eb12d98b18 100644
  #define	r0		%rax	/* Normal return-value register.  */
  #define	r1		%rbx	/* Secondary return-value register.  */
 diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
-index 8e9baffeb4..04f2ee64aa 100644
+index 8e9baffeb4b2d5101cd1effa89bdd14a48b42aac..60ae1d1fd6275eda2e6c5e00a384264be3b64760 100644
 --- a/sysdeps/x86_64/dl-machine.h
 +++ b/sysdeps/x86_64/dl-machine.h
 @@ -579,7 +579,8 @@ elf_machine_lazy_rel (struct link_map *map,
@@ -427,7 +427,7 @@ index 8e9baffeb4..04f2ee64aa 100644
  }
  
 diff --git a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
-index e7c1416eec..0d3b7babb0 100644
+index e7c1416eec4a490312ed56cc51a03a33eaa8e222..0d3b7babb0827f6abb9828e87f5982a473142740 100644
 --- a/sysdeps/x86_64/nptl/tls.h
 +++ b/sysdeps/x86_64/nptl/tls.h
 @@ -29,6 +29,7 @@
@@ -447,3 +447,16 @@ index e7c1416eec..0d3b7babb0 100644
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
+diff --git a/Makerules b/Makerules
+index 1e9c18f0d866731910d29327b975e359dbb3ea33..3fa0d4a52489b6d05111e76ade0a68cc618f2679 100644
+--- a/Makerules
++++ b/Makerules
+@@ -829,7 +829,7 @@ verbose	:=
+ endif						# not -s
+ 
+ ARFLAGS := r$(verbose)
+-CREATE_ARFLAGS := cru$(verbose)
++CREATE_ARFLAGS := cr$(verbose)
+ 
+ # This makes all the object files in the parent library archive.
+ 

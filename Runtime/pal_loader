@@ -17,9 +17,9 @@ do
 	shift
 done
 
-RUNTIME_DIR=$(/usr/bin/dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+RUNTIME_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 if [ -z "$PAL_HOST" ]; then
-    if [ ! -f /usr/bin/make ]; then
+    if ! command -v make >/dev/null; then
         libpal="$RUNTIME_DIR/libpal-*.so"
         libpal="$(echo -n "$libpal")"
         libpal="${libpal//$RUNTIME_DIR\//}"
@@ -37,7 +37,7 @@ if [ -z "$PAL_HOST" ]; then
         PAL_HOST="${libpal%.so}"
         PAL_HOST="${PAL_HOST#libpal-}"
     else
-        PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f "$RUNTIME_DIR/../Scripts/Makefile.configs" print_host 2>&1)
+        PAL_HOST=$(make --no-print-directory --quiet -f "$RUNTIME_DIR/../Scripts/Makefile.configs" print_host 2>&1)
     fi
 fi
 
@@ -48,7 +48,7 @@ PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
 if [ "$GDB" == "1" ]; then
 	GDB=$RUNTIME_DIR/pal_gdb-$PAL_HOST
 	if [ ! -f "$GDB" ]; then
-		GDB="/usr/bin/gdb"
+		GDB="gdb"
 	fi
 fi
 

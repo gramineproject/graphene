@@ -21,14 +21,13 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 
-PAL_CONTROL __pal_control;
+PAL_CONTROL g_pal_control;
 
-PAL_CONTROL * pal_control_addr (void)
-{
-    return &__pal_control;
+PAL_CONTROL* pal_control_addr(void) {
+    return &g_pal_control;
 }
 
-struct pal_internal_state pal_state;
+struct pal_internal_state g_pal_state;
 
 static void load_libraries (void)
 {
@@ -39,7 +38,7 @@ static void load_libraries (void)
     /* loader.preload:
        any other libraries to preload. The can be multiple URIs,
        seperated by commas */
-    len = get_config(pal_state.root_config, "loader.preload", cfgbuf,
+    len = get_config(g_pal_state.root_config, "loader.preload", cfgbuf,
                      sizeof(cfgbuf));
     if (len <= 0)
         return;
@@ -62,7 +61,7 @@ static void load_libraries (void)
 
 static void read_environments (const char *** envpp)
 {
-    struct config_store * store = pal_state.root_config;
+    struct config_store * store = g_pal_state.root_config;
     const char ** envp = *envpp;
 
     /* loader.env.*: rewriting host environment variables */
@@ -72,7 +71,7 @@ static void read_environments (const char *** envpp)
     } * setenvs = NULL;
     int nsetenvs = 0;
 
-    if (!pal_state.root_config)
+    if (!g_pal_state.root_config)
         return;
 
     ssize_t cfgsize_envs = get_config_entries_size(store, "loader.env");
@@ -154,11 +153,10 @@ static void set_debug_type (void)
     char cfgbuf[CONFIG_MAX];
     ssize_t ret = 0;
 
-    if (!pal_state.root_config)
+    if (!g_pal_state.root_config)
         return;
 
-    ret = get_config(pal_state.root_config, "loader.debug_type",
-                     cfgbuf, sizeof(cfgbuf));
+    ret = get_config(g_pal_state.root_config, "loader.debug_type", cfgbuf, sizeof(cfgbuf));
     if (ret <= 0)
         return;
 
@@ -167,8 +165,7 @@ static void set_debug_type (void)
     if (!strcmp_static(cfgbuf, "inline")) {
         ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
     } else if (!strcmp_static(cfgbuf, "file")) {
-        ret = get_config(pal_state.root_config, "loader.debug_file",
-                         cfgbuf, sizeof(cfgbuf));
+        ret = get_config(g_pal_state.root_config, "loader.debug_file", cfgbuf, sizeof(cfgbuf));
         if (ret <= 0)
             INIT_FAIL(PAL_ERROR_INVAL, "debug file not specified");
 
@@ -185,7 +182,7 @@ static void set_debug_type (void)
     if (ret < 0)
         INIT_FAIL(-ret, "cannot open debug stream");
 
-    __pal_control.debug_stream = handle;
+    g_pal_control.debug_stream = handle;
 }
 
 static int loader_filter (const char * key, int len)
@@ -206,13 +203,13 @@ noreturn void pal_main(
         PAL_STR*   arguments,        /* application arguments */
         PAL_STR*   environments      /* environment variables */) {
     char cfgbuf[CONFIG_MAX];
-    pal_state.instance_id = instance_id;
-    pal_state.alloc_align = _DkGetAllocationAlignment();
-    assert(IS_POWER_OF_2(pal_state.alloc_align));
+    g_pal_state.instance_id = instance_id;
+    g_pal_state.alloc_align = _DkGetAllocationAlignment();
+    assert(IS_POWER_OF_2(g_pal_state.alloc_align));
 
-    init_slab_mgr(pal_state.alloc_align);
+    init_slab_mgr(g_pal_state.alloc_align);
 
-    pal_state.parent_process = parent_process;
+    g_pal_state.parent_process = parent_process;
 
     char uri_buf[URI_MAX];
     char * manifest_uri = NULL, * exec_uri = NULL;
@@ -257,7 +254,7 @@ noreturn void pal_main(
     }
 
     /* load manifest if there is one */
-    if (!pal_state.root_config && manifest_handle) {
+    if (!g_pal_state.root_config && manifest_handle) {
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQueryByHandle(manifest_handle, &attr);
         if (ret < 0)
@@ -285,13 +282,12 @@ noreturn void pal_main(
             INIT_FAIL(-ret, errstring);
         }
 
-        pal_state.root_config = root_config;
+        g_pal_state.root_config = root_config;
     }
 
     /* if there is no executable, try to find one in the manifest */
-    if (!exec_handle && pal_state.root_config) {
-        ret = get_config(pal_state.root_config, "loader.exec",
-                         uri_buf, URI_MAX);
+    if (!exec_handle && g_pal_state.root_config) {
+        ret = get_config(g_pal_state.root_config, "loader.exec", uri_buf, URI_MAX);
         if (ret > 0) {
             exec_uri = malloc_copy(uri_buf, ret + 1);
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
@@ -346,15 +342,15 @@ noreturn void pal_main(
         }
     }
 
-    pal_state.manifest        = manifest_uri;
-    pal_state.manifest_handle = manifest_handle;
-    pal_state.exec            = exec_uri;
-    pal_state.exec_handle     = exec_handle;
+    g_pal_state.manifest        = manifest_uri;
+    g_pal_state.manifest_handle = manifest_handle;
+    g_pal_state.exec            = exec_uri;
+    g_pal_state.exec_handle     = exec_handle;
 
     bool disable_aslr = false;
-    if (pal_state.root_config) {
+    if (g_pal_state.root_config) {
         char aslr_cfg[2];
-        ssize_t len = get_config(pal_state.root_config, "loader.insecure__disable_aslr", aslr_cfg,
+        ssize_t len = get_config(g_pal_state.root_config, "loader.insecure__disable_aslr", aslr_cfg,
                                  sizeof(aslr_cfg));
         disable_aslr = len == 1 && aslr_cfg[0] == '1';
     }
@@ -366,8 +362,8 @@ noreturn void pal_main(
      * resolving https://github.com/oscarlab/graphene/issues/1053 (RFC: graphene invocation).
      */
     bool argv0_overridden = false;
-    if (pal_state.root_config) {
-        ret = get_config(pal_state.root_config, "loader.argv0_override", cfgbuf, sizeof(cfgbuf));
+    if (g_pal_state.root_config) {
+        ret = get_config(g_pal_state.root_config, "loader.argv0_override", cfgbuf, sizeof(cfgbuf));
         if (ret > 0) {
             argv0_overridden = true;
             if (!arguments[0]) {
@@ -382,10 +378,11 @@ noreturn void pal_main(
         }
     }
 
-    if (get_config(pal_state.root_config, "loader.insecure__use_cmdline_argv",
+    if (get_config(g_pal_state.root_config, "loader.insecure__use_cmdline_argv",
                    cfgbuf, CONFIG_MAX) > 0) {
         printf("WARNING: Using insecure argv source. Don't use this configuration in production!\n");
-    } else if (get_config(pal_state.root_config, "loader.argv_src_file", cfgbuf, CONFIG_MAX) > 0) {
+    } else if (get_config(g_pal_state.root_config, "loader.argv_src_file", cfgbuf, CONFIG_MAX)
+               > 0) {
         /* Load argv from a file and discard cmdline argv. We trust the file contents (this can be
          * achieved using protected or trusted files). */
         if (arguments[0] && arguments[1])
@@ -438,7 +435,7 @@ noreturn void pal_main(
 
     read_environments(&environments);
 
-    if (pal_state.root_config)
+    if (g_pal_state.root_config)
         load_libraries();
 
     if (exec_handle) {
@@ -454,25 +451,25 @@ noreturn void pal_main(
 
     set_debug_type();
 
-    __pal_control.host_type          = XSTRINGIFY(HOST_TYPE);
-    __pal_control.process_id         = _DkGetProcessId();
-    __pal_control.host_id            = _DkGetHostId();
-    __pal_control.manifest_handle    = manifest_handle;
-    __pal_control.executable         = exec_uri;
-    __pal_control.parent_process     = parent_process;
-    __pal_control.first_thread       = first_thread;
-    __pal_control.disable_aslr       = disable_aslr;
+    g_pal_control.host_type          = XSTRINGIFY(HOST_TYPE);
+    g_pal_control.process_id         = _DkGetProcessId();
+    g_pal_control.host_id            = _DkGetHostId();
+    g_pal_control.manifest_handle    = manifest_handle;
+    g_pal_control.executable         = exec_uri;
+    g_pal_control.parent_process     = parent_process;
+    g_pal_control.first_thread       = first_thread;
+    g_pal_control.disable_aslr       = disable_aslr;
 
-    _DkGetAvailableUserAddressRange(&__pal_control.user_address.start,
-                                    &__pal_control.user_address.end,
-                                    &__pal_control.exec_memory_gap);
+    _DkGetAvailableUserAddressRange(&g_pal_control.user_address.start,
+                                    &g_pal_control.user_address.end,
+                                    &g_pal_control.exec_memory_gap);
 
-    __pal_control.alloc_align        = pal_state.alloc_align;
+    g_pal_control.alloc_align        = g_pal_state.alloc_align;
 
-    if (_DkGetCPUInfo(&__pal_control.cpu_info) < 0) {
+    if (_DkGetCPUInfo(&g_pal_control.cpu_info) < 0) {
         goto out_fail;
     }
-    __pal_control.mem_info.mem_total = _DkMemoryQuota();
+    g_pal_control.mem_info.mem_total = _DkMemoryQuota();
 
     /* Now we will start the execution */
     start_execution(arguments, environments);

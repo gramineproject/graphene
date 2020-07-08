@@ -8,7 +8,7 @@ struct pal_error_description {
     const char* description;
 };
 
-static const struct pal_error_description pal_error_list[] = {
+static const struct pal_error_description g_pal_error_list[] = {
     {PAL_ERROR_SUCCESS, "Success"},
     {PAL_ERROR_NOTIMPLEMENTED, "Function not implemented"},
     {PAL_ERROR_NOTDEFINED, "Symbol not defined"},
@@ -55,11 +55,11 @@ static const struct pal_error_description pal_error_list[] = {
     {PAL_ERROR_CRYPTO_INVALID_DH_STATE, "[Crypto] Invalid DH state"},
 };
 
-#define PAL_ERROR_COUNT (sizeof(pal_error_list) / sizeof(pal_error_list[0]))
+#define PAL_ERROR_COUNT (sizeof(g_pal_error_list) / sizeof(g_pal_error_list[0]))
 
 const char* pal_strerror(int err) {
     for (size_t i = 0; i < PAL_ERROR_COUNT; i++)
-        if (pal_error_list[i].error == err)
-            return pal_error_list[i].description;
+        if (g_pal_error_list[i].error == err)
+            return g_pal_error_list[i].description;
     return "Unknown error";
 }

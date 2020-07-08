@@ -19,8 +19,6 @@
 #define EXTERN_ALIAS(name) \
     extern __typeof__(name) shim_##name __attribute ((alias (ALIAS_STR(name))))
 
-#define static_always_inline static inline __attribute__((always_inline))
-
 #include <api.h>
 #include <assert.h>
 #include <atomic.h>

@@ -55,8 +55,8 @@ unsigned long _DkSystemTimeQuery(void) {
     int ret;
 
 #if USE_VDSO_GETTIME == 1
-    if (linux_state.vdso_clock_gettime) {
-        ret = linux_state.vdso_clock_gettime(CLOCK_REALTIME, &time);
+    if (g_linux_state.vdso_clock_gettime) {
+        ret = g_linux_state.vdso_clock_gettime(CLOCK_REALTIME, &time);
     } else {
 #endif
         ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
@@ -75,8 +75,8 @@ unsigned long _DkSystemTimeQuery(void) {
     int ret;
 
 #if USE_VDSO_GETTIME == 1
-    if (linux_state.vdso_gettimeofday) {
-        ret = linux_state.vdso_gettimeofday(&time, NULL);
+    if (g_linux_state.vdso_gettimeofday) {
+        ret = g_linux_state.vdso_gettimeofday(&time, NULL);
     } else {
 #endif
 #if USE_VSYSCALL_GETTIME == 1
@@ -99,17 +99,17 @@ unsigned long _DkSystemTimeQuery(void) {
 
 #if USE_ARCH_RD_RAND != 1
 size_t _DkRandomBitsRead(void* buffer, size_t size) {
-    if (!pal_sec.random_device) {
+    if (!g_pal_sec.random_device) {
         int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
         if (IS_ERR(fd))
             return -PAL_ERROR_DENIED;
 
-        pal_sec.random_device = fd;
+        g_pal_sec.random_device = fd;
     }
 
     size_t total_bytes = 0;
     do {
-        int bytes = INLINE_SYSCALL(read, 3, pal_sec.random_device, buffer + total_bytes,
+        int bytes = INLINE_SYSCALL(read, 3, g_pal_sec.random_device, buffer + total_bytes,
                                    size - total_bytes);
         if (IS_ERR(bytes))
             return -PAL_ERROR_DENIED;

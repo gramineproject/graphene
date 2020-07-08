@@ -92,8 +92,8 @@ point :func:`pal_main()`. The definition of :func:`pal_main()` is:
 #. :file:`db_rtld.c`: This file must handle how symbols are resolved against the
    PAL loader itself, to discover the entry address of the host ABI. If the PAL
    loader is a Linux ELF binary, you may simply add a `link_map` to the
-   `loaded_maps` list. Otherwise, you need to implement `resolve_rtld` function
-   to return addresses of the host ABI by names.
+   `g_loaded_maps` list. Otherwise, you need to implement `resolve_rtld`
+   function to return addresses of the host ABI by names.
 
 You may implement the optional `_DkDebugAddMap` and `_DkDebugDelMap` to use
 a host-specific debugger such as GDB to debug applications in Graphene.

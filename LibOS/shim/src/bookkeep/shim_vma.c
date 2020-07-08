@@ -639,7 +639,7 @@ static void _add_unmapped_vma(uintptr_t begin, uintptr_t end, struct shim_vma* v
 
     vma->begin = begin;
     vma->end = end;
-    vma->prot = 0;
+    vma->prot = PROT_NONE;
     vma->flags = VMA_INTERNAL | VMA_UNMAPPED;
     vma->file = NULL;
     vma->offset = 0;
@@ -759,7 +759,7 @@ int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags,
 }
 
 static void vma_update_prot(struct shim_vma* vma, int prot) {
-    vma->prot = prot;
+    vma->prot = prot & (PROT_NONE | PROT_READ | PROT_WRITE | PROT_EXEC);
     if (vma->file && (prot & PROT_WRITE)) {
         vma->flags |= VMA_TAINTED;
     }
@@ -785,12 +785,20 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
     }
 
     bool is_continuous = true;
-    bool is_ok = true;
 
     while (1) {
-        is_ok &= !!(vma->flags & VMA_INTERNAL) == is_internal;
+        if (!!(vma->flags & VMA_INTERNAL) != is_internal) {
+            return -EACCES;
+        }
+        if (prot & PROT_GROWSDOWN) {
+            if (!(vma->flags & MAP_GROWSDOWN)) {
+                return -EINVAL;
+            }
+        }
         if (vma->file && (vma->flags & MAP_SHARED)) {
-            is_ok &= is_file_prot_matching(vma->file, prot);
+            if (!is_file_prot_matching(vma->file, prot)) {
+                return -EACCES;
+            }
         }
 
         if (end <= vma->end) {
@@ -809,15 +817,15 @@ static int _vma_bkeep_change(uintptr_t begin, uintptr_t end, int prot, bool is_i
     }
 
     if (!is_continuous) {
+        /* XXX: When Linux fails with such an error, it sill changes permissions of the first
+         * continuous fragment. Maybe we should emulate this weird behavior? */
         return -ENOMEM;
-    }
-    if (!is_ok) {
-        return -EACCES;
     }
 
     vma = first_vma;
 
-    if (vma->begin < begin) {
+    /* For PROT_GROWSDOWN we just pretend that `vma->begin == begin`. */
+    if (vma->begin < begin && !(prot & PROT_GROWSDOWN)) {
         struct shim_vma* new_vma1 = *new_vma_ptr1;
         *new_vma_ptr1 = NULL;
 

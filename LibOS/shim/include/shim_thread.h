@@ -137,10 +137,7 @@ void put_thread (struct shim_thread * thread);
 
 void debug_setprefix (shim_tcb_t * tcb);
 
-static inline
-__attribute__((always_inline))
-void debug_setbuf (shim_tcb_t * tcb, bool on_stack)
-{
+static inline __attribute__((always_inline)) void debug_setbuf(shim_tcb_t* tcb, bool on_stack) {
     if (!debug_handle)
         return;
 
@@ -150,17 +147,12 @@ void debug_setbuf (shim_tcb_t * tcb, bool on_stack)
     debug_setprefix(tcb);
 }
 
-static inline
-__attribute__((always_inline))
-struct shim_thread* get_cur_thread (void) {
+static inline struct shim_thread* get_cur_thread(void) {
     return SHIM_TCB_GET(tp);
 }
 
-static inline
-__attribute__((always_inline))
-void set_cur_thread (struct shim_thread * thread)
-{
-    shim_tcb_t * tcb = shim_get_tcb();
+static inline void set_cur_thread(struct shim_thread* thread) {
+    shim_tcb_t* tcb = shim_get_tcb();
     IDTYPE tid = 0;
 
     if (thread) {
@@ -293,19 +285,14 @@ void get_handle_map (struct shim_handle_map * map);
 void put_handle_map (struct shim_handle_map * map);
 
 /* retriving handle mapping */
-static inline __attribute__((always_inline))
-struct shim_handle_map * get_cur_handle_map (struct shim_thread * thread)
-{
+static inline struct shim_handle_map* get_cur_handle_map(struct shim_thread* thread) {
     if (!thread)
         thread = get_cur_thread();
 
     return thread ? thread->handle_map : NULL;
 }
 
-static inline __attribute__((always_inline))
-void set_handle_map (struct shim_thread * thread,
-                     struct shim_handle_map * map)
-{
+static inline void set_handle_map(struct shim_thread* thread, struct shim_handle_map* map) {
     get_handle_map(map);
 
     if (!thread)
@@ -334,30 +321,6 @@ struct shim_clone_args {
 };
 
 void * allocate_stack (size_t size, size_t protect_size, bool user);
-
-static inline __attribute__((always_inline))
-bool check_stack_size (struct shim_thread * cur_thread, int size)
-{
-    if (!cur_thread)
-        cur_thread = get_cur_thread();
-
-    void * rsp;
-    __asm__ volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
-
-    if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack)
-        return size < rsp - cur_thread->stack;
-
-    return false;
-}
-
-static inline __attribute__((always_inline))
-bool check_on_stack (struct shim_thread * cur_thread, void * mem)
-{
-    if (!cur_thread)
-        cur_thread = get_cur_thread();
-
-    return (mem <= cur_thread->stack_top && mem > cur_thread->stack);
-}
 
 int init_stack(const char** argv, const char** envp, const char*** out_argp,
                elf_auxv_t** out_auxv);

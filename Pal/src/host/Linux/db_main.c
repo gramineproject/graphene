@@ -37,8 +37,8 @@ __asm__ (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".popsection\r\n");
 #endif
 
-struct pal_linux_state linux_state;
-struct pal_sec pal_sec;
+struct pal_linux_state g_linux_state;
+struct pal_sec g_pal_sec;
 
 static size_t g_page_size = PRESET_PAGESIZE;
 static int uid, gid;
@@ -72,7 +72,7 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
     for (; *e ; e++) {
 #ifdef DEBUG
         if (!strcmp_static(*e, "IN_GDB=1"))
-            linux_state.in_gdb = true;
+            g_linux_state.in_gdb = true;
 #endif
     }
 
@@ -116,13 +116,13 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap)
         if (start_addr >= end_addr)
             INIT_FAIL(PAL_ERROR_NOMEM, "no user memory available");
 
-        void * mem = (void *) ARCH_MMAP(start_addr,
-                                        pal_state.alloc_align,
-                                        PROT_NONE,
-                                        MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
-                                        -1, 0);
+        void* mem = (void*)ARCH_MMAP(start_addr,
+                                     g_pal_state.alloc_align,
+                                     PROT_NONE,
+                                     MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
+                                     -1, 0);
         if (!IS_ERR_P(mem)) {
-            INLINE_SYSCALL(munmap, 2, mem, pal_state.alloc_align);
+            INLINE_SYSCALL(munmap, 2, mem, g_pal_state.alloc_align);
             if (mem == start_addr)
                 break;
         }
@@ -136,9 +136,8 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap)
     *gap = 0;
 }
 
-PAL_NUM _DkGetProcessId (void)
-{
-    return linux_state.process_id;
+PAL_NUM _DkGetProcessId(void) {
+    return g_linux_state.process_id;
 }
 
 PAL_NUM _DkGetHostId (void)
@@ -152,7 +151,7 @@ PAL_NUM _DkGetHostId (void)
 void setup_vdso_map (ElfW(Addr) addr);
 #endif
 
-static struct link_map pal_map;
+static struct link_map g_pal_map;
 
 #include "elf-arch.h"
 
@@ -170,7 +169,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
 
     unsigned long start_time = _DkSystemTimeQueryEarly();
-    pal_state.start_time = start_time;
+    g_pal_state.start_time = start_time;
 
     int argc;
     const char** argv;
@@ -186,14 +185,14 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
         print_usage_and_exit(argv[0]);
     }
 
-    pal_map.l_addr = elf_machine_load_address();
-    pal_map.l_name = argv[0];
-    elf_get_dynamic_info((void*)pal_map.l_addr + elf_machine_dynamic(), pal_map.l_info,
-                         pal_map.l_addr);
+    g_pal_map.l_addr = elf_machine_load_address();
+    g_pal_map.l_name = argv[0];
+    elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
+                         g_pal_map.l_addr);
 
-    ELF_DYNAMIC_RELOCATE(&pal_map);
+    ELF_DYNAMIC_RELOCATE(&g_pal_map);
 
-    linux_state.environ = envp;
+    g_linux_state.environ = envp;
 
     init_slab_mgr(g_page_size);
 
@@ -217,7 +216,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     tcb->param       = NULL;
     pal_thread_init(tcb);
 
-    setup_pal_map(&pal_map);
+    setup_pal_map(&g_pal_map);
 
 #if USE_VDSO_GETTIME == 1
     if (sysinfo_ehdr)
@@ -231,16 +230,16 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
         init_child_process(parent_pipe_fd, &parent, &exec, &manifest);
     }
 
-    if (!pal_sec.process_id)
-        pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
-    linux_state.pid = pal_sec.process_id;
+    if (!g_pal_sec.process_id)
+        g_pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
+    g_linux_state.pid = g_pal_sec.process_id;
 
-    linux_state.uid = uid;
-    linux_state.gid = gid;
-    linux_state.process_id = (start_time & (~0xffff)) | linux_state.pid;
+    g_linux_state.uid = uid;
+    g_linux_state.gid = gid;
+    g_linux_state.process_id = (start_time & (~0xffff)) | g_linux_state.pid;
 
-    if (!linux_state.parent_process_id)
-        linux_state.parent_process_id = linux_state.process_id;
+    if (!g_linux_state.parent_process_id)
+        g_linux_state.parent_process_id = g_linux_state.process_id;
 
     if (first_process) {
         // We need to find a binary to run.
@@ -266,7 +265,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     signal_setup();
 
     /* call to main function */
-    pal_main((PAL_NUM)linux_state.parent_process_id, manifest, exec, NULL, parent, first_thread,
+    pal_main((PAL_NUM)g_linux_state.parent_process_id, manifest, exec, NULL, parent, first_thread,
              first_process ? argv + 2 : argv + 3, envp);
 }
 

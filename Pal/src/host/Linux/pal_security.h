@@ -41,8 +41,8 @@ void pal_dl_debug_state(void);
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
    a statically-linked program there is no dynamic section for the debugger
    to examine and it looks for this particular symbol name.  */
-extern struct r_debug pal_r_debug;
-symbol_version_default(pal_r_debug, _r_debug, PAL);
+extern struct r_debug g_pal_r_debug;
+symbol_version_default(g_pal_r_debug, _r_debug, PAL);
 
 extern struct pal_sec {
     /* system variables */
@@ -52,7 +52,7 @@ extern struct pal_sec {
     /* for debugger */
     void (*_dl_debug_state)(void);
     struct r_debug* _r_debug;
-} pal_sec;
+} g_pal_sec;
 
 #define RANDGEN_DEVICE "/dev/urandom"
 

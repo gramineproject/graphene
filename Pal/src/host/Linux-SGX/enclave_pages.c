@@ -74,15 +74,16 @@ static void __free_vma(struct heap_vma* vma) {
 int init_enclave_pages(void) {
     int ret;
 
-    g_heap_bottom = pal_sec.heap_min;
-    g_heap_top    = pal_sec.heap_max;
+    g_heap_bottom = g_pal_sec.heap_min;
+    g_heap_top    = g_pal_sec.heap_max;
 
     size_t reserved_size = 0;
     struct heap_vma* exec_vma = NULL;
 
     _DkInternalLock(&g_heap_vma_lock);
 
-    if (pal_sec.exec_addr < g_heap_top && pal_sec.exec_addr + pal_sec.exec_size > g_heap_bottom) {
+    if (g_pal_sec.exec_addr < g_heap_top
+            && g_pal_sec.exec_addr + g_pal_sec.exec_size > g_heap_bottom) {
         /* there is an executable mapped inside the heap, carve a VMA for its area; this can happen
          * in case of non-PIE executables that start at a predefined address (typically 0x400000) */
         exec_vma = __alloc_vma();
@@ -92,8 +93,9 @@ int init_enclave_pages(void) {
             goto out;
         }
 
-        exec_vma->bottom = SATURATED_P_SUB(pal_sec.exec_addr, MEMORY_GAP, g_heap_bottom);
-        exec_vma->top = SATURATED_P_ADD(pal_sec.exec_addr + pal_sec.exec_size, MEMORY_GAP, g_heap_top);
+        exec_vma->bottom = SATURATED_P_SUB(g_pal_sec.exec_addr, MEMORY_GAP, g_heap_bottom);
+        exec_vma->top = SATURATED_P_ADD(g_pal_sec.exec_addr + g_pal_sec.exec_size, MEMORY_GAP,
+                                        g_heap_top);
         exec_vma->is_pal_internal = false;
         INIT_LIST_HEAD(exec_vma, list);
         LISTP_ADD(exec_vma, &g_heap_vma_list, list);
@@ -160,6 +162,9 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     vma->bottom          = addr;
     vma->top             = addr + size;
     vma->is_pal_internal = is_pal_internal;
+
+    /* initialize the contents of the new VMA to zero */
+    memset(vma->bottom, 0, vma->top - vma->bottom);
 
     /* how much memory was freed because [addr, addr + size) overlapped with VMAs */
     size_t freed = 0;

@@ -1,103 +1,58 @@
-/* Copy memory to memory until the specified number of bytes
-   has been copied.  Overlap is NOT handled correctly.
-   Copyright (C) 1991, 1997, 2003 Free Software Foundation, Inc.
-   This file is part of the GNU C Library.
-   Contributed by Torbjorn Granlund (tege@sics.se).
-
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
-
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
-
-#include <sysdeps/generic/memcopy.h>
-
 #include "api.h"
 
-void* memcpy(void* dstpp, const void* srcpp, size_t len) {
-    unsigned long int dstp = (long int)dstpp;
-    unsigned long int srcp = (long int)srcpp;
+/* Copyright © 2005-2014 Rich Felker, et al. */
 
-    /* Copy from the beginning to the end.  */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the */
+/* "Software"), to deal in the Software without restriction, including */
+/* without limitation the rights to use, copy, modify, merge, publish, */
+/* distribute, sublicense, and/or sell copies of the Software, and to */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions: */
 
-    /* If there not too few bytes to copy, use word copy.  */
-    if (len >= OP_T_THRES) {
-        /* Copy just a few bytes to make DSTP aligned.  */
-        len -= (-dstp) % OPSIZ;
-        BYTE_COPY_FWD(dstp, srcp, (-dstp) % OPSIZ);
+/* The above copyright notice and this permission notice shall be */
+/* included in all copies or substantial portions of the Software. */
 
-        /* Copy from SRCP to DSTP taking advantage of the known alignment of
-           DSTP.  Number of bytes remaining is put in the third argument,
-           i.e. in LEN.  This number may vary from machine to machine.  */
-        WORD_COPY_FWD(dstp, srcp, len, len);
+/* heavily based on musl 1.1.15/1.1.24 */
 
-        /* Fall out and copy the tail.  */
-    }
-
-    /* There are just a few bytes to copy.  Use byte memory operations.  */
-    BYTE_COPY_FWD(dstp, srcp, len);
-
-    return dstpp;
+void* memcpy(void* restrict dst, const void* restrict src, size_t n) {
+    char* d = dst;
+#if defined(__x86_64__)
+    /* "Beginning with processors based on Intel microarchitecture code name Ivy Bridge, REP string
+     * operation using MOVSB and STOSB can provide both flexible and high-performance REP string
+     * operations for software in common situations like memory copy and set operations" (c)
+     * Intel 64 and IA-32 Architectures Optimization Reference Manual.
+     *
+     * memcpy() is heavily used in Linux-SGX PAL to copy data in/out of SGX enclave. Experiments
+     * with Redis 5.0 show perf improvement of using "rep movsb" at 3-5% for 4KB payloads over
+     * previous implementation taken from Glibc 2.23. */
+    __asm__ volatile("rep movsb" : "+D" (d) : "c"(n), "S"(src) : "cc", "memory");
+#else
+    const char* s = src;
+    for (; n; n--)
+        *d++ = *s++;
+#endif
+    return dst;
 }
 
-void* memmove(void* destpp, const void* srcpp, size_t len) {
-    unsigned long int dstp = (long int)destpp;
-    unsigned long int srcp = (long int)srcpp;
+void* memmove(void* dst, const void* src, size_t n) {
+    char* d = dst;
+    const char* s = src;
 
-    /* This test makes the forward copying code be used whenever possible.
-       Reduces the working set.  */
-    if (dstp - srcp >= len) { /* *Unsigned* compare!  */
-        /* Copy from the beginning to the end.  */
+    if (d == s)
+        return d;
 
-        /* If there not too few bytes to copy, use word copy.  */
-        if (len >= OP_T_THRES) {
-            /* Copy just a few bytes to make DSTP aligned.  */
-            len -= (-dstp) % OPSIZ;
-            BYTE_COPY_FWD(dstp, srcp, (-dstp) % OPSIZ);
+    if (s + n <= d || d + n <= s)
+        return memcpy(d, s, n);
 
-            /* Copy from SRCP to DSTP taking advantage of the known
-               alignment of DSTP.  Number of bytes remaining is put
-               in the third argument, i.e. in LEN.  This number may
-               vary from machine to machine.  */
-            WORD_COPY_FWD(dstp, srcp, len, len);
-
-            /* Fall out and copy the tail.  */
-        }
-
-        /* There are just a few bytes to copy.  Use byte memory operations.  */
-        BYTE_COPY_FWD(dstp, srcp, len);
+    if (d < s) {
+        for (; n; n--)
+            *d++ = *s++;
     } else {
-        /* Copy from the end to the beginning.  */
-        srcp += len;
-        dstp += len;
-
-        /* If there not too few bytes to copy, use word copy.  */
-        if (len >= OP_T_THRES) {
-            /* Copy just a few bytes to make DSTP aligned.  */
-            len -= dstp % OPSIZ;
-            BYTE_COPY_BWD(dstp, srcp, dstp % OPSIZ);
-
-            /* Copy from SRCP to DSTP taking advantage of the known
-               alignment of DSTP.  Number of bytes remaining is put
-               in the third argument, i.e. in LEN.  This number may
-               vary from machine to machine.  */
-            WORD_COPY_BWD(dstp, srcp, len, len);
-
-            /* Fall out and copy the tail.  */
+        while (n) {
+            n--;
+            d[n] = s[n];
         }
-
-        /* There are just a few bytes to copy.  Use byte memory operations.  */
-        BYTE_COPY_BWD(dstp, srcp, len);
     }
-
-    return destpp;
+    return dst;
 }

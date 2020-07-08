@@ -98,9 +98,10 @@ class TC_01_Bootstrap(RegressionTestCase):
             stdout)
 
     def test_201_exec_same(self):
-        args = [str(i) for i in range(50)]
+        args = ['arg_#%d' % i for i in range(50)]
         stdout, _ = self.run_binary(['exec_same'] + args, timeout=40)
-        self.assertIn('\n'.join(args), stdout)
+        for arg in args:
+            self.assertIn(arg + '\n', stdout)
 
     def test_202_fork_and_exec(self):
         stdout, _ = self.run_binary(['fork_and_exec'], timeout=60)
@@ -380,6 +381,11 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, _ = self.run_binary(['mprotect_file_fork'])
 
         self.assertIn('Test successful!', stdout)
+
+    def test_054_mprotect_prot_growsdown(self):
+        stdout, _ = self.run_binary(['mprotect_prot_growsdown'])
+
+        self.assertIn('TEST OK', stdout)
 
     @unittest.skip('sigaltstack isn\'t correctly implemented')
     def test_060_sigaltstack(self):
