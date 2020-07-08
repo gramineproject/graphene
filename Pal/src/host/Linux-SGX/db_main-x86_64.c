@@ -116,7 +116,7 @@ int64_t get_tsc_hz(void) {
         /* nominal frequency of the core crystal clock in kHz */
         crys_hz = words[PAL_CPUID_WORD_ECX];
         if (crys_hz > 0) {
-            retval = (double)crys_hz * words[PAL_CPUID_WORD_EBX] /
+            retval = crys_hz * words[PAL_CPUID_WORD_EBX] /
                 words[PAL_CPUID_WORD_EAX];
         }
     }

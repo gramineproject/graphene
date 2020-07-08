@@ -49,12 +49,13 @@ unsigned long _DkSystemTimeQuery(void) {
         if (g_start_tsc > 0 && g_start_usec > 0) {
             /* calculate the TSC based time */
             tsc_usec = g_start_usec +
-                ((double)(get_tsc() - g_start_tsc) * 1000000 / g_tsc_hz);
+                ((get_tsc() - g_start_tsc) * 1000000 / g_tsc_hz);
             /* determine whether it needs to be refined periodically */
             if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
                 usec = tsc_usec;
             }
         }
+        _DkInternalUnlock(&g_tsc_lock);
 
         if (!usec) {
             /* refresh the baseline usec and TSC to contain the drift */
@@ -68,15 +69,17 @@ unsigned long _DkSystemTimeQuery(void) {
                  * time point, therefore, the tsc_cyc as baseline will  *
                  * be calibrated precisely in this way.                 */
                 tsc_cyc = ((tsc_cyc2 - tsc_cyc1) >> 1) + tsc_cyc1;
-                /* refresh the baseline data*/
-                g_start_usec = usec;
-                g_start_tsc = tsc_cyc;
-            } else {
+                _DkInternalLock(&g_tsc_lock);
+                /* refresh the baseline data if no other thread updated g_start_tsc */
+                if (g_start_tsc < tsc_cyc) {
+                    g_start_usec = usec;
+                    g_start_tsc = tsc_cyc;
+                }
                 _DkInternalUnlock(&g_tsc_lock);
+            } else {
                 _DkRaiseFailure(PAL_ERROR_DENIED);
             }
         }
-        _DkInternalUnlock(&g_tsc_lock);
     } else {
         /* fallback to gettimeofday syscall */
         ret = ocall_gettime(&usec);
