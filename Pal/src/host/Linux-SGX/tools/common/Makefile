@@ -24,10 +24,10 @@ DOWNLOAD_SCRIPT := ../../../../../../Scripts/download
 $(CJSON_SRC):
 	$(DOWNLOAD_SCRIPT) --output $(CJSON_SRC) --url $(CJSON_URI)/$(CJSON_SRC) --sha256 $(CJSON_CHECKSUM)
 
-$(CJSON_VERSION): $(CJSON_SRC)
-	tar -mxzf $(CJSON_SRC)
+cJSON-$(CJSON_VERSION)/cJSON.h cJSON-$(CJSON_VERSION)/cJSON.c: $(CJSON_SRC)
+	tar -zxvf $^ $@
 
-cJSON.c cJSON.h: $(CJSON_VERSION)
+cJSON.c cJSON.h: %: cJSON-$(CJSON_VERSION)/%
 	cp cJSON-$(CJSON_VERSION)/$@ .
 
 attestation.o: cJSON.h
