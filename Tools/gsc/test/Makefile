@@ -140,7 +140,7 @@ test-10-%: gsc-%-bash
 test-11-%: gsc-%-pytorch
 	CONTAINERID=`docker run -d $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py`
 	docker wait $${CONTAINERID}
-	docker cp $${CONTAINERID}:results.txt .
+	docker cp $${CONTAINERID}:/graphene/Examples/result.txt .
 	grep -q "('Labrador retriever'" result.txt
 	$(RM) results.txt
 
