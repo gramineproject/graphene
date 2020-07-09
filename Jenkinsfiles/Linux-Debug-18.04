@@ -1,6 +1,8 @@
 pipeline {
         agent {
-              dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile' }
+              dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile'
+                           label 'nonsgx_slave'
+              }
         }
         stages {
                 stage('Lint') {
