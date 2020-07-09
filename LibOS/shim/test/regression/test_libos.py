@@ -7,6 +7,7 @@ import subprocess
 
 from regression import (
     HAS_SGX,
+    ON_X86,
     RegressionTestCase,
 )
 
@@ -612,6 +613,7 @@ class TC_90_CpuidSGX(RegressionTestCase):
         stdout, _ = self.run_binary(['cpuid'])
         self.assertIn('CPUID test passed.', stdout)
 
+@unittest.skipUnless(ON_X86, 'x86-specific')
 class TC_91_Rdtsc(RegressionTestCase):
     def test_000_rdtsc(self):
         stdout, _ = self.run_binary(['rdtsc'])
