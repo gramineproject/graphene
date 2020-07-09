@@ -59,6 +59,8 @@ async_exit_pointer:
 eresume_pointer:
 	ENCLU   # perform ERESUME
 
+	# below function must follow directly after AEP/ERESUME trampoline code,
+	# since handle_sync_signal() / handle_async_signal() functions rely on this
 	.global sgx_raise
 	.type sgx_raise, @function
 

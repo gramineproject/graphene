@@ -117,7 +117,9 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
 
     unsigned long rip = pal_ucontext_get_ip(uc);
 
-    if (rip != (unsigned long)async_exit_pointer) {
+    /* in case of AEX, RIP can point to any instruction in the AEP/ERESUME trampoline code, i.e.,
+     * RIP can point to anywhere in [async_exit_pointer, sgx_raise) interval */
+    if (rip < (unsigned long)async_exit_pointer || rip >= (unsigned long)sgx_raise) {
         /* exception happened in untrusted PAL code (during syscall handling): fatal in Graphene */
         switch (signum) {
             case SIGSEGV:
@@ -136,6 +138,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
         INLINE_SYSCALL(exit, 1, 1);
     }
 
+    /* exception happened in app/LibOS/trusted PAL code, handle signal inside enclave */
     sgx_raise(event);
 }
 
@@ -152,7 +155,9 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
 
     unsigned long rip = pal_ucontext_get_ip(uc);
 
-    if (rip != (unsigned long)async_exit_pointer) {
+    /* in case of AEX, RIP can point to any instruction in the AEP/ERESUME trampoline code, i.e.,
+     * RIP can point to anywhere in [async_exit_pointer, sgx_raise) interval */
+    if (rip < (unsigned long)async_exit_pointer || rip >= (unsigned long)sgx_raise) {
         /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if
          * syscall was interrupted */
         pal_ucontext_set_function_parameters(uc, sgx_entry_return, 2, -EINTR, event);
