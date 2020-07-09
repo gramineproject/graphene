@@ -1,13 +1,13 @@
-# DCAP manifest file example
+# Client manifest file (both for EPID and DCAP)
 #
-# This manifest was prepared and tested on Ubuntu 16.04.
+# This manifest was prepared and tested on Ubuntu 18.04.
 
 # Executable to load into Graphene and run.
 loader.exec = file:./client
 loader.argv0_override = client
 
 # LibOS layer library of Graphene. There is currently only one implementation,
-# so it is always set to libsysdb.so. 
+# so it is always set to libsysdb.so.
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 
 # Show/hide debug log of Graphene ('inline' or 'none' respectively).
@@ -18,7 +18,6 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 loader.env.LD_PRELOAD = $(LD_PRELOAD)
-loader.env.RA_TLS_EPID_API_KEY = $(RA_TLS_EPID_API_KEY)
 
 # Needed by quote verification routine
 loader.env.LC_ALL = C

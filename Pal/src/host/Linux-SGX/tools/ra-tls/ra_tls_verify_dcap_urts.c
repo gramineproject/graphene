@@ -1,10 +1,13 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Corporation */
+
 /*
  * To load libsgx_dcap_quoteverify.so, it needs some symbols which are normally
  * provided by libsgx_urts.so (or libsgx_urts_sim.so). To use it in Graphene,
  * there are two workarounds to solve this: 1) load libsgx_urts.so or 2) create
  * dummy functions and always return failure. In this example we use 2).
  */
-#define DUMMY_FUNCTION(f)       __attribute__ ((visibility ("default"))) int f(void);	\
+#define DUMMY_FUNCTION(f)       __attribute__ ((visibility ("default"))) int f(void);   \
                                 int f(void) {return /*SGX_ERROR_UNEXPECTED*/1;}
 
 /* Provide these dummies since we are not using libsgx_urts.so. */

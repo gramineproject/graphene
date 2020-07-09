@@ -14,13 +14,12 @@
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
-ARCH_LIBDIR = /lib/x86_64-linux-gnu
+ARCH_LIBDIR ?= /lib/x86_64-linux-gnu
 
 # Specify your SPID and linkable/unlinkable attestation policy (only for EPID);
 # these variables will not be used if this example is built for ECDSA/DCAP
 RA_CLIENT_SPID ?= AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 RA_CLIENT_LINKABLE ?= 0
-RA_TLS_EPID_API_KEY ?= 12345678901234567890123456789012
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG=inline
@@ -178,10 +177,9 @@ client_dcap.manifest: client.manifest.template client_dcap-trusted-libs
 		-e 's|$$(CLIENT_TRUSTED_LIBS)|'"`cat client_dcap-trusted-libs`"'|g' \
 		-e 's|$$(LD_PRELOAD)|'"libra_tls_verify_dcap_graphene.so"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		-e 's|$$(RA_TLS_EPID_API_KEY)|'"$(RA_TLS_EPID_API_KEY)"'|g' \
 		$< > $@
 
-client_dcap.manifest.sgx: client_dcap.manifest client libra_tls_verify_dcap_graphene.so
+client_dcap.manifest.sgx: client_dcap.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
@@ -218,10 +216,9 @@ client_epid.manifest: client.manifest.template client_epid-trusted-libs
 		-e 's|$$(CLIENT_TRUSTED_LIBS)|'"`cat client_epid-trusted-libs`"'|g' \
 		-e 's|$$(LD_PRELOAD)|'"libra_tls_verify_epid.so"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		-e 's|$$(RA_TLS_EPID_API_KEY)|'"$(RA_TLS_EPID_API_KEY)"'|g' \
 		$< > $@
 
-client_epid.manifest.sgx: client_epid.manifest client libra_tls_verify_epid.so
+client_epid.manifest.sgx: client_epid.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \

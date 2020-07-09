@@ -131,17 +131,17 @@ kill %%
 
 - RA-TLS flows with SGX and with Graphene, running EPID client in SGX:
 
-Note: if needed, add envirionment variables to client.manifest.template, such as
-RA_TLS_ALLOW_OUTDATED_TCB_INSECURE, RA_TLS_MRENCLAVE, RA_TLS_MRSIGNER, RA_TLS_ISV_PROD_ID
-and RA_TLS_ISV_SVN.
+Note: if needed, add environment variables to client.manifest.template, such as
+`RA_TLS_ALLOW_OUTDATED_TCB_INSECURE`, `RA_TLS_MRENCLAVE`, `RA_TLS_MRSIGNER`, `RA_TLS_ISV_PROD_ID`
+and `RA_TLS_ISV_SVN`.
 
 ```sh
 make clean
-RA_CLIENT_SPID=... RA_CLIENT_LINKABLE=... RA_TLS_EPID_API_KEY=... make app client_epid.manifest.sgx
+RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app client_epid.manifest.sgx
 
 SGX=1 ./pal_loader ./server &
 
-SGX=1 ./pal_loader client_epid.manifest.sgx
+RA_TLS_EPID_API_KEY=12345678901234567890123456789012 SGX=1 ./pal_loader client_epid.manifest.sgx
 
 # client will successfully connect to the server via RA-TLS/EPID flows
 kill %%
