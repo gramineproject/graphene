@@ -20,8 +20,9 @@ struct pal_sec {
     sgx_measurement_t  mr_signer;
     sgx_attributes_t   enclave_attributes;
 
-    /* remaining heap usable by application */
+    /* remaining heap usable by application and whether to zero it on demand/during init */
     PAL_PTR         heap_min, heap_max;
+    PAL_BOL         zero_heap_on_demand;
 
     /* executable name, addr and size */
     PAL_SEC_STR     exec_name;
