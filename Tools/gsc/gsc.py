@@ -14,11 +14,34 @@ import jinja2
 import docker
 import yaml
 
-def gsc_image_name(name):
-    return f'gsc-{name}'
+output_image_name = ''
+unsigned_image_name = ''
 
-def gsc_unsigned_image_name(name):
-    return f'gsc-{name}-unsigned'
+def split_image_tag(name):
+    image = ''
+    tag = ''
+
+    try:
+        image, tag = name.split(":")
+    except ValueError:
+        image = name
+        tag = 'latest'
+
+    return (image, tag)
+
+def set_output_image_name(source, name):
+    global output_image_name
+    global unsigned_image_name
+
+    image, tag = split_image_tag(name)
+    source_image, source_tag = split_image_tag(source)
+
+    if image == '':
+        image = f'{source_image}-gsc'
+
+    output_image_name = f'{image}:{tag}'
+    unsigned_image_name = f'{image}-unsigned:{tag}'
+    print(f'final image: {output_image_name}, unsigned image: {unsigned_image_name}')
 
 def load_config(file):
     if not os.path.exists(file):
@@ -38,7 +61,7 @@ def generate_manifest(image, env, user_manifest, binary):
         with open(user_manifest, 'r') as user_manifest_file:
             user_mf = user_manifest_file.read()
 
-    manifest_path = (pathlib.Path(gsc_image_name(image)) / binary).with_suffix('.manifest')
+    manifest_path = (pathlib.Path(output_image_name) / binary).with_suffix('.manifest')
     with open(manifest_path, 'w') as app_manifest:
         app_manifest.write(env.get_template('manifest.template').render(binary=binary))
         app_manifest.write('\n')
@@ -48,7 +71,7 @@ def generate_manifest(image, env, user_manifest, binary):
 # Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
 def generate_app_loader(image, env, binary):
-    apploader_path = (pathlib.Path(gsc_image_name(image)) / 'apploader').with_suffix('.sh')
+    apploader_path = (pathlib.Path(output_image_name) / 'apploader').with_suffix('.sh')
     with open(apploader_path, 'w') as apploader:
         apploader.write(env.get_template('apploader.template').render(binary=binary))
 
@@ -58,14 +81,14 @@ def generate_app_loader(image, env, binary):
 # distribution. The second stage builds the final image based on the previously built Graphene and
 # the base image.
 def generate_dockerfile(image, env, binary):
-    dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile.build')
+    dockerfile_path = (pathlib.Path(output_image_name) / 'Dockerfile.build')
     with open(dockerfile_path, 'w') as dockerfile:
         dockerfile.write(env.get_template(
             f'Dockerfile.{env.globals["Distro"]}.build.template').render(binary=binary))
 
 def prepare_build_context(image, user_manifests, env, binary):
     # create directory for image specific files
-    os.makedirs(f'gsc-{image}', exist_ok=True)
+    os.makedirs(output_image_name, exist_ok=True)
 
     # generate dockerfile to build graphenized docker image
     generate_dockerfile(image, env, binary)
@@ -80,9 +103,9 @@ def prepare_build_context(image, user_manifests, env, binary):
         generate_manifest(image, env, user_manifest,
             user_manifest[user_manifest.rfind('/') + 1 : user_manifest.rfind('.manifest')])
 
-    fm_path = (pathlib.Path(gsc_image_name(image)) / 'finalize_manifests').with_suffix('.py')
+    fm_path = (pathlib.Path(output_image_name) / 'finalize_manifests').with_suffix('.py')
     shutil.copyfile('finalize_manifests.py', fm_path)
-    sm_path = (pathlib.Path(gsc_image_name(image)) / 'sign_manifests').with_suffix('.py')
+    sm_path = (pathlib.Path(output_image_name) / 'sign_manifests').with_suffix('.py')
     shutil.copyfile('sign_manifests.py', sm_path)
 
 def extract_binary_cmd_from_image_config(config):
@@ -183,13 +206,20 @@ def build_docker_image(path, name, dockerfile, **kwargs):
 # Build graphenized docker image. args has to follow [<options>] <base_image> <app.manifest>
 # [<app2.manifest> ...].
 def gsc_build(args):
+    global output_image_name
+    global unsigned_image_name
+
     image = args.image
+    name = args.name
+
+    set_output_image_name(image, name)
+
     user_manifests = args.manifests
 
     docker_socket = docker.from_env()
 
-    if get_docker_image(docker_socket, gsc_image_name(image)) is not None:
-        print(f'Image {gsc_image_name(image)} already exists, no gsc build required.')
+    if get_docker_image(docker_socket, output_image_name) is not None:
+        print(f'Image {output_image_name} already exists, no gsc build required.')
         sys.exit(0)
 
     base_image = get_docker_image(docker_socket, image)
@@ -203,24 +233,24 @@ def gsc_build(args):
 
     prepare_build_context(image, user_manifests, env, binary)
 
-    build_docker_image(gsc_image_name(image), gsc_unsigned_image_name(image), 'Dockerfile.build',
+    build_docker_image(output_image_name, unsigned_image_name, 'Dockerfile.build',
                        rm=args.rm, nocache=args.no_cache)
 
     # Check if docker build failed
-    if get_docker_image(docker_socket, gsc_unsigned_image_name(image)) is None:
+    if get_docker_image(docker_socket, unsigned_image_name) is None:
         print(f'Failed to build graphenized image for {image}')
         sys.exit(1)
 
     print(f'Successfully graphenized docker image {image} into docker image '
-          f'{gsc_unsigned_image_name(image)}')
+          f'{unsigned_image_name}')
 
 def generate_dockerfile_sign_manifests(image, env):
 
-    dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile.sign_manifests')
+    dockerfile_path = (pathlib.Path(output_image_name) / 'Dockerfile.sign_manifests')
     with open(dockerfile_path, 'w') as dockerfile:
         dockerfile.write(env.get_template(
             f'Dockerfile.{env.globals["Distro"]}.sign_manifests.template')
-            .render(image=gsc_unsigned_image_name(image)))
+            .render(image=unsigned_image_name))
 
 def gsc_sign_image(args):
 
@@ -229,7 +259,7 @@ def gsc_sign_image(args):
 
     docker_socket = docker.from_env()
 
-    gsc_image = get_docker_image(docker_socket, gsc_unsigned_image_name(image))
+    gsc_image = get_docker_image(docker_socket, unsigned_image_name)
     if gsc_image is None:
         print(f'Could not find graphenized Docker image of {image}.\n'
               f'Please make sure to build the graphenized image first by using gsc build command.')
@@ -242,13 +272,13 @@ def gsc_sign_image(args):
 
     generate_dockerfile_sign_manifests(image, env)
 
-    fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
+    fk_path = (pathlib.Path(output_image_name) / 'gsc-signer-key').with_suffix('.pem')
     shutil.copyfile(os.path.abspath(key), fk_path)
 
     try:
         # We force the removal of intermediate Docker images to not leave the signing
         # key in a Docker container.
-        build_docker_image(gsc_image_name(image), gsc_image_name(image),
+        build_docker_image(output_image_name, output_image_name,
                            'Dockerfile.sign_manifests', forcerm=True)
 
     finally:
@@ -256,12 +286,12 @@ def gsc_sign_image(args):
         os.remove(fk_path)
 
         # Check if docker build failed
-        if get_docker_image(docker_socket, gsc_image_name(image)) is None:
+        if get_docker_image(docker_socket, output_image_name) is None:
             print(f'Failed to sign graphenized image for {image}')
             sys.exit(1)
 
-        print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker '
-              f'image {gsc_image_name(image)}.')
+        print(f'Successfully signed docker image {unsigned_image_name} into docker '
+              f'image {output_image_name}.')
 
 argparser = argparse.ArgumentParser()
 subcommands = argparser.add_subparsers(metavar='<command>')
@@ -284,6 +314,8 @@ sub_build.add_argument('--rm', action='store_true',
     help='Remove intermediate Docker images when build is successful.')
 sub_build.add_argument('image',
     help='Name of the application Docker image.')
+sub_build.add_argument('-o', '--name',
+    help='Name of the GSC image to generate', default='')
 sub_build.add_argument('manifests',
     nargs='+',
     help='Application-specific manifest files. The first manifest will be used for the entry '
