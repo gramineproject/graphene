@@ -865,6 +865,9 @@ def main_sign(args):
     if manifest.get('sgx.enable_stats', None) is None:
         manifest['sgx.enable_stats'] = '0'
 
+    if manifest.get('sgx.zero_heap_on_demand', None) is None:
+        manifest['sgx.zero_heap_on_demand'] = '0'
+
     output_manifest(args['output'], manifest, manifest_layout)
 
     memory_areas = [
