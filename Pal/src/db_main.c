@@ -72,7 +72,7 @@ static int insert_envs_from_manifest(const char*** envpp) {
     int setenvs_cnt = 0;
 
     ssize_t cfgsize_envs = get_config_entries_size(store, "loader.env");
-    if (cfgsize_envs < 0)
+    if (cfgsize_envs <= 0)
         return 0;  /* No entries found. */
 
     char* cfgbuf_envs = malloc(cfgsize_envs);
@@ -108,13 +108,10 @@ static int insert_envs_from_manifest(const char*** envpp) {
                 break;
             }
 
-    /* TODO: This code appears to rely on the memory buffer being zero-
-     * initialized, so we use calloc here to get zeroed memory. We should
-     * audit this code to verify that it's correct. */
     const char** new_envp = calloc((nenvs + setenvs_cnt - noverwrite + 1), sizeof(const char*));
     if (nenvs)
         memcpy(new_envp, *envpp, sizeof(**envpp) * nenvs);
-    
+
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
     const char** ptr;

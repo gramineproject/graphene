@@ -86,11 +86,15 @@ arguments to be provided at runtime from an external (trusted) source.
 Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^
 
+::
+
+   loader.insecure__use_host_env = 1
+
 By default, environment variables from the host will *not* be passed to the app.
-This can be overriden by adding ``loader.insecure__use_host_env = 1``, but most
-applications and runtime libraries trust their environment variables and are
-completely insecure when these are attacker-controlled. For example, an attacker
-can execute an additional dynamic library by specifying ``LD_PRELOAD`` variable.
+This can be overridden by the option above, but most applications and runtime
+libraries trust their environment variables and are completely insecure when
+these are attacker-controlled. For example, an attacker can execute an
+additional dynamic library by specifying ``LD_PRELOAD`` variable.
 
 To securely set up the execution environment for an app you should use one or
 both of the following options:
@@ -106,7 +110,7 @@ be used multiple times to specify more than one variable.
 ``loader.env_src_file`` allows to specify a URI to a file containing serialized
 environment, which can be generated using :file:`Tools/argv_serializer`. This
 option is intended to point to either a trusted file or a protected file. The
-former allows to securely hardcode environments (in more flexible way than
+former allows to securely hardcode environments (in a more flexible way than
 ``loader.env.[ENVIRON]`` option), the latter allows the arguments to be provided
 at runtime from an external (trusted) source.
 
