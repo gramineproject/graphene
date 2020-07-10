@@ -148,6 +148,12 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
         uc->rip += 3;
         uc->rcx = 0; /* dummy IA32_TSC_AUX; Linux encodes it as (numa_id << 12) | cpu_id */
         return true;
+    } else if (instr[0] == 0xf3 && (instr[1] & ~1) == 0x48 && instr[2] == 0x0f &&
+               instr[3] == 0xae && instr[4] >> 6 == 0b11 && ((instr[4] >> 3) & 0b111) < 4) {
+        /* A disabled {RD,WR}{FS,GS}BASE instruction generated a #UD */
+        SGX_DBG(DBG_E, "The {RD,WR}{FS,GS}BASE instruction is not currently enabled. "
+                       "Please reload Graphene SGX kernel module.\n");
+        return false;
     } else if (instr[0] == 0x0f && instr[1] == 0x05) {
         /* syscall: LibOS may know how to handle this */
         return false;
