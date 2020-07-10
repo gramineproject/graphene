@@ -130,6 +130,14 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
         uc->rdx = 0;
         uc->rax = 0;
         return true;
+    } else if (instr[0] == 0xf3 && instr[1] == 0x48 &&
+               instr[0] == 0x0f && instr[1] == 0xae ) {
+        /* Current enclave prohibits the instructions of wrfsbase / rdfsbase  */
+        /* because the CPU FSGSBASE has been disabled at runtime */
+        /* for some reasons e.g. suspend, hibernate */
+        SGX_DBG(DBG_E, "The WRFSBASE/RDFSASE instruction is not permitted at this moment."
+                " Please re-load Graphene SGX kernel module \n");
+        return false;
     } else if (instr[0] == 0x0f && instr[1] == 0x05) {
         /* syscall: LibOS may know how to handle this */
         return false;
