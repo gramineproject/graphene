@@ -21,6 +21,7 @@ loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENE_DEBUG)
 
 loader.env.LD_LIBRARY_PATH = /graphene_lib:/blender_lib:/usr/$(ARCH_LIBDIR):$(ARCH_LIBDIR)
+loader.env.HOME = /home/user
 # Graphene implicitly copies host environment variables - overwriting troublesome one
 loader.env.PWD =
 
