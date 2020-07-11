@@ -41,15 +41,16 @@ void init_tsc(void) {
 
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long usec = 0;
-    int64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_num;
+    int64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_diff;
     int ret;
 
     if (g_tsc_hz > 0) {
         _DkInternalLock(&g_tsc_lock);
         if (g_start_tsc > 0 && g_start_usec > 0) {
             /* calculate the TSC based time */
-            if (!__builtin_mul_overflow(get_tsc() - g_start_tsc, 1000000, &tsc_num)) {
-                tsc_usec = g_start_usec + (tsc_num / g_tsc_hz);
+            tsc_diff = get_tsc() - g_start_tsc;
+            if (tsc_diff < INT64_MAX / 1000000) {
+                tsc_usec = g_start_usec + (tsc_diff * 1000000 / g_tsc_hz);
                 /* determine whether it needs to be refined periodically */
                 if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
                     usec = tsc_usec;
