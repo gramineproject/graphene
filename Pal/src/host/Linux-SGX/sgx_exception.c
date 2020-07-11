@@ -110,10 +110,7 @@ static bool interrupted_in_enclave(struct ucontext* uc) {
 
     /* in case of AEX, RIP can point to any instruction in the AEP/ERESUME trampoline code, i.e.,
      * RIP can point to anywhere in [async_exit_pointer, async_exit_pointer_end) interval */
-    if (rip >= (unsigned long)async_exit_pointer && rip < (unsigned long)async_exit_pointer_end)
-        return true;
-
-    return false;
+    return rip >= (unsigned long)async_exit_pointer && rip < (unsigned long)async_exit_pointer_end;
 }
 
 static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
@@ -171,6 +168,8 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
 
     /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if syscall
      * was interrupted */
+    /* TODO: we abandon PAL state here (possibly still holding some locks, etc) and return to
+     *       enclave; ideally we must unwind/fix the state and only then jump into enclave */
     pal_ucontext_set_function_parameters(uc, sgx_entry_return, 2, -EINTR, event);
 }
 
