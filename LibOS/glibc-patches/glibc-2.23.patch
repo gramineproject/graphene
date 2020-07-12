@@ -158,14 +158,16 @@ index fa3cf1da44807240b15f7e4d4da3fde43abeca0c..6cc5524eee60b6415dfc38700a7085a5
  # `struct utmp' format, which depends on libc.
  libutil=1
 diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
-index 202de93cc5b94ca161322e978ffa3b6ea8286c98..260a71382ea373627394a360a5c6fa4ddb323086 100644
+index 202de93cc5b94ca161322e978ffa3b6ea8286c98..105479cce4e15b3d544ac3bdb4b8e3b4d47d2695 100644
 --- a/sysdeps/gnu/errlist-compat.awk
 +++ b/sysdeps/gnu/errlist-compat.awk
-@@ -56,7 +56,7 @@ END {
+@@ -56,7 +56,9 @@ END {
      exit 0;
    }
  
 -  count = maxerr + 1;
++  # This prevents `*** errlist.c count 134 inflated to GLIBC_2.12 count 135 (old errno.h?)` warning
++  # from being generated, which happens even without our patches.
 +  count = maxerr + 2;
  
    if (highest < count) {
