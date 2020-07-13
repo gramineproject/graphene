@@ -109,6 +109,19 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
     }
 }
 
+static void emulate_rdtsc_and_print_warning(sgx_cpu_context_t* uc) {
+    static int first = 0;
+    if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) == 0) {
+        SGX_DBG(DBG_E, "WARNING: all RDTSC/RDTSCP instructions are emulated (imprecisely) via "
+                       "gettime() syscall.\n");
+    }
+
+    /* FIXME: Ideally, we would like to scale microseconds back to RDTSC clock cycles */
+    uint64_t usec = _DkSystemTimeQuery();
+    uc->rdx = (uint32_t)(usec >> 32);
+    uc->rax = (uint32_t)usec;
+}
+
 /* return value: true if #UD was handled and execution can be continued without propagating #UD;
  *               false if #UD was not handled and exception needs to be raised up to LibOS/app */
 static bool handle_ud(sgx_cpu_context_t* uc) {
@@ -126,33 +139,13 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
         }
     } else if (instr[0] == 0x0f && instr[1] == 0x31) {
         /* rdtsc */
-        static int first = 0;
-        if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) == 0) {
-            SGX_DBG(DBG_E, "WARNING: all RDTSC instructions are emulated (imprecisely) via "
-                           "gettime() syscall.\n");
-        }
-
+        emulate_rdtsc_and_print_warning(uc);
         uc->rip += 2;
-
-        /* FIXME: Ideally, we would like to scale microseconds back to RDTSC clock cycles */
-        uint64_t usec = _DkSystemTimeQuery();
-        uc->rdx = (uint32_t)(usec >> 32);
-        uc->rax = (uint32_t)usec;
         return true;
     }  else if (instr[0] == 0x0f && instr[1] == 0x01 && instr[2] == 0xf9) {
         /* rdtscp */
-        static int first = 0;
-        if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) == 0) {
-            SGX_DBG(DBG_E, "WARNING: all RDTSCP instructions are emulated (imprecisely) via "
-                           "gettime() syscall and return CPU id = 0.\n");
-        }
-
+        emulate_rdtsc_and_print_warning(uc);
         uc->rip += 3;
-
-        /* FIXME: Ideally, we would like to scale microseconds back to RDTSC clock cycles */
-        uint64_t usec = _DkSystemTimeQuery();
-        uc->rdx = (uint32_t)(usec >> 32);
-        uc->rax = (uint32_t)usec;
         uc->rcx = 0; /* dummy IA32_TSC_AUX; Linux encodes it as (numa_id << 12) | cpu_id */
         return true;
     } else if (instr[0] == 0x0f && instr[1] == 0x05) {
