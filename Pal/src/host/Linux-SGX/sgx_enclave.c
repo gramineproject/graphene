@@ -180,6 +180,15 @@ static long sgx_ocall_fstat(void * pms)
     return ret;
 }
 
+static long sgx_ocall_stat(void * pms)
+{
+    ms_ocall_stat_t * ms = (ms_ocall_stat_t *) pms;
+    long ret;
+    ODEBUG(OCALL_STAT, ms);
+    ret = INLINE_SYSCALL(stat, 2, ms->ms_pathname, &ms->ms_stat);
+    return ret;
+}
+
 static long sgx_ocall_fionread(void * pms)
 {
     ms_ocall_fionread_t * ms = (ms_ocall_fionread_t *) pms;
@@ -703,6 +712,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_LOAD_DEBUG]       = sgx_ocall_load_debug,
         [OCALL_EVENTFD]          = sgx_ocall_eventfd,
         [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
+        [OCALL_STAT]             = sgx_ocall_stat,
     };
 
 #define EDEBUG(code, ms) do {} while (0)

@@ -34,6 +34,8 @@ ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset);
 
 int ocall_fstat (int fd, struct stat * buf);
 
+int ocall_stat (const char * pathname, struct stat * buf);
+
 int ocall_fionread (int fd);
 
 int ocall_fsetnonblock (int fd, int nonblocking);

@@ -586,6 +586,36 @@ int ocall_fstat (int fd, struct stat * buf)
     return retval;
 }
 
+int ocall_stat (const char * pathname, struct stat * buf)
+{
+    int retval = 0;
+    int len = pathname ? strlen(pathname) + 1 : 0;
+    ms_ocall_stat_t * ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    void* untrusted_pathname = sgx_copy_to_ustack(pathname, len);
+    if (!untrusted_pathname) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+    WRITE_ONCE(ms->ms_pathname, untrusted_pathname);
+
+    retval = sgx_exitless_ocall(OCALL_STAT, ms);
+
+    sgx_reset_ustack(old_ustack);
+    if (!retval) {
+        memcpy(buf, &ms->ms_stat, sizeof(struct stat));
+    }
+
+    return retval;
+}
+
 int ocall_fionread (int fd)
 {
     int retval = 0;

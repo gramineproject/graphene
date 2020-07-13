@@ -90,8 +90,17 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
 
     if (!stubs) {
         ret = ocall_pread(handle->file.fd, buffer, count, offset);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == ESPIPE) {
+            /* the file handle may be a pipe, try read */
+                ret = ocall_read(handle->file.fd, buffer, count);
+                if (IS_ERR(ret))
+                    return unix_to_pal_error(ERRNO(ret));
+            } else {
+                return unix_to_pal_error(ERRNO(ret));
+            }
+        }
+        
         return ret;
     }
 
@@ -122,8 +131,17 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
 
     if (!stubs) {
         ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == ESPIPE) {
+                /* the file handle may be a pipe, try read */
+                ret = ocall_write(handle->file.fd, buffer, count);
+                if (IS_ERR(ret))
+                    return unix_to_pal_error(ERRNO(ret));
+            } else {
+                return unix_to_pal_error(ERRNO(ret));
+            }
+        }
+        
         return ret;
     }
 
@@ -274,17 +292,12 @@ static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 
 /* 'attrquery' operation for file streams */
 static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
+	struct stat stat_buf;
+    
     if (strcmp_static(type, URI_TYPE_FILE) && strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
-    /* try to do the real open */
-    int fd = ocall_open(uri, 0, 0);
-    if (IS_ERR(fd))
-        return unix_to_pal_error(ERRNO(fd));
 
-    struct stat stat_buf;
-    int ret = ocall_fstat(fd, &stat_buf);
-    ocall_close(fd);
-
+    int ret = ocall_stat(uri, &stat_buf);
     /* if it failed, return the right error code */
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));

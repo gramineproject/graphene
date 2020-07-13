@@ -59,6 +59,7 @@ enum {
     OCALL_LOAD_DEBUG,
     OCALL_EVENTFD,
     OCALL_GET_QUOTE,
+    OCALL_STAT,
     OCALL_NR,
 };
 
@@ -126,6 +127,11 @@ typedef struct {
     int ms_fd;
     struct stat ms_stat;
 } ms_ocall_fstat_t;
+
+typedef struct {
+    const char * ms_pathname;
+    struct stat ms_stat;
+} ms_ocall_stat_t;
 
 typedef struct {
     int ms_fd;
