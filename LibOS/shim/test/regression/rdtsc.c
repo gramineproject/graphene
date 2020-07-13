@@ -31,6 +31,7 @@ int main(int argc, char** argv) {
             break;
         if (tries++ == 100) {
             /* give up after several tries */
+            fprintf(stderr, "failed to sleep for 1 second!\n");
             return 1;
         }
     }
@@ -38,6 +39,7 @@ int main(int argc, char** argv) {
 
     if (end < start || end - start < 1000000) {
         /* after a sleep of 1s, there must have been at least 1M ticks, otherwise smth wrong */
+        fprintf(stderr, "RDTSC difference doesn't correspond to sleep of 1 second!\n");
         return 1;
     }
 

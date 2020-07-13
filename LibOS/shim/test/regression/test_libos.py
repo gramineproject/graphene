@@ -613,8 +613,10 @@ class TC_90_CpuidSGX(RegressionTestCase):
         stdout, _ = self.run_binary(['cpuid'])
         self.assertIn('CPUID test passed.', stdout)
 
-@unittest.skipUnless(ON_X86, 'x86-specific')
-class TC_91_Rdtsc(RegressionTestCase):
+# note that `rdtsc` also correctly runs on non-SGX PAL, but non-SGX CPU may not have rdtscp
+@unittest.skipUnless(HAS_SGX,
+    'This test is only meaningful on SGX PAL because only SGX emulates RDTSC/RDTSCP.')
+class TC_91_RdtscSGX(RegressionTestCase):
     def test_000_rdtsc(self):
         stdout, _ = self.run_binary(['rdtsc'])
         self.assertIn('TEST OK', stdout)
