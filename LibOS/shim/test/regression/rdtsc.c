@@ -22,12 +22,17 @@ static uint64_t rdtsc_end(void) {
 }
 
 int main(int argc, char** argv) {
+    int tries = 0;
     uint64_t start = rdtsc_start();
     while (1) {
         /* sleep may return prematurely, make sure we sleep for 1s at least once */
         unsigned int remaining = sleep(1);
         if (!remaining)
             break;
+        if (tries++ == 100) {
+            /* give up after several tries */
+            return 1;
+        }
     }
     uint64_t end = rdtsc_end();
 
