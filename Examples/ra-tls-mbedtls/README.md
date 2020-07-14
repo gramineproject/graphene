@@ -132,7 +132,7 @@ kill %%
 
 - RA-TLS flows with SGX and with Graphene, running EPID client in SGX:
 
-Note: if needed, add environment variables to client.manifest.template, such as
+Note: you may also add environment variables to client.manifest.template, such as
 `RA_TLS_ALLOW_OUTDATED_TCB_INSECURE`, `RA_TLS_MRENCLAVE`, `RA_TLS_MRSIGNER`, `RA_TLS_ISV_PROD_ID`
 and `RA_TLS_ISV_SVN`.
 
