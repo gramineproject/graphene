@@ -386,3 +386,7 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     free(pal_quote);
     return 0;
 }
+
+int _DkSetProtectedFilesKey(const PAL_PTR pf_key_hex, PAL_NUM pf_key_hex_size) {
+    return set_protected_files_key(pf_key_hex, pf_key_hex_size);
+}

@@ -786,6 +786,19 @@ PAL_BOL DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_
 PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
                            PAL_PTR quote, PAL_NUM* quote_size);
 
+/*!
+ * \brief Set wrap key (master key) for protected files.
+ *
+ * Currently, works only for Linux-SGX PAL. This function is supposed to be called during
+ * remote attestation and secret provisioning, before the user application starts.
+ *
+ * \param[in]     pf_key_hex       Wrap key for protected files. Must be a 32-char null-terminated
+ *                                 hex string in case of SGX PAL (AES-GCM encryption key).
+ * \param[in]     pf_key_hex_size  Size in bytes of `pf_key_hex`. Must be exactly 33B (includes
+ *                                 null byte) in case of SGX PAL.
+ */
+PAL_BOL DkSetProtectedFilesKey(PAL_PTR pf_key_hex, PAL_NUM pf_key_hex_size);
+
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \
     __asm__ (".symver " #real "," #name "@@" #version "\n")

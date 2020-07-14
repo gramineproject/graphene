@@ -611,3 +611,24 @@ int unload_protected_file(struct protected_file* pf) {
     pf->context = NULL;
     return 0;
 }
+
+int set_protected_files_key(const char* pf_key_hex, size_t pf_key_hex_size) {
+    if (pf_key_hex_size != PF_KEY_SIZE * 2 + 1) {
+        return -PAL_ERROR_INVAL;
+    }
+
+    pf_lock();
+    memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));
+    for (size_t i = 0; i < pf_key_hex_size - 1; i++) {
+        int8_t val = hex2dec(pf_key_hex[i]);
+        if (val < 0) {
+            memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));
+            pf_unlock();
+            return -PAL_ERROR_INVAL;
+        }
+        g_pf_wrap_key[i/2] = g_pf_wrap_key[i/2] * 16 + (uint8_t)val;
+    }
+    pf_unlock();
+
+    return 0;
+}

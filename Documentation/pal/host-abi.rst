@@ -406,3 +406,6 @@ and to obtain an attestation report and quote.
 
 .. doxygenfunction:: DkAttestationQuote
    :project: pal
+
+.. doxygenfunction:: DkSetProtectedFilesKey
+   :project: pal

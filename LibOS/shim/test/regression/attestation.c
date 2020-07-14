@@ -234,6 +234,7 @@ static const char* paths[] = {
     "/dev/attestation/target_info",
     "/dev/attestation/my_target_info",
     "/dev/attestation/report",
+    "/dev/attestation/protected_files_key",
 };
 
 /*!
