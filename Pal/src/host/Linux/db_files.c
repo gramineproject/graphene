@@ -51,15 +51,35 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     /* if try_create_path succeeded, prepare for the file handle */
     size_t uri_size = strlen(uri) + 1;
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + uri_size);
+    if (!hdl) {
+        INLINE_SYSCALL(close, 1, ret);
+        return -PAL_ERROR_NOMEM;
+    }
+
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0);
     hdl->file.fd = ret;
     hdl->file.map_start = NULL;
     char* path = (void*)hdl + HANDLE_SIZE(file);
     ret = get_norm_path(uri, path, &uri_size);
-    if (ret < 0)
+    if (ret < 0) {
+        INLINE_SYSCALL(close, 1, hdl->file.fd);
+        free(hdl);
         return ret;
+    }
+
     hdl->file.realpath = (PAL_STR)path;
+
+    struct stat st;
+    ret = INLINE_SYSCALL(fstat, 2, hdl->file.fd, &st);
+    if (IS_ERR(ret)) {
+        INLINE_SYSCALL(close, 1, hdl->file.fd);
+        free(hdl);
+        return unix_to_pal_error(ERRNO(ret));
+    }
+
+    hdl->file.seekable = !S_ISFIFO(st.st_mode);
+
     *handle = hdl;
     return 0;
 }
@@ -71,7 +91,11 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     int fd = handle->file.fd;
     int64_t ret;
 
-    ret = INLINE_SYSCALL(pread64, 4, fd, buffer, count, offset);
+    if (handle->file.seekable) {
+        ret = INLINE_SYSCALL(pread64, 4, fd, buffer, count, offset);
+    } else {
+        ret = INLINE_SYSCALL(read, 3, fd, buffer, count);
+    }
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
@@ -86,7 +110,11 @@ static int64_t file_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     int fd = handle->file.fd;
     int64_t ret;
 
-    ret = INLINE_SYSCALL(pwrite64, 4, fd, buffer, count, offset);
+    if (handle->file.seekable) {
+        ret = INLINE_SYSCALL(pwrite64, 4, fd, buffer, count, offset);
+    } else {
+        ret = INLINE_SYSCALL(write, 3, fd, buffer, count);
+    }
 
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
