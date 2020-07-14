@@ -122,6 +122,7 @@ int sgx_raise (int event);
 
 void async_exit_pointer(void);
 void eresume_pointer(void);
+void async_exit_pointer_end(void);
 
 int interrupt_thread (void * tcs);
 int clone_thread (void);

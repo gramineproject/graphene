@@ -19,7 +19,7 @@ ias_request: ias_request.o
 
 .PHONY: install
 install:
-	install ias_request ${PREFIX}/bin
+	install -D ias_request -t ${PREFIX}/bin
 
 .PHONY: clean
 clean:

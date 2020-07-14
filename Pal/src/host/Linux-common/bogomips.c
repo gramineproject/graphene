@@ -27,8 +27,8 @@ static double proc_cpuinfo_atod(const char* s) {
  * This function will return a pointer to the string at the position after the ': '
  * found in that line, NULL otherwise.
  */
-static const char* find_entry_in_cpuinfo(const char* cpuinfo, const char* word) {
-    const char* start = strstr(cpuinfo, word);
+static char* find_entry_in_cpuinfo(const char* cpuinfo, const char* word) {
+    char* start = strstr(cpuinfo, word);
     if (!start)
         return NULL;
 
@@ -43,7 +43,7 @@ static const char* find_entry_in_cpuinfo(const char* cpuinfo, const char* word) 
 }
 
 double get_bogomips_from_cpuinfo_buf(const char* buf) {
-    const char* start = find_entry_in_cpuinfo(buf, "bogomips");
+    char* start = find_entry_in_cpuinfo(buf, "bogomips");
     if (!start)
         return 0.0;
     return proc_cpuinfo_atod(start);

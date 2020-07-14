@@ -17,6 +17,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
+#include "protected_files.h"
 
 #include <asm/ioctls.h>
 #include <asm/mman.h>
@@ -106,16 +107,10 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     return handle;
 }
 
-static int loader_filter (const char * key, int len)
-{
-    if (len > 7 && key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
-        key[4] == 'e' && key[5] == 'r' && key[6] == '.')
-        return 0;
-
-    if (len > 4 && key[0] == 's' && key[1] == 'g' && key[2] == 'x' && key[3] == '.')
-        return 0;
-
-    return 1;
+static bool loader_filter(const char* key, size_t len) {
+    // beware: `key` may not be NUL-terminated!
+    return (len >= strlen("loader.") && !memcmp(key, "loader.", strlen("loader.")))
+        || (len >= strlen("sgx.") && !memcmp(key, "sgx.", strlen("sgx.")));
 }
 
 /*
@@ -206,6 +201,26 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
     g_pal_sec.heap_max = GET_ENCLAVE_TLS(heap_max);
     g_pal_sec.exec_addr = GET_ENCLAVE_TLS(exec_addr);
     g_pal_sec.exec_size = GET_ENCLAVE_TLS(exec_size);
+
+    g_pal_sec.zero_heap_on_demand = sec_info.zero_heap_on_demand;
+
+    if (!g_pal_sec.zero_heap_on_demand) {
+        /* zero the heap during init; we need to take care to not zero the exec area */
+        void* zero1_start = g_pal_sec.heap_min;
+        void* zero1_end   = g_pal_sec.heap_max;
+
+        void* zero2_start = g_pal_sec.heap_max;
+        void* zero2_end   = g_pal_sec.heap_max;
+
+        if (g_pal_sec.exec_addr != NULL) {
+            zero1_end   = MIN(zero1_end, SATURATED_P_SUB(g_pal_sec.exec_addr, MEMORY_GAP, 0));
+            zero2_start = SATURATED_P_ADD(g_pal_sec.exec_addr + g_pal_sec.exec_size, MEMORY_GAP,
+                          zero2_end);
+        }
+
+        memset(zero1_start, 0, zero1_end - zero1_start);
+        memset(zero2_start, 0, zero2_end - zero2_start);
+    }
 
     /* relocate PAL itself */
     g_pal_map.l_addr = elf_machine_load_address();
@@ -375,6 +390,11 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
 
     if ((rv = init_file_check_policy()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the file check policy: %d\n", rv);
+        ocall_exit(rv, true);
+    }
+
+    if ((rv = init_protected_files()) < 0) {
+        SGX_DBG(DBG_E, "Failed to initialize protected files: %d\n", rv);
         ocall_exit(rv, true);
     }
 

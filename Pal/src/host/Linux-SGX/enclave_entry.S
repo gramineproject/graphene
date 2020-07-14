@@ -453,6 +453,11 @@ enclave_entry:
 	subq $8, %rsi
 	movq %rsi, SGX_GPR_RSP(%rbx)
 
+	# clear SSA.GPRSGX.EXITINFO; we used it to identify HW exception (if any),
+	# and a scenario is possible where the same SSA is re-used to handle more
+	# signals that arrive right after this exception, so we must clear state
+	movq $0, SGX_GPR_EXITINFO(%rbx)
+
 	# clear RFLAGS.DF to conform to the SysV ABI, clear RFLAGS.AC to prevent
 	# the #AC-fault side channel
 	andq $(~(RFLAGS_DF | RFLAGS_AC)), SGX_GPR_RFLAGS(%rbx)

@@ -127,7 +127,7 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
     if (proc_param->manifest)
         handle_set_cloexec(proc_param->manifest, false);
 
-    int res = INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv, g_linux_state.environ);
+    int res = INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv, g_linux_state.host_environ);
     /* execve failed, but we're after vfork, so we can't do anything more than just exit */
     INLINE_SYSCALL(exit_group, 1, ERRNO(res));
     /* UNREACHABLE */

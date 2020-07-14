@@ -40,6 +40,10 @@ pipeline {
                         sh '''
                             make SGX=1 sgx-tokens
                         '''
+                        sh '''
+                            cd Pal/src/host/Linux-SGX/tools
+                            make install PREFIX=../../../../../../LibOS/shim/test/fs
+                        '''
                     }
                 }
                 stage('Test') {

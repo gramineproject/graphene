@@ -1,0 +1,32 @@
+loader.preload = file:/graphene/Runtime/libsysdb.so
+
+# Get path of binary
+loader.exec = file:{{"{{binary_path}}"}}
+loader.execname = {{binary}}
+loader.env.LD_LIBRARY_PATH = /graphene/Runtime:{{"{{library_paths}}"}}
+loader.env.PATH = {{"{{env_path}}"}}
+loader.debug_type = {% if debug %} inline {% else %} none {% endif %}
+
+fs.root.type = chroot
+fs.root.path = /
+fs.root.uri = file:/
+
+# With fs.root Graphene's working directory is '/', setting fs.start_dir changes the
+# working directory to the desired location
+fs.start_dir = {{working_dir}}
+
+# Start at static addresses (otherwise breaks when static and PIE executables are used)
+sgx.static_address = 1
+
+{% if insecure_args %}
+# !! INSECURE !! Allow passing command-line arguments from the host without validation
+# Most Docker images rely on runtime arguments and hence, a more general technique is required.
+# The issue is documented for future release of GSC in issue #1520.
+# https://github.com/oscarlab/graphene/issues/1520
+loader.insecure__use_cmdline_argv = 1
+{% else %}
+loader.argv_src_file = file:trusted_argv
+sgx.trusted_files.trusted_argv = file:trusted_argv
+{% endif %}
+
+# All trusted files and the user defined manifest specifications should be after this line

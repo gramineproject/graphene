@@ -20,6 +20,7 @@
 #include <asm/errno.h>
 #include <linux/signal.h>
 #include <sigset.h>
+#include <stdbool.h>
 #include <ucontext.h>
 
 #if defined(__x86_64__)
@@ -104,6 +105,14 @@ static int get_pal_event(int sig) {
     }
 }
 
+static bool interrupted_in_enclave(struct ucontext* uc) {
+    unsigned long rip = pal_ucontext_get_ip(uc);
+
+    /* in case of AEX, RIP can point to any instruction in the AEP/ERESUME trampoline code, i.e.,
+     * RIP can point to anywhere in [async_exit_pointer, async_exit_pointer_end) interval */
+    return rip >= (unsigned long)async_exit_pointer && rip < (unsigned long)async_exit_pointer_end;
+}
+
 static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc) {
     int event = get_pal_event(signum);
     assert(event > 0);
@@ -115,28 +124,29 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    unsigned long rip = pal_ucontext_get_ip(uc);
-
-    if (rip != (unsigned long)async_exit_pointer) {
-        /* exception happened in untrusted PAL code (during syscall handling): fatal in Graphene */
-        switch (signum) {
-            case SIGSEGV:
-                SGX_DBG(DBG_E, "Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
-                break;
-            case SIGILL:
-                SGX_DBG(DBG_E, "Illegal Instruction in Untrusted Code (RIP = %08lx)\n", rip);
-                break;
-            case SIGFPE:
-                SGX_DBG(DBG_E, "Arithmetic Exception in Untrusted Code (RIP = %08lx)\n", rip);
-                break;
-            case SIGBUS:
-                SGX_DBG(DBG_E, "Memory Mapping Exception in Untrusted Code (RIP = %08lx)\n", rip);
-                break;
-        }
-        INLINE_SYSCALL(exit, 1, 1);
+    if (interrupted_in_enclave(uc)) {
+        /* exception happened in app/LibOS/trusted PAL code, handle signal inside enclave */
+        sgx_raise(event);
+        return;
     }
 
-    sgx_raise(event);
+    /* exception happened in untrusted PAL code (during syscall handling): fatal in Graphene */
+    unsigned long rip = pal_ucontext_get_ip(uc);
+    switch (signum) {
+        case SIGSEGV:
+            SGX_DBG(DBG_E, "Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
+            break;
+        case SIGILL:
+            SGX_DBG(DBG_E, "Illegal Instruction in Untrusted Code (RIP = %08lx)\n", rip);
+            break;
+        case SIGFPE:
+            SGX_DBG(DBG_E, "Arithmetic Exception in Untrusted Code (RIP = %08lx)\n", rip);
+            break;
+        case SIGBUS:
+            SGX_DBG(DBG_E, "Memory Mapping Exception in Untrusted Code (RIP = %08lx)\n", rip);
+            break;
+    }
+    INLINE_SYSCALL(exit, 1, 1);
 }
 
 static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {
@@ -150,16 +160,17 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
         for (size_t i = 0; i < g_rpc_queue->rpc_threads_cnt; i++)
             INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
-    unsigned long rip = pal_ucontext_get_ip(uc);
-
-    if (rip != (unsigned long)async_exit_pointer) {
-        /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if
-         * syscall was interrupted */
-        pal_ucontext_set_function_parameters(uc, sgx_entry_return, 2, -EINTR, event);
-    } else {
+    if (interrupted_in_enclave(uc)) {
         /* signal arrived while in app/LibOS/trusted PAL code, handle signal inside enclave */
         sgx_raise(event);
+        return;
     }
+
+    /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if syscall
+     * was interrupted */
+    /* TODO: we abandon PAL state here (possibly still holding some locks, etc) and return to
+     *       enclave; ideally we must unwind/fix the state and only then jump into enclave */
+    pal_ucontext_set_function_parameters(uc, sgx_entry_return, 2, -EINTR, event);
 }
 
 static void handle_dummy_signal(int signum, siginfo_t* info, struct ucontext* uc) {
