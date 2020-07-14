@@ -73,8 +73,16 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 
     ret = INLINE_SYSCALL(pread64, 4, fd, buffer, count, offset);
 
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (IS_ERR(ret)) {
+        if (ERRNO(ret) == ESPIPE) {
+            /* this file handle may be a pipe, try read */
+            ret = INLINE_SYSCALL(read, 3, fd, buffer, count);
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
+        } else {
+            return unix_to_pal_error(ERRNO(ret));
+        }
+    }
 
     return ret;
 }
@@ -88,8 +96,17 @@ static int64_t file_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 
     ret = INLINE_SYSCALL(pwrite64, 4, fd, buffer, count, offset);
 
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (IS_ERR(ret)) {
+        if (ERRNO(ret) == ESPIPE) {
+            /* this file handle may be a pipe, try read */
+            ret = INLINE_SYSCALL(write, 3, fd, buffer, count);
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
+        } else {
+            return unix_to_pal_error(ERRNO(ret));
+        }
+    }
+
 
     return ret;
 }

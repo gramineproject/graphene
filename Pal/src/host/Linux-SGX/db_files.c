@@ -176,8 +176,17 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
 
     if (!stubs) {
         ret = ocall_pread(handle->file.fd, buffer, count, offset);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == ESPIPE) {
+                /* the file handle may be a pipe, try read */
+                ret = ocall_read(handle->file.fd, buffer, count);
+                if (IS_ERR(ret))
+                    return unix_to_pal_error(ERRNO(ret));
+            } else {
+                return unix_to_pal_error(ERRNO(ret));
+            }
+        }
+
         return ret;
     }
 
@@ -233,8 +242,17 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
 
     if (!stubs) {
         ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == ESPIPE) {
+                /* the file handle may be a pipe, try read */
+                ret = ocall_write(handle->file.fd, buffer, count);
+                if (IS_ERR(ret))
+                    return unix_to_pal_error(ERRNO(ret));
+            } else {
+                return unix_to_pal_error(ERRNO(ret));
+            }
+        }
+
         return ret;
     }
 
@@ -548,7 +566,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
         return -PAL_ERROR_INVAL;
 
     /* try to do the real open */
-    int fd = ocall_open(uri, 0, 0);
+    int fd = ocall_open(uri, O_NONBLOCK, 0);
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
 
