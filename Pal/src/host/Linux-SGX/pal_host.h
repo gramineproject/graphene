@@ -83,6 +83,7 @@ typedef struct pal_handle
             /* below fields are used only for trusted files */
             PAL_PTR stubs;    /* contains hashes of file chunks */
             PAL_PTR umem;     /* valid only when stubs != NULL */
+            PAL_BOL seekable; /* regular files are seekable, FIFO pipes are not */
         } file;
 
         struct {
