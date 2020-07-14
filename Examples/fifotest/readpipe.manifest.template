@@ -1,0 +1,109 @@
+# Busybox manifest file example
+#
+# This manifest was prepared and tested on Ubuntu 16.04.
+
+################################## GRAPHENE ###################################
+
+# Executable to load into Graphene and run.
+loader.exec = file:readpipe
+
+# Name of the executable e.g. as visible through argv[0] when ran as manifest
+# file (`./pal_loader busybox.manifest`).
+loader.execname = readpipe
+
+loader.debug_type = $(GRAPHENEDEBUG)
+
+# Name of the executable e.g. as visible through argv[0] when ran as manifest
+# file (`./pal_loader busybox.manifest`).
+loader.argv0_override = readpipe
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
+# LibOS layer library of Graphene. There is currently only one implementation,
+# so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
+# to relative path to Graphene repository in the Makefile as part of the
+# build process.
+loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+
+# Show/hide debug log of Graphene ('inline' or 'none' respectively). Note that
+# GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
+# build process.
+
+################################# ENV VARS  ###################################
+
+# Specify paths to search for libraries. Since there might be no
+# '/etc/ld.so.cache' inside Graphene, any non-standard paths need to be added
+# - LD_LIBRARY_PATH is used and the usual syntax applies. Paths must be
+# in-Graphene visible paths, not host-OS paths (i.e. paths must be taken from
+# fs.mount.xxx.path, not fs.mount.xxx.uri).
+#
+# In case of Busybox:
+# - /lib is searched for Glibc libraries (ld, libc, libresolv) provided by
+#   graphene,
+# - $(ARCH_LIBDIR) is searched for libcrypt, NSS libraries.
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
+
+# Explicitly set some environment variables used by Busybox.
+loader.env.PATH = /:/usr/sbin:/usr/bin:/sbin:/bin
+loader.env.USERNAME =
+loader.env.HOME =
+loader.env.PWD =
+loader.env.HOSTNAME = test
+
+################################# MOUNT FS  ###################################
+
+# General notes:
+# - There is only one supported type of mount points: 'chroot'.
+# - Directory names are (somewhat confusingly) prepended by 'file:'.
+# - Names of mount entries (lib1, lib2) are irrelevant but must be unique.
+# - In-Graphene visible path names may be arbitrary.
+
+# Mount host-OS directory containing Graphene glibc/runtime libraries
+# (specified as 'uri', GRAPHENEDIR macro is expanded in the Makefile as part
+# of the build process) into in-Graphene visible directory /lib (specified
+# as 'path').
+fs.mount.lib1.type = chroot
+fs.mount.lib1.path = /lib
+fs.mount.lib1.uri = file:$(GRAPHENEDIR)/Runtime
+
+# Mount host-OS directory contanining libcrypt and NSS libraries.
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
+
+# Mount host-OS directory to NSS files required by Glibc + NSS libraries.
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:/etc
+
+############################# SGX: TRUSTED LIBS ###############################
+
+# Specify all libraries used by Busybox and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to libraries
+# are host-OS paths. These libraries will be searched for in in-Graphene
+# visible paths according to mount points above.
+#
+# As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
+# specified library, measures its hash and outputs the hash in auto-generated
+# entry 'sgx.trusted_checksum.xxx' in auto-generated 'busybox.manifest.sgx'
+# file. Note that this happens on the developer's machine.
+#
+# At runtime, during loading of this library, Graphene-SGX measures its hash
+# and compares it with the one specified in 'sgx.trusted_checksum.xxx'. If both
+# hashes match, this library is trusted and allowed to be loaded and used. Note
+# that this happens on the client machine.
+
+# Glibc libraries.
+sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+sgx.trusted_files.libresolv = file:$(GRAPHENEDIR)/Runtime/libresolv.so.2
+sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
+sgx.trusted_files.libsysdb = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+
+############################ SGX: TRUSTED FILES ###############################
+
+############################# SGX: ALLOWED FILES ##############################
+sgx.file_check_policy = allow_all_but_log
+
+sgx.allowed_files.testpipe = file:testpipe
