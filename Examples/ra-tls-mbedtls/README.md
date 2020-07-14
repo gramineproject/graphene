@@ -140,7 +140,7 @@ and `RA_TLS_ISV_SVN`.
 make clean
 RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app client_epid.manifest.sgx
 
-SGX=1 ./pal_loader ./server dcap &
+SGX=1 ./pal_loader ./server epid &
 
 RA_TLS_EPID_API_KEY=12345678901234567890123456789012 SGX=1 ./pal_loader client_epid.manifest.sgx epid
 

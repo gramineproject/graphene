@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
             mbedtls_printf("%s\n", dlerror());
             mbedtls_printf("User requested RA-TLS verification with EPID but cannot find lib\n");
             if (in_sgx) {
-                mbedtls_printf("Perhaps you are using the wrong manifest?\n");
+                mbedtls_printf("Please check if you are using the correct manifest.\n");
             }
             return 1;
         }
@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
             if (!ra_tls_verify_lib) {
                 mbedtls_printf("%s\n", dlerror());
                 mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find lib\n");
-                mbedtls_printf("Perhaps you are using the wrong manifest?\n");
+                mbedtls_printf("Please check if you are using the correct manifest.\n");
                 return 1;
             }
         } else {
