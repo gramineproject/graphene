@@ -16,6 +16,7 @@ MIT JOS (mix of MIT and BSD licenses):
 * Pal/lib/stdlib/printfmt.c
 
 cJSON - MIT
+uthash - BSD revised
 
 A number of files taken from other C libraries:
 * musl - MIT

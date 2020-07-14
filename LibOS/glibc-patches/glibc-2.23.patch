@@ -35,6 +35,19 @@ index 7fc92ae3a278e5014b4dc1c5ccccb799cc378fdd..75811230906df19d159ca780102a656f
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
+diff --git a/Makerules b/Makerules
+index 53eabfaba82a127221089112b40a51dc5e6949ea..fcb9f92ccee70fdaf5d4acd2430668e5964d57e3 100644
+--- a/Makerules
++++ b/Makerules
+@@ -802,7 +802,7 @@ verbose	:=
+ endif						# not -s
+ 
+ ARFLAGS := r$(verbose)
+-CREATE_ARFLAGS := cru$(verbose)
++CREATE_ARFLAGS := cr$(verbose)
+ 
+ # This makes all the object files in the parent library archive.
+ 
 diff --git a/elf/Makefile b/elf/Makefile
 index 63a535502c15e32eb4f21feaefa3cbf5be6d8afa..f27aeaf665cb2d7a4c0b9a1a0d025aba6e303556 100644
 --- a/elf/Makefile
@@ -144,6 +157,21 @@ index fa3cf1da44807240b15f7e4d4da3fde43abeca0c..6cc5524eee60b6415dfc38700a7085a5
  # So far the -lutil interface is the same on all platforms, except for the
  # `struct utmp' format, which depends on libc.
  libutil=1
+diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
+index 202de93cc5b94ca161322e978ffa3b6ea8286c98..105479cce4e15b3d544ac3bdb4b8e3b4d47d2695 100644
+--- a/sysdeps/gnu/errlist-compat.awk
++++ b/sysdeps/gnu/errlist-compat.awk
+@@ -56,7 +56,9 @@ END {
+     exit 0;
+   }
+ 
+-  count = maxerr + 1;
++  # This prevents `*** errlist.c count 134 inflated to GLIBC_2.12 count 135 (old errno.h?)` warning
++  # from being generated, which happens even without our patches.
++  count = maxerr + 2;
+ 
+   if (highest < count) {
+     printf "*** errlist.c count %d vs Versions sys_errlist@%s count %d\n", \
 diff --git a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 index fca9dc08e2470c5e31c9008d4ea4222bc75b8d37..bddf501d72a1fa3febcb77b7afc1ba1cfc390cf4 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
@@ -603,16 +631,3 @@ index 2b061a07c6c59575e93de08d699b7c69720faf03..e0fea4445f43dad1b812381da4afbd42
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
-diff --git a/Makerules b/Makerules
-index 53eabfaba82a127221089112b40a51dc5e6949ea..fcb9f92ccee70fdaf5d4acd2430668e5964d57e3 100644
---- a/Makerules
-+++ b/Makerules
-@@ -802,7 +802,7 @@ verbose	:=
- endif						# not -s
- 
- ARFLAGS := r$(verbose)
--CREATE_ARFLAGS := cru$(verbose)
-+CREATE_ARFLAGS := cr$(verbose)
- 
- # This makes all the object files in the parent library archive.
- 

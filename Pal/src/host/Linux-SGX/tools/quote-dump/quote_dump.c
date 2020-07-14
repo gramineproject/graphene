@@ -58,8 +58,8 @@ int main(int argc, char* argv[]) {
 
     const char* path = argv[optind++];
 
-    ssize_t quote_size = 0;
-    uint8_t* quote = read_file(path, &quote_size);
+    size_t quote_size = 0;
+    void* quote = read_file(path, &quote_size, /*buffer=*/NULL);
     if (!quote)
         return -1;
 

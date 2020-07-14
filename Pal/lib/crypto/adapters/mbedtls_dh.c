@@ -50,7 +50,7 @@ int lib_DhInit(LIB_DH_CONTEXT* context) {
     return 0;
 }
 
-int lib_DhCreatePublic(LIB_DH_CONTEXT* context, uint8_t* public, uint64_t* public_size) {
+int lib_DhCreatePublic(LIB_DH_CONTEXT* context, uint8_t* public, size_t* public_size) {
     int ret;
 
     if (*public_size != DH_SIZE)
@@ -66,8 +66,8 @@ int lib_DhCreatePublic(LIB_DH_CONTEXT* context, uint8_t* public, uint64_t* publi
     return 0;
 }
 
-int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, uint64_t peer_size, uint8_t* secret,
-                     uint64_t* secret_size) {
+int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, size_t peer_size, uint8_t* secret,
+                     size_t* secret_size) {
     int ret;
 
     if (*secret_size != DH_SIZE)

@@ -157,6 +157,21 @@ pipeline {
                                 fi
                             '''
                         }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd Examples/ra-tls-secret-prov
+                                if [ "${ra_client_spid}" != "" ] && [ "${ra_client_key}" != "" ]; \
+                                then \
+                                    make SGX=1 check_epid RA_CLIENT_SPID=${ra_client_spid} \
+                                                          RA_TLS_EPID_API_KEY=${ra_client_key} \
+                                                          RA_CLIENT_LINKABLE=0 \
+                                                          RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1; \
+                                else \
+                                    echo "Failure: no ra_client_spid and/or ra_client_key!"; \
+                                    exit 1; \
+                                fi
+                            '''
+                        }
                         sh '''
                            ./Scripts/gitignore-test
                         '''
@@ -177,6 +192,7 @@ pipeline {
                            make -C Examples/apache SGX=1 distclean
                            make -C Examples/blender SGX=1 distclean
                            make -C Examples/ra-tls-mbedtls SGX=1 distclean
+                           make -C Examples/ra-tls-secret-prov SGX=1 distclean
 
                            # Currently used release of LTP contains broken symlinks under
                            # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit

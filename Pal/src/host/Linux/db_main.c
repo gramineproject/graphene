@@ -192,7 +192,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     ELF_DYNAMIC_RELOCATE(&g_pal_map);
 
-    g_linux_state.environ = envp;
+    g_linux_state.host_environ = envp;
 
     init_slab_mgr(g_page_size);
 

@@ -237,7 +237,7 @@ int set_config(struct config_store* store, const char* key, const char* val) {
     return 0;
 }
 
-int read_config(struct config_store* store, int (*filter)(const char* key, int ken),
+int read_config(struct config_store* store, bool (*filter)(const char* key, size_t klen),
                 const char** errstring) {
     INIT_LISTP(&store->root);
     INIT_LISTP(&store->entries);
@@ -340,7 +340,7 @@ int read_config(struct config_store* store, int (*filter)(const char* key, int k
         }
         ptr++;
 
-        if (!filter || !filter(key, klen)) {
+        if (!filter || filter(key, klen)) {
             int ret = __add_config(store, key, klen, val, vlen, NULL);
             if (ret < 0) {
                 if (ret == -PAL_ERROR_TOOLONG)

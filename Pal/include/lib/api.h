@@ -115,7 +115,7 @@ int atoi (const char *nptr);
 long int atol (const char *nptr);
 
 char* strchr(const char* s, int c_in);
-const char* strstr(const char* haystack, const char* needle);
+char* strstr(const char* haystack, const char* needle);
 
 void * memcpy (void *dstpp, const void *srcpp, size_t len);
 void * memmove (void *dstpp, const void *srcpp, size_t len);
@@ -129,13 +129,15 @@ void *malloc(size_t size);
 void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 
-/* check if the var is exactly the same as the static string */
+/* check if `var` is exactly the same as a static string */
 #define strcmp_static(var, str) \
     (memcmp(var, str, MIN(strlen(var), static_strlen(str)) + 1))
 
-/* check if the var starts with the static string */
-#define strstartswith_static(var, str) \
-    (!memcmp(var, str, static_strlen(str)))
+/* check if `str` starts with a static string */
+#define strstartswith_static(str, prefix)          \
+    (strlen(str) >= static_strlen(prefix)          \
+     ? !memcmp(str, prefix, static_strlen(prefix)) \
+     : false)
 
 /* copy static string and return the address of the NUL byte (NULL if the dest
  * is not large enough).*/
@@ -221,8 +223,8 @@ struct config_store {
     void             (*free) (void *);
 };
 
-int read_config (struct config_store * store, int (*filter) (const char *, int),
-                 const char ** errstring);
+int read_config(struct config_store* store, bool (*filter)(const char*, size_t),
+                const char** errstring);
 int free_config (struct config_store * store);
 int copy_config (struct config_store * store, struct config_store * new_store);
 int write_config (void * file, int (*write) (void *, void *, int),

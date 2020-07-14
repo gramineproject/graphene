@@ -2,13 +2,14 @@
 
 #include "api.h"
 
-const char* strstr(const char* haystack, const char* needle) {
+char* strstr(const char* haystack, const char* needle) {
     size_t h_len = strlen(haystack);
     size_t n_len = strlen(needle);
     unsigned int o = 0;
 
     if (n_len == 0)
-        return haystack;
+        /* this is pretty bad, but it's done to mimic strstr's signature from libc */
+        return (char*)haystack;
 
     if (h_len < n_len)
         return NULL;
@@ -18,7 +19,7 @@ const char* strstr(const char* haystack, const char* needle) {
         while (i < n_len && haystack[o + i] == needle[i])
             i++;
         if (i == n_len)
-            return &haystack[o];
+            return (char*)&haystack[o];
         o++;
     }
     return NULL;

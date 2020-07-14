@@ -6,3 +6,5 @@ loader.argv0_override = Bootstrap
 fs.mount.root.uri = file:
 
 sgx.enclave_size = 8192M
+
+sgx.zero_heap_on_demand = 1

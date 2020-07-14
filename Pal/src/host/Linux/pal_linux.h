@@ -40,7 +40,7 @@ extern struct pal_linux_state {
     bool            in_gdb;
 #endif
 
-    const char **   environ;
+    const char**    host_environ;
 
     /* credentails */
     unsigned int    pid;

@@ -14,6 +14,7 @@ CFLAGS += \
 	-I../../../include/lib \
 	-I../../../lib/crypto/mbedtls/include \
 	-I../../../lib/crypto/mbedtls/crypto/include \
+	-Iprotected-files \
 	-Isgx-driver
 
 ASFLAGS += \
@@ -52,9 +53,12 @@ enclave-objs = \
 	enclave_framework.o \
 	enclave_ocalls.o \
 	enclave_pages.o \
+	enclave_pf.o \
 	enclave_platform.o \
 	enclave_untrusted.o \
 	enclave_xstate.o \
+	protected-files/lru_cache.o \
+	protected-files/protected_files.o \
 	$(commons_objs)
 
 enclave-asm-objs = enclave_entry.o
@@ -147,6 +151,7 @@ CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.
 clean_:
 	$(RM) -r *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
 	         signer/__pycache__
+	$(RM) -r protected-files/*.o protected-files/*.d
 
 .PHONY: clean
 clean: clean_

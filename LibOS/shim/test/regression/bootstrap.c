@@ -1,13 +1,23 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 int main(int argc, const char** argv, const char** envp) {
     printf("User Program Started\n");
 
-    printf("# of Arguments: %d\n", argc);
+    printf("# of arguments: %d\n", argc);
 
     for (int i = 0; i < argc; i++) {
         printf("argv[%d] = %s\n", i, argv[i]);
+    }
+
+    puts("");
+    size_t envs_cnt = 0;
+    for (size_t i = 0; envp[i]; i++)
+        envs_cnt++;
+    printf("# of envs: %zu\n", envs_cnt);
+    for (size_t i = 0; envp[i]; i++) {
+        printf("envp[%zu] = %s\n", i, envp[i]);
     }
 
     /* Make sure argv strings follow the compact encoding where (1) all strings

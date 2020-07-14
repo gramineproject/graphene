@@ -59,6 +59,11 @@ async_exit_pointer:
 eresume_pointer:
 	ENCLU   # perform ERESUME
 
+	.global async_exit_pointer_end
+	.type async_exit_pointer_end, @function
+
+async_exit_pointer_end:
+
 	.global sgx_raise
 	.type sgx_raise, @function
 
