@@ -55,6 +55,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     hdl->file.realpath = (PAL_STR)path;
 
     struct protected_file* pf = get_protected_file(path);
+    struct stat st;
     /* whether to re-initialize the PF */
     bool pf_create = (create & PAL_CREATE_ALWAYS) || (create & PAL_CREATE_TRY);
 
@@ -69,6 +70,16 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
 
     hdl->file.fd = fd;
+
+    /* check if the file is seekable and get real file size */
+    ret = ocall_fstat(fd, &st);
+    if (IS_ERR(ret)) {
+        SGX_DBG(DBG_E, "file_open(%s): fstat failed: %d\n", path, ret);
+        ret = unix_to_pal_error(ERRNO(ret));
+        goto out;
+    }
+
+    hdl->file.seekable = S_ISFIFO(st.st_mode) ? false : true;
 
     if (pf) {
         pf_file_mode_t pf_mode = 0;
@@ -86,15 +97,6 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
                 ret = -PAL_ERROR_DENIED;
                 goto out;
             }
-        }
-
-        /* get real file size */
-        struct stat st;
-        ret = ocall_fstat(fd, &st);
-        if (IS_ERR(ret)) {
-            SGX_DBG(DBG_E, "file_open(%s): fstat failed: %d\n", path, ret);
-            ret = unix_to_pal_error(ERRNO(ret));
-            goto out;
         }
 
         ret = -PAL_ERROR_DENIED;
@@ -175,9 +177,15 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        ret = ocall_pread(handle->file.fd, buffer, count, offset);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        if (handle->file.seekable) {
+            ret = ocall_pread(handle->file.fd, buffer, count, offset);
+        } else {
+            ret = ocall_read(handle->file.fd, buffer, count);
+        }
+        
+        if (IS_ERR(ret)) 
+        	return unix_to_pal_error(ERRNO(ret));
+
         return ret;
     }
 
@@ -232,9 +240,15 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
-        if (IS_ERR(ret))
+        if (handle->file.seekable) {
+            ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
+        } else {
+            ret = ocall_write(handle->file.fd, buffer, count);
+        }
+
+        if (IS_ERR(ret)) 
             return unix_to_pal_error(ERRNO(ret));
+
         return ret;
     }
 
@@ -548,7 +562,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
         return -PAL_ERROR_INVAL;
 
     /* try to do the real open */
-    int fd = ocall_open(uri, 0, 0);
+    int fd = ocall_open(uri, O_NONBLOCK, 0);
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
 
