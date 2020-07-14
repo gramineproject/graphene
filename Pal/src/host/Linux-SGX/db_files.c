@@ -55,6 +55,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     hdl->file.realpath = (PAL_STR)path;
 
     struct protected_file* pf = get_protected_file(path);
+    struct stat st;
     /* whether to re-initialize the PF */
     bool pf_create = (create & PAL_CREATE_ALWAYS) || (create & PAL_CREATE_TRY);
 
@@ -69,6 +70,16 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
 
     hdl->file.fd = fd;
+
+    /* check if the file is seekable and get real file size */
+    ret = ocall_fstat(fd, &st);
+    if (IS_ERR(ret)) {
+        SGX_DBG(DBG_E, "file_open(%s): fstat failed: %d\n", path, ret);
+        ret = unix_to_pal_error(ERRNO(ret));
+        goto out;
+    }
+
+    hdl->file.seekable = !S_ISFIFO(st.st_mode);
 
     if (pf) {
         pf_file_mode_t pf_mode = 0;
@@ -88,16 +99,15 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
             }
         }
 
-        /* get real file size */
-        struct stat st;
-        ret = ocall_fstat(fd, &st);
-        if (IS_ERR(ret)) {
-            SGX_DBG(DBG_E, "file_open(%s): fstat failed: %d\n", path, ret);
-            ret = unix_to_pal_error(ERRNO(ret));
+        /* the protected files should be regular files (seekable) */
+        if (!hdl->file.seekable) {
+            SGX_DBG(DBG_D, "file_open(%s): disallowing non-seekable file handle\n", path);
+            ret = -PAL_ERROR_DENIED;
             goto out;
         }
 
         ret = -PAL_ERROR_DENIED;
+
         pf = load_protected_file(path, (int*)&hdl->file.fd, st.st_size, pf_mode, pf_create, pf);
         if (pf) {
             pf->refcount++;
@@ -116,7 +126,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         if (ret < 0) {
             SGX_DBG(DBG_E,
                     "Accessing file:%s is denied. (%s) "
-                    "This file is not trusted or allowed.\n",
+                    "This file is not trusted or allowed. Trusted files should be regular files (seekable).\n",
                     hdl->file.realpath, pal_strerror(ret));
             goto out;
         }
@@ -175,9 +185,15 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        ret = ocall_pread(handle->file.fd, buffer, count, offset);
+        if (handle->file.seekable) {
+            ret = ocall_pread(handle->file.fd, buffer, count, offset);
+        } else {
+            ret = ocall_read(handle->file.fd, buffer, count);
+        }
+
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
+
         return ret;
     }
 
@@ -232,9 +248,15 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
-        ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
+        if (handle->file.seekable) {
+            ret = ocall_pwrite(handle->file.fd, buffer, count, offset);
+        } else {
+            ret = ocall_write(handle->file.fd, buffer, count);
+        }
+
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
+
         return ret;
     }
 
@@ -547,8 +569,10 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     if (strcmp_static(type, URI_TYPE_FILE) && strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
-    /* try to do the real open */
-    int fd = ocall_open(uri, 0, 0);
+    /* try to do the real open.
+     * it sets O_NONBLOCK flag temporarily so to avoid blocking current thread if the uri is a FIFO file;
+     * if the uri is actually regular file, we reset O_NONBLOCK flag */
+    int fd = ocall_open(uri, O_NONBLOCK, 0);
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
 
@@ -573,8 +597,22 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     /* For protected files return the data size, not real FS size */
     struct protected_file* pf = get_protected_file(path);
-    if (pf && attr->handle_type != pal_type_dir)
+    if (pf && attr->handle_type != pal_type_dir) {
+        /* protected files should be regular files */
+        if (S_ISFIFO(stat_buf.st_mode)) {
+            ret = -PAL_ERROR_DENIED;
+            goto out;
+        }
+
+        /* reset O_NONBLOCK flag since it's regular file */
+        ret = ocall_fsetnonblock(fd, 0);
+        if (IS_ERR(ret)) {
+            ret = unix_to_pal_error(ERRNO(ret));
+            goto out;
+        }
+
         ret = pf_file_attrquery(pf, fd, path, stat_buf.st_size, attr);
+    }
     else
         ret = 0;
 
@@ -598,6 +636,10 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         /* For protected files return the data size, not real FS size */
         struct protected_file* pf = find_protected_file_handle(handle);
         if (pf) {
+            /* protected files should be regular files (seekable) */
+            if (!handle->file.seekable)
+                return -PAL_ERROR_DENIED;
+
             uint64_t size;
             pf_status_t pfs = pf_get_size(pf->context, &size);
             __UNUSED(pfs);
