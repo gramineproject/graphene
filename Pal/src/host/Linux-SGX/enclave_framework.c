@@ -364,6 +364,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         return 0;
     }
 
+    /* trusted file must be a regular file (seekable) */
+    if (!file->file.seekable)
+        return -PAL_ERROR_DENIED;
+
     sgx_stub_t* stubs = NULL;
     /* mmap the whole trusted file in untrusted memory for future reads/writes; it is
      * caller's responsibility to unmap those areas after use */
