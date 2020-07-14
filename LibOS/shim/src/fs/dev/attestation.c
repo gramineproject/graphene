@@ -32,6 +32,8 @@ static size_t g_target_info_size = 0;
 
 static size_t g_report_size = 0;
 
+#define PF_KEY_HEX_SIZE (32 + 1)
+static char g_pf_key_hex[PF_KEY_HEX_SIZE] = {0};
 
 static int init_attestation_struct_sizes(void) {
     if (g_user_report_data_size && g_target_info_size && g_report_size) {
@@ -427,6 +429,57 @@ out:
     return ret;
 }
 
+/* callback for str FS; copies contents of `/dev/attestation/protected_files_key` file in the
+ * global `g_pf_key_hex` string on file close and applies new PF key */
+static int pfkey_modify(struct shim_handle* hdl) {
+    memcpy(&g_pf_key_hex, hdl->info.str.data->str, sizeof(g_pf_key_hex));
+    g_pf_key_hex[sizeof(g_pf_key_hex) - 1] = '\0';
+
+    bool ok = DkSetProtectedFilesKey(&g_pf_key_hex);
+    return ok ? 0 : -EACCES;
+}
+
+/*!
+ * \brief Set new wrap key (master key) for protected files.
+ *
+ * This file must be open for write after successful remote attestation and secret provisioning.
+ * Typically, the remote user/service provisions the PF key as part of remote attestation before
+ * the user application starts running. The PF key is applied when this file is closed.
+ *
+ * The PF key must be a 32-char null-terminated AES-GCM encryption key in hex format.
+ */
+static int dev_attestation_pfkey_open(struct shim_handle* hdl, const char* name, int flags) {
+    __UNUSED(name);
+    __UNUSED(flags);
+
+    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+        /* this pseudo-file is only available with Linux-SGX */
+        return -EACCES;
+    }
+
+    struct shim_str_data* data = calloc(1, sizeof(*data));
+    if (!data)
+        return -ENOMEM;
+
+    char* data_str_pfkey = calloc(1, sizeof(g_pf_key_hex));
+    if (!data_str_pfkey) {
+        free(data);
+        return -ENOMEM;
+    }
+
+    memcpy(data_str_pfkey, &g_pf_key_hex, sizeof(g_pf_key_hex));
+
+    data->str      = data_str_pfkey;
+    data->buf_size = sizeof(g_pf_key_hex);
+    data->modify   = &pfkey_modify; /* invoked when file is closed */
+
+    hdl->type          = TYPE_STR;
+    hdl->acc_mode      = MAY_WRITE | MAY_READ;
+    hdl->info.str.data = data;
+    hdl->info.str.ptr  = data_str_pfkey;
+    return 0;
+}
+
 static struct pseudo_fs_ops dev_attestation_user_report_data_fs_ops = {
     .open = &dev_attestation_user_report_data_open,
     .mode = &dev_attestation_readwrite_mode,
@@ -457,6 +510,12 @@ static struct pseudo_fs_ops dev_attestation_quote_fs_ops = {
     .stat = &dev_attestation_readonly_stat,
 };
 
+static struct pseudo_fs_ops dev_attestation_pfkey_fs_ops = {
+    .open = &dev_attestation_pfkey_open,
+    .mode = &dev_attestation_readwrite_mode,
+    .stat = &dev_attestation_readwrite_stat,
+};
+
 struct pseudo_fs_ops dev_attestation_fs_ops = {
     .open = &pseudo_dir_open,
     .mode = &pseudo_dir_mode,
@@ -464,7 +523,7 @@ struct pseudo_fs_ops dev_attestation_fs_ops = {
 };
 
 struct pseudo_dir dev_attestation_dir = {
-    .size = 5,
+    .size = 6,
     .ent  = {
               { .name   = "user_report_data",
                 .fs_ops = &dev_attestation_user_report_data_fs_ops,
@@ -480,6 +539,9 @@ struct pseudo_dir dev_attestation_dir = {
                 .type   = LINUX_DT_REG },
               { .name   = "quote",
                 .fs_ops = &dev_attestation_quote_fs_ops,
+                .type   = LINUX_DT_REG },
+              { .name   = "protected_files_key",
+                .fs_ops = &dev_attestation_pfkey_fs_ops,
                 .type   = LINUX_DT_REG },
             }
 };

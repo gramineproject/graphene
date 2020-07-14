@@ -81,7 +81,9 @@ If you want your application to use commandline arguments you need to either set
 ``loader.argv_src_file`` is intended to point to either a trusted file or a
 protected file. The former allows to securely hardcode arguments (current
 manifest syntax doesn't allow to include them inline), the latter allows the
-arguments to be provided at runtime from an external (trusted) source.
+arguments to be provided at runtime from an external (trusted) source. *NOTE:*
+Pointing to a protected file is currently not supported, due to the fact that
+PF wrap key provisioning currently happens after setting up arguments.
 
 Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^
@@ -111,8 +113,10 @@ be used multiple times to specify more than one variable.
 environment, which can be generated using :file:`Tools/argv_serializer`. This
 option is intended to point to either a trusted file or a protected file. The
 former allows to securely hardcode environments (in a more flexible way than
-``loader.env.[ENVIRON]`` option), the latter allows the arguments to be provided
-at runtime from an external (trusted) source.
+``loader.env.[ENVIRON]`` option), the latter allows the environments to be
+provided at runtime from an external (trusted) source. *NOTE:* Pointing to a
+protected file is currently not supported, due to the fact that PF wrap key
+provisioning currently happens after setting up environment variables.
 
 If the same variable is set in both, then ``loader.env.[ENVIRON]`` takes
 precedence.

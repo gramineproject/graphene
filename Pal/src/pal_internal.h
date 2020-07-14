@@ -295,6 +295,7 @@ int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_siz
                          PAL_PTR report, PAL_NUM* report_size);
 int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
                         PAL_PTR quote, PAL_NUM* quote_size);
+int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
 
 #define INIT_FAIL(exitcode, reason)                                                     \
     do {                                                                                \

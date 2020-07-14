@@ -17,10 +17,14 @@
 #define _XOPEN_SOURCE 700
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "mbedtls/config.h"
 
@@ -306,15 +310,45 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
 
         int ret = secret_provision_start(/*in_servers=*/NULL, /*in_ca_chain_path=*/NULL,
                                          /*out_ctx=*/NULL);
-        if (!ret) {
-            /* succeessfully retrieved the secret, put it in an envvar if fits */
-            ret = secret_provision_get(&secret, &secret_size);
-            if (!ret && secret && secret_size > 0 && secret_size <= PATH_MAX &&
-                    secret[secret_size - 1] == '\0') {
-                /* secret is a null-terminated string and fits in envvar, copy it in envvar */
-                setenv(SECRET_PROVISION_SECRET_STRING, (const char*)secret, /*overwrite=*/1);
-            }
-            secret_provision_destroy();
+        if (ret < 0)
+            return;
+
+        ret = secret_provision_get(&secret, &secret_size);
+        if (ret < 0 || !secret || !secret_size || secret_size > PATH_MAX ||
+                secret[secret_size - 1] != '\0') {
+            /* secret is not a null-terminated string, cannot do anything about such secret */
+            return;
         }
+
+        /* successfully retrieved the secret: is it a protected files key? */
+        e = getenv(SECRET_PROVISION_SET_PF_KEY);
+        if (e && (!strcmp(e, "1") || !strcmp(e, "true") || !strcmp(e, "TRUE"))) {
+            /* the secret is a PF key, apply it to Graphene via pseudo-FS */
+            int fd = open("/dev/attestation/protected_files_key", O_WRONLY);
+            if (fd < 0)
+                return;
+
+            ssize_t total_written = 0;
+            while (total_written < secret_size) {
+                ssize_t written = write(fd, secret + total_written, secret_size - total_written);
+                if (written > 0) {
+                    total_written += written;
+                } else if (written == 0) {
+                    /* end of file */
+                    break;
+                } else if (errno == EAGAIN || errno == EINTR) {
+                    continue;
+                } else {
+                    return;
+                }
+            }
+
+            close(fd);  /* applies retrieved PF key */
+        }
+
+        /* put the secret into an environment variable */
+        setenv(SECRET_PROVISION_SECRET_STRING, (const char*)secret, /*overwrite=*/1);
+
+        secret_provision_destroy();
     }
 }

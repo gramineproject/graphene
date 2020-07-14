@@ -1,7 +1,10 @@
 /*.tar.gz
 /OUTPUT
+/files/input.txt
 /mbedtls
-/secret_prov_min_client
+/pf_crypt
 /secret_prov_client
+/secret_prov_min_client
+/secret_prov_pf_client
 /secret_prov_server_dcap
 /secret_prov_server_epid
