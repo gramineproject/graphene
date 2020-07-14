@@ -176,28 +176,28 @@ int main(int argc, char** argv) {
     } else if (!strcmp(argv[1], "dcap")) {
         if (in_sgx) {
             ra_tls_verify_lib = dlopen("libra_tls_verify_dcap_graphene.so", RTLD_LAZY);
-	    if (!ra_tls_verify_lib) {
-	        mbedtls_printf("%s\n", dlerror());
-	        mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find lib\n");
+            if (!ra_tls_verify_lib) {
+                mbedtls_printf("%s\n", dlerror());
+                mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find lib\n");
                 mbedtls_printf("Perhaps you are using the wrong manifest?\n");
-	        return 1;
-	    }
+                return 1;
+            }
         } else {
-	    void* helper_sgx_urts_lib = dlopen("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
-	    if (!helper_sgx_urts_lib) {
-	        mbedtls_printf("%s\n", dlerror());
-	        mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find helper"
-	                       " libsgx_urts.so lib\n");
-	        return 1;
-	    }
+            void* helper_sgx_urts_lib = dlopen("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
+            if (!helper_sgx_urts_lib) {
+                mbedtls_printf("%s\n", dlerror());
+                mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find helper"
+                               " libsgx_urts.so lib\n");
+                return 1;
+            }
 
             ra_tls_verify_lib = dlopen("libra_tls_verify_dcap.so", RTLD_LAZY);
-	    if (!ra_tls_verify_lib) {
-	        mbedtls_printf("%s\n", dlerror());
-	        mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find lib\n");
-	        return 1;
-	    }
-	}
+            if (!ra_tls_verify_lib) {
+                mbedtls_printf("%s\n", dlerror());
+                mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find lib\n");
+                return 1;
+            }
+        }
     }
 
     if (ra_tls_verify_lib) {
