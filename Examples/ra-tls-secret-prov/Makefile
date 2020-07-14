@@ -13,7 +13,6 @@
 # Relative path to Graphene root
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
-PFCRYPT ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/pf_crypt/pf_crypt
 
 # Specify your SPID and linkable/unlinkable attestation policy (only for EPID);
 # these variables will not be used if this example is built for ECDSA/DCAP
@@ -110,6 +109,9 @@ secret_prov_pf_client: src/secret_prov_pf_client.c libmbedcrypto.so libmbedtls.s
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/$@ .
 
+pf_crypt: libsgx_util.so
+	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/pf_crypt/$@ $@
+
 libmbedcrypto.so: mbedtls/CMakeLists.txt
 	cp mbedtls/install/lib/$@.* .
 	ln -s $@.* $@
@@ -172,8 +174,8 @@ secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov
 
 ########################## PREPARE PROTECTED FILES ############################
 
-files/input.txt: files/wrap-key files/plain.txt
-	$(PFCRYPT) encrypt -w files/wrap-key -i files/plain.txt -o $@
+files/input.txt: files/wrap-key files/plain.txt pf_crypt
+	LD_LIBRARY_PATH=. ./pf_crypt encrypt -w files/wrap-key -i files/plain.txt -o $@
 
 ############################## PF CLIENT MANIFEST #############################
 
@@ -225,7 +227,7 @@ check_dcap: app dcap files/input.txt
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pal_loader \
+	$(RM) *.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pal_loader pf_crypt \
           secret_prov_server_epid secret_prov_server_dcap \
           secret_prov_client secret_prov_min_client secret_prov_pf_client
 
