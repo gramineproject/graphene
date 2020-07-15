@@ -26,7 +26,7 @@ bool _DkInternalIsLocked(PAL_LOCK* lock) {
     __abort();
 }
 
-unsigned long _DkSystemTimeQuery(void) {
+int _DkSystemTimeQuery(uint64_t* out_usec) {
     return 0;
 }
 

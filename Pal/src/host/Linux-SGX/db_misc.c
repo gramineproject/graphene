@@ -9,6 +9,7 @@
 
 #include <asm/fcntl.h>
 #include <linux/time.h>
+#include <stdint.h>
 
 #include "api.h"
 #include "gsgx.h"
@@ -25,9 +26,9 @@
 
 #define TSC_REFINE_INIT_TIMEOUT_USECS 10000000
 
-static int64_t g_tsc_hz = 0;
-static int64_t g_start_tsc = 0;
-static int64_t g_start_usec = 0;
+static uint64_t g_tsc_hz = 0;
+static uint64_t g_start_tsc = 0;
+static uint64_t g_start_usec = 0;
 static PAL_LOCK g_tsc_lock = LOCK_INIT;
 
 /**
@@ -39,9 +40,9 @@ void init_tsc(void) {
     }
 }
 
-unsigned long _DkSystemTimeQuery(void) {
-    unsigned long usec = 0;
-    int64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_diff;
+int _DkSystemTimeQuery(uint64_t* out_usec) {
+    uint64_t usec = 0;
+    uint64_t tsc_usec = 0, tsc_cyc1, tsc_cyc2, tsc_cyc, tsc_diff;
     int ret;
 
     if (g_tsc_hz > 0) {
@@ -51,8 +52,8 @@ unsigned long _DkSystemTimeQuery(void) {
             tsc_diff = get_tsc() - g_start_tsc;
             if (tsc_diff < INT64_MAX / 1000000) {
                 tsc_usec = g_start_usec + (tsc_diff * 1000000 / g_tsc_hz);
-                /* determine whether it needs to be refined periodically */
                 if (tsc_usec < g_start_usec + TSC_REFINE_INIT_TIMEOUT_USECS) {
+                    /* no need to refine yet */
                     usec = tsc_usec;
                 }
             }
@@ -79,16 +80,17 @@ unsigned long _DkSystemTimeQuery(void) {
                 }
                 _DkInternalUnlock(&g_tsc_lock);
             } else {
-                _DkRaiseFailure(PAL_ERROR_DENIED);
+                return -PAL_ERROR_DENIED;
             }
         }
     } else {
         /* fallback to the slow ocall */
         ret = ocall_gettime(&usec);
-        if (ret)
-            _DkRaiseFailure(PAL_ERROR_DENIED);
+        if (ret < 0)
+            return -PAL_ERROR_DENIED;
     }
-    return usec;
+    *out_usec = usec;
+    return 0;
 }
 
 int _DkInstructionCacheFlush(const void* addr, int size) {

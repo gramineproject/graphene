@@ -110,7 +110,7 @@ int init_trusted_files (void);
 void init_cpuid(void);
 
 bool is_tsc_usable(void);
-int64_t get_tsc_hz(void);
+uint64_t get_tsc_hz(void);
 void init_tsc(void);
 
 /* Function: load_trusted_file

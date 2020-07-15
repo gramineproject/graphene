@@ -279,7 +279,7 @@ void _DkExceptionReturn (void * event);
 void _DkInternalLock(PAL_LOCK* mut);
 void _DkInternalUnlock(PAL_LOCK* mut);
 bool _DkInternalIsLocked(PAL_LOCK* mut);
-unsigned long _DkSystemTimeQuery (void);
+int _DkSystemTimeQuery(uint64_t* out_usec);
 
 /*
  * Cryptographically secure random.
