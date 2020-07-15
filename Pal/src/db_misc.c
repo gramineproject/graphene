@@ -121,10 +121,10 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
-PAL_BOL DkSetProtectedFilesKey(PAL_PTR pf_key_hex, PAL_NUM pf_key_hex_size) {
+PAL_BOL DkSetProtectedFilesKey(PAL_PTR pf_key_hex) {
     ENTER_PAL_CALL(DkSetProtectedFilesKey);
 
-    int ret = _DkSetProtectedFilesKey(pf_key_hex, pf_key_hex_size);
+    int ret = _DkSetProtectedFilesKey(pf_key_hex);
     if (ret < 0) {
         _DkRaiseFailure(-ret);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);

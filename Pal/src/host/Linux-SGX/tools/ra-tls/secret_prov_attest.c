@@ -328,11 +328,11 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
             if (fd < 0)
                 return;
 
-            ssize_t rv = 0;
-            while (secret_size > rv) {
-                ssize_t written = write(fd, secret + rv, secret_size - rv);
+            ssize_t total_written = 0;
+            while (total_written < secret_size) {
+                ssize_t written = write(fd, secret + total_written, secret_size - total_written);
                 if (written > 0) {
-                    rv += written;
+                    total_written += written;
                 } else if (written == 0) {
                     /* end of file */
                     break;
@@ -346,7 +346,7 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
             close(fd);  /* applies retrieved PF key */
         }
 
-        /* put the secret into a environment variable */
+        /* put the secret into an environment variable */
         setenv(SECRET_PROVISION_SECRET_STRING, (const char*)secret, /*overwrite=*/1);
 
         secret_provision_destroy();

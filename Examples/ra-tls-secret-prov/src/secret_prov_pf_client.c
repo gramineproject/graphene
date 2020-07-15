@@ -27,14 +27,13 @@ int main(int argc, char** argv) {
     }
 
     char buf[1024] = {0};
-    ssize_t rv = 0;
+    ssize_t bytes_read = 0;
     while (1) {
-        ssize_t ret = read(fd, buf + rv, sizeof(buf) - rv);
+        ssize_t ret = read(fd, buf + bytes_read, sizeof(buf) - bytes_read);
         if (ret > 0) {
-            rv += ret;
+            bytes_read += ret;
         } else if (ret == 0) {
             /* end of file */
-            buf[rv - 1] = '\0';
             break;
         } else if (errno == EAGAIN || errno == EINTR) {
             continue;

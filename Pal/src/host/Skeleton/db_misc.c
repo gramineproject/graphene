@@ -71,8 +71,7 @@ int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex, PAL_NUM pf_key_hex_size) {
+int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex) {
     __UNUSED(pf_key_hex);
-    __UNUSED(pf_key_hex_size);
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

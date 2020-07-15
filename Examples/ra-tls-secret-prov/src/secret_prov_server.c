@@ -108,12 +108,12 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    char buf[WRAP_KEY_SIZE + 1] = {0};
-    ssize_t rv = 0;
+    char buf[128] = {0};
+    ssize_t bytes_read = 0;
     while (1) {
-        ssize_t ret = read(fd, buf + rv, sizeof(buf) - rv);
+        ssize_t ret = read(fd, buf + bytes_read, sizeof(buf) - bytes_read);
         if (ret > 0) {
-            rv += ret;
+            bytes_read += ret;
         } else if (ret == 0) {
             /* end of file */
             break;
@@ -132,13 +132,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (rv != WRAP_KEY_SIZE) {
+    if (bytes_read != WRAP_KEY_SIZE) {
         fprintf(stderr, "[error] encryption key from '" WRAP_KEY_FILENAME "' is not 16B in size\n");
         return 1;
     }
 
     uint8_t* ptr = (uint8_t*)buf;
-    for (size_t i = 0; i < rv; i++)
+    for (size_t i = 0; i < bytes_read; i++)
         sprintf(&g_secret_pf_key_hex[i * 2], "%02x", ptr[i]);
 
     puts("--- Starting the Secret Provisioning server on port 4433 ---");

@@ -469,33 +469,28 @@ int init_protected_files(void) {
     pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_gcm_encrypt, cb_aes_gcm_decrypt,
                      cb_random, debug_callback);
 
-    /* TODO: development only: get SECRET WRAP KEY FOR PROTECTED FILES from manifest
-       In the future, this key should be provisioned after local/remote attestation. */
-
     char key_hex[PF_KEY_SIZE * 2 + 1];
     ssize_t len = get_config(g_pal_state.root_config, PF_MANIFEST_KEY_PREFIX, key_hex,
                              sizeof(key_hex));
     if (len <= 0) {
-        if (get_config_entries_size(g_pal_state.root_config, PF_MANIFEST_PATH_PREFIX) > 0) {
-            SGX_DBG(DBG_E, "*** No protected files wrap key specified in the manifest. "
-                    "Protected files will not be available. ***\n");
-        }
-        return 0;
-    }
-
-    if (len != sizeof(key_hex) - 1) {
-        SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");
-        return -PAL_ERROR_INVAL;
-    }
-
-    memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));
-    for (ssize_t i = 0; i < len; i++) {
-        int8_t val = hex2dec(key_hex[i]);
-        if (val < 0) {
+        /* wrap key is not hard-coded in the manifest, assume that it will be provisioned after
+         * local/remote attestation and clear it for now */
+        memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));
+    } else {
+        if (len != sizeof(key_hex) - 1) {
             SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");
             return -PAL_ERROR_INVAL;
         }
-        g_pf_wrap_key[i/2] = g_pf_wrap_key[i/2] * 16 + (uint8_t)val;
+
+        memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));
+        for (ssize_t i = 0; i < len; i++) {
+            int8_t val = hex2dec(key_hex[i]);
+            if (val < 0) {
+                SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");
+                return -PAL_ERROR_INVAL;
+            }
+            g_pf_wrap_key[i/2] = g_pf_wrap_key[i/2] * 16 + (uint8_t)val;
+        }
     }
 
     if (register_protected_files(PF_MANIFEST_PATH_PREFIX) < 0) {
@@ -612,14 +607,15 @@ int unload_protected_file(struct protected_file* pf) {
     return 0;
 }
 
-int set_protected_files_key(const char* pf_key_hex, size_t pf_key_hex_size) {
-    if (pf_key_hex_size != PF_KEY_SIZE * 2 + 1) {
+int set_protected_files_key(const char* pf_key_hex) {
+    size_t pf_key_hex_len = strlen(pf_key_hex);
+    if (pf_key_hex_len != PF_KEY_SIZE * 2) {
         return -PAL_ERROR_INVAL;
     }
 
     pf_lock();
     memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));
-    for (size_t i = 0; i < pf_key_hex_size - 1; i++) {
+    for (size_t i = 0; i < pf_key_hex_len; i++) {
         int8_t val = hex2dec(pf_key_hex[i]);
         if (val < 0) {
             memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));

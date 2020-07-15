@@ -433,8 +433,9 @@ out:
  * global `g_pf_key_hex` string on file close and applies new PF key */
 static int pfkey_modify(struct shim_handle* hdl) {
     memcpy(&g_pf_key_hex, hdl->info.str.data->str, sizeof(g_pf_key_hex));
+    g_pf_key_hex[sizeof(g_pf_key_hex) - 1] = '\0';
 
-    bool ok = DkSetProtectedFilesKey(&g_pf_key_hex, sizeof(g_pf_key_hex));
+    bool ok = DkSetProtectedFilesKey(&g_pf_key_hex);
     return ok ? 0 : -EACCES;
 }
 

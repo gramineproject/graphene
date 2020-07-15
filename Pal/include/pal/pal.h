@@ -737,7 +737,7 @@ PAL_NUM DkMemoryAvailableQuota(void);
 /*!
  * \brief Obtain the attestation report (local) with `user_report_data` embedded into it.
  *
- * Currently, works only for Linux-SGX PAL, where `user_report_data` is a blob of exactly 64B,
+ * Currently works only for Linux-SGX PAL, where `user_report_data` is a blob of exactly 64B,
  * `target_info` is an SGX target_info struct of exactly 512B, and `report` is an SGX report
  * obtained via the EREPORT instruction (exactly 432B). If `target_info` contains all zeros,
  * then this function additionally returns this enclave's target info in `target_info`. Useful
@@ -771,7 +771,7 @@ PAL_BOL DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_
 /*!
  * \brief Obtain the attestation quote with `user_report_data` embedded into it.
  *
- * Currently, works only for Linux-SGX PAL, where `user_report_data` is a blob of exactly 64B
+ * Currently works only for Linux-SGX PAL, where `user_report_data` is a blob of exactly 64B
  * and `quote` is an SGX quote obtained from Quoting Enclave via AESM service.
  *
  * \param[in]     user_report_data       Report data with arbitrary contents (typically uniquely
@@ -789,15 +789,13 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
 /*!
  * \brief Set wrap key (master key) for protected files.
  *
- * Currently, works only for Linux-SGX PAL. This function is supposed to be called during
+ * Currently works only for Linux-SGX PAL. This function is supposed to be called during
  * remote attestation and secret provisioning, before the user application starts.
  *
  * \param[in]     pf_key_hex       Wrap key for protected files. Must be a 32-char null-terminated
  *                                 hex string in case of SGX PAL (AES-GCM encryption key).
- * \param[in]     pf_key_hex_size  Size in bytes of `pf_key_hex`. Must be exactly 33B (includes
- *                                 null byte) in case of SGX PAL.
  */
-PAL_BOL DkSetProtectedFilesKey(PAL_PTR pf_key_hex, PAL_NUM pf_key_hex_size);
+PAL_BOL DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
 
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \
