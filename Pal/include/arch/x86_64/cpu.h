@@ -28,7 +28,6 @@ static inline void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int w
 }
 
 
-/* this function is used to get TSC cycle */
 static inline unsigned long get_tsc(void) {
     unsigned long lo, hi;
     __asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));

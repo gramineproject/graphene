@@ -23,7 +23,7 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
-#define TSC_REFINE_INIT_TIMEOUT_USECS 10000000L
+#define TSC_REFINE_INIT_TIMEOUT_USECS 10000000
 
 static int64_t g_tsc_hz = 0;
 static int64_t g_start_tsc = 0;
@@ -31,7 +31,7 @@ static int64_t g_start_usec = 0;
 static PAL_LOCK g_tsc_lock = LOCK_INIT;
 
 /**
- * Initialize the data structures used for date/time emulation.
+ * Initialize the data structures used for date/time emulation using TSC
  */
 void init_tsc(void) {
     if (is_tsc_usable()) {
@@ -47,7 +47,7 @@ unsigned long _DkSystemTimeQuery(void) {
     if (g_tsc_hz > 0) {
         _DkInternalLock(&g_tsc_lock);
         if (g_start_tsc > 0 && g_start_usec > 0) {
-            /* calculate the TSC based time */
+            /* calculate the TSC-based time */
             tsc_diff = get_tsc() - g_start_tsc;
             if (tsc_diff < INT64_MAX / 1000000) {
                 tsc_usec = g_start_usec + (tsc_diff * 1000000 / g_tsc_hz);
@@ -70,7 +70,7 @@ unsigned long _DkSystemTimeQuery(void) {
                  * estimation is the timestamp obtained in the middle   *
                  * time point, therefore, the tsc_cyc as baseline will  *
                  * be calibrated precisely in this way.                 */
-                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) >> 1) + tsc_cyc1;
+                tsc_cyc = ((tsc_cyc2 - tsc_cyc1) / 2) + tsc_cyc1;
                 _DkInternalLock(&g_tsc_lock);
                 /* refresh the baseline data if no other thread updated g_start_tsc */
                 if (g_start_tsc < tsc_cyc) {
@@ -83,7 +83,7 @@ unsigned long _DkSystemTimeQuery(void) {
             }
         }
     } else {
-        /* fallback to gettimeofday syscall */
+        /* fallback to the slow ocall */
         ret = ocall_gettime(&usec);
         if (ret)
             _DkRaiseFailure(PAL_ERROR_DENIED);

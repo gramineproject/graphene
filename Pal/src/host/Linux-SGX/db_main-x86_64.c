@@ -94,33 +94,26 @@ static double get_bogomips(void) {
     return sanitize_bogomips_value(get_bogomips_from_cpuinfo_buf(buf));
 }
 
-/* this function determines whether TSC is reliable to use */
 bool is_tsc_usable(void) {
-    bool retval = false;
-    unsigned int words[PAL_CPUID_WORD_NUM];
+    uint32_t words[PAL_CPUID_WORD_NUM];
 
     _DkCpuIdRetrieve(CPUID_LEAF_INVARIANT_TSC, 0, words);
-    retval = words[PAL_CPUID_WORD_EDX] & 1 << 8;
-
-    return retval;
+    return words[PAL_CPUID_WORD_EDX] & 1 << 8;
 }
 
-/* this function is used to fetch the baseline freq of TSC */
-int64_t get_tsc_hz(void) {
-    int64_t retval = 0;
-    unsigned int words[PAL_CPUID_WORD_NUM];
-    int64_t crys_hz;
+uint64_t get_tsc_hz(void) {
+    uint32_t words[PAL_CPUID_WORD_NUM];
+    uint64_t crys_hz;
 
     _DkCpuIdRetrieve(CPUID_LEAF_TSC_FREQ, 0, words);
     if (words[PAL_CPUID_WORD_EBX] > 0 && words[PAL_CPUID_WORD_EAX] > 0) {
         /* nominal frequency of the core crystal clock in kHz */
         crys_hz = words[PAL_CPUID_WORD_ECX];
         if (crys_hz > 0) {
-            retval = crys_hz * words[PAL_CPUID_WORD_EBX] /
-                words[PAL_CPUID_WORD_EAX];
+            return crys_hz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
         }
     }
-    return retval;
+    return 0;
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
