@@ -194,12 +194,12 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    memset(buf, 0, sizeof(buf));
-    ret = fread(buf, 1, sizeof(buf), f);
+    ret = fread(buf, 1, sizeof(buf) - 1, f);
     if (ferror(f)) {
         perror("fread /proc/cpuinfo");
         return 1;
     }
+    buf[ret] = 0;
 
     printf("%s\n", buf);
 
