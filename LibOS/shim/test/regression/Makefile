@@ -1,13 +1,16 @@
 include ../../../../Scripts/Makefile.configs
 
+c_executables-x86_64 = \
+	attestation \
+	cpuid \
+	rdtsc
+
 c_executables = \
 	abort \
 	abort_multithread \
-	attestation \
 	bootstrap \
 	bootstrap_pie \
 	bootstrap_static \
-	cpuid \
 	dev \
 	epoll_wait_timeout \
 	eventfd \
@@ -69,12 +72,8 @@ c_executables = \
 	tcp_msg_peek \
 	udp \
 	unix \
-	vfork_and_exec
-
-ifeq ($(ARCH),x86_64)
-c_executables += \
-	rdtsc
-endif
+	vfork_and_exec \
+	$(c_executables-$(ARCH))
 
 cxx_executables = bootstrap_c++
 
