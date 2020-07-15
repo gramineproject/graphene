@@ -3,11 +3,9 @@ include ../../../../Scripts/Makefile.configs
 c_executables = \
 	abort \
 	abort_multithread \
-	attestation \
 	bootstrap \
 	bootstrap_pie \
 	bootstrap_static \
-	cpuid \
 	dev \
 	epoll_wait_timeout \
 	eventfd \
@@ -73,6 +71,8 @@ c_executables = \
 
 ifeq ($(ARCH),x86_64)
 c_executables += \
+	attestation \
+	cpuid \
 	rdtsc
 endif
 
