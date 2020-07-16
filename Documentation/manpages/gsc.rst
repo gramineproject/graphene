@@ -440,11 +440,10 @@ Workaround
 Allowing dynamic file contents via Graphene protected files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   Once protected files are supported by Graphene, Docker volumes could include
-   protected files. As a result Graphene can open these protected files without
-   knowing the exact contents as long as the protected file was configured in
-   the application-specific manifest. The complete and secure use of protected
-   files may require additional steps.
+   Docker volumes can include Graphene protected files. As a result Graphene
+   can open these protected files without knowing the exact contents as long as
+   the protected file was configured in the application-specific manifest. The
+   complete and secure use of protected files may require additional steps.
 
 Integration of Docker Secrets
 -----------------------------

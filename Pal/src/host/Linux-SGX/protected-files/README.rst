@@ -2,7 +2,6 @@
 Protected Files
 ===============
 
-[TODO: add to RTD]
 Protected files (PF) are a new type of files that can be specified in the manifest (SGX only).
 They are encrypted on disk and transparently decrypted when accessed by Graphene or by application
 running inside Graphene.
