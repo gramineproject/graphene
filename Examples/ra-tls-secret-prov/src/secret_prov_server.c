@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    char buf[128] = {0};
+    char buf[WRAP_KEY_SIZE + 1] = {0}; /* +1 is to detect if file is not bigger than expected */
     ssize_t bytes_read = 0;
     while (1) {
         ssize_t ret = read(fd, buf + bytes_read, sizeof(buf) - bytes_read);
