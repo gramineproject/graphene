@@ -83,27 +83,25 @@ the kernel.
 Enabling FSGSBASE support requires building and installing a custom kernel with
 backported patches. The instructions to patch and compile a Linux kernel with
 FSGSBASE support below are written around Ubuntu 18.04 LTS (Bionic Beaver) with
-a Linux 5.7 stable kernel but can be adapted for other distros as necessary.
+a Linux 5.4 LTS stable kernel but can be adapted for other distros as necessary.
 These instructions ensure that the resulting kernel has FSGSBASE support and up
 to date security mitigations.
 
 #. Setup a build environment for kernel development following `the instructions
    in the Ubuntu wiki <https://wiki.ubuntu.com/KernelTeam/GitKernelBuild>`__.
-   Choose Linux version 5.7 via::
+   Clone Linux version 5.4 via::
 
-       cd linux && git checkout v5.7
+       git clone --single-branch --branch linux-5.4.y \
+           https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+       cd linux
 
-#. Obtain the patch series from the Linux kernel mailing list::
+#. Apply the provided FSGSBASE patches to the kernel source tree::
 
-       wget -O fsgsbase.patch https://lore.kernel.org/patchwork/series/446124/mbox
+       git am <graphene-dir>/Pal/src/host/Linux-SGX/sgx-driver/fsgsbase_patches/*.patch
 
    The conversation regarding this patchset can be found in the kernel mailing
    list archives `here
    <https://lore.kernel.org/lkml/20200528201402.1708239-1-sashal@kernel.org>`__.
-
-#. Apply the patch series to the kernel source tree::
-
-       git am fsgsbase.patch
 
 #. Build and install the kernel following `the instructions in the Ubuntu wiki
    <https://wiki.ubuntu.com/KernelTeam/GitKernelBuild>`__.
@@ -121,7 +119,7 @@ to date security mitigations.
 After the patched Linux kernel is installed, you may proceed with installations
 of other SGX software infrastructure: the Intel SGX Linux driver, the Intel SGX
 SDK/PSW, and Graphene itself (see next steps). Note that older versions of
-these software packages may not work with recent Linux kernels like 5.7. We
+these software packages may not work with recent Linux kernels like 5.4. We
 recommend to use commit ``b7ccf6f`` of the Intel SGX Linux Driver for Intel SGX
 DCAP and commit ``0e71c22`` of the Intel SGX SDK/PSW.
 
