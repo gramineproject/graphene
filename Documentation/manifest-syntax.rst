@@ -304,6 +304,33 @@ ISV Product ID and SVN
 This syntax specifies the ISV Product ID and SVN to be added to the enclave
 signature.
 
+Protected Files
+^^^^^^^^^^^^^^^
+
+::
+
+    sgx.protected_files_key = <16-byte hex value>
+    sgx.protected_files.<name> = file:<host path>
+
+This syntax specifies the files that are encrypted on disk and transparently
+decrypted when accessed by Graphene or by application running inside Graphene.
+Protected files guarantee data confidentiality and integrity (tamper
+resistance), as well as file swap protection (a protected file can only be
+accessed when in a specific path).
+
+Paths specifying entries can be files or directories. If a directory is
+specified, all existing files/directories within it are registered as protected
+recursively (and are expected to be encrypted in the PF format). New files
+created in a protected directory are automatically treated as protected.
+
+Note that path size of a protected file is limited to 512 bytes and filename
+size is limited to 260 bytes.
+
+``sgx.protected_files_key`` specifies the wrap (master) encryption key and must
+be used only for debugging purposes. In production environments, this key must
+be provisioned to the enclave using local/remote attestation.
+
+
 Trusted Files
 ^^^^^^^^^^^^^
 
