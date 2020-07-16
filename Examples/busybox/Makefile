@@ -17,8 +17,8 @@ GRAPHENEDIR = ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src
-BUSYBOX_URL ?= https://busybox.net/downloads/busybox-1.31.1.tar.bz2
-BUSYBOX_SHA256 ?= d0f940a72f648943c1f2211e0e3117387c31d765137d92bd8284a3fb9752a998
+BUSYBOX_URL ?= https://busybox.net/downloads/busybox-1.32.0.tar.bz2
+BUSYBOX_SHA256 ?= c35d87f1d04b2b153d33c275c2632e40d388a88f19a9e71727e0bbbff51fe689
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
