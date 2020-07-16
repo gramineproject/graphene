@@ -21,8 +21,8 @@ GRAPHENEDIR = ../..
 SGX_SIGNER_KEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 SRCDIR = src
-COMMIT = 5.0.5
-TAR_SHA256 = 3313d5e09938dc6e16c6911efa4a24b1c494bacb5a917a8e7925ebd55e56be85
+COMMIT = 6.0.5
+TAR_SHA256 = f7ded6c27d48c20bc78e797046c79b6bc411121f0c2d7eead9fea50d6b0b6290
 
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
