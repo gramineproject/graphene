@@ -1267,15 +1267,19 @@ pf_status_t pf_set_size(pf_context_t* pf, uint64_t size) {
     return PF_STATUS_NOT_IMPLEMENTED;
 }
 
-pf_status_t pf_read(pf_context_t* pf, uint64_t offset, size_t size, void* output) {
+pf_status_t pf_read(pf_context_t* pf, uint64_t offset, size_t size, void* output,
+                    size_t* bytes_read) {
     if (!g_initialized)
         return PF_STATUS_UNINITIALIZED;
 
     if (!ipf_seek(pf, offset))
         return pf->last_error;
 
-    if (ipf_read(pf, output, size) != size)
+    size_t bytes = ipf_read(pf, output, size);
+    if (!bytes)
         return pf->last_error;
+
+    *bytes_read = bytes;
     return PF_STATUS_SUCCESS;
 }
 

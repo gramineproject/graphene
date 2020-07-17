@@ -199,9 +199,11 @@ pf_status_t pf_close(pf_context_t* pf);
  * \param [in] offset Data offset to read from
  * \param [in] size Number of bytes to read
  * \param [out] output Destination buffer
+ * \param [out] bytes_read Number of bytes actually read
  * \return PF status
  */
-pf_status_t pf_read(pf_context_t* pf, uint64_t offset, size_t size, void* output);
+pf_status_t pf_read(pf_context_t* pf, uint64_t offset, size_t size, void* output,
+                    size_t* bytes_read);
 
 /*!
  * \brief Write to a protected file
