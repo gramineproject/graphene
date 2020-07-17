@@ -95,6 +95,7 @@ manifests = \
 	getdents.manifest \
 	host_root_fs.manifest \
 	init_fail.manifest \
+	init_fail2.manifest \
 	large_mmap.manifest \
 	mmap_file.manifest \
 	multi_pthread.manifest \
@@ -108,11 +109,12 @@ exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
 	argv_from_file.manifest \
+	echo.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
-	echo.manifest \
 	file_check_policy_allow_all_but_log.manifest \
 	file_check_policy_strict.manifest \
+	init_fail2.manifest \
 	multi_pthread_exitless.manifest \
 	sh.manifest
 
