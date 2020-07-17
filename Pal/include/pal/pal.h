@@ -789,11 +789,8 @@ PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_si
 #ifdef __GNUC__
 # define symbol_version_default(real, name, version) \
     __asm__ (".symver " #real "," #name "@@" #version "\n")
-# define symbol_version(real, name, version) \
-    __asm__ (".symver " #real "," #name "@" #version "\n")
 #else
 # define symbol_version_default(real, name, version)
-# define symbol_version(real, name, version)
 #endif
 
 #if defined(__i386__) || defined(__x86_64__)
