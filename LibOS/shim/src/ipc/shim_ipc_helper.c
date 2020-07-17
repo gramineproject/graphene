@@ -390,6 +390,11 @@ void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode) {
 }
 
 void del_all_ipc_ports(void) {
+    if (!lock_created(&ipc_helper_lock)) {
+        /* IPC helper thread was not yet initialized, nothing to clean up */
+        return;
+    }
+
     lock(&ipc_helper_lock);
 
     struct shim_ipc_port* port;
