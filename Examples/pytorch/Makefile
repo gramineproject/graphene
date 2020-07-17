@@ -75,6 +75,7 @@ python3.sig: python3.manifest
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
+.PHONY: download_model
 download_model:
 	$(PYTHON3) download-pretrained-model.py
 
