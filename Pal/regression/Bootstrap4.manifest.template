@@ -1,2 +1,4 @@
 loader.exec = file:Bootstrap
 loader.argv0_override = Bootstrap
+
+sgx.zero_heap_on_demand = 1

@@ -2,3 +2,4 @@ loader.argv0_override = Thread2
 
 sgx.thread_num = 2
 sgx.enable_stats = 1
+sgx.zero_heap_on_demand = 1

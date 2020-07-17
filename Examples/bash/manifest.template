@@ -81,3 +81,5 @@ $(TRUSTED_LIBS)
 $(TRUSTED_CHILDREN)
 
 sgx.allowed_files.scripts = file:scripts
+
+sgx.zero_heap_on_demand = 1

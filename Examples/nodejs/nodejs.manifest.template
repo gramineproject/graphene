@@ -58,3 +58,5 @@ $(NODEJS_TRUSTED_LIBS)
 
 # JavaScript (trusted)
 sgx.trusted_files.javascript = file:helloworld.js
+
+sgx.zero_heap_on_demand = 1

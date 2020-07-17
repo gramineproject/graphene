@@ -22,3 +22,4 @@ sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.remote_attestation = 1
 sgx.ra_client_spid = $(RA_CLIENT_SPID)
 sgx.ra_client_linkable = $(RA_CLIENT_LINKABLE)
+sgx.zero_heap_on_demand = 1

@@ -2,3 +2,5 @@ loader.argv0_override = Process2
 loader.debug_type = inline
 
 sgx.trusted_children.1 = file:Bootstrap.sig
+
+sgx.zero_heap_on_demand = 1

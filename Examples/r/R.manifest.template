@@ -96,3 +96,5 @@ sgx.allowed_files.r_lib = file:$(R_HOME)/library
 # Allow creating child enclaves for sh
 sgx.trusted_files.sh = file:/bin/sh
 sgx.trusted_children.sh = file:sh.sig
+
+sgx.zero_heap_on_demand = 1
