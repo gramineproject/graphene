@@ -394,7 +394,11 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         if (chunk_size == 0)
             break;
 
-        pfs = pf_read(pf, input_offset, chunk_size, chunk);
+        size_t bytes_read = 0;
+        pfs = pf_read(pf, input_offset, chunk_size, chunk, &bytes_read);
+        if (bytes_read != chunk_size) {
+            pfs = PF_STATUS_CORRUPTED;
+        }
         if (PF_FAILURE(pfs)) {
             ERROR("Read from protected file failed (offset %" PRIu64 ", size %" PRIu64 "): %d\n",
                   input_offset, chunk_size, pfs);

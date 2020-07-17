@@ -154,14 +154,15 @@ static int64_t pf_file_read(struct protected_file* pf, PAL_HANDLE handle, uint64
         return -PAL_ERROR_BADHANDLE;
     }
 
-    pf_status_t pfs = pf_read(pf->context, offset, count, buffer);
+    size_t bytes_read = 0;
+    pf_status_t pfs = pf_read(pf->context, offset, count, buffer, &bytes_read);
 
     if (PF_FAILURE(pfs)) {
         SGX_DBG(DBG_E, "pf_file_read(PF fd %d): pf_read failed: %d\n", fd, pfs);
         return -PAL_ERROR_DENIED;
     }
 
-    return count;
+    return bytes_read;
 }
 
 /* 'read' operation for file streams. */
@@ -350,7 +351,12 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
 
         uint64_t copy_size = MIN(size, pf_size - offset);
 
-        pf_status_t pf_ret = pf_read(pf->context, offset, copy_size, *addr);
+        size_t bytes_read = 0;
+        pf_status_t pf_ret = pf_read(pf->context, offset, copy_size, *addr, &bytes_read);
+        if (bytes_read != copy_size) {
+            /* mapped region must be read completely from file, otherwise it's an error */
+            pf_ret = PF_STATUS_CORRUPTED;
+        }
         if (PF_FAILURE(pf_ret)) {
             SGX_DBG(DBG_E, "pf_file_map(PF fd %d): pf_read failed: %d\n", fd, pf_ret);
             return -PAL_ERROR_DENIED;
