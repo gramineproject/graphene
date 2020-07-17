@@ -69,9 +69,9 @@ int ocall_shutdown (int sockfd, int how);
 
 int ocall_resume_thread (void * tcs);
 
-int ocall_sched_setaffinity(uint64_t tid, uint64_t cpu_num, void * cpu_mask);
+int ocall_sched_setaffinity(uint64_t tid, uint64_t cpu_num, void* cpu_mask);
 
-int ocall_sched_getaffinity(uint64_t tid, uint64_t cpu_num, void * cpu_mask);
+int ocall_sched_getaffinity(uint64_t tid, uint64_t cpu_num, void* cpu_mask);
 
 int ocall_clone_thread (void);
 

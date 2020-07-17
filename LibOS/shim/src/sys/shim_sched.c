@@ -17,6 +17,7 @@
 #include <pal.h>
 #include <shim_internal.h>
 #include <shim_table.h>
+#include <shim_thread.h>
 
 int shim_do_sched_yield(void) {
     DkThreadYieldExecution();
@@ -159,6 +160,12 @@ int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
     int retval = 0;
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
+
+    struct shim_thread* cur_thread = get_cur_thread();
+    if (!cur_thread)
+        return -ESRCH;
+
+    thread = cur_thread->pal_handle;
 
     /* to set other thread requires host tid mapping */
     if (pid != 0) {

@@ -155,15 +155,7 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
 
 int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
 {
-    uint64_t tid = 0;
-
-    if (thread != NULL ) {
-        SGX_DBG(DBG_E,
-                "Don't support to set cpu thread affinity other than current thread for now.\n");
-        return -PAL_ERROR_NOTIMPLEMENTED;
-    }
-
-    int ret = ocall_sched_setaffinity(tid, cpu_num, cpu_mask);
+    int ret = ocall_sched_setaffinity(thread->thread.tid, cpu_num, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

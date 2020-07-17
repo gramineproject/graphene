@@ -28,6 +28,8 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
+#define CPUID_0BH_LEAF 0xb
+
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
     int ret = ocall_gettime(&microsec);
@@ -253,7 +255,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
     int notcache = 0;
 
     /* the cpu topology info subjects to thread affinity */
-    if (leaf == 0xb) {
+    if (leaf == CPUID_0BH_LEAF) {
         notcache = 1;
     }
 

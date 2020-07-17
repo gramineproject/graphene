@@ -172,15 +172,15 @@ typedef struct {
 } ms_ocall_create_process_t;
 
 typedef struct {
-    uint64_t ms_tid;
+    int ms_tid;
     uint64_t ms_cpu_num;
-    void * ms_cpu_mask;
+    void* ms_cpu_mask;
 } ms_ocall_sched_setaffinity_t;
 
 typedef struct {
-    uint64_t ms_tid;
+    int ms_tid;
     uint64_t ms_cpu_num;
-    void * ms_cpu_mask;
+    void* ms_cpu_mask;
 } ms_ocall_sched_getaffinity_t;
 
 typedef struct {

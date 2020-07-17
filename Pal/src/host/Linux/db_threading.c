@@ -280,14 +280,10 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
     return 0;
 }
 
-int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask) {
-    PAL_NUM tid = 0;
-    if (thread != NULL ) {
-        return -PAL_ERROR_NOTIMPLEMENTED;
-    }
-
+int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
+{
     int ret = INLINE_SYSCALL(sched_setaffinity, 3,
-                             tid,
+                             thread->thread.tid,
                              cpu_num,
                              cpu_mask);
 
@@ -297,7 +293,8 @@ int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask
     return 0;
 }
 
-int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask) {
+int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
+{
     PAL_NUM tid = 0;
     if (thread != NULL ) {
         return -PAL_ERROR_NOTIMPLEMENTED;
