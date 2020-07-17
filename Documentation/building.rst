@@ -87,15 +87,6 @@ a Linux 5.4 LTS stable kernel but can be adapted for other distros as necessary.
 These instructions ensure that the resulting kernel has FSGSBASE support and up
 to date security mitigations.
 
-#. Unpack the mbox files of the provided (backported) FSGSBASE patch from the tar::
-
-       cd <graphene-dir>/Pal/src/host/Linux-SGX/sgx-driver/fsgsbase_patches
-       tar xvf fsgsbase_backport_5.4.y.tar
-
-   The conversation regarding this patchset can be found in the kernel mailing
-   list archives `here
-   <https://lore.kernel.org/lkml/20200528201402.1708239-1-sashal@kernel.org>`__.
-
 #. Setup a build environment for kernel development following `the instructions
    in the Ubuntu wiki <https://wiki.ubuntu.com/KernelTeam/GitKernelBuild>`__.
    Clone Linux version 5.4 via::
@@ -107,6 +98,10 @@ to date security mitigations.
 #. Apply the provided FSGSBASE patches to the kernel source tree::
 
        git am <graphene-dir>/Pal/src/host/Linux-SGX/sgx-driver/fsgsbase_patches/*.patch
+
+   The conversation regarding this patchset can be found in the kernel mailing
+   list archives `here
+   <https://lore.kernel.org/lkml/20200528201402.1708239-1-sashal@kernel.org>`__.
 
 #. Build and install the kernel following `the instructions in the Ubuntu wiki
    <https://wiki.ubuntu.com/KernelTeam/GitKernelBuild>`__.
