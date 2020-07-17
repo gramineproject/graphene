@@ -33,6 +33,7 @@
    a statically-linked program there is no dynamic section for the debugger
    to examine and it looks for this particular symbol name.  */
 struct r_debug g_pal_r_debug = { 1, NULL, (ElfW(Addr))&pal_dl_debug_state, RT_CONSISTENT, 0 };
+symbol_version_default(g_pal_r_debug, _r_debug, PAL);
 
 /* This function exists solely to have a breakpoint set on it by the
    debugger.  The debugger is supposed to find this function's address by
