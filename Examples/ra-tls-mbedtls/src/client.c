@@ -119,7 +119,7 @@ static bool getenv_client_inside_sgx() {
     if (!str)
         return false;
 
-    return (!strcmp(str, "1") || !strcmp(str, "true") || !strcmp(str, "TRUE"));
+    return !strcmp(str, "1") || !strcmp(str, "true") || !strcmp(str, "TRUE");
 }
 
 int main(int argc, char** argv) {
