@@ -23,3 +23,4 @@ sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
 sgx.allowed_files.testfile = file:testfile
 
 sgx.static_address = 1
+sgx.zero_heap_on_demand = 1

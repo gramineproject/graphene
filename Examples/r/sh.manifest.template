@@ -42,3 +42,5 @@ sgx.thread_num = 2
 # SGX trusted libraries
 sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+
+sgx.zero_heap_on_demand = 1

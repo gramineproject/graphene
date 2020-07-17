@@ -77,3 +77,5 @@ sgx.allowed_files.hosts      = file:/etc/hosts
 sgx.allowed_files.group      = file:/etc/group
 sgx.allowed_files.passwd     = file:/etc/passwd
 sgx.allowed_files.gaiconf    = file:/etc/gai.conf
+
+sgx.zero_heap_on_demand = 1

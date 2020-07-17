@@ -2,3 +2,5 @@ loader.debug_type = inline
 loader.preload = file:Preload1.so,file:Preload2.so
 # This example doesn't use any binary, this line is only to stop argv protection from complaining.
 loader.argv0_override = Bootstrap
+
+sgx.zero_heap_on_demand = 1

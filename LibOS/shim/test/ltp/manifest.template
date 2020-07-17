@@ -40,3 +40,5 @@ sgx.trusted_files.librt = file:$(LIBCDIR)/librt.so.1
 sgx.trusted_files.libstdbuf = file:/usr/$(ARCH_LIBDIR)/coreutils/libstdbuf.so
 
 sgx.allowed_files.tmp = file:/tmp
+
+sgx.zero_heap_on_demand = 1

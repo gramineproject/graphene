@@ -32,3 +32,4 @@ sgx.trusted_files.echo = file:/bin/echo
 sgx.trusted_children.echo = file:echo.sig
 
 sgx.static_address = 1
+sgx.zero_heap_on_demand = 1

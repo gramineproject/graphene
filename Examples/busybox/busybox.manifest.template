@@ -140,3 +140,4 @@ sgx.allowed_files.passwd    = file:/etc/passwd
 # glibc-based host systems.
 sgx.allowed_files.localtime = file:/etc/localtime
 
+sgx.zero_heap_on_demand = 1

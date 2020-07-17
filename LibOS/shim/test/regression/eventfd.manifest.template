@@ -17,3 +17,4 @@ sgx.trusted_files.libm = file:../../../../Runtime/libm.so.6
 sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 
 sgx.static_address = 1
+sgx.zero_heap_on_demand = 1

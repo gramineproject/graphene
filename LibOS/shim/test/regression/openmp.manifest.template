@@ -25,3 +25,4 @@ sgx.trusted_files.libdl = file:../../../../Runtime/libdl.so.2
 sgx.trusted_files.libgomp = file:/usr$(ARCH_LIBDIR)/libgomp.so.1
 
 sgx.static_address = 1
+sgx.zero_heap_on_demand = 1

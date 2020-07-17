@@ -166,6 +166,7 @@ out:
     return status;
 }
 
+static mbedtls_entropy_context g_entropy;
 static mbedtls_ctr_drbg_context g_prng;
 
 static pf_status_t mbedtls_random(uint8_t* buffer, size_t size) {
@@ -177,21 +178,18 @@ static pf_status_t mbedtls_random(uint8_t* buffer, size_t size) {
 }
 
 static int pf_set_linux_callbacks(pf_debug_f debug_f) {
-    mbedtls_entropy_context entropy;
     const char* prng_tag = "Graphene protected files library";
 
     /* Initialize mbedTLS CPRNG */
-    mbedtls_entropy_init(&entropy);
+    mbedtls_entropy_init(&g_entropy);
     mbedtls_ctr_drbg_init(&g_prng);
-    int ret = mbedtls_ctr_drbg_seed(&g_prng, mbedtls_entropy_func, &entropy,
+    int ret = mbedtls_ctr_drbg_seed(&g_prng, mbedtls_entropy_func, &g_entropy,
                                     (const unsigned char*)prng_tag, strlen(prng_tag));
 
     if (ret != 0) {
         ERROR("Failed to initialize mbedTLS RNG: %d\n", ret);
         return -1;
     }
-
-    mbedtls_entropy_free(&entropy);
 
     pf_set_callbacks(linux_read, linux_write, linux_truncate, mbedtls_aes_gcm_encrypt,
                      mbedtls_aes_gcm_decrypt, mbedtls_random, debug_f);

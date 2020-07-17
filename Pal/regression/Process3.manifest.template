@@ -1,3 +1,5 @@
 loader.debug_type = inline
 loader.preload = file:Preload1.so,file:Preload2.so
 loader.insecure__use_cmdline_argv = 1
+
+sgx.zero_heap_on_demand = 1
