@@ -550,13 +550,12 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
         data = lruc_get_next(pf->cache);
     }
 
-    // sort the list from the last node to the first (bottom layers first)
     if (dirty_count > 0)
         sort_nodes(mht_array, 0, dirty_count - 1);
 
-    // update the gmacs in the parents
-    for (dirty_idx = 0; dirty_idx < dirty_count; dirty_idx++) {
-        file_mht_node = mht_array[dirty_idx];
+    // update the gmacs in the parents from last node to first (bottom layers first)
+    for (dirty_idx = dirty_count; dirty_idx > 0; dirty_idx--) {
+        file_mht_node = mht_array[dirty_idx - 1];
 
         gcm_crypto_data_t* gcm_crypto_data = &file_mht_node->parent->decrypted.mht
             .mht_nodes_crypto[(file_mht_node->node_number - 1) % CHILD_MHT_NODES_COUNT];
