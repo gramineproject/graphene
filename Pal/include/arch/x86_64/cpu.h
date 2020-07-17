@@ -3,6 +3,8 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include <stdint.h>
+
 static inline void cpu_pause(void) {
     __asm__ volatile("pause");
 }
@@ -27,6 +29,12 @@ static inline void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int w
                "c" (subleaf));
 }
 
+
+static inline uint64_t get_tsc(void) {
+    unsigned long lo, hi;
+    __asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));
+    return lo | ((uint64_t)hi << 32);
+}
 
 #define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory")
 

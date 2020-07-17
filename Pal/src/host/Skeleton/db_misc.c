@@ -26,8 +26,8 @@ bool _DkInternalIsLocked(PAL_LOCK* lock) {
     __abort();
 }
 
-unsigned long _DkSystemTimeQuery(void) {
-    return 0;
+int _DkSystemTimeQuery(uint64_t* out_usec) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 size_t _DkRandomBitsRead(void* buffer, size_t size) {

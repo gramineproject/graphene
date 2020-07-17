@@ -75,7 +75,7 @@ int ocall_create_process(const char* uri, int nargs, const char** args, int* str
 
 int ocall_futex(uint32_t *uaddr, int op, int val, int64_t timeout_us);
 
-int ocall_gettime (unsigned long * microsec);
+int ocall_gettime(uint64_t* microsec);
 
 int ocall_sleep (unsigned long * microsec);
 

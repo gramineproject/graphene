@@ -116,8 +116,13 @@ static void emulate_rdtsc_and_print_warning(sgx_cpu_context_t* uc) {
                        "gettime() syscall.\n");
     }
 
+    uint64_t usec;
+    int res = _DkSystemTimeQuery(&usec);
+    if (res < 0) {
+        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed in unrecoverable context, exiting.\n");
+        _DkProcessExit(1);
+    }
     /* FIXME: Ideally, we would like to scale microseconds back to RDTSC clock cycles */
-    uint64_t usec = _DkSystemTimeQuery();
     uc->rdx = (uint32_t)(usec >> 32);
     uc->rax = (uint32_t)usec;
 }

@@ -569,7 +569,7 @@ static long sgx_ocall_gettime(void * pms)
     ODEBUG(OCALL_GETTIME, ms);
     struct timeval tv;
     INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
-    ms->ms_microsec = tv.tv_sec * 1000000UL + tv.tv_usec;
+    ms->ms_microsec = tv.tv_sec * (uint64_t)1000000 + tv.tv_usec;
     return 0;
 }
 

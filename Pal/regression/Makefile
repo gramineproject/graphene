@@ -13,6 +13,13 @@ preloads = \
 	Preload1.so \
 	Preload2.so
 
+executables-x86_64 = \
+        AvxDisable \
+        Exception \
+        Exception2 \
+        Segment \
+        Thread
+
 executables = \
 	..Bootstrap \
 	AttestationReport \
@@ -49,16 +56,8 @@ executables = \
 	Udp \
 	Wait \
 	Yield \
-	normalize_path
-
-ifeq ($(ARCH),x86_64)
-executables += \
-        AvxDisable \
-        Exception \
-        Exception2 \
-        Segment \
-        Thread
-endif
+	normalize_path \
+	$(executables-$(ARCH))
 
 manifests = \
 	manifest \
