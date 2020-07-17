@@ -32,9 +32,9 @@ UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
 .PHONY: all
 ifeq ($(SGX),1)
-all: pytorch.token python3.token pal_loader
+all: pytorch.token python3.token pal_loader alexnet-pretrained.pt
 else
-all: pytorch.manifest python3.manifest pal_loader
+all: pytorch.manifest python3.manifest pal_loader alexnet-pretrained.pt
 endif
 
 include ../../Scripts/Makefile.configs
@@ -77,6 +77,8 @@ pal_loader:
 
 download_model:
 	$(PYTHON3) download-pretrained-model.py
+
+alexnet-pretrained.pt: download_model
 
 .PHONY: clean
 clean:
