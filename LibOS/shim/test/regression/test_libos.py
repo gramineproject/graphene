@@ -212,6 +212,15 @@ class TC_01_Bootstrap(RegressionTestCase):
         except subprocess.CalledProcessError as e:
             self.assertNotEqual(e.returncode, 42, 'expected returncode != 42')
 
+    @unittest.skipUnless(HAS_SGX, 'This test relies on SGX-specific manifest options.')
+    def test_501_init_fail2(self):
+        try:
+            manifest = self.get_manifest('init_fail2')
+            self.run_binary([manifest], timeout=60)
+            self.fail('expected to return nonzero (and != 42)')
+        except subprocess.CalledProcessError as e:
+            self.assertNotEqual(e.returncode, 42, 'expected returncode != 42')
+
     def test_600_multi_pthread(self):
         stdout, _ = self.run_binary(['multi_pthread'])
 

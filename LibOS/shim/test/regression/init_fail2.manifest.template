@@ -1,0 +1,19 @@
+loader.exec = file:init_fail
+loader.preload = file:$(SHIMPATH)
+loader.env.LD_LIBRARY_PATH = /lib
+loader.debug_type = none
+loader.argv0_override = init_fail
+
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(LIBCDIR)
+
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+
+sgx.static_address = 1
+sgx.zero_heap_on_demand = 1
+
+# this is an impossible combination of options, LibOS must fail very early in init process
+sgx.enclave_size = 256M
+sys.brk.max_size = 512M

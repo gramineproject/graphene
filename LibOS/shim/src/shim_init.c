@@ -494,7 +494,7 @@ fail:
         int _err = CALL_INIT(func, ##__VA_ARGS__);                      \
         if (_err < 0) {                                                 \
             SYS_PRINTF("shim_init() in " #func " (%d)\n", _err);        \
-            shim_clean_and_exit(_err);                                  \
+            DkProcessExit(_err);                                        \
         }                                                               \
     } while (0)
 
