@@ -114,6 +114,14 @@ static int my_verify_measurements(const char* mrenclave, const char* mrsigner,
     return 0;
 }
 
+static bool getenv_client_inside_sgx() {
+    char* str = getenv("RA_TLS_CLIENT_INSIDE_SGX");
+    if (!str)
+        return false;
+
+    return !strcmp(str, "1") || !strcmp(str, "true") || !strcmp(str, "TRUE");
+}
+
 int main(int argc, char** argv) {
     int ret;
     size_t len;
@@ -122,6 +130,7 @@ int main(int argc, char** argv) {
     uint32_t flags;
     unsigned char buf[1024];
     const char* pers = "ssl_client1";
+    bool in_sgx = getenv_client_inside_sgx();
 
     char* error;
     void* ra_tls_verify_lib           = NULL;
@@ -156,22 +165,40 @@ int main(int argc, char** argv) {
         if (!ra_tls_verify_lib) {
             mbedtls_printf("%s\n", dlerror());
             mbedtls_printf("User requested RA-TLS verification with EPID but cannot find lib\n");
+            if (in_sgx) {
+                mbedtls_printf("Please make sure that you are using client_epid.manifest\n");
+            }
             return 1;
         }
     } else if (!strcmp(argv[1], "dcap")) {
-        void* helper_sgx_urts_lib = dlopen("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
-        if (!helper_sgx_urts_lib) {
-            mbedtls_printf("%s\n", dlerror());
-            mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find helper"
-                           " libsgx_urts.so lib\n");
-            return 1;
-        }
+        if (in_sgx) {
+            /*
+             * RA-TLS verification with DCAP inside SGX enclave uses dummies
+             * instead of real functions from libsgx_urts.so, thus we don't
+             * need to load this helper library.
+             */
+            ra_tls_verify_lib = dlopen("libra_tls_verify_dcap_graphene.so", RTLD_LAZY);
+            if (!ra_tls_verify_lib) {
+                mbedtls_printf("%s\n", dlerror());
+                mbedtls_printf("User requested RA-TLS verification with DCAP inside SGX but cannot find lib\n");
+                mbedtls_printf("Please make sure that you are using client_dcap.manifest\n");
+                return 1;
+            }
+        } else {
+            void* helper_sgx_urts_lib = dlopen("libsgx_urts.so", RTLD_NOW | RTLD_GLOBAL);
+            if (!helper_sgx_urts_lib) {
+                mbedtls_printf("%s\n", dlerror());
+                mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find helper"
+                               " libsgx_urts.so lib\n");
+                return 1;
+            }
 
-        ra_tls_verify_lib = dlopen("libra_tls_verify_dcap.so", RTLD_LAZY);
-        if (!ra_tls_verify_lib) {
-            mbedtls_printf("%s\n", dlerror());
-            mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find lib\n");
-            return 1;
+            ra_tls_verify_lib = dlopen("libra_tls_verify_dcap.so", RTLD_LAZY);
+            if (!ra_tls_verify_lib) {
+                mbedtls_printf("%s\n", dlerror());
+                mbedtls_printf("User requested RA-TLS verification with DCAP but cannot find lib\n");
+                return 1;
+            }
         }
     }
 
