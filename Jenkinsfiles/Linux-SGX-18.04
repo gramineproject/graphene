@@ -2,7 +2,7 @@ pipeline {
         agent {
             dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile'
                          label 'uncledeadly'
-                         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx"
+                         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/isgx:/dev/isgx"
                        }
         }
         stages {
