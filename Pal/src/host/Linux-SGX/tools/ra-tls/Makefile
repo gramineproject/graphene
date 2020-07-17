@@ -16,7 +16,7 @@ epid: libra_tls_attest.so libra_tls_verify_epid.so \
       libsecret_prov_attest.so libsecret_prov_verify_epid.so
 
 .PHONY: dcap
-dcap: libra_tls_attest.so libra_tls_verify_dcap.so \
+dcap: libra_tls_attest.so libra_tls_verify_dcap.so libra_tls_verify_dcap_graphene.so \
       libsecret_prov_attest.so libsecret_prov_verify_dcap.so
 
 libra_tls_attest.so: ra_tls_attest.o
@@ -26,6 +26,9 @@ libra_tls_verify_epid.so: ra_tls_verify_common.o ra_tls_verify_epid.o
 	$(CC) $^ $(LDFLAGS) -L../common -lsgx_util -lmbedcrypto -lmbedx509 -shared -o $@
 
 libra_tls_verify_dcap.so: ra_tls_verify_common.o ra_tls_verify_dcap.o
+	$(CC) $^ $(LDFLAGS) -L../common -lsgx_util -lmbedcrypto -lmbedx509 -lsgx_dcap_quoteverify -shared -o $@
+
+libra_tls_verify_dcap_graphene.so: ra_tls_verify_common.o ra_tls_verify_dcap.o ra_tls_verify_dcap_urts.o
 	$(CC) $^ $(LDFLAGS) -L../common -lsgx_util -lmbedcrypto -lmbedx509 -lsgx_dcap_quoteverify -shared -o $@
 
 libsecret_prov_attest.so: ra_tls_attest.o secret_prov_common.o secret_prov_attest.o
