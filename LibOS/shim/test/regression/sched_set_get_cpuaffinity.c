@@ -18,14 +18,14 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sched.h>
-#include <stdlib.h>
 
 int main(int argc, const char** argv) {
     long ret;
