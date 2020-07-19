@@ -14,8 +14,9 @@ find . -name \*.py \
     -and -not -path ./Pal/lib/crypto/mbedtls/\* \
     -and -not -path ./LibOS/glibc-build/\* \
     -and -not -path ./LibOS/glibc-\?.\?\?/\* \
-    -and -not -path ./LibOS/shim/test/ltp/opt/\* \
     -and -not -path ./LibOS/shim/test/ltp/src/\* \
+    -and -not -path ./LibOS/shim/test/ltp/build/\* \
+    -and -not -path ./LibOS/shim/test/ltp/install/\* \
     -and -not -path ./Examples/pytorch/\* \
 | sed 's/./\\&/g' \
 | xargs "${PYLINT}" "$@" \
