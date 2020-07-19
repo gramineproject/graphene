@@ -8,7 +8,7 @@ is for consumption in Jenkins. There is also rudimentary logging.
 
 To run a single testcase, execute the following commands::
 
-    cd <LTP_REPO>/opt/ltp/testcases/bin/
+    cd <LTP_REPO>/install/testcases/bin/
     <GRAPHENE_DIR>/Runtime/pal_loader [SGX] <TEST_BINARY>
 
 In this way, one can debug one particular syscall testcase.
@@ -29,7 +29,7 @@ Global options:
   become unstable if more than one test is running concurrently under SGX
 - ``junit-classname``: classname to be shown in JUnit-XML report (``LTP``)
 - ``loader``: path to ``pal_loader`` (default: ``./pal_loader``)
-- ``ltproot``: path to LTP (default: ``./opt/ltp``)
+- ``ltproot``: path to LTP (default: ``./install``)
 
 Per-binary options:
 - ``skip``: if true-ish, do not attempt to run the binary (default: false).

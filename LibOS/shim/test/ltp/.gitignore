@@ -1,3 +1,4 @@
-opt/
-ltp*.xml
+/build/
+/install/
+/ltp*.xml
 /pal_loader

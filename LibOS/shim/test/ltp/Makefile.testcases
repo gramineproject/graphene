@@ -1,4 +1,4 @@
-include ../../../../makevars.mk
+include ../../../makevars.mk
 
 manifests = $(wildcard $(ROOTDIR)/*.manifest.template) manifest
 testcases = $(shell cd $(ROOTDIR); \
@@ -9,7 +9,7 @@ target = $(manifests) $(testcases) etc/nsswitch.conf etc/passwd
 
 include $(ROOTDIR)/Makefile.Test
 
-$(addsuffix .template,$(manifests)): %: ../../../../%
+$(addsuffix .template,$(manifests)): %: ../../../%
 	ln -sf $< $@
 
 etc/nsswitch.conf:

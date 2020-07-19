@@ -546,7 +546,7 @@ def load_config(files):
             'timeout': '30',
             'sgx': 'false',
             'loader': './pal_loader',
-            'ltproot': './opt/ltp',
+            'ltproot': './install',
             'junit-classname': 'apps.LTP',
         })
 
