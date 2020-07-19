@@ -805,10 +805,10 @@ static size_t ipf_write(pf_context_t* pf, const void* ptr, size_t size) {
 }
 
 static size_t ipf_read(pf_context_t* pf, void* ptr, size_t size) {
-    if (ptr == NULL || size == 0)
+    if (ptr == NULL) {
+        pf->last_error = PF_STATUS_INVALID_PARAMETER;
         return 0;
-
-    size_t data_left_to_read = size;
+    }
 
     if (PF_FAILURE(pf->file_status)) {
         pf->last_error = pf->file_status;
@@ -820,17 +820,7 @@ static size_t ipf_read(pf_context_t* pf, void* ptr, size_t size) {
         return 0;
     }
 
-    if (pf->end_of_file) {
-        // not an error
-        return 0;
-    }
-
-    // this check is not really needed, can go on with the code and it will do nothing until the end,
-    // but it's more 'right' to check it here
-    if (pf->offset == pf->encrypted_part_plain.size) {
-        pf->end_of_file = true;
-        return 0;
-    }
+    size_t data_left_to_read = size;
 
     if (((uint64_t)data_left_to_read) > (uint64_t)(pf->encrypted_part_plain.size - pf->offset)) {
         // the request is bigger than what's left in the file
@@ -1272,8 +1262,19 @@ pf_status_t pf_read(pf_context_t* pf, uint64_t offset, size_t size, void* output
     if (!g_initialized)
         return PF_STATUS_UNINITIALIZED;
 
+    if (!size) {
+        *bytes_read = 0;
+        return PF_STATUS_SUCCESS;
+    }
+
     if (!ipf_seek(pf, offset))
         return pf->last_error;
+
+    if (pf->end_of_file || pf->offset == pf->encrypted_part_plain.size) {
+        pf->end_of_file = true;
+        *bytes_read = 0;
+        return PF_STATUS_SUCCESS;
+    }
 
     size_t bytes = ipf_read(pf, output, size);
     if (!bytes)
