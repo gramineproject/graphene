@@ -93,9 +93,8 @@ int init_enclave_pages(void) {
             goto out;
         }
 
-        exec_vma->bottom = SATURATED_P_SUB(g_pal_sec.exec_addr, MEMORY_GAP, g_heap_bottom);
-        exec_vma->top = SATURATED_P_ADD(g_pal_sec.exec_addr + g_pal_sec.exec_size, MEMORY_GAP,
-                                        g_heap_top);
+        exec_vma->bottom = g_pal_sec.exec_addr;
+        exec_vma->top = g_pal_sec.exec_addr + g_pal_sec.exec_size;
         exec_vma->is_pal_internal = false;
         INIT_LIST_HEAD(exec_vma, list);
         LISTP_ADD(exec_vma, &g_heap_vma_list, list);

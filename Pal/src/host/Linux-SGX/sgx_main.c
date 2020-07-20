@@ -464,25 +464,25 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     }
 
     unsigned long populating = enclave->size;
-    for (int i = 0 ; i < area_num ; i++) {
+    for (int i = 0; i < area_num; i++) {
         if (areas[i].addr)
             continue;
         areas[i].addr = populating - areas[i].size;
-        populating = SATURATED_P_SUB(areas[i].addr, MEMORY_GAP, 0);
+        populating = areas[i].addr;
     }
 
     enclave_entry_addr += pal_area->addr;
 
     if (exec_area) {
-        if (exec_area->addr + exec_area->size > pal_area->addr - MEMORY_GAP) {
+        if (exec_area->addr + exec_area->size > pal_area->addr) {
             SGX_DBG(DBG_E, "Application binary overlaps with Pal binary\n");
             ret = -EINVAL;
             goto out;
         }
 
-        if (exec_area->addr + exec_area->size + MEMORY_GAP < populating) {
+        if (exec_area->addr + exec_area->size < populating) {
             if (populating > heap_min) {
-                unsigned long addr = exec_area->addr + exec_area->size + MEMORY_GAP;
+                unsigned long addr = exec_area->addr + exec_area->size;
                 if (addr < heap_min)
                     addr = heap_min;
 
@@ -494,7 +494,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
                 area_num++;
             }
 
-            populating = SATURATED_P_SUB(exec_area->addr, MEMORY_GAP, 0);
+            populating = exec_area->addr;
         }
     }
 
@@ -550,8 +550,8 @@ static int initialize_enclave(struct pal_enclave* enclave) {
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_pal_gpr_t);
                 gs->manifest_size = manifest_size;
-                gs->heap_min = (void *) enclave_secs.base + heap_min;
-                gs->heap_max = (void *) enclave_secs.base + pal_area->addr - MEMORY_GAP;
+                gs->heap_min = (void*)enclave_secs.base + heap_min;
+                gs->heap_max = (void*)enclave_secs.base + pal_area->addr;
                 if (exec_area) {
                     gs->exec_addr = (void *) enclave_secs.base + exec_area->addr;
                     gs->exec_size = exec_area->size;

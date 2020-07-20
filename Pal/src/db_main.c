@@ -504,8 +504,7 @@ noreturn void pal_main(
     g_pal_control.disable_aslr       = disable_aslr;
 
     _DkGetAvailableUserAddressRange(&g_pal_control.user_address.start,
-                                    &g_pal_control.user_address.end,
-                                    &g_pal_control.exec_memory_gap);
+                                    &g_pal_control.user_address.end);
 
     g_pal_control.alloc_align        = g_pal_state.alloc_align;
 

@@ -507,25 +507,6 @@ int init_vma(void) {
             .offset = 0,
             .comment = "exec",
         },
-        /* TODO: remove these 2 guard pages, they should not exist (but Linux-SGX Pal adds them). */
-        {
-            .begin = (uintptr_t)PAL_CB(executable_range.start) - PAL_CB(exec_memory_gap),
-            .end = (uintptr_t)PAL_CB(executable_range.start),
-            .prot = PROT_NONE,
-            .flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_UNMAPPED,
-            .file = NULL,
-            .offset = 0,
-            .comment = "guard_page",
-        },
-        {
-            .begin = (uintptr_t)PAL_CB(executable_range.end),
-            .end = (uintptr_t)PAL_CB(executable_range.end) + PAL_CB(exec_memory_gap),
-            .prot = PROT_NONE,
-            .flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_UNMAPPED,
-            .file = NULL,
-            .offset = 0,
-            .comment = "guard_page",
-        },
     };
 
     spinlock_lock_signal_off(&vma_tree_lock);
