@@ -93,7 +93,7 @@ to date security mitigations.
 
        git clone --single-branch --branch linux-5.4.y \
            https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
-       cd linux; git branch
+       cd linux
 
 #. Apply the provided FSGSBASE patches to the kernel source tree::
 
