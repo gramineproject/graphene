@@ -452,7 +452,7 @@ def gen_area_content(attr, areas):
     def set_tls_field(t, offset, value):
         struct.pack_into('<Q', tls_data, t * offs.PAGESIZE + offset, value)
 
-    enclave_heap_max = pal_area.addr - offs.MEMORY_GAP
+    enclave_heap_max = pal_area.addr
 
     # Sanity check that we measure everything except the heap which is zeroed
     # on enclave startup.
@@ -509,17 +509,17 @@ def populate_memory_areas(attr, areas):
         area.addr = populating - area.size
         if area.addr < ENCLAVE_HEAP_MIN:
             raise Exception("Enclave size is not large enough")
-        populating = max(area.addr - offs.MEMORY_GAP, 0)
+        populating = area.addr
 
     free_areas = []
     for area in areas:
-        if area.addr + area.size + offs.MEMORY_GAP < populating:
-            addr = area.addr + area.size + offs.MEMORY_GAP
+        addr = area.addr + area.size
+        if addr < populating:
             flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
             free_areas.append(
                 MemoryArea('free', addr=addr, size=populating - addr,
                            flags=flags, measure=False))
-            populating = max(area.addr - offs.MEMORY_GAP, 0)
+            populating = area.addr
 
     if populating > ENCLAVE_HEAP_MIN:
         flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG

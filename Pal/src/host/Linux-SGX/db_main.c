@@ -43,7 +43,7 @@ unsigned long _DkGetAllocationAlignment (void)
     return g_page_size;
 }
 
-void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap) {
+void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     *start = (PAL_PTR)g_pal_sec.heap_min;
     *end   = (PAL_PTR)get_enclave_heap_top();
 
@@ -55,8 +55,6 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap)
         SGX_DBG(DBG_E, "Not enough enclave memory, please increase enclave size!\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-
-    *gap = MEMORY_GAP;
 }
 
 PAL_NUM _DkGetProcessId (void)
@@ -220,9 +218,10 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
         void* zero2_end   = g_pal_sec.heap_max;
 
         if (g_pal_sec.exec_addr != NULL) {
-            zero1_end   = MIN(zero1_end, SATURATED_P_SUB(g_pal_sec.exec_addr, MEMORY_GAP, 0));
-            zero2_start = SATURATED_P_ADD(g_pal_sec.exec_addr + g_pal_sec.exec_size, MEMORY_GAP,
-                          zero2_end);
+            zero1_end   = g_pal_sec.exec_addr;
+            zero2_start = g_pal_sec.exec_addr + g_pal_sec.exec_size;
+            assert(zero1_start <= zero1_end);
+            assert(zero2_start <= zero2_end);
         }
 
         memset(zero1_start, 0, zero1_end - zero1_start);

@@ -23,7 +23,7 @@ unsigned long _DkGetAllocationAlignment (void)
     return 0;
 }
 
-void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end, PAL_NUM* gap) {
+void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     /* needs to be implemented */
 }
 

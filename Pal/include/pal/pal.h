@@ -144,7 +144,6 @@ typedef struct PAL_CONTROL_ {
     PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
     PAL_PTR_RANGE executable_range; /*!< address where executable is loaded */
-    PAL_NUM exec_memory_gap; /*!< Size of memory gap before and after executable */
     PAL_PTR_RANGE manifest_preload; /*!< manifest preloaded here */
 
     /*
