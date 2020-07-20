@@ -32,7 +32,8 @@ all: app epid  # by default, only build EPID because it doesn't rely on addition
 
 .PHONY: app
 app: mbedtls/CMakeLists.txt pal_loader \
-     secret_prov_min_client.manifest.sgx secret_prov_client.manifest.sgx
+     secret_prov_min_client.manifest.sgx secret_prov_client.manifest.sgx \
+     secret_prov_pf_client.manifest.sgx
 
 .PHONY: epid
 epid: secret_prov_server_epid libsecret_prov_attest.so libsecret_prov_verify_epid.so
@@ -100,10 +101,16 @@ secret_prov_client: src/secret_prov_client.c libsecret_prov_attest.so \
 secret_prov_min_client: src/secret_prov_min_client.c libmbedcrypto.so libmbedtls.so libmbedx509.so
 	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
 
+secret_prov_pf_client: src/secret_prov_pf_client.c libmbedcrypto.so libmbedtls.so libmbedx509.so
+	$(CC) $< $(CFLAGS) $(LFLAGS) -o $@
+
 ########################### COPIES FOR CONVENIENCE ############################
 
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/$@ .
+
+pf_crypt: libsgx_util.so
+	cp $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/tools/pf_crypt/$@ $@
 
 libmbedcrypto.so: mbedtls/CMakeLists.txt
 	cp mbedtls/install/lib/$@.* .
@@ -165,38 +172,65 @@ secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output secret_prov_min_client.token -sig secret_prov_min_client.sig
 
+########################## PREPARE PROTECTED FILES ############################
+
+files/input.txt: files/wrap-key files/plain.txt pf_crypt
+	LD_LIBRARY_PATH=. ./pf_crypt encrypt -w files/wrap-key -i files/plain.txt -o $@
+
+############################## PF CLIENT MANIFEST #############################
+
+secret_prov_pf_client.manifest: secret_prov_pf_client.manifest.template
+	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+		-e 's|$$(RA_CLIENT_SPID)|'"$(RA_CLIENT_SPID)"'|g' \
+		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
+		$< > $@
+
+secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_pf_client libsecret_prov_attest.so
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
+		-key $(GRAPHENEKEY) \
+		-manifest $< -output $@ \
+		-exec secret_prov_pf_client
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
+		-output secret_prov_pf_client.token -sig secret_prov_pf_client.sig
+
 ############################# SGX CHECKS FOR CI ###############################
 
 .PHONY: check_epid
-check_epid: app epid
+check_epid: app epid files/input.txt
 	./secret_prov_server_epid >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
+	SGX=1 ./pal_loader ./secret_prov_pf_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
-	@grep "Received secret = 'This is a secret string!'" OUTPUT && echo "[ Success 1/2 ]"
-	@grep "Received secret1 = 'This is a secret string!', secret2 = '42'" OUTPUT && echo "[ Success 2/2 ]"
+	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/3 ]"
+	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/3 ]"
+	@grep "Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 3/3 ]"
 	@rm OUTPUT
 
 .PHONY: check_dcap
-check_dcap: app dcap
+check_dcap: app dcap files/input.txt
 	./secret_prov_server_dcap >/dev/null & SERVER_ID=$$!; \
 	sleep 3; \
 	SGX=1 ./pal_loader ./secret_prov_min_client > OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
+	SGX=1 ./pal_loader ./secret_prov_pf_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
-	@grep "Received secret = 'This is a secret string!'" OUTPUT && echo "[ Success 1/2 ]"
-	@grep "Received secret1 = 'This is a secret string!', secret2 = '42'" OUTPUT && echo "[ Success 2/2 ]"
+	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/3 ]"
+	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/3 ]"
+	@grep "Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 3/3 ]"
 	@rm OUTPUT
 
 ################################## CLEANUP ####################################
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pal_loader \
+	$(RM) *.token *.sig *.manifest.sgx *.manifest *.so *.so.* OUTPUT pal_loader pf_crypt \
           secret_prov_server_epid secret_prov_server_dcap \
-          secret_prov_client secret_prov_min_client
+          secret_prov_client secret_prov_min_client secret_prov_pf_client
 
 .PHONY: distclean
 distclean: clean
-	$(RM) -r mbedtls *.tar.gz
+	$(RM) -r mbedtls *.tar.gz files/input.txt

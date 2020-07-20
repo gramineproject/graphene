@@ -37,6 +37,10 @@ The client is supposed to run on a trusted machine (*not* in an SGX enclave). If
 command-line arguments respectively, the client falls back to using normal X.509 PKI flows
 (specified as `native` command-line argument).
 
+It is also possible to run the client in an SGX enclave. This will create a secure channel between
+two Graphene SGX processes, possibly running on different machines. It can be used as an example
+of in-enclave remote attestation and verification.
+
 If client is run without additional command-line arguments, it uses default RA-TLS verification
 callback that compares `MRENCLAVE`, `MRSIGNER`, `ISV_PROD_ID` and `ISV_SVN` against the corresonding
 `RA_TLS_*` environment variables. To run the client with its own verification callback, execute it
@@ -123,5 +127,37 @@ SGX=1 ./pal_loader ./server dcap dummy-option &
 ./client dcap
 
 # client will fail to verify the malicious SGX quote and will *not* connect to the server
+kill %%
+```
+
+- RA-TLS flows with SGX and with Graphene, running EPID client in SGX:
+
+Note: you may also add environment variables to client.manifest.template, such as
+`RA_TLS_ALLOW_OUTDATED_TCB_INSECURE`, `RA_TLS_MRENCLAVE`, `RA_TLS_MRSIGNER`, `RA_TLS_ISV_PROD_ID`
+and `RA_TLS_ISV_SVN`.
+
+```sh
+make clean
+RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app client_epid.manifest.sgx
+
+SGX=1 ./pal_loader ./server epid &
+
+RA_TLS_EPID_API_KEY=12345678901234567890123456789012 SGX=1 ./pal_loader client_epid.manifest.sgx epid
+
+# client will successfully connect to the server via RA-TLS/EPID flows
+kill %%
+```
+
+- RA-TLS flows with SGX and with Graphene, running DCAP client in SGX:
+
+```sh
+make clean
+make app client_dcap.manifest.sgx
+
+SGX=1 ./pal_loader ./server dcap &
+
+SGX=1 ./pal_loader client_dcap.manifest.sgx dcap
+
+# client will successfully connect to the server via RA-TLS/DCAP flows
 kill %%
 ```

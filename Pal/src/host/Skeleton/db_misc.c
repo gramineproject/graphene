@@ -70,3 +70,8 @@ int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
     __UNUSED(quote_size);
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex) {
+    __UNUSED(pf_key_hex);
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
