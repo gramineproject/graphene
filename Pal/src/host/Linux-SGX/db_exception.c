@@ -214,15 +214,22 @@ void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
         event_num != PAL_EVENT_QUIT &&
         event_num != PAL_EVENT_SUSPEND &&
         event_num != PAL_EVENT_RESUME) {
-        printf("*** Unexpected AEX vector occurred inside PAL! ***\n"
-               "(vector = 0x%x, type = 0x%x valid = %d, RIP = +0x%08lx)\n"
-               "rax: 0x%08lx rcx: 0x%08lx rdx: 0x%08lx rbx: 0x%08lx\n"
+        printf("*** Unexpected exception occurred inside PAL at RIP = +0x%08lx! ***\n",
+               uc->rip - (uintptr_t)TEXT_START);
+
+        if (ei.info.valid) {
+            /* EXITINFO field: vector = exception number, exit_type = 0x3 for HW / 0x6 for SW */
+            printf("(SGX HW reported AEX vector 0x%x with exit_type = 0x%x)\n",
+                   ei.info.vector, ei.info.exit_type);
+        } else {
+            printf("(untrusted PAL sent PAL event 0x%x)\n", ei.intval);
+        }
+
+        printf("rax: 0x%08lx rcx: 0x%08lx rdx: 0x%08lx rbx: 0x%08lx\n"
                "rsp: 0x%08lx rbp: 0x%08lx rsi: 0x%08lx rdi: 0x%08lx\n"
                "r8 : 0x%08lx r9 : 0x%08lx r10: 0x%08lx r11: 0x%08lx\n"
                "r12: 0x%08lx r13: 0x%08lx r14: 0x%08lx r15: 0x%08lx\n"
                "rflags: 0x%08lx rip: 0x%08lx\n",
-               ei.info.vector, ei.info.exit_type, ei.info.valid,
-               uc->rip - (uintptr_t)TEXT_START,
                uc->rax, uc->rcx, uc->rdx, uc->rbx,
                uc->rsp, uc->rbp, uc->rsi, uc->rdi,
                uc->r8, uc->r9, uc->r10, uc->r11,
