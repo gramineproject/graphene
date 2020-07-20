@@ -155,18 +155,28 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
 
 int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
 {
-    int ret = ocall_sched_setaffinity(thread->thread.tid, cpu_num, cpu_mask);
+    int tid;
+    if (thread != (PAL_HANDLE)GET_ENCLAVE_TLS(thread)) {
+        SGX_DBG(DBG_M, "[Warning] the host tid not supported in SGX mode, using tid:0 instead.");
+        tid = 0;
+    } else {
+        /* TODO: add actual host_tid to pal_thread handle and use it here */
+        tid = thread->thread.tid;
+    }
+
+    int ret = ocall_sched_setaffinity(tid, cpu_num, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
 int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
 {
-    uint64_t tid = 0;
-
-    if (thread != NULL ) {
-        SGX_DBG(DBG_E,
-                "Don't support to get cpu thread affinity other than current thread for now.\n");
-        return -PAL_ERROR_NOTIMPLEMENTED;
+    int tid;
+    if (thread != (PAL_HANDLE)GET_ENCLAVE_TLS(thread)) {
+        SGX_DBG(DBG_M, "[Warning] the host tid not supported in SGX mode, using tid:0 instead.");
+        tid = 0;
+    } else {
+        /* TODO: add actual host_tid to pal_thread handle and use it here */
+        tid = thread->thread.tid;
     }
 
     int ret = ocall_sched_getaffinity(tid, cpu_num, cpu_mask);

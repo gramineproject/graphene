@@ -186,6 +186,13 @@ int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
+    struct shim_thread* cur_thread = get_cur_thread();
+    if (!cur_thread)
+        return -ESRCH;
+
+    thread = cur_thread->pal_handle;
+
+    /* to set other thread requires host tid mapping */
     if (pid != 0) {
         debug("The thread id: %d is not supported for now.\n", pid);
         return -ENOSYS;
