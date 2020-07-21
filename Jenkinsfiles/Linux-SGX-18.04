@@ -36,7 +36,7 @@ pipeline {
                            git clone https://github.com/intel/SGXDataCenterAttestationPrimitives.git
                            cd SGXDataCenterAttestationPrimitives
                            git checkout DCAP_1.5
-                           # no need to build, we only need the SGX header file (sgx.h)
+                           # no need to build, we only need the SGX header file (sgx_oot.h)
                         '''
                         sh '''
                             # test the build with the DCAP driver v1.5 and clean up afterwards
