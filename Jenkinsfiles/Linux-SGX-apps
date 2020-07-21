@@ -27,14 +27,14 @@ pipeline {
                            git clone https://github.com/01org/linux-sgx-driver.git
                            cd linux-sgx-driver
                            git checkout sgx_driver_1.9
-                           make
+                           make -j8
                         '''
                         sh '''
                             cd Pal/src/host/Linux-SGX/sgx-driver
                             ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver make
                         '''
                         sh '''
-                            make -j 8 SGX=1 WERROR=1 GLIBC_VERSION=2.27
+                            make -j8 SGX=1 WERROR=1 GLIBC_VERSION=2.27
                         '''
                     }
                 }
@@ -43,42 +43,42 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/python-simple
-                                make SGX=1
+                                make -j8 SGX=1
                                 make SGX=1 check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/python-scipy-insecure
-                                make SGX=1
+                                make -j8 SGX=1
                                 make SGX=1 check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/bash
-                                make SGX=1 all
+                                make -j8 SGX=1 all
                                 make SGX=1 regression
                            '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/curl
-                                make SGX=1 all
+                                make -j8 SGX=1 all
                                 make SGX=1 check
                            '''
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/gcc
-                                make SGX=1 all
+                                make -j8 SGX=1 all
                                 make SGX=1 check
                            '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/redis
-                                make SGX=1 USE_SELECT=1
+                                make -j8 SGX=1 USE_SELECT=1
                                 make SGX=1 start-graphene-server &
                                 sleep 30
                                 ./src/src/redis-benchmark
@@ -87,7 +87,7 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/lighttpd
-                                make SGX=1
+                                make -j8 SGX=1
                                 make SGX=1 start-graphene-server &
                                 sleep 10
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
@@ -96,7 +96,7 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/nginx
-                                make SGX=1
+                                make -j8 SGX=1
                                 make SGX=1 start-graphene-server &
                                 sleep 30
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
@@ -105,7 +105,7 @@ pipeline {
                         timeout(time: 25, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/apache
-                                make SGX=1
+                                make -j8 SGX=1
                                 make SGX=1 start-graphene-server &
                                 sleep 30
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
@@ -115,7 +115,7 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/blender
-                                make SGX=1
+                                make -j8 SGX=1
                                 make SGX=1 check
                             '''
                         }

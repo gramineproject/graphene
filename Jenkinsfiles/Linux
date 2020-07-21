@@ -18,12 +18,12 @@ pipeline {
                         sh '''
                             ./Scripts/clean-check-prepare
                             cd LibOS
-                            make -j 8 glibc-build/Build.success GLIBC_VERSION=2.23
+                            make -j8 glibc-build/Build.success GLIBC_VERSION=2.23
                             rm -r glibc-build
                             cd ..
-                            make -j 8 WERROR=1 GLIBC_VERSION=2.27
-                            make -j 8 WERROR=1 GLIBC_VERSION=2.27 test
-                            make -C Pal/src -j 8 PAL_HOST=Skeleton WERROR=1
+                            make -j8 WERROR=1 GLIBC_VERSION=2.27
+                            make -j8 WERROR=1 GLIBC_VERSION=2.27 test
+                            make -j8 -C Pal/src PAL_HOST=Skeleton WERROR=1
                            '''
                     }
                 }
@@ -31,55 +31,63 @@ pipeline {
                     steps {
                         sh '''
                             cd Pal/regression
+                            make -j8 all
                             make regression
                             '''
                         sh '''
                             cd LibOS/shim/test/regression
+                            make -j8 all
                             make regression
                             '''
                         sh '''
                             cd LibOS/shim/test/fs
+                            make -j8 all
                             make test
                             '''
                         sh '''
                             cd LibOS/shim/test/ltp
-                            make
+                            make -j8 all
                             make ltp.xml
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/python-simple
+                                make -j8 all
                                 make check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/python-scipy-insecure
+                                make -j8 all
                                 make check
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/bash
+                                make -j8 all
                                 make regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/curl
+                                make -j8 all
                                 make check
                            '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/gcc
+                                make -j8 all
                                 make check
                            '''
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/redis
-                                make USE_SELECT=1
+                                make -j8 USE_SELECT=1
                                 make start-graphene-server &
                                 sleep 1
                                 ./src/src/redis-benchmark
@@ -88,7 +96,7 @@ pipeline {
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/lighttpd
-                                make
+                                make -j8 all
                                 make start-graphene-server &
                                 sleep 1
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
@@ -97,7 +105,7 @@ pipeline {
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/nginx
-                                make
+                                make -j8 all
                                 make start-graphene-server &
                                 sleep 1
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
@@ -106,7 +114,7 @@ pipeline {
                         timeout(time: 20, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/apache
-                                make
+                                make -j8 all
                                 make start-graphene-server &
                                 sleep 1
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
@@ -116,6 +124,7 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/blender
+                                make -j8 all
                                 make check
                             '''
                         }
