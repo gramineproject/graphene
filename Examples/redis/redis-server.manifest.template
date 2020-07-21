@@ -37,7 +37,7 @@ loader.insecure__use_cmdline_argv = 1
 # In case of Redis:
 # - /lib is searched for Glibc libraries (ld, libc, libpthread)
 # - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
-loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 ################################# MOUNT FS  ###################################
 
@@ -61,6 +61,10 @@ fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
 fs.mount.lib2.type = chroot
 fs.mount.lib2.path = $(ARCH_LIBDIR)
 fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
+
+fs.mount.lib3.type = chroot
+fs.mount.lib3.path = /usr/$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
 
 # Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
 # into in-Graphene visible directory /etc (in 'path').
@@ -131,6 +135,13 @@ sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
 # libNSL is a dependency of libnss_compat above. It is a good example of nested
 # library dependencies required by Graphene-SGX.
 sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
+
+# Additional dependant libraries for redis version 6+
+sgx.trusted_files.libsystemd = file:$(ARCH_LIBDIR)/libsystemd.so.0
+sgx.trusted_files.liblzma = file:$(ARCH_LIBDIR)/liblzma.so.5
+sgx.trusted_files.libgcrypt = file:$(ARCH_LIBDIR)/libgcrypt.so.20
+sgx.trusted_files.libgpgerror = file:$(ARCH_LIBDIR)/libgpg-error.so.0
+sgx.trusted_files.liblz4 = file:/usr/$(ARCH_LIBDIR)/liblz4.so.1
 
 ############################ SGX: TRUSTED FILES ###############################
 
