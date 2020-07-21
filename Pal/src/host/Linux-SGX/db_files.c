@@ -34,9 +34,6 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
-    SGX_DBG(DBG_D, "file_open: uri %s, access 0x%x, share 0x%x, create 0x%x, options 0x%x\n",
-            uri, access, share, create, options);
-
     /* prepare the file handle */
     size_t len     = strlen(uri) + 1;
     PAL_HANDLE hdl = calloc(1, HANDLE_SIZE(file) + len);

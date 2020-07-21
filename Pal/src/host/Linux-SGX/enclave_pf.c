@@ -220,7 +220,6 @@ struct protected_file* get_protected_file(const char* path) {
     }
 
 out:
-    SGX_DBG(DBG_D, "get_pf(%s) = %p\n", path, pf);
     return pf;
 }
 
