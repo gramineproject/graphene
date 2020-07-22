@@ -193,7 +193,9 @@ RANDOM_FILES = \
 
 TEST_DATA = $(addprefix $(RANDOM_DIR)/,$(RANDOM_FILES))
 
-$(RANDOM_DIR)/%.html:
+# We need to first build and install httpd, otherwise its makefiles think that they already
+# filled $(INSTALL_DIR)/htdocs and skip copying installation files.
+$(RANDOM_DIR)/%.html: $(INSTALL_DIR)/bin/httpd
 	mkdir -p $(RANDOM_DIR)
 	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@))) status=none
 
