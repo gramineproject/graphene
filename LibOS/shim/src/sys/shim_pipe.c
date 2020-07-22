@@ -152,7 +152,7 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     if (domain != AF_UNIX)
         return -EAFNOSUPPORT;
 
-    if (type != SOCK_STREAM)
+    if ((type & ~(SOCK_NONBLOCK | SOCK_CLOEXEC)) != SOCK_STREAM)
         return -EPROTONOSUPPORT;
 
     if (!sv || test_user_memory(sv, 2 * sizeof(int), true))
