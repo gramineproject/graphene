@@ -755,7 +755,7 @@ static void parse_mmap_prot(va_list* ap) {
 static void parse_mmap_flags(va_list* ap) {
     int flags = va_arg(*ap, int);
 
-    if (flags & MAP_SHARED_VALIDATE) {
+    if ((flags & MAP_SHARED_VALIDATE) == MAP_SHARED_VALIDATE) {
         PUTS("MAP_SHARED_VALIDATE");
         flags &= ~MAP_SHARED_VALIDATE;
     } else if (flags & MAP_SHARED) {
