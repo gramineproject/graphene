@@ -195,7 +195,7 @@ TEST_DATA = $(addprefix $(RANDOM_DIR)/,$(RANDOM_FILES))
 
 $(RANDOM_DIR)/%.html:
 	mkdir -p $(RANDOM_DIR)
-	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@)))
+	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@))) status=none
 
 .PHONY: testdata
 testdata: $(TEST_DATA)

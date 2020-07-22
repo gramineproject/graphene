@@ -52,8 +52,8 @@ $(INSTALL_DIR)/sbin/nginx: $(NGINX_SRC)/configure
 		-e "s|#define NGX_HAVE_SYS_EVENTFD_H[[:space:]]\+1|#define NGX_HAVE_SYS_EVENTFD_H 0|g" \
 		-e "s|#define NGX_HAVE_PR_SET_DUMPABLE[[:space:]]\+1|#define NGX_HAVE_PR_SET_DUMPABLE 0|g" \
 		-i $(NGINX_SRC)/objs/ngx_auto_config.h
-	cd $(NGINX_SRC) && $(MAKE)
-	cd $(NGINX_SRC) && $(MAKE) install
+	$(MAKE) -C $(NGINX_SRC)
+	$(MAKE) -C $(NGINX_SRC) install
 
 $(NGINX_SRC)/configure: $(NGINX_SRC).tar.gz
 	tar -mxzf $<
@@ -152,9 +152,11 @@ RANDOM_FILES = \
 
 TEST_DATA = $(addprefix $(RANDOM_DIR)/,$(RANDOM_FILES))
 
-$(RANDOM_DIR)/%.html:
+# We need to first build and install nginx, otherwise nginx' makefiles think that they already
+# filled $(INSTALL_DIR)/html and skip copying installation files.
+$(RANDOM_DIR)/%.html: | $(INSTALL_DIR)/sbin/nginx
 	mkdir -p $(RANDOM_DIR)
-	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@)))
+	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@))) status=none
 
 .PHONY: testdata
 testdata: $(TEST_DATA)
