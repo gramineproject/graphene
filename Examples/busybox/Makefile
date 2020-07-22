@@ -48,7 +48,8 @@ $(SRCDIR)/Makefile:
 	tar -C $(SRCDIR) --strip-components=1 -xf busybox.tar.bz2
 
 $(SRCDIR)/.config: $(SRCDIR)/Makefile
-	cd $(SRCDIR) && make clean && make defconfig
+	$(MAKE) -C $(SRCDIR) clean
+	$(MAKE) -C $(SRCDIR) defconfig
 	# Enable usage of Busybox's built-in applets
 	sed -e 's/.*CONFIG_FEATURE_SH_STANDALONE.*/CONFIG_FEATURE_SH_STANDALONE=y/' \
 		-i $(SRCDIR)/.config
@@ -58,7 +59,7 @@ $(SRCDIR)/.config: $(SRCDIR)/Makefile
 		-i $(SRCDIR)/.config
 
 $(SRCDIR)/busybox: $(SRCDIR)/.config
-	cd $(SRCDIR) && make
+	$(MAKE) -C $(SRCDIR)
 
 ############################## BUSYBOX MANIFEST ###############################
 

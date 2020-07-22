@@ -52,11 +52,11 @@ $(INSTALL_DIR)/sbin/nginx: $(NGINX_SRC)/configure
 		-e "s|#define NGX_HAVE_SYS_EVENTFD_H[[:space:]]\+1|#define NGX_HAVE_SYS_EVENTFD_H 0|g" \
 		-e "s|#define NGX_HAVE_PR_SET_DUMPABLE[[:space:]]\+1|#define NGX_HAVE_PR_SET_DUMPABLE 0|g" \
 		-i $(NGINX_SRC)/objs/ngx_auto_config.h
-	cd $(NGINX_SRC) && $(MAKE)
-	cd $(NGINX_SRC) && $(MAKE) install
+	$(MAKE) -C $(NGINX_SRC)
+	$(MAKE) -C $(NGINX_SRC) install
 
 $(NGINX_SRC)/configure: $(NGINX_SRC).tar.gz
-	tar -mxzf $<
+	tar --touch -xzf $<
 
 $(NGINX_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(NGINX_CHECKSUM) $(foreach mirror,$(NGINX_MIRRORS),--url $(mirror)/$(NGINX_SRC).tar.gz)
@@ -105,7 +105,9 @@ nginx.manifest: nginx.manifest.template nginx-trusted-libs
 
 # Generating the SGX-specific manifest (nginx.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-nginx.manifest.sgx: nginx.manifest
+nginx.manifest.sgx: nginx.manifest $(INSTALL_DIR)/sbin/nginx \
+		$(INSTALL_DIR)/conf/nginx-graphene.conf \
+		$(TEST_DATA)
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -114,8 +116,7 @@ nginx.manifest.sgx: nginx.manifest
 nginx.sig: nginx.manifest.sgx
 
 nginx.token: nginx.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output nginx.token -sig nginx.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 # Extra executables
 pal_loader:
@@ -131,11 +132,11 @@ pal_loader:
 .PHONY: config
 config: $(INSTALL_DIR)/conf/nginx-graphene.conf
 
-$(INSTALL_DIR)/conf/nginx-graphene.conf: $(INSTALL_DIR)/conf/nginx.conf
+$(INSTALL_DIR)/conf/nginx-graphene.conf: $(INSTALL_DIR)/sbin/nginx
 	sed -e "s|^worker_processes[[:space:]]\+1;|worker_processes 4;|g" \
 		-e "s|listen[[:space:]]\+80;|listen $(LISTEN_PORT);|g" \
 		-e "s|server_name[[:space:]]\+localhost;|server_name $(LISTEN_HOST);|g" \
-	$< > $@
+	$(INSTALL_DIR)/conf/nginx.conf > $@
 	printf "\n\ndaemon off;\n" >> $@
 
 # HTTP docs:
@@ -152,9 +153,11 @@ RANDOM_FILES = \
 
 TEST_DATA = $(addprefix $(RANDOM_DIR)/,$(RANDOM_FILES))
 
-$(RANDOM_DIR)/%.html:
+# We need to first build and install nginx, otherwise nginx' makefiles think that they already
+# filled $(INSTALL_DIR)/html and skip copying installation files.
+$(RANDOM_DIR)/%.html: $(INSTALL_DIR)/sbin/nginx
 	mkdir -p $(RANDOM_DIR)
-	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@)))
+	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@))) status=none
 
 .PHONY: testdata
 testdata: $(TEST_DATA)

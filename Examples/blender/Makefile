@@ -28,7 +28,7 @@ endif
 
 
 .PHONY: all
-all: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manifest $(RUN_DIR)/pal_loader $(DATA_DIR)/images
+all: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manifest $(RUN_DIR)/pal_loader | $(DATA_DIR)/images
 ifeq ($(SGX),1)
 all: $(RUN_DIR)/blender.manifest.sgx
 endif
@@ -44,7 +44,7 @@ $(BLENDER_DIR)/blender:
 $(RUN_DIR):
 	mkdir -p $@
 
-$(RUN_DIR)/blender.manifest: blender.manifest.template $(RUN_DIR)
+$(RUN_DIR)/blender.manifest: blender.manifest.template | $(RUN_DIR)
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
 		-e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
 		-e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
@@ -54,7 +54,8 @@ $(RUN_DIR)/blender.manifest: blender.manifest.template $(RUN_DIR)
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-$(RUN_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manifest $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so $(RUN_DIR)
+$(RUN_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manifest \
+        $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so | $(RUN_DIR)
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-output $@ \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
@@ -65,7 +66,7 @@ $(RUN_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manif
 		-output $(RUN_DIR)/blender.token \
 		-sig $(RUN_DIR)/blender.sig
 
-$(RUN_DIR)/pal_loader:
+$(RUN_DIR)/pal_loader: | $(RUN_DIR)
 	ln -s $(GRAPHENE_DIR)/Runtime/pal_loader $@
 
 $(DATA_DIR)/images:

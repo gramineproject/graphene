@@ -47,6 +47,9 @@ $(INSTALL_DIR)/sbin/lighttpd: $(LIGHTTPD_SRC)/configure
 
 $(LIGHTTPD_SRC)/configure: $(LIGHTTPD_SRC).tar.gz
 	tar -xzf $<
+	# Refresh the timestamp, but only for this file - otherwise ./configure starts recreating too
+	# much.
+	touch $(LIGHTTPD_SRC)/configure
 
 $(LIGHTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LIGHTTPD_HASH) $(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
@@ -69,7 +72,7 @@ LIGHTTPD_LIBS = $(INSTALL_DIR)/lib/mod_indexfile.so \
 
 # Listing all the lighttpd dependencies, besides Glibc libraries
 .INTERMEDIATE: lighttpd-deps
-lighttpd-deps:
+lighttpd-deps: $(INSTALL_DIR)/sbin/lighttpd
 	@$(LDD) $(LIGHTTPD_LIBS) $(INSTALL_DIR)/sbin/lighttpd | \
 		$(AWK) '{if ($$2 =="=>") {split($$1,s,/\./); print s[1]}}' | \
 		sort | uniq | $($(GREP) -v -x $(patsubst %,-e %,$(GLIBC_DEPS))) > $@
@@ -103,7 +106,7 @@ lighttpd.manifest: lighttpd.manifest.template lighttpd-trusted-libs lighttpd-tru
 
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
 # for enclave initialization.
-lighttpd.manifest.sgx: lighttpd.manifest
+lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -112,8 +115,7 @@ lighttpd.manifest.sgx: lighttpd.manifest
 lighttpd.sig: lighttpd.manifest.sgx
 
 lighttpd.token: lighttpd.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output $@ -sig $^
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
 
 # Extra executables
 pal_loader:
@@ -146,7 +148,7 @@ TEST_DATA = $(addprefix $(RANDOM_DIR)/,$(RANDOM_FILES))
 
 $(RANDOM_DIR)/%.html:
 	mkdir -p $(RANDOM_DIR)
-	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@)))
+	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@))) status=none
 
 .PHONY: testdata
 testdata: $(TEST_DATA)

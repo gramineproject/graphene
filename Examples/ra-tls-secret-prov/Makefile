@@ -32,8 +32,9 @@ all: app epid  # by default, only build EPID because it doesn't rely on addition
 
 .PHONY: app
 app: mbedtls/CMakeLists.txt pal_loader \
-     secret_prov_min_client.manifest.sgx secret_prov_client.manifest.sgx \
-     secret_prov_pf_client.manifest.sgx
+     secret_prov_min_client.manifest.sgx secret_prov_min_client.token \
+     secret_prov_client.manifest.sgx     secret_prov_client.token     \
+     secret_prov_pf_client.manifest.sgx  secret_prov_pf_client.token
 
 .PHONY: epid
 epid: secret_prov_server_epid libsecret_prov_attest.so libsecret_prov_verify_epid.so
@@ -69,8 +70,8 @@ $(MBEDCRYPTO_SRC):
 		--sha256 $(MBEDCRYPTO_CHECKSUM)
 
 mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
-	tar -mxzf $(MBEDTLS_SRC)
-	tar -mxzf $(MBEDCRYPTO_SRC)
+	tar --touch -xzf $(MBEDTLS_SRC)
+	tar --touch -xzf $(MBEDCRYPTO_SRC)
 	mv mbedtls-mbedtls-$(MBEDTLS_VERSION) mbedtls
 	$(RM) -r mbedtls/crypto
 	mv mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls
@@ -151,8 +152,11 @@ secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client 
 		-key $(GRAPHENEKEY) \
 		-manifest $< -output $@ \
 		-exec secret_prov_client
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output secret_prov_client.token -sig secret_prov_client.sig
+
+secret_prov_client.sig: secret_prov_client.manifest.sgx
+
+secret_prov_client.token: secret_prov_client.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 ############################# MIN CLIENT MANIFEST #############################
 
@@ -169,8 +173,11 @@ secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov
 		-key $(GRAPHENEKEY) \
 		-manifest $< -output $@ \
 		-exec secret_prov_min_client
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output secret_prov_min_client.token -sig secret_prov_min_client.sig
+
+secret_prov_min_client.sig: secret_prov_min_client.manifest.sgx
+
+secret_prov_min_client.token: secret_prov_min_client.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 ########################## PREPARE PROTECTED FILES ############################
 
@@ -192,8 +199,11 @@ secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_p
 		-key $(GRAPHENEKEY) \
 		-manifest $< -output $@ \
 		-exec secret_prov_pf_client
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output secret_prov_pf_client.token -sig secret_prov_pf_client.sig
+
+secret_prov_pf_client.sig: secret_prov_pf_client.manifest.sgx
+
+secret_prov_pf_client.token: secret_prov_pf_client.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 ############################# SGX CHECKS FOR CI ###############################
 

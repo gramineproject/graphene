@@ -49,7 +49,7 @@ $(SRCDIR)/configure:
 
 $(SRCDIR)/memcached: $(SRCDIR)/configure
 	cd $(SRCDIR) && ./configure
-	cd $(SRCDIR) && make
+	$(MAKE) -C $(SRCDIR)
 
 ############################## MEMCACHED MANIFEST #############################
 
@@ -65,21 +65,27 @@ memcached.manifest: memcached.manifest.template
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This
 # procedure measures all Memcached dependencies (shared libraries and trusted
-# files), measures Memcached code/data pages, and adds measurements in the
-# resulting manifest.sgx file (among other, less important SGX options).
+# files), measures Memcached code/data pages, adds measurements in the
+# resulting manifest.sgx file (among other, less important SGX options) and
+# creates memcached.sig (SIGSTRUCT object).
 #
-# Additionally, Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see
-# SGX hardware ABI, in particular EINIT instruction). The "pal-sgx-get-token"
-# script generates these objects and puts them in files .token and .sig
-# respectively. Note that filenames must be the same as the executable/manifest
-# name (i.e., "memcached").
+# Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see SGX hardware ABI,
+# in particular EINIT instruction). The "pal-sgx-get-token" script generates
+# EINITTOKEN based on a SIGSTRUCT and puts it in .token file. Note that
+# filenames must be the same as the executable/manifest name (i.e., "memcached").
+# EINITTOKEN must be generated on the machine where the application will run, not
+# where it was built.
 
-memcached.manifest.sgx: memcached.manifest $(SRCDIR)/memcached
+memcached.manifest.sgx: memcached.manifest memcached
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@ \
 		-exec $(SRCDIR)/memcached
+
+memcached.sig: memcached.manifest.sgx
+
+memcached.token: memcached.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output memcached.token -sig memcached.sig
 
@@ -99,7 +105,7 @@ pal_loader:
 
 .PHONY=clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader memcached
+	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader memcached .lck
 
 .PHONY=distclean
 distclean: clean

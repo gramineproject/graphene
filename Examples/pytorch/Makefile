@@ -31,10 +31,9 @@ endif
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
 .PHONY: all
+all: pytorch.manifest python3.manifest pal_loader alexnet-pretrained.pt
 ifeq ($(SGX),1)
-all: pytorch.token python3.token pal_loader
-else
-all: pytorch.manifest python3.manifest pal_loader
+all: pytorch.token python3.token
 endif
 
 include ../../Scripts/Makefile.configs
@@ -66,7 +65,7 @@ python3.manifest: pytorch.manifest
 	cp $< $@
 	sed -i '/trusted_children/d' $@
 
-python3.sig: python3.manifest
+python3.sig: python3.manifest alexnet-pretrained.pt
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -75,6 +74,9 @@ python3.sig: python3.manifest
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
+alexnet-pretrained.pt: download_model
+
+.PHONY: download_model
 download_model:
 	$(PYTHON3) download-pretrained-model.py
 

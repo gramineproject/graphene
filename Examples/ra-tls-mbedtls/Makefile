@@ -33,13 +33,13 @@ endif
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/CMakeLists.txt server.manifest.sgx client pal_loader
+app: mbedtls/CMakeLists.txt server.manifest.sgx server.token client pal_loader
 
 .PHONY: epid
-epid: libra_tls_attest.so libra_tls_verify_epid.so
+epid: libra_tls_attest.so libra_tls_verify_epid.so client_epid.sig
 
 .PHONY: dcap
-dcap: libra_tls_attest.so libra_tls_verify_dcap.so
+dcap: libra_tls_attest.so libra_tls_verify_dcap.so client_dcap.token
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
@@ -69,8 +69,8 @@ $(MBEDCRYPTO_SRC):
 		--sha256 $(MBEDCRYPTO_CHECKSUM)
 
 mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
-	tar -mxzf $(MBEDTLS_SRC)
-	tar -mxzf $(MBEDCRYPTO_SRC)
+	tar --touch -xzf $(MBEDTLS_SRC)
+	tar --touch -xzf $(MBEDCRYPTO_SRC)
 	mv mbedtls-mbedtls-$(MBEDTLS_VERSION) mbedtls
 	$(RM) -r mbedtls/crypto
 	mv mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls
@@ -130,14 +130,17 @@ server.manifest: server.manifest.template
 		-e 's|$$(RA_CLIENT_LINKABLE)|'"$(RA_CLIENT_LINKABLE)"'|g' \
 		$< > $@
 
-server.manifest.sgx: server.manifest server libra_tls_attest.so
+server.manifest.sgx: server.manifest server libra_tls_attest.so mbedtls/CMakeLists.txt
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
 		-manifest $< -output $@ \
 		-exec server
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output server.token -sig server.sig
+
+server.sig: server.manifest.sgx
+
+server.token: server.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 ########################### CLIENT (DCAP) MANIFEST ############################
 
@@ -179,14 +182,17 @@ client_dcap.manifest: client.manifest.template client_dcap-trusted-libs
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-client_dcap.manifest.sgx: client_dcap.manifest
+client_dcap.manifest.sgx: client_dcap.manifest mbedtls/CMakeLists.txt
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
 		-manifest $< -output $@ \
 		-exec client
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output client_dcap.token -sig client_dcap.sig
+
+client_dcap.sig: client_dcap.manifest.sgx
+
+client_dcap.token: client_dcap.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 ########################### CLIENT (EPID) MANIFEST ############################
 
@@ -224,8 +230,11 @@ client_epid.manifest.sgx: client_epid.manifest
 		-key $(GRAPHENEKEY) \
 		-manifest $< -output $@ \
 		-exec client
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output client_epid.token -sig client_epid.sig
+
+client_epid.sig: client_epid.manifest.sgx
+
+client_epid.token: client_epid.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 ############################### SGX CHECKS FOR CI #############################
 

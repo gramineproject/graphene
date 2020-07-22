@@ -56,7 +56,7 @@ $(INSTALL_DIR)/bin/httpd: $(HTTPD_SRC)/configure
 	cd $(HTTPD_SRC) && $(MAKE) install
 
 $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
-	tar -mxzf $<
+	tar --touch -xzf $<
 
 $(HTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) $(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)httpd/$(HTTPD_SRC).tar.gz)
@@ -73,7 +73,8 @@ $(HTTPD_SRC).tar.gz:
 # from the ldd results
 GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libpthread
 
-$(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)
+$(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)/bin/httpd
+$(INSTALL_DIR)/conf/extra/httpd-ssl.conf: $(INSTALL_DIR)/bin/httpd
 
 # Listing all the enabled modules in Apache, by greping httpd.conf
 .INTERMEDIATE: httpd-modules
@@ -86,7 +87,7 @@ httpd-modules: $(INSTALL_DIR)/conf/httpd.conf
 
 # Listing all the Apache dependencies, besides Glibc libraries
 .INTERMEDIATE: httpd-ldd
-httpd-ldd: httpd-modules
+httpd-ldd: httpd-modules $(INSTALL_DIR)/bin/httpd
 	@for F in $(INSTALL_DIR)/bin/httpd `cat httpd-modules`; do \
 		ldd $$F >> $@ || exit 1; done
 
@@ -105,7 +106,7 @@ httpd-trusted-mods: httpd-modules
 
 # Generating manifest rules for Apache dependencies
 .INTERMEDIATE: httpd-trusted-libs
-httpd-trusted-libs: httpd-deps httpd-modules
+httpd-trusted-libs: httpd-deps httpd-modules $(INSTALL_DIR)/bin/httpd
 	@HTTPD_LIBS="$(INSTALL_DIR)/bin/httpd `cat httpd-modules`" && \
 	for F in `cat httpd-deps`; do \
 		P=`ldd $$HTTPD_LIBS | grep $$F | awk '{print $$3; exit}'`; \
@@ -115,17 +116,21 @@ httpd-trusted-libs: httpd-deps httpd-modules
 
 httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
-		-e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
-		-e 's|$$(HTTPD_TRUSTED_MODS)|'"`cat httpd-trusted-mods`"'|g' \
-		-e 's|$$(HTTPD_TRUSTED_LIBS)|'"`cat httpd-trusted-libs`"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+	    -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+	    -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
+	    -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
+	    -e 's|$$(HTTPD_TRUSTED_MODS)|'"`cat httpd-trusted-mods`"'|g' \
+	    -e 's|$$(HTTPD_TRUSTED_LIBS)|'"`cat httpd-trusted-libs`"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< > $@
 
 # Generating the SGX-specific manifest (httpd.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-httpd.manifest.sgx: httpd.manifest
+httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd \
+		$(INSTALL_DIR)/conf/httpd-graphene.conf \
+		$(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf \
+		$(TEST_DATA) \
+		$(INSTALL_DIR)/conf/server.crt
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -134,8 +139,7 @@ httpd.manifest.sgx: httpd.manifest
 httpd.sig: httpd.manifest.sgx
 
 httpd.token: httpd.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output httpd.token -sig httpd.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 # Extra executables
 pal_loader:
@@ -148,13 +152,13 @@ config: $(INSTALL_DIR)/conf/httpd-graphene.conf $(INSTALL_DIR)/conf/extra/httpd-
 
 $(INSTALL_DIR)/conf/httpd-graphene.conf: $(INSTALL_DIR)/conf/httpd.conf
 	sed -e "s|^Listen |#Listen |g" \
-		-e "s|^User |#User |g" \
-		-e "s|^Group |#Group |g" \
-		-e "s|^LoadModule mpm_prefork|#LoadModule mpm_prefork|g" \
-		-e "s|^#LoadModule ssl_module|LoadModule ssl_module|g" \
-		-e "s|^#Include conf/extra/httpd-ssl.conf|Include conf/extra/httpd-ssl-graphene.conf|g" \
-		-e "s|#EnableMMAP off|EnableMMAP off|g" \
-		-e "s|#EnableSendfile on|EnableSendfile on|g" \
+	    -e "s|^User |#User |g" \
+	    -e "s|^Group |#Group |g" \
+	    -e "s|^LoadModule mpm_prefork|#LoadModule mpm_prefork|g" \
+	    -e "s|^#LoadModule ssl_module|LoadModule ssl_module|g" \
+	    -e "s|^#Include conf/extra/httpd-ssl.conf|Include conf/extra/httpd-ssl-graphene.conf|g" \
+	    -e "s|#EnableMMAP off|EnableMMAP off|g" \
+	    -e "s|#EnableSendfile on|EnableSendfile on|g" \
 	$< > $@
 	echo "\n\
 <IfModule mpm_prefork_module>\n\
@@ -173,9 +177,9 @@ $(INSTALL_DIR)/conf/httpd-graphene.conf: $(INSTALL_DIR)/conf/httpd.conf
 
 $(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf: $(INSTALL_DIR)/conf/extra/httpd-ssl.conf
 	sed -e "s|^Listen 443|Listen 127.0.0.1:8443|g" \
-		-e "s|^<VirtualHost _default_:443>|<VirtualHost 127.0.0.1:8443>|g" \
-		-e "s|^ServerName www.example.com:443|ServerName www.example.com:8443|g" \
-		-e "s|^SSLSessionCache|#SSLSessionCache|g" \
+	    -e "s|^<VirtualHost _default_:443>|<VirtualHost 127.0.0.1:8443>|g" \
+	    -e "s|^ServerName www.example.com:443|ServerName www.example.com:8443|g" \
+	    -e "s|^SSLSessionCache|#SSLSessionCache|g" \
 	$< > $@
 
 # HTTP docs:
@@ -192,16 +196,18 @@ RANDOM_FILES = \
 
 TEST_DATA = $(addprefix $(RANDOM_DIR)/,$(RANDOM_FILES))
 
-$(RANDOM_DIR)/%.html:
+# We need to first build and install httpd, otherwise its makefiles think that they already
+# filled $(INSTALL_DIR)/htdocs and skip copying installation files.
+$(RANDOM_DIR)/%.html: $(INSTALL_DIR)/bin/httpd
 	mkdir -p $(RANDOM_DIR)
-	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@)))
+	dd if=/dev/urandom of=$@ count=1 bs=$(basename $(basename $(notdir $@))) status=none
 
 .PHONY: testdata
 testdata: $(TEST_DATA)
 
 # SSL data: key and x.509 self-signed certificate (to test SSL/TLS)
 
-$(INSTALL_DIR)/conf/server.crt: ssl/ca_config.conf
+$(INSTALL_DIR)/conf/server.crt: ssl/ca_config.conf $(INSTALL_DIR)/bin/httpd
 	openssl genrsa -out ssl/ca.key 2048
 	openssl req -x509 -new -nodes -key ssl/ca.key -sha256 -days 1024 -out ssl/ca.crt -config ssl/ca_config.conf
 	openssl genrsa -out ssl/server.key 2048
