@@ -105,7 +105,7 @@ nginx.manifest: nginx.manifest.template nginx-trusted-libs
 
 # Generating the SGX-specific manifest (nginx.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-nginx.manifest.sgx: nginx.manifest
+nginx.manifest.sgx: nginx.manifest $(INSTALL_DIR)/sbin/nginx config testdata
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -131,11 +131,11 @@ pal_loader:
 .PHONY: config
 config: $(INSTALL_DIR)/conf/nginx-graphene.conf
 
-$(INSTALL_DIR)/conf/nginx-graphene.conf: $(INSTALL_DIR)/conf/nginx.conf
+$(INSTALL_DIR)/conf/nginx-graphene.conf: $(INSTALL_DIR)/sbin/nginx
 	sed -e "s|^worker_processes[[:space:]]\+1;|worker_processes 4;|g" \
 		-e "s|listen[[:space:]]\+80;|listen $(LISTEN_PORT);|g" \
 		-e "s|server_name[[:space:]]\+localhost;|server_name $(LISTEN_HOST);|g" \
-	$< > $@
+	$(INSTALL_DIR)/conf/nginx.conf > $@
 	printf "\n\ndaemon off;\n" >> $@
 
 # HTTP docs:

@@ -69,7 +69,7 @@ LIGHTTPD_LIBS = $(INSTALL_DIR)/lib/mod_indexfile.so \
 
 # Listing all the lighttpd dependencies, besides Glibc libraries
 .INTERMEDIATE: lighttpd-deps
-lighttpd-deps:
+lighttpd-deps: $(INSTALL_DIR)/sbin/lighttpd
 	@$(LDD) $(LIGHTTPD_LIBS) $(INSTALL_DIR)/sbin/lighttpd | \
 		$(AWK) '{if ($$2 =="=>") {split($$1,s,/\./); print s[1]}}' | \
 		sort | uniq | $($(GREP) -v -x $(patsubst %,-e %,$(GLIBC_DEPS))) > $@
@@ -103,7 +103,7 @@ lighttpd.manifest: lighttpd.manifest.template lighttpd-trusted-libs lighttpd-tru
 
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
 # for enclave initialization.
-lighttpd.manifest.sgx: lighttpd.manifest
+lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -112,8 +112,7 @@ lighttpd.manifest.sgx: lighttpd.manifest
 lighttpd.sig: lighttpd.manifest.sgx
 
 lighttpd.token: lighttpd.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output $@ -sig $^
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
 
 # Extra executables
 pal_loader:

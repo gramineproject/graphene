@@ -83,7 +83,7 @@ addressbook.manifest: addressbook.manifest.template addressbook-trusted-libs
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-addressbook.manifest.sgx: addressbook.manifest $(SRCDIR)/addressbook
+addressbook.manifest.sgx: addressbook.manifest addressbook
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \

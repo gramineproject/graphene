@@ -42,7 +42,7 @@ include ../../Scripts/Makefile.configs
 
 $(MODEL_DIR)/README.md:
 	git clone https://github.com/opencv/open_model_zoo.git $(MODEL_DIR)
-	cd $(MODEL_DIR) && git checkout $(MODEL_COMMIT)
+	git -C $(MODEL_DIR) checkout $(MODEL_COMMIT)
 
 $(MODEL_DIR)/$(MODEL_NAME).bin: $(MODEL_DIR)/README.md
 	cd $(MODEL_DIR)/tools/downloader && python3 ./downloader.py \
@@ -54,9 +54,9 @@ $(MODEL_DIR)/$(MODEL_NAME).bin: $(MODEL_DIR)/README.md
 
 $(OPENVINO_DIR)/README.md:
 	git clone https://github.com/opencv/dldt.git $(OPENVINO_DIR)
-	cd $(OPENVINO_DIR) && git checkout $(OPENVINO_COMMIT)
-	cd $(OPENVINO_DIR)/inference-engine && git submodule init
-	cd $(OPENVINO_DIR)/inference-engine && git submodule update --recursive
+	git -C $(OPENVINO_DIR) checkout $(OPENVINO_COMMIT)
+	git -C $(OPENVINO_DIR)/inference-engine submodule init
+	git -C $(OPENVINO_DIR)/inference-engine submodule update --recursive
 
 $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
 	cd $(OPENVINO_DIR)/inference-engine && mkdir -p build
@@ -76,7 +76,7 @@ openvino.manifest: openvino.manifest.template
 
 # Generating the SGX-specific manifest (openvino.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-openvino.manifest.sgx: openvino.manifest
+openvino.manifest.sgx: openvino.manifest $(OPENVINO_DIR)/README.md $(MODEL_DIR)/README.md
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -85,8 +85,7 @@ openvino.manifest.sgx: openvino.manifest
 openvino.sig: openvino.manifest.sgx
 
 openvino.token: openvino.sig
-	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-sig $< -output $@
+	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -sig $< -output $@
 
 # Extra executables
 pal_loader:

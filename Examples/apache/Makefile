@@ -73,7 +73,8 @@ $(HTTPD_SRC).tar.gz:
 # from the ldd results
 GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libpthread
 
-$(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)
+$(INSTALL_DIR)/conf/httpd.conf: $(INSTALL_DIR)/bin/httpd
+$(INSTALL_DIR)/conf/extra/httpd-ssl.conf: $(INSTALL_DIR)/bin/httpd
 
 # Listing all the enabled modules in Apache, by greping httpd.conf
 .INTERMEDIATE: httpd-modules
@@ -86,7 +87,7 @@ httpd-modules: $(INSTALL_DIR)/conf/httpd.conf
 
 # Listing all the Apache dependencies, besides Glibc libraries
 .INTERMEDIATE: httpd-ldd
-httpd-ldd: httpd-modules
+httpd-ldd: httpd-modules $(INSTALL_DIR)/bin/httpd
 	@for F in $(INSTALL_DIR)/bin/httpd `cat httpd-modules`; do \
 		ldd $$F >> $@ || exit 1; done
 
@@ -105,7 +106,7 @@ httpd-trusted-mods: httpd-modules
 
 # Generating manifest rules for Apache dependencies
 .INTERMEDIATE: httpd-trusted-libs
-httpd-trusted-libs: httpd-deps httpd-modules
+httpd-trusted-libs: httpd-deps httpd-modules $(INSTALL_DIR)/bin/httpd
 	@HTTPD_LIBS="$(INSTALL_DIR)/bin/httpd `cat httpd-modules`" && \
 	for F in `cat httpd-deps`; do \
 		P=`ldd $$HTTPD_LIBS | grep $$F | awk '{print $$3; exit}'`; \
@@ -125,7 +126,7 @@ httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
 
 # Generating the SGX-specific manifest (httpd.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-httpd.manifest.sgx: httpd.manifest
+httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd config testdata ssldata
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -201,7 +202,7 @@ testdata: $(TEST_DATA)
 
 # SSL data: key and x.509 self-signed certificate (to test SSL/TLS)
 
-$(INSTALL_DIR)/conf/server.crt: ssl/ca_config.conf
+$(INSTALL_DIR)/conf/server.crt: ssl/ca_config.conf $(INSTALL_DIR)/bin/httpd
 	openssl genrsa -out ssl/ca.key 2048
 	openssl req -x509 -new -nodes -key ssl/ca.key -sha256 -days 1024 -out ssl/ca.crt -config ssl/ca_config.conf
 	openssl genrsa -out ssl/server.key 2048

@@ -61,7 +61,7 @@ nodejs.manifest: nodejs.manifest.template nodejs-trusted-libs
 		$< > $@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
-nodejs.manifest.sgx: nodejs.manifest
+nodejs.manifest.sgx: nodejs.manifest helloworld.js
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -70,8 +70,7 @@ nodejs.manifest.sgx: nodejs.manifest
 nodejs.sig: nodejs.manifest.sgx
 
 nodejs.token: nodejs.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output $@ -sig $^
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
 
 # Extra executables
 pal_loader:
