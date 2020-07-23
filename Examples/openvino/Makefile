@@ -65,18 +65,18 @@ $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_
 
 openvino.manifest: openvino.manifest.template
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-		-e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
-		-e 's|$$(OPENVINO_DIR)|'"$(OPENVINO_DIR)"'|g' \
-		-e 's|$$(OPENVINO_DIR_ABSPATH)|'"$(abspath $(OPENVINO_DIR))"'|g' \
-		-e 's|$$(MODEL_DIR)|'"$(MODEL_DIR)"'|g' \
-		-e 's|$$(OPENVINO_BUILD)|'"$(OPENVINO_BUILD)"'|g' \
-		-e 's|$$(LIBTBB_DEBUG)|'$(LIBTBB_DEBUG)'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+	    -e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
+	    -e 's|$$(OPENVINO_DIR)|'"$(OPENVINO_DIR)"'|g' \
+	    -e 's|$$(OPENVINO_DIR_ABSPATH)|'"$(abspath $(OPENVINO_DIR))"'|g' \
+	    -e 's|$$(MODEL_DIR)|'"$(MODEL_DIR)"'|g' \
+	    -e 's|$$(OPENVINO_BUILD)|'"$(OPENVINO_BUILD)"'|g' \
+	    -e 's|$$(LIBTBB_DEBUG)|'$(LIBTBB_DEBUG)'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< > $@
 
 # Generating the SGX-specific manifest (openvino.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-openvino.manifest.sgx: openvino.manifest $(OPENVINO_DIR)/README.md $(MODEL_DIR)/README.md
+openvino.manifest.sgx: openvino.manifest $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \

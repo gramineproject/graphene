@@ -70,7 +70,7 @@ nodejs.manifest.sgx: nodejs.manifest helloworld.js
 nodejs.sig: nodejs.manifest.sgx
 
 nodejs.token: nodejs.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 # Extra executables
 pal_loader:

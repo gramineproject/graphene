@@ -1,2 +1,4 @@
-/src
+/.lck
+/memcached
 /memcached.tar.gz
+/src

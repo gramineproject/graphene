@@ -105,7 +105,7 @@ pal_loader:
 
 .PHONY=clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader memcached
+	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader memcached .lck
 
 .PHONY=distclean
 distclean: clean
