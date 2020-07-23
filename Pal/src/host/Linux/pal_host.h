@@ -73,6 +73,7 @@ typedef struct pal_handle
              * determined by parent process.
              */
             PAL_PTR map_start;
+            PAL_BOL seekable; /* regular files are seekable, FIFO pipes are not */
         } file;
 
         struct {
