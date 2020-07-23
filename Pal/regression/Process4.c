@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
 #endif
 
     if (argc == 1) {
-        unsigned long time = DkSystemTimeQuery();
+        uint64_t time = DkSystemTimeQuery();
         char time_arg[24];
         snprintf(time_arg, 24, "%ld", time);
 
@@ -46,8 +46,8 @@ int main(int argc, char** argv) {
 
             DkObjectClose(proc);
         } else {
-            unsigned long end   = DkSystemTimeQuery();
-            unsigned long start = atol(argv[2]);
+            uint64_t end   = DkSystemTimeQuery();
+            uint64_t start = atol(argv[2]);
             pal_printf("wall time = %ld\n", end - start);
         }
     }

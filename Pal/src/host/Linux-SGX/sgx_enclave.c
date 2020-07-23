@@ -575,7 +575,7 @@ static long sgx_ocall_gettime(void * pms)
 
 static long sgx_ocall_sleep(void * pms)
 {
-    ms_ocall_sleep_t * ms = (ms_ocall_sleep_t *) pms;
+    ms_ocall_sleep_t* ms = (ms_ocall_sleep_t*)pms;
     long ret;
     ODEBUG(OCALL_SLEEP, ms);
     if (!ms->ms_microsec) {
@@ -583,15 +583,15 @@ static long sgx_ocall_sleep(void * pms)
         return 0;
     }
     struct timespec req, rem;
-    unsigned long microsec = ms->ms_microsec;
-    const unsigned long VERY_LONG_TIME_IN_US = 1000000L * 60 * 60 * 24 * 365 * 128;
+    uint64_t microsec = ms->ms_microsec;
+    const uint64_t VERY_LONG_TIME_IN_US = (uint64_t)1000000 * 60 * 60 * 24 * 365 * 128;
     if (ms->ms_microsec > VERY_LONG_TIME_IN_US) {
         /* avoid overflow with time_t */
         req.tv_sec  = VERY_LONG_TIME_IN_US / 1000000;
         req.tv_nsec = 0;
     } else {
         req.tv_sec = ms->ms_microsec / 1000000;
-        req.tv_nsec = (microsec - req.tv_sec * 1000000) * 1000;
+        req.tv_nsec = (microsec - req.tv_sec * (uint64_t)1000000) * 1000;
     }
 
     ret = INLINE_SYSCALL(nanosleep, 2, &req, &rem);

@@ -1254,8 +1254,7 @@ int ocall_gettime(uint64_t* microsec) {
     return retval;
 }
 
-int ocall_sleep (unsigned long * microsec)
-{
+int ocall_sleep(uint64_t* microsec) {
     int retval = 0;
     ms_ocall_sleep_t * ms;
 
@@ -1274,7 +1273,7 @@ int ocall_sleep (unsigned long * microsec)
         if (!retval) {
             *microsec = 0;
         } else if (retval == -EINTR) {
-            unsigned long untrusted_microsec = READ_ONCE(ms->ms_microsec);
+            uint64_t untrusted_microsec = READ_ONCE(ms->ms_microsec);
             if (*microsec < untrusted_microsec) {
                 retval = -EPERM;
                 goto out;

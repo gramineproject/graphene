@@ -692,8 +692,7 @@ void DkObjectClose(PAL_HANDLE objectHandle);
  * \brief Get the current time
  * \return the current time in microseconds
  */
-PAL_NUM
-DkSystemTimeQuery(void);
+PAL_NUM DkSystemTimeQuery(void);
 
 /*!
  * \brief Cryptographically secure random.

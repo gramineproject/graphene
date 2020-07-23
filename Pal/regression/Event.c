@@ -45,12 +45,12 @@ int main(void) {
         pal_printf("DkThreadCreate failed\n");
         return 1;
     }
-    unsigned long t_start = DkSystemTimeQuery();
+    uint64_t t_start = DkSystemTimeQuery();
 
     pal_printf("Testing wait with too short timeout...\n");
     DkSynchronizationObjectWait(event1, 1000000);
-    unsigned long t_wait1  = DkSystemTimeQuery();
-    unsigned long dt_wait1 = t_wait1 - t_start;
+    uint64_t t_wait1  = DkSystemTimeQuery();
+    uint64_t dt_wait1 = t_wait1 - t_start;
     pal_printf("Wait returned after %lu us.\n", dt_wait1);
     pal_printf("Timeout count: %d\n", timeouts);
     if (dt_wait1 > 1000000 && dt_wait1 < 1100000 && timeouts == 1) {
@@ -59,8 +59,8 @@ int main(void) {
 
     pal_printf("Testing wait with long enough timeout...\n");
     DkSynchronizationObjectWait(event1, 5000000);
-    unsigned long t_wait2  = DkSystemTimeQuery();
-    unsigned long dt_wait2 = t_wait2 - t_start;
+    uint64_t t_wait2  = DkSystemTimeQuery();
+    uint64_t dt_wait2 = t_wait2 - t_start;
     pal_printf("Wait returned after %lu us since start.\n", dt_wait2);
     pal_printf("Timeout count: %d\n", timeouts);
     if (dt_wait2 > 3000000 && dt_wait2 < 3100000 && timeouts == 1) {
