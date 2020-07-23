@@ -40,7 +40,7 @@ static int eventfd_pal_close(PAL_HANDLE handle) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-struct handle_ops eventfd_ops = {
+struct handle_ops g_eventfd_ops = {
     .open           = &eventfd_pal_open,
     .read           = &eventfd_pal_read,
     .write          = &eventfd_pal_write,
