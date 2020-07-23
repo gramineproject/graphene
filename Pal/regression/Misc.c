@@ -3,8 +3,8 @@
 #include "pal_debug.h"
 
 int main(int argc, const char** argv, const char** envp) {
-    unsigned long time1 = DkSystemTimeQuery();
-    unsigned long time2 = DkSystemTimeQuery();
+    uint64_t time1 = DkSystemTimeQuery();
+    uint64_t time2 = DkSystemTimeQuery();
 
     pal_printf("Time Query 1: %ld\n", time1);
     pal_printf("Time Query 2: %ld\n", time2);
@@ -12,18 +12,18 @@ int main(int argc, const char** argv, const char** envp) {
     if (time1 <= time2)
         pal_printf("Query System Time OK\n");
 
-    unsigned long time3 = DkSystemTimeQuery();
+    uint64_t time3 = DkSystemTimeQuery();
     DkThreadDelayExecution(10000);
-    unsigned long time4 = DkSystemTimeQuery();
+    uint64_t time4 = DkSystemTimeQuery();
 
     pal_printf("Sleeped %ld Microseconds\n", time4 - time3);
 
     if (time3 < time4 && time4 - time3 > 10000)
         pal_printf("Delay Execution for 10000 Microseconds OK\n");
 
-    unsigned long time5 = DkSystemTimeQuery();
+    uint64_t time5 = DkSystemTimeQuery();
     DkThreadDelayExecution(3000000);
-    unsigned long time6 = DkSystemTimeQuery();
+    uint64_t time6 = DkSystemTimeQuery();
 
     pal_printf("Sleeped %ld Microseconds\n", time6 - time5);
 

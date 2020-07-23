@@ -71,16 +71,16 @@ int shim_do_setitimer(int which, struct __kernel_itimerval* value,
     if (ovalue && test_user_memory(ovalue, sizeof(*ovalue), true))
         return -EFAULT;
 
-    unsigned long setup_time = DkSystemTimeQuery();
+    uint64_t setup_time = DkSystemTimeQuery();
 
-    unsigned long next_value = value->it_value.tv_sec * 1000000 + value->it_value.tv_usec;
-    unsigned long next_reset = value->it_interval.tv_sec * 1000000 + value->it_interval.tv_usec;
+    uint64_t next_value = value->it_value.tv_sec * (uint64_t)1000000 + value->it_value.tv_usec;
+    uint64_t next_reset = value->it_interval.tv_sec * (uint64_t)1000000 + value->it_interval.tv_usec;
 
     MASTER_LOCK();
 
-    unsigned long current_timeout =
+    uint64_t current_timeout =
         real_itimer.timeout > setup_time ? real_itimer.timeout - setup_time : 0;
-    unsigned long current_reset = real_itimer.reset;
+    uint64_t current_reset = real_itimer.reset;
 
     int64_t ret =
         install_async_event(NULL, next_value, &signal_itimer, (void*)(setup_time + next_value));
@@ -114,12 +114,12 @@ int shim_do_getitimer(int which, struct __kernel_itimerval* value) {
     if (test_user_memory(value, sizeof(*value), true))
         return -EFAULT;
 
-    unsigned long setup_time = DkSystemTimeQuery();
+    uint64_t setup_time = DkSystemTimeQuery();
 
     MASTER_LOCK();
-    unsigned long current_timeout =
+    uint64_t current_timeout =
         real_itimer.timeout > setup_time ? real_itimer.timeout - setup_time : 0;
-    unsigned long current_reset = real_itimer.reset;
+    uint64_t current_reset = real_itimer.reset;
     MASTER_UNLOCK();
 
     value->it_interval.tv_sec  = current_reset / 1000000;

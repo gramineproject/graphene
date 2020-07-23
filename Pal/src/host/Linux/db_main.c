@@ -166,7 +166,7 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
 void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
 
-    unsigned long start_time = _DkSystemTimeQueryEarly();
+    uint64_t start_time = _DkSystemTimeQueryEarly();
     g_pal_state.start_time = start_time;
 
     int argc;

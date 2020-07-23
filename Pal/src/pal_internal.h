@@ -169,7 +169,7 @@ extern struct pal_internal_state {
 
     PAL_HANDLE      console;
 
-    unsigned long   start_time;
+    uint64_t        start_time;
 } g_pal_state;
 
 extern PAL_CONTROL g_pal_control;
@@ -236,7 +236,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo);
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param);
 noreturn void _DkThreadExit(int* clear_child_tid);
-int _DkThreadDelayExecution (unsigned long * duration);
+int _DkThreadDelayExecution(uint64_t* duration_us);
 void _DkThreadYieldExecution (void);
 int _DkThreadResume (PAL_HANDLE threadHandle);
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
