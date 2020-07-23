@@ -43,6 +43,6 @@ int _DkThreadResume(PAL_HANDLE threadHandle) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-struct handle_ops thread_ops = {
+struct handle_ops g_thread_ops = {
     /* nothing */
 };

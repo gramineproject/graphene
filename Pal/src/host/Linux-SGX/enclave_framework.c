@@ -14,9 +14,8 @@
 
 __sgx_mem_aligned struct pal_enclave_state g_pal_enclave_state;
 
-void * enclave_base, * enclave_top;
-
-struct pal_enclave_config pal_enclave_config;
+void* g_enclave_base;
+void* g_enclave_top;
 
 static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates);
 
@@ -26,7 +25,7 @@ bool sgx_is_completely_within_enclave (const void * addr, uint64_t size)
         return false;
     }
 
-    return enclave_base <= addr && addr + size <= enclave_top;
+    return g_enclave_base <= addr && addr + size <= g_enclave_top;
 }
 
 bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
@@ -34,7 +33,7 @@ bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
         return false;
     }
 
-    return enclave_base >= addr + size || enclave_top <= addr;
+    return g_enclave_base >= addr + size || g_enclave_top <= addr;
 }
 
 void* sgx_prepare_ustack(void) {
@@ -120,7 +119,7 @@ static void print_report(sgx_report_t* r) {
     SGX_DBG(DBG_S, "  mac:         %s\n",     ALLOCA_BYTES2HEXSTR(r->mac));
 }
 
-static sgx_key_128bit_t enclave_key;
+static sgx_key_128bit_t g_enclave_key;
 
 static int __sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
                             sgx_report_t* report) {
@@ -197,13 +196,13 @@ int init_enclave_key (void)
     memset(&keyrequest, 0, sizeof(sgx_key_request_t));
     keyrequest.key_name = SEAL_KEY;
 
-    int ret = sgx_getkey(&keyrequest, &enclave_key);
+    int ret = sgx_getkey(&keyrequest, &g_enclave_key);
     if (ret) {
         SGX_DBG(DBG_E, "Can't get seal key\n");
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Seal key: %s\n", ALLOCA_BYTES2HEXSTR(enclave_key));
+    SGX_DBG(DBG_S, "Seal key: %s\n", ALLOCA_BYTES2HEXSTR(g_enclave_key));
     return 0;
 }
 
@@ -240,10 +239,10 @@ struct trusted_file {
 };
 
 DEFINE_LISTP(trusted_file);
-static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
-static spinlock_t trusted_file_lock = INIT_SPINLOCK_UNLOCKED;
-static bool allow_file_creation = 0;
-static int file_check_policy = FILE_CHECK_POLICY_STRICT;
+static LISTP_TYPE(trusted_file) g_trusted_file_list = LISTP_INIT;
+static spinlock_t g_trusted_file_lock = INIT_SPINLOCK_UNLOCKED;
+static bool g_allow_file_creation = 0;
+static int g_file_check_policy = FILE_CHECK_POLICY_STRICT;
 
 /* Assumes `path` is normalized */
 static bool path_is_equal_or_subpath(const struct trusted_file* tf,
@@ -299,9 +298,9 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         return ret;
     }
 
-    /* Allow to create the file when allow_file_creation is turned on;
+    /* Allow to create the file when g_allow_file_creation is turned on;
        The created file is added to allowed_file list for later access */
-    if (create && allow_file_creation) {
+    if (create && g_allow_file_creation) {
        register_trusted_file(uri, NULL, /*check_duplicates=*/true);
        return 0;
     }
@@ -324,9 +323,9 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     }
     len += URI_PREFIX_FILE_LEN;
 
-    spinlock_lock(&trusted_file_lock);
+    spinlock_lock(&g_trusted_file_lock);
 
-    LISTP_FOR_EACH_ENTRY(tmp, &trusted_file_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &g_trusted_file_list, list) {
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
             if (tmp->uri_len == len && !memcmp(tmp->uri, normpath, len + 1)) {
@@ -342,7 +341,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         }
     }
 
-    spinlock_unlock(&trusted_file_lock);
+    spinlock_unlock(&g_trusted_file_lock);
 
     if (!tf || tf->allowed) {
         if (!tf) {
@@ -381,13 +380,13 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         }
     }
 
-    spinlock_lock(&trusted_file_lock);
+    spinlock_lock(&g_trusted_file_lock);
     if (tf->stubs) {
         *stubptr = tf->stubs;
-        spinlock_unlock(&trusted_file_lock);
+        spinlock_unlock(&g_trusted_file_lock);
         return 0;
     }
-    spinlock_unlock(&trusted_file_lock);
+    spinlock_unlock(&g_trusted_file_lock);
 
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
@@ -411,7 +410,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
          * AES-CMAC, and then update the SHA256 digest. */
         uint64_t mapping_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
         LIB_AESCMAC_CONTEXT aes_cmac;
-        ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&enclave_key, sizeof(enclave_key));
+        ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&g_enclave_key, sizeof(g_enclave_key));
         if (ret < 0)
             goto failed;
 
@@ -465,15 +464,15 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         goto failed;
     }
 
-    spinlock_lock(&trusted_file_lock);
+    spinlock_lock(&g_trusted_file_lock);
     if (tf->stubs) {
         *stubptr = tf->stubs;
-        spinlock_unlock(&trusted_file_lock);
+        spinlock_unlock(&g_trusted_file_lock);
         free(stubs);
         return 0;
     }
     *stubptr = tf->stubs = stubs;
-    spinlock_unlock(&trusted_file_lock);
+    spinlock_unlock(&g_trusted_file_lock);
     return 0;
 
 failed:
@@ -488,12 +487,12 @@ failed:
 
 int get_file_check_policy(void)
 {
-    return file_check_policy;
+    return g_file_check_policy;
 }
 
 static void set_file_check_policy (int policy)
 {
-    file_check_policy = policy;
+    g_file_check_policy = policy;
 }
 
 /*
@@ -560,7 +559,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
                    checking_size);
 
             /* Storing the checksum (using AES-CMAC) inside hash. */
-            ret = lib_AESCMAC((uint8_t*)&enclave_key, sizeof(enclave_key),
+            ret = lib_AESCMAC((uint8_t*)&g_enclave_key, sizeof(g_enclave_key),
                               buffer + checking - offset, checking_size,
                               (uint8_t*)&hash, sizeof(hash));
         } else {
@@ -568,7 +567,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
              * read the file content in smaller chunks and only copy the part
              * needed by the caller. */
             LIB_AESCMAC_CONTEXT aes_cmac;
-            ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&enclave_key, sizeof(enclave_key));
+            ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&g_enclave_key, sizeof(g_enclave_key));
             if (ret < 0)
                 goto failed;
 
@@ -644,14 +643,14 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         /* this check is only done during runtime (when creating a new file) and not needed during
          * initialization (because manifest is assumed to have no duplicates); skipping this check
          * significantly improves startup time */
-        spinlock_lock(&trusted_file_lock);
-        LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
+        spinlock_lock(&g_trusted_file_lock);
+        LISTP_FOR_EACH_ENTRY(tf, &g_trusted_file_list, list) {
             if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
-                spinlock_unlock(&trusted_file_lock);
+                spinlock_unlock(&g_trusted_file_lock);
                 return 0;
             }
         }
-        spinlock_unlock(&trusted_file_lock);
+        spinlock_unlock(&g_trusted_file_lock);
     }
 
     new = malloc(sizeof(struct trusted_file));
@@ -717,22 +716,22 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         SGX_DBG(DBG_S, "allowed: %s\n", new->uri);
     }
 
-    spinlock_lock(&trusted_file_lock);
+    spinlock_lock(&g_trusted_file_lock);
 
     if (check_duplicates) {
         /* this check is only done during runtime and not needed during initialization (see above);
          * we check again because same file could have been added by another thread in meantime */
-        LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
+        LISTP_FOR_EACH_ENTRY(tf, &g_trusted_file_list, list) {
             if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
-                spinlock_unlock(&trusted_file_lock);
+                spinlock_unlock(&g_trusted_file_lock);
                 free(new);
                 return 0;
             }
         }
     }
 
-    LISTP_ADD_TAIL(new, &trusted_file_list, list);
-    spinlock_unlock(&trusted_file_lock);
+    LISTP_ADD_TAIL(new, &g_trusted_file_list, list);
+    spinlock_unlock(&g_trusted_file_lock);
 
     return 0;
 }
@@ -906,9 +905,9 @@ no_allowed:
     ret = 0;
 
     if (get_config(store, "sgx.allow_file_creation", cfgbuf, cfgsize) > 0 && cfgbuf[0] == '1')
-        allow_file_creation = true;
+        g_allow_file_creation = true;
     else
-        allow_file_creation = false;
+        g_allow_file_creation = false;
 
 out:
     free(cfgbuf);

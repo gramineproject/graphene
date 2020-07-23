@@ -656,7 +656,7 @@ static int pipe_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     return old_count - count;
 }
 
-struct handle_ops pipe_ops = {
+struct handle_ops g_pipe_ops = {
     .getname        = &pipe_getname,
     .open           = &pipe_open,
     .waitforclient  = &pipe_waitforclient,
@@ -668,7 +668,7 @@ struct handle_ops pipe_ops = {
     .attrsetbyhdl   = &pipe_attrsetbyhdl,
 };
 
-struct handle_ops pipeprv_ops = {
+struct handle_ops g_pipeprv_ops = {
     .open           = &pipe_open,
     .read           = &pipe_read,
     .write          = &pipe_write,

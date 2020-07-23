@@ -177,9 +177,8 @@ fail:
     free(data);
     return NULL;
 }
-
-extern void * enclave_base;
-extern void * enclave_top;
+extern void* g_enclave_base;
+extern void* g_enclave_top;
 
 void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_t env_size,
                     struct pal_sec* uptr_sec_info) {
@@ -366,7 +365,7 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
     }
 
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
-    void* manifest_addr = enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
+    void* manifest_addr = g_enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
 
     /* parse manifest data into config storage */
     struct config_store* root_config = malloc(sizeof(struct config_store));
@@ -419,8 +418,7 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
     /* set up thread handle */
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(first_thread, thread);
-    first_thread->thread.tcs =
-        enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+    first_thread->thread.tcs = g_enclave_base + GET_ENCLAVE_TLS(tcs_offset);
     g_pal_control.first_thread = first_thread;
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
 

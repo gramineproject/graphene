@@ -9,12 +9,12 @@
 
 #include "enclave_ocalls.h"
 
-static spinlock_t malloc_lock = INIT_SPINLOCK_UNLOCKED;
-static size_t g_page_size   = PRESET_PAGESIZE;
+static spinlock_t g_malloc_lock = INIT_SPINLOCK_UNLOCKED;
+static size_t g_page_size = PRESET_PAGESIZE;
 
-#define SYSTEM_LOCK()   spinlock_lock(&malloc_lock)
-#define SYSTEM_UNLOCK() spinlock_unlock(&malloc_lock)
-#define SYSTEM_LOCKED() spinlock_is_locked(&malloc_lock)
+#define SYSTEM_LOCK()   spinlock_lock(&g_malloc_lock)
+#define SYSTEM_UNLOCK() spinlock_unlock(&g_malloc_lock)
+#define SYSTEM_LOCKED() spinlock_is_locked(&g_malloc_lock)
 
 #define ALLOC_ALIGNMENT g_page_size
 

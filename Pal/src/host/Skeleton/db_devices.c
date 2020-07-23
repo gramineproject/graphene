@@ -14,10 +14,10 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-#define DEVICE_OPS(handle)                                                             \
-    ({                                                                                 \
-        int _type = (handle)->dev.dev_type;                                            \
-        (_type <= 0 || _type >= PAL_DEVICE_TYPE_BOUND) ? NULL : pal_device_ops[_type]; \
+#define DEVICE_OPS(handle)                                                               \
+    ({                                                                                   \
+        int _type = (handle)->dev.dev_type;                                              \
+        (_type <= 0 || _type >= PAL_DEVICE_TYPE_BOUND) ? NULL : g_pal_device_ops[_type]; \
     })
 
 enum {
@@ -26,11 +26,11 @@ enum {
     PAL_DEVICE_TYPE_BOUND,
 };
 
-static struct handle_ops term_ops;
+static struct handle_ops g_term_ops;
 
-static const struct handle_ops* pal_device_ops[PAL_DEVICE_TYPE_BOUND] = {
+static const struct handle_ops* g_pal_device_ops[PAL_DEVICE_TYPE_BOUND] = {
     NULL,
-    &term_ops,
+    &g_term_ops,
 };
 
 /* parse_device_uri scans the uri, parses the prefix of the uri and searches for stream handler
@@ -44,7 +44,7 @@ static int parse_device_uri(const char** uri, char** type, struct handle_ops** o
         ;
 
     if (strstartswith_static(u, "tty"))
-        dops = &term_ops;
+        dops = &g_term_ops;
 
     if (!dops)
         return -PAL_ERROR_NOTSUPPORT;
@@ -86,7 +86,7 @@ static int term_attrquerybyhdl(PAL_HANDLE hdl, PAL_STREAM_ATTR* attr) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static struct handle_ops term_ops = {
+static struct handle_ops g_term_ops = {
     .open           = &term_open,
     .close          = &term_close,
     .read           = &char_read,
@@ -199,7 +199,7 @@ static const char* dev_getrealpath(PAL_HANDLE handle) {
     return NULL;
 }
 
-struct handle_ops dev_ops = {
+struct handle_ops g_dev_ops = {
     .getrealpath    = &dev_getrealpath,
     .open           = &dev_open,
     .read           = &dev_read,

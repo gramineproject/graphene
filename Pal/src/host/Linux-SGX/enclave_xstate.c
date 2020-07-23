@@ -48,12 +48,12 @@
 
 #include "enclave_pages.h"
 
-int xsave_enabled = 0;
-uint64_t xsave_features = 0;
-uint32_t xsave_size = 0;
+int g_xsave_enabled = 0;
+uint64_t g_xsave_features = 0;
+uint32_t g_xsave_size = 0;
 //FXRSTOR only cares about the first 512 bytes, while
 //XRSTOR in compacted mode will ignore the first 512 bytes.
-const uint32_t xsave_reset_state[XSAVE_RESET_STATE_SIZE/sizeof(uint32_t)]
+const uint32_t g_xsave_reset_state[XSAVE_RESET_STATE_SIZE/sizeof(uint32_t)]
 __attribute__((aligned(PAL_XSTATE_ALIGN))) = {
     0x037F, 0, 0, 0, 0, 0, 0x1F80, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -70,7 +70,7 @@ void init_xsave_size(uint64_t xfrm) {
     const struct {
         uint64_t bits;
         uint32_t size;
-    } xsave_size_table[] = { // Note that the xsave_size should be in ascending order
+    } xsave_size_table[] = { // Note that the g_xsave_size should be in ascending order
         {SGX_XFRM_LEGACY, 512 + 64},                    // 512 for legacy features, 64 for xsave header
         {SGX_XFRM_AVX,    512 + 64 + 256},              // 256 for YMM0_H - YMM15_H registers
         {SGX_XFRM_MPX,    512 + 64 + 256 + 256},        // 256 for MPX
@@ -78,20 +78,20 @@ void init_xsave_size(uint64_t xfrm) {
     };
 
     /* fxsave/fxrstore as fallback */
-    xsave_enabled = 0;
-    xsave_features = PAL_XFEATURE_MASK_FPSSE;
-    xsave_size = 512 + 64;
+    g_xsave_enabled = 0;
+    g_xsave_features = PAL_XFEATURE_MASK_FPSSE;
+    g_xsave_size = 512 + 64;
     if (!xfrm || (xfrm & SGX_XFRM_RESERVED)) {
         SGX_DBG(DBG_M, "xsave is disabled, xfrm 0x%lx\n", xfrm);
         return;
     }
 
-    xsave_enabled = (xfrm == SGX_XFRM_LEGACY) ? 0 : 1;
+    g_xsave_enabled = (xfrm == SGX_XFRM_LEGACY) ? 0 : 1;
     for (size_t i = 0; i < ARRAY_SIZE(xsave_size_table); i++) {
         if ((xfrm & xsave_size_table[i].bits) == xsave_size_table[i].bits) {
-            xsave_features = xfrm;
-            xsave_size = xsave_size_table[i].size;
+            g_xsave_features = xfrm;
+            g_xsave_size = xsave_size_table[i].size;
         }
     }
-    SGX_DBG(DBG_M, "xsave is enabled with xsave_size: %u\n", xsave_size);
+    SGX_DBG(DBG_M, "xsave is enabled with g_xsave_size: %u\n", g_xsave_size);
 }

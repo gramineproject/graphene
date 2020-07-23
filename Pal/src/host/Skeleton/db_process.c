@@ -40,7 +40,7 @@ static int proc_close(PAL_HANDLE handle) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-struct handle_ops proc_ops = {
+struct handle_ops g_proc_ops = {
     .read  = &proc_read,
     .write = &proc_write,
     .close = &proc_close,

@@ -33,7 +33,7 @@
 #define CPUID_LEAF_INVARIANT_TSC 0x80000007
 #define CPUID_LEAF_TSC_FREQ 0x15
 
-static char* cpu_flags[] = {
+static const char* const g_cpu_flags[] = {
     "fpu",    // "x87 FPU on chip"
     "vme",    // "virtual-8086 mode enhancement"
     "de",     // "debugging extensions"
@@ -161,11 +161,11 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
     char* flags = malloc(fmax);
 
     for (int i = 0 ; i < 32 ; i++) {
-        if (!cpu_flags[i])
+        if (!g_cpu_flags[i])
             continue;
 
         if (BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EDX], i, i + 1)) {
-            int len = strlen(cpu_flags[i]);
+            int len = strlen(g_cpu_flags[i]);
             if (flen + len + 1 > fmax) {
                 char* new_flags = malloc(fmax * 2);
                 memcpy(new_flags, flags, flen);
@@ -173,7 +173,7 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
                 fmax *= 2;
                 flags = new_flags;
             }
-            memcpy(flags + flen, cpu_flags[i], len);
+            memcpy(flags + flen, g_cpu_flags[i], len);
             flen += len;
             flags[flen++] = ' ';
         }

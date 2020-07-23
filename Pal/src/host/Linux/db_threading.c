@@ -277,6 +277,6 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
     return 0;
 }
 
-struct handle_ops thread_ops = {
+struct handle_ops g_thread_ops = {
     /* nothing */
 };
