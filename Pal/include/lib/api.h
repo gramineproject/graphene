@@ -103,28 +103,28 @@ typedef ptrdiff_t ssize_t;
 #define __UNUSED(x) do { (void)(x); } while (0)
 #define static_strlen(str) (ARRAY_SIZE(FORCE_LITERAL_CSTR(str)) - 1)
 
-/* Libc functions */
+/* LibC functions */
 
-/* Libc String functions string.h/stdlib.h */
-size_t strnlen (const char *str, size_t maxlen);
-size_t strlen (const char *str);
+/* LibC string functions */
+size_t strnlen(const char* str, size_t maxlen);
+size_t strlen(const char* str);
 int strcmp(const char* a, const char* b);
 
-long strtol (const char *s, char **endptr, int base);
-int atoi (const char *nptr);
-long int atol (const char *nptr);
+long strtol(const char* s, char** endptr, int base);
+int atoi(const char* nptr);
+long int atol(const char* nptr);
 
 char* strchr(const char* s, int c_in);
 char* strstr(const char* haystack, const char* needle);
 
-void * memcpy (void *dstpp, const void *srcpp, size_t len);
-void * memmove (void *dstpp, const void *srcpp, size_t len);
-void * memset (void *dstpp, int c, size_t len);
-int memcmp (const void *s1, const void *s2, size_t len);
+void* memcpy(void* restrict dest, const void* restrict src, size_t count);
+void* memmove(void* dest, const void* src, size_t count);
+void* memset(void* dest, int ch, size_t count);
+int memcmp(const void* lhs, const void* rhs, size_t count);
 
 bool strendswith(const char* haystack, const char* needle);
 
-/* Libc memory allocation functions. stdlib.h. */
+/* Libc memory allocation functions */
 void *malloc(size_t size);
 void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
