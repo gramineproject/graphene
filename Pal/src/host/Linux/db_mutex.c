@@ -211,6 +211,6 @@ static int mutex_wait(PAL_HANDLE handle, int64_t timeout_us) {
     return _DkMutexAcquireTimeout(handle, timeout_us);
 }
 
-struct handle_ops mutex_ops = {
+struct handle_ops g_mutex_ops = {
     .wait = &mutex_wait,
 };

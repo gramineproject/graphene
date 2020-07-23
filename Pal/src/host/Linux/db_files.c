@@ -324,22 +324,22 @@ static const char* file_getrealpath (PAL_HANDLE handle)
     return handle->file.realpath;
 }
 
-struct handle_ops file_ops = {
-        .getname            = &file_getname,
-        .getrealpath        = &file_getrealpath,
-        .open               = &file_open,
-        .read               = &file_read,
-        .write              = &file_write,
-        .close              = &file_close,
-        .delete             = &file_delete,
-        .map                = &file_map,
-        .setlength          = &file_setlength,
-        .flush              = &file_flush,
-        .attrquery          = &file_attrquery,
-        .attrquerybyhdl     = &file_attrquerybyhdl,
-        .attrsetbyhdl       = &file_attrsetbyhdl,
-        .rename             = &file_rename,
-    };
+struct handle_ops g_file_ops = {
+    .getname            = &file_getname,
+    .getrealpath        = &file_getrealpath,
+    .open               = &file_open,
+    .read               = &file_read,
+    .write              = &file_write,
+    .close              = &file_close,
+    .delete             = &file_delete,
+    .map                = &file_map,
+    .setlength          = &file_setlength,
+    .flush              = &file_flush,
+    .attrquery          = &file_attrquery,
+    .attrquerybyhdl     = &file_attrquerybyhdl,
+    .attrsetbyhdl       = &file_attrsetbyhdl,
+    .rename             = &file_rename,
+};
 
 /* 'open' operation for directory stream. Directory stream does not have a
    specific type prefix, its URI looks the same file streams, plus it
@@ -575,15 +575,15 @@ static const char * dir_getrealpath (PAL_HANDLE handle)
     return handle->dir.realpath;
 }
 
-struct handle_ops dir_ops = {
-        .getname            = &dir_getname,
-        .getrealpath        = &dir_getrealpath,
-        .open               = &dir_open,
-        .read               = &dir_read,
-        .close              = &dir_close,
-        .delete             = &dir_delete,
-        .attrquery          = &file_attrquery,
-        .attrquerybyhdl     = &file_attrquerybyhdl,
-        .attrsetbyhdl       = &file_attrsetbyhdl,
-        .rename             = &dir_rename,
-    };
+struct handle_ops g_dir_ops = {
+    .getname            = &dir_getname,
+    .getrealpath        = &dir_getrealpath,
+    .open               = &dir_open,
+    .read               = &dir_read,
+    .close              = &dir_close,
+    .delete             = &dir_delete,
+    .attrquery          = &file_attrquery,
+    .attrquerybyhdl     = &file_attrquerybyhdl,
+    .attrsetbyhdl       = &file_attrsetbyhdl,
+    .rename             = &dir_rename,
+};

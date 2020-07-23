@@ -23,7 +23,7 @@
 
 size_t g_page_size = PRESET_PAGESIZE;
 
-struct pal_enclave pal_enclave;
+struct pal_enclave g_pal_enclave;
 
 static inline
 char * alloc_concat(const char * p, size_t plen,
@@ -1027,10 +1027,10 @@ int main(int argc, char* argv[], char* envp[]) {
         /* We're one of the children spawned to host new processes started inside Graphene.
          * We'll receive our argv and config via IPC. */
         int parent_pipe_fd = atoi(argv[2]);
-        ret = sgx_init_child_process(parent_pipe_fd, &pal_enclave.pal_sec);
+        ret = sgx_init_child_process(parent_pipe_fd, &g_pal_enclave.pal_sec);
         if (ret < 0)
             goto out;
-        exec_uri = alloc_concat(pal_enclave.pal_sec.exec_name, -1, NULL, -1);
+        exec_uri = alloc_concat(g_pal_enclave.pal_sec.exec_name, -1, NULL, -1);
     }
 
     if (!exec_uri) {
@@ -1143,16 +1143,16 @@ int main(int argc, char* argv[], char* envp[]) {
     char* env = envp[0];
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
 
-    ret = load_enclave(&pal_enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env, env_size,
-                       exec_uri_inferred, need_gsgx);
+    ret = load_enclave(&g_pal_enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env,
+                       env_size, exec_uri_inferred, need_gsgx);
 
 out:
-    if (pal_enclave.exec >= 0)
-        INLINE_SYSCALL(close, 1, pal_enclave.exec);
-    if (pal_enclave.sigfile >= 0)
-        INLINE_SYSCALL(close, 1, pal_enclave.sigfile);
-    if (pal_enclave.token >= 0)
-        INLINE_SYSCALL(close, 1, pal_enclave.token);
+    if (g_pal_enclave.exec >= 0)
+        INLINE_SYSCALL(close, 1, g_pal_enclave.exec);
+    if (g_pal_enclave.sigfile >= 0)
+        INLINE_SYSCALL(close, 1, g_pal_enclave.sigfile);
+    if (g_pal_enclave.token >= 0)
+        INLINE_SYSCALL(close, 1, g_pal_enclave.token);
     if (!IS_ERR(fd))
         INLINE_SYSCALL(close, 1, fd);
     free(exec_uri);

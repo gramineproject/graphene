@@ -41,9 +41,9 @@ struct pal_linux_state g_linux_state;
 struct pal_sec g_pal_sec;
 
 static size_t g_page_size = PRESET_PAGESIZE;
-static int uid, gid;
+static int g_uid, g_gid;
 #if USE_VDSO_GETTIME == 1
-static ElfW(Addr) sysinfo_ehdr;
+static ElfW(Addr) g_sysinfo_ehdr;
 #endif
 
 static void read_args_from_stack(void* initial_rsp, int* out_argc, const char*** out_argv,
@@ -83,15 +83,15 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
                 break;
             case AT_UID:
             case AT_EUID:
-                uid ^= av->a_un.a_val;
+                g_uid ^= av->a_un.a_val;
                 break;
             case AT_GID:
             case AT_EGID:
-                gid ^= av->a_un.a_val;
+                g_gid ^= av->a_un.a_val;
                 break;
 #if USE_VDSO_GETTIME == 1
             case AT_SYSINFO_EHDR:
-                sysinfo_ehdr = av->a_un.a_val;
+                g_sysinfo_ehdr = av->a_un.a_val;
                 break;
 #endif
         }
@@ -217,8 +217,8 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     setup_pal_map(&g_pal_map);
 
 #if USE_VDSO_GETTIME == 1
-    if (sysinfo_ehdr)
-        setup_vdso_map(sysinfo_ehdr);
+    if (g_sysinfo_ehdr)
+        setup_vdso_map(g_sysinfo_ehdr);
 #endif
 
     PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
@@ -232,8 +232,8 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
         g_pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
     g_linux_state.pid = g_pal_sec.process_id;
 
-    g_linux_state.uid = uid;
-    g_linux_state.gid = gid;
+    g_linux_state.uid = g_uid;
+    g_linux_state.gid = g_gid;
     g_linux_state.process_id = (start_time & (~0xffff)) | g_linux_state.pid;
 
     if (!g_linux_state.parent_process_id)

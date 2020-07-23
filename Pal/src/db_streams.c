@@ -18,37 +18,37 @@
 /* Stream handler table: this table corresponds to all the
    handle type supported by PAL. Threads, Semaphores and Events
    are not streams, so they need no handler */
-extern struct handle_ops file_ops;
-extern struct handle_ops pipe_ops;
-extern struct handle_ops pipeprv_ops;
-extern struct handle_ops dev_ops;
-extern struct handle_ops dir_ops;
-extern struct handle_ops tcp_ops;
-extern struct handle_ops udp_ops;
-extern struct handle_ops udpsrv_ops;
-extern struct handle_ops thread_ops;
-extern struct handle_ops proc_ops;
-extern struct handle_ops mutex_ops;
-extern struct handle_ops event_ops;
-extern struct handle_ops eventfd_ops;
+extern struct handle_ops g_file_ops;
+extern struct handle_ops g_pipe_ops;
+extern struct handle_ops g_pipeprv_ops;
+extern struct handle_ops g_dev_ops;
+extern struct handle_ops g_dir_ops;
+extern struct handle_ops g_tcp_ops;
+extern struct handle_ops g_udp_ops;
+extern struct handle_ops g_udpsrv_ops;
+extern struct handle_ops g_thread_ops;
+extern struct handle_ops g_proc_ops;
+extern struct handle_ops g_mutex_ops;
+extern struct handle_ops g_event_ops;
+extern struct handle_ops g_eventfd_ops;
 
-const struct handle_ops* pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
-    [pal_type_file]    = &file_ops,
-    [pal_type_pipe]    = &pipe_ops,
-    [pal_type_pipesrv] = &pipe_ops,
-    [pal_type_pipecli] = &pipe_ops,
-    [pal_type_pipeprv] = &pipeprv_ops,
-    [pal_type_dev]     = &dev_ops,
-    [pal_type_dir]     = &dir_ops,
-    [pal_type_tcp]     = &tcp_ops,
-    [pal_type_tcpsrv]  = &tcp_ops,
-    [pal_type_udp]     = &udp_ops,
-    [pal_type_udpsrv]  = &udpsrv_ops,
-    [pal_type_process] = &proc_ops,
-    [pal_type_thread]  = &thread_ops,
-    [pal_type_mutex]   = &mutex_ops,
-    [pal_type_event]   = &event_ops,
-    [pal_type_eventfd] = &eventfd_ops,
+const struct handle_ops* g_pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
+    [pal_type_file]    = &g_file_ops,
+    [pal_type_pipe]    = &g_pipe_ops,
+    [pal_type_pipesrv] = &g_pipe_ops,
+    [pal_type_pipecli] = &g_pipe_ops,
+    [pal_type_pipeprv] = &g_pipeprv_ops,
+    [pal_type_dev]     = &g_dev_ops,
+    [pal_type_dir]     = &g_dir_ops,
+    [pal_type_tcp]     = &g_tcp_ops,
+    [pal_type_tcpsrv]  = &g_tcp_ops,
+    [pal_type_udp]     = &g_udp_ops,
+    [pal_type_udpsrv]  = &g_udpsrv_ops,
+    [pal_type_process] = &g_proc_ops,
+    [pal_type_thread]  = &g_thread_ops,
+    [pal_type_mutex]   = &g_mutex_ops,
+    [pal_type_event]   = &g_event_ops,
+    [pal_type_eventfd] = &g_eventfd_ops,
 };
 
 /* parse_stream_uri scan the uri, seperate prefix and search for
@@ -75,13 +75,13 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
             static_assert(static_strlen(URI_PREFIX_DEV) == 4, "URI_PREFIX_DEV has unexpected length");
 
             if (strstartswith_static(u, URI_PREFIX_DIR))
-                hops = &dir_ops;
+                hops = &g_dir_ops;
             else if (strstartswith_static(u, URI_PREFIX_TCP))
-                hops = &tcp_ops;
+                hops = &g_tcp_ops;
             else if (strstartswith_static(u, URI_PREFIX_UDP))
-                hops = &udp_ops;
+                hops = &g_udp_ops;
             else if (strstartswith_static(u, URI_PREFIX_DEV))
-                hops = &dev_ops;
+                hops = &g_dev_ops;
             break;
 
         case 5: ;
@@ -89,9 +89,9 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
             static_assert(static_strlen(URI_PREFIX_PIPE) == 5, "URI_PREFIX_PIPE has unexpected length");
 
             if (strstartswith_static(u, URI_PREFIX_FILE))
-                hops = &file_ops;
+                hops = &g_file_ops;
             else if (strstartswith_static(u, URI_PREFIX_PIPE))
-                hops = &pipe_ops;
+                hops = &g_pipe_ops;
             break;
 
         case 8: ;
@@ -100,18 +100,18 @@ static int parse_stream_uri(const char** uri, char** prefix, struct handle_ops**
             static_assert(static_strlen(URI_PREFIX_EVENTFD) == 8, "URI_PREFIX_EVENTFD has unexpected length");
 
             if (strstartswith_static(u, URI_PREFIX_TCP_SRV))
-                hops = &tcp_ops;
+                hops = &g_tcp_ops;
             else if (strstartswith_static(u, URI_PREFIX_UDP_SRV))
-                hops = &udp_ops;
+                hops = &g_udp_ops;
             else if (strstartswith_static(u, URI_PREFIX_EVENTFD))
-                hops = &eventfd_ops;
+                hops = &g_eventfd_ops;
             break;
 
         case 9: ;
             static_assert(static_strlen(URI_PREFIX_PIPE_SRV) == 9, "URI_PREFIX_PIPE_SRV has unexpected length");
 
             if (strstartswith_static(u, URI_PREFIX_PIPE_SRV))
-                hops = &pipe_ops;
+                hops = &g_pipe_ops;
             break;
 
         default:

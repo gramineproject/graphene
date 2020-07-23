@@ -26,16 +26,16 @@
 
 #include <list.h>
 
-static PAL_LOCK thread_list_lock = LOCK_INIT;
+static PAL_LOCK g_thread_list_lock = LOCK_INIT;
 DEFINE_LISTP(pal_handle_thread);
-static LISTP_TYPE(pal_handle_thread) thread_list = LISTP_INIT;
+static LISTP_TYPE(pal_handle_thread) g_thread_list = LISTP_INIT;
 
 struct thread_param {
     int (*callback) (void *);
     const void * param;
 };
 
-extern void * enclave_base;
+extern void* g_enclave_base;
 
 /*
  * We do not currently handle tid counter wrap-around, and could, in
@@ -53,16 +53,15 @@ void pal_start_thread (void)
 {
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
-    _DkInternalLock(&thread_list_lock);
-    LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list)
+    _DkInternalLock(&g_thread_list_lock);
+    LISTP_FOR_EACH_ENTRY(tmp, &g_thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
             new_thread->tid = pal_assign_tid();
-            new_thread->tcs =
-                enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+            new_thread->tcs = g_enclave_base + GET_ENCLAVE_TLS(tcs_offset);
             break;
         }
-    _DkInternalUnlock(&thread_list_lock);
+    _DkInternalUnlock(&g_thread_list_lock);
 
     if (!new_thread)
         return;
@@ -102,9 +101,9 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     thread_param->param = param;
     new_thread->thread.param = (void *) thread_param;
 
-    _DkInternalLock(&thread_list_lock);
-    LISTP_ADD_TAIL(&new_thread->thread, &thread_list, list);
-    _DkInternalUnlock(&thread_list_lock);
+    _DkInternalLock(&g_thread_list_lock);
+    LISTP_ADD_TAIL(&new_thread->thread, &g_thread_list, list);
+    _DkInternalUnlock(&g_thread_list_lock);
 
     int ret = ocall_clone_thread();
     if (IS_ERR(ret))
@@ -136,11 +135,11 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
     SET_ENCLAVE_TLS(clear_child_tid, clear_child_tid);
     static_assert(sizeof(*clear_child_tid) == 4,  "unexpected clear_child_tid size");
 
-    /* main thread is not part of the thread_list */
+    /* main thread is not part of the g_thread_list */
     if(exiting_thread != &pal_control.first_thread->thread) {
-        _DkInternalLock(&thread_list_lock);
-        LISTP_DEL(exiting_thread, &thread_list, list);
-        _DkInternalUnlock(&thread_list_lock);
+        _DkInternalLock(&g_thread_list_lock);
+        LISTP_DEL(exiting_thread, &g_thread_list, list);
+        _DkInternalUnlock(&g_thread_list_lock);
     }
 
     ocall_exit(0, /*is_exitgroup=*/false);
@@ -152,6 +151,6 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-struct handle_ops thread_ops = {
+struct handle_ops g_thread_ops = {
     /* nothing */
 };

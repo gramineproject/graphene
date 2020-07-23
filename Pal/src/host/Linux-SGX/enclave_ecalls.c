@@ -9,9 +9,10 @@
 
 #define SGX_CAST(type, item) ((type)(item))
 
-extern void * enclave_base, * enclave_top;
+extern void* g_enclave_base;
+extern void* g_enclave_top;
 
-static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
+static struct atomic_int g_enclave_start_called = ATOMIC_INIT(0);
 
 /* returns 0 if rpc_queue is valid/not requested, otherwise -1 */
 static int verify_and_init_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
@@ -58,14 +59,14 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
     if (ecall_index < 0 || ecall_index >= ECALL_NR)
         return;
 
-    if (!enclave_top) {
-        enclave_base = enclave_base_addr;
-        enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
+    if (!g_enclave_top) {
+        g_enclave_base = enclave_base_addr;
+        g_enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
     /* disallow malicious URSP (that points into the enclave) */
     void* ursp = (void*)GET_ENCLAVE_TLS(gpr)->ursp;
-    if (enclave_base <= ursp && ursp <= enclave_top)
+    if (g_enclave_base <= ursp && ursp <= g_enclave_top)
         return;
 
     SET_ENCLAVE_TLS(exit_target,     exit_target);
@@ -75,7 +76,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
     SET_ENCLAVE_TLS(untrusted_area_cache.in_use, 0UL);
 
     int64_t t = 0;
-    if (__atomic_compare_exchange_n(&enclave_start_called.counter, &t, 1, /*weak=*/false,
+    if (__atomic_compare_exchange_n(&g_enclave_start_called.counter, &t, 1, /*weak=*/false,
                                     __ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) {
         // ENCLAVE_START not yet called, so only valid ecall is ENCLAVE_START.
         if (ecall_index != ECALL_ENCLAVE_START) {

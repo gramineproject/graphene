@@ -1191,7 +1191,7 @@ static int socket_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     return orig_count - count;
 }
 
-struct handle_ops tcp_ops = {
+struct handle_ops g_tcp_ops = {
     .getname        = &socket_getname,
     .open           = &tcp_open,
     .waitforclient  = &tcp_accept,
@@ -1203,7 +1203,7 @@ struct handle_ops tcp_ops = {
     .attrsetbyhdl   = &socket_attrsetbyhdl,
 };
 
-struct handle_ops udp_ops = {
+struct handle_ops g_udp_ops = {
     .getname        = &socket_getname,
     .open           = &udp_open,
     .read           = &udp_receive,
@@ -1214,7 +1214,7 @@ struct handle_ops udp_ops = {
     .attrsetbyhdl   = &socket_attrsetbyhdl,
 };
 
-struct handle_ops udpsrv_ops = {
+struct handle_ops g_udpsrv_ops = {
     .getname        = &socket_getname,
     .open           = &udp_open,
     .readbyaddr     = &udp_receivebyaddr,

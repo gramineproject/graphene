@@ -109,7 +109,7 @@ int _DkInstructionCacheFlush(const void* addr, int size) {
 #define CPUID_CACHE_SIZE    64
 #define CPUID_CACHE_INVALID ((unsigned int)-1)
 
-static PAL_LOCK cpuid_cache_lock = LOCK_INIT;
+static PAL_LOCK g_cpuid_cache_lock = LOCK_INIT;
 
 static struct pal_cpuid {
     unsigned int recently;
@@ -121,7 +121,7 @@ static int pal_cpuid_cache_top      = 0;
 static unsigned int pal_cpuid_clock = 0;
 
 static int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    _DkInternalLock(&cpuid_cache_lock);
+    _DkInternalLock(&g_cpuid_cache_lock);
 
     for (int i = 0; i < pal_cpuid_cache_top; i++)
         if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
@@ -130,22 +130,22 @@ static int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigne
             values[2]                   = pal_cpuid_cache[i].values[2];
             values[3]                   = pal_cpuid_cache[i].values[3];
             pal_cpuid_cache[i].recently = ++pal_cpuid_clock;
-            _DkInternalUnlock(&cpuid_cache_lock);
+            _DkInternalUnlock(&g_cpuid_cache_lock);
             return 0;
         }
 
-    _DkInternalUnlock(&cpuid_cache_lock);
+    _DkInternalUnlock(&g_cpuid_cache_lock);
     return -PAL_ERROR_DENIED;
 }
 
 static void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     struct pal_cpuid* chosen;
-    _DkInternalLock(&cpuid_cache_lock);
+    _DkInternalLock(&g_cpuid_cache_lock);
 
     if (pal_cpuid_cache_top < CPUID_CACHE_SIZE) {
         for (int i = 0; i < pal_cpuid_cache_top; i++)
             if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
-                _DkInternalUnlock(&cpuid_cache_lock);
+                _DkInternalUnlock(&g_cpuid_cache_lock);
                 return;
             }
 
@@ -155,13 +155,13 @@ static void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned
         chosen                    = &pal_cpuid_cache[0];
 
         if (pal_cpuid_cache[0].leaf == leaf && pal_cpuid_cache[0].subleaf == subleaf) {
-            _DkInternalUnlock(&cpuid_cache_lock);
+            _DkInternalUnlock(&g_cpuid_cache_lock);
             return;
         }
 
         for (int i = 1; i < pal_cpuid_cache_top; i++) {
             if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
-                _DkInternalUnlock(&cpuid_cache_lock);
+                _DkInternalUnlock(&g_cpuid_cache_lock);
                 return;
             }
 
@@ -180,7 +180,7 @@ static void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned
     chosen->values[3] = values[3];
     chosen->recently  = ++pal_cpuid_clock;
 
-    _DkInternalUnlock(&cpuid_cache_lock);
+    _DkInternalUnlock(&g_cpuid_cache_lock);
 }
 
 static inline uint32_t extension_enabled(uint32_t xfrm, uint32_t bit_idx) {

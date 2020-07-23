@@ -810,7 +810,7 @@ static int start_rpc(size_t num_of_threads) {
         spinlock_lock(&g_rpc_queue->lock);
         size_t n = g_rpc_queue->rpc_threads_cnt;
         spinlock_unlock(&g_rpc_queue->lock);
-        if (n == pal_enclave.rpc_thread_num)
+        if (n == g_pal_enclave.rpc_thread_num)
             break;
         INLINE_SYSCALL(sched_yield, 0);
     }
@@ -823,8 +823,8 @@ int ecall_enclave_start (char * args, size_t args_size, char * env, size_t env_s
 {
     g_rpc_queue = NULL;
 
-    if (pal_enclave.rpc_thread_num > 0) {
-        int ret = start_rpc(pal_enclave.rpc_thread_num);
+    if (g_pal_enclave.rpc_thread_num > 0) {
+        int ret = start_rpc(g_pal_enclave.rpc_thread_num);
         if (ret < 0) {
             /* failed to create RPC threads */
             return ret;
@@ -837,7 +837,7 @@ int ecall_enclave_start (char * args, size_t args_size, char * env, size_t env_s
     ms.ms_args_size = args_size;
     ms.ms_env = env;
     ms.ms_env_size = env_size;
-    ms.ms_sec_info = &pal_enclave.pal_sec;
+    ms.ms_sec_info = &g_pal_enclave.pal_sec;
     ms.rpc_queue = g_rpc_queue;
     EDEBUG(ECALL_ENCLAVE_START, &ms);
     return sgx_ecall(ECALL_ENCLAVE_START, &ms);

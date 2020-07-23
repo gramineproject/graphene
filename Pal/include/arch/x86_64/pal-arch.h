@@ -91,9 +91,9 @@ enum PAL_XFEATURE {
 
 typedef struct {
     uint32_t magic1;        /*!< PAL_FP_XSTATE_MAGIC1 */
-    uint32_t extended_size; /*!< xsave_size */
+    uint32_t extended_size; /*!< g_xsave_size */
     uint64_t xfeatures;     /*!< XSAVE feature */
-    uint32_t xstate_size;   /*!< xsave_size + PAL_FP_STATE_MAGIC2_SIZE */
+    uint32_t xstate_size;   /*!< g_xsave_size + PAL_FP_STATE_MAGIC2_SIZE */
     uint32_t padding[7];
 } PAL_FPX_SW_BYTES;
 

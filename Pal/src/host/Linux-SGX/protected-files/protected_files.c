@@ -26,14 +26,14 @@
 }
 
 /* Host callbacks */
-static pf_read_f     cb_read     = NULL;
-static pf_write_f    cb_write    = NULL;
-static pf_truncate_f cb_truncate = NULL;
-static pf_debug_f    cb_debug    = NULL;
+static pf_read_f     g_cb_read     = NULL;
+static pf_write_f    g_cb_write    = NULL;
+static pf_truncate_f g_cb_truncate = NULL;
+static pf_debug_f    g_cb_debug    = NULL;
 
-static pf_aes_gcm_encrypt_f cb_aes_gcm_encrypt = NULL;
-static pf_aes_gcm_decrypt_f cb_aes_gcm_decrypt = NULL;
-static pf_random_f          cb_random          = NULL;
+static pf_aes_gcm_encrypt_f g_cb_aes_gcm_encrypt = NULL;
+static pf_aes_gcm_decrypt_f g_cb_aes_gcm_decrypt = NULL;
+static pf_random_f          g_cb_random          = NULL;
 
 #ifdef DEBUG
 #define PF_DEBUG_PRINT_SIZE_MAX 4096
@@ -41,19 +41,19 @@ static pf_random_f          cb_random          = NULL;
 /* Debug print without function name prefix. Implicit param: pf (context pointer). */
 #define __DEBUG_PF(format, ...) \
     do { \
-        if (cb_debug) { \
+        if (g_cb_debug) { \
             snprintf(pf->debug_buffer, PF_DEBUG_PRINT_SIZE_MAX, format, ##__VA_ARGS__); \
-            cb_debug(pf->debug_buffer); \
+            g_cb_debug(pf->debug_buffer); \
         } \
     } while(0)
 
 /* Debug print with function name prefix. Implicit param: pf (context pointer). */
 #define DEBUG_PF(format, ...) \
     do { \
-        if (cb_debug) { \
+        if (g_cb_debug) { \
             snprintf(pf->debug_buffer, PF_DEBUG_PRINT_SIZE_MAX, "%s: " format, __FUNCTION__, \
                      ##__VA_ARGS__); \
-            cb_debug(pf->debug_buffer); \
+            g_cb_debug(pf->debug_buffer); \
         } \
     } while(0)
 
@@ -93,7 +93,7 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* ou
         return false;
 
     if (!restore) {
-        status = cb_random((uint8_t*)&buf.nonce, sizeof(buf.nonce));
+        status = g_cb_random((uint8_t*)&buf.nonce, sizeof(buf.nonce));
         if (PF_FAILURE(status)) {
             pf->last_error = status;
             return false;
@@ -105,8 +105,8 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* ou
     // length of output (128 bits)
     buf.output_len = 0x80;
 
-    status = cb_aes_gcm_encrypt(&pf->user_kdk_key, &g_empty_iv, &buf, sizeof(buf), NULL, 0, NULL,
-                                output);
+    status = g_cb_aes_gcm_encrypt(&pf->user_kdk_key, &g_empty_iv, &buf, sizeof(buf), NULL, 0, NULL,
+                                  output);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -122,7 +122,7 @@ static bool ipf_import_metadata_key(pf_context_t* pf, bool restore, pf_key_t* ou
 }
 
 static bool ipf_generate_random_key(pf_context_t* pf, pf_key_t* output) {
-    pf_status_t status = cb_random((uint8_t*)output, sizeof(*output));
+    pf_status_t status = g_cb_random((uint8_t*)output, sizeof(*output));
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -250,7 +250,7 @@ static bool ipf_read_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_nu
                           uint32_t node_size) {
     uint64_t offset = node_number * node_size;
 
-    pf_status_t status = cb_read(handle, buffer, offset, node_size);
+    pf_status_t status = g_cb_read(handle, buffer, offset, node_size);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -261,7 +261,7 @@ static bool ipf_read_node(pf_context_t* pf, pf_handle_t handle, uint64_t node_nu
 
 static bool ipf_write_file(pf_context_t* pf, pf_handle_t handle, uint64_t offset, void* buffer,
                            uint32_t size) {
-    pf_status_t status = cb_write(handle, buffer, offset, size);
+    pf_status_t status = g_cb_write(handle, buffer, offset, size);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -300,11 +300,11 @@ static bool ipf_init_existing_file(pf_context_t* pf, const char* path) {
         return false;
 
     // decrypt the encrypted part of the meta-data
-    status = cb_aes_gcm_decrypt(&key, &g_empty_iv, NULL, 0,
-                                &pf->file_metadata.encrypted_part,
-                                sizeof(pf->file_metadata.encrypted_part),
-                                &pf->encrypted_part_plain,
-                                &pf->file_metadata.plain_part.metadata_gmac);
+    status = g_cb_aes_gcm_decrypt(&key, &g_empty_iv, NULL, 0,
+                                  &pf->file_metadata.encrypted_part,
+                                  sizeof(pf->file_metadata.encrypted_part),
+                                  &pf->encrypted_part_plain,
+                                  &pf->file_metadata.plain_part.metadata_gmac);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         DEBUG_PF("failed to decrypt metadata: %d\n", status);
@@ -329,11 +329,11 @@ static bool ipf_init_existing_file(pf_context_t* pf, const char* path) {
             return false;
 
         // this also verifies the root mht gmac against the gmac in the meta-data encrypted part
-        status = cb_aes_gcm_decrypt(&pf->encrypted_part_plain.mht_key, &g_empty_iv,
-                                    NULL, 0, // aad
-                                    &pf->root_mht.encrypted.cipher, PF_NODE_SIZE,
-                                    &pf->root_mht.decrypted.mht,
-                                    &pf->encrypted_part_plain.mht_gmac);
+        status = g_cb_aes_gcm_decrypt(&pf->encrypted_part_plain.mht_key, &g_empty_iv,
+                                      NULL, 0, // aad
+                                      &pf->root_mht.encrypted.cipher, PF_NODE_SIZE,
+                                      &pf->root_mht.decrypted.mht,
+                                      &pf->encrypted_part_plain.mht_gmac);
         if (PF_FAILURE(status)) {
             pf->last_error = status;
             return false;
@@ -495,11 +495,11 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
                     goto out;
 
                 // encrypt the data, this also saves the gmac of the operation in the mht crypto node
-                status = cb_aes_gcm_encrypt(&gcm_crypto_data->key, &g_empty_iv,
-                                            NULL, 0, // aad
-                                            data_node->decrypted.data.data, PF_NODE_SIZE,
-                                            data_node->encrypted.cipher,
-                                            &gcm_crypto_data->gmac);
+                status = g_cb_aes_gcm_encrypt(&gcm_crypto_data->key, &g_empty_iv,
+                                              NULL, 0, // aad
+                                              data_node->decrypted.data.data, PF_NODE_SIZE,
+                                              data_node->encrypted.cipher,
+                                              &gcm_crypto_data->gmac);
                 if (PF_FAILURE(status)) {
                     pf->last_error = status;
                     goto out;
@@ -564,11 +564,11 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
             goto out;
         }
 
-        status = cb_aes_gcm_encrypt(&gcm_crypto_data->key, &g_empty_iv,
-                                    NULL, 0,
-                                    &file_mht_node->decrypted.mht, PF_NODE_SIZE,
-                                    &file_mht_node->encrypted.cipher,
-                                    &gcm_crypto_data->gmac);
+        status = g_cb_aes_gcm_encrypt(&gcm_crypto_data->key, &g_empty_iv,
+                                      NULL, 0,
+                                      &file_mht_node->decrypted.mht, PF_NODE_SIZE,
+                                      &file_mht_node->encrypted.cipher,
+                                      &gcm_crypto_data->gmac);
         if (PF_FAILURE(status)) {
             pf->last_error = status;
             goto out;
@@ -579,11 +579,11 @@ static bool ipf_update_all_data_and_mht_nodes(pf_context_t* pf) {
     if (!ipf_generate_random_key(pf, &pf->encrypted_part_plain.mht_key))
         goto out;
 
-    status = cb_aes_gcm_encrypt(&pf->encrypted_part_plain.mht_key, &g_empty_iv,
-                                NULL, 0,
-                                &pf->root_mht.decrypted.mht, PF_NODE_SIZE,
-                                &pf->root_mht.encrypted.cipher,
-                                &pf->encrypted_part_plain.mht_gmac);
+    status = g_cb_aes_gcm_encrypt(&pf->encrypted_part_plain.mht_key, &g_empty_iv,
+                                  NULL, 0,
+                                  &pf->root_mht.decrypted.mht, PF_NODE_SIZE,
+                                  &pf->root_mht.encrypted.cipher,
+                                  &pf->encrypted_part_plain.mht_gmac);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         goto out;
@@ -607,11 +607,11 @@ static bool ipf_update_metadata_node(pf_context_t* pf) {
     }
 
     // encrypt meta data encrypted part, also updates the gmac in the meta data plain part
-    status = cb_aes_gcm_encrypt(&key, &g_empty_iv,
-                                NULL, 0,
-                                &pf->encrypted_part_plain, sizeof(metadata_encrypted_t),
-                                &pf->file_metadata.encrypted_part,
-                                &pf->file_metadata.plain_part.metadata_gmac);
+    status = g_cb_aes_gcm_encrypt(&key, &g_empty_iv,
+                                  NULL, 0,
+                                  &pf->encrypted_part_plain, sizeof(metadata_encrypted_t),
+                                  &pf->file_metadata.encrypted_part,
+                                  &pf->file_metadata.plain_part.metadata_gmac);
     if (PF_FAILURE(status)) {
         pf->last_error = status;
         return false;
@@ -1039,11 +1039,11 @@ static file_node_t* ipf_read_data_node(pf_context_t* pf) {
         .data_nodes_crypto[file_data_node->node_number % ATTACHED_DATA_NODES_COUNT];
 
     // this function decrypt the data _and_ checks the integrity of the data against the gmac
-    status = cb_aes_gcm_decrypt(&gcm_crypto_data->key, &g_empty_iv,
-                                NULL, 0,
-                                file_data_node->encrypted.cipher, PF_NODE_SIZE,
-                                file_data_node->decrypted.data.data,
-                                &gcm_crypto_data->gmac);
+    status = g_cb_aes_gcm_decrypt(&gcm_crypto_data->key, &g_empty_iv,
+                                  NULL, 0,
+                                  file_data_node->encrypted.cipher, PF_NODE_SIZE,
+                                  file_data_node->decrypted.data.data,
+                                  &gcm_crypto_data->gmac);
 
     if (PF_FAILURE(status)) {
         free(file_data_node);
@@ -1166,11 +1166,11 @@ static file_node_t* ipf_read_mht_node(pf_context_t* pf, uint64_t mht_node_number
         .mht_nodes_crypto[(file_mht_node->node_number - 1) % CHILD_MHT_NODES_COUNT];
 
     // this function decrypt the data _and_ checks the integrity of the data against the gmac
-    status = cb_aes_gcm_decrypt(&gcm_crypto_data->key, &g_empty_iv,
-                                NULL, 0,
-                                file_mht_node->encrypted.cipher, PF_NODE_SIZE,
-                                &file_mht_node->decrypted.mht,
-                                &gcm_crypto_data->gmac);
+    status = g_cb_aes_gcm_decrypt(&gcm_crypto_data->key, &g_empty_iv,
+                                  NULL, 0,
+                                  file_mht_node->encrypted.cipher, PF_NODE_SIZE,
+                                  &file_mht_node->decrypted.mht,
+                                  &gcm_crypto_data->gmac);
     if (PF_FAILURE(status)) {
         free(file_mht_node);
         pf->last_error = status;
@@ -1195,14 +1195,14 @@ void pf_set_callbacks(pf_read_f read_f, pf_write_f write_f, pf_truncate_f trunca
                       pf_aes_gcm_encrypt_f aes_gcm_encrypt_f,
                       pf_aes_gcm_decrypt_f aes_gcm_decrypt_f, pf_random_f random_f,
                       pf_debug_f debug_f) {
-    cb_read            = read_f;
-    cb_write           = write_f;
-    cb_truncate        = truncate_f;
-    cb_aes_gcm_encrypt = aes_gcm_encrypt_f;
-    cb_aes_gcm_decrypt = aes_gcm_decrypt_f;
-    cb_random          = random_f;
-    cb_debug           = debug_f;
-    g_initialized      = true;
+    g_cb_read            = read_f;
+    g_cb_write           = write_f;
+    g_cb_truncate        = truncate_f;
+    g_cb_aes_gcm_encrypt = aes_gcm_encrypt_f;
+    g_cb_aes_gcm_decrypt = aes_gcm_decrypt_f;
+    g_cb_random          = random_f;
+    g_cb_debug           = debug_f;
+    g_initialized = true;
 }
 
 pf_status_t pf_open(pf_handle_t handle, const char* path, uint64_t underlying_size,

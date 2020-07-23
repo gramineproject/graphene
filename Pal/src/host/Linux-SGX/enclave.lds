@@ -21,7 +21,7 @@ SECTIONS
   .plt           : { *(.plt) *(.iplt) }
   .text :
   {
-    section_text = .;
+    g_section_text = .;
     /* the rest of text segments */
     *(.text .stub .text.*);
   }
@@ -30,7 +30,7 @@ SECTIONS
   .eh_frame      : ONLY_IF_RO { KEEP(*(.eh_frame)) }
   .rodata :
   {
-    section_rodata = .;
+    g_section_rodata = .;
     /* the rest of rodata */
     *(.rodata .rodata.*)
   }
@@ -46,7 +46,7 @@ SECTIONS
 
   .dynamic       :
   {
-    section_dynamic = .;
+    g_section_dynamic = .;
     *(.dynamic)
   }
 
@@ -60,13 +60,13 @@ SECTIONS
   . = DATA_SEGMENT_RELRO_END (0, .);
   .data          :
   {
-    section_data = .;
+    g_section_data = .;
     /* the rest of data segment */
     *(.data .data.*);
   }
   .bss           :
   {
-    section_bss = .;
+    g_section_bss = .;
     *(.bss)
     *(COMMON)
   }

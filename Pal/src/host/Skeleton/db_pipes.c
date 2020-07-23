@@ -71,7 +71,7 @@ static int pipe_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-struct handle_ops pipe_ops = {
+struct handle_ops g_pipe_ops = {
     .getname       = &pipe_getname,
     .open          = &pipe_open,
     .waitforclient = &pipe_waitforclient,
@@ -81,7 +81,7 @@ struct handle_ops pipe_ops = {
     .delete        = &pipe_delete,
 };
 
-struct handle_ops pipeprv_ops = {
+struct handle_ops g_pipeprv_ops = {
     .open  = &pipe_open,
     .read  = &pipe_read,
     .write = &pipe_write,

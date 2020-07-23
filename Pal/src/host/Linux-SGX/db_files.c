@@ -700,7 +700,7 @@ static const char* file_getrealpath(PAL_HANDLE handle) {
     return handle->file.realpath;
 }
 
-struct handle_ops file_ops = {
+struct handle_ops g_file_ops = {
     .getname        = &file_getname,
     .getrealpath    = &file_getrealpath,
     .open           = &file_open,
@@ -920,7 +920,7 @@ static const char* dir_getrealpath(PAL_HANDLE handle) {
     return handle->dir.realpath;
 }
 
-struct handle_ops dir_ops = {
+struct handle_ops g_dir_ops = {
     .getname        = &dir_getname,
     .getrealpath    = &dir_getrealpath,
     .open           = &dir_open,

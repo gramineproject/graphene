@@ -497,11 +497,11 @@ static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     return 0;
 }
 
-struct handle_ops proc_ops = {
-        .read           = &proc_read,
-        .write          = &proc_write,
-        .close          = &proc_close,
-        .delete         = &proc_delete,
-        .attrquerybyhdl = &proc_attrquerybyhdl,
-        .attrsetbyhdl   = &proc_attrsetbyhdl,
-    };
+struct handle_ops g_proc_ops = {
+    .read           = &proc_read,
+    .write          = &proc_write,
+    .close          = &proc_close,
+    .delete         = &proc_delete,
+    .attrquerybyhdl = &proc_attrquerybyhdl,
+    .attrsetbyhdl   = &proc_attrsetbyhdl,
+};

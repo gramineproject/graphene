@@ -68,7 +68,7 @@ extern struct pal_enclave {
 
     /* security information */
     struct pal_sec pal_sec;
-} pal_enclave;
+} g_pal_enclave;
 
 int open_sgx_driver(bool need_gsgx);
 bool is_wrfsbase_supported (void);

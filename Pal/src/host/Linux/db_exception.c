@@ -42,7 +42,7 @@ DEFINE_RESTORE_RT(__NR_rt_sigreturn)
 __attribute__((visibility("hidden"))) void __restore_rt(void);
 #endif  /* defined(__x86_64__) */
 
-static const int async_signals[] = {SIGTERM, SIGINT, SIGCONT};
+static const int ASYNC_SIGNALS[] = {SIGTERM, SIGINT, SIGCONT};
 
 static int block_signal(int sig, bool block) {
     int how = block? SIG_BLOCK: SIG_UNBLOCK;
@@ -63,8 +63,8 @@ static int set_signal_handler(int sig, void* handler) {
 
     /* disallow nested asynchronous signals during exception handling */
     __sigemptyset((__sigset_t*)&action.sa_mask);
-    for (size_t i = 0; i < ARRAY_SIZE(async_signals); i++)
-        __sigaddset((__sigset_t*)&action.sa_mask, async_signals[i]);
+    for (size_t i = 0; i < ARRAY_SIZE(ASYNC_SIGNALS); i++)
+        __sigaddset((__sigset_t*)&action.sa_mask, ASYNC_SIGNALS[i]);
 
     int ret = INLINE_SYSCALL(rt_sigaction, 4, sig, &action, NULL, sizeof(__sigset_t));
     if (IS_ERR(ret))
@@ -74,8 +74,8 @@ static int set_signal_handler(int sig, void* handler) {
 }
 
 int block_async_signals(bool block) {
-    for (size_t i = 0; i < ARRAY_SIZE(async_signals); i++) {
-        int ret = block_signal(async_signals[i], block);
+    for (size_t i = 0; i < ARRAY_SIZE(ASYNC_SIGNALS); i++) {
+        int ret = block_signal(ASYNC_SIGNALS[i], block);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
     }

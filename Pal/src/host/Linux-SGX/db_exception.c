@@ -31,7 +31,7 @@
 noreturn static void restore_sgx_context(sgx_cpu_context_t* uc,
                                          PAL_XREGS_STATE* xregs_state) {
     if (xregs_state == NULL)
-        xregs_state = (PAL_XREGS_STATE*)xsave_reset_state;
+        xregs_state = (PAL_XREGS_STATE*)g_xsave_reset_state;
     _restore_sgx_context(uc, xregs_state);
 }
 
@@ -97,15 +97,15 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
      */
     PAL_FPX_SW_BYTES* fpx_sw = &xregs_state->fpstate.sw_reserved;
     fpx_sw->magic1 = PAL_FP_XSTATE_MAGIC1;
-    fpx_sw->extended_size = xsave_size;
-    fpx_sw->xfeatures = xsave_features;
+    fpx_sw->extended_size = g_xsave_size;
+    fpx_sw->xfeatures = g_xsave_features;
     memset(fpx_sw->padding, 0, sizeof(fpx_sw->padding));
-    if (xsave_enabled) {
-        fpx_sw->xstate_size = xsave_size + PAL_FP_XSTATE_MAGIC2_SIZE;
-        *(__typeof__(PAL_FP_XSTATE_MAGIC2)*)((void*)xregs_state + xsave_size) =
+    if (g_xsave_enabled) {
+        fpx_sw->xstate_size = g_xsave_size + PAL_FP_XSTATE_MAGIC2_SIZE;
+        *(__typeof__(PAL_FP_XSTATE_MAGIC2)*)((void*)xregs_state + g_xsave_size) =
             PAL_FP_XSTATE_MAGIC2;
     } else {
-        fpx_sw->xstate_size = xsave_size;
+        fpx_sw->xstate_size = g_xsave_size;
     }
 }
 

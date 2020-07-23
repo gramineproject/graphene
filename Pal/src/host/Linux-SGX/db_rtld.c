@@ -127,8 +127,11 @@ void _DkDebugDelMap (struct link_map * map)
     ocall_load_debug(buffer);
 }
 
-extern void * section_text, * section_rodata, * section_dynamic,
-            * section_data, * section_bss;
+extern void* g_section_text;
+extern void* g_section_rodata;
+extern void* g_section_dynamic;
+extern void* g_section_data;
+extern void* g_section_bss;
 
 void setup_pal_map (struct link_map * pal_map)
 {
@@ -146,8 +149,8 @@ void setup_pal_map (struct link_map * pal_map)
              "add-symbol-file %s %p -readnow -s .rodata %p "
              "-s .dynamic %p -s .data %p -s .bss %p",
              pal_map->l_name,
-             &section_text, &section_rodata, &section_dynamic,
-             &section_data, &section_bss);
+             &g_section_text, &g_section_rodata, &g_section_dynamic,
+             &g_section_data, &g_section_bss);
 
     ocall_load_debug(buffer);
     pal_map->l_prev = pal_map->l_next = NULL;

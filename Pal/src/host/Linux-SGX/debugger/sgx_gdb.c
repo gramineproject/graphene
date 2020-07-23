@@ -31,12 +31,12 @@
     } while (0)
 #endif
 
-static int memdevs_cnt = 0;
+static int g_memdevs_cnt = 0;
 static struct {
     struct enclave_dbginfo ei;
     pid_t pid;
     int memdev;
-} memdevs[32];
+} g_memdevs[32];
 
 #if DEBUG_GDB_PTRACE == 1
 static char* str_ptrace_request(enum __ptrace_request request) {
@@ -330,10 +330,10 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
     /* Check if corresponding memdevice of this thread was already opened;
      * this works when tid = pid (single-threaded apps) but does not work
      * for other threads of multi-threaded apps, this case covered below */
-    for (int i = 0; i < memdevs_cnt; i++) {
-        if (memdevs[i].pid == tid) {
-            *memdev = memdevs[i].memdev;
-            *ei     = &memdevs[i].ei;
+    for (int i = 0; i < g_memdevs_cnt; i++) {
+        if (g_memdevs[i].pid == tid) {
+            *memdev = g_memdevs[i].memdev;
+            *ei     = &g_memdevs[i].ei;
             return update_thread_tids(*ei);
         }
     }
@@ -353,18 +353,18 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
 
     /* Check again if corresponding memdevice was already opened but now
      * using actual pid of app (eib.pid), case for multi-threaded apps */
-    for (int i = 0; i < memdevs_cnt; i++) {
-        if (memdevs[i].pid == eib.pid) {
-            *memdev = memdevs[i].memdev;
-            *ei     = &memdevs[i].ei;
+    for (int i = 0; i < g_memdevs_cnt; i++) {
+        if (g_memdevs[i].pid == eib.pid) {
+            *memdev = g_memdevs[i].memdev;
+            *ei     = &g_memdevs[i].ei;
             return update_thread_tids(*ei);
         }
     }
 
     DEBUG("Retrieved debug information (enclave reports PID %d)\n", eib.pid);
 
-    if (memdevs_cnt == sizeof(memdevs) / sizeof(memdevs[0])) {
-        DEBUG("Too many debugged processes (max = %d)\n", memdevs_cnt);
+    if (g_memdevs_cnt == sizeof(g_memdevs) / sizeof(g_memdevs[0])) {
+        DEBUG("Too many debugged processes (max = %d)\n", g_memdevs_cnt);
         return -2;
     }
 
@@ -401,15 +401,15 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
         }
     }
 
-    memdevs[memdevs_cnt].pid                = eib.pid;
-    memdevs[memdevs_cnt].memdev             = fd;
-    memdevs[memdevs_cnt].ei                 = eib;
-    memset(memdevs[memdevs_cnt].ei.thread_stepping, 0,
-           sizeof(memdevs[memdevs_cnt].ei.thread_stepping));
+    g_memdevs[g_memdevs_cnt].pid    = eib.pid;
+    g_memdevs[g_memdevs_cnt].memdev = fd;
+    g_memdevs[g_memdevs_cnt].ei     = eib;
+    memset(g_memdevs[g_memdevs_cnt].ei.thread_stepping, 0,
+           sizeof(g_memdevs[g_memdevs_cnt].ei.thread_stepping));
 
     *memdev = fd;
-    *ei     = &memdevs[memdevs_cnt].ei;
-    memdevs_cnt++;
+    *ei     = &g_memdevs[g_memdevs_cnt].ei;
+    g_memdevs_cnt++;
 
     return 0;
 }

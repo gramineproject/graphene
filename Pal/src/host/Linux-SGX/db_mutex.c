@@ -132,7 +132,7 @@ static int mutex_close(PAL_HANDLE handle) {
     return 0;
 }
 
-struct handle_ops mutex_ops = {
+struct handle_ops g_mutex_ops = {
     .wait  = &mutex_wait,
     .close = &mutex_close,
 };

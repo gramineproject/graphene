@@ -103,7 +103,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
 
     INLINE_SYSCALL(close, 1, fds[0]); /* child stream */
 
-    struct pal_sec * pal_sec = &pal_enclave.pal_sec;
+    struct pal_sec * pal_sec = &g_pal_enclave.pal_sec;
     struct proc_args proc_args;
     memcpy(proc_args.exec_name, uri, sizeof(PAL_SEC_STR));
     proc_args.instance_id       = pal_sec->instance_id;

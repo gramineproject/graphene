@@ -140,7 +140,7 @@ static int event_wait(PAL_HANDLE handle, int64_t timeout_us) {
     return _DkEventWaitTimeout(handle, timeout_us);
 }
 
-struct handle_ops event_ops = {
+struct handle_ops g_event_ops = {
     .close = &event_close,
     .wait  = &event_wait,
 };

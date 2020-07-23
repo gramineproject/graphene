@@ -107,7 +107,7 @@ enclave_entry:
 	#       (e.g., no clearing of YMM/ZMM regs). This is because we didn't read
 	#       the value of XFRM yet, so we don't know whether XRSTOR is safe at
 	#       this point.
-	leaq xsave_reset_state(%rip), %rax
+	leaq g_xsave_reset_state(%rip), %rax
 	fxrstor (%rax)
 	xorq %rax, %rax
 
@@ -390,7 +390,7 @@ enclave_entry:
 #define STACK_FRAME_SUB \
 	(SGX_CPU_CONTEXT_SIZE + RED_ZONE_SIZE + STACK_PADDING_SIZE)
 .Lon_signal_stack:
-	movl xsave_size(%rip), %eax
+	movl g_xsave_size(%rip), %eax
 	addq $STACK_FRAME_SUB, %rax
 	subq %rax, %rsi
 
@@ -516,7 +516,7 @@ sgx_ocall:
 	movq %gs:SGX_SIG_STACK_HIGH, %rsp
 
 .Lon_signal_stack_ocall:
-	movl xsave_size(%rip), %eax
+	movl g_xsave_size(%rip), %eax
 	addq $STACK_PADDING_SIZE, %rax
 	subq %rax, %rsp
 	andq $~(PAL_XSTATE_ALIGN - 1), %rsp
@@ -622,7 +622,7 @@ __morestack:
 	# nothing should use features not covered by fxrstor, like AVX.
 
 	movq %rdi, %r10
-	leaq xsave_reset_state(%rip), %rdi
+	leaq g_xsave_reset_state(%rip), %rdi
 	leaq 1f(%rip), %r11
 	jmp __restore_xregs
 1:
@@ -697,7 +697,7 @@ __morestack:
 	andq $(~RFLAGS_AC), (%rsp)
 	popfq
 
-	leaq xsave_reset_state(%rip), %rdi
+	leaq g_xsave_reset_state(%rip), %rdi
 	callq restore_xregs
 
 	movq %rsi, %rdi # 1st argument = PAL_NUM event
@@ -790,7 +790,7 @@ _restore_sgx_context:
 	.type __save_xregs, @function
 __save_xregs:
 	.cfi_startproc
-	movl xsave_enabled(%rip), %eax
+	movl g_xsave_enabled(%rip), %eax
 	cmpl $0, %eax
 	jz 1f
 
@@ -831,7 +831,7 @@ save_xregs:
 	.type __restore_xregs, @function
 __restore_xregs:
 	.cfi_startproc
-	movl xsave_enabled(%rip), %eax
+	movl g_xsave_enabled(%rip), %eax
 	cmpl $0, %eax
 	jz 1f
 
