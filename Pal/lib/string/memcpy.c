@@ -35,7 +35,7 @@ void* memmove(void* dest, const void* src, size_t count) {
         return memcpy(d, s, count);
 
     if (d < s) {
-        for (; count; count--)
+        while (count--)
             *d++ = *s++;
     } else {
         while (count--)
