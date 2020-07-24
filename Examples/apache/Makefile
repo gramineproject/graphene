@@ -116,17 +116,21 @@ httpd-trusted-libs: httpd-deps httpd-modules $(INSTALL_DIR)/bin/httpd
 
 httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
-		-e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
-		-e 's|$$(HTTPD_TRUSTED_MODS)|'"`cat httpd-trusted-mods`"'|g' \
-		-e 's|$$(HTTPD_TRUSTED_LIBS)|'"`cat httpd-trusted-libs`"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+	    -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+	    -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
+	    -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
+	    -e 's|$$(HTTPD_TRUSTED_MODS)|'"`cat httpd-trusted-mods`"'|g' \
+	    -e 's|$$(HTTPD_TRUSTED_LIBS)|'"`cat httpd-trusted-libs`"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $< > $@
 
 # Generating the SGX-specific manifest (httpd.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd config testdata ssldata
+httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd \
+		$(INSTALL_DIR)/conf/httpd-graphene.conf \
+		$(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf \
+		$(TEST_DATA) \
+		$(INSTALL_DIR)/conf/server.crt
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
@@ -135,8 +139,7 @@ httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd config testdata ssld
 httpd.sig: httpd.manifest.sgx
 
 httpd.token: httpd.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output httpd.token -sig httpd.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 # Extra executables
 pal_loader:
@@ -149,13 +152,13 @@ config: $(INSTALL_DIR)/conf/httpd-graphene.conf $(INSTALL_DIR)/conf/extra/httpd-
 
 $(INSTALL_DIR)/conf/httpd-graphene.conf: $(INSTALL_DIR)/conf/httpd.conf
 	sed -e "s|^Listen |#Listen |g" \
-		-e "s|^User |#User |g" \
-		-e "s|^Group |#Group |g" \
-		-e "s|^LoadModule mpm_prefork|#LoadModule mpm_prefork|g" \
-		-e "s|^#LoadModule ssl_module|LoadModule ssl_module|g" \
-		-e "s|^#Include conf/extra/httpd-ssl.conf|Include conf/extra/httpd-ssl-graphene.conf|g" \
-		-e "s|#EnableMMAP off|EnableMMAP off|g" \
-		-e "s|#EnableSendfile on|EnableSendfile on|g" \
+	    -e "s|^User |#User |g" \
+	    -e "s|^Group |#Group |g" \
+	    -e "s|^LoadModule mpm_prefork|#LoadModule mpm_prefork|g" \
+	    -e "s|^#LoadModule ssl_module|LoadModule ssl_module|g" \
+	    -e "s|^#Include conf/extra/httpd-ssl.conf|Include conf/extra/httpd-ssl-graphene.conf|g" \
+	    -e "s|#EnableMMAP off|EnableMMAP off|g" \
+	    -e "s|#EnableSendfile on|EnableSendfile on|g" \
 	$< > $@
 	echo "\n\
 <IfModule mpm_prefork_module>\n\
@@ -174,9 +177,9 @@ $(INSTALL_DIR)/conf/httpd-graphene.conf: $(INSTALL_DIR)/conf/httpd.conf
 
 $(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf: $(INSTALL_DIR)/conf/extra/httpd-ssl.conf
 	sed -e "s|^Listen 443|Listen 127.0.0.1:8443|g" \
-		-e "s|^<VirtualHost _default_:443>|<VirtualHost 127.0.0.1:8443>|g" \
-		-e "s|^ServerName www.example.com:443|ServerName www.example.com:8443|g" \
-		-e "s|^SSLSessionCache|#SSLSessionCache|g" \
+	    -e "s|^<VirtualHost _default_:443>|<VirtualHost 127.0.0.1:8443>|g" \
+	    -e "s|^ServerName www.example.com:443|ServerName www.example.com:8443|g" \
+	    -e "s|^SSLSessionCache|#SSLSessionCache|g" \
 	$< > $@
 
 # HTTP docs:
