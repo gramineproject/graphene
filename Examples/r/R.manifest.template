@@ -56,6 +56,10 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
+# Mount host's /bin
+fs.mount.bin.type = chroot
+fs.mount.bin.path = /bin
+fs.mount.bin.uri = file:/bin
 
 # SGX general options
 
@@ -93,7 +97,9 @@ sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.r_etc = file:$(R_HOME)/etc
 sgx.allowed_files.r_lib = file:$(R_HOME)/library
 
-# Allow creating child enclaves for sh
+# R uses shell to delete files, so we need to allow /bin/sh and /bin/rm to be spawned.
+# strace snippet: execve("/bin/sh", ["sh", "-c", "rm -rf /tmp/RtmpEiedDF"], [/* 41 vars */])
+
 sgx.trusted_files.sh = file:/bin/sh
 sgx.trusted_children.sh = file:sh.sig
 
