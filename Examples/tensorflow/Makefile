@@ -68,15 +68,15 @@ label_image.manifest.sgx: label_image.manifest
 		-output label_image.token -sig label_image.sig
 
 .PHONY: check
-check: default
+check: all
 	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: run-native
-run-native: default
+run-native: all
 	./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: run-graphene
-run-graphene: default
+run-graphene: all
 	$(GRAPHENEDIR)/Runtime/pal_loader ./label_image -m inception_v3.tflite -i image.bmp -t 4
 
 .PHONY: clean
