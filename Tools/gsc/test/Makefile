@@ -75,15 +75,11 @@ test-distro-%:
 
 .PHONY: test-1-%
 test-1-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' >out 2>/dev/null
-	grep -q "HelloWorld!" out
-	$(RM) out
+	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")'
 
 .PHONY: test-2-%
 test-2-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py >out 2>&1
-	grep -q "Hello World" out
-	$(RM) out
+	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py
 
 .PHONY: test-3-%
 test-3-%: gsc-%-python3
