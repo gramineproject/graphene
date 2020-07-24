@@ -56,7 +56,7 @@ $(INSTALL_DIR)/bin/httpd: $(HTTPD_SRC)/configure
 	cd $(HTTPD_SRC) && $(MAKE) install
 
 $(HTTPD_SRC)/configure: $(HTTPD_SRC).tar.gz
-	tar -mxzf $<
+	tar --touch -xzf $<
 
 $(HTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(HTTPD_CHECKSUM) $(foreach mirror,$(HTTPD_MIRRORS),--url $(mirror)httpd/$(HTTPD_SRC).tar.gz)

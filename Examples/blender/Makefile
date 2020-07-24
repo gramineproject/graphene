@@ -39,7 +39,7 @@ $(BLENDER_DIR)/blender:
 	$(GRAPHENE_DIR)/Scripts/download --output blender.tar.xz \
 		--sha256 $(BLENDER_SHA256) --url $(BLENDER_URL)
 	mkdir $(BLENDER_DIR)
-	tar -C $(BLENDER_DIR) --strip-components=1 -xf blender.tar.xz
+	tar --touch -C $(BLENDER_DIR) --strip-components=1 -xf blender.tar.xz
 
 $(RUN_DIR):
 	mkdir -p $@
