@@ -105,7 +105,9 @@ nginx.manifest: nginx.manifest.template nginx-trusted-libs
 
 # Generating the SGX-specific manifest (nginx.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-nginx.manifest.sgx: nginx.manifest $(INSTALL_DIR)/sbin/nginx config testdata
+nginx.manifest.sgx: nginx.manifest $(INSTALL_DIR)/sbin/nginx \
+		$(INSTALL_DIR)/conf/nginx-graphene.conf \
+		$(TEST_DATA)
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \

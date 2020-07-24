@@ -48,7 +48,7 @@ $(INSTALL_DIR)/sbin/lighttpd: $(LIGHTTPD_SRC)/configure
 $(LIGHTTPD_SRC)/configure: $(LIGHTTPD_SRC).tar.gz
 	tar -xzf $<
 	# Refresh the timestamp, but only for this file - otherwise ./configure starts recreating too
-	# much...
+	# much.
 	touch $(LIGHTTPD_SRC)/configure
 
 $(LIGHTTPD_SRC).tar.gz:
