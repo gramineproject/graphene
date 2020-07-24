@@ -46,6 +46,8 @@ protected_files.o: ../../protected-files/protected_files.c
 lru_cache.o: ../../protected-files/lru_cache.c
 	$(call cmd,cc_o_c)
 
+cJSON.o: cJSON.c cJSON.h
+
 libsgx_util.so: attestation.o cJSON.o ias.o lru_cache.o pf_util.o protected_files.o util.o
 	$(CC) $^ $(LDFLAGS) ../../.lib/crypto/adapters/mbedtls_encoding.o -lmbedcrypto -lcurl -shared -o $@
 
