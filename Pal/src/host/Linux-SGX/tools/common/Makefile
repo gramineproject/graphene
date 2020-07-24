@@ -33,7 +33,7 @@ cJSON-$(CJSON_VERSION):
 	mkdir -p $@
 
 cJSON-$(CJSON_VERSION)/cJSON.h cJSON-$(CJSON_VERSION)/cJSON.c: $(CJSON_SRC) | cJSON-$(CJSON_VERSION)
-	tar -zxvf $^ $@
+	tar -zxvmf $^ $@
 
 cJSON.c cJSON.h: %: cJSON-$(CJSON_VERSION)/%
 	cp cJSON-$(CJSON_VERSION)/$@ .
