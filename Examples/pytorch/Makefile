@@ -31,10 +31,9 @@ endif
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
 .PHONY: all
+all: pytorch.manifest python3.manifest pal_loader alexnet-pretrained.pt
 ifeq ($(SGX),1)
-all: pytorch.token python3.token pal_loader
-else
-all: pytorch.manifest python3.manifest pal_loader
+all: pytorch.token python3.token
 endif
 
 include ../../Scripts/Makefile.configs
