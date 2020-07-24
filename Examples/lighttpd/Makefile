@@ -46,7 +46,7 @@ $(INSTALL_DIR)/sbin/lighttpd: $(LIGHTTPD_SRC)/configure
 	cd $(LIGHTTPD_SRC) && $(MAKE) install
 
 $(LIGHTTPD_SRC)/configure: $(LIGHTTPD_SRC).tar.gz
-	tar -xzf $<
+	tar --touch -xzf $<
 
 $(LIGHTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LIGHTTPD_HASH) $(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)

@@ -56,7 +56,7 @@ $(INSTALL_DIR)/sbin/nginx: $(NGINX_SRC)/configure
 	$(MAKE) -C $(NGINX_SRC) install
 
 $(NGINX_SRC)/configure: $(NGINX_SRC).tar.gz
-	tar -mxzf $<
+	tar --touch -xzf $<
 
 $(NGINX_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(NGINX_CHECKSUM) $(foreach mirror,$(NGINX_MIRRORS),--url $(mirror)/$(NGINX_SRC).tar.gz)

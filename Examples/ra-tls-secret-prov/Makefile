@@ -70,8 +70,8 @@ $(MBEDCRYPTO_SRC):
 		--sha256 $(MBEDCRYPTO_CHECKSUM)
 
 mbedtls/CMakeLists.txt: $(MBEDTLS_SRC) $(MBEDCRYPTO_SRC)
-	tar -mxzf $(MBEDTLS_SRC)
-	tar -mxzf $(MBEDCRYPTO_SRC)
+	tar --touch -xzf $(MBEDTLS_SRC)
+	tar --touch -xzf $(MBEDCRYPTO_SRC)
 	mv mbedtls-mbedtls-$(MBEDTLS_VERSION) mbedtls
 	$(RM) -r mbedtls/crypto
 	mv mbed-crypto-mbedcrypto-$(MBEDCRYPTO_VERSION) mbedtls
