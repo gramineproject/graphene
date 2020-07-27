@@ -1,7 +1,7 @@
 pipeline {
         agent {
             dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile'
-                         label 'sgx_slave'
+                         label 'sgx_slave_2.6'
                          args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx"
                        }
         }
@@ -23,9 +23,9 @@ pipeline {
                         '''
                         sh '''
                            cd /opt/intel
-                           git clone https://github.com/01org/linux-sgx-driver.git
+                           git clone https://github.com/intel/linux-sgx-driver.git
                            cd linux-sgx-driver
-                           git checkout sgx_driver_1.9
+                           git checkout 276c5c6a064d22358542f5e0aa96b1c0ace5d695
                            make -j8
                         '''
                         sh '''
