@@ -302,11 +302,11 @@ static bool check_any_addr(struct sockaddr* addr) {
     if (addr->sa_family == AF_INET) {
         struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
 
-        return addr_in->sin_port == 0 && check_zero(&addr_in->sin_addr, sizeof(addr_in->sin_addr));
+        return addr_in->sin_port == 0 || check_zero(&addr_in->sin_addr, sizeof(addr_in->sin_addr));
     } else if (addr->sa_family == AF_INET6) {
         struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)addr;
 
-        return addr_in6->sin6_port == 0 &&
+        return addr_in6->sin6_port == 0 ||
                check_zero(&addr_in6->sin6_addr, sizeof(addr_in6->sin6_addr));
     }
 
