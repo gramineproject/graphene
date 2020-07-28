@@ -806,7 +806,8 @@ int ocall_sched_setaffinity (uint64_t tid, uint64_t cpu_num, void * cpu_mask)
     }
     WRITE_ONCE(ms->ms_cpu_mask, untrusted_cpu_mask);
 
-    retval = sgx_exitless_ocall(OCALL_SCHED_SETAFFINITY, ms);
+    retval = tid == 0 ? sgx_ocall(OCALL_SCHED_GETAFFINITY, ms) :
+                        sgx_exitless_ocall(OCALL_SCHED_SETAFFINITY, ms);
 
     sgx_reset_ustack(old_ustack);
 
@@ -834,7 +835,8 @@ int ocall_sched_getaffinity (uint64_t tid, uint64_t cpu_num, void * cpu_mask)
     }
     WRITE_ONCE(ms->ms_cpu_mask, untrusted_cpu_mask);
 
-    retval = sgx_exitless_ocall(OCALL_SCHED_GETAFFINITY, ms);
+    retval = tid == 0 ? sgx_ocall(OCALL_SCHED_GETAFFINITY, ms) :
+                        sgx_exitless_ocall(OCALL_SCHED_GETAFFINITY, ms);
 
     if (retval > 0) {
         retval = sgx_copy_to_enclave(cpu_mask, cpu_num,
