@@ -295,8 +295,8 @@ static void __del_ipc_port(struct shim_ipc_port* port) {
 
     /* Check for pending messages on port (threads might be blocking for responses) */
     lock(&port->msgs_lock);
-    struct shim_ipc_msg_duplex* msg;
-    struct shim_ipc_msg_duplex* tmp;
+    struct shim_ipc_msg_with_ack* msg;
+    struct shim_ipc_msg_with_ack* tmp;
     LISTP_FOR_EACH_ENTRY_SAFE(msg, tmp, &port->msgs, list) {
         LISTP_DEL_INIT(msg, &port->msgs, list);
         msg->retval = -ECONNRESET;
@@ -508,7 +508,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
         return resp->retval;
 
     /* find a corresponding request msg for this response msg */
-    struct shim_ipc_msg_duplex* req_msg = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* req_msg = pop_ipc_msg_with_ack(port, msg->seq);
 
     /* if some thread is waiting for response, wake it with response retval */
     if (req_msg) {

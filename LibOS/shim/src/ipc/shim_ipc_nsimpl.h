@@ -952,13 +952,13 @@ int NS_SEND(findns)(bool block) {
     unlock(&cur_process.lock);
 
     if (block) {
-        size_t total_msg_size           = get_ipc_msg_duplex_size(0);
-        struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-        init_ipc_msg_duplex(msg, NS_CODE(FINDNS), total_msg_size, dest);
+        size_t total_msg_size = get_ipc_msg_with_ack_size(0);
+        struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+        init_ipc_msg_with_ack(msg, NS_CODE(FINDNS), total_msg_size, dest);
 
         debug("ipc send to %u: " NS_CODE_STR(FINDNS) "\n", dest);
 
-        ret = send_ipc_message_duplex(msg, port, NULL, NULL);
+        ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
         goto out_port;
     }
 
@@ -1053,7 +1053,7 @@ int NS_CALLBACK(tellns)(IPC_CALLBACK_ARGS) {
         free(query);
     }
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (obj && obj->thread)
         thread_wakeup(obj->thread);
 
@@ -1080,10 +1080,10 @@ int NS_SEND(lease)(LEASETYPE* lease) {
         goto out;
     }
 
-    int len                         = self->uri.len;
-    size_t total_msg_size           = get_ipc_msg_duplex_size(len + sizeof(NS_MSG_TYPE(lease)));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, NS_CODE(LEASE), total_msg_size, leader);
+    int len = self->uri.len;
+    size_t total_msg_size = get_ipc_msg_with_ack_size(len + sizeof(NS_MSG_TYPE(lease)));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, NS_CODE(LEASE), total_msg_size, leader);
 
     NS_MSG_TYPE(lease)* msgin = (void*)&msg->msg.msg;
     assert(!qstrempty(&self->uri));
@@ -1092,7 +1092,7 @@ int NS_SEND(lease)(LEASETYPE* lease) {
 
     debug("ipc send to %u: " NS_CODE_STR(LEASE) "(%s)\n", leader, msgin->uri);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, lease);
+    ret = send_ipc_message_with_ack(msg, port, NULL, lease);
 out:
     if (port)
         put_ipc_port(port);
@@ -1141,7 +1141,7 @@ int NS_CALLBACK(offer)(IPC_CALLBACK_ARGS) {
     debug("ipc callback from %u: " NS_CODE_STR(OFFER) "(%u, %u, %lu)\n", msg->src, msgin->base,
           msgin->size, msgin->lease);
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
 
     switch (msgin->size) {
         case RANGE_SIZE:
@@ -1243,10 +1243,10 @@ int NS_SEND(sublease)(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lea
         goto out;
     }
 
-    int len                         = strlen(uri);
-    size_t total_msg_size           = get_ipc_msg_duplex_size(len + sizeof(NS_MSG_TYPE(sublease)));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, NS_CODE(SUBLEASE), total_msg_size, leader);
+    int len = strlen(uri);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(len + sizeof(NS_MSG_TYPE(sublease)));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, NS_CODE(SUBLEASE), total_msg_size, leader);
 
     NS_MSG_TYPE(sublease)* msgin = (void*)&msg->msg.msg;
     msgin->tenant                = tenant;
@@ -1256,7 +1256,7 @@ int NS_SEND(sublease)(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lea
     debug("ipc send to %u: " NS_CODE_STR(SUBLEASE) "(%u, %u, %s)\n", leader, tenant, idx,
           msgin->uri);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, lease);
+    ret = send_ipc_message_with_ack(msg, port, NULL, lease);
 out:
     if (port)
         put_ipc_port(port);
@@ -1294,16 +1294,16 @@ int NS_SEND(query)(IDTYPE idx) {
         goto out;
     }
 
-    size_t total_msg_size           = get_ipc_msg_duplex_size(sizeof(NS_MSG_TYPE(query)));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, NS_CODE(QUERY), total_msg_size, leader);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(NS_MSG_TYPE(query)));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, NS_CODE(QUERY), total_msg_size, leader);
 
     NS_MSG_TYPE(query)* msgin = (void*)&msg->msg.msg;
     msgin->idx                = idx;
 
     debug("ipc send to %u: " NS_CODE_STR(QUERY) "(%u)\n", leader, idx);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
 out:
     if (port)
         put_ipc_port(port);
@@ -1354,13 +1354,13 @@ int NS_SEND(queryall)(void) {
     if (cur_process.vmid == leader)
         goto out;
 
-    size_t total_msg_size           = get_ipc_msg_duplex_size(0);
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, NS_CODE(QUERYALL), total_msg_size, leader);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(0);
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, NS_CODE(QUERYALL), total_msg_size, leader);
 
     debug("ipc send to %u: " NS_CODE_STR(QUERYALL) "\n", leader);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
     return ret;
@@ -1509,7 +1509,7 @@ int NS_CALLBACK(answer)(IPC_CALLBACK_ARGS) {
         }
     }
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (obj && obj->thread)
         thread_wakeup(obj->thread);
 
@@ -1601,16 +1601,16 @@ int NS_SEND(findkey)(NS_KEY* key) {
         goto out;
     }
 
-    size_t total_msg_size           = get_ipc_msg_duplex_size(sizeof(NS_MSG_TYPE(findkey)));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, NS_CODE(FINDKEY), total_msg_size, dest);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(NS_MSG_TYPE(findkey)));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, NS_CODE(FINDKEY), total_msg_size, dest);
 
     NS_MSG_TYPE(findkey)* msgin = (void*)&msg->msg.msg;
     KEY_COPY(&msgin->key, key);
 
     debug("ipc send to %u: " NS_CODE_STR(FINDKEY) "(%lu)\n", dest, KEY_HASH(key));
 
-    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
     put_ipc_port(port);
 
     if (!ret)
@@ -1668,9 +1668,9 @@ int NS_SEND(tellkey)(struct shim_ipc_port* port, IDTYPE dest, NS_KEY* key, IDTYP
         goto out;
     }
 
-    size_t total_msg_size           = get_ipc_msg_duplex_size(sizeof(NS_MSG_TYPE(tellkey)));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, NS_CODE(TELLKEY), total_msg_size, dest);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(NS_MSG_TYPE(tellkey)));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, NS_CODE(TELLKEY), total_msg_size, dest);
 
     NS_MSG_TYPE(tellkey)* msgin = (void*)&msg->msg.msg;
     KEY_COPY(&msgin->key, key);
@@ -1678,7 +1678,7 @@ int NS_SEND(tellkey)(struct shim_ipc_port* port, IDTYPE dest, NS_KEY* key, IDTYP
 
     debug("ipc send to %u: IPC_SYSV_TELLKEY(%lu, %u)\n", dest, KEY_HASH(key), id);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
     return ret;
@@ -1693,7 +1693,7 @@ int NS_CALLBACK(tellkey)(IPC_CALLBACK_ARGS) {
 
     ret = CONCAT2(NS, add_key)(&msgin->key, msgin->id);
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (!obj) {
         ret = RESPONSE_CALLBACK;
         goto out;

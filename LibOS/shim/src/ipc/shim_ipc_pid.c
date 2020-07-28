@@ -127,9 +127,9 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 int ipc_pid_getstatus_send(struct shim_ipc_port* port, IDTYPE dest, int npids, IDTYPE* pids,
                            struct pid_status** status) {
     size_t total_msg_size =
-        get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_getstatus) + sizeof(IDTYPE) * npids);
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_PID_GETSTATUS, total_msg_size, dest);
+        get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_pid_getstatus) + sizeof(IDTYPE) * npids);
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_PID_GETSTATUS, total_msg_size, dest);
 
     struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)&msg->msg.msg;
     msgin->npids                         = npids;
@@ -137,7 +137,7 @@ int ipc_pid_getstatus_send(struct shim_ipc_port* port, IDTYPE dest, int npids, I
 
     debug("ipc send to %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n", dest, npids, pids[0]);
 
-    return send_ipc_message_duplex(msg, port, NULL, status);
+    return send_ipc_message_with_ack(msg, port, NULL, status);
 }
 
 struct thread_status {
@@ -220,7 +220,7 @@ int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS) {
     else
         debug("ipc callback from %u: IPC_PID_RETSTATUS(0, [])\n", msg->src);
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (obj) {
         struct pid_status** status = (struct pid_status**)obj->private;
 
@@ -408,9 +408,9 @@ int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data) {
     if ((ret = connect_owner(pid, &port, &dest)) < 0)
         goto out;
 
-    size_t total_msg_size           = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_getmeta));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_PID_GETMETA, total_msg_size, dest);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_pid_getmeta));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_PID_GETMETA, total_msg_size, dest);
 
     struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)&msg->msg.msg;
     msgin->pid  = pid;
@@ -418,7 +418,7 @@ int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data) {
 
     debug("ipc send to %u: IPC_PID_GETMETA(%u, %s)\n", dest, pid, pid_meta_code_str[code]);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, data);
+    ret = send_ipc_message_with_ack(msg, port, NULL, data);
     put_ipc_port(port);
 out:
     return ret;
@@ -512,7 +512,7 @@ int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS) {
     debug("ipc callback from %u: IPC_PID_RETMETA(%u, %s, %d)\n", msg->src, msgin->pid,
           pid_meta_code_str[msgin->code], msgin->datasize);
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (obj) {
         void** data = (void**)obj->private;
 
@@ -542,9 +542,9 @@ int get_pid_port(IDTYPE pid, IDTYPE* dest, struct shim_ipc_port** port) {
 }
 
 int ipc_pid_nop_send(struct shim_ipc_port* port, IDTYPE dest, int count, const void* buf, int len) {
-    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_nop) + len);
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_PID_NOP, total_msg_size, dest);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_pid_nop) + len);
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_PID_NOP, total_msg_size, dest);
 
     struct shim_ipc_pid_nop* msgin = (struct shim_ipc_pid_nop*)&msg->msg.msg;
     msgin->count = count * 2;
@@ -552,7 +552,7 @@ int ipc_pid_nop_send(struct shim_ipc_port* port, IDTYPE dest, int count, const v
 
     debug("ipc send to %u: IPC_PID_NOP(%d)\n", dest, count * 2);
 
-    return send_ipc_message_duplex(msg, port, NULL, NULL);
+    return send_ipc_message_with_ack(msg, port, NULL, NULL);
 }
 
 int ipc_pid_nop_callback(IPC_CALLBACK_ARGS) {
@@ -561,7 +561,7 @@ int ipc_pid_nop_callback(IPC_CALLBACK_ARGS) {
     debug("ipc callback from %u: IPC_PID_NOP(%d)\n", msg->src, msgin->count);
 
     if (!(--msgin->count)) {
-        struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+        struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
         if (obj && obj->thread)
             thread_wakeup(obj->thread);
         return 0;

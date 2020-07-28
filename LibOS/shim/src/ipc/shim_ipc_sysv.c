@@ -68,9 +68,9 @@ int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
         goto out;
     }
 
-    size_t total_msg_size           = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_delres));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_SYSV_DELRES, total_msg_size, dest);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_delres));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_SYSV_DELRES, total_msg_size, dest);
 
     struct shim_ipc_sysv_delres* msgin = (struct shim_ipc_sysv_delres*)&msg->msg.msg;
     msgin->resid                       = resid;
@@ -78,7 +78,7 @@ int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
 
     debug("ipc send to %u: IPC_SYSV_DELRES(%u, %s)\n", dest, resid, SYSV_TYPE_STR(type));
 
-    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
     return ret;
@@ -151,7 +151,7 @@ int ipc_sysv_movres_callback(IPC_CALLBACK_ARGS) {
     debug("ipc callback from %u: IPC_SYSV_MOVRES(%u, %s, %u, %s)\n", msg->src, msgin->resid,
           SYSV_TYPE_STR(msgin->type), msgin->owner, msgin->uri);
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (!obj)
         goto out;
 
@@ -215,8 +215,8 @@ int ipc_sysv_msgsnd_callback(IPC_CALLBACK_ARGS) {
     size_t size = msg->size - sizeof(*msg) - sizeof(*msgin);
 
     if (msg->seq) {
-        struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
-        void* priv                      = obj ? obj->private : NULL;
+        struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
+        void* priv = obj ? obj->private : NULL;
 
         if (priv) {
             struct shim_ipc_sysv_msgrcv* rcv = (struct shim_ipc_sysv_msgrcv*)obj->msg.msg;
@@ -267,9 +267,9 @@ int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_
 
     assert(port);
 
-    size_t total_msg_size           = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_msgrcv));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_SYSV_MSGRCV, total_msg_size, owner);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_msgrcv));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_SYSV_MSGRCV, total_msg_size, owner);
 
     struct shim_ipc_sysv_msgrcv* msgin = (struct shim_ipc_sysv_msgrcv*)&msg->msg.msg;
     msgin->msgid                       = msgid;
@@ -279,7 +279,7 @@ int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_
 
     debug("ipc send to %u: IPC_SYSV_MSGRCV(%u, %ld)\n", owner, msgid, msgtype);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, buf);
+    ret = send_ipc_message_with_ack(msg, port, NULL, buf);
     put_ipc_port(port);
 out:
     return ret;
@@ -416,10 +416,10 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
         goto out;
     }
 
-    size_t total_msg_size =
-        get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_semop) + sizeof(struct sembuf) * nsops);
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_SYSV_SEMOP, total_msg_size, owner);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_semop)
+                                                      + sizeof(struct sembuf) * nsops);
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_SYSV_SEMOP, total_msg_size, owner);
 
     struct shim_ipc_sysv_semop* msgin = (struct shim_ipc_sysv_semop*)&msg->msg.msg;
     msgin->semid                      = semid;
@@ -430,7 +430,7 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
 
     debug("ipc send to %u: IPC_SYSV_SEMOP(%u, %ld, %u)\n", owner, semid, timeout, nsops);
 
-    ret = send_ipc_message_duplex(msg, port, seq, NULL);
+    ret = send_ipc_message_with_ack(msg, port, seq, NULL);
     put_ipc_port(port);
 out:
     return ret;
@@ -470,9 +470,9 @@ int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t v
     int ctlvalsize = (cmd == SETALL || cmd == SETVAL) ? valsize : 0;
 
     size_t total_msg_size =
-        get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_semctl) + ctlvalsize);
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_SYSV_SEMCTL, total_msg_size, owner);
+        get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_semctl) + ctlvalsize);
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_SYSV_SEMCTL, total_msg_size, owner);
 
     struct shim_ipc_sysv_semctl* msgin = (struct shim_ipc_sysv_semctl*)&msg->msg.msg;
     msgin->semid                       = semid;
@@ -484,7 +484,7 @@ int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t v
 
     debug("ipc send to %u: IPC_SYSV_SEMCTL(%u, %d, %d)\n", owner, semid, semnum, cmd);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, vals);
+    ret = send_ipc_message_with_ack(msg, port, NULL, vals);
     put_ipc_port(port);
 out:
     return ret;
@@ -599,7 +599,7 @@ int ipc_sysv_semret_callback(IPC_CALLBACK_ARGS) {
 
     debug("ipc callback from %u: IPC_SYSV_SEMRET\n", msg->src);
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (obj) {
         struct shim_ipc_sysv_semctl* semctl = (struct shim_ipc_sysv_semctl*)&obj->msg.msg;
 
@@ -713,16 +713,16 @@ int ipc_sysv_semquery_send(IDTYPE semid, int* nsems, PAL_NUM** host_sem_ids) {
     }
 
     assert(port);
-    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_semquery));
-    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
-    init_ipc_msg_duplex(msg, IPC_SYSV_SEMQUERY, total_msg_size, dest);
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_semquery));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_SYSV_SEMQUERY, total_msg_size, dest);
 
     struct shim_ipc_sysv_semquery* msgin = (struct shim_ipc_sysv_semquery*)&msg->msg.msg;
     msgin->semid                         = semid;
 
     debug("ipc send to %u: IPC_SYSV_SEMQUERY(%u)\n", dest, semid);
 
-    ret = send_ipc_message_duplex(msg, port, NULL, host_sem_ids);
+    ret = send_ipc_message_with_ack(msg, port, NULL, host_sem_ids);
     put_ipc_port(port);
     if (ret >= 0) {
         *nsems = ret;
@@ -776,7 +776,7 @@ int ipc_sysv_semreply_callback(IPC_CALLBACK_ARGS) {
     debug("ipc callback from %u: IPC_SYSV_SEMREPLY(%u, %d)\n", msg->src, msgin->semid,
           msgin->nsems);
 
-    struct shim_ipc_msg_duplex* obj = pop_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (!obj)
         goto out;
 
