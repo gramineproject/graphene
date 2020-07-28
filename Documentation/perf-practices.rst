@@ -1,0 +1,444 @@
+Performance tuning and analysis
+===============================
+
+.. highlight:: sh
+
+This is the "best performance practices" document for Graphene performance
+tuning and explanation of possible software and hardware performance bottlenecks
+and limitations.
+
+Using manifest options
+----------------------
+
+In this document, we are highlighting only those manifest options relevant for
+performance benchmarking. Refer to `Graphene manifest syntax
+<https://github.com/oscarlab/graphene/blob/master/Documentation/manifest-syntax.rst>`__
+for a full list.
+
+
+*Note:* The below examples were run on a Mehlow machine with the legacy Intel
+SGX driver v2.6 and Graphene release v1.1. The performance numbers in these
+examples should not be considered representative and serve only illustration
+purposes.
+
+Enabling per-thread and process-wide SGX stats
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Enable statistics using ``sgx.enable_stats = 1`` manifest option. Now your
+graphenized application correctly reports performance counters. This is useful
+when using e.g. ``perf stat`` to collect performance statistics. This manifest
+option also forces Graphene to dump SGX-related information on each
+thread/process exit. Here is an example:
+
+::
+
+   LibOS/shim/test/native$ SGX=1 perf stat graphene/Runtime/pal_loader helloworld
+   Hello world (helloworld)!
+   ----- SGX stats for thread 87219 -----
+   # of EENTERs:        224
+   # of EEXITs:         192
+   # of AEXs:           201
+   # of sync signals:   32
+   # of async signals:  0
+   ----- Total SGX stats for process 87219 -----
+   # of EENTERs:        224
+   # of EEXITs:         192
+   # of AEXs:           201
+   # of sync signals:   32
+   # of async signals:  0
+
+   Performance counter stats for 'graphene/Runtime/pal_loader helloworld':
+        3,568,568,948      cycles
+        1,072,072,581      instructions
+          172,308,653      branches
+
+How to read this output:
+
+#. You can see that one thread was created, with Linux-host (actual) ``TID =
+   87219``. This one thread belongs to one process, so they have the same ``TID
+   = PID`` and the same statistics. If the test application would have e.g. two
+   threads, then there would be two "SGX stats for thread" outputs, and their
+   values would sum up to the values reported in the final "Total SGX stats for
+   process".
+
+#. There are about 200 EENTERs and EEXITs. These are mostly due to OCALLs:
+   recall that every OCALL requires one EEXIT to exit the enclave and one EENTER
+   to re-enter it again. We can conclude that there are about 200 OCALLs. Also,
+   the number of EENTERs is slightly higher than of EEXITs: this is because of
+   ECALLs.  Recall that Graphene performs one ECALL for the whole process and
+   one ECALL per each new thread (and possibly some more ECALLs to reset threads
+   and other bookkeeping). ECALLs are "no-return" in Graphene so they only
+   contribute to EENTERs and do not increase EEXITs.
+
+#. Why there are about 200 OCALLs in our trivial HelloWorld example? This is
+   because even before HelloWorld's ``main()`` function starts, Graphene and
+   Glibc initialize themselves. For example, Graphene must open and read the
+   manifest file – this requires several OCALLs. Glibc may need to open and load
+   shared libraries – this requires more OCALLs. In general, you may consider
+   200 OCALLs as the cost of initialization in Graphene.
+
+#. Why are there about 200 Asynchronous Exits (AEXs)? Most of these AEXs come
+   from in-enclave exceptions and normal Linux interrupts. In particular,
+   Linux’s scheduler interrupts each CPU every 4ms, or 250 times per second.
+   Since our enclave workload runs for a fraction of a second, maybe 100 AEXs
+   happen due to scheduler interrupts. Another 32 AEXs happen due to "sync
+   signals" – in particular, SGX and Graphene trap-and-emulate the CPUID
+   instruction. Each trap-and-emulate results in one AEX. Finally, the rest 100
+   AEXs happen due to some other sources of interrupts: enclave page faults or
+   network interrupts.
+
+#. What are the 32 sync signals? These are synchronous signals forwarded by the
+   host Linux to Graphene. Synchronous signals are SIGILL (invalid instruction),
+   SIGFPE (invalid floating-point result), SIGSEGV (segmentation fault), etc.
+   These are exceptions originating from Glibc/application execution. For
+   example, these 32 sync signals are trap-and-emulate cases for the CPUID
+   instruction, forbidden in SGX enclaves (we know this because we manually
+   inspected this logic). In particular, Glibc initializes itself and checks for
+   different CPU information, and thus invokes CPUID 32 times.
+
+#. What are the 0 async signals? These are asynchronous signals forwarded by the
+   host Linux to Graphene. These signals are SIGINT (interrupt), SIGCONT
+   (continue), SIGKILL (the process is going to be killed), SIGCHLD (child
+   process terminated) etc. None of these signals happened during HelloWorld
+   execution.
+
+#. Performance counters provide a lot of different information. Here we only
+   show the snippet with number of cycles, instructions, and branches taken. By
+   itself, this particular output is not interesting. In reality, performance
+   counters should be compared against "golden runs" to deduce any interesting
+   trends.
+
+You can find additional information and context here:
+
+#. https://github.com/oscarlab/graphene/pull/1519
+#. https://github.com/oscarlab/graphene/pull/1622
+#. https://github.com/oscarlab/graphene/pull/1706
+
+If you need additional statistics, you can check this unofficial patch:
+
+#. https://github.com/oscarlab/graphene/tree/dimakuv/DONTMERGE-more-perf-stats-tweaks
+
+Zero out heap on demand vs during enclave init
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Graphene by default zeroes out the whole enclave heap during enclave
+initialization (``sgx.zero_heap_on_demand = 0``). This improves security (the
+attacker cannot put arbitrary content in the enclave's heap) and runtime
+performance (Graphene doesn't need to zero out the requested heap region on mmap
+user requests). However, it may increase start-up time: typical enclave sizes
+can be up to 8GB, so Graphene will zero out approximately 8GB of enclave pages
+during start-up, which is slow. To improve start-up time – at the cost of
+slightly worse runtime performance – you can specify ``sgx.zero_heap_on_demand =
+1`` manifest option.
+
+Here is an example:
+
+::
+
+   # manifest contains: `sgx.enclave_size = 16G` and `sgx.zero_heap_on_demand = 0`
+   LibOS/shim/test/native$ SGX=1 perf stat ~/graphene/Runtime/pal_loader helloworld
+   Hello world (helloworld)!
+
+         50.411676437 seconds time elapsed
+
+   # manifest contains: `sgx.enclave_size = 16G` and `sgx.zero_heap_on_demand = 1`
+   LibOS/shim/test/native$ SGX=1 perf stat ~/graphene/Runtime/pal_loader helloworld
+   Hello world (helloworld)!
+
+         42.816185504 seconds time elapsed
+
+As you can see, zeroing the heap on demand shaved off 8 seconds from the
+start-up time of a 16GB enclave. The difference is not very significant, but it
+may help achieve the best possible performance for e.g. Function-as-a-Service
+(FaaS) workloads.
+
+You can find additional information and context here:
+
+#. https://github.com/oscarlab/graphene/pull/1640
+#. https://github.com/oscarlab/graphene/pull/1668
+
+Number of RPC threads (Exitless feature)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Graphene supports the Exitless (or Switchless) feature – it trades off faster
+OCALL execution for more CPU cores. It is configured by ``sgx.rpc_thread_num =
+xyz``. By default, the Exitless feature is disabled – all enclave threads
+perform an actual OCALL and leave the enclave mode. The feature can also be
+disabled by specifying ``sgx.rpc_thread_num = 0``.
+
+You must decide how many untrusted helper RPC threads your application needs. A
+rule of thumb: specify ``sgx.rpc_thread_num == sgx.thread_num``, i.e., the
+number of untrusted RPC threads should be the same as the number of enclave
+threads. For example, native Redis 6.0 uses 3-4 enclave threads during its
+execution, plus Graphene uses another 1-2 helper enclave threads. So Redis
+manifest has an over-approximation of this number: ``sgx.thread_num = 8``. Thus,
+to correctly enable the Exitless feature, please specify ``sgx.rpc_thread_num =
+8``. Here is an example:
+
+::
+
+   # exitless disabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 0`
+   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+   Examples/redis$ src/src/redis-benchmark -t set
+   43010.75 requests per second
+
+   # exitless enabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 8`
+   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+   Examples/redis$ src/src/redis-benchmark -t set
+   68119.89 requests per second
+
+As you can see, enabling the Exitless feature improves performance of Redis by
+58%. This comes at a price: there are now 8 additional threads occupying
+additional CPU cores (you can see these additional threads by running ``ps -Haux
+| grep pal-Linux-SGX`` while Graphene is running). *We recommend to use Exitless
+only when you have spare cores on your system.*
+
+We also recommend to use core pinning via taskset or even isolating cores via
+``isolcpus`` or disabling interrupts on cores via ``nohz_full``. It is also
+beneficial to put all enclave threads on one set of cores (e.g., on first
+hyper-threads if you have hyper-threading enabled on your platform) and all
+untrusted RPC threads on another set of cores (e.g., on second hyper-threads).
+In general, the classical performance-tuning strategies are applicable for
+Graphene and Exitless multi-threaded workloads.
+
+You can find additional information and context here:
+
+#. https://github.com/oscarlab/graphene/pull/1142
+#. https://github.com/oscarlab/graphene/pull/1578
+
+Optional CPU features (AVX, AVX512, MPX)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SGX technology allows to specify which CPU features are required to run the SGX
+enclave. Graphene "inherits" this and has the following manifest options:
+``sgx.require_avx``, ``sgx.require_avx512``, ``sgx.require_mpx``. By default,
+all of them are set to zero – this means that SGX hardware will allow running
+the SGX enclave on any system, whether the system has the AVX/AVX512/MPX feature
+or not.
+
+Graphene typically correctly identifies the features of the underlying platform
+and propagates the information on AVX/AVX512/MPX inside the enclave and to the
+application. It is recommended to leave these manifest options as-is (set to
+zero). However, we observed on some platforms that the graphenized application
+cannot detect these features and falls back to a slow implementation. For
+example, some crypto libraries do not recognize AVX on the platform and use very
+slow functions, leading to 10-100x overhead over native (we still don't know the
+reason for this behavior). If you suspect this can be your case, please enable
+the features in the manifest, e.g., set ``sgx.require_avx = 1``.
+
+For more information on SGX logic regarding optional CPU features, see the Intel
+Software Developer Manual, Table 38-3 ("Layout of ATTRIBUTES Structure") under
+the SGX section.
+
+Effects of system calls / ocalls
+--------------------------------
+
+One of the main sources of overhead on modern SGX-enabled Intel processors is a
+pure software one: enclavized applications must communicate with the outside
+world, and for this communication they must perform system calls / OCALLs. Every
+OCALL results in one EEXIT to exit from the enclave to the untrusted world and
+then one EENTER to re-enter the enclave (unless you are using Exitless!).
+Moreover, OCALLs typically copy some data from the enclave to the outside and
+vice versa – for example, network and file system OCALLs must copy network
+packets and files to/from the enclave.
+
+So, there are several sources of overhead that need to be understood with regard
+to OCALLs:
+
+#. ``OCALL = EEXIT + host processing + EENTER``. Recall that each EEXIT flushes
+   the CPU caches and possibly invalidates Branch Predictors and TLBs.
+   Similarly, EENTER performs many checks and requires hardware-internal
+   synchronization of cores. Some studies show each EEXIT and EENTER cost around
+   8,000 – 12,000 cycles (compare it with normal syscalls costing around 100
+   cycles each). Note that the cost of EENTER/EEXIT depends on the CPU model,
+   its firmware, applied hardware patches, and other platform characteristics.
+
+#. OCALLs purge CPU caches. This means that after each OCALL, data that was
+   cached in say L1 data cache is not there anymore. This effectively negates
+   the effect of warm caches in the SGX environment.
+
+#. Many OCALLs perform I/O: they copy data to/from the enclave. Copying is
+   obligatory to prevent Time-of-check to time-of-use (TOCTOU) attacks and is
+   dictated by the SGX design. This is an unavoidable tax. In I/O intensive
+   workloads, the overhead of copying may constitute 15-50%. For example,
+   databases and web servers copy user requests inside the enclave and copy the
+   results/web pages out. In another example, applications that manipulate files
+   perform a lot of file system I/O, copying data blocks in and out of the
+   enclave.
+
+#. OCALLs generally correspond 1:1 to the system calls that the application
+   performs, but not always. Typical system calls like ``read()``, ``write()``,
+   ``recv()``, ``send()`` indeed correspond 1:1 to Graphene's OCALLs and thus
+   introduce almost no overhead in the code path. However, some system calls are
+   emulated in a more sophisticated way: e.g., Linux-specific ``epoll()`` is
+   emulated via more generic ``poll()`` and this requires some additional logic.
+   Fortunately, such calls are never a real bottleneck in Graphene because they
+   are not on hot paths of applications. Probably the only exceptional system
+   call is ``gettimeofday()`` – and only on older Intel CPUs (see below).
+
+#. The ``gettimeofday()`` system call is special. On normal Linux, it is
+   implemented via vDSO and a fast RDTSC instruction. Platforms older than
+   Icelake typically forbid RDTSC inside an SGX enclave (this is a hardware
+   limitation), and so ``gettimeofday()`` falls back to the expensive OCALL.
+   Graphene is smart enough to identify whether the platform supports RDTSC
+   inside enclaves, and uses the fast RDTSC logic to emulate ``gettimeofday()``.
+   *Rule of thumb:* if you think that the bottleneck of your deployment is
+   ``gettimeofday()``, move to a newer (Icelake) processor. If you cannot move
+   to a newer platform, you are limited by SGX hardware (you can try to modify
+   the application itself to issue less gettimeofday’s).
+
+Multi-threaded workloads
+------------------------
+
+Graphene supports multi-threaded applications. However, currently Graphene
+doesn’t implement many optimizations and performance-relevant system calls
+related to multi-threading and scheduling policies. In reality, Graphene simply
+ignores many such requests. For example, Graphene currently ignores
+``set_schedaffinity()`` system calls. We are working on making Graphene
+performance-tuning aware.
+
+In the meantime, you can try pending or unofficial patches to Graphene that may
+improve multi-threaded performance (by better emulation of relevant system
+calls):
+
+#. Improved ``sched_yield()`` emulation:
+   https://github.com/oscarlab/graphene/tree/dimakuv/NOMERGE-nop-sched-yield
+
+#. Improved ``sched_setaffinity()`` and ``sched_getaffinity()`` emulation:
+   https://github.com/oscarlab/graphene/pull/1580
+
+Multi-processing workloads
+--------------------------
+
+Graphene supports multi-processing applications, i.e., applications that run as
+several inter-dependent processes. Typical examples are bash scripts: one main
+bash script spawns many additional processes to perform some computations.
+Another typical example is Python: it usually spawns helper processes to obtain
+system information. Finally, many applications are multi-processing by design,
+e.g., Nginx and Apache web servers spawn multiple worker processes.
+
+For each new child, the parent Graphene process creates a new process with a new
+Graphene instance and thus a new enclave. For example, if Nginx main process
+creates 4 workers, then there will be 5 Graphene instances and 5 SGX enclaves:
+one main Graphene process with its enclave and 4 child Graphene processes with 4
+enclaves.
+
+To create a new child process, Linux has the following system calls:
+``fork()``/``vfork()`` and ``clone()``. All these interfaces copy the whole
+memory of the parent process into the child, as well as all the resources like
+opened files, network connections, etc. In a normal environment, this copying is
+very fast because it uses the copy-on-write semantics. However, the SGX hardware
+doesn't have the notions of copy-on-write  and sharing of memory. Therefore,
+Graphene emulates ``fork/vfork/clone`` via the checkpoint-and-restore mechanism:
+all enclave memory and resources of the parent process are serialized into one
+blob of data, the blob is encrypted and sent to the child process. The child
+process awaits this blob of data, receives it, decrypts it, and restores into
+its own enclave memory. This is a much more expensive operation than
+copy-on-write, therefore forking in Graphene is much slower than in native
+Linux. Some studies report 1,000x overhead of forking over native.
+
+Moreover, multi-process applications periodically need to communicate with each
+other. For example, the Nginx parent process sends a signal to one of the worker
+processes to inform that a new request is available for processing. All this
+Inter-Process Communication (IPC) is transparently encrypted in Graphene.
+Encryption by itself incurs 1-10% overhead. This means that a
+communication-heavy multi-process application may experience significant
+overheads.
+
+To summarize, there are two sources of overhead for multi-process applications
+in Graphene:
+
+#. ``Fork()``, ``vfork()``, ``clone()`` as well as the ``execve()`` system calls
+   are very expensive in Graphene and in SGX in general. This is because Intel
+   SGX lacks the mechanisms for memory sharing and copy-on-write semantics. They
+   are emulated via checkpoint-and-restore in Graphene.
+
+#. Inter-Process Communication (IPC) is moderately expensive in Graphene because
+   all IPC is transparently encrypted/decrypted using the TLS-PSK with AES-GCM
+   crypto.
+
+Choice of SGX machine
+---------------------
+
+Modern Icelake machines remove many of the hardware bottlenecks of Intel SGX. If
+you must use an older machine (Skylake, Caby Lake, Mehlow), you should be aware
+that they have severe SGX-hardware limitations. In particular:
+
+#. EPC size. You can think of EPC as a physical cache (just like L3 cache) for
+   enclave pages. On older machines, EPC is only 128-256MB in size. This means
+   that if the application has a working set size of more than 100-200MB,
+   enclave pages will be evicted from EPC into RAM. Eviction of enclave pages
+   (also called EPC swapping or paging) is a very expensive hardware operation;
+   some studies report 10-100x overheads due to paging. Almost any reasonable
+   application operates on GBs of data, so performance will be significantly
+   impaired.
+
+#. RDTSC/RDTSCP instructions. These instructions are forbidden to execute in an
+   SGX enclave on older machines. Unfortunately, many applications and runtimes
+   use these instructions frequently, assuming that they are always available.
+   This leads to significant overheads when running such applications: Graphene
+   treats each RDTSC instruction as trap-and-emulate, which is very expensive
+   (enclave performs an AEX, Graphene enters the enclave, fixes RDTSC, exits the
+   enclave, and re-enters it from the interrupted point). Solution: move to
+   newer Intel processors that like Icelake which allow RDTSC inside the
+   enclave.
+
+#. CPUID and SYSCALL instructions. These instructions are forbidden to execute
+   in an SGX enclave on all currently available machines. Fortunately,
+   applications use these instructions typically only during initialization and
+   never on hot paths. Graphene emulates CPUID and SYSCALL similarly to RDTSC,
+   but since this happens very infrequently, it is not a realistic bottleneck.
+   However, it is always advisable to verify that the application doesn’t rely
+   on CPUID and SYSCALL too much. (This is especially important for statically
+   built applications that may rely on raw SYSCALL instructions instead of
+   calling Glibc!)
+
+Other considerations
+--------------------
+
+For performance testing, always use the non-debug versions of all software. In
+particular, build Graphene in non-debug configuration (simple ``make SGX=1``
+defaults to non-debug configuration). Also build the application itself in
+non-debug configuration (again, typically simple ``make SGX=1`` is sufficient).
+Finally, disable the debug log of Graphene by specifying the manifest option
+``loader.debug_type = none``.
+
+If your application periodically fails and complains about seemingly irrelevant
+things, it may be due to insufficient enclave memory. Please try to increase
+enclave size by tweaking ``sgx.enclave_size=512M``, ``sgx.enclave_size=1G``,
+``sgx.enclave_size=2G``, and so on. If this doesn't help, it could be due to
+insufficient stack size: in this case try to increase ``sys.stack.size=256K``,
+``sys.stack.size=2M``, ``sys.stack.size=4M`` and so on. Finally, if Graphene
+complains about insufficient number of TCSs or threads, increase
+``sgx.thread_num=4``, ``sgx.thread_num=8``, ``sgx.thread_num=16``, and so on.
+
+Do not forget about the cost of software encryption! Graphene transparently
+encrypts many means of communication:
+
+#. Inter-Process Communication (IPC) is encrypted via TLS-PSK. Regular pipes,
+   FIFO pipes, UNIX domain sockets are all transparently encrypted.
+
+#. Files marked as ``sgx.protected_files`` are transparently encrypted/decrypted
+   on each file access via SGX SDK Merkle-tree format.
+
+#. ``Fork/vfork/clone/execve`` all require to generate an encrypted checkpoint
+   of the whole enclave memory, send it from parent process to the child, and
+   decrypt it (all via TLS-PSK).
+
+#. All SGX attestation, RA-TLS, and Secret Provisioning network communication is
+   encrypted via TLS. Moreover, attestation depends on the internet speed and
+   the remote party, so can also become a bottleneck.
+
+Parsing the manifest can be another source of overhead. If you have a really
+long manifest (several MBs in size), parsing such a manifest may significantly
+deteriorate start-up performance. This is rarely a case, but please keep
+manifests as small as possible.
+
+Finally, recall that by default Graphene doesn't propagate environment variables
+into the SGX enclave. Thus, environment variables like ``OMP_NUM_THREADS`` and
+``MKL_NUM_THREADS`` are not visible to the graphenized application by default. To
+propagate them into the enclave, either use the insecure manifest option
+``loader.insecure__use_host_env=1`` (don't use this in production!) or specify them
+explicitly in the manifest via ``loader.env.OMP_NUM_THREADS=8``. Also, it is
+always better to specify such environment variables explicitly because a
+graphenized application may determine the number of available CPUs incorrectly.
