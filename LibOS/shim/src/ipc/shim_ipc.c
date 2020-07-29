@@ -399,8 +399,9 @@ out:
     return ret;
 }
 
-/* must be called with cur_process.lock taken */
 struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info) {
+    assert(locked(&cur_process.lock));
+
     struct shim_ipc_info* info = create_ipc_info(cur_process.vmid, NULL, 0);
     if (!info)
         return NULL;
