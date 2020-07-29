@@ -365,13 +365,12 @@ you must use an older machine (Skylake, Caby Lake, Mehlow), you should be aware
 that they have severe SGX-hardware limitations. In particular:
 
 #. EPC size. You can think of EPC as a physical cache (just like L3 cache) for
-   enclave pages. On older machines, EPC is only 128-256MB in size. This means
-   that if the application has a working set size of more than 100-200MB,
-   enclave pages will be evicted from EPC into RAM. Eviction of enclave pages
-   (also called EPC swapping or paging) is a very expensive hardware operation;
-   some studies report 10-100x overheads due to paging. Almost any reasonable
-   application operates on GBs of data, so performance will be significantly
-   impaired.
+   enclave pages. On all currently available machines, EPC is only 128-256MB in
+   size. This means that if the application has a working set size of more than
+   100-200MB, enclave pages will be evicted from EPC into RAM.  Eviction of
+   enclave pages (also called EPC swapping or paging) is a very expensive
+   hardware operation. Almost any reasonable application operates on GBs of
+   data, so performance will be significantly impaired.
 
 #. RDTSC/RDTSCP instructions. These instructions are forbidden to execute in an
    SGX enclave on older machines. Unfortunately, many applications and runtimes
