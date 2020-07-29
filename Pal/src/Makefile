@@ -107,7 +107,7 @@ $(pal_loader): $(host_lib)
 
 ifneq ($(pal_loader),)
 $(runtime_loader): $(pal_loader)
-	$(call cmd,ln_sf)
+	$(call cmd,ln_sfr)
 endif
 
 ifneq ($(pal_lib),)
@@ -116,12 +116,12 @@ $(pal_lib): $(addprefix $(OBJ_DIR)/,$(objs)) \
 	$(call cmd,ld_so_o)
 
 $(runtime_lib): $(pal_lib)
-	$(call cmd,ln_sf)
+	$(call cmd,ln_sfr)
 endif
 
 ifneq ($(pal_gdb),)
 $(runtime_gdb): $(pal_gdb)
-	$(call cmd,ln_sf)
+	$(call cmd,ln_sfr)
 endif
 
 ifneq ($(pal_lib_post),)
