@@ -66,6 +66,9 @@ extern struct pal_enclave {
     /* manifest */
     struct config_store * config;
 
+    /* Path to the PAL binary */
+    char* enclave_uri;
+
     /* security information */
     struct pal_sec pal_sec;
 } g_pal_enclave;

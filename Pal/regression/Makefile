@@ -139,6 +139,7 @@ $(graphene_lib):
 	$(MAKE) -C ../lib target=$(abspath .lib)/
 
 export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
+export LIBPAL_PATH = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 export PYTHONPATH=../../Scripts
 
 .PHONY: regression

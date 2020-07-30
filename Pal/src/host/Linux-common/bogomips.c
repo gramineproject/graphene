@@ -1,5 +1,5 @@
 #include "api.h"
-#include "bogomips.h"
+#include "linux_utils.h"
 
 /* This version is too dumb to be shared by the whole repository and should be removed once we get
  * a proper stdlib (like musl). */

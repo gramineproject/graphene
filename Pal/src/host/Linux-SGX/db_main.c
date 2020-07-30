@@ -180,7 +180,8 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
-void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_t env_size,
+void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_args,
+                    uint64_t args_size, char* uptr_env, uint64_t env_size,
                     struct pal_sec* uptr_sec_info) {
     /*
      * Our arguments are coming directly from the urts. We are responsible to check them.
@@ -227,9 +228,25 @@ void pal_linux_main(char* uptr_args, uint64_t args_size, char* uptr_env, uint64_
         memset(zero2_start, 0, zero2_end - zero2_start);
     }
 
+    /* Skip URI_PREFIX_FILE. */
+    if (enclave_uri_len < URI_PREFIX_FILE_LEN) {
+        return;
+    }
+    enclave_uri_len -= URI_PREFIX_FILE_LEN;
+    uptr_enclave_uri += URI_PREFIX_FILE_LEN;
+
+    /* At this point we don't yet have memory manager, so we cannot allocate memory dynamically. */
+    static char enclave_path[1024 + 1];
+    if (sizeof(enclave_path) <= enclave_uri_len
+            || !sgx_copy_to_enclave(enclave_path, sizeof(enclave_path) - 1, uptr_enclave_uri,
+                                    enclave_uri_len)) {
+        return;
+    }
+    enclave_path[sizeof(enclave_path) - 1] = '\0';
+
     /* relocate PAL itself */
     g_pal_map.l_addr = elf_machine_load_address();
-    g_pal_map.l_name = ENCLAVE_PAL_FILENAME;
+    g_pal_map.l_name = enclave_path;
     elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
                          g_pal_map.l_addr);
 

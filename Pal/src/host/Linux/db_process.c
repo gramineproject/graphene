@@ -33,6 +33,9 @@ typedef __kernel_pid_t pid_t;
 #include <sys/socket.h>
 #include <sys/wait.h>
 
+extern char* g_pal_loader_path;
+extern char* g_libpal_path;
+
 static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     PAL_HANDLE phdl = NULL;
     PAL_HANDLE chdl = NULL;
@@ -127,7 +130,8 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
     if (proc_param->manifest)
         handle_set_cloexec(proc_param->manifest, false);
 
-    int res = INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv, g_linux_state.host_environ);
+    int res = INLINE_SYSCALL(execve, 3, g_pal_loader_path, proc_param->argv,
+                             g_linux_state.host_environ);
     /* execve failed, but we're after vfork, so we can't do anything more than just exit */
     INLINE_SYSCALL(exit_group, 1, ERRNO(res));
     /* UNREACHABLE */
@@ -244,15 +248,16 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     int argc = 0;
     if (args)
         for (; args[argc] ; argc++);
-    param.argv = __alloca(sizeof(const char*) * (argc + 4));
-    param.argv[0] = PAL_LOADER;
-    param.argv[1] = "child";
+    param.argv = __alloca(sizeof(const char*) * (argc + 5));
+    param.argv[0] = g_pal_loader_path;
+    param.argv[1] = g_libpal_path;
+    param.argv[2] = "child";
     char parent_fd_str[16];
     snprintf(parent_fd_str, sizeof(parent_fd_str), "%u", parent_handle->process.stream);
-    param.argv[2] = parent_fd_str;
+    param.argv[3] = parent_fd_str;
     if (args)
-        memcpy(&param.argv[3], args, sizeof(const char*) * argc);
-    param.argv[argc + 3] = NULL;
+        memcpy(&param.argv[4], args, sizeof(const char*) * argc);
+    param.argv[argc + 4] = NULL;
 
     /* Child's signal handler may mess with parent's memory during vfork(),
      * so block signals

@@ -1,4 +1,3 @@
-export PAL_DIR = $(CURDIR)
 export RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 include ../../Scripts/Makefile.configs
@@ -40,8 +39,7 @@ PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' 
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader)
 
-defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
-	  -DRUNTIME_DIR=$(RUNTIME_DIR)
+defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO)
 CFLAGS += $(defs)
 objs = \
 	db_events.o \

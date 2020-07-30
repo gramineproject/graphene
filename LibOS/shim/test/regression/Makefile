@@ -161,6 +161,7 @@ LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.
 	$(call cmd,cxxsingle)
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
+export LIBPAL_PATH = $(RUNTIME)/libpal-$(PAL_HOST).so
 export PYTHONPATH=../../../../Scripts
 
 .PHONY: regression
