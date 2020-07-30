@@ -207,6 +207,7 @@ int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
     if (!DkThreadGetCPUAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
         return -PAL_ERRNO();
     }
+    /* on success, imitate Linux kernel implementation: see SYSCALL_DEFINE3(sched_getaffinity) */
     return bitmask_size_in_bytes;
 }
 
