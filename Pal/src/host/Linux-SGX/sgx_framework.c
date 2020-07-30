@@ -18,8 +18,11 @@ int open_sgx_driver(bool need_gsgx) {
     if (need_gsgx) {
         g_gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR | O_CLOEXEC, 0);
         if (IS_ERR(g_gsgx_device)) {
-            SGX_DBG(DBG_E, "Cannot open device " GSGX_FILE ". Please make sure the"
-                    " Graphene SGX kernel module is loaded.\n");
+            SGX_DBG(DBG_E, "\n\tSystem does not support FSGSBASE instructions, which Graphene requires on SGX.\n\n"
+                    "\tThe best option is to move to a newer Linux kernel with FSGSBASE support (5.9+), or\n"
+                    "\ta kernel with a back-ported patch to support FSGSBASE.\n"
+                    "\tOne may also load the Graphene SGX kernel, although this is insecure.\n"
+                    "\tIf the Graphene SGX module is loaded, check permissions on the device " GSGX_FILE ", as we cannot open this file.\n\n");
             return -ERRNO(g_gsgx_device);
         }
     }
