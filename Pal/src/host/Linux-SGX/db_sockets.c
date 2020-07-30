@@ -257,51 +257,6 @@ static inline PAL_HANDLE socket_create_handle(int type, int fd, int options,
     return hdl;
 }
 
-#if ALLOW_BIND_ANY == 0
-static bool check_zero(void* mem, size_t size) {
-    void* p = mem;
-    void* q = mem + size;
-
-    while (p < q) {
-        if (p <= q - sizeof(long)) {
-            if (*(long*)p)
-                return false;
-            p += sizeof(long);
-        } else if (p <= q - sizeof(int)) {
-            if (*(int*)p)
-                return false;
-            p += sizeof(int);
-        } else if (p <= q - sizeof(short)) {
-            if (*(short*)p)
-                return false;
-            p += sizeof(short);
-        } else {
-            if (*(char*)p)
-                return false;
-            p++;
-        }
-    }
-
-    return true;
-}
-
-/* check if an address is "Any" */
-static bool check_any_addr(struct sockaddr* addr) {
-    if (addr->sa_family == AF_INET) {
-        struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
-
-        return addr_in->sin_port == 0 && check_zero(&addr_in->sin_addr, sizeof(addr_in->sin_addr));
-    } else if (addr->sa_family == AF_INET6) {
-        struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)addr;
-
-        return addr_in6->sin6_port == 0 &&
-               check_zero(&addr_in6->sin6_addr, sizeof(addr_in6->sin6_addr));
-    }
-
-    return false;
-}
-#endif
-
 static inline int sock_type(int type, int options) {
     if (options & PAL_OPTION_NONBLOCK)
         type |= SOCK_NONBLOCK;
@@ -317,13 +272,6 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, NULL, NULL)) < 0)
         return ret;
-
-#if ALLOW_BIND_ANY == 0
-    /* the socket need to have a binding address, a null address or an
-       any address is not allowed */
-    if (check_any_addr(bind_addr))
-        return -PAL_ERROR_INVAL;
-#endif
 
     struct sockopt sock_options;
 
@@ -399,13 +347,6 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
 
     if (bind_addr && bind_addr->sa_family != dest_addr->sa_family)
         return -PAL_ERROR_INVAL;
-
-#if ALLOW_BIND_ANY == 0
-    /* the socket need to have a binding address, a null address or an
-       any address is not allowed */
-    if (bind_addr && addr_check_any(bind_addr))
-        return -PAL_ERROR_INVAL;
-#endif
 
     struct sockopt sock_options;
 
@@ -515,13 +456,6 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     assert(bind_addr);
     assert(bind_addrlen == addr_size(bind_addr));
 
-#if ALLOW_BIND_ANY == 0
-    /* the socket need to have a binding address, a null address or an
-       any address is not allowed */
-    if (addr_check_any(bind_addr))
-        return -PAL_ERROR_INVAL;
-#endif
-
     struct sockopt sock_options;
 
     memset(&sock_options, 0, sizeof(sock_options));
@@ -555,13 +489,6 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, &dest_addr, &dest_addrlen)) < 0)
         return ret;
-
-#if ALLOW_BIND_ANY == 0
-    /* the socket need to have a binding address, a null address or an
-       any address is not allowed */
-    if (bind_addr && addr_check_any(bind_addr))
-        return -PAL_ERROR_INVAL;
-#endif
 
     struct sockopt sock_options;
 
