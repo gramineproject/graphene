@@ -1,5 +1,6 @@
 TESTCASES ?= python3 hello-world nodejs bash numpy pytorch
 DISTRIBUTIONS ?= ubuntu18.04
+GRAPHENE_BRANCH ?= master
 DOCKER_BUILD_FLAGS ?= --rm --no-cache
 GSC_BUILD_FLAGS ?= --rm --no-cache
 TESTS = $(foreach D,$(DISTRIBUTIONS),$(foreach T,$(TESTCASES),$D-$T))
@@ -17,7 +18,8 @@ IMAGE_SUFFIX ?=
 .PHONY: all
 all: $(KEY_FILE) $(TESTS)
 	for d in $(DISTRIBUTIONS); do \
-		sed -e 's/\"Distro\": \".*\"/\"Distro\": \"'$${d}'\"/' \
+		sed -e 's/Distro: \".*\"/Distro: \"'$${d}'\"/' \
+		    -e 's/Branch: \"master\"/Branch: \"'$(GRAPHENE_BRANCH)'\"/' \
 			../config.yaml.template > ../config.yaml; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
 	done
