@@ -103,12 +103,16 @@ void debug_setprefix(shim_tcb_t* tcb) {
     struct debug_buf* buf = tcb->debug_buf;
     buf->start = buf->end = 0;
 
+    const char* exec = PAL_CB(executable);
+    for (const char* it = exec; *it; it++)
+        if (*it == ':' || *it == '/')
+            exec = it + 1;
     if (tcb->tid && !is_internal_tid(tcb->tid))
-        fprintfmt(debug_fputch, NULL, buf, TID_PREFIX, tcb->tid);
+        fprintfmt(debug_fputch, NULL, buf, "[%u:%s] ", tcb->tid, exec);
     else if (cur_process.vmid)
-        fprintfmt(debug_fputch, NULL, buf, VMID_PREFIX, cur_process.vmid & 0xFFFF);
+        fprintfmt(debug_fputch, NULL, buf, "[P%u:%s] ", cur_process.vmid & 0xFFFF, exec);
     else
-        fprintfmt(debug_fputch, NULL, buf, NOID_PREFIX);
+        fprintfmt(debug_fputch, NULL, buf, "[%s] ", exec);
 
     buf->start = buf->end;
 }
