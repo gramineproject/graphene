@@ -177,8 +177,10 @@ int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
     if (bitmask_size_in_bytes < 0)
         return bitmask_size_in_bytes;
 
-    retval = DkThreadSetCPUAffinity(thread, bitmask_size_in_bytes, user_mask_ptr);
-    return retval;
+    if (!DkThreadSetCPUAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
+        return -PAL_ERRNO();
+    }
+    return 0;
 }
 
 int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
@@ -202,8 +204,10 @@ int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
     if (bitmask_size_in_bytes < 0)
         return bitmask_size_in_bytes;
 
-    retval = DkThreadGetCPUAffinity(thread, bitmask_size_in_bytes, user_mask_ptr);
-    return retval;
+    if (!DkThreadGetCPUAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
+        return -PAL_ERRNO();
+    }
+    return bitmask_size_in_bytes;
 }
 
 /* dummy implementation: always return cpu0  */

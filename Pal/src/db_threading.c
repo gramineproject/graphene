@@ -84,10 +84,10 @@ PAL_BOL DkThreadResume(PAL_HANDLE threadHandle) {
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
-PAL_BOL DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask) {
+PAL_BOL DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask) {
     ENTER_PAL_CALL(DkThreadSetCPUAffinity);
 
-    int ret = _DkThreadSetCPUAffinity(thread, cpu_num, cpu_mask);
+    int ret = _DkThreadSetCPUAffinity(thread, cpu_len, cpu_mask);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -97,10 +97,10 @@ PAL_BOL DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_m
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
-PAL_BOL DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask) {
+PAL_BOL DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask) {
     ENTER_PAL_CALL(DkThreadGetCPUAffinity);
 
-    int ret = _DkThreadGetCPUAffinity(thread, cpu_num, cpu_mask);
+    int ret = _DkThreadGetCPUAffinity(thread, cpu_len, cpu_mask);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

@@ -153,7 +153,7 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
+int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask)
 {
     int tid;
     if (thread != (PAL_HANDLE)GET_ENCLAVE_TLS(thread)) {
@@ -164,11 +164,11 @@ int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask
         tid = 0;
     }
 
-    int ret = ocall_sched_setaffinity(tid, cpu_num, cpu_mask);
+    int ret = ocall_sched_setaffinity(tid, cpu_len, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask)
+int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask)
 {
     int tid;
     if (thread != (PAL_HANDLE)GET_ENCLAVE_TLS(thread)) {
@@ -179,7 +179,7 @@ int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask
         tid = 0;
     }
 
-    int ret = ocall_sched_getaffinity(tid, cpu_num, cpu_mask);
+    int ret = ocall_sched_getaffinity(tid, cpu_len, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

@@ -543,10 +543,10 @@ PAL_BOL
 DkThreadResume(PAL_HANDLE thread);
 
 PAL_BOL
-DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask);
+DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask);
 
 PAL_BOL
-DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_num, PAL_PTR cpu_mask);
+DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask);
 
 /*
  * Exception Handling
