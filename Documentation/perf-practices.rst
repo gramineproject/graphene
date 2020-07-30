@@ -67,8 +67,9 @@ How to read this output:
    the number of EENTERs is slightly higher than of EEXITs: this is because of
    ECALLs.  Recall that Graphene performs one ECALL for the whole process and
    one ECALL per each new thread (and possibly some more ECALLs to reset threads
-   and other bookkeeping). ECALLs are "no-return" in Graphene so they only
-   contribute to EENTERs and do not increase EEXITs.
+   and other bookkeeping). You can consider ECALLs as "no-return" in Graphene:
+   they only contribute to EENTERs and do not increase EEXITs (in reality,
+   ECALLs perform EEXITs but only after the stats are printed).
 
 #. Why there are about 200 OCALLs in our trivial HelloWorld example? This is
    because even before HelloWorld's ``main()`` function starts, Graphene and
@@ -110,13 +111,13 @@ How to read this output:
 
 You can find additional information and context here:
 
-#. https://github.com/oscarlab/graphene/pull/1519
-#. https://github.com/oscarlab/graphene/pull/1622
-#. https://github.com/oscarlab/graphene/pull/1706
+* https://github.com/oscarlab/graphene/pull/1519
+* https://github.com/oscarlab/graphene/pull/1622
+* https://github.com/oscarlab/graphene/pull/1706
 
 If you need additional statistics, you can check this unofficial patch:
 
-#. https://github.com/oscarlab/graphene/tree/dimakuv/DONTMERGE-more-perf-stats-tweaks
+* https://github.com/oscarlab/graphene/tree/dimakuv/DONTMERGE-more-perf-stats-tweaks
 
 Zero out heap on demand vs during enclave init
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -154,81 +155,8 @@ may help achieve the best possible performance for e.g. Function-as-a-Service
 
 You can find additional information and context here:
 
-#. https://github.com/oscarlab/graphene/pull/1640
-#. https://github.com/oscarlab/graphene/pull/1668
-
-Number of RPC threads (Exitless feature)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Graphene supports the Exitless (or Switchless) feature – it trades off faster
-OCALL execution for more CPU cores. It is configured by ``sgx.rpc_thread_num =
-xyz``. By default, the Exitless feature is disabled – all enclave threads
-perform an actual OCALL and leave the enclave mode. The feature can also be
-disabled by specifying ``sgx.rpc_thread_num = 0``.
-
-You must decide how many untrusted helper RPC threads your application needs. A
-rule of thumb: specify ``sgx.rpc_thread_num == sgx.thread_num``, i.e., the
-number of untrusted RPC threads should be the same as the number of enclave
-threads. For example, native Redis 6.0 uses 3-4 enclave threads during its
-execution, plus Graphene uses another 1-2 helper enclave threads. So Redis
-manifest has an over-approximation of this number: ``sgx.thread_num = 8``. Thus,
-to correctly enable the Exitless feature, please specify ``sgx.rpc_thread_num =
-8``. Here is an example:
-
-::
-
-   # exitless disabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 0`
-   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
-   Examples/redis$ src/src/redis-benchmark -t set
-   43010.75 requests per second
-
-   # exitless enabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 8`
-   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
-   Examples/redis$ src/src/redis-benchmark -t set
-   68119.89 requests per second
-
-As you can see, enabling the Exitless feature improves performance of Redis by
-58%. This comes at a price: there are now 8 additional threads occupying
-additional CPU cores (you can see these additional threads by running ``ps -Haux
-| grep pal-Linux-SGX`` while Graphene is running). *We recommend to use Exitless
-only when you have spare cores on your system.*
-
-We also recommend to use core pinning via taskset or even isolating cores via
-``isolcpus`` or disabling interrupts on cores via ``nohz_full``. It is also
-beneficial to put all enclave threads on one set of cores (e.g., on first
-hyper-threads if you have hyper-threading enabled on your platform) and all
-untrusted RPC threads on another set of cores (e.g., on second hyper-threads).
-In general, the classical performance-tuning strategies are applicable for
-Graphene and Exitless multi-threaded workloads.
-
-You can find additional information and context here:
-
-#. https://github.com/oscarlab/graphene/pull/1142
-#. https://github.com/oscarlab/graphene/pull/1578
-
-Optional CPU features (AVX, AVX512, MPX)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-SGX technology allows to specify which CPU features are required to run the SGX
-enclave. Graphene "inherits" this and has the following manifest options:
-``sgx.require_avx``, ``sgx.require_avx512``, ``sgx.require_mpx``. By default,
-all of them are set to zero – this means that SGX hardware will allow running
-the SGX enclave on any system, whether the system has the AVX/AVX512/MPX feature
-or not.
-
-Graphene typically correctly identifies the features of the underlying platform
-and propagates the information on AVX/AVX512/MPX inside the enclave and to the
-application. It is recommended to leave these manifest options as-is (set to
-zero). However, we observed on some platforms that the graphenized application
-cannot detect these features and falls back to a slow implementation. For
-example, some crypto libraries do not recognize AVX on the platform and use very
-slow functions, leading to 10-100x overhead over native (we still don't know the
-reason for this behavior). If you suspect this can be your case, please enable
-the features in the manifest, e.g., set ``sgx.require_avx = 1``.
-
-For more information on SGX logic regarding optional CPU features, see the Intel
-Software Developer Manual, Table 38-3 ("Layout of ATTRIBUTES Structure") under
-the SGX section.
+* https://github.com/oscarlab/graphene/pull/1640
+* https://github.com/oscarlab/graphene/pull/1668
 
 Effects of system calls / ocalls
 --------------------------------
@@ -237,10 +165,10 @@ One of the main sources of overhead on modern SGX-enabled Intel processors is a
 pure software one: enclavized applications must communicate with the outside
 world, and for this communication they must perform system calls / OCALLs. Every
 OCALL results in one EEXIT to exit from the enclave to the untrusted world and
-then one EENTER to re-enter the enclave (unless you are using Exitless!).
-Moreover, OCALLs typically copy some data from the enclave to the outside and
-vice versa – for example, network and file system OCALLs must copy network
-packets and files to/from the enclave.
+then one EENTER to re-enter the enclave (unless you are using Exitless, see
+below).  Moreover, OCALLs typically copy some data from the enclave to the
+outside and vice versa – for example, network and file system OCALLs must copy
+network packets and files to/from the enclave.
 
 So, there are several sources of overhead that need to be understood with regard
 to OCALLs:
@@ -251,7 +179,7 @@ to OCALLs:
    synchronization of cores. Some studies show each EEXIT and EENTER cost around
    8,000 – 12,000 cycles (compare it with normal syscalls costing around 100
    cycles each). Note that the cost of EENTER/EEXIT depends on the CPU model,
-   its firmware, applied hardware patches, and other platform characteristics.
+   its firmware, applied microcode patches, and other platform characteristics.
 
 #. OCALLs purge CPU caches. This means that after each OCALL, data that was
    cached in say L1 data cache is not there anymore. This effectively negates
@@ -260,11 +188,11 @@ to OCALLs:
 #. Many OCALLs perform I/O: they copy data to/from the enclave. Copying is
    obligatory to prevent Time-of-check to time-of-use (TOCTOU) attacks and is
    dictated by the SGX design. This is an unavoidable tax. In I/O intensive
-   workloads, the overhead of copying may constitute 15-50%. For example,
-   databases and web servers copy user requests inside the enclave and copy the
-   results/web pages out. In another example, applications that manipulate files
-   perform a lot of file system I/O, copying data blocks in and out of the
-   enclave.
+   workloads, the overhead of copying may constitute 15-50% over the baseline
+   performance of the native application. For example, databases and web servers
+   copy user requests inside the enclave and copy the results/web pages out. In
+   another example, applications that manipulate files perform a lot of file
+   system I/O, copying data blocks in and out of the enclave.
 
 #. OCALLs generally correspond 1:1 to the system calls that the application
    performs, but not always. Typical system calls like ``read()``, ``write()``,
@@ -287,6 +215,84 @@ to OCALLs:
    to a newer platform, you are limited by SGX hardware (you can try to modify
    the application itself to issue less gettimeofday’s).
 
+Number of RPC threads (Exitless feature)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Graphene supports the Exitless (or Switchless) feature – it trades off CPU cores
+for faster OCALL execution. More specifically, the Exitless feature sacrifices
+CPU cores for busy waiting of enclave threads: they wait for untrusted helper
+threads to perform OCALLs (system calls) on their behalf.
+
+Exitless is configured by ``sgx.rpc_thread_num = xyz``. By default, the Exitless
+feature is disabled – all enclave threads perform an actual OCALL for each
+system call and leave the enclave mode. The feature can be disabled by
+specifying ``sgx.rpc_thread_num = 0``.
+
+You must decide how many untrusted helper RPC threads your application needs. A
+rule of thumb: specify ``sgx.rpc_thread_num == sgx.thread_num``, i.e., the
+number of untrusted RPC threads should be the same as the number of enclave
+threads. For example, native Redis 6.0 uses 3-4 enclave threads during its
+execution, plus Graphene uses another 1-2 helper enclave threads. So Redis
+manifest has an over-approximation of this number: ``sgx.thread_num = 8``. Thus,
+to correctly enable the Exitless feature, specify ``sgx.rpc_thread_num = 8``.
+Here is an example:
+
+::
+
+   # exitless disabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 0`
+   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+   Examples/redis$ src/src/redis-benchmark -t set
+   43010.75 requests per second
+
+   # exitless enabled: `sgx.thread_num = 8` and `sgx.rpc_thread_num = 8`
+   Examples/redis$ SGX=1 ./pal_loader redis-server --save '' --protected-mode no &
+   Examples/redis$ src/src/redis-benchmark -t set
+   68119.89 requests per second
+
+As you can see, enabling the Exitless feature improves performance of Redis by
+58%. This comes at a price: there are now 8 additional threads occupying
+additional CPU cores (you can see these additional threads by running ``ps -Haux
+| grep pal-Linux-SGX`` while Graphene is running). We recommend to use Exitless
+only for single-threaded applications or if you care more about latency than
+throughput.
+
+We also recommend to use core pinning via taskset or even isolating cores via
+``isolcpus`` or disabling interrupts on cores via ``nohz_full``. It is also
+beneficial to put all enclave threads on one set of cores (e.g., on first
+hyper-threads if you have hyper-threading enabled on your platform) and all
+untrusted RPC threads on another set of cores (e.g., on second hyper-threads).
+In general, the classical performance-tuning strategies are applicable for
+Graphene and Exitless multi-threaded workloads.
+
+You can find additional information and context here:
+
+* https://github.com/oscarlab/graphene/pull/1142
+* https://github.com/oscarlab/graphene/pull/1578
+
+Optional CPU features (AVX, AVX512, MPX)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SGX technology allows to specify which CPU features are required to run the SGX
+enclave. Graphene "inherits" this and has the following manifest options:
+``sgx.require_avx``, ``sgx.require_avx512``, ``sgx.require_mpx``. By default,
+all of them are set to zero – this means that SGX hardware will allow running
+the SGX enclave on any system, whether the system has the AVX/AVX512/MPX feature
+or not.
+
+Graphene typically correctly identifies the features of the underlying platform
+and propagates the information on AVX/AVX512/MPX inside the enclave and to the
+application. It is recommended to leave these manifest options as-is (set to
+zero). However, we observed on some platforms that the graphenized application
+cannot detect these features and falls back to a slow implementation. For
+example, some crypto libraries do not recognize AVX on the platform and use very
+slow functions, leading to 10-100x overhead over native (we still don't know the
+reason for this behavior). If you suspect this can be your case, enable the
+features in the manifest, e.g., set ``sgx.require_avx = 1``.
+
+For more information on SGX logic regarding optional CPU features, see the Intel
+Software Developer Manual, Table 38-3 ("Layout of ATTRIBUTES Structure") under
+the SGX section.
+
 Multi-threaded workloads
 ------------------------
 
@@ -301,20 +307,20 @@ In the meantime, you can try pending or unofficial patches to Graphene that may
 improve multi-threaded performance (by better emulation of relevant system
 calls):
 
-#. Improved ``sched_yield()`` emulation:
-   https://github.com/oscarlab/graphene/tree/dimakuv/NOMERGE-nop-sched-yield
+* Improved ``sched_yield()`` emulation:
+  https://github.com/oscarlab/graphene/tree/dimakuv/NOMERGE-nop-sched-yield
 
-#. Improved ``sched_setaffinity()`` and ``sched_getaffinity()`` emulation:
-   https://github.com/oscarlab/graphene/pull/1580
+* Improved ``sched_setaffinity()`` and ``sched_getaffinity()`` emulation:
+  https://github.com/oscarlab/graphene/pull/1580
 
-Multi-processing workloads
---------------------------
+Multi-process workloads
+-----------------------
 
-Graphene supports multi-processing applications, i.e., applications that run as
+Graphene supports multi-process applications, i.e., applications that run as
 several inter-dependent processes. Typical examples are bash scripts: one main
-bash script spawns many additional processes to perform some computations.
+bash script spawns many additional processes to perform some operations.
 Another typical example is Python: it usually spawns helper processes to obtain
-system information. Finally, many applications are multi-processing by design,
+system information. Finally, many applications are multi-process by design,
 e.g., Nginx and Apache web servers spawn multiple worker processes.
 
 For each new child, the parent Graphene process creates a new process with a new
@@ -369,7 +375,7 @@ that they have severe SGX-hardware limitations. In particular:
    size. This means that if the application has a working set size of more than
    100-200MB, enclave pages will be evicted from EPC into RAM.  Eviction of
    enclave pages (also called EPC swapping or paging) is a very expensive
-   hardware operation. Almost any reasonable application operates on GBs of
+   hardware operation. Some applications have a working set size of MBs/GBs of
    data, so performance will be significantly impaired.
 
 #. RDTSC/RDTSCP instructions. These instructions are forbidden to execute in an
@@ -388,9 +394,11 @@ that they have severe SGX-hardware limitations. In particular:
    never on hot paths. Graphene emulates CPUID and SYSCALL similarly to RDTSC,
    but since this happens very infrequently, it is not a realistic bottleneck.
    However, it is always advisable to verify that the application doesn’t rely
-   on CPUID and SYSCALL too much. (This is especially important for statically
+   on CPUID and SYSCALL too much. This is especially important for statically
    built applications that may rely on raw SYSCALL instructions instead of
-   calling Glibc!)
+   calling Glibc (recall that Graphene replaces native Glibc with our patched
+   version that performs function calls inside Graphene instead of raw SYSCALL
+   instructions and thus avoids this overhead).
 
 Other considerations
 --------------------
@@ -430,8 +438,9 @@ encrypts many means of communication:
 
 Parsing the manifest can be another source of overhead. If you have a really
 long manifest (several MBs in size), parsing such a manifest may significantly
-deteriorate start-up performance. This is rarely a case, but please keep
-manifests as small as possible.
+deteriorate start-up performance. This is rarely a case, but keep manifests as
+small as possible. Note that this overhead is due to our sub-optimal parser.
+Once Graphene moves to a better manifest parser, this won't be an issue.
 
 Finally, recall that by default Graphene doesn't propagate environment variables
 into the SGX enclave. Thus, environment variables like ``OMP_NUM_THREADS`` and
