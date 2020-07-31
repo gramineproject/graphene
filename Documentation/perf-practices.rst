@@ -219,14 +219,18 @@ Number of RPC threads (Exitless feature)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Graphene supports the Exitless (or Switchless) feature – it trades off CPU cores
-for faster OCALL execution. More specifically, the Exitless feature sacrifices
-CPU cores for busy waiting of enclave threads: they wait for untrusted helper
-threads to perform OCALLs (system calls) on their behalf.
+for faster OCALL execution. More specifically, with Exitless, enclave threads do
+not exit the enclave on OCALLs but instead busy wait for untrusted helper
+threads which perform OCALLs (system calls) on their behalf.  Untrusted helper
+threads are created at Graphene start-up and burn CPU cycles busy waiting for
+requests for OCALLs from enclave threads (untrusted helper threads periodically
+sleep if there have been no OCALL requests for a long time to save some CPU
+cycles).
 
 Exitless is configured by ``sgx.rpc_thread_num = xyz``. By default, the Exitless
 feature is disabled – all enclave threads perform an actual OCALL for each
-system call and leave the enclave mode. The feature can be disabled by
-specifying ``sgx.rpc_thread_num = 0``.
+system call and exit the enclave. The feature can be disabled by specifying
+``sgx.rpc_thread_num = 0``.
 
 You must decide how many untrusted helper RPC threads your application needs. A
 rule of thumb: specify ``sgx.rpc_thread_num == sgx.thread_num``, i.e., the
