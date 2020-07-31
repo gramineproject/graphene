@@ -66,8 +66,8 @@ generated_offsets.py: generated-offsets.s
 	$(call cmd,generated_offsets_py)
 CLEAN_FILES += generated_offsets.py generated_offsets.pyc
 
-quiet_cmd_ln_sf = [ $@ ]
-      cmd_ln_sf = ln -sf $(abspath $<) $@
+quiet_cmd_ln_sfr = [ $@ ]
+      cmd_ln_sfr = ln -sfr $(abspath $<) $@
 
 cc-option = $(shell set -e; \
 	if ($(CC) -Werror $(1) -c -x c /dev/null -o /dev/null) >/dev/null 2>&1; \

@@ -65,7 +65,7 @@ $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
 
 define LN_SF_TO_RUNTIME_DIR_template =
 $(RUNTIME_DIR)/$(notdir $(1)): $(1)
-	$$(call cmd,ln_sf)
+	$$(call cmd,ln_sfr)
 endef
 
 $(foreach lib,$(GLIBC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib))))
