@@ -19,13 +19,13 @@
 #define EXTERN_ALIAS(name) \
     extern __typeof__(name) shim_##name __attribute ((alias (ALIAS_STR(name))))
 
-#include <api.h>
-#include <assert.h>
-#include <atomic.h>
-#include <shim_defs.h>
-#include <shim_internal-arch.h>
-#include <shim_tcb.h>
-#include <shim_types.h>
+#include "api.h"
+#include "assert.h"
+#include "atomic.h"
+#include "shim_defs.h"
+#include "shim_internal-arch.h"
+#include "shim_tcb.h"
+#include "shim_types.h"
 
 void* shim_init(int argc, void* args);
 
@@ -723,4 +723,4 @@ void release_clear_child_tid(int* clear_child_tid);
 
 void delete_from_epoll_handles(struct shim_handle* handle);
 
-#endif /* _PAL_INTERNAL_H_ */
+#endif /* _SHIM_INTERNAL_H_ */
