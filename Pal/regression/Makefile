@@ -14,7 +14,6 @@ preloads = \
 	Preload2.so
 
 executables-x86_64 = \
-        AvxDisable \
         Exception \
         Exception2 \
         Segment \
@@ -61,7 +60,6 @@ executables = \
 
 manifests = \
 	manifest \
-	AvxDisable.manifest \
 	Bootstrap2.manifest \
 	Bootstrap3.manifest \
 	Bootstrap4.manifest \
@@ -103,7 +101,6 @@ crt_init-recurse:
 ../crt_init/user_shared_start.o ../crt_init/user_start.o: crt_init-recurse
 	@true
 
-CFLAGS-AvxDisable += -mavx
 CFLAGS-Pie = -fPIC -pie
 CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 
