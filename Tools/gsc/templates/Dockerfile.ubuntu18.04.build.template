@@ -21,7 +21,7 @@ RUN git clone {{Graphene.Repository}} /graphene
 # Init submodules
 RUN cd /graphene \
     && git fetch origin {{Graphene.Branch}} \
-    && git checkout origin/{{Graphene.Branch}} \
+    && git checkout {{Graphene.Branch}} \
     && git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
 
 # Create SGX driver for header files
