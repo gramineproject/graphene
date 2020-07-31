@@ -18,8 +18,14 @@ int main() {
     bind_addr.sin_family = AF_INET;
     bind_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    /* bind to static port PORT */
+    /* test 1: bind to static port PORT */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        printf("getsockname: error in socket %d\n", errno);
+        return 1;
+    }
+
     bind_addr.sin_port = htons(PORT);
 
     if (bind(sockfd, (struct sockaddr*)&bind_addr, sizeof(bind_addr)) < 0) {
@@ -48,11 +54,17 @@ int main() {
 
     close(sockfd);
 
-    /* bind to arbitrary port */
+    /* test 2: bind to arbitrary port */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        printf("getsockname: error in socket %d\n", errno);
+        return 1;
+    }
+
     bind_addr.sin_port = 0;
 
-    if (bind(sockfd, (struct sockaddr *)&bind_addr, sizeof(bind_addr)) < 0) {
+    if (bind(sockfd, (struct sockaddr*)&bind_addr, sizeof(bind_addr)) < 0) {
         printf("getsockname: error in bind %d\n", errno);
         goto fail;
     }

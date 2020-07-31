@@ -33,8 +33,8 @@ c_executables = \
 	futex_wake_op \
 	getcwd \
 	getdents \
-	getsockopt \
 	getsockname \
+	getsockopt \
 	host_root_fs \
 	init_fail \
 	large_mmap \
