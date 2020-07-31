@@ -15,6 +15,11 @@
 #include "shim_internal.h"
 #include "shim_table.h"
 
+
+/* This structure is *not* shared between Graphene processes, despite it should. As a result,
+ * effects of set{host,domain}name in process A will not be visible in process B.
+ * These syscalls are rarely used and are implemented in Graphene mainly to enable LTP to test
+ * our `uname` implementation. */
 static struct new_utsname g_current_uname = {
     .sysname    = "Linux",
     .nodename   = "localhost",
