@@ -54,10 +54,10 @@ struct shim_ipc_msg {
 struct shim_ipc_port;
 struct shim_thread;
 
-DEFINE_LIST(shim_ipc_msg_duplex);
-struct shim_ipc_msg_duplex {
+DEFINE_LIST(shim_ipc_msg_with_ack);
+struct shim_ipc_msg_with_ack {
     struct shim_thread* thread;
-    LIST_TYPE(shim_ipc_msg_duplex) list;
+    LIST_TYPE(shim_ipc_msg_with_ack) list;
     int retval;
     void* private;
     struct shim_ipc_msg msg;
@@ -68,13 +68,13 @@ typedef void (*port_fini)(struct shim_ipc_port*, IDTYPE vmid, unsigned int exitc
 #define MAX_IPC_PORT_FINI_CB 3
 
 DEFINE_LIST(shim_ipc_port);
-DEFINE_LISTP(shim_ipc_msg_duplex);
+DEFINE_LISTP(shim_ipc_msg_with_ack);
 struct shim_ipc_port {
     PAL_HANDLE pal_handle;
 
     REFTYPE ref_count;
     LIST_TYPE(shim_ipc_port) list;
-    LISTP_TYPE(shim_ipc_msg_duplex) msgs;
+    LISTP_TYPE(shim_ipc_msg_with_ack) msgs;
     struct shim_lock msgs_lock;
 
     port_fini fini[MAX_IPC_PORT_FINI_CB];
@@ -433,21 +433,21 @@ static inline size_t get_ipc_msg_size(size_t payload) {
     return (size > IPC_MSG_MINIMAL_SIZE) ? size : IPC_MSG_MINIMAL_SIZE;
 }
 
-static inline size_t get_ipc_msg_duplex_size(size_t payload) {
-    static_assert(sizeof(struct shim_ipc_msg_duplex) >= sizeof(struct shim_ipc_msg),
-                  "Incorrect shim_ipc_msg_duplex size");
+static inline size_t get_ipc_msg_with_ack_size(size_t payload) {
+    static_assert(sizeof(struct shim_ipc_msg_with_ack) >= sizeof(struct shim_ipc_msg),
+                  "Incorrect shim_ipc_msg_with_ack size");
     return get_ipc_msg_size(payload) +
-           (sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg));
+           (sizeof(struct shim_ipc_msg_with_ack) - sizeof(struct shim_ipc_msg));
 }
 
 void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest);
-void init_ipc_msg_duplex(struct shim_ipc_msg_duplex* msg, int code, size_t size, IDTYPE dest);
+void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t size, IDTYPE dest);
 
-struct shim_ipc_msg_duplex* pop_ipc_msg_duplex(struct shim_ipc_port* port, unsigned long seq);
+struct shim_ipc_msg_with_ack* pop_ipc_msg_with_ack(struct shim_ipc_port* port, unsigned long seq);
 
 int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_port* exclude_port);
 int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
-int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_port* port,
+int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc_port* port,
                             unsigned long* seq, void* private_data);
 int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, unsigned long seq);
 

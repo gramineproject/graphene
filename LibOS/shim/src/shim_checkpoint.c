@@ -750,10 +750,15 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
     PAL_NUM mapsize = (PAL_PTR)ALLOC_ALIGN_UP_PTR(base + hdr->size) - mapaddr;
 
     /* first try allocating at address used by parent process */
-    ret = bkeep_mmap_fixed((void*)mapaddr, mapsize, PROT_READ | PROT_WRITE,
-                           CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
-    if (ret < 0) {
-        /* the address used by parent overlaps with this child's memory regions */
+    if (PAL_CB(user_address.start) <= mapaddr && mapaddr + mapsize <= PAL_CB(user_address.end)) {
+        ret = bkeep_mmap_fixed((void*)mapaddr, mapsize, PROT_READ | PROT_WRITE,
+                               CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore");
+        if (ret < 0) {
+            /* the address used by parent overlaps with this child's memory regions */
+            base = NULL;
+        }
+    } else {
+        /* this region is not available to LibOS in the current Graphene instance */
         base = NULL;
     }
 

@@ -5,7 +5,7 @@
  * shim_ipc.c
  *
  * This file contains code to maintain generic bookkeeping of IPC: operations
- * on shim_ipc_msg (one-way IPC messages), shim_ipc_msg_duplex (IPC messages
+ * on shim_ipc_msg (one-way IPC messages), shim_ipc_msg_with_ack (IPC messages
  * with acknowledgement), shim_ipc_info (IPC ports of process), shim_process.
  */
 
@@ -291,7 +291,7 @@ void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest) 
     msg->seq  = 0;
 }
 
-void init_ipc_msg_duplex(struct shim_ipc_msg_duplex* msg, int code, size_t size, IDTYPE dest) {
+void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t size, IDTYPE dest) {
     init_ipc_msg(&msg->msg, code, size, dest);
     msg->thread = NULL;
     INIT_LIST_HEAD(msg, list);
@@ -327,11 +327,11 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     return 0;
 }
 
-struct shim_ipc_msg_duplex* pop_ipc_msg_duplex(struct shim_ipc_port* port, unsigned long seq) {
-    struct shim_ipc_msg_duplex* found = NULL;
+struct shim_ipc_msg_with_ack* pop_ipc_msg_with_ack(struct shim_ipc_port* port, unsigned long seq) {
+    struct shim_ipc_msg_with_ack* found = NULL;
 
     lock(&port->msgs_lock);
-    struct shim_ipc_msg_duplex* tmp;
+    struct shim_ipc_msg_with_ack* tmp;
     LISTP_FOR_EACH_ENTRY(tmp, &port->msgs, list) {
         if (tmp->msg.seq == seq) {
             found = tmp;
@@ -344,7 +344,7 @@ struct shim_ipc_msg_duplex* pop_ipc_msg_duplex(struct shim_ipc_port* port, unsig
     return found;
 }
 
-int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_port* port,
+int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc_port* port,
                             unsigned long* seq, void* private_data) {
     int ret = 0;
 
@@ -399,8 +399,9 @@ out:
     return ret;
 }
 
-/* must be called with cur_process.lock taken */
 struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info) {
+    assert(locked(&cur_process.lock));
+
     struct shim_ipc_info* info = create_ipc_info(cur_process.vmid, NULL, 0);
     if (!info)
         return NULL;

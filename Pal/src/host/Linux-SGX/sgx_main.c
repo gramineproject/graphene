@@ -965,7 +965,9 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     PAL_TCB_URTS* tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_URTS);
     pal_tcb_urts_init(
         tcb, /*stack=*/NULL, alt_stack); /* main thread uses the stack provided by Linux */
-    pal_thread_init(tcb);
+    ret = pal_thread_init(tcb);
+    if (ret < 0)
+        return ret;
 
     /* start running trusted PAL */
     ecall_enclave_start(args, args_size, env, env_size);
