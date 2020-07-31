@@ -680,16 +680,6 @@ class TC_23_SendHandle(RegressionTestCase):
         # Send File Handle
         self.assertEqual(counter['Receive File Handle: Hello World'], 1)
 
-
-@unittest.skipUnless(HAS_SGX, 'need SGX')
-class TC_40_AVXDisable(RegressionTestCase):
-    @unittest.expectedFailure
-    def test_000_avx_disable(self):
-        # Disable AVX bit in XFRM
-        _, stderr = self.run_binary(['AvxDisable'])
-        self.assertIn('Illegal instruction executed in enclave', stderr)
-
-
 @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
 class TC_50_Attestation(RegressionTestCase):
     def test_000_attestation_report(self):
