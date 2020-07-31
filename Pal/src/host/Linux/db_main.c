@@ -169,6 +169,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     uint64_t start_time = _DkSystemTimeQueryEarly();
     g_pal_state.start_time = start_time;
 
+    int ret;
     int argc;
     const char** argv;
     const char** envp;
@@ -212,7 +213,10 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     tcb->alt_stack   = alt_stack; // Stack bottom
     tcb->callback    = NULL;
     tcb->param       = NULL;
-    pal_thread_init(tcb);
+
+    ret = pal_thread_init(tcb);
+    if (ret < 0)
+        INIT_FAIL(unix_to_pal_error(-ret), "pal_thread_init() failed");
 
     setup_pal_map(&g_pal_map);
 

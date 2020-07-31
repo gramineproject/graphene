@@ -102,7 +102,7 @@ int pal_thread_init(void* tcbptr) {
     }
 
     if (tcb->callback)
-        return (*tcb->callback) (tcb->param);
+        return (*tcb->callback)(tcb->param);
 
     return 0;
 }
@@ -158,6 +158,8 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     /* align child_stack to 16 */
     child_stack = ALIGN_DOWN_PTR(child_stack, 16);
 
+    // TODO: pal_thread_init() may fail during initialization, we should check its result (but this
+    // happens asynchronously, so it's not trivial to do).
     ret = clone(pal_thread_init, child_stack,
                 CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD |
                 CLONE_SIGHAND | CLONE_PARENT_SETTID,

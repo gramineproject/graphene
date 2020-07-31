@@ -27,9 +27,9 @@ LD_LIBRARY_PATH := $(LD_LIBRARY_PATH):$(R_HOME)/lib
 export LD_LIBRARY_PATH
 
 .PHONY: all
-all: R.manifest sh.manifest pal_loader
+all: R.manifest sh.manifest rm.manifest pal_loader
 ifeq ($(SGX),1)
-all: R.manifest.sgx R.sig R.token sh.manifest.sgx sh.sig sh.token
+all: R.manifest.sgx R.sig R.token sh.manifest.sgx sh.sig sh.token rm.manifest.sgx rm.sig rm.token
 endif
 
 include ../../Scripts/Makefile.configs
@@ -85,7 +85,7 @@ R.manifest: R.manifest.template R-trusted-libs
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-sh.manifest: sh.manifest.template
+%.manifest: %.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		$< > $@
@@ -94,30 +94,24 @@ sh.manifest: sh.manifest.template
 #   Generating the SGX-specific manifest (R.manifest.sgx), the enclave signature,
 #   and the token for enclave initialization.
 
-R.manifest.sgx: R.manifest sh.manifest.sgx
+%.manifest.sgx: %.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
 
+# Theoretically we could write "%.sig: %.manifest.sgx" or use a "Rule with Grouped Targets"
+# ("%.manifest.sgx %.sig &: %.manifest") but neither of this works (Make is broken?).
 R.sig: R.manifest.sgx
-
-R.token: R.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output R.token -sig R.sig
-
-# sh.manifest.sgx is needed for R to run the shell for file clean-up
-sh.manifest.sgx: sh.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
-
 sh.sig: sh.manifest.sgx
+rm.sig: rm.manifest.sgx
 
-sh.token: sh.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output sh.token -sig sh.sig
+%.token: %.sig
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
+
+# sh and rm are used by R for file clean-up
+R.manifest.sgx: sh.sig
+sh.manifest.sgx: rm.sig
 
 # Extra executables
 pal_loader:
@@ -126,3 +120,6 @@ pal_loader:
 .PHONY: clean
 clean:
 	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader
+
+.PHONY: distclean
+distclean: clean
