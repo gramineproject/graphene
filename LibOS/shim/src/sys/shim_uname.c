@@ -1,8 +1,11 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2020 Invisible Things Lab
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+ */
 
 /*
- * Implementation of system call `uname`.
+ * Implementation of system calls `uname`, `sethostname` and `setdomainname`.
  */
 
 #include <errno.h>
@@ -12,7 +15,7 @@
 #include "shim_internal.h"
 #include "shim_table.h"
 
-static struct new_utsname graphene_uname = {
+static struct new_utsname g_current_uname = {
     .sysname    = "Linux",
     .nodename   = "localhost",
     .release    = "3.10.0",
@@ -29,6 +32,30 @@ int shim_do_uname(struct new_utsname* buf) {
     if (!buf || test_user_memory(buf, sizeof(*buf), /*write=*/true))
         return -EFAULT;
 
-    memcpy(buf, &graphene_uname, sizeof(graphene_uname));
+    memcpy(buf, &g_current_uname, sizeof(g_current_uname));
+    return 0;
+}
+
+long shim_do_sethostname(char* name, int len) {
+    if (len < 0 || (size_t)len >= sizeof(g_current_uname.nodename))
+        return -EINVAL;
+
+    if (test_user_memory(name, len, /*write=*/false))
+        return -EFAULT;
+
+    memcpy(&g_current_uname.nodename, name, len);
+    memset(&g_current_uname.nodename + len, 0, sizeof(g_current_uname.nodename) - len);
+    return 0;
+}
+
+long shim_do_setdomainname(char* name, int len) {
+    if (len < 0 || (size_t)len >= sizeof(g_current_uname.domainname))
+        return -EINVAL;
+
+    if (test_user_memory(name, len, /*write=*/false))
+        return -EFAULT;
+
+    memcpy(&g_current_uname.domainname, name, len);
+    memset(&g_current_uname.domainname + len, 0, sizeof(g_current_uname.domainname) - len);
     return 0;
 }
