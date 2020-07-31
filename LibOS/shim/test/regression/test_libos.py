@@ -601,6 +601,11 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('pselect() on write event returned 1 file descriptors', stdout)
         self.assertIn('pselect() on read event returned 1 file descriptors', stdout)
 
+    def test_060_getsockname(self):
+        stdout, _ = self.run_binary(['getsockname'])
+        self.assertIn('getsockopt: Got socket name with static port OK', stdout)
+        self.assertIn('getsockopt: Got socket name with arbitrary port OK', stdout)
+
     def test_090_pipe(self):
         stdout, _ = self.run_binary(['pipe'], timeout=60)
         self.assertIn('read on pipe: Hello from write end of pipe!', stdout)
