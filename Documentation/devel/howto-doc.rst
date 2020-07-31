@@ -41,15 +41,26 @@ not published.
 Building documentation
 ----------------------
 
-To build documentation, change directory to ``Documentation`` and use ``make``,
-specifying the appropriate target. The output is in the ``_build`` directory:
+To build documentation, change directory to ``Documentation``, install
+prerequisites, and use ``make``, specifying the appropriate target. The output
+is in the ``_build`` directory:
 
 .. code-block:: sh
 
+   # change directory to Documentation
    cd Documentation
+
+   # install prerequisites (use pip3 for Python3)
+   sudo apt-get install doxygen
+   pip install -r requirements.txt
+
+   # build targets "html" and "man"
    make html man
 
+   # example: view html output
    firefox _build/html/index.html
+
+   # example: view man output
    man _build/man/pal_loader.1
 
 Preferred reST style
