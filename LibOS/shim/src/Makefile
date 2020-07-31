@@ -98,6 +98,7 @@ objs = \
 	sys/shim_poll.o \
 	sys/shim_sched.o \
 	sys/shim_semget.o \
+	sys/shim_sethostname.o \
 	sys/shim_setdomainname.o \
 	sys/shim_sigaction.o \
 	sys/shim_sleep.o \

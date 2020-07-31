@@ -610,7 +610,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(swapoff, 1, int, const char*, specialfile)
 
 SHIM_SYSCALL_RETURN_ENOSYS(reboot, 4, int, int, magic1, int, magic2, int, cmd, void*, arg)
 
-SHIM_SYSCALL_RETURN_ENOSYS(sethostname, 2, int, char*, name, int, len)
+DEFINE_SHIM_SYSCALL(sethostname, 2, shim_do_sethostname, long, char*, name, int, len)
 
 DEFINE_SHIM_SYSCALL(setdomainname, 2, shim_do_setdomainname, long, char*, name, int, len)
 
