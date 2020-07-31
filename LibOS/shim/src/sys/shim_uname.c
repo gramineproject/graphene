@@ -12,7 +12,7 @@
 #include "shim_internal.h"
 #include "shim_table.h"
 
-static struct new_utsname graphene_uname = {
+struct new_utsname g_current_uname = {
     .sysname    = "Linux",
     .nodename   = "localhost",
     .release    = "3.10.0",
@@ -25,6 +25,6 @@ int shim_do_uname(struct new_utsname* buf) {
     if (!buf || test_user_memory(buf, sizeof(*buf), /*write=*/true))
         return -EFAULT;
 
-    memcpy(buf, &graphene_uname, sizeof(graphene_uname));
+    memcpy(buf, &g_current_uname, sizeof(g_current_uname));
     return 0;
 }

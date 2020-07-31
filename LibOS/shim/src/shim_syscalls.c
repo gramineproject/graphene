@@ -612,7 +612,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(reboot, 4, int, int, magic1, int, magic2, int, cmd, v
 
 SHIM_SYSCALL_RETURN_ENOSYS(sethostname, 2, int, char*, name, int, len)
 
-SHIM_SYSCALL_RETURN_ENOSYS(setdomainname, 2, int, char*, name, int, len)
+DEFINE_SHIM_SYSCALL(setdomainname, 2, shim_do_setdomainname, long, char*, name, int, len)
 
 #if defined(__i386__) || defined(__x86_64__)
 SHIM_SYSCALL_RETURN_ENOSYS(iopl, 1, int, int, level)
