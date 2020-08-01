@@ -18,7 +18,8 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
-# Environment variables
+# Propagate environment variables from the host. Don't use this on production!
+loader.insecure__use_host_env = 1
 loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR
@@ -72,8 +73,8 @@ sgx.enclave_size = 4G
 # thread for asynchronous events. Therefore, the actual number of threads that
 # the application can create is (sgx.thread_num - 2).
 #
-# We (somewhat arbitrarily) specify 16 threads for this workload.
-sgx.thread_num = 16
+# We (somewhat arbitrarily) specify 128 threads for this workload.
+sgx.thread_num = 128
 
 # SGX trusted libraries
 
@@ -155,3 +156,10 @@ sgx.allowed_files.pythonhome = file:$(HOME)/.local/lib
 sgx.trusted_files.nsswitch     = file:/etc/nsswitch.conf
 sgx.trusted_files.group        = file:/etc/group
 sgx.trusted_files.passwd       = file:/etc/passwd
+
+# Graphene optionally provides patched OpenMP runtime library that runs faster
+# inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment
+# the below lines to use the patched library. PyTorch will run faster.
+
+# loader.env.LD_PRELOAD = /lib/libgomp.so.1
+# sgx.trusted_files.libgomp = file:$(GRAPHENEDIR)/Runtime/libgomp.so.1
