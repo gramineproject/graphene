@@ -1,12 +1,27 @@
 include ../Scripts/Makefile.configs
 include ../Scripts/Makefile.rules
 
+RUNTIME_DIR = $(CURDIR)/../Runtime
+
+define LN_SF_TO_RUNTIME_DIR_template =
+$(RUNTIME_DIR)/$(notdir $(1)): $(1)
+	$$(call cmd,ln_sfr)
+endef
+
+GNU_MIRRORS ?= https://ftp.gnu.org/gnu/ \
+		https://mirrors.kernel.org/gnu/ \
+		https://mirrors.ocf.berkeley.edu/gnu/
+
+# ------------------------------------------------------------------------------------------------
+# Glibc build: patch libc.so and other C standard libraries to replace raw SYSCALL instructions
+# with function calls into Graphene (plus some smaller patches for Graphene). The resulting
+# libraries are symlinked under $RUNTIME_DIR.
+# ------------------------------------------------------------------------------------------------
 GLIBC_VERSION ?= 2.31
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
 GLIBC_CHECKSUM = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
 SHIM_DIR = shim
 BUILD_DIR = glibc-build
-RUNTIME_DIR = $(CURDIR)/../Runtime
 GLIBC_LIBS = \
 	csu/crt1.o \
 	csu/crti.o \
@@ -39,10 +54,6 @@ export GLIBC_CFLAGS
 all: $(GLIBC_TARGET) $(GLIBC_RUNTIME)
 	$(MAKE) -C $(SHIM_DIR) all
 
-.PHONY: format
-format:
-	$(MAKE) -C $(SHIM_DIR) format
-
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
 .SECONDARY: $(BUILD_DIR)/Build.success
@@ -63,16 +74,7 @@ $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
 		--disable-nscd \
 	)
 
-define LN_SF_TO_RUNTIME_DIR_template =
-$(RUNTIME_DIR)/$(notdir $(1)): $(1)
-	$$(call cmd,ln_sfr)
-endef
-
 $(foreach lib,$(GLIBC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib))))
-
-GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
-		https://mirrors.kernel.org/gnu/ \
-		https://mirrors.ocf.berkeley.edu/gnu/
 
 GLIBC_PATCHES = \
 	glibc-patches/$(GLIBC_SRC).patch \
@@ -101,12 +103,12 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
 	for p in $(GLIBC_PATCHES); do \
 		echo applying $$p; \
-		patch -p1 < ../$$p || exit 255; \
+		patch -p1 -l < ../$$p || exit 255; \
 	done
 	touch $@
 
 $(GLIBC_SRC).tar.gz:
-	../Scripts/download --output $@ --sha256 $(GLIBC_CHECKSUM) $(foreach mirror,$(GLIBC_MIRRORS),--url $(mirror)glibc/$(GLIBC_SRC).tar.gz)
+	../Scripts/download --output $@ --sha256 $(GLIBC_CHECKSUM) $(foreach mirror,$(GNU_MIRRORS),--url $(mirror)glibc/$(GLIBC_SRC).tar.gz)
 
 $(GLIBC_SRC)/elf/Versions: $(GLIBC_SRC)/configure
 
@@ -114,9 +116,64 @@ $(GLIBC_SRC)/nptl/Versions: $(GLIBC_SRC)/configure
 
 $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 
+# ------------------------------------------------------------------------------------------------
+# GCC build: patch libgomp.so.1 (OpenMP runtime library) to replace raw SYSCALL instruction with
+# function call into Graphene. GCC is not built by default with Graphene; use `make -C LibOS gcc`
+# to build it. The resulting libgomp.so.1 is symlinked under $RUNTIME_DIR. This patched version
+# makes sense only on x86_64 platforms.
+# ------------------------------------------------------------------------------------------------
+GCC_VERSION ?= 10.2.0
+GCC_SRC = gcc-$(GCC_VERSION)
+GCC_CHECKSUM = $(firstword $(shell grep $(GCC_SRC).tar.gz gcc-checksums))
+GCC_BUILD_DIR = gcc-build
+GCC_LIBS = x86_64-pc-linux-gnu/libgomp/.libs/libgomp.so.1
+GCC_TARGET = $(addprefix $(GCC_BUILD_DIR)/, $(GCC_LIBS))
+GCC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GCC_TARGET)))
+
+.SECONDARY: $(GCC_BUILD_DIR)/Build.success
+
+$(GCC_BUILD_DIR)/Build.success: $(GCC_BUILD_DIR)/Makefile
+	@echo "Building gcc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(GCC_BUILD_DIR)/gcc-build.log\" for more information."
+	($(MAKE) -C $(GCC_BUILD_DIR) 2>&1 > gcc-build.log) && touch $@
+
+$(GCC_TARGET): $(GCC_BUILD_DIR)/Build.success
+
+$(GCC_BUILD_DIR)/Makefile: $(GCC_SRC)/configure
+	mkdir -p $(GCC_BUILD_DIR)
+	(cd $(GCC_BUILD_DIR) || exit 1; \
+	../$< --prefix=$(RUNTIME_DIR) \
+		--enable-languages=c \
+		--disable-multilib \
+	)
+
+$(foreach lib,$(GCC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib))))
+
+GCC_PATCHES = \
+	gcc-patches/libgomp-replace-futex-instruction.patch
+
+$(GCC_SRC)/configure: $(GCC_PATCHES) $(GCC_SRC).tar.gz
+	$(RM) -r $(GCC_SRC)
+	tar -xzf $(GCC_SRC).tar.gz
+	cd $(GCC_SRC) && \
+	for p in $(GCC_PATCHES); do \
+		echo applying $$p; \
+		patch -p1 -l < ../$$p || exit 255; \
+	done
+	cd $(GCC_SRC) && ./contrib/download_prerequisites
+	touch $@
+
+$(GCC_SRC).tar.gz:
+	../Scripts/download --output $@ --sha256 $(GCC_CHECKSUM) $(foreach mirror,$(GNU_MIRRORS),--url $(mirror)gcc/$(GCC_SRC)/$(GCC_SRC).tar.gz)
+
+.PHONY: gcc
+gcc: $(GCC_TARGET) $(GCC_RUNTIME)
+
+# ------------------------------------------------------------------------------------------------
+# Common targets
+# ------------------------------------------------------------------------------------------------
 .PHONY: clean_
 clean_:
-	$(RM) -r $(BUILD_DIR) $(GLIBC_SRC) build.log
+	$(RM) -r $(BUILD_DIR) $(GLIBC_SRC) $(GCC_BUILD_DIR) $(GCC_SRC) build.log gcc-build.log
 
 .PHONY: clean
 clean: clean_
@@ -125,19 +182,26 @@ clean: clean_
 .PHONY: distclean
 distclean: clean_
 	$(MAKE) -C $(SHIM_DIR) distclean
-	$(RM) $(GLIBC_SRC).tar.gz
+	$(RM) $(GLIBC_SRC).tar.gz $(GCC_SRC).tar.gz
 
 else
 .IGNORE: $(GLIBC_TARGET)
 $(GLIBC_TARGET):
 
+.IGNORE: $(GCC_TARGET)
+$(GCC_TARGET):
+
 .PHONY: clean
 clean:
-	$(RM) -r $(BUILD_DIR)
+	$(RM) -r $(BUILD_DIR) $(GCC_BUILD_DIR)
 
 .PHONY: distclean
 distclean: clean
 endif
+
+.PHONY: format
+format:
+	$(MAKE) -C $(SHIM_DIR) format
 
 .PHONY: test
 test:
