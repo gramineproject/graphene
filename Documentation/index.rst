@@ -75,6 +75,12 @@ Table of Contents
    howto-doc
 
 .. toctree::
+   :caption: Tutorials
+   :maxdepth: 2
+
+   tutorial/ppml/index.md
+
+.. toctree::
    :caption: Manual pages
    :maxdepth: 1
    :glob:
