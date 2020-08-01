@@ -2,3 +2,8 @@
 /glibc-*.*/
 /glibc-build/
 /build.log
+
+/gcc-*.tar.gz
+/gcc-*.*.*/
+/gcc-build/
+/gcc-build.log
