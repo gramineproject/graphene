@@ -53,6 +53,12 @@ Table of Contents
    glossary
 
 .. toctree::
+   :caption: Tutorials
+   :maxdepth: 2
+
+   tutorials/pytorch/index.rst
+
+.. toctree::
    :caption: Manual pages
    :maxdepth: 1
    :glob:

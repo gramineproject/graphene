@@ -19,7 +19,8 @@ With high probability (41%) the classifier detected the image to contain a Labra
 The following steps should suffice to run the workload on a stock Ubuntu 16.04 and 18.04
 installation.
 
-- `sudo apt-get install python3-pip lsb-release` to install `pip` and `lsb_release`. The former is
+- `sudo apt install libnss-mdns libnss-myhostname` to install additional DNS-resolver libraries.
+- `sudo apt install python3-pip lsb-release` to install `pip` and `lsb_release`. The former is
   required to install additional Python packages while the latter is used by the Makefile.
 - `pip3 install --user torchvision pillow` to install the torchvision and pillow Python packages and
   their dependencies (usually in $HOME/.local). WARNING: This downloads several hundred megabytes of

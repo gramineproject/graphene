@@ -20,6 +20,8 @@ loader.insecure__use_cmdline_argv = 1
 
 # Propagate environment variables from the host. Don't use this on production!
 loader.insecure__use_host_env = 1
+
+# Overwrite some environment variables
 loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR
@@ -86,6 +88,7 @@ sgx.trusted_files.libpthread  = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 sgx.trusted_files.libresolv   = file:$(GRAPHENEDIR)/Runtime/libresolv.so.2
 sgx.trusted_files.librt       = file:$(GRAPHENEDIR)/Runtime/librt.so.1
 sgx.trusted_files.libutil     = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
+sgx.trusted_files.libnssdns   = file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2
 
 sgx.trusted_files.libstdc     = file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6
 sgx.trusted_files.libgccs     = file:$(ARCH_LIBDIR)/libgcc_s.so.1
@@ -108,10 +111,12 @@ sgx.trusted_files.libmpdec    = file:/usr/$(ARCH_LIBDIR)/libmpdec.so.2
 # Ubuntu18.04 sgx.trusted_files.libssl    = file:/usr/$(ARCH_LIBDIR)/libssl.so.1.1
 
 # Name Service Switch (NSS) libraries (Glibc dependencies)
-sgx.trusted_files.libnssfiles  = file:$(ARCH_LIBDIR)/libnss_files.so.2
-sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
-sgx.trusted_files.libnssnis    = file:$(ARCH_LIBDIR)/libnss_nis.so.2
-sgx.trusted_files.libnsl       = file:$(ARCH_LIBDIR)/libnsl.so.1
+sgx.trusted_files.libnssfiles      = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnsscompat     = file:$(ARCH_LIBDIR)/libnss_compat.so.2
+sgx.trusted_files.libnssnis        = file:$(ARCH_LIBDIR)/libnss_nis.so.2
+sgx.trusted_files.libnsl           = file:$(ARCH_LIBDIR)/libnsl.so.1
+sgx.trusted_files.libnssmyhostname = file:$(ARCH_LIBDIR)/libnss_myhostname.so.2
+sgx.trusted_files.libnssmdns       = file:$(ARCH_LIBDIR)/libnss_mdns4_minimal.so.2
 
 # The script to run
 sgx.trusted_files.script  = file:pytorchexample.py
@@ -146,16 +151,24 @@ sgx.allowed_files.python3    = file:/usr/lib/python3
 sgx.allowed_files.pythonhome = file:$(HOME)/.local/lib
 # Ubuntu16.04 sgx.allowed_files.python35 = file:/usr/lib/python3.5
 # Ubuntu18.04 sgx.allowed_files.python36 = file:/usr/lib/python3.6
+# Ubuntu16.04 sgx.allowed_files.python35local = file:/usr/local/lib/python3.5
+# Ubuntu18.04 sgx.allowed_files.python36local = file:/usr/local/lib/python3.6
 
-# Some Python package wants to access these files on Ubuntu 16.04
-# Ubuntu16.04 sgx.allowed_files.aptconfd = file:/etc/apt/apt.conf.d
-# Ubuntu16.04 sgx.allowed_files.aptconf  = file:/etc/apt/apt.conf
-# Ubuntu16.04 sgx.allowed_files.apport   = file:/etc/default/apport
+# APT config files
+sgx.allowed_files.aptconfd = file:/etc/apt/apt.conf.d
+sgx.allowed_files.aptconf  = file:/etc/apt/apt.conf
+sgx.allowed_files.apport   = file:/etc/default/apport
 
 # Name Service Switch (NSS) files (Glibc reads these files)
-sgx.trusted_files.nsswitch     = file:/etc/nsswitch.conf
-sgx.trusted_files.group        = file:/etc/group
-sgx.trusted_files.passwd       = file:/etc/passwd
+sgx.allowed_files.nsswitch = file:/etc/nsswitch.conf
+sgx.allowed_files.group    = file:/etc/group
+sgx.allowed_files.passwd   = file:/etc/passwd
+
+# DNS hostname resolution files (Glibc reads these files)
+sgx.allowed_files.hostconf = file:/etc/host.conf
+sgx.allowed_files.hosts    = file:/etc/hosts
+sgx.allowed_files.gaiconf  = file:/etc/gai.conf
+sgx.allowed_files.resolv   = file:/etc/resolv.conf
 
 # Graphene optionally provides patched OpenMP runtime library that runs faster
 # inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment
