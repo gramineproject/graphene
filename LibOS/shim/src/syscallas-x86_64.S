@@ -126,11 +126,11 @@ syscall_wrapper:
         .cfi_register %rip, %rcx
         # %r11 is used as input to keep %rflags
         .cfi_register %rflags, %r11
-        subq $RED_ZONE_SIZE, %rsp
+        addq $-RED_ZONE_SIZE, %rsp
         .cfi_adjust_cfa_offset RED_ZONE_SIZE
         callq *syscalldb@GOTPCREL(%rip)
 syscall_wrapper_after_syscalldb:
-        addq $RED_ZONE_SIZE, %rsp
+        subq $-RED_ZONE_SIZE, %rsp
         .cfi_adjust_cfa_offset -RED_ZONE_SIZE
         # restore %rflags for syscall abi compatibility.
         # This must be done after "addq $RED_ZONE_SIZE, %rsp" above
