@@ -1,0 +1,49 @@
+diff --git a/libgomp/config/linux/x86/futex.h b/libgomp/config/linux/x86/futex.h
+index ead74d1496736a49694ef6b9b2b4da50f9852664..3c82859ad8b82a09ec95f720727937ee5a2863c1 100644
+--- a/libgomp/config/linux/x86/futex.h
++++ b/libgomp/config/linux/x86/futex.h
+@@ -30,13 +30,16 @@
+ #  define SYS_futex	202
+ # endif
+ 
++asm (".weak syscalldb\r\n"
++     ".type syscalldb, @function\r\n");
++
+ static inline void
+ futex_wait (int *addr, int val)
+ {
+   long res;
+ 
+   register long r10 __asm__("%r10") = 0;
+-  __asm volatile ("syscall"
++  __asm volatile ("subq $128, %%rsp; callq *syscalldb@GOTPCREL(%%rip); addq $128, %%rsp;"
+ 		  : "=a" (res)
+ 		  : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wait),
+ 		    "d" (val), "r" (r10)
+@@ -45,7 +48,7 @@ futex_wait (int *addr, int val)
+     {
+       gomp_futex_wait &= ~FUTEX_PRIVATE_FLAG;
+       gomp_futex_wake &= ~FUTEX_PRIVATE_FLAG;
+-      __asm volatile ("syscall"
++      __asm volatile ("subq $128, %%rsp; callq *syscalldb@GOTPCREL(%%rip); addq $128, %%rsp;"
+ 		      : "=a" (res)
+ 		      : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wait),
+ 			"d" (val), "r" (r10)
+@@ -58,7 +61,7 @@ futex_wake (int *addr, int count)
+ {
+   long res;
+ 
+-  __asm volatile ("syscall"
++  __asm volatile ("subq $128, %%rsp; callq *syscalldb@GOTPCREL(%%rip); addq $128, %%rsp;"
+ 		  : "=a" (res)
+ 		  : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wake),
+ 		    "d" (count)
+@@ -67,7 +70,7 @@ futex_wake (int *addr, int count)
+     {
+       gomp_futex_wait &= ~FUTEX_PRIVATE_FLAG;
+       gomp_futex_wake &= ~FUTEX_PRIVATE_FLAG;
+-      __asm volatile ("syscall"
++      __asm volatile ("subq $128, %%rsp; callq *syscalldb@GOTPCREL(%%rip); addq $128, %%rsp;"
+ 		      : "=a" (res)
+ 		      : "0" (SYS_futex), "D" (addr), "S" (gomp_futex_wake),
+ 			"d" (count)
