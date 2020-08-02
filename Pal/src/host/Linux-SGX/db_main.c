@@ -237,12 +237,12 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
 
     /* At this point we don't yet have memory manager, so we cannot allocate memory dynamically. */
     static char enclave_path[1024 + 1];
-    if (sizeof(enclave_path) <= enclave_uri_len
+    if (enclave_uri_len >= sizeof(enclave_path)
             || !sgx_copy_to_enclave(enclave_path, sizeof(enclave_path) - 1, uptr_enclave_uri,
                                     enclave_uri_len)) {
         return;
     }
-    enclave_path[sizeof(enclave_path) - 1] = '\0';
+    enclave_path[enclave_uri_len] = '\0';
 
     /* relocate PAL itself */
     g_pal_map.l_addr = elf_machine_load_address();

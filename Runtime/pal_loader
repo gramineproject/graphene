@@ -60,7 +60,7 @@ if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
 	fi
 	if [ -v SGX ]; then
 		PREFIX+=("-iex")
-		PREFIX+=("dir $RUNTIME_DIR/../Pal/src/host/Linux-SGX/debugger")
+		PREFIX+=("dir $RUNTIME_DIR/../Pal/src/host/Linux-SGX")
 	else
 		PREFIX+=("-iex")
 		PREFIX+=("dir $RUNTIME_DIR/../Pal/src/host/Linux")

@@ -2,6 +2,8 @@
 #include "linux_utils.h"
 #include "sysdep-arch.h"
 
+/* In theory we could get symlink length using `lstat`, but that does not work on `/proc/self/exe`
+ * (because it's not really a symlink). */
 #define BUF_SIZE 1023u
 
 char* get_main_exec_path(void) {

@@ -1178,12 +1178,11 @@ out:
     return ret;
 
 usage:;
-    const char* self = argv[0] ? argv[0] : "<this program>";
-    const char* libpal = g_libpal_path ?: "<path to libpal.so>";
+    const char* self = argv[0] ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s %s init [<executable>|<manifest>] args...\n"
-           "\tChildren:      %s %s child <parent_pipe_fd> args...\n",
-           self, libpal, self, libpal);
+           "\tFirst process: %s <path to libpal.so> init [<executable>|<manifest>] args...\n"
+           "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
+           self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
     ret = 1;
     goto out;

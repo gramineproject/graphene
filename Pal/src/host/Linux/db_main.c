@@ -9,8 +9,8 @@
  */
 
 #include "api.h"
-#include "pal.h"
 #include "linux_utils.h"
+#include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
@@ -39,6 +39,8 @@ __asm__ (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
 #endif
 
 char* g_pal_loader_path = NULL;
+/* Currently content of this variable is only passed as an argument while spawning new processes
+ * - this is to keep uniformity with other PALS. */
 char* g_libpal_path = NULL;
 
 struct pal_linux_state g_linux_state;
@@ -158,12 +160,11 @@ static struct link_map g_pal_map;
 #include "elf-arch.h"
 
 noreturn static void print_usage_and_exit(const char* argv_0) {
-    const char* self = argv_0 ? argv_0 : "<this program>";
-    const char* libpal = g_libpal_path ?: "<path to libpal.so>";
+    const char* self = argv_0 ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s %s init [<executable>|<manifest>] args...\n"
-           "\tChildren:      %s %s child <parent_pipe_fd> args...\n",
-           self, libpal, self, libpal);
+           "\tFirst process: %s <path to libpal.so> init [<executable>|<manifest>] args...\n"
+           "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
+           self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
     _DkProcessExit(1);
 }

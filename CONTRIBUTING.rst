@@ -179,7 +179,8 @@ One can run tests manually::
 
    PYTHONPATH=path/to/graphene/Scripts
    PAL_LOADER=path/to/pal-Linux
-   export PYTHONPATH PAL_LOADER
+   LIBPAL_PATH=path/to/libpal-Linux.so
+   export PYTHONPATH PAL_LOADER LIBPAL_PATH
    python3 -m pytest -v -rs test_pal.py
 
 It is also possible to run subset of tests::
