@@ -11,8 +11,8 @@ struct pal_sec;
 struct rpc_queue;
 
 typedef struct {
-    char*             ms_enclave_uri;
-    size_t            ms_enclave_uri_len;
+    char*             ms_libpal_uri;
+    size_t            ms_libpal_uri_len;
     char*             ms_args;
     size_t            ms_args_size;
     char*             ms_env;

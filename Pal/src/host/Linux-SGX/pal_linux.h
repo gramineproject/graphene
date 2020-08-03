@@ -63,7 +63,7 @@ int init_child_process(PAL_HANDLE* parent);
 #ifdef IN_ENCLAVE
 
 struct pal_sec;
-noreturn void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len,
+noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len,
                              char* uptr_args, size_t args_size,
                              char* uptr_env, size_t env_size,
                              struct pal_sec* uptr_sec_info);

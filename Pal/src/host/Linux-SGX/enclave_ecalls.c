@@ -99,7 +99,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         init_xsave_size(READ_ONCE(READ_ONCE(ms->ms_sec_info)->enclave_attributes.xfrm));
 
         /* pal_linux_main is responsible to check the passed arguments */
-        pal_linux_main(READ_ONCE(ms->ms_enclave_uri), READ_ONCE(ms->ms_enclave_uri_len),
+        pal_linux_main(READ_ONCE(ms->ms_libpal_uri), READ_ONCE(ms->ms_libpal_uri_len),
                        READ_ONCE(ms->ms_args), READ_ONCE(ms->ms_args_size),
                        READ_ONCE(ms->ms_env), READ_ONCE(ms->ms_env_size),
                        READ_ONCE(ms->ms_sec_info));

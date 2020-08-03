@@ -819,7 +819,7 @@ static int start_rpc(size_t num_of_threads) {
 }
 
 
-int ecall_enclave_start(char* enclave_uri, char* args, size_t args_size, char* env,
+int ecall_enclave_start(char* libpal_uri, char* args, size_t args_size, char* env,
                         size_t env_size) {
     g_rpc_queue = NULL;
 
@@ -833,8 +833,8 @@ int ecall_enclave_start(char* enclave_uri, char* args, size_t args_size, char* e
     }
 
     ms_ecall_enclave_start_t ms;
-    ms.ms_enclave_uri = enclave_uri;
-    ms.ms_enclave_uri_len = strlen(ms.ms_enclave_uri);
+    ms.ms_libpal_uri = libpal_uri;
+    ms.ms_libpal_uri_len = strlen(ms.ms_libpal_uri);
     ms.ms_args = args;
     ms.ms_args_size = args_size;
     ms.ms_env = env;

@@ -181,7 +181,7 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
-noreturn void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_args,
+noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char* uptr_args,
                              uint64_t args_size, char* uptr_env, uint64_t env_size,
                              struct pal_sec* uptr_sec_info) {
     /*
@@ -231,26 +231,26 @@ noreturn void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, cha
     }
 
     /* Skip URI_PREFIX_FILE. */
-    if (enclave_uri_len < URI_PREFIX_FILE_LEN) {
-        SGX_DBG(DBG_E, "Invalid enclave_uri length (missing \"%s\" prefix?))\n", URI_PREFIX_FILE);
+    if (libpal_uri_len < URI_PREFIX_FILE_LEN) {
+        SGX_DBG(DBG_E, "Invalid libpal_uri length (missing \"%s\" prefix?))\n", URI_PREFIX_FILE);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-    enclave_uri_len -= URI_PREFIX_FILE_LEN;
-    uptr_enclave_uri += URI_PREFIX_FILE_LEN;
+    libpal_uri_len -= URI_PREFIX_FILE_LEN;
+    uptr_libpal_uri += URI_PREFIX_FILE_LEN;
 
     /* At this point we don't yet have memory manager, so we cannot allocate memory dynamically. */
-    static char enclave_path[1024 + 1];
-    if (enclave_uri_len >= sizeof(enclave_path)
-            || !sgx_copy_to_enclave(enclave_path, sizeof(enclave_path) - 1, uptr_enclave_uri,
-                                    enclave_uri_len)) {
-        SGX_DBG(DBG_E, "Copying enclave_path into the enclave failed\n");
+    static char libpal_path[1024 + 1];
+    if (libpal_uri_len >= sizeof(libpal_path)
+            || !sgx_copy_to_enclave(libpal_path, sizeof(libpal_path) - 1, uptr_libpal_uri,
+                                    libpal_uri_len)) {
+        SGX_DBG(DBG_E, "Copying libpal_path into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-    enclave_path[enclave_uri_len] = '\0';
+    libpal_path[libpal_uri_len] = '\0';
 
     /* relocate PAL itself */
     g_pal_map.l_addr = elf_machine_load_address();
-    g_pal_map.l_name = enclave_path;
+    g_pal_map.l_name = libpal_path;
     elf_get_dynamic_info((void*)g_pal_map.l_addr + elf_machine_dynamic(), g_pal_map.l_info,
                          g_pal_map.l_addr);
 

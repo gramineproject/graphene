@@ -251,10 +251,10 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     /* this array may overflow the stack, so we allocate it in BSS */
     static void* tcs_addrs[MAX_DBG_THREADS];
 
-    enclave_image = INLINE_SYSCALL(open, 3, enclave->enclave_uri + URI_PREFIX_FILE_LEN, O_RDONLY,
+    enclave_image = INLINE_SYSCALL(open, 3, enclave->libpal_uri + URI_PREFIX_FILE_LEN, O_RDONLY,
                                    0);
     if (IS_ERR(enclave_image)) {
-        SGX_DBG(DBG_E, "Cannot find enclave image: %s\n", enclave->enclave_uri);
+        SGX_DBG(DBG_E, "Cannot find enclave image: %s\n", enclave->libpal_uri);
         ret = -ERRNO(enclave_image);
         goto out;
     }
@@ -431,7 +431,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
 
     ret = scan_enclave_binary(enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Scanning Pal binary (%s) failed: %d\n", enclave->enclave_uri, -ret);
+        SGX_DBG(DBG_E, "Scanning Pal binary (%s) failed: %d\n", enclave->libpal_uri, -ret);
         goto out;
     }
 
@@ -818,28 +818,19 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return -EINVAL;
     }
 
+    enclave->libpal_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, g_libpal_path, -1);
+    if (!enclave->libpal_uri) {
+        SGX_DBG(DBG_E, "Out of memory for enclave->libpal_uri\n");
+        return -ENOMEM;
+    }
+
+    if (enclave->libpal_uri[URI_PREFIX_FILE_LEN] != '/') {
+        SGX_DBG(DBG_E, "Path to in-enclave PAL (%s) must be absolute\n", enclave->libpal_uri);
+        return -EINVAL;
+    }
+
     char cfgbuf[CONFIG_MAX];
     const char* errstring = "out of memory";
-
-    enclave->enclave_uri = NULL;
-    if (get_config(enclave->config, "sgx.enclave_pal_file", cfgbuf, sizeof(cfgbuf)) > 0) {
-        enclave->enclave_uri = resolve_uri(cfgbuf, &errstring);
-    } else {
-        enclave->enclave_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, g_libpal_path,
-                                            -1);
-    }
-
-    if (!enclave->enclave_uri) {
-        SGX_DBG(DBG_E,
-                "Cannot open in-enclave PAL: %s (incorrect sgx.enclave_pal_file in manifest?)\n",
-                errstring);
-        return -EINVAL;
-    }
-
-    if (enclave->enclave_uri[URI_PREFIX_FILE_LEN] != '/') {
-        SGX_DBG(DBG_E, "Path to in-enclave PAL (%s) must be absolute\n", enclave->enclave_uri);
-        return -EINVAL;
-    }
 
     // A manifest can specify an executable with a different base name
     // than the manifest itself.  Always give the exec field of the manifest
@@ -977,7 +968,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return ret;
 
     /* start running trusted PAL */
-    ecall_enclave_start(enclave->enclave_uri, args, args_size, env, env_size);
+    ecall_enclave_start(enclave->libpal_uri, args, args_size, env, env_size);
 
     unmap_tcs();
     INLINE_SYSCALL(munmap, 2, alt_stack, ALT_STACK_SIZE);
