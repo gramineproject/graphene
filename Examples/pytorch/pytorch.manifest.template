@@ -159,7 +159,8 @@ sgx.trusted_files.passwd       = file:/etc/passwd
 
 # Graphene optionally provides patched OpenMP runtime library that runs faster
 # inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment
-# the below lines to use the patched library. PyTorch will run faster.
+# the below lines to use the patched library. PyTorch's SGX perf overhead
+# decreases on some workloads from 25% to 8% with this patched library.
 
 # loader.env.LD_PRELOAD = /lib/libgomp.so.1
 # sgx.trusted_files.libgomp = file:$(GRAPHENEDIR)/Runtime/libgomp.so.1
