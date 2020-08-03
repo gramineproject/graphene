@@ -68,6 +68,7 @@ second command should list the process status of :command:`aesm_service`.
       cd $GRAPHENE_DIR
       make SGX=1
       # the console will prompt you for the path to the Intel SGX driver code
+      # (simply press ENTER if you use the in-kernel Intel SGX driver)
 
 #. Set ``vm.mmap_min_addr=0`` in the system::
 
