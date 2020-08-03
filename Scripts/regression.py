@@ -15,6 +15,7 @@ def expectedFailureIf(predicate):
 
 class RegressionTestCase(unittest.TestCase):
     LOADER_ENV = 'PAL_LOADER'
+    LIBPAL_PATH_ENV = 'LIBPAL_PATH'
     DEFAULT_TIMEOUT = (20 if HAS_SGX else 10)
 
     def get_manifest(self, filename):
@@ -33,7 +34,15 @@ class RegressionTestCase(unittest.TestCase):
         if not pathlib.Path(loader).exists():
             self.skipTest('loader ({}) not found'.format(loader))
 
-        with subprocess.Popen([loader, 'init', *args],
+        try:
+            libpal = os.environ[self.LIBPAL_PATH_ENV]
+        except KeyError:
+            self.fail('environment variable {} unset'.format(self.LIBPAL_PATH_ENV))
+
+        if not pathlib.Path(libpal).exists():
+            self.skipTest('libpal ({}) not found'.format(libpal))
+
+        with subprocess.Popen([loader, libpal, 'init', *args],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 preexec_fn=os.setpgrp,
                 **kwds) as process:

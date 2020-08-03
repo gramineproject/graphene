@@ -25,11 +25,12 @@ ASFLAGS += \
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py
 
-defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
+defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
-commons_objs = bogomips.o
+commons_objs_encl = bogomips.o
+commons_objs_urts = main_exec_path.o
 
 enclave-objs = \
 	db_devices.o \
@@ -59,7 +60,7 @@ enclave-objs = \
 	enclave_xstate.o \
 	protected-files/lru_cache.o \
 	protected-files/protected_files.o \
-	$(commons_objs)
+	$(commons_objs_encl)
 
 enclave-asm-objs = enclave_entry.o
 
@@ -74,7 +75,8 @@ urts-objs = \
 	sgx_process.o \
 	sgx_rtld.o \
 	sgx_thread.o \
-	quote/aesm.pb-c.o
+	quote/aesm.pb-c.o \
+	$(commons_objs_urts)
 
 urts-asm-objs = sgx_entry.o
 
@@ -94,7 +96,7 @@ $(patsubst %.o,%.s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 
 $(urts-objs): quote/aesm.pb-c.h
 
-$(commons_objs): %.o: ../Linux-common/%.c
+$(commons_objs_encl) $(commons_objs_urts): %.o: ../Linux-common/%.c
 	$(call cmd,cc_o_c)
 
 %.o: %.c

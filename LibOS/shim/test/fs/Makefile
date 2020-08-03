@@ -53,6 +53,7 @@ $(execs)
 endif
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
+export LIBPAL_PATH = $(RUNTIME)/libpal-$(PAL_HOST).so
 export PYTHONPATH = ../../../../Scripts
 
 .PHONY: fs-test

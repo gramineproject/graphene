@@ -4,6 +4,7 @@
 #include <hex.h>
 
 #include "debugger/sgx_gdb.h"
+#include "linux_utils.h"
 #include "rpc_queue.h"
 #include "sgx_api.h"
 #include "sgx_enclave.h"
@@ -22,6 +23,9 @@
 #include <sysdeps/generic/ldsodefs.h>
 
 size_t g_page_size = PRESET_PAGESIZE;
+
+char* g_pal_loader_path = NULL;
+char* g_libpal_path = NULL;
 
 struct pal_enclave g_pal_enclave;
 
@@ -236,7 +240,6 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
 static int initialize_enclave(struct pal_enclave* enclave) {
     int ret = 0;
     int                    enclave_image = -1;
-    char*                  enclave_uri = NULL;
     sgx_arch_token_t       enclave_token;
     sgx_arch_enclave_css_t enclave_sigstruct;
     sgx_arch_secs_t        enclave_secs;
@@ -248,30 +251,15 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     /* this array may overflow the stack, so we allocate it in BSS */
     static void* tcs_addrs[MAX_DBG_THREADS];
 
-    char cfgbuf[CONFIG_MAX];
-    const char* errstring = "out of memory";
-
-    /* Use sgx.enclave_pal_file from manifest if exists */
-    if (get_config(enclave->config, "sgx.enclave_pal_file", cfgbuf, sizeof(cfgbuf)) > 0) {
-        enclave_uri = resolve_uri(cfgbuf, &errstring);
-    } else {
-        enclave_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, ENCLAVE_PAL_FILENAME, -1);
-    }
-
-    if (!enclave_uri) {
-        SGX_DBG(DBG_E,
-                "Cannot open in-enclave PAL: %s (incorrect sgx.enclave_pal_file in manifest?)\n",
-                errstring);
-        ret = -EINVAL;
-        goto out;
-    }
-
-    enclave_image = INLINE_SYSCALL(open, 3, enclave_uri + URI_PREFIX_FILE_LEN, O_RDONLY, 0);
+    enclave_image = INLINE_SYSCALL(open, 3, enclave->libpal_uri + URI_PREFIX_FILE_LEN, O_RDONLY,
+                                   0);
     if (IS_ERR(enclave_image)) {
-        SGX_DBG(DBG_E, "Cannot find enclave image: %s\n", enclave_uri);
+        SGX_DBG(DBG_E, "Cannot find enclave image: %s\n", enclave->libpal_uri);
         ret = -ERRNO(enclave_image);
         goto out;
     }
+
+    char cfgbuf[CONFIG_MAX];
 
     /* Reading sgx.enclave_size from manifest */
     if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, sizeof(cfgbuf)) <= 0) {
@@ -443,7 +431,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
 
     ret = scan_enclave_binary(enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Scanning Pal binary (%s) failed: %d\n", enclave_uri, -ret);
+        SGX_DBG(DBG_E, "Scanning Pal binary (%s) failed: %d\n", enclave->libpal_uri, -ret);
         goto out;
     }
 
@@ -670,7 +658,6 @@ out:
         INLINE_SYSCALL(close, 1, enclave_image);
     if (enclave_mem >= 0)
         INLINE_SYSCALL(close, 1, enclave_mem);
-    free(enclave_uri);
 
     return ret;
 }
@@ -831,8 +818,19 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return -EINVAL;
     }
 
+    enclave->libpal_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, g_libpal_path, -1);
+    if (!enclave->libpal_uri) {
+        SGX_DBG(DBG_E, "Out of memory for enclave->libpal_uri\n");
+        return -ENOMEM;
+    }
+
+    if (enclave->libpal_uri[URI_PREFIX_FILE_LEN] != '/') {
+        SGX_DBG(DBG_E, "Path to in-enclave PAL (%s) must be absolute\n", enclave->libpal_uri);
+        return -EINVAL;
+    }
+
     char cfgbuf[CONFIG_MAX];
-    const char * errstring;
+    const char* errstring = "out of memory";
 
     // A manifest can specify an executable with a different base name
     // than the manifest itself.  Always give the exec field of the manifest
@@ -902,7 +900,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
                                     O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->token)) {
         SGX_DBG(DBG_E, "Cannot open token \'%s\'. Use \'"
-                PAL_FILE("host/Linux-SGX/signer/pal-sgx-get-token")
+                "Pal/src/host/Linux-SGX/signer/pal-sgx-get-token"
                 "\' on the runtime host or run \'make SGX=1 sgx-tokens\' in the Graphene source to "
                 "create the token file.\n",
                 token_uri);
@@ -970,7 +968,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return ret;
 
     /* start running trusted PAL */
-    ecall_enclave_start(args, args_size, env, env_size);
+    ecall_enclave_start(enclave->libpal_uri, args, args_size, env, env_size);
 
     unmap_tcs();
     INLINE_SYSCALL(munmap, 2, alt_stack, ALT_STACK_SIZE);
@@ -1004,31 +1002,39 @@ int main(int argc, char* argv[], char* envp[]) {
 
     force_linux_to_grow_stack();
 
-    if (argc < 3)
+    if (argc < 4)
         goto usage;
+
+    g_pal_loader_path = get_main_exec_path();
+    if (!g_pal_loader_path) {
+        ret = -ENOMEM;
+        goto out;
+    }
 
     /* check whether host kernel supports FSGSBASE feature, otherwise we need the GSGX driver */
     if (getauxval(AT_HWCAP2) & 0x2) {
         need_gsgx = false;
     }
 
+    g_libpal_path = strdup(argv[1]);
+    if (!g_libpal_path) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
     // Are we the first in this Graphene's namespace?
-    bool first_process = !strcmp_static(argv[1], "init");
-    if (!first_process && strcmp_static(argv[1], "child")) {
+    bool first_process = !strcmp_static(argv[2], "init");
+    if (!first_process && strcmp_static(argv[2], "child")) {
         goto usage;
     }
 
     if (first_process) {
         /* We're the first process created. */
-        if (argc < 3) {
-            goto usage;
-        }
-
-        exec_uri = alloc_concat(URI_PREFIX_FILE, -1, argv[2], -1);
+        exec_uri = alloc_concat(URI_PREFIX_FILE, -1, argv[3], -1);
     } else {
         /* We're one of the children spawned to host new processes started inside Graphene.
          * We'll receive our argv and config via IPC. */
-        int parent_pipe_fd = atoi(argv[2]);
+        int parent_pipe_fd = atoi(argv[3]);
         ret = sgx_init_child_process(parent_pipe_fd, &g_pal_enclave.pal_sec);
         if (ret < 0)
             goto out;
@@ -1131,11 +1137,11 @@ int main(int argc, char* argv[], char* envp[]) {
     char* args;
     size_t args_size;
     if (first_process) {
-        args = argv[2];
-        args_size = argc > 2 ? (argv[argc - 1] - args) + strlen(argv[argc - 1]) + 1 : 0;
-    } else {
         args = argv[3];
         args_size = argc > 3 ? (argv[argc - 1] - args) + strlen(argv[argc - 1]) + 1 : 0;
+    } else {
+        args = argv[4];
+        args_size = argc > 4 ? (argv[argc - 1] - args) + strlen(argv[argc - 1]) + 1 : 0;
     }
 
     int envc = 0;
@@ -1163,10 +1169,10 @@ out:
     return ret;
 
 usage:;
-    const char* self = argv[0] ? argv[0] : "<this program>";
+    const char* self = argv[0] ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s init [<executable>|<manifest>] args...\n"
-           "\tChildren:      %s child <parent_pipe_fd> args...\n",
+           "\tFirst process: %s <path to libpal.so> init [<executable>|<manifest>] args...\n"
+           "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
            self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
     ret = 1;

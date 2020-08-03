@@ -22,7 +22,8 @@
 #include <asm/errno.h>
 #include <linux/fs.h>
 
-#define PAL_LOADER RUNTIME_FILE("pal-Linux-SGX")
+extern char* g_pal_loader_path;
+extern char* g_libpal_path;
 
 struct proc_args {
     PAL_SEC_STR     exec_name;
@@ -52,7 +53,7 @@ static int __attribute_noinline vfork_exec(int parent_stream, const char** argv)
     INLINE_SYSCALL(close, 1, parent_stream);
 
     extern char** environ;
-    ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
+    ret = INLINE_SYSCALL(execve, 3, g_pal_loader_path, argv, environ);
 
     /* shouldn't get to here */
     SGX_DBG(DBG_E, "unexpected failure of execve\n");
@@ -71,14 +72,15 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
     if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds))))
         goto out;
 
-    const char** argv = __alloca(sizeof(const char*) * (nargs + 4));
-    argv[0] = PAL_LOADER;
-    argv[1] = "child";
+    const char** argv = __alloca(sizeof(const char*) * (nargs + 5));
+    argv[0] = g_pal_loader_path;
+    argv[1] = g_libpal_path;
+    argv[2] = "child";
     char parent_fd_str[16];
     snprintf(parent_fd_str, sizeof(parent_fd_str), "%u", fds[0]);
-    argv[2] = parent_fd_str;
-    memcpy(argv + 3, args, sizeof(const char *) * nargs);
-    argv[nargs + 3] = NULL;
+    argv[3] = parent_fd_str;
+    memcpy(argv + 4, args, sizeof(const char *) * nargs);
+    argv[nargs + 4] = NULL;
 
     /* child's signal handler may mess with parent's memory during vfork(), so block signals */
     ret = block_async_signals(true);

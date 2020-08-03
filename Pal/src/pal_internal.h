@@ -19,9 +19,6 @@
 # error "pal_internal.h can only be included in PAL"
 #endif
 
-#define PAL_FILE(name) XSTRINGIFY(PAL_DIR) "/" name
-#define RUNTIME_FILE(name) XSTRINGIFY(RUNTIME_DIR) "/" name
-
 /* handle_ops is the operators provided for each handler type. They are
    mostly used by Stream-related PAL calls, but can also be used by
    some others in special ways. */

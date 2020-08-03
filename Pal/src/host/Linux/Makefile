@@ -22,11 +22,13 @@ ASFLAGS += \
 
 host_files = libpal-Linux.a pal.map
 
-defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
+defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
-commons_objs = bogomips.o
+commons_objs = \
+	bogomips.o \
+	main_exec_path.o
 
 objs = \
 	clone-$(ARCH).o \

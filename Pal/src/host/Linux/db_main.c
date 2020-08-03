@@ -9,6 +9,7 @@
  */
 
 #include "api.h"
+#include "linux_utils.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -33,9 +34,14 @@
 #ifdef DEBUG
 __asm__ (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".byte 1\r\n"
-     ".asciz \"" PAL_FILE("host/Linux/pal-gdb.py") "\"\r\n"
+     ".asciz \"pal-gdb.py\"\r\n"
      ".popsection\r\n");
 #endif
+
+char* g_pal_loader_path = NULL;
+/* Currently content of this variable is only passed as an argument while spawning new processes
+ * - this is to keep uniformity with other PALs. */
+char* g_libpal_path = NULL;
 
 struct pal_linux_state g_linux_state;
 struct pal_sec g_pal_sec;
@@ -154,16 +160,16 @@ static struct link_map g_pal_map;
 #include "elf-arch.h"
 
 noreturn static void print_usage_and_exit(const char* argv_0) {
-    const char* self = argv_0 ? argv_0 : "<this program>";
+    const char* self = argv_0 ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s init [<executable>|<manifest>] args...\n"
-           "\tChildren:      %s child <parent_pipe_fd> args...\n",
+           "\tFirst process: %s <path to libpal.so> init [<executable>|<manifest>] args...\n"
+           "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
            self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
     _DkProcessExit(1);
 }
 
-void pal_linux_main(void* initial_rsp, void* fini_callback) {
+noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
 
     uint64_t start_time = _DkSystemTimeQueryEarly();
@@ -175,12 +181,12 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     const char** envp;
     read_args_from_stack(initial_rsp, &argc, &argv, &envp);
 
-    if (argc < 3)
+    if (argc < 4)
         print_usage_and_exit(argv[0]);  // may be NULL!
 
     // Are we the first in this Graphene's namespace?
-    bool first_process = !strcmp_static(argv[1], "init");
-    if (!first_process && strcmp_static(argv[1], "child")) {
+    bool first_process = !strcmp_static(argv[2], "init");
+    if (!first_process && strcmp_static(argv[2], "child")) {
         print_usage_and_exit(argv[0]);
     }
 
@@ -194,6 +200,12 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     g_linux_state.host_environ = envp;
 
     init_slab_mgr(g_page_size);
+
+    g_pal_loader_path = get_main_exec_path();
+    g_libpal_path = strdup(argv[1]);
+    if (!g_pal_loader_path || !g_libpal_path) {
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+    }
 
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     if (!first_thread)
@@ -228,7 +240,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
     PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
     if (!first_process) {
         // Children receive their argv and config via IPC.
-        int parent_pipe_fd = atoi(argv[2]);
+        int parent_pipe_fd = atoi(argv[3]);
         init_child_process(parent_pipe_fd, &parent, &exec, &manifest);
     }
 
@@ -245,7 +257,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     if (first_process) {
         // We need to find a binary to run.
-        const char* exec_target = argv[2];
+        const char* exec_target = argv[3];
         size_t size = URI_PREFIX_FILE_LEN + strlen(exec_target) + 1;
         char* uri = malloc(size);
         if (!uri)
@@ -268,7 +280,7 @@ void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     /* call to main function */
     pal_main((PAL_NUM)g_linux_state.parent_process_id, manifest, exec, NULL, parent, first_thread,
-             first_process ? argv + 2 : argv + 3, envp);
+             first_process ? argv + 3 : argv + 4, envp);
 }
 
 /*

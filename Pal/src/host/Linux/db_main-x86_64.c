@@ -10,8 +10,8 @@
 #include <asm/prctl.h>
 
 #include "api.h"
-#include "bogomips.h"
 #include "cpu.h"
+#include "linux_utils.h"
 #include "pal_linux.h"
 
 static double get_bogomips(void) {

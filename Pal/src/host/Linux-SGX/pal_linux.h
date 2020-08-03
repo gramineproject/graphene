@@ -25,8 +25,6 @@
 
 #include "sysdep-arch.h"
 
-#define ENCLAVE_PAL_FILENAME RUNTIME_FILE("libpal-Linux-SGX.so")
-
 #define IS_ERR INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
 #define ERRNO INTERNAL_SYSCALL_ERRNO
@@ -65,9 +63,10 @@ int init_child_process(PAL_HANDLE* parent);
 #ifdef IN_ENCLAVE
 
 struct pal_sec;
-void pal_linux_main(char * uptr_args, size_t args_size,
-                    char * uptr_env, size_t env_size,
-                    struct pal_sec * uptr_sec_info);
+noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len,
+                             char* uptr_args, size_t args_size,
+                             char* uptr_env, size_t env_size,
+                             struct pal_sec* uptr_sec_info);
 void pal_start_thread (void);
 
 struct link_map;

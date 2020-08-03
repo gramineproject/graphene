@@ -13,7 +13,7 @@ done
 # Run the application with arguments given to it
 if [ -z "$GSC_PAL" ]
 then
-    SGX=1 /graphene/Runtime/pal-Linux-SGX init {{binary}}.manifest.sgx {% if insecure_args %} {{binary_arguments}} "${@}" {% endif %}
+    SGX=1 /graphene/Runtime/pal-Linux-SGX /graphene/Runtime/libpal-Linux-SGX.so init {{binary}}.manifest.sgx {% if insecure_args %} {{binary_arguments}} "${@}" {% endif %}
 else
-    /graphene/Runtime/pal-$GSC_PAL init {{binary}}.manifest {{binary_arguments}} "${@}"
+    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}}.manifest {{binary_arguments}} "${@}"
 fi

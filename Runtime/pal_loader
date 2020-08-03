@@ -44,6 +44,7 @@ fi
 MANIFEST=
 PREFIX=()
 PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
+LIBPAL_PATH=$(realpath "$RUNTIME_DIR/libpal-$PAL_HOST.so")
 
 if [ "$GDB" == "1" ]; then
 	GDB=$RUNTIME_DIR/pal_gdb-$PAL_HOST
@@ -56,6 +57,13 @@ if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
 	PREFIX=("$GDB" -q)
 	if [ -n "$INSIDE_EMACS" ]; then
 		PREFIX+=("-i=mi")
+	fi
+	if [ -v SGX ]; then
+		PREFIX+=("-iex")
+		PREFIX+=("dir $RUNTIME_DIR/../Pal/src/host/Linux-SGX")
+	else
+		PREFIX+=("-iex")
+		PREFIX+=("dir $RUNTIME_DIR/../Pal/src/host/Linux")
 	fi
 	PREFIX+=("--args")
 fi
@@ -90,7 +98,7 @@ if [ ! -f "$PAL_CMD" ]; then
 fi
 
 if [ ${#PREFIX[@]} -eq 0 ]; then
-    exec "$PAL_CMD" init "$MANIFEST" "$@"
+    exec "$PAL_CMD" "$LIBPAL_PATH" init "$MANIFEST" "$@"
 else
-    exec "${PREFIX[@]}" "$PAL_CMD" init "$MANIFEST" "$@"
+    exec "${PREFIX[@]}" "$PAL_CMD" "$LIBPAL_PATH" init "$MANIFEST" "$@"
 fi
