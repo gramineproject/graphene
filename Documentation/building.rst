@@ -167,7 +167,8 @@ To install the Graphene SGX driver, run the following commands::
 
    cd Pal/src/host/Linux-SGX/sgx-driver
    make
-   # The console will be prompted to ask for the path of Intel SGX driver code
+   # the console will prompt you for the path to the Intel SGX driver code
+   # (simply press ENTER if you use the in-kernel Intel SGX driver)
    sudo insmod gsgx.ko
 
 
