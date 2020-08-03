@@ -109,7 +109,7 @@ int clone (int (*__fn) (void * __arg), void * __child_stack,
            int __flags, const void * __arg, ...);
 
 /* PAL main function */
-void pal_linux_main(void* initial_rsp, void* fini_callback);
+noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);
 
 struct link_map;
 void setup_pal_map(struct link_map* map);

@@ -37,8 +37,7 @@ class RegressionTestCase(unittest.TestCase):
         try:
             libpal = os.environ[self.LIBPAL_PATH_ENV]
         except KeyError:
-            self.fail(
-                'environment variable {} unset'.format(self.LIBPAL_PATH_ENV))
+            self.fail('environment variable {} unset'.format(self.LIBPAL_PATH_ENV))
 
         if not pathlib.Path(libpal).exists():
             self.skipTest('libpal ({}) not found'.format(libpal))

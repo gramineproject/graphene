@@ -23,6 +23,7 @@
 #include <asm/mman.h>
 #include <elf/elf.h>
 #include <stdint.h>
+#include <stdnoreturn.h>
 #include <sysdeps/generic/ldsodefs.h>
 
 #include "ecall_types.h"
@@ -180,9 +181,9 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
-void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_args,
-                    uint64_t args_size, char* uptr_env, uint64_t env_size,
-                    struct pal_sec* uptr_sec_info) {
+noreturn void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_args,
+                             uint64_t args_size, char* uptr_env, uint64_t env_size,
+                             struct pal_sec* uptr_sec_info) {
     /*
      * Our arguments are coming directly from the urts. We are responsible to check them.
      */
@@ -194,12 +195,13 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     rv = _DkSystemTimeQuery(&start_time);
     if (rv < 0) {
         SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", rv);
-        ocall_exit(rv, /*is_exitgroup=*/true);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     struct pal_sec sec_info;
     if (!sgx_copy_to_enclave(&sec_info, sizeof(sec_info), uptr_sec_info, sizeof(sec_info))) {
-        return;
+        SGX_DBG(DBG_E, "Copying sec_info into the enclave failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     g_pal_sec.heap_min = GET_ENCLAVE_TLS(heap_min);
@@ -230,7 +232,8 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
 
     /* Skip URI_PREFIX_FILE. */
     if (enclave_uri_len < URI_PREFIX_FILE_LEN) {
-        return;
+        SGX_DBG(DBG_E, "Invalid enclave_uri length (missing \"%s\" prefix?))\n", URI_PREFIX_FILE);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     enclave_uri_len -= URI_PREFIX_FILE_LEN;
     uptr_enclave_uri += URI_PREFIX_FILE_LEN;
@@ -240,7 +243,8 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     if (enclave_uri_len >= sizeof(enclave_path)
             || !sgx_copy_to_enclave(enclave_path, sizeof(enclave_path) - 1, uptr_enclave_uri,
                                     enclave_uri_len)) {
-        return;
+        SGX_DBG(DBG_E, "Copying enclave_path into the enclave failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     enclave_path[enclave_uri_len] = '\0';
 
@@ -281,19 +285,22 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     /* ppid should be positive when interpreted as signed. It's 0 if we don't
      * have a graphene parent process. */
     if (sec_info.ppid > INT32_MAX) {
-        return;
+        SGX_DBG(DBG_E, "Invalid sec_info.ppid: %d\n", sec_info.ppid);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.ppid = sec_info.ppid;
 
     /* As ppid but we always have a pid, so 0 is invalid. */
     if (sec_info.pid > INT32_MAX || sec_info.pid == 0) {
-        return;
+        SGX_DBG(DBG_E, "Invalid sec_info.pid: %d\n", sec_info.pid);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.pid = sec_info.pid;
 
     /* -1 is treated as special value for example by chown. */
     if (sec_info.uid == (PAL_IDX)-1 || sec_info.gid == (PAL_IDX)-1) {
-        return;
+        SGX_DBG(DBG_E, "Invalid sec_info.gid: %d\n", sec_info.gid);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.uid = sec_info.uid;
     g_pal_sec.gid = sec_info.gid;
@@ -302,7 +309,8 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     if (num_cpus >= 1 && num_cpus <= (1 << 16)) {
         g_pal_sec.num_cpus = num_cpus;
     } else {
-        return;
+        SGX_DBG(DBG_E, "Invalid sec_info.num_cpus: %d\n", num_cpus);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     /* set up page allocator and slab manager */
@@ -324,19 +332,22 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     rv = init_enclave();
     if (rv) {
         SGX_DBG(DBG_E, "Failed to initialize enclave properties: %d\n", rv);
-        ocall_exit(rv, /*is_exitgroup=*/true);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     if (args_size > MAX_ARGS_SIZE || env_size > MAX_ENV_SIZE) {
-        return;
+        SGX_DBG(DBG_E, "Invalid args_size (%lu) or env_size (%lu)\n", args_size, env_size);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     const char** arguments = make_argv_list(uptr_args, args_size);
     if (!arguments) {
-        return;
+        SGX_DBG(DBG_E, "Creating arguments failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     const char** environments = make_argv_list(uptr_env, env_size);
     if (!environments) {
-        return;
+        SGX_DBG(DBG_E, "Creating environments failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     g_pal_state.start_time = start_time;
@@ -351,14 +362,16 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
      * will be overwritten below in init_child_process() with inherited-from-parent master key if
      * this enclave is child */
     int ret = _DkRandomBitsRead(&g_master_key, sizeof(g_master_key));
-    if (ret < 0)
-        return;
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "_DkRandomBitsRead failed: %d\n", ret);
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
 
     /* if there is a parent, create parent handle */
     if (g_pal_sec.ppid) {
         if ((rv = init_child_process(&parent)) < 0) {
             SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", rv);
-            ocall_exit(rv, /*is_exitgroup=*/true);
+            ocall_exit(1, /*is_exitgroup=*/true);
         }
     }
 
@@ -394,7 +407,7 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     const char * errstring = NULL;
     if ((rv = read_config(root_config, loader_filter, &errstring)) < 0) {
         SGX_DBG(DBG_E, "Can't read manifest: %s, error code %d\n", errstring, rv);
-        ocall_exit(rv, /*is_exitgroup=*/true);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     g_pal_state.root_config = root_config;
@@ -403,22 +416,22 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
 
     if ((rv = init_trusted_files()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", rv);
-        ocall_exit(rv, true);
+        ocall_exit(1, true);
     }
 
     if ((rv = init_trusted_children()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the measurement of trusted child enclaves: %d\n", rv);
-        ocall_exit(rv, true);
+        ocall_exit(1, true);
     }
 
     if ((rv = init_file_check_policy()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the file check policy: %d\n", rv);
-        ocall_exit(rv, true);
+        ocall_exit(1, true);
     }
 
     if ((rv = init_protected_files()) < 0) {
         SGX_DBG(DBG_E, "Failed to initialize protected files: %d\n", rv);
-        ocall_exit(rv, true);
+        ocall_exit(1, true);
     }
 
 #if PRINT_ENCLAVE_STAT == 1
@@ -426,7 +439,7 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     rv = _DkSystemTimeQuery(&end_time);
     if (rv < 0) {
         SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", rv);
-        ocall_exit(rv, /*is_exitgroup=*/true);
+        ocall_exit(1, /*is_exitgroup=*/true);
     }
     printf("                >>>>>>>> Enclave loading time =      %10ld milliseconds\n",
            end_time - g_pal_sec.start_time);
@@ -443,4 +456,3 @@ void pal_linux_main(char* uptr_enclave_uri, size_t enclave_uri_len, char* uptr_a
     pal_main(g_pal_sec.instance_id, manifest, exec, g_pal_sec.exec_addr, parent, first_thread,
              arguments, environments);
 }
-

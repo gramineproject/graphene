@@ -40,7 +40,7 @@ __asm__ (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
 
 char* g_pal_loader_path = NULL;
 /* Currently content of this variable is only passed as an argument while spawning new processes
- * - this is to keep uniformity with other PALS. */
+ * - this is to keep uniformity with other PALs. */
 char* g_libpal_path = NULL;
 
 struct pal_linux_state g_linux_state;
@@ -169,7 +169,7 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
     _DkProcessExit(1);
 }
 
-void pal_linux_main(void* initial_rsp, void* fini_callback) {
+noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
 
     uint64_t start_time = _DkSystemTimeQueryEarly();
