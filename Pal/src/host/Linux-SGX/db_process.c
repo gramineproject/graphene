@@ -348,13 +348,8 @@ int init_child_process (PAL_HANDLE * parent_handle)
     return 0;
 }
 
-void print_alloced_pages (void);
-
 noreturn void _DkProcessExit (int exitcode)
 {
-#if PRINT_ENCLAVE_STAT
-    print_alloced_pages();
-#endif
     if (exitcode)
         SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
     ocall_exit(exitcode, /*is_exitgroup=*/true);
