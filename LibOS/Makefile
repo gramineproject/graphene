@@ -124,7 +124,7 @@ $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 # ------------------------------------------------------------------------------------------------
 GCC_VERSION ?= 10.2.0
 GCC_SRC = gcc-$(GCC_VERSION)
-GCC_CHECKSUM = $(firstword $(shell grep $(GCC_SRC).tar.gz gcc-checksums))
+GCC_CHECKSUM = 27e879dccc639cd7b0cc08ed575c1669492579529b53c9ff27b0b96265fa867d
 GCC_BUILD_DIR = gcc-build
 GCC_LIBS = x86_64-pc-linux-gnu/libgomp/.libs/libgomp.so.1
 GCC_TARGET = $(addprefix $(GCC_BUILD_DIR)/, $(GCC_LIBS))
