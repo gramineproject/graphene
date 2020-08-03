@@ -232,7 +232,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     /* Skip URI_PREFIX_FILE. */
     if (libpal_uri_len < URI_PREFIX_FILE_LEN) {
-        SGX_DBG(DBG_E, "Invalid libpal_uri length (missing \"%s\" prefix?))\n", URI_PREFIX_FILE);
+        SGX_DBG(DBG_E, "Invalid libpal_uri length (missing \"%s\" prefix?)\n", URI_PREFIX_FILE);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     libpal_uri_len -= URI_PREFIX_FILE_LEN;
@@ -285,21 +285,21 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* ppid should be positive when interpreted as signed. It's 0 if we don't
      * have a graphene parent process. */
     if (sec_info.ppid > INT32_MAX) {
-        SGX_DBG(DBG_E, "Invalid sec_info.ppid: %d\n", sec_info.ppid);
+        SGX_DBG(DBG_E, "Invalid sec_info.ppid: %u\n", sec_info.ppid);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.ppid = sec_info.ppid;
 
     /* As ppid but we always have a pid, so 0 is invalid. */
     if (sec_info.pid > INT32_MAX || sec_info.pid == 0) {
-        SGX_DBG(DBG_E, "Invalid sec_info.pid: %d\n", sec_info.pid);
+        SGX_DBG(DBG_E, "Invalid sec_info.pid: %u\n", sec_info.pid);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.pid = sec_info.pid;
 
     /* -1 is treated as special value for example by chown. */
     if (sec_info.uid == (PAL_IDX)-1 || sec_info.gid == (PAL_IDX)-1) {
-        SGX_DBG(DBG_E, "Invalid sec_info.gid: %d\n", sec_info.gid);
+        SGX_DBG(DBG_E, "Invalid sec_info.gid: %u\n", sec_info.gid);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.uid = sec_info.uid;
