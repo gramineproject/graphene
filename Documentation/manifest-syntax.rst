@@ -445,18 +445,3 @@ This syntax specifies whether to enable SGX enclave-specific statistics:
 *Note:* this option is insecure and cannot be used with production enclaves
 (``sgx.debug = 0``). If the production enclave is started with this option set,
 Graphene will fail initialization of the enclave.
-
-Zero out heap on demand vs during enclave init
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-::
-
-    sgx.zero_heap_on_demand=[1|0]
-    (Default: 0)
-
-This syntax specifies whether to zero out the heap on demand (when new enclave
-pages are requested) or during enclave initialization. If this option is set to
-``1``, then the initial heap space is uninitialized; this improves start-up
-performance but worsens run-time performance. If this option is set to ``0``,
-then the whole heap is zeroed out before enclave starts app execution; this
-worsens start-up performance but improves run-time performance.

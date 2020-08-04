@@ -191,7 +191,7 @@ enum PAL_PROT {
 
 
 /*!
- * \brief Allocate virtual memory for the library OS.
+ * \brief Allocate virtual memory for the library OS and zero it out.
  *
  * \param addr
  *  can be either `NULL` or any valid address aligned at the allocation alignment. When `addr` is

@@ -119,45 +119,6 @@ If you need additional statistics, you can check this unofficial patch:
 
 * https://github.com/oscarlab/graphene/tree/dimakuv/DONTMERGE-more-perf-stats-tweaks
 
-Zero out heap on demand vs during enclave init
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Graphene by default zeroes out the whole enclave heap during enclave
-initialization (``sgx.zero_heap_on_demand = 0``). This improves security (the
-attacker cannot put arbitrary content in the enclave's heap) and runtime
-performance (Graphene doesn't need to zero out the requested heap region on mmap
-user requests). However, it may increase start-up time: typical enclave sizes
-can be up to 8GB, so Graphene will zero out approximately 8GB of enclave pages
-during start-up, which is slow. To improve start-up time – at the cost of
-slightly worse runtime performance – you can specify ``sgx.zero_heap_on_demand =
-1`` manifest option.
-
-Here is an example:
-
-::
-
-   # manifest contains: `sgx.enclave_size = 16G` and `sgx.zero_heap_on_demand = 0`
-   LibOS/shim/test/native$ SGX=1 perf stat ~/graphene/Runtime/pal_loader helloworld
-   Hello world (helloworld)!
-
-         50.411676437 seconds time elapsed
-
-   # manifest contains: `sgx.enclave_size = 16G` and `sgx.zero_heap_on_demand = 1`
-   LibOS/shim/test/native$ SGX=1 perf stat ~/graphene/Runtime/pal_loader helloworld
-   Hello world (helloworld)!
-
-         42.816185504 seconds time elapsed
-
-As you can see, zeroing the heap on demand shaved off 8 seconds from the
-start-up time of a 16GB enclave. The difference is not very significant, but it
-may help achieve the best possible performance for e.g. Function-as-a-Service
-(FaaS) workloads.
-
-You can find additional information and context here:
-
-* https://github.com/oscarlab/graphene/pull/1640
-* https://github.com/oscarlab/graphene/pull/1668
-
 Effects of system calls / ocalls
 --------------------------------
 

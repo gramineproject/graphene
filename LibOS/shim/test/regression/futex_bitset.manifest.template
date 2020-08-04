@@ -23,4 +23,3 @@ sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 sgx.thread_num = 16
 
 sgx.static_address = 1
-sgx.zero_heap_on_demand = 1

@@ -139,5 +139,3 @@ sgx.allowed_files.passwd    = file:/etc/passwd
 # Busybox uses timezone settings, which are located in /etc/localtime for
 # glibc-based host systems.
 sgx.allowed_files.localtime = file:/etc/localtime
-
-sgx.zero_heap_on_demand = 1

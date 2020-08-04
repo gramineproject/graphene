@@ -54,6 +54,7 @@ int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot)
     if (!mem)
         return addr ? -PAL_ERROR_DENIED : -PAL_ERROR_NOMEM;
 
+    /* initialize contents of new memory region to zero (LibOS layer expects zeroed-out memory) */
     memset(mem, 0, size);
 
     *paddr = mem;

@@ -109,5 +109,3 @@ sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.etc = file:/etc
 sgx.allowed_files.pyhome = file:$(PYTHONHOME)
 sgx.allowed_files.pydisthome = file:$(PYTHONDISTHOME)
-
-sgx.zero_heap_on_demand = 1
