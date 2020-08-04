@@ -71,6 +71,7 @@ Table of Contents
    supported-syscalls
    sample-apps
    sgx-intro
+   perf-practices
    glossary
    howto-doc
 
