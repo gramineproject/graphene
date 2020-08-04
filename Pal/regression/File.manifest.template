@@ -11,5 +11,3 @@ sgx.trusted_files.tmp1 = file:File
 sgx.trusted_files.tmp2 = file:../regression/File
 sgx.allowed_files.tmp3 = file:file_nonexist.tmp
 sgx.allowed_files.tmp4 = file:file_delete.tmp
-
-sgx.zero_heap_on_demand = 1

@@ -1,4 +1,2 @@
 loader.debug_type = inline
 loader.argv0_override = Bootstrap2
-
-sgx.zero_heap_on_demand = 1

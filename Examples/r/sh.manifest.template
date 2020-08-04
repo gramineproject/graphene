@@ -55,5 +55,3 @@ sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
 
 sgx.trusted_files.rm = file:/bin/rm
 sgx.trusted_children.rm = file:rm.sig
-
-sgx.zero_heap_on_demand = 1

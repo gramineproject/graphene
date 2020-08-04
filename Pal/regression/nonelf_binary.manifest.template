@@ -1,4 +1,2 @@
 loader.exec = file:./nonelf_binary
 loader.debug_type = inline
-
-sgx.zero_heap_on_demand = 1
