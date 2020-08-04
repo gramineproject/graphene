@@ -11,4 +11,3 @@ sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 
 sgx.static_address = 1
-sgx.zero_heap_on_demand = 1

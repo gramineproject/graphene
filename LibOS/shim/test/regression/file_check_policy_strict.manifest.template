@@ -17,4 +17,3 @@ sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 sgx.trusted_files.test = file:trusted_testfile
 
 sgx.static_address = 1
-sgx.zero_heap_on_demand = 1

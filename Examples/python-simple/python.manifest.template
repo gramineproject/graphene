@@ -266,5 +266,3 @@ sgx.allowed_files.passwd    = file:/etc/passwd
 sgx.allowed_files.gaiconf   = file:/etc/gai.conf
 sgx.allowed_files.hostconf  = file:/etc/host.conf
 sgx.allowed_files.resolv    = file:/etc/resolv.conf
-
-sgx.zero_heap_on_demand = 1

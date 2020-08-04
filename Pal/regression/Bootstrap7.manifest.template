@@ -1001,5 +1001,3 @@ loader.env.key997 = na
 loader.env.key998 = na
 loader.env.key999 = na
 loader.env.key1000 = na
-
-sgx.zero_heap_on_demand = 1

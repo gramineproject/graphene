@@ -945,14 +945,6 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
             return ret;
     }
 
-    pal_sec->zero_heap_on_demand = false;
-    if (get_config(enclave->config, "sgx.zero_heap_on_demand", cfgbuf, sizeof(cfgbuf)) > 0
-            && cfgbuf[0] == '1') {
-        /* zero enclave heap on demand vs once during enclave init; this option does not affect
-         * security (only startup vs runtime performance), so can be passed from untrusted host */
-        pal_sec->zero_heap_on_demand = true;
-    }
-
     void* alt_stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, ALT_STACK_SIZE,
                                             PROT_READ | PROT_WRITE,
                                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

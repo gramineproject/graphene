@@ -209,27 +209,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.exec_addr = GET_ENCLAVE_TLS(exec_addr);
     g_pal_sec.exec_size = GET_ENCLAVE_TLS(exec_size);
 
-    g_pal_sec.zero_heap_on_demand = sec_info.zero_heap_on_demand;
-
-    if (!g_pal_sec.zero_heap_on_demand) {
-        /* zero the heap during init; we need to take care to not zero the exec area */
-        void* zero1_start = g_pal_sec.heap_min;
-        void* zero1_end   = g_pal_sec.heap_max;
-
-        void* zero2_start = g_pal_sec.heap_max;
-        void* zero2_end   = g_pal_sec.heap_max;
-
-        if (g_pal_sec.exec_addr != NULL) {
-            zero1_end   = g_pal_sec.exec_addr;
-            zero2_start = g_pal_sec.exec_addr + g_pal_sec.exec_size;
-            assert(zero1_start <= zero1_end);
-            assert(zero2_start <= zero2_end);
-        }
-
-        memset(zero1_start, 0, zero1_end - zero1_start);
-        memset(zero2_start, 0, zero2_end - zero2_start);
-    }
-
     /* Skip URI_PREFIX_FILE. */
     if (libpal_uri_len < URI_PREFIX_FILE_LEN) {
         SGX_DBG(DBG_E, "Invalid libpal_uri length (missing \"%s\" prefix?)\n", URI_PREFIX_FILE);
