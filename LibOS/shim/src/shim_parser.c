@@ -768,7 +768,7 @@ static void parse_mmap_flags(va_list* ap) {
     }
 
     if (flags & MAP_ANONYMOUS) {
-        PUTS("|MAP_ANON");
+        PUTS("|MAP_ANONYMOUS");
         flags &= ~MAP_ANONYMOUS;
     }
 
