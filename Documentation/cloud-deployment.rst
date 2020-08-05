@@ -63,13 +63,6 @@ Build and Test
             ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ \
                   make SGX=1
 
-#. Set ``vm.mmap_min_addr=0`` in the system:
-
-      .. code-block:: sh
-
-            # WARNING: read "Security Implications" section before running this command
-            sudo sysctl vm.mmap_min_addr=0
-
 #. Build and Run :program:`helloworld`:
 
       .. code-block:: sh
@@ -83,19 +76,12 @@ Security Implications
 ^^^^^^^^^^^^^^^^^^^^^
 
 Note that this guide assumes that you deploy Graphene on an untrusted cloud VM.
-The two steps in this guide significantly weaken the security of the cloud VM's
-Linux kernel.
-
-In particular, ``sudo insmod gsgx.ko`` introduces a local privilege escalation
+One step in this guide significantly weakens the security of the cloud VM's
+Linux kernel: ``sudo insmod gsgx.ko`` introduces a local privilege escalation
 vulnerability. This kernel module enables the FSGSBASE processor feature
 without proper enabling in the host Linux kernel. Please refer to the
 documentation under ``Pal/src/host/Linux-SGX/sgx-driver`` for more information.
 
-Also, ``sudo sysctl vm.mmap_min_addr=0`` weakens the security of the Linux
-kernel. This kernel tunable specifies the minimum virtual address that a
-process is allowed to mmap. Setting it to zero makes it easier for attackers to
-exploit "kernel NULL pointer dereference" defects.
-
-Both these steps are temporary workarounds and will not be required in the
-future. Be aware that the current guide must not be used to set up production
-environments.
+This step is a temporary workaround and will not be required in the future
+(starting from Linux 5.9). Be aware that the current guide must not be used to
+set up production environments.
