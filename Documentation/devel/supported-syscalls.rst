@@ -3,7 +3,7 @@ Supported System Calls in Graphene
 
 .. note::
 
-   This document is outdated. Please :doc:`send patches <devel/contributing>`
+   This document is outdated. Please :doc:`send patches <contributing>`
    with corrections.
 
 The following is a list of system calls that are currently implemented.
