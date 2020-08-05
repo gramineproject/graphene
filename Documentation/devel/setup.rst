@@ -4,12 +4,12 @@ Development setup
 For contributors, we strongly suggest using the following configuration
 according to your editors.
 
-Emacs Configuration
+Emacs configuration
 -------------------
 
 No change needed. See :file:`.dir-locals.el`.
 
-Vim Configuration
+Vim configuration
 -----------------
 
 Please add the following script to the end of your :file:`~/.vimrc`,

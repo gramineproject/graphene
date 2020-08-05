@@ -1,18 +1,18 @@
-Supported System Calls in Graphene
-==================================
+Supported system calls
+======================
 
 .. note::
 
-   This document is outdated. Please :doc:`send patches <devel/contributing>`
+   This document is outdated. Please :doc:`send patches <contributing>`
    with corrections.
 
 The following is a list of system calls that are currently implemented.
 
-System Calls that are Fully Implemented
----------------------------------------
+Fully implemented system calls
+------------------------------
 
-System Calls that Require Multi-process Coordination
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Multi-process coordination
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Process creation (fork/vfork)
 * execve
@@ -22,8 +22,8 @@ System Calls that Require Multi-process Coordination
 * System V IPC semaphore (semget/semop/semtimedop/semctl)
 * System V IPC message queue (msgget/msgsnd/msgrcv)
 
-System calls that require no multi-process coordination
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Others
+^^^^^^
 
 * File open/close (open/openat/creat/close)
 * File descriptor access (read/write/readv/writev/pread64/pwrite64)
@@ -63,8 +63,8 @@ System calls that require no multi-process coordination
 * Thread-state (arch_prctl)
 
 
-System Calls that are Partially Implemented
--------------------------------------------
+Partially implemented system calls
+----------------------------------
 
 * ioctl
 

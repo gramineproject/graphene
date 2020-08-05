@@ -1,5 +1,5 @@
-How to build Graphene?
-======================
+Building
+========
 
 .. highlight:: sh
 
@@ -9,15 +9,17 @@ How to build Graphene?
    release. Instead, for all users, there should be documentation for installing
    without full compilation.
 
-Graphene consists of three parts:
+Graphene consists of several components:
 
-- An instrumented GNU C Library
 - The Library OS itself (a shared library named ``libsysdb.so``, called the
   "shim" in our source code)
 - The Platform Adaptation Layer, or PAL (a shared library named ``libpal.so``)
+- A patched GNU C Library (a set of shared libraries ``libc.so``,
+  ``libpthread.so``, ``libm.so``, etc.)
 
-Prerequisites
--------------
+The build of Graphene implies building at least the first two components. The
+build of the patched C library is optional but highly recommended for
+performance reasons. The patched C library is built by default.
 
 Graphene currently only works on the x86_64 architecture. Graphene is currently
 tested on Ubuntu 16.04 and 18.04 (both server and desktop version), along with
@@ -26,11 +28,39 @@ on the same host platform. If you find problems with Graphene on other Linux
 distributions, please contact us with a |~| detailed `bug report
 <https://github.com/oscarlab/graphene/issues/new>`__.
 
-Run the following command on Ubuntu to install dependencies for Graphene::
+Building without SGX support
+----------------------------
+
+Run the following command on Ubuntu to install dependencies::
 
     sudo apt-get install -y build-essential autoconf gawk bison
 
-For building Graphene for SGX, run the following command in addition::
+To run tests locally, you also need the python3-pytest package::
+
+    sudo apt-get install -y python3-pytest
+
+To build Graphene, in the root directory of Graphene repo, run the following
+command::
+
+   make
+
+Building with SGX support
+-------------------------
+
+The build of Graphene with SGX support requires the corresponding SGX software
+infrastructure to be installed on the system. In particular, the FSGSBASE
+functionality must be enabled in the Linux kernel, the Intel SGX driver must be
+running, and Intel SGX SDK/PSW/DCAP must be installed. In the future, when all
+required SGX infrastructure is upstreamed in Linux and popular Linux
+distributions, the prerequisite steps will be significantly simplified.
+
+Prerequisites
+^^^^^^^^^^^^^
+
+1. Required packages
+""""""""""""""""""""
+
+Run the following commands on Ubuntu to install SGX-related dependencies::
 
     sudo apt-get install -y libprotobuf-c-dev protobuf-c-compiler \
        libcurl4-openssl-dev
@@ -42,34 +72,7 @@ For building Graphene for SGX, run the following command in addition::
     sudo apt install -y python3-pip
     sudo /usr/bin/pip3 install protobuf
 
-To run tests locally, you also need the python3-pytest package::
-
-    sudo apt-get install -y python3-pytest
-
-To build Graphene, simply run the following commands in the root of the
-source tree::
-
-    git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
-    make
-
-Building
---------
-
-Each part of Graphene can be built separately in the subdirectories.
-
-To build Graphene with debug symbols, run :command:`make DEBUG=1`
-instead of :command:`make`. To specify custom mirrors for downloading the Glibc
-source, use :command:`make GLIBC_MIRRORS=...`.
-
-To build with ``-Werror``, run :command:`make WERROR=1`.
-
-Building with Intel SGX Support
--------------------------------
-
-Prerequisites
-^^^^^^^^^^^^^
-
-1. Install the Linux kernel patched with FSGSBASE
+2. Install the Linux kernel patched with FSGSBASE
 """""""""""""""""""""""""""""""""""""""""""""""""
 
 FSGSBASE is a feature in recent processors which allows direct access to the FS
@@ -123,8 +126,7 @@ these software packages may not work with recent Linux kernels like 5.4. We
 recommend to use commit ``b7ccf6f`` of the Intel SGX Linux Driver for Intel SGX
 DCAP and commit ``0e71c22`` of the Intel SGX SDK/PSW.
 
-
-2. Generate signing keys
+3. Generate signing keys
 """"""""""""""""""""""""
 
 A 3072-bit RSA private key (PEM format) is required for signing the manifest.
@@ -141,7 +143,7 @@ Graphene binaries, along with an SGX-specific manifest (``.manifest.sgx``
 extension), the signature (``.sig`` extension), and the aesmd init token
 (``.token`` extension) to execute on another SGX-enabled host.
 
-3. Install the Intel SGX driver and SDK/PSW
+4. Install the Intel SGX driver and SDK/PSW
 """""""""""""""""""""""""""""""""""""""""""
 
 The Intel SGX Linux SDK and the Intel SGX driver are required to compile and
@@ -156,7 +158,7 @@ download and install it from:
 
 - https://github.com/intel/SGXDataCenterAttestationPrimitives
 
-4. Install the Graphene SGX driver (not for production)
+5. Install the Graphene SGX driver (not for production)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 If you followed step 1 and installed the patched Linux kernel, skip this step.
@@ -165,27 +167,39 @@ FSGSBASE feature available in recent processors.
 
 To install the Graphene SGX driver, run the following commands::
 
+   git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver
    cd Pal/src/host/Linux-SGX/sgx-driver
    make
    # the console will prompt you for the path to the Intel SGX driver code
    # (simply press ENTER if you use the in-kernel Intel SGX driver)
    sudo insmod gsgx.ko
 
-
-Building Graphene-SGX
-^^^^^^^^^^^^^^^^^^^^^
+Building
+^^^^^^^^
 
 To build Graphene with Intel SGX support, in the root directory of Graphene
 repo, run the following command::
 
    make SGX=1
 
-To build with debug symbols, instead run the command::
+Running :command:`make SGX=1 sgx-tokens` in the test or regression directory
+will automatically generate the required manifest signatures (``.sig`` files)
+and EINITTOKENs (``.token`` files).
 
-   make SGX=1 DEBUG=1
+Additional build options
+------------------------
 
-Running :command:`make SGX=1` in the test or regression directory will
-automatically generate the required manifest signatures (``.sig`` files).
+- To create a debug build, run :command:`make DEBUG=1`. This adds debug symbols
+  in all Graphene components, builds them without optimizations, and enables
+  detailed debug logs in Graphene.
+
+- To build with ``-Werror``, run :command:`make WERROR=1`.
+
+- To specify custom mirrors for downloading the Glibc source, use :command:`make
+  GLIBC_MIRRORS=...`.
+
+- Each part of Graphene can be built separately in the subdirectories. For
+  example, to build only the Pal component, use :command:`make -c Pal`.
 
 Deprecated features
 -------------------

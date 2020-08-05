@@ -1,5 +1,7 @@
-How to deploy Graphene in the cloud?
-====================================
+Deploying in cloud
+==================
+
+.. highlight:: sh
 
 Graphene without Intel SGX can be deployed on arbitrary cloud VMs. Please see
 our :doc:`quickstart` guide for the details.
@@ -8,7 +10,7 @@ To deploy Graphene with Intel SGX, the cloud VM has to support Intel SGX. Please
 see the installation and usage guide for each cloud VM offering individually
 below (currently only for Microsoft Azure).
 
-Azure Confidential Computing VMs
+Azure confidential computing VMs
 --------------------------------
 
 `Azure confidential computing services
@@ -25,54 +27,43 @@ instructions to uninstall the driver.
 Prerequisites
 ^^^^^^^^^^^^^
 
-Update and install the required packages for Graphene:
+Update and install the required packages for Graphene::
 
-      .. code-block:: sh
+   sudo apt update
+   sudo apt install -y build-essential autoconf gawk bison python3-protobuf \
+                       libprotobuf-c-dev protobuf-c-compiler libcurl4 python3
 
-            sudo apt update
-            sudo apt install -y build-essential autoconf gawk bison python3-protobuf \
-                              libprotobuf-c-dev protobuf-c-compiler libcurl4 python3
+Building
+^^^^^^^^
 
-Build and Test
-^^^^^^^^^^^^^^
+#. Clone Graphene::
 
-#. Clone Graphene:
+       git clone https://github.com/oscarlab/graphene.git
+       cd graphene
+       git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
 
-      .. code-block:: sh
+#. Prepare the signing keys and Graphene kernel driver::
 
-            git clone https://github.com/oscarlab/graphene.git
-            cd graphene
-            git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
+       openssl genrsa -3 -out enclave-key.pem 3072
+       cp enclave-key.pem Pal/src/host/Linux-SGX/signer
+       cd Pal/src/host/Linux-SGX/sgx-driver
+       ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ make
+       # WARNING: read "Security Implications" section before running this command
+       sudo insmod gsgx.ko
+       cd -
 
-#. Prepare the signing keys and Graphene kernel driver:
+#. Build Graphene::
 
-      .. code-block:: sh
+       ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ make SGX=1
 
-            openssl genrsa -3 -out enclave-key.pem 3072
-            cp enclave-key.pem Pal/src/host/Linux-SGX/signer
-            cd Pal/src/host/Linux-SGX/sgx-driver
-            ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ make
-            # WARNING: read "Security Implications" section before running this command
-            sudo insmod gsgx.ko
-            cd -
+#. Build and run :program:`helloworld`::
 
-#. Build Graphene:
-
-      .. code-block:: sh
-
-            ISGX_DRIVER_PATH=/usr/src/linux-azure-headers-`uname -r`/arch/x86/ \
-                  make SGX=1
-
-#. Build and Run :program:`helloworld`:
-
-      .. code-block:: sh
-
-            cd LibOS/shim/test/native
-            make SGX=1 sgx-tokens
-            SGX=1 ./pal_loader helloworld
+       cd LibOS/shim/test/native
+       make SGX=1 sgx-tokens
+       SGX=1 ./pal_loader helloworld
 
 
-Security Implications
+Security implications
 ^^^^^^^^^^^^^^^^^^^^^
 
 Note that this guide assumes that you deploy Graphene on an untrusted cloud VM.

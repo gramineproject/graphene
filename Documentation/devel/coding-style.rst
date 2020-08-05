@@ -1,4 +1,4 @@
-Coding Style Guidelines
+Coding style guidelines
 =======================
 
 This document describes coding conventions and formatting styles we use in
@@ -6,7 +6,7 @@ Graphene. All newly commited code must conform to them to pass a |~| review.
 
 .. note:: Old code is temporarily excluded from these rules until reformatted.
 
-Automatic Reformatting
+Automatic reformatting
 ----------------------
 
 To make formatting easier we've added an integration with
@@ -101,7 +101,7 @@ Code formatting
       external dependencies, like :file:`curl.h`).
    #. Graphene's headers.
 
-Conventions and High-level Style
+Conventions and high-level style
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #. Variable and function names should be sane and easy to understand (example:
    ``nofpts`` is bad, ``points_cnt`` is ok).

@@ -1,16 +1,12 @@
-Porting Graphene PAL to Other hosts
-===================================
+Porting Graphene PAL
+====================
 
-Platform Compatibility of Graphene
-----------------------------------
+.. highlight:: sh
 
 Graphene adopts a similar architecture to the Drawbridge Library OS, which runs
 a generic library OS on top of a Platform Adaptation Layer (:term:`PAL`) to
 maximize platform compatibility. In this architecture, the library OS can be
 easily ported to a new host by implementing only the PAL for this new host.
-
-How to Port Graphene
---------------------
 
 To port Graphene to a |~| new host platform, the only effort required is
 reimplementing the PAL on the desired host platform. Most of the implementation
@@ -33,11 +29,11 @@ directory, we do not guarantee that the necessary changes are only limited to
 these directories. That is, you may have to modify other parts of the source
 code (especially the :file:`Makefile` scripts) to complete your implementation.
 
-Steps of Porting PAL
---------------------
+Below are the steps to port Graphene PAL to a new host platform.
 
-Step 1: Fix compilation issues
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1. Fix compilation issues
+-------------------------
+
 For the first step to port PAL, you want to be able to build PAL as an
 executable on the target host. After cloning a host-specific directory, first
 modify :file:`Makefile.am` to adjust compilation rules such as :makevar:`CC`,
@@ -45,8 +41,9 @@ modify :file:`Makefile.am` to adjust compilation rules such as :makevar:`CC`,
 will also have to define the name of the loader as target ``pal`` in
 :file:`Makefile.am.`
 
-Step 2: Build a loader
-^^^^^^^^^^^^^^^^^^^^^^
+2. Build a loader
+-----------------
+
 PAL needs to run on the target host like a regular executable. To run Graphene,
 PAL must initialize the proper environments and load the applications as well as
 the library OS in the form of Linux ELF binaries. To start the implemention of
@@ -98,26 +95,27 @@ point :func:`pal_main()`. The definition of :func:`pal_main()` is:
 You may implement the optional `_DkDebugAddMap` and `_DkDebugDelMap` to use
 a host-specific debugger such as GDB to debug applications in Graphene.
 
-Step 3: Test a HelloWorld program without loading library OS
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3. Test HelloWorld without loading library OS
+---------------------------------------------
+
 In :file:`Pal/test`, we provide a test program that can run without the library
 OS and directly use the :doc:`host-abi`. If you can successfully run
 a |~| ``HelloWorld`` program, congratulations, you have a working PAL loader.
 
-Step 4: Implementing the whole PAL Host ABI
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4. Implementing PAL host ABI
+----------------------------
+
 Now it is time to complete the whole implementation of the :doc:`host-abi`. Once
 you have finished implementation, use the regression tests to confirm whether
 your implementation is compatible with the PAL Host ABI. To run the regression
-tests, run the following steps:
-
-.. code-block:: sh
+tests, run the following steps::
 
     cd Pal/regression
     make regression
 
-Step 5: Running Application with Library OS
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5. Running application with library OS
+--------------------------------------
+
 With a completely implemented PAL, you should be able to run any applications
 that are currently supported by Graphene on your new platform. Please be aware
 you should not try to build any application binaries on your target host. On the
