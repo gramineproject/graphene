@@ -157,7 +157,6 @@ static int check_affinity_params(int ncpus, size_t len, __kernel_cpu_set_t* user
 }
 
 int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
-    int retval = 0;
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
@@ -184,7 +183,6 @@ int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
 }
 
 int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
-    int retval = 0;
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
