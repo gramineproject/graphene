@@ -3,6 +3,9 @@ Quick Start
 
 .. highlight:: sh
 
+Quick Start without SGX support
+-------------------------------
+
 #. Clone the Graphene repository::
 
       git clone https://github.com/oscarlab/graphene.git
@@ -21,8 +24,8 @@ Quick Start
 
 #. For more complex examples, see :file:`Examples` directory.
 
-SGX Quick Start
----------------
+Quick Start with SGX support
+-------------------------------
 
 Graphene-SGX requires that the FSGSBASE feature of recent processors is enabled
 in the Linux kernel. For the ways to enable the FSGSBASE feature, please refer
@@ -81,3 +84,13 @@ second command should list the process status of :command:`aesm_service`.
       cd $GRAPHENE_DIR/LibOS/shim/test/native
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
+
+Running Sample Applications
+---------------------------
+
+We prepared and tested several applications to demonstrate Graphene and
+Graphene-SGX usability. These applications can be found in the :file:`Examples`
+folder in the repository, each containing a short README with instructions how
+to test it. We recommend starting with simpler, thoroughly documented examples
+like Memcached and Redis, to understand manifest options and features of
+Graphene.

@@ -16,9 +16,6 @@ Graphene consists of three parts:
   "shim" in our source code)
 - The Platform Adaptation Layer, or PAL (a shared library named ``libpal.so``)
 
-Prerequisites
--------------
-
 Graphene currently only works on the x86_64 architecture. Graphene is currently
 tested on Ubuntu 16.04 and 18.04 (both server and desktop version), along with
 Linux kernel versions 3.x/4.x/5.x. We recommend building and installing Graphene
@@ -26,11 +23,47 @@ on the same host platform. If you find problems with Graphene on other Linux
 distributions, please contact us with a |~| detailed `bug report
 <https://github.com/oscarlab/graphene/issues/new>`__.
 
-Run the following command on Ubuntu to install dependencies for Graphene::
+Building without SGX Support
+----------------------------
+
+Prerequisites
+^^^^^^^^^^^^^
+
+Run the following command on Ubuntu to install dependencies::
 
     sudo apt-get install -y build-essential autoconf gawk bison
 
-For building Graphene for SGX, run the following command in addition::
+To run tests locally, you also need the python3-pytest package::
+
+    sudo apt-get install -y python3-pytest
+
+Building
+^^^^^^^^
+
+To build Graphene, in the root directory of Graphene repo, run the following
+command::
+
+   make
+
+To build with debug symbols, instead run the command::
+
+   make DEBUG=1
+
+Each part of Graphene can be built separately in the subdirectories.
+To specify custom mirrors for downloading the Glibc source, use
+:command:`make GLIBC_MIRRORS=...`. To build with ``-Werror``, run
+:command:`make WERROR=1`.
+
+Building with SGX Support
+-------------------------
+
+Prerequisites
+^^^^^^^^^^^^^
+
+1. Required packages
+""""""""""""""""""""
+
+Run the following command on Ubuntu to install SGX-related dependencies::
 
     sudo apt-get install -y libprotobuf-c-dev protobuf-c-compiler \
        libcurl4-openssl-dev
@@ -42,34 +75,7 @@ For building Graphene for SGX, run the following command in addition::
     sudo apt install -y python3-pip
     sudo /usr/bin/pip3 install protobuf
 
-To run tests locally, you also need the python3-pytest package::
-
-    sudo apt-get install -y python3-pytest
-
-To build Graphene, simply run the following commands in the root of the
-source tree::
-
-    git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
-    make
-
-Building
---------
-
-Each part of Graphene can be built separately in the subdirectories.
-
-To build Graphene with debug symbols, run :command:`make DEBUG=1`
-instead of :command:`make`. To specify custom mirrors for downloading the Glibc
-source, use :command:`make GLIBC_MIRRORS=...`.
-
-To build with ``-Werror``, run :command:`make WERROR=1`.
-
-Building with Intel SGX Support
--------------------------------
-
-Prerequisites
-^^^^^^^^^^^^^
-
-1. Install the Linux kernel patched with FSGSBASE
+2. Install the Linux kernel patched with FSGSBASE
 """""""""""""""""""""""""""""""""""""""""""""""""
 
 FSGSBASE is a feature in recent processors which allows direct access to the FS
@@ -123,8 +129,7 @@ these software packages may not work with recent Linux kernels like 5.4. We
 recommend to use commit ``b7ccf6f`` of the Intel SGX Linux Driver for Intel SGX
 DCAP and commit ``0e71c22`` of the Intel SGX SDK/PSW.
 
-
-2. Generate signing keys
+3. Generate signing keys
 """"""""""""""""""""""""
 
 A 3072-bit RSA private key (PEM format) is required for signing the manifest.
@@ -141,7 +146,7 @@ Graphene binaries, along with an SGX-specific manifest (``.manifest.sgx``
 extension), the signature (``.sig`` extension), and the aesmd init token
 (``.token`` extension) to execute on another SGX-enabled host.
 
-3. Install the Intel SGX driver and SDK/PSW
+4. Install the Intel SGX driver and SDK/PSW
 """""""""""""""""""""""""""""""""""""""""""
 
 The Intel SGX Linux SDK and the Intel SGX driver are required to compile and
@@ -156,7 +161,7 @@ download and install it from:
 
 - https://github.com/intel/SGXDataCenterAttestationPrimitives
 
-4. Install the Graphene SGX driver (not for production)
+5. Install the Graphene SGX driver (not for production)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 If you followed step 1 and installed the patched Linux kernel, skip this step.
@@ -165,14 +170,14 @@ FSGSBASE feature available in recent processors.
 
 To install the Graphene SGX driver, run the following commands::
 
+   git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver
    cd Pal/src/host/Linux-SGX/sgx-driver
    make
    # The console will be prompted to ask for the path of Intel SGX driver code
    sudo insmod gsgx.ko
 
-
-Building Graphene-SGX
-^^^^^^^^^^^^^^^^^^^^^
+Building
+^^^^^^^^
 
 To build Graphene with Intel SGX support, in the root directory of Graphene
 repo, run the following command::

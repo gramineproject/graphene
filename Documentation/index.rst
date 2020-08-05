@@ -66,14 +66,11 @@ Table of Contents
 
    quickstart
    building
-   cloud-deployment
    manifest-syntax
-   supported-syscalls
-   sample-apps
-   sgx-intro
    perf-practices
+   cloud-deployment
+   sgx-intro
    glossary
-   howto-doc
 
 .. toctree::
    :caption: Manual pages
@@ -87,10 +84,12 @@ Table of Contents
    :maxdepth: 1
 
    devel/contributing
+   devel/howto-doc
    devel/coding-style
    devel/setup
    devel/debugging
    devel/new-syscall
+   devel/supported-syscalls
 
 .. toctree::
    :caption: LibOS
@@ -100,8 +99,8 @@ Table of Contents
 .. toctree::
    :caption: PAL
 
-   pal/porting
    pal/host-abi
+   pal/porting
 
 Indices and tables
 ==================

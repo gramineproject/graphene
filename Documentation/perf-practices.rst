@@ -5,16 +5,11 @@ Performance tuning and analysis
 
 This is the "best performance practices" document for Graphene performance
 tuning and explanation of possible software and hardware performance bottlenecks
-and limitations.
-
-Using manifest options
-----------------------
-
-In this document, we are highlighting only those manifest options relevant for
-performance benchmarking. Refer to `Graphene manifest syntax
+and limitations. In this document, we are highlighting only those manifest
+options relevant for performance benchmarking. Refer to `Graphene manifest
+syntax
 <https://github.com/oscarlab/graphene/blob/master/Documentation/manifest-syntax.rst>`__
 for a full list.
-
 
 *Note:* The below examples were run on a Mehlow machine with the legacy Intel
 SGX driver v2.6 and Graphene release v1.1. The performance numbers in these
@@ -22,7 +17,7 @@ examples should not be considered representative and serve only illustration
 purposes.
 
 Enabling per-thread and process-wide SGX stats
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------
 
 Enable statistics using ``sgx.enable_stats = 1`` manifest option. Now your
 graphenized application correctly reports performance counters. This is useful
@@ -120,7 +115,7 @@ If you need additional statistics, you can check this unofficial patch:
 * https://github.com/oscarlab/graphene/tree/dimakuv/DONTMERGE-more-perf-stats-tweaks
 
 Zero out heap on demand vs during enclave init
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------
 
 Graphene by default zeroes out the whole enclave heap during enclave
 initialization (``sgx.zero_heap_on_demand = 0``). This improves security (the
@@ -215,8 +210,8 @@ to OCALLs:
    to a newer platform, you are limited by SGX hardware (you can try to modify
    the application itself to issue less gettimeofday’s).
 
-Number of RPC threads (Exitless feature)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Exitless feature
+----------------
 
 Graphene supports the Exitless (or Switchless) feature – it trades off CPU cores
 for faster OCALL execution. More specifically, with Exitless, enclave threads do
@@ -274,7 +269,7 @@ You can find additional information and context here:
 * https://github.com/oscarlab/graphene/pull/1578
 
 Optional CPU features (AVX, AVX512, MPX)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------
 
 SGX technology allows to specify which CPU features are required to run the SGX
 enclave. Graphene "inherits" this and has the following manifest options:

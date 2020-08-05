@@ -3,9 +3,6 @@ Graphene Manifest Syntax
 
 .. highlight:: text
 
-Basic Syntax
-------------
-
 A |~| manifest file is an application-specific configuration text file that
 specifies the environment and resources for running an application inside
 Graphene. A |~| manifest file contains entries separated by line breaks. Each
@@ -21,8 +18,21 @@ Comments can be inlined in a |~| manifest by starting them with a |~| hash sign
 (``# comment...``). Any text after a |~| hash sign will be considered part of
 a |~| comment and discarded while loading the manifest file.
 
-Loader-related (Required by PAL)
---------------------------------
+Common Syntax
+-------------
+
+Debug Type
+^^^^^^^^^^
+
+::
+
+    loader.debug_type=[none|inline]
+    (Default: none)
+
+This specifies the debug option while running the library OS. If the debug type
+is ``none``, no debug output will be printed to standard output. If the debug
+type is ``inline``, a dmesg-like debug output will be printed inlined with
+standard output.
 
 Executable
 ^^^^^^^^^^
@@ -36,20 +46,6 @@ executable must be an ELF binary, with an entry point defined to start its
 execution (i.e., the binary needs a `main()` routine, it cannot just be
 a |~| library).
 
-Preloaded Libraries (e.g., LibOS)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-::
-
-   loader.preload=[URI][,URI]...
-
-This syntax specifies the libraries to be preloaded before loading the
-executable. The URIs of the libraries must be separated by commas. The libraries
-must be ELF binaries.
-
-Executable Name
-^^^^^^^^^^^^^^^
-
 ::
 
    loader.argv0_override=[STRING]
@@ -59,6 +55,18 @@ will be passed as the first argument (``argv[0]``) to the executable.
 
 If the string is not specified in the manifest, the application will get
 ``argv[0]`` from :program:`pal_loader` invocation.
+
+Preloaded Libraries
+^^^^^^^^^^^^^^^^^^^
+
+::
+
+   loader.preload=[URI][,URI]...
+
+This syntax specifies the libraries to be preloaded before loading the
+executable. The URIs of the libraries must be separated by commas. The libraries
+must be ELF binaries. This syntax currently always contains the LibOS library
+``libsysdb.so``.
 
 Command-Line Arguments
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -121,19 +129,6 @@ provisioning currently happens after setting up environment variables.
 If the same variable is set in both, then ``loader.env.[ENVIRON]`` takes
 precedence.
 
-Debug Type
-^^^^^^^^^^
-
-::
-
-    loader.debug_type=[none|inline]
-    (Default: none)
-
-This specifies the debug option while running the library OS. If the debug type
-is ``none``, no debug output will be printed to standard output. If the debug
-type is ``inline``, a dmesg-like debug output will be printed inlined with
-standard output.
-
 Disabling ASLR
 ^^^^^^^^^^^^^^
 
@@ -145,10 +140,6 @@ Disabling ASLR
 This specifies whether to disable Address Space Layout Randomization (ASLR).
 Since disabling ASLR worsens security of the application, ASLR is enabled by
 default.
-
-
-System-related (Required by LibOS)
-----------------------------------
 
 Stack Size
 ^^^^^^^^^^
@@ -163,7 +154,7 @@ default value is determined by the library OS. Units like ``K`` |~| (KiB),
 convenience. For example, ``sys.stack.size=1M`` indicates a 1 |~| MiB stack
 size.
 
-Program Break (Heap) Size
+Program Break (Brk) Size
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
@@ -188,12 +179,8 @@ This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
 eventfd emulation currently relies on the host, these system calls are
 disallowed by default due to security concerns.
 
-
-FS-related (Required by LibOS)
-------------------------------
-
-Mount Points
-^^^^^^^^^^^^
+FS Mount Points
+^^^^^^^^^^^^^^^
 
 ::
 
@@ -211,6 +198,17 @@ SGX syntax
 
 If Graphene is *not* running with SGX, the SGX-specific syntax is ignored. All
 keys in the SGX-specific syntax are optional.
+
+Debug/Production Enclave
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.debug=[1|0]
+    (Default: 1)
+
+This syntax specifies whether the enclave can be debugged. Set it to ``1`` for
+a |~| debug enclave and to ``0`` for a |~| production enclave.
 
 Enclave Size
 ^^^^^^^^^^^^
@@ -268,17 +266,6 @@ OCALLs/ECALLs for fast shared-memory communication at the cost of occupying
 more CPU cores and burning more CPU cycles. For example, a single-threaded
 Redis instance on Linux becomes 5-threaded on Graphene with Exitless. Thus,
 Exitless may negatively impact throughput but may improve latency.
-
-Debug/Production Enclave
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-::
-
-    sgx.debug=[1|0]
-    (Default: 1)
-
-This syntax specifies whether the enclave can be debugged. Set it to ``1`` for
-a |~| debug enclave and to ``0`` for a |~| production enclave.
 
 Optional CPU features (AVX, AVX512, MPX)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -374,19 +361,6 @@ Set it to ``1`` to allow enclaves to create files and to ``0`` otherwise. Files
 created during enclave execution do not need to be marked as ``allowed_files``
 or ``trusted_files``.
 
-Trusted Child Processes
-^^^^^^^^^^^^^^^^^^^^^^^
-
-::
-
-    sgx.trusted_children.[identifier]=[URI of signature (.sig)]
-
-This syntax specifies the signatures of allowed child processes of the current
-application. Upon process creation, the enclave in the current (parent) process
-will attest the enclave in the child process, by comparing to the signatures of
-the trusted children. If the child process is not trusted, the enclave will
-refuse to communicate with it.
-
 File Check Policy
 ^^^^^^^^^^^^^^^^^
 
@@ -402,6 +376,19 @@ access. If the file check policy is ``allow_all_but_log``, all files other than
 trusted and allowed are allowed for access, and Graphene-SGX emits a warning
 message for every such file. This is a convenient way to determine the set of
 files that the ported application uses.
+
+Trusted Child Processes
+^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.trusted_children.[identifier]=[URI of signature (.sig)]
+
+This syntax specifies the signatures of allowed child processes of the current
+application. Upon process creation, the enclave in the current (parent) process
+will attest the enclave in the child process, by comparing to the signatures of
+the trusted children. If the child process is not trusted, the enclave will
+refuse to communicate with it.
 
 Attestation and Quotes
 ^^^^^^^^^^^^^^^^^^^^^^
