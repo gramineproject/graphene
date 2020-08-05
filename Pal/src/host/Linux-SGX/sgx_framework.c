@@ -178,7 +178,7 @@ int create_enclave(sgx_arch_secs_t * secs,
         return -ENOMEM;
     }
 
-    assert(request_mmap_addr == addr);
+    assert(addr == request_mmap_addr);
 
     struct sgx_enclave_create param = {
         .src = (uint64_t) secs,
