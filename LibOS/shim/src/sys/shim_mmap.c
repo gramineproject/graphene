@@ -144,7 +144,8 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
         }
     } else {
         /* We know that `addr + length` does not overflow (`access_ok` above). */
-        if (addr && ((uintptr_t)addr + length <= (uintptr_t)PAL_CB(user_address.end))) {
+        if (addr && (uintptr_t)PAL_CB(user_address.start) <= (uintptr_t)addr
+                && (uintptr_t)addr + length <= (uintptr_t)PAL_CB(user_address.end)) {
             ret = bkeep_mmap_any_in_range(PAL_CB(user_address.start), (char*)addr + length, length,
                                           prot, flags, hdl, offset, NULL, &addr);
         } else {
