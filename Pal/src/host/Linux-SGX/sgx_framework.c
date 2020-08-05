@@ -148,7 +148,19 @@ int create_enclave(sgx_arch_secs_t * secs,
      * SIGSTRUCT during EINIT (see pp21 for ECREATE and pp34 for
      * EINIT in https://software.intel.com/sites/default/files/managed/48/88/329298-002.pdf). */
 
-    uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->base, secs->size,
+    uint64_t request_mmap_addr = secs->base;
+    uint64_t request_mmap_size = secs->size;
+
+#ifdef SGX_DCAP_16_OR_LATER
+    /* newer DCAP/in-kernel SGX drivers allow starting enclave address space with non-zero;
+     * the below trick to start from DEFAULT_HEAP_MIN is to avoid vm.mmap_min_addr==0 issue */
+    if (request_mmap_addr < DEFAULT_HEAP_MIN) {
+        request_mmap_size -= DEFAULT_HEAP_MIN - request_mmap_addr;
+        request_mmap_addr  = DEFAULT_HEAP_MIN;
+    }
+#endif
+
+    uint64_t addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
                                    PROT_NONE, /* newer DCAP driver requires such initial mmap */
 #ifdef SGX_DCAP_16_OR_LATER
                                    MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -166,7 +178,7 @@ int create_enclave(sgx_arch_secs_t * secs,
         return -ENOMEM;
     }
 
-    assert(secs->base == addr);
+    assert(request_mmap_addr == addr);
 
     struct sgx_enclave_create param = {
         .src = (uint64_t) secs,

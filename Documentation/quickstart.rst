@@ -69,12 +69,12 @@ second command should list the process status of :command:`aesm_service`.
       make SGX=1
       # the console will prompt you for the path to the Intel SGX driver code
 
-#. Set ``vm.mmap_min_addr=0`` in the system::
+#. Set ``vm.mmap_min_addr=0`` in the system (*only required for the legacy SGX
+   driver and not needed for newer DCAP/in-kernel drivers*)::
 
       sudo sysctl vm.mmap_min_addr=0
 
-   Note that this is an inadvisable configuration for production systems. This
-   temporary workaround will not be required in the future.
+   Note that this is an inadvisable configuration for production systems.
 
 #. Build and run :program:`helloworld`::
 
