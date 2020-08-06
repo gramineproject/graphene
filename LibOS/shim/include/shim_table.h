@@ -320,12 +320,6 @@ long __shim_sendmmsg(long, long, long, long);
 long __shim_setns(long, long);
 long __shim_getcpu(long, long, long);
 
-/* libos call entries */
-long __shim_msgpersist(long, long);
-long __shim_benchmark_rpc(long, long, long, long);
-long __shim_send_rpc(long, long, long);
-long __shim_recv_rpc(long, long, long);
-
 /* syscall implementation */
 size_t shim_do_read(int fd, void* buf, size_t count);
 size_t shim_do_write(int fd, const void* buf, size_t count);
@@ -508,12 +502,6 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int
 int shim_do_eventfd2(unsigned int count, int flags);
 int shim_do_eventfd(unsigned int count);
 int shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused);
-
-/* libos call implementation */
-int shim_do_msgpersist(int msqid, int cmd);
-int shim_do_benchmark_rpc(pid_t pid, int times, const void* buf, size_t size);
-size_t shim_do_send_rpc(pid_t pid, const void* buf, size_t size);
-size_t shim_do_recv_rpc(pid_t* pid, void* buf, size_t size);
 
 #endif /* ! IN_SHIM */
 
@@ -837,11 +825,5 @@ int shim_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_
                    struct __kernel_rlimit64* old_rlim);
 ssize_t shim_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags);
 int shim_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused);
-
-/* libos call wrappers */
-int shim_msgpersist(int msqid, int cmd);
-int shim_benchmark_rpc(pid_t pid, int times, const void* buf, size_t size);
-size_t shim_send_rpc(pid_t pid, const void* buf, size_t size);
-size_t shim_recv_rpc(pid_t* pid, void* buf, size_t size);
 
 #endif /* _SHIM_TABLE_H_ */

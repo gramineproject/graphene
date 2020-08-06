@@ -14,7 +14,6 @@ GLIBC_LIBS = \
 	dlfcn/libdl.so.2 \
 	libc.so \
 	libc.so.6 \
-	libos/liblibos.so.1 \
 	login/libutil.so.1 \
 	math/libm.so.6 \
 	nptl/libpthread.so.0 \
@@ -76,8 +75,7 @@ GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 
 GLIBC_PATCHES = \
 	glibc-patches/$(GLIBC_SRC).patch \
-	glibc-patches/syscalldb-api.patch \
-	glibc-patches/liblibos.patch
+	glibc-patches/syscalldb-api.patch
 
 GLIBC_PATCHES_2.23 = \
 	glibc-patches/hp-timing-2.23.patch \

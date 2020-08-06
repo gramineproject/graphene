@@ -12,16 +12,6 @@ index f252842979a1d777e0f0c2bdafa7a65aee0805cd..4e22deb595ad6e5dd36571aec01d5b1e
  
  # Since libio has several internal header files, we use a -I instead
  # of many little headers in the include directory.
-@@ -1274,6 +1275,9 @@ all-subdirs = csu assert ctype locale intl catgets math setjmp signal	    \
- 	      localedata timezone rt conform debug mathvec support	    \
- 	      dlfcn elf
- 
-+# Add libos for Graphene
-+all-subdirs += libos
-+
- ifeq ($(build-crypt),yes)
- all-subdirs += crypt
- rpath-dirs += crypt
 diff --git a/Makefile b/Makefile
 index 8f0a93aceb824e556f519847d322cbe5ee5eec7d..37c6356629cfe430fc667a4ca47939937cff536d 100644
 --- a/Makefile
@@ -144,20 +134,6 @@ index 553cfbd1b74e05467e3c30e291f694ce40c4b0f4..09a0826d2d8fac85e358fbb9a08bb5c6
    /* Now life is sane; we can call functions and access global data.
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
-diff --git a/shlib-versions b/shlib-versions
-index b9cb99d2fbb07f302aee85e6c367fe2c74d7705c..2d91a6c7f757cbc3ab9b9a77bbc649ea3b617d63 100644
---- a/shlib-versions
-+++ b/shlib-versions
-@@ -29,6 +29,9 @@ ld=ld.so.1
- # The -ldl interface (see <dlfcn.h>) is the same on all platforms.
- libdl=2
- 
-+# Interface for Graphene
-+liblibos=1
-+
- # So far the -lutil interface is the same on all platforms, except for the
- # `struct utmp' format, which depends on libc.
- libutil=1
 diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
 index 07334c63d81cb3b0dca848aa28c6a80292059bfb..2093438c050443920da0fcafe3083d7270f9bb24 100644
 --- a/sysdeps/gnu/errlist-compat.awk

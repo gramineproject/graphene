@@ -1029,15 +1029,3 @@ SHIM_SYSCALL_RETURN_ENOSYS(setns, 2, int, int, fd, int, nstype)
 
 DEFINE_SHIM_SYSCALL(getcpu, 3, shim_do_getcpu, int, unsigned*, cpu, unsigned*, node,
                     struct getcpu_cache*, cache)
-
-/* libos calls */
-
-DEFINE_SHIM_SYSCALL(msgpersist, 2, shim_do_msgpersist, int, int, msqid, int, cmd)
-
-DEFINE_SHIM_SYSCALL(benchmark_rpc, 4, shim_do_benchmark_rpc, int, pid_t, pid, int, times,
-                    const void*, buf, size_t, size)
-
-DEFINE_SHIM_SYSCALL(send_rpc, 3, shim_do_send_rpc, size_t, pid_t, pid, const void*, buf, size_t,
-                    size)
-
-DEFINE_SHIM_SYSCALL(recv_rpc, 3, shim_do_recv_rpc, size_t, pid_t*, pid, void*, buf, size_t, size)
