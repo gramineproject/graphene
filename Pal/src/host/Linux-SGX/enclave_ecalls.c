@@ -101,6 +101,8 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
             return;
 
         /* xsave size must be initialized early, from a trusted source (EREPORT result) */
+        // TODO: This eats 1KB of a stack frame which lives for the whole lifespan of this enclave.
+        //       We should move it somewhere else and deallocate right after use.
         __sgx_mem_aligned sgx_target_info_t target_info;
         alignas(128) char report_data[64] = { 0 };
         __sgx_mem_aligned sgx_report_t report;
