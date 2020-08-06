@@ -24,9 +24,7 @@ c_executables = \
 	malloc \
 	meminfo \
 	msg_create \
-	msg_create_libos \
 	msg_send \
-	msg_send_libos \
 	multiproc \
 	multisleep \
 	pause \
@@ -72,15 +70,10 @@ include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
 
-CFLAGS-msg_create_libos += $(CFLAGS-libos)
-CFLAGS-msg_send_libos += $(CFLAGS-libos)
-
 LDLIBS-condvar += -lpthread
 LDLIBS-futextest += -lpthread
 LDLIBS-get_time += -lm
 LDLIBS-helloworld_pthread += -lpthread
-LDLIBS-msg_create_libos += -llibos
-LDLIBS-msg_send_libos += -llibos
 LDLIBS-sqrt += -lm
 LDLIBS-start += -lpthread -lm
 LDLIBS-sync += -lpthread

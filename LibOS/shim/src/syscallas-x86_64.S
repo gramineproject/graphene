@@ -7,9 +7,7 @@
  * This file contains the entry point of system call table in library OS.
  */
 
-#include <shim_defs.h>
-#include <shim_unistd_defs.h>
-
+#include "shim_defs.h"
 #include "asm-offsets.h"
 
         .global syscalldb

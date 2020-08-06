@@ -14,12 +14,12 @@
 
 #define DEFAULT_VMA_COUNT           64
 
-/* System V IPC semaphore / message queue migration */
-#define MIGRATE_SYSV_SEM            0
-#define MIGRATE_SYSV_MSG            1
-
 /* ELF aux vectors  */
 #define REQUIRED_ELF_AUXV           8   /* number of LibOS-supported vectors */
 #define REQUIRED_ELF_AUXV_SPACE     16  /* extra memory space (in bytes) */
+
+#if defined(__i386__) || defined(__x86_64__)
+#define LIBOS_SYSCALL_BOUND         (340 + 1)
+#endif
 
 #endif /* _SHIM_DEFS_H_ */

@@ -12,25 +12,4 @@ typedef int pid_t;
 #include <unistd.h>
 #endif
 
-#define __NR_msgpersist (LIBOS_SYSCALL_BASE + 1)
-
-#define MSGPERSIST_STORE 0
-#define MSGPERSIST_LOAD  1
-int msgpersist(int msqid, int cmd);
-
-#define __NR_benchmark_rpc (LIBOS_SYSCALL_BASE + 2)
-#define __NR_send_rpc      (LIBOS_SYSCALL_BASE + 3)
-#define __NR_recv_rpc      (LIBOS_SYSCALL_BASE + 4)
-
-int benchmark_rpc(pid_t pid, int times, const void* buf, size_t size);
-
-size_t send_rpc(pid_t pid, const void* buf, size_t size);
-size_t recv_rpc(pid_t* pid, void* buf, size_t size);
-
-struct sigcp {
-    int si_session;
-};
-
-#include "shim_unistd_defs.h"
-
 #endif /* _SHIM_UNISTD_H_ */

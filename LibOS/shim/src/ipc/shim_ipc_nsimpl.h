@@ -97,62 +97,6 @@ static inline LEASETYPE get_lease(void) {
     return DkSystemTimeQuery() + CONCAT2(NS_CAP, LEASE_TIME);
 }
 
-void CONCAT3(debug_print, NS, ranges)(void) {
-    lock(&range_map_lock);
-    SYS_PRINTF(NS_STR " ranges in process %010u:\n", cur_process.vmid);
-
-    if (!range_map) {
-        unlock(&range_map_lock);
-        return;
-    }
-
-    for (IDTYPE i = 0; i < range_map->map_size; i++) {
-        unsigned char map = range_map->map[i];
-
-        if (!map)
-            continue;
-
-        for (IDTYPE j = 0; j < BITS; map >>= 1, j++) {
-            if (!(map & 1))
-                continue;
-
-            IDTYPE off              = i * BITS + j;
-            LISTP_TYPE(range)* head = range_table + RANGE_HASH(off);
-            struct range* tmp;
-            struct range* r = NULL;
-
-            LISTP_FOR_EACH_ENTRY(tmp, head, hlist) {
-                if (tmp->offset == off) {
-                    r = tmp;
-                    break;
-                }
-            }
-
-            assert(r);
-            IDTYPE base             = RANGE_SIZE * off + 1;
-            struct shim_ipc_info* p = r->owner;
-
-            SYS_PRINTF("%04u - %04u: owner %010u, port \"%s\" lease %lu\n", base,
-                       base + RANGE_SIZE - 1, p->vmid, qstrgetstr(&p->uri), r->lease);
-
-            if (!r->subranges)
-                continue;
-
-            for (IDTYPE k = 0; k < RANGE_SIZE; k++) {
-                struct subrange* s = r->subranges->map[j];
-                if (!s)
-                    continue;
-
-                p = s->owner;
-                SYS_PRINTF("   %04u: owner %010u, port \"%s\" lease %lu\n", base + k, p->vmid,
-                           qstrgetstr(&p->uri), s->lease);
-            }
-        }
-    }
-
-    unlock(&range_map_lock);
-}
-
 #define INIT_RANGE_MAP_SIZE 32
 
 static int __extend_range_bitmap(IDTYPE expected) {
