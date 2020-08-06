@@ -7,8 +7,9 @@
 
 struct untrusted_area {
     void* mem;
-    uint64_t size;
-    uint64_t in_use;
+    size_t size;
+    uint64_t in_use; /* must be uint64_t, because SET_ENCLAVE_TLS() currently supports only 8-byte
+                      * types. TODO: fix this. */
     bool valid;
 };
 

@@ -130,7 +130,7 @@ static const char** make_argv_list(void* uptr_src, size_t src_size) {
     const char** argv;
 
     if (src_size == 0) {
-        argv = malloc(sizeof(char *));
+        argv = malloc(sizeof(char*));
         if (argv)
             argv[0] = NULL;
         return argv;
@@ -182,7 +182,7 @@ extern void* g_enclave_base;
 extern void* g_enclave_top;
 
 noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char* uptr_args,
-                             uint64_t args_size, char* uptr_env, uint64_t env_size,
+                             size_t args_size, char* uptr_env, size_t env_size,
                              struct pal_sec* uptr_sec_info) {
     /*
      * Our arguments are coming directly from the urts. We are responsible to check them.
@@ -199,7 +199,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
 
     struct pal_sec sec_info;
-    if (!sgx_copy_to_enclave(&sec_info, sizeof(sec_info), uptr_sec_info, sizeof(sec_info))) {
+    if (!sgx_copy_to_enclave(&sec_info, sizeof(sec_info), uptr_sec_info, sizeof(*uptr_sec_info))) {
         SGX_DBG(DBG_E, "Copying sec_info into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }

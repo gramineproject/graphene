@@ -78,17 +78,16 @@ static long sgx_ocall_exit(void* pms)
     return 0;
 }
 
-static long sgx_ocall_mmap_untrusted(void * pms)
-{
-    ms_ocall_mmap_untrusted_t * ms = (ms_ocall_mmap_untrusted_t *) pms;
-    void * addr;
+static long sgx_ocall_mmap_untrusted(void* pms) {
+    ms_ocall_mmap_untrusted_t* ms = (ms_ocall_mmap_untrusted_t*)pms;
+    void* addr;
 
     ODEBUG(OCALL_MMAP_UNTRUSTED, ms);
-    addr = (void *) INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
-                                   ms->ms_prot,
-                                   (ms->ms_fd == -1) ? MAP_ANONYMOUS | MAP_PRIVATE
-                                                     : MAP_FILE | MAP_SHARED,
-                                   ms->ms_fd, ms->ms_offset);
+    addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
+                                 ms->ms_prot,
+                                 (ms->ms_fd == -1) ? MAP_ANONYMOUS | MAP_PRIVATE
+                                                   : MAP_FILE | MAP_SHARED,
+                                 ms->ms_fd, ms->ms_offset);
     if (IS_ERR_P(addr))
         return -ERRNO_P(addr);
 
@@ -96,9 +95,8 @@ static long sgx_ocall_mmap_untrusted(void * pms)
     return 0;
 }
 
-static long sgx_ocall_munmap_untrusted(void * pms)
-{
-    ms_ocall_munmap_untrusted_t * ms = (ms_ocall_munmap_untrusted_t *) pms;
+static long sgx_ocall_munmap_untrusted(void* pms) {
+    ms_ocall_munmap_untrusted_t* ms = (ms_ocall_munmap_untrusted_t*)pms;
     ODEBUG(OCALL_MUNMAP_UNTRUSTED, ms);
     INLINE_SYSCALL(munmap, 2, ALLOC_ALIGN_DOWN_PTR(ms->ms_mem),
                    ALLOC_ALIGN_UP_PTR(ms->ms_mem + ms->ms_size) -
@@ -250,12 +248,12 @@ static long sgx_ocall_mkdir(void * pms)
     return ret;
 }
 
-static long sgx_ocall_getdents(void * pms)
-{
-    ms_ocall_getdents_t * ms = (ms_ocall_getdents_t *) pms;
+static long sgx_ocall_getdents(void* pms) {
+    ms_ocall_getdents_t* ms = (ms_ocall_getdents_t*)pms;
     long ret;
     ODEBUG(OCALL_GETDENTS, ms);
-    ret = INLINE_SYSCALL(getdents64, 3, ms->ms_fd, ms->ms_dirp, ms->ms_size);
+    unsigned int count = ms->ms_size <= UINT_MAX ? ms->ms_size : UINT_MAX;
+    ret = INLINE_SYSCALL(getdents64, 3, ms->ms_fd, ms->ms_dirp, count);
     return ret;
 }
 

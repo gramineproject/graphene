@@ -70,14 +70,14 @@ typedef struct {
 typedef struct {
     int ms_fd;
     uint64_t ms_offset;
-    uint64_t ms_size;
+    size_t ms_size;
     unsigned short ms_prot;
-    void * ms_mem;
+    void* ms_mem;
 } ms_ocall_mmap_untrusted_t;
 
 typedef struct {
-    const void * ms_mem;
-    uint64_t ms_size;
+    const void* ms_mem;
+    size_t ms_size;
 } ms_ocall_munmap_untrusted_t;
 
 typedef struct {
@@ -158,7 +158,7 @@ typedef struct {
 typedef struct {
     int ms_fd;
     struct linux_dirent64 * ms_dirp;
-    unsigned int ms_size;
+    size_t ms_size;
 } ms_ocall_getdents_t;
 
 typedef struct {

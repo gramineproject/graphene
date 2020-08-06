@@ -1,11 +1,13 @@
-#include "pal_linux.h"
-#include "pal_security.h"
-#include "pal_internal.h"
-#include <api.h>
+#include <stdalign.h>
 
+#include "api.h"
 #include "ecall_types.h"
 #include "enclave_ecalls.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_security.h"
 #include "rpc_queue.h"
+#include "sgx_arch.h"
 
 #define SGX_CAST(type, item) ((type)(item))
 
@@ -85,8 +87,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
             return;
         }
 
-        ms_ecall_enclave_start_t * ms =
-                (ms_ecall_enclave_start_t *) ecall_args;
+        ms_ecall_enclave_start_t* ms = (ms_ecall_enclave_start_t*)ecall_args;
 
         if (!ms || !sgx_is_completely_outside_enclave(ms, sizeof(*ms))) {
             return;
@@ -95,14 +96,25 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         if (verify_and_init_rpc_queue(READ_ONCE(ms->rpc_queue)))
             return;
 
+        struct pal_sec* pal_sec = READ_ONCE(ms->ms_sec_info);
+        if (!pal_sec || !sgx_is_completely_outside_enclave(pal_sec, sizeof(*pal_sec)))
+            return;
+
         /* xsave size must be initialized early */
-        init_xsave_size(READ_ONCE(READ_ONCE(ms->ms_sec_info)->enclave_attributes.xfrm));
+        /* We take it from a trusted source - EREPORT result */
+        __sgx_mem_aligned sgx_target_info_t target_info;
+        alignas(128) char report_data[64] = { 0 };
+        __sgx_mem_aligned sgx_report_t report;
+        memset(&report, 0, sizeof(report));
+        memset(&target_info, 0, sizeof(target_info));
+        sgx_report(&target_info, &report_data, &report);
+        init_xsave_size(report.body.attributes.xfrm);
 
         /* pal_linux_main is responsible to check the passed arguments */
         pal_linux_main(READ_ONCE(ms->ms_libpal_uri), READ_ONCE(ms->ms_libpal_uri_len),
                        READ_ONCE(ms->ms_args), READ_ONCE(ms->ms_args_size),
                        READ_ONCE(ms->ms_env), READ_ONCE(ms->ms_env_size),
-                       READ_ONCE(ms->ms_sec_info));
+                       pal_sec);
     } else {
         // ENCLAVE_START already called (maybe successfully, maybe not), so
         // only valid ecall is THREAD_START.
