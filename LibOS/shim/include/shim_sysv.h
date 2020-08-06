@@ -20,13 +20,6 @@ enum sysv_type { SYSV_NONE, SYSV_MSGQ, SYSV_SEM, SYSV_SHM };
     ((type) == SYSV_MSGQ ? "MSGQ" \
                          : ((type) == SYSV_SEM ? "SEM" : ((type) == SYSV_SHM ? "SHM" : "")))
 
-#define VALID_SYSV_TYPE(type) ((type) == SYSV_MSGQ || (type) == SYSV_SEM || (type) == SYSV_SHM)
-
-struct sysv_score {
-    IDTYPE vmid;
-    unsigned long score;
-};
-
 struct sysv_client {
     struct shim_ipc_port* port;
     IDTYPE vmid;
@@ -34,17 +27,6 @@ struct sysv_client {
 };
 
 struct shim_handle;
-
-struct sysv_balance_policy {
-    unsigned int score_decay;
-    unsigned int score_max;
-    unsigned int balance_threshold;
-    int (*migrate)(struct shim_handle* hdl, struct sysv_client* client);
-};
-
-int __balance_sysv_score(struct sysv_balance_policy* policy, struct shim_handle* hdl,
-                         struct sysv_score* scores, int nscores, struct sysv_client* src,
-                         long score);
 
 #define MSG_NOERROR 010000
 
@@ -101,12 +83,6 @@ struct msg_type {
 
 #define DEFAULT_MSG_QUEUE_SIZE 2048
 
-#define MSG_SND_SCORE         1
-#define MSG_RCV_SCORE         20
-#define MSG_SCORE_DECAY       10
-#define MSG_SCORE_MAX         200
-#define MSG_BALANCE_THRESHOLD 100
-
 struct msg_handle_backup {
     int perm;        /* access permissions */
     int nmsgs;       /* number of msgs */
@@ -129,16 +105,12 @@ struct shim_msg_handle* get_msg_handle_by_id(IDTYPE id);
 
 void put_msg_handle(struct shim_msg_handle* msgq);
 
-int recover_msg_ownership(struct shim_msg_handle* msgq);
-
 int add_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, const void* data,
                  struct sysv_client* src);
 int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* data, int flags,
                  struct sysv_client* src);
 
 int store_all_msg_persist(void);
-
-#define HOST_SEM_NUM 65535
 
 DEFINE_LIST(sem_ops);
 struct sem_ops {
@@ -167,42 +139,13 @@ struct sem_obj {
     LISTP_TYPE(sem_ops) next_ops;
 };
 
-#define SEM_POSITIVE_SCORE(num) ((num) < 5 ? 5 - (num) : 1)
-#define SEM_ZERO_SCORE          20
-#define SEM_NEGATIVE_SCORE(num) (20 * (num))
-#define SEM_SCORE_DECAY         10
-#define SEM_SCORE_MAX           200
-#define SEM_BALANCE_THRESHOLD   100
-
-struct sem_backup {
-    unsigned short val;
-    unsigned short zcnt;
-    unsigned short ncnt;
-    IDTYPE pid;
-};
-
-struct sem_client_backup {
-    IDTYPE vmid;
-    unsigned long seq;
-    int current;
-    int nops;
-};
-
 int add_sem_handle(unsigned long key, IDTYPE id, int nsems, bool owned);
 struct shim_sem_handle* get_sem_handle_by_key(unsigned long key);
 struct shim_sem_handle* get_sem_handle_by_id(IDTYPE semid);
 void put_sem_handle(struct shim_sem_handle* sem);
 int del_sem_handle(struct shim_sem_handle* sem);
 
-int recover_sem_ownership(struct shim_sem_handle* sem, struct sem_backup* backups, int nbackups,
-                          struct sem_client_backup* clients, int nclients);
-
 int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
                     unsigned long timeout, struct sysv_client* client);
-
-#ifdef USE_SHARED_SEMAPHORE
-int send_sem_host_ids(struct shim_sem_handle* sem, struct shim_ipc_port* port, IDTYPE dest,
-                      unsigned long seq);
-#endif
 
 #endif /* __SHIM_SYSV_H__ */

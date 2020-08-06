@@ -28,9 +28,7 @@
 /malloc
 /meminfo
 /msg_create
-/msg_create_libos
 /msg_send
-/msg_send_libos
 /multiproc
 /multisleep
 /pause

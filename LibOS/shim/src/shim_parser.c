@@ -58,7 +58,7 @@ struct parser_table {
     int slow;
     int stop;
     void (*parser[6])(va_list*);
-} syscall_parser_table[LIBOS_SYSCALL_BOUND] =
+} syscall_parser_table[] =
     {
         [__NR_read]     = {.slow = 1, .parser = {NULL}},
         [__NR_write]    = {.slow = 1, .parser = {NULL}},
@@ -378,13 +378,6 @@ struct parser_table {
         [__NR_perf_event_open]   = {.slow = 0, .parser = {NULL}},
         [__NR_recvmmsg]          = {.slow = 0, .parser = {NULL}},
         [__NR_getcpu]        = {.slow = 0, .parser = {NULL}},
-
-        [LIBOS_SYSCALL_BASE] = {.slow = 0, .parser = {NULL}},
-
-        [__NR_msgpersist]    = {.slow = 1, .parser = {NULL}},
-        [__NR_benchmark_rpc] = {.slow = 1, .parser = {NULL}},
-        [__NR_send_rpc]      = {.slow = 1, .parser = {NULL}},
-        [__NR_recv_rpc]      = {.slow = 1, .parser = {NULL}},
 };
 
 #define S(sig) #sig

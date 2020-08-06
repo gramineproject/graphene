@@ -59,8 +59,6 @@ static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
     /* PID_RETSTATUS    */ &ipc_pid_retstatus_callback,
     /* PID_GETMETA      */ &ipc_pid_getmeta_callback,
     /* PID_RETMETA      */ &ipc_pid_retmeta_callback,
-    /* PID_NOP          */ &ipc_pid_nop_callback,
-    /* PID_SENDRPC      */ &ipc_pid_sendrpc_callback,
 
     /* sysv namespace */
     IPC_NS_CALLBACKS(sysv)
@@ -69,11 +67,9 @@ static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
     /* SYSV_MOVRES      */ &ipc_sysv_movres_callback,
     /* SYSV_MSGSND      */ &ipc_sysv_msgsnd_callback,
     /* SYSV_MSGRCV      */ &ipc_sysv_msgrcv_callback,
-    /* SYSV_MSGMOV      */ &ipc_sysv_msgmov_callback,
     /* SYSV_SEMOP       */ &ipc_sysv_semop_callback,
     /* SYSV_SEMCTL      */ &ipc_sysv_semctl_callback,
     /* SYSV_SEMRET      */ &ipc_sysv_semret_callback,
-    /* SYSV_SEMMOV      */ &ipc_sysv_semmov_callback,
 };
 
 static int init_self_ipc_port(void) {

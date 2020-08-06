@@ -75,7 +75,6 @@ objs = \
 	ipc/shim_ipc_sysv.o \
 	sys/shim_access.o \
 	sys/shim_alarm.o \
-	sys/shim_benchmark.o \
 	sys/shim_brk.o \
 	sys/shim_clone.o \
 	sys/shim_dup.o \
