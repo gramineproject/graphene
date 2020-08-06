@@ -12,16 +12,6 @@ index 86a71e580213f6e5de6e619d9f3370f4365b4ae2..114d4ee080dbccbb696f40469a801066
  
  # Since libio has several internal header files, we use a -I instead
  # of many little headers in the include directory.
-@@ -1204,6 +1205,9 @@ all-subdirs = csu assert ctype locale intl catgets math setjmp signal	    \
- 	      crypt localedata timezone rt conform debug mathvec support    \
- 	      dlfcn elf
- 
-+# Add libos for Graphene
-+all-subdirs += libos
-+
- ifndef avoid-generated
- # sysd-sorted itself will contain rules making the sysd-sorted target
- # depend on Depend files.  But if you just added a Depend file to an
 diff --git a/Makefile b/Makefile
 index bea4e27f8db4981dbd0eb39e06b4f6297cb5179d..2a5be51298c248f71682542355eccf27bd255ec6 100644
 --- a/Makefile
@@ -143,20 +133,6 @@ index 453f56eb157b1795c86f9eddd2df45fcab9a0a9b..d533ccff735a178cbfea5ac68efa9cd3
    /* Now life is sane; we can call functions and access global data.
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
-diff --git a/shlib-versions b/shlib-versions
-index b9cb99d2fbb07f302aee85e6c367fe2c74d7705c..2d91a6c7f757cbc3ab9b9a77bbc649ea3b617d63 100644
---- a/shlib-versions
-+++ b/shlib-versions
-@@ -29,6 +29,9 @@ ld=ld.so.1
- # The -ldl interface (see <dlfcn.h>) is the same on all platforms.
- libdl=2
- 
-+# Interface for Graphene
-+liblibos=1
-+
- # So far the -lutil interface is the same on all platforms, except for the
- # `struct utmp' format, which depends on libc.
- libutil=1
 diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
 index ba1257ffabafdf536daee41c1d6afdf6ca61c684..1a35f4b80d9044c9a7866fffaf3ca9bb8056390e 100644
 --- a/sysdeps/gnu/errlist-compat.awk

@@ -5,6 +5,6 @@
 #define LIBOS_SYSCALL_BASE  340
 #endif
 
-#define LIBOS_SYSCALL_BOUND (LIBOS_SYSCALL_BASE + 1 + 4) /* 4 custom syscalls */
+#define LIBOS_SYSCALL_BOUND (LIBOS_SYSCALL_BASE + 1)
 
 #endif

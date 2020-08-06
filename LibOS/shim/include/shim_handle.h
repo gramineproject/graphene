@@ -242,7 +242,6 @@ struct shim_msg_handle {
     int ntypes;
     int maxtypes;
     struct msg_type* types;
-    struct sysv_score scores[MAX_SYSV_CLIENTS];
     LIST_TYPE(shim_msg_handle) list;
     LIST_TYPE(shim_msg_handle) key_hlist;
     LIST_TYPE(shim_msg_handle) qid_hlist;
@@ -263,7 +262,6 @@ struct shim_sem_handle {
     int nsems;
     struct sem_obj* sems;
     int nreqs;
-    struct sysv_score scores[MAX_SYSV_CLIENTS];
     LISTP_TYPE(sem_ops) migrated;
     LIST_TYPE(shim_sem_handle) list;
     LIST_TYPE(shim_sem_handle) key_hlist;

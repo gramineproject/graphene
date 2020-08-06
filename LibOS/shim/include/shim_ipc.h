@@ -133,8 +133,6 @@ enum {
     IPC_PID_RETSTATUS,
     IPC_PID_GETMETA,
     IPC_PID_RETMETA,
-    IPC_PID_NOP,
-    IPC_PID_SENDRPC,
     IPC_PID_BOUND,
 };
 
@@ -204,25 +202,6 @@ int ipc_pid_retmeta_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE pid,
                          unsigned long seq);
 int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS);
 
-/* PID_NOP: send junk message (for benchmarking) */
-struct shim_ipc_pid_nop {
-    int count;
-    char payload[];
-} __attribute__((packed));
-
-int ipc_pid_nop_send(struct shim_ipc_port* port, IDTYPE dest, int count, const void* buf, int len);
-int ipc_pid_nop_callback(IPC_CALLBACK_ARGS);
-
-/* PID_SENDRPC: send arbitary message (for benchmarking) */
-struct shim_ipc_pid_sendrpc {
-    IDTYPE sender;
-    int len;
-    char payload[];
-} __attribute__((packed));
-
-int ipc_pid_sendrpc_send(IDTYPE pid, IDTYPE sender, const void* buf, int len);
-int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS);
-
 #define IPC_SYSV_BASE IPC_PID_BOUND
 
 struct sysv_key {
@@ -241,15 +220,9 @@ enum {
     IPC_SYSV_MOVRES,
     IPC_SYSV_MSGSND,
     IPC_SYSV_MSGRCV,
-    IPC_SYSV_MSGMOV,
     IPC_SYSV_SEMOP,
     IPC_SYSV_SEMCTL,
     IPC_SYSV_SEMRET,
-    IPC_SYSV_SEMMOV,
-#ifdef USE_SHARED_SEMAPHORE
-    IPC_SYSV_SEMQUERY,
-    IPC_SYSV_SEMREPLY,
-#endif
     IPC_SYSV_BOUND,
 };
 
@@ -298,18 +271,6 @@ struct shim_ipc_sysv_msgrcv {
 int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_t size);
 int ipc_sysv_msgrcv_callback(IPC_CALLBACK_ARGS);
 
-/* SYSV_MSGMOV */
-struct shim_ipc_sysv_msgmov {
-    IDTYPE msgid;
-    LEASETYPE lease;
-    unsigned short nscores;
-    struct sysv_score scores[];
-};
-
-int ipc_sysv_msgmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, LEASETYPE lease,
-                         struct sysv_score* scores, int nscores);
-int ipc_sysv_msgmov_callback(IPC_CALLBACK_ARGS);
-
 /* SYSV_SEMOP */
 struct shim_ipc_sysv_semop {
     IDTYPE semid;
@@ -345,40 +306,6 @@ struct shim_ipc_sysv_semret {
 int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, size_t valsize,
                          unsigned long seq);
 int ipc_sysv_semret_callback(IPC_CALLBACK_ARGS);
-
-/* SYSV_SEMMOV */
-struct shim_ipc_sysv_semmov {
-    IDTYPE semid;
-    LEASETYPE lease;
-    unsigned short nsems, nsrcs, nscores;
-    struct sem_backup sems[];
-};
-
-int ipc_sysv_semmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, LEASETYPE lease,
-                         struct sem_backup* sems, int nsems, struct sem_client_backup* srcs,
-                         int nsrcs, struct sysv_score* scores, int nscores);
-int ipc_sysv_semmov_callback(IPC_CALLBACK_ARGS);
-
-#ifdef USE_SHARED_SEMAPHORE
-/* SYSV_SEMQUERY */
-struct shim_ipc_sysv_semquery {
-    IDTYPE semid;
-} __attribute__((packed));
-
-int ipc_sysv_semquery_send(IDTYPE semid, int* nsems, PAL_NUM** host_sem_ids);
-int ipc_sysv_semquery_callback(IPC_CALLBACK_ARGS);
-
-/* SYSV_SEMREPLY */
-struct shim_ipc_sysv_semreply {
-    IDTYPE semid;
-    int nsems;
-    PAL_NUM host_sem_ids[];
-} __attribute__((packed));
-
-int ipc_sysv_semreply_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, int nsems,
-                           PAL_NUM* host_sem_ids, unsigned long seq);
-int ipc_sysv_semreply_callback(IPC_CALLBACK_ARGS);
-#endif
 
 #define IPC_CODE_NUM IPC_SYSV_BOUND
 
