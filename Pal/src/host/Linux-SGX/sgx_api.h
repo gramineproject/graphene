@@ -18,8 +18,8 @@ void* sgx_alloc_on_ustack(uint64_t size);
 void* sgx_copy_to_ustack(const void* ptr, uint64_t size);
 void sgx_reset_ustack(const void* old_ustack);
 
-bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, uint64_t size);
-uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr, uint64_t usize);
+bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, size_t size);
+bool sgx_copy_to_enclave(const void* ptr, size_t maxsize, const void* uptr, size_t usize);
 
 /*!
  * \brief Low-level wrapper around EREPORT instruction leaf.

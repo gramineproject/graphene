@@ -19,17 +19,16 @@ void* g_enclave_top;
 
 static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates);
 
-bool sgx_is_completely_within_enclave (const void * addr, uint64_t size)
-{
-    if (((uint64_t) addr) > (UINT64_MAX - size)) {
+bool sgx_is_completely_within_enclave(const void* addr, size_t size) {
+    if ((uintptr_t)addr > UINTPTR_MAX - size) {
         return false;
     }
 
     return g_enclave_base <= addr && addr + size <= g_enclave_top;
 }
 
-bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
-    if (((uint64_t) addr) > (UINT64_MAX - size)) {
+bool sgx_is_completely_outside_enclave(const void* addr, size_t size) {
+    if ((uintptr_t)addr > UINTPTR_MAX - size) {
         return false;
     }
 
@@ -47,7 +46,7 @@ void* sgx_prepare_ustack(void) {
     return old_ustack;
 }
 
-void* sgx_alloc_on_ustack_aligned(uint64_t size, size_t alignment) {
+void* sgx_alloc_on_ustack_aligned(size_t size, size_t alignment) {
     assert(IS_POWER_OF_2(alignment));
     void* ustack = GET_ENCLAVE_TLS(ustack) - size;
     ustack = ALIGN_DOWN_PTR_POW2(ustack, alignment);
@@ -58,11 +57,11 @@ void* sgx_alloc_on_ustack_aligned(uint64_t size, size_t alignment) {
     return ustack;
 }
 
-void* sgx_alloc_on_ustack(uint64_t size) {
+void* sgx_alloc_on_ustack(size_t size) {
     return sgx_alloc_on_ustack_aligned(size, 1);
 }
 
-void* sgx_copy_to_ustack(const void* ptr, uint64_t size) {
+void* sgx_copy_to_ustack(const void* ptr, size_t size) {
     if (!sgx_is_completely_within_enclave(ptr, size)) {
         return NULL;
     }
@@ -78,11 +77,7 @@ void sgx_reset_ustack(const void* old_ustack) {
     SET_ENCLAVE_TLS(ustack, old_ustack);
 }
 
-/* NOTE: Value from possibly untrusted uptr must be copied inside
- * CPU register or enclave stack (to prevent TOCTOU). Function call
- * achieves this. Attribute ensures no inline optimization. */
-__attribute__((noinline))
-bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, uint64_t size) {
+bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, size_t size) {
     assert(ptr);
     if (!sgx_is_completely_outside_enclave(uptr, size)) {
         *ptr = NULL;
@@ -92,18 +87,14 @@ bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, uint64_t size) {
     return true;
 }
 
-/* NOTE: Value from possibly untrusted uptr and usize must be copied
- * inside CPU registers or enclave stack (to prevent TOCTOU). Function
- * call achieves this. Attribute ensures no inline optimization. */
-__attribute__((noinline))
-uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr, uint64_t usize) {
+bool sgx_copy_to_enclave(const void* ptr, size_t maxsize, const void* uptr, size_t usize) {
     if (usize > maxsize ||
         !sgx_is_completely_outside_enclave(uptr, usize) ||
         !sgx_is_completely_within_enclave(ptr, usize)) {
-        return 0;
+        return false;
     }
-    memcpy((void*) ptr, uptr, usize);
-    return usize;
+    memcpy((void*)ptr, uptr, usize);
+    return true;
 }
 
 static void print_report(sgx_report_t* r) {

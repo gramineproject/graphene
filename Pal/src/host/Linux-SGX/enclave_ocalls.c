@@ -141,12 +141,9 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup)
     }
 }
 
-int ocall_mmap_untrusted (int fd, uint64_t offset,
-                          uint64_t size, unsigned short prot,
-                          void ** mem)
-{
+int ocall_mmap_untrusted(int fd, uint64_t offset, size_t size, unsigned short prot, void** mem) {
     int retval = 0;
-    ms_ocall_mmap_untrusted_t * ms;
+    ms_ocall_mmap_untrusted_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
@@ -173,10 +170,9 @@ int ocall_mmap_untrusted (int fd, uint64_t offset,
     return retval;
 }
 
-int ocall_munmap_untrusted (const void * mem, uint64_t size)
-{
+int ocall_munmap_untrusted(const void* mem, size_t size) {
     int retval = 0;
-    ms_ocall_munmap_untrusted_t * ms;
+    ms_ocall_munmap_untrusted_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
     if (!sgx_is_completely_outside_enclave(mem, size)) {
@@ -211,7 +207,7 @@ int ocall_munmap_untrusted (const void * mem, uint64_t size)
  * handling do not use the cache and always explicitly mmap/munmap untrusted memory; 'need_munmap'
  * indicates whether explicit munmap is needed at the end of such OCALL.
  */
-static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munmap) {
+static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap) {
     *need_munmap = false;
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
     uint64_t in_use = 0;
@@ -252,7 +248,7 @@ static int ocall_mmap_untrusted_cache(uint64_t size, void** mem, bool* need_munm
     return retval;
 }
 
-static void ocall_munmap_untrusted_cache(void* mem, uint64_t size, bool need_munmap) {
+static void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munmap) {
     if (need_munmap) {
         ocall_munmap_untrusted(mem, size);
         /* there is not much we can do in case of error */
@@ -716,10 +712,9 @@ int ocall_mkdir (const char * pathname, unsigned short mode)
     return retval;
 }
 
-int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int dirp_size)
-{
+int ocall_getdents(int fd, struct linux_dirent64* dirp, size_t dirp_size) {
     int retval = 0;
-    ms_ocall_getdents_t * ms;
+    ms_ocall_getdents_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
@@ -740,7 +735,7 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int dirp_size
     retval = sgx_exitless_ocall(OCALL_GETDENTS, ms);
 
     if (retval > 0) {
-        unsigned int size = (unsigned int)retval;
+        size_t size = (size_t)retval;
         if (size > dirp_size) {
             retval = -EPERM;
             goto out;
@@ -750,7 +745,7 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int dirp_size
             goto out;
         }
 
-        unsigned int size_left = size;
+        size_t size_left = size;
         while (size_left > offsetof(struct linux_dirent64, d_name)) {
             /* `drip->d_off` is understandable only by the fs driver in kernel, we have no way of
              * validating it. */
@@ -884,7 +879,6 @@ int ocall_socketpair (int domain, int type, int protocol,
 int ocall_listen(int domain, int type, int protocol, int ipv6_v6only,
                  struct sockaddr* addr, size_t* addrlen, struct sockopt* sockopt) {
     int retval = 0;
-    size_t copied;
     size_t len = addrlen ? *addrlen : 0;
     ms_ocall_listen_t* ms;
 
@@ -911,13 +905,12 @@ int ocall_listen(int domain, int type, int protocol, int ipv6_v6only,
 
     if (retval >= 0) {
         if (addr && len) {
-            copied = sgx_copy_to_enclave(addr, len,
-                                         READ_ONCE(ms->ms_addr), READ_ONCE(ms->ms_addrlen));
-            if (!copied) {
+            size_t untrusted_addrlen = READ_ONCE(ms->ms_addrlen);
+            if (!sgx_copy_to_enclave(addr, len, READ_ONCE(ms->ms_addr), untrusted_addrlen)) {
                 sgx_reset_ustack(old_ustack);
                 return -EPERM;
             }
-            *addrlen = copied;
+            *addrlen = untrusted_addrlen;
         }
 
         if (sockopt) {
@@ -931,7 +924,6 @@ int ocall_listen(int domain, int type, int protocol, int ipv6_v6only,
 
 int ocall_accept(int sockfd, struct sockaddr* addr, size_t* addrlen, struct sockopt* sockopt) {
     int retval = 0;
-    size_t copied;
     size_t len = addrlen ? *addrlen : 0;
     ms_ocall_accept_t* ms;
 
@@ -955,13 +947,12 @@ int ocall_accept(int sockfd, struct sockaddr* addr, size_t* addrlen, struct sock
 
     if (retval >= 0) {
         if (addr && len) {
-            copied = sgx_copy_to_enclave(addr, len, READ_ONCE(ms->ms_addr),
-                                         READ_ONCE(ms->ms_addrlen));
-            if (!copied) {
+            size_t untrusted_addrlen = READ_ONCE(ms->ms_addrlen);
+            if (!sgx_copy_to_enclave(addr, len, READ_ONCE(ms->ms_addr), untrusted_addrlen)) {
                 sgx_reset_ustack(old_ustack);
                 return -EPERM;
             }
-            *addrlen = copied;
+            *addrlen = untrusted_addrlen;
         }
 
         if (sockopt) {
@@ -977,7 +968,6 @@ int ocall_connect(int domain, int type, int protocol, int ipv6_v6only, const str
                   size_t addrlen, struct sockaddr* bind_addr, size_t* bind_addrlen,
                   struct sockopt* sockopt) {
     int retval = 0;
-    size_t copied;
     size_t bind_len = bind_addrlen ? *bind_addrlen : 0;
     ms_ocall_connect_t* ms;
 
@@ -1007,13 +997,14 @@ int ocall_connect(int domain, int type, int protocol, int ipv6_v6only, const str
 
     if (retval >= 0) {
         if (bind_addr && bind_len) {
-            copied = sgx_copy_to_enclave(bind_addr, bind_len, READ_ONCE(ms->ms_bind_addr),
-                                         READ_ONCE(ms->ms_bind_addrlen));
+            size_t untrusted_addrlen = READ_ONCE(ms->ms_bind_addrlen);
+            bool copied = sgx_copy_to_enclave(bind_addr, bind_len, READ_ONCE(ms->ms_bind_addr),
+                                              untrusted_addrlen);
             if (!copied) {
                 sgx_reset_ustack(old_ustack);
                 return -EPERM;
             }
-            *bind_addrlen = copied;
+            *bind_addrlen = untrusted_addrlen;
         }
 
         if (sockopt) {
@@ -1030,7 +1021,6 @@ ssize_t ocall_recv(int sockfd, void* buf, size_t count, struct sockaddr* addr, s
     ssize_t retval = 0;
     void* obuf = NULL;
     bool is_obuf_mapped = false;
-    size_t copied;
     size_t addrlen = addrlenptr ? *addrlenptr : 0;
     size_t controllen  = controllenptr ? *controllenptr : 0;
     ms_ocall_recv_t* ms;
@@ -1080,23 +1070,23 @@ ssize_t ocall_recv(int sockfd, void* buf, size_t count, struct sockaddr* addr, s
             goto out;
         }
         if (addr && addrlen) {
-            copied = sgx_copy_to_enclave(addr, addrlen,
-                                         READ_ONCE(ms->ms_addr), READ_ONCE(ms->ms_addrlen));
-            if (!copied) {
+            size_t untrusted_addrlen = READ_ONCE(ms->ms_addrlen);
+            if (!sgx_copy_to_enclave(addr, addrlen, READ_ONCE(ms->ms_addr), untrusted_addrlen)) {
                 retval = -EPERM;
                 goto out;
             }
-            *addrlenptr = copied;
+            *addrlenptr = untrusted_addrlen;
         }
 
         if (control && controllen) {
-            copied = sgx_copy_to_enclave(control, controllen,
-                                         READ_ONCE(ms->ms_control), READ_ONCE(ms->ms_controllen));
+            size_t untrusted_controllen = READ_ONCE(ms->ms_controllen);
+            bool copied = sgx_copy_to_enclave(control, controllen, READ_ONCE(ms->ms_control),
+                                              untrusted_controllen);
             if (!copied) {
                 retval = -EPERM;
                 goto out;
             }
-            *controllenptr = copied;
+            *controllenptr = untrusted_controllen;
         }
 
         if (retval > 0 && !sgx_copy_to_enclave(buf, count, READ_ONCE(ms->ms_buf), retval)) {
