@@ -100,8 +100,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         if (!pal_sec || !sgx_is_completely_outside_enclave(pal_sec, sizeof(*pal_sec)))
             return;
 
-        /* xsave size must be initialized early */
-        /* We take it from a trusted source - EREPORT result */
+        /* xsave size must be initialized early, from a trusted source (EREPORT result) */
         __sgx_mem_aligned sgx_target_info_t target_info;
         alignas(128) char report_data[64] = { 0 };
         __sgx_mem_aligned sgx_report_t report;
