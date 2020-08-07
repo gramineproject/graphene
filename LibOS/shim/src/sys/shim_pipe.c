@@ -20,7 +20,7 @@
 #include "shim_types.h"
 #include "shim_utils.h"
 
-static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
+static int create_pipes(struct shim_handle* srv, struct shim_handle* cli, int flags, char* name,
                         struct shim_qstr* qstr) {
     int ret = 0;
     char uri[PIPE_URI_SIZE];
@@ -28,11 +28,6 @@ static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
     PAL_HANDLE hdl0 = NULL;  /* server pipe (temporary, waits for connect from hdl2) */
     PAL_HANDLE hdl1 = NULL;  /* one pipe end (accepted connect from hdl2) */
     PAL_HANDLE hdl2 = NULL;  /* other pipe end (connects to hdl0 and talks to hdl1) */
-
-    if (flags & O_DIRECT) {
-        debug("create_pipes(): tried to create O_DIRECT pipe, which is not supported.\n");
-        flags &= ~O_DIRECT;
-    }
 
     if ((ret = create_pipe(name, uri, PIPE_URI_SIZE, &hdl0, qstr,
                            /*use_vmid_for_name=*/false)) < 0) {
@@ -52,8 +47,20 @@ static int create_pipes(PAL_HANDLE* srv, PAL_HANDLE* cli, int flags, char* name,
         goto out;
     }
 
-    *srv = hdl1;
-    *cli = hdl2;
+    PAL_HANDLE tmp = srv->pal_handle;
+    srv->pal_handle = hdl1;
+
+    if (flags & O_NONBLOCK) {
+        /* `cli` - `hdl2` - has this flag already set by the call to `DkStreamOpen`. */
+        ret = set_handle_nonblocking(srv);
+        if (ret < 0) {
+            /* Restore original handle, if any. */
+            srv->pal_handle = tmp;
+            goto out;
+        }
+    }
+
+    cli->pal_handle = hdl2;
     ret = 0;
 
 out:
@@ -78,6 +85,15 @@ static void undo_set_fd_handle(int fd) {
 
 int shim_do_pipe2(int* filedes, int flags) {
     int ret = 0;
+
+    if (flags & O_DIRECT) {
+        debug("shim_do_pipe2(): ignoring a not supported O_DIRECT flag\n");
+        flags &= ~O_DIRECT;
+    }
+
+    if (flags & ~(O_NONBLOCK | O_CLOEXEC)) {
+        return -EINVAL;
+    }
 
     if (!filedes || test_user_memory(filedes, 2 * sizeof(int), true))
         return -EFAULT;
@@ -106,8 +122,7 @@ int shim_do_pipe2(int* filedes, int flags) {
     hdl1->info.pipe.ready_for_ops = true;
     hdl2->info.pipe.ready_for_ops = true;
 
-    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, flags, hdl1->info.pipe.name,
-                       &hdl1->uri);
+    ret = create_pipes(hdl1, hdl2, flags, hdl1->info.pipe.name, &hdl1->uri);
     if (ret < 0)
         goto out;
 
@@ -190,8 +205,8 @@ int shim_do_socketpair(int domain, int type, int protocol, int* sv) {
     sock2->protocol   = protocol;
     sock2->sock_state = SOCK_CONNECTED;
 
-    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, type & SOCK_NONBLOCK ? O_NONBLOCK : 0,
-                       sock1->addr.un.name, &hdl1->uri);
+    ret = create_pipes(hdl1, hdl2, type & SOCK_NONBLOCK ? O_NONBLOCK : 0, sock1->addr.un.name,
+                       &hdl1->uri);
     if (ret < 0)
         goto out;
 
@@ -312,8 +327,7 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
 
     /* FIFO pipes are created in blocking mode; they will be changed to non-blocking if open()'ed
      * in non-blocking mode later (see fifo_open) */
-    ret = create_pipes(&hdl1->pal_handle, &hdl2->pal_handle, /*flags=*/0, hdl1->info.pipe.name,
-                       &hdl1->uri);
+    ret = create_pipes(hdl1, hdl2, /*flags=*/0, hdl1->info.pipe.name, &hdl1->uri);
     if (ret < 0)
         goto out;
 

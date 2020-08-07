@@ -328,10 +328,7 @@ int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
             ret = ioctl_termios(hdl, cmd, arg);
             break;
         case FIONBIO:
-            if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->setflags)
-                hdl->fs->fs_ops->setflags(hdl, hdl->flags | O_NONBLOCK);
-            hdl->flags |= O_NONBLOCK;
-            ret = 0;
+            ret = set_handle_nonblocking(hdl);
             break;
         case FIONCLEX:
             hdl->flags &= ~FD_CLOEXEC;
