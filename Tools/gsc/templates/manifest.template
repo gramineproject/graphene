@@ -2,7 +2,9 @@ loader.preload = file:/graphene/Runtime/libsysdb.so
 
 # Get path of binary
 loader.exec = file:{{"{{binary_path}}"}}
-loader.execname = {{binary}}
+{% if insecure_args %}
+loader.arg0_override = {{binary}}
+{% endif %}
 loader.env.LD_LIBRARY_PATH = /graphene/Runtime:{{"{{library_paths}}"}}
 loader.env.PATH = {{"{{env_path}}"}}
 loader.debug_type = {% if debug %} inline {% else %} none {% endif %}
