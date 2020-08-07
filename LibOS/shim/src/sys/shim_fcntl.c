@@ -20,17 +20,22 @@
 
 #define FCNTL_SETFL_MASK (O_APPEND | O_NONBLOCK)
 
-static void _set_handle_flags(struct shim_handle* hdl, unsigned long arg) {
+static int _set_handle_flags(struct shim_handle* hdl, unsigned long arg) {
     if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->setflags) {
-        hdl->fs->fs_ops->setflags(hdl, arg & FCNTL_SETFL_MASK);
+        int ret = hdl->fs->fs_ops->setflags(hdl, arg & FCNTL_SETFL_MASK);
+        if (ret < 0) {
+            return ret;
+        }
     }
     hdl->flags |= (hdl->flags & ~FCNTL_SETFL_MASK) | (arg & FCNTL_SETFL_MASK);
+    return 0;
 }
 
-void set_handle_nonblocking(struct shim_handle* hdl) {
+int set_handle_nonblocking(struct shim_handle* hdl) {
     lock(&hdl->lock);
-    _set_handle_flags(hdl, hdl->flags | O_NONBLOCK);
+    int ret = _set_handle_flags(hdl, hdl->flags | O_NONBLOCK);
     unlock(&hdl->lock);
+    return ret;
 }
 
 int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
@@ -135,9 +140,8 @@ int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
          */
         case F_SETFL:
             lock(&hdl->lock);
-            _set_handle_flags(hdl, arg);
+            ret = _set_handle_flags(hdl, arg);
             unlock(&hdl->lock);
-            ret = 0;
             break;
 
         /* Advisory locking

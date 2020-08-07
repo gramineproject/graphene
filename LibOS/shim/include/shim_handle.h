@@ -351,7 +351,7 @@ void get_handle(struct shim_handle* hdl);
 void put_handle(struct shim_handle* hdl);
 
 /* Set handle in non-blocking mode. */
-void set_handle_nonblocking(struct shim_handle* hdl);
+int set_handle_nonblocking(struct shim_handle* hdl);
 
 /* file descriptor table */
 struct shim_fd_handle {
