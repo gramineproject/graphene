@@ -45,6 +45,7 @@ c_executables = \
 	multi_pthread \
 	openmp \
 	pipe \
+	pipe_nonblocking \
 	poll \
 	poll_closed_fd \
 	poll_many_types \

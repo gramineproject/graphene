@@ -18,6 +18,21 @@
 #include <shim_thread.h>
 #include <shim_utils.h>
 
+#define FCNTL_SETFL_MASK (O_APPEND | O_NONBLOCK)
+
+static void _set_handle_flags(struct shim_handle* hdl, unsigned long arg) {
+    if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->setflags) {
+        hdl->fs->fs_ops->setflags(hdl, arg & FCNTL_SETFL_MASK);
+    }
+    hdl->flags |= (hdl->flags & ~FCNTL_SETFL_MASK) | (arg & FCNTL_SETFL_MASK);
+}
+
+void set_handle_nonblocking(struct shim_handle* hdl) {
+    lock(&hdl->lock);
+    _set_handle_flags(hdl, hdl->flags | O_NONBLOCK);
+    unlock(&hdl->lock);
+}
+
 int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
     struct shim_handle_map* handle_map = get_cur_handle_map(NULL);
     int flags;
@@ -118,12 +133,9 @@ int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
          *   Linux this command can only change the O_APPEND, O_DIRECT,
          *   O_NOATIME, and O_NONBLOCK flags.
          */
-#define FCNTL_SETFL_MASK (O_APPEND | O_NONBLOCK)
         case F_SETFL:
             lock(&hdl->lock);
-            if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->setflags)
-                hdl->fs->fs_ops->setflags(hdl, arg & FCNTL_SETFL_MASK);
-            hdl->flags = (hdl->flags & ~FCNTL_SETFL_MASK) | (arg & FCNTL_SETFL_MASK);
+            _set_handle_flags(hdl, arg);
             unlock(&hdl->lock);
             ret = 0;
             break;
