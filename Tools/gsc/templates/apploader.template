@@ -2,18 +2,23 @@
 
 set -ex
 
-# Generate EINITOKEN for all applications
-for manifest in {{binary}}.manifest {{user_manifests}}
-do
-    # Remove .manifest from file
-    executable=${manifest%.manifest}
-    /graphene/signer/pal-sgx-get-token -output ${executable}.token -sig ${executable}.sig
-done
-
-# Run the application with arguments given to it
-if [ -z "$GSC_PAL" ]
+# Set default PAL to Linux-SGX
+if [ -z "$GSC_PAL" ] || [ $GSC_PAL == "Linux-SGX"]
 then
-    SGX=1 /graphene/Runtime/pal-Linux-SGX /graphene/Runtime/libpal-Linux-SGX.so init {{binary}}.manifest.sgx {% if insecure_args %} {{binary_arguments}} "${@}" {% endif %}
+    # Set SGX default values for PAL
+    GSC_PAL=Linux-SGX
+
+    # Generate EINITOKEN for all applications
+    for manifest in {{binary}}.manifest {{user_manifests}}
+    do
+        # Remove .manifest from file
+        executable=${manifest%.manifest}
+        /graphene/signer/pal-sgx-get-token -output ${executable}.token -sig ${executable}.sig
+    done
+
+    # Run the application in Graphene
+    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}}.manifest.sgx {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
 else
+    # Run the application in Graphene
     /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}}.manifest {{binary_arguments}} "${@}"
 fi
