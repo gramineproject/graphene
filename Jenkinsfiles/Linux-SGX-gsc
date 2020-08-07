@@ -25,7 +25,11 @@ pipeline {
                             # commit in below git-log output if merged or first commit if not merged)
                             export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
                                                                 {print $1} else {print $3}}'`
+                            # Test Linux-SGX PAL
                             make test MAXTESTNUM=2 TESTCASES=python3 \
+                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                            # Test Linux Pal
+                            make test ENV_VARS='GSC_PAL=Linux' MAXTESTNUM=2 TESTCASES=python3 \
                                       DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
                         '''
                     }

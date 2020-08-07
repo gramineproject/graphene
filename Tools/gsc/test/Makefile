@@ -12,7 +12,7 @@ else
 	SGX_DEVICE = isgx
 endif
 DEVICES_VOLUMES = --device=/dev/gsgx --device=/dev/${SGX_DEVICE} -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
-
+ENV_VARS ?=
 IMAGE_SUFFIX ?=
 
 .PHONY: all
@@ -36,28 +36,28 @@ $(KEY_FILE):
 .PRECIOUS: gsc-%-bash
 gsc-%-bash: %-bash
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
+	cd .. && ./gsc build -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-python3
 gsc-%-python3: %-python3 %-python3.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
+	cd .. && ./gsc build -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-pytorch
 gsc-%-pytorch: %-pytorch %-pytorch.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $*-pytorch.manifest sh.manifest uname.manifest)
+	cd .. && ./gsc build -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $*-pytorch.manifest sh.manifest uname.manifest)
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%
 gsc-%: %
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
+	cd .. && ./gsc build -L --insecure-args $(BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEY_FILE))
 	touch $@
 
@@ -77,31 +77,31 @@ test-distro-%:
 
 .PHONY: test-1-%
 test-1-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' 2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'print("HelloWorld!")' 2>&1 | tee out
 	grep -q "HelloWorld!" out
 	$(RM) out
 
 .PHONY: test-2-%
 test-2-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py  2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/helloworld.py  2>&1 | tee out
 	grep -q "Hello World" out
 	$(RM) out
 
 .PHONY: test-3-%
 test-3-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/fibonacci.py  2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/fibonacci.py  2>&1 | tee out
 	grep -q "fib2              55" out
 	$(RM) out
 
 .PHONY: test-4-%
 test-4-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' 2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) -c 'import os;os.system("ls")' 2>&1 | tee out
 	grep -q "ls.manifest.sgx" out
 	$(RM) out
 
 .PHONY: test-5-%
 test-5-%: gsc-%-python3
-	docker run $(DEVICES_VOLUMES) -d -p 8005:8005 $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/dummy-web-server.py 8005 | tee c.id
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) -d -p 8005:8005 $(addsuffix $(IMAGE_SUFFIX), gsc-$*-python3) /graphene/Examples/scripts/dummy-web-server.py 8005 | tee c.id
 	sleep 30
 	wget -q http://localhost:8005/ -O output
 	grep -q "hi!" output
@@ -110,38 +110,38 @@ test-5-%: gsc-%-python3
 
 .PHONY: test-6-%
 test-6-%: gsc-%-hello-world
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-hello-world)  2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-hello-world)  2>&1 | tee out
 	grep -q "Hello World!" out
 	$(RM) out
 
 .PHONY: test-7-%
 test-7-%: gsc-%-nodejs
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) -e 'console.log("HelloWorld");' 2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) -e 'console.log("HelloWorld");' 2>&1 | tee out
 	grep -q "HelloWorld" out
 	$(RM) out
 
 .PHONY: test-8-%
 test-8-%: gsc-%-nodejs
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) /graphene/Examples/helloworld.js 2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-nodejs) /graphene/Examples/helloworld.js 2>&1 | tee out
 	grep -q "Hello World" out
 	$(RM) out
 
 .PHONY: test-9-%
 test-9-%: gsc-%-numpy
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-numpy) /graphene/Examples/scripts/test-numpy.py 2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-numpy) /graphene/Examples/scripts/test-numpy.py 2>&1 | tee out
 	grep -q "numpy version:" out
 	$(RM) out
 
 .PHONY: test-10-%
 test-10-%: gsc-%-bash
-	docker run $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' 2>&1 | tee out
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) $(addsuffix $(IMAGE_SUFFIX), gsc-$*-bash) -c 'ls' 2>&1 | tee out
 	grep -q "ls.manifest.sgx" out
 	$(RM) out
 
 .PHONY: test-11-%
 test-11-%: gsc-%-pytorch
 	touch result.txt
-	docker run $(DEVICES_VOLUMES) -v$${PWD}/result.txt:/graphene/Examples/result.txt $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py
+	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) -v$${PWD}/result.txt:/graphene/Examples/result.txt $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py
 	grep -q "('Labrador retriever'" result.txt
 	$(RM) results.txt
 
