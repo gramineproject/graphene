@@ -124,6 +124,11 @@ Synopsis:
    Remove intermediate Docker images created by :command:`gsc build`, if the
    image build is successful.
 
+.. option:: --build-arg
+
+   Set build-time variables during :command:`gsc build` (same as `docker build
+   --build-arg`).
+
 .. option:: IMAGE-NAME
 
    Name of the application Docker image

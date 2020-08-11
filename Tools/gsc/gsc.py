@@ -203,8 +203,19 @@ def gsc_build(args):
 
     prepare_build_context(image, user_manifests, env, binary)
 
+    buildargs_dict = {}
+    for item in args.build_arg:
+        if '=' in item:
+            key, value = item.split('=', 1)
+            buildargs_dict[key] = value
+        else:
+            # user specified a --build-arg flag with key and without value, let's retrieve value
+            # from environment
+            if item in os.environ:
+                buildargs_dict[item] = os.environ[item]
+
     build_docker_image(gsc_image_name(image), gsc_unsigned_image_name(image), 'Dockerfile.build',
-                       rm=args.rm, nocache=args.no_cache)
+                       rm=args.rm, nocache=args.no_cache, buildargs=buildargs_dict)
 
     # Check if docker build failed
     if get_docker_image(docker_socket, gsc_unsigned_image_name(image)) is None:
@@ -282,6 +293,8 @@ sub_build.add_argument('-nc', '--no-cache', action='store_true',
     help='Build graphenized Docker image without any cached images.')
 sub_build.add_argument('--rm', action='store_true',
     help='Remove intermediate Docker images when build is successful.')
+sub_build.add_argument('--build-arg', action='append', default=[],
+    help='Set build-time variables (same as "docker build --build-arg").')
 sub_build.add_argument('image',
     help='Name of the application Docker image.')
 sub_build.add_argument('manifests',

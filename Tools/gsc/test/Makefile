@@ -57,7 +57,7 @@ gsc-%-pytorch: %-pytorch %-pytorch.manifest
 .PRECIOUS: gsc-%
 gsc-%: %
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build --insecure-args $(BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
+	cd .. && ./gsc build --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEY_FILE))
 	touch $@
 
