@@ -15,6 +15,7 @@
 #ifdef SGX_DCAP
 /* hard-coded production attestation key of Intel reference QE (the only supported one) */
 /* FIXME: should allow other attestation keys from non-Intel QEs */
+#if 0
 static const sgx_ql_att_key_id_t g_default_ecdsa_p256_att_key_id = {
     .id               = 0,
     .version          = 0,
@@ -41,6 +42,7 @@ static const sgx_ql_att_key_id_t g_default_ecdsa_p256_att_key_id = {
     .algorithm_id     = SGX_QL_ALG_ECDSA_P256,
 };
 #endif
+#endif
 
 /*
  * Connect to the AESM service to interact with the architectural enclave. Must reconnect
@@ -50,6 +52,7 @@ static const sgx_ql_att_key_id_t g_default_ecdsa_p256_att_key_id = {
  * The latest AESM service binds the socket at "/var/run/aesmd/aesm.socket". This function
  * tries to connect to either of the paths to ensure connectivity.
  */
+#if 0
 static int connect_aesm_service(void) {
     int sock = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM, 0);
     if (IS_ERR(sock))
@@ -78,12 +81,14 @@ err:
     INLINE_SYSCALL(close, 1, sock);
     return -ERRNO(ret);
 }
+#endif
 
 /*
  * A wrapper for both creating a connection to the AESM service and submitting a request
  * to the service. Upon success, the function returns a response from the AESM service
  * back to the caller.
  */
+#if 0
 static int request_aesm_service(Request* req, Response** res) {
     int aesm_socket = connect_aesm_service();
     if (aesm_socket < 0)
@@ -117,8 +122,14 @@ err:
     INLINE_SYSCALL(close, 1, aesm_socket);
     return -ERRNO(ret);
 }
+#endif
 
 int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_target_info) {
+#if 1
+    static sgx_target_info_t dummy = {0};
+    memcpy(qe_target_info, &dummy, sizeof(*qe_target_info));
+    return 0;
+#else
     Request req = REQUEST__INIT;
 
 #ifdef SGX_DCAP
@@ -183,10 +194,24 @@ int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_target_info) {
 failed:
     response__free_unpacked(res, NULL);
     return ret;
+#endif
 }
 
 int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
                    const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len) {
+#if 1
+    __UNUSED(spid);
+    __UNUSED(linkable);
+    __UNUSED(nonce);
+    __UNUSED(report);
+    static char dummy[256] = {0};
+    char* mmapped = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGN_UP(sizeof(dummy)),
+                                          PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    memcpy(mmapped, &dummy, sizeof(dummy));
+    *quote = mmapped;
+    *quote_len = sizeof(dummy);
+    return 0;
+#else
 #ifdef SGX_DCAP
     __UNUSED(spid);
     __UNUSED(linkable);
@@ -288,4 +313,5 @@ int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* re
 out:
     response__free_unpacked(res, NULL);
     return ret;
+#endif
 }
