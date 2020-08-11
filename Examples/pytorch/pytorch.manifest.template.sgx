@@ -20,22 +20,8 @@ loader.debug_type = $(GRAPHENEDEBUG)
 loader.insecure__use_cmdline_argv = 1
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR):./
-loader.env.LD_PRELOAD = "libsecret_prov_attest.so /lib/libgomp.so.1"
-loader.env.SECRET_PROVISION_CONSTRUCTOR = 1
-loader.env.SECRET_PROVISION_SET_PF_KEY = 1
-loader.env.SECRET_PROVISION_CA_CHAIN_PATH = "certs/test-ca-sha256.crt"
-loader.env.SECRET_PROVISION_SERVERS = "localhost:4433"
-sgx.trusted_files.libnssdns = file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2
-sgx.trusted_files.libnssmyhostname = file:$(ARCH_LIBDIR)/libnss_myhostname.so.2
-sgx.trusted_files.libnssmdns = file:$(ARCH_LIBDIR)/libnss_mdns4_minimal.so.2
-sgx.trusted_files.libsecretprovattest = file:libsecret_prov_attest.so
-sgx.trusted_files.cachain = file:certs/test-ca-sha256.crt
-sgx.remote_attestation = 1
-sgx.allowed_files.hostconf = file:/etc/host.conf
-sgx.allowed_files.hosts = file:/etc/hosts
-sgx.allowed_files.gaiconf = file:/etc/gai.conf
-sgx.allowed_files.resolv = file:/etc/resolv.conf
+loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
+loader.env.LD_PRELOAD = "/lib/libgomp.so.1"
 
 # Default glibc files, mounted from the Runtime directory in GRAPHENEDIR
 fs.mount.lib.type = chroot
@@ -63,9 +49,9 @@ fs.mount.tmp.uri = file:/tmp
 
 # PyTorch loads its pre-trained models from here
 # Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
-# fs.mount.torch.type = chroot
-# fs.mount.torch.path = $(HOME)/.cache/torch
-# fs.mount.torch.uri = file:$(HOME)/.cache/torch
+fs.mount.torch.type = chroot
+fs.mount.torch.path = $(HOME)/.cache/torch
+fs.mount.torch.uri = file:$(HOME)/.cache/torch
 
 # When run as `pip install --user ...`, pip installs Python packages here
 fs.mount.pip.type = chroot
@@ -135,19 +121,18 @@ sgx.trusted_files.script  = file:pytorchexample.py
 # Ubuntu18.04 sgx.trusted_files.libffi = file:/usr/$(ARCH_LIBDIR)/libffi.so.6
 
 # File containing the classes, i.e., things the classifier has been trained to distinguish between
-sgx.protected_files.classes = file:classes.txt
+sgx.trusted_files.classes = file:classes.txt
 
 # Input image
-sgx.protected_files.image   = file:input.jpg
+sgx.trusted_files.image   = file:input.jpg
 
 # File containing the pre-trained model
 # Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
-#sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/checkpoints/alexnet-owt-4df8aa71.pth
+sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/checkpoints/inception_v3_google-1a9a5a14.pth
 
 # Pre-trained model saved as a file
-sgx.protected_files.model   = file:pretrained.pt
+# sgx.trusted_files.model   = file:alexnet-pretrained.pt
 
-sgx.protected_files.result = file:result.txt
 # Scratch space
 sgx.allowed_files.tmp     = file:/tmp
 

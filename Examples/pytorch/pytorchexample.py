@@ -1,12 +1,15 @@
 # This PyTorch image classification example is based off
 # https://www.learnopencv.com/pytorch-for-beginners-image-classification-using-pre-trained-models/
-
+from timeit import default_timer as timer
+import statistics
 from torchvision import models
 import torch
 
-# Load the model from a file
-alexnet = torch.load("alexnet-pretrained.pt")
+torch.set_num_threads(8)
 
+# Load the model from a file
+alexnet = torch.load("pretrained.pt")
+#alexnet = models.densenet161(pretrained=True)
 # Prepare a transform to get the input image into a format (e.g., x,y dimensions) the classifier
 # expects.
 from torchvision import transforms
@@ -29,9 +32,22 @@ img_t = transform(img)
 # Magic (not sure what this does).
 batch_t = torch.unsqueeze(img_t, 0)
 
-# Prepare the model and run the classifier.
 alexnet.eval()
-out = alexnet(batch_t)
+
+for i in range (0,3):
+    out = alexnet(batch_t)
+
+sample = []
+for i in range (0,1000):
+    start = timer()
+    img = Image.open("input.jpg")
+    img_t = transform(img)
+    batch_t = torch.unsqueeze(img_t, 0)
+    out = alexnet(batch_t)
+    end = timer()
+    sample.append((end - start))
+
+print(statistics.mean(sample),statistics.stdev(sample))
 
 # Load the classes from disk.
 with open('classes.txt') as f:
