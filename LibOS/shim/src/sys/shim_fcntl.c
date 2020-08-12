@@ -27,7 +27,7 @@ static int _set_handle_flags(struct shim_handle* hdl, unsigned long arg) {
             return ret;
         }
     }
-    hdl->flags |= (hdl->flags & ~FCNTL_SETFL_MASK) | (arg & FCNTL_SETFL_MASK);
+    hdl->flags = (hdl->flags & ~FCNTL_SETFL_MASK) | (arg & FCNTL_SETFL_MASK);
     return 0;
 }
 
