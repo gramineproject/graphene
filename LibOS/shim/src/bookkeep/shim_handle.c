@@ -142,7 +142,10 @@ int init_important_handles(void) {
             return -ENOMEM;
 
         set_handle_map(thread, handle_map);
+        put_handle_map(handle_map);
     }
+
+    /* `handle_map` is set in current thread, no need to increase ref-count. */
 
     lock(&handle_map->lock);
 
@@ -544,6 +547,8 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
         return NULL;
     }
 
+    REF_SET(handle_map->ref_count, 1);
+
     return handle_map;
 }
 
@@ -778,6 +783,12 @@ BEGIN_RS_FUNC(handle) {
             destroy_lock(&hdl->lock);
             return -EINVAL;
         }
+    } else {
+        get_mount(hdl->fs);
+    }
+
+    if (hdl->dentry) {
+        get_dentry(hdl->dentry);
     }
 
     if (hdl->type == TYPE_DEV) {

@@ -45,7 +45,7 @@ static struct shim_dentry* alloc_dentry(void) {
 
     memset(dent, 0, sizeof(struct shim_dentry));
 
-    REF_SET(dent->ref_count, 0);
+    REF_SET(dent->ref_count, 1);
     dent->mode = NO_MODE;
 
     INIT_LIST_HEAD(dent, hlist);
@@ -69,9 +69,12 @@ int init_dcache(void) {
     dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
 
     dentry_root = alloc_dentry();
+    if (!dentry_root) {
+        return -ENOMEM;
+    }
 
-    /* The root is special; we assume it won't change or be freed, and
-     * set its refcount to 1. */
+    /* The root is special; we assume it won't change or be freed, so we artificially increase its
+     * refcount by 1. */
     get_dentry(dentry_root);
 
     /* Initialize the root to a valid state, as a low-level lookup
@@ -84,7 +87,6 @@ int init_dcache(void) {
     qstrsetstr(&dentry_root->name, "", 0);
     qstrsetstr(&dentry_root->rel_path, "", 0);
 
-    get_dentry(dentry_root);
     return 0;
 }
 
@@ -155,8 +157,6 @@ struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry*
 
     if (!dent)
         return NULL;
-
-    get_dentry(dent);
 
     if (hashptr) {
 #ifdef DEBUG
@@ -394,6 +394,8 @@ BEGIN_RS_FUNC(dentry) {
     if (!dent->fs) {
         /* special case of FIFO pipe: use built-in FIFO FS */
         dent->fs = &fifo_builtin_fs;
+    } else {
+        get_mount(dent->fs);
     }
 
     /* DEP 6/16/17: I believe the point of this line is to
@@ -403,6 +405,10 @@ BEGIN_RS_FUNC(dentry) {
         get_dentry(dent->parent);
         get_dentry(dent);
         LISTP_ADD_TAIL(dent, &dent->parent->children, siblings);
+    }
+
+    if (dent->mounted) {
+        get_mount(dent->mounted);
     }
 
     DEBUG_RS("hash=%08lx,path=%s,fs=%s", dent->rel_path.hash, dentry_get_path(dent, true, NULL),
