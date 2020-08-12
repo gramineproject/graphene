@@ -205,8 +205,14 @@ def gsc_build(args):
 
     buildargs_dict = {}
     for item in args.build_arg:
-        key, value = item.split("=")
-        buildargs_dict[key] = value
+        if "=" in item:
+            key, value = item.split("=", 1)
+            buildargs_dict[key] = value
+        else:
+            # use the --build-arg flag without a value, in which case the value from the local
+            # environment
+            if item in os.environ:
+                buildargs_dict[item] = os.environ[item]
 
     build_docker_image(gsc_image_name(image), gsc_unsigned_image_name(image), 'Dockerfile.build',
                        rm=args.rm, nocache=args.no_cache, buildargs=buildargs_dict)
