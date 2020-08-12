@@ -482,12 +482,20 @@ out:
     return ret;
 }
 
+/*
+ * XXX: These two functions are useless - `mount` is not freed even if refcount reaches 0.
+ * Unfortunately Graphene is not keeping track of this refcount correctly, so we cannot free
+ * the object. Fixing this would require revising whole filesystem implementation - but this code
+ * is, uhm, not the best achievement of human kind and probably requires a complete rewrite.
+ */
 void get_mount(struct shim_mount* mount) {
-    REF_INC(mount->ref_count);
+    __UNUSED(mount);
+    //REF_INC(mount->ref_count);
 }
 
 void put_mount(struct shim_mount* mount) {
-    REF_DEC(mount->ref_count);
+    __UNUSED(mount);
+    //REF_DEC(mount->ref_count);
 }
 
 int walk_mounts(int (*walk)(struct shim_mount* mount, void* arg), void* arg) {
