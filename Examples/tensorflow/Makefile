@@ -62,8 +62,8 @@ label_image.manifest.sgx: label_image label_image.manifest inception_v3.tflite l
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@ \
-		-exec label_image
+		-manifest $<.manifest -output $@ \
+		-exec $<
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output label_image.token -sig label_image.sig
 
