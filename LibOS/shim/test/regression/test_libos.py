@@ -609,6 +609,10 @@ class TC_80_Socket(RegressionTestCase):
         stdout, _ = self.run_binary(['pipe_nonblocking'])
         self.assertIn('TEST OK', stdout)
 
+    def test_092_pipe_ocloexec(self):
+        stdout, _ = self.run_binary(['pipe_ocloexec'])
+        self.assertIn('TEST OK', stdout)
+
     def test_095_mkfifo(self):
         stdout, _ = self.run_binary(['mkfifo'], timeout=60)
         self.assertIn('read on FIFO: Hello from write end of FIFO!', stdout)
