@@ -348,7 +348,7 @@ void flush_handle(struct shim_handle* hdl);
 void get_handle(struct shim_handle* hdl);
 void put_handle(struct shim_handle* hdl);
 
-/* Set handle in non-blocking mode. */
+/* Set handle to non-blocking mode. */
 int set_handle_nonblocking(struct shim_handle* hdl);
 
 /* file descriptor table */
