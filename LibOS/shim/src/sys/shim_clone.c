@@ -318,10 +318,9 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
            a copy of current descriptor table */
         struct shim_handle_map * new_map = NULL;
 
-        get_handle_map(handle_map);
         dup_handle_map(&new_map, handle_map);
         set_handle_map(thread, new_map);
-        put_handle_map(handle_map);
+        put_handle_map(new_map);
     }
 
     if (!(flags & CLONE_VM)) {

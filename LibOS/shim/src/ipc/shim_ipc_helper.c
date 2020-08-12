@@ -201,7 +201,7 @@ static struct shim_ipc_port* __create_ipc_port(PAL_HANDLE hdl) {
     port->pal_handle = hdl;
     INIT_LIST_HEAD(port, list);
     INIT_LISTP(&port->msgs);
-    REF_SET(port->ref_count, 0);
+    REF_SET(port->ref_count, 1);
     if (!create_lock(&port->msgs_lock)) {
         free_mem_obj_to_mgr(port_mgr, port);
         return NULL;
@@ -354,8 +354,9 @@ void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini
     __add_ipc_port(port, vmid, type, fini);
 
     if (portptr) {
-        __get_ipc_port(port);
         *portptr = port;
+    } else {
+        __put_ipc_port(port);
     }
 
 out:

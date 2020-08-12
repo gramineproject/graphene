@@ -1246,9 +1246,6 @@ BEGIN_RS_FUNC(vma)
     }
 
     if (vma->file)
-        get_handle(vma->file);
-
-    if (vma->file)
         DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld,path=%s,uri=%s",
                  vma->addr, vma->addr + vma->length, vma->length,
                  vma->prot, vma->flags, vma->file_offset,

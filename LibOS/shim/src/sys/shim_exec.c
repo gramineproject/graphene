@@ -185,7 +185,9 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
 
     set_handle_map(thread, handle_map);
 
-    if ((ret = close_cloexec_handle(handle_map)) < 0)
+    ret = close_cloexec_handle(handle_map);
+    put_handle_map(handle_map);
+    if (ret < 0)
         return ret;
 
     return START_MIGRATE(cpstore, execve, thread, process, argv, envp);

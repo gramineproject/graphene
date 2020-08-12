@@ -580,6 +580,7 @@ BEGIN_CP_FUNC(mount) {
         new_mount->mount_point = NULL;
         new_mount->root        = NULL;
         INIT_LIST_HEAD(new_mount, list);
+        REF_SET(new_mount->ref_count, 0);
 
         DO_CP_IN_MEMBER(qstr, new_mount, path);
         DO_CP_IN_MEMBER(qstr, new_mount, uri);
@@ -608,6 +609,14 @@ BEGIN_RS_FUNC(mount) {
     CP_REBASE(mount->list);
     CP_REBASE(mount->mount_point);
     CP_REBASE(mount->root);
+
+    if (mount->mount_point) {
+        get_dentry(mount->mount_point);
+    }
+
+    if (mount->root) {
+        get_dentry(mount->root);
+    }
 
     struct shim_fs* fs = find_fs(mount->type);
 
