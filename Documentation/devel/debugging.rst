@@ -3,7 +3,7 @@ Debugging Graphene with GDB
 
 .. highlight:: sh
 
-Debugging without SGX Support
+Debugging without SGX support
 -----------------------------
 
 To enable GDB support, the PAL loader and Graphene implement the GDB protocol to
@@ -21,7 +21,7 @@ To run Graphene with GDB, use the following command to run your application::
 
     GDB=1 [Graphene Directory]/Runtime/pal_loader [executable|manifest] [arguments]
 
-Debugging with SGX Support
+Debugging with SGX support
 --------------------------
 
 Graphene supports debugging of enclavized applications if the enclave is created

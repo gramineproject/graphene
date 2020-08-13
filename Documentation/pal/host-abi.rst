@@ -1,8 +1,5 @@
-PAL Host ABI
+PAL host ABI
 ============
-
-What is Graphene's PAL Host ABI
--------------------------------
 
 PAL Host ABI is the interface used by Graphene to interact with its host. It is translated into
 the host's native ABI (e.g. system calls for UNIX) by a layer called the Platform Adaptation Layer
@@ -16,7 +13,7 @@ three primary principles, to guarantee functionality, security, and portability:
 
 Most of the PAL Host ABI is adapted from the Drawbridge library OS.
 
-PAL as Loader
+PAL as loader
 -------------
 
 Regardless of the actual implementation, we require PAL to be able to load ELF-format binaries
@@ -28,8 +25,8 @@ executables must resolve them afterwards.
 After loading the binaries, PAL needs to load and interpret the manifest files. The manifest syntax
 is described in :doc:`../manifest-syntax`.
 
-Manifest and Executable Loading Rules
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Manifest and executable loading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The PAL loader supports multiple ways of locating the manifest and executable. To run a program
 in Graphene properly, the PAL loader generally requires both a manifest and an executable,
@@ -59,10 +56,10 @@ Precisely, the loading rules for the manifest and executable are as follows:
    file, then no executable is used for the execution.
 
 
-Data Types and Variables
+Data types and variables
 ------------------------
 
-Data Types
+Data types
 ^^^^^^^^^^
 
 PAL handles
@@ -117,7 +114,7 @@ Basic types
    :project: pal
    :members:
 
-Graphene Control Block
+Graphene control block
 ^^^^^^^^^^^^^^^^^^^^^^
 
 The control block in Graphene is a structure that provides static information
@@ -156,7 +153,7 @@ The PAL APIs contain a |~| number of functions that can be called from the
 library OS.
 
 
-Memory Allocation
+Memory allocation
 ^^^^^^^^^^^^^^^^^
 
 The ABI includes three calls to allocate, free, and modify the permission bits
@@ -179,7 +176,7 @@ memory.
    :project: pal
 
 
-Process Creation
+Process creation
 ^^^^^^^^^^^^^^^^
 
 The ABI includes one call to create a child process and one call to terminate
@@ -195,8 +192,8 @@ creation.
    :project: pal
 
 
-Stream Creation/Connection/Open
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Stream creation/connect/open
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The stream ABI includes nine calls to open, read, write, map, unmap,
 truncate, flush, delete and wait for I/O streams and three calls to
@@ -291,7 +288,7 @@ Flags used for stream manipulation
    :project: pal
 
 
-Thread Creation
+Thread creation
 ^^^^^^^^^^^^^^^
 
 The ABI supports multithreading through five calls to create, sleep, yield the
@@ -314,7 +311,7 @@ seven calls to create, signal, and block on synchronization objects.
    :project: pal
 
 
-Exception Handling
+Exception handling
 ^^^^^^^^^^^^^^^^^^
 
 .. doxygenenum:: PAL_EVENT

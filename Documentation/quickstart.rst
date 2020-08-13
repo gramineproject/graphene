@@ -1,9 +1,9 @@
-Quick Start
+Quick start
 ===========
 
 .. highlight:: sh
 
-Quick Start without SGX support
+Quick start without SGX support
 -------------------------------
 
 #. Clone the Graphene repository::
@@ -24,7 +24,7 @@ Quick Start without SGX support
 
 #. For more complex examples, see :file:`Examples` directory.
 
-Quick Start with SGX support
+Quick start with SGX support
 -------------------------------
 
 Graphene-SGX requires that the FSGSBASE feature of recent processors is enabled
@@ -85,7 +85,7 @@ second command should list the process status of :command:`aesm_service`.
       make SGX=1 sgx-tokens
       SGX=1 ./pal_loader helloworld
 
-Running Sample Applications
+Running sample applications
 ---------------------------
 
 We prepared and tested several applications to demonstrate Graphene and
