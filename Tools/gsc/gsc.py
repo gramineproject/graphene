@@ -294,7 +294,7 @@ sub_build.add_argument('-nc', '--no-cache', action='store_true',
 sub_build.add_argument('--rm', action='store_true',
     help='Remove intermediate Docker images when build is successful.')
 sub_build.add_argument('--build-arg', action='append', default=[],
-    help='Set build-time variables (same as "docker build --build-arg")')
+    help='Set build-time variables (same as "docker build --build-arg").')
 sub_build.add_argument('image',
     help='Name of the application Docker image.')
 sub_build.add_argument('manifests',
