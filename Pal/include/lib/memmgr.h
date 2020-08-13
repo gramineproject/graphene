@@ -243,6 +243,10 @@ alloc:
 }
 
 static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
+    if (memory_migrated(obj)) {
+        return;
+    }
+
     MEM_OBJ mobj = container_of(obj, MEM_OBJ_TYPE, obj);
 
     SYSTEM_LOCK();

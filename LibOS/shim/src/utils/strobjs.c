@@ -43,11 +43,6 @@ int free_str_obj(struct shim_str* str) {
     if (str == NULL)
         return 0;
 
-    if (memory_migrated(str)) {
-        memset(str, 0, sizeof(struct shim_str));
-        return 0;
-    }
-
     free_mem_obj_to_mgr(str_mgr, str);
     return 0;
 }
