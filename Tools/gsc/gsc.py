@@ -205,12 +205,12 @@ def gsc_build(args):
 
     buildargs_dict = {}
     for item in args.build_arg:
-        if "=" in item:
-            key, value = item.split("=", 1)
+        if '=' in item:
+            key, value = item.split('=', 1)
             buildargs_dict[key] = value
         else:
-            # use the --build-arg flag without a value, in which case the value from the local
-            # environment
+            # user specified a --build-arg flag with key and without value, let's retrieve value
+            # from environment
             if item in os.environ:
                 buildargs_dict[item] = os.environ[item]
 
@@ -294,7 +294,7 @@ sub_build.add_argument('-nc', '--no-cache', action='store_true',
 sub_build.add_argument('--rm', action='store_true',
     help='Remove intermediate Docker images when build is successful.')
 sub_build.add_argument('--build-arg', action='append', default=[],
-    help='Set build-time variables.')
+    help='Set build-time variables (same as "docker build --build-arg")')
 sub_build.add_argument('image',
     help='Name of the application Docker image.')
 sub_build.add_argument('manifests',

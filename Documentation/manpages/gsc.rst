@@ -126,7 +126,7 @@ Synopsis:
 
 -- option:: --build-arg
 
-   Set build-time variables during :command:`gsc build`.
+   Set build-time variables during :command:`gsc build` (same as `docker build --build-arg`).
 
 .. option:: IMAGE-NAME
 
