@@ -2,9 +2,8 @@ Implementing new system call
 ============================
 
 .. highlight:: c
-.. sectnum::
 
-#. Define interface of system call
+1. Define interface of system call
 ----------------------------------
 
 For example, assume we are implementing :manpage:`sched_setaffinity(2)`. You
@@ -22,7 +21,7 @@ convention, please follow it)::
                        __kernel_cpu_set_t*, user_mask_ptr)
 
 
-#. Add definitions to system call table
+2. Add definitions to system call table
 ---------------------------------------
 
 To implement system call ``sched_setaffinity``, three functions need to be
@@ -33,7 +32,7 @@ implementing, with the same prototype as defined in :file:`shim_syscalls.c`::
 
    int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
 
-#. Implement system call
+3. Implement system call
 ------------------------
 
 You can add the function body of ``shim_do_sysinfo`` (or the function name defined
@@ -46,7 +45,7 @@ For example, in :file:`LibOS/shim/src/sys/shim_sched.c`::
       /* code for implementing the semantics of sched_setaffinity */
    }
 
-#. Add new PAL Calls (optional)
+4. Add new PAL Calls (optional)
 -------------------------------
 
 The concept of Graphene library OS is to keep the PAL interface as simple as
@@ -67,14 +66,14 @@ Make sure you use the PAL-specific data types, including :type:`PAL_BOL`,
 with the ``Dk`` prefix, followed by a comprehensive name describing the purpose
 of the PAL call.
 
-#. Export new PAL calls from PAL binaries (optional)
+5. Export new PAL calls from PAL binaries (optional)
 ----------------------------------------------------
 
 For each directory in :file:`PAL/host/`, there is a :file:`pal.map` file. This
 file lists all the symbols accessible to the library OS. The new PAL call needs
 to be listed here in order to be used by your system call implementation.
 
-#. Implement new PAL calls (optional)
+6. Implement new PAL calls (optional)
 -------------------------------------
 
 .. todo::

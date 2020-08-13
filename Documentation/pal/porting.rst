@@ -2,7 +2,6 @@ Porting Graphene PAL
 ====================
 
 .. highlight:: sh
-.. sectnum::
 
 Graphene adopts a similar architecture to the Drawbridge Library OS, which runs
 a generic library OS on top of a Platform Adaptation Layer (:term:`PAL`) to
@@ -32,7 +31,7 @@ code (especially the :file:`Makefile` scripts) to complete your implementation.
 
 Below are the steps to port Graphene PAL to a new host platform.
 
-#. Fix compilation issues
+1. Fix compilation issues
 -------------------------
 
 For the first step to port PAL, you want to be able to build PAL as an
@@ -42,7 +41,7 @@ modify :file:`Makefile.am` to adjust compilation rules such as :makevar:`CC`,
 will also have to define the name of the loader as target ``pal`` in
 :file:`Makefile.am.`
 
-#. Build a loader
+2. Build a loader
 -----------------
 
 PAL needs to run on the target host like a regular executable. To run Graphene,
@@ -96,14 +95,14 @@ point :func:`pal_main()`. The definition of :func:`pal_main()` is:
 You may implement the optional `_DkDebugAddMap` and `_DkDebugDelMap` to use
 a host-specific debugger such as GDB to debug applications in Graphene.
 
-#. Test HelloWorld without loading library OS
+3. Test HelloWorld without loading library OS
 ---------------------------------------------
 
 In :file:`Pal/test`, we provide a test program that can run without the library
 OS and directly use the :doc:`host-abi`. If you can successfully run
 a |~| ``HelloWorld`` program, congratulations, you have a working PAL loader.
 
-#. Implementing PAL host ABI
+4. Implementing PAL host ABI
 ----------------------------
 
 Now it is time to complete the whole implementation of the :doc:`host-abi`. Once
@@ -114,7 +113,7 @@ tests, run the following steps::
     cd Pal/regression
     make regression
 
-#. Running application with library OS
+5. Running application with library OS
 --------------------------------------
 
 With a completely implemented PAL, you should be able to run any applications

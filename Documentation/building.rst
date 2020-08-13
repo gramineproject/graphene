@@ -2,7 +2,6 @@ Building
 ========
 
 .. highlight:: sh
-.. sectnum::
 
 .. todo::
 
@@ -15,12 +14,12 @@ Graphene consists of several components:
 - The Library OS itself (a shared library named ``libsysdb.so``, called the
   "shim" in our source code)
 - The Platform Adaptation Layer, or PAL (a shared library named ``libpal.so``)
-- An instrumented GNU C Library (a set of shared libraries ``libc.so``,
+- A patched GNU C Library (a set of shared libraries ``libc.so``,
   ``libpthread.so``, ``libm.so``, etc.)
 
 The build of Graphene implies building at least the first two components. The
-build of the instrumented C library is optional but highly recommended for
-performance reasons. The instrumented C library is built by default.
+build of the patched C library is optional but highly recommended for
+performance reasons. The patched C library is built by default.
 
 Graphene currently only works on the x86_64 architecture. Graphene is currently
 tested on Ubuntu 16.04 and 18.04 (both server and desktop version), along with
@@ -58,7 +57,7 @@ distributions, the prerequisite steps will be significantly simplified.
 Prerequisites
 ^^^^^^^^^^^^^
 
-#. Required packages
+1. Required packages
 """"""""""""""""""""
 
 Run the following commands on Ubuntu to install SGX-related dependencies::
@@ -73,7 +72,7 @@ Run the following commands on Ubuntu to install SGX-related dependencies::
     sudo apt install -y python3-pip
     sudo /usr/bin/pip3 install protobuf
 
-#. Install the Linux kernel patched with FSGSBASE
+2. Install the Linux kernel patched with FSGSBASE
 """""""""""""""""""""""""""""""""""""""""""""""""
 
 FSGSBASE is a feature in recent processors which allows direct access to the FS
@@ -127,7 +126,7 @@ these software packages may not work with recent Linux kernels like 5.4. We
 recommend to use commit ``b7ccf6f`` of the Intel SGX Linux Driver for Intel SGX
 DCAP and commit ``0e71c22`` of the Intel SGX SDK/PSW.
 
-#. Generate signing keys
+3. Generate signing keys
 """"""""""""""""""""""""
 
 A 3072-bit RSA private key (PEM format) is required for signing the manifest.
@@ -144,7 +143,7 @@ Graphene binaries, along with an SGX-specific manifest (``.manifest.sgx``
 extension), the signature (``.sig`` extension), and the aesmd init token
 (``.token`` extension) to execute on another SGX-enabled host.
 
-#. Install the Intel SGX driver and SDK/PSW
+4. Install the Intel SGX driver and SDK/PSW
 """""""""""""""""""""""""""""""""""""""""""
 
 The Intel SGX Linux SDK and the Intel SGX driver are required to compile and
@@ -159,7 +158,7 @@ download and install it from:
 
 - https://github.com/intel/SGXDataCenterAttestationPrimitives
 
-#. Install the Graphene SGX driver (not for production)
+5. Install the Graphene SGX driver (not for production)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 If you followed step 1 and installed the patched Linux kernel, skip this step.
