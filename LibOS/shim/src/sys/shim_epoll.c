@@ -55,20 +55,12 @@ int shim_do_epoll_create1(int flags) {
     if (!hdl)
         return -ENOMEM;
 
-    PAL_HANDLE* pal_handles = malloc(sizeof(*pal_handles) * MAX_EPOLL_HANDLES);
-    if (!pal_handles) {
-        put_handle(hdl);
-        return -ENOMEM;
-    }
-
     struct shim_epoll_handle* epoll = &hdl->info.epoll;
 
     hdl->type = TYPE_EPOLL;
     set_handle_fs(hdl, &epoll_builtin_fs);
-    epoll->maxfds      = MAX_EPOLL_HANDLES;
     epoll->pal_cnt     = 0;
     epoll->waiter_cnt  = 0;
-    epoll->pal_handles = pal_handles;
     create_event(&epoll->event);
     INIT_LISTP(&epoll->fds);
 
@@ -97,7 +89,7 @@ static void update_epoll(struct shim_epoll_handle* epoll) {
             continue;
 
         assert(epoll->pal_cnt < MAX_EPOLL_HANDLES);
-        epoll->pal_handles[epoll->pal_cnt++] = tmp->handle->pal_handle;
+        epoll->pal_cnt++;
     }
 
     /* if other threads are currently waiting on epoll_wait(), send a signal to update their
@@ -123,7 +115,7 @@ void delete_from_epoll_handles(struct shim_handle* handle) {
         unlock(&handle->lock);
 
         /* second, get epoll to which this epoll-item belongs to, and remove epoll-item from
-         * epoll's `fds` list, and trigger update_epoll() to re-populate pal_handles */
+         * epoll's `fds` list, and trigger update_epoll() to count pal_handles */
         struct shim_handle* hdl         = epoll_item->epoll;
         struct shim_epoll_handle* epoll = &hdl->info.epoll;
 
@@ -430,7 +422,6 @@ int shim_do_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxev
 static int epoll_close(struct shim_handle* hdl) {
     struct shim_epoll_handle* epoll = &hdl->info.epoll;
 
-    free(epoll->pal_handles);
     destroy_event(&epoll->event);
 
     /* epoll is finally closed only after all FDs referring to it have been closed */
