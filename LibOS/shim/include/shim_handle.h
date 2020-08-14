@@ -286,6 +286,21 @@ struct shim_str_handle {
 
 DEFINE_LIST(shim_epoll_item);
 DEFINE_LISTP(shim_epoll_item);
+struct shim_epoll_item {
+    FDTYPE fd;
+    uint64_t data;
+    unsigned int events;
+    unsigned int revents;
+    bool connected;
+    /* The two references below are not ref-counted (to prevent cycles). When a handle is dropped
+     * (ref-count goes to 0) it is also removed from all epoll instances. When an epoll instance is
+     * destroyed, all handles that it traced are removed from it. */
+    struct shim_handle* handle;      /* reference to monitored object (socket, pipe, file, etc) */
+    struct shim_handle* epoll;       /* reference to epoll object that monitors handle object */
+    LIST_TYPE(shim_epoll_item) list; /* list of shim_epoll_items, used by epoll object (via `fds`) */
+    LIST_TYPE(shim_epoll_item) back; /* list of epolls, used by handle object (via `epolls`) */
+};
+
 struct shim_epoll_handle {
     int waiter_cnt;
 
