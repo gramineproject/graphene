@@ -453,6 +453,8 @@ void put_handle(struct shim_handle* hdl) {
 #endif
 
     if (!ref_count) {
+        delete_from_epoll_handles(hdl);
+
         if (hdl->type == TYPE_DIR) {
             struct shim_dir_handle* dir = &hdl->dir_info;
 
@@ -482,8 +484,6 @@ void put_handle(struct shim_handle* hdl) {
                 hdl->info.sock.peek_buffer = NULL;
             }
         }
-
-        delete_from_epoll_handles(hdl);
 
         if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->hput)
             hdl->fs->fs_ops->hput(hdl);
@@ -808,6 +808,10 @@ BEGIN_RS_FUNC(handle) {
             break;
         case TYPE_EPOLL:
             create_event(&hdl->info.epoll.event);
+            struct shim_epoll_item* epoll_item;
+            LISTP_FOR_EACH_ENTRY(epoll_item, &hdl->info.epoll.fds, list) {
+                epoll_item->epoll = hdl;
+            }
             break;
         default:
             break;

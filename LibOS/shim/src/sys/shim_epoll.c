@@ -35,18 +35,6 @@
 
 struct shim_mount epoll_builtin_fs;
 
-struct shim_epoll_item {
-    FDTYPE fd;
-    uint64_t data;
-    unsigned int events;
-    unsigned int revents;
-    bool connected;
-    struct shim_handle* handle;      /* reference to monitored object (socket, pipe, file, etc) */
-    struct shim_handle* epoll;       /* reference to epoll object that monitors handle object */
-    LIST_TYPE(shim_epoll_item) list; /* list of shim_epoll_items, used by epoll object (via `fds`) */
-    LIST_TYPE(shim_epoll_item) back; /* list of epolls, used by handle object (via `epolls`) */
-};
-
 int shim_do_epoll_create1(int flags) {
     if ((flags & ~EPOLL_CLOEXEC))
         return -EINVAL;
@@ -124,11 +112,9 @@ void delete_from_epoll_handles(struct shim_handle* handle) {
         update_epoll(epoll);
         unlock(&hdl->lock);
 
-        /* finally, free this epoll-item and put reference to epoll it belonged to
-         * (note that epoll is deleted only after all handles referring to this epoll are
-         * deleted from it, so we keep track of this via refcounting) */
+        assert(epoll_item->handle == handle);
+
         free(epoll_item);
-        put_handle(hdl);
     }
 }
 
@@ -201,7 +187,6 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
             epoll_item->handle    = hdl;
             epoll_item->epoll     = epoll_hdl;
             epoll_item->connected = true;
-            get_handle(epoll_hdl);
 
             /* register hdl (corresponding to FD) in epoll (corresponding to EPFD):
              * - bind hdl to epoll-item via the `back` list
@@ -253,7 +238,6 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                     /* note that we already grabbed epoll_hdl->lock so we can safely update epoll */
                     LISTP_DEL(epoll_item, &epoll->fds, list);
 
-                    put_handle(epoll_hdl);
                     free(epoll_item);
 
                     update_epoll(epoll);
@@ -419,13 +403,28 @@ int shim_do_epoll_pwait(int epfd, struct __kernel_epoll_event* events, int maxev
     return ret;
 }
 
-static int epoll_close(struct shim_handle* hdl) {
-    struct shim_epoll_handle* epoll = &hdl->info.epoll;
+static int epoll_close(struct shim_handle* epoll_hdl) {
+    struct shim_epoll_handle* epoll = &epoll_hdl->info.epoll;
+    struct shim_epoll_item* epoll_item;
+    struct shim_epoll_item* tmp_epoll_item;
+
+    lock(&epoll_hdl->lock);
+
+    LISTP_FOR_EACH_ENTRY_SAFE(epoll_item, tmp_epoll_item, &epoll->fds, list) {
+        struct shim_handle* hdl = epoll_item->handle;
+
+        lock(&hdl->lock);
+        LISTP_DEL(epoll_item, &hdl->epolls, back);
+        unlock(&hdl->lock);
+
+        LISTP_DEL(epoll_item, &epoll->fds, list);
+        free(epoll_item);
+    }
+
+    unlock(&epoll_hdl->lock);
 
     destroy_event(&epoll->event);
 
-    /* epoll is finally closed only after all FDs referring to it have been closed */
-    assert(LISTP_EMPTY(&epoll->fds));
     return 0;
 }
 
@@ -459,10 +458,14 @@ BEGIN_CP_FUNC(epoll_item) {
         new_epoll_item->events     = epoll_item->events;
         new_epoll_item->data       = epoll_item->data;
         new_epoll_item->revents    = epoll_item->revents;
+        new_epoll_item->connected  = epoll_item->connected;
+        new_epoll_item->epoll      = NULL; // To be filled by epoll handle RS_FUNC
 
         LISTP_ADD(new_epoll_item, new_list, list);
 
         DO_CP(handle, epoll_item->handle, &new_epoll_item->handle);
+
+        LISTP_ADD(new_epoll_item, &new_epoll_item->handle->epolls, back);
     }
 
     ADD_CP_FUNC_ENTRY((uintptr_t)objp - base);
