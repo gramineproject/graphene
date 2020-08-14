@@ -287,11 +287,9 @@ struct shim_str_handle {
 DEFINE_LIST(shim_epoll_item);
 DEFINE_LISTP(shim_epoll_item);
 struct shim_epoll_handle {
-    int maxfds;
     int waiter_cnt;
 
     int pal_cnt;
-    PAL_HANDLE* pal_handles;
 
     AEVENTTYPE event;
     LISTP_TYPE(shim_epoll_item) fds;

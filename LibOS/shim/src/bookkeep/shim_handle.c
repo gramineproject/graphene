@@ -742,16 +742,23 @@ BEGIN_CP_FUNC(handle) {
             entry->phandle = &new_hdl->pal_handle;
         }
 
-        if (hdl->type == TYPE_EPOLL)
-            DO_CP(epoll_item, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
-
-        if (hdl->type == TYPE_SOCK) {
-            /* no support for multiple processes sharing options/peek buffer of the socket */
-            new_hdl->info.sock.pending_options = NULL;
-            new_hdl->info.sock.peek_buffer     = NULL;
-        }
-
         INIT_LISTP(&new_hdl->epolls);
+
+        switch (hdl->type) {
+            case TYPE_EPOLL:
+                /* `new_hdl->info.epoll.pal_cnt` stays the same - copied above. */
+                DO_CP(epoll_item, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
+                new_hdl->info.epoll.waiter_cnt = 0;
+                memset(&new_hdl->info.epoll.event, '\0', sizeof(new_hdl->info.epoll.event));
+                break;
+            case TYPE_SOCK:
+                /* no support for multiple processes sharing options/peek buffer of the socket */
+                new_hdl->info.sock.pending_options = NULL;
+                new_hdl->info.sock.peek_buffer     = NULL;
+                break;
+            default:
+                break;
+        }
 
         unlock(&hdl->lock);
         ADD_CP_FUNC_ENTRY(off);
@@ -791,12 +798,19 @@ BEGIN_RS_FUNC(handle) {
         get_dentry(hdl->dentry);
     }
 
-    if (hdl->type == TYPE_DEV) {
-        /* for device handles, info.dev.dev_ops contains function pointers into LibOS; they may
-           have become invalid due to relocation of LibOS text section in the child, update them */
-        if (dev_update_dev_ops(hdl) < 0) {
-            return -EINVAL;
-        }
+    switch (hdl->type) {
+        case TYPE_DEV:
+            /* for device handles, info.dev.dev_ops contains function pointers into LibOS; they may
+               have become invalid due to relocation of LibOS text section in the child, update them */
+            if (dev_update_dev_ops(hdl) < 0) {
+                return -EINVAL;
+            }
+            break;
+        case TYPE_EPOLL:
+            create_event(&hdl->info.epoll.event);
+            break;
+        default:
+            break;
     }
 
     if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->checkin)
