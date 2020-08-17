@@ -27,6 +27,9 @@ typedef uint8_t pf_mac_t[PF_MAC_SIZE];
 typedef uint8_t pf_key_t[PF_KEY_SIZE];
 typedef uint8_t pf_keyid_t[32]; /* key derivation material */
 
+extern pf_key_t g_pf_wrap_key;
+extern bool g_pf_wrap_key_set;
+
 typedef enum _pf_status_t {
     PF_STATUS_SUCCESS              = 0,
     PF_STATUS_UNKNOWN_ERROR        = -1,

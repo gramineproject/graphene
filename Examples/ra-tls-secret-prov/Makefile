@@ -215,9 +215,10 @@ check_epid: app epid files/input.txt
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_pf_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
-	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/3 ]"
-	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/3 ]"
-	@grep "Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 3/3 ]"
+	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/4 ]"
+	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/4 ]"
+	@grep "\[parent\] Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 3/4 ]"
+	@grep "\[child\] Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 4/4 ]"
 	@rm OUTPUT
 
 .PHONY: check_dcap
@@ -228,9 +229,10 @@ check_dcap: app dcap files/input.txt
 	SGX=1 ./pal_loader ./secret_prov_client >> OUTPUT; \
 	SGX=1 ./pal_loader ./secret_prov_pf_client >> OUTPUT; \
 	kill -9 $$SERVER_ID;
-	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/3 ]"
-	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/3 ]"
-	@grep "Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 3/3 ]"
+	@grep "Received secret = 'ffeeddccbbaa99887766554433221100'" OUTPUT && echo "[ Success 1/4 ]"
+	@grep "Received secret1 = 'ffeeddccbbaa99887766554433221100', secret2 = '42'" OUTPUT && echo "[ Success 2/4 ]"
+	@grep "\[parent\] Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 3/4 ]"
+	@grep "\[child\] Read from protected file: 'helloworld'" OUTPUT && echo "[ Success 4/4 ]"
 	@rm OUTPUT
 
 ################################## CLEANUP ####################################
