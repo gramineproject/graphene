@@ -1213,10 +1213,19 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
         expected_size += bufs[i].iov_len;
     }
 
-    if (flags & ~MSG_PEEK) {
-        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK is supported).\n");
+    if (flags & ~(MSG_PEEK | MSG_DONTWAIT)) {
+        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK and MSG_DONTWAIT are"
+              " supported).\n");
         ret = -EOPNOTSUPP;
         goto out;
+    }
+
+    if (flags & MSG_DONTWAIT) {
+        if (!(hdl->flags & O_NONBLOCK)) {
+            debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a read that"
+                  " unexpectedly blocks.\n");
+        }
+        flags &= ~MSG_DONTWAIT;
     }
 
     lock(&hdl->lock);
