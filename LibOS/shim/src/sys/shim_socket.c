@@ -1004,9 +1004,6 @@ int shim_do_accept4(int fd, struct sockaddr* addr, int* addrlen, int flags) {
 
 static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
                           const struct sockaddr* addr, int addrlen) {
-    // Issue #752 - https://github.com/oscarlab/graphene/issues/752
-    __UNUSED(flags);
-
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1027,6 +1024,21 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
     for (int i = 0; i < nbufs; i++) {
         if (!bufs[i].iov_base || test_user_memory(bufs[i].iov_base, bufs[i].iov_len, false))
             goto out;
+    }
+
+    if (flags & ~(MSG_NOSIGNAL | MSG_DONTWAIT)) {
+        debug("sendmsg()/sendmmsg()/sendto(): unknown flag (only MSG_NOSIGNAL and MSG_DONTWAIT"
+              " are supported).\n");
+        ret = -EOPNOTSUPP;
+        goto out;
+    }
+
+    if (flags & MSG_DONTWAIT) {
+        if (!(hdl->flags & O_NONBLOCK)) {
+            debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a write that"
+                  " unexpectedly blocks.\n");
+        }
+        flags &= ~MSG_DONTWAIT;
     }
 
     lock(&hdl->lock);
@@ -1103,7 +1115,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         PAL_NUM pal_ret = DkStreamWrite(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri);
 
         if (pal_ret == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO() == EPIPE) {
+            if (PAL_ERRNO() == EPIPE && !(flags & MSG_NOSIGNAL)) {
                 struct shim_thread* cur = get_cur_thread();
                 assert(cur);
                 (void)do_kill_proc(cur->tid, cur->tgid, SIGPIPE, /*use_ipc=*/false);
@@ -1213,10 +1225,19 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
         expected_size += bufs[i].iov_len;
     }
 
-    if (flags & ~MSG_PEEK) {
-        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK is supported).\n");
+    if (flags & ~(MSG_PEEK | MSG_DONTWAIT)) {
+        debug("recvmsg()/recvmmsg()/recvfrom(): unknown flag (only MSG_PEEK and MSG_DONTWAIT are"
+              " supported).\n");
         ret = -EOPNOTSUPP;
         goto out;
+    }
+
+    if (flags & MSG_DONTWAIT) {
+        if (!(hdl->flags & O_NONBLOCK)) {
+            debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a read that"
+                  " unexpectedly blocks.\n");
+        }
+        flags &= ~MSG_DONTWAIT;
     }
 
     lock(&hdl->lock);
