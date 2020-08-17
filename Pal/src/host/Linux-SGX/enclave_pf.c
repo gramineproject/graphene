@@ -11,6 +11,12 @@
 #include "pal_linux_error.h"
 #include "spinlock.h"
 
+/* Wrap key for protected files, either hard-coded in manifest, provisioned during attestation, or
+ * inherited from the parent process. We don't use synchronization on them since they are only set
+ * during initialization where Graphene runs single-threaded. */
+pf_key_t g_pf_wrap_key = {0};
+bool g_pf_wrap_key_set = false;
+
 /*
  * At startup, protected file paths are read from the manifest and the specified files
  * or directories registered. For supported I/O operations, handlers (in db_files.c)
@@ -130,10 +136,6 @@ static pf_status_t cb_random(uint8_t* buffer, size_t size) {
     }
     return PF_STATUS_SUCCESS;
 }
-
-/* Wrap key for protected files, either hard-coded in manifest or provisioned during attestation */
-static pf_key_t g_pf_wrap_key = {0};
-static bool g_pf_wrap_key_set = false;
 
 /* Collection of registered protected files */
 static struct protected_file* g_protected_files = NULL;
@@ -472,9 +474,8 @@ int init_protected_files(void) {
     ssize_t len = get_config(g_pal_state.root_config, PF_MANIFEST_KEY_PREFIX, key_hex,
                              sizeof(key_hex));
     if (len <= 0) {
-        /* wrap key is not hard-coded in the manifest, assume that it will be provisioned after
-         * local/remote attestation and clear it for now */
-        g_pf_wrap_key_set = false;
+        /* wrap key is not hard-coded in the manifest, assume that it was received from parent or
+         * it will be provisioned after local/remote attestation */
     } else {
         if (len != sizeof(key_hex) - 1) {
             SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");

@@ -7,23 +7,23 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define INPUT_FILENAME "files/input.txt"
 
-int main(int argc, char** argv) {
+int print_pf_key_and_read_protected_file(char* who) {
     char* secret = getenv("SECRET_PROVISION_SECRET_STRING");
     if (!secret) {
         fprintf(stderr, "did not receive protected files master key!\n");
-        return 1;
+        return -1;
     }
-
-    printf("--- Received protected files master key = '%s' ---\n", secret);
+    printf("--- [%s] Received protected files master key = '%s' ---\n", who, secret);
 
     int fd = open(INPUT_FILENAME, O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "[error] cannot open '" INPUT_FILENAME "'\n");
-        return 1;
+        return -1;
     }
 
     char buf[1024] = {0};
@@ -40,16 +40,43 @@ int main(int argc, char** argv) {
         } else {
             fprintf(stderr, "[error] cannot read '" INPUT_FILENAME "'\n");
             close(fd);
-            return 1;
+            return -1;
         }
     }
 
     int ret = close(fd);
     if (ret < 0) {
         fprintf(stderr, "[error] cannot close '" INPUT_FILENAME "'\n");
-        return 1;
+        return -1;
     }
 
-    printf("--- Read from protected file: '%s' ---\n", buf);
+    printf("--- [%s] Read from protected file: '%s' ---\n", who, buf);
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    int pid = fork();
+
+    if (pid < 0) {
+        perror("fork error");
+        return 1;
+    } else if (pid == 0) {
+        /* child goes first */
+        if (print_pf_key_and_read_protected_file("child") < 0) {
+            fprintf(stderr, "child could not read the protected file\n");
+            return 1;
+        }
+    } else {
+        /* parent waits for child to finish and repeats the same logic */
+        if (wait(NULL) < 0) {
+            perror("wait error");
+            return 1;
+        }
+        if (print_pf_key_and_read_protected_file("parent") < 0) {
+            fprintf(stderr, "parent could not read the protected file\n");
+            return 1;
+        }
+    }
+
     return 0;
 }

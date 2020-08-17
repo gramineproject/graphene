@@ -12,18 +12,19 @@
  * at creation.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_crypto.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_defs.h"
 #include "pal_linux_error.h"
-#include "pal_debug.h"
-#include "pal_error.h"
 #include "pal_security.h"
-#include "pal_crypto.h"
+#include "protected-files/protected_files.h"
 #include "spinlock.h"
-#include "api.h"
 
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -284,6 +285,22 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     if (ret != sizeof(g_master_key))
         goto failed;
 
+    /* securely send the wrap key for protected files to child (only if there is one) */
+    char pf_wrap_key_set_char[1];
+    pf_wrap_key_set_char[0] = g_pf_wrap_key_set ? '1' : '0';
+
+    ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&pf_wrap_key_set_char,
+                               sizeof(pf_wrap_key_set_char));
+    if (ret != sizeof(pf_wrap_key_set_char))
+        goto failed;
+
+    if (g_pf_wrap_key_set) {
+        ret = _DkStreamSecureWrite(child->process.ssl_ctx, (uint8_t*)&g_pf_wrap_key,
+                                   sizeof(g_pf_wrap_key));
+        if (ret != sizeof(g_pf_wrap_key))
+            goto failed;
+    }
+
     *handle = child;
     return 0;
 
@@ -343,6 +360,24 @@ int init_child_process (PAL_HANDLE * parent_handle)
                               sizeof(g_master_key));
     if (ret != sizeof(g_master_key))
         return ret;
+
+    /* securely receive the wrap key for protected files from parent (only if there is one) */
+    char pf_wrap_key_set_char[1] = {0};
+    ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&pf_wrap_key_set_char,
+                              sizeof(pf_wrap_key_set_char));
+    if (ret != sizeof(pf_wrap_key_set_char))
+        return ret;
+
+    if (pf_wrap_key_set_char[0] == '1') {
+        ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_pf_wrap_key,
+                                  sizeof(g_pf_wrap_key));
+        if (ret != sizeof(g_pf_wrap_key)) {
+            g_pf_wrap_key_set = false;
+            return ret;
+        }
+
+        g_pf_wrap_key_set = true;
+    }
 
     *parent_handle = parent;
     return 0;
