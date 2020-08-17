@@ -89,7 +89,9 @@ static void server(void) {
     ssize_t written = 0;
     while (written < sizeof(buffer)) {
         ssize_t n;
-        if ((n = sendto(client_socket, buffer + written, sizeof(buffer) - written, 0, 0, 0)) < 0) {
+        /* we specify dummy MSG_DONTWAIT just to test this flag */
+        if ((n = sendto(client_socket, buffer + written, sizeof(buffer) - written, MSG_DONTWAIT,
+                        /*dest_addr=*/0, /*addrlen=*/0)) < 0) {
             if (errno == EINTR || errno == EAGAIN)
                 continue;
             perror("sendto to client");
@@ -171,16 +173,17 @@ static void client(void) {
         exit(1);
     }
 
+    /* we specify dummy MSG_DONTWAIT just to test this flag */
     printf("[client] receiving with MSG_PEEK: ");
-    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_PEEK);
+    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_DONTWAIT | MSG_PEEK);
     fwrite(buffer, count, 1, stdout);
 
     printf("[client] receiving without MSG_PEEK: ");
-    count = client_recv(server_socket, buffer, sizeof(buffer), 0);
+    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_DONTWAIT);
     fwrite(buffer, count, 1, stdout);
 
     printf("[client] checking how many bytes are left unread: ");
-    count = client_recv(server_socket, buffer, sizeof(buffer), 0);
+    count = client_recv(server_socket, buffer, sizeof(buffer), MSG_DONTWAIT);
     printf("%zu\n", count);
 
     if (close(server_socket) < 0) {
