@@ -12,7 +12,8 @@
 #include "spinlock.h"
 
 /* Wrap key for protected files, either hard-coded in manifest, provisioned during attestation, or
- * inherited from the parent process. */
+ * inherited from the parent process. We don't use synchronization on them since they are only set
+ * during initialization where Graphene runs single-threaded. */
 pf_key_t g_pf_wrap_key = {0};
 bool g_pf_wrap_key_set = false;
 

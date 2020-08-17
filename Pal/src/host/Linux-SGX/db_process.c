@@ -368,12 +368,13 @@ int init_child_process (PAL_HANDLE * parent_handle)
     if (ret != sizeof(pf_wrap_key_set_char))
         return ret;
 
-    g_pf_wrap_key_set = false;
     if (pf_wrap_key_set_char[0] == '1') {
         ret = _DkStreamSecureRead(parent->process.ssl_ctx, (uint8_t*)&g_pf_wrap_key,
                                   sizeof(g_pf_wrap_key));
-        if (ret != sizeof(g_pf_wrap_key))
+        if (ret != sizeof(g_pf_wrap_key)) {
+            g_pf_wrap_key_set = false;
             return ret;
+        }
 
         g_pf_wrap_key_set = true;
     }

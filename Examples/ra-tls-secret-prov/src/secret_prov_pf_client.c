@@ -63,6 +63,7 @@ int main(int argc, char** argv) {
     } else if (pid == 0) {
         /* child goes first */
         if (print_pf_key_and_read_protected_file("child") < 0) {
+            fprintf(stderr, "child could not read the protected file\n");
             return 1;
         }
     } else {
@@ -72,6 +73,7 @@ int main(int argc, char** argv) {
             return 1;
         }
         if (print_pf_key_and_read_protected_file("parent") < 0) {
+            fprintf(stderr, "parent could not read the protected file\n");
             return 1;
         }
     }
