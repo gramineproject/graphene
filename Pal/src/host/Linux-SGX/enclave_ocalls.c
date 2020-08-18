@@ -785,7 +785,7 @@ int ocall_resume_thread (void * tcs)
     return sgx_exitless_ocall(OCALL_RESUME_THREAD, tcs);
 }
 
-int ocall_sched_setaffinity (uint64_t tid, uint64_t cpu_len, void * cpu_mask)
+int ocall_sched_setaffinity (uint64_t tid, size_t cpu_len, void * cpu_mask)
 {
     int retval = 0;
     ms_ocall_sched_setaffinity_t* ms;
@@ -814,7 +814,7 @@ int ocall_sched_setaffinity (uint64_t tid, uint64_t cpu_len, void * cpu_mask)
     return retval;
 }
 
-int ocall_sched_getaffinity (uint64_t tid, uint64_t cpu_len, void * cpu_mask)
+int ocall_sched_getaffinity (uint64_t tid, size_t cpu_len, void * cpu_mask)
 {
     int retval = 0;
     ms_ocall_sched_getaffinity_t* ms;
