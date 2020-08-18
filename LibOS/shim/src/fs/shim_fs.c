@@ -486,7 +486,7 @@ out:
  * XXX: These two functions are useless - `mount` is not freed even if refcount reaches 0.
  * Unfortunately Graphene is not keeping track of this refcount correctly, so we cannot free
  * the object. Fixing this would require revising whole filesystem implementation - but this code
- * is, uhm, not the best achievement of human kind and probably requires a complete rewrite.
+ * is, uhm, not the best achievement of humankind and probably requires a complete rewrite.
  */
 void get_mount(struct shim_mount* mount) {
     __UNUSED(mount);
