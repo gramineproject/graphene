@@ -1033,6 +1033,8 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         goto out;
     }
 
+    lock(&hdl->lock);
+
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
             debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a write that"
@@ -1040,8 +1042,6 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
         }
         flags &= ~MSG_DONTWAIT;
     }
-
-    lock(&hdl->lock);
 
     PAL_HANDLE pal_hdl = hdl->pal_handle;
     char* uri          = NULL;
@@ -1232,6 +1232,8 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
         goto out;
     }
 
+    lock(&hdl->lock);
+
     if (flags & MSG_DONTWAIT) {
         if (!(hdl->flags & O_NONBLOCK)) {
             debug("Warning: MSG_DONTWAIT on blocking socket is ignored, may lead to a read that"
@@ -1240,7 +1242,6 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
         flags &= ~MSG_DONTWAIT;
     }
 
-    lock(&hdl->lock);
     peek_buffer        = sock->peek_buffer;
     sock->peek_buffer  = NULL;
     PAL_HANDLE pal_hdl = hdl->pal_handle;
