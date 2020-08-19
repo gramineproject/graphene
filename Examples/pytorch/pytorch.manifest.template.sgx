@@ -65,7 +65,7 @@ fs.mount.pip.uri  = file:$(HOME)/.local/lib
 # than the enclave size, Graphene will not be able to allocate it.
 #
 # In particular, libtorch*.so is more than 1G, thus 4G is the minimum to make this run.
-sgx.enclave_size = 4G
+sgx.enclave_size = 8G
 
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
@@ -75,7 +75,7 @@ sgx.enclave_size = 4G
 # the application can create is (sgx.thread_num - 2).
 #
 # We (somewhat arbitrarily) specify 128 threads for this workload.
-sgx.thread_num = 128
+sgx.thread_num = 176
 
 # SGX trusted libraries
 
@@ -114,6 +114,8 @@ sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
 sgx.trusted_files.libnssnis    = file:$(ARCH_LIBDIR)/libnss_nis.so.2
 sgx.trusted_files.libnsl       = file:$(ARCH_LIBDIR)/libnsl.so.1
 
+sgx.trusted_files.libzstd = file:/usr/lib/x86_64-linux-gnu/libzstd.so.1
+
 # The script to run
 sgx.trusted_files.script  = file:pytorchexample.py
 
@@ -128,7 +130,7 @@ sgx.trusted_files.image   = file:input.jpg
 
 # File containing the pre-trained model
 # Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
-sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/checkpoints/inception_v3_google-1a9a5a14.pth
+sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/hub/checkpoints/inception_v3_google-1a9a5a14.pth
 
 # Pre-trained model saved as a file
 # sgx.trusted_files.model   = file:alexnet-pretrained.pt
@@ -143,8 +145,9 @@ sgx.allow_file_creation   = 1
 sgx.trusted_children.fork = file:python3.sig
 
 # Various locations where Python dependencies are found
-sgx.allowed_files.python3    = file:/usr/lib/python3
-sgx.allowed_files.pythonhome = file:$(HOME)/.local/lib
+sgx.allowed_files.python3      = file:/usr/lib/python3
+sgx.allowed_files.localpython3 = file:/usr/local/lib/python3.6
+sgx.allowed_files.pythonhome   = file:$(HOME)/.local/lib
 # Ubuntu16.04 sgx.allowed_files.python35 = file:/usr/lib/python3.5
 # Ubuntu18.04 sgx.allowed_files.python36 = file:/usr/lib/python3.6
 

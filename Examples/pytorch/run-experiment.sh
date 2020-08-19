@@ -6,22 +6,35 @@
 
 set -e
 
-NUM_THREADS=8
 SCRIPT=pytorchexample.py
 STDERRFWD=stderr.log
 
-PREPEND_CMD="OMP_NUM_THREADS=$NUM_THREADS MKL_NUM_THREADS=$NUM_THREADS numactl --cpunodebind=0 --membind=0"
+threads=(
+    1
+    2
+    4
+    8
+    16
+    24
+    32
+    36
+    40
+    48
+    56
+    64
+    72
+)
 
 networks=(
-	alexnet
+#	alexnet
 	squeezenet1_0
 	vgg19
 	wide_resnet50_2
 	resnet50
-	densenet161
-	mobilenet_v2
-	googlenet
-	inception_v3
+#	densenet161
+#	mobilenet_v2
+#	googlenet
+#	inception_v3
 )
 
 if [ "$#" -eq  "0" ]
@@ -43,9 +56,10 @@ else
 	sed "s/^alexnet = torch/#alexnet = torch/" -i pytorchexample.py
 fi
 
-for i in {1..5}; do
+for i in {1..3}; do
 for net in "${networks[@]}"; do
-	echo "=== $1 $net $i ==="
+for NUM_THREADS in ${threads[@]}; do
+	echo "=== $1 $net $i $NUM_THREADS ==="
 
 	# set the number of threads
 	sed "s/set_num_threads([0-9]*)/set_num_threads($NUM_THREADS)/" -i $SCRIPT
@@ -81,7 +95,7 @@ for net in "${networks[@]}"; do
 	if [ "$1" == "sgx" ]
 	then
 		make clean >/dev/null
-		NETFILE=$(ls ~/.cache/torch/checkpoints | grep "^$net")
+		NETFILE=$(ls ~/.cache/torch/hub/checkpoints | grep "^$net")
 		sed "s/[a-z0-9_-]*\.pth$/$NETFILE/" -i pytorch.manifest.template
 		make SGX=1 >/dev/null
 		SGX=1 OMP_NUM_THREADS=$NUM_THREADS MKL_NUM_THREADS=$NUM_THREADS numactl --cpunodebind=0 --membind=0 \
@@ -103,5 +117,6 @@ for net in "${networks[@]}"; do
 		SGX=1 OMP_NUM_THREADS=$NUM_THREADS MKL_NUM_THREADS=$NUM_THREADS numactl --cpunodebind=0 --membind=0 \
 		./pal_loader pytorch.manifest $SCRIPT 2>$STDERRFWD
 	fi
+done
 done
 done

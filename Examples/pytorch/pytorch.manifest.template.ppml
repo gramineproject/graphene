@@ -79,7 +79,7 @@ fs.mount.pip.uri  = file:$(HOME)/.local/lib
 # than the enclave size, Graphene will not be able to allocate it.
 #
 # In particular, libtorch*.so is more than 1G, thus 4G is the minimum to make this run.
-sgx.enclave_size = 4G
+sgx.enclave_size = 8G
 
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
@@ -128,6 +128,8 @@ sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
 sgx.trusted_files.libnssnis    = file:$(ARCH_LIBDIR)/libnss_nis.so.2
 sgx.trusted_files.libnsl       = file:$(ARCH_LIBDIR)/libnsl.so.1
 
+sgx.trusted_files.libzstd = file:/usr/lib/x86_64-linux-gnu/libzstd.so.1
+
 # The script to run
 sgx.trusted_files.script  = file:pytorchexample.py
 
@@ -142,7 +144,7 @@ sgx.protected_files.image   = file:input.jpg
 
 # File containing the pre-trained model
 # Uncomment lines below if you want to use torchvision.model.alexnet(pretrained=True)
-#sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/checkpoints/alexnet-owt-4df8aa71.pth
+#sgx.trusted_files.torch   = file:$(HOME)/.cache/torch/hub/checkpoints/alexnet-owt-4df8aa71.pth
 
 # Pre-trained model saved as a file
 sgx.protected_files.model   = file:pretrained.pt
@@ -158,8 +160,9 @@ sgx.allow_file_creation   = 1
 sgx.trusted_children.fork = file:python3.sig
 
 # Various locations where Python dependencies are found
-sgx.allowed_files.python3    = file:/usr/lib/python3
-sgx.allowed_files.pythonhome = file:$(HOME)/.local/lib
+sgx.allowed_files.python3      = file:/usr/lib/python3
+sgx.allowed_files.localpython3 = file:/usr/local/lib/python3.6
+sgx.allowed_files.pythonhome   = file:$(HOME)/.local/lib
 # Ubuntu16.04 sgx.allowed_files.python35 = file:/usr/lib/python3.5
 # Ubuntu18.04 sgx.allowed_files.python36 = file:/usr/lib/python3.6
 
