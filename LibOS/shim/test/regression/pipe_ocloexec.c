@@ -23,7 +23,6 @@ int main(int argc, char* argv[]) {
         errx(1, "Invalid argc: %d", argc);
     } else if (argc > 1) {
         child();
-        return 0;
     }
 
     int p[2];
@@ -46,6 +45,7 @@ int main(int argc, char* argv[]) {
     }
 
     long a = 0;
+    /* This read will return 0 only if the write end of the pipe is closed (in the child). */
     ssize_t x = read(p[0], &a, sizeof(a));
 
     if (x < 0) {
