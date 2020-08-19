@@ -39,10 +39,9 @@ static inline void __free(void* addr, int size);
 
 #include "slabmgr.h"
 
+/* caller (slabmgr.h) releases g_slab_mgr_lock before calling this function (this must be reworked
+ * in the future), so grab the lock again to protect g_bump */
 static inline void* __malloc(int size) {
-    /* caller (slabmgr.h) releases g_slab_mgr_lock before calling this function (this must be
-     * reworked in the future), so check it was released and grab the lock again if needed */
-    assert(!SYSTEM_LOCKED());
     void* addr = NULL;
 
 #if STATIC_SLAB == 1
