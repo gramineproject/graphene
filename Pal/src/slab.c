@@ -39,9 +39,9 @@ static inline void __free(void* addr, int size);
 
 #include "slabmgr.h"
 
-
-/* This function is protected by g_slab_mgr_lock. */
 static inline void* __malloc(int size) {
+    /* caller (slabmgr.h) releases g_slab_mgr_lock before calling this function (this must be
+     * reworked in the future), so check it was released and grab the lock again if needed */
     assert(!SYSTEM_LOCKED());
     void* addr = NULL;
 
@@ -61,7 +61,8 @@ static inline void* __malloc(int size) {
      *        PAL would allocate more pages (for its internal purposes e.g. for event objects),
      *        but LibOS had no idea about it. This led to LibOS allocating pages at same addresses
      *        and ultimately to subtle memory corruptions. Fixing it requires complete re-write of
-     *        PAL memory allocation; loudly terminate for now. */
+     *        PAL memory allocation; loudly terminate for now. For more details, see issue
+     *        https://github.com/oscarlab/graphene/issues/1072. */
     printf("*** Out-of-memory in PAL (try increasing POOL_SIZE and rebuilding Graphene) ***\n");
     _DkProcessExit(-ENOMEM);
 #else
