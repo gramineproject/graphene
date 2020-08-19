@@ -543,6 +543,7 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
     handle_map->fd_top  = FD_NULL;
     handle_map->fd_size = size;
     if (!create_lock(&handle_map->lock)) {
+        free(handle_map->map);
         free(handle_map);
         return NULL;
     }
