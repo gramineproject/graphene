@@ -344,6 +344,9 @@ BEGIN_CP_FUNC(dentry) {
         clear_lock(&new_dent->lock);
         REF_SET(new_dent->ref_count, 0);
 
+        /* we don't checkpoint children dentries, so need to list directory again */
+        new_dent->state &= ~DENTRY_LISTED;
+
         if (new_dent->fs == &fifo_builtin_fs) {
             /* FIFO pipe, do not try to checkpoint its fs */
             new_dent->fs = NULL;
