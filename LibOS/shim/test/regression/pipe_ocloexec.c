@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdnoreturn.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static noreturn void child(void) {
@@ -56,6 +57,21 @@ int main(int argc, char* argv[]) {
 
     if (kill(pid, SIGKILL) < 0) {
         err(1, "kill");
+    }
+
+    int status = 0;
+    if (waitpid(pid, &status, 0) != pid) {
+        err(1, "wait");
+    }
+
+    if (WIFEXITED(status)) {
+        errx(1, "child exited with: %d", WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        if (WTERMSIG(status) != SIGKILL) {
+            errx(1, "child received an unexpected signal: %d", WTERMSIG(status));
+        }
+    } else {
+        errx(1, "this cannot happen");
     }
 
     puts("TEST OK");
