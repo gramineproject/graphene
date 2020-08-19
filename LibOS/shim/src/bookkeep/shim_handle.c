@@ -733,8 +733,15 @@ BEGIN_CP_FUNC(handle) {
             new_hdl->fs = NULL;
         }
 
-        if (hdl->dentry)
+        if (hdl->dentry) {
+            if (hdl->dentry->state & DENTRY_ISDIRECTORY) {
+                /* we don't checkpoint children dentries of a directory dentry, so need to list
+                 * directory again in child process; mark handle to indicate no cached dentries */
+                hdl->dir_info.buf = (void*)-1;
+                hdl->dir_info.ptr = (void*)-1;
+            }
             DO_CP_MEMBER(dentry, hdl, new_hdl, dentry);
+        }
 
         if (new_hdl->pal_handle) {
             struct shim_palhdl_entry* entry;
