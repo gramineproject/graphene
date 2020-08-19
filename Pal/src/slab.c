@@ -22,7 +22,7 @@ static PAL_LOCK g_slab_mgr_lock = LOCK_INIT;
 #define SYSTEM_LOCKED() _DkInternalIsLocked(&g_slab_mgr_lock)
 
 #if STATIC_SLAB == 1
-#define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
+#define POOL_SIZE 256 * 1024 * 1024
 static char g_mem_pool[POOL_SIZE];
 static void* g_bump = g_mem_pool;
 static void* g_mem_pool_end = &g_mem_pool[POOL_SIZE];
@@ -42,17 +42,32 @@ static inline void __free(void* addr, int size);
 
 /* This function is protected by g_slab_mgr_lock. */
 static inline void* __malloc(int size) {
+    assert(!SYSTEM_LOCKED());
     void* addr = NULL;
 
 #if STATIC_SLAB == 1
+    SYSTEM_LOCK();
     if (g_bump + size <= g_mem_pool_end) {
         addr = g_bump;
         g_bump += size;
+        SYSTEM_UNLOCK();
         return addr;
     }
+    SYSTEM_UNLOCK();
 #endif
 
+#if 1
+    /* FIXME: At this point, we depleted the pre-allocated memory pool of POOL_SIZE. Previously,
+     *        PAL would allocate more pages (for its internal purposes e.g. for event objects),
+     *        but LibOS had no idea about it. This led to LibOS allocating pages at same addresses
+     *        and ultimately to subtle memory corruptions. Fixing it requires complete re-write of
+     *        PAL memory allocation; loudly terminate for now. */
+    printf("*** Out-of-memory in PAL (try increasing POOL_SIZE and rebuilding Graphene) ***\n");
+    _DkProcessExit(-ENOMEM);
+#else
+    size = ALLOC_ALIGN_UP(size);
     _DkVirtualMemoryAlloc(&addr, size, PAL_ALLOC_INTERNAL, PAL_PROT_READ | PAL_PROT_WRITE);
+#endif
     return addr;
 }
 
@@ -64,6 +79,7 @@ static inline void __free(void* addr, int size) {
         return;
 #endif
 
+    size = ALLOC_ALIGN_UP(size);
     _DkVirtualMemoryFree(addr, size);
 }
 
