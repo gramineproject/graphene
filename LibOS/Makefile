@@ -9,8 +9,8 @@ $(RUNTIME_DIR)/$(notdir $(1)): $(1)
 endef
 
 GNU_MIRRORS ?= https://ftp.gnu.org/gnu/ \
-		https://mirrors.kernel.org/gnu/ \
-		https://mirrors.ocf.berkeley.edu/gnu/
+               https://mirrors.kernel.org/gnu/ \
+               https://mirrors.ocf.berkeley.edu/gnu/
 
 # ------------------------------------------------------------------------------------------------
 # Glibc build: patch libc.so and other C standard libraries to replace raw SYSCALL instructions
@@ -19,7 +19,7 @@ GNU_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 # ------------------------------------------------------------------------------------------------
 GLIBC_VERSION ?= 2.31
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
-GLIBC_CHECKSUM = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
+GLIBC_HASH = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
 SHIM_DIR = shim
 BUILD_DIR = glibc-build
 GLIBC_LIBS = \
@@ -99,7 +99,7 @@ GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 	$(RM) -r $(GLIBC_SRC)
-	tar -xzf $(GLIBC_SRC).tar.gz
+	tar -mxzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
 	for p in $(GLIBC_PATCHES); do \
 		echo applying $$p; \
@@ -108,7 +108,7 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 	touch $@
 
 $(GLIBC_SRC).tar.gz:
-	../Scripts/download --output $@ --sha256 $(GLIBC_CHECKSUM) $(foreach mirror,$(GNU_MIRRORS),--url $(mirror)glibc/$(GLIBC_SRC).tar.gz)
+	../Scripts/download --output $@ --sha256 $(GLIBC_HASH) $(foreach mirror,$(GNU_MIRRORS),--url $(mirror)glibc/$(GLIBC_SRC).tar.gz)
 
 $(GLIBC_SRC)/elf/Versions: $(GLIBC_SRC)/configure
 
@@ -120,11 +120,12 @@ $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 # GCC build: patch libgomp.so.1 (OpenMP runtime library) to replace raw SYSCALL instruction with
 # function call into Graphene. GCC is not built by default with Graphene; use `make -C LibOS gcc`
 # to build it. The resulting libgomp.so.1 is symlinked under $RUNTIME_DIR. This patched version
-# makes sense only on x86_64 platforms.
+# makes sense only on x86_64 platforms. NOTE: We'd prefer to build libgomp.so.1 alone but it is
+# impossible (the only way to build it is as part of the complete GCC build).
 # ------------------------------------------------------------------------------------------------
 GCC_VERSION ?= 10.2.0
 GCC_SRC = gcc-$(GCC_VERSION)
-GCC_CHECKSUM = 27e879dccc639cd7b0cc08ed575c1669492579529b53c9ff27b0b96265fa867d
+GCC_HASH = 27e879dccc639cd7b0cc08ed575c1669492579529b53c9ff27b0b96265fa867d
 GCC_BUILD_DIR = gcc-build
 GCC_LIBS = x86_64-pc-linux-gnu/libgomp/.libs/libgomp.so.1
 GCC_TARGET = $(addprefix $(GCC_BUILD_DIR)/, $(GCC_LIBS))
@@ -153,7 +154,7 @@ GCC_PATCHES = \
 
 $(GCC_SRC)/configure: $(GCC_PATCHES) $(GCC_SRC).tar.gz
 	$(RM) -r $(GCC_SRC)
-	tar -xzf $(GCC_SRC).tar.gz
+	tar -mxzf $(GCC_SRC).tar.gz
 	cd $(GCC_SRC) && \
 	for p in $(GCC_PATCHES); do \
 		echo applying $$p; \
@@ -163,7 +164,7 @@ $(GCC_SRC)/configure: $(GCC_PATCHES) $(GCC_SRC).tar.gz
 	touch $@
 
 $(GCC_SRC).tar.gz:
-	../Scripts/download --output $@ --sha256 $(GCC_CHECKSUM) $(foreach mirror,$(GNU_MIRRORS),--url $(mirror)gcc/$(GCC_SRC)/$(GCC_SRC).tar.gz)
+	../Scripts/download --output $@ --sha256 $(GCC_HASH) $(foreach mirror,$(GNU_MIRRORS),--url $(mirror)gcc/$(GCC_SRC)/$(GCC_SRC).tar.gz)
 
 .PHONY: gcc
 gcc: $(GCC_TARGET) $(GCC_RUNTIME)

@@ -27,7 +27,8 @@ sgx.trusted_files.libgomp_native = file:/usr$(ARCH_LIBDIR)/libgomp.so.1
 
 # Graphene optionally provides patched OpenMP runtime library that runs faster
 # inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment
-# the below line to use the patched library.
+# the line below to use the patched library. This library will replace the
+# native one because Graphene's Runtime path has priority in LD_LIBRARY_PATH.
 
 #sgx.trusted_files.libgomp_graphene = file:../../../../Runtime/libgomp.so.1
 
