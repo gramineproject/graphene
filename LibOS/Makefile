@@ -64,10 +64,10 @@ $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 
 $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
-$(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
+$(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 	mkdir -p $(BUILD_DIR)
 	(cd $(BUILD_DIR) || exit 1; \
-	CFLAGS=$$GLIBC_CFLAGS ../$< --prefix=$(RUNTIME_DIR) \
+	CFLAGS=$$GLIBC_CFLAGS ../$(GLIBC_SRC)/configure --prefix=$(RUNTIME_DIR) \
 		--with-tls \
 		--without-selinux \
 		--disable-test \
@@ -97,7 +97,7 @@ GLIBC_PATCHES_2.31 = \
 
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
-$(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
+$(GLIBC_SRC)/.configured: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 	$(RM) -r $(GLIBC_SRC)
 	tar -mxzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
@@ -110,11 +110,11 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 $(GLIBC_SRC).tar.gz:
 	../Scripts/download --output $@ --sha256 $(GLIBC_HASH) $(foreach mirror,$(GNU_MIRRORS),--url $(mirror)glibc/$(GLIBC_SRC).tar.gz)
 
-$(GLIBC_SRC)/elf/Versions: $(GLIBC_SRC)/configure
+$(GLIBC_SRC)/elf/Versions: $(GLIBC_SRC)/.configured
 
-$(GLIBC_SRC)/nptl/Versions: $(GLIBC_SRC)/configure
+$(GLIBC_SRC)/nptl/Versions: $(GLIBC_SRC)/.configured
 
-$(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
+$(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/.configured
 
 # ------------------------------------------------------------------------------------------------
 # GCC build: patch libgomp.so.1 (OpenMP runtime library) to replace raw SYSCALL instruction with
@@ -139,10 +139,10 @@ $(GCC_BUILD_DIR)/Build.success: $(GCC_BUILD_DIR)/Makefile
 
 $(GCC_TARGET): $(GCC_BUILD_DIR)/Build.success
 
-$(GCC_BUILD_DIR)/Makefile: $(GCC_SRC)/configure
+$(GCC_BUILD_DIR)/Makefile: $(GCC_SRC)/.configured
 	mkdir -p $(GCC_BUILD_DIR)
 	(cd $(GCC_BUILD_DIR) || exit 1; \
-	../$< --prefix=$(RUNTIME_DIR) \
+	../$(GCC_SRC)/configure --prefix=$(RUNTIME_DIR) \
 		--enable-languages=c \
 		--disable-multilib \
 	)
@@ -152,7 +152,7 @@ $(foreach lib,$(GCC_TARGET),$(eval $(call LN_SF_TO_RUNTIME_DIR_template,$(lib)))
 GCC_PATCHES = \
 	gcc-patches/libgomp-replace-futex-instruction.patch
 
-$(GCC_SRC)/configure: $(GCC_PATCHES) $(GCC_SRC).tar.gz
+$(GCC_SRC)/.configured: $(GCC_PATCHES) $(GCC_SRC).tar.gz
 	$(RM) -r $(GCC_SRC)
 	tar -mxzf $(GCC_SRC).tar.gz
 	cd $(GCC_SRC) && \
