@@ -19,6 +19,13 @@ loader.debug_type = $(GRAPHENEDEBUG)
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
+# PyTorch may use up to 28GB of RAM in our experiments, so disable ASLR to have more enclave memory
+loader.insecure__disable_aslr = 1
+
+# PyTorch/Python uses up to 10GB of brk region in our experiments, so set this option. Otherwise,
+# expect significant perf degradation since PyTorch falls back to slower mmap/munmap logic.
+sys.brk.max_size = 12G
+
 # Environment variables
 loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR):./
 loader.env.LD_PRELOAD = "libsecret_prov_attest.so /lib/libgomp.so.1"
@@ -79,7 +86,7 @@ fs.mount.pip.uri  = file:$(HOME)/.local/lib
 # than the enclave size, Graphene will not be able to allocate it.
 #
 # In particular, libtorch*.so is more than 1G, thus 4G is the minimum to make this run.
-sgx.enclave_size = 8G
+sgx.enclave_size = 32G
 
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
@@ -89,7 +96,9 @@ sgx.enclave_size = 8G
 # the application can create is (sgx.thread_num - 2).
 #
 # We (somewhat arbitrarily) specify 128 threads for this workload.
-sgx.thread_num = 128
+sgx.thread_num = 176
+
+#sgx.rpc_thread_num = 176
 
 # SGX trusted libraries
 
