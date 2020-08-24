@@ -536,6 +536,12 @@ files, tokens, and signatures::
    make clean
    make SGX=1
 
+It is also important to remove the file ``result.txt`` if it exists. Otherwise
+the Protected FS will detect the already-existing file and fail. So let's remove
+it unconditionally::
+
+   rm -f result.txt
+
 We are ready to run the end-to-end PyTorch example. Notice that we didn't change
 a line of code in the Python script. Moreover, we can run it with exactly the
 same command used in the previous section::
