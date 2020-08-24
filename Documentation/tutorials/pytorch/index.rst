@@ -113,7 +113,7 @@ Prerequisites
 Executing Native PyTorch
 ------------------------
 
-We start with a very simply example script written in Python3 for PyTorch-based
+We start with a very simple example script written in Python3 for PyTorch-based
 ML inferencing. Graphene already provides a minimalistic and *insecure* `PyTorch
 example <https://github.com/oscarlab/graphene/tree/master/Examples/pytorch>`__
 which does not have confidentiality guarantees for input/output files and does
@@ -191,6 +191,14 @@ executable), which is located at the host path ``/usr/bin/python3``::
 
    loader.exec = file:/usr/bin/python3
 
+Notice that the manifest file is not fully secure because it propagates
+untrusted command-line arguments and environment variables into the enclave. We
+keep these work-arounds in this tutorial for simplicity, but this configuration
+must not be used in production::
+
+   loader.insecure__use_cmdline_argv = 1
+   loader.insecure__use_host_env = 1
+
 We mount the entire ``<graphene repository>/Runtime/`` host-level directory to
 the ``/lib`` directory seen inside Graphene. This trick allows to transparently
 replace standard C libraries with Graphene-patched libraries::
@@ -235,15 +243,15 @@ Executing PyTorch with Graphene in SGX Enclave
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In this section, we will learn how to use Graphene to run the same PyTorch
-example inside an Intel SGX enclave.  Let's go back to the manifest template.
-(Recall that the manifest keys starting with ``sgx.`` are SGX-specific syntax;
-These entries are ignored if Graphene runs in non-SGX mode.)
+example inside an Intel SGX enclave.  Let's go back to the manifest template
+(recall that the manifest keys starting with ``sgx.`` are SGX-specific syntax;
+these entries are ignored if Graphene runs in non-SGX mode).
 
 Below, we will highlight some of the SGX-specific manifest options in
 ``pytorch.manifest.template``.  SGX syntax is fully described `here
 <https://graphene.readthedocs.io/en/latest/manifest-syntax.html?highlight=manifest#sgx-syntax>`__.
 
-First, there are the following SGX-specific lines in the manifest template::
+First, here are the following SGX-specific lines in the manifest template::
 
    sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
    sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
@@ -255,12 +263,12 @@ legal string (but without ``-`` and other special symbols) and does not have to
 be the same as the actual file name.
 
 The way these Trusted Files work is before Graphene runs PyTorch inside the SGX
-enclave, Graphene generates the final SGX manifest file using the
-``pal-sgx-sign`` Graphene utility.  This utility calculates hashes of each
-trusted file and appends them as ``sgx.trusted_checksum.<name>`` to the final
-SGX manifest. When running PyTorch with SGX, Graphene reads trusted files, finds
-their corresponding trusted checksums, and compares the calculated-at-runtime
-checksum against the expected value in the manifest.
+enclave, Graphene generates the final SGX manifest file using ``pal-sgx-sign``
+Graphene utility.  This utility calculates hashes of each trusted file and
+appends them as ``sgx.trusted_checksum.<name>`` to the final SGX manifest. When
+running PyTorch with SGX, Graphene reads trusted files, finds their
+corresponding trusted checksums, and compares the calculated-at-runtime checksum
+against the expected value in the manifest.
 
 The PyTorch manifest template also contains ``sgx.allowed_files.<name>``
 entries. They specify files unconditionally allowed by the enclave::
@@ -319,7 +327,7 @@ Background on Remote Attestation, RA-TLS and Secret Provisioning
 
 Intel SGX provides a way for the SGX enclave to attest itself to the remote
 user. This way the user gains trust in the SGX enclave running in an untrusted
-environment, ship the application code and data, and be sure that the *correct*
+environment, ships the application code and data, and is sure that the *correct*
 application was executed inside a *genuine* SGX enclave. This process of gaining
 trust in a remote SGX machine is called Remote Attestation (RA).
 
@@ -404,16 +412,23 @@ from the ``Examples/ra-tls-secret-prov`` directory.  In particular, we re-use
 the confidential wrap key::
 
    cd <graphene repository>/Examples/pytorch-confidential
-   cp ../ra-tls-secret-prov/files/wrap-key .
+   mkdir files
+   cp ../ra-tls-secret-prov/files/wrap-key files/
 
 In real deployments, the user must replace this ``wrap-key`` with her own
 128-bit encryption key.
 
 We also re-use the ``pf_crypt`` utility (with its ``libsgx_util.so`` helper
-library) that encrypts/decrypts the files::
+library and required mbedTLS libraries) that encrypts/decrypts the files::
 
    cp ../ra-tls-secret-prov/libsgx_util.so .
+   cp ../ra-tls-secret-prov/libmbed*.so* .
    cp ../ra-tls-secret-prov/pf_crypt .
+
+Let's also make sure that ``alexnet-pretrained.pt`` network-model file exists
+under our new directory::
+
+   make download_model
 
 Now let's encrypt the original plaintext files. We first move these files under
 the ``plaintext/`` directory and then encrypt them using the wrap key::
@@ -421,9 +436,9 @@ the ``plaintext/`` directory and then encrypt them using the wrap key::
    mkdir plaintext/
    mv input.jpg classes.txt alexnet-pretrained.pt plaintext/
 
-   LD_LIBRARY_PATH=. ./pf_crypt encrypt -w ./wrap-key -i ./plaintext/input.jpg -o input.jpg
-   LD_LIBRARY_PATH=. ./pf_crypt encrypt -w ./wrap-key -i ./plaintext/classes.txt -o classes.txt
-   LD_LIBRARY_PATH=. ./pf_crypt encrypt -w ./wrap-key -i ./plaintext/alexnet-pretrained.pt -o alexnet-pretrained.pt
+   LD_LIBRARY_PATH=. ./pf_crypt encrypt -w files/wrap-key -i plaintext/input.jpg -o input.jpg
+   LD_LIBRARY_PATH=. ./pf_crypt encrypt -w files/wrap-key -i plaintext/classes.txt -o classes.txt
+   LD_LIBRARY_PATH=. ./pf_crypt encrypt -w files/wrap-key -i plaintext/alexnet-pretrained.pt -o alexnet-pretrained.pt
 
 You can verify now that the input files are encrypted. In real deployments,
 these files must be shipped to the remote untrusted cloud.
@@ -432,13 +447,10 @@ Preparing Secret Provisioning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The user must prepare the secret provisioning server and start it. For this,
-copy the secret provisioning executable and its libraries from
+copy the secret provisioning executable and its helper library from
 ``Examples/ra-tls-secret-prov`` to the current directory::
 
-   cp ../ra-tls-secret-prov/secret_prov_verify_dcap.so .
-   cp ../ra-tls-secret-prov/libmbedcrypto.so .
-   cp ../ra-tls-secret-prov/libmbedtls.so .
-   cp ../ra-tls-secret-prov/libmbedx509.so .
+   cp ../ra-tls-secret-prov/libsecret_prov_verify_dcap.so .
    cp ../ra-tls-secret-prov/secret_prov_server_dcap .
 
 Also, copy the server-identifying certificates so that in-Graphene secret
@@ -469,14 +481,14 @@ with your favorite text editor.
 
 Replace ``trusted_files`` with ``protected_files`` for the input files::
 
-   # sgx.trusted_files.model = file:alexnet-pretrained.pt
-   sgx.protected_files.model = file:alexnet-pretrained.pt
+   # sgx.trusted_files.classes = file:classes.txt
+   sgx.protected_files.classes = file:classes.txt
 
    # sgx.trusted_files.image = file:input.jpg
    sgx.protected_files.image = file:input.jpg
 
-   # sgx.trusted_files.classes = file:classes.txt
-   sgx.protected_files.classes = file:classes.txt
+   # sgx.trusted_files.model = file:alexnet-pretrained.pt
+   sgx.protected_files.model = file:alexnet-pretrained.pt
 
 Also add ``result.txt`` as a protected file so that PyTorch writes the
 *encrypted* result into it::
@@ -511,24 +523,9 @@ the used environment variables and other manifest options, see `here
 The ``libsecret_prov_attest.so`` library provides the in-enclave logic to attest
 the SGX enclave, Graphene instance, and the application running in it to the
 remote secret-provisioning server. Graphene needs to locate this library, so
-let's copy it in our working directory::
+let's copy it to our working directory::
 
    cp ../ra-tls-secret-prov/libsecret_prov_attest.so ./
-
-Add the following lines for additional dynamic libraries used for secret
-provisioning::
-
-   sgx.trusted_files.libnssdns = file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2
-   sgx.trusted_files.libnssmyhostname = file:$(ARCH_LIBDIR)/libnss_myhostname.so.2
-   sgx.trusted_files.libnssmdns = file:$(ARCH_LIBDIR)/libnss_mdns4_minimal.so.2
-
-The following files should be also allowed for DNS hostname resolution (note
-that ``sgx.allowed_files`` should not be used in production)::
-
-   sgx.allowed_files.hostconf = file:/etc/host.conf
-   sgx.allowed_files.hosts = file:/etc/hosts
-   sgx.allowed_files.gaiconf = file:/etc/gai.conf
-   sgx.allowed_files.resolv = file:/etc/resolv.conf
 
 Building and Executing End-To-End PyTorch Example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -555,9 +552,9 @@ Decrypting Output File
 
 After our protected PyTorch inference is finished, you'll see ``result.txt`` in
 the directory.  This file is encrypted with the same key as was used for
-decryption of input files.  In order to decrypt it, use the following command::
+encryption of input files.  In order to decrypt it, use the following command::
 
-   LD_LIBRARY_PATH=. ./pf_crypt decrypt -w ./wrap-key -i ./result.txt -o plaintext/result.txt
+   LD_LIBRARY_PATH=. ./pf_crypt decrypt -w files/wrap-key -i result.txt -o plaintext/result.txt
 
 You can check the result written in ``plaintext/result.txt``. It must be the
 same as in our previous runs.
