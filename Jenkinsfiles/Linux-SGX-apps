@@ -26,7 +26,7 @@ pipeline {
                            cd /opt/intel
                            git clone https://github.com/oscarlab/linux-sgx-driver.git
                            cd linux-sgx-driver
-                           git checkout don/fix-5.8-build
+                           git checkout master
                            make -j8
                         '''
                         sh '''
