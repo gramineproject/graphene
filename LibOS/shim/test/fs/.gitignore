@@ -8,6 +8,7 @@
 /copy_mmap_seq
 /copy_mmap_whole
 /copy_rev
+/copy_sendfile
 /copy_seq
 /copy_whole
 /delete

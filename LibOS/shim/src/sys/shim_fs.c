@@ -323,9 +323,14 @@ int shim_do_fchown(int fd, uid_t uid, gid_t gid) {
     return 0;
 }
 
-#define MAP_SIZE (g_pal_alloc_align * 4)
-#define BUF_SIZE 2048
+#define MAP_SIZE (g_pal_alloc_align * 256)  /* mmap/memcpy in 1MB chunks for sendfile() */
+#define BUF_SIZE 2048                       /* read/write in 2KB chunks for sendfile() */
 
+/* TODO: The below implementation needs to be refactored: (1) remove offseto, it is always zero;
+ *       (2) simplify handling of non-blocking handles, (3) instead of relying on PAL to mmap
+ *       into a new address and free on every iteration of the copy loop, pre-allocate VMA and
+ *       use it, (4) do not use stack-allocated buffer for read/write logic, (5) use a switch
+ *       statement to distinguish between "map input", "map output", "map both", "map none" */
 static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim_handle* hdlo,
                            off_t* offseto, ssize_t count) {
     struct shim_mount* fsi = hdli->fs;
@@ -466,10 +471,20 @@ static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim
             memcpy(bufo + boffo, bufi + boffi, copysize);
             DkVirtualMemoryFree(bufi, ALLOC_ALIGN_UP(bufsize + boffi));
             bufi = NULL;
+            if (fso->fs_ops->flush) {
+                /* SGX Protected Files propagate mmapped changes only on flush/close, so perform
+                 * explicit flush before freeing PF's mmapped region `bufo` */
+                fso->fs_ops->flush(hdlo);
+            }
             DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
         } else if (do_mapo) {
             copysize = fsi->fs_ops->read(hdli, bufo + boffo, bufsize);
+            if (fso->fs_ops->flush) {
+                /* SGX Protected Files propagate mmapped changes only on flush/close, so perform
+                 * explicit flush before freeing PF's mmapped region `bufo` */
+                fso->fs_ops->flush(hdlo);
+            }
             DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
             if (copysize < 0)

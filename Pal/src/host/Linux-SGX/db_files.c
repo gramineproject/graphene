@@ -318,6 +318,8 @@ static int file_delete(PAL_HANDLE handle, int access) {
 
 static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr, int prot,
                        uint64_t offset, uint64_t size) {
+    int ret = 0;
+    void* allocated_enclave_pages = NULL;
     int fd = handle->file.fd;
 
     if (size == 0)
@@ -342,11 +344,21 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     SGX_DBG(DBG_D, "pf_file_map(PF fd %d): pf %p, addr %p, prot %d, offset %lu, size %lu\n",
             fd, pf, *addr, prot, offset, size);
 
-    /* LibOS always provides preallocated buffer for file maps */
-    assert(*addr);
+    if (*addr == NULL) {
+        /* LibOS didn't provide address at which to map, can happen on sendfile() */
+        allocated_enclave_pages = get_enclave_pages(/*addr=*/NULL, size, /*is_pal_internal=*/false);
+        if (!allocated_enclave_pages)
+            return -PAL_ERROR_NOMEM;
+
+        *addr = allocated_enclave_pages;
+    }
 
     if (prot & PAL_PROT_WRITE) {
         struct pf_map* map = calloc(1, sizeof(*map));
+        if (!map) {
+            ret = -PAL_ERROR_NOMEM;
+            goto out;
+        }
 
         map->pf     = pf;
         map->size   = size;
@@ -363,7 +375,8 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
         if (offset >= pf_size) {
             SGX_DBG(DBG_E, "pf_file_map(PF fd %d): offset (%lu) >= file size (%lu)\n",
                     fd, offset, pf_size);
-            return -PAL_ERROR_INVAL;
+            ret = -PAL_ERROR_INVAL;
+            goto out;
         }
 
         uint64_t copy_size = MIN(size, pf_size - offset);
@@ -376,13 +389,20 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
         }
         if (PF_FAILURE(pf_ret)) {
             SGX_DBG(DBG_E, "pf_file_map(PF fd %d): pf_read failed: %d\n", fd, pf_ret);
-            return -PAL_ERROR_DENIED;
+            ret = -PAL_ERROR_DENIED;
+            goto out;
         }
         memset(*addr + copy_size, 0, size - copy_size);
     }
 
     /* Writes will be flushed to the PF on close. */
-    return 0;
+    ret = 0;
+out:
+    if (ret < 0 && allocated_enclave_pages) {
+        free_enclave_pages(allocated_enclave_pages, size);
+        *addr = NULL;
+    }
+    return ret;
 }
 
 /* 'map' operation for file stream. */
