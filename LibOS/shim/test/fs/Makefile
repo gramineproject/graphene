@@ -6,6 +6,7 @@ copy_mmap_execs = \
 copy_execs = \
 	$(copy_mmap_execs) \
 	copy_rev \
+	copy_sendfile \
 	copy_seq \
 	copy_whole
 

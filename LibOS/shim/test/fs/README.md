@@ -9,6 +9,7 @@ These tests perform common FS operations in various ways to exercise the Graphen
 - read/change size
 - seek/tell
 - memory-mapped read/write
+- sendfile
 - copy directory in different ways
 
 How to execute
