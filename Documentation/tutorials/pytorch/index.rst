@@ -44,9 +44,9 @@ legitimate hardware with the latest patches. We also use Graphene to simplify
 the task of porting PyTorch to SGX, without any changes to the ML application
 and scripts.
 
-.. image:: ./img/workflow.png
-   :target: ./img/workflow.png
-   :alt: Figure: Completely workflow of PyTorch with Graphene
+.. image:: ./img/workflow.svg
+   :target: ./img/workflow.svg
+   :alt: Figure: Complete workflow of PyTorch with Graphene
 
 In this tutorial, we will show the complete workflow for PyTorch running inside
 an SGX enclave using Graphene and its features of Secret Provisioning and
