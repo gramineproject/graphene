@@ -471,14 +471,20 @@ static ssize_t handle_copy(struct shim_handle* hdli, off_t* offseti, struct shim
             memcpy(bufo + boffo, bufi + boffi, copysize);
             DkVirtualMemoryFree(bufi, ALLOC_ALIGN_UP(bufsize + boffi));
             bufi = NULL;
-            if (fso->fs_ops->flush)
+            if (fso->fs_ops->flush) {
+                /* SGX Protected Files propagate mmapped changes only on flush/close, so perform
+                 * explicit flush before freeing PF's mmapped region `bufo` */
                 fso->fs_ops->flush(hdlo);
+            }
             DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
         } else if (do_mapo) {
             copysize = fsi->fs_ops->read(hdli, bufo + boffo, bufsize);
-            if (fso->fs_ops->flush)
+            if (fso->fs_ops->flush) {
+                /* SGX Protected Files propagate mmapped changes only on flush/close, so perform
+                 * explicit flush before freeing PF's mmapped region `bufo` */
                 fso->fs_ops->flush(hdlo);
+            }
             DkVirtualMemoryFree(bufo, ALLOC_ALIGN_UP(bufsize + boffo));
             bufo = NULL;
             if (copysize < 0)
