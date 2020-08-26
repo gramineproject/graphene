@@ -149,46 +149,23 @@ static inline MEM_MGR enlarge_mem_mgr(MEM_MGR mgr, unsigned int size) {
     area->size = size;
     INIT_LIST_HEAD(area, __list);
     LISTP_ADD(area, &mgr->area_list, __list);
-    __set_free_mem_area(area, mgr);
     SYSTEM_UNLOCK();
     return mgr;
 }
 
 static inline void destroy_mem_mgr(MEM_MGR mgr) {
-    MEM_AREA tmp, n, first = NULL;
+    MEM_AREA last = LISTP_LAST_ENTRY(&mgr->area_list, MEM_AREA_TYPE, __list);
 
-    first = tmp = LISTP_FIRST_ENTRY(&mgr->area_list, MEM_AREA_TYPE, __list);
-
-    if (!first)
-        goto free_mgr;
-
-    LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(tmp, n, &mgr->area_list, __list) {
-        LISTP_DEL(tmp, &mgr->area_list, __list);
-        system_free(tmp, sizeof(MEM_AREA_TYPE) + __SUM_OBJ_SIZE(tmp->size));
+    MEM_AREA tmp, n;
+    LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &mgr->area_list, __list) {
+        /* very first area in the list (`last`, found at the list tail) was allocated together with
+         * mgr, so will be freed together with mgr in the system_free outside this loop */
+        if (tmp != last) {
+            LISTP_DEL(tmp, &mgr->area_list, __list);
+            system_free(tmp, sizeof(MEM_AREA_TYPE) + __SUM_OBJ_SIZE(tmp->size));
+        }
     }
-
-free_mgr:
-    system_free(mgr, __MAX_MEM_SIZE(first->size));
-}
-
-static inline OBJ_TYPE* get_mem_obj_from_mgr(MEM_MGR mgr) {
-    MEM_OBJ mobj;
-
-    SYSTEM_LOCK();
-    if (mgr->obj == mgr->obj_top && LISTP_EMPTY(&mgr->free_list)) {
-        SYSTEM_UNLOCK();
-        return NULL;
-    }
-
-    if (!LISTP_EMPTY(&mgr->free_list)) {
-        mobj = LISTP_FIRST_ENTRY(&mgr->free_list, MEM_OBJ_TYPE, __list);
-        LISTP_DEL_INIT(mobj, &mgr->free_list, __list);
-        CHECK_LIST_HEAD(MEM_OBJ, &mgr->free_list, __list);
-    } else {
-        mobj = mgr->obj++;
-    }
-    SYSTEM_UNLOCK();
-    return &mobj->obj;
+    system_free(mgr, __MAX_MEM_SIZE(last->size));
 }
 
 static inline OBJ_TYPE* get_mem_obj_from_mgr_enlarge(MEM_MGR mgr, unsigned int size) {
@@ -242,6 +219,10 @@ alloc:
     return &mobj->obj;
 }
 
+static inline OBJ_TYPE* get_mem_obj_from_mgr(MEM_MGR mgr) {
+    return get_mem_obj_from_mgr_enlarge(mgr, 0);
+}
+
 static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
     if (memory_migrated(obj)) {
         return;
@@ -250,20 +231,9 @@ static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
     MEM_OBJ mobj = container_of(obj, MEM_OBJ_TYPE, obj);
 
     SYSTEM_LOCK();
-    MEM_AREA area, found = NULL;
-    LISTP_FOR_EACH_ENTRY(area, &mgr->area_list, __list) {
-        if (mobj >= area->objs && mobj < area->objs + area->size) {
-            found = area;
-            break;
-        }
-    }
-
-    if (found) {
-        INIT_LIST_HEAD(mobj, __list);
-        LISTP_ADD_TAIL(mobj, &mgr->free_list, __list);
-        CHECK_LIST_HEAD(MEM_OBJ, &mgr->free_list, __list);
-    }
-
+    INIT_LIST_HEAD(mobj, __list);
+    LISTP_ADD_TAIL(mobj, &mgr->free_list, __list);
+    CHECK_LIST_HEAD(MEM_OBJ, &mgr->free_list, __list);
     SYSTEM_UNLOCK();
 }
 

@@ -77,19 +77,6 @@ typedef struct __attribute__((packed)) slab_area {
     unsigned char raw[];
 } SLAB_AREA_TYPE, *SLAB_AREA;
 
-#ifdef SLAB_DEBUG
-struct slab_debug {
-    struct {
-        const char* file;
-        int line;
-    } alloc, free;
-};
-
-#define SLAB_DEBUG_SIZE sizeof(struct slab_debug)
-#else
-#define SLAB_DEBUG_SIZE 0
-#endif
-
 #ifdef SLAB_CANARY
 #define SLAB_CANARY_STRING 0xDEADBEEF
 #define SLAB_CANARY_SIZE   sizeof(unsigned long)
@@ -98,8 +85,8 @@ struct slab_debug {
 #endif
 
 #define SLAB_HDR_SIZE                                                                \
-    ALIGN_UP(sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) + SLAB_DEBUG_SIZE + \
-             SLAB_CANARY_SIZE, MIN_MALLOC_ALIGNMENT)
+    ALIGN_UP(sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) + SLAB_CANARY_SIZE, \
+              MIN_MALLOC_ALIGNMENT)
 
 #ifndef SLAB_LEVEL
 #define SLAB_LEVEL 8
@@ -252,8 +239,10 @@ static inline void destroy_slab_mgr(SLAB_MGR mgr) {
         area = (SLAB_AREA)addr;
 
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &mgr->area_list[i], __list) {
+            /* very first area in the list (`area`) was allocated together with mgr, so will be
+             * freed together with mgr in the system_free outside this loop */
             if (tmp != area)
-                system_free(area, __MAX_MEM_SIZE(slab_levels[i], area->size));
+                system_free(tmp, __MAX_MEM_SIZE(slab_levels[i], tmp->size));
         }
 
         addr += __MAX_MEM_SIZE(slab_levels[i], area->size);
@@ -363,29 +352,6 @@ static inline void* slab_alloc(SLAB_MGR mgr, size_t size) {
     return OBJ_RAW(mobj);
 }
 
-#ifdef SLAB_DEBUG
-static inline void* slab_alloc_debug(SLAB_MGR mgr, size_t size, const char* file, int line) {
-    void* mem = slab_alloc(mgr, size);
-    int i;
-    int level = -1;
-
-    for (i = 0; i < SLAB_LEVEL; i++)
-        if (size <= slab_levels[i]) {
-            level = i;
-            break;
-        }
-
-    if (level != -1) {
-        struct slab_debug* debug =
-            (struct slab_debug*)(mem + slab_levels[level] + SLAB_CANARY_SIZE);
-        debug->alloc.file = file;
-        debug->alloc.line = line;
-    }
-
-    return mem;
-}
-#endif
-
 // Returns user buffer size (i.e. excluding size of control structures).
 static inline size_t slab_get_buf_size(const void* ptr) {
     assert(ptr);
@@ -451,23 +417,5 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
     LISTP_ADD_TAIL(mobj, &mgr->free_list[level], __list);
     SYSTEM_UNLOCK();
 }
-
-#ifdef SLAB_DEBUG
-static inline void slab_free_debug(SLAB_MGR mgr, void* obj, const char* file, int line) {
-    if (!obj)
-        return;
-
-    unsigned char level = RAW_TO_LEVEL(obj);
-
-    if (level < SLAB_LEVEL && level != (unsigned char)-1) {
-        struct slab_debug* debug =
-            (struct slab_debug*)(obj + slab_levels[level] + SLAB_CANARY_SIZE);
-        debug->free.file = file;
-        debug->free.line = line;
-    }
-
-    slab_free(mgr, obj);
-}
-#endif
 
 #endif /* SLABMGR_H */
