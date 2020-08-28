@@ -118,7 +118,7 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             break;
         case KILL_ALL:
             broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, port);
-            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, true);
+            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, false);
             break;
     }
     return ret;
