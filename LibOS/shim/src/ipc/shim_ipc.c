@@ -16,9 +16,6 @@
 #include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_ipc.h>
-#include <shim_ipc_helper.h>
-#include <shim_ipc_pid.h>
-#include <shim_ipc_sysv.h>
 #include <shim_thread.h>
 #include <shim_unistd.h>
 #include <shim_utils.h>
@@ -59,20 +56,13 @@ int init_ipc(void) {
 
     if ((ret = init_ipc_ports()) < 0)
         return ret;
+    if ((ret = init_ns_ranges()) < 0)
+        return ret;
     if ((ret = init_ns_pid()) < 0)
         return ret;
     if ((ret = init_ns_sysv()) < 0)
         return ret;
 
-    return 0;
-}
-
-int prepare_ns_leaders(void) {
-    int ret = 0;
-    if ((ret = prepare_pid_leader()) < 0)
-        return ret;
-    if ((ret = prepare_sysv_leader()) < 0)
-        return ret;
     return 0;
 }
 
@@ -248,23 +238,17 @@ struct shim_process* create_process(bool dup_cur_process) {
         return NULL;
     }
 
-    /* new process inherits the same namespace leaders */
-    for (int i = 0; i < TOTAL_NS; i++) {
-        if (cur_process.ns[i]) {
-            new_process->ns[i] =
-                create_ipc_info(cur_process.ns[i]->vmid, qstrgetstr(&cur_process.ns[i]->uri),
-                                cur_process.ns[i]->uri.len);
-            if (!new_process->ns[i]) {
-                if (new_process->self)
-                    put_ipc_info(new_process->self);
-                if (new_process->parent)
-                    put_ipc_info(new_process->parent);
-                for (int j = 0; j < i; j++) {
-                    put_ipc_info(new_process->ns[j]);
-                }
-                unlock(&cur_process.lock);
-                return NULL;
-            }
+    /* new process inherits the same namespace leader */
+    if (cur_process.ns) {
+        new_process->ns = create_ipc_info(cur_process.ns->vmid, qstrgetstr(&cur_process.ns->uri),
+                                          cur_process.ns->uri.len);
+        if (!new_process->ns) {
+            if (new_process->self)
+                put_ipc_info(new_process->self);
+            if (new_process->parent)
+                put_ipc_info(new_process->parent);
+            unlock(&cur_process.lock);
+            return NULL;
         }
     }
 
@@ -277,9 +261,8 @@ void free_process(struct shim_process* process) {
         put_ipc_info(process->self);
     if (process->parent)
         put_ipc_info(process->parent);
-    for (int i = 0; i < TOTAL_NS; i++)
-        if (process->ns[i])
-            put_ipc_info(process->ns[i]);
+    if (process->ns)
+        put_ipc_info(process->ns);
     free(process);
 }
 
@@ -499,9 +482,8 @@ BEGIN_CP_FUNC(process) {
             DO_CP_MEMBER(ipc_info, process, new_process, self);
         if (process->parent)
             DO_CP_MEMBER(ipc_info, process, new_process, parent);
-        for (int i = 0; i < TOTAL_NS; i++)
-            if (process->ns[i])
-                DO_CP_MEMBER(ipc_info, process, new_process, ns[i]);
+        if (process->ns)
+            DO_CP_MEMBER(ipc_info, process, new_process, ns);
 
         ADD_CP_FUNC_ENTRY(off);
     } else {
@@ -533,9 +515,8 @@ BEGIN_RS_FUNC(process) {
     }
     if (process->parent)
         get_ipc_info(process->parent);
-    for (int i = 0; i < TOTAL_NS; i++)
-        if (process->ns[i])
-            get_ipc_info(process->ns[i]);
+    if (process->ns)
+        get_ipc_info(process->ns);
 
     memcpy(&cur_process, process, sizeof(struct shim_process));
     // this lock will be created in init_ipc

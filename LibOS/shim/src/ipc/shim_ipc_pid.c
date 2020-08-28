@@ -7,26 +7,15 @@
  * This file contains functions and callbacks to handle IPC of PID namespace.
  */
 
-#include "shim_ipc_pid.h"
-
 #include <errno.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_thread.h>
-
-#define PID_RANGE_SIZE 32
-#define PID_LEASE_TIME 1000
-
-#define NS     pid
-#define NS_CAP PID
-
-#define INCLUDE_IPC_NSIMPL
-#include "shim_ipc_nsimpl.h"
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_thread.h"
 
 static int thread_add_subrange(struct shim_thread* thread, void* arg) {
     if (!thread->in_vm)
@@ -34,17 +23,13 @@ static int thread_add_subrange(struct shim_thread* thread, void* arg) {
 
     struct shim_ipc_info* info = (struct shim_ipc_info*)arg;
 
-    add_pid_subrange(thread->tid, info->vmid, qstrgetstr(&info->uri), &thread->tid_lease);
+    add_ipc_subrange(thread->tid, info->vmid, qstrgetstr(&info->uri), &thread->tid_lease);
     return 0;
 }
 
 int init_ns_pid(void) {
     struct shim_ipc_info* info;
     int ret = 0;
-
-    if ((ret = init_namespace()) < 0) {
-        return ret;
-    }
 
     if ((ret = get_ipc_info_cur_process(&info)) < 0)
         return ret;
@@ -76,7 +61,7 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
 
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_pid_kill));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_PID_KILL, total_msg_size, dest);
+    init_ipc_msg(msg, IPC_MSG_PID_KILL, total_msg_size, dest);
 
     struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)&msg->msg;
     msgin->sender                   = sender;
@@ -85,11 +70,11 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
     msgin->signum                   = signum;
 
     if (type == KILL_ALL) {
-        debug("IPC broadcast: IPC_PID_KILL(%u, %d, %u, %d)\n", sender, type, target, signum);
-        ret = broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, /*exclude_port=*/NULL);
+        debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, target, signum);
+        ret = broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT, /*exclude_port=*/NULL);
     } else {
-        debug("IPC send to %u: IPC_PID_KILL(%u, %d, %u, %d)\n", dest & 0xFFFF, sender, type, target,
-              signum);
+        debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest & 0xFFFF, sender, type,
+              target, signum);
         ret = send_ipc_message(msg, port);
         put_ipc_port(port);
     }
@@ -101,8 +86,8 @@ out:
 int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)msg->msg;
 
-    debug("IPC callback from %u: IPC_PID_KILL(%u, %d, %u, %d)\n", msg->src & 0xFFFF, msgin->sender,
-          msgin->type, msgin->id, msgin->signum);
+    debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", msg->src & 0xFFFF,
+          msgin->sender, msgin->type, msgin->id, msgin->signum);
 
     int ret = 0;
 
@@ -117,7 +102,7 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
             break;
         case KILL_ALL:
-            broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, port);
+            broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT, port);
             ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/false);
             break;
     }
@@ -129,13 +114,13 @@ int ipc_pid_getstatus_send(struct shim_ipc_port* port, IDTYPE dest, int npids, I
     size_t total_msg_size =
         get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_pid_getstatus) + sizeof(IDTYPE) * npids);
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_PID_GETSTATUS, total_msg_size, dest);
+    init_ipc_msg_with_ack(msg, IPC_MSG_PID_GETSTATUS, total_msg_size, dest);
 
     struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)&msg->msg.msg;
     msgin->npids                         = npids;
     memcpy(msgin->pids, pids, sizeof(IDTYPE) * npids);
 
-    debug("ipc send to %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n", dest, npids, pids[0]);
+    debug("ipc send to %u: IPC_MSG_PID_GETSTATUS(%d, [%u, ...])\n", dest, npids, pids[0]);
 
     return send_ipc_message_with_ack(msg, port, NULL, status);
 }
@@ -168,11 +153,11 @@ out:
     return ret;
 }
 
-int ipc_pid_getstatus_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_getstatus_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)msg->msg;
     int ret = 0;
 
-    debug("ipc callback from %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n", msg->src, msgin->npids,
+    debug("ipc callback from %u: IPC_MSG_PID_GETSTATUS(%d, [%u, ...])\n", msg->src, msgin->npids,
           msgin->pids[0]);
 
     struct thread_status status;
@@ -195,7 +180,7 @@ int ipc_pid_retstatus_send(struct shim_ipc_port* port, IDTYPE dest, int nstatus,
     size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retstatus) +
                                              sizeof(struct pid_status) * nstatus);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_PID_RETSTATUS, total_msg_size, dest);
+    init_ipc_msg(msg, IPC_MSG_PID_RETSTATUS, total_msg_size, dest);
 
     struct shim_ipc_pid_retstatus* msgin = (struct shim_ipc_pid_retstatus*)&msg->msg;
 
@@ -204,21 +189,22 @@ int ipc_pid_retstatus_send(struct shim_ipc_port* port, IDTYPE dest, int nstatus,
     msg->seq = seq;
 
     if (nstatus)
-        debug("ipc send to %u: IPC_PID_RETSTATUS(%d, [%u, ...])\n", dest, nstatus, status[0].pid);
+        debug("ipc send to %u: IPC_MSG_PID_RETSTATUS(%d, [%u, ...])\n", dest, nstatus,
+              status[0].pid);
     else
-        debug("ipc send to %u: IPC_PID_RETSTATUS(0, [])\n", dest);
+        debug("ipc send to %u: IPC_MSG_PID_RETSTATUS(0, [])\n", dest);
 
     return send_ipc_message(msg, port);
 }
 
-int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_retstatus_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_retstatus* msgin = (struct shim_ipc_pid_retstatus*)msg->msg;
 
     if (msgin->nstatus)
-        debug("ipc callback from %u: IPC_PID_RETSTATUS(%d, [%u, ...])\n", msg->src, msgin->nstatus,
-              msgin->status[0].pid);
+        debug("ipc callback from %u: IPC_MSG_PID_RETSTATUS(%d, [%u, ...])\n", msg->src,
+              msgin->nstatus, msgin->status[0].pid);
     else
-        debug("ipc callback from %u: IPC_PID_RETSTATUS(0, [])\n", msg->src);
+        debug("ipc callback from %u: IPC_MSG_PID_RETSTATUS(0, [])\n", msg->src);
 
     struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
     if (obj) {
@@ -235,162 +221,6 @@ int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS) {
     }
 
     return 0;
-}
-
-int get_all_pid_status(struct pid_status** status) {
-    /* run queryall unconditionally */
-    ipc_pid_queryall_send();
-
-    int bufsize                   = RANGE_SIZE;
-    struct pid_status* status_buf = malloc(bufsize);
-    int nstatus                   = 0;
-
-    if (!bufsize)
-        return -ENOMEM;
-
-    LISTP_TYPE(range)* list = &offered_ranges;
-    struct range* r;
-    int ret;
-
-    lock(&range_map_lock);
-
-retry:
-    LISTP_FOR_EACH_ENTRY(r, list, list) {
-        struct subrange* s = NULL;
-        struct shim_ipc_info* p;
-        IDTYPE off, idx;
-        IDTYPE base;
-        IDTYPE pids[RANGE_SIZE];
-        struct pid_status* range_status;
-
-#define UNDEF_IDX ((IDTYPE)-1)
-
-    next_range:
-        idx  = UNDEF_IDX;
-        off  = r->offset;
-        base = off * RANGE_SIZE + 1;
-
-    next_sub:
-        if (idx == UNDEF_IDX) {
-            p = r->owner;
-        } else {
-            if (idx >= RANGE_SIZE)
-                continue;
-            if (!r->subranges)
-                continue;
-            s = r->subranges->map[idx];
-            if (!s) {
-                idx++;
-                goto next_sub;
-            }
-            p = s->owner;
-        }
-
-        if (p->vmid == cur_process.vmid) {
-            idx++;
-            goto next_sub;
-        }
-
-        if (!p->port) {
-            IDTYPE type                = IPC_PORT_PIDOWN | IPC_PORT_LISTEN;
-            IDTYPE owner               = p->vmid;
-            char* uri                  = qstrtostr(&p->uri, true);
-            struct shim_ipc_port* port = NULL;
-            unlock(&range_map_lock);
-
-            PAL_HANDLE pal_handle = DkStreamOpen(uri, 0, 0, 0, 0);
-
-            if (pal_handle)
-                add_ipc_port_by_id(owner, pal_handle, type, NULL, &port);
-
-            lock(&range_map_lock);
-            LISTP_FOR_EACH_ENTRY(r, list, list) {
-                if (r->offset >= off)
-                    break;
-            }
-            /* DEP 5/15/17: I believe this is checking if the list is empty */
-            // if (&r->list == list)
-            if (LISTP_EMPTY(list))
-                break;
-            if (r->offset > off)
-                goto next_range;
-            if (!port)
-                continue;
-
-            if (idx == UNDEF_IDX) {
-            } else {
-                if (!r->subranges)
-                    continue;
-                s = r->subranges->map[idx];
-                if (!s) {
-                    idx++;
-                    goto next_sub;
-                }
-                p = s->owner;
-            }
-
-            if (p->port)
-                put_ipc_port(p->port);
-
-            p->port = port;
-        }
-
-        if (idx == UNDEF_IDX) {
-            for (int i = 0; i < RANGE_SIZE; i++)
-                pids[i] = base + i;
-        } else {
-            pids[0] = base + idx;
-        }
-
-        ret = ipc_pid_getstatus_send(p->port, p->vmid, idx == UNDEF_IDX ? RANGE_SIZE : 1, pids,
-                                     &range_status);
-
-        if (ret > 0) {
-            if (nstatus + ret > bufsize) {
-                int newsize = bufsize * 2;
-
-                while (nstatus + ret > newsize)
-                    newsize *= 2;
-
-                struct pid_status* new_buf = malloc(newsize);
-
-                if (!new_buf) {
-                    unlock(&range_map_lock);
-                    free(range_status);
-                    free(status_buf);
-                    return -ENOMEM;
-                }
-
-                memcpy(new_buf, status_buf, sizeof(struct pid_status) * nstatus);
-
-                free(status_buf);
-                status_buf = new_buf;
-                bufsize    = newsize;
-            }
-
-            memcpy(status_buf + nstatus, range_status, sizeof(struct pid_status) * ret);
-            free(range_status);
-            nstatus += ret;
-        }
-
-        idx++;
-        goto next_sub;
-    }
-
-    if (list == &offered_ranges) {
-        list = &owned_ranges;
-        goto retry;
-    }
-
-    unlock(&range_map_lock);
-
-    if (!nstatus) {
-        free(status_buf);
-        return 0;
-    }
-
-    *status = status_buf;
-    return nstatus;
 }
 
 static const char* pid_meta_code_str[4] = {
@@ -410,13 +240,13 @@ int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data) {
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_pid_getmeta));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
-    init_ipc_msg_with_ack(msg, IPC_PID_GETMETA, total_msg_size, dest);
+    init_ipc_msg_with_ack(msg, IPC_MSG_PID_GETMETA, total_msg_size, dest);
 
     struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)&msg->msg.msg;
     msgin->pid  = pid;
     msgin->code = code;
 
-    debug("ipc send to %u: IPC_PID_GETMETA(%u, %s)\n", dest, pid, pid_meta_code_str[code]);
+    debug("ipc send to %u: IPC_MSG_PID_GETMETA(%u, %s)\n", dest, pid, pid_meta_code_str[code]);
 
     ret = send_ipc_message_with_ack(msg, port, NULL, data);
     put_ipc_port(port);
@@ -424,11 +254,11 @@ out:
     return ret;
 }
 
-int ipc_pid_getmeta_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)msg->msg;
     int ret = 0;
 
-    debug("ipc callback from %u: IPC_PID_GETMETA(%u, %s)\n", msg->src, msgin->pid,
+    debug("ipc callback from %u: IPC_MSG_PID_GETMETA(%u, %s)\n", msg->src, msgin->pid,
           pid_meta_code_str[msgin->code]);
 
     struct shim_thread* thread = lookup_thread(msgin->pid);
@@ -491,7 +321,7 @@ int ipc_pid_retmeta_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE pid,
                          unsigned long seq) {
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retmeta) + datasize);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_PID_RETMETA, total_msg_size, dest);
+    init_ipc_msg(msg, IPC_MSG_PID_RETMETA, total_msg_size, dest);
     struct shim_ipc_pid_retmeta* msgin = (struct shim_ipc_pid_retmeta*)&msg->msg;
 
     msgin->pid      = pid;
@@ -500,16 +330,16 @@ int ipc_pid_retmeta_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE pid,
     memcpy(msgin->data, data, datasize);
     msg->seq = seq;
 
-    debug("ipc send to %u: IPC_PID_RETMETA(%d, %s, %d)\n", dest, pid, pid_meta_code_str[code],
+    debug("ipc send to %u: IPC_MSG_PID_RETMETA(%d, %s, %d)\n", dest, pid, pid_meta_code_str[code],
           datasize);
 
     return send_ipc_message(msg, port);
 }
 
-int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_retmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_retmeta* msgin = (struct shim_ipc_pid_retmeta*)msg->msg;
 
-    debug("ipc callback from %u: IPC_PID_RETMETA(%u, %s, %d)\n", msg->src, msgin->pid,
+    debug("ipc callback from %u: IPC_MSG_PID_RETMETA(%u, %s, %d)\n", msg->src, msgin->pid,
           pid_meta_code_str[msgin->code], msgin->datasize);
 
     struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);

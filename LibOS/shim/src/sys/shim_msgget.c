@@ -271,14 +271,14 @@ int shim_do_msgget(key_t key, int msgflg) {
 
     if (msgflg & IPC_CREAT) {
         do {
-            msgid = allocate_sysv(0, 0);
+            msgid = allocate_ipc_id(0, 0);
             if (!msgid)
-                ipc_sysv_lease_send(NULL);
+                ipc_lease_send(NULL);
         } while (!msgid);
 
         if (key != IPC_PRIVATE) {
             if ((ret = ipc_sysv_tellkey_send(NULL, 0, &k, msgid, 0)) < 0) {
-                release_sysv(msgid);
+                release_ipc_id(msgid);
                 return ret;
             }
         }
@@ -292,7 +292,7 @@ int shim_do_msgget(key_t key, int msgflg) {
 
         msgid = ret;
 
-        if ((ret = ipc_sysv_query_send(msgid)) < 0)
+        if ((ret = ipc_query_send(msgid)) < 0)
             return ret;
 
         add_msg_handle(key, msgid, false);
@@ -306,7 +306,7 @@ static int connect_msg_handle(int msqid, struct shim_msg_handle** msgqp) {
     int ret;
 
     if (!msgq) {
-        if ((ret = ipc_sysv_query_send(msqid)) < 0)
+        if ((ret = ipc_query_send(msqid)) < 0)
             return ret;
 
         if (!msgq) {

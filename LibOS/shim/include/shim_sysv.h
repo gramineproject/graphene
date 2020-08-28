@@ -14,8 +14,6 @@
 #include <shim_handle.h>
 #include <shim_types.h>
 
-enum sysv_type { SYSV_NONE, SYSV_MSGQ, SYSV_SEM, SYSV_SHM };
-
 #define SYSV_TYPE_STR(type)       \
     ((type) == SYSV_MSGQ ? "MSGQ" \
                          : ((type) == SYSV_SEM ? "SEM" : ((type) == SYSV_SHM ? "SHM" : "")))

@@ -232,14 +232,14 @@ int shim_do_semget(key_t key, int nsems, int semflg) {
 
     if (semflg & IPC_CREAT) {
         do {
-            semid = allocate_sysv(0, 0);
+            semid = allocate_ipc_id(0, 0);
             if (!semid)
-                semid = ipc_sysv_lease_send(NULL);
+                semid = ipc_lease_send(NULL);
         } while (!semid);
 
         if (key != IPC_PRIVATE) {
             if ((ret = ipc_sysv_tellkey_send(NULL, 0, &k, semid, 0)) < 0) {
-                release_sysv(semid);
+                release_ipc_id(semid);
                 return ret;
             }
         }
@@ -250,7 +250,7 @@ int shim_do_semget(key_t key, int nsems, int semflg) {
             return ret;
 
         semid = ret;
-        if ((ret = ipc_sysv_query_send(semid)) < 0)
+        if ((ret = ipc_query_send(semid)) < 0)
             return ret;
     }
 
@@ -262,7 +262,7 @@ static int connect_sem_handle(int semid, int nsems, struct shim_sem_handle** sem
     int ret;
 
     if (!sem) {
-        if ((ret = ipc_sysv_query_send(semid)) < 0)
+        if ((ret = ipc_query_send(semid)) < 0)
             return ret;
 
         if (!sem) {
@@ -492,7 +492,7 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
 
             size_t total_msg_size         = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
             struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-            init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, sops->client.vmid);
+            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, sops->client.vmid);
             resp_msg->seq = sops->client.seq;
 
             struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
@@ -652,7 +652,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
         if (client && sendreply) {
             size_t total_msg_size         = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
             struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-            init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, client->vmid);
+            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, client->vmid);
             resp_msg->seq = client->seq;
 
             struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
@@ -701,7 +701,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
 
     if (client) {
         assert(sendreply);
-        add_ipc_port(client->port, client->vmid, IPC_PORT_SYSVCON, NULL);
+        add_ipc_port(client->port, client->vmid, IPC_PORT_CONNECTION, NULL);
         get_ipc_port(client->port);
         sem_ops->client = *client;
         sem_ops         = NULL;

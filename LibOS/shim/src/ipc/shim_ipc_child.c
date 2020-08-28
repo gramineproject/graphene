@@ -50,23 +50,21 @@ out:
     return found_exiting_thread;
 }
 
-/* IPC helper thread invokes this fini function when main IPC port for
- * communication with child process is disconnected/removed by host OS.
+/* IPC helper thread invokes this fini function when main IPC port for communication with child
+ * process is disconnected/removed by host OS.
  *
- * Similarly to benign case of receiving an explicit IPC_CLD_EXIT message
- * from exiting remote thread (see ipc_cld_exit_callback()), we want to
- * delete all remote threads associated with disconnected child process.
+ * Similarly to benign case of receiving an explicit IPC_MSG_CHILDEXIT message from exiting remote
+ * thread (see ipc_cld_exit_callback()), we want to delete all remote threads associated with
+ * disconnected child process.
  */
 void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode) {
     __UNUSED(port);
 
-    /* NOTE: IPC port may be closed by host OS because the child process
-     *       exited on host OS (and so host OS closed all its sockets).
-     *       This may happen before arrival of the "expected" IPC_CLD_EXIT
-     *       message from child process. Ideally, we would inspect whether
-     *       we previously sent SIGINT/SIGTERM/SIGKILL to this child and
-     *       use the corresponding termination signal. For now, we simply
-     *       report that child process was killed by SIGKILL. */
+    /* NOTE: IPC port may be closed by host OS because the child process exited on host OS (and so
+     *       host OS closed all its sockets).  This may happen before arrival of the "expected"
+     *       IPC_MSG_CHILDEXIT message from child process. Ideally, we would inspect whether we
+     *       previously sent SIGINT/SIGTERM/SIGKILL to this child and use the corresponding
+     *       termination signal. For now, report that child process was killed by SIGKILL. */
     struct thread_info info = {.vmid = vmid, .exitcode = exitcode, .term_signal = SIGKILL};
 
     /* message cannot come from our own threads (from ourselves as process) */
@@ -84,14 +82,13 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
         vmid & 0xFFFF, exited_threads_cnt);
 }
 
-/* The exiting thread of this process calls this function to broadcast
- * IPC_CLD_EXIT notification to its parent process (technically, to all
- * processes of type DIRPRT or DIRCLD but the only interesting case is
- * the notification of parent). */
+/* The exiting thread of this process calls this function to broadcast IPC_MSG_CHILDEXIT
+ * notification to its parent process (technically, to all processes of type DIRECTPARENT or
+ * DIRECTCHILD but the only interesting case is the notification of parent). */
 int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal) {
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
-    init_ipc_msg(msg, IPC_CLD_EXIT, total_msg_size, 0);
+    init_ipc_msg(msg, IPC_MSG_CHILDEXIT, total_msg_size, 0);
 
     struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
     msgin->ppid                     = ppid;
@@ -99,22 +96,21 @@ int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned i
     msgin->exitcode                 = exitcode;
     msgin->term_signal              = term_signal;
 
-    debug("IPC broadcast: IPC_CLD_EXIT(%u, %u, %d, %u)\n", ppid, tid, exitcode, term_signal);
+    debug("IPC broadcast: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", ppid, tid, exitcode, term_signal);
 
-    int ret = broadcast_ipc(msg, IPC_PORT_DIRPRT | IPC_PORT_DIRCLD,
+    int ret = broadcast_ipc(msg, IPC_PORT_DIRECTPARENT | IPC_PORT_DIRECTCHILD,
                             /*exclude_port=*/NULL);
     return ret;
 }
 
-/* IPC helper thread invokes this callback on an IPC_CLD_EXIT message received
- * from a specific thread msgin->tid of the exiting child process with vmid
- * msg->src. The thread of the exiting child process informs about its exit
- * code in msgin->exit_code and its terminating signal in msgin->term_signal.
+/* IPC helper thread invokes this callback on an IPC_MSG_CHILDEXIT message received from a specific
+ * thread msgin->tid of the exiting child process with vmid msg->src. The thread of the exiting
+ * child process informs about its exit code in msgin->exit_code and its terminating signal in
+ * msgin->term_signal.
  *
- * The callback finds this remote thread of the child process among our
- * process's threads/simple threads (recall that parent process maintains
- * remote child threads in its thread list, marking them as in_vm == false).
- * The remote thread is "virtually" exited: SIGCHLD is generated for the
+ * The callback finds this remote thread of the child process among our process's threads/simple
+ * threads (recall that parent process maintains remote child threads in its thread list, marking
+ * them as in_vm == false).  The remote thread is "virtually" exited: SIGCHLD is generated for the
  * parent thread and exit events are arranged for subsequent wait4().
  */
 int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
@@ -123,8 +119,8 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 
     struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
 
-    debug("IPC callback from %u: IPC_CLD_EXIT(%u, %u, %d, %u)\n", msg->src & 0xFFFF, msgin->ppid,
-          msgin->tid, msgin->exitcode, msgin->term_signal);
+    debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", msg->src & 0xFFFF,
+          msgin->ppid, msgin->tid, msgin->exitcode, msgin->term_signal);
 
     /* message cannot come from our own threads (from ourselves as process) */
     assert(msg->src != cur_process.vmid);

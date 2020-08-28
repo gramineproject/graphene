@@ -715,11 +715,11 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
          * convention of pipe:child-vmid) */
         char process_self_uri[256];
         snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
-        ipc_pid_sublease_send(child_vmid, thread->tid, process_self_uri, NULL);
+        ipc_sublease_send(child_vmid, thread->tid, process_self_uri, NULL);
 
         /* listen on the new IPC port to the new child process */
         add_ipc_port_by_id(child_vmid, pal_process,
-                           IPC_PORT_DIRCLD | IPC_PORT_LISTEN | IPC_PORT_KEEPALIVE,
+                           IPC_PORT_DIRECTCHILD | IPC_PORT_LISTEN | IPC_PORT_KEEPALIVE,
                            &ipc_port_with_child_fini, NULL);
     }
 
