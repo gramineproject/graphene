@@ -376,7 +376,7 @@ int shim_do_kill(pid_t pid, int sig) {
         /* If `pid` equals -1, then signal is sent to every process for which the calling process
          * has permission to send, which means all processes in Graphene. */
         ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
-        return do_kill_proc(cur->tid, cur->tgid, sig, true);
+        return do_kill_proc(cur->tid, cur->tgid, sig, false);
     } else if (pid == 0) {
         /* If `pid` equals 0, then signal is sent to every process in the process group of
          * the calling process. */
