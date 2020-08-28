@@ -1,0 +1,216 @@
+# Jenkins manifest file example
+#
+# This manifest was prepared and tested on Ubuntu 18.04.
+
+################################## RUNNING ####################################
+
+# Executable to load into Graphene and run. Note that Graphene tries its best
+# to find the corresponding manifest file (by appending ".manifest" or
+# ".manifest.sgx") based on the executable name, and vice versa. Still, it is
+# required to have the explicit name of the executable here.
+loader.exec = file:$(JDK_HOME)/bin/java
+
+################################## GRAPHENE ###################################
+
+# LibOS layer library of Graphene. There is currently only one implementation,
+# so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
+# to relative path to Graphene repository in the Makefile as part of the
+# build process.
+loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+
+# Show/hide debug log of Graphene ('inline' or 'none' respectively). Note that
+# GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
+# build process.
+loader.debug_type = $(GRAPHENEDEBUG)
+
+################################# ARGUMENTS ###################################
+
+# Read application arguments directly from the command line. Don't use this on production!
+loader.insecure__use_cmdline_argv = 1
+
+################################# ENV VARS ####################################
+
+# Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
+# applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
+# paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
+#
+# In case of Redis:
+# - /lib is searched for Glibc libraries (ld, libc, libpthread)
+# - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
+loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR):$(JDK_HOME)
+loader.env.PATH = $(JDK_HOME)/bin
+loader.env.JAVA_HOME = $(JDK_HOME)
+loader.env.JAVA_OPTS = '-Djava.library.path=$(JDK_HOME)/lib -Dsun.boot.library.path=$(JDK_HOME)/lib'
+
+################################# MOUNT FS  ###################################
+
+# General notes:
+# - There is only one supported type of mount points: 'chroot'.
+# - Directory names are (somewhat confusingly) prepended by 'file:'.
+# - Names of mount entries (lib, lib2, lib3) are irrelevant but must be unique.
+# - In-Graphene visible path names may be arbitrary but we reuse host-OS URIs
+#   for simplicity (except for the first 'lib' case).
+
+# Mount host-OS directory to Graphene glibc/runtime libraries (in 'uri') into
+# in-Graphene visible directory /lib (in 'path'). Note that GRAPHENEDIR macro
+# is expanded to relative path to Graphene repository in the Makefile as part
+# of the build process.
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+
+# Mount host-OS directory to Name Service Switch (NSS) libraries (in 'uri')
+# into in-Graphene visible directory /lib/x86_64-linux-gnu (in 'path').
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = $(ARCH_LIBDIR)
+fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
+
+fs.mount.lib3.type = chroot
+fs.mount.lib3.path = /usr$(ARCH_LIBDIR)
+fs.mount.lib3.uri = file:/usr$(ARCH_LIBDIR)
+
+fs.mount.lib64.type = chroot
+fs.mount.lib64.path = /lib64
+fs.mount.lib64.uri = file:/lib64
+
+# Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
+# into in-Graphene visible directory /etc (in 'path').
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:/etc
+
+# The jdk folder should be copied into /opt
+fs.mount.jdk.type = chroot
+fs.mount.jdk.path = /opt
+fs.mount.jdk.uri = file:/opt
+
+# Workload needs to create temporary files
+fs.mount.tmp.type = chroot
+fs.mount.tmp.path = /tmp
+fs.mount.tmp.uri = file:/tmp
+
+################################## NETWORK ####################################
+
+# Allow binding on any network interface but only on port 6379. This is the
+# default port used by Redis. Note how a missing interface name means "any
+# interface".
+# net.allow_bind.wl_port = :8080
+
+############################### SGX: GENERAL ##################################
+
+# Set enclave size (somewhat arbitrarily) to 1024MB. Recall that SGX v1 requires
+# to specify enclave size at enclave creation time. If Redis exhausts these
+# 1024MB then it will start failing with random errors. Greater enclave sizes
+# result in longer startup times, smaller enclave sizes are not enough for
+# typical Redis workloads.
+sgx.enclave_size = $(G_SGX_SIZE)
+
+# Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
+# that SGX v1 requires to specify the maximum number of simulteneous threads at
+# enclave creation time.
+#
+# Note that internally Graphene may spawn two additional threads, one for IPC
+# and one for asynchronous events/alarms. Redis is technically single-threaded
+# but spawns couple additional threads to do background bookkeeping. Therefore,
+# specifying '8' allows to run a maximum of 6 Redis threads which is enough.
+sgx.thread_num = $(G_SGX_THREAD_NUM)
+
+# Output file
+sgx.allow_file_creation   = 1
+
+############################# SGX: TRUSTED LIBS ###############################
+
+# Specify all libraries used by Redis and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to libraries
+# are host-OS paths. These libraries will be searched for in in-Graphene visible
+# paths according to mount points above.
+#
+# As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
+# specified library, measures its hash, and outputs the hash in auto-generated
+# entry 'sgx.trusted_checksum.xxx' in auto-generated redis-server.manifest.sgx.
+# Note that this happens on the developer machine.
+#
+# At runtime, during loading of this library, Graphene-SGX measures its hash
+# and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
+# match, this library is trusted and allowed to be loaded and used. Note that
+# this happens on the client machine.
+
+# Glibc libraries. ld, libc, libm, libdl, librt provide common functionality;
+# pthread is needed because Redis spawns helper threads for bookkeeping.
+sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
+sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
+sgx.trusted_files.librt = file:$(GRAPHENEDIR)/Runtime/librt.so.1
+sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+
+# Name Service Switch (NSS) libraries. Glibc calls these libraries as part of
+# name-service information gathering. libnss_{compat,files,nis} are the
+# most widely used libraries, at least on Ubuntu.
+# For more info, see 'man nsswitch.conf'.
+sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
+sgx.trusted_files.libnssfiles  = file:$(ARCH_LIBDIR)/libnss_files.so.2
+sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
+sgx.trusted_files.libz  = file:$(ARCH_LIBDIR)/libz.so.1
+
+# libNSL is a dependency of libnss_compat above. It is a good example of nested
+# library dependencies required by Graphene-SGX.
+sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
+
+##################### SGX: TRUSTED JDK DEPENDENCIES ###########################
+sgx.trusted_files.jdk_libjli = file:$(JDK_HOME)/lib/jli/libjli.so
+sgx.trusted_files.jdk_jvmcfg = file:$(JDK_HOME)/lib/jvm.cfg
+sgx.trusted_files.jdk_libverify = file:$(JDK_HOME)/lib/libverify.so
+sgx.trusted_files.jdk_libjava = file:$(JDK_HOME)/lib/libjava.so
+sgx.trusted_files.jdk_libzip = file:$(JDK_HOME)/lib/libzip.so
+sgx.trusted_files.jdk_modules = file:$(JDK_HOME)/lib/modules
+sgx.trusted_files.jdk_libjimage = file:$(JDK_HOME)/lib/libjimage.so
+sgx.trusted_files.jdk_libnet = file:$(JDK_HOME)/lib/libnet.so
+sgx.trusted_files.jdk_libnio = file:$(JDK_HOME)/lib/libnio.so
+sgx.trusted_files.jdk_librmi = file:$(JDK_HOME)/lib/librmi.so
+sgx.trusted_files.jdk_libjawt = file:$(JDK_HOME)/lib/libjawt.so
+sgx.trusted_files.jdk_libawt = file:$(JDK_HOME)/lib/libawt.so
+sgx.trusted_files.jdk_libextnet = file:$(JDK_HOME)/lib/libextnet.so
+sgx.trusted_files.jdk_libjavajpeg = file:$(JDK_HOME)/lib/libjavajpeg.so
+sgx.trusted_files.jdk_libattach = file:$(JDK_HOME)/lib/libattach.so
+sgx.trusted_files.jdk_libdt_socket = file:$(JDK_HOME)/lib/libdt_socket.so
+sgx.trusted_files.jdk_libfontmanager = file:$(JDK_HOME)/lib/libfontmanager.so
+sgx.trusted_files.jdk_libprefs = file:$(JDK_HOME)/lib/libprefs.so
+sgx.trusted_files.jdk_libjvm = file:$(JDK_HOME)/lib/server/libjvm.so
+sgx.trusted_files.jdk_libjsig = file:$(JDK_HOME)/lib/server/libjsig.so
+
+
+# Additional dependant libraries for JDK
+
+
+#################### SGX: TRUSTED WORKLOAD FILES ###############################
+
+# Trusted no-library files include configuration files, read-only files, and
+# other static files. It is useful to specify such files here to make sure
+# they are not maliciously modified (modifications will be detected as hash
+# mismatch by Graphene-SGX).
+#
+# Redis by default does not use configuration files, so this section is empty.
+# sgx.trusted_files.config = file:<important-configuration-file>
+sgx.trusted_files.blockchain = file:$(WL_TARGET)
+
+############################# SGX: ALLOWED FILES ###############################
+
+# Specify all non-static files used by app. These files may be accessed by
+# Graphene-SGX but their integrity is not verified (Graphene-SGX does not
+# measure their hashes). This may pose a security risk!
+
+# Name Service Switch (NSS) files. Glibc reads these files as part of name-
+# service information gathering. For more info, see 'man nsswitch.conf'.
+sgx.allowed_files.nsswitch  = file:/etc/nsswitch.conf
+sgx.allowed_files.ethers    = file:/etc/ethers
+sgx.allowed_files.hosts     = file:/etc/hosts
+sgx.allowed_files.group     = file:/etc/group
+sgx.allowed_files.passwd    = file:/etc/passwd
+
+# getaddrinfo(3) configuration file. Glibc reads this file to correctly find
+# network addresses. For more info, see 'man gai.conf'.
+sgx.allowed_files.gaiconf   = file:/etc/gai.conf
+
+# Scratch space
+sgx.allowed_files.tmp     = file:/tmp
