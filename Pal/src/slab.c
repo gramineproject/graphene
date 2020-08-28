@@ -21,14 +21,12 @@ static PAL_LOCK g_slab_mgr_lock = LOCK_INIT;
 #define SYSTEM_UNLOCK() _DkInternalUnlock(&g_slab_mgr_lock)
 #define SYSTEM_LOCKED() _DkInternalIsLocked(&g_slab_mgr_lock)
 
-#if STATIC_SLAB == 1
-#define POOL_SIZE 64 * 1024 * 1024
+/* 96MB for internal data for PAL; Graphene-SGX loudly fails after this limit is depleted */
+#define POOL_SIZE 96 * 1024 * 1024
+
 static char g_mem_pool[POOL_SIZE];
 static void* g_bump = g_mem_pool;
 static void* g_mem_pool_end = &g_mem_pool[POOL_SIZE];
-#else
-#define ALLOC_ALIGNMENT g_slab_alignment
-#endif
 
 #define STARTUP_SIZE 2
 
@@ -44,7 +42,6 @@ static inline void __free(void* addr, int size);
 static inline void* __malloc(int size) {
     void* addr = NULL;
 
-#if STATIC_SLAB == 1
     SYSTEM_LOCK();
     if (g_bump + size <= g_mem_pool_end) {
         addr = g_bump;
@@ -53,7 +50,6 @@ static inline void* __malloc(int size) {
         return addr;
     }
     SYSTEM_UNLOCK();
-#endif
 
 #if 1
     /* FIXME: At this point, we depleted the pre-allocated memory pool of POOL_SIZE. Previously,
@@ -74,10 +70,9 @@ static inline void* __malloc(int size) {
 static inline void __free(void* addr, int size) {
     if (!addr)
         return;
-#if STATIC_SLAB == 1
+
     if (addr >= (void*)g_mem_pool && addr < g_mem_pool_end)
         return;
-#endif
 
     size = ALLOC_ALIGN_UP(size);
     _DkVirtualMemoryFree(addr, size);
