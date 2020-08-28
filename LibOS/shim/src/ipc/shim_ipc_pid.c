@@ -7,26 +7,15 @@
  * This file contains functions and callbacks to handle IPC of PID namespace.
  */
 
-#include "shim_ipc_pid.h"
-
 #include <errno.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_thread.h>
-
-#define PID_RANGE_SIZE 32
-#define PID_LEASE_TIME 1000
-
-#define NS     pid
-#define NS_CAP PID
-
-#define INCLUDE_IPC_NSIMPL
-#include "shim_ipc_nsimpl.h"
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_thread.h"
 
 static int thread_add_subrange(struct shim_thread* thread, void* arg) {
     if (!thread->in_vm)
@@ -34,17 +23,13 @@ static int thread_add_subrange(struct shim_thread* thread, void* arg) {
 
     struct shim_ipc_info* info = (struct shim_ipc_info*)arg;
 
-    add_pid_subrange(thread->tid, info->vmid, qstrgetstr(&info->uri), &thread->tid_lease);
+    add_ipc_subrange(thread->tid, info->vmid, qstrgetstr(&info->uri), &thread->tid_lease);
     return 0;
 }
 
 int init_ns_pid(void) {
     struct shim_ipc_info* info;
     int ret = 0;
-
-    if ((ret = init_namespace()) < 0) {
-        return ret;
-    }
 
     if ((ret = get_ipc_info_cur_process(&info)) < 0)
         return ret;
@@ -168,7 +153,7 @@ out:
     return ret;
 }
 
-int ipc_pid_getstatus_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_getstatus_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_getstatus* msgin = (struct shim_ipc_pid_getstatus*)msg->msg;
     int ret = 0;
 
@@ -211,7 +196,7 @@ int ipc_pid_retstatus_send(struct shim_ipc_port* port, IDTYPE dest, int nstatus,
     return send_ipc_message(msg, port);
 }
 
-int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_retstatus_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_retstatus* msgin = (struct shim_ipc_pid_retstatus*)msg->msg;
 
     if (msgin->nstatus)
@@ -235,162 +220,6 @@ int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS) {
     }
 
     return 0;
-}
-
-int get_all_pid_status(struct pid_status** status) {
-    /* run queryall unconditionally */
-    ipc_pid_queryall_send();
-
-    int bufsize                   = RANGE_SIZE;
-    struct pid_status* status_buf = malloc(bufsize);
-    int nstatus                   = 0;
-
-    if (!bufsize)
-        return -ENOMEM;
-
-    LISTP_TYPE(range)* list = &offered_ranges;
-    struct range* r;
-    int ret;
-
-    lock(&range_map_lock);
-
-retry:
-    LISTP_FOR_EACH_ENTRY(r, list, list) {
-        struct subrange* s = NULL;
-        struct shim_ipc_info* p;
-        IDTYPE off, idx;
-        IDTYPE base;
-        IDTYPE pids[RANGE_SIZE];
-        struct pid_status* range_status;
-
-#define UNDEF_IDX ((IDTYPE)-1)
-
-    next_range:
-        idx  = UNDEF_IDX;
-        off  = r->offset;
-        base = off * RANGE_SIZE + 1;
-
-    next_sub:
-        if (idx == UNDEF_IDX) {
-            p = r->owner;
-        } else {
-            if (idx >= RANGE_SIZE)
-                continue;
-            if (!r->subranges)
-                continue;
-            s = r->subranges->map[idx];
-            if (!s) {
-                idx++;
-                goto next_sub;
-            }
-            p = s->owner;
-        }
-
-        if (p->vmid == cur_process.vmid) {
-            idx++;
-            goto next_sub;
-        }
-
-        if (!p->port) {
-            IDTYPE type                = IPC_PORT_PIDOWN | IPC_PORT_LISTEN;
-            IDTYPE owner               = p->vmid;
-            char* uri                  = qstrtostr(&p->uri, true);
-            struct shim_ipc_port* port = NULL;
-            unlock(&range_map_lock);
-
-            PAL_HANDLE pal_handle = DkStreamOpen(uri, 0, 0, 0, 0);
-
-            if (pal_handle)
-                add_ipc_port_by_id(owner, pal_handle, type, NULL, &port);
-
-            lock(&range_map_lock);
-            LISTP_FOR_EACH_ENTRY(r, list, list) {
-                if (r->offset >= off)
-                    break;
-            }
-            /* DEP 5/15/17: I believe this is checking if the list is empty */
-            // if (&r->list == list)
-            if (LISTP_EMPTY(list))
-                break;
-            if (r->offset > off)
-                goto next_range;
-            if (!port)
-                continue;
-
-            if (idx == UNDEF_IDX) {
-            } else {
-                if (!r->subranges)
-                    continue;
-                s = r->subranges->map[idx];
-                if (!s) {
-                    idx++;
-                    goto next_sub;
-                }
-                p = s->owner;
-            }
-
-            if (p->port)
-                put_ipc_port(p->port);
-
-            p->port = port;
-        }
-
-        if (idx == UNDEF_IDX) {
-            for (int i = 0; i < RANGE_SIZE; i++)
-                pids[i] = base + i;
-        } else {
-            pids[0] = base + idx;
-        }
-
-        ret = ipc_pid_getstatus_send(p->port, p->vmid, idx == UNDEF_IDX ? RANGE_SIZE : 1, pids,
-                                     &range_status);
-
-        if (ret > 0) {
-            if (nstatus + ret > bufsize) {
-                int newsize = bufsize * 2;
-
-                while (nstatus + ret > newsize)
-                    newsize *= 2;
-
-                struct pid_status* new_buf = malloc(newsize);
-
-                if (!new_buf) {
-                    unlock(&range_map_lock);
-                    free(range_status);
-                    free(status_buf);
-                    return -ENOMEM;
-                }
-
-                memcpy(new_buf, status_buf, sizeof(struct pid_status) * nstatus);
-
-                free(status_buf);
-                status_buf = new_buf;
-                bufsize    = newsize;
-            }
-
-            memcpy(status_buf + nstatus, range_status, sizeof(struct pid_status) * ret);
-            free(range_status);
-            nstatus += ret;
-        }
-
-        idx++;
-        goto next_sub;
-    }
-
-    if (list == &offered_ranges) {
-        list = &owned_ranges;
-        goto retry;
-    }
-
-    unlock(&range_map_lock);
-
-    if (!nstatus) {
-        free(status_buf);
-        return 0;
-    }
-
-    *status = status_buf;
-    return nstatus;
 }
 
 static const char* pid_meta_code_str[4] = {
@@ -424,7 +253,7 @@ out:
     return ret;
 }
 
-int ipc_pid_getmeta_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_getmeta* msgin = (struct shim_ipc_pid_getmeta*)msg->msg;
     int ret = 0;
 
@@ -506,7 +335,7 @@ int ipc_pid_retmeta_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE pid,
     return send_ipc_message(msg, port);
 }
 
-int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS) {
+int ipc_pid_retmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_retmeta* msgin = (struct shim_ipc_pid_retmeta*)msg->msg;
 
     debug("ipc callback from %u: IPC_PID_RETMETA(%u, %s, %d)\n", msg->src, msgin->pid,

@@ -72,6 +72,7 @@ objs = \
 	ipc/shim_ipc_child.o \
 	ipc/shim_ipc_helper.o \
 	ipc/shim_ipc_pid.o \
+	ipc/shim_ipc_ranges.o \
 	ipc/shim_ipc_sysv.o \
 	sys/shim_access.o \
 	sys/shim_alarm.o \

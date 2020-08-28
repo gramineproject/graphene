@@ -8,8 +8,6 @@
  * of IPC ports.
  */
 
-#include "shim_ipc_helper.h"
-
 #include <list.h>
 #include <pal.h>
 #include <pal_error.h>
@@ -46,23 +44,32 @@ static AEVENTTYPE install_new_event;
 static int create_ipc_helper(void);
 static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
+typedef int (*ipc_callback)(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+
 static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
     /* RESP             */ &ipc_resp_callback,
 
-    /* parents and children */
     /* CLD_EXIT         */ &ipc_cld_exit_callback,
 
-    /* pid namespace */
-    IPC_NS_CALLBACKS(pid)
+    /* IPC_FINDNS       */ &ipc_findns_callback,
+    /* IPC_TELLNS       */ &ipc_tellns_callback,
+    /* IPC_LEASE        */ &ipc_lease_callback,
+    /* IPC_OFFER        */ &ipc_offer_callback,
+    /* IPC_RENEW        */ &ipc_renew_callback,
+    /* IPC_SUBLEASE     */ &ipc_sublease_callback,
+    /* IPC_QUERY        */ &ipc_query_callback,
+    /* IPC_QUERYALL     */ &ipc_queryall_callback,
+    /* IPC_ANSWER       */ &ipc_answer_callback,
+
     /* PID_KILL         */ &ipc_pid_kill_callback,
     /* PID_GETSTATUS    */ &ipc_pid_getstatus_callback,
     /* PID_RETSTATUS    */ &ipc_pid_retstatus_callback,
     /* PID_GETMETA      */ &ipc_pid_getmeta_callback,
     /* PID_RETMETA      */ &ipc_pid_retmeta_callback,
 
-    /* sysv namespace */
-    IPC_NS_CALLBACKS(sysv)
-    IPC_NS_KEY_CALLBACKS(sysv)
+    /* SYSV_FINDKEY     */ &ipc_sysv_findkey_callback,
+    /* SYSV_TELLKEY     */ &ipc_sysv_tellkey_callback,
+
     /* SYSV_DELRES      */ &ipc_sysv_delres_callback,
     /* SYSV_MOVRES      */ &ipc_sysv_movres_callback,
     /* SYSV_MSGSND      */ &ipc_sysv_msgsnd_callback,
@@ -119,13 +126,13 @@ static int init_parent_ipc_port(void) {
     return 0;
 }
 
-static int init_ns_ipc_port(int ns_idx) {
-    if (!cur_process.ns[ns_idx]) {
+static int init_ns_ipc_port(void) {
+    if (!cur_process.ns) {
         /* no NS info from parent process, no sense in creating NS IPC port */
         return 0;
     }
 
-    if (!cur_process.ns[ns_idx]->pal_handle && qstrempty(&cur_process.ns[ns_idx]->uri)) {
+    if (!cur_process.ns->pal_handle && qstrempty(&cur_process.ns->uri)) {
         /* there is no connection to NS leader via PAL handle and there is no URI to find NS leader:
          * do not create NS IPC port now, it will be created on-demand during NS leader lookup */
         return 0;
@@ -133,20 +140,18 @@ static int init_ns_ipc_port(int ns_idx) {
 
     lock(&cur_process.lock);
 
-    if (!cur_process.ns[ns_idx]->pal_handle) {
-        debug("Reconnecting IPC port %s\n", qstrgetstr(&cur_process.ns[ns_idx]->uri));
-        cur_process.ns[ns_idx]->pal_handle =
-            DkStreamOpen(qstrgetstr(&cur_process.ns[ns_idx]->uri), 0, 0, 0, 0);
-        if (!cur_process.ns[ns_idx]->pal_handle) {
+    if (!cur_process.ns->pal_handle) {
+        debug("Reconnecting IPC port %s\n", qstrgetstr(&cur_process.ns->uri));
+        cur_process.ns->pal_handle = DkStreamOpen(qstrgetstr(&cur_process.ns->uri), 0, 0, 0, 0);
+        if (!cur_process.ns->pal_handle) {
             unlock(&cur_process.lock);
             return -PAL_ERRNO();
         }
     }
 
-    IDTYPE type = (ns_idx == PID_NS) ? IPC_PORT_PIDLDR : IPC_PORT_SYSVLDR;
-    add_ipc_port_by_id(cur_process.ns[ns_idx]->vmid, cur_process.ns[ns_idx]->pal_handle,
-                       type | IPC_PORT_LISTEN,
-                       /*fini=*/NULL, &cur_process.ns[ns_idx]->port);
+    add_ipc_port_by_id(cur_process.ns->vmid, cur_process.ns->pal_handle,
+                       IPC_PORT_LDR | IPC_PORT_LISTEN,
+                       /*fini=*/NULL, &cur_process.ns->port);
 
     unlock(&cur_process.lock);
     return 0;
@@ -165,9 +170,7 @@ int init_ipc_ports(void) {
         return ret;
     if ((ret = init_parent_ipc_port()) < 0)
         return ret;
-    if ((ret = init_ns_ipc_port(PID_NS)) < 0)
-        return ret;
-    if ((ret = init_ns_ipc_port(SYSV_NS)) < 0)
+    if ((ret = init_ns_ipc_port()) < 0)
         return ret;
 
     return 0;

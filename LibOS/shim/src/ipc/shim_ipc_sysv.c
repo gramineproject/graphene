@@ -7,8 +7,6 @@
  * This file contains functions and callbacks to handle IPC of SYSV namespace.
  */
 
-#include "shim_ipc_sysv.h"
-
 #include <errno.h>
 
 #include "pal.h"
@@ -19,26 +17,131 @@
 #include "shim_sysv.h"
 #include "shim_thread.h"
 
-#define SYSV_RANGE_SIZE 128
-#define SYSV_LEASE_TIME 1000
-
-#define KEY_HASH(k)      ((k)->key)
-#define KEY_COMP(k1, k2) ((k1)->key != (k2)->key || (k1)->type != (k2)->type)
-#define KEY_COPY(k1, k2)         \
-    do {                         \
-        (k1)->key  = (k2)->key;  \
-        (k1)->type = (k2)->type; \
-    } while (0)
-
-#define NS     sysv
-#define NS_CAP SYSV
-#define NS_KEY struct sysv_key
-
-#define INCLUDE_IPC_NSIMPL
-#include "shim_ipc_nsimpl.h"
-
 int init_ns_sysv(void) {
-    return init_namespace();
+    return 0;
+}
+
+int ipc_sysv_findkey_send(struct sysv_key* key) {
+    int ret = 0;
+
+    ret = sysv_get_key(key, false);
+    if (!ret)
+        goto out;
+
+    IDTYPE dest;
+    struct shim_ipc_port* port = NULL;
+
+    if ((ret = connect_ns(&dest, &port)) < 0)
+        goto out;
+
+    if (dest == cur_process.vmid) {
+        ret = -ENOENT;
+        goto out;
+    }
+
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_findkey));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_SYSV_FINDKEY, total_msg_size, dest);
+
+    struct shim_ipc_sysv_findkey* msgin = (void*)&msg->msg.msg;
+    KEY_COPY(&msgin->key, key);
+
+    debug("ipc send to %u: IPC_SYSV_FINDKEY(%lu)\n", dest, KEY_HASH(key));
+
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
+    put_ipc_port(port);
+
+    if (!ret)
+        ret = sysv_get_key(key, false);
+out:
+    return ret;
+}
+
+int ipc_sysv_findkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+    int ret = 0;
+    struct shim_ipc_sysv_findkey* msgin = (void*)&msg->msg;
+
+    debug("ipc callback from %u: IPC_SYSV_FINDKEY(%lu)\n", msg->src, KEY_HASH(&msgin->key));
+
+    ret = sysv_get_key(&msgin->key, false);
+    if (ret < 0)
+        goto out;
+
+    ret = ipc_sysv_tellkey_send(port, msg->src, &msgin->key, ret, msg->seq);
+out:
+    return ret;
+}
+
+int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_key* key, IDTYPE id,
+                          unsigned long seq) {
+    bool owned = true;
+    int ret    = 0;
+
+    if (!dest) {
+        if ((ret = sysv_add_key(key, id)) < 0)
+            goto out;
+
+        if ((ret = connect_ns(&dest, &port)) < 0)
+            goto out;
+
+        if (dest == cur_process.vmid)
+            goto out;
+
+        owned = false;
+    }
+
+    if (owned) {
+        size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_tellkey));
+        struct shim_ipc_msg* msg = __alloca(total_msg_size);
+        init_ipc_msg(msg, IPC_SYSV_TELLKEY, total_msg_size, dest);
+
+        struct shim_ipc_sysv_tellkey* msgin = (void*)&msg->msg;
+        KEY_COPY(&msgin->key, key);
+        msgin->id = id;
+        msg->seq  = seq;
+
+        debug("ipc send to %u: IPC_SYSV_TELLKEY(%lu, %u)\n", dest, KEY_HASH(key), id);
+
+        ret = send_ipc_message(msg, port);
+        goto out;
+    }
+
+    size_t total_msg_size = get_ipc_msg_with_ack_size(sizeof(struct shim_ipc_sysv_tellkey));
+    struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
+    init_ipc_msg_with_ack(msg, IPC_SYSV_TELLKEY, total_msg_size, dest);
+
+    struct shim_ipc_sysv_tellkey* msgin = (void*)&msg->msg.msg;
+    KEY_COPY(&msgin->key, key);
+    msgin->id = id;
+
+    debug("ipc send to %u: IPC_SYSV_TELLKEY(%lu, %u)\n", dest, KEY_HASH(key), id);
+
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
+    put_ipc_port(port);
+out:
+    return ret;
+}
+
+int ipc_sysv_tellkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
+    int ret = 0;
+    struct shim_ipc_sysv_tellkey* msgin = (void*)&msg->msg;
+
+    debug("ipc callback from %u: IPC_SYSV_TELLKEY(%lu, %u)\n", msg->src, KEY_HASH(&msgin->key),
+          msgin->id);
+
+    ret = sysv_add_key(&msgin->key, msgin->id);
+
+    struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
+    if (!obj) {
+        ret = RESPONSE_CALLBACK;
+        goto out;
+    }
+
+    if (obj->thread)
+        thread_wakeup(obj->thread);
+
+out:
+    return ret;
 }
 
 int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
@@ -84,7 +187,7 @@ out:
     return ret;
 }
 
-int ipc_sysv_delres_callback(IPC_CALLBACK_ARGS) {
+int ipc_sysv_delres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     __UNUSED(port);
 
     int ret = 0;
@@ -144,7 +247,7 @@ int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* u
     return send_ipc_message(msg, client->port);
 }
 
-int ipc_sysv_movres_callback(IPC_CALLBACK_ARGS) {
+int ipc_sysv_movres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     int ret = 0;
     struct shim_ipc_sysv_movres* msgin = (struct shim_ipc_sysv_movres*)&msg->msg;
 
@@ -165,7 +268,7 @@ int ipc_sysv_movres_callback(IPC_CALLBACK_ARGS) {
             goto out;
     }
 
-    add_sysv_subrange(msgin->resid, msgin->owner, msgin->uri, &msgin->lease);
+    add_ipc_subrange(msgin->resid, msgin->owner, msgin->uri, &msgin->lease);
 
     if (obj->thread)
         thread_wakeup(obj->thread);
@@ -205,7 +308,7 @@ out:
     return ret;
 }
 
-int ipc_sysv_msgsnd_callback(IPC_CALLBACK_ARGS) {
+int ipc_sysv_msgsnd_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     int ret = 0;
     struct shim_ipc_sysv_msgsnd* msgin = (struct shim_ipc_sysv_msgsnd*)&msg->msg;
 
@@ -285,7 +388,7 @@ out:
     return ret;
 }
 
-int ipc_sysv_msgrcv_callback(IPC_CALLBACK_ARGS) {
+int ipc_sysv_msgrcv_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     int ret = 0;
     struct shim_ipc_sysv_msgrcv* msgin = (struct shim_ipc_sysv_msgrcv*)&msg->msg;
 
@@ -381,7 +484,7 @@ out:
     return ret;
 }
 
-int ipc_sysv_semop_callback(IPC_CALLBACK_ARGS) {
+int ipc_sysv_semop_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     int ret = 0;
     struct shim_ipc_sysv_semop* msgin = (struct shim_ipc_sysv_semop*)&msg->msg;
 
@@ -435,7 +538,7 @@ out:
     return ret;
 }
 
-int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS) {
+int ipc_sysv_semctl_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     int ret = 0;
     struct shim_ipc_sysv_semctl* msgin = (struct shim_ipc_sysv_semctl*)&msg->msg;
 
@@ -539,7 +642,7 @@ int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, si
     return send_ipc_message(msg, port);
 }
 
-int ipc_sysv_semret_callback(IPC_CALLBACK_ARGS) {
+int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_sysv_semret* semret = (struct shim_ipc_sysv_semret*)&msg->msg;
 
     debug("ipc callback from %u: IPC_SYSV_SEMRET\n", msg->src);
