@@ -1,13 +1,13 @@
 # OpenVINO (object_detection_sample_ssd) manifest example
 #
-# This manifest was prepared and tested on Ubuntu 16.04.
+# This manifest was prepared and tested on Ubuntu 18.04.
 #
 # OpenVINO must be run with the pal_loader:
 #
 # ./pal_loader openvino.manifest -i input/image.bmp -m model.xml -d CPU
 
 # The executable to load in Graphene.
-loader.exec = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
+loader.exec = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
 loader.argv0_override = object_detection_sample_ssd
 
 # Graphene environment, including the path to the library OS and the debug
@@ -92,27 +92,37 @@ sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 sgx.trusted_files.libcpp = file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6
 sgx.trusted_files.libgcc = file:$(ARCH_LIBDIR)/libgcc_s.so.1
 
-# OpenVINO main libraries
-sgx.trusted_files.libformatreader    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libformat_reader.so
-sgx.trusted_files.libcpuextension    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libcpu_extension.so
-sgx.trusted_files.libinferencenegine = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine.so
-sgx.trusted_files.libmkldnnplugin    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libMKLDNNPlugin.so
-sgx.trusted_files.libgnapplugin      = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libGNAPlugin.so
-sgx.trusted_files.libcldnnpplugin    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libclDNNPlugin.so
-sgx.trusted_files.libmyriadplugin    = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/libmyriadPlugin.so
-
-# OpenVINO OpenCV libraries
-sgx.trusted_files.libimgcodecs  = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.1.1_ubuntu16/lib/libopencv_imgcodecs.so.4.1
-sgx.trusted_files.libimgproc    = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.1.1_ubuntu16/lib/libopencv_imgproc.so.4.1
-sgx.trusted_files.libopencvcore = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.1.1_ubuntu16/lib/libopencv_core.so.4.1
-
-# OpenVINO TBB libraries
-sgx.trusted_files.libtbbmalloc = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbmalloc.so.2
-sgx.trusted_files.libtbb       = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbb.so.2
+# OpenVINO TBB dependencies
+sgx.trusted_files.libtbbmalloc = file:/usr/$(ARCH_LIBDIR)/libtbbmalloc.so.2
+sgx.trusted_files.libtbb       = file:/usr/$(ARCH_LIBDIR)/libtbb.so.2
 $(LIBTBB_DEBUG)
 
+# OpenVINO main libraries
+sgx.trusted_files.libformatreader                         = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libformat_reader.so
+sgx.trusted_files.libinferencenegine                      = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine.so
+sgx.trusted_files.libmkldnnplugin                         = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libMKLDNNPlugin.so
+sgx.trusted_files.libgnapplugin                           = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libGNAPlugin.so
+sgx.trusted_files.libcldnnpplugin                         = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libclDNNPlugin.so
+sgx.trusted_files.libmyriadplugin                         = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libmyriadPlugin.so
+sgx.trusted_files.libngraph                               = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libngraph.so
+sgx.trusted_files.libHeteroPlugin                         = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libHeteroPlugin.so
+sgx.trusted_files.libMultiDevicePlugin                    = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libMultiDevicePlugin.so
+sgx.trusted_files.libinferenceengine_onnx_reader          = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_onnx_reader.so
+sgx.trusted_files.libinferenceengine_ir_reader            = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_ir_reader.so
+sgx.trusted_files.libinferenceengine_legacy               = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_legacy.so
+sgx.trusted_files.libinferenceengine_transformations      = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_transformations.so
+sgx.trusted_files.libinferenceengine_lptransformations    = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_lp_transformations.so
+
+# OpenVINO OpenCV libraries
+sgx.trusted_files.libimgcodecs  = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_imgcodecs.so.4.3
+sgx.trusted_files.libimgproc    = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_imgproc.so.4.3
+sgx.trusted_files.libopencvcore = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_core.so.4.3
+
+# OpenVINO OMP libraries
+sgx.trusted_files.libiomp5     = file:$(OPENVINO_DIR)/inference-engine/temp/omp/lib/libiomp5.so
+
 # OpenVINO SSD300 model
-sgx.trusted_files.pluginsxml = file:$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/lib/plugins.xml
+sgx.trusted_files.pluginsxml = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/plugins.xml
 sgx.trusted_files.modelxml   = file:$(MODEL_DIR)/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.xml
 sgx.trusted_files.modelbin   = file:$(MODEL_DIR)/VGG_VOC0712Plus_SSD_300x300_ft_iter_160000.bin
 

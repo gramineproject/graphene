@@ -16,7 +16,7 @@ MODEL_COMMIT ?= acf297c73db8cb3f68791ae1fad4a7cc4a6039e5     # corresponds to ta
 MODEL_NAME ?= VGG_VOC0712Plus_SSD_300x300_ft_iter_160000
 
 OPENVINO_DIR ?= $(THIS_DIR)openvino
-OPENVINO_COMMIT ?= ba6e22b1b5ee4cbefcc30e8d9493cddb0bb3dfdf  # corresponds to tag "2019_R2"
+OPENVINO_COMMIT ?= 023e7c2c3f8a8ac83564db09799d2049115d9cf6  # corresponds to tag "2020.4"
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENE_DIR ?= ../..
@@ -53,14 +53,13 @@ $(MODEL_DIR)/$(MODEL_NAME).bin: $(MODEL_DIR)/README.md
 		--output_dir $(abspath $(MODEL_DIR))
 
 $(OPENVINO_DIR)/README.md:
-	git clone https://github.com/opencv/dldt.git $(OPENVINO_DIR)
+	git clone https://github.com/openvinotoolkit/openvino.git $(OPENVINO_DIR)
 	git -C $(OPENVINO_DIR) checkout $(OPENVINO_COMMIT)
-	git -C $(OPENVINO_DIR)/inference-engine submodule init
-	git -C $(OPENVINO_DIR)/inference-engine submodule update --recursive
+	git -C $(OPENVINO_DIR)/inference-engine submodule update --init --recursive
 
 $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
 	cd $(OPENVINO_DIR)/inference-engine && mkdir -p build
-	cd $(OPENVINO_DIR)/inference-engine/build && cmake -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ..
+	cd $(OPENVINO_DIR)/inference-engine/build && cmake -DTHREADING=OMP -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ../..
 	$(MAKE) -C $(OPENVINO_DIR)/inference-engine/build
 
 openvino.manifest: openvino.manifest.template
