@@ -156,7 +156,7 @@ static int check_affinity_params(int ncpus, size_t len, __kernel_cpu_set_t* user
     return bitmask_size_in_bytes;
 }
 
-int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
+int shim_do_sched_setaffinity(pid_t pid, size_t cpusetsize, __kernel_cpu_set_t* user_mask_ptr) {
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
@@ -166,23 +166,23 @@ int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
 
     thread = cur_thread->pal_handle;
 
-    /* to set other thread requires host tid mapping */
+    /* setting affinity of other threads requires host tid mapping in a secure way */
     if (pid != 0) {
-        debug("The thread id: %d is not supported for now.\n", pid);
+        debug("Changing the affinity of thread id: %d is not supported, only tid == 0 works for now.\n", pid);
         return -ENOSYS;
     }
 
-    int bitmask_size_in_bytes = check_affinity_params(ncpus, len, user_mask_ptr);
+    int bitmask_size_in_bytes = check_affinity_params(ncpus, cpusetsize, user_mask_ptr);
     if (bitmask_size_in_bytes < 0)
         return bitmask_size_in_bytes;
 
-    if (!DkThreadSetCPUAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
+    if (!DkThreadSetCpuAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
         return -PAL_ERRNO();
     }
     return 0;
 }
 
-int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
+int shim_do_sched_getaffinity(pid_t pid, size_t cpusetsize, __kernel_cpu_set_t* user_mask_ptr) {
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
@@ -192,17 +192,17 @@ int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
 
     thread = cur_thread->pal_handle;
 
-    /* to set other thread requires host tid mapping */
+    /* setting affinity of other threads requires host tid mapping in a secure way */
     if (pid != 0) {
-        debug("The thread id: %d is not supported for now.\n", pid);
+        debug("Getting the affinity of thread id: %d is not supported, only tid == 0 works for now.\n", pid);
         return -ENOSYS;
     }
 
-    int bitmask_size_in_bytes = check_affinity_params(ncpus, len, user_mask_ptr);
+    int bitmask_size_in_bytes = check_affinity_params(ncpus, cpusetsize, user_mask_ptr);
     if (bitmask_size_in_bytes < 0)
         return bitmask_size_in_bytes;
 
-    if (!DkThreadGetCPUAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
+    if (!DkThreadGetCpuAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
         return -PAL_ERRNO();
     }
     /* on success, imitate Linux kernel implementation: see SYSCALL_DEFINE3(sched_getaffinity) */

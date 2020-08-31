@@ -153,33 +153,35 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-int _DkThreadSetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask)
-{
+int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask) {
     int tid;
+
+    SGX_DBG(DBG_M, "[Warning] Assuming the thread is changing its own affinity here");
     if (thread != (PAL_HANDLE)GET_ENCLAVE_TLS(thread)) {
-        SGX_DBG(DBG_M, "[Warning] the host tid not supported in SGX mode, using tid:0 instead.");
+        /* TODO: get specific thread from enclave TLS */
         tid = 0;
     } else {
-        /* TODO: add actual host_tid to pal_thread handle and use it here */
+        /* TODO: add actual host_tid to pal_thread handling and use it here */
         tid = 0;
     }
 
-    int ret = ocall_sched_setaffinity(tid, cpu_len, cpu_mask);
+    int ret = ocall_sched_setaffinity(tid, cpu_mask_size, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-int _DkThreadGetCPUAffinity(PAL_HANDLE thread, PAL_NUM cpu_len, PAL_PTR cpu_mask)
-{
+int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask) {
     int tid;
+
+    SGX_DBG(DBG_M, "[Warning] Assuming the thread is retrieving its own affinity here");
     if (thread != (PAL_HANDLE)GET_ENCLAVE_TLS(thread)) {
-        SGX_DBG(DBG_M, "[Warning] the host tid not supported in SGX mode, using tid:0 instead.");
+        /* TODO: get specific thread from enclave TLS */
         tid = 0;
     } else {
-        /* TODO: add actual host_tid to pal_thread handle and use it here */
+        /* TODO: add actual host_tid to pal_thread handling and use it here */
         tid = 0;
     }
 
-    int ret = ocall_sched_getaffinity(tid, cpu_len, cpu_mask);
+    int ret = ocall_sched_getaffinity(tid, cpu_mask_size, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

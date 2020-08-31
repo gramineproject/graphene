@@ -265,21 +265,19 @@ static long sgx_ocall_resume_thread(void * pms)
     return interrupt_thread(pms);
 }
 
-static long sgx_ocall_sched_setaffinity(void* pms)
-{
-    ms_ocall_sched_setaffinity_t* ms = (ms_ocall_sched_setaffinity_t*) pms;
+static long sgx_ocall_sched_setaffinity(void* pms) {
+    ms_ocall_sched_setaffinity_t* ms = (ms_ocall_sched_setaffinity_t*)pms;
     ODEBUG(OCALL_SCHED_SETAFFINITY, ms);
     long ret = INLINE_SYSCALL(sched_setaffinity, 3,
-                              ms->ms_tid, ms->ms_cpu_len, ms->ms_cpu_mask);
+                              ms->ms_tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
     return ret;
 }
 
-static long sgx_ocall_sched_getaffinity(void* pms)
-{
-    ms_ocall_sched_getaffinity_t* ms = (ms_ocall_sched_getaffinity_t*) pms;
+static long sgx_ocall_sched_getaffinity(void* pms) {
+    ms_ocall_sched_getaffinity_t* ms = (ms_ocall_sched_getaffinity_t*)pms;
     ODEBUG(OCALL_SCHED_GETAFFINITY, ms);
     long ret = INLINE_SYSCALL(sched_getaffinity, 3,
-                              ms->ms_tid, ms->ms_cpu_len, ms->ms_cpu_mask);
+                              ms->ms_tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
     return ret;
 }
 

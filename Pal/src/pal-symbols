@@ -6,8 +6,8 @@ DkThreadDelayExecution
 DkThreadYieldExecution
 DkThreadExit
 DkThreadResume
-DkThreadSetCPUAffinity
-DkThreadGetCPUAffinity
+DkThreadSetCpuAffinity
+DkThreadGetCpuAffinity
 DkMutexCreate
 DkNotificationEventCreate
 DkSynchronizationEventCreate

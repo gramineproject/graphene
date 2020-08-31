@@ -28,7 +28,8 @@
 #include "sgx_api.h"
 #include "sgx_attest.h"
 
-#define CPUID_0BH_LEAF 0xb
+#define CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF 0x0b
+#define CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF 0x1f
 
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
@@ -252,14 +253,15 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
 }
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    int notcache = 0;
+    bool skipcache = false;
 
-    /* the cpu topology info subjects to thread affinity */
-    if (leaf == CPUID_0BH_LEAF) {
-        notcache = 1;
+    /* the cpu core info cannot be cached due to its data varies to the calling thread */
+    if (leaf == CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF ||
+        leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
+        skipcache = true;
     }
 
-    if (!notcache && !get_cpuid_from_cache(leaf, subleaf, values))
+    if (!skipcache && !get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
     if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
@@ -267,7 +269,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     sanity_check_cpuid(leaf, subleaf, values);
 
-    if (!notcache)
+    if (!skipcache)
         add_cpuid_to_cache(leaf, subleaf, values);
 
     return 0;
