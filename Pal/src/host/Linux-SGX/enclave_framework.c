@@ -663,6 +663,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(uri, &attr);
         if (ret < 0) {
+            SGX_DBG(DBG_E, "Could not find size of file: %s\n", uri);
             free(new);
             return ret;
         }
