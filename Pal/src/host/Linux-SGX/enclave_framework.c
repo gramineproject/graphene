@@ -227,7 +227,7 @@ struct trusted_file {
     sgx_checksum_t checksum;
     sgx_stub_t* stubs;
     size_t uri_len;
-    char uri[];
+    char uri[]; /* must be NULL-terminated */
 };
 
 DEFINE_LISTP(trusted_file);
@@ -669,16 +669,16 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         }
         new->size = attr.pending_size;
 
-        for (size_t nbytes = 0; nbytes < sizeof(sgx_checksum_t) ; nbytes++) {
-            int8_t byte1 = hex2dec(checksum_str[nbytes * 2]);
-            int8_t byte2 = hex2dec(checksum_str[nbytes * 2 + 1]);
+        for (size_t i = 0; i < sizeof(sgx_checksum_t); i++) {
+            int8_t byte1 = hex2dec(checksum_str[i * 2]);
+            int8_t byte2 = hex2dec(checksum_str[i * 2 + 1]);
 
             if (byte1 < 0 || byte2 < 0) {
                 free(new);
                 return -PAL_ERROR_INVAL;
             }
 
-            new->checksum.bytes[nbytes] = byte1 * 16 + byte2;
+            new->checksum.bytes[i] = byte1 * 16 + byte2;
         }
 
         SGX_DBG(DBG_S, "trusted: %s\n", new->uri);
