@@ -32,6 +32,9 @@ pipeline {
                             # Test Linux-SGX PAL
                             make test MAXTESTNUM=3 TESTCASES='python3 python3-trusted-args' \
                                       DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                            # Test use of base Graphene Image
+                            make test MAXTESTNUM=2 TESTCASES='python3' \
+                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-base-${COMMIT}
                         '''
                     }
                 }
