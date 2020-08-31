@@ -5,11 +5,11 @@
 # - make SGX=1 DEBUG=1 -- create SGX debug-log manifest
 #
 # Additional Prerequisites:
-#   1) An OpenJDK deployed in folder /opt (default: /opt/jdk)
+#   1) An OpenJDK installed in folder /opt (default: /opt/jdk)
 #   2) Gradle installed on system
 #   3) Gradle proxy configured in ~/.gradle/gradle.properties if behind firewall
 #
-# Use `make run-native` to run workload with specified JDK
+# Use `make run-native` to run workload with native JDK, (default JDK_HOME: /opt/jdk)
 # Use `make run-gr` to run workload with Graphene
 # Use `make SGX=1 run-gr` to run workload with Graphene SGX
 #
@@ -27,13 +27,13 @@ G_JAVA_XMX ?= 2G
 G_SGX_SIZE ?= 8G
 G_SGX_THREAD_NUM ?= 256
 
-# JDK folder in default
+# default OpenJDK path
 JDK_HOME ?= /opt/jdk
 
 # Java block chain demo info
 WL_DIR = blockchain_demo
 
-# Jenkins info
+# Java blockchain info
 WL_PKG_VERSION = 1.0
 WL_PKG_SHA256 = d8d133db8e8f4b3b15a0691e7a3f6e5d61213040cc9298e161bf70f33f386bbb
 WL_PKG_NAME = blockchain_v$(WL_PKG_VERSION).tar.gz
@@ -56,14 +56,14 @@ include $(GRAPHENEDIR)/Scripts/Makefile.configs
 ######### PREPARING JAVA BLOCK CHAIN DEMO WORKLOAD ###############################
 
 # Building blockchain demo using Gradle, the proxy needs to be configured properly
-# on Gradle and on GSGX if behind firewall.
+# on Gradle if behind firewall.
 
 $(WL_TARGET):
 	$(GRAPHENEDIR)/Scripts/download --output $(WL_PKG_NAME) \
 		--sha256 $(WL_PKG_SHA256) \
 		--url https://github.com/bigdata-memory/java-examples/tarball/v$(WL_PKG_VERSION)
 	mkdir $(WL_DIR) && tar -C $(WL_DIR) --strip-components=1 -xf $(WL_PKG_NAME) && \
-		$(RM) $(WL_PKG_NAME) && cd $(WL_DIR)/block-chain && gradle fatjar && \
+		cd $(WL_DIR)/block-chain && gradle fatjar && \
 		cp build/libs/block-chain-all-$(WL_PKG_VERSION).jar .. && cd -
 
 ################### JAVA BLOCK CHAIN DEMO MANIFEST ###############################
@@ -83,8 +83,8 @@ java.manifest: java.manifest.template $(WL_TARGET)
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This
-# procedure measures all Redis dependencies (shared libraries and trusted
-# files), measures Redis code/data pages, and adds measurements in the
+# procedure measures all JVM dependencies (shared libraries and trusted
+# files), measures JVM code/data pages, and adds measurements in the
 # resulting manifest.sgx file (among other, less important SGX options).
 #
 # Additionally, Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see

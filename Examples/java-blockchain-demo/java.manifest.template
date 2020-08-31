@@ -1,4 +1,4 @@
-# Jenkins manifest file example
+# Java manifest file example
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
@@ -33,10 +33,6 @@ loader.insecure__use_cmdline_argv = 1
 # Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
 # applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
 # paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
-#
-# In case of Redis:
-# - /lib is searched for Glibc libraries (ld, libc, libpthread)
-# - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR):$(JDK_HOME)
 loader.env.PATH = $(JDK_HOME)/bin
 loader.env.JAVA_HOME = $(JDK_HOME)
@@ -79,7 +75,10 @@ fs.mount.etc.type = chroot
 fs.mount.etc.path = /etc
 fs.mount.etc.uri = file:/etc
 
-# The jdk folder should be copied into /opt
+# The JDK folder should be installed into /opt
+# This is a workaround for realpath() to correctly converting path for JVM
+# The realpath() would return NULL on my system if specifying the full path here e.g. /opt/sdk
+# That might be a defect of GSGX, and need to further investigate.
 fs.mount.jdk.type = chroot
 fs.mount.jdk.path = /opt
 fs.mount.jdk.uri = file:/opt
@@ -89,45 +88,33 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
-################################## NETWORK ####################################
-
-# Allow binding on any network interface but only on port 6379. This is the
-# default port used by Redis. Note how a missing interface name means "any
-# interface".
-# net.allow_bind.wl_port = :8080
-
 ############################### SGX: GENERAL ##################################
 
-# Set enclave size (somewhat arbitrarily) to 1024MB. Recall that SGX v1 requires
-# to specify enclave size at enclave creation time. If Redis exhausts these
-# 1024MB then it will start failing with random errors. Greater enclave sizes
+# Set enclave size (somewhat arbitrarily) to $(G_SGX_SIZE). Recall that SGX v1 requires
+# to specify enclave size at enclave creation time. If Java exhausts these
+# 8G then it will start failing with random errors. Greater enclave sizes
 # result in longer startup times, smaller enclave sizes are not enough for
-# typical Redis workloads.
+# typical Java workloads.
 sgx.enclave_size = $(G_SGX_SIZE)
 
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at
 # enclave creation time.
-#
-# Note that internally Graphene may spawn two additional threads, one for IPC
-# and one for asynchronous events/alarms. Redis is technically single-threaded
-# but spawns couple additional threads to do background bookkeeping. Therefore,
-# specifying '8' allows to run a maximum of 6 Redis threads which is enough.
 sgx.thread_num = $(G_SGX_THREAD_NUM)
 
-# Output file
+# This Java example may create output files e.g. temporary files
 sgx.allow_file_creation   = 1
 
 ############################# SGX: TRUSTED LIBS ###############################
 
-# Specify all libraries used by Redis and its dependencies (including all
+# Specify all libraries used by Java and its dependencies (including all
 # libraries which can be loaded at runtime via dlopen). The paths to libraries
 # are host-OS paths. These libraries will be searched for in in-Graphene visible
 # paths according to mount points above.
 #
 # As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
 # specified library, measures its hash, and outputs the hash in auto-generated
-# entry 'sgx.trusted_checksum.xxx' in auto-generated redis-server.manifest.sgx.
+# entry 'sgx.trusted_checksum.xxx' in auto-generated java.manifest.sgx.
 # Note that this happens on the developer machine.
 #
 # At runtime, during loading of this library, Graphene-SGX measures its hash
@@ -136,7 +123,7 @@ sgx.allow_file_creation   = 1
 # this happens on the client machine.
 
 # Glibc libraries. ld, libc, libm, libdl, librt provide common functionality;
-# pthread is needed because Redis spawns helper threads for bookkeeping.
+# pthread is needed because Java spawns threads according to workload needs.
 sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
 sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
@@ -151,13 +138,13 @@ sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
 sgx.trusted_files.libnssfiles  = file:$(ARCH_LIBDIR)/libnss_files.so.2
 sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
-sgx.trusted_files.libz  = file:$(ARCH_LIBDIR)/libz.so.1
 
 # libNSL is a dependency of libnss_compat above. It is a good example of nested
 # library dependencies required by Graphene-SGX.
 sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 
 ##################### SGX: TRUSTED JDK DEPENDENCIES ###########################
+sgx.trusted_files.libz  = file:$(ARCH_LIBDIR)/libz.so.1
 sgx.trusted_files.jdk_libjli = file:$(JDK_HOME)/lib/jli/libjli.so
 sgx.trusted_files.jdk_jvmcfg = file:$(JDK_HOME)/lib/jvm.cfg
 sgx.trusted_files.jdk_libverify = file:$(JDK_HOME)/lib/libverify.so
@@ -180,18 +167,12 @@ sgx.trusted_files.jdk_libjvm = file:$(JDK_HOME)/lib/server/libjvm.so
 sgx.trusted_files.jdk_libjsig = file:$(JDK_HOME)/lib/server/libjsig.so
 
 
-# Additional dependant libraries for JDK
-
-
 #################### SGX: TRUSTED WORKLOAD FILES ###############################
 
 # Trusted no-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure
 # they are not maliciously modified (modifications will be detected as hash
 # mismatch by Graphene-SGX).
-#
-# Redis by default does not use configuration files, so this section is empty.
-# sgx.trusted_files.config = file:<important-configuration-file>
 sgx.trusted_files.blockchain = file:$(WL_TARGET)
 
 ############################# SGX: ALLOWED FILES ###############################
