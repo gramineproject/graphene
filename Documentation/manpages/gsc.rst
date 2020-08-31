@@ -165,6 +165,44 @@ Synopsis:
 
    Used to sign the Intel SGX enclave
 
+:command:`gsc build-graphene` -- build Graphene Docker image
+------------------------------------------------------------
+
+Builds a base Docker image including the Graphene sources and compiled runtime.
+This base image can be used as input for :command:`gsc build` via configuration
+parameters.
+
+Synopsis:
+
+:command:`gsc build-graphene` [*OPTIONS*] <*IMAGE-NAME*>
+
+.. option:: -d
+
+   Compile Graphene with debug flags and debug output
+
+.. option:: -L
+
+   Compile Graphene with Linux PAL in addition to Linux-SGX PAL
+
+.. option:: -nc
+
+   Disable Docker's caches during :command:`gsc build-graphene`. This builds the
+   unsigned graphenized image from scratch.
+
+.. option:: --rm
+
+   Remove intermediate Docker images created by :command:`gsc build-graphene`,
+   if the image build is successful.
+
+.. option:: --build-arg
+
+   Set build-time variables during :command:`gsc build-graphene` (same as
+   `docker build --build-arg`).
+
+.. option:: IMAGE-NAME
+
+   Name of the resulting Graphene Docker image
+
 
 Using Graphene's trusted command line arguments
 -----------------------------------------------
@@ -225,20 +263,23 @@ Stages of building graphenized SGX Docker images
 
 The build process of a graphenized Docker image from image ``<image-name>``
 follows four main stages and produces an image named ``gsc-<image-name>``.
-:command:`gsc build` generates the first two stages (building Graphene and
-graphenizing the base image) and :command:`gsc sign-image` generates the last
-two stages (signing the Intel SGX enclave and generating the final Docker
+:command:`gsc build` generates the first two stages (building/pulling Graphene
+and graphenizing the base image) and :command:`gsc sign-image` generates the
+last two stages (signing the Intel SGX enclave and generating the final Docker
 image).
 
-Building Graphene
-^^^^^^^^^^^^^^^^^
+Building or Pulling Graphene
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The first stage compiles Graphene based on the provided configuration (see
-:file:`config.yaml`) which includes the distribution (e.g., Ubuntu 18.04) and the
-Intel SGX driver details.
+The first stage either compiles Graphene based on the provided configuration
+(see :file:`config.yaml`) which includes the distribution (e.g., Ubuntu 18.04),
+Graphene repository, and the Intel SGX driver details, or pulls a prebuild
+Docker image also defined via the configuration file. Prebuild images will be
+provided for well-known environments such as cloud provider offerings or can be
+created via :command:`gsc build-graphene`.
 
-Graphenizing the base image
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Graphenizing the application image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The second stage copies the important Graphene artifacts (e.g., the runtime and
 signer tool) from the first stage. It then prepares image-specific variables
@@ -291,6 +332,12 @@ following parameters. A template configuration file is provided in
 .. describe:: Graphene.Branch
 
    Use this branch of the repository. Default value: master
+
+.. describe:: Graphene.image
+
+   Builds graphenized Docker image based on a prebuild Graphene Docker image.
+   These images are prepared via :command:`gsc build-graphene` and will be
+   provided for common cloud service provider environments.
 
 .. describe:: SGXDriver.Repository
 
