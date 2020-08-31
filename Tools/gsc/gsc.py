@@ -21,13 +21,7 @@ def gsc_unsigned_image_name(name):
     return f'gsc-{name}-unsigned'
 
 def load_config(file):
-    if not os.path.exists(file):
-        print('Please create file named \'config.yaml\' based on the template configuration '
-              'file called \'config.yaml.template\'.')
-        sys.exit(1)
-
-    with open(file) as config_file:
-        return yaml.safe_load(config_file)
+    return yaml.safe_load(file)
 
 # Generate manifest from a template (see template/manifest.template) based on the binary name.
 # The generated manifest is only partially completed. Later, during the docker build it is
@@ -38,7 +32,7 @@ def generate_manifest(image, env, user_manifest, binary):
         with open(user_manifest, 'r') as user_manifest_file:
             user_mf = user_manifest_file.read()
 
-    manifest_path = (pathlib.Path(gsc_image_name(image)) / binary).with_suffix('.manifest')
+    manifest_path = (pathlib.Path(image) / binary).with_suffix('.manifest')
     with open(manifest_path, 'w') as app_manifest:
         app_manifest.write(env.get_template('manifest.template').render(binary=binary))
         app_manifest.write('\n')
@@ -48,7 +42,7 @@ def generate_manifest(image, env, user_manifest, binary):
 # Generate app loader script which generates the SGX token and starts the Graphene PAL loader with
 # the manifest as an input (see template/apploader.template).
 def generate_app_loader(image, env, binary):
-    apploader_path = (pathlib.Path(gsc_image_name(image)) / 'apploader').with_suffix('.sh')
+    apploader_path = (pathlib.Path(image) / 'apploader').with_suffix('.sh')
     with open(apploader_path, 'w') as apploader:
         apploader.write(env.get_template('apploader.template').render(binary=binary))
 
@@ -57,32 +51,33 @@ def generate_app_loader(image, env, binary):
 # multistage build with two stages. The first stage compiles Graphene for the specified
 # distribution. The second stage builds the final image based on the previously built Graphene and
 # the base image.
-def generate_dockerfile(image, env, binary):
-    dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile.build')
+def generate_build_dockerfile(image, env, binary):
+    dockerfile_path = (pathlib.Path(image) / 'Dockerfile.build')
     with open(dockerfile_path, 'w') as dockerfile:
         dockerfile.write(env.get_template(
             f'Dockerfile.{env.globals["Distro"]}.build.template').render(binary=binary))
 
 def prepare_build_context(image, user_manifests, env, binary):
+    gsc_image = gsc_image_name(image)
     # create directory for image specific files
-    os.makedirs(f'gsc-{image}', exist_ok=True)
+    os.makedirs(gsc_image, exist_ok=True)
 
     # generate dockerfile to build graphenized docker image
-    generate_dockerfile(image, env, binary)
+    generate_build_dockerfile(gsc_image, env, binary)
 
     # generate app specific loader script
-    generate_app_loader(image, env, binary)
+    generate_app_loader(gsc_image, env, binary)
 
     # generate manifest stub for this app
-    generate_manifest(image, env, user_manifests[0], binary)
+    generate_manifest(gsc_image, env, user_manifests[0], binary)
 
     for user_manifest in user_manifests[1:]:
-        generate_manifest(image, env, user_manifest,
+        generate_manifest(gsc_image, env, user_manifest,
             user_manifest[user_manifest.rfind('/') + 1 : user_manifest.rfind('.manifest')])
 
-    fm_path = (pathlib.Path(gsc_image_name(image)) / 'finalize_manifests').with_suffix('.py')
+    fm_path = (pathlib.Path(gsc_image) / 'finalize_manifests').with_suffix('.py')
     shutil.copyfile('finalize_manifests.py', fm_path)
-    sm_path = (pathlib.Path(gsc_image_name(image)) / 'sign_manifests').with_suffix('.py')
+    sm_path = (pathlib.Path(gsc_image) / 'sign_manifests').with_suffix('.py')
     shutil.copyfile('sign_manifests.py', sm_path)
 
 def extract_binary_cmd_from_image_config(config):
@@ -132,7 +127,7 @@ def prepare_env(base_image, image, args, user_manifests):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
 
     env.globals.update(vars(args))
-    config = load_config('config.yaml')
+    config = load_config(args.config_file)
     env.globals.update(config)
 
     # Image names follow the format distro/package:tag
@@ -180,6 +175,23 @@ def build_docker_image(path, name, dockerfile, **kwargs):
             for line in json_output['stream'].splitlines():
                 print(line)
 
+def extract_build_args(args):
+    buildargs_dict = {}
+    for item in args.build_arg:
+        if '=' in item:
+            key, value = item.split('=', 1)
+            buildargs_dict[key] = value
+        else:
+            # user specified a --build-arg flag with key and without value, let's retrieve value
+            # from environment
+            if item in os.environ:
+                buildargs_dict[item] = os.environ[item]
+            else:
+                print(f'Could not set build arg `{item}` from environment.')
+                sys.exit(1)
+
+    return buildargs_dict
+
 # Build graphenized docker image. args has to follow [<options>] <base_image> <app.manifest>
 # [<app2.manifest> ...].
 def gsc_build(args):
@@ -203,16 +215,7 @@ def gsc_build(args):
 
     prepare_build_context(image, user_manifests, env, binary)
 
-    buildargs_dict = {}
-    for item in args.build_arg:
-        if '=' in item:
-            key, value = item.split('=', 1)
-            buildargs_dict[key] = value
-        else:
-            # user specified a --build-arg flag with key and without value, let's retrieve value
-            # from environment
-            if item in os.environ:
-                buildargs_dict[item] = os.environ[item]
+    buildargs_dict = extract_build_args(args)
 
     build_docker_image(gsc_image_name(image), gsc_unsigned_image_name(image), 'Dockerfile.build',
                        rm=args.rm, nocache=args.no_cache, buildargs=buildargs_dict)
@@ -225,6 +228,54 @@ def gsc_build(args):
     print(f'Successfully graphenized docker image {image} into docker image '
           f'{gsc_unsigned_image_name(image)}')
 
+# Generate a dockerfile that compiles Graphene. This dockerfile is generated from a template
+# (templates/Dockerfile.$distro.compile.template).
+def generate_compile_dockerfile(image, env):
+    dockerfile_path = (pathlib.Path(image) / 'Dockerfile.compile')
+    with open(dockerfile_path, 'w') as dockerfile:
+        dockerfile.write(env.get_template(
+            f'Dockerfile.{env.globals["Distro"]}.compile.template').render())
+
+# Build a Docker image which includes the sources and the compiled runtime of Graphene.
+def gsc_build_graphene(args):
+    image = args.image
+
+    docker_socket = docker.from_env()
+
+    if get_docker_image(docker_socket, image) is not None:
+        print(f'Image {image} already exists, no gsc build-graphene required.')
+        sys.exit(0)
+
+    print(f'Building Graphene image {image}')
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
+
+    env.globals.update(vars(args))
+    config = load_config(args.config_file)
+    # Building Graphene should never be done on a base Image of Graphene
+    if 'Image' in config['Graphene']:
+        print('Configuration error: `gsc build-graphene` does not allow `Graphene.Image` '
+              'to be set.')
+        sys.exit(1)
+    env.globals.update(config)
+
+    # create directory for image specific files
+    os.makedirs(image, exist_ok=True)
+
+    # generate dockerfile to build graphenized docker image
+    generate_compile_dockerfile(image, env)
+
+    buildargs_dict = extract_build_args(args)
+
+    build_docker_image(image, image, 'Dockerfile.compile',
+                       rm=args.rm, nocache=args.no_cache, buildargs=buildargs_dict)
+
+    # Check if docker build failed
+    if get_docker_image(docker_socket, image) is None:
+        print(f'Failed to build graphenized image for {image}')
+        sys.exit(1)
+
+    print(f'Successfully built Graphene-only Docker image {image}')
+
 def generate_dockerfile_sign_manifests(image, env):
 
     dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile.sign_manifests')
@@ -233,6 +284,7 @@ def generate_dockerfile_sign_manifests(image, env):
             f'Dockerfile.{env.globals["Distro"]}.sign_manifests.template')
             .render(image=gsc_unsigned_image_name(image)))
 
+# Sign Docker image which was previously built via `gsc build`.
 def gsc_sign_image(args):
 
     image = args.image
@@ -247,7 +299,7 @@ def gsc_sign_image(args):
         sys.exit(1)
 
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
-    config = load_config('config.yaml')
+    config = load_config(args.config_file)
     env.globals.update(config)
     env.globals.update({'working_dir': extract_working_dir(gsc_image)})
 
@@ -283,9 +335,6 @@ sub_build.add_argument('-d', '--debug', action='store_true',
     help='Compile Graphene with debug flags and output.')
 sub_build.add_argument('-L', '--linux', action='store_true',
     help='Compile Graphene with Linux PAL in addition to Linux-SGX PAL.')
-sub_build.add_argument('-G', '--graphene', action='store_true',
-    help='Build Graphene only and ignore the application image (useful for Graphene development, '
-         'irrelevant for end users of GSC).')
 sub_build.add_argument('--insecure-args', action='store_true',
     help='Allow to specify untrusted arguments during Docker run. '
          'Otherwise arguments are ignored.')
@@ -295,6 +344,8 @@ sub_build.add_argument('--rm', action='store_true',
     help='Remove intermediate Docker images when build is successful.')
 sub_build.add_argument('--build-arg', action='append', default=[],
     help='Set build-time variables (same as "docker build --build-arg").')
+sub_build.add_argument('-c', '--config_file', type=argparse.FileType('r', encoding='UTF-8'),
+    default='config.yaml', help='Specify configuration file.')
 sub_build.add_argument('image',
     help='Name of the application Docker image.')
 sub_build.add_argument('manifests',
@@ -302,8 +353,27 @@ sub_build.add_argument('manifests',
     help='Application-specific manifest files. The first manifest will be used for the entry '
          'point of the Docker image.')
 
+sub_build_graphene = subcommands.add_parser('build-graphene', help="Build base Graphene Docker image")
+sub_build_graphene.set_defaults(command=gsc_build_graphene)
+sub_build_graphene.add_argument('-d', '--debug', action='store_true',
+    help='Compile Graphene with debug flags and output.')
+sub_build_graphene.add_argument('-L', '--linux', action='store_true',
+    help='Compile Graphene with Linux PAL in addition to Linux-SGX PAL.')
+sub_build_graphene.add_argument('-nc', '--no-cache', action='store_true',
+    help='Build graphenized Docker image without any cached images.')
+sub_build_graphene.add_argument('--rm', action='store_true',
+    help='Remove intermediate Docker images when build is successful.')
+sub_build_graphene.add_argument('--build-arg', action='append', default=[],
+    help='Set build-time variables (same as "docker build --build-arg").')
+sub_build_graphene.add_argument('-c', '--config_file', type=argparse.FileType('r', encoding='UTF-8'),
+    default='config.yaml', help='Specify configuration file.')
+sub_build_graphene.add_argument('image',
+    help='Name of the output Docker image.')
+
 sub_sign = subcommands.add_parser('sign-image', help="Sign graphenized Docker image")
 sub_sign.set_defaults(command=gsc_sign_image)
+sub_sign.add_argument('-c', '--config_file', type=argparse.FileType('r', encoding='UTF-8'),
+    default='config.yaml', help='Specify configuration file.')
 sub_sign.add_argument('image',
     help='Name of the application Docker image.')
 sub_sign.add_argument('key',
