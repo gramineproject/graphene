@@ -11,6 +11,7 @@
 #include <stdbool.h>
 
 #include "enclave_pages.h"
+#include "hex.h"
 
 __sgx_mem_aligned struct pal_enclave_state g_pal_enclave_state;
 
@@ -222,11 +223,11 @@ DEFINE_LIST(trusted_file);
 struct trusted_file {
     LIST_TYPE(trusted_file) list;
     uint64_t size;
-    size_t uri_len;
-    char uri[URI_MAX];
     bool allowed;
     sgx_checksum_t checksum;
-    sgx_stub_t * stubs;
+    sgx_stub_t* stubs;
+    size_t uri_len;
+    char uri[];
 };
 
 DEFINE_LISTP(trusted_file);
@@ -626,15 +627,18 @@ failed:
 }
 
 static int register_trusted_file(const char* uri, const char* checksum_str, bool check_duplicates) {
-    struct trusted_file * tf = NULL, * new;
-    size_t uri_len = strlen(uri);
     int ret;
+
+    size_t uri_len = strlen(uri);
+    if (uri_len >= URI_MAX)
+        return -PAL_ERROR_INVAL;
 
     if (check_duplicates) {
         /* this check is only done during runtime (when creating a new file) and not needed during
          * initialization (because manifest is assumed to have no duplicates); skipping this check
          * significantly improves startup time */
         spinlock_lock(&g_trusted_file_lock);
+        struct trusted_file* tf;
         LISTP_FOR_EACH_ENTRY(tf, &g_trusted_file_list, list) {
             if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
                 spinlock_unlock(&g_trusted_file_lock);
@@ -644,63 +648,39 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         spinlock_unlock(&g_trusted_file_lock);
     }
 
-    new = malloc(sizeof(struct trusted_file));
+    struct trusted_file* new = malloc(sizeof(*new) + uri_len + 1);
     if (!new)
         return -PAL_ERROR_NOMEM;
 
     INIT_LIST_HEAD(new, list);
+    new->size    = 0;
+    new->stubs   = NULL;
+    new->allowed = false;
     new->uri_len = uri_len;
     memcpy(new->uri, uri, uri_len + 1);
-    new->size = 0;
-    new->stubs = NULL;
-    new->allowed = false;
 
     if (checksum_str) {
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(uri, &attr);
-        if (!ret)
-            new->size = attr.pending_size;
-
-        char checksum_text[sizeof(sgx_checksum_t) * 2 + 1] = "\0";
-        size_t nbytes = 0;
-        for (; nbytes < sizeof(sgx_checksum_t) ; nbytes++) {
-            char byte1 = checksum_str[nbytes * 2];
-            char byte2 = checksum_str[nbytes * 2 + 1];
-            unsigned char val = 0;
-
-            if (byte1 == 0 || byte2 == 0) {
-                break;
-            }
-            if (!(byte1 >= '0' && byte1 <= '9') &&
-                !(byte1 >= 'a' && byte1 <= 'f')) {
-                break;
-            }
-            if (!(byte2 >= '0' && byte2 <= '9') &&
-                !(byte2 >= 'a' && byte2 <= 'f')) {
-                break;
-            }
-
-            if (byte1 >= '0' && byte1 <= '9')
-                val = byte1 - '0';
-            if (byte1 >= 'a' && byte1 <= 'f')
-                val = byte1 - 'a' + 10;
-            val *= 16;
-            if (byte2 >= '0' && byte2 <= '9')
-                val += byte2 - '0';
-            if (byte2 >= 'a' && byte2 <= 'f')
-                val += byte2 - 'a' + 10;
-
-            new->checksum.bytes[nbytes] = val;
-            snprintf(checksum_text + nbytes * 2, 3, "%02x", val);
-        }
-
-        if (nbytes < sizeof(sgx_checksum_t)) {
+        if (ret < 0) {
             free(new);
-            return -PAL_ERROR_INVAL;
+            return ret;
+        }
+        new->size = attr.pending_size;
+
+        for (size_t nbytes = 0; nbytes < sizeof(sgx_checksum_t) ; nbytes++) {
+            int8_t byte1 = hex2dec(checksum_str[nbytes * 2]);
+            int8_t byte2 = hex2dec(checksum_str[nbytes * 2 + 1]);
+
+            if (byte1 < 0 || byte2 < 0) {
+                free(new);
+                return -PAL_ERROR_INVAL;
+            }
+
+            new->checksum.bytes[nbytes] = byte1 * 16 + byte2;
         }
 
-        SGX_DBG(DBG_S, "trusted: %s %s\n",
-                checksum_text, new->uri);
+        SGX_DBG(DBG_S, "trusted: %s\n", new->uri);
     } else {
         memset(&new->checksum, 0, sizeof(sgx_checksum_t));
         new->allowed = true;
@@ -712,6 +692,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
     if (check_duplicates) {
         /* this check is only done during runtime and not needed during initialization (see above);
          * we check again because same file could have been added by another thread in meantime */
+        struct trusted_file* tf;
         LISTP_FOR_EACH_ENTRY(tf, &g_trusted_file_list, list) {
             if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
                 spinlock_unlock(&g_trusted_file_lock);
