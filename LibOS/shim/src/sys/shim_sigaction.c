@@ -371,20 +371,20 @@ int shim_do_kill(pid_t pid, int sig) {
 
     if (pid > 0) {
         /* If `pid` is positive, then signal is sent to the process with that pid. */
-        return do_kill_proc(cur->tid, pid, sig, true);
+        return do_kill_proc(cur->tid, pid, sig, /*use_ipc=*/true);
     } else if (pid == -1) {
         /* If `pid` equals -1, then signal is sent to every process for which the calling process
          * has permission to send, which means all processes in Graphene. */
         ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
-        return do_kill_proc(cur->tid, cur->tgid, sig, false);
+        return do_kill_proc(cur->tid, cur->tgid, sig, /*use_ipc=*/false);
     } else if (pid == 0) {
         /* If `pid` equals 0, then signal is sent to every process in the process group of
          * the calling process. */
-        return do_kill_pgroup(cur->tid, 0, sig, true);
+        return do_kill_pgroup(cur->tid, 0, sig, /*use_ipc=*/true);
     } else { // pid < -1
         /* If `pid` is less than -1, then signal is sent to every process in the process group
          * `-pid`. */
-        return do_kill_pgroup(cur->tid, -pid, sig, true);
+        return do_kill_pgroup(cur->tid, -pid, sig, /*use_ipc=*/true);
     }
 }
 
@@ -450,7 +450,7 @@ int shim_do_tkill(pid_t tid, int sig) {
         return 0;
     }
 
-    return do_kill_thread(cur->tgid, 0, tid, sig, true);
+    return do_kill_thread(cur->tgid, 0, tid, sig, /*use_ipc=*/true);
 }
 
 int shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
@@ -473,5 +473,5 @@ int shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
         return 0;
     }
 
-    return do_kill_thread(cur->tgid, tgid, tid, sig, true);
+    return do_kill_thread(cur->tgid, tgid, tid, sig, /*use_ipc=*/true);
 }

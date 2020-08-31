@@ -108,17 +108,17 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 
     switch (msgin->type) {
         case KILL_THREAD:
-            ret = do_kill_thread(msgin->sender, 0, msgin->id, msgin->signum, true);
+            ret = do_kill_thread(msgin->sender, 0, msgin->id, msgin->signum, /*use_ipc=*/true);
             break;
         case KILL_PROCESS:
-            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, true);
+            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
             break;
         case KILL_PGROUP:
-            ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum, true);
+            ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
             break;
         case KILL_ALL:
             broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, port);
-            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, false);
+            ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/false);
             break;
     }
     return ret;
