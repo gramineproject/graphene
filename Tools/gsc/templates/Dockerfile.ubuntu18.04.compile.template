@@ -1,0 +1,39 @@
+FROM ubuntu:18.04 AS graphene
+
+# Add steps here to set up dependencies
+RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
+    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        autoconf \
+        bison \
+        build-essential \
+        coreutils \
+        gawk \
+        git \
+        libcurl4-openssl-dev \
+        libprotobuf-c-dev \
+        protobuf-c-compiler \
+        python3-protobuf \
+        wget
+
+# Clone graphene
+RUN git clone {{Graphene.Repository}} /graphene
+
+# Init submodules
+RUN cd /graphene \
+    && git fetch origin {{Graphene.Branch}} \
+    && git checkout {{Graphene.Branch}} \
+    && git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
+
+# Create SGX driver for header files
+RUN cd /graphene/Pal/src/host/Linux-SGX/sgx-driver \
+    && git clone {{SGXDriver.Repository}} linux-sgx-driver \
+    && cd linux-sgx-driver \
+    && git checkout {{SGXDriver.Branch}}
+
+# Build Graphene-SGX
+RUN cd /graphene && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver \
+    make -s -j4 SGX=1 {% if debug %} DEBUG=1 {% endif %} WERROR=1 \
+    {% if linux %} && make -s -j4 WERROR=1 {% if debug %} DEBUG=1 {% endif %} {% else %} && true {%endif %}
+
+# Translate runtime symlinks to files
+RUN for f in $(find /graphene/Runtime -type l); do cp --remove-destination $(realpath $f) $f; done

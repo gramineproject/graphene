@@ -22,6 +22,7 @@ all: $(KEY_FILE) $(TESTS)
 		    -e 's/Branch: \"master\"/Branch: \"'$(GRAPHENE_BRANCH)'\"/' \
 			../config.yaml.template > ../config.yaml; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
+		$(MAKE) $(addprefix gsc-$${d}-, python3-base) || exit 1; \
 	done
 
 $(KEY_FILE):
@@ -66,6 +67,21 @@ gsc-%: %
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEY_FILE))
+	touch $@
+
+.PRECIOUS: graphene-%
+graphene-%:
+	echo "Building Graphene image $@..."
+	cd .. && ./gsc build-graphene -L $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $@)
+	touch $@
+
+.PRECIOUS: gsc-%-python3-base
+gsc-%-python3-base: %-python3 graphene-%
+	docker tag $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addsuffix $(IMAGE_SUFFIX), $*-python3-base)
+	printf "Distro: \"$*\"\nGraphene:\n   Image: \"graphene-$*$(IMAGE_SUFFIX)\"\n" > ../config-image.yaml
+	echo "Building graphenized image $@..."
+	cd .. && ./gsc build -L --insecure-args -c config-image.yaml $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3-base) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
+	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-python3-base) $(notdir $(KEY_FILE))
 	touch $@
 
 .PHONY: test
@@ -168,6 +184,9 @@ clean-base: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-, $(TESTS)))
 .PHONY: clean-gsc
 clean-gsc: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-gsc-, $(TESTS))) $(addsuffix $(IMAGE_SUFFIX)-unsigned, $(addprefix clean-image-gsc-, $(TESTS)))
 
+.PHONY: clean-gsc-base
+clean-gsc-base: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-graphene-, $(DISTRIBUTIONS)))  $(addsuffix -python3-base$(IMAGE_SUFFIX), $(addprefix clean-image-gsc-, $(DISTRIBUTIONS))) $(addsuffix -python3-base$(IMAGE_SUFFIX)-unsigned, $(addprefix clean-image-gsc-, $(DISTRIBUTIONS)))
+
 # Create a space to be used in subst
 space :=
 space +=
@@ -179,11 +198,15 @@ clean-containers:
 .PHONY: clean-files
 clean-files:
 	for d in $(DISTRIBUTIONS); do \
+		$(RM) -r ../graphene-$${d}$(IMAGE_SUFFIX); \
+		$(RM) graphene-$${d}; \
+		$(RM) -r ../gsc-$${d}-python3-base$(IMAGE_SUFFIX); \
+		$(RM) gsc-$${d}-python3-base $${d}-python3-base; \
 		for t in $(TESTCASES); do \
 			$(RM) -r ../gsc-$${d}-$${t}$(IMAGE_SUFFIX) || exit 1; \
-			$(RM) gsc-$${d}-$${t}$(IMAGE_SUFFIX) $${d}-$${t}$(IMAGE_SUFFIX); \
+			$(RM) gsc-$${d}-$${t} $${d}-$${t}; \
 		done \
 	done
 
 .PHONY: clean
-clean: clean-containers clean-base clean-gsc clean-files
+clean: clean-containers clean-base clean-gsc clean-gsc-base clean-files
