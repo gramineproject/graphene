@@ -1,46 +1,13 @@
-FROM ubuntu:18.04 AS graphene
+{% if not Graphene.Image %}
 
-# Add steps here to set up dependencies
-RUN env DEBIAN_FRONTEND=noninteractive apt-get update \
-    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        autoconf \
-        bison \
-        build-essential \
-        coreutils \
-        gawk \
-        git \
-        libcurl4-openssl-dev \
-        libprotobuf-c-dev \
-        protobuf-c-compiler \
-        python3-protobuf \
-        wget
+{% include "Dockerfile.ubuntu18.04.compile.template" %}
 
-# Clone graphene
-RUN git clone {{Graphene.Repository}} /graphene
+{% else %}
 
-# Init submodules
-RUN cd /graphene \
-    && git fetch origin {{Graphene.Branch}} \
-    && git checkout {{Graphene.Branch}} \
-    && git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
+# Include graphene via Docker image
+From {{Graphene.Image}} AS graphene
 
-# Create SGX driver for header files
-RUN cd /graphene/Pal/src/host/Linux-SGX/sgx-driver \
-    && git clone {{SGXDriver.Repository}} linux-sgx-driver \
-    && cd linux-sgx-driver \
-    && git checkout {{SGXDriver.Branch}}
-
-# Build Graphene-SGX
-RUN cd /graphene && ISGX_DRIVER_PATH=/graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver \
-    make -s -j4 SGX=1 {% if debug %} DEBUG=1 {% endif %} WERROR=1 \
-    {% if linux %} && make -s -j4 WERROR=1 {% if debug %} DEBUG=1 {% endif %} {% else %} && true {%endif %}
-
-# Translate runtime symlinks to files
-RUN for f in $(find /graphene/Runtime -type l); do cp --remove-destination $(realpath $f) $f; done
-
-# Finished building Graphene
-
-{% if not graphene %}
+{% endif %}
 
 # Integrate Graphene into the app image
 # This file is used in a multistage docker build process, in which the previous image is named "graphene"
@@ -102,5 +69,3 @@ RUN chmod u+x apploader.sh \
 # Define default command
 ENTRYPOINT ["/bin/sh", "./apploader.sh"]
 CMD [{% if insecure_args %} "{{'", "'.join(cmd)}}" {% endif %}]
-
-{% endif %}
