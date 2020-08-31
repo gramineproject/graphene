@@ -21,6 +21,7 @@ def generate_trusted_files(root_dir):
                                 r'boot/.*'
                                 r'|dev/.*'
                                 r'|etc/rc(\d|.)\.d/.*'
+                                r'|graphene/signer/.*'
                                 r'|proc/.*'
                                 r'|sys/.*'
                                 r'|var/.*)'
