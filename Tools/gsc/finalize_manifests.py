@@ -18,10 +18,10 @@ def generate_trusted_files(root_dir):
     cwd = os.getcwd() if os.getcwd() != '/' else ''
     # Exclude files and paths from list of trusted files
     excluded_paths_regex = (r'^/('
-                                r'|graphene/signer/.*'
                                 r'boot/.*'
                                 r'|dev/.*'
                                 r'|etc/rc(\d|.)\.d/.*'
+                                r'|graphene/signer/.*'
                                 r'|proc/.*'
                                 r'|sys/.*'
                                 r'|var/.*)'
