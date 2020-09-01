@@ -65,10 +65,6 @@ fs.mount.lib3.type = chroot
 fs.mount.lib3.path = /usr$(ARCH_LIBDIR)
 fs.mount.lib3.uri = file:/usr$(ARCH_LIBDIR)
 
-fs.mount.lib64.type = chroot
-fs.mount.lib64.path = /lib64
-fs.mount.lib64.uri = file:/lib64
-
 # Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
 # into in-Graphene visible directory /etc (in 'path').
 fs.mount.etc.type = chroot
@@ -92,13 +88,13 @@ fs.mount.tmp.uri = file:/tmp
 
 # Set enclave size (somewhat arbitrarily) to $(G_SGX_SIZE). Recall that SGX v1 requires
 # to specify enclave size at enclave creation time. If Java exhausts these
-# 8G then it will start failing with random errors. Greater enclave sizes
+# $(G_SGX_SIZE) then it will start failing with random errors. Greater enclave sizes
 # result in longer startup times, smaller enclave sizes are not enough for
 # typical Java workloads.
 sgx.enclave_size = $(G_SGX_SIZE)
 
-# Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
-# that SGX v1 requires to specify the maximum number of simulteneous threads at
+# Set maximum number of in-enclave threads (somewhat arbitrarily) to $(G_SGX_THREAD_NUM).
+# Recall that SGX v1 requires to specify the maximum number of simulteneous threads at
 # enclave creation time.
 sgx.thread_num = $(G_SGX_THREAD_NUM)
 

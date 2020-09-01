@@ -45,7 +45,7 @@ make G_JAVA_XMX = <Java maximum heap size> # default: 2G
 make G_SGX_SIZE = <GSGX enclave capacity> # default: 8G
 
 # Specify the Graphene SGX maximum number of thread
-make G_SGX_THREAD_NUM = <GSGX maximum number of thread> # default: 256
+make G_SGX_THREAD_NUM = <GSGX maximum number of threads> # default: 256
 ```
 
 # Cleaning up

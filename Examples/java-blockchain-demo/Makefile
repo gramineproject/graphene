@@ -62,9 +62,12 @@ $(WL_TARGET):
 	$(GRAPHENEDIR)/Scripts/download --output $(WL_PKG_NAME) \
 		--sha256 $(WL_PKG_SHA256) \
 		--url https://github.com/bigdata-memory/java-examples/tarball/v$(WL_PKG_VERSION)
-	mkdir $(WL_DIR) && tar -C $(WL_DIR) --strip-components=1 -xf $(WL_PKG_NAME) && \
-		cd $(WL_DIR)/block-chain && gradle fatjar && \
-		cp build/libs/block-chain-all-$(WL_PKG_VERSION).jar .. && cd -
+	mkdir $(WL_DIR) && \
+		tar -C $(WL_DIR) --strip-components=1 -xf $(WL_PKG_NAME) && \
+		cd $(WL_DIR)/block-chain && \
+		gradle fatjar && \
+		cp build/libs/block-chain-all-$(WL_PKG_VERSION).jar .. && \
+		cd -
 
 ################### JAVA BLOCK CHAIN DEMO MANIFEST ###############################
 
@@ -83,8 +86,8 @@ java.manifest: java.manifest.template $(WL_TARGET)
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This
-# procedure measures all JVM dependencies (shared libraries and trusted
-# files), measures JVM code/data pages, and adds measurements in the
+# procedure measures all Java dependencies (shared libraries and trusted
+# files), measures Java code/data pages, and adds measurements in the
 # resulting manifest.sgx file (among other, less important SGX options).
 #
 # Additionally, Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see
