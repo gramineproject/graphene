@@ -570,10 +570,9 @@ BEGIN_CP_FUNC(mount) {
         *new_mount = *mount;
 
         if (mount->cpdata) {
-            struct shim_mem_entry* entry;
-            DO_CP_SIZE(memory, mount->cpdata, mount->cpsize, &entry);
-            new_mount->cpdata = NULL;
-            entry->paddr = &new_mount->cpdata;
+            size_t cp_off = ADD_CP_OFFSET(mount->cpsize);
+            memcpy((char*)base + cp_off, mount->cpdata, mount->cpsize);
+            new_mount->cpdata = (char*)base + cp_off;
         }
 
         new_mount->data        = NULL;
