@@ -558,7 +558,7 @@ static int renew_ipc_subrange(IDTYPE idx, LEASETYPE* lease) {
     return 0;
 }
 
-IDTYPE allocate_ipc(IDTYPE min, IDTYPE max) {
+IDTYPE allocate_ipc_id(IDTYPE min, IDTYPE max) {
     IDTYPE idx = min;
     struct range* r;
     lock(&range_map_lock);
@@ -603,7 +603,7 @@ out:
     return idx;
 }
 
-void release_ipc(IDTYPE idx) {
+void release_ipc_id(IDTYPE idx) {
     IDTYPE off  = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
 
@@ -676,7 +676,7 @@ static void __discover_ns(bool block, bool need_locate) {
                 if (info) {
                     put_ipc_info(cur_process.ns);
                     cur_process.ns = info;
-                    add_ipc_port(info->port, 0, IPC_PORT_CLT, &ipc_leader_exit);
+                    add_ipc_port(info->port, 0, IPC_PORT_CLIENT, &ipc_leader_exit);
                 }
             }
             goto out;
@@ -722,7 +722,7 @@ static void __discover_ns(bool block, bool need_locate) {
         goto out;
 
     // Finally, set the IPC port as a leadership port
-    add_ipc_port(cur_process.ns->port, 0, IPC_PORT_CLT, &ipc_leader_exit);
+    add_ipc_port(cur_process.ns->port, 0, IPC_PORT_CLIENT, &ipc_leader_exit);
 
 out:
     if (cur_process.ns && !ipc_pending) {
@@ -766,7 +766,7 @@ int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr) {
             return -PAL_ERRNO();
         }
 
-        add_ipc_port_by_id(cur_process.ns->vmid, pal_handle, IPC_PORT_LDR | IPC_PORT_LISTEN,
+        add_ipc_port_by_id(cur_process.ns->vmid, pal_handle, IPC_PORT_LEADER | IPC_PORT_LISTEN,
                            &ipc_leader_exit, &cur_process.ns->port);
     }
 
@@ -791,7 +791,7 @@ static int disconnect_ns(struct shim_ipc_port * port)
         put_ipc_port(port);
     }
     unlock(&cur_process.lock);
-    del_ipc_port(port, IPC_PORT_LDR);
+    del_ipc_port(port, IPC_PORT_LEADER);
     return 0;
 }
 #endif
@@ -1010,7 +1010,7 @@ int ipc_lease_send(LEASETYPE* lease) {
         goto out;
     }
 
-    int len = self->uri.len;
+    size_t len = self->uri.len;
     size_t total_msg_size = get_ipc_msg_with_ack_size(len + sizeof(struct shim_ipc_lease));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
     init_ipc_msg_with_ack(msg, IPC_LEASE, total_msg_size, leader);
@@ -1174,7 +1174,7 @@ int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lea
         goto out;
     }
 
-    int len = strlen(uri);
+    size_t len = strlen(uri);
     size_t total_msg_size = get_ipc_msg_with_ack_size(len + sizeof(struct shim_ipc_sublease));
     struct shim_ipc_msg_with_ack* msg = __alloca(total_msg_size);
     init_ipc_msg_with_ack(msg, IPC_SUBLEASE, total_msg_size, leader);
@@ -1262,7 +1262,7 @@ int ipc_query_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     ans.size                    = range.size;
     ans.lease                   = range.lease;
     ans.owner_offset            = 0;
-    int ownerdatasz             = sizeof(struct ipc_ns_client) + range.uri.len;
+    size_t ownerdatasz          = sizeof(struct ipc_ns_client) + range.uri.len;
     struct ipc_ns_client* owner = __alloca(ownerdatasz);
     owner->vmid                 = range.owner;
     assert(!qstrempty(&range.uri));
@@ -1305,17 +1305,17 @@ int ipc_queryall_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 
     lock(&range_map_lock);
 
-    int maxanswers = nowned + noffered + nsubed;
-    int nanswers = 0, nowners = 0, i;
+    size_t maxanswers = nowned + noffered + nsubed;
+    size_t answers_cnt = 0, owners_cnt = 0, i;
     struct ipc_ns_offered* answers   = __alloca(sizeof(struct ipc_ns_offered) * maxanswers);
     struct ipc_ns_client** ownerdata = __alloca(sizeof(struct ipc_ns_client*) * maxanswers);
-    int* ownerdatasz                 = __alloca(sizeof(int) * maxanswers);
-    int owner_offset                 = 0;
+    size_t* ownerdatasz              = __alloca(sizeof(size_t) * maxanswers);
+    size_t owner_offset              = 0;
 
 retry:
     LISTP_FOR_EACH_ENTRY(r, list, list) {
         struct shim_ipc_info* p     = r->owner;
-        int datasz                  = sizeof(struct ipc_ns_client) + p->uri.len;
+        size_t datasz               = sizeof(struct ipc_ns_client) + p->uri.len;
         struct ipc_ns_client* owner = __alloca(datasz);
 
         assert(!qstrempty(&p->uri));
@@ -1323,15 +1323,15 @@ retry:
         memcpy(owner->uri, qstrgetstr(&p->uri), p->uri.len + 1);
 
         IDTYPE base                    = r->offset * RANGE_SIZE + 1;
-        answers[nanswers].base         = base;
-        answers[nanswers].size         = RANGE_SIZE;
-        answers[nanswers].lease        = r->lease;
-        answers[nanswers].owner_offset = owner_offset;
-        nanswers++;
+        answers[answers_cnt].base         = base;
+        answers[answers_cnt].size         = RANGE_SIZE;
+        answers[answers_cnt].lease        = r->lease;
+        answers[answers_cnt].owner_offset = owner_offset;
+        answers_cnt++;
 
-        ownerdata[nowners]   = owner;
-        ownerdatasz[nowners] = datasz;
-        nowners++;
+        ownerdata[owners_cnt]   = owner;
+        ownerdatasz[owners_cnt] = datasz;
+        owners_cnt++;
 
         owner_offset += datasz;
 
@@ -1351,15 +1351,15 @@ retry:
             owner->vmid = p->vmid;
             memcpy(owner->uri, qstrgetstr(&p->uri), p->uri.len + 1);
 
-            answers[nanswers].base         = base + i;
-            answers[nanswers].size         = 1;
-            answers[nanswers].lease        = s->lease;
-            answers[nanswers].owner_offset = owner_offset;
-            nanswers++;
+            answers[answers_cnt].base         = base + i;
+            answers[answers_cnt].size         = 1;
+            answers[answers_cnt].lease        = s->lease;
+            answers[answers_cnt].owner_offset = owner_offset;
+            answers_cnt++;
 
-            ownerdata[nowners]   = owner;
-            ownerdatasz[nowners] = datasz;
-            nowners++;
+            ownerdata[owners_cnt]   = owner;
+            ownerdatasz[owners_cnt] = datasz;
+            owners_cnt++;
 
             owner_offset += datasz;
         }
@@ -1372,18 +1372,18 @@ retry:
 
     unlock(&range_map_lock);
 
-    ret = ipc_answer_send(port, msg->src, nanswers, answers, nowners, ownerdata, ownerdatasz,
+    ret = ipc_answer_send(port, msg->src, answers_cnt, answers, owners_cnt, ownerdata, ownerdatasz,
                           msg->seq);
 
     return ret;
 }
 
-int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
-                    struct ipc_ns_offered* answers, int nowners, struct ipc_ns_client** ownerdata,
-                    int* ownerdatasz, unsigned long seq) {
-    int owner_offset = sizeof(struct shim_ipc_answer) + sizeof(struct ipc_ns_offered) * nanswers;
-    int total_ownerdatasz = 0;
-    for (int i = 0; i < nowners; i++) {
+int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, size_t answers_cnt,
+                    struct ipc_ns_offered* answers, size_t owners_cnt,
+                    struct ipc_ns_client** ownerdata, size_t* ownerdatasz, unsigned long seq) {
+    size_t owner_offset = sizeof(struct shim_ipc_answer) + sizeof(struct ipc_ns_offered) * answers_cnt;
+    size_t total_ownerdatasz = 0;
+    for (size_t i = 0; i < owners_cnt; i++) {
         total_ownerdatasz += ownerdatasz[i];
     }
 
@@ -1392,20 +1392,20 @@ int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
     init_ipc_msg(msg, IPC_ANSWER, total_msg_size, dest);
 
     struct shim_ipc_answer* msgin = (void*)&msg->msg;
-    msgin->nanswers = nanswers;
-    for (int i = 0; i < nanswers; i++) {
+    msgin->answers_cnt = answers_cnt;
+    for (size_t i = 0; i < answers_cnt; i++) {
         msgin->answers[i] = answers[i];
         msgin->answers[i].owner_offset += owner_offset;
     }
-    for (int i = 0; i < nowners; i++) {
+    for (size_t i = 0; i < owners_cnt; i++) {
         memcpy((void*)msgin + owner_offset, ownerdata[i], ownerdatasz[i]);
         owner_offset += ownerdatasz[i];
     }
     msg->seq = seq;
 
-    if (nanswers == 1)
+    if (answers_cnt == 1)
         debug("ipc send to %u: IPC_ANSWER([%u, %u])\n", dest, answers[0].base, answers[0].size);
-    else if (nanswers)
+    else if (answers_cnt)
         debug("ipc send to %u: IPC_ANSWER([%u, %u], ...)\n", dest, answers[0].base,
               answers[0].size);
 
@@ -1415,14 +1415,14 @@ int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
 int ipc_answer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_answer* msgin = (void*)&msg->msg;
 
-    if (msgin->nanswers == 1)
+    if (msgin->answers_cnt == 1)
         debug("ipc callback from %u: IPC_ANSWER([%u, %u])\n", msg->src,
               msgin->answers[0].base, msgin->answers[0].size);
-    else if (msgin->nanswers)
+    else if (msgin->answers_cnt)
         debug("ipc callback from %u: IPC_ANSWER([%u, %u], ...)\n", msg->src,
               msgin->answers[0].base, msgin->answers[0].size);
 
-    for (int i = 0; i < msgin->nanswers; i++) {
+    for (size_t i = 0; i < msgin->answers_cnt; i++) {
         struct ipc_ns_offered* ans  = &msgin->answers[i];
         struct ipc_ns_client* owner = (void*)msgin + ans->owner_offset;
 
@@ -1446,14 +1446,16 @@ int ipc_answer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
 }
 
 int get_all_pid_status(struct pid_status** status) {
+    assert(status);
+
     /* run queryall unconditionally */
     ipc_queryall_send();
 
-    int bufsize                   = RANGE_SIZE;
-    struct pid_status* status_buf = malloc(bufsize);
-    int nstatus                   = 0;
+    size_t statuses_cnt = 0;
+    size_t bufsize      = RANGE_SIZE;
 
-    if (!bufsize)
+    struct pid_status* status_buf = malloc(bufsize);
+    if (!status_buf)
         return -ENOMEM;
 
     LISTP_TYPE(range)* list = &offered_ranges;
@@ -1554,10 +1556,10 @@ retry:
                                      &range_status);
 
         if (ret > 0) {
-            if (nstatus + ret > bufsize) {
-                int newsize = bufsize * 2;
+            if (statuses_cnt + ret > bufsize) {
+                size_t newsize = bufsize * 2;
 
-                while (nstatus + ret > newsize)
+                while (statuses_cnt + ret > newsize)
                     newsize *= 2;
 
                 struct pid_status* new_buf = malloc(newsize);
@@ -1569,16 +1571,16 @@ retry:
                     return -ENOMEM;
                 }
 
-                memcpy(new_buf, status_buf, sizeof(struct pid_status) * nstatus);
+                memcpy(new_buf, status_buf, sizeof(struct pid_status) * statuses_cnt);
 
                 free(status_buf);
                 status_buf = new_buf;
                 bufsize    = newsize;
             }
 
-            memcpy(status_buf + nstatus, range_status, sizeof(struct pid_status) * ret);
+            memcpy(status_buf + statuses_cnt, range_status, sizeof(struct pid_status) * ret);
             free(range_status);
-            nstatus += ret;
+            statuses_cnt += ret;
         }
 
         idx++;
@@ -1592,16 +1594,19 @@ retry:
 
     unlock(&range_map_lock);
 
-    if (!nstatus) {
+    if (!statuses_cnt) {
         free(status_buf);
+        *status = NULL;
         return 0;
     }
 
     *status = status_buf;
-    return nstatus;
+    return statuses_cnt;
 }
 
 int sysv_add_key(struct sysv_key* key, IDTYPE id) {
+    assert(key);
+
     LISTP_TYPE(key)* head = &key_map[KEY_HASH(key) & KEY_HASH_MASK];
     struct key* k;
     int ret = -EEXIST;
@@ -1609,7 +1614,7 @@ int sysv_add_key(struct sysv_key* key, IDTYPE id) {
     lock(&range_map_lock);
 
     LISTP_FOR_EACH_ENTRY(k, head, hlist) {
-        if (!KEY_COMP(&k->key, key))
+        if (KEY_IS_EQUAL(&k->key, key))
             goto out;
     }
 
@@ -1632,6 +1637,8 @@ out:
 }
 
 int sysv_get_key(struct sysv_key* key, bool delete) {
+    assert(key);
+
     LISTP_TYPE(key)* head = &key_map[KEY_HASH(key) & KEY_HASH_MASK];
     struct key* k;
     int id = -ENOENT;
@@ -1639,7 +1646,7 @@ int sysv_get_key(struct sysv_key* key, bool delete) {
     lock(&range_map_lock);
 
     LISTP_FOR_EACH_ENTRY(k, head, hlist) {
-        if (!KEY_COMP(&k->key, key)) {
+        if (KEY_IS_EQUAL(&k->key, key)) {
             id = k->id;
             if (delete) {
                 LISTP_DEL(k, head, hlist);

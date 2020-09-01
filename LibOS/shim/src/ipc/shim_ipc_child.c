@@ -84,10 +84,9 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
         vmid & 0xFFFF, exited_threads_cnt);
 }
 
-/* The exiting thread of this process calls this function to broadcast
- * IPC_CLD_EXIT notification to its parent process (technically, to all
- * processes of type DIRPRT or DIRCLD but the only interesting case is
- * the notification of parent). */
+/* The exiting thread of this process calls this function to broadcast IPC_CLD_EXIT notification to
+ * its parent process (technically, to all processes of type DIRECTPARENT or DIRECTCHILD but the
+ * only interesting case is the notification of parent). */
 int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal) {
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -101,7 +100,7 @@ int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned i
 
     debug("IPC broadcast: IPC_CLD_EXIT(%u, %u, %d, %u)\n", ppid, tid, exitcode, term_signal);
 
-    int ret = broadcast_ipc(msg, IPC_PORT_DIRPRT | IPC_PORT_DIRCLD,
+    int ret = broadcast_ipc(msg, IPC_PORT_DIRECTPARENT | IPC_PORT_DIRECTCHILD,
                             /*exclude_port=*/NULL);
     return ret;
 }

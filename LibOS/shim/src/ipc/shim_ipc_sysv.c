@@ -65,11 +65,9 @@ int ipc_sysv_findkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* po
 
     ret = sysv_get_key(&msgin->key, false);
     if (ret < 0)
-        goto out;
+        return ret;
 
-    ret = ipc_sysv_tellkey_send(port, msg->src, &msgin->key, ret, msg->seq);
-out:
-    return ret;
+    return ipc_sysv_tellkey_send(port, msg->src, &msgin->key, ret, msg->seq);
 }
 
 int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_key* key, IDTYPE id,

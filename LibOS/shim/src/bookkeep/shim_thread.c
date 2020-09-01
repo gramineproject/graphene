@@ -100,11 +100,11 @@ static IDTYPE get_pid(void) {
     lock(&thread_list_lock);
     while (1) {
         IDTYPE new_idx_hint = READ_ONCE(tid_alloc_idx) + 1;
-        idx = allocate_ipc(new_idx_hint, 0);
+        idx = allocate_ipc_id(new_idx_hint, 0);
         if (idx) {
             break;
         }
-        idx = allocate_ipc(1, new_idx_hint);
+        idx = allocate_ipc_id(1, new_idx_hint);
         if (idx) {
             break;
         }
@@ -179,7 +179,7 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
     struct shim_thread * thread = alloc_new_thread();
     if (!thread) {
-        release_ipc(new_tid);
+        release_ipc_id(new_tid);
         return NULL;
     }
 
@@ -266,7 +266,7 @@ out_error:
     if (thread->exec) {
         put_handle(thread->exec);
     }
-    release_ipc(new_tid);
+    release_ipc_id(new_tid);
     free(thread);
     return NULL;
 }
@@ -349,7 +349,7 @@ void put_thread(struct shim_thread* thread) {
             put_handle(thread->exec);
 
         if (!is_internal(thread))
-            release_ipc(thread->tid);
+            release_ipc_id(thread->tid);
 
         if (lock_created(&thread->lock)) {
             destroy_lock(&thread->lock);

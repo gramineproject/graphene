@@ -54,7 +54,7 @@ int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
 int shim_do_fork(void) {
     int ret = 0;
 
-    if ((ret = prepare_ns_leaders()) < 0)
+    if ((ret = prepare_ipc_leader()) < 0)
         return ret;
 
     struct shim_thread* cur_thread = get_cur_thread();

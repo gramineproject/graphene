@@ -271,14 +271,14 @@ int shim_do_msgget(key_t key, int msgflg) {
 
     if (msgflg & IPC_CREAT) {
         do {
-            msgid = allocate_ipc(0, 0);
+            msgid = allocate_ipc_id(0, 0);
             if (!msgid)
                 ipc_lease_send(NULL);
         } while (!msgid);
 
         if (key != IPC_PRIVATE) {
             if ((ret = ipc_sysv_tellkey_send(NULL, 0, &k, msgid, 0)) < 0) {
-                release_ipc(msgid);
+                release_ipc_id(msgid);
                 return ret;
             }
         }

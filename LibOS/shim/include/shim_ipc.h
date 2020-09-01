@@ -19,7 +19,7 @@
 #include <shim_thread.h>
 #include <shim_types.h>
 
-/* if callback return RESPONSE_CALLBACK, send a response even if the callback succeeded */
+/* if callback func returns RESPONSE_CALLBACK, send response msg even if callback succeeded */
 #define RESPONSE_CALLBACK 1
 
 #define RANGE_SIZE 32
@@ -30,28 +30,28 @@
 #define MAX_IPC_PORT_FINI_CB 3
 
 enum {
-    IPC_LISTEN,    /* listening */
-    IPC_SERVER,    /* connect as a server */
-    IPC_KEEPALIVE, /* keep the connetion alive */
-    IPC_DIRCLD,    /* direct child */
-    IPC_DIRPRT,    /* direct parent */
-    IPC_CLT,       /* pid/sysv namespace client */
-    IPC_LDR,       /* pid/sysv namespace leader */
-    IPC_OWNER,     /* pid/sysv namespace owner */
-    IPC_CON,       /* pid/sysv namespace connection */
+    IPC_LISTEN,       /* listening */
+    IPC_SERVER,       /* connect as a server */
+    IPC_KEEPALIVE,    /* keep the connetion alive */
+    IPC_DIRECTCHILD,  /* direct child */
+    IPC_DIRECTPARENT, /* direct parent */
+    IPC_CLIENT,       /* pid/sysv namespace client */
+    IPC_LEADER,       /* pid/sysv namespace leader */
+    IPC_OWNER,        /* pid/sysv namespace owner */
+    IPC_CONNECTION,   /* pid/sysv namespace connection */
 };
 
 enum {
-    IPC_PORT_LISTEN    = 1 << IPC_LISTEN,
-    IPC_PORT_SERVER    = 1 << IPC_SERVER,
-    IPC_PORT_KEEPALIVE = 1 << IPC_KEEPALIVE,
-    IPC_PORT_DIRCLD    = 1 << IPC_DIRCLD,
-    IPC_PORT_DIRPRT    = 1 << IPC_DIRPRT,
+    IPC_PORT_LISTEN       = 1 << IPC_LISTEN,
+    IPC_PORT_SERVER       = 1 << IPC_SERVER,
+    IPC_PORT_KEEPALIVE    = 1 << IPC_KEEPALIVE,
+    IPC_PORT_DIRECTCHILD  = 1 << IPC_DIRECTCHILD,
+    IPC_PORT_DIRECTPARENT = 1 << IPC_DIRECTPARENT,
 
-    IPC_PORT_CLT    = 1 << IPC_CLT,
-    IPC_PORT_LDR    = 1 << IPC_LDR,
-    IPC_PORT_OWNER  = 1 << IPC_OWNER,
-    IPC_PORT_CON    = 1 << IPC_CON,
+    IPC_PORT_CLIENT       = 1 << IPC_CLIENT,
+    IPC_PORT_LEADER       = 1 << IPC_LEADER,
+    IPC_PORT_OWNER        = 1 << IPC_OWNER,
+    IPC_PORT_CONNECTION   = 1 << IPC_CONNECTION,
 };
 
 enum {
@@ -80,10 +80,8 @@ enum {
     IPC_SYSV_SEMOP,
     IPC_SYSV_SEMCTL,
     IPC_SYSV_SEMRET,
-    IPC_SYSV_BOUND,
+    IPC_CODE_NUM,
 };
-
-#define IPC_CODE_NUM IPC_SYSV_BOUND
 
 enum kill_type { KILL_THREAD, KILL_PROCESS, KILL_PGROUP, KILL_ALL };
 
@@ -152,15 +150,15 @@ struct shim_ipc_port {
 
 /* common functions for pid & sysv namespaces */
 int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri, LEASETYPE* lease);
-IDTYPE allocate_ipc(IDTYPE min, IDTYPE max);
-void release_ipc(IDTYPE idx);
+IDTYPE allocate_ipc_id(IDTYPE min, IDTYPE max);
+void release_ipc_id(IDTYPE idx);
 
 int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr);
 int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner);
 
 /* sysv namespace */
 #define KEY_HASH(k)      ((k)->key)
-#define KEY_COMP(k1, k2) ((k1)->key != (k2)->key || (k1)->type != (k2)->type)
+#define KEY_IS_EQUAL(k1, k2) ((k1)->key == (k2)->key && (k1)->type == (k2)->type)
 #define KEY_COPY(k1, k2)         \
     do {                         \
         (k1)->key  = (k2)->key;  \
@@ -184,7 +182,7 @@ struct ipc_ns_offered {
     IDTYPE base;
     IDTYPE size;
     LEASETYPE lease;
-    unsigned int owner_offset;
+    size_t owner_offset;
 } __attribute__((packed));
 
 struct ipc_ns_client {
@@ -202,11 +200,11 @@ struct shim_ipc_cld_exit {
 int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* FINDNS: find the channel of the namespace leader */
+/* FINDNS: find namespace leader (its IPC port) */
 int ipc_findns_send(bool block);
 int ipc_findns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* TELLNS: tell the channel of namespace leader */
+/* TELLNS: tell namespace leader (its IPC port) */
 struct shim_ipc_tellns {
     IDTYPE vmid;
     char uri[1];
@@ -216,7 +214,7 @@ int ipc_tellns_send(struct shim_ipc_port* port, IDTYPE dest, struct shim_ipc_inf
                     unsigned long seq);
 int ipc_tellns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* LEASE: lease a range of name */
+/* LEASE: lease a range of IDs */
 struct shim_ipc_lease {
     char uri[1];
 } __attribute__((packed));
@@ -224,7 +222,7 @@ struct shim_ipc_lease {
 int ipc_lease_send(LEASETYPE* lease);
 int ipc_lease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* OFFER: offer a range of name */
+/* OFFER: offer a range of IDs */
 struct shim_ipc_offer {
     IDTYPE base;
     IDTYPE size;
@@ -235,7 +233,7 @@ int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE 
                    LEASETYPE lease, unsigned long seq);
 int ipc_offer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* RENEW: renew lease of a range of name */
+/* RENEW: renew lease of a range of IDs */
 struct shim_ipc_renew {
     IDTYPE base;
     IDTYPE size;
@@ -244,7 +242,7 @@ struct shim_ipc_renew {
 int ipc_renew_send(IDTYPE base, IDTYPE size);
 int ipc_renew_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* SUBLEASE: lease a range of names */
+/* SUBLEASE: lease a range of IDs */
 struct shim_ipc_sublease {
     IDTYPE tenant;
     IDTYPE idx;
@@ -254,7 +252,7 @@ struct shim_ipc_sublease {
 int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lease);
 int ipc_sublease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* QUERY: query the channel of certain name */
+/* QUERY: query the IPC port for a certain ID */
 struct shim_ipc_query {
     IDTYPE idx;
 } __attribute__((packed));
@@ -262,19 +260,19 @@ struct shim_ipc_query {
 int ipc_query_send(IDTYPE idx);
 int ipc_query_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* QUERYALL: query the channel of all names */
+/* QUERYALL: query the IPC port for all IDs */
 int ipc_queryall_send(void);
 int ipc_queryall_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-/* ANSWER: answer the channel of certain names */
+/* ANSWER: reply to the query with my offered IDs */
 struct shim_ipc_answer {
-    int nanswers;
+    size_t answers_cnt;
     struct ipc_ns_offered answers[];
 } __attribute__((packed));
 
-int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
-                    struct ipc_ns_offered* answers, int nowners,
-                    struct ipc_ns_client** ownerdata, int* ownerdatasz, unsigned long seq);
+int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, size_t answers_cnt,
+                    struct ipc_ns_offered* answers, size_t owners_cnt,
+                    struct ipc_ns_client** ownerdata, size_t* ownerdatasz, unsigned long seq);
 int ipc_answer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* PID_KILL: send signal to certain pid */
@@ -488,7 +486,6 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
 struct shim_thread* terminate_ipc_helper(void);
 
 int prepare_ipc_leader(void);
-int prepare_ns_leaders(void);
 
 int init_ipc_ports(void);
 int init_ns_ranges(void);

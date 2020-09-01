@@ -719,7 +719,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
 
         /* listen on the new IPC port to the new child process */
         add_ipc_port_by_id(child_vmid, pal_process,
-                           IPC_PORT_DIRCLD | IPC_PORT_LISTEN | IPC_PORT_KEEPALIVE,
+                           IPC_PORT_DIRECTCHILD | IPC_PORT_LISTEN | IPC_PORT_KEEPALIVE,
                            &ipc_port_with_child_fini, NULL);
     }
 

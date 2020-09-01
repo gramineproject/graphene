@@ -46,37 +46,32 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 
 typedef int (*ipc_callback)(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
-static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
-    /* RESP             */ &ipc_resp_callback,
-
-    /* CLD_EXIT         */ &ipc_cld_exit_callback,
-
-    /* IPC_FINDNS       */ &ipc_findns_callback,
-    /* IPC_TELLNS       */ &ipc_tellns_callback,
-    /* IPC_LEASE        */ &ipc_lease_callback,
-    /* IPC_OFFER        */ &ipc_offer_callback,
-    /* IPC_RENEW        */ &ipc_renew_callback,
-    /* IPC_SUBLEASE     */ &ipc_sublease_callback,
-    /* IPC_QUERY        */ &ipc_query_callback,
-    /* IPC_QUERYALL     */ &ipc_queryall_callback,
-    /* IPC_ANSWER       */ &ipc_answer_callback,
-
-    /* PID_KILL         */ &ipc_pid_kill_callback,
-    /* PID_GETSTATUS    */ &ipc_pid_getstatus_callback,
-    /* PID_RETSTATUS    */ &ipc_pid_retstatus_callback,
-    /* PID_GETMETA      */ &ipc_pid_getmeta_callback,
-    /* PID_RETMETA      */ &ipc_pid_retmeta_callback,
-
-    /* SYSV_FINDKEY     */ &ipc_sysv_findkey_callback,
-    /* SYSV_TELLKEY     */ &ipc_sysv_tellkey_callback,
-
-    /* SYSV_DELRES      */ &ipc_sysv_delres_callback,
-    /* SYSV_MOVRES      */ &ipc_sysv_movres_callback,
-    /* SYSV_MSGSND      */ &ipc_sysv_msgsnd_callback,
-    /* SYSV_MSGRCV      */ &ipc_sysv_msgrcv_callback,
-    /* SYSV_SEMOP       */ &ipc_sysv_semop_callback,
-    /* SYSV_SEMCTL      */ &ipc_sysv_semctl_callback,
-    /* SYSV_SEMRET      */ &ipc_sysv_semret_callback,
+static ipc_callback ipc_callbacks[] = {
+    [IPC_RESP]          = &ipc_resp_callback,
+    [IPC_CLD_EXIT]      = &ipc_cld_exit_callback,
+    [IPC_FINDNS]        = &ipc_findns_callback,
+    [IPC_TELLNS]        = &ipc_tellns_callback,
+    [IPC_LEASE]         = &ipc_lease_callback,
+    [IPC_OFFER]         = &ipc_offer_callback,
+    [IPC_RENEW]         = &ipc_renew_callback,
+    [IPC_SUBLEASE]      = &ipc_sublease_callback,
+    [IPC_QUERY]         = &ipc_query_callback,
+    [IPC_QUERYALL]      = &ipc_queryall_callback,
+    [IPC_ANSWER]        = &ipc_answer_callback,
+    [IPC_PID_KILL]      = &ipc_pid_kill_callback,
+    [IPC_PID_GETSTATUS] = &ipc_pid_getstatus_callback,
+    [IPC_PID_RETSTATUS] = &ipc_pid_retstatus_callback,
+    [IPC_PID_GETMETA]   = &ipc_pid_getmeta_callback,
+    [IPC_PID_RETMETA]   = &ipc_pid_retmeta_callback,
+    [IPC_SYSV_FINDKEY]  = &ipc_sysv_findkey_callback,
+    [IPC_SYSV_TELLKEY]  = &ipc_sysv_tellkey_callback,
+    [IPC_SYSV_DELRES]   = &ipc_sysv_delres_callback,
+    [IPC_SYSV_MOVRES]   = &ipc_sysv_movres_callback,
+    [IPC_SYSV_MSGSND]   = &ipc_sysv_msgsnd_callback,
+    [IPC_SYSV_MSGRCV]   = &ipc_sysv_msgrcv_callback,
+    [IPC_SYSV_SEMOP]    = &ipc_sysv_semop_callback,
+    [IPC_SYSV_SEMCTL]   = &ipc_sysv_semctl_callback,
+    [IPC_SYSV_SEMRET]   = &ipc_sysv_semret_callback,
 };
 
 static int init_self_ipc_port(void) {
@@ -119,7 +114,7 @@ static int init_parent_ipc_port(void) {
     }
 
     add_ipc_port_by_id(cur_process.parent->vmid, cur_process.parent->pal_handle,
-                       IPC_PORT_DIRPRT | IPC_PORT_LISTEN,
+                       IPC_PORT_DIRECTPARENT | IPC_PORT_LISTEN,
                        /*fini=*/NULL, &cur_process.parent->port);
 
     unlock(&cur_process.lock);
@@ -150,7 +145,7 @@ static int init_ns_ipc_port(void) {
     }
 
     add_ipc_port_by_id(cur_process.ns->vmid, cur_process.ns->pal_handle,
-                       IPC_PORT_LDR | IPC_PORT_LISTEN,
+                       IPC_PORT_LEADER | IPC_PORT_LISTEN,
                        /*fini=*/NULL, &cur_process.ns->port);
 
     unlock(&cur_process.lock);

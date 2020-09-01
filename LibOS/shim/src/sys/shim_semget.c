@@ -232,14 +232,14 @@ int shim_do_semget(key_t key, int nsems, int semflg) {
 
     if (semflg & IPC_CREAT) {
         do {
-            semid = allocate_ipc(0, 0);
+            semid = allocate_ipc_id(0, 0);
             if (!semid)
                 semid = ipc_lease_send(NULL);
         } while (!semid);
 
         if (key != IPC_PRIVATE) {
             if ((ret = ipc_sysv_tellkey_send(NULL, 0, &k, semid, 0)) < 0) {
-                release_ipc(semid);
+                release_ipc_id(semid);
                 return ret;
             }
         }
@@ -701,7 +701,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
 
     if (client) {
         assert(sendreply);
-        add_ipc_port(client->port, client->vmid, IPC_PORT_CON, NULL);
+        add_ipc_port(client->port, client->vmid, IPC_PORT_CONNECTION, NULL);
         get_ipc_port(client->port);
         sem_ops->client = *client;
         sem_ops         = NULL;

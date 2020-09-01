@@ -66,10 +66,6 @@ int init_ipc(void) {
     return 0;
 }
 
-int prepare_ns_leaders(void) {
-    return prepare_ipc_leader();
-}
-
 static struct shim_ipc_info* __create_ipc_info(IDTYPE vmid, const char* uri, size_t len) {
     assert(locked(&ipc_info_lock));
 
