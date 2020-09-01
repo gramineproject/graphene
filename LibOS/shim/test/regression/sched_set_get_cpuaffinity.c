@@ -26,7 +26,7 @@ int main(int argc, const char** argv) {
     cpu_set_t set_cs, get_cs;
     size_t cpucnt = sysconf(_SC_NPROCESSORS_ONLN);
     if (cpucnt < 0) {
-        printf(" Failed to retrieve the number of cpu cores");
+        printf("Failed to retrieve the number of cpu cores\n");
         return 1;
     }
 
@@ -37,16 +37,16 @@ int main(int argc, const char** argv) {
         CPU_SET(i, &set_cs);
         ret = sched_setaffinity(0, sizeof(set_cs), &set_cs);
         if (ret < 0) {
-            printf(" Failed to set affinity for current thread, core id: %ld\n", i);
+            printf("Failed to set affinity for current thread, core id: %ld\n", i);
             return 1;
         }
         ret = sched_getaffinity(0, sizeof(get_cs), &get_cs);
         if (ret < 0) {
-            printf(" Failed to get affinity for current thread, core id: %ld\n", i);
+            printf("Failed to get affinity for current thread, core id: %ld\n", i);
             return 1;
         }
         if (!CPU_EQUAL_S(sizeof(set_cs), &set_cs, &get_cs)) {
-            printf(" The get cpu set is not equal to set on core id: %ld\n", i);
+            printf("The get cpu set is not equal to set on core id: %ld\n", i);
             return 1;
         }
     }
@@ -59,20 +59,20 @@ int main(int argc, const char** argv) {
         CPU_SET(1, &set_cs);
         ret = sched_setaffinity(0, sizeof(set_cs), &set_cs);
         if (ret < 0) {
-            printf(" Failed to set multiple affinity for current thread, core id: 0 & 1\n");
+            printf("Failed to set multiple affinity for current thread, core id: 0 & 1\n");
             return 1;
         }
         ret = sched_getaffinity(0, sizeof(get_cs), &get_cs);
         if (ret < 0) {
-            printf(" Failed to get multiple affinity for current thread, core id: 0 & 1\n");
+            printf("Failed to get multiple affinity for current thread, core id: 0 & 1\n");
             return 1;
         }
         if (!CPU_EQUAL_S(sizeof(set_cs), &set_cs, &get_cs)) {
-            printf(" The get cpu set is not equal to set on core id: 0 & 1\n");
+            printf("The get cpu set is not equal to set on core id: 0 & 1\n");
             return 1;
         }
     } else {
-        printf(" Multiple cpu affinity test skipped since only %ld identified \n", cpucnt);
+        printf("Multiple CPU affinity test skipped since only one core was identified\n");
     }
 
     printf("TEST OK: test completed successfully\n");

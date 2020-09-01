@@ -271,7 +271,7 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
     bool bypass_rpc = false;
 
     /* the cpu topology info must be retrieved in the context of current thread
-     * rather than rpc thread in case of exitless feature enabled here.
+     * rather than rpc thread in case exitless feature is enabled.
      */
     if (leaf == CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF ||
         leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
@@ -789,7 +789,7 @@ int ocall_resume_thread (void * tcs)
     return sgx_exitless_ocall(OCALL_RESUME_THREAD, tcs);
 }
 
-int ocall_sched_setaffinity (int tid, size_t cpu_mask_size, void* cpu_mask) {
+int ocall_sched_setaffinity(int tid, size_t cpu_mask_size, void* cpu_mask) {
     int retval = 0;
     ms_ocall_sched_setaffinity_t* ms;
 
@@ -813,10 +813,10 @@ int ocall_sched_setaffinity (int tid, size_t cpu_mask_size, void* cpu_mask) {
                         sgx_exitless_ocall(OCALL_SCHED_SETAFFINITY, ms);
 
     sgx_reset_ustack(old_ustack);
-    return retval;
+    return retval == 0 ? 0 : -PAL_ERROR_DENIED;
 }
 
-int ocall_sched_getaffinity (int tid, size_t cpu_mask_size, void* cpu_mask) {
+int ocall_sched_getaffinity(int tid, size_t cpu_mask_size, void* cpu_mask) {
     int retval = 0;
     ms_ocall_sched_getaffinity_t* ms;
 
@@ -845,7 +845,7 @@ int ocall_sched_getaffinity (int tid, size_t cpu_mask_size, void* cpu_mask) {
     }
 
     sgx_reset_ustack(old_ustack);
-    return retval;
+    return retval == (int)cpu_mask_size ? 0 : -PAL_ERROR_DENIED;
 }
 
 int ocall_clone_thread (void)
