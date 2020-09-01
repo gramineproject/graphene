@@ -630,8 +630,10 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
     int ret;
 
     size_t uri_len = strlen(uri);
-    if (uri_len >= URI_MAX)
+    if (uri_len >= URI_MAX) {
+        SGX_DBG(DBG_E, "Size of file exceeds maximum %dB: %s\n", URI_MAX, uri);
         return -PAL_ERROR_INVAL;
+    }
 
     if (check_duplicates) {
         /* this check is only done during runtime (when creating a new file) and not needed during
@@ -669,11 +671,13 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         }
         new->size = attr.pending_size;
 
+        assert(strlen(checksum_str) >= sizeof(sgx_checksum_t) * 2);
         for (size_t i = 0; i < sizeof(sgx_checksum_t); i++) {
             int8_t byte1 = hex2dec(checksum_str[i * 2]);
             int8_t byte2 = hex2dec(checksum_str[i * 2 + 1]);
 
             if (byte1 < 0 || byte2 < 0) {
+                SGX_DBG(DBG_E, "Could not parse checksum of file: %s\n", uri);
                 free(new);
                 return -PAL_ERROR_INVAL;
             }
