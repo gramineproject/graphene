@@ -492,7 +492,7 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
 
             size_t total_msg_size         = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
             struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-            init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, sops->client.vmid);
+            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, sops->client.vmid);
             resp_msg->seq = sops->client.seq;
 
             struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
@@ -652,7 +652,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
         if (client && sendreply) {
             size_t total_msg_size         = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
             struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
-            init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, client->vmid);
+            init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, client->vmid);
             resp_msg->seq = client->seq;
 
             struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;

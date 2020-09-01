@@ -55,32 +55,32 @@ enum {
 };
 
 enum {
-    IPC_RESP = 0,
-    IPC_CLD_EXIT,
-    IPC_FINDNS,
-    IPC_TELLNS,
-    IPC_LEASE,
-    IPC_OFFER,
-    IPC_RENEW,
-    IPC_SUBLEASE,
-    IPC_QUERY,
-    IPC_QUERYALL,
-    IPC_ANSWER,
-    IPC_PID_KILL,
-    IPC_PID_GETSTATUS,
-    IPC_PID_RETSTATUS,
-    IPC_PID_GETMETA,
-    IPC_PID_RETMETA,
-    IPC_SYSV_FINDKEY,
-    IPC_SYSV_TELLKEY,
-    IPC_SYSV_DELRES,
-    IPC_SYSV_MOVRES,
-    IPC_SYSV_MSGSND,
-    IPC_SYSV_MSGRCV,
-    IPC_SYSV_SEMOP,
-    IPC_SYSV_SEMCTL,
-    IPC_SYSV_SEMRET,
-    IPC_CODE_NUM,
+    IPC_MSG_RESP = 0,
+    IPC_MSG_CHILDEXIT,
+    IPC_MSG_FINDNS,
+    IPC_MSG_TELLNS,
+    IPC_MSG_LEASE,
+    IPC_MSG_OFFER,
+    IPC_MSG_RENEW,
+    IPC_MSG_SUBLEASE,
+    IPC_MSG_QUERY,
+    IPC_MSG_QUERYALL,
+    IPC_MSG_ANSWER,
+    IPC_MSG_PID_KILL,
+    IPC_MSG_PID_GETSTATUS,
+    IPC_MSG_PID_RETSTATUS,
+    IPC_MSG_PID_GETMETA,
+    IPC_MSG_PID_RETMETA,
+    IPC_MSG_SYSV_FINDKEY,
+    IPC_MSG_SYSV_TELLKEY,
+    IPC_MSG_SYSV_DELRES,
+    IPC_MSG_SYSV_MOVRES,
+    IPC_MSG_SYSV_MSGSND,
+    IPC_MSG_SYSV_MSGRCV,
+    IPC_MSG_SYSV_SEMOP,
+    IPC_MSG_SYSV_SEMCTL,
+    IPC_MSG_SYSV_SEMRET,
+    IPC_MSG_CODE_BOUND,
 };
 
 enum kill_type { KILL_THREAD, KILL_PROCESS, KILL_PGROUP, KILL_ALL };
@@ -157,14 +157,6 @@ int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr);
 int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner);
 
 /* sysv namespace */
-#define KEY_HASH(k)      ((k)->key)
-#define KEY_IS_EQUAL(k1, k2) ((k1)->key == (k2)->key && (k1)->type == (k2)->type)
-#define KEY_COPY(k1, k2)         \
-    do {                         \
-        (k1)->key  = (k2)->key;  \
-        (k1)->type = (k2)->type; \
-    } while (0)
-
 struct sysv_key {
     unsigned long key;
     enum sysv_type type;
