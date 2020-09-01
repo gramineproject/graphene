@@ -270,7 +270,9 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
     int retval = 0;
     bool bypass_rpc = false;
 
-    /* the cpu topology info retrieved in current thread rather than rpc thread */
+    /* the cpu topology info must be retrieved in the context of current thread
+     * rather than rpc thread in case of exitless feature enabled here.
+     */
     if (leaf == CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF ||
         leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
         bypass_rpc = true;
