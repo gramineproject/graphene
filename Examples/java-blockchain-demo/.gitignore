@@ -1,10 +1,10 @@
-*.war
 *.jar
-*~
 *.manifest
 *.manifest.sgx
 *.sig
 *.token
-pal_loader
+*.war
 *_demo
+*~
+pal_loader
 test/

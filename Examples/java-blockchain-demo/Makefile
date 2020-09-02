@@ -67,7 +67,6 @@ $(WL_TARGET):
 		cd $(WL_DIR)/block-chain && \
 		gradle fatjar && \
 		cp build/libs/block-chain-all-$(WL_PKG_VERSION).jar .. && \
-		cd -
 
 ################### JAVA BLOCK CHAIN DEMO MANIFEST ###############################
 
