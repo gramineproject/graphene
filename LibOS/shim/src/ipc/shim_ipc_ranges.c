@@ -1626,7 +1626,7 @@ int sysv_add_key(struct sysv_key* key, IDTYPE id) {
 
     k->key.key  = key->key;
     k->key.type = key->type;
-    k->id        = id;
+    k->id       = id;
     INIT_LIST_HEAD(k, hlist);
     LISTP_ADD(k, head, hlist);
 
