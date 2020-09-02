@@ -568,22 +568,6 @@ static void* cp_alloc(void* addr, size_t size) {
     return addr;
 }
 
-/*
-static void reverse_mem_entries(struct shim_cp_store* store) {
-    struct shim_mem_entry* entry = store->first_mem_entry;
-    struct shim_mem_entry* prev = NULL;
-
-    while (entry) {
-        struct shim_mem_entry* tmp = entry->next;
-        entry->next = prev;
-        prev = entry;
-        entry = tmp;
-    }
-
-    store->first_mem_entry = prev;
-}
-*/
-
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
                                        struct shim_thread* thread, ...) {
     int ret = 0;
@@ -647,7 +631,6 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     hdr.size = cpstore.offset;
 
     if (cpstore.mem_entries_cnt) {
-        //reverse_mem_entries(&cpstore);
         hdr.mem_offset      = (uintptr_t)cpstore.first_mem_entry - cpstore.base;
         hdr.mem_entries_cnt = cpstore.mem_entries_cnt;
     }
