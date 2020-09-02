@@ -293,24 +293,46 @@ BEGIN_RS_FUNC(qstr) {
 }
 END_RS_FUNC(qstr)
 
-static int send_checkpoint_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
-    int ret = 0;
-
-    /* first send non-memory entries found at [store->base, store->base + store->offset) */
-    size_t total_bytes = store->offset;
+static int read_exact(PAL_HANDLE handle, void* buf, size_t size) {
     size_t bytes = 0;
-    PAL_NUM written;
 
-    do {
-        written = DkStreamWrite(stream, 0, total_bytes - bytes, (void*)store->base + bytes, NULL);
-        if (written == PAL_STREAM_ERROR) {
-            if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
+    while (bytes < size) {
+        PAL_NUM x = DkStreamRead(handle, 0, size - bytes, (char*)buf + bytes, NULL, 0);
+        if (x == PAL_STREAM_ERROR) {
+            int err = PAL_ERRNO();
+            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
                 continue;
-            ret = -PAL_ERRNO();
-            goto out;
+            }
+            return -err;
         }
-        bytes += written;
-    } while (bytes < total_bytes);
+
+        bytes += x;
+    }
+
+    return 0;
+}
+
+static int write_exact(PAL_HANDLE handle, void* buf, size_t size) {
+    size_t bytes = 0;
+
+    while (bytes < size) {
+        PAL_NUM x = DkStreamWrite(handle, 0, size - bytes, (char*)buf + bytes, NULL);
+        if (x == PAL_STREAM_ERROR) {
+            int err = PAL_ERRNO();
+            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+                continue;
+            }
+            return -err;
+        }
+
+        bytes += x;
+    }
+
+    return 0;
+}
+
+static int send_memory_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
+    int ret = 0;
 
     struct shim_mem_entry* entry = store->first_mem_entry;
     while (entry) {
@@ -321,23 +343,11 @@ static int send_checkpoint_on_stream(PAL_HANDLE stream, struct shim_cp_store* st
         if (!(mem_prot & PAL_PROT_READ) && mem_size > 0) {
             /* make the area readable */
             if (!DkVirtualMemoryProtect(mem_addr, mem_size, mem_prot | PAL_PROT_READ)) {
-                ret = -PAL_ERRNO();
-                goto out;
+                return -PAL_ERRNO();
             }
         }
 
-        bytes = 0;
-        do {
-            written = DkStreamWrite(stream, 0, mem_size - bytes, mem_addr + bytes, NULL);
-            if (written == PAL_STREAM_ERROR) {
-                if (PAL_ERRNO() == EINTR || PAL_ERRNO() == EAGAIN || PAL_ERRNO() == EWOULDBLOCK)
-                    continue;
-                ret = -PAL_ERRNO();
-                break;
-            }
-
-            bytes += written;
-        } while (bytes < mem_size);
+        ret = write_exact(stream, mem_addr, mem_size);
 
         if (!(mem_prot & PAL_PROT_READ) && mem_size > 0) {
             /* the area was made readable above; revert to original permissions */
@@ -347,15 +357,24 @@ static int send_checkpoint_on_stream(PAL_HANDLE stream, struct shim_cp_store* st
             }
         }
 
-        if (ret < 0)
-            goto out;
+        if (ret < 0) {
+            return ret;
+        }
 
         entry = entry->next;
     }
 
-    ret = 0;
-out:
-    return ret;
+    return 0;
+}
+
+static int send_checkpoint_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
+    /* first send non-memory entries found at [store->base, store->base + store->offset) */
+    int ret = write_exact(stream, (void*)store->base, store->offset);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return send_memory_on_stream(stream, store);
 }
 
 static int send_handles_on_stream(PAL_HANDLE stream, struct shim_cp_store* store) {
@@ -393,26 +412,7 @@ out:
     return ret;
 }
 
-static int read_exact(PAL_HANDLE handle, void* buf, size_t size) {
-    size_t bytes = 0;
-
-    while (bytes < size) {
-        PAL_NUM x = DkStreamRead(handle, 0, size - bytes, (char*)buf + bytes, NULL, 0);
-        if (x == PAL_STREAM_ERROR) {
-            int err = PAL_ERRNO();
-            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
-                continue;
-            }
-            return -err;
-        }
-
-        bytes += x;
-    }
-
-    return 0;
-}
-
-static int restore_memory(PAL_HANDLE handle, struct checkpoint_hdr* hdr, uintptr_t base) {
+static int receive_memory_on_stream(PAL_HANDLE handle, struct checkpoint_hdr* hdr, uintptr_t base) {
     ssize_t rebase = base - (uintptr_t)hdr->addr;
 
     if (hdr->mem_entries_cnt) {
@@ -641,14 +641,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     }
 
     /* send a checkpoint header to child process to notify it to start receiving checkpoint */
-    PAL_NUM bytes;
-    bytes = DkStreamWrite(pal_process, 0, sizeof(hdr), &hdr, NULL);
-    if (bytes == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO();
+    ret = write_exact(pal_process, &hdr, sizeof(hdr));
+    if (ret < 0) {
         debug("failed writing checkpoint header to child process (ret = %d)\n", ret);
-        goto out;
-    } else if (bytes < sizeof(hdr)) {
-        ret = -EACCES;
         goto out;
     }
 
@@ -777,7 +772,7 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
     }
     debug("read checkpoint of %lu bytes from parent\n", hdr->size);
 
-    ret = restore_memory(PAL_CB(parent_process), hdr, (uintptr_t)base);
+    ret = receive_memory_on_stream(PAL_CB(parent_process), hdr, (uintptr_t)base);
     if (ret < 0) {
         goto out;
     }
