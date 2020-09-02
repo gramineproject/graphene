@@ -9,7 +9,7 @@ self-explanatory. Please review them to gain understanding of Graphene-SGX
 and requirements for applications running under Graphene-SGX.
 
 # Additional Prerequisites:
-    1) An OpenJDK installed in folder /opt (default: /opt/jdk)
+    1) An Oracle OpenJDK installed in folder /opt (default: /opt/jdk)
     2) Gradle installed on system
     3) Gradle proxy configured in ~/.gradle/gradle.properties if behind firewall
 

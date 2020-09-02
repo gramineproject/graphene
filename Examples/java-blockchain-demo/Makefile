@@ -5,7 +5,7 @@
 # - make SGX=1 DEBUG=1 -- create SGX debug-log manifest
 #
 # Additional Prerequisites:
-#   1) An OpenJDK installed in folder /opt (default: /opt/jdk)
+#   1) An Oracle OpenJDK installed in folder /opt (default: /opt/jdk)
 #   2) Gradle installed on system
 #   3) Gradle proxy configured in ~/.gradle/gradle.properties if behind firewall
 #
