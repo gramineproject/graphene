@@ -143,6 +143,9 @@ noreturn void thread_exit(int error_code, int term_signal) {
         /* UNREACHABLE */
     }
 
+    /* We are exiting the whole process - disable preemption as soon we won't be able to process
+     * signals. */
+    disable_preempt(NULL);
     /* At this point other threads might be still in the middle of an exit routine, but we don't
      * care since the below will call `exit_group` eventually. */
     libos_exit(error_code, term_signal);
