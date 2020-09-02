@@ -160,17 +160,17 @@ int shim_do_sched_setaffinity(pid_t pid, size_t cpusetsize, __kernel_cpu_set_t* 
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
-    struct shim_thread* cur_thread = get_cur_thread();
-    if (!cur_thread)
-        return -ESRCH;
-
-    thread = cur_thread->pal_handle;
-
     /* setting affinity of other threads requires host tid mapping in a secure way */
     if (pid != 0) {
         debug("Changing the affinity of thread id: %d is not supported, only tid == 0 works for now.\n", pid);
         return -ENOSYS;
     }
+
+    struct shim_thread* cur_thread = get_cur_thread();
+    if (!cur_thread)
+        return -ESRCH;
+
+    thread = cur_thread->pal_handle;
 
     int bitmask_size_in_bytes = check_affinity_params(ncpus, cpusetsize, user_mask_ptr);
     if (bitmask_size_in_bytes < 0)
@@ -186,17 +186,17 @@ int shim_do_sched_getaffinity(pid_t pid, size_t cpusetsize, __kernel_cpu_set_t* 
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
+    /* getting affinity of other threads requires host tid mapping in a secure way */
+    if (pid != 0) {
+        debug("Getting the affinity of thread id: %d is not supported, only tid == 0 works for now.\n", pid);
+        return -ENOSYS;
+    }
+
     struct shim_thread* cur_thread = get_cur_thread();
     if (!cur_thread)
         return -ESRCH;
 
     thread = cur_thread->pal_handle;
-
-    /* setting affinity of other threads requires host tid mapping in a secure way */
-    if (pid != 0) {
-        debug("Getting the affinity of thread id: %d is not supported, only tid == 0 works for now.\n", pid);
-        return -ENOSYS;
-    }
 
     int bitmask_size_in_bytes = check_affinity_params(ncpus, cpusetsize, user_mask_ptr);
     if (bitmask_size_in_bytes < 0)
