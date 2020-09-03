@@ -10,10 +10,10 @@ and requirements for applications running under Graphene-SGX.
 
 # Additional Prerequisites:
 
-This demo requires
-    1) An Oracle OpenJDK (v11 tested) installed in folder /opt (default: /opt/jdk)
-    2) Gradle installed on system
-    3) Gradle proxy configured in ~/.gradle/gradle.properties if behind firewall
+This demo requires:
+1. An Oracle OpenJDK (v11 tested) installed in folder /opt (default: /opt/jdk)
+2. Gradle installed on system
+3. Gradle proxy configured in ~/.gradle/gradle.properties if behind firewall
 
 # Quick Start
 
