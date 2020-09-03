@@ -77,15 +77,13 @@ graphene-%:
 
 .PRECIOUS: gsc-%
 gsc-%-python3-base: %-python3 graphene-%
-	docker tag $*-python3 $*-python3-base
-	cp ../config.yaml ../config.yaml.bkp
+	docker tag $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addsuffix $(IMAGE_SUFFIX), $*-python3-base)
 	sed -e 's/Distro: \".*\"/Distro: \"$*\"/' \
-		    -e 's/Branch: \"master\"/Image: \"graphene-$*\"/' \
+		    -e 's/Branch: \"master\"/Image: \"graphene-$*$(IMAGE_SUFFIX)\"/' \
 			../config.yaml.template > ../config.yaml
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3-base) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
 	cd .. && ./gsc sign-image $(addsuffix $(IMAGE_SUFFIX), $*-python3-base) $(notdir $(KEY_FILE))
-	mv ../config.yaml.bkp ../config.yaml
 	touch $@
 
 .PHONY: test
@@ -189,7 +187,6 @@ clean-base: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-, $(TESTS)))
 clean-gsc: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-gsc-, $(TESTS))) $(addsuffix $(IMAGE_SUFFIX)-unsigned, $(addprefix clean-image-gsc-, $(TESTS)))
 
 .PHONY: clean-gsc-base
-# TODO: Add distributions to image names
 clean-gsc-base: $(addsuffix $(IMAGE_SUFFIX), $(addprefix clean-image-graphene-, $(DISTRIBUTIONS)))  $(addsuffix -python3-base$(IMAGE_SUFFIX), $(addprefix clean-image-gsc-, $(DISTRIBUTIONS))) $(addsuffix -python3-base$(IMAGE_SUFFIX)-unsigned, $(addprefix clean-image-gsc-, $(DISTRIBUTIONS)))
 
 # Create a space to be used in subst
@@ -204,12 +201,12 @@ clean-containers:
 clean-files:
 	for d in $(DISTRIBUTIONS); do \
 		$(RM) -r ../graphene-$${d}$(IMAGE_SUFFIX); \
-		$(RM) graphene-$${d}$(IMAGE_SUFFIX); \
+		$(RM) graphene-$${d}; \
 		$(RM) -r ../gsc-$${d}-python3-base$(IMAGE_SUFFIX); \
-		$(RM) gsc-$${d}-python3-base$(IMAGE_SUFFIX) $${d}-python3-base$(IMAGE_SUFFIX); \
+		$(RM) gsc-$${d}-python3-base $${d}-python3-base; \
 		for t in $(TESTCASES); do \
 			$(RM) -r ../gsc-$${d}-$${t}$(IMAGE_SUFFIX) || exit 1; \
-			$(RM) gsc-$${d}-$${t}$(IMAGE_SUFFIX) $${d}-$${t}$(IMAGE_SUFFIX); \
+			$(RM) gsc-$${d}-$${t} $${d}-$${t}; \
 		done \
 	done
 

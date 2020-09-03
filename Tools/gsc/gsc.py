@@ -192,6 +192,9 @@ def extract_build_args(args):
             # from environment
             if item in os.environ:
                 buildargs_dict[item] = os.environ[item]
+            else:
+                print(f'Could not set build arg `{item}` from environment.')
+                sys.exit(1)
 
     return buildargs_dict
 

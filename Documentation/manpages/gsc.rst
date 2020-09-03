@@ -273,8 +273,8 @@ The first stage either compiles Graphene based on the provided configuration
 (see :file:`config.yaml`) which includes the distribution (e.g., Ubuntu 18.04),
 Graphene repository, and the Intel SGX driver details, or pulls a prebuild
 Docker image also defined via the configuration file. Prebuilt images will be
-provided for popular cloud-provider offerings such as cloud provider offerings
-or can be created via :command:`gsc build-graphene`.
+provided for popular cloud-provider offerings or can be created via
+:command:`gsc build-graphene`.
 
 Graphenizing the application image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
