@@ -66,7 +66,7 @@ $(WL_TARGET):
 		tar -C $(WL_DIR) --strip-components=1 -xf $(WL_PKG_NAME) && \
 		cd $(WL_DIR)/block-chain && \
 		gradle fatjar && \
-		cp build/libs/block-chain-all-$(WL_PKG_VERSION).jar .. && \
+		cp build/libs/block-chain-all-$(WL_PKG_VERSION).jar ..
 
 ################### JAVA BLOCK CHAIN DEMO MANIFEST ###############################
 

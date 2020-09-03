@@ -1,6 +1,6 @@
 # Java Block Chain Demo
 
-This directory contains the Makefile and the template manifest for the most
+This directory contains a Makefile and a template manifest for the most
 popular version of Java (as of this writing, version 11). This was tested
 on a machine with SGX v1 and Ubuntu 18.04.
 
@@ -9,7 +9,9 @@ self-explanatory. Please review them to gain understanding of Graphene-SGX
 and requirements for applications running under Graphene-SGX.
 
 # Additional Prerequisites:
-    1) An Oracle OpenJDK installed in folder /opt (default: /opt/jdk)
+
+This demo requires
+    1) An Oracle OpenJDK (v11 tested) installed in folder /opt (default: /opt/jdk)
     2) Gradle installed on system
     3) Gradle proxy configured in ~/.gradle/gradle.properties if behind firewall
 
@@ -34,24 +36,24 @@ make SGX=1 run-gr
 # Tuning up
 
 Notice that by default, we run Java blockchain demo configured with 8G enclave size, 2G Java maximum
-heap size and 256 SGX enclave maximum thread number, you can adjust these parameters to fit into
+heap size and 256 SGX enclave maximum thread number. You can adjust these parameters to fit into
 your system configuration and needs.
 
 ```sh
 # Specify the Java maximum heap size in Gigabytes
-make G_JAVA_XMX = <Java maximum heap size> # default: 2G
+make G_JAVA_XMX=<Java maximum heap size> # default: 2G
 
-# Specify the Graphene SGX enclave capacity in Gigabytes, subject to 2^n
-make G_SGX_SIZE = <GSGX enclave capacity> # default: 8G
+# Specify the Graphene SGX enclave capacity in Gigabytes, must be a power of 2
+make G_SGX_SIZE=<GSGX enclave capacity> # default: 8G
 
 # Specify the Graphene SGX maximum number of thread
-make G_SGX_THREAD_NUM = <GSGX maximum number of threads> # default: 256
+make G_SGX_THREAD_NUM=<GSGX maximum number of threads> # default: 256
 ```
 
 # Cleaning up
 
 ```sh
-# clean Graphene generated files
+# clean Graphene generated-files
 make clean
 
 # clean all generated files
