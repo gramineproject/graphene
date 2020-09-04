@@ -145,19 +145,6 @@ void* malloc(size_t size);
 void free(void* mem);
 void* malloc_copy(const void* mem, size_t size);
 
-static inline __attribute__((always_inline)) char* qstrtostr(struct shim_qstr* qstr, bool on_stack) {
-    int len   = qstr->len;
-    char* buf = on_stack ? __alloca(len + 1) : malloc(len + 1);
-
-    if (!buf)
-        return NULL;
-
-    memcpy(buf, qstrgetstr(qstr), len);
-
-    buf[len] = 0;
-    return buf;
-}
-
 /* typedef a 32 bit type */
 #ifndef UINT4
 #define UINT4 uint32_t
