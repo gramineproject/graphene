@@ -13,8 +13,11 @@ static size_t g_page_size = PRESET_PAGESIZE;
 static void* g_heap_bottom;
 static void* g_heap_top;
 
-/* list of VMAs of used memory areas kept in DESCENDING order */
-/* TODO: rewrite the logic so that this list keeps VMAs in ascending order */
+static size_t g_pal_internal_mem_used = 0;
+
+/* list of VMAs of used memory areas kept in DESCENDING order; note that preallocated PAL internal
+ * memory relies on this descending order of allocations (from high addresses to low), see
+ * _DkGetAvailableUserAddressRange() for more details */
 DEFINE_LIST(heap_vma);
 struct heap_vma {
     LIST_TYPE(heap_vma) list;
@@ -216,6 +219,12 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     assert(vma->top - vma->bottom >= (ptrdiff_t)freed);
     size_t allocated = vma->top - vma->bottom - freed;
     __atomic_add_fetch(&g_allocated_pages.counter, allocated / g_page_size, __ATOMIC_SEQ_CST);
+
+    if (is_pal_internal) {
+        assert(allocated <= g_pal_internal_mem_size - g_pal_internal_mem_used);
+        g_pal_internal_mem_used += allocated;
+    }
+
     return addr;
 }
 
@@ -237,6 +246,11 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
     struct heap_vma* vma;
 
     _DkInternalLock(&g_heap_vma_lock);
+
+    if (is_pal_internal && size > g_pal_internal_mem_size - g_pal_internal_mem_used) {
+        /* requested PAL-internal allocation would exceed the limit, fail */
+        return NULL;
+    }
 
     if (addr) {
         /* caller specified concrete address; find VMA right-above this address */
@@ -295,7 +309,7 @@ int free_enclave_pages(void* addr, size_t size) {
     /* VMA list contains both normal and pal-internal VMAs; it is impossible to free an area
      * that overlaps with VMAs of two types at the same time, so we fail in such cases */
     bool is_pal_internal_set = false;
-    bool is_pal_internal;
+    bool is_pal_internal = false;
 
     /* how much memory was actually freed, since [addr, addr + size) can overlap with VMAs */
     size_t freed = 0;
@@ -351,6 +365,11 @@ int free_enclave_pages(void* addr, size_t size) {
     }
 
     __atomic_sub_fetch(&g_allocated_pages.counter, freed / g_page_size, __ATOMIC_SEQ_CST);
+
+    if (is_pal_internal_set && is_pal_internal) {
+        assert(g_pal_internal_mem_used >= freed);
+        g_pal_internal_mem_used -= freed;
+    }
 
 out:
     _DkInternalUnlock(&g_heap_vma_lock);

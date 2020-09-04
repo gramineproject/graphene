@@ -537,7 +537,7 @@ int write_config(void* f, int (*write)(void*, void*, int), struct config_store* 
     return __write_config(f, write, store, &store->root, buf, 0, &offset);
 }
 
-uint64_t parse_int(const char* str) {
+uint64_t parse_size_str(const char* str) {
     uint64_t num = 0;
     uint64_t radix = 10;
     char c;
@@ -555,9 +555,9 @@ uint64_t parse_int(const char* str) {
         int8_t val = hex2dec(c);
         if (val < 0)
             break;
-        if ((uint8_t) val >= radix)
+        if ((uint8_t)val >= radix)
             break;
-        num = num * radix + (uint8_t) val;
+        num = num * radix + (uint8_t)val;
     }
 
     if (c == 'G' || c == 'g')

@@ -227,7 +227,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         goto out;
     }
 
-    enclave->size = parse_int(cfgbuf);
+    enclave->size = parse_size_str(cfgbuf);
     if (!enclave->size || !IS_POWER_OF_2(enclave->size)) {
         SGX_DBG(DBG_E, "Enclave size not a power of two (an SGX-imposed requirement)\n");
         ret = -EINVAL;
@@ -236,7 +236,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
 
     /* Reading sgx.thread_num from manifest */
     if (get_config(enclave->config, "sgx.thread_num", cfgbuf, sizeof(cfgbuf)) > 0) {
-        enclave->thread_num = parse_int(cfgbuf);
+        enclave->thread_num = parse_size_str(cfgbuf);
 
         if (enclave->thread_num > MAX_DBG_THREADS) {
             SGX_DBG(DBG_E, "Too many threads to debug\n");
@@ -248,7 +248,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     }
 
     if (get_config(enclave->config, "sgx.rpc_thread_num", cfgbuf, sizeof(cfgbuf)) > 0) {
-        enclave->rpc_thread_num = parse_int(cfgbuf);
+        enclave->rpc_thread_num = parse_size_str(cfgbuf);
 
         if (enclave->rpc_thread_num > MAX_RPC_THREADS) {
             SGX_DBG(DBG_E, "Too many RPC threads specified\n");
