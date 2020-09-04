@@ -224,6 +224,25 @@ The PAL and library OS code/data count towards this size value, as well as the
 application memory itself: application's code, stack, heap, loaded application
 libraries, etc. The application cannot allocate memory that exceeds this limit.
 
+Graphene internal metadata size
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.internal_size=[SIZE]
+    (default: 0)
+
+This syntax specifies how much additional memory Graphene reserves for its
+internal use (e.g., metadata for trusted/protected files, internal handles,
+etc.). By default, Graphene pre-allocates 64MB of internal memory for this
+metadata, but for huge workloads this limit may be not enough. In this case,
+Graphene loudly fails with "out of PAL memory" error. To run huge workloads,
+increase this limit by setting this option to e.g. ``64M`` (this would result in
+a total of 128MB used by Graphene for internal metadata). Note that this limit
+is included in ``sgx.enclave_size``, so if your enclave size is e.g. 512MB and
+you specify ``sgx.internal_size = 64MB``, then your application is left with
+384MB of usable memory.
+
 Number of threads
 ^^^^^^^^^^^^^^^^^
 

@@ -37,6 +37,11 @@ struct pal_sec g_pal_sec;
 
 PAL_SESSION_KEY g_master_key = {0};
 
+/* for internal PAL objects, Graphene first uses pre-allocated g_mem_pool and then falls back to
+ * _DkVirtualMemoryAlloc(PAL_ALLOC_INTERNAL); the amount of available PAL internal memory is
+ * limited by the variable below */
+size_t g_pal_internal_size = 0;
+
 size_t g_page_size = PRESET_PAGESIZE;
 
 unsigned long _DkGetAllocationAlignment (void)
@@ -48,10 +53,12 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     *start = (PAL_PTR)g_pal_sec.heap_min;
     *end   = (PAL_PTR)get_enclave_heap_top();
 
-    /* FIXME: hack to keep some heap for internal PAL objects allocated at runtime (recall that
-     * LibOS does not keep track of PAL memory, so without this hack it could overwrite internal
-     * PAL memory). This hack is probabilistic and brittle. */
-    *end = SATURATED_P_SUB(*end, 2 * 1024 * g_page_size, *start);  /* 8MB reserved for PAL stuff */
+    /* Keep some heap for internal PAL objects allocated at runtime (recall that LibOS does not keep
+     * track of PAL memory, so without this limit it could overwrite internal PAL memory). This
+     * relies on the fact that our memory management allocates memory from higher addresses to lower
+     * addresses (see also enclave_pages.c and db_memory.c). */
+    *end = SATURATED_P_SUB(*end, g_pal_internal_size, *start);
+
     if (*end <= *start) {
         SGX_DBG(DBG_E, "Not enough enclave memory, please increase enclave size!\n");
         ocall_exit(1, /*is_exitgroup=*/true);
@@ -392,6 +399,12 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_state.root_config = root_config;
     g_pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
     g_pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
+
+    char cfgbuf[CONFIG_MAX];
+    ssize_t len = get_config(g_pal_state.root_config, "sgx.internal_size", cfgbuf, sizeof(cfgbuf));
+    if (len > 0) {
+        g_pal_internal_size = parse_int(cfgbuf);
+    }
 
     if ((rv = init_trusted_files()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", rv);

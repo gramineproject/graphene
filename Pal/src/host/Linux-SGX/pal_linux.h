@@ -61,6 +61,7 @@ bool stataccess (struct stat * stats, int acc);
 int init_child_process(PAL_HANDLE* parent);
 
 #ifdef IN_ENCLAVE
+extern size_t g_pal_internal_size;
 
 struct pal_sec;
 noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len,

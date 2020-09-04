@@ -55,19 +55,16 @@ static inline void* __malloc(int size) {
     SYSTEM_UNLOCK();
 #endif
 
-#if 1
-    /* FIXME: At this point, we depleted the pre-allocated memory pool of POOL_SIZE. Previously,
-     *        PAL would allocate more pages (for its internal purposes e.g. for event objects),
-     *        but LibOS had no idea about it. This led to LibOS allocating pages at same addresses
-     *        and ultimately to subtle memory corruptions. Fixing it requires complete re-write of
-     *        PAL memory allocation; loudly terminate for now. For more details, see issue
-     *        https://github.com/oscarlab/graphene/issues/1072. */
-    printf("*** Out-of-memory in PAL (try increasing POOL_SIZE and rebuilding Graphene) ***\n");
-    _DkProcessExit(-ENOMEM);
-#else
-    size = ALLOC_ALIGN_UP(size);
-    _DkVirtualMemoryAlloc(&addr, size, PAL_ALLOC_INTERNAL, PAL_PROT_READ | PAL_PROT_WRITE);
-#endif
+    /* At this point, we depleted the pre-allocated memory pool of POOL_SIZE. Let's fall back to
+     * PAL-internal allocations. PAL allocator must be careful though because LibOS doesn't know
+     * about PAL-internal memory. In case of SGX, PAL allocator is limited via `sgx.internal_size`
+     * manifest option and thus may return -ENOMEM. */
+    int ret = _DkVirtualMemoryAlloc(&addr, ALLOC_ALIGN_UP(size), PAL_ALLOC_INTERNAL,
+              PAL_PROT_READ | PAL_PROT_WRITE);
+    if (ret < 0) {
+        printf("*** Out-of-memory in PAL (try increasing `sgx.internal_size` if using SGX) ***\n");
+        _DkProcessExit(-ENOMEM);
+    }
     return addr;
 }
 
@@ -79,8 +76,7 @@ static inline void __free(void* addr, int size) {
         return;
 #endif
 
-    size = ALLOC_ALIGN_UP(size);
-    _DkVirtualMemoryFree(addr, size);
+    _DkVirtualMemoryFree(addr, ALLOC_ALIGN_UP(size));
 }
 
 static SLAB_MGR g_slab_mgr = NULL;
