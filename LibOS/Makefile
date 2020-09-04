@@ -57,15 +57,17 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
 .SECONDARY: $(BUILD_DIR)/Build.success
 
+# Override CC, CXX, AS in case we're compiling the rest of the project with clang.
 $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
-	($(MAKE) -C $(BUILD_DIR) 2>&1 > build.log) && touch $@
+	(CC=gcc CXX=g++ AS=gcc $(MAKE) -C $(BUILD_DIR) 2>&1 > build.log) && touch $@
 
 $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
 $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/.configured
 	mkdir -p $(BUILD_DIR)
 	(cd $(BUILD_DIR) || exit 1; \
+	CC=gcc CXX=g++ AS=gcc \
 	CFLAGS=$$GLIBC_CFLAGS ../$(GLIBC_SRC)/configure --prefix=$(RUNTIME_DIR) \
 		--with-tls \
 		--without-selinux \
