@@ -509,7 +509,9 @@ noreturn void* shim_init(int argc, void* args) {
     update_fs_base(0);
     __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
-    debug_setbuf(shim_get_tcb(), true);
+
+    struct debug_buf debug_buf;
+    debug_setbuf(shim_get_tcb(), &debug_buf);
 
     debug("host: %s\n", PAL_CB(host_type));
 

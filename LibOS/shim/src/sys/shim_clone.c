@@ -97,7 +97,10 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
 
     __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
                             // will be re-enabled when the thread starts.
-    debug_setbuf(tcb, true);
+
+    struct debug_buf debug_buf;
+    debug_setbuf(tcb, &debug_buf);
+
     debug("set fs_base to 0x%lx\n", tcb->context.fs_base);
 
     struct shim_regs regs = *arg->parent->shim_tcb->context.regs;
