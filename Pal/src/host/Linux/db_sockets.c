@@ -270,49 +270,6 @@ static inline PAL_HANDLE socket_create_handle(int type, int fd, int options,
     return hdl;
 }
 
-static bool check_zero(void* mem, size_t size) {
-    void* p = mem;
-    void* q = mem + size;
-
-    while (p < q) {
-        if (p <= q - sizeof(long)) {
-            if (*(long*)p)
-                return false;
-            p += sizeof(long);
-        } else if (p <= q - sizeof(int)) {
-            if (*(int*)p)
-                return false;
-            p += sizeof(int);
-        } else if (p <= q - sizeof(short)) {
-            if (*(short*)p)
-                return false;
-            p += sizeof(short);
-        } else {
-            if (*(char*)p)
-                return false;
-            p++;
-        }
-    }
-
-    return true;
-}
-
-/* check if an address is "Any" */
-static bool check_any_addr(struct sockaddr* addr) {
-    if (addr->sa_family == AF_INET) {
-        struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
-
-        return addr_in->sin_port == 0 && check_zero(&addr_in->sin_addr, sizeof(addr_in->sin_addr));
-    } else if (addr->sa_family == AF_INET6) {
-        struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)addr;
-
-        return addr_in6->sin6_port == 0 &&
-               check_zero(&addr_in6->sin6_addr, sizeof(addr_in6->sin6_addr));
-    }
-
-    return false;
-}
-
 /* listen on a tcp socket */
 static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
     struct sockaddr_storage buffer;
@@ -327,13 +284,6 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
         return -PAL_ERROR_DENIED;
 
     assert(bind_addrlen == addr_size(bind_addr));
-
-#if ALLOW_BIND_ANY == 0
-    /* the socket need to have a binding address, a null address or an
-       any address is not allowed */
-    if (check_any_addr(bind_addr))
-        return -PAL_ERROR_INVAL;
-#endif
 
     int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_STREAM | SOCK_CLOEXEC | sock_options,
@@ -372,11 +322,9 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
         }
     }
 
-    if (check_any_addr(bind_addr)) {
-        /* call getsockname to get socket address */
-        if ((ret = INLINE_SYSCALL(getsockname, 3, fd, bind_addr, &bind_addrlen)) < 0)
-            goto failed;
-    }
+    /* call getsockname to get socket address */
+    if ((ret = INLINE_SYSCALL(getsockname, 3, fd, bind_addr, &bind_addrlen)) < 0)
+        goto failed;
 
     ret = INLINE_SYSCALL(listen, 2, fd, DEFAULT_BACKLOG);
     if (IS_ERR(ret))
@@ -626,13 +574,6 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     assert(bind_addrlen == addr_size(bind_addr));
 
-#if ALLOW_BIND_ANY == 0
-    /* the socket need to have a binding address, a null address or an
-       any address is not allowed */
-    if (check_any_addr(bind_addr))
-        return -PAL_ERROR_INVAL;
-#endif
-
     int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family, SOCK_DGRAM | SOCK_CLOEXEC | sock_options,
                         0);
@@ -689,13 +630,6 @@ static int udp_connect(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen, &dest_addr, &dest_addrlen)) < 0)
         return ret;
-
-#if ALLOW_BIND_ANY == 0
-    /* the socket need to have a binding address, a null address or an
-       any address is not allowed */
-    if (bind_addr && check_any_addr(bind_addr))
-        return -PAL_ERROR_INVAL;
-#endif
 
     int sock_options = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
     fd = INLINE_SYSCALL(socket, 3, dest_addr ? dest_addr->sa_family : AF_INET,
