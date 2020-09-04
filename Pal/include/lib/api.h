@@ -235,6 +235,7 @@ int get_config_entries (struct config_store * cfg, const char * key,
                         char * key_buf, size_t key_bufsize);
 ssize_t get_config_entries_size (struct config_store * cfg, const char * key);
 int set_config (struct config_store * cfg, const char * key, const char * val);
+uint64_t parse_int(const char* str);
 
 #define CONFIG_MAX      4096
 
