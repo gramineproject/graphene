@@ -1504,8 +1504,13 @@ retry:
         if (!p->port) {
             IDTYPE type                = IPC_PORT_OWNER | IPC_PORT_LISTEN;
             IDTYPE owner               = p->vmid;
-            char* uri                  = qstrtostr(&p->uri, true);
             struct shim_ipc_port* port = NULL;
+            size_t uri_len             = p->uri.len;
+            char uri[uri_len + 1];
+
+            memcpy(&uri, qstrgetstr(&p->uri), uri_len);
+            uri[uri_len] = 0;
+
             unlock(&range_map_lock);
 
             PAL_HANDLE pal_handle = DkStreamOpen(uri, 0, 0, 0, 0);
