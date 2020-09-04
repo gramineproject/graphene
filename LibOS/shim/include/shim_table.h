@@ -476,6 +476,7 @@ int shim_do_openat(int dfd, const char* filename, int flags, int mode);
 int shim_do_mkdirat(int dfd, const char* pathname, int mode);
 int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, int flags);
 int shim_do_unlinkat(int dfd, const char* pathname, int flag);
+int shim_do_readlinkat(int dirfd, const char* file, char* buf, size_t bufsize);
 int shim_do_renameat(int olddfd, const char* pathname, int newdfd, const char* newname);
 int shim_do_fchmodat(int dfd, const char* filename, mode_t mode);
 int shim_do_fchownat(int dfd, const char* filename, uid_t user, gid_t group, int flags);
@@ -779,7 +780,7 @@ int shim_unlinkat(int dfd, const char* pathname, int flag);
 int shim_renameat(int olddfd, const char* oldname, int newdfd, const char* newname);
 int shim_linkat(int olddfd, const char* oldname, int newdfd, const char* newname, int flags);
 int shim_symlinkat(const char* oldname, int newdfd, const char* newname);
-int shim_readlinkat(int dfd, const char* path, char* buf, int bufsiz);
+int shim_readlinkat(int dfd, const char* path, char* buf, size_t bufsiz);
 int shim_fchmodat(int dfd, const char* filename, mode_t mode);
 int shim_faccessat(int dfd, const char* filename, int mode);
 int shim_pselect6(int nfds, fd_set* readfds, fd_set* writefds, fd_set* exceptfds,

@@ -904,7 +904,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(linkat, 5, int, int, olddfd, const char*, oldname, in
 SHIM_SYSCALL_RETURN_ENOSYS(symlinkat, 3, int, const char*, oldname, int, newdfd, const char*,
                            newname)
 
-SHIM_SYSCALL_RETURN_ENOSYS(readlinkat, 4, int, int, dfd, const char*, path, char*, buf, int, bufsiz)
+DEFINE_SHIM_SYSCALL(readlinkat, 4, shim_do_readlinkat, int, int, dfd, const char*, path, char*, buf,
+                    size_t, bufsiz)
 
 /* fchmodat: sys/shim_fs.c */
 DEFINE_SHIM_SYSCALL(fchmodat, 3, shim_do_fchmodat, int, int, dfd, const char*, filename, mode_t,
