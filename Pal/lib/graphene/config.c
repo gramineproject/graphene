@@ -9,6 +9,7 @@
  */
 
 #include "api.h"
+#include "hex.h"
 #include "list.h"
 #include "pal_error.h"
 
@@ -534,4 +535,37 @@ int write_config(void* f, int (*write)(void*, void*, int), struct config_store* 
     unsigned long offset = 0;
 
     return __write_config(f, write, store, &store->root, buf, 0, &offset);
+}
+
+uint64_t parse_int(const char* str) {
+    uint64_t num = 0;
+    uint64_t radix = 10;
+    char c;
+
+    if (str[0] == '0') {
+        str++;
+        radix = 8;
+        if (str[0] == 'x') {
+            str++;
+            radix = 16;
+        }
+    }
+
+    while ((c = *(str++))) {
+        int8_t val = hex2dec(c);
+        if (val < 0)
+            break;
+        if ((uint8_t) val >= radix)
+            break;
+        num = num * radix + (uint8_t) val;
+    }
+
+    if (c == 'G' || c == 'g')
+        num *= 1024 * 1024 * 1024;
+    else if (c == 'M' || c == 'm')
+        num *= 1024 * 1024;
+    else if (c == 'K' || c == 'k')
+        num *= 1024;
+
+    return num;
 }

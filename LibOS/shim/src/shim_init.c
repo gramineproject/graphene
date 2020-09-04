@@ -95,55 +95,6 @@ long convert_pal_errno(long err) {
     return (err >= 0 && err <= PAL_ERROR_NATIVE_COUNT) ? pal_errno_to_unix_errno[err] : EACCES;
 }
 
-/*!
- * \brief Parse a number into an unsigned long.
- *
- * \param str A string containing a non-negative number.
- *
- * By default the number should be decimal, but if it starts with 0x it is
- * parsed as hexadecimal and if it otherwise starts with 0, it is parsed as
- * octal.
- */
-unsigned long parse_int (const char * str)
-{
-    unsigned long num = 0;
-    int radix = 10;
-    char c;
-
-    if (str[0] == '0') {
-        str++;
-        radix = 8;
-        if (str[0] == 'x') {
-            str++;
-            radix = 16;
-        }
-    }
-
-    while ((c = *(str++))) {
-        int val;
-        if (c >= 'A' && c <= 'F')
-            val = c - 'A' + 10;
-        else if (c >= 'a' && c <= 'f')
-            val = c - 'a' + 10;
-        else if (c >= '0' && c <= '9')
-            val = c - '0';
-        else
-            break;
-        if (val >= radix)
-            break;
-        num = num * radix + val;
-    }
-
-    if (c == 'G' || c == 'g')
-        num *= 1024 * 1024 * 1024;
-    else if (c == 'M' || c == 'm')
-        num *= 1024 * 1024;
-    else if (c == 'K' || c == 'k')
-        num *= 1024;
-
-    return num;
-}
-
 void* migrated_memory_start;
 void* migrated_memory_end;
 

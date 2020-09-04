@@ -52,40 +52,6 @@ static inline char* alloc_concat(const char* p, size_t plen, const char* s, size
     return buf;
 }
 
-static unsigned long parse_int (const char * str)
-{
-    unsigned long num = 0;
-    int radix = 10;
-    char c;
-
-    if (str[0] == '0') {
-        str++;
-        radix = 8;
-        if (str[0] == 'x') {
-            str++;
-            radix = 16;
-        }
-    }
-
-    while ((c = *(str++))) {
-        int8_t val = hex2dec(c);
-        if (val < 0)
-            break;
-        if ((uint8_t) val >= radix)
-            break;
-        num = num * radix + (uint8_t) val;
-    }
-
-    if (c == 'G' || c == 'g')
-        num *= 1024 * 1024 * 1024;
-    else if (c == 'M' || c == 'm')
-        num *= 1024 * 1024;
-    else if (c == 'K' || c == 'k')
-        num *= 1024;
-
-    return num;
-}
-
 static char* resolve_uri(const char* uri, const char** errstring) {
     if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
         *errstring = "Invalid URI";
