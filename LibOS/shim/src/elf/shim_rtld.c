@@ -1056,6 +1056,32 @@ static unsigned long int elf_hash(const char* name_arg) {
     return hash;
 }
 
+/* Check whether the symbol matches.  */
+static ElfW(Sym)* check_match(ElfW(Sym)* sym, ElfW(Sym)* ref, const char* strtab, const char *undef_name, int len) {
+    unsigned int stt = ELFW(ST_TYPE)(sym->st_info);
+
+    if ((sym->st_value == 0 /* No value */ && stt != STT_TLS) || sym->st_shndx == SHN_UNDEF)
+        return NULL;
+
+/* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
+   STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
+   code/data definitions.  */
+#define ALLOWED_STT                                                                \
+    ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
+     (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
+
+    if (((1 << stt) & ALLOWED_STT) == 0)
+        return NULL;
+
+    if (sym != ref && memcmp(strtab + sym->st_name, undef_name, len + 1))
+        /* Not the symbol we are looking for.  */
+        return NULL;
+
+    /* There cannot be another entry for this symbol so stop here.  */
+    return sym;
+}
+
+
 static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const uint_fast32_t hash,
                                 unsigned long int elf_hash, const struct link_map* map) {
     /* These variables are used in the nested function.  */
@@ -1065,31 +1091,6 @@ static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const ui
     ElfW(Sym)* symtab  = (void*)D_PTR(map->l_info[DT_SYMTAB]);
     const char* strtab = (const void*)D_PTR(map->l_info[DT_STRTAB]);
     int len            = strlen(undef_name);
-
-    /* Nested routine to check whether the symbol matches.  */
-    ElfW(Sym)* check_match(ElfW(Sym)* sym) {
-        unsigned int stt = ELFW(ST_TYPE)(sym->st_info);
-
-        if ((sym->st_value == 0 /* No value */ && stt != STT_TLS) || sym->st_shndx == SHN_UNDEF)
-            return NULL;
-
-/* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
-   STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
-   code/data definitions.  */
-#define ALLOWED_STT                                                                \
-    ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
-     (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
-
-        if (((1 << stt) & ALLOWED_STT) == 0)
-            return NULL;
-
-        if (sym != ref && memcmp(strtab + sym->st_name, undef_name, len + 1))
-            /* Not the symbol we are looking for.  */
-            return NULL;
-
-        /* There cannot be another entry for this symbol so stop here.  */
-        return sym;
-    }
 
     const ElfW(Addr)* bitmask = map->l_gnu_bitmask;
 
@@ -1108,7 +1109,7 @@ static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const ui
                 do {
                     if (((*hasharr ^ hash) >> 1) == 0) {
                         symidx = hasharr - map->l_gnu_chain_zero;
-                        sym    = check_match(&symtab[symidx]);
+                        sym    = check_match(&symtab[symidx], ref, strtab, undef_name, len);
                         if (sym != NULL)
                             return sym;
                     }
@@ -1124,7 +1125,7 @@ static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const ui
            for the same symbol name.  */
         for (symidx = map->l_buckets[elf_hash % map->l_nbuckets]; symidx != STN_UNDEF;
              symidx = map->l_chain[symidx]) {
-            sym = check_match(&symtab[symidx]);
+            sym = check_match(&symtab[symidx], ref, strtab, undef_name, len);
             if (sym != NULL)
                 return sym;
         }
