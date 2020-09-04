@@ -392,7 +392,7 @@ DEFINE_SHIM_SYSCALL(unlink, 1, shim_do_unlink, int, const char*, file)
 SHIM_SYSCALL_RETURN_ENOSYS(symlink, 2, int, const char*, old, const char*, new)
 
 /* readlink: sys/shim_stat.c */
-DEFINE_SHIM_SYSCALL(readlink, 3, shim_do_readlink, int, const char*, path, char*, buf, size_t,
+DEFINE_SHIM_SYSCALL(readlink, 3, shim_do_readlink, int, const char*, path, char*, buf, int,
                     bufsize)
 
 DEFINE_SHIM_SYSCALL(chmod, 2, shim_do_chmod, int, const char*, filename, mode_t, mode)
@@ -905,7 +905,7 @@ SHIM_SYSCALL_RETURN_ENOSYS(symlinkat, 3, int, const char*, oldname, int, newdfd,
                            newname)
 
 DEFINE_SHIM_SYSCALL(readlinkat, 4, shim_do_readlinkat, int, int, dfd, const char*, path, char*, buf,
-                    size_t, bufsiz)
+                    int, bufsiz)
 
 /* fchmodat: sys/shim_fs.c */
 DEFINE_SHIM_SYSCALL(fchmodat, 3, shim_do_fchmodat, int, int, dfd, const char*, filename, mode_t,

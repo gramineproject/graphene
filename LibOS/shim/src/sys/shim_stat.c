@@ -92,7 +92,7 @@ out:
     return ret;
 }
 
-int shim_do_readlinkat(int dirfd, const char* file, char* buf, size_t bufsize) {
+int shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -127,12 +127,11 @@ int shim_do_readlinkat(int dirfd, const char* file, char* buf, size_t bufsize) {
     if (ret < 0)
         goto out;
 
-    ret = -ENAMETOOLONG;
-    if (qstr.len >= bufsize)
-        goto out;
+    ret = bufsize;
+    if (qstr.len < (size_t)bufsize)
+        ret = qstr.len;
 
-    memcpy(buf, qstrgetstr(&qstr), qstr.len);
-    ret = qstr.len;
+    memcpy(buf, qstrgetstr(&qstr), ret);
 out:
     if (dent) {
         put_dentry(dent);
@@ -143,7 +142,7 @@ out:
     return ret;
 }
 
-int shim_do_readlink(const char* file, char* buf, size_t bufsize) {
+int shim_do_readlink(const char* file, char* buf, int bufsize) {
     return shim_do_readlinkat(AT_FDCWD, file, buf, bufsize);
 }
 
