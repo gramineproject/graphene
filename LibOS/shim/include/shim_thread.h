@@ -137,12 +137,12 @@ void put_thread (struct shim_thread * thread);
 
 void debug_setprefix (shim_tcb_t * tcb);
 
-static inline __attribute__((always_inline)) void debug_setbuf(shim_tcb_t* tcb, bool on_stack) {
+static inline void debug_setbuf(shim_tcb_t* tcb,
+                                struct debug_buf* debug_buf) {
     if (!debug_handle)
         return;
 
-    tcb->debug_buf = on_stack ? __alloca(sizeof(struct debug_buf)) :
-                     malloc(sizeof(struct debug_buf));
+    tcb->debug_buf = debug_buf ? debug_buf : malloc(sizeof(struct debug_buf));
 
     debug_setprefix(tcb);
 }

@@ -826,7 +826,9 @@ static void shim_ipc_helper_prepare(void* arg) {
     shim_tcb_init();
     set_cur_thread(self);
     update_fs_base(0);
-    debug_setbuf(shim_get_tcb(), true);
+
+    struct debug_buf debug_buf;
+    debug_setbuf(shim_get_tcb(), &debug_buf);
 
     lock(&ipc_helper_lock);
     bool notme = (self != ipc_helper_thread);

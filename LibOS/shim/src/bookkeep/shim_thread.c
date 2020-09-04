@@ -706,7 +706,7 @@ static int resume_wrapper (void * param)
     shim_tcb_t* tcb = shim_get_tcb();
     tcb->context.regs = saved_tcb->context.regs;
     tcb->context.preempt = saved_tcb->context.preempt;
-    debug_setbuf(tcb, false);
+    debug_setbuf(tcb, NULL);
     debug("set fs_base to 0x%lx\n", fs_base);
 
     object_wait_with_retry(thread_start_event);
@@ -752,7 +752,7 @@ BEGIN_RS_FUNC(running_thread)
             update_fs_base(tcb->context.fs_base);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
-            debug_setbuf(tcb, false);
+            debug_setbuf(tcb, NULL);
             debug("after resume, set tcb to 0x%lx\n", tcb->context.fs_base);
         } else {
             /*
@@ -768,7 +768,7 @@ BEGIN_RS_FUNC(running_thread)
                 thread_sigaction_reset_on_execve(thread);
 
             set_cur_thread(thread);
-            debug_setbuf(thread->shim_tcb, false);
+            debug_setbuf(thread->shim_tcb, NULL);
         }
 
         thread->in_vm = thread->is_alive = true;
