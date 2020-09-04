@@ -306,7 +306,7 @@ int free_enclave_pages(void* addr, size_t size) {
     /* VMA list contains both normal and pal-internal VMAs; it is impossible to free an area
      * that overlaps with VMAs of two types at the same time, so we fail in such cases */
     bool is_pal_internal_set = false;
-    bool is_pal_internal;
+    bool is_pal_internal = false;
 
     /* how much memory was actually freed, since [addr, addr + size) can overlap with VMAs */
     size_t freed = 0;
