@@ -29,7 +29,7 @@ pipeline {
                            cd /opt/intel
                            git clone https://github.com/intel/linux-sgx-driver.git
                            cd linux-sgx-driver
-                           git checkout master
+                           git checkout 276c5c6
                            make -j8
 
                            cd /opt/intel
