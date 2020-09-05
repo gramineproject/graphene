@@ -73,9 +73,10 @@ To create Docker images, the user must have access to Docker daemon.
 
    sudo adduser $USER docker
 
-Create a configuration file called :file:`config.yaml`. Please see the
-documentation on configuration options below and use the
-:file:`config.yaml.template` as reference.
+Create a configuration file called :file:`config.yaml` or specify a different
+configuration file via :program:`gsc` option. Please see the documentation on
+configuration options below and use the :file:`config.yaml.template` as
+reference.
 
 Command line arguments
 ======================
@@ -104,8 +105,8 @@ Synopsis:
 
 .. option:: -L
 
-   Compile Graphene with Linux PAL in addition to Linux-SGX PAL. If configured to use a
-   prebuilt Graphene image, the image has to support this option.
+   Compile Graphene with Linux PAL in addition to Linux-SGX PAL. If configured
+   to use a prebuilt Graphene image, the image has to support this option.
 
 .. option:: --insecure-args
 
@@ -129,7 +130,7 @@ Synopsis:
 
 .. option:: -c
 
-   Specify configuraiton file.
+   Specify configuraiton file. Default: :file:`config.yaml`
 
 .. option:: IMAGE-NAME
 
@@ -161,7 +162,7 @@ Synopsis:
 
 .. option:: -c
 
-   Specify configuraiton file.
+   Specify configuraiton file. Default: :file:`config.yaml`
 
 .. option:: IMAGE-NAME
 
@@ -212,7 +213,7 @@ Synopsis:
 
 .. option:: -c
 
-   Specify configuraiton file.
+   Specify configuraiton file. Default: :file:`config.yaml`
 
 .. option:: IMAGE-NAME
 
@@ -329,9 +330,9 @@ necessary files to start an Intel SGX enclave.
 Configuration
 =============
 
-GSC is configured via a configuration file called :file:`config.yaml` with the
-following parameters. A template configuration file is provided in
-:file:`config.yaml.template`.
+GSC is configured via a configuration file called :file:`config.yaml` or
+specified as a :program:`gsc` option. A template configuration file is provided
+in :file:`config.yaml.template`.
 
 .. describe:: Distro
 
