@@ -16,6 +16,8 @@ GNU_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 # Glibc build: patch libc.so and other C standard libraries to replace raw SYSCALL instructions
 # with function calls into Graphene (plus some smaller patches for Graphene). The resulting
 # libraries are symlinked under $RUNTIME_DIR.
+#
+# Override CC, CXX, AS in case we're compiling the rest of the project with clang.
 # ------------------------------------------------------------------------------------------------
 GLIBC_VERSION ?= 2.31
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
@@ -57,7 +59,6 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
 .SECONDARY: $(BUILD_DIR)/Build.success
 
-# Override CC, CXX, AS in case we're compiling the rest of the project with clang.
 $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
 	(CC=gcc CXX=g++ AS=gcc $(MAKE) -C $(BUILD_DIR) 2>&1 > build.log) && touch $@
@@ -123,6 +124,8 @@ $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/.configured
 # to build it. The resulting libgomp.so.1 is symlinked under $RUNTIME_DIR. This patched version
 # makes sense only on x86_64 platforms. NOTE: We'd prefer to build libgomp.so.1 alone but it is
 # impossible (the only way to build it is as part of the complete GCC build).
+#
+# Override CC, CXX, AS in case we're compiling the rest of the project with clang.
 # ------------------------------------------------------------------------------------------------
 GCC_VERSION ?= 10.2.0
 GCC_SRC = gcc-$(GCC_VERSION)
@@ -136,13 +139,14 @@ GCC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GCC_TARGET)))
 
 $(GCC_BUILD_DIR)/Build.success: $(GCC_BUILD_DIR)/Makefile
 	@echo "Building gcc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(GCC_BUILD_DIR)/gcc-build.log\" for more information."
-	($(MAKE) -C $(GCC_BUILD_DIR) 2>&1 > gcc-build.log) && touch $@
+	(CC=gcc CXX=g++ AS=gcc $(MAKE) -C $(GCC_BUILD_DIR) 2>&1 > gcc-build.log) && touch $@
 
 $(GCC_TARGET): $(GCC_BUILD_DIR)/Build.success
 
 $(GCC_BUILD_DIR)/Makefile: $(GCC_SRC)/.configured
 	mkdir -p $(GCC_BUILD_DIR)
 	(cd $(GCC_BUILD_DIR) || exit 1; \
+	CC=gcc CXX=g++ AS=gcc \
 	../$(GCC_SRC)/configure --prefix=$(RUNTIME_DIR) \
 		--enable-languages=c \
 		--disable-multilib \
