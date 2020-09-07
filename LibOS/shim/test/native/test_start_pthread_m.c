@@ -26,7 +26,7 @@ static void get_time(char* time_arg, unsigned long overhead) {
     snprintf(time_arg, 30, "%llu", msec + overhead);
 }
 
-int compar(const void* arg1, const void* arg2) {
+static int compar(const void* arg1, const void* arg2) {
     register unsigned long long a1 = *((unsigned long long*)arg1);
     register unsigned long long a2 = *((unsigned long long*)arg2);
     return a1 < a2 ? -1 : (a1 == a2 ? 0 : 1);
