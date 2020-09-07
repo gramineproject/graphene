@@ -3,8 +3,8 @@
 
 #define USER_ADDRESS_LOWEST 0x10000
 
-#define THREAD_STACK_SIZE (PRESET_PAGESIZE * 2)   /* 8KB initial stack (grows automatically) */
-#define ALT_STACK_SIZE    (PRESET_PAGESIZE * 16)  /* 64KB signal stack */
+#define THREAD_STACK_SIZE (PRESET_PAGESIZE * 2)  /* 8KB initial stack (grows automatically) */
+#define ALT_STACK_SIZE    (PRESET_PAGESIZE * 16) /* 64KB signal stack */
 
 #define USE_VSYSCALL_GETTIME 0
 #define USE_VDSO_GETTIME     1

@@ -11,40 +11,40 @@ typedef char PAL_SEC_STR[255];
 
 struct pal_sec {
     /* host credentials */
-    PAL_NUM         instance_id;
-    PAL_IDX         ppid, pid, uid, gid;
+    PAL_NUM instance_id;
+    PAL_IDX ppid, pid, uid, gid;
 
     /* enclave information */
-    sgx_target_info_t  qe_targetinfo;
-    sgx_measurement_t  mr_enclave;
-    sgx_measurement_t  mr_signer;
-    sgx_attributes_t   enclave_attributes;
+    sgx_target_info_t qe_targetinfo;
+    sgx_measurement_t mr_enclave;
+    sgx_measurement_t mr_signer;
+    sgx_attributes_t  enclave_attributes;
 
     /* remaining heap usable by application */
-    PAL_PTR         heap_min, heap_max;
+    PAL_PTR heap_min, heap_max;
 
     /* executable name, addr and size */
-    PAL_SEC_STR     exec_name;
-    PAL_PTR         exec_addr;
-    PAL_NUM         exec_size;
+    PAL_SEC_STR exec_name;
+    PAL_PTR     exec_addr;
+    PAL_NUM     exec_size;
 
-    PAL_SEC_STR     manifest_name;
+    PAL_SEC_STR manifest_name;
 
     /* child's stream FD created and sent over by parent */
-    PAL_IDX         stream_fd;
+    PAL_IDX stream_fd;
 
     /* additional information */
-    PAL_SEC_STR     pipe_prefix;
+    PAL_SEC_STR pipe_prefix;
 
     /* Need to pass in the number of cores */
-    PAL_NUM         num_cpus;
+    PAL_NUM num_cpus;
 
 #ifdef DEBUG
-    PAL_BOL         in_gdb;
+    PAL_BOL in_gdb;
 #endif
 
 #if PRINT_ENCLAVE_STAT == 1
-    PAL_NUM         start_time;
+    PAL_NUM start_time;
 #endif
 };
 
@@ -52,7 +52,7 @@ struct pal_sec {
 extern struct pal_sec g_pal_sec;
 #endif
 
-#define GRAPHENE_TEMPDIR        "/tmp/graphene"
-#define GRAPHENE_PIPEDIR        (GRAPHENE_TEMPDIR "/pipes")
+#define GRAPHENE_TEMPDIR "/tmp/graphene"
+#define GRAPHENE_PIPEDIR (GRAPHENE_TEMPDIR "/pipes")
 
 #endif /* PAL_SECURITY_H */

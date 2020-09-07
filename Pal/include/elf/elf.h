@@ -22,12 +22,11 @@
 #define _ELF_H 1
 
 #include <features.h>
+#include <stdint.h>
 
 __BEGIN_DECLS
 
 /* Standard ELF types.  */
-
-#include <stdint.h>
 
 #define __ELF_NATIVE_CLASS 64
 

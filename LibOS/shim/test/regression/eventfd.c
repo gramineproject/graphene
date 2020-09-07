@@ -199,8 +199,7 @@ static int eventfd_using_various_flags(void) {
             errno = 0;
             ssize_t ret = read(efd, &count, sizeof(count));
             if (ret != -1 || errno != EAGAIN) {
-                printf("read that should return -1 with EAGAIN returned: %ld with errno=%d\n",
-                       ret,
+                printf("read that should return -1 with EAGAIN returned: %ld with errno=%d\n", ret,
                        errno);
                 close(efd);
                 return 1;

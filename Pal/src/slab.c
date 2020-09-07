@@ -8,11 +8,10 @@
  */
 
 #include "api.h"
-#include "pal_internal.h"
-
 #include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
+#include "pal_internal.h"
 
 static int g_slab_alignment;
 static PAL_LOCK g_slab_mgr_lock = LOCK_INIT;

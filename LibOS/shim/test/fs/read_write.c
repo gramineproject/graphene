@@ -27,7 +27,8 @@ static void read_write(const char* file_path) {
         seek_fd(file_path, fd, offset, SEEK_SET);
         read_fd(file_path, fd, buf2, chunk_size);
         if (memcmp(buf1, buf2, chunk_size) != 0)
-            fatal_error("Chunk data is different from what was written (offset %zu, size %zu)\n", offset, chunk_size);
+            fatal_error("Chunk data is different from what was written (offset %zu, size %zu)\n",
+                        offset, chunk_size);
     }
 
     close_fd(file_path, fd);

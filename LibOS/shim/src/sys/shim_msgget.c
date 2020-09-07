@@ -12,16 +12,17 @@
  */
 
 #include <errno.h>
-#include <list.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_sysv.h>
-#include <shim_table.h>
-#include <shim_unistd.h>
-#include <shim_utils.h>
+
+#include "list.h"
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_sysv.h"
+#include "shim_table.h"
+#include "shim_unistd.h"
+#include "shim_utils.h"
 
 #define MSGQ_HASH_LEN  8
 #define MSGQ_HASH_NUM  (1 << MSGQ_HASH_LEN)
@@ -695,9 +696,8 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
     if (DkStreamSetLength(file, expected_size))
         goto err_file;
 
-    void* mem =
-        (void*)DkStreamMap(file, NULL, PAL_PROT_READ | PAL_PROT_WRITE, 0,
-                           ALLOC_ALIGN_UP(expected_size));
+    void* mem = (void*)DkStreamMap(file, NULL, PAL_PROT_READ | PAL_PROT_WRITE, 0,
+                                   ALLOC_ALIGN_UP(expected_size));
     if (!mem) {
         ret = -EFAULT;
         goto err_file;

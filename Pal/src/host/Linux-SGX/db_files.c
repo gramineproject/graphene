@@ -206,13 +206,13 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
         map_end = ALLOC_ALIGN_UP(total);
 
     ret = copy_and_verify_trusted_file(handle->file.realpath, handle->file.umem + map_start,
-            map_start, map_end, buffer, offset, end - offset, stubs, total);
+                                       map_start, map_end, buffer, offset, end - offset, stubs,
+                                       total);
     if (ret < 0)
         return ret;
 
     return end - offset;
 }
-
 
 static int64_t pf_file_write(struct protected_file* pf, PAL_HANDLE handle, uint64_t offset,
                              uint64_t count, const void* buffer) {
@@ -235,7 +235,7 @@ static int64_t pf_file_write(struct protected_file* pf, PAL_HANDLE handle, uint6
 
 /* 'write' operation for file streams. */
 static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
-    struct protected_file *pf = find_protected_file_handle(handle);
+    struct protected_file* pf = find_protected_file_handle(handle);
 
     if (pf)
         return pf_file_write(pf, handle, offset, count, buffer);
@@ -341,8 +341,8 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     __UNUSED(pfs);
     assert(PF_SUCCESS(pfs));
 
-    SGX_DBG(DBG_D, "pf_file_map(PF fd %d): pf %p, addr %p, prot %d, offset %lu, size %lu\n",
-            fd, pf, *addr, prot, offset, size);
+    SGX_DBG(DBG_D, "pf_file_map(PF fd %d): pf %p, addr %p, prot %d, offset %lu, size %lu\n", fd, pf,
+            *addr, prot, offset, size);
 
     if (*addr == NULL) {
         /* LibOS didn't provide address at which to map, can happen on sendfile() */
@@ -373,8 +373,8 @@ static int pf_file_map(struct protected_file* pf, PAL_HANDLE handle, void** addr
     if (prot & PAL_PROT_READ) {
         /* we don't check this on writes since file size may be extended then */
         if (offset >= pf_size) {
-            SGX_DBG(DBG_E, "pf_file_map(PF fd %d): offset (%lu) >= file size (%lu)\n",
-                    fd, offset, pf_size);
+            SGX_DBG(DBG_E, "pf_file_map(PF fd %d): offset (%lu) >= file size (%lu)\n", fd, offset,
+                    pf_size);
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
@@ -478,13 +478,13 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     return 0;
 }
 
-static int64_t pf_file_setlength(struct protected_file *pf, PAL_HANDLE handle, uint64_t length) {
+static int64_t pf_file_setlength(struct protected_file* pf, PAL_HANDLE handle, uint64_t length) {
     int fd = handle->file.fd;
 
     pf_status_t pfs = pf_set_size(pf->context, length);
     if (PF_FAILURE(pfs)) {
-        SGX_DBG(DBG_E, "pf_file_setlength(PF fd %d, %lu): pf_set_size returned %d\n",
-                fd, length, pfs);
+        SGX_DBG(DBG_E, "pf_file_setlength(PF fd %d, %lu): pf_set_size returned %d\n", fd, length,
+                pfs);
         return -PAL_ERROR_DENIED;
     }
     return length;
@@ -492,7 +492,7 @@ static int64_t pf_file_setlength(struct protected_file *pf, PAL_HANDLE handle, u
 
 /* 'setlength' operation for file stream. */
 static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
-    struct protected_file *pf = find_protected_file_handle(handle);
+    struct protected_file* pf = find_protected_file_handle(handle);
     if (pf)
         return pf_file_setlength(pf, handle, length);
 
@@ -507,7 +507,7 @@ static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
 /* 'flush' operation for file stream. */
 static int file_flush(PAL_HANDLE handle) {
     int fd = handle->file.fd;
-    struct protected_file *pf = find_protected_file_handle(handle);
+    struct protected_file* pf = find_protected_file_handle(handle);
     if (pf) {
         int ret = flush_pf_maps(pf, /*buffer=*/NULL, /*remove=*/false);
         if (ret < 0) {
@@ -590,8 +590,8 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
     if (strcmp_static(type, URI_TYPE_FILE) && strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
-    /* open the file with O_NONBLOCK to avoid blocking the current thread if it is actually a FIFO pipe;
-     * O_NONBLOCK will be reset below if it is a regular file */
+    /* open the file with O_NONBLOCK to avoid blocking the current thread if it is actually a FIFO
+     * pipe; O_NONBLOCK will be reset below if it is a regular file */
     int fd = ocall_open(uri, O_NONBLOCK, 0);
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
@@ -624,7 +624,8 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
             goto out;
         }
 
-        /* reset O_NONBLOCK because pf_file_attrquery() may issue reads which don't expect non-blocking mode */
+        /* reset O_NONBLOCK because pf_file_attrquery() may issue reads which don't expect
+         * non-blocking mode */
         ret = ocall_fsetnonblock(fd, 0);
         if (IS_ERR(ret)) {
             ret = unix_to_pal_error(ERRNO(ret));
@@ -632,9 +633,9 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
         }
 
         ret = pf_file_attrquery(pf, fd, path, stat_buf.st_size, attr);
-    }
-    else
+    } else {
         ret = 0;
+    }
 
 out:
     ocall_close(fd);

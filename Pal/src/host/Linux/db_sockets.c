@@ -294,14 +294,16 @@ static int tcp_listen(PAL_HANDLE* handle, char* uri, int create, int options) {
 
     /* must set the socket to be reuseable */
     int reuseaddr = 1;
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
+    ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr,
+                         sizeof(reuseaddr));
     if (IS_ERR(ret))
         return -PAL_ERROR_INVAL;
 
     if (bind_addr->sa_family == AF_INET6) {
         /* IPV6_V6ONLY socket option can only be set before first bind */
         int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
-        ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_v6only, sizeof(ipv6_v6only));
+        ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_v6only,
+                             sizeof(ipv6_v6only));
         if (IS_ERR(ret))
             return -PAL_ERROR_INVAL;
     }
@@ -355,7 +357,7 @@ static int tcp_accept(PAL_HANDLE handle, PAL_HANDLE* client) {
     size_t bind_addrlen        = addr_size(bind_addr);
     struct sockaddr_storage buffer;
     int addrlen = sizeof(buffer);
-    int ret           = 0;
+    int ret = 0;
 
     int newfd = INLINE_SYSCALL(accept4, 4, handle->sock.fd, &buffer, &addrlen, SOCK_CLOEXEC);
 
@@ -584,7 +586,8 @@ static int udp_bind(PAL_HANDLE* handle, char* uri, int create, int options) {
     /* IPV6_V6ONLY socket option can only be set before first bind */
     if (bind_addr->sa_family == AF_INET6) {
         int ipv6_v6only = create & PAL_CREATE_DUALSTACK ? 0 : 1;
-        ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_v6only, sizeof(ipv6_v6only));
+        ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_v6only,
+                             sizeof(ipv6_v6only));
         if (IS_ERR(ret))
             return -PAL_ERROR_INVAL;
     }
@@ -909,9 +912,9 @@ static int socket_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    attr->handle_type           = HANDLE_HDR(handle)->type;
-    attr->nonblocking           = handle->sock.nonblocking;
-    attr->disconnected          = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->handle_type  = HANDLE_HDR(handle)->type;
+    attr->nonblocking  = handle->sock.nonblocking;
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
 
     attr->socket.linger         = handle->sock.linger;
     attr->socket.receivebuf     = handle->sock.receivebuf;

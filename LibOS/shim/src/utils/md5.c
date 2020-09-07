@@ -31,8 +31,8 @@
  **********************************************************************
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
+#include "shim_internal.h"
+#include "shim_utils.h"
 
 /* forward declaration */
 static void __transform(UINT4* buf, UINT4* in);

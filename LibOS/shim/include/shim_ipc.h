@@ -10,14 +10,14 @@
 #ifndef _SHIM_IPC_H_
 #define _SHIM_IPC_H_
 
-#include <list.h>
-#include <pal.h>
-#include <shim_defs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_sysv.h>
-#include <shim_thread.h>
-#include <shim_types.h>
+#include "list.h"
+#include "pal.h"
+#include "shim_defs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_sysv.h"
+#include "shim_thread.h"
+#include "shim_types.h"
 
 /* if callback func returns RESPONSE_CALLBACK, send response msg even if callback succeeded */
 #define RESPONSE_CALLBACK 1
@@ -26,7 +26,7 @@
 #define LEASE_TIME 1000
 
 #define IPC_MSG_MINIMAL_SIZE 48
-#define IPC_SEM_NOTIMEOUT ((unsigned long)-1)
+#define IPC_SEM_NOTIMEOUT    ((unsigned long)-1)
 #define MAX_IPC_PORT_FINI_CB 3
 
 enum {
@@ -48,10 +48,10 @@ enum {
     IPC_PORT_DIRECTCHILD  = 1 << IPC_DIRECTCHILD,
     IPC_PORT_DIRECTPARENT = 1 << IPC_DIRECTPARENT,
 
-    IPC_PORT_CLIENT       = 1 << IPC_CLIENT,
-    IPC_PORT_LEADER       = 1 << IPC_LEADER,
-    IPC_PORT_OWNER        = 1 << IPC_OWNER,
-    IPC_PORT_CONNECTION   = 1 << IPC_CONNECTION,
+    IPC_PORT_CLIENT     = 1 << IPC_CLIENT,
+    IPC_PORT_LEADER     = 1 << IPC_LEADER,
+    IPC_PORT_OWNER      = 1 << IPC_OWNER,
+    IPC_PORT_CONNECTION = 1 << IPC_CONNECTION,
 };
 
 enum {
@@ -470,7 +470,7 @@ struct shim_ipc_msg_with_ack* pop_ipc_msg_with_ack(struct shim_ipc_port* port, u
 int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_port* exclude_port);
 int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc_port* port,
-                            unsigned long* seq, void* private_data);
+                              unsigned long* seq, void* private_data);
 int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, unsigned long seq);
 
 void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode);

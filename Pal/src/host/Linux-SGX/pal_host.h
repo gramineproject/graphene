@@ -11,23 +11,22 @@
 #define PAL_HOST_H
 
 #ifndef IN_PAL
-# error "cannot be included outside PAL"
+#error "cannot be included outside PAL"
 #endif
 
-#include <atomic.h>
-#include <spinlock.h>
+#include "atomic.h"
+#include "list.h"
+#include "spinlock.h"
 
 typedef spinlock_t PAL_LOCK;
 
-#define LOCK_INIT INIT_SPINLOCK_UNLOCKED
-#define _DkInternalLock spinlock_lock
-#define _DkInternalUnlock spinlock_unlock
+#define LOCK_INIT           INIT_SPINLOCK_UNLOCKED
+#define _DkInternalLock     spinlock_lock
+#define _DkInternalUnlock   spinlock_unlock
 #define _DkInternalIsLocked spinlock_is_locked
 
-void * malloc_untrusted (int size);
-void free_untrusted (void * mem);
-
-#include <list.h>
+void* malloc_untrusted(int size);
+void free_untrusted(void* mem);
 
 /* Simpler mutex design: a single variable that tracks whether the
  * mutex is locked.  State is 1 (locked) or 0 (unlocked).
@@ -44,8 +43,12 @@ struct mutex_handle {
 };
 
 /* Initializer of Mutexes */
-#define MUTEX_HANDLE_INIT    { .u = 0 }
-#define INIT_MUTEX_HANDLE(m)  do { (m)->u = 0; } while (0)
+#define MUTEX_HANDLE_INIT \
+    { .u = 0 }
+#define INIT_MUTEX_HANDLE(m) \
+    do {                     \
+        (m)->u = 0;          \
+    } while (0)
 
 DEFINE_LIST(pal_handle_thread);
 struct pal_handle_thread {
@@ -53,7 +56,7 @@ struct pal_handle_thread {
     PAL_IDX tid;
     PAL_PTR tcs;
     LIST_TYPE(pal_handle_thread) list;
-    void * param;
+    void* param;
 };
 
 typedef struct {
@@ -63,8 +66,7 @@ typedef struct {
 /* RPC streams are encrypted with 256-bit AES keys */
 typedef uint8_t PAL_SESSION_KEY[32];
 
-typedef struct pal_handle
-{
+typedef struct pal_handle {
     /*
      * Here we define the internal structure of PAL_HANDLE.
      * user has no access to the content inside these handles.
@@ -162,12 +164,12 @@ typedef struct pal_handle
             } event;
         };
     };
-} * PAL_HANDLE;
+}* PAL_HANDLE;
 
-#define RFD(n)          (1 << (MAX_FDS*0 + (n)))
-#define WFD(n)          (1 << (MAX_FDS*1 + (n)))
-#define ERROR(n)        (1 << (MAX_FDS*2 + (n)))
+#define RFD(n)   (1 << (MAX_FDS * 0 + (n)))
+#define WFD(n)   (1 << (MAX_FDS * 1 + (n)))
+#define ERROR(n) (1 << (MAX_FDS * 2 + (n)))
 
-#define HANDLE_TYPE(handle)  ((handle)->hdr.type)
+#define HANDLE_TYPE(handle) ((handle)->hdr.type)
 
 #endif /* PAL_HOST_H */

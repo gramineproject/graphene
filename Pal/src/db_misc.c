@@ -102,8 +102,8 @@ DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]) {
 }
 
 PAL_BOL DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
-                            PAL_PTR target_info, PAL_NUM* target_info_size,
-                            PAL_PTR report, PAL_NUM* report_size) {
+                            PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
+                            PAL_NUM* report_size) {
     ENTER_PAL_CALL(DkAttestationReport);
 
     int ret = _DkAttestationReport(user_report_data, user_report_data_size, target_info,
@@ -115,8 +115,8 @@ PAL_BOL DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
-PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
-                           PAL_PTR quote, PAL_NUM* quote_size) {
+PAL_BOL DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size, PAL_PTR quote,
+                           PAL_NUM* quote_size) {
     ENTER_PAL_CALL(DkAttestationQuote);
 
     int ret = _DkAttestationQuote(user_report_data, user_report_data_size, quote, quote_size);

@@ -9,14 +9,14 @@
 
 #include <linux/fcntl.h>
 
-#include <list.h>
-#include <pal.h>
-#include <pal_debug.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_internal.h>
-#include <shim_utils.h>
+#include "list.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_internal.h"
+#include "shim_utils.h"
 
 struct shim_fs {
     char name[8];
@@ -60,7 +60,7 @@ static struct shim_lock mount_mgr_lock;
 #define MOUNT_MGR_ALLOC 64
 
 #define OBJ_TYPE struct shim_mount
-#include <memmgr.h>
+#include "memmgr.h"
 
 static MEM_MGR mount_mgr = NULL;
 DEFINE_LISTP(shim_mount);
@@ -195,8 +195,8 @@ static int __mount_others(void) {
     if (nkeys <= 0)
         goto out;
 
-    const char *key = keybuf;
-    const char *next = NULL;
+    const char* key  = keybuf;
+    const char* next = NULL;
     for (int n = 0; n < nkeys; key = next, n++) {
         for (next = key; *next; next++)
             ;
@@ -408,7 +408,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     if (parent && last_len > 0) {
         /* Newly created dentry's relative path will be a concatenation of parent
          * + last strings (see get_new_dentry), make sure it fits into qstr */
-        if (parent->rel_path.len + 1 + last_len >= STR_SIZE) {  /* +1 for '/' */
+        if (parent->rel_path.len + 1 + last_len >= STR_SIZE) { /* +1 for '/' */
             debug("Relative path exceeds the limit %d\n", STR_SIZE);
             ret = -ENAMETOOLONG;
             goto out_with_unlock;
@@ -490,12 +490,12 @@ out:
  */
 void get_mount(struct shim_mount* mount) {
     __UNUSED(mount);
-    //REF_INC(mount->ref_count);
+    // REF_INC(mount->ref_count);
 }
 
 void put_mount(struct shim_mount* mount) {
     __UNUSED(mount);
-    //REF_DEC(mount->ref_count);
+    // REF_DEC(mount->ref_count);
 }
 
 int walk_mounts(int (*walk)(struct shim_mount* mount, void* arg), void* arg) {

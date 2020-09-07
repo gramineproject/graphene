@@ -2,9 +2,10 @@
 /* Copyright (C) 2019, Texas A&M University. */
 
 #include <errno.h>
+
+#include "mbedtls/base64.h"
 #include "pal_crypto.h"
 #include "pal_error.h"
-#include "mbedtls/base64.h"
 
 /*!
  * \brief Encode a byte array into a Base64 string

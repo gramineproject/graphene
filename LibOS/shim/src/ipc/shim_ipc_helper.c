@@ -8,15 +8,15 @@
  * of IPC ports.
  */
 
-#include <list.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+#include "list.h"
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 #define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 
@@ -106,7 +106,7 @@ static int init_parent_ipc_port(void) {
     assert(cur_process.parent && cur_process.parent->vmid);
 
     /* for execve case, my parent is the parent of my parent (current process transparently inherits
-     * the "real" parent through already opened pal_handle on "temporary" parent's 
+     * the "real" parent through already opened pal_handle on "temporary" parent's
      * cur_process.parent) */
     if (!cur_process.parent->pal_handle) {
         /* for clone/fork case, parent is connected on parent_process */
@@ -474,14 +474,14 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
     for (size_t i = 0; i < target_ports_cnt; i++) {
         port = target_ports[i];
 
-        debug("Broadcast to port %p (handle %p) for process %u (type %x, target %x)\n",
-              port, port->pal_handle, port->vmid & 0xFFFF, port->type, target_type);
+        debug("Broadcast to port %p (handle %p) for process %u (type %x, target %x)\n", port,
+              port->pal_handle, port->vmid & 0xFFFF, port->type, target_type);
 
         msg->dst = port->vmid;
         ret = send_ipc_message(msg, port);
         if (ret < 0) {
-            debug("Broadcast to port %p (handle %p) for process %u failed (errno = %d)!\n",
-                  port, port->pal_handle, port->vmid & 0xFFFF, ret);
+            debug("Broadcast to port %p (handle %p) for process %u failed (errno = %d)!\n", port,
+                  port->pal_handle, port->vmid & 0xFFFF, ret);
             goto out;
         }
     }
@@ -541,8 +541,8 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
     if (!msg) {
         return -ENOMEM;
     }
-    size_t expected_size     = IPC_MSG_MINIMAL_SIZE;
-    size_t bytes             = 0;
+    size_t expected_size = IPC_MSG_MINIMAL_SIZE;
+    size_t bytes         = 0;
 
     do {
         while (bytes < expected_size) {
@@ -606,7 +606,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
             }
         }
 
-        bytes -= expected_size;  /* one message was received and handled */
+        bytes -= expected_size; /* one message was received and handled */
 
         if (bytes > 0) {
             /* we may have started reading the next message, move this message to beginning of msg
@@ -699,7 +699,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
                     debug("shim_ipc_helper: allocation of tmp_ports failed\n");
                     goto out_err_unlock;
                 }
-                PAL_HANDLE* tmp_pals    = malloc(sizeof(*tmp_pals) * (1 + ports_max_cnt * 2));
+                PAL_HANDLE* tmp_pals = malloc(sizeof(*tmp_pals) * (1 + ports_max_cnt * 2));
                 if (!tmp_pals) {
                     debug("shim_ipc_helper: allocation of tmp_pals failed\n");
                     goto out_err_unlock;
@@ -742,7 +742,8 @@ noreturn static void shim_ipc_helper(void* dummy) {
         unlock(&ipc_helper_lock);
 
         /* wait on collected ports' PAL handles + install_new_event_pal */
-        PAL_BOL polled = DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events, NO_TIMEOUT);
+        PAL_BOL polled =
+            DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events, NO_TIMEOUT);
 
         for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {
@@ -765,7 +766,8 @@ noreturn static void shim_ipc_helper(void* dummy) {
                     if (client) {
                         /* type of client port is the same as original server port but with LISTEN
                          * (for remote client) and without SERVER (doesn't wait for new clients) */
-                        IDTYPE client_type = (polled_port->type & ~IPC_PORT_SERVER) | IPC_PORT_LISTEN;
+                        IDTYPE client_type =
+                            (polled_port->type & ~IPC_PORT_SERVER) | IPC_PORT_LISTEN;
                         add_ipc_port_by_id(polled_port->vmid, client, client_type, NULL, NULL);
                     } else {
                         debug("Port %p (handle %p) was removed during accepting client\n",
@@ -781,13 +783,13 @@ noreturn static void shim_ipc_helper(void* dummy) {
                             receive_ipc_message(polled_port);
                         }
                         if (attr.disconnected) {
-                            debug("Port %p (handle %p) disconnected\n",
-                                  polled_port, polled_port->pal_handle);
+                            debug("Port %p (handle %p) disconnected\n", polled_port,
+                                  polled_port->pal_handle);
                             del_ipc_port_fini(polled_port, -ECONNRESET);
                         }
                     } else {
-                        debug("Port %p (handle %p) was removed during attr querying\n",
-                              polled_port, polled_port->pal_handle);
+                        debug("Port %p (handle %p) was removed during attr querying\n", polled_port,
+                              polled_port->pal_handle);
                         del_ipc_port_fini(polled_port, -PAL_ERRNO());
                     }
                 }
@@ -868,7 +870,7 @@ static int create_ipc_helper(void) {
     PAL_HANDLE handle = thread_create(shim_ipc_helper_prepare, new);
 
     if (!handle) {
-        int ret = -PAL_ERRNO();  /* put_thread() may overwrite errno */
+        int ret = -PAL_ERRNO(); /* put_thread() may overwrite errno */
         ipc_helper_thread = NULL;
         ipc_helper_state  = HELPER_NOTALIVE;
         put_thread(new);
@@ -903,9 +905,8 @@ struct shim_thread* terminate_ipc_helper(void) {
      * through the host-OS stream, the host OS will close the stream, and the message will never be
      * seen by child. To prevent such cases, we simply wait for a bit before exiting.
      */
-    debug(
-        "Waiting for 0.5s for all in-flight IPC messages to reach their destinations\n");
-    DkThreadDelayExecution(500000);  /* in microseconds */
+    debug("Waiting for 0.5s for all in-flight IPC messages to reach their destinations\n");
+    DkThreadDelayExecution(500000); /* in microseconds */
 
     lock(&ipc_helper_lock);
     if (ipc_helper_state != HELPER_ALIVE) {

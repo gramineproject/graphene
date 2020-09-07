@@ -1,8 +1,9 @@
+#include "enclave_ecalls.h"
+
 #include <stdalign.h>
 
 #include "api.h"
 #include "ecall_types.h"
-#include "enclave_ecalls.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_security.h"
@@ -63,7 +64,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
 
     if (!g_enclave_top) {
         g_enclave_base = enclave_base_addr;
-        g_enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
+        g_enclave_top  = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
     /* disallow malicious URSP (that points into the enclave) */
@@ -104,7 +105,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
         // TODO: This eats 1KB of a stack frame which lives for the whole lifespan of this enclave.
         //       We should move it somewhere else and deallocate right after use.
         __sgx_mem_aligned sgx_target_info_t target_info;
-        alignas(128) char report_data[64] = { 0 };
+        alignas(128) char report_data[64] = {0};
         __sgx_mem_aligned sgx_report_t report;
         memset(&report, 0, sizeof(report));
         memset(&target_info, 0, sizeof(target_info));
@@ -113,9 +114,8 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
 
         /* pal_linux_main is responsible to check the passed arguments */
         pal_linux_main(READ_ONCE(ms->ms_libpal_uri), READ_ONCE(ms->ms_libpal_uri_len),
-                       READ_ONCE(ms->ms_args), READ_ONCE(ms->ms_args_size),
-                       READ_ONCE(ms->ms_env), READ_ONCE(ms->ms_env_size),
-                       pal_sec);
+                       READ_ONCE(ms->ms_args), READ_ONCE(ms->ms_args_size), READ_ONCE(ms->ms_env),
+                       READ_ONCE(ms->ms_env_size), pal_sec);
     } else {
         // ENCLAVE_START already called (maybe successfully, maybe not), so
         // only valid ecall is THREAD_START.

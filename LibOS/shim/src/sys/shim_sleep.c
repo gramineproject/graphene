@@ -9,14 +9,14 @@
 
 #include <errno.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
-#include <shim_vma.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
+#include "shim_vma.h"
 
 int shim_do_pause(void) {
     /* ~0ULL micro sec ~= 805675 years */

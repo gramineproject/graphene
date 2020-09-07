@@ -7,14 +7,14 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next, size_t* next_len,
                              const char** nextnext) {
@@ -728,20 +728,9 @@ const struct pseudo_fs_ops fs_thread = {
 const struct pseudo_dir dir_thread = {
     .size = 5,
     .ent  = {
-              { .name   = "cwd",
-                .fs_ops = &fs_thread_link,
-                .type   = LINUX_DT_LNK },
-              { .name   = "exe",
-                .fs_ops = &fs_thread_link,
-                .type   = LINUX_DT_LNK },
-              { .name   = "root",
-                .fs_ops = &fs_thread_link,
-                .type   = LINUX_DT_LNK },
-              { .name   = "fd",
-                .fs_ops = &fs_thread_fd,
-                .dir    = &dir_fd },
-              { .name   = "maps",
-                .fs_ops = &fs_thread_maps,
-                .type   = LINUX_DT_REG },
-        }
-};
+        {.name = "cwd", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
+        {.name = "exe", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
+        {.name = "root", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
+        {.name = "fd", .fs_ops = &fs_thread_fd, .dir = &dir_fd},
+        {.name = "maps", .fs_ops = &fs_thread_maps, .type = LINUX_DT_REG},
+    }};

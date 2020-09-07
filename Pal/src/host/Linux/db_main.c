@@ -8,7 +8,12 @@
  * processes environment, arguments and manifest.
  */
 
+#include <asm/errno.h>
+#include <asm/ioctls.h>
+#include <asm/mman.h>
+
 #include "api.h"
+#include "elf/elf.h"
 #include "linux_utils.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -18,12 +23,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-
-#include <asm/errno.h>
-#include <asm/ioctls.h>
-#include <asm/mman.h>
-#include <elf/elf.h>
-#include <sysdeps/generic/ldsodefs.h>
+#include "sysdeps/generic/ldsodefs.h"
 
 #define RTLD_BOOTSTRAP
 
@@ -32,10 +32,11 @@
 
 /* use objfile-gdb convention instead of .debug_gdb_scripts */
 #ifdef DEBUG
-__asm__ (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
-     ".byte 1\r\n"
-     ".asciz \"pal-gdb.py\"\r\n"
-     ".popsection\r\n");
+__asm__(
+    ".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
+    ".byte 1\r\n"
+    ".asciz \"pal-gdb.py\"\r\n"
+    ".popsection\r\n");
 #endif
 
 char* g_pal_loader_path = NULL;
@@ -75,14 +76,14 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
     assert(argv[argc] == NULL);
 
     const char** e = envp;
-    for (; *e ; e++) {
+    for (; *e; e++) {
 #ifdef DEBUG
         if (!strcmp_static(*e, "IN_GDB=1"))
             g_linux_state.in_gdb = true;
 #endif
     }
 
-    for (ElfW(auxv_t)* av = (ElfW(auxv_t)*)(e + 1); av->a_type != AT_NULL ; av++) {
+    for (ElfW(auxv_t)* av = (ElfW(auxv_t)*)(e + 1); av->a_type != AT_NULL; av++) {
         switch (av->a_type) {
             case AT_PAGESZ:
                 g_page_size = av->a_un.a_val;
@@ -107,8 +108,7 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
     *out_envp = envp;
 }
 
-unsigned long _DkGetAllocationAlignment (void)
-{
+unsigned long _DkGetAllocationAlignment(void) {
     return g_page_size;
 }
 
@@ -122,11 +122,8 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
         if (start_addr >= end_addr)
             INIT_FAIL(PAL_ERROR_NOMEM, "no user memory available");
 
-        void* mem = (void*)ARCH_MMAP(start_addr,
-                                     g_pal_state.alloc_align,
-                                     PROT_NONE,
-                                     MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
-                                     -1, 0);
+        void* mem = (void*)ARCH_MMAP(start_addr, g_pal_state.alloc_align, PROT_NONE,
+                                     MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
         if (!IS_ERR_P(mem)) {
             INLINE_SYSCALL(munmap, 2, mem, g_pal_state.alloc_align);
             if (mem == start_addr)
@@ -144,15 +141,14 @@ PAL_NUM _DkGetProcessId(void) {
     return g_linux_state.process_id;
 }
 
-PAL_NUM _DkGetHostId (void)
-{
+PAL_NUM _DkGetHostId(void) {
     return 0;
 }
 
 #include "dynamic_link.h"
 
 #if USE_VDSO_GETTIME == 1
-void setup_vdso_map (ElfW(Addr) addr);
+void setup_vdso_map(ElfW(Addr) addr);
 #endif
 
 static struct link_map g_pal_map;
@@ -288,7 +284,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
  * Understands complex formats like "1,3-5,6".
  */
 int get_cpu_count(void) {
-    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
+    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY | O_CLOEXEC, 0);
     if (fd < 0)
         return unix_to_pal_error(ERRNO(fd));
 

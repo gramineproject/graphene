@@ -941,7 +941,7 @@ int ipc_tellns_send(struct shim_ipc_port* port, IDTYPE dest, struct shim_ipc_inf
     init_ipc_msg(msg, IPC_MSG_TELLNS, total_msg_size, dest);
 
     struct shim_ipc_tellns* msgin = (void*)&msg->msg;
-    msgin->vmid                = leader->vmid;
+    msgin->vmid = leader->vmid;
     memcpy(msgin->uri, qstrgetstr(&leader->uri), leader->uri.len + 1);
     msg->seq = seq;
 
@@ -1058,7 +1058,7 @@ int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE 
     msgin->base  = base;
     msgin->size  = size;
     msgin->lease = lease;
-    msg->seq     = seq;
+    msg->seq = seq;
 
     debug("ipc send to %u: IPC_MSG_OFFER(%u, %u, %lu)\n", port->vmid, base, size, lease);
     ret = send_ipc_message(msg, port);
@@ -1068,8 +1068,8 @@ int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE 
 int ipc_offer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_offer* msgin = (void*)&msg->msg;
 
-    debug("ipc callback from %u: IPC_MSG_OFFER(%u, %u, %lu)\n", msg->src, msgin->base,
-          msgin->size, msgin->lease);
+    debug("ipc callback from %u: IPC_MSG_OFFER(%u, %u, %lu)\n", msg->src, msgin->base, msgin->size,
+          msgin->lease);
 
     struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
 
@@ -1116,8 +1116,8 @@ int ipc_renew_send(IDTYPE base, IDTYPE size) {
     init_ipc_msg(msg, IPC_MSG_RENEW, total_msg_size, leader);
 
     struct shim_ipc_renew* msgin = (void*)&msg->msg;
-    msgin->base               = base;
-    msgin->size               = size;
+    msgin->base = base;
+    msgin->size = size;
 
     debug("ipc send to : IPC_MSG_RENEW(%u, %u)\n", base, size);
     ret = send_ipc_message(msg, port);
@@ -1322,7 +1322,7 @@ retry:
         owner->vmid = p->vmid;
         memcpy(owner->uri, qstrgetstr(&p->uri), p->uri.len + 1);
 
-        IDTYPE base                    = r->offset * RANGE_SIZE + 1;
+        IDTYPE base = r->offset * RANGE_SIZE + 1;
         answers[answers_cnt].base         = base;
         answers[answers_cnt].size         = RANGE_SIZE;
         answers[answers_cnt].lease        = r->lease;
@@ -1381,7 +1381,8 @@ retry:
 int ipc_answer_send(struct shim_ipc_port* port, IDTYPE dest, size_t answers_cnt,
                     struct ipc_ns_offered* answers, size_t owners_cnt,
                     struct ipc_ns_client** ownerdata, size_t* ownerdatasz, unsigned long seq) {
-    size_t owner_offset = sizeof(struct shim_ipc_answer) + sizeof(struct ipc_ns_offered) * answers_cnt;
+    size_t owner_offset =
+        sizeof(struct shim_ipc_answer) + sizeof(struct ipc_ns_offered) * answers_cnt;
     size_t total_ownerdatasz = 0;
     for (size_t i = 0; i < owners_cnt; i++) {
         total_ownerdatasz += ownerdatasz[i];
@@ -1416,8 +1417,8 @@ int ipc_answer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_answer* msgin = (void*)&msg->msg;
 
     if (msgin->answers_cnt == 1)
-        debug("ipc callback from %u: IPC_MSG_ANSWER([%u, %u])\n", msg->src,
-              msgin->answers[0].base, msgin->answers[0].size);
+        debug("ipc callback from %u: IPC_MSG_ANSWER([%u, %u])\n", msg->src, msgin->answers[0].base,
+              msgin->answers[0].size);
     else if (msgin->answers_cnt)
         debug("ipc callback from %u: IPC_MSG_ANSWER([%u, %u], ...)\n", msg->src,
               msgin->answers[0].base, msgin->answers[0].size);
@@ -1665,4 +1666,3 @@ int sysv_get_key(struct sysv_key* key, bool delete) {
     unlock(&range_map_lock);
     return id;
 }
-

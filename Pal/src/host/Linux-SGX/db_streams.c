@@ -33,7 +33,7 @@ typedef __kernel_pid_t pid_t;
 #include <linux/types.h>
 #include <linux/wait.h>
 
-#define DUMMYPAYLOAD "dummypayload"
+#define DUMMYPAYLOAD     "dummypayload"
 #define DUMMYPAYLOADSIZE (sizeof(DUMMYPAYLOAD))
 
 struct hdl_header {
@@ -285,7 +285,8 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     memcpy(CMSG_DATA(control_hdr), fds, fds_size);
 
     /* next send FDs-to-transfer as ancillary data */
-    ret = ocall_send(fd, DUMMYPAYLOAD, DUMMYPAYLOADSIZE, NULL, 0, control_hdr, control_hdr->cmsg_len);
+    ret = ocall_send(fd, DUMMYPAYLOAD, DUMMYPAYLOADSIZE, NULL, 0, control_hdr,
+                     control_hdr->cmsg_len);
     if (IS_ERR(ret)) {
         free(hdl_data);
         return unix_to_pal_error(ERRNO(ret));
@@ -345,7 +346,8 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     /* next receive FDs-to-transfer as ancillary data */
     char dummypayload[DUMMYPAYLOADSIZE];
-    ret = ocall_recv(fd, dummypayload, DUMMYPAYLOADSIZE, NULL, NULL, control_buf, &control_buf_size);
+    ret = ocall_recv(fd, dummypayload, DUMMYPAYLOADSIZE, NULL, NULL, control_buf,
+                     &control_buf_size);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 

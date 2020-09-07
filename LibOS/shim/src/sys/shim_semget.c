@@ -8,20 +8,21 @@
  */
 
 #include <errno.h>
-#include <list.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_sysv.h>
-#include <shim_table.h>
-#include <shim_utils.h>
+
+#include "list.h"
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_sysv.h"
+#include "shim_table.h"
+#include "shim_utils.h"
 
 #define SEM_HASH_LEN  8
 #define SEM_HASH_NUM  (1 << SEM_HASH_LEN)
 #define SEM_HASH_MASK (SEM_HASH_NUM - 1)
-#define SEM_HASH(idx) ((idx) & SEM_HASH_MASK)
+#define SEM_HASH(idx) ((idx)&SEM_HASH_MASK)
 
 /* The sem_list links shim_sem_handle objects by the list field.
  * The sem_key_hlist links them by key_hlist, and qid_hlist by qid_hlist */

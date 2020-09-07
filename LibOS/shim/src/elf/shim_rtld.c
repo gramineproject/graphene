@@ -1057,18 +1057,19 @@ static unsigned long int elf_hash(const char* name_arg) {
 }
 
 /* Check whether the symbol matches.  */
-static ElfW(Sym)* check_match(ElfW(Sym)* sym, ElfW(Sym)* ref, const char* strtab, const char *undef_name, int len) {
+static ElfW(Sym)* check_match(ElfW(Sym)* sym, ElfW(Sym)* ref, const char* strtab,
+                              const char* undef_name, int len) {
     unsigned int stt = ELFW(ST_TYPE)(sym->st_info);
 
     if ((sym->st_value == 0 /* No value */ && stt != STT_TLS) || sym->st_shndx == SHN_UNDEF)
         return NULL;
 
-/* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
-   STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
-   code/data definitions.  */
-#define ALLOWED_STT                                                                \
-    ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
-     (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
+    /* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
+       STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
+       code/data definitions.  */
+    #define ALLOWED_STT                                                                \
+        ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
+         (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
 
     if (((1 << stt) & ALLOWED_STT) == 0)
         return NULL;

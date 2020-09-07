@@ -9,6 +9,6 @@
 #ifndef _LINUX_SGX_SIGCONTEXT_H
 #define _LINUX_SGX_SIGCONTEXT_H
 
-#include <Linux/sigcontext.h>
+#include "Linux/sigcontext.h"
 
 #endif /* _LINUX_SGX_SIGCONTEXT_H */

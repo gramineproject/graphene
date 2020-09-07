@@ -4,7 +4,8 @@
 #ifdef IN_PAL
 
 #include <asm/errno.h>
-#include <pal_error.h>
+
+#include "pal_error.h"
 
 static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
     switch (unix_errno) {

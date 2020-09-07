@@ -8,10 +8,6 @@
 #include <stdint.h>
 
 #include "api.h"
-#include "pal.h"
-#include "pal_crypto.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "assert.h"
 #include "mbedtls/aes.h"
 #include "mbedtls/cmac.h"
@@ -21,10 +17,14 @@
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha256.h"
+#include "pal.h"
+#include "pal_crypto.h"
+#include "pal_debug.h"
+#include "pal_error.h"
 #include "rng-arch.h"
 
 int mbedtls_to_pal_error(int error) {
-    switch(error) {
+    switch (error) {
         case 0:
             return 0;
 
@@ -44,7 +44,7 @@ int mbedtls_to_pal_error(int error) {
         case MBEDTLS_ERR_MD_BAD_INPUT_DATA:
         case MBEDTLS_ERR_MPI_BAD_INPUT_DATA:
         case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
-        case MBEDTLS_ERR_RSA_PUBLIC_FAILED: // see mbedtls_rsa_public()
+        case MBEDTLS_ERR_RSA_PUBLIC_FAILED:  // see mbedtls_rsa_public()
         case MBEDTLS_ERR_RSA_PRIVATE_FAILED: // see mbedtls_rsa_private()
             return -PAL_ERROR_CRYPTO_BAD_INPUT_DATA;
 
@@ -174,7 +174,7 @@ int lib_AESGCMEncrypt(const uint8_t* key, size_t key_size, const uint8_t* iv, co
 out:
     mbedtls_gcm_free(&gcm);
     return ret;
- }
+}
 
 int lib_AESGCMDecrypt(const uint8_t* key, size_t key_size, const uint8_t* iv, const uint8_t* input,
                       size_t input_size, const uint8_t* aad, size_t aad_size, uint8_t* output,
@@ -202,27 +202,27 @@ int lib_AESGCMDecrypt(const uint8_t* key, size_t key_size, const uint8_t* iv, co
 out:
     mbedtls_gcm_free(&gcm);
     return ret;
- }
+}
 
 int lib_AESCMAC(const uint8_t* key, size_t key_size, const uint8_t* input, size_t input_size,
                 uint8_t* mac, size_t mac_size) {
     mbedtls_cipher_type_t cipher;
 
     switch (key_size) {
-    case 16:
-        cipher = MBEDTLS_CIPHER_AES_128_ECB;
-        break;
-    case 24:
-        cipher = MBEDTLS_CIPHER_AES_192_ECB;
-        break;
-    case 32:
-        cipher = MBEDTLS_CIPHER_AES_256_ECB;
-        break;
-    default:
-        return -PAL_ERROR_INVAL;
+        case 16:
+            cipher = MBEDTLS_CIPHER_AES_128_ECB;
+            break;
+        case 24:
+            cipher = MBEDTLS_CIPHER_AES_192_ECB;
+            break;
+        case 32:
+            cipher = MBEDTLS_CIPHER_AES_256_ECB;
+            break;
+        default:
+            return -PAL_ERROR_INVAL;
     }
 
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(cipher);
+    const mbedtls_cipher_info_t* cipher_info = mbedtls_cipher_info_from_type(cipher);
 
     if (mac_size < cipher_info->block_size) {
         return -PAL_ERROR_INVAL;
@@ -235,20 +235,20 @@ int lib_AESCMAC(const uint8_t* key, size_t key_size, const uint8_t* input, size_
 
 int lib_AESCMACInit(LIB_AESCMAC_CONTEXT* context, const uint8_t* key, size_t key_size) {
     switch (key_size) {
-    case 16:
-        context->cipher = MBEDTLS_CIPHER_AES_128_ECB;
-        break;
-    case 24:
-        context->cipher = MBEDTLS_CIPHER_AES_192_ECB;
-        break;
-    case 32:
-        context->cipher = MBEDTLS_CIPHER_AES_256_ECB;
-        break;
-    default:
-        return -PAL_ERROR_INVAL;
+        case 16:
+            context->cipher = MBEDTLS_CIPHER_AES_128_ECB;
+            break;
+        case 24:
+            context->cipher = MBEDTLS_CIPHER_AES_192_ECB;
+            break;
+        case 32:
+            context->cipher = MBEDTLS_CIPHER_AES_256_ECB;
+            break;
+        default:
+            return -PAL_ERROR_INVAL;
     }
 
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(context->cipher);
+    const mbedtls_cipher_info_t* cipher_info = mbedtls_cipher_info_from_type(context->cipher);
 
     int ret = mbedtls_cipher_setup(&context->ctx, cipher_info);
     if (ret != 0)
@@ -264,7 +264,7 @@ int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT* context, const uint8_t* input, size_t
 }
 
 int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT* context, uint8_t* mac, size_t mac_size) {
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(context->cipher);
+    const mbedtls_cipher_info_t* cipher_info = mbedtls_cipher_info_from_type(context->cipher);
 
     int ret = -PAL_ERROR_INVAL;
     if (mac_size < cipher_info->block_size)
@@ -295,7 +295,7 @@ int lib_RSAGenerateKey(LIB_RSA_KEY* key, uint64_t length_in_bits, uint64_t expon
     if (length_in_bits > UINT_MAX)
         return -PAL_ERROR_INVAL;
 
-    if (exponent > UINT_MAX || (int) exponent < 0)
+    if (exponent > UINT_MAX || (int)exponent < 0)
         return -PAL_ERROR_INVAL;
 
     int ret = mbedtls_rsa_gen_key(key, RandomWrapper, NULL, length_in_bits, exponent);
@@ -336,7 +336,6 @@ int lib_RSAImportPublicKey(LIB_RSA_KEY* key, const uint8_t* e, size_t e_size, co
 
 int lib_RSAVerifySHA256(LIB_RSA_KEY* key, const uint8_t* hash, size_t hash_size,
                         const uint8_t* signature, size_t signature_size) {
-
     /* The mbedtls decrypt API assumes that you have a memory buffer that
      * is as large as the key size and take the length as a parameter. We
      * check, so that in the event the caller makes a mistake, you'll get
@@ -417,9 +416,8 @@ static int send_cb(void* ctx, uint8_t const* buf, size_t buf_size) {
 }
 
 /*! This function is not thread-safe; caller is responsible for proper synchronization. */
-int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
-                const uint8_t* psk, size_t psk_size,
-                ssize_t (*pal_recv_cb)(int fd, void* buf, size_t buf_size),
+int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server, const uint8_t* psk,
+                size_t psk_size, ssize_t (*pal_recv_cb)(int fd, void* buf, size_t buf_size),
                 ssize_t (*pal_send_cb)(int fd, const void* buf, size_t buf_size),
                 const uint8_t* buf_load_ssl_ctx, size_t buf_size) {
     int ret;
@@ -445,8 +443,7 @@ int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
 
     ret = mbedtls_ssl_config_defaults(&ssl_ctx->conf,
                                       is_server ? MBEDTLS_SSL_IS_SERVER : MBEDTLS_SSL_IS_CLIENT,
-                                      MBEDTLS_SSL_TRANSPORT_STREAM,
-                                      MBEDTLS_SSL_PRESET_DEFAULT);
+                                      MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
     if (ret != 0)
         return mbedtls_to_pal_error(ret);
 
@@ -507,7 +504,7 @@ int lib_SSLRead(LIB_SSL_CONTEXT* ssl_ctx, uint8_t* buf, size_t buf_size) {
 int lib_SSLWrite(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t* buf, size_t buf_size) {
     int ret = mbedtls_ssl_write(&ssl_ctx->ssl, buf, buf_size);
     if (ret <= 0)
-       return mbedtls_to_pal_error(ret);
+        return mbedtls_to_pal_error(ret);
     return ret;
 }
 

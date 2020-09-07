@@ -66,6 +66,6 @@ void fixup_child_context(struct shim_regs* regs) {
          */
         /* regs->rsp += RED_ZONE_SIZE; */
         regs->rflags = regs->r11;
-        regs->rip = regs->rcx;
+        regs->rip    = regs->rcx;
     }
 }

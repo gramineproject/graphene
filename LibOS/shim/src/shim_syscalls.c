@@ -13,14 +13,15 @@
 #endif
 #include <asm/unistd.h>
 #include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_tcb.h>
-#include <shim_unistd.h>
-#include <shim_utils.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_tcb.h"
+#include "shim_thread.h"
+#include "shim_unistd.h"
+#include "shim_utils.h"
 
 //////////////////////////////////////////////////
 //  Mappings from system calls to shim calls
@@ -527,8 +528,8 @@ DEFINE_SHIM_SYSCALL(sched_setparam, 2, shim_do_sched_setparam, int, pid_t, pid,
 DEFINE_SHIM_SYSCALL(sched_getparam, 2, shim_do_sched_getparam, int, pid_t, pid,
                     struct __kernel_sched_param*, param)
 
-DEFINE_SHIM_SYSCALL(sched_setscheduler, 3, shim_do_sched_setscheduler, int, pid_t, pid,
-                    int, policy, struct __kernel_sched_param*, param)
+DEFINE_SHIM_SYSCALL(sched_setscheduler, 3, shim_do_sched_setscheduler, int, pid_t, pid, int, policy,
+                    struct __kernel_sched_param*, param)
 
 DEFINE_SHIM_SYSCALL(sched_getscheduler, 1, shim_do_sched_getscheduler, int, pid_t, pid)
 
@@ -648,15 +649,15 @@ SHIM_SYSCALL_RETURN_ENOSYS(nfsservctl, 3, int, int, cmd, struct nfsctl_arg*, arg
    this? */
 
 /* shim_afs_syscall MISSING
-   TODO: afs_syscall is not implemented (kernel always returns -ENOSYS), how should we handle 
+   TODO: afs_syscall is not implemented (kernel always returns -ENOSYS), how should we handle
    this? */
 
 /* shim_tuxcall MISSING
-   TODO: tuxcall syscall is not implemented (kernel always returns -ENOSYS), how should we handle 
+   TODO: tuxcall syscall is not implemented (kernel always returns -ENOSYS), how should we handle
    this? */
 
 /* shim_security MISSING
-   TODO: security syscall is not implemented (kernel always returns -ENOSYS), how should we handle 
+   TODO: security syscall is not implemented (kernel always returns -ENOSYS), how should we handle
    this? */
 
 /* gettid: sys/shim_getpid.c */
@@ -812,8 +813,8 @@ DEFINE_SHIM_SYSCALL(mbind, 6, shim_do_mbind, int, void*, start, unsigned long, l
 SHIM_SYSCALL_RETURN_ENOSYS(set_mempolicy, 3, int, int, mode, unsigned long*, nmask, unsigned long,
                            maxnode)
 
-SHIM_SYSCALL_RETURN_ENOSYS(get_mempolicy, 5, int, int*, policy, unsigned long*, nmask, unsigned long,
-                           maxnode, unsigned long, addr, unsigned long, flags)
+SHIM_SYSCALL_RETURN_ENOSYS(get_mempolicy, 5, int, int*, policy, unsigned long*, nmask,
+                           unsigned long, maxnode, unsigned long, addr, unsigned long, flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(mq_open, 4, int, const char*, name, int, oflag, mode_t, mode,
                            struct __kernel_mq_attr*, attr)
@@ -968,15 +969,15 @@ SHIM_SYSCALL_RETURN_ENOSYS(timerfd_settime, 4, int, int, ufd, int, flags,
 SHIM_SYSCALL_RETURN_ENOSYS(timerfd_gettime, 2, int, int, ufd, struct __kernel_itimerspec*, otmr)
 
 /* accept4: sys/shim_socket.c */
-DEFINE_SHIM_SYSCALL(accept4, 4, shim_do_accept4, int, int, sockfd, struct sockaddr*, addr,
-                    int*, addrlen, int, flags)
+DEFINE_SHIM_SYSCALL(accept4, 4, shim_do_accept4, int, int, sockfd, struct sockaddr*, addr, int*,
+                    addrlen, int, flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(signalfd4, 4, int, int, ufd, __sigset_t*, user_mask, size_t, sizemask,
                            int, flags)
 
 DEFINE_SHIM_SYSCALL(eventfd, 1, shim_do_eventfd, int, unsigned int, count)
 
-DEFINE_SHIM_SYSCALL (eventfd2, 2, shim_do_eventfd2, int, unsigned int, count, int, flags)
+DEFINE_SHIM_SYSCALL(eventfd2, 2, shim_do_eventfd2, int, unsigned int, count, int, flags)
 
 /* epoll_create1: sys/shim_epoll.c */
 DEFINE_SHIM_SYSCALL(epoll_create1, 1, shim_do_epoll_create1, int, int, flags)

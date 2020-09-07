@@ -10,14 +10,15 @@
 
 #include <errno.h>
 #include <linux/eventpoll.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
 
 /* Avoid duplicated definitions */
 #ifndef EPOLLIN
@@ -47,8 +48,8 @@ int shim_do_epoll_create1(int flags) {
 
     hdl->type = TYPE_EPOLL;
     set_handle_fs(hdl, &epoll_builtin_fs);
-    epoll->pal_cnt     = 0;
-    epoll->waiter_cnt  = 0;
+    epoll->pal_cnt    = 0;
+    epoll->waiter_cnt = 0;
     create_event(&epoll->event);
     INIT_LISTP(&epoll->fds);
 
@@ -176,7 +177,6 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                 ret = -ENOMEM;
                 put_handle(hdl);
                 goto out;
-
             }
 
             debug("add fd %d (handle %p) to epoll handle %p\n", fd, hdl, epoll);
@@ -309,9 +309,11 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
                 continue;
 
             pal_handles[pal_cnt] = epoll_item->handle->pal_handle;
-            pal_events[pal_cnt]  = (epoll_item->events & (EPOLLIN | EPOLLRDNORM)) ? PAL_WAIT_READ  : 0;
-            pal_events[pal_cnt] |= (epoll_item->events & (EPOLLOUT | EPOLLWRNORM)) ? PAL_WAIT_WRITE : 0;
-            ret_events[pal_cnt]  = 0;
+            pal_events[pal_cnt] =
+                (epoll_item->events & (EPOLLIN | EPOLLRDNORM)) ? PAL_WAIT_READ : 0;
+            pal_events[pal_cnt] |=
+                (epoll_item->events & (EPOLLOUT | EPOLLWRNORM)) ? PAL_WAIT_WRITE : 0;
+            ret_events[pal_cnt] = 0;
             pal_cnt++;
         }
 
@@ -321,11 +323,12 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
         pal_events[pal_cnt]  = PAL_WAIT_READ;
         ret_events[pal_cnt]  = 0;
 
-        epoll->waiter_cnt++;  /* mark epoll as being waited on (so epoll-update signal is sent) */
+        epoll->waiter_cnt++; /* mark epoll as being waited on (so epoll-update signal is sent) */
         unlock(&epoll_hdl->lock);
 
         /* TODO: Timeout must be updated in case of retries; otherwise, we may wait for too long */
-        PAL_BOL polled = DkStreamsWaitEvents(pal_cnt + 1, pal_handles, pal_events, ret_events, timeout_ms * 1000);
+        PAL_BOL polled = DkStreamsWaitEvents(pal_cnt + 1, pal_handles, pal_events, ret_events,
+                                             timeout_ms * 1000);
 
         lock(&epoll_hdl->lock);
         epoll->waiter_cnt--;
@@ -454,12 +457,12 @@ BEGIN_CP_FUNC(epoll_item) {
 
         struct shim_epoll_item* new_epoll_item = (struct shim_epoll_item*)(base + off);
 
-        new_epoll_item->fd         = epoll_item->fd;
-        new_epoll_item->events     = epoll_item->events;
-        new_epoll_item->data       = epoll_item->data;
-        new_epoll_item->revents    = epoll_item->revents;
-        new_epoll_item->connected  = epoll_item->connected;
-        new_epoll_item->epoll      = NULL; // To be filled by epoll handle RS_FUNC
+        new_epoll_item->fd        = epoll_item->fd;
+        new_epoll_item->events    = epoll_item->events;
+        new_epoll_item->data      = epoll_item->data;
+        new_epoll_item->revents   = epoll_item->revents;
+        new_epoll_item->connected = epoll_item->connected;
+        new_epoll_item->epoll     = NULL; // To be filled by epoll handle RS_FUNC
 
         LISTP_ADD(new_epoll_item, new_list, list);
 
@@ -484,8 +487,9 @@ BEGIN_RS_FUNC(epoll_item) {
         CP_REBASE(epoll_item->back);
         CP_REBASE(epoll_item->list);
 
-        DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s", epoll_item->fd, qstrgetstr(&epoll_item->handle->path),
-                 epoll_item->handle->fs_type, qstrgetstr(&epoll_item->handle->uri));
+        DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s", epoll_item->fd,
+                 qstrgetstr(&epoll_item->handle->path), epoll_item->handle->fs_type,
+                 qstrgetstr(&epoll_item->handle->uri));
     }
 }
 END_RS_FUNC(epoll_item)

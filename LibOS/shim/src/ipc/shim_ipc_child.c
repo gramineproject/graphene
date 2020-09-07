@@ -9,13 +9,14 @@
  */
 
 #include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 struct thread_info {
     IDTYPE vmid;

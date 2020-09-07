@@ -12,7 +12,7 @@
 #error "this header file can only be used inside SHIM"
 #endif
 
-#define attribute_hidden __attribute__ ((visibility ("hidden")))
+#define attribute_hidden __attribute__((visibility("hidden")))
 
 #define ALIAS_STR(name) #name
 
@@ -36,12 +36,11 @@ static inline unsigned int get_cur_tid(void) {
     return SHIM_TCB_GET(tid);
 }
 
-#define PAL_NATIVE_ERRNO()      SHIM_TCB_GET(pal_errno)
+#define PAL_NATIVE_ERRNO() SHIM_TCB_GET(pal_errno)
 
-#define INTERNAL_TID_BASE       ((IDTYPE) 1 << (sizeof(IDTYPE) * 8 - 1))
+#define INTERNAL_TID_BASE ((IDTYPE)1 << (sizeof(IDTYPE) * 8 - 1))
 
-static inline bool is_internal_tid(unsigned int tid)
-{
+static inline bool is_internal_tid(unsigned int tid) {
     return tid >= INTERNAL_TID_BASE;
 }
 
@@ -51,70 +50,69 @@ struct debug_buf {
     char buf[DEBUGBUF_SIZE];
 };
 
-#include <pal.h>
-#include <pal_debug.h>
-#include <pal_error.h>
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_error.h"
 
 extern PAL_HANDLE debug_handle;
 
 #include <stdarg.h>
 
-void debug_printf (const char * fmt, ...) __attribute__((format (printf, 1, 2)));
-void debug_puts (const char * str);
-void debug_putch (int ch);
-void debug_vprintf (const char * fmt, va_list ap) __attribute__((format (printf, 1, 0)));
+void debug_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+void debug_puts(const char* str);
+void debug_putch(int ch);
+void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-#define debug(fmt, ...)                                                     \
-    do {                                                                    \
-        if (debug_handle)                                                   \
-            debug_printf(fmt, ##__VA_ARGS__);                               \
+#define debug(fmt, ...)                       \
+    do {                                      \
+        if (debug_handle)                     \
+            debug_printf(fmt, ##__VA_ARGS__); \
     } while (0)
 
 /* print system messages */
-#define SYSPRINT_BUFFER_SIZE    256
+#define SYSPRINT_BUFFER_SIZE 256
 
-void handle_printf (PAL_HANDLE hdl, const char * fmt, ...) __attribute__((format (printf, 2, 3)));
-void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list ap) __attribute__((format (printf, 2, 0)));
+void handle_printf(PAL_HANDLE hdl, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+void handle_vprintf(PAL_HANDLE hdl, const char* fmt, va_list ap)
+    __attribute__((format(printf, 2, 0)));
 
-#define __SYS_PRINTF(fmt, ...)                                              \
-    do {                                                                    \
-        PAL_HANDLE _hdl = __open_shim_stdio();                              \
-        if (_hdl)                                                           \
-           handle_printf(_hdl, fmt, ##__VA_ARGS__);                         \
+#define __SYS_PRINTF(fmt, ...)                       \
+    do {                                             \
+        PAL_HANDLE _hdl = __open_shim_stdio();       \
+        if (_hdl)                                    \
+            handle_printf(_hdl, fmt, ##__VA_ARGS__); \
     } while (0)
 
-#define __SYS_VPRINTF(fmt, va)                                              \
-    do {                                                                    \
-        PAL_HANDLE _hdl = __open_shim_stdio();                              \
-        if (_hdl)                                                           \
-            handle_vprintf(_hdl, fmt, va);                                  \
+#define __SYS_VPRINTF(fmt, va)                 \
+    do {                                       \
+        PAL_HANDLE _hdl = __open_shim_stdio(); \
+        if (_hdl)                              \
+            handle_vprintf(_hdl, fmt, va);     \
     } while (0)
 
-
-#define __SYS_FPRINTF(hdl, fmt, ...)                                        \
-    do {                                                                    \
-        handle_printf(hdl, fmt, ##__VA_ARGS__);                             \
+#define __SYS_FPRINTF(hdl, fmt, ...)            \
+    do {                                        \
+        handle_printf(hdl, fmt, ##__VA_ARGS__); \
     } while (0)
 
-#define SYS_PRINTF(fmt, ...)                                                \
-    do {                                                                    \
-        MASTER_LOCK();                                                      \
-        __SYS_PRINTF(fmt, ##__VA_ARGS__);                                   \
-        MASTER_UNLOCK();                                                    \
+#define SYS_PRINTF(fmt, ...)              \
+    do {                                  \
+        MASTER_LOCK();                    \
+        __SYS_PRINTF(fmt, ##__VA_ARGS__); \
+        MASTER_UNLOCK();                  \
     } while (0)
 
-#define SYS_FPRINTF(hdl, fmt, ...)                                          \
-    do {                                                                    \
-        MASTER_LOCK();                                                      \
-        __SYS_FPRINTF(hdl, fmt, ##__VA_ARGS__);                             \
-        MASTER_UNLOCK();                                                    \
+#define SYS_FPRINTF(hdl, fmt, ...)              \
+    do {                                        \
+        MASTER_LOCK();                          \
+        __SYS_FPRINTF(hdl, fmt, ##__VA_ARGS__); \
+        MASTER_UNLOCK();                        \
     } while (0)
 
 extern PAL_HANDLE shim_stdio;
 
-static inline PAL_HANDLE __open_shim_stdio (void)
-{
-    if (shim_stdio == (PAL_HANDLE) -1)
+static inline PAL_HANDLE __open_shim_stdio(void) {
+    if (shim_stdio == (PAL_HANDLE)-1)
         return NULL;
 
     if (shim_stdio)
@@ -123,7 +121,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     shim_stdio = DkStreamOpen(URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
 
     if (!shim_stdio) {
-        shim_stdio = (PAL_HANDLE) -1;
+        shim_stdio = (PAL_HANDLE)-1;
         return NULL;
     }
 
@@ -131,20 +129,22 @@ static inline PAL_HANDLE __open_shim_stdio (void)
 }
 
 #if 0
-# define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()
+#define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()
 #else
-# define DEBUG_BREAK_ON_FAILURE() do {} while (0)
+#define DEBUG_BREAK_ON_FAILURE() do {} while (0)
 #endif
 
-#define BUG()                                                               \
-    do {                                                                    \
-        __SYS_PRINTF("BUG() " __FILE__ ":%d\n", __LINE__);                  \
-        DEBUG_BREAK_ON_FAILURE();                                           \
-        shim_clean_and_exit(-ENOTRECOVERABLE);                              \
+#define BUG()                                              \
+    do {                                                   \
+        __SYS_PRINTF("BUG() " __FILE__ ":%d\n", __LINE__); \
+        DEBUG_BREAK_ON_FAILURE();                          \
+        shim_clean_and_exit(-ENOTRECOVERABLE);             \
     } while (0)
 
-#define DEBUG_HERE() \
-    do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
+#define DEBUG_HERE()                                         \
+    do {                                                     \
+        debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
+    } while (0)
 
 /* definition for syscall table */
 void handle_signals(void);
@@ -156,162 +156,161 @@ void syscall_wrapper_after_syscalldb(void);
 
 #define SHIM_ARG_TYPE long
 
-static inline int64_t get_cur_preempt (void) {
+static inline int64_t get_cur_preempt(void) {
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
     return __atomic_load_n(&tcb->context.preempt.counter, __ATOMIC_SEQ_CST);
 }
 
-#define BEGIN_SHIM(name, args ...)                          \
-    SHIM_ARG_TYPE __shim_##name(args) {                     \
-        SHIM_ARG_TYPE ret = 0;                              \
-        int64_t preempt = get_cur_preempt();                \
+#define BEGIN_SHIM(name, args...)              \
+    SHIM_ARG_TYPE __shim_##name(args) {        \
+        SHIM_ARG_TYPE ret = 0;                 \
+        int64_t preempt = get_cur_preempt();   \
         __UNUSED(preempt);
 
-#define END_SHIM(name)                                      \
-        handle_signals();                                   \
-        assert(preempt == get_cur_preempt());               \
-        return ret;                                         \
+#define END_SHIM(name)                        \
+        handle_signals();                     \
+        assert(preempt == get_cur_preempt()); \
+        return ret;                           \
     }
 
-#define DEFINE_SHIM_SYSCALL(name, n, func, ...)             \
-    SHIM_SYSCALL_##n (name, func, __VA_ARGS__)              \
-    EXPORT_SHIM_SYSCALL (name, n, __VA_ARGS__)
+#define DEFINE_SHIM_SYSCALL(name, n, func, ...) \
+    SHIM_SYSCALL_##n(name, func, __VA_ARGS__)   \
+    EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
 
-#define PROTO_ARGS_0() void
-#define PROTO_ARGS_1(t, a) t a
-#define PROTO_ARGS_2(t, a, rest ...) t a, PROTO_ARGS_1(rest)
-#define PROTO_ARGS_3(t, a, rest ...) t a, PROTO_ARGS_2(rest)
-#define PROTO_ARGS_4(t, a, rest ...) t a, PROTO_ARGS_3(rest)
-#define PROTO_ARGS_5(t, a, rest ...) t a, PROTO_ARGS_4(rest)
-#define PROTO_ARGS_6(t, a, rest ...) t a, PROTO_ARGS_5(rest)
+#define PROTO_ARGS_0()              void
+#define PROTO_ARGS_1(t, a)          t a
+#define PROTO_ARGS_2(t, a, rest...) t a, PROTO_ARGS_1(rest)
+#define PROTO_ARGS_3(t, a, rest...) t a, PROTO_ARGS_2(rest)
+#define PROTO_ARGS_4(t, a, rest...) t a, PROTO_ARGS_3(rest)
+#define PROTO_ARGS_5(t, a, rest...) t a, PROTO_ARGS_4(rest)
+#define PROTO_ARGS_6(t, a, rest...) t a, PROTO_ARGS_5(rest)
 
 #define CAST_ARGS_0()
-#define CAST_ARGS_1(t, a) (SHIM_ARG_TYPE) a
-#define CAST_ARGS_2(t, a, rest ...) (SHIM_ARG_TYPE) a, CAST_ARGS_1(rest)
-#define CAST_ARGS_3(t, a, rest ...) (SHIM_ARG_TYPE) a, CAST_ARGS_2(rest)
-#define CAST_ARGS_4(t, a, rest ...) (SHIM_ARG_TYPE) a, CAST_ARGS_3(rest)
-#define CAST_ARGS_5(t, a, rest ...) (SHIM_ARG_TYPE) a, CAST_ARGS_4(rest)
-#define CAST_ARGS_6(t, a, rest ...) (SHIM_ARG_TYPE) a, CAST_ARGS_5(rest)
+#define CAST_ARGS_1(t, a)          (SHIM_ARG_TYPE)a
+#define CAST_ARGS_2(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_1(rest)
+#define CAST_ARGS_3(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_2(rest)
+#define CAST_ARGS_4(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_3(rest)
+#define CAST_ARGS_5(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_4(rest)
+#define CAST_ARGS_6(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_5(rest)
 
-#define DEFINE_SHIM_FUNC(func, n, r, args ...)             \
-    r func (PROTO_ARGS_##n (args));
+#define DEFINE_SHIM_FUNC(func, n, r, args...) \
+    r func(PROTO_ARGS_##n(args));
 
-#define TYPE_HASH(t) ({ const char * _s = #t;              \
-       ((uint16_t) _s[0] << 8) +  _s[1]; })
+#define TYPE_HASH(t)                    \
+    ({                                  \
+        const char* _s = #t;            \
+        ((uint16_t)_s[0] << 8) + _s[1]; \
+    })
 
-#define POINTER_TYPE(t) ({ int _h = TYPE_HASH(t);                   \
-       _h == TYPE_HASH(void *) || _h == TYPE_HASH(char *) ||        \
-       _h == TYPE_HASH(const); })
+#define POINTER_TYPE(t)                                                             \
+    ({                                                                              \
+        int _h = TYPE_HASH(t);                                                      \
+        _h == TYPE_HASH(void*) || _h == TYPE_HASH(char*) || _h == TYPE_HASH(const); \
+    })
 
-#define EXPORT_SHIM_SYSCALL(name, n, r, args ...)                   \
-    r shim_##name (PROTO_ARGS_##n (args)) {                         \
-        SHIM_ARG_TYPE ret =  __shim_##name (CAST_ARGS_##n (args));  \
-        if (POINTER_TYPE(r)) {                                      \
-            if ((uint64_t) ret >= (uint64_t) -4095L) return (r) 0;  \
-        } else {                                                    \
-            if ((int) ret < 0) return (r) -1;                       \
-        }                                                           \
-        return (r) ret;                                             \
+#define EXPORT_SHIM_SYSCALL(name, n, r, args...)                \
+    r shim_##name(PROTO_ARGS_##n(args)) {                       \
+        SHIM_ARG_TYPE ret = __shim_##name(CAST_ARGS_##n(args)); \
+        if (POINTER_TYPE(r)) {                                  \
+            if ((uint64_t)ret >= (uint64_t)-4095L)              \
+                return (r)0;                                    \
+        } else {                                                \
+            if ((int)ret < 0)                                   \
+                return (r)-1;                                   \
+        }                                                       \
+        return (r)ret;                                          \
     }
 
-#define PARSE_SYSCALL1(name, ...)                                   \
-    if (debug_handle)                                               \
+#define PARSE_SYSCALL1(name, ...) \
+    if (debug_handle)             \
         parse_syscall_before(__NR_##name, #name, ##__VA_ARGS__);
 
-#define PARSE_SYSCALL2(name, ...)                                   \
-    if (debug_handle)                                               \
+#define PARSE_SYSCALL2(name, ...) \
+    if (debug_handle)             \
         parse_syscall_after(__NR_##name, #name, ##__VA_ARGS__);
 
-void parse_syscall_before (int sysno, const char * name, int nr, ...);
-void parse_syscall_after (int sysno, const char * name, int nr, ...);
+void parse_syscall_before(int sysno, const char* name, int nr, ...);
+void parse_syscall_after(int sysno, const char* name, int nr, ...);
 
-#define SHIM_SYSCALL_0(name, func, r)                           \
-    BEGIN_SHIM(name, void)                                      \
-        PARSE_SYSCALL1(name, 0);                                \
-        r __ret = (func)();                                     \
-        PARSE_SYSCALL2(name, 0, #r, __ret);                     \
-        ret = (SHIM_ARG_TYPE) __ret;                            \
+#define SHIM_SYSCALL_0(name, func, r)       \
+    BEGIN_SHIM(name, void)                  \
+        PARSE_SYSCALL1(name, 0);            \
+        r __ret = (func)();                 \
+        PARSE_SYSCALL2(name, 0, #r, __ret); \
+        ret = (SHIM_ARG_TYPE)__ret;         \
     END_SHIM(name)
 
-#define SHIM_SYSCALL_1(name, func, r, t1, a1)                               \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1)                                  \
-        t1 a1 = (t1) __arg1;                                                \
-        PARSE_SYSCALL1(name, 1, #t1, a1);                                   \
-        r __ret = (func)(a1);                                               \
-        PARSE_SYSCALL2(name, 1, #r, __ret, #t1, a1);                        \
-        ret = (SHIM_ARG_TYPE) __ret;                                        \
+#define SHIM_SYSCALL_1(name, func, r, t1, a1)        \
+    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1)           \
+        t1 a1 = (t1)__arg1;                          \
+        PARSE_SYSCALL1(name, 1, #t1, a1);            \
+        r __ret = (func)(a1);                        \
+        PARSE_SYSCALL2(name, 1, #r, __ret, #t1, a1); \
+        ret = (SHIM_ARG_TYPE)__ret;                  \
     END_SHIM(name)
 
-#define SHIM_SYSCALL_2(name, func, r, t1, a1, t2, a2)                       \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2)            \
-        t1 a1 = (t1) __arg1;                                                \
-        t2 a2 = (t2) __arg2;                                                \
-        PARSE_SYSCALL1(name, 2, #t1, a1, #t2, a2);                          \
-        r __ret = (func)(a1, a2);                                           \
-        PARSE_SYSCALL2(name, 2, #r, __ret, #t1, a1, #t2, a2);               \
-        ret = (SHIM_ARG_TYPE) __ret;                                        \
+#define SHIM_SYSCALL_2(name, func, r, t1, a1, t2, a2)                \
+    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2)     \
+        t1 a1 = (t1)__arg1;                                          \
+        t2 a2 = (t2)__arg2;                                          \
+        PARSE_SYSCALL1(name, 2, #t1, a1, #t2, a2);                   \
+        r __ret = (func)(a1, a2);                                    \
+        PARSE_SYSCALL2(name, 2, #r, __ret, #t1, a1, #t2, a2);        \
+        ret = (SHIM_ARG_TYPE)__ret;                                  \
     END_SHIM(name)
 
-#define SHIM_SYSCALL_3(name, func, r, t1, a1, t2, a2, t3, a3)               \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2,            \
-                     SHIM_ARG_TYPE __arg3)                                  \
-        t1 a1 = (t1) __arg1;                                                \
-        t2 a2 = (t2) __arg2;                                                \
-        t3 a3 = (t3) __arg3;                                                \
-        PARSE_SYSCALL1(name, 3, #t1, a1, #t2, a2, #t3, a3);                 \
-        r __ret = (func)(a1, a2, a3);                                       \
-        PARSE_SYSCALL2(name, 3, #r, __ret, #t1, a1, #t2, a2, #t3, a3);      \
-        ret = (SHIM_ARG_TYPE) __ret;                                        \
+#define SHIM_SYSCALL_3(name, func, r, t1, a1, t2, a2, t3, a3)                              \
+    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3)     \
+        t1 a1 = (t1)__arg1;                                                                \
+        t2 a2 = (t2)__arg2;                                                                \
+        t3 a3 = (t3)__arg3;                                                                \
+        PARSE_SYSCALL1(name, 3, #t1, a1, #t2, a2, #t3, a3);                                \
+        r __ret = (func)(a1, a2, a3);                                                      \
+        PARSE_SYSCALL2(name, 3, #r, __ret, #t1, a1, #t2, a2, #t3, a3);                     \
+        ret = (SHIM_ARG_TYPE)__ret;                                                        \
     END_SHIM(name)
 
-#define SHIM_SYSCALL_4(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4)       \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2,            \
-                     SHIM_ARG_TYPE __arg3, SHIM_ARG_TYPE __arg4)            \
-        t1 a1 = (t1) __arg1;                                                \
-        t2 a2 = (t2) __arg2;                                                \
-        t3 a3 = (t3) __arg3;                                                \
-        t4 a4 = (t4) __arg4;                                                \
-        PARSE_SYSCALL1(name, 4, #t1, a1, #t2, a2, #t3, a3, #t4, a4);        \
-        r __ret = (func)(a1, a2, a3, a4);                                   \
-        PARSE_SYSCALL2(name, 4, #r, __ret, #t1, a1, #t2, a2, #t3, a3,       \
-                       #t4, a4);                                            \
-        ret = (SHIM_ARG_TYPE) __ret;                                        \
+#define SHIM_SYSCALL_4(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4)                      \
+    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,     \
+               SHIM_ARG_TYPE __arg4)                                                       \
+        t1 a1 = (t1)__arg1;                                                                \
+        t2 a2 = (t2)__arg2;                                                                \
+        t3 a3 = (t3)__arg3;                                                                \
+        t4 a4 = (t4)__arg4;                                                                \
+        PARSE_SYSCALL1(name, 4, #t1, a1, #t2, a2, #t3, a3, #t4, a4);                       \
+        r __ret = (func)(a1, a2, a3, a4);                                                  \
+        PARSE_SYSCALL2(name, 4, #r, __ret, #t1, a1, #t2, a2, #t3, a3, #t4, a4);            \
+        ret = (SHIM_ARG_TYPE)__ret;                                                        \
     END_SHIM(name)
 
-#define SHIM_SYSCALL_5(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5) \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2,            \
-                     SHIM_ARG_TYPE __arg3, SHIM_ARG_TYPE __arg4,            \
-                     SHIM_ARG_TYPE __arg5)                                  \
-        t1 a1 = (t1) __arg1;                                                \
-        t2 a2 = (t2) __arg2;                                                \
-        t3 a3 = (t3) __arg3;                                                \
-        t4 a4 = (t4) __arg4;                                                \
-        t5 a5 = (t5) __arg5;                                                \
-        PARSE_SYSCALL1(name, 5, #t1, a1, #t2, a2, #t3, a3, #t4, a4,         \
-                       #t5, a5);                                            \
-        r __ret = (func)(a1, a2, a3, a4, a5);                               \
-        PARSE_SYSCALL2(name, 5, #r, __ret, #t1, a1, #t2, a2, #t3, a3,       \
-                       #t4, a4, #t5, a5);                                   \
-        ret = (SHIM_ARG_TYPE) __ret;                                        \
+#define SHIM_SYSCALL_5(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5)              \
+    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,     \
+               SHIM_ARG_TYPE __arg4, SHIM_ARG_TYPE __arg5)                                 \
+        t1 a1 = (t1)__arg1;                                                                \
+        t2 a2 = (t2)__arg2;                                                                \
+        t3 a3 = (t3)__arg3;                                                                \
+        t4 a4 = (t4)__arg4;                                                                \
+        t5 a5 = (t5)__arg5;                                                                \
+        PARSE_SYSCALL1(name, 5, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5);              \
+        r __ret = (func)(a1, a2, a3, a4, a5);                                              \
+        PARSE_SYSCALL2(name, 5, #r, __ret, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5);   \
+        ret = (SHIM_ARG_TYPE)__ret;                                                        \
     END_SHIM(name)
 
-#define SHIM_SYSCALL_6(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6) \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2,            \
-                     SHIM_ARG_TYPE __arg3, SHIM_ARG_TYPE __arg4,            \
-                     SHIM_ARG_TYPE __arg5, SHIM_ARG_TYPE __arg6)            \
-        t1 a1 = (t1) __arg1;                                                \
-        t2 a2 = (t2) __arg2;                                                \
-        t3 a3 = (t3) __arg3;                                                \
-        t4 a4 = (t4) __arg4;                                                \
-        t5 a5 = (t5) __arg5;                                                \
-        t6 a6 = (t6) __arg6;                                                \
-        PARSE_SYSCALL1(name, 6, #t1, a1, #t2, a2, #t3, a3, #t4, a4,         \
-                       #t5, a5, #t6, a6);                                   \
-        r __ret = (func)(a1, a2, a3, a4, a5, a6);                           \
-        PARSE_SYSCALL2(name, 6, #r, __ret, #t1, a1, #t2, a2, #t3, a3,       \
-                       #t4, a4, #t5, a5, #t6, a6);  \
-        ret = (SHIM_ARG_TYPE) __ret;                                        \
+#define SHIM_SYSCALL_6(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6)             \
+    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,            \
+               SHIM_ARG_TYPE __arg4, SHIM_ARG_TYPE __arg5, SHIM_ARG_TYPE __arg6)                  \
+        t1 a1 = (t1)__arg1;                                                                       \
+        t2 a2 = (t2)__arg2;                                                                       \
+        t3 a3 = (t3)__arg3;                                                                       \
+        t4 a4 = (t4)__arg4;                                                                       \
+        t5 a5 = (t5)__arg5;                                                                       \
+        t6 a6 = (t6)__arg6;                                                                       \
+        PARSE_SYSCALL1(name, 6, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5, #t6, a6);            \
+        r __ret = (func)(a1, a2, a3, a4, a5, a6);                                                 \
+        PARSE_SYSCALL2(name, 6, #r, __ret, #t1, a1, #t2, a2, #t3, a3, #t4, a4, #t5, a5, #t6, a6); \
+        ret = (SHIM_ARG_TYPE)__ret;                                                               \
     END_SHIM(name)
 
 #define SHIM_PROTO_ARGS_0 void
@@ -331,30 +330,36 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
 
 #define SHIM_UNUSED_ARGS_0()
 
-#define SHIM_UNUSED_ARGS_1() do {               \
-        __UNUSED(__arg1);                       \
+#define SHIM_UNUSED_ARGS_1() \
+    do {                     \
+        __UNUSED(__arg1);    \
     } while (0)
-#define SHIM_UNUSED_ARGS_2() do {               \
-        SHIM_UNUSED_ARGS_1();                   \
-        __UNUSED(__arg2);                       \
+#define SHIM_UNUSED_ARGS_2()  \
+    do {                      \
+        SHIM_UNUSED_ARGS_1(); \
+        __UNUSED(__arg2);     \
     } while (0)
-#define SHIM_UNUSED_ARGS_3() do {               \
-        SHIM_UNUSED_ARGS_2();                   \
-        __UNUSED(__arg3);                       \
+#define SHIM_UNUSED_ARGS_3()  \
+    do {                      \
+        SHIM_UNUSED_ARGS_2(); \
+        __UNUSED(__arg3);     \
     } while (0)
-#define SHIM_UNUSED_ARGS_4() do {               \
-        SHIM_UNUSED_ARGS_3();                   \
-        __UNUSED(__arg4);                       \
+#define SHIM_UNUSED_ARGS_4()  \
+    do {                      \
+        SHIM_UNUSED_ARGS_3(); \
+        __UNUSED(__arg4);     \
     } while (0)
 
-#define SHIM_UNUSED_ARGS_5() do {               \
-        SHIM_UNUSED_ARGS_4();                   \
-        __UNUSED(__arg5);                       \
+#define SHIM_UNUSED_ARGS_5()  \
+    do {                      \
+        SHIM_UNUSED_ARGS_4(); \
+        __UNUSED(__arg5);     \
     } while (0)
 
-#define SHIM_UNUSED_ARGS_6() do {               \
-        SHIM_UNUSED_ARGS_5();                   \
-        __UNUSED(__arg6);                       \
+#define SHIM_UNUSED_ARGS_6()  \
+    do {                      \
+        SHIM_UNUSED_ARGS_5(); \
+        __UNUSED(__arg6);     \
     } while (0)
 
 #define SHIM_SYSCALL_PROTO_0(NAME, RTYPE) \
@@ -387,67 +392,61 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
     END_SHIM(name)                                                                 \
     EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
 
-#define CONCAT2(t1, t2) __CONCAT2(t1, t2)
+#define CONCAT2(t1, t2)   __CONCAT2(t1, t2)
 #define __CONCAT2(t1, t2) t1##_##t2
 
-#define CONCAT3(t1, t2, t3) __CONCAT3(t1, t2, t3)
+#define CONCAT3(t1, t2, t3)   __CONCAT3(t1, t2, t3)
 #define __CONCAT3(t1, t2, t3) t1##_##t2##_##t3
 
 /* Some SHIM internal errno */
-#define EISLINK          141    /* the path is a link */
-#define ECONTAINLINK     142    /* part of path contains a link */
-#define ENOTLINK         143    /* the path is not a link */
-#define ESKIPPED         144    /* skip looking up current path */
+#define EISLINK      141 /* the path is a link */
+#define ECONTAINLINK 142 /* part of path contains a link */
+#define ENOTLINK     143 /* the path is not a link */
+#define ESKIPPED     144 /* skip looking up current path */
 
-#define PAL_CB(member)     (pal_control.member)
+#define PAL_CB(member) (pal_control.member)
 
-#define LOCK_FREE ((IDTYPE) -1)
+#define LOCK_FREE ((IDTYPE)-1)
 
 extern bool lock_enabled;
 
-static inline void enable_locking (void)
-{
+static inline void enable_locking(void) {
     if (!lock_enabled)
         lock_enabled = true;
 }
 
-static inline PAL_HANDLE thread_create (void * func, void * arg)
-{
+static inline PAL_HANDLE thread_create(void* func, void* arg) {
     assert(lock_enabled);
     return DkThreadCreate(func, arg);
 }
 
-static inline int64_t __disable_preempt (shim_tcb_t * tcb)
-{
-    //tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
+static inline int64_t __disable_preempt(shim_tcb_t* tcb) {
+    // tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
     int64_t preempt = __atomic_add_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
     /* Assert if this counter overflows */
     assert(preempt != 0);
-    //debug("disable preempt: %d\n", preempt);
+    // debug("disable preempt: %d\n", preempt);
     return preempt;
 }
 
-static inline void disable_preempt (shim_tcb_t * tcb)
-{
+static inline void disable_preempt(shim_tcb_t* tcb) {
     if (!tcb && !(tcb = shim_get_tcb()))
         return;
 
     __disable_preempt(tcb);
 }
 
-static inline void __enable_preempt (shim_tcb_t * tcb)
-{
+static inline void __enable_preempt(shim_tcb_t* tcb) {
     int64_t preempt = __atomic_sub_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
     /* Assert if this counter underflows */
     __UNUSED(preempt);
     assert(preempt >= 0);
-    //debug("enable preempt: %d\n", preempt);
+    // debug("enable preempt: %d\n", preempt);
 }
 
 void __handle_signals(shim_tcb_t* tcb);
 
-static inline void enable_preempt (shim_tcb_t * tcb)
-{
+static inline void enable_preempt(shim_tcb_t* tcb) {
     if (!tcb && !(tcb = shim_get_tcb()))
         return;
 
@@ -461,26 +460,24 @@ static inline void enable_preempt (shim_tcb_t * tcb)
     __enable_preempt(tcb);
 }
 
-static inline bool lock_created(struct shim_lock* l)
-{
+static inline bool lock_created(struct shim_lock* l) {
     return l->lock != NULL;
 }
 
-static inline void clear_lock(struct shim_lock* l)
-{
-    l->lock = NULL;
+static inline void clear_lock(struct shim_lock* l) {
+    l->lock  = NULL;
     l->owner = 0;
 }
 
 static inline bool create_lock(struct shim_lock* l) {
     l->owner = 0;
-    l->lock = DkMutexCreate(0);
+    l->lock  = DkMutexCreate(0);
     return l->lock != NULL;
 }
 
 static inline void destroy_lock(struct shim_lock* l) {
     DkObjectClose(l->lock);
-    l->lock = NULL;
+    l->lock  = NULL;
     l->owner = 0;
 }
 
@@ -502,7 +499,7 @@ static void lock(struct shim_lock* l) {
         __abort();
     }
 
-    shim_tcb_t * tcb = shim_get_tcb();
+    shim_tcb_t* tcb = shim_get_tcb();
     disable_preempt(tcb);
 
     while (!DkSynchronizationObjectWait(l->lock, NO_TIMEOUT))
@@ -549,19 +546,25 @@ static inline bool locked(struct shim_lock* l) {
 extern struct shim_lock __master_lock;
 
 #if DEBUG_MASTER_LOCK == 1
-# define MASTER_LOCK()                                              \
-    do {                                                            \
-        lock(&__master_lock);                                       \
-        pal_printf("master lock " __FILE__ ":%d\n", __LINE__);      \
+#define MASTER_LOCK()                                          \
+    do {                                                       \
+        lock(&__master_lock);                                  \
+        pal_printf("master lock " __FILE__ ":%d\n", __LINE__); \
     } while (0)
-# define MASTER_UNLOCK()                                            \
-    do {                                                            \
-        pal_printf("master unlock " __FILE__ ":%d\n", __LINE__);    \
-        unlock(&__master_lock);                                     \
+#define MASTER_UNLOCK()                                          \
+    do {                                                         \
+        pal_printf("master unlock " __FILE__ ":%d\n", __LINE__); \
+        unlock(&__master_lock);                                  \
     } while (0)
 #else
-# define MASTER_LOCK() do { lock(&__master_lock); } while (0)
-# define MASTER_UNLOCK() do { unlock(&__master_lock); } while (0)
+#define MASTER_LOCK()         \
+    do {                      \
+        lock(&__master_lock); \
+    } while (0)
+#define MASTER_UNLOCK()         \
+    do {                        \
+        unlock(&__master_lock); \
+    } while (0)
 #endif
 
 static inline bool create_lock_runtime(struct shim_lock* l) {
@@ -577,41 +580,34 @@ static inline bool create_lock_runtime(struct shim_lock* l) {
     return ret;
 }
 
-static inline void create_event (AEVENTTYPE * e)
-{
+static inline void create_event(AEVENTTYPE* e) {
     if (!e->event)
-        e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0,
-                                PAL_OPTION_NONBLOCK);
+        e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, PAL_OPTION_NONBLOCK);
 }
 
-static inline bool event_created (AEVENTTYPE * e)
-{
+static inline bool event_created(AEVENTTYPE* e) {
     return e->event != NULL;
 }
 
-static inline PAL_HANDLE event_handle (AEVENTTYPE * e)
-{
+static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
     return e->event;
 }
 
-static inline void destroy_event (AEVENTTYPE * e)
-{
+static inline void destroy_event(AEVENTTYPE* e) {
     if (e->event) {
         DkObjectClose(e->event);
         e->event = NULL;
     }
 }
 
-static inline void set_event (AEVENTTYPE * e, int n)
-{
+static inline void set_event(AEVENTTYPE* e, int n) {
     if (e->event) {
         char bytes[n];
         DkStreamWrite(e->event, 0, n, bytes, NULL);
     }
 }
 
-static inline void wait_event (AEVENTTYPE * e)
-{
+static inline void wait_event(AEVENTTYPE* e) {
     if (e->event) {
         char byte;
         int n = 0;
@@ -621,8 +617,7 @@ static inline void wait_event (AEVENTTYPE * e)
     }
 }
 
-static inline void clear_event (AEVENTTYPE * e)
-{
+static inline void clear_event(AEVENTTYPE* e) {
     if (e->event) {
         char bytes[100];
         int n;
@@ -633,11 +628,10 @@ static inline void clear_event (AEVENTTYPE * e)
 }
 
 /* reference counter APIs */
-#define REF_GET(ref)            __atomic_load_n(&(ref).counter, __ATOMIC_SEQ_CST)
-#define REF_SET(ref, count)     __atomic_store_n(&(ref).counter, count, __ATOMIC_SEQ_CST);
+#define REF_GET(ref)        __atomic_load_n(&(ref).counter, __ATOMIC_SEQ_CST)
+#define REF_SET(ref, count) __atomic_store_n(&(ref).counter, count, __ATOMIC_SEQ_CST);
 
-static inline int __ref_inc (REFTYPE * ref)
-{
+static inline int __ref_inc(REFTYPE* ref) {
     int64_t _c;
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
@@ -647,10 +641,9 @@ static inline int __ref_inc (REFTYPE * ref)
     return _c + 1;
 }
 
-#define REF_INC(ref)  __ref_inc(&(ref))
+#define REF_INC(ref) __ref_inc(&(ref))
 
-static inline int __ref_dec (REFTYPE * ref)
-{
+static inline int __ref_dec(REFTYPE* ref) {
     int64_t _c;
     do {
         _c = __atomic_load_n(&ref->counter, __ATOMIC_SEQ_CST);
@@ -667,7 +660,7 @@ static inline int __ref_dec (REFTYPE * ref)
 #define REF_DEC(ref) __ref_dec(&(ref))
 
 #ifndef __alloca
-# define __alloca __builtin_alloca
+#define __alloca __builtin_alloca
 #endif
 
 extern size_t g_pal_alloc_align;
@@ -679,40 +672,40 @@ extern size_t g_pal_alloc_align;
 #define ALLOC_ALIGN_DOWN_PTR(x) ALIGN_DOWN_PTR_POW2(x, g_pal_alloc_align)
 #define ALLOC_ALIGN_UP_PTR(x)   ALIGN_UP_PTR_POW2(x, g_pal_alloc_align)
 
-void * __system_malloc (size_t size);
-void __system_free (void * addr, size_t size);
+void* __system_malloc(size_t size);
+void __system_free(void* addr, size_t size);
 
 #define system_malloc __system_malloc
-#define system_free __system_free
+#define system_free   __system_free
 
-extern void * migrated_memory_start;
-extern void * migrated_memory_end;
+extern void* migrated_memory_start;
+extern void* migrated_memory_end;
 
-static inline bool memory_migrated(void * mem)
-{
+static inline bool memory_migrated(void* mem) {
     return mem >= migrated_memory_start && mem < migrated_memory_end;
 }
 
+extern void* __load_address;
+extern void* __load_address_end;
+extern void* __code_address;
+extern void* __code_address_end;
 
-extern void * __load_address, * __load_address_end;
-extern void * __code_address, * __code_address_end;
-
-unsigned long parse_int (const char * str);
+unsigned long parse_int(const char* str);
 
 extern const char** migrated_argv;
 extern const char** migrated_envp;
 
 struct shim_handle;
-int init_brk_from_executable (struct shim_handle * exec);
+int init_brk_from_executable(struct shim_handle* exec);
 int init_brk_region(void* brk_region, size_t data_segment_size);
 void reset_brk(void);
-int init_internal_map (void);
-int init_loader (void);
-int init_manifest (PAL_HANDLE manifest_handle);
+int init_internal_map(void);
+int init_loader(void);
+int init_manifest(PAL_HANDLE manifest_handle);
 int init_rlimit(void);
 
-bool test_user_memory (void * addr, size_t size, bool write);
-bool test_user_string (const char * addr);
+bool test_user_memory(void* addr, size_t size, bool write);
+bool test_user_string(const char* addr);
 
 uint64_t get_rlimit_cur(int resource);
 void set_rlimit_cur(int resource, uint64_t rlim);

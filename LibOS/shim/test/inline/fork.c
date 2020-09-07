@@ -1,5 +1,6 @@
 #include <errno.h>
-#include <shim_table.h>
+
+#include "shim_table.h"
 
 int main(int argc, char** argv) {
     pid_t pid = shim_fork();

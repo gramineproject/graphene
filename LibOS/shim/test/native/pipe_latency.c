@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
     close(pipes[4]);
 
     if (write(pipes[3], bytes, times * 2) != times * 2) {
-        perror ("write error");
+        perror("write error");
         return 1;
     }
     close(pipes[3]);

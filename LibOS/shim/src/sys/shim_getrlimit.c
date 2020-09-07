@@ -8,11 +8,12 @@
  */
 
 #include <asm/resource.h>
-#include <shim_checkpoint.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_utils.h>
-#include <shim_vma.h>
+
+#include "shim_checkpoint.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_utils.h"
+#include "shim_vma.h"
 
 /*
  * TODO: implement actual limitation on each resource.

@@ -24,8 +24,7 @@ static void file_delete(const char* file_path_1, const char* file_path_2, bool w
     printf("close(%s) %s 2 OK\n", file_path_2, type);
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     if (argc < 6)
         fatal_error("Usage: %s <path1> <path2> <path3> <path4> <path5>\n", argv[0]);
 

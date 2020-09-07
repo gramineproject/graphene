@@ -3,13 +3,14 @@
  *                         Rafal Wojdyla <omeg@invisiblethingslab.com>
  */
 
+#include "attestation.h"
+
 #include <mbedtls/md.h>
 #include <mbedtls/pk.h>
 #include <stdalign.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "attestation.h"
 #include "cJSON.h"
 #include "pal_crypto.h"
 #include "sgx_arch.h"
@@ -18,15 +19,15 @@
 
 /*! This is the public RSA key of the IAS (PEM). It's used to verify IAS report signatures. */
 const char* g_ias_public_key_pem =
-"-----BEGIN PUBLIC KEY-----\n"
-"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqXot4OZuphR8nudFrAFi\n"
-"aGxxkgma/Es/BA+tbeCTUR106AL1ENcWA4FX3K+E9BBL0/7X5rj5nIgX/R/1ubhk\n"
-"KWw9gfqPG3KeAtIdcv/uTO1yXv50vqaPvE1CRChvzdS/ZEBqQ5oVvLTPZ3VEicQj\n"
-"lytKgN9cLnxbwtuvLUK7eyRPfJW/ksddOzP8VBBniolYnRCD2jrMRZ8nBM2ZWYwn\n"
-"XnwYeOAHV+W9tOhAImwRwKF/95yAsVwd21ryHMJBcGH70qLagZ7Ttyt++qO/6+KA\n"
-"XJuKwZqjRlEtSEz8gZQeFfVYgcwSfo96oSMAzVr7V0L6HSDLRnpb6xxmbPdqNol4\n"
-"tQIDAQAB\n"
-"-----END PUBLIC KEY-----\n";
+    "-----BEGIN PUBLIC KEY-----\n"
+    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqXot4OZuphR8nudFrAFi\n"
+    "aGxxkgma/Es/BA+tbeCTUR106AL1ENcWA4FX3K+E9BBL0/7X5rj5nIgX/R/1ubhk\n"
+    "KWw9gfqPG3KeAtIdcv/uTO1yXv50vqaPvE1CRChvzdS/ZEBqQ5oVvLTPZ3VEicQj\n"
+    "lytKgN9cLnxbwtuvLUK7eyRPfJW/ksddOzP8VBBniolYnRCD2jrMRZ8nBM2ZWYwn\n"
+    "XnwYeOAHV+W9tOhAImwRwKF/95yAsVwd21ryHMJBcGH70qLagZ7Ttyt++qO/6+KA\n"
+    "XJuKwZqjRlEtSEz8gZQeFfVYgcwSfo96oSMAzVr7V0L6HSDLRnpb6xxmbPdqNol4\n"
+    "tQIDAQAB\n"
+    "-----END PUBLIC KEY-----\n";
 
 // Copied from Graphene's api.h.
 // TODO: Remove after Graphene's C utils get refactored into a separate module/header (we can't

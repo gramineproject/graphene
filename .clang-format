@@ -3,9 +3,9 @@ AlignConsecutiveAssignments: true
 AlignConsecutiveMacros: true
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: false
-ColumnLimit:     100
+ColumnLimit: 100
 DerivePointerAlignment: false
-IndentWidth:     4
+IndentWidth: 4
 ObjCBlockIndentWidth: 4
 PointerAlignment: Left
-TabWidth:        4
+TabWidth: 4

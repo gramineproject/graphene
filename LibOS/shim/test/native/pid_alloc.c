@@ -1,10 +1,10 @@
 #define _GNU_SOURCE
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sched.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 static int func(void* arg) {
     return 0;

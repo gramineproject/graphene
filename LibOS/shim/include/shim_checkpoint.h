@@ -14,7 +14,6 @@
 #include <stdint.h>
 
 #include "pal.h"
-
 #include "shim_defs.h"
 #include "shim_ipc.h"
 
@@ -58,7 +57,7 @@ struct shim_mem_entry {
     struct shim_mem_entry* next;
     void* addr;
     size_t size;
-    int prot;     /* combination of PAL_PROT_* flags */
+    int prot; /* combination of PAL_PROT_* flags */
 };
 
 struct shim_palhdl_entry {

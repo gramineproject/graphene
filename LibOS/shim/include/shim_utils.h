@@ -8,11 +8,11 @@
 #ifndef _SHIM_UTILS_H_
 #define _SHIM_UTILS_H_
 
-#include <api.h>
-#include <list.h>
-#include <pal.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
+#include "api.h"
+#include "list.h"
+#include "pal.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
 
 struct shim_handle;
 

@@ -8,7 +8,16 @@
  * processes environment, arguments and manifest.
  */
 
+#include <asm/errno.h>
+#include <asm/ioctls.h>
+#include <asm/mman.h>
+#include <stdint.h>
+#include <stdnoreturn.h>
+
 #include "api.h"
+#include "ecall_types.h"
+#include "elf/elf.h"
+#include "enclave_pages.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -18,16 +27,7 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 #include "protected_files.h"
-
-#include <asm/ioctls.h>
-#include <asm/mman.h>
-#include <elf/elf.h>
-#include <stdint.h>
-#include <stdnoreturn.h>
-#include <sysdeps/generic/ldsodefs.h>
-
-#include "ecall_types.h"
-#include "enclave_pages.h"
+#include "sysdeps/generic/ldsodefs.h"
 
 #define RTLD_BOOTSTRAP
 #define _ENTRY enclave_entry
@@ -39,8 +39,7 @@ PAL_SESSION_KEY g_master_key = {0};
 
 size_t g_page_size = PRESET_PAGESIZE;
 
-unsigned long _DkGetAllocationAlignment (void)
-{
+unsigned long _DkGetAllocationAlignment(void) {
     return g_page_size;
 }
 
@@ -51,26 +50,23 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     /* FIXME: hack to keep some heap for internal PAL objects allocated at runtime (recall that
      * LibOS does not keep track of PAL memory, so without this hack it could overwrite internal
      * PAL memory). This hack is probabilistic and brittle. */
-    *end = SATURATED_P_SUB(*end, 2 * 1024 * g_page_size, *start);  /* 8MB reserved for PAL stuff */
+    *end = SATURATED_P_SUB(*end, 2 * 1024 * g_page_size, *start); /* 8MB reserved for PAL stuff */
     if (*end <= *start) {
         SGX_DBG(DBG_E, "Not enough enclave memory, please increase enclave size!\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 }
 
-PAL_NUM _DkGetProcessId (void)
-{
+PAL_NUM _DkGetProcessId(void) {
     return g_linux_state.process_id;
 }
 
-PAL_NUM _DkGetHostId (void)
-{
+PAL_NUM _DkGetHostId(void) {
     return 0;
 }
 
-#include "elf-x86_64.h"
 #include "dynamic_link.h"
-#include <asm/errno.h>
+#include "elf-x86_64.h"
 
 static struct link_map g_pal_map;
 
@@ -80,8 +76,7 @@ static struct link_map g_pal_map;
  * The handle is not backed by any file. Reads will return EOF and writes will
  * fail.
  */
-static PAL_HANDLE setup_dummy_file_handle (const char * name)
-{
+static PAL_HANDLE setup_dummy_file_handle(const char* name) {
     if (!strstartswith_static(name, URI_PREFIX_FILE))
         return NULL;
 
@@ -92,7 +87,7 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     HANDLE_HDR(handle)->flags |= RFD(0);
     handle->file.fd = PAL_IDX_POISON;
 
-    char * path = (void *) handle + HANDLE_SIZE(file);
+    char* path = (void*)handle + HANDLE_SIZE(file);
     int ret = get_norm_path(name, path, &len);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", name, pal_strerror(ret));
@@ -101,8 +96,8 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     }
     handle->file.realpath = path;
 
-    handle->file.total  = 0;
-    handle->file.stubs  = NULL;
+    handle->file.total = 0;
+    handle->file.stubs = NULL;
 
     return handle;
 }
@@ -380,18 +375,18 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     struct config_store* root_config = malloc(sizeof(struct config_store));
     root_config->raw_data = manifest_addr;
     root_config->raw_size = manifest_size;
-    root_config->malloc = malloc;
-    root_config->free = free;
+    root_config->malloc   = malloc;
+    root_config->free     = free;
 
-    const char * errstring = NULL;
+    const char* errstring = NULL;
     if ((rv = read_config(root_config, loader_filter, &errstring)) < 0) {
         SGX_DBG(DBG_E, "Can't read manifest: %s, error code %d\n", errstring, rv);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
     g_pal_state.root_config = root_config;
-    g_pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
-    g_pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
+    g_pal_control.manifest_preload.start = (PAL_PTR)manifest_addr;
+    g_pal_control.manifest_preload.end   = (PAL_PTR)manifest_addr + manifest_size;
 
     if ((rv = init_trusted_files()) < 0) {
         SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", rv);

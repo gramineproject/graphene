@@ -11,8 +11,9 @@
 #ifndef __SHIM_SYSV_H__
 #define __SHIM_SYSV_H__
 
-#include <shim_handle.h>
-#include <shim_types.h>
+#include "list.h"
+#include "shim_handle.h"
+#include "shim_types.h"
 
 #define SYSV_TYPE_STR(type)       \
     ((type) == SYSV_MSGQ ? "MSGQ" \
@@ -27,8 +28,6 @@ struct sysv_client {
 struct shim_handle;
 
 #define MSG_NOERROR 010000
-
-#include <list.h>
 
 struct __kernel_msgbuf {
     long mtype;   /* type of message */

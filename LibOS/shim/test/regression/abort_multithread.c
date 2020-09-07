@@ -7,7 +7,7 @@
 
 static void* thread_abort(void* arg) {
     abort();
-    return NULL;  /* not reached */
+    return NULL; /* not reached */
 }
 
 int main(int argc, char* arvg[]) {

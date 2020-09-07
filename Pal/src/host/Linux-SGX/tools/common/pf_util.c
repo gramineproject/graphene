@@ -5,23 +5,22 @@
 
 #define _LARGEFILE64_SOURCE
 
+#include "pf_util.h"
+
 #include <assert.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/gcm.h>
-
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "api.h"
-#include "pf_util.h"
 #include "util.h"
 
 /* High-level protected files helper functions. */
@@ -94,7 +93,7 @@ static pf_status_t linux_write(pf_handle_t handle, const void* buffer, uint64_t 
 }
 
 static pf_status_t linux_truncate(pf_handle_t handle, uint64_t size) {
-    int fd  = *(int*)handle;
+    int fd = *(int*)handle;
     DBG("linux_truncate: fd %d, size %zu\n", fd, size);
     int ret = ftruncate64(fd, size);
     if (ret < 0) {
@@ -107,10 +106,9 @@ static pf_status_t linux_truncate(pf_handle_t handle, uint64_t size) {
 
 /* Crypto callbacks for mbedTLS */
 
-pf_status_t mbedtls_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                    const void* aad, size_t aad_size,
-                                    const void* input, size_t input_size, void* output,
-                                    pf_mac_t* mac) {
+pf_status_t mbedtls_aes_gcm_encrypt(const pf_key_t* key, const pf_iv_t* iv, const void* aad,
+                                    size_t aad_size, const void* input, size_t input_size,
+                                    void* output, pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
 
     mbedtls_gcm_context gcm;
@@ -137,10 +135,9 @@ out:
     return status;
 }
 
-pf_status_t mbedtls_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv,
-                                    const void* aad, size_t aad_size,
-                                    const void* input, size_t input_size, void* output,
-                                    const pf_mac_t* mac) {
+pf_status_t mbedtls_aes_gcm_decrypt(const pf_key_t* key, const pf_iv_t* iv, const void* aad,
+                                    size_t aad_size, const void* input, size_t input_size,
+                                    void* output, const pf_mac_t* mac) {
     pf_status_t status = PF_STATUS_CALLBACK_FAILED;
 
     mbedtls_gcm_context gcm;
@@ -266,7 +263,7 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const pf_ke
         goto out;
     }
 
-    output = open(output_path, O_RDWR|O_CREAT, 0664);
+    output = open(output_path, O_RDWR | O_CREAT, 0664);
     if (output < 0) {
         ERROR("Failed to create output file '%s': %s\n", output_path, strerror(errno));
         goto out;
@@ -350,7 +347,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         goto out;
     }
 
-    output = open(output_path, O_RDWR|O_CREAT, 0664);
+    output = open(output_path, O_RDWR | O_CREAT, 0664);
     if (output < 0) {
         ERROR("Failed to create output file '%s': %s\n", output_path, strerror(errno));
         goto out;

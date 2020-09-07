@@ -44,9 +44,9 @@ static int pipe_addr(const char* name, struct sockaddr_un* addr) {
 /*!
  * \brief Create a listening abstract UNIX socket as preparation for connecting two ends of a pipe.
  *
- * An abstract UNIX socket with name "@/graphene/<pipename>" is opened for listening. A corresponding
- * PAL handle with type `pipesrv` is created. This PAL handle typically serves only as an
- * intermediate step to connect two ends of the pipe (`pipecli` and `pipe`). As soon as the other
+ * An abstract UNIX socket with name "@/graphene/<pipename>" is opened for listening. A
+ * corresponding PAL handle with type `pipesrv` is created. This PAL handle typically serves only as
+ * an intermediate step to connect two ends of the pipe (`pipecli` and `pipe`). As soon as the other
  * end of the pipe connects to this listening socket, a new accepted socket and the corresponding
  * PAL handle are created, and this `pipesrv` handle can be closed.
  *
@@ -144,9 +144,9 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
  * \brief Connect to the other end of the pipe and create PAL handle for our end of the pipe.
  *
  * This function connects to the other end of the pipe, represented as an abstract UNIX socket
- * "@/graphene/<pipename>" opened for listening. When the connection succeeds, a new `pipe` PAL handle
- * is created with the corresponding underlying socket and is returned in `handle`. The other end of
- * the pipe is typically of type `pipecli`.
+ * "@/graphene/<pipename>" opened for listening. When the connection succeeds, a new `pipe` PAL
+ * handle is created with the corresponding underlying socket and is returned in `handle`. The other
+ * end of the pipe is typically of type `pipecli`.
  *
  * \param[out] handle  PAL handle of type `pipe` with abstract UNIX socket connected to another end.
  * \param[in]  name    String uniquely identifying the pipe.

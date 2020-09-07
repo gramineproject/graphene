@@ -7,23 +7,23 @@
  * This file contains functions to add asyncronous events triggered by timer.
  */
 
-#include <list.h>
-#include <pal.h>
-#include <shim_internal.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+#include "list.h"
+#include "pal.h"
+#include "shim_internal.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 #define IDLE_SLEEP_TIME 1000000
 #define MAX_IDLE_CYCLES 10000
 
 DEFINE_LIST(async_event);
 struct async_event {
-    IDTYPE caller;  /* thread installing this event */
+    IDTYPE caller; /* thread installing this event */
     LIST_TYPE(async_event) list;
     void (*callback)(IDTYPE caller, void* arg);
     void* arg;
-    PAL_HANDLE object;     /* handle (async IO) to wait on */
-    uint64_t expire_time;  /* alarm/timer to wait on */
+    PAL_HANDLE object;    /* handle (async IO) to wait on */
+    uint64_t expire_time; /* alarm/timer to wait on */
 };
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
@@ -70,11 +70,11 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
         return -ENOMEM;
     }
 
-    event->callback           = callback;
-    event->arg                = arg;
-    event->caller             = get_cur_tid();
-    event->object             = object;
-    event->expire_time        = time ? now + time : 0;
+    event->callback    = callback;
+    event->arg         = arg;
+    event->caller      = get_cur_tid();
+    event->object      = object;
+    event->expire_time = time ? now + time : 0;
 
     lock(&async_helper_lock);
 
@@ -184,7 +184,7 @@ static void shim_async_helper(void* arg) {
     PAL_FLG* ret_events = pal_events + 1 + pals_max_cnt;
 
     PAL_HANDLE install_new_event_pal = event_handle(&install_new_event);
-    pals[0]       = install_new_event_pal;
+    pals[0] = install_new_event_pal;
     pal_events[0] = PAL_WAIT_READ;
     ret_events[0] = 0;
 
@@ -203,7 +203,7 @@ static void shim_async_helper(void* arg) {
         }
 
         uint64_t next_expire_time = 0;
-        size_t pals_cnt            = 0;
+        size_t pals_cnt = 0;
 
         struct async_event* tmp;
         struct async_event* n;
@@ -218,7 +218,8 @@ static void shim_async_helper(void* arg) {
                         debug("tmp_pals allocation failed\n");
                         goto out_err_unlock;
                     }
-                    PAL_FLG* tmp_pal_events = malloc(sizeof(*tmp_pal_events) * (2 + pals_max_cnt * 4));
+                    PAL_FLG* tmp_pal_events =
+                        malloc(sizeof(*tmp_pal_events) * (2 + pals_max_cnt * 4));
                     if (!tmp_pal_events) {
                         debug("tmp_pal_events allocation failed\n");
                         goto out_err_unlock;
@@ -226,8 +227,10 @@ static void shim_async_helper(void* arg) {
                     PAL_FLG* tmp_ret_events = tmp_pal_events + 1 + pals_max_cnt * 2;
 
                     memcpy(tmp_pals, pals, sizeof(*tmp_pals) * (1 + pals_max_cnt));
-                    memcpy(tmp_pal_events, pal_events, sizeof(*tmp_pal_events) * (1 + pals_max_cnt));
-                    memcpy(tmp_ret_events, ret_events, sizeof(*tmp_ret_events) * (1 + pals_max_cnt));
+                    memcpy(tmp_pal_events, pal_events,
+                           sizeof(*tmp_pal_events) * (1 + pals_max_cnt));
+                    memcpy(tmp_ret_events, ret_events,
+                           sizeof(*tmp_ret_events) * (1 + pals_max_cnt));
 
                     pals_max_cnt *= 2;
 
@@ -277,7 +280,8 @@ static void shim_async_helper(void* arg) {
         unlock(&async_helper_lock);
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
-        PAL_BOL polled = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
+        PAL_BOL polled =
+            DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
 
         now = DkSystemTimeQuery();
         if ((int64_t)now < 0) {

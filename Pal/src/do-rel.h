@@ -9,9 +9,8 @@
  * The source code is imported and modified from the GNU C Library.
  */
 
-#include <pal_rtld.h>
-
 #include "dl-machine.h"
+#include "pal_rtld.h"
 
 #define elf_dynamic_do_rel       elf_dynamic_do_rela
 #define RELCOUNT_IDX             VERSYMIDX(DT_RELACOUNT)

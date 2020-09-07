@@ -3,7 +3,7 @@
 #include "pal_debug.h"
 #include "sgx_arch.h"
 
-#define ALLOC_ALIGN_UP(addr)  ALIGN_UP_POW2(addr, pal_control.alloc_align)
+#define ALLOC_ALIGN_UP(addr) ALIGN_UP_POW2(addr, pal_control.alloc_align)
 
 char zerobuf[sizeof(sgx_report_t)] = {0};
 
@@ -64,9 +64,8 @@ int main(int argc, char** argv) {
     memset(target_info, 0, target_info_size);
     memset(report, 0, report_size);
 
-    ret = DkAttestationReport(user_report_data, &user_report_data_size,
-                              target_info, &target_info_size,
-                              report, &report_size);
+    ret = DkAttestationReport(user_report_data, &user_report_data_size, target_info,
+                              &target_info_size, report, &report_size);
     if (!ret) {
         pal_printf("ERROR: DkAttestationReport() to get SGX report failed\n");
         return -1;
@@ -74,7 +73,7 @@ int main(int argc, char** argv) {
 
     sgx_report_t* sgx_report = (sgx_report_t*)report;
     if (memcmp(&sgx_report->body.report_data.d, user_report_data,
-           sizeof(sgx_report->body.report_data.d))) {
+               sizeof(sgx_report->body.report_data.d))) {
         pal_printf("ERROR: DkAttestationReport() returned SGX report with wrong report_data\n");
         return -1;
     }

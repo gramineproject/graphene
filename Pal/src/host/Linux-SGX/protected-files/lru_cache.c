@@ -8,17 +8,17 @@
 
 #include "lru_cache.h"
 
-#include <assert.h>
-
 #include "api.h"
 #include "list.h"
 #include "uthash.h"
 
 #ifdef IN_PAL
-    #include "pal_linux.h"
+#include "assert.h"
+#include "pal_linux.h"
 #else
-    #include <stdio.h>
-    #include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 #endif
 
 DEFINE_LIST(_lruc_list_node);
@@ -50,7 +50,7 @@ lruc_context_t* lruc_create(void) {
         return NULL;
 
     INIT_LISTP(&lruc->list);
-    lruc->map = NULL;
+    lruc->map     = NULL;
     lruc->current = NULL;
     return lruc;
 }
@@ -98,7 +98,7 @@ bool lruc_add(lruc_context_t* lruc, uint64_t key, void* data) {
     list_node->key = key;
     map_node->key = key;
     LISTP_ADD(list_node, &lruc->list, list);
-    map_node->data = data;
+    map_node->data     = data;
     map_node->list_ptr = list_node;
     HASH_ADD(hh, lruc->map, key, sizeof(key), map_node);
     return true;
@@ -131,7 +131,7 @@ void* lruc_get_first(lruc_context_t* lruc) {
     if (LISTP_EMPTY(&lruc->list))
         return NULL;
 
-    lruc->current = LISTP_FIRST_ENTRY(&lruc->list, /*unused*/0, list);
+    lruc->current = LISTP_FIRST_ENTRY(&lruc->list, /*unused*/ 0, list);
     lruc_map_node_t* mn = get_map_node(lruc, lruc->current->key);
     assert(mn != NULL);
     return mn->data;
@@ -154,7 +154,7 @@ void* lruc_get_last(lruc_context_t* lruc) {
     if (LISTP_EMPTY(&lruc->list))
         return NULL;
 
-    lruc_list_node_t* ln = LISTP_LAST_ENTRY(&lruc->list, /*unused*/0, list);
+    lruc_list_node_t* ln = LISTP_LAST_ENTRY(&lruc->list, /*unused*/ 0, list);
     lruc_map_node_t* mn = get_map_node(lruc, ln->key);
     assert(mn != NULL);
     return mn->data;
@@ -164,7 +164,7 @@ void lruc_remove_last(lruc_context_t* lruc) {
     if (LISTP_EMPTY(&lruc->list))
         return;
 
-    lruc_list_node_t* ln = LISTP_LAST_ENTRY(&lruc->list, /*unused*/0, list);
+    lruc_list_node_t* ln = LISTP_LAST_ENTRY(&lruc->list, /*unused*/ 0, list);
     LISTP_DEL(ln, &lruc->list, list);
     lruc_map_node_t* mn = get_map_node(lruc, ln->key);
     assert(mn != NULL);

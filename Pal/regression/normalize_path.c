@@ -38,10 +38,10 @@ static const char* get_base_name_cases[][2] = {
     {"a/b/c", "c"},
 };
 
-#define print_err(name, i, ...)                                 \
-    do {                                                        \
+#define print_err(name, i, ...)                                     \
+    do {                                                            \
         pal_printf("%s: case %lu (\"%s\") ", name, i, cases[i][0]); \
-        pal_printf(__VA_ARGS__);                                \
+        pal_printf(__VA_ARGS__);                                    \
     } while (0)
 
 static const char* (*cases)[2];

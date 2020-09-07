@@ -18,7 +18,6 @@
 
 #include "pal.h"
 #include "pal_error.h"
-
 #include "shim_fs.h"
 #include "shim_internal.h"
 #include "shim_thread.h"

@@ -3,16 +3,17 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
+#include "avl_tree.h"
+
 #include <stddef.h>
 
 #include "api.h"
 #include "assert.h"
-#include "avl_tree.h"
 
 static void avl_tree_init_node(struct avl_tree_node* node) {
-    node->left = NULL;
-    node->right = NULL;
-    node->parent = NULL;
+    node->left    = NULL;
+    node->right   = NULL;
+    node->parent  = NULL;
     node->balance = 0;
 }
 
@@ -49,8 +50,7 @@ static void avl_tree_insert_unbalanced(struct avl_tree* tree,
 
 /* Replaces `old_node` with `new_node` fixing all necessary links. `parent` must be the parent of
  * `old_node` before call to this. */
-static void fixup_link(struct avl_tree_node* old_node,
-                       struct avl_tree_node* new_node,
+static void fixup_link(struct avl_tree_node* old_node, struct avl_tree_node* new_node,
                        struct avl_tree_node* parent) {
     if (parent) {
         if (parent->left == old_node) {
@@ -283,9 +283,9 @@ static struct avl_tree_node* avl_tree_balance(struct avl_tree_node* node, enum s
 
         assert(-2 <= node->balance && node->balance <= 2);
         if (node->balance == -2 || node->balance == 2) {
-             height_changed = avl_tree_do_balance(node, &node);
-             /* On inserting height never changes. */
-             height_changed = height_increased ? false : height_changed;
+            height_changed = avl_tree_do_balance(node, &node);
+            /* On inserting height never changes. */
+            height_changed = height_increased ? false : height_changed;
         }
 
         /* This sub-tree is balanced, but its height might have changed. */
@@ -489,10 +489,10 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     }
 }
 
-static struct avl_tree_node*
-    avl_tree_find_fn_to(struct avl_tree* tree,
-                        struct avl_tree_node* cmp_arg,
-                        bool cmp(struct avl_tree_node*, struct avl_tree_node*)) {
+static struct avl_tree_node* avl_tree_find_fn_to(struct avl_tree* tree,
+                                                 struct avl_tree_node* cmp_arg,
+                                                 bool cmp(struct avl_tree_node*,
+                                                          struct avl_tree_node*)) {
     struct avl_tree_node* node = tree->root;
 
     while (node) {
@@ -514,8 +514,7 @@ struct avl_tree_node* avl_tree_find(struct avl_tree* tree, struct avl_tree_node*
     return avl_tree_find_fn_to(tree, node, tree->cmp);
 }
 
-struct avl_tree_node* avl_tree_lower_bound_fn(struct avl_tree* tree,
-                                              void* cmp_arg,
+struct avl_tree_node* avl_tree_lower_bound_fn(struct avl_tree* tree, void* cmp_arg,
                                               bool cmp(void*, struct avl_tree_node*)) {
     struct avl_tree_node* node = tree->root;
     struct avl_tree_node* ret = NULL;
@@ -532,12 +531,10 @@ struct avl_tree_node* avl_tree_lower_bound_fn(struct avl_tree* tree,
     return ret;
 }
 
-struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree,
-                                           struct avl_tree_node* cmp_arg) {
+struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree, struct avl_tree_node* cmp_arg) {
     static_assert(SAME_TYPE(tree->cmp, bool (*)(struct avl_tree_node*, struct avl_tree_node*)),
                   "If you change this function type, make sure the code below works properly!");
-    return avl_tree_lower_bound_fn(tree,
-                                   cmp_arg,
+    return avl_tree_lower_bound_fn(tree, cmp_arg,
                                    (bool (*)(void*, struct avl_tree_node*))tree->cmp);
 }
 

@@ -11,10 +11,9 @@
 
 #define ELF_MACHINE_NAME "x86_64"
 
-#include <sysdep.h>
-#include <sysdeps/generic/ldsodefs.h>
-
 #include "pal_internal.h"
+#include "sysdep.h"
+#include "sysdeps/generic/ldsodefs.h"
 
 /* Return the link-time address of _DYNAMIC.  Conveniently, this is the
    first element of the GOT.  This must be inlined in a function which

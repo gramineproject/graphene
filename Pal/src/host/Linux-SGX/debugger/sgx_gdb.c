@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 #include "sgx_gdb.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -16,6 +15,7 @@
 #include <unistd.h>
 #include <wait.h>
 
+#include "assert.h"
 #include "../sgx_arch.h"
 
 //#define DEBUG_GDB_PTRACE 1

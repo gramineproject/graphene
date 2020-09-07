@@ -15,7 +15,7 @@
 
 int main(void) {
     int fd;
-    void *ptr;
+    void* ptr;
 
     if (mkdir("/tmp", S_IRWXU | S_IRWXG | S_IRWXO) < 0 && errno != EEXIST) {
         err(1, "mkdir");

@@ -74,7 +74,8 @@ int shim_do_setitimer(int which, struct __kernel_itimerval* value,
     uint64_t setup_time = DkSystemTimeQuery();
 
     uint64_t next_value = value->it_value.tv_sec * (uint64_t)1000000 + value->it_value.tv_usec;
-    uint64_t next_reset = value->it_interval.tv_sec * (uint64_t)1000000 + value->it_interval.tv_usec;
+    uint64_t next_reset =
+        value->it_interval.tv_sec * (uint64_t)1000000 + value->it_interval.tv_usec;
 
     MASTER_LOCK();
 

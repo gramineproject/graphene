@@ -7,15 +7,15 @@
 #ifndef _SPINLOCK_H
 #define _SPINLOCK_H
 
-#include <api.h>
-#include <cpu.h>
+#include "api.h"
+#include "cpu.h"
 
 #ifdef DEBUG
 #define DEBUG_SPINLOCKS
 #endif // DEBUG
 
 #ifdef IN_SHIM
-#include <shim_internal.h>
+#include "shim_internal.h"
 
 #ifdef DEBUG_SPINLOCKS
 #define DEBUG_SPINLOCKS_SHIM
@@ -35,8 +35,8 @@ typedef struct {
  * important due to atomic-decrement in unlock logic. */
 #define SPINLOCK_UNLOCKED            0
 #define SPINLOCK_LOCKED              1
-#define SPINLOCK_LOCKED_NO_WAITERS   1  /* used for futex implementation */
-#define SPINLOCK_LOCKED_WITH_WAITERS 2  /* used for futex implementation */
+#define SPINLOCK_LOCKED_NO_WAITERS   1 /* used for futex implementation */
+#define SPINLOCK_LOCKED_WITH_WAITERS 2 /* used for futex implementation */
 
 /*!
  * \brief Initialize spinlock with *static* storage duration.

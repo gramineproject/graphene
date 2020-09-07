@@ -10,21 +10,21 @@
 #ifndef SLABMGR_H
 #define SLABMGR_H
 
-#include <assert.h>
 #include <errno.h>
-#include <pal_debug.h>
 #include <sys/mman.h>
 
 #include "api.h"
+#include "assert.h"
 #include "list.h"
+#include "pal_debug.h"
 
 // Before calling any of `system_malloc` and `system_free` this library will
 // acquire `SYSTEM_LOCK` (the systen_* implementation must not do it).
 #ifndef system_malloc
-#error "macro \"void * system_malloc(int size)\" not declared"
+#error "macro \"void* system_malloc(size_t size)\" not declared"
 #endif
 #ifndef system_free
-#error "macro \"void * system_free(void * ptr, int size)\" not declared"
+#error "macro \"void* system_free(void* ptr, size_t size)\" not declared"
 #endif
 #ifndef SYSTEM_LOCK
 #define SYSTEM_LOCK() ({})
@@ -86,7 +86,7 @@ typedef struct __attribute__((packed)) slab_area {
 
 #define SLAB_HDR_SIZE                                                                \
     ALIGN_UP(sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) + SLAB_CANARY_SIZE, \
-              MIN_MALLOC_ALIGNMENT)
+             MIN_MALLOC_ALIGNMENT)
 
 #ifndef SLAB_LEVEL
 #define SLAB_LEVEL 8

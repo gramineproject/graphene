@@ -116,7 +116,7 @@ uint64_t get_tsc_hz(void) {
     return 0;
 }
 
-int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
+int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     unsigned int words[PAL_CPUID_WORD_NUM];
     int rv = 0;
 
@@ -131,8 +131,8 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
     ci->cpu_vendor = vendor_id;
     // Must be an Intel CPU
     if (memcmp(vendor_id, "GenuineIntel", 12)) {
-      free(vendor_id);
-      return -PAL_ERROR_INVAL;
+        free(vendor_id);
+        return -PAL_ERROR_INVAL;
     }
 
     const size_t BRAND_SIZE = 49;
@@ -151,16 +151,16 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
     ci->cpu_num = g_pal_sec.num_cpus;
 
     _DkCpuIdRetrieve(1, 0, words);
-    ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
+    ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 8, 12) +
                        BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 20, 28);
-    ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  4,  8) +
+    ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 4, 8) +
                       (BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 16, 20) << 4);
-    ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  0,  4);
+    ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 0, 4);
 
     int flen = 0, fmax = 80;
     char* flags = malloc(fmax);
 
-    for (int i = 0 ; i < 32 ; i++) {
+    for (int i = 0; i < 32; i++) {
         if (!g_cpu_flags[i])
             continue;
 
@@ -184,7 +184,8 @@ int _DkGetCPUInfo (PAL_CPU_INFO* ci) {
 
     ci->cpu_bogomips = get_bogomips();
     if (ci->cpu_bogomips == 0.0) {
-        SGX_DBG(DBG_E, "Warning: bogomips could not be retrieved, passing 0.0 to the application\n");
+        SGX_DBG(DBG_E,
+                "Warning: bogomips could not be retrieved, passing 0.0 to the application\n");
     }
 
     return rv;

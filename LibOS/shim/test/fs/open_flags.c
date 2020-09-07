@@ -43,15 +43,15 @@ int main(int argc, char* argv[]) {
     setup();
 
     // doesn't exist - should create
-    OPEN_TEST(argv[1], O_CREAT|O_EXCL|O_RDWR, /*exists=*/false, /*expect_success=*/true,
+    OPEN_TEST(argv[1], O_CREAT | O_EXCL | O_RDWR, /*exists=*/false, /*expect_success=*/true,
               /*do_write=*/true);
 
     // exists - open should fail
-    OPEN_TEST(argv[1], O_CREAT|O_EXCL|O_RDWR, /*exists=*/true, /*expect_success=*/false,
+    OPEN_TEST(argv[1], O_CREAT | O_EXCL | O_RDWR, /*exists=*/true, /*expect_success=*/false,
               /*do_write=*/false);
 
     // exists - should open existing and NOT truncate
-    OPEN_TEST(argv[1], O_CREAT|O_RDWR, /*exists=*/true, /*expect_success=*/true,
+    OPEN_TEST(argv[1], O_CREAT | O_RDWR, /*exists=*/true, /*expect_success=*/true,
               /*do_write=*/false);
     if (get_file_size(argv[1]) != 1)
         fatal_error("File was truncated\n");
@@ -60,18 +60,18 @@ int main(int argc, char* argv[]) {
         fatal_error("unlink(%s) failed: %s\n", argv[1], strerror(errno));
 
     // doesn't exist - should create new
-    OPEN_TEST(argv[1], O_CREAT|O_RDWR, /*exists=*/false, /*expect_success=*/true,
+    OPEN_TEST(argv[1], O_CREAT | O_RDWR, /*exists=*/false, /*expect_success=*/true,
               /*do_write=*/false);
 
     if (unlink(argv[1]) < 0)
         fatal_error("unlink(%s) failed: %s\n", argv[1], strerror(errno));
 
     // doesn't exist - should create new
-    OPEN_TEST(argv[1], O_CREAT|O_TRUNC|O_RDWR, /*exists=*/false, /*expect_success=*/true,
+    OPEN_TEST(argv[1], O_CREAT | O_TRUNC | O_RDWR, /*exists=*/false, /*expect_success=*/true,
               /*do_write=*/true);
 
     // exists - should truncate
-    OPEN_TEST(argv[1], O_CREAT|O_TRUNC|O_RDWR, /*exists=*/true, /*expect_success=*/true,
+    OPEN_TEST(argv[1], O_CREAT | O_TRUNC | O_RDWR, /*exists=*/true, /*expect_success=*/true,
               /*do_write=*/false);
     if (get_file_size(argv[1]) != 0)
         fatal_error("File was not truncated\n");

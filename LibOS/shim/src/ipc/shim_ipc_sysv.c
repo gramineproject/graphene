@@ -98,7 +98,7 @@ int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_k
         msgin->key.key  = key->key;
         msgin->key.type = key->type;
         msgin->id       = id;
-        msg->seq        = seq;
+        msg->seq = seq;
 
         debug("ipc send to %u: IPC_MSG_SYSV_TELLKEY(%lu, %u)\n", dest, key->key, id);
 

@@ -1,12 +1,13 @@
 #ifndef _SHIM_TABLE_H_
 #define _SHIM_TABLE_H_
 
-#include <shim_types.h>
-#include <shim_unistd.h>
 #include <stdnoreturn.h>
-#if defined(__i386__) || defined (__x86_64__)
+#if defined(__i386__) || defined(__x86_64__)
 #include <asm/ldt.h>
 #endif
+
+#include "shim_types.h"
+#include "shim_unistd.h"
 
 #ifdef IN_SHIM
 
@@ -493,8 +494,8 @@ int shim_do_accept4(int sockfd, struct sockaddr* addr, int* addrlen, int flags);
 int shim_do_dup3(unsigned int oldfd, unsigned int newfd, int flags);
 int shim_do_epoll_create1(int flags);
 int shim_do_pipe2(int* fildes, int flags);
-int shim_do_mknod(const char *pathname, mode_t mode, dev_t dev);
-int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev);
+int shim_do_mknod(const char* pathname, mode_t mode, dev_t dev);
+int shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev);
 ssize_t shim_do_recvmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int flags,
                          struct __kernel_timespec* timeout);
 int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
