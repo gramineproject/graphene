@@ -590,6 +590,16 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
         goto out;
     }
 
+    /* in exec case, need to migrate PAL handles for self/parent IPC; simply set them in new
+     * process object so migration function notices and migrates them, and revert back after
+     * migration at the end of this function (we do this pointer assignment because there is no
+     * notion of refcounts for PAL handles at LibOS level) */
+    if (exec) {
+        process->self->pal_handle = cur_process.self->pal_handle;
+        if (process->parent)
+            process->parent->pal_handle = cur_process.parent->pal_handle;
+    }
+
     /* allocate a space for dumping the checkpoint data */
     struct shim_cp_store cpstore;
     memset(&cpstore, 0, sizeof(cpstore));
@@ -691,7 +701,10 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
 
     if (exec) {
         /* execve case: child process "replaces" this current process: no need to notify the leader
-         * or establish IPC, so do nothing here */
+         * or establish IPC, the only thing to do is revert self/parent PAL handles' pointers */
+        process->self->pal_handle = NULL;
+        if (process->parent)
+            process->parent->pal_handle = NULL;
     } else {
         /* fork/clone case: new process is an actual child process for this current process, so
          * notify the leader regarding subleasing of TID (child must create self-pipe with
