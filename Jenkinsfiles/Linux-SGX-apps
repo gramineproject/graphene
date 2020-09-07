@@ -119,6 +119,13 @@ pipeline {
                                 make SGX=1 check
                             '''
                         }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd Examples/r
+                                make -j8 SGX=1
+                                make SGX=1 check
+                            '''
+                        }
                         sh '''
                            ./Scripts/gitignore-test
                         '''
@@ -138,6 +145,7 @@ pipeline {
                            make -C Examples/nginx SGX=1 distclean
                            make -C Examples/apache SGX=1 distclean
                            make -C Examples/blender SGX=1 distclean
+                           make -C Examples/r SGX=1 distclean
 
                            # Currently used release of LTP contains broken symlinks under
                            # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit

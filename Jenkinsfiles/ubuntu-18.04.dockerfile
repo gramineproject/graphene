@@ -44,6 +44,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-protobuf \
     python3-pytest \
     python3-scipy \
+    r-base-core \
     shellcheck \
     texinfo \
     wget \

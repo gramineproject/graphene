@@ -117,9 +117,15 @@ sh.manifest.sgx: rm.sig
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
+.PHONY: check
+check: all
+	./pal_loader R.manifest --slave --vanilla -f scripts/sample.r > OUTPUT 2> /dev/null
+	@grep -q "success" OUTPUT && echo "[ Success 1/1 ]"
+	@rm OUTPUT
+
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader
+	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT*
 
 .PHONY: distclean
 distclean: clean

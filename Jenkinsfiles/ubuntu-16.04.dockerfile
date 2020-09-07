@@ -42,6 +42,7 @@ RUN apt-get update \
        python3-pip \
        python3-pytest \
        python3-scipy \
+       r-base-core \
        shellcheck \
        texinfo \
        wget \
