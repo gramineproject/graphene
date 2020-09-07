@@ -68,7 +68,7 @@ R-trusted-libs: R-deps
 	@R_LIBS="$(R_TARGETS)" && \
 	for F in `cat R-deps`; do \
 		P=`ldd $$R_LIBS | grep $$F | awk '{print $$3; exit}'`; \
-		N=`echo $$F | tr --delete '-'`; \
+		N=`echo $$F | tr --delete '.' | tr --delete '-' | tr --delete '+'`; \
 		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
 	done > $@
 
