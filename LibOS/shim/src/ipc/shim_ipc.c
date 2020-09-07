@@ -197,63 +197,59 @@ struct shim_process* create_process(bool dup_cur_process) {
 
     /* current process must have been initialized with info on its own IPC info */
     assert(cur_process.self);
-    assert(cur_process.self->pal_handle && !qstrempty(&cur_process.self->uri));
 
     if (dup_cur_process) {
         /* execve case, new process assumes identity of current process and thus has
          * - same vmid as current process
          * - same self IPC info as current process
-         * - same parent IPC info as current process
-         */
+         * - same parent IPC info as current process */
         new_process->vmid = cur_process.vmid;
-
-        new_process->self = create_ipc_info(
-            cur_process.self->vmid, qstrgetstr(&cur_process.self->uri), cur_process.self->uri.len);
-        new_process->self->pal_handle = cur_process.self->pal_handle;
-        if (!new_process->self) {
-            unlock(&cur_process.lock);
-            return NULL;
-        }
+        new_process->self = create_ipc_info(cur_process.self->vmid,
+                                            qstrgetstr(&cur_process.self->uri),
+                                            cur_process.self->uri.len);
+        if (!new_process->self)
+            goto fail;
 
         /* there is a corner case of execve in very first process; such process does
          * not have parent process, so cannot copy parent IPC info */
         if (cur_process.parent) {
-            new_process->parent =
-                create_ipc_info(cur_process.parent->vmid, qstrgetstr(&cur_process.parent->uri),
-                                cur_process.parent->uri.len);
-            new_process->parent->pal_handle = cur_process.parent->pal_handle;
+            new_process->parent = create_ipc_info(cur_process.parent->vmid,
+                                                  qstrgetstr(&cur_process.parent->uri),
+                                                  cur_process.parent->uri.len);
+            if (!new_process->parent)
+                goto fail;
         }
     } else {
         /* fork/clone case, new process has new identity but inherits parent  */
         new_process->vmid   = 0;
         new_process->self   = NULL;
-        new_process->parent = create_ipc_info(
-            cur_process.self->vmid, qstrgetstr(&cur_process.self->uri), cur_process.self->uri.len);
-    }
-
-    if (cur_process.parent && !new_process->parent) {
-        if (new_process->self)
-            put_ipc_info(new_process->self);
-        unlock(&cur_process.lock);
-        return NULL;
+        new_process->parent = create_ipc_info(cur_process.self->vmid,
+                                              qstrgetstr(&cur_process.self->uri),
+                                              cur_process.self->uri.len);
+        if (!new_process->parent)
+            goto fail;
     }
 
     /* new process inherits the same namespace leader */
     if (cur_process.ns) {
         new_process->ns = create_ipc_info(cur_process.ns->vmid, qstrgetstr(&cur_process.ns->uri),
                                           cur_process.ns->uri.len);
-        if (!new_process->ns) {
-            if (new_process->self)
-                put_ipc_info(new_process->self);
-            if (new_process->parent)
-                put_ipc_info(new_process->parent);
-            unlock(&cur_process.lock);
-            return NULL;
-        }
+        if (!new_process->ns)
+            goto fail;
     }
 
     unlock(&cur_process.lock);
     return new_process;
+
+fail:
+    unlock(&cur_process.lock);
+    if (new_process->self)
+        put_ipc_info(new_process->self);
+    if (new_process->parent)
+        put_ipc_info(new_process->parent);
+    if (new_process->ns)
+        put_ipc_info(new_process->ns);
+    return NULL;
 }
 
 void free_process(struct shim_process* process) {
