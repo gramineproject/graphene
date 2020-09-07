@@ -42,14 +42,14 @@ static void usage(void) {
     INFO("  --verify, -V            (optional) Verify that input path matches PF's allowed paths\n");
 }
 
-int main(int argc, char *argv[]) {
-    int ret             = -1;
-    int this_option     = 0;
-    char* input_path    = NULL;
-    char* output_path   = NULL;
+int main(int argc, char* argv[]) {
+    int ret = -1;
+    int this_option = 0;
+    char* input_path = NULL;
+    char* output_path = NULL;
     char* wrap_key_path = NULL;
-    char* mode          = NULL;
-    bool verify         = false;
+    char* mode = NULL;
+    bool verify = false;
 
     while (true) {
         this_option = getopt_long(argc, argv, "i:o:p:w:Vvh", g_options, NULL);
@@ -100,31 +100,31 @@ int main(int argc, char *argv[]) {
     mode = argv[optind];
 
     switch (mode[0]) {
-    case 'g': /* gen-key */
-        ret = pf_generate_wrap_key(wrap_key_path);
-        break;
+        case 'g': /* gen-key */
+            ret = pf_generate_wrap_key(wrap_key_path);
+            break;
 
-    case 'e': /* encrypt */
-        if (!input_path || !output_path) {
-            ERROR("Input or output path not specified\n");
+        case 'e': /* encrypt */
+            if (!input_path || !output_path) {
+                ERROR("Input or output path not specified\n");
+                usage();
+                goto out;
+            }
+            ret = pf_encrypt_files(input_path, output_path, wrap_key_path);
+            break;
+
+        case 'd': /* decrypt */
+            if (!input_path || !output_path) {
+                ERROR("Input or output path not specified\n");
+                usage();
+                goto out;
+            }
+            ret = pf_decrypt_files(input_path, output_path, verify, wrap_key_path);
+            break;
+
+        default:
             usage();
             goto out;
-        }
-        ret = pf_encrypt_files(input_path, output_path, wrap_key_path);
-        break;
-
-    case 'd': /* decrypt */
-        if (!input_path || !output_path) {
-            ERROR("Input or output path not specified\n");
-            usage();
-            goto out;
-        }
-        ret = pf_decrypt_files(input_path, output_path, verify, wrap_key_path);
-        break;
-
-    default:
-        usage();
-        goto out;
     }
 
 out:

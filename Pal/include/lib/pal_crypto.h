@@ -10,9 +10,9 @@
 #ifndef PAL_CRYPTO_H
 #define PAL_CRYPTO_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <unistd.h>
 
 #define SHA256_DIGEST_LEN 32
@@ -47,7 +47,7 @@ typedef struct {
     mbedtls_ctr_drbg_context ctr_drbg;
     mbedtls_ssl_config conf;
     mbedtls_ssl_context ssl;
-    int ciphersuites[2];  /* [0] is actual ciphersuite, [1] must be 0 to indicate end of array */
+    int ciphersuites[2]; /* [0] is actual ciphersuite, [1] must be 0 to indicate end of array */
     ssize_t (*pal_recv_cb)(int fd, void* buf, size_t buf_size);
     ssize_t (*pal_send_cb)(int fd, const void* buf, size_t buf_size);
     int stream_fd;
@@ -56,7 +56,7 @@ typedef struct {
 #endif /* CRYPTO_USE_MBEDTLS */
 
 #ifndef CRYPTO_PROVIDER_SPECIFIED
-# error "Unknown crypto provider. Set CRYPTO_PROVIDER in Makefile"
+#error "Unknown crypto provider. Set CRYPTO_PROVIDER in Makefile"
 #endif
 
 /* SHA256 */
@@ -72,7 +72,7 @@ int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, size_t peer_size, u
 void lib_DhFinal(LIB_DH_CONTEXT* context);
 
 /* AES-CMAC */
-int lib_AESCMAC(const uint8_t* key, size_t key_size, const uint8_t *input, size_t input_size,
+int lib_AESCMAC(const uint8_t* key, size_t key_size, const uint8_t* input, size_t input_size,
                 uint8_t* mac, size_t mac_size);
 /* GCM encrypt, iv is assumed to be 12 bytes (and is changed by this call).
  * input_size doesn't have to be a multiple of 16.
@@ -125,9 +125,8 @@ int lib_Base64Encode(const uint8_t* src, size_t src_size, char* dst, size_t* dst
 int lib_Base64Decode(const char* src, size_t src_size, uint8_t* dst, size_t* dst_size);
 
 /* SSL/TLS */
-int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server,
-                const uint8_t* psk, size_t psk_size,
-                ssize_t (*pal_recv_cb)(int fd, void* buf, size_t buf_size),
+int lib_SSLInit(LIB_SSL_CONTEXT* ssl_ctx, int stream_fd, bool is_server, const uint8_t* psk,
+                size_t psk_size, ssize_t (*pal_recv_cb)(int fd, void* buf, size_t buf_size),
                 ssize_t (*pal_send_cb)(int fd, const void* buf, size_t buf_size),
                 const uint8_t* buf_load_ssl_ctx, size_t buf_size);
 int lib_SSLFree(LIB_SSL_CONTEXT* ssl_ctx);

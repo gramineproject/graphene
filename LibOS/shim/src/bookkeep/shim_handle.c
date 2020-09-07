@@ -2,18 +2,16 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_handle.c
- *
- * This file contains codes to maintain bookkeeping for handles in library OS.
+ * This file contains code to maintain bookkeeping for handles in library OS.
  */
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_thread.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_thread.h"
 
 static struct shim_lock handle_mgr_lock;
 
@@ -24,7 +22,7 @@ static struct shim_lock handle_mgr_lock;
 #define SYSTEM_LOCKED() locked(&handle_mgr_lock)
 
 #define OBJ_TYPE struct shim_handle
-#include <memmgr.h>
+#include "memmgr.h"
 
 static MEM_MGR handle_mgr = NULL;
 
@@ -44,9 +42,9 @@ static inline int init_tty_handle(struct shim_handle* hdl, bool write) {
     if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
-    int flags             = (write ? O_WRONLY : O_RDONLY) | O_APPEND;
+    int flags = (write ? O_WRONLY : O_RDONLY) | O_APPEND;
     struct shim_mount* fs = dent->fs;
-    ret                   = fs->d_ops->open(hdl, dent, flags);
+    ret = fs->d_ops->open(hdl, dent, flags);
     if (ret < 0)
         return ret;
 
@@ -800,7 +798,8 @@ BEGIN_RS_FUNC(handle) {
     switch (hdl->type) {
         case TYPE_DEV:
             /* for device handles, info.dev.dev_ops contains function pointers into LibOS; they may
-               have become invalid due to relocation of LibOS text section in the child, update them */
+             * have become invalid due to relocation of LibOS text section in the child, update them
+             */
             if (dev_update_dev_ops(hdl) < 0) {
                 return -EINVAL;
             }

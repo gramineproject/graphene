@@ -11,10 +11,10 @@
 #define PAL_HOST_H
 
 #ifndef IN_PAL
-# error "cannot be included outside PAL"
+#error "cannot be included outside PAL"
 #endif
 
-#include <atomic.h>
+#include "atomic.h"
 
 /* Simpler mutex design: a single variable that tracks whether the
  * mutex is locked.  State is 1 (locked) or 0 (unlocked).
@@ -31,10 +31,15 @@ typedef struct mutex_handle {
 } PAL_LOCK;
 
 /* Initializer of Mutexes */
-#define MUTEX_HANDLE_INIT    { .locked = 0, .nwaiters.counter = 0 }
-#define INIT_MUTEX_HANDLE(m)  do { (m)->locked = 0; atomic_set(&(m)->nwaiters, 0); } while (0)
+#define MUTEX_HANDLE_INIT \
+    { .locked = 0, .nwaiters.counter = 0 }
+#define INIT_MUTEX_HANDLE(m)           \
+    do {                               \
+        (m)->locked = 0;               \
+        atomic_set(&(m)->nwaiters, 0); \
+    } while (0)
 
-#define LOCK_INIT MUTEX_HANDLE_INIT
+#define LOCK_INIT       MUTEX_HANDLE_INIT
 #define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock)
 
 /* Locking and unlocking of Mutexes */
@@ -50,8 +55,7 @@ typedef struct {
     char str[PIPE_NAME_MAX];
 } PAL_PIPE_NAME;
 
-typedef struct pal_handle
-{
+typedef struct pal_handle {
     /* TSAI: Here we define the internal types of PAL_HANDLE
      * in PAL design, user has not to access the content inside the
      * handle, also there is no need to allocate the internal
@@ -148,17 +152,23 @@ typedef struct pal_handle
     };
 } * PAL_HANDLE;
 
-#define RFD(n)          (1 << (MAX_FDS*0 + (n)))
-#define WFD(n)          (1 << (MAX_FDS*1 + (n)))
-#define ERROR(n)        (1 << (MAX_FDS*2 + (n)))
+#define RFD(n)   (1 << (MAX_FDS * 0 + (n)))
+#define WFD(n)   (1 << (MAX_FDS * 1 + (n)))
+#define ERROR(n) (1 << (MAX_FDS * 2 + (n)))
 
-#define HANDLE_TYPE(handle)  ((handle)->hdr.type)
+#define HANDLE_TYPE(handle) ((handle)->hdr.type)
 
-extern void __check_pending_event (void);
+extern void __check_pending_event(void);
 
-#define LEAVE_PAL_CALL() do { __check_pending_event(); } while (0)
+#define LEAVE_PAL_CALL()         \
+    do {                         \
+        __check_pending_event(); \
+    } while (0)
 
 #define LEAVE_PAL_CALL_RETURN(retval) \
-    do { __check_pending_event(); return (retval); } while (0)
+    do {                              \
+        __check_pending_event();      \
+        return (retval);              \
+    } while (0)
 
 #endif /* PAL_HOST_H */

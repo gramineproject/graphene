@@ -1,17 +1,16 @@
 #ifndef _SHIM_THREAD_H_
 #define _SHIM_THREAD_H_
 
-#include <shim_defs.h>
-#include <shim_internal.h>
-#include <shim_tcb.h>
-#include <shim_utils.h>
-#include <shim_signal.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
-
-#include <api.h>
-#include <pal.h>
-#include <list.h>
+#include "api.h"
+#include "list.h"
+#include "pal.h"
+#include "shim_defs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_signal.h"
+#include "shim_tcb.h"
+#include "shim_utils.h"
+#include "shim_vma.h"
 
 struct shim_handle;
 struct shim_fd_map;
@@ -63,9 +62,9 @@ struct shim_thread {
     PAL_HANDLE pal_handle;
 
     /* parent handle */
-    struct shim_thread * parent;
+    struct shim_thread* parent;
     /* thread leader */
-    struct shim_thread * leader;
+    struct shim_thread* leader;
     /* child handles; protected by thread->lock */
     LISTP_TYPE(shim_thread) children;
     /* nodes in child handles; protected by the parent's lock */
@@ -73,12 +72,12 @@ struct shim_thread {
     /* nodes in global handles; protected by thread_list_lock */
     LIST_TYPE(shim_thread) list;
 
-    struct shim_handle_map * handle_map;
+    struct shim_handle_map* handle_map;
 
     /* child tid */
     int* set_child_tid;
-    int* clear_child_tid;      /* LibOS zeroes it to notify parent that thread exited */
-    int  clear_child_tid_pal;  /* PAL zeroes it to notify LibOS that thread exited */
+    int* clear_child_tid;    /* LibOS zeroes it to notify parent that thread exited */
+    int clear_child_tid_pal; /* PAL zeroes it to notify LibOS that thread exited */
 
     /* signal handling */
     __sigset_t signal_mask;
@@ -108,34 +107,36 @@ struct shim_thread {
     LISTP_TYPE(shim_thread) exited_children;
 
     /* file system */
-    struct shim_dentry * root, * cwd;
+    struct shim_dentry* root;
+    struct shim_dentry* cwd;
     mode_t umask;
 
     /* executable */
-    struct shim_handle * exec;
+    struct shim_handle* exec;
 
-    void * stack, * stack_top, * stack_red;
-    shim_tcb_t * shim_tcb;
-    void * frameptr;
+    void* stack;
+    void* stack_top;
+    void* stack_red;
+    shim_tcb_t* shim_tcb;
+    void* frameptr;
 
     REFTYPE ref_count;
     struct shim_lock lock;
 };
 
-int init_thread (void);
+int init_thread(void);
 
-static inline bool is_internal(struct shim_thread *thread)
-{
+static inline bool is_internal(struct shim_thread* thread) {
     return thread->tid >= INTERNAL_TID_BASE;
 }
 
 void get_signal_handles(struct shim_signal_handles* handles);
 void put_signal_handles(struct shim_signal_handles* handles);
 
-void get_thread (struct shim_thread * thread);
-void put_thread (struct shim_thread * thread);
+void get_thread(struct shim_thread* thread);
+void put_thread(struct shim_thread* thread);
 
-void debug_setprefix (shim_tcb_t * tcb);
+void debug_setprefix(shim_tcb_t* tcb);
 
 static inline void debug_setbuf(shim_tcb_t* tcb,
                                 struct debug_buf* debug_buf) {
@@ -179,9 +180,7 @@ static inline void set_cur_thread(struct shim_thread* thread) {
     }
 }
 
-static inline void thread_setwait (struct shim_thread ** queue,
-                                   struct shim_thread * thread)
-{
+static inline void thread_setwait(struct shim_thread** queue, struct shim_thread* thread) {
     if (!thread)
         thread = get_cur_thread();
     DkEventClear(thread->scheduler_event);
@@ -191,9 +190,8 @@ static inline void thread_setwait (struct shim_thread ** queue,
     }
 }
 
-static inline int thread_sleep (uint64_t timeout_us)
-{
-    struct shim_thread * cur_thread = get_cur_thread();
+static inline int thread_sleep(uint64_t timeout_us) {
+    struct shim_thread* cur_thread = get_cur_thread();
 
     if (!cur_thread)
         return -EINVAL;
@@ -208,8 +206,7 @@ static inline int thread_sleep (uint64_t timeout_us)
     return 0;
 }
 
-static inline void thread_wakeup (struct shim_thread * thread)
-{
+static inline void thread_wakeup(struct shim_thread* thread) {
     DkEventSet(thread->scheduler_event);
 }
 
@@ -262,15 +259,15 @@ extern struct shim_lock thread_list_lock;
  */
 struct shim_thread* lookup_thread(IDTYPE tid);
 
-void set_as_child (struct shim_thread * parent, struct shim_thread * child);
+void set_as_child(struct shim_thread* parent, struct shim_thread* child);
 
 /* creating and revoking thread objects */
-struct shim_thread * get_new_thread (IDTYPE new_tid);
-struct shim_thread * get_new_internal_thread (void);
+struct shim_thread* get_new_thread(IDTYPE new_tid);
+struct shim_thread* get_new_internal_thread(void);
 
 /* thread list utilities */
-void add_thread (struct shim_thread * thread);
-void del_thread (struct shim_thread * thread);
+void add_thread(struct shim_thread* thread);
+void del_thread(struct shim_thread* thread);
 
 void cleanup_thread(IDTYPE caller, void* thread);
 bool mark_self_dead(void);
@@ -281,8 +278,8 @@ int walk_thread_list(int (*callback)(struct shim_thread*, void*), void* arg, boo
 void dump_threads(void);
 
 /* reference counting of handle maps */
-void get_handle_map (struct shim_handle_map * map);
-void put_handle_map (struct shim_handle_map * map);
+void get_handle_map(struct shim_handle_map* map);
+void put_handle_map(struct shim_handle_map* map);
 
 /* retriving handle mapping */
 static inline struct shim_handle_map* get_cur_handle_map(struct shim_thread* thread) {
@@ -315,14 +312,14 @@ void release_robust_list(struct robust_list_head* head);
 struct shim_clone_args {
     PAL_HANDLE create_event;
     PAL_HANDLE initialize_event;
-    struct shim_thread * parent, * thread;
-    void * stack;
+    struct shim_thread* parent;
+    struct shim_thread* thread;
+    void* stack;
     unsigned long fs_base;
 };
 
-void * allocate_stack (size_t size, size_t protect_size, bool user);
+void* allocate_stack(size_t size, size_t protect_size, bool user);
 
-int init_stack(const char** argv, const char** envp, const char*** out_argp,
-               elf_auxv_t** out_auxv);
+int init_stack(const char** argv, const char** envp, const char*** out_argp, elf_auxv_t** out_auxv);
 
 #endif /* _SHIM_THREAD_H_ */

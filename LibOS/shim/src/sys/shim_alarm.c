@@ -28,7 +28,7 @@ int shim_do_alarm(unsigned int seconds) {
         return ret;
 
     uint64_t usecs_left = (uint64_t)ret;
-    int secs            = usecs_left / 1000000ULL;
+    int secs = usecs_left / 1000000ULL;
     if (usecs_left % 1000000ULL)
         secs++;
     return secs;
@@ -74,16 +74,18 @@ int shim_do_setitimer(int which, struct __kernel_itimerval* value,
     uint64_t setup_time = DkSystemTimeQuery();
 
     uint64_t next_value = value->it_value.tv_sec * (uint64_t)1000000 + value->it_value.tv_usec;
-    uint64_t next_reset = value->it_interval.tv_sec * (uint64_t)1000000 + value->it_interval.tv_usec;
+    uint64_t next_reset = value->it_interval.tv_sec * (uint64_t)1000000
+                          + value->it_interval.tv_usec;
 
     MASTER_LOCK();
 
-    uint64_t current_timeout =
-        real_itimer.timeout > setup_time ? real_itimer.timeout - setup_time : 0;
+    uint64_t current_timeout = real_itimer.timeout > setup_time
+                               ? real_itimer.timeout - setup_time
+                               : 0;
     uint64_t current_reset = real_itimer.reset;
 
-    int64_t ret =
-        install_async_event(NULL, next_value, &signal_itimer, (void*)(setup_time + next_value));
+    int64_t ret = install_async_event(NULL, next_value, &signal_itimer,
+                                      (void*)(setup_time + next_value));
 
     if (ret < 0) {
         MASTER_UNLOCK();
@@ -117,8 +119,9 @@ int shim_do_getitimer(int which, struct __kernel_itimerval* value) {
     uint64_t setup_time = DkSystemTimeQuery();
 
     MASTER_LOCK();
-    uint64_t current_timeout =
-        real_itimer.timeout > setup_time ? real_itimer.timeout - setup_time : 0;
+    uint64_t current_timeout = real_itimer.timeout > setup_time
+                               ? real_itimer.timeout - setup_time
+                               : 0;
     uint64_t current_reset = real_itimer.reset;
     MASTER_UNLOCK();
 

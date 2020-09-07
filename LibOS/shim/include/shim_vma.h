@@ -25,7 +25,7 @@
 struct shim_vma_info {
     void* addr;
     size_t length;
-    int prot; // memory protection flags: PROT_*
+    int prot;  // memory protection flags: PROT_*
     int flags; // MAP_* and VMA_*
     struct shim_handle* file;
     off_t file_offset;
@@ -39,7 +39,6 @@ struct shim_vma_info {
 #ifndef MAP_SHARED_VALIDATE
 #define MAP_SHARED_VALIDATE 0x03
 #endif // MAP_SHARED_VALIDATE
-
 
 /* vma is kept for bookkeeping, but the memory is not actually allocated */
 #define VMA_UNMAPPED 0x10000000

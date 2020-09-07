@@ -90,9 +90,9 @@ static int thread_handshake_func(void* param) {
 /*!
  * \brief Create a listening abstract UNIX socket as preparation for connecting two ends of a pipe.
  *
- * An abstract UNIX socket with name "@/graphene/<pipename>" is opened for listening. A corresponding
- * PAL handle with type `pipesrv` is created. This PAL handle typically serves only as an
- * intermediate step to connect two ends of the pipe (`pipecli` and `pipe`). As soon as the other
+ * An abstract UNIX socket with name "@/graphene/<pipename>" is opened for listening. A
+ * corresponding PAL handle with type `pipesrv` is created. This PAL handle typically serves only as
+ * an intermediate step to connect two ends of the pipe (`pipecli` and `pipe`). As soon as the other
  * end of the pipe connects to this listening socket, a new accepted socket and the corresponding
  * PAL handle are created, and this `pipesrv` handle can be closed.
  *
@@ -125,9 +125,9 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     }
 
     SET_HANDLE_TYPE(hdl, pipesrv);
-    HANDLE_HDR(hdl)->flags |= RFD(0);  /* cannot write to a listening socket */
-    hdl->pipe.fd            = ret;
-    hdl->pipe.nonblocking   = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
+    HANDLE_HDR(hdl)->flags |= RFD(0); /* cannot write to a listening socket */
+    hdl->pipe.fd          = ret;
+    hdl->pipe.nonblocking = options & PAL_OPTION_NONBLOCK ? PAL_TRUE : PAL_FALSE;
 
     /* padding with zeros is because the whole buffer is used in key derivation */
     memset(&hdl->pipe.name.str, 0, sizeof(hdl->pipe.name.str));
@@ -136,7 +136,7 @@ static int pipe_listen(PAL_HANDLE* handle, const char* name, int options) {
     /* pipesrv handle is only intermediate so it doesn't need SSL context or session key */
     hdl->pipe.ssl_ctx        = NULL;
     hdl->pipe.is_server      = false;
-    hdl->pipe.handshake_done = 1;  /* pipesrv doesn't do any handshake so consider it done */
+    hdl->pipe.handshake_done = 1; /* pipesrv doesn't do any handshake so consider it done */
     memset(hdl->pipe.session_key, 0, sizeof(hdl->pipe.session_key));
 
     *handle = hdl;
@@ -176,9 +176,9 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
 
     SET_HANDLE_TYPE(clnt, pipecli);
     HANDLE_HDR(clnt)->flags |= RFD(0) | WFD(0);
-    clnt->pipe.fd            = ret;
-    clnt->pipe.name          = handle->pipe.name;
-    clnt->pipe.nonblocking   = PAL_FALSE; /* FIXME: must set nonblocking based on `handle` value */
+    clnt->pipe.fd          = ret;
+    clnt->pipe.name        = handle->pipe.name;
+    clnt->pipe.nonblocking = PAL_FALSE; /* FIXME: must set nonblocking based on `handle` value */
 
     /* create the SSL pre-shared key for this end of the pipe; note that SSL context is initialized
      * lazily on first read/write on this pipe */
@@ -210,9 +210,9 @@ static int pipe_waitforclient(PAL_HANDLE handle, PAL_HANDLE* client) {
  * \brief Connect to the other end of the pipe and create PAL handle for our end of the pipe.
  *
  * This function connects to the other end of the pipe, represented as an abstract UNIX socket
- * "@/graphene/<pipename>" opened for listening. When the connection succeeds, a new `pipe` PAL handle
- * is created with the corresponding underlying socket and is returned in `handle`. The other end of
- * the pipe is typically of type `pipecli`.
+ * "@/graphene/<pipename>" opened for listening. When the connection succeeds, a new `pipe` PAL
+ * handle is created with the corresponding underlying socket and is returned in `handle`. The other
+ * end of the pipe is typically of type `pipecli`.
  *
  * \param[out] handle  PAL handle of type `pipe` with abstract UNIX socket connected to another end.
  * \param[in]  name    String uniquely identifying the pipe.
@@ -232,8 +232,7 @@ static int pipe_connect(PAL_HANDLE* handle, const char* name, int options) {
     int nonblock = options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0;
 
     ret = ocall_connect(AF_UNIX, SOCK_STREAM | nonblock, 0, /*ipv6_v6only=*/0,
-                        (const struct sockaddr*)&addr,
-                        addrlen, NULL, NULL, &sock_options);
+                        (const struct sockaddr*)&addr, addrlen, NULL, NULL, &sock_options);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 

@@ -18,7 +18,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-PAL_EVENT_HANDLER g_handlers[PAL_EVENT_NUM_BOUND] = { 0 };
+PAL_EVENT_HANDLER g_handlers[PAL_EVENT_NUM_BOUND] = {0};
 
 PAL_EVENT_HANDLER _DkGetExceptionHandler(PAL_NUM event) {
     return __atomic_load_n(&g_handlers[event], __ATOMIC_ACQUIRE);

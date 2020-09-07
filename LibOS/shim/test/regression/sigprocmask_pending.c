@@ -7,12 +7,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define CHECK(x) do {   \
-    if (x) {            \
-        perror(#x);     \
-        exit(1);        \
-    }                   \
-} while (0)
+#define CHECK(x)        \
+    do {                \
+        if (x) {        \
+            perror(#x); \
+            exit(1);    \
+        }               \
+    } while (0)
 
 static int seen_signal_cnt = 0;
 
@@ -141,7 +142,7 @@ static void test_execve_start(char* self) {
 
     CHECK(kill(getpid(), SIGALRM) < 0);
 
-    char* argv[] = { self, "cont", NULL };
+    char* argv[] = {self, "cont", NULL};
     CHECK(execve(self, argv, NULL));
 }
 

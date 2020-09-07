@@ -38,10 +38,10 @@ static const char* get_base_name_cases[][2] = {
     {"a/b/c", "c"},
 };
 
-#define print_err(name, i, ...)                                 \
-    do {                                                        \
+#define print_err(name, i, ...)                                     \
+    do {                                                            \
         pal_printf("%s: case %lu (\"%s\") ", name, i, cases[i][0]); \
-        pal_printf(__VA_ARGS__);                                \
+        pal_printf(__VA_ARGS__);                                    \
     } while (0)
 
 static const char* (*cases)[2];
@@ -54,7 +54,7 @@ char buf[URI_MAX] = {0};
 static int run_test(void) {
     for (size_t i = 0; i < cases_len; i++) {
         size_t size = sizeof(buf);
-        int ret     = func_to_test(cases[i][0], buf, &size);
+        int ret = func_to_test(cases[i][0], buf, &size);
 
         if (ret < 0) {
             print_err(func_name, i, "failed with error: %s\n", pal_strerror(ret));

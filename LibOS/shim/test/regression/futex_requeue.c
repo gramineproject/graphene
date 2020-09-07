@@ -6,11 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/syscall.h> 
+#include <sys/syscall.h>
 #include <unistd.h>
 
-
-static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2, int val3) {
+static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2,
+                 int val3) {
     return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
 }
 
@@ -22,8 +22,10 @@ static int futex_wake(int* uaddr, int to_wake) {
     return futex(uaddr, FUTEX_WAKE | FUTEX_PRIVATE_FLAG, to_wake, NULL, NULL, 0);
 }
 
-static int futex_cmp_requeue(int* uaddr, int val, int to_wake, int* uaddr2, unsigned int max_requeue) {
-    return futex(uaddr, FUTEX_CMP_REQUEUE | FUTEX_PRIVATE_FLAG, to_wake, (struct timespec*)(unsigned long)max_requeue, uaddr2, val);
+static int futex_cmp_requeue(int* uaddr, int val, int to_wake, int* uaddr2,
+                             unsigned int max_requeue) {
+    return futex(uaddr, FUTEX_CMP_REQUEUE | FUTEX_PRIVATE_FLAG, to_wake,
+                 (struct timespec*)(unsigned long)max_requeue, uaddr2, val);
 }
 
 static void fail(const char* msg, int x) {
@@ -47,11 +49,11 @@ static int load(int* ptr) {
 static int futex1 = 0;
 static int futex2 = 0;
 
-#define THREADS 9
-#define THREADS_WAKE 2
+#define THREADS         9
+#define THREADS_WAKE    2
 #define THREADS_REQUEUE 3
 
-static int thread_state[THREADS] = { 0 };
+static int thread_state[THREADS] = {0};
 
 static void* thread_func(void* arg) {
     unsigned long i = (unsigned long)arg;
@@ -92,7 +94,8 @@ int main(void) {
         fail("futex_cmp_requeue", errno);
     }
     if (ret != THREADS_WAKE + THREADS_REQUEUE) {
-        printf("futex_cmp_requeue returned %d instead of %d!\n", ret, THREADS_WAKE + THREADS_REQUEUE);
+        printf("futex_cmp_requeue returned %d instead of %d!\n", ret,
+               THREADS_WAKE + THREADS_REQUEUE);
         return 1;
     }
 
@@ -117,7 +120,8 @@ int main(void) {
         fail("futex_wake(&futex1)", errno);
     }
     if (ret != (THREADS - THREADS_WAKE - THREADS_REQUEUE)) {
-        printf("futex_wake on futex1 woke-up %d threads instead of %d!\n", ret, THREADS - THREADS_WAKE - THREADS_REQUEUE);
+        printf("futex_wake on futex1 woke-up %d threads instead of %d!\n", ret,
+               THREADS - THREADS_WAKE - THREADS_REQUEUE);
         return 1;
     }
 

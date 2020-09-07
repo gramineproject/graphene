@@ -21,8 +21,8 @@
  * these sizes are overapproximations of SGX requirements (report_data is 64B, target_info is
  * 512B, EPID quote is about 1KB, DCAP quote is about 4KB). */
 #define USER_REPORT_DATA_MAX_SIZE 256
-#define TARGET_INFO_MAX_SIZE 1024
-#define QUOTE_MAX_SIZE 8192
+#define TARGET_INFO_MAX_SIZE      1024
+#define QUOTE_MAX_SIZE            8192
 
 static char g_user_report_data[USER_REPORT_DATA_MAX_SIZE] = {0};
 static size_t g_user_report_data_size = 0;
@@ -68,8 +68,8 @@ static int dev_attestation_readwrite_mode(const char* name, mode_t* mode) {
 static int dev_attestation_readonly_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
-    buf->st_dev  = 1;    /* dummy ID of device containing file */
-    buf->st_ino  = 1;    /* dummy inode number */
+    buf->st_dev  = 1; /* dummy ID of device containing file */
+    buf->st_ino  = 1; /* dummy inode number */
     buf->st_mode = FILE_R_MODE | S_IFREG;
     return 0;
 }
@@ -77,8 +77,8 @@ static int dev_attestation_readonly_stat(const char* name, struct stat* buf) {
 static int dev_attestation_readwrite_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
-    buf->st_dev  = 1;    /* dummy ID of device containing file */
-    buf->st_ino  = 1;    /* dummy inode number */
+    buf->st_dev  = 1; /* dummy ID of device containing file */
+    buf->st_ino  = 1; /* dummy inode number */
     buf->st_mode = FILE_RW_MODE | S_IFREG;
     return 0;
 }
@@ -197,7 +197,8 @@ static int dev_attestation_target_info_open(struct shim_handle* hdl, const char*
  *
  * In case of SGX, target info is an opaque blob of size 512B.
  */
-static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const char* name, int flags) {
+static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const char* name,
+                                               int flags) {
     __UNUSED(name);
     int ret;
 
@@ -234,9 +235,8 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
 
     /* below invocation returns this enclave's target info because we zeroed out (via calloc)
      * target_info: it's a hint to function to update target_info with this enclave's info */
-    bool ok = DkAttestationReport(user_report_data, &user_report_data_size,
-                                  target_info, &target_info_size,
-                                  /*report=*/NULL, &report_size);
+    bool ok = DkAttestationReport(user_report_data, &user_report_data_size, target_info,
+                                  &target_info_size, /*report=*/NULL, &report_size);
     if (!ok) {
         ret = -EACCES;
         goto out;
@@ -253,9 +253,9 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
         goto out;
     }
 
-    data->str       = target_info;
-    data->buf_size  = target_info_size;
-    data->len       = target_info_size;
+    data->str      = target_info;
+    data->buf_size = target_info_size;
+    data->len      = target_info_size;
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_READ;
@@ -308,9 +308,8 @@ static int dev_attestation_report_open(struct shim_handle* hdl, const char* name
         goto out;
     }
 
-    bool ok = DkAttestationReport(&g_user_report_data, &g_user_report_data_size,
-                                  &g_target_info, &g_target_info_size,
-                                  report, &g_report_size);
+    bool ok = DkAttestationReport(&g_user_report_data, &g_user_report_data_size, &g_target_info,
+                                  &g_target_info_size, report, &g_report_size);
     if (!ok) {
         ret = -EACCES;
         goto out;
@@ -389,8 +388,7 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
         goto out;
     }
 
-    bool ok = DkAttestationQuote(&g_user_report_data, g_user_report_data_size,
-                                 quote, &quote_size);
+    bool ok = DkAttestationQuote(&g_user_report_data, g_user_report_data_size, quote, &quote_size);
     if (!ok) {
         ret = -EACCES;
         goto out;
@@ -410,9 +408,9 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
 
     memcpy(data_str_quote, quote, quote_size);
 
-    data->str       = data_str_quote;
-    data->buf_size  = quote_size;
-    data->len       = quote_size;
+    data->str      = data_str_quote;
+    data->buf_size = quote_size;
+    data->len      = quote_size;
 
     hdl->type          = TYPE_STR;
     hdl->acc_mode      = MAY_READ;
@@ -525,23 +523,22 @@ struct pseudo_fs_ops dev_attestation_fs_ops = {
 struct pseudo_dir dev_attestation_dir = {
     .size = 6,
     .ent  = {
-              { .name   = "user_report_data",
-                .fs_ops = &dev_attestation_user_report_data_fs_ops,
-                .type   = LINUX_DT_REG },
-              { .name   = "target_info",
-                .fs_ops = &dev_attestation_target_info_fs_ops,
-                .type   = LINUX_DT_REG },
-              { .name   = "my_target_info",
-                .fs_ops = &dev_attestation_my_target_info_fs_ops,
-                .type   = LINUX_DT_REG },
-              { .name   = "report",
-                .fs_ops = &dev_attestation_report_fs_ops,
-                .type   = LINUX_DT_REG },
-              { .name   = "quote",
-                .fs_ops = &dev_attestation_quote_fs_ops,
-                .type   = LINUX_DT_REG },
-              { .name   = "protected_files_key",
-                .fs_ops = &dev_attestation_pfkey_fs_ops,
-                .type   = LINUX_DT_REG },
-            }
-};
+        {.name   = "user_report_data",
+         .fs_ops = &dev_attestation_user_report_data_fs_ops,
+         .type   = LINUX_DT_REG},
+        {.name   = "target_info",
+         .fs_ops = &dev_attestation_target_info_fs_ops,
+         .type   = LINUX_DT_REG},
+        {.name   = "my_target_info",
+         .fs_ops = &dev_attestation_my_target_info_fs_ops,
+         .type   = LINUX_DT_REG},
+        {.name = "report",
+         .fs_ops = &dev_attestation_report_fs_ops,
+         .type = LINUX_DT_REG},
+        {.name = "quote",
+         .fs_ops = &dev_attestation_quote_fs_ops,
+         .type = LINUX_DT_REG},
+        {.name   = "protected_files_key",
+         .fs_ops = &dev_attestation_pfkey_fs_ops,
+         .type   = LINUX_DT_REG},
+    }};

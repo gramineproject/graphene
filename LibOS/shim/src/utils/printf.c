@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-#include <api.h>
-#include <pal.h>
-#include <shim_defs.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
 #include <stdarg.h>
 #include <stdint.h>
+
+#include "api.h"
+#include "pal.h"
+#include "shim_defs.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
 
 PAL_HANDLE debug_handle = NULL;
 
@@ -24,7 +25,7 @@ static int debug_fputch(void* f, int ch, void* b) {
     buf->buf[buf->end++]  = ch;
 
     if (ch == '\n') {
-        int ret  = debug_fputs(buf->buf, buf->end);
+        int ret = debug_fputs(buf->buf, buf->end);
         buf->end = buf->start;
         return ret;
     }

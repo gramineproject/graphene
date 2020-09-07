@@ -1,7 +1,8 @@
-#include <stddef.h>
 #include <asm/errno.h>
+#include <stddef.h>
 
 #include "ecall_types.h"
+#include "generated-offsets-build.h"
 #include "ocall_types.h"
 #include "pal.h"
 #include "pal_linux.h"
@@ -17,13 +18,7 @@
 #include "sgx.h"
 #undef __packed
 
-#include <generated-offsets-build.h>
-
-/* required due to -Wmissing-prototypes */
-void dummy(void);
-
-void dummy(void)
-{
+__attribute__((__used__)) static void dummy(void) {
     /* defines in sgx_arch.h */
     DEFINE(SGX_FLAGS_DEBUG, SGX_FLAGS_DEBUG);
     DEFINE(SGX_FLAGS_MODE64BIT, SGX_FLAGS_MODE64BIT);
@@ -79,8 +74,7 @@ void dummy(void)
     OFFSET_T(SGX_CPU_CONTEXT_RFLAGS, sgx_cpu_context_t, rflags);
     OFFSET_T(SGX_CPU_CONTEXT_RIP, sgx_cpu_context_t, rip);
     DEFINE(SGX_CPU_CONTEXT_SIZE, sizeof(sgx_cpu_context_t));
-    DEFINE(SGX_CPU_CONTEXT_XSTATE_ALIGN_SUB,
-           sizeof(sgx_cpu_context_t) % PAL_XSTATE_ALIGN);
+    DEFINE(SGX_CPU_CONTEXT_XSTATE_ALIGN_SUB, sizeof(sgx_cpu_context_t) % PAL_XSTATE_ALIGN);
 
     /* struct enclave_tls */
     OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);

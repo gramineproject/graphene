@@ -4,8 +4,6 @@ Coding style guidelines
 This document describes coding conventions and formatting styles we use in
 Graphene. All newly commited code must conform to them to pass a |~| review.
 
-.. note:: Old code is temporarily excluded from these rules until reformatted.
-
 Automatic reformatting
 ----------------------
 
@@ -30,6 +28,13 @@ recommend you first commit them (or add to `git index
 :command:`git add -A`), reformat and then verify reformatting results using
 :command:`git diff` (or :command:`git diff --cached` if you used :command:`git
 add`).
+
+.. warning::
+
+   Because of bugs in clang-format and its questionable reformats in many places
+   (seems it deals with C++ much better than with C) it's intended only as a |~|
+   helper tool. Adding it to git pre-commit hooks is definitely a |~| bad idea,
+   at least currently.
 
 C
 -
@@ -100,6 +105,15 @@ Code formatting
    #. Non-standard headers not included in Graphene's repository (e.g. from
       external dependencies, like :file:`curl.h`).
    #. Graphene's headers.
+
+#. Assignments may be aligned when assigning some structurized data (e.g. struct
+   members). Example::
+
+      int some_int = 0;
+      bool asdf = true;
+      file->size      = 123;
+      file->full_path = "/asdf/ghjkl";
+      file->perms     = 0644;
 
 Conventions and high-level style
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -8,11 +8,11 @@
  */
 
 #include <asm/errno.h>
-#include <atomic.h>
 #include <linux/futex.h>
 #include <linux/time.h>
 
 #include "api.h"
+#include "atomic.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"

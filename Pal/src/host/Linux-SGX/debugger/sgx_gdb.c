@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 #include "sgx_gdb.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -16,6 +15,7 @@
 #include <unistd.h>
 #include <wait.h>
 
+#include "assert.h"
 #include "../sgx_arch.h"
 
 //#define DEBUG_GDB_PTRACE 1
@@ -150,8 +150,8 @@ static long int host_ptrace(enum __ptrace_request request, pid_t tid, void* addr
         data = &res;
     }
 
-    errno        = 0;
-    ret          = syscall((long int)SYS_ptrace, (long int)request, (long int)tid, (long int)addr,
+    errno = 0;
+    ret = syscall((long int)SYS_ptrace, (long int)request, (long int)tid, (long int)addr,
                   (long int)data);
     ptrace_errno = errno;
 
@@ -187,7 +187,7 @@ static int update_thread_tids(struct enclave_dbginfo* ei) {
 
     for (int off = 0; off < sizeof(ei->thread_tids); off += sizeof(long)) {
         errno = 0;
-        res   = host_ptrace(PTRACE_PEEKDATA, ei->pid, src + off, NULL);
+        res = host_ptrace(PTRACE_PEEKDATA, ei->pid, src + off, NULL);
         if (res < 0 && errno != 0) {
             /* benign failure: enclave is not yet initialized */
             return -1;
@@ -342,7 +342,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
 
     for (int off = 0; off < sizeof(eib); off += sizeof(long)) {
         errno = 0;
-        ret   = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
+        ret = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
         if (ret < 0 && errno != 0) {
             /* benign failure: enclave is not yet initialized */
             return -1;
@@ -631,8 +631,8 @@ pid_t waitpid(pid_t tid, int* status, int options) {
 
     DEBUG("[GDB %d] Intercepted waitpid(%d)\n", getpid(), tid);
 
-    errno      = 0;
-    wait_res   = syscall((long int)SYS_wait4, (long int)tid, (long int)status, (long int)options,
+    errno = 0;
+    wait_res = syscall((long int)SYS_wait4, (long int)tid, (long int)status, (long int)options,
                        (long int)NULL);
     wait_errno = errno;
 

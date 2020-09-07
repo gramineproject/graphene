@@ -5,7 +5,6 @@
 
 #include "ias.h"
 
-#include <assert.h>
 #include <ctype.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -14,15 +13,15 @@
 #include <stdlib.h>
 #include <strings.h>
 
+#include "assert.h"
 #include "pal_crypto.h"
 #include "util.h"
 
-#define CURL_FAIL(action, ret)                                                     \
-    (((ret) == CURLE_OK) ? false :                                                 \
-        ({                                                                         \
-            ERROR("curl call (%s) failed: %s\n", action, curl_easy_strerror(ret)); \
-            true;                                                                  \
-        }))
+#define CURL_FAIL(action, ret)                                                 \
+    (((ret) == CURLE_OK) ? false : ({                                          \
+        ERROR("curl call (%s) failed: %s\n", action, curl_easy_strerror(ret)); \
+        true;                                                                  \
+    }))
 
 /*! Context used in ias_*() calls */
 struct ias_context_t {
@@ -57,7 +56,7 @@ static void urldecode(const char* src, char* dst) {
     while (*src) {
         if (*src == '%' && (a = src[1]) && (b = src[2]) && isxdigit(a) && isxdigit(b)) {
             if (a >= 'a')
-                a -= 'a'-'A';
+                a -= 'a' - 'A';
 
             if (a >= 'A')
                 a -= ('A' - 10);
@@ -65,7 +64,7 @@ static void urldecode(const char* src, char* dst) {
                 a -= '0';
 
             if (b >= 'a')
-                b -= 'a'-'A';
+                b -= 'a' - 'A';
 
             if (b >= 'A')
                 b -= ('A' - 10);
@@ -98,7 +97,8 @@ static void urldecode(const char* src, char* dst) {
  */
 static size_t header_callback(char* buffer, size_t size, size_t count, void* context) {
     const char* sig_hdr = "x-iasreport-signature: "; // header containing IAS signature
-    const char* cert_hdr = "x-iasreport-signing-certificate: "; // header containing IAS certificate
+    const char* cert_hdr =
+        "x-iasreport-signing-certificate: "; // header containing IAS certificate
     const char* adv_url_hdr = "Advisory-URL: "; // header containing URL to IAS security advisories
     const char* adv_ids_hdr = "Advisory-IDs: "; // header containing security advisory IDs
     size_t total_size = size * count;
@@ -294,8 +294,8 @@ int ias_get_sigrl(struct ias_context_t* context, uint8_t gid[4], size_t* sigrl_s
         goto out;
 
     /* gid must be big-endian */
-    snprintf(url, url_size, "%s/%02x%02x%02x%02x", context->ias_sigrl_url, gid[3], gid[2],
-             gid[1], gid[0]);
+    snprintf(url, url_size, "%s/%02x%02x%02x%02x", context->ias_sigrl_url, gid[3], gid[2], gid[1],
+             gid[0]);
 
     DBG("IAS URL: %s\n", url);
 
@@ -368,8 +368,8 @@ static int ias_send_request(struct ias_context_t* context, struct ias_request_re
     size_t quote_b64_size = 0;
     char* quote_json = NULL;
     size_t quote_json_size = 0;
-    const char* json_fmt = nonce ? "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}" :
-                                   "{\"isvEnclaveQuote\":\"%s\"}";
+    const char* json_fmt = nonce ? "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}"
+                                 : "{\"isvEnclaveQuote\":\"%s\"}";
 
     if (nonce && strlen(nonce) > 32) {
         ERROR("Nonce too long\n");
@@ -466,7 +466,7 @@ int ias_verify_quote(struct ias_context_t* context, const void* quote, size_t qu
                      const char* nonce, const char* report_path, const char* sig_path,
                      const char* cert_path, const char* advisory_path) {
     int ret;
-    struct ias_request_resp ias_resp = { 0 };
+    struct ias_request_resp ias_resp = {0};
 
     ret = ias_send_request(context, &ias_resp, quote, quote_size, nonce);
     if (ret < 0) {
@@ -555,7 +555,7 @@ int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_
                          size_t* cert_data_size, char** advisory_data_ptr,
                          size_t* advisory_data_size) {
     int ret;
-    struct ias_request_resp ias_resp = { 0 };
+    struct ias_request_resp ias_resp = {0};
 
     char* report_data   = NULL;
     char* sig_data      = NULL;
@@ -630,7 +630,7 @@ int ias_verify_quote_raw(struct ias_context_t* context, const void* quote, size_
         if (ias_resp.advisory_url_size > 0 || ias_resp.advisory_ids_size > 0) {
             size_t dummy_size_t_int;
             if (__builtin_add_overflow(ias_resp.advisory_url_size, ias_resp.advisory_ids_size,
-                    &dummy_size_t_int)) {
+                                       &dummy_size_t_int)) {
                 ERROR("Sum of sizes of IAS advisory URL and advisory IDs overflows\n");
                 goto out;
             }

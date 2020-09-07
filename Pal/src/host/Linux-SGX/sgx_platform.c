@@ -89,7 +89,7 @@ static int request_aesm_service(Request* req, Response** res) {
     if (aesm_socket < 0)
         return aesm_socket;
 
-    uint32_t req_len = (uint32_t) request__get_packed_size(req);
+    uint32_t req_len = (uint32_t)request__get_packed_size(req);
     uint8_t* req_buf = __alloca(req_len);
     request__pack(req, req_buf);
 

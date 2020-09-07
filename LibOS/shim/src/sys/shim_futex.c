@@ -210,8 +210,7 @@ static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_fut
  * and of `futex` by 1.
  * `futex->lock` needs to be held.
  */
-static void add_futex_waiter(struct futex_waiter* waiter,
-                             struct shim_futex* futex,
+static void add_futex_waiter(struct futex_waiter* waiter, struct shim_futex* futex,
                              uint32_t bitset) {
     assert(spinlock_is_locked(&futex->lock));
 
@@ -243,8 +242,7 @@ static struct shim_thread* remove_futex_waiter(struct futex_waiter* waiter,
  *
  * `futex1->lock` and `futex2->lock` need to be held.
  */
-static void move_futex_waiter(struct futex_waiter* waiter,
-                              struct shim_futex* futex1,
+static void move_futex_waiter(struct futex_waiter* waiter, struct shim_futex* futex1,
                               struct shim_futex* futex2) {
     assert(spinlock_is_locked(&futex1->lock));
     assert(spinlock_is_locked(&futex2->lock));
@@ -332,7 +330,7 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
         goto out_with_futex_lock;
     }
 
-    struct futex_waiter waiter = { 0 };
+    struct futex_waiter waiter = {0};
     add_futex_waiter(&waiter, futex, bitset);
 
     spinlock_unlock_signal_on(&futex->lock);
@@ -367,7 +365,7 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
      * NB: actually `futex` and this point to the same futex, so this won't call free. */
     put_futex(waiter.futex);
 
-out_with_futex_lock: ; // C is awesome!
+out_with_futex_lock:; // C is awesome!
     /* Because dequeuing a futex requires `g_futex_list_lock` which we do not hold at this moment,
      * we check if we actually need to do it now (locks acquisition and dequeuing). */
     bool needs_dequeue = check_dequeue_futex(futex);
@@ -429,7 +427,7 @@ static int move_to_wake_queue(struct shim_futex* futex, uint32_t bitset, int to_
 
 static int futex_wake(uint32_t* uaddr, int to_wake, uint32_t bitset) {
     struct shim_futex* futex;
-    struct wake_queue_head queue = { .first = WAKE_QUEUE_TAIL };
+    struct wake_queue_head queue = {.first = WAKE_QUEUE_TAIL};
     int woken = 0;
 
     if (!bitset) {
@@ -472,10 +470,11 @@ static int wakeop_arg_extend(int x) {
     return x;
 }
 
-static int futex_wake_op(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake1, int to_wake2, uint32_t val3) {
+static int futex_wake_op(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake1, int to_wake2,
+                         uint32_t val3) {
     struct shim_futex* futex1 = NULL;
     struct shim_futex* futex2 = NULL;
-    struct wake_queue_head queue = { .first = WAKE_QUEUE_TAIL };
+    struct wake_queue_head queue = {.first = WAKE_QUEUE_TAIL};
     int ret = 0;
     bool needs_dequeue1 = false;
     bool needs_dequeue2 = false;
@@ -582,11 +581,12 @@ out_unlock:
     return ret;
 }
 
-static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to_requeue, uint32_t* val) {
+static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to_requeue,
+                         uint32_t* val) {
     struct shim_futex* futex1 = NULL;
     struct shim_futex* futex2 = NULL;
     struct shim_futex* tmp = NULL;
-    struct wake_queue_head queue = { .first = WAKE_QUEUE_TAIL };
+    struct wake_queue_head queue = {.first = WAKE_QUEUE_TAIL};
     int ret = 0;
     int woken = 0;
     int requeued = 0;
@@ -679,7 +679,7 @@ out_unlock:
     return ret;
 }
 
-#define FUTEX_CHECK_READ false
+#define FUTEX_CHECK_READ  false
 #define FUTEX_CHECK_WRITE true
 static int is_valid_futex_ptr(uint32_t* ptr, bool check_write) {
     if (!IS_ALIGNED_PTR(ptr, alignof(*ptr))) {
@@ -691,13 +691,14 @@ static int is_valid_futex_ptr(uint32_t* ptr, bool check_write) {
     return 0;
 }
 
-static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, uint32_t* uaddr2, uint32_t val3) {
+static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, uint32_t* uaddr2,
+                          uint32_t val3) {
     int cmd = op & FUTEX_CMD_MASK;
     uint64_t timeout = NO_TIMEOUT;
     uint32_t val2 = 0;
 
-    if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_WAIT_BITSET ||
-                  cmd == FUTEX_LOCK_PI || cmd == FUTEX_WAIT_REQUEUE_PI)) {
+    if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_WAIT_BITSET || cmd == FUTEX_LOCK_PI ||
+                  cmd == FUTEX_WAIT_REQUEUE_PI)) {
         if (test_user_memory(utime, sizeof(struct timespec), /*write=*/false)) {
             return -EFAULT;
         }
@@ -786,7 +787,8 @@ static int _shim_do_futex(uint32_t* uaddr, int op, uint32_t val, void* utime, ui
 
 int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val3) {
     static_assert(sizeof(int) == 4, "futexes are defined to be 32-bit");
-    return _shim_do_futex((uint32_t*)uaddr, op, (uint32_t)val, utime, (uint32_t*)uaddr2, (uint32_t)val3);
+    return _shim_do_futex((uint32_t*)uaddr, op, (uint32_t)val, utime, (uint32_t*)uaddr2,
+                          (uint32_t)val3);
 }
 
 int shim_do_set_robust_list(struct robust_list_head* head, size_t len) {
@@ -813,7 +815,8 @@ int shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* l
         get_thread(thread);
     }
 
-    if (test_user_memory(head, sizeof(*head), /*write=*/true) || test_user_memory(len, sizeof(*len), /*write=*/true)) {
+    if (test_user_memory(head, sizeof(*head), /*write=*/true) ||
+            test_user_memory(len, sizeof(*len), /*write=*/true)) {
         ret = -EFAULT;
         goto out;
     }

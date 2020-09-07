@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-#include "pal_internal.h"
 #include "api.h"
+#include "pal_internal.h"
 
 #ifndef NO_INTERNAL_PRINTF
 
@@ -12,17 +12,15 @@
 // and prevent interrupts from causing context switches
 // in the middle of a console output line and such.
 
-#define PRINTBUF_SIZE        256
+#define PRINTBUF_SIZE 256
 
 struct printbuf {
-    int idx;    // current buffer index
-    int cnt;    // total bytes printed so far
+    int idx;  // current buffer index
+    int cnt;  // total bytes printed so far
     char buf[PRINTBUF_SIZE];
 };
 
-static int
-fputch(void * f, int ch, struct printbuf * b)
-{
+static int fputch(void* f, int ch, struct printbuf* b) {
     __UNUSED(f);
 
     b->buf[b->idx++] = ch;
@@ -34,22 +32,18 @@ fputch(void * f, int ch, struct printbuf * b)
     return 0;
 }
 
-int
-vprintf(const char * fmt, va_list ap)
-{
+int vprintf(const char* fmt, va_list ap) {
     struct printbuf b;
 
     b.idx = 0;
     b.cnt = 0;
-    vfprintfmt((void *) &fputch, NULL, &b, fmt, ap);
+    vfprintfmt((void*)&fputch, NULL, &b, fmt, ap);
     _DkPrintConsole(b.buf, b.idx);
 
     return b.cnt;
 }
 
-int
-printf(const char * fmt, ...)
-{
+int printf(const char* fmt, ...) {
     va_list ap;
     int cnt;
 

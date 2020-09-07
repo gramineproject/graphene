@@ -26,8 +26,8 @@ static int pseudo_findent(const char* path, const struct pseudo_ent* root_ent,
                           const struct pseudo_ent** found_ent) {
     assert(path);
 
-    size_t token_len       = 0;
-    const char* token      = path;
+    size_t token_len = 0;
+    const char* token = path;
     const char* next_token = NULL;
     const struct pseudo_ent* ent = root_ent;
 
@@ -102,7 +102,7 @@ static int populate_dirent(const char* path, const struct pseudo_dir* dir, struc
             dirent_in_buf->ino  = rehash_name(dir_hash, ent->name, name_size - 1);
             dirent_in_buf->type = ent->dir ? LINUX_DT_DIR : ent->type;
 
-            dirent_in_buf  = dirent_in_buf->next;
+            dirent_in_buf = dirent_in_buf->next;
         } else if (ent->name_ops && ent->name_ops->list_name) {
             /* directory entry has a list of entries calculated at runtime (via list_name) */
             struct shim_dirent* old_dirent_in_buf = dirent_in_buf;

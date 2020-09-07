@@ -11,8 +11,8 @@
 #define _SHIM_FS_H_
 
 #define __KERNEL__
-#include <stdbool.h>
 #include <linux/stat.h>
+#include <stdbool.h>
 
 #include "list.h"
 #include "pal.h"
@@ -295,8 +295,6 @@ void put_mount(struct shim_mount* mount);
 
 struct shim_mount* find_mount_from_uri(const char* uri);
 
-#include <shim_utils.h>
-
 static inline void set_handle_fs(struct shim_handle* hdl, struct shim_mount* fs) {
     get_mount(fs);
     hdl->fs = fs;
@@ -512,7 +510,7 @@ struct pseudo_ent {
     const char* name;
     const struct pseudo_name_ops* name_ops;
     const struct pseudo_fs_ops* fs_ops;
-    const struct pseudo_dir* dir;  /* NULL if pseudo-FS entry is a file */
+    const struct pseudo_dir* dir; /* NULL if pseudo-FS entry is a file */
     int type; /* LINUX_DT_REG, LINUX_DT_CHR, etc (if dir != NULL, then always LINUX_DT_DIR) */
 };
 

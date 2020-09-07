@@ -11,7 +11,7 @@
 /* use the same loopback address and port for both IPV6 and IPV4 */
 #define SRV_IPV6 "::1/128"
 #define SRV_IPV4 "127.0.0.1"
-#define PORT 11112
+#define PORT     11112
 
 int main(int argc, char** argv) {
     int socket_ipv4;
@@ -61,7 +61,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    /* we must start listening on IPV6 socket to make it active and kick in Linux rules for bind() */
+    /* we must start listening on IPV6 socket to make it active and kick in Linux rules for bind()
+     */
     if (listen(socket_ipv6, 3) < 0) {
         perror("listen(ipv6)");
         return 1;
@@ -69,8 +70,8 @@ int main(int argc, char** argv) {
 
     struct sockaddr_in address_ipv4;
     memset(&address_ipv4, 0, sizeof(address_ipv4));
-    address_ipv4.sin_family      = AF_INET;
-    address_ipv4.sin_port        = htons(PORT);       /* note the same port! */
+    address_ipv4.sin_family = AF_INET;
+    address_ipv4.sin_port   = htons(PORT); /* note the same port! */
 
     if (inet_pton(AF_INET, SRV_IPV4, &address_ipv4.sin_addr) < 0) {
         perror("inet_pton(ipv4)");
@@ -79,7 +80,8 @@ int main(int argc, char** argv) {
 
     ret = bind(socket_ipv4, (struct sockaddr*)&address_ipv4, sizeof(address_ipv4));
     if (ret != -1 || errno != EADDRINUSE) {
-        fprintf(stderr, "bind(ipv4) was successful even though there is no IPV6_V6ONLY on same port\n");
+        fprintf(stderr,
+                "bind(ipv4) was successful even though there is no IPV6_V6ONLY on same port\n");
         return 1;
     }
 

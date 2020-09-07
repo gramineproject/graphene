@@ -10,8 +10,10 @@
 #include <asm/stat.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
-#include <sigset.h>
+#include <linux/uio.h>
 #include <stdint.h>
+
+#include "sigset.h"
 
 #ifndef size_t
 typedef __kernel_size_t size_t;
@@ -116,8 +118,6 @@ struct cmsghdr {
 #define CMSG_SPACE(len) (CMSG_ALIGN(len) + CMSG_ALIGN(sizeof(struct cmsghdr)))
 #define CMSG_LEN(len)   (CMSG_ALIGN(sizeof(struct cmsghdr)) + (len))
 
-#include <linux/uio.h>
-
 struct sockopt {
     int receivebuf, sendbuf;
     int receivetimeout, sendtimeout;
@@ -142,7 +142,7 @@ typedef unsigned short int sa_family_t;
 /* Structure large enough to hold any socket address (with the historical
    exception of AF_UNIX).  */
 struct sockaddr_storage {
-    __SOCKADDR_COMMON(ss_);    /* Address family, etc.  */
+    __SOCKADDR_COMMON(ss_); /* Address family, etc.  */
     char __ss_padding[128 - sizeof(sa_family_t)];
 };
 

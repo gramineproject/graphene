@@ -575,8 +575,8 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     struct sockaddr_storage conn_addr;
     size_t conn_addrlen = sizeof(conn_addr);
 
-    ssize_t bytes = ocall_recv(handle->sock.fd, buf, len,
-                               (struct sockaddr*)&conn_addr, &conn_addrlen, NULL, NULL);
+    ssize_t bytes = ocall_recv(handle->sock.fd, buf, len, (struct sockaddr*)&conn_addr,
+                               &conn_addrlen, NULL, NULL);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -585,8 +585,8 @@ static int64_t udp_receivebyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t le
     if (!addr_uri)
         return -PAL_ERROR_OVERFLOW;
 
-    int ret = inet_create_uri(addr_uri, addr + addrlen - addr_uri,
-                              (struct sockaddr*)&conn_addr, conn_addrlen);
+    int ret = inet_create_uri(addr_uri, addr + addrlen - addr_uri, (struct sockaddr*)&conn_addr,
+                              conn_addrlen);
     if (ret < 0)
         return ret;
 
@@ -643,8 +643,8 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     if (ret < 0)
         return ret;
 
-    ssize_t bytes = ocall_send(handle->sock.fd, buf, len,
-                               (struct sockaddr*)&conn_addr, conn_addrlen, NULL, 0);
+    ssize_t bytes = ocall_send(handle->sock.fd, buf, len, (struct sockaddr*)&conn_addr,
+                               conn_addrlen, NULL, 0);
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
 

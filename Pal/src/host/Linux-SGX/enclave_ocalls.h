@@ -2,27 +2,26 @@
  * This is for enclave to make ocalls to untrusted runtime.
  */
 
-#include "pal_linux.h"
-
 #include <asm/stat.h>
-#include <linux/socket.h>
 #include <linux/poll.h>
+#include <linux/socket.h>
 #include <sys/types.h>
 
-noreturn void ocall_exit (int exitcode, int is_exitgroup);
+#include "linux_types.h"
+#include "pal_linux.h"
+#include "sgx_attest.h"
 
-int ocall_mmap_untrusted (int fd, uint64_t offset,
-                          uint64_t size, unsigned short prot,
-                          void ** mem);
+noreturn void ocall_exit(int exitcode, int is_exitgroup);
 
-int ocall_munmap_untrusted (const void * mem, uint64_t size);
+int ocall_mmap_untrusted(int fd, uint64_t offset, uint64_t size, unsigned short prot, void** mem);
 
-int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
-                 unsigned int values[4]);
+int ocall_munmap_untrusted(const void* mem, uint64_t size);
 
-int ocall_open (const char * pathname, int flags, unsigned short mode);
+int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
-int ocall_close (int fd);
+int ocall_open(const char* pathname, int flags, unsigned short mode);
+
+int ocall_close(int fd);
 
 ssize_t ocall_read(int fd, void* buf, size_t count);
 
@@ -32,19 +31,19 @@ ssize_t ocall_pread(int fd, void* buf, size_t count, off_t offset);
 
 ssize_t ocall_pwrite(int fd, const void* buf, size_t count, off_t offset);
 
-int ocall_fstat (int fd, struct stat * buf);
+int ocall_fstat(int fd, struct stat* buf);
 
-int ocall_fionread (int fd);
+int ocall_fionread(int fd);
 
-int ocall_fsetnonblock (int fd, int nonblocking);
+int ocall_fsetnonblock(int fd, int nonblocking);
 
-int ocall_fchmod (int fd, unsigned short mode);
+int ocall_fchmod(int fd, unsigned short mode);
 
-int ocall_fsync (int fd);
+int ocall_fsync(int fd);
 
-int ocall_ftruncate (int fd, uint64_t length);
+int ocall_ftruncate(int fd, uint64_t length);
 
-int ocall_mkdir (const char *pathname, unsigned short mode);
+int ocall_mkdir(const char* pathname, unsigned short mode);
 
 int ocall_getdents(int fd, struct linux_dirent64* dirp, size_t size);
 
@@ -65,31 +64,32 @@ ssize_t ocall_send(int sockfd, const void* buf, size_t count, const struct socka
 
 int ocall_setsockopt(int sockfd, int level, int optname, const void* optval, size_t optlen);
 
-int ocall_shutdown (int sockfd, int how);
+int ocall_shutdown(int sockfd, int how);
 
-int ocall_resume_thread (void * tcs);
+int ocall_resume_thread(void* tcs);
 
-int ocall_clone_thread (void);
+int ocall_clone_thread(void);
 
-int ocall_create_process(const char* uri, int nargs, const char** args, int* stream_fd, unsigned int* pid);
+int ocall_create_process(const char* uri, int nargs, const char** args, int* stream_fd,
+                         unsigned int* pid);
 
-int ocall_futex(uint32_t *uaddr, int op, int val, int64_t timeout_us);
+int ocall_futex(uint32_t* uaddr, int op, int val, int64_t timeout_us);
 
 int ocall_gettime(uint64_t* microsec);
 
 int ocall_sleep(uint64_t* microsec);
 
-int ocall_socketpair (int domain, int type, int protocol, int sockfds[2]);
+int ocall_socketpair(int domain, int type, int protocol, int sockfds[2]);
 
 int ocall_poll(struct pollfd* fds, size_t nfds, int64_t timeout_us);
 
-int ocall_rename (const char * oldpath, const char * newpath);
+int ocall_rename(const char* oldpath, const char* newpath);
 
-int ocall_delete (const char * pathname);
+int ocall_delete(const char* pathname);
 
-int ocall_load_debug (const char * command);
+int ocall_load_debug(const char* command);
 
-int ocall_eventfd (unsigned int initval, int flags);
+int ocall_eventfd(unsigned int initval, int flags);
 
 /*!
  * \brief Execute untrusted code in PAL to obtain a quote from the Quoting Enclave.

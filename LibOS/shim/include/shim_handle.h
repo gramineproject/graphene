@@ -12,17 +12,18 @@
 
 #include <asm/fcntl.h>
 #include <asm/resource.h>
-#include <atomic.h>  // TODO: migrate to stdatomic.h
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/shm.h>
 #include <linux/un.h>
-#include <list.h>
-#include <pal.h>
-#include <shim_defs.h>
-#include <shim_sysv.h>
-#include <shim_types.h>
 #include <stdalign.h>
+
+#include "atomic.h"  // TODO: migrate to stdatomic.h
+#include "list.h"
+#include "pal.h"
+#include "shim_defs.h"
+#include "shim_sysv.h"
+#include "shim_types.h"
 
 /* start definition of shim handle */
 enum shim_handle_type {

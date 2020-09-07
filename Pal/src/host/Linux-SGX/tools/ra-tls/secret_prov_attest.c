@@ -49,7 +49,7 @@ static mbedtls_ssl_context g_ssl;
 static mbedtls_pk_context g_my_ratls_key;
 static mbedtls_x509_crt g_my_ratls_cert;
 
-static uint8_t* provisioned_secret    = NULL;
+static uint8_t* provisioned_secret = NULL;
 static size_t provisioned_secret_size = 0;
 
 int secret_provision_get(uint8_t** out_secret, size_t* out_secret_size) {
@@ -235,8 +235,8 @@ int secret_provision_start(const char* in_servers, const char* in_ca_chain_path,
                   "buffer must be sufficiently large to hold SECRET_PROVISION_RESPONSE + int32");
 
     memset(buf, 0, sizeof(buf));
-    ret = secret_provision_read(&ctx, buf, sizeof(SECRET_PROVISION_RESPONSE) +
-                                sizeof(received_secret_size));
+    ret = secret_provision_read(&ctx, buf,
+                                sizeof(SECRET_PROVISION_RESPONSE) + sizeof(received_secret_size));
     if (ret < 0) {
         goto out;
     }
@@ -303,7 +303,7 @@ __attribute__((constructor)) static void secret_provision_constructor(void) {
 
     if (!strcmp(e, "1") || !strcmp(e, "true") || !strcmp(e, "TRUE")) {
         /* user wants to provision secret before application runs */
-        uint8_t* secret    = NULL;
+        uint8_t* secret = NULL;
         size_t secret_size = 0;
 
         unsetenv(SECRET_PROVISION_SECRET_STRING);

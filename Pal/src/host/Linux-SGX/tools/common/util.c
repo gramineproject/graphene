@@ -5,12 +5,12 @@
 
 #define _LARGEFILE64_SOURCE
 
+#include "util.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-
-#include "util.h"
 
 /*! Console stdout fd */
 int g_stdout_fd = 1;

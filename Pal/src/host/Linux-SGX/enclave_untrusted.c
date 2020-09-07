@@ -1,13 +1,12 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-#include <api.h>
-#include <pal_error.h>
-#include <pal_internal.h>
-#include <pal_security.h>
-#include <spinlock.h>
-
+#include "api.h"
 #include "enclave_ocalls.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_security.h"
+#include "spinlock.h"
 
 static spinlock_t g_malloc_lock = INIT_SPINLOCK_UNLOCKED;
 static size_t g_page_size = PRESET_PAGESIZE;

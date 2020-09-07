@@ -61,7 +61,8 @@ int main(int argc, char** argv) {
 
     f = fopen("/proc/self/dummy", "r");
     if (f != NULL || errno != ENOENT) {
-        perror("(sanity check) fopen of /proc/self/dummy (non-existing file) did not fail with ENOENT");
+        perror("(sanity check) fopen of /proc/self/dummy (non-existing file) did not fail with "
+               "ENOENT");
         return 1;
     }
 

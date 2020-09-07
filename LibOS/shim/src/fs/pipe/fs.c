@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * fs.c
- *
- * This file contains codes for implementation of 'pipe' filesystem.
+ * This file contains code for implementation of 'pipe' filesystem.
  */
 
 #define __KERNEL__
@@ -16,13 +14,13 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 
-#include <pal.h>
-#include <pal_debug.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_thread.h>
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_error.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_thread.h"
 
 static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!hdl->info.pipe.ready_for_ops)

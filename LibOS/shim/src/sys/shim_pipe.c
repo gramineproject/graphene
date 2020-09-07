@@ -25,9 +25,9 @@ static int create_pipes(struct shim_handle* srv, struct shim_handle* cli, int fl
     int ret = 0;
     char uri[PIPE_URI_SIZE];
 
-    PAL_HANDLE hdl0 = NULL;  /* server pipe (temporary, waits for connect from hdl2) */
-    PAL_HANDLE hdl1 = NULL;  /* one pipe end (accepted connect from hdl2) */
-    PAL_HANDLE hdl2 = NULL;  /* other pipe end (connects to hdl0 and talks to hdl1) */
+    PAL_HANDLE hdl0 = NULL; /* server pipe (temporary, waits for connect from hdl2) */
+    PAL_HANDLE hdl1 = NULL; /* one pipe end (accepted connect from hdl2) */
+    PAL_HANDLE hdl2 = NULL; /* other pipe end (connects to hdl0 and talks to hdl1) */
 
     if ((ret = create_pipe(name, uri, PIPE_URI_SIZE, &hdl0, qstr,
                            /*use_vmid_for_name=*/false)) < 0) {
@@ -241,7 +241,7 @@ out:
     return ret;
 }
 
-int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
+int shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     int ret = 0;
     __UNUSED(dev);
 
@@ -251,7 +251,7 @@ int shim_do_mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
         /* FIXME: Graphene assumes that file is at least readable by owner, in particular, see
          *        unlink() emulation that uses DkStreamOpen(). We change empty mode to readable
          *        by user here to allow a consequent unlink. Was detected on LTP mknod tests. */
-        int fd = shim_do_openat(dirfd, pathname, O_CREAT | O_EXCL, mode ? : S_IRUSR);
+        int fd = shim_do_openat(dirfd, pathname, O_CREAT | O_EXCL, mode ?: S_IRUSR);
         if (fd < 0)
             return fd;
         return shim_do_close(fd);
@@ -376,6 +376,6 @@ out:
     return ret;
 }
 
-int shim_do_mknod(const char *pathname, mode_t mode, dev_t dev) {
+int shim_do_mknod(const char* pathname, mode_t mode, dev_t dev) {
     return shim_do_mknodat(AT_FDCWD, pathname, mode, dev);
 }

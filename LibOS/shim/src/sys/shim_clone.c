@@ -8,25 +8,23 @@
  * implemented yet.)
  */
 
-#include "shim_context.h"
-#include "shim_fork.h"
-#include "shim_types.h"
-#include "shim_internal.h"
-#include "shim_table.h"
-#include "shim_thread.h"
-#include "shim_utils.h"
-#include "shim_checkpoint.h"
+#include <errno.h>
+#include <linux/sched.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
 
 #include "pal.h"
 #include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_context.h"
+#include "shim_fork.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_types.h"
+#include "shim_utils.h"
 
-#include <errno.h>
-#include <sys/syscall.h>
-#include <sys/mman.h>
-#include <linux/sched.h>
-
-void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
-{
+void __attribute__((weak)) syscall_wrapper_after_syscalldb(void) {
     /*
      * workaround for linking.
      * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
@@ -74,11 +72,10 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
  * 7.In the wrapper function ,we just do the stack switch to user
  *   Provided stack and execute the user Provided function.
  */
-static int clone_implementation_wrapper(struct shim_clone_args * arg)
-{
-    //The child thread created by PAL is now running on the
-    //PAL allocated stack. We need to switch the stack to use
-    //the user provided stack.
+static int clone_implementation_wrapper(struct shim_clone_args* arg) {
+    // The child thread created by PAL is now running on the
+    // PAL allocated stack. We need to switch the stack to use
+    // the user provided stack.
 
     /* We acquired ownership of arg->thread from the caller, hence there is
      * no need to call get_thread. */
@@ -88,7 +85,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
     shim_tcb_init();
     set_cur_thread(my_thread);
     update_fs_base(arg->fs_base);
-    shim_tcb_t * tcb = my_thread->shim_tcb;
+    shim_tcb_t* tcb = my_thread->shim_tcb;
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
      * do not move the below functions before shim_tcb_init/set_cur_thread()! */
@@ -109,7 +106,7 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
         my_thread->set_child_tid = NULL;
     }
 
-    void * stack = arg->stack;
+    void* stack = arg->stack;
 
     struct shim_vma_info vma_info;
     if (lookup_vma(ALLOC_ALIGN_DOWN_PTR(stack), &vma_info) < 0) {
@@ -130,11 +127,11 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
 
     /***** From here down, we are switching to the user-provided stack ****/
 
-    //user_stack_addr[0] ==> user provided function address
-    //user_stack_addr[1] ==> arguments to user provided function.
+    // user_stack_addr[0] ==> user provided function address
+    // user_stack_addr[1] ==> arguments to user provided function.
 
-    debug("child swapping stack to %p return 0x%lx: %d\n",
-          stack, shim_regs_get_ip(&regs), my_thread->tid);
+    debug("child swapping stack to %p return 0x%lx: %d\n", stack, shim_regs_get_ip(&regs),
+          my_thread->tid);
 
     tcb->context.regs = &regs;
     fixup_child_context(tcb->context.regs);
@@ -150,14 +147,13 @@ static int clone_implementation_wrapper(struct shim_clone_args * arg)
  *  long int __arg1 - 16 bytes ( 2 words ) offset into the child stack allocated
  *                    by the parent     */
 
-int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
-                   int * child_tidptr, void * tls)
-{
-    //The Clone Implementation in glibc has setup the child's stack
-    //with the function pointer and the argument to the funciton.
-    struct shim_thread * self = get_cur_thread();
+int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* child_tidptr,
+                  void* tls) {
+    // The Clone Implementation in glibc has setup the child's stack
+    // with the function pointer and the argument to the funciton.
+    struct shim_thread* self = get_cur_thread();
     assert(self);
-    int * set_parent_tid = NULL;
+    int* set_parent_tid = NULL;
     int ret = 0;
 
     /* special case of vfork: call shim_do_vfork() */
@@ -192,7 +188,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
                   "Additional parameters are ignored:", user_stack_addr);
             if (flags & CLONE_PARENT_SETTID)
                 debug(" parent_tidptr = %p", parent_tidptr);
-            if (flags & (CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID))
+            if (flags & (CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID))
                 debug(" child_tidptr = %p", child_tidptr);
             if (flags & CLONE_SETTLS)
                 debug(" tls = %p", tls);
@@ -281,7 +277,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
     disable_preempt(NULL);
 
-    struct shim_thread * thread = get_new_thread(0);
+    struct shim_thread* thread = get_new_thread(0);
     if (!thread) {
         ret = -ENOMEM;
         goto failed;
@@ -312,14 +308,14 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     if (!(flags & CLONE_THREAD))
         thread->tgid = thread->tid;
 
-    struct shim_handle_map * handle_map = get_cur_handle_map(self);
+    struct shim_handle_map* handle_map = get_cur_handle_map(self);
 
     if (flags & CLONE_FILES) {
         set_handle_map(thread, handle_map);
     } else {
         /* if CLONE_FILES is not given, the new thread should receive
            a copy of current descriptor table */
-        struct shim_handle_map * new_map = NULL;
+        struct shim_handle_map* new_map = NULL;
 
         dup_handle_map(&new_map, handle_map);
         set_handle_map(thread, new_map);
@@ -327,7 +323,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     }
 
     if (!(flags & CLONE_VM)) {
-        void * parent_stack = NULL;
+        void* parent_stack = NULL;
 
         if (!fs_base) {
             fs_base = self->shim_tcb->context.fs_base;
@@ -355,7 +351,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         }
 
         thread->is_alive = true;
-        thread->in_vm = false;
+        thread->in_vm    = false;
         add_thread(thread);
         set_as_child(self, thread);
 
@@ -403,10 +399,10 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     /* Increasing refcount due to copy below. Passing ownership of the new copy
      * of this pointer to the new thread (receiver of new_args). */
     get_thread(thread);
-    new_args.thread    = thread;
-    new_args.parent    = self;
-    new_args.stack     = user_stack_addr;
-    new_args.fs_base   = fs_base;
+    new_args.thread  = thread;
+    new_args.parent  = self;
+    new_args.stack   = user_stack_addr;
+    new_args.fs_base = fs_base;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child
@@ -414,8 +410,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     // child to run on the Parent allocated stack , so once the DkThreadCreate
     // returns .The parent comes back here - however, the child is Happily
     // running the function we gave to DkThreadCreate.
-    PAL_HANDLE pal_handle = thread_create(clone_implementation_wrapper,
-                                          &new_args);
+    PAL_HANDLE pal_handle = thread_create(clone_implementation_wrapper, &new_args);
     if (!pal_handle) {
         ret = -PAL_ERRNO();
         put_thread(new_args.thread);

@@ -25,7 +25,7 @@ static struct {
     char* brk_end;
 } brk_region;
 
-static struct shim_lock brk_lock = { .lock = NULL };
+static struct shim_lock brk_lock = {.lock = NULL};
 
 int init_brk_region(void* brk_start, size_t data_segment_size) {
     if (!create_lock(&brk_lock)) {
@@ -71,7 +71,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
             /* Linux randomizes brk at offset from 0 to 0x2000000 from main executable data section
              * https://elixir.bootlin.com/linux/v5.6.3/source/arch/x86/kernel/process.c#L914 */
             offset %= MIN((size_t)0x2000000, (size_t)((char*)PAL_CB(user_address.end) -
-                                             brk_max_size - (char*)brk_start));
+                                                      brk_max_size - (char*)brk_start));
             offset = ALLOC_ALIGN_DOWN(offset);
         }
 
@@ -101,9 +101,9 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
         }
     }
 
-    brk_region.brk_start = brk_start;
-    brk_region.brk_current = brk_region.brk_start;
-    brk_region.brk_end = (char*)brk_start + brk_max_size;
+    brk_region.brk_start         = brk_start;
+    brk_region.brk_current       = brk_region.brk_start;
+    brk_region.brk_end           = (char*)brk_start + brk_max_size;
     brk_region.data_segment_size = data_segment_size;
 
     set_rlimit_cur(RLIMIT_DATA, brk_max_size + data_segment_size);
@@ -124,9 +124,9 @@ void reset_brk(void) {
     DkVirtualMemoryFree(brk_region.brk_start, allocated_size);
     bkeep_remove_tmp_vma(tmp_vma);
 
-    brk_region.brk_start = NULL;
-    brk_region.brk_current = NULL;
-    brk_region.brk_end = NULL;
+    brk_region.brk_start         = NULL;
+    brk_region.brk_current       = NULL;
+    brk_region.brk_end           = NULL;
     brk_region.data_segment_size = 0;
     unlock(&brk_lock);
 
@@ -175,8 +175,7 @@ void* shim_do_brk(void* _brk) {
     assert(size);
 
     if (bkeep_mmap_fixed(brk_current, size, PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-                         NULL, 0, "heap") < 0) {
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, NULL, 0, "heap") < 0) {
         goto out;
     }
 

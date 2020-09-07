@@ -1,15 +1,10 @@
-#include <generated-offsets-build.h>
-
 #include <stddef.h>
 
-#include <shim_internal.h>
-#include <shim_tcb.h>
+#include "generated-offsets-build.h"
+#include "shim_internal.h"
+#include "shim_tcb.h"
 
-/* prototype needed due to -Wmissing-prototypes */
-void dummy(void);
-
-void dummy(void)
-{
+__attribute__((__used__)) static void dummy(void) {
     OFFSET_T(SHIM_TCB_OFFSET, PAL_TCB, libos_tcb);
     OFFSET_T(TCB_REGS, shim_tcb_t, context.regs);
     OFFSET(SHIM_REGS_RSP, shim_regs, rsp);

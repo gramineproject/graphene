@@ -2,15 +2,14 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_rtld.c
- *
- * This file contains codes for dynamic loading of ELF binaries in library OS.
+ * This file contains code for dynamic loading of ELF binaries in library OS.
  * It's espeically used for loading interpreter (ld.so, in general) and
  * optimization of execve.
- * Most of the source codes are imported from GNU C library.
+ * Most of the source code was imported from GNU C library.
  */
 
 #include <asm/mman.h>
+#include <endian.h>
 #include <errno.h>
 
 #include "elf.h"
@@ -259,7 +258,6 @@ static struct link_map* new_elf_object(const char* realname, int type) {
     return new;
 }
 
-#include <endian.h>
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define byteorder ELFDATA2MSB
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
@@ -1057,18 +1055,19 @@ static unsigned long int elf_hash(const char* name_arg) {
 }
 
 /* Check whether the symbol matches.  */
-static ElfW(Sym)* check_match(ElfW(Sym)* sym, ElfW(Sym)* ref, const char* strtab, const char *undef_name, int len) {
+static ElfW(Sym)* check_match(ElfW(Sym)* sym, ElfW(Sym)* ref, const char* strtab,
+                              const char* undef_name, int len) {
     unsigned int stt = ELFW(ST_TYPE)(sym->st_info);
 
     if ((sym->st_value == 0 /* No value */ && stt != STT_TLS) || sym->st_shndx == SHN_UNDEF)
         return NULL;
 
-/* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
-   STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
-   code/data definitions.  */
-#define ALLOWED_STT                                                                \
-    ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
-     (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
+    /* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
+       STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
+       code/data definitions.  */
+    #define ALLOWED_STT                                                                \
+        ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC) | (1 << STT_COMMON) | \
+         (1 << STT_TLS) | (1 << STT_GNU_IFUNC))
 
     if (((1 << stt) & ALLOWED_STT) == 0)
         return NULL;
@@ -1272,7 +1271,7 @@ static int __load_interp_object(struct link_map* exec_map) {
         debug("search interpreter: %s\n", interp_path);
 
         struct shim_dentry* dent = NULL;
-        int ret                  = 0;
+        int ret = 0;
 
         if ((ret = path_lookupat(NULL, interp_path, LOOKUP_OPEN, &dent, NULL)) < 0 ||
             dent->state & DENTRY_NEGATIVE)
@@ -1450,7 +1449,7 @@ int init_internal_map(void) {
 
 int init_loader(void) {
     struct shim_thread* cur_thread = get_cur_thread();
-    int ret                        = 0;
+    int ret = 0;
 
     lock(&cur_thread->lock);
     struct shim_handle* exec = cur_thread->exec;
@@ -1577,7 +1576,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     ElfW(Addr) auxp_extra = (ElfW(Addr))&auxp[8];
 
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
-    ret               = DkRandomBitsRead((PAL_PTR)random, 16);
+    ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
         debug("execute_elf_object: DkRandomBitsRead failed.\n");
         DkThreadExit(/*clear_child_tid=*/NULL);

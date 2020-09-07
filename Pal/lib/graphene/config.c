@@ -8,9 +8,9 @@
  * a tree to lookup / access config values.
  */
 
-#include <api.h>
-#include <list.h>
-#include <pal_error.h>
+#include "api.h"
+#include "list.h"
+#include "pal_error.h"
 
 DEFINE_LIST(config);
 struct config {

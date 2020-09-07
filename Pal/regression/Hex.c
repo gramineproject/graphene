@@ -1,10 +1,9 @@
 #include <assert.h>
-#include "pal_debug.h"
-
-#include "hex.h"
 
 #include "api.h"
+#include "hex.h"
 #include "pal.h"
+#include "pal_debug.h"
 
 char x[] = {0xde, 0xad, 0xbe, 0xef};
 char y[] = {0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd};

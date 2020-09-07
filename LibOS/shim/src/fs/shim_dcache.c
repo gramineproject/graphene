@@ -4,17 +4,15 @@
  */
 
 /*
- * shim_dcache.c
- *
- * This file contains codes for maintaining directory cache in library OS.
+ * This file contains code for maintaining directory cache in library OS.
  */
 
-#include <list.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_types.h>
+#include "list.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_types.h"
 
 static struct shim_lock dcache_mgr_lock;
 
@@ -25,7 +23,7 @@ static struct shim_lock dcache_mgr_lock;
 #define DCACHE_MGR_ALLOC 64
 
 #define OBJ_TYPE struct shim_dentry
-#include <memmgr.h>
+#include "memmgr.h"
 
 struct shim_lock dcache_lock;
 

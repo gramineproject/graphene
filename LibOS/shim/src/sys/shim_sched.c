@@ -10,13 +10,14 @@
  * "sched_setaffinity", "sched_getaffinity", "getcpu".
  */
 
-#include <api.h>
 #include <errno.h>
 #include <linux/resource.h>
 #include <linux/sched.h>
-#include <pal.h>
-#include <shim_internal.h>
-#include <shim_table.h>
+
+#include "api.h"
+#include "pal.h"
+#include "shim_internal.h"
+#include "shim_table.h"
 
 int shim_do_sched_yield(void) {
     DkThreadYieldExecution();
@@ -71,18 +72,19 @@ int shim_do_sched_setscheduler(pid_t pid, int policy, struct __kernel_sched_para
         return -EINVAL;
 
     /* fail on unrecognized policies */
-    if (policy != SCHED_NORMAL && policy != SCHED_BATCH && policy != SCHED_IDLE && /* non-real-time */
-        policy != SCHED_FIFO && policy != SCHED_RR /* real-time */)
+    if (policy != SCHED_NORMAL && policy != SCHED_BATCH &&
+            policy != SCHED_IDLE && /* non-real-time */
+            policy != SCHED_FIFO && policy != SCHED_RR /* real-time */)
         return -EINVAL;
 
     /* non-real-time policies must have priority of 0 */
     if ((policy == SCHED_NORMAL || policy == SCHED_BATCH || policy == SCHED_IDLE) &&
-        (param->__sched_priority != 0))
+            (param->__sched_priority != 0))
         return -EINVAL;
 
     /* real-time policies must have priority in range [1, 99] */
     if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
-        (param->__sched_priority < 1 || param->__sched_priority > 99))
+            (param->__sched_priority < 1 || param->__sched_priority > 99))
         return -EINVAL;
 
     return 0;
@@ -98,8 +100,9 @@ int shim_do_sched_getscheduler(pid_t pid) {
 
 int shim_do_sched_get_priority_max(int policy) {
     /* fail on unrecognized policies */
-    if (policy != SCHED_NORMAL && policy != SCHED_BATCH && policy != SCHED_IDLE && /* non-real-time */
-        policy != SCHED_FIFO && policy != SCHED_RR /* real-time */)
+    if (policy != SCHED_NORMAL && policy != SCHED_BATCH &&
+            policy != SCHED_IDLE && /* non-real-time */
+            policy != SCHED_FIFO && policy != SCHED_RR /* real-time */)
         return -EINVAL;
 
     /* real-time policies have max priority of 99 */
@@ -112,8 +115,9 @@ int shim_do_sched_get_priority_max(int policy) {
 
 int shim_do_sched_get_priority_min(int policy) {
     /* fail on unrecognized policies */
-    if (policy != SCHED_NORMAL && policy != SCHED_BATCH && policy != SCHED_IDLE && /* non-real-time */
-        policy != SCHED_FIFO && policy != SCHED_RR /* real-time */)
+    if (policy != SCHED_NORMAL && policy != SCHED_BATCH &&
+            policy != SCHED_IDLE && /* non-real-time */
+            policy != SCHED_FIFO && policy != SCHED_RR /* real-time */)
         return -EINVAL;
 
     /* real-time policies have min priority of 1 */

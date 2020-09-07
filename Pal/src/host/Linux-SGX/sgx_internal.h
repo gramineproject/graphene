@@ -11,20 +11,20 @@
 #ifndef SGX_INTERNAL_H
 #define SGX_INTERNAL_H
 
-#include "pal_linux.h"
-#include "pal_security.h"
-#include "api.h"
-
-#include "sysdep-arch.h"
 #include <sys/syscall.h>
 
-#define IS_ERR INTERNAL_SYSCALL_ERROR
-#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO INTERNAL_SYSCALL_ERRNO
-#define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
+#include "api.h"
+#include "pal_linux.h"
+#include "pal_security.h"
+#include "sysdep-arch.h"
 
-int printf(const char * fmt, ...) __attribute__((format(printf, 1, 2)));
-int snprintf(char * str, size_t size, const char * fmt, ...) __attribute__((format(printf, 3, 4)));
+#define IS_ERR   INTERNAL_SYSCALL_ERROR
+#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
+#define ERRNO    INTERNAL_SYSCALL_ERRNO
+#define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
+
+int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+int snprintf(char* str, size_t size, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /* constants and macros to help rounding addresses to page
    boundaries */
@@ -44,10 +44,10 @@ extern size_t g_page_size;
 #define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, g_page_size)
 #define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, g_page_size)
 
-uint32_t htonl (uint32_t longval);
-uint16_t htons (uint16_t shortval);
-uint32_t ntohl (uint32_t longval);
-uint16_t ntohs (uint16_t shortval);
+uint32_t htonl(uint32_t longval);
+uint16_t htons(uint16_t shortval);
+uint32_t ntohl(uint32_t longval);
+uint16_t ntohs(uint16_t shortval);
 
 extern struct pal_enclave {
     /* attributes */
@@ -64,7 +64,7 @@ extern struct pal_enclave {
     int token;
 
     /* manifest */
-    struct config_store * config;
+    struct config_store* config;
 
     /* Path to the PAL binary */
     char* libpal_uri;
@@ -74,21 +74,16 @@ extern struct pal_enclave {
 } g_pal_enclave;
 
 int open_sgx_driver(bool need_gsgx);
-bool is_wrfsbase_supported (void);
+bool is_wrfsbase_supported(void);
 
-int read_enclave_token (int token_file, sgx_arch_token_t * token);
-int read_enclave_sigstruct (int sigfile, sgx_arch_enclave_css_t * sig);
+int read_enclave_token(int token_file, sgx_arch_token_t* token);
+int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t* sig);
 
-int create_enclave(sgx_arch_secs_t * secs,
-                   sgx_arch_token_t * token);
+int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token);
 
 enum sgx_page_type { SGX_PAGE_SECS, SGX_PAGE_TCS, SGX_PAGE_REG };
-int add_pages_to_enclave(sgx_arch_secs_t * secs,
-                         void * addr, void * user_addr,
-                         unsigned long size,
-                         enum sgx_page_type type, int prot,
-                         bool skip_eextend,
-                         const char * comment);
+int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, unsigned long size,
+                         enum sgx_page_type type, int prot, bool skip_eextend, const char* comment);
 
 /*!
  * \brief Retrieve Quoting Enclave's sgx_target_info_t by talking to AESMD.
@@ -113,37 +108,35 @@ int init_quoting_enclave_targetinfo(sgx_target_info_t* qe_targetinfo);
 int retrieve_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* report,
                    const sgx_quote_nonce_t* nonce, char** quote, size_t* quote_len);
 
-int init_enclave(sgx_arch_secs_t * secs,
-                 sgx_arch_enclave_css_t * sigstruct,
-                 sgx_arch_token_t * token);
+int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct, sgx_arch_token_t* token);
 
-int destroy_enclave(void * base_addr, size_t length);
-void exit_process (int status, uint64_t start_exiting);
+int destroy_enclave(void* base_addr, size_t length);
+void exit_process(int status, uint64_t start_exiting);
 
-int sgx_ecall (long ecall_no, void * ms);
-int sgx_raise (int event);
+int sgx_ecall(long ecall_no, void* ms);
+int sgx_raise(int event);
 
 void async_exit_pointer(void);
 void eresume_pointer(void);
 void async_exit_pointer_end(void);
 
-int interrupt_thread (void * tcs);
-int clone_thread (void);
+int interrupt_thread(void* tcs);
+int clone_thread(void);
 
-void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
+void create_tcs_mapper(void* tcs_base, unsigned int thread_num);
 int pal_thread_init(void* tcbptr);
 void map_tcs(unsigned int tid);
 void unmap_tcs(void);
 int current_enclave_thread_cnt(void);
 void thread_exit(int status);
 
-uint64_t sgx_edbgrd (void * addr);
-void sgx_edbgwr (void * addr, uint64_t data);
+uint64_t sgx_edbgrd(void* addr);
+void sgx_edbgwr(void* addr, uint64_t data);
 
 int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec);
-int sgx_signal_setup (void);
-int block_signals (bool block, const int * sigs, int nsig);
-int block_async_signals (bool block);
+int sgx_signal_setup(void);
+int block_signals(bool block, const int* sigs, int nsig);
+int block_async_signals(bool block);
 
 void load_gdb_command(const char* command);
 

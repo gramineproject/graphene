@@ -415,7 +415,7 @@ int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
             }
 
             *(int*)arg = size - offset;
-            ret        = 0;
+            ret = 0;
             break;
         }
 

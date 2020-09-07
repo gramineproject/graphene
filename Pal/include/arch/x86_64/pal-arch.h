@@ -7,12 +7,18 @@
  * This file contains definition of x86_64-specific aspects of PAL.
  */
 
+#ifndef PAL_H
+// TODO: fix this
+#error This header is usable only inside pal.h (due to a cyclic dependency).
+#endif
+
 #ifndef PAL_ARCH_H
 #define PAL_ARCH_H
 
 #include <stdint.h>
 
 #include "cpu.h"
+#include "pal.h"
 
 #define PAGE_SIZE       (1 << 12)
 #define PRESET_PAGESIZE PAGE_SIZE
@@ -30,12 +36,9 @@ typedef struct pal_tcb {
 
 #include "pal_host-arch.h"
 
-static inline PAL_TCB * pal_get_tcb (void)
-{
-    PAL_TCB * tcb;
-    __asm__ ("movq %%gs:%c1,%q0"
-             : "=r" (tcb)
-             : "i" (offsetof(struct pal_tcb, self)));
+static inline PAL_TCB* pal_get_tcb(void) {
+    PAL_TCB* tcb;
+    __asm__("movq %%gs:%c1,%q0" : "=r"(tcb) : "i"(offsetof(struct pal_tcb, self)));
     return tcb;
 }
 
@@ -53,9 +56,9 @@ union pal_csgsfs {
  * Because self-contained definition is needed for Pal definition,
  * same layout is defined with PAL prefix.
  */
-#define PAL_FP_XSTATE_MAGIC1        0x46505853U
-#define PAL_FP_XSTATE_MAGIC2        0x46505845U
-#define PAL_FP_XSTATE_MAGIC2_SIZE   (sizeof(PAL_FP_XSTATE_MAGIC2))
+#define PAL_FP_XSTATE_MAGIC1      0x46505853U
+#define PAL_FP_XSTATE_MAGIC2      0x46505845U
+#define PAL_FP_XSTATE_MAGIC2_SIZE (sizeof(PAL_FP_XSTATE_MAGIC2))
 
 enum PAL_XFEATURE {
     PAL_XFEATURE_FP,
@@ -72,22 +75,22 @@ enum PAL_XFEATURE {
     PAL_XFEATURE_MAX,
 };
 
-#define PAL_XFEATURE_MASK_FP                (1UL << PAL_XFEATURE_FP)
-#define PAL_XFEATURE_MASK_SSE               (1UL << PAL_XFEATURE_SSE)
-#define PAL_XFEATURE_MASK_YMM               (1UL << PAL_XFEATURE_YMM)
-#define PAL_XFEATURE_MASK_BNDREGS           (1UL << PAL_XFEATURE_BNDREGS)
-#define PAL_XFEATURE_MASK_BNDCSR            (1UL << PAL_XFEATURE_BNDCSR)
-#define PAL_XFEATURE_MASK_OPMASK            (1UL << PAL_XFEATURE_OPMASK)
-#define PAL_XFEATURE_MASK_ZMM_Hi256         (1UL << PAL_XFEATURE_ZMM_Hi256)
-#define PAL_XFEATURE_MASK_Hi16_ZMM          (1UL << PAL_XFEATURE_Hi16_ZMM)
-#define PAL_XFEATURE_MASK_PT                (1UL << PAL_XFEATURE_PT)
-#define PAL_XFEATURE_MASK_PKRU              (1UL << PAL_XFEATURE_PKRU)
+#define PAL_XFEATURE_MASK_FP        (1UL << PAL_XFEATURE_FP)
+#define PAL_XFEATURE_MASK_SSE       (1UL << PAL_XFEATURE_SSE)
+#define PAL_XFEATURE_MASK_YMM       (1UL << PAL_XFEATURE_YMM)
+#define PAL_XFEATURE_MASK_BNDREGS   (1UL << PAL_XFEATURE_BNDREGS)
+#define PAL_XFEATURE_MASK_BNDCSR    (1UL << PAL_XFEATURE_BNDCSR)
+#define PAL_XFEATURE_MASK_OPMASK    (1UL << PAL_XFEATURE_OPMASK)
+#define PAL_XFEATURE_MASK_ZMM_Hi256 (1UL << PAL_XFEATURE_ZMM_Hi256)
+#define PAL_XFEATURE_MASK_Hi16_ZMM  (1UL << PAL_XFEATURE_Hi16_ZMM)
+#define PAL_XFEATURE_MASK_PT        (1UL << PAL_XFEATURE_PT)
+#define PAL_XFEATURE_MASK_PKRU      (1UL << PAL_XFEATURE_PKRU)
 
-#define PAL_XFEATURE_MASK_FPSSE             (PAL_XFEATURE_MASK_FP \
-                                             | PAL_XFEATURE_MASK_SSE)
-#define PAL_XFEATURE_MASK_AVX512            (PAL_XFEATURE_MASK_OPMASK \
-                                             | PAL_XFEATURE_MASK_ZMM_Hi256 \
-                                             | PAL_XFEATURE_MASK_Hi16_ZMM)
+#define PAL_XFEATURE_MASK_FPSSE     (PAL_XFEATURE_MASK_FP \
+                                     | PAL_XFEATURE_MASK_SSE)
+#define PAL_XFEATURE_MASK_AVX512    (PAL_XFEATURE_MASK_OPMASK \
+                                     | PAL_XFEATURE_MASK_ZMM_Hi256 \
+                                     | PAL_XFEATURE_MASK_Hi16_ZMM)
 
 typedef struct {
     uint32_t magic1;        /*!< PAL_FP_XSTATE_MAGIC1 */

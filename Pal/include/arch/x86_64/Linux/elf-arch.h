@@ -1,20 +1,13 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-/*
- * dl-machine-x86_64.h
- *
- * This files contain architecture-specific implementation of ELF dynamic
- * relocation function.
- * The source code is imported and modified from the GNU C Library.
- */
+#ifndef ELF_ARCH_H_
+#define ELF_ARCH_H_
 
 #define ELF_MACHINE_NAME "x86_64"
 
-#include <sys/param.h>
-#include <sysdeps/generic/ldsodefs.h>
-
 #include "pal_internal.h"
+#include "sysdeps/generic/ldsodefs.h"
 
 /* Return the link-time address of _DYNAMIC.  Conveniently, this is the
    first element of the GOT.  This must be inlined in a function which
@@ -60,3 +53,5 @@ static inline Elf64_Addr __attribute__((unused)) elf_machine_load_address(void) 
 
     return addr;
 }
+
+#endif /* ELF_ARCH_H_ */

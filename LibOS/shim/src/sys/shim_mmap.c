@@ -23,9 +23,9 @@
 #include "shim_vma.h"
 
 #ifdef MAP_32BIT /* x86_64-specific */
-#define MAP_32BIT_IF_SUPPORTED  MAP_32BIT
+#define MAP_32BIT_IF_SUPPORTED MAP_32BIT
 #else
-#define MAP_32BIT_IF_SUPPORTED  0
+#define MAP_32BIT_IF_SUPPORTED 0
 #endif
 
 #define LEGACY_MAP_MASK (MAP_SHARED             \
@@ -48,7 +48,7 @@
 
 void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
     struct shim_handle* hdl = NULL;
-    long ret                = 0;
+    long ret = 0;
 
     if (!(flags & MAP_FIXED) && addr)
         addr = ALLOC_ALIGN_DOWN_PTR(addr);
@@ -203,8 +203,8 @@ out_handle:
 }
 
 int shim_do_mprotect(void* addr, size_t length, int prot) {
-    if (prot & ~(PROT_NONE | PROT_READ | PROT_WRITE | PROT_EXEC | PROT_GROWSDOWN | PROT_GROWSUP
-                    | PROT_SEM)) {
+    if (prot & ~(PROT_NONE | PROT_READ | PROT_WRITE | PROT_EXEC | PROT_GROWSDOWN | PROT_GROWSUP |
+                 PROT_SEM)) {
         return -EINVAL;
     }
 
@@ -231,7 +231,6 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     if (!IS_ALLOC_ALIGNED(length))
         length = ALLOC_ALIGN_UP(length);
 
-
     if (!access_ok(addr, length)) {
         return -EINVAL;
     }
@@ -245,7 +244,7 @@ int shim_do_mprotect(void* addr, size_t length, int prot) {
     }
 
     if (prot & PROT_GROWSDOWN) {
-        struct shim_vma_info vma_info = { 0 };
+        struct shim_vma_info vma_info = {0};
         if (lookup_vma(addr, &vma_info) >= 0) {
             addr = vma_info.addr;
             if (vma_info.file) {
@@ -323,7 +322,6 @@ int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
 
     return 0;
 }
-
 
 int shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask,
                   unsigned long maxnode, int flags) {

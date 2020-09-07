@@ -71,7 +71,7 @@ int handle_set_cloexec(PAL_HANDLE handle, bool enable) {
     for (int i = 0; i < MAX_FDS; i++)
         if (HANDLE_HDR(handle)->flags & (RFD(i) | WFD(i))) {
             long flags = enable ? FD_CLOEXEC : 0;
-            int ret    = INLINE_SYSCALL(fcntl, 3, handle->generic.fds[i], F_SETFD, flags);
+            int ret = INLINE_SYSCALL(fcntl, 3, handle->generic.fds[i], F_SETFD, flags);
             if (IS_ERR(ret) && ERRNO(ret) != EBADF)
                 return -PAL_ERROR_DENIED;
         }

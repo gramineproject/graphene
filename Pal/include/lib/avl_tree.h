@@ -91,8 +91,7 @@ struct avl_tree_node* avl_tree_find(struct avl_tree* tree, struct avl_tree_node*
  * It must also be compatible with tree->cmp i.e. cmp(f(a), b) == tree->cmp(a, b) for all a, b,
  * where f is some function changing a tree node to whatever the type of first argument to `cmp` is.
  */
-struct avl_tree_node* avl_tree_lower_bound_fn(struct avl_tree* tree,
-                                              void* cmp_arg,
+struct avl_tree_node* avl_tree_lower_bound_fn(struct avl_tree* tree, void* cmp_arg,
                                               bool cmp(void*, struct avl_tree_node*));
 struct avl_tree_node* avl_tree_lower_bound(struct avl_tree* tree, struct avl_tree_node* cmp_arg);
 

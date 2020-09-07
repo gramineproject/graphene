@@ -9,7 +9,7 @@
 #ifndef _SHIM_CONTEXT_H_
 #define _SHIM_CONTEXT_H_
 
-#include <shim_tcb.h>
+#include "shim_tcb.h"
 
 void restore_context(struct shim_context* context);
 void fixup_child_context(struct shim_regs* regs);

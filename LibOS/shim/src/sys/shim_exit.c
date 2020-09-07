@@ -9,7 +9,6 @@
 
 #include "pal.h"
 #include "pal_error.h"
-
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_ipc.h"
@@ -41,11 +40,11 @@ int thread_destroy(struct shim_thread* thread, bool send_ipc) {
 
     int exit_code = thread->exit_code;
 
-    struct shim_handle_map * handle_map = thread->handle_map;
-    struct shim_handle * exec = thread->exec;
-    struct shim_thread * parent = thread->parent;
+    struct shim_handle_map* handle_map = thread->handle_map;
+    struct shim_handle* exec = thread->exec;
+    struct shim_thread* parent = thread->parent;
     thread->handle_map = NULL;
-    thread->exec = NULL;
+    thread->exec       = NULL;
 
     if (parent) {
         assert(parent != thread);
@@ -58,14 +57,13 @@ int thread_destroy(struct shim_thread* thread, bool send_ipc) {
         unlock(&parent->lock);
 
         if (!thread->in_vm) {
-            debug("deliver SIGCHLD (thread = %d, exitval = %d)\n",
-                  thread->tid, exit_code);
+            debug("deliver SIGCHLD (thread = %d, exitval = %d)\n", thread->tid, exit_code);
 
             siginfo_t info;
             memset(&info, 0, sizeof(siginfo_t));
-            info.si_signo = SIGCHLD;
-            info.si_pid   = thread->tid;
-            info.si_uid   = thread->uid;
+            info.si_signo  = SIGCHLD;
+            info.si_pid    = thread->tid;
+            info.si_uid    = thread->uid;
             info.si_status = (exit_code & 0xff) << 8;
 
             if (append_signal(parent, &info) >= 0) {

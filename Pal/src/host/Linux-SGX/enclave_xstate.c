@@ -35,46 +35,47 @@
  *
  */
 
-#include <pal_linux.h>
-#include <pal_linux_error.h>
-#include <pal_internal.h>
-#include <pal_debug.h>
-#include <pal_error.h>
-#include <pal_security.h>
-#include <pal_crypto.h>
-#include <api.h>
-#include <list.h>
 #include <stdbool.h>
 
+#include "api.h"
 #include "enclave_pages.h"
+#include "list.h"
+#include "pal_crypto.h"
+#include "pal_debug.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_error.h"
+#include "pal_security.h"
 
 int g_xsave_enabled = 0;
 uint64_t g_xsave_features = 0;
 uint32_t g_xsave_size = 0;
-//FXRSTOR only cares about the first 512 bytes, while
-//XRSTOR in compacted mode will ignore the first 512 bytes.
-const uint32_t g_xsave_reset_state[XSAVE_RESET_STATE_SIZE/sizeof(uint32_t)]
-__attribute__((aligned(PAL_XSTATE_ALIGN))) = {
-    0x037F, 0, 0, 0, 0, 0, 0x1F80, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // XCOMP_BV[63] = 1, compaction mode
+// FXRSTOR only cares about the first 512 bytes, while XRSTOR in compacted mode will ignore
+// the first 512 bytes.
+const uint32_t g_xsave_reset_state[XSAVE_RESET_STATE_SIZE / sizeof(uint32_t)] __attribute__((
+    aligned(PAL_XSTATE_ALIGN))) = {
+    0x037F, 0, 0, 0, 0, 0, 0x1F80,     0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0x80000000, 0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    // XCOMP_BV[63] = 1, compaction mode
 };
 
 void init_xsave_size(uint64_t xfrm) {
     const struct {
         uint64_t bits;
         uint32_t size;
-    } xsave_size_table[] = { // Note that the g_xsave_size should be in ascending order
-        {SGX_XFRM_LEGACY, 512 + 64},                    // 512 for legacy features, 64 for xsave header
+    } xsave_size_table[] = {
+        // Note that the g_xsave_size should be in ascending order
+        {SGX_XFRM_LEGACY, 512 + 64},                    // 512 for legacy features, 64 for xsave
+                                                        // header
         {SGX_XFRM_AVX,    512 + 64 + 256},              // 256 for YMM0_H - YMM15_H registers
         {SGX_XFRM_MPX,    512 + 64 + 256 + 256},        // 256 for MPX
-        {SGX_XFRM_AVX512, 512 + 64 + 256 + 256 + 1600}, // 1600 for k0 - k7, ZMM0_H - ZMM15_H, ZMM16 - ZMM31
+        {SGX_XFRM_AVX512, 512 + 64 + 256 + 256 + 1600}, // 1600 for k0 - k7, ZMM0_H - ZMM15_H,
+                                                        // ZMM16 - ZMM31
     };
 
     /* fxsave/fxrstore as fallback */

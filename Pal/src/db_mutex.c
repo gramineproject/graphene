@@ -18,7 +18,7 @@ DkMutexCreate(PAL_NUM initialCount) {
     ENTER_PAL_CALL(DkMutexCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret           = _DkMutexCreate(&handle, initialCount);
+    int ret = _DkMutexCreate(&handle, initialCount);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

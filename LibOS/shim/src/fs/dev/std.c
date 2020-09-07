@@ -19,7 +19,7 @@ static int dev_std_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
 
-    buf->st_mode    = FILE_RW_MODE | S_IFLNK;
+    buf->st_mode = FILE_RW_MODE | S_IFLNK;
     return 0;
 }
 
@@ -49,22 +49,22 @@ static int dev_stderr_follow_link(const char* name, struct shim_qstr* link) {
 }
 
 struct pseudo_fs_ops dev_stdin_fs_ops = {
-    .open = &dev_std_open,
-    .mode = &dev_std_mode,
-    .stat = &dev_std_stat,
+    .open        = &dev_std_open,
+    .mode        = &dev_std_mode,
+    .stat        = &dev_std_stat,
     .follow_link = &dev_stdin_follow_link,
 };
 
 struct pseudo_fs_ops dev_stdout_fs_ops = {
-    .open = &dev_std_open,
-    .mode = &dev_std_mode,
-    .stat = &dev_std_stat,
+    .open        = &dev_std_open,
+    .mode        = &dev_std_mode,
+    .stat        = &dev_std_stat,
     .follow_link = &dev_stdout_follow_link,
 };
 
 struct pseudo_fs_ops dev_stderr_fs_ops = {
-    .open = &dev_std_open,
-    .mode = &dev_std_mode,
-    .stat = &dev_std_stat,
+    .open        = &dev_std_open,
+    .mode        = &dev_std_mode,
+    .stat        = &dev_std_stat,
     .follow_link = &dev_stderr_follow_link,
 };

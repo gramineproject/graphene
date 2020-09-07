@@ -6,11 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/syscall.h> 
+#include <sys/syscall.h>
 #include <unistd.h>
 
-
-static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2, int val3) {
+static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2,
+                 int val3) {
     return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
 }
 
@@ -23,7 +23,8 @@ static int futex_wake(int* uaddr, int to_wake) {
 }
 
 static int futex_wake_op(int* uaddr1, int to_wake1, int* uaddr2, int to_wake2, int op) {
-    return futex(uaddr1, FUTEX_WAKE_OP | FUTEX_PRIVATE_FLAG, to_wake1, (struct timespec*)(unsigned long)to_wake2, uaddr2, op);
+    return futex(uaddr1, FUTEX_WAKE_OP | FUTEX_PRIVATE_FLAG, to_wake1,
+                 (struct timespec*)(unsigned long)to_wake2, uaddr2, op);
 }
 
 static void fail(const char* msg, int x) {
@@ -54,12 +55,12 @@ static int wakeop_arg_extend(int x) {
 static int futex1 = 0;
 static int futex2 = 0;
 
-#define THREADS1 4
-#define THREADS2 5
+#define THREADS1      4
+#define THREADS2      5
 #define THREADS_WAKE1 2
 #define THREADS_WAKE2 3
 
-static int thread_state[THREADS1 + THREADS2] = { 0 };
+static int thread_state[THREADS1 + THREADS2] = {0};
 
 static void* thread_func(void* arg) {
     unsigned long i = (unsigned long)arg;
@@ -112,7 +113,10 @@ int main(void) {
 
     op = load(&futex2);
     if (op != (arg1 ^ arg2)) {
-        printf("futex_wake_op did not set futex2 value correctly: current value: 0x%x, expected: 0x%x\n", op, arg1 ^ arg2);
+        printf(
+            "futex_wake_op did not set futex2 value correctly: current value: 0x%x, expected: "
+            "0x%x\n",
+            op, arg1 ^ arg2);
         return 1;
     }
 
@@ -158,7 +162,8 @@ int main(void) {
         fail("futex_wake(&futex1)", errno);
     }
     if (ret != (THREADS1 - THREADS_WAKE1)) {
-        printf("futex_wake on futex1 woke-up %d threads instead of %d!\n", ret, THREADS1 - THREADS_WAKE1);
+        printf("futex_wake on futex1 woke-up %d threads instead of %d!\n", ret,
+               THREADS1 - THREADS_WAKE1);
         return 1;
     }
 
@@ -167,7 +172,8 @@ int main(void) {
         fail("futex_wake(&futex2)", errno);
     }
     if (ret != (THREADS2 - THREADS_WAKE2)) {
-        printf("futex_wake on futex2 woke-up %d threads instead of %d!\n", ret, THREADS2 - THREADS_WAKE2);
+        printf("futex_wake on futex2 woke-up %d threads instead of %d!\n", ret,
+               THREADS2 - THREADS_WAKE2);
         return 1;
     }
 

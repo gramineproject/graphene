@@ -65,9 +65,9 @@ static void* write_eventfd_thread(void* arg) {
 static int eventfd_using_poll(void) {
     int ret = 0;
     struct pollfd pollfds[MAX_EFDS];
-    pthread_t tid    = 0;
-    uint64_t count   = 0;
-    int poll_ret     = 0;
+    pthread_t tid = 0;
+    uint64_t count = 0;
+    int poll_ret = 0;
     int nread_events = 0;
 
     for (int i = 0; i < MAX_EFDS; i++) {
@@ -199,8 +199,7 @@ static int eventfd_using_various_flags(void) {
             errno = 0;
             ssize_t ret = read(efd, &count, sizeof(count));
             if (ret != -1 || errno != EAGAIN) {
-                printf("read that should return -1 with EAGAIN returned: %ld with errno=%d\n",
-                       ret,
+                printf("read that should return -1 with EAGAIN returned: %ld with errno=%d\n", ret,
                        errno);
                 close(efd);
                 return 1;

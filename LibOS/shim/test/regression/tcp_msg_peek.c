@@ -13,7 +13,7 @@
 #include <unistd.h>
 
 #define SRV_IP "127.0.0.1"
-#define PORT 11111
+#define PORT   11111
 #define BUFLEN 512
 
 enum { SINGLE, PARALLEL } mode = PARALLEL;

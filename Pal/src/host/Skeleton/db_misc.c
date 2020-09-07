@@ -51,8 +51,8 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 }
 
 int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
-                         PAL_PTR target_info, PAL_NUM* target_info_size,
-                         PAL_PTR report, PAL_NUM* report_size) {
+                         PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
+                         PAL_NUM* report_size) {
     __UNUSED(user_report_data);
     __UNUSED(user_report_data_size);
     __UNUSED(target_info);
@@ -62,8 +62,8 @@ int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_siz
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size,
-                        PAL_PTR quote, PAL_NUM* quote_size) {
+int _DkAttestationQuote(PAL_PTR user_report_data, PAL_NUM user_report_data_size, PAL_PTR quote,
+                        PAL_NUM* quote_size) {
     __UNUSED(user_report_data);
     __UNUSED(user_report_data_size);
     __UNUSED(quote);

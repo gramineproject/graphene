@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
+#define STR(x)        STR_HELPER(x)
 
 #define BUF_LENGTH  4096
 #define HOLE_LENGTH 8192
@@ -57,13 +57,14 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    rv = unlink(TEST_DIR"/"TEST_FILE);
+    rv = unlink(TEST_DIR "/" TEST_FILE);
     if (rv < 0 && errno != ENOENT) {
         perror("unlink failed");
         return 1;
     }
 
-    fd = open(TEST_DIR"/"TEST_FILE, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    fd = open(TEST_DIR "/" TEST_FILE, O_CREAT | O_RDWR | O_EXCL,
+              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     if (fd < 0) {
         perror("open failed");
         return 1;
@@ -106,7 +107,7 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    fd = open(TEST_DIR"/"TEST_FILE, O_RDONLY);
+    fd = open(TEST_DIR "/" TEST_FILE, O_RDONLY);
     if (fd < 0) {
         perror("open failed");
         return 1;
@@ -131,7 +132,7 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    rv = unlink(TEST_DIR"/"TEST_FILE);
+    rv = unlink(TEST_DIR "/" TEST_FILE);
     if (rv < 0) {
         perror("unlink failed");
         return 1;

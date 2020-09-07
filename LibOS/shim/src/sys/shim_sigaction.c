@@ -285,11 +285,11 @@ int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
     /* This might be called by an internal thread (like IPC), so we cannot inspect `cur_thread` ids
      * to check whether `sig` is targetted at it, but need to do a full search. */
     struct signal_thread_arg arg = {
-        .sig = sig,
-        .sender = sender,
-        .cmp_val = tgid,
+        .sig      = sig,
+        .sender   = sender,
+        .cmp_val  = tgid,
         .cmp_type = TGID,
-        .sent = false,
+        .sent     = false,
     };
     int ret = walk_thread_list(_signal_one_thread, &arg, /*one_shot=*/true);
     if (ret < 0 && ret != -ESRCH) {
@@ -336,11 +336,11 @@ int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
     /* This might be called by an internal thread (like IPC), so we cannot inspect `cur_thread` ids
      * to check whether `sig` is targetted at it, but need to do a full search. */
     struct signal_thread_arg arg = {
-        .sig = sig,
-        .sender = sender,
-        .cmp_val = pgid,
+        .sig      = sig,
+        .sender   = sender,
+        .cmp_val  = pgid,
         .cmp_type = PGID,
-        .sent = false,
+        .sent     = false,
     };
     ret = walk_thread_list(_signal_one_thread, &arg, /*one_shot=*/true);
 

@@ -10,13 +10,13 @@
  */
 
 #include <asm/errno.h>
-#include <atomic.h>
 #include <limits.h>
 #include <linux/futex.h>
 #include <linux/time.h>
 #include <unistd.h>
 
 #include "api.h"
+#include "atomic.h"
 #include "cpu.h"
 #include "pal.h"
 #include "pal_defs.h"

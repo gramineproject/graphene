@@ -5,8 +5,8 @@
  * This file contains functions to generate hash values for FS paths.
  */
 
-#include <shim_fs.h>
-#include <shim_internal.h>
+#include "shim_fs.h"
+#include "shim_internal.h"
 
 static HASHTYPE __hash(const char* p, size_t len) {
     HASHTYPE hash = 0;
