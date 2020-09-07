@@ -61,6 +61,9 @@ fs.mount.bin.type = chroot
 fs.mount.bin.path = /bin
 fs.mount.bin.uri = file:/bin
 
+# Workload `scripts/R-benchmark-25.R` requires large stack
+sys.stack.size = 8M
+
 # SGX general options
 
 # Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
