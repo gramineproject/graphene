@@ -264,6 +264,7 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     struct shim_thread* thread = lookup_thread(msgin->pid);
     void* data                 = NULL;
     size_t datasize            = 0;
+    size_t bufsize             = 0;
 
     if (!thread) {
         ret = -ESRCH;
@@ -274,8 +275,9 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 
     switch (msgin->code) {
         case PID_META_CRED:
-            datasize           = sizeof(IDTYPE) * 2;
-            data               = __alloca(datasize);
+            bufsize            = sizeof(IDTYPE) * 2;
+            data               = __alloca(bufsize);
+            datasize           = bufsize;
             ((IDTYPE*)data)[0] = thread->uid;
             ((IDTYPE*)data)[1] = thread->gid;
             break;
@@ -284,8 +286,9 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
                 ret = -ENOENT;
                 break;
             }
-            datasize = dentry_get_path_len(thread->exec->dentry);
-            data = __alloca(datasize + 1);
+            bufsize = dentry_get_path_size(thread->exec->dentry);
+            data = __alloca(bufsize);
+            datasize = bufsize - 1;
             dentry_get_path(thread->exec->dentry, data);
             break;
         case PID_META_CWD:
@@ -293,8 +296,9 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
                 ret = -ENOENT;
                 break;
             }
-            datasize = dentry_get_path_len(thread->cwd);
-            data = __alloca(datasize + 1);
+            bufsize = dentry_get_path_size(thread->cwd);
+            data = __alloca(bufsize);
+            datasize = bufsize - 1;
             dentry_get_path(thread->cwd, data);
             break;
         case PID_META_ROOT:
@@ -302,8 +306,9 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
                 ret = -ENOENT;
                 break;
             }
-            datasize = dentry_get_path_len(thread->root);
-            data = __alloca(datasize + 1);
+            bufsize = dentry_get_path_size(thread->root);
+            data = __alloca(bufsize);
+            datasize = bufsize - 1;
             dentry_get_path(thread->root, data);
             break;
         default:

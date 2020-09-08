@@ -673,7 +673,7 @@ const char* get_file_name(const char* path, size_t len) {
     return *c == '/' ? c + 1 : c;
 }
 
-char* dentry_get_path(struct shim_dentry* dent, char *buffer) {
+char* dentry_get_path(struct shim_dentry* dent, char* buffer) {
     struct shim_mount* fs = dent->fs;
     char* c;
 
@@ -687,7 +687,7 @@ char* dentry_get_path(struct shim_dentry* dent, char *buffer) {
 
     if (dent->rel_path.len) {
         const char* path = qstrgetstr(&dent->rel_path);
-        int len          = dent->rel_path.len;
+        size_t len = dent->rel_path.len;
 
         if (c > buffer && *(c - 1) == '/') {
             if (*path == '/')
@@ -701,7 +701,7 @@ char* dentry_get_path(struct shim_dentry* dent, char *buffer) {
         c += len;
     }
 
-    assert(c - buffer == dentry_get_path_len(dent));
+    assert(c - buffer == dentry_get_path_size(dent) - 1);
 
     *c = 0;
     return buffer;

@@ -33,7 +33,7 @@ int shim_do_getcwd(char* buf, size_t len) {
 
     struct shim_dentry* cwd = thread->cwd;
 
-    size_t plen = dentry_get_path_len(cwd);
+    size_t plen = dentry_get_path_size(cwd) - 1;
 
     int ret;
     if (plen >= MAX_PATH) {
@@ -69,7 +69,7 @@ int shim_do_chdir(const char* filename) {
         return -ENOENT;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
-        char buffer[dentry_get_path_len(dent) + 1];
+        char buffer[dentry_get_path_size(dent)];
         debug("%s is not a directory\n", dentry_get_path(dent, buffer));
         put_dentry(dent);
         return -ENOTDIR;
@@ -91,7 +91,7 @@ int shim_do_fchdir(int fd) {
     struct shim_dentry* dent = hdl->dentry;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
-        char buffer[dentry_get_path_len(dent) + 1];
+        char buffer[dentry_get_path_size(dent)];
         debug("%s is not a directory\n", dentry_get_path(dent, buffer));
         put_handle(hdl);
         return -ENOTDIR;

@@ -399,25 +399,25 @@ void get_dentry(struct shim_dentry* dent);
 /* Decrement the reference count on dent */
 void put_dentry(struct shim_dentry* dent);
 
-/* Length of the path constructed by dentry_get_path(). */
-static inline size_t dentry_get_path_len(struct shim_dentry* dent) {
-    size_t len = dent->rel_path.len;
+/* Size of the path constructed by dentry_get_path(), including null terminator. */
+static inline size_t dentry_get_path_size(struct shim_dentry* dent) {
+    size_t size = dent->rel_path.len + 1;
     if (dent->fs)
-        len += dent->fs->path.len + 1;
-    return len;
+        size += dent->fs->path.len + 1;
+    return size;
 }
 
-/* Get path (FS path + relpath). The path length can be checked by calling
- * dentry_get_path_len(dent), and the buffer needs to have space for at least
- * dentry_get_path_len(dent) + 1 characters.
+/* Get path (FS path + relpath). The path size can be checked by calling
+ * dentry_get_path_size(dent), and the buffer needs to have space for at least
+ * that many characters.
  */
-char* dentry_get_path(struct shim_dentry* dent, char *buffer);
+char* dentry_get_path(struct shim_dentry* dent, char* buffer);
 
-static inline void dentry_get_path_into_qstr(struct shim_dentry *dent, struct shim_qstr *str) {
-    size_t len = dentry_get_path_len(dent);
-    char buffer[len + 1];
+static inline void dentry_get_path_into_qstr(struct shim_dentry *dent, struct shim_qstr* str) {
+    size_t size = dentry_get_path_size(dent);
+    char buffer[size];
     dentry_get_path(dent, buffer);
-    qstrsetstr(str, buffer, len);
+    qstrsetstr(str, buffer, size - 1);
 }
 
 static inline const char* dentry_get_name(struct shim_dentry* dent) {
