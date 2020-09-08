@@ -284,21 +284,27 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
                 ret = -ENOENT;
                 break;
             }
-            data = dentry_get_path(thread->exec->dentry, true, &datasize);
+            datasize = dentry_get_path_len(thread->exec->dentry);
+            data = __alloca(datasize + 1);
+            dentry_get_path(thread->exec->dentry, data);
             break;
         case PID_META_CWD:
             if (!thread->cwd) {
                 ret = -ENOENT;
                 break;
             }
-            data = dentry_get_path(thread->cwd, true, &datasize);
+            datasize = dentry_get_path_len(thread->cwd);
+            data = __alloca(datasize + 1);
+            dentry_get_path(thread->cwd, data);
             break;
         case PID_META_ROOT:
             if (!thread->root) {
                 ret = -ENOENT;
                 break;
             }
-            data = dentry_get_path(thread->root, true, &datasize);
+            datasize = dentry_get_path_len(thread->root);
+            data = __alloca(datasize + 1);
+            dentry_get_path(thread->root, data);
             break;
         default:
             ret = -EINVAL;

@@ -672,3 +672,37 @@ const char* get_file_name(const char* path, size_t len) {
         c--;
     return *c == '/' ? c + 1 : c;
 }
+
+char* dentry_get_path(struct shim_dentry* dent, char *buffer) {
+    struct shim_mount* fs = dent->fs;
+    char* c;
+
+    assert(buffer);
+    c = buffer;
+
+    if (fs && !qstrempty(&fs->path)) {
+        memcpy(c, qstrgetstr(&fs->path), fs->path.len);
+        c += fs->path.len;
+    }
+
+    if (dent->rel_path.len) {
+        const char* path = qstrgetstr(&dent->rel_path);
+        int len          = dent->rel_path.len;
+
+        if (c > buffer && *(c - 1) == '/') {
+            if (*path == '/')
+                path++;
+        } else {
+            if (*path != '/')
+                *(c++) = '/';
+        }
+
+        memcpy(c, path, len);
+        c += len;
+    }
+
+    assert(c - buffer == dentry_get_path_len(dent));
+
+    *c = 0;
+    return buffer;
+}
