@@ -3,7 +3,7 @@ RUNTIME_DIR = $(CURDIR)/../../../Runtime
 include ../../../Scripts/Makefile.configs
 
 CFLAGS += -fPIC -Winline -Wwrite-strings \
-	  -fmerge-all-constants -Wstrict-prototypes -Wtrampolines \
+	  -fmerge-all-constants -Wstrict-prototypes $(call cc-option,-Wtrampolines) \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
