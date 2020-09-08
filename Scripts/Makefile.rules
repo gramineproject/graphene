@@ -40,6 +40,16 @@ generated-offsets.s: generated-offsets.c $(filter-out asm-offsets.h,$(headers))
 CLEAN_FILES += generated-offsets.s
 
 
+# Convert inline assembly into preprocessor directives.
+# The source line is something like:
+#     .ascii "GENERATED_INTEGER SHIM_TCB_OFFSET $8 "
+# (see the DEFINE macro Pal/include/pal/generated-offsets-build.h)
+#
+# Because of clang compatibility, we need to:
+# - generate the numbers with prefix ($) and strip it here, as clang doesn't support "%p"
+#   in inline assembly
+# - recognize both tab and space [ \t] after ".ascii"
+
 quiet_cmd_asm_offsets_h = [ $@ ]
       cmd_asm_offsets_h = \
 	(set -e; \
@@ -47,7 +57,7 @@ quiet_cmd_asm_offsets_h = [ $@ ]
 	 echo "\#ifndef _ASM_OFFSETS_H_"; \
 	 echo "\#define _ASM_OFFSETS_H_"; \
 	 echo ""; \
-	 awk '/\.ascii "GENERATED_INTEGER/{print "\#ifndef " $$3 "\n\#define " $$3 " " $$4 "\n\#endif"}' $^; \
+	 awk '/\.ascii[ \t]"GENERATED_INTEGER/{print "\#ifndef " $$3 "\n\#define " $$3 " " substr($$4,2) "\n\#endif"}' $^; \
 	 echo ""; \
 	 echo "\#endif") > $@
 
@@ -60,7 +70,7 @@ quiet_cmd_generated_offsets_py = [ $@ ]
 	(set -e; \
 	 echo "\# DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED."; \
 	 echo ""; \
-	 awk '/\.ascii "GENERATED_INTEGER/{print $$3 " = " $$4}' $^) > $@
+	 awk '/\.ascii[ \t]"GENERATED_INTEGER/{print $$3 " = " substr($$4,2)}' $^) > $@
 
 generated_offsets.py: generated-offsets.s
 	$(call cmd,generated_offsets_py)
