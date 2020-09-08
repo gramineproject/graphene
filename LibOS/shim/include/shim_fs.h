@@ -399,48 +399,25 @@ void get_dentry(struct shim_dentry* dent);
 /* Decrement the reference count on dent */
 void put_dentry(struct shim_dentry* dent);
 
-static inline __attribute__((always_inline)) char* dentry_get_path(struct shim_dentry* dent, bool on_stack, size_t* sizeptr) {
-    struct shim_mount* fs = dent->fs;
-    char* buffer;
-    char* c;
-    size_t bufsize = dent->rel_path.len + 1;
+/* Length of the path constructed by dentry_get_path(). */
+static inline size_t dentry_get_path_len(struct shim_dentry* dent) {
+    size_t len = dent->rel_path.len;
+    if (dent->fs)
+        len += dent->fs->path.len + 1;
+    return len;
+}
 
-    if (fs)
-        bufsize += fs->path.len + 1;
+/* Get path (FS path + relpath). The path length can be checked by calling
+ * dentry_get_path_len(dent), and the buffer needs to have space for at least
+ * dentry_get_path_len(dent) + 1 characters.
+ */
+char* dentry_get_path(struct shim_dentry* dent, char *buffer);
 
-    if (on_stack) {
-        c = buffer = __alloca(bufsize);
-    } else {
-        if (!(c = buffer = malloc(bufsize)))
-            return NULL;
-    }
-
-    if (fs && !qstrempty(&fs->path)) {
-        memcpy(c, qstrgetstr(&fs->path), fs->path.len);
-        c += fs->path.len;
-    }
-
-    if (dent->rel_path.len) {
-        const char* path = qstrgetstr(&dent->rel_path);
-        int len          = dent->rel_path.len;
-
-        if (c > buffer && *(c - 1) == '/') {
-            if (*path == '/')
-                path++;
-        } else {
-            if (*path != '/')
-                *(c++) = '/';
-        }
-
-        memcpy(c, path, len);
-        c += len;
-    }
-
-    if (sizeptr)
-        *sizeptr = c - buffer;
-
-    *c = 0;
-    return buffer;
+static inline void dentry_get_path_into_qstr(struct shim_dentry *dent, struct shim_qstr *str) {
+    size_t len = dentry_get_path_len(dent);
+    char buffer[len + 1];
+    dentry_get_path(dent, buffer);
+    qstrsetstr(str, buffer, len);
 }
 
 static inline const char* dentry_get_name(struct shim_dentry* dent) {

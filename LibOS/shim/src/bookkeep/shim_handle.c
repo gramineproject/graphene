@@ -54,13 +54,7 @@ static inline int init_tty_handle(struct shim_handle* hdl, bool write) {
     hdl->dentry = dent;
     hdl->flags  = O_RDWR | O_APPEND | 0100000;
 
-    size_t size;
-    char* path = dentry_get_path(dent, true, &size);
-    if (path)
-        qstrsetstr(&hdl->path, path, size);
-    else
-        qstrsetstr(&hdl->path, "/dev/tty", 8);
-
+    dentry_get_path_into_qstr(dent, &hdl->path);
     return 0;
 }
 
@@ -90,11 +84,8 @@ static inline int init_exec_handle(struct shim_thread* thread) {
         }
         path_lookupat(fs->root, p, 0, &exec->dentry, fs);
         set_handle_fs(exec, fs);
-        if (exec->dentry) {
-            size_t len;
-            const char* path = dentry_get_path(exec->dentry, true, &len);
-            qstrsetstr(&exec->path, path, len);
-        }
+        if (exec->dentry)
+            dentry_get_path_into_qstr(exec->dentry, &exec->path);
         put_mount(fs);
     } else {
         set_handle_fs(exec, &chroot_builtin_fs);

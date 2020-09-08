@@ -271,9 +271,7 @@ reopen:
         return -EACCES;
     }
 
-    size_t pathlen;
-    char* path = dentry_get_path(dent, true, &pathlen);
-    qstrsetstr(&exec->path, path, pathlen);
+    dentry_get_path_into_qstr(dent, &exec->path);
 
     if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
         put_handle(exec);
