@@ -653,7 +653,10 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
         hdl->dir_info.ptr = (void *)-1;
     }
 
-    dentry_get_path_into_qstr(dent, &hdl->path);
+    if (!dentry_get_path_into_qstr(dent, &hdl->path)) {
+        ret = -ENOMEM;
+        goto out;
+    }
 
     /* truncate regular writable file if O_TRUNC is given */
     if ((flags & O_TRUNC) &&

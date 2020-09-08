@@ -413,11 +413,11 @@ static inline size_t dentry_get_path_size(struct shim_dentry* dent) {
  */
 char* dentry_get_path(struct shim_dentry* dent, char* buffer);
 
-static inline void dentry_get_path_into_qstr(struct shim_dentry *dent, struct shim_qstr* str) {
+static inline char* dentry_get_path_into_qstr(struct shim_dentry *dent, struct shim_qstr* str) {
     size_t size = dentry_get_path_size(dent);
     char buffer[size];
     dentry_get_path(dent, buffer);
-    qstrsetstr(str, buffer, size - 1);
+    return qstrsetstr(str, buffer, size - 1);
 }
 
 static inline const char* dentry_get_name(struct shim_dentry* dent) {
