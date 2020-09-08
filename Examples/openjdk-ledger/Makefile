@@ -85,8 +85,8 @@ java.manifest: java.manifest.template $(WL_TARGET)
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This
-# procedure measures all Java dependencies (shared libraries and trusted
-# files), measures Java code/data pages, and adds measurements in the
+# procedure measures all OpenJDK dependencies (shared libraries and trusted
+# files), measures OpenJDK code/data pages, and adds measurements in the
 # resulting manifest.sgx file (among other, less important SGX options).
 #
 # Additionally, Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see
@@ -114,8 +114,8 @@ pal_loader:
 run-native: all
 	$(JDK_HOME)/bin/java -jar $(WL_TARGET)
 
-.PHONY: run-gr
-run-gr: all
+.PHONY: run-graphene
+run-graphene: all
 	./pal_loader java.manifest -Xmx$(G_JAVA_XMX) -jar $(WL_TARGET)
 
 ################################## CLEANUP ####################################

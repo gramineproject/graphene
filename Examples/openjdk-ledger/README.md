@@ -1,7 +1,7 @@
-# Java Block Chain Demo
+# Ledger with OpenJDK
 
-This directory contains a Makefile and a template manifest for the most
-popular version of Java (as of this writing, version 11). This was tested
+This directory contains a Makefile and a template manifest for the
+popular version of OpenJDK (as of this writing, version 11). This was tested
 on a machine with SGX v1 and Ubuntu 18.04.
 
 The Makefile and the template manifest contain extensive comments and are made
@@ -27,10 +27,10 @@ make SGX=1 JDK_HOME=<JDK home folder under /opt>
 make run-native
 
 # run Java blockchain demo in non-SGX Graphene
-make run-gr
+make run-graphene
 
 # run Java blockchain demo in Graphene-SGX
-make SGX=1 run-gr
+make SGX=1 run-graphene
 ```
 
 # Tuning up
@@ -46,7 +46,7 @@ make G_JAVA_XMX=<Java maximum heap size> # default: 2G
 # Specify the Graphene SGX enclave capacity in Gigabytes, must be a power of 2
 make G_SGX_SIZE=<GSGX enclave capacity> # default: 8G
 
-# Specify the Graphene SGX maximum number of thread
+# Specify the Graphene SGX maximum number of threads
 make G_SGX_THREAD_NUM=<GSGX maximum number of threads> # default: 256
 ```
 

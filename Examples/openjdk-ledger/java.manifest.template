@@ -102,7 +102,7 @@ sgx.allow_file_creation   = 1
 
 ############################# SGX: TRUSTED LIBS ###############################
 
-# Specify all libraries used by Java and its dependencies (including all
+# Specify all libraries used by OpenJDK and its dependencies (including all
 # libraries which can be loaded at runtime via dlopen). The paths to libraries
 # are host-OS paths. These libraries will be searched for in in-Graphene visible
 # paths according to mount points above.
@@ -138,7 +138,7 @@ sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
 # library dependencies required by Graphene-SGX.
 sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 
-##################### SGX: TRUSTED JDK DEPENDENCIES ###########################
+##################### SGX: TRUSTED OPENJDK DEPENDENCIES ###########################
 sgx.trusted_files.libz  = file:$(ARCH_LIBDIR)/libz.so.1
 sgx.trusted_files.jdk_libjli = file:$(JDK_HOME)/lib/jli/libjli.so
 sgx.trusted_files.jdk_jvmcfg = file:$(JDK_HOME)/lib/jvm.cfg
