@@ -294,9 +294,18 @@ static ssize_t inet_create_uri(int domain, char* uri, size_t count, int sock_typ
 static inline void unix_copy_addr(struct sockaddr* saddr, struct shim_dentry* dent) {
     struct sockaddr_un* un = (struct sockaddr_un*)saddr;
     un->sun_family         = AF_UNIX;
-    size_t size;
-    const char* path = dentry_get_path(dent, true, &size);
-    memcpy(un->sun_path, path, size + 1);
+    size_t size = dentry_get_path_size(dent);
+    char path[size];
+
+    dentry_get_path(dent, path);
+
+    if (size > ARRAY_SIZE(un->sun_path)) {
+        debug("unix_copy_addr(): path too long, truncating: %s\n", path);
+        memcpy(un->sun_path, path, ARRAY_SIZE(un->sun_path) - 1);
+        un->sun_path[ARRAY_SIZE(un->sun_path) - 1] = 0;
+    } else {
+        memcpy(un->sun_path, path, size);
+    }
 }
 
 static int inet_check_addr(int domain, struct sockaddr* addr, size_t addrlen) {

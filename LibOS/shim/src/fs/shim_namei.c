@@ -612,8 +612,6 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
                  int flags)
 {
     int ret = 0;
-    size_t size;
-    char *path;
     struct shim_mount * fs = dent->fs;
 
     /* I think missing functionality should be treated as EINVAL, or maybe
@@ -654,12 +652,11 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
         hdl->dir_info.buf = (void *)-1;
         hdl->dir_info.ptr = (void *)-1;
     }
-    path = dentry_get_path(dent, true, &size);
-    if (!path) {
+
+    if (!dentry_get_path_into_qstr(dent, &hdl->path)) {
         ret = -ENOMEM;
         goto out;
     }
-    qstrsetstr(&hdl->path, path, size);
 
     /* truncate regular writable file if O_TRUNC is given */
     if ((flags & O_TRUNC) &&

@@ -414,7 +414,10 @@ BEGIN_RS_FUNC(dentry) {
         get_mount(dent->mounted);
     }
 
-    DEBUG_RS("hash=%08lx,path=%s,fs=%s", dent->rel_path.hash, dentry_get_path(dent, true, NULL),
+#if DEBUG_RESUME == 1
+    char buffer[dentry_get_path_size(dent)];
+#endif
+    DEBUG_RS("hash=%08lx,path=%s,fs=%s", dent->rel_path.hash, dentry_get_path(dent, buffer),
              dent->fs ? qstrgetstr(&dent->fs->path) : NULL);
 }
 END_RS_FUNC(dentry)

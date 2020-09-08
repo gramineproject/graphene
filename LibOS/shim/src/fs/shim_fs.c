@@ -672,3 +672,70 @@ const char* get_file_name(const char* path, size_t len) {
         c--;
     return *c == '/' ? c + 1 : c;
 }
+
+size_t dentry_get_path_size(struct shim_dentry* dent) {
+    size_t size = 0;
+    bool slash = false;
+
+    if (dent->fs && dent->fs->path.len) {
+        size += dent->fs->path.len;
+        slash = qstrgetstr(&dent->fs->path)[dent->fs->path.len - 1] == '/';
+    }
+
+    if (dent->rel_path.len) {
+        const char* path = qstrgetstr(&dent->rel_path);
+        size_t len = dent->rel_path.len;
+
+        // Ensure exactly 1 slash (see dentry_get_path())
+        if (slash && *path == '/')
+            size += len - 1;
+        else if (!slash && *path != '/')
+            size += len + 1;
+        else
+            size += len;
+    }
+
+    // 1 for null terminator
+    size++;
+
+    return size;
+}
+
+char* dentry_get_path(struct shim_dentry* dent, char* buffer) {
+    struct shim_mount* fs = dent->fs;
+    bool slash = false;
+    char* c;
+
+    assert(buffer);
+    c = buffer;
+
+    if (fs && fs->path.len) {
+        memcpy(c, qstrgetstr(&fs->path), fs->path.len);
+        c += fs->path.len;
+
+        slash = *(c - 1) == '/';
+    }
+
+    if (dent->rel_path.len) {
+        const char* path = qstrgetstr(&dent->rel_path);
+        size_t len = dent->rel_path.len;
+
+        // Ensure there is exactly 1 slash between fs path and rel_path.
+        if (slash && *path == '/') {
+            memcpy(c, path + 1, len - 1);
+            c += len - 1;
+        } else if (!slash && *path != '/') {
+            *c = '/';
+            memcpy(c + 1, path, len);
+            c += len + 1;
+        } else {
+            memcpy(c, path, len);
+            c += len;
+        }
+    }
+
+    assert(c - buffer == (ssize_t)(dentry_get_path_size(dent) - 1));
+
+    *c = 0;
+    return buffer;
+}

@@ -118,11 +118,8 @@ static int find_thread_link(const char* name, struct shim_qstr* link, struct shi
         dent = next_dent;
     }
 
-    if (link) {
-        size_t size;
-        char* path = dentry_get_path(dent, true, &size);
-        qstrsetstr(link, path, size);
-    }
+    if (link)
+        dentry_get_path_into_qstr(dent, link);
 
     if (dentptr) {
         get_dentry(dent);
@@ -364,11 +361,8 @@ static int find_thread_each_fd(const char* name, struct shim_qstr* link,
         dent = next_dent;
     }
 
-    if (link) {
-        size_t size;
-        char* path = dentry_get_path(dent, true, &size);
-        qstrsetstr(link, path, size);
-    }
+    if (link)
+        dentry_get_path_into_qstr(dent, link);
 
     if (dentptr) {
         get_dentry(dent);
