@@ -2,7 +2,7 @@
 SEC_DIR = security/$(PAL_HOST)
 
 CFLAGS += -fPIC -Wp,-U_FORTIFY_SOURCE \
-	  -fno-stack-protector -fno-builtin -Wtrampolines
+	  -fno-stack-protector -fno-builtin $(call cc-option,-Wtrampolines)
 
 CFLAGS += -Wextra $(call cc-option,-Wnull-dereference)
 
