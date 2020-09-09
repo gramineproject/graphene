@@ -121,11 +121,11 @@ pal_loader:
 check: all
 	./pal_loader R.manifest --slave --vanilla -f scripts/sample.r > OUTPUT 2> /dev/null
 	@grep -q "success" OUTPUT && echo "[ Success 1/1 ]"
-	@rm OUTPUT
+	@$(RM) OUTPUT
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT*
+	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT
 
 .PHONY: distclean
 distclean: clean
