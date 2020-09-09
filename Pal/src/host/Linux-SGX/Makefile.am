@@ -5,10 +5,6 @@ CFLAGS += -fPIC -maes -Wp,-U_FORTIFY_SOURCE \
 
 CFLAGS += -Wextra $(call cc-option,-Wnull-dereference)
 
-ifeq ($(CC),gcc)
-	CFLAGS += -Wtrampolines
-endif
-
 ASFLAGS += -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
 LDFLAGS += -shared -nostdlib -z combreloc -z defs \
