@@ -400,20 +400,14 @@ void get_dentry(struct shim_dentry* dent);
 void put_dentry(struct shim_dentry* dent);
 
 /* Size of the path constructed by dentry_get_path(), including null terminator. */
-static inline size_t dentry_get_path_size(struct shim_dentry* dent) {
-    size_t size = dent->rel_path.len + 1;
-    if (dent->fs)
-        size += dent->fs->path.len + 1;
-    return size;
-}
+size_t dentry_get_path_size(struct shim_dentry* dent);
 
-/* Get path (FS path + relpath). The path size can be checked by calling
- * dentry_get_path_size(dent), and the buffer needs to have space for at least
- * that many characters.
+/* Get path (FS path + relpath). The path size can be checked by calling dentry_get_path_size(dent),
+ * and the buffer needs to have space for at least that many bytes.
  */
 char* dentry_get_path(struct shim_dentry* dent, char* buffer);
 
-static inline char* dentry_get_path_into_qstr(struct shim_dentry *dent, struct shim_qstr* str) {
+static inline char* dentry_get_path_into_qstr(struct shim_dentry* dent, struct shim_qstr* str) {
     size_t size = dentry_get_path_size(dent);
     char buffer[size];
     dentry_get_path(dent, buffer);
