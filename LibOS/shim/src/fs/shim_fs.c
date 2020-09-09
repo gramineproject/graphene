@@ -683,7 +683,7 @@ size_t dentry_get_path_size(struct shim_dentry* dent) {
     }
 
     if (dent->rel_path.len) {
-        const char *path = qstrgetstr(&dent->rel_path);
+        const char* path = qstrgetstr(&dent->rel_path);
         size_t len = dent->rel_path.len;
 
         // Ensure exactly 1 slash (see dentry_get_path())
@@ -704,7 +704,7 @@ size_t dentry_get_path_size(struct shim_dentry* dent) {
 char* dentry_get_path(struct shim_dentry* dent, char* buffer) {
     struct shim_mount* fs = dent->fs;
     bool slash = false;
-    char *c;
+    char* c;
 
     assert(buffer);
     c = buffer;
