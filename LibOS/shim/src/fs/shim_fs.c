@@ -734,7 +734,7 @@ char* dentry_get_path(struct shim_dentry* dent, char* buffer) {
         }
     }
 
-    assert(c - buffer == (ssize_t) dentry_get_path_size(dent) - 1);
+    assert(c - buffer == (ssize_t)(dentry_get_path_size(dent) - 1));
 
     *c = 0;
     return buffer;
