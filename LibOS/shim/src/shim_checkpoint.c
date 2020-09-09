@@ -702,7 +702,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     if (exec) {
         /* execve case: child process "replaces" this current process: no need to notify the leader
          * or establish IPC, the only thing to do is revert self/parent PAL handles' pointers */
-        process->self->pal_handle   = NULL;
+        process->self->pal_handle = NULL;
         if (process->parent)
             process->parent->pal_handle = NULL;
     } else {
