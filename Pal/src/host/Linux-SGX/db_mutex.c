@@ -117,7 +117,7 @@ int _DkMutexUnlock(struct mutex_handle* m) {
 
 void _DkMutexRelease(PAL_HANDLE handle) {
     struct mutex_handle* mut = &handle->mutex.mut;
-    int ret                  = _DkMutexUnlock(mut);
+    int ret = _DkMutexUnlock(mut);
     if (ret < 0)
         _DkRaiseFailure(ret);
     return;

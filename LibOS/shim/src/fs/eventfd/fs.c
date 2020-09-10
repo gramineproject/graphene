@@ -2,9 +2,7 @@
 /* Copyright (C) 2019 Intel Corporation */
 
 /*
- * fs.c
- *
- * This file contains codes for implementation of 'eventfd' filesystem.
+ * This file contains code for implementation of 'eventfd' filesystem.
  */
 
 #include <asm/fcntl.h>

@@ -120,7 +120,7 @@ out:
  */
 static inline rpc_request_t* rpc_dequeue(rpc_queue_t* q) {
     if (__atomic_load_n(&q->front, __ATOMIC_RELAXED) ==
-        __atomic_load_n(&q->rear,  __ATOMIC_RELAXED)) {
+            __atomic_load_n(&q->rear,  __ATOMIC_RELAXED)) {
         /* quick check that queue is empty; this doesn't acquire a spinlock and thus lowers latency
          * on rpc_enqueue() performed by enclave threads (they don't have to wait for spinlock
          * release); note that untrusted RPC threads will simply retry again if this check fails */

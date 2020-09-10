@@ -385,7 +385,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
         goto failed;
     }
 
-    sgx_stub_t* s   = stubs; /* stubs is an array of 128bit values */
+    sgx_stub_t* s = stubs; /* stubs is an array of 128bit values */
     uint64_t offset = 0;
     LIB_SHA256_CONTEXT sha;
 
@@ -602,8 +602,8 @@ int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t um
          */
         if (memcmp(s, &hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E,
-                    "Accesing file:%s is denied. Does not match with MAC"
-                    " at chunk starting at %lu-%lu.\n",
+                    "Accesing file:%s is denied. Does not match with MAC at chunk starting at "
+                    "%lu-%lu.\n",
                     path, checking, checking_end);
             return -PAL_ERROR_DENIED;
         }

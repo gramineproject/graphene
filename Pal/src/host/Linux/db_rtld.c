@@ -52,7 +52,7 @@ void _DkDebugAddMap(struct link_map* map) {
     struct link_map* tmp = *prev;
     while (tmp) {
         if (tmp->l_addr == map->l_addr && tmp->l_ld == map->l_ld &&
-            !memcmp(tmp->l_name, map->l_name, len))
+                !memcmp(tmp->l_name, map->l_name, len))
             return;
 
         last = tmp;
@@ -98,7 +98,7 @@ void _DkDebugDelMap(struct link_map* map) {
     struct link_map* found = NULL;
     while (tmp) {
         if (tmp->l_addr == map->l_addr && tmp->l_ld == map->l_ld &&
-            !memcmp(tmp->l_name, map->l_name, len)) {
+                !memcmp(tmp->l_name, map->l_name, len)) {
             found = tmp;
             break;
         }
@@ -134,10 +134,10 @@ void setup_pal_map(struct link_map* pal_map) {
     const ElfW(Ehdr)* header = (void*)pal_map->l_addr;
 
     pal_map->l_real_ld = pal_map->l_ld = (void*)elf_machine_dynamic();
-    pal_map->l_type  = OBJECT_RTLD;
-    pal_map->l_entry = header->e_entry;
-    pal_map->l_phdr  = (void*)(pal_map->l_addr + header->e_phoff);
-    pal_map->l_phnum = header->e_phnum;
+    pal_map->l_type    = OBJECT_RTLD;
+    pal_map->l_entry   = header->e_entry;
+    pal_map->l_phdr    = (void*)(pal_map->l_addr + header->e_phoff);
+    pal_map->l_phnum   = header->e_phnum;
     setup_elf_hash(pal_map);
 
     _DkDebugAddMap(pal_map);

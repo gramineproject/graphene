@@ -743,7 +743,7 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
         }
 
     msgq->owned = false;
-    ret         = 0;
+    ret = 0;
     goto out;
 
 err_file:

@@ -2,8 +2,6 @@
 /* Copyright (C) 2017, University of North Carolina at Chapel Hill and Fortanix, Inc. */
 
 /*
- * shim_namei.c
- *
  * This file contains code for parsing a FS path and looking up in the directory cache.
  */
 
@@ -264,7 +262,7 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
          * Allow (start != NULL, absolute path) for *at() system calls.
          * which are common case as normal namei path resolution.
          */
-        start  = cur_thread->root;
+        start = cur_thread->root;
         no_start = true;
         get_dentry(start);
         fs = NULL;

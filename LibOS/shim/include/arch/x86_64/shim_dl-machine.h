@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * dl-machine-x86_64.c
- *
- * This file contains x64-specific codes for relocating ELF binaries.
- * Most of the source codes are imported from GNU C library.
+ * This file contains x64-specific code for relocating ELF binaries. Most of the source code was
+ * imported from GNU C library.
  */
 
 #ifndef __DL_MACHINE_H__

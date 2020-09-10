@@ -17,7 +17,7 @@ PAL_HANDLE DkNotificationEventCreate(PAL_BOL initialState) {
     ENTER_PAL_CALL(DkNotificationEventCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret           = _DkEventCreate(&handle, initialState, true);
+    int ret = _DkEventCreate(&handle, initialState, true);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -31,7 +31,7 @@ PAL_HANDLE DkSynchronizationEventCreate(PAL_BOL initialState) {
     ENTER_PAL_CALL(DkSynchronizationEventCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret           = _DkEventCreate(&handle, initialState, false);
+    int ret = _DkEventCreate(&handle, initialState, false);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

@@ -71,8 +71,8 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
 
     if (type == KILL_ALL) {
         debug("IPC broadcast: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", sender, type, target, signum);
-        ret =
-            broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT, /*exclude_port=*/NULL);
+        ret = broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT,
+                            /*exclude_port=*/NULL);
     } else {
         debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest & 0xFFFF, sender, type,
               target, signum);

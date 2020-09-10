@@ -36,8 +36,8 @@ static long sgx_ocall_exit(void* pms) {
         SGX_DBG(DBG_I, "Temporary process exits after emulating execve, wait for child to exit\n");
 
         int wstatus;
-        int ret =
-            INLINE_SYSCALL(wait4, 4, /*any child*/ -1, &wstatus, /*options=*/0, /*rusage=*/NULL);
+        int ret = INLINE_SYSCALL(wait4, 4, /*any child*/ -1, &wstatus, /*options=*/0,
+                                 /*rusage=*/NULL);
         if (IS_ERR(ret)) {
             /* it's too late to recover from errors, just log it and set some reasonable exit code
              */

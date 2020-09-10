@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_debug.c
- *
- * This file contains codes for registering libraries to GDB.
+ * This file contains code for registering libraries to GDB.
  */
 
 #include "pal.h"

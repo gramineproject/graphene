@@ -583,7 +583,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
                 tcs->ogs_base  = tls_area->addr + t * g_page_size;
                 tcs->ofs_limit = 0xfff;
                 tcs->ogs_limit = 0xfff;
-                tcs_addrs[t]   = (void*)enclave_secs.base + tcs_area->addr + g_page_size * t;
+                tcs_addrs[t] = (void*)enclave_secs.base + tcs_area->addr + g_page_size * t;
             }
         } else if (areas[i].fd != -1) {
             data = (void*)INLINE_SYSCALL(mmap, 6, NULL, areas[i].size, PROT_READ,

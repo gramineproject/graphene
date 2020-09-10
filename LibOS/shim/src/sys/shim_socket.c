@@ -374,16 +374,16 @@ static void inet_save_addr(int domain, struct addr_inet* addr, const struct sock
     if (domain == AF_INET6) {
         if (saddr->sa_family == AF_INET) {
             const struct sockaddr_in* in = (const struct sockaddr_in*)saddr;
-            addr->port                   = __ntohs(in->sin_port);
-            addr->addr.v6.s6_addr32[0]   = __htonl(0);
-            addr->addr.v6.s6_addr32[1]   = __htonl(0);
-            addr->addr.v6.s6_addr32[2]   = __htonl(0x0000ffff);
+            addr->port                 = __ntohs(in->sin_port);
+            addr->addr.v6.s6_addr32[0] = __htonl(0);
+            addr->addr.v6.s6_addr32[1] = __htonl(0);
+            addr->addr.v6.s6_addr32[2] = __htonl(0x0000ffff);
             /* in->sin_addr.s_addr is already network byte order */
             addr->addr.v6.s6_addr32[3] = in->sin_addr.s_addr;
         } else {
             const struct sockaddr_in6* in6 = (const struct sockaddr_in6*)saddr;
-            addr->port                     = __ntohs(in6->sin6_port);
-            addr->addr.v6                  = in6->sin6_addr;
+            addr->port    = __ntohs(in6->sin6_port);
+            addr->addr.v6 = in6->sin6_addr;
         }
         return;
     }
@@ -466,7 +466,7 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
         return -EFAULT;
 
     struct shim_handle* hdl = get_fd_handle(sockfd, NULL, NULL);
-    int ret                 = -EINVAL;
+    int ret = -EINVAL;
     if (!hdl)
         return -EBADF;
 
@@ -727,7 +727,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     struct shim_sock_handle* sock = &hdl->info.sock;
     lock(&hdl->lock);
     enum shim_sock_state state = sock->sock_state;
-    int ret                    = -EINVAL;
+    int ret = -EINVAL;
 
     if (state == SOCK_CONNECTED) {
         if (addr->sa_family == AF_UNSPEC) {
@@ -1115,7 +1115,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
     }
 
     int bytes = 0;
-    ret       = 0;
+    ret = 0;
 
     for (int i = 0; i < nbufs; i++) {
         PAL_NUM pal_ret = DkStreamWrite(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base, uri);

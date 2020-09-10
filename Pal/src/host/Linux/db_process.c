@@ -56,7 +56,7 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    HANDLE_HDR(phdl)->flags |= RFD(0) | WFD(0);
+    HANDLE_HDR(phdl)->flags  |= RFD(0) | WFD(0);
     phdl->process.stream      = fds[0];
     phdl->process.pid         = g_linux_state.pid;
     phdl->process.nonblocking = PAL_FALSE;
@@ -68,7 +68,7 @@ static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    HANDLE_HDR(chdl)->flags |= RFD(0) | WFD(0);
+    HANDLE_HDR(chdl)->flags  |= RFD(0) | WFD(0);
     chdl->process.stream      = fds[1];
     chdl->process.pid         = 0; /* unknown yet */
     chdl->process.nonblocking = PAL_FALSE;
@@ -162,11 +162,12 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
         size_t len;
         const char* file_uri = URI_PREFIX_FILE;
         if (g_exec_map && g_exec_map->l_name && (len = strlen(uri)) >= URI_PREFIX_FILE_LEN &&
-            !memcmp(uri, file_uri, URI_PREFIX_FILE_LEN) &&
-            /* skip "file:"*/
-            strlen(g_exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
-            /* + 1 for lasting * NUL */
-            !memcmp(g_exec_map->l_name, uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
+                !memcmp(uri, file_uri, URI_PREFIX_FILE_LEN) &&
+                /* skip "file:"*/
+                strlen(g_exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
+                /* + 1 for lasting * NUL */
+                !memcmp(g_exec_map->l_name,
+                        uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
             exec->file.map_start = (PAL_PTR)g_exec_map->l_map_start;
     }
 

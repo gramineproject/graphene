@@ -436,7 +436,7 @@ static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
 
     if (IS_ERR(ret) && ERRNO(ret) == EINPROGRESS) {
         struct pollfd pfd = {.fd = fd, .events = POLLOUT, .revents = 0};
-        ret               = INLINE_SYSCALL(ppoll, 5, &pfd, 1, NULL, NULL, 0);
+        ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, NULL, NULL, 0);
     }
 
     if (IS_ERR(ret)) {
@@ -968,7 +968,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
             struct __kernel_linger l;
             l.l_onoff  = attr->socket.linger ? 1 : 0;
             l.l_linger = attr->socket.linger;
-            ret        = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_LINGER, &l,
+            ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_LINGER, &l,
                                  sizeof(struct __kernel_linger));
 
             if (IS_ERR(ret))
@@ -979,7 +979,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.receivebuf != handle->sock.receivebuf) {
             int val = attr->socket.receivebuf;
-            ret     = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(int));
+            ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
@@ -989,7 +989,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.sendbuf != handle->sock.sendbuf) {
             int val = attr->socket.sendbuf;
-            ret     = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(int));
+            ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
@@ -999,7 +999,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.receivetimeout != handle->sock.receivetimeout) {
             int val = attr->socket.receivetimeout;
-            ret     = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_RCVTIMEO, &val, sizeof(int));
+            ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_RCVTIMEO, &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
@@ -1009,7 +1009,7 @@ static int socket_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
         if (attr->socket.sendtimeout != handle->sock.sendtimeout) {
             int val = attr->socket.sendtimeout;
-            ret     = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_SNDTIMEO, &val, sizeof(int));
+            ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_SNDTIMEO, &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));

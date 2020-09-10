@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_ipc_helper.c
- *
  * This file contains code to create an IPC helper thread inside library OS and maintain bookkeeping
  * of IPC ports.
  */
@@ -520,7 +518,7 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
     ret = (ret == RESPONSE_CALLBACK) ? 0 : ret;
 
     /* create IPC_MSG_RESP msg to send to dest, with sequence number seq, and in-body retval ret */
-    size_t total_msg_size         = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
     struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
     init_ipc_msg(resp_msg, IPC_MSG_RESP, total_msg_size, dest);
     resp_msg->seq = seq;
@@ -535,14 +533,14 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
 static int receive_ipc_message(struct shim_ipc_port* port) {
     int ret;
     size_t readahead = IPC_MSG_MINIMAL_SIZE * 2;
-    size_t bufsize   = IPC_MSG_MINIMAL_SIZE + readahead;
+    size_t bufsize = IPC_MSG_MINIMAL_SIZE + readahead;
 
     struct shim_ipc_msg* msg = malloc(bufsize);
     if (!msg) {
         return -ENOMEM;
     }
     size_t expected_size = IPC_MSG_MINIMAL_SIZE;
-    size_t bytes         = 0;
+    size_t bytes = 0;
 
     do {
         while (bytes < expected_size) {
@@ -742,8 +740,8 @@ noreturn static void shim_ipc_helper(void* dummy) {
         unlock(&ipc_helper_lock);
 
         /* wait on collected ports' PAL handles + install_new_event_pal */
-        PAL_BOL polled =
-            DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events, NO_TIMEOUT);
+        PAL_BOL polled = DkStreamsWaitEvents(ports_cnt + 1, pals, pal_events, ret_events,
+                                             NO_TIMEOUT);
 
         for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {

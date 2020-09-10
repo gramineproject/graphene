@@ -419,10 +419,10 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
     if (get_config(g_pal_state.root_config, "loader.insecure__use_cmdline_argv", cfgbuf,
                    CONFIG_MAX) > 0) {
-        printf(
-            "WARNING: Using insecure argv source. Don't use this configuration in production!\n");
-    } else if (get_config(g_pal_state.root_config, "loader.argv_src_file", cfgbuf, CONFIG_MAX) >
-               0) {
+        printf("WARNING: Using insecure argv source. Don't use this configuration in "
+               "production!\n");
+    } else if (get_config(g_pal_state.root_config, "loader.argv_src_file", cfgbuf, CONFIG_MAX)
+               > 0) {
         /* Load argv from a file and discard cmdline argv. We trust the file contents (this can be
          * achieved using protected or trusted files). */
         if (arguments[0] && arguments[1])
@@ -439,8 +439,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     }
 
     bool using_host_env = false;
-    if (get_config(g_pal_state.root_config, "loader.insecure__use_host_env", cfgbuf, CONFIG_MAX) >
-            0) {
+    if (get_config(g_pal_state.root_config, "loader.insecure__use_host_env", cfgbuf, CONFIG_MAX)
+            > 0) {
         using_host_env = true;
         printf("WARNING: Forwarding host environment variables to the app is enabled. Don't use "
                "this configuration in production!\n");

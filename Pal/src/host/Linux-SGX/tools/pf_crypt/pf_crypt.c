@@ -43,13 +43,13 @@ static void usage(void) {
 }
 
 int main(int argc, char* argv[]) {
-    int ret             = -1;
-    int this_option     = 0;
-    char* input_path    = NULL;
-    char* output_path   = NULL;
+    int ret = -1;
+    int this_option = 0;
+    char* input_path = NULL;
+    char* output_path = NULL;
     char* wrap_key_path = NULL;
-    char* mode          = NULL;
-    bool verify         = false;
+    char* mode = NULL;
+    bool verify = false;
 
     while (true) {
         this_option = getopt_long(argc, argv, "i:o:p:w:Vvh", g_options, NULL);

@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * pal_error.h
- *
  * This file contains definitions of PAL error codes.
  */
 

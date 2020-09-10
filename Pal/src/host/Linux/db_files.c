@@ -288,7 +288,7 @@ static int file_getname(PAL_HANDLE handle, char* buffer, size_t count) {
         return 0;
 
     size_t len = strlen(handle->file.realpath);
-    char* tmp  = strcpy_static(buffer, URI_PREFIX_FILE, count);
+    char* tmp = strcpy_static(buffer, URI_PREFIX_FILE, count);
 
     if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;

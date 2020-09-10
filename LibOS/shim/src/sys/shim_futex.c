@@ -365,7 +365,7 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
      * NB: actually `futex` and this point to the same futex, so this won't call free. */
     put_futex(waiter.futex);
 
-out_with_futex_lock:;  // C is awesome!
+out_with_futex_lock:; // C is awesome!
     /* Because dequeuing a futex requires `g_futex_list_lock` which we do not hold at this moment,
      * we check if we actually need to do it now (locks acquisition and dequeuing). */
     bool needs_dequeue = check_dequeue_futex(futex);

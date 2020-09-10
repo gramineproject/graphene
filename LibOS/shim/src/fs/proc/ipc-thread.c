@@ -266,7 +266,7 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int 
     // Only one valid name
     __UNUSED(name);
     struct pid_status_cache* status = NULL;
-    int ret                         = 0;
+    int ret = 0;
 
     if (!create_lock_runtime(&status_lock)) {
         return -ENOMEM;
@@ -375,7 +375,8 @@ const struct pseudo_fs_ops fs_ipc_thread = {
 const struct pseudo_dir dir_ipc_thread = {
     .size = 3,
     .ent  = {
-        {.name = "cwd", .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
-        {.name = "exe", .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
+        {.name = "cwd",  .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
+        {.name = "exe",  .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
         {.name = "root", .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
-    }};
+    }
+};

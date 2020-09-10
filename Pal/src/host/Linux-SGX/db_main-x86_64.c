@@ -151,11 +151,11 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     ci->cpu_num = g_pal_sec.num_cpus;
 
     _DkCpuIdRetrieve(1, 0, words);
-    ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 8, 12) +
+    ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
                        BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 20, 28);
-    ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 4, 8) +
+    ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  4,  8) +
                       (BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 16, 20) << 4);
-    ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 0, 4);
+    ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  0,  4);
 
     int flen = 0, fmax = 80;
     char* flags = malloc(fmax);

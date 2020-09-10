@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_fs.c
- *
- * This file contains codes for creating filesystems in library OS.
+ * This file contains code for creating filesystems in library OS.
  */
 
 #include <linux/fcntl.h>

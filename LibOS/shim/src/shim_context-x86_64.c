@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 /*
- * shim_context-x86_64.c
- *
  * This file contains code for x86-specific CPU context manipulation.
  */
 

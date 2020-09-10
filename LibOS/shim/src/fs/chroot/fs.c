@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * fs.c
- *
- * This file contains codes for implementation of 'chroot' filesystem.
+ * This file contains code for implementation of 'chroot' filesystem.
  */
 
 // FIXME: Sorting these includes causes a bunch of "error: ‘S_IFREG’ undeclared" errors.
@@ -48,8 +46,9 @@ static int chroot_mount(const char* uri, void** mount_data) {
         type = FILE_UNKNOWN;
         uri += 5;
     } else if (strstartswith_static(uri, URI_PREFIX_DEV)) {
-        type =
-            strstartswith_static(uri + static_strlen(URI_PREFIX_DEV), "tty") ? FILE_TTY : FILE_DEV;
+        type = strstartswith_static(uri + static_strlen(URI_PREFIX_DEV), "tty")
+               ? FILE_TTY
+               : FILE_DEV;
         uri += 4;
     } else {
         return -EINVAL;
@@ -466,8 +465,8 @@ static int chroot_creat(struct shim_handle* hdl, struct shim_dentry* dir, struct
     hdl->type     = TYPE_FILE;
     hdl->flags    = flags;
     hdl->acc_mode = ACC_MODE(flags & O_ACCMODE);
-    file->marker  = (flags & O_APPEND) ? size : 0;
-    file->size    = size;
+    file->marker = (flags & O_APPEND) ? size : 0;
+    file->size   = size;
     qstrcopy(&hdl->uri, &data->host_uri);
 
     /* Increment the parent's link count */

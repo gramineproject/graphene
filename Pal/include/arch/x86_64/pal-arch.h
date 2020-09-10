@@ -9,7 +9,7 @@
 
 #ifndef PAL_H
 // TODO: fix this
-#error This header is usable only from inside pal.h (due to a cyclic dependency).
+#error This header is usable only inside pal.h (due to a cyclic dependency).
 #endif
 
 #ifndef PAL_ARCH_H
@@ -195,7 +195,7 @@ typedef struct PAL_CPU_INFO_ {
     PAL_NUM cpu_family;
     PAL_NUM cpu_model;
     PAL_NUM cpu_stepping;
-    double cpu_bogomips;
+    double  cpu_bogomips;
     PAL_STR cpu_flags;
 } PAL_CPU_INFO;
 

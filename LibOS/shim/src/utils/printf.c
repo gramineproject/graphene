@@ -25,7 +25,7 @@ static int debug_fputch(void* f, int ch, void* b) {
     buf->buf[buf->end++]  = ch;
 
     if (ch == '\n') {
-        int ret  = debug_fputs(buf->buf, buf->end);
+        int ret = debug_fputs(buf->buf, buf->end);
         buf->end = buf->start;
         return ret;
     }

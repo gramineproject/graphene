@@ -40,7 +40,7 @@
 
 static ssize_t rw_file(const char* path, uint8_t* buf, size_t len, bool do_write) {
     ssize_t bytes = 0;
-    ssize_t ret   = 0;
+    ssize_t ret = 0;
 
     int fd = open(path, do_write ? O_WRONLY : O_RDONLY);
     if (fd < 0)
@@ -208,8 +208,8 @@ static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt, ui
     mbedtls_x509write_cert writecrt;
     mbedtls_x509write_crt_init(&writecrt);
 
-    uint8_t* crt_der_buf   = NULL;
-    uint8_t* output_buf    = NULL;
+    uint8_t* crt_der_buf = NULL;
+    uint8_t* output_buf = NULL;
     size_t output_buf_size = 16 * 1024; /* enough for any X.509 certificate */
 
     output_buf = malloc(output_buf_size);

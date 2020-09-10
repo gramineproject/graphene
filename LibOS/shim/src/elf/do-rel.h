@@ -2,11 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * do-rel.c
- *
- * This file contains architecture-independent codes for relocating ELF
- * binaries.
- * Most of the source codes are imported from GNU C library.
+ * This file contains architecture-independent code for relocating ELF binaries. Most of the source
+ * code was imported from GNU C library.
  */
 
 #include "shim_dl-machine.h"

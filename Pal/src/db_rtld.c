@@ -139,7 +139,7 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
     l->l_phnum = header->e_phnum;
 
     size_t maplength = header->e_phnum * sizeof(ElfW(Phdr));
-    ElfW(Phdr) * phdr;
+    ElfW(Phdr)* phdr;
 
     if (header->e_phoff + maplength <= fbp_len) {
         phdr = (void*)((char*)fbp + header->e_phoff);
@@ -171,7 +171,7 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
        l->l_phdr = 0;
        l->l_addr = 0; */
 
-    const ElfW(Phdr) * ph;
+    const ElfW(Phdr)* ph;
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
         switch (ph->p_type) {
             /* These entries tell us where to find things once the file's
@@ -520,8 +520,8 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type) {
 
     /* Now we will start verify the file as a ELF header. This part of code
        is borrow from open_verify() */
-    ElfW(Ehdr)* ehdr  = (ElfW(Ehdr)*)&fb;
-    ElfW(Phdr)* phdr  = NULL;
+    ElfW(Ehdr)* ehdr = (ElfW(Ehdr)*)&fb;
+    ElfW(Phdr)* phdr = NULL;
     int phdr_malloced = 0;
 
     int len = _DkStreamRead(handle, 0, FILEBUF_SIZE, &fb, NULL, 0);
@@ -707,7 +707,7 @@ ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const uint_fast
                          unsigned long int elf_hash, const struct link_map* map) {
     /* These variables are used in the nested function.  */
     Elf_Symndx symidx;
-    ElfW(Sym) * sym;
+    ElfW(Sym)* sym;
     /* The tables for this map.  */
     ElfW(Sym)* symtab = (void*)D_PTR(map->l_info[DT_SYMTAB]);
     const char* strtab = (const void*)D_PTR(map->l_info[DT_STRTAB]);
@@ -759,8 +759,8 @@ ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const uint_fast
 static int do_lookup(const char* undef_name, ElfW(Sym)* ref, struct sym_val* result) {
     const uint_fast32_t fast_hash = elf_fast_hash(undef_name);
     const long int hash = elf_hash(undef_name);
-    ElfW(Sym) * sym;
-    struct link_map* map       = g_loaded_maps;
+    ElfW(Sym)* sym;
+    struct link_map* map = g_loaded_maps;
     struct sym_val weak_result = {.s = NULL, .m = NULL};
 
     for (; map; map = map->l_next) {
@@ -836,7 +836,7 @@ static int relocate_elf_object(struct link_map* l) {
         struct textrels* next;
     }* textrels = NULL;
     int ret;
-    const ElfW(Phdr) * ph;
+    const ElfW(Phdr)* ph;
 
     for (ph = l->l_phdr; ph < &l->l_phdr[l->l_phnum]; ph++)
         if (ph->p_type == PT_LOAD && (ph->p_flags & PF_W) == 0) {
@@ -890,7 +890,7 @@ void DkDebugAttachBinary(PAL_STR uri, PAL_PTR start_addr) {
         return;
 
     const char* realname = uri + URI_PREFIX_FILE_LEN;
-    struct link_map* l   = new_elf_object(realname, OBJECT_EXTERNAL);
+    struct link_map* l = new_elf_object(realname, OBJECT_EXTERNAL);
     if (!l)
         return;
 
@@ -902,7 +902,7 @@ void DkDebugAttachBinary(PAL_STR uri, PAL_PTR start_addr) {
     l->l_map_start = (ElfW(Addr))start_addr;
 
     ElfW(Phdr)* phdr = (void*)((char*)start_addr + header->e_phoff);
-    const ElfW(Phdr) * ph;
+    const ElfW(Phdr)* ph;
     ElfW(Addr) map_start = 0, map_end = 0;
 
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
@@ -1005,7 +1005,7 @@ noreturn void start_execution(const char** arguments, const char** environs) {
 
     int cookiesz = sizeof(unsigned long int) * ncookies
                       + sizeof(ElfW(auxv_t)) * 1  /* only AT_NULL */
-                      + sizeof(void *) * 4 + 16;
+                      + sizeof(void*) * 4 + 16;
 
     unsigned long int* cookies = __alloca(cookiesz);
     int cnt = 0;

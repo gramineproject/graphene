@@ -2,11 +2,9 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_ipc.c
- *
- * This file contains code to maintain generic bookkeeping of IPC: operations
- * on shim_ipc_msg (one-way IPC messages), shim_ipc_msg_with_ack (IPC messages
- * with acknowledgement), shim_ipc_info (IPC ports of process), shim_process.
+ * This file contains code to maintain generic bookkeeping of IPC: operations on shim_ipc_msg
+ * (one-way IPC messages), shim_ipc_msg_with_ack (IPC messages with acknowledgement), shim_ipc_info
+ * (IPC ports of process), shim_process.
  */
 
 #include "list.h"

@@ -4,9 +4,7 @@
  */
 
 /*
- * shim_dcache.c
- *
- * This file contains codes for maintaining directory cache in library OS.
+ * This file contains code for maintaining directory cache in library OS.
  */
 
 #include "list.h"

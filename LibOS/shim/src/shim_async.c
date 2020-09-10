@@ -280,8 +280,8 @@ static void shim_async_helper(void* arg) {
         unlock(&async_helper_lock);
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
-        PAL_BOL polled =
-            DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events, sleep_time);
+        PAL_BOL polled = DkStreamsWaitEvents(pals_cnt + 1, pals, pal_events, ret_events,
+                                             sleep_time);
 
         now = DkSystemTimeQuery();
         if ((int64_t)now < 0) {

@@ -10,11 +10,9 @@
  * Library.
  */
 
-#include <elf/elf.h>
-#include <sysdeps/generic/ldsodefs.h>
-
 #include "api.h"
 #include "elf-x86_64.h"
+#include "elf/elf.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -24,13 +22,14 @@
 #include "pal_linux_defs.h"
 #include "pal_rtld.h"
 #include "pal_security.h"
+#include "sysdeps/generic/ldsodefs.h"
 
 void _DkDebugAddMap(struct link_map* map) {
     const ElfW(Ehdr)* ehdr = (void*)map->l_map_start;
     int shdrsz = sizeof(ElfW(Shdr)) * ehdr->e_shnum;
     ElfW(Shdr)* shdr = NULL;
     ElfW(Phdr)* phdr = (void*)(map->l_map_start + ehdr->e_phoff);
-    const ElfW(Phdr) * ph;
+    const ElfW(Phdr)* ph;
 
     int fd = ocall_open(map->l_name, O_RDONLY, 0);
     if (IS_ERR(fd))
@@ -60,7 +59,7 @@ void _DkDebugAddMap(struct link_map* map) {
 
     for (ph = phdr; ph < &phdr[ehdr->e_phnum]; ++ph)
         if (ph->p_type == PT_LOAD && shstroff >= ph->p_offset &&
-            shstroff < ph->p_offset + ph->p_filesz) {
+                shstroff < ph->p_offset + ph->p_filesz) {
             shstrtab = (void*)map->l_addr + ph->p_vaddr + (shstroff - ph->p_offset);
             break;
         }
@@ -130,10 +129,10 @@ void setup_pal_map(struct link_map* pal_map) {
     const ElfW(Ehdr)* header = (void*)pal_map->l_addr;
 
     pal_map->l_real_ld = pal_map->l_ld = (void*)elf_machine_dynamic();
-    pal_map->l_type  = OBJECT_RTLD;
-    pal_map->l_entry = header->e_entry;
-    pal_map->l_phdr  = (void*)(pal_map->l_addr + header->e_phoff);
-    pal_map->l_phnum = header->e_phnum;
+    pal_map->l_type    = OBJECT_RTLD;
+    pal_map->l_entry   = header->e_entry;
+    pal_map->l_phdr    = (void*)(pal_map->l_addr + header->e_phoff);
+    pal_map->l_phnum   = header->e_phnum;
     setup_elf_hash(pal_map);
 
     char buffer[BUFFER_LENGTH];

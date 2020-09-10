@@ -368,8 +368,8 @@ static int ias_send_request(struct ias_context_t* context, struct ias_request_re
     size_t quote_b64_size = 0;
     char* quote_json = NULL;
     size_t quote_json_size = 0;
-    const char* json_fmt =
-        nonce ? "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}" : "{\"isvEnclaveQuote\":\"%s\"}";
+    const char* json_fmt = nonce ? "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}"
+                                 : "{\"isvEnclaveQuote\":\"%s\"}";
 
     if (nonce && strlen(nonce) > 32) {
         ERROR("Nonce too long\n");

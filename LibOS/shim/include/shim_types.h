@@ -27,6 +27,8 @@
 #include <linux/utsname.h>
 #include <linux/version.h>
 
+#include "elf.h"
+#include "pal.h"
 #include "shim_types-arch.h"
 
 typedef unsigned int __u32;
@@ -343,8 +345,6 @@ struct linux_file_handle {
     unsigned char f_handle[0];
 };
 
-#include "elf.h"
-
 #ifdef __x86_64__
 typedef Elf64_auxv_t elf_auxv_t;
 #else
@@ -358,8 +358,6 @@ typedef unsigned long LEASETYPE;
 typedef uint64_t HASHTYPE;
 
 typedef struct atomic_int REFTYPE;
-
-#include "pal.h"
 
 struct shim_lock {
     PAL_HANDLE lock;

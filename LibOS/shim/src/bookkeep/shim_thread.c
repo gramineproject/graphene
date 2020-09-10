@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_thread.c
- *
- * This file contains codes to maintain bookkeeping of threads in library OS.
+ * This file contains code for maintaining bookkeeping of threads in library OS.
  */
 
 #include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
@@ -182,7 +180,7 @@ struct shim_thread* get_new_thread(IDTYPE new_tid) {
     }
 
     struct shim_thread* cur_thread = get_cur_thread();
-    thread->tid                    = new_tid;
+    thread->tid = new_tid;
 
     if (cur_thread) {
         /* The newly created thread will be in the same thread group
@@ -560,7 +558,7 @@ BEGIN_CP_FUNC(thread) {
     __UNUSED(size);
     assert(size == sizeof(struct shim_thread));
 
-    struct shim_thread* thread     = (struct shim_thread*)obj;
+    struct shim_thread* thread = (struct shim_thread*)obj;
     struct shim_thread* new_thread = NULL;
 
     size_t off = GET_FROM_CP_MAP(obj);
@@ -651,7 +649,7 @@ BEGIN_CP_FUNC(running_thread) {
     __UNUSED(objp);
     assert(size == sizeof(struct shim_thread));
 
-    struct shim_thread* thread     = (struct shim_thread*)obj;
+    struct shim_thread* thread = (struct shim_thread*)obj;
     struct shim_thread* new_thread = NULL;
 
     DO_CP(thread, thread, &new_thread);

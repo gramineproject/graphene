@@ -554,13 +554,13 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
         goto err;
     }
 
-    data->str          = buffer;
-    data->len          = offset;
+    data->str = buffer;
+    data->len = offset;
     hdl->type          = TYPE_STR;
     hdl->flags         = flags & ~O_RDONLY;
     hdl->acc_mode      = MAY_READ;
     hdl->info.str.data = data;
-    ret                = 0;
+    ret = 0;
 
 err:
     if (ret < 0) {
@@ -728,9 +728,9 @@ const struct pseudo_fs_ops fs_thread = {
 const struct pseudo_dir dir_thread = {
     .size = 5,
     .ent  = {
-        {.name = "cwd", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
-        {.name = "exe", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
+        {.name = "cwd",  .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
+        {.name = "exe",  .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
         {.name = "root", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
-        {.name = "fd", .fs_ops = &fs_thread_fd, .dir = &dir_fd},
+        {.name = "fd",   .fs_ops = &fs_thread_fd,   .dir = &dir_fd},
         {.name = "maps", .fs_ops = &fs_thread_maps, .type = LINUX_DT_REG},
     }};

@@ -268,8 +268,8 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
                 break;
             case 0x1: {
                 const uint32_t xsave_legacy_size = 512;
-                const uint32_t xsave_header      = 64;
-                uint32_t save_size_bytes         = xsave_legacy_size + xsave_header;
+                const uint32_t xsave_header = 64;
+                uint32_t save_size_bytes = xsave_legacy_size + xsave_header;
 
                 /* Start with AVX, since x87 and SSE state is already included when initializing
                  * `save_size_bytes`. */
@@ -326,7 +326,7 @@ int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_siz
                          PAL_NUM* report_size) {
     __sgx_mem_aligned sgx_report_data_t stack_report_data = {0};
     __sgx_mem_aligned sgx_target_info_t stack_target_info = {0};
-    __sgx_mem_aligned sgx_report_t stack_report           = {0};
+    __sgx_mem_aligned sgx_report_t stack_report = {0};
 
     if (!user_report_data_size || !target_info_size || !report_size)
         return -PAL_ERROR_INVAL;

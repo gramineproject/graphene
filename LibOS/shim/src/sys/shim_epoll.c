@@ -121,7 +121,7 @@ void delete_from_epoll_handles(struct shim_handle* handle) {
 
 int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* event) {
     struct shim_thread* cur = get_cur_thread();
-    int ret                 = 0;
+    int ret = 0;
 
     if (epfd == fd)
         return -EINVAL;
@@ -309,10 +309,12 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
                 continue;
 
             pal_handles[pal_cnt] = epoll_item->handle->pal_handle;
-            pal_events[pal_cnt] =
-                (epoll_item->events & (EPOLLIN | EPOLLRDNORM)) ? PAL_WAIT_READ : 0;
-            pal_events[pal_cnt] |=
-                (epoll_item->events & (EPOLLOUT | EPOLLWRNORM)) ? PAL_WAIT_WRITE : 0;
+            pal_events[pal_cnt] = (epoll_item->events & (EPOLLIN | EPOLLRDNORM))
+                                  ? PAL_WAIT_READ
+                                  : 0;
+            pal_events[pal_cnt] |= (epoll_item->events & (EPOLLOUT | EPOLLWRNORM))
+                                   ? PAL_WAIT_WRITE
+                                   : 0;
             ret_events[pal_cnt] = 0;
             pal_cnt++;
         }

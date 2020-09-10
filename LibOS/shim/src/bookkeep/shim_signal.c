@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_signal.c
- *
- * This file contains codes to handle signals and exceptions passed from PAL.
+ * This file contains code for handling signals and exceptions passed from PAL.
  */
 
 #include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
@@ -355,8 +353,8 @@ static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
         if (file && file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
              * then return a SIGBUS. */
-            uintptr_t eof_in_vma =
-                (uintptr_t)vma_info.addr + vma_info.file_offset + file->info.file.size;
+            uintptr_t eof_in_vma = (uintptr_t)vma_info.addr + vma_info.file_offset
+                                   + file->info.file.size;
             if (arg > eof_in_vma) {
                 signo = SIGBUS;
                 code = BUS_ADRERR;
@@ -906,8 +904,8 @@ BEGIN_CP_FUNC(pending_signals) {
      * doing execve, some pending signals might not get checkpointed; we add an arbitrary number of
      * safe margin slots. */
     const size_t SAFE_MARGIN_SLOTS = 10;
-    uint64_t n = __atomic_load_n(&process_pending_signals_cnt,
-                                 __ATOMIC_ACQUIRE) + SAFE_MARGIN_SLOTS;
+    uint64_t n = __atomic_load_n(&process_pending_signals_cnt, __ATOMIC_ACQUIRE)
+                 + SAFE_MARGIN_SLOTS;
     uint64_t i = 0;
     assert(n <= SIGRTMIN - 1 + (NUM_SIGS - SIGRTMIN + 1) * MAX_SIGNAL_LOG + SAFE_MARGIN_SLOTS);
     siginfo_t infos[n];

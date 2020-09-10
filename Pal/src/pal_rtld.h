@@ -46,7 +46,7 @@ struct link_map {
        They may change without notice.  */
     enum object_type l_type;
 
-    ElfW(Dyn) * l_ld;
+    ElfW(Dyn)* l_ld;
     ElfW(Dyn)* l_info[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM
                       + DT_ADDRNUM];
     const ElfW(Phdr)* l_phdr; /* Pointer to program header table in core. */
@@ -72,7 +72,7 @@ struct link_map {
     /* For DT_GNU_HASH */
     Elf32_Word l_gnu_bitmask_idxbits;
     Elf32_Word l_gnu_shift;
-    const ElfW(Addr) * l_gnu_bitmask;
+    const ElfW(Addr)* l_gnu_bitmask;
     const Elf32_Word* l_gnu_buckets;
     const Elf32_Word* l_gnu_chain_zero;
 };
@@ -85,7 +85,7 @@ struct link_gdb_map {
     const char* l_name;      /* Absolute file name object was found in. */
     ElfW(Dyn)* l_ld;         /* Dynamic section of the shared object. */
     struct link_map* l_next; /* Chain of loaded objects. */
-    struct link_map* l_prev; /* Chain of loaded objects. */
+    struct link_map* l_prev;
 };
 
 extern struct link_map* g_loaded_maps;

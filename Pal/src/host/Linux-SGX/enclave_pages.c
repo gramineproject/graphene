@@ -284,7 +284,7 @@ int free_enclave_pages(void* addr, size_t size) {
     size = ALIGN_UP(size, g_page_size);
 
     if (!access_ok(addr, size) || !IS_ALIGNED_PTR(addr, g_page_size) || addr < g_heap_bottom ||
-        addr + size > g_heap_top) {
+            addr + size > g_heap_top) {
         return -PAL_ERROR_INVAL;
     }
 

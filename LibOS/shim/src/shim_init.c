@@ -169,8 +169,8 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
 
     if (user) {
         /* reserve non-readable non-writable page below the user stack to catch stack overflows */
-        int ret =
-            bkeep_mmap_any_aslr(size + protect_size, PROT_NONE, flags, NULL, 0, "stack", &stack);
+        int ret = bkeep_mmap_any_aslr(size + protect_size, PROT_NONE, flags, NULL, 0, "stack",
+                                      &stack);
         if (ret < 0) {
             return NULL;
         }
@@ -364,7 +364,7 @@ static int read_environs(const char** envp) {
         if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {
             /* populate library_paths with entries from LD_LIBRARY_PATH envvar */
             const char* s = *e + static_strlen("LD_LIBRARY_PATH=");
-            size_t npaths = 2;  // One for the first entry, one for the last NULL.
+            size_t npaths = 2; // One for the first entry, one for the last NULL.
             for (const char* tmp = s; *tmp; tmp++)
                 if (*tmp == ':')
                     npaths++;
@@ -378,7 +378,7 @@ static int read_environs(const char** envp) {
                 for (next = s; *next && *next != ':'; next++)
                     ;
                 size_t len = next - s;
-                char* str  = malloc(len + 1);
+                char* str = malloc(len + 1);
                 if (!str) {
                     for (size_t i = 0; i < cnt; i++)
                         free(paths[i]);

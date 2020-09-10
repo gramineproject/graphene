@@ -21,7 +21,7 @@ DkThreadCreate(PAL_PTR addr, PAL_PTR param) {
     ENTER_PAL_CALL(DkThreadCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret           = _DkThreadCreate(&handle, (int (*)(void*))addr, (const void*)param);
+    int ret = _DkThreadCreate(&handle, (int (*)(void*))addr, (const void*)param);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -38,7 +38,7 @@ DkThreadDelayExecution(PAL_NUM duration) {
     ENTER_PAL_CALL(DkThreadDelayExecution);
 
     unsigned long dur = duration;
-    int ret           = _DkThreadDelayExecution(&dur);
+    int ret = _DkThreadDelayExecution(&dur);
 
     if (ret < 0) {
         _DkRaiseFailure(PAL_ERROR_INTERRUPTED);

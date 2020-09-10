@@ -47,8 +47,8 @@ struct cp_map {
 };
 
 static struct cp_map_buffer* extend_cp_map(struct cp_map* map) {
-    struct cp_map_buffer* buffer =
-        malloc(sizeof(struct cp_map_buffer) + sizeof(struct cp_map_entry) * CP_MAP_ENTRY_NUM);
+    struct cp_map_buffer* buffer = malloc(sizeof(struct cp_map_buffer) +
+                                          sizeof(struct cp_map_entry) * CP_MAP_ENTRY_NUM);
     if (!buffer)
         return NULL;
 
@@ -478,8 +478,8 @@ static int restore_checkpoint(struct checkpoint_hdr* hdr, uintptr_t base) {
 static int receive_handles_on_stream(struct checkpoint_hdr* hdr, void* base, ssize_t rebase) {
     int ret;
 
-    struct shim_palhdl_entry* palhdl_entries =
-        (struct shim_palhdl_entry*)(base + hdr->palhdl_offset);
+    struct shim_palhdl_entry* palhdl_entries = (struct shim_palhdl_entry*)(base +
+                                                                           hdr->palhdl_offset);
 
     size_t entries_cnt = hdr->palhdl_entries_cnt;
     if (!entries_cnt)

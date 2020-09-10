@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_parser.c
- *
  * This file contains code for parsing system call arguments for debug purpose.
  */
 

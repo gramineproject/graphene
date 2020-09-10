@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * fs.c
- *
- * This file contains codes for implementation of 'pipe' filesystem.
+ * This file contains code for implementation of 'pipe' filesystem.
  */
 
 #define __KERNEL__

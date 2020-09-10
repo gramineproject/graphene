@@ -2,6 +2,7 @@
 #include <stddef.h>
 
 #include "ecall_types.h"
+#include "generated-offsets-build.h"
 #include "ocall_types.h"
 #include "pal.h"
 #include "pal_linux.h"
@@ -16,8 +17,6 @@
 #endif
 #include "sgx.h"
 #undef __packed
-
-#include "generated-offsets-build.h"
 
 __attribute__((__used__)) static void dummy(void) {
     /* defines in sgx_arch.h */

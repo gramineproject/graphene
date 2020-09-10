@@ -22,7 +22,7 @@
 #define SEM_HASH_LEN  8
 #define SEM_HASH_NUM  (1 << SEM_HASH_LEN)
 #define SEM_HASH_MASK (SEM_HASH_NUM - 1)
-#define SEM_HASH(idx) ((idx)&SEM_HASH_MASK)
+#define SEM_HASH(idx) ((idx) & SEM_HASH_MASK)
 
 /* The sem_list links shim_sem_handle objects by the list field.
  * The sem_key_hlist links them by key_hlist, and qid_hlist by qid_hlist */

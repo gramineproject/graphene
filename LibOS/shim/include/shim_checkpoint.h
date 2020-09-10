@@ -277,7 +277,7 @@ struct shim_cp_map_entry* get_cp_map_entry(void* map, void* addr, bool create);
 
 #define BEGIN_MIGRATION_DEF(name, ...)                                  \
     int migrate_cp_##name(struct shim_cp_store* store, ##__VA_ARGS__) { \
-        int ret     = 0;                                                \
+        int ret = 0;                                                    \
         size_t base = store->base;
 
 #define END_MIGRATION_DEF(name)     \

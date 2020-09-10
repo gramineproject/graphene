@@ -43,8 +43,8 @@ int main(int argc, char** argv) {
     /* Creating another thread and doing a race on execve. Only one thread should survive. */
     // pthread_t th;
     // if (pthread_create(&th, NULL, thread_func, NULL) != 0) {
-    //    perror("pthread_create failed");
-    //    return 1;
+    //     perror("pthread_create failed");
+    //     return 1;
     // }
 
     do_exec();

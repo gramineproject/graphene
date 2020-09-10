@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     act.sa_sigaction = handler;
     sigemptyset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
-    ret          = sigaction(SIGALRM, &act, NULL);
+    ret = sigaction(SIGALRM, &act, NULL);
     if (ret < 0) {
         err(EXIT_FAILURE, "sigaction");
     }

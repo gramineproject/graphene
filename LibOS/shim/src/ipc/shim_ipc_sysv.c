@@ -74,7 +74,7 @@ int ipc_sysv_findkey_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* po
 int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_key* key, IDTYPE id,
                           unsigned long seq) {
     bool owned = true;
-    int ret    = 0;
+    int ret = 0;
 
     if (!dest) {
         if ((ret = sysv_add_key(key, id)) < 0)
@@ -147,7 +147,7 @@ out:
 
 int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
                          enum sysv_type type) {
-    int ret    = 0;
+    int ret = 0;
     bool owned = false;
 
     if (!port) {
@@ -198,14 +198,14 @@ int ipc_sysv_delres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
           SYSV_TYPE_STR(msgin->type));
 
     bool owned = false;
-    ret        = -ENOENT;
+    ret = -ENOENT;
     switch (msgin->type) {
         case SYSV_MSGQ: {
             struct shim_msg_handle* msgq = get_msg_handle_by_id(msgin->resid);
             if (!msgq)
                 goto out;
             owned = msgq->owned;
-            ret   = del_msg_handle(msgq);
+            ret = del_msg_handle(msgq);
             break;
         }
         case SYSV_SEM: {
@@ -213,7 +213,7 @@ int ipc_sysv_delres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
             if (!sem)
                 goto out;
             owned = sem->owned;
-            ret   = del_sem_handle(sem);
+            ret = del_sem_handle(sem);
             break;
         }
         default:
@@ -280,7 +280,7 @@ out:
 
 int ipc_sysv_msgsnd_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, long msgtype,
                          const void* buf, size_t size, unsigned long seq) {
-    int ret    = 0;
+    int ret = 0;
     bool owned = true;
 
     if (!dest) {
@@ -349,7 +349,7 @@ int ipc_sysv_msgsnd_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
         src.port = port;
         src.vmid = msg->src;
         src.seq  = msg->seq;
-        ret      = add_sysv_msg(msgq, msgin->msgtype, size, msgin->msg, &src);
+        ret = add_sysv_msg(msgq, msgin->msgtype, size, msgin->msg, &src);
     }
 
 out:
@@ -359,7 +359,7 @@ out:
 int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_t size) {
     IDTYPE owner;
     struct shim_ipc_port* port = NULL;
-    int ret                    = 0;
+    int ret = 0;
 
     if ((ret = connect_owner(msgid, &port, &owner)) < 0)
         goto out;
@@ -426,8 +426,8 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
                         unsigned long* seq) {
     IDTYPE owner;
     struct shim_ipc_port* port = NULL;
-    int ret                    = 0;
-    bool waitforreply          = false;
+    int ret = 0;
+    bool waitforreply = false;
 
     for (int i = 0; i < nsops; i++)
         if (sops[i].sem_op <= 0) {
@@ -502,7 +502,7 @@ int ipc_sysv_semop_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port
     client.port = port;
     client.vmid = msg->src;
     client.seq  = msg->seq;
-    ret         = submit_sysv_sem(sem, msgin->sops, msgin->nsops, msgin->timeout, &client);
+    ret = submit_sysv_sem(sem, msgin->sops, msgin->nsops, msgin->timeout, &client);
     put_sem_handle(sem);
 out:
     return ret;
@@ -511,7 +511,7 @@ out:
 int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t valsize) {
     IDTYPE owner;
     struct shim_ipc_port* port = NULL;
-    int ret                    = 0;
+    int ret = 0;
 
     if ((ret = connect_owner(semid, &port, &owner)) < 0)
         goto out;
