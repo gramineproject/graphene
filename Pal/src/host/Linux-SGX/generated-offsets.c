@@ -19,10 +19,7 @@
 
 #include "generated-offsets-build.h"
 
-/* required due to -Wmissing-prototypes */
-void dummy(void);
-
-void dummy(void) {
+__attribute__((__used__)) static void dummy(void) {
     /* defines in sgx_arch.h */
     DEFINE(SGX_FLAGS_DEBUG, SGX_FLAGS_DEBUG);
     DEFINE(SGX_FLAGS_MODE64BIT, SGX_FLAGS_MODE64BIT);
