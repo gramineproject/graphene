@@ -29,7 +29,7 @@ endif
 .PHONY=all
 all: memcached memcached.manifest pal_loader
 ifeq ($(SGX),1)
-all: memcached.manifest.sgx
+all: memcached.token
 endif
 
 include ../../Scripts/Makefile.configs
