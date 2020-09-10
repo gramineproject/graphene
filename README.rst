@@ -41,12 +41,10 @@ Graphene:
 Graphene is *not a production-ready software* (yet)
 ===================================================
 
-Graphene is at a point where it is functionally ready for testing and
-development, but there are some known security issues that require
-more attention.  The effort to review and harden security of Graphene
-is ongoing.  Our roadmap is to address the remaining production
-blockers (link here) roughly by fall of 2021.  Of course, with
-additional help from the community, we can meet these milestones sooner!
+Graphene is at a point where it is functionally ready for testing and development, but there are
+some known security issues that require more attention.  The effort to review and harden security of
+Graphene is ongoing.  Our roadmap is to address the remaining production blockers roughly by the fall
+of 2021.  Of course, with additional help from the community, we can meet these milestones sooner!
 
 The most important problems (which include major security issues) are tracked in
 `#1544 (Production blockers) <https://github.com/oscarlab/graphene/issues/1544>`__.
