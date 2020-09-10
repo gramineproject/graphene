@@ -1,6 +1,6 @@
 # Memcached manifest file example
 #
-# This manifest was prepared and tested on Ubuntu 16.04.
+# This manifest was prepared and tested on Ubuntu 18.04.
 
 ################################## RUNNING ####################################
 
@@ -52,20 +52,8 @@ loader.insecure__use_cmdline_argv = 1
 #                             Memcached dependency)
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 
-# Explicitly unset all environment variables used by Memcached. This is just a
-# precaution so that attacker cannot influence the default behavior of Memcached
-# by setting unexpected environment variables.
-#
-# TODO(dimakuv): Graphene's PAL incorrectly handles this currently. See
-# `read_environments()`, the end of function. Below strings create envvars
-# with empty strings, which forces Memcached to do incorrect things like
-# creating an empty-prefix .lck file (due to MEMCACHED_PORT_FILENAME=="").
-loader.env.MEMCACHED_PORT_FILENAME =
-loader.env.MEMCACHED_HASH_BULK_MOVE =
-loader.env.SASL_CONF_PATH =
-loader.env.MEMCACHED_SASL_PWDB =
-loader.env.T_MEMD_INITIAL_MALLOC =
-loader.env.MEMCACHED_SLAB_BULK_CHECK =
+# All other environment variables are unset. This is the default Graphene
+# behavior. Memcached doesn't require any environment variables to be set.
 
 ################################# MOUNT FS  ###################################
 
@@ -165,17 +153,7 @@ sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 # libEvent is an explicit dependency of Memcached. We choose to install it on
 # host OS instead of downloading the sources, building, and linking Memcached
 # against the built library (which is possible but would require more effort).
-sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.0.so.5
-
-############################ SGX: TRUSTED FILES ###############################
-
-# Trusted no-library files include configuration files, read-only files, and
-# other static files. It is useful to specify such files here to make sure
-# they are not maliciously modified (modifications will be detected as hash
-# mismatch by Graphene-SGX).
-#
-# Memcached does not have any configuration files, so this section is empty.
-# sgx.trusted_files.config = file:<important-configuration-file>
+sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.1.so.6
 
 ############################# SGX: ALLOWED FILES ###############################
 
