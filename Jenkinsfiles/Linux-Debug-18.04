@@ -11,8 +11,7 @@ pipeline {
                             ./.ci/run-pylint -f text || :
                             ./.ci/run-pylint -f json | ./.ci/prfilter
 
-                            ./.ci/run-shellcheck || :
-                            ./.ci/run-shellcheck -f json | ./.ci/prfilter
+                            ./.ci/run-shellcheck
                         '''
                     }
                 }

@@ -9,8 +9,7 @@ pipeline {
                 stage('Lint') {
                     steps {
                         sh '''
-                            ./.ci/run-shellcheck || :
-                            ./.ci/run-shellcheck -f json | ./.ci/prfilter
+                            ./.ci/run-shellcheck
                         '''
                     }
                 }
