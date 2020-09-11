@@ -72,13 +72,6 @@ fs.mount.etc.type = chroot
 fs.mount.etc.path = /etc
 fs.mount.etc.uri = file:/etc
 
-################################## NETWORK ####################################
-
-# Allow binding on any network interface but only on port 6379. This is the
-# default port used by Redis. Note how a missing interface name means "any
-# interface".
-net.allow_bind.redisport = :6379
-
 ############################### SGX: GENERAL ##################################
 
 # Set enclave size (somewhat arbitrarily) to 1024MB. Recall that SGX v1 requires

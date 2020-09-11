@@ -15,11 +15,6 @@ fs.mount.bin.uri = file:/bin
 sys.brk.max_size = 32M
 sys.stack.size = 4M
 
-# allow to bind on port 8000
-net.allow_bind.1 = 127.0.0.1:8000
-# allow to connect to port 8000
-net.allow_peer.1 = 127.0.0.1:8000
-
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2

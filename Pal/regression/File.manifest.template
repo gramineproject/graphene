@@ -3,9 +3,6 @@ loader.debug_type = inline
 
 fs.mount.root.uri = file:
 
-net.allow_bind.1 = 127.0.0.1:8000
-net.allow_peer.1 = 127.0.0.1:8000
-
 sgx.allow_file_creation = 0
 sgx.trusted_files.tmp1 = file:File
 sgx.trusted_files.tmp2 = file:../regression/File
