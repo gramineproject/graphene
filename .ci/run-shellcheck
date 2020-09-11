@@ -8,7 +8,6 @@ shellcheck "$@" \
     Examples/bash/scripts/bash_test.sh \
     Examples/common_tools/benchmark-http.sh \
     Examples/python-simple/run-tests.sh \
-    LibOS/shim/test/native/*.sh \
     Pal/src/host/Linux-SGX/debugger/gdb \
     Runtime/pal_loader \
     Scripts/clean-check \
@@ -16,7 +15,5 @@ shellcheck "$@" \
     Scripts/clean-check-test-copy \
     Scripts/download \
     Scripts/gitignore-test \
-    Scripts/list-all-graphene.sh \
-    Scripts/memusg \
     .ci/run-pylint \
     .ci/run-shellcheck

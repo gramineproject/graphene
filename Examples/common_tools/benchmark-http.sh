@@ -16,16 +16,16 @@ CONCURRENCY_LIST=${CONCURRENCY_LIST:-"1 2 4 8 16 32 64 128 256"}
 OPTIONS="-k"
 RESULT=result-$(date +%y%m%d-%H%M%S)
 
-touch $RESULT
+touch "$RESULT"
 
 RUN=0
-while [ $RUN -lt $LOOP ]
+while [ $RUN -lt "$LOOP" ]
 do
     for CONCURRENCY in $CONCURRENCY_LIST
     do
         rm -f OUTPUT
         echo "ab $OPTIONS -n $REQUESTS -c $CONCURRENCY $DOWNLOAD_HOST/$DOWNLOAD_FILE"
-        ab $OPTIONS -n $REQUESTS -c $CONCURRENCY $DOWNLOAD_HOST/$DOWNLOAD_FILE > OUTPUT || exit $?
+        ab $OPTIONS -n $REQUESTS -c "$CONCURRENCY" "$DOWNLOAD_HOST/$DOWNLOAD_FILE" > OUTPUT || exit $?
 
         sleep 5
 
@@ -36,14 +36,14 @@ do
         LATENCIES[$CONCURRENCY]="${LATENCIES[$CONCURRENCY]} $LATENCY"
         echo "concurrency=$CONCURRENCY, throughput=$THROUGHPUT, latency=$LATENCY, failed=$FAILED"
     done
-    RUN=$(expr $RUN + 1)
+    (( RUN++ ))
 done
 
 for CONCURRENCY in $CONCURRENCY_LIST
 do
-    THROUGHPUT=$(echo ${THROUGHPUTS[$CONCURRENCY]} | tr " " "\n" | sort -n | awk '{a[NR]=$0}END{if(NR%2==1)print a[int(NR/2)+1];else print(a[NR/2-1]+a[NR/2])/2}')
-    LATENCY=$(echo ${LATENCIES[$CONCURRENCY]} | tr " " "\n" | sort -n | awk '{a[NR]=$0}END{if(NR%2==1)print a[int(NR/2)+1];else print(a[NR/2-1]+a[NR/2])/2}')
-    echo "$THROUGHPUT,$LATENCY" >> $RESULT
+    THROUGHPUT=$(echo "${THROUGHPUTS[$CONCURRENCY]}" | tr " " "\n" | sort -n | awk '{a[NR]=$0}END{if(NR%2==1)print a[int(NR/2)+1];else print(a[NR/2-1]+a[NR/2])/2}')
+    LATENCY=$(echo "${LATENCIES[$CONCURRENCY]}" | tr " " "\n" | sort -n | awk '{a[NR]=$0}END{if(NR%2==1)print a[int(NR/2)+1];else print(a[NR/2-1]+a[NR/2])/2}')
+    echo "$THROUGHPUT,$LATENCY" >> "$RESULT"
 done
 
 echo "Result file: $RESULT"

@@ -34,7 +34,6 @@ c_executables = \
 	pipe_latency \
 	readdir \
 	rename \
-	script \
 	sem \
 	sleep \
 	socketpair \
@@ -54,7 +53,6 @@ manifests = \
 	manifest \
 	exec_fork.manifest \
 	ls.manifest \
-	script.manifest \
 	static.manifest
 
 exec_target = \
