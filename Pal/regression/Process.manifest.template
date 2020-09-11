@@ -3,6 +3,3 @@ loader.insecure__use_cmdline_argv = 1
 loader.debug_type = inline
 
 fs.mount.root.uri = file:
-
-net.allow_bind.1 = 127.0.0.1:8000
-net.allow_peer.1 = 127.0.0.1:8000

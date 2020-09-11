@@ -102,13 +102,6 @@ fs.mount.etc.type = chroot
 fs.mount.etc.path = /etc
 fs.mount.etc.uri = file:/etc
 
-################################## NETWORK ####################################
-
-# Allow binding on any network interface but only on port 11211. This is the
-# default port used by Memcached. Note how a missing interface name means "any
-# interface".
-net.allow_bind.memcachedport = :11211
-
 ############################### SGX: GENERAL ##################################
 
 # Set enclave size (somewhat arbitrarily) to 1024MB. Recall that SGX v1 requires
