@@ -17,4 +17,3 @@ pal_lib = $(HOST_DIR)/libpal.so
 pal_lib_deps = pal-symbols $(HOST_DIR)/pal.map.template $(HOST_DIR)/pal-$(ARCH).lds
 pal_lib_post =
 pal_static = $(HOST_DIR)/libpal.a
-pal_gdb =

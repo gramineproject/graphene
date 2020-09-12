@@ -632,7 +632,7 @@ static long sgx_ocall_eventfd(void* pms) {
 static long sgx_ocall_load_debug(void* pms) {
     const char* command = (const char*)pms;
     ODEBUG(OCALL_LOAD_DEBUG, (void*)command);
-    load_gdb_command(command);
+    execute_gdb_command(command);
     return 0;
 }
 

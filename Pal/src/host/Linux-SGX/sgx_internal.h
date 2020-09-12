@@ -138,6 +138,6 @@ int sgx_signal_setup(void);
 int block_signals(bool block, const int* sigs, int nsig);
 int block_async_signals(bool block);
 
-void load_gdb_command(const char* command);
+void execute_gdb_command(const char* command);
 
 #endif

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: LGPL-3.0-or-later */
+# Copyright (C) 2014 Stony Brook University
+# Copyright (C) 2019 Invisible Things Lab
+# Copyright (C) 2020 Intel Corporation
+#                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 
 while :
 do
@@ -42,28 +47,22 @@ if [ -z "$PAL_HOST" ]; then
 fi
 
 MANIFEST=
+ENVS=()
 PREFIX=()
-PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
+PAL_CMD="$RUNTIME_DIR/pal-$PAL_HOST"
 LIBPAL_PATH=$(realpath "$RUNTIME_DIR/libpal-$PAL_HOST.so")
+HOST_PAL_PATH=$(realpath "$RUNTIME_DIR/../Pal/src/host/$PAL_HOST")
 
 if [ "$GDB" == "1" ]; then
-	GDB=$RUNTIME_DIR/pal_gdb-$PAL_HOST
-	if [ ! -f "$GDB" ]; then
-		GDB="gdb"
-	fi
-fi
-
-if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
-	PREFIX=("$GDB" -q)
+	PREFIX=("gdb" "-q")
 	if [ -n "$INSIDE_EMACS" ]; then
 		PREFIX+=("-i=mi")
 	fi
 	if [ -v SGX ]; then
-		PREFIX+=("-iex")
-		PREFIX+=("dir $RUNTIME_DIR/../Pal/src/host/Linux-SGX")
+		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/graphene_sgx_gdb.py")
+		ENVS+=("LD_PRELOAD=$HOST_PAL_PATH/gdb_integration/sgx_gdb.so")
 	else
-		PREFIX+=("-iex")
-		PREFIX+=("dir $RUNTIME_DIR/../Pal/src/host/Linux")
+		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/graphene_gdb.py")
 	fi
 	PREFIX+=("--args")
 fi
@@ -93,8 +92,7 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-if [ ${#PREFIX[@]} -eq 0 ]; then
-    exec "$PAL_CMD" "$LIBPAL_PATH" init "$MANIFEST" "$@"
-else
-    exec "${PREFIX[@]}" "$PAL_CMD" "$LIBPAL_PATH" init "$MANIFEST" "$@"
-fi
+CMD=("${ENVS[@]}")
+CMD+=("${PREFIX[@]}")
+CMD+=("$PAL_CMD" "$LIBPAL_PATH" init "$MANIFEST" "$@")
+exec env "${CMD[@]}"

@@ -47,8 +47,12 @@ COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/signer/pal_sgx_sign.py /gr
 COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/generated_offsets.py /graphene/signer/
 COPY --from=graphene /graphene/Tools/argv_serializer /graphene/Tools
 {% if debug %}
-COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/debugger/sgx_gdb.so /graphene/Runtime
-COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/debugger/pal-gdb.py /graphene/Runtime
+COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/sgx_gdb.so \
+                     /graphene/Pal/src/host/Linux-SGX/gdb_integration/
+COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/graphene_sgx_gdb.py \
+                     /graphene/Pal/src/host/Linux-SGX/gdb_integration/
+COPY --from=graphene /graphene/Pal/src/host/Linux-SGX/gdb_integration/graphene_sgx.gdb \
+                     /graphene/Pal/src/host/Linux-SGX/gdb_integration/
 {% endif %}
 
 # Copy template scripts and manifests
