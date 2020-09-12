@@ -8,7 +8,7 @@
 #include "pal_rtld.h"
 #include "hex.h"
 
-#include "debugger/sgx_gdb.h"
+#include "gdb_integration/sgx_gdb.h"
 #include "linux_utils.h"
 #include "rpc_queue.h"
 #include "sgx_api.h"

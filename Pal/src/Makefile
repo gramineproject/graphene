@@ -11,7 +11,6 @@ pal_lib =
 pal_lib_deps =
 pal_lib_post =
 pal_static =
-pal_gdb =
 
 HOST_DIR = host/$(PAL_HOST)
 LIB_DIR = $(HOST_DIR)/.lib
@@ -63,7 +62,6 @@ host_lib = $(HOST_DIR)/libpal-$(PAL_HOST).a
 # Install Targets (all in RUNTIME_DIR):
 #       pal-{Host Name}:       loader for PAL (as an executable)
 #       libpal-{Host Name}.so: dynamic-linking library
-#       pal_gdb-{Host Name}:   debugger for PAL (as an executable)
 
 ifneq ($(pal_loader),)
 	runtime_loader += $(RUNTIME_DIR)/pal-$(PAL_HOST)
@@ -73,11 +71,7 @@ ifneq ($(pal_lib),)
 	runtime_lib += $(RUNTIME_DIR)/libpal-$(PAL_HOST)$(suffix $(pal_lib))
 endif
 
-ifneq ($(pal_gdb),)
-	runtime_gdb += $(RUNTIME_DIR)/pal_gdb-$(PAL_HOST)
-endif
-
-files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb)
+files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
 
 
 ###########################
@@ -114,11 +108,6 @@ $(pal_lib): $(addprefix $(OBJ_DIR)/,$(objs)) \
 	$(call cmd,ld_so_o)
 
 $(runtime_lib): $(pal_lib)
-	$(call cmd,ln_sfr)
-endif
-
-ifneq ($(pal_gdb),)
-$(runtime_gdb): $(pal_gdb)
 	$(call cmd,ln_sfr)
 endif
 

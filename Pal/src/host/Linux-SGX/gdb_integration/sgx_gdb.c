@@ -333,7 +333,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
     for (int i = 0; i < g_memdevs_cnt; i++) {
         if (g_memdevs[i].pid == tid) {
             *memdev = g_memdevs[i].memdev;
-            *ei     = &g_memdevs[i].ei;
+            *ei = &g_memdevs[i].ei;
             return update_thread_tids(*ei);
         }
     }
@@ -356,7 +356,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
     for (int i = 0; i < g_memdevs_cnt; i++) {
         if (g_memdevs[i].pid == eib.pid) {
             *memdev = g_memdevs[i].memdev;
-            *ei     = &g_memdevs[i].ei;
+            *ei = &g_memdevs[i].ei;
             return update_thread_tids(*ei);
         }
     }
@@ -408,7 +408,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
            sizeof(g_memdevs[g_memdevs_cnt].ei.thread_stepping));
 
     *memdev = fd;
-    *ei     = &g_memdevs[g_memdevs_cnt].ei;
+    *ei = &g_memdevs[g_memdevs_cnt].ei;
     g_memdevs_cnt++;
 
     return 0;

@@ -11,7 +11,7 @@
 #include <linux/signal.h>
 
 #include "assert.h"
-#include "debugger/sgx_gdb.h"
+#include "gdb_integration/sgx_gdb.h"
 #include "pal_internal.h"
 #include "pal_security.h"
 #include "sgx_enclave.h"

@@ -30,15 +30,6 @@
 /* pal_start is the entry point of libpal.so, which calls pal_main */
 #define _ENTRY pal_start
 
-/* use objfile-gdb convention instead of .debug_gdb_scripts */
-#ifdef DEBUG
-__asm__(
-    ".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
-    ".byte 1\r\n"
-    ".asciz \"pal-gdb.py\"\r\n"
-    ".popsection\r\n");
-#endif
-
 char* g_pal_loader_path = NULL;
 /* Currently content of this variable is only passed as an argument while spawning new processes
  * - this is to keep uniformity with other PALs. */
