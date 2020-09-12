@@ -88,13 +88,13 @@ bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, size_t size) {
     return true;
 }
 
-bool sgx_copy_to_enclave(const void* ptr, size_t maxsize, const void* uptr, size_t usize) {
+bool sgx_copy_to_enclave(void* ptr, size_t maxsize, const void* uptr, size_t usize) {
     if (usize > maxsize ||
         !sgx_is_completely_outside_enclave(uptr, usize) ||
         !sgx_is_completely_within_enclave(ptr, usize)) {
         return false;
     }
-    memcpy((void*)ptr, uptr, usize);
+    memcpy(ptr, uptr, usize);
     return true;
 }
 
