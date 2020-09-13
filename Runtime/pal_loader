@@ -72,10 +72,6 @@ if [ "$PERF" == "1" ]; then
 	PREFIX=(perf stat)
 fi
 
-if [ "$MEMUSG" == "1" ]; then
-	PREFIX=("$RUNTIME_DIR/../Scripts/memusg")
-fi
-
 while [ "$1" != "" ];
 do
 	if [ "$MANIFEST" == "" ]; then
