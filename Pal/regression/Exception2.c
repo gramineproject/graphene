@@ -25,7 +25,7 @@ int main(void) {
             "movq $0, %%rbx\n"
             "divq %%rbx\n"
             "nop\n"
-            ::: "rax", "rbx");
+            ::: "rax", "rbx", "rdx", "cc");
 
     pal_printf("Leave Main Thread\n");
     return 0;

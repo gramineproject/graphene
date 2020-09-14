@@ -123,7 +123,7 @@ int main (void)
             "movq $0, %%rbx\n"
             "divq %%rbx\n"
             "nop\n"
-            ::: "rax", "rbx");
+            ::: "rax", "rbx", "rdx", "cc");
 
     DkSetExceptionHandler(handler2, PAL_EVENT_ARITHMETIC_ERROR);
     __asm__ volatile (
@@ -132,7 +132,7 @@ int main (void)
             "movq $0, %%rbx\n"
             "divq %%rbx\n"
             "nop\n"
-            ::: "rax", "rbx");
+            ::: "rax", "rbx", "rdx", "cc");
 
     DkSetExceptionHandler(handler3, PAL_EVENT_MEMFAULT);
     *(volatile long *) 0x1000 = 0;
