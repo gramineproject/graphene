@@ -264,17 +264,20 @@ def gsc_build_graphene(args):
     # generate dockerfile to build graphenized docker image
     generate_compile_dockerfile(image, env)
 
-    buildargs_dict = extract_build_args(args)
+    if args.file_only:
+        print(f'Successfully created Dockerfile for image {image}.')
+    else:
+        buildargs_dict = extract_build_args(args)
 
-    build_docker_image(image, image, 'Dockerfile.compile',
+        build_docker_image(image, image, 'Dockerfile.compile',
                        rm=args.rm, nocache=args.no_cache, buildargs=buildargs_dict)
 
-    # Check if docker build failed
-    if get_docker_image(docker_socket, image) is None:
-        print(f'Failed to build graphenized image for {image}')
-        sys.exit(1)
+        # Check if docker build failed
+        if get_docker_image(docker_socket, image) is None:
+            print(f'Failed to build graphenized image for {image}')
+            sys.exit(1)
 
-    print(f'Successfully built Graphene-only Docker image {image}')
+        print(f'Successfully built Graphene-only Docker image {image}.')
 
 def generate_dockerfile_sign_manifests(image, env):
 
@@ -367,6 +370,8 @@ sub_build_graphene.add_argument('--build-arg', action='append', default=[],
     help='Set build-time variables (same as "docker build --build-arg").')
 sub_build_graphene.add_argument('-c', '--config_file', type=argparse.FileType('r', encoding='UTF-8'),
     default='config.yaml', help='Specify configuration file.')
+sub_build_graphene.add_argument('-f', '--file-only', action='store_true',
+    help='Stop after Dockerfile is created and do not build the Docker image.')
 sub_build_graphene.add_argument('image',
     help='Name of the output Docker image.')
 
