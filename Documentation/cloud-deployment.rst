@@ -1,5 +1,5 @@
-Deploying in cloud
-==================
+Cloud Deployment
+================
 
 .. highlight:: sh
 
@@ -76,3 +76,121 @@ documentation under ``Pal/src/host/Linux-SGX/sgx-driver`` for more information.
 This step is a temporary workaround and will not be required in the future
 (starting from Linux 5.9). Be aware that the current guide must not be used to
 set up production environments.
+
+Azure Kubernetes Services (AKS)
+-------------------------------
+
+Azure Kubernetes Service (AKS) offers a popular deployment technique relying on
+Azure's cloud resources. AKS allows to host Kubernetes pods in Azure
+confidential compute VMs and expose the underlying confidential compute
+hardware. In particular, `Graphene Shielded Containers (GSC)
+<https://graphene.readthedocs.io/en/latest/manpages/gsc.html>`__ translate
+existing Docker images to graphenized Docker images which can be deployed in
+AKS. Graphenized Docker images execute the application inside an Intel SGX
+enclave using the Graphene Library OS thus enabling confidential containers
+functions on AKS.
+
+This section describes the workflow to create an AKS cluster with confidential
+compute VMs, graphenize a simple application, and deploy the graphenized Docker
+image in an AKS cluster.
+
+Prerequisites
+^^^^^^^^^^^^^
+
+Follow the instructions on the `AKS Confidential Computing Quick Start guide
+<http://AKS.ms/accaksgetstarted>`__ to provision an AKS cluster with Intel SGX
+enabled worker nodes.
+
+Graphenizing Python Docker image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Follow the `instructions
+<https://graphene.readthedocs.io/en/latest/manpages/gsc.html>`__ to set up
+Graphene Shielded Containers and create your own enclave key. The instructions
+in this section demonstrate how to translate the Python Docker Hub image to a
+graphenized image which is ready to deploy in a confidential compute AKS
+cluster.
+
+.. warning::
+
+       This example relies on insecure arguments provided at runtime and should
+       not be used production. To use trusted arguments, please see the `manpage
+       of GSC
+       <https://graphene.readthedocs.io/en/latest/manpages/gsc.html#using-graphene-s-trusted-command-line-arguments>`__.
+
+#. Pull Python image::
+
+       docker pull python
+
+#. Configure GSC to build graphenized images for AKS by creating the following configuration file :file:`config.aks.yaml`::
+
+       Distro: ubuntu18.04
+       Graphene:
+              Image: graphenelibos/aks:latest
+
+#. Create the application-specific Manifest file :file:`python.manifest`::
+
+       sgx.allow_file_creation = 1
+       sgx.enclave_size = 256M
+       sgx.thread_num = 4
+
+#. Graphenize the Python image and allow insecure runtime arguments::
+
+       ./gsc build --insecure-args -c config.aks.yaml python python.manifest
+
+#. Sign the graphenized image with your enclave signing key::
+
+       ./gsc sign-image python enlave-key.pem
+
+#. Push resulting image to Docker Hub or your preferred registry::
+
+       docker tag gsc-python <dockerhubusername>/python:gsc-aks
+       docker push <dockerhubusername>/python:gsc-aks
+
+Deploying a "HelloWorld" Python Application in a confidential compute AKS cluster
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example first created an AKS cluster capable to create Intel SGX enclaves
+and then, created a graphenized Docker image of Python. The goal of this section
+is to combine both by deploying the Python application in the AKS cluster.
+
+#. Create job deployment file :file:`gsc-aks-python.yaml` for AKS. It specifies the underlying Docker image and the insecure arguments (in this case Python code to print "HelloWorld!")::
+
+       apiVersion: batch/v1
+       kind: Job
+       metadata:
+          name: gsc-aks-python
+          labels:
+             app: gsc-aks-python
+       spec:
+          template:
+             metadata:
+                labels:
+                   app: gsc-aks-python
+                spec:
+                   containers:
+                      - name: gsc-aks-python
+                        image:  index.docker.io/<dockerhubusername>/python:gsc-aks
+                        imagePullPolicy: Always
+                        args: ["-c", "print('HelloWorld!')"]
+                        resources:
+                           limits:
+                              kubernetes.azure.com/sgx_epc_mem_in_MiB: 25
+                        restartPolicy: Never
+          backoffLimit: 0
+
+#. Deploy `gsc-aks-python` job::
+
+       kubectl apply -f gsc-aks-python.yaml
+
+#. Test job status::
+
+       kubectl get jobs -l app=gsc-aks-python
+
+#. Receive logs of job::
+
+       kubectl logs -l app=gsc-aks-python
+
+#. Delete job after completion::
+
+       kubectl delete -f gsc-aks-python.yaml
