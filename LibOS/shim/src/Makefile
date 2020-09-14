@@ -18,6 +18,10 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 
 CFLAGS += -Wextra
 
+# Some of the code uses alignof on expressions, which is a GNU extension.
+# Silence Clang - it complains but does support it.
+CFLAGS += -Wno-gnu-alignof-expression
+
 ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
 
 LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
