@@ -389,21 +389,6 @@ static void inet_save_addr(int domain, struct addr_inet* addr, const struct sock
     }
 }
 
-static inline bool inet_comp_addr(int domain, const struct addr_inet* addr,
-                                  const struct sockaddr* saddr) {
-    if (domain == AF_INET) {
-        const struct sockaddr_in* in = (const struct sockaddr_in*)saddr;
-        return addr->port == __ntohs(in->sin_port) &&
-               !memcmp(&addr->addr.v4, &in->sin_addr, sizeof(struct in_addr));
-    }
-    if (domain == AF_INET6) {
-        const struct sockaddr_in6* in6 = (const struct sockaddr_in6*)saddr;
-        return addr->port == __ntohs(in6->sin6_port) &&
-               !memcmp(&addr->addr.v6, &in6->sin6_addr, sizeof(struct in6_addr));
-    }
-    return false;
-}
-
 static int create_socket_uri(struct shim_handle* hdl) {
     struct shim_sock_handle* sock = &hdl->info.sock;
 
