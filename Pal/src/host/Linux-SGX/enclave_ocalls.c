@@ -845,7 +845,7 @@ int ocall_sched_getaffinity(int tid, size_t cpu_mask_size, void* cpu_mask) {
     }
 
     sgx_reset_ustack(old_ustack);
-    return retval > 0 && retval <= (int)cpu_mask_size ? 0 : -EPERM;
+    return retval > 0 && retval <= (int)cpu_mask_size ? retval : -EPERM;
 }
 
 int ocall_clone_thread (void)
