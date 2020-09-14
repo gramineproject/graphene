@@ -724,18 +724,6 @@ static inline struct link_map* __search_map_by_handle(struct shim_handle* file) 
     return l;
 }
 
-static inline struct link_map* __search_map_by_addr(void* addr) {
-    struct link_map* l = loaded_libraries;
-
-    while (l) {
-        if ((void*)l->l_map_start == addr)
-            break;
-        l = l->l_next;
-    }
-
-    return l;
-}
-
 static int __remove_elf_object(struct link_map* l) {
     if (l->l_prev)
         l->l_prev->l_next = l->l_next;
