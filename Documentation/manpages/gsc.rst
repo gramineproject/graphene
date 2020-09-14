@@ -215,6 +215,10 @@ Synopsis:
 
    Specify configuration file. Default: :file:`config.yaml`
 
+.. option:: -f
+
+   Stop after Dockerfile is created and do not build the Docker image.
+
 .. option:: IMAGE-NAME
 
    Name of the resulting Graphene Docker image
