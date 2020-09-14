@@ -75,6 +75,14 @@ In general, a |nbsp| PR should:
    testing) or cannot be easily tested (e.g., a performance fix).
 #. Follow project's `style guidelines
    <https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
+#. Be signed-off by the author of the PR in git (i.e., using the ``git commit -s``, indicating
+   that the authors are agreeing to the terms of the `project Developer
+   Certificate of Origin <DCO>`__
+
+.. Github and RTD use different roots for resolving paths, because of
+   of .. include: in Documentation/devel/contributing.rst.  This renders as
+   a directory over file//.  Over http[s]:// we take advantage of the automatic
+   / redirect implemented in most HTTP servers. That's why DCO/ is a directory and not a file.
 
 PR Life Cycle
 ^^^^^^^^^^^^^
@@ -110,6 +118,7 @@ Before a pull request is merged, it must:
 #. Pass all CI tests
 #. Follow project's `style guidelines
    <https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
+#. Be signed-off by the contributor.
 #. Introduce no new compilation errors or warnings
 #. Have all discussions from reviewers resolved
 #. Have a clear, concise and grammatically correct comments and commit messages.
