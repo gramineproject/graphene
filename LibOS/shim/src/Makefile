@@ -18,6 +18,7 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 
 CFLAGS += -Wextra
 
+# For IS_ALIGNED_PTR macro.
 CFLAGS += -Wno-gnu-alignof-expression
 
 ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
