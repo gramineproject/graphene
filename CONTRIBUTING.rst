@@ -73,6 +73,9 @@ In general, a |nbsp| PR should:
    testing) or cannot be easily tested (e.g., a performance fix).
 #. Follow project's `style guidelines
    <https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
+#. Be signed-off by the author of the PR in git (i.e., using the ``git commit -s``, indicating
+   that the contributions to this project are covered by the `project Developer
+   Certificate of Origin <DCO.txt>`__
 
 PR Life Cycle
 ^^^^^^^^^^^^^
@@ -108,6 +111,7 @@ Before a pull request is merged, it must:
 #. Pass all CI tests
 #. Follow project's `style guidelines
    <https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
+#. Be signed off by the contributor.
 #. Introduce no new compilation errors or warnings
 #. Have all discussions from reviewers resolved
 #. Have a clear, concise and grammatically correct comments and commit messages.
