@@ -18,6 +18,8 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 
 CFLAGS += -Wextra
 
+CFLAGS += -Wno-gnu-alignof-expression
+
 ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
 
 LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
