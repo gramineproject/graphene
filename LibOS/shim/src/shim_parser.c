@@ -320,7 +320,7 @@ struct parser_table {
         [__NR_mq_notify]       = {.slow = 0, .parser = {NULL}},
         [__NR_mq_getsetattr]   = {.slow = 0, .parser = {NULL}},
         [__NR_kexec_load]      = {.slow = 0, .parser = {NULL}},
-        [__NR_waitid]      = {.slow = 1, .parser = {NULL}},
+        [__NR_waitid]      = {.slow = 1, .parser = {NULL, NULL, NULL, &parse_wait_option, NULL}},
         [__NR_add_key]     = {.slow = 0, .parser = {NULL}},
         [__NR_request_key] = {.slow = 0, .parser = {NULL}},
         [__NR_keyctl]      = {.slow = 0, .parser = {NULL}},

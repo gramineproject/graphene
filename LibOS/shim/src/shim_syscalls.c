@@ -307,6 +307,10 @@ DEFINE_SHIM_SYSCALL(execve, 3, shim_do_execve, int, const char*, file, const cha
 /* exit: sys/shim_exit.c */
 DEFINE_SHIM_SYSCALL(exit, 1, shim_do_exit, int, int, error_code)
 
+/* waitid: sys/shim_wait.c */
+DEFINE_SHIM_SYSCALL(waitid, 5, shim_do_waitid, int, int, which, pid_t, id, siginfo_t*, infop,
+                    int, option, struct __kernel_rusage*, ru)
+
 /* wait4: sys/shim_wait.c */
 DEFINE_SHIM_SYSCALL(wait4, 4, shim_do_wait4, pid_t, pid_t, pid, int*, stat_addr, int, option,
                     struct __kernel_rusage*, ru)
@@ -840,8 +844,10 @@ SHIM_SYSCALL_RETURN_ENOSYS(kexec_load, 4, int, unsigned long, entry, unsigned lo
                            struct kexec_segment*, segments, unsigned long, flags)
 */
 
+/*
 SHIM_SYSCALL_RETURN_ENOSYS(waitid, 5, int, int, which, pid_t, pid, siginfo_t*, infop, int, options,
                            struct __kernel_rusage*, ru)
+*/
 
 /*
 SHIM_SYSCALL_RETURN_ENOSYS(add_key, 5, int, const char*, type, const char*, description,
