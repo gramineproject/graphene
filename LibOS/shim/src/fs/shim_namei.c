@@ -87,11 +87,7 @@ int __permission(struct shim_dentry* dent, mode_t mask) {
          * setting modes, rather than defaulting to open here.
          * I'm ok with a file system that doesn't care setting the
          * permission to all.
-         *
-         * Set an assertion here to catch these cases in debugging.
          */
-        assert(err != -ESKIPPED);
-
         if (err < 0)
             return err;
 
@@ -181,8 +177,6 @@ int lookup_dentry(struct shim_dentry* parent, const char* name, int namelen,
                  * negative dentries, so they can still be cached */
                 dent->state |= DENTRY_NEGATIVE;
             } else {
-                /* Trying to weed out ESKIPPED */
-                assert(err != -ESKIPPED);
                 goto out;
             }
         }

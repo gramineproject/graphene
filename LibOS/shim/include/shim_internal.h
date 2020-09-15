@@ -8,17 +8,6 @@
 #ifndef _SHIM_INTERNAL_H_
 #define _SHIM_INTERNAL_H_
 
-#ifndef IN_SHIM
-#error "this header file can only be used inside SHIM"
-#endif
-
-#define attribute_hidden __attribute__((visibility("hidden")))
-
-#define ALIAS_STR(name) #name
-
-#define EXTERN_ALIAS(name) \
-    extern __typeof__(name) shim_##name __attribute ((alias (ALIAS_STR(name))))
-
 #include "api.h"
 #include "assert.h"
 #include "atomic.h"
@@ -175,8 +164,7 @@ static inline int64_t get_cur_preempt(void) {
     }
 
 #define DEFINE_SHIM_SYSCALL(name, n, func, ...) \
-    SHIM_SYSCALL_##n(name, func, __VA_ARGS__)   \
-    EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
+    SHIM_SYSCALL_##n(name, func, __VA_ARGS__)
 
 #define PROTO_ARGS_0()              void
 #define PROTO_ARGS_1(t, a)          t a
@@ -196,31 +184,6 @@ static inline int64_t get_cur_preempt(void) {
 
 #define DEFINE_SHIM_FUNC(func, n, r, args...) \
     r func(PROTO_ARGS_##n(args));
-
-#define TYPE_HASH(t)                    \
-    ({                                  \
-        const char* _s = #t;            \
-        ((uint16_t)_s[0] << 8) + _s[1]; \
-    })
-
-#define POINTER_TYPE(t)                                                             \
-    ({                                                                              \
-        int _h = TYPE_HASH(t);                                                      \
-        _h == TYPE_HASH(void*) || _h == TYPE_HASH(char*) || _h == TYPE_HASH(const); \
-    })
-
-#define EXPORT_SHIM_SYSCALL(name, n, r, args...)                \
-    r shim_##name(PROTO_ARGS_##n(args)) {                       \
-        SHIM_ARG_TYPE ret = __shim_##name(CAST_ARGS_##n(args)); \
-        if (POINTER_TYPE(r)) {                                  \
-            if ((uint64_t)ret >= (uint64_t)-4095L)              \
-                return (r)0;                                    \
-        } else {                                                \
-            if ((int)ret < 0)                                   \
-                return (r)-1;                                   \
-        }                                                       \
-        return (r)ret;                                          \
-    }
 
 #define PARSE_SYSCALL1(name, ...) \
     if (debug_handle)             \
@@ -321,13 +284,6 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
 #define SHIM_PROTO_ARGS_5 SHIM_PROTO_ARGS_4, SHIM_ARG_TYPE __arg5
 #define SHIM_PROTO_ARGS_6 SHIM_PROTO_ARGS_5, SHIM_ARG_TYPE __arg6
 
-#define SHIM_PASS_ARGS_1 __arg1
-#define SHIM_PASS_ARGS_2 SHIM_PASS_ARGS_1, __arg2
-#define SHIM_PASS_ARGS_3 SHIM_PASS_ARGS_2, __arg3
-#define SHIM_PASS_ARGS_4 SHIM_PASS_ARGS_3, __arg4
-#define SHIM_PASS_ARGS_5 SHIM_PASS_ARGS_4, __arg5
-#define SHIM_PASS_ARGS_6 SHIM_PASS_ARGS_5, __arg6
-
 #define SHIM_UNUSED_ARGS_0()
 
 #define SHIM_UNUSED_ARGS_1() \
@@ -362,51 +318,14 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
         __UNUSED(__arg6);     \
     } while (0)
 
-#define SHIM_SYSCALL_PROTO_0(NAME, RTYPE) \
-    RTYPE shim_##NAME(void)
-
-#define SHIM_SYSCALL_PROTO_1(NAME, RTYPE, T1, P1) \
-    RTYPE shim_##NAME(T1 P1)
-
-#define SHIM_SYSCALL_PROTO_2(NAME, RTYPE, T1, P1, T2, P2) \
-    RTYPE shim_##NAME(T1 P1, T2 P2)
-
-#define SHIM_SYSCALL_PROTO_3(NAME, RTYPE, T1, P1, T2, P2, T3, P3) \
-    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3)
-
-#define SHIM_SYSCALL_PROTO_4(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4) \
-    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4)
-
-#define SHIM_SYSCALL_PROTO_5(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5) \
-    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4, T5 P5)
-
-#define SHIM_SYSCALL_PROTO_6(NAME, RTYPE, T1, P1, T2, P2, T3, P3, T4, P4, T5, P5, T6, P6) \
-    RTYPE shim_##NAME(T1 P1, T2 P2, T3 P3, T4 P4, T5 P5, T6 P6)
-
 #define SHIM_SYSCALL_RETURN_ENOSYS(name, n, ...)                                   \
-    SHIM_SYSCALL_PROTO_##n(name, __VA_ARGS__);                                     \
     BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                                          \
         debug("WARNING: syscall " #name " not implemented. Returning -ENOSYS.\n"); \
         SHIM_UNUSED_ARGS_##n();                                                    \
         ret = -ENOSYS;                                                             \
-    END_SHIM(name)                                                                 \
-    EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
-
-#define CONCAT2(t1, t2)   __CONCAT2(t1, t2)
-#define __CONCAT2(t1, t2) t1##_##t2
-
-#define CONCAT3(t1, t2, t3)   __CONCAT3(t1, t2, t3)
-#define __CONCAT3(t1, t2, t3) t1##_##t2##_##t3
-
-/* Some SHIM internal errno */
-#define EISLINK      141 /* the path is a link */
-#define ECONTAINLINK 142 /* part of path contains a link */
-#define ENOTLINK     143 /* the path is not a link */
-#define ESKIPPED     144 /* skip looking up current path */
+    END_SHIM(name)
 
 #define PAL_CB(member) (pal_control.member)
-
-#define LOCK_FREE ((IDTYPE)-1)
 
 extern bool lock_enabled;
 

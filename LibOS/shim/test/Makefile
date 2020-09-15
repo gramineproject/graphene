@@ -1,6 +1,6 @@
 include ../../../Scripts/Makefile.configs
 
-SUBDIRS = regression native fs inline benchmark
+SUBDIRS = regression native fs benchmark
 
 .PHONY: all clean sgx-tokens distclean
 all clean sgx-tokens distclean:

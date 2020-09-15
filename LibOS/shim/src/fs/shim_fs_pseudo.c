@@ -331,7 +331,7 @@ int pseudo_follow_link(struct shim_dentry* dent, struct shim_qstr* link,
         return ret;
 
     if (!ent->fs_ops || !ent->fs_ops->follow_link)
-        return -ENOTLINK;
+        return -EINVAL;
 
     return ent->fs_ops->follow_link(rel_path, link);
 }

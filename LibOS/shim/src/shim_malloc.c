@@ -89,8 +89,6 @@ int init_slab(void) {
     return 0;
 }
 
-EXTERN_ALIAS(init_slab);
-
 void* malloc(size_t size) {
     void* mem = slab_alloc(slab_mgr, size);
 
@@ -106,7 +104,6 @@ void* malloc(size_t size) {
 
     return mem;
 }
-EXTERN_ALIAS(malloc);
 
 void* calloc(size_t nmemb, size_t size) {
     // This overflow checking is not a UB, because the operands are unsigned.
@@ -118,7 +115,6 @@ void* calloc(size_t nmemb, size_t size) {
         memset(ptr, 0, total);
     return ptr;
 }
-EXTERN_ALIAS(calloc);
 
 #if 0
 void* realloc(void* ptr, size_t new_size) {
@@ -143,7 +139,6 @@ void* realloc(void* ptr, size_t new_size) {
     free(ptr);
     return new_buf;
 }
-EXTERN_ALIAS(realloc);
 #endif
 
 // Copies data from `mem` to a newly allocated buffer of a specified size.
@@ -153,7 +148,6 @@ void* malloc_copy(const void* mem, size_t size) {
         memcpy(buff, mem, size);
     return buff;
 }
-EXTERN_ALIAS(malloc_copy);
 
 void free(void* mem) {
     if (memory_migrated(mem)) {
@@ -162,4 +156,3 @@ void free(void* mem) {
 
     slab_free(slab_mgr, mem);
 }
-EXTERN_ALIAS(free);

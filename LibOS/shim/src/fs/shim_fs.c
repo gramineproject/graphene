@@ -280,8 +280,6 @@ static int __mount_fs(struct shim_mount* mount, struct shim_dentry* dent) {
         assert(mount->d_ops && mount->d_ops->lookup);
         ret = mount->d_ops->lookup(mount_root);
         if (ret < 0) {
-            /* Try getting rid of ESKIPPED case */
-            assert(ret != -ESKIPPED);
             put_dentry(mount_root);
             return ret;
         }
