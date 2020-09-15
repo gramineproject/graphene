@@ -22,6 +22,9 @@ CFLAGS += -Wextra
 # Silence Clang - it complains but does support it.
 CFLAGS += -Wno-gnu-alignof-expression
 
+# XXX see https://github.com/oscarlab/graphene/issues/1794
+CFLAGS += -Wno-address-of-packed-member
+
 ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
 
 LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
