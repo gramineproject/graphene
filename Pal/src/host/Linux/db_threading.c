@@ -301,7 +301,7 @@ int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cp
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
-    return 0;
+    return ret;
 }
 
 struct handle_ops thread_ops = {

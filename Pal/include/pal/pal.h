@@ -544,7 +544,7 @@ DkThreadResume(PAL_HANDLE thread);
 
 PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask);
 
-PAL_BOL DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask);
+PAL_NUM DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask);
 
 /*
  * Exception Handling

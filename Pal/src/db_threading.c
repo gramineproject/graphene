@@ -97,7 +97,7 @@ PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
-PAL_BOL DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask) {
+PAL_NUM DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR cpu_mask) {
     ENTER_PAL_CALL(DkThreadGetCpuAffinity);
 
     int ret = _DkThreadGetCpuAffinity(thread, cpu_mask_size, cpu_mask);
@@ -107,5 +107,5 @@ PAL_BOL DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
+    LEAVE_PAL_CALL_RETURN(ret);
 }

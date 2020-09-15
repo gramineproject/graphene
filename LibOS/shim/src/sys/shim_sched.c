@@ -183,6 +183,7 @@ int shim_do_sched_setaffinity(pid_t pid, size_t cpusetsize, __kernel_cpu_set_t* 
 }
 
 int shim_do_sched_getaffinity(pid_t pid, size_t cpusetsize, __kernel_cpu_set_t* user_mask_ptr) {
+    int retval;
     PAL_HANDLE thread = NULL;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
@@ -202,11 +203,12 @@ int shim_do_sched_getaffinity(pid_t pid, size_t cpusetsize, __kernel_cpu_set_t* 
     if (bitmask_size_in_bytes < 0)
         return bitmask_size_in_bytes;
 
-    if (!DkThreadGetCpuAffinity(thread, bitmask_size_in_bytes, user_mask_ptr)) {
+    retval = (int)DkThreadGetCpuAffinity(thread, bitmask_size_in_bytes, user_mask_ptr);
+    if (retval < 0) {
         return -PAL_ERRNO();
     }
     /* on success, imitate Linux kernel implementation: see SYSCALL_DEFINE3(sched_getaffinity) */
-    return bitmask_size_in_bytes;
+    return retval;
 }
 
 /* dummy implementation: always return cpu0  */
