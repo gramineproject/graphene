@@ -110,16 +110,12 @@ CFLAGS-AttestationReport = -I../src/host/Linux-SGX
 	@true
 
 LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib)
-$(preloads): CFLAGS += -shared -fPIC
-$(preloads): LDLIBS = $(LDLIBS-preloads)
 $(preloads): %.so: %.c $(LDLIBS-preloads)
-	$(call cmd,csingle)
+	$(call cmd,csingle) -shared -fPIC $(LDLIBS-preloads)
 
 LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
-$(executables): CFLAGS += -no-pie
-$(executables): LDLIBS = $(LDLIBS-executables)
 $(executables): %: %.c $(LDLIBS-executables)
-	$(call cmd,csingle)
+	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
