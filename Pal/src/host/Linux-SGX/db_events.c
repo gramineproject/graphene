@@ -7,11 +7,11 @@
  * This file contains implementation of Drawbridge event synchronization APIs.
  */
 
-#include <atomic.h>
 #include <linux/futex.h>
 #include <linux/time.h>
 
 #include "api.h"
+#include "atomic.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_defs.h"
@@ -73,9 +73,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     if (timeout_us < 0)
         return _DkEventWait(event);
 
-    if (!event->event.isnotification ||
-        !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
-
+    if (!event->event.isnotification || !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
         __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
         do {
@@ -101,9 +99,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
 int _DkEventWait(PAL_HANDLE event) {
     int ret = 0;
 
-    if (!event->event.isnotification ||
-        !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
-
+    if (!event->event.isnotification || !__atomic_load_n(event->event.signaled, __ATOMIC_SEQ_CST)) {
         __atomic_add_fetch(&event->event.nwaiters.counter, 1, __ATOMIC_SEQ_CST);
 
         do {

@@ -26,9 +26,21 @@ extern bool g_verbose;
 extern endianness_t g_endianness;
 
 /* Print functions */
-#define DBG(fmt, ...)   do { if (g_verbose) dprintf(g_stdout_fd, fmt, ##__VA_ARGS__); } while (0)
-#define INFO(fmt, ...)  do { dprintf(g_stdout_fd, fmt, ##__VA_ARGS__); } while (0)
-#define ERROR(fmt, ...) do { dprintf(g_stderr_fd, "%s: " fmt, __FUNCTION__, ##__VA_ARGS__); } while (0)
+#define DBG(fmt, ...)                                 \
+    do {                                              \
+        if (g_verbose)                                \
+            dprintf(g_stdout_fd, fmt, ##__VA_ARGS__); \
+    } while (0)
+
+#define INFO(fmt, ...)                            \
+    do {                                          \
+        dprintf(g_stdout_fd, fmt, ##__VA_ARGS__); \
+    } while (0)
+
+#define ERROR(fmt, ...)                                                \
+    do {                                                               \
+        dprintf(g_stderr_fd, "%s: " fmt, __FUNCTION__, ##__VA_ARGS__); \
+    } while (0)
 
 /*! Set verbosity level */
 void set_verbose(bool verbose);
@@ -81,10 +93,5 @@ int parse_hex(const char* hex, void* buffer, size_t buffer_size);
 
 /*! abort */
 void __abort(void);
-
-/* For PAL's assert compatibility */
-#ifndef warn
-#define warn ERROR
-#endif
 
 #endif /* UTIL_H */

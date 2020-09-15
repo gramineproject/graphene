@@ -7,6 +7,8 @@
  * This file contains implementation of checkpoint and restore.
  */
 
+#include "shim_checkpoint.h"
+
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <stdarg.h>
@@ -15,8 +17,6 @@
 #include "list.h"
 #include "pal.h"
 #include "pal_error.h"
-
-#include "shim_checkpoint.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
@@ -25,9 +25,9 @@
 #include "shim_utils.h"
 #include "shim_vma.h"
 
-#define CP_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL)
+#define CP_MMAP_FLAGS    (MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL)
 #define CP_MAP_ENTRY_NUM 64
-#define CP_HASH_SIZE 256
+#define CP_HASH_SIZE     256
 
 DEFINE_LIST(cp_map_entry);
 struct cp_map_entry {
@@ -129,10 +129,10 @@ struct shim_cp_map_entry* get_cp_map_entry(void* _map, void* addr, bool create) 
 BEGIN_CP_FUNC(memory) {
     struct shim_mem_entry* entry = (void*)(base + ADD_CP_OFFSET(sizeof(*entry)));
 
-    entry->addr  = obj;
-    entry->size  = size;
-    entry->prot  = PAL_PROT_READ | PAL_PROT_WRITE;
-    entry->next  = store->first_mem_entry;
+    entry->addr = obj;
+    entry->size = size;
+    entry->prot = PAL_PROT_READ | PAL_PROT_WRITE;
+    entry->next = store->first_mem_entry;
 
     store->first_mem_entry = entry;
     store->mem_entries_cnt++;
@@ -147,10 +147,10 @@ BEGIN_CP_FUNC(palhdl) {
     size_t off = ADD_CP_OFFSET(sizeof(struct shim_palhdl_entry));
     struct shim_palhdl_entry* entry = (void*)(base + off);
 
-    entry->handle = (PAL_HANDLE) obj;
-    entry->uri = NULL;
+    entry->handle  = (PAL_HANDLE)obj;
+    entry->uri     = NULL;
     entry->phandle = NULL;
-    entry->prev = store->last_palhdl_entry;
+    entry->prev    = store->last_palhdl_entry;
 
     store->last_palhdl_entry = entry;
     store->palhdl_entries_cnt++;
@@ -526,8 +526,7 @@ static void* cp_alloc(void* addr, size_t size) {
         debug("extending checkpoint store: %p-%p (size = %lu)\n", addr, addr + size, size);
 
         if (bkeep_mmap_fixed(addr, size, PROT_READ | PROT_WRITE,
-                             CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE,
-                             NULL, 0, "cpstore") < 0)
+                             CP_MMAP_FLAGS | MAP_FIXED_NOREPLACE, NULL, 0, "cpstore") < 0)
             return NULL;
     } else {
         /* FIXME: It is unclear if the below strategy helps */
@@ -541,8 +540,8 @@ static void* cp_alloc(void* addr, size_t size) {
 
         debug("allocating checkpoint store (size = %ld, reserve = %ld)\n", size, reserve_size);
 
-        int ret = bkeep_mmap_any(size + reserve_size, PROT_READ | PROT_WRITE, CP_MMAP_FLAGS,
-                                 NULL, 0, "cpstore", &addr);
+        int ret = bkeep_mmap_any(size + reserve_size, PROT_READ | PROT_WRITE, CP_MMAP_FLAGS, NULL,
+                                 0, "cpstore", &addr);
         if (ret < 0) {
             return NULL;
         }
@@ -603,8 +602,8 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     /* allocate a space for dumping the checkpoint data */
     struct shim_cp_store cpstore;
     memset(&cpstore, 0, sizeof(cpstore));
-    cpstore.alloc    = cp_alloc;
-    cpstore.bound    = CP_INIT_VMA_SIZE;
+    cpstore.alloc = cp_alloc;
+    cpstore.bound = CP_INIT_VMA_SIZE;
 
     while (1) {
         /* try allocating checkpoint; if allocation fails, try with smaller sizes */
@@ -760,7 +759,7 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
 
     if (!base) {
         /* address used by parent process is occupied; allocate checkpoint anywhere */
-        ret = bkeep_mmap_any(ALLOC_ALIGN_UP(hdr->size), PROT_READ|PROT_WRITE, CP_MMAP_FLAGS, NULL,
+        ret = bkeep_mmap_any(ALLOC_ALIGN_UP(hdr->size), PROT_READ | PROT_WRITE, CP_MMAP_FLAGS, NULL,
                              0, "cpstore", &base);
         if (ret < 0) {
             return ret;
@@ -801,7 +800,7 @@ int receive_checkpoint_and_restore(struct checkpoint_hdr* hdr) {
     }
 
     migrated_memory_start = (void*)mapaddr;
-    migrated_memory_end = (void*)mapaddr + mapsize;
+    migrated_memory_end   = (void*)mapaddr + mapsize;
 
     ret = restore_checkpoint(hdr, (uintptr_t)base);
     if (ret < 0) {

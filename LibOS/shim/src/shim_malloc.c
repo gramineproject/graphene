@@ -12,12 +12,13 @@
  */
 
 #include <asm/mman.h>
-#include <pal.h>
-#include <pal_debug.h>
-#include <shim_checkpoint.h>
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_vma.h>
+
+#include "pal.h"
+#include "pal_debug.h"
+#include "shim_checkpoint.h"
+#include "shim_internal.h"
+#include "shim_utils.h"
+#include "shim_vma.h"
 
 static struct shim_lock slab_mgr_lock;
 
@@ -28,7 +29,7 @@ static struct shim_lock slab_mgr_lock;
 #define SLAB_CANARY
 #define STARTUP_SIZE 16
 
-#include <slabmgr.h>
+#include "slabmgr.h"
 
 static SLAB_MGR slab_mgr = NULL;
 
@@ -144,7 +145,6 @@ void* realloc(void* ptr, size_t new_size) {
 }
 EXTERN_ALIAS(realloc);
 #endif
-
 
 // Copies data from `mem` to a newly allocated buffer of a specified size.
 void* malloc_copy(const void* mem, size_t size) {

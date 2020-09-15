@@ -4,84 +4,79 @@
 #ifndef PAL_LINUX_H
 #define PAL_LINUX_H
 
+#include <asm/mman.h>
+#include <linux/mman.h>
+
 #include "api.h"
 #include "assert.h"
+#include "enclave_ocalls.h"
+#include "linux_types.h"
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
-
-#include "linux_types.h"
+#include "protected_files.h"
 #include "sgx_api.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
 #include "sgx_tls.h"
-
-#include "enclave_ocalls.h"
-#include "protected_files.h"
+#include "sysdep-arch.h"
 #include "uthash.h"
 
-#include <linux/mman.h>
-
-#include "sysdep-arch.h"
-
-#define IS_ERR INTERNAL_SYSCALL_ERROR
+#define IS_ERR   INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO INTERNAL_SYSCALL_ERRNO
-#define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
+#define ERRNO    INTERNAL_SYSCALL_ERRNO
+#define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
 
 extern struct pal_linux_state {
-    PAL_NUM         parent_process_id;
-    PAL_NUM         process_id;
+    PAL_NUM parent_process_id;
+    PAL_NUM process_id;
 
-    const char**    host_environ;
+    const char** host_environ;
 
     /* credentials */
-    unsigned int    uid, gid;
+    unsigned int uid, gid;
 
     /* currently enabled signals */
-    __sigset_t      sigset;
-    __sigset_t      blocked_signals;
+    __sigset_t sigset;
+    __sigset_t blocked_signals;
 
     /* enclave */
-    const char *    runtime_dir;
+    const char* runtime_dir;
 } g_linux_state;
-
-#include <asm/mman.h>
 
 #define DEFAULT_BACKLOG 2048
 
-#define ACCESS_R    4
-#define ACCESS_W    2
-#define ACCESS_X    1
+#define ACCESS_R 4
+#define ACCESS_W 2
+#define ACCESS_X 1
 
 struct stat;
-bool stataccess (struct stat * stats, int acc);
+bool stataccess(struct stat* stats, int acc);
 
 int init_child_process(PAL_HANDLE* parent);
 
 #ifdef IN_ENCLAVE
 
 struct pal_sec;
-noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len,
-                             char* uptr_args, size_t args_size,
-                             char* uptr_env, size_t env_size,
+noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char* uptr_args,
+                             size_t args_size, char* uptr_env, size_t env_size,
                              struct pal_sec* uptr_sec_info);
-void pal_start_thread (void);
+void pal_start_thread(void);
 
 struct link_map;
 void setup_pal_map(struct link_map* map);
 
 /* Locking and unlocking of Mutexes */
-int __DkMutexCreate (struct mutex_handle * mut);
-int _DkMutexAtomicCreate (struct mutex_handle * mut);
-int __DkMutexDestroy (struct mutex_handle * mut);
+int __DkMutexCreate(struct mutex_handle* mut);
+int _DkMutexAtomicCreate(struct mutex_handle* mut);
+int __DkMutexDestroy(struct mutex_handle* mut);
 int _DkMutexLock(struct mutex_handle* mut);
 int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
-int _DkMutexUnlock (struct mutex_handle * mut);
+int _DkMutexUnlock(struct mutex_handle* mut);
 
-int * get_futex (void);
-void free_futex (int * futex);
+int* get_futex(void);
+void free_futex(int* futex);
 
 extern char __text_start, __text_end, __data_start, __data_end;
 #define TEXT_START ((void*)(&__text_start))
@@ -89,8 +84,12 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START ((void*)(&__text_start))
 #define DATA_END   ((void*)(&__text_end))
 
-typedef struct { char bytes[32]; } sgx_checksum_t;
-typedef struct { char bytes[16]; } sgx_stub_t;
+typedef struct {
+    char bytes[32];
+} sgx_checksum_t;
+typedef struct {
+    char bytes[16];
+} sgx_stub_t;
 
 extern int g_xsave_enabled;
 extern uint64_t g_xsave_features;
@@ -103,11 +102,11 @@ void save_xregs(PAL_XREGS_STATE* xsave_area);
 void restore_xregs(const PAL_XREGS_STATE* xsave_area);
 noreturn void _restore_sgx_context(sgx_cpu_context_t* uc, PAL_XREGS_STATE* xsave_area);
 
-void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
+void _DkExceptionHandler(unsigned int exit_info, sgx_cpu_context_t* uc,
+                         PAL_XREGS_STATE* xregs_state);
 void _DkHandleExternalEvent(PAL_NUM event, sgx_cpu_context_t* uc, PAL_XREGS_STATE* xregs_state);
 
-
-int init_trusted_files (void);
+int init_trusted_files(void);
 void init_cpuid(void);
 
 bool is_tsc_usable(void);
@@ -134,17 +133,16 @@ enum {
     FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG,
 };
 
-int init_file_check_policy (void);
+int init_file_check_policy(void);
 
-int get_file_check_policy (void);
+int get_file_check_policy(void);
 
-int copy_and_verify_trusted_file (const char * path, const void * umem,
-                    uint64_t umem_start, uint64_t umem_end,
-                    void * buffer, uint64_t offset, uint64_t size,
-                    sgx_stub_t * stubs, uint64_t total_size);
+int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t umem_start,
+                                 uint64_t umem_end, void* buffer, uint64_t offset, uint64_t size,
+                                 sgx_stub_t* stubs, uint64_t total_size);
 
-int init_trusted_children (void);
-int register_trusted_child (const char * uri, const char * mr_enclave_str);
+int init_trusted_children(void);
+int register_trusted_child(const char* uri, const char* mr_enclave_str);
 
 int init_enclave(void);
 int init_enclave_key(void);
@@ -230,9 +228,9 @@ extern PAL_SESSION_KEY g_master_key;
 
 /* enclave state used for generating report */
 extern struct pal_enclave_state {
-    uint64_t        enclave_flags;      // Reserved for flags
-    uint64_t        enclave_id;         // Unique identifier for authentication
-    sgx_sign_data_t enclave_data;       // Reserved for signing other data
+    uint64_t        enclave_flags; // Reserved for flags
+    uint64_t        enclave_id;    // Unique identifier for authentication
+    sgx_sign_data_t enclave_data;  // Reserved for signing other data
 } __attribute__((packed)) g_pal_enclave_state;
 static_assert(sizeof(struct pal_enclave_state) == sizeof(sgx_report_data_t),
               "incorrect struct size");
@@ -242,7 +240,6 @@ static_assert(sizeof(struct pal_enclave_state) == sizeof(sgx_report_data_t),
  * @report: the buffer storing the report to verify
  */
 int sgx_verify_report(sgx_report_t* report);
-
 
 /*!
  * \brief Obtain a CPU-signed report for local attestation.
@@ -282,63 +279,68 @@ int _DkStreamSecureSave(LIB_SSL_CONTEXT* ssl_ctx, const uint8_t** obuf, size_t* 
 
 #include "sgx_arch.h"
 
-#define PAL_ENCLAVE_INITIALIZED     0x0001ULL
+#define PAL_ENCLAVE_INITIALIZED 0x0001ULL
 
-#include <hex.h>
+#include "hex.h"
 
 #else
 
 int sgx_create_process(const char* uri, int nargs, const char** args, int* stream_fd);
 
 #ifdef DEBUG
-# ifndef SIGCHLD
-#  define SIGCHLD  17
-# endif
+#ifndef SIGCHLD
+#define SIGCHLD 17
+#endif
 
-# define ARCH_VFORK()                                                       \
-    (g_pal_enclave.pal_sec.in_gdb ?                                         \
-     INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK|SIGCHLD, 0, NULL, NULL) :\
-     INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
+#define ARCH_VFORK()                                                                 \
+    (g_pal_enclave.pal_sec.in_gdb                                                    \
+         ? INLINE_SYSCALL(clone, 4, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, NULL, NULL) \
+         : INLINE_SYSCALL(clone, 4, CLONE_VM | CLONE_VFORK, 0, NULL, NULL))
 #else
-# define ARCH_VFORK()                                                       \
+#define ARCH_VFORK() \
     (INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
 #endif
 
 #endif /* IN_ENCLAVE */
 
-#define DBG_E   0x01
-#define DBG_I   0x02
-#define DBG_D   0x04
-#define DBG_S   0x08
-#define DBG_P   0x10
-#define DBG_M   0x20
+#define DBG_E 0x01
+#define DBG_I 0x02
+#define DBG_D 0x04
+#define DBG_S 0x08
+#define DBG_P 0x10
+#define DBG_M 0x20
 
 #ifdef DEBUG
-# define DBG_LEVEL (DBG_E|DBG_I|DBG_D|DBG_S)
+#define DBG_LEVEL (DBG_E | DBG_I | DBG_D | DBG_S)
 #else
-# define DBG_LEVEL (DBG_E)
+#define DBG_LEVEL DBG_E
 #endif
 
 #ifdef IN_ENCLAVE
 #undef uthash_fatal
-#define uthash_fatal(msg) \
-    do { \
-        __UNUSED(msg); \
+#define uthash_fatal(msg)                \
+    do {                                 \
+        __UNUSED(msg);                   \
         DkProcessExit(-PAL_ERROR_NOMEM); \
     } while (0)
 
-#define SGX_DBG(class, fmt...) \
-    do { if ((class) & DBG_LEVEL) printf(fmt); } while (0)
+#define SGX_DBG(class, fmt...)   \
+    do {                         \
+        if ((class) & DBG_LEVEL) \
+            printf(fmt);         \
+    } while (0)
 #else
-#include <pal_debug.h>
+#include "pal_debug.h"
 
-#define SGX_DBG(class, fmt...) \
-    do { if ((class) & DBG_LEVEL) pal_printf(fmt); } while (0)
+#define SGX_DBG(class, fmt...)   \
+    do {                         \
+        if ((class) & DBG_LEVEL) \
+            pal_printf(fmt);     \
+    } while (0)
 #endif
 
 #ifndef IN_ENCLAVE
-int clone(int (*__fn) (void* __arg), void* __child_stack,
-          int __flags, const void* __arg, ...);
+int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void* __arg, ...);
 #endif
 
 #endif /* PAL_LINUX_H */

@@ -14,7 +14,6 @@
 #include <stdint.h>
 
 #include "pal.h"
-
 #include "shim_defs.h"
 #include "shim_ipc.h"
 
@@ -58,7 +57,7 @@ struct shim_mem_entry {
     struct shim_mem_entry* next;
     void* addr;
     size_t size;
-    int prot;     /* combination of PAL_PROT_* flags */
+    int prot; /* combination of PAL_PROT_* flags */
 };
 
 struct shim_palhdl_entry {
@@ -278,7 +277,7 @@ struct shim_cp_map_entry* get_cp_map_entry(void* map, void* addr, bool create);
 
 #define BEGIN_MIGRATION_DEF(name, ...)                                  \
     int migrate_cp_##name(struct shim_cp_store* store, ##__VA_ARGS__) { \
-        int ret     = 0;                                                \
+        int ret = 0;                                                    \
         size_t base = store->base;
 
 #define END_MIGRATION_DEF(name)     \

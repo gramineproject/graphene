@@ -2,20 +2,18 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_debug.c
- *
- * This file contains codes for registering libraries to GDB.
+ * This file contains code for registering libraries to GDB.
  */
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_tcb.h>
-#include <shim_vma.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_tcb.h"
+#include "shim_vma.h"
 
 #ifndef DEBUG
 

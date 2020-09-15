@@ -52,7 +52,7 @@ static void seek_output_fd(const char* path) {
     seek_fd(path, f, -EXTEND_SIZE - 1, SEEK_CUR); // rewind to former end
     printf("seek(%s) output end 3 OK\n", path);
     read_fd(path, f, buf, EXTEND_SIZE + 1);
-    for (size_t i=0; i<EXTEND_SIZE + 1; i++) {
+    for (size_t i = 0; i < EXTEND_SIZE + 1; i++) {
         if (i == EXTEND_SIZE) {
             if (buf[i] != 1)
                 fatal_error("invalid last byte\n");
@@ -83,7 +83,7 @@ static void seek_output_stdio(const char* path) {
     seek_stdio(path, f, -EXTEND_SIZE - 1, SEEK_CUR); // rewind to former end
     printf("fseek(%s) output end 3 OK\n", path);
     read_stdio(path, f, buf, EXTEND_SIZE + 1);
-    for (size_t i=0; i<EXTEND_SIZE + 1; i++) {
+    for (size_t i = 0; i < EXTEND_SIZE + 1; i++) {
         if (i == EXTEND_SIZE) {
             if (buf[i] != 1)
                 fatal_error("invalid last byte\n");

@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_parser.c
- *
  * This file contains code for parsing system call arguments for debug purpose.
  */
 
@@ -24,7 +22,6 @@
 #include "api.h"
 #include "pal.h"
 #include "pal_error.h"
-
 #include "shim_internal.h"
 #include "shim_table.h"
 #include "shim_tcb.h"

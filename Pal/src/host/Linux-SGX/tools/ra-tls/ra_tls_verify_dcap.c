@@ -37,7 +37,7 @@ extern verify_measurements_cb_t g_verify_measurements_cb;
  * so we declare the used types and functions below */
 
 /* QL stands for Quoting Library; QV stands for Quote Verification */
-#define SGX_QL_QV_MK_ERROR(x) (0x0000A000|(x))
+#define SGX_QL_QV_MK_ERROR(x) (0x0000A000 | (x))
 typedef enum _sgx_ql_qv_result_t {
     /* quote verification passed and is at the latest TCB level */
     SGX_QL_QV_RESULT_OK = 0x0000,
@@ -70,7 +70,6 @@ int sgx_qv_verify_quote(const uint8_t* p_quote, uint32_t quote_size, void* p_quo
                         uint32_t* p_collateral_expiration_status,
                         sgx_ql_qv_result_t* p_quote_verification_result, void* p_qve_report_info,
                         uint32_t supplemental_data_size, uint8_t* p_supplemental_data);
-
 
 int ra_tls_verify_callback(void* data, mbedtls_x509_crt* crt, int depth, uint32_t* flags) {
     (void)data;

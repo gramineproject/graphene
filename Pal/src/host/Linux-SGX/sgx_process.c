@@ -12,25 +12,25 @@
  * at creation.
  */
 
-#include <pal_linux.h>
-#include <pal_rtld.h>
+#include <asm/errno.h>
+#include <asm/fcntl.h>
+#include <linux/fs.h>
+
+#include "pal_linux.h"
+#include "pal_rtld.h"
+#include "sgx_enclave.h"
 #include "sgx_internal.h"
 #include "sgx_tls.h"
-#include "sgx_enclave.h"
-
-#include <asm/fcntl.h>
-#include <asm/errno.h>
-#include <linux/fs.h>
 
 extern char* g_pal_loader_path;
 extern char* g_libpal_path;
 
 struct proc_args {
-    PAL_SEC_STR     exec_name;
-    unsigned int    instance_id;
-    unsigned int    parent_process_id;
-    int             stream_fd;
-    PAL_SEC_STR     pipe_prefix;
+    PAL_SEC_STR  exec_name;
+    unsigned int instance_id;
+    unsigned int parent_process_id;
+    int          stream_fd;
+    PAL_SEC_STR  pipe_prefix;
 };
 
 /*
@@ -57,7 +57,7 @@ static int __attribute_noinline vfork_exec(int parent_stream, const char** argv)
 
     /* shouldn't get to here */
     SGX_DBG(DBG_E, "unexpected failure of execve\n");
-    __asm__ volatile ("hlt");
+    __asm__ volatile("hlt");
     return 0;
 }
 
@@ -79,7 +79,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
     char parent_fd_str[16];
     snprintf(parent_fd_str, sizeof(parent_fd_str), "%u", fds[0]);
     argv[3] = parent_fd_str;
-    memcpy(argv + 4, args, sizeof(const char *) * nargs);
+    memcpy(argv + 4, args, sizeof(const char*) * nargs);
     argv[nargs + 4] = NULL;
 
     /* child's signal handler may mess with parent's memory during vfork(), so block signals */
@@ -105,7 +105,7 @@ int sgx_create_process(const char* uri, int nargs, const char** args, int* strea
 
     INLINE_SYSCALL(close, 1, fds[0]); /* child stream */
 
-    struct pal_sec * pal_sec = &g_pal_enclave.pal_sec;
+    struct pal_sec* pal_sec = &g_pal_enclave.pal_sec;
     struct proc_args proc_args;
     memcpy(proc_args.exec_name, uri, sizeof(PAL_SEC_STR));
     proc_args.instance_id       = pal_sec->instance_id;
@@ -163,9 +163,9 @@ int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec) {
         return ret;
 
     memcpy(pal_sec->exec_name, proc_args.exec_name, sizeof(PAL_SEC_STR));
-    pal_sec->instance_id   = proc_args.instance_id;
-    pal_sec->ppid          = proc_args.parent_process_id;
-    pal_sec->stream_fd     = proc_args.stream_fd;
+    pal_sec->instance_id = proc_args.instance_id;
+    pal_sec->ppid        = proc_args.parent_process_id;
+    pal_sec->stream_fd   = proc_args.stream_fd;
     memcpy(pal_sec->pipe_prefix, proc_args.pipe_prefix, sizeof(PAL_SEC_STR));
 
     return 1;

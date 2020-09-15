@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * fs.c
- *
- * This file contains codes for implementation of 'socket' filesystem.
+ * This file contains code for implementation of 'socket' filesystem.
  */
 
 #define __KERNEL__
@@ -18,7 +16,6 @@
 
 #include "pal.h"
 #include "pal_error.h"
-
 #include "shim_fs.h"
 #include "shim_internal.h"
 #include "shim_thread.h"
@@ -133,7 +130,7 @@ static int socket_checkout(struct shim_handle* hdl) {
 
 static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
     struct shim_sock_handle* sock = &hdl->info.sock;
-    off_t ret                     = 0;
+    off_t ret = 0;
 
     lock(&hdl->lock);
 

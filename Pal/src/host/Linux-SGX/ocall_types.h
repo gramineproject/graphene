@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
+
 #include "linux_types.h"
 #include "pal.h"
 #include "sgx_arch.h"
@@ -87,7 +88,7 @@ typedef struct {
 } ms_ocall_cpuid_t;
 
 typedef struct {
-    const char * ms_pathname;
+    const char* ms_pathname;
     int ms_flags;
     unsigned short ms_mode;
 } ms_ocall_open_t;
@@ -98,13 +99,13 @@ typedef struct {
 
 typedef struct {
     int ms_fd;
-    void * ms_buf;
+    void* ms_buf;
     unsigned int ms_count;
 } ms_ocall_read_t;
 
 typedef struct {
     int ms_fd;
-    const void * ms_buf;
+    const void* ms_buf;
     unsigned int ms_count;
 } ms_ocall_write_t;
 
@@ -151,22 +152,22 @@ typedef struct {
 } ms_ocall_ftruncate_t;
 
 typedef struct {
-    const char * ms_pathname;
+    const char* ms_pathname;
     unsigned short ms_mode;
 } ms_ocall_mkdir_t;
 
 typedef struct {
     int ms_fd;
-    struct linux_dirent64 * ms_dirp;
+    struct linux_dirent64* ms_dirp;
     size_t ms_size;
 } ms_ocall_getdents_t;
 
 typedef struct {
     unsigned int ms_pid;
-    const char * ms_uri;
+    const char* ms_uri;
     int ms_stream_fd;
     int ms_nargs;
-    const char * ms_args[];
+    const char* ms_args[];
 } ms_ocall_create_process_t;
 
 typedef struct {
@@ -257,12 +258,12 @@ typedef struct {
 } ms_ocall_poll_t;
 
 typedef struct {
-    const char * ms_oldpath;
-    const char * ms_newpath;
+    const char* ms_oldpath;
+    const char* ms_newpath;
 } ms_ocall_rename_t;
 
 typedef struct {
-    const char * ms_pathname;
+    const char* ms_pathname;
 } ms_ocall_delete_t;
 
 typedef struct {

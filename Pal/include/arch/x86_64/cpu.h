@@ -20,27 +20,26 @@ enum PAL_CPUID_WORD {
 #define INTEL_SGX_LEAF 0x12 /* Intel SGX Capabilities: CPUID Leaf 12H */
 
 static inline void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]) {
-    __asm__ ("cpuid"
-             : "=a" (words[PAL_CPUID_WORD_EAX]),
-               "=b" (words[PAL_CPUID_WORD_EBX]),
-               "=c" (words[PAL_CPUID_WORD_ECX]),
-               "=d" (words[PAL_CPUID_WORD_EDX])
-             : "a" (leaf),
-               "c" (subleaf));
+    __asm__("cpuid"
+            : "=a"(words[PAL_CPUID_WORD_EAX]),
+              "=b"(words[PAL_CPUID_WORD_EBX]),
+              "=c"(words[PAL_CPUID_WORD_ECX]),
+              "=d"(words[PAL_CPUID_WORD_EDX])
+            : "a"(leaf),
+              "c"(subleaf));
 }
-
 
 static inline uint64_t get_tsc(void) {
     unsigned long lo, hi;
-    __asm__ volatile("rdtsc" : "=a" (lo), "=d" (hi));
+    __asm__ volatile("rdtsc" : "=a"(lo), "=d"(hi));
     return lo | ((uint64_t)hi << 32);
 }
 
 #define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory")
 
 /* some non-Intel clones support out of order store; WMB() ceases to be a nop for these */
-# define MB()    __asm__ __volatile__ ("mfence" ::: "memory")
-# define RMB()   __asm__ __volatile__ ("lfence" ::: "memory")
-# define WMB()   __asm__ __volatile__ ("sfence" ::: "memory")
+#define MB()  __asm__ __volatile__("mfence" ::: "memory")
+#define RMB() __asm__ __volatile__("lfence" ::: "memory")
+#define WMB() __asm__ __volatile__("sfence" ::: "memory")
 
 #endif /* CPU_H */

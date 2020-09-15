@@ -3,7 +3,7 @@
 #include "pal_debug.h"
 
 #define NUM_TO_HEX(num) ((num) >= 10 ? 'a' + ((num) - 10) : '0' + (num))
-#define BUF_SIZE 40
+#define BUF_SIZE        40
 
 char buffer1[BUF_SIZE];
 char buffer2[BUF_SIZE];
@@ -14,8 +14,8 @@ static void print_hex(char* fmt, const void* data, int len) {
     hex_buf[len * 2] = '\0';
     for (int i = 0; i < len; i++) {
         unsigned char b = ((unsigned char*)data)[i];
-        hex_buf[i * 2]      = NUM_TO_HEX(b >> 4);
-        hex_buf[i * 2 + 1]  = NUM_TO_HEX(b & 0xf);
+        hex_buf[i * 2]     = NUM_TO_HEX(b >> 4);
+        hex_buf[i * 2 + 1] = NUM_TO_HEX(b & 0xf);
     }
     pal_printf(fmt, hex_buf);
 }
@@ -58,7 +58,8 @@ int main(int argc, char** argv, char** envp) {
 
         /* test file map */
 
-        void* mem1 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, PAGE_SIZE);
+        void* mem1 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 0,
+                                        PAGE_SIZE);
         if (mem1) {
             memcpy(buffer1, mem1, 40);
             print_hex("Map Test 1 (0th - 40th): %s\n", buffer1, 40);
@@ -105,15 +106,13 @@ int main(int argc, char** argv, char** envp) {
 
     /* test regular file creation */
 
-    PAL_HANDLE file4 =
-        DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
-                     PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
+    PAL_HANDLE file4 = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
+                                    PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
     if (file4)
         pal_printf("File Creation Test 1 OK\n");
 
-    PAL_HANDLE file5 =
-        DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
-                     PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
+    PAL_HANDLE file5 = DkStreamOpen("file:file_nonexist.tmp", PAL_ACCESS_RDWR,
+                                    PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
     if (file5) {
         DkObjectClose(file5);
     } else {
@@ -127,9 +126,8 @@ int main(int argc, char** argv, char** envp) {
         DkObjectClose(file6);
     }
 
-    file6 =
-        DkStreamOpen("file:file_nonexist_disallowed.tmp", PAL_ACCESS_RDWR,
-                     PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
+    file6 = DkStreamOpen("file:file_nonexist_disallowed.tmp", PAL_ACCESS_RDWR,
+                         PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
     if (!file6) {
         pal_printf("File Creation Test 4 OK\n");
     } else {

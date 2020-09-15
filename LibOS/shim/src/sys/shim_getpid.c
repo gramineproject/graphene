@@ -11,15 +11,16 @@
  */
 
 #include <errno.h>
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_checkpoint.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_thread.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_table.h"
+#include "shim_thread.h"
 
 pid_t shim_do_getpid(void) {
     struct shim_thread* cur = get_cur_thread();

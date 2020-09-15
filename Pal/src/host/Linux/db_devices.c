@@ -214,8 +214,8 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         return -PAL_ERROR_INVAL;
 
     struct handle_ops* ops = NULL;
-    char* dev_type         = NULL;
-    int ret                = 0;
+    char* dev_type = NULL;
+    int ret = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
 
@@ -351,8 +351,8 @@ static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* att
         return -PAL_ERROR_INVAL;
 
     struct handle_ops* ops = NULL;
-    char* dev_type         = NULL;
-    int ret                = 0;
+    char* dev_type = NULL;
+    int ret = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
 

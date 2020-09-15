@@ -10,16 +10,15 @@
 
 #include <stdbool.h>
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_debug.h"
-#include "pal_error.h"
-#include "pal_rtld.h"
 #include "api.h"
-
-#include <sysdeps/generic/ldsodefs.h>
-#include <elf/elf.h>
+#include "elf/elf.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_rtld.h"
+#include "sysdeps/generic/ldsodefs.h"
 
 PAL_CONTROL g_pal_control;
 
@@ -101,8 +100,7 @@ static int insert_envs_from_manifest(const char*** envpp) {
     int noverwrite = 0;
     for (const char** e = *envpp; *e; e++, nenvs++)
         for (int i = 0; i < setenvs_cnt; i++)
-            if (!memcmp(setenvs[i].str, *e, setenvs[i].len) &&
-                (*e)[setenvs[i].len] == '=') {
+            if (!memcmp(setenvs[i].str, *e, setenvs[i].len) && (*e)[setenvs[i].len] == '=') {
                 setenvs[i].idx = nenvs;
                 noverwrite++;
                 break;
@@ -143,8 +141,7 @@ static int insert_envs_from_manifest(const char*** envpp) {
     return 0;
 }
 
-static void set_debug_type (void)
-{
+static void set_debug_type(void) {
     char cfgbuf[CONFIG_MAX];
     ssize_t ret = 0;
 
@@ -164,9 +161,7 @@ static void set_debug_type (void)
         if (ret <= 0)
             INIT_FAIL(PAL_ERROR_INVAL, "debug file not specified");
 
-        ret = _DkStreamOpen(&handle, cfgbuf,
-                            PAL_ACCESS_RDWR,
-                            PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
+        ret = _DkStreamOpen(&handle, cfgbuf, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W,
                             PAL_CREATE_TRY, 0);
     } else if (!strcmp_static(cfgbuf, "none")) {
         ret = 0;
@@ -244,15 +239,14 @@ out_fail:
 }
 
 /* 'pal_main' must be called by the host-specific bootloader */
-noreturn void pal_main(
-        PAL_NUM    instance_id,      /* current instance id */
-        PAL_HANDLE manifest_handle,  /* manifest handle if opened */
-        PAL_HANDLE exec_handle,      /* executable handle if opened */
-        PAL_PTR    exec_loaded_addr, /* executable addr if loaded */
-        PAL_HANDLE parent_process,   /* parent process if it's a child */
-        PAL_HANDLE first_thread,     /* first thread handle */
-        PAL_STR*   arguments,        /* application arguments */
-        PAL_STR*   environments      /* environment variables */) {
+noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
+                       PAL_HANDLE manifest_handle, /* manifest handle if opened */
+                       PAL_HANDLE exec_handle,     /* executable handle if opened */
+                       PAL_PTR exec_loaded_addr,   /* executable addr if loaded */
+                       PAL_HANDLE parent_process,  /* parent process if it's a child */
+                       PAL_HANDLE first_thread,    /* first thread handle */
+                       PAL_STR* arguments,         /* application arguments */
+                       PAL_STR* environments       /* environment variables */) {
     char cfgbuf[CONFIG_MAX];
     g_pal_state.instance_id = instance_id;
     g_pal_state.alloc_align = _DkGetAllocationAlignment();
@@ -263,7 +257,8 @@ noreturn void pal_main(
     g_pal_state.parent_process = parent_process;
 
     char uri_buf[URI_MAX];
-    char * manifest_uri = NULL, * exec_uri = NULL;
+    char* manifest_uri = NULL;
+    char* exec_uri = NULL;
     ssize_t ret;
 
     if (exec_handle) {
@@ -296,8 +291,7 @@ noreturn void pal_main(
         if (ret) {
             /* try open "file:manifest" */
             manifest_uri = URI_PREFIX_FILE "manifest";
-            ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY,
-                                0, 0, 0);
+            ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
             if (ret) {
                 INIT_FAIL(PAL_ERROR_DENIED, "cannot find manifest file");
             }
@@ -311,22 +305,20 @@ noreturn void pal_main(
         if (ret < 0)
             INIT_FAIL(-ret, "cannot open manifest file");
 
-        void * cfg_addr = NULL;
+        void* cfg_addr = NULL;
         int cfg_size = attr.pending_size;
 
-        ret = _DkStreamMap(manifest_handle, &cfg_addr,
-                           PAL_PROT_READ, 0,
-                           ALLOC_ALIGN_UP(cfg_size));
+        ret = _DkStreamMap(manifest_handle, &cfg_addr, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(cfg_size));
         if (ret < 0)
             INIT_FAIL(-ret, "cannot open manifest file");
 
-        struct config_store * root_config = malloc(sizeof(struct config_store));
+        struct config_store* root_config = malloc(sizeof(struct config_store));
         root_config->raw_data = cfg_addr;
         root_config->raw_size = cfg_size;
-        root_config->malloc = malloc;
-        root_config->free = free;
+        root_config->malloc   = malloc;
+        root_config->free     = free;
 
-        const char * errstring = NULL;
+        const char* errstring = NULL;
         if ((ret = read_config(root_config, loader_filter, &errstring)) < 0) {
             INIT_FAIL(-ret, errstring);
         }
@@ -339,8 +331,7 @@ noreturn void pal_main(
         ret = get_config(g_pal_state.root_config, "loader.exec", uri_buf, URI_MAX);
         if (ret > 0) {
             exec_uri = malloc_copy(uri_buf, ret + 1);
-            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
-                                0, 0, 0);
+            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
             if (ret < 0)
                 INIT_FAIL(-ret, "cannot open executable");
         }
@@ -366,10 +357,9 @@ noreturn void pal_main(
             exec_uri = malloc(exec_strlen + 1);
             if (!exec_uri)
                 INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate URI buf");
-            memcpy (exec_uri, manifest_uri, exec_strlen);
+            memcpy(exec_uri, manifest_uri, exec_strlen);
             exec_uri[exec_strlen] = '\0';
-            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
-                                0, 0, 0);
+            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
             // DEP 3/20/17: There are cases where we want to let
             // the PAL start up without a main executable.  Don't
             // die here, just free the exec_uri buffer.
@@ -427,9 +417,10 @@ noreturn void pal_main(
         }
     }
 
-    if (get_config(g_pal_state.root_config, "loader.insecure__use_cmdline_argv",
-                   cfgbuf, CONFIG_MAX) > 0) {
-        printf("WARNING: Using insecure argv source. Don't use this configuration in production!\n");
+    if (get_config(g_pal_state.root_config, "loader.insecure__use_cmdline_argv", cfgbuf,
+                   CONFIG_MAX) > 0) {
+        printf("WARNING: Using insecure argv source. Don't use this configuration in "
+               "production!\n");
     } else if (get_config(g_pal_state.root_config, "loader.argv_src_file", cfgbuf, CONFIG_MAX)
                > 0) {
         /* Load argv from a file and discard cmdline argv. We trust the file contents (this can be
@@ -442,13 +433,14 @@ noreturn void pal_main(
         if (ret < 0)
             INIT_FAIL(-ret, "can't load loader.argv_src_file");
     } else if (!argv0_overridden || (arguments[0] && arguments[1])) {
-        INIT_FAIL(PAL_ERROR_INVAL, "argv handling wasn't configured in the manifest, but cmdline "
+        INIT_FAIL(PAL_ERROR_INVAL,
+                  "argv handling wasn't configured in the manifest, but cmdline "
                   "arguments were specified.");
     }
 
     bool using_host_env = false;
-    if (get_config(g_pal_state.root_config, "loader.insecure__use_host_env",
-                   cfgbuf, CONFIG_MAX) > 0) {
+    if (get_config(g_pal_state.root_config, "loader.insecure__use_host_env", cfgbuf, CONFIG_MAX)
+            > 0) {
         using_host_env = true;
         printf("WARNING: Forwarding host environment variables to the app is enabled. Don't use "
                "this configuration in production!\n");
@@ -494,19 +486,19 @@ noreturn void pal_main(
 
     set_debug_type();
 
-    g_pal_control.host_type          = XSTRINGIFY(HOST_TYPE);
-    g_pal_control.process_id         = _DkGetProcessId();
-    g_pal_control.host_id            = _DkGetHostId();
-    g_pal_control.manifest_handle    = manifest_handle;
-    g_pal_control.executable         = exec_uri;
-    g_pal_control.parent_process     = parent_process;
-    g_pal_control.first_thread       = first_thread;
-    g_pal_control.disable_aslr       = disable_aslr;
+    g_pal_control.host_type       = XSTRINGIFY(HOST_TYPE);
+    g_pal_control.process_id      = _DkGetProcessId();
+    g_pal_control.host_id         = _DkGetHostId();
+    g_pal_control.manifest_handle = manifest_handle;
+    g_pal_control.executable      = exec_uri;
+    g_pal_control.parent_process  = parent_process;
+    g_pal_control.first_thread    = first_thread;
+    g_pal_control.disable_aslr    = disable_aslr;
 
     _DkGetAvailableUserAddressRange(&g_pal_control.user_address.start,
                                     &g_pal_control.user_address.end);
 
-    g_pal_control.alloc_align        = g_pal_state.alloc_align;
+    g_pal_control.alloc_align = g_pal_state.alloc_align;
 
     if (_DkGetCPUInfo(&g_pal_control.cpu_info) < 0) {
         goto out_fail;
@@ -516,7 +508,7 @@ noreturn void pal_main(
     /* Now we will start the execution */
     start_execution(arguments, environments);
 
- out_fail:
+out_fail:
     /* We wish we will never reached here */
     INIT_FAIL(PAL_ERROR_DENIED, "unexpected termination");
 }

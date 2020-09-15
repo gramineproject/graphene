@@ -7,31 +7,29 @@
  * This file contains entry and exit functions of library OS.
  */
 
-#include <shim_context.h>
-#include <shim_defs.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_tcb.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
-#include <shim_checkpoint.h>
-#include <shim_fs.h>
-#include <shim_ipc.h>
-#include <shim_vdso.h>
+#include <asm/fcntl.h>
+#include <asm/unistd.h>
+#include <sys/mman.h>
 
 #include "hex.h"
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
-
-#include <sys/mman.h>
-#include <asm/unistd.h>
-#include <asm/fcntl.h>
+#include "shim_checkpoint.h"
+#include "shim_context.h"
+#include "shim_defs.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_table.h"
+#include "shim_tcb.h"
+#include "shim_thread.h"
+#include "shim_vdso.h"
+#include "shim_vma.h"
 
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
-              "shim_tcb_t does not fit into PAL_TCB; "
-              "please increase PAL_LIBOS_TCB_SIZE");
+              "shim_tcb_t does not fit into PAL_TCB; please increase PAL_LIBOS_TCB_SIZE");
 
 size_t g_pal_alloc_align;
 
@@ -41,12 +39,11 @@ size_t g_pal_alloc_align;
 
 const unsigned int glibc_version = GLIBC_VERSION;
 
-static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
+static void handle_failure(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(event);
     __UNUSED(context);
-    if ((arg <= PAL_ERROR_NATIVE_COUNT) || (arg >= PAL_ERROR_CRYPTO_START &&
-        arg <= PAL_ERROR_CRYPTO_END))
+    if ((arg <= PAL_ERROR_NATIVE_COUNT) ||
+            (arg >= PAL_ERROR_CRYPTO_START && arg <= PAL_ERROR_CRYPTO_END))
         shim_get_tcb()->pal_errno = arg;
     else
         shim_get_tcb()->pal_errno = PAL_ERROR_DENIED;
@@ -57,48 +54,45 @@ noreturn void __abort(void) {
     shim_clean_and_exit(-ENOTRECOVERABLE);
 }
 
-void warn (const char *format, ...)
-{
+void warn(const char* format, ...) {
     va_list args;
-    va_start (args, format);
+    va_start(args, format);
     __SYS_VPRINTF(format, args);
-    va_end (args);
+    va_end(args);
 }
 
-static int pal_errno_to_unix_errno [PAL_ERROR_NATIVE_COUNT + 1] = {
-        /* reserved                  */  0,
-        /* PAL_ERROR_NOTIMPLEMENTED  */  ENOSYS,
-        /* PAL_ERROR_NOTDEFINED      */  ENOSYS,
-        /* PAL_ERROR_NOTSUPPORT      */  EACCES,
-        /* PAL_ERROR_INVAL           */  EINVAL,
-        /* PAL_ERROR_TOOLONG         */  ENAMETOOLONG,
-        /* PAL_ERROR_DENIED          */  EACCES,
-        /* PAL_ERROR_BADHANDLE       */  EFAULT,
-        /* PAL_ERROR_STREAMEXIST     */  EEXIST,
-        /* PAL_ERROR_STREAMNOTEXIST  */  ENOENT,
-        /* PAL_ERROR_STREAMISFILE    */  ENOTDIR,
-        /* PAL_ERROR_STREAMISDIR     */  EISDIR,
-        /* PAL_ERROR_STREAMISDEVICE  */  ESPIPE,
-        /* PAL_ERROR_INTERRUPTED     */  EINTR,
-        /* PAL_ERROR_OVERFLOW        */  EFAULT,
-        /* PAL_ERROR_BADADDR         */  EFAULT,
-        /* PAL_ERROR_NOMEM           */  ENOMEM,
-        /* PAL_ERROR_NOTKILLABLE     */  EACCES,
-        /* PAL_ERROR_INCONSIST       */  EFAULT,
-        /* PAL_ERROR_TRYAGAIN        */  EAGAIN,
-        /* PAL_ERROR_ENDOFSTREAM     */  0,
-        /* PAL_ERROR_NOTSERVER       */  EINVAL,
-        /* PAL_ERROR_NOTCONNECTION   */  ENOTCONN,
-        /* PAL_ERROR_CONNFAILED      */  ECONNRESET,
-        /* PAL_ERROR_ADDRNOTEXIST    */  EADDRNOTAVAIL,
-        /* PAL_ERROR_AFNOSUPPORT     */  EAFNOSUPPORT,
-        /* PAL_ERROR_CONNFAILED_PIPE */  EPIPE,
-    };
+static int pal_errno_to_unix_errno[PAL_ERROR_NATIVE_COUNT + 1] = {
+    [0]                         = 0,
+    [PAL_ERROR_NOTIMPLEMENTED]  = ENOSYS,
+    [PAL_ERROR_NOTDEFINED]      = ENOSYS,
+    [PAL_ERROR_NOTSUPPORT]      = EACCES,
+    [PAL_ERROR_INVAL]           = EINVAL,
+    [PAL_ERROR_TOOLONG]         = ENAMETOOLONG,
+    [PAL_ERROR_DENIED]          = EACCES,
+    [PAL_ERROR_BADHANDLE]       = EFAULT,
+    [PAL_ERROR_STREAMEXIST]     = EEXIST,
+    [PAL_ERROR_STREAMNOTEXIST]  = ENOENT,
+    [PAL_ERROR_STREAMISFILE]    = ENOTDIR,
+    [PAL_ERROR_STREAMISDIR]     = EISDIR,
+    [PAL_ERROR_STREAMISDEVICE]  = ESPIPE,
+    [PAL_ERROR_INTERRUPTED]     = EINTR,
+    [PAL_ERROR_OVERFLOW]        = EFAULT,
+    [PAL_ERROR_BADADDR]         = EFAULT,
+    [PAL_ERROR_NOMEM]           = ENOMEM,
+    [PAL_ERROR_NOTKILLABLE]     = EACCES,
+    [PAL_ERROR_INCONSIST]       = EFAULT,
+    [PAL_ERROR_TRYAGAIN]        = EAGAIN,
+    [PAL_ERROR_ENDOFSTREAM]     = 0,
+    [PAL_ERROR_NOTSERVER]       = EINVAL,
+    [PAL_ERROR_NOTCONNECTION]   = ENOTCONN,
+    [PAL_ERROR_CONNFAILED]      = ECONNRESET,
+    [PAL_ERROR_ADDRNOTEXIST]    = EADDRNOTAVAIL,
+    [PAL_ERROR_AFNOSUPPORT]     = EAFNOSUPPORT,
+    [PAL_ERROR_CONNFAILED_PIPE] = EPIPE,
+};
 
-long convert_pal_errno (long err)
-{
-    return (err >= 0 && err <= PAL_ERROR_NATIVE_COUNT) ?
-           pal_errno_to_unix_errno[err] : EACCES;
+long convert_pal_errno(long err) {
+    return (err >= 0 && err <= PAL_ERROR_NATIVE_COUNT) ? pal_errno_to_unix_errno[err] : EACCES;
 }
 
 /*!
@@ -150,8 +144,8 @@ unsigned long parse_int (const char * str)
     return num;
 }
 
-void * migrated_memory_start;
-void * migrated_memory_end;
+void* migrated_memory_start;
+void* migrated_memory_end;
 
 const char** migrated_argv __attribute_migratable;
 const char** migrated_envp __attribute_migratable;
@@ -160,7 +154,7 @@ const char** migrated_envp __attribute_migratable;
  * initialization and is used in __load_interp_object() to search for ELF
  * program interpreter in specific paths. Once allocated, its memory is
  * never freed or updated. */
-char ** library_paths = NULL;
+char** library_paths = NULL;
 
 struct shim_lock __master_lock;
 bool lock_enabled;
@@ -216,15 +210,19 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
     void* stack_low_addr  = stack;
     void* stack_high_addr = stack + stack_size;
 
-#define ALLOCATE_FROM_HIGH_ADDR(size)                    \
-    ({ if ((stack_high_addr -= (size)) < stack_low_addr) \
-           return -ENOMEM;                               \
-       stack_high_addr; })
+#define ALLOCATE_FROM_HIGH_ADDR(size)                     \
+    ({                                                    \
+        if ((stack_high_addr -= (size)) < stack_low_addr) \
+            return -ENOMEM;                               \
+        stack_high_addr;                                  \
+    })
 
-#define ALLOCATE_FROM_LOW_ADDR(size)                     \
-    ({ if ((stack_low_addr += (size)) > stack_high_addr) \
-           return -ENOMEM;                               \
-       stack_low_addr - (size); })
+#define ALLOCATE_FROM_LOW_ADDR(size)                      \
+    ({                                                    \
+        if ((stack_low_addr += (size)) > stack_high_addr) \
+            return -ENOMEM;                               \
+        stack_low_addr - (size);                          \
+    })
 
     /* create stack layout as follows for ld.so:
      *
@@ -348,8 +346,8 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
         return -ENOMEM;
 
     /* if there are argv/envp inherited from parent, use them */
-    argv = migrated_argv ? : argv;
-    envp = migrated_envp ? : envp;
+    argv = migrated_argv ?: argv;
+    envp = migrated_envp ?: envp;
 
     int ret = populate_stack(stack, stack_size, argv, envp, out_argp, out_auxv);
     if (ret < 0)
@@ -362,26 +360,25 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
 }
 
 static int read_environs(const char** envp) {
-    for (const char ** e = envp ; *e ; e++) {
+    for (const char** e = envp; *e; e++) {
         if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {
             /* populate library_paths with entries from LD_LIBRARY_PATH envvar */
-            const char * s = *e + static_strlen("LD_LIBRARY_PATH=");
-            size_t npaths = 2; // One for the first entry, one for the last
-                               // NULL.
-            for (const char * tmp = s ; *tmp ; tmp++)
+            const char* s = *e + static_strlen("LD_LIBRARY_PATH=");
+            size_t npaths = 2; // One for the first entry, one for the last NULL.
+            for (const char* tmp = s; *tmp; tmp++)
                 if (*tmp == ':')
                     npaths++;
-            char** paths = malloc(sizeof(const char *) *
-                                  npaths);
+            char** paths = malloc(sizeof(const char*) * npaths);
             if (!paths)
                 return -ENOMEM;
 
             size_t cnt = 0;
             while (*s) {
-                const char * next;
-                for (next = s ; *next && *next != ':' ; next++);
+                const char* next;
+                for (next = s; *next && *next != ':'; next++)
+                    ;
                 size_t len = next - s;
-                char * str = malloc(len + 1);
+                char* str = malloc(len + 1);
                 if (!str) {
                     for (size_t i = 0; i < cnt; i++)
                         free(paths[i]);
@@ -405,19 +402,17 @@ static int read_environs(const char** envp) {
     return 0;
 }
 
-struct config_store * root_config = NULL;
+struct config_store* root_config = NULL;
 
-static void * __malloc (size_t size)
-{
+static void* __malloc(size_t size) {
     return malloc(size);
 }
 
-static void __free (void * mem)
-{
+static void __free(void* mem) {
     free(mem);
 }
 
-int init_manifest (PAL_HANDLE manifest_handle) {
+int init_manifest(PAL_HANDLE manifest_handle) {
     int ret = 0;
     void* addr = NULL;
     size_t size = 0, map_size = 0;
@@ -458,10 +453,10 @@ int init_manifest (PAL_HANDLE manifest_handle) {
 
     new_root_config->raw_data = addr;
     new_root_config->raw_size = size;
-    new_root_config->malloc = __malloc;
-    new_root_config->free = __free;
+    new_root_config->malloc   = __malloc;
+    new_root_config->free     = __free;
 
-    const char * errstring = "Unexpected error";
+    const char* errstring = "Unexpected error";
 
     if ((ret = read_config(new_root_config, NULL, &errstring)) < 0) {
         SYS_PRINTF("Unable to read manifest file: %s\n", errstring);
@@ -487,22 +482,22 @@ fail:
     return ret;
 }
 
-#define CALL_INIT(func, args ...)   func(args)
+#define CALL_INIT(func, args...) func(args)
 
-#define RUN_INIT(func, ...)                                             \
-    do {                                                                \
-        int _err = CALL_INIT(func, ##__VA_ARGS__);                      \
-        if (_err < 0) {                                                 \
-            SYS_PRINTF("shim_init() in " #func " (%d)\n", _err);        \
-            DkProcessExit(_err);                                        \
-        }                                                               \
+#define RUN_INIT(func, ...)                                      \
+    do {                                                         \
+        int _err = CALL_INIT(func, ##__VA_ARGS__);               \
+        if (_err < 0) {                                          \
+            SYS_PRINTF("shim_init() in " #func " (%d)\n", _err); \
+            DkProcessExit(_err);                                 \
+        }                                                        \
     } while (0)
 
 extern PAL_HANDLE thread_start_event;
 
 noreturn void* shim_init(int argc, void* args) {
     debug_handle = PAL_CB(debug_stream);
-    cur_process.vmid = (IDTYPE) PAL_CB(process_id);
+    cur_process.vmid = (IDTYPE)PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
@@ -598,8 +593,8 @@ noreturn void* shim_init(int argc, void* args) {
     if (thread_start_event)
         DkEventSet(thread_start_event);
 
-    shim_tcb_t * cur_tcb = shim_get_tcb();
-    struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
+    shim_tcb_t* cur_tcb = shim_get_tcb();
+    struct shim_thread* cur_thread = (struct shim_thread*)cur_tcb->tp;
 
     if (cur_tcb->context.regs && shim_context_get_sp(&cur_tcb->context)) {
         vdso_map_migrate();
@@ -611,13 +606,9 @@ noreturn void* shim_init(int argc, void* args) {
     shim_do_exit(0);
 }
 
-static int create_unique (int (*mkname) (char *, size_t, void *),
-                          int (*create) (const char *, void *),
-                          int (*output) (char *, size_t, const void *,
-                                         struct shim_qstr *),
-                          char * name, size_t size, void * id, void * obj,
-                          struct shim_qstr * qstr)
-{
+static int create_unique(int (*mkname)(char*, size_t, void*), int (*create)(const char*, void*),
+                         int (*output)(char*, size_t, const void*, struct shim_qstr*), char* name,
+                         size_t size, void* id, void* obj, struct shim_qstr* qstr) {
     int ret, len;
     while (1) {
         len = mkname(name, size, id);
@@ -636,7 +627,7 @@ static int create_unique (int (*mkname) (char *, size_t, void *),
 }
 
 static int get_256b_random_hex_string(char* buf, size_t size) {
-    char random[32];  /* 256-bit random value, sufficiently crypto secure */
+    char random[32]; /* 256-bit random value, sufficiently crypto secure */
 
     if (size < sizeof(random) * 2 + 1)
         return -ENOMEM;
@@ -717,8 +708,7 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
     return ret;
 }
 
-static int name_path (char * path, size_t size, void * id)
-{
+static int name_path(char* path, size_t size, void* id) {
     unsigned int suffix;
     int prefix_len = strlen(path);
     size_t len;
@@ -728,13 +718,12 @@ static int name_path (char * path, size_t size, void * id)
     len = snprintf(path + prefix_len, size - prefix_len, "%08x", suffix);
     if (len == size)
         return -ERANGE;
-    *((unsigned int *) id) = suffix;
+    *((unsigned int*)id) = suffix;
     return prefix_len + len;
 }
 
-static int open_dir (const char * path, void * obj)
-{
-    struct shim_handle * dir = NULL;
+static int open_dir(const char* path, void* obj) {
+    struct shim_handle* dir = NULL;
 
     if (obj) {
         dir = get_new_handle();
@@ -742,19 +731,17 @@ static int open_dir (const char * path, void * obj)
             return -ENOMEM;
     }
 
-    int ret = open_namei(dir, NULL, path, O_CREAT|O_EXCL|O_DIRECTORY, 0700,
-                         NULL);
+    int ret = open_namei(dir, NULL, path, O_CREAT | O_EXCL | O_DIRECTORY, 0700, NULL);
     if (ret < 0)
         return ret = -EEXIST ? 1 : ret;
     if (obj)
-        *((struct shim_handle **) obj) = dir;
+        *((struct shim_handle**)obj) = dir;
 
     return 0;
 }
 
-static int open_file (const char * path, void * obj)
-{
-    struct shim_handle * file = NULL;
+static int open_file(const char* path, void* obj) {
+    struct shim_handle* file = NULL;
 
     if (obj) {
         file = get_new_handle();
@@ -762,31 +749,24 @@ static int open_file (const char * path, void * obj)
             return -ENOMEM;
     }
 
-    int ret = open_namei(file, NULL, path, O_CREAT|O_EXCL|O_RDWR, 0600,
-                         NULL);
+    int ret = open_namei(file, NULL, path, O_CREAT | O_EXCL | O_RDWR, 0600, NULL);
     if (ret < 0)
         return ret = -EEXIST ? 1 : ret;
     if (obj)
-        *((struct shim_handle **) obj) = file;
+        *((struct shim_handle**)obj) = file;
 
     return 0;
 }
 
-static int open_pal_handle (const char * uri, void * obj)
-{
+static int open_pal_handle(const char* uri, void* obj) {
     PAL_HANDLE hdl;
 
     if (strstartswith_static(uri, URI_PREFIX_DEV))
-        hdl = DkStreamOpen(uri, 0,
-                           PAL_SHARE_OWNER_X|PAL_SHARE_OWNER_W|
-                           PAL_SHARE_OWNER_R,
-                           PAL_CREATE_TRY|PAL_CREATE_ALWAYS,
-                           0);
+        hdl = DkStreamOpen(uri, 0, PAL_SHARE_OWNER_X | PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
+                           PAL_CREATE_TRY | PAL_CREATE_ALWAYS, 0);
     else
-        hdl = DkStreamOpen(uri, PAL_ACCESS_RDWR,
-                           PAL_SHARE_OWNER_W|PAL_SHARE_OWNER_R,
-                           PAL_CREATE_TRY|PAL_CREATE_ALWAYS,
-                           0);
+        hdl = DkStreamOpen(uri, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
+                           PAL_CREATE_TRY | PAL_CREATE_ALWAYS, 0);
 
     if (!hdl) {
         if (PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST)
@@ -796,7 +776,7 @@ static int open_pal_handle (const char * uri, void * obj)
     }
 
     if (obj) {
-        *((PAL_HANDLE *) obj) = hdl;
+        *((PAL_HANDLE*)obj) = hdl;
     } else {
         DkObjectClose(hdl);
     }
@@ -804,9 +784,7 @@ static int open_pal_handle (const char * uri, void * obj)
     return 0;
 }
 
-static int output_path (char * path, size_t size, const void * id,
-                        struct shim_qstr * qstr)
-{
+static int output_path(char* path, size_t size, const void* id, struct shim_qstr* qstr) {
     size_t len = strlen(path);
     // API compatibility
     __UNUSED(size);
@@ -817,9 +795,7 @@ static int output_path (char * path, size_t size, const void * id,
     return len;
 }
 
-int create_dir (const char * prefix, char * path, size_t size,
-                struct shim_handle ** hdl)
-{
+int create_dir(const char* prefix, char* path, size_t size, struct shim_handle** hdl) {
     unsigned int suffix;
 
     if (prefix) {
@@ -829,13 +805,10 @@ int create_dir (const char * prefix, char * path, size_t size,
         memcpy(path, prefix, len + 1);
     }
 
-    return create_unique(&name_path, &open_dir, &output_path, path, size,
-                         &suffix, hdl, NULL);
+    return create_unique(&name_path, &open_dir, &output_path, path, size, &suffix, hdl, NULL);
 }
 
-int create_file (const char * prefix, char * path, size_t size,
-                 struct shim_handle ** hdl)
-{
+int create_file(const char* prefix, char* path, size_t size, struct shim_handle** hdl) {
     unsigned int suffix;
 
     if (prefix) {
@@ -845,13 +818,10 @@ int create_file (const char * prefix, char * path, size_t size,
         memcpy(path, prefix, len + 1);
     }
 
-    return create_unique(&name_path, &open_file, &output_path, path, size,
-                         &suffix, hdl, NULL);
+    return create_unique(&name_path, &open_file, &output_path, path, size, &suffix, hdl, NULL);
 }
 
-int create_handle (const char * prefix, char * uri, size_t size,
-                   PAL_HANDLE * hdl, unsigned int * id)
-{
+int create_handle(const char* prefix, char* uri, size_t size, PAL_HANDLE* hdl, unsigned int* id) {
     unsigned int suffix;
 
     if (prefix) {
@@ -861,8 +831,8 @@ int create_handle (const char * prefix, char * uri, size_t size,
         memcpy(uri, prefix, len + 1);
     }
 
-    return create_unique(&name_path, &open_pal_handle, &output_path, uri, size,
-                         id ? : &suffix, hdl, NULL);
+    return create_unique(&name_path, &open_pal_handle, &output_path, uri, size, id ?: &suffix, hdl,
+                         NULL);
 }
 
 noreturn void shim_clean_and_exit(int exit_code) {
@@ -877,7 +847,7 @@ noreturn void shim_clean_and_exit(int exit_code) {
     store_all_msg_persist();
     del_all_ipc_ports();
 
-    if (shim_stdio && shim_stdio != (PAL_HANDLE) -1)
+    if (shim_stdio && shim_stdio != (PAL_HANDLE)-1)
         DkObjectClose(shim_stdio);
 
     shim_stdio = NULL;
@@ -892,16 +862,16 @@ noreturn void shim_clean_and_exit(int exit_code) {
     DkProcessExit(cur_process.exit_code);
 }
 
-int message_confirm (const char * message, const char * options)
-{
+int message_confirm(const char* message, const char* options) {
     char answer;
     int noptions = strlen(options);
-    char * option_str = __alloca(noptions * 2 + 3), * str = option_str;
+    char* option_str = __alloca(noptions * 2 + 3);
+    char* str = option_str;
     int ret = 0;
 
     *(str++) = ' ';
     *(str++) = '[';
-    for (int i = 0 ; i < noptions ; i++) {
+    for (int i = 0; i < noptions; i++) {
         *(str++) = options[i];
         *(str++) = '/';
     }

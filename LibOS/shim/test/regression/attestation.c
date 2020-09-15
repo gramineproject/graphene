@@ -140,7 +140,7 @@ static int verify_report_mac(sgx_report_t* report) {
     memcpy(&key_request.key_id, &report->key_id, sizeof(key_request.key_id));
 
     /* retrieve key via EGETKEY instruction leaf */
-    __sgx_mem_aligned uint8_t key[128/8];
+    __sgx_mem_aligned uint8_t key[128 / 8];
     memset(key, 0, sizeof(key));
     sgx_getkey(&key_request, (sgx_key_128bit_t*)key);
 
@@ -303,8 +303,8 @@ static int test_quote_interface(void) {
 
     /* 3. verify report data read from `quote` */
     if (bytes < sizeof(sgx_quote_t)) {
-        fprintf(stderr, "obtained SGX quote is too small: %ldB (must be at least %ldB)\n",
-                bytes, sizeof(sgx_quote_t));
+        fprintf(stderr, "obtained SGX quote is too small: %ldB (must be at least %ldB)\n", bytes,
+                sizeof(sgx_quote_t));
         return FAILURE;
     }
 

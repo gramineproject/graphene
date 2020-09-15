@@ -7,8 +7,11 @@
  * there are two workarounds to solve this: 1) load libsgx_urts.so or 2) create
  * dummy functions and always return failure. In this example we use 2).
  */
-#define DUMMY_FUNCTION(f)       __attribute__ ((visibility ("default"))) int f(void);   \
-                                int f(void) {return /*SGX_ERROR_UNEXPECTED*/1;}
+#define DUMMY_FUNCTION(f)                               \
+    __attribute__((visibility("default"))) int f(void); \
+    int f(void) {                                       \
+        return /*SGX_ERROR_UNEXPECTED*/ 1;              \
+    }
 
 /* Provide these dummies since we are not using libsgx_urts.so. */
 DUMMY_FUNCTION(sgx_create_enclave)
@@ -20,4 +23,3 @@ DUMMY_FUNCTION(sgx_thread_set_untrusted_event_ocall)
 DUMMY_FUNCTION(sgx_thread_setwait_untrusted_events_ocall)
 DUMMY_FUNCTION(sgx_thread_set_multiple_untrusted_events_ocall)
 DUMMY_FUNCTION(sgx_thread_wait_untrusted_event_ocall)
-

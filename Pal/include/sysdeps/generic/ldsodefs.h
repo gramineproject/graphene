@@ -20,12 +20,11 @@
 #ifndef _LDSODEFS_H
 #define _LDSODEFS_H 1
 
-#include <stdbool.h>
-#define __need_size_t
-#define __need_NULL
-#include <elf/elf.h>
-#include <stddef.h>
 #include <sys/mman.h>
+
+#include "elf/elf.h"
+#include "stdbool.h"
+#include "stddef.h"
 
 /* We use this macro to refer to ELF types independent of the native wordsize.
    `ElfW(TYPE)' is used in place of `Elf32_TYPE' or `Elf64_TYPE'.  */

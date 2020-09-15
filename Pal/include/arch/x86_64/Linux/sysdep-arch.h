@@ -7,7 +7,8 @@
 #define _LINUX_X86_64_SYSDEP_ARCH_H 1
 
 #include <syscall.h>
-#include <sysdeps/generic/sysdep.h>
+
+#include "sysdeps/generic/sysdep.h"
 
 /* For Linux we can use the system call table in the header file
     /usr/include/asm/unistd.h

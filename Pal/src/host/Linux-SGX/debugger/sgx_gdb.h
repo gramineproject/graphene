@@ -20,5 +20,5 @@ struct __attribute__((aligned(__alignof__(uint64_t)))) enclave_dbginfo {
     void* eresume;
     int thread_tids[MAX_DBG_THREADS];
     void* tcs_addrs[MAX_DBG_THREADS];
-    uint64_t thread_stepping[MAX_DBG_THREADS/64]; /* bit vector */
+    uint64_t thread_stepping[MAX_DBG_THREADS / 64]; /* bit vector */
 };

@@ -16,14 +16,14 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 /* The kernel would look up the parent directory, and remove the child from the inode. But we are
  * working with the PAL, so we open the file, truncate and close it. */
@@ -323,8 +323,8 @@ int shim_do_fchown(int fd, uid_t uid, gid_t gid) {
     return 0;
 }
 
-#define MAP_SIZE (g_pal_alloc_align * 256)  /* mmap/memcpy in 1MB chunks for sendfile() */
-#define BUF_SIZE 2048                       /* read/write in 2KB chunks for sendfile() */
+#define MAP_SIZE (g_pal_alloc_align * 256) /* mmap/memcpy in 1MB chunks for sendfile() */
+#define BUF_SIZE 2048                      /* read/write in 2KB chunks for sendfile() */
 
 /* TODO: The below implementation needs to be refactored: (1) remove offseto, it is always zero;
  *       (2) simplify handling of non-blocking handles, (3) instead of relying on PAL to mmap

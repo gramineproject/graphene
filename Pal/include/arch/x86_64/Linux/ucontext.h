@@ -19,15 +19,16 @@
 #ifndef _LINUX_X86_64_UCONTEXT_H
 #define _LINUX_X86_64_UCONTEXT_H 1
 
-#include <assert.h>
 #include <bits/wordsize.h>
 #include <stdint.h>
 
 /* We need the signal context definitions even if they are not used
    included in <signal.h>.  */
-#include <sigcontext.h>
+#include "sigcontext.h"
 
-#include "pal-arch.h"
+#include "api.h"
+#include "assert.h"
+#include "pal.h"
 
 #if __WORDSIZE == 64
 
@@ -156,9 +157,9 @@ static inline uint64_t pal_ucontext_get_ip(ucontext_t* uc) {
     return uc->uc_mcontext.gregs[REG_RIP];
 }
 
-static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* func,
-                                                        size_t count, ...) {
-    const unsigned int param_regs[] = { REG_RDI, REG_RSI, REG_RDX, REG_RCX };
+static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* func, size_t count,
+                                                        ...) {
+    const unsigned int param_regs[] = {REG_RDI, REG_RSI, REG_RDX, REG_RCX};
     va_list ap;
 
     assert(count <= ARRAY_SIZE(param_regs));

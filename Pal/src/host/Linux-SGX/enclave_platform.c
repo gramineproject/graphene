@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2019, Texas A&M University */
 
-#include <pal_internal.h>
-#include <pal_linux.h>
-#include <pal_linux_error.h>
-#include <pal_security.h>
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_error.h"
+#include "pal_security.h"
 
 int sgx_get_quote(const sgx_spid_t* spid, const sgx_quote_nonce_t* nonce,
-                  const sgx_report_data_t* report_data, bool linkable,
-                  char** quote, size_t* quote_len) {
+                  const sgx_report_data_t* report_data, bool linkable, char** quote,
+                  size_t* quote_len) {
     /* must align all arguments to sgx_report() so that EREPORT doesn't complain */
     __sgx_mem_aligned sgx_report_t report;
     __sgx_mem_aligned sgx_target_info_t targetinfo = g_pal_sec.qe_targetinfo;
@@ -26,4 +26,4 @@ int sgx_get_quote(const sgx_spid_t* spid, const sgx_quote_nonce_t* nonce,
         return unix_to_pal_error(ERRNO(ret));
     }
     return 0;
- }
+}

@@ -2,28 +2,28 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_signal.c
- *
- * This file contains codes to handle signals and exceptions passed from PAL.
+ * This file contains code for handling signals and exceptions passed from PAL.
  */
 
-#include <stdnoreturn.h>
-
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
-#include <shim_checkpoint.h>
-#include <shim_signal.h>
-#include <shim_ucontext-arch.h>
-#include <shim_unistd.h>
-
-#include <cpu.h>
-#include <pal.h>
+#include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.
+                     * We must include it ourselves before including linux/signal.h.
+                     */
 
 #include <asm/signal.h>
+#include <stdnoreturn.h>
+
+#include "cpu.h"
+#include "pal.h"
+#include "shim_checkpoint.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_signal.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_ucontext-arch.h"
+#include "shim_unistd.h"
+#include "shim_utils.h"
+#include "shim_vma.h"
 
 // __rt_sighandler_t is different from __sighandler_t in <asm-generic/signal-defs.h>:
 //    typedef void __signalfn_t(int);
@@ -33,8 +33,8 @@ typedef void (*__rt_sighandler_t)(int, siginfo_t*, void*);
 
 void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
     sig_action->k_sa_handler = (void*)SIG_DFL;
-    sig_action->sa_flags = 0;
-    sig_action->sa_restorer = NULL;
+    sig_action->sa_flags     = 0;
+    sig_action->sa_restorer  = NULL;
     __sigemptyset(&sig_action->sa_mask);
 }
 
@@ -58,7 +58,7 @@ void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
-static struct shim_signal_queue process_signal_queue = { 0 };
+static struct shim_signal_queue process_signal_queue = {0};
 /* This is just an optimization, not to have to check the queue for pending signals. A thread will
  * be woken up after signal is appended to its queue and will handle all unblocked pending signals
  * no matter what is the relative ordering of increasing this variable vs. appending signal to
@@ -77,7 +77,7 @@ static uint64_t process_pending_signals_cnt = 0;
  */
 static bool is_rt_sq_empty(struct shim_rt_signal_queue* queue) {
     return __atomic_load_n(&queue->get_idx, __ATOMIC_ACQUIRE)
-            == __atomic_load_n(&queue->put_idx, __ATOMIC_ACQUIRE);
+           == __atomic_load_n(&queue->put_idx, __ATOMIC_ACQUIRE);
 }
 
 static bool has_standard_signal(struct shim_signal** queue) {
@@ -109,15 +109,14 @@ void get_pending_signals(struct shim_thread* thread, __sigset_t* set) {
 
 static bool append_standard_signal(struct shim_signal** signal_slot, struct shim_signal* signal) {
     struct shim_signal* old = NULL;
-    return __atomic_compare_exchange_n(signal_slot, &old, signal, /*weak=*/false,
-                                       __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+    return __atomic_compare_exchange_n(signal_slot, &old, signal, /*weak=*/false, __ATOMIC_RELEASE,
+                                       __ATOMIC_ACQUIRE);
 }
 
 /* In theory `get_idx` and `put_idx` could overflow, but adding signals with 1GHz (10**9 signals
  * per second) gives a 544 years running time before overflow, which we consider a "safe margin"
  * for now. */
-static bool append_rt_signal(struct shim_rt_signal_queue* queue,
-                                    struct shim_signal* signal) {
+static bool append_rt_signal(struct shim_rt_signal_queue* queue, struct shim_signal* signal) {
     uint64_t get_idx;
     uint64_t put_idx = __atomic_load_n(&queue->put_idx, __ATOMIC_ACQUIRE);
     do {
@@ -213,15 +212,12 @@ static struct shim_signal* process_pop_signal(int sig) {
 
 static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal);
 
-static void __store_info (siginfo_t * info, struct shim_signal * signal)
-{
+static void __store_info(siginfo_t* info, struct shim_signal* signal) {
     if (info)
         memcpy(&signal->info, info, sizeof(siginfo_t));
 }
 
-void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
-                      struct shim_signal * signal)
-{
+void __store_context(shim_tcb_t* tcb, PAL_CONTEXT* pal_context, struct shim_signal* signal) {
     ucontext_t* context = &signal->context;
 
     if (tcb && tcb->context.regs && shim_context_get_syscallnr(&tcb->context)) {
@@ -240,9 +236,8 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
     }
 }
 
-void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
-{
-    shim_tcb_t * tcb = shim_get_tcb();
+void deliver_signal(siginfo_t* info, PAL_CONTEXT* context) {
+    shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
 
     struct shim_thread* cur_thread = (struct shim_thread*)tcb->tp;
@@ -255,7 +250,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 
     int64_t preempt = __disable_preempt(tcb);
 
-    struct shim_signal * signal = __alloca(sizeof(struct shim_signal));
+    struct shim_signal* signal = __alloca(sizeof(struct shim_signal));
     /* save in signal */
     memset(signal, 0, sizeof(struct shim_signal));
     __store_info(info, signal);
@@ -263,11 +258,11 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     signal->pal_context = context;
 
     if (preempt > 1 || __sigismember(&cur_thread->signal_mask, sig)) {
-        signal = malloc_copy(signal,sizeof(struct shim_signal));
+        signal = malloc_copy(signal, sizeof(struct shim_signal));
         if (signal) {
             if (!append_thread_signal(cur_thread, signal)) {
-                debug("Signal %d queue of thread %u is full, dropping the incoming signal\n",
-                      sig, tcb->tid);
+                debug("Signal %d queue of thread %u is full, dropping the incoming signal\n", sig,
+                      tcb->tid);
                 free(signal);
             }
         }
@@ -279,25 +274,23 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __enable_preempt(tcb);
 }
 
-#define ALLOC_SIGINFO(signo, code, member, value)           \
-    ({                                                      \
-        siginfo_t * _info = __alloca(sizeof(siginfo_t));    \
-        memset(_info, 0, sizeof(siginfo_t));                \
-        _info->si_signo = (signo);                          \
-        _info->si_code = (code);                            \
-        _info->member = (value);                            \
-        _info;                                              \
+#define ALLOC_SIGINFO(signo, code, member, value)       \
+    ({                                                  \
+        siginfo_t* _info = __alloca(sizeof(siginfo_t)); \
+        memset(_info, 0, sizeof(siginfo_t));            \
+        _info->si_signo = (signo);                      \
+        _info->si_code  = (code);                       \
+        _info->member   = (value);                      \
+        _info;                                          \
     })
 
-static inline bool context_is_internal(PAL_CONTEXT * context)
-{
+static inline bool context_is_internal(PAL_CONTEXT* context) {
     if (!context)
         return false;
 
     void* ip = (void*)pal_context_get_ip(context);
 
-    return ip >= (void*)&__code_address &&
-           ip  < (void*)&__code_address_end;
+    return (void*)&__code_address <= ip && ip < (void*)&__code_address_end;
 }
 
 static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEXT* context) {
@@ -305,40 +298,35 @@ static noreturn void internal_fault(const char* errstr, PAL_NUM addr, PAL_CONTEX
     PAL_NUM ip = pal_context_get_ip(context);
 
     if (context_is_internal(context))
-        SYS_PRINTF("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
-                   addr, (void*)ip - (void*)&__load_address,
-                   cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
+        SYS_PRINTF("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr, addr,
+                   (void*)ip - (void*)&__load_address, cur_process.vmid,
+                   is_internal_tid(tid) ? 0 : tid);
     else
-        SYS_PRINTF("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr,
-                   addr, context ? ip : 0,
-                   cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
+        SYS_PRINTF("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr, addr,
+                   context ? ip : 0, cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
 
     DEBUG_BREAK_ON_FAILURE();
     DkProcessExit(1);
 }
 
-static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
+static void arithmetic_error_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
         internal_fault("Internal arithmetic fault", arg, context);
     } else {
         if (context)
             debug("arithmetic fault at 0x%08lx\n", pal_context_get_ip(context));
 
-        deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV,
-                                     si_addr, (void *) arg), context);
+        deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV, si_addr, (void*)arg), context);
     }
     DkExceptionReturn(event);
 }
 
-static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
-    shim_tcb_t * tcb = shim_get_tcb();
+static void memfault_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
 
-    if (tcb->test_range.cont_addr
-        && (void *) arg >= tcb->test_range.start
-        && (void *) arg <= tcb->test_range.end) {
+    if (tcb->test_range.cont_addr && (void*)arg >= tcb->test_range.start &&
+            (void*)arg <= tcb->test_range.end) {
         assert(context);
         tcb->test_range.has_fault = true;
         pal_context_set_ip(context, (PAL_NUM)tcb->test_range.cont_addr);
@@ -357,7 +345,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     int code;
     if (!arg) {
         code = SEGV_MAPERR;
-    } else if (!lookup_vma((void *) arg, &vma_info)) {
+    } else if (!lookup_vma((void*)arg, &vma_info)) {
         if (vma_info.flags & VMA_INTERNAL) {
             internal_fault("Internal memory fault with VMA", arg, context);
         }
@@ -366,7 +354,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
              * then return a SIGBUS. */
             uintptr_t eof_in_vma = (uintptr_t)vma_info.addr + vma_info.file_offset
-                                    + file->info.file.size;
+                                   + file->info.file.size;
             if (arg > eof_in_vma) {
                 signo = SIGBUS;
                 code = BUS_ADRERR;
@@ -391,7 +379,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         code = SEGV_MAPERR;
     }
 
-    deliver_signal(ALLOC_SIGINFO(signo, code, si_addr, (void *) arg), context);
+    deliver_signal(ALLOC_SIGINFO(signo, code, si_addr, (void*)arg), context);
 
 ret_exception:
     DkExceptionReturn(event);
@@ -415,13 +403,12 @@ ret_exception:
  * The second option is faster in fault-free case but cannot be used under
  * SGX PAL. We use the best option for each PAL for now. */
 static bool is_sgx_pal(void) {
-    static struct atomic_int sgx_pal = { .counter = 0 };
-    static struct atomic_int inited  = { .counter = 0 };
+    static struct atomic_int sgx_pal = {.counter = 0};
+    static struct atomic_int inited  = {.counter = 0};
 
     if (!__atomic_load_n(&inited.counter, __ATOMIC_SEQ_CST)) {
         /* Ensure that is_sgx_pal is updated before initialized */
-        __atomic_store_n(&sgx_pal.counter,
-                         !strcmp_static(PAL_CB(host_type), "Linux-SGX"),
+        __atomic_store_n(&sgx_pal.counter, !strcmp_static(PAL_CB(host_type), "Linux-SGX"),
                          __ATOMIC_SEQ_CST);
         __atomic_store_n(&inited.counter, 1, __ATOMIC_SEQ_CST);
     }
@@ -438,8 +425,7 @@ static bool is_sgx_pal(void) {
  * with a concurrent system call. The purpose of these functions is simply for
  * the compatibility with programs that rely on the error numbers, such as the
  * LTP test suite. */
-bool test_user_memory (void * addr, size_t size, bool write)
-{
+bool test_user_memory(void* addr, size_t size, bool write) {
     if (!size)
         return false;
 
@@ -452,7 +438,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
      * a byte of each page; invalid access will be caught in memfault_upcall */
-    shim_tcb_t * tcb = shim_get_tcb();
+    shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
@@ -461,25 +447,25 @@ bool test_user_memory (void * addr, size_t size, bool write)
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = &&ret_fault;
-    tcb->test_range.start = addr;
-    tcb->test_range.end   = addr + size - 1;
+    tcb->test_range.start     = addr;
+    tcb->test_range.end       = addr + size - 1;
     /* enforce compiler to store tcb->test_range into memory */
-    __asm__ volatile(""::: "memory");
+    __asm__ volatile("" ::: "memory");
 
     /* Try to read or write into one byte inside each page */
-    void * tmp = addr;
+    void* tmp = addr;
     while (tmp <= addr + size - 1) {
         if (write) {
-            *(volatile char *) tmp = *(volatile char *) tmp;
+            *(volatile char*)tmp = *(volatile char*)tmp;
         } else {
-            *(volatile char *) tmp;
+            *(volatile char*)tmp;
         }
         tmp = ALLOC_ALIGN_UP_PTR(tmp + 1);
     }
 
 ret_fault:
     /* enforce compiler to load tcb->test_range.has_fault below */
-    __asm__ volatile("": "=m"(tcb->test_range.has_fault));
+    __asm__ volatile("" : "=m"(tcb->test_range.has_fault));
 
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
@@ -495,8 +481,7 @@ ret_fault:
  * This function tests a user string with unknown length. It only tests
  * whether the memory is readable.
  */
-bool test_user_string (const char * addr)
-{
+bool test_user_string(const char* addr) {
     if (!access_ok(addr, 1))
         return true;
 
@@ -510,7 +495,7 @@ bool test_user_string (const char * addr)
         do {
             maxlen = next - addr;
 
-            if (!access_ok(addr, maxlen) || !is_in_adjacent_user_vmas((void*) addr, maxlen))
+            if (!access_ok(addr, maxlen) || !is_in_adjacent_user_vmas((void*)addr, maxlen))
                 return true;
 
             size = strnlen(addr, maxlen);
@@ -523,7 +508,7 @@ bool test_user_string (const char * addr)
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
      * a byte of each page; invalid access will be caught in memfault_upcall. */
-    shim_tcb_t * tcb = shim_get_tcb();
+    shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
@@ -531,19 +516,19 @@ bool test_user_string (const char * addr)
     tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = &&ret_fault;
     /* enforce compiler to store tcb->test_range into memory */
-    __asm__ volatile(""::: "memory");
+    __asm__ volatile("" ::: "memory");
 
     do {
         /* Add the memory region to the watch list. This is not racy because
          * each thread has its own record. */
-        tcb->test_range.start = (void *) addr;
-        tcb->test_range.end = (void *) (next - 1);
+        tcb->test_range.start = (void*)addr;
+        tcb->test_range.end   = (void*)(next - 1);
 
         maxlen = next - addr;
 
         if (!access_ok(addr, maxlen))
             return true;
-        *(volatile char *) addr; /* try to read one byte from the page */
+        *(volatile char*)addr; /* try to read one byte from the page */
 
         size = strnlen(addr, maxlen);
         addr = next;
@@ -552,7 +537,7 @@ bool test_user_string (const char * addr)
 
 ret_fault:
     /* enforce compiler to load tcb->test_range.has_fault below */
-    __asm__ volatile("": "=m"(tcb->test_range.has_fault));
+    __asm__ volatile("" : "=m"(tcb->test_range.has_fault));
 
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
@@ -564,8 +549,7 @@ ret_fault:
     return has_fault;
 }
 
-void __attribute__((weak)) syscall_wrapper(void)
-{
+void __attribute__((weak)) syscall_wrapper(void) {
     /*
      * work around for link.
      * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
@@ -573,15 +557,11 @@ void __attribute__((weak)) syscall_wrapper(void)
      */
 }
 
-static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
-    struct shim_vma_info vma_info = { .file = NULL };
+static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    struct shim_vma_info vma_info = {.file = NULL};
 
-    if (!is_internal_tid(get_cur_tid()) &&
-        !context_is_internal(context) &&
-        !(lookup_vma((void *)arg, &vma_info)) &&
-        !(vma_info.flags & VMA_INTERNAL)) {
-
+    if (!is_internal_tid(get_cur_tid()) && !context_is_internal(context) &&
+            !(lookup_vma((void*)arg, &vma_info)) && !(vma_info.flags & VMA_INTERNAL)) {
         assert(context);
 
         uint8_t* rip = (uint8_t*)pal_context_get_ip(context);
@@ -623,8 +603,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         } else {
             debug("Illegal instruction during app execution at 0x%08lx; delivering to app\n",
                   (unsigned long)rip);
-            deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
-                                         si_addr, (void *) arg), context);
+            deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void*)arg), context);
         }
     } else {
         internal_fault("Illegal instruction during Graphene internal execution", arg, context);
@@ -636,8 +615,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
-static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
+static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
@@ -646,8 +624,7 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
-static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
+static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
@@ -656,11 +633,10 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
-static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
+static void resume_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
-    shim_tcb_t * tcb = shim_get_tcb();
+    shim_tcb_t* tcb = shim_get_tcb();
     if (!tcb || !tcb->tp)
         return;
 
@@ -673,19 +649,17 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     DkExceptionReturn(event);
 }
 
-int init_signal (void)
-{
-    DkSetExceptionHandler(&arithmetic_error_upcall,     PAL_EVENT_ARITHMETIC_ERROR);
-    DkSetExceptionHandler(&memfault_upcall,    PAL_EVENT_MEMFAULT);
-    DkSetExceptionHandler(&illegal_upcall,     PAL_EVENT_ILLEGAL);
-    DkSetExceptionHandler(&quit_upcall,        PAL_EVENT_QUIT);
-    DkSetExceptionHandler(&suspend_upcall,     PAL_EVENT_SUSPEND);
-    DkSetExceptionHandler(&resume_upcall,      PAL_EVENT_RESUME);
+int init_signal(void) {
+    DkSetExceptionHandler(&arithmetic_error_upcall, PAL_EVENT_ARITHMETIC_ERROR);
+    DkSetExceptionHandler(&memfault_upcall,         PAL_EVENT_MEMFAULT);
+    DkSetExceptionHandler(&illegal_upcall,          PAL_EVENT_ILLEGAL);
+    DkSetExceptionHandler(&quit_upcall,             PAL_EVENT_QUIT);
+    DkSetExceptionHandler(&suspend_upcall,          PAL_EVENT_SUSPEND);
+    DkSetExceptionHandler(&resume_upcall,           PAL_EVENT_RESUME);
     return 0;
 }
 
-__sigset_t * get_sig_mask (struct shim_thread * thread)
-{
+__sigset_t* get_sig_mask(struct shim_thread* thread) {
     if (!thread)
         thread = get_cur_thread();
 
@@ -694,9 +668,7 @@ __sigset_t * get_sig_mask (struct shim_thread * thread)
     return &(thread->signal_mask);
 }
 
-__sigset_t * set_sig_mask (struct shim_thread * thread,
-                           const __sigset_t * set)
-{
+__sigset_t* set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
     if (!thread)
         thread = get_cur_thread();
 
@@ -723,7 +695,7 @@ static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, boo
      * sa_handler simply ignores 2nd and 3rd argument.
      */
 #ifndef __x86_64__
-# error "get_sighandler: see the comment above"
+#error "get_sighandler: see the comment above"
 #endif
 
     __rt_sighandler_t handler = (void*)sig_action->k_sa_handler;
@@ -741,8 +713,7 @@ static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, boo
     return handler;
 }
 
-static void
-__handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
+static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
     struct shim_thread* thread = (struct shim_thread*)tcb->tp;
     __rt_sighandler_t handler = NULL;
 
@@ -768,10 +739,9 @@ __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
         shim_context_set_syscallnr(&tcb->context, 0);
     }
 
-    debug("run signal handler %p (%d, %p, %p)\n", handler, sig, &signal->info,
-          &signal->context);
+    debug("run signal handler %p (%d, %p, %p)\n", handler, sig, &signal->info, &signal->context);
 
-    (*handler) (sig, &signal->info, &signal->context);
+    (*handler)(sig, &signal->info, &signal->context);
 
     __atomic_store_n(&thread->signal_handled, true, __ATOMIC_RELEASE);
 
@@ -823,7 +793,7 @@ void __handle_signals(shim_tcb_t* tcb) {
 }
 
 void handle_signals(void) {
-    shim_tcb_t * tcb = shim_get_tcb();
+    shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
 
     int64_t preempt = __disable_preempt(tcb);
@@ -849,7 +819,7 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
     /* save in signal */
     __store_info(info, signal);
     signal->context_stored = false;
-    signal->pal_context = NULL;
+    signal->pal_context    = NULL;
 
     if (thread) {
         if (append_thread_signal(thread, signal)) {
@@ -884,8 +854,7 @@ static void sighandler_kill(int sig, siginfo_t* info, void* ucontext) {
     process_exit(0, sig);
 }
 
-static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
-{
+static void sighandler_core(int sig, siginfo_t* info, void* ucontext) {
     /* NOTE: This implementation only indicates the core dump for wait4()
      *       and friends. No actual core-dump file is created. */
     sig = __WCOREDUMP_BIT | sig;
@@ -893,41 +862,40 @@ static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
 }
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
-        /* SIGHUP */    &sighandler_kill,
-        /* SIGINT */    &sighandler_kill,
-        /* SIGQUIT */   &sighandler_core,
-        /* SIGILL */    &sighandler_core,
-        /* SIGTRAP */   &sighandler_core,
-        /* SIGABRT */   &sighandler_core,
-        /* SIGBUS */    &sighandler_core,
-        /* SIGFPE */    &sighandler_core,
-        /* SIGKILL */   &sighandler_kill,
-        /* SIGUSR1 */   &sighandler_kill,
-        /* SIGSEGV */   &sighandler_core,
-        /* SIGUSR2 */   &sighandler_kill,
-        /* SIGPIPE */   &sighandler_kill,
-        /* SIGALRM */   &sighandler_kill,
-        /* SIGTERM */   &sighandler_kill,
-        /* SIGSTKFLT */ &sighandler_kill,
-        /* SIGCHLD */   NULL,
-        /* SIGCONT */   NULL,
-        /* SIGSTOP */   NULL,
-        /* SIGTSTP */   NULL,
-        /* SIGTTIN */   NULL,
-        /* SIGTTOU */   NULL,
-        /* SIGURG  */   NULL,
-        /* SIGXCPU */   &sighandler_core,
-        /* SIGXFSZ */   &sighandler_core,
-        /* SIGVTALRM */ &sighandler_kill,
-        /* SIGPROF   */ &sighandler_kill,
-        /* SIGWINCH  */ NULL,
-        /* SIGIO   */   &sighandler_kill,
-        /* SIGPWR  */   &sighandler_kill,
-        /* SIGSYS  */   &sighandler_core
+        [SIGHUP    - 1] = &sighandler_kill,
+        [SIGINT    - 1] = &sighandler_kill,
+        [SIGQUIT   - 1] = &sighandler_core,
+        [SIGILL    - 1] = &sighandler_core,
+        [SIGTRAP   - 1] = &sighandler_core,
+        [SIGABRT   - 1] = &sighandler_core,
+        [SIGBUS    - 1] = &sighandler_core,
+        [SIGFPE    - 1] = &sighandler_core,
+        [SIGKILL   - 1] = &sighandler_kill,
+        [SIGUSR1   - 1] = &sighandler_kill,
+        [SIGSEGV   - 1] = &sighandler_core,
+        [SIGUSR2   - 1] = &sighandler_kill,
+        [SIGPIPE   - 1] = &sighandler_kill,
+        [SIGALRM   - 1] = &sighandler_kill,
+        [SIGTERM   - 1] = &sighandler_kill,
+        [SIGSTKFLT - 1] = &sighandler_kill,
+        [SIGCHLD   - 1] = NULL,
+        [SIGCONT   - 1] = NULL,
+        [SIGSTOP   - 1] = NULL,
+        [SIGTSTP   - 1] = NULL,
+        [SIGTTIN   - 1] = NULL,
+        [SIGTTOU   - 1] = NULL,
+        [SIGURG    - 1] = NULL,
+        [SIGXCPU   - 1] = &sighandler_core,
+        [SIGXFSZ   - 1] = &sighandler_core,
+        [SIGVTALRM - 1] = &sighandler_kill,
+        [SIGPROF   - 1] = &sighandler_kill,
+        [SIGWINCH  - 1] = NULL,
+        [SIGIO     - 1] = &sighandler_kill,
+        [SIGPWR    - 1] = &sighandler_kill,
+        [SIGSYS    - 1] = &sighandler_core,
     };
 
-BEGIN_CP_FUNC(pending_signals)
-{
+BEGIN_CP_FUNC(pending_signals) {
     __UNUSED(obj);
     __UNUSED(size);
     __UNUSED(objp);
@@ -937,7 +905,7 @@ BEGIN_CP_FUNC(pending_signals)
      * safe margin slots. */
     const size_t SAFE_MARGIN_SLOTS = 10;
     uint64_t n = __atomic_load_n(&process_pending_signals_cnt, __ATOMIC_ACQUIRE)
-                    + SAFE_MARGIN_SLOTS;
+                 + SAFE_MARGIN_SLOTS;
     uint64_t i = 0;
     assert(n <= SIGRTMIN - 1 + (NUM_SIGS - SIGRTMIN + 1) * MAX_SIGNAL_LOG + SAFE_MARGIN_SLOTS);
     siginfo_t infos[n];
@@ -972,8 +940,7 @@ BEGIN_CP_FUNC(pending_signals)
 }
 END_CP_FUNC(pending_signals)
 
-BEGIN_RS_FUNC(pending_signals)
-{
+BEGIN_RS_FUNC(pending_signals) {
     __UNUSED(offset);
     __UNUSED(rebase);
 
@@ -990,7 +957,7 @@ BEGIN_RS_FUNC(pending_signals)
 
         memcpy(&signal->info, &infos[i], sizeof(signal->info));
         signal->context_stored = false;
-        signal->pal_context = NULL;
+        signal->pal_context    = NULL;
         if (!append_process_signal(signal)) {
             return -EAGAIN;
         }

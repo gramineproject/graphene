@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 /*
- * shim_context-x86_64.c
- *
  * This file contains code for x86-specific CPU context manipulation.
  */
 
@@ -66,6 +64,6 @@ void fixup_child_context(struct shim_regs* regs) {
          */
         /* regs->rsp += RED_ZONE_SIZE; */
         regs->rflags = regs->r11;
-        regs->rip = regs->rcx;
+        regs->rip    = regs->rcx;
     }
 }

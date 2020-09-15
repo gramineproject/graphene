@@ -8,11 +8,11 @@
 #ifndef _SHIM_UTILS_H_
 #define _SHIM_UTILS_H_
 
-#include <api.h>
-#include <list.h>
-#include <pal.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
+#include "api.h"
+#include "list.h"
+#include "pal.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
 
 struct shim_handle;
 
@@ -144,23 +144,6 @@ int init_slab(void);
 void* malloc(size_t size);
 void free(void* mem);
 void* malloc_copy(const void* mem, size_t size);
-
-/* typedef a 32 bit type */
-#ifndef UINT4
-#define UINT4 uint32_t
-#endif
-
-/* Data structure for MD5 (Message Digest) computation */
-struct shim_md5_ctx {
-    UINT4 i[2];               /* number of _bits_ handled mod 2^64 */
-    UINT4 buf[4];             /* scratch buffer */
-    unsigned char in[64];     /* input buffer */
-    unsigned char digest[16]; /* actual digest after MD5Final call */
-};
-
-void md5_init(struct shim_md5_ctx* mdContext);
-void md5_update(struct shim_md5_ctx* mdContext, const void* buf, size_t len);
-void md5_final(struct shim_md5_ctx* mdContext);
 
 /* prompt user for confirmation */
 int message_confirm(const char* message, const char* options);

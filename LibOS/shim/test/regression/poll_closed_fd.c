@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
             if (infds[0].revents & POLLIN) {
                 bytes = read(pipefds[0], &buffer, bufsize - 1);
-                if (bytes  < 0) {
+                if (bytes < 0) {
                     perror("read error\n");
                     close(pipefds[0]);
                     return 1;
@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
             perror("wait error\n");
             close(pipefds[0]);
             return 1;
-        } else if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus)){
+        } else if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus)) {
             perror("child process didn't exit successfully\n");
             close(pipefds[0]);
             return 1;

@@ -1,22 +1,24 @@
-#include "api.h"
-#include "assert.h"
 #include "avl_tree.h"
-#include "pal.h"
-#include "pal_debug.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
+
+#include "api.h"
+#include "assert.h"
+#include "pal.h"
+#include "pal_debug.h"
 
 noreturn void __abort(void) {
     warn("ABORTED\n");
     DkProcessExit(1);
 }
 
-#define EXIT_UNBALANCED() do {                              \
-        pal_printf("Unbalanced tree at: %u\n", __LINE__);   \
-        DkProcessExit(1);                                   \
-    } while(0)
+#define EXIT_UNBALANCED()                                 \
+    do {                                                  \
+        pal_printf("Unbalanced tree at: %u\n", __LINE__); \
+        DkProcessExit(1);                                 \
+    } while (0)
 
 static uint32_t _seed;
 
@@ -65,9 +67,8 @@ static bool cmp_gen(void* x, struct avl_tree_node* y) {
 
 #define ELEMENTS_COUNT 0x1000
 #define RAND_DEL_COUNT 0x100
-static struct avl_tree tree = { .root = NULL, .cmp = cmp };
+static struct avl_tree tree = {.root = NULL, .cmp = cmp};
 static struct A t[ELEMENTS_COUNT];
-
 
 __attribute__((unused)) static void debug_print(struct avl_tree_node* node) {
     if (!node) {
@@ -91,8 +92,8 @@ static size_t get_tree_size(struct avl_tree_node* node) {
 
 static void try_node_swap(struct avl_tree_node* node, struct avl_tree_node* swap_node) {
     avl_tree_swap_node(&tree, node, swap_node);
-    node->left = (void*)1;
-    node->right = (void*)2;
+    node->left   = (void*)1;
+    node->right  = (void*)2;
     node->parent = (void*)3;
     if (!debug_avl_tree_is_balanced(&tree)) {
         EXIT_UNBALANCED();
@@ -104,8 +105,8 @@ static void try_node_swap(struct avl_tree_node* node, struct avl_tree_node* swap
     }
 
     avl_tree_swap_node(&tree, swap_node, node);
-    swap_node->left = (void*)1;
-    swap_node->right = (void*)2;
+    swap_node->left   = (void*)1;
+    swap_node->right  = (void*)2;
     swap_node->parent = (void*)3;
     if (!debug_avl_tree_is_balanced(&tree)) {
         EXIT_UNBALANCED();
@@ -121,7 +122,7 @@ static void do_test(int32_t (*get_num)(void)) {
     size_t i;
 
     for (i = 0; i < ELEMENTS_COUNT; i++) {
-        t[i].key = get_num();
+        t[i].key   = get_num();
         t[i].freed = false;
         avl_tree_insert(&tree, &t[i].node);
         if (!debug_avl_tree_is_balanced(&tree)) {
@@ -166,15 +167,15 @@ static void do_test(int32_t (*get_num)(void)) {
         size++;
     }
     if (size != ELEMENTS_COUNT) {
-        pal_printf("Tree iteration from the end walked through %lu elements instead of %u!",
-                   size, ELEMENTS_COUNT);
+        pal_printf("Tree iteration from the end walked through %lu elements instead of %u!", size,
+                   ELEMENTS_COUNT);
         DkProcessExit(1);
     }
 
     static_assert(ELEMENTS_COUNT >= 3, "This code needs at least 3 elements in the tree!");
 
     node = tree.root->left;
-    struct A swap_node = { .key = node2struct(node)->key };
+    struct A swap_node = {.key = node2struct(node)->key};
     try_node_swap(node, &swap_node.node);
 
     node = tree.root;
@@ -200,7 +201,7 @@ static void do_test(int32_t (*get_num)(void)) {
     }
 
     /* get_num returns int32_t, but tmp.key is a int64_t, so this cannot overflow. */
-    struct A tmp = { .key = val + 100 };
+    struct A tmp = {.key = val + 100};
     avl_tree_insert(&tree, &tmp.node);
     if (!debug_avl_tree_is_balanced(&tree)) {
         EXIT_UNBALANCED();
@@ -257,7 +258,8 @@ static void do_test(int32_t (*get_num)(void)) {
 #define DIFF_ELEMENTS 0x10
 #define _STR(x) #x
 static void test_ordering(void) {
-    static_assert(ELEMENTS_COUNT > DIFF_ELEMENTS, "This test requires more than " _STR(DIFF_ELEMENTS) " elements!");
+    static_assert(ELEMENTS_COUNT > DIFF_ELEMENTS,
+                  "This test requires more than " _STR(DIFF_ELEMENTS) " elements!");
     ssize_t i;
 
     /* The newer node will be on the left, so we need to insert them in reverse order. */

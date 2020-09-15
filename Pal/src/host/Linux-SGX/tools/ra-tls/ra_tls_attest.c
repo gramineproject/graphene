@@ -40,7 +40,7 @@
 
 static ssize_t rw_file(const char* path, uint8_t* buf, size_t len, bool do_write) {
     ssize_t bytes = 0;
-    ssize_t ret   = 0;
+    ssize_t ret = 0;
 
     int fd = open(path, do_write ? O_WRONLY : O_RDONLY);
     if (fd < 0)
@@ -192,8 +192,8 @@ static int create_x509(mbedtls_pk_context* pk, mbedtls_x509write_cert* writecrt)
     return ret;
 }
 
-static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt,
-                              uint8_t** crt_der, size_t* crt_der_size) {
+static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt, uint8_t** crt_der,
+                              size_t* crt_der_size) {
     int ret;
 
     if (!key || !crt)
@@ -208,9 +208,9 @@ static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt,
     mbedtls_x509write_cert writecrt;
     mbedtls_x509write_crt_init(&writecrt);
 
-    uint8_t* crt_der_buf   = NULL;
-    uint8_t* output_buf    = NULL;
-    size_t output_buf_size = 16 * 1024;  /* enough for any X.509 certificate */
+    uint8_t* crt_der_buf = NULL;
+    uint8_t* output_buf = NULL;
+    size_t output_buf_size = 16 * 1024; /* enough for any X.509 certificate */
 
     output_buf = malloc(output_buf_size);
     if (!output_buf) {
@@ -229,8 +229,8 @@ static int create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt,
 
     mbedtls_rsa_init((mbedtls_rsa_context*)key->pk_ctx, MBEDTLS_RSA_PKCS_V15, /*hash_id=*/0);
 
-    ret = mbedtls_rsa_gen_key((mbedtls_rsa_context*)key->pk_ctx, mbedtls_ctr_drbg_random,
-                              &ctr_drbg, RSA_PUB_3072_KEY_LEN, RSA_PUB_EXPONENT);
+    ret = mbedtls_rsa_gen_key((mbedtls_rsa_context*)key->pk_ctx, mbedtls_ctr_drbg_random, &ctr_drbg,
+                              RSA_PUB_3072_KEY_LEN, RSA_PUB_EXPONENT);
     if (ret < 0)
         goto out;
 
@@ -280,8 +280,8 @@ int ra_tls_create_key_and_crt(mbedtls_pk_context* key, mbedtls_x509_crt* crt) {
     return create_key_and_crt(key, crt, NULL, NULL);
 }
 
-int ra_tls_create_key_and_crt_der(uint8_t** der_key, size_t* der_key_size,
-                                  uint8_t** der_crt, size_t* der_crt_size) {
+int ra_tls_create_key_and_crt_der(uint8_t** der_key, size_t* der_key_size, uint8_t** der_crt,
+                                  size_t* der_crt_size) {
     int ret;
 
     if (!der_key || !der_key_size || !der_crt || !der_crt_size)
@@ -292,7 +292,7 @@ int ra_tls_create_key_and_crt_der(uint8_t** der_key, size_t* der_key_size,
 
     uint8_t* der_key_buf   = NULL;
     uint8_t* output_buf    = NULL;
-    size_t output_buf_size = 1024;  /* enough for any public key */
+    size_t output_buf_size = 1024; /* enough for any public key */
 
     output_buf = malloc(output_buf_size);
     if (!output_buf) {

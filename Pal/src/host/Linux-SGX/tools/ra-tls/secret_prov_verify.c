@@ -107,8 +107,8 @@ static void* client_connection(void* data) {
     memcpy(buf, SECRET_PROVISION_RESPONSE, sizeof(SECRET_PROVISION_RESPONSE));
     memcpy(buf + sizeof(SECRET_PROVISION_RESPONSE), &send_secret_size, sizeof(send_secret_size));
 
-    ret = secret_provision_write(&ctx, buf, sizeof(SECRET_PROVISION_RESPONSE) +
-                                 sizeof(send_secret_size));
+    ret = secret_provision_write(&ctx, buf,
+                                 sizeof(SECRET_PROVISION_RESPONSE) + sizeof(send_secret_size));
     if (ret < 0) {
         goto out;
     }
@@ -186,7 +186,7 @@ int secret_provision_start_server(uint8_t* secret, size_t secret_size, const cha
         goto out;
     }
 
-    ret = mbedtls_net_bind(&listen_fd, NULL, port ? : "4433", MBEDTLS_NET_PROTO_TCP);
+    ret = mbedtls_net_bind(&listen_fd, NULL, port ?: "4433", MBEDTLS_NET_PROTO_TCP);
     if (ret < 0) {
         goto out;
     }

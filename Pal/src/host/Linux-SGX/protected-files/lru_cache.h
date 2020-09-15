@@ -21,7 +21,8 @@ lruc_context_t* lruc_create(void);
 void lruc_destroy(lruc_context_t* context);
 bool lruc_add(lruc_context_t* context, uint64_t key, void* data); // key must not already exist
 void* lruc_get(lruc_context_t* context, uint64_t key);
-void* lruc_find(lruc_context_t* context, uint64_t key); // only returns the object, does not bump it to the head
+void* lruc_find(lruc_context_t* context,
+                uint64_t key); // only returns the object, does not bump it to the head
 size_t lruc_size(lruc_context_t* context);
 void* lruc_get_first(lruc_context_t* context);
 void* lruc_get_next(lruc_context_t* context);

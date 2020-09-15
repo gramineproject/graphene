@@ -53,11 +53,11 @@
  * works well in practice. */
 #define RPC_SPINLOCK_TIMEOUT 1000000
 
-#define RPC_QUEUE_SIZE  1024        /* max # of requests in RPC queue */
-#define MAX_RPC_THREADS 256         /* max number of RPC threads */
+#define RPC_QUEUE_SIZE  1024 /* max # of requests in RPC queue */
+#define MAX_RPC_THREADS 256  /* max number of RPC threads */
 
 typedef struct {
-    spinlock_t lock;  /* can be UNLOCKED / LOCKED_NO_WAITERS / LOCKED_WITH_WAITERS */
+    spinlock_t lock; /* can be UNLOCKED / LOCKED_NO_WAITERS / LOCKED_WITH_WAITERS */
     long result;
     uint64_t ocall_index;
     void* buffer;
@@ -119,7 +119,8 @@ out:
  * This function is called only from the untrusted code and thus has no security implications.
  */
 static inline rpc_request_t* rpc_dequeue(rpc_queue_t* q) {
-    if (__atomic_load_n(&q->front, __ATOMIC_RELAXED) == __atomic_load_n(&q->rear, __ATOMIC_RELAXED)) {
+    if (__atomic_load_n(&q->front, __ATOMIC_RELAXED) ==
+            __atomic_load_n(&q->rear,  __ATOMIC_RELAXED)) {
         /* quick check that queue is empty; this doesn't acquire a spinlock and thus lowers latency
          * on rpc_enqueue() performed by enclave threads (they don't have to wait for spinlock
          * release); note that untrusted RPC threads will simply retry again if this check fails */

@@ -8,22 +8,22 @@
  * "file:" or "dir:".
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include <linux/types.h>
+
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_flags_conv.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_defs.h"
 #include "pal_linux_error.h"
-#include "pal_debug.h"
-#include "pal_error.h"
-#include "api.h"
-
-#include <linux/types.h>
 typedef __kernel_pid_t pid_t;
 #undef __GLIBC__
-#include <linux/stat.h>
 #include <asm/errno.h>
+#include <linux/stat.h>
 
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
@@ -57,7 +57,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     }
 
     SET_HANDLE_TYPE(hdl, file);
-    HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0);
     hdl->file.fd = ret;
     hdl->file.map_start = NULL;
     char* path = (void*)hdl + HANDLE_SIZE(file);
@@ -85,9 +85,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 }
 
 /* 'read' operation for file streams. */
-static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                          void * buffer)
-{
+static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
     int fd = handle->file.fd;
     int64_t ret;
 
@@ -104,9 +102,7 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 }
 
 /* 'write' operation for file streams. */
-static int64_t file_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                           const void * buffer)
-{
+static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
     int fd = handle->file.fd;
     int64_t ret;
 
@@ -124,16 +120,14 @@ static int64_t file_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 
 /* 'close' operation for file streams. In this case, it will only
    close the file withou deleting it. */
-static int file_close (PAL_HANDLE handle)
-{
+static int file_close(PAL_HANDLE handle) {
     int fd = handle->file.fd;
 
     int ret = INLINE_SYSCALL(close, 1, fd);
 
     /* initial realpath is part of handle object and will be freed with it */
-    if (handle->file.realpath &&
-        handle->file.realpath != (void *) handle + HANDLE_SIZE(file)) {
-        free((void *) handle->file.realpath);
+    if (handle->file.realpath && handle->file.realpath != (void*)handle + HANDLE_SIZE(file)) {
+        free((void*)handle->file.realpath);
     }
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
@@ -141,8 +135,7 @@ static int file_close (PAL_HANDLE handle)
 
 /* 'delete' operation for file streams. It will actually delete
    the file if we can successfully close it. */
-static int file_delete (PAL_HANDLE handle, int access)
-{
+static int file_delete(PAL_HANDLE handle, int access) {
     if (access)
         return -PAL_ERROR_INVAL;
 
@@ -178,31 +171,28 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 }
 
 /* 'setlength' operation for file stream. */
-static int64_t file_setlength (PAL_HANDLE handle, uint64_t length)
-{
+static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
     int ret = INLINE_SYSCALL(ftruncate, 2, handle->file.fd, length);
 
     if (IS_ERR(ret))
-        return (ERRNO(ret) == EINVAL || ERRNO(ret) == EBADF) ?
-               -PAL_ERROR_BADHANDLE : -PAL_ERROR_DENIED;
+        return (ERRNO(ret) == EINVAL || ERRNO(ret) == EBADF) ? -PAL_ERROR_BADHANDLE
+                                                             : -PAL_ERROR_DENIED;
 
-    return (int64_t) length;
+    return (int64_t)length;
 }
 
 /* 'flush' operation for file stream. */
-static int file_flush (PAL_HANDLE handle)
-{
+static int file_flush(PAL_HANDLE handle) {
     int ret = INLINE_SYSCALL(fsync, 1, handle->file.fd);
 
     if (IS_ERR(ret))
-        return (ERRNO(ret) == EINVAL || ERRNO(ret) == EBADF) ?
-               -PAL_ERROR_BADHANDLE : -PAL_ERROR_DENIED;
+        return (ERRNO(ret) == EINVAL || ERRNO(ret) == EBADF) ? -PAL_ERROR_BADHANDLE
+                                                             : -PAL_ERROR_DENIED;
 
     return 0;
 }
 
-static inline int file_stat_type (struct stat * stat)
-{
+static inline int file_stat_type(struct stat* stat) {
     if (S_ISREG(stat->st_mode))
         return pal_type_file;
     if (S_ISDIR(stat->st_mode))
@@ -218,9 +208,7 @@ static inline int file_stat_type (struct stat * stat)
 }
 
 /* copy attr content from POSIX stat struct to PAL_STREAM_ATTR */
-static inline void
-file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
-{
+static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
     attr->handle_type  = file_stat_type(stat);
     attr->disconnected = PAL_FALSE;
     attr->nonblocking  = PAL_FALSE;
@@ -232,9 +220,7 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 }
 
 /* 'attrquery' operation for file streams */
-static int file_attrquery (const char * type, const char * uri,
-                           PAL_STREAM_ATTR * attr)
-{
+static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
     if (strcmp_static(type, URI_TYPE_FILE) && strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
@@ -251,9 +237,7 @@ static int file_attrquery (const char * type, const char * uri,
 }
 
 /* 'attrquerybyhdl' operation for file streams */
-static int file_attrquerybyhdl (PAL_HANDLE handle,
-                                PAL_STREAM_ATTR * attr)
-{
+static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int fd = handle->generic.fds[0];
     struct stat stat_buf;
 
@@ -266,9 +250,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
     return 0;
 }
 
-static int file_attrsetbyhdl (PAL_HANDLE handle,
-                              PAL_STREAM_ATTR * attr)
-{
+static int file_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int fd = handle->generic.fds[0], ret;
 
     ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags | 0600);
@@ -278,9 +260,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
     return 0;
 }
 
-static int file_rename (PAL_HANDLE handle, const char * type,
-                        const char * uri)
-{
+static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     if (strcmp_static(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
@@ -295,22 +275,20 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     }
 
     /* initial realpath is part of handle object and will be freed with it */
-    if (handle->file.realpath &&
-            handle->file.realpath != (void *) handle + HANDLE_SIZE(file)) {
-        free((void *) handle->file.realpath);
+    if (handle->file.realpath && handle->file.realpath != (void*)handle + HANDLE_SIZE(file)) {
+        free((void*)handle->file.realpath);
     }
 
     handle->file.realpath = tmp;
     return 0;
 }
 
-static int file_getname (PAL_HANDLE handle, char * buffer, size_t count)
-{
+static int file_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     if (!handle->file.realpath)
         return 0;
 
     size_t len = strlen(handle->file.realpath);
-    char * tmp = strcpy_static(buffer, URI_PREFIX_FILE, count);
+    char* tmp = strcpy_static(buffer, URI_PREFIX_FILE, count);
 
     if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
@@ -319,26 +297,25 @@ static int file_getname (PAL_HANDLE handle, char * buffer, size_t count)
     return tmp + len - buffer;
 }
 
-static const char* file_getrealpath (PAL_HANDLE handle)
-{
+static const char* file_getrealpath(PAL_HANDLE handle) {
     return handle->file.realpath;
 }
 
 struct handle_ops g_file_ops = {
-    .getname            = &file_getname,
-    .getrealpath        = &file_getrealpath,
-    .open               = &file_open,
-    .read               = &file_read,
-    .write              = &file_write,
-    .close              = &file_close,
-    .delete             = &file_delete,
-    .map                = &file_map,
-    .setlength          = &file_setlength,
-    .flush              = &file_flush,
-    .attrquery          = &file_attrquery,
-    .attrquerybyhdl     = &file_attrquerybyhdl,
-    .attrsetbyhdl       = &file_attrsetbyhdl,
-    .rename             = &file_rename,
+    .getname        = &file_getname,
+    .getrealpath    = &file_getrealpath,
+    .open           = &file_open,
+    .read           = &file_read,
+    .write          = &file_write,
+    .close          = &file_close,
+    .delete         = &file_delete,
+    .map            = &file_map,
+    .setlength      = &file_setlength,
+    .flush          = &file_flush,
+    .attrquery      = &file_attrquery,
+    .attrquerybyhdl = &file_attrquerybyhdl,
+    .attrsetbyhdl   = &file_attrsetbyhdl,
+    .rename         = &file_rename,
 };
 
 /* 'open' operation for directory stream. Directory stream does not have a
@@ -378,10 +355,10 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     hdl->dir.fd = ret;
     char* path = (void*)hdl + HANDLE_SIZE(dir);
     memcpy(path, uri, len + 1);
-    hdl->dir.realpath = (PAL_STR) path;
-    hdl->dir.buf = (PAL_PTR) NULL;
-    hdl->dir.ptr = (PAL_PTR) NULL;
-    hdl->dir.end = (PAL_PTR) NULL;
+    hdl->dir.realpath    = (PAL_STR)path;
+    hdl->dir.buf         = (PAL_PTR)NULL;
+    hdl->dir.ptr         = (PAL_PTR)NULL;
+    hdl->dir.end         = (PAL_PTR)NULL;
     hdl->dir.endofstream = PAL_FALSE;
     *handle = hdl;
     return 0;
@@ -395,17 +372,17 @@ struct linux_dirent64 {
     char           d_name[];
 };
 
-#define DT_UNKNOWN      0
-#define DT_FIFO         1
-#define DT_CHR          2
-#define DT_DIR          4
-#define DT_BLK          6
-#define DT_REG          8
-#define DT_LNK          10
-#define DT_SOCK         12
-#define DT_WHT          14
+#define DT_UNKNOWN 0
+#define DT_FIFO    1
+#define DT_CHR     2
+#define DT_DIR     4
+#define DT_BLK     6
+#define DT_REG     8
+#define DT_LNK     10
+#define DT_SOCK    12
+#define DT_WHT     14
 
-#define DIRBUF_SIZE     1024
+#define DIRBUF_SIZE 1024
 
 static inline bool is_dot_or_dotdot(const char* name) {
     return (name[0] == '.' && !name[1]) || (name[0] == '.' && name[1] == '.' && !name[2]);
@@ -449,7 +426,7 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* 
             buf += len;
             bytes_written += len;
             count -= len;
-skip:
+        skip:
             handle->dir.ptr = (char*)handle->dir.ptr + dirent->d_reclen;
         }
 
@@ -485,25 +462,23 @@ skip:
     }
 
 out:
-    return (int64_t)bytes_written ? : -PAL_ERROR_ENDOFSTREAM;
+    return (int64_t)bytes_written ?: -PAL_ERROR_ENDOFSTREAM;
 }
 
 /* 'close' operation of directory streams */
-static int dir_close (PAL_HANDLE handle)
-{
+static int dir_close(PAL_HANDLE handle) {
     int fd = handle->dir.fd;
 
     int ret = INLINE_SYSCALL(close, 1, fd);
 
     if (handle->dir.buf) {
-        free((void *) handle->dir.buf);
-        handle->dir.buf = handle->dir.ptr = handle->dir.end = (PAL_PTR) NULL;
+        free((void*)handle->dir.buf);
+        handle->dir.buf = handle->dir.ptr = handle->dir.end = (PAL_PTR)NULL;
     }
 
     /* initial realpath is part of handle object and will be freed with it */
-    if (handle->dir.realpath &&
-        handle->dir.realpath != (void *) handle + HANDLE_SIZE(dir)) {
-        free((void *) handle->dir.realpath);
+    if (handle->dir.realpath && handle->dir.realpath != (void*)handle + HANDLE_SIZE(dir)) {
+        free((void*)handle->dir.realpath);
     }
 
     if (IS_ERR(ret))
@@ -513,8 +488,7 @@ static int dir_close (PAL_HANDLE handle)
 }
 
 /* 'delete' operation of directoy streams */
-static int dir_delete (PAL_HANDLE handle, int access)
-{
+static int dir_delete(PAL_HANDLE handle, int access) {
     if (access)
         return -PAL_ERROR_INVAL;
 
@@ -525,13 +499,10 @@ static int dir_delete (PAL_HANDLE handle, int access)
 
     ret = INLINE_SYSCALL(rmdir, 1, handle->dir.realpath);
 
-    return (IS_ERR(ret) && ERRNO(ret) != ENOENT) ?
-           -PAL_ERROR_DENIED : 0;
+    return (IS_ERR(ret) && ERRNO(ret) != ENOENT) ? -PAL_ERROR_DENIED : 0;
 }
 
-static int dir_rename (PAL_HANDLE handle, const char * type,
-                       const char * uri)
-{
+static int dir_rename(PAL_HANDLE handle, const char* type, const char* uri) {
     if (strcmp_static(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
@@ -546,22 +517,20 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     }
 
     /* initial realpath is part of handle object and will be freed with it */
-    if (handle->dir.realpath &&
-            handle->dir.realpath != (void *) handle + HANDLE_SIZE(dir)) {
-        free((void *) handle->dir.realpath);
+    if (handle->dir.realpath && handle->dir.realpath != (void*)handle + HANDLE_SIZE(dir)) {
+        free((void*)handle->dir.realpath);
     }
 
     handle->dir.realpath = tmp;
     return 0;
 }
 
-static int dir_getname (PAL_HANDLE handle, char * buffer, size_t count)
-{
+static int dir_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     if (!handle->dir.realpath)
         return 0;
 
     size_t len = strlen(handle->dir.realpath);
-    char * tmp = strcpy_static(buffer, URI_PREFIX_DIR, count);
+    char* tmp = strcpy_static(buffer, URI_PREFIX_DIR, count);
 
     if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
@@ -570,20 +539,19 @@ static int dir_getname (PAL_HANDLE handle, char * buffer, size_t count)
     return tmp + len - buffer;
 }
 
-static const char * dir_getrealpath (PAL_HANDLE handle)
-{
+static const char* dir_getrealpath(PAL_HANDLE handle) {
     return handle->dir.realpath;
 }
 
 struct handle_ops g_dir_ops = {
-    .getname            = &dir_getname,
-    .getrealpath        = &dir_getrealpath,
-    .open               = &dir_open,
-    .read               = &dir_read,
-    .close              = &dir_close,
-    .delete             = &dir_delete,
-    .attrquery          = &file_attrquery,
-    .attrquerybyhdl     = &file_attrquerybyhdl,
-    .attrsetbyhdl       = &file_attrsetbyhdl,
-    .rename             = &dir_rename,
+    .getname        = &dir_getname,
+    .getrealpath    = &dir_getrealpath,
+    .open           = &dir_open,
+    .read           = &dir_read,
+    .close          = &dir_close,
+    .delete         = &dir_delete,
+    .attrquery      = &file_attrquery,
+    .attrquerybyhdl = &file_attrquerybyhdl,
+    .attrsetbyhdl   = &file_attrsetbyhdl,
+    .rename         = &dir_rename,
 };

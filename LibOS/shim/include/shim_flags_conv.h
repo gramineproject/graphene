@@ -13,8 +13,8 @@
 #define SHIM_FLAGS_CONV_H
 
 #include <asm/fcntl.h>
-#include <linux/mman.h>
 #include <linux/fcntl.h>
+#include <linux/mman.h>
 
 #include "assert.h"
 #include "pal.h"

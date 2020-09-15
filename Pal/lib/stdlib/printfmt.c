@@ -180,7 +180,7 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
 
             // (unsigned) octal
             case 'o':
-                num_u  = GET_UINT(ap, lflag);
+                num_u = GET_UINT(ap, lflag);
                 base = 8;
                 goto print_unsigned;
 

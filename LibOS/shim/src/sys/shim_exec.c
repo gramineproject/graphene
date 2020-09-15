@@ -12,13 +12,14 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_thread.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_checkpoint.h"
+#include "shim_fs.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_table.h"
+#include "shim_thread.h"
 
 /* returns 0 if normalized URIs are the same; assumes file URIs */
 static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {
@@ -155,8 +156,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     __SWITCH_STACK(new_argp, &__shim_do_execve_rtld, &arg);
     return 0;
 }
-
-#include <shim_checkpoint.h>
 
 static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
                            const char** argv, const char** envp) {

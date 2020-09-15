@@ -24,23 +24,22 @@ extern const struct pseudo_fs_ops fs_cpuinfo;
 static const struct pseudo_dir proc_root_dir = {
     .size = 5,
     .ent  = {
-              { .name   = "self",
-                .fs_ops = &fs_thread,
-                .dir    = &dir_thread },
-              { .name_ops = &nm_thread,
-                .fs_ops   = &fs_thread,
-                .dir      = &dir_thread },
-              { .name_ops = &nm_ipc_thread,
-                .fs_ops   = &fs_ipc_thread,
-                .dir      = &dir_ipc_thread },
-              { .name   = "meminfo",
-                .fs_ops = &fs_meminfo,
-                .type   = LINUX_DT_REG },
-              { .name   = "cpuinfo",
-                .fs_ops = &fs_cpuinfo,
-                .type   = LINUX_DT_REG },
-            }
-};
+        {.name     = "self",
+         .fs_ops   = &fs_thread,
+         .dir      = &dir_thread},
+        {.name_ops = &nm_thread,
+         .fs_ops   = &fs_thread,
+         .dir      = &dir_thread},
+        {.name_ops = &nm_ipc_thread,
+         .fs_ops   = &fs_ipc_thread,
+         .dir      = &dir_ipc_thread},
+        {.name     = "meminfo",
+         .fs_ops   = &fs_meminfo,
+         .type     = LINUX_DT_REG},
+        {.name     = "cpuinfo",
+         .fs_ops   = &fs_cpuinfo,
+         .type     = LINUX_DT_REG},
+    }};
 
 static const struct pseudo_fs_ops proc_root_fs = {
     .open = &pseudo_dir_open,

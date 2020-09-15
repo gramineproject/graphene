@@ -53,7 +53,7 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    rv = unlink(TEST_DIR"/"TEST_FILE);
+    rv = unlink(TEST_DIR "/" TEST_FILE);
     if (rv < 0 && errno != ENOENT) {
         perror("unlink failed");
         return 1;
@@ -65,7 +65,8 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    fd = open(TEST_DIR"/"TEST_FILE, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    fd = open(TEST_DIR "/" TEST_FILE, O_CREAT | O_RDWR | O_EXCL,
+              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     if (fd < 0) {
         perror("open failed");
         return 1;
@@ -82,7 +83,7 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    rv = unlink(TEST_DIR"/"TEST_FILE);
+    rv = unlink(TEST_DIR "/" TEST_FILE);
     if (rv < 0) {
         perror("unlink failed");
         return 1;

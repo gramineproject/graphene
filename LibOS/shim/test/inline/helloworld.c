@@ -1,4 +1,4 @@
-#include <shim_table.h>
+#include "shim_table.h"
 
 int main(int argc, char** argv) {
     shim_write(1, "Hello world\n", 12);

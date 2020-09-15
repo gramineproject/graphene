@@ -41,11 +41,11 @@ int main(int argc, char** argv) {
      */
     (void)thread_func; // to satisfy compiler
     /* Creating another thread and doing a race on execve. Only one thread should survive. */
-    //pthread_t th;
-    //if (pthread_create(&th, NULL, thread_func, NULL) != 0) {
-    //    perror("pthread_create failed");
-    //    return 1;
-    //}
+    // pthread_t th;
+    // if (pthread_create(&th, NULL, thread_func, NULL) != 0) {
+    //     perror("pthread_create failed");
+    //     return 1;
+    // }
 
     do_exec();
 }

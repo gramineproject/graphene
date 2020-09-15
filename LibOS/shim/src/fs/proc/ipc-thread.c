@@ -7,15 +7,15 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 
-#include <pal.h>
-#include <pal_error.h>
-#include <shim_fs.h>
-#include <shim_handle.h>
-#include <shim_internal.h>
-#include <shim_ipc.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_utils.h>
+#include "pal.h"
+#include "pal_error.h"
+#include "shim_fs.h"
+#include "shim_handle.h"
+#include "shim_internal.h"
+#include "shim_ipc.h"
+#include "shim_table.h"
+#include "shim_thread.h"
+#include "shim_utils.h"
 
 static int parse_ipc_thread_name(const char* name, IDTYPE* pidptr, const char** next,
                                  size_t* next_len, const char** nextnext) {
@@ -57,8 +57,8 @@ static int parse_ipc_thread_name(const char* name, IDTYPE* pidptr, const char** 
 
 static int find_ipc_thread_link(const char* name, struct shim_qstr* link,
                                 struct shim_dentry** dentptr) {
-    const char *next;
-    const char *nextnext;
+    const char* next;
+    const char* nextnext;
     size_t next_len;
     IDTYPE pid;
 
@@ -266,7 +266,7 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int 
     // Only one valid name
     __UNUSED(name);
     struct pid_status_cache* status = NULL;
-    int ret                         = 0;
+    int ret = 0;
 
     if (!create_lock_runtime(&status_lock)) {
         return -ENOMEM;
@@ -375,14 +375,8 @@ const struct pseudo_fs_ops fs_ipc_thread = {
 const struct pseudo_dir dir_ipc_thread = {
     .size = 3,
     .ent  = {
-              { .name   = "cwd",
-                .fs_ops = &fs_ipc_thread_link,
-                .type   = LINUX_DT_LNK },
-              { .name   = "exe",
-                .fs_ops = &fs_ipc_thread_link,
-                .type   = LINUX_DT_LNK },
-              { .name   = "root",
-                .fs_ops = &fs_ipc_thread_link,
-                .type   = LINUX_DT_LNK },
-        }
+        {.name = "cwd",  .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
+        {.name = "exe",  .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
+        {.name = "root", .fs_ops = &fs_ipc_thread_link, .type = LINUX_DT_LNK},
+    }
 };

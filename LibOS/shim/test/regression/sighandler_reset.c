@@ -1,11 +1,10 @@
 #define _XOPEN_SOURCE 700
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <unistd.h>
-#include <signal.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 static int count = 0;
 

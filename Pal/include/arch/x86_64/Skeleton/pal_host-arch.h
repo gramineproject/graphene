@@ -5,4 +5,3 @@
  *
  * This file contains Skeleton-specific functions related to the PAL.
  */
-

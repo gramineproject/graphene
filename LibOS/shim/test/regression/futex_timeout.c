@@ -15,8 +15,8 @@ int main(int argc, const char** argv) {
     int futex_errno = 0;
 
     struct timespec t = {.tv_sec = SLEEP_SEC, .tv_nsec = 0};
-    struct timeval tv1 = { 0 };
-    struct timeval tv2 = { 0 };
+    struct timeval tv1 = {0};
+    struct timeval tv2 = {0};
 
     printf("invoke futex syscall with a %d second timeout\n", SLEEP_SEC);
     if (gettimeofday(&tv1, NULL)) {
@@ -31,7 +31,8 @@ int main(int argc, const char** argv) {
     }
 
     if (ret != -1 || futex_errno != ETIMEDOUT) {
-        printf("futex syscall returned: %d with errno: %d (%s)\n", ret, futex_errno, strerror(futex_errno));
+        printf("futex syscall returned: %d with errno: %d (%s)\n", ret, futex_errno,
+               strerror(futex_errno));
         return 1;
     }
 

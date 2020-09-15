@@ -62,10 +62,10 @@ typedef uint8_t sgx_isvfamily_id_t[SGX_ISV_FAMILY_ID_SIZE];
 #define SGX_FLAGS_PROVISION_KEY 0x10ULL
 #define SGX_FLAGS_LICENSE_KEY   0x20ULL
 
-#define SGX_XFRM_LEGACY 0x03ULL
-#define SGX_XFRM_AVX    0x06ULL
-#define SGX_XFRM_MPX    0x18ULL
-#define SGX_XFRM_AVX512 0xe6ULL
+#define SGX_XFRM_LEGACY   0x03ULL
+#define SGX_XFRM_AVX      0x06ULL
+#define SGX_XFRM_MPX      0x18ULL
+#define SGX_XFRM_AVX512   0xe6ULL
 #define SGX_XFRM_RESERVED (~(SGX_XFRM_LEGACY | SGX_XFRM_AVX | SGX_XFRM_MPX | SGX_XFRM_AVX512))
 
 #define SGX_MISCSELECT_EXINFO 0x01UL
@@ -156,7 +156,7 @@ typedef struct {
 
 // Required by _restore_sgx_context, see enclave_entry.S.
 static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, rflags) ==
-              sizeof(((sgx_cpu_context_t){0}).rflags),
+                  sizeof(((sgx_cpu_context_t){0}).rflags),
               "rip must be directly after rflags in sgx_cpu_context_t");
 static_assert(offsetof(sgx_cpu_context_t, rip) - offsetof(sgx_cpu_context_t, r15) <= RED_ZONE_SIZE,
               "r15 needs to be within red zone distance from rip");

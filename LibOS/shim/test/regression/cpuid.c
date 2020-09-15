@@ -13,8 +13,9 @@ struct regs {
 } __attribute__((packed));
 
 static void cpuid(uint32_t leaf, uint32_t subleaf, struct regs* r) {
-    __asm__ volatile("cpuid" : "=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
-                             : "0"(leaf), "2"(subleaf));
+    __asm__ volatile("cpuid"
+                     : "=a"(r->eax), "=b"(r->ebx), "=c"(r->ecx), "=d"(r->edx)
+                     : "0"(leaf), "2"(subleaf));
 }
 
 static void test_cpuid_leaf_0xd(void) {
@@ -22,11 +23,10 @@ static void test_cpuid_leaf_0xd(void) {
 
     const uint32_t leaf = 0xd;
     // Sub-leaf IDs for the various extensions.
-    enum cpu_extension {
-        x87 = 0, SSE, AVX, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3, PKRU = 9 };
-    const uint32_t extension_sizes_bytes[] =
-        { [AVX] = 256, [MPX_1] = 64, [MPX_2] = 64, [AVX512_1] = 64, [AVX512_2] = 512,
-          [AVX512_3] = 1024, [PKRU] = 8};
+    enum cpu_extension { x87 = 0, SSE, AVX, MPX_1, MPX_2, AVX512_1, AVX512_2, AVX512_3, PKRU = 9 };
+    const uint32_t extension_sizes_bytes[] = {
+        [AVX] = 256,      [MPX_1] = 64,      [MPX_2] = 64, [AVX512_1] = 64,
+        [AVX512_2] = 512, [AVX512_3] = 1024, [PKRU] = 8};
     enum register_index {
         EAX = 0, EBX, ECX, EDX
     };
@@ -69,7 +69,6 @@ static void test_cpuid_leaf_0xd(void) {
 }
 
 int main(int argc, char** argv, char** envp) {
-
     test_cpuid_leaf_0xd();
     printf("CPUID test passed.\n");
     return 0;

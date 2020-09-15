@@ -1,9 +1,9 @@
 #include <asm/errno.h>
-#include <hex.h>
-#include <pal_linux.h>
-#include <pal_rtld.h>
 
 #include "gsgx.h"
+#include "hex.h"
+#include "pal_linux.h"
+#include "pal_rtld.h"
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
 #include "sgx_internal.h"
@@ -29,8 +29,8 @@ int open_sgx_driver(bool need_gsgx) {
 
     g_isgx_device = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR | O_CLOEXEC, 0);
     if (IS_ERR(g_isgx_device)) {
-        SGX_DBG(DBG_E, "Cannot open device " ISGX_FILE ". Please make sure the"
-                " Intel SGX kernel module is loaded.\n");
+        SGX_DBG(DBG_E, "Cannot open device " ISGX_FILE ". "
+                       "Please make sure the Intel SGX kernel module is loaded.\n");
         if (need_gsgx) {
             INLINE_SYSCALL(close, 1, g_gsgx_device);
             g_gsgx_device = -1;
@@ -41,8 +41,7 @@ int open_sgx_driver(bool need_gsgx) {
     return 0;
 }
 
-int read_enclave_token(int token_file, sgx_arch_token_t * token)
-{
+int read_enclave_token(int token_file, sgx_arch_token_t* token) {
     struct stat stat;
     int ret;
     ret = INLINE_SYSCALL(fstat, 2, token_file, &stat);
@@ -65,7 +64,8 @@ int read_enclave_token(int token_file, sgx_arch_token_t * token)
     SGX_DBG(DBG_I, "    valid:                 0x%08x\n",   token->body.valid);
     SGX_DBG(DBG_I, "    attr.flags:            0x%016lx\n", token->body.attributes.flags);
     SGX_DBG(DBG_I, "    attr.xfrm:             0x%016lx\n", token->body.attributes.xfrm);
-    SGX_DBG(DBG_I, "    mr_enclave:            %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_enclave.m));
+    SGX_DBG(DBG_I, "    mr_enclave:            %s\n",
+            ALLOCA_BYTES2HEXSTR(token->body.mr_enclave.m));
     SGX_DBG(DBG_I, "    mr_signer:             %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_signer.m));
     SGX_DBG(DBG_I, "    LE cpu_svn:            %s\n", ALLOCA_BYTES2HEXSTR(token->cpu_svn_le.svn));
     SGX_DBG(DBG_I, "    LE isv_prod_id:        %02x\n", token->isv_prod_id_le);
@@ -78,8 +78,7 @@ int read_enclave_token(int token_file, sgx_arch_token_t * token)
     return 0;
 }
 
-int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t * sig)
-{
+int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t* sig) {
     struct stat stat;
     int ret;
     ret = INLINE_SYSCALL(fstat, 2, sigfile, &stat);
@@ -98,14 +97,13 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t * sig)
     return 0;
 }
 
-static size_t get_ssaframesize (uint64_t xfrm)
-{
+static size_t get_ssaframesize(uint64_t xfrm) {
     uint32_t cpuinfo[4];
     uint64_t xfrm_ex;
     size_t xsave_size = 0;
 
     cpuid(INTEL_SGX_LEAF, 1, cpuinfo);
-    xfrm_ex = ((uint64_t) cpuinfo[3] << 32) + cpuinfo[2];
+    xfrm_ex = ((uint64_t)cpuinfo[3] << 32) + cpuinfo[2];
 
     for (int i = 2; i < 64; i++)
         if ((xfrm & (1ULL << i)) || (xfrm_ex & (1ULL << i))) {
@@ -117,29 +115,26 @@ static size_t get_ssaframesize (uint64_t xfrm)
     return ALLOC_ALIGN_UP(xsave_size + sizeof(sgx_pal_gpr_t) + 1);
 }
 
-bool is_wrfsbase_supported (void)
-{
+bool is_wrfsbase_supported(void) {
     uint32_t cpuinfo[4];
     cpuid(7, 0, cpuinfo);
 
     if (!(cpuinfo[1] & 0x1)) {
-        SGX_DBG(DBG_E, "The WRFSBASE instruction is not permitted on this"
-                " platform. Please make sure the Graphene SGX kernel module"
-                " is loaded properly.\n");
+        SGX_DBG(DBG_E,
+                "The WRFSBASE instruction is not permitted on this platform. Please make sure the "
+                "Graphene SGX kernel module is loaded properly.\n");
         return false;
     }
 
     return true;
 }
 
-int create_enclave(sgx_arch_secs_t * secs,
-                   sgx_arch_token_t * token)
-{
+int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     assert(secs->size && IS_POWER_OF_2(secs->size));
     assert(IS_ALIGNED(secs->base, secs->size));
 
     secs->ssa_frame_size = get_ssaframesize(token->body.attributes.xfrm) / g_page_size;
-    secs->misc_select = token->masked_misc_select_le;
+    secs->misc_select    = token->masked_misc_select_le;
     memcpy(&secs->attributes, &token->body.attributes, sizeof(sgx_attributes_t));
 
     /* Do not initialize secs->mr_signer and secs->mr_enclave here as they are
@@ -181,7 +176,7 @@ int create_enclave(sgx_arch_secs_t * secs,
     assert(addr == request_mmap_addr);
 
     struct sgx_enclave_create param = {
-        .src = (uint64_t) secs,
+        .src = (uint64_t)secs,
     };
     int ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_CREATE, &param);
 
@@ -210,13 +205,9 @@ int create_enclave(sgx_arch_secs_t * secs,
     return 0;
 }
 
-int add_pages_to_enclave(sgx_arch_secs_t * secs,
-                         void * addr, void * user_addr,
-                         unsigned long size,
-                         enum sgx_page_type type, int prot,
-                         bool skip_eextend,
-                         const char * comment)
-{
+int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, unsigned long size,
+                         enum sgx_page_type type, int prot, bool skip_eextend,
+                         const char* comment) {
     sgx_arch_sec_info_t secinfo;
     int ret;
 
@@ -251,8 +242,8 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
     }
 
     char p[4] = "---";
-    const char * t = (type == SGX_PAGE_TCS) ? "TCS" : "REG";
-    const char * m = skip_eextend ? "" : " measured";
+    const char* t = (type == SGX_PAGE_TCS) ? "TCS" : "REG";
+    const char* m = skip_eextend ? "" : " measured";
 
     if (type == SGX_PAGE_REG) {
         if (prot & PROT_READ)
@@ -264,11 +255,10 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
     }
 
     if (size == g_page_size)
-        SGX_DBG(DBG_I, "adding page  to enclave: %p [%s:%s] (%s)%s\n",
-                addr, t, p, comment, m);
+        SGX_DBG(DBG_I, "adding page  to enclave: %p [%s:%s] (%s)%s\n", addr, t, p, comment, m);
     else
-        SGX_DBG(DBG_I, "adding pages to enclave: %p-%p [%s:%s] (%s)%s\n",
-                addr, addr + size, t, p, comment, m);
+        SGX_DBG(DBG_I, "adding pages to enclave: %p-%p [%s:%s] (%s)%s\n", addr, addr + size, t, p,
+                comment, m);
 
 #ifdef SGX_DCAP_16_OR_LATER
     if (!user_addr && g_zero_pages_size < size) {
@@ -290,12 +280,12 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
 
     /* newer DCAP driver (version 1.6+) allows adding a range of pages for performance, use it */
     struct sgx_enclave_add_pages param = {
-        .offset     = (uint64_t)addr,
-        .src        = (uint64_t)(user_addr ? : g_zero_pages),
-        .length     = size,
-        .secinfo    = (uint64_t)&secinfo,
-        .flags      = skip_eextend ? 0 : SGX_PAGE_MEASURE,
-        .count      = 0,  /* output parameter, will be checked after IOCTL */
+        .offset  = (uint64_t)addr,
+        .src     = (uint64_t)(user_addr ?: g_zero_pages),
+        .length  = size,
+        .secinfo = (uint64_t)&secinfo,
+        .flags   = skip_eextend ? 0 : SGX_PAGE_MEASURE,
+        .count   = 0, /* output parameter, will be checked after IOCTL */
     };
 
     ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_ADD_PAGES, &param);
@@ -310,8 +300,8 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
     }
 
     /* ask Intel SGX driver to actually mmap the added enclave pages */
-    uint64_t mapped = INLINE_SYSCALL(mmap, 6, secs->base + addr, size, prot,
-                                     MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
+    uint64_t mapped = INLINE_SYSCALL(mmap, 6, secs->base + addr, size, prot, MAP_FIXED | MAP_SHARED,
+                                     g_isgx_device, 0);
     if (IS_ERR_P(mapped)) {
         SGX_DBG(DBG_I, "Cannot map enclave pages %ld\n", ERRNO_P(mapped));
         return -EACCES;
@@ -319,10 +309,10 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
 #else
     /* older drivers (DCAP v1.5- and old out-of-tree) only supports adding one page at a time */
     struct sgx_enclave_add_page param = {
-        .addr       = secs->base + (uint64_t) addr,
-        .src        = (uint64_t) (user_addr ? : g_zero_pages),
-        .secinfo    = (uint64_t) &secinfo,
-        .mrmask     = skip_eextend ? 0 : (uint16_t) -1,
+        .addr    = secs->base + (uint64_t)addr,
+        .src     = (uint64_t)(user_addr ?: g_zero_pages),
+        .secinfo = (uint64_t)&secinfo,
+        .mrmask  = skip_eextend ? 0 : (uint16_t)-1,
     };
 
     uint64_t added_size = 0;
@@ -350,10 +340,8 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
     return 0;
 }
 
-int init_enclave(sgx_arch_secs_t * secs,
-                 sgx_arch_enclave_css_t * sigstruct,
-                 sgx_arch_token_t * token)
-{
+int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
+                 sgx_arch_token_t* token) {
 #ifdef SGX_DCAP
     __UNUSED(token);
 #endif
@@ -365,11 +353,11 @@ int init_enclave(sgx_arch_secs_t * secs,
 
     struct sgx_enclave_init param = {
 #ifndef SGX_DCAP_16_OR_LATER
-        .addr           = enclave_valid_addr,
+        .addr = enclave_valid_addr,
 #endif
-        .sigstruct      = (uint64_t) sigstruct,
+        .sigstruct = (uint64_t)sigstruct,
 #ifndef SGX_DCAP
-        .einittoken     = (uint64_t) token,
+        .einittoken = (uint64_t)token,
 #endif
     };
     int ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_INIT, &param);
@@ -379,23 +367,30 @@ int init_enclave(sgx_arch_secs_t * secs,
     }
 
     if (ret) {
-        const char * error;
+        const char* error;
         /* DEP 3/22/17: Try to improve error messages */
-        switch(ret) {
-        case SGX_INVALID_SIG_STRUCT:
-            error = "Invalid SIGSTRUCT";          break;
-        case SGX_INVALID_ATTRIBUTE:
-            error = "Invalid enclave attribute";  break;
-        case SGX_INVALID_MEASUREMENT:
-            error = "Invalid measurement";        break;
-        case SGX_INVALID_SIGNATURE:
-            error = "Invalid signature";          break;
-        case SGX_INVALID_LICENSE:
-            error = "Invalid EINIT token";        break;
-        case SGX_INVALID_CPUSVN:
-            error = "Invalid CPU SVN";            break;
-        default:
-            error = "Unknown reason";             break;
+        switch (ret) {
+            case SGX_INVALID_SIG_STRUCT:
+                error = "Invalid SIGSTRUCT";
+                break;
+            case SGX_INVALID_ATTRIBUTE:
+                error = "Invalid enclave attribute";
+                break;
+            case SGX_INVALID_MEASUREMENT:
+                error = "Invalid measurement";
+                break;
+            case SGX_INVALID_SIGNATURE:
+                error = "Invalid signature";
+                break;
+            case SGX_INVALID_LICENSE:
+                error = "Invalid EINIT token";
+                break;
+            case SGX_INVALID_CPUSVN:
+                error = "Invalid CPU SVN";
+                break;
+            default:
+                error = "Unknown reason";
+                break;
         }
         SGX_DBG(DBG_I, "enclave EINIT failed - %s\n", error);
         return -EPERM;
@@ -411,9 +406,7 @@ int init_enclave(sgx_arch_secs_t * secs,
     return 0;
 }
 
-int destroy_enclave(void * base_addr, size_t length)
-{
-
+int destroy_enclave(void* base_addr, size_t length) {
     SGX_DBG(DBG_I, "destroying enclave...\n");
 
     int ret = INLINE_SYSCALL(munmap, 2, base_addr, length);

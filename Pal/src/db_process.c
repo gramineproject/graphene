@@ -31,7 +31,7 @@ DkProcessCreate(PAL_STR uri, PAL_STR* args) {
         uri = pal_control.executable;
 
     PAL_HANDLE handle = NULL;
-    int ret           = _DkProcessCreate(&handle, uri, args);
+    int ret = _DkProcessCreate(&handle, uri, args);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

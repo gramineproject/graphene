@@ -7,6 +7,9 @@
  * This files contains APIs that allocate, free or protect virtual memory.
  */
 
+#include <asm/fcntl.h>
+#include <asm/mman.h>
+
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -16,9 +19,6 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
-
-#include <asm/fcntl.h>
-#include <asm/mman.h>
 
 bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     return (addr < DATA_END && addr + size > TEXT_START);
@@ -44,8 +44,7 @@ int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, size_t size)
-{
+int _DkVirtualMemoryFree(void* addr, size_t size) {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
@@ -56,8 +55,7 @@ int _DkVirtualMemoryProtect(void* addr, size_t size, int prot) {
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-static int read_proc_meminfo (const char * key, unsigned long * val)
-{
+static int read_proc_meminfo(const char* key, unsigned long* val) {
     int fd = INLINE_SYSCALL(open, 3, "/proc/meminfo", O_RDONLY, 0);
 
     if (IS_ERR(fd))
@@ -77,7 +75,7 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
             break;
         }
 
-        for (n = r ; n < r + ret ; n++)
+        for (n = r; n < r + ret; n++)
             if (buffer[n] == '\n')
                 break;
 
@@ -88,7 +86,7 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
         }
 
         if (!memcmp(key, buffer, len) && buffer[len] == ':') {
-            for (size_t i = len + 1; i < n ; i++)
+            for (size_t i = len + 1; i < n; i++)
                 if (buffer[i] != ' ') {
                     *val = atol(buffer + i);
                     break;
@@ -121,8 +119,7 @@ unsigned long _DkMemoryQuota(void) {
     return (g_linux_state.memory_quota = quota * 1024);
 }
 
-unsigned long _DkMemoryAvailableQuota (void)
-{
+unsigned long _DkMemoryAvailableQuota(void) {
     unsigned long quota = 0;
     if (read_proc_meminfo("MemFree", &quota) < 0)
         return 0;

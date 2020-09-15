@@ -6,18 +6,22 @@
 static uint64_t rdtsc_start(void) {
     uint32_t low, high;
     __asm__ volatile(
-            "mfence; lfence;" /* memory barriers to sync RDTSC */
-            "rdtsc;"
-            : "=d"(high), "=a"(low) : : "memory");
+        "mfence; lfence;" /* memory barriers to sync RDTSC */
+        "rdtsc;"
+        : "=d"(high), "=a"(low)
+        :
+        : "memory");
     return (low | ((uint64_t)high) << 32);
 }
 
 static uint64_t rdtsc_end(void) {
     uint32_t low, high;
     __asm__ volatile(
-            "rdtscp;"        /* use RDTSCP instead of RDTSC, just for testing */
-            "lfence;"        /* memory barrier to sync RDTSCP */
-            : "=d"(high), "=a"(low) : : "%rcx", "memory");
+        "rdtscp;" /* use RDTSCP instead of RDTSC, just for testing */
+        "lfence;" /* memory barrier to sync RDTSCP */
+        : "=d"(high), "=a"(low)
+        :
+        : "%rcx", "memory");
     return (low | ((uint64_t)high) << 32);
 }
 

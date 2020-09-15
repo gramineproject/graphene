@@ -7,9 +7,9 @@
 #ifndef PROTECTED_FILES_INTERNAL_H_
 #define PROTECTED_FILES_INTERNAL_H_
 
-#include <assert.h>
 #include <limits.h>
 
+#include "assert.h"
 #include "list.h"
 #include "lru_cache.h"
 #include "protected_files.h"
@@ -28,11 +28,11 @@ typedef struct _metadata_plain {
     pf_mac_t   metadata_gmac; /* GCM mac */
 } metadata_plain_t;
 
-#define PATH_MAX_SIZE          (260 + 512)
+#define PATH_MAX_SIZE (260 + 512)
 
 // these are all defined as relative to node size, so we can decrease node size in tests
 // and have deeper tree
-#define MD_USER_DATA_SIZE (PF_NODE_SIZE*3/4)  // 3072
+#define MD_USER_DATA_SIZE (PF_NODE_SIZE * 3 / 4) // 3072
 static_assert(MD_USER_DATA_SIZE == 3072, "bad struct size");
 
 typedef struct _metadata_encrypted {
@@ -47,8 +47,8 @@ typedef uint8_t metadata_encrypted_blob_t[sizeof(metadata_encrypted_t)];
 
 #define METADATA_NODE_SIZE PF_NODE_SIZE
 
-typedef uint8_t metadata_padding_t[METADATA_NODE_SIZE
-    - (sizeof(metadata_plain_t) + sizeof(metadata_encrypted_blob_t))];
+typedef uint8_t metadata_padding_t[METADATA_NODE_SIZE -
+                                   (sizeof(metadata_plain_t) + sizeof(metadata_encrypted_blob_t))];
 
 typedef struct _metadata_node {
     metadata_plain_t          plain_part;
@@ -67,10 +67,10 @@ typedef struct _data_node_crypto {
 // for PF_NODE_SIZE == 2048, we have 48 attached data nodes and 16 mht child nodes
 // for PF_NODE_SIZE == 1024, we have 24 attached data nodes and 8 mht child nodes
 // 3/4 of the node size is dedicated to data nodes
-#define ATTACHED_DATA_NODES_COUNT ((PF_NODE_SIZE/sizeof(gcm_crypto_data_t))*3/4)
+#define ATTACHED_DATA_NODES_COUNT ((PF_NODE_SIZE / sizeof(gcm_crypto_data_t)) * 3 / 4)
 static_assert(ATTACHED_DATA_NODES_COUNT == 96, "ATTACHED_DATA_NODES_COUNT");
 // 1/4 of the node size is dedicated to child mht nodes
-#define CHILD_MHT_NODES_COUNT ((PF_NODE_SIZE/sizeof(gcm_crypto_data_t))*1/4)
+#define CHILD_MHT_NODES_COUNT ((PF_NODE_SIZE / sizeof(gcm_crypto_data_t)) * 1 / 4)
 static_assert(CHILD_MHT_NODES_COUNT == 32, "CHILD_MHT_NODES_COUNT");
 
 typedef struct _mht_node {
@@ -95,7 +95,7 @@ static_assert(sizeof(encrypted_node_t) == PF_NODE_SIZE, "sizeof(encrypted_node_t
 #define MAX_PAGES_IN_CACHE 48
 
 typedef enum {
-    FILE_MHT_NODE_TYPE = 1,
+    FILE_MHT_NODE_TYPE  = 1,
     FILE_DATA_NODE_TYPE = 2,
 } mht_node_type_e;
 

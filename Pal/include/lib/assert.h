@@ -37,4 +37,4 @@ noreturn void __abort(void);
 #define assert(expr) ((void)0)
 #endif
 
-#endif  /* ASSERT_H */
+#endif /* ASSERT_H */

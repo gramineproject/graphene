@@ -27,8 +27,8 @@ static pid_t who2 = 0;
 static void sigterm_handler(int signum) {
     pid_t v = 0;
     pid_t my_tid = mygettid();
-    if (!__atomic_compare_exchange_n(&who1, &v, my_tid, /*weak=*/0,
-                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
+    if (!__atomic_compare_exchange_n(&who1, &v, my_tid, /*weak=*/0, __ATOMIC_SEQ_CST,
+                                     __ATOMIC_SEQ_CST)) {
         __atomic_store_n(&who2, my_tid, __ATOMIC_SEQ_CST);
     }
     printf("sigterm_handler called in: %d\n", my_tid);
@@ -48,7 +48,7 @@ static void wait_for(int x) {
 static void* f(void* x) {
     printf("thread id: %d\n", mygettid());
 
-    struct sigaction action = { 0 };
+    struct sigaction action = {0};
     action.sa_handler = sigterm_handler;
 
     int ret = sigaction(SIGTERM, &action, NULL);

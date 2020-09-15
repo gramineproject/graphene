@@ -33,7 +33,7 @@ int main() {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 
-    struct sigaction action = { 0 };
+    struct sigaction action = {0};
     action.sa_handler = sigterm_handler;
 
     int ret = sigaction(SIGTERM, &action, NULL);

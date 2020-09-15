@@ -12,6 +12,10 @@
  * at creation.
  */
 
+#include <linux/fs.h>
+#include <linux/sched.h>
+#include <linux/types.h>
+
 #include "api.h"
 #include "pal.h"
 #include "pal_crypto.h"
@@ -25,10 +29,6 @@
 #include "pal_security.h"
 #include "protected-files/protected_files.h"
 #include "spinlock.h"
-
-#include <linux/sched.h>
-#include <linux/types.h>
-#include <linux/fs.h>
 typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
 
@@ -43,9 +43,9 @@ DEFINE_LISTP(trusted_child);
 static LISTP_TYPE(trusted_child) trusted_children = LISTP_INIT;
 static spinlock_t trusted_children_lock = INIT_SPINLOCK_UNLOCKED;
 
-int register_trusted_child(const char * uri, const char * mr_enclave_str)
-{
-    struct trusted_child * tc = NULL, * new;
+int register_trusted_child(const char* uri, const char* mr_enclave_str) {
+    struct trusted_child* tc = NULL;
+    struct trusted_child* new;
     int uri_len = strlen(uri);
 
     spinlock_lock(&trusted_children_lock);
@@ -67,7 +67,7 @@ int register_trusted_child(const char * uri, const char * mr_enclave_str)
 
     char mr_enclave_text[sizeof(sgx_measurement_t) * 2 + 1] = "\0";
     size_t nbytes = 0;
-    for (; nbytes < sizeof(sgx_measurement_t) ; nbytes++) {
+    for (; nbytes < sizeof(sgx_measurement_t); nbytes++) {
         char byte1 = mr_enclave_str[nbytes * 2];
         char byte2 = mr_enclave_str[nbytes * 2 + 1];
         unsigned char val = 0;
@@ -75,12 +75,10 @@ int register_trusted_child(const char * uri, const char * mr_enclave_str)
         if (byte1 == 0 || byte2 == 0) {
             break;
         }
-        if (!(byte1 >= '0' && byte1 <= '9') &&
-            !(byte1 >= 'a' && byte1 <= 'f')) {
+        if (!(byte1 >= '0' && byte1 <= '9') && !(byte1 >= 'a' && byte1 <= 'f')) {
             break;
         }
-        if (!(byte2 >= '0' && byte2 <= '9') &&
-            !(byte2 >= 'a' && byte2 <= 'f')) {
+        if (!(byte2 >= '0' && byte2 <= '9') && !(byte2 >= 'a' && byte2 <= 'f')) {
             break;
         }
 
@@ -185,7 +183,7 @@ static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t encla
     if (ret < 0)
         return ret;
 
-    SGX_DBG(DBG_P|DBG_S, "Enclave identifier: %016lx -> %s\n", enclave_id,
+    SGX_DBG(DBG_P | DBG_S, "Enclave identifier: %016lx -> %s\n", enclave_id,
             ALLOCA_BYTES2HEXSTR(data.eid_mac));
 
     /* Copy proc_data into sgx_sign_data_t */
@@ -202,8 +200,7 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
         return 1;
 
     sgx_sign_data_t sign_data;
-    int ret = generate_sign_data(&child->process.session_key, remote_state->enclave_id,
-                                 &sign_data);
+    int ret = generate_sign_data(&child->process.session_key, remote_state->enclave_id, &sign_data);
     if (ret < 0)
         return ret;
 
@@ -218,7 +215,7 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
         return 0;
     }
 
-    struct trusted_child * tc;
+    struct trusted_child* tc;
     spinlock_lock(&trusted_children_lock);
 
     /* Try to find a matching mr_enclave from the manifest */
@@ -234,8 +231,7 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
     return 1;
 }
 
-int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
-{
+int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     /* only access creating process with regular file */
     if (!strstartswith_static(uri, URI_PREFIX_FILE))
         return -PAL_ERROR_INVAL;
@@ -245,7 +241,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     int nargs = 0, ret;
 
     if (args)
-        for (const char ** a = args ; *a ; a++)
+        for (const char** a = args; *a; a++)
             nargs++;
 
     ret = ocall_create_process(uri, nargs, args, &stream_fd, &child_pid);
@@ -254,7 +250,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     PAL_HANDLE child = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(child, process);
-    HANDLE_HDR(child)->flags |= RFD(0)|WFD(0);
+    HANDLE_HDR(child)->flags |= RFD(0) | WFD(0);
     child->process.stream      = stream_fd;
     child->process.pid         = child_pid;
     child->process.nonblocking = PAL_FALSE;
@@ -325,11 +321,10 @@ static int check_parent_mr_enclave(PAL_HANDLE parent, sgx_measurement_t* mr_encl
     return 0;
 }
 
-int init_child_process (PAL_HANDLE * parent_handle)
-{
+int init_child_process(PAL_HANDLE* parent_handle) {
     PAL_HANDLE parent = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(parent, process);
-    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(0);
+    HANDLE_HDR(parent)->flags |= RFD(0) | WFD(0);
 
     parent->process.stream      = g_pal_sec.stream_fd;
     parent->process.pid         = g_pal_sec.ppid;
@@ -383,8 +378,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
     return 0;
 }
 
-noreturn void _DkProcessExit (int exitcode)
-{
+noreturn void _DkProcessExit(int exitcode) {
     if (exitcode)
         SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
     ocall_exit(exitcode, /*is_exitgroup=*/true);
@@ -393,9 +387,7 @@ noreturn void _DkProcessExit (int exitcode)
     }
 }
 
-static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                          void * buffer)
-{
+static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
     if (offset)
         return -PAL_ERROR_INVAL;
 
@@ -413,9 +405,7 @@ static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     return bytes;
 }
 
-static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                           const void * buffer)
-{
+static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
     if (offset)
         return -PAL_ERROR_INVAL;
 
@@ -433,8 +423,7 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     return bytes;
 }
 
-static int proc_close (PAL_HANDLE handle)
-{
+static int proc_close(PAL_HANDLE handle) {
     if (handle->process.stream != PAL_IDX_POISON) {
         ocall_close(handle->process.stream);
         handle->process.stream = PAL_IDX_POISON;
@@ -448,8 +437,7 @@ static int proc_close (PAL_HANDLE handle)
     return 0;
 }
 
-static int proc_delete (PAL_HANDLE handle, int access)
-{
+static int proc_delete(PAL_HANDLE handle, int access) {
     int shutdown;
     switch (access) {
         case 0:
@@ -480,7 +468,7 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     attr->handle_type  = HANDLE_HDR(handle)->type;
     attr->nonblocking  = handle->process.nonblocking;
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->secure = handle->process.ssl_ctx ? PAL_TRUE : PAL_FALSE;
+    attr->secure       = handle->process.ssl_ctx ? PAL_TRUE : PAL_FALSE;
 
     /* get number of bytes available for reading */
     ret = ocall_fionread(handle->process.stream);
@@ -500,14 +488,12 @@ static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     return 0;
 }
 
-static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
-{
+static int proc_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (handle->process.stream == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     if (attr->nonblocking != handle->process.nonblocking) {
-        int ret = ocall_fsetnonblock(handle->process.stream,
-                                     handle->process.nonblocking);
+        int ret = ocall_fsetnonblock(handle->process.stream, handle->process.nonblocking);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
 
