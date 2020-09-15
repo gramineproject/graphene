@@ -24,11 +24,11 @@ convention, please follow it)::
 2. Add definitions to system call table
 ---------------------------------------
 
-To implement system call ``sched_setaffinity``, three functions need to be
-defined in :file:`shim_table.h`: ``__shim_sched_setaffinity``,
-``shim_sched_setaffinity``, and ``shim_do_sched_setaffinity``. The first two
-should already be defined. Add the third in respect to the system call you are
-implementing, with the same prototype as defined in :file:`shim_syscalls.c`::
+To implement system call ``sched_setaffinity``, two functions need to be defined
+in :file:`shim_table.h`: ``__shim_sched_setaffinity`` and
+``shim_do_sched_setaffinity``. The first one should already be defined. Add the
+second in respect to the system call you are implementing, with the same
+prototype as defined in :file:`shim_syscalls.c`::
 
    int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
 
