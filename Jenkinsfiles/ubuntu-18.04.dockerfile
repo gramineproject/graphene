@@ -7,6 +7,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     autoconf \
     bison \
     build-essential \
+    clang-10 clang++-10 \
     curl \
     flex \
     gawk \

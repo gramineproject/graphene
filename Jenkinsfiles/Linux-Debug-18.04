@@ -4,6 +4,11 @@ pipeline {
                            label 'nonsgx_slave'
               }
         }
+        environment {
+               CC = "clang"
+               CXX = "clang++"
+               AS = "clang"
+        }
         stages {
                 stage('Lint') {
                     steps {
