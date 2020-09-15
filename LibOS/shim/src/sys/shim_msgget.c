@@ -21,7 +21,7 @@
 #include "shim_ipc.h"
 #include "shim_sysv.h"
 #include "shim_table.h"
-#include "shim_unistd.h"
+#include "shim_types.h"
 #include "shim_utils.h"
 
 #define MSGQ_HASH_LEN  8

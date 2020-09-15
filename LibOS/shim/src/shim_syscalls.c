@@ -20,7 +20,7 @@
 #include "shim_table.h"
 #include "shim_tcb.h"
 #include "shim_thread.h"
-#include "shim_unistd.h"
+#include "shim_types.h"
 #include "shim_utils.h"
 
 //////////////////////////////////////////////////

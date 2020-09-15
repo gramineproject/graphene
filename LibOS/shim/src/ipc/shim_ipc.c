@@ -15,7 +15,7 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 #include "shim_thread.h"
-#include "shim_unistd.h"
+#include "shim_types.h"
 #include "shim_utils.h"
 
 static struct shim_lock ipc_info_mgr_lock;

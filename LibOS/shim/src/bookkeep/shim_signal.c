@@ -21,7 +21,7 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_ucontext-arch.h"
-#include "shim_unistd.h"
+#include "shim_types.h"
 #include "shim_utils.h"
 #include "shim_vma.h"
 
