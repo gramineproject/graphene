@@ -5,6 +5,8 @@
 #include "shim_types.h"
 #include "ucontext.h"
 
+#define __WCOREDUMP_BIT 0x80
+
 void sigaction_make_defaults(struct __kernel_sigaction* sig_action);
 void thread_sigaction_reset_on_execve(struct shim_thread* thread);
 
