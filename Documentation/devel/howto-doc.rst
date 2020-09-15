@@ -41,8 +41,9 @@ not published.
 Building documentation
 ----------------------
 
-To build documentation, change directory to ``Documentation``, install prerequisites, and use ``make``,
-specifying the appropriate target. The output is in the ``_build`` directory:
+To build documentation, change directory to ``Documentation``, install
+prerequisites, and use ``make``, specifying the appropriate target. The output
+is in the ``_build`` directory:
 
 .. code-block:: sh
 
@@ -61,17 +62,6 @@ specifying the appropriate target. The output is in the ``_build`` directory:
 
    # example: view man output
    man _build/man/pal_loader.1
-
-You can also run a local web server to preview the HTML output.
-
-.. code-block:: sh
-
-   python -m SimpleHTTPServer
-
-Check your documentation by opening the following url in your browser::
-
-   http://<IP address>:8000/_build/html
-
 
 Preferred reST style
 --------------------
