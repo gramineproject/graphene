@@ -49,7 +49,7 @@ static void parse_ioctlop(va_list*);
 static void parse_fcntlop(va_list*);
 static void parse_seek(va_list*);
 static void parse_at_fdcwd(va_list*);
-static void parse_wait_option(va_list*);
+static void parse_wait_options(va_list*);
 
 struct parser_table {
     int slow;
@@ -122,7 +122,7 @@ struct parser_table {
         [__NR_execve]   = {.slow   = 1,
                            .parser = {NULL, &parse_exec_args, &parse_exec_envp}},
         [__NR_exit]     = {.slow = 0, .parser = {NULL}},
-        [__NR_wait4]    = {.slow = 1, .parser = {NULL, NULL, &parse_wait_option, NULL}},
+        [__NR_wait4]    = {.slow = 1, .parser = {NULL, NULL, &parse_wait_options, NULL}},
         [__NR_kill]     = {.slow = 0, .parser = {NULL, &parse_signum, }},
         [__NR_uname]    = {.slow = 0, .parser = {NULL}},
         [__NR_semget]   = {.slow = 0, .parser = {NULL}},
@@ -320,7 +320,7 @@ struct parser_table {
         [__NR_mq_notify]       = {.slow = 0, .parser = {NULL}},
         [__NR_mq_getsetattr]   = {.slow = 0, .parser = {NULL}},
         [__NR_kexec_load]      = {.slow = 0, .parser = {NULL}},
-        [__NR_waitid]      = {.slow = 1, .parser = {NULL, NULL, NULL, &parse_wait_option, NULL}},
+        [__NR_waitid]      = {.slow = 1, .parser = {NULL, NULL, NULL, &parse_wait_options, NULL}},
         [__NR_add_key]     = {.slow = 0, .parser = {NULL}},
         [__NR_request_key] = {.slow = 0, .parser = {NULL}},
         [__NR_keyctl]      = {.slow = 0, .parser = {NULL}},
@@ -449,6 +449,27 @@ static inline int is_pointer(const char* type) {
     do {                        \
         debug_vprintf(fmt, ap); \
     } while (0)
+
+struct flag_table {
+    const char *name;
+    int flag;
+};
+
+static int parse_flags(int flags, const struct flag_table* all_flags, size_t count) {
+    bool first = true;
+    for (size_t i = 0; i < count; i++)
+        if (flags & all_flags[i].flag) {
+            if (first)
+                first = false;
+            else
+                PUTCH('|');
+
+            PUTS(all_flags[i].name);
+            flags &= ~all_flags[i].flag;
+        }
+
+    return flags;
+}
 
 static inline void parse_string_arg(va_list* ap) {
     va_list ap_test_arg;
@@ -649,10 +670,7 @@ static void parse_clone_flags(va_list* ap) {
 
 #define FLG(n) \
     { "CLONE_" #n, CLONE_##n, }
-    const struct {
-        const char* name;
-        int flag;
-    } all_flags[] = {
+    const struct flag_table all_flags[] = {
         FLG(VM),
         FLG(FS),
         FLG(FILES),
@@ -678,16 +696,7 @@ static void parse_clone_flags(va_list* ap) {
     };
 #undef FLG
 
-    bool printed = false;
-    for (size_t i = 0; i < ARRAY_SIZE(all_flags); i++)
-        if (flags & all_flags[i].flag) {
-            if (printed)
-                PUTCH('|');
-            else
-                printed = true;
-            PUTS(all_flags[i].name);
-            flags &= ~all_flags[i].flag;
-        }
+    flags = parse_flags(flags, all_flags, ARRAY_SIZE(all_flags));
 
 #define CLONE_SIGNAL_MASK 0xff
     int exit_signal = flags & CLONE_SIGNAL_MASK;
@@ -1312,9 +1321,21 @@ static void parse_at_fdcwd(va_list* ap) {
     }
 }
 
-static void parse_wait_option(va_list* ap) {
-    int option = va_arg(*ap, int);
+static void parse_wait_options(va_list* ap) {
+    int flags = va_arg(*ap, int);
 
-    if (option & WNOHANG)
-        PUTS("WNOHANG");
+#define FLG(n) { #n, n }
+    const struct flag_table all_flags[] = {
+        FLG(WNOHANG),
+        FLG(WNOWAIT),
+        FLG(WEXITED),
+        FLG(WSTOPPED),
+        FLG(WCONTINUED),
+        FLG(WUNTRACED),
+    };
+#undef FLG
+
+    flags = parse_flags(flags, all_flags, ARRAY_SIZE(all_flags));
+    if (flags)
+        PRINTF("|0x%x", flags);
 }

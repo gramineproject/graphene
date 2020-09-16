@@ -19,16 +19,21 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-int shim_do_waitid(int which, pid_t id, siginfo_t* infop, int option, struct __kernel_rusage* ru) {
+
+long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct __kernel_rusage* ru) {
     struct shim_thread* cur    = get_cur_thread();
     struct shim_thread* thread = NULL;
+    int ret;
     __UNUSED(ru);
 
     /* Note that we don't support WSTOPPED, WCONTINUED or WNOWAIT (only WEXITED and WNOHANG are
      * handled correctly). */
-    if (option & ~(WNOHANG | WUNTRACED | WEXITED | WCONTINUED | __WNOTHREAD | __WCLONE | __WALL)) {
-        return -EINVAL;
-    }
+	if (options & ~(WNOHANG | WNOWAIT | WEXITED | WSTOPPED | WCONTINUED |
+                    __WNOTHREAD| __WCLONE | __WALL))
+		return -EINVAL;
+
+	if (!(options & (WEXITED | WSTOPPED | WCONTINUED)))
+		return -EINVAL;
 
     if (!(which == P_PGID || which == P_ALL || which == P_PID))
         return -EINVAL;
@@ -39,7 +44,7 @@ int shim_do_waitid(int which, pid_t id, siginfo_t* infop, int option, struct __k
         if (!(thread = lookup_thread(pid)))
             return -ECHILD;
 
-        if (!(option & WNOHANG)) {
+        if (!(options & WNOHANG)) {
         block_pid:
             object_wait_with_retry(thread->exit_event);
         }
@@ -48,7 +53,7 @@ int shim_do_waitid(int which, pid_t id, siginfo_t* infop, int option, struct __k
 
         if (thread->is_alive) {
             unlock(&thread->lock);
-            if (!(option & WNOHANG))
+            if (!(options & WNOHANG))
                 goto block_pid;
             put_thread(thread);
             return 0;
@@ -81,7 +86,7 @@ int shim_do_waitid(int which, pid_t id, siginfo_t* infop, int option, struct __k
         return -ECHILD;
     }
 
-    if (!(option & WNOHANG)) {
+    if (!(options & WNOHANG)) {
     block:
         if (cur->child_exit_event)
             while (LISTP_EMPTY(&cur->exited_children)) {
@@ -103,7 +108,7 @@ int shim_do_waitid(int which, pid_t id, siginfo_t* infop, int option, struct __k
                 goto found_child;
         }
 
-        if (!(option & WNOHANG))
+        if (!(options & WNOHANG))
             goto block;
     } else {
         assert (which == P_ALL);
@@ -134,7 +139,13 @@ found_child:
     unlock(&cur->lock);
 
 found:
+    ret = 0;
     if (infop) {
+        if (test_user_memory(infop, sizeof(*infop), /*write=*/true)) {
+            ret = -EFAULT;
+            goto cleanup;
+        }
+
         infop->si_pid = thread->tid;
         infop->si_uid = thread->uid;
         infop->si_signo = SIGCHLD;
@@ -148,15 +159,26 @@ found:
         }
     }
 
+cleanup:
     del_thread(thread);
     put_thread(thread);
-    return 0;
+    return ret;
 }
 
-pid_t shim_do_wait4(pid_t pid, int* status, int option, struct __kernel_rusage* ru) {
+long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* ru) {
     int which;
     pid_t id;
     siginfo_t info;
+
+    /* Note that only WNOHANG is handled correctly. */
+    if (options & ~(WNOHANG | WUNTRACED | WCONTINUED | __WNOTHREAD | __WCLONE | __WALL)) {
+        return -EINVAL;
+    }
+
+    /* Prepare options for shim_do_waitid(). */
+    options |= WEXITED;
+    if (options & WUNTRACED)
+        options &= ~WUNTRACED;
 
     if (pid < -1) {
         which = P_PGID;
@@ -173,15 +195,21 @@ pid_t shim_do_wait4(pid_t pid, int* status, int option, struct __kernel_rusage* 
     }
 
     info.si_pid = 0;
-    int ret = shim_do_waitid(which, id, &info, option, ru);
-    if (ret >= 0) {
-        ret = info.si_pid;
-        if (ret > 0 && status) {
-            if (info.si_code == CLD_EXITED)
-                *status = (info.si_status & 0xff) << 8;
-            else
-                *status = info.si_status;
-        }
+    int ret = shim_do_waitid(which, id, &info, options, ru);
+    if (ret < 0)
+        return ret;
+
+    if (info.si_pid == 0)
+        return 0;
+
+    if (status) {
+        if (test_user_memory(status, sizeof(*status), /*write=*/true))
+            return -EFAULT;
+
+        if (info.si_code == CLD_EXITED)
+            *status = (info.si_status & 0xff) << 8;
+        else
+            *status = info.si_status;
     }
-    return ret;
+    return info.si_pid;
 }

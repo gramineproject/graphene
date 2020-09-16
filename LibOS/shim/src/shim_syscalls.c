@@ -309,10 +309,10 @@ DEFINE_SHIM_SYSCALL(exit, 1, shim_do_exit, int, int, error_code)
 
 /* waitid: sys/shim_wait.c */
 DEFINE_SHIM_SYSCALL(waitid, 5, shim_do_waitid, int, int, which, pid_t, id, siginfo_t*, infop,
-                    int, option, struct __kernel_rusage*, ru)
+                    int, options, struct __kernel_rusage*, ru)
 
 /* wait4: sys/shim_wait.c */
-DEFINE_SHIM_SYSCALL(wait4, 4, shim_do_wait4, pid_t, pid_t, pid, int*, stat_addr, int, option,
+DEFINE_SHIM_SYSCALL(wait4, 4, shim_do_wait4, pid_t, pid_t, pid, int*, stat_addr, int, options,
                     struct __kernel_rusage*, ru)
 
 /* kill: sys/shim_sigaction.c */
