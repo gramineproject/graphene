@@ -5,6 +5,11 @@ pipeline {
                          args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx"
                        }
         }
+        environment {
+               CC = "clang-10"
+               CXX = "clang++-10"
+               AS = "clang-10"
+        }
         stages {
                 stage('Lint') {
                     steps {
