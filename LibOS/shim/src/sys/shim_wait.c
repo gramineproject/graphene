@@ -24,6 +24,8 @@ int shim_do_waitid(int which, pid_t id, siginfo_t* infop, int option, struct __k
     struct shim_thread* thread = NULL;
     __UNUSED(ru);
 
+    /* Note that we don't support WSTOPPED, WCONTINUED or WNOWAIT (only WEXITED and WNOHANG are
+     * handled correctly). */
     if (option & ~(WNOHANG | WUNTRACED | WEXITED | WCONTINUED | __WNOTHREAD | __WCLONE | __WALL)) {
         return -EINVAL;
     }
@@ -89,9 +91,9 @@ int shim_do_waitid(int which, pid_t id, siginfo_t* infop, int option, struct __k
             }
     }
 
-    if (which == P_ALL || which == P_PGID) {
+    if (which == P_PGID) {
         pid_t pid;
-        if (which == P_ALL)
+        if (id == 0)
             pid = -cur->pgid;
         else
             pid = -id;
@@ -137,15 +139,13 @@ found:
         infop->si_uid = thread->uid;
         infop->si_signo = SIGCHLD;
 
-        /* Bits 0--7 are for the signal, if any.
-         * Bits 8--15 are for the exit code */
-        infop->si_code = thread->term_signal;
-        infop->si_code |= ((thread->exit_code & 0xff) << 8);
-
-        if (thread->term_signal == 0)
-            infop->si_status = CLD_EXITED;
-        else
-            infop->si_status = CLD_KILLED;
+        if (thread->term_signal == 0) {
+            infop->si_code = CLD_EXITED;
+            infop->si_status = thread->exit_code;
+        } else  {
+            infop->si_code = CLD_KILLED;
+            infop->si_status = thread->term_signal;
+        }
     }
 
     del_thread(thread);
@@ -173,12 +173,15 @@ pid_t shim_do_wait4(pid_t pid, int* status, int option, struct __kernel_rusage* 
     }
 
     info.si_pid = 0;
-    info.si_code = 0;
     int ret = shim_do_waitid(which, id, &info, option, ru);
     if (ret >= 0) {
         ret = info.si_pid;
-        if (status)
-            *status = info.si_code;
+        if (ret > 0 && status) {
+            if (info.si_code == CLD_EXITED)
+                *status = (info.si_status & 0xff) << 8;
+            else
+                *status = info.si_status;
+        }
     }
     return ret;
 }

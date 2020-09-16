@@ -845,11 +845,6 @@ SHIM_SYSCALL_RETURN_ENOSYS(kexec_load, 4, int, unsigned long, entry, unsigned lo
 */
 
 /*
-SHIM_SYSCALL_RETURN_ENOSYS(waitid, 5, int, int, which, pid_t, pid, siginfo_t*, infop, int, options,
-                           struct __kernel_rusage*, ru)
-*/
-
-/*
 SHIM_SYSCALL_RETURN_ENOSYS(add_key, 5, int, const char*, type, const char*, description,
                            const void*, payload, size_t, plen, key_serial_t, destringid)
 */
