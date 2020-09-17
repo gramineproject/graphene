@@ -4,14 +4,14 @@
 
 
 # GDB Python "API" [1] is so wonderful that what we need [2] is not possible to be implemented using
-# it, so we have to fall back to raw gdb scripting. But raw gdb scripting is also broken, so we need
+# it, so we have to fall back to raw GDB scripting. But raw GDB scripting is also broken, so we need
 # to supply things like `push-pagination` command from Python.
 #
 # [1] It mostly consists of `gdb.execute()`, there isn't even gdb.continue() API, you need to call
 #     `gdb.execute('continue')`.
 # [2] One of the things we want is to silently pass SIGILLs caused by CPUID and RDTSC to the
 #     application, but without silencing SIGILLs caused by other reasons. This is impossible to
-#     implement from gdb Python "API", neither using event handlers nor even executing raw commands
+#     implement from GDB Python "API", neither using event handlers nor even executing raw commands
 #     with gdb.execute() - it doesn't support multiline commands, and gdb.execute('commands') blocks
 #     for input on the *user terminal*, not giving the script a chance to provide more lines.
 
