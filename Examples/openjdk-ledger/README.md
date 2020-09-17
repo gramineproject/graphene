@@ -1,8 +1,8 @@
 # Ledger with OpenJDK
 
-This directory contains a Makefile and a template manifest for the
-popular version of OpenJDK (as of this writing, version 11). This was tested
-on a machine with SGX v1 and Ubuntu 18.04.
+This directory contains a Makefile and a template manifest for a popular version
+of OpenJDK (as of this writing, version 11). This was tested on a machine with
+SGX v1 and Ubuntu 18.04.
 
 The Makefile and the template manifest contain extensive comments and are made
 self-explanatory. Please review them to gain understanding of Graphene-SGX
