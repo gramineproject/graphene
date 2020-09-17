@@ -52,6 +52,7 @@ static void parse_seek(va_list*);
 static void parse_at_fdcwd(va_list*);
 static void parse_wait_options(va_list*);
 static void parse_waitid_which(va_list*);
+static void parse_getrandom_flags(va_list*);
 
 struct parser_table {
     int slow;
@@ -386,7 +387,7 @@ struct parser_table {
         [__NR_sched_getattr]     = {.slow = 0, .parser = {NULL}},
         [__NR_renameat2]         = {.slow = 0, .parser = {NULL}},
         [__NR_seccomp]           = {.slow = 0, .parser = {NULL}},
-        [__NR_getrandom]         = {.slow = 0, .parser = {NULL}},
+        [__NR_getrandom]         = {.slow = 0, .parser = {NULL, NULL, parse_getrandom_flags}},
         [__NR_memfd_create]      = {.slow = 0, .parser = {NULL}},
         [__NR_kexec_file_load]   = {.slow = 0, .parser = {NULL}},
         [__NR_bpf]               = {.slow = 0, .parser = {NULL}},
@@ -1394,4 +1395,20 @@ static void parse_waitid_which(va_list* ap) {
             PRINTF("%d", which);
             break;
     }
+}
+
+static void parse_getrandom_flags(va_list* ap) {
+    unsigned int flags = va_arg(*ap, unsigned int);
+
+#define FLG(n) { #n, n }
+    const struct flag_table all_flags[] = {
+        FLG(GRND_NONBLOCK),
+        FLG(GRND_RANDOM),
+        FLG(GRND_INSECURE),
+    };
+#undef FLG
+
+    flags = parse_flags(flags, all_flags, ARRAY_SIZE(all_flags));
+    if (flags)
+        PRINTF("|0x%x", flags);
 }

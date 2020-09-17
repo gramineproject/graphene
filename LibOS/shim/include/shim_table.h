@@ -537,5 +537,10 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int
 int shim_do_eventfd2(unsigned int count, int flags);
 int shim_do_eventfd(unsigned int count);
 int shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused);
+long shim_do_getrandom(char* buf, size_t count, unsigned int flags);
+
+#define GRND_NONBLOCK 0x0001
+#define GRND_RANDOM   0x0002
+#define GRND_INSECURE 0x0004
 
 #endif /* _SHIM_TABLE_H_ */

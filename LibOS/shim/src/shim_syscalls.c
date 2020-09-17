@@ -1060,7 +1060,8 @@ SHIM_SYSCALL_RETURN_ENOSYS(renameat2, 5, long, int, olddfd, const char*, oldname
 
 SHIM_SYSCALL_RETURN_ENOSYS(seccomp, 3, long, unsigned int, op, unsigned int, flags, void*, uargs)
 
-SHIM_SYSCALL_RETURN_ENOSYS(getrandom, 3, long, char*, buf, size_t, count, unsigned int, flags)
+DEFINE_SHIM_SYSCALL(getrandom, 3, shim_do_getrandom, long, char*, buf, size_t, count, unsigned int,
+                    flags)
 
 SHIM_SYSCALL_RETURN_ENOSYS(memfd_create, 2, long, const char*, uname, unsigned int, flags)
 
