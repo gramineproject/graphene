@@ -574,8 +574,8 @@ int shim_fork(void);
 int shim_vfork(void);
 int shim_execve(const char* file, const char** argv, const char** envp);
 int shim_exit(int error_code);
-int shim_waitid(int which, pid_t id, siginfo_t* infop, int options, struct __kernel_rusage* ru);
-pid_t shim_wait4(pid_t pid, int* stat_addr, int options, struct __kernel_rusage* ru);
+long shim_waitid(int which, pid_t id, siginfo_t* infop, int options, struct __kernel_rusage* ru);
+long shim_wait4(pid_t pid, int* stat_addr, int options, struct __kernel_rusage* ru);
 int shim_kill(pid_t pid, int sig);
 int shim_uname(struct new_utsname* buf);
 int shim_semget(key_t key, int nsems, int semflg);
@@ -765,7 +765,7 @@ int shim_mq_timedreceive(__kernel_mqd_t mqdes, char* msg_ptr, size_t msg_len,
 int shim_mq_notify(__kernel_mqd_t mqdes, const struct sigevent* notification);
 int shim_mq_getsetattr(__kernel_mqd_t mqdes, const struct __kernel_mq_attr* mqstat,
                        struct __kernel_mq_attr* omqstat);
-int shim_waitid(int which, pid_t pid, siginfo_t* infop, int options, struct __kernel_rusage* ru);
+long shim_waitid(int which, pid_t pid, siginfo_t* infop, int options, struct __kernel_rusage* ru);
 int shim_ioprio_set(int which, int who, int ioprio);
 int shim_ioprio_get(int which, int who);
 int shim_inotify_init(void);

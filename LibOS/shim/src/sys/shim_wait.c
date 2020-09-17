@@ -28,12 +28,12 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
 
     /* Note that we don't support WSTOPPED, WCONTINUED or WNOWAIT (only WEXITED and WNOHANG are
      * handled correctly). */
-	if (options & ~(WNOHANG | WNOWAIT | WEXITED | WSTOPPED | WCONTINUED |
+    if (options & ~(WNOHANG | WNOWAIT | WEXITED | WSTOPPED | WCONTINUED |
                     __WNOTHREAD| __WCLONE | __WALL))
-		return -EINVAL;
+        return -EINVAL;
 
-	if (!(options & (WEXITED | WSTOPPED | WCONTINUED)))
-		return -EINVAL;
+    if (!(options & (WEXITED | WSTOPPED | WCONTINUED)))
+        return -EINVAL;
 
     if (!(which == P_PGID || which == P_ALL || which == P_PID))
         return -EINVAL;
