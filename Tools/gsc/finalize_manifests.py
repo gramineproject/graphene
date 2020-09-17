@@ -60,7 +60,7 @@ def generate_library_paths():
 
     ld_library_paths = os.getenv('LD_LIBRARY_PATH')
 
-    return ''.join(ld_paths) + (ld_library_paths[1:] if ld_library_paths is not None else '')
+    return ''.join(ld_paths) + (ld_library_paths if ld_library_paths is not None else '')
 
 def get_binary_path(executable):
     path = subprocess.check_output(f'which {executable}',
