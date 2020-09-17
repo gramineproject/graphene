@@ -1,29 +1,42 @@
 pipeline {
-        agent {
-              dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile'
-                           label 'nonsgx_slave'
-              }
-        }
-        environment {
-               CC = "clang-10"
-               CXX = "clang++-10"
-               AS = "clang-10"
-        }
-        stages {
-                stage('Lint') {
-                    steps {
-                        sh '''
+    agent none
+    stages {
+        stage('MatrixStage') {
+            matrix {
+                axes {
+                    axis {
+                        name 'COMPILER'
+                        values 'gcc', 'clang'
+                    }
+                }
+
+                agent {
+                    dockerfile {
+                        filename 'Jenkinsfiles/ubuntu-18.04.dockerfile'
+                        label 'nonsgx_slave'
+                    }
+                }
+
+                environment {
+                    CC = "${env.COMPILER == "clang" ? "clang-10" : "gcc"}"
+                    CXX = "${env.COMPILER == "clang" ? "clang++-10" : "g++"}"
+                    AS = "${env.COMPILER == "clang" ? "clang-10" : "gcc"}"
+                }
+                stages {
+                    stage('Lint') {
+                        steps {
+                            sh '''
                             ./.ci/run-pylint -f text || :
                             ./.ci/run-pylint -f json | ./.ci/prfilter
 
                             ./.ci/run-shellcheck || :
                             ./.ci/run-shellcheck -f json | ./.ci/prfilter
                         '''
+                        }
                     }
-                }
-                stage('Build') {
-                    steps {
-                        sh '''
+                    stage('Build') {
+                        steps {
+                            sh '''
                             ./Scripts/clean-check-prepare
                             cd LibOS
                             make -j8 glibc-build/Build.success GLIBC_VERSION=2.27
@@ -32,101 +45,102 @@ pipeline {
                             make -j8 WERROR=1
                             make -j8 WERROR=1 test
                            '''
+                        }
                     }
-                }
-                stage('Test') {
-                    steps {
-                        sh '''
+                    stage('Test') {
+                        steps {
+                            sh '''
                             cd Pal/regression
                             make -j8 all
                             make regression
                             '''
-                        sh '''
+                            sh '''
                             cd LibOS/shim/test/regression
                             make -j8 all
                             make regression
                             '''
-                        sh '''
+                            sh '''
                             cd LibOS/shim/test/fs
                             make -j8 all
                             make test
+
                             '''
-                        sh '''
+                            sh '''
                             cd LibOS/shim/test/ltp
                             make -j8 all
                             make ltp.xml
                             '''
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/python-simple
                                 PYTHONVERSION=python3.6 make -j8 all
                                 PYTHONVERSION=python3.6 make check
                             '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/python-scipy-insecure
                                 PYTHONVERSION=python3.6 make -j8 all
                                 PYTHONVERSION=python3.6 make check
                             '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/python-sh-insecure
                                 PYTHONVERSION=python3.6 make -j8 all
                                 PYTHONVERSION=python3.6 make check
                             '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/bash
                                 make -j8 all
                                 make regression
                             '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/curl
                                 make -j8 all
                                 make check
                            '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/gcc
                                 make -j8 all
                                 make check
                            '''
-                        }
-                        timeout(time: 10, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 10, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/redis
                                 make -j8 all
                                 make start-graphene-server &
                                 sleep 1
                                 ./src/src/redis-benchmark
                             '''
-                        }
-                        timeout(time: 10, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 10, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/lighttpd
                                 make -j8 all
                                 make start-graphene-server &
                                 sleep 1
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
                             '''
-                        }
-                        timeout(time: 10, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 10, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/nginx
                                 make -j8 all
                                 make start-graphene-server &
                                 sleep 1
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
                             '''
-                        }
-                        timeout(time: 20, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 20, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/apache
                                 make -j8 all
                                 make start-graphene-server &
@@ -134,28 +148,28 @@ pipeline {
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                                 LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
                             '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/blender
                                 make -j8 all
                                 make check
                            '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
+                            }
+                            timeout(time: 5, unit: 'MINUTES') {
+                                sh '''
                                 cd Examples/r
                                 make -j8 all
                                 make check
                             '''
-                        }
-                        sh '''
+                            }
+                            sh '''
                            # Workaround LTP bug (see https://github.com/linux-test-project/ltp/issues/560 for upstream fix):
                            git -C LibOS/shim/test/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
 
                            ./Scripts/gitignore-test
                         '''
-                        sh '''
+                            sh '''
                            cd "$(./Scripts/clean-check-test-copy)"
 
                            make distclean
@@ -183,32 +197,35 @@ pipeline {
 
                            ./Scripts/clean-check
                         '''
-                    }
-                    post {
-                        always {
-                            archiveArtifacts 'LibOS/shim/test/ltp/ltp.xml'
+                        }
+                        post {
+                            always {
+                                archiveArtifacts 'LibOS/shim/test/ltp/ltp.xml'
 
-                            junit 'Pal/regression/pal-regression.xml'
-                            junit 'LibOS/shim/test/regression/libos-regression.xml'
-                            junit 'LibOS/shim/test/ltp/ltp.xml'
+                                junit 'Pal/regression/pal-regression.xml'
+                                junit 'LibOS/shim/test/regression/libos-regression.xml'
+                                junit 'LibOS/shim/test/ltp/ltp.xml'
+                            }
+                        }
+                    }
+                    stage('Deploy') {
+                        steps {
+                            sh 'echo Deploying code'
                         }
                     }
                 }
-                stage('Deploy') {
-                    steps {
-                        sh 'echo Deploying code'
+                post {
+                    success {
+                        echo 'Deployment successful'
+                    }
+                    failure {
+                        echo 'Failure while on the pipeline'
+                    }
+                    unstable {
+                        echo 'Pipeline marked as "unstable"'
                     }
                 }
+            }
         }
-        post {
-                success {
-                        echo 'Deployment successful'
-                }
-                failure {
-                        echo 'Failure while on the pipeline'
-                }
-                unstable {
-                        echo 'Pipeline marked as "unstable"'
-                }
-        }
+    }
 }
