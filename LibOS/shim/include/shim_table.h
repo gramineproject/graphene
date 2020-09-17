@@ -1,3 +1,9 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2020 Intel Corporation
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+ */
+
 #ifndef _SHIM_TABLE_H_
 #define _SHIM_TABLE_H_
 
@@ -317,6 +323,35 @@ long __shim_syncfs(long);
 long __shim_sendmmsg(long, long, long, long);
 long __shim_setns(long, long);
 long __shim_getcpu(long, long, long);
+long __shim_process_vm_readv(long, long, long, long, long, long);
+long __shim_process_vm_writev(long, long, long, long, long, long);
+long __shim_kcmp(long, long, long, long, long);
+long __shim_finit_module(long, long, long);
+long __shim_sched_setattr(long, long, long);
+long __shim_sched_getattr(long, long, long, long);
+long __shim_renameat2(long, long, long, long, long);
+long __shim_seccomp(long, long, long);
+long __shim_getrandom(long, long, long);
+long __shim_memfd_create(long, long);
+long __shim_kexec_file_load(long, long, long, long, long);
+long __shim_bpf(long, long, long);
+long __shim_execveat(long, long, long, long, long);
+long __shim_userfaultfd(long);
+long __shim_membarrier(long, long);
+long __shim_mlock2(long, long, long);
+long __shim_copy_file_range(long, long, long, long, long, long);
+long __shim_preadv2(long, long, long, long, long, long);
+long __shim_pwritev2(long, long, long, long, long, long);
+long __shim_pkey_mprotect(long, long, long, long);
+long __shim_pkey_alloc(long, long);
+long __shim_pkey_free(long);
+long __shim_statx(long, long, long, long, long);
+long __shim_io_pgetevents(long, long, long, long, long, long);
+long __shim_rseq(long, long, long, long);
+long __shim_pidfd_send_signal(long, long, long, long);
+long __shim_io_uring_setup(long, long);
+long __shim_io_uring_enter(long, long, long, long, long, long);
+long __shim_io_uring_register(long, long, long, long);
 
 /* syscall implementation */
 size_t shim_do_read(int fd, void* buf, size_t count);
