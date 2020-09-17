@@ -1,3 +1,9 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2020 Intel Corporation
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+ */
+
 #ifndef _SHIM_TABLE_H_
 #define _SHIM_TABLE_H_
 
@@ -317,6 +323,35 @@ long __shim_syncfs(long);
 long __shim_sendmmsg(long, long, long, long);
 long __shim_setns(long, long);
 long __shim_getcpu(long, long, long);
+long __shim_process_vm_readv(long, long, long, long, long, long);
+long __shim_process_vm_writev(long, long, long, long, long, long);
+long __shim_kcmp(long, long, long, long, long);
+long __shim_finit_module(long, long, long);
+long __shim_sched_setattr(long, long, long);
+long __shim_sched_getattr(long, long, long, long);
+long __shim_renameat2(long, long, long, long, long);
+long __shim_seccomp(long, long, long);
+long __shim_getrandom(long, long, long);
+long __shim_memfd_create(long, long);
+long __shim_kexec_file_load(long, long, long, long, long);
+long __shim_bpf(long, long, long);
+long __shim_execveat(long, long, long, long, long);
+long __shim_userfaultfd(long);
+long __shim_membarrier(long, long);
+long __shim_mlock2(long, long, long);
+long __shim_copy_file_range(long, long, long, long, long, long);
+long __shim_preadv2(long, long, long, long, long, long);
+long __shim_pwritev2(long, long, long, long, long, long);
+long __shim_pkey_mprotect(long, long, long, long);
+long __shim_pkey_alloc(long, long);
+long __shim_pkey_free(long);
+long __shim_statx(long, long, long, long, long);
+long __shim_io_pgetevents(long, long, long, long, long, long);
+long __shim_rseq(long, long, long, long);
+long __shim_pidfd_send_signal(long, long, long, long);
+long __shim_io_uring_setup(long, long);
+long __shim_io_uring_enter(long, long, long, long, long, long);
+long __shim_io_uring_register(long, long, long, long);
 
 /* syscall implementation */
 size_t shim_do_read(int fd, void* buf, size_t count);
@@ -502,5 +537,49 @@ ssize_t shim_do_sendmmsg(int sockfd, struct mmsghdr* msg, unsigned int vlen, int
 int shim_do_eventfd2(unsigned int count, int flags);
 int shim_do_eventfd(unsigned int count);
 int shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused);
+
+/* TODO: This is required when building Graphene on systems with older headers. We should actually
+ * have our own copy of headers of the kernel we emulate, not from the one which is used on the
+ * build machine.
+ */
+#ifndef __NR_copy_file_range
+#define __NR_copy_file_range 326
+#endif
+#ifndef __NR_preadv2
+#define __NR_preadv2 327
+#endif
+#ifndef __NR_pwritev2
+#define __NR_pwritev2 328
+#endif
+#ifndef __NR_pkey_mprotect
+#define __NR_pkey_mprotect 329
+#endif
+#ifndef __NR_pkey_alloc
+#define __NR_pkey_alloc 330
+#endif
+#ifndef __NR_pkey_free
+#define __NR_pkey_free 331
+#endif
+#ifndef __NR_statx
+#define __NR_statx 332
+#endif
+#ifndef __NR_io_pgetevents
+#define __NR_io_pgetevents 333
+#endif
+#ifndef __NR_rseq
+#define __NR_rseq 334
+#endif
+#ifndef __NR_pidfd_send_signal
+#define __NR_pidfd_send_signal 335
+#endif
+#ifndef __NR_io_uring_setup
+#define __NR_io_uring_setup 336
+#endif
+#ifndef __NR_io_uring_enter
+#define __NR_io_uring_enter 337
+#endif
+#ifndef __NR_io_uring_register
+#define __NR_io_uring_register 338
+#endif
 
 #endif /* _SHIM_TABLE_H_ */
