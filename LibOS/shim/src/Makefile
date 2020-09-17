@@ -93,6 +93,7 @@ objs = \
 	sys/shim_futex.o \
 	sys/shim_getcwd.o \
 	sys/shim_getpid.o \
+	sys/shim_getrandom.o \
 	sys/shim_getrlimit.o \
 	sys/shim_ioctl.o \
 	sys/shim_mmap.o \
