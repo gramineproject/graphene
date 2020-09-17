@@ -4,7 +4,7 @@ set -e
 
 cd "$(git rev-parse --show-toplevel)"
 
-shellcheck "$@" \
+LC_ALL=C.UTF-8 shellcheck "$@" \
     Examples/bash/scripts/bash_test.sh \
     Examples/common_tools/benchmark-http.sh \
     Examples/python-simple/run-tests.sh \
