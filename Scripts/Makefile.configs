@@ -20,7 +20,14 @@ CXX = g++
 endif
 OBJCOPY ?= objcopy
 
-SYS ?= $(shell $(CC) -dumpmachine)
+# Workaround for clang: unlike gcc, 'clang -dumpmachine' reports 'machine-vendor-operatingsystem'
+# and we want 'machine-operatingsystem'.
+# See e.g. https://bugs.launchpad.net/ubuntu/+source/clang/+bug/1827175
+ifeq ($(findstring clang,$(CC)),clang)
+    SYS ?= $(shell $(CC) -dumpmachine | cut -d- -f1,3-)
+else
+    SYS ?= $(shell $(CC) -dumpmachine)
+endif
 export SYS
 
 ARCH := $(word 1,$(subst -, -, $(SYS)))
