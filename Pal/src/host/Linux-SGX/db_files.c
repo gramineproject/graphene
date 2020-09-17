@@ -554,8 +554,8 @@ static inline void file_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 
 static int pf_file_attrquery(struct protected_file* pf, int fd_from_attrquery, const char* path,
                              uint64_t real_size, PAL_STREAM_ATTR* attr) {
-    pf = load_protected_file(path, &fd_from_attrquery, real_size, PAL_PROT_READ, /*create=*/false,
-                             pf);
+    pf = load_protected_file(path, &fd_from_attrquery, real_size, PF_FILE_MODE_READ,
+                             /*create=*/false, pf);
     if (!pf) {
         SGX_DBG(DBG_E, "pf_file_attrquery: load_protected_file(%s, %d) failed\n", path,
                 fd_from_attrquery);
