@@ -2,15 +2,13 @@
 # Copyright (C) 2020 Intel Corporation
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 
-# pylint: disable=invalid-name
-
-import gdb # pylint: disable=import-error
 import os
 
-# pylint: enable=invalid-name
+import gdb # pylint: disable=import-error
+
 # pylint: disable=no-self-use,too-few-public-methods
 
-g_paginations = []
+_g_paginations = []
 
 class PushPagination(gdb.Command):
     """Temporarily changing pagination and saving the old state.
@@ -22,13 +20,13 @@ class PushPagination(gdb.Command):
     def __init__(self):
         super(PushPagination, self).__init__("push-pagination", gdb.COMMAND_USER)
 
-    def invoke(self, arg, from_tty):
+    def invoke(self, arg, _from_tty):
         self.dont_repeat()
 
         pagination_str = gdb.execute('show pagination', to_string=True).strip()
         assert pagination_str in ('State of pagination is on.', 'State of pagination is off.')
         pagination = pagination_str.endswith('on.')
-        g_paginations.append(pagination)
+        _g_paginations.append(pagination)
 
         assert arg in ('on', 'off')
         gdb.execute('set pagination ' + arg)
@@ -40,11 +38,11 @@ class PopPagination(gdb.Command):
     def __init__(self):
         super(PopPagination, self).__init__("pop-pagination", gdb.COMMAND_USER)
 
-    def invoke(self, arg, from_tty):
+    def invoke(self, arg, _from_tty):
         self.dont_repeat()
 
         assert arg == ''
-        pagination = g_paginations.pop()
+        pagination = _g_paginations.pop()
         gdb.execute('set pagination ' + ('on' if pagination else 'off'))
 
 
@@ -57,8 +55,7 @@ class LoadCommandBreakpoint(gdb.Breakpoint):
         gdb.execute(command)
         return False
 
-
-if __name__ == "__main__":
+def main():
     PushPagination()
     PopPagination()
 
@@ -69,3 +66,6 @@ if __name__ == "__main__":
     gdb.execute("source " + gdb_script)
 
     LoadCommandBreakpoint()
+
+if __name__ == "__main__":
+    main()

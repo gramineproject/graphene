@@ -23,7 +23,7 @@ ASFLAGS += \
 	-I../../../include \
 	-I../../../include/arch/$(ARCH)/Linux
 
-host_files = libpal-Linux-SGX.a pal-sgx gdb_integration/sgx_gdb.so pal.map generated_offsets.py
+host_files = libpal-Linux-SGX.a pal-sgx gdb/sgx_gdb.so pal.map generated_offsets.py
 
 defs	= -DIN_PAL
 CFLAGS += $(defs)
@@ -125,9 +125,9 @@ quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto
 	@echo [ host/Linux-SGX/quote/aesm.pb-c.h ]
 	@protoc-c --c_out=. $<
 
-gdb_integration/sgx_gdb.so: CFLAGS =
-CFLAGS-gdb_integration/sgx_gdb.so = -shared -Wall -fPIC -O2 -std=c11
-gdb_integration/sgx_gdb.so: gdb_integration/sgx_gdb.c
+gdb/sgx_gdb.so: CFLAGS =
+CFLAGS-gdb/sgx_gdb.so = -shared -Wall -fPIC -O2 -std=c11
+gdb/sgx_gdb.so: gdb/sgx_gdb.c
 	$(call cmd,csingle)
 
 enclave_entry.o sgx_entry.o: asm-offsets.h
@@ -136,7 +136,7 @@ sgx-driver/sgx.h:
 	$(MAKE) -C sgx-driver $(notdir $@)
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
-include $(wildcard *.d) $(wildcard gdb_integration/*.d)
+include $(wildcard *.d) $(wildcard gdb/*.d)
 endif
 
 include ../../../../Scripts/Makefile.rules
@@ -146,12 +146,12 @@ tools:
 	$(MAKE) -C tools
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
-CLEAN_FILES += gdb_integration/sgx_gdb.so
+CLEAN_FILES += gdb/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
 
 .PHONY: clean_
 clean_:
-	$(RM) -r *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d gdb_integration/*.d signer/*.pyc \
+	$(RM) -r *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d gdb/*.d signer/*.pyc \
 	         __pycache__ signer/__pycache__
 	$(RM) -r protected-files/*.o protected-files/*.d
 
