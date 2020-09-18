@@ -101,7 +101,7 @@ def extract_binary_cmd_from_image_config(config):
         last_bin_arg = num_starting_entrypoint_items
         escaped_args = [s.replace('\\', '\\\\').replace('"', '\\"')
                         for s in entrypoint[1:last_bin_arg]]
-        binary_arguments = '"' + '", "'.join(escaped_args) + '"'
+        binary_arguments = '"' + '" "'.join(escaped_args) + '"'
     else:
         last_bin_arg = 0
         binary_arguments = ''
