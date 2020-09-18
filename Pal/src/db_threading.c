@@ -104,7 +104,7 @@ PAL_NUM DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpu_mask_size, PAL_PTR
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
-        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+        LEAVE_PAL_CALL_RETURN(ret);
     }
 
     LEAVE_PAL_CALL_RETURN(ret);
