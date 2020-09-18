@@ -1,8 +1,17 @@
 pipeline {
+    parameters {
+        choice(name: 'COMPILER_FILTER', choices: ['all', 'gcc', 'clang'], description: 'Compiler')
+    }
+
     agent none
     stages {
         stage('MatrixStage') {
             matrix {
+                when { anyOf {
+                    expression { params.COMPILER_FILTER == 'all' }
+                    expression { params.COMPILER_FILTER == env.COMPILER }
+                } }
+
                 axes {
                     axis {
                         name 'COMPILER'
