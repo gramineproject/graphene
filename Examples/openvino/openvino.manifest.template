@@ -54,7 +54,7 @@ fs.mount.cwd.uri = file:$(OPENVINO_DIR)
 # Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
 # size must be specified during signing. If OpenVINO needs more virtual memory
 # than the enclave size, Graphene will not be able to allocate it.
-sgx.enclave_size = 2G
+sgx.enclave_size = 8G
 
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
@@ -93,8 +93,9 @@ sgx.trusted_files.libcpp = file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6
 sgx.trusted_files.libgcc = file:$(ARCH_LIBDIR)/libgcc_s.so.1
 
 # OpenVINO TBB dependencies
-sgx.trusted_files.libtbbmalloc = file:/usr/$(ARCH_LIBDIR)/libtbbmalloc.so.2
-sgx.trusted_files.libtbb       = file:/usr/$(ARCH_LIBDIR)/libtbb.so.2
+sgx.trusted_files.libtbbmalloc = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbmalloc.so.2
+sgx.trusted_files.libtbb       = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbb.so.2
+sgx.trusted_files.libtbbbind   = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbbind.so.2
 $(LIBTBB_DEBUG)
 
 # OpenVINO main libraries
@@ -107,8 +108,9 @@ sgx.trusted_files.libmyriadplugin                         = file:$(OPENVINO_DIR)
 sgx.trusted_files.libngraph                               = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libngraph.so
 sgx.trusted_files.libHeteroPlugin                         = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libHeteroPlugin.so
 sgx.trusted_files.libMultiDevicePlugin                    = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libMultiDevicePlugin.so
-sgx.trusted_files.libinferenceengine_onnx_reader          = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_onnx_reader.so
-sgx.trusted_files.libinferenceengine_ir_reader            = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_ir_reader.so
+sgx.trusted_filesbinference_engine_preproc		  = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_preproc.so
+sgx.trusted_files.libinference_engine_nn_builder          = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_nn_builder.so
+sgx.trusted_files.libinference_engine_c_api               = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_c_api.so
 sgx.trusted_files.libinferenceengine_legacy               = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_legacy.so
 sgx.trusted_files.libinferenceengine_transformations      = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_transformations.so
 sgx.trusted_files.libinferenceengine_lptransformations    = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libinference_engine_lp_transformations.so
@@ -117,9 +119,6 @@ sgx.trusted_files.libinferenceengine_lptransformations    = file:$(OPENVINO_DIR)
 sgx.trusted_files.libimgcodecs  = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_imgcodecs.so.4.3
 sgx.trusted_files.libimgproc    = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_imgproc.so.4.3
 sgx.trusted_files.libopencvcore = file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_core.so.4.3
-
-# OpenVINO OMP libraries
-sgx.trusted_files.libiomp5     = file:$(OPENVINO_DIR)/inference-engine/temp/omp/lib/libiomp5.so
 
 # OpenVINO SSD300 model
 sgx.trusted_files.pluginsxml = file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/plugins.xml
