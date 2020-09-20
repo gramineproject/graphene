@@ -19,14 +19,12 @@ model from it. **Note:** the model zoo requires ~350MB of disk space.
 
 # Prerequisites
 
-For Ubuntu 18.04, install the following prerequisite packages:
+For Ubuntu 18.04, install the following [prerequisite packages](https://github.com/openvinotoolkit/openvino/blob/2020.3.0/install_dependencies.sh):
 
 * Install CMake version >= 3.11 (on Ubuntu 18.04, this may require installing
   Cmake from a non-official APT repository like Kitware).
 
 * Install libusb version >= 1.0.0.
-
-* Install libtbb-dev
 
 * Install packages for Python3:
   `pip3 install pyyaml numpy networkx test-generator defusedxml protobuf>=3.6.1`
