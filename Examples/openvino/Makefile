@@ -12,11 +12,11 @@
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 MODEL_DIR ?= $(THIS_DIR)model
-MODEL_COMMIT ?= acf297c73db8cb3f68791ae1fad4a7cc4a6039e5     # corresponds to tag "2019_R3"
+MODEL_COMMIT ?= 912eeaddc034e31dedd34617d82bcc2ddf83e542     # corresponds to tag "2020.3"
 MODEL_NAME ?= VGG_VOC0712Plus_SSD_300x300_ft_iter_160000
 
 OPENVINO_DIR ?= $(THIS_DIR)openvino
-OPENVINO_COMMIT ?= 023e7c2c3f8a8ac83564db09799d2049115d9cf6  # corresponds to tag "2020.4"
+OPENVINO_COMMIT ?= 2fe9b1523058e282ad374db7dc1b3538c7d2dd27  # corresponds to tag "2020.3LTS"
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENE_DIR ?= ../..
@@ -41,7 +41,7 @@ endif
 include ../../Scripts/Makefile.configs
 
 $(MODEL_DIR)/README.md:
-	git clone https://github.com/opencv/open_model_zoo.git $(MODEL_DIR)
+	git clone https://github.com/openvino/open_model_zoo.git $(MODEL_DIR)
 	git -C $(MODEL_DIR) checkout $(MODEL_COMMIT)
 
 $(MODEL_DIR)/$(MODEL_NAME).bin: $(MODEL_DIR)/README.md
