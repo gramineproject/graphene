@@ -16,7 +16,7 @@ MODEL_COMMIT ?= 912eeaddc034e31dedd34617d82bcc2ddf83e542     # corresponds to ta
 MODEL_NAME ?= VGG_VOC0712Plus_SSD_300x300_ft_iter_160000
 
 OPENVINO_DIR ?= $(THIS_DIR)openvino
-OPENVINO_COMMIT ?= 2fe9b1523058e282ad374db7dc1b3538c7d2dd27  # corresponds to tag "2020.3LTS"
+OPENVINO_COMMIT ?= 2fe9b1523058e282ad374db7dc1b3538c7d2dd27  # corresponds to tag "2020.3 LTS"
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENE_DIR ?= ../..

@@ -1,7 +1,7 @@
 # OpenVINO
 
 This directory contains a Makefile and a template manifest for the most
-recent version of OpenVINO toolkit (as of this writing, version 2020.3LTS).
+recent LTS (Long-Term Support) version of OpenVINO toolkit (as of this writing, version [2020.3 LTS](https://software.intel.com/content/www/us/en/develop/articles/openvino-2020-3-lts-relnotes.html)).
 We use the "Object Detection C++ Sample SSD" (object_detection_sample_ssd)
 example from the OpenVINO distribution as a concrete application running
 under Graphene-SGX. We test only the CPU backend (i.e., no GPU or FPGA). This
