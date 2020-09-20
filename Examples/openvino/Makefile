@@ -57,10 +57,12 @@ $(OPENVINO_DIR)/README.md:
 	git -C $(OPENVINO_DIR) checkout $(OPENVINO_COMMIT)
 	git -C $(OPENVINO_DIR)/inference-engine submodule update --init --recursive
 
+# You can accelerate building by increasing '-j8', e.g., '-j64'
+# Another option is reducing openvino modules, such as add '-DENABLE_MYRIAD=OFF -DENABLE_CLDNN=OFF -DENABLE_GNA=OFF'
 $(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
 	cd $(OPENVINO_DIR) && mkdir -p build
 	cd $(OPENVINO_DIR)/build && cmake -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ..
-	$(MAKE) -C $(OPENVINO_DIR)/build
+	$(MAKE) -C $(OPENVINO_DIR)/build -j8
 
 openvino.manifest: openvino.manifest.template
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
