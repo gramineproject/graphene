@@ -33,7 +33,7 @@ LIBTBB_DEBUG   = ""
 endif
 
 .PHONY: all
-all: $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd $(MODEL_DIR)/$(MODEL_NAME).bin openvino.manifest pal_loader
+all: $(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd $(MODEL_DIR)/$(MODEL_NAME).bin openvino.manifest pal_loader
 ifeq ($(SGX),1)
 all: openvino.manifest.sgx openvino.sig openvino.token
 endif
@@ -57,10 +57,10 @@ $(OPENVINO_DIR)/README.md:
 	git -C $(OPENVINO_DIR) checkout $(OPENVINO_COMMIT)
 	git -C $(OPENVINO_DIR)/inference-engine submodule update --init --recursive
 
-$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
-	cd $(OPENVINO_DIR)/inference-engine && mkdir -p build
-	cd $(OPENVINO_DIR)/inference-engine/build && cmake -DTHREADING=OMP -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ../..
-	$(MAKE) -C $(OPENVINO_DIR)/inference-engine/build
+$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
+	cd $(OPENVINO_DIR) && mkdir -p build
+	cd $(OPENVINO_DIR)/build && cmake -DTHREADING=OMP -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ..
+	$(MAKE) -C $(OPENVINO_DIR)/build
 
 openvino.manifest: openvino.manifest.template
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
@@ -75,7 +75,7 @@ openvino.manifest: openvino.manifest.template
 
 # Generating the SGX-specific manifest (openvino.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-openvino.manifest.sgx: openvino.manifest $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
+openvino.manifest.sgx: openvino.manifest $(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
