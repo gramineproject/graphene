@@ -59,7 +59,7 @@ $(OPENVINO_DIR)/README.md:
 
 $(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
 	cd $(OPENVINO_DIR) && mkdir -p build
-	cd $(OPENVINO_DIR)/build && cmake -DTHREADING=OMP -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ..
+	cd $(OPENVINO_DIR)/build && cmake -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ..
 	$(MAKE) -C $(OPENVINO_DIR)/build
 
 openvino.manifest: openvino.manifest.template
