@@ -24,7 +24,7 @@ SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
 ifeq ($(DEBUG),1)
 GRAPHENE_DEBUG = inline
-OPENVINO_BUILD = Debug
+OPENVINO_BUILD = Release
 LIBTBB_DEBUG   = "sgx.trusted_files.libtbb_debug = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbb_debug.so.2"
 else
 GRAPHENE_DEBUG = none
@@ -41,7 +41,7 @@ endif
 include ../../Scripts/Makefile.configs
 
 $(MODEL_DIR)/README.md:
-	git clone https://github.com/openvino/open_model_zoo.git $(MODEL_DIR)
+	git clone https://github.com/openvinotoolkit/open_model_zoo.git $(MODEL_DIR)
 	git -C $(MODEL_DIR) checkout $(MODEL_COMMIT)
 
 $(MODEL_DIR)/$(MODEL_NAME).bin: $(MODEL_DIR)/README.md
