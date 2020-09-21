@@ -281,11 +281,11 @@ class-attribute-naming-style=any
 class-rgx=[A-Z_][A-Za-z0-9]*|TC_\d\d_.*
 
 # Naming style matching correct constant names.
-const-naming-style=UPPER_CASE
+#const-naming-style=UPPER_CASE
 
 # Regular expression matching correct constant names. Overrides const-naming-
 # style.
-#const-rgx=
+const-rgx=(^_)|(^[A-Z][A-Z0-9_]*$)
 
 # Minimum line length for functions/classes that require docstrings, shorter
 # ones are exempt.

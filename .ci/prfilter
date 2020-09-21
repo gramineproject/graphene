@@ -33,7 +33,6 @@ THE_BIG_LIST_OF_NAUGHTY_FILES = list(map(pathlib.Path, [
     'LibOS/shim/test/regression/test_libos.py',
     'Pal/regression/test_pal.py',
     'Pal/src/host/Linux-SGX/sgx-driver/link-intel-driver.py',
-    'Pal/src/host/Linux/gdb_integration/graphene_gdb.py',
     'Scripts/regression.py',
     'Tools',
 ]))
