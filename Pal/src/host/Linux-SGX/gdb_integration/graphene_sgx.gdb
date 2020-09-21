@@ -41,11 +41,7 @@ set displaced-stepping off
 catch signal SIGILL
 
 # break only on CPUID (0fa2) and RDTSC (0f31)
-# gdb scripting language is awesome: `commands` has a 0-param version which applies to the last
-# {break,catch,watch}point, but `condition` doesn't. We need to manually calculate and hardcode
-# which breakpoint we just set and update this each time we change something in this script. Also,
-# this will break if some other script will be loaded first and will add some breakpoints.
-condition 1 *(uint16_t*)$rip == 0xa20f || *(uint16_t*)$rip == 0x310f
+condition $bpnum *(uint16_t*)$rip == 0xa20f || *(uint16_t*)$rip == 0x310f
 
 commands
     silent

@@ -9,4 +9,6 @@
 /* This function is hooked by our gdb integration script and should be left as is. */
 __attribute__((__noinline__)) void execute_gdb_command(const char* command) {
     __UNUSED(command);
+    __asm__(""); // required in addition to __noinline__ to prevent deleting this function. See GCC
+                 // docs.
 }
