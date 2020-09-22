@@ -98,7 +98,7 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 Follow the instructions on the `AKS Confidential Computing Quick Start guide
-<https://docs.microsoft.com/en-us/azure/confidential-computing/confidential-nodes-aks-getstarted>`__
+<https://docs.microsoft.com/en-us/azure/confidential-computing/confidential-nodes-aks-get-started>`__
 to provision an AKS cluster with Intel SGX enabled worker nodes.
 
 Follow the `instructions
