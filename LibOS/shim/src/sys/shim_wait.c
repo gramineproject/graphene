@@ -26,8 +26,7 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
     int ret;
     __UNUSED(ru);
 
-    /* Note that we don't support WSTOPPED, WCONTINUED or WNOWAIT (only WEXITED and WNOHANG are
-     * handled correctly). */
+    /* Note that we don't support WSTOPPED or WCONTINUED correctly. */
     if (options & ~(WNOHANG | WNOWAIT | WEXITED | WSTOPPED | WCONTINUED |
                     __WNOTHREAD| __WCLONE | __WALL))
         return -EINVAL;
@@ -59,7 +58,7 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
             return 0;
         }
 
-        if (!LIST_EMPTY(thread, siblings)) {
+        if (!(options & WNOWAIT) && !LIST_EMPTY(thread, siblings)) {
             debug("reaping thread %p\n", thread);
             struct shim_thread* parent = thread->parent;
             assert(parent);
@@ -97,15 +96,17 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
     }
 
     if (which == P_PGID) {
-        pid_t pid;
+        IDTYPE pgid;
         if (id == 0)
-            pid = -cur->pgid;
+            pgid = cur->pgid;
         else
-            pid = -id;
+            pgid = id;
 
         LISTP_FOR_EACH_ENTRY(thread, &cur->exited_children, siblings) {
-            if (thread->pgid == (IDTYPE)-pid)
+            if (thread->pgid == pgid) {
+                get_thread(thread);
                 goto found_child;
+            }
         }
 
         if (!(options & WNOHANG))
@@ -115,26 +116,23 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
 
         if (!LISTP_EMPTY(&cur->exited_children)) {
             thread = LISTP_FIRST_ENTRY(&cur->exited_children, struct shim_thread, siblings);
+            get_thread(thread);
             goto found_child;
         }
     }
 
     unlock(&cur->lock);
-
-    if (infop) {
-        infop->si_signo = 0;
-        infop->si_code = 0;
-        infop->si_pid = 0;
-    }
     return 0;
 
 found_child:
-    LISTP_DEL_INIT(thread, &cur->exited_children, siblings);
-    put_thread(cur);
-    thread->parent = NULL;
+    if (!(options & WNOWAIT)) {
+        LISTP_DEL_INIT(thread, &cur->exited_children, siblings);
+        put_thread(cur);
+        thread->parent = NULL;
 
-    if (LISTP_EMPTY(&cur->exited_children))
-        DkEventClear(cur->child_exit_event);
+        if (LISTP_EMPTY(&cur->exited_children))
+            DkEventClear(cur->child_exit_event);
+    }
 
     unlock(&cur->lock);
 
@@ -160,7 +158,9 @@ found:
     }
 
 cleanup:
-    del_thread(thread);
+    if (!(options & WNOWAIT))
+        del_thread(thread);
+
     put_thread(thread);
     return ret;
 }
