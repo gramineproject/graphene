@@ -11,7 +11,7 @@
 
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-# You can change OpenVINO and model zoo version by changing OPENVINO_COMMIT and MODEL_COMMIT
+# You can change OpenVINO and model zoo version by changing OPENVINO_COMMIT and MODEL_COMMIT.
 MODEL_DIR ?= $(THIS_DIR)model
 MODEL_COMMIT ?= 912eeaddc034e31dedd34617d82bcc2ddf83e542     # corresponds to tag "2020.3"
 MODEL_NAME ?= VGG_VOC0712Plus_SSD_300x300_ft_iter_160000
