@@ -10,6 +10,8 @@
  * Library.
  */
 
+#include <assert.h>
+
 #include "api.h"
 #include "elf-x86_64.h"
 #include "elf/elf.h"
@@ -22,7 +24,108 @@
 #include "pal_linux_defs.h"
 #include "pal_rtld.h"
 #include "pal_security.h"
+#include "sgx_rtld.h"
+#include "spinlock.h"
 #include "sysdeps/generic/ldsodefs.h"
+
+/* Global debug map. To simplify setup, the pointer to g_debug_map is passed outside with
+ * ocall_update_debugger().
+ * (Note that we pass a pointer to g_debug_map, not its current value, to avoid race conditions). */
+static struct debug_map* _Atomic g_debug_map = NULL;
+
+/* Lock for modifying g_debug_map on our end. Even though the list can be read at any
+ * time, we need to prevent concurrent modification. */
+static spinlock_t g_debug_map_lock = INIT_SPINLOCK_UNLOCKED;
+
+static struct debug_map* debug_map_alloc(const char* file_name, void* load_addr) {
+    struct debug_map* map;
+
+    if (!(map = malloc(sizeof(*map))))
+        return NULL;
+
+    if (!(map->file_name = strdup(file_name))) {
+        free(map);
+        return NULL;
+    }
+
+    map->load_addr = load_addr;
+    map->section = NULL;
+    map->next = NULL;
+    return map;
+}
+
+static struct debug_section* debug_map_add_section(struct debug_map* map, const char* section_name,
+                                                   void* addr) {
+    struct debug_section* section;
+
+    if (!(section = malloc(sizeof(*section))))
+        return NULL;
+
+    if (!(section->name = strdup(section_name))) {
+        free(section);
+        return NULL;
+    }
+
+    section->addr = addr;
+    section->next = map->section;
+    map->section = section;
+    return section;
+}
+
+static void debug_map_free(struct debug_map* map) {
+    struct debug_section* section = map->section;
+    while (section) {
+        struct debug_section* next = section->next;
+        free(section->name);
+        free(section);
+        section = next;
+    }
+    free(map->file_name);
+    free(map);
+}
+
+static void debug_map_add(struct debug_map* map) {
+    spinlock_lock(&g_debug_map_lock);
+
+    map->next = g_debug_map;
+    g_debug_map = map;
+
+    spinlock_unlock(&g_debug_map_lock);
+
+    ocall_update_debugger(&g_debug_map);
+}
+
+static bool debug_map_del(void* load_addr) {
+    assert(g_debug_map);
+
+    spinlock_lock(&g_debug_map_lock);
+
+    struct debug_map* prev = NULL;
+    struct debug_map* map = g_debug_map;
+    while (map) {
+        if (map->load_addr == load_addr)
+            break;
+        prev = map;
+        map = map->next;
+    }
+
+    if (!map) {
+        spinlock_unlock(&g_debug_map_lock);
+        return false;
+    }
+
+    if (prev == NULL)
+        g_debug_map = map->next;
+    else
+        prev->next = map->next;
+
+    spinlock_unlock(&g_debug_map_lock);
+
+    debug_map_free(map);
+
+    ocall_update_debugger(&g_debug_map);
+    return true;
+}
 
 void _DkDebugAddMap(struct link_map* map) {
     const ElfW(Ehdr)* ehdr = (void*)map->l_map_start;
@@ -76,47 +179,33 @@ void _DkDebugAddMap(struct link_map* map) {
 
     ocall_close(fd);
 
-    ElfW(Addr) text_addr = 0;
-    for (ElfW(Shdr)* s = shdr; s < shdrend; s++)
-        if (!strcmp_static(shstrtab + s->sh_name, ".text")) {
-            text_addr = map->l_addr + s->sh_addr;
-            break;
-        }
-
-    if (!text_addr)
+    struct debug_map* debug_map = debug_map_alloc(map->l_name, (void*)map->l_addr);
+    if (!debug_map) {
+        SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new map\n");
         return;
-
-#define BUFFER_LENGTH 4096
-
-    char buffer[BUFFER_LENGTH];
-    char* ptr = buffer;
-
-    snprintf(ptr, BUFFER_LENGTH - (ptr - buffer), "add-symbol-file %s 0x%016lx -readnow",
-             map->l_name, text_addr);
-    ptr += strlen(ptr);
+    }
 
     for (ElfW(Shdr)* s = shdr; s < shdrend; s++) {
         if (!s->sh_name || !s->sh_addr)
-            continue;
-        if (!strcmp_static(shstrtab + s->sh_name, ".text"))
             continue;
         if (s->sh_type == SHT_NULL)
             continue;
         if (strstartswith_static(shstrtab + s->sh_name, ".debug_"))
             continue;
 
-        snprintf(ptr, BUFFER_LENGTH - (ptr - buffer), " -s %s 0x%016lx", shstrtab + s->sh_name,
-                 map->l_addr + s->sh_addr);
-        ptr += strlen(ptr);
+        if (!debug_map_add_section(debug_map, shstrtab + s->sh_name,
+                                   (void*)(map->l_addr + s->sh_addr))) {
+            SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new section\n");
+            debug_map_free(debug_map);
+            return;
+        }
     }
 
-    ocall_load_debug(buffer);
+    debug_map_add(debug_map);
 }
 
 void _DkDebugDelMap(struct link_map* map) {
-    char buffer[BUFFER_LENGTH];
-    snprintf(buffer, BUFFER_LENGTH, "remove-symbol-file %s", map->l_name);
-    ocall_load_debug(buffer);
+    debug_map_del((void*)map->l_addr);
 }
 
 extern void* g_section_text;
@@ -135,14 +224,31 @@ void setup_pal_map(struct link_map* pal_map) {
     pal_map->l_phnum   = header->e_phnum;
     setup_elf_hash(pal_map);
 
-    char buffer[BUFFER_LENGTH];
-    snprintf(buffer, BUFFER_LENGTH,
-             "add-symbol-file %s %p -readnow -s .rodata %p "
-             "-s .dynamic %p -s .data %p -s .bss %p",
-             pal_map->l_name, &g_section_text, &g_section_rodata, &g_section_dynamic,
-             &g_section_data, &g_section_bss);
-
-    ocall_load_debug(buffer);
     pal_map->l_prev = pal_map->l_next = NULL;
     g_loaded_maps = pal_map;
+
+    struct debug_map* debug_map = debug_map_alloc(pal_map->l_name, &g_section_text);
+    if (!debug_map) {
+        SGX_DBG(DBG_E, "setup_pal_map: error allocating new map\n");
+        return;
+    }
+
+    if (!debug_map_add_section(debug_map, ".rodata", &g_section_rodata))
+        goto fail;
+
+    if (!debug_map_add_section(debug_map, ".dynamic", &g_section_dynamic))
+        goto fail;
+
+    if (!debug_map_add_section(debug_map, ".data", &g_section_data))
+        goto fail;
+
+    if (!debug_map_add_section(debug_map, ".bss", &g_section_bss))
+        goto fail;
+
+    debug_map_add(debug_map);
+    return;
+
+fail:
+    SGX_DBG(DBG_E, "setup_pal_map: error allocating new section\n");
+    debug_map_free(debug_map);
 }

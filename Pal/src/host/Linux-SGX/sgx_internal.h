@@ -16,6 +16,7 @@
 #include "api.h"
 #include "pal_linux.h"
 #include "pal_security.h"
+#include "sgx_rtld.h"
 #include "sysdep-arch.h"
 
 #define IS_ERR   INTERNAL_SYSCALL_ERROR
@@ -68,6 +69,12 @@ extern struct pal_enclave {
 
     /* Path to the PAL binary */
     char* libpal_uri;
+
+#ifdef DEBUG
+    /* Pointer to information for GDB inside the enclave (see sgx_rtld.h).
+     * Set up using update_debugger() ocall. */
+    struct debug_map* _Atomic* debug_map;
+#endif
 
     /* security information */
     struct pal_sec pal_sec;
@@ -138,6 +145,6 @@ int sgx_signal_setup(void);
 int block_signals(bool block, const int* sigs, int nsig);
 int block_async_signals(bool block);
 
-void execute_gdb_command(const char* command);
+void update_debugger(void);
 
 #endif

@@ -7,8 +7,7 @@
 #include "sgx_internal.h"
 
 /* This function is hooked by our gdb integration script and should be left as is. */
-__attribute__((__noinline__)) void execute_gdb_command(const char* command) {
-    __UNUSED(command);
+__attribute__((__noinline__)) void update_debugger(void) {
     __asm__ volatile(""); // Required in addition to __noinline__ to prevent deleting this function.
                           // See GCC docs.
 }

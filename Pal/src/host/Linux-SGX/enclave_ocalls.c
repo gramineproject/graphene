@@ -1354,18 +1354,19 @@ int ocall_delete(const char* pathname) {
     return retval;
 }
 
-int ocall_load_debug(const char* command) {
+int ocall_update_debugger(struct debug_map* _Atomic* debug_map) {
     int retval = 0;
-    int len = strlen(command) + 1;
+    ms_ocall_update_debugger_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
-    const char* ms = sgx_copy_to_ustack(command, len);
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
     if (!ms) {
         sgx_reset_ustack(old_ustack);
         return -EPERM;
     }
 
-    retval = sgx_exitless_ocall(OCALL_LOAD_DEBUG, (void*)ms);
+    WRITE_ONCE(ms->ms_debug_map, debug_map);
+    retval = sgx_exitless_ocall(OCALL_UPDATE_DEBUGGER, ms);
 
     sgx_reset_ustack(old_ustack);
     return retval;
