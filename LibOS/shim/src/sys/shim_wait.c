@@ -11,10 +11,12 @@
 #include <linux/wait.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <sys/wait.h>
 
 #include "pal.h"
 #include "pal_error.h"
 #include "shim_internal.h"
+#include "shim_signal.h"
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
@@ -165,7 +167,10 @@ found:
         if (thread->term_signal == 0) {
             infop->si_code = CLD_EXITED;
             infop->si_status = thread->exit_code;
-        } else  {
+        } else if (thread->term_signal & __WCOREDUMP_BIT) {
+            infop->si_code = CLD_DUMPED;
+            infop->si_status = thread->term_signal & ~__WCOREDUMP_BIT;
+        } else {
             infop->si_code = CLD_KILLED;
             infop->si_status = thread->term_signal;
         }
@@ -222,6 +227,8 @@ long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* 
 
         if (info.si_code == CLD_EXITED)
             *status = (info.si_status & 0xff) << 8;
+        else if (info.si_code == CLD_DUMPED)
+            *status = info.si_status | __WCOREFLAG;
         else
             *status = info.si_status;
     }

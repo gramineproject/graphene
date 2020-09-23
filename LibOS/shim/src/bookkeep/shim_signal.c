@@ -844,8 +844,6 @@ int append_signal(struct shim_thread* thread, siginfo_t* info) {
     return 0;
 }
 
-#define __WCOREDUMP_BIT 0x80
-
 static void sighandler_kill(int sig, siginfo_t* info, void* ucontext) {
     __UNUSED(info);
     __UNUSED(ucontext);
