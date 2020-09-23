@@ -10,6 +10,89 @@ import gdb # pylint: disable=import-error
 
 _g_paginations = []
 
+
+def retrieve_debug_maps():
+    '''
+    Retrieve the debug_map structure from the inferior process. The result is a dict with the
+    following structure:
+
+    {file_name: (text_addr, {name: addr})}
+    '''
+
+    debug_maps = {}
+    val_map = gdb.parse_and_eval('g_pal_enclave.debug_map')
+    while int(val_map) != 0:
+        file_name = val_map['file_name'].string()
+        file_name = os.path.abspath(file_name)
+
+        text_addr = int(val_map['text_addr'])
+
+        sections = {}
+        val_section = val_map['section']
+        while int(val_section) != 0:
+            name = val_section['name'].string()
+            addr = int(val_section['addr'])
+
+            sections[name] = addr
+            val_section = val_section['next']
+
+        debug_maps[file_name] = (text_addr, sections)
+        val_map = val_map['next']
+
+    return debug_maps
+
+
+class UpdateDebugMaps(gdb.Command):
+    """Update debug maps for the inferior process."""
+
+    def __init__(self):
+        super().__init__('update-debug-maps', gdb.COMMAND_USER)
+
+    def invoke(self, arg, _from_tty):
+        self.dont_repeat()
+        assert arg == ''
+
+        # Store the currently loaded maps inside the Progspace object, so that we can compare
+        # old and new states. See:
+        # https://sourceware.org/gdb/current/onlinedocs/gdb/Progspaces-In-Python.html
+        progspace = gdb.current_progspace()
+        if not hasattr(progspace, 'sgx_debug_maps'):
+            progspace.sgx_debug_maps = {}
+
+        old = progspace.sgx_debug_maps
+        new = retrieve_debug_maps()
+        for file_name in set(old) | set(new):
+            # Skip unload/reload if the map is unchanged
+            if old.get(file_name) == new.get(file_name):
+                continue
+
+            # TODO: This doesn't escape the file names.
+
+            if file_name in old:
+                # Remove the file by address, not by name, because:
+                #
+                # 1. the names are resolved by gdb when loading, so even though we call
+                #    os.path.abspath() on our names, gdb might not recognize our name,
+                # 2. the same file (such as libc.so) might be loaded both inside and outside the
+                #    enclave, and we don't want to remove both instances, only the one that we
+                #    added.
+                #
+                # In addition, log the removing, because remove-symbol-file itself doesn't produce
+                # helpful output on errors.
+                text_addr, _sections = old[file_name]
+                print("Removing symbol file {} at addr: 0x{:x}".format(file_name, text_addr))
+                gdb.execute('remove-symbol-file -a 0x{:x}'.format(text_addr))
+
+            if file_name in new:
+                text_addr, sections = new[file_name]
+                cmd = 'add-symbol-file {} 0x{:x} '.format(file_name, text_addr)
+                cmd += ' '.join('-s {} 0x{:x}'.format(name, addr)
+                                for name, addr in sections.items())
+                gdb.execute(cmd)
+
+        progspace.sgx_debug_maps = new
+
+
 class PushPagination(gdb.Command):
     """Temporarily changing pagination and saving the old state.
 
@@ -46,18 +129,27 @@ class PopPagination(gdb.Command):
         gdb.execute('set pagination ' + ('on' if pagination else 'off'))
 
 
-class LoadCommandBreakpoint(gdb.Breakpoint):
+class UpdateBreakpoint(gdb.Breakpoint):
     def __init__(self):
-        gdb.Breakpoint.__init__(self, spec="execute_gdb_command", internal=1)
+        gdb.Breakpoint.__init__(self, spec="update_debugger", internal=1)
 
     def stop(self):
-        command = gdb.parse_and_eval("(const char*)$rdi").string()
-        gdb.execute(command)
+        gdb.execute('update-debug-maps')
         return False
+
+
+def stop_handler(_event):
+    # Make sure we handle connecting to a new process correctly:
+    # update the debug maps if we never did it before.
+    progspace = gdb.current_progspace()
+    if not hasattr(progspace, 'sgx_debug_maps'):
+        gdb.execute('update-debug-maps')
+
 
 def main():
     PushPagination()
     PopPagination()
+    UpdateDebugMaps()
 
     # Some of the things we want to do can't be done using gdb Python API, we need to fall back to a
     # standard gdb script.
@@ -65,7 +157,8 @@ def main():
     print("[%s] Loading %s..." % (os.path.basename(__file__), gdb_script))
     gdb.execute("source " + gdb_script)
 
-    LoadCommandBreakpoint()
+    UpdateBreakpoint()
+    gdb.events.stop.connect(stop_handler)
 
 if __name__ == "__main__":
     main()

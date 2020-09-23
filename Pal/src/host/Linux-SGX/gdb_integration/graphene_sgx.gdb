@@ -35,7 +35,6 @@ set follow-exec-mode same
 set follow-fork-mode child
 set displaced-stepping off
 
-
 # CPUID/RDTSC SIGILL skipping. See [2] above.
 
 catch signal SIGILL

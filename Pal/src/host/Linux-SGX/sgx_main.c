@@ -817,6 +817,9 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 
         env_i += strnlen(&env[env_i], env_size - env_i) + 1;
     }
+
+    enclave->debug_map = NULL;
+    pal_sec->debug_map = &enclave->debug_map;
 #endif
 
     enclave->manifest = manifest_fd;

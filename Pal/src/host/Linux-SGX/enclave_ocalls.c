@@ -1354,21 +1354,9 @@ int ocall_delete(const char* pathname) {
     return retval;
 }
 
-int ocall_load_debug(const char* command) {
-    int retval = 0;
-    int len = strlen(command) + 1;
-
-    void* old_ustack = sgx_prepare_ustack();
-    const char* ms = sgx_copy_to_ustack(command, len);
-    if (!ms) {
-        sgx_reset_ustack(old_ustack);
-        return -EPERM;
-    }
-
-    retval = sgx_exitless_ocall(OCALL_LOAD_DEBUG, (void*)ms);
-
-    sgx_reset_ustack(old_ustack);
-    return retval;
+int ocall_update_debugger(void) {
+    void *dummy = NULL;
+    return sgx_exitless_ocall(OCALL_UPDATE_DEBUGGER, dummy);
 }
 
 int ocall_eventfd(unsigned int initval, int flags) {

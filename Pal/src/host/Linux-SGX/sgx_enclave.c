@@ -629,10 +629,10 @@ static long sgx_ocall_eventfd(void* pms) {
     return ret;
 }
 
-static long sgx_ocall_load_debug(void* pms) {
-    const char* command = (const char*)pms;
-    ODEBUG(OCALL_LOAD_DEBUG, (void*)command);
-    execute_gdb_command(command);
+static long sgx_ocall_update_debugger(void* pms) {
+    __UNUSED(pms);
+    ODEBUG(OCALL_UPDATE_DEBUGGER, NULL);
+    update_debugger();
     return 0;
 }
 
@@ -679,7 +679,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_POLL]             = sgx_ocall_poll,
     [OCALL_RENAME]           = sgx_ocall_rename,
     [OCALL_DELETE]           = sgx_ocall_delete,
-    [OCALL_LOAD_DEBUG]       = sgx_ocall_load_debug,
+    [OCALL_UPDATE_DEBUGGER]  = sgx_ocall_update_debugger,
     [OCALL_EVENTFD]          = sgx_ocall_eventfd,
     [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
 };

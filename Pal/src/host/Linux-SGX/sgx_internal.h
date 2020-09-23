@@ -49,6 +49,8 @@ uint16_t htons(uint16_t shortval);
 uint32_t ntohl(uint32_t longval);
 uint16_t ntohs(uint16_t shortval);
 
+struct debug_map;
+
 extern struct pal_enclave {
     /* attributes */
     unsigned long baseaddr;
@@ -68,6 +70,11 @@ extern struct pal_enclave {
 
     /* Path to the PAL binary */
     char* libpal_uri;
+
+#ifdef DEBUG
+    /* Information for GDB, updated from inside the enclave. See pal_rtld.h. */
+    struct debug_map* _Atomic debug_map;
+#endif
 
     /* security information */
     struct pal_sec pal_sec;
@@ -138,6 +145,6 @@ int sgx_signal_setup(void);
 int block_signals(bool block, const int* sigs, int nsig);
 int block_async_signals(bool block);
 
-void execute_gdb_command(const char* command);
+void update_debugger(void);
 
 #endif
