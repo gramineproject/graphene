@@ -11,7 +11,6 @@
 #include <linux/wait.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
-#include <sys/wait.h>
 
 #include "pal.h"
 #include "pal_error.h"
@@ -20,6 +19,10 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+
+
+/* For wait4() return value */
+#define WCOREFLAG 0x80
 
 
 long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct __kernel_rusage* ru) {
@@ -38,6 +41,9 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
 
     if (!(which == P_PGID || which == P_ALL || which == P_PID))
         return -EINVAL;
+
+    if (infop && test_user_memory(infop, sizeof(*infop), /*write=*/true))
+        return -EFAULT;
 
     if (which == P_PID) {
         pid_t pid = id;
@@ -59,8 +65,6 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
             put_thread(thread);
 
             if (infop) {
-                if (test_user_memory(infop, sizeof(*infop), /*write=*/true))
-                    return -EFAULT;
                 infop->si_pid = 0;
                 infop->si_signo = 0;
             }
@@ -133,8 +137,6 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
     unlock(&cur->lock);
 
     if (infop) {
-        if (test_user_memory(infop, sizeof(*infop), /*write=*/true))
-            return -EFAULT;
         infop->si_pid = 0;
         infop->si_signo = 0;
     }
@@ -155,11 +157,6 @@ found_child:
 found:
     ret = 0;
     if (infop) {
-        if (test_user_memory(infop, sizeof(*infop), /*write=*/true)) {
-            ret = -EFAULT;
-            goto cleanup;
-        }
-
         infop->si_pid = thread->tid;
         infop->si_uid = thread->uid;
         infop->si_signo = SIGCHLD;
@@ -176,7 +173,6 @@ found:
         }
     }
 
-cleanup:
     if (!(options & WNOWAIT))
         del_thread(thread);
 
@@ -193,6 +189,9 @@ long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* 
     if (options & ~(WNOHANG | WUNTRACED | WCONTINUED | __WNOTHREAD | __WCLONE | __WALL)) {
         return -EINVAL;
     }
+
+    if (status && test_user_memory(status, sizeof(*status), /*write=*/true))
+        return -EFAULT;
 
     /* Prepare options for shim_do_waitid(). */
     options |= WEXITED;
@@ -222,15 +221,13 @@ long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* 
         return 0;
 
     if (status) {
-        if (test_user_memory(status, sizeof(*status), /*write=*/true))
-            return -EFAULT;
-
-        if (info.si_code == CLD_EXITED)
+        if (info.si_code == CLD_EXITED) {
             *status = (info.si_status & 0xff) << 8;
-        else if (info.si_code == CLD_DUMPED)
-            *status = info.si_status | __WCOREFLAG;
-        else
+        } else if (info.si_code == CLD_DUMPED) {
+            *status = info.si_status | WCOREFLAG;
+        } else {
             *status = info.si_status;
+        }
     }
     return info.si_pid;
 }
