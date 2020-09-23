@@ -50,6 +50,7 @@ static void parse_fcntlop(va_list*);
 static void parse_seek(va_list*);
 static void parse_at_fdcwd(va_list*);
 static void parse_wait_options(va_list*);
+static void parse_waitid_which(va_list*);
 
 struct parser_table {
     int slow;
@@ -320,7 +321,8 @@ struct parser_table {
         [__NR_mq_notify]       = {.slow = 0, .parser = {NULL}},
         [__NR_mq_getsetattr]   = {.slow = 0, .parser = {NULL}},
         [__NR_kexec_load]      = {.slow = 0, .parser = {NULL}},
-        [__NR_waitid]      = {.slow = 1, .parser = {NULL, NULL, NULL, &parse_wait_options, NULL}},
+        [__NR_waitid]      = {.slow   = 1,
+                              .parser = {&parse_waitid_which, NULL, NULL, &parse_wait_options, NULL}},
         [__NR_add_key]     = {.slow = 0, .parser = {NULL}},
         [__NR_request_key] = {.slow = 0, .parser = {NULL}},
         [__NR_keyctl]      = {.slow = 0, .parser = {NULL}},
@@ -1338,4 +1340,28 @@ static void parse_wait_options(va_list* ap) {
     flags = parse_flags(flags, all_flags, ARRAY_SIZE(all_flags));
     if (flags)
         PRINTF("|0x%x", flags);
+}
+
+static void parse_waitid_which(va_list* ap) {
+    int which = va_arg(*ap, int);
+
+    switch (which) {
+        case P_ALL:
+            PUTS("P_ALL");
+            break;
+        case P_PID:
+            PUTS("P_PID");
+            break;
+        case P_PGID:
+            PUTS("P_PGID");
+            break;
+#ifdef P_PIDFD
+        case P_PIDFD:
+            PUTS("P_PIDFD");
+            break;
+#endif
+        default:
+            PRINTF("%d", which);
+            break;
+    }
 }
