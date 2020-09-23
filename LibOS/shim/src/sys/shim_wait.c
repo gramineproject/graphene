@@ -55,6 +55,13 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
             if (!(options & WNOHANG))
                 goto block_pid;
             put_thread(thread);
+
+            if (infop) {
+                if (test_user_memory(infop, sizeof(*infop), /*write=*/true))
+                    return -EFAULT;
+                infop->si_pid = 0;
+                infop->si_signo = 0;
+            }
             return 0;
         }
 
@@ -122,6 +129,13 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
     }
 
     unlock(&cur->lock);
+
+    if (infop) {
+        if (test_user_memory(infop, sizeof(*infop), /*write=*/true))
+            return -EFAULT;
+        infop->si_pid = 0;
+        infop->si_signo = 0;
+    }
     return 0;
 
 found_child:
