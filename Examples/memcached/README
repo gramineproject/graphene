@@ -10,7 +10,8 @@ and requirements for applications running under Graphene-SGX.
 
 # Prerequisites
 
-Please install `libevent-dev` package.
+Please install `libevent-dev` package. If you want to benchmark with memcslap,
+also install `libmemcached-tools`.
 
 # Quick Start
 

@@ -20,13 +20,21 @@ SRCDIR = src
 MEMCACHED_URL ?= https://memcached.org/files/memcached-1.5.21.tar.gz
 MEMCACHED_SHA256 ?= e3d10c06db755b220f43d26d3b68d15ebf737a69c7663529b504ab047efe92f4
 
+UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --release)
+
+ifeq ($(UBUNTU_VER), Ubuntu18.04)
+else ifeq ($(UBUNTU_VER), Ubuntu16.04)
+else
+$(error This example requires Ubuntu 16.04 or 18.04)
+endif
+
 ifeq ($(DEBUG),1)
 GRAPHENEDEBUG = inline
 else
 GRAPHENEDEBUG = none
 endif
 
-.PHONY=all
+.PHONY: all
 all: memcached memcached.manifest pal_loader
 ifeq ($(SGX),1)
 all: memcached.token
@@ -61,6 +69,7 @@ memcached.manifest: memcached.manifest.template
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+		-e 's|# \['"$(UBUNTU_VER)"'\] ||g' \
 		$< > $@
 
 # Manifest for Graphene-SGX requires special "pal-sgx-sign" procedure. This
@@ -101,12 +110,21 @@ memcached: $(SRCDIR)/memcached
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
+############################## RUNNING TESTS ##################################
+.PHONY: start-native-server
+start-native-server: all
+	./memcached
+
+.PHONY: start-graphene-server
+start-graphene-server: all
+	./pal_loader memcached -u nobody
+
 ################################## CLEANUP ####################################
 
-.PHONY=clean
+.PHONY: clean
 clean:
 	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader memcached .lck
 
-.PHONY=distclean
+.PHONY: distclean
 distclean: clean
 	$(RM) -r $(SRCDIR) memcached.tar.gz
