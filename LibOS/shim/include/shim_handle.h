@@ -292,7 +292,6 @@ struct shim_epoll_item {
     uint64_t data;
     unsigned int events;
     unsigned int revents;
-    bool connected;
     /* The two references below are not ref-counted (to prevent cycles). When a handle is dropped
      * (ref-count goes to 0) it is also removed from all epoll instances. When an epoll instance is
      * destroyed, all handles that it traced are removed from it. */
@@ -303,9 +302,10 @@ struct shim_epoll_item {
 };
 
 struct shim_epoll_handle {
-    int waiter_cnt;
+    size_t waiter_cnt;
 
-    int pal_cnt;
+    /* Number of items on fds list. */
+    size_t fds_count;
 
     AEVENTTYPE event;
     LISTP_TYPE(shim_epoll_item) fds;

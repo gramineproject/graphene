@@ -551,6 +551,7 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
 
     hdl->pal_handle = pal_hdl;
     __process_pending_options(hdl);
+    _update_epoll_waiters(hdl);
     ret = 0;
 
 out:
@@ -713,6 +714,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     lock(&hdl->lock);
     enum shim_sock_state state = sock->sock_state;
     int ret = -EINVAL;
+    bool pal_handle_updated = false;
 
     if (state == SOCK_CONNECTED) {
         if (addr->sa_family == AF_UNSPEC) {
@@ -721,6 +723,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
                 DkStreamDelete(hdl->pal_handle, 0);
                 DkObjectClose(hdl->pal_handle);
                 hdl->pal_handle = NULL;
+                pal_handle_updated = true;
             }
             debug("shim_connect: reconnect on a stream socket\n");
             ret = 0;
@@ -778,6 +781,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
         DkStreamDelete(hdl->pal_handle, 0);
         DkObjectClose(hdl->pal_handle);
         hdl->pal_handle = NULL;
+        pal_handle_updated = true;
     }
 
     if (sock->domain != AF_UNIX) {
@@ -801,6 +805,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
     }
 
     hdl->pal_handle = pal_hdl;
+    pal_handle_updated = true;
 
     if (sock->domain == AF_UNIX) {
         struct shim_dentry* dent = sock->addr.un.dentry;
@@ -841,6 +846,10 @@ out:
             if (sock->addr.un.dentry)
                 put_dentry(sock->addr.un.dentry);
         }
+    }
+
+    if (pal_handle_updated) {
+        _update_epoll_waiters(hdl);
     }
 
     unlock(&hdl->lock);
@@ -1072,6 +1081,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
             }
 
             hdl->pal_handle = pal_hdl;
+            _update_epoll_waiters(hdl);
         }
 
         if (addr && addr->sa_family != sock->domain) {

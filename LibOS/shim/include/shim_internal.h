@@ -633,6 +633,7 @@ int object_wait_with_retry(PAL_HANDLE handle);
 
 void release_clear_child_tid(int* clear_child_tid);
 
+void _update_epoll_waiters(struct shim_handle* handle);
 void delete_from_epoll_handles(struct shim_handle* handle);
 
 #endif /* _SHIM_INTERNAL_H_ */
