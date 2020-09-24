@@ -26,7 +26,7 @@ else
 GRAPHENEDEBUG = none
 endif
 
-.PHONY=all
+.PHONY: all
 all: memcached memcached.manifest pal_loader
 ifeq ($(SGX),1)
 all: memcached.token
@@ -101,12 +101,21 @@ memcached: $(SRCDIR)/memcached
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
+############################## RUNNING TESTS ##################################
+.PHONY: start-native-server
+start-native-server: all
+	./memcached
+
+.PHONY: start-graphene-server
+start-graphene-server: all
+	./pal_loader memcached -u nobody
+
 ################################## CLEANUP ####################################
 
-.PHONY=clean
+.PHONY: clean
 clean:
 	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader memcached .lck
 
-.PHONY=distclean
+.PHONY: distclean
 distclean: clean
 	$(RM) -r $(SRCDIR) memcached.tar.gz

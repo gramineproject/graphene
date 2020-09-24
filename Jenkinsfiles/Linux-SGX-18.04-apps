@@ -103,6 +103,15 @@ pipeline {
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
+                                cd Examples/memcached
+                                make -j8 SGX=1
+                                make SGX=1 start-graphene-server &
+                                sleep 30
+                                memcslap --servers=127.0.0.1 --concurrency=8
+                            '''
+                        }
+                        timeout(time: 15, unit: 'MINUTES') {
+                            sh '''
                                 cd Examples/redis
                                 make -j8 SGX=1
                                 make SGX=1 start-graphene-server &
@@ -201,6 +210,7 @@ pipeline {
                            make -C Examples/bash SGX=1 clean
                            make -C Examples/curl SGX=1 clean
                            make -C Examples/gcc SGX=1 distclean
+                           make -C Examples/memcached SGX=1 distclean
                            make -C Examples/redis SGX=1 distclean
                            make -C Examples/lighttpd SGX=1 distclean
                            make -C Examples/nginx SGX=1 distclean

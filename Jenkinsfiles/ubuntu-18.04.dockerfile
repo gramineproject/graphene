@@ -18,6 +18,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libelf-dev \
     libexpat1 \
     libexpat1-dev \
+    libmemcached-tools \
     libnss-mdns \
     libnuma1 \
     libomp-dev \

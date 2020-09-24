@@ -18,6 +18,7 @@ RUN apt-get update \
        libcurl4-openssl-dev \
        libexpat1 \
        libexpat1-dev \
+       libmemcached-tools \
        libnss-mdns \
        libnuma1 \
        libomp-dev \

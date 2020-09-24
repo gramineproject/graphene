@@ -95,6 +95,15 @@ pipeline {
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
+                                cd Examples/memcached
+                                make -j8 all
+                                make start-graphene-server &
+                                sleep 1
+                                memcslap --servers=127.0.0.1 --concurrency=8
+                            '''
+                        }
+                        timeout(time: 10, unit: 'MINUTES') {
+                            sh '''
                                 cd Examples/redis
                                 make -j8 all
                                 make start-graphene-server &
@@ -169,6 +178,7 @@ pipeline {
                            make -C Examples/bash clean
                            make -C Examples/curl clean
                            make -C Examples/gcc distclean
+                           make -C Examples/memcached distclean
                            make -C Examples/redis distclean
                            make -C Examples/lighttpd distclean
                            make -C Examples/nginx distclean
