@@ -160,7 +160,8 @@ sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 # libEvent is an explicit dependency of Memcached. We choose to install it on
 # host OS instead of downloading the sources, building, and linking Memcached
 # against the built library (which is possible but would require more effort).
-sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.1.so.6
+# [Ubuntu16.04] sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.0.so.5
+# [Ubuntu18.04] sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.1.so.6
 
 ############################# SGX: ALLOWED FILES ###############################
 

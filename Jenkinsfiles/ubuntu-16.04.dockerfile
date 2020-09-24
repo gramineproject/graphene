@@ -16,6 +16,7 @@ RUN apt-get update \
        libapr1-dev \
        libaprutil1-dev \
        libcurl4-openssl-dev \
+       libevent-dev \
        libexpat1 \
        libexpat1-dev \
        libmemcached-tools \

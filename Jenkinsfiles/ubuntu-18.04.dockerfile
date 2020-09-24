@@ -16,6 +16,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libaprutil1-dev \
     libcurl4-openssl-dev \
     libelf-dev \
+    libevent-dev \
     libexpat1 \
     libexpat1-dev \
     libmemcached-tools \
