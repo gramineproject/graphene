@@ -489,6 +489,11 @@ struct flag_table {
 };
 
 static int parse_flags(int flags, const struct flag_table* all_flags, size_t count) {
+    if (!flags) {
+        PUTCH('0');
+        return 0;
+    }
+
     bool first = true;
     for (size_t i = 0; i < count; i++)
         if (flags & all_flags[i].flag) {
