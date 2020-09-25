@@ -166,6 +166,7 @@ static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_proce
     DEFINE_MIGRATE(migratable, NULL, 0);
     DEFINE_MIGRATE(arguments, argv, 0);
     DEFINE_MIGRATE(environ, envp, 0);
+    DEFINE_MIGRATE(groups_info, NULL, 0);
 }
 END_MIGRATION_DEF(execve)
 

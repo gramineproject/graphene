@@ -35,6 +35,7 @@ c_executables = \
 	getdents \
 	getsockname \
 	getsockopt \
+	groups \
 	host_root_fs \
 	init_fail \
 	large_mmap \
