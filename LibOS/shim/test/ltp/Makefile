@@ -56,7 +56,7 @@ else
 	$(MAKE) ltp.xml
 endif
 
-%.xml: %.cfg ltp-bug-1248.cfg ltp-bug-1075.cfg $(LTPSCENARIO) $(target)
+%.xml: %.cfg ltp-bug-1075.cfg $(LTPSCENARIO) $(target)
 	./contrib/conf_lint.py < $<
 	./runltp_xml.py $(RUNLTPOPTS) -c $< $(LTPSCENARIO) > $@
 
