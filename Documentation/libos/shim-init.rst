@@ -7,5 +7,5 @@ LibOS documentation
 
 There is a |~| random function:
 
-.. doxygenfunction:: parse_int
+.. doxygenfunction:: parse_size_str
    :project: libos

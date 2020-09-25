@@ -285,7 +285,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     if (root_config) {
         char stack_cfg[CONFIG_MAX];
         if (get_config(root_config, "sys.stack.size", stack_cfg, sizeof(stack_cfg)) > 0) {
-            stack_size = ALLOC_ALIGN_UP(parse_int(stack_cfg));
+            stack_size = ALLOC_ALIGN_UP(parse_size_str(stack_cfg));
             set_rlimit_cur(RLIMIT_STACK, stack_size);
         }
     }

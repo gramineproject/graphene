@@ -40,7 +40,7 @@ PAL_SESSION_KEY g_master_key = {0};
 /* for internal PAL objects, Graphene first uses pre-allocated g_mem_pool and then falls back to
  * _DkVirtualMemoryAlloc(PAL_ALLOC_INTERNAL); the amount of available PAL internal memory is
  * limited by the variable below */
-size_t g_pal_internal_size = 0;
+size_t g_pal_internal_mem_size = 0;
 
 size_t g_page_size = PRESET_PAGESIZE;
 
@@ -56,8 +56,8 @@ void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     /* Keep some heap for internal PAL objects allocated at runtime (recall that LibOS does not keep
      * track of PAL memory, so without this limit it could overwrite internal PAL memory). This
      * relies on the fact that our memory management allocates memory from higher addresses to lower
-     * addresses (see also enclave_pages.c and db_memory.c). */
-    *end = SATURATED_P_SUB(*end, g_pal_internal_size, *start);
+     * addresses (see also enclave_pages.c). */
+    *end = SATURATED_P_SUB(*end, g_pal_internal_mem_size, *start);
 
     if (*end <= *start) {
         SGX_DBG(DBG_E, "Not enough enclave memory, please increase enclave size!\n");
@@ -403,7 +403,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     char cfgbuf[CONFIG_MAX];
     ssize_t len = get_config(g_pal_state.root_config, "sgx.internal_size", cfgbuf, sizeof(cfgbuf));
     if (len > 0) {
-        g_pal_internal_size = parse_int(cfgbuf);
+        g_pal_internal_mem_size = parse_size_str(cfgbuf);
     }
 
     if ((rv = init_trusted_files()) < 0) {

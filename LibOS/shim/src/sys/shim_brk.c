@@ -45,7 +45,7 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     if (root_config) {
         char brk_cfg[CONFIG_MAX];
         if (get_config(root_config, "sys.brk.max_size", brk_cfg, sizeof(brk_cfg)) > 0)
-            brk_max_size = parse_int(brk_cfg);
+            brk_max_size = parse_size_str(brk_cfg);
     }
 
     if (brk_start && !IS_ALLOC_ALIGNED_PTR(brk_start)) {

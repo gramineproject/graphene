@@ -16,7 +16,7 @@ class TC_00_FileSystem(RegressionTestCase):
     @classmethod
     def setUpClass(cls):
         cls.FILE_SIZES = [0, 1, 2, 15, 16, 17, 255, 256, 257, 1023, 1024, 1025, 65535, 65536, 65537,
-                          1048575, 1048576, 1048577]
+                          1048575, 1048576, 1048577, 64*1024*1024]
         cls.TEST_DIR = 'tmp'
         cls.INDEXES = range(len(cls.FILE_SIZES))
         cls.INPUT_DIR = os.path.join(cls.TEST_DIR, 'input')

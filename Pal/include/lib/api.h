@@ -235,7 +235,17 @@ int get_config_entries (struct config_store * cfg, const char * key,
                         char * key_buf, size_t key_bufsize);
 ssize_t get_config_entries_size (struct config_store * cfg, const char * key);
 int set_config (struct config_store * cfg, const char * key, const char * val);
-uint64_t parse_int(const char* str);
+
+/*!
+ * \brief Parse a number into an unsigned long.
+ *
+ * \param str A string containing a non-negative number. The string may end with "G"/"g" suffix
+ *            denoting value in GBs, "M"/"m" for MBs, or "K"/"k" for KBs.
+ *
+ * By default the number should be decimal, but if it starts with 0x it is parsed as hexadecimal
+ * and if it otherwise starts with 0, it is parsed as octal.
+ */
+uint64_t parse_size_str(const char* str);
 
 #define CONFIG_MAX      4096
 
