@@ -6,4 +6,4 @@ BUILDDIR = $(ROOTDIR)/build
 INSTALLDIR = $(ROOTDIR)/install
 TESTCASEDIR = $(INSTALLDIR)/testcases/bin
 LTPSCENARIO = $(INSTALLDIR)/runtest/syscalls
-RUNLTPOPTS = -c ltp-bug-1248.cfg
+RUNLTPOPTS =
