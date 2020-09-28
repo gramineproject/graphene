@@ -812,7 +812,7 @@ BEGIN_RS_FUNC(handle) {
                 epoll_item->epoll = hdl;
                 count++;
             }
-            assert (hdl->info.epoll.fds_count == count);
+            assert(hdl->info.epoll.fds_count == count);
             break;
         default:
             break;

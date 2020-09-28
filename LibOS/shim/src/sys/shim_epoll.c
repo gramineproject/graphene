@@ -70,7 +70,7 @@ static void update_epoll(struct shim_epoll_handle* epoll) {
     /* if other threads are currently waiting on epoll_wait(), send a signal to update their
      * epoll items (note that we send waiter_cnt number of signals -- to each waiting thread)
      * XXX(borys): I don't think this is correct: set_event semantics seem to be producers-consumers
-     * and here we need to wake all waiting threds. */
+     * and here we need to wake all waiting threads. */
     size_t waiters = __atomic_load_n(&epoll->waiter_cnt, __ATOMIC_RELAXED);
     if (waiters) {
         set_event(&epoll->event, waiters);
