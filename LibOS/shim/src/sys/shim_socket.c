@@ -551,7 +551,7 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
 
     hdl->pal_handle = pal_hdl;
     __process_pending_options(hdl);
-    _update_epoll_waiters(hdl);
+    _update_epolls(hdl);
     ret = 0;
 
 out:
@@ -849,7 +849,7 @@ out:
     }
 
     if (pal_handle_updated) {
-        _update_epoll_waiters(hdl);
+        _update_epolls(hdl);
     }
 
     unlock(&hdl->lock);
@@ -1081,7 +1081,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
             }
 
             hdl->pal_handle = pal_hdl;
-            _update_epoll_waiters(hdl);
+            _update_epolls(hdl);
         }
 
         if (addr && addr->sa_family != sock->domain) {

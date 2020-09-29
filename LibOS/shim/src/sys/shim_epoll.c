@@ -66,23 +66,24 @@ int shim_do_epoll_create(int size) {
     return shim_do_epoll_create1(0);
 }
 
-static void update_epoll(struct shim_epoll_handle* epoll) {
+static void notify_epoll_waiters(struct shim_epoll_handle* epoll) {
     /* if other threads are currently waiting on epoll_wait(), send a signal to update their
      * epoll items (note that we send waiter_cnt number of signals -- to each waiting thread)
      * XXX(borys): I don't think this is correct: set_event semantics seem to be producers-consumers
-     * and here we need to wake all waiting threads. */
+     * and here we need to wake all waiting threads. Waiting for this event is done in a loop
+     * (`shim_do_epoll_wait`), what if one threads consumes multiple events? */
     size_t waiters = __atomic_load_n(&epoll->waiter_cnt, __ATOMIC_RELAXED);
     if (waiters) {
         set_event(&epoll->event, waiters);
     }
 }
 
-void _update_epoll_waiters(struct shim_handle* handle) {
+void _update_epolls(struct shim_handle* handle) {
     assert(locked(&handle->lock));
 
     struct shim_epoll_item* epoll_item;
     LISTP_FOR_EACH_ENTRY(epoll_item, &handle->epolls, back) {
-        update_epoll(&epoll_item->epoll->info.epoll);
+        notify_epoll_waiters(&epoll_item->epoll->info.epoll);
     }
 }
 
@@ -110,7 +111,7 @@ void delete_from_epoll_handles(struct shim_handle* handle) {
         lock(&hdl->lock);
         LISTP_DEL(epoll_item, &epoll->fds, list);
         epoll->fds_count--;
-        update_epoll(epoll);
+        notify_epoll_waiters(epoll);
         unlock(&hdl->lock);
 
         assert(epoll_item->handle == handle);
@@ -199,7 +200,7 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
             INIT_LIST_HEAD(epoll_item, list);
             LISTP_ADD_TAIL(epoll_item, &epoll->fds, list);
             epoll->fds_count++;
-            update_epoll(epoll);
+            notify_epoll_waiters(epoll);
 
             put_handle(hdl);
             break;
@@ -212,7 +213,7 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                     epoll_item->data   = event->data;
 
                     debug("modified fd %d at epoll handle %p\n", fd, epoll);
-                    update_epoll(epoll);
+                    notify_epoll_waiters(epoll);
                     goto out;
                 }
             }
@@ -237,7 +238,7 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                     /* note that we already grabbed epoll_hdl->lock so we can safely update epoll */
                     LISTP_DEL(epoll_item, &epoll->fds, list);
                     epoll->fds_count--;
-                    update_epoll(epoll);
+                    notify_epoll_waiters(epoll);
 
                     free(epoll_item);
                     goto out;
