@@ -67,8 +67,8 @@ int thread_destroy(struct shim_thread* thread, bool send_ipc) {
             info.si_status = (exit_code & 0xff) << 8;
 
             if (append_signal(parent, &info) >= 0) {
-                thread_wakeup(thread);
-                DkThreadResume(thread->pal_handle);
+                thread_wakeup(parent);
+                DkThreadResume(parent->pal_handle);
             }
         }
 
