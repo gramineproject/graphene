@@ -1,0 +1,184 @@
+stage('test') {
+    /*
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd Examples/python-simple
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd Examples/python-scipy-insecure
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd Examples/python-sh-insecure
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd Examples/bash
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    */
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd Examples/curl
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    timeout(time: 10, unit: 'MINUTES') {
+        sh '''
+            cd Examples/gcc
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    timeout(time: 15, unit: 'MINUTES') {
+        sh '''
+            cd Examples/memcached
+            make ${MAKEOPTS}
+            make SGX=1 start-graphene-server &
+            sleep 30
+            # memcslap populates server but doesn't report errors, use
+            # memcached-tool for this (must return two lines of stats)
+            memcslap --servers=127.0.0.1 --concurrency=8
+            src/scripts/memcached-tool 127.0.0.1 | wc -l | grep -w "2"
+        '''
+    }
+    timeout(time: 15, unit: 'MINUTES') {
+        sh '''
+            if .ci/isdistro xenial
+            then
+                USE_SELECT=1
+                export USE_SELECT
+            fi
+            cd Examples/redis
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} start-graphene-server &
+            sleep 30
+            ./src/src/redis-benchmark
+        '''
+    }
+    timeout(time: 15, unit: 'MINUTES') {
+        sh '''
+            cd Examples/lighttpd
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} start-graphene-server &
+            sleep 10
+            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
+        '''
+    }
+    timeout(time: 15, unit: 'MINUTES') {
+        sh '''
+            cd Examples/nginx
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} start-graphene-server &
+            sleep 30
+            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
+        '''
+    }
+    timeout(time: 25, unit: 'MINUTES') {
+        sh '''
+            cd Examples/apache
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} start-graphene-server &
+            sleep 30
+            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
+            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
+        '''
+    }
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd Examples/blender
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            cd Examples/r
+            make ${MAKEOPTS}
+            make ${MAKEOPTS} check
+        '''
+    }
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            test "$(. /etc/os-release; printf %s "$VERSION_CODENAME")" = bionic || exit 0
+            cd Examples/ra-tls-mbedtls
+            if [ "${ra_client_spid}" != "" ] && [ "${ra_client_key}" != "" ]; \
+            then \
+                make check_epid RA_CLIENT_SPID=${ra_client_spid} \
+                                        RA_TLS_EPID_API_KEY=${ra_client_key} \
+                                        RA_CLIENT_LINKABLE=0 \
+                                        RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1; \
+                make check_epid_fail RA_CLIENT_SPID=${ra_client_spid} \
+                                            RA_TLS_EPID_API_KEY=${ra_client_key} \
+                                            RA_CLIENT_LINKABLE=0 \
+                                            RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1; \
+            else \
+                echo "Failure: no ra_client_spid and/or ra_client_key!"; \
+                exit 1; \
+            fi
+        '''
+    }
+    timeout(time: 5, unit: 'MINUTES') {
+        sh '''
+            test "$(. /etc/os-release; printf %s "$VERSION_CODENAME")" = bionic || exit 0
+            cd Examples/ra-tls-secret-prov
+            if [ "${ra_client_spid}" != "" ] && [ "${ra_client_key}" != "" ]; \
+            then \
+                make SGX=1 check_epid RA_CLIENT_SPID=${ra_client_spid} \
+                                        RA_TLS_EPID_API_KEY=${ra_client_key} \
+                                        RA_CLIENT_LINKABLE=0 \
+                                        RA_TLS_ALLOW_OUTDATED_TCB_INSECURE=1; \
+            else \
+                echo "Failure: no ra_client_spid and/or ra_client_key!"; \
+                exit 1; \
+            fi
+        '''
+    }
+    sh '''
+        ./Scripts/gitignore-test
+    '''
+    sh '''
+        cd "$(./Scripts/clean-check-test-copy)"
+
+        rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
+        make distclean
+
+        make -C Examples/python-simple SGX=1 clean
+        make -C Examples/python-scipy-insecure SGX=1 clean
+        make -C Examples/python-sh-insecure SGX=1 clean
+        make -C Examples/bash SGX=1 clean
+        make -C Examples/curl SGX=1 clean
+        make -C Examples/gcc SGX=1 distclean
+        make -C Examples/memcached SGX=1 distclean
+        make -C Examples/redis SGX=1 distclean
+        make -C Examples/lighttpd SGX=1 distclean
+        make -C Examples/nginx SGX=1 distclean
+        make -C Examples/apache SGX=1 distclean
+        make -C Examples/blender SGX=1 distclean
+        make -C Examples/r SGX=1 distclean
+        make -C Examples/ra-tls-mbedtls SGX=1 distclean
+        make -C Examples/ra-tls-secret-prov SGX=1 distclean
+
+        # Currently used release of LTP contains broken symlinks under
+        # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit
+        # rm of these symlinks, the clean-check utility fails. We should
+        # update to newer release of LTP where this issue will be fixed.
+        rm -rf /tmp/*/LibOS/shim/test/ltp/src
+        rm -rf LibOS/shim/test/ltp/src
+
+        ./Scripts/clean-check
+    '''
+}
