@@ -223,8 +223,10 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
     if (!(options & (WEXITED | WSTOPPED | WCONTINUED)))
         return -EINVAL;
 
+#if 0
     if (infop && test_user_memory(infop, sizeof(*infop), /*write=*/true))
         return -EFAULT;
+#endif
 
     return do_waitid(which, id, infop, options);
 }
@@ -240,8 +242,10 @@ long shim_do_wait4(pid_t pid, int* status, int options, struct __kernel_rusage* 
         return -EINVAL;
     }
 
+#if 0
     if (status && test_user_memory(status, sizeof(*status), /*write=*/true))
         return -EFAULT;
+#endif
 
     /* Prepare options for do_waitid(). */
     options |= WEXITED;

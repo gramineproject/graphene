@@ -74,8 +74,10 @@ int do_handle_write(struct shim_handle* hdl, const void* buf, int count) {
 }
 
 long shim_do_write(int fd, const void* buf, size_t count) {
+#if 0
     if (!buf || test_user_memory((void*)buf, count, false))
         return -EFAULT;
+#endif
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
