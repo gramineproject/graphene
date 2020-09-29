@@ -22,8 +22,14 @@ static void sigfpe_handler(int signum, siginfo_t* si, void* uc) {
 int main(int argc, char** argv) {
     int ret;
 
+    if (argc != 1) {
+        fprintf(stderr, "no arguments must be supplied to this program\n");
+        exit(EXIT_FAILURE);
+    }
+
     const struct sigaction act = {
         .sa_sigaction = sigfpe_handler,
+        .sa_flags = SA_SIGINFO,
     };
 
     ret = sigaction(SIGFPE, &act, NULL);
@@ -34,7 +40,7 @@ int main(int argc, char** argv) {
 
     /* populate array with 0,1,2,3... via argc (this test expects no command-line options and thus
      * argc == 1); this is to prevent the compiler from optimizing out the XMM logic */
-    int16_t a[8];
+    int16_t a[8] __attribute__((aligned(16)));
     for (int i = 0; i < 8; i++)
         a[i] = argc - 1 + i;
     __m128i xmm_reg = _mm_load_si128((__m128i*)a);
@@ -55,7 +61,13 @@ int main(int argc, char** argv) {
     }
 
     __asm__ volatile("" ::: "memory");
+
+    if (sigfpe_ctr != 1) {
+        fprintf(stderr, "Expected exactly 1 SIGFPE signal but received %d!\n", sigfpe_ctr);
+        exit(EXIT_FAILURE);
+    }
     printf("Got %d SIGFPE signal(s)\n", sigfpe_ctr);
+
     puts("TEST OK");
     exit(EXIT_SUCCESS);
 }
