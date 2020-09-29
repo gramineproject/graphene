@@ -1,5 +1,3 @@
-#define DO_BENCH 0
-
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -7,13 +5,11 @@
 int main(int argc, char** argv) {
     int count = 0;
 
-#if DO_BENCH != 1
     pal_printf("In process: %s", argv[0]);
     for (int i = 1; i < argc; i++) {
         pal_printf(" %s", argv[i]);
     }
     pal_printf("\n");
-#endif
 
     if (argc == 1) {
         uint64_t time = DkSystemTimeQuery();
@@ -53,5 +49,4 @@ int main(int argc, char** argv) {
     }
 
     DkProcessExit(0);
-    return 0;
 }

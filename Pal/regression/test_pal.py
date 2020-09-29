@@ -648,6 +648,7 @@ class TC_21_ProcessCreation(RegressionTestCase):
         counter = collections.Counter(stderr.split('\n'))
         self.assertEqual(counter['Binary 1 Preloaded'], 2)
         self.assertEqual(counter['Binary 2 Preloaded'], 2)
+        self.assertEqual(counter['Creating child OK'], 1)
 
 class TC_23_SendHandle(RegressionTestCase):
     def test_000_send_handle(self):
