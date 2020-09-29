@@ -58,11 +58,11 @@ static int __attribute_noinline vfork_exec(int parent_stream, const char** argv)
     return 0;
 }
 
-int sgx_create_process(const char* uri, int nargs, const char** args, int* stream_fd) {
+int sgx_create_process(const char* uri, size_t nargs, const char** args, int* stream_fd) {
     int ret, rete, child;
     int fds[2] = {-1, -1};
 
-    if (!uri || !strstartswith_static(uri, URI_PREFIX_FILE))
+    if (!strstartswith_static(uri, URI_PREFIX_FILE))
         return -EINVAL;
 
     int socktype = SOCK_STREAM;

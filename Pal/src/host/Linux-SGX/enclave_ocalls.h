@@ -71,7 +71,7 @@ int ocall_resume_thread(void* tcs);
 
 int ocall_clone_thread(void);
 
-int ocall_create_process(const char* uri, int nargs, const char** args, int* stream_fd,
+int ocall_create_process(const char* uri, size_t nargs, const char** args, int* stream_fd,
                          unsigned int* pid);
 
 int ocall_futex(uint32_t* uaddr, int op, int val, int64_t timeout_us);

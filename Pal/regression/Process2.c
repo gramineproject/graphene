@@ -4,6 +4,7 @@
 
 int main(int argc, char** argv, char** envp) {
     PAL_STR args[1] = {0};
-    DkProcessCreate("file:Bootstrap", args);
+    if (DkProcessCreate("file:Bootstrap", args) == NULL)
+        return 1;
     return 0;
 }

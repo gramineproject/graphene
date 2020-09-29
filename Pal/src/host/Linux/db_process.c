@@ -138,35 +138,36 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
 
 int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     PAL_HANDLE exec = NULL;
-    PAL_HANDLE parent_handle = NULL, child_handle = NULL;
+    PAL_HANDLE parent_handle = NULL;
+    PAL_HANDLE child_handle = NULL;
     int ret;
+
+    assert(uri);
 
     /* step 1: open uri and check whether it is an executable */
 
-    if (uri) {
-        if ((ret = _DkStreamOpen(&exec, uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
-            return ret;
+    if ((ret = _DkStreamOpen(&exec, uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
+        return ret;
 
-        if (!is_elf_object(exec)) {
-            ret = -PAL_ERROR_INVAL;
-            goto out;
-        }
-
-        /* If this process creation is for fork emulation,
-         * map address of executable is already determined.
-         * tell its address to forked process.
-         */
-        size_t len;
-        const char* file_uri = URI_PREFIX_FILE;
-        if (g_exec_map && g_exec_map->l_name && (len = strlen(uri)) >= URI_PREFIX_FILE_LEN &&
-                !memcmp(uri, file_uri, URI_PREFIX_FILE_LEN) &&
-                /* skip "file:"*/
-                strlen(g_exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
-                /* + 1 for lasting * NUL */
-                !memcmp(g_exec_map->l_name,
-                        uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
-            exec->file.map_start = (PAL_PTR)g_exec_map->l_map_start;
+    if (!is_elf_object(exec)) {
+        ret = -PAL_ERROR_INVAL;
+        goto out;
     }
+
+    /* If this process creation is for fork emulation,
+     * map address of executable is already determined.
+     * tell its address to forked process.
+     */
+    size_t len;
+    const char* file_uri = URI_PREFIX_FILE;
+    if (g_exec_map && g_exec_map->l_name && (len = strlen(uri)) >= URI_PREFIX_FILE_LEN &&
+            !memcmp(uri, file_uri, URI_PREFIX_FILE_LEN) &&
+            /* skip "file:"*/
+            strlen(g_exec_map->l_name) == len - URI_PREFIX_FILE_LEN &&
+            /* + 1 for lasting * NUL */
+            !memcmp(g_exec_map->l_name,
+                    uri + URI_PREFIX_FILE_LEN, len - URI_PREFIX_FILE_LEN + 1))
+        exec->file.map_start = (PAL_PTR)g_exec_map->l_map_start;
 
     /* step 2: create parent and child process handle */
 
@@ -191,14 +192,12 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
         goto out;
     parent_datasz = (size_t)ret;
 
-    if (exec) {
-        ret = handle_serialize(exec, &exec_data);
-        if (ret < 0) {
-            free(parent_data);
-            goto out;
-        }
-        exec_datasz = (size_t)ret;
+    ret = handle_serialize(exec, &exec_data);
+    if (ret < 0) {
+        free(parent_data);
+        goto out;
     }
+    exec_datasz = (size_t)ret;
 
     if (g_pal_state.manifest_handle) {
         ret = handle_serialize(g_pal_state.manifest_handle, &manifest_data);
@@ -225,13 +224,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     data += (proc_args->parent_data_size = parent_datasz);
     free(parent_data);
 
-    if (exec_data) {
-        memcpy(data, exec_data, exec_datasz);
-        data += (proc_args->exec_data_size = exec_datasz);
-        free(exec_data);
-    } else {
-        proc_args->exec_data_size = 0;
-    }
+    memcpy(data, exec_data, exec_datasz);
+    data += (proc_args->exec_data_size = exec_datasz);
+    free(exec_data);
 
     if (manifest_data) {
         memcpy(data, manifest_data, manifest_datasz);
