@@ -1,0 +1,11 @@
+env.DOCKER_ARGS = '''
+    --volume=/lib/modules:/lib/modules:ro
+    --volume=/usr/src:/usr/src:ro
+    --volume=/var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
+    --device=/dev/gsgx:/dev/gsgx
+    --device=/dev/isgx:/dev/isgx
+'''
+env.ISGX_DRIVER_PATH = '/opt/intel/linux-sgx-driver'
+env.GLIBC_VERSION = '2.31'
+env.WERROR = '1'
+env.MAKEOPTS = "-j8"
