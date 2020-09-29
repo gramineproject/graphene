@@ -66,7 +66,7 @@ class UpdateDebugMaps(gdb.Command):
             if old.get(file_name) == new.get(file_name):
                 continue
 
-            # TODO: This doesn't escape the file names.
+            # Note that this doesn't escape the file names.
 
             if file_name in old:
                 # Remove the file by address, not by name, because:
