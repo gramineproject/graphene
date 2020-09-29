@@ -212,6 +212,8 @@ noreturn void process_exit(int error_code, int term_signal) {
 noreturn int shim_do_exit_group(int error_code) {
     assert(!is_internal(get_cur_thread()));
 
+    error_code &= 0xFF;
+
     if (debug_handle)
         sysparser_printf("---- shim_exit_group (returning %d)\n", error_code);
 
@@ -220,6 +222,8 @@ noreturn int shim_do_exit_group(int error_code) {
 
 noreturn int shim_do_exit(int error_code) {
     assert(!is_internal(get_cur_thread()));
+
+    error_code &= 0xFF;
 
     if (debug_handle)
         sysparser_printf("---- shim_exit (returning %d)\n", error_code);
