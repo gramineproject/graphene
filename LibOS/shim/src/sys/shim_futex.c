@@ -411,9 +411,8 @@ static int move_to_wake_queue(struct shim_futex* futex, uint32_t bitset, int to_
         }
 
         thread = remove_futex_waiter(waiter, futex);
-        if (add_thread_to_queue(queue, thread)) {
-            put_thread(thread);
-        }
+        add_thread_to_queue(queue, thread);
+        put_thread(thread);
 
         /* If to_wake (3rd argument of futex syscall) is 0, the Linux kernel still wakes up
          * one thread - so we do the same here. */
@@ -637,9 +636,8 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
         LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex1->waiters, list) {
             if (woken < to_wake) {
                 thread = remove_futex_waiter(waiter, futex1);
-                if (add_thread_to_queue(&queue, thread)) {
-                    put_thread(thread);
-                }
+                add_thread_to_queue(&queue, thread);
+                put_thread(thread);
                 ++woken;
             } else if (requeued < to_requeue) {
                 move_futex_waiter(waiter, futex1, futex2);

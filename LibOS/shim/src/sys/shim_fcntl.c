@@ -39,7 +39,7 @@ int set_handle_nonblocking(struct shim_handle* hdl) {
 }
 
 int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
-    struct shim_handle_map* handle_map = get_cur_handle_map(NULL);
+    struct shim_handle_map* handle_map = get_thread_handle_map(NULL);
     int flags;
     int ret = -ENOSYS;
 

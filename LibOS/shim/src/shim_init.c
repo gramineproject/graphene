@@ -22,6 +22,7 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_table.h"
 #include "shim_tcb.h"
 #include "shim_thread.h"
@@ -51,7 +52,7 @@ static void handle_failure(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 
 noreturn void __abort(void) {
     DEBUG_BREAK_ON_FAILURE();
-    shim_clean_and_exit(-ENOTRECOVERABLE);
+    process_exit(/*error_code=*/0, /*term_signal=*/SIGABRT);
 }
 
 static int pal_errno_to_unix_errno[PAL_ERROR_NATIVE_COUNT + 1] = {
@@ -434,8 +435,6 @@ fail:
         }                                                        \
     } while (0)
 
-extern PAL_HANDLE thread_start_event;
-
 noreturn void* shim_init(int argc, void* args) {
     debug_handle = PAL_CB(debug_stream);
     g_process_ipc_info.vmid = (IDTYPE)PAL_CB(process_id);
@@ -447,7 +446,7 @@ noreturn void* shim_init(int argc, void* args) {
                                        // that arrives during initialization
 
     struct debug_buf debug_buf;
-    debug_setbuf(shim_get_tcb(), &debug_buf);
+    (void)debug_setbuf(shim_get_tcb(), &debug_buf);
 
     debug("host: %s\n", PAL_CB(host_type));
 
@@ -456,14 +455,14 @@ noreturn void* shim_init(int argc, void* args) {
     g_pal_alloc_align = PAL_CB(alloc_align);
     if (!IS_POWER_OF_2(g_pal_alloc_align)) {
         debug("shim_init(): error: PAL allocation alignment not a power of 2\n");
-        shim_clean_and_exit(-EINVAL);
+        DkProcessExit(EINVAL);
     }
 
     shim_xstate_init();
 
     if (!create_lock(&__master_lock)) {
         debug("shim_init(): error: failed to allocate __master_lock\n");
-        shim_clean_and_exit(-ENOMEM);
+        DkProcessExit(ENOMEM);
     }
 
     const char** argv = args;
@@ -488,8 +487,6 @@ noreturn void* shim_init(int argc, void* args) {
         if (ret == PAL_STREAM_ERROR || ret != sizeof(hdr))
             shim_do_exit(-PAL_ERRNO());
 
-        thread_start_event = DkNotificationEventCreate(PAL_FALSE);
-
         assert(hdr.size);
         RUN_INIT(receive_checkpoint_and_restore, &hdr);
     }
@@ -499,6 +496,7 @@ noreturn void* shim_init(int argc, void* args) {
 
     RUN_INIT(init_mount_root);
     RUN_INIT(init_ipc);
+    RUN_INIT(init_process);
     RUN_INIT(init_thread);
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
@@ -523,19 +521,23 @@ noreturn void* shim_init(int argc, void* args) {
 
     debug("shim process initialized\n");
 
-    if (thread_start_event)
-        DkEventSet(thread_start_event);
-
     shim_tcb_t* cur_tcb = shim_get_tcb();
-    struct shim_thread* cur_thread = (struct shim_thread*)cur_tcb->tp;
 
     if (cur_tcb->context.regs && shim_context_get_sp(&cur_tcb->context)) {
         vdso_map_migrate();
         restore_child_context_after_clone(&cur_tcb->context);
+        /* UNREACHABLE */
     }
 
-    if (cur_thread->exec)
-        execute_elf_object(cur_thread->exec, new_argp, new_auxv);
+    lock(&g_process.fs_lock);
+    struct shim_handle* exec = g_process.exec;
+    get_handle(exec);
+    unlock(&g_process.fs_lock);
+
+    if (exec) {
+        /* Passing ownership of `exec` to `execute_elf_object`. */
+        execute_elf_object(exec, new_argp, new_auxv);
+    }
     shim_do_exit(0);
 }
 
@@ -600,26 +602,4 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
     if (name)
         memcpy(name, pipename, sizeof(pipename));
     return 0;
-}
-
-noreturn void shim_clean_and_exit(int exit_code) {
-    static int in_terminate = 0;
-    if (__atomic_add_fetch(&in_terminate, 1, __ATOMIC_RELAXED) > 1) {
-        while (true) {
-            /* nothing */
-        }
-    }
-
-    store_all_msg_persist();
-    del_all_ipc_ports();
-
-    debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF, exit_code);
-    MASTER_LOCK();
-
-    if (exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
-        /* user application specified magic exit code; this should be an extremely rare case */
-        debug("exit status collides with Graphene-internal magic status; changed to 1\n");
-        exit_code = 1;
-    }
-    DkProcessExit(exit_code);
 }

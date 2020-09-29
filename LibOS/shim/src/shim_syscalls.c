@@ -355,30 +355,30 @@ SHIM_SYSCALL_RETURN_ENOSYS(times, 1, int, struct tms*, tbuf)
 
 SHIM_SYSCALL_RETURN_ENOSYS(ptrace, 4, int, long, request, pid_t, pid, void*, addr, void*, data)
 
-/* getuid: sys/shim_getpid.c */
+/* getuid: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(getuid, 0, shim_do_getuid, uid_t)
 
 SHIM_SYSCALL_RETURN_ENOSYS(syslog, 3, int, int, type, char*, buf, int, len)
 
-/* getgid: sys/shim_getgid.c */
+/* getgid: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(getgid, 0, shim_do_getgid, gid_t)
 
-/* setuid: sys/shim_getpid.c */
+/* setuid: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(setuid, 1, shim_do_setuid, int, uid_t, uid)
 
-/* setgid: sys/shim_getpid.c */
+/* setgid: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(setgid, 1, shim_do_setgid, int, gid_t, gid)
 
-/* setgroups: sys/shim_getpid.c */
+/* setgroups: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(setgroups, 2, shim_do_setgroups, int, int, gidsetsize, gid_t*, grouplist)
 
-/* getgroups: sys/shim_getpid.c */
+/* getgroups: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(getgroups, 2, shim_do_getgroups, int, int, gidsetsize, gid_t*, grouplist)
 
-/* geteuid: sys/shim_getpid.c */
+/* geteuid: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(geteuid, 0, shim_do_geteuid, uid_t)
 
-/* getegid: sys/shim_getpid.c */
+/* getegid: sys/shim_getuid.c */
 DEFINE_SHIM_SYSCALL(getegid, 0, shim_do_getegid, gid_t)
 
 /* getpgid: sys/shim_getpid.c */

@@ -144,7 +144,7 @@ static void shim_async_helper(void* arg) {
     update_fs_base(0);
 
     struct debug_buf debug_buf;
-    debug_setbuf(shim_get_tcb(), &debug_buf);
+    (void)debug_setbuf(shim_get_tcb(), &debug_buf);
 
     lock(&async_helper_lock);
     bool notme = (self != async_helper_thread);
@@ -374,7 +374,7 @@ static int create_async_helper(void) {
     async_helper_thread = new;
     async_helper_state  = HELPER_ALIVE;
 
-    PAL_HANDLE handle = thread_create(shim_async_helper, new);
+    PAL_HANDLE handle = DkThreadCreate(shim_async_helper, new);
 
     if (!handle) {
         async_helper_thread = NULL;

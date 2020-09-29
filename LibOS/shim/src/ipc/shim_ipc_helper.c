@@ -861,7 +861,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     update_fs_base(0);
 
     struct debug_buf debug_buf;
-    debug_setbuf(shim_get_tcb(), &debug_buf);
+    (void)debug_setbuf(shim_get_tcb(), &debug_buf);
 
     lock(&ipc_helper_lock);
     bool notme = (self != ipc_helper_thread);
@@ -899,7 +899,7 @@ static int create_ipc_helper(void) {
     ipc_helper_thread = new;
     ipc_helper_state  = HELPER_ALIVE;
 
-    PAL_HANDLE handle = thread_create(shim_ipc_helper_prepare, new);
+    PAL_HANDLE handle = DkThreadCreate(shim_ipc_helper_prepare, new);
 
     if (!handle) {
         int ret = -PAL_ERRNO(); /* put_thread() may overwrite errno */

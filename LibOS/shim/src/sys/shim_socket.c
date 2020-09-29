@@ -21,6 +21,8 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
+#include "shim_signal.h"
 #include "shim_table.h"
 #include "shim_utils.h"
 
@@ -1115,9 +1117,12 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
 
         if (pal_ret == PAL_STREAM_ERROR) {
             if (PAL_ERRNO() == EPIPE && !(flags & MSG_NOSIGNAL)) {
-                struct shim_thread* cur = get_cur_thread();
-                assert(cur);
-                (void)do_kill_proc(cur->tid, cur->tgid, SIGPIPE, /*use_ipc=*/false);
+                siginfo_t info = {
+                    .si_signo = SIGPIPE,
+                    .si_pid = g_process.pid,
+                    .si_code = SI_USER,
+                };
+                (void)kill_current_proc(&info);
             }
 
             ret = (PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST) ? -ECONNABORTED : -PAL_ERRNO();
