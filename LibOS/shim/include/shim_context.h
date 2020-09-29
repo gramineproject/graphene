@@ -7,6 +7,8 @@
 #ifndef _SHIM_CONTEXT_H_
 #define _SHIM_CONTEXT_H_
 
+#include <stdnoreturn.h>
+
 #include "shim_tcb.h"
 
 extern bool     g_shim_xsave_enabled;
@@ -18,7 +20,7 @@ void shim_xstate_save(void* xstate_extended);
 void shim_xstate_restore(const void* xstate_extended);
 void shim_xstate_reset(void);
 
-void restore_child_context_after_clone(struct shim_context* context);
+noreturn void restore_child_context_after_clone(struct shim_context* context);
 void fixup_child_context(struct shim_regs* regs);
 
 #endif /* _SHIM_CONTEXT_H_ */

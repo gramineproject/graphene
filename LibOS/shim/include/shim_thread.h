@@ -1,20 +1,24 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
+ */
+
 #ifndef _SHIM_THREAD_H_
 #define _SHIM_THREAD_H_
 
+#include <linux/futex.h>
+#include <linux/signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "api.h"
-#include "list.h"
 #include "pal.h"
-#include "shim_defs.h"
+#include "list.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_signal.h"
 #include "shim_tcb.h"
-#include "shim_utils.h"
-#include "shim_vma.h"
-
-struct shim_handle;
-struct shim_fd_map;
-struct shim_dentry;
+#include "shim_types.h"
 
 #define WAKE_QUEUE_TAIL ((void*)1)
 /* If next is NULL, then this node is not on any queue.
@@ -49,25 +53,17 @@ struct shim_signal_queue {
 DEFINE_LIST(shim_thread);
 DEFINE_LISTP(shim_thread);
 struct shim_thread {
-    /* thread identifiers */
-    IDTYPE vmid;
-    IDTYPE pgid, ppid, tgid, tid;
-    bool in_vm;
+    /* Field for inserting threads on global `g_thread_list`. */
+    LIST_TYPE(shim_thread) list;
+
+    /* thread identifier */
+    IDTYPE tid;
 
     /* credentials */
     IDTYPE uid, gid, euid, egid;
 
     /* thread pal handle */
     PAL_HANDLE pal_handle;
-
-    /* parent handle */
-    struct shim_thread* parent;
-    /* child handles; protected by thread->lock */
-    LISTP_TYPE(shim_thread) children;
-    /* nodes in child handles; protected by the parent's lock */
-    LIST_TYPE(shim_thread) siblings;
-    /* nodes in global handles; protected by thread_list_lock */
-    LIST_TYPE(shim_thread) list;
 
     struct shim_handle_map* handle_map;
 
@@ -83,7 +79,18 @@ struct shim_thread {
     /* For the field below, see the explanation in "LibOS/shim/src/bookkeep/shim_signal.c" near
      * `process_pending_signals_cnt`. */
     uint64_t pending_signals;
-    bool signal_handled;
+
+    /*
+     * This field is used for checking whether we handled a signal (e.g. if we want to sleep and
+     * make some decision after wakeup based on whether we handled a signal, see `sigsuspend`)
+     * and can have following values:
+     * - `SIGNAL_NOT_HANDLED` - usually initialized to this - no signals were handled,
+     * - `SIGNAL_HANDLED` - at least one signal was handled,
+     * - `SIGNAL_HANDLED_RESTART` - same as above, but the signal had `SA_RESTART` flag.
+     * `SIGNAL_HANDLED` has priority over `SIGNAL_HANDLED_RESTART`, i.e. if we handle multiple
+     * signals, some with `SA_RESTART`, some without it, this field will be set to `SIGNAL_HANDLED`.
+     */
+    unsigned char signal_handled;
     stack_t signal_altstack;
 
     /* futex robust list */
@@ -93,23 +100,7 @@ struct shim_thread {
 
     struct wake_queue_node wake_queue;
 
-    PAL_HANDLE exit_event;
-    int exit_code;
-    int term_signal; // Store the terminating signal, if any; needed for
-                     // wait() and friends
-    bool is_alive;
     bool time_to_die;
-
-    PAL_HANDLE child_exit_event;
-    LISTP_TYPE(shim_thread) exited_children;
-
-    /* file system */
-    struct shim_dentry* root;
-    struct shim_dentry* cwd;
-    mode_t umask;
-
-    /* executable */
-    struct shim_handle* exec;
 
     void* stack;
     void* stack_top;
@@ -121,11 +112,28 @@ struct shim_thread {
     struct shim_lock lock;
 };
 
-int init_thread(void);
+struct shim_thread_queue {
+    struct shim_thread_queue* next;
+    struct shim_thread* thread;
+    /* We use this field to mark that this object is still in use (is on some queue). This is needed
+     * to distinguish spurious wake-ups from real ones. */
+    bool in_use;
+};
+
+/* See the explanation in `shim_thread`. */
+enum {
+    SIGNAL_NOT_HANDLED = 0,
+    SIGNAL_HANDLED,
+    SIGNAL_HANDLED_RESTART,
+};
+
+int init_threading(void);
 
 static inline bool is_internal(struct shim_thread* thread) {
     return thread->tid >= INTERNAL_TID_BASE;
 }
+
+void clear_signal_queue(struct shim_signal_queue* queue);
 
 void get_signal_handles(struct shim_signal_handles* handles);
 void put_signal_handles(struct shim_signal_handles* handles);
@@ -135,14 +143,19 @@ void put_thread(struct shim_thread* thread);
 
 void debug_setprefix(shim_tcb_t* tcb);
 
-static inline void debug_setbuf(shim_tcb_t* tcb,
-                                struct debug_buf* debug_buf) {
+/* Set `debug_buf` for `tcb`. If `debug_buf` is `NULL`, then new one is allocated. If `debug_buf`
+ * is not NULL, this function cannot fail. */
+static inline int debug_setbuf(shim_tcb_t* tcb, struct debug_buf* debug_buf) {
     if (!g_debug_log_enabled)
-        return;
+        return 0;
 
     tcb->debug_buf = debug_buf ? debug_buf : malloc(sizeof(struct debug_buf));
+    if (!tcb->debug_buf) {
+        return -ENOMEM;
+    }
 
     debug_setprefix(tcb);
+    return 0;
 }
 
 static inline struct shim_thread* get_cur_thread(void) {
@@ -224,6 +237,8 @@ static inline int add_thread_to_queue(struct wake_queue_head* queue, struct shim
         return 1;
     }
 
+    get_thread(thread);
+
     queue->first = qnode;
     return 0;
 }
@@ -244,8 +259,6 @@ static inline void wake_queue(struct wake_queue_head* queue) {
     }
 }
 
-extern struct shim_lock thread_list_lock;
-
 /*!
  * \brief Look up the thread for a given id.
  *
@@ -257,30 +270,21 @@ extern struct shim_lock thread_list_lock;
  */
 struct shim_thread* lookup_thread(IDTYPE tid);
 
-void set_as_child(struct shim_thread* parent, struct shim_thread* child);
-
-/* creating and revoking thread objects */
-struct shim_thread* get_new_thread(IDTYPE new_tid);
+struct shim_thread* get_new_thread(void);
 struct shim_thread* get_new_internal_thread(void);
 
-/* thread list utilities */
+/* Adds `thread` to global thread list. */
 void add_thread(struct shim_thread* thread);
-void del_thread(struct shim_thread* thread);
 
 void cleanup_thread(IDTYPE caller, void* thread);
-bool mark_self_dead(void);
-bool check_last_thread(void);
+bool check_last_thread(bool mark_self_dead);
 
 int walk_thread_list(int (*callback)(struct shim_thread*, void*), void* arg, bool one_shot);
 
-void dump_threads(void);
-
-/* reference counting of handle maps */
 void get_handle_map(struct shim_handle_map* map);
 void put_handle_map(struct shim_handle_map* map);
 
-/* retriving handle mapping */
-static inline struct shim_handle_map* get_cur_handle_map(struct shim_thread* thread) {
+static inline struct shim_handle_map* get_thread_handle_map(struct shim_thread* thread) {
     if (!thread)
         thread = get_cur_thread();
 
@@ -298,26 +302,11 @@ static inline void set_handle_map(struct shim_thread* thread, struct shim_handle
     thread->handle_map = map;
 }
 
-int thread_destroy(struct shim_thread* self, bool send_ipc);
 bool kill_other_threads(void);
 noreturn void thread_exit(int error_code, int term_signal);
 noreturn void process_exit(int error_code, int term_signal);
 
 void release_robust_list(struct robust_list_head* head);
-
-/* thread cloning helpers */
-struct shim_clone_args {
-    PAL_HANDLE create_event;
-    PAL_HANDLE initialize_event;
-    struct shim_thread* parent;
-    struct shim_thread* thread;
-    void* stack;
-    unsigned long fs_base;
-    void* xstate_extended;
-};
-
-void* allocate_stack(size_t size, size_t protect_size, bool user);
-
-int init_stack(const char** argv, const char** envp, const char*** out_argp, elf_auxv_t** out_auxv);
+void release_clear_child_tid(int* clear_child_tid);
 
 #endif /* _SHIM_THREAD_H_ */

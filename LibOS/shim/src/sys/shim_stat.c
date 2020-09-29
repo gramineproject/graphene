@@ -13,8 +13,8 @@
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
+#include "shim_process.h"
 #include "shim_table.h"
-#include "shim_thread.h"
 
 int shim_do_stat(const char* file, struct stat* stat) {
     if (!file || test_user_string(file))
@@ -202,15 +202,25 @@ int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, in
         debug("ignoring AT_NO_AUTOMOUNT.");
     }
 
+    int ret = 0;
+
     if (!*pathname) {
         if (!(flags & AT_EMPTY_PATH))
             return -ENOENT;
 
         if (dirfd == AT_FDCWD) {
-            struct shim_dentry* cwd  = get_cur_thread()->cwd;
+            lock(&g_process.fs_lock);
+            struct shim_dentry* cwd  = g_process.cwd;
+            get_dentry(cwd);
+            unlock(&g_process.fs_lock);
+
             struct shim_d_ops* d_ops = cwd->fs->d_ops;
-            if (d_ops && d_ops->stat)
-                return d_ops->stat(cwd, statbuf);
+            if (d_ops && d_ops->stat) {
+                ret = d_ops->stat(cwd, statbuf);
+                put_dentry(cwd);
+                return ret;
+            }
+            put_dentry(cwd);
             return -EACCES;
         }
         return shim_do_fstat(dirfd, statbuf);
@@ -218,13 +228,13 @@ int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, in
 
     struct shim_dentry* dir = NULL;
     if (*pathname != '/') {
-        int ret = get_dirfd_dentry(dirfd, &dir);
+        ret = get_dirfd_dentry(dirfd, &dir);
         if (ret < 0)
             return ret;
     }
 
     struct shim_dentry* dent = NULL;
-    int ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
+    ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
     if (ret >= 0) {
         struct shim_d_ops* d_ops = dent->fs->d_ops;
         if (d_ops && d_ops->stat)

@@ -7,6 +7,7 @@
 
 #include <linux/fcntl.h>
 
+#include "api.h"
 #include "list.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -15,6 +16,7 @@
 #include "shim_fs.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_utils.h"
 #include "toml.h"
 
@@ -278,6 +280,30 @@ int init_mount(void) {
 
     if ((ret = __mount_others()) < 0)
         return ret;
+
+    assert(g_manifest_root);
+
+    char* fs_start_dir = NULL;
+    ret = toml_string_in(g_manifest_root, "fs.start_dir", &fs_start_dir);
+    if (ret < 0) {
+        debug("Can't parse \"fs.start_dir\" (note that the value must be put in double quotes)!\n");
+        return ret;
+    }
+
+    if (fs_start_dir) {
+        struct shim_dentry* dent = NULL;
+        ret = path_lookupat(NULL, fs_start_dir, 0, &dent, NULL);
+        free(fs_start_dir);
+        if (ret < 0) {
+            debug("Invalid \"fs.start_dir\" in manifest.\n");
+            return ret;
+        }
+        lock(&g_process.fs_lock);
+        put_dentry(g_process.cwd);
+        g_process.cwd = dent;
+        unlock(&g_process.fs_lock);
+    }
+    /* Otherwise `cwd` is already initialized. */
 
     return 0;
 }

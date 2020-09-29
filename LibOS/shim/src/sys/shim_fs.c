@@ -16,8 +16,8 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_table.h"
-#include "shim_thread.h"
 #include "shim_utils.h"
 #include "stat.h"
 
@@ -141,11 +141,10 @@ out:
 }
 
 mode_t shim_do_umask(mode_t mask) {
-    struct shim_thread* cur = get_cur_thread();
-    lock(&cur->lock);
-    mode_t old = cur->umask;
-    cur->umask = mask & 0777;
-    unlock(&cur->lock);
+    lock(&g_process.fs_lock);
+    mode_t old = g_process.umask;
+    g_process.umask = mask & 0777;
+    unlock(&g_process.fs_lock);
     return old;
 }
 
@@ -655,11 +654,10 @@ int shim_do_chroot(const char* filename) {
         goto out;
     }
 
-    struct shim_thread* thread = get_cur_thread();
-    lock(&thread->lock);
-    put_dentry(thread->root);
-    thread->root = dent;
-    unlock(&thread->lock);
+    lock(&g_process.fs_lock);
+    put_dentry(g_process.root);
+    g_process.root = dent;
+    unlock(&g_process.fs_lock);
 out:
     return ret;
 }

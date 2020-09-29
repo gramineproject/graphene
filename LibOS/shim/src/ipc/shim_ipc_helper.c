@@ -654,7 +654,7 @@ int pause_ipc_helper(void) {
     unlock(&ipc_helper_lock);
 
     if (needs_wait) {
-        /* Wait untill the helper thread notices the stop event. */
+        /* Wait until the helper thread notices the stop event. */
         return wait_event(&helper_stopped_event);
     }
 
@@ -888,7 +888,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     update_fs_base(0);
 
     struct debug_buf debug_buf;
-    debug_setbuf(shim_get_tcb(), &debug_buf);
+    (void)debug_setbuf(shim_get_tcb(), &debug_buf);
 
 #ifdef DEBUG
     lock(&ipc_helper_lock);
@@ -925,7 +925,7 @@ static int create_ipc_helper(void) {
     ipc_helper_thread = new;
     ipc_helper_state  = HELPER_ALIVE;
 
-    PAL_HANDLE handle = thread_create(shim_ipc_helper_prepare, new);
+    PAL_HANDLE handle = DkThreadCreate(shim_ipc_helper_prepare, new);
 
     if (!handle) {
         int ret = -PAL_ERRNO(); /* put_thread() may overwrite errno */

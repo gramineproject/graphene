@@ -14,7 +14,7 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
-#include "shim_thread.h"
+#include "shim_process.h"
 #include "shim_utils.h"
 #include "stat.h"
 
@@ -256,31 +256,33 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
     bool leaf_case = false; // Leaf call in case of recursion
     bool no_start = false; // start not passed
     bool no_fs = false; // fs not passed
-    struct shim_thread* cur_thread = get_cur_thread();
 
-    if (cur_thread && *path == '/') {
+    if (*path == '/') {
         /*
          * Allow (start != NULL, absolute path) for *at() system calls.
          * which are common case as normal namei path resolution.
          */
-        start = cur_thread->root;
-        no_start = true;
-        get_dentry(start);
-        fs = NULL;
+        lock(&g_process.fs_lock);
+        if (g_process.root) {
+            start = g_process.root;
+            get_dentry(start);
+            no_start = true;
+            fs = NULL;
+        }
+        unlock(&g_process.fs_lock);
     }
     if (!start) {
-        if (cur_thread) {
-            start = cur_thread->cwd;
-        } else {
+        lock(&g_process.fs_lock);
+        start = g_process.cwd;
+        if (!start) {
             /* Start at the global root if we have no fs and no start dentry.
              * This should only happen as part of initialization.
              */
             start = dentry_root;
-            assert(start);
         }
-        no_start = true;
-        // refcount should only be incremented if the caller didn't do it
         get_dentry(start);
+        unlock(&g_process.fs_lock);
+        no_start = true;
         assert(fs == NULL);
     }
 
@@ -369,21 +371,20 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
                 if (path) {
                     /* symlink name starts with a slash, restart lookup at root */
                     if (*path == '/') {
-                        struct shim_dentry* root;
-                        // not sure how to deal with this case if cur_thread isn't defined
-                        assert(cur_thread);
-
                         /* FIXME: below logic assumes that target file is under chroot; this misses
                          *        cases like `/dev/stdin` which is a link to `/proc/self/fd/0`
                          *        (i.e., Graphene currently fails if target is under pseudo-FS) */
-                        root = cur_thread->root;
 
                         /*XXX: Check out path_reacquire here? */
                         // my_dent's refcount was incremented by lookup_dentry above,
                         // we need to not leak it here
                         put_dentry(my_dent);
-                        my_dent = root;
+                        lock(&g_process.fs_lock);
+                        my_dent = g_process.root;
+                        // not sure how to deal with this case if `g_process.root` isn't defined
+                        assert(my_dent);
                         get_dentry(my_dent);
+                        unlock(&g_process.fs_lock);
                     } else {
                         // Relative path, stay in this dir
                         put_dentry(my_dent);
@@ -821,9 +822,10 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl) {
 
 int get_dirfd_dentry(int dirfd, struct shim_dentry** dir) {
     if (dirfd == AT_FDCWD) {
-        struct shim_thread* cur = get_cur_thread();
-        get_dentry(cur->cwd);
-        *dir = cur->cwd;
+        lock(&g_process.fs_lock);
+        *dir = g_process.cwd;
+        get_dentry(*dir);
+        unlock(&g_process.fs_lock);
         return 0;
     }
 

@@ -20,6 +20,7 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
 #include "shim_vma.h"
@@ -567,7 +568,11 @@ static void* cp_alloc(void* addr, size_t size) {
 }
 
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
-                                       struct shim_thread* thread, ...) {
+                                       struct shim_child_process* child_process,
+                                       struct shim_process* process_description,
+                                       struct shim_thread* thread_description, ...) {
+    assert(exec || child_process);
+
     int ret = 0;
     struct shim_process_ipc_info* process_ipc_info = NULL;
 
@@ -624,8 +629,8 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     }
 
     va_list ap;
-    va_start(ap, thread);
-    ret = (*migrate_func)(&cpstore, thread, process_ipc_info, ap);
+    va_start(ap, thread_description);
+    ret = (*migrate_func)(&cpstore, process_description, thread_description, process_ipc_info, ap);
     va_end(ap);
     if (ret < 0) {
         debug("failed creating checkpoint (ret = %d)\n", ret);
@@ -692,21 +697,22 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
         if (process_ipc_info->parent)
             process_ipc_info->parent->pal_handle = NULL;
     } else {
+        /* Child creation was successful, now we add it to the children list. This needs to be done
+         * before we start handling async IPC messages from this child (done below). */
+        child_process->vmid = child_vmid;
+        add_child_process(child_process);
+
         /* fork/clone case: new process is an actual child process for this current process, so
          * notify the leader regarding subleasing of TID (child must create self-pipe with
          * convention of pipe:child-vmid) */
         char process_self_uri[256];
         snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
-        ipc_sublease_send(child_vmid, thread->tid, process_self_uri);
+        ipc_sublease_send(child_vmid, thread_description->tid, process_self_uri);
 
         /* create new IPC port to communicate over pal_process channel with the child process */
         add_ipc_port_by_id(child_vmid, pal_process, IPC_PORT_CONNECTION | IPC_PORT_DIRECTCHILD,
                            &ipc_port_with_child_fini, NULL);
     }
-
-    /* remote child thread has VMID of the child process (note that we don't care about execve case
-     * because the parent "intermediate" process will die right after this anyway) */
-    thread->vmid = child_vmid;
 
     ret = 0;
 out:
