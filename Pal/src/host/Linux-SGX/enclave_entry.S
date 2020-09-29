@@ -466,11 +466,18 @@ enclave_entry:
 	leaq _DkExceptionHandler(%rip), %rdi
 	movq %rdi, SGX_GPR_RIP(%rbx)
 
+	# dump the XSAVE region (XMM/YMM/etc part of context); SGX saves it at the
+	# very beginning of the SSA frame; note that __restore_xregs / __save_xregs
+	# clobber RDX so need to stash it in RBX
 	movq %rdx, %rbx
-	leaq SGX_CPU_CONTEXT_SIZE + 8(%rsi), %rdi
+	movq %gs:SGX_SSA, %rdi
 	leaq 1f(%rip), %r11
-	jmp __save_xregs
+	jmp __restore_xregs
 1:
+	leaq SGX_CPU_CONTEXT_SIZE + 8(%rsi), %rdi
+	leaq 2f(%rip), %r11
+	jmp __save_xregs
+2:
 	movq %rbx, %rdx
 
 .Leexit_exception:

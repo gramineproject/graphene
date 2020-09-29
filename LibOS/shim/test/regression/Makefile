@@ -3,7 +3,8 @@ include ../../../../Scripts/Makefile.configs
 c_executables-x86_64 = \
 	attestation \
 	cpuid \
-	rdtsc
+	rdtsc \
+	sighandler_divbyzero
 
 c_executables = \
 	abort \

@@ -488,7 +488,14 @@ class TC_30_Syscall(RegressionTestCase):
             self.assertIn('Got 1 SIGPIPE signal(s)', stdout)
             self.assertIn('Could not write to pipe: Broken pipe', stdout)
 
-    def test_093_signal_multithread(self):
+    @unittest.skipUnless(ON_X86, "x86-specific")
+    def test_093_sighandler_divbyzero(self):
+        stdout, _ = self.run_binary(['sighandler_divbyzero'])
+        self.assertIn('Got signal 8', stdout)
+        self.assertIn('Got 1 SIGFPE signal(s)', stdout)
+        self.assertIn('TEST OK', stdout)
+
+    def test_094_signal_multithread(self):
         stdout, _ = self.run_binary(['signal_multithread'])
         self.assertIn('TEST OK', stdout)
 
