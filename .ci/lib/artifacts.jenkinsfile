@@ -1,0 +1,13 @@
+always {
+    def ltpxmlfile = 'LibOS/shim/test/ltp/' + (
+        env.SGX ? 'ltp-sgx.xml' : 'ltp.xml')
+
+    archiveArtifacts ltpxmlfile
+
+    junit 'Pal/regression/pal-regression.xml'
+    junit 'LibOS/shim/test/regression/libos-regression.xml'
+    if (!env.SGX) {
+        // LTP is ignored under SGX because of random segfaults
+        junit ltpxmlfile
+    }
+}

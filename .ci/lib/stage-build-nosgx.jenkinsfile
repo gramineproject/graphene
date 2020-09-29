@@ -1,0 +1,7 @@
+stage('build') {
+    sh '''
+        make ${MAKEOPTS}
+        make ${MAKEOPTS} test
+        make ${MAKEOPTS} -C Pal/src PAL_HOST=Skeleton
+    '''
+}
