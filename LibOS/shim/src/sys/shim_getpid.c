@@ -70,9 +70,9 @@ int shim_do_setgid(gid_t gid) {
 #define NGROUPS_MAX 65536 /* # of supplemental group IDs; has to be same as host OS */
 
 static struct groups_info_t {
-    size_t size;
+    size_t count;
     gid_t* groups;
-} g_groups_info = { .size = 0, .groups = NULL };
+} g_groups_info = { .count = 0, .groups = NULL };
 
 int shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
     if (gidsetsize < 0 || (unsigned int)gidsetsize > NGROUPS_MAX)
@@ -92,7 +92,7 @@ int shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
 
     void* old_groups = NULL;
     lock(&cur_process.lock);
-    g_groups_info.size = groups_len;
+    g_groups_info.count = groups_len;
     old_groups = g_groups_info.groups;
     g_groups_info.groups = groups;
     unlock(&cur_process.lock);
@@ -110,7 +110,7 @@ int shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
         return -EFAULT;
 
     lock(&cur_process.lock);
-    size_t ret_size = g_groups_info.size;
+    size_t ret_size = g_groups_info.count;
 
     if (gidsetsize) {
         if (ret_size > (size_t)gidsetsize) {
@@ -118,7 +118,7 @@ int shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
             return -EINVAL;
         }
 
-        for (size_t i = 0; i < g_groups_info.size; i++) {
+        for (size_t i = 0; i < g_groups_info.count; i++) {
             grouplist[i] = g_groups_info.groups[i];
         }
     }
@@ -135,11 +135,11 @@ BEGIN_CP_FUNC(groups_info) {
 
     lock(&cur_process.lock);
 
-    size_t copy_size = g_groups_info.size * sizeof(*g_groups_info.groups);
+    size_t copy_size = g_groups_info.count * sizeof(*g_groups_info.groups);
 
     size_t off = ADD_CP_OFFSET(sizeof(size_t) + copy_size);
 
-    *(size_t*)((char*)base + off) = g_groups_info.size;
+    *(size_t*)((char*)base + off) = g_groups_info.count;
     gid_t* new_groups = (gid_t*)((char*)base + off + sizeof(size_t));
 
     memcpy(new_groups, g_groups_info.groups, copy_size);
@@ -154,7 +154,7 @@ BEGIN_RS_FUNC(groups_info) {
     __UNUSED(offset);
     __UNUSED(rebase);
     size_t off = GET_CP_FUNC_ENTRY();
-    g_groups_info.size = *(size_t*)((char*)base + off);
+    g_groups_info.count = *(size_t*)((char*)base + off);
     g_groups_info.groups = (gid_t*)((char*)base + off + sizeof(size_t));
 }
 END_RS_FUNC(groups_info)
