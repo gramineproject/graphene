@@ -28,6 +28,7 @@
 #include "shim_tcb.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+#include "shim_vma.h"
 
 static void parse_open_flags(va_list*);
 static void parse_open_mode(va_list*);

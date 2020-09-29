@@ -52,6 +52,7 @@ objs = \
 	start-$(ARCH).o \
 	syscallas-$(ARCH).o \
 	bookkeep/shim_handle.o \
+	bookkeep/shim_process.o \
 	bookkeep/shim_signal.o \
 	bookkeep/shim_thread.o \
 	bookkeep/shim_vma.o \
@@ -99,6 +100,7 @@ objs = \
 	sys/shim_getpid.o \
 	sys/shim_getrandom.o \
 	sys/shim_getrlimit.o \
+	sys/shim_getuid.o \
 	sys/shim_ioctl.o \
 	sys/shim_mmap.o \
 	sys/shim_msgget.o \

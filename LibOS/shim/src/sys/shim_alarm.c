@@ -9,20 +9,28 @@
 
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_signal.h"
 #include "shim_table.h"
-#include "shim_thread.h"
 #include "shim_utils.h"
 
 static void signal_alarm(IDTYPE caller, void* arg) {
-    (void)do_kill_proc(caller, (IDTYPE)(uintptr_t)arg, SIGALRM, /*use_ipc=*/false);
+    __UNUSED(caller);
+    __UNUSED(arg);
+    siginfo_t info = {
+        .si_signo = SIGALRM,
+        .si_pid = g_process.pid,
+        .si_code = SI_USER,
+    };
+    if (kill_current_proc(&info) < 0) {
+        debug("signal_alarm: failed to deliver a signal\n");
+    }
 }
 
 int shim_do_alarm(unsigned int seconds) {
     uint64_t usecs = 1000000ULL * seconds;
 
-    int64_t ret = install_async_event(NULL, usecs, &signal_alarm,
-                                      (void*)(uintptr_t)get_cur_thread()->tgid);
+    int64_t ret = install_async_event(NULL, usecs, &signal_alarm, NULL);
     if (ret < 0)
         return ret;
 

@@ -167,14 +167,15 @@ struct ipc_ns_client {
     char uri[1];
 } __attribute__((packed));
 
-/* CLD_EXIT: thread exit */
+/* CLD_EXIT: process exit */
 struct shim_ipc_cld_exit {
-    IDTYPE ppid, tid;
+    IDTYPE ppid, pid;
+    IDTYPE uid;
     unsigned int exitcode;
     unsigned int term_signal;
 } __attribute__((packed));
 
-int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal);
+int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* FINDNS: find namespace leader (its IPC port) */

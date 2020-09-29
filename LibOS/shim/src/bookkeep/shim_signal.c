@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2020 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
+ */
 
 /*
  * This file contains code for handling signals and exceptions passed from PAL.
@@ -18,11 +21,12 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_signal.h"
 #include "shim_table.h"
 #include "shim_thread.h"
-#include "shim_ucontext-arch.h"
 #include "shim_types.h"
+#include "shim_ucontext-arch.h"
 #include "shim_utils.h"
 #include "shim_vma.h"
 
@@ -211,6 +215,15 @@ static struct shim_signal* process_pop_signal(int sig) {
     return signal;
 }
 
+void clear_signal_queue(struct shim_signal_queue* queue) {
+    for (int sig = 1; sig <= NUM_SIGS; sig++) {
+        struct shim_signal* signal;
+        while ((signal = queue_pop_signal(queue, sig))) {
+            free(signal);
+        }
+    }
+}
+
 static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal);
 
 static void __store_info(siginfo_t* info, struct shim_signal* signal) {
@@ -242,10 +255,7 @@ void deliver_signal(siginfo_t* info, PAL_CONTEXT* context) {
     assert(tcb);
 
     struct shim_thread* cur_thread = (struct shim_thread*)tcb->tp;
-    // Signals should not be delivered before the user process starts
-    // or after the user process dies.
-    if (!cur_thread || !cur_thread->is_alive)
-        return;
+    assert(cur_thread);
 
     int sig = info->si_signo;
 
@@ -619,8 +629,13 @@ static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
-    if (!is_internal_tid(get_cur_tid())) {
-        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGTERM, /*use_ipc=*/false);
+    siginfo_t info = {
+        .si_signo = SIGTERM,
+        .si_pid = 0,
+        .si_code = SI_USER,
+    };
+    if (kill_current_proc(&info) < 0) {
+        debug("quit_upcall: failed to deliver a signal\n");
     }
     DkExceptionReturn(event);
 }
@@ -628,8 +643,13 @@ static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     __UNUSED(arg);
     __UNUSED(context);
-    if (!is_internal_tid(get_cur_tid())) {
-        (void)do_kill_proc(0, get_cur_thread()->tgid, SIGINT, /*use_ipc=*/false);
+    siginfo_t info = {
+        .si_signo = SIGINT,
+        .si_pid = 0,
+        .si_code = SI_USER,
+    };
+    if (kill_current_proc(&info) < 0) {
+        debug("suspend_upcall: failed to deliver a signal\n");
     }
     DkExceptionReturn(event);
 }
@@ -679,7 +699,8 @@ void set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
     thread->signal_mask = *set;
 }
 
-static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, bool allow_reset) {
+static void get_sighandler(struct shim_thread* thread, int sig, bool allow_reset,
+                           __rt_sighandler_t* handler_ptr, unsigned long* sa_flags_ptr) {
     lock(&thread->signal_handles->lock);
     struct __kernel_sigaction* sig_action = &thread->signal_handles->actions[sig - 1];
 
@@ -699,21 +720,26 @@ static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, boo
         handler = default_sighandler[sig - 1];
     }
 
-    if (allow_reset && handler && sig_action->sa_flags & SA_RESETHAND) {
+    unsigned long sa_flags = sig_action->sa_flags;
+
+    if (allow_reset && handler && sa_flags & SA_RESETHAND) {
         sigaction_make_defaults(sig_action);
     }
 
     unlock(&thread->signal_handles->lock);
-    return handler;
+
+    *handler_ptr = handler;
+    *sa_flags_ptr = sa_flags;
 }
 
 static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
     struct shim_thread* thread = (struct shim_thread*)tcb->tp;
     __rt_sighandler_t handler = NULL;
+    unsigned long sa_flags = 0;
 
     int sig = signal->info.si_signo;
 
-    handler = get_sighandler(thread, sig, /*allow_reset=*/true);
+    get_sighandler(thread, sig, /*allow_reset=*/true, &handler, &sa_flags);
 
     if (!handler)
         return;
@@ -737,7 +763,20 @@ static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
 
     (*handler)(sig, &signal->info, &signal->context);
 
-    __atomic_store_n(&thread->signal_handled, true, __ATOMIC_RELEASE);
+    if (sa_flags & SA_RESTART) {
+        unsigned char signal_handled = __atomic_load_n(&thread->signal_handled, __ATOMIC_ACQUIRE);
+        /* Do not overwrite `SIGNAL_HANDLED`, as we want to keep information about signals that do
+         * not cause syscall restarts. */
+        while (signal_handled != SIGNAL_HANDLED) {
+            if (__atomic_compare_exchange_n(&thread->signal_handled, &signal_handled,
+                                            SIGNAL_HANDLED_RESTART, /*weak=*/true,
+                                            __ATOMIC_RELEASE, __ATOMIC_ACQUIRE)) {
+                break;
+            }
+        }
+    } else {
+        __atomic_store_n(&thread->signal_handled, SIGNAL_HANDLED, __ATOMIC_RELEASE);
+    }
 
     if (context)
         tcb->context = *context;

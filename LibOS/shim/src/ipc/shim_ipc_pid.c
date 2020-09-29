@@ -14,29 +14,28 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_thread.h"
 
-static int thread_add_subrange(struct shim_thread* thread, void* arg) {
-    if (!thread->in_vm)
-        return 0;
-
-    struct shim_ipc_info* info = (struct shim_ipc_info*)arg;
-
-    add_ipc_subrange(thread->tid, info->vmid, qstrgetstr(&info->uri));
-    return 0;
-}
-
 int init_ns_pid(void) {
-    struct shim_ipc_info* info;
-    int ret = 0;
+    struct shim_thread* cur_thread = get_cur_thread();
+    /* This function should be called only in initialization (but after process and main thread are
+     * initialized), so we should have only one thread, whose tid is equal to the process pid. */
+    assert(cur_thread->tid == g_process.pid);
 
-    if ((ret = get_ipc_info_cur_process(&info)) < 0)
+    struct shim_ipc_info* info = NULL;
+    int ret = get_ipc_info_cur_process(&info);
+    if (ret < 0) {
         return ret;
+    }
 
-    walk_thread_list(&thread_add_subrange, info, /*one_shot=*/false);
-    return 0;
+    ret = add_ipc_subrange(cur_thread->tid, info->vmid, qstrgetstr(&info->uri));
+
+    put_ipc_info(info);
+    return ret;
 }
 
+// TODO: for KILL_THREAD we don't know which process has a thread with given id
 int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int signum) {
     int ret;
 
@@ -99,7 +98,7 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
             break;
         case KILL_PGROUP:
-            ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
+            ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum);
             break;
         case KILL_ALL:
             broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT, port);
@@ -139,10 +138,11 @@ static int check_thread(struct shim_thread* thread, void* arg) {
     lock(&thread->lock);
 
     for (int i = 0; i < status->npids; i++)
-        if (status->pids[i] == thread->tid && thread->in_vm && thread->is_alive) {
+        if (status->pids[i] == thread->tid) {
             status->status[status->nstatus].pid  = thread->tid;
-            status->status[status->nstatus].tgid = thread->tgid;
-            status->status[status->nstatus].pgid = thread->pgid;
+            status->status[status->nstatus].tgid = g_process.pid;
+            status->status[status->nstatus].pgid = __atomic_load_n(&g_process.pgid,
+                                                                   __ATOMIC_ACQUIRE);
             status->nstatus++;
             ret = 1;
             goto out;
@@ -271,52 +271,60 @@ int ipc_pid_getmeta_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
         goto out;
     }
 
-    lock(&thread->lock);
-
     switch (msgin->code) {
         case PID_META_CRED:
+            lock(&thread->lock);
             bufsize            = sizeof(IDTYPE) * 2;
             data               = __alloca(bufsize);
             datasize           = bufsize;
             ((IDTYPE*)data)[0] = thread->uid;
             ((IDTYPE*)data)[1] = thread->gid;
+            unlock(&thread->lock);
             break;
         case PID_META_EXEC:
-            if (!thread->exec || !thread->exec->dentry) {
+            lock(&g_process.fs_lock);
+            if (!g_process.exec || !g_process.exec->dentry) {
+                unlock(&g_process.fs_lock);
                 ret = -ENOENT;
                 break;
             }
-            bufsize = dentry_get_path_size(thread->exec->dentry);
+            bufsize = dentry_get_path_size(g_process.exec->dentry);
             data = __alloca(bufsize);
             datasize = bufsize - 1;
-            dentry_get_path(thread->exec->dentry, data);
+            dentry_get_path(g_process.exec->dentry, data);
+            unlock(&g_process.fs_lock);
             break;
         case PID_META_CWD:
-            if (!thread->cwd) {
+            lock(&g_process.fs_lock);
+            if (!g_process.cwd) {
+                unlock(&g_process.fs_lock);
                 ret = -ENOENT;
                 break;
             }
-            bufsize = dentry_get_path_size(thread->cwd);
+            bufsize = dentry_get_path_size(g_process.cwd);
             data = __alloca(bufsize);
             datasize = bufsize - 1;
-            dentry_get_path(thread->cwd, data);
+            dentry_get_path(g_process.cwd, data);
+            unlock(&g_process.fs_lock);
             break;
         case PID_META_ROOT:
-            if (!thread->root) {
+            lock(&g_process.fs_lock);
+            if (!g_process.root) {
+                unlock(&g_process.fs_lock);
                 ret = -ENOENT;
                 break;
             }
-            bufsize = dentry_get_path_size(thread->root);
+            bufsize = dentry_get_path_size(g_process.root);
             data = __alloca(bufsize);
             datasize = bufsize - 1;
-            dentry_get_path(thread->root, data);
+            dentry_get_path(g_process.root, data);
+            unlock(&g_process.fs_lock);
             break;
         default:
             ret = -EINVAL;
             break;
     }
 
-    unlock(&thread->lock);
     put_thread(thread);
 
     if (ret < 0)

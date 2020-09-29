@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
-/* Copyright (C) 2014 Stony Brook University */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2020 Intel Corporation
+ *                    Borys Popławski <borysp@invisiblethingslab.com>
+ */
 
 /*
  * Implementation of system calls "sigaction", "sigreturn", "sigprocmask", "kill", "tkill"
@@ -18,6 +21,7 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
@@ -159,7 +163,7 @@ int shim_do_sigsuspend(const __sigset_t* mask_ptr) {
 
     struct shim_thread* cur = get_cur_thread();
 
-    __atomic_store_n(&cur->signal_handled, false, __ATOMIC_RELEASE);
+    __atomic_store_n(&cur->signal_handled, SIGNAL_NOT_HANDLED, __ATOMIC_RELEASE);
 
     lock(&cur->lock);
     __sigset_t old;
@@ -173,13 +177,12 @@ int shim_do_sigsuspend(const __sigset_t* mask_ptr) {
 
     thread_setwait(NULL, NULL);
 
-    if (__atomic_load_n(&cur->signal_handled, __ATOMIC_ACQUIRE)) {
-        goto out;
+    /* `SA_RESTART` does not affect `sigsuspend`. */
+    while (__atomic_load_n(&cur->signal_handled, __ATOMIC_ACQUIRE) == SIGNAL_NOT_HANDLED) {
+        thread_sleep(NO_TIMEOUT);
+        handle_signals();
     }
 
-    thread_sleep(NO_TIMEOUT);
-
-out:
     lock(&cur->lock);
     set_sig_mask(cur, &old);
     unlock(&cur->lock);
@@ -200,70 +203,20 @@ int shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
     return 0;
 }
 
-enum signal_thread_arg_type {
-    TGID = 1,
-    PGID,
-};
-
 struct signal_thread_arg {
     int sig;
-    IDTYPE sender;
-    IDTYPE cmp_val;
-    enum signal_thread_arg_type cmp_type;
-    bool sent;
+    bool current_should_handle;
 };
 
-static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
+static int _wakeup_one_thread(struct shim_thread* thread, void* _arg) {
     struct signal_thread_arg* arg = (struct signal_thread_arg*)_arg;
     int ret = 0;
 
     lock(&thread->lock);
 
-    if (!thread->in_vm || !thread->is_alive) {
-        goto out;
-    }
-
-    switch (arg->cmp_type) {
-        case TGID:
-            if (thread->tgid != arg->cmp_val) {
-                goto out;
-            }
-            break;
-        case PGID:
-            if (thread->pgid != arg->cmp_val) {
-                goto out;
-            }
-            break;
-        default:
-            debug("Invalid signal_thread_arg_type: %d\n", arg->cmp_type);
-            BUG();
-    }
-
-    if (!arg->sig) {
-        /* special case of sig == 0: don't really send signal but simply report success */
-        arg->sent = true;
-        ret = 1;
-        goto out;
-    }
-
-    /* Appending the signal to the whole process. */
-    if (!arg->sent) {
-        siginfo_t info = {
-            .si_signo = arg->sig,
-            .si_pid   = arg->sender,
-            .si_code  = SI_USER
-        };
-        ret = append_signal(NULL, &info);
-        if (ret < 0) {
-            goto out;
-        }
-        arg->sent = true;
-    }
-    if (arg->sent && !__sigismember(&thread->signal_mask, arg->sig)) {
+    if (!__sigismember(&thread->signal_mask, arg->sig)) {
         if (thread == get_cur_thread()) {
-            /* We are ending this walk anyway, lets reuse sent field to mark that current thread
-             * needs to handle a signal. */
-            arg->sent = false;
+            arg->current_should_handle = true;
         } else {
             thread_wakeup(thread);
             DkThreadResume(thread->pal_handle);
@@ -271,85 +224,77 @@ static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
         ret = 1;
     }
 
-out:
     unlock(&thread->lock);
     return ret;
 }
 
-int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
-    /* This might be called by an internal thread (like IPC), so we cannot inspect `cur_thread` ids
-     * to check whether `sig` is targetted at it, but need to do a full search. */
+int kill_current_proc(siginfo_t* info) {
+    if (!info->si_signo) {
+        return 0;
+    }
+
+    int ret = append_signal(NULL, info);
+    if (ret < 0) {
+        return ret;
+    }
+
     struct signal_thread_arg arg = {
-        .sig      = sig,
-        .sender   = sender,
-        .cmp_val  = tgid,
-        .cmp_type = TGID,
-        .sent     = false,
+        .sig = info->si_signo,
+        .current_should_handle = false,
     };
-    int ret = walk_thread_list(_signal_one_thread, &arg, /*one_shot=*/true);
+
+    ret = walk_thread_list(_wakeup_one_thread, &arg, /*one_shot=*/true);
+    /* Ignore `-ESRCH` as this just means that currently no thread is able to handle the signal. */
     if (ret < 0 && ret != -ESRCH) {
         return ret;
     }
 
-    if (ret == 0) {
-        if (!arg.sent) {
-            /* We delivered the signal to self, now need to handle it. */
-            handle_signals();
-        }
-        return 0;
-    }
-
-    assert(ret == -ESRCH);
-
-    if (arg.sent) {
-        /* We've sent the signal successfully, but all threads have it blocked for now. */
-        return 0;
-    }
-
-    if (use_ipc) {
-        return ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig);
-    }
-
-    return -ESRCH;
-}
-
-int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
-    struct shim_thread* cur = get_cur_thread();
-    int ret = 0;
-
-    if (!pgid) {
-        pgid = cur->pgid;
-    }
-
-    if (use_ipc) {
-        ret = ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig);
-        if (ret < 0 && ret != -ESRCH) {
-            return ret;
-        }
-    }
-
-    /* This might be called by an internal thread (like IPC), so we cannot inspect `cur_thread` ids
-     * to check whether `sig` is targetted at it, but need to do a full search. */
-    struct signal_thread_arg arg = {
-        .sig      = sig,
-        .sender   = sender,
-        .cmp_val  = pgid,
-        .cmp_type = PGID,
-        .sent     = false,
-    };
-    ret = walk_thread_list(_signal_one_thread, &arg, /*one_shot=*/true);
-
-    if (ret == 0 && !arg.sent) {
-        /* We delivered the signal to self, now need to handle it. */
+    if (arg.current_should_handle) {
+        assert(ret == 0);
+        /* We've delivered the signal to the current thread, now need to handle it. */
         handle_signals();
     }
 
-    if (ret == -ESRCH && arg.sent) {
-        /* We've sent the signal successfully, but all threads have it blocked for now. */
-        ret = 0;
+    return 0;
+}
+
+int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
+    if (g_process.pid != tgid) {
+        if (use_ipc) {
+            return ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig);
+        }
+        return -ESRCH;
     }
 
-    return ret;
+    siginfo_t info = {
+        .si_signo = sig,
+        .si_pid   = sender,
+        .si_code  = SI_USER
+    };
+    return kill_current_proc(&info);
+}
+
+int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig) {
+    IDTYPE current_pgid = __atomic_load_n(&g_process.pgid, __ATOMIC_ACQUIRE);
+    if (!pgid) {
+        pgid = current_pgid;
+    }
+
+    int ret = ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig);
+    if (ret < 0 && ret != -ESRCH) {
+        return ret;
+    }
+
+    if (current_pgid != pgid) {
+        return ret;
+    }
+
+    siginfo_t info = {
+        .si_signo = sig,
+        .si_pid   = sender,
+        .si_code  = SI_USER
+    };
+    return kill_current_proc(&info);
 }
 
 int shim_do_kill(pid_t pid, int sig) {
@@ -362,25 +307,22 @@ int shim_do_kill(pid_t pid, int sig) {
         return -ESRCH;
     }
 
-    struct shim_thread* cur = get_cur_thread();
-
     if (pid > 0) {
         /* If `pid` is positive, then signal is sent to the process with that pid. */
-        return do_kill_proc(cur->tid, pid, sig, /*use_ipc=*/true);
+        return do_kill_proc(g_process.pid, pid, sig, /*use_ipc=*/true);
     } else if (pid == -1) {
         /* If `pid` equals -1, then signal is sent to every process for which the calling process
          * has permission to send, which means all processes in Graphene. NOTE: On Linux, kill(-1)
          * does not signal the calling process. */
-        ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
-        return do_kill_proc(cur->tid, cur->tgid, sig, /*use_ipc=*/false);
+        return ipc_pid_kill_send(g_process.pid, /*target=*/0, KILL_ALL, sig);
     } else if (pid == 0) {
         /* If `pid` equals 0, then signal is sent to every process in the process group of
          * the calling process. */
-        return do_kill_pgroup(cur->tid, 0, sig, /*use_ipc=*/true);
+        return do_kill_pgroup(g_process.pid, 0, sig);
     } else { // pid < -1
         /* If `pid` is less than -1, then signal is sent to every process in the process group
          * `-pid`. */
-        return do_kill_pgroup(cur->tid, -pid, sig, /*use_ipc=*/true);
+        return do_kill_pgroup(g_process.pid, -pid, sig);
     }
 }
 
@@ -388,89 +330,71 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
     if (sig < 0 || sig > NUM_SIGS)
         return -EINVAL;
 
-    struct shim_thread* thread = lookup_thread(tid);
-    int ret = -ESRCH;
-
-    if (thread) {
-        lock(&thread->lock);
-
-        if (thread->in_vm) {
-            if (!tgid || thread->tgid == tgid) {
-                if (!sig) {
-                    /* special case of sig == 0: don't really send signal but report success */
-                    unlock(&thread->lock);
-                    put_thread(thread);
-                    return 0;
-                }
-
-                siginfo_t info = {
-                    .si_signo = sig,
-                    .si_pid   = sender,
-                    .si_code  = SI_TKILL
-                };
-                ret = append_signal(thread, &info);
-                if (ret >= 0) {
-                    thread_wakeup(thread);
-                    DkThreadResume(thread->pal_handle);
-                }
-            }
-            use_ipc = false;
-        } else {
-            use_ipc = true;
+    if (!tgid || g_process.pid == tgid) {
+        struct shim_thread* thread = lookup_thread(tid);
+        if (!thread) {
+            goto maybe_try_ipc;
         }
 
-        unlock(&thread->lock);
+        if (!sig) {
+            put_thread(thread);
+            return 0;
+        }
+
+        siginfo_t info = {
+            .si_signo = sig,
+            .si_pid   = sender,
+            .si_code  = SI_TKILL,
+        };
+        if (thread == get_cur_thread()) {
+            deliver_signal(&info, NULL);
+        } else {
+            int ret = append_signal(thread, &info);
+            if (ret < 0) {
+                put_thread(thread);
+                return ret;
+            }
+            thread_wakeup(thread);
+            DkThreadResume(thread->pal_handle);
+        }
+
         put_thread(thread);
+        return 0;
     }
 
-    if (!use_ipc) {
-        return ret;
+maybe_try_ipc:
+    if (g_process.pid != tgid) {
+        if (use_ipc) {
+            return ipc_pid_kill_send(sender, tid, KILL_THREAD, sig);
+        }
     }
 
-    return ipc_pid_kill_send(sender, tid, KILL_THREAD, sig);
+    return -ESRCH;
 }
 
 int shim_do_tkill(pid_t tid, int sig) {
     if (tid <= 0)
         return -EINVAL;
 
-    struct shim_thread* cur = get_cur_thread();
-
-    if ((IDTYPE)tid == cur->tid) {
-        if (sig) {
-            siginfo_t info;
-            memset(&info, 0, sizeof(siginfo_t));
-            info.si_signo = sig;
-            info.si_pid   = cur->tgid;
-            info.si_code  = SI_TKILL;
-            deliver_signal(&info, NULL);
-        }
-        return 0;
-    }
-
-    return do_kill_thread(cur->tgid, 0, tid, sig, /*use_ipc=*/true);
+    return do_kill_thread(g_process.pid, 0, tid, sig, /*use_ipc=*/true);
 }
 
 int shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
-    if (tgid < -1 || tgid == 0 || tid <= 0)
+    if (tgid <= 0 || tid <= 0)
         return -EINVAL;
 
-    if (tgid == -1)
-        tgid = 0;
+    return do_kill_thread(g_process.pid, tgid, tid, sig, /*use_ipc=*/true);
+}
 
-    struct shim_thread* cur = get_cur_thread();
-
-    if ((IDTYPE)tid == cur->tid) {
-        if (sig) {
-            siginfo_t info;
-            memset(&info, 0, sizeof(siginfo_t));
-            info.si_signo = sig;
-            info.si_pid   = cur->tgid;
-            info.si_code  = SI_TKILL;
-            deliver_signal(&info, NULL);
-        }
-        return 0;
+void fill_siginfo_code_and_status(siginfo_t* info, int signal, int exit_code) {
+    if (signal == 0) {
+        info->si_code = CLD_EXITED;
+        info->si_status = exit_code;
+    } else if (signal & __WCOREDUMP_BIT) {
+        info->si_code = CLD_DUMPED;
+        info->si_status = signal & ~__WCOREDUMP_BIT;
+    } else {
+        info->si_code = CLD_KILLED;
+        info->si_status = signal;
     }
-
-    return do_kill_thread(cur->tgid, tgid, tid, sig, /*use_ipc=*/true);
 }
