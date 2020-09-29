@@ -20,8 +20,8 @@
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
+#include "shim_process.h"
 #include "shim_table.h"
-#include "shim_thread.h"
 
 #define TERM_DEFAULT_IFLAG (ICRNL | IUTF8)
 #define TERM_DEFAULT_OFLAG (OPOST | ONLCR)
@@ -38,7 +38,7 @@ static int ioctl_termios(struct shim_handle* hdl, unsigned int cmd, unsigned lon
     switch (cmd) {
         /* <include/asm/termios.h> */
         case TIOCGPGRP:
-            *(int*)arg = get_cur_thread()->pgid;
+            *(int*)arg = __atomic_load_n(&g_process.pgid, __ATOMIC_ACQUIRE);
             return 0;
 
         case TIOCSPGRP:
@@ -276,8 +276,16 @@ passthrough:
 
 static void signal_io(IDTYPE caller, void* arg) {
     __UNUSED(caller);
-    /* This signal is originating from the kernel/LibOS, so we are setting the sender to `0`. */
-    (void)do_kill_proc(0, (IDTYPE)(uintptr_t)arg, SIGIO, /*use_ipc=*/false);
+    __UNUSED(arg);
+    // TODO: fill these values e.g. by getting the handle in arg
+    // This is completely unusable now.
+    siginfo_t info = {
+        .si_signo = SIGIO,
+        .si_code = SI_SIGIO,
+        .si_band = 0,
+        .si_fd = 0,
+    };
+    (void)kill_current_proc(&info);
 }
 
 int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
@@ -337,8 +345,7 @@ int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {
             ret = 0;
             break;
         case FIOASYNC:
-            ret = install_async_event(hdl->pal_handle, 0, &signal_io,
-                                      (void*)(uintptr_t)get_cur_thread()->tgid);
+            ret = install_async_event(hdl->pal_handle, 0, &signal_io, NULL);
             break;
         case TIOCSERCONFIG:
         case TIOCSERGWILD:

@@ -38,8 +38,7 @@ static inline bool create_lock(struct shim_lock* l) {
 
 static inline void destroy_lock(struct shim_lock* l) {
     DkObjectClose(l->lock);
-    l->lock  = NULL;
-    l->owner = 0;
+    clear_lock(l);
 }
 
 #ifdef DEBUG

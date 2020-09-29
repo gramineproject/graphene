@@ -13,9 +13,11 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+#include "shim_vma.h"
 
 static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next, size_t* next_len,
                              const char** nextnext) {
@@ -62,8 +64,7 @@ static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next
     return 0;
 }
 
-static int find_thread_link(const char* name, struct shim_qstr* link, struct shim_dentry** dentptr,
-                            struct shim_thread** threadptr) {
+static int find_thread_link(const char* name, struct shim_qstr* link, struct shim_dentry** dentptr) {
     const char* next;
     const char* nextnext;
     size_t next_len;
@@ -77,28 +78,25 @@ static int find_thread_link(const char* name, struct shim_qstr* link, struct shi
 
     if (!thread)
         return -ENOENT;
+    /* We just checked that a thread with this id exists and we do not need this handle anymore. */
+    put_thread(thread);
 
-    if (!thread->in_vm) {
-        ret = -ENOENT;
-        goto out;
-    }
-
-    lock(&thread->lock);
+    lock(&g_process.fs_lock);
 
     if (next_len == static_strlen("root") && !memcmp(next, "root", next_len)) {
-        dent = thread->root;
+        dent = g_process.root;
         get_dentry(dent);
     }
 
     if (next_len == static_strlen("cwd") && !memcmp(next, "cwd", next_len)) {
-        dent = thread->cwd;
+        dent = g_process.cwd;
         get_dentry(dent);
     }
 
     if (next_len == static_strlen("exe") && !memcmp(next, "exe", next_len)) {
-        struct shim_handle* exec = thread->exec;
+        struct shim_handle* exec = g_process.exec;
         if (!exec->dentry) {
-            unlock(&thread->lock);
+            unlock(&g_process.fs_lock);
             ret = -EINVAL;
             goto out;
         }
@@ -106,7 +104,7 @@ static int find_thread_link(const char* name, struct shim_qstr* link, struct shi
         get_dentry(dent);
     }
 
-    unlock(&thread->lock);
+    unlock(&g_process.fs_lock);
 
     if (nextnext) {
         struct shim_dentry* next_dent = NULL;
@@ -129,24 +127,17 @@ static int find_thread_link(const char* name, struct shim_qstr* link, struct shi
         *dentptr = dent;
     }
 
-    if (threadptr) {
-        get_thread(thread);
-        *threadptr = thread;
-    }
-
     ret = 0;
 out:
     if (dent)
         put_dentry(dent);
-    if (thread)
-        put_thread(thread);
     return ret;
 }
 
 static int proc_thread_link_open(struct shim_handle* hdl, const char* name, int flags) {
     struct shim_dentry* dent;
 
-    int ret = find_thread_link(name, NULL, &dent, NULL);
+    int ret = find_thread_link(name, NULL, &dent);
     if (ret < 0)
         return ret;
 
@@ -164,7 +155,7 @@ out:
 static int proc_thread_link_mode(const char* name, mode_t* mode) {
     struct shim_dentry* dent;
 
-    int ret = find_thread_link(name, NULL, &dent, NULL);
+    int ret = find_thread_link(name, NULL, &dent);
     if (ret < 0)
         return ret;
 
@@ -182,7 +173,7 @@ out:
 static int proc_thread_link_stat(const char* name, struct stat* buf) {
     struct shim_dentry* dent;
 
-    int ret = find_thread_link(name, NULL, &dent, NULL);
+    int ret = find_thread_link(name, NULL, &dent);
     if (ret < 0)
         return ret;
 
@@ -198,7 +189,7 @@ out:
 }
 
 static int proc_thread_link_follow_link(const char* name, struct shim_qstr* link) {
-    return find_thread_link(name, link, NULL, NULL);
+    return find_thread_link(name, link, NULL);
 }
 
 static const struct pseudo_fs_ops fs_thread_link = {
@@ -237,7 +228,7 @@ static int parse_thread_fd(const char* name, const char** rest, struct shim_hand
     if (!thread)
         return -ENOENT;
 
-    struct shim_handle_map* handle_map = get_cur_handle_map(thread);
+    struct shim_handle_map* handle_map = get_thread_handle_map(thread);
 
     lock(&handle_map->lock);
 
@@ -282,7 +273,7 @@ static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, 
     if (!thread)
         return -ENOENT;
 
-    struct shim_handle_map* handle_map = get_cur_handle_map(thread);
+    struct shim_handle_map* handle_map = get_thread_handle_map(thread);
     int err = 0, bytes = 0;
     struct shim_dirent* dirent = *buf;
     struct shim_dirent** last  = NULL;

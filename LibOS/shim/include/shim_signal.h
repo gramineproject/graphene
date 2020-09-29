@@ -117,14 +117,16 @@ int init_signal(void);
 void __store_context(shim_tcb_t* tcb, PAL_CONTEXT* pal_context, struct shim_signal* signal);
 
 int append_signal(struct shim_thread* thread, siginfo_t* info);
-
 void deliver_signal(siginfo_t* info, PAL_CONTEXT* context);
 
 __sigset_t* get_sig_mask(struct shim_thread* thread);
 __sigset_t* set_sig_mask(struct shim_thread* thread, const __sigset_t* new_set);
 
+int kill_current_proc(siginfo_t* info);
 int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc);
 int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc);
 int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc);
+
+void fill_siginfo_code_and_status(siginfo_t* info, int signal, int exit_code);
 
 #endif /* _SHIM_SIGNAL_H_ */

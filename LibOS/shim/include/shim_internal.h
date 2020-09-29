@@ -4,6 +4,8 @@
 #ifndef _SHIM_INTERNAL_H_
 #define _SHIM_INTERNAL_H_
 
+#include <stdbool.h>
+
 #include "api.h"
 #include "assert.h"
 #include "atomic.h"
@@ -13,8 +15,6 @@
 #include "shim_types.h"
 
 void* shim_init(int argc, void* args);
-
-noreturn void shim_clean_and_exit(int exit_code);
 
 /* important macros and static inline functions */
 
@@ -61,7 +61,12 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
     do {                                            \
         warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
         DEBUG_BREAK_ON_FAILURE();                   \
-        shim_clean_and_exit(-ENOTRECOVERABLE);      \
+        /* Crash the process. */                    \
+        __asm__ volatile(                           \
+            "1: \n"                                 \
+            "ud2 \n"                                \
+            "jmp 1b \n"                             \
+        );                                          \
     } while (0)
 
 #define DEBUG_HERE()                                         \
@@ -260,10 +265,6 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...);
     END_SHIM(name)
 
 #define PAL_CB(member) (pal_control.member)
-
-static inline PAL_HANDLE thread_create(void* func, void* arg) {
-    return DkThreadCreate(func, arg);
-}
 
 static inline int64_t __disable_preempt(shim_tcb_t* tcb) {
     // tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
@@ -500,9 +501,10 @@ void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
 
-void release_clear_child_tid(int* clear_child_tid);
-
 void _update_epolls(struct shim_handle* handle);
 void delete_from_epoll_handles(struct shim_handle* handle);
+
+void* allocate_stack(size_t size, size_t protect_size, bool user);
+int init_stack(const char** argv, const char** envp, const char*** out_argp, elf_auxv_t** out_auxv);
 
 #endif /* _SHIM_INTERNAL_H_ */

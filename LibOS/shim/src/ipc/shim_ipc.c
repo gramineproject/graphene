@@ -57,8 +57,6 @@ int init_ipc(void) {
         return ret;
     if ((ret = init_ns_ranges()) < 0)
         return ret;
-    if ((ret = init_ns_pid()) < 0)
-        return ret;
     if ((ret = init_ns_sysv()) < 0)
         return ret;
 

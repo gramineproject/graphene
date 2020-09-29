@@ -34,12 +34,7 @@ static MEM_MGR handle_mgr = NULL;
 static inline int init_tty_handle(struct shim_handle* hdl, bool write) {
     struct shim_dentry* dent = NULL;
     int ret;
-    struct shim_thread* cur_thread = get_cur_thread();
-    __UNUSED(cur_thread);
 
-    /* XXX: Try getting the root FS from current thread? */
-    assert(cur_thread);
-    assert(cur_thread->root);
     if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
@@ -57,7 +52,7 @@ static inline int init_tty_handle(struct shim_handle* hdl, bool write) {
     return 0;
 }
 
-static inline int init_exec_handle(struct shim_thread* thread) {
+static inline int init_exec_handle(void) {
     if (!PAL_CB(executable))
         return 0;
 
@@ -90,9 +85,9 @@ static inline int init_exec_handle(struct shim_thread* thread) {
         set_handle_fs(exec, &chroot_builtin_fs);
     }
 
-    lock(&thread->lock);
-    thread->exec = exec;
-    unlock(&thread->lock);
+    lock(&g_process.fs_lock);
+    g_process.exec = exec;
+    unlock(&g_process.fs_lock);
 
     return 0;
 }
@@ -122,7 +117,7 @@ int init_important_handles(void) {
     if (thread->handle_map)
         goto done;
 
-    struct shim_handle_map* handle_map = get_cur_handle_map(thread);
+    struct shim_handle_map* handle_map = get_thread_handle_map(thread);
 
     if (!handle_map) {
         handle_map = get_new_handle_map(INIT_HANDLE_MAP_SIZE);
@@ -177,8 +172,7 @@ int init_important_handles(void) {
     unlock(&handle_map->lock);
 
 done:
-    init_exec_handle(thread);
-    return 0;
+    return init_exec_handle();
 }
 
 struct shim_handle* __get_fd_handle(FDTYPE fd, int* fd_flags, struct shim_handle_map* map) {
@@ -201,7 +195,7 @@ struct shim_handle* __get_fd_handle(FDTYPE fd, int* fd_flags, struct shim_handle
 
 struct shim_handle* get_fd_handle(FDTYPE fd, int* fd_flags, struct shim_handle_map* map) {
     if (!map)
-        map = get_cur_handle_map(NULL);
+        map = get_thread_handle_map(NULL);
 
     struct shim_handle* hdl = NULL;
     lock(&map->lock);
@@ -240,7 +234,7 @@ struct shim_handle* __detach_fd_handle(struct shim_fd_handle* fd, int* flags,
 struct shim_handle* detach_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map* handle_map) {
     struct shim_handle* handle = NULL;
 
-    if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
+    if (!handle_map && !(handle_map = get_thread_handle_map(NULL)))
         return NULL;
 
     lock(&handle_map->lock);
@@ -291,7 +285,7 @@ static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct 
 int set_new_fd_handle(struct shim_handle* hdl, int fd_flags, struct shim_handle_map* handle_map) {
     int ret = -EMFILE;
 
-    if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
+    if (!handle_map && !(handle_map = get_thread_handle_map(NULL)))
         return -EBADF;
 
     lock(&handle_map->lock);
@@ -343,7 +337,7 @@ int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
     size_t new_size = 0;
     int ret = 0;
 
-    if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
+    if (!handle_map && !(handle_map = get_thread_handle_map(NULL)))
         return -EBADF;
 
     if (fd >= get_rlimit_cur(RLIMIT_NOFILE))

@@ -19,7 +19,8 @@
 #include "shim_fs.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
-#include "shim_thread.h"
+#include "shim_process.h"
+#include "shim_signal.h"
 
 static int socket_close(struct shim_handle* hdl) {
     /* XXX: Shouldn't this do something? */
@@ -92,9 +93,12 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
     if (bytes == PAL_STREAM_ERROR) {
         int err = PAL_ERRNO();
         if (err == EPIPE) {
-            struct shim_thread* cur = get_cur_thread();
-            assert(cur);
-            (void)do_kill_proc(cur->tid, cur->tgid, SIGPIPE, /*use_ipc=*/false);
+            siginfo_t info = {
+                .si_signo = SIGPIPE,
+                .si_pid = g_process.pid,
+                .si_code = SI_USER,
+            };
+            (void)kill_current_proc(&info);
         }
 
         lock(&hdl->lock);

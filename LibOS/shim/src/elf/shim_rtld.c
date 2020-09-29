@@ -21,8 +21,8 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_table.h"
-#include "shim_thread.h"
 #include "shim_utils.h"
 #include "shim_vdso.h"
 #include "shim_vdso-arch.h"
@@ -1437,14 +1437,13 @@ int init_internal_map(void) {
 }
 
 int init_loader(void) {
-    struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
-    lock(&cur_thread->lock);
-    struct shim_handle* exec = cur_thread->exec;
+    lock(&g_process.fs_lock);
+    struct shim_handle* exec = g_process.exec;
     if (exec)
         get_handle(exec);
-    unlock(&cur_thread->lock);
+    unlock(&g_process.fs_lock);
 
     if (!exec)
         return 0;
@@ -1512,7 +1511,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     int ret = vdso_map_init();
     if (ret < 0) {
         warn("Could not initialize vDSO (error code = %d)", ret);
-        shim_clean_and_exit(ret);
+        process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
     }
 
     struct link_map* exec_map = __search_map_by_handle(exec);
@@ -1574,6 +1573,9 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
     auxp[5].a_un.a_val = random;
 
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
+
+    /* We are done with using this handle. */
+    put_handle(exec);
 
     /* Ready to start execution, re-enable preemption. */
     shim_tcb_t* tcb = shim_get_tcb();
