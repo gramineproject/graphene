@@ -1,0 +1,14 @@
+stage('build') {
+    sh '''
+        if .ci/isdistro xenial
+        then
+            cd LibOS
+            make ${MAKEOPTS} glibc-build/Build.success
+            rm -r glibc-build
+            cd ..
+        fi
+        make ${MAKEOPTS}
+        make ${MAKEOPTS} test
+        make ${MAKEOPTS} -C Pal/src PAL_HOST=Skeleton
+    '''
+}
