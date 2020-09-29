@@ -67,6 +67,7 @@
 /shared_object
 /sigaction_per_process
 /sigaltstack
+/sighandler_divbyzero
 /sighandler_reset
 /sighandler_sigpipe
 /signal_multithread
