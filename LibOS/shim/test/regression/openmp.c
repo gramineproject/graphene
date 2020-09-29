@@ -6,7 +6,10 @@
 int v[10];
 
 int main(void) {
-#pragma omp parallel for
+    /* We need to limit the number of threads, otherwise OpenMP spawns as many threads as available
+     * logical cores on the machine, which may exceed the TCS count specified in the manifest.
+     */
+#pragma omp parallel for num_threads(10)
     for (int i = 0; i < 10; i++) {
         v[i] = i;
     }
