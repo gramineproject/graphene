@@ -36,19 +36,15 @@ int main(int argc, char** argv) {
     int16_t in[8] __attribute__((aligned(16))) = {0, 1, 2, 3, 4, 5, 6, 7};
     int16_t out[8] __attribute__((aligned(16))) = {0};
 
-    __asm__ volatile("pxor %%xmm0, %%xmm0\n"
-                     "movdqa %0, %%xmm0"
-                     :: "m"(in) : "xmm0", "memory");
-
-    __asm__ volatile("movq $1, %%rax\n"
+    __asm__ volatile("pxor %%xmm0, %%xmm0\n" /* clear xmm0 for sanity */
+                     "movdqa %1, %%xmm0\n"   /* move `in` into xmm0 */
+                     "movq $1, %%rax\n"      /* force div-by-zero exception via 1/0 */
                      "cqo\n"
                      "movq $0, %%rbx\n"
                      "divq %%rbx\n"
-                     ::: "rax", "rbx", "rdx", "cc", "memory");
-
-    __asm__ volatile("movdqa %%xmm0, %0\n"
-                     "pxor %%xmm0, %%xmm0\n"
-                     :"=m"(out) :: "xmm0", "memory");
+                     "movdqa %%xmm0, %0\n"   /* move xmm0 into `out` */
+                     "pxor %%xmm0, %%xmm0\n" /* clear xmm0 for sanity */
+                     :"=m"(out) : "m"(in) : "xmm0", "rax", "rbx", "rdx", "cc", "memory");
 
     for (int i = 0; i < 8; i++) {
         if (out[i] != i) {
