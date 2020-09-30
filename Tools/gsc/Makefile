@@ -5,10 +5,11 @@
 # template/Dockerfile.*.compile.template changes), these automatically generated files need to be
 # updated. Generally, changes to Graphene do not require rebuilding these Docker files.
 
-IMAGES=graphene_aks
+IMAGES=aks
 VERSIONS=latest
+REPOSITORY_NAME=graphenelibos
 
-all: $(addsuffix .dockerfile, $(addprefix $(addprefix images/, ${IMAGES}), .${VERSIONS}))
+all: generate-dockerfiles build-images
 
 config.aks.%.yaml:
 	printf \
@@ -25,10 +26,31 @@ images/graphene_aks.latest.dockerfile: config.aks.master.yaml
 	mv graphene-aks/Dockerfile.compile $@
 	$(RM) -r graphene-aks
 
+.PHONY: generate-dockerfiles
+generate-dockerfiles: $(addsuffix .dockerfile, $(addprefix $(addprefix images/, graphene_${IMAGES}), .${VERSIONS}))
+
+.PHONY: build-images
+build-images: $(addprefix $(addprefix build-, $(IMAGES))-, $(VERSIONS))
+
+.PHONY: build-aks-%
+build-aks-%: images/graphene_aks.%.dockerfile
+	docker build --rm --no-cache -t $(REPOSITORY_NAME)/aks:$* -f images/graphene_aks.$*.dockerfile images/
+
+.PHONY: push-images
+push-images: $(addprefix $(addprefix push-, $(IMAGES))-, $(VERSIONS))
+
+.PHONY: push-aks-%
+push-aks-%:
+	docker push $(REPOSITORY_NAME)/aks:$*
+
 .PHONY: distclean
-distclean: clean
-	$(RM) images/*
+distclean: clean-images
+	$(RM) -r images/
 
 .PHONY: clean
 clean:
 	$(RM) config.aks.*.yaml
+
+.PHONY: clean-images
+clean-images:
+	docker rmi -f $(addprefix $(addprefix $(REPOSITORY_NAME)/, $(IMAGES)):, $(VERSIONS))

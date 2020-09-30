@@ -17,6 +17,15 @@ pipeline {
                         '''
                     }
                 }
+                stage('Test_CD') {
+                    steps {
+                        sh '''
+                            cd Tools/gsc
+                            make build-images
+                            make distclean
+                        '''
+                    }
+                }
                 stage('Test') {
                     steps {
                         sh '''
