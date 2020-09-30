@@ -18,9 +18,11 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 
 CFLAGS += -Wextra
 
-# Some of the code uses alignof on expressions, which is a GNU extension.
-# Silence Clang - it complains but does support it.
-CFLAGS += -Wno-gnu-alignof-expression
+ifeq ($(findstring clang,$(CC)),clang)
+	# Some of the code uses alignof on expressions, which is a GNU extension.
+	# Silence Clang - it complains but does support it.
+	CFLAGS += -Wno-gnu-alignof-expression
+endif
 
 # TODO: This is due to use of packed structs in IPC code, which triggers "taking address of a packed
 # member" warning in Clang and newer GCC. That code needs to be rewritten.

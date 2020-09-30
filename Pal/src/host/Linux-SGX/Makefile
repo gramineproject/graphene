@@ -17,9 +17,11 @@ CFLAGS += \
 	-Iprotected-files \
 	-Isgx-driver
 
-# Some of the code uses alignof on expressions, which is a GNU extension.
-# Silence Clang - it complains but does support it.
-CFLAGS += -Wno-gnu-alignof-expression
+ifeq ($(findstring clang,$(CC)),clang)
+	# Some of the code uses alignof on expressions, which is a GNU extension.
+	# Silence Clang - it complains but does support it.
+	CFLAGS += -Wno-gnu-alignof-expression
+endif
 
 ASFLAGS += \
 	-I. \
