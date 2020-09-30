@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import os
-import unittest
 import shutil
+import signal
 import subprocess
+import unittest
 
 from regression import (
     HAS_SGX,
@@ -440,13 +441,13 @@ class TC_30_Syscall(RegressionTestCase):
         # Sigaltstack Test
         self.assertIn('OK on sigaltstack in main thread before alarm', stdout)
         self.assertIn('&act == 0x', stdout)
-        self.assertIn('sig 14 count 1 goes off with sp=0x', stdout)
+        self.assertIn('sig %d count 1 goes off with sp=0x' % signal.SIGALRM, stdout)
         self.assertIn('OK on signal stack', stdout)
         self.assertIn('OK on sigaltstack in handler', stdout)
-        self.assertIn('sig 14 count 2 goes off with sp=0x', stdout)
+        self.assertIn('sig %d count 2 goes off with sp=0x' % signal.SIGALRM, stdout)
         self.assertIn('OK on signal stack', stdout)
         self.assertIn('OK on sigaltstack in handler', stdout)
-        self.assertIn('sig 14 count 3 goes off with sp=0x', stdout)
+        self.assertIn('sig %d count 3 goes off with sp=0x' % signal.SIGALRM, stdout)
         self.assertIn('OK on signal stack', stdout)
         self.assertIn('OK on sigaltstack in handler', stdout)
         self.assertIn('OK on sigaltstack in main thread', stdout)
@@ -468,7 +469,7 @@ class TC_30_Syscall(RegressionTestCase):
 
     def test_090_sighandler_reset(self):
         stdout, _ = self.run_binary(['sighandler_reset'])
-        self.assertIn('Got signal 17', stdout)
+        self.assertIn('Got signal %d' % signal.SIGCHLD, stdout)
         self.assertIn('Handler was invoked 1 time(s).', stdout)
 
     def test_091_sigaction_per_process(self):
@@ -482,16 +483,16 @@ class TC_30_Syscall(RegressionTestCase):
         except subprocess.CalledProcessError as e:
             # FIXME: It's unclear what Graphene process should return when the app
             # inside dies due to a signal.
-            self.assertTrue(e.returncode in [13, 141])
+            self.assertTrue(e.returncode in [signal.SIGPIPE, 128 + signal.SIGPIPE])
             stdout = e.stdout.decode()
-            self.assertIn('Got signal 13', stdout)
+            self.assertIn('Got signal %d' % signal.SIGPIPE, stdout)
             self.assertIn('Got 1 SIGPIPE signal(s)', stdout)
             self.assertIn('Could not write to pipe: Broken pipe', stdout)
 
     @unittest.skipUnless(ON_X86, "x86-specific")
     def test_093_sighandler_divbyzero(self):
         stdout, _ = self.run_binary(['sighandler_divbyzero'])
-        self.assertIn('Got signal 8', stdout)
+        self.assertIn('Got signal %d' % signal.SIGFPE, stdout)
         self.assertIn('Got 1 SIGFPE signal(s)', stdout)
         self.assertIn('TEST OK', stdout)
 
