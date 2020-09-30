@@ -57,12 +57,12 @@ static inline void* __malloc(int size) {
 
     /* At this point, we depleted the pre-allocated memory pool of POOL_SIZE. Let's fall back to
      * PAL-internal allocations. PAL allocator must be careful though because LibOS doesn't know
-     * about PAL-internal memory. In case of SGX, PAL allocator is limited via `sgx.internal_size`
-     * manifest option and thus may return -ENOMEM. */
+     * about PAL-internal memory, limited via manifest option `loader.pal_internal_mem_size` and
+     * thus this malloc may return -ENOMEM. */
     int ret = _DkVirtualMemoryAlloc(&addr, ALLOC_ALIGN_UP(size), PAL_ALLOC_INTERNAL,
               PAL_PROT_READ | PAL_PROT_WRITE);
     if (ret < 0) {
-        printf("*** Out-of-memory in PAL (try increasing `sgx.internal_size` if using SGX) ***\n");
+        printf("*** Out-of-memory in PAL (try increasing `loader.pal_internal_mem_size`) ***\n");
         _DkProcessExit(-ENOMEM);
     }
     return addr;

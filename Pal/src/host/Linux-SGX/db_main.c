@@ -401,7 +401,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
 
     char cfgbuf[CONFIG_MAX];
-    ssize_t len = get_config(g_pal_state.root_config, "sgx.internal_size", cfgbuf, sizeof(cfgbuf));
+    ssize_t len = get_config(g_pal_state.root_config, "loader.pal_internal_mem_size", cfgbuf,
+                             sizeof(cfgbuf));
     if (len > 0) {
         g_pal_internal_mem_size = parse_size_str(cfgbuf);
     }
