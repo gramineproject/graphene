@@ -27,6 +27,7 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 #include "protected_files.h"
+#include "sgx_rtld.h"
 #include "sysdeps/generic/ldsodefs.h"
 
 #define RTLD_BOOTSTRAP

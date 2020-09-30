@@ -16,6 +16,7 @@
 #include "api.h"
 #include "pal_linux.h"
 #include "pal_security.h"
+#include "sgx_rtld.h"
 #include "sysdep-arch.h"
 
 #define IS_ERR   INTERNAL_SYSCALL_ERROR
@@ -48,8 +49,6 @@ uint32_t htonl(uint32_t longval);
 uint16_t htons(uint16_t shortval);
 uint32_t ntohl(uint32_t longval);
 uint16_t ntohs(uint16_t shortval);
-
-struct debug_map;
 
 extern struct pal_enclave {
     /* attributes */

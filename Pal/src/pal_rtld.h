@@ -154,31 +154,7 @@ unsigned long int elf_hash(const char* name_arg);
 ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const uint_fast32_t hash,
                          unsigned long int elf_hash, const struct link_map* map);
 
-/* For GDB debugging: */
-
-/*
- * Internal debug maps, used for SGX to communicate with debugger. We maintain it so that it is in a
- * consistent state any time the process is stopped (any add/delete is an atomic modification of one
- * pointer).
- */
-struct debug_section {
-    char* name;
-    void* addr;
-
-    struct debug_section* next;
-};
-
-struct debug_map {
-    char* file_name;
-    void* text_addr;
-    struct debug_section* section;
-
-    struct debug_map* _Atomic next;
-};
-
-/* Pointer to list head, defined outside the enclave (in g_pal_enclave structure). */
-extern struct debug_map* _Atomic* g_debug_map;
-
+/* For GDB debugging */
 void _DkDebugAddMap(struct link_map* map);
 void _DkDebugDelMap(struct link_map* map);
 

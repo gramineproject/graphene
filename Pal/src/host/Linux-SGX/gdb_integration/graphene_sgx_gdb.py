@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later */
 # Copyright (C) 2020 Intel Corporation
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+#                    Paweł Marczewski <pawel@invisiblethingslab.com>
 
 import os
 

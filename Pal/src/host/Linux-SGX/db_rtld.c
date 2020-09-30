@@ -24,6 +24,8 @@
 #include "pal_linux_defs.h"
 #include "pal_rtld.h"
 #include "pal_security.h"
+#include "sgx_rtld.h"
+#include "spinlock.h"
 #include "sysdeps/generic/ldsodefs.h"
 
 struct debug_map* _Atomic* g_debug_map = NULL;
@@ -33,8 +35,9 @@ struct debug_map* _Atomic* g_debug_map = NULL;
 static spinlock_t g_debug_map_lock = INIT_SPINLOCK_UNLOCKED;
 
 static struct debug_map* debug_map_alloc(const char* file_name, void* text_addr) {
-    struct debug_map* map = malloc(sizeof(struct debug_map));
-    if (!map)
+    struct debug_map* map;
+
+    if (!(map = malloc(sizeof(*map))))
         return NULL;
 
     if (!(map->file_name = strdup(file_name))) {
@@ -50,8 +53,9 @@ static struct debug_map* debug_map_alloc(const char* file_name, void* text_addr)
 
 static struct debug_section* debug_map_add_section(struct debug_map* map, const char* section_name,
                                                    void* addr) {
-    struct debug_section* section = malloc(sizeof(struct debug_section));
-    if (!section)
+    struct debug_section* section;
+
+    if (!(section = malloc(sizeof(*section))))
         return NULL;
 
     if (!(section->name = strdup(section_name))) {
@@ -66,9 +70,12 @@ static struct debug_section* debug_map_add_section(struct debug_map* map, const 
 }
 
 static void debug_map_free(struct debug_map* map) {
-    for (struct debug_section* section = map->section; section; section = section->next) {
+    struct debug_section* section = map->section;
+    while (section) {
+        struct debug_section* next = section->next;
         free(section->name);
         free(section);
+        section = next;
     }
     free(map->file_name);
     free(map);
@@ -92,6 +99,13 @@ static bool debug_map_del(const char* file_name) {
 
     spinlock_lock(&g_debug_map_lock);
 
+    /* Note that this is insecure, as *g_debug_map is a value controlled outside of the enclave, so
+     * the code could be forced to access and modify arbitrary memory.
+     * However, g_debug_map is set only during debug builds.
+     *
+     * TODO: consider making the GDB integration conditional on a separate option such as
+     * INSECURE__ENABLE_GDB.
+     */
     struct debug_map* prev = NULL;
     struct debug_map* map = *g_debug_map;
     while (map) {
@@ -101,8 +115,10 @@ static bool debug_map_del(const char* file_name) {
         map = map->next;
     }
 
-    if (!map)
+    if (!map) {
+        spinlock_unlock(&g_debug_map_lock);
         return false;
+    }
 
     if (prev == NULL)
         *g_debug_map = map->next;
@@ -196,8 +212,11 @@ void _DkDebugAddMap(struct link_map* map) {
             continue;
 
         if (!debug_map_add_section(debug_map, shstrtab + s->sh_name,
-                                   (void*)(map->l_addr + s->sh_addr)))
+                                   (void*)(map->l_addr + s->sh_addr))) {
             SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new section");
+            debug_map_free(debug_map);
+            return;
+        }
     }
 
     debug_map_add(debug_map);
@@ -235,10 +254,22 @@ void setup_pal_map(struct link_map* pal_map) {
         return;
     }
 
-    debug_map_add_section(debug_map, ".rodata", &g_section_rodata);
-    debug_map_add_section(debug_map, ".dynamic", &g_section_dynamic);
-    debug_map_add_section(debug_map, ".data", &g_section_data);
-    debug_map_add_section(debug_map, ".bss", &g_section_bss);
+    if (!debug_map_add_section(debug_map, ".rodata", &g_section_rodata))
+        goto fail;
+
+    if (!debug_map_add_section(debug_map, ".dynamic", &g_section_dynamic))
+        goto fail;
+
+    if (!debug_map_add_section(debug_map, ".data", &g_section_data))
+        goto fail;
+
+    if (!debug_map_add_section(debug_map, ".bss", &g_section_bss))
+        goto fail;
 
     debug_map_add(debug_map);
+    return;
+
+fail:
+    SGX_DBG(DBG_E, "setup_pal_map: error allocating new section");
+    debug_map_free(debug_map);
 }
