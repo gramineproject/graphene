@@ -75,7 +75,7 @@ In general, a |nbsp| PR should:
    <https://graphene.rtfd.io/en/latest/devel/coding-style.html>`__.
 #. Be signed-off by the author of the PR in git (i.e., using the ``git commit -s``, indicating
    that the authors are agreeing to the terms of the `project Developer
-   Certificate of Origin <DCO.txt>`__
+   Certificate of Origin <DCO.rst>`__
 
 PR Life Cycle
 ^^^^^^^^^^^^^
