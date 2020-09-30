@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include <emmintrin.h> // Intel SSE2 (XMM) intrinsics
+#include <err.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdatomic.h>
@@ -22,11 +23,6 @@ static void sigfpe_handler(int signum, siginfo_t* si, void* uc) {
 int main(int argc, char** argv) {
     int ret;
 
-    if (argc != 1) {
-        fprintf(stderr, "no arguments must be supplied to this program\n");
-        exit(EXIT_FAILURE);
-    }
-
     const struct sigaction act = {
         .sa_sigaction = sigfpe_handler,
         .sa_flags = SA_SIGINFO,
@@ -34,17 +30,15 @@ int main(int argc, char** argv) {
 
     ret = sigaction(SIGFPE, &act, NULL);
     if (ret < 0) {
-        fprintf(stderr, "sigaction failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        err(EXIT_FAILURE, "sigaction failed");
     }
 
-    /* populate array with 0,1,2,3... via argc (this test expects no command-line options and thus
-     * argc == 1); this is to prevent the compiler from optimizing out the XMM logic */
-    int16_t a[8] __attribute__((aligned(16)));
-    for (int i = 0; i < 8; i++)
-        a[i] = argc - 1 + i;
-    __m128i xmm_reg = _mm_load_si128((__m128i*)a);
-    __asm__ volatile("" ::: "memory");
+    int16_t in[8] __attribute__((aligned(16))) = {0, 1, 2, 3, 4, 5, 6, 7};
+    int16_t out[8] __attribute__((aligned(16))) = {0};
+
+    __asm__ volatile("pxor %%xmm0, %%xmm0\n"
+                     "movdqa %0, %%xmm0"
+                     :: "m"(in) : "xmm0", "memory");
 
     __asm__ volatile("movq $1, %%rax\n"
                      "cqo\n"
@@ -52,22 +46,21 @@ int main(int argc, char** argv) {
                      "divq %%rbx\n"
                      ::: "rax", "rbx", "rdx", "cc", "memory");
 
-    if (_mm_extract_epi16(xmm_reg, 0) != 0 || _mm_extract_epi16(xmm_reg, 1) != 1 ||
-        _mm_extract_epi16(xmm_reg, 2) != 2 || _mm_extract_epi16(xmm_reg, 3) != 3 ||
-        _mm_extract_epi16(xmm_reg, 4) != 4 || _mm_extract_epi16(xmm_reg, 5) != 5 ||
-        _mm_extract_epi16(xmm_reg, 6) != 6 || _mm_extract_epi16(xmm_reg, 7) != 7) {
-        fprintf(stderr, "XSAVE state (XMM registers' values) was lost!\n");
-        exit(EXIT_FAILURE);
-    }
+    __asm__ volatile("movdqa %%xmm0, %0\n"
+                     "pxor %%xmm0, %%xmm0\n"
+                     :"=m"(out) :: "xmm0", "memory");
 
-    __asm__ volatile("" ::: "memory");
+    for (int i = 0; i < 8; i++) {
+        if (out[i] != i) {
+            errx(EXIT_FAILURE, "XSAVE state (XMM registers' values) was lost!");
+        }
+    }
 
     if (sigfpe_ctr != 1) {
-        fprintf(stderr, "Expected exactly 1 SIGFPE signal but received %d!\n", sigfpe_ctr);
-        exit(EXIT_FAILURE);
+        errx(EXIT_FAILURE, "Expected exactly 1 SIGFPE signal but received %d!", sigfpe_ctr);
     }
-    printf("Got %d SIGFPE signal(s)\n", sigfpe_ctr);
 
+    printf("Got %d SIGFPE signal(s)\n", sigfpe_ctr);
     puts("TEST OK");
     exit(EXIT_SUCCESS);
 }
