@@ -125,7 +125,10 @@ $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/.configured
 # makes sense only on x86_64 platforms. NOTE: We'd prefer to build libgomp.so.1 alone but it is
 # impossible (the only way to build it is as part of the complete GCC build).
 #
-# Override CC, CXX, AS in case we're compiling the rest of the project with clang.
+# We do NOT override CC, CXX, AS environment variables even if we're compiling the rest of the
+# project with clang. This is because in GCC build, "defining certain environment variables such as
+# CC can interfere with the functioning of make" (https://gcc.gnu.org/install/build.html). Indeed,
+# defining CC at least on stock Ubuntu 18.04 leads to strange errors during GCC build.
 # ------------------------------------------------------------------------------------------------
 GCC_VERSION ?= 10.2.0
 GCC_SRC = gcc-$(GCC_VERSION)
@@ -139,14 +142,13 @@ GCC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GCC_TARGET)))
 
 $(GCC_BUILD_DIR)/Build.success: $(GCC_BUILD_DIR)/Makefile
 	@echo "Building gcc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(GCC_BUILD_DIR)/gcc-build.log\" for more information."
-	(CC=gcc CXX=g++ AS=gcc $(MAKE) -C $(GCC_BUILD_DIR) 2>&1 > gcc-build.log) && touch $@
+	($(MAKE) -C $(GCC_BUILD_DIR) 2>&1 > gcc-build.log) && touch $@
 
 $(GCC_TARGET): $(GCC_BUILD_DIR)/Build.success
 
 $(GCC_BUILD_DIR)/Makefile: $(GCC_SRC)/.configured
 	mkdir -p $(GCC_BUILD_DIR)
 	(cd $(GCC_BUILD_DIR) || exit 1; \
-	CC=gcc CXX=g++ AS=gcc \
 	../$(GCC_SRC)/configure --prefix=$(RUNTIME_DIR) \
 		--enable-languages=c \
 		--disable-multilib \
