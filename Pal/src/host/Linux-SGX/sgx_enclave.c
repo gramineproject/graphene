@@ -630,9 +630,15 @@ static long sgx_ocall_eventfd(void* pms) {
 }
 
 static long sgx_ocall_update_debugger(void* pms) {
-    __UNUSED(pms);
-    ODEBUG(OCALL_UPDATE_DEBUGGER, NULL);
+    ms_ocall_update_debugger_t* ms = (ms_ocall_update_debugger_t*)pms;
+    ODEBUG(OCALL_UPDATE_DEBUGGER, ms);
+
+#ifdef DEBUG
+    g_pal_enclave.debug_map = ms->ms_debug_map;
     update_debugger();
+#else
+    __UNUSED(ms);
+#endif
     return 0;
 }
 

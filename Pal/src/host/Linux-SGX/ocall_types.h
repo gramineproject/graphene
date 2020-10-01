@@ -10,6 +10,7 @@
 #include "pal.h"
 #include "sgx_arch.h"
 #include "sgx_attest.h"
+#include "sgx_rtld.h"
 
 /*
  * GCC's structure padding may cause leaking from uninialized
@@ -265,6 +266,10 @@ typedef struct {
 typedef struct {
     const char* ms_pathname;
 } ms_ocall_delete_t;
+
+typedef struct {
+    struct debug_map* _Atomic* ms_debug_map;
+} ms_ocall_update_debugger_t;
 
 typedef struct {
     unsigned int ms_initval;

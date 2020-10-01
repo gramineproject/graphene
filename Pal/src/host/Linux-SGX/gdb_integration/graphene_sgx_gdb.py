@@ -21,7 +21,7 @@ def retrieve_debug_maps():
     '''
 
     debug_maps = {}
-    val_map = gdb.parse_and_eval('g_pal_enclave.debug_map')
+    val_map = gdb.parse_and_eval('*g_pal_enclave.debug_map')
     while int(val_map) != 0:
         file_name = val_map['file_name'].string()
         file_name = os.path.abspath(file_name)

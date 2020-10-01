@@ -10,6 +10,7 @@
 #include "linux_types.h"
 #include "pal_linux.h"
 #include "sgx_attest.h"
+#include "sgx_rtld.h"
 
 noreturn void ocall_exit(int exitcode, int is_exitgroup);
 
@@ -87,7 +88,7 @@ int ocall_rename(const char* oldpath, const char* newpath);
 
 int ocall_delete(const char* pathname);
 
-int ocall_update_debugger(void);
+int ocall_update_debugger(struct debug_map* _Atomic* debug_map);
 
 int ocall_eventfd(unsigned int initval, int flags);
 

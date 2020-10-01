@@ -41,7 +41,6 @@ struct pal_sec {
 
 #ifdef DEBUG
     PAL_BOL in_gdb;
-    PAL_PTR debug_map;
 #endif
 
 #if PRINT_ENCLAVE_STAT == 1

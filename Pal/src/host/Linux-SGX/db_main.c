@@ -27,7 +27,6 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 #include "protected_files.h"
-#include "sgx_rtld.h"
 #include "sysdeps/generic/ldsodefs.h"
 
 #define RTLD_BOOTSTRAP
@@ -250,8 +249,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
 #ifdef DEBUG
     g_pal_sec.in_gdb = sec_info.in_gdb;
-    g_pal_sec.debug_map = sec_info.debug_map;
-    g_debug_map = sec_info.debug_map;
 #endif
 #if PRINT_ENCLAVE_STAT == 1
     g_pal_sec.start_time = sec_info.start_time;

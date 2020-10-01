@@ -71,8 +71,9 @@ extern struct pal_enclave {
     char* libpal_uri;
 
 #ifdef DEBUG
-    /* Information for GDB, updated from inside the enclave. See pal_rtld.h. */
-    struct debug_map* _Atomic debug_map;
+    /* Pointer to information for GDB inside the enclave (see sgx_rtld.h).
+     * Set up using update_debugger() ocall. */
+    struct debug_map* _Atomic* debug_map;
 #endif
 
     /* security information */

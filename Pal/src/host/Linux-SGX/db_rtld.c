@@ -28,9 +28,13 @@
 #include "spinlock.h"
 #include "sysdeps/generic/ldsodefs.h"
 
-struct debug_map* _Atomic* g_debug_map = NULL;
+/* Global debug map. To simplify setup, the pointer to g_debug_map is passed outside with
+ * ocall_update_debugger.
+ * (Note that we pass a pointer, not the current value of g_debug_map itself, to avoid having to
+ * ensure the ocalls happen in correct order.) */
+static struct debug_map* _Atomic g_debug_map = NULL;
 
-/* Lock for modifying the debug_map linked list on our end. Even though the list can be read at any
+/* Lock for modifying g_debug_map on our end. Even though the list can be read at any
  * time, we need to prevent concurrent modification. */
 static spinlock_t g_debug_map_lock = INIT_SPINLOCK_UNLOCKED;
 
@@ -82,16 +86,14 @@ static void debug_map_free(struct debug_map* map) {
 }
 
 static void debug_map_add(struct debug_map* map) {
-    assert(g_debug_map);
-
     spinlock_lock(&g_debug_map_lock);
 
-    map->next = *g_debug_map;
-    *g_debug_map = map;
+    map->next = g_debug_map;
+    g_debug_map = map;
 
     spinlock_unlock(&g_debug_map_lock);
 
-    ocall_update_debugger();
+    ocall_update_debugger(&g_debug_map);
 }
 
 static bool debug_map_del(const char* file_name) {
@@ -99,15 +101,8 @@ static bool debug_map_del(const char* file_name) {
 
     spinlock_lock(&g_debug_map_lock);
 
-    /* Note that this is insecure, as *g_debug_map is a value controlled outside of the enclave, so
-     * the code could be forced to access and modify arbitrary memory.
-     * However, g_debug_map is set only during debug builds.
-     *
-     * TODO: consider making the GDB integration conditional on a separate option such as
-     * INSECURE__ENABLE_GDB.
-     */
     struct debug_map* prev = NULL;
-    struct debug_map* map = *g_debug_map;
+    struct debug_map* map = g_debug_map;
     while (map) {
         if (strcmp(map->file_name, file_name) == 0)
             break;
@@ -121,7 +116,7 @@ static bool debug_map_del(const char* file_name) {
     }
 
     if (prev == NULL)
-        *g_debug_map = map->next;
+        g_debug_map = map->next;
     else
         prev->next = map->next;
 
@@ -129,7 +124,7 @@ static bool debug_map_del(const char* file_name) {
 
     debug_map_free(map);
 
-    ocall_update_debugger();
+    ocall_update_debugger(&g_debug_map);
     return true;
 }
 
@@ -192,7 +187,7 @@ void _DkDebugAddMap(struct link_map* map) {
             break;
         }
 
-    if (!text_addr || !g_debug_map)
+    if (!text_addr)
         return;
 
     struct debug_map* debug_map = debug_map_alloc(map->l_name, (void*)text_addr);
@@ -244,9 +239,6 @@ void setup_pal_map(struct link_map* pal_map) {
 
     pal_map->l_prev = pal_map->l_next = NULL;
     g_loaded_maps = pal_map;
-
-    if (!g_debug_map)
-        return;
 
     struct debug_map* debug_map = debug_map_alloc(pal_map->l_name, &g_section_text);
     if (!debug_map) {
