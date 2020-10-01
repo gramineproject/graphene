@@ -151,7 +151,6 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET(PAL_SEC_ENCLAVE_ATTRIBUTES, pal_sec, enclave_attributes);
 
     /* pal_linux_def.h */
-    DEFINE(ENCLAVE_HIGH_ADDRESS, ENCLAVE_HIGH_ADDRESS);
     DEFINE(SSAFRAMENUM, SSAFRAMENUM);
     DEFINE(ENCLAVE_STACK_SIZE, ENCLAVE_STACK_SIZE);
     DEFINE(ENCLAVE_SIG_STACK_SIZE, ENCLAVE_SIG_STACK_SIZE);

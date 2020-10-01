@@ -5,7 +5,6 @@
 #define ALT_STACK_SIZE    (PRESET_PAGESIZE * 16)  /* 64KB untrusted signal stack */
 #define RPC_STACK_SIZE    (PRESET_PAGESIZE * 2)
 
-#define ENCLAVE_HIGH_ADDRESS   0x800000000
 #define SSAFRAMENUM            2
 #define ENCLAVE_STACK_SIZE     (PRESET_PAGESIZE * 64)
 #define ENCLAVE_SIG_STACK_SIZE (PRESET_PAGESIZE * 16)
