@@ -17,8 +17,12 @@ def retrieve_debug_maps():
     Retrieve the debug_map structure from the inferior process. The result is a dict with the
     following structure:
 
-    {file_name: (text_addr, {name: addr})}
+    {load_addr: (file_name, {name: addr})}
     '''
+
+    if int(gdb.parse_and_eval('g_pal_enclave.debug_map')) == 0:
+        # Not initialized yet
+        return {}
 
     debug_maps = {}
     val_map = gdb.parse_and_eval('*g_pal_enclave.debug_map')
@@ -26,7 +30,7 @@ def retrieve_debug_maps():
         file_name = val_map['file_name'].string()
         file_name = os.path.abspath(file_name)
 
-        text_addr = int(val_map['text_addr'])
+        load_addr = int(val_map['load_addr'])
 
         sections = {}
         val_section = val_map['section']
@@ -37,7 +41,10 @@ def retrieve_debug_maps():
             sections[name] = addr
             val_section = val_section['next']
 
-        debug_maps[file_name] = (text_addr, sections)
+        # We need the text_addr to use add-symbol-file (at least until GDB 8.2).
+        if '.text' in sections:
+            debug_maps[load_addr] = (file_name, sections)
+
         val_map = val_map['next']
 
     return debug_maps
@@ -62,33 +69,31 @@ class UpdateDebugMaps(gdb.Command):
 
         old = progspace.sgx_debug_maps
         new = retrieve_debug_maps()
-        for file_name in set(old) | set(new):
+        for load_addr in set(old) | set(new):
             # Skip unload/reload if the map is unchanged
-            if old.get(file_name) == new.get(file_name):
+            if old.get(load_addr) == new.get(load_addr):
                 continue
 
             # Note that this doesn't escape the file names.
 
-            if file_name in old:
-                # Remove the file by address, not by name, because:
-                #
-                # 1. the names are resolved by gdb when loading, so even though we call
-                #    os.path.abspath() on our names, gdb might not recognize our name,
-                # 2. the same file (such as libc.so) might be loaded both inside and outside the
-                #    enclave, and we don't want to remove both instances, only the one that we
-                #    added.
-                #
-                # In addition, log the removing, because remove-symbol-file itself doesn't produce
-                # helpful output on errors.
-                text_addr, _sections = old[file_name]
-                print("Removing symbol file {} at addr: 0x{:x}".format(file_name, text_addr))
-                gdb.execute('remove-symbol-file -a 0x{:x}'.format(text_addr))
+            if load_addr in old:
+                # Log the removing, because remove-symbol-file itself doesn't produce helpful output
+                # on errors.
+                file_name, sections = old[load_addr]
+                print("Removing symbol file (was {}) from addr: 0x{:x}".format(
+                    file_name, load_addr))
+                try:
+                    gdb.execute('remove-symbol-file -a 0x{:x}'.format(load_addr))
+                except gdb.error:
+                    print('warning: failed to remove symbol file')
 
-            if file_name in new:
-                text_addr, sections = new[file_name]
+            if load_addr in new:
+                file_name, sections = new[load_addr]
+                text_addr = sections['.text']
                 cmd = 'add-symbol-file {} 0x{:x} '.format(file_name, text_addr)
                 cmd += ' '.join('-s {} 0x{:x}'.format(name, addr)
-                                for name, addr in sections.items())
+                                for name, addr in sections.items()
+                                if name != '.text')
                 gdb.execute(cmd)
 
         progspace.sgx_debug_maps = new
@@ -147,6 +152,13 @@ def stop_handler(_event):
         gdb.execute('update-debug-maps')
 
 
+def clear_objfiles_handler(event):
+    # Record that symbol files has been cleared on GDB's side (e.g. on program exit), so that we do
+    # not try to remove them again.
+    if hasattr(event.progspace, 'sgx_debug_maps'):
+        delattr(event.progspace, 'sgx_debug_maps')
+
+
 def main():
     PushPagination()
     PopPagination()
@@ -160,6 +172,7 @@ def main():
 
     UpdateBreakpoint()
     gdb.events.stop.connect(stop_handler)
+    gdb.events.clear_objfiles.connect(clear_objfiles_handler)
 
 if __name__ == "__main__":
     main()

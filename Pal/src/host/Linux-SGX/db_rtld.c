@@ -29,16 +29,15 @@
 #include "sysdeps/generic/ldsodefs.h"
 
 /* Global debug map. To simplify setup, the pointer to g_debug_map is passed outside with
- * ocall_update_debugger.
- * (Note that we pass a pointer, not the current value of g_debug_map itself, to avoid having to
- * ensure the ocalls happen in correct order.) */
+ * ocall_update_debugger().
+ * (Note that we pass a pointer to g_debug_map, not its current value, to avoid race conditions). */
 static struct debug_map* _Atomic g_debug_map = NULL;
 
 /* Lock for modifying g_debug_map on our end. Even though the list can be read at any
  * time, we need to prevent concurrent modification. */
 static spinlock_t g_debug_map_lock = INIT_SPINLOCK_UNLOCKED;
 
-static struct debug_map* debug_map_alloc(const char* file_name, void* text_addr) {
+static struct debug_map* debug_map_alloc(const char* file_name, void* load_addr) {
     struct debug_map* map;
 
     if (!(map = malloc(sizeof(*map))))
@@ -49,7 +48,7 @@ static struct debug_map* debug_map_alloc(const char* file_name, void* text_addr)
         return NULL;
     }
 
-    map->text_addr = text_addr;
+    map->load_addr = load_addr;
     map->section = NULL;
     map->next = NULL;
     return map;
@@ -96,7 +95,7 @@ static void debug_map_add(struct debug_map* map) {
     ocall_update_debugger(&g_debug_map);
 }
 
-static bool debug_map_del(const char* file_name) {
+static bool debug_map_del(void* load_addr) {
     assert(g_debug_map);
 
     spinlock_lock(&g_debug_map_lock);
@@ -104,7 +103,7 @@ static bool debug_map_del(const char* file_name) {
     struct debug_map* prev = NULL;
     struct debug_map* map = g_debug_map;
     while (map) {
-        if (strcmp(map->file_name, file_name) == 0)
+        if (map->load_addr == load_addr)
             break;
         prev = map;
         map = map->next;
@@ -180,26 +179,14 @@ void _DkDebugAddMap(struct link_map* map) {
 
     ocall_close(fd);
 
-    ElfW(Addr) text_addr = 0;
-    for (ElfW(Shdr)* s = shdr; s < shdrend; s++)
-        if (!strcmp_static(shstrtab + s->sh_name, ".text")) {
-            text_addr = map->l_addr + s->sh_addr;
-            break;
-        }
-
-    if (!text_addr)
-        return;
-
-    struct debug_map* debug_map = debug_map_alloc(map->l_name, (void*)text_addr);
+    struct debug_map* debug_map = debug_map_alloc(map->l_name, (void*)map->l_addr);
     if (!debug_map) {
-        SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new map");
+        SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new map\n");
         return;
     }
 
     for (ElfW(Shdr)* s = shdr; s < shdrend; s++) {
         if (!s->sh_name || !s->sh_addr)
-            continue;
-        if (!strcmp_static(shstrtab + s->sh_name, ".text"))
             continue;
         if (s->sh_type == SHT_NULL)
             continue;
@@ -208,7 +195,7 @@ void _DkDebugAddMap(struct link_map* map) {
 
         if (!debug_map_add_section(debug_map, shstrtab + s->sh_name,
                                    (void*)(map->l_addr + s->sh_addr))) {
-            SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new section");
+            SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new section\n");
             debug_map_free(debug_map);
             return;
         }
@@ -218,7 +205,7 @@ void _DkDebugAddMap(struct link_map* map) {
 }
 
 void _DkDebugDelMap(struct link_map* map) {
-    debug_map_del(map->l_name);
+    debug_map_del((void*)map->l_addr);
 }
 
 extern void* g_section_text;
@@ -242,7 +229,7 @@ void setup_pal_map(struct link_map* pal_map) {
 
     struct debug_map* debug_map = debug_map_alloc(pal_map->l_name, &g_section_text);
     if (!debug_map) {
-        SGX_DBG(DBG_E, "setup_pal_map: error allocating new map");
+        SGX_DBG(DBG_E, "setup_pal_map: error allocating new map\n");
         return;
     }
 
@@ -262,6 +249,6 @@ void setup_pal_map(struct link_map* pal_map) {
     return;
 
 fail:
-    SGX_DBG(DBG_E, "setup_pal_map: error allocating new section");
+    SGX_DBG(DBG_E, "setup_pal_map: error allocating new section\n");
     debug_map_free(debug_map);
 }
