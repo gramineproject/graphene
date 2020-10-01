@@ -22,8 +22,6 @@ SSAFRAMESIZE = offs.PAGESIZE
 
 DEFAULT_ENCLAVE_SIZE = '256M'
 DEFAULT_THREAD_NUM = 4
-ENCLAVE_HEAP_MIN = offs.DEFAULT_HEAP_MIN
-
 
 # Utilities
 
@@ -421,13 +419,7 @@ def entry_point(elf_path):
     raise ValueError("Could not find entry point of elf file")
 
 
-def baseaddr():
-    if ENCLAVE_HEAP_MIN == 0:
-        return offs.ENCLAVE_HIGH_ADDRESS
-    return 0
-
-
-def gen_area_content(attr, areas):
+def gen_area_content(attr, areas, enclave_base_addr, enclave_heap_min):
     # pylint: disable=too-many-locals
     manifest_area = find_area(areas, 'manifest')
     exec_area = find_area(areas, 'exec', True)
@@ -453,7 +445,7 @@ def gen_area_content(attr, areas):
     # Sanity check that we measure everything except the heap which is zeroed
     # on enclave startup.
     for area in areas:
-        if (area.addr + area.size <= ENCLAVE_HEAP_MIN or
+        if (area.addr + area.size <= enclave_heap_min or
                 area.addr >= enclave_heap_max or area is exec_area):
             if not area.measure:
                 raise ValueError("Memory area, which is not the heap, "
@@ -463,7 +455,7 @@ def gen_area_content(attr, areas):
 
     for t in range(0, attr['thread_num']):
         ssa_offset = ssa_area.addr + SSAFRAMESIZE * offs.SSAFRAMENUM * t
-        ssa = baseaddr() + ssa_offset
+        ssa = enclave_base_addr + ssa_offset
         set_tcs_field(t, offs.TCS_OSSA, '<Q', ssa_offset)
         set_tcs_field(t, offs.TCS_NSSA, '<L', offs.SSAFRAMENUM)
         set_tcs_field(t, offs.TCS_OENTRY, '<Q',
@@ -473,29 +465,29 @@ def gen_area_content(attr, areas):
         set_tcs_field(t, offs.TCS_OGS_LIMIT, '<L', 0xfff)
 
         set_tls_field(t, offs.SGX_COMMON_SELF,
-                      tls_area.addr + offs.PAGESIZE * t + baseaddr())
+                      tls_area.addr + offs.PAGESIZE * t + enclave_base_addr)
         set_tls_field(t, offs.SGX_ENCLAVE_SIZE, attr['enclave_size'])
         set_tls_field(t, offs.SGX_TCS_OFFSET, tcs_area.addr + offs.TCS_SIZE * t)
         set_tls_field(t, offs.SGX_INITIAL_STACK_OFFSET,
                       stacks[t].addr + stacks[t].size)
-        set_tls_field(t, offs.SGX_SIG_STACK_LOW, baseaddr() + sig_stacks[t].addr)
+        set_tls_field(t, offs.SGX_SIG_STACK_LOW, enclave_base_addr + sig_stacks[t].addr)
         set_tls_field(t, offs.SGX_SIG_STACK_HIGH,
-                      baseaddr() + sig_stacks[t].addr + sig_stacks[t].size)
+                      enclave_base_addr + sig_stacks[t].addr + sig_stacks[t].size)
         set_tls_field(t, offs.SGX_SSA, ssa)
         set_tls_field(t, offs.SGX_GPR, ssa + SSAFRAMESIZE - offs.SGX_GPR_SIZE)
         set_tls_field(t, offs.SGX_MANIFEST_SIZE,
                       os.stat(manifest_area.file).st_size)
-        set_tls_field(t, offs.SGX_HEAP_MIN, baseaddr() + ENCLAVE_HEAP_MIN)
-        set_tls_field(t, offs.SGX_HEAP_MAX, baseaddr() + enclave_heap_max)
+        set_tls_field(t, offs.SGX_HEAP_MIN, enclave_base_addr + enclave_heap_min)
+        set_tls_field(t, offs.SGX_HEAP_MAX, enclave_base_addr + enclave_heap_max)
         if exec_area is not None:
-            set_tls_field(t, offs.SGX_EXEC_ADDR, baseaddr() + exec_area.addr)
+            set_tls_field(t, offs.SGX_EXEC_ADDR, enclave_base_addr + exec_area.addr)
             set_tls_field(t, offs.SGX_EXEC_SIZE, exec_area.size)
 
     tcs_area.content = tcs_data
     tls_area.content = tls_data
 
 
-def populate_memory_areas(attr, areas):
+def populate_memory_areas(attr, areas, enclave_base_addr, enclave_heap_min):
     populating = attr['enclave_size']
 
     for area in areas:
@@ -503,7 +495,7 @@ def populate_memory_areas(attr, areas):
             continue
 
         area.addr = populating - area.size
-        if area.addr < ENCLAVE_HEAP_MIN:
+        if area.addr < enclave_heap_min:
             raise Exception("Enclave size is not large enough")
         populating = area.addr
 
@@ -517,14 +509,14 @@ def populate_memory_areas(attr, areas):
                            flags=flags, measure=False))
             populating = area.addr
 
-    if populating > ENCLAVE_HEAP_MIN:
+    if populating > enclave_heap_min:
         flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
         free_areas.append(
-            MemoryArea('free', addr=ENCLAVE_HEAP_MIN,
-                       size=populating - ENCLAVE_HEAP_MIN, flags=flags,
+            MemoryArea('free', addr=enclave_heap_min,
+                       size=populating - enclave_heap_min, flags=flags,
                        measure=False))
 
-    gen_area_content(attr, areas)
+    gen_area_content(attr, areas, enclave_base_addr, enclave_heap_min)
 
     return areas + free_areas
 
@@ -846,13 +838,23 @@ def main_sign(args):
     memory_areas = get_memory_areas(attr, args)
 
     if manifest.get('sgx.static_address', None) is None:
-        # If static_address is not specified explicitly, deduce from executable
+        # If static_address is not specified explicitly, deduce from executable: if it has at
+        # least one specific address (typically 0x400000 in code segment), then it is static aka
+        # non-PIE executable
+        manifest['sgx.static_address'] = '0'
         if any([a.addr is not None for a in memory_areas]):
             manifest['sgx.static_address'] = '1'
-        else:
-            global ENCLAVE_HEAP_MIN # pylint: disable=global-statement
-            ENCLAVE_HEAP_MIN = 0
-            manifest['sgx.static_address'] = '0'
+
+    if manifest['sgx.static_address'] == '1':
+        # executable is static, i.e. it is non-PIE: enclave base address must cover code segment
+        # loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this)
+        enclave_base_addr = offs.DEFAULT_ENCLAVE_BASE
+        enclave_heap_min = offs.DEFAULT_HEAP_MIN
+    else:
+        # executable is not static, i.e. it is PIE: enclave base address can be arbitrary (we
+        # choose it same as enclave_size), and heap can start immediately at this base address
+        enclave_base_addr = attr['enclave_size']
+        enclave_heap_min = 0
 
     if manifest.get('sgx.allow_file_creation', None) is None:
         manifest['sgx.allow_file_creation'] = '0'
@@ -867,7 +869,7 @@ def main_sign(args):
                    flags=PAGEINFO_R | PAGEINFO_REG)
         ] + memory_areas
 
-    memory_areas = populate_memory_areas(attr, memory_areas)
+    memory_areas = populate_memory_areas(attr, memory_areas, enclave_base_addr, enclave_heap_min)
 
     print("Memory:")
     # Generate measurement

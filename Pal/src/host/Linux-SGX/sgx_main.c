@@ -204,7 +204,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     sgx_arch_enclave_css_t enclave_sigstruct;
     sgx_arch_secs_t enclave_secs;
     unsigned long enclave_entry_addr;
-    unsigned long heap_min = DEFAULT_HEAP_MIN;
+    unsigned long enclave_heap_min;
 
     int enclave_mem = -1;
 
@@ -268,10 +268,15 @@ static int initialize_enclave(struct pal_enclave* enclave) {
 
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0
             && cfgbuf[0] == '1') {
-        enclave->baseaddr = ALIGN_DOWN_POW2(heap_min, enclave->size);
+        /* executable is static, i.e. it is non-PIE: enclave base address must cover code segment
+         * loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this) */
+        enclave->baseaddr = DEFAULT_ENCLAVE_BASE;
+        enclave_heap_min  = DEFAULT_HEAP_MIN;
     } else {
-        enclave->baseaddr = ENCLAVE_HIGH_ADDRESS;
-        heap_min = 0;
+        /* executable is not static, i.e. it is PIE: enclave base address can be arbitrary (we
+         * choose it same as enclave_size), and heap can start immediately at this base address */
+        enclave->baseaddr = enclave->size;
+        enclave_heap_min  = 0;
     }
 
     if (get_config(enclave->config, "sgx.enable_stats", cfgbuf, sizeof(cfgbuf)) > 0 &&
@@ -454,10 +459,10 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         }
 
         if (exec_area->addr + exec_area->size < populating) {
-            if (populating > heap_min) {
+            if (populating > enclave_heap_min) {
                 unsigned long addr = exec_area->addr + exec_area->size;
-                if (addr < heap_min)
-                    addr = heap_min;
+                if (addr < enclave_heap_min)
+                    addr = enclave_heap_min;
 
                 areas[area_num] = (struct mem_area){.desc         = "free",
                                                     .skip_eextend = true,
@@ -474,13 +479,13 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         }
     }
 
-    if (populating > heap_min) {
+    if (populating > enclave_heap_min) {
         areas[area_num] = (struct mem_area){.desc         = "free",
                                             .skip_eextend = true,
                                             .fd           = -1,
                                             .is_binary    = false,
-                                            .addr         = heap_min,
-                                            .size         = populating - heap_min,
+                                            .addr         = enclave_heap_min,
+                                            .size         = populating - enclave_heap_min,
                                             .prot         = PROT_READ | PROT_WRITE | PROT_EXEC,
                                             .type         = SGX_PAGE_REG};
         area_num++;
@@ -522,7 +527,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
                           enclave_secs.base;
                 gs->gpr = gs->ssa + enclave->ssaframesize - sizeof(sgx_pal_gpr_t);
                 gs->manifest_size = manifest_size;
-                gs->heap_min = (void*)enclave_secs.base + heap_min;
+                gs->heap_min = (void*)enclave_secs.base + enclave_heap_min;
                 gs->heap_max = (void*)enclave_secs.base + pal_area->addr;
                 if (exec_area) {
                     gs->exec_addr = (void*)enclave_secs.base + exec_area->addr;
