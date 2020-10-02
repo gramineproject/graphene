@@ -1,1 +1,1 @@
-DCO.rst
+../../DCO.rst
