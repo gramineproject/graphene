@@ -39,7 +39,8 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
         for i in cls.INDEXES:
             cmd = [cls.PF_CRYPT, 'encrypt', '-w', cls.WRAP_KEY, '-i', cls.INPUT_FILES[i], '-o',
                    cls.ENCRYPTED_FILES[i]]
-            cls.run_native_binary(cls, cmd, libpath=os.path.join(os.getcwd(), 'lib'))
+
+            cls.run_native_binary(cmd, libpath=os.path.join(os.getcwd(), 'lib'))
 
     def __pf_crypt(self, args):
         args.insert(0, self.PF_CRYPT)

@@ -11,6 +11,7 @@ RUN apt-get update \
        curl \
        flex \
        gawk \
+       gdb \
        gettext \
        git \
        libapr1-dev \
