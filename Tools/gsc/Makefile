@@ -7,7 +7,7 @@
 
 IMAGES=aks
 VERSIONS=latest
-# Official Docker Hub organization name. In case of a name change in Docker Hub, this name as to be
+# Official Docker Hub organization name. In case of a name change in Docker Hub, this name must
 # changed.
 DOCKERHUB_ORGANIZATION=graphenelibos
 
@@ -23,16 +23,16 @@ config.aks.%.yaml:
 	    Repository: \"https://github.com/intel/SGXDataCenterAttestationPrimitives.git\"\n\
 	    Branch: \"DCAP_1.7 && cp -r driver/linux/* .\"\n" > $@
 
-images/graphene_aks.latest.dockerfile: config.aks.master.yaml
+images:
+	mkdir -p images
+
+images/graphene_aks.latest.dockerfile: config.aks.master.yaml images
 	./gsc build-graphene -f -c $< graphene-aks
 	mv graphene-aks/Dockerfile.compile $@
 	$(RM) -r graphene-aks
 
-images:
-	mkdir -p images
-
 .PHONY: generate-dockerfiles
-generate-dockerfiles: images $(addsuffix .dockerfile, $(addprefix $(addprefix images/, graphene_${IMAGES}), .${VERSIONS}))
+generate-dockerfiles: $(addsuffix .dockerfile, $(addprefix $(addprefix images/, graphene_${IMAGES}), .${VERSIONS}))
 
 .PHONY: build-images
 build-images: $(addprefix $(addprefix build-, $(IMAGES))-, $(VERSIONS))
