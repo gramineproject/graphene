@@ -22,6 +22,8 @@
 	.type enclave_entry, @function
 
 enclave_entry:
+	.cfi_startproc
+
 	# On EENTER, RAX is the current SSA index (aka CSSA), RBX is the address of
 	# TCS, RCX is the address of IP following EENTER. Other regs are not trusted.
 
@@ -488,6 +490,8 @@ enclave_entry:
 	# exit address in RDX, mov it to RBX
 	movq %rdx, %rbx
 	jmp .Lclear_and_eexit
+
+	.cfi_endproc
 
 	.global sgx_ocall
 	.type sgx_ocall, @function
