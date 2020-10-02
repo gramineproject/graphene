@@ -16,12 +16,44 @@ def expectedFailureIf(predicate):
 class RegressionTestCase(unittest.TestCase):
     LOADER_ENV = 'PAL_LOADER'
     LIBPAL_PATH_ENV = 'LIBPAL_PATH'
+    HOST_PAL_PATH_ENV = 'HOST_PAL_PATH'
     DEFAULT_TIMEOUT = (20 if HAS_SGX else 10)
 
     def get_manifest(self, filename):
         return filename + '.manifest' + ('.sgx' if HAS_SGX else '')
 
-    def run_binary(self, args, *, timeout=None, **kwds):
+    def has_debug(self):
+        try:
+            libpal = os.environ[self.LIBPAL_PATH_ENV]
+        except KeyError:
+            self.fail('environment variable {} unset'.format(self.LIBPAL_PATH_ENV))
+
+        p = subprocess.run(['objdump', '-x', libpal], check=True, stdout=subprocess.PIPE)
+        dump = p.stdout.decode()
+        return '.debug_info' in dump
+
+    def run_gdb(self, args, gdb_script, **kwds):
+        try:
+            host_pal_path = os.environ[self.HOST_PAL_PATH_ENV]
+        except KeyError:
+            self.fail('environment variable {} unset'.format(self.HOST_PAL_PATH_ENV))
+
+        # See also pal_loader.
+        prefix = ['gdb', '-q']
+        env = os.environ.copy()
+        if HAS_SGX:
+            prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/graphene_sgx_gdb.py')]
+            env['LD_PRELOAD'] = os.path.join(host_pal_path, 'gdb_integration/sgx_gdb.so')
+        else:
+            prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/graphene_gdb.py')]
+
+        # Override TTY, as apparently os.setpgrp() confuses GDB and causes it to hang.
+        prefix += ['-x', gdb_script, '-batch', '-tty=/dev/null']
+        prefix += ['--args']
+
+        return self.run_binary(args, prefix=prefix, env=env, **kwds)
+
+    def run_binary(self, args, *, timeout=None, prefix=None, **kwds):
         timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
             else self.DEFAULT_TIMEOUT)
 
@@ -42,7 +74,10 @@ class RegressionTestCase(unittest.TestCase):
         if not pathlib.Path(libpal).exists():
             self.skipTest('libpal ({}) not found'.format(libpal))
 
-        with subprocess.Popen([loader, libpal, 'init', *args],
+        if prefix is None:
+            prefix = []
+
+        with subprocess.Popen([*prefix, loader, libpal, 'init', *args],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 preexec_fn=os.setpgrp,
                 **kwds) as process:

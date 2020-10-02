@@ -64,6 +64,9 @@ if [ "$GDB" == "1" ]; then
 	else
 		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/graphene_gdb.py")
 	fi
+	if [ "$GDB_SCRIPT" != "" ]; then
+		PREFIX+=("-x" "$GDB_SCRIPT" "-batch")
+	fi
 	PREFIX+=("--args")
 fi
 
