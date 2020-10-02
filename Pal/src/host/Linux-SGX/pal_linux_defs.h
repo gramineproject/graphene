@@ -8,7 +8,12 @@
 #define SSAFRAMENUM            2
 #define ENCLAVE_STACK_SIZE     (PRESET_PAGESIZE * 64)
 #define ENCLAVE_SIG_STACK_SIZE (PRESET_PAGESIZE * 16)
+
+/* default enclave base must cover code segment loaded at 0x400000 (for non-PIE executables),
+ * and default heap base cannot start at zero (modern OSes do not allow this) */
+#define DEFAULT_ENCLAVE_BASE   0x0
 #define DEFAULT_HEAP_MIN       0x10000
+
 #define TRACE_ECALL            1
 #define TRACE_OCALL            1
 

@@ -266,17 +266,17 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         enclave->rpc_thread_num = 0; /* by default, do not use exitless feature */
     }
 
-    /* assume that executable is not static, i.e. it is PIE: enclave base address can be arbitrary
-     * (we choose it same as enclave_size), and heap can start immediately at this base address */
-    enclave->baseaddr = enclave->size;
-    enclave_heap_min  = 0;
-
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0
             && cfgbuf[0] == '1') {
-        /* executable is static, i.e. it is non-PIE: enclave base address must be zero to cover
-         * code segment loaded at 0x400000, and heap cannot start at zero (OS will not allow) */
-        enclave->baseaddr = 0;
+        /* executable is static, i.e. it is non-PIE: enclave base address must cover code segment
+         * loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this) */
+        enclave->baseaddr = DEFAULT_ENCLAVE_BASE;
         enclave_heap_min  = DEFAULT_HEAP_MIN;
+    } else {
+        /* executable is not static, i.e. it is PIE: enclave base address can be arbitrary (we
+         * choose it same as enclave_size), and heap can start immediately at this base address */
+        enclave->baseaddr = enclave->size;
+        enclave_heap_min  = 0;
     }
 
     if (get_config(enclave->config, "sgx.enable_stats", cfgbuf, sizeof(cfgbuf)) > 0 &&

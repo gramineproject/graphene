@@ -837,11 +837,6 @@ def main_sign(args):
     # Try populate memory areas
     memory_areas = get_memory_areas(attr, args)
 
-    # assume that executable is not static, i.e. it is PIE: enclave base address can be arbitrary
-    # (we choose it same as enclave_size), and heap can start immediately at this base address
-    enclave_base_addr = attr['enclave_size']
-    enclave_heap_min = 0
-
     if manifest.get('sgx.static_address', None) is None:
         # If static_address is not specified explicitly, deduce from executable: if it has at
         # least one specific address (typically 0x400000 in code segment), then it is static aka
@@ -851,10 +846,15 @@ def main_sign(args):
             manifest['sgx.static_address'] = '1'
 
     if manifest['sgx.static_address'] == '1':
-        # executable is static, i.e. it is non-PIE: enclave base address must be zero to cover
-        # code segment loaded at 0x400000 (4MB), and heap cannot start at zero (OS will not allow)
-        enclave_base_addr = 0
+        # executable is static, i.e. it is non-PIE: enclave base address must cover code segment
+        # loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this)
+        enclave_base_addr = offs.DEFAULT_ENCLAVE_BASE
         enclave_heap_min = offs.DEFAULT_HEAP_MIN
+    else:
+        # executable is not static, i.e. it is PIE: enclave base address can be arbitrary (we
+        # choose it same as enclave_size), and heap can start immediately at this base address
+        enclave_base_addr = attr['enclave_size']
+        enclave_heap_min = 0
 
     if manifest.get('sgx.allow_file_creation', None) is None:
         manifest['sgx.allow_file_creation'] = '0'
