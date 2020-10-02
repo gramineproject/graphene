@@ -56,6 +56,7 @@ CXXFLAGS += -gdwarf-2 -g3
 ASFLAGS += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
+CXXFLAGS += -DDEBUG
 endif
 
 ifeq ($(DEBUG),)

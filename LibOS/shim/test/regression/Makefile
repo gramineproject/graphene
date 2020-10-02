@@ -12,6 +12,7 @@ c_executables = \
 	bootstrap \
 	bootstrap_pie \
 	bootstrap_static \
+	debug \
 	dev \
 	epoll_wait_timeout \
 	eventfd \
@@ -138,6 +139,7 @@ include ../../../../Scripts/Makefile.Test
 
 CFLAGS-bootstrap_static = -static
 CFLAGS-bootstrap_pie = -fPIC -pie
+CFLAGS-debug = -g3
 CFLAGS-exec_same = -pthread
 CFLAGS-shared_object = -fPIC -pie
 CFLAGS-syscall += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST) -I$(PALDIR)/../include/arch/$(ARCH)/Linux
@@ -167,6 +169,7 @@ LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
 export LIBPAL_PATH = $(RUNTIME)/libpal-$(PAL_HOST).so
+export HOST_PAL_PATH = $(RUNTIME)/../Pal/src/host/$(PAL_HOST)
 export PYTHONPATH=../../../../Scripts
 
 .PHONY: regression

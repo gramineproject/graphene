@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import shutil
 import signal
 import subprocess
+import sys
 import unittest
 
 from regression import (
@@ -575,6 +577,52 @@ class TC_40_FileSystem(RegressionTestCase):
     def test_040_str_close_leak(self):
         stdout, _ = self.run_binary(['str_close_leak'], timeout=60)
         self.assertIn("Success", stdout)
+
+
+class TC_50_GDB(RegressionTestCase):
+    def setUp(self):
+        if not self.has_debug():
+            self.skipTest('test runs only when Graphene is compiled with DEBUG=1')
+
+    def find(self, name, stdout):
+        match = re.search('<{0} start>(.*)<{0} end>'.format(name), stdout, re.DOTALL)
+        self.assertTrue(match, '{} not found in GDB output'.format(name))
+        return match.group(1).strip()
+
+    def test_000_gdb_backtrace(self):
+        # pylint: disable=fixme
+        #
+        # To run this test manually, use:
+        # GDB=1 GDB_SCRIPT=debug.gdb ./pal_loader debug
+        #
+        # TODO: strengthen this test after SGX includes enclave entry.
+        #
+        # While the stack trace in SGX is unbroken, it currently starts at _start inside
+        # enclave, instead of including eclave entry.
+
+        stdout, stderr = self.run_gdb(['debug'], 'debug.gdb')
+
+        backtrace_1 = self.find('backtrace 1', stdout)
+        self.assertIn(' main () at debug.c', backtrace_1)
+        self.assertIn(' _start ()', backtrace_1)
+        self.assertNotIn('??', backtrace_1)
+
+        backtrace_2 = self.find('backtrace 2', stdout)
+        self.assertIn(' char_write (', backtrace_2)
+        self.assertIn(' func () at debug.c', backtrace_2)
+        self.assertIn(' main () at debug.c', backtrace_2)
+        self.assertIn(' _start ()', backtrace_2)
+        self.assertNotIn('??', backtrace_2)
+
+        if HAS_SGX:
+            backtrace_3 = self.find('backtrace 3', stdout)
+            self.assertIn(' sgx_ocall_write (', backtrace_3)
+            self.assertIn(' char_write (', backtrace_3)
+            self.assertIn(' func () at debug.c', backtrace_3)
+            self.assertIn(' main () at debug.c', backtrace_3)
+            self.assertIn(' _start ()', backtrace_3)
+            self.assertNotIn('??', backtrace_3)
+
 
 class TC_80_Socket(RegressionTestCase):
     def test_000_getsockopt(self):
