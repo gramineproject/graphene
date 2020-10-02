@@ -856,9 +856,6 @@ def main_sign(args):
         enclave_base_addr = attr['enclave_size']
         enclave_heap_min = 0
 
-    if manifest.get('sgx.allow_file_creation', None) is None:
-        manifest['sgx.allow_file_creation'] = '0'
-
     if manifest.get('sgx.enable_stats', None) is None:
         manifest['sgx.enable_stats'] = '0'
 

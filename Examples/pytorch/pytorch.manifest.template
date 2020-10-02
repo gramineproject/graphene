@@ -140,9 +140,6 @@ sgx.trusted_files.model   = file:alexnet-pretrained.pt
 # Scratch space
 sgx.allowed_files.tmp     = file:/tmp
 
-# Output file
-sgx.allow_file_creation   = 1
-
 # The workload needs to fork/execve; this allows it to do so
 sgx.trusted_children.fork = file:python3.sig
 

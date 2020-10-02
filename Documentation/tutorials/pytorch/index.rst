@@ -286,13 +286,6 @@ these allowed files only for simplicity. A next tutorial on PyTorch (with Docker
 integration) replaces all allowed files with trusted/protected files (that
 tutorial is work in progress).
 
-There is also the following line in the manifest template::
-
-   sgx.allow_file_creation = 1
-
-This allows the enclave to generate new files. We need this since the PyTorch
-Python script writes the result to ``result.txt``.
-
 Now we desribed how the manifest template looks like and what the SGX-specific
 manifest entries represent. Let's prepare all the files needed to run PyTorch in
 an SGX enclave::

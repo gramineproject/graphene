@@ -114,7 +114,6 @@ cluster.
 
 #. Create the application-specific Manifest file :file:`python.manifest`::
 
-       sgx.allow_file_creation = 1
        sgx.enclave_size = 256M
        sgx.thread_num = 4
 
