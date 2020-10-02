@@ -1,3 +1,4 @@
 sphinx==1.8.0
 breathe<4.13.0
 recommonmark
+sphinx_rtd_theme
