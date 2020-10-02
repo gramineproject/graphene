@@ -10,6 +10,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl \
     flex \
     gawk \
+    gdb \
     gettext \
     git \
     libapr1-dev \
