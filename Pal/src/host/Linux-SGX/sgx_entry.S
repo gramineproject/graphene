@@ -9,6 +9,8 @@
 	.type sgx_ecall, @function
 
 sgx_ecall:
+	.cfi_startproc
+
 	# put entry address in RDX
 	leaq .Lsgx_entry(%rip), %rdx
 
@@ -16,11 +18,17 @@ sgx_ecall:
 
 .Ldo_ecall_callee_save:
 	pushq %rbx
+	.cfi_adjust_cfa_offset 8
 	pushq %rbp
+	.cfi_adjust_cfa_offset 8
 	pushq %r12
+	.cfi_adjust_cfa_offset 8
 	pushq %r13
+	.cfi_adjust_cfa_offset 8
 	pushq %r14
+	.cfi_adjust_cfa_offset 8
 	pushq %r15
+	.cfi_adjust_cfa_offset 8
 
 .Ldo_ecall:
 	# increment per-thread EENTER counter for stats
@@ -38,12 +46,19 @@ sgx_ecall:
 	# currently only ECALL_THREAD_RESET returns
 .Lafter_resume:
 	popq %r15
+	.cfi_adjust_cfa_offset -8
 	popq %r14
+	.cfi_adjust_cfa_offset -8
 	popq %r13
+	.cfi_adjust_cfa_offset -8
 	popq %r12
+	.cfi_adjust_cfa_offset -8
 	popq %rbp
+	.cfi_adjust_cfa_offset -8
 	popq %rbx
+	.cfi_adjust_cfa_offset -8
 	retq
+	.cfi_endproc
 
 	.global async_exit_pointer
 	.type async_exit_pointer, @function
