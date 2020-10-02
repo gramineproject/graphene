@@ -41,18 +41,21 @@ not published.
 Building documentation
 ----------------------
 
-To build documentation, change directory to ``Documentation``, install
-prerequisites, and use ``make``, specifying the appropriate target. The output
-is in the ``_build`` directory:
+To build documentation, change directory to ``Documentation``, install prerequisites, and use
+``make``, specifying the appropriate target. The documentation is built with python3; if you have
+similar packages in python2, it may create problems; we recommend removing any similar packages in
+python2. Similarly, the documentation requires version 1.8 of sphinx.
+
+The output is in the ``_build`` directory:
 
 .. code-block:: sh
 
    # change directory to Documentation
    cd Documentation
 
-   # install prerequisites (use pip3 for Python3)
+   # install prerequisites
    sudo apt-get install doxygen
-   pip install -r requirements.txt
+   python3 -m pip install -r requirements.txt
 
    # build targets "html" and "man"
    make html man
