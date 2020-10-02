@@ -908,9 +908,9 @@ void DkDebugAttachBinary(PAL_STR uri, PAL_PTR start_addr) {
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
         if (ph->p_type == PT_PHDR) {
             if (!map_start || ph->p_vaddr < map_start)
-                map_start = ph->p_vaddr;
+                map_start = ALLOC_ALIGN_DOWN(ph->p_vaddr);
             if (!map_end || ph->p_vaddr + ph->p_memsz > map_end)
-                map_end = ph->p_vaddr + ph->p_memsz;
+                map_end = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_memsz);
         }
 
     l->l_addr    = l->l_map_start - map_start;
