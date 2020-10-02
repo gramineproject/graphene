@@ -854,9 +854,6 @@ def main_sign(args):
             ENCLAVE_HEAP_MIN = 0
             manifest['sgx.static_address'] = '0'
 
-    if manifest.get('sgx.allow_file_creation', None) is None:
-        manifest['sgx.allow_file_creation'] = '0'
-
     if manifest.get('sgx.enable_stats', None) is None:
         manifest['sgx.enable_stats'] = '0'
 

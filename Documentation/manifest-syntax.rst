@@ -367,19 +367,6 @@ size is limited to 260 bytes.
 be used only for debugging purposes. In production environments, this key must
 be provisioned to the enclave using local/remote attestation.
 
-Allowing file creation
-^^^^^^^^^^^^^^^^^^^^^^
-
-::
-
-    sgx.allow_file_creation=[1|0]
-    (Default: 0)
-
-This syntax specifies whether file creation is allowed from within the enclave.
-Set it to ``1`` to allow enclaves to create files and to ``0`` otherwise. Files
-created during enclave execution do not need to be marked as ``allowed_files``
-or ``trusted_files``.
-
 File check policy
 ^^^^^^^^^^^^^^^^^
 

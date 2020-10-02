@@ -126,14 +126,6 @@ int main(int argc, char** argv, char** envp) {
         DkObjectClose(file6);
     }
 
-    file6 = DkStreamOpen("file:file_nonexist_disallowed.tmp", PAL_ACCESS_RDWR,
-                         PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_ALWAYS, 0);
-    if (!file6) {
-        pal_printf("File Creation Test 4 OK\n");
-    } else {
-        DkObjectClose(file6);
-    }
-
     if (file4) {
         /* test file writing */
 

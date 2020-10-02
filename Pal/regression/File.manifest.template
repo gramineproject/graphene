@@ -3,7 +3,6 @@ loader.debug_type = inline
 
 fs.mount.root.uri = file:
 
-sgx.allow_file_creation = 0
 sgx.trusted_files.tmp1 = file:File
 sgx.trusted_files.tmp2 = file:../regression/File
 sgx.allowed_files.tmp3 = file:file_nonexist.tmp

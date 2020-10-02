@@ -231,7 +231,6 @@ struct trusted_file {
 DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) g_trusted_file_list = LISTP_INIT;
 static spinlock_t g_trusted_file_lock = INIT_SPINLOCK_UNLOCKED;
-static bool g_allow_file_creation = 0;
 static int g_file_check_policy = FILE_CHECK_POLICY_STRICT;
 
 /* Assumes `path` is normalized */
@@ -288,9 +287,8 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
         return ret;
     }
 
-    /* Allow to create the file when g_allow_file_creation is turned on;
-       The created file is added to allowed_file list for later access */
-    if (create && g_allow_file_creation) {
+    /* always allow creating files */
+    if (create) {
         register_trusted_file(uri, NULL, /*check_duplicates=*/true);
         return 0;
     }
@@ -865,11 +863,6 @@ no_trusted:
 
 no_allowed:
     ret = 0;
-
-    if (get_config(store, "sgx.allow_file_creation", cfgbuf, cfgsize) > 0 && cfgbuf[0] == '1')
-        g_allow_file_creation = true;
-    else
-        g_allow_file_creation = false;
 
 out:
     free(cfgbuf);

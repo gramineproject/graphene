@@ -66,9 +66,6 @@ sgx.enclave_size = 2G
 # We (somewhat arbitrarily) specify 16 threads since OpenVINO is multithreaded.
 sgx.thread_num = 16
 
-# Allow Graphene-SGX to create files (needed for output image out_0.bmp)
-sgx.allow_file_creation  = 1
-
 # SGX trusted libraries
 
 # Glibc libraries
