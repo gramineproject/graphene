@@ -3,9 +3,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-# The executable to load in Graphene. We replace EXECPATH and ARGV0_OVERRIDE for
-# each program that a manifest is generated for.
-loader.exec = file:$(EXECPATH)
 loader.argv0_override = $(ARGV0_OVERRIDE)
 
 # Read application arguments directly from the command line. Don't use this on production!

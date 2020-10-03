@@ -2,14 +2,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04 and Ubuntu 18.04.
 
-# Addressbook is the sample application that uses Cap'n Proto from the official
-# documentation (copied from the official GitHub repo). Must be run like this:
-#
-# ./pal_loader ./addressbook [write | dwrite]
-
-# Executable to load into Graphene and run
-loader.exec = file:addressbook
-
 # LibOS layer library of Graphene (currently only one implementation, libsysdb)
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 

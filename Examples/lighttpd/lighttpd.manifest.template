@@ -6,8 +6,6 @@
 #
 # ./pal_loader lighttpd.manifest <script>
 
-# The executable to load in Graphene.
-loader.exec = file:$(INSTALL_DIR)/sbin/lighttpd
 loader.argv0_override = lighttpd
 
 # Graphene environment, including the path of the library OS and the debug

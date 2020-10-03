@@ -1,1 +1,6 @@
 /cc1-trusted-libs
+/as
+/cc1
+/collect2
+/gcc
+/ld

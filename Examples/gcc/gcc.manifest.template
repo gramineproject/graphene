@@ -1,8 +1,8 @@
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
-loader.exec = file:/usr/bin/gcc
-loader.argv0_override = /usr/bin/gcc
+loader.argv0_override = gcc
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
-loader.env.PATH = /bin:/usr/bin
+loader.env.PATH = /
+loader.env.COMPILER_PATH = /:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Read application arguments directly from the command line. Don't use this on production!
@@ -33,9 +33,9 @@ sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
 sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
 sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
 
-sgx.trusted_files.cc1 = file:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/cc1
-sgx.trusted_files.collect2 = file:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/collect2
-sgx.trusted_files.as = file:/usr/bin/as
+sgx.trusted_files.cc1 = file:cc1
+sgx.trusted_files.collect2 = file:collect2
+sgx.trusted_files.as = file:as
 
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files

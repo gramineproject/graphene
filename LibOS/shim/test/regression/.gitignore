@@ -7,6 +7,7 @@
 /.cache
 /abort
 /abort_multithread
+/argv_from_file
 /argv_test_input
 /attestation
 /bootstrap
@@ -17,6 +18,8 @@
 /debug
 /debug_regs-x86_64
 /dev
+/env_from_file
+/env_from_host
 /epoll_wait_timeout
 /eventfd
 /exec
@@ -28,6 +31,8 @@
 /exit_group
 /fdleak
 /file_check_policy
+/file_check_policy_allow_all_but_log
+/file_check_policy_strict
 /file_size
 /fopen_cornercases
 /fork_and_exec
@@ -44,6 +49,7 @@
 /groups
 /host_root_fs
 /init_fail
+/init_fail2
 /large_dir_read
 /large_mmap
 /madvise
@@ -52,6 +58,7 @@
 /mprotect_file_fork
 /mprotect_prot_growsdown
 /multi_pthread
+/multi_pthread_exitless
 /openmp
 /pipe
 /pipe_nonblocking

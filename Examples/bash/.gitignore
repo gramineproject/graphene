@@ -1,2 +1,8 @@
-/scripts/testdir/*
+/bash
+/cat
+/cp
+/date
+/ls
 /OUTPUT
+/rm
+/scripts/testdir/*

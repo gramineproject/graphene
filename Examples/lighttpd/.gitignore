@@ -1,8 +1,9 @@
-/result-*
-/OUTPUT
-/install/
-/lighttpd.conf
-/lighttpd-*/
-/*.conf
 !/lighttpd-generic.conf
+/*.conf
 /*.tar.gz
+/install/
+/lighttpd
+/lighttpd-*/
+/lighttpd.conf
+/OUTPUT
+/result-*

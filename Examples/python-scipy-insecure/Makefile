@@ -23,7 +23,7 @@ GRAPHENEDEBUG = none
 endif
 
 .PHONY: all
-all: python.manifest pal_loader
+all: python.manifest pal_loader | python
 ifeq ($(SGX),1)
 all: python.manifest.sgx python.token python.sig
 endif
@@ -91,18 +91,21 @@ python.manifest: python.manifest.template python-trusted-libs
 #   Generating the SGX-specific manifest (python.manifest.sgx), the enclave signature,
 #   and the token for enclave initialization.
 
-python.manifest.sgx: python.manifest
+python.manifest.sgx: python.manifest | python
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec python \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+		-manifest python.manifest -output $@
 
 python.sig: python.manifest.sgx
 
 python.token: python.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
-# Extra executables
+python:
+	ln -s $(PYTHONEXEC) $@
+
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
@@ -120,7 +123,7 @@ check: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT*
+	$(RM) *.manifest *.manifest.sgx *.token *.sig python pal_loader OUTPUT*
 	$(RM) -r scripts/__pycache__
 
 .PHONY: distclean

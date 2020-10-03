@@ -1,3 +1,4 @@
 *.bmp
-/openvino/
 /model/
+/object_detection_sample_ssd
+/openvino/

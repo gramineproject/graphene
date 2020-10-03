@@ -21,7 +21,7 @@ GRAPHENEDEBUG = none
 endif
 
 .PHONY: all
-all: bash.manifest $(addsuffix .manifest,$(PROGRAMS)) pal_loader
+all: bash.manifest $(addsuffix .manifest,$(PROGRAMS)) | bash $(PROGRAMS) pal_loader
 ifeq ($(SGX),1)
 all: bash.token $(addsuffix .token,$(PROGRAMS))
 endif
@@ -68,7 +68,6 @@ bash.manifest: manifest.template trusted-children bash.trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(ARGV0_OVERRIDE)|bash|g' \
-		-e 's|$$(EXECPATH)|'"$(shell which bash)"'|g' \
 		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which bash))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat bash.trusted-libs`"'|g' \
 		-e 's|$$(TRUSTED_CHILDREN)|'"`cat trusted-children`"'|g' \
@@ -79,7 +78,6 @@ $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(ARGV0_OVERRIDE)|'"$(basename $@)"'|g' \
-		-e 's|$$(EXECPATH)|'"$(shell which $(basename $@))"'|g' \
 		-e 's|$$(EXECDIR)|'"$(shell dirname $(shell which $(basename $@)))"'|g' \
 		-e 's|$$(TRUSTED_LIBS)|'"`cat $(basename $@).trusted-libs`"'|g' \
 		-e 's|$$(TRUSTED_CHILDREN)||g' \
@@ -88,11 +86,12 @@ $(addsuffix .manifest,$(PROGRAMS)): %.manifest: manifest.template %.trusted-libs
 
 # Generating the SGX-specific manifest (*.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
-bash.manifest.sgx: bash.manifest $(addsuffix .manifest.sgx,$(PROGRAMS))
+bash.manifest.sgx: bash.manifest $(addsuffix .manifest.sgx,$(PROGRAMS)) | bash
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec bash \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+		-manifest bash.manifest -output $@
 
 bash.sig: bash.manifest.sgx
 
@@ -100,11 +99,13 @@ bash.token: bash.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output bash.token -sig bash.sig
 
-$(addsuffix .manifest.sgx,$(PROGRAMS)): %.manifest.sgx: %.manifest
+$(addsuffix .manifest.sgx,$(PROGRAMS)): %.manifest.sgx: % %.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec $* \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+		-manifest $*.manifest \
+		-output $@
 
 $(addsuffix .sig,$(PROGRAMS)): %.sig: %.manifest.sgx
 
@@ -112,7 +113,9 @@ $(addsuffix .token,$(PROGRAMS)): %.token: %.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output $(basename $<).token -sig $(basename $<).sig
 
-# Extra executables
+bash $(PROGRAMS):
+	ln -s "$(shell which $@)" $@
+
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
@@ -140,7 +143,8 @@ regression: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT scripts/testdir/*
+	$(RM) *.manifest *.manifest.sgx *.token *.sig bash $(PROGRAMS) pal_loader OUTPUT \
+	      scripts/testdir/*
 
 .PHONY: distclean
 distclean: clean

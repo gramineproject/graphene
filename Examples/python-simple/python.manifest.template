@@ -2,15 +2,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04/18.04 and tested with
 # Python 3.5 and 3.6.
-#
-# Python must be run with the pal_loader:
-#
-# ./pal_loader python.manifest <script>
-
-# The executable to load in Graphene. By default, PYTHONHOME points to the
-# system installation. To run Python from a local installation, specify PYTHONHOME
-# when running `make` in this directory.
-loader.exec = file:$(PYTHONEXEC)
 
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).

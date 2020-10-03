@@ -1,15 +1,6 @@
 # R manifest example
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
-#
-# R must be run with the pal_loader:
-#
-# ./pal_loader R.manifest <script>
-
-# The executable to load in Graphene. By default, $(R_HOME) points to the R
-# system installation. To run R from a local installation, specify R_HOME
-# when running `make` in this directory.
-loader.exec = file:$(R_EXEC)
 
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).

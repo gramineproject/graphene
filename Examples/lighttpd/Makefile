@@ -30,7 +30,7 @@ AWK  = awk
 CONF_FILES = lighttpd-server.conf lighttpd.conf
 
 .PHONY: all
-all: $(INSTALL_DIR)/sbin/lighttpd lighttpd.manifest pal_loader $(CONF_FILES) testdata
+all: $(INSTALL_DIR)/sbin/lighttpd lighttpd.manifest $(CONF_FILES) testdata | lighttpd pal_loader
 ifeq ($(SGX),1)
 all: lighttpd.token
 endif
@@ -106,18 +106,21 @@ lighttpd.manifest: lighttpd.manifest.template lighttpd-trusted-libs lighttpd-tru
 
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
 # for enclave initialization.
-lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd
+lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd | lighttpd
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec lighttpd \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+		-manifest lighttpd.manifest -output $@
 
 lighttpd.sig: lighttpd.manifest.sgx
 
 lighttpd.token: lighttpd.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
 
-# Extra executables
+lighttpd: $(INSTALL_DIR)/sbin/lighttpd
+	ln -s $< $@
+
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
@@ -165,7 +168,8 @@ start-graphene-server: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT result-* $(CONF_FILES) pal_loader
+	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT result-* $(CONF_FILES) \
+	      lighttpd pal_loader
 
 .PHONY: distclean
 distclean: clean

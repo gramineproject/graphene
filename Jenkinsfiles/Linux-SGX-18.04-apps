@@ -86,13 +86,14 @@ pipeline {
                                 make SGX=1 check
                            '''
                         }
-                        timeout(time: 10, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/gcc
-                                make -j8 SGX=1 all
-                                make SGX=1 check
-                           '''
-                        }
+                        // Disabled until we fix Graphene loader
+                        // timeout(time: 10, unit: 'MINUTES') {
+                        //     sh '''
+                        //         cd Examples/gcc
+                        //         make -j8 SGX=1 all
+                        //         make SGX=1 check
+                        //    '''
+                        // }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/memcached
@@ -149,13 +150,14 @@ pipeline {
                                 make SGX=1 check
                            '''
                         }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/r
-                                make -j8 SGX=1
-                                make SGX=1 check
-                            '''
-                        }
+                        // Disabled until we fix Graphene loader (uses execve('/bin/sh'))
+                        // timeout(time: 5, unit: 'MINUTES') {
+                        //     sh '''
+                        //         cd Examples/r
+                        //         make -j8 SGX=1
+                        //         make SGX=1 check
+                        //     '''
+                        // }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/ra-tls-mbedtls
@@ -203,14 +205,14 @@ pipeline {
                            make -C Examples/python-scipy-insecure SGX=1 clean
                            make -C Examples/bash SGX=1 clean
                            make -C Examples/curl SGX=1 clean
-                           make -C Examples/gcc SGX=1 distclean
+                           #make -C Examples/gcc SGX=1 distclean
                            make -C Examples/memcached SGX=1 distclean
                            make -C Examples/redis SGX=1 distclean
                            make -C Examples/lighttpd SGX=1 distclean
                            make -C Examples/nginx SGX=1 distclean
                            make -C Examples/apache SGX=1 distclean
                            make -C Examples/blender SGX=1 distclean
-                           make -C Examples/r SGX=1 distclean
+                           #make -C Examples/r SGX=1 distclean
                            make -C Examples/ra-tls-mbedtls SGX=1 distclean
                            make -C Examples/ra-tls-secret-prov SGX=1 distclean
 

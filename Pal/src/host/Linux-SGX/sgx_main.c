@@ -1,3 +1,10 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2014 Stony Brook University
+ * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020 Invisible Things Lab
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
+ */
+
 /* FIXME: Sorting+re-grouping includes here causes tons of
  * "../../../include/sysdeps/generic/ldsodefs.h:30:32: error: unknown type name ‘Elf__ELF_NATIVE_CLASS_Addr’
  *   #define ElfW(type)       _ElfW(Elf, __ELF_NATIVE_CLASS, type)"
@@ -34,23 +41,6 @@ char* g_pal_loader_path = NULL;
 char* g_libpal_path = NULL;
 
 struct pal_enclave g_pal_enclave;
-
-static char* resolve_uri(const char* uri, const char** errstring) {
-    if (!strstartswith(uri, URI_PREFIX_FILE)) {
-        *errstring = "Invalid URI";
-        return NULL;
-    }
-
-    char path_buf[URI_MAX];
-    size_t len = URI_MAX;
-    int ret = get_norm_path(uri + 5, path_buf, &len);
-    if (ret < 0) {
-        *errstring = "Invalid URI";
-        return NULL;
-    }
-
-    return alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, path_buf, len);
-}
 
 static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
                                unsigned long* entry) {
@@ -728,11 +718,15 @@ static int get_cpu_count(void) {
     return cpu_count;
 }
 
-static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_uri,
-                        char* exec_uri, char* args, size_t args_size, char* env, size_t env_size,
+/* Warning: This function does not free up resources on failure - it assumes that the whole process
+ * exits after this function's failure. */
+static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_path,
+                        char* exec_path, char* args, size_t args_size, char* env, size_t env_size,
                         bool exec_uri_inferred, bool need_gsgx) {
     struct pal_sec* pal_sec = &enclave->pal_sec;
+    char cfgbuf[CONFIG_MAX];
     int ret;
+    size_t exec_path_len = strlen(exec_path);
 
 #if PRINT_ENCLAVE_STAT == 1
     struct timeval tv;
@@ -779,7 +773,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 
     ret = load_manifest(enclave->manifest, &enclave->config);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Invalid manifest: %s\n", manifest_uri);
+        SGX_DBG(DBG_E, "Invalid manifest: %s\n", manifest_path);
         return -EINVAL;
     }
 
@@ -794,23 +788,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return -EINVAL;
     }
 
-    char cfgbuf[CONFIG_MAX];
-    const char* errstring = "out of memory";
-
-    // A manifest can specify an executable with a different base name
-    // than the manifest itself.  Always give the exec field of the manifest
-    // precedence if specified.
-    if (get_config(enclave->config, "loader.exec", cfgbuf, sizeof(cfgbuf)) > 0) {
-        exec_uri = resolve_uri(cfgbuf, &errstring);
-        exec_uri_inferred = false;
-        if (!exec_uri) {
-            SGX_DBG(DBG_E, "%s: %s\n", errstring, cfgbuf);
-            return -EINVAL;
-        }
-    }
-
-    enclave->exec = INLINE_SYSCALL(open, 3, exec_uri + URI_PREFIX_FILE_LEN,
-                                   O_RDONLY|O_CLOEXEC, 0);
+    enclave->exec = INLINE_SYSCALL(open, 3, exec_path, O_RDONLY | O_CLOEXEC, 0);
     if (IS_ERR(enclave->exec)) {
         if (exec_uri_inferred) {
             // It is valid for an enclave not to have an executable.
@@ -819,64 +797,43 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
             // the enclave go a bit further.  Go ahead and warn the user,
             // though.
             SGX_DBG(DBG_I,
-                    "Inferred executable cannot be opened: %s.  This may be ok, "
-                    "or may represent a manifest misconfiguration. This typically "
-                    "represents advanced usage, and if it is not what you intended, "
-                    "try setting the loader.exec field in the manifest.\n",
-                    exec_uri);
+                    "Inferred executable cannot be opened: %s. This may be ok, or may represent a "
+                    "manifest misconfiguration. This typically represents advanced usage.\n",
+                    exec_path);
             enclave->exec = -1;
         } else {
-            SGX_DBG(DBG_E, "Cannot open executable %s\n", exec_uri);
+            SGX_DBG(DBG_E, "Cannot open executable %s\n", exec_path);
             return -EINVAL;
         }
     }
 
-    if (get_config(enclave->config, "sgx.sigfile", cfgbuf, sizeof(cfgbuf)) < 0) {
-        SGX_DBG(DBG_E, "Sigstruct file not found ('sgx.sigfile' must be specified in manifest)\n");
-        return -EINVAL;
-    }
-
-    char* sig_uri = resolve_uri(cfgbuf, &errstring);
-    if (!sig_uri) {
-        SGX_DBG(DBG_E, "%s: %s\n", errstring, cfgbuf);
-        return -EINVAL;
-    }
-
-    if (!strendswith(sig_uri, ".sig")) {
-        SGX_DBG(DBG_E, "Invalid sigstruct file URI as %s\n", cfgbuf);
-        free(sig_uri);
-        return -EINVAL;
-    }
-
-    enclave->sigfile = INLINE_SYSCALL(open, 3, sig_uri + URI_PREFIX_FILE_LEN,
-                                      O_RDONLY|O_CLOEXEC, 0);
-    if (IS_ERR(enclave->sigfile)) {
-        SGX_DBG(DBG_E, "Cannot open sigstruct file %s\n", sig_uri);
-        free(sig_uri);
-        return -EINVAL;
-    }
-
-    char* token_uri = alloc_concat(sig_uri, strlen(sig_uri) - static_strlen(".sig"), ".token", -1);
-    free(sig_uri);
-    if (!token_uri) {
-        INLINE_SYSCALL(close, 1, enclave->sigfile);
+    char* sig_path = alloc_concat(exec_path, exec_path_len, ".sig", -1);
+    if (!sig_path) {
         return -ENOMEM;
     }
 
-    enclave->token = INLINE_SYSCALL(open, 3, token_uri + URI_PREFIX_FILE_LEN, O_RDONLY | O_CLOEXEC,
-                                    0);
-    if (IS_ERR(enclave->token)) {
-        SGX_DBG(DBG_E,
-                "Cannot open token \'%s\'. Use \'"
-                "Pal/src/host/Linux-SGX/signer/pal-sgx-get-token"
-                "\' on the runtime host or run \'make SGX=1 sgx-tokens\' in the Graphene source to "
-                "create the token file.\n",
-                token_uri);
-        free(token_uri);
+    enclave->sigfile = INLINE_SYSCALL(open, 3, sig_path, O_RDONLY | O_CLOEXEC, 0);
+    if (IS_ERR(enclave->sigfile)) {
+        SGX_DBG(DBG_E, "Cannot open sigstruct file %s\n", sig_path);
         return -EINVAL;
     }
-    SGX_DBG(DBG_I, "Token file: %s\n", token_uri);
-    free(token_uri);
+    free(sig_path);
+
+    char* token_path = alloc_concat(exec_path, exec_path_len, ".token", -1);
+    if (!token_path) {
+        return -ENOMEM;
+    }
+
+    enclave->token = INLINE_SYSCALL(open, 3, token_path, O_RDONLY | O_CLOEXEC, 0);
+    if (IS_ERR(enclave->token)) {
+        SGX_DBG(DBG_E,
+                "Cannot open token %s. Use pal-sgx-get-token on the runtime host or run "
+                "`make SGX=1 sgx-tokens` in the Graphene source to create the token file.\n",
+                token_path);
+        return -EINVAL;
+    }
+    SGX_DBG(DBG_I, "Token file: %s\n", token_path);
+    free(token_path);
 
     ret = initialize_enclave(enclave);
     if (ret < 0)
@@ -885,12 +842,21 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     if (!pal_sec->instance_id)
         create_instance(&enclave->pal_sec);
 
-    memcpy(pal_sec->manifest_name, manifest_uri, strlen(manifest_uri) + 1);
+    size_t manifest_path_size = strlen(manifest_path) + 1;
+    if (URI_PREFIX_FILE_LEN + manifest_path_size > ARRAY_SIZE(pal_sec->manifest_name)) {
+        return -E2BIG;
+    }
+    memcpy(pal_sec->manifest_name, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
+    memcpy(pal_sec->manifest_name + URI_PREFIX_FILE_LEN, manifest_path, manifest_path_size);
 
     if (enclave->exec == -1) {
         memset(pal_sec->exec_name, 0, sizeof(PAL_SEC_STR));
     } else {
-        memcpy(pal_sec->exec_name, exec_uri, strlen(exec_uri) + 1);
+        if (sizeof(pal_sec->exec_name) < URI_PREFIX_FILE_LEN + exec_path_len + 1) {
+            return -E2BIG;
+        }
+        memcpy(pal_sec->exec_name, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
+        memcpy(pal_sec->exec_name + URI_PREFIX_FILE_LEN, exec_path, exec_path_len + 1);
     }
 
     ret = sgx_signal_setup();
@@ -954,9 +920,10 @@ static void __attribute__((noinline)) force_linux_to_grow_stack(void) {
 }
 
 int main(int argc, char* argv[], char* envp[]) {
-    char* manifest_uri = NULL;
-    char* exec_uri = NULL;
-    int fd = -1;
+    char* manifest_path = NULL;
+    char* exec_path = NULL;
+    int exec_fd = -1;
+    int manifest_fd = -1;
     int ret = 0;
     bool exec_uri_inferred = false; // Handle the case where the exec uri is inferred from
                                     // the manifest name somewhat differently
@@ -990,9 +957,66 @@ int main(int argc, char* argv[], char* envp[]) {
         goto usage;
     }
 
+    // TODO: The whole manifest resolution logic is a mess and needs to be redesigned.
     if (first_process) {
-        /* We're the first process created. */
-        exec_uri = alloc_concat(URI_PREFIX_FILE, -1, argv[3], -1);
+        /* The initial Graphene process is special - it was started by the user, so `exec_path` may
+         * either contain a path to the executable or to a manifest. */
+
+        exec_path = strdup(argv[3]);
+        if (!exec_path) {
+            ret = -ENOMEM;
+            goto out;
+        }
+
+        exec_fd = INLINE_SYSCALL(open, 3, exec_path, O_RDONLY | O_CLOEXEC, 0);
+        if (IS_ERR(exec_fd)) {
+            SGX_DBG(DBG_E, "Input file not found: %s\n", exec_path);
+            goto usage;
+        }
+
+        char file_first_four_bytes[4];
+        ret = INLINE_SYSCALL(read, 3, exec_fd, file_first_four_bytes, sizeof(file_first_four_bytes));
+        if (IS_ERR(ret)) {
+            goto out;
+        }
+        if (ret != sizeof(file_first_four_bytes)) {
+            ret = -EINVAL;
+            goto out;
+        }
+
+        if (strendswith(exec_path, ".manifest.sgx")) {
+            manifest_path = strdup(exec_path);
+        } else if (strendswith(exec_path, ".manifest")) {
+            manifest_path = alloc_concat(exec_path, -1, ".sgx", -1);
+        } else {
+            manifest_path = alloc_concat(exec_path, -1, ".manifest.sgx", -1);
+        }
+        if (!manifest_path) {
+            ret = -ENOMEM;
+            goto out;
+        }
+
+        if (memcmp(file_first_four_bytes, "\177ELF", sizeof(file_first_four_bytes))) {
+            /* exec_path doesn't refer to ELF executable, so it must refer to the
+             * manifest. Verify this and update exec_path with the manifest suffix
+             * removed.
+             */
+
+            if (strendswith(exec_path, ".manifest")) {
+                exec_path[strlen(exec_path) - static_strlen(".manifest")] = '\0';
+            } else if (strendswith(exec_path, ".manifest.sgx")) {
+                INLINE_SYSCALL(lseek, 3, exec_fd, 0, SEEK_SET);
+                manifest_fd = exec_fd;
+                exec_fd = -1;
+
+                exec_path[strlen(exec_path) - static_strlen(".manifest.sgx")] = '\0';
+            } else {
+                SGX_DBG(DBG_E, "Invalid manifest file specified: %s\n", exec_path);
+                goto usage;
+            }
+
+            exec_uri_inferred = true;
+        }
     } else {
         /* We're one of the children spawned to host new processes started inside Graphene.
          * We'll receive our argv and config via IPC. */
@@ -1000,96 +1024,33 @@ int main(int argc, char* argv[], char* envp[]) {
         ret = sgx_init_child_process(parent_pipe_fd, &g_pal_enclave.pal_sec);
         if (ret < 0)
             goto out;
-        exec_uri = alloc_concat(g_pal_enclave.pal_sec.exec_name, -1, NULL, -1);
-    }
-
-    if (!exec_uri) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    fd = INLINE_SYSCALL(open, 3, exec_uri + URI_PREFIX_FILE_LEN, O_RDONLY | O_CLOEXEC, 0);
-    if (IS_ERR(fd)) {
-        SGX_DBG(DBG_E, "Input file not found: %s\n", exec_uri);
-        goto usage;
-    }
-
-    char file_first_four_bytes[4];
-    ret = INLINE_SYSCALL(read, 3, fd, file_first_four_bytes, sizeof(file_first_four_bytes));
-    if (IS_ERR(ret)) {
-        goto out;
-    }
-    if (ret != sizeof(file_first_four_bytes)) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    char manifest_base_name[URI_MAX];
-    size_t manifest_base_name_len = sizeof(manifest_base_name);
-    ret = get_base_name(exec_uri + URI_PREFIX_FILE_LEN, manifest_base_name,
-                        &manifest_base_name_len);
-    if (ret < 0) {
-        goto out;
-    }
-
-    if (strendswith(manifest_base_name, ".manifest")) {
-        if (!strcpy_static(manifest_base_name + manifest_base_name_len, ".sgx",
-                           sizeof(manifest_base_name) - manifest_base_name_len)) {
-            ret = -E2BIG;
+        exec_path = strdup(g_pal_enclave.pal_sec.exec_name + URI_PREFIX_FILE_LEN);
+        if (!exec_path) {
+            ret = -ENOMEM;
             goto out;
         }
-    } else if (!strendswith(manifest_base_name, ".manifest.sgx")) {
-        if (!strcpy_static(manifest_base_name + manifest_base_name_len, ".manifest.sgx",
-                           sizeof(manifest_base_name) - manifest_base_name_len)) {
-            ret = -E2BIG;
+        SGX_DBG(DBG_E, "exec_path: %s\n", exec_path); //tmp!
+        manifest_path = alloc_concat(exec_path, -1, ".manifest.sgx", -1);
+        if (!manifest_path) {
+            ret = -ENOMEM;
             goto out;
         }
-    }
-
-    int manifest_fd = -1;
-
-    if (memcmp(file_first_four_bytes, "\177ELF", sizeof(file_first_four_bytes))) {
-        /* exec_uri doesn't refer to ELF executable, so it must refer to the
-         * manifest. Verify this and update exec_uri with the manifest suffix
-         * removed.
-         */
-
-        size_t exec_uri_len = strlen(exec_uri);
-        if (strendswith(exec_uri, ".manifest")) {
-            exec_uri[exec_uri_len - static_strlen(".manifest")] = '\0';
-        } else if (strendswith(exec_uri, ".manifest.sgx")) {
-            INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
-            manifest_fd = fd;
-
-            exec_uri[exec_uri_len - static_strlen(".manifest.sgx")] = '\0';
-        } else {
-            SGX_DBG(DBG_E, "Invalid manifest file specified: %s\n", exec_uri);
-            goto usage;
-        }
-
-        exec_uri_inferred = true;
+        SGX_DBG(DBG_E, "manifest_path: %s\n", manifest_path); //tmp!
     }
 
     if (manifest_fd == -1) {
-        INLINE_SYSCALL(close, 1, fd);
-        fd = manifest_fd = INLINE_SYSCALL(open, 3, manifest_base_name, O_RDONLY | O_CLOEXEC, 0);
-        if (IS_ERR(fd)) {
-            SGX_DBG(DBG_E, "Cannot open manifest file: %s\n", manifest_base_name);
+        manifest_fd = INLINE_SYSCALL(open, 3, manifest_path, O_RDONLY | O_CLOEXEC, 0);
+        if (IS_ERR(manifest_fd)) {
+            SGX_DBG(DBG_E, "Cannot open manifest file: %s\n", manifest_path);
             goto usage;
         }
     }
 
-    manifest_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, manifest_base_name, -1);
-    if (!manifest_uri) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    SGX_DBG(DBG_I, "Manifest file: %s\n", manifest_uri);
+    SGX_DBG(DBG_I, "Manifest file: %s\n", manifest_path);
     if (exec_uri_inferred)
-        SGX_DBG(DBG_I, "Inferred executable file: %s\n", exec_uri);
+        SGX_DBG(DBG_I, "Inferred executable file: %s\n", exec_path);
     else
-        SGX_DBG(DBG_I, "Executable file: %s\n", exec_uri);
+        SGX_DBG(DBG_I, "Executable file: %s\n", exec_path);
 
     /*
      * While C does not guarantee that the argv[i] and envp[i] strings are
@@ -1106,15 +1067,18 @@ int main(int argc, char* argv[], char* envp[]) {
         args_size = argc > 4 ? (argv[argc - 1] - args) + strlen(argv[argc - 1]) + 1 : 0;
     }
 
-    int envc = 0;
+    size_t envc = 0;
     while (envp[envc] != NULL) {
         envc++;
     }
     char* env = envp[0];
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1 : 0;
 
-    ret = load_enclave(&g_pal_enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env,
+    ret = load_enclave(&g_pal_enclave, manifest_fd, manifest_path, exec_path, args, args_size, env,
                        env_size, exec_uri_inferred, need_gsgx);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "load_enclave() failed with error %d\n", ret);
+    }
 
 out:
     if (g_pal_enclave.exec >= 0)
@@ -1123,10 +1087,12 @@ out:
         INLINE_SYSCALL(close, 1, g_pal_enclave.sigfile);
     if (g_pal_enclave.token >= 0)
         INLINE_SYSCALL(close, 1, g_pal_enclave.token);
-    if (!IS_ERR(fd))
-        INLINE_SYSCALL(close, 1, fd);
-    free(exec_uri);
-    free(manifest_uri);
+    if (!IS_ERR(exec_fd))
+        INLINE_SYSCALL(close, 1, exec_fd);
+    if (!IS_ERR(manifest_fd))
+        INLINE_SYSCALL(close, 1, manifest_fd);
+    free(exec_path);
+    free(manifest_path);
 
     return ret;
 

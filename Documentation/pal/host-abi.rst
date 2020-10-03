@@ -28,32 +28,27 @@ is described in :doc:`../manifest-syntax`.
 Manifest and executable loading
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The PAL loader supports multiple ways of locating the manifest and executable. To run a program
-in Graphene properly, the PAL loader generally requires both a manifest and an executable,
-although it is possible to load with only one of them. The user shall specify either the manifest
-or the executable to load in the command line, and the PAL loader will try to locate the other
-based on the file name or content.
+The PAL loader supports multiple ways of locating the manifest and executable.
+To run a program in Graphene properly, the PAL loader generally requires both a
+manifest and an executable, although it is possible to load with only one of
+them. The user shall specify either the manifest or the executable to load in
+the command line, and the PAL loader will try to locate the other based on the
+file name or content.
 
 Precisely, the loading rules for the manifest and executable are as follows:
 
-#. The first argument given to the PAL loader (e.g., `pal-Linux`,
-   `pal-Linux-SGX`, or the cross-platform wrapper, `pal-loader`) can be either
-   a manifest file or an executable.
+#. The first argument given to :program:`pal_loader` can be either a manifest
+   file or an executable.
 #. If an executable is given to the command line, the loader will search for the
    manifest in the following order: the same file name as the executable with
    a `.manifest` or `.manifest.sgx` extension, a `manifest` file without any
    extension, or no manifest at all.
-#. If a manifest is given to the command line, and the manifest contains
-   a `loader.exec` rule, then the rule is used to determine the executable. The
-   loader should exit if the executable file doesn't exist.
-#. If a manifest is given to the command line, and the manifest does *not*
-   contain a `loader.exec rule`, then the manifest *may* be used to infer the
-   executable. The potential executable file has the same file name as the
-   manifest file except it doesn't have the `.manifest` or `.manifest.sgx`
-   extension.
+#. If a manifest is given to the command line, then the manifest will be used
+   to infer the executable. The potential executable file has the same file name
+   as the manifest file except it doesn't have the `.manifest` or
+   `.manifest.sgx` extension.
 #. If a manifest is given to the command line, and no executable file can be
-   found either based on any `loader.exec` rule or inferring from the manifest
-   file, then no executable is used for the execution.
+   found, then no executable is used for the execution.
 
 
 Data types and variables

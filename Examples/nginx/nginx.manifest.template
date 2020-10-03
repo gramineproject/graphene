@@ -1,13 +1,7 @@
 # Nginx manifest example
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
-#
-# Nginx must be run with the pal_loader:
-#
-# ./pal_loader nginx.manifest -c conf/nginx-graphene.conf
 
-# The executable to load in Graphene.
-loader.exec = file:$(INSTALL_DIR)/sbin/nginx
 loader.argv0_override = nginx
 
 # Graphene environment, including the path to the library OS and the debug

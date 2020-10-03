@@ -1,7 +1,5 @@
 loader.preload = file:/graphene/Runtime/libsysdb.so
 
-# Get path of binary
-loader.exec = file:{{"{{binary_path}}"}}
 {% if insecure_args %}
 loader.arg0_override = {{binary}}
 {% endif %}

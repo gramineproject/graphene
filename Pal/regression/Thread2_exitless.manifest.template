@@ -1,4 +1,3 @@
-loader.exec = file:Thread2
 loader.argv0_override = Thread2
 
 sgx.thread_num = 2

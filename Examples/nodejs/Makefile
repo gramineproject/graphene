@@ -21,7 +21,7 @@ GRAPHENEDEBUG = none
 endif
 
 .PHONY: all
-all: nodejs.manifest pal_loader
+all: nodejs.manifest | nodejs pal_loader
 ifeq ($(SGX),1)
 all: nodejs.token
 endif
@@ -63,6 +63,7 @@ nodejs.manifest: nodejs.manifest.template nodejs-trusted-libs
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
 nodejs.manifest.sgx: nodejs.manifest helloworld.js
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec nodejs \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
 		-manifest $< -output $@
@@ -72,7 +73,9 @@ nodejs.sig: nodejs.manifest.sgx
 nodejs.token: nodejs.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
-# Extra executables
+nodejs:
+	ln -s $(NODEJS_DIR)nodejs $@
+
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
@@ -84,7 +87,7 @@ check: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT
+	$(RM) *.manifest *.manifest.sgx *.token *.sig nodejs pal_loader OUTPUT
 
 .PHONY: distclean
 distclean: clean

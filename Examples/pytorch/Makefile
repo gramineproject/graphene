@@ -31,14 +31,14 @@ endif
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
 .PHONY: all
-all: pytorch.manifest python3.manifest pal_loader
+all: python3.manifest python3_child.manifest | python3 python3_child pal_loader
 ifeq ($(SGX),1)
-all: pytorch.token python3.token
+all: python3.token python3_child.token
 endif
 
 include ../../Scripts/Makefile.configs
 
-pytorch.sig: python3.sig
+python3.sig: python3_child.sig
 
 # .manifest.template contains stanzas for both Ubuntu 16 and 18. The last rule selectively enables
 # those lines based on the Ubuntu version detected.
@@ -50,26 +50,33 @@ pytorch.sig: python3.sig
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-pytorch.sig: pytorch.manifest
+python3.sig: python3.manifest | python3
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec python3 \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-output pytorch.manifest.sgx -exec $(PYTHON3) -manifest $<
+		-output python3.manifest.sgx \
+		-manifest python3.manifest
 
 %.token: %.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
-# The PyTorch workload forks/execve()s at some point. This rule generates the required additional
-# manifest for the child process.
-python3.manifest: pytorch.manifest
+# The PyTorch workload forks/execve()s at some point. Having two manifests is a workaround until
+# Graphene fixes its loader.
+python3_child.manifest: python3.manifest
 	cp $< $@
 	sed -i '/trusted_children/d' $@
 
-python3.sig: python3.manifest
+python3_child.sig: python3_child python3_child.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec python3 \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-output python3.manifest.sgx -exec $(PYTHON3) -manifest $<
+		-output python3_child.manifest.sgx \
+		-manifest python3_child.manifest
+
+python3 python3_child:
+	ln -s $(PYTHON3) $@
 
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
@@ -80,7 +87,7 @@ download_model:
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader
+	$(RM) *.token *.sig *.manifest.sgx *.manifest python3 python3_child pal_loader
 
 .PHONY: distclean
 distclean: clean
