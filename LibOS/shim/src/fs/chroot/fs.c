@@ -42,11 +42,11 @@ struct mount_data {
 static int chroot_mount(const char* uri, void** mount_data) {
     enum shim_file_type type;
 
-    if (strstartswith_static(uri, URI_PREFIX_FILE)) {
+    if (strstartswith(uri, URI_PREFIX_FILE)) {
         type = FILE_UNKNOWN;
         uri += 5;
-    } else if (strstartswith_static(uri, URI_PREFIX_DEV)) {
-        type = strstartswith_static(uri + static_strlen(URI_PREFIX_DEV), "tty")
+    } else if (strstartswith(uri, URI_PREFIX_DEV)) {
+        type = strstartswith(uri + static_strlen(URI_PREFIX_DEV), "tty")
                ? FILE_TTY
                : FILE_DEV;
         uri += 4;
@@ -808,7 +808,7 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
     chroot_update_ino(dent);
 
     const char* uri = qstrgetstr(&data->host_uri);
-    assert(strstartswith_static(uri, URI_PREFIX_DIR));
+    assert(strstartswith(uri, URI_PREFIX_DIR));
 
     pal_hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!pal_hdl)

@@ -305,7 +305,6 @@ void init_slab_mgr(int alignment);
 void* malloc(size_t size);
 void* malloc_copy(const void* mem, size_t size);
 void* calloc(size_t nmem, size_t size);
-char* strdup(const char* source);
 void free(void* mem);
 
 #ifdef __GNUC__

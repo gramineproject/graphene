@@ -294,7 +294,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
     }
 
     /* Normalize the uri */
-    if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
+    if (!strstartswith(uri, URI_PREFIX_FILE)) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
@@ -701,41 +701,48 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 }
 
 static int init_trusted_file(const char* key, const char* uri) {
-    char cskey[URI_MAX];
-    char* tmp;
+    char* cskey;
     char checksum[URI_MAX];
-    char normpath[URI_MAX];
+    char normpath[URI_MAX] = URI_PREFIX_FILE;
+    int ret;
 
-    tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
-    memcpy(tmp, key, strlen(key) + 1);
+    cskey = alloc_concat("sgx.trusted_checksum.", -1, key, -1);
+    if (!cskey) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
 
-    ssize_t ret = get_config(g_pal_state.root_config, cskey, checksum, sizeof(checksum));
-    if (ret < 0)
-        return 0;
+    ssize_t conf_ret = get_config(g_pal_state.root_config, cskey, checksum, sizeof(checksum));
+    if (conf_ret < 0) {
+        ret = 0;
+        goto out;
+    }
 
     /* Normalize the uri */
-    if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
+    if (!strstartswith(uri, URI_PREFIX_FILE)) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
-        return -PAL_ERROR_INVAL;
+        ret = -PAL_ERROR_INVAL;
+        goto out;
     }
-    static_assert(sizeof(normpath) > URI_PREFIX_FILE_LEN, "`normpath` is too small");
-    memcpy(normpath, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
-    size_t len = sizeof(normpath) - URI_PREFIX_FILE_LEN;
+    size_t len = sizeof(normpath) - strlen(normpath);
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
                 pal_strerror(ret));
-        return ret;
+        goto out;
     }
 
-    return register_trusted_file(normpath, checksum, /*check_duplicates=*/false);
+    ret = register_trusted_file(normpath, checksum, /*check_duplicates=*/false);
+out:
+    free(cskey);
+    return ret;
 }
 
 int init_trusted_files(void) {
     struct config_store* store = g_pal_state.root_config;
     char* cfgbuf = NULL;
     ssize_t cfgsize;
-    int nuris, ret;
+    int uris_cnt, ret;
     char key[CONFIG_MAX];
     char uri[CONFIG_MAX];
     char* k;
@@ -787,15 +794,15 @@ int init_trusted_files(void) {
         goto out;
     }
 
-    nuris = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
-    if (nuris <= 0)
+    uris_cnt = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
+    if (uris_cnt <= 0)
         goto no_trusted;
 
     tmp = strcpy_static(key, "sgx.trusted_files.", sizeof(key));
 
     k = cfgbuf;
 
-    for (int i = 0; i < nuris; i++) {
+    for (int i = 0; i < uris_cnt; i++) {
         len = strlen(k);
         memcpy(tmp, k, len + 1);
         k += len + 1;
@@ -820,15 +827,15 @@ no_trusted:
         goto out;
     }
 
-    nuris = get_config_entries(store, "sgx.allowed_files", cfgbuf, cfgsize);
-    if (nuris <= 0)
+    uris_cnt = get_config_entries(store, "sgx.allowed_files", cfgbuf, cfgsize);
+    if (uris_cnt <= 0)
         goto no_allowed;
 
     tmp = strcpy_static(key, "sgx.allowed_files.", sizeof(key));
 
     k = cfgbuf;
 
-    for (int i = 0; i < nuris; i++) {
+    for (int i = 0; i < uris_cnt; i++) {
         len = strlen(k);
         memcpy(tmp, k, len + 1);
         k += len + 1;
@@ -840,7 +847,7 @@ no_trusted:
         /* Normalize the uri */
         char norm_path[URI_MAX];
 
-        if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
+        if (!strstartswith(uri, URI_PREFIX_FILE)) {
             SGX_DBG(DBG_E, "Invalid URI [%s]: Allowed files must start with 'file:'\n", uri);
             ret = -PAL_ERROR_INVAL;
             goto out;
@@ -872,8 +879,10 @@ out:
 int init_trusted_children(void) {
     struct config_store* store = g_pal_state.root_config;
 
-    char key[CONFIG_MAX], mrkey[CONFIG_MAX];
-    char uri[CONFIG_MAX], mr_enclave[CONFIG_MAX];
+    char key[CONFIG_MAX];
+    char mrkey[CONFIG_MAX];
+    char uri[CONFIG_MAX];
+    char mr_enclave[CONFIG_MAX];
 
     char* tmp1 = strcpy_static(key, "sgx.trusted_children.", sizeof(key));
     char* tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", sizeof(mrkey));
@@ -886,11 +895,11 @@ int init_trusted_children(void) {
     if (!cfgbuf)
         return -PAL_ERROR_NOMEM;
 
-    int nuris = get_config_entries(store, "sgx.trusted_mrenclave", cfgbuf, cfgsize);
-    if (nuris > 0) {
+    int uris_cnt = get_config_entries(store, "sgx.trusted_mrenclave", cfgbuf, cfgsize);
+    if (uris_cnt > 0) {
         char* k = cfgbuf;
-        for (int i = 0; i < nuris; i++) {
-            int len = strlen(k);
+        for (int i = 0; i < uris_cnt; i++) {
+            size_t len = strlen(k);
             memcpy(tmp1, k, len + 1);
             memcpy(tmp2, k, len + 1);
             k += len + 1;
@@ -914,9 +923,9 @@ int init_file_check_policy(void) {
                              cfgbuf, sizeof(cfgbuf));
 
     if (ret > 0) {
-        if (!strcmp_static(cfgbuf, "strict"))
+        if (!strcmp(cfgbuf, "strict"))
             set_file_check_policy(FILE_CHECK_POLICY_STRICT);
-        else if (!strcmp_static(cfgbuf, "allow_all_but_log"))
+        else if (!strcmp(cfgbuf, "allow_all_but_log"))
             set_file_check_policy(FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG);
         else
             INIT_FAIL(PAL_ERROR_INVAL, "unknown file check policy");

@@ -9,6 +9,7 @@
 #include <asm/unistd.h>
 #include <sys/mman.h>
 
+#include "api.h"
 #include "hex.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -310,7 +311,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
 
 static int read_environs(const char** envp) {
     for (const char** e = envp; *e; e++) {
-        if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {
+        if (strstartswith(*e, "LD_LIBRARY_PATH=")) {
             /* populate library_paths with entries from LD_LIBRARY_PATH envvar */
             const char* s = *e + static_strlen("LD_LIBRARY_PATH=");
             size_t npaths = 2; // One for the first entry, one for the last NULL.
@@ -326,16 +327,13 @@ static int read_environs(const char** envp) {
                 const char* next;
                 for (next = s; *next && *next != ':'; next++)
                     ;
-                size_t len = next - s;
-                char* str = malloc(len + 1);
+                char* str = alloc_substr(s, next - s);
                 if (!str) {
                     for (size_t i = 0; i < cnt; i++)
                         free(paths[i]);
                     free(paths);
                     return -ENOMEM;
                 }
-                memcpy(str, s, len);
-                str[len] = 0;
                 paths[cnt++] = str;
                 s = *next ? next + 1 : next;
             }
@@ -710,7 +708,7 @@ static int open_file(const char* path, void* obj) {
 static int open_pal_handle(const char* uri, void* obj) {
     PAL_HANDLE hdl;
 
-    if (strstartswith_static(uri, URI_PREFIX_DEV))
+    if (strstartswith(uri, URI_PREFIX_DEV))
         hdl = DkStreamOpen(uri, 0, PAL_SHARE_OWNER_X | PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
                            PAL_CREATE_TRY | PAL_CREATE_ALWAYS, 0);
     else

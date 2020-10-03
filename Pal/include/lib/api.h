@@ -142,22 +142,18 @@ void* memmove(void* dest, const void* src, size_t count);
 void* memset(void* dest, int ch, size_t count);
 int memcmp(const void* lhs, const void* rhs, size_t count);
 
-bool strendswith(const char* haystack, const char* needle);
+bool strstartswith(const char* str, const char* prefix);
+bool strendswith(const char* str, const char* suffix);
+char* strdup(const char* str);
+char* alloc_substr(const char* start, size_t len);
+char* alloc_concat(const char* a, size_t a_len, const char* b, size_t b_len);
+char* alloc_concat3(const char* a, size_t a_len, const char* b, size_t b_len,
+                    const char* c, size_t c_len);
 
 /* Libc memory allocation functions */
 void* malloc(size_t size);
 void free(void* ptr);
 void* calloc(size_t nmemb, size_t size);
-
-/* check if `var` is exactly the same as a static string */
-#define strcmp_static(var, str) \
-    (memcmp(var, str, MIN(strlen(var), static_strlen(str)) + 1))
-
-/* check if `str` starts with a static string */
-#define strstartswith_static(str, prefix)          \
-    (strlen(str) >= static_strlen(prefix)          \
-     ? !memcmp(str, prefix, static_strlen(prefix)) \
-     : false)
 
 /* copy static string and return the address of the NUL byte (NULL if the dest
  * is not large enough).*/

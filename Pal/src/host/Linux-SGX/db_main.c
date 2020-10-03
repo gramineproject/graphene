@@ -82,7 +82,7 @@ static struct link_map g_pal_map;
  * fail.
  */
 static PAL_HANDLE setup_dummy_file_handle(const char* name) {
-    if (!strstartswith_static(name, URI_PREFIX_FILE))
+    if (!strstartswith(name, URI_PREFIX_FILE))
         return NULL;
 
     name += URI_PREFIX_FILE_LEN;

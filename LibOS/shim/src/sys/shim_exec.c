@@ -26,8 +26,7 @@ static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {
     size_t len;
     int ret;
 
-    if (!strstartswith_static(uri1, URI_PREFIX_FILE) ||
-        !strstartswith_static(uri2, URI_PREFIX_FILE))
+    if (!strstartswith(uri1, URI_PREFIX_FILE) || !strstartswith(uri2, URI_PREFIX_FILE))
         return -1;
 
     uri1 += URI_PREFIX_FILE_LEN;
@@ -360,7 +359,7 @@ reopen:
     __atomic_store_n(&first, 0, __ATOMIC_RELAXED);
 
     bool use_same_process = true;
-    if (!strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (!strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* for SGX PALs, can use same process only if it is the same executable (because a different
          * executable has a different measurement and thus requires a new enclave); this special
          * case is to correctly handle e.g. Bash process replacing itself */

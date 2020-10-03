@@ -195,7 +195,7 @@ struct protected_file* find_protected_file_handle(PAL_HANDLE handle) {
         return NULL;
 
     /* uri is prefixed by "file:", we need path */
-    assert(strstartswith_static(uri, URI_PREFIX_FILE));
+    assert(strstartswith(uri, URI_PREFIX_FILE));
     return find_protected_file(uri + URI_PREFIX_FILE_LEN);
 }
 
@@ -291,7 +291,7 @@ static int register_protected_dir(const char* path) {
         while (pos < returned) {
             dir = (struct linux_dirent64*)((char*)buf + pos);
 
-            if (!strcmp_static(dir->d_name, ".") || !strcmp_static(dir->d_name, ".."))
+            if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, ".."))
                 goto next;
 
             /* register file */
@@ -338,7 +338,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     }
 
     /* discard the "file:" prefix */
-    if (strstartswith_static(normpath, URI_PREFIX_FILE))
+    if (strstartswith(normpath, URI_PREFIX_FILE))
         path = normpath + URI_PREFIX_FILE_LEN;
     else
         path = normpath;
@@ -432,7 +432,7 @@ static int register_protected_files(const char* key_prefix) {
         key_suffix += len + 1;
         len = get_config(g_pal_state.root_config, key, uri, CONFIG_MAX);
         if (len > 0) {
-            if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
+            if (!strstartswith(uri, URI_PREFIX_FILE)) {
                 SGX_DBG(DBG_E, "Invalid URI [%s]: URIs of protected files must start with '"
                         URI_PREFIX_FILE "'\n", uri);
             } else {

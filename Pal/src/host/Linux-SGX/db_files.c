@@ -28,7 +28,7 @@ typedef __kernel_pid_t pid_t;
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
-    if (strcmp_static(type, URI_TYPE_FILE))
+    if (strcmp(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
     /* prepare the file handle */
@@ -584,7 +584,7 @@ static int pf_file_attrquery(struct protected_file* pf, int fd_from_attrquery, c
 
 /* 'attrquery' operation for file streams */
 static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
-    if (strcmp_static(type, URI_TYPE_FILE) && strcmp_static(type, URI_TYPE_DIR))
+    if (strcmp(type, URI_TYPE_FILE) && strcmp(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
     /* open the file with O_NONBLOCK to avoid blocking the current thread if it is actually a FIFO
@@ -678,7 +678,7 @@ static int file_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 }
 
 static int file_rename(PAL_HANDLE handle, const char* type, const char* uri) {
-    if (strcmp_static(type, URI_TYPE_FILE))
+    if (strcmp(type, URI_TYPE_FILE))
         return -PAL_ERROR_INVAL;
 
     char* tmp = strdup(uri);
@@ -740,7 +740,7 @@ struct handle_ops g_file_ops = {
    ended with slashes. dir_open will be called by file_open. */
 static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    if (strcmp_static(type, URI_TYPE_DIR))
+    if (strcmp(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
         return -PAL_ERROR_INVAL;
@@ -895,7 +895,7 @@ static int dir_delete(PAL_HANDLE handle, int access) {
 }
 
 static int dir_rename(PAL_HANDLE handle, const char* type, const char* uri) {
-    if (strcmp_static(type, URI_TYPE_DIR))
+    if (strcmp(type, URI_TYPE_DIR))
         return -PAL_ERROR_INVAL;
 
     char* tmp = strdup(uri);

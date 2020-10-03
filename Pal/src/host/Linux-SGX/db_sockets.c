@@ -386,10 +386,10 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     char uri_buf[PAL_SOCKADDR_SIZE];
     memcpy(uri_buf, uri, uri_len);
 
-    if (!strcmp_static(type, URI_TYPE_TCP_SRV))
+    if (!strcmp(type, URI_TYPE_TCP_SRV))
         return tcp_listen(handle, uri_buf, create, options);
 
-    if (!strcmp_static(type, URI_TYPE_TCP))
+    if (!strcmp(type, URI_TYPE_TCP))
         return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -530,10 +530,10 @@ static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int acce
 
     memcpy(buf, uri, len + 1);
 
-    if (!strcmp_static(type, URI_TYPE_UDP_SRV))
+    if (!strcmp(type, URI_TYPE_UDP_SRV))
         return udp_bind(hdl, buf, create, options);
 
-    if (!strcmp_static(type, URI_TYPE_UDP))
+    if (!strcmp(type, URI_TYPE_UDP))
         return udp_connect(hdl, buf, create, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -622,7 +622,7 @@ static int64_t udp_sendbyaddr(PAL_HANDLE handle, uint64_t offset, uint64_t len, 
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (!strstartswith_static(addr, URI_PREFIX_UDP))
+    if (!strstartswith(addr, URI_PREFIX_UDP))
         return -PAL_ERROR_INVAL;
 
     if (len != (uint32_t)len)

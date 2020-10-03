@@ -41,7 +41,7 @@ static int parse_device_uri(const char** uri, char** type, struct handle_ops** o
     for (p = u; *p && *p != ',' && *p != '/'; p++)
         ;
 
-    if (strstartswith_static(u, "tty"))
+    if (strstartswith(u, "tty"))
         dops = &g_term_ops;
 
     if (!dops)
@@ -49,10 +49,9 @@ static int parse_device_uri(const char** uri, char** type, struct handle_ops** o
 
     *uri = *p ? p + 1 : p;
     if (type) {
-        *type = malloc_copy(u, p - u + 1);
+        *type = alloc_substr(u, p - u);
         if (!*type)
             return -PAL_ERROR_NOMEM;
-        (*type)[p - u] = '\0';
     }
     if (ops)
         *ops = dops;

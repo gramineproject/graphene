@@ -35,25 +35,8 @@ char* g_libpal_path = NULL;
 
 struct pal_enclave g_pal_enclave;
 
-static inline char* alloc_concat(const char* p, size_t plen, const char* s, size_t slen) {
-    plen = (plen != (size_t)-1) ? plen : (p ? strlen(p) : 0);
-    slen = (slen != (size_t)-1) ? slen : (s ? strlen(s) : 0);
-
-    char* buf = malloc(plen + slen + 1);
-    if (!buf)
-        return NULL;
-
-    if (plen)
-        memcpy(buf, p, plen);
-    if (slen)
-        memcpy(buf + plen, s, slen);
-
-    buf[plen + slen] = '\0';
-    return buf;
-}
-
 static char* resolve_uri(const char* uri, const char** errstring) {
-    if (!strstartswith_static(uri, URI_PREFIX_FILE)) {
+    if (!strstartswith(uri, URI_PREFIX_FILE)) {
         *errstring = "Invalid URI";
         return NULL;
     }
@@ -503,7 +486,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
 
         void* data = NULL;
 
-        if (!strcmp_static(areas[i].desc, "tls")) {
+        if (!strcmp(areas[i].desc, "tls")) {
             data = (void*)INLINE_SYSCALL(mmap, 6, NULL, areas[i].size, PROT_READ | PROT_WRITE,
                                          MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
             if (IS_ERR_P(data) || data == NULL) {
@@ -535,7 +518,7 @@ static int initialize_enclave(struct pal_enclave* enclave) {
                 }
                 gs->thread = NULL;
             }
-        } else if (!strcmp_static(areas[i].desc, "tcs")) {
+        } else if (!strcmp(areas[i].desc, "tcs")) {
             data = (void*)INLINE_SYSCALL(mmap, 6, NULL, areas[i].size, PROT_READ | PROT_WRITE,
                                          MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
             if (IS_ERR_P(data) || data == NULL) {
@@ -776,10 +759,10 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 #ifdef DEBUG
     size_t env_i = 0;
     while (env_i < env_size) {
-        if (!strcmp_static(&env[env_i], "IN_GDB=1")) {
+        if (!strcmp(&env[env_i], "IN_GDB=1")) {
             SGX_DBG(DBG_I, "[ Running under GDB ]\n");
             pal_sec->in_gdb = true;
-        } else if (strstartswith_static(&env[env_i], "LD_PRELOAD=")) {
+        } else if (strstartswith(&env[env_i], "LD_PRELOAD=")) {
             uint64_t env_i_size = strnlen(&env[env_i], env_size - env_i) + 1;
             memmove(&env[env_i], &env[env_i + env_i_size], env_size - env_i - env_i_size);
             env_size -= env_i_size;
@@ -1002,8 +985,8 @@ int main(int argc, char* argv[], char* envp[]) {
     }
 
     // Are we the first in this Graphene's namespace?
-    bool first_process = !strcmp_static(argv[2], "init");
-    if (!first_process && strcmp_static(argv[2], "child")) {
+    bool first_process = !strcmp(argv[2], "init");
+    if (!first_process && strcmp(argv[2], "child")) {
         goto usage;
     }
 
