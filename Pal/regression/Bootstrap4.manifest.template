@@ -1,2 +1,1 @@
-loader.exec = file:Bootstrap
 loader.argv0_override = Bootstrap

@@ -2,8 +2,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-# Executable to load into Graphene and run.
-loader.exec = file:./client
 loader.argv0_override = client
 
 # LibOS layer library of Graphene. There is currently only one implementation,

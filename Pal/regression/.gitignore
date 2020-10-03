@@ -12,6 +12,8 @@
 /Bootstrap
 /Bootstrap2
 /Bootstrap3
+/Bootstrap4
+/Bootstrap6
 /Bootstrap7
 /Directory
 /Event
@@ -44,10 +46,10 @@
 /Tcp
 /Thread
 /Thread2
+/Thread2_exitless
 /Udp
 /Wait
 /Yield
-/nonelf_binary
 /normalize_path
 
 /test_file_0

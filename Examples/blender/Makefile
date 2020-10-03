@@ -28,9 +28,9 @@ endif
 
 
 .PHONY: all
-all: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manifest $(RUN_DIR)/pal_loader | $(DATA_DIR)/images
+all: $(BLENDER_DIR)/blender $(BLENDER_DIR)/blender.manifest | $(RUN_DIR)/pal_loader $(DATA_DIR)/images
 ifeq ($(SGX),1)
-all: $(RUN_DIR)/blender.manifest.sgx
+all: $(BLENDER_DIR)/blender.token
 endif
 
 include ../../Scripts/Makefile.configs
@@ -44,7 +44,7 @@ $(BLENDER_DIR)/blender:
 $(RUN_DIR):
 	mkdir -p $@
 
-$(RUN_DIR)/blender.manifest: blender.manifest.template | $(RUN_DIR)
+$(BLENDER_DIR)/blender.manifest: blender.manifest.template $(BLENDER_DIR)/blender | $(RUN_DIR)
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
 		-e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
 		-e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
@@ -54,17 +54,19 @@ $(RUN_DIR)/blender.manifest: blender.manifest.template | $(RUN_DIR)
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-$(RUN_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(RUN_DIR)/blender.manifest \
+$(BLENDER_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(BLENDER_DIR)/blender.manifest \
         $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so | $(RUN_DIR)
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-output $@ \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $(RUN_DIR)/blender.manifest \
+		-manifest $(BLENDER_DIR)/blender.manifest \
 		-exec $<
+
+$(BLENDER_DIR)/blender.token: $(BLENDER_DIR)/blender.manifest.sgx
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output $(RUN_DIR)/blender.token \
-		-sig $(RUN_DIR)/blender.sig
+		-output $@ \
+		-sig $(BLENDER_DIR)/blender.sig
 
 $(RUN_DIR)/pal_loader: | $(RUN_DIR)
 	ln -s $(GRAPHENE_DIR)/Runtime/pal_loader $@
@@ -74,11 +76,14 @@ $(DATA_DIR)/images:
 
 .PHONY: check
 check: all
-	cd $(RUN_DIR) && DATA_DIR=$(DATA_DIR) sh $(PWD)/test_all_scenes.sh
+	cd $(RUN_DIR) && BLENDER_DIR=$(BLENDER_DIR) DATA_DIR=$(DATA_DIR) \
+	    sh $(PWD)/test_all_scenes.sh
 
 .PHONY: clean
 clean:
-	$(RM) -r $(RUN_DIR) $(DATA_DIR)/images
+	$(RM) -r $(RUN_DIR) $(DATA_DIR)/images $(BLENDER_DIR)/blender.manifest \
+	      $(BLENDER_DIR)/blender.manifest.sgx $(BLENDER_DIR)/blender.sig \
+	      $(BLENDER_DIR)/blender.token
 
 .PHONY: distclean
 distclean: clean

@@ -78,13 +78,14 @@ pipeline {
                                 make check
                            '''
                         }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/gcc
-                                make -j8 all
-                                make check
-                           '''
-                        }
+                        // Disabled until we fix Graphene loader
+                        // timeout(time: 5, unit: 'MINUTES') {
+                        //     sh '''
+                        //         cd Examples/gcc
+                        //         make -j8 all
+                        //         make check
+                        //    '''
+                        // }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd Examples/memcached
@@ -141,13 +142,14 @@ pipeline {
                                 make check
                            '''
                         }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
-                                cd Examples/r
-                                make -j8 all
-                                make check
-                            '''
-                        }
+                        // Disabled until we fix Graphene loader (uses execve('/bin/sh'))
+                        // timeout(time: 5, unit: 'MINUTES') {
+                        //     sh '''
+                        //         cd Examples/r
+                        //         make -j8 all
+                        //         make check
+                        //     '''
+                        // }
                         sh '''
                            # Workaround LTP bug (see https://github.com/linux-test-project/ltp/issues/560 for upstream fix):
                            git -C LibOS/shim/test/ltp/src checkout -- utils/ffsb-6.0-rc2/config.h.in utils/ffsb-6.0-rc2/configure
@@ -171,14 +173,14 @@ pipeline {
                            make -C Examples/python-scipy-insecure clean
                            make -C Examples/bash clean
                            make -C Examples/curl clean
-                           make -C Examples/gcc distclean
+                           #make -C Examples/gcc distclean
                            make -C Examples/memcached distclean
                            make -C Examples/redis distclean
                            make -C Examples/lighttpd distclean
                            make -C Examples/nginx distclean
                            make -C Examples/apache distclean
                            make -C Examples/blender distclean
-                           make -C Examples/r distclean
+                           #make -C Examples/r distclean
 
                            ./Scripts/clean-check
                         '''

@@ -38,7 +38,7 @@ GRAPHENEDEBUG = none
 endif
 
 .PHONY: all
-all: $(INSTALL_DIR)/bin/httpd httpd.manifest pal_loader config testdata ssldata
+all: $(INSTALL_DIR)/bin/httpd httpd.manifest config testdata ssldata | httpd pal_loader
 ifeq ($(SGX),1)
 all: httpd.manifest.sgx httpd.sig httpd.token
 endif
@@ -130,18 +130,22 @@ httpd.manifest.sgx: httpd.manifest $(INSTALL_DIR)/bin/httpd \
 		$(INSTALL_DIR)/conf/httpd-graphene.conf \
 		$(INSTALL_DIR)/conf/extra/httpd-ssl-graphene.conf \
 		$(TEST_DATA) \
-		$(INSTALL_DIR)/conf/server.crt
+		$(INSTALL_DIR)/conf/server.crt \
+		| httpd
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec httpd \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+		-manifest httpd.manifest -output $@
 
 httpd.sig: httpd.manifest.sgx
 
 httpd.token: httpd.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
-# Extra executables
+httpd: $(INSTALL_DIR)/bin/httpd
+	ln -s $< $@
+
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
@@ -281,7 +285,8 @@ start-graphene-multithreaded-server: all clean-server
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT result-* httpd-ldd httpd-modules tmp
+	$(RM) *.manifest *.manifest.sgx *.token *.sig httpd pal_loader OUTPUT result-* httpd-ldd \
+	      httpd-modules tmp
 
 .PHONY: distclean
 distclean: clean

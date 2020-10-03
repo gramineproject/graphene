@@ -34,28 +34,6 @@ is ``none``, no debug output will be printed to standard output. If the debug
 type is ``inline``, a dmesg-like debug output will be printed inline with
 standard output.
 
-Executable
-^^^^^^^^^^
-
-::
-
-   loader.exec=[URI]
-
-This syntax specifies the executable to be loaded into the library OS. The
-executable must be an ELF binary, with an entry point defined to start its
-execution (i.e., the binary needs a `main()` routine, it cannot just be
-a |~| library).
-
-::
-
-   loader.argv0_override=[STRING]
-
-This syntax specifies an arbitrary string (typically the executable name) that
-will be passed as the first argument (``argv[0]``) to the executable.
-
-If the string is not specified in the manifest, the application will get
-``argv[0]`` from :program:`pal_loader` invocation.
-
 Preloaded libraries
 ^^^^^^^^^^^^^^^^^^^
 
@@ -70,6 +48,16 @@ must be ELF binaries. This syntax currently always contains the LibOS library
 
 Command-line arguments
 ^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+   loader.argv0_override=[STRING]
+
+This syntax specifies an arbitrary string (typically the executable name) that
+will be passed as the first argument (``argv[0]``) to the executable.
+
+If the string is not specified in the manifest, the application will get
+``argv[0]`` from :program:`pal_loader` invocation.
 
 ::
 

@@ -1,4 +1,3 @@
-loader.exec = file:Bootstrap7
 loader.argv0_override = Bootstrap7
 
 loader.env.key1 = na

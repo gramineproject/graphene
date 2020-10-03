@@ -2,7 +2,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-loader.exec = file:server
 loader.argv0_override = server
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)

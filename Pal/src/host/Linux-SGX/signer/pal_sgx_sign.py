@@ -83,23 +83,13 @@ def read_manifest(filename):
     return (manifest, manifest_layout)
 
 
-def exec_sig_manifest(args, manifest):
-    if 'exec' not in args or args.get('depend'):
-        if 'loader.exec' in manifest:
-            args['exec'] = resolve_manifest_uri(args['manifest'],
-                    manifest['loader.exec'])
-
-    if 'sgx.sigfile' in manifest:
-        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'],
-                                      check_exist=False)
-    else:
-        sigfile = args['output']
-        for ext in ['.manifest.sgx.d', '.manifest.sgx', '.manifest']:
-            if sigfile.endswith(ext):
-                sigfile = sigfile[:-len(ext)]
-                break
-        args['sigfile'] = sigfile + '.sig'
-        manifest['sgx.sigfile'] = 'file:' + os.path.basename(args['sigfile'])
+def exec_sig_manifest(args):
+    sigfile = args['output']
+    for ext in ['.manifest.sgx.d', '.manifest.sgx', '.manifest']:
+        if sigfile.endswith(ext):
+            sigfile = sigfile[:-len(ext)]
+            break
+    args['sigfile'] = sigfile + '.sig'
 
     if args.get('libpal', None) is None:
         print("Option --libpal must be given", file=sys.stderr)
@@ -737,8 +727,7 @@ def generate_sigstruct(attr, args, mrenclave):
 # Main Program
 
 argparser = argparse.ArgumentParser(
-    epilog='With sign mode(without -depend), libpal and key are also required. '
-           'exec may be given through manifest option loader.exec.')
+    epilog='With sign mode (without -depend), libpal and key are also required.')
 argparser.add_argument('--output', '-output', metavar='OUTPUT',
                        type=str, required=True,
                        help='Output .manifest.sgx file '
@@ -788,7 +777,7 @@ def main_sign(args):
     # pylint: disable=too-many-statements,too-many-branches,too-many-locals
     manifest, manifest_layout = read_manifest(args['manifest'])
 
-    if exec_sig_manifest(args, manifest) != 0:
+    if exec_sig_manifest(args) != 0:
         return 1
 
     # Get attributes from manifest
@@ -885,7 +874,7 @@ def make_depend(args):
     output = args['output']
 
     (manifest, _) = read_manifest(manifest_file)
-    if exec_sig_manifest(args, manifest) != 0:
+    if exec_sig_manifest(args) != 0:
         return 1
 
     dependencies = set()

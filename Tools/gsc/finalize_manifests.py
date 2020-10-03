@@ -67,6 +67,7 @@ def get_binary_path(executable):
                                    stderr=subprocess.STDOUT, shell=True).decode()
     return path.replace('\n', '')
 
+
 argparser = argparse.ArgumentParser()
 argparser.add_argument('directory', default='/',
     help='Search the directory tree from this root for files and generate list of trusted files')
@@ -105,12 +106,15 @@ def main(args=None):
 
         executable = manifest[:manifest.rfind('.manifest')] if (
             manifest.rfind('.manifest') != -1) else manifest
-        binary_path = get_binary_path(executable)
 
-        print(f'\tSetting exec file to \'{binary_path}\'.')
+        print(f'\tSetting exec file to \'{executable}\'.')
 
         # Write final manifest file with trusted files and children
-        rendered_manifest = env.get_template(manifest).render(binary_path=binary_path)
+        rendered_manifest = env.get_template(manifest).render()
+        # Graphene requires binaries to be in the same folder with their manifests.
+        # This is a temporary workaround till the next loader update.
+        os.symlink(get_binary_path(executable), executable)
+
         with open(manifest, 'w') as manifest_file:
             manifest_file.write('\n'.join((rendered_manifest,
                                 trusted_files,
@@ -123,7 +127,7 @@ def main(args=None):
                                   f' = file:{executable}.sig')
 
         with open('signing_order.txt', 'a+') as sig_order:
-            print(manifest, file=sig_order)
+            print(executable, file=sig_order)
 
 if __name__ == '__main__':
     main(sys.argv)

@@ -15,12 +15,6 @@
 # irrelevant for consequent Memcached execution, so it may be any existing
 # host-OS username (e.g. "nobody" or even "root").
 
-# Executable to load into Graphene and run. Note that Graphene tries its best
-# to find the corresponding manifest file (by appending ".manifest" or
-# ".manifest.sgx") based on the executable name, and vice versa. Still, it is
-# required to have the explicit name of the executable here.
-loader.exec = file:memcached
-
 ################################## GRAPHENE ###################################
 
 # LibOS layer library of Graphene. There is currently only one implementation,

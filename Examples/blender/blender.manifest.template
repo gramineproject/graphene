@@ -11,7 +11,6 @@ sgx.allowed_files.blender_input = file:$(DATA_DIR)/scenes/
 sgx.allowed_files.blender_output = file:$(DATA_DIR)/images/
 
 
-loader.exec = file:$(BLENDER_DIR)/blender
 loader.argv0_override = blender
 
 # Read application arguments directly from the command line. Don't use this on production!

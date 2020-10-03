@@ -122,6 +122,13 @@ exec_target = \
 	multi_pthread_exitless.manifest
 
 target = \
+	argv_from_file \
+	env_from_host \
+	env_from_file \
+	file_check_policy_allow_all_but_log \
+	file_check_policy_strict \
+	init_fail2 \
+	multi_pthread_exitless \
 	$(exec_target) \
 	$(manifests)
 
@@ -158,6 +165,21 @@ CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
                       -I$(PALDIR)/host/Linux-SGX \
                       -I$(PALDIR)/../include/pal
 LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.a
+
+# Handle multiple tests which share one binary (Graphene requires 1-1 manifest-executable
+# correspondence).
+
+argv_from_file env_from_host env_from_file: bootstrap
+	$(call cmd,ln_sfr)
+
+file_check_policy_allow_all_but_log file_check_policy_strict: file_check_policy
+	$(call cmd,ln_sfr)
+
+init_fail2: init_fail
+	$(call cmd,ln_sfr)
+
+multi_pthread_exitless: multi_pthread
+	$(call cmd,ln_sfr)
 
 %: %.c
 	$(call cmd,csingle)

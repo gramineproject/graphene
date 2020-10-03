@@ -3,9 +3,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-# The executable to load in Graphene. We replace EXECPATH and ARGV0_OVERRIDE for
-# each program that a manifest is generated for.
-loader.exec = file:$(EXECPATH)
 loader.argv0_override = $(ARGV0_OVERRIDE)
 
 # Read application arguments directly from the command line. Don't use this on production!
@@ -18,6 +15,7 @@ loader.debug_type = $(GRAPHENEDEBUG)
 
 # Environment variables
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR)
+loader.env.PATH = /
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.

@@ -35,10 +35,10 @@ $(SGX_SIGNER_KEY):
 %.manifest.sgx.d: manifest
 	$(call cmd,sgx_sign_depend)
 
-# It is possible to have an SGX manifest without main executable: manifest may not have
-# loader.exec but only preloaded libraries. There is no good way to distinguish this rule
-# from the above rule. Since manifests without main executables are very rare, these cases
-# use static pattern rules in the corresponding Makefiles (e.g., in Pal/regression).
+# It is possible to have an SGX manifest without main executable: manifest may have only preloaded
+# libraries. There is no good way to distinguish this rule from the above rule. Since manifests
+# without main executables are very rare, these cases use static pattern rules in the corresponding
+# Makefiles (e.g., in Pal/regression).
 # %.manifest.sgx.d: %.manifest
 # 	$(call cmd,sgx_sign_depend)
 

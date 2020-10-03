@@ -1,2 +1,0 @@
-loader.exec = file:./nonelf_binary
-loader.debug_type = inline

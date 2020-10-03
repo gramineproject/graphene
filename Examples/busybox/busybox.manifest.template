@@ -4,9 +4,6 @@
 
 ################################## GRAPHENE ###################################
 
-# Executable to load into Graphene and run.
-loader.exec = file:busybox
-
 # Name of the executable e.g. as visible through argv[0] when ran as manifest
 # file (`./pal_loader busybox.manifest`).
 loader.argv0_override = busybox
