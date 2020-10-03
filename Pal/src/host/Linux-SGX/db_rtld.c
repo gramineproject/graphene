@@ -186,7 +186,7 @@ void _DkDebugAddMap(struct link_map* map) {
             continue;
         if (s->sh_type == SHT_NULL)
             continue;
-        if (strstartswith_static(shstrtab + s->sh_name, ".debug_"))
+        if (strstartswith(shstrtab + s->sh_name, ".debug_"))
             continue;
 
         if (!debug_map_add_section(debug_map, shstrtab + s->sh_name,

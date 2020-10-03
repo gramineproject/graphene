@@ -115,10 +115,10 @@ objs += \
 	string/memset.o \
 	string/strchr.o \
 	string/strcmp.o \
-	string/strendswith.o \
 	string/strlen.o \
 	string/strspn.o \
-	string/strstr.o
+	string/strstr.o \
+	string/utils.o
 
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/crypto/library/aes.c
 

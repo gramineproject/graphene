@@ -55,6 +55,8 @@ static void load_libraries(void) {
         }
 }
 
+/* This function leaks memory on failure (and this is non-trivial to fix), but the assumption is
+ * that its failure finishes the execution of the whole process right away. */
 static int insert_envs_from_manifest(const char*** envpp) {
     assert(envpp);
 
@@ -121,18 +123,12 @@ static int insert_envs_from_manifest(const char*** envpp) {
         ptr = &new_envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
         if ((bytes = get_config(store, key, cfgbuf, sizeof(cfgbuf))) > 0) {
-            char* e = malloc(len + bytes + 2);
-            memcpy(e, str, len);
-            e[len] = '=';
-            memcpy(e + len + 1, cfgbuf, bytes + 1);
-            *ptr = e;
+            *ptr = alloc_concat3(str, len, "=", 1, cfgbuf, bytes);
         } else {
-            char* e = malloc(len + 2);
-            memcpy(e, str, len);
-            e[len] = '=';
-            e[len + 1] = 0;
-            *ptr = e;
+            *ptr = alloc_concat(str, len, "=", 1);
         }
+        if (!*ptr)
+            return -PAL_ERROR_NOMEM;
     }
 
     *envpp = new_envp;
@@ -152,16 +148,16 @@ static void set_debug_type(void) {
 
     PAL_HANDLE handle = NULL;
 
-    if (!strcmp_static(cfgbuf, "inline")) {
+    if (!strcmp(cfgbuf, "inline")) {
         ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
-    } else if (!strcmp_static(cfgbuf, "file")) {
+    } else if (!strcmp(cfgbuf, "file")) {
         ret = get_config(g_pal_state.root_config, "loader.debug_file", cfgbuf, sizeof(cfgbuf));
         if (ret <= 0)
             INIT_FAIL(PAL_ERROR_INVAL, "debug file not specified");
 
         ret = _DkStreamOpen(&handle, cfgbuf, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W,
                             PAL_CREATE_TRY, 0);
-    } else if (!strcmp_static(cfgbuf, "none")) {
+    } else if (!strcmp(cfgbuf, "none")) {
         ret = 0;
     } else {
         INIT_FAIL(PAL_ERROR_INVAL, "unknown debug type");
@@ -342,11 +338,11 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         size_t exec_strlen = manifest_strlen - 9;
         int success = 0;
         // Try .manifest
-        if (!strcmp_static(&manifest_uri[exec_strlen], ".manifest")) {
+        if (!strcmp(&manifest_uri[exec_strlen], ".manifest")) {
             success = 1;
         } else {
             exec_strlen -= 4;
-            if (!strcmp_static(&manifest_uri[exec_strlen], ".manifest.sgx")) {
+            if (!strcmp(&manifest_uri[exec_strlen], ".manifest.sgx")) {
                 success = 1;
             }
         }

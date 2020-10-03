@@ -67,7 +67,7 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
     const char** e = envp;
     for (; *e; e++) {
 #ifdef DEBUG
-        if (!strcmp_static(*e, "IN_GDB=1"))
+        if (!strcmp(*e, "IN_GDB=1"))
             g_linux_state.in_gdb = true;
 #endif
     }
@@ -170,8 +170,8 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         print_usage_and_exit(argv[0]);  // may be NULL!
 
     // Are we the first in this Graphene's namespace?
-    bool first_process = !strcmp_static(argv[2], "init");
-    if (!first_process && strcmp_static(argv[2], "child")) {
+    bool first_process = !strcmp(argv[2], "init");
+    if (!first_process && strcmp(argv[2], "child")) {
         print_usage_and_exit(argv[0]);
     }
 

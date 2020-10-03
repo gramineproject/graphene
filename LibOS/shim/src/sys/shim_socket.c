@@ -580,13 +580,13 @@ static int inet_parse_addr(int domain, int type, const char* uri, struct addr_in
 
     enum { UDP, UDPSRV, TCP, TCPSRV } prefix;
 
-    if (strstartswith_static(uri, URI_PREFIX_UDP))
+    if (strstartswith(uri, URI_PREFIX_UDP))
         prefix = UDP;
-    else if (strstartswith_static(uri, URI_PREFIX_UDP_SRV))
+    else if (strstartswith(uri, URI_PREFIX_UDP_SRV))
         prefix = UDPSRV;
-    else if (strstartswith_static(uri, URI_PREFIX_TCP))
+    else if (strstartswith(uri, URI_PREFIX_TCP))
         prefix = TCP;
-    else if (strstartswith_static(uri, URI_PREFIX_TCP_SRV))
+    else if (strstartswith(uri, URI_PREFIX_TCP_SRV))
         prefix = TCPSRV;
     else
         return -EINVAL;

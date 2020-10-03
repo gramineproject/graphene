@@ -113,7 +113,7 @@ static int dev_attestation_user_report_data_open(struct shim_handle* hdl, const 
     __UNUSED(name);
     __UNUSED(flags);
 
-    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
         return -EACCES;
     }
@@ -157,7 +157,7 @@ static int dev_attestation_target_info_open(struct shim_handle* hdl, const char*
     __UNUSED(name);
     __UNUSED(flags);
 
-    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
         return -EACCES;
     }
@@ -206,7 +206,7 @@ static int dev_attestation_my_target_info_open(struct shim_handle* hdl, const ch
     char* target_info          = NULL;
     struct shim_str_data* data = NULL;
 
-    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
         return -EACCES;
     }
@@ -291,7 +291,7 @@ static int dev_attestation_report_open(struct shim_handle* hdl, const char* name
     struct shim_str_data* data = NULL;
     char* data_str_report      = NULL;
 
-    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
         return -EACCES;
     }
@@ -370,7 +370,7 @@ static int dev_attestation_quote_open(struct shim_handle* hdl, const char* name,
     char* data_str_quote       = NULL;
     struct shim_str_data* data = NULL;
 
-    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
         return -EACCES;
     }
@@ -450,7 +450,7 @@ static int dev_attestation_pfkey_open(struct shim_handle* hdl, const char* name,
     __UNUSED(name);
     __UNUSED(flags);
 
-    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* this pseudo-file is only available with Linux-SGX */
         return -EACCES;
     }

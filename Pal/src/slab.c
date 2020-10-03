@@ -120,16 +120,6 @@ void* malloc_copy(const void* mem, size_t size) {
     return nmem;
 }
 
-char* strdup(const char* s) {
-    size_t len = strlen(s) + 1;
-    char* new  = malloc(len);
-
-    if (new)
-        memcpy(new, s, len);
-
-    return new;
-}
-
 void* calloc(size_t nmem, size_t size) {
     void* ptr = malloc(nmem * size);
 

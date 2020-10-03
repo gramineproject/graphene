@@ -24,7 +24,7 @@ static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next
     if (*p == '/')
         p++;
 
-    if (strstartswith_static(p, "self")) {
+    if (strstartswith(p, "self")) {
         p += static_strlen("self");
         if (*p && *p != '/')
             return -ENOENT;

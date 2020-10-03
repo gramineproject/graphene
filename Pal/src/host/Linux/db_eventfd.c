@@ -46,7 +46,7 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
     __UNUSED(access);
     __UNUSED(share);
 
-    if ((strcmp_static(type, URI_TYPE_EVENTFD) != 0) || (*uri != '\0')) {
+    if (strcmp(type, URI_TYPE_EVENTFD) != 0 || *uri != '\0') {
         return -PAL_ERROR_INVAL;
     }
 

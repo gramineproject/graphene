@@ -345,16 +345,16 @@ static int pipe_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         !WITHIN_MASK(create, PAL_CREATE_MASK) || !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 
-    if (!strcmp_static(type, URI_TYPE_PIPE) && !*uri)
+    if (!strcmp(type, URI_TYPE_PIPE) && !*uri)
         return pipe_private(handle, options);
 
     if (strlen(uri) + 1 > PIPE_NAME_MAX)
         return -PAL_ERROR_INVAL;
 
-    if (!strcmp_static(type, URI_TYPE_PIPE_SRV))
+    if (!strcmp(type, URI_TYPE_PIPE_SRV))
         return pipe_listen(handle, uri, options);
 
-    if (!strcmp_static(type, URI_TYPE_PIPE))
+    if (!strcmp(type, URI_TYPE_PIPE))
         return pipe_connect(handle, uri, options);
 
     return -PAL_ERROR_INVAL;
