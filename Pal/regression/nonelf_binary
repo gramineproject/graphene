@@ -1,3 +1,0 @@
-#!/bin/sh
-
-echo "pal_loader needs to recognize that this file is not an ELF file"

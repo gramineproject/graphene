@@ -1,13 +1,7 @@
 # PyTorch manifest template
 #
 # This manifest was tested on Ubuntu 16.04 and 18.04.
-#
-# Run the application with:
-#
-# ./pal_loader pytorch.manifest pytorchexample.py
 
-# The executable to load in Graphene
-loader.exec = file:/usr/bin/python3
 loader.argv0_override = python3
 
 # Graphene environment, including the path to the library OS and the debug
@@ -141,7 +135,7 @@ sgx.trusted_files.model   = file:alexnet-pretrained.pt
 sgx.allowed_files.tmp     = file:/tmp
 
 # The workload needs to fork/execve; this allows it to do so
-sgx.trusted_children.fork = file:python3.sig
+sgx.trusted_children.fork = file:python3_child.sig
 
 # Various locations where Python dependencies are found
 sgx.allowed_files.python3    = file:/usr/lib/python3

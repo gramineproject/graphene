@@ -2,7 +2,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-loader.exec = file:/bin/rm
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
 loader.debug_type = $(GRAPHENEDEBUG)
 

@@ -1,8 +1,8 @@
 loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
-loader.exec = file:/usr/bin/ld
-loader.argv0_override = /usr/bin/ld
+loader.argv0_override = ld
 loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/lib:/usr/$(ARCH_LIBDIR)
-loader.env.PATH = /bin:/usr/bin
+loader.env.PATH = /
+loader.env.COMPILER_PATH = /:$(GCC_LIB_PATH)/$(GCC_MAJOR_VERSION)/
 loader.debug_type = $(GRAPHENEDEBUG)
 
 # Read application arguments directly from the command line. Don't use this on production!

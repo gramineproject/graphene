@@ -273,7 +273,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         if (!exec_handle)
             INIT_FAIL(PAL_ERROR_INVAL, "Must have manifest or executable");
 
-        /* try open "<execname>.manifest" */
+        /* try opening "<execname>.manifest" */
         size_t len = sizeof(uri_buf);
         ret = get_norm_path(exec_uri, uri_buf, &len);
         if (ret < 0) {
@@ -283,7 +283,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         strcpy_static(uri_buf + len, ".manifest", sizeof(uri_buf) - len);
         ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
         if (ret) {
-            /* try open "file:manifest" */
+            /* try opening "file:manifest" */
             manifest_uri = URI_PREFIX_FILE "manifest";
             ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
             if (ret) {
@@ -320,39 +320,23 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         g_pal_state.root_config = root_config;
     }
 
-    /* if there is no executable, try to find one in the manifest */
-    if (!exec_handle && g_pal_state.root_config) {
-        ret = get_config(g_pal_state.root_config, "loader.exec", uri_buf, URI_MAX);
-        if (ret > 0) {
-            exec_uri = malloc_copy(uri_buf, ret + 1);
-            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
-            if (ret < 0)
-                INIT_FAIL(-ret, "cannot open executable");
-        }
-    }
-
-    /* If we still don't have an exec in the manifest, but we have a manifest
-     * try implicitly from the manifest name */
-    if ((!exec_handle) && manifest_uri) {
-        size_t manifest_strlen = strlen(manifest_uri);
-        size_t exec_strlen = manifest_strlen - 9;
-        int success = 0;
-        // Try .manifest
-        if (!strcmp(&manifest_uri[exec_strlen], ".manifest")) {
-            success = 1;
-        } else {
-            exec_strlen -= 4;
-            if (!strcmp(&manifest_uri[exec_strlen], ".manifest.sgx")) {
-                success = 1;
-            }
+    /* try to find an executable with the name matching the manifest name */
+    if (!exec_handle && manifest_uri) {
+        size_t exec_uri_len;
+        bool success = false;
+        // try ".manifest"
+        if (strendswith(manifest_uri, ".manifest")) {
+            exec_uri_len = strlen(manifest_uri) - 9;
+            success = true;
+        } else if (strendswith(manifest_uri, ".manifest.sgx")) {
+            exec_uri_len = strlen(manifest_uri) - 13;
+            success = true;
         }
 
         if (success) {
-            exec_uri = malloc(exec_strlen + 1);
+            exec_uri = alloc_concat(manifest_uri, exec_uri_len, NULL, 0);
             if (!exec_uri)
                 INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate URI buf");
-            memcpy(exec_uri, manifest_uri, exec_strlen);
-            exec_uri[exec_strlen] = '\0';
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
             // DEP 3/20/17: There are cases where we want to let
             // the PAL start up without a main executable.  Don't

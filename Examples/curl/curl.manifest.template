@@ -2,8 +2,6 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-# Executable to load into Graphene and run.
-loader.exec = file:$(CURL_DIR)curl
 loader.argv0_override = curl
 
 # LibOS layer library of Graphene. There is currently only one implementation,

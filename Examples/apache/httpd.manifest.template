@@ -1,13 +1,7 @@
 # Apache manifest example
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
-#
-# Apache must be run with the pal_loader:
-#
-# ./pal_loader httpd.manifest <script>
 
-# The executable to load in Graphene.
-loader.exec = file:$(INSTALL_DIR)/bin/httpd
 loader.argv0_override = httpd
 
 # Read application arguments directly from the command line. Don't use this on production!

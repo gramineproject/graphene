@@ -14,10 +14,10 @@ preloads = \
 	Preload2.so
 
 executables-x86_64 = \
-        Exception \
-        Exception2 \
-        Segment \
-        Thread
+    Exception \
+    Exception2 \
+    Segment \
+    Thread
 
 executables = \
 	..Bootstrap \
@@ -72,10 +72,14 @@ manifests = \
 	Process3.manifest \
 	SendHandle.manifest \
 	Thread2.manifest \
-	Thread2_exitless.manifest \
-	nonelf_binary.manifest
+	Thread2_exitless.manifest
 
-target = $(executables) $(manifests)
+target = \
+	Bootstrap4 \
+	Bootstrap6 \
+	Thread2_exitless \
+	$(executables) \
+	$(manifests)
 
 include ../../Scripts/Makefile.manifest
 graphene_lib = .lib/graphene-lib.a
@@ -116,6 +120,15 @@ $(preloads): %.so: %.c $(LDLIBS-preloads)
 LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
+
+# Handle multiple tests which share one binary (Graphene requires 1-1 manifest-executable
+# correspondence).
+
+Bootstrap4 Bootstrap6: Bootstrap
+	$(call cmd,ln_sfr)
+
+Thread2_exitless: Thread2
+	$(call cmd,ln_sfr)
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)

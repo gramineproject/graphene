@@ -8,6 +8,8 @@ compiling them from source as some of the other examples do.
 
 The Makefile and the template manifest contain comments to hopefully make them easier to understand.
 
+**This example is temporarily broken until we rewrite Graphene loader**
+
 # Quick Start
 
 To run the regression tests execute ```make check```. To do the same for SGX, execute ```SGX=1 make

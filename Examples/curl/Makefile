@@ -8,7 +8,7 @@
 # Use `make clean` to remove Graphene-generated files.
 
 THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
-CURL_DIR ?= /usr/bin/
+CURL_DIR ?= /usr/bin
 
 # Relative path to Graphene root and key for enclave signing
 GRAPHENEDIR ?= ../..
@@ -21,7 +21,7 @@ GRAPHENEDEBUG = none
 endif
 
 .PHONY: all
-all: curl.manifest pal_loader
+all: curl.manifest curl pal_loader
 ifeq ($(SGX),1)
 all: curl.token
 endif
@@ -39,7 +39,7 @@ GLIBC_DEPS = linux-vdso.so.1 /lib64/ld-linux-x86-64.so.2 libc.so.6 libm.so.6 lib
 # List all the curl dependencies, besides Glibc libraries
 .INTERMEDIATE: curl-deps
 curl-deps:
-	@ldd $(CURL_DIR)curl | \
+	@ldd $(CURL_DIR)/curl | \
 		awk '{if ($$2 =="=>") {print $$1}}' | \
 		sort | uniq | grep -v -x $(patsubst %,-e %,$(GLIBC_DEPS)) > $@
 
@@ -47,7 +47,7 @@ curl-deps:
 .INTERMEDIATE: curl-trusted-libs
 curl-trusted-libs: curl-deps
 	@for F in `cat curl-deps`; do \
-		P=`ldd $(CURL_DIR)curl | grep $$F | awk '{print $$3; exit}'`; \
+		P=`ldd $(CURL_DIR)/curl | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '.' | tr --delete '-'`; \
 		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
 	done > $@
@@ -61,11 +61,12 @@ curl.manifest: curl.manifest.template curl-trusted-libs
 		$< > $@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
-curl.manifest.sgx: curl.manifest
+curl.manifest.sgx: curl curl.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
+		-exec curl \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+		-manifest curl.manifest -output $@
 
 curl.sig: curl.manifest.sgx
 
@@ -73,7 +74,9 @@ curl.token: curl.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output $@ -sig $^
 
-# Extra executables
+curl:
+	ln -s $(CURL_DIR)/curl $@
+
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
 
@@ -89,7 +92,7 @@ check: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT
+	$(RM) *.manifest *.manifest.sgx *.token *.sig curl pal_loader OUTPUT
 
 .PHONY: distclean
 distclean: clean

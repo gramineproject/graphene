@@ -52,13 +52,11 @@ cxx_executables =
 manifests = \
 	manifest \
 	exec_fork.manifest \
-	ls.manifest \
 	static.manifest
 
 exec_target = \
 	$(c_executables) \
-	$(cxx_executables) \
-	ls.manifest
+	$(cxx_executables)
 
 target = \
 	$(exec_target) \
