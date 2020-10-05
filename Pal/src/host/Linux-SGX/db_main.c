@@ -451,6 +451,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tcs = g_enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+    /* child threads are assigned TIDs 2,3,...; see pal_start_thread() */
+    first_thread->thread.tid = 1;
     g_pal_control.first_thread = first_thread;
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
 

@@ -62,8 +62,10 @@ c_executables = \
 	proc_cpuinfo \
 	proc_path \
 	pselect \
+	pthread_set_get_affinity \
 	readdir \
 	sched \
+	sched_set_get_affinity \
 	select \
 	shared_object \
 	sigaction_per_process \
@@ -161,6 +163,7 @@ CFLAGS-proc_common = -pthread
 CFLAGS-spinlock += -I$(PALDIR)/../include/lib -I$(PALDIR)/../include/arch/$(ARCH) -pthread
 CFLAGS-sigaction_per_process += -pthread
 CFLAGS-signal_multithread += -pthread
+CFLAGS-pthread_set_get_affinity += -pthread
 
 CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
                       -I$(PALDIR)/host/Linux-SGX \
