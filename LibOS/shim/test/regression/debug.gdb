@@ -16,6 +16,8 @@ commands
     echo \n<backtrace 2 start>\n
     backtrace
     echo <backtrace 2 end>\n\n
+
+    continue
   end
 
   continue
