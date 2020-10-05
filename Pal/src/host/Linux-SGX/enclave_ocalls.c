@@ -28,6 +28,9 @@
  * size of 8MB. Thus, 512KB limit also works well for the main thread. */
 #define MAX_UNTRUSTED_STACK_BUF (THREAD_STACK_SIZE / 4)
 
+#define CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF 0x0b
+#define CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF 0x1f
+
 /* global pointer to a single untrusted queue, all accesses must be protected by g_rpc_queue->lock
  */
 rpc_queue_t* g_rpc_queue;
@@ -262,6 +265,15 @@ static void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munma
 int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     int retval = 0;
     ms_ocall_cpuid_t* ms;
+    bool bypass_rpc = false;
+
+    /* the cpu topology info must be retrieved in the context of current thread
+     * rather than rpc thread in case exitless feature is enabled.
+     */
+    if (leaf == CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF ||
+        leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
+        bypass_rpc = true;
+    }
 
     void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
@@ -273,7 +285,7 @@ int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4])
     WRITE_ONCE(ms->ms_leaf, leaf);
     WRITE_ONCE(ms->ms_subleaf, subleaf);
 
-    retval = sgx_exitless_ocall(OCALL_CPUID, ms);
+    retval = bypass_rpc ? sgx_ocall(OCALL_CPUID, ms) : sgx_exitless_ocall(OCALL_CPUID, ms);
 
     if (!retval) {
         values[0] = READ_ONCE(ms->ms_values[0]);
