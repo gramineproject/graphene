@@ -16,6 +16,7 @@
 #include "pal.h"
 #include "shim_internal.h"
 #include "shim_table.h"
+#include "shim_thread.h"
 
 int shim_do_sched_yield(void) {
     DkThreadYieldExecution();
@@ -139,51 +140,115 @@ int shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
     return 0;
 }
 
-static int check_affinity_params(int ncpus, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
+static int check_affinity_params(bool is_getaffinity, int ncpus, size_t cpumask_size,
+                                 __kernel_cpu_set_t* user_mask_ptr) {
     /* Check that user_mask_ptr is valid; if not, should return -EFAULT */
-    if (test_user_memory(user_mask_ptr, len, true))
+    if (test_user_memory(user_mask_ptr, cpumask_size, true))
         return -EFAULT;
 
     /* Linux kernel bitmap is based on long. So according to its
      * implementation, round up the result to sizeof(long) */
     size_t bitmask_long_count    = (ncpus + sizeof(long) * 8 - 1) / (sizeof(long) * 8);
     size_t bitmask_size_in_bytes = bitmask_long_count * sizeof(long);
-    if (len < bitmask_size_in_bytes)
+
+    if (is_getaffinity && (cpumask_size < bitmask_size_in_bytes)) {
+        debug("size of cpumask in getaffinity syscall must be %lu but supplied cpumask is %lu\n",
+               bitmask_size_in_bytes, cpumask_size);
         return -EINVAL;
+    }
+
     /* Linux kernel also rejects non-natural size */
-    if (len & (sizeof(long) - 1))
+    if (cpumask_size & (sizeof(long) - 1))
         return -EINVAL;
 
     return bitmask_size_in_bytes;
 }
 
-/* dummy implementation: ignore user-supplied mask and return success */
-int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
-    __UNUSED(pid);
+int shim_do_sched_setaffinity(pid_t pid, size_t cpumask_size, __kernel_cpu_set_t* user_mask_ptr) {
+    int ret;
+    struct shim_thread* thread;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
-    int bitmask_size_in_bytes = check_affinity_params(ncpus, len, user_mask_ptr);
-    if (bitmask_size_in_bytes < 0)
-        return bitmask_size_in_bytes;
+    if (pid) {
+        thread = lookup_thread(pid);
+    } else {
+        thread = get_cur_thread();
+    }
 
+    if (!thread)
+        return -ESRCH;
+
+    /* lookup_thread() internally increments thread count; do the same in case of
+       get_cur_thread(). */
+    if (pid == 0)
+        get_thread(thread);
+
+    /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
+       some bug in user app. */
+    if (is_internal(thread)) {
+        put_thread(thread);
+        return -ESRCH;
+    }
+
+    int bitmask_size_in_bytes = check_affinity_params(/*is_getaffinity=*/false, ncpus,
+                                                      cpumask_size, user_mask_ptr);
+    if (bitmask_size_in_bytes < 0) {
+        put_thread(thread);
+        return bitmask_size_in_bytes;
+    }
+
+    ret = DkThreadSetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, user_mask_ptr);
+    if (ret < 0) {
+        put_thread(thread);
+        return -convert_pal_errno(-ret);
+    }
+
+    put_thread(thread);
     return 0;
 }
 
-/* dummy implementation: always return all-ones (as many as there are host CPUs)  */
-int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
-    __UNUSED(pid);
+int shim_do_sched_getaffinity(pid_t pid, size_t cpumask_size, __kernel_cpu_set_t* user_mask_ptr) {
+    int ret;
+    struct shim_thread* thread;
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
-    int bitmask_size_in_bytes = check_affinity_params(ncpus, len, user_mask_ptr);
-    if (bitmask_size_in_bytes < 0)
-        return bitmask_size_in_bytes;
-
-    memset(user_mask_ptr, 0, len);
-    for (int i = 0; i < ncpus; i++) {
-        ((uint8_t*)user_mask_ptr)[i / 8] |= 1 << (i % 8);
+    if (pid) {
+        thread = lookup_thread(pid);
+    } else {
+        thread = get_cur_thread();
     }
-    /* imitate the Linux kernel implementation
-     * See SYSCALL_DEFINE3(sched_getaffinity) */
+
+    if (!thread)
+        return -ESRCH;
+
+    /* lookup_thread() internally increments thread count; do the same in case of
+       get_cur_thread(). */
+    if (pid == 0)
+        get_thread(thread);
+
+    /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
+       some bug in user app. */
+    if (is_internal(thread)) {
+        put_thread(thread);
+        return -ESRCH;
+    }
+
+    int bitmask_size_in_bytes = check_affinity_params(/*is_getaffinity=*/true, ncpus,
+                                                      cpumask_size, user_mask_ptr);
+    if (bitmask_size_in_bytes < 0) {
+        put_thread(thread);
+        return bitmask_size_in_bytes;
+    }
+
+    memset(user_mask_ptr, 0, cpumask_size);
+    ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, user_mask_ptr);
+    if (ret < 0) {
+        put_thread(thread);
+        return -convert_pal_errno(-ret);
+    }
+
+    put_thread(thread);
+    /* on success, imitate Linux kernel implementation: see SYSCALL_DEFINE3(sched_getaffinity) */
     return bitmask_size_in_bytes;
 }
 

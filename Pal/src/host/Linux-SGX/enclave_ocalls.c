@@ -1463,3 +1463,59 @@ out:
     sgx_reset_ustack(old_ustack);
     return retval;
 }
+
+int ocall_sched_setaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
+    int retval = 0;
+    ms_ocall_sched_setaffinity_t* ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_tcs, tcs);
+    WRITE_ONCE(ms->ms_cpu_mask_size, cpumask_size);
+    void* untrusted_cpu_mask = sgx_copy_to_ustack(cpu_mask, cpumask_size);
+    if (!untrusted_cpu_mask) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+    WRITE_ONCE(ms->ms_cpu_mask, untrusted_cpu_mask);
+
+    retval = sgx_exitless_ocall(OCALL_SCHED_SETAFFINITY, ms);
+
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}
+
+int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
+    int retval = 0;
+    ms_ocall_sched_getaffinity_t* ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_tcs, tcs);
+    WRITE_ONCE(ms->ms_cpu_mask_size, cpumask_size);
+    void* untrusted_cpu_mask = sgx_copy_to_ustack(cpu_mask, cpumask_size);
+    if (!untrusted_cpu_mask) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+    WRITE_ONCE(ms->ms_cpu_mask, untrusted_cpu_mask);
+
+    retval = sgx_exitless_ocall(OCALL_SCHED_GETAFFINITY, ms);
+
+    if (retval > 0) {
+        retval = sgx_copy_to_enclave(cpu_mask, cpumask_size, READ_ONCE(ms->ms_cpu_mask), retval);
+    }
+
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}
