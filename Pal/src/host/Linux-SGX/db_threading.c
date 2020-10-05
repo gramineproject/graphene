@@ -45,7 +45,8 @@ extern void* g_enclave_base;
  * ensure uniqueness if needed in the future
  */
 static PAL_IDX pal_assign_tid(void) {
-    static struct atomic_int tid = ATOMIC_INIT(0);
+    /* tid 1 is assigned to the first thread; see pal_linux_main() */
+    static struct atomic_int tid = ATOMIC_INIT(1);
     return __atomic_add_fetch(&tid.counter, 1, __ATOMIC_SEQ_CST);
 }
 
@@ -57,7 +58,8 @@ void pal_start_thread(void) {
         if (!tmp->tcs) {
             new_thread = tmp;
             new_thread->tid = pal_assign_tid();
-            new_thread->tcs = g_enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+            __atomic_store_n(&new_thread->tcs, (g_enclave_base + GET_ENCLAVE_TLS(tcs_offset)),
+                             __ATOMIC_RELEASE);
             break;
         }
     _DkInternalUnlock(&g_thread_list_lock);
@@ -105,6 +107,11 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
+    /* There can be subtle race between the parent and child so hold the parent until child updates
+       its tcs. */
+    while (!__atomic_load_n(&new_thread->thread.tcs, __ATOMIC_ACQUIRE))
+        cpu_pause();
+
     *handle = new_thread;
     return 0;
 }
@@ -142,6 +149,16 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 
 int _DkThreadResume(PAL_HANDLE threadHandle) {
     int ret = ocall_resume_thread(threadHandle->thread.tcs);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+}
+
+int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
+    int ret = ocall_sched_setaffinity(thread->thread.tcs, cpumask_size, cpu_mask);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+}
+
+int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
+    int ret = ocall_sched_getaffinity(thread->thread.tcs, cpumask_size, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

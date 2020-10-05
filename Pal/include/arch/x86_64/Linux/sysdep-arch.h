@@ -155,6 +155,9 @@
 #undef INTERNAL_SYSCALL_ERRNO_P
 #define INTERNAL_SYSCALL_ERRNO_P(val) (-((long)val))
 
+#undef INTERNAL_SYSCALL_ERRNO_RANGE
+#define INTERNAL_SYSCALL_ERRNO_RANGE(val) ((val) >= -133 /* EHWPOISON */ && (val) <= -1 /* EPERM */)
+
 #define LOAD_ARGS_0()
 #define LOAD_REGS_0
 #define ASM_ARGS_0

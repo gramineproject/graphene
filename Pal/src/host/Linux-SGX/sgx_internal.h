@@ -126,7 +126,7 @@ void async_exit_pointer(void);
 void eresume_pointer(void);
 void async_exit_pointer_end(void);
 
-int interrupt_thread(void* tcs);
+int get_tid_from_tcs(void* tcs);
 int clone_thread(void);
 
 void create_tcs_mapper(void* tcs_base, unsigned int thread_num);
