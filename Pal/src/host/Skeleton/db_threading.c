@@ -21,7 +21,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkThreadDelayExecution(unsigned long* duration) {
+int _DkThreadDelayExecution(uint64_t* duration) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
@@ -40,6 +40,14 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 }
 
 int _DkThreadResume(PAL_HANDLE threadHandle) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

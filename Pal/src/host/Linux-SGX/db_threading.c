@@ -40,25 +40,16 @@ struct thread_param {
 
 extern void* g_enclave_base;
 
-/*
- * We do not currently handle tid counter wrap-around, and could, in
- * principle, end up with two threads with the same ID. This is ok, as strict
- * uniqueness is not required; the tid is only used for debugging. We could
- * ensure uniqueness if needed in the future
- */
-static PAL_IDX pal_assign_tid(void) {
-    static struct atomic_int tid = ATOMIC_INIT(0);
-    return __atomic_add_fetch(&tid.counter, 1, __ATOMIC_SEQ_CST);
-}
-
-void pal_start_thread(void) {
+void pal_start_thread(uint32_t tid) {
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
+    /* This is host tid and cannot be zero */
+    assert (tid != 0);
     _DkInternalLock(&g_thread_list_lock);
     LISTP_FOR_EACH_ENTRY(tmp, &g_thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
-            new_thread->tid = pal_assign_tid();
+            new_thread->tid = tid;
             new_thread->tcs = g_enclave_base + GET_ENCLAVE_TLS(tcs_offset);
             break;
         }
@@ -107,6 +98,10 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
+    /* Technically we can have a race between thread->tid assinged in
+     * pal_thread_start and this flow, but since there are no consumers for
+     * handle->thread->tid in PAL layer we can skip locking.
+     */
     *handle = new_thread;
     return 0;
 }
@@ -144,6 +139,16 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
 
 int _DkThreadResume(PAL_HANDLE threadHandle) {
     int ret = ocall_resume_thread(threadHandle->thread.tcs);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+}
+
+int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
+    int ret = ocall_sched_setaffinity(thread->thread.tid, cpumask_size, cpu_mask);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+}
+
+int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
+    int ret = ocall_sched_getaffinity(thread->thread.tid, cpumask_size, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

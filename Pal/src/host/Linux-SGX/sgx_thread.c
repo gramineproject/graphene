@@ -171,7 +171,7 @@ int pal_thread_init(void* tcbptr) {
         }
     }
 
-    int tid = INLINE_SYSCALL(gettid, 0);
+    uint32_t tid = INLINE_SYSCALL(gettid, 0);
     map_tcs(tid); /* updates tcb->tcs */
 
     if (!tcb->tcs) {
@@ -191,7 +191,7 @@ int pal_thread_init(void* tcbptr) {
     }
 
     /* not-first (child) thread, start it */
-    ecall_thread_start();
+    ecall_thread_start(tid);
 
     unmap_tcs();
     ret = 0;
@@ -274,8 +274,8 @@ int clone_thread(void) {
     // TODO: pal_thread_init() may fail during initialization (e.g. on TCS exhaustion), we should
     // check its result (but this happens asynchronously, so it's not trivial to do).
     ret = clone(pal_thread_init, child_stack_top,
-                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND |
-                    CLONE_PARENT_SETTID,
+                CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SYSVSEM | CLONE_THREAD |
+                CLONE_SIGHAND | CLONE_PARENT_SETTID,
                 (void*)tcb, &dummy_parent_tid_field, NULL);
 
     if (IS_ERR(ret)) {

@@ -1,0 +1,90 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Corporation */
+
+/*
+ * Test to set/get cpu affinity by parent process on behalf of its child threads.
+ */
+
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <err.h>
+#include <errno.h>
+#include <sys/syscall.h>
+
+/* Set large busy loops so that we can verify affinity with htop*/
+static void* dowork(void* args) {
+    __asm__ volatile (
+                      "movq $10000000000, %%rax\n"
+                      "loop:\n"
+                      "dec %%rax\n"
+                      "cmp $0, %%rax\n"
+                      "jne loop\n"
+                      : /*no outs*/ : /*no ins*/ : "%rax");
+    return 0;
+}
+
+int main(int argc, const char** argv) {
+
+    int ret;
+    int numprocs = sysconf(_SC_NPROCESSORS_ONLN);
+    if (numprocs < 0) {
+        err(EXIT_FAILURE, "Failed to retrieve the number of logical processors!\n");
+    }
+
+    /* Affinitize threads to alternate logical processors to do a
+     * quick check from htop command
+     */
+    numprocs = (numprocs >= 2) ? numprocs/2 : 1;
+
+    pthread_t threads[numprocs];
+
+    pthread_attr_t attr;
+    cpu_set_t cpus, get_cpus;
+    pthread_attr_init(&attr);
+
+    for (int i = 0; i < numprocs; i++) {
+        CPU_ZERO(&cpus);
+        CPU_ZERO(&get_cpus);
+        CPU_SET(i*2, &cpus);
+        
+        ret = pthread_attr_setaffinity_np(&attr, sizeof(cpus), &cpus);
+        if (ret != 0) {
+            err(EXIT_FAILURE, "pthread_attr_setaffinity_np failed!\n");
+        }
+
+        ret = pthread_attr_getaffinity_np(&attr, sizeof(get_cpus), &get_cpus);
+        if (ret != 0) {
+            err(EXIT_FAILURE, "pthread_attr_getaffinity_np failed!\n");
+        }
+
+        if (!CPU_EQUAL_S(sizeof(cpus), &cpus, &get_cpus)) {
+            errx(EXIT_FAILURE, "get cpuset is not equal to set cpuset on proc: %d\n", i);
+        }
+
+        ret = pthread_create(&threads[i], &attr, dowork, NULL);
+        if (ret != 0) {
+            err(EXIT_FAILURE, "pthread_create failed!\n");
+        }
+    }
+
+    for (int i = 0; i < numprocs; i++) {
+        ret = pthread_join(threads[i], NULL);
+        if (ret != 0) {
+            err(EXIT_FAILURE, "pthread_join failed!\n");
+            break;
+        }
+    }
+
+    /* Negative test case */
+    CPU_ZERO(&cpus);
+    ret = pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus);
+    if (ret != EINVAL) {
+        err(EXIT_FAILURE, "pthread_setaffinity_np with empty cpumask did not return EINVAL!\n");
+    }
+
+    printf("TEST OK\n");
+    return 0;
+}
