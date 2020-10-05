@@ -251,7 +251,34 @@ static long sgx_ocall_getdents(void* pms) {
 
 static long sgx_ocall_resume_thread(void* pms) {
     ODEBUG(OCALL_RESUME_THREAD, pms);
-    return interrupt_thread(pms);
+    int tid = get_tid_from_tcs(pms);
+    if (tid < 0)
+        return tid;
+
+    long ret = INLINE_SYSCALL(tgkill, 3, g_pal_enclave.pal_sec.pid, tid, SIGCONT);
+    return ret;
+}
+
+static long sgx_ocall_sched_setaffinity(void* pms) {
+    ms_ocall_sched_setaffinity_t* ms = (ms_ocall_sched_setaffinity_t*)pms;
+    ODEBUG(OCALL_SCHED_SETAFFINITY, ms);
+    int tid = get_tid_from_tcs(ms->ms_tcs);
+    if (tid < 0)
+        return tid;
+
+    long ret = INLINE_SYSCALL(sched_setaffinity, 3, tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
+    return ret;
+}
+
+static long sgx_ocall_sched_getaffinity(void* pms) {
+    ms_ocall_sched_getaffinity_t* ms = (ms_ocall_sched_getaffinity_t*)pms;
+    ODEBUG(OCALL_SCHED_GETAFFINITY, ms);
+    int tid = get_tid_from_tcs(ms->ms_tcs);
+    if (tid < 0)
+        return tid;
+
+    long ret = INLINE_SYSCALL(sched_getaffinity, 3, tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
+    return ret;
 }
 
 static long sgx_ocall_clone_thread(void* pms) {
@@ -669,6 +696,8 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_MKDIR]            = sgx_ocall_mkdir,
     [OCALL_GETDENTS]         = sgx_ocall_getdents,
     [OCALL_RESUME_THREAD]    = sgx_ocall_resume_thread,
+    [OCALL_SCHED_SETAFFINITY]= sgx_ocall_sched_setaffinity,
+    [OCALL_SCHED_GETAFFINITY]= sgx_ocall_sched_getaffinity,
     [OCALL_CLONE_THREAD]     = sgx_ocall_clone_thread,
     [OCALL_CREATE_PROCESS]   = sgx_ocall_create_process,
     [OCALL_FUTEX]            = sgx_ocall_futex,

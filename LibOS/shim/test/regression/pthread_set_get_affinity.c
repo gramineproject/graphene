@@ -1,0 +1,116 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2020 Intel Corporation */
+
+/*
+ * Test to set/get cpu affinity by parent process on behalf of its child threads.
+ */
+
+#define _GNU_SOURCE
+#include <err.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+/* Set large busy loops so that we can verify affinity with htop manually*/
+static void* dowork(void* args) {
+    uint64_t* iterations = (uint64_t*)args;
+    __asm__ volatile (
+                      "movq %0, %%rax\n"
+                      "loop:\n"
+                      "dec %%rax\n"
+                      "cmp $0, %%rax\n"
+                      "jne loop\n"
+                      : /*no outs*/ : "m"(*iterations)  : "rax", "cc");
+    return NULL;
+}
+
+int main(int argc, const char** argv) {
+    int ret;
+    long numprocs = sysconf(_SC_NPROCESSORS_ONLN);
+    if (numprocs < 0) {
+        err(EXIT_FAILURE, "Failed to retrieve the number of logical processors!");
+    }
+
+    /* Affinitize threads to alternate logical processors to do a quick check from htop manually */
+    numprocs = (numprocs >= 2) ? numprocs/2 : 1;
+
+    pthread_t* threads = (pthread_t*)malloc(numprocs * sizeof(pthread_t));
+    if (!threads) {
+         errx(EXIT_FAILURE, "memory allocation failed");
+    }
+    cpu_set_t cpus, get_cpus;
+
+    uint64_t iterations = argc > 1 ? atol(argv[1]) : 10000000000;
+
+    /* Validate parent set/get affinity for child */
+    for (long i = 0; i < numprocs; i++) {
+        CPU_ZERO(&cpus);
+        CPU_ZERO(&get_cpus);
+        CPU_SET(i*2, &cpus);
+
+        ret = pthread_create(&threads[i], NULL, dowork, (void*)&iterations);
+        if (ret != 0) {
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_create failed!");
+        }
+
+        ret = pthread_setaffinity_np(threads[i], sizeof(cpus), &cpus);
+        if (ret != 0) {
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_setaffinity_np failed for child!");
+        }
+
+        ret = pthread_getaffinity_np(threads[i], sizeof(get_cpus), &get_cpus);
+        if (ret != 0) {
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_getaffinity_np failed for child!");
+        }
+
+        if (!CPU_EQUAL_S(sizeof(cpus), &cpus, &get_cpus)) {
+            free(threads);
+            errx(EXIT_FAILURE, "get cpuset is not equal to set cpuset on proc: %ld", i);
+        }
+    }
+
+    for (int i = 0; i < numprocs; i++) {
+        ret = pthread_join(threads[i], NULL);
+        if (ret != 0) {
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_join failed!");
+        }
+    }
+    /* Validating parent set/get affinity for child done. Free resources */
+    free(threads);
+
+    /* Validate parent set/get affinity for itself */
+    CPU_ZERO(&cpus);
+    CPU_SET(0, &cpus);
+    ret = pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus);
+    if (ret != 0) {
+        errx(EXIT_FAILURE, "pthread_setaffinity_np failed for parent!");
+    }
+
+    CPU_ZERO(&get_cpus);
+    ret = pthread_getaffinity_np(pthread_self(), sizeof(get_cpus), &get_cpus);
+    if (ret != 0) {
+        errx(EXIT_FAILURE, "pthread_getaffinity_np failed for parent!");
+    }
+
+    if (!CPU_EQUAL_S(sizeof(cpus), &cpus, &get_cpus)) {
+        errx(EXIT_FAILURE, "get cpuset is not equal to set cpuset on proc 0");
+    }
+
+    /* Negative test case with empty cpumask*/
+    CPU_ZERO(&cpus);
+    ret = pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus);
+    if (ret != EINVAL) {
+        errx(EXIT_FAILURE, "pthread_setaffinity_np with empty cpumask did not return EINVAL!");
+    }
+
+    printf("TEST OK\n");
+    return 0;
+}
