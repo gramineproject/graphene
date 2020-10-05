@@ -20,3 +20,8 @@ typedef struct {
     struct pal_sec*   ms_sec_info;
     struct rpc_queue* rpc_queue; /* pointer to RPC queue in untrusted mem */
 } ms_ecall_enclave_start_t;
+
+typedef struct {
+    unsigned int ms_tid;
+} ms_ecall_thread_start_t;
+

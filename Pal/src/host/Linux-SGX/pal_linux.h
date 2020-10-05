@@ -63,7 +63,7 @@ struct pal_sec;
 noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char* uptr_args,
                              size_t args_size, char* uptr_env, size_t env_size,
                              struct pal_sec* uptr_sec_info);
-void pal_start_thread(void);
+void pal_start_thread(uint32_t tid);
 
 struct link_map;
 void setup_pal_map(struct link_map* map);

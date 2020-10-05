@@ -234,6 +234,8 @@ void _DkThreadYieldExecution(void);
 int _DkThreadResume(PAL_HANDLE threadHandle);
 int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args);
 noreturn void _DkProcessExit(int exitCode);
+int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_len, PAL_PTR cpu_mask);
+int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_len, PAL_PTR cpu_mask);
 
 /* DkMutex calls */
 int _DkMutexCreate(PAL_HANDLE* handle, int initialCount);
