@@ -511,6 +511,35 @@ noreturn void DkThreadExit(PAL_PTR clear_child_tid);
  */
 PAL_BOL DkThreadResume(PAL_HANDLE thread);
 
+/*!
+ * \brief Sets the CPU affinity of a thread.
+ *
+ * All bit positions exceeding the count of host CPUs are ignored. Returns an error if no CPUs were
+ * selected.
+ *
+ * \param thread PAL thread for which to set the CPU affinity.
+ * \param cpumask_size size in bytes of the bitmask pointed by \a cpu_mask.
+ * \param cpu_mask pointer to the new CPU mask.
+ *
+ * \return Returns 1 on success, 0 on failure. Use PAL_ERRNO() to get the actual error code.
+ */
+PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+
+/*!
+ * \brief Gets the CPU affinity of a thread.
+ *
+ * This function assumes that \a cpumask_size is valid and greater than 0. Also, \a cpumask_size
+ * must be able to fit all the processors in the host and must be aligned by sizeof(long). For
+ * example, if the host supports 4 CPUs, \a cpumask_size should be 8 bytes.
+ *
+ * \param thread PAL thread for which to get the CPU affinity.
+ * \param cpumask_size size in bytes of the bitmask pointed by \a cpu_mask.
+ * \param cpu_mask pointer to hold the current CPU mask.
+ *
+ * \return Returns 1 on success, 0 on failure. Use PAL_ERRNO() to get the actual error code.
+ */
+PAL_BOL DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+
 /*
  * Exception Handling
  */

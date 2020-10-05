@@ -5,8 +5,8 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
-/* This test checks that our dummy implementations work correctly. None of the
- * below syscalls are actually propagated to the host OS or change anything.
+/* This test checks that our dummy implementations work correctly. None of the below syscalls except
+ * sched_setaffinity and sched_getaffinity are actually propagated to the host OS or change anything
  * NOTE: This test works correctly only on Graphene (not on Linux). */
 
 int main(int argc, char** argv) {
@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
 
     cpu_set_t my_set;
     CPU_ZERO(&my_set);
+    CPU_SET(0, &my_set);
     if (sched_setaffinity(0, sizeof(cpu_set_t), &my_set) == -1) {
         perror("Error setting affinity");
         return 1;
