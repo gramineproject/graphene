@@ -177,6 +177,8 @@ extern PAL_CONTROL g_pal_control;
 #define ALLOC_ALIGN_DOWN(addr)     ALIGN_DOWN_POW2(addr, g_pal_state.alloc_align)
 #define ALLOC_ALIGN_DOWN_PTR(addr) ALIGN_DOWN_PTR_POW2(addr, g_pal_state.alloc_align)
 
+#define CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF   0x0b
+#define CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF 0x1f
 /*!
  * \brief Main initialization function
  *

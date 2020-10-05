@@ -309,7 +309,15 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
 }
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    if (!get_cpuid_from_cache(leaf, subleaf, values))
+    bool skip_cache = false;
+
+    /* the cpu core info cannot be cached due to its data varying depending on the calling thread */
+    if (leaf == CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF ||
+        leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
+        skip_cache = true;
+    }
+
+    if (!skip_cache && !get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
     if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
@@ -317,7 +325,9 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     sanity_check_cpuid(leaf, subleaf, values);
 
-    add_cpuid_to_cache(leaf, subleaf, values);
+    if (!skip_cache)
+        add_cpuid_to_cache(leaf, subleaf, values);
+
     return 0;
 }
 
