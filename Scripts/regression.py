@@ -3,6 +3,7 @@ import os
 import pathlib
 import signal
 import subprocess
+import sys
 import unittest
 
 HAS_SGX = os.environ.get('SGX') == '1'
@@ -22,28 +23,28 @@ class RegressionTestCase(unittest.TestCase):
     def get_manifest(self, filename):
         return filename + '.manifest' + ('.sgx' if HAS_SGX else '')
 
-    def has_debug(self):
+    def get_env(self, name):
         try:
-            libpal = os.environ[self.LIBPAL_PATH_ENV]
+            return os.environ[name]
         except KeyError:
-            self.fail('environment variable {} unset'.format(self.LIBPAL_PATH_ENV))
+            self.fail('environment variable {} not set'.format(name))
 
+    def has_debug(self):
+        libpal = self.get_env(self.LIBPAL_PATH_ENV)
         p = subprocess.run(['objdump', '-x', libpal], check=True, stdout=subprocess.PIPE)
         dump = p.stdout.decode()
         return '.debug_info' in dump
 
     def run_gdb(self, args, gdb_script, **kwds):
-        try:
-            host_pal_path = os.environ[self.HOST_PAL_PATH_ENV]
-        except KeyError:
-            self.fail('environment variable {} unset'.format(self.HOST_PAL_PATH_ENV))
+        host_pal_path = self.get_env(self.HOST_PAL_PATH_ENV)
 
         # See also pal_loader.
         prefix = ['gdb', '-q']
         env = os.environ.copy()
         if HAS_SGX:
             prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/graphene_sgx_gdb.py')]
-            env['LD_PRELOAD'] = os.path.join(host_pal_path, 'gdb_integration/sgx_gdb.so')
+            sgx_gdb = os.path.join(host_pal_path, 'gdb_integration/sgx_gdb.so')
+            env['LD_PRELOAD'] = sgx_gdb + ':' + env.get('LD_PRELOAD', '')
         else:
             prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/graphene_gdb.py')]
 
@@ -57,20 +58,11 @@ class RegressionTestCase(unittest.TestCase):
         timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
             else self.DEFAULT_TIMEOUT)
 
-        try:
-            loader = os.environ[self.LOADER_ENV]
-        except KeyError:
-            self.skipTest(
-                'environment variable {} unset'.format(self.LOADER_ENV))
-
+        loader = self.get_env(self.LOADER_ENV)
         if not pathlib.Path(loader).exists():
             self.skipTest('loader ({}) not found'.format(loader))
 
-        try:
-            libpal = os.environ[self.LIBPAL_PATH_ENV]
-        except KeyError:
-            self.fail('environment variable {} unset'.format(self.LIBPAL_PATH_ENV))
-
+        libpal = self.get_env(self.LIBPAL_PATH_ENV)
         if not pathlib.Path(libpal).exists():
             self.skipTest('libpal ({}) not found'.format(libpal))
 
@@ -86,6 +78,8 @@ class RegressionTestCase(unittest.TestCase):
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL)
                 self.fail('timeout ({} s) expired'.format(timeout))
+
+            self.print_output(stdout, stderr)
 
             if process.returncode:
                 raise subprocess.CalledProcessError(
@@ -112,11 +106,21 @@ class RegressionTestCase(unittest.TestCase):
                 os.killpg(process.pid, signal.SIGKILL)
                 self.fail('timeout ({} s) expired'.format(timeout))
 
+            self.print_output(stdout, stderr)
+
             if process.returncode:
                 raise subprocess.CalledProcessError(
                     process.returncode, args, stdout, stderr)
 
         return stdout.decode(), stderr.decode()
+
+    def print_output(self, stdout: bytes, stderr: bytes):
+        '''
+        Print command output (stdout, stderr) so that pytest can capture it.
+        '''
+
+        sys.stdout.write(stdout.decode(errors='surrogateescape'))
+        sys.stderr.write(stderr.decode(errors='surrogateescape'))
 
     @contextlib.contextmanager
     def expect_returncode(self, returncode):

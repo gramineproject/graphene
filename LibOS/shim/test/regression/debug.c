@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-__attribute((noinline)) static void func() {
+__attribute__((noinline)) static void func(void) {
     printf("hello\n");
     fflush(stdout);
 }

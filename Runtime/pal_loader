@@ -60,7 +60,7 @@ if [ "$GDB" == "1" ]; then
 	fi
 	if [ -v SGX ]; then
 		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/graphene_sgx_gdb.py")
-		ENVS+=("LD_PRELOAD=$HOST_PAL_PATH/gdb_integration/sgx_gdb.so")
+		ENVS+=("LD_PRELOAD=$HOST_PAL_PATH/gdb_integration/sgx_gdb.so:$LD_PRELOAD")
 	else
 		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/graphene_gdb.py")
 	fi

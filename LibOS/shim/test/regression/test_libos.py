@@ -602,10 +602,6 @@ class TC_50_GDB(RegressionTestCase):
 
         stdout, stderr = self.run_gdb(['debug'], 'debug.gdb')
 
-        # Print GDB output, for capture by pytest.
-        sys.stdout.write(stdout)
-        sys.stderr.write(stderr)
-
         backtrace_1 = self.find('backtrace 1', stdout)
         self.assertIn(' main () at debug.c', backtrace_1)
         self.assertIn(' _start ()', backtrace_1)
