@@ -65,6 +65,7 @@ int thread_destroy(struct shim_thread* thread, bool send_ipc) {
             info.si_pid    = thread->tid;
             info.si_uid    = thread->uid;
             info.si_status = (exit_code & 0xff) << 8;
+            info.si_code   = (exit_code & 0xff) >= 128 ? CLD_KILLED : CLD_EXITED;
 
             if (append_signal(parent, &info) >= 0) {
                 thread_wakeup(parent);

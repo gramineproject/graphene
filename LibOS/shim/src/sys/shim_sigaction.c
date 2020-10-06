@@ -257,6 +257,7 @@ static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
         siginfo_t info = {
             .si_signo = arg->sig,
             .si_pid   = arg->sender,
+            .si_code  = SI_USER
         };
         ret = append_signal(NULL, &info);
         if (ret < 0) {
@@ -411,6 +412,7 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
                 siginfo_t info = {
                     .si_signo = sig,
                     .si_pid   = sender,
+                    .si_code  = SI_TKILL
                 };
                 ret = append_signal(thread, &info);
                 if (ret >= 0) {
@@ -445,7 +447,8 @@ int shim_do_tkill(pid_t tid, int sig) {
             siginfo_t info;
             memset(&info, 0, sizeof(siginfo_t));
             info.si_signo = sig;
-            info.si_pid   = cur->tid;
+            info.si_pid   = cur->tgid;
+            info.si_code  = SI_TKILL;
             deliver_signal(&info, NULL);
         }
         return 0;
@@ -468,7 +471,8 @@ int shim_do_tgkill(pid_t tgid, pid_t tid, int sig) {
             siginfo_t info;
             memset(&info, 0, sizeof(siginfo_t));
             info.si_signo = sig;
-            info.si_pid   = cur->tid;
+            info.si_pid   = cur->tgid;
+            info.si_code  = SI_TKILL;
             deliver_signal(&info, NULL);
         }
         return 0;
