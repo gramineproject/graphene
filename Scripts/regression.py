@@ -114,7 +114,8 @@ class RegressionTestCase(unittest.TestCase):
 
         return stdout.decode(), stderr.decode()
 
-    def print_output(self, stdout: bytes, stderr: bytes):
+    @staticmethod
+    def print_output(stdout: bytes, stderr: bytes):
         '''
         Print command output (stdout, stderr) so that pytest can capture it.
         '''
