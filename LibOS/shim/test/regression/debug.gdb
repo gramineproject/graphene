@@ -23,4 +23,17 @@ commands
   continue
 end
 
-run
+catch syscall
+commands
+  continue
+end
+
+catch load
+commands
+  continue
+end
+
+echo Starting
+starti
+echo Started
+continue
