@@ -40,9 +40,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
             cmd = [cls.PF_CRYPT, 'encrypt', '-w', cls.WRAP_KEY, '-i', cls.INPUT_FILES[i], '-o',
                    cls.ENCRYPTED_FILES[i]]
 
-            # pylint: disable=fixme
-            # TODO: This calls an instance method like a static method :( Fix it.
-            cls.run_native_binary(cls, cmd, libpath=os.path.join(os.getcwd(), 'lib'))
+            cls.run_native_binary(cmd, libpath=os.path.join(os.getcwd(), 'lib'))
 
     def __pf_crypt(self, args):
         args.insert(0, self.PF_CRYPT)

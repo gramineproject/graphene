@@ -87,9 +87,10 @@ class RegressionTestCase(unittest.TestCase):
 
         return stdout.decode(), stderr.decode()
 
-    def run_native_binary(self, args, timeout=None, libpath=None, **kwds):
-        timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
-            else self.DEFAULT_TIMEOUT)
+    @classmethod
+    def run_native_binary(cls, args, timeout=None, libpath=None, **kwds):
+        timeout = (max(cls.DEFAULT_TIMEOUT, timeout) if timeout is not None
+            else cls.DEFAULT_TIMEOUT)
 
         my_env = os.environ.copy()
         if not libpath is None:
@@ -104,9 +105,9 @@ class RegressionTestCase(unittest.TestCase):
                 stdout, stderr = process.communicate(timeout=timeout)
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL)
-                self.fail('timeout ({} s) expired'.format(timeout))
+                raise AssertionError('timeout ({} s) expired'.format(timeout))
 
-            self.print_output(stdout, stderr)
+            cls.print_output(stdout, stderr)
 
             if process.returncode:
                 raise subprocess.CalledProcessError(
