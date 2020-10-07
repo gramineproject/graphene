@@ -75,7 +75,6 @@ Table of Contents
    devel/setup
    devel/debugging
    devel/new-syscall
-   devel/supported-syscalls
 
 .. toctree::
    :caption: LibOS

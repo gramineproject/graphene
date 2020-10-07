@@ -7,8 +7,7 @@
 /*
  * shim_syscalls.c
  *
- * This file contains macros to redirect all system calls to the system call
- * table in library OS.
+ * This file contains macros to redirect all system calls to the system call table in library OS.
  */
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -26,87 +25,8 @@
 #include "shim_types.h"
 #include "shim_utils.h"
 
-//////////////////////////////////////////////////
-//  Mappings from system calls to shim calls
-///////////////////////////////////////////////////
-
-/*
-  Missing, but need to be added:
-  * clone
-  * semctl
-
-  from 'man unimplemented':
-  NOT IMPLEMENTED in kernel (always return -ENOSYS)
-
-  NAME
-  afs_syscall,  break,  ftime,  getpmsg, gtty, lock, madvise1, mpx, prof,
-  profil, putpmsg, security, stty, tuxcall, ulimit,  vserver  -
-  unimplemented system calls
-
-  SYNOPSIS
-  Unimplemented system calls.
-
-  DESCRIPTION
-  These system calls are not implemented in the Linux 2.6.22 kernel.
-
-  RETURN VALUE
-  These system calls always return -1 and set errno to ENOSYS.
-
-  NOTES
-  Note  that ftime(3), profil(3) and ulimit(3) are implemented as library
-  functions.
-
-  Some system calls,  like  alloc_hugepages(2),  free_hugepages(2),  ioperm(2),
-  iopl(2), and vm86(2) only exist on certain architectures.
-
-  Some  system  calls, like ipc(2), create_module(2), init_module(2), and
-  delete_module(2) only exist when the Linux kernel was built  with  support
-  for them.
-
-  SEE ALSO
-  syscalls(2)
-
-  COLOPHON
-  This  page  is  part of release 3.24 of the Linux man-pages project.  A
-  description of the project, and information about reporting  bugs,  can
-  be found at http://www.kernel.org/doc/man-pages/.
-
-  Linux                            2007-07-05                  UNIMPLEMENTED(2)
-
-
-
-  Also missing from shim:
-  * epoll_ctl_old
-  * epoll_wait_old
-
-
-  According to kernel man pages, glibc does not provide wrappers for
-  every system call (append to this list as you come accross more):
-  * io_setup
-  * ioprio_get
-  * ioprio_set
-  * sysctl
-  * getdents
-  * tkill
-  * tgkill
-
-
-  Also not in libc (append to this list as you come accross more):
-
-  * add_key: (removed in Changelog.17)
-  * request_key: (removed in Changelog.17)
-  * keyctl: (removed in Changelog.17)
-  Although these are Linux system calls, they are not present in
-  libc but can be found rather in libkeyutils. When linking,
-  -lkeyutils should be specified to the linker.x
-
-  There are probably other things of note, so put them here as you
-  come across them.
-
-*/
-
-/* Please move implemented system call to sys/ directory and name them as the
- * most important system call */
+/* Please place system calls implementations in sys/ directory and name them as the most important
+ * system call */
 
 /* read: sys/shim_open.c */
 DEFINE_SHIM_SYSCALL(read, 3, shim_do_read, size_t, int, fd, void*, buf, size_t, count)
@@ -127,8 +47,7 @@ DEFINE_SHIM_SYSCALL(stat, 2, shim_do_stat, int, const char*, file, struct stat*,
 DEFINE_SHIM_SYSCALL(fstat, 2, shim_do_fstat, int, int, fd, struct stat*, statbuf)
 
 /* lstat: sys/shim_lstat.c */
-/* for now we don't support symbolic link, so lstat will work exactly the same
-   as stat. */
+/* for now we don't support symbolic links, so lstat will work exactly the same as stat. */
 DEFINE_SHIM_SYSCALL(lstat, 2, shim_do_lstat, int, const char*, file, struct stat*, statbuf)
 
 /* poll: sys/shim_poll.c */
@@ -634,38 +553,10 @@ SHIM_SYSCALL_RETURN_ENOSYS(init_module, 3, int, void*, umod, unsigned long, len,
 
 SHIM_SYSCALL_RETURN_ENOSYS(delete_module, 2, int, const char*, name_user, unsigned int, flags)
 
-/*
-SHIM_SYSCALL_RETURN_ENOSYS(get_kernel_syms, 1, int, struct kernel_sym*, table)
-*/
-
 SHIM_SYSCALL_RETURN_ENOSYS(query_module, 5, int, const char*, name, int, which, void*, buf, size_t,
                            bufsize, size_t*, retsize)
 
 SHIM_SYSCALL_RETURN_ENOSYS(quotactl, 4, int, int, cmd, const char*, special, qid_t, id, void*, addr)
-
-/*
-SHIM_SYSCALL_RETURN_ENOSYS(nfsservctl, 3, int, int, cmd, struct nfsctl_arg*, arg, void*, res)
-*/
-
-/* shim_getpmsg MISSING
-   TODO: getpmsg syscall is not implemented (kernel always returns -ENOSYS), how should we handle
-   this? */
-
-/* shim_putpmsg MISSING
-   TODO: putpmsg syscall is not implemented (kernel always returns -ENOSYS), how should we handle
-   this? */
-
-/* shim_afs_syscall MISSING
-   TODO: afs_syscall is not implemented (kernel always returns -ENOSYS), how should we handle
-   this? */
-
-/* shim_tuxcall MISSING
-   TODO: tuxcall syscall is not implemented (kernel always returns -ENOSYS), how should we handle
-   this? */
-
-/* shim_security MISSING
-   TODO: security syscall is not implemented (kernel always returns -ENOSYS), how should we handle
-   this? */
 
 /* gettid: sys/shim_getpid.c */
 DEFINE_SHIM_SYSCALL(gettid, 0, shim_do_gettid, pid_t)
@@ -743,14 +634,6 @@ SHIM_SYSCALL_RETURN_ENOSYS(lookup_dcookie, 3, int, unsigned long, cookie64, char
 
 DEFINE_SHIM_SYSCALL(epoll_create, 1, shim_do_epoll_create, int, int, size)
 
-/* shim_epoll_ctl_old MISSING
-   TODO: epoll_ctl_old syscall is not implemented (kernel always returns -ENOSYS),
-   how should we handle this?*/
-
-/* shim_epoll_wait_old MISSING
-   TODO: epoll_wait_old syscall is not implemented (kernel always returns -ENOSYS),
-   how should we handle this?*/
-
 SHIM_SYSCALL_RETURN_ENOSYS(remap_file_pages, 5, int, void*, start, size_t, size, int, prot, ssize_t,
                            pgoff, int, flags)
 
@@ -810,10 +693,6 @@ DEFINE_SHIM_SYSCALL(tgkill, 3, shim_do_tgkill, int, pid_t, tgid, pid_t, pid, int
 
 SHIM_SYSCALL_RETURN_ENOSYS(utimes, 2, int, char*, filename, struct timeval*, utimes)
 
-/* shim_vserver MISSING
-   TODO: vserver syscall is not implemented (kernel always returns -ENOSYS),
-   how should we handle this?*/
-
 DEFINE_SHIM_SYSCALL(mbind, 6, shim_do_mbind, int, void*, start, unsigned long, len, int, mode,
                     unsigned long*, nmask, unsigned long, maxnode, int, flags)
 
@@ -841,26 +720,6 @@ SHIM_SYSCALL_RETURN_ENOSYS(mq_notify, 2, int, __kernel_mqd_t, mqdes, const struc
 SHIM_SYSCALL_RETURN_ENOSYS(mq_getsetattr, 3, int, __kernel_mqd_t, mqdes,
                            const struct __kernel_mq_attr*, mqstat, struct __kernel_mq_attr*,
                            omqstat)
-
-/*
-SHIM_SYSCALL_RETURN_ENOSYS(kexec_load, 4, int, unsigned long, entry, unsigned long, nr_segments,
-                           struct kexec_segment*, segments, unsigned long, flags)
-*/
-
-/*
-SHIM_SYSCALL_RETURN_ENOSYS(add_key, 5, int, const char*, type, const char*, description,
-                           const void*, payload, size_t, plen, key_serial_t, destringid)
-*/
-
-/*
-SHIM_SYSCALL_RETURN_ENOSYS(request_key, 4, int, const char*, type, const char*, description,
-                           const char *, callout_info, key_serial_t, destringid)
-*/
-
-/*
-SHIM_SYSCALL_RETURN_ENOSYS(keyctl, 5, int, int, cmd, unsigned long, arg2, unsigned long, arg3,
-                           unsigned long, arg4, unsigned long, arg5)
-*/
 
 SHIM_SYSCALL_RETURN_ENOSYS(ioprio_set, 3, int, int, which, int, who, int, ioprio)
 
