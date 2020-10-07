@@ -2,12 +2,9 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_getpid.c
- *
- * Implementation of system call "getpid", "gettid", "getppid",
- * "set_tid_address", "getuid", "getgid", "setuid", "setgid", "geteuid",
- * "getegid", "setpgid", "getpgid", "getpgrp", "setgroups", "getgroups",
- * "setsid" and "getsid".
+ * Implementation of system calls "getpid", "gettid", "getppid", "set_tid_address", "getuid",
+ * "getgid", "setuid", "setgid", "geteuid", "getegid", "setpgid", "getpgid", "getpgrp", "setgroups",
+ * "getgroups", "setsid" and "getsid".
  */
 
 #include <errno.h>

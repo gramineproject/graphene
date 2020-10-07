@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_threading.c
- *
- * This file contain APIs to create, exit and yield a thread.
+ * This file contains APIs to create, exit and yield a thread.
  */
 
 #include "api.h"

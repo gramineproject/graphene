@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_wrapper.c
- *
- * Implementation of system call "readv" and "writev".
+ * Implementation of system calls "readv" and "writev".
  */
 
 #include <errno.h>

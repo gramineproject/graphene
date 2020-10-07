@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-/*
- * shim_internal.h
- */
-
 #ifndef _SHIM_INTERNAL_H_
 #define _SHIM_INTERNAL_H_
 

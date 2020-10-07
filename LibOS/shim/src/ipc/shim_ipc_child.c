@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_ipc_child.c
- *
- * This file contains functions and callbacks to handle IPC between parent
- * processes and their children.
+ * This file contains functions and callbacks to handle IPC between parent processes and their
+ * children.
  */
 
 #include <errno.h>

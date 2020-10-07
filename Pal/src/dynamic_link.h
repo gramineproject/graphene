@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * dynamic_link.h
- *
- * This files contain inline functions for dynamic linking.
- * The source code is imported and modified from the GNU C Library.
+ * This file contains inline functions for dynamic linking. The source code was imported from the
+ * GNU C Library and modified.
  */
 
 #include "dl-machine.h"

@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_fork.c
- *
  * Implementation of system calls "fork" and "vfork".
  */
 

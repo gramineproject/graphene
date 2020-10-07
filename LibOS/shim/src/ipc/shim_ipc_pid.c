@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_ipc_pid.c
- *
  * This file contains functions and callbacks to handle IPC of PID namespace.
  */
 

@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_stat.c
- *
- * Implementation of system call "stat", "lstat", "fstat" and "readlink".
+ * Implementation of system calls "stat", "lstat", "fstat" and "readlink".
  */
 
 #include <errno.h>

@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * pal_debug.h
- *
  * This file contains definitions of APIs used for debug purposes.
  */
 

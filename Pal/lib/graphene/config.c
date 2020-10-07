@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * config.c
- *
- * This file contains functions to read app config (manifest) file and create
- * a tree to lookup / access config values.
+ * This file contains functions to read app config (manifest) file and create a tree to
+ * lookup / access config values.
  */
 
 #include "api.h"

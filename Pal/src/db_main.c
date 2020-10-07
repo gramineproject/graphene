@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_main.c
- *
- * This file contains the main function of the PAL loader, which loads and
- * processes environment, arguments and manifest.
+ * This file contains the main function of the PAL loader, which loads and processes environment,
+ * arguments and manifest.
  */
 
 #include <stdbool.h>

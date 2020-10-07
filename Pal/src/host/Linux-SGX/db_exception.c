@@ -4,8 +4,6 @@
  */
 
 /*
- * db_exception.c
- *
  * This file contains APIs to set up signal handlers.
  */
 

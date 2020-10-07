@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * slabmgr.h
- *
  * This file contains implementation of SLAB (variable-size) memory allocator.
  */
 

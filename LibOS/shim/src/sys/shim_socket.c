@@ -2,11 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_socket.c
- *
- * Implementation of system call "socket", "bind", "accept4", "listen",
- * "connect", "sendto", "recvfrom", "sendmsg", "recvmsg" and "shutdown" and
- * "getsockname", "getpeername".
+ * Implementation of system calls "socket", "bind", "accept4", "listen", "connect", "sendto",
+ * "recvfrom", "sendmsg", "recvmsg" and "shutdown" and "getsockname", "getpeername".
  */
 
 #include <asm/socket.h>

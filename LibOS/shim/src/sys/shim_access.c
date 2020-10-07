@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_access.c
- *
- * Implementation of system call "access" and "faccessat".
+ * Implementation of system calls "access" and "faccessat".
  */
 
 #include <errno.h>

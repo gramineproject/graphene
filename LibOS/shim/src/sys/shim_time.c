@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_time.c
- *
- * Implementation of system call "gettimeofday", "time" and "clock_gettime".
+ * Implementation of system calls "gettimeofday", "time" and "clock_gettime".
  */
 
 #include <errno.h>

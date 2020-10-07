@@ -4,8 +4,6 @@
  */
 
 /*
- * shim_vma.h
- *
  * Definitions of types and functions for VMA bookkeeping.
  */
 

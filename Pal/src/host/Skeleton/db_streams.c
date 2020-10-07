@@ -2,10 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_stream.c
- *
- * This file contains APIs to open, read, write and get attribute of
- * streams.
+ * This file contains APIs to open, read, write and get attributes of streams.
  */
 
 #include "api.h"

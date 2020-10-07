@@ -2,10 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_clone.c
- *
- * Implementation of system call "clone". (using "clone" as "fork" is not
- * implemented yet.)
+ * Implementation of system call "clone".
  */
 
 #include <errno.h>

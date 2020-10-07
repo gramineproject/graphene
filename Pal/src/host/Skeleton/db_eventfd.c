@@ -2,8 +2,6 @@
 /* Copyright (C) 2019 Intel Corporation */
 
 /*
- * db_eventfd.c
- *
  * This file contains operations to handle streams with URIs that have "eventfd:".
  */
 

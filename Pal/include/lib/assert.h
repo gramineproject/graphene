@@ -1,9 +1,5 @@
 /*
- * assert.h
- *
- * Define a common interface for assertions that builds for both the PAL
- * and libOS.
- *
+ * Define a common interface for assertions that builds for both the PAL and libOS.
  */
 
 #ifndef ASSERT_H

@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * pal_host.h
- *
  * This file contains definition of PAL host ABI.
  */
 

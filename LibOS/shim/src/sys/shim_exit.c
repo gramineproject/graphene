@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_exit.c
- *
- * Implementation of system call "exit" and "exit_group".
+ * Implementation of system calls "exit" and "exit_group".
  */
 
 #include "pal.h"

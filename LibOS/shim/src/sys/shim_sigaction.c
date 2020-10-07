@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_sigaction.c
- *
- * Implementation of system call "sigaction", "sigreturn", "sigprocmask",
- * "kill", "tkill" and "tgkill".
+ * Implementation of system calls "sigaction", "sigreturn", "sigprocmask", "kill", "tkill"
+ * and "tgkill".
  */
 
 #include <errno.h>

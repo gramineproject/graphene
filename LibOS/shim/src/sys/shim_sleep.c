@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_sleep.c
- *
- * Implementation of system call "pause" and "nanosleep".
+ * Implementation of system calls "pause" and "nanosleep".
  */
 
 #include <errno.h>

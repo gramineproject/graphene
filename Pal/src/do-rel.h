@@ -2,11 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * do-rel.h
- *
- * This files contain architecture-independent macros of ELF dynamic
- * relocation function.
- * The source code is imported and modified from the GNU C Library.
+ * This file contains architecture-independent macros of ELF dynamic relocation function.
+ * The source code was imported from the GNU C Library and modified.
  */
 
 #include "dl-machine.h"

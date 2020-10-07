@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_semget.c
- *
- * Implementation of system call "semget", "semop", "semtimedop" and "semctl".
+ * Implementation of system calls "semget", "semop", "semtimedop" and "semctl".
  */
 
 #include <errno.h>

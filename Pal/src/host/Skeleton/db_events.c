@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_event.c
- *
  * This file contains implementation of Drawbridge event synchronization APIs.
  */
 

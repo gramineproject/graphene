@@ -2,11 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_fs.c
- *
- * Implementation of system call "unlink", "unlinkat", "mkdir", "mkdirat",
- * "rmdir", "umask", "chmod", "fchmod", "fchmodat", "rename", "renameat" and
- * "sendfile".
+ * Implementation of system calls "unlink", "unlinkat", "mkdir", "mkdirat", "rmdir", "umask",
+ * "chmod", "fchmod", "fchmodat", "rename", "renameat" and "sendfile".
  */
 
 #define __KERNEL__

@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_object.c
- *
  * This file contains APIs for waiting on PAL handles (polling).
  */
 

@@ -2,8 +2,6 @@
 /* Copyright (C) 2019 Intel Corporation */
 
 /*
- * shim_eventfd.c
- *
  * Implementation of system calls "eventfd" and "eventfd2". Since eventfd emulation currently relies
  * on the host, these system calls are disallowed by default due to security concerns. To use them,
  * they must be explicitly allowed through the "sys.insecure__allow_eventfd" manifest key.

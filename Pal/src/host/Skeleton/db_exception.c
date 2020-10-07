@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_signal.c
- *
- * This file contains APIs to set up handlers of exceptions issued by the
- * host, and the methods to pass the exceptions to the upcalls.
+ * This file contains APIs to set up handlers of exceptions issued by the host, and the methods to
+ * pass the exceptions to the upcalls.
  */
 
 #include "api.h"

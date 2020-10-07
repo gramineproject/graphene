@@ -2,10 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_files.c
- *
- * This file contains operands to handle streams with URIs that start with
- * "file:" or "dir:".
+ * This file contains operands to handle streams with URIs that start with "file:" or "dir:".
  */
 
 #include <linux/types.h>

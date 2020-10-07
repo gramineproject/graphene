@@ -4,8 +4,6 @@
  */
 
 /*
- * shim_mmap.c
- *
  * Implementation of system calls "mmap", "munmap" and "mprotect".
  */
 

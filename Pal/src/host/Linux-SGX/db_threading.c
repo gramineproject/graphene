@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_threading.c
- *
- * This file contain APIs to create, exit and yield a thread.
+ * This file contains APIs to create, exit and yield a thread.
  */
 
 #include <stddef.h> /* linux/signal.h misses this dependency (for size_t), at least on Ubuntu 16.04.

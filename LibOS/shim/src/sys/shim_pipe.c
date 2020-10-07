@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_pipe.c
- *
  * Implementation of system calls "pipe", "pipe2", "socketpair", "mknod", and "mknodat".
  */
 

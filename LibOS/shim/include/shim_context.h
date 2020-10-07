@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 /*
- * shim_context.h
- *
  * This file contains definitions for CPU context.
  */
 

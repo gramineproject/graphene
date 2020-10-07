@@ -2,10 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_socket.c
- *
- * This file contains operands for streams with URIs that start with
- * "tcp:", "tcp.srv:", "udp:", "udp.srv:".
+ * This file contains operands for streams with URIs that start with "tcp:", "tcp.srv:", "udp:",
+ * "udp.srv:".
  */
 
 #include <linux/poll.h>

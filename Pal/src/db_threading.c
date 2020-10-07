@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_threading.c
- *
- * This file contain APIs to create, exit and yield a thread.
+ * This file contains APIs to create, exit and yield a thread.
  */
 
 #include "api.h"
@@ -14,10 +12,8 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-/* PAL call DkThreadCreate: create a thread inside the current
-   process */
-PAL_HANDLE
-DkThreadCreate(PAL_PTR addr, PAL_PTR param) {
+/* PAL call DkThreadCreate: create a thread inside the current process */
+PAL_HANDLE DkThreadCreate(PAL_PTR addr, PAL_PTR param) {
     ENTER_PAL_CALL(DkThreadCreate);
 
     PAL_HANDLE handle = NULL;
@@ -31,10 +27,8 @@ DkThreadCreate(PAL_PTR addr, PAL_PTR param) {
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-/* PAL call DkThreadDelayExecution. Delay the current thread
-   (sleep) for the given duration */
-PAL_NUM
-DkThreadDelayExecution(PAL_NUM duration) {
+/* PAL call DkThreadDelayExecution. Delay the current thread (sleep) for the given duration */
+PAL_NUM DkThreadDelayExecution(PAL_NUM duration) {
     ENTER_PAL_CALL(DkThreadDelayExecution);
 
     unsigned long dur = duration;
@@ -48,24 +42,21 @@ DkThreadDelayExecution(PAL_NUM duration) {
     LEAVE_PAL_CALL_RETURN(duration);
 }
 
-/* PAL call DkThreadYieldExecution. Yield the execution
-   of the current thread. */
+/* PAL call DkThreadYieldExecution. Yield the execution of the current thread. */
 void DkThreadYieldExecution(void) {
     ENTER_PAL_CALL(DkThreadYieldExecution);
     _DkThreadYieldExecution();
     LEAVE_PAL_CALL();
 }
 
-/* PAL call DkThreadExit: simply exit the current thread
-   no matter what */
+/* PAL call DkThreadExit: simply exit the current thread no matter what */
 noreturn void DkThreadExit(PAL_PTR clear_child_tid) {
     ENTER_PAL_CALL(DkThreadExit);
     _DkThreadExit((int*)clear_child_tid);
     /* UNREACHABLE */
 }
 
-/* PAL call DkThreadResume: resume the execution of a thread
-   which is delayed before */
+/* PAL call DkThreadResume: resume the execution of a thread which is delayed before */
 PAL_BOL DkThreadResume(PAL_HANDLE threadHandle) {
     ENTER_PAL_CALL(DkThreadResume);
 

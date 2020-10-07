@@ -2,11 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_open.c
- *
- * Implementation of system calls: "read", "write", "open", "creat", "openat",
- * "close", "lseek", "pread64", "pwrite64", "getdents", "getdents64",
- * "fsync", "truncate" and "ftruncate".
+ * Implementation of system calls: "read", "write", "open", "creat", "openat", "close", "lseek",
+ * "pread64", "pwrite64", "getdents", "getdents64", "fsync", "truncate" and "ftruncate".
  */
 
 // FIXME: Moving Linux includes first causes a bunch of "error: ‘S_IFLNK’ undeclared" errors.

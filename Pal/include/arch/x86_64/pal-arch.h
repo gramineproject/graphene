@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-/*!
- * \file pal-arch.h
- *
+/*
  * This file contains definition of x86_64-specific aspects of PAL.
  */
 

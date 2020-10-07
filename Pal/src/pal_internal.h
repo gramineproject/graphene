@@ -2,10 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * pal_internal.h
- *
- * This file contains definition of functions, variables and data structures
- * for internal uses.
+ * This file contains definitions of functions, variables and data structures for internal uses.
  */
 
 #ifndef PAL_INTERNAL_H

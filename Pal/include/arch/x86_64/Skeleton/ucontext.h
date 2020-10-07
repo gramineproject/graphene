@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 /*
- * ucontext.h
- *
  * Skeleton uses Linux's ucontext.h (for now)
  */
 

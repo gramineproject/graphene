@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_clone.c
- *
- * Implementation of system call "dup", "dup2" and "dup3".
+ * Implementation of system calls "dup", "dup2" and "dup3".
  */
 
 #include <errno.h>

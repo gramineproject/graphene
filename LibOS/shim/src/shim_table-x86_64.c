@@ -5,9 +5,7 @@
  */
 
 /*
- * shim_table.c
- *
- * This file contains the system call table used by application libraries.
+ * This file contains the system call table.
  */
 
 #include "shim_internal.h"
