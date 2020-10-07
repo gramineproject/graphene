@@ -579,6 +579,7 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn("Success", stdout)
 
 
+@unittest.skip('skipped until problems with Jenkins are resolved')
 class TC_50_GDB(RegressionTestCase):
     def setUp(self):
         if not self.has_debug():
