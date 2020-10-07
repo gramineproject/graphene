@@ -15,6 +15,7 @@
 /bootstrap_static
 /cpuid
 /debug
+/debug_regs
 /dev
 /epoll_wait_timeout
 /eventfd

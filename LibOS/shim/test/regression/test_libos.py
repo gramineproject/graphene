@@ -623,6 +623,25 @@ class TC_50_GDB(RegressionTestCase):
             self.assertIn(' _start ()', backtrace_3)
             self.assertNotIn('??', backtrace_3)
 
+    @unittest.skipUnless(ON_X86, 'x86-specific')
+    def test_010_regs(self):
+        # To run this test manually, use:
+        # GDB=1 GDB_SCRIPT=debug_regs.gdb ./pal_loader debug_regs
+
+        stdout, stderr = self.run_gdb(['debug_regs'], 'debug_regs.gdb')
+
+        rdx = self.find('RDX', stdout)
+        self.assertEqual(rdx, '$1 = 0x1000100010001000')
+
+        rdx_result = self.find('RDX result', stdout)
+        self.assertEqual(rdx_result, '$2 = 0x2000200020002000')
+
+        xmm0 = self.find('XMM0', stdout)
+        self.assertEqual(xmm0, '$3 = 0x30003000300030003000300030003000')
+
+        xmm0_result = self.find('XMM0 result', stdout)
+        self.assertEqual(xmm0_result, '$4 = 0x4000400040004000')
+
 
 class TC_80_Socket(RegressionTestCase):
     def test_000_getsockopt(self):
