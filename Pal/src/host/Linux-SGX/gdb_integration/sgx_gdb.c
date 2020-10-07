@@ -18,6 +18,9 @@
 #include "assert.h"
 #include "../sgx_arch.h"
 
+/* Used by GDB with PTRACE_GETREGSET. */
+#define NT_X86_XSTATE 0x202
+
 //#define DEBUG_GDB_PTRACE 1
 
 #if DEBUG_GDB_PTRACE == 1
@@ -62,6 +65,10 @@ static char* str_ptrace_request(enum __ptrace_request request) {
             return "GETREGS";
         case PTRACE_SETREGS:
             return "SETREGS";
+        case PTRACE_GETREGSET:
+            return "GETREGSET";
+        case PTRACE_SETREGSET:
+            return "SETREGSET";
         case PTRACE_SINGLESTEP:
             return "SINGLESTEP";
         case PTRACE_CONT:
@@ -198,7 +205,7 @@ static int update_thread_tids(struct enclave_dbginfo* ei) {
     return 0;
 }
 
-static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
+static void* get_ssa_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
     void* tcs_addr = NULL;
     struct {
         uint64_t ossa;
@@ -213,7 +220,7 @@ static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
         }
 
     if (!tcs_addr) {
-        DEBUG("Cannot find enclave thread %d to peek/poke its GPR\n", tid);
+        DEBUG("Cannot find enclave thread %d to peek/poke its SSA\n", tid);
         return NULL;
     }
 
@@ -227,9 +234,16 @@ static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
     DEBUG("[enclave thread %d] TCS at 0x%lx: TCS.ossa = 0x%lx TCS.cssa = %d\n", tid, (long)tcs_addr,
           tcs_part.ossa, tcs_part.cssa);
     assert(tcs_part.cssa > 0);
+    /* CSSA points to the next empty slot, so to read the current frame, we look at CSSA - 1. */
+    return (void*)ei->base + tcs_part.ossa + ei->ssaframesize * (tcs_part.cssa - 1);
+}
 
-    return (void*)ei->base + tcs_part.ossa + ei->ssaframesize * tcs_part.cssa -
-           sizeof(sgx_pal_gpr_t);
+static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
+    void* ssa = get_ssa_addr(memdev, tid, ei);
+    if (!ssa)
+        return NULL;
+
+    return ssa + ei->ssaframesize - sizeof(sgx_pal_gpr_t);
 }
 
 static int peek_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, sgx_pal_gpr_t* gpr) {
@@ -239,7 +253,7 @@ static int peek_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, sgx_pal_g
     if (!gpr_addr)
         return -1;
 
-    ret = pread(memdev, gpr, sizeof(sgx_pal_gpr_t), (off_t)gpr_addr);
+    ret = pread(memdev, gpr, sizeof(*gpr), (off_t)gpr_addr);
     if (ret < sizeof(sgx_pal_gpr_t)) {
         DEBUG("Cannot read GPR data (%p) of enclave thread %d\n", gpr_addr, tid);
         return -1;
@@ -263,6 +277,42 @@ static int poke_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, const sgx
     }
 
     DEBUG("[enclave thread %d] Poke GPR: RIP 0x%08lx RBP 0x%08lx\n", tid, gpr->rip, gpr->rbp);
+    return 0;
+}
+
+static int peek_xsave(int memdev, pid_t tid, struct enclave_dbginfo* ei, struct iovec* iov) {
+    int ret;
+
+    void* ssa_addr = get_ssa_addr(memdev, tid, ei);
+    if (!ssa_addr)
+        return -1;
+
+    /* The SSA.XSAVE field has an offset of 0, so we use ssa_addr directly. */
+    ret = pread(memdev, iov->iov_base, iov->iov_len, (off_t)ssa_addr);
+    if (ret < iov->iov_len) {
+        DEBUG("Cannot read XSAVE data (%p) of enclave thread %d\n", ssa_addr, tid);
+        return -1;
+    }
+
+    DEBUG("[enclave thread %d] Peek XSAVE: read %zu bytes\n", tid, iov->iov_len);
+    return 0;
+}
+
+static int poke_xsave(int memdev, pid_t tid, struct enclave_dbginfo* ei, struct iovec* iov) {
+    int ret;
+
+    void* ssa_addr = get_ssa_addr(memdev, tid, ei);
+    if (!ssa_addr)
+        return -1;
+
+    /* The SSA.XSAVE field has an offset of 0, so we use ssa_addr directly. */
+    ret = pwrite(memdev, iov->iov_base, iov->iov_len, (off_t)ssa_addr);
+    if (ret < iov->iov_len) {
+        DEBUG("Cannot write XSAVE data (%p) of enclave thread %d\n", (void*)ssa_addr, tid);
+        return -1;
+    }
+
+    DEBUG("[enclave thread %d] Poke XSAVE: wrote %zu bytes\n", tid, iov->iov_len);
     return 0;
 }
 
@@ -573,6 +623,38 @@ long int ptrace(enum __ptrace_request request, ...) {
                 return host_ptrace(PTRACE_SETREGS, tid, addr, data);
 
             ret = poke_regs(memdev, tid, ei, (struct user_regs_struct*)data);
+            if (ret < 0) {
+                errno = EFAULT;
+                return -1;
+            }
+
+            return 0;
+        }
+
+        case PTRACE_GETREGSET: {
+            if (!in_enclave)
+                return host_ptrace(PTRACE_GETREGSET, tid, addr, data);
+
+            if ((size_t)addr != NT_X86_XSTATE)
+                return host_ptrace(PTRACE_GETREGSET, tid, addr, data);
+
+            ret = peek_xsave(memdev, tid, ei, (struct iovec*)data);
+            if (ret < 0) {
+                errno = EFAULT;
+                return -1;
+            }
+
+            return 0;
+        }
+
+        case PTRACE_SETREGSET: {
+            if (!in_enclave)
+                return host_ptrace(PTRACE_SETREGSET, tid, addr, data);
+
+            if ((size_t)addr != NT_X86_XSTATE)
+                return host_ptrace(PTRACE_SETREGSET, tid, addr, data);
+
+            ret = poke_xsave(memdev, tid, ei, (struct iovec*)data);
             if (ret < 0) {
                 errno = EFAULT;
                 return -1;
