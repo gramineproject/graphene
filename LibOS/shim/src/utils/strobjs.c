@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_syscalls.c
- *
  * This file contain functions to allocate / free a fixed-size string object.
  */
 

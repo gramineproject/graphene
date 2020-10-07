@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_getcwd.c
- *
- * Implementation of system call "getcwd", "chdir" and "fchdir".
+ * Implementation of system calls "getcwd", "chdir" and "fchdir".
  */
 
 #include <errno.h>

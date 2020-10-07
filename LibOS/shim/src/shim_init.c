@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*!
- * \file shim_init.c
- *
  * This file contains entry and exit functions of library OS.
  */
 

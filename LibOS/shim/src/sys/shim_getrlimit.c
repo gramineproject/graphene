@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_getrlimit.c
- *
- * Implementation of system call "getrlimit" and "setrlimit".
+ * Implementation of system calls "getrlimit" and "setrlimit".
  */
 
 #include <asm/resource.h>

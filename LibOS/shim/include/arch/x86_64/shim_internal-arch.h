@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
-/*
- * shim_internal-arch.h
- */
-
 #ifndef _SHIM_INTERNAL_ARCH_H_
 #define _SHIM_INTERNAL_ARCH_H_
 

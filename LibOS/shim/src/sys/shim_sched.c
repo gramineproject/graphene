@@ -2,12 +2,10 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_sched.c
- *
- * Implementation of system calls "sched_yield", "setpriority", "getpriority",
- * "sched_setparam", "sched_getparam", "sched_setscheduler", "sched_getscheduler",
- * "sched_get_priority_max", "sched_get_priority_min", "sched_rr_get_interval",
- * "sched_setaffinity", "sched_getaffinity", "getcpu".
+ * Implementation of system calls "sched_yield", "setpriority", "getpriority", "sched_setparam",
+ * "sched_getparam", "sched_setscheduler", "sched_getscheduler", "sched_get_priority_max",
+ * "sched_get_priority_min", "sched_rr_get_interval", "sched_setaffinity", "sched_getaffinity",
+ * "getcpu".
  */
 
 #include <errno.h>

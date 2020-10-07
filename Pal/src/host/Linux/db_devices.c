@@ -2,10 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_device.c
- *
- * This file contains operands to handle streams with URIs that start with
- * "dev:".
+ * This file contains operands to handle streams with URIs that start with "dev:".
  */
 
 #include <linux/types.h>

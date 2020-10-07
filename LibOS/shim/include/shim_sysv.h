@@ -2,10 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_sysv.h
- *
- * This file includes functions and types for implementing System V IPC
- * functionality.
+ * This file includes functions and types for implementing System V IPC functionality.
  */
 
 #ifndef __SHIM_SYSV_H__

@@ -2,14 +2,11 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_process.c
- *
- * This source file contains functions to create a child process and terminate
- * the running process. Child does not inherit any objects or memory from its
- * parent pricess. A Parent process may not modify the execution of its
- * children. It can wait for a child to exit using its handle. Also, parent and
- * child may communicate through I/O streams provided by the parent to the child
- * at creation.
+ * This source file contains functions to create a child process and terminate the running process.
+ * Child does not inherit any objects or memory from its parent process. A parent process may not
+ * modify the execution of its children. It can wait for a child to exit using its handle. Also,
+ * parent and child may communicate through I/O streams provided by the parent to the child at
+ * creation.
  */
 
 #include <linux/fs.h>

@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_alarm.c
- *
- * Implementation of system call "alarm", "setitmer" and "getitimer".
+ * Implementation of system calls "alarm", "setitmer" and "getitimer".
  */
 
 #include <stdint.h>

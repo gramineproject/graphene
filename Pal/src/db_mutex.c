@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_mutex.c
- *
  * This file contains APIs that provides operations of mutexes.
  */
 

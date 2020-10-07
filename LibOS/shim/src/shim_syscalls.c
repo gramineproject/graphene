@@ -5,8 +5,6 @@
  */
 
 /*
- * shim_syscalls.c
- *
  * This file contains macros to redirect all system calls to the system call table in library OS.
  */
 

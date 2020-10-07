@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_misc.c
- *
  * This file contains APIs for miscellaneous use.
  */
 

@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
-/*
- * pal_rtld.h
- */
-
 #ifndef PAL_RTLD_H
 #define PAL_RTLD_H
 

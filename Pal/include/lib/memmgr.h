@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * memmgr.h
- *
  * This file contains implementation of fixed-size memory allocator.
  */
 

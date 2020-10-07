@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * slab.c
- *
  * This file contains implementation of PAL's internal memory allocator.
  */
 

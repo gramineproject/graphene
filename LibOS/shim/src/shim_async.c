@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_async.c
- *
  * This file contains functions to add asyncronous events triggered by timer.
  */
 

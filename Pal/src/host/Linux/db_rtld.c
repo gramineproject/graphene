@@ -2,12 +2,8 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_rtld.c
- *
- * This file contains utilities to load ELF binaries into the memory
- * and link them against each other.
- * The source code in this file is imported and modified from the GNU C
- * Library.
+ * This file contains utilities to load ELF binaries into the memory and link them against each
+ * other. The source code in this file was imported from the GNU C Library and modified.
  */
 
 #include "db_rtld.h"

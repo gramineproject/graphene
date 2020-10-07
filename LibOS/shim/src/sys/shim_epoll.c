@@ -2,10 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_epoll.c
- *
- * Implementation of system call "epoll_create", "epoll_create1", "epoll_ctl"
- * and "epoll_wait".
+ * Implementation of system calls "epoll_create", "epoll_create1", "epoll_ctl" and "epoll_wait".
  */
 
 #include <errno.h>

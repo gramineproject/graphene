@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_fcntl.c
- *
  * Implementation of system call "fcntl".
  */
 

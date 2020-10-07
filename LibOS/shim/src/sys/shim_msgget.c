@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_msgget.c
- *
- * Implementation of system call "msgget", "msgsnd", "msgrcv" and "msgctl".
+ * Implementation of system calls "msgget", "msgsnd", "msgrcv" and "msgctl".
  *
  * XXX(borysp): I'm pretty sure there are possible deadlocks in this code. Sometimes it first takes
  * `msgq_list_lock` and then `hdl->lock`, sometimes other way round. Someone will have to rewrite

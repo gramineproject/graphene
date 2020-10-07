@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_pipes.c
- *
- * This file contains oeprands to handle streams with URIs that start with "pipe:" or "pipe.srv:".
+ * This file contains operands to handle streams with URIs that start with "pipe:" or "pipe.srv:".
  */
 
 #include "api.h"

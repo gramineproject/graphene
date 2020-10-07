@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_checkpoint.h
- *
  * This file contains definitions and macros for checkpointing.
  */
 

@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_checkpoint.c
- *
  * This file contains implementation of checkpoint and restore.
  */
 

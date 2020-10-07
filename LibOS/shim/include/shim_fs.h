@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_fs.h
- *
  * Definitions of types and functions for file system bookkeeping.
  */
 

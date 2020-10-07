@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 /*
- * pal_host-arch.h
- *
  * This file contains Linux-SGX-specific functions related to the PAL.
  */
 

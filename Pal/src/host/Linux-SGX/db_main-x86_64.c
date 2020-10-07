@@ -2,8 +2,6 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * db_main-x86_64.c
- *
  * This file contains x86_64-specific functions of the PAL loader.
  */
 

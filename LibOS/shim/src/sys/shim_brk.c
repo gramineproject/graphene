@@ -4,8 +4,6 @@
  */
 
 /*
- * shim_brk.c
- *
  * Implementation of system call "brk".
  */
 

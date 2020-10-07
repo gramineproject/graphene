@@ -2,8 +2,6 @@
 /* Copyright (C) 2017 University of North Carolina at Chapel Hill and Fortanix, Inc. */
 
 /*
- * list.h
- *
  * This file defines the list API for the PAL and Library OS.
  */
 

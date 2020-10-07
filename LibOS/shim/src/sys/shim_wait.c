@@ -2,9 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * shim_wait.c
- *
- * Implementation of system call "wait4".
+ * Implementation of system calls "waitid" and "wait4".
  */
 
 #include <errno.h>
