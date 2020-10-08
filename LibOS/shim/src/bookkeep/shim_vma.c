@@ -140,6 +140,50 @@ static struct shim_vma* _lookup_vma(uintptr_t addr) {
     return container_of(node, struct shim_vma, tree_node);
 }
 
+typedef bool (*traverse_visitor)(struct shim_vma* vma, void* visitor_arg);
+
+/*
+ * Walks through all VMAs which contain at least one byte from the [begin, end) range.
+ *
+ * `visitor` returns whether to continue iteration. It must be as simple as possible, because
+ * it's called with the VMA lock held.
+ *
+ * Returns whether the traversed range was continuously covered by VMAs. This is useful for
+ * emulating errors in memory management syscalls.
+ */
+// TODO: Probably other VMA functions could make use of this helper.
+static bool _traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_visitor visitor,
+                                    void* visitor_arg) {
+    assert(spinlock_is_locked(&vma_tree_lock));
+    assert(begin <= end);
+
+    if (begin == end)
+        return true;
+
+    struct shim_vma* vma = _lookup_vma(begin);
+    if (!vma || vma->begin >= end)
+        return false;
+
+    struct shim_vma* prev = NULL;
+    bool is_continuous = true;
+
+    while (1) {
+        if (!visitor(vma, visitor_arg))
+            break;
+
+        prev = vma;
+        vma = _get_next_vma(vma);
+        if (!vma || vma->begin >= end) {
+            is_continuous &= prev->end >= end;
+            break;
+        }
+
+        is_continuous &= prev->end == vma->begin;
+    }
+
+    return is_continuous;
+}
+
 static void split_vma(struct shim_vma* old_vma, struct shim_vma* new_vma, uintptr_t addr) {
     assert(old_vma->begin < addr && addr < old_vma->end);
 
@@ -1116,6 +1160,59 @@ void free_vma_info_array(struct shim_vma_info* vma_infos, size_t count) {
 
     free(vma_infos);
 }
+
+struct madvise_dontneed_ctx {
+    uintptr_t begin;
+    uintptr_t end;
+    int error;
+};
+
+static bool madvise_dontneed_visitor(struct shim_vma* vma, void* visitor_arg) {
+    struct madvise_dontneed_ctx* ctx = (struct madvise_dontneed_ctx*)visitor_arg;
+
+    if (vma->flags & (VMA_UNMAPPED | VMA_INTERNAL)) {
+        ctx->error = -EINVAL;
+        return false;
+    }
+
+    if (vma->file) {
+        if (vma->flags & VMA_TAINTED) {
+            /* Resetting writable file-backed mappings is not yet implemented. */
+            ctx->error = -ENOSYS;
+            return false;
+        }
+        /* MADV_DONTNEED resets file-based mappings to the original state, which is a no-op for
+         * non-tainted mappings. */
+        return true;
+    }
+
+    if (!(vma->prot & PROT_WRITE)) {
+        ctx->error = -ENOSYS; // Zeroing non-writable mappings is not yet implemented.
+        return false;
+    }
+
+    uintptr_t zero_start = MAX(ctx->begin, vma->begin);
+    uintptr_t zero_end = MIN(ctx->end, vma->end);
+    memset((void*)zero_start, 0, zero_end - zero_start);
+    return true;
+}
+
+int madvise_dontneed_range(uintptr_t begin, uintptr_t end) {
+    struct madvise_dontneed_ctx ctx = {
+        .begin = begin,
+        .end = end,
+        .error = 0,
+    };
+
+    spinlock_lock_signal_off(&vma_tree_lock);
+    bool is_continuous = _traverse_vmas_in_range(begin, end, madvise_dontneed_visitor, &ctx);
+    spinlock_unlock_signal_on(&vma_tree_lock);
+
+    if (!is_continuous)
+        return -ENOMEM;
+    return ctx.error;
+}
+
 
 BEGIN_CP_FUNC(vma) {
     __UNUSED(size);

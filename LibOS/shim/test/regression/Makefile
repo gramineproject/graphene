@@ -43,6 +43,7 @@ c_executables = \
 	init_fail \
 	large_mmap \
 	large_dir_read \
+	madvise \
 	mkfifo \
 	mmap_file \
 	mprotect_file_fork \

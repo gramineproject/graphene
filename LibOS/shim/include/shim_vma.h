@@ -11,6 +11,7 @@
 #define _SHIM_VMA_H_
 
 #include <linux/mman.h>
+#include <stdbool.h>
 
 #include "api.h"
 #include "pal.h"
@@ -20,6 +21,8 @@
 
 #define VMA_COMMENT_LEN 16
 
+/* Public version of shim_vma, used when we want to copy out the VMA and use it without holding
+ * the VMA list lock. */
 struct shim_vma_info {
     void* addr;
     size_t length;
@@ -112,6 +115,9 @@ bool is_in_adjacent_user_vmas(void* addr, size_t length);
  */
 int dump_all_vmas(struct shim_vma_info** vma_infos, size_t* count, bool include_unmapped);
 void free_vma_info_array(struct shim_vma_info* vma_infos, size_t count);
+
+/* Implementation of madvise(MADV_DONTNEED) syscall */
+int madvise_dontneed_range(uintptr_t begin, uintptr_t end);
 
 void debug_print_all_vmas(void);
 

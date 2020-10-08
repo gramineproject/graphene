@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University
  * Copyright (C) 2020 Invisible Things Lab
+ * Copyright (C) 2020 Intel Corporation
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
  */
 
 /*
@@ -331,4 +333,77 @@ int shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask
     __UNUSED(maxnode);
     __UNUSED(flags);
     return 0;
+}
+
+static bool madvise_behavior_valid(int behavior) {
+    switch (behavior) {
+        case MADV_DOFORK:
+        case MADV_DONTFORK:
+        case MADV_NORMAL:
+        case MADV_SEQUENTIAL:
+        case MADV_RANDOM:
+        case MADV_REMOVE:
+        case MADV_WILLNEED:
+        case MADV_DONTNEED:
+        case MADV_FREE:
+        case MADV_MERGEABLE:
+        case MADV_UNMERGEABLE:
+        case MADV_HUGEPAGE:
+        case MADV_NOHUGEPAGE:
+        case MADV_DONTDUMP:
+        case MADV_DODUMP:
+        case MADV_WIPEONFORK:
+        case MADV_KEEPONFORK:
+        case MADV_SOFT_OFFLINE:
+        case MADV_HWPOISON:
+            return true;
+    }
+    return false;
+}
+
+long shim_do_madvise(unsigned long start, size_t len_in, int behavior) {
+    if (!madvise_behavior_valid(behavior))
+        return -EINVAL;
+
+    if (!IS_ALIGNED_POW2(start, PAGE_SIZE))
+        return -EINVAL;
+
+    size_t len = ALIGN_UP(len_in, PAGE_SIZE);
+    if (len < len_in)
+        return -EINVAL; // overflow when rounding up
+
+    if (!access_ok((void*)start, len))
+        return -EINVAL;
+
+    if (len == 0)
+        return 0;
+
+    switch (behavior) {
+        case MADV_NORMAL:
+        case MADV_RANDOM:
+        case MADV_SEQUENTIAL:
+        case MADV_WILLNEED:
+        case MADV_FREE:
+        case MADV_SOFT_OFFLINE:
+        case MADV_MERGEABLE:
+        case MADV_UNMERGEABLE:
+        case MADV_HUGEPAGE:
+        case MADV_NOHUGEPAGE:
+            return 0; // Doing nothing is semantically correct for these modes.
+
+        case MADV_DONTFORK:
+        case MADV_DOFORK:
+        case MADV_WIPEONFORK:
+        case MADV_KEEPONFORK:
+        case MADV_HWPOISON:
+        case MADV_DONTDUMP:
+        case MADV_DODUMP:
+        case MADV_REMOVE:
+            return -ENOSYS; // Not implemented
+
+        case MADV_DONTNEED: {
+            return madvise_dontneed_range(start, start + len);
+        }
+    }
+    return -EINVAL;
 }
