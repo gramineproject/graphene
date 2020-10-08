@@ -622,9 +622,16 @@ sgx_ocall:
 	.global __morestack
 	.type __morestack, @function
 __morestack:
-#endif
 
 	.cfi_startproc
+
+	# Parse trusted stack frame from (saved) RBP.
+	.cfi_def_cfa %rbp, 0
+	.cfi_offset %rip, 8
+	.cfi_offset %rbp, 0
+#else
+	.cfi_startproc
+#endif
 
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 
