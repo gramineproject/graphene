@@ -81,18 +81,18 @@ DEFINE_SHIM_SYSCALL(rt_sigreturn, 1, shim_do_sigreturn, int, int, __unused)
 /* ioctl: sys/shim_ioctl.c */
 DEFINE_SHIM_SYSCALL(ioctl, 3, shim_do_ioctl, int, int, fd, unsigned long, cmd, unsigned long, arg)
 
-/* pread64 : sys/shim_open.c */
+/* pread64: sys/shim_open.c */
 DEFINE_SHIM_SYSCALL(pread64, 4, shim_do_pread64, size_t, int, fd, char*, buf, size_t, count, loff_t,
                     pos)
 
-/* pwrite64 : sys/shim_open.c */
+/* pwrite64: sys/shim_open.c */
 DEFINE_SHIM_SYSCALL(pwrite64, 4, shim_do_pwrite64, size_t, int, fd, char*, buf, size_t, count,
                     loff_t, pos)
 
-/* readv : sys/shim_wrappers.c */
+/* readv: sys/shim_wrappers.c */
 DEFINE_SHIM_SYSCALL(readv, 3, shim_do_readv, ssize_t, int, fd, const struct iovec*, vec, int, vlen)
 
-/* writev : sys/shim_wrappers.c */
+/* writev: sys/shim_wrappers.c */
 DEFINE_SHIM_SYSCALL(writev, 3, shim_do_writev, ssize_t, int, fd, const struct iovec*, vec, int,
                     vlen)
 
@@ -102,7 +102,7 @@ DEFINE_SHIM_SYSCALL(access, 2, shim_do_access, int, const char*, file, mode_t, m
 /* pipe: sys/shim_pipe.c */
 DEFINE_SHIM_SYSCALL(pipe, 1, shim_do_pipe, int, int*, fildes)
 
-/* select : sys/shim_poll.c*/
+/* select: sys/shim_poll.c*/
 DEFINE_SHIM_SYSCALL(select, 5, shim_do_select, int, int, nfds, fd_set*, readfds, fd_set*, writefds,
                     fd_set*, errorfds, struct __kernel_timeval*, timeout)
 
@@ -118,7 +118,9 @@ SHIM_SYSCALL_RETURN_ENOSYS(msync, 3, int, void*, start, size_t, len, int, flags)
 DEFINE_SHIM_SYSCALL(mincore, 3, shim_do_mincore, int, void*, start, size_t, len, unsigned char*,
                     vec)
 
-SHIM_SYSCALL_RETURN_ENOSYS(madvise, 3, int, void*, start, size_t, len, int, behavior)
+/* sys/shim_mmap.c */
+DEFINE_SHIM_SYSCALL(madvise, 3, shim_do_madvise, long, unsigned long, start, size_t, len_in,
+                    int, behavior)
 
 SHIM_SYSCALL_RETURN_ENOSYS(shmget, 3, int, key_t, key, size_t, size, int, shmflg)
 
@@ -171,7 +173,7 @@ DEFINE_SHIM_SYSCALL(accept, 3, shim_do_accept, int, int, fd, struct sockaddr*, a
 DEFINE_SHIM_SYSCALL(sendto, 6, shim_do_sendto, ssize_t, int, fd, const void*, buf, size_t, len, int,
                     flags, const struct sockaddr*, dest_addr, int, addrlen)
 
-/* recvfrom : sys/shim_socket.c */
+/* recvfrom: sys/shim_socket.c */
 DEFINE_SHIM_SYSCALL(recvfrom, 6, shim_do_recvfrom, ssize_t, int, fd, void*, buf, size_t, len, int,
                     flags, struct sockaddr*, addr, int*, addrlen)
 

@@ -44,6 +44,7 @@
 /init_fail
 /large_dir_read
 /large_mmap
+/madvise
 /mkfifo
 /mmap_file
 /mprotect_file_fork

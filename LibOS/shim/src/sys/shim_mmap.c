@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University
  * Copyright (C) 2020 Invisible Things Lab
+ * Copyright (C) 2020 Intel Corporation
+ *                    Michał Kowalczyk <mkow@invisiblethingslab.com>
  */
 
 /*
@@ -331,4 +333,115 @@ int shim_do_mbind(void* start, unsigned long len, int mode, unsigned long* nmask
     __UNUSED(maxnode);
     __UNUSED(flags);
     return 0;
+}
+
+static bool madvise_behavior_valid(int behavior) {
+    switch (behavior) {
+        case MADV_DOFORK:
+        case MADV_DONTFORK:
+        case MADV_NORMAL:
+        case MADV_SEQUENTIAL:
+        case MADV_RANDOM:
+        case MADV_REMOVE:
+        case MADV_WILLNEED:
+        case MADV_DONTNEED:
+        case MADV_FREE:
+        case MADV_MERGEABLE:
+        case MADV_UNMERGEABLE:
+        case MADV_HUGEPAGE:
+        case MADV_NOHUGEPAGE:
+        case MADV_DONTDUMP:
+        case MADV_DODUMP:
+        case MADV_WIPEONFORK:
+        case MADV_KEEPONFORK:
+        case MADV_SOFT_OFFLINE:
+        case MADV_HWPOISON:
+            return true;
+    }
+    return false;
+}
+
+struct dontneed_ctx {
+    uintptr_t begin;
+    uintptr_t end;
+    int error;
+};
+
+static void dontneed_visitor(struct shim_vma* vma, void* visitor_arg) {
+    struct dontneed_ctx* ctx = (struct dontneed_ctx*)visitor_arg;
+
+    if (vma->flags & (VMA_UNMAPPED | VMA_INTERNAL)) {
+        ctx->error = -EINVAL;
+        return;
+    }
+
+    if (vma->flags & VMA_TAINTED) {
+        ctx->error = -ENOSYS; // Resetting writable file-backed mappings is not yet implemented.
+        return;
+    }
+
+    if (!(vma->prot & PROT_WRITE)) {
+        ctx->error = -ENOSYS; // Zeroing non-writable mappings is not yet implemented.
+        return;
+    }
+
+    uintptr_t zero_start = MAX(ctx->begin, vma->begin);
+    uintptr_t zero_end = MIN(ctx->end, vma->end);
+    memset((void*)zero_start, 0, zero_end - zero_start);
+}
+
+long shim_do_madvise(unsigned long start, size_t len_in, int behavior) {
+    if (!madvise_behavior_valid(behavior))
+        return -EINVAL;
+
+    if (!IS_ALIGNED_POW2(start, PAGE_SIZE))
+        return -EINVAL;
+
+    size_t len = ALIGN_UP(len_in, PAGE_SIZE);
+    if (len_in > 0 && len == 0)
+        return -EINVAL; // overflow when rounding up
+
+    if (!access_ok((void*)start, len))
+        return -EINVAL;
+
+    if (len == 0)
+        return 0;
+
+    switch (behavior) {
+        case MADV_NORMAL:
+        case MADV_RANDOM:
+        case MADV_SEQUENTIAL:
+        case MADV_WILLNEED:
+        case MADV_FREE:
+        case MADV_SOFT_OFFLINE:
+        case MADV_MERGEABLE:
+        case MADV_UNMERGEABLE:
+        case MADV_HUGEPAGE:
+        case MADV_NOHUGEPAGE:
+            return 0; // Doing nothing is semantically correct for these modes.
+
+        case MADV_DONTFORK:
+        case MADV_DOFORK:
+        case MADV_WIPEONFORK:
+        case MADV_KEEPONFORK:
+        case MADV_HWPOISON:
+        case MADV_DONTDUMP:
+        case MADV_DODUMP:
+        case MADV_REMOVE:
+            return -ENOSYS; // Not implemented
+
+        case MADV_DONTNEED: {
+            struct dontneed_ctx ctx = {
+                .begin = start,
+                .end = start + len,
+                .error = 0,
+            };
+            bool is_continuous = traverse_vmas_in_range(start, start + len, dontneed_visitor,
+                                                        &ctx);
+            if (!is_continuous)
+                return -ENOMEM;
+            return ctx.error;
+        }
+    }
+    return -EINVAL;
 }

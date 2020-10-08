@@ -37,25 +37,6 @@ static int filter_saved_flags(int flags) {
                     | VMA_UNMAPPED | VMA_INTERNAL | VMA_TAINTED);
 }
 
-/* TODO: split flags into internal (Graphene) and Linux; also to consider: completely remove Linux
- * flags - we only need MAP_SHARED/MAP_PRIVATE and possibly MAP_STACK/MAP_GROWSDOWN */
-struct shim_vma {
-    uintptr_t begin;
-    uintptr_t end;
-    int prot;
-    int flags;
-    struct shim_handle* file;
-    off_t offset; // offset inside `file`, where `begin` starts
-    union {
-        /* If this `vma` is used, it is included in `vma_tree` using this node. */
-        struct avl_tree_node tree_node;
-        /* Otherwise it might be cached in per thread vma cache, or might be on a temporary list
-         * of to-be-freed vmas (used by _vma_bkeep_remove). Such lists use the field below. */
-        struct shim_vma* next_free;
-    };
-    char comment[VMA_COMMENT_LEN];
-};
-
 static void copy_comment(struct shim_vma* vma, const char* comment) {
     size_t len = MIN(sizeof(vma->comment), strlen(comment) + 1);
     memcpy(vma->comment, comment, len);
@@ -138,6 +119,46 @@ static struct shim_vma* _lookup_vma(uintptr_t addr) {
         return NULL;
     }
     return container_of(node, struct shim_vma, tree_node);
+}
+
+// TODO: Probably other VMA functions could make use of this helper.
+static bool __traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_visitor visitor,
+                                     void* visitor_arg) {
+    assert(spinlock_is_locked(&vma_tree_lock));
+    assert(begin <= end);
+
+    if (begin == end)
+        return true;
+
+    struct shim_vma* vma = _lookup_vma(begin);
+    if (!vma || vma->begin >= end)
+        return false;
+
+    struct shim_vma* prev = NULL;
+    bool is_continuous = true;
+
+    while (1) {
+        visitor(vma, visitor_arg);
+
+        prev = vma;
+        vma = _get_next_vma(vma);
+        if (!vma || vma->begin >= end) {
+            is_continuous &= prev->end >= end;
+            break;
+        }
+
+        is_continuous &= prev->end == vma->begin;
+    }
+
+    return is_continuous;
+}
+
+bool traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_visitor visitor,
+                            void* visitor_arg) {
+    spinlock_lock_signal_off(&vma_tree_lock);
+    bool is_continuous = __traverse_vmas_in_range(begin, end, visitor, visitor_arg);
+    spinlock_unlock_signal_on(&vma_tree_lock);
+    return is_continuous;
 }
 
 static void split_vma(struct shim_vma* old_vma, struct shim_vma* new_vma, uintptr_t addr) {

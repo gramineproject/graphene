@@ -386,6 +386,7 @@ int shim_do_sched_yield(void);
 void* shim_do_mremap(void* addr, size_t old_len, size_t new_len, int flags, void* new_addr);
 int shim_do_msync(void* start, size_t len, int flags);
 int shim_do_mincore(void* start, size_t len, unsigned char* vec);
+long shim_do_madvise(unsigned long start, size_t len_in, int behavior);
 int shim_do_dup(unsigned int fd);
 int shim_do_dup2(unsigned int oldfd, unsigned int newfd);
 int shim_do_pause(void);
@@ -542,5 +543,19 @@ long shim_do_getrandom(char* buf, size_t count, unsigned int flags);
 #define GRND_NONBLOCK 0x0001
 #define GRND_RANDOM   0x0002
 #define GRND_INSECURE 0x0004
+
+#ifndef MADV_FREE
+#define MADV_FREE 8
+#endif
+#ifdef __x86_64__
+#ifndef MADV_WIPEONFORK
+#define MADV_WIPEONFORK 18
+#endif
+#ifndef MADV_KEEPONFORK
+#define MADV_KEEPONFORK 19
+#endif
+#else /* __x86_64__ */
+#error "Unsupported platform"
+#endif
 
 #endif /* _SHIM_TABLE_H_ */
