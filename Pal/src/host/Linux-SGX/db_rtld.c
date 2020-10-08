@@ -227,11 +227,14 @@ void setup_pal_map(struct link_map* pal_map) {
     pal_map->l_prev = pal_map->l_next = NULL;
     g_loaded_maps = pal_map;
 
-    struct debug_map* debug_map = debug_map_alloc(pal_map->l_name, &g_section_text);
+    struct debug_map* debug_map = debug_map_alloc(pal_map->l_name, (void*)pal_map->l_addr);
     if (!debug_map) {
         SGX_DBG(DBG_E, "setup_pal_map: error allocating new map\n");
         return;
     }
+
+    if (!debug_map_add_section(debug_map, ".text", &g_section_text))
+        goto fail;
 
     if (!debug_map_add_section(debug_map, ".rodata", &g_section_rodata))
         goto fail;
