@@ -1,0 +1,7 @@
+__pycache__/
+*.manifest
+*.manifest.sgx
+*.sig
+*.token
+helloworld
+write_1e[4567]

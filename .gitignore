@@ -1,3 +1,5 @@
+.asv/
+
 # No editor backup files.
 *.sw*
 *.backup
