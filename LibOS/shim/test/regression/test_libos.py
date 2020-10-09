@@ -236,6 +236,21 @@ class TC_01_Bootstrap(RegressionTestCase):
         # Multiple thread creation
         self.assertIn('128 Threads Created', stdout)
 
+    def test_602_fp_multithread_nearest(self):
+        stdout, _ = self.run_binary(['fp_multithread', '0'])
+        self.assertIn('child: 42.5 = 42.0, -42.5 = -42.0', stdout)
+        self.assertIn('parent: 42.5 = 42.0, -42.5 = -42.0', stdout)
+
+    def test_603_fp_multithread_upward(self):
+        stdout, _ = self.run_binary(['fp_multithread', '1'])
+        self.assertIn('child: 42.5 = 43.0, -42.5 = -42.0', stdout)
+        self.assertIn('parent: 42.5 = 43.0, -42.5 = -42.0', stdout)
+
+    def test_604_fp_multithread_downward(self):
+        stdout, _ = self.run_binary(['fp_multithread', '2'])
+        self.assertIn('child: 42.5 = 42.0, -42.5 = -43.0', stdout)
+        self.assertIn('parent: 42.5 = 42.0, -42.5 = -43.0', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

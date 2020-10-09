@@ -26,6 +26,93 @@ struct shim_regs {
     uint64_t rip;
 };
 
+/* adopt Linux-style FP layout (_libc_fpstate of glibc): self-contained definition is needed for
+ * LibOS, so define the exact same layout with shim prefix */
+#define SHIM_FP_XSTATE_MAGIC1      0x46505853U
+#define SHIM_FP_XSTATE_MAGIC2      0x46505845U
+#define SHIM_FP_XSTATE_MAGIC2_SIZE (sizeof(SHIM_FP_XSTATE_MAGIC2))
+
+#define SHIM_XSTATE_ALIGN 64
+
+enum SHIM_XFEATURE {
+    SHIM_XFEATURE_FP,
+    SHIM_XFEATURE_SSE,
+    SHIM_XFEATURE_YMM,
+    SHIM_XFEATURE_BNDREGS,
+    SHIM_XFEATURE_BNDCSR,
+    SHIM_XFEATURE_OPMASK,
+    SHIM_XFEATURE_ZMM_Hi256,
+    SHIM_XFEATURE_Hi16_ZMM,
+    SHIM_XFEATURE_PT,
+    SHIM_XFEATURE_PKRU,
+    SHIM_XFEATURE_MAX,
+};
+
+#define SHIM_XFEATURE_MASK_FP        (1UL << SHIM_XFEATURE_FP)
+#define SHIM_XFEATURE_MASK_SSE       (1UL << SHIM_XFEATURE_SSE)
+#define SHIM_XFEATURE_MASK_YMM       (1UL << SHIM_XFEATURE_YMM)
+#define SHIM_XFEATURE_MASK_BNDREGS   (1UL << SHIM_XFEATURE_BNDREGS)
+#define SHIM_XFEATURE_MASK_BNDCSR    (1UL << SHIM_XFEATURE_BNDCSR)
+#define SHIM_XFEATURE_MASK_OPMASK    (1UL << SHIM_XFEATURE_OPMASK)
+#define SHIM_XFEATURE_MASK_ZMM_Hi256 (1UL << SHIM_XFEATURE_ZMM_Hi256)
+#define SHIM_XFEATURE_MASK_Hi16_ZMM  (1UL << SHIM_XFEATURE_Hi16_ZMM)
+#define SHIM_XFEATURE_MASK_PT        (1UL << SHIM_XFEATURE_PT)
+#define SHIM_XFEATURE_MASK_PKRU      (1UL << SHIM_XFEATURE_PKRU)
+
+#define SHIM_XFEATURE_MASK_FPSSE     (SHIM_XFEATURE_MASK_FP | SHIM_XFEATURE_MASK_SSE)
+#define SHIM_XFEATURE_MASK_AVX512    (SHIM_XFEATURE_MASK_OPMASK | SHIM_XFEATURE_MASK_ZMM_Hi256 \
+                                      | SHIM_XFEATURE_MASK_Hi16_ZMM)
+
+struct shim_fpx_sw_bytes {
+    uint32_t magic1;        /*!< SHIM_FP_XSTATE_MAGIC1 */
+    uint32_t extended_size; /*!< g_shim_xsave_size */
+    uint64_t xfeatures;     /*!< XSAVE feature */
+    uint32_t xstate_size;   /*!< g_xsave_size + SHIM_FP_STATE_MAGIC2_SIZE */
+    uint32_t padding[7];
+};
+
+struct shim_fpxreg {
+    uint16_t significand[4];
+    uint16_t exponent;
+    uint16_t padding[3];
+};
+
+struct shim_xmmreg {
+    uint32_t element[4];
+};
+
+/* 64-bit FXSAVE format */
+struct shim_fpstate {
+    uint16_t cwd;
+    uint16_t swd;
+    uint16_t ftw;
+    uint16_t fop;
+    uint64_t rip;
+    uint64_t rdp;
+    uint32_t mxcsr;
+    uint32_t mxcr_mask;
+    struct shim_fpxreg st[8];
+    struct shim_xmmreg xmm[16];
+    union {
+        uint32_t padding[24];
+        struct {
+            uint32_t padding2[12];
+            struct shim_fpx_sw_bytes sw_reserved;
+        };
+    };
+};
+
+struct shim_xstate_header {
+    uint64_t xfeatures;
+    uint64_t xcomp_bv;
+    uint64_t reserved[6];
+} __attribute__((packed));
+
+struct shim_xregs_state {
+    struct shim_fpstate fpstate;
+    struct shim_xstate_header header;
+} __attribute__((packed, aligned(SHIM_XSTATE_ALIGN)));
+
 static inline uint64_t shim_regs_get_sp(struct shim_regs* sr) {
     return sr->rsp;
 }

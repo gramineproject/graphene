@@ -27,6 +27,7 @@ c_executables = \
 	file_size \
 	fopen_cornercases \
 	fork_and_exec \
+	fp_multithread \
 	fstat_cwd \
 	futex_bitset \
 	futex_requeue \
@@ -158,6 +159,9 @@ CFLAGS-attestation += -I$(PALDIR)/../lib/crypto/mbedtls/crypto/include \
                       -I$(PALDIR)/host/Linux-SGX \
                       -I$(PALDIR)/../include/pal
 LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.a
+
+CFLAGS-fp_multithread = -pthread -fno-builtin
+LDLIBS-fp_multithread += -lm
 
 %: %.c
 	$(call cmd,csingle)
