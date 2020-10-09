@@ -8,7 +8,7 @@ set -eu -o pipefail
 top_dir="$(readlink -m "${BASH_SOURCE[0]}/../..")"
 test_dir="$top_dir.clean-check.test"
 
-if [ -n "${JENKINS_HOME:-}" ]; then
+if [ -n "${JENKINS_HOME:-}" ] || [ -n "${HUDSON_HOME:-}" ]; then
     test_dir="/tmp/$(basename "$test_dir")"
 fi
 
