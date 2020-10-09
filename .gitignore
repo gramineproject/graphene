@@ -1,4 +1,5 @@
 .asv/
+build/
 
 # No editor backup files.
 *.sw*
