@@ -314,6 +314,7 @@ struct shim_clone_args {
     struct shim_thread* thread;
     void* stack;
     unsigned long fs_base;
+    void* xstate_extended;
 };
 
 void* allocate_stack(size_t size, size_t protect_size, bool user);

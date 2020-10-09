@@ -1,13 +1,141 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
 /*
- * This file contains code for x86-specific CPU context manipulation.
+ * This file contains code for x86_64-specific CPU context manipulation.
  */
 
 #include "shim_context.h"
 
 #include "asm-offsets.h"
+#include "pal.h"
 #include "shim_internal.h"
+
+/* 512 for legacy regs, 64 for xsave header */
+#define XSTATE_RESET_SIZE (512 + 64)
+
+bool     g_shim_xsave_enabled  = false;
+uint64_t g_shim_xsave_features = 0;
+uint32_t g_shim_xsave_size     = 0;
+
+const uint32_t g_shim_xstate_reset_state[XSTATE_RESET_SIZE / sizeof(uint32_t)]
+__attribute__((aligned(SHIM_XSTATE_ALIGN))) = {
+    0x037F, 0, 0, 0, 0, 0, 0x1F80,     0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0,          0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,      0, 0, 0, 0, 0, 0x80000000, 0,      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    // XCOMP_BV[63] = 1, compaction mode
+};
+
+#define CPUID_FEATURE_XSAVE   (1UL << 26)
+#define CPUID_FEATURE_OSXSAVE (1UL << 27)
+
+#define CPUID_LEAF_PROCINFO 0x00000001
+#define CPUID_LEAF_XSAVE 0x0000000d
+
+void shim_xstate_init(void) {
+    /* by default, fall back to old-style FXSAVE (if cannot deduce from CPUID below) */
+    g_shim_xsave_enabled  = false;
+    g_shim_xsave_features = SHIM_XFEATURE_MASK_FPSSE;
+    g_shim_xsave_size     = XSTATE_RESET_SIZE;
+
+    unsigned int value[4];
+    if (!DkCpuIdRetrieve(CPUID_LEAF_PROCINFO, 0, value))
+        goto out;
+
+    if (!(value[PAL_CPUID_WORD_ECX] & CPUID_FEATURE_XSAVE) ||
+        !(value[PAL_CPUID_WORD_ECX] & CPUID_FEATURE_OSXSAVE))
+        goto out;
+
+    if (!DkCpuIdRetrieve(CPUID_LEAF_XSAVE, 0, value))
+        goto out;
+
+    uint32_t xsavesize = value[PAL_CPUID_WORD_ECX];
+    uint64_t xfeatures = value[PAL_CPUID_WORD_EAX] |
+                         ((uint64_t)value[PAL_CPUID_WORD_EDX] << 32);
+    if (!xsavesize || !xfeatures) {
+        /* could not read xfeatures; fall back to old-style FXSAVE */
+        goto out;
+    }
+
+    if (xfeatures & ~SHIM_XFEATURE_MASK_FPSSE) {
+        /* support more than just FP and SSE, can use XSAVE (it was introduced with AVX) */
+        g_shim_xsave_enabled = true;
+    }
+
+    g_shim_xsave_features  = xfeatures;
+    g_shim_xsave_size      = xsavesize;
+
+out:
+    debug("LibOS xsave_enabled %d, xsave_size 0x%x(%u), xsave_features 0x%lx\n",
+          g_shim_xsave_enabled, g_shim_xsave_size, g_shim_xsave_size, g_shim_xsave_features);
+}
+
+void shim_xstate_save(void* xstate_extended) {
+    assert(IS_ALIGNED_PTR(xstate_extended, SHIM_XSTATE_ALIGN));
+
+    struct shim_xstate* xstate = (struct shim_xstate*)xstate_extended;
+    char* bytes_after_xstate   = (char*)xstate_extended + g_shim_xsave_size;
+
+    if (g_shim_xsave_enabled) {
+        uint64_t lmask = (uint64_t)-1;
+        uint64_t hmask = (uint64_t)-1;
+        memset(&xstate->xstate_hdr, 0, sizeof(xstate->xstate_hdr));
+        __asm__ volatile("xsave64 (%0)" :: "r"(xstate), "a"(lmask), "d"(hmask) : "memory");
+    } else {
+        __asm__ volatile("fxsave64 (%0)" :: "r"(xstate) : "memory");
+    }
+
+    /* Emulate software format for bytes 464..511 in the 512-byte layout of the FXSAVE/FXRSTOR
+     * frame that Linux uses for x86-64:
+     *   https://elixir.bootlin.com/linux/v5.9/source/arch/x86/kernel/fpu/signal.c#L86
+     *   https://elixir.bootlin.com/linux/v5.9/source/arch/x86/kernel/fpu/signal.c#L517
+     *
+     * This format is assumed by Glibc; this will also be useful if we implement checks in LibOS
+     * similar to Linux's check_for_xstate(). Note that we don't care about CPUs older than
+     * FXSAVE-enabled (so-called "legacy frames"), therefore we always use MAGIC1 and MAGIC2. */
+    struct shim_fpx_sw_bytes* fpx_sw = &xstate->fpstate.sw_reserved;
+    fpx_sw->magic1        = SHIM_FP_XSTATE_MAGIC1;
+    fpx_sw->extended_size = g_shim_xsave_size + SHIM_FP_XSTATE_MAGIC2_SIZE;
+    fpx_sw->xfeatures     = g_shim_xsave_features;
+    fpx_sw->xstate_size   = g_shim_xsave_size;
+    memset(&fpx_sw->padding, 0, sizeof(fpx_sw->padding));
+
+    /* the last 32-bit word of the extended FXSAVE/XSAVE area (at the xstate + extended_size
+     * - FP_XSTATE_MAGIC2_SIZE address) is set to FP_XSTATE_MAGIC2 so that app/Graphene can sanity
+     * check FXSAVE/XSAVE size calculations */
+    *((__typeof__(SHIM_FP_XSTATE_MAGIC2)*)bytes_after_xstate) = SHIM_FP_XSTATE_MAGIC2;
+}
+
+void shim_xstate_restore(const void* xstate_extended) {
+    assert(IS_ALIGNED_PTR(xstate_extended, SHIM_XSTATE_ALIGN));
+
+    struct shim_xstate* xstate = (struct shim_xstate*)xstate_extended;
+    char* bytes_after_xstate   = (char*)xstate_extended + g_shim_xsave_size;
+
+    struct shim_fpx_sw_bytes* fpx_sw = &xstate->fpstate.sw_reserved;
+    assert(fpx_sw->magic1 == SHIM_FP_XSTATE_MAGIC1);
+    assert(fpx_sw->extended_size == g_shim_xsave_size + SHIM_FP_XSTATE_MAGIC2_SIZE);
+    assert(fpx_sw->xfeatures == g_shim_xsave_features);
+    assert(fpx_sw->xstate_size = g_shim_xsave_size);
+    assert(*((__typeof__(SHIM_FP_XSTATE_MAGIC2)*)bytes_after_xstate) == SHIM_FP_XSTATE_MAGIC2);
+
+    __UNUSED(bytes_after_xstate);
+    __UNUSED(fpx_sw);
+
+    if (g_shim_xsave_enabled) {
+        uint64_t lmask = (uint64_t)-1;
+        uint64_t hmask = (uint64_t)-1;
+        __asm__ volatile("xrstor64 (%0)" :: "r"(xstate), "a"(lmask), "d"(hmask) : "memory");
+    } else {
+        __asm__ volatile("fxrstor64 (%0)" :: "r"(xstate) : "memory");
+    }
+}
+
+void shim_xstate_reset(void) {
+    shim_xstate_restore(g_shim_xstate_reset_state);
+}
 
 void restore_child_context_after_clone(struct shim_context* context) {
     assert(context->regs);
