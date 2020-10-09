@@ -74,6 +74,13 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     debug("set fs_base to 0x%lx\n", tcb->context.fs_base);
 
     struct shim_regs regs = *arg->parent->shim_tcb->context.regs;
+
+    /* FIXME: The below XSAVE area restore is not really correct but rather a dummy and will be
+     * fixed later. Now it restores the extended state from within LibOS rather than the app. In
+     * reality, XSAVE area should be part of shim_regs, and XRSTOR should happen during
+     * restore_context(). */
+    shim_xstate_restore(arg->xstate_extended);
+
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
         my_thread->set_child_tid = NULL;
@@ -383,6 +390,16 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     new_args.parent  = self;
     new_args.stack   = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
     new_args.fs_base = fs_base;
+
+    /* FIXME: The below XSAVE area save is not really correct but rather a dummy and will be fixed
+     * later. Now it saves the extended state from within LibOS rather than the app. In reality,
+     * XSAVE area should be part of shim_regs, and XSAVE should happen during syscalldb().
+     * Also note that we require up to 4KB of stack space for XSAVE -- this is wrong for e.g. Go
+     * because its goroutines start with 2KB stack size; but we'll remove XSAVE here anyway. */
+    size_t xstate_extended_size = g_shim_xsave_size + SHIM_FP_XSTATE_MAGIC2_SIZE;
+    new_args.xstate_extended    = ALIGN_DOWN_PTR(new_args.stack - xstate_extended_size,
+                                                 SHIM_XSTATE_ALIGN);
+    shim_xstate_save(new_args.xstate_extended);
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child

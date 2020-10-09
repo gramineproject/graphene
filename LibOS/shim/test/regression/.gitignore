@@ -36,6 +36,7 @@
 /file_size
 /fopen_cornercases
 /fork_and_exec
+/fp_multithread
 /fstat_cwd
 /futex
 /futex_bitset
