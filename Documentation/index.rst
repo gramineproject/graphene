@@ -74,6 +74,7 @@ Table of Contents
    devel/coding-style
    devel/setup
    devel/debugging
+   devel/benchmarks
    devel/new-syscall
 
 .. toctree::
