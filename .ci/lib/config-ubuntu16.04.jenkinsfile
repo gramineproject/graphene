@@ -1,1 +1,1 @@
-env.GLIBC_VERSION = '2.31'
+env.GLIBC_VERSION = '2.27'

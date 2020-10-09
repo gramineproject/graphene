@@ -9,7 +9,7 @@ top_dir="$(readlink -m "${BASH_SOURCE[0]}/../..")"
 # .../graphene.clean-check.test against .../graphene.clean-check.clean
 clean_dir="${top_dir%.clean-check.*}.clean-check.clean"
 
-if [ -n "${JENKINS_HOME:-}" ]; then
+if [ -n "${JENKINS_HOME:-}" ] || [ -n "${HUDSON_HOME:-}" ]; then
     clean_dir="/tmp/$(basename "$clean_dir")"
 fi
 
