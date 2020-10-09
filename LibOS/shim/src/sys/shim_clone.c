@@ -101,6 +101,13 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     debug("set fs_base to 0x%lx\n", tcb->context.fs_base);
 
     struct shim_regs regs = *arg->parent->shim_tcb->context.regs;
+
+    /* FIXME: The below XSAVE area restore is not really correct but rather a dummy and will be
+     * fixed later. Now it restores the extended state from within LibOS rather than the app. In
+     * reality, XSAVE area should be part of shim_regs, and XRSTOR should happen during
+     * restore_context(). */
+    shim_xsave_restore(arg->xregs_state);
+
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
         my_thread->set_child_tid = NULL;
@@ -322,6 +329,7 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
         put_handle_map(new_map);
     }
 
+    /* option 1: clone a new process */
     if (!(flags & CLONE_VM)) {
         void* parent_stack = NULL;
 
@@ -379,7 +387,23 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
         return tid;
     }
 
+    /* option 2: clone a new thread */
     enable_locking();
+
+    /* when cloning a new thread, user must provide stack space for this new thread */
+    if (!user_stack_addr) {
+        ret = -EFAULT;
+        goto failed;
+    }
+
+    struct shim_vma_info vma_info;
+    if (lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma_info) < 0) {
+        ret = -EFAULT;
+        goto failed;
+    }
+    if (vma_info.file) {
+        put_handle(vma_info.file);
+    }
 
     struct shim_clone_args new_args;
     memset(&new_args, 0, sizeof(new_args));
@@ -403,6 +427,15 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
     new_args.parent  = self;
     new_args.stack   = user_stack_addr;
     new_args.fs_base = fs_base;
+
+    /* FIXME: The below XSAVE area save is not really correct but rather a dummy and will be fixed
+     * later. Now it saves the extended state from within LibOS rather than the app. In reality,
+     * XSAVE area should be part of shim_regs, and XSAVE should happen during syscalldb().  */
+
+    /* put XSAVE state on the new thread's stack (see clone_implementation_wrapper())
+     * NOTE: this assumes the user-provided stack is at least ~2KB (for AVX512-enabled CPU) */
+    new_args.xregs_state = ALIGN_DOWN_PTR(user_stack_addr - g_shim_xsave_size, SHIM_XSTATE_ALIGN);
+    shim_xsave_save(new_args.xregs_state);
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child
