@@ -131,17 +131,13 @@ endif
 $(graphene_lib):
 	$(MAKE) -C ../lib target=$(abspath .lib)/
 
-export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
-export LIBPAL_PATH = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
-export PYTHONPATH=../../Scripts
-
 .PHONY: regression
 regression:
 	$(RM) pal-regression.xml
 	$(MAKE) pal-regression.xml
 
 pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(call expand_target_to_token,$(target))
-	python3 -m pytest --junit-xml $@ -v $<
+	../../Scripts/run-pytest --junit-xml $@ -v $<
 
 .PHONY: clean
 clean:

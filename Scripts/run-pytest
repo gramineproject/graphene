@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -e
+
+# A wrapper for running pytest, either manually or through a Makefile.
+# Usage:
+#    PAL_HOST=Linux .../run-pytest
+#    PAL_HOST=Linux-SGX .../run-pytest
+#    SGX=1 .../run-pytest
+
+PROJECT_ROOT=$(realpath "$(dirname "$0")/..")
+
+# Determine PAL_HOST if we're not being run from inside Makefile.
+if [[ "$PAL_HOST" == "" ]]; then
+   if [[ "$SGX" == "1" ]]; then
+       export PAL_HOST="Linux-SGX"
+   else
+       export PAL_HOST="Linux"
+   fi
+   echo "Running pytest for PAL_HOST = $PAL_HOST"
+fi
+
+# Add path to regression.py common library.
+export PYTHONPATH="$PROJECT_ROOT/Scripts:$PYTHONPATH"
+
+# Environment variables needed by regression.py
+export PAL_LOADER="$PROJECT_ROOT/Runtime/pal-$PAL_HOST"
+export LIBPAL_PATH="$PROJECT_ROOT/Runtime/libpal-$PAL_HOST.so"
+export HOST_PAL_PATH="$PROJECT_ROOT/Pal/src/host/$PAL_HOST"
+
+exec python3 -m pytest "$@"
