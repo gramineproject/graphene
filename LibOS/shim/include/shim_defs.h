@@ -1,6 +1,10 @@
 #ifndef _SHIM_DEFS_H_
 #define _SHIM_DEFS_H_
 
+#if defined(__i386__) || defined(__x86_64__)
+#include "shim_syscalls.h"
+#endif
+
 #define DEFAULT_HEAP_MIN_SIZE  (256 * 1024 * 1024) /* 256MB */
 #define DEFAULT_MEM_MAX_NPAGES (1024 * 1024)       /* 4GB */
 #define DEFAULT_BRK_MAX_SIZE   (256 * 1024)        /* 256KB */
@@ -19,7 +23,7 @@
 #define REQUIRED_ELF_AUXV_SPACE 16 /* extra memory space (in bytes) */
 
 #if defined(__i386__) || defined(__x86_64__)
-#define LIBOS_SYSCALL_BOUND (340 + 1)
+#define LIBOS_SYSCALL_BOUND __NR_syscalls
 #endif
 
 #endif /* _SHIM_DEFS_H_ */
