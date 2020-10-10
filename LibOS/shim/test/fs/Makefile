@@ -53,10 +53,6 @@ else
 $(execs)
 endif
 
-export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
-export LIBPAL_PATH = $(RUNTIME)/libpal-$(PAL_HOST).so
-export PYTHONPATH = ../../../../Scripts
-
 .PHONY: fs-test
 fs-test: $(target)
 	$(RM) fs-test.xml
@@ -68,10 +64,10 @@ test: $(target)
 	$(MAKE) pf-test.xml
 
 fs-test.xml: test_fs.py $(call expand_target_to_token,$(target))
-	python3 -m pytest --junit-xml $@ -v $<
+	$(SCRIPTS_DIR)/run-pytest --junit-xml $@ -v $<
 
 pf-test.xml: test_pf.py $(call expand_target_to_token,$(target))
-	python3 -m pytest --junit-xml $@ -v $<
+	$(SCRIPTS_DIR)/run-pytest --junit-xml $@ -v $<
 
 .PHONY: clean-tmp
 clean-tmp:

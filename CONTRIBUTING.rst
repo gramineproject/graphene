@@ -175,19 +175,19 @@ For SGX, one needs to do the following::
 If a |nbsp| test fails unexpectedly, one can use the :makevar:`KEEP_LOG=1`
 option to get the complete output.
 
-One can run tests manually::
+One can run tests manually (prepend the command with ``SGX=1`` or ``PAL_HOST=Linux-SGX`` to run the
+SGX variant)::
 
-   PYTHONPATH=path/to/graphene/Scripts
-   PAL_LOADER=path/to/pal-Linux
-   LIBPAL_PATH=path/to/libpal-Linux.so
-   export PYTHONPATH PAL_LOADER LIBPAL_PATH
-   python3 -m pytest -v -rs test_pal.py
+   /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py
+   SGX=1 /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py
 
 It is also possible to run subset of tests::
 
-   # after env export
-   python3 -m pytest -v -rs test_pal.py::TC_01_Bootstrap
-   python3 -m pytest -v -rs test_pal.py::TC_01_Bootstrap::test_100_basic_boostrapping
+   /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py::TC_01_Bootstrap
+   /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py::TC_01_Bootstrap::test_100_basic_boostrapping
+
+The ``run-pytest`` script is a wrapper for `pytest <https://docs.pytest.org/en/stable/usage.html>`__
+and accepts the same command-line options.
 
 The shim unit tests work similarly, and are under
 :file:`LibOS/shim/test/regression`.
