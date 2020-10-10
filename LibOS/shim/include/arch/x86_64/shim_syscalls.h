@@ -38,16 +38,18 @@
 #define __NR_rseq 334
 #endif
 #ifndef __NR_pidfd_send_signal
-#define __NR_pidfd_send_signal 335
+#define __NR_pidfd_send_signal 424
 #endif
 #ifndef __NR_io_uring_setup
-#define __NR_io_uring_setup 336
+#define __NR_io_uring_setup 425
 #endif
 #ifndef __NR_io_uring_enter
-#define __NR_io_uring_enter 337
+#define __NR_io_uring_enter 426
 #endif
 #ifndef __NR_io_uring_register
-#define __NR_io_uring_register 338
+#define __NR_io_uring_register 427
 #endif
-
+#ifndef __NR_syscalls
+#define __NR_syscalls 428
+#endif
 #endif  /* SHIM_SYSCALLS_H_ */
