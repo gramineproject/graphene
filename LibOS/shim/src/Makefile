@@ -26,7 +26,7 @@ CFLAGS += -Wno-gnu-alignof-expression
 # member" warning in Clang and newer GCC. That code needs to be rewritten.
 CFLAGS += -Wno-address-of-packed-member
 
-ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
+ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include -I../include/arch/$(ARCH)
 
 LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
