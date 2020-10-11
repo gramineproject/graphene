@@ -463,7 +463,11 @@ static const char* signal_name(int sig, char str[6]) {
 }
 
 static inline int is_pointer(const char* type) {
-    return type[strlen(type) - 1] == '*' || !strcmp_static(type, "long") ||
+    return type[strlen(type) - 1] == '*';
+}
+
+static inline int is_pointer_or_long(const char* type) {
+    return is_pointer(type) || !strcmp_static(type, "long") ||
            !strcmp_static(type, "unsigned long");
 }
 
@@ -536,7 +540,7 @@ static inline void parse_syscall_args(va_list* ap) {
 
     if (!strcmp_static(arg_type, "const char *") || !strcmp_static(arg_type, "const char*"))
         parse_string_arg(ap);
-    else if (is_pointer(arg_type))
+    else if (is_pointer_or_long(arg_type))
         parse_pointer_arg(ap);
     else
         parse_integer_arg(ap);
@@ -547,7 +551,7 @@ static inline void skip_syscall_args(va_list* ap) {
 
     if (!strcmp_static(arg_type, "const char *") || !strcmp_static(arg_type, "const char*"))
         va_arg(*ap, const char*);
-    else if (is_pointer(arg_type))
+    else if (is_pointer_or_long(arg_type))
         va_arg(*ap, void*);
     else
         va_arg(*ap, int);
