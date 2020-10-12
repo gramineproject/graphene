@@ -14,5 +14,6 @@ LC_ALL=C.UTF-8 shellcheck "$@" \
     Scripts/clean-check-test-copy \
     Scripts/download \
     Scripts/gitignore-test \
+    Scripts/run-pytest \
     .ci/run-pylint \
     .ci/run-shellcheck
