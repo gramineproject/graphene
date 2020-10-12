@@ -2,7 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * This files contain architecture-independent macros of ELF dynamic relocation function.
+ * This file contains architecture-independent macros of ELF dynamic relocation function.
  * The source code was imported from the GNU C Library and modified.
  */
 

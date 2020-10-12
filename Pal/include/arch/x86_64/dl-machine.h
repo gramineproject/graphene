@@ -2,7 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * This files contain architecture-specific implementation of ELF dynamic relocation functions.
+ * This file contains architecture-specific implementation of ELF dynamic relocation functions.
  * The source code was imported from the GNU C Library and modified.
  */
 

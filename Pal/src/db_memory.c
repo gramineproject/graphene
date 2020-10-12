@@ -2,7 +2,7 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * This files contains APIs that allocate, free or protect virtual memory.
+ * This file contains APIs that allocate, free or protect virtual memory.
  */
 
 #include "api.h"
