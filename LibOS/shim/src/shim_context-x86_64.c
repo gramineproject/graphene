@@ -7,6 +7,7 @@
 #include "shim_context.h"
 
 #include "asm-offsets.h"
+#include "pal.h"
 #include "shim_internal.h"
 
 /* 512 for legacy regs, 64 for xsave header */
@@ -27,14 +28,6 @@ __attribute__((aligned(SHIM_XSTATE_ALIGN))) = {
     // XCOMP_BV[63] = 1, compaction mode
 };
 
-enum SHIM_CPUID_WORD {
-    SHIM_CPUID_WORD_EAX = 0,
-    SHIM_CPUID_WORD_EBX = 1,
-    SHIM_CPUID_WORD_ECX = 2,
-    SHIM_CPUID_WORD_EDX = 3,
-    SHIM_CPUID_WORD_NUM = 4,
-};
-
 #define ECX_XSAVE   (1UL << 26)
 #define ECX_OSXSAVE (1UL << 27)
 #define XSAVE_CPUID 0x0000000d
@@ -44,15 +37,15 @@ void shim_xsave_init(void) {
     if (!DkCpuIdRetrieve(0x1, 0, value))
         goto out;
 
-    if (!(value[SHIM_CPUID_WORD_ECX] & ECX_XSAVE) || !(value[SHIM_CPUID_WORD_ECX] & ECX_OSXSAVE))
+    if (!(value[PAL_CPUID_WORD_ECX] & ECX_XSAVE) || !(value[PAL_CPUID_WORD_ECX] & ECX_OSXSAVE))
         goto out;
 
     if (!DkCpuIdRetrieve(XSAVE_CPUID, 0, value))
         goto out;
 
-    uint32_t xsavesize = value[SHIM_CPUID_WORD_ECX];
-    uint64_t xfeatures = value[SHIM_CPUID_WORD_EAX] |
-                         (((uint64_t)value[SHIM_CPUID_WORD_EDX]) << 32);
+    uint32_t xsavesize = value[PAL_CPUID_WORD_ECX];
+    uint64_t xfeatures = value[PAL_CPUID_WORD_EAX] |
+                         (((uint64_t)value[PAL_CPUID_WORD_EDX]) << 32);
     if (!xfeatures)
         goto out;
 

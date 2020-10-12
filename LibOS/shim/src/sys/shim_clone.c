@@ -102,7 +102,10 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     struct shim_regs regs = *arg->parent->shim_tcb->context.regs;
 
-    /* TODO: XSAVE area should be part of shim_regs, and restore_context() should XRSTOR */
+    /* FIXME: The below XSAVE area restore is not really correct but rather a dummy and will be
+     * fixed later. Now it restores the extended state from within LibOS rather than the app. In
+     * reality, XSAVE area should be part of shim_regs, and XRSTOR should happen during
+     * restore_context(). */
     shim_xsave_restore(arg->xregs_state);
 
     if (my_thread->set_child_tid) {
@@ -424,6 +427,10 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
     new_args.parent  = self;
     new_args.stack   = user_stack_addr;
     new_args.fs_base = fs_base;
+
+    /* FIXME: The below XSAVE area save is not really correct but rather a dummy and will be fixed
+     * later. Now it saves the extended state from within LibOS rather than the app. In reality,
+     * XSAVE area should be part of shim_regs, and XSAVE should happen during syscalldb().  */
 
     /* put XSAVE state on the new thread's stack (see clone_implementation_wrapper())
      * NOTE: this assumes the user-provided stack is at least ~2KB (for AVX512-enabled CPU) */
