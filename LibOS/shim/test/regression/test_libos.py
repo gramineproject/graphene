@@ -153,11 +153,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('child exited with status: 0', stdout)
         self.assertIn('test completed successfully', stdout)
 
-    def test_204_system(self):
-        stdout, _ = self.run_binary(['system'], timeout=60)
-        self.assertIn('hello from system', stdout)
-
-    def test_205_exec_fork(self):
+    def test_204_exec_fork(self):
         stdout, _ = self.run_binary(['exec_fork'], timeout=60)
         self.assertNotIn('Handled SIGCHLD', stdout)
         self.assertIn('Set up handler for SIGCHLD', stdout)

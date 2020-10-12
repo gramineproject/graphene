@@ -75,7 +75,6 @@ c_executables = \
 	stat_invalid_args \
 	str_close_leak \
 	syscall \
-	system \
 	tcp_ipv6_v6only \
 	tcp_msg_peek \
 	udp \
@@ -89,7 +88,6 @@ manifests = \
 	manifest \
 	argv_from_file.manifest \
 	attestation.manifest \
-	echo.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	eventfd.manifest \
@@ -110,21 +108,18 @@ manifests = \
 	multi_pthread_exitless.manifest \
 	openmp.manifest \
 	proc_path.manifest \
-	sh.manifest \
 	shared_object.manifest
 
 exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
 	argv_from_file.manifest \
-	echo.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	file_check_policy_allow_all_but_log.manifest \
 	file_check_policy_strict.manifest \
 	init_fail2.manifest \
-	multi_pthread_exitless.manifest \
-	sh.manifest
+	multi_pthread_exitless.manifest
 
 target = \
 	$(exec_target) \
