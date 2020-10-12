@@ -234,6 +234,7 @@ static void* get_ssa_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
     DEBUG("[enclave thread %d] TCS at 0x%lx: TCS.ossa = 0x%lx TCS.cssa = %d\n", tid, (long)tcs_addr,
           tcs_part.ossa, tcs_part.cssa);
     assert(tcs_part.cssa > 0);
+    /* CSSA points to the next empty slot, so to read the current frame, we look at CSSA - 1. */
     return (void*)ei->base + tcs_part.ossa + ei->ssaframesize * (tcs_part.cssa - 1);
 }
 
@@ -286,6 +287,7 @@ static int peek_xsave(int memdev, pid_t tid, struct enclave_dbginfo* ei, struct 
     if (!ssa_addr)
         return -1;
 
+    /* The SSA.XSAVE field has an offset of 0, so we use ssa_addr directly. */
     ret = pread(memdev, iov->iov_base, iov->iov_len, (off_t)ssa_addr);
     if (ret < iov->iov_len) {
         DEBUG("Cannot read XSAVE data (%p) of enclave thread %d\n", ssa_addr, tid);
@@ -303,6 +305,7 @@ static int poke_xsave(int memdev, pid_t tid, struct enclave_dbginfo* ei, struct 
     if (!ssa_addr)
         return -1;
 
+    /* The SSA.XSAVE field has an offset of 0, so we use ssa_addr directly. */
     ret = pwrite(memdev, iov->iov_base, iov->iov_len, (off_t)ssa_addr);
     if (ret < iov->iov_len) {
         DEBUG("Cannot write XSAVE data (%p) of enclave thread %d\n", (void*)ssa_addr, tid);

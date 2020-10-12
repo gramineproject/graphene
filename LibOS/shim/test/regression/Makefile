@@ -3,6 +3,7 @@ include ../../../../Scripts/Makefile.configs
 c_executables-x86_64 = \
 	attestation \
 	cpuid \
+	debug_regs-x86_64 \
 	rdtsc \
 	sighandler_divbyzero
 
@@ -13,7 +14,6 @@ c_executables = \
 	bootstrap_pie \
 	bootstrap_static \
     debug \
-    debug_regs \
 	dev \
 	epoll_wait_timeout \
 	eventfd \
@@ -141,7 +141,7 @@ include ../../../../Scripts/Makefile.Test
 CFLAGS-bootstrap_static = -static
 CFLAGS-bootstrap_pie = -fPIC -pie
 CFLAGS-debug = -g3
-CFLAGS-debug_regs = -g3
+CFLAGS-debug_regs-x86_64 = -g3
 CFLAGS-exec_same = -pthread
 CFLAGS-shared_object = -fPIC -pie
 CFLAGS-syscall += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST) -I$(PALDIR)/../include/arch/$(ARCH)/Linux
