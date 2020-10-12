@@ -1064,6 +1064,7 @@ static void parse_madvise_behavior(va_list* ap) {
             break;
         default:
             PRINTF("(unknown: %d)", behavior);
+            break;
     }
 }
 
