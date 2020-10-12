@@ -137,7 +137,7 @@ regression:
 	$(MAKE) pal-regression.xml
 
 pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(call expand_target_to_token,$(target))
-	$(SCRIPTS_DIR)/run-pytest --junit-xml $@ -v $<
+	../../Scripts/run-pytest --junit-xml $@ -v $<
 
 .PHONY: clean
 clean:

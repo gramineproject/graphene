@@ -171,7 +171,7 @@ regression: $(target)
 	$(MAKE) libos-regression.xml
 
 libos-regression.xml: test_libos.py $(call expand_target_to_token,$(target))
-	$(SCRIPTS_DIR)/run-pytest --junit-xml $@ -v $<
+	../../../../Scripts/run-pytest --junit-xml $@ -v $<
 
 .PHONY: clean-tmp
 clean-tmp:
