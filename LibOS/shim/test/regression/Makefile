@@ -12,7 +12,7 @@ c_executables = \
 	bootstrap \
 	bootstrap_pie \
 	bootstrap_static \
-    debug \
+	debug \
 	dev \
 	epoll_wait_timeout \
 	eventfd \
