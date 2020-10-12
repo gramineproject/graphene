@@ -5,7 +5,7 @@ project(
 )
 
 prefix = get_option('prefix')
-pkglibexecdir = get_option('libexecdirt ') / meson.project_name()
+pkglibexecdir = get_option('libexecdir') / meson.project_name()
 pkgdatadir = get_option('datadir') / meson.project_name()
 
 subdir('Runtime')
