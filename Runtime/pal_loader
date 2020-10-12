@@ -6,7 +6,16 @@
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 #                    Wojtek Porczyk <woju@invisiblethingslab.com>
 
-if test -n @IN_GIT@  # in meson, this gets zeroed out, so this will only take first branch in repo
+
+# This is how we detect whether we're installed or running from inside git repo.
+# If unchanged (i.e., if this reads IN_GIT between "at" characters), this is an
+# ordinary string and test -n "$IN_GIT" is true. But when installing, this is
+# rewritten using meson's configure_file() function to an empty string and the
+# else branch is taken. See also: ./meson.build and
+# https://mesonbuild.com/Reference-manual.html#configure_file.
+IN_GIT=@IN_GIT@
+
+if test -n "$IN_GIT"
 then
     while :
     do
