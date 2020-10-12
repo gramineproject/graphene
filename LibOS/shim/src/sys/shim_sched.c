@@ -155,13 +155,9 @@ static int check_affinity_params(bool is_getaffinity,
     size_t bitmask_long_count    = (ncpus + sizeof(long) * 8 - 1) / (sizeof(long) * 8);
     size_t bitmask_size_in_bytes = bitmask_long_count * sizeof(long);
 
-    /* Return -EINVAL for sched_getaffinity() when cpusetsize is
-     * smaller than size of affinity mask used by kernel.
-     */
     if (is_getaffinity && (cpumask_size < bitmask_size_in_bytes)) {
-        debug("size of cpumask in affinity syscall must be %lu but supplied cpumask is only %lu\n",
-               bitmask_size_in_bytes,
-               cpumask_size);
+        debug("size of cpumask in getaffinity syscall must be %lu but supplied cpumask is %lu\n",
+               bitmask_size_in_bytes, cpumask_size);
         return -EINVAL;
     }
 
@@ -186,11 +182,17 @@ int shim_do_sched_setaffinity(pid_t pid, size_t cpumask_size, __kernel_cpu_set_t
     if (!thread)
         return -ESRCH;
 
-    /* Increase the thread count to prvent it from being freed */
-    get_thread(thread);
+    /* When pid !=0, lookup_thread() internally increments the thread count to prevent it from being
+     * freed, so do the same even when pid == 0 after ensuring thread != NULL
+     */
+    if (pid == 0)
+        get_thread(thread);
 
     /* Internal graphene threads are not affinitized and shouldn't hit this flow */
-    assert(!is_internal(thread));
+    if (is_internal(thread)) {
+        put_thread(thread);
+        return -ESRCH;
+    }
 
     int bitmask_size_in_bytes = check_affinity_params(/*is_getaffinity=*/false, ncpus,
                                                       cpumask_size, user_mask_ptr);
@@ -223,11 +225,17 @@ int shim_do_sched_getaffinity(pid_t pid, size_t cpumask_size, __kernel_cpu_set_t
     if (!thread)
         return -ESRCH;
 
-    /* Increase the thread count to prvent it from being freed */
-    get_thread(thread);
+    /* When pid !=0, lookup_thread() internally increments the thread count to prevent it from being
+     * freed, so do the same even when pid == 0 after ensuring thread != NULL
+     */
+    if (pid == 0)
+        get_thread(thread);
 
     /* Internal graphene threads are not affinitized and shouldn't hit this flow */
-    assert(!is_internal(thread));
+    if (is_internal(thread)) {
+        put_thread(thread);
+        return -ESRCH;
+    }
 
     int bitmask_size_in_bytes = check_affinity_params(/*is_getaffinity=*/true, ncpus,
                                                       cpumask_size, user_mask_ptr);

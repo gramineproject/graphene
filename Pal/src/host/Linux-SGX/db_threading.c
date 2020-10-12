@@ -29,7 +29,8 @@
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
 
-static PAL_LOCK g_thread_list_lock = LOCK_INIT;
+static PAL_LOCK g_thread_list_lock   = LOCK_INIT;
+static PAL_LOCK g_thread_create_lock = LOCK_INIT;
 DEFINE_LISTP(pal_handle_thread);
 static LISTP_TYPE(pal_handle_thread) g_thread_list = LISTP_INIT;
 
@@ -43,8 +44,11 @@ extern void* g_enclave_base;
 void pal_start_thread(uint32_t tid) {
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
-    /* This is host tid and cannot be zero */
-    assert (tid != 0);
+    if (tid == 0) {
+        /* host OS passed an impossible, malicious TID; simply disallow running this thread */
+        return;
+    }
+
     _DkInternalLock(&g_thread_list_lock);
     LISTP_FOR_EACH_ENTRY(tmp, &g_thread_list, list)
         if (!tmp->tcs) {
@@ -98,10 +102,13 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    /* Technically we can have a race between thread->tid assinged in
-     * pal_thread_start and this flow, but since there are no consumers for
-     * handle->thread->tid in PAL layer we can skip locking.
+    /* There can be subtle race between the parent and child so hold the parent until child updates
+     * its tid, tcs.
      */
+    _DkInternalLock(&g_thread_create_lock);
+    while (new_thread->thread.tid != 0);
+    _DkInternalUnlock(&g_thread_create_lock);
+
     *handle = new_thread;
     return 0;
 }
