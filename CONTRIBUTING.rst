@@ -39,7 +39,9 @@ Or you can see the archives at this google group:
 https://groups.google.com/forum/#!forum/graphene-support
 
 Please verify that your change doesn't introduce any insecure-by-default
-functionality. If an option allows users to introduce a security risk, the option should have a name prefixed with ``insecure__`` and be disabled by default.
+functionality. If an option allows users to introduce a security risk, the
+option should have a name prefixed with ``insecure__`` and be disabled by
+default.
 
 Simple bugfixes need not have advance discussion, but we welcome queries from
 newcomers.
@@ -175,8 +177,8 @@ For SGX, one needs to do the following::
 If a |nbsp| test fails unexpectedly, one can use the :makevar:`KEEP_LOG=1`
 option to get the complete output.
 
-One can run tests manually (prepend the command with ``SGX=1`` or ``PAL_HOST=Linux-SGX`` to run the
-SGX variant)::
+One can run tests manually (prepend the command with ``SGX=1`` or
+``PAL_HOST=Linux-SGX`` to run the SGX variant)::
 
    /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py
    SGX=1 /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py
@@ -186,8 +188,9 @@ It is also possible to run subset of tests::
    /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py::TC_01_Bootstrap
    /path/to/graphene/Scripts/run-pytest -v -rs test_pal.py::TC_01_Bootstrap::test_100_basic_boostrapping
 
-The ``run-pytest`` script is a wrapper for `pytest <https://docs.pytest.org/en/stable/usage.html>`__
-and accepts the same command-line options.
+The ``run-pytest`` script is a wrapper for `pytest
+<https://docs.pytest.org/en/stable/usage.html>`__ and accepts the same
+command-line options.
 
 The shim unit tests work similarly, and are under
 :file:`LibOS/shim/test/regression`.
@@ -226,6 +229,10 @@ The current members of the management team are:
 The procedure for adding and removing maintainers
 -------------------------------------------------
 
-+ Joining: # of PRs submitted & merged + # of PRs reviewed + # of issues closed >= 20 (this means that a PR which fixes 3 issues counts as 4). Only complete and thorough reviews count.
-+ Leaving: a member may be removed if not active or notoriously breaking rules from this document.
-+ Additionally, at least 60% (rounded up) of current members have to agree to make any change to the team membership.
++ Joining: # of PRs submitted & merged + # of PRs reviewed + # of issues closed
+  >= 20 (this means that a PR which fixes 3 issues counts as 4). Only complete
+  and thorough reviews count.
++ Leaving: a member may be removed if not active or notoriously breaking rules
+  from this document.
++ Additionally, at least 60% (rounded up) of current members have to agree to
+  make any change to the team membership.
