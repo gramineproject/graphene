@@ -17,7 +17,7 @@ write_1e5 : CFLAGS += -DPAGECOUNT=100000
 write_1e6 : CFLAGS += -DPAGECOUNT=1000000
 write_1e7 : CFLAGS += -DPAGECOUNT=10000000
 
-%.manifest: manifest.in
+%.manifest: manifest.template
 	sed \
 		-e 's:@GRAPHENEDIR@:$(GRAPHENEDIR):g' $< \
 	> $@

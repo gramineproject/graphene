@@ -10,14 +10,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     void *buf;
     size_t pagesize;
     ssize_t r;
-	int fd, i, ret;
+    int fd, i, ret;
 
-    ret = -1;
+    ret = 1;
 
     pagesize = sysconf(_SC_PAGESIZE);
 
@@ -30,7 +29,7 @@ int main(int argc, char *argv[])
     memset(buf, 0xa5, pagesize);
 
     fd = open("/dev/null", O_WRONLY);
-	if (fd < 0) {
+    if (fd < 0) {
         perror("open");
         goto err_unmap;
     }
