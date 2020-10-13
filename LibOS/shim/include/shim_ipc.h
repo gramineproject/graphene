@@ -102,7 +102,6 @@ struct shim_ipc_info {
 struct shim_process_ipc_info {
     IDTYPE vmid;
     struct shim_lock lock;
-    int exit_code;
     struct shim_ipc_info* self;
     struct shim_ipc_info* parent;
     struct shim_ipc_info* ns;
