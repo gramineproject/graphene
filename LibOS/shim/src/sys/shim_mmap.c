@@ -375,12 +375,12 @@ static bool dontneed_visitor(struct shim_vma* vma, void* visitor_arg) {
         return false;
     }
 
-    if (vma->flags & VMA_TAINTED) {
-        ctx->error = -ENOSYS; // Resetting writable file-backed mappings is not yet implemented.
-        return false;
-    }
-
     if (vma->file) {
+        if (vma->flags & VMA_TAINTED) {
+            /* Resetting writable file-backed mappings is not yet implemented. */
+            ctx->error = -ENOSYS;
+            return false;
+        }
         /* MADV_DONTNEED resets file-based mappings to the original state, which is a no-op for
          * non-tainted mappings. */
         return true;
