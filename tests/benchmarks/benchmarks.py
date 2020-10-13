@@ -8,7 +8,7 @@ def setup():
 
 _cwd = pathlib.Path(__file__).parent.absolute()
 def _run(stem):
-    subprocess.run([os.fspath('../Runtime/pal_loader'), stem + '.manifest.sgx'],
+    subprocess.run([os.fspath('../../Runtime/pal_loader'), stem + '.manifest.sgx'],
         check=True, cwd=os.fspath(_cwd))
 
 def time_000_helloworld():
