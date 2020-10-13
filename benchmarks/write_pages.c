@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     void *buf;
     size_t pagesize;
     ssize_t r;
