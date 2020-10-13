@@ -134,7 +134,7 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
             return;
         }
 
-        pal_start_thread(READ_ONCE(ms->ms_tid));
+        pal_start_thread();
     }
     // pal_linux_main and pal_start_thread should never return.
 }

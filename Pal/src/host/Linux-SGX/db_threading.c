@@ -30,7 +30,6 @@
 #include "pal_linux_error.h"
 
 static PAL_LOCK g_thread_list_lock   = LOCK_INIT;
-static PAL_LOCK g_thread_create_lock = LOCK_INIT;
 DEFINE_LISTP(pal_handle_thread);
 static LISTP_TYPE(pal_handle_thread) g_thread_list = LISTP_INIT;
 
@@ -41,20 +40,15 @@ struct thread_param {
 
 extern void* g_enclave_base;
 
-void pal_start_thread(uint32_t tid) {
+void pal_start_thread(void) {
     struct pal_handle_thread *new_thread = NULL, *tmp;
-
-    if (tid == 0) {
-        /* host OS passed an impossible, malicious TID; simply disallow running this thread */
-        return;
-    }
 
     _DkInternalLock(&g_thread_list_lock);
     LISTP_FOR_EACH_ENTRY(tmp, &g_thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
-            new_thread->tid = tid;
-            new_thread->tcs = g_enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+            __atomic_store_n(&new_thread->tcs, (g_enclave_base + GET_ENCLAVE_TLS(tcs_offset)),
+                             __ATOMIC_RELEASE);
             break;
         }
     _DkInternalUnlock(&g_thread_list_lock);
@@ -105,9 +99,8 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
     /* There can be subtle race between the parent and child so hold the parent until child updates
      * its tid, tcs.
      */
-    _DkInternalLock(&g_thread_create_lock);
-    while (new_thread->thread.tid != 0);
-    _DkInternalUnlock(&g_thread_create_lock);
+    while (!__atomic_load_n(&new_thread->thread.tcs, __ATOMIC_ACQUIRE))
+            cpu_pause();
 
     *handle = new_thread;
     return 0;
@@ -150,12 +143,12 @@ int _DkThreadResume(PAL_HANDLE threadHandle) {
 }
 
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
-    int ret = ocall_sched_setaffinity(thread->thread.tid, cpumask_size, cpu_mask);
+    int ret = ocall_sched_setaffinity(thread->thread.tcs, cpumask_size, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask) {
-    int ret = ocall_sched_getaffinity(thread->thread.tid, cpumask_size, cpu_mask);
+    int ret = ocall_sched_getaffinity(thread->thread.tcs, cpumask_size, cpu_mask);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

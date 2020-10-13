@@ -257,16 +257,24 @@ static long sgx_ocall_resume_thread(void* pms) {
 static long sgx_ocall_sched_setaffinity(void* pms) {
     ms_ocall_sched_setaffinity_t* ms = (ms_ocall_sched_setaffinity_t*)pms;
     ODEBUG(OCALL_SCHED_SETAFFINITY, ms);
+    int tid = get_tid_from_tcs(ms->ms_tcs);
+    if (tid < 0)
+        return tid;
+
     long ret = INLINE_SYSCALL(sched_setaffinity, 3,
-                              ms->ms_tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
+                              tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
     return ret;
 }
 
 static long sgx_ocall_sched_getaffinity(void* pms) {
     ms_ocall_sched_getaffinity_t* ms = (ms_ocall_sched_getaffinity_t*)pms;
     ODEBUG(OCALL_SCHED_GETAFFINITY, ms);
+    int tid = get_tid_from_tcs(ms->ms_tcs);
+    if (tid < 0)
+        return tid;
+
     long ret = INLINE_SYSCALL(sched_getaffinity, 3,
-                              ms->ms_tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
+                              tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
     return ret;
 }
 

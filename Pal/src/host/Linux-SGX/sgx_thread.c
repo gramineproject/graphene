@@ -285,13 +285,22 @@ int clone_thread(void) {
     return 0;
 }
 
-int interrupt_thread(void* tcs) {
+int get_tid_from_tcs(void* tcs) {
     int index = (sgx_arch_tcs_t*)tcs - g_enclave_tcs;
     struct thread_map* map = &g_enclave_thread_map[index];
     if (index >= g_enclave_thread_num)
         return -EINVAL;
     if (!map->tid)
         return -EINVAL;
-    INLINE_SYSCALL(tgkill, 3, g_pal_enclave.pal_sec.pid, map->tid, SIGCONT);
+
+    return map->tid;
+}
+
+int interrupt_thread(void* tcs) {
+    int tid = get_tid_from_tcs(tcs);
+    if (tid < 0)
+        return tid;
+
+    INLINE_SYSCALL(tgkill, 3, g_pal_enclave.pal_sec.pid, tid, SIGCONT);
     return 0;
 }

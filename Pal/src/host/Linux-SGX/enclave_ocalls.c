@@ -1464,7 +1464,7 @@ out:
     return retval;
 }
 
-int ocall_sched_setaffinity(int tid, size_t cpumask_size, void* cpu_mask) {
+int ocall_sched_setaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     int retval = 0;
     ms_ocall_sched_setaffinity_t* ms;
 
@@ -1475,9 +1475,7 @@ int ocall_sched_setaffinity(int tid, size_t cpumask_size, void* cpu_mask) {
         return -EPERM;
     }
 
-    /* tid is the host tid, it cannot be zero */
-    assert (tid != 0);
-    WRITE_ONCE(ms->ms_tid, tid);
+    WRITE_ONCE(ms->ms_tcs, tcs);
     WRITE_ONCE(ms->ms_cpu_mask_size, cpumask_size);
     void* untrusted_cpu_mask = sgx_copy_to_ustack(cpu_mask, cpumask_size);
     if (!untrusted_cpu_mask) {
@@ -1492,7 +1490,7 @@ int ocall_sched_setaffinity(int tid, size_t cpumask_size, void* cpu_mask) {
     return retval;
 }
 
-int ocall_sched_getaffinity(int tid, size_t cpumask_size, void* cpu_mask) {
+int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     int retval = 0;
     ms_ocall_sched_getaffinity_t* ms;
 
@@ -1503,9 +1501,7 @@ int ocall_sched_getaffinity(int tid, size_t cpumask_size, void* cpu_mask) {
         return -EPERM;
     }
 
-    /* tid is the host tid, it cannot be zero */
-    assert (tid != 0);
-    WRITE_ONCE(ms->ms_tid, tid);
+    WRITE_ONCE(ms->ms_tcs, tcs);
     WRITE_ONCE(ms->ms_cpu_mask_size, cpumask_size);
     void* untrusted_cpu_mask = sgx_copy_to_ustack(cpu_mask, cpumask_size);
     if (!untrusted_cpu_mask) {

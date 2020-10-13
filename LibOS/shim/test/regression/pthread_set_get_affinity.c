@@ -31,17 +31,14 @@ int main(int argc, const char** argv) {
     int ret;
     long numprocs = sysconf(_SC_NPROCESSORS_ONLN);
     if (numprocs < 0) {
-        err(EXIT_FAILURE, "Failed to retrieve the number of logical processors!\n");
+        err(EXIT_FAILURE, "Failed to retrieve the number of logical processors!");
     }
 
     /* Affinitize threads to alternate logical processors to do a quick check from htop manually */
     numprocs = (numprocs >= 2)? numprocs/2 : 1;
 
     pthread_t threads[numprocs];
-
-    pthread_attr_t attr;
     cpu_set_t cpus, get_cpus;
-    pthread_attr_init(&attr);
 
     /* Validate parent set/get affinity for child */
     for (long i = 0; i < numprocs; i++) {
@@ -49,23 +46,23 @@ int main(int argc, const char** argv) {
         CPU_ZERO(&get_cpus);
         CPU_SET(i*2, &cpus);
 
-        ret = pthread_attr_setaffinity_np(&attr, sizeof(cpus), &cpus);
+        ret = pthread_create(&threads[i], NULL, dowork, NULL);
         if (ret != 0) {
-            err(EXIT_FAILURE, "pthread_attr_setaffinity_np failed for child!");
+            err(EXIT_FAILURE, "pthread_create failed!");
         }
 
-        ret = pthread_attr_getaffinity_np(&attr, sizeof(get_cpus), &get_cpus);
+        ret = pthread_setaffinity_np(threads[i], sizeof(cpus), &cpus);
         if (ret != 0) {
-            err(EXIT_FAILURE, "pthread_attr_getaffinity_np failed for child!");
+            err(EXIT_FAILURE, "pthread_setaffinity_np failed for child!");
+        }
+
+        ret = pthread_getaffinity_np(threads[i], sizeof(get_cpus), &get_cpus);
+        if (ret != 0) {
+            err(EXIT_FAILURE, "pthread_getaffinity_np failed for child!");
         }
 
         if (!CPU_EQUAL_S(sizeof(cpus), &cpus, &get_cpus)) {
             errx(EXIT_FAILURE, "get cpuset is not equal to set cpuset on proc: %ld", i);
-        }
-
-        ret = pthread_create(&threads[i], &attr, dowork, NULL);
-        if (ret != 0) {
-            err(EXIT_FAILURE, "pthread_create failed!");
         }
     }
 

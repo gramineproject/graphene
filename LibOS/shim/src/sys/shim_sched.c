@@ -182,13 +182,13 @@ int shim_do_sched_setaffinity(pid_t pid, size_t cpumask_size, __kernel_cpu_set_t
     if (!thread)
         return -ESRCH;
 
-    /* When pid !=0, lookup_thread() internally increments the thread count to prevent it from being
-     * freed, so do the same even when pid == 0 after ensuring thread != NULL
-     */
+    /* lookup_thread() internal increments thread count; do the same in case of get_cur_thread() */
     if (pid == 0)
         get_thread(thread);
 
-    /* Internal graphene threads are not affinitized and shouldn't hit this flow */
+    /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
+     * some bug in user app
+     */
     if (is_internal(thread)) {
         put_thread(thread);
         return -ESRCH;
@@ -225,13 +225,13 @@ int shim_do_sched_getaffinity(pid_t pid, size_t cpumask_size, __kernel_cpu_set_t
     if (!thread)
         return -ESRCH;
 
-    /* When pid !=0, lookup_thread() internally increments the thread count to prevent it from being
-     * freed, so do the same even when pid == 0 after ensuring thread != NULL
-     */
+    /* lookup_thread() internal increments thread count; do the same in case of get_cur_thread() */
     if (pid == 0)
         get_thread(thread);
 
-    /* Internal graphene threads are not affinitized and shouldn't hit this flow */
+    /* Internal graphene threads are not affinitized; if we hit an internal thread here, this is
+     * some bug in user app
+     */
     if (is_internal(thread)) {
         put_thread(thread);
         return -ESRCH;
