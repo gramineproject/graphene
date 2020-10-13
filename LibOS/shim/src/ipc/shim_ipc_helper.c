@@ -73,80 +73,81 @@ static ipc_callback ipc_callbacks[] = {
 };
 
 static int init_self_ipc_port(void) {
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
-    if (!cur_process.self) {
+    if (!g_process_ipc_info.self) {
         /* very first process or clone/fork case: create IPC port from scratch */
-        cur_process.self = create_ipc_info_cur_process(/*is_self_ipc_info=*/true);
-        if (!cur_process.self) {
-            unlock(&cur_process.lock);
+        g_process_ipc_info.self = create_ipc_info_cur_process(/*is_self_ipc_info=*/true);
+        if (!g_process_ipc_info.self) {
+            unlock(&g_process_ipc_info.lock);
             return -EACCES;
         }
     } else {
         /* execve case: inherited IPC port from parent process */
-        assert(cur_process.self->pal_handle && !qstrempty(&cur_process.self->uri));
+        assert(g_process_ipc_info.self->pal_handle && !qstrempty(&g_process_ipc_info.self->uri));
 
-        add_ipc_port_by_id(cur_process.self->vmid, cur_process.self->pal_handle, IPC_PORT_SERVER,
-                           /*fini=*/NULL, &cur_process.self->port);
+        add_ipc_port_by_id(g_process_ipc_info.self->vmid, g_process_ipc_info.self->pal_handle,
+                           IPC_PORT_SERVER, /*fini=*/NULL, &g_process_ipc_info.self->port);
     }
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     return 0;
 }
 
 static int init_parent_ipc_port(void) {
-    if (!PAL_CB(parent_process) || !cur_process.parent) {
+    if (!PAL_CB(parent_process) || !g_process_ipc_info.parent) {
         /* no parent process, no sense in creating parent IPC port */
         return 0;
     }
 
-    lock(&cur_process.lock);
-    assert(cur_process.parent && cur_process.parent->vmid);
+    lock(&g_process_ipc_info.lock);
+    assert(g_process_ipc_info.parent && g_process_ipc_info.parent->vmid);
 
     /* for execve case, my parent is the parent of my parent (current process transparently inherits
      * the "real" parent through already opened pal_handle on "temporary" parent's
-     * cur_process.parent) */
-    if (!cur_process.parent->pal_handle) {
+     * g_process_ipc_info.parent) */
+    if (!g_process_ipc_info.parent->pal_handle) {
         /* for clone/fork case, parent is connected on parent_process */
-        cur_process.parent->pal_handle = PAL_CB(parent_process);
+        g_process_ipc_info.parent->pal_handle = PAL_CB(parent_process);
     }
 
-    add_ipc_port_by_id(cur_process.parent->vmid, cur_process.parent->pal_handle,
+    add_ipc_port_by_id(g_process_ipc_info.parent->vmid, g_process_ipc_info.parent->pal_handle,
                        IPC_PORT_DIRECTPARENT | IPC_PORT_LISTEN,
-                       /*fini=*/NULL, &cur_process.parent->port);
+                       /*fini=*/NULL, &g_process_ipc_info.parent->port);
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     return 0;
 }
 
 static int init_ns_ipc_port(void) {
-    if (!cur_process.ns) {
+    if (!g_process_ipc_info.ns) {
         /* no NS info from parent process, no sense in creating NS IPC port */
         return 0;
     }
 
-    if (!cur_process.ns->pal_handle && qstrempty(&cur_process.ns->uri)) {
+    if (!g_process_ipc_info.ns->pal_handle && qstrempty(&g_process_ipc_info.ns->uri)) {
         /* there is no connection to NS leader via PAL handle and there is no URI to find NS leader:
          * do not create NS IPC port now, it will be created on-demand during NS leader lookup */
         return 0;
     }
 
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
-    if (!cur_process.ns->pal_handle) {
-        debug("Reconnecting IPC port %s\n", qstrgetstr(&cur_process.ns->uri));
-        cur_process.ns->pal_handle = DkStreamOpen(qstrgetstr(&cur_process.ns->uri), 0, 0, 0, 0);
-        if (!cur_process.ns->pal_handle) {
-            unlock(&cur_process.lock);
+    if (!g_process_ipc_info.ns->pal_handle) {
+        debug("Reconnecting IPC port %s\n", qstrgetstr(&g_process_ipc_info.ns->uri));
+        g_process_ipc_info.ns->pal_handle = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri),
+                                                         0, 0, 0, 0);
+        if (!g_process_ipc_info.ns->pal_handle) {
+            unlock(&g_process_ipc_info.lock);
             return -PAL_ERRNO();
         }
     }
 
-    add_ipc_port_by_id(cur_process.ns->vmid, cur_process.ns->pal_handle,
+    add_ipc_port_by_id(g_process_ipc_info.ns->vmid, g_process_ipc_info.ns->pal_handle,
                        IPC_PORT_LEADER | IPC_PORT_LISTEN,
-                       /*fini=*/NULL, &cur_process.ns->port);
+                       /*fini=*/NULL, &g_process_ipc_info.ns->port);
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     return 0;
 }
 
@@ -587,7 +588,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
             msg->seq);
 
         /* skip messages coming from myself (in case of broadcast) */
-        if (msg->src != cur_process.vmid) {
+        if (msg->src != g_process_ipc_info.vmid) {
             if (msg->code < IPC_MSG_CODE_BOUND && ipc_callbacks[msg->code]) {
                 /* invoke callback to this msg */
                 ret = (*ipc_callbacks[msg->code])(msg, port);

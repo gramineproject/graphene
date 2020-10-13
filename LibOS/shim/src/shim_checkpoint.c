@@ -570,7 +570,7 @@ static void* cp_alloc(void* addr, size_t size) {
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
                                        struct shim_thread* thread, ...) {
     int ret = 0;
-    struct shim_process* process = NULL;
+    struct shim_process_ipc_info* process = NULL;
 
     /* FIXME: Child process requires some time to initialize before starting to receive checkpoint
      * data. Parallelizing process creation and checkpointing could improve latency of forking. */
@@ -582,8 +582,8 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
         goto out;
     }
 
-    /* create LibOS process object and IPC bookkeepings */
-    process = create_process(exec ? /*execve*/ true : /*fork*/ false);
+    /* Create IPC bookkeepings for the new process. */
+    process = create_process_ipc_info(exec ? /*execve*/ true : /*fork*/ false);
     if (!process) {
         ret = -EACCES;
         goto out;
@@ -594,9 +594,11 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
      * migration at the end of this function (we do this pointer assignment because there is no
      * notion of refcounts for PAL handles at LibOS level) */
     if (exec) {
-        process->self->pal_handle = cur_process.self->pal_handle;
+        lock(&g_process_ipc_info.lock);
+        process->self->pal_handle = g_process_ipc_info.self->pal_handle;
         if (process->parent)
-            process->parent->pal_handle = cur_process.parent->pal_handle;
+            process->parent->pal_handle = g_process_ipc_info.parent->pal_handle;
+        unlock(&g_process_ipc_info.lock);
     }
 
     /* allocate a space for dumping the checkpoint data */
@@ -725,7 +727,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     ret = 0;
 out:
     if (process)
-        free_process(process);
+        free_process_ipc_info(process);
 
     if (ret < 0) {
         if (pal_process)

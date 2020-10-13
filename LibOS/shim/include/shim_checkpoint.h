@@ -332,8 +332,8 @@ struct checkpoint_hdr {
     size_t palhdl_entries_cnt;
 };
 
-typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_thread*, struct shim_process*,
-                              va_list);
+typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_thread*,
+                              struct shim_process_ipc_info*, va_list);
 
 /*!
  * \brief Create child process and migrate current-process state to it.

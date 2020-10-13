@@ -22,8 +22,8 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 
-static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread, struct shim_process* process) {
-    DEFINE_MIGRATE(process, process, sizeof(struct shim_process));
+static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread, struct shim_process_ipc_info* process) {
+    DEFINE_MIGRATE(process_ipc_info, process, sizeof(struct shim_process_ipc_info));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(all_vmas, NULL, 0);
     DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
@@ -38,7 +38,7 @@ static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread, struct shim_process
 END_MIGRATION_DEF(fork)
 
 int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
-                 struct shim_process* process, va_list ap) {
+                 struct shim_process_ipc_info* process, va_list ap) {
     __UNUSED(ap);
     int ret = START_MIGRATE(store, fork, thread, process);
 

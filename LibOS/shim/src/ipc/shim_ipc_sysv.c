@@ -34,7 +34,7 @@ int ipc_sysv_findkey_send(struct sysv_key* key) {
     if ((ret = connect_ns(&dest, &port)) < 0)
         goto out;
 
-    if (dest == cur_process.vmid) {
+    if (dest == g_process_ipc_info.vmid) {
         ret = -ENOENT;
         goto out;
     }
@@ -83,7 +83,7 @@ int ipc_sysv_tellkey_send(struct shim_ipc_port* port, IDTYPE dest, struct sysv_k
         if ((ret = connect_ns(&dest, &port)) < 0)
             goto out;
 
-        if (dest == cur_process.vmid)
+        if (dest == g_process_ipc_info.vmid)
             goto out;
 
         owned = false;
@@ -364,7 +364,7 @@ int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_
     if ((ret = connect_owner(msgid, &port, &owner)) < 0)
         goto out;
 
-    if (owner == cur_process.vmid) {
+    if (owner == g_process_ipc_info.vmid) {
         ret = -EAGAIN;
         goto out;
     }
@@ -438,7 +438,7 @@ int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned l
     if ((ret = connect_owner(semid, &port, &owner)) < 0)
         goto out;
 
-    if (owner == cur_process.vmid) {
+    if (owner == g_process_ipc_info.vmid) {
         ret = -EAGAIN;
         goto out;
     }

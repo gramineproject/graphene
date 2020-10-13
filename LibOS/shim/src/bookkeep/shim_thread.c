@@ -238,7 +238,7 @@ struct shim_thread* get_new_thread(IDTYPE new_tid) {
         goto out_error;
     }
 
-    thread->vmid             = cur_process.vmid;
+    thread->vmid             = g_process_ipc_info.vmid;
     thread->scheduler_event  = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event       = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
@@ -275,7 +275,7 @@ struct shim_thread* get_new_internal_thread(void) {
     if (!thread)
         return NULL;
 
-    thread->vmid  = cur_process.vmid;
+    thread->vmid  = g_process_ipc_info.vmid;
     thread->tid   = new_tid;
     thread->in_vm = thread->is_alive = true;
     if (!create_lock(&thread->lock)) {
@@ -702,7 +702,7 @@ BEGIN_RS_FUNC(running_thread) {
     struct shim_thread* cur_thread = get_cur_thread();
     thread->in_vm = true;
 
-    thread->vmid = cur_process.vmid;
+    thread->vmid = g_process_ipc_info.vmid;
 
     if (thread->shim_tcb)
         CP_REBASE(thread->shim_tcb);

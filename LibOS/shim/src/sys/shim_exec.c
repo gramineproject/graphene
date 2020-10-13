@@ -157,9 +157,9 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     return 0;
 }
 
-static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process* proc,
+static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process_ipc_info* proc,
                            const char** argv, const char** envp) {
-    DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
+    DEFINE_MIGRATE(process_ipc_info, proc, sizeof(struct shim_process_ipc_info));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
     DEFINE_MIGRATE(pending_signals, NULL, 0);
@@ -173,7 +173,7 @@ END_MIGRATION_DEF(execve)
 /* thread is cur_thread stripped off stack & tcb (see below func);
  * process is new process which is forked and waits for checkpoint. */
 static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thread,
-                          struct shim_process* process, va_list ap) {
+                          struct shim_process_ipc_info* process, va_list ap) {
     struct shim_handle_map* handle_map;
     const char** argv = va_arg(ap, const char**);
     const char** envp = va_arg(ap, const char**);
@@ -445,7 +445,7 @@ reopen:
      * its parent in turn may wait on it, e.g., `bash -c ls`) */
     debug(
         "Temporary process %u is exiting after emulating execve (by forking new process to replace"
-        " this one); will wait for forked process to exit...\n", cur_process.vmid & 0xFFFF);
+        " this one); will wait for forked process to exit...\n", g_process_ipc_info.vmid & 0xFFFF);
     MASTER_LOCK();
     DkProcessExit(PAL_WAIT_FOR_CHILDREN_EXIT);
 

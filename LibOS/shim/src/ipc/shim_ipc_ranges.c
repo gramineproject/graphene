@@ -217,9 +217,9 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* ur
                 LISTP_DEL(tmp, head, hlist);
 
                 /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
-                 * and tmp->owner->vmid == cur_process.vmid, tmp is on the
+                 * and tmp->owner->vmid == g_process_ipc_info.vmid, tmp is on the
                  * owned list, otherwise it is an offered. */
-                if (tmp->owner && tmp->owner->vmid == cur_process.vmid) {
+                if (tmp->owner && tmp->owner->vmid == g_process_ipc_info.vmid) {
                     LISTP_DEL(tmp, &owned_ranges, list);
                     nowned--;
                 } else {
@@ -242,7 +242,7 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* ur
     LISTP_ADD(r, head, hlist);
     INIT_LIST_HEAD(r, list);
 
-    LISTP_TYPE(range)* list = (owner == cur_process.vmid) ? &owned_ranges : &offered_ranges;
+    LISTP_TYPE(range)* list = (owner == g_process_ipc_info.vmid) ? &owned_ranges : &offered_ranges;
     struct range* prev      = LISTP_FIRST_ENTRY(list, range, list);
     struct range* tmp;
 
@@ -254,7 +254,7 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* ur
 
     LISTP_ADD_AFTER(r, prev, list, list);
 
-    if (owner == cur_process.vmid)
+    if (owner == g_process_ipc_info.vmid)
         nowned++;
     else
         noffered++;
@@ -463,7 +463,7 @@ static int del_ipc_range(IDTYPE idx) {
     if (ret < 0)
         goto failed;
 
-    if (r->owner->vmid == cur_process.vmid)
+    if (r->owner->vmid == g_process_ipc_info.vmid)
         nowned--;
     else
         noffered--;
@@ -477,9 +477,9 @@ static int del_ipc_range(IDTYPE idx) {
     LISTP_DEL(r, head, hlist);
 
     /* Chia-Che Tsai 10/17/17: only when r->owner is non-NULL,
-     * and r->owner->vmid == cur_process.vmid, r is on the
+     * and r->owner->vmid == g_process_ipc_info.vmid, r is on the
      * owned list, otherwise it is an offered. */
-    if (r->owner && r->owner->vmid == cur_process.vmid)
+    if (r->owner && r->owner->vmid == g_process_ipc_info.vmid)
         LISTP_DEL(r, &owned_ranges, list);
     else
         LISTP_DEL(r, &offered_ranges, list);
@@ -643,16 +643,16 @@ int init_ns_ranges(void) {
 
 static void ipc_leader_exit(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode) {
     __UNUSED(exitcode);  // Kept for API compatibility
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
-    if (!cur_process.ns || cur_process.ns->port != port) {
-        unlock(&cur_process.lock);
+    if (!g_process_ipc_info.ns || g_process_ipc_info.ns->port != port) {
+        unlock(&g_process_ipc_info.lock);
         return;
     }
 
-    struct shim_ipc_info* info = cur_process.ns;
-    cur_process.ns = NULL;
-    unlock(&cur_process.lock);
+    struct shim_ipc_info* info = g_process_ipc_info.ns;
+    g_process_ipc_info.ns = NULL;
+    unlock(&g_process_ipc_info.lock);
 
     debug("ipc port %p of process %u closed suggests leader exits\n", port, vmid);
 
@@ -666,143 +666,148 @@ static void ipc_leader_exit(struct shim_ipc_port* port, IDTYPE vmid, unsigned in
  */
 static void __discover_ns(bool block, bool need_locate) {
     bool ipc_pending = false;
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
-    if (cur_process.ns) {
-        if (cur_process.ns->vmid == cur_process.vmid) {
-            if (need_locate && qstrempty(&cur_process.ns->uri)) {
-                bool is_self_ipc_info      = false; /* not cur_process.self but cur_process.ns */
+    if (g_process_ipc_info.ns) {
+        if (g_process_ipc_info.ns->vmid == g_process_ipc_info.vmid) {
+            if (need_locate && qstrempty(&g_process_ipc_info.ns->uri)) {
+                /* not g_process_ipc_info.self but g_process_ipc_info.ns */
+                bool is_self_ipc_info      = false;
                 struct shim_ipc_info* info = create_ipc_info_cur_process(is_self_ipc_info);
                 if (info) {
-                    put_ipc_info(cur_process.ns);
-                    cur_process.ns = info;
+                    put_ipc_info(g_process_ipc_info.ns);
+                    g_process_ipc_info.ns = info;
                     add_ipc_port(info->port, 0, IPC_PORT_CLIENT, &ipc_leader_exit);
                 }
             }
             goto out;
         }
 
-        if (!qstrempty(&cur_process.ns->uri))
+        if (!qstrempty(&g_process_ipc_info.ns->uri))
             goto out;
     }
 
     /*
      * Now we need to discover the leader through IPC. Because IPC calls can be blocking,
-     * we need to temporarily release cur_process.lock to prevent deadlocks. If the discovery
-     * succeeds, cur_process.ns will contain the IPC information of the namespace leader.
+     * we need to temporarily release g_process_ipc_info.lock to prevent deadlocks. If the discovery
+     * succeeds, g_process_ipc_info.ns will contain the IPC information of the namespace leader.
      */
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
 
     // Send out an IPC message to find out the namespace information.
     // If the call is non-blocking, can't expect the answer when the function finishes.
     int ret = ipc_findns_send(block);
     if (!ret) {
         ipc_pending = !block;  // There is still some unfinished business with IPC
-        lock(&cur_process.lock);
-        assert(cur_process.ns);
+        lock(&g_process_ipc_info.lock);
+        assert(g_process_ipc_info.ns);
         goto out;
     }
 
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
     // At this point, (1) the leader is not me, (2) I don't know leader's URI,
     // and (3) I failed to find out the leader via IPC. But I am pressed to
     // report the leader so promote myself (and remove stale leader info).
-    if (cur_process.ns)
-        put_ipc_info(cur_process.ns);
+    if (g_process_ipc_info.ns)
+        put_ipc_info(g_process_ipc_info.ns);
 
     if (!need_locate) {
-        cur_process.ns = create_ipc_info(cur_process.vmid, NULL, 0);
+        g_process_ipc_info.ns = create_ipc_info(g_process_ipc_info.vmid, NULL, 0);
         goto out;
     }
 
-    bool is_self_ipc_info = false; /* not cur_process.self but cur_process.ns */
-    if (!(cur_process.ns = create_ipc_info_cur_process(is_self_ipc_info)))
+    bool is_self_ipc_info = false; /* not g_process_ipc_info.self but g_process_ipc_info.ns */
+    if (!(g_process_ipc_info.ns = create_ipc_info_cur_process(is_self_ipc_info)))
         goto out;
 
     // Finally, set the IPC port as a leadership port
-    add_ipc_port(cur_process.ns->port, 0, IPC_PORT_CLIENT, &ipc_leader_exit);
+    add_ipc_port(g_process_ipc_info.ns->port, 0, IPC_PORT_CLIENT, &ipc_leader_exit);
 
 out:
-    if (cur_process.ns && !ipc_pending) {
+    if (g_process_ipc_info.ns && !ipc_pending) {
         // Assertions for checking the correctness of __discover_ns()
-        assert(cur_process.ns->vmid == cur_process.vmid  // The current process is the leader;
-               || cur_process.ns->port                   // Or there is a connected port
-               || !qstrempty(&cur_process.ns->uri));     // Or there is a known URI
+        assert(g_process_ipc_info.ns->vmid == g_process_ipc_info.vmid   // The current process is
+                                                                        // the leader
+               || g_process_ipc_info.ns->port                   // Or there is a connected port
+               || !qstrempty(&g_process_ipc_info.ns->uri));     // Or there is a known URI
         if (need_locate)
-            assert(!qstrempty(&cur_process.ns->uri));  // A known URI is needed
+            assert(!qstrempty(&g_process_ipc_info.ns->uri));    // A known URI is needed
     }
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
 }
 
 int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr) {
-    __discover_ns(true, false);  // This function cannot be called with cur_process.lock held
-    lock(&cur_process.lock);
+    __discover_ns(true, false);  // This function cannot be called with g_process_ipc_info.lock held
+    lock(&g_process_ipc_info.lock);
 
-    if (!cur_process.ns) {
-        unlock(&cur_process.lock);
+    if (!g_process_ipc_info.ns) {
+        unlock(&g_process_ipc_info.lock);
         return -ESRCH;
     }
 
-    if (cur_process.ns->vmid == cur_process.vmid) {
+    if (g_process_ipc_info.ns->vmid == g_process_ipc_info.vmid) {
         if (vmid)
-            *vmid = cur_process.ns->vmid;
-        unlock(&cur_process.lock);
+            *vmid = g_process_ipc_info.ns->vmid;
+        unlock(&g_process_ipc_info.lock);
         return 0;
     }
 
-    if (!cur_process.ns->port) {
-        if (qstrempty(&cur_process.ns->uri)) {
-            unlock(&cur_process.lock);
+    if (!g_process_ipc_info.ns->port) {
+        if (qstrempty(&g_process_ipc_info.ns->uri)) {
+            unlock(&g_process_ipc_info.lock);
             return -ESRCH;
         }
 
-        PAL_HANDLE pal_handle = DkStreamOpen(qstrgetstr(&cur_process.ns->uri), 0, 0, 0, 0);
+        PAL_HANDLE pal_handle = DkStreamOpen(qstrgetstr(&g_process_ipc_info.ns->uri), 0, 0, 0, 0);
 
         if (!pal_handle) {
-            unlock(&cur_process.lock);
+            unlock(&g_process_ipc_info.lock);
             return -PAL_ERRNO();
         }
 
-        add_ipc_port_by_id(cur_process.ns->vmid, pal_handle, IPC_PORT_LEADER | IPC_PORT_LISTEN,
-                           &ipc_leader_exit, &cur_process.ns->port);
+        add_ipc_port_by_id(g_process_ipc_info.ns->vmid, pal_handle,
+                           IPC_PORT_LEADER | IPC_PORT_LISTEN,
+                           &ipc_leader_exit, &g_process_ipc_info.ns->port);
     }
 
     if (vmid)
-        *vmid = cur_process.ns->vmid;
+        *vmid = g_process_ipc_info.ns->vmid;
     if (portptr) {
-        if (cur_process.ns->port)
-            get_ipc_port(cur_process.ns->port);
-        *portptr = cur_process.ns->port;
+        if (g_process_ipc_info.ns->port)
+            get_ipc_port(g_process_ipc_info.ns->port);
+        *portptr = g_process_ipc_info.ns->port;
     }
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     return 0;
 }
 
 #if 0 /* unused */
 static int disconnect_ns(struct shim_ipc_port * port)
 {
-    lock(&cur_process.lock);
-    if (cur_process.ns && cur_process.ns->port == port) {
-        cur_process.ns->port = NULL;
+    lock(&g_process_ipc_info.lock);
+    if (g_process_ipc_info.ns && g_process_ipc_info.ns->port == port) {
+        g_process_ipc_info.ns->port = NULL;
         put_ipc_port(port);
     }
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     del_ipc_port(port, IPC_PORT_LEADER);
     return 0;
 }
 #endif
 
 int prepare_ipc_leader(void) {
-    lock(&cur_process.lock);
-    bool need_discover = (!cur_process.ns || qstrempty(&cur_process.ns->uri));
-    unlock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
+    bool need_discover = (!g_process_ipc_info.ns || qstrempty(&g_process_ipc_info.ns->uri));
+    unlock(&g_process_ipc_info.lock);
 
-    if (need_discover)
-        __discover_ns(true, true);  // This function cannot be called with cur_process.lock held
+    if (need_discover) {
+        // This function cannot be called with g_process_ipc_info.lock held
+        __discover_ns(true, true);
+    }
     return 0;
 }
 
@@ -822,7 +827,7 @@ int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner) {
     if (ret < 0)
         goto out;
 
-    if (range.owner == cur_process.vmid) {
+    if (range.owner == g_process_ipc_info.vmid) {
         ret = -ESRCH;
         assert(!range.port);
         goto out;
@@ -871,16 +876,16 @@ out:
 int ipc_findns_send(bool block) {
     int ret = -ESRCH;
 
-    lock(&cur_process.lock);
-    if (!cur_process.parent || !cur_process.parent->port) {
-        unlock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
+    if (!g_process_ipc_info.parent || !g_process_ipc_info.parent->port) {
+        unlock(&g_process_ipc_info.lock);
         goto out;
     }
 
-    IDTYPE dest = cur_process.parent->vmid;
-    struct shim_ipc_port* port = cur_process.parent->port;
+    IDTYPE dest = g_process_ipc_info.parent->vmid;
+    struct shim_ipc_port* port = g_process_ipc_info.parent->port;
     get_ipc_port(port);
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
 
     if (block) {
         size_t total_msg_size = get_ipc_msg_with_ack_size(0);
@@ -910,12 +915,12 @@ int ipc_findns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     debug("ipc callback from %u: IPC_MSG_FINDNS\n", msg->src);
 
     int ret = 0;
-    __discover_ns(false, true);  // This function cannot be called with cur_process.lock held
-    lock(&cur_process.lock);
+    __discover_ns(false, true);  // This function cannot be called with g_process_ipc_info.lock held
+    lock(&g_process_ipc_info.lock);
 
-    if (cur_process.ns && !qstrempty(&cur_process.ns->uri)) {
+    if (g_process_ipc_info.ns && !qstrempty(&g_process_ipc_info.ns->uri)) {
         // Got the answer! Send back the discovery now.
-        ret = ipc_tellns_send(port, msg->src, cur_process.ns, msg->seq);
+        ret = ipc_tellns_send(port, msg->src, g_process_ipc_info.ns, msg->seq);
     } else {
         // Don't know the answer yet, set up a callback for sending the discovery later.
         struct ns_query* query = malloc(sizeof(struct ns_query));
@@ -930,7 +935,7 @@ int ipc_findns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
             ret = -ENOMEM;
         }
     }
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     return ret;
 }
 
@@ -957,28 +962,28 @@ int ipc_tellns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
 
     debug("ipc callback from %u: IPC_MSG_TELLNS(%u, %s)\n", msg->src, msgin->vmid, msgin->uri);
 
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
-    if (cur_process.ns) {
-        cur_process.ns->vmid = msgin->vmid;
-        qstrsetstr(&cur_process.ns->uri, msgin->uri, strlen(msgin->uri));
+    if (g_process_ipc_info.ns) {
+        g_process_ipc_info.ns->vmid = msgin->vmid;
+        qstrsetstr(&g_process_ipc_info.ns->uri, msgin->uri, strlen(msgin->uri));
     } else {
-        cur_process.ns = create_ipc_info(msgin->vmid, msgin->uri, strlen(msgin->uri));
-        if (!cur_process.ns) {
+        g_process_ipc_info.ns = create_ipc_info(msgin->vmid, msgin->uri, strlen(msgin->uri));
+        if (!g_process_ipc_info.ns) {
             ret = -ENOMEM;
             goto out;
         }
     }
 
-    assert(cur_process.ns->vmid != 0);
-    assert(!qstrempty(&cur_process.ns->uri));
+    assert(g_process_ipc_info.ns->vmid != 0);
+    assert(!qstrempty(&g_process_ipc_info.ns->uri));
 
     struct ns_query* query;
     struct ns_query* pos;
 
     LISTP_FOR_EACH_ENTRY_SAFE(query, pos, &ns_queries, list) {
         LISTP_DEL(query, &ns_queries, list);
-        ipc_tellns_send(query->port, query->dest, cur_process.ns, query->seq);
+        ipc_tellns_send(query->port, query->dest, g_process_ipc_info.ns, query->seq);
         put_ipc_port(query->port);
         free(query);
     }
@@ -988,7 +993,7 @@ int ipc_tellns_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
         thread_wakeup(obj->thread);
 
 out:
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     return ret;
 }
 
@@ -1004,8 +1009,8 @@ int ipc_lease_send(LEASETYPE* lease) {
     if ((ret = get_ipc_info_cur_process(&self)) < 0)
         goto out;
 
-    if (leader == cur_process.vmid) {
-        ret = alloc_ipc_range(cur_process.vmid, qstrgetstr(&self->uri), NULL, NULL);
+    if (leader == g_process_ipc_info.vmid) {
+        ret = alloc_ipc_range(g_process_ipc_info.vmid, qstrgetstr(&self->uri), NULL, NULL);
         put_ipc_info(self);
         goto out;
     }
@@ -1075,8 +1080,8 @@ int ipc_offer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
 
     switch (msgin->size) {
         case RANGE_SIZE:
-            add_ipc_range(msgin->base, cur_process.vmid, qstrgetstr(&cur_process.self->uri),
-                          msgin->lease);
+            add_ipc_range(msgin->base, g_process_ipc_info.vmid,
+                          qstrgetstr(&g_process_ipc_info.self->uri), msgin->lease);
             LEASETYPE* priv = obj ? obj->private : NULL;
             if (priv)
                 *priv = msgin->lease;
@@ -1169,7 +1174,7 @@ int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lea
     if ((ret = connect_ns(&leader, &port)) < 0)
         goto out;
 
-    if (leader == cur_process.vmid) {
+    if (leader == g_process_ipc_info.vmid) {
         ret = add_ipc_subrange(idx, tenant, uri, NULL);
         goto out;
     }
@@ -1219,7 +1224,7 @@ int ipc_query_send(IDTYPE idx) {
     if ((ret = connect_ns(&leader, &port)) < 0)
         goto out;
 
-    if (cur_process.vmid == leader) {
+    if (g_process_ipc_info.vmid == leader) {
         ret = -ESRCH;
         goto out;
     }
@@ -1281,7 +1286,7 @@ int ipc_queryall_send(void) {
     if ((ret = connect_ns(&leader, &port)) < 0)
         goto out;
 
-    if (cur_process.vmid == leader)
+    if (g_process_ipc_info.vmid == leader)
         goto out;
 
     size_t total_msg_size = get_ipc_msg_with_ack_size(0);
@@ -1497,7 +1502,7 @@ retry:
             p = s->owner;
         }
 
-        if (p->vmid == cur_process.vmid) {
+        if (p->vmid == g_process_ipc_info.vmid) {
             idx++;
             goto next_sub;
         }
