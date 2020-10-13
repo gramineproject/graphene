@@ -69,7 +69,7 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
     struct thread_info info = {.vmid = vmid, .exitcode = exitcode, .term_signal = SIGKILL};
 
     /* message cannot come from our own threads (from ourselves as process) */
-    assert(vmid != cur_process.vmid);
+    assert(vmid != g_process_ipc_info.vmid);
 
     int ret;
     int exited_threads_cnt = 0;
@@ -124,7 +124,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
           msgin->ppid, msgin->tid, msgin->exitcode, msgin->term_signal);
 
     /* message cannot come from our own threads (from ourselves as process) */
-    assert(msg->src != cur_process.vmid);
+    assert(msg->src != g_process_ipc_info.vmid);
 
     /* First try to find remote thread which sent this message among normal
      * threads. In the common case, we (as parent process) keep remote child

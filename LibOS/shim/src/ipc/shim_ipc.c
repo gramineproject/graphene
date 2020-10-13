@@ -4,7 +4,7 @@
 /*
  * This file contains code to maintain generic bookkeeping of IPC: operations on shim_ipc_msg
  * (one-way IPC messages), shim_ipc_msg_with_ack (IPC messages with acknowledgement), shim_ipc_info
- * (IPC ports of process), shim_process.
+ * (IPC ports of process).
  */
 
 #include "list.h"
@@ -31,7 +31,7 @@ static MEM_MGR ipc_info_mgr;
 
 struct shim_lock ipc_info_lock;
 
-struct shim_process cur_process;
+struct shim_process_ipc_info g_process_ipc_info;
 
 #define CLIENT_HASH_BITLEN 6
 #define CLIENT_HASH_NUM    (1 << CLIENT_HASH_BITLEN)
@@ -44,7 +44,7 @@ int init_ipc(void) {
     int ret = 0;
 
     if (!create_lock(&ipc_info_lock)
-        || !create_lock(&cur_process.lock)
+        || !create_lock(&g_process_ipc_info.lock)
         || !create_lock(&ipc_info_mgr_lock)) {
         return -ENOMEM;
     }
@@ -186,84 +186,81 @@ struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid) {
     return NULL;
 }
 
-struct shim_process* create_process(bool dup_cur_process) {
-    struct shim_process* new_process = calloc(1, sizeof(struct shim_process));
-    if (!new_process)
+struct shim_process_ipc_info* create_process_ipc_info(bool is_execve) {
+    struct shim_process_ipc_info* new_process_ipc_info = calloc(1, sizeof(*new_process_ipc_info));
+    if (!new_process_ipc_info)
         return NULL;
 
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
     /* current process must have been initialized with info on its own IPC info */
-    assert(cur_process.self);
+    assert(g_process_ipc_info.self);
 
-    if (dup_cur_process) {
+    if (is_execve) {
         /* execve case, new process assumes identity of current process and thus has
          * - same vmid as current process
          * - same self IPC info as current process
          * - same parent IPC info as current process */
-        new_process->vmid = cur_process.vmid;
-        new_process->self = create_ipc_info(cur_process.self->vmid,
-                                            qstrgetstr(&cur_process.self->uri),
-                                            cur_process.self->uri.len);
-        if (!new_process->self)
+        new_process_ipc_info->vmid = g_process_ipc_info.vmid;
+        new_process_ipc_info->self = create_ipc_info(g_process_ipc_info.self->vmid,
+                                                     qstrgetstr(&g_process_ipc_info.self->uri),
+                                                     g_process_ipc_info.self->uri.len);
+        if (!new_process_ipc_info->self)
             goto fail;
 
         /* there is a corner case of execve in very first process; such process does
          * not have parent process, so cannot copy parent IPC info */
-        if (cur_process.parent) {
-            new_process->parent = create_ipc_info(cur_process.parent->vmid,
-                                                  qstrgetstr(&cur_process.parent->uri),
-                                                  cur_process.parent->uri.len);
-            if (!new_process->parent)
+        if (g_process_ipc_info.parent) {
+            new_process_ipc_info->parent =
+                create_ipc_info(g_process_ipc_info.parent->vmid,
+                                qstrgetstr(&g_process_ipc_info.parent->uri),
+                                g_process_ipc_info.parent->uri.len);
+            if (!new_process_ipc_info->parent)
                 goto fail;
         }
     } else {
         /* fork/clone case, new process has new identity but inherits parent  */
-        new_process->vmid   = 0;
-        new_process->self   = NULL;
-        new_process->parent = create_ipc_info(cur_process.self->vmid,
-                                              qstrgetstr(&cur_process.self->uri),
-                                              cur_process.self->uri.len);
-        if (!new_process->parent)
+        new_process_ipc_info->vmid   = 0;
+        new_process_ipc_info->self   = NULL;
+        new_process_ipc_info->parent = create_ipc_info(g_process_ipc_info.self->vmid,
+                                                       qstrgetstr(&g_process_ipc_info.self->uri),
+                                                       g_process_ipc_info.self->uri.len);
+        if (!new_process_ipc_info->parent)
             goto fail;
     }
 
     /* new process inherits the same namespace leader */
-    if (cur_process.ns) {
-        new_process->ns = create_ipc_info(cur_process.ns->vmid, qstrgetstr(&cur_process.ns->uri),
-                                          cur_process.ns->uri.len);
-        if (!new_process->ns)
+    if (g_process_ipc_info.ns) {
+        new_process_ipc_info->ns = create_ipc_info(g_process_ipc_info.ns->vmid,
+                                                   qstrgetstr(&g_process_ipc_info.ns->uri),
+                                                   g_process_ipc_info.ns->uri.len);
+        if (!new_process_ipc_info->ns)
             goto fail;
     }
 
-    unlock(&cur_process.lock);
-    return new_process;
+    unlock(&g_process_ipc_info.lock);
+    return new_process_ipc_info;
 
 fail:
-    unlock(&cur_process.lock);
-    if (new_process->self)
-        put_ipc_info(new_process->self);
-    if (new_process->parent)
-        put_ipc_info(new_process->parent);
-    if (new_process->ns)
-        put_ipc_info(new_process->ns);
+    unlock(&g_process_ipc_info.lock);
+    free_process_ipc_info(new_process_ipc_info);
     return NULL;
 }
 
-void free_process(struct shim_process* process) {
-    if (process->self)
-        put_ipc_info(process->self);
-    if (process->parent)
-        put_ipc_info(process->parent);
-    if (process->ns)
-        put_ipc_info(process->ns);
-    free(process);
+void free_process_ipc_info(struct shim_process_ipc_info* process_ipc_info) {
+    if (process_ipc_info->self)
+        put_ipc_info(process_ipc_info->self);
+    if (process_ipc_info->parent)
+        put_ipc_info(process_ipc_info->parent);
+    if (process_ipc_info->ns)
+        put_ipc_info(process_ipc_info->ns);
+    free(process_ipc_info);
 }
 
 void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest) {
     msg->code = code;
     msg->size = get_ipc_msg_size(size);
-    msg->src  = cur_process.vmid;
+    msg->src  = g_process_ipc_info.vmid;
     msg->dst  = dest;
     msg->seq  = 0;
 }
@@ -279,7 +276,7 @@ void init_ipc_msg_with_ack(struct shim_ipc_msg_with_ack* msg, int code, size_t s
 int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     assert(msg->size >= IPC_MSG_MINIMAL_SIZE);
 
-    msg->src = cur_process.vmid;
+    msg->src = g_process_ipc_info.vmid;
     debug("Sending ipc message to port %p (handle %p)\n", port, port->pal_handle);
 
     size_t total_bytes = msg->size;
@@ -376,41 +373,43 @@ out:
     return ret;
 }
 
-struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info) {
-    assert(locked(&cur_process.lock));
+struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name) {
+    assert(locked(&g_process_ipc_info.lock));
 
-    struct shim_ipc_info* info = create_ipc_info(cur_process.vmid, NULL, 0);
+    struct shim_ipc_info* info = create_ipc_info(g_process_ipc_info.vmid, NULL, 0);
     if (!info)
         return NULL;
 
-    /* pipe for cur_process.self is of format "pipe:<cur_process.vmid>", others with random name */
+    /* pipe for g_process_ipc_info.self is of format "pipe:<g_process_ipc_info.vmid>", others with
+     * random name */
     char uri[PIPE_URI_SIZE];
-    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle, &info->uri, is_self_ipc_info) <
-        0) {
+    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle, &info->uri,
+                    use_vmid_as_port_name) < 0) {
         put_ipc_info(info);
         return NULL;
     }
 
-    add_ipc_port_by_id(cur_process.vmid, info->pal_handle, IPC_PORT_SERVER, NULL, &info->port);
+    add_ipc_port_by_id(g_process_ipc_info.vmid, info->pal_handle, IPC_PORT_SERVER, NULL,
+                       &info->port);
 
     return info;
 }
 
 int get_ipc_info_cur_process(struct shim_ipc_info** info) {
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
-    if (!cur_process.self) {
-        cur_process.self = create_ipc_info_cur_process(true);
-        if (!cur_process.self) {
-            unlock(&cur_process.lock);
+    if (!g_process_ipc_info.self) {
+        g_process_ipc_info.self = create_ipc_info_and_port(/*use_vmid_as_port_name=*/true);
+        if (!g_process_ipc_info.self) {
+            unlock(&g_process_ipc_info.lock);
             return -EACCES;
         }
     }
 
-    get_ipc_info(cur_process.self);
-    *info = cur_process.self;
+    get_ipc_info(g_process_ipc_info.self);
+    *info = g_process_ipc_info.self;
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
     return 0;
 }
 
@@ -454,71 +453,71 @@ BEGIN_CP_FUNC(ipc_info) {
 }
 END_CP_FUNC_NO_RS(ipc_info)
 
-BEGIN_CP_FUNC(process) {
+BEGIN_CP_FUNC(process_ipc_info) {
     __UNUSED(size);
-    assert(size == sizeof(struct shim_process));
+    assert(size == sizeof(struct shim_process_ipc_info));
 
-    struct shim_process* process     = (struct shim_process*)obj;
-    struct shim_process* new_process = NULL;
+    struct shim_process_ipc_info* process_ipc_info     = (struct shim_process_ipc_info*)obj;
+    struct shim_process_ipc_info* new_process_ipc_info = NULL;
 
     size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
-        off = ADD_CP_OFFSET(sizeof(struct shim_process));
+        off = ADD_CP_OFFSET(sizeof(*new_process_ipc_info));
         ADD_TO_CP_MAP(obj, off);
 
-        new_process = (struct shim_process*)(base + off);
-        memcpy(new_process, process, sizeof(struct shim_process));
+        new_process_ipc_info = (struct shim_process_ipc_info*)(base + off);
+        memcpy(new_process_ipc_info, process_ipc_info, sizeof(*new_process_ipc_info));
 
-        /* call ipc_info-specific checkpointing functions
-         * for new_process's self, parent, and ns infos */
-        if (process->self)
-            DO_CP_MEMBER(ipc_info, process, new_process, self);
-        if (process->parent)
-            DO_CP_MEMBER(ipc_info, process, new_process, parent);
-        if (process->ns)
-            DO_CP_MEMBER(ipc_info, process, new_process, ns);
+        /* call ipc_info-specific checkpointing functions for new_process_ipc_info's self, parent
+         * and ns infos */
+        if (process_ipc_info->self)
+            DO_CP_MEMBER(ipc_info, process_ipc_info, new_process_ipc_info, self);
+        if (process_ipc_info->parent)
+            DO_CP_MEMBER(ipc_info, process_ipc_info, new_process_ipc_info, parent);
+        if (process_ipc_info->ns)
+            DO_CP_MEMBER(ipc_info, process_ipc_info, new_process_ipc_info, ns);
 
         ADD_CP_FUNC_ENTRY(off);
     } else {
         /* already checkpointed */
-        new_process = (struct shim_process*)(base + off);
+        new_process_ipc_info = (struct shim_process_ipc_info*)(base + off);
     }
 
     if (objp)
-        *objp = (void*)new_process;
+        *objp = (void*)new_process_ipc_info;
 }
-END_CP_FUNC(process)
+END_CP_FUNC(process_ipc_info)
 
-BEGIN_RS_FUNC(process) {
+BEGIN_RS_FUNC(process_ipc_info) {
     __UNUSED(offset);
-    struct shim_process* process = (void*)(base + GET_CP_FUNC_ENTRY());
+    struct shim_process_ipc_info* process_ipc_info = (void*)(base + GET_CP_FUNC_ENTRY());
 
-    /* process vmid  = 0: fork/clone case, forces to pick up new host-OS vmid
-     * process vmid != 0: execve case, forces to re-use vmid of parent */
-    if (!process->vmid)
-        process->vmid = cur_process.vmid;
+    /* process_ipc_info vmid  = 0: fork/clone case, forces to pick up new host-OS vmid
+     * process_ipc_info vmid != 0: execve case, forces to re-use vmid of parent */
+    if (!process_ipc_info->vmid)
+        process_ipc_info->vmid = g_process_ipc_info.vmid;
 
-    CP_REBASE(process->self);
-    CP_REBASE(process->parent);
-    CP_REBASE(process->ns);
+    CP_REBASE(process_ipc_info->self);
+    CP_REBASE(process_ipc_info->parent);
+    CP_REBASE(process_ipc_info->ns);
 
-    if (process->self) {
-        process->self->vmid = process->vmid;
-        get_ipc_info(process->self);
+    if (process_ipc_info->self) {
+        process_ipc_info->self->vmid = process_ipc_info->vmid;
+        get_ipc_info(process_ipc_info->self);
     }
-    if (process->parent)
-        get_ipc_info(process->parent);
-    if (process->ns)
-        get_ipc_info(process->ns);
+    if (process_ipc_info->parent)
+        get_ipc_info(process_ipc_info->parent);
+    if (process_ipc_info->ns)
+        get_ipc_info(process_ipc_info->ns);
 
-    memcpy(&cur_process, process, sizeof(struct shim_process));
+    memcpy(&g_process_ipc_info, process_ipc_info, sizeof(g_process_ipc_info));
     // this lock will be created in init_ipc
-    clear_lock(&cur_process.lock);
+    clear_lock(&g_process_ipc_info.lock);
 
-    DEBUG_RS("vmid=%u,uri=%s,parent=%u(%s)", process->vmid,
-             process->self ? qstrgetstr(&process->self->uri) : "",
-             process->parent ? process->parent->vmid : 0,
-             process->parent ? qstrgetstr(&process->parent->uri) : "");
+    DEBUG_RS("vmid=%u,uri=%s,parent=%u(%s)", process_ipc_info->vmid,
+             process_ipc_info->self ? qstrgetstr(&process_ipc_info->self->uri) : "",
+             process_ipc_info->parent ? process_ipc_info->parent->vmid : 0,
+             process_ipc_info->parent ? qstrgetstr(&process_ipc_info->parent->uri) : "");
 }
-END_RS_FUNC(process)
+END_RS_FUNC(process_ipc_info)

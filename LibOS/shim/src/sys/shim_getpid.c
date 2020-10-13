@@ -91,11 +91,11 @@ int shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
     }
 
     void* old_groups = NULL;
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
     g_groups_info.count = groups_len;
     old_groups = g_groups_info.groups;
     g_groups_info.groups = groups;
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
 
     free(old_groups);
 
@@ -109,12 +109,12 @@ int shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
     if (gidsetsize && test_user_memory(grouplist, gidsetsize * sizeof(gid_t), /*write=*/true))
         return -EFAULT;
 
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
     size_t ret_size = g_groups_info.count;
 
     if (gidsetsize) {
         if (ret_size > (size_t)gidsetsize) {
-            unlock(&cur_process.lock);
+            unlock(&g_process_ipc_info.lock);
             return -EINVAL;
         }
 
@@ -123,7 +123,7 @@ int shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
         }
     }
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
 
     return (int)ret_size;
 }
@@ -133,7 +133,7 @@ BEGIN_CP_FUNC(groups_info) {
     __UNUSED(objp);
     __UNUSED(obj);
 
-    lock(&cur_process.lock);
+    lock(&g_process_ipc_info.lock);
 
     size_t copy_size = g_groups_info.count * sizeof(*g_groups_info.groups);
 
@@ -144,7 +144,7 @@ BEGIN_CP_FUNC(groups_info) {
 
     memcpy(new_groups, g_groups_info.groups, copy_size);
 
-    unlock(&cur_process.lock);
+    unlock(&g_process_ipc_info.lock);
 
     ADD_CP_FUNC_ENTRY(off);
 }

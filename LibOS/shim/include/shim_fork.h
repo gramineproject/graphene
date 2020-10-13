@@ -8,6 +8,6 @@
 #include "shim_checkpoint.h"
 
 int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
-                 struct shim_process* process, va_list ap);
+                 struct shim_process_ipc_info* process, va_list ap);
 
 #endif /* _SHIM_FORK_H_ */

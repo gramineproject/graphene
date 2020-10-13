@@ -448,7 +448,7 @@ extern PAL_HANDLE thread_start_event;
 
 noreturn void* shim_init(int argc, void* args) {
     debug_handle = PAL_CB(debug_stream);
-    cur_process.vmid = (IDTYPE)PAL_CB(process_id);
+    g_process_ipc_info.vmid = (IDTYPE)PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
@@ -522,7 +522,7 @@ noreturn void* shim_init(int argc, void* args) {
 
     if (PAL_CB(parent_process)) {
         /* Notify the parent process */
-        IDTYPE child_vmid = cur_process.vmid;
+        IDTYPE child_vmid = g_process_ipc_info.vmid;
         PAL_NUM ret = DkStreamWrite(PAL_CB(parent_process), 0, sizeof(child_vmid), &child_vmid,
                                     NULL);
         if (ret == PAL_STREAM_ERROR || ret != sizeof(child_vmid))
@@ -610,7 +610,7 @@ static int name_pipe_rand(char* uri, size_t uri_size, void* name) {
 static int name_pipe_vmid(char* uri, size_t uri_size, void* name) {
     char pipename[PIPE_URI_SIZE];
 
-    size_t len = snprintf(pipename, sizeof(pipename), "%u", cur_process.vmid);
+    size_t len = snprintf(pipename, sizeof(pipename), "%u", g_process_ipc_info.vmid);
     if (len >= sizeof(pipename))
         return -ERANGE;
 
@@ -794,7 +794,7 @@ noreturn void shim_clean_and_exit(int exit_code) {
         }
     }
 
-    cur_process.exit_code = exit_code;
+    g_process_ipc_info.exit_code = exit_code;
     store_all_msg_persist();
     del_all_ipc_ports();
 
@@ -802,15 +802,16 @@ noreturn void shim_clean_and_exit(int exit_code) {
         DkObjectClose(shim_stdio);
 
     shim_stdio = NULL;
-    debug("process %u exited with status %d\n", cur_process.vmid & 0xFFFF, cur_process.exit_code);
+    debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF,
+          g_process_ipc_info.exit_code);
     MASTER_LOCK();
 
-    if (cur_process.exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
+    if (g_process_ipc_info.exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
         /* user application specified magic exit code; this should be an extremely rare case */
         debug("exit status collides with Graphene-internal magic status; changed to 1\n");
-        cur_process.exit_code = 1;
+        g_process_ipc_info.exit_code = 1;
     }
-    DkProcessExit(cur_process.exit_code);
+    DkProcessExit(g_process_ipc_info.exit_code);
 }
 
 int message_confirm(const char* message, const char* options) {

@@ -635,7 +635,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
         struct sem_ops* op;
 
         LISTP_FOR_EACH_ENTRY(op, &sem->migrated, progress) {
-            if (op->client.vmid == (client ? client->vmid : cur_process.vmid) &&
+            if (op->client.vmid == (client ? client->vmid : g_process_ipc_info.vmid) &&
                 seq == op->client.seq) {
                 LISTP_DEL_INIT(op, &sem->migrated, progress);
                 sem_ops  = op;
