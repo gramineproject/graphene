@@ -1,12 +1,11 @@
 #include <stdint.h>
 
 int main(void) {
-#ifdef __amd64__
     volatile uint64_t val = 0;
 
     __asm__ volatile("int3");
 
-    __asm__(
+    __asm__ volatile(
         "movq %1, %%rdx\n"
         "int3\n"
         "movq %%rdx, %0\n"
@@ -14,7 +13,7 @@ int main(void) {
         : "m"(val)
         : "rdx");
 
-    __asm__(
+    __asm__ volatile(
         "movhps %1, %%xmm0\n"
         "movlps %1, %%xmm0\n"
         "int3\n"
@@ -22,6 +21,5 @@ int main(void) {
         : "=m"(val)
         : "m"(val)
         : "xmm0");
-#endif
     return 0;
 }
