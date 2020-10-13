@@ -794,7 +794,6 @@ noreturn void shim_clean_and_exit(int exit_code) {
         }
     }
 
-    g_process_ipc_info.exit_code = exit_code;
     store_all_msg_persist();
     del_all_ipc_ports();
 
@@ -802,16 +801,15 @@ noreturn void shim_clean_and_exit(int exit_code) {
         DkObjectClose(shim_stdio);
 
     shim_stdio = NULL;
-    debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF,
-          g_process_ipc_info.exit_code);
+    debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF, exit_code);
     MASTER_LOCK();
 
-    if (g_process_ipc_info.exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
+    if (exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
         /* user application specified magic exit code; this should be an extremely rare case */
         debug("exit status collides with Graphene-internal magic status; changed to 1\n");
-        g_process_ipc_info.exit_code = 1;
+        exit_code = 1;
     }
-    DkProcessExit(g_process_ipc_info.exit_code);
+    DkProcessExit(exit_code);
 }
 
 int message_confirm(const char* message, const char* options) {
