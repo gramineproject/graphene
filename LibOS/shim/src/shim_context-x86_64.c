@@ -33,6 +33,11 @@ __attribute__((aligned(SHIM_XSTATE_ALIGN))) = {
 #define XSAVE_CPUID 0x0000000d
 
 void shim_xsave_init(void) {
+    /* by default, fall back to old-style fxsave/fxrstor (if cannot deduce from CPUID below) */
+    g_shim_xsave_enabled  = false;
+    g_shim_xsave_features = SHIM_XFEATURE_MASK_FPSSE;
+    g_shim_xsave_size     = XSAVE_RESET_STATE_SIZE;
+
     unsigned int value[4];
     if (!DkCpuIdRetrieve(0x1, 0, value))
         goto out;
