@@ -4,8 +4,8 @@ BENCHMARKS = \
 	 write_1e5 \
 	 write_1e6 \
 	 write_1e7
-GRAPHENEDIR = $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/.. )
-signer = ../Pal/src/host/Linux-SGX/signer
+GRAPHENEDIR = $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
+signer = $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer
 
 
 all: $(BENCHMARKS) $(patsubst %,%.token,$(BENCHMARKS))
@@ -29,7 +29,7 @@ write_1e7 : CFLAGS += -DPAGECOUNT=10000000
 		--manifest $<.manifest \
 		--output $@ \
 		--key $(signer)/enclave-key.pem \
-		--libpal ../Runtime/libpal-Linux-SGX.so
+		--libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so
 
 %.token: %.manifest.sgx
 	$(signer)/pal-sgx-get-token \
