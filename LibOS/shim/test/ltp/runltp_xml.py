@@ -6,6 +6,7 @@ import abc
 import argparse
 import asyncio
 import configparser
+import fnmatch
 import logging
 import os
 import pathlib
@@ -211,6 +212,10 @@ class TestRunner:
 
         if self.cfgsection.getboolean('skip', fallback=False):
             raise Skip('skipped via config', loglevel=logging.INFO)
+
+        for name, section in self.suite.match_sections(self.tag):
+            if section.getboolean('skip', fallback=False):
+                raise Skip('skipped via fnmatch section {}'.format(name), loglevel=logging.INFO)
 
         if any(c in self.cmd for c in ';|&'):
             # This is a shell command which would spawn multiple processes.
@@ -432,6 +437,10 @@ class TestSuite:
     '''
     def __init__(self, config):
         self.config = config
+        self.fnmatch_names = [
+            name for name in config
+            if is_fnmatch_pattern(name)
+        ]
         self.sgx = self.config.getboolean(config.default_section, 'sgx')
 
         self.loader = [
@@ -455,6 +464,15 @@ class TestSuite:
         self.queue = []
         self.xml = etree.Element('testsuite')
         self.time = 0
+
+    def match_sections(self, name):
+        '''
+        Find all fnmatch (wildcard) sections that match a given name.
+        '''
+
+        for fnmatch_name in self.fnmatch_names:
+            if fnmatch.fnmatch(name, fnmatch_name):
+                yield fnmatch_name, self.config[fnmatch_name]
 
     def add_test(self, tag, cmd):
         '''Instantiate appropriate :py:class:`TestRunner` and add it to the
@@ -554,7 +572,22 @@ def load_config(files):
         with file:
             config.read_file(file)
 
+    for name, proxy in config.items():
+        if is_fnmatch_pattern(name):
+            for key in proxy:
+                if key != 'skip' and proxy[key] != config.defaults().get(key):
+                    raise ValueError(
+                        'fnmatch sections like {!r} can only contain "skip", not {!r}'.format(
+                            name, key))
+
     return config
+
+def is_fnmatch_pattern(name):
+    '''
+    Check if a name is a fnmatch pattern.
+    '''
+
+    return bool(set(name) & set('*?[]!'))
 
 def main(args=None):
     logging.basicConfig(
