@@ -30,34 +30,21 @@ int main() {
     }
 
     /* Clear pages one by one */
-    bool cleared_first[PAGES_CNT] = {false};
-    bool cleared_second[PAGES_CNT] = {false};
+    bool cleared[PAGES_CNT] = {false};
     for (size_t i = 0; i < PAGES_CNT; i++) {
         size_t perm_idx = ((i + 123) * 51) % PAGES_CNT; /* make the traverse non-sequential */
         char* addr = m + page_size * perm_idx;
-        size_t size = page_size;
-
-        if (i * 307 & 0x80) { /* some bad-quality pseudo-random (but deterministic) condition */
-            cleared_first[perm_idx] = true;
-        } else {
-            addr += sizeof(int);
-            size -= sizeof(int);
-        }
-        if (i * 307 & 0x100) {
-            cleared_second[perm_idx] = true;
-        } else {
-            size -= sizeof(int);
-        }
-
+        size_t size = page_size - (i * 31337 % page_size); /* test aligning up of the size */
 
         int res = madvise(addr, size, MADV_DONTNEED);
         if (res)
             err(1, "madvise(%p, 0x%zx, MADV_DONTNEED) failed", addr, size);
+        cleared[perm_idx] = true;
 
         /* Rescan the whole range and verify all magic values */
         for (size_t j = 0; j < PAGES_CNT; j++) {
-            int expected1 = cleared_first[j] ? 0 : 0x123;
-            int expected2 = cleared_second[j] ? 0 : 0x321;
+            int expected1 = cleared[j] ? 0 : 0x123;
+            int expected2 = cleared[j] ? 0 : 0x321;
             int actual1 = *(int*)(m + page_size * j);
             int actual2 = *(int*)(m + page_size * j + page_size - sizeof(int));
             if (actual1 != expected1 || actual2 != expected2) {
