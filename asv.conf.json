@@ -4,7 +4,7 @@
     "version": 1,
 
     // The name of the project being benchmarked
-    "project": "project",
+    "project": "graphene",
 
     // The project's homepage
     "project_url": "https://graphene.readthedocs.io/",
@@ -27,13 +27,7 @@
     //
     // "install_command": ["in-dir={env_dir} python -mpip install {wheel_file}"],
     // "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
-    "build_command": [
-        "python3 -m pip install protobuf",
-        "openssl genrsa -3 -out Pal/src/host/Linux-SGX/signer/enclave-key.pem 3072",
-        "make -j8 SGX=1 WERROR=1 ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver",
-        "make -j8 SGX=1 WERROR=1 ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver sgx-tokens",
-        "make -j8 -C benchmarks"
-    ],
+    //"build_command": ["make..." ],
 
     // List of branches to benchmark. If not provided, defaults to "master"
     // (for git) or "default" (for mercurial).
@@ -64,7 +58,7 @@
 
     // The directory (relative to the current directory) that benchmarks are
     // stored in.  If not provided, defaults to "benchmarks"
-    // "benchmark_dir": "benchmarks",
+    "benchmark_dir": "tests/benchmarks",
 
     // The directory (relative to the current directory) to cache the Python
     // environments in.  If not provided, defaults to "env"
