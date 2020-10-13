@@ -212,6 +212,10 @@ class TestRunner:
         if self.cfgsection.getboolean('skip', fallback=False):
             raise Skip('skipped via config', loglevel=logging.INFO)
 
+        for match, section in self.suite.config.items():
+            if fnmatch.fnmatch(self.tag, match) and section.getboolean('skip', fallback=False):
+                raise Skip('skipped via fnmatch section {}'.format(match), loglevel=logging.INFO)
+
         if any(c in self.cmd for c in ';|&'):
             # This is a shell command which would spawn multiple processes.
             # We don't run those in unit tests.
@@ -553,6 +557,13 @@ def load_config(files):
     for file in files:
         with file:
             config.read_file(file)
+
+    for name, proxy in config.items():
+        if not any(c in name for c in '*?[]!'):
+            continue
+        for key in proxy:
+            if key != 'skip':
+                raise Error('fnmatch sections like {!r} can only contain "skip"')
 
     return config
 
