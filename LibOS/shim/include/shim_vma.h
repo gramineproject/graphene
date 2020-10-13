@@ -11,6 +11,7 @@
 #define _SHIM_VMA_H_
 
 #include <linux/mman.h>
+#include <stdbool.h>
 
 #include "api.h"
 #include "avl_tree.h"
@@ -70,15 +71,16 @@ struct shim_vma_info {
 
 int init_vma(void);
 
-typedef void (*traverse_visitor)(struct shim_vma* vma, void* visitor_arg);
+typedef bool (*traverse_visitor)(struct shim_vma* vma, void* visitor_arg);
 
 /*
  * Walks through all VMAs which contain at least one byte from the [begin, end) range.
  *
+ * `visitor` returns whether to continue iteration. It must be as simple as possible, because
+ * it's called with the VMA lock held.
+ *
  * Returns whether the traversed range was continuously covered by VMAs. This is useful for
  * emulating errors in memory management syscalls.
- *
- * `visitor` must be as simple as possible, because it's called with the VMA lock held.
  */
 bool traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_visitor visitor,
                             void* visitor_arg);

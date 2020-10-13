@@ -367,27 +367,34 @@ struct dontneed_ctx {
     int error;
 };
 
-static void dontneed_visitor(struct shim_vma* vma, void* visitor_arg) {
+static bool dontneed_visitor(struct shim_vma* vma, void* visitor_arg) {
     struct dontneed_ctx* ctx = (struct dontneed_ctx*)visitor_arg;
 
     if (vma->flags & (VMA_UNMAPPED | VMA_INTERNAL)) {
         ctx->error = -EINVAL;
-        return;
+        return false;
     }
 
     if (vma->flags & VMA_TAINTED) {
         ctx->error = -ENOSYS; // Resetting writable file-backed mappings is not yet implemented.
-        return;
+        return false;
+    }
+
+    if (vma->file) {
+        /* MADV_DONTNEED resets file-based mappings to the original state, which is a no-op for
+         * non-tainted mappings. */
+        return true;
     }
 
     if (!(vma->prot & PROT_WRITE)) {
         ctx->error = -ENOSYS; // Zeroing non-writable mappings is not yet implemented.
-        return;
+        return false;
     }
 
     uintptr_t zero_start = MAX(ctx->begin, vma->begin);
     uintptr_t zero_end = MIN(ctx->end, vma->end);
     memset((void*)zero_start, 0, zero_end - zero_start);
+    return true;
 }
 
 long shim_do_madvise(unsigned long start, size_t len_in, int behavior) {
@@ -398,7 +405,7 @@ long shim_do_madvise(unsigned long start, size_t len_in, int behavior) {
         return -EINVAL;
 
     size_t len = ALIGN_UP(len_in, PAGE_SIZE);
-    if (len_in > 0 && len == 0)
+    if (len < len_in)
         return -EINVAL; // overflow when rounding up
 
     if (!access_ok((void*)start, len))

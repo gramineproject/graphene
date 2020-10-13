@@ -138,7 +138,8 @@ static bool __traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_vi
     bool is_continuous = true;
 
     while (1) {
-        visitor(vma, visitor_arg);
+        if (!visitor(vma, visitor_arg))
+            break;
 
         prev = vma;
         vma = _get_next_vma(vma);
