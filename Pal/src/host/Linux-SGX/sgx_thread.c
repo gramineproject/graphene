@@ -171,7 +171,7 @@ int pal_thread_init(void* tcbptr) {
         }
     }
 
-    uint32_t tid = INLINE_SYSCALL(gettid, 0);
+    int tid = INLINE_SYSCALL(gettid, 0);
     map_tcs(tid); /* updates tcb->tcs */
 
     if (!tcb->tcs) {
@@ -191,7 +191,7 @@ int pal_thread_init(void* tcbptr) {
     }
 
     /* not-first (child) thread, start it */
-    ecall_thread_start(tid);
+    ecall_thread_start();
 
     unmap_tcs();
     ret = 0;

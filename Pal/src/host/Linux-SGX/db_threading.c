@@ -29,7 +29,7 @@
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
 
-static PAL_LOCK g_thread_list_lock   = LOCK_INIT;
+static PAL_LOCK g_thread_list_lock = LOCK_INIT;
 DEFINE_LISTP(pal_handle_thread);
 static LISTP_TYPE(pal_handle_thread) g_thread_list = LISTP_INIT;
 

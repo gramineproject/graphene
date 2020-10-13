@@ -128,12 +128,6 @@ void handle_ecall(long ecall_index, void* ecall_args, void* exit_target, void* e
             return;
         }
 
-        ms_ecall_thread_start_t* ms = (ms_ecall_thread_start_t*)ecall_args;
-
-        if (!ms || !sgx_is_completely_outside_enclave(ms, sizeof(*ms))) {
-            return;
-        }
-
         pal_start_thread();
     }
     // pal_linux_main and pal_start_thread should never return.

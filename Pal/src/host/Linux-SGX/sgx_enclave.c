@@ -856,11 +856,9 @@ int ecall_enclave_start(char* libpal_uri, char* args, size_t args_size, char* en
     return sgx_ecall(ECALL_ENCLAVE_START, &ms);
 }
 
-int ecall_thread_start(uint32_t tid) {
-    ms_ecall_thread_start_t ms;
-    ms.ms_tid = tid;
-    EDEBUG(ECALL_THREAD_START, &ms);
-    return sgx_ecall(ECALL_THREAD_START, &ms);
+int ecall_thread_start(void) {
+    EDEBUG(ECALL_THREAD_START, NULL);
+    return sgx_ecall(ECALL_THREAD_START, NULL);
 }
 
 int ecall_thread_reset(void) {
