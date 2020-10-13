@@ -4,7 +4,7 @@ int main(void) {
 #ifdef __amd64__
     volatile uint64_t val = 0;
 
-    __asm__("int3");
+    __asm__ volatile("int3");
 
     __asm__(
         "movq %1, %%rdx\n"
