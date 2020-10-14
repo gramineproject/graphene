@@ -426,10 +426,10 @@ int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 int init_ipc(void);
 int init_ipc_helper(void);
 
-struct shim_process_ipc_info* create_process_ipc_info(bool dup_cur_process);
+struct shim_process_ipc_info* create_process_ipc_info(bool is_execve);
 void free_process_ipc_info(struct shim_process_ipc_info* process);
 
-struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info);
+struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name);
 int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 
 void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini,

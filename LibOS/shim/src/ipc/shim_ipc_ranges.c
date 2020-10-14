@@ -671,9 +671,8 @@ static void __discover_ns(bool block, bool need_locate) {
     if (g_process_ipc_info.ns) {
         if (g_process_ipc_info.ns->vmid == g_process_ipc_info.vmid) {
             if (need_locate && qstrempty(&g_process_ipc_info.ns->uri)) {
-                /* not g_process_ipc_info.self but g_process_ipc_info.ns */
-                bool is_self_ipc_info = false;
-                struct shim_ipc_info* info = create_ipc_info_cur_process(is_self_ipc_info);
+                struct shim_ipc_info* info =
+                    create_ipc_info_and_port(/*use_vmid_as_port_name=*/false);
                 if (info) {
                     put_ipc_info(g_process_ipc_info.ns);
                     g_process_ipc_info.ns = info;
@@ -718,8 +717,8 @@ static void __discover_ns(bool block, bool need_locate) {
         goto out;
     }
 
-    bool is_self_ipc_info = false; /* not g_process_ipc_info.self but g_process_ipc_info.ns */
-    if (!(g_process_ipc_info.ns = create_ipc_info_cur_process(is_self_ipc_info)))
+    g_process_ipc_info.ns = create_ipc_info_and_port(/*use_vmid_as_port_name=*/false);
+    if (!g_process_ipc_info.ns)
         goto out;
 
     // Finally, set the IPC port as a leadership port

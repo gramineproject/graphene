@@ -173,7 +173,7 @@ END_MIGRATION_DEF(execve)
 /* thread is cur_thread stripped off stack & tcb (see below func);
  * process is new process which is forked and waits for checkpoint. */
 static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thread,
-                          struct shim_process_ipc_info* process, va_list ap) {
+                          struct shim_process_ipc_info* process_ipc_info, va_list ap) {
     struct shim_handle_map* handle_map;
     const char** argv = va_arg(ap, const char**);
     const char** envp = va_arg(ap, const char**);
@@ -189,7 +189,7 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_thread* thr
     if (ret < 0)
         return ret;
 
-    return START_MIGRATE(cpstore, execve, thread, process, argv, envp);
+    return START_MIGRATE(cpstore, execve, thread, process_ipc_info, argv, envp);
 }
 
 int shim_do_execve(const char* file, const char** argv, const char** envp) {

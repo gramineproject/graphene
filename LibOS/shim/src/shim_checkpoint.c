@@ -570,7 +570,7 @@ static void* cp_alloc(void* addr, size_t size) {
 int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
                                        struct shim_thread* thread, ...) {
     int ret = 0;
-    struct shim_process_ipc_info* process = NULL;
+    struct shim_process_ipc_info* process_ipc_info = NULL;
 
     /* FIXME: Child process requires some time to initialize before starting to receive checkpoint
      * data. Parallelizing process creation and checkpointing could improve latency of forking. */
@@ -583,21 +583,21 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     }
 
     /* Create IPC bookkeepings for the new process. */
-    process = create_process_ipc_info(exec ? /*execve*/ true : /*fork*/ false);
-    if (!process) {
+    process_ipc_info = create_process_ipc_info(exec ? /*execve*/ true : /*fork*/ false);
+    if (!process_ipc_info) {
         ret = -EACCES;
         goto out;
     }
 
     /* in exec case, need to migrate PAL handles for self/parent IPC; simply set them in new
-     * process object so migration function notices and migrates them, and revert back after
-     * migration at the end of this function (we do this pointer assignment because there is no
-     * notion of refcounts for PAL handles at LibOS level) */
+     * process_ipc_info object so migration function notices and migrates them, and revert back
+     * after migration at the end of this function (we do this pointer assignment because there is
+     * no notion of refcounts for PAL handles at LibOS level) */
     if (exec) {
         lock(&g_process_ipc_info.lock);
-        process->self->pal_handle = g_process_ipc_info.self->pal_handle;
-        if (process->parent)
-            process->parent->pal_handle = g_process_ipc_info.parent->pal_handle;
+        process_ipc_info->self->pal_handle = g_process_ipc_info.self->pal_handle;
+        if (process_ipc_info->parent)
+            process_ipc_info->parent->pal_handle = g_process_ipc_info.parent->pal_handle;
         unlock(&g_process_ipc_info.lock);
     }
 
@@ -626,7 +626,7 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
 
     va_list ap;
     va_start(ap, thread);
-    ret = (*migrate_func)(&cpstore, thread, process, ap);
+    ret = (*migrate_func)(&cpstore, thread, process_ipc_info, ap);
     va_end(ap);
     if (ret < 0) {
         debug("failed creating checkpoint (ret = %d)\n", ret);
@@ -703,9 +703,9 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
     if (exec) {
         /* execve case: child process "replaces" this current process: no need to notify the leader
          * or establish IPC, the only thing to do is revert self/parent PAL handles' pointers */
-        process->self->pal_handle = NULL;
-        if (process->parent)
-            process->parent->pal_handle = NULL;
+        process_ipc_info->self->pal_handle = NULL;
+        if (process_ipc_info->parent)
+            process_ipc_info->parent->pal_handle = NULL;
     } else {
         /* fork/clone case: new process is an actual child process for this current process, so
          * notify the leader regarding subleasing of TID (child must create self-pipe with
@@ -726,8 +726,8 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
 
     ret = 0;
 out:
-    if (process)
-        free_process_ipc_info(process);
+    if (process_ipc_info)
+        free_process_ipc_info(process_ipc_info);
 
     if (ret < 0) {
         if (pal_process)

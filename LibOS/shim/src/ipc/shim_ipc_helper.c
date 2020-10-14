@@ -77,7 +77,7 @@ static int init_self_ipc_port(void) {
 
     if (!g_process_ipc_info.self) {
         /* very first process or clone/fork case: create IPC port from scratch */
-        g_process_ipc_info.self = create_ipc_info_cur_process(/*is_self_ipc_info=*/true);
+        g_process_ipc_info.self = create_ipc_info_and_port(/*use_vmid_as_port_name=*/true);
         if (!g_process_ipc_info.self) {
             unlock(&g_process_ipc_info.lock);
             return -EACCES;
