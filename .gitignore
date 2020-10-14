@@ -1,4 +1,4 @@
-build/
+/build
 
 # No editor backup files.
 *.sw*
