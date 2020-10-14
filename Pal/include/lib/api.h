@@ -126,7 +126,8 @@ typedef ptrdiff_t ssize_t;
 /* LibC string functions */
 size_t strnlen(const char* str, size_t maxlen);
 size_t strlen(const char* str);
-int strcmp(const char* a, const char* b);
+int strncmp(const char* lhs, const char* rhs, size_t maxlen);
+int strcmp(const char* lhs, const char* rhs);
 
 long strtol(const char* s, char** endptr, int base);
 int atoi(const char* nptr);
@@ -134,6 +135,7 @@ long int atol(const char* nptr);
 
 char* strchr(const char* s, int c_in);
 char* strstr(const char* haystack, const char* needle);
+size_t strspn(const char* s, const char* c);
 
 void* memcpy(void* restrict dest, const void* restrict src, size_t count);
 void* memmove(void* dest, const void* src, size_t count);
