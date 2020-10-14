@@ -160,7 +160,7 @@ static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread,
                            const char** argv, const char** envp) {
     DEFINE_MIGRATE(process_ipc_info, process_ipc_info, sizeof(struct shim_process_ipc_info));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
-    DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
+    DEFINE_MIGRATE(thread, thread, sizeof(struct shim_thread));
     DEFINE_MIGRATE(pending_signals, NULL, 0);
     DEFINE_MIGRATE(migratable, NULL, 0);
     DEFINE_MIGRATE(arguments, argv, 0);

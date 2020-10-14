@@ -590,6 +590,17 @@ BEGIN_CP_FUNC(thread) {
         DO_CP_MEMBER(dentry, thread, new_thread, root);
         DO_CP_MEMBER(dentry, thread, new_thread, cwd);
         ADD_CP_FUNC_ENTRY(off);
+
+        if (thread->shim_tcb) {
+            size_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
+            new_thread->shim_tcb = (void*)(base + toff);
+            struct shim_tcb* new_tcb = new_thread->shim_tcb;
+            memcpy(new_tcb, thread->shim_tcb, sizeof(*new_tcb));
+            /* don't export stale pointers */
+            new_tcb->self      = NULL;
+            new_tcb->tp        = NULL;
+            new_tcb->debug_buf = NULL;
+        }
     } else {
         new_thread = (struct shim_thread*)(base + off);
     }
@@ -620,8 +631,6 @@ BEGIN_RS_FUNC(thread) {
     thread->exit_event       = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
 
-    add_thread(thread);
-
     if (thread->exec)
         get_handle(thread->exec);
 
@@ -638,74 +647,10 @@ BEGIN_RS_FUNC(thread) {
         get_signal_handles(thread->signal_handles);
     }
 
-    DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p,shim_tcb=%p", thread->tid,
-             thread->tgid, thread->parent ? thread->parent->tid : thread->tid, thread->stack,
-             thread->frameptr, thread->tcb, thread->shim_tcb);
-}
-END_RS_FUNC(thread)
-
-BEGIN_CP_FUNC(running_thread) {
-    __UNUSED(size);
-    __UNUSED(objp);
-    assert(size == sizeof(struct shim_thread));
-
-    struct shim_thread* thread = (struct shim_thread*)obj;
-    struct shim_thread* new_thread = NULL;
-
-    DO_CP(thread, thread, &new_thread);
-    ADD_CP_FUNC_ENTRY((uintptr_t)new_thread - base);
-
-    if (thread->shim_tcb) {
-        size_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
-        new_thread->shim_tcb = (void*)(base + toff);
-        struct shim_tcb* new_tcb = new_thread->shim_tcb;
-        memcpy(new_tcb, thread->shim_tcb, sizeof(*new_tcb));
-        /* don't export stale pointers */
-        new_tcb->self      = NULL;
-        new_tcb->tp        = NULL;
-        new_tcb->debug_buf = NULL;
-    }
-}
-END_CP_FUNC(running_thread)
-
-static int resume_wrapper(void* param) {
-    struct shim_thread* thread = (struct shim_thread*)param;
-    assert(thread);
-
-    /* initialize the current shim_tcb_t (= shim_get_tcb())
-       based on saved thread->shim_tcb */
-    shim_tcb_init();
-    shim_tcb_t* saved_tcb = thread->shim_tcb;
-    assert(saved_tcb->context.regs && shim_context_get_sp(&saved_tcb->context));
-    set_cur_thread(thread);
-    unsigned long fs_base = saved_tcb->context.fs_base;
-    assert(fs_base);
-    update_fs_base(fs_base);
-
-    thread->in_vm = thread->is_alive = true;
-
-    shim_tcb_t* tcb = shim_get_tcb();
-    tcb->context.regs    = saved_tcb->context.regs;
-    tcb->context.preempt = saved_tcb->context.preempt;
-    debug_setbuf(tcb, NULL);
-    debug("set fs_base to 0x%lx\n", fs_base);
-
-    object_wait_with_retry(thread_start_event);
-
-    restore_context(&tcb->context);
-    return 0;
-}
-
-BEGIN_RS_FUNC(running_thread) {
-    __UNUSED(offset);
-    struct shim_thread* thread = (void*)(base + GET_CP_FUNC_ENTRY());
-    struct shim_thread* cur_thread = get_cur_thread();
     thread->in_vm = true;
-
     thread->vmid = g_process_ipc_info.vmid;
 
-    if (thread->shim_tcb)
-        CP_REBASE(thread->shim_tcb);
+    add_thread(thread);
 
     if (thread->set_child_tid) {
         /* CLONE_CHILD_SETTID */
@@ -713,48 +658,46 @@ BEGIN_RS_FUNC(running_thread) {
         thread->set_child_tid = NULL;
     }
 
-    if (cur_thread) {
-        PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread);
-        if (!thread)
-            return -PAL_ERRNO();
+    assert(!get_cur_thread());
 
-        thread->pal_handle = handle;
+    if (thread->shim_tcb) {
+        CP_REBASE(thread->shim_tcb);
+
+        /* fork case */
+        shim_tcb_t* tcb = shim_get_tcb();
+        memcpy(tcb, thread->shim_tcb, sizeof(*tcb));
+        __shim_tcb_init(tcb);
+        set_cur_thread(thread);
+
+        assert(tcb->context.regs && shim_context_get_sp(&tcb->context));
+        update_fs_base(tcb->context.fs_base);
+        /* Temporarily disable preemption until the thread resumes. */
+        __disable_preempt(tcb);
+        debug_setbuf(tcb, NULL);
+        debug("after resume, set tcb to 0x%lx\n", tcb->context.fs_base);
     } else {
-        shim_tcb_t* saved_tcb = thread->shim_tcb;
-        if (saved_tcb) {
-            /* fork case */
-            shim_tcb_t* tcb = shim_get_tcb();
-            memcpy(tcb, saved_tcb, sizeof(*tcb));
-            __shim_tcb_init(tcb);
-            set_cur_thread(thread);
+        /*
+         * In execve case, the following holds:
+         * stack = NULL
+         * stack_top = NULL
+         * frameptr = NULL
+         * tcb = NULL
+         * shim_tcb = NULL
+         * in_vm = false
+         */
+        if (thread->signal_handles)
+            thread_sigaction_reset_on_execve(thread);
 
-            assert(tcb->context.regs && shim_context_get_sp(&tcb->context));
-            update_fs_base(tcb->context.fs_base);
-            /* Temporarily disable preemption until the thread resumes. */
-            __disable_preempt(tcb);
-            debug_setbuf(tcb, NULL);
-            debug("after resume, set tcb to 0x%lx\n", tcb->context.fs_base);
-        } else {
-            /*
-             * In execve case, the following holds:
-             * stack = NULL
-             * stack_top = NULL
-             * frameptr = NULL
-             * tcb = NULL
-             * shim_tcb = NULL
-             * in_vm = false
-             */
-            if (thread->signal_handles)
-                thread_sigaction_reset_on_execve(thread);
-
-            set_cur_thread(thread);
-            debug_setbuf(thread->shim_tcb, NULL);
-        }
-
-        thread->in_vm = thread->is_alive = true;
-        thread->pal_handle = PAL_CB(first_thread);
+        set_cur_thread(thread);
+        debug_setbuf(thread->shim_tcb, NULL);
     }
 
-    DEBUG_RS("tid=%d", thread->tid);
+    thread->in_vm = thread->is_alive = true;
+    thread->pal_handle = PAL_CB(first_thread);
+
+    DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p,shim_tcb=%p", thread->tid,
+             thread->tgid, thread->parent ? thread->parent->tid : thread->tid, thread->stack,
+             thread->frameptr, thread->tcb, thread->shim_tcb);
+
 }
-END_RS_FUNC(running_thread)
+END_RS_FUNC(thread)

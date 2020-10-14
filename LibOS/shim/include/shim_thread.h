@@ -63,8 +63,6 @@ struct shim_thread {
 
     /* parent handle */
     struct shim_thread* parent;
-    /* thread leader */
-    struct shim_thread* leader;
     /* child handles; protected by thread->lock */
     LISTP_TYPE(shim_thread) children;
     /* nodes in child handles; protected by the parent's lock */

@@ -25,7 +25,7 @@ static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread,
     DEFINE_MIGRATE(process_ipc_info, process_ipc_info, sizeof(struct shim_process_ipc_info));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(all_vmas, NULL, 0);
-    DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
+    DEFINE_MIGRATE(thread, thread, sizeof(struct shim_thread));
     DEFINE_MIGRATE(migratable, NULL, 0);
     DEFINE_MIGRATE(brk, NULL, 0);
     DEFINE_MIGRATE(loaded_libraries, NULL, 0);
