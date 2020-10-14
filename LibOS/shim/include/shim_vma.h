@@ -14,7 +14,6 @@
 #include <stdbool.h>
 
 #include "api.h"
-#include "avl_tree.h"
 #include "pal.h"
 #include "shim_defs.h"
 #include "shim_handle.h"
