@@ -40,6 +40,17 @@ struct thread_param {
 
 extern void* g_enclave_base;
 
+/*
+ * We do not currently handle tid counter wrap-around, and could, in
+ * principle, end up with two threads with the same ID. This is ok, as strict
+ * uniqueness is not required; the tid is only used for debugging. We could
+ * ensure uniqueness if needed in the future
+ */
+static PAL_IDX pal_assign_tid(void) {
+    static struct atomic_int tid = ATOMIC_INIT(0);
+    return __atomic_add_fetch(&tid.counter, 1, __ATOMIC_SEQ_CST);
+}
+
 void pal_start_thread(void) {
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
@@ -47,6 +58,7 @@ void pal_start_thread(void) {
     LISTP_FOR_EACH_ENTRY(tmp, &g_thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
+            new_thread->tid = pal_assign_tid();
             __atomic_store_n(&new_thread->tcs, (g_enclave_base + GET_ENCLAVE_TLS(tcs_offset)),
                              __ATOMIC_RELEASE);
             break;
@@ -97,8 +109,7 @@ int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* para
         return unix_to_pal_error(ERRNO(ret));
 
     /* There can be subtle race between the parent and child so hold the parent until child updates
-     * its tid, tcs.
-     */
+       its tcs. */
     while (!__atomic_load_n(&new_thread->thread.tcs, __ATOMIC_ACQUIRE))
             cpu_pause();
 

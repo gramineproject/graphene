@@ -251,7 +251,12 @@ static long sgx_ocall_getdents(void* pms) {
 
 static long sgx_ocall_resume_thread(void* pms) {
     ODEBUG(OCALL_RESUME_THREAD, pms);
-    return interrupt_thread(pms);
+    int tid = get_tid_from_tcs(pms);
+    if (tid < 0)
+        return tid;
+
+    long ret = INLINE_SYSCALL(tgkill, 3, g_pal_enclave.pal_sec.pid, tid, SIGCONT);
+    return ret;
 }
 
 static long sgx_ocall_sched_setaffinity(void* pms) {

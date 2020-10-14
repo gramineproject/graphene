@@ -295,12 +295,3 @@ int get_tid_from_tcs(void* tcs) {
 
     return map->tid;
 }
-
-int interrupt_thread(void* tcs) {
-    int tid = get_tid_from_tcs(tcs);
-    if (tid < 0)
-        return tid;
-
-    INLINE_SYSCALL(tgkill, 3, g_pal_enclave.pal_sec.pid, tid, SIGCONT);
-    return 0;
-}
