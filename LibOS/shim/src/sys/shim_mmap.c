@@ -361,42 +361,6 @@ static bool madvise_behavior_valid(int behavior) {
     return false;
 }
 
-struct dontneed_ctx {
-    uintptr_t begin;
-    uintptr_t end;
-    int error;
-};
-
-static bool dontneed_visitor(struct shim_vma* vma, void* visitor_arg) {
-    struct dontneed_ctx* ctx = (struct dontneed_ctx*)visitor_arg;
-
-    if (vma->flags & (VMA_UNMAPPED | VMA_INTERNAL)) {
-        ctx->error = -EINVAL;
-        return false;
-    }
-
-    if (vma->file) {
-        if (vma->flags & VMA_TAINTED) {
-            /* Resetting writable file-backed mappings is not yet implemented. */
-            ctx->error = -ENOSYS;
-            return false;
-        }
-        /* MADV_DONTNEED resets file-based mappings to the original state, which is a no-op for
-         * non-tainted mappings. */
-        return true;
-    }
-
-    if (!(vma->prot & PROT_WRITE)) {
-        ctx->error = -ENOSYS; // Zeroing non-writable mappings is not yet implemented.
-        return false;
-    }
-
-    uintptr_t zero_start = MAX(ctx->begin, vma->begin);
-    uintptr_t zero_end = MIN(ctx->end, vma->end);
-    memset((void*)zero_start, 0, zero_end - zero_start);
-    return true;
-}
-
 long shim_do_madvise(unsigned long start, size_t len_in, int behavior) {
     if (!madvise_behavior_valid(behavior))
         return -EINVAL;
@@ -438,16 +402,7 @@ long shim_do_madvise(unsigned long start, size_t len_in, int behavior) {
             return -ENOSYS; // Not implemented
 
         case MADV_DONTNEED: {
-            struct dontneed_ctx ctx = {
-                .begin = start,
-                .end = start + len,
-                .error = 0,
-            };
-            bool is_continuous = traverse_vmas_in_range(start, start + len, dontneed_visitor,
-                                                        &ctx);
-            if (!is_continuous)
-                return -ENOMEM;
-            return ctx.error;
+            return madvise_dontneed_range(start, start + len);
         }
     }
     return -EINVAL;

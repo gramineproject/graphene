@@ -22,25 +22,6 @@
 
 #define VMA_COMMENT_LEN 16
 
-/* TODO: split flags into internal (Graphene) and Linux; also to consider: completely remove Linux
- * flags - we only need MAP_SHARED/MAP_PRIVATE and possibly MAP_STACK/MAP_GROWSDOWN */
-struct shim_vma {
-    uintptr_t begin;
-    uintptr_t end;
-    int prot;
-    int flags;
-    struct shim_handle* file;
-    off_t offset; // offset inside `file`, where `begin` starts
-    union {
-        /* If this `vma` is used, it is included in `vma_tree` using this node. */
-        struct avl_tree_node tree_node;
-        /* Otherwise it might be cached in per thread vma cache, or might be on a temporary list
-         * of to-be-freed vmas (used by _vma_bkeep_remove). Such lists use the field below. */
-        struct shim_vma* next_free;
-    };
-    char comment[VMA_COMMENT_LEN];
-};
-
 /* Public version of shim_vma, used when we want to copy out the VMA and use it without holding
  * the VMA list lock. */
 struct shim_vma_info {
@@ -70,20 +51,6 @@ struct shim_vma_info {
 #define VMA_TAINTED 0x40000000
 
 int init_vma(void);
-
-typedef bool (*traverse_visitor)(struct shim_vma* vma, void* visitor_arg);
-
-/*
- * Walks through all VMAs which contain at least one byte from the [begin, end) range.
- *
- * `visitor` returns whether to continue iteration. It must be as simple as possible, because
- * it's called with the VMA lock held.
- *
- * Returns whether the traversed range was continuously covered by VMAs. This is useful for
- * emulating errors in memory management syscalls.
- */
-bool traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_visitor visitor,
-                            void* visitor_arg);
 
 /*
  * Bookkeeping a removal of mapped memory. On success returns a temporary VMA pointer in
@@ -149,6 +116,9 @@ bool is_in_adjacent_user_vmas(void* addr, size_t length);
  */
 int dump_all_vmas(struct shim_vma_info** vma_infos, size_t* count, bool include_unmapped);
 void free_vma_info_array(struct shim_vma_info* vma_infos, size_t count);
+
+/* Implementation of madvise(MADV_DONTNEED) syscall */
+int madvise_dontneed_range(uintptr_t begin, uintptr_t end);
 
 void debug_print_all_vmas(void);
 
