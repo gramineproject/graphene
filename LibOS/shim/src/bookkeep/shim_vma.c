@@ -152,8 +152,8 @@ typedef bool (*traverse_visitor)(struct shim_vma* vma, void* visitor_arg);
  * emulating errors in memory management syscalls.
  */
 // TODO: Probably other VMA functions could make use of this helper.
-static bool __traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_visitor visitor,
-                                     void* visitor_arg) {
+static bool _traverse_vmas_in_range(uintptr_t begin, uintptr_t end, traverse_visitor visitor,
+                                    void* visitor_arg) {
     assert(spinlock_is_locked(&vma_tree_lock));
     assert(begin <= end);
 
@@ -1205,7 +1205,7 @@ int madvise_dontneed_range(uintptr_t begin, uintptr_t end) {
     };
 
     spinlock_lock_signal_off(&vma_tree_lock);
-    bool is_continuous = __traverse_vmas_in_range(begin, end, madvise_dontneed_visitor, &ctx);
+    bool is_continuous = _traverse_vmas_in_range(begin, end, madvise_dontneed_visitor, &ctx);
     spinlock_unlock_signal_on(&vma_tree_lock);
 
     if (!is_continuous)
