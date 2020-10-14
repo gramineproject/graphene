@@ -157,9 +157,10 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     return 0;
 }
 
-static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread, struct shim_process_ipc_info* proc,
+static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread,
+                           struct shim_process_ipc_info* process_ipc_info,
                            const char** argv, const char** envp) {
-    DEFINE_MIGRATE(process_ipc_info, proc, sizeof(struct shim_process_ipc_info));
+    DEFINE_MIGRATE(process_ipc_info, process_ipc_info, sizeof(struct shim_process_ipc_info));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
     DEFINE_MIGRATE(pending_signals, NULL, 0);
