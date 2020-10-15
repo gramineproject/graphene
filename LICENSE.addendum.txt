@@ -15,6 +15,7 @@ MIT JOS (mix of MIT and BSD licenses):
 
 cJSON - MIT
 uthash - BSD revised
+tomlc99 (C library for TOML syntax) - MIT
 
 A number of files taken from other C libraries:
 * glibc - LGPL

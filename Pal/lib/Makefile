@@ -118,7 +118,8 @@ objs += \
 	string/strendswith.o \
 	string/strlen.o \
 	string/strspn.o \
-	string/strstr.o
+	string/strstr.o \
+	toml/toml.o
 
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/crypto/library/aes.c
 
