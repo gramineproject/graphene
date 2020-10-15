@@ -16,6 +16,7 @@
 #include "shim_context.h"
 #include "shim_fork.h"
 #include "shim_internal.h"
+#include "shim_lock.h"
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_types.h"

@@ -6,6 +6,7 @@
  */
 
 #include "shim_internal.h"
+#include "shim_lock.h"
 #include "shim_utils.h"
 
 static struct shim_lock str_mgr_lock;

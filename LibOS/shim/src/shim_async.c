@@ -8,6 +8,7 @@
 #include "list.h"
 #include "pal.h"
 #include "shim_internal.h"
+#include "shim_lock.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
 

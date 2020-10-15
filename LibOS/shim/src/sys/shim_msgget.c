@@ -17,6 +17,7 @@
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_ipc.h"
+#include "shim_lock.h"
 #include "shim_sysv.h"
 #include "shim_table.h"
 #include "shim_types.h"
