@@ -9,6 +9,7 @@
 
 #include "shim_checkpoint.h"
 #include "shim_internal.h"
+#include "shim_lock.h"
 #include "shim_table.h"
 #include "shim_utils.h"
 #include "shim_vma.h"

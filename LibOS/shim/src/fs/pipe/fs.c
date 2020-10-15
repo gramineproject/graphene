@@ -20,6 +20,7 @@
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
+#include "shim_lock.h"
 #include "shim_thread.h"
 
 static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
