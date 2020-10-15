@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* SPDX-License-Identifier: MIT */
 /* Adapted from musl v1.2.1. Copyright © 2005-2020 Rich Felker, et al. */
 
 #include "api.h"
