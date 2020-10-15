@@ -601,6 +601,7 @@ BEGIN_CP_FUNC(thread) {
             new_tcb->self      = NULL;
             new_tcb->tp        = NULL;
             new_tcb->debug_buf = NULL;
+            new_tcb->vma_cache = NULL;
         }
     } else {
         new_thread = (struct shim_thread*)(base + off);

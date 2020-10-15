@@ -150,32 +150,33 @@ static inline struct shim_thread* get_cur_thread(void) {
     return SHIM_TCB_GET(tp);
 }
 
+static inline unsigned int get_cur_tid(void) {
+    struct shim_thread* thread = get_cur_thread();
+    if (!thread) {
+        return 0;
+    }
+    return thread->tid;
+}
+
 static inline void set_cur_thread(struct shim_thread* thread) {
+    assert(thread);
+
     shim_tcb_t* tcb = shim_get_tcb();
-    IDTYPE tid = 0;
 
-    if (thread) {
-        if (tcb->tp && tcb->tp != thread)
-            put_thread(tcb->tp);
+    if (thread == tcb->tp) {
+        return;
+    }
 
-        if (tcb->tp != thread)
-            get_thread(thread);
-
-        tcb->tp = thread;
-        thread->shim_tcb = tcb;
-        tid = thread->tid;
-    } else if (tcb->tp) {
+    get_thread(thread);
+    if (tcb->tp) {
         put_thread(tcb->tp);
-        tcb->tp = NULL;
-    } else {
-        BUG();
     }
 
-    if (tcb->tid != tid) {
-        tcb->tid = tid;
-        if (tcb->debug_buf)
-            debug_setprefix(tcb);
-    }
+    tcb->tp = thread;
+    thread->shim_tcb = tcb;
+
+    if (tcb->debug_buf)
+        debug_setprefix(tcb);
 }
 
 static inline void thread_setwait(struct shim_thread** queue, struct shim_thread* thread) {
@@ -290,8 +291,7 @@ static inline struct shim_handle_map* get_cur_handle_map(struct shim_thread* thr
 static inline void set_handle_map(struct shim_thread* thread, struct shim_handle_map* map) {
     get_handle_map(map);
 
-    if (!thread)
-        thread = get_cur_thread();
+    assert(thread);
 
     if (thread->handle_map)
         put_handle_map(thread->handle_map);
