@@ -39,7 +39,6 @@ struct shim_tcb {
     shim_tcb_t*         self;
     struct shim_thread* tp;
     struct shim_context context;
-    unsigned int        tid;
     int                 pal_errno;
     struct debug_buf*   debug_buf;
     void*               vma_cache;

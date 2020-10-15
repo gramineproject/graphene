@@ -110,13 +110,15 @@ void debug_setprefix(shim_tcb_t* tcb) {
             exec = it + 1;
 
     uint32_t vmid = g_process_ipc_info.vmid & 0xFFFF;
-    if (tcb->tid && !is_internal_tid(tcb->tid)) {
-        /* normal app thread: show Process ID, Thread ID, and exec name */
-        fprintfmt(debug_fputch, NULL, buf, "[P%u:T%u:%s] ", vmid, tcb->tid, exec);
-    } else if (tcb->tid) {
-        /* internal LibOS thread: show Process ID, Internal-thread ID, and exec name */
-        fprintfmt(debug_fputch, NULL, buf, "[P%u:i%u:%s] ", vmid, tcb->tid - INTERNAL_TID_BASE,
-                  exec);
+    if (tcb->tp) {
+        if (!is_internal_tid(tcb->tp->tid)) {
+            /* normal app thread: show Process ID, Thread ID, and exec name */
+            fprintfmt(debug_fputch, NULL, buf, "[P%u:T%u:%s] ", vmid, tcb->tp->tid, exec);
+        } else {
+            /* internal LibOS thread: show Process ID, Internal-thread ID, and exec name */
+            fprintfmt(debug_fputch, NULL, buf, "[P%u:i%u:%s] ", vmid,
+                      tcb->tp->tid - INTERNAL_TID_BASE, exec);
+        }
     } else if (g_process_ipc_info.vmid) {
         /* unknown thread (happens on process init): show Process ID and exec name */
         fprintfmt(debug_fputch, NULL, buf, "[P%u:%s] ", vmid, exec);

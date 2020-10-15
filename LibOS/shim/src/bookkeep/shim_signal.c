@@ -263,7 +263,7 @@ void deliver_signal(siginfo_t* info, PAL_CONTEXT* context) {
         if (signal) {
             if (!append_thread_signal(cur_thread, signal)) {
                 debug("Signal %d queue of thread %u is full, dropping the incoming signal\n", sig,
-                      tcb->tid);
+                      cur_thread->tid);
                 free(signal);
             }
         }

@@ -17,9 +17,6 @@ void* shim_init(int argc, void* args);
 noreturn void shim_clean_and_exit(int exit_code);
 
 /* important macros and static inline functions */
-static inline unsigned int get_cur_tid(void) {
-    return SHIM_TCB_GET(tid);
-}
 
 #define PAL_NATIVE_ERRNO() SHIM_TCB_GET(pal_errno)
 
