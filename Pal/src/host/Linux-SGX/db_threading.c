@@ -47,7 +47,8 @@ extern void* g_enclave_base;
  * ensure uniqueness if needed in the future
  */
 static PAL_IDX pal_assign_tid(void) {
-    static struct atomic_int tid = ATOMIC_INIT(0);
+    /* tid 0 is assigned to the first thread; see pal_linux_main() */
+    static struct atomic_int tid = ATOMIC_INIT(1);
     return __atomic_add_fetch(&tid.counter, 1, __ATOMIC_SEQ_CST);
 }
 

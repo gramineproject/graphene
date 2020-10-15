@@ -142,9 +142,7 @@ int shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
     return 0;
 }
 
-static int check_affinity_params(bool is_getaffinity,
-                                 int ncpus,
-                                 size_t cpumask_size,
+static int check_affinity_params(bool is_getaffinity, int ncpus, size_t cpumask_size,
                                  __kernel_cpu_set_t* user_mask_ptr) {
     /* Check that user_mask_ptr is valid; if not, should return -EFAULT */
     if (test_user_memory(user_mask_ptr, cpumask_size, true))

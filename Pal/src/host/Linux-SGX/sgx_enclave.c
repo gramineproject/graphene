@@ -266,8 +266,7 @@ static long sgx_ocall_sched_setaffinity(void* pms) {
     if (tid < 0)
         return tid;
 
-    long ret = INLINE_SYSCALL(sched_setaffinity, 3,
-                              tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
+    long ret = INLINE_SYSCALL(sched_setaffinity, 3, tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
     return ret;
 }
 
@@ -278,8 +277,7 @@ static long sgx_ocall_sched_getaffinity(void* pms) {
     if (tid < 0)
         return tid;
 
-    long ret = INLINE_SYSCALL(sched_getaffinity, 3,
-                              tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
+    long ret = INLINE_SYSCALL(sched_getaffinity, 3, tid, ms->ms_cpu_mask_size, ms->ms_cpu_mask);
     return ret;
 }
 
