@@ -74,13 +74,6 @@ pipeline {
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd Examples/python-sh-insecure
-                                PYTHONVERSION=python3.6 make -j8 SGX=1
-                                PYTHONVERSION=python3.6 make SGX=1 check
-                            '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
                                 cd Examples/bash
                                 make -j8 SGX=1 all
                                 make SGX=1 regression
@@ -208,7 +201,6 @@ pipeline {
 
                            make -C Examples/python-simple SGX=1 clean
                            make -C Examples/python-scipy-insecure SGX=1 clean
-                           make -C Examples/python-sh-insecure SGX=1 clean
                            make -C Examples/bash SGX=1 clean
                            make -C Examples/curl SGX=1 clean
                            make -C Examples/gcc SGX=1 distclean
