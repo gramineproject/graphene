@@ -62,13 +62,6 @@ pipeline {
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd Examples/python-sh-insecure
-                                PYTHONVERSION=python3.6 make -j8 all
-                                PYTHONVERSION=python3.6 make check
-                            '''
-                        }
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh '''
                                 cd Examples/bash
                                 make -j8 all
                                 make regression
@@ -169,7 +162,6 @@ pipeline {
 
                            make -C Examples/python-simple clean
                            make -C Examples/python-scipy-insecure clean
-                           make -C Examples/python-sh-insecure clean
                            make -C Examples/bash clean
                            make -C Examples/curl clean
                            make -C Examples/gcc distclean
