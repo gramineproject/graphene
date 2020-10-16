@@ -51,6 +51,10 @@ argparser.add_argument('cmdfile', metavar='FILENAME',
     nargs='?',
     help='cmdfile (default: stdin)')
 
+argparser.add_argument('--output-file', '-O', metavar='FILENAME',
+    type=argparse.FileType('w'),
+    help='write XML report to a file (use - for stdout)')
+
 argparser.set_defaults(
     config=None,
     option=[],
@@ -533,7 +537,7 @@ class TestSuite:
         Args:
             stream: a file-like object
         '''
-        stream.write(etree.tostring(self.xml, pretty_print=True))
+        stream.write(etree.tostring(self.xml, pretty_print=True).decode('ascii'))
 
     def log_summary(self):
         _log.warning('LTP finished'
@@ -621,7 +625,9 @@ def main(args=None):
         loop.run_until_complete(suite.execute())
     finally:
         loop.close()
-    suite.write_report(sys.stdout.buffer)
+
+    if args.output_file:
+        suite.write_report(args.output_file)
     suite.log_summary()
     return suite.returncode
 

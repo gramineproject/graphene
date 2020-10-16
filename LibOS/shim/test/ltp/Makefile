@@ -58,7 +58,7 @@ endif
 
 %.xml: %.cfg ltp-bug-1075.cfg $(LTPSCENARIO) $(target)
 	./contrib/conf_lint.py < $<
-	./runltp_xml.py $(RUNLTPOPTS) -c $< $(LTPSCENARIO) > $@
+	./runltp_xml.py $(RUNLTPOPTS) -c $< $(LTPSCENARIO) -O $@
 
 ltp-sgx.xml: RUNLTPOPTS += -c ltp-bug-1075.cfg
 
