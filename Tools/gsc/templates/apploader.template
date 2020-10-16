@@ -3,7 +3,7 @@
 set -ex
 
 # Set default PAL to Linux-SGX
-if [ -z "$GSC_PAL" ] || [ $GSC_PAL == "Linux-SGX"]
+if [ -z "$GSC_PAL" ] || [ "$GSC_PAL" == "Linux-SGX" ]
 then
     # Set SGX default values for PAL
     GSC_PAL=Linux-SGX
