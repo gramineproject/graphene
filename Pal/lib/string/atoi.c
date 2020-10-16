@@ -18,6 +18,8 @@
 
 #include "api.h"
 
+#include <stdint.h>
+
 long strtol(const char* s, char** endptr, int base) {
     int neg  = 0;
     long val = 0;
@@ -72,4 +74,19 @@ int atoi(const char* nptr) {
 /* Convert a string to an long int.  */
 long int atol(const char* nptr) {
     return strtol(nptr, (char**)NULL, 10);
+}
+
+/* Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long. */
+uint64_t parse_size_str(const char* str) {
+    char* endptr = NULL;
+    long size = strtol(str, &endptr, 0);
+
+    if (endptr[0] == 'G' || endptr[0] == 'g')
+        size *= 1024 * 1024 * 1024;
+    else if (endptr[0] == 'M' || endptr[0] == 'm')
+        size *= 1024 * 1024;
+    else if (endptr[0] == 'K' || endptr[0] == 'k')
+        size *= 1024;
+
+    return size;
 }
