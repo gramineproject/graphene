@@ -547,7 +547,17 @@ class TestSuite:
 
     async def execute(self):
         '''Execute the suite'''
-        await asyncio.gather(*(runner.execute() for runner in self.queue))
+        # Spawn tasks first, then run asyncio.gather(), so that they are not started in a random
+        # order under Python 3.6 (see: https://stackoverflow.com/a/60856811).
+        # Note that we still need to sort the results afterwards.
+        loop = asyncio.get_event_loop()
+        tasks = [loop.create_task(runner.execute()) for runner in self.queue]
+        await asyncio.gather(*tasks)
+        self.sort_xml()
+
+    def sort_xml(self):
+        '''Sort test results by name'''
+        self.xml[:] = sorted(self.xml, key=lambda test: test.get('name'))
 
 
 def _getintset(value):
