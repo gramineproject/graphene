@@ -559,7 +559,6 @@ class TestSuite:
         '''Sort test results by name'''
         self.xml[:] = sorted(self.xml, key=lambda test: test.get('name'))
 
-
 def _getintset(value):
     return set(int(i) for i in value.strip().split())
 
