@@ -313,12 +313,10 @@ class TestRunner:
                 returncode = await self._run_cmd()
 
             must_pass = self.cfgsection.getintset('must-pass')
-            if must_pass is None:
-                if returncode != 0:
-                    raise Fail('returncode={}'.format(returncode))
-                return
-
-            self._parse_test_output(must_pass)
+            if must_pass is not None:
+                self._parse_test_output(must_pass)
+            elif returncode != 0:
+                raise Fail('returncode={}'.format(returncode))
 
         except AbnormalTestResult as result:
             result.apply_to(self)
