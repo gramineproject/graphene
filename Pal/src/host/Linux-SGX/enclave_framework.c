@@ -701,12 +701,11 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 }
 
 static int init_trusted_file(const char* key, const char* uri) {
-    char* cskey;
     char checksum[URI_MAX];
     char normpath[URI_MAX] = URI_PREFIX_FILE;
     int ret;
 
-    cskey = alloc_concat("sgx.trusted_checksum.", -1, key, -1);
+    char* cskey = alloc_concat("sgx.trusted_checksum.", -1, key, -1);
     if (!cskey) {
         ret = -PAL_ERROR_NOMEM;
         goto out;

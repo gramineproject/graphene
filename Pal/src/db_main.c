@@ -55,6 +55,8 @@ static void load_libraries(void) {
         }
 }
 
+/* This function leaks memory on failure (and this is non-trivial to fix), but the assumption is
+ * that its failure finishes the execution of the whole process right away. */
 static int insert_envs_from_manifest(const char*** envpp) {
     assert(envpp);
 
@@ -125,6 +127,8 @@ static int insert_envs_from_manifest(const char*** envpp) {
         } else {
             *ptr = alloc_concat(str, len, "=", 1);
         }
+        if (!*ptr)
+            return -PAL_ERROR_NOMEM;
     }
 
     *envpp = new_envp;
