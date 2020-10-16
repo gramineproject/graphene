@@ -62,9 +62,6 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
     int ret, rete, child;
     int fds[2] = {-1, -1};
 
-    if (!strstartswith(uri, URI_PREFIX_FILE))
-        return -EINVAL;
-
     int socktype = SOCK_STREAM;
     if (IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, socktype, 0, fds))))
         goto out;
