@@ -54,76 +54,17 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
             debug_printf(fmt, ##__VA_ARGS__); \
     } while (0)
 
-/* print system messages */
-#define SYSPRINT_BUFFER_SIZE 256
-
-void handle_printf(PAL_HANDLE hdl, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
-void handle_vprintf(PAL_HANDLE hdl, const char* fmt, va_list ap)
-    __attribute__((format(printf, 2, 0)));
-
-#define __SYS_PRINTF(fmt, ...)                       \
-    do {                                             \
-        PAL_HANDLE _hdl = __open_shim_stdio();       \
-        if (_hdl)                                    \
-            handle_printf(_hdl, fmt, ##__VA_ARGS__); \
-    } while (0)
-
-#define __SYS_VPRINTF(fmt, va)                 \
-    do {                                       \
-        PAL_HANDLE _hdl = __open_shim_stdio(); \
-        if (_hdl)                              \
-            handle_vprintf(_hdl, fmt, va);     \
-    } while (0)
-
-#define __SYS_FPRINTF(hdl, fmt, ...)            \
-    do {                                        \
-        handle_printf(hdl, fmt, ##__VA_ARGS__); \
-    } while (0)
-
-#define SYS_PRINTF(fmt, ...)              \
-    do {                                  \
-        MASTER_LOCK();                    \
-        __SYS_PRINTF(fmt, ##__VA_ARGS__); \
-        MASTER_UNLOCK();                  \
-    } while (0)
-
-#define SYS_FPRINTF(hdl, fmt, ...)              \
-    do {                                        \
-        MASTER_LOCK();                          \
-        __SYS_FPRINTF(hdl, fmt, ##__VA_ARGS__); \
-        MASTER_UNLOCK();                        \
-    } while (0)
-
-extern PAL_HANDLE shim_stdio;
-
-static inline PAL_HANDLE __open_shim_stdio(void) {
-    if (shim_stdio == (PAL_HANDLE)-1)
-        return NULL;
-
-    if (shim_stdio)
-        return shim_stdio;
-
-    shim_stdio = DkStreamOpen(URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
-
-    if (!shim_stdio) {
-        shim_stdio = (PAL_HANDLE)-1;
-        return NULL;
-    }
-
-    return shim_stdio;
-}
-
 #if 0
 #define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()
 #else
 #define DEBUG_BREAK_ON_FAILURE() do {} while (0)
 #endif
 
-#define BUG()                                              \
-    do {                                                   \
-        __SYS_PRINTF("BUG() " __FILE__ ":%d\n", __LINE__); \
-        DEBUG_BREAK_ON_FAILURE();                          \
-        shim_clean_and_exit(-ENOTRECOVERABLE);             \
+#define BUG()                                       \
+    do {                                            \
+        warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
+        DEBUG_BREAK_ON_FAILURE();                   \
+        shim_clean_and_exit(-ENOTRECOVERABLE);      \
     } while (0)
 
 #define DEBUG_HERE()                                         \

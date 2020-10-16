@@ -98,8 +98,6 @@ static inline int init_exec_handle(struct shim_thread* thread) {
 
 static struct shim_handle_map* get_new_handle_map(FDTYPE size);
 
-PAL_HANDLE shim_stdio = NULL;
-
 static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
                                int fd_flags);
 

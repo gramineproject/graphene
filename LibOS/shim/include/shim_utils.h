@@ -141,9 +141,6 @@ void* malloc(size_t size);
 void free(void* mem);
 void* malloc_copy(const void* mem, size_t size);
 
-/* prompt user for confirmation */
-int message_confirm(const char* message, const char* options);
-
 /* ELF binary loading */
 int check_elf_object(struct shim_handle* file);
 int load_elf_object(struct shim_handle* file, void* addr, size_t mapped);

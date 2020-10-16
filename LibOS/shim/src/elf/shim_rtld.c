@@ -1510,7 +1510,7 @@ int register_library(const char* name, unsigned long load_address) {
 noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
-        SYS_PRINTF("Could not initialize vDSO (error code = %d)", ret);
+        warn("Could not initialize vDSO (error code = %d)", ret);
         shim_clean_and_exit(ret);
     }
 

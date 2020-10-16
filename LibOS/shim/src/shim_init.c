@@ -53,13 +53,6 @@ noreturn void __abort(void) {
     shim_clean_and_exit(-ENOTRECOVERABLE);
 }
 
-void warn(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    __SYS_VPRINTF(format, args);
-    va_end(args);
-}
-
 static int pal_errno_to_unix_errno[PAL_ERROR_NATIVE_COUNT + 1] = {
     [0]                         = 0,
     [PAL_ERROR_NOTIMPLEMENTED]  = ENOSYS,
@@ -406,7 +399,7 @@ int init_manifest(PAL_HANDLE manifest_handle) {
     const char* errstring = "Unexpected error";
 
     if ((ret = read_config(new_root_config, NULL, &errstring)) < 0) {
-        SYS_PRINTF("Unable to read manifest file: %s\n", errstring);
+        debug("Unable to read manifest file: %s\n", errstring);
         goto fail;
     }
 
@@ -435,7 +428,7 @@ fail:
     do {                                                         \
         int _err = CALL_INIT(func, ##__VA_ARGS__);               \
         if (_err < 0) {                                          \
-            SYS_PRINTF("shim_init() in " #func " (%d)\n", _err); \
+            debug("shim_init() in " #func " (%d)\n", _err);      \
             DkProcessExit(_err);                                 \
         }                                                        \
     } while (0)
@@ -461,12 +454,12 @@ noreturn void* shim_init(int argc, void* args) {
 
     g_pal_alloc_align = PAL_CB(alloc_align);
     if (!IS_POWER_OF_2(g_pal_alloc_align)) {
-        SYS_PRINTF("shim_init(): error: PAL allocation alignment not a power of 2\n");
+        debug("shim_init(): error: PAL allocation alignment not a power of 2\n");
         shim_clean_and_exit(-EINVAL);
     }
 
     if (!create_lock(&__master_lock)) {
-        SYS_PRINTF("shim_init(): error: failed to allocate __master_lock\n");
+        debug("shim_init(): error: failed to allocate __master_lock\n");
         shim_clean_and_exit(-ENOMEM);
     }
 
@@ -793,10 +786,6 @@ noreturn void shim_clean_and_exit(int exit_code) {
     store_all_msg_persist();
     del_all_ipc_ports();
 
-    if (shim_stdio && shim_stdio != (PAL_HANDLE)-1)
-        DkObjectClose(shim_stdio);
-
-    shim_stdio = NULL;
     debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF, exit_code);
     MASTER_LOCK();
 
@@ -806,52 +795,4 @@ noreturn void shim_clean_and_exit(int exit_code) {
         exit_code = 1;
     }
     DkProcessExit(exit_code);
-}
-
-int message_confirm(const char* message, const char* options) {
-    char answer;
-    int noptions = strlen(options);
-    char* option_str = __alloca(noptions * 2 + 3);
-    char* str = option_str;
-    int ret = 0;
-
-    *(str++) = ' ';
-    *(str++) = '[';
-    for (int i = 0; i < noptions; i++) {
-        *(str++) = options[i];
-        *(str++) = '/';
-    }
-    str--;
-    *(str++) = ']';
-    *(str++) = ' ';
-
-    MASTER_LOCK();
-
-    PAL_HANDLE hdl = __open_shim_stdio();
-    if (!hdl) {
-        MASTER_UNLOCK();
-        return -EACCES;
-    }
-
-    PAL_NUM pal_ret;
-    pal_ret = DkStreamWrite(hdl, 0, strlen(message), (void*)message, NULL);
-    if (pal_ret == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO();
-        goto out;
-    }
-    pal_ret = DkStreamWrite(hdl, 0, noptions * 2 + 3, option_str, NULL);
-    if (pal_ret == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO();
-        goto out;
-    }
-    pal_ret = DkStreamRead(hdl, 0, 1, &answer, NULL, 0);
-    if (pal_ret == PAL_STREAM_ERROR) {
-        ret = -PAL_ERRNO();
-        goto out;
-    }
-
-out:
-    DkObjectClose(hdl);
-    MASTER_UNLOCK();
-    return (ret < 0) ? ret : answer;
 }

@@ -1328,8 +1328,10 @@ BEGIN_RS_FUNC(vma) {
             }
         }
 
-        if (need_mapped < vma->addr + vma->length)
-            SYS_PRINTF("vma %p-%p cannot be allocated!\n", need_mapped, vma->addr + vma->length);
+        if (need_mapped < vma->addr + vma->length) {
+            debug("vma %p-%p cannot be allocated!\n", need_mapped, vma->addr + vma->length);
+            return -ENOMEM;
+        }
     }
 
     if (vma->file)
@@ -1365,16 +1367,16 @@ END_CP_FUNC_NO_RS(all_vmas)
 
 
 static void debug_print_vma(struct shim_vma* vma) {
-    SYS_PRINTF("[0x%lx-0x%lx] prot=0x%x flags=0x%x%s%s file=%p (offset=%ld)%s%s\n",
-               vma->begin, vma->end,
-               vma->prot,
-               vma->flags & ~(VMA_INTERNAL | VMA_UNMAPPED),
-               vma->flags & VMA_INTERNAL ? "(INTERNAL " : "(",
-               vma->flags & VMA_UNMAPPED ? "UNMAPPED)" : ")",
-               vma->file,
-               vma->offset,
-               vma->comment[0] ? " comment=" : "",
-               vma->comment[0] ? vma->comment : "");
+    debug("[0x%lx-0x%lx] prot=0x%x flags=0x%x%s%s file=%p (offset=%ld)%s%s\n",
+          vma->begin, vma->end,
+          vma->prot,
+          vma->flags & ~(VMA_INTERNAL | VMA_UNMAPPED),
+          vma->flags & VMA_INTERNAL ? "(INTERNAL " : "(",
+          vma->flags & VMA_UNMAPPED ? "UNMAPPED)" : ")",
+          vma->file,
+          vma->offset,
+          vma->comment[0] ? " comment=" : "",
+          vma->comment[0] ? vma->comment : "");
 }
 
 void debug_print_all_vmas(void) {

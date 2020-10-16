@@ -96,7 +96,7 @@ void* malloc(size_t size) {
          * If malloc() failed internally, we cannot handle the
          * condition and must terminate the current process.
          */
-        SYS_PRINTF("******** Out-of-memory in library OS ********\n");
+        warn("******** Out-of-memory in library OS ********\n");
         __abort();
     }
 
