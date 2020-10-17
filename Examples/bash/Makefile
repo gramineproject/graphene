@@ -61,7 +61,7 @@ GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libutil lib
 trusted-children:
 	@for F in $(PROGRAMS); do \
 		echo -n "sgx.trusted_children.$$F = file:$$F.sig\\\\n"; \
-		echo -n "sgx.trusted_files.$$F    = file:`which $$F`\\\\n"; \
+		echo -n "sgx.trusted_files.$$F    = file:$$F\\\\n"; \
 		done > $@
 
 bash.manifest: manifest.template trusted-children bash.trusted-libs
