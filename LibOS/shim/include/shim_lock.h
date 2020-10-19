@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2014 Stony Brook University */
+
 #ifndef _SHIM_LOCK_H_
 #define _SHIM_LOCK_H_
 
