@@ -414,8 +414,8 @@ int shim_do_getpeername(int sockfd, struct sockaddr* addr, int* addrlen);
 int shim_do_socketpair(int domain, int type, int protocol, int* sv);
 int shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen);
 int shim_do_getsockopt(int fd, int level, int optname, char* optval, int* optlen);
-int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* child_tidptr,
-                  void* tls);
+int shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* parent_tidptr,
+                  int* child_tidptr, unsigned long tls);
 int shim_do_fork(void);
 int shim_do_vfork(void);
 int shim_do_execve(const char* file, const char** argv, const char** envp);

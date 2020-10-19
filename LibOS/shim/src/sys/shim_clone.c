@@ -117,7 +117,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 }
 
 static BEGIN_MIGRATION_DEF(fork, struct shim_thread* thread,
-        struct shim_process_ipc_info* process_ipc_info) {
+                           struct shim_process_ipc_info* process_ipc_info) {
     DEFINE_MIGRATE(process_ipc_info, process_ipc_info, sizeof(struct shim_process_ipc_info));
     DEFINE_MIGRATE(all_mounts, NULL, 0);
     DEFINE_MIGRATE(all_vmas, NULL, 0);
@@ -145,8 +145,8 @@ static int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
     return ret;
 }
 
-int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* child_tidptr,
-                  void* tls) {
+int shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* parent_tidptr,
+                  int* child_tidptr, unsigned long tls) {
     struct shim_thread* self = get_cur_thread();
     assert(self);
     int* set_parent_tid = NULL;
@@ -159,7 +159,7 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
      * CLONE_PIDFD
      * CLONE_NEWNS and friends
      */
-    const int supported_flags =
+    const unsigned long supported_flags =
         CLONE_CHILD_CLEARTID |
         CLONE_CHILD_SETTID |
         CLONE_DETACHED |
@@ -195,11 +195,12 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
     /* Explicitly disallow CLONE_VM without either of CLONE_THREAD or CLONE_VFORK in Graphene. While
      * the Linux allows for such combinations, they do not happen in the wild, so they are
      * explicitly disallowed for now. */
-    if (flags & CLONE_VM)
+    if (flags & CLONE_VM) {
         if (!((flags & CLONE_THREAD) || (flags & CLONE_VFORK))) {
             debug("CLONE_VM without either CLONE_THREAD or CLONE_VFORK is unsupported\n");
             return -EINVAL;
         }
+    }
 
     if (flags & CLONE_VFORK) {
         /* Instead of trying to support Linux semantics for vfork() -- which requires adding
@@ -251,7 +252,7 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
 
     unsigned long fs_base = 0;
     if (flags & CLONE_SETTLS) {
-        fs_base = tls_to_fs_base((unsigned long)tls);
+        fs_base = tls_to_fs_base(tls);
     }
 
     if (!(flags & CLONE_VM)) {
@@ -260,7 +261,7 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
         assert(!(flags & CLONE_THREAD));
 
         if ((flags & CSIGNAL) != SIGCHLD) {
-            debug("Currently only SIGCHLD is supported as child-death signal.\n");
+            debug("Currently only SIGCHLD is supported as child-death signal in clone() flags.\n");
             ret = -EINVAL;
             goto failed;
         }
@@ -278,8 +279,8 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
          * since we might need to modify some registers. */
         shim_tcb_t shim_tcb;
         /* Preemption is disabled and we are copying our own tcb, which should be ok to do,
-        * even without any locks. Note this is a shallow copy, so `shim_tcb.context.regs` will be
-        * shared with the parent. */
+         * even without any locks. Note this is a shallow copy, so `shim_tcb.context.regs` will be
+         * shared with the parent. */
         memcpy(&shim_tcb, self->shim_tcb, sizeof(shim_tcb));
         __shim_tcb_init(&shim_tcb);
         shim_tcb.tp = NULL;
@@ -292,14 +293,14 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
         unsigned long parent_stack = 0;
         if (user_stack_addr) {
             struct shim_vma_info vma_info;
-            if (lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma_info) < 0) {
+            if (lookup_vma((void*)ALLOC_ALIGN_DOWN(user_stack_addr), &vma_info) < 0) {
                 ret = -EFAULT;
                 goto failed;
             }
             thread->stack_top = (char*)vma_info.addr + vma_info.length;
             thread->stack_red = thread->stack = vma_info.addr;
             parent_stack = shim_context_get_sp(&self->shim_tcb->context);
-            shim_context_set_sp(&thread->shim_tcb->context, (unsigned long)user_stack_addr);
+            shim_context_set_sp(&thread->shim_tcb->context, user_stack_addr);
 
             if (vma_info.file) {
                 put_handle(vma_info.file);
@@ -378,7 +379,7 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
     get_thread(thread);
     new_args.thread  = thread;
     new_args.parent  = self;
-    new_args.stack   = user_stack_addr ?: (void*)shim_context_get_sp(&self->shim_tcb->context);
+    new_args.stack   = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
     new_args.fs_base = fs_base;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual

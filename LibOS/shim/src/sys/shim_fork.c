@@ -11,9 +11,9 @@
 #include "shim_table.h"
 
 int shim_do_fork(void) {
-    return shim_do_clone(SIGCHLD, NULL, NULL, NULL, NULL);
+    return shim_do_clone(SIGCHLD, 0, NULL, NULL, 0);
 }
 
 int shim_do_vfork(void) {
-    return shim_do_clone(CLONE_VFORK | CLONE_VM | SIGCHLD, NULL, NULL, NULL, NULL);
+    return shim_do_clone(CLONE_VFORK | CLONE_VM | SIGCHLD, 0, NULL, NULL, 0);
 }

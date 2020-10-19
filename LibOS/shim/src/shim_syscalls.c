@@ -213,8 +213,8 @@ DEFINE_SHIM_SYSCALL(getsockopt, 5, shim_do_getsockopt, int, int, fd, int, level,
                     char*, optval, int*, optlen)
 
 /* clone: sys/shim_clone.c */
-DEFINE_SHIM_SYSCALL(clone, 5, shim_do_clone, int, int, flags, void*, user_stack_addr, int*,
-                    parent_tidptr, int*, child_tidptr, void*, tls)
+DEFINE_SHIM_SYSCALL(clone, 5, shim_do_clone, int, unsigned long, flags, unsigned long,
+                    user_stack_addr, int*, parent_tidptr, int*, child_tidptr, unsigned long, tls)
 
 /* fork: sys/shim_fork.c */
 DEFINE_SHIM_SYSCALL(fork, 0, shim_do_fork, int)
