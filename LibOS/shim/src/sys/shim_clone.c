@@ -265,7 +265,7 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
             goto failed;
         }
 
-        /* TODO: broken
+        /* TODO: broken, see https://github.com/oscarlab/graphene/issues/1903
         ret = prepare_ipc_leader();
         if (ret < 0) {
             goto failed;
