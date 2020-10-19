@@ -112,7 +112,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     put_thread(my_thread);
 
-    restore_context(&tcb->context);
+    restore_child_context_after_clone(&tcb->context);
     return 0;
 }
 
@@ -276,22 +276,20 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
 
         /* Associate new cpu context to the new process (its main and only thread) for migration
          * since we might need to modify some registers. */
-        shim_tcb_t* shim_tcb = malloc(sizeof(*shim_tcb));
-        if (!shim_tcb) {
-            ret = -ENOMEM;
-            goto failed;
-        }
+        shim_tcb_t shim_tcb;
         /* Preemption is disabled and we are copying our own tcb, which should be ok to do,
-        * even without any locks. */
-        memcpy(shim_tcb, self->shim_tcb, sizeof(*shim_tcb));
-        __shim_tcb_init(shim_tcb);
-        shim_tcb->tp = NULL;
-        thread->shim_tcb = shim_tcb;
+        * even without any locks. Note this is a shallow copy, so `shim_tcb.context.regs` will be
+        * shared with the parent. */
+        memcpy(&shim_tcb, self->shim_tcb, sizeof(shim_tcb));
+        __shim_tcb_init(&shim_tcb);
+        shim_tcb.tp = NULL;
+        thread->shim_tcb = &shim_tcb;
 
         if (flags & CLONE_SETTLS) {
-            shim_tcb->context.fs_base = fs_base;
+            shim_tcb.context.fs_base = fs_base;
         }
 
+        unsigned long parent_stack = 0;
         if (user_stack_addr) {
             struct shim_vma_info vma_info;
             if (lookup_vma(ALLOC_ALIGN_DOWN_PTR(user_stack_addr), &vma_info) < 0) {
@@ -300,6 +298,7 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
             }
             thread->stack_top = (char*)vma_info.addr + vma_info.length;
             thread->stack_red = thread->stack = vma_info.addr;
+            parent_stack = shim_context_get_sp(&self->shim_tcb->context);
             shim_context_set_sp(&thread->shim_tcb->context, (unsigned long)user_stack_addr);
 
             if (vma_info.file) {
@@ -307,21 +306,15 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
             }
         }
 
-        thread->is_alive = true;
-        thread->in_vm    = false;
-        add_thread(thread);
-        set_as_child(self, thread);
-
         ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, thread);
 
-        lock(&thread->lock);
+        if (parent_stack) {
+            shim_context_set_sp(&self->shim_tcb->context, parent_stack);
+        }
+
         struct shim_handle_map* handle_map = thread->handle_map;
         thread->handle_map = NULL;
         thread->shim_tcb = NULL;
-        unlock(&thread->lock);
-
-        /* We do not need the child process' tcb - free it. */
-        free(shim_tcb);
 
         if (handle_map)
             put_handle_map(handle_map);
@@ -333,6 +326,11 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
 
         if (set_parent_tid)
             *set_parent_tid = tid;
+
+        thread->is_alive = true;
+        thread->in_vm    = false;
+        set_as_child(self, thread);
+        add_thread(thread);
 
         put_thread(thread);
         enable_preempt(NULL);
@@ -354,8 +352,8 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
         put_handle_map(new_map);
     }
 
-    /* Currently CLONE_SIGHAND is always set here, since CLONE_VM implies CLONE_THREAD (which implies
-     * CLONE_SIGHAND). */
+    /* Currently CLONE_SIGHAND is always set here, since CLONE_VM implies CLONE_THREAD (which
+     * implies CLONE_SIGHAND). */
     assert(flags & CLONE_SIGHAND);
 
     enable_locking();

@@ -539,7 +539,7 @@ noreturn void* shim_init(int argc, void* args) {
 
     if (cur_tcb->context.regs && shim_context_get_sp(&cur_tcb->context)) {
         vdso_map_migrate();
-        restore_context(&cur_tcb->context);
+        restore_child_context_after_clone(&cur_tcb->context);
     }
 
     if (cur_thread->exec)

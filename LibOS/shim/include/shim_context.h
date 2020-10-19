@@ -9,7 +9,7 @@
 
 #include "shim_tcb.h"
 
-void restore_context(struct shim_context* context);
+void restore_child_context_after_clone(struct shim_context* context);
 void fixup_child_context(struct shim_regs* regs);
 
 #endif /* _SHIM_CONTEXT_H_ */

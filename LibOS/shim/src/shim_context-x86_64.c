@@ -9,7 +9,7 @@
 #include "asm-offsets.h"
 #include "shim_internal.h"
 
-void restore_context(struct shim_context* context) {
+void restore_child_context_after_clone(struct shim_context* context) {
     assert(context->regs);
     struct shim_regs regs = *context->regs;
     debug("restore context: SP = 0x%08lx, IP = 0x%08lx\n", regs.rsp, regs.rip);
@@ -26,8 +26,6 @@ void restore_context(struct shim_context* context) {
     memset(context, 0, sizeof(struct shim_context));
     context->fs_base = fs_base;
 
-    /* In case you are wondering like I once did: this function is used only to restore context in
-     * the child thread/process after clone/fork so it can safely set `rax` to 0. */
     __asm__ volatile("movq %0, %%rsp\r\n"
                      "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */
                      "popq %%r15\r\n"
