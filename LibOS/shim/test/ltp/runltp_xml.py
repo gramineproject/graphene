@@ -557,28 +557,6 @@ class TestSuite:
         '''Sort test results by name'''
         self.xml[:] = sorted(self.xml, key=lambda test: test.get('name'))
 
-    def validate_config(self):
-        '''
-        Check if there are outdated sections in the configuration. Raises ValueError.
-        '''
-
-        tags = set(runner.tag for runner in self.queue)
-        invalid_names = []
-        for section_name in self.config.keys():
-            if section_name == 'DEFAULT':
-                valid = True
-            elif is_fnmatch_pattern(section_name):
-                valid = any(tag for tag in tags if fnmatch.fnmatch(tag, section_name))
-            else:
-                valid = section_name in tags
-
-            if not valid:
-                invalid_names.append(section_name)
-
-        if invalid_names:
-            raise ValueError('The following config sections do not match any tests: {}'.format(
-                invalid_names))
-
 def _getintset(value):
     return set(int(i) for i in value.strip().split())
 
@@ -648,8 +626,6 @@ def main(args=None):
     if args.list_executables:
         print('\n'.join(suite.get_executable_names()))
         return 0
-
-    suite.validate_config()
 
     try:
         loop = asyncio.get_event_loop()
