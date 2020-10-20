@@ -7,6 +7,14 @@ init_py = configure_file(
     configuration: conf,
 )
 
+offsets_py = configure_file(
+    input: '../../Pal/src/host/Linux-SGX/generated_offsets.py',
+    output: '_offsets.py',
+    copy: true,
+)
+
 python3.install_sources([
     init_py,
+    'sgx_sign.py',
+    offsets_py,
 ], subdir: 'graphenelibos')
