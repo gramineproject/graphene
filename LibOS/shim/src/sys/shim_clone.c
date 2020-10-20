@@ -307,6 +307,11 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
             }
         }
 
+        thread->is_alive = true;
+        thread->in_vm    = false;
+        add_thread(thread);
+        set_as_child(self, thread);
+
         ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL, thread);
 
         if (parent_stack) {
@@ -321,17 +326,14 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
             put_handle_map(handle_map);
 
         if (ret < 0) {
+            // FIXME: here we leak the `thread` as it's also set as `self` child. This code will
+            // soon be removed, so I'm leaving this as it is.
             del_thread(thread);
             goto failed;
         }
 
         if (set_parent_tid)
             *set_parent_tid = tid;
-
-        thread->is_alive = true;
-        thread->in_vm    = false;
-        set_as_child(self, thread);
-        add_thread(thread);
 
         put_thread(thread);
         enable_preempt(NULL);
