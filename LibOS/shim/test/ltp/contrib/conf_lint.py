@@ -42,6 +42,10 @@ def validate_section_order(name, sections):
     mistakes = 0
     prev = ''
     for lineno, section in sections:
+        if section == prev:
+            print('{name}:{lineno}: duplicate section: [{section}]'.format(
+                name=name, lineno=lineno, section=section))
+            mistakes += 1
         if section < prev:
             print('{name}:{lineno}: bad order: [{section}] (after [{prev}])'.format(
                 name=name, lineno=lineno, section=section, prev=prev))
