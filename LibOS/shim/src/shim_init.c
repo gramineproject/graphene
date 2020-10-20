@@ -469,7 +469,7 @@ noreturn void* shim_init(int argc, void* args) {
         shim_clean_and_exit(-EINVAL);
     }
 
-    shim_xsave_init();
+    shim_xstate_init();
 
     if (!create_lock(&__master_lock)) {
         SYS_PRINTF("shim_init(): error: failed to allocate __master_lock\n");

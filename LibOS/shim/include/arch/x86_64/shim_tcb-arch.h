@@ -26,8 +26,9 @@ struct shim_regs {
     uint64_t rip;
 };
 
-/* adopt Linux-style FP layout (_libc_fpstate of glibc): self-contained definition is needed for
- * LibOS, so define the exact same layout with shim prefix */
+/* adopt Linux x86-64 structs for FP layout: self-contained definition is needed for LibOS, so
+ * define the exact same layout with `shim_` prefix; taken from
+ * https://elixir.bootlin.com/linux/v5.9/source/arch/x86/include/uapi/asm/sigcontext.h */
 #define SHIM_FP_XSTATE_MAGIC1      0x46505853U
 #define SHIM_FP_XSTATE_MAGIC2      0x46505845U
 #define SHIM_FP_XSTATE_MAGIC2_SIZE (sizeof(SHIM_FP_XSTATE_MAGIC2))
@@ -45,7 +46,6 @@ enum SHIM_XFEATURE {
     SHIM_XFEATURE_Hi16_ZMM,
     SHIM_XFEATURE_PT,
     SHIM_XFEATURE_PKRU,
-    SHIM_XFEATURE_MAX,
 };
 
 #define SHIM_XFEATURE_MASK_FP        (1UL << SHIM_XFEATURE_FP)
@@ -63,55 +63,63 @@ enum SHIM_XFEATURE {
 #define SHIM_XFEATURE_MASK_AVX512    (SHIM_XFEATURE_MASK_OPMASK | SHIM_XFEATURE_MASK_ZMM_Hi256 \
                                       | SHIM_XFEATURE_MASK_Hi16_ZMM)
 
+/* Bytes 464..511 in the 512-byte layout of the FXSAVE/FXRSTOR frame are reserved for SW usage. On
+ * CPUs supporting XSAVE/XRSTOR, these bytes are used to extend the fpstate pointer in the
+ * sigcontext, which includes the extended state information along with fpstate information. */
 struct shim_fpx_sw_bytes {
-    uint32_t magic1;        /*!< SHIM_FP_XSTATE_MAGIC1 */
-    uint32_t extended_size; /*!< g_shim_xsave_size */
-    uint64_t xfeatures;     /*!< XSAVE feature */
+    uint32_t magic1;        /*!< SHIM_FP_XSTATE_MAGIC1 (it is an xstate context) */
+    uint32_t extended_size; /*!< g_shim_xsave_size (total size of the fpstate area) */
+    uint64_t xfeatures;     /*!< XSAVE features (feature bit mask, including FP/SSE/extended) */
     uint32_t xstate_size;   /*!< g_xsave_size + SHIM_FP_STATE_MAGIC2_SIZE */
-    uint32_t padding[7];
+    uint32_t padding[7];    /*!< for future use */
 };
 
+/* 16-byte floating point register */
 struct shim_fpxreg {
     uint16_t significand[4];
     uint16_t exponent;
     uint16_t padding[3];
 };
 
+/* 16-byte XMM register */
 struct shim_xmmreg {
     uint32_t element[4];
 };
 
-/* 64-bit FXSAVE format */
+/* 64-bit FPU frame (FXSAVE format and later) */
 struct shim_fpstate {
     uint16_t cwd;
     uint16_t swd;
-    uint16_t ftw;
+    uint16_t twd;
     uint16_t fop;
     uint64_t rip;
     uint64_t rdp;
     uint32_t mxcsr;
     uint32_t mxcr_mask;
-    struct shim_fpxreg st[8];
-    struct shim_xmmreg xmm[16];
+    uint32_t st_space[32];  /*  8x  FP registers, 16 bytes each */
+    uint32_t xmm_space[64]; /* 16x XMM registers, 16 bytes each */
+    uint32_t reserved2[12];
     union {
-        uint32_t padding[24];
-        struct {
-            uint32_t padding2[12];
-            struct shim_fpx_sw_bytes sw_reserved;
-        };
+        uint32_t reserved3[12];
+        struct shim_fpx_sw_bytes sw_reserved; /* potential extended state is encoded here */
     };
+};
+
+struct shim_ymmh_state {
+    uint32_t ymmh_space[64]; /* 16x YMM registers, 16 bytes each */
 };
 
 struct shim_xstate_header {
     uint64_t xfeatures;
-    uint64_t xcomp_bv;
-    uint64_t reserved[6];
-} __attribute__((packed));
+    uint64_t reserved1[2];
+    uint64_t reserved2[5];
+};
 
-struct shim_xregs_state {
+struct shim_xstate {
     struct shim_fpstate fpstate;
-    struct shim_xstate_header header;
-} __attribute__((packed, aligned(SHIM_XSTATE_ALIGN)));
+    struct shim_xstate_header xstate_hdr;
+    struct shim_ymmh_state ymmh;
+} __attribute__((aligned(SHIM_XSTATE_ALIGN)));
 
 static inline uint64_t shim_regs_get_sp(struct shim_regs* sr) {
     return sr->rsp;

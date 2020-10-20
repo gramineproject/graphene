@@ -106,7 +106,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
      * fixed later. Now it restores the extended state from within LibOS rather than the app. In
      * reality, XSAVE area should be part of shim_regs, and XRSTOR should happen during
      * restore_context(). */
-    shim_xsave_restore(arg->xregs_state);
+    shim_xstate_restore(arg->xstate);
 
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
@@ -434,8 +434,8 @@ int shim_do_clone(int flags, void* user_stack_addr, int* parent_tidptr, int* chi
 
     /* put XSAVE state on the new thread's stack (see clone_implementation_wrapper())
      * NOTE: this assumes the user-provided stack is at least ~2KB (for AVX512-enabled CPU) */
-    new_args.xregs_state = ALIGN_DOWN_PTR(user_stack_addr - g_shim_xsave_size, SHIM_XSTATE_ALIGN);
-    shim_xsave_save(new_args.xregs_state);
+    new_args.xstate = ALIGN_DOWN_PTR(user_stack_addr - g_shim_xsave_size, SHIM_XSTATE_ALIGN);
+    shim_xstate_save(new_args.xstate);
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child

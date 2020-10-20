@@ -9,36 +9,44 @@
 
 static int rounding_modes[] = {FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO};
 
+static char* print_rounding_mode(int mode) {
+    switch (mode) {
+        case FE_TONEAREST:  return "FE_TONEAREST ";
+        case FE_UPWARD:     return "FE_UPWARD    ";
+        case FE_DOWNWARD:   return "FE_DOWNWARD  ";
+        case FE_TOWARDZERO: return "FE_TOWARDZERO";
+    }
+    return "UNKOWN";
+}
+
 static void* thread_fp(void* arg) {
-    printf("child: 42.5 = %.1f, -42.5 = %.1f\n", nearbyint(42.5), nearbyint(-42.5));
+    int mode = fegetround();
+    printf("%s  child: 42.5 = %.1f, -42.5 = %.1f\n", print_rounding_mode(mode),
+           nearbyint(42.5), nearbyint(-42.5));
     return NULL;
 }
 
 int main(int argc, char* argv[]) {
     int ret;
 
-    int mode = FE_TONEAREST;
-    if (argc > 1) {
-        mode = atoi(argv[1]);
-        if (mode > sizeof(rounding_modes)/sizeof(rounding_modes[0]) - 1) {
-            errx(EXIT_FAILURE, "run with single argument <rounding mode: one of 0..%lu>",
-                 sizeof(rounding_modes)/sizeof(rounding_modes[0]) - 1);
-        }
+    for (int i = 0; i < sizeof(rounding_modes)/sizeof(rounding_modes[0]); i++) {
+        int mode = rounding_modes[i];
+        ret = fesetround(mode);
+        if (ret)
+            err(EXIT_FAILURE, "fesetround failed");
+
+        pthread_t thread;
+        ret = pthread_create(&thread, NULL, thread_fp, NULL);
+        if (ret)
+            err(EXIT_FAILURE, "pthread_create failed");
+
+        ret = pthread_join(thread, NULL);
+        if (ret)
+            err(EXIT_FAILURE, "pthread_join failed");
+
+        printf("%s parent: 42.5 = %.1f, -42.5 = %.1f\n", print_rounding_mode(mode),
+               nearbyint(42.5), nearbyint(-42.5));
     }
 
-    ret = fesetround(rounding_modes[mode]);
-    if (ret)
-        err(EXIT_FAILURE, "fesetround failed");
-
-    pthread_t thread;
-    ret = pthread_create(&thread, NULL, thread_fp, NULL);
-    if (ret)
-        err(EXIT_FAILURE, "pthread_create failed");
-
-    ret = pthread_join(thread, NULL);
-    if (ret)
-        err(EXIT_FAILURE, "pthread_join failed");
-
-    printf("parent: 42.5 = %.1f, -42.5 = %.1f\n", nearbyint(42.5), nearbyint(-42.5));
     return 0;
 }
