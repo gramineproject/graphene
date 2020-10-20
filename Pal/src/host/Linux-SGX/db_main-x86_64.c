@@ -148,6 +148,11 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
      * instead, this is passed in via g_pal_sec at start-up time. */
     ci->cpu_num = g_pal_sec.num_cpus;
 
+    /* number of physical cores in a package */
+    ci->cpu_cores = g_pal_sec.cpu_cores;
+    /* physical package to which the logical processor belongs. Array index represents LPs */
+    COPY_ARRAY(ci->phy_id, g_pal_sec.phy_id);
+
     _DkCpuIdRetrieve(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
                        BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 20, 28);

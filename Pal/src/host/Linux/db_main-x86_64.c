@@ -75,6 +75,7 @@ static const char* const g_cpu_flags[] = {
 };
 
 int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
+    char filename[128];
     unsigned int words[PAL_CPUID_WORD_NUM];
     int rv = 0;
 
@@ -99,15 +100,29 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
-     * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
-    int cores = get_cpu_count();
-    if (cores < 0) {
-        free(vendor_id);
-        free(brand);
-        return cores;
+    /* get total number of logical processors online */
+    int cpu_num = get_hw_res_count("/sys/devices/system/cpu/online");
+    if (cpu_num <= 0) {
+        rv = cpu_num;
+        goto out;
     }
-    ci->cpu_num = cores;
+    ci->cpu_num = cpu_num;
+
+    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
+     * instead we extract info on number of cores by parsing sysfs pseudo-files */
+    int cpu_cores = get_hw_res_count("/sys/devices/system/cpu/cpu0/topology/core_siblings_list");
+    if (cpu_cores <= 0) {
+        rv = cpu_cores;
+        goto out;
+    }
+
+    int smt_active = get_hw_res_count("/sys/devices/system/cpu/smt/active");
+    if (smt_active < 0) {
+        rv = smt_active;
+        goto out;
+    }
+    /* This code assumes there are only 2 HTs per core but platforms like KNL can have more */
+    ci->cpu_cores = (smt_active == 0) ? cpu_cores : (cpu_cores / 2) ;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 8, 12);
@@ -149,6 +164,23 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
         printf("Warning: bogomips could not be retrieved, passing 0.0 to the application\n");
     }
 
+    /* Extract physical id for /proc/cpuinfo */
+    int phy_id = 0;
+    for (int idx =0; idx < cpu_num; idx++) {
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
+        phy_id = get_hw_res_count(filename);
+        if (phy_id < 0) {
+            rv = phy_id;
+            goto out;
+        }
+        ci->phy_id[idx] = phy_id;
+    }
+
+    return rv;
+out:
+    free(vendor_id);
+    free(brand);
     return rv;
 }
 

@@ -269,11 +269,12 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 }
 
 /*
- * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
- * Understands complex formats like "1,3-5,6".
+ * Returns the number of resources present in the file and  -errno on failure. For example
+ * /sys/devices/system/cpu/online,.with complex formats like "1,3-5,6 will return 5. While on a
+ * host without SMT support, /sys/devices/system/cpu/smt/active will return 0 (the actual value)
  */
-int get_cpu_count(void) {
-    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY | O_CLOEXEC, 0);
+int get_hw_res_count(const char *filename) {
+    int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
     if (fd < 0)
         return unix_to_pal_error(ERRNO(fd));
 
@@ -286,18 +287,23 @@ int get_cpu_count(void) {
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
+    bool is_range = PAL_FALSE;
     char* end;
     char* ptr = buf;
     int cpu_count = 0;
     while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',') {
             ptr++;
+            is_range = PAL_TRUE;
+        }
 
         int firstint = (int)strtol(ptr, &end, 10);
         if (ptr == end)
             break;
 
-        if (*end == '\0' || *end == ',' || *end == '\n') {
+        if (*end == '\n' && !is_range) {
+            cpu_count = firstint;
+        } else if (*end == '\0' || *end == ',' || *end == '\n') {
             /* single CPU index, count as one more CPU */
             cpu_count++;
         } else if (*end == '-') {
@@ -310,8 +316,6 @@ int get_cpu_count(void) {
         ptr = end;
     }
 
-    if (cpu_count == 0)
-        return -PAL_ERROR_STREAMNOTEXIST;
     return cpu_count;
 }
 

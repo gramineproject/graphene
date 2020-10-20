@@ -24,6 +24,7 @@
 typedef struct pal_tcb PAL_TCB;
 
 #define PAL_LIBOS_TCB_SIZE 256
+#define PAL_MAX_CPU        1024
 
 typedef struct pal_tcb {
     struct pal_tcb* self;
@@ -188,6 +189,8 @@ static inline bool pal_context_has_user_pagefault(PAL_CONTEXT* context) {
 /* PAL_CPU_INFO holds /proc/cpuinfo data */
 typedef struct PAL_CPU_INFO_ {
     PAL_NUM cpu_num;
+    PAL_NUM cpu_cores;
+    PAL_NUM phy_id[PAL_MAX_CPU];
     PAL_STR cpu_vendor;
     PAL_STR cpu_brand;
     PAL_NUM cpu_family;

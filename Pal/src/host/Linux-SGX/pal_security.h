@@ -39,6 +39,12 @@ struct pal_sec {
     /* Need to pass in the number of cores */
     PAL_NUM num_cpus;
 
+    /* physical cores in a package */
+    PAL_NUM cpu_cores;
+
+    /* Physical package id */
+    PAL_NUM phy_id[PAL_MAX_CPU];
+
 #ifdef DEBUG
     PAL_BOL in_gdb;
 #endif

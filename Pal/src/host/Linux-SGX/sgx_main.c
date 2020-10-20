@@ -681,35 +681,41 @@ out:
 }
 
 /*
- * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
- * Understands complex formats like "1,3-5,6".
+ * Returns the number of resources present in the file and  -errno on failure. For example
+ * /sys/devices/system/cpu/online,.with complex formats like "1,3-5,6 will return 5. While on a
+ * host without SMT support, /sys/devices/system/cpu/smt/active will return 0, the actual value.
  */
-static int get_cpu_count(void) {
-    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY | O_CLOEXEC, 0);
+static int get_hw_res_count(const char *filename) {
+    int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
     if (fd < 0)
         return unix_to_pal_error(ERRNO(fd));
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
+    INLINE_SYSCALL(close, 1, fd);
     if (ret < 0) {
-        INLINE_SYSCALL(close, 1, fd);
         return unix_to_pal_error(ERRNO(ret));
     }
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
+    bool is_range = PAL_FALSE;
     char* end;
     char* ptr = buf;
     int cpu_count = 0;
     while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',') {
             ptr++;
+            is_range = PAL_TRUE;
+        }
 
         int firstint = (int)strtol(ptr, &end, 10);
         if (ptr == end)
             break;
 
-        if (*end == '\0' || *end == ',' || *end == '\n') {
+        if (*end == '\n' && !is_range) {
+            cpu_count = firstint;
+        } else if (*end == '\0' || *end == ',' || *end == '\n') {
             /* single CPU index, count as one more CPU */
             cpu_count++;
         } else if (*end == '-') {
@@ -722,15 +728,13 @@ static int get_cpu_count(void) {
         ptr = end;
     }
 
-    INLINE_SYSCALL(close, 1, fd);
-    if (cpu_count == 0)
-        return -PAL_ERROR_STREAMNOTEXIST;
     return cpu_count;
 }
 
 static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_uri,
                         char* exec_uri, char* args, size_t args_size, char* env, size_t env_size,
                         bool exec_uri_inferred, bool need_gsgx) {
+    char filename[128];
     struct pal_sec* pal_sec = &enclave->pal_sec;
     int ret;
 
@@ -750,11 +754,35 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
     pal_sec->uid = INLINE_SYSCALL(getuid, 0);
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
-    int num_cpus = get_cpu_count();
-    if (num_cpus < 0) {
+    int num_cpus = get_hw_res_count("/sys/devices/system/cpu/online");
+    if (num_cpus <= 0) {
         return num_cpus;
     }
     pal_sec->num_cpus = num_cpus;
+
+    int cpu_cores = get_hw_res_count("/sys/devices/system/cpu/cpu0/topology/core_siblings_list");
+    if (cpu_cores <= 0) {
+        return cpu_cores;
+    }
+
+    int smt_active = get_hw_res_count("/sys/devices/system/cpu/smt/active");
+    if (smt_active < 0)
+        return smt_active;
+
+    /* This code assumes there are only 2 HTs per core but platforms like KNL can have more */
+    pal_sec->cpu_cores = (smt_active == 0) ? cpu_cores : (cpu_cores / 2);
+
+    /* Extract physical id for /proc/cpuinfo */
+    int phy_id = 0;
+    for (int idx =0; idx < num_cpus; idx++) {
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
+        phy_id = get_hw_res_count(filename);
+        if (phy_id < 0) {
+            return phy_id;
+        }
+        pal_sec->phy_id[idx] = phy_id;
+    }
 
 #ifdef DEBUG
     size_t env_i = 0;
