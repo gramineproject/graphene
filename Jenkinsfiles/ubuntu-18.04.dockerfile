@@ -35,6 +35,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libxxf86vm1 \
     linux-headers-4.15.0-20-generic \
     net-tools \
+    pkg-config \
     protobuf-c-compiler \
     pylint3 \
     python \
