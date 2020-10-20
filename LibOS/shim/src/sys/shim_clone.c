@@ -145,12 +145,12 @@ static int migrate_fork(struct shim_cp_store* store, struct shim_thread* thread,
     return ret;
 }
 
-int shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* parent_tidptr,
+long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* parent_tidptr,
                   int* child_tidptr, unsigned long tls) {
     struct shim_thread* self = get_cur_thread();
     assert(self);
     int* set_parent_tid = NULL;
-    int ret = 0;
+    long ret = 0;
 
     /*
      * Currently not supported:
