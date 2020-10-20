@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+
+from grapheneos.sgx_sign import main
+sys.exit(main())
