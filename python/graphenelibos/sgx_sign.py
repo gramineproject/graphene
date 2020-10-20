@@ -9,8 +9,12 @@ import struct
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-import generated_offsets as offs # pylint: disable=import-error,wrong-import-position
+try:
+    from . import _offsets as offs # pylint: disable=import-error
+except ImportError:
+    # when we're in repo, _offsets does not exist and pal-sgx-sign sets sys.path
+    # so we can import as follows
+    import generated_offsets as offs # pylint: disable=import-error
 
 # pylint: enable=invalid-name
 
