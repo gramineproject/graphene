@@ -538,10 +538,14 @@ class TestSuite:
         stream.write(etree.tostring(self.xml, pretty_print=True).decode('ascii'))
 
     def log_summary(self):
+        tests = self._get('tests')
+        failures = self._get('failures')
+        errors = self._get('errors')
+        skipped = self._get('skipped')
+        passed = tests - (failures + errors + skipped)
         _log.warning('LTP finished'
-            ' tests=%d failures=%d errors=%d skipped=%d returncode=%d',
-            self._get('tests'), self._get('failures'), self._get('errors'),
-            self._get('skipped'), self.returncode)
+            ' tests=%d passed=%d failures=%d errors=%d skipped=%d returncode=%d',
+            tests, passed, failures, errors, skipped, self.returncode)
 
     async def execute(self):
         '''Execute the suite'''
