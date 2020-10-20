@@ -80,6 +80,9 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     const size_t VENDOR_ID_SIZE = 13;
     char* vendor_id = malloc(VENDOR_ID_SIZE);
+    if (!vendor_id)
+        return -PAL_ERROR_NOMEM;
+
     cpuid(0, 0, words);
 
     FOUR_CHARS_VALUE(&vendor_id[0], words[PAL_CPUID_WORD_EBX]);
@@ -90,6 +93,10 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     const size_t BRAND_SIZE = 49;
     char* brand = malloc(BRAND_SIZE);
+    if (!brand) {
+        rv = -PAL_ERROR_NOMEM;
+        goto out_vendor_id;
+    }
     cpuid(0x80000002, 0, words);
     memcpy(&brand[ 0], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
     cpuid(0x80000003, 0, words);
@@ -100,14 +107,57 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     ci->cpu_brand = brand;
 
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
-     * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
-    int cores = get_cpu_count();
-    if (cores < 0) {
-        free(vendor_id);
-        free(brand);
-        return cores;
+     * instead extract info on total number of logical cores, number of physical cores,
+     * SMT support etc. by parsing sysfs pseudo-files */
+    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
+    if (online_logical_cores < 0) {
+        rv = online_logical_cores;
+        goto out_brand;
     }
-    ci->cpu_num = cores;
+    ci->online_logical_cores = online_logical_cores;
+
+    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
+                                                 /*count=*/true);
+    /* TODO: correctly support offline cores */
+    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
+         printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
+                "which may lead to subpar performance\n");
+    }
+
+    int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
+                                        /*count=*/true);
+    if (core_siblings < 0) {
+        rv = core_siblings;
+        goto out_brand;
+    }
+
+    int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
+                                       /*count=*/true);
+    if (smt_siblings < 0) {
+        rv = smt_siblings;
+        goto out_brand;
+    }
+    ci->physical_cores_per_socket = core_siblings / smt_siblings;
+
+    /* array of "logical core -> socket" mappings */
+    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
+    if (!cpu_socket) {
+        rv = -PAL_ERROR_NOMEM;
+        goto out_brand;
+    }
+
+    char filename[128];
+    for (int idx = 0; idx < online_logical_cores; idx++) {
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
+        cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
+        if (cpu_socket[idx] < 0) {
+            printf("Cannot read %s\n", filename);
+            rv = cpu_socket[idx];
+            goto out_phy_id;
+        }
+    }
+    ci->cpu_socket = cpu_socket;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 8, 12);
@@ -121,6 +171,10 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     int flen = 0, fmax = 80;
     char* flags = malloc(fmax);
+    if (!flags) {
+        rv = -PAL_ERROR_NOMEM;
+        goto out_phy_id;
+    }
 
     for (int i = 0; i < 32; i++) {
         if (!g_cpu_flags[i])
@@ -130,6 +184,10 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
             int len = strlen(g_cpu_flags[i]);
             if (flen + len + 1 > fmax) {
                 char* new_flags = malloc(fmax * 2);
+                if (!new_flags) {
+                    rv = -PAL_ERROR_NOMEM;
+                    goto out_flags;
+                }
                 memcpy(new_flags, flags, flen);
                 free(flags);
                 fmax *= 2;
@@ -149,6 +207,15 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
         printf("Warning: bogomips could not be retrieved, passing 0.0 to the application\n");
     }
 
+    return rv;
+out_flags:
+    free(flags);
+out_phy_id:
+    free(cpu_socket);
+out_brand:
+    free(brand);
+out_vendor_id:
+    free(vendor_id);
     return rv;
 }
 

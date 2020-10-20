@@ -160,7 +160,7 @@ static int check_affinity_params(int ncpus, size_t len, __kernel_cpu_set_t* user
 /* dummy implementation: ignore user-supplied mask and return success */
 int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
     __UNUSED(pid);
-    int ncpus = PAL_CB(cpu_info.cpu_num);
+    int ncpus = PAL_CB(cpu_info.online_logical_cores);
 
     int bitmask_size_in_bytes = check_affinity_params(ncpus, len, user_mask_ptr);
     if (bitmask_size_in_bytes < 0)
@@ -172,7 +172,7 @@ int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
 /* dummy implementation: always return all-ones (as many as there are host CPUs)  */
 int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
     __UNUSED(pid);
-    int ncpus = PAL_CB(cpu_info.cpu_num);
+    int ncpus = PAL_CB(cpu_info.online_logical_cores);
 
     int bitmask_size_in_bytes = check_affinity_params(ncpus, len, user_mask_ptr);
     if (bitmask_size_in_bytes < 0)

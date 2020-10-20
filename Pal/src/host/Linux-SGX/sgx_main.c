@@ -669,27 +669,30 @@ out:
     return ret;
 }
 
-/*
- * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
- * Understands complex formats like "1,3-5,6".
+/* Opens a pseudo-file describing HW resources such as online CPUs and counts the number of
+ * HW resources present in the file (if count == true) or simply reads the integer stored in the
+ * file (if count == false). For example on a single-core machine, calling this function on
+ * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
+ * Returns UNIX error code on failure.
+ * N.B: Understands complex formats like "1,3-5,6" when called with count == true.
  */
-static int get_cpu_count(void) {
-    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY | O_CLOEXEC, 0);
-    if (fd < 0)
-        return unix_to_pal_error(ERRNO(fd));
+static int get_hw_resource(const char* filename, bool count) {
+    int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
+    if (IS_ERR(fd))
+        return -ERRNO(fd);
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
-    if (ret < 0) {
-        INLINE_SYSCALL(close, 1, fd);
-        return unix_to_pal_error(ERRNO(ret));
-    }
+    INLINE_SYSCALL(close, 1, fd);
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
     char* end;
     char* ptr = buf;
-    int cpu_count = 0;
+    int resource_cnt = 0;
+    int retval = -ENOENT;
     while (*ptr) {
         while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
             ptr++;
@@ -698,23 +701,31 @@ static int get_cpu_count(void) {
         if (ptr == end)
             break;
 
+        /* caller wants to read an int stored in the file */
+        if (!count) {
+            if (*end == '\n' || *end == '\0')
+                retval = firstint;
+            return retval;
+        }
+
+        /* caller wants to count the number of HW resources */
         if (*end == '\0' || *end == ',' || *end == '\n') {
-            /* single CPU index, count as one more CPU */
-            cpu_count++;
+            /* single HW resource index, count as one more */
+            resource_cnt++;
         } else if (*end == '-') {
-            /* CPU range, count how many CPUs in range */
+            /* HW resource range, count how many HW resources are in range */
             ptr = end + 1;
             int secondint = (int)strtol(ptr, &end, 10);
             if (secondint > firstint)
-                cpu_count += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
+                resource_cnt += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
         }
         ptr = end;
     }
 
-    INLINE_SYSCALL(close, 1, fd);
-    if (cpu_count == 0)
-        return -PAL_ERROR_STREAMNOTEXIST;
-    return cpu_count;
+    if (count && resource_cnt > 0)
+        retval = resource_cnt;
+
+    return retval;
 }
 
 /* Warning: This function does not free up resources on failure - it assumes that the whole process
@@ -743,11 +754,53 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
     pal_sec->uid = INLINE_SYSCALL(getuid, 0);
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
-    int num_cpus = get_cpu_count();
-    if (num_cpus < 0) {
-        return num_cpus;
+
+    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
+     * instead extract info on total number of logical cores, number of physical cores,
+     * SMT support etc. by parsing sysfs pseudo-files */
+    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
+    if (online_logical_cores < 0)
+        return online_logical_cores;
+    pal_sec->online_logical_cores = online_logical_cores;
+
+    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
+                                                 /*count=*/true);
+    /* TODO: correctly support offline cores */
+    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
+         printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
+                "which may lead to subpar performance\n");
     }
-    pal_sec->num_cpus = num_cpus;
+
+
+    int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
+                                        /*count=*/true);
+    if (core_siblings < 0)
+        return core_siblings;
+
+    int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
+                                       /*count=*/true);
+    if (smt_siblings < 0)
+        return smt_siblings;
+    pal_sec->physical_cores_per_socket = core_siblings / smt_siblings;
+
+    /* array of "logical core -> socket" mappings */
+    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
+    if (!cpu_socket)
+        return -ENOMEM;
+
+    char filename[128];
+    for (int idx = 0; idx < online_logical_cores; idx++) {
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
+        cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
+        if (cpu_socket[idx] < 0) {
+            SGX_DBG(DBG_E, "Cannot read %s\n", filename);
+            ret = cpu_socket[idx];
+            free(cpu_socket);
+            return ret;
+        }
+    }
+    pal_sec->cpu_socket = cpu_socket;
 
 #ifdef DEBUG
     size_t env_i = 0;
