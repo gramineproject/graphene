@@ -159,6 +159,8 @@ ignored-classes=
     optparse.Values,
     pathlib.PurePath,
     thread._local,
+    GetTokenReq,
+    GetTokenRet,
 
 # List of module names for which member attributes should not be checked
 # (useful for modules/projects where namespaces are manipulated during runtime
