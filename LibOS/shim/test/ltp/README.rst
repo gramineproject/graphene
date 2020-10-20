@@ -49,3 +49,10 @@ See ``--help``.
 
 A lot of LTP tests cause problems in Graphene. The ones we've already analyzed
 should have an appropriate comment in the ``ltp.cfg`` file.
+
+SGX mode
+--------
+
+In SGX mode, we use additional files: ``ltp-sgx.cfg``, and (temporarily)
+``ltp-bug-1075.cfg``. These function as an override for ``ltp.cfg``, so that
+configuration is not duplicated.

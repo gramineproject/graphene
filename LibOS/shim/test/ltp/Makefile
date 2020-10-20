@@ -56,11 +56,12 @@ else
 	$(MAKE) ltp.xml
 endif
 
-%.xml: %.cfg ltp-bug-1075.cfg $(LTPSCENARIO) $(target)
-	./contrib/conf_lint.py $< --scenario $(LTPSCENARIO)
-	./runltp_xml.py $(RUNLTPOPTS) -c $< $(LTPSCENARIO) -O $@
+ltp.xml: CFG = ltp.cfg
+ltp-sgx.xml: CFG = ltp.cfg ltp-sgx.cfg ltp-bug-1075.cfg
 
-ltp-sgx.xml: RUNLTPOPTS += -c ltp-bug-1075.cfg
+%.xml: $(CFG) $(LTPSCENARIO) $(target)
+	./contrib/conf_lint.py $(CFG) --scenario $(LTPSCENARIO)
+	./runltp_xml.py $(RUNLTPOPTS) $(foreach cfg,$(CFG),-c $(cfg)) $(LTPSCENARIO) -O $@
 
 .PHONY: clean-build
 clean-build:
