@@ -13,7 +13,7 @@ import shlex
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('config', metavar='FILENAME',
-    type=argparse.FileType('r'), nargs='?', default='-',
+    type=argparse.FileType('r'), nargs='+', default='-',
     help='ltp.cfg file (default: stdin)')
 
 argparser.add_argument('--scenario', metavar='FILENAME',
@@ -38,44 +38,45 @@ def read_tags(file):
             yield shlex.split(line)[0]
 
 
-def validate_section_order(sections):
+def validate_section_order(name, sections):
     mistakes = 0
     prev = ''
     for lineno, section in sections:
         if section < prev:
-            print('line {lineno}: bad order: [{section}] (after [{prev}])'.format(
-                lineno=lineno, section=section, prev=prev))
+            print('{name}:{lineno}: bad order: [{section}] (after [{prev}])'.format(
+                name=name, lineno=lineno, section=section, prev=prev))
             mistakes += 1
         prev = section
     return mistakes
 
 
-def validate_section_names(sections, tags):
+def validate_section_names(name, sections, tags):
     mistakes = 0
 
     for lineno, section in sections:
         if set(section) & set('*?[]!'):  # fnmatch pattern
             if not any(tag for tag in tags if fnmatch.fnmatch(tag, section)):
-                print("line {lineno}: pattern doesn't match any test: [{section}]".format(
-                    lineno=lineno, section=section))
+                print("{name}:{lineno}: pattern doesn't match any test: [{section}]".format(
+                    name=name, lineno=lineno, section=section))
                 mistakes += 1
         elif section != 'DEFAULT':
             if section not in tags:
-                print("line {lineno}: test doesn't exist: [{section}]".format(
-                    lineno=lineno, section=section))
+                print("{name}:{lineno}: test doesn't exist: [{section}]".format(
+                    name=name, lineno=lineno, section=section))
                 mistakes += 1
     return mistakes
 
 
 def main(args=None):
     args = argparser.parse_args(args)
-    sections = list(read_sections(args.config))
+    tags = set(read_tags(args.scenario)) if args.scenario else None
+    for config in args.config:
+        sections = list(read_sections(config))
 
-    mistakes = 0
-    mistakes += validate_section_order(sections)
-    if args.scenario:
-        tags = set(read_tags(args.scenario))
-        mistakes += validate_section_names(sections, tags)
+        mistakes = 0
+        mistakes += validate_section_order(config.name, sections)
+        if args.scenario:
+            mistakes += validate_section_names(config.name, sections, tags)
 
     return min(mistakes, 255)
 
