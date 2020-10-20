@@ -13,6 +13,26 @@ To run a single testcase, execute the following commands::
 
 In this way, one can debug one particular syscall testcase.
 
+To get more information, you can:
+
+- Enable debugging output: edit ``/install/testcases/bin/manifest`` to set
+  ``loader.debug_type = inline``. Note that you will need to revert this change
+  for ``make regression`` to work correctly. This will also not work when
+  running under SGX, because the manifest needs to be re-signed afterwards.
+
+- Use GDB: ``./pal_loader GDB [SGX] <TEST_BINARY>``. You should compile Graphene
+  with ``DEBUG=1`` so that you can see the symbols inside Graphene.
+
+Running all the cases
+---------------------
+
+In case you want to analyze all the test results, including the tests that are
+currently skipped, you can use the ``ltp-all.cfg`` configuration::
+
+    ./runltp_xml.py -v -c ltp-all.cfg install/runtest/syscalls -O ltp-all.xml
+
+The ``all.xml`` file should contain output for all tests.
+
 ``ltp.cfg``
 ------------
 
