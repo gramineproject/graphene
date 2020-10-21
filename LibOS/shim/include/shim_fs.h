@@ -494,6 +494,15 @@ struct pseudo_name_ops {
     int (*list_name)(const char* name, struct shim_dirent** buf, int count);
 };
 
+static inline dev_t makedev(unsigned int major, unsigned int minor) {
+    dev_t dev;
+    dev  = (((dev_t)(major & 0x00000fffu)) <<  8);
+    dev |= (((dev_t)(major & 0xfffff000u)) << 32);
+    dev |= (((dev_t)(minor & 0x000000ffu)) <<  0);
+    dev |= (((dev_t)(minor & 0xffffff00u)) << 12);
+    return dev;
+}
+
 struct pseudo_fs_ops {
     int (*open)(struct shim_handle* hdl, const char* name, int flags);
     int (*mode)(const char* name, mode_t* mode);
