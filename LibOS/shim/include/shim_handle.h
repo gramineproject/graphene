@@ -228,7 +228,6 @@ struct shim_msg_handle {
     IDTYPE msqid;         /* msg queue identifier */
     bool owned;           /* owned by current process */
     struct shim_ipc_info* owner;
-    LEASETYPE lease;
     int perm;        /* access permissions */
     bool deleted;    /* marking the queue deleted */
     int nmsgs;       /* number of msgs */
@@ -254,7 +253,6 @@ struct shim_sem_handle {
     IDTYPE semid;
     bool owned;
     struct shim_ipc_info* owner;
-    LEASETYPE lease;
     int perm;
     bool deleted;
     PAL_HANDLE event;

@@ -22,7 +22,7 @@ static int thread_add_subrange(struct shim_thread* thread, void* arg) {
 
     struct shim_ipc_info* info = (struct shim_ipc_info*)arg;
 
-    add_ipc_subrange(thread->tid, info->vmid, qstrgetstr(&info->uri), &thread->tid_lease);
+    add_ipc_subrange(thread->tid, info->vmid, qstrgetstr(&info->uri));
     return 0;
 }
 

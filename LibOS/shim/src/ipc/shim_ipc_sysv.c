@@ -225,8 +225,8 @@ out:
     return ret;
 }
 
-int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, LEASETYPE lease,
-                         IDTYPE resid, enum sysv_type type) {
+int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, IDTYPE resid,
+                         enum sysv_type type) {
     int len = strlen(uri);
 
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_movres) + len);
@@ -236,7 +236,6 @@ int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* u
     msgin->resid                       = resid;
     msgin->type                        = type;
     msgin->owner                       = owner;
-    msgin->lease                       = lease;
     memcpy(msgin->uri, uri, len + 1);
     msg->seq = client->seq;
 
@@ -267,7 +266,7 @@ int ipc_sysv_movres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
             goto out;
     }
 
-    add_ipc_subrange(msgin->resid, msgin->owner, msgin->uri, &msgin->lease);
+    add_ipc_subrange(msgin->resid, msgin->owner, msgin->uri);
 
     if (obj->thread)
         thread_wakeup(obj->thread);

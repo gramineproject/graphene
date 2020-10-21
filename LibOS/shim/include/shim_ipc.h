@@ -146,7 +146,7 @@ struct shim_ipc_port {
 };
 
 /* common functions for pid & sysv namespaces */
-int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri, LEASETYPE* lease);
+int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri);
 IDTYPE allocate_ipc_id(IDTYPE min, IDTYPE max);
 void release_ipc_id(IDTYPE idx);
 
@@ -170,7 +170,6 @@ struct shim_ipc_resp {
 struct ipc_ns_offered {
     IDTYPE base;
     IDTYPE size;
-    LEASETYPE lease;
     size_t owner_offset;
 } __attribute__((packed));
 
@@ -208,18 +207,17 @@ struct shim_ipc_lease {
     char uri[1];
 } __attribute__((packed));
 
-int ipc_lease_send(LEASETYPE* lease);
+int ipc_lease_send(void);
 int ipc_lease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* OFFER: offer a range of IDs */
 struct shim_ipc_offer {
     IDTYPE base;
     IDTYPE size;
-    LEASETYPE lease;
 } __attribute__((packed));
 
 int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE size,
-                   LEASETYPE lease, unsigned long seq);
+                   unsigned long seq);
 int ipc_offer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* RENEW: renew lease of a range of IDs */
@@ -238,7 +236,7 @@ struct shim_ipc_sublease {
     char uri[1];
 } __attribute__((packed));
 
-int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lease);
+int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri);
 int ipc_sublease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* QUERY: query the IPC port for a certain ID */
@@ -356,12 +354,11 @@ struct shim_ipc_sysv_movres {
     IDTYPE resid;
     enum sysv_type type;
     IDTYPE owner;
-    LEASETYPE lease;
     char uri[1];
 };
 
-int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, LEASETYPE lease,
-                         IDTYPE resid, enum sysv_type type);
+int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, IDTYPE resid,
+                         enum sysv_type type);
 int ipc_sysv_movres_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* SYSV_MSGSND */

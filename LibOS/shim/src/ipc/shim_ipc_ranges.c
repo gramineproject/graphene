@@ -22,7 +22,6 @@ struct idx_bitmap {
 
 struct subrange {
     struct shim_ipc_info* owner;
-    LEASETYPE lease;
 };
 
 struct sub_map {
@@ -35,7 +34,6 @@ struct range {
     LIST_TYPE(range) list;
     IDTYPE offset;
     struct shim_ipc_info* owner;
-    LEASETYPE lease;
     struct idx_bitmap* used;
     struct sub_map* subranges;
 };
@@ -54,7 +52,6 @@ struct ipc_range {
     IDTYPE size;
     IDTYPE owner;
     struct shim_qstr uri;
-    LEASETYPE lease;
     struct shim_ipc_port* port;
 };
 
@@ -98,10 +95,6 @@ struct key {
 };
 DEFINE_LISTP(key);
 static LISTP_TYPE(key) key_map[KEY_HASH_NUM];
-
-static inline LEASETYPE get_lease(void) {
-    return DkSystemTimeQuery() + LEASE_TIME;
-}
 
 static int __extend_range_bitmap(IDTYPE expected) {
     assert(locked(&range_map_lock));
@@ -182,8 +175,7 @@ static struct range* __get_range(IDTYPE off) {
     return NULL;
 }
 
-static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* uri,
-                       LEASETYPE lease) {
+static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* uri) {
     assert(locked(&range_map_lock));
 
     LISTP_TYPE(range)* head = range_table + RANGE_HASH(off);
@@ -197,7 +189,6 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* ur
 
     r->owner     = NULL;
     r->offset    = off;
-    r->lease     = lease;
     r->used      = NULL;
     r->subranges = NULL;
 
@@ -261,7 +252,7 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* ur
     return 0;
 }
 
-static int add_ipc_range(IDTYPE base, IDTYPE owner, const char* uri, LEASETYPE lease) {
+static int add_ipc_range(IDTYPE base, IDTYPE owner, const char* uri) {
     IDTYPE off = (base - 1) / RANGE_SIZE;
     int ret;
 
@@ -271,7 +262,7 @@ static int add_ipc_range(IDTYPE base, IDTYPE owner, const char* uri, LEASETYPE l
 
     lock(&range_map_lock);
     r->owner = NULL;
-    ret = __add_range(r, off, owner, uri, lease);
+    ret = __add_range(r, off, owner, uri);
     if (ret < 0)
         free(r);
     unlock(&range_map_lock);
@@ -286,7 +277,7 @@ static void __del_ipc_subrange(struct subrange** ptr) {
     nsubed--;
 }
 
-int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri, LEASETYPE* lease) {
+int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri) {
     IDTYPE off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
     int err = 0;
@@ -303,8 +294,6 @@ int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri, LEASETYPE* lease
         goto failed;
     }
 
-    s->lease = (lease && (*lease)) ? (*lease) : get_lease();
-
     struct range* r = __get_range(off);
     if (!r) {
         r = malloc(sizeof(struct range));
@@ -313,7 +302,7 @@ int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri, LEASETYPE* lease
             goto failed;
         }
 
-        if ((err = __add_range(r, off, 0, NULL, 0)) < 0) {
+        if ((err = __add_range(r, off, 0, NULL)) < 0) {
             free(r);
             goto failed;
         }
@@ -335,9 +324,6 @@ int add_ipc_subrange(IDTYPE idx, IDTYPE owner, const char* uri, LEASETYPE* lease
     (*m) = s;
     nsubed++;
 
-    if (lease)
-        *lease = s->lease;
-
     unlock(&range_map_lock);
     return 0;
 
@@ -350,7 +336,7 @@ failed:
     return err;
 }
 
-static int alloc_ipc_range(IDTYPE owner, const char* uri, IDTYPE* base, LEASETYPE* lease) {
+static int alloc_ipc_range(IDTYPE owner, const char* uri, IDTYPE* base) {
     struct range* r = malloc(sizeof(struct range));
     if (!r)
         return -ENOMEM;
@@ -373,8 +359,7 @@ static int alloc_ipc_range(IDTYPE owner, const char* uri, IDTYPE* base, LEASETYP
             }
         }
 
-    LEASETYPE l = get_lease();
-    ret = __add_range(r, i * BITS + j, owner, uri, l);
+    ret = __add_range(r, i * BITS + j, owner, uri);
     if (ret < 0) {
         if (r->owner)
             put_ipc_info(r->owner);
@@ -385,8 +370,6 @@ static int alloc_ipc_range(IDTYPE owner, const char* uri, IDTYPE* base, LEASETYP
     if (base)
         *base = (i * BITS + j) * RANGE_SIZE + 1;
 
-    if (lease)
-        *lease = l;
 out:
     unlock(&range_map_lock);
     return ret;
@@ -405,14 +388,12 @@ static int get_ipc_range(IDTYPE idx, struct ipc_range* range, struct shim_ipc_in
 
     IDTYPE base = r->offset * RANGE_SIZE + 1;
     IDTYPE sz = RANGE_SIZE;
-    LEASETYPE l = r->lease;
     struct shim_ipc_info* p = r->owner;
 
     if (r->subranges && r->subranges->map[idx - base]) {
         struct subrange* s = r->subranges->map[idx - base];
         base = idx;
         sz = 1;
-        l = s->lease;
         p = s->owner;
     }
 
@@ -426,7 +407,6 @@ static int get_ipc_range(IDTYPE idx, struct ipc_range* range, struct shim_ipc_in
 
     range->base  = base;
     range->size  = sz;
-    range->lease = l;
     range->owner = p->vmid;
     qstrcopy(&range->uri, &p->uri);
     range->port = p->port;
@@ -514,7 +494,7 @@ failed:
 }
 #endif
 
-static int renew_ipc_range(IDTYPE idx, LEASETYPE* lease) {
+static int renew_ipc_range(IDTYPE idx) {
     IDTYPE off = (idx - 1) / RANGE_SIZE;
 
     lock(&range_map_lock);
@@ -525,14 +505,11 @@ static int renew_ipc_range(IDTYPE idx, LEASETYPE* lease) {
         return -ESRCH;
     }
 
-    r->lease = get_lease();
-    if (lease)
-        *lease = r->lease;
     unlock(&range_map_lock);
     return 0;
 }
 
-static int renew_ipc_subrange(IDTYPE idx, LEASETYPE* lease) {
+static int renew_ipc_subrange(IDTYPE idx) {
     IDTYPE off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
 
@@ -549,10 +526,6 @@ static int renew_ipc_subrange(IDTYPE idx, LEASETYPE* lease) {
         return -ESRCH;
     }
 
-    struct subrange* s = r->subranges->map[idx - base];
-    s->lease           = get_lease();
-    if (lease)
-        *lease = s->lease;
     unlock(&range_map_lock);
     return 0;
 }
@@ -994,7 +967,7 @@ out:
     return ret;
 }
 
-int ipc_lease_send(LEASETYPE* lease) {
+int ipc_lease_send(void) {
     IDTYPE leader;
     struct shim_ipc_port* port = NULL;
     struct shim_ipc_info* self = NULL;
@@ -1007,7 +980,7 @@ int ipc_lease_send(LEASETYPE* lease) {
         goto out;
 
     if (leader == g_process_ipc_info.vmid) {
-        ret = alloc_ipc_range(g_process_ipc_info.vmid, qstrgetstr(&self->uri), NULL, NULL);
+        ret = alloc_ipc_range(g_process_ipc_info.vmid, qstrgetstr(&self->uri), NULL);
         put_ipc_info(self);
         goto out;
     }
@@ -1024,7 +997,7 @@ int ipc_lease_send(LEASETYPE* lease) {
 
     debug("ipc send to %u: IPC_MSG_LEASE(%s)\n", leader, msgin->uri);
 
-    ret = send_ipc_message_with_ack(msg, port, NULL, lease);
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
 out:
     if (port)
         put_ipc_port(port);
@@ -1037,20 +1010,19 @@ int ipc_lease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     debug("ipc callback from %u: IPC_MSG_LEASE(%s)\n", msg->src, msgin->uri);
 
     IDTYPE base = 0;
-    LEASETYPE lease = 0;
 
-    int ret = alloc_ipc_range(msg->src, msgin->uri, &base, &lease);
+    int ret = alloc_ipc_range(msg->src, msgin->uri, &base);
     if (ret < 0)
         goto out;
 
-    ret = ipc_offer_send(port, msg->src, base, RANGE_SIZE, lease, msg->seq);
+    ret = ipc_offer_send(port, msg->src, base, RANGE_SIZE, msg->seq);
 
 out:
     return ret;
 }
 
 int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE size,
-                   LEASETYPE lease, unsigned long seq) {
+                   unsigned long seq) {
     int ret = 0;
     size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_offer));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -1059,10 +1031,9 @@ int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE 
     struct shim_ipc_offer* msgin = (void*)&msg->msg;
     msgin->base  = base;
     msgin->size  = size;
-    msgin->lease = lease;
     msg->seq = seq;
 
-    debug("ipc send to %u: IPC_MSG_OFFER(%u, %u, %lu)\n", port->vmid, base, size, lease);
+    debug("ipc send to %u: IPC_MSG_OFFER(%u, %u)\n", port->vmid, base, size);
     ret = send_ipc_message(msg, port);
     return ret;
 }
@@ -1070,27 +1041,26 @@ int ipc_offer_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE base, IDTYPE 
 int ipc_offer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_offer* msgin = (void*)&msg->msg;
 
-    debug("ipc callback from %u: IPC_MSG_OFFER(%u, %u, %lu)\n", msg->src, msgin->base, msgin->size,
-          msgin->lease);
+    debug("ipc callback from %u: IPC_MSG_OFFER(%u, %u)\n", msg->src, msgin->base, msgin->size);
 
     struct shim_ipc_msg_with_ack* obj = pop_ipc_msg_with_ack(port, msg->seq);
 
     switch (msgin->size) {
         case RANGE_SIZE:
             add_ipc_range(msgin->base, g_process_ipc_info.vmid,
-                          qstrgetstr(&g_process_ipc_info.self->uri), msgin->lease);
-            LEASETYPE* priv = obj ? obj->private : NULL;
+                          qstrgetstr(&g_process_ipc_info.self->uri));
+            void** priv = obj ? obj->private : NULL;
             if (priv)
-                *priv = msgin->lease;
+                *priv = NULL;
             break;
         case 1:
             if (obj) {
                 struct shim_ipc_sublease* s = (void*)&obj->msg.msg;
-                add_ipc_subrange(s->idx, s->tenant, s->uri, &msgin->lease);
+                add_ipc_subrange(s->idx, s->tenant, s->uri);
 
-                LEASETYPE* priv = obj->private;
+                void** priv = obj->private;
                 if (priv)
-                    *priv = msgin->lease;
+                    *priv = NULL;
             }
             break;
         default:
@@ -1140,14 +1110,12 @@ int ipc_renew_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
         goto out;
     }
 
-    LEASETYPE lease = 0;
-
     switch (msgin->size) {
         case RANGE_SIZE:
-            ret = renew_ipc_range(msgin->base, &lease);
+            ret = renew_ipc_range(msgin->base);
             break;
         case 1:
-            ret = renew_ipc_subrange(msgin->size, &lease);
+            ret = renew_ipc_subrange(msgin->size);
             break;
         default:
             ret = -EINVAL;
@@ -1157,13 +1125,13 @@ int ipc_renew_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     if (ret < 0)
         goto out;
 
-    ret = ipc_offer_send(port, msg->src, msgin->base, msgin->size, lease, msg->seq);
+    ret = ipc_offer_send(port, msg->src, msgin->base, msgin->size, msg->seq);
 
 out:
     return ret;
 }
 
-int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lease) {
+int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri) {
     IDTYPE leader;
     struct shim_ipc_port* port = NULL;
     int ret = 0;
@@ -1172,7 +1140,7 @@ int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lea
         goto out;
 
     if (leader == g_process_ipc_info.vmid) {
-        ret = add_ipc_subrange(idx, tenant, uri, NULL);
+        ret = add_ipc_subrange(idx, tenant, uri);
         goto out;
     }
 
@@ -1188,7 +1156,7 @@ int ipc_sublease_send(IDTYPE tenant, IDTYPE idx, const char* uri, LEASETYPE* lea
 
     debug("ipc send to %u: IPC_MSG_SUBLEASE(%u, %u, %s)\n", leader, tenant, idx, msgin->uri);
 
-    ret = send_ipc_message_with_ack(msg, port, NULL, lease);
+    ret = send_ipc_message_with_ack(msg, port, NULL, NULL);
 out:
     if (port)
         put_ipc_port(port);
@@ -1201,10 +1169,9 @@ int ipc_sublease_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     debug("ipc callback from %u: IPC_MSG_SUBLEASE(%u, %u, %s)\n", msg->src, msgin->idx,
           msgin->tenant, msgin->uri);
 
-    LEASETYPE lease = 0;
-    int ret = add_ipc_subrange(msgin->idx, msgin->tenant, msgin->uri, &lease);
+    int ret = add_ipc_subrange(msgin->idx, msgin->tenant, msgin->uri);
 
-    ret = ipc_offer_send(port, msg->src, msgin->idx, 1, lease, msg->seq);
+    ret = ipc_offer_send(port, msg->src, msgin->idx, 1, msg->seq);
     return ret;
 }
 
@@ -1262,7 +1229,6 @@ int ipc_query_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct ipc_ns_offered ans;
     ans.base         = range.base;
     ans.size         = range.size;
-    ans.lease        = range.lease;
     ans.owner_offset = 0;
     size_t ownerdatasz = sizeof(struct ipc_ns_client) + range.uri.len;
     struct ipc_ns_client* owner = __alloca(ownerdatasz);
@@ -1327,7 +1293,6 @@ retry:
         IDTYPE base = r->offset * RANGE_SIZE + 1;
         answers[answers_cnt].base         = base;
         answers[answers_cnt].size         = RANGE_SIZE;
-        answers[answers_cnt].lease        = r->lease;
         answers[answers_cnt].owner_offset = owner_offset;
         answers_cnt++;
 
@@ -1355,7 +1320,6 @@ retry:
 
             answers[answers_cnt].base         = base + i;
             answers[answers_cnt].size         = 1;
-            answers[answers_cnt].lease        = s->lease;
             answers[answers_cnt].owner_offset = owner_offset;
             answers_cnt++;
 
@@ -1431,10 +1395,10 @@ int ipc_answer_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
 
         switch (ans->size) {
             case RANGE_SIZE:
-                add_ipc_range(ans->base, owner->vmid, owner->uri, ans->lease);
+                add_ipc_range(ans->base, owner->vmid, owner->uri);
                 break;
             case 1:
-                add_ipc_subrange(ans->base, owner->vmid, owner->uri, &ans->lease);
+                add_ipc_subrange(ans->base, owner->vmid, owner->uri);
                 break;
             default:
                 break;
