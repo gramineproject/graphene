@@ -296,9 +296,9 @@ The above command performs the following tasks:
 #. Generates the final SGX manifest file ``python3.manifest.sgx``.
 
 #. Signs the manifest and generates the SGX signature file containing SIGSTRUCT
-   (``pytorch.sig``).
+   (``python3.sig``).
 
-#. Creates a dummy EINITTOKEN token file ``pytorch.token`` (this file is used
+#. Creates a dummy EINITTOKEN token file ``python3.token`` (this file is used
    for backwards compatibility with SGX platforms with EPID and without Flexible
    Launch Control).
 
