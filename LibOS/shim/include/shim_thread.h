@@ -53,7 +53,6 @@ struct shim_thread {
     IDTYPE vmid;
     IDTYPE pgid, ppid, tgid, tid;
     bool in_vm;
-    LEASETYPE tid_lease;
 
     /* credentials */
     IDTYPE uid, gid, euid, egid;

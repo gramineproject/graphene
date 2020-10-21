@@ -111,7 +111,7 @@ static IDTYPE get_pid(void) {
 
         unlock(&thread_list_lock);
         /* We've probably run out of pids - let's get a new range. */
-        if (ipc_lease_send(NULL) < 0) {
+        if (ipc_lease_send() < 0) {
             return 0;
         }
         lock(&thread_list_lock);

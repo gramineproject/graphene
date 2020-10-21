@@ -234,7 +234,7 @@ int shim_do_semget(key_t key, int nsems, int semflg) {
         do {
             semid = allocate_ipc_id(0, 0);
             if (!semid)
-                semid = ipc_lease_send(NULL);
+                semid = ipc_lease_send();
         } while (!semid);
 
         if (key != IPC_PRIVATE) {
@@ -614,7 +614,7 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
         if (client) {
             struct shim_ipc_info* owner = sem->owner;
             ret = owner ? ipc_sysv_movres_send(client, owner->vmid, qstrgetstr(&owner->uri),
-                                               sem->lease, sem->semid, SYSV_SEM)
+                                               sem->semid, SYSV_SEM)
                         : -ECONNREFUSED;
             goto out_locked;
         }

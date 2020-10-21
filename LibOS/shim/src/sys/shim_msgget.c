@@ -273,7 +273,7 @@ int shim_do_msgget(key_t key, int msgflg) {
         do {
             msgid = allocate_ipc_id(0, 0);
             if (!msgid)
-                ipc_lease_send(NULL);
+                ipc_lease_send();
         } while (!msgid);
 
         if (key != IPC_PRIVATE) {
@@ -613,7 +613,7 @@ int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* dat
         if (src) {
             struct shim_ipc_info* owner = msgq->owner;
             ret = owner ? ipc_sysv_movres_send(src, owner->vmid, qstrgetstr(&owner->uri),
-                                               msgq->lease, msgq->msqid, SYSV_MSGQ)
+                                               msgq->msqid, SYSV_MSGQ)
                         : -ECONNREFUSED;
             goto out_locked;
         }

@@ -354,7 +354,6 @@ typedef Elf64_auxv_t elf_auxv_t;
 /* typedef for shim internal types */
 typedef unsigned int IDTYPE;
 typedef uint16_t FDTYPE;
-typedef unsigned long LEASETYPE;
 typedef uint64_t HASHTYPE;
 
 typedef struct atomic_int REFTYPE;
