@@ -127,7 +127,7 @@ struct shim_ipc_msg_with_ack {
     struct shim_ipc_msg msg;
 };
 
-typedef void (*port_fini)(struct shim_ipc_port*, IDTYPE vmid, unsigned int exitcode);
+typedef void (*port_fini)(struct shim_ipc_port*, IDTYPE vmid);
 
 DEFINE_LIST(shim_ipc_port);
 DEFINE_LISTP(shim_ipc_msg_with_ack);
@@ -433,7 +433,7 @@ int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini,
                         struct shim_ipc_port** portptr);
 void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type, port_fini fini);
-void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode);
+void del_ipc_port_fini(struct shim_ipc_port* port);
 struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type);
 void get_ipc_port(struct shim_ipc_port* port);
 void put_ipc_port(struct shim_ipc_port* port);
@@ -470,7 +470,7 @@ int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc
                               unsigned long* seq, void* private_data);
 int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, unsigned long seq);
 
-void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode);
+void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid);
 
 struct shim_thread* terminate_ipc_helper(void);
 

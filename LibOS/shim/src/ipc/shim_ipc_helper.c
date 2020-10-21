@@ -361,7 +361,7 @@ out:
     unlock(&ipc_helper_lock);
 }
 
-void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode) {
+void del_ipc_port_fini(struct shim_ipc_port* port) {
     lock(&ipc_helper_lock);
 
     if (LIST_EMPTY(port, list)) {
@@ -377,7 +377,7 @@ void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode) {
 
     for (int i = 0; i < MAX_IPC_PORT_FINI_CB; i++)
         if (port->fini[i]) {
-            (port->fini[i])(port, port->vmid, exitcode);
+            (port->fini[i])(port, port->vmid);
             port->fini[i] = NULL;
         }
 
@@ -570,7 +570,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
 
                 debug("Port %p (handle %p) closed while receiving IPC message\n", port,
                       port->pal_handle);
-                del_ipc_port_fini(port, -ECHILD);
+                del_ipc_port_fini(port);
                 ret = -PAL_ERRNO();
                 goto out;
             }
@@ -772,7 +772,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
                     } else {
                         debug("Port %p (handle %p) was removed during accepting client\n",
                               polled_port, polled_port->pal_handle);
-                        del_ipc_port_fini(polled_port, -ECHILD);
+                        del_ipc_port_fini(polled_port);
                     }
                 } else {
                     PAL_STREAM_ATTR attr;
@@ -785,12 +785,12 @@ noreturn static void shim_ipc_helper(void* dummy) {
                         if (attr.disconnected) {
                             debug("Port %p (handle %p) disconnected\n", polled_port,
                                   polled_port->pal_handle);
-                            del_ipc_port_fini(polled_port, -ECONNRESET);
+                            del_ipc_port_fini(polled_port);
                         }
                     } else {
                         debug("Port %p (handle %p) was removed during attr querying\n", polled_port,
                               polled_port->pal_handle);
-                        del_ipc_port_fini(polled_port, -PAL_ERRNO());
+                        del_ipc_port_fini(polled_port);
                     }
                 }
             }

@@ -57,7 +57,7 @@ out:
  * thread (see ipc_cld_exit_callback()), we want to delete all remote threads associated with
  * disconnected child process.
  */
-void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode) {
+void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid) {
     __UNUSED(port);
 
     /* NOTE: IPC port may be closed by host OS because the child process exited on host OS (and so
@@ -65,7 +65,7 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
      *       IPC_MSG_CHILDEXIT message from child process. Ideally, we would inspect whether we
      *       previously sent SIGINT/SIGTERM/SIGKILL to this child and use the corresponding
      *       termination signal. For now, report that child process was killed by SIGKILL. */
-    struct thread_info info = {.vmid = vmid, .exitcode = exitcode, .term_signal = SIGKILL};
+    struct thread_info info = {.vmid = vmid, .exitcode = 0, .term_signal = SIGKILL};
 
     /* message cannot come from our own threads (from ourselves as process) */
     assert(vmid != g_process_ipc_info.vmid);

@@ -292,7 +292,7 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
                 continue;
 
             debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
-            del_ipc_port_fini(port, -ECHILD);
+            del_ipc_port_fini(port);
             return -PAL_ERRNO();
         }
 

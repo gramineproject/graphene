@@ -640,8 +640,7 @@ int init_ns_ranges(void) {
     return 0;
 }
 
-static void ipc_leader_exit(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode) {
-    __UNUSED(exitcode);  // Kept for API compatibility
+static void ipc_leader_exit(struct shim_ipc_port* port, IDTYPE vmid) {
     lock(&g_process_ipc_info.lock);
 
     if (!g_process_ipc_info.ns || g_process_ipc_info.ns->port != port) {
