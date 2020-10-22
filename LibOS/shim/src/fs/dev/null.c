@@ -7,7 +7,6 @@
  * This file contains the implementation of `/dev/null` and `/dev/tty` pseudo-files.
  */
 
-#include <sys/sysmacros.h>
 #include "shim_fs.h"
 
 static ssize_t dev_null_read(struct shim_handle* hdl, void* buf, size_t count) {
@@ -37,10 +36,10 @@ static int dev_null_mode(const char* name, mode_t* mode) {
 }
 
 /* st_rdev field in struct stat of /dev/null is (1,3).
- * https://github.com/torvalds/linux/blob/master/drivers/char/mem.c#L978
+ * https://elixir.bootlin.com/linux/v5.9/source/drivers/char/mem.c#L950
  */
-#define DEV_NULL_MAJOR	1
-#define DEV_NULL_MINOR	3
+#define DEV_NULL_MAJOR 1
+#define DEV_NULL_MINOR 3
 static int dev_null_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
     memset(buf, 0, sizeof(*buf));
@@ -104,6 +103,7 @@ static int dev_tty_open(struct shim_handle* hdl, const char* name, int flags) {
     return 0;
 }
 
+/* /dev/tty differs from /dev/null only in its st_rdev field (and thus in stat/hstat/open) */
 struct pseudo_fs_ops dev_tty_fs_ops = {
     .open = &dev_tty_open,
     .mode = &dev_null_mode,
