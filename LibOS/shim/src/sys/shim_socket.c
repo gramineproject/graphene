@@ -476,9 +476,9 @@ int shim_do_bind(int sockfd, struct sockaddr* addr, int _addrlen) {
         struct shim_dentry* dent  = NULL;
 
         if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0) {
-            // DEP 7/3/17: We actually want either 0 or -ENOENT, as the
-            // expected case is that the name is free (and we get the dent to
-            // populate the name)
+            /* We want either 0 or -ENOENT (dent is a valid object in both cases), as the expected
+             * case is that the name is free (and we use dent with the name already populated).
+             * FIXME: This is terrible semantics; path_lookupat() must be re-worked. */
             if (ret != -ENOENT || !dent)
                 goto out;
         }
@@ -744,7 +744,7 @@ int shim_do_connect(int sockfd, struct sockaddr* addr, int _addrlen) {
 
         struct sockaddr_un* saddr = (struct sockaddr_un*)addr;
         char* spath               = saddr->sun_path;
-        struct shim_dentry* dent;
+        struct shim_dentry* dent  = NULL;
 
         if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0) {
             // DEP 7/3/17: We actually want either 0 or -ENOENT, as the

@@ -223,7 +223,7 @@ int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, in
             return ret;
     }
 
-    struct shim_dentry* dent;
+    struct shim_dentry* dent = NULL;
     int ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
     if (ret >= 0) {
         struct shim_d_ops* d_ops = dent->fs->d_ops;

@@ -229,6 +229,12 @@ out:
  * manifest.
  *
  * If the file isn't found, returns -ENOENT.
+ * FIXME: path_lookupat() abuses -ENOENT for two cases:
+ *        - actual failure: one of the subdirs was not found, i.e., the file
+ *          cannot be created at all (and then dent is set to NULL);
+ *        - benign failure: all subdirs are found but the file doesn't exist,
+ *          i.e., the file can be created (and then dent is set to object).
+ *        This is terrible semantics and must be fixed when FS is re-worked.
  *
  * If the LOOKUP_DIRECTORY flag is set, and the found file isn't a directory,
  *  returns -ENOTDIR.

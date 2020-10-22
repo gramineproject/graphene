@@ -4,6 +4,8 @@
  * (i.e. only between parent and its child in this test).
  */
 
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +21,22 @@ enum { SINGLE, PARALLEL } mode = PARALLEL;
 int do_fork                    = 0;
 
 int pipefds[2];
+
+static void nonexisting_socket(void) {
+    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock < 0) {
+        err(1, "nonexisting-socket creation failed");
+    }
+
+    struct sockaddr_un address;
+    address.sun_family = AF_UNIX;
+    strncpy(address.sun_path, "/var/lib/sss/nonexisting/nonexisting", sizeof(address.sun_path));
+
+    int ret = connect(sock, (struct sockaddr*)&address, sizeof(address));
+    if (ret == 0 || errno != ENOENT) {
+        err(1, "nonexisting-socket connect didn't fail with ENOENT");
+    }
+}
 
 static int server_dummy_socket(void) {
     int create_socket;
@@ -164,6 +182,9 @@ static int client(void) {
 }
 
 int main(int argc, char** argv) {
+    /* check that we cannot connect to a non-existing UNIX domain socket */
+    nonexisting_socket();
+
     if (argc > 1) {
         if (strcmp(argv[1], "client") == 0) {
             mode = SINGLE;
