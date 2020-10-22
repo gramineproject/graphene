@@ -213,12 +213,6 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('Preloaded Function 1 Called', stderr)
         self.assertIn('Preloaded Function 2 Called', stderr)
 
-    def test_111_preload_libraries(self):
-        # Bootstrap without Executable but Preload Libraries
-        _, stderr = self.run_binary([self.get_manifest('Bootstrap5')])
-        self.assertIn('Binary 1 Preloaded', stderr)
-        self.assertIn('Binary 2 Preloaded', stderr)
-
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
     def test_120_8gb_enclave(self):
         manifest = self.get_manifest('Bootstrap6')

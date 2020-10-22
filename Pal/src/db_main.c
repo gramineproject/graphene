@@ -344,13 +344,8 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
             if (!exec_uri)
                 INIT_FAIL(PAL_ERROR_NOMEM, "Cannot allocate URI buf");
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
-            // DEP 3/20/17: There are cases where we want to let
-            // the PAL start up without a main executable.  Don't
-            // die here, just free the exec_uri buffer.
-            if (ret < 0) {
-                free(exec_uri);
-                exec_uri = NULL;
-            }
+            if (ret < 0)
+                INIT_FAIL(PAL_ERROR_INVAL, "Cannot open the executable");
         }
     }
 

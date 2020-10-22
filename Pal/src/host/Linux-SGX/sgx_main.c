@@ -396,22 +396,20 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     }
 
     struct mem_area* exec_area = NULL;
-    if (enclave->exec != -1) {
-        areas[area_num] = (struct mem_area){.desc         = "exec",
-                                            .skip_eextend = false,
-                                            .fd           = enclave->exec,
-                                            .is_binary    = true,
-                                            .addr         = 0,
-                                            .size         = 0 /* set below */,
-                                            .prot         = PROT_WRITE,
-                                            .type         = SGX_PAGE_REG};
-        exec_area = &areas[area_num++];
+    areas[area_num] = (struct mem_area){.desc         = "exec",
+                                        .skip_eextend = false,
+                                        .fd           = enclave->exec,
+                                        .is_binary    = true,
+                                        .addr         = 0,
+                                        .size         = 0 /* set below */,
+                                        .prot         = PROT_WRITE,
+                                        .type         = SGX_PAGE_REG};
+    exec_area = &areas[area_num++];
 
-        ret = scan_enclave_binary(enclave->exec, &exec_area->addr, &exec_area->size, NULL);
-        if (ret < 0) {
-            SGX_DBG(DBG_E, "Scanning application binary failed: %d\n", -ret);
-            goto out;
-        }
+    ret = scan_enclave_binary(enclave->exec, &exec_area->addr, &exec_area->size, NULL);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Scanning application binary failed: %d\n", -ret);
+        goto out;
     }
 
     unsigned long populating = enclave->size;
@@ -722,7 +720,7 @@ static int get_cpu_count(void) {
  * exits after this function's failure. */
 static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_path,
                         char* exec_path, char* args, size_t args_size, char* env, size_t env_size,
-                        bool exec_path_inferred, bool need_gsgx) {
+                        bool need_gsgx) {
     struct pal_sec* pal_sec = &enclave->pal_sec;
     char cfgbuf[CONFIG_MAX];
     int ret;
@@ -790,21 +788,8 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 
     enclave->exec = INLINE_SYSCALL(open, 3, exec_path, O_RDONLY | O_CLOEXEC, 0);
     if (IS_ERR(enclave->exec)) {
-        if (exec_path_inferred) {
-            // It is valid for an enclave not to have an executable.
-            // We need to catch the case where we inferred the executable
-            // from the manifest file name, but it doesn't exist, and let
-            // the enclave go a bit further.  Go ahead and warn the user,
-            // though.
-            SGX_DBG(DBG_I,
-                    "Inferred executable cannot be opened: %s. This may be ok, or may represent a "
-                    "manifest misconfiguration. This typically represents advanced usage.\n",
-                    exec_path);
-            enclave->exec = -1;
-        } else {
-            SGX_DBG(DBG_E, "Cannot open executable %s\n", exec_path);
-            return -EINVAL;
-        }
+        SGX_DBG(DBG_E, "Cannot open executable %s\n", exec_path);
+        return -EINVAL;
     }
 
     if (get_config(enclave->config, "sgx.sigfile", cfgbuf, sizeof(cfgbuf)) >= 0) {
@@ -855,15 +840,11 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     memcpy(pal_sec->manifest_name, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
     memcpy(pal_sec->manifest_name + URI_PREFIX_FILE_LEN, manifest_path, manifest_path_size);
 
-    if (enclave->exec == -1) {
-        memset(pal_sec->exec_name, 0, sizeof(PAL_SEC_STR));
-    } else {
-        if (sizeof(pal_sec->exec_name) < URI_PREFIX_FILE_LEN + exec_path_len + 1) {
-            return -E2BIG;
-        }
-        memcpy(pal_sec->exec_name, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
-        memcpy(pal_sec->exec_name + URI_PREFIX_FILE_LEN, exec_path, exec_path_len + 1);
+    if (sizeof(pal_sec->exec_name) < URI_PREFIX_FILE_LEN + exec_path_len + 1) {
+        return -E2BIG;
     }
+    memcpy(pal_sec->exec_name, URI_PREFIX_FILE, URI_PREFIX_FILE_LEN);
+    memcpy(pal_sec->exec_name + URI_PREFIX_FILE_LEN, exec_path, exec_path_len + 1);
 
     ret = sgx_signal_setup();
     if (ret < 0)
@@ -931,8 +912,6 @@ int main(int argc, char* argv[], char* envp[]) {
     int exec_fd = -1;
     int manifest_fd = -1;
     int ret = 0;
-    bool exec_path_inferred = false; // Handle the case where the exec path is inferred from
-                                     // the manifest name somewhat differently
     bool need_gsgx = true;
 
     force_linux_to_grow_stack();
@@ -963,7 +942,6 @@ int main(int argc, char* argv[], char* envp[]) {
         goto usage;
     }
 
-    // TODO: The whole manifest resolution logic is a mess and needs to be redesigned.
     if (first_process) {
         /* The initial Graphene process is special - it was started by the user, so `exec_path` may
          * either contain a path to the executable or to a manifest. */
@@ -1020,8 +998,6 @@ int main(int argc, char* argv[], char* envp[]) {
                 SGX_DBG(DBG_E, "Invalid manifest file specified: %s\n", exec_path);
                 goto usage;
             }
-
-            exec_path_inferred = true;
         }
     } else {
         /* We're one of the children spawned to host new processes started inside Graphene.
@@ -1051,10 +1027,7 @@ int main(int argc, char* argv[], char* envp[]) {
     }
 
     SGX_DBG(DBG_I, "Manifest file: %s\n", manifest_path);
-    if (exec_path_inferred)
-        SGX_DBG(DBG_I, "Inferred executable file: %s\n", exec_path);
-    else
-        SGX_DBG(DBG_I, "Executable file: %s\n", exec_path);
+    SGX_DBG(DBG_I, "Executable file: %s\n", exec_path);
 
     /*
      * While C does not guarantee that the argv[i] and envp[i] strings are
@@ -1079,7 +1052,7 @@ int main(int argc, char* argv[], char* envp[]) {
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1 : 0;
 
     ret = load_enclave(&g_pal_enclave, manifest_fd, manifest_path, exec_path, args, args_size, env,
-                       env_size, exec_path_inferred, need_gsgx);
+                       env_size, need_gsgx);
     if (ret < 0) {
         SGX_DBG(DBG_E, "load_enclave() failed with error %d\n", ret);
     }

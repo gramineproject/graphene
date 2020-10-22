@@ -366,12 +366,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     PAL_HANDLE manifest, exec = NULL;
 
     manifest = setup_dummy_file_handle(g_pal_sec.manifest_name);
-
-    if (g_pal_sec.exec_name[0] != '\0') {
-        exec = setup_dummy_file_handle(g_pal_sec.exec_name);
-    } else {
-        SGX_DBG(DBG_I, "Run without executable\n");
-    }
+    exec = setup_dummy_file_handle(g_pal_sec.exec_name);
 
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
     void* manifest_addr = g_enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);

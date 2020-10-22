@@ -63,7 +63,6 @@ manifests = \
 	Bootstrap2.manifest \
 	Bootstrap3.manifest \
 	Bootstrap4.manifest \
-	Bootstrap5.manifest \
 	Bootstrap6.manifest \
 	Bootstrap7.manifest \
 	File.manifest \
@@ -132,13 +131,6 @@ Thread2_exitless: Thread2
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
-ifeq ($(SGX), 1)
-# Bootstrap5.manifest doesn't have main executable, but only preloaded
-# libraries. Static pattern rule is needed to override the implicit pattern
-# rule defined in Pal/src/host/Linux-SGX/Makefile.Test.
-Bootstrap5.manifest.sgx.d: %.manifest.sgx.d: %.manifest
-	$(call cmd,sgx_sign_depend)
-endif
 endif
 
 $(graphene_lib):
