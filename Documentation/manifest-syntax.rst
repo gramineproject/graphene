@@ -43,8 +43,7 @@ Preloaded libraries
 
 This syntax specifies the libraries to be preloaded before loading the
 executable. The URIs of the libraries must be separated by commas. The libraries
-must be ELF binaries. This syntax currently always contains the LibOS library
-``libsysdb.so``.
+must be ELF binaries. This usually contains the LibOS library ``libsysdb.so``.
 
 Command-line arguments
 ^^^^^^^^^^^^^^^^^^^^^^

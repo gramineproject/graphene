@@ -33,7 +33,7 @@ To run a program in Graphene properly, the PAL loader generally requires both a
 manifest and an executable, although it is possible to load with only one of
 them. The user shall specify either the manifest or the executable to load in
 the command line, and the PAL loader will try to locate the other based on the
-file name or content.
+file name.
 
 Precisely, the loading rules for the manifest and executable are as follows:
 
@@ -47,8 +47,6 @@ Precisely, the loading rules for the manifest and executable are as follows:
    to infer the executable. The potential executable file has the same file name
    as the manifest file except it doesn't have the `.manifest` or
    `.manifest.sgx` extension.
-#. If a manifest is given to the command line, and no executable file can be
-   found, then no executable is used for the execution.
 
 
 Data types and variables

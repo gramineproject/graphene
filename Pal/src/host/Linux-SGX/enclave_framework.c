@@ -747,11 +747,9 @@ int init_trusted_files(void) {
     char* k;
     char* tmp;
 
-    if (g_pal_sec.exec_name[0] != '\0') {
-        ret = init_trusted_file("exec", g_pal_sec.exec_name);
-        if (ret < 0)
-            goto out;
-    }
+    ret = init_trusted_file("exec", g_pal_sec.exec_name);
+    if (ret < 0)
+        goto out;
 
     cfgbuf = malloc(CONFIG_MAX);
     if (!cfgbuf) {

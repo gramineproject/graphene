@@ -241,16 +241,12 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         g_linux_state.parent_process_id = g_linux_state.process_id;
 
     if (first_process) {
-        // We need to find a binary to run.
-        const char* exec_target = argv[3];
-        size_t size = URI_PREFIX_FILE_LEN + strlen(exec_target) + 1;
-        char* uri = malloc(size);
-        if (!uri)
+        char* exec_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, argv[3], -1);
+        if (!exec_uri)
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
-        snprintf(uri, size, URI_PREFIX_FILE "%s", exec_target);
         PAL_HANDLE file;
-        int ret = _DkStreamOpen(&file, uri, PAL_ACCESS_RDONLY, 0, 0, PAL_OPTION_CLOEXEC);
-        free(uri);
+        int ret = _DkStreamOpen(&file, exec_uri, PAL_ACCESS_RDONLY, 0, 0, PAL_OPTION_CLOEXEC);
+        free(exec_uri);
         if (ret < 0)
             INIT_FAIL(-ret, "Failed to open file to execute");
 
