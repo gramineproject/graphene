@@ -16,6 +16,7 @@
 #include "shim_table.h"
 #include "shim_utils.h"
 #include "shim_vma.h"
+#include "toml.h"
 
 static struct {
     size_t data_segment_size;
@@ -27,6 +28,8 @@ static struct {
 static struct shim_lock brk_lock = {.lock = NULL};
 
 int init_brk_region(void* brk_start, size_t data_segment_size) {
+    int ret;
+
     if (!create_lock(&brk_lock)) {
         debug("Creating brk_lock failed!\n");
         return -ENOMEM;
@@ -41,10 +44,27 @@ int init_brk_region(void* brk_start, size_t data_segment_size) {
     size_t brk_max_size = DEFAULT_BRK_MAX_SIZE;
     data_segment_size = ALLOC_ALIGN_UP(data_segment_size);
 
-    if (root_config) {
-        char brk_cfg[CONFIG_MAX];
-        if (get_config(root_config, "sys.brk.max_size", brk_cfg, sizeof(brk_cfg)) > 0)
-            brk_max_size = parse_size_str(brk_cfg);
+    /* Reading sys.brk.max_size from manifest (as string because of the size suffix) */
+    assert(g_manifest_root);
+    char* sys_brk_max_size_str = NULL;
+    toml_table_t* manifest_sys = toml_table_in(g_manifest_root, "sys");
+    if (manifest_sys) {
+        toml_table_t* manifest_sys_brk = toml_table_in(manifest_sys, "brk");
+        if (manifest_sys_brk) {
+            toml_raw_t sys_brk_max_size_raw = toml_raw_in(manifest_sys_brk, "max_size");
+            if (sys_brk_max_size_raw) {
+                ret = toml_rtos(sys_brk_max_size_raw, &sys_brk_max_size_str);
+                if (ret < 0) {
+                    debug("Cannot read \'sys.brk.max_size\' (it must be put in quotes!)\n");
+                    return -EINVAL;
+                }
+            }
+        }
+    }
+
+    if (sys_brk_max_size_str) {
+        brk_max_size = parse_size_str(sys_brk_max_size_str);
+        free(sys_brk_max_size_str);
     }
 
     if (brk_start && !IS_ALLOC_ALIGNED_PTR(brk_start)) {

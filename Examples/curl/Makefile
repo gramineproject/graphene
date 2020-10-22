@@ -49,7 +49,7 @@ curl-trusted-libs: curl-deps
 	@for F in `cat curl-deps`; do \
 		P=`ldd $(CURL_DIR)/curl | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '.' | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 
 curl.manifest: curl.manifest.template curl-trusted-libs

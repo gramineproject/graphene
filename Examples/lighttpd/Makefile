@@ -84,14 +84,14 @@ lighttpd-trusted-libs: lighttpd-deps
 	for F in `cat lighttpd-deps`; do \
 		P=`$(LDD) $$LIGHTTPD_LIBS $(INSTALL_DIR)/sbin/lighttpd | $(GREP) $$F | $(AWK) '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 
 .INTERMEDIATE: lighttpd-trusted-mods
 lighttpd-trusted-mods:
 	@for F in $(LIGHTTPD_LIBS); do \
 		N=`basename $$F .so | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$F\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
 	done > $@
 
 lighttpd.manifest: lighttpd.manifest.template lighttpd-trusted-libs lighttpd-trusted-mods

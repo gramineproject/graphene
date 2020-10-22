@@ -1,5 +1,5 @@
-loader.debug_type = inline
-loader.argv0_override = SendHandle
+loader.debug_type = "inline"
+loader.argv0_override = "SendHandle"
 loader.insecure__use_cmdline_argv = 1
 
-sgx.allowed_files.tmp = file:to_send.tmp
+sgx.allowed_files.tmp = "file:to_send.tmp"

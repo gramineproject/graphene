@@ -1,4 +1,4 @@
-loader.debug_type = inline
+loader.debug_type = "inline"
 loader.insecure__use_cmdline_argv = 1
 
-fs.mount.root.uri = file:
+fs.mount.root.uri = "file:"

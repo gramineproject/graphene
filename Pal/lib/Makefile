@@ -104,7 +104,6 @@ $(filter-out crypto/mbedtls/crypto/library/aes.c,$(patsubst %.o,%.c,$(crypto_mbe
 objs += \
 	avl_tree.o \
 	crypto/udivmodti4.o \
-	graphene/config.o \
 	graphene/path.o \
 	network/hton.o \
 	network/inet_pton.o \
@@ -160,12 +159,11 @@ TOML_H_CHECKSUM ?= e79d6d272576561e1b46ee001b0dd6b554330843e6fc7c658a548c659f282
 TOML_C_URI ?= https://raw.githubusercontent.com/cktan/tomlc99/5be06807ad5f2230cad99e15380c4f4076c9dd83/toml.c
 TOML_C_CHECKSUM ?= c21a546ab767a7e40d4f65df179d70357059c15e4439e1980d791625655fbbc6
 
-../include/lib/toml.h:
-	../../Scripts/download --output $@ --url $(TOML_H_URI) --sha256 $(TOML_H_CHECKSUM)
-
-toml.c: ../include/lib/toml.h
-	../../Scripts/download --output $@ --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
+toml.c:
+	../../Scripts/download --output toml.c --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
+	../../Scripts/download --output toml.h --url $(TOML_H_URI) --sha256 $(TOML_H_CHECKSUM)
 	patch -p1 -l < toml.patch || exit 255
+	mv toml.h ../include/lib/toml.h
 
 .PHONY: clean
 clean:
@@ -175,4 +173,4 @@ clean:
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls
 	$(RM) ../include/lib/uthash.h
-	$(RM) ../include/lib/toml.h toml.c
+	$(RM) ../include/lib/toml.h toml.h toml.c

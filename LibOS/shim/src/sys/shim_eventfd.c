@@ -17,17 +17,30 @@
 #include "shim_internal.h"
 #include "shim_table.h"
 #include "shim_utils.h"
+#include "toml.h"
 
 static int create_eventfd(PAL_HANDLE* efd, unsigned count, int flags) {
-    if (!root_config) {
-        /* eventfd must be explicitly allowed in manifest; error out if no manifest found */
-        return -ENOSYS;
+    int ret;
+    bool allow_eventfd = false;
+
+    /* Reading sys.insecure__allow_eventfd from manifest */
+    assert(g_manifest_root);
+    toml_table_t* manifest_sys = toml_table_in(g_manifest_root, "sys");
+    if (manifest_sys) {
+        toml_raw_t allow_eventfd_raw = toml_raw_in(manifest_sys, "insecure__allow_eventfd");
+        if (allow_eventfd_raw) {
+            int64_t allow_eventfd_int;
+            ret = toml_rtoi(allow_eventfd_raw, &allow_eventfd_int);
+            if (ret < 0) {
+                debug("Cannot read \'sys.insecure__allow_eventfd\'\n");
+                return -ENOSYS;
+            }
+
+            allow_eventfd = !!allow_eventfd_int;
+        }
     }
 
-    char eventfd_cfg[2];
-    ssize_t len =
-        get_config(root_config, "sys.insecure__allow_eventfd", eventfd_cfg, sizeof(eventfd_cfg));
-    if (len != 1 || eventfd_cfg[0] != '1') {
+    if (!allow_eventfd) {
         /* eventfd is not explicitly allowed in manifest */
         return -ENOSYS;
     }

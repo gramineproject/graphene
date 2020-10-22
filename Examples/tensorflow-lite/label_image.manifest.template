@@ -1,31 +1,31 @@
-loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
-loader.env.LD_LIBRARY_PATH = /lib:.
-loader.env.PATH = /bin:/usr/bin
-loader.debug_type = none
+loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+loader.env.LD_LIBRARY_PATH = "/lib:."
+loader.env.PATH = "/bin:/usr/bin"
+loader.debug_type = "none"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
-fs.mount.lib1.type = chroot
-fs.mount.lib1.path = /lib
-fs.mount.lib1.uri = file:$(GRAPHENEDIR)/Runtime
+fs.mount.lib1.type = "chroot"
+fs.mount.lib1.path = "/lib"
+fs.mount.lib1.uri = "file:$(GRAPHENEDIR)/Runtime"
 
 # Minimum amount of memory to make it work.
-sgx.enclave_size = 512M
+sgx.enclave_size = "512M"
 
 # We test with 4 TensorFlow threads, so over-approximate to 16 enclave threads.
 sgx.thread_num = 16
 
-sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
-sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
-sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
-sgx.trusted_files.libcpp = file:$(GRAPHENEDIR)/Runtime/libstdc++.so.6
-sgx.trusted_files.libgcc = file:$(GRAPHENEDIR)/Runtime/libgcc_s.so.1
-sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
-sgx.trusted_files.librt = file:$(GRAPHENEDIR)/Runtime/librt.so.1
-sgx.trusted_files.libtensorflowframework = file:libtensorflow_framework.so
+sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
+sgx.trusted_files.libdl = "file:$(GRAPHENEDIR)/Runtime/libdl.so.2"
+sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
+sgx.trusted_files.libcpp = "file:$(GRAPHENEDIR)/Runtime/libstdc++.so.6"
+sgx.trusted_files.libgcc = "file:$(GRAPHENEDIR)/Runtime/libgcc_s.so.1"
+sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
+sgx.trusted_files.librt = "file:$(GRAPHENEDIR)/Runtime/librt.so.1"
+sgx.trusted_files.libtensorflowframework = "file:libtensorflow_framework.so"
 
-sgx.trusted_files.model = file:inception_v3.tflite
-sgx.allowed_files.image = file:image.bmp
-sgx.trusted_files.labels = file:labels.txt
+sgx.trusted_files.model = "file:inception_v3.tflite"
+sgx.allowed_files.image = "file:image.bmp"
+sgx.trusted_files.labels = "file:labels.txt"

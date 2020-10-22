@@ -171,7 +171,7 @@ client_dcap-deps: client_dcap-list
 client_dcap-trusted-libs: client_dcap-deps
 	@for F in `cat $<`; do \
 		N=`basename $$F | tr --delete '.' | tr --delete '-' | tr --delete '+'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$F\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
 	done > $@
 
 client_dcap.manifest: client.manifest.template client_dcap-trusted-libs
@@ -213,7 +213,7 @@ client_epid-deps: client_epid-list
 client_epid-trusted-libs: client_epid-deps
 	@for F in `cat $<`; do \
 		N=`basename $$F | tr --delete '.' | tr --delete '-' | tr --delete '+'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$F\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
 	done > $@
 
 client_epid.manifest: client.manifest.template client_epid-trusted-libs

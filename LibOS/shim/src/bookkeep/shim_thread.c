@@ -24,6 +24,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 #include "shim_vma.h"
+#include "toml.h"
 
 static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 
@@ -166,6 +167,8 @@ static struct shim_signal_handles* alloc_default_signal_handles(void) {
 }
 
 struct shim_thread* get_new_thread(IDTYPE new_tid) {
+    int ret;
+
     if (!new_tid) {
         new_tid = get_pid();
         if (!new_tid) {
@@ -218,12 +221,26 @@ struct shim_thread* get_new_thread(IDTYPE new_tid) {
         /* default pid and pgid equals to tid */
         thread->pgid = thread->tgid = new_tid;
         thread->ppid = 0;
-        /* This case should fall back to the global root of the file system.
-         */
+        /* This case should fall back to the global root of the file system */
         path_lookupat(NULL, "/", 0, &thread->root, NULL);
-        char dir_cfg[CONFIG_MAX];
-        if (root_config && get_config(root_config, "fs.start_dir", dir_cfg, sizeof(dir_cfg)) > 0) {
-            path_lookupat(NULL, dir_cfg, 0, &thread->cwd, NULL);
+
+        assert(g_manifest_root);
+        char* fs_start_dir = NULL;
+        toml_table_t* manifest_fs = toml_table_in(g_manifest_root, "fs");
+        if (manifest_fs) {
+            toml_raw_t fs_start_dir_raw = toml_raw_in(manifest_fs, "start_dir");
+            if (fs_start_dir_raw) {
+                ret = toml_rtos(fs_start_dir_raw, &fs_start_dir);
+                if (ret < 0) {
+                    debug("Cannot read \'fs.start_dir\' (it must be put in quotes!)\n");
+                    goto out_error;
+                }
+            }
+        }
+
+        if (fs_start_dir) {
+            path_lookupat(NULL, fs_start_dir, 0, &thread->cwd, NULL);
+            free(fs_start_dir);
         } else if (thread->root) {
             get_dentry(thread->root);
             thread->cwd = thread->root;

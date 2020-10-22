@@ -235,26 +235,6 @@ extern const char* const* sys_errlist_internal;
 int get_norm_path(const char* path, char* buf, size_t* size);
 int get_base_name(const char* path, char* buf, size_t* size);
 
-/* Loading configs / manifests */
-
-struct config;
-DEFINE_LISTP(config);
-struct config_store {
-    LISTP_TYPE(config) root;
-    LISTP_TYPE(config) entries;
-    void* raw_data;
-    int raw_size;
-    void* (*malloc)(size_t);
-    void (*free)(void*);
-};
-
-int read_config(struct config_store* store, bool (*filter)(const char*, size_t),
-                const char** errstring);
-ssize_t get_config(struct config_store* cfg, const char* key, char* val_buf, size_t buf_size);
-int get_config_entries(struct config_store* cfg, const char* key, char* key_buf,
-                       size_t key_bufsize);
-ssize_t get_config_entries_size(struct config_store* cfg, const char* key);
-
 /*!
  * \brief Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long.
  *

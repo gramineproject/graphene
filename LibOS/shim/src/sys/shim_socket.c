@@ -44,8 +44,6 @@
 
 #define AF_UNSPEC 0
 
-static int rebase_on_lo __attribute_migratable = -1;
-
 static size_t minimal_addrlen(int domain) {
     switch (domain) {
         case AF_INET:
@@ -55,30 +53,6 @@ static size_t minimal_addrlen(int domain) {
         default:
             return sizeof(struct sockaddr);
     }
-}
-
-static int init_port_rebase(void) {
-    if (rebase_on_lo != -1)
-        return 0;
-
-    char cfg[CONFIG_MAX];
-    int rebase = 0;
-
-    if (!root_config || get_config(root_config, "net.port.rebase_on_lo", cfg, sizeof(cfg)) <= 0) {
-        rebase_on_lo = 0;
-        return 0;
-    }
-
-    for (const char* p = cfg; *p; p++) {
-        if (*p < '0' || *p > '9' || rebase > 32767) {
-            rebase_on_lo = 0;
-            return 0;
-        }
-        rebase = rebase * 10 + (*p - '0');
-    }
-
-    rebase_on_lo = rebase;
-    return 0;
 }
 
 static int inet_parse_addr(int domain, int type, const char* uri, struct addr_inet* bind,
@@ -159,26 +133,12 @@ static int unix_create_uri(char* uri, int count, enum shim_sock_state state, cha
 }
 
 static void inet_rebase_port(bool reverse, int domain, struct addr_inet* addr, bool local) {
-    init_port_rebase();
-
-    if (rebase_on_lo) {
-        if (domain == AF_INET) {
-            unsigned char* ad = (unsigned char*)&addr->addr.v4.s_addr;
-            if (!local && memcmp(ad, "\177\0\0\1", 4))
-                return;
-        }
-
-        if (domain == AF_INET6) {
-            unsigned short* ad = (void*)&addr->addr.v6.s6_addr;
-            if (!local && memcmp(ad, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1", 16))
-                return;
-        }
-    }
-
+    __UNUSED(domain);
+    __UNUSED(local);
     if (reverse)
-        addr->port = addr->ext_port - rebase_on_lo;
+        addr->port = addr->ext_port;
     else
-        addr->ext_port = addr->port + rebase_on_lo;
+        addr->ext_port = addr->port;
 }
 
 static ssize_t inet_translate_addr(int domain, char* uri, size_t count, struct addr_inet* addr) {

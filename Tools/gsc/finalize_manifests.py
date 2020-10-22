@@ -43,7 +43,7 @@ def generate_trusted_files(root_dir):
                 and is_ascii(filename)
                 and os.path.isfile(filename)
                 and filename != script_file):
-                trusted_files += f'sgx.trusted_files.file{num_trusted} = file:{filename}\n'
+                trusted_files += f'sgx.trusted_files.file{num_trusted} = "file:{filename}"\n'
                 num_trusted += 1
 
     print(f'Found {num_trusted} files in \'{root_dir}\'.')
@@ -124,7 +124,7 @@ def main(args=None):
         print(f'\tWrote {manifest}.')
 
         trusted_signatures.append(f'sgx.trusted_children.child{len(trusted_signatures)}'
-                                  f' = file:{executable}.sig')
+                                  f' = "file:{executable}.sig"')
 
         with open('signing_order.txt', 'a+') as sig_order:
             print(executable, file=sig_order)

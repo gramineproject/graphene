@@ -109,7 +109,7 @@ cc1-ldd: cc1
 	for F in `cat $<`; do \
 		P=`cat $*-ldd | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 
 .PHONY: check

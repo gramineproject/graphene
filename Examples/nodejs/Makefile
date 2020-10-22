@@ -49,7 +49,7 @@ nodejs-trusted-libs: nodejs-deps
 	@for F in `cat nodejs-deps`; do \
 		P=`ldd $(NODEJS_DIR)nodejs | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '.' | tr --delete '-' | tr --delete '+'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 
 nodejs.manifest: nodejs.manifest.template nodejs-trusted-libs

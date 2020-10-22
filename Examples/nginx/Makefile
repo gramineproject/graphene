@@ -91,7 +91,7 @@ nginx-trusted-libs: nginx-deps
 	for F in `cat nginx-deps`; do \
 		P=`ldd $$HTTPD_LIBS | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 
 nginx.manifest: nginx.manifest.template nginx-trusted-libs

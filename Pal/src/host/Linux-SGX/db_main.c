@@ -26,6 +26,7 @@
 #include "pal_security.h"
 #include "protected_files.h"
 #include "sysdeps/generic/ldsodefs.h"
+#include "toml.h"
 
 #define RTLD_BOOTSTRAP
 #define _ENTRY enclave_entry
@@ -105,12 +106,6 @@ static PAL_HANDLE setup_dummy_file_handle(const char* name) {
     handle->file.stubs = NULL;
 
     return handle;
-}
-
-static bool loader_filter(const char* key, size_t len) {
-    // beware: `key` may not be NUL-terminated!
-    return (len >= strlen("loader.") && !memcmp(key, "loader.", strlen("loader.")))
-        || (len >= strlen("sgx.") && !memcmp(key, "sgx.", strlen("sgx.")));
 }
 
 /*
@@ -371,28 +366,40 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
     void* manifest_addr = g_enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
 
-    /* parse manifest data into config storage */
-    struct config_store* root_config = malloc(sizeof(struct config_store));
-    root_config->raw_data = manifest_addr;
-    root_config->raw_size = manifest_size;
-    root_config->malloc   = malloc;
-    root_config->free     = free;
-
-    const char* errstring = NULL;
-    if ((rv = read_config(root_config, loader_filter, &errstring)) < 0) {
-        SGX_DBG(DBG_E, "Can't read manifest: %s, error code %d\n", errstring, rv);
-        ocall_exit(1, /*is_exitgroup=*/true);
-    }
-
-    g_pal_state.root_config = root_config;
     g_pal_control.manifest_preload.start = (PAL_PTR)manifest_addr;
     g_pal_control.manifest_preload.end   = (PAL_PTR)manifest_addr + manifest_size;
 
-    char cfgbuf[CONFIG_MAX];
-    ssize_t len = get_config(g_pal_state.root_config, "loader.pal_internal_mem_size", cfgbuf,
-                             sizeof(cfgbuf));
-    if (len > 0) {
-        g_pal_internal_mem_size = parse_size_str(cfgbuf);
+    /* parse manifest data into config storage */
+    char errbuf[256];
+    toml_table_t* manifest_root = toml_parse(manifest_addr, errbuf, sizeof(errbuf));
+    if (!manifest_root) {
+        SGX_DBG(DBG_E, "PAL failed at parsing the manifest: %s\n"
+                "Graphene switched to the TOML format, please update the manifest "
+                "(in particular, strings must be put in quotes)\n", errbuf);
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+
+    g_pal_state.manifest_root = manifest_root;
+
+    /* for convenience, get a reference to the manifest's "loader" table */
+    g_pal_state.manifest_loader = toml_table_in(g_pal_state.manifest_root, "loader");
+
+    /* read loader.pal_internal_mem_size from manifest (as string because of the size suffix) */
+    if (g_pal_state.manifest_loader) {
+        toml_raw_t pal_internal_mem_size_raw = toml_raw_in(g_pal_state.manifest_loader,
+                                                           "pal_internal_mem_size");
+        if (pal_internal_mem_size_raw) {
+            char* pal_internal_mem_size_str = NULL;
+            ret = toml_rtos(pal_internal_mem_size_raw, &pal_internal_mem_size_str);
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Cannot read \'loader.pal_internal_mem_size\' "
+                        "(it must be put in quotes!)\n");
+                ocall_exit(1, true);
+            }
+
+            g_pal_internal_mem_size = parse_size_str(pal_internal_mem_size_str);
+            free(pal_internal_mem_size_str);
+        }
     }
 
     if ((rv = init_trusted_files()) < 0) {

@@ -15,6 +15,7 @@
 #include "pal_security.h"
 #include "sgx_rtld.h"
 #include "sysdep-arch.h"
+#include "toml.h"
 
 #define IS_ERR   INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
@@ -62,7 +63,9 @@ extern struct pal_enclave {
     int token;
 
     /* manifest */
-    struct config_store* config;
+    toml_table_t* manifest_root;
+    toml_table_t* manifest_loader;
+    toml_table_t* manifest_sgx;
 
     /* Path to the PAL binary */
     char* libpal_uri;

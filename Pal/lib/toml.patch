@@ -174,3 +174,29 @@ index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a
  }
  
  int toml_rtod(toml_raw_t src, double* ret_)
+diff --git a/toml.h b/toml.h
+index d541ec88b24283bb97050aa090f36e0aa7604d87..e7d5a40ed3781035e13d6a5003c05ee38f9a734a 100644
+--- a/toml.h
++++ b/toml.h
+@@ -26,7 +26,6 @@
+ #define TOML_H
+ 
+ 
+-#include <stdio.h>
+ #include <stdint.h>
+ 
+ 
+@@ -42,13 +41,6 @@ typedef struct toml_array_t toml_array_t;
+ /* A raw value, must be processed by toml_rto* before using. */
+ typedef const char* toml_raw_t;
+ 
+-/* Parse a file. Return a table on success, or 0 otherwise. 
+- * Caller must toml_free(the-return-value) after use.
+- */
+-TOML_EXTERN toml_table_t* toml_parse_file(FILE* fp, 
+-										  char* errbuf,
+-										  int errbufsz);
+-
+ /* Parse a string containing the full config. 
+  * Return a table on success, or 0 otherwise.
+  * Caller must toml_free(the-return-value) after use.

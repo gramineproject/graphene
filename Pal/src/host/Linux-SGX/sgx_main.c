@@ -14,6 +14,7 @@
 #include "pal_linux_error.h"
 #include "pal_rtld.h"
 #include "hex.h"
+#include "toml.h"
 
 #include "gdb_integration/sgx_gdb.h"
 #include "linux_utils.h"
@@ -191,16 +192,27 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         goto out;
     }
 
-    char cfgbuf[CONFIG_MAX];
+    assert(enclave->manifest_root && enclave->manifest_sgx);
 
-    /* Reading sgx.enclave_size from manifest */
-    if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, sizeof(cfgbuf)) <= 0) {
-        SGX_DBG(DBG_E, "Enclave size is not specified\n");
+    /* Reading sgx.enclave_size from manifest (as string because of the size suffix) */
+    toml_raw_t enclave_size_raw = toml_raw_in(enclave->manifest_sgx, "enclave_size");
+    if (!enclave_size_raw) {
+        SGX_DBG(DBG_E, "Enclave size (\'sgx.enclave_size\') is not specified\n");
         ret = -EINVAL;
         goto out;
     }
 
-    enclave->size = parse_size_str(cfgbuf);
+    char* enclave_size_str = NULL;
+    ret = toml_rtos(enclave_size_raw, &enclave_size_str);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot read \'sgx.enclave_size\' (it must be put in quotes!)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    enclave->size = parse_size_str(enclave_size_str);
+    free(enclave_size_str);
+
     if (!enclave->size || !IS_POWER_OF_2(enclave->size)) {
         SGX_DBG(DBG_E, "Enclave size not a power of two (an SGX-imposed requirement)\n");
         ret = -EINVAL;
@@ -208,39 +220,88 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     }
 
     /* Reading sgx.thread_num from manifest */
-    if (get_config(enclave->config, "sgx.thread_num", cfgbuf, sizeof(cfgbuf)) > 0) {
-        enclave->thread_num = parse_size_str(cfgbuf);
-
-        if (enclave->thread_num > MAX_DBG_THREADS) {
-            SGX_DBG(DBG_E, "Too many threads to debug\n");
+    toml_raw_t thread_num_raw = toml_raw_in(enclave->manifest_sgx, "thread_num");
+    if (!thread_num_raw) {
+        SGX_DBG(DBG_I, "Number of enclave threads (\'sgx.thread_num\') is not specified; "
+                       "assumed to by 1\n");
+        enclave->thread_num = 1;
+    } else {
+        int64_t thread_num_int;
+        ret = toml_rtoi(thread_num_raw, &thread_num_int);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Cannot read \'sgx.thread_num\'\n");
             ret = -EINVAL;
             goto out;
         }
-    } else {
-        enclave->thread_num = 1;
+
+        if (thread_num_int < 0) {
+            SGX_DBG(DBG_E, "Negative \'sgx.thread_num\' is impossible\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        if (thread_num_int > MAX_DBG_THREADS) {
+            SGX_DBG(DBG_E, "Too large \'sgx.thread_num\', maximum allowed is %d\n",
+                    MAX_DBG_THREADS);
+            ret = -EINVAL;
+            goto out;
+        }
+
+        enclave->thread_num = thread_num_int;
     }
 
-    if (get_config(enclave->config, "sgx.rpc_thread_num", cfgbuf, sizeof(cfgbuf)) > 0) {
-        enclave->rpc_thread_num = parse_size_str(cfgbuf);
-
-        if (enclave->rpc_thread_num > MAX_RPC_THREADS) {
-            SGX_DBG(DBG_E, "Too many RPC threads specified\n");
+    /* Reading sgx.rpc_thread_num from manifest */
+    toml_raw_t rpc_thread_num_raw = toml_raw_in(enclave->manifest_sgx, "rpc_thread_num");
+    if (!rpc_thread_num_raw) {
+        enclave->rpc_thread_num = 0; /* by default, do not use exitless feature */
+    } else {
+        int64_t rpc_thread_num_int;
+        ret = toml_rtoi(rpc_thread_num_raw, &rpc_thread_num_int);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Cannot read \'sgx.rpc_thread_num\'\n");
             ret = -EINVAL;
             goto out;
         }
 
-        if (enclave->rpc_thread_num && enclave->thread_num > RPC_QUEUE_SIZE) {
+        if (rpc_thread_num_int < 0) {
+            SGX_DBG(DBG_E, "Negative \'sgx.rpc_thread_num\' is impossible\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        if (rpc_thread_num_int > MAX_RPC_THREADS) {
+            SGX_DBG(DBG_E, "Too large \'sgx.rpc_thread_num\', maximum allowed is %d\n",
+                    MAX_RPC_THREADS);
+            ret = -EINVAL;
+            goto out;
+        }
+
+        if (rpc_thread_num_int && enclave->thread_num > RPC_QUEUE_SIZE) {
             SGX_DBG(DBG_E,
                     "Too many threads for exitless feature (more than capacity of RPC queue)\n");
             ret = -EINVAL;
             goto out;
         }
-    } else {
-        enclave->rpc_thread_num = 0; /* by default, do not use exitless feature */
+
+        enclave->rpc_thread_num = rpc_thread_num_int;
     }
 
-    if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0
-            && cfgbuf[0] == '1') {
+    /* Reading sgx.static_address from manifest */
+    bool static_address = false;
+    toml_raw_t static_address_raw = toml_raw_in(enclave->manifest_sgx, "static_address");
+    if (static_address_raw) {
+        int64_t static_address_int;
+        ret = toml_rtoi(static_address_raw, &static_address_int);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Cannot read \'sgx.static_address\'\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        static_address = !!static_address_int;
+    }
+
+    if (static_address) {
         /* executable is static, i.e. it is non-PIE: enclave base address must cover code segment
          * loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this) */
         enclave->baseaddr = DEFAULT_ENCLAVE_BASE;
@@ -252,9 +313,19 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         enclave_heap_min  = 0;
     }
 
-    if (get_config(enclave->config, "sgx.enable_stats", cfgbuf, sizeof(cfgbuf)) > 0 &&
-            cfgbuf[0] == '1') {
-        g_sgx_enable_stats = true;
+    /* Reading sgx.enable_stats from manifest */
+    g_sgx_enable_stats = false;
+    toml_raw_t enable_stats_raw = toml_raw_in(enclave->manifest_sgx, "enable_stats");
+    if (enable_stats_raw) {
+        int64_t enable_stats_int;
+        ret = toml_rtoi(enable_stats_raw, &enable_stats_int);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Cannot read \'sgx.enable_stats\'\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        g_sgx_enable_stats = !!enable_stats_int;
     }
 
     ret = read_enclave_token(enclave->token, &enclave_token);
@@ -622,8 +693,9 @@ static void create_instance(struct pal_sec* pal_sec) {
     pal_sec->instance_id = id;
 }
 
-static int load_manifest(int fd, struct config_store** config_ptr) {
+static int load_manifest(int fd, toml_table_t** manifest_root_ptr) {
     int ret = 0;
+    toml_table_t* manifest_root = NULL;
 
     int nbytes = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_END);
     if (IS_ERR(nbytes)) {
@@ -631,39 +703,31 @@ static int load_manifest(int fd, struct config_store** config_ptr) {
         return -ERRNO(nbytes);
     }
 
-    struct config_store* config = malloc(sizeof(struct config_store));
-    if (!config) {
-        SGX_DBG(DBG_E, "Not enough memory for config_store of manifest\n");
-        return -ENOMEM;
-    }
-
-    void* config_raw = (void*)INLINE_SYSCALL(mmap, 6, NULL, nbytes, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (IS_ERR_P(config_raw)) {
+    void* manifest_addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, nbytes, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (IS_ERR_P(manifest_addr)) {
         SGX_DBG(DBG_E, "Cannot mmap manifest file\n");
-        ret = -ERRNO_P(config_raw);
+        ret = -ERRNO_P(manifest_addr);
         goto out;
     }
 
-    config->raw_data = config_raw;
-    config->raw_size = nbytes;
-    config->malloc   = malloc;
-    config->free     = NULL;
-
-    const char* errstring = NULL;
-    ret = read_config(config, NULL, &errstring);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot read manifest: %s\n", errstring);
+    char errbuf[256];
+    manifest_root = toml_parse(manifest_addr, errbuf, sizeof(errbuf));
+    if (!manifest_root) {
+        SGX_DBG(DBG_E, "PAL failed at parsing the manifest: %s\n"
+                "Graphene switched to the TOML format, please update the manifest "
+                "(in particular, strings must be put in quotes)\n", errbuf);
+        ret = -EINVAL;
         goto out;
     }
 
-    *config_ptr = config;
+    *manifest_root_ptr = manifest_root;
     ret = 0;
 
 out:
     if (ret < 0) {
-        free(config);
-        if (!IS_ERR_P(config_raw))
-            INLINE_SYSCALL(munmap, 2, config_raw, nbytes);
+        toml_free(manifest_root);
+        if (!IS_ERR_P(manifest_addr))
+            INLINE_SYSCALL(munmap, 2, manifest_addr, nbytes);
     }
     return ret;
 }
@@ -722,7 +786,6 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
                         char* exec_path, char* args, size_t args_size, char* env, size_t env_size,
                         bool need_gsgx) {
     struct pal_sec* pal_sec = &enclave->pal_sec;
-    char cfgbuf[CONFIG_MAX];
     int ret;
     size_t exec_path_len = strlen(exec_path);
 
@@ -769,9 +832,17 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 
     enclave->manifest = manifest_fd;
 
-    ret = load_manifest(enclave->manifest, &enclave->config);
+    ret = load_manifest(enclave->manifest, &enclave->manifest_root);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Invalid manifest: %s\n", manifest_path);
+        return -EINVAL;
+    }
+
+    /* for convenience, get a reference to the manifest's "loader" and "sgx" tables */
+    enclave->manifest_loader = toml_table_in(enclave->manifest_root, "loader");
+    enclave->manifest_sgx    = toml_table_in(enclave->manifest_root, "sgx");
+    if (!enclave->manifest_sgx) {
+        SGX_DBG(DBG_E, "Manifest does not contain a required section \'sgx\'\n");
         return -EINVAL;
     }
 
@@ -792,7 +863,8 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return -EINVAL;
     }
 
-    if (get_config(enclave->config, "sgx.sigfile", cfgbuf, sizeof(cfgbuf)) >= 0) {
+    toml_raw_t sgx_sigfile_raw = toml_raw_in(enclave->manifest_sgx, "sigfile");
+    if (sgx_sigfile_raw) {
         SGX_DBG(DBG_E, "sgx.sigfile is not supported anymore. Please update your manifest "
                        "according to the current documentation.\n");
         return -EINVAL;
@@ -850,9 +922,10 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     if (ret < 0)
         return ret;
 
-    if (get_config(enclave->config, "sgx.remote_attestation", cfgbuf, sizeof(cfgbuf)) < 0 &&
-            (get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0 ||
-             get_config(enclave->config, "sgx.ra_client_linkable", cfgbuf, sizeof(cfgbuf)) > 0)) {
+    toml_raw_t sgx_remote_attestation_raw = toml_raw_in(enclave->manifest_sgx, "remote_attestation");
+    toml_raw_t sgx_ra_client_spid_raw     = toml_raw_in(enclave->manifest_sgx, "ra_client_spid");
+    toml_raw_t sgx_ra_client_linkable_raw = toml_raw_in(enclave->manifest_sgx, "ra_client_linkable");
+    if (!sgx_remote_attestation_raw && (sgx_ra_client_spid_raw || sgx_ra_client_linkable_raw)) {
         SGX_DBG(DBG_E,
                 "Detected EPID remote attestation parameters \'ra_client_spid\' and/or "
                 "\'ra_client_linkable\' in the manifest but no \'remote_attestation\' parameter. "
@@ -860,14 +933,36 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return -EINVAL;
     }
 
-    if (get_config(enclave->config, "sgx.remote_attestation", cfgbuf, sizeof(cfgbuf)) > 0) {
-        /* initialize communication with Quoting Enclave only if app requests attestation */
-        bool is_epid; /* EPID is used if SPID is specified in manifest, otherwise DCAP/ECDSA */
-        is_epid = get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0;
-        SGX_DBG(DBG_I, "Using SGX %s attestation\n", is_epid ? "EPID" : "DCAP/ECDSA");
-        ret = init_quoting_enclave_targetinfo(is_epid, &pal_sec->qe_targetinfo);
-        if (ret < 0)
-            return ret;
+    if (sgx_remote_attestation_raw) {
+        int64_t sgx_remote_attestation_int;
+        ret = toml_rtoi(sgx_remote_attestation_raw, &sgx_remote_attestation_int);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Cannot read \'sgx.remote_attestation\'\n");
+            return -EINVAL;
+        }
+
+        /* EPID is used if SPID is a non-empty string in manifest, otherwise DCAP/ECDSA */
+        bool is_epid = false;
+
+        if (sgx_ra_client_spid_raw) {
+            char* sgx_ra_client_spid_str = NULL;
+            ret = toml_rtos(sgx_ra_client_spid_raw, &sgx_ra_client_spid_str);
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Cannot read \'sgx.ra_client_spid\' (it must be put in quotes!)\n");
+                return -EINVAL;
+            }
+            if (strlen(sgx_ra_client_spid_str) > 0)
+                is_epid = true;
+            free(sgx_ra_client_spid_str);
+        }
+
+        if (!!sgx_remote_attestation_int) {
+            /* initialize communication with Quoting Enclave only if app requests attestation */
+            SGX_DBG(DBG_I, "Using SGX %s attestation\n", is_epid ? "EPID" : "DCAP/ECDSA");
+            ret = init_quoting_enclave_targetinfo(is_epid, &pal_sec->qe_targetinfo);
+            if (ret < 0)
+                return ret;
+        }
     }
 
     void* alt_stack = (void*)INLINE_SYSCALL(mmap, 6, NULL, ALT_STACK_SIZE, PROT_READ | PROT_WRITE,

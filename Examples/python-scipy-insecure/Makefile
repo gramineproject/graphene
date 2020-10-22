@@ -48,12 +48,12 @@ PY_LIBS = $(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PY
           $(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so \
           $(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so
 
-PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.ssl = file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.lapack_lite = file:$(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.multiarray = file:$(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.sparsetools = file:$(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n"
+PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = \\\"file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.ctypes = \\\"file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.ssl = \\\"file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.lapack_lite = \\\"file:$(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.multiarray = \\\"file:$(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.sparsetools = \\\"file:$(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n"
 
 # Listing all the Python dependencies, besides Glibc libraries
 .INTERMEDIATE: python-ldd
@@ -72,7 +72,7 @@ python-trusted-libs: python-deps
 	for F in `cat python-deps`; do \
 		P=`ldd $$PY_LIBS | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '+-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 	echo -n "$(PY_LIBS_TRUSTED_LIBS)" >> $@
 

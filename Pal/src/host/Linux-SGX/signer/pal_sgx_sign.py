@@ -20,7 +20,7 @@ ARCHITECTURE = "amd64"
 
 SSAFRAMESIZE = offs.PAGESIZE
 
-DEFAULT_ENCLAVE_SIZE = '256M'
+DEFAULT_ENCLAVE_SIZE = '"256M"'
 DEFAULT_THREAD_NUM = 4
 
 # Utilities
@@ -40,6 +40,7 @@ def rounddown(addr):
 
 
 def parse_size(value):
+    value = value.strip('\"')
     scale = 1
     if value.endswith("K"):
         scale = 1024
@@ -191,6 +192,7 @@ def get_enclave_attributes(manifest):
 # Generate Checksums / Measurement
 
 def resolve_uri(uri, check_exist=True):
+    uri = uri.strip('\"')
     orig_uri = uri
     if uri.startswith('file:'):
         target = os.path.normpath(uri[len('file:'):])
@@ -203,6 +205,7 @@ def resolve_uri(uri, check_exist=True):
 
 # Resolve an URI relative to manifest file to its absolute path
 def resolve_manifest_uri(manifest_path, uri):
+    uri = uri.strip('\"')
     if not uri.startswith('file:'):
         raise Exception('URI ' + uri + ' is not a local file')
     path = uri[len('file:'):]
@@ -225,7 +228,8 @@ def get_trusted_files(manifest, args, check_exist=True, do_checksum=True):
                                                      check_exist))
 
     if 'loader.preload' in manifest:
-        for i, uri in enumerate(str.split(manifest['loader.preload'], ',')):
+        preload_str = manifest['loader.preload'].strip('\"')
+        for i, uri in enumerate(str.split(preload_str, ',')):
             targets['preload' + str(i)] = (uri, resolve_uri(uri, check_exist))
 
     for (key, val) in manifest.items():
@@ -824,13 +828,13 @@ def main_sign(args):
     for key, val in get_trusted_files(manifest, args).items():
         (uri, _, checksum) = val
         print("    %s %s" % (checksum, uri))
-        manifest['sgx.trusted_checksum.' + key] = checksum
+        manifest['sgx.trusted_checksum.' + key] = '"' + checksum + '"'
 
     print("Trusted children:")
     for key, val in get_trusted_children(manifest).items():
         (uri, _, mrenclave) = val
         print("    %s %s" % (mrenclave, uri))
-        manifest['sgx.trusted_mrenclave.' + key] = mrenclave
+        manifest['sgx.trusted_mrenclave.' + key] = '"' + mrenclave + '"'
 
     # Try populate memory areas
     memory_areas = get_memory_areas(attr, args)
