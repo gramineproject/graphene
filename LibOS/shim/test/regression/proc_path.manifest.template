@@ -1,19 +1,18 @@
-loader.preload = file:../../src/libsysdb.so
-loader.env.LD_LIBRARY_PATH = /lib
-loader.debug_type = none
-loader.syscall_symbol = syscalldb
-loader.argv0_override = proc_path
+loader.preload = "file:../../src/libsysdb.so"
+loader.env.LD_LIBRARY_PATH = "/lib"
+loader.debug_type = "none"
+loader.argv0_override = "proc_path"
 
-fs.mount.lib.type = chroot
-fs.mount.lib.path = /lib
-fs.mount.lib.uri = file:../../../../Runtime
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:../../../../Runtime"
 
-fs.mount.bin.type = chroot
-fs.mount.bin.path = /bin
-fs.mount.bin.uri = file:/bin
+fs.mount.bin.type = "chroot"
+fs.mount.bin.path = "/bin"
+fs.mount.bin.uri = "file:/bin"
 
 # sgx-related
-sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
+sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 
 sgx.static_address = 1

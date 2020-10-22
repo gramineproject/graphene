@@ -1,7 +1,7 @@
-loader.debug_type = inline
-loader.preload = file:Preload1.so,file:Preload2.so
-loader.argv0_override = Bootstrap
+loader.debug_type = "inline"
+loader.preload = "file:Preload1.so,file:Preload2.so"
+loader.argv0_override = "Bootstrap"
 
-fs.mount.root.uri = file:
+fs.mount.root.uri = "file:"
 
-sgx.enclave_size = 8192M
+sgx.enclave_size = "8192M"

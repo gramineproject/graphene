@@ -370,14 +370,14 @@ particular, build Graphene in non-debug configuration (simple ``make SGX=1``
 defaults to non-debug configuration). Also build the application itself in
 non-debug configuration (again, typically simple ``make SGX=1`` is sufficient).
 Finally, disable the debug log of Graphene by specifying the manifest option
-``loader.debug_type = none``.
+``loader.debug_type = "none"``.
 
 If your application periodically fails and complains about seemingly irrelevant
 things, it may be due to insufficient enclave memory. Please try to increase
-enclave size by tweaking ``sgx.enclave_size=512M``, ``sgx.enclave_size=1G``,
-``sgx.enclave_size=2G``, and so on. If this doesn't help, it could be due to
-insufficient stack size: in this case try to increase ``sys.stack.size=256K``,
-``sys.stack.size=2M``, ``sys.stack.size=4M`` and so on. Finally, if Graphene
+enclave size by tweaking ``sgx.enclave_size="512M"``, ``sgx.enclave_size="1G"``,
+``sgx.enclave_size="2G"``, and so on. If this doesn't help, it could be due to
+insufficient stack size: in this case try to increase ``sys.stack.size="256K"``,
+``sys.stack.size="2M"``, ``sys.stack.size="4M"`` and so on. Finally, if Graphene
 complains about insufficient number of TCSs or threads, increase
 ``sgx.thread_num=4``, ``sgx.thread_num=8``, ``sgx.thread_num=16``, and so on.
 
@@ -409,7 +409,7 @@ into the SGX enclave. Thus, environment variables like ``OMP_NUM_THREADS`` and
 ``MKL_NUM_THREADS`` are not visible to the graphenized application by default. To
 propagate them into the enclave, either use the insecure manifest option
 ``loader.insecure__use_host_env=1`` (don't use this in production!) or specify them
-explicitly in the manifest via ``loader.env.OMP_NUM_THREADS=8``. Also, it is
+explicitly in the manifest via ``loader.env.OMP_NUM_THREADS="8"``. Also, it is
 always better to specify such environment variables explicitly because a
 graphenized application may determine the number of available CPUs incorrectly.
 

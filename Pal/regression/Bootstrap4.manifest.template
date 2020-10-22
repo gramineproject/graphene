@@ -1,1 +1,1 @@
-loader.argv0_override = Bootstrap
+loader.argv0_override = "Bootstrap"

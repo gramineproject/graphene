@@ -114,7 +114,7 @@ cluster.
 
 #. Create the application-specific Manifest file :file:`python.manifest`::
 
-       sgx.enclave_size = 256M
+       sgx.enclave_size = "256M"
        sgx.thread_num = 4
 
 #. Graphenize the Python image and allow insecure runtime arguments::

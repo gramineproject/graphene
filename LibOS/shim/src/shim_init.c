@@ -27,11 +27,14 @@
 #include "shim_thread.h"
 #include "shim_vdso.h"
 #include "shim_vma.h"
+#include "toml.h"
 
 static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
               "shim_tcb_t does not fit into PAL_TCB; please increase PAL_LIBOS_TCB_SIZE");
 
 size_t g_pal_alloc_align;
+
+toml_table_t* g_manifest_root = NULL;
 
 /* The following constants will help matching glibc version with compatible
    SHIM libraries */
@@ -142,7 +145,7 @@ void* allocate_stack(size_t size, size_t protect_size, bool user) {
     if (bkeep_mprotect(stack, size, PROT_READ | PROT_WRITE, !!(flags & VMA_INTERNAL)) < 0)
         return NULL;
 
-    debug("allocated stack at %p (size = %ld)\n", stack, size);
+    debug("Allocated stack at %p (size = %ld)\n", stack, size);
     return stack;
 }
 
@@ -271,15 +274,19 @@ static int populate_stack(void* stack, size_t stack_size, const char** argv, con
 
 int init_stack(const char** argv, const char** envp, const char*** out_argp,
                elf_auxv_t** out_auxv) {
-    uint64_t stack_size = get_rlimit_cur(RLIMIT_STACK);
+    int ret;
 
-    if (root_config) {
-        char stack_cfg[CONFIG_MAX];
-        if (get_config(root_config, "sys.stack.size", stack_cfg, sizeof(stack_cfg)) > 0) {
-            stack_size = ALLOC_ALIGN_UP(parse_size_str(stack_cfg));
-            set_rlimit_cur(RLIMIT_STACK, stack_size);
-        }
+    assert(g_manifest_root);
+    uint64_t stack_size;
+    ret = toml_sizestring_in(g_manifest_root, "sys.stack.size", get_rlimit_cur(RLIMIT_STACK),
+                             &stack_size);
+    if (ret < 0) {
+        debug("Cannot parse \'sys.stack.size\' (the value must be put in double quotes!)\n");
+        return -EINVAL;
     }
+
+    stack_size = ALLOC_ALIGN_UP(stack_size);
+    set_rlimit_cur(RLIMIT_STACK, stack_size);
 
     struct shim_thread* cur_thread = get_cur_thread();
     if (!cur_thread || cur_thread->stack)
@@ -293,7 +300,7 @@ int init_stack(const char** argv, const char** envp, const char*** out_argp,
     argv = migrated_argv ?: argv;
     envp = migrated_envp ?: envp;
 
-    int ret = populate_stack(stack, stack_size, argv, envp, out_argp, out_auxv);
+    ret = populate_stack(stack, stack_size, argv, envp, out_argp, out_auxv);
     if (ret < 0)
         return ret;
 
@@ -343,21 +350,10 @@ static int read_environs(const char** envp) {
     return 0;
 }
 
-struct config_store* root_config = NULL;
-
-static void* __malloc(size_t size) {
-    return malloc(size);
-}
-
-static void __free(void* mem) {
-    free(mem);
-}
-
 int init_manifest(PAL_HANDLE manifest_handle) {
     int ret = 0;
     void* addr = NULL;
     size_t size = 0, map_size = 0;
-    struct config_store* new_root_config = NULL;
     bool stream_mapped = false;
 
     if (PAL_CB(manifest_preload.start)) {
@@ -386,30 +382,18 @@ int init_manifest(PAL_HANDLE manifest_handle) {
         assert(addr == ret_addr);
     }
 
-    new_root_config = malloc(sizeof(struct config_store));
-    if (!new_root_config) {
-        ret = -ENOMEM;
+    char errbuf[256];
+    g_manifest_root = toml_parse(addr, errbuf, sizeof(errbuf));
+    if (!g_manifest_root) {
+        debug("PAL failed at parsing the manifest: %s\n"
+              "  Graphene switched to the TOML format recently, please update the manifest\n"
+              "  (in particular, string values must be put in double quotes)\n", errbuf);
         goto fail;
     }
 
-    new_root_config->raw_data = addr;
-    new_root_config->raw_size = size;
-    new_root_config->malloc   = __malloc;
-    new_root_config->free     = __free;
-
-    const char* errstring = "Unexpected error";
-
-    if ((ret = read_config(new_root_config, NULL, &errstring)) < 0) {
-        debug("Unable to read manifest file: %s\n", errstring);
-        goto fail;
-    }
-
-    root_config = new_root_config;
     return 0;
 
 fail:
-    free(new_root_config);
-
     if (map_size) {
         void* tmp_vma = NULL;
         if (bkeep_munmap(addr, map_size, /*is_internal=*/true, &tmp_vma) < 0) {
@@ -425,13 +409,13 @@ fail:
 
 #define CALL_INIT(func, args...) func(args)
 
-#define RUN_INIT(func, ...)                                      \
-    do {                                                         \
-        int _err = CALL_INIT(func, ##__VA_ARGS__);               \
-        if (_err < 0) {                                          \
-            debug("shim_init() in " #func " (%d)\n", _err);      \
-            DkProcessExit(_err);                                 \
-        }                                                        \
+#define RUN_INIT(func, ...)                                              \
+    do {                                                                 \
+        int _err = CALL_INIT(func, ##__VA_ARGS__);                       \
+        if (_err < 0) {                                                  \
+            debug("Error during shim_init() in " #func " (%d)\n", _err); \
+            DkProcessExit(_err);                                         \
+        }                                                                \
     } while (0)
 
 extern PAL_HANDLE thread_start_event;
@@ -449,20 +433,20 @@ noreturn void* shim_init(int argc, void* args) {
     struct debug_buf debug_buf;
     debug_setbuf(shim_get_tcb(), &debug_buf);
 
-    debug("host: %s\n", PAL_CB(host_type));
+    debug("Host: %s\n", PAL_CB(host_type));
 
     DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE);
 
     g_pal_alloc_align = PAL_CB(alloc_align);
     if (!IS_POWER_OF_2(g_pal_alloc_align)) {
-        debug("shim_init(): error: PAL allocation alignment not a power of 2\n");
+        debug("Error during shim_init(): PAL allocation alignment not a power of 2\n");
         shim_clean_and_exit(-EINVAL);
     }
 
     shim_xstate_init();
 
     if (!create_lock(&__master_lock)) {
-        debug("shim_init(): error: failed to allocate __master_lock\n");
+        debug("Error during shim_init(): failed to allocate __master_lock\n");
         shim_clean_and_exit(-ENOMEM);
     }
 
@@ -479,7 +463,7 @@ noreturn void* shim_init(int argc, void* args) {
     RUN_INIT(init_dcache);
     RUN_INIT(init_handle);
 
-    debug("shim loaded at %p, ready to initialize\n", &__load_address);
+    debug("Shim loaded at %p, ready to initialize\n", &__load_address);
 
     if (PAL_CB(parent_process)) {
         struct checkpoint_hdr hdr;
@@ -521,7 +505,7 @@ noreturn void* shim_init(int argc, void* args) {
             shim_do_exit(-PAL_ERRNO());
     }
 
-    debug("shim process initialized\n");
+    debug("Shim process initialized\n");
 
     if (thread_start_event)
         DkEventSet(thread_start_event);
@@ -613,12 +597,12 @@ noreturn void shim_clean_and_exit(int exit_code) {
     store_all_msg_persist();
     del_all_ipc_ports();
 
-    debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF, exit_code);
+    debug("Process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF, exit_code);
     MASTER_LOCK();
 
     if (exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
         /* user application specified magic exit code; this should be an extremely rare case */
-        debug("exit status collides with Graphene-internal magic status; changed to 1\n");
+        debug("Exit status collides with Graphene-internal magic status; changed to 1\n");
         exit_code = 1;
     }
     DkProcessExit(exit_code);

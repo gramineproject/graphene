@@ -1,4 +1,4 @@
-loader.argv0_override = Process2
-loader.debug_type = inline
+loader.argv0_override = "Process2"
+loader.debug_type = "inline"
 
-sgx.trusted_children.1 = file:Bootstrap.sig
+sgx.trusted_children.1 = "file:Bootstrap.sig"

@@ -2,14 +2,14 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-loader.argv0_override = nodejs
+loader.argv0_override = "nodejs"
 
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so.
-loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
 # Show/hide debug log of Graphene ('inline' or 'none' respectively).
-loader.debug_type = $(GRAPHENEDEBUG)
+loader.debug_type = "$(GRAPHENEDEBUG)"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
@@ -17,26 +17,26 @@ loader.insecure__use_cmdline_argv = 1
 # Specify paths to search for libraries. The usual LD_LIBRARY_PATH syntax
 # applies. Paths must be in-Graphene visible paths, not host-OS paths (i.e.,
 # paths must be taken from fs.mount.xxx.path, not fs.mount.xxx.uri).
-loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
+loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
 
 # Mount host-OS directory to required libraries (in 'uri') into in-Graphene
 # visible directory /lib (in 'path').
-fs.mount.lib.type = chroot
-fs.mount.lib.path = /lib
-fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
 
-fs.mount.lib2.type = chroot
-fs.mount.lib2.path = $(ARCH_LIBDIR)
-fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
+fs.mount.lib2.type = "chroot"
+fs.mount.lib2.path = "$(ARCH_LIBDIR)"
+fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
 
-fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/$(ARCH_LIBDIR)
-fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
+fs.mount.lib3.type = "chroot"
+fs.mount.lib3.path = "/usr/$(ARCH_LIBDIR)"
+fs.mount.lib3.uri = "file:/usr/$(ARCH_LIBDIR)"
 
 # Set enclave size to 2GB; NodeJS expects around 1.7GB of heap on startup,
 # see e.g. https://github.com/nodejs/node/issues/13018.
 # Recall that SGX v1 requires to specify enclave size at enclave creation time.
-sgx.enclave_size = 2G
+sgx.enclave_size = "2G"
 
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
 # that SGX v1 requires to specify the maximum number of simultaneous threads at
@@ -45,14 +45,14 @@ sgx.thread_num = 8
 
 # Specify all libraries used by Node.js and its dependencies (including all libs
 # which can be loaded at runtime via dlopen).
-sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
-sgx.trusted_files.libm = file:$(GRAPHENEDIR)/Runtime/libm.so.6
-sgx.trusted_files.libdl = file:$(GRAPHENEDIR)/Runtime/libdl.so.2
-sgx.trusted_files.librt = file:$(GRAPHENEDIR)/Runtime/librt.so.1
-sgx.trusted_files.libutil = file:$(GRAPHENEDIR)/Runtime/libutil.so.1
-sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
+sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
+sgx.trusted_files.libdl = "file:$(GRAPHENEDIR)/Runtime/libdl.so.2"
+sgx.trusted_files.librt = "file:$(GRAPHENEDIR)/Runtime/librt.so.1"
+sgx.trusted_files.libutil = "file:$(GRAPHENEDIR)/Runtime/libutil.so.1"
+sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
 $(NODEJS_TRUSTED_LIBS)
 
 # JavaScript (trusted)
-sgx.trusted_files.javascript = file:helloworld.js
+sgx.trusted_files.javascript = "file:helloworld.js"

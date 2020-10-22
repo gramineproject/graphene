@@ -6,80 +6,80 @@
 # Additionally, Blender scenes could allow for code execution (e.g. via bundled scripts), so
 # running untrusted scenes should not be allowed. This can be achieved for example by adding scenes
 # to trusted files or uploading them to a running and attested enclave via secured connection.
-sgx.allowed_files.blender_dir = file:$(BLENDER_DIR)/$(BLENDER_VER)/
-sgx.allowed_files.blender_input = file:$(DATA_DIR)/scenes/
-sgx.allowed_files.blender_output = file:$(DATA_DIR)/images/
+sgx.allowed_files.blender_dir = "file:$(BLENDER_DIR)/$(BLENDER_VER)/"
+sgx.allowed_files.blender_input = "file:$(DATA_DIR)/scenes/"
+sgx.allowed_files.blender_output = "file:$(DATA_DIR)/images/"
 
 
-loader.argv0_override = blender
+loader.argv0_override = "blender"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
-loader.preload = file:$(GRAPHENE_DIR)/Runtime/libsysdb.so
-loader.debug_type = $(GRAPHENE_DEBUG)
+loader.preload = "file:$(GRAPHENE_DIR)/Runtime/libsysdb.so"
+loader.debug_type = "$(GRAPHENE_DEBUG)"
 
-loader.env.LD_LIBRARY_PATH = /graphene_lib:/blender_lib:/usr/$(ARCH_LIBDIR):$(ARCH_LIBDIR)
-loader.env.HOME = /home/user
+loader.env.LD_LIBRARY_PATH = "/graphene_lib:/blender_lib:/usr/$(ARCH_LIBDIR):$(ARCH_LIBDIR)"
+loader.env.HOME = "/home/user"
 # Graphene implicitly copies host environment variables - overwriting troublesome one
-loader.env.PWD =
+loader.env.PWD = ""
 
-fs.mount.graphene_lib.type = chroot
-fs.mount.graphene_lib.path = /graphene_lib
-fs.mount.graphene_lib.uri = file:$(GRAPHENE_DIR)/Runtime
+fs.mount.graphene_lib.type = "chroot"
+fs.mount.graphene_lib.path = "/graphene_lib"
+fs.mount.graphene_lib.uri = "file:$(GRAPHENE_DIR)/Runtime"
 
-fs.mount.blender_lib.type = chroot
-fs.mount.blender_lib.path = /blender_lib
-fs.mount.blender_lib.uri = file:$(BLENDER_DIR)/lib
+fs.mount.blender_lib.type = "chroot"
+fs.mount.blender_lib.path = "/blender_lib"
+fs.mount.blender_lib.uri = "file:$(BLENDER_DIR)/lib"
 
-fs.mount.usr_lib.type = chroot
-fs.mount.usr_lib.path = /usr/$(ARCH_LIBDIR)
-fs.mount.usr_lib.uri = file:/usr/$(ARCH_LIBDIR)
+fs.mount.usr_lib.type = "chroot"
+fs.mount.usr_lib.path = "/usr/$(ARCH_LIBDIR)"
+fs.mount.usr_lib.uri = "file:/usr/$(ARCH_LIBDIR)"
 
-fs.mount.lib.type = chroot
-fs.mount.lib.path = $(ARCH_LIBDIR)
-fs.mount.lib.uri = file:$(ARCH_LIBDIR)
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "$(ARCH_LIBDIR)"
+fs.mount.lib.uri = "file:$(ARCH_LIBDIR)"
 
-fs.mount.scenes.type = chroot
-fs.mount.scenes.path = /data
-fs.mount.scenes.uri = file:$(DATA_DIR)
+fs.mount.scenes.type = "chroot"
+fs.mount.scenes.path = "/data"
+fs.mount.scenes.uri = "file:$(DATA_DIR)"
 
-fs.mount.blender.type = chroot
-fs.mount.blender.path = /blender
-fs.mount.blender.uri = file:$(BLENDER_DIR)
-
-
-sys.stack.size = 8M
+fs.mount.blender.type = "chroot"
+fs.mount.blender.path = "/blender"
+fs.mount.blender.uri = "file:$(BLENDER_DIR)"
 
 
-sgx.enclave_size = 2048M
-sgx.thread_num = 28
+sys.stack.size = "8M"
 
 
-sgx.trusted_files.ld = file:$(GRAPHENE_DIR)/Runtime/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(GRAPHENE_DIR)/Runtime/libc.so.6
-sgx.trusted_files.libdl = file:$(GRAPHENE_DIR)/Runtime/libdl.so.2
-sgx.trusted_files.libm = file:$(GRAPHENE_DIR)/Runtime/libm.so.6
-sgx.trusted_files.libpthread = file:$(GRAPHENE_DIR)/Runtime/libpthread.so.0
-sgx.trusted_files.libutil = file:$(GRAPHENE_DIR)/Runtime/libutil.so.1
-sgx.trusted_files.librt = file:$(GRAPHENE_DIR)/Runtime/librt.so.1
+sgx.enclave_size = "2048M"
+sgx.thread_num = 64
 
-sgx.trusted_files.libGL = file:$(BLENDER_DIR)/lib/libGL.so.1
-sgx.trusted_files.libglapi = file:$(BLENDER_DIR)/lib/libglapi.so.0
 
-sgx.trusted_files.libX11 = file:/usr/$(ARCH_LIBDIR)/libX11.so.6
-sgx.trusted_files.libXi = file:/usr/$(ARCH_LIBDIR)/libXi.so.6
-sgx.trusted_files.libXxf86vm = file:/usr/$(ARCH_LIBDIR)/libXxf86vm.so.1
-sgx.trusted_files.libXfixes = file:/usr/$(ARCH_LIBDIR)/libXfixes.so.3
-sgx.trusted_files.libXrender = file:/usr/$(ARCH_LIBDIR)/libXrender.so.1
-sgx.trusted_files.libgcc_s = file:$(ARCH_LIBDIR)/libgcc_s.so.1
-sgx.trusted_files.libz = file:$(ARCH_LIBDIR)/libz.so.1
-sgx.trusted_files.libXext = file:/usr/$(ARCH_LIBDIR)/libXext.so.6
-sgx.trusted_files.libxcb = file:/usr/$(ARCH_LIBDIR)/libxcb.so.1
-sgx.trusted_files.libXau = file:/usr/$(ARCH_LIBDIR)/libXau.so.6
-sgx.trusted_files.libXdmcp = file:/usr/$(ARCH_LIBDIR)/libXdmcp.so.6
-sgx.trusted_files.libstdcpp = file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6
-sgx.trusted_files.libnuma = file:/usr/$(ARCH_LIBDIR)/libnuma.so.1
+sgx.trusted_files.ld = "file:$(GRAPHENE_DIR)/Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:$(GRAPHENE_DIR)/Runtime/libc.so.6"
+sgx.trusted_files.libdl = "file:$(GRAPHENE_DIR)/Runtime/libdl.so.2"
+sgx.trusted_files.libm = "file:$(GRAPHENE_DIR)/Runtime/libm.so.6"
+sgx.trusted_files.libpthread = "file:$(GRAPHENE_DIR)/Runtime/libpthread.so.0"
+sgx.trusted_files.libutil = "file:$(GRAPHENE_DIR)/Runtime/libutil.so.1"
+sgx.trusted_files.librt = "file:$(GRAPHENE_DIR)/Runtime/librt.so.1"
+
+sgx.trusted_files.libGL = "file:$(BLENDER_DIR)/lib/libGL.so.1"
+sgx.trusted_files.libglapi = "file:$(BLENDER_DIR)/lib/libglapi.so.0"
+
+sgx.trusted_files.libX11 = "file:/usr/$(ARCH_LIBDIR)/libX11.so.6"
+sgx.trusted_files.libXi = "file:/usr/$(ARCH_LIBDIR)/libXi.so.6"
+sgx.trusted_files.libXxf86vm = "file:/usr/$(ARCH_LIBDIR)/libXxf86vm.so.1"
+sgx.trusted_files.libXfixes = "file:/usr/$(ARCH_LIBDIR)/libXfixes.so.3"
+sgx.trusted_files.libXrender = "file:/usr/$(ARCH_LIBDIR)/libXrender.so.1"
+sgx.trusted_files.libgcc_s = "file:$(ARCH_LIBDIR)/libgcc_s.so.1"
+sgx.trusted_files.libz = "file:$(ARCH_LIBDIR)/libz.so.1"
+sgx.trusted_files.libXext = "file:/usr/$(ARCH_LIBDIR)/libXext.so.6"
+sgx.trusted_files.libxcb = "file:/usr/$(ARCH_LIBDIR)/libxcb.so.1"
+sgx.trusted_files.libXau = "file:/usr/$(ARCH_LIBDIR)/libXau.so.6"
+sgx.trusted_files.libXdmcp = "file:/usr/$(ARCH_LIBDIR)/libXdmcp.so.6"
+sgx.trusted_files.libstdcpp = "file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6"
+sgx.trusted_files.libnuma = "file:/usr/$(ARCH_LIBDIR)/libnuma.so.1"
 
 # Ubuntu version specific files
-# [Ubuntu18.04] sgx.trusted_files.libbsd = file:$(ARCH_LIBDIR)/libbsd.so.0
+# [Ubuntu18.04] sgx.trusted_files.libbsd = "file:$(ARCH_LIBDIR)/libbsd.so.0"

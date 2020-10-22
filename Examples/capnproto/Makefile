@@ -73,7 +73,7 @@ addressbook-trusted-libs: addressbook-deps
 	@for F in `cat addressbook-deps`; do \
 		P=`ldd $(SRCDIR)/addressbook | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '.' | tr --delete '-' | tr --delete '+'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 
 addressbook.manifest: addressbook.manifest.template addressbook-trusted-libs

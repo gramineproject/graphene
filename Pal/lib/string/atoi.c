@@ -85,8 +85,9 @@ long int atol(const char* nptr) {
     return strtol(nptr, (char**)NULL, 10);
 }
 
-/* Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long. */
-uint64_t parse_size_str(const char* str) {
+/* Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long. Returns -1 if
+ * cannot parse the size, e.g. if the suffix is wrong. */
+int64_t parse_size_str(const char* str) {
     char* endptr = NULL;
     long size = strtol(str, &endptr, 0);
 
@@ -96,6 +97,8 @@ uint64_t parse_size_str(const char* str) {
         size *= 1024 * 1024;
     else if (endptr[0] == 'K' || endptr[0] == 'k')
         size *= 1024;
+    else if (endptr[0] != '\0')
+        size = -1; /* wrong suffix */
 
     return size;
 }

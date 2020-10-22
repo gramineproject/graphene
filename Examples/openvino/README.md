@@ -24,7 +24,7 @@ For Ubuntu 18.04, install the following prerequisite packages:
 * Install CMake version >= 3.11 (on Ubuntu 18.04, this may require installing
   Cmake from a non-official APT repository like Kitware).
 
-* Install libusb version >= 1.0.0.
+* Install libusb version >= 1.0.0 (`sudo apt install libusb-1.0-0-dev`).
 
 * Install libtbb-dev
 

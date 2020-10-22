@@ -198,9 +198,9 @@ We mount the entire ``<graphene repository>/Runtime/`` host-level directory to
 the ``/lib`` directory seen inside Graphene. This trick allows to transparently
 replace standard C libraries with Graphene-patched libraries::
 
-   fs.mount.lib.type = chroot
-   fs.mount.lib.path = /lib
-   fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime/
+   fs.mount.lib.type = "chroot"
+   fs.mount.lib.path = "/lib"
+   fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime/"
 
 We also mount other directories such as ``/usr``,  ``/etc``, and ``/tmp``
 required by Python and PyTorch (they search for libraries and utility files in
@@ -208,9 +208,9 @@ these system directories).
 
 Finally, we mount the path containing the Python packages installed via pip::
 
-   fs.mount.pip.type = chroot
-   fs.mount.pip.path = $(HOME)/.local/lib
-   fs.mount.pip.uri = file:$(HOME)/.local/lib
+   fs.mount.pip.type = "chroot"
+   fs.mount.pip.path = "$(HOME)/.local/lib"
+   fs.mount.pip.uri = "file:$(HOME)/.local/lib"
 
 Now we can run ``make`` to build/copy all required Graphene files::
 
@@ -252,8 +252,8 @@ Below, we will highlight some of the SGX-specific manifest options in
 
 First, here are the following SGX-specific lines in the manifest template::
 
-   sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
-   sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
+   sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
+   sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
    ...
 
 ``sgx.trusted_files.<name>`` specifies a file that will be verified and trusted
@@ -272,7 +272,7 @@ against the expected value in the manifest.
 The PyTorch manifest template also contains ``sgx.allowed_files.<name>``
 entries. They specify files unconditionally allowed by the enclave::
 
-   sgx.allowed_files.pythonhome = file:$(HOME)/.local/lib
+   sgx.allowed_files.pythonhome = "file:$(HOME)/.local/lib"
 
 This line unconditionally allows all Python libraries in the path to be loaded
 into the enclave.  Ideally, the developer needs to replace it with
@@ -473,26 +473,26 @@ with your favorite text editor.
 
 Replace ``trusted_files`` with ``protected_files`` for the input files::
 
-   # sgx.trusted_files.classes = file:classes.txt
-   sgx.protected_files.classes = file:classes.txt
+   # sgx.trusted_files.classes = "file:classes.txt"
+   sgx.protected_files.classes = "file:classes.txt"
 
-   # sgx.trusted_files.image = file:input.jpg
-   sgx.protected_files.image = file:input.jpg
+   # sgx.trusted_files.image = "file:input.jpg"
+   sgx.protected_files.image = "file:input.jpg"
 
-   # sgx.trusted_files.model = file:alexnet-pretrained.pt
-   sgx.protected_files.model = file:alexnet-pretrained.pt
+   # sgx.trusted_files.model = "file:alexnet-pretrained.pt"
+   sgx.protected_files.model = "file:alexnet-pretrained.pt"
 
 Also add ``result.txt`` as a protected file so that PyTorch writes the
 *encrypted* result into it::
 
-   sgx.protected_files.result = file:result.txt
+   sgx.protected_files.result = "file:result.txt"
 
 Now, let's add the secret provisioning library to the manifest. Append the
 current directory ``./`` to ``LD_LIBRARY_PATH`` so that PyTorch and Graphene
 add-ons search for libraries in the current directory::
 
    # this instructs in-Graphene dynamic loader to search for dependencies in the current directory
-   loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR):./
+   loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR):./"
 
 Add the following lines to enable remote secret provisioning and allow protected
 files to be transparently decrypted by the provisioned key. Recall that we
@@ -503,14 +503,14 @@ the used environment variables and other manifest options, see `here
 
    sgx.remote_attestation = 1
 
-   loader.env.LD_PRELOAD = libsecret_prov_attest.so
-   loader.env.SECRET_PROVISION_CONSTRUCTOR = 1
-   loader.env.SECRET_PROVISION_SET_PF_KEY = 1
+   loader.env.LD_PRELOAD = "libsecret_prov_attest.so"
+   loader.env.SECRET_PROVISION_CONSTRUCTOR = "1"
+   loader.env.SECRET_PROVISION_SET_PF_KEY = "1"
    loader.env.SECRET_PROVISION_CA_CHAIN_PATH = "certs/test-ca-sha256.crt"
    loader.env.SECRET_PROVISION_SERVERS = "localhost:4433"
 
-   sgx.trusted_files.libsecretprovattest = file:libsecret_prov_attest.so
-   sgx.trusted_files.cachain = file:certs/test-ca-sha256.crt
+   sgx.trusted_files.libsecretprovattest = "file:libsecret_prov_attest.so"
+   sgx.trusted_files.cachain = "file:certs/test-ca-sha256.crt"
 
 The ``libsecret_prov_attest.so`` library provides the in-enclave logic to attest
 the SGX enclave, Graphene instance, and the application running in it to the
