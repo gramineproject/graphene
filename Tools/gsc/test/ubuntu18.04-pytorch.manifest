@@ -1,3 +1,3 @@
-sgx.enclave_size = 4G
+sgx.enclave_size = "4G"
 sgx.thread_num = 32
-sys.stack.size = 2M
+sys.stack.size = "2M"

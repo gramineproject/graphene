@@ -85,11 +85,11 @@ OS and other libraries the application requires; environment variables, such as
 
 Here is an example manifest file::
 
-    loader.preload = file:LibOS/shim/src/libsysdb.so
-    loader.env.LD_LIBRAY_PATH = /lib
-    fs.mount.libc.type = chroot
-    fs.mount.libc.path = /lib
-    fs.mount.libc.uri = file:[relative path to Graphene root]/Runtime
+    loader.preload = "file:LibOS/shim/src/libsysdb.so"
+    loader.env.LD_LIBRAY_PATH = "/lib"
+    fs.mount.libc.type = "chroot"
+    fs.mount.libc.path = "/lib"
+    fs.mount.libc.uri = "file:[relative path to Graphene root]/Runtime"
 
 More examples can be found in the test directories (``LibOS/shim/test``). We
 have also tested several applications, such as GCC, Bash, and Apache.

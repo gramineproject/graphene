@@ -15,8 +15,8 @@ Features
 
 The following new manifest elements are added::
 
-   sgx.protected_files_key = <16-byte hex value>
-   sgx.protected_files.<name> = file:<host path>
+   sgx.protected_files_key = "<16-byte hex value>"
+   sgx.protected_files.<name> = "file:<host path>"
 
 
 Example
@@ -24,9 +24,9 @@ Example
 
 ::
 
-   sgx.protected_files.pf_1 = file:tmp/some_file
-   sgx.protected_files.pf_2 = file:tmp/some_dir
-   sgx.protected_files.pf_3 = file:tmp/another_dir/some_file
+   sgx.protected_files.pf_1 = "file:tmp/some_file"
+   sgx.protected_files.pf_2 = "file:tmp/some_dir"
+   sgx.protected_files.pf_3 = "file:tmp/another_dir/some_file"
 
 Paths specifying PF entries can be files or directories. If a directory is specified,
 all existing files/directories within are registered as protected recursively (and are expected

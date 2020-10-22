@@ -9,6 +9,7 @@
 #include "pal.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
+#include "toml.h"
 
 struct shim_handle;
 
@@ -164,6 +165,6 @@ int64_t install_async_event(PAL_HANDLE object, unsigned long time,
                             void (*callback)(IDTYPE caller, void* arg), void* arg);
 struct shim_thread* terminate_async_helper(void);
 
-extern struct config_store* root_config;
+extern toml_table_t* g_manifest_root;
 
 #endif /* _SHIM_UTILS_H */

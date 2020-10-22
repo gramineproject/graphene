@@ -535,9 +535,9 @@ The manifest generation excludes all files and paths starting with
 relies on some files in these directories, you must manually add them to the
 application-specific manifest::
 
-   sgx.trusted_file.some_special_file_unique_name=file:PATH_TO_FILE
+   sgx.trusted_files.[identifier] = "[URI]"
    or
-   sgx.allowed_file.some_special_file_unique_name=file:PATH_TO_FILE
+   sgx.allowed_files.[identifier] = "[URI]"
 
 Docker images with non-executables as entrypoint
 ------------------------------------------------

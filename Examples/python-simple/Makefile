@@ -52,19 +52,19 @@ ifeq ($(SGX),1)
 PY_LIBS += $(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so
 endif
 
-PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.ctypes = file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.ssl = file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.bz2 = file:$(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.lzma = file:$(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.json = file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n" \
-	  "sgx.trusted_files.aptpkg = file:$(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\\n"
+PY_LIBS_TRUSTED_LIBS = "sgx.trusted_files.hashlib = \\\"file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.ctypes = \\\"file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.ssl = \\\"file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.bz2 = \\\"file:$(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.lzma = \\\"file:$(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.json = \\\"file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n" \
+	  "sgx.trusted_files.aptpkg = \\\"file:$(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so\\\"\\\\n"
 
 ifeq ($(PYTHONSHORTVERSION),35)
-PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = file:$(PYTHONHOME)/_sysconfigdata.py\\\\n" \
-	  "sgx.trusted_files.python22 = file:$(PYTHONHOME)/plat-$(PYTHON_ARCH_LONG)/_sysconfigdata_m.py\\\\n"
+PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = \\\"file:$(PYTHONHOME)/_sysconfigdata.py\\\"\\\\n" \
+	  "sgx.trusted_files.python22 = \\\"file:$(PYTHONHOME)/plat-$(PYTHON_ARCH_LONG)/_sysconfigdata_m.py\\\"\\\\n"
 else
-PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = file:$(PYTHONHOME)/_sysconfigdata_m_linux_$(PYTHON_ARCH_LONG).py\\\\n"
+PYTHON_TRUSTED_SCRIPTS = "sgx.trusted_files.python21 = \\\"file:$(PYTHONHOME)/_sysconfigdata_m_linux_$(PYTHON_ARCH_LONG).py\\\"\\\\n"
 endif
 
 # Listing all the Python dependencies, besides Glibc libraries
@@ -84,7 +84,7 @@ python-trusted-libs: python-deps
 	for F in `cat python-deps`; do \
 		P=`ldd $$PY_LIBS | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '+-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 	echo -n "$(PY_LIBS_TRUSTED_LIBS)" >> $@
 

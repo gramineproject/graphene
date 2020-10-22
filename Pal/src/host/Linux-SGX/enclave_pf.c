@@ -10,6 +10,7 @@
 #include "pal_linux.h"
 #include "pal_linux_error.h"
 #include "spinlock.h"
+#include "toml.h"
 
 /* Wrap key for protected files, either hard-coded in manifest, provisioned during attestation, or
  * inherited from the parent process. We don't use synchronization on them since they are only set
@@ -403,61 +404,55 @@ out:
 }
 
 /* Read PF paths from manifest and register them */
-static int register_protected_files(const char* key_prefix) {
-    char* cfgbuf = NULL;
-    int ret = -PAL_ERROR_DENIED;
-    ssize_t cfgsize = get_config_entries_size(g_pal_state.root_config, key_prefix);
-    if (cfgsize <= 0)
-        goto out;
+static int register_protected_files(void) {
+    int ret;
+    assert(g_pal_state.manifest_root);
+    toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
+    if (!manifest_sgx)
+        return 0;
 
-    cfgbuf = malloc(cfgsize);
-    if (!cfgbuf) {
-        ret = -PAL_ERROR_NOMEM;
-        goto out;
+    toml_table_t* toml_pfs = toml_table_in(manifest_sgx, "protected_files");
+    if (!toml_pfs)
+        return 0;
+
+    ssize_t toml_pfs_cnt = toml_table_nkval(toml_pfs);
+    if (toml_pfs_cnt <= 0) {
+        /* no PF entries found in the manifest */
+        return 0;
     }
 
-    int uris_count = get_config_entries(g_pal_state.root_config, key_prefix, cfgbuf, cfgsize);
-    if (uris_count == -PAL_ERROR_INVAL) {
-        ret = -PAL_ERROR_DENIED;
-        goto out;
-    }
+    for (ssize_t i = 0; i < toml_pfs_cnt; i++) {
+        const char* toml_pf_key = toml_key_in(toml_pfs, i);
+        assert(toml_pf_key);
+        toml_raw_t toml_pf_value_raw = toml_raw_in(toml_pfs, toml_pf_key);
+        assert(toml_pf_value_raw);
 
-    char key[CONFIG_MAX];
-    char uri[CONFIG_MAX];
-    char* key_suffix = cfgbuf;
-
-    for (int i = 0; i < uris_count; i++) {
-        size_t len = strlen(key_suffix);
-        snprintf(key, CONFIG_MAX, "%s.%s", key_prefix, key_suffix);
-        key_suffix += len + 1;
-        len = get_config(g_pal_state.root_config, key, uri, CONFIG_MAX);
-        if (len > 0) {
-            if (!strstartswith(uri, URI_PREFIX_FILE)) {
-                SGX_DBG(DBG_E, "Invalid URI [%s]: URIs of protected files must start with '"
-                        URI_PREFIX_FILE "'\n", uri);
-            } else {
-                register_protected_path(uri, NULL);
-            }
-        } else {
-            SGX_DBG(DBG_E, "Invalid PF entry in manifest: '%s'\n", key);
+        char* toml_pf_value = NULL;
+        ret = toml_rtos(toml_pf_value_raw, &toml_pf_value);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Invalid PF entry in manifest: \'%s\'\n", toml_pf_key);
+            continue;
         }
+
+        if (!strstartswith(toml_pf_value, URI_PREFIX_FILE)) {
+            SGX_DBG(DBG_E, "Invalid URI [%s]: URIs of protected files must start with \'"
+                    URI_PREFIX_FILE "\'\n", toml_pf_value);
+        } else {
+            register_protected_path(toml_pf_value, NULL);
+        }
+        free(toml_pf_value);
     }
 
     pf_lock();
     SGX_DBG(DBG_D, "Registered %u protected directories and %u protected files\n",
             HASH_COUNT(g_protected_dirs), HASH_COUNT(g_protected_files));
     pf_unlock();
-    ret = 0;
-out:
-    free(cfgbuf);
-    return ret;
+    return 0;
 }
-
-#define PF_MANIFEST_KEY_PREFIX  "sgx.protected_files_key"
-#define PF_MANIFEST_PATH_PREFIX "sgx.protected_files"
 
 /* Initialize the PF library, register PFs from the manifest */
 int init_protected_files(void) {
+    int ret;
     pf_debug_f debug_callback = NULL;
 
 #ifdef DEBUG
@@ -467,33 +462,43 @@ int init_protected_files(void) {
     pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_gcm_encrypt, cb_aes_gcm_decrypt,
                      cb_random, debug_callback);
 
-    char key_hex[PF_KEY_SIZE * 2 + 1];
-    ssize_t len = get_config(g_pal_state.root_config, PF_MANIFEST_KEY_PREFIX, key_hex,
-                             sizeof(key_hex));
-    if (len <= 0) {
-        /* wrap key is not hard-coded in the manifest, assume that it was received from parent or
-         * it will be provisioned after local/remote attestation */
-    } else {
-        if (len != sizeof(key_hex) - 1) {
-            SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");
+    assert(g_pal_state.manifest_root);
+
+    /* if wrap key is not hard-coded in the manifest, assume that it was received from parent or
+     * it will be provisioned after local/remote attestation; otherwise read it from manifest */
+    char* protected_files_key_str = NULL;
+    ret = toml_string_in(g_pal_state.manifest_root, "sgx.protected_files_key",
+                         &protected_files_key_str);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot parse \'sgx.protected_files_key\' "
+                       "(the value must be put in double quotes!)\n");
+        return -PAL_ERROR_INVAL;
+    }
+
+    if (protected_files_key_str) {
+        if (strlen(protected_files_key_str) != PF_KEY_SIZE * 2) {
+            SGX_DBG(DBG_E, "Malformed \'sgx.protected_files_key\' value in the manifest\n");
+            free(protected_files_key_str);
             return -PAL_ERROR_INVAL;
         }
 
         memset(g_pf_wrap_key, 0, sizeof(g_pf_wrap_key));
-        for (ssize_t i = 0; i < len; i++) {
-            int8_t val = hex2dec(key_hex[i]);
+        for (size_t i = 0; i < strlen(protected_files_key_str); i++) {
+            int8_t val = hex2dec(protected_files_key_str[i]);
             if (val < 0) {
-                SGX_DBG(DBG_E, "Malformed " PF_MANIFEST_KEY_PREFIX " value in the manifest\n");
+                SGX_DBG(DBG_E, "Malformed \'sgx.protected_files_key\' value in the manifest\n");
+                free(protected_files_key_str);
                 return -PAL_ERROR_INVAL;
             }
             g_pf_wrap_key[i / 2] = g_pf_wrap_key[i / 2] * 16 + (uint8_t)val;
         }
+
+        free(protected_files_key_str);
         g_pf_wrap_key_set = true;
     }
 
-    if (register_protected_files(PF_MANIFEST_PATH_PREFIX) < 0) {
-        SGX_DBG(DBG_E, PF_MANIFEST_PATH_PREFIX "key not found in manifest, "
-                "protected files will not be available\n");
+    if (register_protected_files() < 0) {
+        SGX_DBG(DBG_E, "Malformed protected files found in manifest\n");
     }
 
     return 0;

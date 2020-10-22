@@ -21,12 +21,12 @@
 # so it is always set to libsysdb.so. Note that GRAPHENEDIR macro is expanded
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
-loader.preload = file:$(GRAPHENEDIR)/Runtime/libsysdb.so
+loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
-# Show/hide debug log of Graphene ('inline' or 'none' respectively). Note that
+# Show/hide debug log of Graphene ("inline" or "none" respectively). Note that
 # GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
 # build process.
-loader.debug_type = $(GRAPHENEDEBUG)
+loader.debug_type = "$(GRAPHENEDEBUG)"
 
 ################################# ARGUMENTS ###################################
 
@@ -44,7 +44,7 @@ loader.insecure__use_cmdline_argv = 1
 # - $(ARCH_LIBDIR) is searched for Name Service Switch (NSS) libraries
 # - /usr/$(ARCH_LIBDIR) is searched for libevent (the only explicit
 #                             Memcached dependency)
-loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
+loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
 
 # All other environment variables are unset. This is the default Graphene
 # behavior. Memcached doesn't require any environment variables to be set.
@@ -52,37 +52,37 @@ loader.env.LD_LIBRARY_PATH = /lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)
 ################################# MOUNT FS  ###################################
 
 # General notes:
-# - There is only one supported type of mount points: 'chroot'.
-# - Directory names are (somewhat confusingly) prepended by 'file:'.
+# - There is only one supported type of mount points: "chroot".
+# - Directory names are (somewhat confusingly) prepended by "file:".
 # - Names of mount entries (lib, lib2, lib3) are irrelevant but must be unique.
 # - In-Graphene visible path names may be arbitrary but we reuse host-OS URIs
-#   for simplicity (except for the first 'lib' case).
+#   for simplicity (except for the first "lib" case).
 
-# Mount host-OS directory to Graphene glibc/runtime libraries (in 'uri') into
-# in-Graphene visible directory /lib (in 'path'). Note that GRAPHENEDIR macro
+# Mount host-OS directory to Graphene glibc/runtime libraries (in "uri") into
+# in-Graphene visible directory /lib (in "path"). Note that GRAPHENEDIR macro
 # is expanded to relative path to Graphene repository in the Makefile as part
 # of the build process.
-fs.mount.lib.type = chroot
-fs.mount.lib.path = /lib
-fs.mount.lib.uri = file:$(GRAPHENEDIR)/Runtime
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime"
 
-# Mount host-OS directory to Name Service Switch (NSS) libraries (in 'uri')
-# into in-Graphene visible directory e.g., /lib/x86_64-linux-gnu (in 'path').
-fs.mount.lib2.type = chroot
-fs.mount.lib2.path = $(ARCH_LIBDIR)
-fs.mount.lib2.uri = file:$(ARCH_LIBDIR)
+# Mount host-OS directory to Name Service Switch (NSS) libraries (in "uri")
+# into in-Graphene visible directory e.g., /lib/x86_64-linux-gnu (in "path").
+fs.mount.lib2.type = "chroot"
+fs.mount.lib2.path = "$(ARCH_LIBDIR)"
+fs.mount.lib2.uri = "file:$(ARCH_LIBDIR)"
 
-# Mount host-OS directory to libevent lib required by Memcached (in 'uri')
-# into in-Graphene visible directory e.g., /usr/lib/x86_64-linux-gnu (in 'path').
-fs.mount.lib3.type = chroot
-fs.mount.lib3.path = /usr/$(ARCH_LIBDIR)
-fs.mount.lib3.uri = file:/usr/$(ARCH_LIBDIR)
+# Mount host-OS directory to libevent lib required by Memcached (in "uri")
+# into in-Graphene visible directory e.g., /usr/lib/x86_64-linux-gnu (in "path").
+fs.mount.lib3.type = "chroot"
+fs.mount.lib3.path = "/usr/$(ARCH_LIBDIR)"
+fs.mount.lib3.uri = "file:/usr/$(ARCH_LIBDIR)"
 
-# Mount host-OS directory to NSS files required by Glibc + NSS libs (in 'uri')
-# into in-Graphene visible directory /etc (in 'path').
-fs.mount.etc.type = chroot
-fs.mount.etc.path = /etc
-fs.mount.etc.uri = file:/etc
+# Mount host-OS directory to NSS files required by Glibc + NSS libs (in "uri")
+# into in-Graphene visible directory /etc (in "path").
+fs.mount.etc.type = "chroot"
+fs.mount.etc.path = "/etc"
+fs.mount.etc.uri = "file:/etc"
 
 ############################### SGX: GENERAL ##################################
 
@@ -97,7 +97,7 @@ fs.mount.etc.uri = file:/etc
 # can trigger this incorrect behavior by increasing the number of threads
 # to 12 (each thread requires 128MB of memory): `memcached -t 12`. This is
 # an issue in Memcached source code, not related to Graphene.
-sgx.enclave_size = 1024M
+sgx.enclave_size = "1024M"
 
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 16. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at
@@ -128,27 +128,27 @@ sgx.thread_num = 16
 
 # Glibc libraries. ld and libc are needed for all apps; pthread is needed
 # because Memcached is multi-threaded.
-sgx.trusted_files.ld = file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(GRAPHENEDIR)/Runtime/libc.so.6
-sgx.trusted_files.libpthread = file:$(GRAPHENEDIR)/Runtime/libpthread.so.0
+sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
+sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
 
 # Name Service Switch (NSS) libraries. Glibc calls these libraries as part of
 # name-service information gathering. libnss_{compat,files,nis} are the
 # most widely used libraries, at least on Ubuntu.
 # For more info, see 'man nsswitch.conf'.
-sgx.trusted_files.libnsscompat = file:$(ARCH_LIBDIR)/libnss_compat.so.2
-sgx.trusted_files.libnssfiles  = file:$(ARCH_LIBDIR)/libnss_files.so.2
-sgx.trusted_files.libnssnis  = file:$(ARCH_LIBDIR)/libnss_nis.so.2
+sgx.trusted_files.libnsscompat = "file:$(ARCH_LIBDIR)/libnss_compat.so.2"
+sgx.trusted_files.libnssfiles  = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
+sgx.trusted_files.libnssnis  = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
 
 # libNSL is a dependency of libnss_compat above. It is a good example of nested
 # library dependencies required by Graphene-SGX.
-sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
+sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
 
 # libEvent is an explicit dependency of Memcached. We choose to install it on
 # host OS instead of downloading the sources, building, and linking Memcached
 # against the built library (which is possible but would require more effort).
-# [Ubuntu16.04] sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.0.so.5
-# [Ubuntu18.04] sgx.trusted_files.libevent = file:/usr/$(ARCH_LIBDIR)/libevent-2.1.so.6
+# [Ubuntu16.04] sgx.trusted_files.libevent = "file:/usr/$(ARCH_LIBDIR)/libevent-2.0.so.5"
+# [Ubuntu18.04] sgx.trusted_files.libevent = "file:/usr/$(ARCH_LIBDIR)/libevent-2.1.so.6"
 
 ############################# SGX: ALLOWED FILES ###############################
 
@@ -158,12 +158,12 @@ sgx.trusted_files.libnsl = file:$(ARCH_LIBDIR)/libnsl.so.1
 
 # Name Service Switch (NSS) files. Glibc reads these files as part of name-
 # service information gathering. For more info, see 'man nsswitch.conf'.
-sgx.allowed_files.nsswitch  = file:/etc/nsswitch.conf
-sgx.allowed_files.ethers    = file:/etc/ethers
-sgx.allowed_files.hosts     = file:/etc/hosts
-sgx.allowed_files.group     = file:/etc/group
-sgx.allowed_files.passwd    = file:/etc/passwd
+sgx.allowed_files.nsswitch  = "file:/etc/nsswitch.conf"
+sgx.allowed_files.ethers    = "file:/etc/ethers"
+sgx.allowed_files.hosts     = "file:/etc/hosts"
+sgx.allowed_files.group     = "file:/etc/group"
+sgx.allowed_files.passwd    = "file:/etc/passwd"
 
 # getaddrinfo(3) configuration file. Glibc reads this file to correctly find
 # network addresses. For more info, see 'man gai.conf'.
-sgx.allowed_files.gaiconf   = file:/etc/gai.conf
+sgx.allowed_files.gaiconf   = "file:/etc/gai.conf"

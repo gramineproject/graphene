@@ -25,11 +25,9 @@ SGX_SIGNER_KEY ?= $(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 ifeq ($(DEBUG),1)
 GRAPHENE_DEBUG = inline
 OPENVINO_BUILD = Debug
-LIBTBB_DEBUG   = "sgx.trusted_files.libtbb_debug = file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbb_debug.so.2"
 else
 GRAPHENE_DEBUG = none
 OPENVINO_BUILD = Release
-LIBTBB_DEBUG   = ""
 endif
 
 .PHONY: all
@@ -72,7 +70,6 @@ object_detection_sample_ssd.manifest: object_detection_sample_ssd.manifest.templ
 	    -e 's|$$(OPENVINO_DIR_ABSPATH)|'"$(abspath $(OPENVINO_DIR))"'|g' \
 	    -e 's|$$(MODEL_DIR)|'"$(MODEL_DIR)"'|g' \
 	    -e 's|$$(OPENVINO_BUILD)|'"$(OPENVINO_BUILD)"'|g' \
-	    -e 's|$$(LIBTBB_DEBUG)|'$(LIBTBB_DEBUG)'|g' \
 	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 	    $< > $@
 

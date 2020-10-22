@@ -1,22 +1,21 @@
-loader.preload = file:../../src/libsysdb.so
-loader.env.LD_LIBRARY_PATH = /lib
-loader.debug_type = none
-loader.syscall_symbol = syscalldb
-loader.argv0_override = large_mmap
+loader.preload = "file:../../src/libsysdb.so"
+loader.env.LD_LIBRARY_PATH = "/lib"
+loader.debug_type = "none"
+loader.argv0_override = "large_mmap"
 
 # application allocates 2GB and 4GB memory regions which may occasionally fail
 # in an SGX enclave restricted to 8GB of virtual space if ASLR is enabled
 loader.insecure__disable_aslr = 1
 
-fs.mount.lib.type = chroot
-fs.mount.lib.path = /lib
-fs.mount.lib.uri = file:../../../../Runtime
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:../../../../Runtime"
 
-sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
+sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 
-sgx.allowed_files.testfile = file:testfile
+sgx.allowed_files.testfile = "file:testfile"
 
-sgx.enclave_size = 8G
+sgx.enclave_size = "8G"
 
 sgx.static_address = 1

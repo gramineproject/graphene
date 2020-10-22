@@ -13,6 +13,7 @@
 #include "pal.h"
 #include "pal_defs.h"
 #include "pal_error.h"
+#include "toml.h"
 
 #ifndef IN_PAL
 #error "pal_internal.h can only be included in PAL"
@@ -151,10 +152,10 @@ extern struct pal_internal_state {
     const char*     manifest;
     PAL_HANDLE      manifest_handle;
 
+    toml_table_t*   manifest_root;
+
     const char*     exec;
     PAL_HANDLE      exec_handle;
-
-    struct config_store* root_config;
 
     /* May not be the same as page size, see e.g. SYSTEM_INFO::dwAllocationGranularity on Windows.
      */
@@ -293,6 +294,14 @@ int _DkSetProtectedFilesKey(PAL_PTR pf_key_hex);
     do {                                                                                      \
         printf("PAL failed at " __FILE__ ":%s:%u (exitcode = %u, reason=%s)\n", __FUNCTION__, \
                (unsigned int)__LINE__, (unsigned int)(exitcode), reason);                     \
+        _DkProcessExit(exitcode);                                                             \
+    } while (0)
+
+#define INIT_FAIL_MANIFEST(exitcode, reason)                                                  \
+    do {                                                                                      \
+        printf("PAL failed at parsing the manifest: %s\n"                                     \
+               "  Graphene switched to the TOML format recently, please update the manifest\n"\
+               "  (in particular, string values must be put in double quotes)\n", reason);    \
         _DkProcessExit(exitcode);                                                             \
     } while (0)
 

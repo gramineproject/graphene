@@ -1,2 +1,2 @@
-sgx.enclave_size = 2G
+sgx.enclave_size = "2G"
 sgx.thread_num = 16

@@ -11,6 +11,7 @@
 
 #include "assert.h"
 #include "list.h"
+#include "toml.h"
 
 /* WARNING: this declaration may conflict with some header files */
 #ifndef ssize_t
@@ -243,26 +244,6 @@ extern const char* const* sys_errlist_internal;
 int get_norm_path(const char* path, char* buf, size_t* size);
 int get_base_name(const char* path, char* buf, size_t* size);
 
-/* Loading configs / manifests */
-
-struct config;
-DEFINE_LISTP(config);
-struct config_store {
-    LISTP_TYPE(config) root;
-    LISTP_TYPE(config) entries;
-    void* raw_data;
-    int raw_size;
-    void* (*malloc)(size_t);
-    void (*free)(void*);
-};
-
-int read_config(struct config_store* store, bool (*filter)(const char*, size_t),
-                const char** errstring);
-ssize_t get_config(struct config_store* cfg, const char* key, char* val_buf, size_t buf_size);
-int get_config_entries(struct config_store* cfg, const char* key, char* key_buf,
-                       size_t key_bufsize);
-ssize_t get_config_entries_size(struct config_store* cfg, const char* key);
-
 /*!
  * \brief Parse a size (number with optional "G"/"M"/"K" suffix) into an unsigned long.
  *
@@ -270,11 +251,49 @@ ssize_t get_config_entries_size(struct config_store* cfg, const char* key);
  *            denoting value in GBs, "M"/"m" for MBs, or "K"/"k" for KBs.
  *
  * By default the number should be decimal, but if it starts with 0x it is parsed as hexadecimal
- * and if it otherwise starts with 0, it is parsed as octal.
+ * and if it otherwise starts with 0, it is parsed as octal. Function returns -1 if string cannot
+ * be parsed into a size (e.g., suffix is wrong).
  */
-uint64_t parse_size_str(const char* str);
+int64_t parse_size_str(const char* str);
 
-#define CONFIG_MAX 4096
+/*!
+ * \brief Find an integer key-value in TOML manifest.
+ *
+ * \param root       Root table of the TOML manifest.
+ * \param key        Dotted key (e.g. "loader.insecure__use_cmdline_argv").
+ * \param defaultval `retval` is set to this value if not found in the manifest.
+ * \param retval     Pointer to output integer.
+ *
+ * Returns 0 if there were no errors (but value may have not been found in manifest and was set to
+ * default one) or -1 if there were errors during conversion to int.
+ */
+int toml_int_in(const toml_table_t* root, const char* key, int64_t defaultval, int64_t* retval);
+
+/*!
+ * \brief Find a string key-value in TOML manifest.
+ *
+ * \param root      Root table of the TOML manifest.
+ * \param key       Dotted key (e.g. "fs.mount.lib1.type").
+ * \param retval    Pointer to output string.
+ *
+ * Returns 0 if there were no errors (but value may have not been found in manifest and was set to
+ * NULL) or -1 if there were errors during conversion to string.
+ */
+int toml_string_in(const toml_table_t* root, const char* key, char** retval);
+
+/*!
+ * \brief Find a "size" string key-value in TOML manifest (parsed via `parse_size_str()`).
+ *
+ * \param root       Root table of the TOML manifest.
+ * \param key        Dotted key (e.g. "sys.stack.size").
+ * \param defaultval `retval` is set to this value if not found in the manifest.
+ * \param retval     Pointer to output integer.
+ *
+ * Returns 0 if there were no errors (but value may have not been found in manifest and was set to
+ * default one) or -1 if there were errors during conversion to "size" string.
+ */
+int toml_sizestring_in(const toml_table_t* root, const char* key, uint64_t defaultval,
+                       uint64_t* retval);
 
 #define URI_PREFIX_SEPARATOR ":"
 

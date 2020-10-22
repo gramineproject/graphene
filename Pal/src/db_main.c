@@ -28,20 +28,28 @@ PAL_CONTROL* pal_control_addr(void) {
 struct pal_internal_state g_pal_state;
 
 static void load_libraries(void) {
-    /* we will not make any assumption for where the libraries are loaded */
-    char cfgbuf[CONFIG_MAX];
-    ssize_t len, ret = 0;
+    int ret = 0;
+    char* preload_str = NULL;
 
-    /* loader.preload:
-       any other libraries to preload. The can be multiple URIs,
-       seperated by commas */
-    len = get_config(g_pal_state.root_config, "loader.preload", cfgbuf, sizeof(cfgbuf));
-    if (len <= 0)
+    if (!g_pal_state.manifest_root)
         return;
 
-    char* c = cfgbuf;
+    /* FIXME: rewrite to use array-of-strings TOML syntax */
+    /* string with preload libs: can be multiple URIs separated by commas */
+    ret = toml_string_in(g_pal_state.manifest_root, "loader.preload", &preload_str);
+    if (ret < 0)
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.preload\'");
+
+    if (!preload_str)
+        return;
+
+    size_t len = strlen(preload_str);
+    if (len == 0)
+        return;
+
+    char* c = preload_str;
     char* library_name = c;
-    for (;; c++)
+    for (;; c++) {
         if (*c == ',' || !*c) {
             if (c > library_name) {
                 *c = 0;
@@ -49,130 +57,145 @@ static void load_libraries(void) {
                     INIT_FAIL(-ret, "Unable to load preload library");
             }
 
-            if (c == cfgbuf + len)
+            if (c == preload_str + len)
                 break;
 
             library_name = c + 1;
         }
+    }
 }
 
 /* This function leaks memory on failure (and this is non-trivial to fix), but the assumption is
  * that its failure finishes the execution of the whole process right away. */
 static int insert_envs_from_manifest(const char*** envpp) {
+    int ret;
     assert(envpp);
 
-    struct config_store* store = g_pal_state.root_config;
-    if (!store)
-        return -PAL_ERROR_INVAL;
+    if (!g_pal_state.manifest_root)
+        return 0;
 
-    struct setenv {
-        const char* str;
-        int len, idx;
-    }* setenvs = NULL;
-    int setenvs_cnt = 0;
+    toml_table_t* toml_loader = toml_table_in(g_pal_state.manifest_root, "loader");
+    if (!toml_loader)
+        return 0;
 
-    ssize_t cfgsize_envs = get_config_entries_size(store, "loader.env");
-    if (cfgsize_envs <= 0)
-        return 0;  /* No entries found. */
+    toml_table_t* toml_envs = toml_table_in(toml_loader, "env");
+    if (!toml_envs)
+        return 0;
 
-    char* cfgbuf_envs = malloc(cfgsize_envs);
-    if (!cfgbuf_envs)
-        return -PAL_ERROR_NOMEM;
-    setenvs_cnt = get_config_entries(store, "loader.env", cfgbuf_envs, cfgsize_envs);
-    if (setenvs_cnt <= 0) {
-        free(cfgbuf_envs);
+    ssize_t toml_envs_cnt = toml_table_nkval(toml_envs);
+    if (toml_envs_cnt <= 0) {
+        /* no env entries found in the manifest */
         return 0;
     }
 
-    setenvs = __alloca(sizeof(struct setenv) * setenvs_cnt);
-    char* cfg = cfgbuf_envs;
-    for (int i = 0; i < setenvs_cnt; i++) {
-        size_t len = strlen(cfg);
-        char* str = __alloca(len + 1);
-        setenvs[i].str = str;
-        setenvs[i].len = len;
-        setenvs[i].idx = -1;
-        memcpy(str, cfg, len + 1);
-        cfg += len + 1;
-    }
-    free(cfgbuf_envs);
+    size_t orig_envs_cnt = 0;
+    size_t overwrite_cnt = 0;
+    for (const char** orig_env = *envpp; *orig_env; orig_env++, orig_envs_cnt++) {
+        char* orig_env_key_end = strchr(*orig_env, '=');
+        if (!orig_env_key_end)
+            return -PAL_ERROR_INVAL;
 
-    int nenvs = 0;
-    int noverwrite = 0;
-    for (const char** e = *envpp; *e; e++, nenvs++)
-        for (int i = 0; i < setenvs_cnt; i++)
-            if (!memcmp(setenvs[i].str, *e, setenvs[i].len) && (*e)[setenvs[i].len] == '=') {
-                setenvs[i].idx = nenvs;
-                noverwrite++;
-                break;
-            }
-
-    const char** new_envp = calloc((nenvs + setenvs_cnt - noverwrite + 1), sizeof(const char*));
-    if (nenvs)
-        memcpy(new_envp, *envpp, sizeof(**envpp) * nenvs);
-
-    char key[CONFIG_MAX] = "loader.env.";
-    int prefix_len = static_strlen("loader.env.");
-    const char** ptr;
-    char cfgbuf[CONFIG_MAX];
-
-    for (int i = 0; i < setenvs_cnt; i++) {
-        const char* str = setenvs[i].str;
-        int len = setenvs[i].len;
-        int idx = setenvs[i].idx;
-        ssize_t bytes;
-        ptr = &new_envp[(idx == -1) ? nenvs++ : idx];
-        memcpy(key + prefix_len, str, len + 1);
-        if ((bytes = get_config(store, key, cfgbuf, sizeof(cfgbuf))) > 0) {
-            *ptr = alloc_concat3(str, len, "=", 1, cfgbuf, bytes);
-        } else {
-            *ptr = alloc_concat(str, len, "=", 1);
+        *orig_env_key_end = '\0';
+        toml_raw_t toml_env_raw = toml_raw_in(toml_envs, *orig_env);
+        if (toml_env_raw) {
+            /* found the original-env key in manifest (i.e., loader.env.<key> exists) */
+            overwrite_cnt++;
         }
-        if (!*ptr)
-            return -PAL_ERROR_NOMEM;
+        *orig_env_key_end = '=';
     }
+
+    size_t total_envs_cnt = orig_envs_cnt + toml_envs_cnt - overwrite_cnt;
+    const char** new_envp = calloc(total_envs_cnt + 1, sizeof(const char*));
+    if (!new_envp)
+        return -PAL_ERROR_NOMEM;
+
+    /* For simplicity, allocate each env anew; this is suboptimal but happens only once. First
+     * go through original envs and populate new_envp with only those that are not overwritten by
+     * manifest envs. Then append all manifest envs to new_envp. */
+    size_t idx = 0;
+    for (const char** orig_env = *envpp; *orig_env; orig_env++) {
+        char* orig_env_key_end = strchr(*orig_env, '=');
+
+        *orig_env_key_end = '\0';
+        toml_raw_t toml_env_raw = toml_raw_in(toml_envs, *orig_env);
+        if (!toml_env_raw) {
+            /* this original env is not found in manifest (i.e., not overwritten) */
+            *orig_env_key_end = '=';
+            new_envp[idx] = malloc_copy(*orig_env, strlen(*orig_env) + 1);
+            if (!new_envp[idx]) {
+                /* don't care about proper memory cleanup since will terminate anyway */
+                return -PAL_ERROR_NOMEM;
+            }
+            idx++;
+        }
+        *orig_env_key_end = '=';
+    }
+    assert(idx < total_envs_cnt);
+
+    for (ssize_t i = 0; i < toml_envs_cnt; i++) {
+        const char* toml_env_key = toml_key_in(toml_envs, i);
+        assert(toml_env_key);
+        toml_raw_t toml_env_value_raw = toml_raw_in(toml_envs, toml_env_key);
+        assert(toml_env_value_raw);
+
+        char* toml_env_value = NULL;
+        ret = toml_rtos(toml_env_value_raw, &toml_env_value);
+        if (ret < 0) {
+            /* don't care about proper memory cleanup since will terminate anyway */
+            return -PAL_ERROR_NOMEM;
+        }
+
+        char* final_env = alloc_concat3(toml_env_key, strlen(toml_env_key), "=", 1, toml_env_value,
+                                        strlen(toml_env_value));
+        new_envp[idx++] = final_env;
+        free(toml_env_value);
+    }
+    assert(idx == total_envs_cnt);
 
     *envpp = new_envp;
     return 0;
 }
 
 static void set_debug_type(void) {
-    char cfgbuf[CONFIG_MAX];
-    ssize_t ret = 0;
+    int ret = 0;
 
-    if (!g_pal_state.root_config)
+    if (!g_pal_state.manifest_root)
         return;
 
-    ret = get_config(g_pal_state.root_config, "loader.debug_type", cfgbuf, sizeof(cfgbuf));
-    if (ret <= 0)
+    char* debug_type = NULL;
+    ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_type", &debug_type);
+    if (ret < 0)
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.debug_type\'");
+
+    if (!debug_type)
         return;
 
     PAL_HANDLE handle = NULL;
 
-    if (!strcmp(cfgbuf, "inline")) {
+    if (!strcmp(debug_type, "inline")) {
         ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
-    } else if (!strcmp(cfgbuf, "file")) {
-        ret = get_config(g_pal_state.root_config, "loader.debug_file", cfgbuf, sizeof(cfgbuf));
-        if (ret <= 0)
-            INIT_FAIL(PAL_ERROR_INVAL, "debug file not specified");
+    } else if (!strcmp(debug_type, "file")) {
+        char* debug_file = NULL;
+        ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_file", &debug_file);
+        if (ret < 0 || !debug_file)
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot find/parse \'loader.debug_file\'");
 
-        ret = _DkStreamOpen(&handle, cfgbuf, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W,
-                            PAL_CREATE_TRY, 0);
-    } else if (!strcmp(cfgbuf, "none")) {
+        ret = _DkStreamOpen(&handle, debug_file, PAL_ACCESS_RDWR,
+                            PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W, PAL_CREATE_TRY, 0);
+        free(debug_file);
+    } else if (!strcmp(debug_type, "none")) {
         ret = 0;
     } else {
-        INIT_FAIL(PAL_ERROR_INVAL, "unknown debug type");
+        INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Unknown \'loader.debug_type\' "
+                           "(allowed: `inline`, `file`, `none`)");
     }
 
+    free(debug_type);
+
     if (ret < 0)
-        INIT_FAIL(-ret, "cannot open debug stream");
+        INIT_FAIL(-ret, "Cannot open debug stream");
 
     g_pal_control.debug_stream = handle;
-}
-
-static bool loader_filter(const char* key, size_t len) {
-    // beware: `key` may not be NUL-terminated!
-    return (len >= strlen("loader.") && !memcmp(key, "loader.", strlen("loader.")));
 }
 
 /* Loads a file containing a concatenation of C-strings. The resulting array of pointers is
@@ -242,7 +265,6 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                        PAL_HANDLE first_thread,    /* first thread handle */
                        PAL_STR* arguments,         /* application arguments */
                        PAL_STR* environments       /* environment variables */) {
-    char cfgbuf[CONFIG_MAX];
     g_pal_state.instance_id = instance_id;
     g_pal_state.alloc_align = _DkGetAllocationAlignment();
     assert(IS_POWER_OF_2(g_pal_state.alloc_align));
@@ -259,7 +281,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (exec_handle) {
         ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
         if (ret < 0)
-            INIT_FAIL(-ret, "cannot get executable name");
+            INIT_FAIL(-ret, "Cannot get executable name");
 
         exec_uri = malloc_copy(uri_buf, ret + 1);
     }
@@ -267,7 +289,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (manifest_handle) {
         ret = _DkStreamGetName(manifest_handle, uri_buf, URI_MAX);
         if (ret < 0)
-            INIT_FAIL(-ret, "cannot get manifest name");
+            INIT_FAIL(-ret, "Cannot get manifest name");
 
         manifest_uri = malloc_copy(uri_buf, ret + 1);
     } else {
@@ -278,7 +300,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         size_t len = sizeof(uri_buf);
         ret = get_norm_path(exec_uri, uri_buf, &len);
         if (ret < 0) {
-            INIT_FAIL(-ret, "cannot normalize exec_uri");
+            INIT_FAIL(-ret, "Cannot normalize exec_uri");
         }
 
         strcpy_static(uri_buf + len, ".manifest", sizeof(uri_buf) - len);
@@ -288,49 +310,37 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
             manifest_uri = URI_PREFIX_FILE "manifest";
             ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
             if (ret) {
-                INIT_FAIL(PAL_ERROR_DENIED, "cannot find manifest file");
+                INIT_FAIL(PAL_ERROR_DENIED, "Cannot find manifest file");
             }
         }
     }
 
     /* load manifest if there is one */
-    if (!g_pal_state.root_config && manifest_handle) {
+    if (!g_pal_state.manifest_root && manifest_handle) {
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQueryByHandle(manifest_handle, &attr);
         if (ret < 0)
-            INIT_FAIL(-ret, "cannot open manifest file");
+            INIT_FAIL(-ret, "Cannot open manifest file");
 
         void* cfg_addr = NULL;
         int cfg_size = attr.pending_size;
 
         ret = _DkStreamMap(manifest_handle, &cfg_addr, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(cfg_size));
         if (ret < 0)
-            INIT_FAIL(-ret, "cannot open manifest file");
+            INIT_FAIL(-ret, "Cannot open manifest file");
 
-        /* TODO: dummy toml_parse() is added simply to check that TOML lib is built correctly;
-         *       it will be used instead of root_config in the future */
         char errbuf[256];
-        toml_table_t* toml_test = toml_parse(cfg_addr, errbuf, sizeof(errbuf));
-        (void)toml_test;
-
-        struct config_store* root_config = malloc(sizeof(struct config_store));
-        root_config->raw_data = cfg_addr;
-        root_config->raw_size = cfg_size;
-        root_config->malloc   = malloc;
-        root_config->free     = free;
-
-        const char* errstring = NULL;
-        if ((ret = read_config(root_config, loader_filter, &errstring)) < 0) {
-            INIT_FAIL(-ret, errstring);
-        }
-
-        g_pal_state.root_config = root_config;
+        g_pal_state.manifest_root = toml_parse(cfg_addr, errbuf, sizeof(errbuf));
+        if (!g_pal_state.manifest_root)
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, errbuf);
     }
 
-    ret = get_config(g_pal_state.root_config, "loader.exec", cfgbuf, sizeof(cfgbuf));
-    if (ret > 0) {
-        INIT_FAIL(PAL_ERROR_INVAL, "loader.exec is not supported anymore. Please update your "
-                                   "manifest according to the current documentation.");
+    if (g_pal_state.manifest_root) {
+        char* dummy_exec_str = NULL;
+        ret = toml_string_in(g_pal_state.manifest_root, "loader.exec", &dummy_exec_str);
+        if (ret < 0 || dummy_exec_str)
+            INIT_FAIL(PAL_ERROR_INVAL, "loader.exec is not supported anymore. Please update your "
+                                       "manifest according to the current documentation.");
     }
 
     /* try to find an executable with the name matching the manifest name */
@@ -360,10 +370,10 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (exec_handle) {
         if (exec_loaded_addr) {
             if (!has_elf_magic(exec_loaded_addr, sizeof(ElfW(Ehdr))))
-                INIT_FAIL(PAL_ERROR_INVAL, "executable is not an ELF binary");
+                INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
         } else {
             if (!is_elf_object(exec_handle))
-                INIT_FAIL(PAL_ERROR_INVAL, "executable is not an ELF binary");
+                INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
         }
     }
 
@@ -373,11 +383,15 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     g_pal_state.exec_handle     = exec_handle;
 
     bool disable_aslr = false;
-    if (g_pal_state.root_config) {
-        char aslr_cfg[2];
-        ssize_t len = get_config(g_pal_state.root_config, "loader.insecure__disable_aslr", aslr_cfg,
-                                 sizeof(aslr_cfg));
-        disable_aslr = len == 1 && aslr_cfg[0] == '1';
+    if (g_pal_state.manifest_root) {
+        int64_t disable_aslr_int64;
+        ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__disable_aslr",
+                          /*defaultval=*/0, &disable_aslr_int64);
+        if (ret < 0 || (disable_aslr_int64 != 0 && disable_aslr_int64 != 1)) {
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.insecure__disable_aslr\' "
+                                                 "(the value must be 0 or 1)");
+        }
+        disable_aslr = !!disable_aslr_int64;
     }
 
     /* Load argv */
@@ -387,9 +401,13 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
      * resolving https://github.com/oscarlab/graphene/issues/1053 (RFC: graphene invocation).
      */
     bool argv0_overridden = false;
-    if (g_pal_state.root_config) {
-        ret = get_config(g_pal_state.root_config, "loader.argv0_override", cfgbuf, sizeof(cfgbuf));
-        if (ret > 0) {
+    if (g_pal_state.manifest_root) {
+        char* argv0_override = NULL;
+        ret = toml_string_in(g_pal_state.manifest_root, "loader.argv0_override", &argv0_override);
+        if (ret < 0)
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv0_override\'");
+
+        if (argv0_override) {
             argv0_overridden = true;
             if (!arguments[0]) {
                 arguments = malloc(sizeof(const char*) * 2);
@@ -397,37 +415,61 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                     INIT_FAIL(PAL_ERROR_NOMEM, "malloc() failed");
                 arguments[1] = NULL;
             }
-            arguments[0] = malloc_copy(cfgbuf, ret + 1);
-            if (!arguments[0])
-                INIT_FAIL(PAL_ERROR_NOMEM, "malloc() failed");
+            arguments[0] = argv0_override;
         }
     }
 
-    if (get_config(g_pal_state.root_config, "loader.insecure__use_cmdline_argv", cfgbuf,
-                   CONFIG_MAX) > 0) {
-        printf("WARNING: Using insecure argv source. Don't use this configuration in "
-               "production!\n");
-    } else if (get_config(g_pal_state.root_config, "loader.argv_src_file", cfgbuf, CONFIG_MAX)
-               > 0) {
-        /* Load argv from a file and discard cmdline argv. We trust the file contents (this can be
-         * achieved using protected or trusted files). */
-        if (arguments[0] && arguments[1])
-            printf("Discarding cmdline arguments (%s %s [...]) because loader.argv_src_file was "
-                   "specified in the manifest.\n", arguments[0], arguments[1]);
-
-        ret = load_cstring_array(cfgbuf, &arguments);
-        if (ret < 0)
-            INIT_FAIL(-ret, "can't load loader.argv_src_file");
-    } else if (!argv0_overridden || (arguments[0] && arguments[1])) {
-        INIT_FAIL(PAL_ERROR_INVAL,
-                  "argv handling wasn't configured in the manifest, but cmdline "
-                  "arguments were specified.");
+    int64_t use_cmdline_argv = 0;
+    if (g_pal_state.manifest_root) {
+        ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_cmdline_argv",
+                          /*defaultval=*/0, &use_cmdline_argv);
+        if (ret < 0 || (use_cmdline_argv != 0 && use_cmdline_argv != 1)) {
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
+                               "\'loader.insecure__use_cmdline_argv\' (the value must be 0 or 1)");
+        }
     }
 
-    bool using_host_env = false;
-    if (get_config(g_pal_state.root_config, "loader.insecure__use_host_env", cfgbuf, CONFIG_MAX)
-            > 0) {
-        using_host_env = true;
+    if (use_cmdline_argv) {
+        printf("WARNING: Using insecure argv source. Don't use this configuration in "
+               "production!\n");
+    } else {
+        char* argv_src_file = NULL;
+
+        if (g_pal_state.manifest_root) {
+            ret = toml_string_in(g_pal_state.manifest_root, "loader.argv_src_file", &argv_src_file);
+            if (ret < 0)
+                INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv_src_file\'");
+        }
+
+        if (argv_src_file) {
+            /* Load argv from a file and discard cmdline argv. We trust the file contents (this can
+             * be achieved using protected or trusted files). */
+            if (arguments[0] && arguments[1])
+                printf("Discarding cmdline arguments (%s %s [...]) because loader.argv_src_file "
+                        "was specified in the manifest.\n", arguments[0], arguments[1]);
+
+            ret = load_cstring_array(argv_src_file, &arguments);
+            if (ret < 0)
+                INIT_FAIL(-ret, "Cannot load arguments from \'loader.argv_src_file\'");
+
+            free(argv_src_file);
+        } else if (!argv0_overridden || (arguments[0] && arguments[1])) {
+            INIT_FAIL(PAL_ERROR_INVAL, "argv handling wasn't configured in the manifest, but "
+                      "cmdline arguments were specified.");
+        }
+    }
+
+    int64_t use_host_env = 0;
+    if (g_pal_state.manifest_root) {
+        ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__use_host_env",
+                          /*defaultval=*/0, &use_host_env);
+        if (ret < 0 || (use_host_env != 0 && use_host_env != 1)) {
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
+                               "\'loader.insecure__use_host_env\' (the value must be 0 or 1)");
+        }
+    }
+
+    if (use_host_env) {
         printf("WARNING: Forwarding host environment variables to the app is enabled. Don't use "
                "this configuration in production!\n");
     } else {
@@ -437,18 +479,26 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         environments[0] = NULL;
     }
 
-    if (get_config(g_pal_state.root_config, "loader.env_src_file", cfgbuf, CONFIG_MAX) > 0) {
-        if (using_host_env)
-            INIT_FAIL(PAL_ERROR_INVAL, "Wrong manifest configuration - cannot use "
-                                       "loader.insecure__use_host_env and loader.env_src_file at "
-                                       "the same time.");
+    char* env_src_file = NULL;
+    if (g_pal_state.manifest_root) {
+        ret = toml_string_in(g_pal_state.manifest_root, "loader.env_src_file", &env_src_file);
+        if (ret < 0)
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.env_src_file\'");
+    }
 
+    if (use_host_env && env_src_file)
+        INIT_FAIL(PAL_ERROR_INVAL, "Wrong manifest configuration - cannot use "
+                  "loader.insecure__use_host_env and loader.env_src_file at the same time.");
+
+    if (env_src_file) {
         /* Insert environment variables from a file. We trust the file contents (this can be
          * achieved using protected or trusted files). */
-        ret = load_cstring_array(cfgbuf, &environments);
+        ret = load_cstring_array(env_src_file, &environments);
         if (ret < 0)
-            INIT_FAIL(-ret, "can't load loader.env_src_file");
+            INIT_FAIL(-ret, "Cannot load environment variables from \'loader.env_src_file\'");
+        free(env_src_file);
     }
+
 
     // TODO: Envs from file should be able to override ones from the manifest, but current
     // code makes this hard to implement.
@@ -456,8 +506,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (ret < 0)
         INIT_FAIL(-ret, "Inserting environment variables from the manifest failed");
 
-    if (g_pal_state.root_config)
-        load_libraries();
+    load_libraries();
 
     if (exec_handle) {
         if (exec_loaded_addr) {

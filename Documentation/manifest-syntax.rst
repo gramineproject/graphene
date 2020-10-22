@@ -5,18 +5,20 @@ Manifest syntax
 
 A |~| manifest file is an application-specific configuration text file that
 specifies the environment and resources for running an application inside
-Graphene. A |~| manifest file contains entries separated by line breaks. Each
-configuration entry consists of a |~| key and a |~| value. Whitespaces
-before/after the key and before/after the value are ignored. The value can be
-written in quotes, indicating that the value should be assigned to this string
-verbatim. (The quotes syntax is useful for values with leading/trailing
-whitespaces, e.g. ``" SPACES! "``.) Each entry must be in the following format::
+Graphene. A |~| manifest file contains key-value pairs (as well as more
+complicated table and array objects) in the TOML syntax. For the details of the
+TOML syntax, see `the official documentation <https://toml.io>`__.
 
-   [Key][.Key][.Key] = [Value]  or  [Key][.Key][.Key] = "[Value]"
+A typical string entry looks like this::
+
+   [Key][.Key][.Key] = "[Value]"
+
+A typical integer entry looks similar to the above but without double quotes::
+
+   [Key][.Key][.Key] = [Value]
 
 Comments can be inlined in a |~| manifest by starting them with a |~| hash sign
-(``# comment...``). Any text after a |~| hash sign will be considered part of
-a |~| comment and discarded while loading the manifest file.
+(``# comment...``).
 
 Common syntax
 -------------
@@ -26,8 +28,8 @@ Debug type
 
 ::
 
-    loader.debug_type=[none|inline]
-    (Default: none)
+    loader.debug_type = "[none|inline]"
+    (Default: "none")
 
 This specifies the debug option while running the library OS. If the debug type
 is ``none``, no debug output will be printed to standard output. If the debug
@@ -39,7 +41,7 @@ Preloaded libraries
 
 ::
 
-   loader.preload=[URI][,URI]...
+   loader.preload = "[URI][,URI]..."
 
 This syntax specifies the libraries to be preloaded before loading the
 executable. The URIs of the libraries must be separated by commas. The libraries
@@ -50,7 +52,7 @@ Command-line arguments
 
 ::
 
-   loader.argv0_override=[STRING]
+   loader.argv0_override = "[STRING]"
 
 This syntax specifies an arbitrary string (typically the executable name) that
 will be passed as the first argument (``argv[0]``) to the executable.
@@ -66,7 +68,7 @@ or
 
 ::
 
-   loader.argv_src_file = file:file_with_serialized_argv
+   loader.argv_src_file = "file:file_with_serialized_argv"
 
 If you want your application to use commandline arguments you need to either set
 ``loader.insecure__use_cmdline_argv`` (insecure in almost all cases) or point
@@ -98,8 +100,8 @@ both of the following options:
 
 ::
 
-   loader.env.[ENVIRON]=[VALUE]
-   loader.env_src_file = file:file_with_serialized_envs
+   loader.env.[ENVIRON] = "[VALUE]"
+   loader.env_src_file = "file:file_with_serialized_envs"
 
 ``loader.env.[ENVIRON]`` adds/overwrites a single environment variable and can
 be used multiple times to specify more than one variable.
@@ -121,7 +123,7 @@ Disabling ASLR
 
 ::
 
-    loader.insecure__disable_aslr=[1|0]
+    loader.insecure__disable_aslr = [1|0]
     (Default: 0)
 
 This specifies whether to disable Address Space Layout Randomization (ASLR).
@@ -133,8 +135,8 @@ Graphene internal metadata size
 
 ::
 
-    loader.pal_internal_mem_size=[SIZE]
-    (default: 0)
+    loader.pal_internal_mem_size = "[SIZE]"
+    (default: "0")
 
 This syntax specifies how much additional memory Graphene reserves for its
 internal use (e.g., metadata for trusted/protected files, internal handles,
@@ -144,7 +146,7 @@ Graphene loudly fails with "out of PAL memory" error. To run huge workloads,
 increase this limit by setting this option to e.g. ``64M`` (this would result in
 a total of 128MB used by Graphene for internal metadata). Note that this limit
 is included in ``sgx.enclave_size``, so if your enclave size is e.g. 512MB and
-you specify ``loader.pal_internal_mem_size = 64MB``, then your application is
+you specify ``loader.pal_internal_mem_size = "64MB"``, then your application is
 left with 384MB of usable memory.
 
 Stack size
@@ -152,12 +154,13 @@ Stack size
 
 ::
 
-    sys.stack.size=[# of bytes (with K/M/G)]
+    sys.stack.size = "[SIZE]"
+    (default: "256K")
 
 This specifies the stack size of each thread in each Graphene process. The
 default value is determined by the library OS. Units like ``K`` |~| (KiB),
 ``M`` |~| (MiB), and ``G`` |~| (GiB) can be appended to the values for
-convenience. For example, ``sys.stack.size=1M`` indicates a 1 |~| MiB stack
+convenience. For example, ``sys.stack.size = "1M"`` indicates a 1 |~| MiB stack
 size.
 
 Program break (brk) size
@@ -165,12 +168,13 @@ Program break (brk) size
 
 ::
 
-    sys.brk.max_size=[# of bytes (with K/M/G)]
+    sys.brk.max_size = "[SIZE]"
+    (default: "256K")
 
 This specifies the maximal program break (brk) size in each Graphene process.
 The default value of the program break size is determined by the library OS.
 Units like ``K`` (KiB), ``M`` (MiB), and ``G`` (GiB) can be appended to the
-values for convenience. For example, ``sys.brk.max_size=1M`` indicates
+values for convenience. For example, ``sys.brk.max_size = "1M"`` indicates
 a 1 |~| MiB brk size.
 
 Allowing eventfd
@@ -178,7 +182,7 @@ Allowing eventfd
 
 ::
 
-    sys.insecure__allow_eventfd=[1|0]
+    sys.insecure__allow_eventfd = [1|0]
     (Default: 0)
 
 This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
@@ -190,9 +194,9 @@ FS mount points
 
 ::
 
-    fs.mount.[identifier].path=[PATH]
-    fs.mount.[identifier].type=[chroot|...]
-    fs.mount.[identifier].uri=[URI]
+    fs.mount.[identifier].type = "[chroot|...]"
+    fs.mount.[identifier].path = "[PATH]"
+    fs.mount.[identifier].uri  = "[URI]"
 
 This syntax specifies how file systems are mounted inside the library OS. For
 dynamically linked binaries, usually at least one mount point is required in the
@@ -210,7 +214,7 @@ Debug/production enclave
 
 ::
 
-    sgx.debug=[1|0]
+    sgx.debug = [1|0]
     (Default: 1)
 
 This syntax specifies whether the enclave can be debugged. Set it to ``1`` for
@@ -221,8 +225,8 @@ Enclave size
 
 ::
 
-    sgx.enclave_size=[SIZE]
-    (default: 256M)
+    sgx.enclave_size = "[SIZE]"
+    (default: "256M")
 
 This syntax specifies the size of the enclave set during enclave creation time
 (recall that SGX |~| v1 requires a predetermined maximum size of the enclave).
@@ -235,7 +239,7 @@ Number of threads
 
 ::
 
-    sgx.thread_num=[NUM]
+    sgx.thread_num = [NUM]
     (Default: 4)
 
 This syntax specifies the maximum number of threads that can be created inside
@@ -249,7 +253,7 @@ Number of RPC threads (Exitless feature)
 
 ::
 
-    sgx.rpc_thread_num=[NUM]
+    sgx.rpc_thread_num = [NUM]
     (Default: 0)
 
 This syntax specifies the number of RPC threads that are created outside of
@@ -278,9 +282,9 @@ Optional CPU features (AVX, AVX512, MPX)
 
 ::
 
-    sgx.require_avx=[1|0]
-    sgx.require_avx512=[1|0]
-    sgx.require_mpx=[1|0]
+    sgx.require_avx    = [1|0]
+    sgx.require_avx512 = [1|0]
+    sgx.require_mpx    = [1|0]
     (Default: 0)
 
 This syntax ensures that the CPU features are available and enabled for the
@@ -294,8 +298,8 @@ ISV Product ID and SVN
 
 ::
 
-    sgx.isvprodid=[NUM]
-    sgx.isnsvn=[NUM]
+    sgx.isvprodid = [NUM]
+    sgx.isnsvn    = [NUM]
     (Default: 0)
 
 This syntax specifies the ISV Product ID and SVN to be added to the enclave
@@ -306,7 +310,7 @@ Allowed files
 
 ::
 
-    sgx.allowed_files.[identifier]=[URI]
+    sgx.allowed_files.[identifier] = "[URI]"
 
 This syntax specifies the files that are allowed to be loaded into the enclave
 unconditionally. These files are not cryptographically hashed and are thus not
@@ -319,7 +323,7 @@ Trusted files
 
 ::
 
-    sgx.trusted_files.[identifier]=[URI]
+    sgx.trusted_files.[identifier] = "[URI]"
 
 This syntax specifies the files to be cryptographically hashed, and thus allowed
 to be loaded into the enclave. The signer tool will automatically generate
@@ -333,8 +337,8 @@ Protected files
 
 ::
 
-    sgx.protected_files_key=[16-byte hex value]
-    sgx.protected_files.[identifier]=[URI]
+    sgx.protected_files_key = "[16-byte hex value]"
+    sgx.protected_files.[identifier] = "[URI]"
 
 This syntax specifies the files that are encrypted on disk and transparently
 decrypted when accessed by Graphene or by application running inside Graphene.
@@ -359,8 +363,8 @@ File check policy
 
 ::
 
-    sgx.file_check_policy=[strict|allow_all_but_log]
-    (Default: strict)
+    sgx.file_check_policy = "[strict|allow_all_but_log]"
+    (Default: "strict")
 
 This syntax specifies the file check policy, determining the behavior of
 authentication when opening files. By default, only files explicitly listed as
@@ -375,7 +379,7 @@ Trusted child processes
 
 ::
 
-    sgx.trusted_children.[identifier]=[URI of signature (.sig)]
+    sgx.trusted_children.[identifier] = "[URI of signature file (.sig)]"
 
 This syntax specifies the signatures of allowed child processes of the current
 application. Upon process creation, the enclave in the current (parent) process
@@ -388,11 +392,11 @@ Attestation and quotes
 
 ::
 
-    sgx.remote_attestation=[1|0]
+    sgx.remote_attestation = [1|0]
     (Default: 0)
-    sgx.ra_client_linkable=[1|0]
-    (Default: 0)
-    sgx.ra_client_spid=[HEX]
+
+    sgx.ra_client_linkable = [1|0]
+    sgx.ra_client_spid     = "[HEX]"
 
 This syntax specifies the parameters for remote attestation. To enable it,
 ``remote_attestation`` must be set to ``1``.
@@ -410,7 +414,7 @@ Enabling per-thread and process-wide SGX stats
 
 ::
 
-    sgx.enable_stats=[1|0]
+    sgx.enable_stats = [1|0]
     (Default: 0)
 
 This syntax specifies whether to enable SGX enclave-specific statistics:

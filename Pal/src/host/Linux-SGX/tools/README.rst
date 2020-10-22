@@ -185,7 +185,7 @@ The library expects the following information in the manifest for EPID-based att
 For ECDSA-based (DCAP) attestation, the library expects instead:
 
 - ``sgx.remote_attestation = 1`` -- remote attestation is enabled.
-- ``sgx.ra_client_spid = <empty string>`` -- it is DCAP attestation, *not* EPID attestation.
+- ``sgx.ra_client_spid = "<empty string>"`` -- it is DCAP attestation, *not* EPID attestation.
 
 The library uses the following environment variables if available:
 

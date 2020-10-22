@@ -101,7 +101,7 @@ httpd-deps: httpd-ldd
 httpd-trusted-mods: httpd-modules
 	@for F in `cat httpd-modules`; do \
 		N=`echo $$F | awk '{n=split($$1,s,/\/|\./); print s[n-1]}'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$F\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
 	done > $@
 
 # Generating manifest rules for Apache dependencies
@@ -111,7 +111,7 @@ httpd-trusted-libs: httpd-deps httpd-modules $(INSTALL_DIR)/bin/httpd
 	for F in `cat httpd-deps`; do \
 		P=`ldd $$HTTPD_LIBS | grep $$F | awk '{print $$3; exit}'`; \
 		N=`echo $$F | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = file:$$P\\\\n"; \
+		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
 	done > $@
 
 httpd.manifest: httpd.manifest.template httpd-trusted-mods httpd-trusted-libs
