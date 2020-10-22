@@ -22,12 +22,11 @@ static void* dowork(void* args) {
                       "dec %%rax\n"
                       "cmp $0, %%rax\n"
                       "jne loop\n"
-                      : /*no outs*/ : /*no ins*/ : "%rax", "%cc");
+                      : /*no outs*/ : /*no ins*/ : "%rax", "cc");
     return NULL;
 }
 
 int main(int argc, const char** argv) {
-
     int ret;
     long numprocs = sysconf(_SC_NPROCESSORS_ONLN);
     if (numprocs < 0) {
@@ -35,9 +34,12 @@ int main(int argc, const char** argv) {
     }
 
     /* Affinitize threads to alternate logical processors to do a quick check from htop manually */
-    numprocs = (numprocs >= 2)? numprocs/2 : 1;
+    numprocs = (numprocs >= 2) ? numprocs/2 : 1;
 
-    pthread_t threads[numprocs];
+    pthread_t *threads = (pthread_t*)malloc(numprocs * sizeof(pthread_t));
+    if(!threads) {
+         errx(EXIT_FAILURE, "memory allocation failed");
+    }
     cpu_set_t cpus, get_cpus;
 
     /* Validate parent set/get affinity for child */
@@ -48,20 +50,24 @@ int main(int argc, const char** argv) {
 
         ret = pthread_create(&threads[i], NULL, dowork, NULL);
         if (ret != 0) {
-            err(EXIT_FAILURE, "pthread_create failed!");
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_create failed!");
         }
 
         ret = pthread_setaffinity_np(threads[i], sizeof(cpus), &cpus);
         if (ret != 0) {
-            err(EXIT_FAILURE, "pthread_setaffinity_np failed for child!");
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_setaffinity_np failed for child!");
         }
 
         ret = pthread_getaffinity_np(threads[i], sizeof(get_cpus), &get_cpus);
         if (ret != 0) {
-            err(EXIT_FAILURE, "pthread_getaffinity_np failed for child!");
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_getaffinity_np failed for child!");
         }
 
         if (!CPU_EQUAL_S(sizeof(cpus), &cpus, &get_cpus)) {
+            free(threads);
             errx(EXIT_FAILURE, "get cpuset is not equal to set cpuset on proc: %ld", i);
         }
     }
@@ -69,22 +75,25 @@ int main(int argc, const char** argv) {
     for (int i = 0; i < numprocs; i++) {
         ret = pthread_join(threads[i], NULL);
         if (ret != 0) {
-            err(EXIT_FAILURE, "pthread_join failed!");
+            free(threads);
+            errx(EXIT_FAILURE, "pthread_join failed!");
         }
     }
+    /* Validating parent set/get affinity for child done. Free resources*/
+    free(threads);
 
     /* Validate parent set/get affinity for itself */
     CPU_ZERO(&cpus);
     CPU_SET(0, &cpus);
     ret = pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus);
     if (ret != 0) {
-        err(EXIT_FAILURE, "pthread_setaffinity_np failed for parent!");
+        errx(EXIT_FAILURE, "pthread_setaffinity_np failed for parent!");
     }
 
     CPU_ZERO(&get_cpus);
     ret = pthread_getaffinity_np(pthread_self(), sizeof(get_cpus), &get_cpus);
     if (ret != 0) {
-        err(EXIT_FAILURE, "pthread_getaffinity_np failed for parent!");
+        errx(EXIT_FAILURE, "pthread_getaffinity_np failed for parent!");
     }
 
     if (!CPU_EQUAL_S(sizeof(cpus), &cpus, &get_cpus)) {
@@ -95,7 +104,7 @@ int main(int argc, const char** argv) {
     CPU_ZERO(&cpus);
     ret = pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus);
     if (ret != EINVAL) {
-        err(EXIT_FAILURE, "pthread_setaffinity_np with empty cpumask did not return EINVAL!");
+        errx(EXIT_FAILURE, "pthread_setaffinity_np with empty cpumask did not return EINVAL!");
     }
 
     printf("TEST OK\n");

@@ -64,7 +64,7 @@ c_executables = \
 	pthread_set_get_affinity \
 	readdir \
 	sched \
-	sched_set_get_cpuaffinity \
+	sched_set_get_affinity \
 	select \
 	shared_object \
 	sigaction_per_process \

@@ -489,8 +489,8 @@ pid_t shim_do_gettid(void);
 int shim_do_tkill(int pid, int sig);
 time_t shim_do_time(time_t* tloc);
 int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val3);
-int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
-int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
+long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr);
+long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr);
 int shim_do_set_tid_address(int* tidptr);
 int shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
                        const struct timespec* timeout);

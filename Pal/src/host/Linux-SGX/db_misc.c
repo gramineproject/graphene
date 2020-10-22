@@ -311,7 +311,7 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     /* the cpu core info cannot be cached due to its data varying depending on the calling thread */
     if (leaf == CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF ||
-        leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
+            leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
         skip_cache = true;
     }
 

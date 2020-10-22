@@ -512,9 +512,25 @@ noreturn void DkThreadExit(PAL_PTR clear_child_tid);
  */
 PAL_BOL DkThreadResume(PAL_HANDLE thread);
 
-PAL_NUM DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+/*!
+ * \brief set the CPU affinity of a thread.
+ *
+ * \param cpumask_size length in bytes of the bitmask pointed to by user_mask_ptr
+ * \param cpu_mask user-space pointer to the new CPU mask
+ *
+ * \return Returns the 0 on success, a errno on failure.
+ */
+int DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
-PAL_NUM DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+/*!
+ * \brief get the CPU affinity of a thread. User needs to pass
+ *
+ * \param cpumask_size length in bytes of the bitmask pointed to by user_mask_ptr
+ * \param cpu_mask user-space pointer to hold the current CPU mask
+ *
+ * \return Returns number of bytes copied ino the cpu_mask on success, a errno on failure.
+ */
+int DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
 /*
  * Exception Handling

@@ -512,11 +512,11 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('parent OK', stdout);
 
     def test_101_sched_set_get_cpuaffinity(self):
-        stdout, _ = self.run_binary(['sched_set_get_cpuaffinity'])
+        stdout, _ = self.run_binary(['sched_set_get_affinity'])
         self.assertIn('TEST OK', stdout)
 
     def test_102_pthread_set_get_affinity(self):
-        stdout, _ = self.run_binary(['pthread_set_get_affinity'])
+        stdout, _ = self.run_binary(['pthread_set_get_affinity'], timeout=25)
         self.assertIn('TEST OK', stdout)
 
 @unittest.skipUnless(HAS_SGX,

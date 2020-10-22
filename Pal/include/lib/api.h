@@ -64,6 +64,12 @@ typedef ptrdiff_t ssize_t;
         (((x) & ((x) - 1)) == 0); \
     })
 
+#define DIV_ROUND_UP(n,d)              (((n) + (d) - 1) / (d))
+
+#define BITS_IN_BYTE                   (8)
+#define BITS_IN_TYPE(type)             (sizeof(type) * BITS_IN_BYTE)
+#define BITS_TO_LONGS(nr)              DIV_ROUND_UP(nr, BITS_IN_TYPE(long))
+
 #define IS_ALIGNED(val, alignment)     ((val) % (alignment) == 0)
 #define ALIGN_DOWN(val, alignment)     ((val) - (val) % (alignment))
 #define ALIGN_UP(val, alignment)       ALIGN_DOWN((val) + (alignment) - 1, alignment)
