@@ -189,7 +189,7 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     struct shim_thread* thread;
     size_t cpu_cnt = PAL_CB(cpu_info.cpu_num);
 
-    /* Check user_mask_ptr is valid; */
+    /* Check user_mask_ptr is valid */
     if (test_user_memory(user_mask_ptr, cpumask_size, /*write=*/true))
         return -EFAULT;
 
