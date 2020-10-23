@@ -20,8 +20,8 @@ To get more information, you can:
   for ``make regression`` to work correctly. This will also not work when
   running under SGX, because the manifest needs to be re-signed afterwards.
 
-- Use GDB: ``.../pal_loader GDB [SGX] <TEST_BINARY>``. This requires Graphene to
-  be compiled with ``DEBUG=1``.
+- Use GDB: ``.../pal_loader GDB [SGX] <TEST_BINARY>``. You should compile
+  Graphene with ``DEBUG=1`` so that you can see the symbols inside Graphene.
 
 Running all the cases
 ---------------------
