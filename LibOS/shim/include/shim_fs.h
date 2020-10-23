@@ -494,13 +494,13 @@ struct pseudo_name_ops {
     int (*list_name)(const char* name, struct shim_dirent** buf, int count);
 };
 
-static inline __dev_t makedev(unsigned int __major, unsigned int __minor) {
-    __dev_t __dev;
-    __dev  = (((__dev_t) (__major & 0x00000fffu)) <<  8);
-    __dev |= (((__dev_t) (__major & 0xfffff000u)) << 32);
-    __dev |= (((__dev_t) (__minor & 0x000000ffu)) <<  0);
-    __dev |= (((__dev_t) (__minor & 0xffffff00u)) << 12);
-    return __dev;
+static inline dev_t makedev(unsigned int major, unsigned int minor) {
+    dev_t dev;
+    dev  = (((dev_t)(major & 0x00000fffu)) <<  8);
+    dev |= (((dev_t)(major & 0xfffff000u)) << 32);
+    dev |= (((dev_t)(minor & 0x000000ffu)) <<  0);
+    dev |= (((dev_t)(minor & 0xffffff00u)) << 12);
+    return dev;
 }
 
 struct pseudo_fs_ops {
