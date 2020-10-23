@@ -23,10 +23,11 @@
 #include "sysdep-arch.h"
 #include "uthash.h"
 
-#define IS_ERR   INTERNAL_SYSCALL_ERROR
-#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO    INTERNAL_SYSCALL_ERRNO
-#define ERRNO_P  INTERNAL_SYSCALL_ERRNO_P
+#define IS_ERR      INTERNAL_SYSCALL_ERROR
+#define IS_ERR_P    INTERNAL_SYSCALL_ERROR_P
+#define ERRNO       INTERNAL_SYSCALL_ERRNO
+#define ERRNO_P     INTERNAL_SYSCALL_ERRNO_P
+#define IS_UNIX_ERR INTERNAL_SYSCALL_ERRNO_RANGE
 
 extern struct pal_linux_state {
     PAL_NUM parent_process_id;

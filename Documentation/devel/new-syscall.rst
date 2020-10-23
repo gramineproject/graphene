@@ -10,15 +10,15 @@ For example, assume we are implementing :manpage:`sched_setaffinity(2)`. You
 must find the definition of ``sched_setaffinity`` in
 :file:`shim_syscalls.c`, which will be the following code::
 
-   SHIM_SYSCALL_RETURN_ENOSYS(sched_setaffinity, 3, int, pid_t, pid, size_t,
-                              len, __kernel_cpu_set_t*, user_mask_ptr)
+   SHIM_SYSCALL_RETURN_ENOSYS(sched_setaffinity, 3, long, pid_t, pid, unsigned int,
+                              len, unsigned long*, user_mask_ptr)
 
 Change this line to ``DEFINE_SHIM_SYSCALL(...)`` to name the function that
 implements this system call: ``shim_do_sched_setaffinity`` (this is the naming
 convention, please follow it)::
 
-   DEFINE_SHIM_SYSCALL(sched_setaffinity, 3, shim_do_sched_setaffinity, int, pid_t, pid, size_t, len,
-                       __kernel_cpu_set_t*, user_mask_ptr)
+   DEFINE_SHIM_SYSCALL(sched_setaffinity, 3, shim_do_sched_setaffinity, long, pid_t, pid,
+                       unsigned int, len, unsigned long*, user_mask_ptr)
 
 
 2. Add definitions to system call table
@@ -30,7 +30,7 @@ in :file:`shim_table.h`: ``__shim_sched_setaffinity`` and
 second in respect to the system call you are implementing, with the same
 prototype as defined in :file:`shim_syscalls.c`::
 
-   int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
+   long shim_do_sched_setaffinity(pid_t pid, unsigned int len, unsigned long* user_mask_ptr);
 
 3. Implement system call
 ------------------------
@@ -41,7 +41,7 @@ earlier) in a new source file or any existing source file in
 
 For example, in :file:`LibOS/shim/src/sys/shim_sched.c`::
 
-   int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
+   long shim_do_sched_setaffinity(pid_t pid, unsigned int len, unsigned long* user_mask_ptr) {
       /* code for implementing the semantics of sched_setaffinity */
    }
 

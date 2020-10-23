@@ -143,14 +143,14 @@ int shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
 long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr) {
     int ret;
     struct shim_thread* thread;
-    size_t cpu_cnt  = PAL_CB(cpu_info.cpu_num);
+    size_t cpu_cnt = PAL_CB(cpu_info.cpu_num);
 
-    /* check that user_mask_ptr is valid; if not, should return -EFAULT */
+    /* check user_mask_ptr is valid */
     if (test_user_memory(user_mask_ptr, cpumask_size, /*write=*/false))
         return -EFAULT;
 
-    /* Linux kernel bitmap is based on long. So according to its
-     * implementation, round up the result to sizeof(long) */
+    /* Linux kernel bitmap is based on long. So according to its implementation, round up the result
+     * to sizeof(long) */
     size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
 
     if (pid) {
@@ -175,9 +175,9 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     }
 
     ret = DkThreadSetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, user_mask_ptr);
-    if (ret < 0) {
+    if (!ret) {
         put_thread(thread);
-        return -convert_pal_errno(-ret);
+        return -PAL_ERRNO();
     }
 
     put_thread(thread);
@@ -187,20 +187,21 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
 long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr) {
     int ret;
     struct shim_thread* thread;
-    size_t cpu_cnt  = PAL_CB(cpu_info.cpu_num);
+    size_t cpu_cnt = PAL_CB(cpu_info.cpu_num);
 
-    /* Check that user_mask_ptr is valid; if not, should return -EFAULT */
+    /* Check user_mask_ptr is valid; */
     if (test_user_memory(user_mask_ptr, cpumask_size, /*write=*/true))
         return -EFAULT;
 
-    /* Linux kernel bitmap is based on long. So according to its
-     * implementation, round up the result to sizeof(long) */
+    /* Linux kernel bitmap is based on long. So according to its implementation, round up the result
+     * to sizeof(long) */
     size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
     if (cpumask_size < bitmask_size_in_bytes) {
-        debug("size of cpumask in getaffinity syscall must be %lu but supplied cpumask is %u\n",
+        debug("size of cpumask must be at least %lu but supplied cpumask is %u\n",
                bitmask_size_in_bytes, cpumask_size);
         return -EINVAL;
     }
+
     /* Linux kernel also rejects non-natural size */
     if (cpumask_size & (sizeof(long) - 1))
         return -EINVAL;
@@ -228,9 +229,9 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
 
     memset(user_mask_ptr, 0, cpumask_size);
     ret = DkThreadGetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, user_mask_ptr);
-    if (ret < 0) {
+    if (!ret) {
         put_thread(thread);
-        return -convert_pal_errno(-ret);
+        return -PAL_ERRNO();
     }
 
     put_thread(thread);

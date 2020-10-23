@@ -9,6 +9,7 @@
 #include <err.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/syscall.h>
@@ -17,12 +18,12 @@
 /* Set large busy loops so that we can verify affinity with htop manually*/
 static void* dowork(void* args) {
     __asm__ volatile (
-                      "movq $10000000000, %%rax\n"
+                      "movq %0, %%rax\n"
                       "loop:\n"
                       "dec %%rax\n"
                       "cmp $0, %%rax\n"
                       "jne loop\n"
-                      : /*no outs*/ : /*no ins*/ : "%rax", "cc");
+                      : /*no outs*/ : "m"((uint64_t)args)  : "rax", "cc");
     return NULL;
 }
 
@@ -36,11 +37,15 @@ int main(int argc, const char** argv) {
     /* Affinitize threads to alternate logical processors to do a quick check from htop manually */
     numprocs = (numprocs >= 2) ? numprocs/2 : 1;
 
-    pthread_t *threads = (pthread_t*)malloc(numprocs * sizeof(pthread_t));
-    if(!threads) {
+    pthread_t* threads = (pthread_t*)malloc(numprocs * sizeof(pthread_t));
+    if (!threads) {
          errx(EXIT_FAILURE, "memory allocation failed");
     }
     cpu_set_t cpus, get_cpus;
+
+    /* if no cmdline options are provided, this test runs for a longer duration for manual
+     * verification, otherwise runs only for a short time */
+    uint64_t iterations = argc > 1 ? atol(argv[1]) : 10000000000;
 
     /* Validate parent set/get affinity for child */
     for (long i = 0; i < numprocs; i++) {
@@ -48,7 +53,7 @@ int main(int argc, const char** argv) {
         CPU_ZERO(&get_cpus);
         CPU_SET(i*2, &cpus);
 
-        ret = pthread_create(&threads[i], NULL, dowork, NULL);
+        ret = pthread_create(&threads[i], NULL, dowork, (void*)iterations);
         if (ret != 0) {
             free(threads);
             errx(EXIT_FAILURE, "pthread_create failed!");
@@ -79,7 +84,7 @@ int main(int argc, const char** argv) {
             errx(EXIT_FAILURE, "pthread_join failed!");
         }
     }
-    /* Validating parent set/get affinity for child done. Free resources*/
+    /* Validating parent set/get affinity for child done. Free resources */
     free(threads);
 
     /* Validate parent set/get affinity for itself */

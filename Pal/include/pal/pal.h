@@ -513,24 +513,35 @@ noreturn void DkThreadExit(PAL_PTR clear_child_tid);
 PAL_BOL DkThreadResume(PAL_HANDLE thread);
 
 /*!
- * \brief set the CPU affinity of a thread.
+ * \brief Sets the CPU affinity of a thread.
  *
- * \param cpumask_size length in bytes of the bitmask pointed to by user_mask_ptr
+ * This function assumes that \a cpumask_size is a valid and greater than 0. Also \a cpu_mask, the
+ * user provided buffer is valid and readable. Host tid is part of \a thread which is extracted by
+ * the PAL layer to set the affinity of the given thread.
+ *
+ * \param thread pal identifier returned when creating the thread resource
+ * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask
  * \param cpu_mask user-space pointer to the new CPU mask
  *
- * \return Returns the 0 on success, a errno on failure.
+ * \return Returns 1 on success, 0 on failure. Use PAL_ERRNO() to get the actual linux error code
  */
-int DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
 /*!
- * \brief get the CPU affinity of a thread. User needs to pass
+ * \brief Gets the CPU affinity of a thread.
  *
- * \param cpumask_size length in bytes of the bitmask pointed to by user_mask_ptr
+ * This function assumes that \a cpumask_size is a valid and is less than the size of the affinity
+ * mask used by the kernel. It also expects \a cpumask_size to aligned by sizeof long. The user
+ * provide \a cpu_mask, must be valid and writable. Host tid is part of \a thread which is extracted
+ * by the PAL layer to get the affinity of the given thread.
+ *
+ * \param thread pal identifier returned when creating the thread resource
+ * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask
  * \param cpu_mask user-space pointer to hold the current CPU mask
  *
- * \return Returns number of bytes copied ino the cpu_mask on success, a errno on failure.
+ * \return Returns 1 on success, 0 on failure. Use PAL_ERRNO() to get the actual linux error code
  */
-int DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
+PAL_BOL DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 
 /*
  * Exception Handling

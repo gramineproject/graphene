@@ -66,7 +66,7 @@ typedef ptrdiff_t ssize_t;
 
 #define DIV_ROUND_UP(n,d)              (((n) + (d) - 1) / (d))
 
-#define BITS_IN_BYTE                   (8)
+#define BITS_IN_BYTE                   8
 #define BITS_IN_TYPE(type)             (sizeof(type) * BITS_IN_BYTE)
 #define BITS_TO_LONGS(nr)              DIV_ROUND_UP(nr, BITS_IN_TYPE(long))
 
