@@ -16,11 +16,12 @@ In this way, one can debug one particular syscall testcase.
 To get more information, you can:
 
 - Enable debugging output: edit ``/install/testcases/bin/manifest`` to set
-  ``loader.debug_type = inline``. (Note that this you will need to revert this
-  change for ``make regression`` to work correctly).
-- Use GDB: ``.../pal_loader GDB [SGX] <TEST_BINARY>``
+  ``loader.debug_type = inline``. Note that you will need to revert this change
+  for ``make regression`` to work correctly. This will also not work when
+  running under SGX, because the manifest needs to be re-signed afterwards.
 
-Both above options require Graphene to be compiled with ``DEBUG=1``.
+- Use GDB: ``.../pal_loader GDB [SGX] <TEST_BINARY>``. This requires Graphene to
+  be compiled with ``DEBUG=1``.
 
 Running all the cases
 ---------------------
