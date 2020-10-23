@@ -33,4 +33,11 @@ $(SGX_SIGNER_KEY):
 	$(call cmd,sgx_sign_depend_exec)
 
 %.manifest.sgx.d: manifest
-	$(call cmd,sgx_sign_depend)
+	$(call cmd,sgx_sign_depend_exec)
+
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
+ifeq ($(target),)
+$(error define "target" variable for manifest.sgx dependency calculation)
+endif
+include $(addsuffix .manifest.sgx.d,$(call drop_manifest_suffix,$(target)))
+endif
