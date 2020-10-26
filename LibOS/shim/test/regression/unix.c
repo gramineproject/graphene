@@ -182,7 +182,7 @@ static int client(void) {
 }
 
 int main(int argc, char** argv) {
-    /* check that we cannot connect to the non-existing UNIX domain socket */
+    /* check that we cannot connect to a non-existing UNIX domain socket */
     nonexisting_socket();
 
     if (argc > 1) {
