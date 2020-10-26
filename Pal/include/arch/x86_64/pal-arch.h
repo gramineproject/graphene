@@ -190,7 +190,7 @@ static inline bool pal_context_has_user_pagefault(PAL_CONTEXT* context) {
 typedef struct PAL_CPU_INFO_ {
     PAL_NUM cpu_num;
     PAL_NUM cpu_cores;
-    PAL_NUM phy_id[PAL_MAX_CPU];
+    PAL_PTR phy_id;
     PAL_STR cpu_vendor;
     PAL_STR cpu_brand;
     PAL_NUM cpu_family;

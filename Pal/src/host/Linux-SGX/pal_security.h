@@ -42,8 +42,8 @@ struct pal_sec {
     /* physical cores in a package */
     PAL_NUM cpu_cores;
 
-    /* Physical package id */
-    PAL_NUM phy_id[PAL_MAX_CPU];
+    /* array of "logical processor -> physical package" mappings */
+    PAL_PTR phy_id;
 
 #ifdef DEBUG
     PAL_BOL in_gdb;

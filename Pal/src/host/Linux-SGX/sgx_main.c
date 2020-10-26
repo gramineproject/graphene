@@ -680,61 +680,65 @@ out:
     return ret;
 }
 
-/*
- * Returns the number of resources present in the file and  -errno on failure. For example
- * /sys/devices/system/cpu/online,.with complex formats like "1,3-5,6 will return 5. While on a
- * host without SMT support, /sys/devices/system/cpu/smt/active will return 0, the actual value.
- */
-static int get_hw_res_count(const char *filename) {
+/* Opens a pseudo-file describing HW resources such as online CPUs and counts the number of
+ * HW resources present in the file (if count == true) or simply reads the integer stored in the
+ * file (if count == false). For example on a single-cpu machine, calling this function on
+ * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
+ * Returns -errno on failure.
+ * N.B: Understands complex formats like "1,3-5,6 when called with count == true.
+*/
+static int get_hw_resource(const char *filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
-    if (fd < 0)
-        return unix_to_pal_error(ERRNO(fd));
+    if (IS_ERR(fd))
+        return -ERRNO(fd);
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
     INLINE_SYSCALL(close, 1, fd);
-    if (ret < 0) {
-        return unix_to_pal_error(ERRNO(ret));
-    }
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
-    bool is_range = PAL_FALSE;
     char* end;
     char* ptr = buf;
-    int cpu_count = 0;
+    int resource_cnt = 0;
+    int retval = -ENOENT;
     while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',') {
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
             ptr++;
-            is_range = PAL_TRUE;
-        }
 
         int firstint = (int)strtol(ptr, &end, 10);
         if (ptr == end)
             break;
 
-        if (*end == '\n' && !is_range) {
-            cpu_count = firstint;
+        if (!count) {
+            /* caller wants to read an int stored in the file */
+            if (*end == '\n' || *end == '\0')
+                retval = firstint;
+            break;
         } else if (*end == '\0' || *end == ',' || *end == '\n') {
             /* single CPU index, count as one more CPU */
-            cpu_count++;
+            resource_cnt++;
         } else if (*end == '-') {
             /* CPU range, count how many CPUs in range */
             ptr = end + 1;
             int secondint = (int)strtol(ptr, &end, 10);
             if (secondint > firstint)
-                cpu_count += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
+                resource_cnt += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
         }
         ptr = end;
     }
 
-    return cpu_count;
+    if (count && resource_cnt > 0)
+        retval = resource_cnt;
+
+    return retval;
 }
 
 static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_uri,
                         char* exec_uri, char* args, size_t args_size, char* env, size_t env_size,
                         bool exec_uri_inferred, bool need_gsgx) {
-    char filename[128];
     struct pal_sec* pal_sec = &enclave->pal_sec;
     int ret;
 
@@ -754,35 +758,49 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
     pal_sec->uid = INLINE_SYSCALL(getuid, 0);
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
-    int num_cpus = get_hw_res_count("/sys/devices/system/cpu/online");
-    if (num_cpus <= 0) {
+
+    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
+     * instead extract info on total number of logical processors, number of physical cores,
+     * SMT support etc. by parsing sysfs pseudo-files */
+    int num_cpus = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
+    if (num_cpus < 0)
         return num_cpus;
-    }
     pal_sec->num_cpus = num_cpus;
 
-    int cpu_cores = get_hw_res_count("/sys/devices/system/cpu/cpu0/topology/core_siblings_list");
-    if (cpu_cores <= 0) {
-        return cpu_cores;
+    int possible_cpus = get_hw_resource("/sys/devices/system/cpu/possible", /*count=*/true);
+    /* TODO: correctly support offline CPUs */
+    if ((possible_cpus > 0) && (possible_cpus > num_cpus)) {
+         printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
+                "which may lead to subpar performance\n");
     }
 
-    int smt_active = get_hw_res_count("/sys/devices/system/cpu/smt/active");
+
+    int cpu_cores = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
+                                    /*count=*/true);
+    if (cpu_cores < 0)
+        return cpu_cores;
+
+    /* FIXME: This code assumes there are only 2 HTs per core but platforms like
+     * KNL(Knights landing) can have more */
+    int smt_active = get_hw_resource("/sys/devices/system/cpu/smt/active", /*count=*/false);
     if (smt_active < 0)
         return smt_active;
-
-    /* This code assumes there are only 2 HTs per core but platforms like KNL can have more */
     pal_sec->cpu_cores = (smt_active == 0) ? cpu_cores : (cpu_cores / 2);
 
-    /* Extract physical id for /proc/cpuinfo */
-    int phy_id = 0;
-    for (int idx =0; idx < num_cpus; idx++) {
+    /* array of "logical processor -> physical package" mappings */
+    int *phy_id = (int*)malloc(num_cpus *sizeof(int));
+    if (!phy_id)
+        return -ENOMEM;
+    char filename[128];
+    for (int idx = 0; idx < num_cpus; idx++) {
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
-        phy_id = get_hw_res_count(filename);
-        if (phy_id < 0) {
-            return phy_id;
+        phy_id[idx] = get_hw_resource(filename, /*count=*/false);
+        if (phy_id[idx] < 0) {
+            return phy_id[idx];
         }
-        pal_sec->phy_id[idx] = phy_id;
     }
+    pal_sec->phy_id = (PAL_PTR)phy_id;
 
 #ifdef DEBUG
     size_t env_i = 0;

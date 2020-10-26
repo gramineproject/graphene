@@ -298,7 +298,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     g_pal_sec.cpu_cores = sec_info.cpu_cores;
 
-    COPY_ARRAY(g_pal_sec.phy_id, sec_info.phy_id);
+    g_pal_sec.phy_id = sec_info.phy_id;
 
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);

@@ -268,55 +268,60 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
              first_process ? argv + 3 : argv + 4, envp);
 }
 
-/*
- * Returns the number of resources present in the file and  -errno on failure. For example
- * /sys/devices/system/cpu/online,.with complex formats like "1,3-5,6 will return 5. While on a
- * host without SMT support, /sys/devices/system/cpu/smt/active will return 0 (the actual value)
- */
-int get_hw_res_count(const char *filename) {
+/* Opens a pseudo-file describing HW resources such as online CPUs and counts the number of
+ * HW resources present in the file (if count == true) or simply reads the integer stored in the
+ * file (if count == false). For example on a single-cpu machine, calling this function on
+ * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
+ * Returns PAL ERROR on failure.
+ * N.B: Understands complex formats like "1,3-5,6 when called with count == true.
+*/
+int get_hw_resource(const char *filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
-    if (fd < 0)
+    if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
     INLINE_SYSCALL(close, 1, fd);
-    if (ret < 0) {
+    if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
-    }
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
-    bool is_range = PAL_FALSE;
     char* end;
     char* ptr = buf;
-    int cpu_count = 0;
+    int resource_cnt = 0;
+    int retval = -PAL_ERROR_STREAMNOTEXIST;
     while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',') {
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
             ptr++;
-            is_range = PAL_TRUE;
-        }
 
         int firstint = (int)strtol(ptr, &end, 10);
         if (ptr == end)
             break;
 
-        if (*end == '\n' && !is_range) {
-            cpu_count = firstint;
+        if (!count) {
+            /* caller wants to read an int stored in the file */
+            if (*end == '\n' || *end == '\0')
+                retval = firstint;
+            break;
         } else if (*end == '\0' || *end == ',' || *end == '\n') {
             /* single CPU index, count as one more CPU */
-            cpu_count++;
+            resource_cnt++;
         } else if (*end == '-') {
             /* CPU range, count how many CPUs in range */
             ptr = end + 1;
             int secondint = (int)strtol(ptr, &end, 10);
             if (secondint > firstint)
-                cpu_count += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
+                resource_cnt += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
         }
         ptr = end;
     }
 
-    return cpu_count;
+    if (count && resource_cnt > 0)
+        retval = resource_cnt;
+
+    return retval;
 }
 
 ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size) {
