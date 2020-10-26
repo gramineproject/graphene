@@ -77,7 +77,7 @@ enum {
  * then call out of the enclave to request the corresponding Quote from the Quoting Enclave.
  * Communication is done via AESM service, in the form of protobuf request/response messages.
  *
- * \param[in]  spid         Software provider ID (SPID).
+ * \param[in]  spid         Software provider ID (SPID); if NULL then DCAP/ECDSA is used.
  * \param[in]  nonce        16B nonce to be included in the quote for freshness.
  * \param[in]  report_data  64B bytestring to be included in the report and the quote.
  * \param[in]  linkable     Quote type (linkable vs unlinkable).

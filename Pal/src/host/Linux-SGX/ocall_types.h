@@ -277,6 +277,7 @@ typedef struct {
 } ms_ocall_eventfd_t;
 
 typedef struct {
+    bool              ms_is_epid;
     sgx_spid_t        ms_spid;
     bool              ms_linkable;
     sgx_report_t      ms_report;

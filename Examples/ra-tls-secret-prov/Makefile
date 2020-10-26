@@ -14,9 +14,9 @@
 GRAPHENEDIR ?= ../..
 GRAPHENEKEY ?= $(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/enclave-key.pem
 
-# Specify your SPID and linkable/unlinkable attestation policy (only for EPID);
-# these variables will not be used if this example is built for ECDSA/DCAP
-RA_CLIENT_SPID ?= AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+# for EPID attestation, specify your SPID and linkable/unlinkable attestation policy;
+# for DCAP/ECDSA attestation, specify SPID as empty string (linkable value is ignored)
+RA_CLIENT_SPID ?=
 RA_CLIENT_LINKABLE ?= 0
 
 ifeq ($(DEBUG),1)

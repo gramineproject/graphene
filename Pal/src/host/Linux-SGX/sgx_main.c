@@ -881,7 +881,9 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 
     if (get_config(enclave->config, "sgx.remote_attestation", cfgbuf, sizeof(cfgbuf)) > 0) {
         /* initialize communication with Quoting Enclave only if app requests attestation */
-        ret = init_quoting_enclave_targetinfo(&pal_sec->qe_targetinfo);
+        bool is_epid; /* EPID is used if SPID is specified in manifest, otherwise DCAP/ECDSA */
+        is_epid = get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0;
+        ret = init_quoting_enclave_targetinfo(is_epid, &pal_sec->qe_targetinfo);
         if (ret < 0)
             return ret;
     }

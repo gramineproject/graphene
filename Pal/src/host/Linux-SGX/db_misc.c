@@ -381,39 +381,42 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     if (user_report_data_size != sizeof(sgx_report_data_t))
         return -PAL_ERROR_INVAL;
 
-#ifdef SGX_DCAP
-    /* for DCAP attestation, spid and linkable arguments are ignored */
-    sgx_spid_t spid = {0};
-    bool linkable = false;
-#else
-    char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
+    bool is_epid;
+    sgx_spid_t spid;
+    bool linkable;
+
+    char spid_hex[sizeof(spid) * 2 + 1];
     ssize_t len = get_config(g_pal_state.root_config, "sgx.ra_client_spid", spid_hex,
                              sizeof(spid_hex));
     if (len <= 0) {
-        SGX_DBG(DBG_E, "No Software Provider ID (sgx.ra_client_spid) specified in the manifest. "
-                "Graphene can not perform SGX quote retrieval.\n");
-        return -PAL_ERROR_INVAL;
-    }
+        /* No Software Provider ID (SPID) specified in the manifest, it is DCAP attestation --
+         * for DCAP, spid and linkable arguments are ignored (unset them for sanity) */
+        is_epid = false;
+        memset(&spid, 0, sizeof(spid));
+        linkable = false;
+    } else {
+        /* SPID specified in the manifest, it is EPID attestation -- read spid and linkable */
+        is_epid = true;
 
-    if (len != sizeof(sgx_spid_t) * 2) {
-        SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
-        return -PAL_ERROR_INVAL;
-    }
-
-    sgx_spid_t spid;
-    for (ssize_t i = 0; i < len; i++) {
-        int8_t val = hex2dec(spid_hex[i]);
-        if (val < 0) {
+        if (len != sizeof(spid) * 2) {
             SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
             return -PAL_ERROR_INVAL;
         }
-        spid[i / 2] = spid[i / 2] * 16 + (uint8_t)val;
-    }
 
-    char buf[2];
-    len = get_config(g_pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
-    bool linkable = (len == 1 && buf[0] == '1');
-#endif
+        for (ssize_t i = 0; i < len; i++) {
+            int8_t val = hex2dec(spid_hex[i]);
+            if (val < 0) {
+                SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n",
+                        spid_hex);
+                return -PAL_ERROR_INVAL;
+            }
+            spid[i / 2] = spid[i / 2] * 16 + (uint8_t)val;
+        }
+
+        char buf[2];
+        len = get_config(g_pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
+        linkable = (len == 1 && buf[0] == '1');
+    }
 
     sgx_quote_nonce_t nonce;
     int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
@@ -423,7 +426,8 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     char* pal_quote       = NULL;
     size_t pal_quote_size = 0;
 
-    ret = sgx_get_quote(&spid, &nonce, user_report_data, linkable, &pal_quote, &pal_quote_size);
+    ret = sgx_get_quote(is_epid ? &spid : NULL, &nonce, user_report_data, linkable, &pal_quote,
+                        &pal_quote_size);
     if (ret < 0)
         return ret;
 

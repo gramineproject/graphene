@@ -1405,7 +1405,14 @@ int ocall_get_quote(const sgx_spid_t* spid, bool linkable, const sgx_report_t* r
         goto out;
     }
 
-    memcpy(&ms->ms_spid, spid, sizeof(*spid));
+    if (spid) {
+        WRITE_ONCE(ms->ms_is_epid, true);
+        memcpy(&ms->ms_spid, spid, sizeof(*spid));
+    } else {
+        WRITE_ONCE(ms->ms_is_epid, false);
+        memset(&ms->ms_spid, 0, sizeof(ms->ms_spid)); /* for sanity */
+    }
+
     memcpy(&ms->ms_report, report, sizeof(*report));
     memcpy(&ms->ms_nonce, nonce, sizeof(*nonce));
     WRITE_ONCE(ms->ms_linkable, linkable);

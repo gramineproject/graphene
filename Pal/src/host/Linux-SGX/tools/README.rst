@@ -178,12 +178,14 @@ into the RA-TLS certificate. Typically linked into server applications. Not thre
 
 The library expects the following information in the manifest for EPID-based attestation:
 
+- ``sgx.remote_attestation = 1`` -- remote attestation is enabled.
 - ``sgx.ra_client_spid`` -- client SPID for EPID remote attestation.
 - ``sgx.ra_client_linkable`` -- client linkable/unlinkable attestation policy.
 
 For ECDSA-based (DCAP) attestation, the library expects instead:
 
-- ``sgx.attestation = 1`` -- DCAP remote attestation is enabled.
+- ``sgx.remote_attestation = 1`` -- remote attestation is enabled.
+- ``sgx.ra_client_spid = <empty string>`` -- empty SPID hints that it is DCAP attestation.
 
 The library uses the following environment variables if available:
 

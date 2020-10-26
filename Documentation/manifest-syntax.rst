@@ -398,10 +398,13 @@ Attestation and quotes
 This syntax specifies the parameters for remote attestation. To enable it,
 ``remote_attestation`` must be set to ``1``.
 
-For ECDSA/DCAP based attestation, no additional parameters are required. For
-EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
-be additionally specified (linkable/unlinkable mode and SPID of the client
-respectively).
+For EPID based attestation, ``ra_client_linkable`` and ``ra_client_spid`` must
+be filled with your registered Intel SGX EPID Attestation Service credentials
+(linkable/unlinkable mode and SPID of the client respectively).
+
+For DCAP/ECDSA based attestation, ``ra_client_spid`` must be an empty string
+(this is a hint to Graphene to use DCAP instead of EPID) and
+``ra_client_linkable`` is ignored.
 
 Enabling per-thread and process-wide SGX stats
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
