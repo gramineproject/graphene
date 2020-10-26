@@ -288,15 +288,29 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         .count   = 0, /* output parameter, will be checked after IOCTL */
     };
 
-    ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_ADD_PAGES, &param);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_I, "Enclave EADD returned %d\n", ret);
-        return -ERRNO(ret);
-    }
-    if (param.count != param.length) {
-        SGX_DBG(DBG_I, "Enclave EADD didn't add all pages: added %lluB but expected %lluB\n",
-                param.count, param.length);
-        return -ERRNO(ret);
+    /* NOTE: SGX driver v39 removes `count` field and returns "number of bytes added" as return
+     * value directly in `ret`. It also caps the maximum number of bytes to be added as 1MB, or 256
+     * enclave pages. Thus, the below code must loop on the ADD_PAGES ioctl until all pages are
+     * added; the code must first check `ret > 0` and only then check `count` field to support all
+     * versions of the SGX driver. Note that even though `count` is removed in v39, it is the last
+     * field of struct and thus may stay redundant (and unused by driver v39). We hope that this
+     * contrived logic won't be needed when the SGX driver stabilizes its ioctl interface.
+     * (https://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-sgx.git/tag/?h=v39) */
+    while (param.length > 0) {
+        ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_ADD_PAGES, &param);
+        if (IS_ERR(ret)) {
+            if (ret == -EINTR)
+                continue;
+            SGX_DBG(DBG_I, "Enclave EADD returned %d\n", ret);
+            return -ERRNO(ret);
+        }
+
+        uint64_t added_size = ret > 0 ? (uint64_t)ret : param.count;
+
+        param.offset += added_size;
+        if (param.src != (uint64_t)g_zero_pages)
+            param.src += added_size;
+        param.length -= added_size;
     }
 
     /* ask Intel SGX driver to actually mmap the added enclave pages */
@@ -319,6 +333,8 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
     while (added_size < size) {
         ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_ADD_PAGE, &param);
         if (IS_ERR(ret)) {
+            if (ret == -EINTR)
+                continue;
             SGX_DBG(DBG_I, "Enclave EADD returned %d\n", ret);
             return -ERRNO(ret);
         }
