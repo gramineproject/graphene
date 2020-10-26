@@ -50,13 +50,14 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd Pal/regression
-                                make -j8 SGX=1 RA_CLIENT_SPID=${ra_client_spid} all sgx-tokens
+                                make -j8 SGX=1 all sgx-tokens
                                 make SGX=1 KEEP_LOG=1 regression
                                 '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/regression
+                                make clean SGX=1  # re-build with ra_client_spid set
                                 make -j8 SGX=1 RA_CLIENT_SPID=${ra_client_spid} all sgx-tokens
                                 make SGX=1 regression
                             '''
