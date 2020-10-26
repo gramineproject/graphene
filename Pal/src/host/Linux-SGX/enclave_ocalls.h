@@ -98,10 +98,11 @@ int ocall_eventfd(unsigned int initval, int flags);
  * The obtained quote is not validated in any way (i.e., this function does not check whether the
  * returned quote corresponds to this enclave or whether its contents make sense).
  *
- * \param[in]  spid       Software provider ID (SPID).
- * \param[in]  linkable   Quote type (linkable vs unlinkable).
+ * \param[in]  spid       Software provider ID (SPID); if NULL then DCAP/ECDSA is used.
+ * \param[in]  linkable   Quote type (linkable vs unlinkable); ignored if DCAP/ECDSA is used.
  * \param[in]  report     Enclave report to be sent to the Quoting Enclave.
- * \param[in]  nonce      16B nonce to be included in the quote for freshness.
+ * \param[in]  nonce      16B nonce to be included in the quote for freshness; ignored if
+ *                        DCAP/ECDSA is used.
  * \param[out] quote      Quote returned by the Quoting Enclave (allocated via malloc() in this
  *                        function; the caller gets the ownership of the quote).
  * \param[out] quote_len  Length of the quote returned by the Quoting Enclave.

@@ -645,8 +645,8 @@ static long sgx_ocall_update_debugger(void* pms) {
 static long sgx_ocall_get_quote(void* pms) {
     ms_ocall_get_quote_t* ms = (ms_ocall_get_quote_t*)pms;
     ODEBUG(OCALL_GET_QUOTE, ms);
-    return retrieve_quote(&ms->ms_spid, ms->ms_linkable, &ms->ms_report, &ms->ms_nonce,
-                          &ms->ms_quote, &ms->ms_quote_len);
+    return retrieve_quote(ms->ms_is_epid ? &ms->ms_spid : NULL, ms->ms_linkable, &ms->ms_report,
+                          &ms->ms_nonce, &ms->ms_quote, &ms->ms_quote_len);
 }
 
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {
