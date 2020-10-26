@@ -33,12 +33,13 @@ static MEM_MGR port_mgr;
 DEFINE_LISTP(shim_ipc_port);
 static LISTP_TYPE(shim_ipc_port) port_list;
 
-static enum { HELPER_NOTALIVE, HELPER_ALIVE } ipc_helper_state;
+static enum { HELPER_NOTALIVE, HELPER_STOPPED, HELPER_ALIVE } ipc_helper_state = HELPER_NOTALIVE;
 
 static struct shim_thread* ipc_helper_thread;
 static struct shim_lock ipc_helper_lock;
 
 static AEVENTTYPE install_new_event;
+static AEVENTTYPE helper_stopped_event;
 
 static int create_ipc_helper(void);
 static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
@@ -171,13 +172,15 @@ int init_ipc_ports(void) {
 }
 
 int init_ipc_helper(void) {
-    /* early enough in init, can write global vars without the lock */
-    ipc_helper_state = HELPER_NOTALIVE;
     if (!create_lock(&ipc_helper_lock)) {
         return -ENOMEM;
     }
 
     int ret = create_event(&install_new_event);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = create_event(&helper_stopped_event);
     if (ret < 0) {
         return ret;
     }
@@ -627,6 +630,48 @@ out:
     return ret;
 }
 
+int pause_ipc_helper(void) {
+    bool needs_wait = false;
+
+    lock(&ipc_helper_lock);
+    if (ipc_helper_state == HELPER_ALIVE) {
+        ipc_helper_state = HELPER_STOPPED;
+
+        int ret = clear_event(&helper_stopped_event);
+        if (ret < 0) {
+            unlock(&ipc_helper_lock);
+            return ret;
+        }
+        needs_wait = true;
+
+        /* Wake up the helper thread, so that it notices `ipc_helper_state` change. */
+        ret = set_event(&install_new_event, 1);
+        if (ret < 0) {
+            unlock(&ipc_helper_lock);
+            return ret;
+        }
+    }
+    unlock(&ipc_helper_lock);
+
+    if (needs_wait) {
+        /* Wait untill the helper thread notices the stop event. */
+        return wait_event(&helper_stopped_event);
+    }
+
+    return 0;
+}
+
+int resume_ipc_helper(void) {
+    int ret = 0;
+    lock(&ipc_helper_lock);
+    if (ipc_helper_state == HELPER_STOPPED) {
+        ipc_helper_state = HELPER_ALIVE;
+        ret = set_event(&install_new_event, 1);
+    }
+    unlock(&ipc_helper_lock);
+    return ret;
+}
+
 /* Main routine of the IPC helper thread. IPC helper thread is spawned when the first IPC port is
  * added and is terminated only when the whole Graphene application terminates. IPC helper thread
  * runs in an endless loop and waits on port events (either the addition/removal of ports or actual
@@ -681,10 +726,24 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
     while (true) {
         lock(&ipc_helper_lock);
-        if (ipc_helper_state != HELPER_ALIVE) {
+
+        if (clear_event(&install_new_event) < 0) {
+            goto out_err_unlock;
+        }
+
+        if (ipc_helper_state == HELPER_NOTALIVE) {
             ipc_helper_thread = NULL;
             unlock(&ipc_helper_lock);
             break;
+        } else if (ipc_helper_state == HELPER_STOPPED) {
+            if (set_event(&helper_stopped_event, 1) < 0) {
+                goto out_err_unlock;
+            }
+            unlock(&ipc_helper_lock);
+            if (wait_event(&install_new_event) < 0) {
+                goto out_err;
+            }
+            continue;
         }
 
         /* iterate through all known ports from `port_list` to repopulate `ports` */
@@ -751,10 +810,8 @@ noreturn static void shim_ipc_helper(void* dummy) {
         for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {
                 if (pals[i] == install_new_event_pal) {
-                    /* some thread wants to install new event; this event is found in `ports`, so
-                     * just re-init install_new_event */
+                    /* some thread wants to install new event; this event is found in `ports` */
                     debug("New IPC event was requested (port was added/removed)\n");
-                    clear_event(&install_new_event);
                     continue;
                 }
 
@@ -833,14 +890,15 @@ static void shim_ipc_helper_prepare(void* arg) {
     struct debug_buf debug_buf;
     debug_setbuf(shim_get_tcb(), &debug_buf);
 
+#ifdef DEBUG
     lock(&ipc_helper_lock);
-    bool notme = (self != ipc_helper_thread);
+    assert(self == ipc_helper_thread);
     unlock(&ipc_helper_lock);
+#endif // DEBUG
 
     void* stack = allocate_stack(IPC_HELPER_STACK_SIZE, g_pal_alloc_align, false);
 
-    if (notme || !stack) {
-        free(stack);
+    if (!stack) {
         put_thread(self);
         DkThreadExit(/*clear_child_tid=*/NULL);
         /* UNREACHABLE */
@@ -858,9 +916,7 @@ static void shim_ipc_helper_prepare(void* arg) {
 /* this should be called with the ipc_helper_lock held */
 static int create_ipc_helper(void) {
     assert(locked(&ipc_helper_lock));
-
-    if (ipc_helper_state == HELPER_ALIVE)
-        return 0;
+    assert(ipc_helper_state == HELPER_NOTALIVE);
 
     struct shim_thread* new = get_new_internal_thread();
     if (!new)
@@ -891,7 +947,7 @@ static int create_ipc_helper(void) {
 struct shim_thread* terminate_ipc_helper(void) {
     /* First check if thread is alive. */
     lock(&ipc_helper_lock);
-    if (ipc_helper_state != HELPER_ALIVE) {
+    if (ipc_helper_state == HELPER_NOTALIVE) {
         unlock(&ipc_helper_lock);
         return NULL;
     }
@@ -911,7 +967,7 @@ struct shim_thread* terminate_ipc_helper(void) {
     DkThreadDelayExecution(500000); /* in microseconds */
 
     lock(&ipc_helper_lock);
-    if (ipc_helper_state != HELPER_ALIVE) {
+    if (ipc_helper_state == HELPER_NOTALIVE) {
         unlock(&ipc_helper_lock);
         return NULL;
     }
@@ -920,9 +976,10 @@ struct shim_thread* terminate_ipc_helper(void) {
     if (ret)
         get_thread(ret);
     ipc_helper_state = HELPER_NOTALIVE;
-    unlock(&ipc_helper_lock);
 
     /* force wake up of ipc helper thread so that it exits */
     set_event(&install_new_event, 1);
+
+    unlock(&ipc_helper_lock);
     return ret;
 }
