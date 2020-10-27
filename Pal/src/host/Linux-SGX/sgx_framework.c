@@ -263,6 +263,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
 #ifdef SGX_DCAP_16_OR_LATER
     if (!user_addr && g_zero_pages_size < size) {
         /* not enough contigious zero pages to back up enclave pages, allocate more */
+        /* TODO: this logic can be removed if we introduce a size cap in ENCLAVE_ADD_PAGES ioctl */
         ret = INLINE_SYSCALL(munmap, 2, g_zero_pages, g_zero_pages_size);
         if (IS_ERR(ret)) {
             SGX_DBG(DBG_I, "Cannot unmap zero pages %d\n", ret);
