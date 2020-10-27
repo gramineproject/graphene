@@ -27,6 +27,8 @@ static sgx_arch_tcs_t* g_enclave_tcs;
 static int g_enclave_thread_num;
 static struct thread_map* g_enclave_thread_map;
 
+extern int g_enclave_threads_affinity;
+
 bool g_sgx_enable_stats = false;
 
 /* this function is called only on thread/process exit (never in the middle of thread exec) */
@@ -182,6 +184,25 @@ int pal_thread_init(void* tcbptr) {
                 g_enclave_thread_num);
         ret = -ENOMEM;
         goto out;
+    }
+
+    /* DMITRII KUVAISKII: quick workaround to affinize enclave thread to some core */
+typedef struct cpu_set_t { unsigned long __bits[128/sizeof(long)]; } cpu_set_t;
+#define __CPU_op_S(i, size, set, op) ( (i)/8U >= (size) ? 0 : \
+            (((unsigned long *)(set))[(i)/8/sizeof(long)] op (1UL<<((i)%(8*sizeof(long))))) )
+#define CPU_SET_S(i, size, set) __CPU_op_S(i, size, set, |=)
+#define CPU_ZERO_S(size,set) memset(set,0,size)
+#define CPU_SET(i, set) CPU_SET_S(i,sizeof(cpu_set_t),set)
+#define CPU_ZERO(set) CPU_ZERO_S(sizeof(cpu_set_t),set)
+
+    if (g_enclave_threads_affinity >= 0) {
+        cpu_set_t cpus;
+        CPU_ZERO(&cpus);
+        CPU_SET(g_enclave_threads_affinity, &cpus);
+        SGX_DBG(DBG_E, "Enclave thread is setting its CPU affinity to %d...\n", g_enclave_threads_affinity);
+        int ret_setaff = INLINE_SYSCALL(sched_setaffinity, 3, 0, sizeof(cpus), &cpus);
+        if (IS_ERR(ret_setaff))
+            SGX_DBG(DBG_E, "Enclave thread failed to set its CPU affinity\n");
     }
 
     if (!tcb->stack) {

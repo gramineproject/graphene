@@ -155,3 +155,7 @@ sgx.allowed_files.passwd    = file:/etc/passwd
 # getaddrinfo(3) configuration file. Glibc reads this file to correctly find
 # network addresses. For more info, see 'man gai.conf'.
 sgx.allowed_files.gaiconf   = file:/etc/gai.conf
+
+sgx.rpc_thread_num = 8
+sgx.enclave_core = 0
+sgx.untrusted_core = 1

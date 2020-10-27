@@ -26,6 +26,8 @@
     do {                 \
     } while (0)
 
+extern int g_rpc_threads_affinity;
+
 static long sgx_ocall_exit(void* pms) {
     ms_ocall_exit_t* ms = (ms_ocall_exit_t*)pms;
     ODEBUG(OCALL_EXIT, NULL);
@@ -699,6 +701,25 @@ rpc_queue_t* g_rpc_queue = NULL; /* pointer to untrusted queue */
 static int rpc_thread_loop(void* arg) {
     __UNUSED(arg);
     long mytid = INLINE_SYSCALL(gettid, 0);
+
+    /* DMITRII KUVAISKII: quick workaround to affinize RPC thread to some core */
+typedef struct cpu_set_t { unsigned long __bits[128/sizeof(long)]; } cpu_set_t;
+#define __CPU_op_S(i, size, set, op) ( (i)/8U >= (size) ? 0 : \
+            (((unsigned long *)(set))[(i)/8/sizeof(long)] op (1UL<<((i)%(8*sizeof(long))))) )
+#define CPU_SET_S(i, size, set) __CPU_op_S(i, size, set, |=)
+#define CPU_ZERO_S(size,set) memset(set,0,size)
+#define CPU_SET(i, set) CPU_SET_S(i,sizeof(cpu_set_t),set)
+#define CPU_ZERO(set) CPU_ZERO_S(sizeof(cpu_set_t),set)
+
+    if (g_rpc_threads_affinity >= 0) {
+        cpu_set_t cpus;
+        CPU_ZERO(&cpus);
+        CPU_SET(g_rpc_threads_affinity, &cpus);
+        SGX_DBG(DBG_E, "RPC thread is setting its CPU affinity to %d...\n", g_rpc_threads_affinity);
+        int ret_setaff = INLINE_SYSCALL(sched_setaffinity, 3, 0, sizeof(cpus), &cpus);
+        if (IS_ERR(ret_setaff))
+            SGX_DBG(DBG_E, "RPC thread failed to set its CPU affinity\n");
+    }
 
     /* block all signals except SIGUSR2 for RPC thread */
     __sigset_t mask;

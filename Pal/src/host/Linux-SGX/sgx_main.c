@@ -35,6 +35,9 @@
 #include "sysdep.h"
 #include "sysdeps/generic/ldsodefs.h"
 
+int g_rpc_threads_affinity = -1;
+int g_enclave_threads_affinity = -1;
+
 size_t g_page_size = PRESET_PAGESIZE;
 
 char* g_pal_loader_path = NULL;
@@ -237,6 +240,14 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         }
     } else {
         enclave->rpc_thread_num = 0; /* by default, do not use exitless feature */
+    }
+
+    if (get_config(enclave->config, "sgx.enclave_core", cfgbuf, sizeof(cfgbuf)) > 0) {
+        g_enclave_threads_affinity = parse_size_str(cfgbuf);
+    }
+
+    if (get_config(enclave->config, "sgx.untrusted_core", cfgbuf, sizeof(cfgbuf)) > 0) {
+        g_rpc_threads_affinity = parse_size_str(cfgbuf);
     }
 
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, sizeof(cfgbuf)) > 0
