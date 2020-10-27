@@ -11,7 +11,7 @@ pipeline {
                             # merged)
                             export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
                                                                 {print $1} else {print $3}}'`
-                            make TESTCASES='python3 python3-trusted-args python3-base' \
+                            make TESTCASES='python3 python3-trusted-args base-python3' \
                                  DISTRIBUTIONS='ubuntu18.04' \
                                  IMAGE_SUFFIX=-${COMMIT} GRAPHENE_BRANCH=${COMMIT}
                         '''
