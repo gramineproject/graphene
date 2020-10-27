@@ -298,8 +298,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     g_pal_sec.cpu_cores = sec_info.cpu_cores;
 
-    g_pal_sec.phy_id = sec_info.phy_id;
-
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);
     init_untrusted_slab_mgr();
@@ -344,6 +342,15 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_linux_state.process_id = (start_time & (~0xffff)) | g_pal_sec.pid;
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+
+    /* Allocate enclave memory to store "logical processor -> physical package" mappings*/
+    int* phy_id = (int*)malloc(num_cpus * sizeof(int));
+    if (!phy_id) {
+        SGX_DBG(DBG_E, "Allocation for logical processor -> physical package mappings failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    memcpy(phy_id, sec_info.phy_id, num_cpus * sizeof(int));
+    g_pal_sec.phy_id = (PAL_PTR)phy_id;
 
     /* initialize master key (used for pipes' encryption for all enclaves of an application); it
      * will be overwritten below in init_child_process() with inherited-from-parent master key if

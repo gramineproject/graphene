@@ -684,10 +684,10 @@ out:
  * HW resources present in the file (if count == true) or simply reads the integer stored in the
  * file (if count == false). For example on a single-cpu machine, calling this function on
  * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
- * Returns -errno on failure.
- * N.B: Understands complex formats like "1,3-5,6 when called with count == true.
+ * Returns UNIX error code on failure.
+ * N.B: Understands complex formats like "1,3-5,6" when called with count == true.
 */
-static int get_hw_resource(const char *filename, bool count) {
+static int get_hw_resource(const char* filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
     if (IS_ERR(fd))
         return -ERRNO(fd);
@@ -712,16 +712,19 @@ static int get_hw_resource(const char *filename, bool count) {
         if (ptr == end)
             break;
 
+        /* caller wants to read an int stored in the file */
         if (!count) {
-            /* caller wants to read an int stored in the file */
             if (*end == '\n' || *end == '\0')
                 retval = firstint;
-            break;
-        } else if (*end == '\0' || *end == ',' || *end == '\n') {
-            /* single CPU index, count as one more CPU */
+            return retval;
+        }
+
+        /* caller wants to count the number of HW resources */
+        if (*end == '\0' || *end == ',' || *end == '\n') {
+            /* single HW resource index, count as one more */
             resource_cnt++;
         } else if (*end == '-') {
-            /* CPU range, count how many CPUs in range */
+            /* HW resource range, count how many HW resources are in range */
             ptr = end + 1;
             int secondint = (int)strtol(ptr, &end, 10);
             if (secondint > firstint)
@@ -780,24 +783,27 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     if (cpu_cores < 0)
         return cpu_cores;
 
-    /* FIXME: This code assumes there are only 2 HTs per core but platforms like
-     * KNL(Knights landing) can have more */
-    int smt_active = get_hw_resource("/sys/devices/system/cpu/smt/active", /*count=*/false);
-    if (smt_active < 0)
-        return smt_active;
-    pal_sec->cpu_cores = (smt_active == 0) ? cpu_cores : (cpu_cores / 2);
+    int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
+                                       /*count=*/true);
+    if (smt_siblings < 0)
+        return smt_siblings;
+    pal_sec->cpu_cores = (smt_siblings == 1) ? cpu_cores : (cpu_cores / smt_siblings);
 
     /* array of "logical processor -> physical package" mappings */
     int *phy_id = (int*)malloc(num_cpus *sizeof(int));
     if (!phy_id)
         return -ENOMEM;
+
     char filename[128];
     for (int idx = 0; idx < num_cpus; idx++) {
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         phy_id[idx] = get_hw_resource(filename, /*count=*/false);
         if (phy_id[idx] < 0) {
-            return phy_id[idx];
+            SGX_DBG(DBG_E, "Cannot read %s\n", filename);
+            ret = phy_id[idx];
+            free(phy_id);
+            return ret;
         }
     }
     pal_sec->phy_id = (PAL_PTR)phy_id;

@@ -272,10 +272,10 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
  * HW resources present in the file (if count == true) or simply reads the integer stored in the
  * file (if count == false). For example on a single-cpu machine, calling this function on
  * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
- * Returns PAL ERROR on failure.
- * N.B: Understands complex formats like "1,3-5,6 when called with count == true.
+ * Returns PAL error code on failure.
+ * N.B: Understands complex formats like "1,3-5,6" when called with count == true.
 */
-int get_hw_resource(const char *filename, bool count) {
+int get_hw_resource(const char* filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
@@ -300,16 +300,19 @@ int get_hw_resource(const char *filename, bool count) {
         if (ptr == end)
             break;
 
+        /* caller wants to read an int stored in the file */
         if (!count) {
-            /* caller wants to read an int stored in the file */
             if (*end == '\n' || *end == '\0')
                 retval = firstint;
-            break;
-        } else if (*end == '\0' || *end == ',' || *end == '\n') {
-            /* single CPU index, count as one more CPU */
+            return retval;
+        }
+
+        /* caller wants to count the number of HW resources */
+        if (*end == '\0' || *end == ',' || *end == '\n') {
+            /* single HW resource index, count as one more */
             resource_cnt++;
         } else if (*end == '-') {
-            /* CPU range, count how many CPUs in range */
+            /* HW resource range, count how many HW resources are in range */
             ptr = end + 1;
             int secondint = (int)strtol(ptr, &end, 10);
             if (secondint > firstint)

@@ -120,8 +120,10 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     const size_t VENDOR_ID_SIZE = 13;
     char* vendor_id = malloc(VENDOR_ID_SIZE);
-    _DkCpuIdRetrieve(0, 0, words);
+    if(!vendor_id)
+        return -PAL_ERROR_NOMEM;
 
+    _DkCpuIdRetrieve(0, 0, words);
     FOUR_CHARS_VALUE(&vendor_id[0], words[PAL_CPUID_WORD_EBX]);
     FOUR_CHARS_VALUE(&vendor_id[4], words[PAL_CPUID_WORD_EDX]);
     FOUR_CHARS_VALUE(&vendor_id[8], words[PAL_CPUID_WORD_ECX]);
@@ -129,8 +131,8 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     ci->cpu_vendor = vendor_id;
     // Must be an Intel CPU
     if (memcmp(vendor_id, "GenuineIntel", 12)) {
-        free(vendor_id);
-        return -PAL_ERROR_INVAL;
+        rv = -PAL_ERROR_INVAL;
+        goto out_vendor_id;
     }
 
     const size_t BRAND_SIZE = 49;

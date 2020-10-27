@@ -130,27 +130,28 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
         goto out_brand;
     }
 
-    /* FIXME: This code assumes there are only 2 HTs per core but platforms like
-     * KNL(Knights landing) can have more */
-    int smt_active = get_hw_resource("/sys/devices/system/cpu/smt/active", /*count=*/false);
-    if (smt_active < 0) {
-        rv = smt_active;
+    int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
+                                       /*count=*/true);
+    if (smt_siblings < 0) {
+        rv = smt_siblings;
         goto out_brand;
     }
-    ci->cpu_cores = (smt_active == 0) ? cpu_cores : (cpu_cores / 2) ;
+    ci->cpu_cores = (smt_siblings == 1) ? cpu_cores : (cpu_cores / smt_siblings) ;
 
     /* array of "logical processor -> physical package" mappings */
-    int *phy_id = (int*)malloc(cpu_num * sizeof(int));
+    int* phy_id = (int*)malloc(cpu_num * sizeof(int));
     if (!phy_id) {
         rv = -PAL_ERROR_NOMEM;
         goto out_brand;
     }
+
     char filename[128];
-    for (int idx =0; idx < cpu_num; idx++) {
+    for (int idx = 0; idx < cpu_num; idx++) {
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         phy_id[idx] = get_hw_resource(filename, /*count=*/false);
         if (phy_id[idx] < 0) {
+            printf(" cannot read %s\n", filename);
             rv = phy_id[idx];
             goto out_phy_id;
         }

@@ -24,7 +24,6 @@
 typedef struct pal_tcb PAL_TCB;
 
 #define PAL_LIBOS_TCB_SIZE 256
-#define PAL_MAX_CPU        1024
 
 typedef struct pal_tcb {
     struct pal_tcb* self;
