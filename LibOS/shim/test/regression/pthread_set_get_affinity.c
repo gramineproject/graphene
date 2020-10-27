@@ -17,13 +17,14 @@
 
 /* Set large busy loops so that we can verify affinity with htop manually*/
 static void* dowork(void* args) {
+    uint64_t* iterations = (uint64_t*)args;
     __asm__ volatile (
                       "movq %0, %%rax\n"
                       "loop:\n"
                       "dec %%rax\n"
                       "cmp $0, %%rax\n"
                       "jne loop\n"
-                      : /*no outs*/ : "m"((uint64_t)args)  : "rax", "cc");
+                      : /*no outs*/ : "m"(*iterations)  : "rax", "cc");
     return NULL;
 }
 
@@ -53,7 +54,7 @@ int main(int argc, const char** argv) {
         CPU_ZERO(&get_cpus);
         CPU_SET(i*2, &cpus);
 
-        ret = pthread_create(&threads[i], NULL, dowork, (void*)iterations);
+        ret = pthread_create(&threads[i], NULL, dowork, (void*)&iterations);
         if (ret != 0) {
             free(threads);
             errx(EXIT_FAILURE, "pthread_create failed!");

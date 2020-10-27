@@ -515,9 +515,10 @@ PAL_BOL DkThreadResume(PAL_HANDLE thread);
 /*!
  * \brief Sets the CPU affinity of a thread.
  *
- * This function assumes that \a cpumask_size is a valid and greater than 0. It also assumes that
- * the user provided buffer \a cpu_mask is valid and readable. The \a thread to set the CPU affinity
- * for is passed in \a thread and cannot be NULL.
+ * This function assumes that \a cpumask_size is valid and greater than 0. \a cpumask_size should be
+ * just large enough to fit the number of processors available in the system and should be aligned
+ * by sizeof(long). For example if the host supports 4 CPUs, \a cpumask_size would be 8 bytes. The
+ * thread tid to set the CPU affinity for is passed in \a thread.
  *
  * \param thread PAL thread for which to set the CPU affinity.
  * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask.
@@ -530,10 +531,12 @@ PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR 
 /*!
  * \brief Gets the CPU affinity of a thread.
  *
- * This function assumes that \a cpumask_size is a valid and is aligned by sizeof(long), and is less
- * than the size of the affinity mask used by the host OS. It also assumes that the user provided
- * \a cpu_mask is valid and writable. The thread to get the CPU affinity of is passed in \a thread
- * and cannot be NULL.
+ * This function assumes that \a cpumask_size is valid and greater than 0. \a cpumask_size should be
+ * just large enough to fit the number of processors available in the system and should be aligned
+ * by sizeof(long). If \a cpumask_size is less than the number of processors available in the
+ * system, an error should be returned to the user. For example if the host supports 4 CPUs,
+ * \a cpumask_size would be 8 bytes. The thread tid to get the CPU affinity of is passed in
+ * \a thread.
  *
  * \param thread PAL thread for which to get the CPU affinity.
  * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask.

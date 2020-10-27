@@ -1492,6 +1492,26 @@ int ocall_sched_setaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     return retval;
 }
 
+static bool is_cpumask_valid(void* cpu_mask, size_t cpumask_size) {
+    size_t max_cpumask_bits = cpumask_size * BITS_IN_BYTE;
+    size_t valid_cpumask_bits = g_pal_control.cpu_info.cpu_num;
+    size_t invalid_bits = max_cpumask_bits - valid_cpumask_bits;
+
+    if (invalid_bits == 0)
+        return true;
+
+    /* create an invalid cpu_mask bits */
+    unsigned long invalid_cpumask = SET_LAST_N_BITS(unsigned long, invalid_bits);
+
+    /* Extract last 64bits to check if any invalid cpu bits are set */
+    int idx = (BYTES_PER_LONG(cpumask_size) - 1);
+    unsigned long cpumask = ((unsigned long*)cpu_mask)[idx];
+    if (!(cpumask & invalid_cpumask))
+        return true;
+
+    return false;
+}
+
 int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     int retval = 0;
     ms_ocall_sched_getaffinity_t* ms;
@@ -1514,6 +1534,9 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
 
     retval = sgx_exitless_ocall(OCALL_SCHED_GETAFFINITY, ms);
     if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
+        retval = -EPERM;
+
+    if (!is_cpumask_valid(untrusted_cpu_mask, cpumask_size))
         retval = -EPERM;
 
     if (retval > 0) {
