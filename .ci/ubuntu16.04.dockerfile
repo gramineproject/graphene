@@ -68,6 +68,9 @@ RUN apt-get update \
 # Make a directory for the intel driver
     && mkdir -p /opt/intel && chown 1001 /opt/intel
 
+RUN python3 -m pip install \
+    asv
+
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
 
