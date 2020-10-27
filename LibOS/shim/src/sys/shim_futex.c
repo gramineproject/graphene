@@ -28,7 +28,7 @@
 #include "shim_thread.h"
 #include "shim_types.h"
 #include "spinlock.h"
-
+#include "avl_tree.h"
 struct shim_futex;
 struct futex_waiter;
 
@@ -50,13 +50,34 @@ struct shim_futex {
     uint32_t* uaddr;
     LISTP_TYPE(futex_waiter) waiters;
     LIST_TYPE(shim_futex) list;
+    union {
+        /* If this `vma` is used, it is included in `vma_tree` using this node. */
+        struct avl_tree_node tree_node;
+        /* Otherwise it might be cached in per thread vma cache, or might be on a temporary list
+         * of to-be-freed vmas (used by _vma_bkeep_remove). Such lists use the field below. */
+        struct shim_vma* next_free;
+    };
     /* This lock guards every access to *uaddr (futex word value) and waiters (above).
      * Always take g_futex_list_lock before taking this lock. */
     spinlock_t lock;
     REFTYPE _ref_count;
 };
+static struct shim_futex* _lookup_futex(uintptr_t);
+static bool futex_tree_cmp(struct avl_tree_node* node_a, struct avl_tree_node* node_b) {
+    struct shim_futex* a = container_of(node_a, struct shim_futex, tree_node);
+    struct shim_futex* b = container_of(node_b, struct shim_futex, tree_node);
 
-static LISTP_TYPE(shim_futex) g_futex_list = LISTP_INIT;
+    return a->uaddr <= b->uaddr;
+}
+static struct avl_tree futex_tree = { .cmp = futex_tree_cmp };
+
+/* Returns whether `addr` is smaller or equal to the one pointed by the node */
+static bool cmp_addr_to_futex(void* addr, struct avl_tree_node* node) {
+    struct shim_futex* futex = container_of(node, struct shim_futex, tree_node);
+
+    return (uintptr_t)addr <= futex->uaddr;
+}
+
 static spinlock_t g_futex_list_lock = INIT_SPINLOCK_UNLOCKED;
 
 static void get_futex(struct shim_futex* futex) {
@@ -146,7 +167,7 @@ static void enqueue_futex(struct shim_futex* futex) {
     assert(spinlock_is_locked(&g_futex_list_lock));
 
     get_futex(futex);
-    LISTP_ADD_TAIL(futex, &g_futex_list, list);
+    avl_tree_insert(&futex_tree, &futex->tree_node);
 }
 
 /*
@@ -165,8 +186,8 @@ static void _maybe_dequeue_futex(struct shim_futex* futex) {
     assert(spinlock_is_locked(&g_futex_list_lock));
 
     if (check_dequeue_futex(futex)) {
-        LISTP_DEL_INIT(futex, &g_futex_list, list);
-        /* We still hold this futex reference (in the caller), so this won't call free. */
+	avl_tree_delete(&futex_tree, &futex->tree_node);
+	/* We still hold this futex reference (in the caller), so this won't call free. */
         put_futex(futex);
     }
 }
@@ -281,19 +302,34 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
  * Must be called with `g_futex_list_lock` held.
  * Increases refcount of futex by 1.
  */
+
 static struct shim_futex* find_futex(uint32_t* uaddr) {
     assert(spinlock_is_locked(&g_futex_list_lock));
+    struct shim_futex* futex = NULL;
+    futex  = _lookup_futex((uintptr_t)uaddr);
+    if (futex != NULL)
+    {
+	   if(futex->uaddr == uaddr)
+	   {
+		   get_futex(futex);
+	           return futex;
+	   }
+    }  
+    return NULL; 
+}
 
-    struct shim_futex* futex;
+static struct shim_futex* _lookup_futex(uintptr_t addr)
+{
 
-    LISTP_FOR_EACH_ENTRY(futex, &g_futex_list, list) {
-        if (futex->uaddr == uaddr) {
-            get_futex(futex);
-            return futex;
-        }
+    assert(spinlock_is_locked(&g_futex_list_lock));
+    struct shim_futex* futex = NULL;
+    struct avl_tree_node* node = avl_tree_lower_bound_fn(&futex_tree, (void*)addr, cmp_addr_to_futex);
+    if (!node)
+    {
+	return NULL;
     }
-
-    return NULL;
+    futex = container_of(node, struct shim_futex, tree_node);
+    return futex;
 }
 
 static uint64_t timespec_to_us(const struct timespec* ts) {
