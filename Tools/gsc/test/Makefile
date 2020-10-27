@@ -1,4 +1,4 @@
-TESTCASES ?= python3 python3-trusted-args hello-world nodejs bash numpy pytorch
+TESTCASES ?= python3 python3-trusted-args base-python3 hello-world nodejs bash numpy pytorch
 DISTRIBUTIONS ?= ubuntu18.04
 GRAPHENE_BRANCH ?= master
 DOCKER_BUILD_FLAGS ?= --rm --no-cache
@@ -16,23 +16,16 @@ ENV_VARS ?=
 IMAGE_SUFFIX ?=
 
 .PHONY: all
-all: $(KEY_FILE) $(TESTS)
+all: $(KEY_FILE)
 	for d in $(DISTRIBUTIONS); do \
 		sed -e 's/Distro: \".*\"/Distro: \"'$${d}'\"/' \
 		    -e 's/Branch: \"master\"/Branch: \"'$(GRAPHENE_BRANCH)'\"/' \
 			../config.yaml.template > config-$${d}.yaml; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
-		$(MAKE) $(addprefix gsc-$${d}-, python3-base) || exit 1; \
 	done
 
 $(KEY_FILE):
 	openssl genrsa -3 -out $(KEY_FILE) 3072
-
-.PRECIOUS: %: %.dockerfile
-%: %.dockerfile
-	echo "Building base image $@.dockerfile..."
-	docker build $(DOCKER_BUILD_FLAGS) -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
-	touch $@
 
 .PRECIOUS: gsc-%-bash
 gsc-%-bash: %-bash
@@ -62,11 +55,19 @@ gsc-%-pytorch: %-pytorch %-pytorch.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEY_FILE))
 	touch $@
 
+.PRECIOUS: gsc-%-base-python3
+gsc-%-base-python3: graphene-% %-base-python3
+	printf "Distro: \"$*\"\nGraphene:\n   Image: \"graphene-$*$(IMAGE_SUFFIX)\"\n" > config-image-$*.yaml
+	echo "Building graphenized image $@..."
+	cd .. && ./gsc build -c test/config-image-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-base-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
+	cd .. && ./gsc sign-image -c test/config-image-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-base-python3) $(notdir $(KEY_FILE))
+	touch $@
+
 .PRECIOUS: gsc-%
 gsc-%: %
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
-	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEY_FILE))
+	cd .. && ./gsc build -c test/config-$(firstword $(subst -, ,$*)).yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
+	cd .. && ./gsc sign-image -c test/config-$(firstword $(subst -, ,$*)).yaml $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: graphene-%
@@ -75,13 +76,15 @@ graphene-%:
 	cd .. && ./gsc build-graphene -c test/config-$*.yaml -L $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $@)
 	touch $@
 
-.PRECIOUS: gsc-%-python3-base
-gsc-%-python3-base: %-python3 graphene-%
-	docker tag $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addsuffix $(IMAGE_SUFFIX), $*-python3-base)
-	printf "Distro: \"$*\"\nGraphene:\n   Image: \"graphene-$*$(IMAGE_SUFFIX)\"\n" > config-image-$*.yaml
-	echo "Building graphenized image $@..."
-	cd .. && ./gsc build -c test/config-image-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3-base) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
-	cd .. && ./gsc sign-image -c test/config-image-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-python3-base) $(notdir $(KEY_FILE))
+.PRECIOUS: ubuntu18.04-base-%
+ubuntu18.04-base-%: ubuntu18.04-%
+	docker tag $(addsuffix $(IMAGE_SUFFIX), $^) $(addsuffix $(IMAGE_SUFFIX), $@)
+	touch $@
+
+.PRECIOUS: ubuntu18.04-%
+ubuntu18.04-%: ubuntu18.04-%.dockerfile
+	echo "Building base image $@.dockerfile..."
+	docker build $(DOCKER_BUILD_FLAGS) -t $(addsuffix $(IMAGE_SUFFIX), $@) -f $@.dockerfile ../../../Examples
 	touch $@
 
 .PHONY: test

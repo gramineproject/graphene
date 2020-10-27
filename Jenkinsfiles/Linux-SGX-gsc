@@ -11,8 +11,8 @@ pipeline {
                             # merged)
                             export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
                                                                 {print $1} else {print $3}}'`
-                            make TESTCASES='python3 python3-trusted-args' \
-                                 DISTRIBUTIONS="ubuntu18.04" \
+                            make TESTCASES='python3 python3-trusted-args base-python3' \
+                                 DISTRIBUTIONS='ubuntu18.04' \
                                  IMAGE_SUFFIX=-${COMMIT} GRAPHENE_BRANCH=${COMMIT}
                         '''
                     }
@@ -28,13 +28,13 @@ pipeline {
                                                                 {print $1} else {print $3}}'`
                             # Test Linux Pal
                             make test ENV_VARS='GSC_PAL=Linux' MAXTESTNUM=2 TESTCASES=python3 \
-                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                                      DISTRIBUTIONS='ubuntu18.04' IMAGE_SUFFIX=-${COMMIT}
                             # Test Linux-SGX PAL
                             make test MAXTESTNUM=3 TESTCASES='python3 python3-trusted-args' \
-                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                                      DISTRIBUTIONS='ubuntu18.04' IMAGE_SUFFIX=-${COMMIT}
                             # Test use of base Graphene Image
                             make test MAXTESTNUM=2 TESTCASES='python3' \
-                                      DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-base-${COMMIT}
+                                      DISTRIBUTIONS='ubuntu18.04-base' IMAGE_SUFFIX=-${COMMIT}
                         '''
                     }
                 }
@@ -62,8 +62,8 @@ pipeline {
                         # commit in below git-log output if merged or first commit if not merged)
                         export COMMIT=`git log --pretty="%H %P" -n 1 | awk '{if(!$3) \
                                                             {print $1} else {print $3}}'`
-                        make clean TESTCASES='python3 python3-trusted-args' \
-                                   DISTRIBUTIONS="ubuntu18.04" IMAGE_SUFFIX=-${COMMIT}
+                        make clean TESTCASES='python3 python3-trusted-args base-python3' \
+                                   DISTRIBUTIONS='ubuntu18.04' IMAGE_SUFFIX=-${COMMIT}
                         docker image prune -f
                     '''
                 }
