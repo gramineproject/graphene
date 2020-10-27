@@ -1,0 +1,21 @@
+#sgx.enable_stats = 1
+
+loader.preload = file:@GRAPHENEDIR@/Runtime/libsysdb.so
+loader.env.LD_LIBRARY_PATH = /lib
+loader.debug_type = none
+loader.syscall_symbol = syscalldb
+loader.insecure__use_cmdline_argv = 1
+
+fs.mount.graphene_lib.type = chroot
+fs.mount.graphene_lib.path = /lib
+fs.mount.graphene_lib.uri = file:@GRAPHENEDIR@/Runtime
+
+sgx.trusted_files.ld = file:@GRAPHENEDIR@/Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:@GRAPHENEDIR@/Runtime/libc.so.6
+sgx.trusted_files.libdl = file:@GRAPHENEDIR@/Runtime/libdl.so.2
+sgx.trusted_files.libm = file:@GRAPHENEDIR@/Runtime/libm.so.6
+sgx.trusted_files.libpthread = file:@GRAPHENEDIR@/Runtime/libpthread.so.0
+
+sgx.thread_num = 3
+
+#sgx.static_address = 1
