@@ -21,8 +21,10 @@ static PAL_LOCK g_slab_mgr_lock = LOCK_INIT;
 #if STATIC_SLAB == 1
 #define POOL_SIZE 64 * 1024 * 1024
 static char g_mem_pool[POOL_SIZE];
-static void* g_bump = g_mem_pool;
+static bool g_alloc_from_low = true; /* allocate from low addresses if true, from high if false */
 static void* g_mem_pool_end = &g_mem_pool[POOL_SIZE];
+static void* g_low  = g_mem_pool;
+static void* g_high = &g_mem_pool[POOL_SIZE];
 #else
 #define ALLOC_ALIGNMENT g_slab_alignment
 #endif
@@ -37,19 +39,28 @@ static inline void __free(void* addr, int size);
 #include "slabmgr.h"
 
 /* caller (slabmgr.h) releases g_slab_mgr_lock before calling this function (this must be reworked
- * in the future), so grab the lock again to protect g_bump */
+ * in the future), so grab the lock again to protect g_low/g_high */
 static inline void* __malloc(int size) {
     void* addr = NULL;
 
 #if STATIC_SLAB == 1
     SYSTEM_LOCK();
-    if (g_bump + size <= g_mem_pool_end) {
-        addr = g_bump;
-        g_bump += size;
-        SYSTEM_UNLOCK();
-        return addr;
+    if (g_low + size <= g_high) {
+        /* alternate allocating objects from low and high addresses of available memory pool; this
+         * allows to free memory for patterns like "malloc1 - malloc2 - free1" (seen in e.g.
+         * realloc) */
+        if (g_alloc_from_low) {
+            addr = g_low;
+            g_low += size;
+        } else {
+            addr = g_high - size;
+            g_high -= size;
+        }
+        g_alloc_from_low = !g_alloc_from_low; /* switch alloc direction for next malloc */
     }
     SYSTEM_UNLOCK();
+    if (addr)
+        return addr;
 #endif
 
     /* At this point, we depleted the pre-allocated memory pool of POOL_SIZE. Let's fall back to
@@ -65,12 +76,25 @@ static inline void* __malloc(int size) {
     return addr;
 }
 
+/* caller (slabmgr.h) releases g_slab_mgr_lock before calling this function (this must be reworked
+ * in the future), so grab the lock again to protect g_low/g_high */
 static inline void __free(void* addr, int size) {
     if (!addr)
         return;
 #if STATIC_SLAB == 1
-    if (addr >= (void*)g_mem_pool && addr < g_mem_pool_end)
+    if (addr >= (void*)g_mem_pool && addr < g_mem_pool_end) {
+        SYSTEM_LOCK();
+        if (addr == g_high) {
+            /* reclaim space of last object allocated at high addresses */
+            g_high = addr + size;
+        } else if (addr + size == g_low) {
+            /* reclaim space of last object allocated at low addresses */
+            g_low = addr;
+        }
+        /* not a last object from low/high addresses, can't do anything about this case */
+        SYSTEM_UNLOCK();
         return;
+    }
 #endif
 
     _DkVirtualMemoryFree(addr, ALLOC_ALIGN_UP(size));
