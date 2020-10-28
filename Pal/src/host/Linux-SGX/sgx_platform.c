@@ -76,8 +76,8 @@ static int connect_aesm_service(void) {
 err:
     INLINE_SYSCALL(close, 1, sock);
     SGX_DBG(DBG_E, "Cannot connect to aesm_service (tried " AESM_SOCKET_NAME_LEGACY " and "
-            AESM_SOCKET_NAME_NEW " UNIX sockets).\nPlease check its status (`service aesmd "
-            "status` on Ubuntu)!\n");
+            AESM_SOCKET_NAME_NEW " UNIX sockets).\nPlease check its status! (`service aesmd "
+            "status` on Ubuntu)\n");
     return -ERRNO(ret);
 }
 
@@ -119,7 +119,7 @@ out:
     INLINE_SYSCALL(close, 1, aesm_socket);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Cannot communicate with aesm_service (read/write returned error %d).\n"
-                "Please check its status (`service aesmd status` on Ubuntu)!\n", ERRNO(ret));
+                "Please check its status! (`service aesmd status` on Ubuntu)\n", ERRNO(ret));
     }
     return -ERRNO(ret);
 }
