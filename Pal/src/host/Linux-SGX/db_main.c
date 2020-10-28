@@ -343,7 +343,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
-    /* Allocate enclave memory to store "logical processor -> physical package" mappings*/
+    /* Allocate enclave memory to store "logical processor -> physical package" mappings */
     int* phy_id = (int*)malloc(num_cpus * sizeof(int));
     if (!phy_id) {
         SGX_DBG(DBG_E, "Allocation for logical processor -> physical package mappings failed\n");

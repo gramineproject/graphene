@@ -787,7 +787,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
                                        /*count=*/true);
     if (smt_siblings < 0)
         return smt_siblings;
-    pal_sec->cpu_cores = (smt_siblings == 1) ? cpu_cores : (cpu_cores / smt_siblings);
+    pal_sec->cpu_cores = cpu_cores / smt_siblings;
 
     /* array of "logical processor -> physical package" mappings */
     int *phy_id = (int*)malloc(num_cpus *sizeof(int));

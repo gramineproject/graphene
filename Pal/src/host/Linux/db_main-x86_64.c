@@ -136,7 +136,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
         rv = smt_siblings;
         goto out_brand;
     }
-    ci->cpu_cores = (smt_siblings == 1) ? cpu_cores : (cpu_cores / smt_siblings) ;
+    ci->cpu_cores = cpu_cores / smt_siblings;
 
     /* array of "logical processor -> physical package" mappings */
     int* phy_id = (int*)malloc(cpu_num * sizeof(int));
@@ -151,7 +151,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         phy_id[idx] = get_hw_resource(filename, /*count=*/false);
         if (phy_id[idx] < 0) {
-            printf(" cannot read %s\n", filename);
+            printf(" Cannot read %s\n", filename);
             rv = phy_id[idx];
             goto out_phy_id;
         }
