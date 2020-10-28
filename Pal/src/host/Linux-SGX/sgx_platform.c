@@ -12,6 +12,9 @@
 #include "sgx_attest.h"
 #include "sgx_internal.h"
 
+#define AESM_SOCKET_NAME_LEGACY "sgx_aesm_socket_base"
+#define AESM_SOCKET_NAME_NEW    "/var/run/aesmd/aesm.socket"
+
 #ifdef SGX_DCAP
 /* hard-coded production attestation key of Intel reference QE (the only supported one) */
 /* FIXME: should allow other attestation keys from non-Intel QEs */
@@ -45,10 +48,6 @@ static const sgx_ql_att_key_id_t g_default_ecdsa_p256_att_key_id = {
 /*
  * Connect to the AESM service to interact with the architectural enclave. Must reconnect
  * for each request to the AESM service.
- *
- * Some older versions of AESM service use a UNIX socket at "\0sgx_aesm_socket_base".
- * The latest AESM service binds the socket at "/var/run/aesmd/aesm.socket". This function
- * tries to connect to either of the paths to ensure connectivity.
  */
 static int connect_aesm_service(void) {
     int sock = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM, 0);
@@ -58,7 +57,7 @@ static int connect_aesm_service(void) {
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    (void)strcpy_static(addr.sun_path, "\0sgx_aesm_socket_base", sizeof(addr.sun_path));
+    (void)strcpy_static(addr.sun_path, "\0" AESM_SOCKET_NAME_LEGACY, sizeof(addr.sun_path));
 
     int ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
     if (!IS_ERR(ret))
@@ -68,7 +67,7 @@ static int connect_aesm_service(void) {
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    (void)strcpy_static(addr.sun_path, "/var/run/aesmd/aesm.socket", sizeof(addr.sun_path));
+    (void)strcpy_static(addr.sun_path, AESM_SOCKET_NAME_NEW, sizeof(addr.sun_path));
 
     ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
     if (!IS_ERR(ret))
@@ -76,6 +75,9 @@ static int connect_aesm_service(void) {
 
 err:
     INLINE_SYSCALL(close, 1, sock);
+    SGX_DBG(DBG_E, "Cannot connect to aesm_service (tried " AESM_SOCKET_NAME_LEGACY " and "
+            AESM_SOCKET_NAME_NEW " UNIX sockets).\nPlease check its status (`service aesmd "
+            "status` on Ubuntu)!\n");
     return -ERRNO(ret);
 }
 
@@ -95,26 +97,30 @@ static int request_aesm_service(Request* req, Response** res) {
 
     int ret = INLINE_SYSCALL(write, 3, aesm_socket, &req_len, sizeof(req_len));
     if (IS_ERR(ret))
-        goto err;
+        goto out;
 
     ret = INLINE_SYSCALL(write, 3, aesm_socket, req_buf, req_len);
     if (IS_ERR(ret))
-        goto err;
+        goto out;
 
     uint32_t res_len;
     ret = INLINE_SYSCALL(read, 3, aesm_socket, &res_len, sizeof(res_len));
     if (IS_ERR(ret))
-        goto err;
+        goto out;
 
     uint8_t* res_buf = __alloca(res_len);
     ret = INLINE_SYSCALL(read, 3, aesm_socket, res_buf, res_len);
     if (IS_ERR(ret))
-        goto err;
+        goto out;
 
     *res = response__unpack(NULL, res_len, res_buf);
     ret = *res == NULL ? -EINVAL : 0;
-err:
+out:
     INLINE_SYSCALL(close, 1, aesm_socket);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot communicate with aesm_service (read/write returned error %d).\n"
+                "Please check its status (`service aesmd status` on Ubuntu)!\n", ERRNO(ret));
+    }
     return -ERRNO(ret);
 }
 
