@@ -110,6 +110,7 @@ objs += \
 	network/inet_pton.o \
 	stdlib/printfmt.o \
 	string/atoi.o \
+	string/ctype.o \
 	string/memcmp.o \
 	string/memcpy.o \
 	string/memset.o \
