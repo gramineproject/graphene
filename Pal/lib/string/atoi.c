@@ -66,6 +66,15 @@ long strtol(const char* s, char** endptr, int base) {
     return (neg ? -val : val);
 }
 
+#ifdef __LP64__
+/* long int == long long int on targets with data model LP64 */
+long long strtoll(const char* s, char** endptr, int base) {
+    return (long long)strtol(s, endptr, base);
+}
+#else
+#error "Unsupported architecture (only support data model LP64)"
+#endif
+
 /* Convert a string to an int.  */
 int atoi(const char* nptr) {
     return (int)strtol(nptr, (char**)NULL, 10);

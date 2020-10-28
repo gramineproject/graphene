@@ -130,8 +130,15 @@ int strncmp(const char* lhs, const char* rhs, size_t maxlen);
 int strcmp(const char* lhs, const char* rhs);
 
 long strtol(const char* s, char** endptr, int base);
+long long strtoll(const char* s, char** endptr, int base);
 int atoi(const char* nptr);
 long int atol(const char* nptr);
+
+int islower(int c);
+int toupper(int c);
+int isalpha(int c);
+int isdigit(int c);
+int isalnum(int c);
 
 char* strchr(const char* s, int c_in);
 char* strstr(const char* haystack, const char* needle);

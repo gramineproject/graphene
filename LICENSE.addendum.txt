@@ -35,3 +35,4 @@ A number of files taken from other C libraries:
 
 * musl - MIT
  ** Pal/lib/string/strspn.c
+ ** Pal/lib/string/ctype.c
