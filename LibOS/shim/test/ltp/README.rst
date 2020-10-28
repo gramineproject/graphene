@@ -76,3 +76,26 @@ SGX mode
 In SGX mode, we use additional files: ``ltp-sgx.cfg``, and (temporarily)
 ``ltp-bug-1075.cfg``. These function as an override for ``ltp.cfg``, so that
 configuration is not duplicated.
+
+Helper scripts (``contrib/``)
+-----------------------------
+
+The ``contrib/`` directory contains a few scripts for dealing with ``.cfg``
+files. Except for ``conf_lint.py``, they are used for manual and one-off tasks.
+
+* ``conf_lint.py``: Validate the configuration (check if it's sorted, look for
+  outdated test names). Used in ``make regression``.
+
+* ``conf_merge.py``: Merge two ``.cfg`` files. If there are duplicate section
+  names, concatenate the sections.
+
+* ``conf_missing.py``: Add missing sections to a ``.cfg`` file, so that it
+  contains sections for all tests (based on an LTP scenario file with a list of
+  tests).
+
+* ``conf_remove_must_pass.py``: Remove all sections with ``must-pass``
+  directive.
+
+* ``conf_subtract.py``: Generate a difference between two files, i.e. output all
+  sections that are in the second file but not in the first. This effectively
+  converts a "full" configuration to an "override" one.
