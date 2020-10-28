@@ -1501,15 +1501,13 @@ static bool is_cpumask_valid(void* cpu_mask, size_t cpumask_size) {
         return true;
 
     /* create an invalid cpu_mask bits */
-    unsigned long invalid_cpumask = SET_LAST_N_BITS(unsigned long, invalid_bits);
+    unsigned long invalid_cpumask = SET_HIGHEST_N_BITS(unsigned long, invalid_bits);
 
     /* Extract last 64bits to check if any invalid cpu bits are set */
-    int idx = (BYTES_PER_LONG(cpumask_size) - 1);
+    int idx = (cpumask_size / sizeof(unsigned long)) - 1;
     unsigned long cpumask = ((unsigned long*)cpu_mask)[idx];
-    if (!(cpumask & invalid_cpumask))
-        return true;
 
-    return false;
+    return !(cpumask & invalid_cpumask);
 }
 
 int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
@@ -1536,12 +1534,12 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
         retval = -EPERM;
 
-    if (!is_cpumask_valid(untrusted_cpu_mask, cpumask_size))
-        retval = -EPERM;
-
     if (retval > 0) {
         retval = sgx_copy_to_enclave(cpu_mask, cpumask_size, untrusted_cpu_mask, retval);
     }
+
+    if (!is_cpumask_valid(cpu_mask, cpumask_size))
+        retval = -EPERM;
 
     sgx_reset_ustack(old_ustack);
     return retval;

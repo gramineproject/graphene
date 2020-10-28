@@ -44,8 +44,6 @@ int main(int argc, const char** argv) {
     }
     cpu_set_t cpus, get_cpus;
 
-    /* if no cmdline options are provided, this test runs for a longer duration for manual
-     * verification, otherwise runs only for a short time */
     uint64_t iterations = argc > 1 ? atol(argv[1]) : 10000000000;
 
     /* Validate parent set/get affinity for child */

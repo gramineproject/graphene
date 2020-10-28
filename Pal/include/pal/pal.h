@@ -515,10 +515,11 @@ PAL_BOL DkThreadResume(PAL_HANDLE thread);
 /*!
  * \brief Sets the CPU affinity of a thread.
  *
- * This function assumes that \a cpumask_size is valid and greater than 0. \a cpumask_size should be
- * just large enough to fit the number of processors available in the system and should be aligned
- * by sizeof(long). For example if the host supports 4 CPUs, \a cpumask_size would be 8 bytes. The
- * thread tid to set the CPU affinity for is passed in \a thread.
+ * This function assumes that \a cpumask_size is valid and a non-negative. If \a cpumask_size is
+ * less and cannot fit all the processors available in the host, this is fine but if it is larger,
+ * set len such that it is large enough to fit all processors available in the host. For example
+ * if the host supports 4 CPUs, \a cpumask_size should be 8 bytes or less. The thread tid to set the
+ * CPU affinity for is passed in \a thread.
  *
  * \param thread PAL thread for which to set the CPU affinity.
  * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask.
@@ -531,12 +532,11 @@ PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR 
 /*!
  * \brief Gets the CPU affinity of a thread.
  *
- * This function assumes that \a cpumask_size is valid and greater than 0. \a cpumask_size should be
- * just large enough to fit the number of processors available in the system and should be aligned
- * by sizeof(long). If \a cpumask_size is less than the number of processors available in the
- * system, an error should be returned to the user. For example if the host supports 4 CPUs,
- * \a cpumask_size would be 8 bytes. The thread tid to get the CPU affinity of is passed in
- * \a thread.
+ * This function assumes that \a cpumask_size is valid and greater than 0. If \a cpumask_size less
+ * and cannot fit all the processors available in the host, or not aligned by sizeof(long) an error
+ * should be returned to the user. If \a cpumask_size is larger set len such that it is large enough
+ * to fit all processors available in the host.  For example if the host supports 4 CPUs,
+ * \a cpumask_size should be 8 bytes. Thread tid to get the CPU affinity of is passed in \a thread.
  *
  * \param thread PAL thread for which to get the CPU affinity.
  * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask.

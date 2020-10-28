@@ -152,6 +152,8 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     /* Linux kernel bitmap is based on long. So according to its implementation, round up the result
      * to sizeof(long) */
     size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
+    if (cpumask_size > bitmask_size_in_bytes)
+        cpumask_size = bitmask_size_in_bytes;
 
     if (pid) {
         thread = lookup_thread(pid);
@@ -174,7 +176,7 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
         return -ESRCH;
     }
 
-    ret = DkThreadSetCpuAffinity(thread->pal_handle, bitmask_size_in_bytes, user_mask_ptr);
+    ret = DkThreadSetCpuAffinity(thread->pal_handle, cpumask_size, user_mask_ptr);
     if (!ret) {
         put_thread(thread);
         return -PAL_ERRNO();
