@@ -151,7 +151,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         phy_id[idx] = get_hw_resource(filename, /*count=*/false);
         if (phy_id[idx] < 0) {
-            printf(" Cannot read %s\n", filename);
+            printf("Cannot read %s\n", filename);
             rv = phy_id[idx];
             goto out_phy_id;
         }
