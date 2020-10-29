@@ -547,26 +547,6 @@ noreturn void* shim_init(int argc, void* args) {
     shim_do_exit(0);
 }
 
-static int create_unique(int (*mkname)(char*, size_t, void*), int (*create)(const char*, void*),
-                         int (*output)(char*, size_t, const void*, struct shim_qstr*), char* name,
-                         size_t size, void* id, void* obj, struct shim_qstr* qstr) {
-    int ret, len;
-    while (1) {
-        len = mkname(name, size, id);
-        if (len < 0)
-            return len;
-        if ((ret = create(name, obj)) < 0)
-            return ret;
-        if (ret)
-            continue;
-        if (output)
-            return output(name, size, id, qstr);
-        if (qstr)
-            qstrsetstr(qstr, name, len);
-        return len;
-    }
-}
-
 static int get_256b_random_hex_string(char* buf, size_t size) {
     char random[32]; /* 256-bit random value, sufficiently crypto secure */
 
@@ -581,199 +561,49 @@ static int get_256b_random_hex_string(char* buf, size_t size) {
     return 0;
 }
 
-static int name_pipe_rand(char* uri, size_t uri_size, void* name) {
+int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim_qstr* qstr,
+                bool use_vmid_for_name) {
+    int ret;
+    size_t len;
     char pipename[PIPE_URI_SIZE];
 
-    int ret = get_256b_random_hex_string(pipename, sizeof(pipename));
-    if (ret < 0)
-        return ret;
+    assert(hdl);
+    assert(uri);
+    assert(size);
 
-    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
-    size_t len = snprintf(uri, uri_size, URI_PREFIX_PIPE_SRV "%s", pipename);
-    if (len >= uri_size)
-        return -ERANGE;
+retry:
+    if (use_vmid_for_name) {
+        len = snprintf(pipename, sizeof(pipename), "%u", g_process_ipc_info.vmid);
+        if (len >= sizeof(pipename))
+            return -ERANGE;
+    } else {
+        ret = get_256b_random_hex_string(pipename, sizeof(pipename));
+        if (ret < 0)
+            return ret;
+    }
 
-    memcpy(name, pipename, sizeof(pipename));
-    return len;
-}
-
-static int name_pipe_vmid(char* uri, size_t uri_size, void* name) {
-    char pipename[PIPE_URI_SIZE];
-
-    size_t len = snprintf(pipename, sizeof(pipename), "%u", g_process_ipc_info.vmid);
-    if (len >= sizeof(pipename))
-        return -ERANGE;
-
-    debug("creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
-    len = snprintf(uri, uri_size, URI_PREFIX_PIPE_SRV "%s", pipename);
-    if (len >= uri_size)
-        return -ERANGE;
-
-    memcpy(name, pipename, sizeof(pipename));
-    return len;
-}
-
-static int open_pipe(const char* uri, void* obj) {
-    assert(obj);
-
-    PAL_HANDLE pipe = DkStreamOpen(uri, 0, 0, 0, 0);
-    if (!pipe)
-        return PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST ? 1 : -PAL_ERRNO();
-
-    PAL_HANDLE* pal_hdl = (PAL_HANDLE*)obj;
-    *pal_hdl = pipe;
-    return 0;
-}
-
-static int pipe_addr(char* uri, size_t size, const void* name, struct shim_qstr* qstr) {
-    char* pipename = (char*)name;
-
-    size_t len = snprintf(uri, size, URI_PREFIX_PIPE "%s", pipename);
+    debug("Creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
+    len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
     if (len >= size)
         return -ERANGE;
 
+    PAL_HANDLE pipe = DkStreamOpen(uri, 0, 0, 0, 0);
+    if (!pipe) {
+        if (!use_vmid_for_name && PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST) {
+            /* tried to create a pipe with random name but it already exists */
+            goto retry;
+        }
+        return -PAL_ERRNO();
+    }
+
+    /* output generated pipe handle, URI, qstr-URI and name */
+    *hdl = pipe;
+    len = snprintf(uri, size, URI_PREFIX_PIPE "%s", pipename);
     if (qstr)
         qstrsetstr(qstr, uri, len);
-    return len;
-}
-
-int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim_qstr* qstr,
-                bool use_vmid_for_name) {
-    char pipename[PIPE_URI_SIZE];
-
-    int ret = create_unique(use_vmid_for_name ? &name_pipe_vmid : &name_pipe_rand, &open_pipe,
-                            &pipe_addr, uri, size, &pipename, hdl, qstr);
-    if (ret > 0 && name) {
+    if (name)
         memcpy(name, pipename, sizeof(pipename));
-    }
-    return ret;
-}
-
-static int name_path(char* path, size_t size, void* id) {
-    unsigned int suffix;
-    int prefix_len = strlen(path);
-    size_t len;
-    int ret = DkRandomBitsRead(&suffix, sizeof(suffix));
-    if (ret < 0)
-        return -convert_pal_errno(-ret);
-    len = snprintf(path + prefix_len, size - prefix_len, "%08x", suffix);
-    if (len == size)
-        return -ERANGE;
-    *((unsigned int*)id) = suffix;
-    return prefix_len + len;
-}
-
-static int open_dir(const char* path, void* obj) {
-    struct shim_handle* dir = NULL;
-
-    if (obj) {
-        dir = get_new_handle();
-        if (!dir)
-            return -ENOMEM;
-    }
-
-    int ret = open_namei(dir, NULL, path, O_CREAT | O_EXCL | O_DIRECTORY, 0700, NULL);
-    if (ret < 0)
-        return ret = -EEXIST ? 1 : ret;
-    if (obj)
-        *((struct shim_handle**)obj) = dir;
-
     return 0;
-}
-
-static int open_file(const char* path, void* obj) {
-    struct shim_handle* file = NULL;
-
-    if (obj) {
-        file = get_new_handle();
-        if (!file)
-            return -ENOMEM;
-    }
-
-    int ret = open_namei(file, NULL, path, O_CREAT | O_EXCL | O_RDWR, 0600, NULL);
-    if (ret < 0)
-        return ret = -EEXIST ? 1 : ret;
-    if (obj)
-        *((struct shim_handle**)obj) = file;
-
-    return 0;
-}
-
-static int open_pal_handle(const char* uri, void* obj) {
-    PAL_HANDLE hdl;
-
-    if (strstartswith(uri, URI_PREFIX_DEV))
-        hdl = DkStreamOpen(uri, 0, PAL_SHARE_OWNER_X | PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
-                           PAL_CREATE_TRY | PAL_CREATE_ALWAYS, 0);
-    else
-        hdl = DkStreamOpen(uri, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
-                           PAL_CREATE_TRY | PAL_CREATE_ALWAYS, 0);
-
-    if (!hdl) {
-        if (PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST)
-            return 0;
-        else
-            return -PAL_ERRNO();
-    }
-
-    if (obj) {
-        *((PAL_HANDLE*)obj) = hdl;
-    } else {
-        DkObjectClose(hdl);
-    }
-
-    return 0;
-}
-
-static int output_path(char* path, size_t size, const void* id, struct shim_qstr* qstr) {
-    size_t len = strlen(path);
-    // API compatibility
-    __UNUSED(size);
-    __UNUSED(id);
-
-    if (qstr)
-        qstrsetstr(qstr, path, len);
-    return len;
-}
-
-int create_dir(const char* prefix, char* path, size_t size, struct shim_handle** hdl) {
-    unsigned int suffix;
-
-    if (prefix) {
-        size_t len = strlen(prefix);
-        if (len >= size)
-            return -ERANGE;
-        memcpy(path, prefix, len + 1);
-    }
-
-    return create_unique(&name_path, &open_dir, &output_path, path, size, &suffix, hdl, NULL);
-}
-
-int create_file(const char* prefix, char* path, size_t size, struct shim_handle** hdl) {
-    unsigned int suffix;
-
-    if (prefix) {
-        size_t len = strlen(prefix);
-        if (len >= size)
-            return -ERANGE;
-        memcpy(path, prefix, len + 1);
-    }
-
-    return create_unique(&name_path, &open_file, &output_path, path, size, &suffix, hdl, NULL);
-}
-
-int create_handle(const char* prefix, char* uri, size_t size, PAL_HANDLE* hdl, unsigned int* id) {
-    unsigned int suffix;
-
-    if (prefix) {
-        size_t len = strlen(prefix);
-        if (len >= size)
-            return -ERANGE;
-        memcpy(uri, prefix, len + 1);
-    }
-
-    return create_unique(&name_path, &open_pal_handle, &output_path, uri, size, id ?: &suffix, hdl,
-                         NULL);
 }
 
 noreturn void shim_clean_and_exit(int exit_code) {
