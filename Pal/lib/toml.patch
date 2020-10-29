@@ -1,0 +1,176 @@
+diff --git a/toml.c b/toml.c
+index 1db5a5bf3e8414cb105511155d5e053523eff1e2..674e03e9b25f5d4b96a31b820f389a3a43d0e631 100644
+--- a/toml.c
++++ b/toml.c
+@@ -24,15 +24,7 @@
+   SOFTWARE.
+ 
+ */
+-#define _POSIX_C_SOURCE 200809L
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <assert.h>
+-#include <errno.h>
+-#include <stdint.h>
+-#include <ctype.h>
+-#include <string.h>
+-#include <stdbool.h>
++#include "api.h"
+ #include "toml.h"
+ 
+ 
+@@ -1406,62 +1398,6 @@ fail:
+ 	return 0;
+ }
+ 
+-
+-toml_table_t* toml_parse_file(FILE* fp,
+-							  char* errbuf,
+-							  int errbufsz)
+-{
+-	int bufsz = 0;
+-	char* buf = 0;
+-	int off = 0;
+-
+-	/* read from fp into buf */
+-	while (! feof(fp)) {
+-
+-		if (off == bufsz) {
+-			int xsz = bufsz + 1000;
+-			char* x = expand(buf, bufsz, xsz);
+-			if (!x) {
+-				snprintf(errbuf, errbufsz, "out of memory");
+-				xfree(buf);
+-				return 0;
+-			}
+-			buf = x;
+-			bufsz = xsz;
+-		}
+-	
+-		errno = 0;
+-		int n = fread(buf + off, 1, bufsz - off, fp);
+-		if (ferror(fp)) {
+-			snprintf(errbuf, errbufsz, "%s",
+-					 errno ? strerror(errno) : "Error reading file");
+-			xfree(buf);
+-			return 0;
+-		}
+-		off += n;
+-	}
+-
+-	/* tag on a NUL to cap the string */
+-	if (off == bufsz) {
+-		int xsz = bufsz + 1;
+-		char* x = expand(buf, bufsz, xsz);
+-		if (!x) {
+-			snprintf(errbuf, errbufsz, "out of memory");
+-			xfree(buf);
+-			return 0;
+-		}
+-		buf = x;
+-		bufsz = xsz;
+-	}
+-	buf[off] = 0; 
+-
+-	/* parse it, cleanup and finish */
+-	toml_table_t* ret = toml_parse(buf, errbuf, errbufsz);
+-	xfree(buf);
+-	return ret;
+-}
+-
+-
+ static void xfree_kval(toml_keyval_t* p)
+ {
+ 	if (!p) return;
+@@ -1893,11 +1829,7 @@ int toml_rtots(toml_raw_t src_, toml_timestamp_t* ret)
+ 		if (*p == '.') {
+ 			char* qq;
+ 			p++;
+-			errno = 0;
+ 			*millisec = strtol(p, &qq, 0);
+-			if (errno) {
+-				return -1;
+-			}
+ 			while (*millisec > 999) {
+ 				*millisec /= 10;
+ 			}
+@@ -2020,72 +1952,19 @@ int toml_rtoi(toml_raw_t src, int64_t* ret_)
+ 
+ 	/* Run strtoll on buf to get the integer */
+ 	char* endp;
+-	errno = 0;
+ 	*ret = strtoll(buf, &endp, base);
+-	return (errno || *endp) ? -1 : 0;
++	return (*endp) ? -1 : 0;
+ }
+ 
+ 
+ int toml_rtod_ex(toml_raw_t src, double* ret_, char* buf, int buflen)
+ {
+-	if (!src) return -1;
+-	
+-	char* p = buf;
+-	char* q = p + buflen;
+-	const char* s = src;
+-	double dummy;
+-	double* ret = ret_ ? ret_ : &dummy;
+-	
+-
+-	/* allow +/- */
+-	if (s[0] == '+' || s[0] == '-')
+-		*p++ = *s++;
+-
+-	/* disallow +_1.00 */
+-	if (s[0] == '_')
+-		return -1;
+-
+-	/* disallow +.99 */
+-	if (s[0] == '.')
+-		return -1;
+-		
+-	/* zero must be followed by . or 'e', or NUL */
+-	if (s[0] == '0' && s[1] && !strchr("eE.", s[1]))
+-		return -1;
+-
+-	/* just strip underscores and pass to strtod */
+-	while (*s && p < q) {
+-		int ch = *s++;
+-		switch (ch) {
+-		case '.':
+-			if (s[-2] == '_') return -1;
+-			if (s[0] == '_') return -1;
+-			break;
+-		case '_':
+-			// disallow '__'
+-			if (s[0] == '_') return -1; 
+-			continue;			/* skip _ */
+-		default:
+-			break;
+-		}
+-		*p++ = ch;
+-	}
+-	if (*s || p == q) return -1; /* reached end of string or buffer is full? */
+-	
+-	/* last char cannot be '_' */
+-	if (s[-1] == '_') return -1;
+-
+-	if (p != buf && p[-1] == '.') 
+-		return -1; /* no trailing zero */
+-
+-	/* cap with NUL */
+-	*p = 0;
+-
+-	/* Run strtod on buf to get the value */
+-	char* endp;
+-	errno = 0;
+-	*ret = strtod(buf, &endp);
+-	return (errno || *endp) ? -1 : 0;
++    /* FIXME: strtod() is not supported by Graphene */
++    (void)src;
++    (void)ret_;
++    (void)buf;
++    (void)buflen;
++    return -1;
+ }
+ 
+ int toml_rtod(toml_raw_t src, double* ret_)

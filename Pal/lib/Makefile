@@ -119,7 +119,8 @@ objs += \
 	string/strlen.o \
 	string/strspn.o \
 	string/strstr.o \
-	string/utils.o
+	string/utils.o \
+	toml.o
 
 $(addprefix $(target),crypto/adapters/mbedtls_adapter.o crypto/adapters/mbedtls_dh.o crypto/adapters/mbedtls_encoding.o): crypto/mbedtls/crypto/library/aes.c
 
@@ -154,6 +155,18 @@ UTHASH_CHECKSUM ?= ba9af0e8c902108cc40be8e742ff4fcbb0e93062d91aefd6070b70d4e067c
 ../include/lib/uthash.h:
 	../../Scripts/download --output $@ --url $(UTHASH_URI) --sha256 $(UTHASH_CHECKSUM)
 
+TOML_H_URI ?= https://raw.githubusercontent.com/cktan/tomlc99/5be06807ad5f2230cad99e15380c4f4076c9dd83/toml.h
+TOML_H_CHECKSUM ?= e79d6d272576561e1b46ee001b0dd6b554330843e6fc7c658a548c659f282ac5
+TOML_C_URI ?= https://raw.githubusercontent.com/cktan/tomlc99/5be06807ad5f2230cad99e15380c4f4076c9dd83/toml.c
+TOML_C_CHECKSUM ?= c21a546ab767a7e40d4f65df179d70357059c15e4439e1980d791625655fbbc6
+
+../include/lib/toml.h:
+	../../Scripts/download --output $@ --url $(TOML_H_URI) --sha256 $(TOML_H_CHECKSUM)
+
+toml.c: ../include/lib/toml.h
+	../../Scripts/download --output $@ --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
+	patch -p1 -l < toml.patch || exit 255
+
 .PHONY: clean
 clean:
 	$(RM) $(objs) graphene-lib.a
@@ -162,3 +175,4 @@ clean:
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls
 	$(RM) ../include/lib/uthash.h
+	$(RM) ../include/lib/toml.h toml.c
