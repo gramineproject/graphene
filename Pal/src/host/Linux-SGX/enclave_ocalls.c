@@ -1534,11 +1534,10 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
         retval = -EPERM;
 
-    if (retval > 0) {
-        retval = sgx_copy_to_enclave(cpu_mask, cpumask_size, untrusted_cpu_mask, retval);
-    }
+    if (retval > 0 && !sgx_copy_to_enclave(cpu_mask, cpumask_size, untrusted_cpu_mask, retval))
+        retval = -EPERM;
 
-    if (!is_cpumask_valid(cpu_mask, cpumask_size))
+    if (retval > 0 && !is_cpumask_valid(cpu_mask, cpumask_size))
         retval = -EPERM;
 
     sgx_reset_ustack(old_ustack);
