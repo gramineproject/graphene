@@ -17,6 +17,7 @@
 #include "pal_internal.h"
 #include "pal_rtld.h"
 #include "sysdeps/generic/ldsodefs.h"
+#include "toml.h"
 
 PAL_CONTROL g_pal_control;
 
@@ -305,6 +306,12 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         ret = _DkStreamMap(manifest_handle, &cfg_addr, PAL_PROT_READ, 0, ALLOC_ALIGN_UP(cfg_size));
         if (ret < 0)
             INIT_FAIL(-ret, "cannot open manifest file");
+
+        /* TODO: dummy toml_parse() is added simply to check that TOML lib is built correctly;
+         *       it will be used instead of root_config in the future */
+        char errbuf[256];
+        toml_table_t* toml_test = toml_parse(cfg_addr, errbuf, sizeof(errbuf));
+        (void)toml_test;
 
         struct config_store* root_config = malloc(sizeof(struct config_store));
         root_config->raw_data = cfg_addr;

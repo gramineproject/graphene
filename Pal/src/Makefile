@@ -120,7 +120,7 @@ $(pal_static): $(addprefix $(OBJ_DIR)/,$(objs)) \
 	       $(host_lib) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
-$(OBJ_DIR)/%.o: %.c
+$(OBJ_DIR)/%.o: %.c $(graphene_lib)
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_o_c)
 
