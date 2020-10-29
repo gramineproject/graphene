@@ -7,6 +7,7 @@
 #include "shim_context.h"
 
 #include "asm-offsets.h"
+#include "immintrin.h"
 #include "pal.h"
 #include "shim_internal.h"
 
@@ -79,12 +80,10 @@ void shim_xstate_save(void* xstate_extended) {
     char* bytes_after_xstate   = (char*)xstate_extended + g_shim_xsave_size;
 
     if (g_shim_xsave_enabled) {
-        uint64_t lmask = (uint64_t)-1;
-        uint64_t hmask = (uint64_t)-1;
         memset(&xstate->xstate_hdr, 0, sizeof(xstate->xstate_hdr));
-        __asm__ volatile("xsave64 (%0)" :: "r"(xstate), "a"(lmask), "d"(hmask) : "memory");
+        __builtin_ia32_xsave64(xstate, /*mask=*/-1LL);
     } else {
-        __asm__ volatile("fxsave64 (%0)" :: "r"(xstate) : "memory");
+        __builtin_ia32_fxsave64(xstate);
     }
 
     /* Emulate software format for bytes 464..511 in the 512-byte layout of the FXSAVE/FXRSTOR
@@ -124,13 +123,10 @@ void shim_xstate_restore(const void* xstate_extended) {
     __UNUSED(bytes_after_xstate);
     __UNUSED(fpx_sw);
 
-    if (g_shim_xsave_enabled) {
-        uint64_t lmask = (uint64_t)-1;
-        uint64_t hmask = (uint64_t)-1;
-        __asm__ volatile("xrstor64 (%0)" :: "r"(xstate), "a"(lmask), "d"(hmask) : "memory");
-    } else {
-        __asm__ volatile("fxrstor64 (%0)" :: "r"(xstate) : "memory");
-    }
+    if (g_shim_xsave_enabled)
+        __builtin_ia32_xrstor64(xstate, /*mask=*/-1LL);
+    else
+        __builtin_ia32_fxrstor64(xstate);
 }
 
 void shim_xstate_reset(void) {

@@ -23,7 +23,7 @@ static void* thread_fp(void* arg) {
     int mode = fegetround();
     printf("%s  child: 42.5 = %.1f, -42.5 = %.1f\n", get_rounding_mode(mode),
            nearbyint(42.5), nearbyint(-42.5));
-    return NULL;
+    return arg;
 }
 
 int main(int argc, char* argv[]) {

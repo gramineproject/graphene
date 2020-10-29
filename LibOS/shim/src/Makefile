@@ -127,6 +127,10 @@ all_objs = \
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 
+ifeq ($(ARCH),x86_64)
+	CFLAGS += -mfxsr -mxsave
+endif
+
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 all: $(files_to_build) $(files_to_install)
 else
