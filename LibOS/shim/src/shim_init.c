@@ -566,34 +566,38 @@ int create_pipe(char* name, char* uri, size_t size, PAL_HANDLE* hdl, struct shim
     int ret;
     size_t len;
     char pipename[PIPE_URI_SIZE];
+    PAL_HANDLE pipe = NULL;
 
     assert(hdl);
     assert(uri);
     assert(size);
 
-retry:
-    if (use_vmid_for_name) {
-        len = snprintf(pipename, sizeof(pipename), "%u", g_process_ipc_info.vmid);
-        if (len >= sizeof(pipename))
-            return -ERANGE;
-    } else {
-        ret = get_256b_random_hex_string(pipename, sizeof(pipename));
-        if (ret < 0)
-            return ret;
-    }
-
-    debug("Creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
-    len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
-    if (len >= size)
-        return -ERANGE;
-
-    PAL_HANDLE pipe = DkStreamOpen(uri, 0, 0, 0, 0);
-    if (!pipe) {
-        if (!use_vmid_for_name && PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST) {
-            /* tried to create a pipe with random name but it already exists */
-            goto retry;
+    while (true) {
+        if (use_vmid_for_name) {
+            len = snprintf(pipename, sizeof(pipename), "%u", g_process_ipc_info.vmid);
+            if (len >= sizeof(pipename))
+                return -ERANGE;
+        } else {
+            ret = get_256b_random_hex_string(pipename, sizeof(pipename));
+            if (ret < 0)
+                return ret;
         }
-        return -PAL_ERRNO();
+
+        debug("Creating pipe: " URI_PREFIX_PIPE_SRV "%s\n", pipename);
+        len = snprintf(uri, size, URI_PREFIX_PIPE_SRV "%s", pipename);
+        if (len >= size)
+            return -ERANGE;
+
+        pipe = DkStreamOpen(uri, 0, 0, 0, 0);
+        if (!pipe) {
+            if (!use_vmid_for_name && PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST) {
+                /* tried to create a pipe with random name but it already exists */
+                continue;
+            }
+            return -PAL_ERRNO();
+        }
+
+        break; /* succeeded in creating the pipe with random/vmid name */
     }
 
     /* output generated pipe handle, URI, qstr-URI and name */
