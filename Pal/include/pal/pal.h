@@ -515,9 +515,9 @@ PAL_BOL DkThreadResume(PAL_HANDLE thread);
 /*!
  * \brief Sets the CPU affinity of a thread.
  *
- * This function assumes that \a cpumask_size is valid and non-negative. Also, if \a cpumask_size is
- * larger than the number of processors in the host, it must be truncated such that it can fit all
- * the processors in the host and must be aligned by sizeof(long). For example, if the host
+ * This function assumes that \a cpumask_size is valid and greater than 0. Also, if \a cpumask_size
+ * is larger than the number of processors in the host, it must be truncated such that it can fit
+ * all the processors in the host and must be aligned by sizeof(long). For example, if the host
  * supports 4 CPUs, \a cpumask_size can be 8 bytes or less (but not more than 8 bytes).
  * \note \a cpumask_size that cannot fit all the processors in the host or not aligned by
  * sizeof(long) is considered valid but only the CPUs fitting \a cpumask_size will be set.
