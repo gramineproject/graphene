@@ -102,9 +102,10 @@ int init_quoting_enclave_targetinfo(bool is_epid, sgx_target_info_t* qe_targetin
  * \brief Obtain SGX Quote from the Quoting Enclave (communicate via AESM).
  *
  * \param[in]  spid       Software provider ID (SPID); if NULL then DCAP/ECDSA is used.
- * \param[in]  linkable   Quote type (linkable vs unlinkable).
+ * \param[in]  linkable   Quote type (linkable vs unlinkable); ignored if DCAP/ECDSA is used.
  * \param[in]  report     Enclave report to convert into a quote.
- * \param[in]  nonce      16B nonce to be included in the quote for freshness.
+ * \param[in]  nonce      16B nonce to be included in the quote for freshness; ignored if
+ *                        DCAP/ECDSA is used.
  * \param[out] quote      Quote returned by the Quoting Enclave (allocated via mmap() in this
  *                        function; the caller gets the ownership of the quote).
  * \param[out] quote_len  Length of the quote returned by the Quoting Enclave.
