@@ -120,7 +120,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     const size_t VENDOR_ID_SIZE = 13;
     char* vendor_id = malloc(VENDOR_ID_SIZE);
-    if(!vendor_id)
+    if (!vendor_id)
         return -PAL_ERROR_NOMEM;
 
     _DkCpuIdRetrieve(0, 0, words);
@@ -137,7 +137,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     const size_t BRAND_SIZE = 49;
     char* brand = malloc(BRAND_SIZE);
-    if(!brand) {
+    if (!brand) {
         rv = -PAL_ERROR_NOMEM;
         goto out_vendor_id;
     }
@@ -156,7 +156,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     /* number of physical cores in a package */
     ci->cpu_cores = g_pal_sec.cpu_cores;
 
-    /* array of "logical processor -> physical package" mappings */
+    /* array of "logical processors -> physical package" mappings */
     ci->phy_id = g_pal_sec.phy_id;
 
     _DkCpuIdRetrieve(1, 0, words);
@@ -168,7 +168,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     int flen = 0, fmax = 80;
     char* flags = malloc(fmax);
-    if(!flags) {
+    if (!flags) {
         rv = -PAL_ERROR_NOMEM;
         goto out_brand;
     }
@@ -181,7 +181,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
             int len = strlen(g_cpu_flags[i]);
             if (flen + len + 1 > fmax) {
                 char* new_flags = malloc(fmax * 2);
-                if(!new_flags) {
+                if (!new_flags) {
                     rv = -PAL_ERROR_NOMEM;
                     goto out_flags;
                 }

@@ -126,7 +126,7 @@ bool stataccess(struct stat* stats, int acc);
 void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, PAL_HANDLE* exec,
                         PAL_HANDLE* manifest);
 
-int get_hw_resource(const char *filename, bool count);
+int get_hw_resource(const char* filename, bool count);
 ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size);
 
 void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]);

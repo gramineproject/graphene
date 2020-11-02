@@ -118,13 +118,13 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
 
     int possible_cpus = get_hw_resource("/sys/devices/system/cpu/possible", /*count=*/true);
     /* TODO: correctly support offline CPUs */
-    if ((possible_cpus > 0) && (possible_cpus > cpu_num)) {
+    if (possible_cpus > 0 && possible_cpus > cpu_num) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
 
     int cpu_cores = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
-                                     /*count=*/true);
+                                    /*count=*/true);
     if (cpu_cores < 0) {
         rv = cpu_cores;
         goto out_brand;
@@ -138,7 +138,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     }
     ci->cpu_cores = cpu_cores / smt_siblings;
 
-    /* array of "logical processor -> physical package" mappings */
+    /* array of "logical processors -> physical package" mappings */
     int* phy_id = (int*)malloc(cpu_num * sizeof(int));
     if (!phy_id) {
         rv = -PAL_ERROR_NOMEM;
@@ -156,7 +156,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
             goto out_phy_id;
         }
     }
-    ci->phy_id = (PAL_PTR)phy_id;
+    ci->phy_id = phy_id;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 8, 12);

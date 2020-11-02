@@ -686,7 +686,7 @@ out:
  * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
  * Returns UNIX error code on failure.
  * N.B: Understands complex formats like "1,3-5,6" when called with count == true.
-*/
+ */
 static int get_hw_resource(const char* filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
     if (IS_ERR(fd))
@@ -772,7 +772,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 
     int possible_cpus = get_hw_resource("/sys/devices/system/cpu/possible", /*count=*/true);
     /* TODO: correctly support offline CPUs */
-    if ((possible_cpus > 0) && (possible_cpus > num_cpus)) {
+    if (possible_cpus > 0 && possible_cpus > num_cpus) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
@@ -789,8 +789,8 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return smt_siblings;
     pal_sec->cpu_cores = cpu_cores / smt_siblings;
 
-    /* array of "logical processor -> physical package" mappings */
-    int *phy_id = (int*)malloc(num_cpus *sizeof(int));
+    /* array of "logical processors -> physical package" mappings */
+    int* phy_id = (int*)malloc(num_cpus * sizeof(int));
     if (!phy_id)
         return -ENOMEM;
 
@@ -806,7 +806,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
             return ret;
         }
     }
-    pal_sec->phy_id = (PAL_PTR)phy_id;
+    pal_sec->phy_id = phy_id;
 
 #ifdef DEBUG
     size_t env_i = 0;

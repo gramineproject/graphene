@@ -349,8 +349,13 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         SGX_DBG(DBG_E, "Allocation for logical processor -> physical package mappings failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-    memcpy(phy_id, sec_info.phy_id, num_cpus * sizeof(int));
-    g_pal_sec.phy_id = (PAL_PTR)phy_id;
+
+    if (!sgx_copy_to_enclave(phy_id, num_cpus * sizeof(int), sec_info.phy_id,
+                             num_cpus * sizeof(int))) {
+        SGX_DBG(DBG_E, "Copying phy_id into the enclave failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    g_pal_sec.phy_id = phy_id;
 
     /* initialize master key (used for pipes' encryption for all enclaves of an application); it
      * will be overwritten below in init_child_process() with inherited-from-parent master key if

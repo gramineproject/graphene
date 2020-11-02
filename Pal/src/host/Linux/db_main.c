@@ -274,7 +274,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
  * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
  * Returns PAL error code on failure.
  * N.B: Understands complex formats like "1,3-5,6" when called with count == true.
-*/
+ */
 int get_hw_resource(const char* filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
     if (IS_ERR(fd))

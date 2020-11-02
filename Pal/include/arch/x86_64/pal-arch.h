@@ -187,9 +187,12 @@ static inline bool pal_context_has_user_pagefault(PAL_CONTEXT* context) {
 
 /* PAL_CPU_INFO holds /proc/cpuinfo data */
 typedef struct PAL_CPU_INFO_ {
+    /* Number of logical processors available in the host */
     PAL_NUM cpu_num;
+    /* Number of physical cores in a physical package (socket) */
     PAL_NUM cpu_cores;
-    PAL_PTR phy_id;
+    /* array of "logical processors -> physical package" mappings */
+    int* phy_id;
     PAL_STR cpu_vendor;
     PAL_STR cpu_brand;
     PAL_NUM cpu_family;
