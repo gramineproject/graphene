@@ -250,51 +250,41 @@ static inline void destroy_slab_mgr(SLAB_MGR mgr) {
 }
 
 // SYSTEM_LOCK needs to be held by the caller on entry.
-static inline int enlarge_slab_mgr(SLAB_MGR mgr, int level) {
+static inline int maybe_enlarge_slab_mgr(SLAB_MGR mgr, int level) {
     assert(SYSTEM_LOCKED());
     assert(level < SLAB_LEVEL);
-    /* DEP 11/24/17: This strategy basically doubles a level's size
-     * every time it grows.  The assumption if we get this far is that
-     * mgr->addr == mgr->top_addr */
-    assert(mgr->addr[level] == mgr->addr_top[level]);
 
-    size_t size = mgr->size[level];
-    SLAB_AREA area;
+    while (mgr->addr[level] == mgr->addr_top[level] && LISTP_EMPTY(&mgr->free_list[level])) {
+        size_t size = mgr->size[level];
+        SLAB_AREA area;
 
-    /* If there is a previously allocated area, just activate it. */
-    area = LISTP_PREV_ENTRY(mgr->active_area[level], &mgr->area_list[level], __list);
-    if (area) {
-        __set_free_slab_area(area, mgr, level);
-        return 0;
-    }
+        /* If there is a previously allocated area, just activate it. */
+        area = LISTP_PREV_ENTRY(mgr->active_area[level], &mgr->area_list[level], __list);
+        if (area) {
+            __set_free_slab_area(area, mgr, level);
+            return 0;
+        }
 
-    /* system_malloc() may be blocking, so we release the lock before
-     * allocating more memory */
-    SYSTEM_UNLOCK();
-
-    /* If the allocation failed, always try smaller sizes */
-    for (; size > 0; size >>= 1) {
-        area = (SLAB_AREA)system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
-        if (area)
-            break;
-    }
-
-    if (!area) {
+        /* system_malloc() may be blocking, so we release the lock before allocating more memory */
+        SYSTEM_UNLOCK();
+        for (; size > 0; size >>= 1) {
+            /* If the allocation failed, always try smaller sizes */
+            area = (SLAB_AREA)system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
+            if (area)
+                break;
+        }
         SYSTEM_LOCK();
-        return -ENOMEM;
+
+        if (!area)
+            return -ENOMEM;
+
+        area->size = size;
+        INIT_LIST_HEAD(area, __list);
+
+        /* There can be concurrent operations to extend the SLAB manager. In case someone has
+         * already enlarged the space, we just add the new area to the list for later use. */
+        LISTP_ADD(area, &mgr->area_list[level], __list);
     }
-
-    SYSTEM_LOCK();
-
-    area->size = size;
-    INIT_LIST_HEAD(area, __list);
-
-    /* There can be concurrent operations to extend the SLAB manager. In case
-     * someone has already enlarged the space, we just add the new area to the
-     * list for later use. */
-    LISTP_ADD(area, &mgr->area_list[level], __list);
-    if (mgr->size[level] == size) /* check if the size has changed */
-        __set_free_slab_area(area, mgr, level);
 
     return 0;
 }
@@ -323,12 +313,11 @@ static inline void* slab_alloc(SLAB_MGR mgr, size_t size) {
 
     SYSTEM_LOCK();
     assert(mgr->addr[level] <= mgr->addr_top[level]);
-    if (mgr->addr[level] == mgr->addr_top[level] && LISTP_EMPTY(&mgr->free_list[level])) {
-        int ret = enlarge_slab_mgr(mgr, level);
-        if (ret < 0) {
-            SYSTEM_UNLOCK();
-            return NULL;
-        }
+
+    int ret = maybe_enlarge_slab_mgr(mgr, level);
+    if (ret < 0) {
+        SYSTEM_UNLOCK();
+        return NULL;
     }
 
     if (!LISTP_EMPTY(&mgr->free_list[level])) {
