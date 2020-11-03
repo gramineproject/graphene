@@ -21,6 +21,7 @@
 
 #include "api.h"
 #include "assert.h"
+#include "avl_tree.h"
 #include "list.h"
 #include "pal.h"
 #include "shim_internal.h"
@@ -28,7 +29,7 @@
 #include "shim_thread.h"
 #include "shim_types.h"
 #include "spinlock.h"
-#include "avl_tree.h"
+
 struct shim_futex;
 struct futex_waiter;
 
@@ -51,25 +52,24 @@ struct shim_futex {
     LISTP_TYPE(futex_waiter) waiters;
     LIST_TYPE(shim_futex) list;
     union {
-        /* If this `vma` is used, it is included in `vma_tree` using this node. */
         struct avl_tree_node tree_node;
-        /* Otherwise it might be cached in per thread vma cache, or might be on a temporary list
-         * of to-be-freed vmas (used by _vma_bkeep_remove). Such lists use the field below. */
-        struct shim_vma* next_free;
     };
     /* This lock guards every access to *uaddr (futex word value) and waiters (above).
      * Always take g_futex_list_lock before taking this lock. */
     spinlock_t lock;
     REFTYPE _ref_count;
 };
+
 static struct shim_futex* _lookup_futex(uintptr_t);
+
 static bool futex_tree_cmp(struct avl_tree_node* node_a, struct avl_tree_node* node_b) {
     struct shim_futex* a = container_of(node_a, struct shim_futex, tree_node);
     struct shim_futex* b = container_of(node_b, struct shim_futex, tree_node);
 
     return a->uaddr <= b->uaddr;
 }
-static struct avl_tree futex_tree = { .cmp = futex_tree_cmp };
+
+static struct avl_tree g_futex_tree = { .cmp = futex_tree_cmp };
 
 /* Returns whether `addr` is smaller or equal to the one pointed by the node */
 static bool cmp_addr_to_futex(void* addr, struct avl_tree_node* node) {
