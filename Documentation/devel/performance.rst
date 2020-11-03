@@ -19,6 +19,8 @@ purposes.
 Enabling per-thread and process-wide SGX stats
 ----------------------------------------------
 
+See also :ref:`perf` below for installing ``perf``.
+
 Enable statistics using ``sgx.enable_stats = 1`` manifest option. Now your
 graphenized application correctly reports performance counters. This is useful
 when using e.g. ``perf stat`` to collect performance statistics. This manifest
@@ -410,3 +412,106 @@ propagate them into the enclave, either use the insecure manifest option
 explicitly in the manifest via ``loader.env.OMP_NUM_THREADS=8``. Also, it is
 always better to specify such environment variables explicitly because a
 graphenized application may determine the number of available CPUs incorrectly.
+
+.. _perf:
+
+Profiling with ``perf``
+-----------------------
+
+This section describes how to use `perf
+<https://perf.wiki.kernel.org/index.php/Main_Page>`__, a powerful Linux
+profiling tool.
+
+Installing ``perf`` provided by your distribution
+"""""""""""""""""""""""""""""""""""""""""""""""""
+
+Under Ubuntu:
+
+1. Install ``linux-tools-common``.
+2. Run ``perf``. It will complain about not having a kernel-specific package,
+   such as ``linux-tools-4-15.0-122-generic``.
+3. Install the kernel-specific package.
+
+The above might not work if you have a custom kernel. In that case, you might
+want to use the distribution-provided version anyway (install
+``linux-tools-generic`` and use ``/usr/lib/linux-tools-<VERSION>/perf``), but it
+might not be fully compatible with your kernel. It might be better to build
+your own.
+
+You might also want to compile your own ``perf`` to make use of libraries that
+the default version is not compiled against.
+
+Building your own `perf`
+""""""""""""""""""""""""
+
+1. Download the kernel: run ``uname -r`` to check your kernel version, then
+   clone the right branch::
+
+       git clone --single-branch --branch linux-5.4.y \
+           https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+
+2. Go to ``linux/tools/perf`` and run ``make``.
+
+3. Check the beginning of the output. It will display warnings about missing
+   libraries, and suggest how to install them.
+
+   Install the missing ones, depending on the features you need. You will need
+   at least ``libdw-dev`` and ``libunwind-dev`` to get proper symbols and stack
+   trace. ``libslang2-dev`` is also nice, as it will enable a terminal UI for
+   some commands.
+
+4. Run ``make`` again and verify that the necessary features have been
+   enabled. (You can also run ``ldd perf`` to check which shared libraries it
+   uses).
+
+5. Copy the built ``perf`` binary somewhere to your ``PATH``, for instance,
+   ``/usr/local/bin``.
+
+Recording samples with ``perf record``
+""""""""""""""""""""""""""""""""""""""
+
+To record (saves ``perf.data``)::
+
+    perf record ./pal_loader manifest
+
+To view the report for ``perf.data``::
+
+    perf report
+
+This is useful in non-SGX mode. Unfortunately, in SGX mode, it will not account
+correctly for the code inside the enclave.
+
+Some useful options for recording (``perf record``):
+
+* ``--call-graph dwarf``: collect information about callers
+* ``-F 50``: collect 50 (or any other number) of samples per second,
+  can be useful to reduce overhead and file size
+
+Some useful options for displaying the report (``perf report``):
+
+* ``--no-children``: sort based on "self time", i.e. time spent in a given
+  function excluding its children (the default is to sort by total time spent in a
+  function).
+
+Futher reading
+""""""""""""""
+
+* `Perf Wiki <https://perf.wiki.kernel.org/index.php/Main_Page>`__
+* `Linux perf examples - Brendan Gregg
+  <http://www.brendangregg.com/perf.html>`__
+* Man pages: ``man perf record``, ``man perf report`` etc.
+
+Other useful tools for profiling
+--------------------------------
+
+* Intel VTune Profiler (TODO)
+* ``strace -c`` will display Linux system call statistics
+* Valgrind (with `Callgrind <https://valgrind.org/docs/manual/cl-manual.html`__)
+  has some bugs preventing it from working with Graphene:
+
+  * `pie elf loaded at 0x108000
+    <https://bugs.kde.org/show_bug.cgi?id=290061>`__ - prevents loading non-PIE
+    binaries properly
+  * `Running signal handler with alternate stack allocated on current stack
+    crashes callgrind <https://bugs.kde.org/show_bug.cgi?id=339160>`__ - breaks
+    with some workflows
