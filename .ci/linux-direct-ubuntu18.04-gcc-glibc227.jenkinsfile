@@ -1,0 +1,19 @@
+node('nonsgx_slave') {
+    checkout scm
+
+    load '.ci/lib/config.jenkinsfile'
+    load '.ci/lib/config-ubuntu18.04.jenkinsfile'
+    load '.ci/lib/config-release.jenkinsfile'
+    env.GLIBC_VERSION = '2.27'
+
+    docker.build(
+        "local:${env.BUILD_TAG}",
+        '-f .ci/ubuntu18.04.dockerfile .'
+    ).inside() {
+        sh 'printenv'
+
+        load '.ci/lib/stage-lint.jenkinsfile'
+        load '.ci/lib/stage-clean-check-prepare.jenkinsfile'
+        load '.ci/lib/stage-build-nosgx.jenkinsfile'
+    }
+}
