@@ -515,12 +515,8 @@ PAL_BOL DkThreadResume(PAL_HANDLE thread);
 /*!
  * \brief Sets the CPU affinity of a thread.
  *
- * This function assumes that \a cpumask_size is valid and greater than 0. Also, if \a cpumask_size
- * is larger than the number of processors in the host, it must be truncated such that it can fit
- * all the processors in the host and must be aligned by sizeof(long). For example, if the host
- * supports 4 CPUs, \a cpumask_size can be 8 bytes or less (but not more than 8 bytes).
- * \note \a cpumask_size that cannot fit all the processors in the host or not aligned by
- * sizeof(long) is considered valid but only the CPUs fitting \a cpumask_size will be set.
+ * All bit positions exceeding the count of host CPUs are ignored. Returns an error if no CPUs were
+ * selected.
  *
  * \param thread PAL thread for which to set the CPU affinity.
  * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask.
@@ -536,8 +532,6 @@ PAL_BOL DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR 
  * This function assumes that \a cpumask_size is valid and greater than 0. Also, \a cpumask_size
  * must be able to fit all the processors in the host and must be aligned by sizeof(long). For
  * example, if the host supports 4 CPUs, \a cpumask_size should be 8 bytes.
- * \note \a cpumask_size that cannot fit all the processors in the host or is not aligned by
- * sizeof(long) is considered invalid.
  *
  * \param thread PAL thread for which to get the CPU affinity.
  * \param cpumask_size length in bytes of the bitmask pointed to by \a cpu_mask.

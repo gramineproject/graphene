@@ -143,17 +143,10 @@ int shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
 long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr) {
     int ret;
     struct shim_thread* thread;
-    size_t cpu_cnt = PAL_CB(cpu_info.cpu_num);
 
     /* check if user_mask_ptr is valid */
     if (test_user_memory(user_mask_ptr, cpumask_size, /*write=*/false))
         return -EFAULT;
-
-    /* Linux kernel bitmap is based on long. So according to its implementation, round up the result
-     * to sizeof(long) */
-    size_t bitmask_size_in_bytes = BITS_TO_LONGS(cpu_cnt) * sizeof(long);
-    if (cpumask_size > bitmask_size_in_bytes)
-        cpumask_size = bitmask_size_in_bytes;
 
     if (pid) {
         thread = lookup_thread(pid);
