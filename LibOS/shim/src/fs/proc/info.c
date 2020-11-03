@@ -143,7 +143,7 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
         len += ret;                                                  \
     } while (0)
 
-    for (size_t n = 0; n < pal_control.cpu_info.cpu_num; n++) {
+    for (size_t n = 0; n < pal_control.cpu_info.online_logical_cores; n++) {
         /* Below strings must match exactly the strings retrieved from /proc/cpuinfo
          * (see Linux's arch/x86/kernel/cpu/proc.c) */
         ADD_INFO("processor\t: %lu\n", n);
@@ -152,9 +152,9 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
         ADD_INFO("model\t\t: %lu\n", pal_control.cpu_info.cpu_model);
         ADD_INFO("model name\t: %s\n", pal_control.cpu_info.cpu_brand);
         ADD_INFO("stepping\t: %lu\n", pal_control.cpu_info.cpu_stepping);
-        ADD_INFO("physical id\t: %d\n", pal_control.cpu_info.phy_id[n]);
+        ADD_INFO("physical id\t: %d\n", pal_control.cpu_info.cpu_socket[n]);
         ADD_INFO("core id\t\t: %lu\n", n);
-        ADD_INFO("cpu cores\t: %lu\n", pal_control.cpu_info.cpu_cores);
+        ADD_INFO("cpu cores\t: %lu\n", pal_control.cpu_info.physical_cores_per_socket);
         double bogomips = pal_control.cpu_info.cpu_bogomips;
         // Apparently graphene snprintf cannot into floats.
         ADD_INFO("bogomips\t: %lu.%02lu\n", (unsigned long)bogomips,

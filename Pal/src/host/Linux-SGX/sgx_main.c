@@ -682,7 +682,7 @@ out:
 
 /* Opens a pseudo-file describing HW resources such as online CPUs and counts the number of
  * HW resources present in the file (if count == true) or simply reads the integer stored in the
- * file (if count == false). For example on a single-cpu machine, calling this function on
+ * file (if count == false). For example on a single-core machine, calling this function on
  * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
  * Returns UNIX error code on failure.
  * N.B: Understands complex formats like "1,3-5,6" when called with count == true.
@@ -765,48 +765,48 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
      * instead extract info on total number of logical processors, number of physical cores,
      * SMT support etc. by parsing sysfs pseudo-files */
-    int num_cpus = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
-    if (num_cpus < 0)
-        return num_cpus;
-    pal_sec->num_cpus = num_cpus;
+    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
+    if (online_logical_cores < 0)
+        return online_logical_cores;
+    pal_sec->online_logical_cores = online_logical_cores;
 
-    int possible_cpus = get_hw_resource("/sys/devices/system/cpu/possible", /*count=*/true);
-    /* TODO: correctly support offline CPUs */
-    if (possible_cpus > 0 && possible_cpus > num_cpus) {
+    int possible_cores = get_hw_resource("/sys/devices/system/cpu/possible", /*count=*/true);
+    /* TODO: correctly support offline cores */
+    if (possible_cores > 0 && possible_cores > online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
 
 
-    int cpu_cores = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
+    int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
                                     /*count=*/true);
-    if (cpu_cores < 0)
-        return cpu_cores;
+    if (core_siblings < 0)
+        return core_siblings;
 
     int smt_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
                                        /*count=*/true);
     if (smt_siblings < 0)
         return smt_siblings;
-    pal_sec->cpu_cores = cpu_cores / smt_siblings;
+    pal_sec->physical_cores_per_socket = core_siblings / smt_siblings;
 
     /* array of "logical processors -> physical package" mappings */
-    int* phy_id = (int*)malloc(num_cpus * sizeof(int));
-    if (!phy_id)
+    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
+    if (!cpu_socket)
         return -ENOMEM;
 
     char filename[128];
-    for (int idx = 0; idx < num_cpus; idx++) {
+    for (int idx = 0; idx < online_logical_cores; idx++) {
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
-        phy_id[idx] = get_hw_resource(filename, /*count=*/false);
-        if (phy_id[idx] < 0) {
+        cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);
+        if (cpu_socket[idx] < 0) {
             SGX_DBG(DBG_E, "Cannot read %s\n", filename);
-            ret = phy_id[idx];
-            free(phy_id);
+            ret = cpu_socket[idx];
+            free(cpu_socket);
             return ret;
         }
     }
-    pal_sec->phy_id = phy_id;
+    pal_sec->cpu_socket = cpu_socket;
 
 #ifdef DEBUG
     size_t env_i = 0;

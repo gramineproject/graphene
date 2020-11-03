@@ -270,7 +270,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
 /* Opens a pseudo-file describing HW resources such as online CPUs and counts the number of
  * HW resources present in the file (if count == true) or simply reads the integer stored in the
- * file (if count == false). For example on a single-cpu machine, calling this function on
+ * file (if count == false). For example on a single-core machine, calling this function on
  * `/sys/devices/system/cpu/online` with count == true will return 1 and 0 with count == false.
  * Returns PAL error code on failure.
  * N.B: Understands complex formats like "1,3-5,6" when called with count == true.

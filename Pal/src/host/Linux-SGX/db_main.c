@@ -284,19 +284,20 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.uid = sec_info.uid;
     g_pal_sec.gid = sec_info.gid;
 
-    int num_cpus = sec_info.num_cpus;
-    if (num_cpus >= 1 && num_cpus <= (1 << 16)) {
-        g_pal_sec.num_cpus = num_cpus;
+    int online_logical_cores = sec_info.online_logical_cores;
+    if (online_logical_cores >= 1 && online_logical_cores <= (1 << 16)) {
+        g_pal_sec.online_logical_cores = online_logical_cores;
     } else {
-        SGX_DBG(DBG_E, "Invalid sec_info.num_cpus: %d\n", num_cpus);
+        SGX_DBG(DBG_E, "Invalid sec_info.online_logical_cores: %d\n", online_logical_cores);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
-    if (sec_info.cpu_cores <= 0) {
-        SGX_DBG(DBG_E, "Invalid sec_info.cpu_cores: %ld\n", sec_info.cpu_cores);
+    if (sec_info.physical_cores_per_socket <= 0) {
+        SGX_DBG(DBG_E, "Invalid sec_info.physical_cores_per_socket: %ld\n",
+                sec_info.physical_cores_per_socket);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-    g_pal_sec.cpu_cores = sec_info.cpu_cores;
+    g_pal_sec.physical_cores_per_socket = sec_info.physical_cores_per_socket;
 
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);
@@ -344,18 +345,18 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
     /* Allocate enclave memory to store "logical processor -> physical package" mappings */
-    int* phy_id = (int*)malloc(num_cpus * sizeof(int));
-    if (!phy_id) {
+    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
+    if (!cpu_socket) {
         SGX_DBG(DBG_E, "Allocation for logical processor -> physical package mappings failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
-    if (!sgx_copy_to_enclave(phy_id, num_cpus * sizeof(int), sec_info.phy_id,
-                             num_cpus * sizeof(int))) {
-        SGX_DBG(DBG_E, "Copying phy_id into the enclave failed\n");
+    if (!sgx_copy_to_enclave(cpu_socket, online_logical_cores * sizeof(int), sec_info.cpu_socket,
+                             online_logical_cores * sizeof(int))) {
+        SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-    g_pal_sec.phy_id = phy_id;
+    g_pal_sec.cpu_socket = cpu_socket;
 
     /* initialize master key (used for pipes' encryption for all enclaves of an application); it
      * will be overwritten below in init_child_process() with inherited-from-parent master key if

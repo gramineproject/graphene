@@ -150,14 +150,14 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    /* total number of logical processors */
-    ci->cpu_num = g_pal_sec.num_cpus;
+    /* total number of logical cores */
+    ci->online_logical_cores = g_pal_sec.online_logical_cores;
 
-    /* number of physical cores in a package */
-    ci->cpu_cores = g_pal_sec.cpu_cores;
+    /* number of physical cores in a socket */
+    ci->physical_cores_per_socket = g_pal_sec.physical_cores_per_socket;
 
-    /* array of "logical processors -> physical package" mappings */
-    ci->phy_id = g_pal_sec.phy_id;
+    /* array of "logical processor->physical package" mappings; has online_logical_cores elements */
+    ci->cpu_socket = g_pal_sec.cpu_socket;
 
     _DkCpuIdRetrieve(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +

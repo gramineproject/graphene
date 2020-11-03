@@ -37,13 +37,13 @@ struct pal_sec {
     PAL_SEC_STR pipe_prefix;
 
     /* Number of logical processors available in the host */
-    PAL_NUM num_cpus;
+    PAL_NUM online_logical_cores;
 
     /* Number of physical cores in a physical package (socket) */
-    PAL_NUM cpu_cores;
+    PAL_NUM physical_cores_per_socket;
 
-    /* array of "logical processors -> physical package" mappings */
-    int* phy_id;
+    /* array of "logical processor->physical package" mappings; has online_logical_cores elements*/
+    int* cpu_socket;
 
 #ifdef DEBUG
     PAL_BOL in_gdb;
