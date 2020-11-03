@@ -441,8 +441,8 @@ your own.
 You might also want to compile your own ``perf`` to make use of libraries that
 the default version is not compiled against.
 
-Building your own `perf`
-""""""""""""""""""""""""
+Building your own ``perf``
+""""""""""""""""""""""""""
 
 1. Download the kernel: run ``uname -r`` to check your kernel version, then
    clone the right branch::
@@ -506,7 +506,7 @@ Other useful tools for profiling
 
 * Intel VTune Profiler (TODO)
 * ``strace -c`` will display Linux system call statistics
-* Valgrind (with `Callgrind <https://valgrind.org/docs/manual/cl-manual.html`__)
+* Valgrind (with `Callgrind <https://valgrind.org/docs/manual/cl-manual.html>`__)
   has some bugs preventing it from working with Graphene:
 
   * `pie elf loaded at 0x108000
