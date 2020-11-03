@@ -810,6 +810,15 @@ def main_sign(args):
     print("    misc_select: %08x" % int.from_bytes(attr['misc_select'], byteorder='big'))
     print("    date:        %d-%02d-%02d" % (attr['year'], attr['month'], attr['day']))
 
+    if manifest.get('sgx.remote_attestation', '0') == '1':
+        spid = manifest.get('sgx.ra_client_spid', '')
+        linkable = manifest.get('sgx.ra_client_linkable', '0')
+        print("SGX remote attestation:")
+        if not spid:
+            print("    DCAP/ECDSA")
+        else:
+            print("    EPID (spid = %s, linkable = %s)" % (spid, linkable))
+
     # Get trusted checksums and measurements
     print("Trusted files:")
     for key, val in get_trusted_files(manifest, args).items():

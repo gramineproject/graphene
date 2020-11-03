@@ -883,6 +883,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         /* initialize communication with Quoting Enclave only if app requests attestation */
         bool is_epid; /* EPID is used if SPID is specified in manifest, otherwise DCAP/ECDSA */
         is_epid = get_config(enclave->config, "sgx.ra_client_spid", cfgbuf, sizeof(cfgbuf)) > 0;
+        SGX_DBG(DBG_I, "Using SGX %s attestation\n", is_epid ? "EPID" : "DCAP/ECDSA");
         ret = init_quoting_enclave_targetinfo(is_epid, &pal_sec->qe_targetinfo);
         if (ret < 0)
             return ret;
