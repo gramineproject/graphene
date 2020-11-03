@@ -47,7 +47,6 @@ Table of Contents
    quickstart
    building
    manifest-syntax
-   perf-practices
    cloud-deployment
    sgx-intro
    glossary
@@ -74,6 +73,7 @@ Table of Contents
    devel/coding-style
    devel/setup
    devel/debugging
+   devel/performance
    devel/new-syscall
 
 .. toctree::
