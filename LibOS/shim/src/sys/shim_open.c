@@ -88,30 +88,7 @@ size_t shim_do_write(int fd, const void* buf, size_t count) {
 }
 
 int shim_do_open(const char* file, int flags, mode_t mode) {
-    if (!file || test_user_string(file))
-        return -EFAULT;
-
-    if (!(flags & O_CREAT)) {
-        /* `mode` should be ignored if O_CREAT is not specified, according to man */
-        mode = 0;
-    } else {
-        /* This isn't documented, but that's what Linux does. */
-        mode &= 07777;
-    }
-
-    struct shim_handle* hdl = get_new_handle();
-    if (!hdl)
-        return -ENOMEM;
-
-    int ret = 0;
-    ret = open_namei(hdl, NULL, file, flags, mode, NULL);
-    if (ret < 0)
-        goto out;
-
-    ret = set_new_fd_handle(hdl, flags & O_CLOEXEC ? FD_CLOEXEC : 0, NULL);
-out:
-    put_handle(hdl);
-    return ret;
+    return shim_do_openat(AT_FDCWD, file, flags, mode);
 }
 
 int shim_do_creat(const char* path, mode_t mode) {
@@ -133,7 +110,7 @@ int shim_do_openat(int dfd, const char* filename, int flags, int mode) {
     struct shim_dentry* dir = NULL;
     int ret = 0;
 
-    if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
+    if (*filename != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     struct shim_handle* hdl = get_new_handle();
@@ -151,7 +128,8 @@ int shim_do_openat(int dfd, const char* filename, int flags, int mode) {
 out_hdl:
     put_handle(hdl);
 out:
-    put_dentry(dir);
+    if (dir)
+        put_dentry(dir);
     return ret;
 }
 

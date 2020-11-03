@@ -91,6 +91,7 @@ out:
 }
 
 int shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
+    int ret;
     if (!file || test_user_string(file))
         return -EFAULT;
 
@@ -102,10 +103,9 @@ int shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
 
     struct shim_dentry* dent = NULL;
     struct shim_dentry* dir = NULL;
-    int ret = get_dirfd_dentry(dirfd, &dir);
-    if (ret < 0) {
+
+    if (*file != '/' && (ret = get_dirfd_dentry(dirfd, &dir)) < 0)
         goto out;
-    }
 
     struct shim_qstr qstr = QSTR_INIT;
 
