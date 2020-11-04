@@ -116,9 +116,10 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     }
     ci->online_logical_cores = online_logical_cores;
 
-    int possible_cores = get_hw_resource("/sys/devices/system/cpu/possible", /*count=*/true);
+    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
+                                                 /*count=*/true);
     /* TODO: correctly support offline cores */
-    if (possible_cores > 0 && possible_cores > online_logical_cores) {
+    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
@@ -138,7 +139,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     }
     ci->physical_cores_per_socket = core_siblings / smt_siblings;
 
-    /* array of "logical processor -> physical package" mappings */
+    /* array of "logical core -> socket" mappings */
     int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
     if (!cpu_socket) {
         rv = -PAL_ERROR_NOMEM;

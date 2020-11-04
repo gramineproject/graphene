@@ -344,10 +344,10 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
-    /* Allocate enclave memory to store "logical processor -> physical package" mappings */
+    /* Allocate enclave memory to store "logical core -> socket" mappings */
     int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
     if (!cpu_socket) {
-        SGX_DBG(DBG_E, "Allocation for logical processor -> physical package mappings failed\n");
+        SGX_DBG(DBG_E, "Allocation for logical core -> socket mappings failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 

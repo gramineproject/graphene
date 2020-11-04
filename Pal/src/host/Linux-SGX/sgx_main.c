@@ -763,16 +763,17 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
 
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
-     * instead extract info on total number of logical processors, number of physical cores,
+     * instead extract info on total number of logical cores, number of physical cores,
      * SMT support etc. by parsing sysfs pseudo-files */
     int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
     if (online_logical_cores < 0)
         return online_logical_cores;
     pal_sec->online_logical_cores = online_logical_cores;
 
-    int possible_cores = get_hw_resource("/sys/devices/system/cpu/possible", /*count=*/true);
+    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
+                                                 /*count=*/true);
     /* TODO: correctly support offline cores */
-    if (possible_cores > 0 && possible_cores > online_logical_cores) {
+    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
@@ -789,7 +790,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return smt_siblings;
     pal_sec->physical_cores_per_socket = core_siblings / smt_siblings;
 
-    /* array of "logical processor -> physical package" mappings */
+    /* array of "logical core -> socket" mappings */
     int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
     if (!cpu_socket)
         return -ENOMEM;
