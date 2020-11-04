@@ -23,6 +23,9 @@ echo -e "\n\nRunning HTTP client test-http.py:"
 ./pal_loader python.manifest scripts/test-http.py localhost 8005 > OUTPUT1
 wget -q http://localhost:8005/ -O OUTPUT2
 echo >> OUTPUT2  # include newline since wget doesn't add it
-diff -q OUTPUT1 OUTPUT2 && echo "[ Success 3/3 ]"
+# check if all lines from OUTPUT2 are included in OUTPUT1
+# TODO: simplify after fixing Graphene logging subsystem, which currently mixes its output with the
+# application output.
+diff OUTPUT1 OUTPUT2 | grep -q '^>' || echo "[ Success 3/3 ]"
 kill "$(cat server.PID)"
 rm -f OUTPUT1 OUTPUT2 server.PID
