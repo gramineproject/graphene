@@ -28,28 +28,17 @@
 #define MAX_IPC_PORT_FINI_CB 3
 
 enum {
-    IPC_LISTEN,       /* listening */
-    IPC_SERVER,       /* connect as a server */
-    IPC_KEEPALIVE,    /* keep the connetion alive */
-    IPC_DIRECTCHILD,  /* direct child */
-    IPC_DIRECTPARENT, /* direct parent */
-    IPC_CLIENT,       /* pid/sysv namespace client */
-    IPC_LEADER,       /* pid/sysv namespace leader */
-    IPC_OWNER,        /* pid/sysv namespace owner */
-    IPC_CONNECTION,   /* pid/sysv namespace connection */
+    IPC_LISTENING,    /* listening port; processes connect to it to create connection ports */
+    IPC_CONNECTION,   /* processes communicate on ports of this type */
+    IPC_DIRECTCHILD,  /* direct child: used to broadcast CHILDEXIT message only to children */
+    IPC_DIRECTPARENT, /* direct parent: used to broadcast CHILDEXIT message only to parent */
 };
 
 enum {
-    IPC_PORT_LISTEN       = 1 << IPC_LISTEN,
-    IPC_PORT_SERVER       = 1 << IPC_SERVER,
-    IPC_PORT_KEEPALIVE    = 1 << IPC_KEEPALIVE,
+    IPC_PORT_LISTENING    = 1 << IPC_LISTENING,
+    IPC_PORT_CONNECTION   = 1 << IPC_CONNECTION,
     IPC_PORT_DIRECTCHILD  = 1 << IPC_DIRECTCHILD,
     IPC_PORT_DIRECTPARENT = 1 << IPC_DIRECTPARENT,
-
-    IPC_PORT_CLIENT     = 1 << IPC_CLIENT,
-    IPC_PORT_LEADER     = 1 << IPC_LEADER,
-    IPC_PORT_OWNER      = 1 << IPC_OWNER,
-    IPC_PORT_CONNECTION = 1 << IPC_CONNECTION,
 };
 
 enum {
