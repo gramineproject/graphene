@@ -192,7 +192,7 @@ typedef struct PAL_CPU_INFO_ {
     /* Number of physical cores in a physical package (socket) */
     PAL_NUM physical_cores_per_socket;
     /* array of "logical processor->physical package" mappings; has online_logical_cores elements */
-    int* cpu_socket ;
+    int* cpu_socket;
     PAL_STR cpu_vendor;
     PAL_STR cpu_brand;
     PAL_NUM cpu_family;

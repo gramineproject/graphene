@@ -124,7 +124,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     }
 
     int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
-                                           /*count=*/true);
+                                        /*count=*/true);
     if (core_siblings < 0) {
         rv = core_siblings;
         goto out_brand;

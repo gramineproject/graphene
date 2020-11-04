@@ -779,7 +779,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
 
 
     int core_siblings = get_hw_resource("/sys/devices/system/cpu/cpu0/topology/core_siblings_list",
-                                    /*count=*/true);
+                                        /*count=*/true);
     if (core_siblings < 0)
         return core_siblings;
 
@@ -789,7 +789,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return smt_siblings;
     pal_sec->physical_cores_per_socket = core_siblings / smt_siblings;
 
-    /* array of "logical processors -> physical package" mappings */
+    /* array of "logical processor -> physical package" mappings */
     int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
     if (!cpu_socket)
         return -ENOMEM;
