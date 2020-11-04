@@ -151,9 +151,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     ci->cpu_brand = brand;
 
     ci->online_logical_cores = g_pal_sec.online_logical_cores;
-
     ci->physical_cores_per_socket = g_pal_sec.physical_cores_per_socket;
-
     ci->cpu_socket = g_pal_sec.cpu_socket;
 
     _DkCpuIdRetrieve(1, 0, words);
