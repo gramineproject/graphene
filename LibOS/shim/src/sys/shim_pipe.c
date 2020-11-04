@@ -274,10 +274,8 @@ int shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     struct shim_dentry* dir  = NULL;
     struct shim_dentry* dent = NULL;
 
-    ret = get_dirfd_dentry(dirfd, &dir);
-    if (ret < 0) {
+    if (*pathname != '/' && (ret = get_dirfd_dentry(dirfd, &dir)) < 0)
         goto out;
-    }
 
     ret = path_lookupat(dir, pathname, LOOKUP_CREATE, &dent, NULL);
     if (ret < 0 && ret != -ENOENT) {

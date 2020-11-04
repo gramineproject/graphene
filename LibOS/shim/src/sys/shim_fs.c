@@ -560,7 +560,7 @@ int shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const char
         return -EFAULT;
     }
 
-    if ((ret = get_dirfd_dentry(olddirfd, &old_dir_dent)) < 0) {
+    if (*oldpath != '/' && (ret = get_dirfd_dentry(olddirfd, &old_dir_dent)) < 0) {
         goto out;
     }
 
@@ -573,7 +573,7 @@ int shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const char
         goto out;
     }
 
-    if ((ret = get_dirfd_dentry(newdirfd, &new_dir_dent)) < 0) {
+    if (*newpath != '/' && (ret = get_dirfd_dentry(newdirfd, &new_dir_dent)) < 0) {
         goto out;
     }
 
