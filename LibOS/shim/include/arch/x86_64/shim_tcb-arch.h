@@ -135,34 +135,11 @@ static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num
                       sizeof(ret) == 1,                                 \
                       "SHIM_TCB_GET can be used only for "              \
                       "8, 4, 2, or 1-byte(s) members");                 \
-        switch (sizeof(ret)) {                                          \
-        case 8:                                                         \
-            __asm__("movq %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        case 4:                                                         \
-            __asm__("movl %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        case 2:                                                         \
-            __asm__("movw %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        case 1:                                                         \
-            __asm__("movb %%gs:%c1, %0\n"                               \
-                    : "=r"(ret)                                         \
-                    : "i" (offsetof(PAL_TCB, libos_tcb) +               \
-                           offsetof(shim_tcb_t, member)));              \
-            break;                                                      \
-        default:                                                        \
-            __abort();                                                  \
-        }                                                               \
+        __asm__("mov %%gs:%c1, %0\n"                                    \
+                : "=r"(ret)                                             \
+                : "i" (offsetof(PAL_TCB, libos_tcb) +                   \
+                       offsetof(shim_tcb_t, member))                    \
+                : "memory");                                            \
         ret;                                                            \
     })
 
@@ -180,25 +157,29 @@ static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num
             __asm__("movq %0, %%gs:%c1\n"                               \
                     :: "ir"(value),                                     \
                      "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
+                         offsetof(shim_tcb_t, member))                  \
+                    : "memory");                                        \
             break;                                                      \
         case 4:                                                         \
             __asm__("movl %0, %%gs:%c1\n"                               \
                     :: "ir"(value),                                     \
                      "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
+                         offsetof(shim_tcb_t, member))                  \
+                    : "memory");                                        \
             break;                                                      \
         case 2:                                                         \
             __asm__("movw %0, %%gs:%c1\n"                               \
                     :: "ir"(value),                                     \
                      "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
+                         offsetof(shim_tcb_t, member))                  \
+                    : "memory");                                        \
             break;                                                      \
         case 1:                                                         \
             __asm__("movb %0, %%gs:%c1\n"                               \
                     :: "ir"(value),                                     \
                      "i"(offsetof(PAL_TCB, libos_tcb) +                 \
-                         offsetof(shim_tcb_t, member)));                \
+                         offsetof(shim_tcb_t, member))                  \
+                    : "memory");                                        \
             break;                                                      \
         default:                                                        \
             __abort();                                                  \

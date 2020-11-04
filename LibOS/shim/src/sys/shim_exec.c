@@ -152,7 +152,7 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
         .new_auxv = new_auxv
     };
     __SWITCH_STACK(new_argp, &__shim_do_execve_rtld, &arg);
-    return 0;
+    /* UNREACHABLE */
 }
 
 static BEGIN_MIGRATION_DEF(execve, struct shim_thread* thread,

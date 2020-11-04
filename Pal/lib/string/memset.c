@@ -15,7 +15,7 @@ void* memset(void* dest, int ch, size_t count) {
      * operations for software in common situations like memory copy and set operations"
      * Intel 64 and IA-32 Architectures Optimization Reference Manual
      */
-    __asm__ volatile("rep stosb" : "+&D"(d), "+&c"(count) : "a"((uint8_t)ch) : "cc", "memory");
+    __asm__ volatile("rep stosb" : "+D"(d), "+c"(count) : "a"((uint8_t)ch) : "cc", "memory");
 #else
     while (count--)
         *d++ = ch;
