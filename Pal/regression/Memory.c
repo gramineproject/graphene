@@ -1,3 +1,5 @@
+/* XXX: What on earth is this supposed to be, an attempt to fit most UBs in one file? */
+
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"

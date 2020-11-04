@@ -10,6 +10,7 @@
  *   #define ElfW(type)       _ElfW(Elf, __ELF_NATIVE_CLASS, type)"
  * errors.
  */
+#include "pal_internal-arch.h"
 #include "pal_linux.h"
 #include "pal_linux_error.h"
 #include "pal_rtld.h"
@@ -892,21 +893,12 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     return 0;
 }
 
-/* Grow stack of main thread to THREAD_STACK_SIZE by allocating a large dummy array and probing
- * each stack page (Linux dynamically grows the stack of the main thread but gets confused with
+/* Grow the stack of the main thread to THREAD_STACK_SIZE by probing each stack page above current
+ * stack pointer (Linux dynamically grows the stack of the main thread but gets confused with
  * huge-jump stack accesses coming from within the enclave). Note that other, non-main threads
  * are created manually via clone(.., THREAD_STACK_SIZE, ..) and thus do not need this hack. */
-static void __attribute__((noinline)) force_linux_to_grow_stack(void) {
-    char dummy[THREAD_STACK_SIZE];
-    for (uint64_t i = 0; i < sizeof(dummy); i += PRESET_PAGESIZE) {
-        /* touch each page on the stack just to make it is not optimized away */
-        __asm__ volatile(
-            "movq %0, %%rbx\r\n"
-            "movq (%%rbx), %%rbx\r\n"
-            :
-            : "r"(&dummy[i])
-            : "%rbx");
-    }
+static void force_linux_to_grow_stack(void) {
+    ARCH_PROBE_STACK(THREAD_STACK_SIZE, PRESET_PAGESIZE);
 }
 
 int main(int argc, char* argv[], char* envp[]) {

@@ -851,6 +851,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     self->stack_top = stack + IPC_HELPER_STACK_SIZE;
     self->stack     = stack;
     __SWITCH_STACK(self->stack_top, shim_ipc_helper, NULL);
+    /* UNREACHABLE */
 }
 
 /* this should be called with the ipc_helper_lock held */

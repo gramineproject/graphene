@@ -5,10 +5,6 @@
 
 #include <stdint.h>
 
-static inline void cpu_pause(void) {
-    __asm__ volatile("pause");
-}
-
 enum PAL_CPUID_WORD {
     PAL_CPUID_WORD_EAX = 0,
     PAL_CPUID_WORD_EBX = 1,
@@ -35,7 +31,7 @@ static inline uint64_t get_tsc(void) {
     return lo | ((uint64_t)hi << 32);
 }
 
-#define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory")
+#define CPU_RELAX() __asm__ volatile("pause")
 
 /* some non-Intel clones support out of order store; WMB() ceases to be a nop for these */
 #define MB()  __asm__ __volatile__("mfence" ::: "memory")

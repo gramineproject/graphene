@@ -10,10 +10,13 @@
         __stack_top &= ~0xf;                                    \
         __stack_top -= 8;                                       \
         __asm__ volatile (                                      \
-            "movq %0, %%rbp\n"                                  \
             "movq %0, %%rsp\n"                                  \
-            "jmpq *%1\n"                                        \
-            ::"r"(__stack_top), "r"(func), "D"(arg): "memory"); \
+            "xorq %%rbp, %%rbp\n"                               \
+            "jmpq *%%rcx\n"                                     \
+            :                                                   \
+            : "r"(__stack_top), "c"(func), "D"(arg)             \
+            : "memory");                                        \
+        __builtin_unreachable();                                \
     } while (0)
 
 #define CALL_ELF_ENTRY(ENTRY, ARGP)      \

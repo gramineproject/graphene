@@ -956,6 +956,8 @@ void DkDebugDetachBinary(PAL_PTR start_addr) {
 #ifdef __x86_64__
 void* stack_before_call __attribute_unused = NULL;
 
+/* TODO: Why on earth do we call loaded libraries entry points?!?
+ * I won't bother fixing this asm, it needs to be purged. */
 #define CALL_ENTRY(l, cookies)                                                       \
     ({                                                                               \
         long ret;                                                                    \

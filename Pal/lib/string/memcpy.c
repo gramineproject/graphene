@@ -15,7 +15,7 @@ void* memcpy(void* restrict dest, const void* restrict src, size_t count) {
      * memcpy() is heavily used in Linux-SGX PAL to copy data in/out of SGX enclave. Experiments
      * with Redis 5.0 show perf improvement of using "rep movsb" at 3-5% for 4KB payloads over
      * previous implementation taken from Glibc 2.23. */
-    __asm__ volatile("rep movsb" : "+&D"(d), "+&c"(count) : "S"(src) : "cc", "memory");
+    __asm__ volatile("rep movsb" : "+D"(d), "+c"(count), "+S"(src) :: "cc", "memory");
 #else
     const char* s = src;
     while (count--)

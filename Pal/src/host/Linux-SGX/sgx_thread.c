@@ -222,22 +222,22 @@ noreturn void thread_exit(int status) {
 
     /* free the thread stack (via munmap) and exit; note that exit() needs a "status" arg
      * but it could be allocated on a stack, so we must put it in register and do asm */
-    __asm__ volatile("cmpq $0, %%rdi \n\t"     /* check if tcb->stack != NULL */
-                     "je 1f \n\t"
-                     "syscall \n\t"            /* all args are already prepared, call munmap */
-                     "1: \n\t"
-                     "movq %%rdx, %%rax \n\t"  /* prepare for exit: rax = __NR_exit */
-                     "movq %%rbx, %%rdi \n\t"  /* prepare for exit: rdi = status    */
-                     "syscall \n\t"            /* all args are prepared, call exit  */
-                     : /* no output regs since we don't return from exit */
+    __asm__ volatile("cmpq $0, %%rdi \n"    /* check if tcb->stack != NULL */
+                     "je 1f \n"
+                     "syscall \n"           /* all args are already prepared, call munmap */
+                     "1: \n"
+                     "movq %%rdx, %%rax \n" /* prepare for exit: rax = __NR_exit */
+                     "movq %%rbx, %%rdi \n" /* prepare for exit: rdi = status    */
+                     "syscall \n"           /* all args are prepared, call exit  */
+                     "2: \n"
+                     "hlt \n"
+                     "jmp 2b \n"
+                     :
                      : "a"(__NR_munmap), "D"(tcb->stack), "S"(THREAD_STACK_SIZE + ALT_STACK_SIZE),
                        "d"(__NR_exit), "b"(status)
-                     : "cc", "rcx", "r11", "memory"  /* syscall instr clobbers cc, rcx, and r11 */
+                     : "memory"
     );
-
-    while (true) {
-        /* nothing */
-    }
+    __builtin_unreachable();
 }
 
 int clone_thread(void) {
