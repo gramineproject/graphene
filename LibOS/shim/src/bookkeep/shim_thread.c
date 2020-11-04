@@ -474,7 +474,7 @@ void cleanup_thread(IDTYPE caller, void* arg) {
 
     /* wait on clear_child_tid_pal; this signals that PAL layer exited child thread */
     while (__atomic_load_n(&thread->clear_child_tid_pal, __ATOMIC_RELAXED) != 0)
-        cpu_pause();
+        CPU_RELAX();
 
     /* notify parent if any */
     release_clear_child_tid(thread->clear_child_tid);

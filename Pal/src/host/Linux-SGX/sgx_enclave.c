@@ -730,7 +730,7 @@ static int rpc_thread_loop(void* arg) {
                 (void)INLINE_SYSCALL(nanosleep, 2, &tv, /*rem=*/NULL);
             } else {
                 spin_attempts++;
-                cpu_pause();
+                CPU_RELAX();
             }
             continue;
         }

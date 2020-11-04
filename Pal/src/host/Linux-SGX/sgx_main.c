@@ -898,15 +898,12 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
  * are created manually via clone(.., THREAD_STACK_SIZE, ..) and thus do not need this hack. */
 static void __attribute__((noinline)) force_linux_to_grow_stack(void) {
     char dummy[THREAD_STACK_SIZE];
-    for (uint64_t i = 0; i < sizeof(dummy); i += PRESET_PAGESIZE) {
+    char tmp;
+    for (uint64_t i = sizeof(dummy) - 1; i >= 0; i -= PRESET_PAGESIZE) {
         /* touch each page on the stack just to make it is not optimized away */
-        __asm__ volatile(
-            "movq %0, %%rbx\r\n"
-            "movq (%%rbx), %%rbx\r\n"
-            :
-            : "r"(&dummy[i])
-            : "%rbx");
+        tmp = *(volatile char*)&dummy[i];
     }
+    tmp = *(volatile char*)dummy;
 }
 
 int main(int argc, char* argv[], char* envp[]) {

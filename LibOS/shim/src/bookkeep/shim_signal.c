@@ -451,7 +451,7 @@ bool test_user_memory(void* addr, size_t size, bool write) {
     tcb->test_range.start     = addr;
     tcb->test_range.end       = addr + size - 1;
     /* enforce compiler to store tcb->test_range into memory */
-    __asm__ volatile("" ::: "memory");
+    COMPILER_BARRIER();
 
     /* Try to read or write into one byte inside each page */
     void* tmp = addr;
@@ -466,7 +466,7 @@ bool test_user_memory(void* addr, size_t size, bool write) {
 
 ret_fault:
     /* enforce compiler to load tcb->test_range.has_fault below */
-    __asm__ volatile("" : "=m"(tcb->test_range.has_fault));
+    COMPILER_BARRIER();
 
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
@@ -517,7 +517,7 @@ bool test_user_string(const char* addr) {
     tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = &&ret_fault;
     /* enforce compiler to store tcb->test_range into memory */
-    __asm__ volatile("" ::: "memory");
+    COMPILER_BARRIER();
 
     do {
         /* Add the memory region to the watch list. This is not racy because
@@ -538,7 +538,7 @@ bool test_user_string(const char* addr) {
 
 ret_fault:
     /* enforce compiler to load tcb->test_range.has_fault below */
-    __asm__ volatile("" : "=m"(tcb->test_range.has_fault));
+    COMPILER_BARRIER();
 
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */

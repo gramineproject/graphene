@@ -36,7 +36,7 @@ typedef struct pal_tcb {
 
 static inline PAL_TCB* pal_get_tcb(void) {
     PAL_TCB* tcb;
-    __asm__("movq %%gs:%c1,%q0" : "=r"(tcb) : "i"(offsetof(struct pal_tcb, self)));
+    __asm__("movq %%gs:%c1, %0" : "=r"(tcb) : "i"(offsetof(struct pal_tcb, self)) : "memory");
     return tcb;
 }
 

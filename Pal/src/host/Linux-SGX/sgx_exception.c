@@ -33,18 +33,14 @@
 
 #if defined(__x86_64__)
 /* in x86_64 kernels, sigaction is required to have a user-defined restorer */
-#define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
-#define DEFINE_RESTORE_RT2(syscall)          \
-    __asm__(                                 \
-        "    nop\n"                          \
-        ".align 16\n"                        \
-        ".LSTART_restore_rt:\n"              \
-        "    .type __restore_rt,@function\n" \
-        "__restore_rt:\n"                    \
-        "    movq $" #syscall                \
-        ", %rax\n"                           \
-        "    syscall\n");
-DEFINE_RESTORE_RT(__NR_rt_sigreturn)
+__asm__(
+".align 16\n"
+".LSTART_restore_rt:\n"
+".type __restore_rt,@function\n"
+"__restore_rt:\n"
+"movq $" XSTRINGIFY(__NR_rt_sigreturn) ", %rax\n"
+"syscall\n"
+);
 
 /* workaround for an old GAS (2.27) bug that incorrectly omits relocations when referencing this
  * symbol */
