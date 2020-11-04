@@ -98,6 +98,7 @@ struct shim_thread {
     int term_signal; // Store the terminating signal, if any; needed for
                      // wait() and friends
     bool is_alive;
+    /* Trigger thread exit. Set together with exit_code and term_signal. */
     bool time_to_die;
 
     PAL_HANDLE child_exit_event;
@@ -299,7 +300,7 @@ static inline void set_handle_map(struct shim_thread* thread, struct shim_handle
 }
 
 int thread_destroy(struct shim_thread* self, bool send_ipc);
-bool kill_other_threads(void);
+bool kill_other_threads(int error_code, int term_signal);
 noreturn void thread_exit(int error_code, int term_signal);
 noreturn void process_exit(int error_code, int term_signal);
 

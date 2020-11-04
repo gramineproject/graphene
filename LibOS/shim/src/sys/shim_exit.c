@@ -15,6 +15,12 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
+struct thread_exit_params {
+    struct shim_thread* thread;
+    int exit_code;
+    int term_signal;
+};
+
 int thread_destroy(struct shim_thread* thread, bool send_ipc) {
     bool sent_exit_msg = false;
 
@@ -150,7 +156,9 @@ noreturn void thread_exit(int error_code, int term_signal) {
 }
 
 static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
-    if (thread == (struct shim_thread*)arg) {
+    struct thread_exit_params* params = arg;
+
+    if (thread == params->thread) {
         return 0;
     }
 
@@ -161,6 +169,8 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
         need_wakeup = true;
     }
     thread->time_to_die = true;
+    thread->exit_code = params->exit_code;
+    thread->term_signal = params->term_signal;
     unlock(&thread->lock);
 
     /* Now let's kick `thread`, so that it notices (in `__handle_signals`) the flag `time_to_die`
@@ -172,11 +182,17 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
     return 1;
 }
 
-bool kill_other_threads(void) {
+bool kill_other_threads(int error_code, int term_signal) {
+    struct thread_exit_params params = {
+        .thread = get_cur_thread(),
+        .exit_code = -error_code,
+        .term_signal = term_signal,
+    };
+
     bool killed = false;
     /* Tell other threads to exit. Since `mark_thread_to_die` never returns an error, this call
      * cannot fail. */
-    if (walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false) != -ESRCH) {
+    if (walk_thread_list(mark_thread_to_die, &params, /*one_shot=*/false) != -ESRCH) {
         killed = true;
     }
     DkThreadYieldExecution();
@@ -185,7 +201,7 @@ bool kill_other_threads(void) {
     while (!check_last_thread()) {
         /* Tell other threads to exit again - the previous announcement could have been missed by
          * threads that were just being created. */
-        if (walk_thread_list(mark_thread_to_die, get_cur_thread(), /*one_shot=*/false) != -ESRCH) {
+        if (walk_thread_list(mark_thread_to_die, &params, /*one_shot=*/false) != -ESRCH) {
             killed = true;
         }
         DkThreadYieldExecution();
@@ -203,7 +219,7 @@ noreturn void process_exit(int error_code, int term_signal) {
         thread_exit(error_code, term_signal);
     }
 
-    (void)kill_other_threads();
+    (void)kill_other_threads(error_code, term_signal);
 
     /* Now quit our thread. Since we are the last one, this will exit the whole LibOS. */
     thread_exit(error_code, term_signal);

@@ -353,7 +353,7 @@ reopen:
         /* Just exit current thread. */
         thread_exit(/*error_code=*/0, /*term_signal=*/0);
     }
-    bool threads_killed = kill_other_threads();
+    bool threads_killed = kill_other_threads(/*error_code=*/0, /*term_signal=*/0);
 
     /* All other threads are dead. Restoring initial value in case we stay inside same process
      * instance and call execve again. */

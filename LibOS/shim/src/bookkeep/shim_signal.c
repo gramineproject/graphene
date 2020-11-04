@@ -762,7 +762,8 @@ void __handle_signals(shim_tcb_t* tcb) {
     }
 
     if (thread->time_to_die) {
-        thread_exit(/*error_code=*/0, /*term_signal=*/0);
+        debug("thread exit triggered from another thread\n");
+        thread_exit(-thread->exit_code, thread->term_signal);
     }
 
     while (__atomic_load_n(&thread->pending_signals, __ATOMIC_ACQUIRE)
