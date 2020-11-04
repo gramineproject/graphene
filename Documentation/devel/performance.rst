@@ -485,12 +485,16 @@ Some useful options for recording (``perf record``):
 * ``--call-graph dwarf``: collect information about callers
 * ``-F 50``: collect 50 (or any other number) of samples per second,
   can be useful to reduce overhead and file size
+* ``-e cpu-clock``: sample the ``cpu-clock`` event, which will be triggered also
+  inside enclave (as opposed to the default ``cpu-cycles`` event). Unfortunately
+  such events will be counted towards ``async_exit_pointer`` instead of
+  functions executing inside enclave.
 
 Some useful options for displaying the report (``perf report``):
 
 * ``--no-children``: sort based on "self time", i.e. time spent in a given
-  function excluding its children (the default is to sort by total time spent in a
-  function).
+  function excluding its children (the default is to sort by total time spent in
+  a function).
 
 Further reading
 """""""""""""""
