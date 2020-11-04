@@ -699,9 +699,8 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
         snprintf(process_self_uri, sizeof(process_self_uri), URI_PREFIX_PIPE "%u", child_vmid);
         ipc_sublease_send(child_vmid, thread->tid, process_self_uri);
 
-        /* listen on the new IPC port to the new child process */
-        add_ipc_port_by_id(child_vmid, pal_process,
-                           IPC_PORT_DIRECTCHILD | IPC_PORT_LISTEN | IPC_PORT_KEEPALIVE,
+        /* create new IPC port to communicate over pal_process channel with the child process */
+        add_ipc_port_by_id(child_vmid, pal_process, IPC_PORT_CONNECTION | IPC_PORT_DIRECTCHILD,
                            &ipc_port_with_child_fini, NULL);
     }
 

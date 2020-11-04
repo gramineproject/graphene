@@ -647,7 +647,7 @@ static void __discover_ns(bool block, bool need_locate) {
                 if (info) {
                     put_ipc_info(g_process_ipc_info.ns);
                     g_process_ipc_info.ns = info;
-                    add_ipc_port(info->port, 0, IPC_PORT_CLIENT, &ipc_leader_exit);
+                    add_ipc_port(info->port, 0, IPC_PORT_CONNECTION, &ipc_leader_exit);
                 }
             }
             goto out;
@@ -693,7 +693,7 @@ static void __discover_ns(bool block, bool need_locate) {
         goto out;
 
     // Finally, set the IPC port as a leadership port
-    add_ipc_port(g_process_ipc_info.ns->port, 0, IPC_PORT_CLIENT, &ipc_leader_exit);
+    add_ipc_port(g_process_ipc_info.ns->port, 0, IPC_PORT_CONNECTION, &ipc_leader_exit);
 
 out:
     if (g_process_ipc_info.ns && !ipc_pending) {
@@ -738,8 +738,7 @@ int connect_ns(IDTYPE* vmid, struct shim_ipc_port** portptr) {
             return -PAL_ERRNO();
         }
 
-        add_ipc_port_by_id(g_process_ipc_info.ns->vmid, pal_handle,
-                           IPC_PORT_LEADER | IPC_PORT_LISTEN,
+        add_ipc_port_by_id(g_process_ipc_info.ns->vmid, pal_handle, IPC_PORT_CONNECTION,
                            &ipc_leader_exit, &g_process_ipc_info.ns->port);
     }
 
@@ -764,7 +763,7 @@ static int disconnect_ns(struct shim_ipc_port * port)
         put_ipc_port(port);
     }
     unlock(&g_process_ipc_info.lock);
-    del_ipc_port(port, IPC_PORT_LEADER);
+    del_ipc_port(port, IPC_PORT_CONNECTION);
     return 0;
 }
 #endif
@@ -806,8 +805,6 @@ int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner) {
     if (range.port)
         goto success;
 
-    IDTYPE type = IPC_PORT_OWNER | IPC_PORT_LISTEN;
-
     if (!range.port) {
         PAL_HANDLE pal_handle = DkStreamOpen(qstrgetstr(&range.uri), 0, 0, 0, 0);
 
@@ -816,7 +813,7 @@ int connect_owner(IDTYPE idx, struct shim_ipc_port** portptr, IDTYPE* owner) {
             goto out;
         }
 
-        add_ipc_port_by_id(range.owner, pal_handle, type, NULL, &range.port);
+        add_ipc_port_by_id(range.owner, pal_handle, IPC_PORT_CONNECTION, NULL, &range.port);
         assert(range.port);
     }
 
@@ -1462,7 +1459,6 @@ retry:
         }
 
         if (!p->port) {
-            IDTYPE type = IPC_PORT_OWNER | IPC_PORT_LISTEN;
             IDTYPE owner = p->vmid;
             struct shim_ipc_port* port = NULL;
             size_t uri_len = p->uri.len;
@@ -1476,7 +1472,7 @@ retry:
             PAL_HANDLE pal_handle = DkStreamOpen(uri, 0, 0, 0, 0);
 
             if (pal_handle)
-                add_ipc_port_by_id(owner, pal_handle, type, NULL, &port);
+                add_ipc_port_by_id(owner, pal_handle, IPC_PORT_CONNECTION, NULL, &port);
 
             lock(&range_map_lock);
             LISTP_FOR_EACH_ENTRY(r, list, list) {

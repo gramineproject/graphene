@@ -88,7 +88,7 @@ static int init_self_ipc_port(void) {
         assert(g_process_ipc_info.self->pal_handle && !qstrempty(&g_process_ipc_info.self->uri));
 
         add_ipc_port_by_id(g_process_ipc_info.self->vmid, g_process_ipc_info.self->pal_handle,
-                           IPC_PORT_SERVER, /*fini=*/NULL, &g_process_ipc_info.self->port);
+                           IPC_PORT_LISTENING, /*fini=*/NULL, &g_process_ipc_info.self->port);
     }
 
     unlock(&g_process_ipc_info.lock);
@@ -113,8 +113,8 @@ static int init_parent_ipc_port(void) {
     }
 
     add_ipc_port_by_id(g_process_ipc_info.parent->vmid, g_process_ipc_info.parent->pal_handle,
-                       IPC_PORT_DIRECTPARENT | IPC_PORT_LISTEN,
-                       /*fini=*/NULL, &g_process_ipc_info.parent->port);
+                       IPC_PORT_CONNECTION | IPC_PORT_DIRECTPARENT, /*fini=*/NULL,
+                       &g_process_ipc_info.parent->port);
 
     unlock(&g_process_ipc_info.lock);
     return 0;
@@ -145,8 +145,7 @@ static int init_ns_ipc_port(void) {
     }
 
     add_ipc_port_by_id(g_process_ipc_info.ns->vmid, g_process_ipc_info.ns->pal_handle,
-                       IPC_PORT_LEADER | IPC_PORT_LISTEN,
-                       /*fini=*/NULL, &g_process_ipc_info.ns->port);
+                       IPC_PORT_CONNECTION, /*fini=*/NULL, &g_process_ipc_info.ns->port);
 
     unlock(&g_process_ipc_info.lock);
     return 0;
@@ -760,14 +759,12 @@ noreturn static void shim_ipc_helper(void* dummy) {
                 struct shim_ipc_port* polled_port = ports[i - 1];
                 assert(polled_port);
 
-                if (polled_port->type & IPC_PORT_SERVER) {
-                    /* server port: accept client, create client port, and add it to port list */
+                if (polled_port->type & IPC_PORT_LISTENING) {
+                    /* listening port: accept client, create port, and add it to port list */
                     PAL_HANDLE client = DkStreamWaitForClient(polled_port->pal_handle);
                     if (client) {
-                        /* type of client port is the same as original server port but with LISTEN
-                         * (for remote client) and without SERVER (doesn't wait for new clients) */
-                        IDTYPE client_type =
-                            (polled_port->type & ~IPC_PORT_SERVER) | IPC_PORT_LISTEN;
+                        IDTYPE client_type = (polled_port->type & ~IPC_PORT_LISTENING) |
+                                             IPC_PORT_CONNECTION;
                         add_ipc_port_by_id(polled_port->vmid, client, client_type, NULL, NULL);
                     } else {
                         debug("Port %p (handle %p) was removed during accepting client\n",

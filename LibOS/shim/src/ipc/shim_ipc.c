@@ -390,7 +390,7 @@ struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name) {
         return NULL;
     }
 
-    add_ipc_port_by_id(g_process_ipc_info.vmid, info->pal_handle, IPC_PORT_SERVER, NULL,
+    add_ipc_port_by_id(g_process_ipc_info.vmid, info->pal_handle, IPC_PORT_LISTENING, NULL,
                        &info->port);
 
     return info;
