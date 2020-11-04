@@ -175,13 +175,13 @@ typedef struct {
 
 typedef struct {
     void* ms_tcs;
-    size_t ms_cpu_mask_size;
+    size_t ms_cpumask_size;
     void* ms_cpu_mask;
 } ms_ocall_sched_setaffinity_t;
 
 typedef struct {
     void* ms_tcs;
-    size_t ms_cpu_mask_size;
+    size_t ms_cpumask_size;
     void* ms_cpu_mask;
 } ms_ocall_sched_getaffinity_t;
 

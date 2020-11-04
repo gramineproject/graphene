@@ -15,7 +15,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-/* Set large busy loops so that we can verify affinity with htop manually*/
+/* Run a busy loop for some iterations, so that we can verify affinity with htop manually */
 static void* dowork(void* args) {
     uint64_t* iterations = (uint64_t*)args;
     __asm__ volatile (
@@ -83,6 +83,7 @@ int main(int argc, const char** argv) {
             errx(EXIT_FAILURE, "pthread_join failed!");
         }
     }
+
     /* Validating parent set/get affinity for child done. Free resources */
     free(threads);
 
@@ -104,7 +105,7 @@ int main(int argc, const char** argv) {
         errx(EXIT_FAILURE, "get cpuset is not equal to set cpuset on proc 0");
     }
 
-    /* Negative test case with empty cpumask*/
+    /* Negative test case with empty cpumask */
     CPU_ZERO(&cpus);
     ret = pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus);
     if (ret != EINVAL) {

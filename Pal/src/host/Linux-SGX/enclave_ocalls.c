@@ -1483,7 +1483,7 @@ int ocall_sched_setaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     }
 
     WRITE_ONCE(ms->ms_tcs, tcs);
-    WRITE_ONCE(ms->ms_cpu_mask_size, cpumask_size);
+    WRITE_ONCE(ms->ms_cpumask_size, cpumask_size);
     void* untrusted_cpu_mask = sgx_copy_to_ustack(cpu_mask, cpumask_size);
     if (!untrusted_cpu_mask) {
         sgx_reset_ustack(old_ustack);
@@ -1529,7 +1529,7 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     }
 
     WRITE_ONCE(ms->ms_tcs, tcs);
-    WRITE_ONCE(ms->ms_cpu_mask_size, cpumask_size);
+    WRITE_ONCE(ms->ms_cpumask_size, cpumask_size);
     void* untrusted_cpu_mask = sgx_copy_to_ustack(cpu_mask, cpumask_size);
     if (!untrusted_cpu_mask) {
         sgx_reset_ustack(old_ustack);

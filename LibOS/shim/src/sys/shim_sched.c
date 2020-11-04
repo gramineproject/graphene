@@ -142,18 +142,12 @@ int shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
 
 long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr) {
     int ret;
-    struct shim_thread* thread;
 
     /* check if user_mask_ptr is valid */
     if (test_user_memory(user_mask_ptr, cpumask_size, /*write=*/false))
         return -EFAULT;
 
-    if (pid) {
-        thread = lookup_thread(pid);
-    } else {
-        thread = get_cur_thread();
-    }
-
+    struct shim_thread* thread = pid ? lookup_thread(pid) : get_cur_thread();
     if (!thread)
         return -ESRCH;
 
@@ -181,7 +175,6 @@ long shim_do_sched_setaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
 
 long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned long* user_mask_ptr) {
     int ret;
-    struct shim_thread* thread;
     size_t cpu_cnt = PAL_CB(cpu_info.cpu_num);
 
     /* Check if user_mask_ptr is valid */
@@ -201,12 +194,7 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
     if (cpumask_size & (sizeof(long) - 1))
         return -EINVAL;
 
-    if (pid) {
-        thread = lookup_thread(pid);
-    } else {
-        thread = get_cur_thread();
-    }
-
+    struct shim_thread* thread = pid ? lookup_thread(pid) : get_cur_thread();
     if (!thread)
         return -ESRCH;
 
