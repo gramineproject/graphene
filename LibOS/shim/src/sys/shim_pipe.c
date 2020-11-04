@@ -274,7 +274,7 @@ int shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
     struct shim_dentry* dir  = NULL;
     struct shim_dentry* dent = NULL;
 
-    ret = get_dirfd_dentry(dirfd, &dir);
+    ret = get_dirfd_dentry(pathname, dirfd, &dir);
     if (ret < 0) {
         goto out;
     }

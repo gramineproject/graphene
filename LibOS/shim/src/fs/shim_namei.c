@@ -819,7 +819,10 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl) {
     return 0;
 }
 
-int get_dirfd_dentry(int dirfd, struct shim_dentry** dir) {
+int get_dirfd_dentry(const char* pathname, int dirfd, struct shim_dentry** dir) {
+    if (pathname && *pathname == '/')
+        return 0;
+
     if (dirfd == AT_FDCWD) {
         struct shim_thread* cur = get_cur_thread();
         get_dentry(cur->cwd);

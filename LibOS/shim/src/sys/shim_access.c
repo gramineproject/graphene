@@ -32,7 +32,7 @@ int shim_do_faccessat(int dfd, const char* filename, mode_t mode) {
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
-    if (*filename != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
+    if ((ret = get_dirfd_dentry(filename, dfd, &dir)) < 0)
         return ret;
 
     lock(&dcache_lock);
