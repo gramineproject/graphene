@@ -142,6 +142,7 @@ typedef struct pal_handle {
             PAL_IDX stream;
             PAL_IDX pid;
             PAL_BOL nonblocking;
+            PAL_BOL is_server;
             PAL_SESSION_KEY session_key;
             void* ssl_ctx;
         } process;

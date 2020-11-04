@@ -139,7 +139,13 @@ static ssize_t handle_serialize(PAL_HANDLE handle, void** data) {
             }
             break;
         case pal_type_process:
-            /* do not send ssl_ctx to child */
+            /* session key is part of handle but need to serialize SSL context */
+            if (handle->process.ssl_ctx) {
+                free_d1 = true;
+                ret = _DkStreamSecureSave(handle->process.ssl_ctx, (const uint8_t**)&d1, &dsz1);
+                if (ret < 0)
+                    return -PAL_ERROR_DENIED;
+            }
             break;
         case pal_type_eventfd:
             break;
@@ -218,8 +224,15 @@ static int handle_deserialize(PAL_HANDLE* handle, const void* data, size_t size,
             break;
         }
         case pal_type_process:
-            /* child doesn't need to know ssl_ctx of other processes */
-            hdl->process.ssl_ctx = NULL;
+            /* session key is part of handle but need to deserialize SSL context */
+            hdl->process.stream = fds[0]; /* correct host FD must be passed to SSL context */
+            ret = _DkStreamSecureInit(hdl, hdl->process.is_server, &hdl->process.session_key,
+                                      (LIB_SSL_CONTEXT**)&hdl->process.ssl_ctx,
+                                      (const uint8_t*)hdl + hdlsz, size - hdlsz);
+            if (ret < 0) {
+                free(hdl);
+                return -PAL_ERROR_DENIED;
+            }
             break;
         case pal_type_eventfd:
             break;
