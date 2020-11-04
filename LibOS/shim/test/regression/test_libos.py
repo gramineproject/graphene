@@ -186,10 +186,13 @@ class TC_01_Bootstrap(RegressionTestCase):
             self.run_binary(['exit'])
 
     def test_401_exit_group(self):
-        try:
-            self.run_binary(['exit_group'])
-        except subprocess.CalledProcessError as e:
-            self.assertTrue(1 <= e.returncode and e.returncode <= 4)
+        for thread_idx in range(4):
+            exit_code = 100 + thread_idx
+            try:
+                self.run_binary(['exit_group', str(thread_idx), str(exit_code)])
+                self.fail('expected to return {}'.format(exit_code))
+            except subprocess.CalledProcessError as e:
+                self.assertEqual(e.returncode, exit_code)
 
     def test_402_signalexit(self):
         with self.expect_returncode(134):
