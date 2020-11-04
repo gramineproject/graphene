@@ -343,15 +343,14 @@ int path_lookupat(struct shim_dentry* start, const char* name, int flags, struct
                   struct shim_mount* fs);
 
 /*
- * This function returns a dentry (in *dir) from a handle corresponding to dirfd. When absolute
- * pathname is provided, dirfd is ignored and the function returns. If dirfd == AT_FDCWD returns
- * current working directory.
+ * This function returns a dentry (in *dir) from a handle corresponding to dirfd.
+ * If dirfd == AT_FDCWD returns current working directory.
  *
  * Returned dentry must be a directory.
  *
  * Increments dentry ref count by one.
  */
-int get_dirfd_dentry(const char* pathname, int dirfd, struct shim_dentry** dir);
+int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
 
 /* Open path with given flags, in mode, similar to Unix open.
  *

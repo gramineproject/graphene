@@ -102,7 +102,7 @@ int shim_do_readlinkat(int dirfd, const char* file, char* buf, int bufsize) {
 
     struct shim_dentry* dent = NULL;
     struct shim_dentry* dir = NULL;
-    int ret = get_dirfd_dentry(file, dirfd, &dir);
+    int ret = get_dirfd_dentry(dirfd, &dir);
     if (ret < 0) {
         goto out;
     }
@@ -217,12 +217,14 @@ int shim_do_newfstatat(int dirfd, const char* pathname, struct stat* statbuf, in
     }
 
     struct shim_dentry* dir = NULL;
-    int ret = get_dirfd_dentry(pathname, dirfd, &dir);
-    if (ret < 0)
-        return ret;
+    if (*pathname != '/') {
+        int ret = get_dirfd_dentry(dirfd, &dir);
+        if (ret < 0)
+            return ret;
+    }
 
     struct shim_dentry* dent = NULL;
-    ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
+    int ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
     if (ret >= 0) {
         struct shim_d_ops* d_ops = dent->fs->d_ops;
         if (d_ops && d_ops->stat)

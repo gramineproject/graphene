@@ -43,7 +43,7 @@ int shim_do_unlinkat(int dfd, const char* pathname, int flag) {
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
-    if ((ret = get_dirfd_dentry(pathname, dfd, &dir)) < 0)
+    if (*pathname != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     if ((ret = path_lookupat(dir, pathname, LOOKUP_OPEN, &dent, NULL)) < 0)
@@ -95,7 +95,7 @@ int shim_do_mkdirat(int dfd, const char* pathname, int mode) {
     struct shim_dentry* dir = NULL;
     int ret = 0;
 
-    if ((ret = get_dirfd_dentry(pathname, dfd, &dir)) < 0)
+    if (*pathname != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     ret = open_namei(NULL, dir, pathname, O_CREAT | O_EXCL | O_DIRECTORY, mode, NULL);
@@ -169,7 +169,7 @@ int shim_do_fchmodat(int dfd, const char* filename, mode_t mode) {
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
-    if ((ret = get_dirfd_dentry(filename, dfd, &dir)) < 0)
+    if (*filename != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     if ((ret = path_lookupat(dir, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
@@ -234,7 +234,7 @@ int shim_do_fchownat(int dfd, const char* filename, uid_t uid, gid_t gid, int fl
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
-    if ((ret = get_dirfd_dentry(filename, dfd, &dir)) < 0)
+    if (*filename != '/' && (ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     if ((ret = path_lookupat(dir, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
@@ -560,7 +560,7 @@ int shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const char
         return -EFAULT;
     }
 
-    if ((ret = get_dirfd_dentry(oldpath, olddirfd, &old_dir_dent)) < 0) {
+    if ((ret = get_dirfd_dentry(olddirfd, &old_dir_dent)) < 0) {
         goto out;
     }
 
@@ -573,7 +573,7 @@ int shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const char
         goto out;
     }
 
-    if ((ret = get_dirfd_dentry(newpath, newdirfd, &new_dir_dent)) < 0) {
+    if ((ret = get_dirfd_dentry(newdirfd, &new_dir_dent)) < 0) {
         goto out;
     }
 
