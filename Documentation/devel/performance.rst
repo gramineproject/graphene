@@ -427,10 +427,10 @@ Installing ``perf`` provided by your distribution
 
 Under Ubuntu:
 
-1. Install ``linux-tools-common``.
-2. Run ``perf``. It will complain about not having a kernel-specific package,
+#. Install ``linux-tools-common``.
+#. Run ``perf``. It will complain about not having a kernel-specific package,
    such as ``linux-tools-4-15.0-122-generic``.
-3. Install the kernel-specific package.
+#. Install the kernel-specific package.
 
 The above might not work if you have a custom kernel. In that case, you might
 want to use the distribution-provided version anyway (install
@@ -444,15 +444,15 @@ the default version is not compiled against.
 Building your own ``perf``
 """"""""""""""""""""""""""
 
-1. Download the kernel: run ``uname -r`` to check your kernel version, then
+#. Download the kernel: run ``uname -r`` to check your kernel version, then
    clone the right branch::
 
        git clone --single-branch --branch linux-5.4.y \
            https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 
-2. Go to ``linux/tools/perf`` and run ``make``.
+#. Go to ``linux/tools/perf`` and run ``make``.
 
-3. Check the beginning of the output. It will display warnings about missing
+#. Check the beginning of the output. It will display warnings about missing
    libraries, and suggest how to install them.
 
    Install the missing ones, depending on the features you need. You will need
@@ -460,12 +460,11 @@ Building your own ``perf``
    trace. ``libslang2-dev`` is also nice, as it will enable a terminal UI for
    some commands.
 
-4. Run ``make`` again and verify that the necessary features have been
+#. Run ``make`` again and verify that the necessary features have been
    enabled. (You can also run ``ldd perf`` to check which shared libraries it
    uses).
 
-5. Copy the built ``perf`` binary somewhere to your ``PATH``, for instance,
-   ``/usr/local/bin``.
+#. Install somewhere, e.g. ``sudo make install DESTDIR=/usr/local``.
 
 Recording samples with ``perf record``
 """"""""""""""""""""""""""""""""""""""
@@ -493,8 +492,8 @@ Some useful options for displaying the report (``perf report``):
   function excluding its children (the default is to sort by total time spent in a
   function).
 
-Futher reading
-""""""""""""""
+Further reading
+"""""""""""""""
 
 * `Perf Wiki <https://perf.wiki.kernel.org/index.php/Main_Page>`__
 * `Linux perf examples - Brendan Gregg
@@ -506,12 +505,7 @@ Other useful tools for profiling
 
 * Intel VTune Profiler (TODO)
 * ``strace -c`` will display Linux system call statistics
-* Valgrind (with `Callgrind <https://valgrind.org/docs/manual/cl-manual.html>`__)
-  has some bugs preventing it from working with Graphene:
-
-  * `pie elf loaded at 0x108000
-    <https://bugs.kde.org/show_bug.cgi?id=290061>`__ - prevents loading non-PIE
-    binaries properly
-  * `Running signal handler with alternate stack allocated on current stack
-    crashes callgrind <https://bugs.kde.org/show_bug.cgi?id=339160>`__ - breaks
-    with some workflows
+* Valgrind (with `Callgrind
+  <https://valgrind.org/docs/manual/cl-manual.html>`__) unfortunately doesn't
+  work, see `issue #1919 <https://github.com/oscarlab/graphene/issues/1919>`__
+  for discussion.
