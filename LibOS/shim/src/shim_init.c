@@ -519,16 +519,6 @@ noreturn void* shim_init(int argc, void* args) {
                                     NULL);
         if (ret == PAL_STREAM_ERROR || ret != sizeof(child_vmid))
             shim_do_exit(-PAL_ERRNO());
-
-        /* FIXME: We shouldn't downgrade communication */
-        /* Downgrade communication with parent to non-secure (only checkpoint recv is secure).
-         * Currently only relevant to SGX PAL, other PALs ignore this. */
-        PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQueryByHandle(PAL_CB(parent_process), &attr))
-            shim_do_exit(-PAL_ERRNO());
-        attr.secure = PAL_FALSE;
-        if (!DkStreamAttributesSetByHandle(PAL_CB(parent_process), &attr))
-            shim_do_exit(-PAL_ERRNO());
     }
 
     debug("shim process initialized\n");

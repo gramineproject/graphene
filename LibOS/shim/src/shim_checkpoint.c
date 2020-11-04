@@ -685,20 +685,6 @@ int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_
         goto out;
     }
 
-    /* FIXME: We shouldn't downgrade communication */
-    /* Downgrade communication with child to non-secure (only checkpoint send is secure).
-     * Currently only relevant to SGX PAL, other PALs ignore this. */
-    PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQueryByHandle(pal_process, &attr)) {
-        ret = -PAL_ERRNO();
-        goto out;
-    }
-    attr.secure = PAL_FALSE;
-    if (!DkStreamAttributesSetByHandle(pal_process, &attr)) {
-        ret = -PAL_ERRNO();
-        goto out;
-    }
-
     if (exec) {
         /* execve case: child process "replaces" this current process: no need to notify the leader
          * or establish IPC, the only thing to do is revert self/parent PAL handles' pointers */
