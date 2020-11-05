@@ -5,10 +5,15 @@ exec_target =
 
 clean-extra += clean-build
 
+include ../../../../Scripts/Makefile.rules
 include ../../../../Scripts/Makefile.configs
 # Make ARCH_LIBDIR visible in Makefile.Test
 export ARCH_LIBDIR
 include Makefile.Test
+
+ifeq ($(BUILD_VERBOSE),1)
+	RUNLTPOPTS += -v
+endif
 
 $(SRCDIR)/Makefile:
 	$(error "$(SRCDIR) is empty. Please run `git submodule update --init $(SRCDIR)` or download the LTP source code (https://github.com/linux-test-project/ltp) into $(SRCDIR).")
