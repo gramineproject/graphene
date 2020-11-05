@@ -252,18 +252,19 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
     static_assert(sizeof(*clear_child_tid) == 4, "unexpected clear_child_tid size");
 
     __asm__ volatile(
-        "movl $0, (%%rdx) \n"   /* spinlock_unlock(&g_thread_stack_lock) */
-        "cmpq $0, %%rbx \n"     /* check if clear_child_tid != NULL */
+        "movl $0, (%[lock]) \n"             /* spinlock_unlock(&g_thread_stack_lock) */
+        "cmpq $0, %[clear_child_tid] \n"    /* check if clear_child_tid != NULL */
         "je 1f \n"
-        "movl $0, (%%rbx) \n"   /* set *clear_child_tid = 0 */
+        "movl $0, (%[clear_child_tid]) \n"  /* set *clear_child_tid = 0 */
         "1: \n"
-        "syscall \n"            /* rdi arg is already prepared, call exit */
-        "2: \n"
-        "hlt \n"
-        "jmp 2b \n"
-        :                         /* no output regs since we don't return from exit */
-        : "a"(__NR_exit), "D"(0), /* rdi = exit status == 0 */
-          "d"(&g_thread_stack_lock.lock), "b"(clear_child_tid)
+        "mov %[nr_exit], %%rax\n"
+        "mov %[exit_code], %%edi\n"
+        "syscall \n"
+        "ud2 \n"
+        "jmp 1b \n"
+        :
+        : [nr_exit] "i" (__NR_exit), [exit_code] "i" (0),
+          [lock] "r" (&g_thread_stack_lock.lock), [clear_child_tid] "r" (clear_child_tid)
         : "memory"
     );
     __builtin_unreachable();

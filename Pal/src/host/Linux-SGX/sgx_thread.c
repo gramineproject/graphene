@@ -222,20 +222,19 @@ noreturn void thread_exit(int status) {
 
     /* free the thread stack (via munmap) and exit; note that exit() needs a "status" arg
      * but it could be allocated on a stack, so we must put it in register and do asm */
-    __asm__ volatile("cmpq $0, %%rdi \n"    /* check if tcb->stack != NULL */
+    __asm__ volatile("cmpq $0, %%rdi \n"        /* check if tcb->stack != NULL */
                      "je 1f \n"
-                     "syscall \n"           /* all args are already prepared, call munmap */
+                     "syscall \n"               /* all args are already prepared, call munmap */
                      "1: \n"
-                     "movq %%rdx, %%rax \n" /* prepare for exit: rax = __NR_exit */
-                     "movq %%rbx, %%rdi \n" /* prepare for exit: rdi = status    */
-                     "syscall \n"           /* all args are prepared, call exit  */
-                     "2: \n"
-                     "hlt \n"
-                     "jmp 2b \n"
+                     "mov %[nr_exit], %%rax \n"
+                     "mov %[exit_code], %%edi \n"
+                     "syscall \n"               /* all args are prepared, call exit  */
+                     "ud2 \n"
+                     "jmp 1b \n"
                      :
-                     : "a"(__NR_munmap), "D"(tcb->stack), "S"(THREAD_STACK_SIZE + ALT_STACK_SIZE),
-                       "d"(__NR_exit), "b"(status)
-                     : "memory"
+                     : "a" (__NR_munmap), "D" (tcb->stack), "S" (THREAD_STACK_SIZE + ALT_STACK_SIZE),
+                       [nr_exit] "i" (__NR_exit), [exit_code] "r" (status)
+                     : "memory", "rcx", "r11"
     );
     __builtin_unreachable();
 }
