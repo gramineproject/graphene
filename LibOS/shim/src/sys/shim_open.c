@@ -525,6 +525,9 @@ int shim_do_fdatasync(int fd) {
 }
 
 int shim_do_truncate(const char* path, loff_t length) {
+    if (length < 0)
+        return -EINVAL;
+
     struct shim_dentry* dent = NULL;
     int ret = 0;
 
@@ -567,6 +570,9 @@ out:
 }
 
 int shim_do_ftruncate(int fd, loff_t length) {
+    if (length < 0)
+        return -EINVAL;
+
     struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
