@@ -747,10 +747,10 @@ int list_directory_dentry(struct shim_dentry* dent) {
             continue;
 
         if (!(child->state & DENTRY_VALID)) {
-            set_dirent_type(&child->type, d->type);
             child->state |= DENTRY_VALID | DENTRY_RECENTLY;
         }
 
+        set_dirent_type(&child->type, d->type);
         child->ino = d->ino;
     }
 
