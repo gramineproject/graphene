@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
 
     errno = 0;
     while ((dirent = readdir(dir))) {
-        printf("/proc/%s\n", dirent->d_name);
+        printf("/proc/%s, type: %d\n", dirent->d_name, dirent->d_type);
     }
     if (errno) {
         perror("readdir /proc");
