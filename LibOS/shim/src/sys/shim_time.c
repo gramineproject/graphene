@@ -18,10 +18,10 @@ int shim_do_gettimeofday(struct __kernel_timeval* tv, struct __kernel_timezone* 
     if (!tv)
         return -EINVAL;
 
-    if (test_user_memory(tv, sizeof(*tv), true))
+    if (test_user_memory(tv, sizeof(*tv), /*write=*/true))
         return -EFAULT;
 
-    if (tz && test_user_memory(tz, sizeof(*tz), true))
+    if (tz && test_user_memory(tz, sizeof(*tz), /*write=*/true))
         return -EFAULT;
 
     uint64_t time = DkSystemTimeQuery();
@@ -40,7 +40,7 @@ time_t shim_do_time(time_t* tloc) {
     if (time == (uint64_t)-1)
         return -PAL_ERRNO();
 
-    if (tloc && test_user_memory(tloc, sizeof(*tloc), true))
+    if (tloc && test_user_memory(tloc, sizeof(*tloc), /*write=*/true))
         return -EFAULT;
 
     time_t t = time / 1000000;
@@ -52,13 +52,14 @@ time_t shim_do_time(time_t* tloc) {
 }
 
 int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
-    /* all clock are the same */
-    __UNUSED(which_clock);
+    /* all clocks are the same */
+    if (!(0 <= which_clock && which_clock < MAX_CLOCKS))
+        return -EINVAL;
 
     if (!tp)
         return -EINVAL;
 
-    if (test_user_memory(tp, sizeof(*tp), true))
+    if (test_user_memory(tp, sizeof(*tp), /*write=*/true))
         return -EFAULT;
 
     uint64_t time = DkSystemTimeQuery();
@@ -72,16 +73,16 @@ int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
 }
 
 int shim_do_clock_getres(clockid_t which_clock, struct timespec* tp) {
-    /* all clock are the same */
-    __UNUSED(which_clock);
-
-    if (!tp)
+    /* all clocks are the same */
+    if (!(0 <= which_clock && which_clock < MAX_CLOCKS))
         return -EINVAL;
 
-    if (test_user_memory(tp, sizeof(*tp), true))
-        return -EFAULT;
+    if (tp) {
+        if (test_user_memory(tp, sizeof(*tp), /*write=*/true))
+            return -EFAULT;
 
-    tp->tv_sec  = 0;
-    tp->tv_nsec = 1000;
+        tp->tv_sec  = 0;
+        tp->tv_nsec = 1000;
+    }
     return 0;
 }
