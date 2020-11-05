@@ -347,7 +347,7 @@ int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
         return -EBADF;
 
     if (fd >= get_rlimit_cur(RLIMIT_NOFILE))
-        return -EBADF;
+        return -EMFILE;
 
     lock(&handle_map->lock);
 

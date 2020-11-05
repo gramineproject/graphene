@@ -57,13 +57,11 @@ int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
         case F_DUPFD: {
             int vfd = arg;
 
-            while (1) {
-                if (set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map) == vfd)
-                    break;
+            // find first free fd
+            while (vfd <= handle_map->fd_top && HANDLE_ALLOCATED(handle_map->map[vfd]))
                 vfd++;
-            };
 
-            ret = vfd;
+            ret = set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map);
             break;
         }
 
@@ -78,13 +76,11 @@ int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
             int vfd = arg;
             flags |= FD_CLOEXEC;
 
-            while (1) {
-                if (set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map) == vfd)
-                    break;
+            // find first free fd
+            while (vfd <= handle_map->fd_top && HANDLE_ALLOCATED(handle_map->map[vfd]))
                 vfd++;
-            };
 
-            ret = vfd;
+            ret = set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map);
             break;
         }
 
