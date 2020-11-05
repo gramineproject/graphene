@@ -150,14 +150,14 @@ static void set_debug_type(void) {
     PAL_HANDLE handle = NULL;
 
     if (!strcmp(cfgbuf, "inline")) {
-        ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
+        ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_WRONLY, 0, 0, 0);
     } else if (!strcmp(cfgbuf, "file")) {
         ret = get_config(g_pal_state.root_config, "loader.debug_file", cfgbuf, sizeof(cfgbuf));
         if (ret <= 0)
             INIT_FAIL(PAL_ERROR_INVAL, "debug file not specified");
 
-        ret = _DkStreamOpen(&handle, cfgbuf, PAL_ACCESS_RDWR, PAL_SHARE_OWNER_R | PAL_SHARE_OWNER_W,
-                            PAL_CREATE_TRY, 0);
+        ret = _DkStreamOpen(&handle, cfgbuf, PAL_ACCESS_WRONLY, PAL_SHARE_OWNER_W, PAL_CREATE_TRY,
+                            0);
     } else if (!strcmp(cfgbuf, "none")) {
         ret = 0;
     } else {
