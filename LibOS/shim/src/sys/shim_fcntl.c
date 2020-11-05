@@ -55,15 +55,7 @@ int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
          *   On success, the new descriptor is returned.
          */
         case F_DUPFD: {
-            int vfd = arg;
-
-            while (1) {
-                if (set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map) == vfd)
-                    break;
-                vfd++;
-            };
-
-            ret = vfd;
+            ret = set_new_fd_handle_above_fd(arg, hdl, flags, handle_map);
             break;
         }
 
@@ -75,16 +67,8 @@ int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
          *   useful, see the description of O_CLOEXEC in open(2).
          */
         case F_DUPFD_CLOEXEC: {
-            int vfd = arg;
             flags |= FD_CLOEXEC;
-
-            while (1) {
-                if (set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map) == vfd)
-                    break;
-                vfd++;
-            };
-
-            ret = vfd;
+            ret = set_new_fd_handle_above_fd(arg, hdl, flags, handle_map);
             break;
         }
 

@@ -99,8 +99,8 @@ static inline int init_exec_handle(struct shim_thread* thread) {
 
 static struct shim_handle_map* get_new_handle_map(FDTYPE size);
 
-static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
-                               int fd_flags);
+static int __init_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
+                         int fd_flags);
 
 static int __enlarge_handle_map(struct shim_handle_map* map, size_t size);
 
@@ -162,7 +162,7 @@ int init_important_handles(void) {
                 get_handle(hdl);
             }
 
-            __set_new_fd_handle(&handle_map->map[fd], fd, hdl, 0);
+            __init_handle(&handle_map->map[fd], fd, hdl, 0);
             put_handle(hdl);
             if (fd != 1)
                 hdl = NULL;
@@ -269,8 +269,8 @@ struct shim_handle* get_new_handle(void) {
     return new_handle;
 }
 
-static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
-                               int fd_flags) {
+static int __init_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct shim_handle* hdl,
+                         int fd_flags) {
     struct shim_fd_handle* new_handle = *fdhdl;
     assert((fd_flags & ~FD_CLOEXEC) == 0);  // The only supported flag right now
 
@@ -288,118 +288,81 @@ static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct 
     return 0;
 }
 
-int set_new_fd_handle(struct shim_handle* hdl, int fd_flags, struct shim_handle_map* handle_map) {
-    int ret = -EMFILE;
+/*
+ * Helper function for set_new_fd_handle*(). If find_free is true, tries to find the first free fd
+ * (starting from the provided one), otherwise, tries to use fd as-is.
+ */
+static int __set_new_fd_handle(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
+                               struct shim_handle_map* handle_map, bool find_free) {
+    int ret;
 
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
         return -EBADF;
 
     lock(&handle_map->lock);
 
-    FDTYPE fd = 0;
     if (handle_map->fd_top != FD_NULL) {
-        // find first free fd
-        while (fd <= handle_map->fd_top && HANDLE_ALLOCATED(handle_map->map[fd])) {
-            fd++;
-        }
-
-        if (fd > handle_map->fd_top) {
-            // no free fd found (fd == handle_map->fd_top + 1)
-
-            if (fd >= get_rlimit_cur(RLIMIT_NOFILE)) {
-                ret = -EMFILE;
+        assert(handle_map->map);
+        if (find_free) {
+            // find first free fd
+            while (fd <= handle_map->fd_top && HANDLE_ALLOCATED(handle_map->map[fd])) {
+                fd++;
+            }
+        } else {
+            // check if requested fd is occupied
+            if (fd <= handle_map->fd_top && HANDLE_ALLOCATED(handle_map->map[fd])) {
+                ret = -EBADF;
                 goto out;
             }
-
-            if (fd >= handle_map->fd_size) {
-                // no space left, need to enlarge handle_map->map
-                ret = __enlarge_handle_map(handle_map, handle_map->fd_size * 2);
-                if (ret < 0) {
-                    goto out;
-                }
-            }
         }
-    } else {
-        fd = 0;
     }
 
-    if ((ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, fd_flags)) < 0) {
+    if (fd >= get_rlimit_cur(RLIMIT_NOFILE)) {
+        ret = -EMFILE;
         goto out;
     }
 
-    ret = fd;
+    // Enlarge handle_map->map (or allocate if necessary)
+    if (fd >= handle_map->fd_size) {
+        size_t new_size = handle_map->fd_size;
+        if (new_size == 0)
+            new_size = INIT_HANDLE_MAP_SIZE;
+        while (new_size <= fd)
+            new_size *= 2;
 
-    if (handle_map->fd_top == FD_NULL || fd > handle_map->fd_top) {
-        handle_map->fd_top = fd;
+        ret = __enlarge_handle_map(handle_map, new_size);
+        if (ret < 0)
+            goto out;
     }
+
+    assert(handle_map->map);
+    assert(fd < handle_map->fd_size);
+    ret = __init_handle(&handle_map->map[fd], fd, hdl, fd_flags);
+    if (ret < 0)
+        goto out;
+
+    if (handle_map->fd_top == FD_NULL || fd > handle_map->fd_top)
+        handle_map->fd_top = fd;
+
+    ret = fd;
 
 out:
     unlock(&handle_map->lock);
     return ret;
 }
 
+int set_new_fd_handle(struct shim_handle* hdl, int fd_flags, struct shim_handle_map* handle_map) {
+    return __set_new_fd_handle(0, hdl, fd_flags, handle_map, /*find_first=*/true);
+}
+
 int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
                             struct shim_handle_map* handle_map) {
-    size_t new_size = 0;
-    int ret = 0;
+    return __set_new_fd_handle(fd, hdl, fd_flags, handle_map, /*find_first=*/false);
+}
 
-    if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
-        return -EBADF;
-
-    if (fd >= get_rlimit_cur(RLIMIT_NOFILE))
-        return -EBADF;
-
-    lock(&handle_map->lock);
-
-    if (!handle_map->map || handle_map->fd_size < INIT_HANDLE_MAP_SIZE)
-        new_size = INIT_HANDLE_MAP_SIZE;
-
-    if (!handle_map->map)
-        goto extend;
-
-    if (fd >= handle_map->fd_size) {
-        if (handle_map->fd_size >= new_size)
-            new_size = handle_map->fd_size;
-    extend:
-        while (new_size <= fd)
-            new_size *= 2;
-
-        ret = __enlarge_handle_map(handle_map, new_size);
-        if (ret < 0) {
-            goto out;
-        }
-    }
-
-    if (handle_map->fd_top != FD_NULL && fd <= handle_map->fd_top &&
-        HANDLE_ALLOCATED(handle_map->map[fd])) {
-        ret = -EBADF;
-        goto out;
-    }
-
-    if (handle_map->fd_top == FD_NULL || fd > handle_map->fd_top)
-        handle_map->fd_top = fd;
-
-    struct shim_fd_handle* new_handle = handle_map->map[fd];
-
-    if (!new_handle) {
-        new_handle = malloc(sizeof(struct shim_fd_handle));
-        if (!new_handle) {
-            ret = -ENOMEM;
-            goto out;
-        }
-        handle_map->map[fd] = new_handle;
-    }
-
-    ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, fd_flags);
-    if (ret < 0) {
-        if (fd == handle_map->fd_top)
-            handle_map->fd_top = fd ? fd - 1 : FD_NULL;
-    } else {
-        ret = fd;
-    }
-out:
-    unlock(&handle_map->lock);
-    return ret;
+int set_new_fd_handle_above_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
+                               struct shim_handle_map* handle_map) {
+    return __set_new_fd_handle(fd, hdl, fd_flags, handle_map, /*find_first=*/true);
 }
 
 void flush_handle(struct shim_handle* hdl) {
