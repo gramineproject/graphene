@@ -31,28 +31,22 @@ static MEM_MGR handle_mgr = NULL;
 
 //#define DEBUG_REF
 
-static inline int init_tty_handle(struct shim_handle* hdl, bool write) {
-    struct shim_dentry* dent = NULL;
+static int init_tty_handle(struct shim_handle* hdl, bool write) {
     int ret;
-    struct shim_thread* cur_thread = get_cur_thread();
-    __UNUSED(cur_thread);
 
-    /* XXX: Try getting the root FS from current thread? */
-    assert(cur_thread);
-    assert(cur_thread->root);
+    hdl->type  = TYPE_DEV;
+    hdl->flags = write ? (O_WRONLY | O_APPEND) : O_RDONLY;
+
+    struct shim_dentry* dent = NULL;
     if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
-    int flags = (write ? O_WRONLY : O_RDONLY) | O_APPEND;
-    struct shim_mount* fs = dent->fs;
-    ret = fs->d_ops->open(hdl, dent, flags);
+    ret = dent->fs->d_ops->open(hdl, dent, hdl->flags);
     if (ret < 0)
         return ret;
 
-    set_handle_fs(hdl, fs);
+    set_handle_fs(hdl, dent->fs);
     hdl->dentry = dent;
-    hdl->flags  = O_RDWR | O_APPEND | 0100000;
-
     dentry_get_path_into_qstr(dent, &hdl->path);
     return 0;
 }
@@ -145,31 +139,47 @@ int init_important_handles(void) {
         }
     }
 
-    struct shim_handle* hdl = NULL;
-
-    for (int fd = 0; fd < 3; fd++)
-        if (!HANDLE_ALLOCATED(handle_map->map[fd])) {
-            if (!hdl) {
-                hdl = get_new_handle();
-                if (!hdl)
-                    return -ENOMEM;
-
-                if ((ret = init_tty_handle(hdl, fd)) < 0) {
-                    put_handle(hdl);
-                    return ret;
-                }
-            } else {
-                get_handle(hdl);
-            }
-
-            __init_handle(&handle_map->map[fd], fd, hdl, 0);
-            put_handle(hdl);
-            if (fd != 1)
-                hdl = NULL;
-        } else {
-            if (fd == 1)
-                hdl = handle_map->map[fd]->handle;
+    /* initialize stdin */
+    if (!HANDLE_ALLOCATED(handle_map->map[0])) {
+        struct shim_handle* stdin_hdl = get_new_handle();
+        if (!stdin_hdl) {
+            unlock(&handle_map->lock);
+            return -ENOMEM;
         }
+
+        if ((ret = init_tty_handle(stdin_hdl, /*write=*/false)) < 0) {
+            unlock(&handle_map->lock);
+            put_handle(stdin_hdl);
+            return ret;
+        }
+
+        __init_handle(&handle_map->map[0], /*fd=*/0, stdin_hdl, /*flags=*/0);
+        put_handle(stdin_hdl);
+    }
+
+    /* initialize stdout */
+    if (!HANDLE_ALLOCATED(handle_map->map[1])) {
+        struct shim_handle* stdout_hdl = get_new_handle();
+        if (!stdout_hdl) {
+            unlock(&handle_map->lock);
+            return -ENOMEM;
+        }
+
+        if ((ret = init_tty_handle(stdout_hdl, /*write=*/true)) < 0) {
+            unlock(&handle_map->lock);
+            put_handle(stdout_hdl);
+            return ret;
+        }
+
+        __init_handle(&handle_map->map[1], /*fd=*/1, stdout_hdl, /*flags=*/0);
+        put_handle(stdout_hdl);
+    }
+
+    /* initialize stderr as duplicate of stdout */
+    if (!HANDLE_ALLOCATED(handle_map->map[2])) {
+        struct shim_handle* stdout_hdl = handle_map->map[1]->handle;
+        __init_handle(&handle_map->map[2], /*fd=*/2, stdout_hdl, /*flags=*/0);
+    }
 
     if (handle_map->fd_top == FD_NULL || handle_map->fd_top < 2)
         handle_map->fd_top = 2;

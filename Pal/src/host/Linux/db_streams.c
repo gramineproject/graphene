@@ -112,10 +112,7 @@ int handle_serialize(PAL_HANDLE handle, void** data) {
             /* pipes have no fields to serialize */
             break;
         case pal_type_dev:
-            if (handle->dev.realpath) {
-                d1   = handle->dev.realpath;
-                dsz1 = strlen(handle->dev.realpath) + 1;
-            }
+            /* devices have no fields to serialize */
             break;
         case pal_type_dir:
             if (handle->dir.realpath) {
@@ -178,7 +175,6 @@ int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
         case pal_type_pipeprv:
             break;
         case pal_type_dev:
-            hdl->dev.realpath = hdl->dev.realpath ? (PAL_STR)hdl + hdlsz : NULL;
             break;
         case pal_type_dir:
             hdl->dir.realpath = hdl->dir.realpath ? (PAL_STR)hdl + hdlsz : NULL;

@@ -96,10 +96,7 @@ typedef struct pal_handle {
         } eventfd;
 
         struct {
-            PAL_IDX fd_in, fd_out;
-            PAL_IDX dev_type;
-            PAL_BOL destroy;
-            PAL_STR realpath;
+            PAL_IDX fd;
         } dev;
 
         struct {

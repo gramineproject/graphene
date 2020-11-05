@@ -57,7 +57,6 @@ typedef struct pal_handle {
 
         struct {
             PAL_IDX fd;
-            PAL_IDX dev_type;
         } dev;
 
         struct {

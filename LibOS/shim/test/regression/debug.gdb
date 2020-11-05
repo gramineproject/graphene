@@ -11,7 +11,7 @@ commands
 
   # Check if we can break inside PAL and get a full backtrace (across glibc).
 
-  tbreak char_write
+  tbreak dev_write
   commands
     echo \n<backtrace 2 start>\n
     backtrace
