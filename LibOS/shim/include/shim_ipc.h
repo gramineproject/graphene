@@ -30,8 +30,8 @@
 enum {
     IPC_LISTENING,    /* listening port; processes connect to it to create connection ports */
     IPC_CONNECTION,   /* processes communicate on ports of this type */
-    IPC_DIRECTCHILD,  /* direct child: used to broadcast CHILDEXIT message only to children */
-    IPC_DIRECTPARENT, /* direct parent: used to broadcast CHILDEXIT message only to parent */
+    IPC_DIRECTCHILD,  /* direct child: used to broadcast messages to children processes */
+    IPC_DIRECTPARENT, /* direct parent: used to broadcast messages to parent process */
 };
 
 enum {
