@@ -251,6 +251,11 @@ reopen:
         __kernel_mode_t mode;
         if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
             goto err;
+        /* Check if the file is executable. Currently just looks at the user bit. */
+        if (!(mode & S_IXUSR)) {
+            ret = -EACCES;
+            goto err;
+        }
     }
 
     struct shim_handle* exec = NULL;
@@ -331,20 +336,24 @@ reopen:
             }
         } while (!ended);
 
-        if (started) {
-            if (next) {
-                INIT_LIST_HEAD(next, list);
-                LISTP_ADD_TAIL(next, &new_shargs, list);
-            }
-
-            struct sharg* first = LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
-            assert(first);
-            debug("detected as script: run by %s\n", first->arg);
-            file = first->arg;
-            LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
+        if (!started) {
+            debug("file not recognized as ELF or shebang");
             put_handle(exec);
-            goto reopen;
+            return -ENOEXEC;
         }
+
+        if (next) {
+            INIT_LIST_HEAD(next, list);
+            LISTP_ADD_TAIL(next, &new_shargs, list);
+        }
+
+        struct sharg* first = LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
+        assert(first);
+        debug("detected as script: run by %s\n", first->arg);
+        file = first->arg;
+        LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
+        put_handle(exec);
+        goto reopen;
     }
 
     /* If `execve` is invoked concurrently by multiple threads, let only one succeed. */
