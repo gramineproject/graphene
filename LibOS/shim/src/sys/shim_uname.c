@@ -48,7 +48,7 @@ long shim_do_sethostname(char* name, int len) {
         return -EFAULT;
 
     memcpy(&g_current_uname.nodename, name, len);
-    memset(&g_current_uname.nodename + len, 0, sizeof(g_current_uname.nodename) - len);
+    memset(&g_current_uname.nodename[len], 0, sizeof(g_current_uname.nodename) - len);
     return 0;
 }
 
@@ -60,6 +60,6 @@ long shim_do_setdomainname(char* name, int len) {
         return -EFAULT;
 
     memcpy(&g_current_uname.domainname, name, len);
-    memset(&g_current_uname.domainname + len, 0, sizeof(g_current_uname.domainname) - len);
+    memset(&g_current_uname.domainname[len], 0, sizeof(g_current_uname.domainname) - len);
     return 0;
 }
