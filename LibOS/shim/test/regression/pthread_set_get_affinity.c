@@ -15,6 +15,9 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+/* barrier to synchronize between parent and child */
+pthread_barrier_t barrier;
+
 /* Run a busy loop for some iterations, so that we can verify affinity with htop manually */
 static void* dowork(void* args) {
     uint64_t* iterations = (uint64_t*)args;
@@ -25,6 +28,10 @@ static void* dowork(void* args) {
                       "cmp $0, %%rax\n"
                       "jne loop\n"
                       : /*no outs*/ : "m"(*iterations)  : "rax", "cc");
+
+    int ret = pthread_barrier_wait(&barrier);
+    if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD)
+        printf("Child did not wait on barrier!\n");
     return NULL;
 }
 
@@ -42,8 +49,13 @@ int main(int argc, const char** argv) {
     if (!threads) {
          errx(EXIT_FAILURE, "memory allocation failed");
     }
-    cpu_set_t cpus, get_cpus;
 
+    if (pthread_barrier_init(&barrier, NULL, numprocs + 1)) {
+        free(threads);
+        errx(EXIT_FAILURE, "pthread barrier init failed");
+    }
+
+    cpu_set_t cpus, get_cpus;
     uint64_t iterations = argc > 1 ? atol(argv[1]) : 10000000000;
 
     /* Validate parent set/get affinity for child */
@@ -75,6 +87,13 @@ int main(int argc, const char** argv) {
             errx(EXIT_FAILURE, "get cpuset is not equal to set cpuset on proc: %ld", i);
         }
     }
+
+    /* unblock the child threads */
+     ret = pthread_barrier_wait(&barrier);
+     if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD) {
+        free(threads);
+        errx(EXIT_FAILURE, "Parent did not wait on barrier!");
+     }
 
     for (int i = 0; i < numprocs; i++) {
         ret = pthread_join(threads[i], NULL);
