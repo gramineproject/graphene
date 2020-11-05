@@ -26,6 +26,9 @@ int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_time
     if (!rqtp)
         return -EFAULT;
 
+    if (!(0 <= rqtp->tv_sec && 0 <= rqtp->tv_nsec && rqtp->tv_nsec < 1000000000L))
+        return -EINVAL;
+
     unsigned long time = rqtp->tv_sec * 1000000L + rqtp->tv_nsec / 1000;
     unsigned long ret = DkThreadDelayExecution(time);
 
@@ -44,7 +47,8 @@ int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_time
 int shim_do_clock_nanosleep(clockid_t clock_id, int flags, const struct __kernel_timespec* rqtp,
                             struct __kernel_timespec* rmtp) {
     /* all clocks are the same */
-    __UNUSED(clock_id);
+    if (!(0 <= clock_id && clock_id < MAX_CLOCKS))
+        return -EINVAL;
 
     if (flags) {
         debug("Graphene's clock_nanosleep does not support non-zero flags (%d)\n", flags);

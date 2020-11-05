@@ -52,8 +52,9 @@ time_t shim_do_time(time_t* tloc) {
 }
 
 int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
-    /* all clock are the same */
-    __UNUSED(which_clock);
+    /* all clocks are the same */
+    if (!(0 <= which_clock && which_clock < MAX_CLOCKS))
+        return -EINVAL;
 
     if (!tp)
         return -EINVAL;
@@ -72,16 +73,16 @@ int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
 }
 
 int shim_do_clock_getres(clockid_t which_clock, struct timespec* tp) {
-    /* all clock are the same */
-    __UNUSED(which_clock);
-
-    if (!tp)
+    /* all clocks are the same */
+    if (!(0 <= which_clock && which_clock < MAX_CLOCKS))
         return -EINVAL;
 
-    if (test_user_memory(tp, sizeof(*tp), true))
-        return -EFAULT;
+    if (tp) {
+        if (test_user_memory(tp, sizeof(*tp), true))
+            return -EFAULT;
 
-    tp->tv_sec  = 0;
-    tp->tv_nsec = 1000;
+        tp->tv_sec  = 0;
+        tp->tv_nsec = 1000;
+    }
     return 0;
 }
