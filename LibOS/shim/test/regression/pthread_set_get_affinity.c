@@ -15,7 +15,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-/* barrier to synchronize between parent and child */
+/* barrier to synchronize between parent and children */
 pthread_barrier_t barrier;
 
 /* Run a busy loop for some iterations, so that we can verify affinity with htop manually */
@@ -30,8 +30,9 @@ static void* dowork(void* args) {
                       : /*no outs*/ : "m"(*iterations)  : "rax", "cc");
 
     int ret = pthread_barrier_wait(&barrier);
-    if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD)
-        printf("Child did not wait on barrier!\n");
+    if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD) {
+        errx(EXIT_FAILURE, "Child did not wait on barrier!");
+    }
     return NULL;
 }
 
@@ -89,11 +90,11 @@ int main(int argc, const char** argv) {
     }
 
     /* unblock the child threads */
-     ret = pthread_barrier_wait(&barrier);
-     if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD) {
+    ret = pthread_barrier_wait(&barrier);
+    if (ret != 0 && ret != PTHREAD_BARRIER_SERIAL_THREAD) {
         free(threads);
         errx(EXIT_FAILURE, "Parent did not wait on barrier!");
-     }
+    }
 
     for (int i = 0; i < numprocs; i++) {
         ret = pthread_join(threads[i], NULL);
@@ -103,7 +104,8 @@ int main(int argc, const char** argv) {
         }
     }
 
-    /* Validating parent set/get affinity for child done. Free resources */
+    /* Validating parent set/get affinity for children done. Free resources */
+    pthread_barrier_destroy(&barrier);
     free(threads);
 
     /* Validate parent set/get affinity for itself */
