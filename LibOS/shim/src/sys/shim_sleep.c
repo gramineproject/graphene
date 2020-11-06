@@ -26,7 +26,7 @@ int shim_do_nanosleep(const struct __kernel_timespec* rqtp, struct __kernel_time
     if (!rqtp)
         return -EFAULT;
 
-    if (!(0 <= rqtp->tv_sec && 0 <= rqtp->tv_nsec && rqtp->tv_nsec < 1000000000L))
+    if (!(rqtp->tv_sec >= 0 && 0 <= rqtp->tv_nsec && rqtp->tv_nsec < 1000000000L))
         return -EINVAL;
 
     unsigned long time = rqtp->tv_sec * 1000000L + rqtp->tv_nsec / 1000;
