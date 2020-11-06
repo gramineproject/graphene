@@ -15,6 +15,11 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#define min(a, b)               (((a) < (b)) ? (a) : (b))
+#define MAIN_THREAD_CNT         1
+#define INTERNAL_THREAD_CNT     2
+#define MANIFEST_SGX_THREAD_CNT 8 /* corresponds to sgx.thread_num in the manifest template */
+
 /* barrier to synchronize between parent and children */
 pthread_barrier_t barrier;
 
@@ -42,6 +47,11 @@ int main(int argc, const char** argv) {
     if (numprocs < 0) {
         err(EXIT_FAILURE, "Failed to retrieve the number of logical processors!");
     }
+
+    /* If you want to run on all cores then increase sgx.thread_num in the manifest.template and
+     * also set MANIFEST_SGX_THREAD_CNT to the same value.
+     */
+    numprocs = min(numprocs, (MANIFEST_SGX_THREAD_CNT - (INTERNAL_THREAD_CNT + MAIN_THREAD_CNT)));
 
     /* Affinitize threads to alternate logical processors to do a quick check from htop manually */
     numprocs = (numprocs >= 2) ? numprocs/2 : 1;

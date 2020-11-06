@@ -33,6 +33,8 @@ sgx.trusted_children.victim = file:exec_victim.sig
 
 sgx.allowed_files.tmp_dir = file:tmp/
 
-sgx.thread_num = 6
+# Set this value to at least 4 (1 for the main thread, 2 for Graphene internal threads and 1 for
+# helper threads some tests use)
+sgx.thread_num = 8
 
 sgx.static_address = 1
