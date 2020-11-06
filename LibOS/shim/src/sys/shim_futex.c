@@ -51,7 +51,7 @@ struct shim_futex {
     uint32_t* uaddr;
     LISTP_TYPE(futex_waiter) waiters;
     LIST_TYPE(shim_futex) list;
-    struct avl_tree_node tree_node; 
+    struct avl_tree_node tree_node;
     /* This lock guards every access to *uaddr (futex word value) and waiters (above).
      * Always take g_futex_list_lock before taking this lock. */
     spinlock_t lock;
@@ -65,14 +65,14 @@ static bool futex_tree_cmp(struct avl_tree_node* node_a, struct avl_tree_node* n
     return (uintptr_t)a->uaddr <= (uintptr_t)b->uaddr;
 }
 
-static struct avl_tree g_futex_tree = { .cmp = futex_tree_cmp };
-
 /* Returns whether `addr` is smaller or equal to the one pointed by the node */
 static bool cmp_addr_to_futex(void* addr, struct avl_tree_node* node) {
     struct shim_futex* futex = container_of(node, struct shim_futex, tree_node);
 
     return (uintptr_t)addr <= (uintptr_t)futex->uaddr;
 }
+
+static struct avl_tree g_futex_tree = { .cmp = futex_tree_cmp };
 
 static spinlock_t g_futex_list_lock = INIT_SPINLOCK_UNLOCKED;
 
@@ -312,8 +312,8 @@ static struct shim_futex* find_futex(uint32_t* uaddr) {
             get_futex(futex);
             return futex;
         }
-    }  
-    return NULL; 
+    }
+    return NULL;
 }
 
 static uint64_t timespec_to_us(const struct timespec* ts) {
