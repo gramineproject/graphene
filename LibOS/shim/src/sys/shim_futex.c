@@ -58,13 +58,11 @@ struct shim_futex {
     REFTYPE _ref_count;
 };
 
-static struct shim_futex* _lookup_futex(uintptr_t);
-
 static bool futex_tree_cmp(struct avl_tree_node* node_a, struct avl_tree_node* node_b) {
     struct shim_futex* a = container_of(node_a, struct shim_futex, tree_node);
     struct shim_futex* b = container_of(node_b, struct shim_futex, tree_node);
 
-    return a->uaddr <= b->uaddr;
+    return (uintptr_t)a->uaddr <= (uintptr_t)b->uaddr;
 }
 
 static struct avl_tree g_futex_tree = { .cmp = futex_tree_cmp };
@@ -73,7 +71,7 @@ static struct avl_tree g_futex_tree = { .cmp = futex_tree_cmp };
 static bool cmp_addr_to_futex(void* addr, struct avl_tree_node* node) {
     struct shim_futex* futex = container_of(node, struct shim_futex, tree_node);
 
-    return (uintptr_t)addr <= futex->uaddr;
+    return (uintptr_t)addr <= (uintptr_t)futex->uaddr;
 }
 
 static spinlock_t g_futex_list_lock = INIT_SPINLOCK_UNLOCKED;
@@ -184,8 +182,8 @@ static void _maybe_dequeue_futex(struct shim_futex* futex) {
     assert(spinlock_is_locked(&g_futex_list_lock));
 
     if (check_dequeue_futex(futex)) {
-	avl_tree_delete(&g_futex_tree, &futex->tree_node);
-	/* We still hold this futex reference (in the caller), so this won't call free. */
+        avl_tree_delete(&g_futex_tree, &futex->tree_node);
+        /* We still hold this futex reference (in the caller), so this won't call free. */
         put_futex(futex);
     }
 }
@@ -304,30 +302,18 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
 static struct shim_futex* find_futex(uint32_t* uaddr) {
     assert(spinlock_is_locked(&g_futex_list_lock));
     struct shim_futex* futex = NULL;
-    futex  = _lookup_futex((uintptr_t)uaddr);
-    if (futex != NULL)
-    {
-	   if(futex->uaddr == uaddr)
-	   {
-		   get_futex(futex);
-	           return futex;
-	   }
-    }  
-    return NULL; 
-}
-
-static struct shim_futex* _lookup_futex(uintptr_t addr)
-{
-
-    assert(spinlock_is_locked(&g_futex_list_lock));
-    struct shim_futex* futex = NULL;
-    struct avl_tree_node* node = avl_tree_lower_bound_fn(&g_futex_tree, (void*)addr, cmp_addr_to_futex);
-    if (!node)
-    {
-	return NULL;
+    struct avl_tree_node* node = avl_tree_lower_bound_fn(&g_futex_tree, (void*)uaddr, cmp_addr_to_futex);
+    if (!node) {
+        return NULL;
     }
     futex = container_of(node, struct shim_futex, tree_node);
-    return futex;
+    if (futex != NULL) {
+        if(futex->uaddr == uaddr){
+            get_futex(futex);
+            return futex;
+        }
+    }  
+    return NULL; 
 }
 
 static uint64_t timespec_to_us(const struct timespec* ts) {
