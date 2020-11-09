@@ -187,20 +187,8 @@ END_MIGRATION_DEF(execve)
 static int migrate_execve(struct shim_cp_store* cpstore, struct shim_process* process_description,
                           struct shim_thread* thread_description,
                           struct shim_process_ipc_info* process_ipc_info, va_list ap) {
-    struct shim_handle_map* handle_map;
     const char** argv = va_arg(ap, const char**);
     const char** envp = va_arg(ap, const char**);
-    int ret;
-
-    if ((ret = dup_handle_map(&handle_map, thread_description->handle_map)) < 0)
-        return ret;
-
-    set_handle_map(thread_description, handle_map);
-
-    ret = close_cloexec_handle(handle_map);
-    put_handle_map(handle_map);
-    if (ret < 0)
-        return ret;
 
     return START_MIGRATE(cpstore, execve, process_description, thread_description, process_ipc_info,
                          argv, envp);
@@ -362,13 +350,14 @@ reopen:
         }
     }
 
-    /* If `execve` is invoked concurrently by multiple threads, let only one succeed. */
+    /* If `execve` is invoked concurrently by multiple threads, let only one succeed. From this
+     * point errors are fatal. */
     static unsigned int first = 0;
     if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) != 0) {
         /* Just exit current thread. */
         thread_exit(/*error_code=*/0, /*term_signal=*/0);
     }
-    bool threads_killed = kill_other_threads();
+    (void)kill_other_threads();
 
     /* All other threads are dead. Restoring initial value in case we stay inside same process
      * instance and call execve again. */
@@ -392,12 +381,8 @@ reopen:
         debug("execve() in the same process\n");
         /* Passing ownership of `exec`. */
         ret = shim_do_execve_rtld(exec, argv, envp);
-        if (threads_killed) {
-            /* We have killed some threads and execve failed internally. User app might now be in
-             * undefined state, we would better blow everything up. */
-            process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
-        }
-        return ret;
+        assert(ret < 0);
+        goto out_fatal_error;
     }
     debug("execve() in a new process\n");
 
@@ -423,7 +408,10 @@ reopen:
 
     /* Pause IPC helper not to receive any child exit messages - all of them will be handled in
      * the new process (after execve). */
-    pause_ipc_helper();
+    ret = pause_ipc_helper();
+    if (ret < 0) {
+        goto out_fatal_error;
+    }
 
     lock(&cur_thread->lock);
 
@@ -437,6 +425,11 @@ reopen:
     cur_thread->frameptr  = NULL;
     cur_thread->shim_tcb  = NULL;
     unlock(&cur_thread->lock);
+
+    ret = close_cloexec_handle(cur_thread->handle_map);
+    if (ret < 0) {
+        goto out_fatal_error_resume_ipc;
+    }
 
     /* We are the only thread running and IPC helper thread is blocked, so there is no need for
      * locking `g_process` and we can safely pass it as argument below. */
@@ -456,13 +449,7 @@ reopen:
     unlock(&cur_thread->lock);
 
     if (ret < 0) {
-        resume_ipc_helper();
-        if (threads_killed) {
-            /* We have killed some threads and execve failed internally. User app might now be in
-             * undefined state, we would better blow everything up. */
-            process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
-        }
-        return ret;
+        goto out_fatal_error_resume_ipc;
     }
 
     /* this "temporary" process must die quietly, not sending any messages to not confuse the parent
@@ -473,4 +460,13 @@ reopen:
         " this one); will wait for forked process to exit...\n", g_process_ipc_info.vmid & 0xFFFF);
     MASTER_LOCK();
     DkProcessExit(PAL_WAIT_FOR_CHILDREN_EXIT);
+    /* UNREACHABLE */
+
+out_fatal_error_resume_ipc:
+    resume_ipc_helper();
+out_fatal_error:
+    put_handle(exec);
+    /* We might have killed some threads and closed some fds and execve failed internally. User app
+     * might now be in undefined state, we would better blow everything up. */
+    process_exit(/*error_code=*/0, /*term_signal=*/SIGKILL);
 }
