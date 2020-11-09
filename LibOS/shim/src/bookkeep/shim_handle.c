@@ -803,8 +803,12 @@ BEGIN_RS_FUNC(handle) {
                 return -EINVAL;
             }
             break;
-        case TYPE_EPOLL:
-            create_event(&hdl->info.epoll.event);
+        case TYPE_EPOLL: ;
+            int ret = create_event(&hdl->info.epoll.event);
+            if (ret < 0) {
+                return ret;
+            }
+
             struct shim_epoll_item* epoll_item;
             size_t count = 0;
             LISTP_FOR_EACH_ENTRY(epoll_item, &hdl->info.epoll.fds, list) {

@@ -305,13 +305,12 @@ static inline void enable_preempt(shim_tcb_t* tcb) {
     __enable_preempt(tcb);
 }
 
-static inline void create_event(AEVENTTYPE* e) {
-    if (!e->event)
-        e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, PAL_OPTION_NONBLOCK);
-}
-
-static inline bool event_created(AEVENTTYPE* e) {
-    return e->event != NULL;
+static inline int create_event(AEVENTTYPE* e) {
+    e->event = DkStreamOpen(URI_PREFIX_PIPE, PAL_ACCESS_RDWR, 0, 0, 0);
+    if (!e->event) {
+        return -PAL_ERRNO();
+    }
+    return 0;
 }
 
 static inline PAL_HANDLE event_handle(AEVENTTYPE* e) {
@@ -325,31 +324,88 @@ static inline void destroy_event(AEVENTTYPE* e) {
     }
 }
 
-static inline void set_event(AEVENTTYPE* e, int n) {
-    if (e->event) {
-        char bytes[n];
-        DkStreamWrite(e->event, 0, n, bytes, NULL);
+static inline int set_event(AEVENTTYPE* e, size_t n) {
+    if (!e->event) {
+        return -EINVAL;
     }
+
+    char bytes[n];
+    memset(bytes, '\0', n);
+    while (n > 0) {
+        PAL_NUM ret = DkStreamWrite(e->event, 0, n, bytes, NULL);
+        if (ret == PAL_STREAM_ERROR) {
+            int err = PAL_ERRNO();
+            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+                continue;
+            }
+            return -err;
+        }
+        n -= ret;
+    }
+
+    return 0;
 }
 
-static inline void wait_event(AEVENTTYPE* e) {
-    if (e->event) {
-        char byte;
-        int n = 0;
-        do {
-            n = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
-        } while (!n);
+static inline int wait_event(AEVENTTYPE* e) {
+    if (!e->event) {
+        return -EINVAL;
     }
+
+again: ;
+    char byte;
+    PAL_NUM n = DkStreamRead(e->event, 0, 1, &byte, NULL, 0);
+    if (n == PAL_STREAM_ERROR) {
+        int err = PAL_ERRNO();
+        if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+            goto again;
+        }
+        return -err;
+    }
+
+    return 0;
 }
 
-static inline void clear_event(AEVENTTYPE* e) {
-    if (e->event) {
+static inline int clear_event(AEVENTTYPE* e) {
+    if (!e->event) {
+        return -EINVAL;
+    }
+
+    while (1) {
+        PAL_HANDLE handle = e->event;
+        PAL_FLG ievent = PAL_WAIT_READ;
+        PAL_FLG revent = 0;
+
+        shim_get_tcb()->pal_errno = PAL_ERROR_SUCCESS;
+        PAL_BOL ret = DkStreamsWaitEvents(1, &handle, &ievent, &revent, /*timeout=*/0);
+        if (!ret) {
+            int err = PAL_ERRNO();
+            if (err == EINTR) {
+                continue;
+            } else if (!err || err == EAGAIN || err == EWOULDBLOCK) {
+                break;
+            }
+            return -err;
+        }
+
+        /* Event if `revent` has `PAL_WAIT_ERROR` marked, let `DkSitreamRead` report the error
+         * below. */
+        assert(revent);
+
         char bytes[100];
-        int n;
-        do {
-            n = DkStreamRead(e->event, 0, 100, bytes, NULL, 0);
-        } while (n == 100);
+        PAL_NUM n = DkStreamRead(e->event, 0, sizeof(bytes), bytes, NULL, 0);
+        if (n == PAL_STREAM_ERROR) {
+            int err = PAL_ERRNO();
+            if (err == EINTR) {
+                continue;
+            } else if (err == EAGAIN || err == EWOULDBLOCK) {
+                /* This should not happen, since we polled above  ... */
+                break;
+            }
+            return -err;
+        }
     }
+
+    return 0;
 }
 
 /* reference counter APIs */
