@@ -48,8 +48,13 @@ int shim_do_epoll_create1(int flags) {
     set_handle_fs(hdl, &epoll_builtin_fs);
     epoll->fds_count = 0;
     __atomic_store_n(&epoll->waiter_cnt, 0, __ATOMIC_RELAXED);
-    create_event(&epoll->event);
     INIT_LISTP(&epoll->fds);
+
+    int ret = create_event(&epoll->event);
+    if (ret < 0) {
+        put_handle(hdl);
+        return ret;
+    }
 
     int vfd = set_new_fd_handle(hdl, (flags & EPOLL_CLOEXEC) ? FD_CLOEXEC : 0, NULL);
     put_handle(hdl);
@@ -72,6 +77,7 @@ static void notify_epoll_waiters(struct shim_epoll_handle* epoll) {
      * (`shim_do_epoll_wait`), what if one threads consumes multiple events? */
     size_t waiters = __atomic_load_n(&epoll->waiter_cnt, __ATOMIC_RELAXED);
     if (waiters) {
+        /* TODO: this needs error checking. */
         set_event(&epoll->event, waiters);
     }
 }
@@ -369,7 +375,11 @@ int shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxeve
         if (event_handle_update) {
             /* retry if epoll was updated concurrently (similar to Linux semantics) */
             unlock(&epoll_hdl->lock);
-            wait_event(&epoll->event);
+            int ret = wait_event(&epoll->event);
+            if (ret < 0) {
+                put_handle(epoll_hdl);
+                return ret;
+            }
             lock(&epoll_hdl->lock);
         } else {
             /* no need to retry, exit the while loop */

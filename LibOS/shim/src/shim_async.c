@@ -126,7 +126,10 @@ int init_async(void) {
     if (!create_lock(&async_helper_lock)) {
         return -ENOMEM;
     }
-    create_event(&install_new_event);
+    int ret = create_event(&install_new_event);
+    if (ret < 0) {
+        return ret;
+    }
 
     /* enable locking mechanisms since we are going in multi-threaded mode */
     enable_locking();

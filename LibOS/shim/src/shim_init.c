@@ -55,7 +55,7 @@ noreturn void __abort(void) {
 }
 
 static int pal_errno_to_unix_errno[PAL_ERROR_NATIVE_COUNT + 1] = {
-    [0]                         = 0,
+    [PAL_ERROR_SUCCESS]         = 0,
     [PAL_ERROR_NOTIMPLEMENTED]  = ENOSYS,
     [PAL_ERROR_NOTDEFINED]      = ENOSYS,
     [PAL_ERROR_NOTSUPPORT]      = EACCES,
