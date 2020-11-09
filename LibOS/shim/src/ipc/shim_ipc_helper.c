@@ -180,6 +180,10 @@ int init_ipc_helper(void) {
     if (ret < 0) {
         return ret;
     }
+    ret = create_event(&helper_stopped_event);
+    if (ret < 0) {
+        return ret;
+    }
 
     /* some IPC ports were already added before this point, so spawn IPC helper thread (and enable
      * locking mechanisms if not done already since we are going in multi-threaded mode) */
@@ -626,34 +630,46 @@ out:
     return ret;
 }
 
-void pause_ipc_helper(void) {
+int pause_ipc_helper(void) {
     bool needs_wait = false;
 
     lock(&ipc_helper_lock);
     if (ipc_helper_state == HELPER_ALIVE) {
-        /* Wake up the helper thread. */
-        set_event(&install_new_event, 1);
-
         ipc_helper_state = HELPER_STOPPED;
 
-        clear_event(&helper_stopped_event);
+        int ret = clear_event(&helper_stopped_event);
+        if (ret < 0) {
+            unlock(&ipc_helper_lock);
+            return ret;
+        }
         needs_wait = true;
+
+        /* Wake up the helper thread. */
+        ret = set_event(&install_new_event, 1);
+        if (ret < 0) {
+            unlock(&ipc_helper_lock);
+            return ret;
+        }
     }
     unlock(&ipc_helper_lock);
 
     if (needs_wait) {
         /* Wait untill the helper thread notices the stop event. */
-        wait_event(&helper_stopped_event);
+        return wait_event(&helper_stopped_event);
     }
+
+    return 0;
 }
 
-void resume_ipc_helper(void) {
+int resume_ipc_helper(void) {
+    int ret = 0;
     lock(&ipc_helper_lock);
     if (ipc_helper_state == HELPER_STOPPED) {
         ipc_helper_state = HELPER_ALIVE;
-        set_event(&install_new_event, 1);
+        ret = set_event(&install_new_event, 1);
     }
     unlock(&ipc_helper_lock);
+    return ret;
 }
 
 /* Main routine of the IPC helper thread. IPC helper thread is spawned when the first IPC port is
@@ -710,14 +726,23 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
     while (true) {
         lock(&ipc_helper_lock);
+
+        if (clear_event(&install_new_event) < 0) {
+            goto out_err_unlock;
+        }
+
         if (ipc_helper_state == HELPER_NOTALIVE) {
             ipc_helper_thread = NULL;
             unlock(&ipc_helper_lock);
             break;
         } else if (ipc_helper_state == HELPER_STOPPED) {
-            set_event(&helper_stopped_event, 1);
+            if (set_event(&helper_stopped_event, 1) < 0) {
+                goto out_err_unlock;
+            }
             unlock(&ipc_helper_lock);
-            wait_event(&install_new_event);
+            if (wait_event(&install_new_event) < 0) {
+                goto out_err;
+            }
             continue;
         }
 
@@ -785,10 +810,8 @@ noreturn static void shim_ipc_helper(void* dummy) {
         for (size_t i = 0; polled && i < ports_cnt + 1; i++) {
             if (ret_events[i]) {
                 if (pals[i] == install_new_event_pal) {
-                    /* some thread wants to install new event; this event is found in `ports`, so
-                     * just re-init install_new_event */
+                    /* some thread wants to install new event; this event is found in `ports` */
                     debug("New IPC event was requested (port was added/removed)\n");
-                    clear_event(&install_new_event);
                     continue;
                 }
 
@@ -867,14 +890,15 @@ static void shim_ipc_helper_prepare(void* arg) {
     struct debug_buf debug_buf;
     (void)debug_setbuf(shim_get_tcb(), &debug_buf);
 
+#ifdef DEBUG
     lock(&ipc_helper_lock);
-    bool notme = (self != ipc_helper_thread);
+    assert(self == ipc_helper_thread);
     unlock(&ipc_helper_lock);
+#endif // DEBUG
 
     void* stack = allocate_stack(IPC_HELPER_STACK_SIZE, g_pal_alloc_align, false);
 
-    if (notme || !stack) {
-        free(stack);
+    if (!stack) {
         put_thread(self);
         DkThreadExit(/*clear_child_tid=*/NULL);
         /* UNREACHABLE */
@@ -892,9 +916,7 @@ static void shim_ipc_helper_prepare(void* arg) {
 /* this should be called with the ipc_helper_lock held */
 static int create_ipc_helper(void) {
     assert(locked(&ipc_helper_lock));
-
-    if (ipc_helper_state != HELPER_NOTALIVE)
-        return 0;
+    assert(ipc_helper_state == HELPER_NOTALIVE);
 
     struct shim_thread* new = get_new_internal_thread();
     if (!new)
@@ -954,9 +976,10 @@ struct shim_thread* terminate_ipc_helper(void) {
     if (ret)
         get_thread(ret);
     ipc_helper_state = HELPER_NOTALIVE;
-    unlock(&ipc_helper_lock);
 
     /* force wake up of ipc helper thread so that it exits */
     set_event(&install_new_event, 1);
+
+    unlock(&ipc_helper_lock);
     return ret;
 }
