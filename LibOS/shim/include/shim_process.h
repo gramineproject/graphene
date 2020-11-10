@@ -20,8 +20,9 @@ struct shim_child_process {
     IDTYPE pid;
     IDTYPE vmid;
 
-    int death_notification_signal;
+    int child_termination_signal;
 
+    /* These 3 fields are set when the child terminates. */
     int exit_code;
     int term_signal;
     IDTYPE uid;
@@ -43,7 +44,7 @@ struct shim_process {
     struct shim_dentry* cwd;
     mode_t umask;
 
-    /* Handle to the executable. Protected by `fs_lock`. */
+    /* Handle to the executable file. Protected by `fs_lock`. */
     struct shim_handle* exec;
 
     /* Threads waiting for some child to exit. Protected by `children_lock`. */
@@ -71,7 +72,7 @@ void add_child_process(struct shim_child_process* child);
 
 /*
  * These 2 functions mark a child as exited, moving it from `children` list to `zombies` list
- * and generate a child-death signal (if needed).
+ * and generate a child-termination signal (if needed).
  * Return `true` if the child was found, `false` otherwise.
  */
 bool mark_child_exited_by_vmid(IDTYPE vmid, IDTYPE uid, int exit_code, int signal);

@@ -27,7 +27,7 @@ static bool child_matches_flags(struct shim_child_process* child, int flags) {
         return true;
     }
 
-    return (!!(flags & __WCLONE)) ^ (child->death_notification_signal == SIGCHLD);
+    return (!!(flags & __WCLONE)) ^ (child->child_termination_signal == SIGCHLD);
 }
 
 static bool child_matches(struct shim_child_process* child, int which, IDTYPE id, int flags) {

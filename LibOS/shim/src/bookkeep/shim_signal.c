@@ -719,7 +719,7 @@ static void get_sighandler(struct shim_thread* thread, int sig, bool allow_reset
     __rt_sighandler_t handler = (void*)sig_action->k_sa_handler;
     unsigned long sa_flags = sig_action->sa_flags;
 
-    if (allow_reset && sig_action->sa_flags & SA_RESETHAND) {
+    if (allow_reset && sa_flags & SA_RESETHAND) {
         sigaction_make_defaults(sig_action);
     }
 

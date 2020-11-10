@@ -89,7 +89,7 @@ noreturn void thread_exit(int error_code, int term_signal) {
         /* UNREACHABLE */
     }
 
-    /* Let parent know we exited. */
+    /* This is the last thread of the process. Let parent know we exited. */
     int ret = ipc_cld_exit_send(error_code, term_signal);
     if (ret < 0) {
         debug("Sending IPC process-exit notification failed: %d\n", ret);

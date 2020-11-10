@@ -34,7 +34,6 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void) {
 struct shim_clone_args {
     PAL_HANDLE create_event;
     PAL_HANDLE initialize_event;
-    struct shim_thread* parent;
     struct shim_thread* thread;
     void* stack;
     unsigned long fs_base;
@@ -211,9 +210,7 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
 
     get_dentry(process_description.root);
     get_dentry(process_description.cwd);
-    if (process_description.exec) {
-        get_handle(process_description.exec);
-    }
+    get_handle(process_description.exec);
 
     unlock(&g_process.fs_lock);
 
@@ -224,8 +221,9 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
     clear_lock(&process_description.children_lock);
 
     child_process->pid = process_description.pid;
-    child_process->death_notification_signal = flags & CSIGNAL;
+    child_process->child_termination_signal = flags & CSIGNAL;
     child_process->uid = thread->uid;
+    /* `child_process->vmid` is set by the checkpointing function below. */
 
     long ret = create_process_and_send_checkpoint(&migrate_fork, /*exec=*/NULL,
                                                   child_process,
@@ -421,7 +419,6 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
      * of this pointer to the new thread (receiver of new_args). */
     get_thread(thread);
     new_args.thread  = thread;
-    new_args.parent  = self;
     new_args.stack   = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
     new_args.fs_base = fs_base;
     new_args.regs    = *self->shim_tcb->context.regs;

@@ -129,8 +129,8 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE u
              * become a zombie. */
             LISTP_ADD(child, &g_process.zombies, list);
 
-            parent_signal = child->death_notification_signal;
-            child_pid = child->pid,
+            parent_signal = child->child_termination_signal;
+            child_pid = child->pid;
 
             wait_queue = g_process.wait_queue;
             g_process.wait_queue = NULL;
@@ -169,7 +169,6 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE u
         wait_queue = next;
     }
 
-
     return ret;
 }
 
@@ -194,7 +193,8 @@ BEGIN_CP_FUNC(process_description) {
     LISTP_FOR_EACH_ENTRY(child, &process->children, list) {
         ++children_count;
     }
-    LISTP_FOR_EACH_ENTRY(child, &process->zombies, list) {
+    struct shim_child_process* zombie = NULL;
+    LISTP_FOR_EACH_ENTRY(zombie, &process->zombies, list) {
         ++zombies_count;
     }
 
@@ -240,8 +240,8 @@ BEGIN_CP_FUNC(process_description) {
         (struct shim_child_process*)((char*)children + children_count * sizeof(*children)
                                      + sizeof(zombies_count));
     i = 0;
-    LISTP_FOR_EACH_ENTRY(child, &process->zombies, list) {
-        memcpy(&zombies[i], child, sizeof(zombies[i]));
+    LISTP_FOR_EACH_ENTRY(zombie, &process->zombies, list) {
+        memcpy(&zombies[i], zombie, sizeof(zombies[i]));
         INIT_LIST_HEAD(&zombies[i], list);
         i++;
     }
@@ -277,6 +277,10 @@ BEGIN_RS_FUNC(process_description) {
         destroy_lock(&process->fs_lock);
         return -ENOMEM;
     }
+
+    /* We never checkpoint any thread wait queues, since after clone/execve there is only one thread
+     * and by definition it is not waiting. */
+    process->wait_queue = NULL;
 
     INIT_LISTP(&process->children);
     INIT_LISTP(&process->zombies);

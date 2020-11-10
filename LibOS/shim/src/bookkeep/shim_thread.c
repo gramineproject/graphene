@@ -22,12 +22,12 @@
 #include "shim_signal.h"
 #include "shim_thread.h"
 
-static IDTYPE tid_alloc_idx = 0;
+static IDTYPE g_tid_alloc_idx = 0;
 
-static LISTP_TYPE(shim_thread) thread_list = LISTP_INIT;
-struct shim_lock thread_list_lock;
+static LISTP_TYPE(shim_thread) g_thread_list = LISTP_INIT;
+struct shim_lock g_thread_list_lock;
 
-static IDTYPE internal_tid_alloc_idx = INTERNAL_TID_BASE;
+static IDTYPE g_internal_tid_alloc_idx = INTERNAL_TID_BASE;
 
 //#define DEBUG_REF
 
@@ -58,9 +58,9 @@ static struct shim_signal_handles* alloc_default_signal_handles(void) {
 static IDTYPE get_new_tid(void) {
     IDTYPE idx;
 
-    lock(&thread_list_lock);
+    lock(&g_thread_list_lock);
     while (1) {
-        IDTYPE new_idx_hint = tid_alloc_idx + 1;
+        IDTYPE new_idx_hint = g_tid_alloc_idx + 1;
         idx = allocate_ipc_id(new_idx_hint, 0);
         if (idx) {
             break;
@@ -70,17 +70,17 @@ static IDTYPE get_new_tid(void) {
             break;
         }
 
-        unlock(&thread_list_lock);
+        unlock(&g_thread_list_lock);
         /* We've probably run out of pids - let's get a new range. */
         if (ipc_lease_send() < 0) {
             return 0;
         }
-        lock(&thread_list_lock);
+        lock(&g_thread_list_lock);
     }
 
-    tid_alloc_idx = idx;
+    g_tid_alloc_idx = idx;
 
-    unlock(&thread_list_lock);
+    unlock(&g_thread_list_lock);
     return idx;
 }
 
@@ -103,7 +103,7 @@ static struct shim_thread* alloc_new_thread(void) {
 }
 
 int init_thread(void) {
-    if (!create_lock(&thread_list_lock)) {
+    if (!create_lock(&g_thread_list_lock)) {
         return -ENOMEM;
     }
 
@@ -149,11 +149,11 @@ int init_thread(void) {
 }
 
 static struct shim_thread* __lookup_thread(IDTYPE tid) {
-    assert(locked(&thread_list_lock));
+    assert(locked(&g_thread_list_lock));
 
     struct shim_thread* tmp;
 
-    LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &g_thread_list, list) {
         if (tmp->tid == tid) {
             get_thread(tmp);
             return tmp;
@@ -164,14 +164,14 @@ static struct shim_thread* __lookup_thread(IDTYPE tid) {
 }
 
 struct shim_thread* lookup_thread(IDTYPE tid) {
-    lock(&thread_list_lock);
+    lock(&g_thread_list_lock);
     struct shim_thread* thread = __lookup_thread(tid);
-    unlock(&thread_list_lock);
+    unlock(&g_thread_list_lock);
     return thread;
 }
 
-static IDTYPE get_internal_pid(void) {
-    IDTYPE idx = __atomic_add_fetch(&internal_tid_alloc_idx, 1, __ATOMIC_RELAXED);
+static IDTYPE get_new_internal_tid(void) {
+    IDTYPE idx = __atomic_add_fetch(&g_internal_tid_alloc_idx, 1, __ATOMIC_RELAXED);
     if (!is_internal_tid(idx)) {
         return 0;
     }
@@ -224,9 +224,9 @@ struct shim_thread* get_new_internal_thread(void) {
         return NULL;
     }
 
-    thread->tid = get_internal_pid();
+    thread->tid = get_new_internal_tid();
     if (!thread->tid) {
-        free(thread);
+        put_thread(thread);
         return NULL;
     }
 
@@ -298,10 +298,10 @@ void add_thread(struct shim_thread* thread) {
 
     struct shim_thread* tmp;
     struct shim_thread* prev = NULL;
-    lock(&thread_list_lock);
+    lock(&g_thread_list_lock);
 
     /* keep it sorted */
-    LISTP_FOR_EACH_ENTRY_REVERSE(tmp, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY_REVERSE(tmp, &g_thread_list, list) {
         if (tmp->tid < thread->tid) {
             prev = tmp;
             break;
@@ -310,22 +310,22 @@ void add_thread(struct shim_thread* thread) {
     }
 
     get_thread(thread);
-    LISTP_ADD_AFTER(thread, prev, &thread_list, list);
-    unlock(&thread_list_lock);
+    LISTP_ADD_AFTER(thread, prev, &g_thread_list, list);
+    unlock(&g_thread_list_lock);
 }
 
 /*
- * Checks whether there are any other threads on `thread_list` (i.e. if we are the last thread).
- * If `mark_self_dead` is true additionally takes us of the `thread_list`.
+ * Checks whether there are any other threads on `g_thread_list` (i.e. if we are the last thread).
+ * If `mark_self_dead` is true additionally takes us off the `g_thread_list`.
  */
 bool check_last_thread(bool mark_self_dead) {
     struct shim_thread* self = get_cur_thread();
     bool ret = true;
 
-    lock(&thread_list_lock);
+    lock(&g_thread_list_lock);
 
     struct shim_thread* thread;
-    LISTP_FOR_EACH_ENTRY(thread, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY(thread, &g_thread_list, list) {
         if (thread != self) {
             ret = false;
             break;
@@ -333,10 +333,10 @@ bool check_last_thread(bool mark_self_dead) {
     }
 
     if (mark_self_dead) {
-        LISTP_DEL_INIT(self, &thread_list, list);
+        LISTP_DEL_INIT(self, &g_thread_list, list);
     }
 
-    unlock(&thread_list_lock);
+    unlock(&g_thread_list_lock);
 
     if (mark_self_dead) {
         put_thread(self);
@@ -366,7 +366,8 @@ void cleanup_thread(IDTYPE caller, void* arg) {
     /* notify parent if any */
     release_clear_child_tid(thread->clear_child_tid);
 
-    /* Put down our (possibly last) reference to this thread - we got the ownership from the caller. */
+    /* Put down our (possibly last) reference to this thread - we got the ownership from the caller.
+     */
     put_thread(thread);
 }
 
@@ -376,9 +377,9 @@ int walk_thread_list(int (*callback)(struct shim_thread*, void*), void* arg, boo
     bool success = false;
     int ret = -ESRCH;
 
-    lock(&thread_list_lock);
+    lock(&g_thread_list_lock);
 
-    LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &g_thread_list, list) {
         ret = callback(tmp, arg);
         if (ret < 0 && ret != -ESRCH) {
             goto out;
@@ -394,7 +395,7 @@ int walk_thread_list(int (*callback)(struct shim_thread*, void*), void* arg, boo
 
     ret = success ? 0 : -ESRCH;
 out:
-    unlock(&thread_list_lock);
+    unlock(&g_thread_list_lock);
     return ret;
 }
 

@@ -13,28 +13,50 @@
 #include "shim_types.h"
 
 uid_t shim_do_getuid(void) {
-    return get_cur_thread()->uid;
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    uid_t uid = current->uid;
+    unlock(&current->lock);
+    return uid;
 }
 
 gid_t shim_do_getgid(void) {
-    return get_cur_thread()->gid;
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    gid_t gid = current->gid;
+    unlock(&current->lock);
+    return gid;
 }
 
 uid_t shim_do_geteuid(void) {
-    return get_cur_thread()->euid;
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    uid_t euid = current->euid;
+    unlock(&current->lock);
+    return euid;
 }
 
 gid_t shim_do_getegid(void) {
-    return get_cur_thread()->egid;
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    gid_t egid = current->egid;
+    unlock(&current->lock);
+    return egid;
 }
 
 int shim_do_setuid(uid_t uid) {
-    get_cur_thread()->euid = uid;
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    current->euid = uid;
+    unlock(&current->lock);
     return 0;
 }
 
 int shim_do_setgid(gid_t gid) {
-    get_cur_thread()->egid = gid;
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    current->egid = gid;
+    unlock(&current->lock);
     return 0;
 }
 

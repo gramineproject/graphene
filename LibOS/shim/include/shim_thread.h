@@ -53,7 +53,7 @@ struct shim_signal_queue {
 DEFINE_LIST(shim_thread);
 DEFINE_LISTP(shim_thread);
 struct shim_thread {
-    /* Field for inserting threads on global `thread_list`. */
+    /* Field for inserting threads on global `g_thread_list`. */
     LIST_TYPE(shim_thread) list;
 
     /* thread identifiers */
@@ -79,6 +79,16 @@ struct shim_thread {
     /* For the field below, see the explanation in "LibOS/shim/src/bookkeep/shim_signal.c" near
      * `process_pending_signals_cnt`. */
     uint64_t pending_signals;
+
+    /*
+     * This field is used for checking whether we handled a signal during blocking parts in LibOS
+     * and can have following values:
+     * - `SIGNAL_NOT_HANDLED` - usually initialized to this - no signals were handled,
+     * - `SIGNAL_HANDLED` - at least one signal was handled,
+     * - `SIGNAL_HANDLED_RESTART` - same as above, but the signal had `SA_RESTART` flag.
+     * `SIGNAL_HANDLED` has priority over `SIGNAL_HANDLED_RESTART`, i.e. if we handle multiple
+     * signals, some with `SA_RESTART`, some without it, this field will be set to `SIGNAL_HANDLED`.
+     */
     unsigned char signal_handled;
     stack_t signal_altstack;
 
@@ -104,6 +114,8 @@ struct shim_thread {
 struct shim_thread_queue {
     struct shim_thread_queue* next;
     struct shim_thread* thread;
+    /* We use this field to mark that this object is still in use (is on some queue). This is needed
+     * to distinquish spurious wake-ups from real ones. */
     bool in_use;
 };
 

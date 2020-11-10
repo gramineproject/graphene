@@ -413,7 +413,8 @@ reopen:
         goto out_fatal_error;
     }
 
-    lock(&cur_thread->lock);
+    /* We are the only thread running and IPC helper thread is blocked, so there is no need for
+     * locking `cur_thread` and `g_process` - we can safely pass them as arguments below. */
 
     void* stack          = cur_thread->stack;
     void* stack_top      = cur_thread->stack_top;
@@ -424,15 +425,12 @@ reopen:
     cur_thread->stack_top = NULL;
     cur_thread->frameptr  = NULL;
     cur_thread->shim_tcb  = NULL;
-    unlock(&cur_thread->lock);
 
     ret = close_cloexec_handle(cur_thread->handle_map);
     if (ret < 0) {
         goto out_fatal_error_resume_ipc;
     }
 
-    /* We are the only thread running and IPC helper thread is blocked, so there is no need for
-     * locking `g_process` and we can safely pass it as argument below. */
     struct shim_handle* old_exec = g_process.exec;
     g_process.exec = exec;
 

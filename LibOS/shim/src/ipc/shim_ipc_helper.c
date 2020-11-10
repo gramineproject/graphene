@@ -654,7 +654,7 @@ int pause_ipc_helper(void) {
     unlock(&ipc_helper_lock);
 
     if (needs_wait) {
-        /* Wait untill the helper thread notices the stop event. */
+        /* Wait until the helper thread notices the stop event. */
         return wait_event(&helper_stopped_event);
     }
 
