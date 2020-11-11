@@ -182,13 +182,12 @@ int shim_do_sigsuspend(const __sigset_t* mask) {
 
     thread_setwait(NULL, NULL);
 
-    if (__atomic_load_n(&cur->signal_handled, __ATOMIC_ACQUIRE) != SIGNAL_NOT_HANDLED) {
-        goto out;
+    /* `SA_RESTART` does not affect `sigsuspend`. */
+    while (__atomic_load_n(&cur->signal_handled, __ATOMIC_ACQUIRE) == SIGNAL_NOT_HANDLED) {
+        thread_sleep(NO_TIMEOUT);
+        handle_signals();
     }
 
-    thread_sleep(NO_TIMEOUT);
-
-out:
     lock(&cur->lock);
     set_sig_mask(cur, &old);
     unlock(&cur->lock);
