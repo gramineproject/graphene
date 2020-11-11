@@ -794,15 +794,16 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
      * instead extract info on total number of logical cores, number of physical cores,
      * SMT support etc. by parsing sysfs pseudo-files */
-    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
-    if (online_logical_cores < 0)
-        return online_logical_cores;
-    pal_sec->online_logical_cores = online_logical_cores;
+    int num_online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online",
+                                                   /*count=*/true);
+    if (num_online_logical_cores < 0)
+        return num_online_logical_cores;
+    pal_sec->num_online_logical_cores = num_online_logical_cores;
 
     int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
                                                  /*count=*/true);
     /* TODO: correctly support offline cores */
-    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
+    if (possible_logical_cores > 0 && possible_logical_cores > num_online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
@@ -820,12 +821,12 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     pal_sec->physical_cores_per_socket = core_siblings / smt_siblings;
 
     /* array of "logical core -> socket" mappings */
-    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
+    int* cpu_socket = (int*)malloc(num_online_logical_cores * sizeof(int));
     if (!cpu_socket)
         return -ENOMEM;
 
     char filename[128];
-    for (int idx = 0; idx < online_logical_cores; idx++) {
+    for (int idx = 0; idx < num_online_logical_cores; idx++) {
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);

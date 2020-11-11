@@ -62,7 +62,7 @@ int main(int argc, char** argv, char** envp) {
         (void*)&test_func < pal_control.executable_range.end)
         pal_printf("Executable Range OK\n");
 
-    pal_printf("CPU num: %ld\n", pal_control.cpu_info.online_logical_cores);
+    pal_printf("CPU num: %ld\n", pal_control.cpu_info.num_online_logical_cores);
     pal_printf("CPU vendor: %s\n", pal_control.cpu_info.cpu_vendor);
     pal_printf("CPU brand: %s\n", pal_control.cpu_info.cpu_brand);
     pal_printf("CPU family: %ld\n", pal_control.cpu_info.cpu_family);

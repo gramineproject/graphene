@@ -143,7 +143,7 @@ static int proc_cpuinfo_open(struct shim_handle* hdl, const char* name, int flag
         len += ret;                                                  \
     } while (0)
 
-    for (size_t n = 0; n < pal_control.cpu_info.online_logical_cores; n++) {
+    for (size_t n = 0; n < pal_control.cpu_info.num_online_logical_cores; n++) {
         /* Below strings must match exactly the strings retrieved from /proc/cpuinfo
          * (see Linux's arch/x86/kernel/cpu/proc.c) */
         ADD_INFO("processor\t: %lu\n", n);

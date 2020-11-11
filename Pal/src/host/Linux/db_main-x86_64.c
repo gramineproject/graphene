@@ -109,17 +109,17 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
      * instead extract info on total number of logical cores, number of physical cores,
      * SMT support etc. by parsing sysfs pseudo-files */
-    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
-    if (online_logical_cores < 0) {
-        rv = online_logical_cores;
+    int num_online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
+    if (num_online_logical_cores < 0) {
+        rv = num_online_logical_cores;
         goto out_brand;
     }
-    ci->online_logical_cores = online_logical_cores;
+    ci->num_online_logical_cores = num_online_logical_cores;
 
     int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
                                                  /*count=*/true);
     /* TODO: correctly support offline cores */
-    if (possible_logical_cores > 0 && possible_logical_cores > online_logical_cores) {
+    if (possible_logical_cores > 0 && possible_logical_cores > num_online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
@@ -140,14 +140,14 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     ci->physical_cores_per_socket = core_siblings / smt_siblings;
 
     /* array of "logical core -> socket" mappings */
-    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
+    int* cpu_socket = (int*)malloc(num_online_logical_cores * sizeof(int));
     if (!cpu_socket) {
         rv = -PAL_ERROR_NOMEM;
         goto out_brand;
     }
 
     char filename[128];
-    for (int idx = 0; idx < online_logical_cores; idx++) {
+    for (int idx = 0; idx < num_online_logical_cores; idx++) {
         snprintf(filename, sizeof(filename),
                  "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", idx);
         cpu_socket[idx] = get_hw_resource(filename, /*count=*/false);

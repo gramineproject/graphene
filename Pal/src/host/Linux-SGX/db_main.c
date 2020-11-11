@@ -279,11 +279,11 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.uid = sec_info.uid;
     g_pal_sec.gid = sec_info.gid;
 
-    int online_logical_cores = sec_info.online_logical_cores;
-    if (online_logical_cores >= 1 && online_logical_cores <= (1 << 16)) {
-        g_pal_sec.online_logical_cores = online_logical_cores;
+    int num_online_logical_cores = sec_info.num_online_logical_cores;
+    if (num_online_logical_cores >= 1 && num_online_logical_cores <= (1 << 16)) {
+        g_pal_sec.num_online_logical_cores = num_online_logical_cores;
     } else {
-        SGX_DBG(DBG_E, "Invalid sec_info.online_logical_cores: %d\n", online_logical_cores);
+        SGX_DBG(DBG_E, "Invalid sec_info.num_online_logical_cores: %d\n", num_online_logical_cores);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -340,14 +340,14 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
     /* Allocate enclave memory to store "logical core -> socket" mappings */
-    int* cpu_socket = (int*)malloc(online_logical_cores * sizeof(int));
+    int* cpu_socket = (int*)malloc(num_online_logical_cores * sizeof(int));
     if (!cpu_socket) {
         SGX_DBG(DBG_E, "Allocation for logical core -> socket mappings failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
-    if (!sgx_copy_to_enclave(cpu_socket, online_logical_cores * sizeof(int), sec_info.cpu_socket,
-                             online_logical_cores * sizeof(int))) {
+    if (!sgx_copy_to_enclave(cpu_socket, num_online_logical_cores * sizeof(int), sec_info.cpu_socket,
+                             num_online_logical_cores * sizeof(int))) {
         SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
