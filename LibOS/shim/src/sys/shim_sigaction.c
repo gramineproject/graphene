@@ -182,7 +182,11 @@ int shim_do_sigsuspend(const __sigset_t* mask) {
         goto out;
     }
 
+    cur->wakeup_after_sighandler_run = true;
+
     thread_sleep(NO_TIMEOUT);
+
+    cur->wakeup_after_sighandler_run = false;
 
 out:
     lock(&cur->lock);
@@ -270,7 +274,8 @@ static int _signal_one_thread(struct shim_thread* thread, void* _arg) {
              * needs to handle a signal. */
             arg->sent = false;
         } else {
-            thread_wakeup(thread);
+            if (!thread->wakeup_after_sighandler_run)
+                thread_wakeup(thread);
             DkThreadResume(thread->pal_handle);
         }
         ret = 1;

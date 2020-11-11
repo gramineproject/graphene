@@ -751,6 +751,9 @@ static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal) {
 
     if (signal->pal_context)
         ucontext_to_pal_context(signal->pal_context, &signal->context);
+
+    if (thread->wakeup_after_sighandler_run) /* deferred wakeup for sigsuspend */
+        thread_wakeup(thread);
 }
 
 void __handle_signals(shim_tcb_t* tcb) {

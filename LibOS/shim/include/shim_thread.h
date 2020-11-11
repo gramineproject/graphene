@@ -84,6 +84,7 @@ struct shim_thread {
      * `process_pending_signals_cnt`. */
     uint64_t pending_signals;
     bool signal_handled;
+    bool wakeup_after_sighandler_run;
     stack_t signal_altstack;
 
     /* futex robust list */
