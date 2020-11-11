@@ -92,17 +92,17 @@ static int __mount_root(struct shim_dentry** root) {
 
     if (root_config && get_config(root_config, "fs.root.type", type, sizeof(type)) > 0 &&
                        get_config(root_config, "fs.root.uri", uri, sizeof(uri)) > 0) {
-        debug("mounting root filesystem: %s from %s\n", type, uri);
+        debug("Mounting root as %s filesystem: from %s to /\n", type, uri);
         if ((ret = mount_fs(type, uri, "/", NULL, root, 0)) < 0) {
-            debug("mounting root filesystem failed (%d)\n", ret);
+            debug("Mounting root filesystem failed (%d)\n", ret);
             return ret;
         }
         return ret;
     }
 
-    debug("mounting default root filesystem\n");
+    debug("Mounting root as chroot filesystem: from file:. to /\n");
     if ((ret = mount_fs("chroot", URI_PREFIX_FILE, "/", NULL, root, 0)) < 0) {
-        debug("mounting root filesystem failed (%d)\n", ret);
+        debug("Mounting root filesystem failed (%d)\n", ret);
     }
     return ret;
 }
@@ -110,25 +110,22 @@ static int __mount_root(struct shim_dentry** root) {
 static int __mount_sys(struct shim_dentry* root) {
     int ret;
 
-    debug("mounting as proc filesystem: /proc\n");
-
+    debug("Mounting special proc filesystem: /proc\n");
     if ((ret = mount_fs("proc", NULL, "/proc", root, NULL, 0)) < 0) {
-        debug("mounting proc filesystem failed (%d)\n", ret);
+        debug("Mounting /proc filesystem failed (%d)\n", ret);
         return ret;
     }
 
-    debug("mounting as dev filesystem: /dev\n");
-
+    debug("Mounting special dev filesystem: /dev\n");
     struct shim_dentry* dev_dent = NULL;
     if ((ret = mount_fs("dev", NULL, "/dev", root, &dev_dent, 0)) < 0) {
-        debug("mounting dev filesystem failed (%d)\n", ret);
+        debug("Mounting dev filesystem failed (%d)\n", ret);
         return ret;
     }
 
-    debug("mounting as chroot filesystem: from dev:tty to /dev\n");
-
+    debug("Mounting terminal device /dev/tty under /dev\n");
     if ((ret = mount_fs("chroot", URI_PREFIX_DEV "tty", "/dev/tty", dev_dent, NULL, 0)) < 0) {
-        debug("mounting terminal device failed (%d)\n", ret);
+        debug("Mounting terminal device /dev/tty failed (%d)\n", ret);
         return ret;
     }
 
@@ -162,10 +159,10 @@ static int __mount_one_other(const char* key, int keylen) {
     if (get_config(root_config, k, u, sizeof(u)) > 0)
         uri = u;
 
-    debug("mounting as %s filesystem: from %s to %s\n", t, uri, p);
+    debug("Mounting as %s filesystem: from %s to %s\n", t, uri, p);
 
     if ((ret = mount_fs(t, uri, p, NULL, NULL, 1)) < 0) {
-        debug("mounting %s on %s (type=%s) failed (%d)\n", uri, p, t, -ret);
+        debug("Mounting %s on %s (type=%s) failed (%d)\n", uri, p, t, -ret);
         return ret;
     }
 
@@ -441,7 +438,12 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
         }
     }
 
-    assert(dent == dentry_root || !(dent->state & DENTRY_VALID));
+    if (dent != dentry_root && dent->state & DENTRY_VALID) {
+        debug("Mount %s already exists, verify that there are no duplicate mounts in manifest\n"
+              "(note that /proc and /dev are automatically mounted in Graphene).\n", mount_point);
+        ret = -EEXIST;
+        goto out_with_unlock;
+    }
 
     // We need to fix up the relative path to this mount, but only for
     // directories.
