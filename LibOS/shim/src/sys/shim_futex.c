@@ -39,7 +39,7 @@ struct futex_waiter {
     struct shim_thread* thread;
     uint32_t bitset;
     LIST_TYPE(futex_waiter) list;
-    /* futex field is guarded by g_futex_list_lock, do not use it without taking that lock first.
+    /* futex field is guarded by g_futex_tree_lock, do not use it without taking that lock first.
      * This is needed to ensure that a waiter knows what futex they were sleeping on, after they
      * wake-up (because they could have been requeued to another futex).*/
     struct shim_futex* futex;
@@ -50,10 +50,9 @@ DEFINE_LISTP(shim_futex);
 struct shim_futex {
     uint32_t* uaddr;
     LISTP_TYPE(futex_waiter) waiters;
-    LIST_TYPE(shim_futex) list;
     struct avl_tree_node tree_node;
     /* This lock guards every access to *uaddr (futex word value) and waiters (above).
-     * Always take g_futex_list_lock before taking this lock. */
+     * Always take g_futex_tree_lock before taking this lock. */
     spinlock_t lock;
     REFTYPE _ref_count;
 };
@@ -74,7 +73,7 @@ static bool cmp_addr_to_futex(void* addr, struct avl_tree_node* node) {
 
 static struct avl_tree g_futex_tree = { .cmp = futex_tree_cmp };
 
-static spinlock_t g_futex_list_lock = INIT_SPINLOCK_UNLOCKED;
+static spinlock_t g_futex_tree_lock = INIT_SPINLOCK_UNLOCKED;
 
 static void get_futex(struct shim_futex* futex) {
     REF_INC(futex->_ref_count);
@@ -156,11 +155,11 @@ static void unlock_two_futexes(struct shim_futex* futex1, struct shim_futex* fut
 /*
  * Adds `futex` to `g_futex_list`.
  *
- * `g_futex_list_lock` should be held while calling this function and you must ensure that nobody
+ * `g_futex_tree_lock` should be held while calling this function and you must ensure that nobody
  * is using `futex` (e.g. you have just created it).
  */
 static void enqueue_futex(struct shim_futex* futex) {
-    assert(spinlock_is_locked(&g_futex_list_lock));
+    assert(spinlock_is_locked(&g_futex_tree_lock));
 
     get_futex(futex);
     avl_tree_insert(&g_futex_tree, &futex->tree_node);
@@ -174,12 +173,12 @@ static void enqueue_futex(struct shim_futex* futex) {
 static bool check_dequeue_futex(struct shim_futex* futex) {
     assert(spinlock_is_locked(&futex->lock));
 
-    return LISTP_EMPTY(&futex->waiters) && !LIST_EMPTY(futex, list);
+    return LISTP_EMPTY(&futex->waiters) && avl_tree_next(&futex->tree_node);
 }
 
 static void _maybe_dequeue_futex(struct shim_futex* futex) {
     assert(spinlock_is_locked(&futex->lock));
-    assert(spinlock_is_locked(&g_futex_list_lock));
+    assert(spinlock_is_locked(&g_futex_tree_lock));
 
     if (check_dequeue_futex(futex)) {
         avl_tree_delete(&g_futex_tree, &futex->tree_node);
@@ -191,22 +190,22 @@ static void _maybe_dequeue_futex(struct shim_futex* futex) {
 /*
  * If `futex` has no waiters and is on `g_futex_list`, takes it off that list.
  *
- * Neither `g_futex_list_lock` nor `futex->lock` should be held while calling this,
+ * Neither `g_futex_tree_lock` nor `futex->lock` should be held while calling this,
  * it acquires these locks itself.
  */
 static void maybe_dequeue_futex(struct shim_futex* futex) {
-    spinlock_lock_signal_off(&g_futex_list_lock);
+    spinlock_lock_signal_off(&g_futex_tree_lock);
     spinlock_lock_signal_off(&futex->lock);
     _maybe_dequeue_futex(futex);
     spinlock_unlock_signal_on(&futex->lock);
-    spinlock_unlock_signal_on(&g_futex_list_lock);
+    spinlock_unlock_signal_on(&g_futex_tree_lock);
 }
 
 /*
  * Same as `maybe_dequeue_futex`, but works for two futexes, any of which might be NULL.
  */
 static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_futex* futex2) {
-    spinlock_lock_signal_off(&g_futex_list_lock);
+    spinlock_lock_signal_off(&g_futex_tree_lock);
     lock_two_futexes(futex1, futex2);
     if (futex1) {
         _maybe_dequeue_futex(futex1);
@@ -215,7 +214,7 @@ static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_fut
         _maybe_dequeue_futex(futex2);
     }
     unlock_two_futexes(futex1, futex2);
-    spinlock_unlock_signal_on(&g_futex_list_lock);
+    spinlock_unlock_signal_on(&g_futex_tree_lock);
 }
 
 /*
@@ -287,7 +286,6 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
 
     futex->uaddr = uaddr;
     INIT_LISTP(&futex->waiters);
-    INIT_LIST_HEAD(futex, list);
     spinlock_init(&futex->lock);
 
     return futex;
@@ -295,23 +293,20 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
 
 /*
  * Finds a futex in `g_futex_list`.
- * Must be called with `g_futex_list_lock` held.
+ * Must be called with `g_futex_tree_lock` held.
  * Increases refcount of futex by 1.
  */
-
 static struct shim_futex* find_futex(uint32_t* uaddr) {
-    assert(spinlock_is_locked(&g_futex_list_lock));
+    assert(spinlock_is_locked(&g_futex_tree_lock));
     struct shim_futex* futex = NULL;
     struct avl_tree_node* node = avl_tree_lower_bound_fn(&g_futex_tree, (void*)uaddr, cmp_addr_to_futex);
     if (!node) {
         return NULL;
     }
     futex = container_of(node, struct shim_futex, tree_node);
-    if (futex != NULL) {
-        if(futex->uaddr == uaddr){
-            get_futex(futex);
-            return futex;
-        }
+    if(futex->uaddr == uaddr){
+        get_futex(futex);
+        return futex;
     }
     return NULL;
 }
@@ -326,15 +321,15 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
     struct shim_thread* thread = NULL;
     struct shim_futex* tmp = NULL;
 
-    spinlock_lock_signal_off(&g_futex_list_lock);
+    spinlock_lock_signal_off(&g_futex_tree_lock);
     futex = find_futex(uaddr);
     if (!futex) {
-        spinlock_unlock_signal_on(&g_futex_list_lock);
+        spinlock_unlock_signal_on(&g_futex_tree_lock);
         tmp = create_new_futex(uaddr);
         if (!tmp) {
             return -ENOMEM;
         }
-        spinlock_lock_signal_off(&g_futex_list_lock);
+        spinlock_lock_signal_off(&g_futex_tree_lock);
         futex = find_futex(uaddr);
         if (!futex) {
             enqueue_futex(tmp);
@@ -343,7 +338,7 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
         }
     }
     spinlock_lock_signal_off(&futex->lock);
-    spinlock_unlock_signal_on(&g_futex_list_lock);
+    spinlock_unlock_signal_on(&g_futex_tree_lock);
 
     if (__atomic_load_n(uaddr, __ATOMIC_RELAXED) != val) {
         ret = -EAGAIN;
@@ -366,13 +361,13 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
         ret = -ETIMEDOUT;
     }
 
-    spinlock_lock_signal_off(&g_futex_list_lock);
+    spinlock_lock_signal_off(&g_futex_tree_lock);
     /* We might have been requeued. Grab the (possibly new) futex reference. */
     futex = waiter.futex;
     assert(futex);
     get_futex(futex);
     spinlock_lock_signal_off(&futex->lock);
-    spinlock_unlock_signal_on(&g_futex_list_lock);
+    spinlock_unlock_signal_on(&g_futex_tree_lock);
 
     if (!LIST_EMPTY(&waiter, list)) {
         /* If we woke up due to time out, we were not removed from the waiters list (opposite
@@ -386,7 +381,7 @@ static int futex_wait(uint32_t* uaddr, uint32_t val, uint64_t timeout, uint32_t 
     put_futex(waiter.futex);
 
 out_with_futex_lock:; // C is awesome!
-    /* Because dequeuing a futex requires `g_futex_list_lock` which we do not hold at this moment,
+    /* Because dequeuing a futex requires `g_futex_tree_lock` which we do not hold at this moment,
      * we check if we actually need to do it now (locks acquisition and dequeuing). */
     bool needs_dequeue = check_dequeue_futex(futex);
 
@@ -395,12 +390,15 @@ out_with_futex_lock:; // C is awesome!
     if (needs_dequeue) {
         maybe_dequeue_futex(futex);
     }
+    else {
+        put_futex(futex);
+    }
+
 
     if (thread) {
         put_thread(thread);
     }
 
-    put_futex(futex);
     if (tmp) {
         put_futex(tmp);
     }
@@ -454,14 +452,14 @@ static int futex_wake(uint32_t* uaddr, int to_wake, uint32_t bitset) {
         return -EINVAL;
     }
 
-    spinlock_lock_signal_off(&g_futex_list_lock);
+    spinlock_lock_signal_off(&g_futex_tree_lock);
     futex = find_futex(uaddr);
     if (!futex) {
-        spinlock_unlock_signal_on(&g_futex_list_lock);
+        spinlock_unlock_signal_on(&g_futex_tree_lock);
         return 0;
     }
     spinlock_lock_signal_off(&futex->lock);
-    spinlock_unlock_signal_on(&g_futex_list_lock);
+    spinlock_unlock_signal_on(&g_futex_tree_lock);
 
     woken = move_to_wake_queue(futex, bitset, to_wake, &queue);
 
@@ -472,10 +470,11 @@ static int futex_wake(uint32_t* uaddr, int to_wake, uint32_t bitset) {
     if (needs_dequeue) {
         maybe_dequeue_futex(futex);
     }
+    else {
+       put_futex(futex);
+    }
 
     wake_queue(&queue);
-
-    put_futex(futex);
 
     return woken;
 }
@@ -499,12 +498,12 @@ static int futex_wake_op(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake1, int t
     bool needs_dequeue1 = false;
     bool needs_dequeue2 = false;
 
-    spinlock_lock_signal_off(&g_futex_list_lock);
+    spinlock_lock_signal_off(&g_futex_tree_lock);
     futex1 = find_futex(uaddr1);
     futex2 = find_futex(uaddr2);
 
     lock_two_futexes(futex1, futex2);
-    spinlock_unlock_signal_on(&g_futex_list_lock);
+    spinlock_unlock_signal_on(&g_futex_tree_lock);
 
     unsigned int op = (val3 >> 28) & 0x7; // highest bit is for FUTEX_OP_OPARG_SHIFT
     unsigned int cmp = (val3 >> 24) & 0xf;
@@ -620,17 +619,17 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
         return -EINVAL;
     }
 
-    spinlock_lock_signal_off(&g_futex_list_lock);
+    spinlock_lock_signal_off(&g_futex_tree_lock);
     futex2 = find_futex(uaddr2);
     if (!futex2) {
-        spinlock_unlock_signal_on(&g_futex_list_lock);
+        spinlock_unlock_signal_on(&g_futex_tree_lock);
         tmp = create_new_futex(uaddr2);
         if (!tmp) {
             return -ENOMEM;
         }
         needs_dequeue2 = true;
 
-        spinlock_lock_signal_off(&g_futex_list_lock);
+        spinlock_lock_signal_off(&g_futex_tree_lock);
         futex2 = find_futex(uaddr2);
         if (!futex2) {
             enqueue_futex(tmp);
@@ -641,7 +640,7 @@ static int futex_requeue(uint32_t* uaddr1, uint32_t* uaddr2, int to_wake, int to
     futex1 = find_futex(uaddr1);
 
     lock_two_futexes(futex1, futex2);
-    spinlock_unlock_signal_on(&g_futex_list_lock);
+    spinlock_unlock_signal_on(&g_futex_tree_lock);
 
     if (val != NULL) {
         if (__atomic_load_n(uaddr1, __ATOMIC_RELAXED) != *val) {
