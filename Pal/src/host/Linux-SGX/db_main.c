@@ -401,8 +401,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
     g_pal_state.manifest_root = manifest_root;
 
-    ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size", /*defaultval=*/0,
-                             &g_pal_internal_mem_size);
+    ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",
+                             /*defaultval=*/0, &g_pal_internal_mem_size);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Cannot parse \'loader.pal_internal_mem_size\' "
                        "(the value must be put in double quotes!)\n");

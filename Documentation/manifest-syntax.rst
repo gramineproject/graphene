@@ -28,7 +28,7 @@ Debug type
 
 ::
 
-    loader.debug_type="[none|inline]"
+    loader.debug_type = "[none|inline]"
     (Default: "none")
 
 This specifies the debug option while running the library OS. If the debug type
@@ -41,7 +41,7 @@ Preloaded libraries
 
 ::
 
-   loader.preload="[URI][,URI]..."
+   loader.preload = "[URI][,URI]..."
 
 This syntax specifies the libraries to be preloaded before loading the
 executable. The URIs of the libraries must be separated by commas. The libraries
@@ -52,7 +52,7 @@ Command-line arguments
 
 ::
 
-   loader.argv0_override="[STRING]"
+   loader.argv0_override = "[STRING]"
 
 This syntax specifies an arbitrary string (typically the executable name) that
 will be passed as the first argument (``argv[0]``) to the executable.
@@ -100,7 +100,7 @@ both of the following options:
 
 ::
 
-   loader.env.[ENVIRON]="[VALUE]"
+   loader.env.[ENVIRON] = "[VALUE]"
    loader.env_src_file = "file:file_with_serialized_envs"
 
 ``loader.env.[ENVIRON]`` adds/overwrites a single environment variable and can
@@ -123,7 +123,7 @@ Disabling ASLR
 
 ::
 
-    loader.insecure__disable_aslr=[1|0]
+    loader.insecure__disable_aslr = [1|0]
     (Default: 0)
 
 This specifies whether to disable Address Space Layout Randomization (ASLR).
@@ -135,7 +135,7 @@ Graphene internal metadata size
 
 ::
 
-    loader.pal_internal_mem_size="[SIZE]"
+    loader.pal_internal_mem_size = "[SIZE]"
     (default: "0")
 
 This syntax specifies how much additional memory Graphene reserves for its
@@ -154,7 +154,7 @@ Stack size
 
 ::
 
-    sys.stack.size="[SIZE]"
+    sys.stack.size = "[SIZE]"
     (default: "256K")
 
 This specifies the stack size of each thread in each Graphene process. The
@@ -168,7 +168,7 @@ Program break (brk) size
 
 ::
 
-    sys.brk.max_size="[SIZE]"
+    sys.brk.max_size = "[SIZE]"
     (default: "256K")
 
 This specifies the maximal program break (brk) size in each Graphene process.
@@ -182,7 +182,7 @@ Allowing eventfd
 
 ::
 
-    sys.insecure__allow_eventfd=[1|0]
+    sys.insecure__allow_eventfd = [1|0]
     (Default: 0)
 
 This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
@@ -194,9 +194,9 @@ FS mount points
 
 ::
 
-    fs.mount.[identifier].path="[PATH]"
-    fs.mount.[identifier].type="[chroot|...]"
-    fs.mount.[identifier].uri="[URI]"
+    fs.mount.[identifier].type = "[chroot|...]"
+    fs.mount.[identifier].path = "[PATH]"
+    fs.mount.[identifier].uri  = "[URI]"
 
 This syntax specifies how file systems are mounted inside the library OS. For
 dynamically linked binaries, usually at least one mount point is required in the
@@ -214,7 +214,7 @@ Debug/production enclave
 
 ::
 
-    sgx.debug=[1|0]
+    sgx.debug = [1|0]
     (Default: 1)
 
 This syntax specifies whether the enclave can be debugged. Set it to ``1`` for
@@ -225,7 +225,7 @@ Enclave size
 
 ::
 
-    sgx.enclave_size="[SIZE]"
+    sgx.enclave_size = "[SIZE]"
     (default: "256M")
 
 This syntax specifies the size of the enclave set during enclave creation time
@@ -239,7 +239,7 @@ Number of threads
 
 ::
 
-    sgx.thread_num=[NUM]
+    sgx.thread_num = [NUM]
     (Default: 4)
 
 This syntax specifies the maximum number of threads that can be created inside
@@ -253,7 +253,7 @@ Number of RPC threads (Exitless feature)
 
 ::
 
-    sgx.rpc_thread_num=[NUM]
+    sgx.rpc_thread_num = [NUM]
     (Default: 0)
 
 This syntax specifies the number of RPC threads that are created outside of
@@ -282,9 +282,9 @@ Optional CPU features (AVX, AVX512, MPX)
 
 ::
 
-    sgx.require_avx=[1|0]
-    sgx.require_avx512=[1|0]
-    sgx.require_mpx=[1|0]
+    sgx.require_avx    = [1|0]
+    sgx.require_avx512 = [1|0]
+    sgx.require_mpx    = [1|0]
     (Default: 0)
 
 This syntax ensures that the CPU features are available and enabled for the
@@ -298,8 +298,8 @@ ISV Product ID and SVN
 
 ::
 
-    sgx.isvprodid=[NUM]
-    sgx.isnsvn=[NUM]
+    sgx.isvprodid = [NUM]
+    sgx.isnsvn    = [NUM]
     (Default: 0)
 
 This syntax specifies the ISV Product ID and SVN to be added to the enclave
@@ -310,7 +310,7 @@ Allowed files
 
 ::
 
-    sgx.allowed_files.[identifier]="[URI]"
+    sgx.allowed_files.[identifier] = "[URI]"
 
 This syntax specifies the files that are allowed to be loaded into the enclave
 unconditionally. These files are not cryptographically hashed and are thus not
@@ -323,7 +323,7 @@ Trusted files
 
 ::
 
-    sgx.trusted_files.[identifier]="[URI]"
+    sgx.trusted_files.[identifier] = "[URI]"
 
 This syntax specifies the files to be cryptographically hashed, and thus allowed
 to be loaded into the enclave. The signer tool will automatically generate
@@ -337,8 +337,8 @@ Protected files
 
 ::
 
-    sgx.protected_files_key="[16-byte hex value]"
-    sgx.protected_files.[identifier]="[URI]"
+    sgx.protected_files_key = "[16-byte hex value]"
+    sgx.protected_files.[identifier] = "[URI]"
 
 This syntax specifies the files that are encrypted on disk and transparently
 decrypted when accessed by Graphene or by application running inside Graphene.
@@ -363,7 +363,7 @@ File check policy
 
 ::
 
-    sgx.file_check_policy="[strict|allow_all_but_log]"
+    sgx.file_check_policy = "[strict|allow_all_but_log]"
     (Default: "strict")
 
 This syntax specifies the file check policy, determining the behavior of
@@ -379,7 +379,7 @@ Trusted child processes
 
 ::
 
-    sgx.trusted_children.[identifier]="[URI of signature (.sig)]"
+    sgx.trusted_children.[identifier] = "[URI of signature file (.sig)]"
 
 This syntax specifies the signatures of allowed child processes of the current
 application. Upon process creation, the enclave in the current (parent) process
@@ -392,11 +392,11 @@ Attestation and quotes
 
 ::
 
-    sgx.remote_attestation=[1|0]
+    sgx.remote_attestation = [1|0]
     (Default: 0)
-    sgx.ra_client_linkable=[1|0]
-    (Default: 0)
-    sgx.ra_client_spid="[HEX]"
+
+    sgx.ra_client_linkable = [1|0]
+    sgx.ra_client_spid     = "[HEX]"
 
 This syntax specifies the parameters for remote attestation. To enable it,
 ``remote_attestation`` must be set to ``1``.
@@ -414,7 +414,7 @@ Enabling per-thread and process-wide SGX stats
 
 ::
 
-    sgx.enable_stats=[1|0]
+    sgx.enable_stats = [1|0]
     (Default: 0)
 
 This syntax specifies whether to enable SGX enclave-specific statistics:

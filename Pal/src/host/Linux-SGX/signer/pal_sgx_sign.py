@@ -40,7 +40,7 @@ def rounddown(addr):
 
 
 def parse_size(value):
-    if not value.startswith('"') or not value.endswith('"'):
+    if len(value) < 2 or not value.startswith('"') or not value.endswith('"'):
         raise Exception('Cannot parse size `' + value + '` (must be put in double quotes).')
     value = value[1:-1]
 
@@ -195,7 +195,7 @@ def get_enclave_attributes(manifest):
 # Generate Checksums / Measurement
 
 def resolve_uri(uri, check_exist=True):
-    if uri.startswith('"') and uri.endswith('"'):
+    if len(uri) > 1 and uri.startswith('"') and uri.endswith('"'):
         uri = uri[1:-1]
 
     orig_uri = uri
@@ -210,7 +210,7 @@ def resolve_uri(uri, check_exist=True):
 
 # Resolve an URI relative to manifest file to its absolute path
 def resolve_manifest_uri(manifest_path, uri):
-    if not uri.startswith('"') or not uri.endswith('"'):
+    if len(uri) < 2 or not uri.startswith('"') or not uri.endswith('"'):
         raise Exception('Cannot parse uri `' + uri + '` (must be put in double quotes).')
     uri = uri[1:-1]
 
@@ -237,7 +237,7 @@ def get_trusted_files(manifest, args, check_exist=True, do_checksum=True):
 
     if 'loader.preload' in manifest:
         preload_str = manifest['loader.preload']
-        if not preload_str.startswith('"') or not preload_str.endswith('"'):
+        if len(preload_str) < 2 or not preload_str.startswith('"') or not preload_str.endswith('"'):
             raise Exception('Cannot parse loader.preload (value must be put in double quotes).')
         preload_str = preload_str[1:-1]
 

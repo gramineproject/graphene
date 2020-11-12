@@ -160,14 +160,16 @@ TOML_H_CHECKSUM ?= e79d6d272576561e1b46ee001b0dd6b554330843e6fc7c658a548c659f282
 TOML_C_URI ?= https://raw.githubusercontent.com/cktan/tomlc99/5be06807ad5f2230cad99e15380c4f4076c9dd83/toml.c
 TOML_C_CHECKSUM ?= c21a546ab767a7e40d4f65df179d70357059c15e4439e1980d791625655fbbc6
 
-toml.c:
-	../../Scripts/download --output toml.c --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
-	../../Scripts/download --output toml.h --url $(TOML_H_URI) --sha256 $(TOML_H_CHECKSUM)
+toml.h:
+	../../Scripts/download --output $@ --url $(TOML_H_URI) --sha256 $(TOML_H_CHECKSUM)
 
-toml.patched: toml.c
+toml.c:
+	../../Scripts/download --output $@ --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
+
+toml.patched: toml.h toml.c
 	patch -p1 -l < toml.patch || exit 255
-	mv toml.h ../include/lib/toml.h
-	touch toml.patched
+	cp toml.h ../include/lib/toml.h
+	touch $@
 
 .PHONY: clean
 clean:

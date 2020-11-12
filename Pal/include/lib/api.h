@@ -259,10 +259,10 @@ int64_t parse_size_str(const char* str);
 /*!
  * \brief Find an integer key-value in TOML manifest.
  *
- * \param root      Root table of the TOML manifest.
- * \param key       Dotted key (e.g. "loader.insecure__use_cmdline_argv").
- * \param defaulval `retval` is set to this value if not found in the manifest.
- * \param retval    Pointer to output integer.
+ * \param root       Root table of the TOML manifest.
+ * \param key        Dotted key (e.g. "loader.insecure__use_cmdline_argv").
+ * \param defaultval `retval` is set to this value if not found in the manifest.
+ * \param retval     Pointer to output integer.
  *
  * Returns 0 if there were no errors (but value may have not been found in manifest and was set to
  * default one) or -1 if there were errors during conversion to int.
@@ -284,10 +284,10 @@ int toml_string_in(const toml_table_t* root, const char* key, char** retval);
 /*!
  * \brief Find a "size" string key-value in TOML manifest (parsed via `parse_size_str()`).
  *
- * \param root      Root table of the TOML manifest.
- * \param key       Dotted key (e.g. "sys.stack.size").
- * \param defaulval `retval` is set to this value if not found in the manifest.
- * \param retval    Pointer to output integer.
+ * \param root       Root table of the TOML manifest.
+ * \param key        Dotted key (e.g. "sys.stack.size").
+ * \param defaultval `retval` is set to this value if not found in the manifest.
+ * \param retval     Pointer to output integer.
  *
  * Returns 0 if there were no errors (but value may have not been found in manifest and was set to
  * default one) or -1 if there were errors during conversion to "size" string.

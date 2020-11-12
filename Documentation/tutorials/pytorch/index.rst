@@ -200,7 +200,7 @@ replace standard C libraries with Graphene-patched libraries::
 
    fs.mount.lib.type = "chroot"
    fs.mount.lib.path = "/lib"
-   fs.mount.lib.uri = "file:$(GRAPHENEDIR)/Runtime/"
+   fs.mount.lib.uri  = "file:$(GRAPHENEDIR)/Runtime/"
 
 We also mount other directories such as ``/usr``,  ``/etc``, and ``/tmp``
 required by Python and PyTorch (they search for libraries and utility files in
@@ -210,7 +210,7 @@ Finally, we mount the path containing the Python packages installed via pip::
 
    fs.mount.pip.type = "chroot"
    fs.mount.pip.path = "$(HOME)/.local/lib"
-   fs.mount.pip.uri = "file:$(HOME)/.local/lib"
+   fs.mount.pip.uri  = "file:$(HOME)/.local/lib"
 
 Now we can run ``make`` to build/copy all required Graphene files::
 
@@ -252,7 +252,7 @@ Below, we will highlight some of the SGX-specific manifest options in
 
 First, here are the following SGX-specific lines in the manifest template::
 
-   sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
+   sgx.trusted_files.ld   = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
    sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
    ...
 

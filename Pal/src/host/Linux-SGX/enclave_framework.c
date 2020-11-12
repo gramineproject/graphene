@@ -950,7 +950,8 @@ int init_file_check_policy(void) {
     int ret;
 
     char* file_check_policy_str = NULL;
-    ret = toml_string_in(g_pal_state.manifest_root, "sgx.file_check_policy", &file_check_policy_str);
+    ret = toml_string_in(g_pal_state.manifest_root, "sgx.file_check_policy",
+                         &file_check_policy_str);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Cannot parse \'sgx.file_check_policy\' "
                        "(the value must be put in double quotes!)\n");

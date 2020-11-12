@@ -35,7 +35,6 @@ static toml_raw_t toml_raw_in_dottedkey(const toml_table_t* root, const char* _k
         if (!cur_table)
             goto out;
 
-        *subkey_end = '.';
         subkey = subkey_end + 1;
         subkey_end = find_next_dot(subkey);
     }
