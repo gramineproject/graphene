@@ -169,7 +169,7 @@ int init_important_handles(void) {
         put_handle(stdout_hdl);
     }
 
-    /* initialize stderr as dup of stdout */
+    /* initialize stderr as duplicate of stdout */
     if (!HANDLE_ALLOCATED(handle_map->map[2])) {
         struct shim_handle* stdout_hdl = handle_map->map[1]->handle;
         __set_new_fd_handle(&handle_map->map[2], /*fd=*/2, stdout_hdl, /*flags=*/0);

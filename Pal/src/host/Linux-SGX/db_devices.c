@@ -18,11 +18,8 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     __UNUSED(create);
     __UNUSED(options);
 
-    if (strcmp(type, URI_TYPE_DEV))
-        return -PAL_ERROR_INVAL;
-
     /* currently support only "dev:tty" device which is the standard input + standard output */
-    if (strcmp(uri, "tty"))
+    if (strcmp(type, URI_TYPE_DEV) || strcmp(uri, "tty"))
         return -PAL_ERROR_INVAL;
 
     /* "dev:tty" device can only be opened either for read (stdin) or for write (stdout) */
@@ -53,11 +50,8 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
 }
 
 static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buffer) {
-    if (offset)
+    if (offset || !IS_HANDLE_TYPE(handle, dev))
         return -PAL_ERROR_INVAL;
-
-    if (!IS_HANDLE_TYPE(handle, dev))
-        return -PAL_ERROR_NOTCONNECTION;
 
     if (!(HANDLE_HDR(handle)->flags & RFD(0)))
         return -PAL_ERROR_DENIED;
@@ -67,11 +61,8 @@ static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void*
 }
 
 static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
-    if (offset)
+    if (offset || !IS_HANDLE_TYPE(handle, dev))
         return -PAL_ERROR_INVAL;
-
-    if (!IS_HANDLE_TYPE(handle, dev))
-        return -PAL_ERROR_NOTCONNECTION;
 
     if (!(HANDLE_HDR(handle)->flags & WFD(0)))
         return -PAL_ERROR_DENIED;
@@ -82,20 +73,19 @@ static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, cons
 
 static int dev_close(PAL_HANDLE handle) {
     if (!IS_HANDLE_TYPE(handle, dev))
-        return -PAL_ERROR_NOTCONNECTION;
+        return -PAL_ERROR_INVAL;
 
+    int ret = 0;
     if (handle->dev.fd != PAL_IDX_POISON) {
-        int ret = ocall_close(handle->dev.fd);
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
+        ret = ocall_close(handle->dev.fd);
         handle->dev.fd = PAL_IDX_POISON;
     }
-    return 0;
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
 static int dev_flush(PAL_HANDLE handle) {
     if (!IS_HANDLE_TYPE(handle, dev))
-        return -PAL_ERROR_NOTCONNECTION;
+        return -PAL_ERROR_INVAL;
 
     if (handle->dev.fd != PAL_IDX_POISON) {
         int ret = ocall_fsync(handle->dev.fd);
@@ -108,11 +98,8 @@ static int dev_flush(PAL_HANDLE handle) {
 static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
     __UNUSED(uri);
 
-    if (strcmp(type, URI_TYPE_DEV))
-        return -PAL_ERROR_NOTCONNECTION;
-
     /* currently support only "dev:tty" device which is the standard input + standard output */
-    if (strcmp(uri, "tty"))
+    if (strcmp(type, URI_TYPE_DEV) || strcmp(uri, "tty"))
         return -PAL_ERROR_INVAL;
 
     attr->handle_type  = pal_type_dev;
@@ -125,7 +112,7 @@ static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* att
 
 static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (!IS_HANDLE_TYPE(handle, dev))
-        return -PAL_ERROR_NOTCONNECTION;
+        return -PAL_ERROR_INVAL;
 
     attr->handle_type  = pal_type_dev;
     attr->readable     = HANDLE_HDR(handle)->flags & RFD(0);
