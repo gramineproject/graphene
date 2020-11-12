@@ -163,7 +163,8 @@ static int __mount_one_other(const char* key, int keylen) {
 
     if (!strcmp(p, "/")) {
         debug("Root mount / already exists, verify that there are no duplicate mounts in manifest\n"
-              "(note that root / is automatically mounted in Graphene).\n");
+              "(note that root / is automatically mounted in Graphene and can be changed via "
+              "\'fs.root\' manifest entry).\n");
         return -EEXIST;
     }
 
