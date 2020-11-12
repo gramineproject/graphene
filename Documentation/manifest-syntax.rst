@@ -185,6 +185,19 @@ This specifies whether to allow system calls `eventfd()` and `eventfd2()`. Since
 eventfd emulation currently relies on the host, these system calls are
 disallowed by default due to security concerns.
 
+Root FS mount point
+^^^^^^^^^^^^^^^^^^^
+
+::
+
+    fs.root.[identifier].type = [chroot|...]
+    fs.root.[identifier].path = [PATH]
+    fs.root.[identifier].uri  = [URI]
+
+This syntax specifies the root file system to be mounted inside the library OS.
+If not specified, then Graphene mounts the current working directory as the
+root. There can be only one root FS mount point specified in the manifest.
+
 FS mount points
 ^^^^^^^^^^^^^^^
 
@@ -197,6 +210,16 @@ FS mount points
 This syntax specifies how file systems are mounted inside the library OS. For
 dynamically linked binaries, usually at least one mount point is required in the
 manifest (the mount point of the Glibc library).
+
+Start (current working) directory
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    fs.start_dir = [URI]
+
+This syntax specifies the start (current working) directory. If not specified,
+then Graphene sets the root directory as the start directory (see ``fs.root``).
 
 
 SGX syntax
