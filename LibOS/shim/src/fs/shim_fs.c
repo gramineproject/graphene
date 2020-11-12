@@ -161,6 +161,12 @@ static int __mount_one_other(const char* key, int keylen) {
 
     debug("Mounting as %s filesystem: from %s to %s\n", t, uri, p);
 
+    if (!strcmp(p, "/")) {
+        debug("Root mount / already exists, verify that there are no duplicate mounts in manifest\n"
+              "(note that root / is automatically mounted in Graphene).\n");
+        return -EEXIST;
+    }
+
     if ((ret = mount_fs(t, uri, p, NULL, NULL, 1)) < 0) {
         debug("Mounting %s on %s (type=%s) failed (%d)\n", uri, p, t, -ret);
         return ret;
