@@ -27,49 +27,51 @@ DEVICES_VOLUMES = --device=/dev/${INTEL_SGX_DEVICE} ${ADDITIONAL_DEVICES} ${ADDI
 .PHONY: all
 all: $(KEY_FILE)
 	for d in $(DISTRIBUTIONS); do \
-		echo "Distro: \"$${d}\"" > config-$${d}.yaml; \
-		echo "Graphene:" >> config-$${d}.yaml; \
-		echo "    Repository: \"$(GRAPHENE_REPO)\"" >> config-$${d}.yaml; \
-		echo "    Branch:     \"$(GRAPHENE_BRANCH)\"" >> config-$${d}.yaml; \
-		echo "SGXDriver:" >> config-$${d}.yaml; \
-		echo "    Repository: \"$(SGXDRIVER_REPO)\"" >> config-$${d}.yaml; \
-		echo "    Branch:     \"$(SGXDRIVER_BRANCH)\"" >> config-$${d}.yaml; \
 		$(MAKE) $(addprefix gsc-$${d}-, $(TESTCASES)) || exit 1; \
 	done
+
+config-%.yaml: ../config.yaml.template
+	echo "Distro: \"$${d}\"" > config-$${d}.yaml
+	echo "Graphene:" >> config-$${d}.yaml
+	echo "    Repository: \"$(GRAPHENE_REPO)\"" >> config-$${d}.yaml
+	echo "    Branch:     \"$(GRAPHENE_BRANCH)\"" >> config-$${d}.yaml
+	echo "SGXDriver:" >> config-$${d}.yaml
+	echo "    Repository: \"$(SGXDRIVER_REPO)\"" >> config-$${d}.yaml
+	echo "    Branch:     \"$(SGXDRIVER_BRANCH)\"" >> config-$${d}.yaml;
 
 $(KEY_FILE):
 	openssl genrsa -3 -out $(KEY_FILE) 3072
 
 .PRECIOUS: gsc-%-bash
-gsc-%-bash: %-bash
+gsc-%-bash: %-bash config-%.yaml
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) test/bash.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-python3
-gsc-%-python3: %-python3 %-python3.manifest
+gsc-%-python3: %-python3 %-python3.manifest config-%.yaml
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) test/$*-python3.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-python3-trusted-args
-gsc-%-python3-trusted-args: %-python3-trusted-args %-python3.manifest
+gsc-%-python3-trusted-args: %-python3-trusted-args %-python3.manifest config-%.yaml
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -c test/config-$*.yaml -L $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3-trusted-args) test/$*-python3.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-python3-trusted-args) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-pytorch
-gsc-%-pytorch: %-pytorch %-pytorch.manifest
+gsc-%-pytorch: %-pytorch %-pytorch.manifest config-%.yaml
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) test/$*-pytorch.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-base-python3
-gsc-%-base-python3: graphene-% %-base-python3
+gsc-%-base-python3: graphene-% %-base-python3 config-%.yaml
 	printf "Distro: \"$*\"\nGraphene:\n   Image: \"graphene-$*$(IMAGE_SUFFIX)\"\n" > config-image-$*.yaml
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -c test/config-image-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-base-python3) test/$*-python3.manifest
@@ -77,14 +79,14 @@ gsc-%-base-python3: graphene-% %-base-python3
 	touch $@
 
 .PRECIOUS: gsc-%
-gsc-%: %
+gsc-%: % config-%.yaml
 	echo "Building graphenized image $@..."
 	cd .. && ./gsc build -c test/config-$(firstword $(subst -, ,$*)).yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*) test/$(*:gsc-%=%).manifest
 	cd .. && ./gsc sign-image -c test/config-$(firstword $(subst -, ,$*)).yaml $(addsuffix $(IMAGE_SUFFIX), $*) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: graphene-%
-graphene-%:
+graphene-%: config-%.yaml
 	echo "Building Graphene image $@..."
 	cd .. && ./gsc build-graphene -c test/config-$*.yaml -L $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $@)
 	touch $@
@@ -189,6 +191,12 @@ test-12-%: gsc-%-pytorch
 	docker run $(addprefix -e , $(ENV_VARS)) $(DEVICES_VOLUMES) -v$${PWD}/result.txt:/graphene/Examples/result.txt $(addsuffix $(IMAGE_SUFFIX), gsc-$*-pytorch) pytorchexample.py
 	grep -q "('Labrador retriever'" result.txt
 	$(RM) results.txt
+
+.PHONY: test-info-image-%
+test-info-image-%: gsc-%-python3
+	../gsc info-image $< > sig.txt
+	grep -q "mr_enclave" sig.txt
+	$(RM) sig.txt
 
 .PHONY: clean-image-%
 clean-image-%:
