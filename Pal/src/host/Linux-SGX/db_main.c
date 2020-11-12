@@ -280,19 +280,45 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.gid = sec_info.gid;
 
     int num_online_logical_cores = sec_info.num_online_logical_cores;
-    if (num_online_logical_cores >= 1 && num_online_logical_cores <= (1 << 16)) {
-        g_pal_sec.num_online_logical_cores = num_online_logical_cores;
-    } else {
+    if (num_online_logical_cores < 1 || num_online_logical_cores >= (1 << 16)) {
         SGX_DBG(DBG_E, "Invalid sec_info.num_online_logical_cores: %d\n", num_online_logical_cores);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
+    g_pal_sec.num_online_logical_cores = num_online_logical_cores;
+    COPY_ARRAY(g_pal_sec.topo_info.online_logical_cores, sec_info.topo_info.online_logical_cores);
 
-    if (sec_info.physical_cores_per_socket <= 0) {
+    int num_possible_logical_cores = sec_info.num_possible_logical_cores;
+    if (num_possible_logical_cores < 1 || num_possible_logical_cores >= (1 << 16)) {
+        SGX_DBG(DBG_E, "Invalid sec_info.num_possible_logical_cores: %d\n",
+                num_possible_logical_cores);
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    g_pal_sec.num_possible_logical_cores = num_possible_logical_cores;
+    COPY_ARRAY(g_pal_sec.topo_info.possible_logical_cores,
+               sec_info.topo_info.possible_logical_cores);
+
+    if (sec_info.physical_cores_per_socket < 1 || sec_info.physical_cores_per_socket >= (1 << 13)) {
         SGX_DBG(DBG_E, "Invalid sec_info.physical_cores_per_socket: %ld\n",
                 sec_info.physical_cores_per_socket);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.physical_cores_per_socket = sec_info.physical_cores_per_socket;
+
+    int num_online_nodes = sec_info.topo_info.num_online_nodes;
+    if (num_online_nodes < 1 || num_online_nodes >= (1 << 8)) {
+        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_online_nodes: %ld\n",
+                sec_info.topo_info.num_online_nodes);
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    g_pal_sec.topo_info.num_online_nodes = sec_info.topo_info.num_online_nodes;
+    COPY_ARRAY(g_pal_sec.topo_info.online_nodes, sec_info.topo_info.online_nodes);
+
+    if (sec_info.topo_info.num_cache_index < 1 || sec_info.topo_info.num_cache_index >= (1 << 4)) {
+        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_cache_index: %ld\n",
+                sec_info.topo_info.num_cache_index);
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    g_pal_sec.topo_info.num_cache_index = sec_info.topo_info.num_cache_index;
 
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);
@@ -352,6 +378,38 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.cpu_socket = cpu_socket;
+
+    /* Allocate enclave memory to store core topology info */
+    PAL_CORE_TOPO_INFO* core_topology = (PAL_CORE_TOPO_INFO*)malloc(num_online_logical_cores *
+                                                                    sizeof(PAL_CORE_TOPO_INFO));
+    if (!core_topology) {
+        SGX_DBG(DBG_E, "Allocation for core topology failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+
+    if (!sgx_copy_to_enclave(core_topology, num_online_logical_cores * sizeof(PAL_CORE_TOPO_INFO),
+                             sec_info.topo_info.core_topology,
+                             num_online_logical_cores * sizeof(PAL_CORE_TOPO_INFO))) {
+        SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    g_pal_sec.topo_info.core_topology = core_topology;
+
+    /* Allocate enclave memory to store numa topology info */
+    PAL_NUMA_TOPO_INFO* numa_topology = (PAL_NUMA_TOPO_INFO*)malloc(num_online_nodes *
+                                                                    sizeof(PAL_NUMA_TOPO_INFO));
+    if (!numa_topology) {
+        SGX_DBG(DBG_E, "Allocation for numa topology failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+
+    if (!sgx_copy_to_enclave(numa_topology, num_online_nodes * sizeof(PAL_NUMA_TOPO_INFO),
+                             sec_info.topo_info.numa_topology,
+                             num_online_nodes * sizeof(PAL_NUMA_TOPO_INFO))) {
+        SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    g_pal_sec.topo_info.numa_topology = numa_topology;
 
     /* initialize master key (used for pipes' encryption for all enclaves of an application); it
      * will be overwritten below in init_child_process() with inherited-from-parent master key if

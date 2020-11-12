@@ -109,17 +109,24 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
      * instead extract info on total number of logical cores, number of physical cores,
      * SMT support etc. by parsing sysfs pseudo-files */
-    int num_online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
+    int num_online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online",
+                                                   /*count=*/true);
     if (num_online_logical_cores < 0) {
         rv = num_online_logical_cores;
         goto out_brand;
     }
     ci->num_online_logical_cores = num_online_logical_cores;
 
-    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
+    int num_possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
                                                  /*count=*/true);
+    if (num_possible_logical_cores < 0) {
+        rv = num_possible_logical_cores;
+        goto out_brand;
+    }
+    ci->num_possible_logical_cores = num_possible_logical_cores;
+
     /* TODO: correctly support offline cores */
-    if (possible_logical_cores > 0 && possible_logical_cores > num_online_logical_cores) {
+    if (num_possible_logical_cores > 0 && num_possible_logical_cores > num_online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
@@ -217,6 +224,20 @@ out_brand:
 out_vendor_id:
     free(vendor_id);
     return rv;
+}
+
+int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
+    /* Get CPU topology information */
+    int ret = get_core_topo_info(topo_info);
+    if (ret < 0)
+        return ret;
+
+    /* Get NUMA topology information */
+    ret = get_numa_topo_info(topo_info);
+    if (ret < 0)
+        return ret;
+
+    return 0;
 }
 
 #if USE_ARCH_RDRAND == 1

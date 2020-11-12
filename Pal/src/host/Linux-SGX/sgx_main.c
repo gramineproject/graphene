@@ -765,6 +765,242 @@ static int get_hw_resource(const char* filename, bool count) {
     return retval;
 }
 
+/* Reads up to count bytes from the file into the buf passed.
+ * Returns 0 or number of bytes read on success and UNIX error code on failure */
+static int read_file_buffer(const char* filename, char* buf, size_t count) {
+    int fd = INLINE_SYSCALL(open, 2, filename, O_RDONLY);
+    if (IS_ERR(fd))
+        return -ERRNO(fd);
+
+    int ret = INLINE_SYSCALL(read, 3, fd, buf, count);
+    INLINE_SYSCALL(close, 1, fd);
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
+
+    return ret;
+}
+
+static int get_num_cache_level(const char* path) {
+    char buf[1024];
+    int bpos;
+    int nread;
+    int num_dirs = 0;
+    struct linux_dirent64* dirent64;
+
+    int fd = INLINE_SYSCALL(open, 2, path, O_RDONLY | O_DIRECTORY);
+    if (IS_ERR(fd))
+        return -ERRNO(fd);
+
+    while (1) {
+        nread = INLINE_SYSCALL(getdents64, 3, fd, buf, 1024);
+        if (IS_ERR(nread))
+            return -ERRNO(nread);
+
+        if (nread == 0)
+            break;
+
+        for (bpos = 0; bpos < nread;) {
+            dirent64 = (struct linux_dirent64*)(buf + bpos);
+            if (dirent64->d_type == DT_DIR && strncmp (dirent64->d_name, "index", 5) == 0)
+                num_dirs++;
+            bpos += dirent64->d_reclen;
+        }
+    }
+
+    INLINE_SYSCALL(close, 1, fd);
+    if (num_dirs)
+        return num_dirs;
+
+    return -ENOENT;
+}
+
+/*Get Core topology related info*/
+static int get_core_topo_info(struct pal_sec* pal_sec) {
+    int ret = read_file_buffer("/sys/devices/system/cpu/online",
+                           pal_sec->topo_info.online_logical_cores, PAL_SYSFS_BUF_FILESZ);
+    if (ret < 0)
+        return ret;
+    pal_sec->topo_info.online_logical_cores[ret] = '\0';
+
+    ret = read_file_buffer("/sys/devices/system/cpu/possible",
+                           pal_sec->topo_info.possible_logical_cores, PAL_SYSFS_BUF_FILESZ);
+    if (ret < 0)
+        return ret;
+    pal_sec->topo_info.possible_logical_cores[ret] = '\0';
+
+    int num_cache_lvl = get_num_cache_level("/sys/devices/system/cpu/cpu0/cache");
+    if (num_cache_lvl < 0)
+        return num_cache_lvl;
+    pal_sec->topo_info.num_cache_index = num_cache_lvl;
+    PAL_CORE_CACHE_INFO* core_cache;
+
+    int num_online_logical_cores = pal_sec->num_online_logical_cores;
+    PAL_CORE_TOPO_INFO* core_topology = (PAL_CORE_TOPO_INFO*)malloc(num_online_logical_cores *
+                                                                    sizeof(PAL_CORE_TOPO_INFO));
+    if (!core_topology)
+        return -ENOMEM;
+
+    char filename[128];
+    for (int idx = 0; idx < num_online_logical_cores; idx++) {
+        /* cpu0 is always online and so this file is not present */
+        if (idx != 0) {
+            snprintf(filename, sizeof(filename), "/sys/devices/system/cpu/cpu%d/online", idx);
+            ret = read_file_buffer(filename, core_topology[idx].is_logical_core_online,
+                                   PAL_SYSFS_INT_FILESZ);
+            if (ret < 0)
+                goto out_topology;
+            core_topology[idx].is_logical_core_online[ret] = '\0';
+        }
+
+        snprintf(filename, sizeof(filename), "/sys/devices/system/cpu/cpu%d/topology/core_id", idx);
+        ret = read_file_buffer(filename, core_topology[idx].core_id, PAL_SYSFS_INT_FILESZ);
+        if (ret < 0)
+            goto out_topology;
+        core_topology[idx].core_id[ret] = '\0';
+
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/cpu/cpu%d/topology/core_siblings", idx);
+        ret = read_file_buffer(filename, core_topology[idx].core_siblings, PAL_SYSFS_MAP_FILESZ);
+        if (ret < 0)
+            goto out_topology;
+        core_topology[idx].core_siblings[ret] = '\0';
+
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", idx);
+        ret = read_file_buffer(filename, core_topology[idx].thread_siblings, PAL_SYSFS_MAP_FILESZ);
+        if (ret < 0)
+            goto out_topology;
+        core_topology[idx].thread_siblings[ret] = '\0';
+
+        core_cache = (PAL_CORE_CACHE_INFO*)malloc(num_cache_lvl * sizeof(PAL_CORE_CACHE_INFO));
+        if (!core_cache) {
+            ret = -ENOMEM;
+            goto out_topology;
+        }
+
+        for (int lvl = 0; lvl < num_cache_lvl; lvl++) {
+            snprintf(filename, sizeof(filename),
+                     "/sys/devices/system/cpu/cpu%d/cache/index%d/shared_cpu_map", idx, lvl);
+            ret = read_file_buffer(filename, core_cache[lvl].shared_cpu_map, PAL_SYSFS_MAP_FILESZ);
+            if (ret < 0)
+                goto out_cache;
+            core_cache[lvl].shared_cpu_map[ret] = '\0';
+
+            snprintf(filename, sizeof(filename),
+                     "/sys/devices/system/cpu/cpu%d/cache/index%d/level", idx, lvl);
+            ret = read_file_buffer(filename, core_cache[lvl].level, PAL_SYSFS_INT_FILESZ);
+            if (ret < 0)
+                goto out_cache;
+            core_cache[lvl].level[ret] = '\0';
+
+            snprintf(filename, sizeof(filename),
+                     "/sys/devices/system/cpu/cpu%d/cache/index%d/type", idx, lvl);
+            ret = read_file_buffer(filename, core_cache[lvl].type, PAL_SYSFS_BUF_FILESZ);
+            if (ret < 0)
+                goto out_cache;
+            core_cache[lvl].type[ret] = '\0';
+
+            snprintf(filename, sizeof(filename),
+                     "/sys/devices/system/cpu/cpu%d/cache/index%d/size", idx, lvl);
+            ret = read_file_buffer(filename, core_cache[lvl].size, PAL_SYSFS_BUF_FILESZ);
+            if (ret < 0)
+                goto out_cache;
+            core_cache[lvl].size[ret] = '\0';
+
+            snprintf(filename, sizeof(filename),
+                     "/sys/devices/system/cpu/cpu%d/cache/index%d/coherency_line_size", idx, lvl);
+            ret = read_file_buffer(filename, core_cache[lvl].coherency_line_size,
+                                   PAL_SYSFS_INT_FILESZ);
+            if (ret < 0)
+                goto out_cache;
+            core_cache[lvl].coherency_line_size[ret] = '\0';
+
+            snprintf(filename, sizeof(filename),
+                     "/sys/devices/system/cpu/cpu%d/cache/index%d/number_of_sets", idx, lvl);
+            ret = read_file_buffer(filename, core_cache[lvl].number_of_sets, PAL_SYSFS_INT_FILESZ);
+            if (ret < 0)
+                goto out_cache;
+            core_cache[lvl].number_of_sets[ret] = '\0';
+
+            snprintf(filename, sizeof(filename),
+                     "/sys/devices/system/cpu/cpu%d/cache/index%d/physical_line_partition", idx,
+                     lvl);
+            ret = read_file_buffer(filename, core_cache[lvl].physical_line_partition,
+                                   PAL_SYSFS_INT_FILESZ);
+            if (ret < 0)
+                goto out_cache;
+            core_cache[lvl].physical_line_partition[ret] = '\0';
+        }
+        core_topology[idx].cache = core_cache;
+    }
+    pal_sec->topo_info.core_topology = core_topology;
+    return 0;
+
+out_cache:
+    free(core_cache);
+out_topology:
+    free(core_topology);
+    return ret;
+}
+
+/*Get Numa topology related info*/
+static int get_numa_topo_info(struct pal_sec* pal_sec) {
+    int ret = read_file_buffer("/sys/devices/system/node/online", pal_sec->topo_info.online_nodes,
+                               PAL_SYSFS_BUF_FILESZ);
+    if (ret < 0)
+        return ret;
+    pal_sec->topo_info.online_nodes[ret] = '\0';
+
+    int num_nodes = get_hw_resource("/sys/devices/system/node/online", /*count=*/true);
+    if (num_nodes < 0)
+        return num_nodes;
+    pal_sec->topo_info.num_online_nodes = num_nodes;
+
+    PAL_NUMA_TOPO_INFO* numa_topology = (PAL_NUMA_TOPO_INFO*)malloc(num_nodes *
+                                                                    sizeof(PAL_NUMA_TOPO_INFO));
+    if (!numa_topology)
+        return -ENOMEM;
+
+    char filename[128];
+    for (int idx = 0; idx < num_nodes; idx++) {
+        snprintf(filename, sizeof(filename), "/sys/devices/system/node/node%d/cpumap", idx);
+        ret = read_file_buffer(filename, numa_topology[idx].cpumap, PAL_SYSFS_MAP_FILESZ);
+        if (ret < 0)
+            goto out_topology;
+        numa_topology[idx].cpumap[ret] = '\0';
+
+        snprintf(filename, sizeof(filename), "/sys/devices/system/node/node%d/distance", idx);
+        ret = read_file_buffer(filename, numa_topology[idx].distance, PAL_SYSFS_INT_FILESZ);
+        if (ret < 0)
+            goto out_topology;
+        numa_topology[idx].distance[ret] = '\0';
+
+        /* Collect hugepages info*/
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/node/node%d/hugepages/hugepages-2048kB/nr_hugepages", idx);
+        ret = read_file_buffer(filename, numa_topology[idx].hugepages[HUGEPAGES_2M].nr_hugepages,
+                               PAL_SYSFS_INT_FILESZ);
+        if (ret < 0)
+            goto out_topology;
+        numa_topology[idx].hugepages[HUGEPAGES_2M].nr_hugepages[ret] = '\0';
+
+        snprintf(filename, sizeof(filename),
+                 "/sys/devices/system/node/node%d/hugepages/hugepages-1048576kB/nr_hugepages", idx);
+        ret = read_file_buffer(filename, numa_topology[idx].hugepages[HUGEPAGES_1G].nr_hugepages,
+                               PAL_SYSFS_INT_FILESZ);
+        if (ret < 0)
+            goto out_topology;
+        numa_topology[idx].hugepages[HUGEPAGES_1G].nr_hugepages[ret] = '\0';
+
+    }
+    pal_sec->topo_info.numa_topology = numa_topology;
+    return 0;
+
+out_topology:
+    free(numa_topology);
+    return ret;
+}
+
 /* Warning: This function does not free up resources on failure - it assumes that the whole process
  * exits after this function's failure. */
 static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_path,
@@ -800,10 +1036,14 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         return num_online_logical_cores;
     pal_sec->num_online_logical_cores = num_online_logical_cores;
 
-    int possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
-                                                 /*count=*/true);
+    int num_possible_logical_cores = get_hw_resource("/sys/devices/system/cpu/possible",
+                                                     /*count=*/true);
+    if (num_possible_logical_cores < 0)
+        return num_possible_logical_cores;
+    pal_sec->num_possible_logical_cores = num_possible_logical_cores;
+
     /* TODO: correctly support offline cores */
-    if (possible_logical_cores > 0 && possible_logical_cores > num_online_logical_cores) {
+    if (num_possible_logical_cores > 0 && num_possible_logical_cores > num_online_logical_cores) {
          printf("Warning: some CPUs seem to be offline; Graphene doesn't take this into account "
                 "which may lead to subpar performance\n");
     }
@@ -838,6 +1078,15 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
         }
     }
     pal_sec->cpu_socket = cpu_socket;
+
+    ret = get_core_topo_info(pal_sec);
+    if (ret < 0)
+        return ret;
+
+    /* Get NUMA topology information */
+    ret = get_numa_topo_info(pal_sec);
+    if (ret < 0)
+        return ret;
 
 #ifdef DEBUG
     size_t env_i = 0;
