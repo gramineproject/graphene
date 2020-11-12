@@ -16,7 +16,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-typedef bool (*child_cmp_t)(struct shim_child_process*, unsigned long);
+typedef bool (*child_cmp_t)(const struct shim_child_process*, unsigned long);
 
 struct shim_process g_process = { .pid = 0 };
 
@@ -97,12 +97,12 @@ void add_child_process(struct shim_child_process* child) {
     unlock(&g_process.children_lock);
 }
 
-static bool cmp_child_by_vmid(struct shim_child_process* child, unsigned long arg) {
+static bool cmp_child_by_vmid(const struct shim_child_process* child, unsigned long arg) {
     IDTYPE vmid = (IDTYPE)arg;
     return child->vmid == vmid;
 }
 
-static bool cmp_child_by_pid(struct shim_child_process* child, unsigned long arg) {
+static bool cmp_child_by_pid(const struct shim_child_process* child, unsigned long arg) {
     IDTYPE pid = (IDTYPE)arg;
     return child->pid == pid;
 }
@@ -199,9 +199,9 @@ BEGIN_CP_FUNC(process_description) {
     }
 
     size_t off = ADD_CP_OFFSET(sizeof(struct shim_process) + sizeof(children_count)
-                               + children_count * sizeof(struct shim_child_process)
+                               + children_count * sizeof(*child)
                                + sizeof(zombies_count)
-                               + zombies_count * sizeof(struct shim_child_process));
+                               + zombies_count * sizeof(*zombie));
     struct shim_process* new_process = (struct shim_process*)(base + off);
 
     memset(new_process, '\0', sizeof(*new_process));

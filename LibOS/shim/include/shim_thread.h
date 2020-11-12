@@ -81,7 +81,8 @@ struct shim_thread {
     uint64_t pending_signals;
 
     /*
-     * This field is used for checking whether we handled a signal during blocking parts in LibOS
+     * This field is used for checking whether we handled a signal (e.g. if we want to sleep and
+     * make some decision after wakeup based on whether we handled a signal, see `sigsuspend`)
      * and can have following values:
      * - `SIGNAL_NOT_HANDLED` - usually initialized to this - no signals were handled,
      * - `SIGNAL_HANDLED` - at least one signal was handled,
@@ -115,7 +116,7 @@ struct shim_thread_queue {
     struct shim_thread_queue* next;
     struct shim_thread* thread;
     /* We use this field to mark that this object is still in use (is on some queue). This is needed
-     * to distinquish spurious wake-ups from real ones. */
+     * to distinguish spurious wake-ups from real ones. */
     bool in_use;
 };
 

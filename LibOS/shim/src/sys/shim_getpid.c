@@ -15,6 +15,7 @@ pid_t shim_do_getpid(void) {
 }
 
 pid_t shim_do_gettid(void) {
+    /* `tid` is constant, no need to take a lock. */
     return get_cur_thread()->tid;
 }
 
@@ -24,7 +25,9 @@ pid_t shim_do_getppid(void) {
 
 int shim_do_set_tid_address(int* tidptr) {
     struct shim_thread* cur = get_cur_thread();
-    cur->clear_child_tid    = tidptr;
+    lock(&cur->lock);
+    cur->clear_child_tid = tidptr;
+    unlock(&cur->lock);
     return cur->tid;
 }
 
