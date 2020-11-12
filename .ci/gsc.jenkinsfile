@@ -35,6 +35,8 @@ pipeline {
                     # Test use of base Graphene Image
                     make test MAXTESTNUM=2 TESTCASES='python3' \
                               DISTRIBUTIONS='ubuntu18.04-base' IMAGE_SUFFIX=-${COMMIT}
+                    # Test info image command
+                    make test-info-image-ubuntu18.04
                 '''
             }
         }
