@@ -6,14 +6,17 @@
 
 import argparse
 import json
+import hashlib
 import os
 import pathlib
 import shutil
+import struct
 import sys
-
-import jinja2
+import tempfile
 
 import docker  # pylint: disable=import-error
+import jinja2
+import toml    # pylint: disable=import-error
 import yaml    # pylint: disable=import-error
 
 def gsc_image_name(original_image_name):
@@ -291,11 +294,70 @@ def gsc_sign_image(args):
           f'`{unsigned_image_name}`.')
 
 
+# Simplified version of read_sigstruct from python/graphenelibos/sgx_get_token.py
+def read_sigstruct(sig):
+    # Offsets for fields in SIGSTRUCT (defined by the SGX HW architecture, they never change)
+    SGX_ARCH_ENCLAVE_CSS_DATE = 20
+    SGX_ARCH_ENCLAVE_CSS_MODULUS = 128
+    SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH = 960
+    SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID = 1024
+    SGX_ARCH_ENCLAVE_CSS_ISV_SVN = 1026
+    # Field format: (offset, type, value)
+    fields = {
+        'date': (SGX_ARCH_ENCLAVE_CSS_DATE, '<HBB', 'year', 'month', 'day'),
+        'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, '384s', 'modulus'),
+        'enclave_hash': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, '32s', 'enclave_hash'),
+        'isv_prod_id': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, '<H', 'isv_prod_id'),
+        'isv_svn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, '<H', 'isv_svn'),
+    }
+    attr = {}
+    for field in fields.values():
+        values = struct.unpack_from(field[1], sig, field[0])
+        for i, value in enumerate(values):
+            attr[field[i + 2]] = value
+
+    return attr
+
+# Retrieve information about a previously built graphenized Docker image
+def gsc_info_image(args):
+    docker_socket = docker.from_env()
+    gsc_image = get_docker_image(docker_socket, args.image)
+    if gsc_image is None:
+        print(f'Could not find graphenized Docker image {args.image}.\n'
+              'Please make sure to build the graphenized image first by using \'gsc build\''
+              ' command.')
+        sys.exit(1)
+
+    # Create temporary directory on the host for sigstruct file
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Copy sigstruct file from Docker container into temporary directory on the host
+        docker_socket.containers.run(args.image, '\'cp entrypoint.sig /tmp/host/ 2>/dev/null || :\'',
+                                 entrypoint=['sh', '-c'], remove=True,
+                                 volumes={tmpdirname: {'bind': '/tmp/host', 'mode': 'rw'}})
+        sigstruct = {}
+        with open(os.path.join(tmpdirname, "entrypoint.sig"), 'rb') as sig:
+            attr = read_sigstruct(sig.read())
+            # calculate MRSIGNER as sha256 hash over RSA public key's modulus
+            mrsigner = hashlib.sha256()
+            mrsigner.update(attr['modulus'])
+            sigstruct['mr_enclave'] = attr['enclave_hash'].hex()
+            sigstruct['mr_signer'] = mrsigner.digest().hex()
+            sigstruct['isv_prod_id'] = attr['isv_prod_id']
+            sigstruct['isv_svn'] = attr['isv_svn']
+            sigstruct['date'] = '%d-%02d-%02d' % (attr['year'], attr['month'], attr['day'])
+
+        if len(sigstruct) == 0:
+            print(f'Could not extract Intel SGX-related information from image {args.image}.')
+            sys.exit(1)
+
+        print(toml.dumps(sigstruct))
+
+
 argparser = argparse.ArgumentParser()
 subcommands = argparser.add_subparsers(metavar='<command>')
 subcommands.required = True
 
-sub_build = subcommands.add_parser('build', help="Build graphenized Docker image")
+sub_build = subcommands.add_parser('build', help='Build graphenized Docker image')
 sub_build.set_defaults(command=gsc_build)
 sub_build.add_argument('-d', '--debug', action='store_true',
     help='Compile Graphene with debug flags and output.')
@@ -316,7 +378,7 @@ sub_build.add_argument('image', help='Name of the application Docker image.')
 sub_build.add_argument('manifest', help='Manifest file to use.')
 
 sub_build_graphene = subcommands.add_parser('build-graphene',
-    help="Build base-Graphene Docker image")
+    help='Build base-Graphene Docker image')
 sub_build_graphene.set_defaults(command=gsc_build_graphene)
 sub_build_graphene.add_argument('-d', '--debug', action='store_true',
     help='Compile Graphene with debug flags and output.')
@@ -336,12 +398,17 @@ sub_build_graphene.add_argument('-f', '--file-only', action='store_true',
 sub_build_graphene.add_argument('image',
     help='Name of the output base-Graphene Docker image.')
 
-sub_sign = subcommands.add_parser('sign-image', help="Sign graphenized Docker image")
+sub_sign = subcommands.add_parser('sign-image', help='Sign graphenized Docker image')
 sub_sign.set_defaults(command=gsc_sign_image)
 sub_sign.add_argument('-c', '--config_file', type=argparse.FileType('r', encoding='UTF-8'),
     default='config.yaml', help='Specify configuration file.')
 sub_sign.add_argument('image', help='Name of the application (base) Docker image.')
 sub_sign.add_argument('key', help='Key to sign the Intel SGX enclaves inside the Docker image.')
+
+sub_info = subcommands.add_parser('info-image', help='Retrieve information about a graphenized '
+                                  'Docker image')
+sub_info.set_defaults(command=gsc_info_image)
+sub_info.add_argument('image', help='Name of the graphenized Docker image.')
 
 def main(args):
     args = argparser.parse_args()
