@@ -224,6 +224,20 @@ Synopsis:
    Name of the resulting Graphene Docker image
 
 
+:command:`gsc info-image` -- retrieve information about graphenized Docker image
+--------------------------------------------------------------------------------
+
+Retrieves Intel SGX relevant infomration about the graphenized Docker image such
+as the ``MRENCLAVE`` and ``MRSIGNER`` for each application in the Docker image.
+
+Synopsis:
+
+:command:`gsc info-image` <*IMAGE-NAME*>
+
+.. option:: IMAGE-NAME
+
+   Name of the graphenized Docker image
+
 Using Graphene's trusted command line arguments
 -----------------------------------------------
 
