@@ -48,6 +48,7 @@ DkDebugDetachBinary
 DkAttestationReport
 DkAttestationQuote
 DkSetProtectedFilesKey
+DkDebugLog
 pal_printf
 pal_control_addr
 pal_strerror

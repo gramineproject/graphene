@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
 
@@ -10,13 +11,25 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 
-PAL_HANDLE debug_handle = NULL;
+bool g_debug_log_enabled = false;
 
-static inline int debug_fputs(const char* buf, int len) {
-    if (DkStreamWrite(debug_handle, 0, len, (void*)buf, NULL) == (PAL_NUM)len)
-        return 0;
-    else
-        return -1;
+static inline int debug_fputs(const char* buf, size_t size) {
+    size_t bytes = 0;
+
+    while (bytes < size) {
+        PAL_NUM x = DkDebugLog((void*)(buf + bytes), size - bytes);
+        if (x == PAL_STREAM_ERROR) {
+            int err = PAL_ERRNO();
+            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+                continue;
+            }
+            return -err;
+        }
+
+        bytes += x;
+    }
+
+    return 0;
 }
 
 static int debug_fputch(void* f, int ch, void* b) {
@@ -98,7 +111,7 @@ void debug_printf(const char* fmt, ...) {
 }
 
 void debug_setprefix(shim_tcb_t* tcb) {
-    if (!debug_handle)
+    if (!g_debug_log_enabled)
         return;
 
     struct debug_buf* buf = tcb->debug_buf;

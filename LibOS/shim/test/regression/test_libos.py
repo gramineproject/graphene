@@ -230,6 +230,30 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('FE_TOWARDZERO  child: 42.5 = 42.0, -42.5 = -42.0', stdout)
         self.assertIn('FE_TOWARDZERO parent: 42.5 = 42.0, -42.5 = -42.0', stdout)
 
+    def test_700_debug_log_inline(self):
+        manifest = self.get_manifest('debug_log_inline')
+        stdout, _ = self.run_binary([manifest])
+        self._verify_debug_log(stdout)
+
+    def test_701_debug_log_file(self):
+        log_path = 'tmp/debug_log_file.log'
+        if os.path.exists(log_path):
+            os.remove(log_path)
+
+        manifest = self.get_manifest('debug_log_file')
+        self.run_binary([manifest])
+
+        with open(log_path) as log_file:
+            log = log_file.read()
+
+        self._verify_debug_log(log)
+
+    def _verify_debug_log(self, log: str):
+        self.assertIn('Host:', log)
+        self.assertIn('Shim process initialized', log)
+        self.assertIn('--- shim_exit_group', log)
+
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

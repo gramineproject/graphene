@@ -482,10 +482,6 @@ static inline int is_pointer_or_long(const char* type) {
     do {                 \
         debug_putch(ch); \
     } while (0)
-#define VPRINTF(fmt, ap)        \
-    do {                        \
-        debug_vprintf(fmt, ap); \
-    } while (0)
 
 struct flag_table {
     const char *name;
@@ -556,15 +552,8 @@ static inline void skip_syscall_args(va_list* ap) {
         va_arg(*ap, int);
 }
 
-void sysparser_printf(const char* fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    VPRINTF(fmt, ap);
-    va_end(ap);
-}
-
 void parse_syscall_before(int sysno, const char* name, int nr, ...) {
-    if (!debug_handle)
+    if (!g_debug_log_enabled)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
@@ -600,7 +589,7 @@ dotdotdot:
 }
 
 void parse_syscall_after(int sysno, const char* name, int nr, ...) {
-    if (!debug_handle)
+    if (!g_debug_log_enabled)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];

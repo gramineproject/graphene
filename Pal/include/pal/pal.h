@@ -134,7 +134,7 @@ typedef struct PAL_CONTROL_ {
     PAL_STR executable;         /*!< executable name */
     PAL_HANDLE parent_process;  /*!< handle of parent process */
     PAL_HANDLE first_thread;    /*!< handle of first thread */
-    PAL_HANDLE debug_stream;    /*!< debug stream */
+    PAL_BOL enable_debug_log;   /*!< enable debug log calls */
 
     /*
      * Memory layout
@@ -361,6 +361,9 @@ PAL_NUM DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR b
  *
  * If the handle is a file, `offset` must be specified at each call of DkStreamWrite. `dest` can be
  * used to specify the remote socket address if the handle is a UDP socket.
+ *
+ * \return number of bytes written if succeeded, PAL_STREAM_ERROR on failure (in which case
+ *  PAL_ERRNO() is set)
  */
 PAL_NUM DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer,
                       PAL_STR dest);
@@ -677,6 +680,17 @@ void DkObjectClose(PAL_HANDLE objectHandle);
 /*
  * MISC
  */
+
+/*!
+ * \brief Output a message to the debug stream.
+ *
+ * Works only if the debug stream has been initialized, which can be checked by looking at
+ * `g_pal_control.enable_debug_log`.
+ *
+ * \return number of bytes written if succeeded, PAL_STREAM_ERROR on failure (in which case
+ *  PAL_ERRNO() is set)
+ */
+PAL_NUM DkDebugLog(PAL_PTR buffer, PAL_NUM size);
 
 /*!
  * \brief Get the current time

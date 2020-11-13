@@ -421,7 +421,7 @@ fail:
 extern PAL_HANDLE thread_start_event;
 
 noreturn void* shim_init(int argc, void* args) {
-    debug_handle = PAL_CB(debug_stream);
+    g_debug_log_enabled = PAL_CB(enable_debug_log);
     g_process_ipc_info.vmid = (IDTYPE)PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */

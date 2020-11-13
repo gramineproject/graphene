@@ -13,8 +13,6 @@
 
 struct shim_handle;
 
-void sysparser_printf(const char* fmt, ...);
-
 /* quick hash function based on Robert Jenkins' hash algorithm */
 static inline uint64_t hash64(uint64_t key) {
     key = (~key) + (key << 21);

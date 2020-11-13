@@ -28,13 +28,16 @@ Debug type
 
 ::
 
-    loader.debug_type = "[none|inline]"
+    loader.debug_type = "[none|inline|file]"
     (Default: "none")
+
+    loader.debug_file = "[PATH]"
 
 This specifies the debug option while running the library OS. If the debug type
 is ``none``, no debug output will be printed to standard output. If the debug
 type is ``inline``, a dmesg-like debug output will be printed inline with
-standard output.
+standard output. If the debug type is ``file``, debug output will be written to
+the file specified in ``loader.debug_file``.
 
 Preloaded libraries
 ^^^^^^^^^^^^^^^^^^^

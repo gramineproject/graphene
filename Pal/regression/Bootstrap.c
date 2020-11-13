@@ -38,7 +38,7 @@ int main(int argc, char** argv, char** envp) {
 
     /* test debug stream */
     char* msg = "Written to Debug Stream\n";
-    DkStreamWrite(pal_control.debug_stream, 0, strlen(msg), msg, NULL);
+    DkDebugLog(msg, strlen(msg));
 
     /* Allocation Alignment */
     pal_printf("Allocation Alignment: %ld\n", pal_control.alloc_align);
