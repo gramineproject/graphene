@@ -53,19 +53,9 @@ int init_process(void) {
     }
     g_process.root = dent;
 
-    char dir_cfg[CONFIG_MAX];
-    if (root_config && get_config(root_config, "fs.start_dir", dir_cfg, sizeof(dir_cfg)) > 0) {
-        dent = NULL;
-        ret = path_lookupat(NULL, dir_cfg, 0, &dent, NULL);
-        if (ret < 0) {
-            debug("Invalid \"fs.start_dir\" in manifest.\n");
-            return ret;
-        }
-        g_process.cwd = dent;
-    } else {
-        get_dentry(g_process.root);
-        g_process.cwd = g_process.root;
-    }
+    /* Temporarily set `cwd` to `root`. It will be updated if necessary in `init_mount`. */
+    get_dentry(g_process.root);
+    g_process.cwd = g_process.root;
 
     /* `g_process.exec` will be initialized later on (in `init_important_handles`). */
     g_process.exec = NULL;

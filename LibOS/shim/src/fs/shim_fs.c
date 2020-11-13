@@ -7,6 +7,7 @@
 
 #include <linux/fcntl.h>
 
+#include "api.h"
 #include "list.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -15,6 +16,7 @@
 #include "shim_fs.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_utils.h"
 
 struct shim_fs {
@@ -234,6 +236,22 @@ int init_mount(void) {
 
     if ((ret = __mount_others()) < 0)
         return ret;
+
+
+    char dir_cfg[CONFIG_MAX];
+    if (root_config && get_config(root_config, "fs.start_dir", dir_cfg, sizeof(dir_cfg)) > 0) {
+        struct shim_dentry* dent = NULL;
+        ret = path_lookupat(NULL, dir_cfg, 0, &dent, NULL);
+        if (ret < 0) {
+            debug("Invalid \"fs.start_dir\" in manifest.\n");
+            return ret;
+        }
+        lock(&g_process.fs_lock);
+        put_dentry(g_process.cwd);
+        g_process.cwd = dent;
+        unlock(&g_process.fs_lock);
+    }
+    /* Otherwise `cwd` is already initialized.. */
 
     return 0;
 }
