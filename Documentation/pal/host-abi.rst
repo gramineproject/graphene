@@ -370,6 +370,9 @@ cryptographically-strong random bits, flush portions of instruction caches,
 increment and decrement the reference counts on objects shared between threads,
 and to obtain an attestation report and quote.
 
+.. doxygenfunction:: DkDebugLog
+   :project: pal
+
 .. doxygenfunction:: DkSystemTimeQuery
    :project: pal
 

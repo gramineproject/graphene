@@ -33,6 +33,8 @@ typedef __kernel_pid_t pid_t;
 #define DUMMYPAYLOAD     "dummypayload"
 #define DUMMYPAYLOADSIZE (sizeof(DUMMYPAYLOAD))
 
+static int g_debug_fd = -1;
+
 struct hdl_header {
     uint8_t fds;       /* bitmask of host file descriptors corresponding to PAL handle */
     size_t  data_size; /* total size of serialized PAL handle */
@@ -396,4 +398,21 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     *cargo = handle;
     return 0;
+}
+
+int _DkInitDebugStream(const char* path) {
+    int ret = ocall_open(path, O_WRONLY | O_APPEND | O_CREAT, 0600);
+    if (ret < 0)
+        return unix_to_pal_error(ERRNO(ret));
+    g_debug_fd = ret;
+    return 0;
+}
+
+ssize_t _DkDebugLog(const void* buf, size_t size) {
+    if (g_debug_fd < 0)
+        return -PAL_ERROR_BADHANDLE;
+
+    ssize_t ret = ocall_write(g_debug_fd, buf, size);
+    ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret;
 }

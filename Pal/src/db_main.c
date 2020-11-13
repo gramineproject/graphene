@@ -170,19 +170,21 @@ static void set_debug_type(void) {
     if (!debug_type)
         return;
 
-    PAL_HANDLE handle = NULL;
+    bool enable_debug_log = false;
 
     if (!strcmp(debug_type, "inline")) {
-        ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_WRONLY, 0, 0, 0);
+        // TODO: use /dev/stderr instead?
+        ret = _DkInitDebugStream("/dev/stdout");
+        enable_debug_log = true;
     } else if (!strcmp(debug_type, "file")) {
         char* debug_file = NULL;
         ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_file", &debug_file);
         if (ret < 0 || !debug_file)
             INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot find/parse \'loader.debug_file\'");
 
-        ret = _DkStreamOpen(&handle, debug_file, PAL_ACCESS_WRONLY, PAL_SHARE_OWNER_W,
-                            PAL_CREATE_TRY, 0);
+        ret = _DkInitDebugStream(debug_file);
         free(debug_file);
+        enable_debug_log = true;
     } else if (!strcmp(debug_type, "none")) {
         ret = 0;
     } else {
@@ -195,7 +197,7 @@ static void set_debug_type(void) {
     if (ret < 0)
         INIT_FAIL(-ret, "Cannot open debug stream");
 
-    g_pal_control.debug_stream = handle;
+    g_pal_control.enable_debug_log = enable_debug_log;
 }
 
 /* Loads a file containing a concatenation of C-strings. The resulting array of pointers is

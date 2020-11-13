@@ -16,6 +16,8 @@
 /bootstrap_static
 /cpuid
 /debug
+/debug_log_file
+/debug_log_inline
 /debug_regs-x86_64
 /dev
 /env_from_file

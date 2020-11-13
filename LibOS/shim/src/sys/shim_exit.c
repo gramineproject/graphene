@@ -214,8 +214,7 @@ noreturn int shim_do_exit_group(int error_code) {
 
     error_code &= 0xFF;
 
-    if (debug_handle)
-        sysparser_printf("---- shim_exit_group (returning %d)\n", error_code);
+    debug("---- shim_exit_group (returning %d)\n", error_code);
 
     process_exit(error_code, 0);
 }
@@ -225,8 +224,7 @@ noreturn int shim_do_exit(int error_code) {
 
     error_code &= 0xFF;
 
-    if (debug_handle)
-        sysparser_printf("---- shim_exit (returning %d)\n", error_code);
+    debug("---- shim_exit (returning %d)\n", error_code);
 
     thread_exit(error_code, 0);
 }
