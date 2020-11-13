@@ -28,7 +28,7 @@ Debug type
 
 ::
 
-    loader.debug_type = "[none|inline]"
+    loader.debug_type = "[none|inline|file]"
     (Default: "none")
 
     loader.debug_file = "[PATH]"
