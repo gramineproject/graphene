@@ -288,7 +288,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         /* Preemption is disabled and we are copying our own tcb, which should be ok to do,
          * even without any locks. Note this is a shallow copy, so `shim_tcb.context.regs` will be
          * shared with the parent. */
-        memcpy(&shim_tcb, self->shim_tcb, sizeof(shim_tcb));
+        shim_tcb = *self->shim_tcb;
         __shim_tcb_init(&shim_tcb);
         shim_tcb.tp = NULL;
         thread->shim_tcb = &shim_tcb;

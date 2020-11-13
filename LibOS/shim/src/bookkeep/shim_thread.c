@@ -209,7 +209,7 @@ struct shim_thread* get_new_thread(IDTYPE new_tid) {
         thread->signal_handles = cur_thread->signal_handles;
         get_signal_handles(thread->signal_handles);
 
-        memcpy(&thread->signal_mask, &cur_thread->signal_mask, sizeof(sigset_t));
+        thread->signal_mask = cur_thread->signal_mask;
 
         get_dentry(cur_thread->cwd);
         get_dentry(cur_thread->root);
@@ -538,7 +538,7 @@ BEGIN_CP_FUNC(signal_handles) {
 
         lock(&handles->lock);
 
-        memcpy(new_handles, handles, sizeof(*handles));
+        *new_handles = *handles;
         clear_lock(&new_handles->lock);
         REF_SET(new_handles->ref_count, 0);
 
@@ -579,7 +579,7 @@ BEGIN_CP_FUNC(thread) {
         off = ADD_CP_OFFSET(sizeof(struct shim_thread));
         ADD_TO_CP_MAP(obj, off);
         new_thread = (struct shim_thread*)(base + off);
-        memcpy(new_thread, thread, sizeof(struct shim_thread));
+        *new_thread = *thread;
 
         INIT_LISTP(&new_thread->children);
         INIT_LIST_HEAD(new_thread, siblings);
@@ -607,7 +607,7 @@ BEGIN_CP_FUNC(thread) {
             size_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
             new_thread->shim_tcb = (void*)(base + toff);
             struct shim_tcb* new_tcb = new_thread->shim_tcb;
-            memcpy(new_tcb, thread->shim_tcb, sizeof(*new_tcb));
+            *new_tcb = *thread->shim_tcb;
             /* don't export stale pointers */
             new_tcb->self      = NULL;
             new_tcb->tp        = NULL;
@@ -678,7 +678,7 @@ BEGIN_RS_FUNC(thread) {
 
         /* fork case */
         shim_tcb_t* tcb = shim_get_tcb();
-        memcpy(tcb, thread->shim_tcb, sizeof(*tcb));
+        *tcb = *thread->shim_tcb;
         __shim_tcb_init(tcb);
         set_cur_thread(thread);
 

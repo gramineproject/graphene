@@ -41,13 +41,11 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
 
     struct __kernel_sigaction* sigaction = &cur->signal_handles->actions[signum - 1];
 
-    if (oldact) {
-        memcpy(oldact, sigaction, sizeof(*oldact));
-    }
+    if (oldact)
+        *oldact = *sigaction;
 
-    if (act) {
-        memcpy(sigaction, act, sizeof(*sigaction));
-    }
+    if (act)
+        *sigaction = *act;
 
     clear_illegal_signals(&sigaction->sa_mask);
 

@@ -215,7 +215,7 @@ static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal);
 
 static void __store_info(siginfo_t* info, struct shim_signal* signal) {
     if (info)
-        memcpy(&signal->info, info, sizeof(siginfo_t));
+        signal->info = *info;
 }
 
 void __store_context(shim_tcb_t* tcb, PAL_CONTEXT* pal_context, struct shim_signal* signal) {
@@ -910,7 +910,7 @@ BEGIN_CP_FUNC(pending_signals) {
          * thread existing. */
         struct shim_signal* signal = __atomic_load_n(q, __ATOMIC_ACQUIRE);
         if (signal) {
-            memcpy(&infos[i], &signal->info, sizeof(infos[i]));
+            infos[i] = signal->info;
             i++;
         }
     }
@@ -919,7 +919,7 @@ BEGIN_CP_FUNC(pending_signals) {
         struct shim_rt_signal_queue* q = &process_signal_queue.rt_signal_queues[sig - SIGRTMIN];
         uint64_t idx = __atomic_load_n(&q->put_idx, __ATOMIC_ACQUIRE);
         while (__atomic_load_n(&q->get_idx, __ATOMIC_ACQUIRE) < idx && i < n) {
-            memcpy(&infos[i], &q->queue[(idx - 1) % ARRAY_SIZE(q->queue)]->info, sizeof(infos[i]));
+            infos[i] = q->queue[(idx - 1) % ARRAY_SIZE(q->queue)]->info;
             idx--;
             i++;
         }
@@ -947,7 +947,7 @@ BEGIN_RS_FUNC(pending_signals) {
 
         assert(infos[i].si_signo);
 
-        memcpy(&signal->info, &infos[i], sizeof(signal->info));
+        signal->info = infos[i];
         signal->context_stored = false;
         signal->pal_context    = NULL;
         if (!append_process_signal(signal)) {

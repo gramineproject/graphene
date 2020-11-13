@@ -428,7 +428,7 @@ BEGIN_CP_FUNC(ipc_info) {
         ADD_TO_CP_MAP(obj, off);
 
         new_info = (struct shim_ipc_info*)(base + off);
-        memcpy(new_info, info, sizeof(struct shim_ipc_info));
+        *new_info = *info;
         REF_SET(new_info->ref_count, 0);
 
         /* call qstr-specific checkpointing function for new_info->uri */
@@ -468,7 +468,7 @@ BEGIN_CP_FUNC(process_ipc_info) {
         ADD_TO_CP_MAP(obj, off);
 
         new_process_ipc_info = (struct shim_process_ipc_info*)(base + off);
-        memcpy(new_process_ipc_info, process_ipc_info, sizeof(*new_process_ipc_info));
+        *new_process_ipc_info = *process_ipc_info;
 
         /* call ipc_info-specific checkpointing functions for new_process_ipc_info's self, parent
          * and ns infos */
@@ -512,7 +512,7 @@ BEGIN_RS_FUNC(process_ipc_info) {
     if (process_ipc_info->ns)
         get_ipc_info(process_ipc_info->ns);
 
-    memcpy(&g_process_ipc_info, process_ipc_info, sizeof(g_process_ipc_info));
+    g_process_ipc_info = *process_ipc_info;
     // this lock will be created in init_ipc
     clear_lock(&g_process_ipc_info.lock);
 

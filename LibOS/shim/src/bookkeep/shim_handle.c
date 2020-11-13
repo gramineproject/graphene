@@ -811,7 +811,7 @@ BEGIN_CP_FUNC(fd_handle) {
 
     size_t off = ADD_CP_OFFSET(sizeof(struct shim_fd_handle));
     new_fdhdl = (struct shim_fd_handle*)(base + off);
-    memcpy(new_fdhdl, fdhdl, sizeof(struct shim_fd_handle));
+    *new_fdhdl = *fdhdl;
     DO_CP(handle, fdhdl->handle, &new_fdhdl->handle);
     ADD_CP_FUNC_ENTRY(off);
 
@@ -840,7 +840,7 @@ BEGIN_CP_FUNC(handle_map) {
         off            = ADD_CP_OFFSET(size);
         new_handle_map = (struct shim_handle_map*)(base + off);
 
-        memcpy(new_handle_map, handle_map, sizeof(struct shim_handle_map));
+        *new_handle_map = *handle_map;
 
         ptr_array = (void*)new_handle_map + sizeof(struct shim_handle_map);
 
