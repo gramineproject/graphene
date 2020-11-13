@@ -36,7 +36,7 @@ struct debug_buf {
 #include "pal_debug.h"
 #include "pal_error.h"
 
-extern PAL_HANDLE debug_handle;
+extern bool g_enable_debug_log;
 
 #include <stdarg.h>
 
@@ -47,7 +47,7 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
 
 #define debug(fmt, ...)                       \
     do {                                      \
-        if (debug_handle)                     \
+        if (g_enable_debug_log)               \
             debug_printf(fmt, ##__VA_ARGS__); \
     } while (0)
 
@@ -120,11 +120,11 @@ static inline int64_t get_cur_preempt(void) {
     r func(PROTO_ARGS_##n(args));
 
 #define PARSE_SYSCALL1(name, ...) \
-    if (debug_handle)             \
+    if (g_enable_debug_log)       \
         parse_syscall_before(__NR_##name, #name, ##__VA_ARGS__);
 
 #define PARSE_SYSCALL2(name, ...) \
-    if (debug_handle)             \
+    if (g_enable_debug_log)       \
         parse_syscall_after(__NR_##name, #name, ##__VA_ARGS__);
 
 void parse_syscall_before(int sysno, const char* name, int nr, ...);

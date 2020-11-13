@@ -13,6 +13,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
+#include "pal_security.h"
 
 typedef __kernel_pid_t pid_t;
 #include <asm/errno.h>
@@ -26,6 +27,8 @@ typedef __kernel_pid_t pid_t;
 #include <netinet/in.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
+
+static int g_debug_fd;
 
 struct hdl_header {
     uint8_t fds;       /* bitmask of host file descriptors corresponding to PAL handle */
@@ -365,4 +368,21 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 
     *cargo = handle;
     return 0;
+}
+
+int _DkInitDebugStream(const char* path) {
+    int ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, 0600);
+    if (ret < 0)
+        return unix_to_pal_error(ERRNO(ret));
+    g_debug_fd = ret;
+    return 0;
+}
+
+int _DkDebugLog(const void *buf, int size) {
+    if (g_debug_fd < 0)
+        return -PAL_ERROR_BADHANDLE;
+
+    int ret = INLINE_SYSCALL(write, 3, g_debug_fd, buf, size);
+    ret = IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret;
 }
