@@ -693,14 +693,14 @@ static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, boo
 #endif
 
     __rt_sighandler_t handler = (void*)sig_action->k_sa_handler;
-    if (allow_reset && sig_action->sa_flags & SA_RESETHAND) {
-        sigaction_make_defaults(sig_action);
-    }
-
     if ((void*)handler == (void*)SIG_IGN) {
         handler = NULL;
     } else if ((void*)handler == (void*)SIG_DFL) {
         handler = default_sighandler[sig - 1];
+    }
+
+    if (allow_reset && handler && sig_action->sa_flags & SA_RESETHAND) {
+        sigaction_make_defaults(sig_action);
     }
 
     unlock(&thread->signal_handles->lock);
