@@ -35,7 +35,7 @@ static int init_tty_handle(struct shim_handle* hdl, bool write) {
     int ret;
 
     hdl->type  = TYPE_DEV;
-    hdl->flags = (write ? O_WRONLY : O_RDONLY) | O_APPEND;
+    hdl->flags = write ? (O_WRONLY | O_APPEND) : O_RDONLY;
 
     struct shim_dentry* dent = NULL;
     if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent, NULL)) < 0)
@@ -142,10 +142,13 @@ int init_important_handles(void) {
     /* initialize stdin */
     if (!HANDLE_ALLOCATED(handle_map->map[0])) {
         struct shim_handle* stdin_hdl = get_new_handle();
-        if (!stdin_hdl)
+        if (!stdin_hdl) {
+            unlock(&handle_map->lock);
             return -ENOMEM;
+        }
 
         if ((ret = init_tty_handle(stdin_hdl, /*write=*/false)) < 0) {
+            unlock(&handle_map->lock);
             put_handle(stdin_hdl);
             return ret;
         }
@@ -157,10 +160,13 @@ int init_important_handles(void) {
     /* initialize stdout */
     if (!HANDLE_ALLOCATED(handle_map->map[1])) {
         struct shim_handle* stdout_hdl = get_new_handle();
-        if (!stdout_hdl)
+        if (!stdout_hdl) {
+            unlock(&handle_map->lock);
             return -ENOMEM;
+        }
 
         if ((ret = init_tty_handle(stdout_hdl, /*write=*/true)) < 0) {
+            unlock(&handle_map->lock);
             put_handle(stdout_hdl);
             return ret;
         }

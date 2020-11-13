@@ -55,6 +55,9 @@ static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void*
     if (!(HANDLE_HDR(handle)->flags & RFD(0)))
         return -PAL_ERROR_DENIED;
 
+    if (handle->dev.fd == PAL_IDX_POISON)
+        return -PAL_ERROR_DENIED;
+
     int64_t bytes = INLINE_SYSCALL(read, 3, handle->dev.fd, buffer, size);
     return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
 }
@@ -64,6 +67,9 @@ static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, cons
         return -PAL_ERROR_INVAL;
 
     if (!(HANDLE_HDR(handle)->flags & WFD(0)))
+        return -PAL_ERROR_DENIED;
+
+    if (handle->dev.fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
     int64_t bytes = INLINE_SYSCALL(write, 3, handle->dev.fd, buffer, size);
