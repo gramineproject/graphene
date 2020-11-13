@@ -41,13 +41,11 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
 
     struct __kernel_sigaction* sigaction = &cur->signal_handles->actions[signum - 1];
 
-    if (oldact) {
-        memcpy(oldact, sigaction, sizeof(*oldact));
-    }
+    if (oldact)
+        *oldact = *sigaction;
 
-    if (act) {
-        memcpy(sigaction, act, sizeof(*sigaction));
-    }
+    if (act)
+        *sigaction = *act;
 
     unlock(&cur->signal_handles->lock);
     return 0;
@@ -80,7 +78,7 @@ int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
 
     old = get_sig_mask(cur);
     if (oldset) {
-        memcpy(&tmp, old, sizeof(__sigset_t));
+        tmp = *old;
         old = &tmp;
     }
 
@@ -89,7 +87,7 @@ int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
     if (!set)
         goto out;
 
-    memcpy(&set_tmp, old, sizeof(__sigset_t));
+    set_tmp = *old;
 
     switch (how) {
         case SIG_BLOCK:
@@ -101,7 +99,7 @@ int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
             break;
 
         case SIG_SETMASK:
-            memcpy(&set_tmp, set, sizeof(__sigset_t));
+            set_tmp = *set;
             break;
     }
 
@@ -111,7 +109,7 @@ out:
     unlock(&cur->lock);
 
     if (!err && oldset)
-        memcpy(oldset, old, sizeof(__sigset_t));
+        *oldset = *old;
 
     return err;
 }
@@ -168,7 +166,7 @@ int shim_do_sigsuspend(const __sigset_t* mask) {
     __atomic_store_n(&cur->signal_handled, false, __ATOMIC_RELEASE);
 
     lock(&cur->lock);
-    memcpy(&old, get_sig_mask(cur), sizeof(old));
+    old = *get_sig_mask(cur);
 
     set_sig_mask(cur, mask);
     unlock(&cur->lock);

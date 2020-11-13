@@ -215,7 +215,7 @@ static void __handle_one_signal(shim_tcb_t* tcb, struct shim_signal* signal);
 
 static void __store_info(siginfo_t* info, struct shim_signal* signal) {
     if (info)
-        memcpy(&signal->info, info, sizeof(siginfo_t));
+        signal->info = *info;
 }
 
 void __store_context(shim_tcb_t* tcb, PAL_CONTEXT* pal_context, struct shim_signal* signal) {
@@ -676,7 +676,7 @@ __sigset_t* set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
     assert(thread);
 
     if (set) {
-        memcpy(&thread->signal_mask, set, sizeof(__sigset_t));
+        thread->signal_mask = *set;
 
         /* SIGKILL and SIGSTOP cannot be ignored */
         __sigdelset(&thread->signal_mask, SIGKILL);
@@ -954,7 +954,7 @@ BEGIN_RS_FUNC(pending_signals) {
 
         assert(infos[i].si_signo);
 
-        memcpy(&signal->info, &infos[i], sizeof(signal->info));
+        signal->info = infos[i];
         signal->context_stored = false;
         signal->pal_context    = NULL;
         if (!append_process_signal(signal)) {
