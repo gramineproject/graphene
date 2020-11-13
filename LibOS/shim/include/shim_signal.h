@@ -100,6 +100,8 @@ __SIGSETFN(shim_sigdelset, ((__set->__val[__word] &= ~__mask), 0), )
 #define __sigaddset   shim_sigaddset
 #define __sigdelset   shim_sigdelset
 
+void clear_illegal_signals(__sigset_t* set);
+
 /* NB: Check shim_signal.c if this changes.  Some memset(0) elision*/
 struct shim_signal {
     siginfo_t    info;
@@ -120,8 +122,8 @@ int append_signal(struct shim_thread* thread, siginfo_t* info);
 
 void deliver_signal(siginfo_t* info, PAL_CONTEXT* context);
 
-__sigset_t* get_sig_mask(struct shim_thread* thread);
-__sigset_t* set_sig_mask(struct shim_thread* thread, const __sigset_t* new_set);
+void get_sig_mask(struct shim_thread* thread, __sigset_t* mask);
+void set_sig_mask(struct shim_thread* thread, const __sigset_t* new_set);
 
 int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc);
 int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc);

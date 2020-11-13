@@ -660,30 +660,23 @@ int init_signal(void) {
     return 0;
 }
 
-__sigset_t* get_sig_mask(struct shim_thread* thread) {
-    if (!thread)
-        thread = get_cur_thread();
-
-    assert(thread);
-
-    return &(thread->signal_mask);
+void clear_illegal_signals(__sigset_t* set) {
+    __sigdelset(set, SIGKILL);
+    __sigdelset(set, SIGSTOP);
 }
 
-__sigset_t* set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
-    if (!thread)
-        thread = get_cur_thread();
-
+void get_sig_mask(struct shim_thread* thread, __sigset_t* mask) {
     assert(thread);
 
-    if (set) {
-        memcpy(&thread->signal_mask, set, sizeof(__sigset_t));
+    *mask = thread->signal_mask;
+}
 
-        /* SIGKILL and SIGSTOP cannot be ignored */
-        __sigdelset(&thread->signal_mask, SIGKILL);
-        __sigdelset(&thread->signal_mask, SIGSTOP);
-    }
+void set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
+    assert(thread);
+    assert(set);
+    assert(locked(&thread->lock));
 
-    return &thread->signal_mask;
+    thread->signal_mask = *set;
 }
 
 static __rt_sighandler_t get_sighandler(struct shim_thread* thread, int sig, bool allow_reset) {
