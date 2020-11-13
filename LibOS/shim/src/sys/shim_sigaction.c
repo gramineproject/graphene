@@ -49,6 +49,8 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
         memcpy(sigaction, act, sizeof(*sigaction));
     }
 
+    clear_illegal_signals(&sigaction->sa_mask);
+
     unlock(&cur->signal_handles->lock);
     return 0;
 }
@@ -60,9 +62,7 @@ int shim_do_sigreturn(int __unused) {
 }
 
 int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
-    __sigset_t* old;
-    __sigset_t tmp;
-    __sigset_t set_tmp;
+    __sigset_t old;
 
     if (how != SIG_BLOCK && how != SIG_UNBLOCK && how != SIG_SETMASK)
         return -EINVAL;
@@ -74,46 +74,40 @@ int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
         return -EFAULT;
 
     struct shim_thread* cur = get_cur_thread();
-    int err = 0;
 
     lock(&cur->lock);
 
-    old = get_sig_mask(cur);
+    get_sig_mask(cur, &old);
+
     if (oldset) {
-        memcpy(&tmp, old, sizeof(__sigset_t));
-        old = &tmp;
+        *oldset = old;
     }
 
-    /* if set is NULL, then the signal mask is unchanged, but the current
-       value of the signal mask is nevertheless returned in oldset */
+    /* If set is NULL, then the signal mask is unchanged. */
     if (!set)
         goto out;
 
-    memcpy(&set_tmp, old, sizeof(__sigset_t));
-
     switch (how) {
         case SIG_BLOCK:
-            __sigorset(&set_tmp, &set_tmp, set);
+            __sigorset(&old, &old, set);
             break;
 
         case SIG_UNBLOCK:
-            __signotset(&set_tmp, &set_tmp, set);
+            __signotset(&old, &old, set);
             break;
 
         case SIG_SETMASK:
-            memcpy(&set_tmp, set, sizeof(__sigset_t));
+            old = *set;
             break;
     }
 
-    set_sig_mask(cur, &set_tmp);
+    clear_illegal_signals(&old);
+    set_sig_mask(cur, &old);
 
 out:
     unlock(&cur->lock);
 
-    if (!err && oldset)
-        memcpy(oldset, old, sizeof(__sigset_t));
-
-    return err;
+    return 0;
 }
 
 int shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
@@ -158,19 +152,22 @@ int shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
     return 0;
 }
 
-int shim_do_sigsuspend(const __sigset_t* mask) {
-    if (!mask || test_user_memory((void*)mask, sizeof(*mask), false))
+int shim_do_sigsuspend(const __sigset_t* mask_ptr) {
+    if (!mask_ptr || test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
         return -EFAULT;
 
-    __sigset_t old;
+    __sigset_t mask = *mask_ptr;
+    clear_illegal_signals(&mask);
+
     struct shim_thread* cur = get_cur_thread();
 
     __atomic_store_n(&cur->signal_handled, false, __ATOMIC_RELEASE);
 
     lock(&cur->lock);
-    memcpy(&old, get_sig_mask(cur), sizeof(old));
+    __sigset_t old;
+    get_sig_mask(cur, &old);
 
-    set_sig_mask(cur, mask);
+    set_sig_mask(cur, &mask);
     unlock(&cur->lock);
 
     /* We might have unblocked some pending signals. */
