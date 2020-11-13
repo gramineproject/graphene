@@ -170,14 +170,12 @@ static void set_debug_type(void) {
     if (!debug_type)
         return;
 
-    PAL_HANDLE handle = NULL;
     bool enable_debug_log = false;
 
     if (!strcmp(debug_type, "inline")) {
         // TODO: use /dev/stderr instead?
-        ret = _DkInitDebugStream("/dev/tty");
+        ret = _DkInitDebugStream("/dev/stdout");
         enable_debug_log = true;
-        ret = _DkStreamOpen(&handle, URI_PREFIX_DEV "tty", PAL_ACCESS_RDWR, 0, 0, 0);
     } else if (!strcmp(debug_type, "file")) {
         char* debug_file = NULL;
         ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_file", &debug_file);
