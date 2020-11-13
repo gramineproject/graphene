@@ -751,3 +751,11 @@ const char* _DkStreamRealpath(PAL_HANDLE hdl) {
 
     return ops->getrealpath(hdl);
 }
+
+PAL_NUM DkDebugLog(PAL_PTR buffer, PAL_NUM size) {
+    ENTER_PAL_CALL(DkDebugLog);
+
+    int ret = _DkDebugLog(buffer, size);
+
+    LEAVE_PAL_CALL_RETURN(ret);
+}

@@ -10,10 +10,10 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 
-PAL_HANDLE debug_handle = NULL;
+bool g_enable_debug_log = false;
 
 static inline int debug_fputs(const char* buf, int len) {
-    if (DkStreamWrite(debug_handle, 0, len, (void*)buf, NULL) == (PAL_NUM)len)
+    if (DkDebugLog((void*)buf, len) == (PAL_NUM)len)
         return 0;
     else
         return -1;
@@ -98,7 +98,7 @@ void debug_printf(const char* fmt, ...) {
 }
 
 void debug_setprefix(shim_tcb_t* tcb) {
-    if (!debug_handle)
+    if (!g_enable_debug_log)
         return;
 
     struct debug_buf* buf = tcb->debug_buf;

@@ -33,3 +33,11 @@ int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+int _DkInitDebugStream(const char* path) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkDebugLog(const void *buf, int size) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}

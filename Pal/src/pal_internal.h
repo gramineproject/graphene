@@ -337,6 +337,8 @@ void free(void* mem);
 #define EXTERN_ALIAS(name)
 #endif
 
+int _DkInitDebugStream(const char* path);
+int _DkDebugLog(const void* buf, int size);
 void _DkPrintConsole(const void* buf, int size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));

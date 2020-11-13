@@ -134,7 +134,7 @@ typedef struct PAL_CONTROL_ {
     PAL_STR executable;         /*!< executable name */
     PAL_HANDLE parent_process;  /*!< handle of parent process */
     PAL_HANDLE first_thread;    /*!< handle of first thread */
-    PAL_HANDLE debug_stream;    /*!< debug stream */
+    PAL_BOL enable_debug_log;   /*!< enable debug log calls */
 
     /*
      * Memory layout
@@ -677,6 +677,14 @@ void DkObjectClose(PAL_HANDLE objectHandle);
 /*
  * MISC
  */
+
+/*!
+ * \brief Output a message to the debug stream.
+ *
+ * Works only if the debug stream has been initialized, which can be checked by looking at
+ * `g_pal_control.enable_debug_log`.
+ */
+PAL_NUM DkDebugLog(PAL_PTR buffer, PAL_NUM size);
 
 /*!
  * \brief Get the current time
