@@ -503,6 +503,11 @@ static int pipe_delete(PAL_HANDLE handle, int access) {
             ocall_shutdown(handle->pipeprv.fds[1], SHUT_WR);
         }
     } else {
+        /* This pipe might use a secure session, make sure all initial work is done. */
+        while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE)) {
+            CPU_RELAX();
+        }
+
         /* other types of pipes have a single underlying FD, shut it down */
         if (handle->pipe.fd != PAL_IDX_POISON) {
             ocall_shutdown(handle->pipe.fd, shutdown);
@@ -552,6 +557,11 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         attr->readable = ret >= 1 && (pfd[0].revents & (POLLIN | POLLERR | POLLHUP)) == POLLIN;
         attr->writable = ret >= 1 && (pfd[1].revents & (POLLOUT | POLLERR | POLLHUP)) == POLLOUT;
     } else {
+        /* This pipe might use a secure session, make sure all initial work is done. */
+        while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE)) {
+            CPU_RELAX();
+        }
+
         /* for non-private pipes, both readable and writable are queried on the same fd */
         short pfd_events = POLLIN;
         if (!IS_HANDLE_TYPE(handle, pipesrv)) {
@@ -583,6 +593,13 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 static int pipe_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
+
+    if (!IS_HANDLE_TYPE(handle, pipeprv)) {
+        /* This pipe might use a secure session, make sure all initial work is done. */
+        while (!__atomic_load_n(&handle->pipe.handshake_done, __ATOMIC_ACQUIRE)) {
+            CPU_RELAX();
+        }
+    }
 
     PAL_BOL* nonblocking = (HANDLE_HDR(handle)->type == pal_type_pipeprv)
                                ? &handle->pipeprv.nonblocking
