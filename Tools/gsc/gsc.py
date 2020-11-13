@@ -403,12 +403,16 @@ def gsc_info_image(args):
 
         siginfo = {}
         for root, _, files in os.walk(tmpdirname):
-            for f in files:
-                if f.endswith('.sig'):
-                    siginfo[f[:f.rfind('.sig')]] = import_sigstruct_from_file(
-                                                                    os.path.join(root, f))
+            for file_sig in files:
+                if file_sig.endswith('.sig'):
+                    siginfo[file_sig[:file_sig.rfind('.sig')]] = import_sigstruct_from_file(
+                                                                    os.path.join(root, file_sig))
 
-        print(toml.dumps(siginfo))
+        if len(siginfo) > 0:
+            print(toml.dumps(siginfo))
+        else:
+            print(f'Could not extract Intel SGX-related information from image {image}.')
+            sys.exit(1)
 
 argparser = argparse.ArgumentParser()
 subcommands = argparser.add_subparsers(metavar='<command>')
