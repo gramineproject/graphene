@@ -397,7 +397,7 @@ def gsc_info_image(args):
     with tempfile.TemporaryDirectory() as tmpdirname:
 
         # Copy sig struct files into temporary directory
-        docker_socket.containers.run(image, '\'cp *.sig /tmp/host/\'',
+        docker_socket.containers.run(image, '\'cp *.sig /tmp/host/ 2>/dev/null || :\'',
                                  entrypoint=['sh', '-c'], remove=True,
                                  volumes={tmpdirname: {'bind': '/tmp/host', 'mode': 'rw'}})
 
