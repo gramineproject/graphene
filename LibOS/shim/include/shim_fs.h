@@ -483,11 +483,16 @@ extern struct shim_mount eventfd_builtin_fs;
 #define FILE_RW_MODE 0666
 #define FILE_R_MODE  0444
 
+#define SYSFS_FILESZ    256
+
 extern struct shim_fs_ops dev_fs_ops;
 extern struct shim_d_ops dev_d_ops;
 
 extern struct shim_fs_ops proc_fs_ops;
 extern struct shim_d_ops proc_d_ops;
+
+extern struct shim_fs_ops sys_fs_ops;
+extern struct shim_d_ops sys_d_ops;
 
 struct pseudo_name_ops {
     int (*match_name)(const char* name);
@@ -552,5 +557,16 @@ ssize_t str_read(struct shim_handle* hdl, void* buf, size_t count);
 ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
+
+/* /sys fs related common APIs*/
+const char* extract_filename (const char* pathname);
+int extract_num_from_path(const char* path);
+int sys_info_mode(const char* name, mode_t* mode);
+int sys_info_stat(const char* name, struct stat* buf);
+int sys_dir_open(struct shim_handle* hdl, const char* name, int flags);
+int sys_dir_mode(const char* name, mode_t* mode);
+int sys_dir_stat(const char* name, struct stat* buf);
+int sys_match_resource_num(const char* pathname);
+int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, int len);
 
 #endif /* _SHIM_FS_H_ */
