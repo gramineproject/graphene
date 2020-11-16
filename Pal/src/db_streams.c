@@ -755,7 +755,11 @@ const char* _DkStreamRealpath(PAL_HANDLE hdl) {
 PAL_NUM DkDebugLog(PAL_PTR buffer, PAL_NUM size) {
     ENTER_PAL_CALL(DkDebugLog);
 
-    int ret = _DkDebugLog(buffer, size);
+    ssize_t ret = _DkDebugLog(buffer, size);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = PAL_STREAM_ERROR;
+    }
 
     LEAVE_PAL_CALL_RETURN(ret);
 }

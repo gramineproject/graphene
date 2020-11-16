@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 /* Copyright (C) 2014 Stony Brook University */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
 
@@ -12,11 +13,23 @@
 
 bool g_enable_debug_log = false;
 
-static inline int debug_fputs(const char* buf, int len) {
-    if (DkDebugLog((void*)buf, len) == (PAL_NUM)len)
-        return 0;
-    else
-        return -1;
+static inline int debug_fputs(const char* buf, size_t size) {
+    size_t bytes = 0;
+
+    while (bytes < size) {
+        PAL_NUM x = DkDebugLog((void*)(buf + bytes), size - bytes);
+        if (x == PAL_STREAM_ERROR) {
+            int err = PAL_ERRNO();
+            if (err == EINTR || err == EAGAIN || err == EWOULDBLOCK) {
+                continue;
+            }
+            return -err;
+        }
+
+        bytes += x;
+    }
+
+    return 0;
 }
 
 static int debug_fputch(void* f, int ch, void* b) {

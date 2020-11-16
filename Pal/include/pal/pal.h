@@ -361,6 +361,9 @@ PAL_NUM DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR b
  *
  * If the handle is a file, `offset` must be specified at each call of DkStreamWrite. `dest` can be
  * used to specify the remote socket address if the handle is a UDP socket.
+ *
+ * \return Returns number of bytes written if succeeded, and PAL_STREAM_ERROR on failure (in which
+ *  case the error code is set).
  */
 PAL_NUM DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer,
                       PAL_STR dest);
@@ -683,6 +686,9 @@ void DkObjectClose(PAL_HANDLE objectHandle);
  *
  * Works only if the debug stream has been initialized, which can be checked by looking at
  * `g_pal_control.enable_debug_log`.
+ *
+ * \return Returns number of bytes written if succeeded, and PAL_STREAM_ERROR on failure (in which
+ *  case the error code is set).
  */
 PAL_NUM DkDebugLog(PAL_PTR buffer, PAL_NUM size);
 
