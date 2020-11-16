@@ -190,13 +190,13 @@ class TC_01_Bootstrap(RegressionTestCase):
 
     def test_104_manifest_as_executable_name(self):
         manifest = self.get_manifest('Bootstrap2')
-        _, stderr = self.run_binary([manifest])
+        _, stderr = self.run_binary(['Bootstrap2'])
         self.assertIn('User Program Started', stderr)
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
 
     def test_105_manifest_as_argument(self):
         manifest = self.get_manifest('Bootstrap4')
-        _, stderr = self.run_binary([manifest])
+        _, stderr = self.run_binary(['Bootstrap4'])
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Loaded Executable: file:Bootstrap', stderr)
 
@@ -210,12 +210,12 @@ class TC_01_Bootstrap(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
     def test_120_8gb_enclave(self):
         manifest = self.get_manifest('Bootstrap6')
-        _, stderr = self.run_binary([manifest], timeout=360)
+        _, stderr = self.run_binary(['Bootstrap6'], timeout=360)
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Executable Range OK', stderr)
 
     def test_130_large_number_of_items_in_manifest(self):
-        _, stderr = self.run_binary([self.get_manifest('Bootstrap7')])
+        _, stderr = self.run_binary(['Bootstrap7'])
         self.assertIn('key1000=na', stderr)
         self.assertIn('key1=na', stderr)
 
@@ -566,8 +566,7 @@ class TC_20_SingleProcess(RegressionTestCase):
 
     @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
     def test_511_thread2_exitless(self):
-        manifest = self.get_manifest('Thread2_exitless')
-        _, stderr = self.run_binary([manifest], timeout=60)
+        _, stderr = self.run_binary(['Thread2_exitless'], timeout=60)
 
         # Thread Cleanup: Exit by return.
         self.assertIn('Thread 2 ok.', stderr)

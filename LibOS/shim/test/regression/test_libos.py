@@ -47,8 +47,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         with open('argv_test_input', 'wb') as f:
             f.write(result.stdout)
         try:
-            manifest = self.get_manifest('argv_from_file')
-            stdout, _ = self.run_binary([manifest, 'WRONG', 'ARGUMENTS'])
+            stdout, _ = self.run_binary(['argv_from_file', 'WRONG', 'ARGUMENTS'])
             self.assertIn('# of arguments: %d\n' % len(args), stdout)
             for i, arg in enumerate(args):
                 self.assertIn('argv[%d] = %s\n' % (i, arg), stdout)
@@ -62,8 +61,7 @@ class TC_01_Bootstrap(RegressionTestCase):
             'some weir:d\nvar_name': ' even we\nirder\tvalue',
         }
         manifest_envs = {'LD_LIBRARY_PATH': '/lib'}
-        manifest = self.get_manifest('env_from_host')
-        stdout, _ = self.run_binary([manifest], env=host_envs)
+        stdout, _ = self.run_binary(['env_from_host'], env=host_envs)
         self.assertIn('# of envs: %d\n' % (len(host_envs) + len(manifest_envs)), stdout)
         for _, (key, val) in enumerate({**host_envs, **manifest_envs}.items()):
             # We don't enforce any specific order of envs, so we skip checking the index.
@@ -78,8 +76,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         with open('env_test_input', 'wb') as f:
             f.write(result.stdout)
         try:
-            manifest = self.get_manifest('env_from_file')
-            stdout, _ = self.run_binary([manifest], env=host_envs)
+            stdout, _ = self.run_binary(['env_from_file'], env=host_envs)
             self.assertIn('# of envs: %d\n' % (len(envs) + len(manifest_envs)), stdout)
             for _, arg in enumerate(envs + manifest_envs):
                 # We don't enforce any specific order of envs, so we skip checking the index.
@@ -199,8 +196,7 @@ class TC_01_Bootstrap(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX, 'This test relies on SGX-specific manifest options.')
     def test_501_init_fail2(self):
         try:
-            manifest = self.get_manifest('init_fail2')
-            self.run_binary([manifest], timeout=60)
+            self.run_binary(['init_fail2'], timeout=60)
             self.fail('expected to return nonzero (and != 42)')
         except subprocess.CalledProcessError as e:
             self.assertNotEqual(e.returncode, 42, 'expected returncode != 42')
@@ -213,8 +209,7 @@ class TC_01_Bootstrap(RegressionTestCase):
 
     @unittest.skipUnless(HAS_SGX, 'This test is only meaningful on SGX PAL')
     def test_601_multi_pthread_exitless(self):
-        manifest = self.get_manifest('multi_pthread_exitless')
-        stdout, _ = self.run_binary([manifest], timeout=60)
+        stdout, _ = self.run_binary(['multi_pthread_exitless'], timeout=60)
 
         # Multiple thread creation
         self.assertIn('128 Threads Created', stdout)
@@ -231,8 +226,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('FE_TOWARDZERO parent: 42.5 = 42.0, -42.5 = -42.0', stdout)
 
     def test_700_debug_log_inline(self):
-        manifest = self.get_manifest('debug_log_inline')
-        stdout, _ = self.run_binary([manifest])
+        stdout, _ = self.run_binary(['debug_log_inline'])
         self._verify_debug_log(stdout)
 
     def test_701_debug_log_file(self):
@@ -240,8 +234,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         if os.path.exists(log_path):
             os.remove(log_path)
 
-        manifest = self.get_manifest('debug_log_file')
-        self.run_binary([manifest])
+        self.run_binary(['debug_log_file'])
 
         with open(log_path) as log_file:
             log = log_file.read()
@@ -270,27 +263,25 @@ class TC_02_OpenMP(RegressionTestCase):
     'only relevant to SGX.')
 class TC_03_FileCheckPolicy(RegressionTestCase):
     def test_000_strict_success(self):
-        manifest = self.get_manifest('file_check_policy_strict')
-        stdout, _ = self.run_binary([manifest, 'trusted_testfile'])
+        stdout, _ = self.run_binary(['file_check_policy_strict', 'trusted_testfile'])
 
         self.assertIn('file_check_policy succeeded', stdout)
 
     def test_001_strict_fail(self):
-        manifest = self.get_manifest('file_check_policy_strict')
         with self.expect_returncode(2):
-            self.run_binary([manifest, 'unknown_testfile'])
+            self.run_binary(['file_check_policy_strict', 'unknown_testfile'])
 
     def test_002_allow_all_but_log_success(self):
-        manifest = self.get_manifest('file_check_policy_allow_all_but_log')
-        stdout, stderr = self.run_binary([manifest, 'unknown_testfile'])
+        stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log',
+                                          'unknown_testfile'])
 
         self.assertIn('Allowing access to an unknown file due to file_check_policy settings: '
                       'file:unknown_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
     def test_003_allow_all_but_log_fail(self):
-        manifest = self.get_manifest('file_check_policy_allow_all_but_log')
-        stdout, stderr = self.run_binary([manifest, 'trusted_testfile'])
+        stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log',
+                                          'trusted_testfile'])
 
         self.assertNotIn('Allowing access to an unknown file due to file_check_policy settings: '
                          'file:trusted_testfile', stderr)
