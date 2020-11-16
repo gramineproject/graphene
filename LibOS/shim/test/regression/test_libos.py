@@ -264,7 +264,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self._verify_debug_log(log)
 
     def _verify_debug_log(self, log: str):
-        self.assertIn('Host: Linux', log)
+        self.assertIn('Host:', log)
         self.assertIn('Shim process initialized', log)
         self.assertIn('--- shim_exit_group', log)
 
