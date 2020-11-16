@@ -91,8 +91,8 @@ manifests = \
 	manifest \
 	argv_from_file.manifest \
 	attestation.manifest \
-    debug_log_file.manifest \
-    debug_log_inline.manifest \
+	debug_log_file.manifest \
+	debug_log_inline.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	eventfd.manifest \
@@ -119,6 +119,8 @@ exec_target = \
 	$(c_executables) \
 	$(cxx_executables) \
 	argv_from_file.manifest \
+	debug_log_file.manifest \
+	debug_log_inline.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	file_check_policy_allow_all_but_log.manifest \
@@ -128,8 +130,8 @@ exec_target = \
 
 target = \
 	argv_from_file \
-    debug_log_file \
-    debug_log_inline \
+	debug_log_file \
+	debug_log_inline \
 	env_from_host \
 	env_from_file \
 	file_check_policy_allow_all_but_log \
