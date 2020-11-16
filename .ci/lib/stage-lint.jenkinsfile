@@ -3,7 +3,7 @@ stage('lint') {
         if .ci/isdistro bionic
         then
             ./.ci/run-pylint -f text || :
-            ./.ci/run-pylint -f json | ./.ci/prfilter
+            ./.ci/run-pylint -f json
         fi
         ./.ci/run-shellcheck
     '''

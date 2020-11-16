@@ -4,7 +4,6 @@
 
 import argparse
 import configparser
-import sys
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--config', '-c', metavar='FILENAME',
@@ -22,7 +21,8 @@ def main(args=None):
     with args.file:
         for line in args.file:
             line = line.strip()
-            if not line or line[0] == '#': continue
+            if not line or line[0] == '#':
+                continue
 
             tag, cmd = line.split(maxsplit=1)
             if not tag in config and not any(c in cmd for c in '|;&'):

@@ -19,7 +19,6 @@ Send a POST request::
 """
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import socketserver
 
 class S(BaseHTTPRequestHandler):
     def _set_headers(self):

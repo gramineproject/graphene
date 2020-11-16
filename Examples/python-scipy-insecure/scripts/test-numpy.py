@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import numpy
-import sys
 import timeit
+
+import numpy
 
 try:
     import numpy.core._dotblas

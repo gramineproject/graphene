@@ -5,7 +5,6 @@ import re
 import shutil
 import signal
 import subprocess
-import sys
 import unittest
 
 from regression import (
@@ -66,7 +65,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         manifest = self.get_manifest('env_from_host')
         stdout, _ = self.run_binary([manifest], env=host_envs)
         self.assertIn('# of envs: %d\n' % (len(host_envs) + len(manifest_envs)), stdout)
-        for i, (key, val) in enumerate({**host_envs, **manifest_envs}.items()):
+        for _, (key, val) in enumerate({**host_envs, **manifest_envs}.items()):
             # We don't enforce any specific order of envs, so we skip checking the index.
             self.assertIn('] = %s\n' % (key + '=' + val), stdout)
 
@@ -82,7 +81,7 @@ class TC_01_Bootstrap(RegressionTestCase):
             manifest = self.get_manifest('env_from_file')
             stdout, _ = self.run_binary([manifest], env=host_envs)
             self.assertIn('# of envs: %d\n' % (len(envs) + len(manifest_envs)), stdout)
-            for i, arg in enumerate(envs + manifest_envs):
+            for _, arg in enumerate(envs + manifest_envs):
                 # We don't enforce any specific order of envs, so we skip checking the index.
                 self.assertIn('] = %s\n' % arg, stdout)
         finally:
@@ -115,22 +114,8 @@ class TC_01_Bootstrap(RegressionTestCase):
 
         # 2 page child binary
         self.assertIn(
-            '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 '
-            '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 ',
+            '0' * 89 + ' ' +
+            ('0' * 93 + ' ') * 16,
             stdout)
 
     def test_201_exec_same(self):
@@ -189,7 +174,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         try:
             self.run_binary(['exit_group'])
         except subprocess.CalledProcessError as e:
-            self.assertTrue(1 <= e.returncode and e.returncode <= 4)
+            self.assertTrue(1 <= e.returncode <= 4)
 
     def test_402_signalexit(self):
         with self.expect_returncode(134):
@@ -275,14 +260,16 @@ class TC_03_FileCheckPolicy(RegressionTestCase):
         manifest = self.get_manifest('file_check_policy_allow_all_but_log')
         stdout, stderr = self.run_binary([manifest, 'unknown_testfile'])
 
-        self.assertIn('Allowing access to an unknown file due to file_check_policy settings: file:unknown_testfile', stderr)
+        self.assertIn('Allowing access to an unknown file due to file_check_policy settings: '
+                      'file:unknown_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
     def test_003_allow_all_but_log_fail(self):
         manifest = self.get_manifest('file_check_policy_allow_all_but_log')
         stdout, stderr = self.run_binary([manifest, 'trusted_testfile'])
 
-        self.assertNotIn('Allowing access to an unknown file due to file_check_policy settings: file:trusted_testfile', stderr)
+        self.assertNotIn('Allowing access to an unknown file due to file_check_policy settings: '
+                         'file:trusted_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
 @unittest.skipUnless(HAS_SGX,
@@ -515,8 +502,8 @@ class TC_30_Syscall(RegressionTestCase):
 
     def test_100_get_set_groups(self):
         stdout, _ = self.run_binary(['groups'])
-        self.assertIn('child OK', stdout);
-        self.assertIn('parent OK', stdout);
+        self.assertIn('child OK', stdout)
+        self.assertIn('parent OK', stdout)
 
     def test_101_sched_set_get_cpuaffinity(self):
         stdout, _ = self.run_binary(['sched_set_get_affinity'])
@@ -619,7 +606,7 @@ class TC_50_GDB(RegressionTestCase):
         # While the stack trace in SGX is unbroken, it currently starts at _start inside
         # enclave, instead of including eclave entry.
 
-        stdout, stderr = self.run_gdb(['debug'], 'debug.gdb')
+        stdout, _ = self.run_gdb(['debug'], 'debug.gdb')
 
         backtrace_1 = self.find('backtrace 1', stdout)
         self.assertIn(' main () at debug.c', backtrace_1)
@@ -647,7 +634,7 @@ class TC_50_GDB(RegressionTestCase):
         # To run this test manually, use:
         # GDB=1 GDB_SCRIPT=debug_regs-x86_64.gdb ./pal_loader debug_regs-x86_64
 
-        stdout, stderr = self.run_gdb(['debug_regs-x86_64'], 'debug_regs-x86_64.gdb')
+        stdout, _ = self.run_gdb(['debug_regs-x86_64'], 'debug_regs-x86_64.gdb')
 
         rdx = self.find('RDX', stdout)
         self.assertEqual(rdx, '$1 = 0x1000100010001000')

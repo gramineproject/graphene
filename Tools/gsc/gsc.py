@@ -356,7 +356,8 @@ sub_build.add_argument('manifests',
     help='Application-specific manifest files. The first manifest will be used for the entry '
          'point of the Docker image.')
 
-sub_build_graphene = subcommands.add_parser('build-graphene', help="Build base Graphene Docker image")
+sub_build_graphene = subcommands.add_parser('build-graphene',
+    help="Build base Graphene Docker image")
 sub_build_graphene.set_defaults(command=gsc_build_graphene)
 sub_build_graphene.add_argument('-d', '--debug', action='store_true',
     help='Compile Graphene with debug flags and output.')
@@ -368,7 +369,8 @@ sub_build_graphene.add_argument('--rm', action='store_true',
     help='Remove intermediate Docker images when build is successful.')
 sub_build_graphene.add_argument('--build-arg', action='append', default=[],
     help='Set build-time variables (same as "docker build --build-arg").')
-sub_build_graphene.add_argument('-c', '--config_file', type=argparse.FileType('r', encoding='UTF-8'),
+sub_build_graphene.add_argument('-c', '--config_file',
+    type=argparse.FileType('r', encoding='UTF-8'),
     default='config.yaml', help='Specify configuration file.')
 sub_build_graphene.add_argument('-f', '--file-only', action='store_true',
     help='Stop after Dockerfile is created and do not build the Docker image.')
