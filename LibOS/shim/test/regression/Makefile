@@ -91,6 +91,8 @@ manifests = \
 	manifest \
 	argv_from_file.manifest \
 	attestation.manifest \
+    debug_log_file.manifest \
+    debug_log_inline.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	eventfd.manifest \
@@ -126,6 +128,8 @@ exec_target = \
 
 target = \
 	argv_from_file \
+    debug_log_file \
+    debug_log_inline \
 	env_from_host \
 	env_from_file \
 	file_check_policy_allow_all_but_log \
@@ -177,6 +181,9 @@ LDLIBS-fp_multithread += -lm
 # correspondence).
 
 argv_from_file env_from_host env_from_file: bootstrap
+	$(call cmd,ln_sfr)
+
+debug_log_file debug_log_inline: bootstrap
 	$(call cmd,ln_sfr)
 
 file_check_policy_allow_all_but_log file_check_policy_strict: file_check_policy
