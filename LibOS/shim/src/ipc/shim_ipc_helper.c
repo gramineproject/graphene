@@ -644,7 +644,7 @@ int pause_ipc_helper(void) {
         }
         needs_wait = true;
 
-        /* Wake up the helper thread. */
+        /* Wake up the helper thread, so that it notices `ipc_helper_state` change. */
         ret = set_event(&install_new_event, 1);
         if (ret < 0) {
             unlock(&ipc_helper_lock);
