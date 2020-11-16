@@ -64,7 +64,8 @@ static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next
     return 0;
 }
 
-static int find_thread_link(const char* name, struct shim_qstr* link, struct shim_dentry** dentptr) {
+static int find_thread_link(const char* name, struct shim_qstr* link,
+                            struct shim_dentry** dentptr) {
     const char* next;
     const char* nextnext;
     size_t next_len;

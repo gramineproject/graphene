@@ -37,7 +37,7 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid) {
 
 int ipc_cld_exit_send(unsigned int exitcode, unsigned int term_signal) {
     if (!g_process.ppid) {
-        /* We have no parent inside Graphene, so noone to notify. */
+        /* We have no parent inside Graphene, so no one to notify. */
         return 0;
     }
 

@@ -48,7 +48,7 @@ int init_process(void) {
     struct shim_dentry* dent = NULL;
     int ret = path_lookupat(NULL, "/", 0, &dent, NULL);
     if (ret < 0) {
-        debug("Could not setup dentry for \"/\", something is seriously broken.\n");
+        debug("Could not set up dentry for \"/\", something is seriously broken.\n");
         return ret;
     }
     g_process.root = dent;
@@ -192,7 +192,9 @@ BEGIN_CP_FUNC(process_description) {
                                + children_count * sizeof(*child)
                                + sizeof(zombies_count)
                                + zombies_count * sizeof(*zombie));
-    struct shim_process* new_process = (struct shim_process*)(base + off);
+    char* data_ptr = (char*)(base + off);
+    struct shim_process* new_process = (struct shim_process*)data_ptr;
+    data_ptr += sizeof(*new_process);
 
     memset(new_process, '\0', sizeof(*new_process));
 
@@ -212,10 +214,10 @@ BEGIN_CP_FUNC(process_description) {
     clear_lock(&new_process->fs_lock);
     clear_lock(&new_process->children_lock);
 
-    *(size_t*)((char*)new_process + sizeof(*new_process)) = children_count;
-    struct shim_child_process* children =
-        (struct shim_child_process*)((char*)new_process + sizeof(*new_process)
-                                     + sizeof(children_count));
+    *(size_t*)data_ptr = children_count;
+    data_ptr += sizeof(size_t);
+    struct shim_child_process* children = (struct shim_child_process*)data_ptr;
+    data_ptr += children_count * sizeof(*children);
     size_t i = 0;
     LISTP_FOR_EACH_ENTRY(child, &process->children, list) {
         memcpy(&children[i], child, sizeof(children[i]));
@@ -225,10 +227,10 @@ BEGIN_CP_FUNC(process_description) {
 
     assert(i == children_count);
 
-    *(size_t*)((char*)children + children_count * sizeof(*children)) = zombies_count;
-    struct shim_child_process* zombies =
-        (struct shim_child_process*)((char*)children + children_count * sizeof(*children)
-                                     + sizeof(zombies_count));
+    *(size_t*)data_ptr = zombies_count;
+    data_ptr += sizeof(size_t);
+    struct shim_child_process* zombies = (struct shim_child_process*)data_ptr;
+    data_ptr += zombies_count * sizeof(*zombies);
     i = 0;
     LISTP_FOR_EACH_ENTRY(zombie, &process->zombies, list) {
         memcpy(&zombies[i], zombie, sizeof(zombies[i]));
@@ -275,17 +277,19 @@ BEGIN_RS_FUNC(process_description) {
     INIT_LISTP(&process->children);
     INIT_LISTP(&process->zombies);
 
-    size_t children_count = *(size_t*)((char*)process + sizeof(*process));
-    struct shim_child_process* children =
-        (struct shim_child_process*)((char*)process + sizeof(*process) + sizeof(children_count));
+    char* data_ptr = (char*)process + sizeof(*process);
+    size_t children_count = *(size_t*)data_ptr;
+    data_ptr += sizeof(children_count);
+    struct shim_child_process* children = (struct shim_child_process*)data_ptr;
+    data_ptr += children_count * sizeof(*children);
     for (size_t i = 0; i < children_count; i++) {
         LISTP_ADD_TAIL(&children[i], &process->children, list);
     }
 
-    size_t zombies_count = *(size_t*)((char*)children + children_count * sizeof(*children));
-    struct shim_child_process* zombies =
-        (struct shim_child_process*)((char*)children + children_count * sizeof(*children)
-                                     + sizeof(zombies_count));
+    size_t zombies_count = *(size_t*)data_ptr;
+    data_ptr += sizeof(zombies_count);
+    struct shim_child_process* zombies = (struct shim_child_process*)data_ptr;
+    data_ptr += zombies_count * sizeof(*zombies);
     for (size_t i = 0; i < zombies_count; i++) {
         LISTP_ADD_TAIL(&zombies[i], &process->zombies, list);
     }

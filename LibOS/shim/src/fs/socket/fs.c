@@ -98,7 +98,9 @@ static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t cou
                 .si_pid = g_process.pid,
                 .si_code = SI_USER,
             };
-            (void)kill_current_proc(&info);
+            if (kill_current_proc(&info) < 0) {
+                debug("socket_write: failed to deliver a signal\n");
+            }
         }
 
         lock(&hdl->lock);

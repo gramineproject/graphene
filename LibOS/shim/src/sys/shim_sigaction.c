@@ -279,22 +279,18 @@ int do_kill_proc(IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc) {
     return kill_current_proc(&info);
 }
 
-int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc) {
-    int ret = -ESRCH;
+int do_kill_pgroup(IDTYPE sender, IDTYPE pgid, int sig) {
     IDTYPE current_pgid = __atomic_load_n(&g_process.pgid, __ATOMIC_ACQUIRE);
     if (!pgid) {
         pgid = current_pgid;
     }
 
-    if (use_ipc) {
-        ret = ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig);
-        if (ret < 0 && ret != -ESRCH) {
-            return ret;
-        }
+    int ret = ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig);
+    if (ret < 0 && ret != -ESRCH) {
+        return ret;
     }
 
     if (current_pgid != pgid) {
-        /* `ret` might have been set if IPC message was sent. */
         return ret;
     }
 
@@ -327,11 +323,11 @@ int shim_do_kill(pid_t pid, int sig) {
     } else if (pid == 0) {
         /* If `pid` equals 0, then signal is sent to every process in the process group of
          * the calling process. */
-        return do_kill_pgroup(g_process.pid, 0, sig, /*use_ipc=*/true);
+        return do_kill_pgroup(g_process.pid, 0, sig);
     } else { // pid < -1
         /* If `pid` is less than -1, then signal is sent to every process in the process group
          * `-pid`. */
-        return do_kill_pgroup(g_process.pid, -pid, sig, /*use_ipc=*/true);
+        return do_kill_pgroup(g_process.pid, -pid, sig);
     }
 }
 

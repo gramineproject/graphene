@@ -56,7 +56,7 @@ struct shim_thread {
     /* Field for inserting threads on global `g_thread_list`. */
     LIST_TYPE(shim_thread) list;
 
-    /* thread identifiers */
+    /* thread identifier */
     IDTYPE tid;
 
     /* credentials */
@@ -120,9 +120,12 @@ struct shim_thread_queue {
     bool in_use;
 };
 
-#define SIGNAL_NOT_HANDLED      0
-#define SIGNAL_HANDLED          1
-#define SIGNAL_HANDLED_RESTART  2
+/* See the explanation in `shim_thread`. */
+enum {
+    SIGNAL_NOT_HANDLED = 0,
+    SIGNAL_HANDLED,
+    SIGNAL_HANDLED_RESTART,
+};
 
 int init_thread(void);
 
@@ -140,7 +143,7 @@ void put_thread(struct shim_thread* thread);
 
 void debug_setprefix(shim_tcb_t* tcb);
 
-/* Set `debug_buf` for `tcb`. If `debug_buf` is `NULL`, then new one is allocated. IF `debug_buf`
+/* Set `debug_buf` for `tcb`. If `debug_buf` is `NULL`, then new one is allocated. If `debug_buf`
  * is not NULL, this function cannot fail. */
 static inline int debug_setbuf(shim_tcb_t* tcb, struct debug_buf* debug_buf) {
     if (!debug_handle)

@@ -139,6 +139,9 @@ int init_thread(void) {
     set_sig_mask(cur_thread, &set);
 
     cur_thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
+    if (!cur_thread->scheduler_event) {
+        return -ENOMEM;
+    }
 
     cur_thread->pal_handle = PAL_CB(first_thread);
 
@@ -215,6 +218,11 @@ struct shim_thread* get_new_thread(void) {
     unlock(&cur_thread->lock);
 
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
+    if (!thread->scheduler_event) {
+        put_thread(thread);
+        return NULL;
+    }
+
     return thread;
 }
 
@@ -506,6 +514,9 @@ BEGIN_RS_FUNC(thread) {
     }
 
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
+    if (!thread->scheduler_event) {
+        return -ENOMEM;
+    }
 
     if (thread->handle_map) {
         get_handle_map(thread->handle_map);

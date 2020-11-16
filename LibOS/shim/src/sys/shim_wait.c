@@ -105,17 +105,17 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
         return -EINVAL;
 
     if (options & WSTOPPED) {
-        debug("Ignoring unsuported WSTOPPED flag to wait4\n");
+        debug("Ignoring unsupported WSTOPPED flag to wait4\n");
         options &= ~WSTOPPED;
     }
     if (options & WCONTINUED) {
-        debug("Ignoring unsuported WCONTINUED flag to wait4\n");
+        debug("Ignoring unsupported WCONTINUED flag to wait4\n");
         options &= ~WCONTINUED;
     }
     assert(options & WEXITED);
 
     if (options & __WNOTHREAD) {
-        debug("Ignoring unsuported __WNOTHREAD flag to wait4\n");
+        debug("Ignoring unsupported __WNOTHREAD flag to wait4\n");
         options &= ~__WNOTHREAD;
     }
 
@@ -165,8 +165,8 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
             ret = -ECHILD;
             goto out;
         }
-
         /* There are some children we can wait for. */
+
         if (options & WNOHANG) {
             if (infop) {
                 infop->si_pid = 0;

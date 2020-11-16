@@ -20,6 +20,7 @@ struct shim_child_process {
     IDTYPE pid;
     IDTYPE vmid;
 
+    /* Signal sent to the parent process (us) on this child termination. */
     int child_termination_signal;
 
     /* These 3 fields are set when the child terminates. */
@@ -65,7 +66,7 @@ int init_process(void);
 
 /* Allocates a new child process structure, initializing all fields. */
 struct shim_child_process* create_child_process(void);
-/* Frees `child` with all acompanying resources. */
+/* Frees `child` with all accompanying resources. */
 void destroy_child_process(struct shim_child_process* child);
 /* Adds `child` to `g_process` children list. */
 void add_child_process(struct shim_child_process* child);

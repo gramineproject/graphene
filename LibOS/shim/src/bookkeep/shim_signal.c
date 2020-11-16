@@ -634,7 +634,9 @@ static void quit_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
         .si_pid = 0,
         .si_code = SI_USER,
     };
-    (void)kill_current_proc(&info);
+    if (kill_current_proc(&info) < 0) {
+        debug("quit_upcall: failed to deliver a signal\n");
+    }
     DkExceptionReturn(event);
 }
 
@@ -646,7 +648,9 @@ static void suspend_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
         .si_pid = 0,
         .si_code = SI_USER,
     };
-    (void)kill_current_proc(&info);
+    if (kill_current_proc(&info) < 0) {
+        debug("suspend_upcall: failed to deliver a signal\n");
+    }
     DkExceptionReturn(event);
 }
 

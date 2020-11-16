@@ -9,9 +9,9 @@
 
 #include "shim_internal.h"
 #include "shim_lock.h"
+#include "shim_process.h"
 #include "shim_signal.h"
 #include "shim_table.h"
-#include "shim_process.h"
 #include "shim_utils.h"
 
 static void signal_alarm(IDTYPE caller, void* arg) {
@@ -22,7 +22,9 @@ static void signal_alarm(IDTYPE caller, void* arg) {
         .si_pid = g_process.pid,
         .si_code = SI_USER,
     };
-    (void)kill_current_proc(&info);
+    if (kill_current_proc(&info) < 0) {
+        debug("signal_alarm: failed to deliver a signal\n");
+    }
 }
 
 int shim_do_alarm(unsigned int seconds) {

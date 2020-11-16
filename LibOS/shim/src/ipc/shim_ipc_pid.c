@@ -98,7 +98,7 @@ int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
             ret = do_kill_proc(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
             break;
         case KILL_PGROUP:
-            ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum, /*use_ipc=*/true);
+            ret = do_kill_pgroup(msgin->sender, msgin->id, msgin->signum);
             break;
         case KILL_ALL:
             broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT, port);

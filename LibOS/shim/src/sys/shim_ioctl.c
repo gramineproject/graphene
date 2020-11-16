@@ -285,7 +285,9 @@ static void signal_io(IDTYPE caller, void* arg) {
         .si_band = 0,
         .si_fd = 0,
     };
-    (void)kill_current_proc(&info);
+    if (kill_current_proc(&info) < 0) {
+        debug("signal_io: failed to deliver a signal\n");
+    }
 }
 
 int shim_do_ioctl(int fd, unsigned long cmd, unsigned long arg) {

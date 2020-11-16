@@ -1122,7 +1122,9 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
                     .si_pid = g_process.pid,
                     .si_code = SI_USER,
                 };
-                (void)kill_current_proc(&info);
+                if (kill_current_proc(&info) < 0) {
+                    debug("do_sendmsg: failed to deliver a signal\n");
+                }
             }
 
             ret = (PAL_NATIVE_ERRNO() == PAL_ERROR_STREAMEXIST) ? -ECONNABORTED : -PAL_ERRNO();

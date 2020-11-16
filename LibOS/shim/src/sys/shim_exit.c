@@ -77,7 +77,6 @@ noreturn void thread_exit(int error_code, int term_signal) {
         if (ret < 0) {
             debug("failed to set up async cleanup_thread (exiting without clear child tid),"
                   " return code: %ld\n", ret);
-            COMPILER_BARRIER();
             /* `cleanup_thread` did not get this reference, clean it. We have to be careful, as
              * this is most likely the last reference and will free this `cur_thread`. */
             put_thread(cur_thread);
