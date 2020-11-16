@@ -1229,7 +1229,7 @@ BEGIN_CP_FUNC(vma) {
         ADD_TO_CP_MAP(obj, off);
 
         new_vma = (struct shim_vma_info*)(base + off);
-        memcpy(new_vma, vma, sizeof(*vma));
+        *new_vma = *vma;
 
         if (vma->file)
             DO_CP(handle, vma->file, &new_vma->file);

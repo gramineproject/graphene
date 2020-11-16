@@ -917,7 +917,7 @@ BEGIN_CP_FUNC(pending_signals) {
          * thread existing. */
         struct shim_signal* signal = __atomic_load_n(q, __ATOMIC_ACQUIRE);
         if (signal) {
-            memcpy(&infos[i], &signal->info, sizeof(infos[i]));
+            infos[i] = signal->info;
             i++;
         }
     }
@@ -926,7 +926,7 @@ BEGIN_CP_FUNC(pending_signals) {
         struct shim_rt_signal_queue* q = &process_signal_queue.rt_signal_queues[sig - SIGRTMIN];
         uint64_t idx = __atomic_load_n(&q->put_idx, __ATOMIC_ACQUIRE);
         while (__atomic_load_n(&q->get_idx, __ATOMIC_ACQUIRE) < idx && i < n) {
-            memcpy(&infos[i], &q->queue[(idx - 1) % ARRAY_SIZE(q->queue)]->info, sizeof(infos[i]));
+            infos[i] = q->queue[(idx - 1) % ARRAY_SIZE(q->queue)]->info;
             idx--;
             i++;
         }

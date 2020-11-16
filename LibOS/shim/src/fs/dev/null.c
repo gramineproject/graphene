@@ -65,7 +65,7 @@ static int dev_null_open(struct shim_handle* hdl, const char* name, int flags) {
                                .stat     = &dev_null_stat,
                                .hstat    = &dev_null_hstat};
 
-    memcpy(&hdl->info.dev.dev_ops, &ops, sizeof(ops));
+    hdl->info.dev.dev_ops = ops;
     return 0;
 }
 
@@ -99,7 +99,7 @@ static int dev_tty_open(struct shim_handle* hdl, const char* name, int flags) {
                                .stat     = &dev_tty_stat,
                                .hstat    = &dev_tty_hstat};
 
-    memcpy(&hdl->info.dev.dev_ops, &ops, sizeof(ops));
+    hdl->info.dev.dev_ops = ops;
     return 0;
 }
 
