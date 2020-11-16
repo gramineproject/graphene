@@ -604,13 +604,23 @@ out:
 
 ssize_t shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
     struct shim_handle* hdli = get_fd_handle(ifd, NULL, NULL);
-    struct shim_handle* hdlo = get_fd_handle(ofd, NULL, NULL);
-
-    if (!hdli || !hdlo)
+    if (!hdli)
         return -EBADF;
 
+    struct shim_handle* hdlo = get_fd_handle(ofd, NULL, NULL);
+    if (!hdlo) {
+        put_handle(hdli);
+        return -EBADF;
+    }
+
+    int ret = -EINVAL;
+    if (hdlo->flags & O_APPEND) {
+        /* Linux errors out if output fd has the O_APPEND flag set; comply with this behavior */
+        goto out;
+    }
+
     off_t old_offset = 0;
-    int ret = -EACCES;
+    ret = -EACCES;
 
     if (offset) {
         if (!hdli->fs || !hdli->fs->fs_ops || !hdli->fs->fs_ops->seek)
