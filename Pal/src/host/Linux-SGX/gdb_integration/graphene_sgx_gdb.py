@@ -7,7 +7,6 @@ import os
 
 import gdb # pylint: disable=import-error
 
-# pylint: disable=no-self-use,too-few-public-methods
 
 _g_paginations = []
 
@@ -107,7 +106,7 @@ class PushPagination(gdb.Command):
     """
 
     def __init__(self):
-        super(PushPagination, self).__init__("push-pagination", gdb.COMMAND_USER)
+        super().__init__("push-pagination", gdb.COMMAND_USER)
 
     def invoke(self, arg, _from_tty):
         self.dont_repeat()
@@ -125,7 +124,7 @@ class PopPagination(gdb.Command):
     """Recover pagination state saved by PushPagination"""
 
     def __init__(self):
-        super(PopPagination, self).__init__("pop-pagination", gdb.COMMAND_USER)
+        super().__init__("pop-pagination", gdb.COMMAND_USER)
 
     def invoke(self, arg, _from_tty):
         self.dont_repeat()

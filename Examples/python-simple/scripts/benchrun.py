@@ -11,26 +11,27 @@ See fibonacci.py for example.
 
 import sys
 if sys.platform == 'win32':
-    from time import clock
+    from time import clock  # pylint: disable=no-name-in-module,unused-import
 else:
-    from time import time as clock
+    from time import time as clock  # pylint: disable=unused-import
 
 # http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/302478
 def combinations(*seqin):
-    def rloop(seqin,comb):
+    def rloop(seqin, comb):
         if seqin:
             for item in seqin[0]:
                 newcomb = comb + [item]
-                for item in rloop(seqin[1:],newcomb):   
-                    yield item
+                for item2 in rloop(seqin[1:], newcomb):
+                    yield item2
         else:
             yield comb
-    return rloop(seqin,[])
+    return rloop(seqin, [])
 
 
 class Benchmark:
     sort_by = []
     reference = None
+    parameters = {}
 
     def __init__(self):
         self.pnames = []
@@ -43,6 +44,7 @@ class Benchmark:
             self.pvalues.append(value)
         self.pcombos = list(combinations(*self.pvalues))
         if self.reference:
+            # pylint: disable=unsubscriptable-object
             self.reference_param = self.reference[0]
             self.reference_value = self.reference[1]
 
@@ -50,6 +52,7 @@ class Benchmark:
         """Run benchmark for all versions and parameters."""
         for params in self.pcombos:
             args = dict(zip(self.pnames, params))
+            # pylint: disable=no-member
             t = self.run(**args)
             self.results.append(tuple(params) + (t,))
             self.results_dict[tuple(params)] = t
@@ -72,10 +75,10 @@ class Benchmark:
         i = self.pnames.index(self.reference_param)
         if pvalues[i] == self.reference_value:
             return None
-        else:
-            pvalues[i] = self.reference_value
+
+        pvalues[i] = self.reference_value
         ref = self.results_dict[tuple(pvalues)]
-        if ref == None:
+        if ref is None:
             return None
         return ref / time
 
@@ -91,7 +94,6 @@ class Benchmark:
         print(self.__doc__ + "\n")
 
         colwidth = 15
-        reftimes = {}
 
         ts = "seconds"
         if self.reference:
@@ -99,16 +101,15 @@ class Benchmark:
         print("  " + "   ".join([str(r).ljust(colwidth) for r in self.pnames + [ts]]))
         print("-" * 79)
 
-        rows = []
         for vals in self.results:
-            pvalues =  vals[:-1]
+            pvalues = vals[:-1]
             time = vals[-1]
-            if time == None:
+            if time is None:
                 stime = "(n/a)"
             else:
                 stime = "%.8f" % time
                 factor = self.get_factor(pvalues, time)
-                if factor != None:
+                if factor is not None:
                     stime += ("  (%.2f)" % factor)
             vals = pvalues + (stime,)
             row = [str(val).ljust(colwidth) for val in vals]

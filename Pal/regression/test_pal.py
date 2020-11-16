@@ -3,13 +3,11 @@
 import ast
 import collections
 import mmap
-import os
 import pathlib
 import random
 import shutil
 import string
 import subprocess
-import sys
 import unittest
 
 from regression import (
@@ -18,10 +16,6 @@ from regression import (
     RegressionTestCase,
     expectedFailureIf,
 )
-
-if HAS_SGX:
-    sys.path.insert(0, os.path.dirname(__file__) + '/../src/host/Linux-SGX/signer')
-    from pal_sgx_sign import read_manifest
 
 CPUINFO_FLAGS_WHITELIST = [
     'fpu', 'vme', 'de', 'pse', 'tsc', 'msr', 'pae', 'mce', 'cx8', 'apic', 'sep',
@@ -230,7 +224,7 @@ class TC_01_Bootstrap(RegressionTestCase):
             _, stderr = self.run_binary(['fakenews'])
             self.fail(
                 'expected non-zero returncode, stderr: {!r}'.format(stderr))
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             pass
 
 class TC_02_Symbols(RegressionTestCase):
@@ -292,7 +286,7 @@ class TC_02_Symbols(RegressionTestCase):
 class TC_10_Exception(RegressionTestCase):
     def is_altstack_different_from_main_stack(self, output):
         mainstack = 0
-        altstack  = 0
+        altstack = 0
         for line in output.splitlines():
             if line.startswith('Stack in main:'):
                 mainstack = int(line.split(':')[1], 0)

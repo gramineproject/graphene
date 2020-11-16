@@ -15,7 +15,7 @@ def fib2(n):
     if n < 2:
         return n
     a, b = 1, 0
-    for i in range(n-1):
+    for _ in range(n-1):
         a, b = a+b, a
     return a
 
@@ -42,13 +42,14 @@ class FibonacciBenchmark(Benchmark):
             f(n)
             t2 = clock()
             return t2-t1
+
         # Need to repeat many times to get accurate timings for small n
-        else:
-            t1 = clock()
-            f(n); f(n); f(n); f(n); f(n); f(n); f(n)
-            f(n); f(n); f(n); f(n); f(n); f(n); f(n)
-            t2 = clock()
-            return (t2 - t1) / 14
+        t1 = clock()
+        # pylint: disable=multiple-statements
+        f(n); f(n); f(n); f(n); f(n); f(n); f(n)
+        f(n); f(n); f(n); f(n); f(n); f(n); f(n)
+        t2 = clock()
+        return (t2 - t1) / 14
 
 if __name__ == '__main__':
     FibonacciBenchmark().print_result()

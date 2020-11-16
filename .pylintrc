@@ -4,6 +4,7 @@
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code.
 extension-pkg-whitelist=
+    numpy
 
 # Add files or directories to the blacklist. They should be base names, not
 # paths.
@@ -53,9 +54,21 @@ confidence=
 
 enable=*
 disable=
+    bad-option-value,  # for compatibility between different pylint versions
     bad-continuation,
     c-extension-no-member,
     missing-docstring,
+    missing-function-docstring,
+    missing-module-docstring,
+    invalid-name,
+    fixme,
+    raise-missing-from,
+    too-many-instance-attributes,
+    too-many-branches,
+    too-many-statements,
+    too-few-public-methods,
+    too-many-public-methods,
+    no-self-use
 
 
 [REPORTS]
@@ -421,7 +434,10 @@ int-import-graph=
 known-standard-library=
 
 # Force import order to recognize a module as part of a third party library.
-known-third-party=enchant
+known-third-party=
+    enchant,
+    docker,
+    yaml
 
 
 [CLASSES]

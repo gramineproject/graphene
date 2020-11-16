@@ -4,7 +4,6 @@
 
 import argparse
 import collections
-import sys
 
 DEFAULT = 'DEFAULT'
 

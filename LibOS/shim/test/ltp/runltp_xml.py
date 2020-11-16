@@ -226,8 +226,7 @@ class TestRunner:
             # We don't run those in unit tests.
             if 'must-pass' in self.cfgsection:
                 raise Error('invalid shell command with must-pass')
-            else:
-                raise Skip('invalid shell command')
+            raise Skip('invalid shell command')
 
     def get_executable_name(self):
         '''Return the executable name, or :py:obj:`None` if the test will not
@@ -330,8 +329,6 @@ class TestRunner:
         This is normally done only for a test that has non-empty ``must-pass``
         config directive.
         '''
-        # pylint: disable=too-many-branches
-
         notfound = must_pass.copy()
         passed = set()
         failed = set()
@@ -413,9 +410,8 @@ class TestRunner:
                 raise Error('binary did not provide any subtests, see stdout '
                     '(returncode={returncode}, must-pass=[{must_pass}])'.format(
                         **self.props))
-            else:
-                raise Skip('binary without subtests, see stdout '
-                        '(returncode={returncode})'.format(**self.props))
+            raise Skip('binary without subtests, see stdout '
+                       '(returncode={returncode})'.format(**self.props))
 
         if maybe_unneeded_must_pass and not notfound:
             # all subtests passed and must-pass specified exactly all subtests

@@ -39,6 +39,7 @@ class MakeEnvironment(asv.environment.Environment):
     def _run(self, *args, env=None, **kwds):
         # when we don't need asv.util.check_*, do not use, because it may deadlock
         # (those functions have problems with their poor reimplementation of .communicate())
+        # pylint: disable=subprocess-run-check
         return subprocess.run(*args, env=self._get_env_for_subprocess(env), **kwds)
 
     def run(self, args, *, env=None, **kwargs):
