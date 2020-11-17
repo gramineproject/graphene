@@ -102,11 +102,7 @@ static struct shim_thread* alloc_new_thread(void) {
     return thread;
 }
 
-int init_thread(void) {
-    if (!create_lock(&g_thread_list_lock)) {
-        return -ENOMEM;
-    }
-
+static int init_main_thread(void) {
     struct shim_thread* cur_thread = get_cur_thread();
     if (cur_thread) {
         /* Thread already initialized (e.g. received via checkpoint). */
@@ -122,6 +118,7 @@ int init_thread(void) {
     cur_thread->tid = get_new_tid();
     if (!cur_thread->tid) {
         debug("Cannot allocate pid for the initial thread!\n");
+        put_thread(cur_thread);
         return -ESRCH;
     }
     g_process.pid = cur_thread->tid;
@@ -131,6 +128,7 @@ int init_thread(void) {
 
     cur_thread->signal_handles = alloc_default_signal_handles();
     if (!cur_thread->signal_handles) {
+        put_thread(cur_thread);
         return -ENOMEM;
     }
 
@@ -140,6 +138,7 @@ int init_thread(void) {
 
     cur_thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     if (!cur_thread->scheduler_event) {
+        put_thread(cur_thread);
         return -ENOMEM;
     }
 
@@ -149,6 +148,14 @@ int init_thread(void) {
     add_thread(cur_thread);
 
     return 0;
+}
+
+int init_threading(void) {
+    if (!create_lock(&g_thread_list_lock)) {
+        return -ENOMEM;
+    }
+
+    return init_main_thread();
 }
 
 static struct shim_thread* __lookup_thread(IDTYPE tid) {

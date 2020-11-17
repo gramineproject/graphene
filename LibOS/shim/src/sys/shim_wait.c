@@ -3,7 +3,9 @@
  *                    Borys Popławski <borysp@invisiblethingslab.com>
  */
 
-#include <stddef.h> // to get missing size_t definition
+/* We need to include this to get size_t definition, which otherwise is missing in <linux/signal.h>
+ * (at least on Ubuntu16.04) */
+#include <stddef.h>
 
 #include <linux/signal.h>
 #include <linux/wait.h>
@@ -80,6 +82,7 @@ static void remove_qnode_from_wait_queue(struct shim_thread_queue* qnode) {
 
     while (!seen) {
         DkEventClear(get_cur_thread()->scheduler_event);
+        /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
         COMPILER_BARRIER();
         /* Check if `qnode` is no longer used. */
         if (!__atomic_load_n(&qnode->in_use, __ATOMIC_ACQUIRE)) {
@@ -196,6 +199,7 @@ long shim_do_waitid(int which, pid_t id, siginfo_t* infop, int options, struct _
             }
 
             DkEventClear(self->scheduler_event);
+            /* Check `mark_child_exited` for explanation why we might need this compiler barrier. */
             COMPILER_BARRIER();
             /* Check that we are still supposed to sleep. */
             if (!__atomic_load_n(&qnode.in_use, __ATOMIC_ACQUIRE)) {

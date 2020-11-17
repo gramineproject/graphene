@@ -127,7 +127,7 @@ enum {
     SIGNAL_HANDLED_RESTART,
 };
 
-int init_thread(void);
+int init_threading(void);
 
 static inline bool is_internal(struct shim_thread* thread) {
     return thread->tid >= INTERNAL_TID_BASE;

@@ -97,8 +97,8 @@ static bool cmp_child_by_pid(const struct shim_child_process* child, unsigned lo
     return child->pid == pid;
 }
 
-static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE uid, int exit_code,
-                              int signal) {
+static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE child_uid,
+                              int exit_code, int signal) {
     bool ret = false;
     int parent_signal = 0;
     IDTYPE child_pid = 0;
@@ -112,7 +112,7 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE u
         if (child_cmp(child, arg)) {
             child->exit_code = exit_code;
             child->term_signal = signal;
-            child->uid = uid;
+            child->uid = child_uid;
 
             LISTP_DEL_INIT(child, &g_process.children, list);
             /* TODO: if SIGCHLD is ignored or has SA_NOCLDWAIT flag set, then the child should not
@@ -136,7 +136,7 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE u
         siginfo_t info = {
             .si_signo = parent_signal,
             .si_pid = child_pid,
-            .si_uid = uid,
+            .si_uid = child_uid,
             /* These 2 fields are not supported in Graphene. */
             .si_utime = 0,
             .si_stime = 0,
@@ -154,6 +154,10 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE u
         struct shim_thread_queue* next = wait_queue->next;
         struct shim_thread* thread = wait_queue->thread;
         __atomic_store_n(&wait_queue->in_use, false, __ATOMIC_RELEASE);
+        /* In theory the atomic release store above does not prevent hoisting of code to before it.
+         * Here we rely on the order: first store to `in_use`, then wake the thread. Let's add
+         * a compiler barrier to prevent compiler from messing with this (e.g. if `thread_wakeup`
+         * gets inlined). */
         COMPILER_BARRIER();
         thread_wakeup(thread);
         wait_queue = next;
@@ -162,12 +166,12 @@ static bool mark_child_exited(child_cmp_t child_cmp, unsigned long arg, IDTYPE u
     return ret;
 }
 
-bool mark_child_exited_by_vmid(IDTYPE vmid, IDTYPE uid, int exit_code, int signal) {
-    return mark_child_exited(cmp_child_by_vmid, (unsigned long)vmid, uid, exit_code, signal);
+bool mark_child_exited_by_vmid(IDTYPE vmid, IDTYPE child_uid, int exit_code, int signal) {
+    return mark_child_exited(cmp_child_by_vmid, (unsigned long)vmid, child_uid, exit_code, signal);
 }
 
-bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE uid, int exit_code, int signal) {
-    return mark_child_exited(cmp_child_by_pid, (unsigned long)pid, uid, exit_code, signal);
+bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE child_uid, int exit_code, int signal) {
+    return mark_child_exited(cmp_child_by_pid, (unsigned long)pid, child_uid, exit_code, signal);
 }
 
 BEGIN_CP_FUNC(process_description) {

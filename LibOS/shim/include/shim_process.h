@@ -76,7 +76,7 @@ void add_child_process(struct shim_child_process* child);
  * and generate a child-termination signal (if needed).
  * Return `true` if the child was found, `false` otherwise.
  */
-bool mark_child_exited_by_vmid(IDTYPE vmid, IDTYPE uid, int exit_code, int signal);
-bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE uid, int exit_code, int signal);
+bool mark_child_exited_by_vmid(IDTYPE vmid, IDTYPE child_uid, int exit_code, int signal);
+bool mark_child_exited_by_pid(IDTYPE pid, IDTYPE child_uid, int exit_code, int signal);
 
 #endif // _SHIM_PROCESS_H

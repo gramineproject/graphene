@@ -155,8 +155,6 @@ static int shim_do_execve_rtld(struct shim_handle* hdl, const char** argv, const
     if (ret < 0)
         return ret;
 
-    __disable_preempt(shim_get_tcb());  // Temporarily disable preemption during execve().
-
     /* We are done using this handle and we got the ownership from the caller. */
     put_handle(hdl);
 
@@ -363,6 +361,11 @@ reopen:
      * instance and call execve again. */
     __atomic_store_n(&first, 0, __ATOMIC_RELAXED);
 
+    /* Disable preemption during `execve`. It will be enabled back in `execute_elf_object` if we
+     * stay in the same process. Otherwise it is never enabled, since this process dies both on
+     * errors and success. */
+    disable_preempt(NULL);
+
     bool use_same_process = true;
     if (!strcmp(PAL_CB(host_type), "Linux-SGX")) {
         /* for SGX PALs, can use same process only if it is the same executable (because a different
@@ -412,6 +415,8 @@ reopen:
     if (ret < 0) {
         goto out_fatal_error;
     }
+    /* TODO: we should also terminate async helper, serialize it's state (pending alarms etc.) and
+     * send to the new process. */
 
     /* We are the only thread running and IPC helper thread is blocked, so there is no need for
      * locking `cur_thread` and `g_process` - we can safely pass them as arguments below. */
