@@ -553,7 +553,7 @@ static inline void skip_syscall_args(va_list* ap) {
 }
 
 void parse_syscall_before(int sysno, const char* name, int nr, ...) {
-    if (!g_enable_debug_log)
+    if (!g_debug_log_enabled)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];
@@ -589,7 +589,7 @@ dotdotdot:
 }
 
 void parse_syscall_after(int sysno, const char* name, int nr, ...) {
-    if (!g_enable_debug_log)
+    if (!g_debug_log_enabled)
         return;
 
     struct parser_table* parser = &syscall_parser_table[sysno];

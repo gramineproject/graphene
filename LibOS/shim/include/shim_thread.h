@@ -137,7 +137,7 @@ void debug_setprefix(shim_tcb_t* tcb);
 
 static inline void debug_setbuf(shim_tcb_t* tcb,
                                 struct debug_buf* debug_buf) {
-    if (!g_enable_debug_log)
+    if (!g_debug_log_enabled)
         return;
 
     tcb->debug_buf = debug_buf ? debug_buf : malloc(sizeof(struct debug_buf));
