@@ -55,7 +55,8 @@ static void handle_failure(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
 
 noreturn void __abort(void) {
     DEBUG_BREAK_ON_FAILURE();
-    process_exit(/*error_code=*/0, /*term_signal=*/SIGABRT);
+    /* `__abort` might be called by any thread, even internal. */
+    DkProcessExit(1);
 }
 
 static int pal_errno_to_unix_errno[PAL_ERROR_NATIVE_COUNT + 1] = {

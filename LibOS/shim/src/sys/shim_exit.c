@@ -145,6 +145,8 @@ bool kill_other_threads(void) {
 }
 
 noreturn void process_exit(int error_code, int term_signal) {
+    assert(!is_internal(get_cur_thread()));
+
     /* If process_exit is invoked multiple times, only a single invocation proceeds past this
      * point. */
     static int first = 0;
