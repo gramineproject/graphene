@@ -290,7 +290,7 @@ void put_thread(struct shim_thread* thread) {
 
         clear_signal_queue(&thread->signal_queue);
 
-        /* `signal_altstack` is provided by the user, not need for a clean up. */
+        /* `signal_altstack` is provided by the user, no need for a clean up. */
 
         if (thread->robust_list) {
             release_robust_list(thread->robust_list);

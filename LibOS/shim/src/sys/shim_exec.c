@@ -419,7 +419,8 @@ reopen:
      * send to the new process. */
 
     /* We are the only thread running and IPC helper thread is blocked, so there is no need for
-     * locking `cur_thread` and `g_process` - we can safely pass them as arguments below. */
+     * locking `cur_thread` and `g_process` and we can safely reuse them as arguments to
+     * `create_process_and_send_checkpoint` below. */
 
     void* stack          = cur_thread->stack;
     void* stack_top      = cur_thread->stack_top;
