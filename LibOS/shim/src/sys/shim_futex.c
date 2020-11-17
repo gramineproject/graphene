@@ -51,11 +51,11 @@ struct shim_futex {
     uint32_t* uaddr;
     LISTP_TYPE(futex_waiter) waiters;
     struct avl_tree_node tree_node;
+    bool in_tree;
     /* This lock guards every access to *uaddr (futex word value) and waiters (above).
      * Always take g_futex_tree_lock before taking this lock. */
     spinlock_t lock;
     REFTYPE _ref_count;
-    bool in_tree;
 };
 
 static bool futex_tree_cmp(struct avl_tree_node* node_a, struct avl_tree_node* node_b) {
@@ -147,7 +147,7 @@ static void unlock_two_futexes(struct shim_futex* futex1, struct shim_futex* fut
 }
 
 /*
- * Adds `futex` to `g_futex_list`.
+ * Adds `futex` to `g_futex_tree`.
  *
  * `g_futex_tree_lock` should be held while calling this function and you must ensure that nobody
  * is using `futex` (e.g. you have just created it).
@@ -161,14 +161,14 @@ static void enqueue_futex(struct shim_futex* futex) {
 }
 
 /*
- * Checks whether `futex` has no waiters and is on `g_futex_list`.
+ * Checks whether `futex` has no waiters and is on `g_futex_tree`.
  *
  * This requires only `futex->lock` to be held.
  */
 static bool check_dequeue_futex(struct shim_futex* futex) {
     assert(spinlock_is_locked(&futex->lock));
 
-    return LISTP_EMPTY(&futex->waiters) && (futex->in_tree);
+    return LISTP_EMPTY(&futex->waiters) && futex->in_tree;
 }
 
 static void _maybe_dequeue_futex(struct shim_futex* futex) {
@@ -177,14 +177,14 @@ static void _maybe_dequeue_futex(struct shim_futex* futex) {
 
     if (check_dequeue_futex(futex)) {
         avl_tree_delete(&g_futex_tree, &futex->tree_node);
-        futex->in_tree = NULL;	
+        futex->in_tree = false;
         /* We still hold this futex reference (in the caller), so this won't call free. */
         put_futex(futex);
     }
 }
 
 /*
- * If `futex` has no waiters and is on `g_futex_list`, takes it off that list.
+ * If `futex` has no waiters and is on `g_futex_tree`, takes it off that list.
  *
  * Neither `g_futex_tree_lock` nor `futex->lock` should be held while calling this,
  * it acquires these locks itself.
@@ -215,7 +215,7 @@ static void maybe_dequeue_two_futexes(struct shim_futex* futex1, struct shim_fut
 
 /*
  * Adds `waiter` to `futex` waiters list.
- * You need to make sure that this futex is still on `g_futex_list`, but in most cases it follows
+ * You need to make sure that this futex is still on `g_futex_tree`, but in most cases it follows
  * from the program control flow.
  *
  * Increases refcount of current thread by 1 (in thread_setwait)
@@ -250,7 +250,7 @@ static struct shim_thread* remove_futex_waiter(struct futex_waiter* waiter,
 
 /*
  * Moves waiter from `futex1` to `futex2`.
- * As in `add_futex_waiter`, `futex2` needs to be on `g_futex_list`.
+ * As in `add_futex_waiter`, `futex2` needs to be on `g_futex_tree`.
  *
  * `futex1->lock` and `futex2->lock` need to be held.
  */
@@ -281,6 +281,7 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
     REF_SET(futex->_ref_count, 1);
 
     futex->uaddr = uaddr;
+    futex->in_tree = false;
     INIT_LISTP(&futex->waiters);
     spinlock_init(&futex->lock);
 
@@ -288,7 +289,7 @@ static struct shim_futex* create_new_futex(uint32_t* uaddr) {
 }
 
 /*
- * Finds a futex in `g_futex_list`.
+ * Finds a futex in `g_futex_tree`.
  * Must be called with `g_futex_tree_lock` held.
  * Increases refcount of futex by 1.
  */
@@ -296,18 +297,16 @@ static struct shim_futex* find_futex(uint32_t* uaddr) {
     assert(spinlock_is_locked(&g_futex_tree_lock));
     struct shim_futex* futex = NULL;
     struct shim_futex cmp_arg = {
-	    .uaddr = uaddr
+        .uaddr = uaddr
     };
-    struct avl_tree_node* node = avl_tree_find(&g_futex_tree, &cmp_arg.tree_node);//avl_tree_lower_bound_fn(&g_futex_tree, (void*)uaddr, cmp_addr_to_futex);
+    struct avl_tree_node* node = avl_tree_find(&g_futex_tree, &cmp_arg.tree_node);
     if (!node) {
         return NULL;
     }
+
     futex = container_of(node, struct shim_futex, tree_node);
-    if(futex->uaddr == uaddr) {
-        get_futex(futex);
-        return futex;
-    }
-    return NULL;
+    get_futex(futex);
+    return futex;
 }
 
 static uint64_t timespec_to_us(const struct timespec* ts) {
