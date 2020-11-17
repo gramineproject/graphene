@@ -487,7 +487,6 @@ void avl_tree_delete(struct avl_tree* tree, struct avl_tree_node* node) {
     if ((new_root && !new_root->parent) || !node->parent) {
         tree->root = new_root;
     }
-    avl_tree_init_node(node);
 }
 
 static struct avl_tree_node* avl_tree_find_fn_to(struct avl_tree* tree,
