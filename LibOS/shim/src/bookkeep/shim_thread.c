@@ -32,27 +32,27 @@ static IDTYPE g_internal_tid_alloc_idx = INTERNAL_TID_BASE;
 //#define DEBUG_REF
 
 #ifdef DEBUG_REF
-#define DEBUG_PRINT_REF_COUNT(rc) debug("%s %p ref_count = %d\n", __func__, handles, rc)
+#define DEBUG_PRINT_REF_COUNT(rc) debug("%s %p ref_count = %d\n", __func__, dispositions, rc)
 #else
 #define DEBUG_PRINT_REF_COUNT(rc) __UNUSED(rc)
 #endif
 
-static struct shim_signal_handles* alloc_default_signal_handles(void) {
-    struct shim_signal_handles* handles = malloc(sizeof(*handles));
-    if (!handles) {
+static struct shim_signal_dispositions* alloc_default_signal_dispositions(void) {
+    struct shim_signal_dispositions* dispositions = malloc(sizeof(*dispositions));
+    if (!dispositions) {
         return NULL;
     }
 
-    if (!create_lock(&handles->lock)) {
-        free(handles);
+    if (!create_lock(&dispositions->lock)) {
+        free(dispositions);
         return NULL;
     }
-    REF_SET(handles->ref_count, 1);
-    for (size_t i = 0; i < ARRAY_SIZE(handles->actions); i++) {
-        sigaction_make_defaults(&handles->actions[i]);
+    REF_SET(dispositions->ref_count, 1);
+    for (size_t i = 0; i < ARRAY_SIZE(dispositions->actions); i++) {
+        sigaction_make_defaults(&dispositions->actions[i]);
     }
 
-    return handles;
+    return dispositions;
 }
 
 static IDTYPE get_new_tid(void) {
@@ -126,8 +126,8 @@ static int init_main_thread(void) {
 
     /* Default user and group ids are `0` and already set. */
 
-    cur_thread->signal_handles = alloc_default_signal_handles();
-    if (!cur_thread->signal_handles) {
+    cur_thread->signal_dispositions = alloc_default_signal_dispositions();
+    if (!cur_thread->signal_dispositions) {
         put_thread(cur_thread);
         return -ENOMEM;
     }
@@ -213,8 +213,8 @@ struct shim_thread* get_new_thread(void) {
     thread->stack_top = cur_thread->stack_top;
     thread->stack_red = cur_thread->stack_red;
 
-    thread->signal_handles = cur_thread->signal_handles;
-    get_signal_handles(thread->signal_handles);
+    thread->signal_dispositions = cur_thread->signal_dispositions;
+    get_signal_dispositions(thread->signal_dispositions);
 
     set_sig_mask(thread, &cur_thread->signal_mask);
 
@@ -248,19 +248,19 @@ struct shim_thread* get_new_internal_thread(void) {
     return thread;
 }
 
-void get_signal_handles(struct shim_signal_handles* handles) {
-    int ref_count = REF_INC(handles->ref_count);
+void get_signal_dispositions(struct shim_signal_dispositions* dispositions) {
+    int ref_count = REF_INC(dispositions->ref_count);
     DEBUG_PRINT_REF_COUNT(ref_count);
 }
 
-void put_signal_handles(struct shim_signal_handles* handles) {
-    int ref_count = REF_DEC(handles->ref_count);
+void put_signal_dispositions(struct shim_signal_dispositions* dispositions) {
+    int ref_count = REF_DEC(dispositions->ref_count);
 
     DEBUG_PRINT_REF_COUNT(ref_count);
 
     if (!ref_count) {
-        destroy_lock(&handles->lock);
-        free(handles);
+        destroy_lock(&dispositions->lock);
+        free(dispositions);
     }
 }
 
@@ -284,8 +284,8 @@ void put_thread(struct shim_thread* thread) {
             put_handle_map(thread->handle_map);
         }
 
-        if (thread->signal_handles) {
-            put_signal_handles(thread->signal_handles);
+        if (thread->signal_dispositions) {
+            put_signal_dispositions(thread->signal_dispositions);
         }
 
         clear_signal_queue(&thread->signal_queue);
@@ -419,49 +419,49 @@ out:
     return ret;
 }
 
-BEGIN_CP_FUNC(signal_handles) {
+BEGIN_CP_FUNC(signal_dispositions) {
     __UNUSED(size);
-    assert(size == sizeof(struct shim_signal_handles));
+    assert(size == sizeof(struct shim_signal_dispositions));
 
-    struct shim_signal_handles* handles = (struct shim_signal_handles*)obj;
-    struct shim_signal_handles* new_handles = NULL;
+    struct shim_signal_dispositions* dispositions = (struct shim_signal_dispositions*)obj;
+    struct shim_signal_dispositions* new_dispositions = NULL;
 
     size_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
-        off = ADD_CP_OFFSET(sizeof(struct shim_signal_handles));
+        off = ADD_CP_OFFSET(sizeof(struct shim_signal_dispositions));
         ADD_TO_CP_MAP(obj, off);
-        new_handles = (struct shim_signal_handles*)(base + off);
+        new_dispositions = (struct shim_signal_dispositions*)(base + off);
 
-        lock(&handles->lock);
+        lock(&dispositions->lock);
 
-        memcpy(new_handles, handles, sizeof(*handles));
-        clear_lock(&new_handles->lock);
-        REF_SET(new_handles->ref_count, 0);
+        memcpy(new_dispositions, dispositions, sizeof(*dispositions));
+        clear_lock(&new_dispositions->lock);
+        REF_SET(new_dispositions->ref_count, 0);
 
-        unlock(&handles->lock);
+        unlock(&dispositions->lock);
 
         ADD_CP_FUNC_ENTRY(off);
     } else {
-        new_handles = (struct shim_signal_handles*)(base + off);
+        new_dispositions = (struct shim_signal_dispositions*)(base + off);
     }
 
     if (objp) {
-        *objp = (void*)new_handles;
+        *objp = (void*)new_dispositions;
     }
 }
-END_CP_FUNC(signal_handles)
+END_CP_FUNC(signal_dispositions)
 
-BEGIN_RS_FUNC(signal_handles) {
+BEGIN_RS_FUNC(signal_dispositions) {
     __UNUSED(offset);
     __UNUSED(rebase);
-    struct shim_signal_handles* handles = (void*)(base + GET_CP_FUNC_ENTRY());
+    struct shim_signal_dispositions* dispositions = (void*)(base + GET_CP_FUNC_ENTRY());
 
-    if (!create_lock(&handles->lock)) {
+    if (!create_lock(&dispositions->lock)) {
         return -ENOMEM;
     }
 }
-END_RS_FUNC(signal_handles)
+END_RS_FUNC(signal_dispositions)
 
 BEGIN_CP_FUNC(thread) {
     __UNUSED(size);
@@ -487,7 +487,7 @@ BEGIN_CP_FUNC(thread) {
         new_thread->robust_list = NULL;
         REF_SET(new_thread->ref_count, 0);
 
-        DO_CP_MEMBER(signal_handles, thread, new_thread, signal_handles);
+        DO_CP_MEMBER(signal_dispositions, thread, new_thread, signal_dispositions);
 
         DO_CP_MEMBER(handle_map, thread, new_thread, handle_map);
 
@@ -519,7 +519,7 @@ BEGIN_RS_FUNC(thread) {
 
     CP_REBASE(thread->list);
     CP_REBASE(thread->handle_map);
-    CP_REBASE(thread->signal_handles);
+    CP_REBASE(thread->signal_dispositions);
 
     if (!create_lock(&thread->lock)) {
         return -ENOMEM;
@@ -534,8 +534,8 @@ BEGIN_RS_FUNC(thread) {
         get_handle_map(thread->handle_map);
     }
 
-    if (thread->signal_handles) {
-        get_signal_handles(thread->signal_handles);
+    if (thread->signal_dispositions) {
+        get_signal_dispositions(thread->signal_dispositions);
     }
 
     if (thread->set_child_tid) {
@@ -567,7 +567,7 @@ BEGIN_RS_FUNC(thread) {
          * shim_tcb = NULL
          * in_vm = false
          */
-        if (thread->signal_handles)
+        if (thread->signal_dispositions)
             thread_sigaction_reset_on_execve(thread);
     }
 

@@ -44,9 +44,9 @@ void sigaction_make_defaults(struct __kernel_sigaction* sig_action) {
 }
 
 void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
-    lock(&thread->signal_handles->lock);
-    for (size_t i = 0; i < ARRAY_SIZE(thread->signal_handles->actions); i++) {
-        struct __kernel_sigaction* sig_action = &thread->signal_handles->actions[i];
+    lock(&thread->signal_dispositions->lock);
+    for (size_t i = 0; i < ARRAY_SIZE(thread->signal_dispositions->actions); i++) {
+        struct __kernel_sigaction* sig_action = &thread->signal_dispositions->actions[i];
 
         __sighandler_t handler = sig_action->k_sa_handler;
         if (handler == (void*)SIG_DFL || handler == (void*)SIG_IGN) {
@@ -58,7 +58,7 @@ void thread_sigaction_reset_on_execve(struct shim_thread* thread) {
         /* app installed its own signal handler, reset it to default */
         sigaction_make_defaults(sig_action);
     }
-    unlock(&thread->signal_handles->lock);
+    unlock(&thread->signal_dispositions->lock);
 }
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
@@ -708,8 +708,8 @@ __sigset_t* set_sig_mask(struct shim_thread* thread, const __sigset_t* set) {
 
 static void get_sighandler(struct shim_thread* thread, int sig, bool allow_reset,
                            __rt_sighandler_t* handler_ptr, unsigned long* sa_flags_ptr) {
-    lock(&thread->signal_handles->lock);
-    struct __kernel_sigaction* sig_action = &thread->signal_handles->actions[sig - 1];
+    lock(&thread->signal_dispositions->lock);
+    struct __kernel_sigaction* sig_action = &thread->signal_dispositions->actions[sig - 1];
 
     /*
      * on amd64, sa_handler can be treated as sa_sigaction
@@ -733,7 +733,7 @@ static void get_sighandler(struct shim_thread* thread, int sig, bool allow_reset
         handler = default_sighandler[sig - 1];
     }
 
-    unlock(&thread->signal_handles->lock);
+    unlock(&thread->signal_dispositions->lock);
 
     *handler_ptr = handler;
     *sa_flags_ptr = sa_flags;
