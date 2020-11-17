@@ -97,6 +97,7 @@ typedef struct pal_handle {
 
         struct {
             PAL_IDX fd;
+            PAL_BOL nonblocking;
         } dev;
 
         struct {

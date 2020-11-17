@@ -20,6 +20,7 @@
 /debug_log_inline
 /debug_regs-x86_64
 /dev
+/device
 /env_from_file
 /env_from_host
 /epoll_wait_timeout

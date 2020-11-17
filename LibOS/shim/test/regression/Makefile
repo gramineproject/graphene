@@ -15,6 +15,7 @@ c_executables = \
 	bootstrap_static \
 	debug \
 	dev \
+	device \
 	epoll_wait_timeout \
 	eventfd \
 	exec \
