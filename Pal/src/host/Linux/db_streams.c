@@ -367,6 +367,11 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 }
 
 int _DkInitDebugStream(const char* path) {
+    if (g_debug_fd >= 0) {
+        INLINE_SYSCALL(close, 1, g_debug_fd);
+        g_debug_fd = -1;
+    }
+
     int ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, 0600);
     if (ret < 0)
         return unix_to_pal_error(ERRNO(ret));
