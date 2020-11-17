@@ -115,7 +115,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         # 2 page child binary
         self.assertIn(
             '0' * 89 + ' ' +
-            ('0' * 93 + ' ') * 16,
+            ('0' * 93 + ' ') * 15,
             stdout)
 
     def test_201_exec_same(self):
