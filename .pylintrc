@@ -54,6 +54,7 @@ confidence=
 
 enable=*
 disable=
+    bad-option-value,  # for compatibility between different pylint versions
     bad-continuation,
     c-extension-no-member,
     missing-docstring,
@@ -433,7 +434,10 @@ int-import-graph=
 known-standard-library=
 
 # Force import order to recognize a module as part of a third party library.
-known-third-party=enchant
+known-third-party=
+    enchant,
+    docker,
+    yaml
 
 
 [CLASSES]

@@ -17,15 +17,15 @@ else:
 
 # http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/302478
 def combinations(*seqin):
-    def rloop(seqin,comb):
+    def rloop(seqin, comb):
         if seqin:
             for item in seqin[0]:
                 newcomb = comb + [item]
-                for item2 in rloop(seqin[1:],newcomb):
+                for item2 in rloop(seqin[1:], newcomb):
                     yield item2
         else:
             yield comb
-    return rloop(seqin,[])
+    return rloop(seqin, [])
 
 
 class Benchmark:
@@ -102,7 +102,7 @@ class Benchmark:
         print("-" * 79)
 
         for vals in self.results:
-            pvalues =  vals[:-1]
+            pvalues = vals[:-1]
             time = vals[-1]
             if time is None:
                 stime = "(n/a)"

@@ -11,8 +11,8 @@ import pathlib
 import shutil
 import sys
 import jinja2
-import docker
-import yaml
+import docker  # pylint: disable=import-error
+import yaml    # pylint: disable=import-error
 
 def gsc_image_name(name):
     return f'gsc-{name}'
@@ -89,7 +89,7 @@ def extract_binary_cmd_from_image_config(config):
     # GSC has to make it explicit to prepare scripts and Intel SGX signatures
     entrypoint.extend(cmd)
 
-    if len(entrypoint) == 0:
+    if not entrypoint:
         print('Could not find the entrypoint binary to the application image.')
         sys.exit(1)
 

@@ -286,7 +286,7 @@ class TC_02_Symbols(RegressionTestCase):
 class TC_10_Exception(RegressionTestCase):
     def is_altstack_different_from_main_stack(self, output):
         mainstack = 0
-        altstack  = 0
+        altstack = 0
         for line in output.splitlines():
             if line.startswith('Stack in main:'):
                 mainstack = int(line.split(':')[1], 0)
