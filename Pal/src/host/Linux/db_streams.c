@@ -6,6 +6,7 @@
  */
 
 #define __KERNEL__
+
 #include <asm/errno.h>
 #include <asm/fcntl.h>
 #include <asm/poll.h>
