@@ -4,6 +4,7 @@ env.DOCKER_ARGS = '''
     --volume=/var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
     --device=/dev/gsgx:/dev/gsgx
     --device=/dev/isgx:/dev/isgx
+    --device=/dev/kmsg:/dev/kmsg
 '''
 env.WERROR = '1'
 env.MAKEOPTS = '-j8'
