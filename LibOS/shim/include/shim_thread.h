@@ -30,7 +30,7 @@ struct wake_queue_head {
     struct wake_queue_node* first;
 };
 
-struct shim_signal_handles {
+struct shim_signal_dispositions {
     struct __kernel_sigaction actions[NUM_SIGS];
     struct shim_lock lock;
     REFTYPE ref_count;
@@ -74,7 +74,7 @@ struct shim_thread {
 
     /* signal handling */
     __sigset_t signal_mask;
-    struct shim_signal_handles* signal_handles;
+    struct shim_signal_dispositions* signal_dispositions;
     struct shim_signal_queue signal_queue;
     /* For the field below, see the explanation in "LibOS/shim/src/bookkeep/shim_signal.c" near
      * `process_pending_signals_cnt`. */
@@ -135,8 +135,8 @@ static inline bool is_internal(struct shim_thread* thread) {
 
 void clear_signal_queue(struct shim_signal_queue* queue);
 
-void get_signal_handles(struct shim_signal_handles* handles);
-void put_signal_handles(struct shim_signal_handles* handles);
+void get_signal_dispositions(struct shim_signal_dispositions* dispositions);
+void put_signal_dispositions(struct shim_signal_dispositions* dispositions);
 
 void get_thread(struct shim_thread* thread);
 void put_thread(struct shim_thread* thread);
