@@ -41,13 +41,13 @@ Software packages
 -----------------
 
 Please install the ``docker.io``, ``python3``, ``python3-pip`` packages. In
-addition, install the Docker client python package via pip. GSC requires Python
-3.6 or later.
+addition, install the Docker client, Jinja2, TOML, and YAML python package via
+pip. GSC requires Python 3.6 or later.
 
 .. code-block:: sh
 
    sudo apt install docker.io python3 python3-pip
-   pip3 install docker pyyaml jinja2
+   pip3 install docker jinja2 toml pyyaml
 
 Kernel modules and services
 ---------------------------
@@ -227,8 +227,9 @@ Synopsis:
 :command:`gsc info-image` -- retrieve information about graphenized Docker image
 --------------------------------------------------------------------------------
 
-Retrieves Intel SGX relevant infomration about the graphenized Docker image such
-as the ``MRENCLAVE`` and ``MRSIGNER`` for each application in the Docker image.
+Retrieves Intel SGX relevant information about the graphenized Docker image such
+as the MRENCLAVE and MRSIGNER measurements for each application in the Docker
+image.
 
 Synopsis:
 
@@ -480,6 +481,13 @@ This example assumes that all prerequisites are installed and configured.
       openssl genrsa -3 -out enclave-key.pem 3072
       # Sign graphenized Docker image with the key
       ./gsc sign-image python enclave-key.pem
+
+#. Retrieve SGX-related information from graphenized Image using :command:`gsc
+info-image:`:
+
+   .. code-block:: sh
+
+      ./gsc info-image gsc-python
 
 #. Test the graphenized Docker image:
 

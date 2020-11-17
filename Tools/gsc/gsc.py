@@ -4,19 +4,20 @@
 #                    Anjo Vahldiek-Oberwagner <anjo.lucas.vahldiek-oberwagner@intel.com>
 
 import argparse
-import os
+import hashlib
 import json
-import re
+import os
 import pathlib
+import re
 import shutil
 import sys
-import hashlib
-import struct
 import tempfile
-import jinja2
+import struct
+
 import docker
-import yaml
+import jinja2
 import toml
+import yaml
 
 def gsc_image_name(name):
     return f'gsc-{name}'
@@ -333,7 +334,7 @@ def gsc_sign_image(args):
         print(f'Successfully signed docker image {gsc_unsigned_image_name(image)} into docker '
               f'image {gsc_image_name(image)}.')
 
-# Fixed SGX architecture values
+# Offsets for fields in SIGSTRUCT (defined by the SGX HW architecture, never change)
 SGX_ARCH_ENCLAVE_CSS_DATE = 20
 SGX_ARCH_ENCLAVE_CSS_MODULUS = 128
 SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH = 960
@@ -343,7 +344,6 @@ SGX_ARCH_ENCLAVE_CSS_ISV_SVN = 1026
 # Simplified version of read_sigstruct from Pal/src/host/Linux-SGX/signer/pal-sgx-get-token
 def read_sigstruct(sig):
 
-    # """Reading Sigstruct."""
     # Field format: (offset, type, value)
     fields = {
         'date': (SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", 'year', 'month', 'day'),
@@ -370,17 +370,16 @@ def import_sigstruct_from_file(f_sig):
         mrsigner = hashlib.sha256()
         mrsigner.update(attr['modulus'])
 
-
         sigstruct = {}
         sigstruct['mr_enclave'] = attr['enclave_hash'].hex()
         sigstruct['mr_signer'] = mrsigner.digest().hex()
-        sigstruct['isv_prod_id'] = attr["isv_prod_id"]
-        sigstruct['isv_svn'] = attr["isv_svn"]
+        sigstruct['isv_prod_id'] = attr['isv_prod_id']
+        sigstruct['isv_svn'] = attr['isv_svn']
         sigstruct['date'] = '%d-%02d-%02d' % (attr['year'], attr['month'], attr['day'])
 
         return sigstruct
 
-# Sign Docker image which was previously built via `gsc build`.
+# Retrieve information about a previously built graphenized Docker image
 def gsc_info_image(args):
 
     image = args.image
@@ -393,10 +392,10 @@ def gsc_info_image(args):
               f'Please make sure to build the graphenized image first by using gsc build command.')
         sys.exit(1)
 
-    # Create temporary directory for sig struct files
+    # Create temporary directory for sigstruct files
     with tempfile.TemporaryDirectory() as tmpdirname:
 
-        # Copy sig struct files into temporary directory
+        # Copy sigstruct files into temporary directory
         docker_socket.containers.run(image, '\'cp *.sig /tmp/host/ 2>/dev/null || :\'',
                                  entrypoint=['sh', '-c'], remove=True,
                                  volumes={tmpdirname: {'bind': '/tmp/host', 'mode': 'rw'}})

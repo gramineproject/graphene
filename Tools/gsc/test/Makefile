@@ -23,8 +23,8 @@ all: $(addprefix config-, $(addsuffix .yaml, $(DISTRIBUTIONS))) $(KEY_FILE)
 
 config-%.yaml: ../config.yaml.template
 	sed -e 's/Distro: \".*\"/Distro: \"'$*'\"/' \
-		    -e 's/Branch: \"master\"/Branch: \"'$(GRAPHENE_BRANCH)'\"/' \
-			../config.yaml.template > config-$*.yaml;
+		-e 's/Branch: \"master\"/Branch: \"'$(GRAPHENE_BRANCH)'\"/' \
+		$< > $@;
 
 $(KEY_FILE):
 	openssl genrsa -3 -out $(KEY_FILE) 3072
@@ -181,7 +181,7 @@ test-12-%: gsc-%-pytorch
 
 .PHONY: test-info-image-%
 test-info-image-%: gsc-%-python3
-	../gsc info-image $*-python3 > sig.txt
+	../gsc info-image $< > sig.txt
 	grep -q "mr_enclave" sig.txt
 	$(RM) sig.txt
 
