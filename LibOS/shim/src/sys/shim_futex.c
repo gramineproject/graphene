@@ -398,6 +398,7 @@ out_with_futex_lock:; // C is awesome!
         put_thread(thread);
     }
 
+    put_futex(futex);
     if (tmp) {
         put_futex(tmp);
     }
@@ -469,12 +470,11 @@ static int futex_wake(uint32_t* uaddr, int to_wake, uint32_t bitset) {
     if (needs_dequeue) {
         maybe_dequeue_futex(futex);
     }
-    else {
-       put_futex(futex);
-    }
 
     wake_queue(&queue);
 
+    put_futex(futex);
+   
     return woken;
 }
 
