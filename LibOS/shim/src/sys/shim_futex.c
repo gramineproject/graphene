@@ -303,7 +303,7 @@ static struct shim_futex* find_futex(uint32_t* uaddr) {
         return NULL;
     }
     futex = container_of(node, struct shim_futex, tree_node);
-    if(futex->uaddr == uaddr){
+    if(futex->uaddr == uaddr) {
         get_futex(futex);
         return futex;
     }
@@ -470,7 +470,7 @@ static int futex_wake(uint32_t* uaddr, int to_wake, uint32_t bitset) {
     wake_queue(&queue);
 
     put_futex(futex);
- 
+
     return woken;
 }
 
