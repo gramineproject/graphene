@@ -14,7 +14,7 @@ loader.log_level = "$(GRAPHENE_LOG_LEVEL)"
 loader.insecure__use_cmdline_argv = 1
 
 # Environment variables
-loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
+loader.env.LD_LIBRARY_PATH = "/lib:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib:$(ARCH_LIBDIR):/usr/$(ARCH_LIBDIR)"
 
 # Mounted FSes. The following "chroot" FSes mount a part of the host FS into the
 # guest. Other parts of the host FS will not be available in the guest.
@@ -41,7 +41,7 @@ fs.mount.etc.uri = "file:/etc"
 
 # Mount the current working directory
 fs.mount.cwd.type = "chroot"
-fs.mount.cwd.path = "$(OPENVINO_DIR_ABSPATH)"
+fs.mount.cwd.path = "$(OPENVINO_DIR)"
 fs.mount.cwd.uri = "file:$(OPENVINO_DIR)"
 
 # SGX general options
@@ -83,12 +83,14 @@ sgx.trusted_files.libnssnis = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
 sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
 
 # OpenVINO C++ dependencies
-sgx.trusted_files.libcpp = "file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6"
-sgx.trusted_files.libgcc = "file:$(ARCH_LIBDIR)/libgcc_s.so.1"
-
-# OpenVINO TBB dependencies
-sgx.trusted_files.libtbbmalloc = "file:/usr/$(ARCH_LIBDIR)/libtbbmalloc.so.2"
-sgx.trusted_files.libtbb = "file:/usr/$(ARCH_LIBDIR)/libtbb.so.2"
+sgx.trusted_files.libcpp     = "file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6"
+sgx.trusted_files.libgcc     = "file:$(ARCH_LIBDIR)/libgcc_s.so.1"
+sgx.trusted_files.libnuma    = "file:/usr/$(ARCH_LIBDIR)/libnuma.so.1"
+sgx.trusted_files.libxml2    = "file:/usr/$(ARCH_LIBDIR)/libxml2.so.2"
+sgx.trusted_files.libicuuc   = "file:/usr/$(ARCH_LIBDIR)/libicuuc.so.60"
+sgx.trusted_files.libz       = "file:$(ARCH_LIBDIR)/libz.so.1"
+sgx.trusted_files.liblzma    = "file:$(ARCH_LIBDIR)/liblzma.so.5"
+sgx.trusted_files.libicudata = "file:/usr/$(ARCH_LIBDIR)/libicudata.so.60"
 
 # OpenVINO main libraries
 sgx.trusted_files.libformatreader = "file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/libformat_reader.so"
@@ -111,8 +113,11 @@ sgx.trusted_files.libimgcodecs = "file:$(OPENVINO_DIR)/inference-engine/temp/ope
 sgx.trusted_files.libimgproc = "file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_imgproc.so.4.3"
 sgx.trusted_files.libopencvcore = "file:$(OPENVINO_DIR)/inference-engine/temp/opencv_4.3.0_ubuntu18/opencv/lib/libopencv_core.so.4.3"
 
-# OpenVINO OMP libraries
-sgx.trusted_files.libiomp5 = "file:$(OPENVINO_DIR)/inference-engine/temp/omp/lib/libiomp5.so"
+# OpenVINO TBB dependencies
+sgx.trusted_files.libtbbmalloc = "file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbmalloc.so.2"
+sgx.trusted_files.libtbb       = "file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbb.so.2"
+sgx.trusted_files.libtbbbind   = "file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libtbbbind.so.2"
+sgx.trusted_files.libhwloc     = "file:$(OPENVINO_DIR)/inference-engine/temp/tbb/lib/libhwloc.so.5"
 
 # OpenVINO SSD300 model
 sgx.trusted_files.pluginsxml = "file:$(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/lib/plugins.xml"

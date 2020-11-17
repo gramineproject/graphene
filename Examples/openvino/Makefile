@@ -59,14 +59,13 @@ $(OPENVINO_DIR)/README.md:
 
 $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd: $(OPENVINO_DIR)/README.md
 	cd $(OPENVINO_DIR)/inference-engine && mkdir -p build
-	cd $(OPENVINO_DIR)/inference-engine/build && cmake -DTHREADING=OMP -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ../..
+	cd $(OPENVINO_DIR)/inference-engine/build && cmake -DCMAKE_BUILD_TYPE=$(OPENVINO_BUILD) ../..
 	$(MAKE) -C $(OPENVINO_DIR)/inference-engine/build
 
 object_detection_sample_ssd.manifest: object_detection_sample_ssd.manifest.template
 	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
 	    -e 's|$$(GRAPHENE_LOG_LEVEL)|'"$(GRAPHENE_LOG_LEVEL)"'|g' \
-	    -e 's|$$(OPENVINO_DIR)|'"$(OPENVINO_DIR)"'|g' \
-	    -e 's|$$(OPENVINO_DIR_ABSPATH)|'"$(abspath $(OPENVINO_DIR))"'|g' \
+	    -e 's|$$(OPENVINO_DIR)|'"$(abspath $(OPENVINO_DIR))"'|g' \
 	    -e 's|$$(MODEL_DIR)|'"$(MODEL_DIR)"'|g' \
 	    -e 's|$$(OPENVINO_BUILD)|'"$(OPENVINO_BUILD)"'|g' \
 	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
