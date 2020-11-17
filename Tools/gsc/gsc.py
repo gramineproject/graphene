@@ -346,11 +346,11 @@ def read_sigstruct(sig):
 
     # Field format: (offset, type, value)
     fields = {
-        'date': (SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", 'year', 'month', 'day'),
-        'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, "384s", 'modulus'),
-        'enclave_hash': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", 'enclave_hash'),
-        'isv_prod_id': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", 'isv_prod_id'),
-        'isv_svn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", 'isv_svn'),
+        'date': (SGX_ARCH_ENCLAVE_CSS_DATE, '<HBB', 'year', 'month', 'day'),
+        'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, '384s', 'modulus'),
+        'enclave_hash': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, '32s', 'enclave_hash'),
+        'isv_prod_id': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, '<H', 'isv_prod_id'),
+        'isv_svn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, '<H', 'isv_svn'),
     }
 
     attr = dict()

@@ -228,8 +228,8 @@ Synopsis:
 --------------------------------------------------------------------------------
 
 Retrieves Intel SGX relevant information about the graphenized Docker image such
-as the MRENCLAVE and MRSIGNER measurements for each application in the Docker
-image.
+as the ``MRENCLAVE`` and ``MRSIGNER`` measurements for each application in the
+Docker image.
 
 Synopsis:
 
@@ -482,8 +482,7 @@ This example assumes that all prerequisites are installed and configured.
       # Sign graphenized Docker image with the key
       ./gsc sign-image python enclave-key.pem
 
-#. Retrieve SGX-related information from graphenized Image using :command:`gsc
-info-image:`:
+#. Retrieve SGX-related information from graphenized Image using :command:`gsc info-image`:
 
    .. code-block:: sh
 
