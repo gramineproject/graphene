@@ -5,19 +5,8 @@
  * This file contains APIs to open, read, write and get attribute of streams.
  */
 
-#include "api.h"
-#include "enclave_pages.h"
-#include "pal.h"
-#include "pal_crypto.h"
-#include "pal_debug.h"
-#include "pal_defs.h"
-#include "pal_error.h"
-#include "pal_internal.h"
-#include "pal_linux.h"
-#include "pal_linux_defs.h"
-#include "pal_linux_error.h"
+#define __KERNEL__
 
-typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
 #include <asm/poll.h>
 #include <asm/socket.h>
@@ -29,6 +18,18 @@ typedef __kernel_pid_t pid_t;
 #include <linux/stat.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+
+#include "api.h"
+#include "enclave_pages.h"
+#include "pal.h"
+#include "pal_crypto.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_defs.h"
+#include "pal_linux_error.h"
 
 #define DUMMYPAYLOAD     "dummypayload"
 #define DUMMYPAYLOADSIZE (sizeof(DUMMYPAYLOAD))
@@ -401,12 +402,16 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
 }
 
 int _DkInitDebugStream(const char* path) {
+    int ret;
+
     if (g_debug_fd >= 0) {
-        ocall_close(g_debug_fd);
+        ret = ocall_close(g_debug_fd);
         g_debug_fd = -1;
+        if (ret < 0)
+            return unix_to_pal_error(ERRNO(ret));
     }
 
-    int ret = ocall_open(path, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
+    ret = ocall_open(path, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
     if (ret < 0)
         return unix_to_pal_error(ERRNO(ret));
     g_debug_fd = ret;
