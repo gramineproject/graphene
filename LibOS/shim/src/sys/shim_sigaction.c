@@ -41,9 +41,9 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
 
     struct shim_thread* cur = get_cur_thread();
 
-    lock(&cur->signal_handles->lock);
+    lock(&cur->signal_dispositions->lock);
 
-    struct __kernel_sigaction* sigaction = &cur->signal_handles->actions[signum - 1];
+    struct __kernel_sigaction* sigaction = &cur->signal_dispositions->actions[signum - 1];
 
     if (oldact)
         *oldact = *sigaction;
@@ -53,7 +53,7 @@ int shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
 
     clear_illegal_signals(&sigaction->sa_mask);
 
-    unlock(&cur->signal_handles->lock);
+    unlock(&cur->signal_dispositions->lock);
     return 0;
 }
 
