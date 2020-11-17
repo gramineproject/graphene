@@ -716,7 +716,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int wence) {
 
     if (check_version(hdl)) {
         struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
-        if (data->type != FILE_REGULAR) {
+        if (data->type != FILE_REGULAR && data->type != FILE_DEV) {
             ret = -ESPIPE;
             goto out;
         }
@@ -734,6 +734,7 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int wence) {
             break;
 
         case SEEK_END:
+            /* TODO: devices may report size == 0 during fstat(), then this emulation breaks */
             marker = size + offset;
             break;
     }
