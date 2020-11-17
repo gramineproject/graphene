@@ -5,22 +5,6 @@
  * This file contains APIs to open, read, write and get attribute of streams.
  */
 
-#define __KERNEL__
-
-#include <asm/errno.h>
-#include <asm/fcntl.h>
-#include <asm/poll.h>
-#include <asm/socket.h>
-#include <linux/msg.h>
-#include <linux/socket.h>
-#include <linux/stat.h>
-#include <linux/types.h>
-#include <linux/wait.h>
-
-#include <netinet/in.h>
-#include <sys/signal.h>
-#include <sys/socket.h>
-
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -30,6 +14,19 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
+
+typedef __kernel_pid_t pid_t;
+#include <asm/errno.h>
+#include <asm/fcntl.h>
+#include <asm/poll.h>
+#include <asm/socket.h>
+#include <linux/msg.h>
+#include <linux/socket.h>
+#include <linux/types.h>
+#include <linux/wait.h>
+#include <netinet/in.h>
+#include <sys/signal.h>
+#include <sys/socket.h>
 
 static int g_debug_fd = -1;
 
@@ -379,7 +376,7 @@ int _DkInitDebugStream(const char* path) {
             return unix_to_pal_error(ERRNO(ret));
     }
 
-    ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
+    ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, 0600);
     if (ret < 0)
         return unix_to_pal_error(ERRNO(ret));
     g_debug_fd = ret;
