@@ -290,6 +290,8 @@ void put_thread(struct shim_thread* thread) {
 
         clear_signal_queue(&thread->signal_queue);
 
+        /* `signal_altstack` is provided by the user, not need for a clean up. */
+
         if (thread->robust_list) {
             release_robust_list(thread->robust_list);
         }
@@ -297,6 +299,9 @@ void put_thread(struct shim_thread* thread) {
         if (thread->scheduler_event) {
             DkObjectClose(thread->scheduler_event);
         }
+
+        /* `wake_queue` is only meaningful when `thread` is part of some wake up queue (is just
+         * being woken up), which would imply `ref_count > 0`. */
 
         if (thread->tid && !is_internal(thread)) {
             release_ipc_id(thread->tid);
