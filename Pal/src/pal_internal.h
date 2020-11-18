@@ -342,10 +342,22 @@ ssize_t _DkDebugLog(const void* buf, size_t size);
 void _DkPrintConsole(const void* buf, int size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
+int debug_printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+int debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
 /* errval is negative value, see pal_strerror */
 static inline void print_error(const char* errstring, int errval) {
     printf("%s (%s)\n", errstring, pal_strerror(errval));
 }
+
+#define _debug(level, fmt...)                          \
+    do {                                               \
+        if ((level) <= g_pal_control.debug_log_level)  \
+            debug_printf(fmt);                         \
+    }  while(0)
+
+#define debug_error(fmt...)    _debug(PAL_LOG_ERROR, fmt)
+#define debug_info(fmt...)     _debug(PAL_LOG_INFO, fmt)
+#define debug_trace(fmt...)    _debug(PAL_LOG_TRACE, fmt)
 
 #endif

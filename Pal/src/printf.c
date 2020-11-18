@@ -43,6 +43,17 @@ int vprintf(const char* fmt, va_list ap) {
     return b.cnt;
 }
 
+int debug_vprintf(const char* fmt, va_list ap) {
+    struct printbuf b;
+
+    b.idx = 0;
+    b.cnt = 0;
+    vfprintfmt((void*)&fputch, NULL, &b, fmt, ap);
+    _DkDebugLog(b.buf, b.idx);
+
+    return b.cnt;
+}
+
 int printf(const char* fmt, ...) {
     va_list ap;
     int cnt;
@@ -55,4 +66,14 @@ int printf(const char* fmt, ...) {
 }
 EXTERN_ALIAS(printf);
 
+int debug_printf(const char* fmt, ...) {
+    va_list ap;
+    int cnt;
+
+    va_start(ap, fmt);
+    cnt = debug_vprintf(fmt, ap);
+    va_end(ap);
+
+    return cnt;
+}
 #endif
