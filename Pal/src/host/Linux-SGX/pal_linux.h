@@ -312,13 +312,8 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 #define DBG_P 0x10
 #define DBG_M 0x20
 
-#ifdef DEBUG
-#define DBG_LEVEL (DBG_E | DBG_I | DBG_D | DBG_S)
-#else
-#define DBG_LEVEL DBG_E
-#endif
-
 #ifdef IN_ENCLAVE
+
 #undef uthash_fatal
 #define uthash_fatal(msg)                \
     do {                                 \
@@ -326,23 +321,26 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
         DkProcessExit(-PAL_ERROR_NOMEM); \
     } while (0)
 
-#define SGX_DBG(class, fmt...)   \
-    do {                         \
-        if ((class) & DBG_LEVEL) \
-            printf(fmt);         \
-    } while (0)
-#else
+#else /* IN_ENCLAVE not defined */
+
 #include "pal_debug.h"
+#ifdef DEBUG
+#define DBG_LEVEL (DBG_E | DBG_I | DBG_D | DBG_S)
+#else
+#define DBG_LEVEL DBG_E
+#endif
 
 #define SGX_DBG(class, fmt...)   \
     do {                         \
         if ((class) & DBG_LEVEL) \
             pal_printf(fmt);     \
     } while (0)
+
 #endif
 
 #ifndef IN_ENCLAVE
 int clone(int (*__fn)(void* __arg), void* __child_stack, int __flags, const void* __arg, ...);
-#endif
+
+#endif /* IN_ENCLAVE */
 
 #endif /* PAL_LINUX_H */
