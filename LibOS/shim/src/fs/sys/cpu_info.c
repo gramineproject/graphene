@@ -18,70 +18,47 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     if (!str)
         return -ENOMEM;
 
-    get_base_name(name, filename, &len);
-    if (!strcmp(filename, "online")) {
-        const char* online_info;
-        if (strstr(name, "cpu/cpu")) {
-            int cpunum = extract_num_from_path(name);
-            if (cpunum < 0 )
-                return -ENOENT;
-            online_info = pal_control.topo_info.core_topology[cpunum].is_logical_core_online;
-        }
-        else
-            online_info = pal_control.topo_info.online_logical_cores;
+    len = sizeof(filename);
+    int ret = get_base_name(name, filename, &len);
+    if (ret < 0 || (strlen(filename) != len))
+        return -ENOENT;
 
-        len = strlen(online_info) + 1;
-        memcpy(str, online_info, len);
+    int cpunum = extract_num_from_path(name);
+    if (cpunum < 0 )
+        return -ENOENT;
+
+    const char* cpu_filebuf;
+    char temp_buf[4];
+    if (!strcmp(filename, "online")) {
+        if (strstr(name, "cpu/cpu"))
+            cpu_filebuf = pal_control.topo_info.core_topology[cpunum].is_logical_core_online;
+        else
+            cpu_filebuf = pal_control.topo_info.online_logical_cores;
 
     } else if (!strcmp(filename, "possible")) {
-        const char* possible_info = pal_control.topo_info.possible_logical_cores;
-        len = strlen(possible_info) + 1;
-        memcpy(str, possible_info, len);
+        cpu_filebuf = pal_control.topo_info.possible_logical_cores;
 
     } else if (!strcmp(filename, "core_id")) {
-        int cpunum = extract_num_from_path(name);
-        if (cpunum < 0 )
-            return -ENOENT;
-
-        const char* core_id;
-        core_id = pal_control.topo_info.core_topology[cpunum].core_id;
-        len = strlen(core_id) + 1;
-        memcpy(str, core_id, len);
+        cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_id;
 
     } else if (!strcmp(filename, "physical_package_id")) {
-        int cpunum = extract_num_from_path(name);
-        if (cpunum < 0 )
-            return -ENOENT;
         /* we have already collected this info as part of /proc/cpuinfo. So reuse it */
-        snprintf(str, sizeof(str), "%d", pal_control.cpu_info.cpu_socket[cpunum]);
-        len = strlen(str) + 1;
-        str[len] = '\0';
+        snprintf(temp_buf, sizeof(temp_buf), "%d\n", pal_control.cpu_info.cpu_socket[cpunum]);
+        cpu_filebuf = temp_buf;
 
     } else if (!strcmp(filename, "core_siblings")) {
-        int cpunum = extract_num_from_path(name);
-        if (cpunum < 0 )
-            return -ENOENT;
-
-        const char* coresiblings_info;
-        coresiblings_info = pal_control.topo_info.core_topology[cpunum].core_siblings;
-        len = strlen(coresiblings_info) + 1;
-        memcpy(str, coresiblings_info, len);
+        cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_siblings;
 
     } else if (!strcmp(filename, "thread_siblings")) {
-        int cpunum = extract_num_from_path(name);
-        if (cpunum < 0 )
-            return -ENOENT;
-
-        const char* threadsiblings_info;
-        threadsiblings_info = pal_control.topo_info.core_topology[cpunum].thread_siblings;
-        len = strlen(threadsiblings_info) + 1;
-        memcpy(str, threadsiblings_info, len);
+        cpu_filebuf = pal_control.topo_info.core_topology[cpunum].thread_siblings;
 
     } else {
         debug("Unsupported Filepath %s\n", name);
         return -ENOENT;
     }
 
+    len = strlen(cpu_filebuf) + 1;
+    memcpy(str, cpu_filebuf, len);
     struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
     if (!data) {
         free(str);

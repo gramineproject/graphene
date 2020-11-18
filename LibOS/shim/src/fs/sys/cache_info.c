@@ -17,7 +17,11 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     if (!str)
         return -ENOMEM;
 
-    get_base_name(name, filename, &len);
+    len = sizeof(filename);
+    int ret = get_base_name(name, filename, &len);
+    if (ret < 0 || (strlen(filename) != len))
+        return -ENOENT;
+
     int cpunum = extract_num_from_path(name);
     if (cpunum < 0 )
         return -ENOENT;
@@ -26,48 +30,35 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     if (idx < 0 )
         return -ENOENT;
 
+    const char* cache_filebuf;
     if (!strcmp(filename, "shared_cpu_map")) {
-        const char* cachemap;
-        cachemap = pal_control.topo_info.core_topology[cpunum].cache[idx].shared_cpu_map;
-        len =  strlen(cachemap) + 1;
-        memcpy(str, cachemap, len);
+        cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].shared_cpu_map;
 
     } else if (!strcmp(filename, "level")) {
-        const char* level = pal_control.topo_info.core_topology[cpunum].cache[idx].level;
-        len =  strlen(level) + 1;
-        memcpy(str, level, len);
+        cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].level;
 
     } else if (!strcmp(filename, "type")) {
-        const char* type = pal_control.topo_info.core_topology[cpunum].cache[idx].type;
-        len =  strlen(type) + 1;
-        memcpy(str, type, len);
+        cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].type;
 
     } else if (!strcmp(filename, "size")) {
-        const char* size = pal_control.topo_info.core_topology[cpunum].cache[idx].size;
-        len =  strlen(size) + 1;
-        memcpy(str, size, len);
+        cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].size;
 
     } else if (!strcmp(filename, "coherency_line_size")) {
-        const char* coherency;
-        coherency = pal_control.topo_info.core_topology[cpunum].cache[idx].coherency_line_size;
-        len =  strlen(coherency) + 1;
-        memcpy(str, coherency, len);
+        cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].coherency_line_size;
 
     } else if (!strcmp(filename, "number_of_sets")) {
-        const char* sets  = pal_control.topo_info.core_topology[cpunum].cache[idx].number_of_sets;
-        len =  strlen(sets) + 1;
-        memcpy(str, sets, len);
+        cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].number_of_sets;
 
     } else if (!strcmp(filename, "physical_line_partition")) {
-        const char* partition;
-        partition = pal_control.topo_info.core_topology[cpunum].cache[idx].physical_line_partition;
-        len =  strlen(partition) + 1;
-        memcpy(str, partition, len);
+        cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].physical_line_partition;
 
     } else {
         debug("Unsupported Filepath %s\n", name);
         return -ENOENT;
     }
+
+    len =  strlen(cache_filebuf) + 1;
+    memcpy(str, cache_filebuf, len);
 
     struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
     if (!data) {
