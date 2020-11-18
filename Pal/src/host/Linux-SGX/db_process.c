@@ -98,7 +98,7 @@ int register_trusted_child(const char* uri, const char* mr_enclave_str) {
         return -PAL_ERROR_INVAL;
     }
 
-    SGX_DBG(DBG_S, "trusted: %s %s\n", mr_enclave_text, new->uri);
+    debug_trace("trusted: %s %s\n", mr_enclave_text, new->uri);
 
     spinlock_lock(&trusted_children_lock);
 
@@ -180,7 +180,7 @@ static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t encla
     if (ret < 0)
         return ret;
 
-    SGX_DBG(DBG_P | DBG_S, "Enclave identifier: %016lx -> %s\n", enclave_id,
+    debug_trace("Enclave identifier: %016lx -> %s\n", enclave_id,
             ALLOCA_BYTES2HEXSTR(data.eid_mac));
 
     /* Copy proc_data into sgx_sign_data_t */
@@ -208,7 +208,7 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
 
     /* Always accept the same mr_enclave as child process */
     if (!memcmp(mr_enclave, &g_pal_sec.mr_enclave, sizeof(sgx_measurement_t))) {
-        SGX_DBG(DBG_S, "trusted child: <forked>\n");
+        debug_trace("trusted child: <forked>\n");
         return 0;
     }
 
@@ -219,7 +219,7 @@ static int check_child_mr_enclave(PAL_HANDLE child, sgx_measurement_t* mr_enclav
     LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
         if (!memcmp(mr_enclave, &tc->mr_enclave, sizeof(sgx_measurement_t))) {
             spinlock_unlock(&trusted_children_lock);
-            SGX_DBG(DBG_S, "trusted child: %s\n", tc->uri);
+            debug_trace("trusted child: %s\n", tc->uri);
             return 0;
         }
     }
@@ -379,7 +379,7 @@ int init_child_process(PAL_HANDLE* parent_handle) {
 
 noreturn void _DkProcessExit(int exitcode) {
     if (exitcode)
-        SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
+        debug_info("DkProcessExit: Returning exit code %d\n", exitcode);
     ocall_exit(exitcode, /*is_exitgroup=*/true);
     while (true) {
         /* nothing */;

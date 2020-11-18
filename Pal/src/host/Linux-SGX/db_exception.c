@@ -113,14 +113,14 @@ static void save_pal_context(PAL_CONTEXT* ctx, sgx_cpu_context_t* uc,
 static void emulate_rdtsc_and_print_warning(sgx_cpu_context_t* uc) {
     static int first = 0;
     if (__atomic_exchange_n(&first, 1, __ATOMIC_RELAXED) == 0) {
-        SGX_DBG(DBG_E, "WARNING: all RDTSC/RDTSCP instructions are emulated (imprecisely) via "
+        debug_error("WARNING: all RDTSC/RDTSCP instructions are emulated (imprecisely) via "
                        "gettime() syscall.\n");
     }
 
     uint64_t usec;
     int res = _DkSystemTimeQuery(&usec);
     if (res < 0) {
-        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed in unrecoverable context, exiting.\n");
+        debug_error("_DkSystemTimeQuery() failed in unrecoverable context, exiting.\n");
         _DkProcessExit(1);
     }
     /* FIXME: Ideally, we would like to scale microseconds back to RDTSC clock cycles */
@@ -157,14 +157,14 @@ static bool handle_ud(sgx_cpu_context_t* uc) {
     } else if (instr[0] == 0xf3 && (instr[1] & ~1) == 0x48 && instr[2] == 0x0f &&
                instr[3] == 0xae && instr[4] >> 6 == 0b11 && ((instr[4] >> 3) & 0b111) < 4) {
         /* A disabled {RD,WR}{FS,GS}BASE instruction generated a #UD */
-        SGX_DBG(DBG_E, "The {RD,WR}{FS,GS}BASE instruction is not currently enabled. "
+        debug_error("The {RD,WR}{FS,GS}BASE instruction is not currently enabled. "
                        "Please reload Graphene SGX kernel module.\n");
         return false;
     } else if (instr[0] == 0x0f && instr[1] == 0x05) {
         /* syscall: LibOS may know how to handle this */
         return false;
     }
-    SGX_DBG(DBG_E, "Unknown or illegal instruction at RIP 0x%016lx\n", uc->rip);
+    debug_error("Unknown or illegal instruction at RIP 0x%016lx\n", uc->rip);
     return false;
 }
 

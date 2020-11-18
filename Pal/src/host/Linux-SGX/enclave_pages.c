@@ -92,7 +92,7 @@ int init_enclave_pages(void) {
          * in case of non-PIE executables that start at a predefined address (typically 0x400000) */
         exec_vma = __alloc_vma();
         if (!exec_vma) {
-            SGX_DBG(DBG_E, "*** Cannot initialize VMA for executable ***\n");
+            debug_error("*** Cannot initialize VMA for executable ***\n");
             ret = -PAL_ERROR_NOMEM;
             goto out;
         }
@@ -108,7 +108,7 @@ int init_enclave_pages(void) {
 
     __atomic_add_fetch(&g_allocated_pages.counter, reserved_size / g_page_size, __ATOMIC_SEQ_CST);
 
-    SGX_DBG(DBG_M, "Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
+    debug_trace("Heap size: %luM\n", (g_heap_top - g_heap_bottom - reserved_size) / 1024 / 1024);
     ret = 0;
 
 out:
@@ -137,7 +137,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     struct heap_vma* check_vma_above = vma_above;
     while (check_vma_above && addr + size > check_vma_above->bottom) {
         if (check_vma_above->is_pal_internal != is_pal_internal) {
-            SGX_DBG(DBG_M, "VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n", addr,
+            debug_trace("VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n", addr,
                     addr + size, is_pal_internal, check_vma_above->bottom, check_vma_above->top,
                     check_vma_above->is_pal_internal);
             return NULL;
@@ -149,7 +149,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     struct heap_vma* check_vma_below = vma_below;
     while (check_vma_below && addr < check_vma_below->top) {
         if (check_vma_below->is_pal_internal != is_pal_internal) {
-            SGX_DBG(DBG_M, "VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n", addr,
+            debug_trace("VMA %p-%p (internal=%d) overlaps with %p-%p (internal=%d)\n", addr,
                     addr + size, is_pal_internal, check_vma_below->bottom, check_vma_below->top,
                     check_vma_below->is_pal_internal);
             return NULL;
@@ -176,7 +176,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     while (vma_above && vma_above->bottom <= vma->top &&
            vma_above->is_pal_internal == vma->is_pal_internal) {
         /* newly created VMA grows into above VMA; expand newly created VMA and free above-VMA */
-        SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top, vma_above->bottom,
+        debug_trace("Merge %p-%p and %p-%p\n", vma->bottom, vma->top, vma_above->bottom,
                 vma_above->top);
 
         freed += vma_above->top - vma_above->bottom;
@@ -193,7 +193,7 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
     while (vma_below && vma_below->top >= vma->bottom &&
            vma_below->is_pal_internal == vma->is_pal_internal) {
         /* newly created VMA grows into below VMA; expand newly create VMA and free below-VMA */
-        SGX_DBG(DBG_M, "Merge %p-%p and %p-%p\n", vma->bottom, vma->top, vma_below->bottom,
+        debug_trace("Merge %p-%p and %p-%p\n", vma->bottom, vma->top, vma_below->bottom,
                 vma_below->top);
 
         freed += vma_below->top - vma_below->bottom;
@@ -209,10 +209,10 @@ static void* __create_vma_and_merge(void* addr, size_t size, bool is_pal_interna
 
     INIT_LIST_HEAD(vma, list);
     LISTP_ADD_AFTER(vma, vma_above, &g_heap_vma_list, list);
-    SGX_DBG(DBG_M, "Created vma %p-%p\n", vma->bottom, vma->top);
+    debug_trace("Created vma %p-%p\n", vma->bottom, vma->top);
 
     if (vma->bottom >= vma->top) {
-        SGX_DBG(DBG_E, "*** Bad memory bookkeeping: %p - %p ***\n", vma->bottom, vma->top);
+        debug_error("*** Bad memory bookkeeping: %p - %p ***\n", vma->bottom, vma->top);
         ocall_exit(/*exitcode=*/1, /*is_exitgroup=*/true);
     }
 
@@ -239,7 +239,7 @@ void* get_enclave_pages(void* addr, size_t size, bool is_pal_internal) {
 
     assert(access_ok(addr, size));
 
-    SGX_DBG(DBG_M, "Allocating %lu bytes in enclave memory at %p (%s)\n", size, addr,
+    debug_trace("Allocating %lu bytes in enclave memory at %p (%s)\n", size, addr,
             is_pal_internal ? "PAL internal" : "normal");
 
     struct heap_vma* vma_above = NULL;
@@ -302,7 +302,7 @@ int free_enclave_pages(void* addr, size_t size) {
         return -PAL_ERROR_INVAL;
     }
 
-    SGX_DBG(DBG_M, "Freeing %lu bytes in enclave memory at %p\n", size, addr);
+    debug_trace("Freeing %lu bytes in enclave memory at %p\n", size, addr);
 
     _DkInternalLock(&g_heap_vma_lock);
 
@@ -329,7 +329,7 @@ int free_enclave_pages(void* addr, size_t size) {
         }
 
         if (is_pal_internal != vma->is_pal_internal) {
-            SGX_DBG(DBG_E,
+            debug_error(
                     "*** Area to free (address %p, size %lu) overlaps with both normal and "
                     "pal-internal VMAs ***\n",
                     addr, size);
@@ -343,7 +343,7 @@ int free_enclave_pages(void* addr, size_t size) {
             /* create VMA [vma->bottom, addr); this may leave VMA [addr + size, vma->top), see below */
             struct heap_vma* new = __alloc_vma();
             if (!new) {
-                SGX_DBG(DBG_E, "*** Cannot create split VMA during freeing of address %p ***\n",
+                debug_error("*** Cannot create split VMA during freeing of address %p ***\n",
                         addr);
                 ret = -PAL_ERROR_NOMEM;
                 goto out;

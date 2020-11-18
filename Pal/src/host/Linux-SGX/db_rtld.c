@@ -177,7 +177,7 @@ void _DkDebugAddMap(struct link_map* map) {
 
     struct debug_map* debug_map = debug_map_alloc(map->l_name, (void*)map->l_addr);
     if (!debug_map) {
-        SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new map\n");
+        debug_error("_DkDebugAddMap: error allocating new map\n");
         return;
     }
 
@@ -191,7 +191,7 @@ void _DkDebugAddMap(struct link_map* map) {
 
         if (!debug_map_add_section(debug_map, shstrtab + s->sh_name,
                                    (void*)(map->l_addr + s->sh_addr))) {
-            SGX_DBG(DBG_E, "_DkDebugAddMap: error allocating new section\n");
+            debug_error("_DkDebugAddMap: error allocating new section\n");
             debug_map_free(debug_map);
             return;
         }
@@ -225,7 +225,7 @@ void setup_pal_map(struct link_map* pal_map) {
 
     struct debug_map* debug_map = debug_map_alloc(pal_map->l_name, (void*)pal_map->l_addr);
     if (!debug_map) {
-        SGX_DBG(DBG_E, "setup_pal_map: error allocating new map\n");
+        debug_error("setup_pal_map: error allocating new map\n");
         return;
     }
 
@@ -248,6 +248,6 @@ void setup_pal_map(struct link_map* pal_map) {
     return;
 
 fail:
-    SGX_DBG(DBG_E, "setup_pal_map: error allocating new section\n");
+    debug_error("setup_pal_map: error allocating new section\n");
     debug_map_free(debug_map);
 }

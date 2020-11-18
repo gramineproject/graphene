@@ -100,16 +100,16 @@ bool sgx_copy_to_enclave(void* ptr, size_t maxsize, const void* uptr, size_t usi
 }
 
 static void print_report(sgx_report_t* r) {
-    SGX_DBG(DBG_S, "  cpu_svn:     %s\n",     ALLOCA_BYTES2HEXSTR(r->body.cpu_svn.svn));
-    SGX_DBG(DBG_S, "  mr_enclave:  %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_enclave.m));
-    SGX_DBG(DBG_S, "  mr_signer:   %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_signer.m));
-    SGX_DBG(DBG_S, "  attr.flags:  %016lx\n", r->body.attributes.flags);
-    SGX_DBG(DBG_S, "  attr.xfrm:   %016lx\n", r->body.attributes.xfrm);
-    SGX_DBG(DBG_S, "  isv_prod_id: %02x\n",   r->body.isv_prod_id);
-    SGX_DBG(DBG_S, "  isv_svn:     %02x\n",   r->body.isv_svn);
-    SGX_DBG(DBG_S, "  report_data: %s\n",     ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
-    SGX_DBG(DBG_S, "  key_id:      %s\n",     ALLOCA_BYTES2HEXSTR(r->key_id.id));
-    SGX_DBG(DBG_S, "  mac:         %s\n",     ALLOCA_BYTES2HEXSTR(r->mac));
+    debug_trace("  cpu_svn:     %s\n",     ALLOCA_BYTES2HEXSTR(r->body.cpu_svn.svn));
+    debug_trace("  mr_enclave:  %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_enclave.m));
+    debug_trace("  mr_signer:   %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_signer.m));
+    debug_trace("  attr.flags:  %016lx\n", r->body.attributes.flags);
+    debug_trace("  attr.xfrm:   %016lx\n", r->body.attributes.xfrm);
+    debug_trace("  isv_prod_id: %02x\n",   r->body.isv_prod_id);
+    debug_trace("  isv_svn:     %02x\n",   r->body.isv_svn);
+    debug_trace("  report_data: %s\n",     ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
+    debug_trace("  key_id:      %s\n",     ALLOCA_BYTES2HEXSTR(r->key_id.id));
+    debug_trace("  mac:         %s\n",     ALLOCA_BYTES2HEXSTR(r->mac));
 }
 
 static sgx_key_128bit_t g_enclave_key;
@@ -122,7 +122,7 @@ static int __sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* dat
 
     int ret = sgx_report(target_info, &state, report);
     if (ret) {
-        SGX_DBG(DBG_E, "sgx_report failed: ret = %d)\n", ret);
+        debug_error("sgx_report failed: ret = %d)\n", ret);
         return -PAL_ERROR_DENIED;
     }
 
@@ -134,7 +134,7 @@ int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t
                    sgx_report_t* report) {
     int ret = sgx_report(target_info, data, report);
     if (ret) {
-        SGX_DBG(DBG_E, "sgx_report failed: ret = %d\n", ret);
+        debug_error("sgx_report failed: ret = %d\n", ret);
         return -PAL_ERROR_DENIED;
     }
     return 0;
@@ -151,11 +151,11 @@ int sgx_verify_report(sgx_report_t* report) {
 
     int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
-        SGX_DBG(DBG_E, "Can't get report key\n");
+        debug_error("Can't get report key\n");
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n", ALLOCA_BYTES2HEXSTR(report_key));
+    debug_trace("Get report key for verification: %s\n", ALLOCA_BYTES2HEXSTR(report_key));
 
     sgx_mac_t check_mac;
     memset(&check_mac, 0, sizeof(check_mac));
@@ -170,12 +170,12 @@ int sgx_verify_report(sgx_report_t* report) {
     // Clear the report key for security
     memset(&report_key, 0, sizeof(report_key));
 
-    SGX_DBG(DBG_S, "Verify report:\n");
+    debug_trace("Verify report:\n");
     print_report(report);
-    SGX_DBG(DBG_S, "  verify:     %s\n", ALLOCA_BYTES2HEXSTR(check_mac));
+    debug_trace("  verify:     %s\n", ALLOCA_BYTES2HEXSTR(check_mac));
 
     if (memcmp(&check_mac, &report->mac, sizeof(check_mac))) {
-        SGX_DBG(DBG_E, "Report verification failed\n");
+        debug_error("Report verification failed\n");
         return -PAL_ERROR_DENIED;
     }
 
@@ -189,11 +189,11 @@ int init_enclave_key(void) {
 
     int ret = sgx_getkey(&keyrequest, &g_enclave_key);
     if (ret) {
-        SGX_DBG(DBG_E, "Can't get seal key\n");
+        debug_error("Can't get seal key\n");
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Seal key: %s\n", ALLOCA_BYTES2HEXSTR(g_enclave_key));
+    debug_trace("Seal key: %s\n", ALLOCA_BYTES2HEXSTR(g_enclave_key));
     return 0;
 }
 
@@ -296,7 +296,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
 
     /* Normalize the uri */
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
-        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
+        debug_error("Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
     static_assert(sizeof(normpath) > URI_PREFIX_FILE_LEN, "`normpath` is too small");
@@ -304,7 +304,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
     size_t len = sizeof(normpath) - URI_PREFIX_FILE_LEN;
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
+        debug_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
                 pal_strerror(ret));
         return ret;
     }
@@ -600,7 +600,7 @@ int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t um
          * XXX: Maybe we should zero the buffer after denying the access?
          */
         if (memcmp(s, &hash, sizeof(sgx_stub_t))) {
-            SGX_DBG(DBG_E,
+            debug_error(
                     "Accesing file:%s is denied. Does not match with MAC at chunk starting at "
                     "%lu-%lu.\n",
                     path, checking, checking_end);
@@ -619,7 +619,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 
     size_t uri_len = strlen(uri);
     if (uri_len >= URI_MAX) {
-        SGX_DBG(DBG_E, "Size of file exceeds maximum %dB: %s\n", URI_MAX, uri);
+        debug_error("Size of file exceeds maximum %dB: %s\n", URI_MAX, uri);
         return -PAL_ERROR_INVAL;
     }
 
@@ -653,7 +653,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(uri, &attr);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Could not find size of file: %s\n", uri);
+            debug_error("Could not find size of file: %s\n", uri);
             free(new);
             return ret;
         }
@@ -665,7 +665,7 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
             int8_t byte2 = hex2dec(checksum_str[i * 2 + 1]);
 
             if (byte1 < 0 || byte2 < 0) {
-                SGX_DBG(DBG_E, "Could not parse checksum of file: %s\n", uri);
+                debug_error("Could not parse checksum of file: %s\n", uri);
                 free(new);
                 return -PAL_ERROR_INVAL;
             }
@@ -673,11 +673,11 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
             new->checksum.bytes[i] = byte1 * 16 + byte2;
         }
 
-        SGX_DBG(DBG_S, "trusted: %s\n", new->uri);
+        debug_trace("trusted: %s\n", new->uri);
     } else {
         memset(&new->checksum, 0, sizeof(sgx_checksum_t));
         new->allowed = true;
-        SGX_DBG(DBG_S, "allowed: %s\n", new->uri);
+        debug_trace("allowed: %s\n", new->uri);
     }
 
     spinlock_lock(&g_trusted_file_lock);
@@ -714,7 +714,7 @@ static int init_trusted_file(const char* key, const char* uri) {
     char* trusted_checksum = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, fullkey, &trusted_checksum);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot parse \'%s\' (the value must be put in double quotes!)\n", fullkey);
+        debug_error("Cannot parse \'%s\' (the value must be put in double quotes!)\n", fullkey);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
@@ -722,14 +722,14 @@ static int init_trusted_file(const char* key, const char* uri) {
     /* Normalize the uri */
     char normpath[URI_MAX] = URI_PREFIX_FILE;
     if (!strstartswith(uri, URI_PREFIX_FILE)) {
-        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
+        debug_error("Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         ret = -PAL_ERROR_INVAL;
         goto out;
     }
     size_t len = sizeof(normpath) - strlen(normpath);
     ret = get_norm_path(uri + URI_PREFIX_FILE_LEN, normpath + URI_PREFIX_FILE_LEN, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
+        debug_error("Path (%s) normalization failed: %s\n", uri + URI_PREFIX_FILE_LEN,
                 pal_strerror(ret));
         goto out;
     }
@@ -752,7 +752,7 @@ int init_trusted_files(void) {
     char* preload_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.preload", &preload_str);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot parse \'loader.preload\' "
+        debug_error("Cannot parse \'loader.preload\' "
                        "(the value must be put in double quotes!)\n");
         return -PAL_ERROR_INVAL;
     }
@@ -806,7 +806,7 @@ int init_trusted_files(void) {
         char* toml_trusted_file_str = NULL;
         ret = toml_rtos(toml_trusted_file_raw, &toml_trusted_file_str);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Invalid trusted file in manifest: \'%s\'\n", toml_trusted_file_key);
+            debug_error("Invalid trusted file in manifest: \'%s\'\n", toml_trusted_file_key);
             continue;
         }
 
@@ -841,14 +841,14 @@ no_trusted:
         char* toml_allowed_file_str = NULL;
         ret = toml_rtos(toml_allowed_file_raw, &toml_allowed_file_str);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Invalid allowed file in manifest: \'%s\'\n", toml_allowed_file_key);
+            debug_error("Invalid allowed file in manifest: \'%s\'\n", toml_allowed_file_key);
             continue;
         }
 
         char norm_path[URI_MAX];
 
         if (!strstartswith(toml_allowed_file_str, URI_PREFIX_FILE)) {
-            SGX_DBG(DBG_E, "Invalid URI [%s]: Allowed files must start with 'file:'\n",
+            debug_error("Invalid URI [%s]: Allowed files must start with 'file:'\n",
                     toml_allowed_file_str);
             free(toml_allowed_file_str);
             return -PAL_ERROR_INVAL;
@@ -863,7 +863,7 @@ no_trusted:
         free(toml_allowed_file_str);
 
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n",
+            debug_error("Path (%s) normalization failed: %s\n",
                     toml_allowed_file_str + URI_PREFIX_FILE_LEN, pal_strerror(ret));
             return ret;
         }
@@ -893,13 +893,13 @@ int init_trusted_children(void) {
 
     toml_table_t* toml_trusted_mrenclaves = toml_table_in(manifest_sgx, "trusted_mrenclave");
     if (!toml_trusted_mrenclaves) {
-        SGX_DBG(DBG_E, "No corresponding \'sgx.trusted_mrenclave\' to \'sgx.trusted_children\'\n");
+        debug_error("No corresponding \'sgx.trusted_mrenclave\' to \'sgx.trusted_children\'\n");
         return -PAL_ERROR_INVAL;
     }
 
     ssize_t toml_trusted_mrenclaves_cnt = toml_table_nkval(toml_trusted_mrenclaves);
     if (toml_trusted_mrenclaves_cnt != toml_trusted_children_cnt) {
-        SGX_DBG(DBG_E, "No corresponding \'sgx.trusted_mrenclave\' to \'sgx.trusted_children\'\n");
+        debug_error("No corresponding \'sgx.trusted_mrenclave\' to \'sgx.trusted_children\'\n");
         return -PAL_ERROR_INVAL;
     }
 
@@ -914,14 +914,14 @@ int init_trusted_children(void) {
         toml_raw_t toml_trusted_child_raw = toml_raw_in(toml_trusted_children,
                                                         toml_trusted_mrenclave_key);
         if (!toml_trusted_child_raw) {
-            SGX_DBG(DBG_E, "No \'sgx.trusted_children.%s\' found\n", toml_trusted_mrenclave_key);
+            debug_error("No \'sgx.trusted_children.%s\' found\n", toml_trusted_mrenclave_key);
             return -PAL_ERROR_INVAL;
         }
 
         char* toml_trusted_mrenclave_str = NULL;
         ret = toml_rtos(toml_trusted_mrenclave_raw, &toml_trusted_mrenclave_str);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Invalid trusted mrenclave in manifest: \'%s\'\n",
+            debug_error("Invalid trusted mrenclave in manifest: \'%s\'\n",
                     toml_trusted_mrenclave_key);
             return -PAL_ERROR_INVAL;
         }
@@ -929,7 +929,7 @@ int init_trusted_children(void) {
         char* toml_trusted_child_str = NULL;
         ret = toml_rtos(toml_trusted_child_raw, &toml_trusted_child_str);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Invalid trusted child in manifest: \'%s\'\n",
+            debug_error("Invalid trusted child in manifest: \'%s\'\n",
                     toml_trusted_mrenclave_key);
             free(toml_trusted_mrenclave_str);
             return -PAL_ERROR_INVAL;
@@ -953,7 +953,7 @@ int init_file_check_policy(void) {
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.file_check_policy",
                          &file_check_policy_str);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot parse \'sgx.file_check_policy\' "
+        debug_error("Cannot parse \'sgx.file_check_policy\' "
                        "(the value must be put in double quotes!)\n");
         return -PAL_ERROR_INVAL;
     }
@@ -966,13 +966,13 @@ int init_file_check_policy(void) {
     } else if (!strcmp(file_check_policy_str, "allow_all_but_log")) {
         set_file_check_policy(FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG);
     } else {
-        SGX_DBG(DBG_E, "Unknown value for \'sgx.file_check_policy\' "
+        debug_error("Unknown value for \'sgx.file_check_policy\' "
                 "(allowed: `strict`, `allow_all_but_log`)'\n");
         free(file_check_policy_str);
         return -PAL_ERROR_INVAL;
     }
 
-    SGX_DBG(DBG_S, "File check policy: %s\n", file_check_policy_str);
+    debug_trace("File check policy: %s\n", file_check_policy_str);
     free(file_check_policy_str);
     return 0;
 }
@@ -991,7 +991,7 @@ int init_enclave(void) {
                   "incompatible `reportdata` size");
     int ret = sgx_report(&targetinfo, &reportdata, &report);
     if (ret) {
-        SGX_DBG(DBG_E, "failed to get self report: %d\n", ret);
+        debug_error("failed to get self report: %d\n", ret);
         return -PAL_ERROR_INVAL;
     }
 
@@ -1007,7 +1007,7 @@ int init_enclave(void) {
     ret = _DkRandomBitsRead(&g_pal_enclave_state.enclave_id,
                             sizeof(g_pal_enclave_state.enclave_id));
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to generate a random id: %d\n", ret);
+        debug_error("Failed to generate a random id: %d\n", ret);
         return ret;
     }
 
@@ -1024,14 +1024,14 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
 
     ret = lib_DhInit(&context);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Key Exchange: DH Init failed: %ld\n", ret);
+        debug_error("Key Exchange: DH Init failed: %ld\n", ret);
         goto out_no_final;
     }
 
     pubsz = sizeof pub;
     ret = lib_DhCreatePublic(&context, pub, &pubsz);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Key Exchange: DH CreatePublic failed: %ld\n", ret);
+        debug_error("Key Exchange: DH CreatePublic failed: %ld\n", ret);
         goto out;
     }
 
@@ -1052,7 +1052,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %ld\n", ret);
+            debug_error("Failed to exchange the secret key via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1064,7 +1064,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %ld\n", ret);
+            debug_error("Failed to exchange the secret key via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1072,7 +1072,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     agreesz = sizeof agree;
     ret = lib_DhCalcSecret(&context, pub, DH_SIZE, agree, &agreesz);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Key Exchange: DH CalcSecret failed: %ld\n", ret);
+        debug_error("Key Exchange: DH CalcSecret failed: %ld\n", ret);
         goto out;
     }
 
@@ -1089,11 +1089,11 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     if ((ret = lib_SHA256Init(&sha)) < 0 ||
         (ret = lib_SHA256Update(&sha, agree, agreesz)) < 0 ||
         (ret = lib_SHA256Final(&sha, (uint8_t*)key)) < 0) {
-        SGX_DBG(DBG_E, "Failed to derive the session key: %ld\n", ret);
+        debug_error("Failed to derive the session key: %ld\n", ret);
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Key exchange succeeded: %s\n", ALLOCA_BYTES2HEXSTR(*key));
+    debug_trace("Key exchange succeeded: %s\n", ALLOCA_BYTES2HEXSTR(*key));
     ret = 0;
 out:
     lib_DhFinal(&context);
@@ -1128,7 +1128,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to send target info via RPC: %ld\n", ret);
+            debug_error("Failed to send target info via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1141,30 +1141,30 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %ld\n", ret);
+            debug_error("Failed to receive local report via RPC: %ld\n", ret);
             goto out;
         }
     }
 
-    SGX_DBG(DBG_S, "Received local report (mr_enclave = %s)\n",
+    debug_trace("Received local report (mr_enclave = %s)\n",
             ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[B -> A] */
     ret = sgx_verify_report(&report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to verify local report: %ld\n", ret);
+        debug_error("Failed to verify local report: %ld\n", ret);
         goto out;
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
     ret = check_mr_enclave(stream, &report.body.mr_enclave, remote_state);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to check local report: %ld\n", ret);
+        debug_error("Failed to check local report: %ld\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_E,
+        debug_error(
                 "Not an allowed enclave (mr_enclave = %s). Maybe missing 'sgx.trusted_children' in "
                 "the manifest file?\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
@@ -1172,7 +1172,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Local attestation succeeded!\n");
+    debug_trace("Local attestation succeeded!\n");
 
     /* A -> B: report[A -> B] */
     memcpy(&target_info.mr_enclave, &report.body.mr_enclave, sizeof(sgx_measurement_t));
@@ -1180,7 +1180,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     ret = __sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
+        debug_error("Failed to get local report from CPU: %ld\n", ret);
         goto out;
     }
 
@@ -1191,7 +1191,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to send local report via RPC: %ld\n", ret);
+            debug_error("Failed to send local report via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1227,7 +1227,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to receive target info via RPC: %ld\n", ret);
+            debug_error("Failed to receive target info via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1235,7 +1235,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     /* B -> A: report[B -> A] */
     ret = __sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
+        debug_error("Failed to get local report from CPU: %ld\n", ret);
         goto out;
     }
 
@@ -1246,7 +1246,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to send local report via PRC: %ld\n", ret);
+            debug_error("Failed to send local report via PRC: %ld\n", ret);
             goto out;
         }
     }
@@ -1259,30 +1259,30 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %ld\n", ret);
+            debug_error("Failed to receive local report via RPC: %ld\n", ret);
             goto out;
         }
     }
 
-    SGX_DBG(DBG_S, "Received local report (mr_enclave = %s)\n",
+    debug_trace("Received local report (mr_enclave = %s)\n",
             ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[A -> B] */
     ret = sgx_verify_report(&report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to verify local report: %ld\n", ret);
+        debug_error("Failed to verify local report: %ld\n", ret);
         goto out;
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
     ret = check_mr_enclave(stream, &report.body.mr_enclave, remote_state);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to check mr_enclave: %ld\n", ret);
+        debug_error("Failed to check mr_enclave: %ld\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_E,
+        debug_error(
                 "Not an allowed enclave (mr_enclave = %s). Maybe missing 'sgx.trusted_children' in "
                 "the manifest file?\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
@@ -1290,7 +1290,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Local attestation succeeded!\n");
+    debug_trace("Local attestation succeeded!\n");
     return 0;
 
 out:
