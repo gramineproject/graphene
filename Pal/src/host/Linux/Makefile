@@ -38,7 +38,8 @@ commons_objs = \
 	bogomips.o \
 	file_utils.o \
 	main_exec_path.o \
-	stack_protector.o
+	stack_protector.o \
+	topo_info.o
 
 objs = \
 	clone-$(ARCH).o \

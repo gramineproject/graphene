@@ -359,26 +359,6 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     return 0;
 }
 
-struct linux_dirent64 {
-    unsigned long  d_ino;
-    unsigned long  d_off;
-    unsigned short d_reclen;
-    unsigned char  d_type;
-    char           d_name[];
-};
-
-#define DT_UNKNOWN 0
-#define DT_FIFO    1
-#define DT_CHR     2
-#define DT_DIR     4
-#define DT_BLK     6
-#define DT_REG     8
-#define DT_LNK     10
-#define DT_SOCK    12
-#define DT_WHT     14
-
-#define DIRBUF_SIZE 1024
-
 static inline bool is_dot_or_dotdot(const char* name) {
     return (name[0] == '.' && !name[1]) || (name[0] == '.' && name[1] == '.' && !name[2]);
 }

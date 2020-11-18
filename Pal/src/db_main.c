@@ -439,6 +439,10 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     }
     g_pal_control.mem_info.mem_total = _DkMemoryQuota();
 
+    if (_DkGetTopologyInfo(&g_pal_control.topo_info) < 0) {
+        goto out_fail;
+    }
+
     if (entrypoint) {
         // Temporary hack: Assume we're in PAL regression test suite and load the test binary
         // directly, without LibOS.

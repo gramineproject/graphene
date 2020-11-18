@@ -721,6 +721,13 @@ const struct pseudo_fs_ops fs_thread = {
     .stat = &proc_thread_dir_stat,
 };
 
+static const struct pseudo_dir dir_task = {
+    .size = 1,
+    .ent  = {
+        {.name_ops = &nm_thread, .fs_ops = &fs_thread, .type = LINUX_DT_DIR},
+    }
+};
+
 const struct pseudo_dir dir_thread = {
     .size = 5,
     .ent  = {
@@ -729,4 +736,6 @@ const struct pseudo_dir dir_thread = {
         {.name = "root", .fs_ops = &fs_thread_link, .type = LINUX_DT_LNK},
         {.name = "fd",   .fs_ops = &fs_thread_fd,   .dir = &dir_fd},
         {.name = "maps", .fs_ops = &fs_thread_maps, .type = LINUX_DT_REG},
-    }};
+        {.name = "task", .fs_ops = &fs_thread,      .dir  = &dir_task},
+    }
+};
