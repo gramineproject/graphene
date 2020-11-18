@@ -8,8 +8,6 @@
 #ifndef _SHIM_FS_H_
 #define _SHIM_FS_H_
 
-#define __KERNEL__
-#include <linux/stat.h>
 #include <stdbool.h>
 
 #include "list.h"
@@ -18,6 +16,7 @@
 #include "shim_handle.h"
 #include "shim_types.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 struct shim_handle;
 

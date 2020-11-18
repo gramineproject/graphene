@@ -15,7 +15,6 @@
 #undef __GLIBC__
 #include <asm/fcntl.h>
 #include <linux/mman.h>
-#include <linux/stat.h>
 #include <sys/types.h>
 
 #include "assert.h"

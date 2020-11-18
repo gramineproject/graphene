@@ -7,7 +7,6 @@
 
 #include <asm/fcntl.h>
 #include <linux/fcntl.h>
-#include <linux/stat.h>
 #include <stdbool.h>
 
 #include "pal.h"

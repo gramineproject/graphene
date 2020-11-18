@@ -20,7 +20,6 @@
 
 #include <errno.h>
 #include <dirent.h>
-#include <linux/stat.h>
 #include <linux/fcntl.h>
 
 int do_handle_read(struct shim_handle* hdl, void* buf, int count) {

@@ -15,7 +15,6 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/sched.h>
-#include <linux/stat.h>
 #include <linux/un.h>
 #include <linux/wait.h>
 
@@ -28,6 +27,7 @@
 #include "shim_tcb.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 static void parse_open_flags(va_list*);
 static void parse_open_mode(va_list*);

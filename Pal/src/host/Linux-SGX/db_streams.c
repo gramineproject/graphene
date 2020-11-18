@@ -16,6 +16,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
+#include "stat.h"
 
 typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
@@ -26,7 +27,6 @@ typedef __kernel_pid_t pid_t;
 #include <linux/in6.h>
 #include <linux/msg.h>
 #include <linux/socket.h>
-#include <linux/stat.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
