@@ -76,7 +76,7 @@ static int pipe_hstat(struct shim_handle* hdl, struct stat* stat) {
     stat->st_atime   = (time_t)0;          /* access time */
     stat->st_mtime   = (time_t)0;          /* last modification */
     stat->st_ctime   = (time_t)0;          /* last status change */
-    stat->st_mode    = S_IRUSR | S_IWUSR | S_IFIFO;
+    stat->st_mode    = PERM_rw_______ | S_IFIFO;
 
     return 0;
 }

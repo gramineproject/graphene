@@ -250,7 +250,7 @@ static int file_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 static int file_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int fd = handle->generic.fds[0], ret;
 
-    ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags | 0600);
+    ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags | PERM_rw_______);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
