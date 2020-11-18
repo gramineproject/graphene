@@ -18,6 +18,7 @@
 #include <linux/futex.h>
 #include <linux/time.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "api.h"
 #include "assert.h"
