@@ -78,6 +78,7 @@ c_executables = \
 	stat_invalid_args \
 	str_close_leak \
 	syscall \
+	sysfs_common \
 	tcp_ipv6_v6only \
 	tcp_msg_peek \
 	udp \
