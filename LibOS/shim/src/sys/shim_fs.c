@@ -616,9 +616,10 @@ ssize_t shim_do_sendfile(int ofd, int ifd, off_t* offset, size_t count) {
     }
 
     int ret = -EINVAL;
-    /* EINVAL out_fd has the O_APPEND flag set.  This is not currently supported by sendfile(). */
-    if (hdlo->flags & O_APPEND)
+    if (hdlo->flags & O_APPEND) {
+        /* Linux errors out if output fd has the O_APPEND flag set; comply with this behavior */
         goto out;
+    }
 
     off_t old_offset = 0;
     ret = -EACCES;
