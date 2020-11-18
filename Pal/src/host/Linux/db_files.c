@@ -17,10 +17,8 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
+#include "perm.h"
 #include "stat.h"
-typedef __kernel_pid_t pid_t;
-#undef __GLIBC__
-#include <asm/errno.h>
 
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,

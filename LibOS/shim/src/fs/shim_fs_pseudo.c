@@ -10,6 +10,7 @@
  */
 
 #include "shim_fs.h"
+#include "stat.h"
 
 /*!
  * \brief Find entry corresponding to path, starting from \p root_ent.

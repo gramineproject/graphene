@@ -1,5 +1,3 @@
-#define __KERNEL__
-
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/unistd.h>
@@ -8,6 +6,7 @@
 
 #include "pal.h"
 #include "pal_error.h"
+#include "perm.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
@@ -15,6 +14,7 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next, size_t* next_len,
                              const char** nextnext) {

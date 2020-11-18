@@ -6,8 +6,6 @@
  * "chmod", "fchmod", "fchmodat", "rename", "renameat" and "sendfile".
  */
 
-#define __KERNEL__
-
 #include <asm/mman.h>
 #include <errno.h>
 #include <linux/fcntl.h>
@@ -21,6 +19,7 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 /* The kernel would look up the parent directory, and remove the child from the inode. But we are
  * working with the PAL, so we open the file, truncate and close it. */

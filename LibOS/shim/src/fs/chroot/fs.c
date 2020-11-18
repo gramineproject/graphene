@@ -5,6 +5,12 @@
  * This file contains code for implementation of 'chroot' filesystem.
  */
 
+#include <asm/fcntl.h>
+#include <asm/mman.h>
+#include <asm/unistd.h>
+#include <errno.h>
+#include <linux/fcntl.h>
+
 #include "pal.h"
 #include "pal_error.h"
 #include "shim_flags_conv.h"
@@ -15,12 +21,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 #include "shim_vma.h"
-
-#include <asm/fcntl.h>
-#include <asm/mman.h>
-#include <asm/unistd.h>
-#include <errno.h>
-#include <linux/fcntl.h>
+#include "stat.h"
 
 #define URI_MAX_SIZE STR_SIZE
 

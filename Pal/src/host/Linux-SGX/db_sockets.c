@@ -6,6 +6,8 @@
  * "udp.srv:".
  */
 
+#include <asm-generic/socket.h>
+#include <asm/fcntl.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/poll.h>
@@ -21,9 +23,6 @@
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
 #include "pal_security.h"
-typedef __kernel_pid_t pid_t;
-#include <asm-generic/socket.h>
-#include <asm/fcntl.h>
 
 #ifndef SOL_TCP
 #define SOL_TCP 6
