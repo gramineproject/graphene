@@ -14,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <netinet/in.h>
-#include <sys/signal.h>
 #include <sys/socket.h>
 
 #include "api.h"

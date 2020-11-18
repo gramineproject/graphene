@@ -16,7 +16,6 @@
 #include <linux/time.h>
 #include <linux/types.h>
 #include <sys/socket.h>
-#include <sys/wait.h>
 
 #include "api.h"
 #include "pal.h"
@@ -29,6 +28,11 @@
 #include "pal_rtld.h"
 #include "pal_security.h"
 
+/*
+ * This needs to be included here because it conflicts with sigset.h included in pal_linux.
+ * TODO: Make sure we define WIFEXITED() etc. and remove this.
+ */
+#include <sys/wait.h>
 
 extern char* g_pal_loader_path;
 extern char* g_libpal_path;
