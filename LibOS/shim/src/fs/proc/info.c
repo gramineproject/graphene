@@ -8,6 +8,7 @@
  */
 
 #include "shim_fs.h"
+#include "stat.h"
 
 static int proc_info_mode(const char* name, mode_t* mode) {
     __UNUSED(name);

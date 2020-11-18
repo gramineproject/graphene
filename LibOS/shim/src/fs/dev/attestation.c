@@ -16,6 +16,7 @@
  */
 
 #include "shim_fs.h"
+#include "stat.h"
 
 /* user_report_data, target_info and quote are opaque blobs of predefined maximum sizes. Currently
  * these sizes are overapproximations of SGX requirements (report_data is 64B, target_info is

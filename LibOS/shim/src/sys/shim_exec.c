@@ -19,6 +19,7 @@
 #include "shim_lock.h"
 #include "shim_table.h"
 #include "shim_thread.h"
+#include "stat.h"
 
 /* returns 0 if normalized URIs are the same; assumes file URIs */
 static int normalize_and_cmp_uris(const char* uri1, const char* uri2) {

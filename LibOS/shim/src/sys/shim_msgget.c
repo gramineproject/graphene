@@ -14,6 +14,7 @@
 #include "list.h"
 #include "pal.h"
 #include "pal_error.h"
+#include "perm.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_ipc.h"

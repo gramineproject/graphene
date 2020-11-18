@@ -5,17 +5,6 @@
  * This file contains APIs to open, read, write and get attribute of streams.
  */
 
-#include "api.h"
-#include "pal.h"
-#include "pal_debug.h"
-#include "pal_defs.h"
-#include "pal_error.h"
-#include "pal_internal.h"
-#include "pal_linux.h"
-#include "pal_linux_defs.h"
-#include "pal_security.h"
-
-typedef __kernel_pid_t pid_t;
 #include <asm/errno.h>
 #include <asm/fcntl.h>
 #include <asm/poll.h>
@@ -25,8 +14,19 @@ typedef __kernel_pid_t pid_t;
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <netinet/in.h>
-#include <sys/signal.h>
 #include <sys/socket.h>
+
+#include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_defs.h"
+#include "pal_security.h"
+#include "perm.h"
+#include "stat.h"
 
 static int g_debug_fd = -1;
 

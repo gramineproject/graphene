@@ -9,6 +9,14 @@
  * creation.
  */
 
+#include <asm/errno.h>
+#include <asm/fcntl.h>
+#include <asm/poll.h>
+#include <linux/sched.h>
+#include <linux/time.h>
+#include <linux/types.h>
+#include <sys/socket.h>
+
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -20,14 +28,10 @@
 #include "pal_rtld.h"
 #include "pal_security.h"
 
-typedef __kernel_pid_t pid_t;
-#include <asm/errno.h>
-#include <asm/fcntl.h>
-#include <asm/poll.h>
-#include <linux/sched.h>
-#include <linux/time.h>
-#include <linux/types.h>
-#include <sys/socket.h>
+/*
+ * This needs to be included here because it conflicts with sigset.h included in pal_linux.
+ * TODO: Make sure we define WIFEXITED() etc. and remove this.
+ */
 #include <sys/wait.h>
 
 extern char* g_pal_loader_path;

@@ -9,6 +9,7 @@
  * creation.
  */
 
+#include <asm/fcntl.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -26,8 +27,6 @@
 #include "pal_security.h"
 #include "protected-files/protected_files.h"
 #include "spinlock.h"
-typedef __kernel_pid_t pid_t;
-#include <asm/fcntl.h>
 
 DEFINE_LIST(trusted_child);
 struct trusted_child {

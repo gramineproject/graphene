@@ -6,8 +6,15 @@
  * "udp.srv:".
  */
 
+#include <asm/errno.h>
+#include <asm/fcntl.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/poll.h>
+#include <linux/time.h>
 #include <linux/types.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
 
 #include "api.h"
 #include "pal.h"
@@ -18,14 +25,6 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-typedef __kernel_pid_t pid_t;
-#include <asm/errno.h>
-#include <asm/fcntl.h>
-#include <linux/in.h>
-#include <linux/in6.h>
-#include <linux/time.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
 
 #ifndef SOL_TCP
 #define SOL_TCP 6

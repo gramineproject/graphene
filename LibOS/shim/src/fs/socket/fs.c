@@ -5,8 +5,6 @@
  * This file contains code for implementation of 'socket' filesystem.
  */
 
-#define __KERNEL__
-
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/unistd.h>
@@ -19,6 +17,7 @@
 #include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_thread.h"
+#include "stat.h"
 
 static int socket_close(struct shim_handle* hdl) {
     /* XXX: Shouldn't this do something? */

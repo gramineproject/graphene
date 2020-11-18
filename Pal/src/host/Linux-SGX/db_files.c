@@ -5,6 +5,11 @@
  * This file contains operands to handle streams with URIs that start with "file:" or "dir:".
  */
 
+#include <asm/fcntl.h>
+#include <asm/stat.h>
+#include <linux/fs.h>
+#include <linux/types.h>
+
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -15,13 +20,8 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
+#include "perm.h"
 #include "stat.h"
-typedef __kernel_pid_t pid_t;
-#undef __GLIBC__
-#include <asm/fcntl.h>
-#include <asm/stat.h>
-#include <linux/fs.h>
-#include <linux/types.h>
 
 #include "enclave_pages.h"
 

@@ -5,6 +5,11 @@
  * This file contains operands to handle streams with URIs that start with "pipe:" or "pipe.srv:".
  */
 
+#include <asm/fcntl.h>
+#include <asm/poll.h>
+#include <linux/types.h>
+#include <linux/un.h>
+
 #include "api.h"
 #include "cpu.h"
 #include "pal.h"
@@ -18,11 +23,6 @@
 #include "pal_linux_error.h"
 #include "pal_security.h"
 
-typedef __kernel_pid_t pid_t;
-#include <asm/fcntl.h>
-#include <asm/poll.h>
-#include <linux/types.h>
-#include <linux/un.h>
 
 static int pipe_addr(const char* name, struct sockaddr_un* addr) {
     /* use abstract UNIX sockets for pipes, with name format "@/graphene/<pipename>" */

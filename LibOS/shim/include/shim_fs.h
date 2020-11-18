@@ -9,6 +9,7 @@
 #define _SHIM_FS_H_
 
 #include <stdbool.h>
+#include <asm/stat.h>
 
 #include "list.h"
 #include "pal.h"
@@ -16,7 +17,6 @@
 #include "shim_handle.h"
 #include "shim_types.h"
 #include "shim_utils.h"
-#include "stat.h"
 
 struct shim_handle;
 

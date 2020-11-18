@@ -8,6 +8,7 @@
  */
 
 #include "shim_fs.h"
+#include "stat.h"
 
 static ssize_t dev_zero_read(struct shim_handle* hdl, void* buf, size_t count) {
     __UNUSED(hdl);

@@ -14,9 +14,6 @@
 #error "Do not include <linux/stat.h> or <sys/stat.h> together with this file."
 #endif
 
-/* Include PERM_* helpers for convenience. */
-#include "perm.h"
-
 #define S_IFMT  00170000
 #define S_IFSOCK 0140000
 #define S_IFLNK  0120000

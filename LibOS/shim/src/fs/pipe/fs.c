@@ -5,8 +5,6 @@
  * This file contains code for implementation of 'pipe' filesystem.
  */
 
-#define __KERNEL__
-
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/unistd.h>
@@ -16,11 +14,13 @@
 #include "pal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
+#include "perm.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_lock.h"
 #include "shim_thread.h"
+#include "stat.h"
 
 static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!hdl->info.pipe.ready_for_ops)

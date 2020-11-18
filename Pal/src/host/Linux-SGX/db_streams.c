@@ -5,6 +5,17 @@
  * This file contains APIs to open, read, write and get attribute of streams.
  */
 
+#include <asm/fcntl.h>
+#include <asm/poll.h>
+#include <asm/socket.h>
+#include <asm/stat.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <linux/msg.h>
+#include <linux/socket.h>
+#include <linux/types.h>
+#include <linux/wait.h>
+
 #include "api.h"
 #include "enclave_pages.h"
 #include "pal.h"
@@ -16,19 +27,9 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
+#include "perm.h"
 #include "stat.h"
 
-typedef __kernel_pid_t pid_t;
-#include <asm/fcntl.h>
-#include <asm/poll.h>
-#include <asm/socket.h>
-#include <asm/stat.h>
-#include <linux/in.h>
-#include <linux/in6.h>
-#include <linux/msg.h>
-#include <linux/socket.h>
-#include <linux/types.h>
-#include <linux/wait.h>
 
 #define DUMMYPAYLOAD     "dummypayload"
 #define DUMMYPAYLOADSIZE (sizeof(DUMMYPAYLOAD))

@@ -12,7 +12,6 @@
 #ifndef PAL_FLAGS_CONV_H
 #define PAL_FLAGS_CONV_H
 
-#undef __GLIBC__
 #include <asm/fcntl.h>
 #include <linux/mman.h>
 #include <sys/types.h>

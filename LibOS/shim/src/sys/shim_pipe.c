@@ -10,6 +10,7 @@
 
 #include "pal.h"
 #include "pal_error.h"
+#include "perm.h"
 #include "shim_flags_conv.h"
 #include "shim_fs.h"
 #include "shim_handle.h"
@@ -17,6 +18,7 @@
 #include "shim_table.h"
 #include "shim_types.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 static int create_pipes(struct shim_handle* srv, struct shim_handle* cli, int flags, char* name,
                         struct shim_qstr* qstr) {

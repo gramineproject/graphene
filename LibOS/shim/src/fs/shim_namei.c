@@ -16,6 +16,7 @@
 #include "shim_lock.h"
 #include "shim_thread.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 /* Advances a char pointer (string) past any repeated slashes and returns the result.
  * Must be a null-terminated string. */

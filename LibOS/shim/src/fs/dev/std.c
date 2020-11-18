@@ -8,6 +8,7 @@
  */
 
 #include "shim_fs.h"
+#include "stat.h"
 
 static int dev_std_mode(const char* name, mode_t* mode) {
     __UNUSED(name);

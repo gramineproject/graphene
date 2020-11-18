@@ -5,8 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define __KERNEL__
-
 #include <asm/poll.h>
 #include <asm/posix_types.h>
 #include <asm/siginfo.h>
