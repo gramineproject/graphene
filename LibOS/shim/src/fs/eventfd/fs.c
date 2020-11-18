@@ -9,7 +9,6 @@
 #include <asm/unistd.h>
 #include <errno.h>
 #include <linux/fcntl.h>
-#include <linux/stat.h>
 
 #include "pal.h"
 #include "shim_fs.h"
