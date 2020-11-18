@@ -81,12 +81,9 @@ static int dev_close(PAL_HANDLE handle) {
     if (!IS_HANDLE_TYPE(handle, dev))
         return -PAL_ERROR_INVAL;
 
-    int ret = 0;
-    if (handle->dev.fd != PAL_IDX_POISON) {
-        ret = ocall_close(handle->dev.fd);
-        handle->dev.fd = PAL_IDX_POISON;
-    }
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+    /* Currently we just assign `0` or `1` without duplicating, so close is a no-op. */
+    handle->dev.fd = PAL_IDX_POISON;
+    return 0;
 }
 
 static int dev_flush(PAL_HANDLE handle) {
