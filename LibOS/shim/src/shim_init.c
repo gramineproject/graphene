@@ -421,8 +421,7 @@ fail:
 extern PAL_HANDLE thread_start_event;
 
 noreturn void* shim_init(int argc, void* args) {
-    /* For now, assume all debug() calls are at PAL_LOG_INFO level. */
-    g_debug_log_enabled = PAL_CB(debug_log_level) >= PAL_LOG_INFO;
+    g_debug_log_level = PAL_CB(debug_log_level);
 
     g_process_ipc_info.vmid = (IDTYPE)PAL_CB(process_id);
 

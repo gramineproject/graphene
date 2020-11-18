@@ -36,7 +36,7 @@ struct debug_buf {
 #include "pal_debug.h"
 #include "pal_error.h"
 
-extern bool g_debug_log_enabled;
+extern unsigned int g_debug_log_level;
 
 #include <stdarg.h>
 
@@ -45,11 +45,16 @@ void debug_puts(const char* str);
 void debug_putch(int ch);
 void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-#define debug(fmt, ...)                       \
-    do {                                      \
-        if (g_debug_log_enabled)              \
-            debug_printf(fmt, ##__VA_ARGS__); \
-    } while (0)
+#define _debug(level, fmt...)                          \
+    do {                                               \
+        if ((level) <= g_debug_log_level)              \
+            debug_printf(fmt);                         \
+    }  while(0)
+
+#define debug_error(fmt...)    _debug(PAL_LOG_ERROR, fmt)
+#define debug_info(fmt...)     _debug(PAL_LOG_INFO, fmt)
+#define debug_trace(fmt...)    _debug(PAL_LOG_TRACE, fmt)
+#define debug(fmt...)          _debug(PAL_LOG_INFO, fmt)
 
 #if 0
 #define DEBUG_BREAK_ON_FAILURE() DEBUG_BREAK()
@@ -120,11 +125,11 @@ static inline int64_t get_cur_preempt(void) {
     r func(PROTO_ARGS_##n(args));
 
 #define PARSE_SYSCALL1(name, ...) \
-    if (g_debug_log_enabled)      \
+    if (g_debug_log_level >= PAL_LOG_TRACE)      \
         parse_syscall_before(__NR_##name, #name, ##__VA_ARGS__);
 
 #define PARSE_SYSCALL2(name, ...) \
-    if (g_debug_log_enabled)      \
+    if (g_debug_log_level >= PAL_LOG_TRACE)      \
         parse_syscall_after(__NR_##name, #name, ##__VA_ARGS__);
 
 void parse_syscall_before(int sysno, const char* name, int nr, ...);

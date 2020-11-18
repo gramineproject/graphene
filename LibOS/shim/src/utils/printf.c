@@ -11,7 +11,7 @@
 #include "shim_internal.h"
 #include "shim_ipc.h"
 
-bool g_debug_log_enabled = false;
+unsigned int g_debug_log_level = PAL_LOG_NONE;
 
 static inline int debug_fputs(const char* buf, size_t size) {
     size_t bytes = 0;
@@ -111,7 +111,7 @@ void debug_printf(const char* fmt, ...) {
 }
 
 void debug_setprefix(shim_tcb_t* tcb) {
-    if (!g_debug_log_enabled)
+    if (g_debug_log_level == PAL_LOG_NONE)
         return;
 
     struct debug_buf* buf = tcb->debug_buf;
