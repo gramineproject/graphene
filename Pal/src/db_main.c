@@ -156,6 +156,20 @@ static int insert_envs_from_manifest(const char*** envpp) {
     return 0;
 }
 
+/*
+ * Log levels. For now, determine them from loader.debug_type and DEBUG flag.
+ *
+ * TODO: Introduce explicit loader.debug_level option.
+ */
+#ifdef DEBUG
+#define LOG_LEVEL_DEFAULT PAL_LOG_TRACE
+#else
+#define LOG_LEVEL_DEFAULT PAL_LOG_INFO
+#endif
+
+#define LOG_LEVEL_DISABLED PAL_LOG_ERROR
+
+
 static void set_debug_type(void) {
     int ret = 0;
 
@@ -167,15 +181,14 @@ static void set_debug_type(void) {
     if (ret < 0)
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.debug_type\'");
 
-    if (!debug_type)
-        return;
+    PAL_NUM debug_log_level = false;
 
-    bool enable_debug_log = false;
-
-    if (!strcmp(debug_type, "inline")) {
-        // TODO: use /dev/stderr instead?
+    if (!debug_type || !strcmp(debug_type, "none")) {
         ret = _DkInitDebugStream("/dev/stdout");
-        enable_debug_log = true;
+        debug_log_level = LOG_LEVEL_DISABLED;
+    } else if (!strcmp(debug_type, "inline")) {
+        ret = _DkInitDebugStream("/dev/stdout");
+        debug_log_level = LOG_LEVEL_DEFAULT;
     } else if (!strcmp(debug_type, "file")) {
         char* debug_file = NULL;
         ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_file", &debug_file);
@@ -184,20 +197,19 @@ static void set_debug_type(void) {
 
         ret = _DkInitDebugStream(debug_file);
         free(debug_file);
-        enable_debug_log = true;
-    } else if (!strcmp(debug_type, "none")) {
-        ret = 0;
+        debug_log_level = LOG_LEVEL_DEFAULT;
     } else {
         INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Unknown \'loader.debug_type\' "
                            "(allowed: `inline`, `file`, `none`)");
     }
 
-    free(debug_type);
+    if (debug_type)
+        free(debug_type);
 
     if (ret < 0)
         INIT_FAIL(-ret, "Cannot open debug stream");
 
-    g_pal_control.enable_debug_log = enable_debug_log;
+    g_pal_control.debug_log_level = debug_log_level;
 }
 
 /* Loads a file containing a concatenation of C-strings. The resulting array of pointers is
