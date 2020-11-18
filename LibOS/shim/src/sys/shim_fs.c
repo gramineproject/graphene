@@ -11,7 +11,6 @@
 #include <asm/mman.h>
 #include <errno.h>
 #include <linux/fcntl.h>
-#include <linux/stat.h>
 
 #include "pal.h"
 #include "pal_error.h"

@@ -5,7 +5,6 @@
  * This file contains code for implementation of 'chroot' filesystem.
  */
 
-// FIXME: Sorting these includes causes a bunch of "error: ‘S_IFREG’ undeclared" errors.
 #include "pal.h"
 #include "pal_error.h"
 #include "shim_flags_conv.h"
@@ -22,7 +21,6 @@
 #include <asm/unistd.h>
 #include <errno.h>
 #include <linux/fcntl.h>
-#include <linux/stat.h>
 
 #define URI_MAX_SIZE STR_SIZE
 

@@ -5,9 +5,9 @@
 #define PAL_LINUX_H
 
 #include <asm/fcntl.h>
+#include <asm/stat.h>
 #include <linux/mman.h>
 #include <sigset.h>
-#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -18,6 +18,7 @@
 #include "pal_internal.h"
 #include "pal_linux_defs.h"
 #include "pal_linux_error.h"
+#include "stat.h"
 #include "sysdep-arch.h"
 
 #define IS_ERR   INTERNAL_SYSCALL_ERROR
