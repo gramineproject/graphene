@@ -21,10 +21,6 @@
 #define PERM_rw_rw_r__  0664
 #define PERM_rw_rw_rw_  0666
 
-#define PERM__w_______  0200
-#define PERM__w__w____  0220
-#define PERM__w__w__w_  0222
-
 #define PERM_r_x______  0500
 #define PERM_r_xr_x___  0550
 #define PERM_r_xr_xr_x  0555
@@ -34,9 +30,5 @@
 #define PERM_rwxr_xr_x  0755
 #define PERM_rwxrwxr_x  0775
 #define PERM_rwxrwxrwx  0777
-
-#define PERM__wx______  0300
-#define PERM__wx_wx___  0330
-#define PERM__wx_wx_wx  0333
 
 #endif /* PERM_H */
