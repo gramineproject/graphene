@@ -540,6 +540,10 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     }
     g_pal_control.mem_info.mem_total = _DkMemoryQuota();
 
+    if (_DkGetTopologyInfo(&g_pal_control.topo_info) < 0) {
+        goto out_fail;
+    }
+
     /* Now we will start the execution */
     start_execution(arguments, environments);
 

@@ -28,6 +28,7 @@ ASFLAGS += $(defs)
 
 commons_objs = \
 	bogomips.o \
+	topo_info.o \
 	main_exec_path.o
 
 objs = \

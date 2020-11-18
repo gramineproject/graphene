@@ -210,6 +210,18 @@ out_vendor_id:
     return rv;
 }
 
+int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
+    topo_info->num_online_nodes = g_pal_sec.topo_info.num_online_nodes;
+    topo_info->num_cache_index  = g_pal_sec.topo_info.num_cache_index;
+    topo_info->core_topology    = g_pal_sec.topo_info.core_topology;
+    topo_info->numa_topology    = g_pal_sec.topo_info.numa_topology;
+    COPY_ARRAY(topo_info->online_logical_cores, g_pal_sec.topo_info.online_logical_cores);
+    COPY_ARRAY(topo_info->possible_logical_cores, g_pal_sec.topo_info.possible_logical_cores);
+    COPY_ARRAY(topo_info->online_nodes, g_pal_sec.topo_info.online_nodes);
+
+    return 0;
+}
+
 size_t _DkRandomBitsRead(void* buffer, size_t size) {
     uint32_t rand;
     for (size_t i = 0; i < size; i += sizeof(rand)) {
