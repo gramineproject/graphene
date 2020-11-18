@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include "api.h"
+#include "perm.h"
 #include "util.h"
 
 /* High-level protected files helper functions. */
@@ -263,7 +264,7 @@ int pf_encrypt_file(const char* input_path, const char* output_path, const pf_ke
         goto out;
     }
 
-    output = open(output_path, O_RDWR | O_CREAT, 0664);
+    output = open(output_path, O_RDWR | O_CREAT, PERM_rw_rw_r__);
     if (output < 0) {
         ERROR("Failed to create output file '%s': %s\n", output_path, strerror(errno));
         goto out;
@@ -347,7 +348,7 @@ int pf_decrypt_file(const char* input_path, const char* output_path, bool verify
         goto out;
     }
 
-    output = open(output_path, O_RDWR | O_CREAT, 0664);
+    output = open(output_path, O_RDWR | O_CREAT, PERM_rw_rw_r__);
     if (output < 0) {
         ERROR("Failed to create output file '%s': %s\n", output_path, strerror(errno));
         goto out;
@@ -468,7 +469,7 @@ static int process_files(const char* input_dir, const char* output_dir, const ch
             return pf_decrypt_file(input_dir, output_dir, verify_path, &wrap_key);
     }
 
-    ret = mkdir(output_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    ret = mkdir(output_dir, PERM_rwxrwxr_x);
     if (ret != 0 && errno != EEXIST) {
         ERROR("Failed to create directory %s: %s\n", output_dir, strerror(errno));
         goto out;

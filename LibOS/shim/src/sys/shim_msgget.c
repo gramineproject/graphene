@@ -22,6 +22,7 @@
 #include "shim_table.h"
 #include "shim_types.h"
 #include "shim_utils.h"
+#include "stat.h"
 
 #define MSGQ_HASH_LEN  8
 #define MSGQ_HASH_NUM  (1 << MSGQ_HASH_LEN)
@@ -683,7 +684,7 @@ static int __store_msg_persist(struct shim_msg_handle* msgq) {
     char fileuri[20];
     snprintf(fileuri, 20, URI_PREFIX_FILE "msgq.%08x", msgq->msqid);
 
-    PAL_HANDLE file = DkStreamOpen(fileuri, PAL_ACCESS_RDWR, 0600, PAL_CREATE_TRY, 0);
+    PAL_HANDLE file = DkStreamOpen(fileuri, PAL_ACCESS_RDWR, PERM_rw_______, PAL_CREATE_TRY, 0);
     if (!file) {
         ret = -PAL_ERRNO();
         goto out;

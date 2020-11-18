@@ -249,7 +249,7 @@ int shim_do_mknodat(int dirfd, const char* pathname, mode_t mode, dev_t dev) {
         /* FIXME: Graphene assumes that file is at least readable by owner, in particular, see
          *        unlink() emulation that uses DkStreamOpen(). We change empty mode to readable
          *        by user here to allow a consequent unlink. Was detected on LTP mknod tests. */
-        int fd = shim_do_openat(dirfd, pathname, O_CREAT | O_EXCL, mode ?: S_IRUSR);
+        int fd = shim_do_openat(dirfd, pathname, O_CREAT | O_EXCL, mode ?: PERM_r________);
         if (fd < 0)
             return fd;
         return shim_do_close(fd);

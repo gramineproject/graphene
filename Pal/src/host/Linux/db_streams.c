@@ -376,7 +376,7 @@ int _DkInitDebugStream(const char* path) {
             return unix_to_pal_error(ERRNO(ret));
     }
 
-    ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, 0600);
+    ret = INLINE_SYSCALL(open, 3, path, O_WRONLY | O_APPEND | O_CREAT, PERM_rw_______);
     if (ret < 0)
         return unix_to_pal_error(ERRNO(ret));
     g_debug_fd = ret;

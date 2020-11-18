@@ -576,7 +576,7 @@ err:
 static int proc_thread_maps_mode(const char* name, mode_t* mode) {
     // Only used by one file
     __UNUSED(name);
-    *mode = 0400;
+    *mode = PERM_r________;
     return 0;
 }
 
@@ -586,7 +586,7 @@ static int proc_thread_maps_stat(const char* name, struct stat* buf) {
     memset(buf, 0, sizeof(struct stat));
 
     buf->st_dev = buf->st_ino = 1;
-    buf->st_mode              = 0400 | S_IFREG;
+    buf->st_mode              = PERM_r________ | S_IFREG;
     buf->st_uid               = 0;
     buf->st_gid               = 0;
     buf->st_size              = 0;
@@ -621,7 +621,7 @@ static int proc_thread_dir_mode(const char* name, mode_t* mode) {
     if (ret < 0)
         return ret;
 
-    *mode = 0500;
+    *mode = PERM_r_x______;
     return 0;
 }
 
@@ -640,7 +640,7 @@ static int proc_thread_dir_stat(const char* name, struct stat* buf) {
 
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = buf->st_ino = 1;
-    buf->st_mode              = 0500 | S_IFDIR;
+    buf->st_mode              = PERM_r_x______ | S_IFDIR;
     lock(&thread->lock);
     buf->st_uid = thread->uid;
     buf->st_gid = thread->gid;

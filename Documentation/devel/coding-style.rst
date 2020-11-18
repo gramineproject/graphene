@@ -113,7 +113,7 @@ Code formatting
       bool asdf = true;
       file->size      = 123;
       file->full_path = "/asdf/ghjkl";
-      file->perms     = 0644;
+      file->perms     = PERM_rw_r__r__;
 
 Conventions and high-level style
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
