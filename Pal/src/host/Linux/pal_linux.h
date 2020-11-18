@@ -123,9 +123,6 @@ bool stataccess(struct stat* stats, int acc);
 void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, PAL_HANDLE* exec,
                         char** manifest_out);
 
-int get_hw_resource(const char* filename, bool count);
-ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size);
-
 void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]);
 int block_async_signals(bool block);
 void signal_setup(void);
@@ -159,5 +156,25 @@ int pal_thread_init(void* tcbptr);
 static inline PAL_TCB_LINUX* get_tcb_linux(void) {
     return (PAL_TCB_LINUX*)pal_get_tcb();
 }
+
+struct linux_dirent64 {
+    unsigned long  d_ino;
+    unsigned long  d_off;
+    unsigned short d_reclen;
+    unsigned char  d_type;
+    char           d_name[];
+};
+
+#define DT_UNKNOWN 0
+#define DT_FIFO    1
+#define DT_CHR     2
+#define DT_DIR     4
+#define DT_BLK     6
+#define DT_REG     8
+#define DT_LNK     10
+#define DT_SOCK    12
+#define DT_WHT     14
+
+#define DIRBUF_SIZE 1024
 
 #endif /* PAL_LINUX_H */
