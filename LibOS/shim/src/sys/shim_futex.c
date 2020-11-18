@@ -17,8 +17,8 @@
 
 #include <linux/futex.h>
 #include <linux/time.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "api.h"
 #include "assert.h"
@@ -46,8 +46,6 @@ struct futex_waiter {
     struct shim_futex* futex;
 };
 
-DEFINE_LIST(shim_futex);
-DEFINE_LISTP(shim_futex);
 struct shim_futex {
     uint32_t* uaddr;
     LISTP_TYPE(futex_waiter) waiters;
@@ -185,7 +183,7 @@ static void _maybe_dequeue_futex(struct shim_futex* futex) {
 }
 
 /*
- * If `futex` has no waiters and is on `g_futex_tree`, takes it off that list.
+ * If `futex` has no waiters and is on `g_futex_tree`, takes it off that tree.
  *
  * Neither `g_futex_tree_lock` nor `futex->lock` should be held while calling this,
  * it acquires these locks itself.
