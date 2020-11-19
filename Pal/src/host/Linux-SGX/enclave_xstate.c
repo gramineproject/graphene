@@ -70,12 +70,13 @@ void init_xsave_size(uint64_t xfrm) {
         uint32_t size;
     } xsave_size_table[] = {
         // Note that the g_xsave_size should be in ascending order
-        {SGX_XFRM_LEGACY, 512 + 64},                    // 512 for legacy features, 64 for xsave
-                                                        // header
-        {SGX_XFRM_AVX,    512 + 64 + 256},              // 256 for YMM0_H - YMM15_H registers
-        {SGX_XFRM_MPX,    512 + 64 + 256 + 256},        // 256 for MPX
-        {SGX_XFRM_AVX512, 512 + 64 + 256 + 256 + 1600}, // 1600 for k0 - k7, ZMM0_H - ZMM15_H,
-                                                        // ZMM16 - ZMM31
+        {SGX_XFRM_LEGACY, 512 + 64},                        // 512 for legacy features, 64 for xsave
+                                                            // header
+        {SGX_XFRM_AVX,    512 + 64 + 256},                  // 256 for YMM0_H - YMM15_H registers
+        {SGX_XFRM_MPX,    512 + 64 + 256 + 256},            // 256 for MPX
+        {SGX_XFRM_AVX512, 512 + 64 + 256 + 256 + 1600},     // 1600 for k0 - k7, ZMM0_H - ZMM15_H,
+                                                            // ZMM16 - ZMM31
+        {SGX_XFRM_PKRU,   512 + 64 + 256 + 256 + 1600 + 8}, // 8 for PKRU register
     };
 
     /* fxsave/fxrstore as fallback */

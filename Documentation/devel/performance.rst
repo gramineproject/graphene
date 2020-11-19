@@ -231,19 +231,19 @@ You can find additional information and context here:
 * https://github.com/oscarlab/graphene/pull/1142
 * https://github.com/oscarlab/graphene/pull/1578
 
-Optional CPU features (AVX, AVX512, MPX)
-----------------------------------------
+Optional CPU features (AVX, AVX512, MPX, PKRU)
+----------------------------------------------
 
 SGX technology allows to specify which CPU features are required to run the SGX
 enclave. Graphene "inherits" this and has the following manifest options:
-``sgx.require_avx``, ``sgx.require_avx512``, ``sgx.require_mpx``. By default,
-all of them are set to zero – this means that SGX hardware will allow running
-the SGX enclave on any system, whether the system has the AVX/AVX512/MPX feature
-or not.
+``sgx.require_avx``, ``sgx.require_avx512``, ``sgx.require_mpx``,
+``sgx.require_pkru``. By default, all of them are set to zero – this means that
+SGX hardware will allow running the SGX enclave on any system, whether the
+system has the AVX/AVX512/MPX/PKRU feature or not.
 
 Graphene typically correctly identifies the features of the underlying platform
-and propagates the information on AVX/AVX512/MPX inside the enclave and to the
-application. It is recommended to leave these manifest options as-is (set to
+and propagates the information on AVX/AVX512/MPX/PKRU inside the enclave and to
+the application. It is recommended to leave these manifest options as-is (set to
 zero). However, we observed on some platforms that the graphenized application
 cannot detect these features and falls back to a slow implementation. For
 example, some crypto libraries do not recognize AVX on the platform and use very
