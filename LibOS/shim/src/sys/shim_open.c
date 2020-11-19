@@ -6,8 +6,8 @@
  * "pread64", "pwrite64", "getdents", "getdents64", "fsync", "truncate" and "ftruncate".
  */
 
-#include <errno.h>
 #include <dirent.h>
+#include <errno.h>
 #include <linux/fcntl.h>
 
 #include "pal.h"
