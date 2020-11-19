@@ -100,79 +100,55 @@ int _DkInstructionCacheFlush(const void* addr, int size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-#define CPUID_CACHE_SIZE    64
-#define CPUID_CACHE_INVALID ((unsigned int)-1)
-
-static PAL_LOCK g_cpuid_cache_lock = LOCK_INIT;
-
+#define CPUID_CACHE_SIZE 64 /* cache only 64 distinct CPUID entries; sufficient for most apps */
 static struct pal_cpuid {
-    unsigned int recently;
     unsigned int leaf, subleaf;
     unsigned int values[4];
-} pal_cpuid_cache[CPUID_CACHE_SIZE];
+} g_pal_cpuid_cache[CPUID_CACHE_SIZE];
 
-static int pal_cpuid_cache_top      = 0;
-static unsigned int pal_cpuid_clock = 0;
+static int g_pal_cpuid_cache_top   = 0;
+static PAL_LOCK g_cpuid_cache_lock = LOCK_INIT;
 
 static int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
+    int ret = -PAL_ERROR_DENIED;
+
     _DkInternalLock(&g_cpuid_cache_lock);
-
-    for (int i = 0; i < pal_cpuid_cache_top; i++)
-        if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
-            values[0]                   = pal_cpuid_cache[i].values[0];
-            values[1]                   = pal_cpuid_cache[i].values[1];
-            values[2]                   = pal_cpuid_cache[i].values[2];
-            values[3]                   = pal_cpuid_cache[i].values[3];
-            pal_cpuid_cache[i].recently = ++pal_cpuid_clock;
-            _DkInternalUnlock(&g_cpuid_cache_lock);
-            return 0;
+    for (int i = 0; i < g_pal_cpuid_cache_top; i++) {
+        if (g_pal_cpuid_cache[i].leaf == leaf && g_pal_cpuid_cache[i].subleaf == subleaf) {
+            values[0] = g_pal_cpuid_cache[i].values[0];
+            values[1] = g_pal_cpuid_cache[i].values[1];
+            values[2] = g_pal_cpuid_cache[i].values[2];
+            values[3] = g_pal_cpuid_cache[i].values[3];
+            ret = 0;
+            break;
         }
-
+    }
     _DkInternalUnlock(&g_cpuid_cache_lock);
-    return -PAL_ERROR_DENIED;
+    return ret;
 }
 
 static void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    struct pal_cpuid* chosen;
     _DkInternalLock(&g_cpuid_cache_lock);
 
-    if (pal_cpuid_cache_top < CPUID_CACHE_SIZE) {
-        for (int i = 0; i < pal_cpuid_cache_top; i++)
-            if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
-                _DkInternalUnlock(&g_cpuid_cache_lock);
-                return;
-            }
-
-        chosen = &pal_cpuid_cache[pal_cpuid_cache_top++];
-    } else {
-        unsigned int oldest_clock = pal_cpuid_cache[0].recently;
-        chosen                    = &pal_cpuid_cache[0];
-
-        if (pal_cpuid_cache[0].leaf == leaf && pal_cpuid_cache[0].subleaf == subleaf) {
-            _DkInternalUnlock(&g_cpuid_cache_lock);
-            return;
-        }
-
-        for (int i = 1; i < pal_cpuid_cache_top; i++) {
-            if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
-                _DkInternalUnlock(&g_cpuid_cache_lock);
-                return;
-            }
-
-            if (pal_cpuid_cache[i].recently > oldest_clock) {
-                chosen       = &pal_cpuid_cache[i];
-                oldest_clock = pal_cpuid_cache[i].recently;
+    struct pal_cpuid* chosen = NULL;
+    if (g_pal_cpuid_cache_top < CPUID_CACHE_SIZE) {
+        for (int i = 0; i < g_pal_cpuid_cache_top; i++) {
+            if (g_pal_cpuid_cache[i].leaf == leaf && g_pal_cpuid_cache[i].subleaf == subleaf) {
+                /* this CPUID entry is already present in the cache, no need to add */
+                break;
             }
         }
+        chosen = &g_pal_cpuid_cache[g_pal_cpuid_cache_top++];
     }
 
-    chosen->leaf      = leaf;
-    chosen->subleaf   = subleaf;
-    chosen->values[0] = values[0];
-    chosen->values[1] = values[1];
-    chosen->values[2] = values[2];
-    chosen->values[3] = values[3];
-    chosen->recently  = ++pal_cpuid_clock;
+    if (chosen) {
+        chosen->leaf      = leaf;
+        chosen->subleaf   = subleaf;
+        chosen->values[0] = values[0];
+        chosen->values[1] = values[1];
+        chosen->values[2] = values[2];
+        chosen->values[3] = values[3];
+    }
 
     _DkInternalUnlock(&g_cpuid_cache_lock);
 }
@@ -186,9 +162,7 @@ static __sgx_mem_aligned sgx_report_t report;
 static __sgx_mem_aligned sgx_target_info_t target_info;
 static __sgx_mem_aligned sgx_report_data_t report_data;
 
-/**
- * Initialize the data structures used for CPUID emulation.
- */
+/* Initialize the data structures used for CPUID emulation. */
 void init_cpuid(void) {
     memset(&report, 0, sizeof(report));
     memset(&target_info, 0, sizeof(target_info));
@@ -302,16 +276,78 @@ static void sanity_check_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t values[
     }
 }
 
-int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
-    bool skip_cache = false;
+struct cpuid_leaf {
+    unsigned int leaf;
+    bool zero_subleaf; /* if subleaf is not used by this leaf, then CPUID instruction expects it to
+                          be explicitly zeroed out (see _DkCpuIdRetrieve() implementation below) */
+    bool cache;        /* if leaf + subleaf pair is constant across all cores and sockets, then we
+                          can add the returned CPUID values of this pair to the local cache (see
+                          _DkCpuIdRetrieve() implementation below) */
+};
 
-    /* the cpu core info cannot be cached due to its data varying depending on the calling thread */
-    if (leaf == CPUID_EXT_TOPOLOGY_ENUMERATION_LEAF ||
-            leaf == CPUID_V2EXT_TOPOLOGY_ENUMERATION_LEAF) {
-        skip_cache = true;
+/* NOTE: some CPUID leaves/subleaves may theoretically return different values when accessed from
+ *       different sockets in a multisocket system and thus should not be declared with
+ *       `.cache = true` below, but we don't know of any such systems and currently ignore this */
+static const struct cpuid_leaf cpuid_known_leaves[] = {
+    {.leaf = 0x00, .zero_subleaf = true,  .cache = true},  /* Highest Func Param and Manufacturer */
+    {.leaf = 0x01, .zero_subleaf = true,  .cache = false}, /* Processor Info and Feature Bits */
+    {.leaf = 0x02, .zero_subleaf = true,  .cache = true},  /* Cache and TLB Descriptor */
+    {.leaf = 0x03, .zero_subleaf = true,  .cache = true},  /* Processor Serial Number */
+    {.leaf = 0x04, .zero_subleaf = false, .cache = false}, /* Deterministic Cache Parameters */
+    {.leaf = 0x05, .zero_subleaf = true,  .cache = true},  /* MONITOR/MWAIT */
+    {.leaf = 0x06, .zero_subleaf = true,  .cache = true},  /* Thermal and Power Management */
+    {.leaf = 0x07, .zero_subleaf = false, .cache = true},  /* Structured Extended Feature Flags */
+    {.leaf = 0x09, .zero_subleaf = true,  .cache = true},  /* Direct Cache Access Information */
+    {.leaf = 0x0A, .zero_subleaf = true,  .cache = true},  /* Architectural Performance Monitoring */
+    {.leaf = 0x0B, .zero_subleaf = false, .cache = false}, /* Extended Topology Enumeration */
+    {.leaf = 0x0D, .zero_subleaf = false, .cache = true},  /* Processor Extended State Enumeration */
+    {.leaf = 0x0F, .zero_subleaf = false, .cache = true},  /* Intel RDT Monitoring */
+    {.leaf = 0x10, .zero_subleaf = false, .cache = true},  /* RDT/L2/L3 Cache Allocation Tech */
+    {.leaf = 0x12, .zero_subleaf = false, .cache = true},  /* Intel SGX Capability */
+    {.leaf = 0x14, .zero_subleaf = false, .cache = true},  /* Intel Processor Trace Enumeration */
+    {.leaf = 0x15, .zero_subleaf = true,  .cache = true},  /* Time Stamp Counter/Core Clock */
+    {.leaf = 0x16, .zero_subleaf = true,  .cache = true},  /* Processor Frequency Information */
+    {.leaf = 0x17, .zero_subleaf = false, .cache = true},  /* System-On-Chip Vendor Attribute */
+    {.leaf = 0x18, .zero_subleaf = false, .cache = true},  /* Deterministic Address Translation */
+    {.leaf = 0x19, .zero_subleaf = true,  .cache = true},  /* Key Locker */
+    {.leaf = 0x1A, .zero_subleaf = true,  .cache = false}, /* Hybrid Information Enumeration */
+    {.leaf = 0x1F, .zero_subleaf = false, .cache = false}, /* Intel V2 Ext Topology Enumeration */
+
+    {.leaf = 0x80000000, .zero_subleaf = true, .cache = true}, /* Get Highest Extended Function */
+    {.leaf = 0x80000001, .zero_subleaf = true, .cache = true}, /* Extended Processor Info */
+    {.leaf = 0x80000002, .zero_subleaf = true, .cache = true}, /* Processor Brand String 1 */
+    {.leaf = 0x80000003, .zero_subleaf = true, .cache = true}, /* Processor Brand String 2 */
+    {.leaf = 0x80000004, .zero_subleaf = true, .cache = true}, /* Processor Brand String 3 */
+    {.leaf = 0x80000005, .zero_subleaf = true, .cache = true}, /* L1 Cache and TLB Identifiers */
+    {.leaf = 0x80000006, .zero_subleaf = true, .cache = true}, /* Extended L2 Cache Features */
+    {.leaf = 0x80000007, .zero_subleaf = true, .cache = true}, /* Advanced Power Management */
+    {.leaf = 0x80000008, .zero_subleaf = true, .cache = true}, /* Virtual/Physical Address Sizes */
+};
+
+int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
+    const struct cpuid_leaf* known_leaf = NULL;
+    for (unsigned int i = 0; i < ARRAY_SIZE(cpuid_known_leaves); i++) {
+        if (leaf == cpuid_known_leaves[i].leaf) {
+            known_leaf = &cpuid_known_leaves[i];
+            break;
+        }
     }
 
-    if (!skip_cache && !get_cpuid_from_cache(leaf, subleaf, values))
+    if (!known_leaf)
+        goto fail;
+
+    if ((leaf == 0x07 && subleaf != 0 && subleaf != 1) ||
+        (leaf == 0x0F && subleaf != 0 && subleaf != 1) ||
+        (leaf == 0x10 && subleaf != 0 && subleaf != 1 && subleaf != 2) ||
+        (leaf == 0x14 && subleaf != 0 && subleaf != 1)) {
+        /* leaf-specific checks: some leaves have only specific subleaves */
+        goto fail;
+    }
+
+    if (known_leaf->zero_subleaf)
+        subleaf = 0;
+
+    if (known_leaf->cache && !get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
     if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
@@ -319,10 +355,14 @@ int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int value
 
     sanity_check_cpuid(leaf, subleaf, values);
 
-    if (!skip_cache)
+    if (known_leaf->cache)
         add_cpuid_to_cache(leaf, subleaf, values);
 
     return 0;
+fail:
+    SGX_DBG(DBG_E, "Unrecognized leaf/subleaf in CPUID (EAX=%u, ECX=%u). Exiting...\n", leaf,
+            subleaf);
+    _DkProcessExit(1);
 }
 
 int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
