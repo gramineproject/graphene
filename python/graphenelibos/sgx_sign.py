@@ -146,6 +146,7 @@ def get_enclave_attributes(manifest):
         'XFRM_AVX': struct.pack('<Q', offs.SGX_XFRM_AVX),
         'XFRM_AVX512': struct.pack('<Q', offs.SGX_XFRM_AVX512),
         'XFRM_MPX': struct.pack('<Q', offs.SGX_XFRM_MPX),
+        'XFRM_PKRU': struct.pack("<Q", offs.SGX_XFRM_PKRU),
     }
 
     sgx_miscs = {
@@ -165,6 +166,7 @@ def get_enclave_attributes(manifest):
         'require_avx': 'XFRM_AVX',
         'require_avx512': 'XFRM_AVX512',
         'require_mpx': 'XFRM_MPX',
+        'require_pkru': 'XFRM_PKRU',
         'support_exinfo': 'MISC_EXINFO',
     }
 

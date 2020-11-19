@@ -324,14 +324,15 @@ more CPU cores and burning more CPU cycles. For example, a single-threaded
 Redis instance on Linux becomes 5-threaded on Graphene with Exitless. Thus,
 Exitless may negatively impact throughput but may improve latency.
 
-Optional CPU features (AVX, AVX512, MPX)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Optional CPU features (AVX, AVX512, MPX, PKRU)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
     sgx.require_avx    = [1|0]
     sgx.require_avx512 = [1|0]
     sgx.require_mpx    = [1|0]
+    sgx.require_pkru   = [1|0]
     (Default: 0)
 
 This syntax ensures that the CPU features are available and enabled for the

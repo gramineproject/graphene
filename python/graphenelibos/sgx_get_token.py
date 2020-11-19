@@ -25,6 +25,7 @@ def set_optional_sgx_features(attr):
         offs.SGX_XFRM_AVX:      "avx",
         offs.SGX_XFRM_AVX512:   "avx512f",
         offs.SGX_XFRM_MPX:      "mpx",
+        offs.SGX_XFRM_PKRU:     "pku",
     }
 
     cpu_features = ""
