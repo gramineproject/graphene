@@ -430,8 +430,11 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     }
 
     if (use_cmdline_argv) {
-        printf("WARNING: Using insecure argv source. Don't use this configuration in "
-               "production!\n");
+        /* Warn only in the first process. */
+        if (!parent_process) {
+            printf("WARNING: Using insecure argv source. Don't use this configuration in "
+                   "production!\n");
+        }
     } else {
         char* argv_src_file = NULL;
 
