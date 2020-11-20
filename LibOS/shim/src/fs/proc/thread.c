@@ -647,8 +647,9 @@ static int proc_thread_dir_stat(const char* name, struct stat* buf) {
     buf->st_gid = thread->gid;
     unlock(&thread->lock);
     buf->st_size = 4096;
-    /* FIXME: Need a more generic solution but libs like "hwloc" uses /proc/../task to estimate
-     * number of tids. So created a dummy of 3 for ., .. and one tid. */
+    /* FIXME: Libs like hwloc use /proc/[..]/task to estimate the number of TIDs (but later
+     * dynamically increase it if needed). Currently we set nlink to 3 (for ".", ".." and one TID);
+     * need a more generic solution. */
     buf->st_nlink = 3;
 
     put_thread(thread);
