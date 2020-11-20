@@ -29,4 +29,11 @@
         : "a"(ENTRY), "b"(ARGP), "d"(0)  \
         : "memory", "cc")
 
+#define CRASH_PROCESS()    \
+        __asm__ volatile(  \
+            "1: \n"        \
+            "ud2 \n"       \
+            "jmp 1b \n"    \
+        )
+
 #endif /* _SHIM_INTERNAL_ARCH_H_ */
