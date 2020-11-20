@@ -315,7 +315,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     int num_cache_index = sec_info.topo_info.num_cache_index;
     if (num_cache_index < 1 || num_cache_index >= (1 << 4)) {
-        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_cache_index: %d\n", num_online_nodes);
+        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_cache_index: %d\n", num_cache_index);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.topo_info.num_cache_index = num_cache_index;

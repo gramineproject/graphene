@@ -46,7 +46,7 @@ int sys_match_resource_num(const char* pathname) {
     int num, totalcnt;
     int ret = 1;
 
-    /* Duplicate pathname as this will be modifed when extracting path token */
+    /* Duplicate pathname as this will be modified when extracting path token */
     char* name = strdup(pathname);
     if (!name)
         return 0;
@@ -163,10 +163,9 @@ int sys_dir_stat(const char* name, struct stat* buf) {
 
     memset(buf, 0, sizeof(*buf));
     buf->st_mode  = 0500 | S_IFDIR;
-    /* FIXME: Need more generic solution. But setting this to 4, as libs like "hwloc" uses this
-     * information to allocate memory based on number of hugepage types (., .., hugepages-2048kB,
-     * hugepages-1048576kB).
-     */
+    /* FIXME: Libs like hwloc assume that nlink is 4 for paths like
+     * /sys/devices/system/node/nodeX/hugepages(".", "..", "hugepages-2048kB", "hugepages-1048576kB").
+     * Thus we currently set nlink to 4; need a more generic solution. */
     buf->st_nlink = 4;
 
     return 0;

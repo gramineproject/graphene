@@ -23,6 +23,8 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     if (cpunum < 0)
         return -ENOENT;
 
+    /* This needs to stay on stack until duration of the this function. */
+    char temp_buf[16];
     const char* cpu_filebuf;
     if (!strcmp(filename, "online")) {
         /* distinguish /sys/devices/system/cpu/online from /sys/devices/system/cpu/cpuX/online */
@@ -36,7 +38,6 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
         cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_id;
     } else if (!strcmp(filename, "physical_package_id")) {
         /* we have already collected this info as part of /proc/cpuinfo. So reuse it */
-        char temp_buf[16];
         snprintf(temp_buf, sizeof(temp_buf), "%d\n", pal_control.cpu_info.cpu_socket[cpunum]);
         cpu_filebuf = temp_buf;
     } else if (!strcmp(filename, "core_siblings")) {
