@@ -62,11 +62,7 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
         warn("BUG() " __FILE__ ":%d\n", __LINE__);  \
         DEBUG_BREAK_ON_FAILURE();                   \
         /* Crash the process. */                    \
-        __asm__ volatile(                           \
-            "1: \n"                                 \
-            "ud2 \n"                                \
-            "jmp 1b \n"                             \
-        );                                          \
+        CRASH_PROCESS;                              \
     } while (0)
 
 #define DEBUG_HERE()                                         \
