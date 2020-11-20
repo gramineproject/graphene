@@ -141,7 +141,7 @@ $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@mkdir -p $(dir $@)
 	$(call cmd,ar_a_o)
 
-$(target)%.o: %.c toml.patched
+$(target)%.o: %.c toml.h
 	@mkdir -p $(dir $@)
 	$(call cmd,cc_o_c)
 
@@ -166,12 +166,14 @@ toml.h.$(TOML_H_CHECKSUM):
 toml.c.$(TOML_C_CHECKSUM):
 	../../Scripts/download --output $@ --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
 
-toml.patched: toml.h.$(TOML_H_CHECKSUM) toml.c.$(TOML_C_CHECKSUM)
+toml.c toml.h: .toml_sentinel
+	@:
+
+.toml_sentinel: toml.h.$(TOML_H_CHECKSUM) toml.c.$(TOML_C_CHECKSUM)
 	cp toml.h.$(TOML_H_CHECKSUM) toml.h
 	cp toml.c.$(TOML_C_CHECKSUM) toml.c
 	patch -p1 -l < toml.patch || exit 255
 	cp toml.h ../include/lib/toml.h
-	touch $@
 
 .PHONY: clean
 clean:
@@ -181,4 +183,4 @@ clean:
 distclean: clean
 	$(RM) -r crypto/$(MBEDTLS_SRC) crypto/$(MBEDCRYPTO_SRC) crypto/mbedtls
 	$(RM) ../include/lib/uthash.h
-	$(RM) ../include/lib/toml.h toml.h* toml.c* toml.patched
+	$(RM) ../include/lib/toml.h toml.h* toml.c*
