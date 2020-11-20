@@ -241,8 +241,8 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
             nargs++;
 
     ret = ocall_create_process(uri, nargs, args, &stream_fd, &child_pid);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     PAL_HANDLE child = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(child, process);
