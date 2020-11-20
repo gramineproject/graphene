@@ -106,20 +106,18 @@ static int get_num_cache_level(const char* path) {
 
         for (bpos = 0; bpos < nread;) {
             dirent64 = (struct linux_dirent64*)(buf + bpos);
-            if (dirent64->d_type == DT_DIR && strncmp (dirent64->d_name, "index", 5) == 0)
+            if (dirent64->d_type == DT_DIR && strncmp(dirent64->d_name, "index", 5) == 0)
                 num_dirs++;
             bpos += dirent64->d_reclen;
         }
     }
 
     INLINE_SYSCALL(close, 1, fd);
-    if (num_dirs)
-        return num_dirs;
 
-    return -ENOENT;
+    return num_dirs ? : -ENOENT;
 }
 
-/*Get Core topology related info*/
+/* Get Core topology related info */
 int get_core_topo_info(PAL_TOPO_INFO* topo_info) {
     int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online",
                                                    /*count=*/true);
@@ -252,7 +250,7 @@ out_topology:
     return ret;
 }
 
-/*Get Numa topology related info*/
+/* Get Numa topology related info */
 int get_numa_topo_info(PAL_TOPO_INFO* topo_info) {
     int ret = read_file_buffer("/sys/devices/system/node/online", topo_info->online_nodes,
                                PAL_SYSFS_BUF_FILESZ);

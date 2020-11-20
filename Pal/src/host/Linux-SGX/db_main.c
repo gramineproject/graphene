@@ -291,8 +291,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     int possible_logical_cores = sec_info.possible_logical_cores;
     if (possible_logical_cores < 1 || possible_logical_cores >= (1 << 16)) {
-        SGX_DBG(DBG_E, "Invalid sec_info.num_possible_logical_cores: %d\n",
-                possible_logical_cores);
+        SGX_DBG(DBG_E, "Invalid sec_info.num_possible_logical_cores: %d\n", possible_logical_cores);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.possible_logical_cores = possible_logical_cores;
@@ -308,19 +307,18 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     int num_online_nodes = sec_info.topo_info.num_online_nodes;
     if (num_online_nodes < 1 || num_online_nodes >= (1 << 8)) {
-        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_online_nodes: %ld\n",
-                sec_info.topo_info.num_online_nodes);
+        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_online_nodes: %d\n", num_online_nodes);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-    g_pal_sec.topo_info.num_online_nodes = sec_info.topo_info.num_online_nodes;
+    g_pal_sec.topo_info.num_online_nodes = num_online_nodes;
     COPY_ARRAY(g_pal_sec.topo_info.online_nodes, sec_info.topo_info.online_nodes);
 
-    if (sec_info.topo_info.num_cache_index < 1 || sec_info.topo_info.num_cache_index >= (1 << 4)) {
-        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_cache_index: %ld\n",
-                sec_info.topo_info.num_cache_index);
+    int num_cache_index = sec_info.topo_info.num_cache_index;
+    if (num_cache_index < 1 || num_cache_index >= (1 << 4)) {
+        SGX_DBG(DBG_E, "Invalid sec_info.topo_info.num_cache_index: %d\n", num_online_nodes);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
-    g_pal_sec.topo_info.num_cache_index = sec_info.topo_info.num_cache_index;
+    g_pal_sec.topo_info.num_cache_index = num_cache_index;
 
     /* set up page allocator and slab manager */
     init_slab_mgr(g_page_size);
@@ -395,6 +393,22 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
+
+    /* Allocate enclave memory to store cache info */
+    PAL_CORE_CACHE_INFO* cache_info = (PAL_CORE_CACHE_INFO*)malloc(num_cache_index *
+                                                                   sizeof(PAL_CORE_CACHE_INFO));
+    if (!cache_info) {
+        SGX_DBG(DBG_E, "Allocation for cache failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+
+    if (!sgx_copy_to_enclave(cache_info, num_cache_index * sizeof(PAL_CORE_CACHE_INFO),
+                             sec_info.topo_info.core_topology->cache,
+                             num_cache_index * sizeof(PAL_CORE_CACHE_INFO))) {
+        SGX_DBG(DBG_E, "Copying cache info into the enclave failed\n");
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    core_topology->cache = cache_info;
     g_pal_sec.topo_info.core_topology = core_topology;
 
     /* Allocate enclave memory to store numa topology info */

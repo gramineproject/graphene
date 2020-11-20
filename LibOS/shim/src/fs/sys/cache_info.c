@@ -2,7 +2,8 @@
 /* Copyright (C) 2020 Intel Corporation */
 
 /*
- * This file contains the implementation of `/sys/devices/system/cpu/cpuX/cache`
+ * This file contains the implementation of `/sys/devices/system/cpu/cpuX/cache` and its
+ * sub-directories.
  */
 
 #include "shim_fs.h"
@@ -11,62 +12,53 @@ static int cache_info_open(struct shim_handle* hdl, const char* name, int flags)
     __UNUSED(hdl);
     __UNUSED(flags);
 
-    size_t len;
     char filename[32];
-    char* str = malloc(SYSFS_FILESZ);
-    if (!str)
-        return -ENOMEM;
 
-    len = sizeof(filename);
+    size_t len = sizeof(filename);
     int ret = get_base_name(name, filename, &len);
     if (ret < 0 || (strlen(filename) != len))
         return -ENOENT;
 
     int cpunum = extract_num_from_path(name);
-    if (cpunum < 0 )
+    if (cpunum < 0)
         return -ENOENT;
 
     int idx = extract_num_from_path(strstr(name, "index"));
-    if (idx < 0 )
+    if (idx < 0)
         return -ENOENT;
 
     const char* cache_filebuf;
     if (!strcmp(filename, "shared_cpu_map")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].shared_cpu_map;
-
     } else if (!strcmp(filename, "level")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].level;
-
     } else if (!strcmp(filename, "type")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].type;
-
     } else if (!strcmp(filename, "size")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].size;
-
     } else if (!strcmp(filename, "coherency_line_size")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].coherency_line_size;
-
     } else if (!strcmp(filename, "number_of_sets")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].number_of_sets;
-
     } else if (!strcmp(filename, "physical_line_partition")) {
         cache_filebuf = pal_control.topo_info.core_topology[cpunum].cache[idx].physical_line_partition;
-
     } else {
-        debug("Unsupported Filepath %s\n", name);
+        debug("Unrecognized file %s\n", name);
         return -ENOENT;
     }
 
-    len =  strlen(cache_filebuf) + 1;
+    len = strlen(cache_filebuf) + 1;
+    char* str = malloc(SYSFS_FILESZ);
+    if (!str)
+        return -ENOMEM;
     memcpy(str, cache_filebuf, len);
 
-    struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
+    struct shim_str_data* data = calloc(1, sizeof(*data));
     if (!data) {
         free(str);
         return -ENOMEM;
     }
 
-    memset(data, 0, sizeof(struct shim_str_data));
     data->str          = str;
     data->len          = len;
     hdl->type          = TYPE_STR;

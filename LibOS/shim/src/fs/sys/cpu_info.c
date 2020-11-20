@@ -12,60 +12,54 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     __UNUSED(hdl);
     __UNUSED(flags);
 
-    size_t len;
     char filename[32];
-    char* str = malloc(SYSFS_FILESZ);
-    if (!str)
-        return -ENOMEM;
 
-    len = sizeof(filename);
+    size_t len = sizeof(filename);
     int ret = get_base_name(name, filename, &len);
     if (ret < 0 || (strlen(filename) != len))
         return -ENOENT;
 
     int cpunum = extract_num_from_path(name);
-    if (cpunum < 0 )
+    if (cpunum < 0)
         return -ENOENT;
 
     const char* cpu_filebuf;
-    char temp_buf[4];
     if (!strcmp(filename, "online")) {
+        /* distinguish /sys/devices/system/cpu/online from /sys/devices/system/cpu/cpuX/online */
         if (strstr(name, "cpu/cpu"))
             cpu_filebuf = pal_control.topo_info.core_topology[cpunum].is_logical_core_online;
         else
             cpu_filebuf = pal_control.topo_info.online_logical_cores;
-
     } else if (!strcmp(filename, "possible")) {
         cpu_filebuf = pal_control.topo_info.possible_logical_cores;
-
     } else if (!strcmp(filename, "core_id")) {
         cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_id;
-
     } else if (!strcmp(filename, "physical_package_id")) {
         /* we have already collected this info as part of /proc/cpuinfo. So reuse it */
+        char temp_buf[16];
         snprintf(temp_buf, sizeof(temp_buf), "%d\n", pal_control.cpu_info.cpu_socket[cpunum]);
         cpu_filebuf = temp_buf;
-
     } else if (!strcmp(filename, "core_siblings")) {
         cpu_filebuf = pal_control.topo_info.core_topology[cpunum].core_siblings;
-
     } else if (!strcmp(filename, "thread_siblings")) {
         cpu_filebuf = pal_control.topo_info.core_topology[cpunum].thread_siblings;
-
     } else {
-        debug("Unsupported Filepath %s\n", name);
+        debug("Unrecognized file %s\n", name);
         return -ENOENT;
     }
 
     len = strlen(cpu_filebuf) + 1;
+    char* str = malloc(SYSFS_FILESZ);
+    if (!str)
+        return -ENOMEM;
     memcpy(str, cpu_filebuf, len);
-    struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
+
+    struct shim_str_data* data = calloc(1, sizeof(*data));
     if (!data) {
         free(str);
         return -ENOMEM;
     }
 
-    memset(data, 0, sizeof(struct shim_str_data));
     data->str          = str;
     data->len          = len;
     hdl->type          = TYPE_STR;

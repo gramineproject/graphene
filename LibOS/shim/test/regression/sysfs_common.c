@@ -10,10 +10,6 @@
 #include <sys/sysmacros.h>
 #include <unistd.h>
 
-static int get_random_int(long maxprocs) {
-    return rand() % maxprocs;
-}
-
 static void display_file_contents(const char* path) {
     char buf[4096];
     int ret;
@@ -56,23 +52,21 @@ int main(int argc, char** argv) {
     printf("===== fopen of sys/devices/system/node =====\n");
     fd = fopen("/sys/devices/system/node", "r");
     if (!fd)
-        err(EXIT_FAILURE, "fopen failed for /sys/devices/system/cpu");
+        err(EXIT_FAILURE, "fopen failed for /sys/devices/system/node");
 
     ret = fclose(fd);
     if (ret)
-        err(EXIT_FAILURE, "fclose failed for /sys/devices/system/cpu");
+        err(EXIT_FAILURE, "fclose failed for /sys/devices/system/node");
 
     /* skip this test, if it is a single-core machine */
-    if (maxprocs > 0) {
+    if (maxprocs > 1) {
         display_file_contents("/sys/devices/system/cpu/cpu1/online");
     }
 
-    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/core_id",
-             get_random_int(maxprocs));
-    display_file_contents(path);
+    display_file_contents("/sys/devices/system/cpu/cpu0/topology/core_id");
 
-    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/core_siblings",
-             get_random_int(maxprocs));
+    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%ld/topology/core_siblings",
+             maxprocs-1);
     display_file_contents(path);
 
     display_file_contents("/sys/devices/system/node/node0/cpumap");
@@ -83,8 +77,8 @@ int main(int argc, char** argv) {
 
     /* Read L1 data, L1 Instruction and L2 cache type*/
     for (int lvl = 0; lvl < 3; lvl++) {
-        snprintf(path, sizeof(path),"/sys/devices/system/cpu/cpu%d/cache/index%d/type",
-                 get_random_int(maxprocs), lvl);
+        snprintf(path, sizeof(path),"/sys/devices/system/cpu/cpu%ld/cache/index%d/type",
+                 maxprocs-1, lvl);
         display_file_contents(path);
     }
 
@@ -123,36 +117,32 @@ int main(int argc, char** argv) {
     errno = 0;
     while ((dirent64 = readdir64(dir))) {
         printf("/sys/devices/system/cpu/%s, type=%d\n", dirent64->d_name, dirent64->d_type);
-        if (dirent64->d_type == DT_DIR && strncmp (dirent64->d_name, "cpu", 3) == 0) {
+        if (dirent64->d_type == DT_DIR && strncmp(dirent64->d_name, "cpu", 3) == 0) {
             char *endp;
-            unsigned long int nr = strtoul (dirent64->d_name + 3, &endp, 10);
+            unsigned long int nr = strtoul(dirent64->d_name + 3, &endp, 10);
             if (nr != _SC_ULONG_MAX && endp != dirent64->d_name + 3 && *endp == '\0')
                 count++;
         }
     }
 
-    if (errno) {
-        perror("readdir /sys/devices/system/cpu");
-        return 1;
-    }
+    if (errno)
+        err(EXIT_FAILURE, "readdir failed for /sys/devices/system/cpu");
     printf("Total CPU count=%d\n", count);
 
     ret = closedir(dir);
-    if (ret < 0) {
-        perror("closedir /sys/devices/system/cpu");
-        return 1;
-    }
+    if (ret < 0)
+        err(EXIT_FAILURE, "closedir failed for /sys/devices/system/cpu");
 
     printf("\n===== Count num of nodes from /sys/devices/system/node =====\n");
     count = 0;
     dir = opendir("/sys/devices/system/node");
     if (!dir)
-         err(EXIT_FAILURE, "opendir failed for /sys/devices/system/node");
+        err(EXIT_FAILURE, "opendir failed for /sys/devices/system/node");
 
     errno = 0;
     while ((dirent = readdir(dir))) {
         printf("/sys/devices/system/node/%s \n", dirent->d_name);
-        if (strncmp (dirent->d_name, "node", 4) == 0) {
+        if (strncmp(dirent->d_name, "node", 4) == 0) {
             char *endp;
             unsigned long int nr = strtoul(dirent->d_name + 4,  &endp, 10);
             if (nr != _SC_ULONG_MAX && endp != dirent64->d_name + 4 && *endp == '\0')
@@ -160,17 +150,13 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (errno) {
-        perror("readdir /sys/devices/system/node");
-        return 1;
-    }
+    if (errno)
+        err(EXIT_FAILURE, "readdir failed for /sys/devices/system/node");
     printf("Total Node count=%d\n", count);
 
     ret = closedir(dir);
-    if (ret < 0) {
-        perror("closedir /sys/devices/system/node");
-        return 1;
-    }
+    if (ret < 0)
+        err(EXIT_FAILURE, "closedir failed for /sys/devices/system/node");
 
     printf("TEST OK\n");
     return 0;

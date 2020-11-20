@@ -2,7 +2,7 @@
 /* Copyright (C) 2020 Intel Corporation */
 
 /*
- * This file contains the implementation of `/sys/devices/system/node`
+ * This file contains the implementation of `/sys/devices/system/node` and its sub-directories.
  */
 
 #include "shim_fs.h"
@@ -11,51 +11,45 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
     __UNUSED(hdl);
     __UNUSED(flags);
 
-    size_t len;
     char filename[32];
-    char* str = malloc(SYSFS_FILESZ);
-    if (!str)
-        return -ENOMEM;
 
-    len = sizeof(filename);
+    size_t len = sizeof(filename);
     int ret = get_base_name(name, filename, &len);
     if (ret < 0 || (strlen(filename) != len))
         return -ENOENT;
 
     int nodenum = extract_num_from_path(name);
-    if (nodenum < 0 )
+    if (nodenum < 0)
         return -ENOENT;
 
     const char* node_filebuf;
     if (!strcmp(filename, "online")) {
         node_filebuf = pal_control.topo_info.online_nodes;
-
     } else if (!strcmp(filename, "cpumap")) {
         node_filebuf = pal_control.topo_info.numa_topology[nodenum].cpumap;
-
     } else if (!strcmp(filename, "distance")) {
         node_filebuf = pal_control.topo_info.numa_topology[nodenum].distance;
-
     } else if (strstr(name, "hugepages-2048kB/nr_hugepages")) {
         node_filebuf = pal_control.topo_info.numa_topology[nodenum].hugepages[0].nr_hugepages;
-
     } else if (strstr(name, "hugepages-1048576kB/nr_hugepages")) {
         node_filebuf = pal_control.topo_info.numa_topology[nodenum].hugepages[1].nr_hugepages;
-
     } else {
-        debug("Unsupported Filepath %s\n", name);
+        debug("Unrecognized file %s\n", name);
         return -ENOENT;
     }
 
     len = strlen(node_filebuf) + 1;
+    char* str = malloc(SYSFS_FILESZ);
+    if (!str)
+        return -ENOMEM;
     memcpy(str, node_filebuf, len);
-    struct shim_str_data* data = malloc(sizeof(struct shim_str_data));
+
+    struct shim_str_data* data = calloc(1, sizeof(*data));
     if (!data) {
         free(str);
         return -ENOMEM;
     }
 
-    memset(data, 0, sizeof(struct shim_str_data));
     data->str          = str;
     data->len          = len;
     hdl->type          = TYPE_STR;

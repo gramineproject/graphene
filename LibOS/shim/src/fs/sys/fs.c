@@ -2,37 +2,36 @@
 /* Copyright (C) 2020 Intel Corporation */
 
 /*
- * This file contains the implementation of `/sys` pseudo-filesystem.
+ * This file contains the implementation of `/sys/devices/system/{cpu,node}/` pseudo-filesystem and
+ * its sub-directories.
  */
 
 #include "shim_fs.h"
 extern const struct pseudo_dir sys_cpu_dir;
 extern const struct pseudo_dir sys_node_dir;
 
-/* This function will extract 3 from "cpu/cpu3/topology/core_siblings" */
+/* This function will extract "3" from "cpu/cpu3/topology/core_siblings" */
 int extract_num_from_path(const char* pathname) {
     const char* str = pathname;
-    int ret = -1;
 
-    while(*str) {
+    while (*str) {
         if ((*str >= '0') && (*str <= '9') ) {
-            ret = strtol(str, NULL, 10);
-            break;
+            return strtol(str, NULL, 10);
         }
         str++;
     }
 
-    return ret;
+    return -1;
 }
 
-/* This function will extract cpu105 from "cpu105/cache/Index0/type". If string doesn't have "/"
- * delimiter, original string is returned. */
+/* This function will extract "cpu105" from "cpu105/cache/index0/type". If string doesn't have "/"
+ * delimiter, original string is returned. Note: This function modifies pathname! */
 static char* extract_first_token_from_path(char* pathname) {
     char* begin = pathname;
     if (begin == NULL)
         return NULL;
 
-    while(*pathname) {
+    while (*pathname) {
         if (*pathname == '/') {
             *pathname = '\0';
             break;
@@ -47,11 +46,12 @@ int sys_match_resource_num(const char* pathname) {
     int num, totalcnt;
     int ret = 1;
 
+    /* Duplicate pathname as this will be modifed when extracting path token */
     char* name = strdup(pathname);
     if (!name)
         return 0;
 
-    char *token = extract_first_token_from_path(name);
+    char* token = extract_first_token_from_path(name);
     if (!token) {
         ret = 0;
         goto out;
@@ -70,13 +70,13 @@ int sys_match_resource_num(const char* pathname) {
     } else if (strstr(token, "index")) {
         totalcnt = pal_control.topo_info.num_cache_index;
     } else {
-        debug("Invalid resource %s!", token);
+        debug("Invalid resource %s in file %s!", token, pathname);
         ret = 0;
         goto out;
     }
 
     if (num > totalcnt) {
-        debug("Incorrect Index %d in path: %s! Max supported is %d\n", num, pathname, totalcnt);
+        debug("Incorrect index %d in file %s (max supported is %d)\n", num, pathname, totalcnt);
         ret = 0;
         goto out;
     }
@@ -90,23 +90,19 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, int le
     char res_name[6];
     char ent_name[32];
     struct shim_dirent* dirent_in_buf = *buf;
-    size_t buf_size = len;
     size_t total_size = 0;
 
     if (strstr(pathname, "node")) {
         snprintf(res_name, sizeof(res_name), "node");
         totalcnt = pal_control.topo_info.num_online_nodes;
-
     } else if (strstr(pathname, "index")) {
         snprintf(res_name, sizeof(res_name), "index");
         totalcnt = pal_control.topo_info.num_cache_index;
-
     } else if (strstr(pathname, "cpu")) {
         snprintf(res_name, sizeof(res_name), "cpu");
         totalcnt = pal_control.cpu_info.online_logical_cores;
-
     } else {
-        debug("Invalid resource name in path: %s\n", pathname);
+        debug("Invalid resource name in file %s\n", pathname);
         return 0;
     }
 
@@ -116,7 +112,7 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, int le
         size_t dirent_size = sizeof(struct shim_dirent) + name_size;
 
         total_size += dirent_size;
-        if (total_size > buf_size)
+        if (total_size > (size_t)len)
             return -ENOMEM;
 
         memcpy(dirent_in_buf->name, ent_name, name_size);
@@ -138,7 +134,7 @@ int sys_info_mode(const char* name, mode_t* mode) {
 
 int sys_info_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
-    memset(buf, 0, sizeof(struct stat));
+    memset(buf, 0, sizeof(*buf));
     buf->st_dev  = 1;    /* dummy ID of device containing file */
     buf->st_ino  = 1;    /* dummy inode number */
     buf->st_mode = FILE_R_MODE | S_IFREG;
@@ -165,10 +161,12 @@ int sys_dir_mode(const char* name, mode_t* mode) {
 int sys_dir_stat(const char* name, struct stat* buf) {
     __UNUSED(name);
 
-    memset(buf, 0, sizeof(struct stat));
+    memset(buf, 0, sizeof(*buf));
     buf->st_mode  = 0500 | S_IFDIR;
-    /* Libs like "hwloc" uses this information to allocate memory for page types. So setting dummy
-     * value to 4 for ., .., hugepages-2048kB, hugepages-1048576kB. */
+    /* FIXME: Need more generic solution. But setting this to 4, as libs like "hwloc" uses this
+     * information to allocate memory based on number of hugepage types (., .., hugepages-2048kB,
+     * hugepages-1048576kB).
+     */
     buf->st_nlink = 4;
 
     return 0;

@@ -36,7 +36,7 @@ ASFLAGS += $(defs)
 commons_objs_encl = bogomips.o
 commons_objs_urts = \
 	main_exec_path.o \
-	topo_info.o \
+	topo_info.o
 
 enclave-objs = \
 	db_devices.o \

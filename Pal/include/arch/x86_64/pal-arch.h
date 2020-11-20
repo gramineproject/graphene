@@ -245,6 +245,8 @@ typedef struct PAL_NUMA_TOPO_INFO_ {
     PAL_NUMA_HUGEPAGE_INFO hugepages[HUGEPAGES_MAX];
 } PAL_NUMA_TOPO_INFO;
 
+/* This struct takes ~1.6KB. On a single socket, 4 logical core system, with 3 cache levels
+ * it would take ~8KB in memory. */
 typedef struct PAL_TOPO_INFO_ {
     char online_logical_cores[PAL_SYSFS_BUF_FILESZ];
     char possible_logical_cores[PAL_SYSFS_BUF_FILESZ];
