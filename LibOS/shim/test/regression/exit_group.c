@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     }
 
     pid_t pid = fork();
-    if (fork < 0) {
+    if (pid < 0) {
         perror("fork");
         exit(255);
     } else if (pid > 0) {
