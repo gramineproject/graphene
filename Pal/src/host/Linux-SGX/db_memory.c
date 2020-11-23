@@ -14,6 +14,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
+#include "pal_linux_error.h"
 #include "pal_security.h"
 
 extern struct atomic_int g_allocated_pages;
@@ -40,6 +41,19 @@ int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot)
         return -PAL_ERROR_INVAL;
 
     void* addr = *paddr;
+
+    if (alloc_type & PAL_ALLOC_RESERVE) {
+        /* magic hint from LibOS that this is shared anon memory -- must be allocated in untrusted
+         * memory without additional questions */
+        int ret = ocall_mmap_untrusted(paddr, size, PROT_READ | PROT_WRITE,
+                                       MAP_ANONYMOUS | MAP_SHARED, /*fd=*/-1, /*offset=*/0);
+        if (ret < 0)
+            return unix_to_pal_error(ret);
+
+        /* mmap of untrusted memory succeeded; no need to init contents to zero because host-level
+         * mmap already did this for us */
+        return 0;
+    }
 
     void* mem = get_enclave_pages(addr, size, alloc_type & PAL_ALLOC_INTERNAL);
     if (!mem)

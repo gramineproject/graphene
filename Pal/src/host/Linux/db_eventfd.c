@@ -48,8 +48,15 @@ static int eventfd_pal_open(PAL_HANDLE* handle, const char* type, const char* ur
         return -PAL_ERROR_INVAL;
     }
 
-    /* Using create arg as a work-around (note: initval is uint32 but create is int32).*/
-    int fd = INLINE_SYSCALL(eventfd2, 2, create, eventfd_type(options));
+    int fd;
+    if (options & PAL_OPTION_EFD_SEMAPHORE) {
+        /* FIXME: semaphore option is abused to hint that `count` already contains host FD;
+         *        currently used for LibOS emulation of DRM_IOCTL_I915_GEM_EXECBUFFER2_WR ioctl */
+        fd = create;
+    } else {
+        /* Using create arg as a work-around (note: initval is uint32 but create is int32).*/
+        fd = INLINE_SYSCALL(eventfd2, 2, create, eventfd_type(options));
+    }
 
     if (fd < 0)
         return unix_to_pal_error(fd);

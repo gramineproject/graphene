@@ -17,6 +17,10 @@ int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int f
 
 int ocall_munmap_untrusted(const void* addr, size_t size);
 
+int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap);
+
+void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munmap);
+
 int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
 int ocall_open(const char* pathname, int flags, unsigned short mode);
@@ -95,6 +99,8 @@ int ocall_debug_map_add(const char* name, void* addr);
 int ocall_debug_map_remove(void* addr);
 
 int ocall_eventfd(unsigned int initval, int flags);
+
+int ocall_ioctl(int fd, unsigned int cmd, unsigned long arg);
 
 /*!
  * \brief Execute untrusted code in PAL to obtain a quote from the Quoting Enclave.

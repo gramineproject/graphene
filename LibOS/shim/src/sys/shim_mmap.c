@@ -131,6 +131,28 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, unsig
         flags &= ~MAP_32BIT;
 #endif
 
+    /* mmap on shared anonymous memory under SGX is special: pass-through (will be allocated in
+     * untrusted memory by Linux-SGX PAL) and not reflected in VMA metadata */
+    if (!strcmp(g_pal_control->host_type, "Linux-SGX") &&
+            (flags & (MAP_ANONYMOUS | MAP_SHARED)) == (MAP_ANONYMOUS | MAP_SHARED)) {
+        /* we abuse PAL_ALLOC_RESERVE as a magic hint to PAL that this is shared anon memory */
+        ret = DkVirtualMemoryAlloc(&addr, length, /*alloc_type=*/PAL_ALLOC_RESERVE,
+                                   LINUX_PROT_TO_PAL(prot, flags));
+        if (ret < 0)
+            ret = pal_to_unix_errno(ret);
+        goto out_handle;
+    }
+
+    /* mmap on devices under SGX is special: pass-through and not reflected in VMA metadata */
+    if (!strcmp(g_pal_control->host_type, "Linux-SGX") && hdl && hdl->type == TYPE_FILE &&
+            hdl->info.file.type == FILE_DEV) {
+        void* ret_addr = addr;
+        ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, prot, flags, offset);
+        if (!ret)
+            addr = ret_addr;
+        goto out_handle;
+    }
+
     if (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE)) {
         /* We know that `addr + length` does not overflow (`access_ok` above). */
         if (addr < g_pal_control->user_address.start

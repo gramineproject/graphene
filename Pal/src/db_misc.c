@@ -52,6 +52,10 @@ int DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]) {
     return 0;
 }
 
+int DkDeviceIoControl(PAL_HANDLE handle, PAL_NUM cmd, PAL_NUM arg) {
+    return _DkDeviceIoControl(handle, cmd, arg);
+}
+
 int DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
                         PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
                         PAL_NUM* report_size) {
