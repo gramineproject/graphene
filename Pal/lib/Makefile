@@ -166,8 +166,8 @@ toml.h.$(TOML_H_CHECKSUM):
 toml.c.$(TOML_C_CHECKSUM):
 	../../Scripts/download --output $@ --url $(TOML_C_URI) --sha256 $(TOML_C_CHECKSUM)
 
-toml.c toml.h: .toml_sentinel
-	@:
+.PHONY: .toml_sentinel
+toml.c toml.h: .toml_sentinel ;
 
 .toml_sentinel: toml.h.$(TOML_H_CHECKSUM) toml.c.$(TOML_C_CHECKSUM)
 	cp toml.h.$(TOML_H_CHECKSUM) toml.h
