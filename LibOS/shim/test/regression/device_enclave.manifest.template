@@ -1,0 +1,50 @@
+loader.preload = "file:../../src/libsysdb.so"
+loader.argv0_override = "device_enclave"
+loader.env.LD_LIBRARY_PATH = "/lib:$(ARCH_LIBDIR)"
+loader.debug_type = "none"
+
+fs.mount.graphene_lib.type = "chroot"
+fs.mount.graphene_lib.path = "/lib"
+fs.mount.graphene_lib.uri = "file:../../../../Runtime"
+
+# new DCAP/in-kernel SGX driver (commented out for Jenkins which uses legacy SGX driver)
+#fs.mount.devencl.type = "chroot"
+#fs.mount.devencl.path = "/dev/sgx/enclave"
+#fs.mount.devencl.uri = "dev:/dev/sgx/enclave"
+
+# legacy SGX driver (used by Jenkins)
+fs.mount.devencl.type = "chroot"
+fs.mount.devencl.path = "/dev/isgx"
+fs.mount.devencl.uri = "dev:/dev/isgx"
+
+sgx.static_address = 1
+
+sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
+
+sgx.allowed_files.token = "file:device_enclave.token"
+
+sgx.allowed_ioctls.SGX_IOC_ENCLAVE_CREATE.request = 0x4008a400
+sgx.allowed_ioctls.SGX_IOC_ENCLAVE_CREATE.struct  = [
+    { ptr=[ {name="sgx_arch_secs_t", align=4096, size=4096, type="out"} ] }
+]
+
+# IOCTL request + struct for the new DCAP/in-kernel SGX driver
+sgx.allowed_ioctls.SGX_IOC_ENCLAVE_ADD_PAGES.request = 0xc030a401
+sgx.allowed_ioctls.SGX_IOC_ENCLAVE_ADD_PAGES.struct  = [
+    { ptr=[ {name="src", align=4096, size="src_length", type="out"} ] },
+    { name="offset", size=8, type="out"},
+    { name="src_length", size=8, type="out"},
+    { ptr=[ {name="secinfo", align=64, size=64, type="out"} ] },
+    { name="flags", size=8, type="out"},
+    { name="count", size=8, type="in"},
+]
+
+# IOCTL request + struct for the legacy SGX driver
+sgx.allowed_ioctls.SGX_IOC_ENCLAVE_ADD_PAGE_LEGACY.request = 0x401aa401
+sgx.allowed_ioctls.SGX_IOC_ENCLAVE_ADD_PAGE_LEGACY.struct  = [
+    { name="addr", size=8, type="out"},
+    { ptr=[ {name="src", align=4096, size=4096, type="out"} ] },
+    { ptr=[ {name="secinfo", align=64, size=64, type="out"} ] },
+    { name="mrmask", size=2, type="out"},
+]

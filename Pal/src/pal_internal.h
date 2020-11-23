@@ -283,6 +283,7 @@ int _DkSegmentRegisterSet(int reg, const void* addr);
 int _DkSegmentRegisterGet(int reg, void** addr);
 int _DkInstructionCacheFlush(const void* addr, int size);
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
+int _DkDeviceIoControl(PAL_HANDLE handle, unsigned int cmd, uint64_t arg);
 int _DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
                          PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
                          PAL_NUM* report_size);

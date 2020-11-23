@@ -108,6 +108,13 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
             break;
     }
 
+    if (ret == -ENOSYS && hdl->type == TYPE_FILE && hdl->info.file.type == FILE_DEV) {
+        /* LibOS doesn't know how to handle this IOCTL, forward it to the host */
+        ret = 0;
+        if (!DkDeviceIoControl(hdl->pal_handle, cmd, arg))
+            ret = -PAL_ERRNO();
+    }
+
     put_handle(hdl);
     return ret;
 }

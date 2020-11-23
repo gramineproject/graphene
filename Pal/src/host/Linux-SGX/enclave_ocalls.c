@@ -1580,3 +1580,24 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
     sgx_reset_ustack(old_ustack);
     return retval;
 }
+
+int ocall_ioctl(int fd, unsigned int cmd, unsigned long arg) {
+    int retval = 0;
+    ms_ocall_ioctl_t* ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_fd, fd);
+    WRITE_ONCE(ms->ms_cmd, cmd);
+    WRITE_ONCE(ms->ms_arg, arg);
+
+    retval = sgx_exitless_ocall(OCALL_IOCTL, ms);
+
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}

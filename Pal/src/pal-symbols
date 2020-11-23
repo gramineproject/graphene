@@ -45,6 +45,7 @@ DkStreamAttributesSetByHandle
 DkMemoryAvailableQuota
 DkDebugAttachBinary
 DkDebugDetachBinary
+DkDeviceIoControl
 DkAttestationReport
 DkAttestationQuote
 DkSetProtectedFilesKey

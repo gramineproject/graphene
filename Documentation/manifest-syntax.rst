@@ -400,6 +400,73 @@ trusted and allowed are allowed for access, and Graphene-SGX emits a warning
 message for every such file. This is a convenient way to determine the set of
 files that the ported application uses.
 
+Allowed IOCTLs
+^^^^^^^^^^^^^^
+
+::
+
+    sgx.allowed_ioctls.[identifier].request = [NUM]
+    sgx.allowed_ioctls.[identifier].struct  = [memory-layout-format]
+
+By default, Graphene-SGX disables all device-backed IOCTLs. This syntax allows
+to explicitly allow a set of IOCTLs on devices (devices must be explicitly
+mounted via ``fs.mount`` manifest syntax). Only IOCTLs with the ``request``
+argument found among the manifest-listed IOCTLs are allowed to pass-through to
+the host. Each IOCTL entry must also describe the memory layout of the ``arg``
+argument (typically a pointer to a complex nested object passed to the device).
+Description of the memory layout is required for a deep copy of the argument.
+The memory layout is described using the TOML syntax of inline arrays (for each
+new separate memory region) and inline tables (for each sub-region in one
+memory region). Each sub-region is described via the following keys:
+
+- ``name`` is an optional name for this sub-region; mainly used to find
+  length-specifying fields.
+- ``align`` is an optional alignment of the memory region; may be specified only
+  in the first sub-region of a memory region (all other sub-regions are
+  contigious with the first sub-region, so specifying their alignment doesn't
+  make sense).
+- ``size`` is a mandatory size of this sub-region; it may be ommitted only if
+  the ``ptr`` field is specified for this sub-region (pointer sub-regions
+  always have size of 8 bytes on x86-64 architectures). The ``size`` field may
+  be a string with the name of another field that contains the size value or
+  an integer with the constant size in bytes. For example, ``size = "strlen"``
+  denotes a size field that will be calculated dynamically during IOCTL
+  execution based on the sub-region named ``strlen``, whereas ``size = 16``
+  denotes a sub-region of size 16B.
+- ``type = ["out" | "in" | "inout"]`` is a mandatory direction of copy for this
+  sub-region. For example, ``type = "out"`` denotes a sub-region to be copied
+  out of the enclave to untrusted memory, i.e., this sub-region is an input to
+  the host device. This field may be ommitted only if the ``ptr`` field is
+  specified for this sub-region (pointer sub-regions contain the pointer value
+  which must be rewired to point to untrusted memory).
+- ``ptr = [ another memory region ]`` specifies a pointer to another, nested
+  memory region. This field is required when describing complex IOCTL structs.
+  Such pointer memory region always has the implicit size of 8B, and the
+  pointer value is always rewired to the memory region in untrusted memory
+  (containing a copied-out nested memory region).
+
+Consider this simple example::
+
+    sgx.allowed_ioctls.io1.struct = [ { ptr=[ {name="nested_region", align=4096, size=4096, type="out"} ] } ]
+
+The above example specifies a root struct (first memory region) that consists
+of a single sub-region that contains an 8-byte pointer value. This pointer
+points to another memory region in enclave memory that contains a single
+sub-region of size 4KB and that must be 4KB-aligned. This nested sub-region has
+a name ``nested_region`` (not used, only for illustrative purposes). Also, this
+nested sub-region is copied out of the enclave. The pointer value of the first
+memory region is rewired to point to the second memory region in untrusted
+memory. No fields/memory regions are copied back from untrusted memory inside
+the enclave after this IOCTL executes.
+
+If the IOCTL's third argument is simply an integer (or unused at all), then the
+syntax must specify an empty TOML array::
+
+    sgx.allowed_ioctls.io2.struct = [ ]
+
+For more examples and complex usages of the IOCTL syntax, refer to the Graphene
+examples, in particular, ``device_enclave.manifest.template``.
+
 Trusted child processes
 ^^^^^^^^^^^^^^^^^^^^^^^
 
