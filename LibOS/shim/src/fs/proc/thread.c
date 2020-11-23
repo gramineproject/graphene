@@ -732,15 +732,9 @@ const struct pseudo_fs_ops fs_thread = {
 
 static const struct pseudo_dir dir_task = {
     .size = 1,
-    .ent =
-        {
-            {
-                .name_ops = &nm_thread,
-                .fs_ops   = &fs_thread,
-                .type     = LINUX_DT_DIR,
-            },
-        },
-};
+    .ent  = {
+        {.name_ops = &nm_thread, .fs_ops = &fs_thread, .type = LINUX_DT_DIR},
+    }};
 
 const struct pseudo_dir dir_thread = {
     .size = 6,
