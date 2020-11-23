@@ -261,7 +261,7 @@ int ocall_munmap_untrusted(const void* addr, size_t size) {
  * handling do not use the cache and always explicitly mmap/munmap untrusted memory; 'need_munmap'
  * indicates whether explicit munmap is needed at the end of such OCALL.
  */
-static int ocall_mmap_untrusted_cache(size_t size, void** addrptr, bool* need_munmap) {
+int ocall_mmap_untrusted_cache(size_t size, void** addrptr, bool* need_munmap) {
     int ret;
 
     *addrptr = NULL;
@@ -309,7 +309,7 @@ static int ocall_mmap_untrusted_cache(size_t size, void** addrptr, bool* need_mu
     return ret;
 }
 
-static void ocall_munmap_untrusted_cache(void* addr, size_t size, bool need_munmap) {
+void ocall_munmap_untrusted_cache(void* addr, size_t size, bool need_munmap) {
     if (need_munmap) {
         ocall_munmap_untrusted(addr, size);
         /* there is not much we can do in case of error */
@@ -1696,6 +1696,27 @@ int ocall_sched_getaffinity(void* tcs, size_t cpumask_size, void* cpu_mask) {
 
     if (retval > 0 && !is_cpumask_valid(cpu_mask, cpumask_size))
         retval = -EPERM;
+
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}
+
+int ocall_ioctl(int fd, unsigned int cmd, unsigned long arg) {
+    int retval = 0;
+    ms_ocall_ioctl_t* ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_fd, fd);
+    WRITE_ONCE(ms->ms_cmd, cmd);
+    WRITE_ONCE(ms->ms_arg, arg);
+
+    retval = sgx_exitless_ocall(OCALL_IOCTL, ms);
 
     sgx_reset_ustack(old_ustack);
     return retval;

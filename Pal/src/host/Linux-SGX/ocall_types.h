@@ -62,6 +62,7 @@ enum {
     OCALL_DEBUG_MAP_ADD,
     OCALL_DEBUG_MAP_REMOVE,
     OCALL_EVENTFD,
+    OCALL_IOCTL,
     OCALL_GET_QUOTE,
     OCALL_NR,
 };
@@ -299,6 +300,12 @@ typedef struct {
     unsigned int ms_initval;
     int          ms_flags;
 } ms_ocall_eventfd_t;
+
+typedef struct {
+    int           ms_fd;
+    unsigned int  ms_cmd;
+    unsigned long ms_arg;
+} ms_ocall_ioctl_t;
 
 typedef struct {
     bool              ms_is_epid;
