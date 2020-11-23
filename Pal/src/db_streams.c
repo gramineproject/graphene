@@ -143,7 +143,7 @@ int _DkStreamOpen(PAL_HANDLE* handle, const char* uri, int access, int share, in
 
     assert(WITHIN_MASK(access,  PAL_ACCESS_MASK));
     assert(WITHIN_MASK(share,   PAL_SHARE_MASK));
-    assert(WITHIN_MASK(create,  PAL_CREATE_MASK));
+//    assert(WITHIN_MASK(create,  PAL_CREATE_MASK)); /* FIXME: eventfd abuses create arg */
     assert(WITHIN_MASK(options, PAL_OPTION_MASK));
 
     int ret = parse_stream_uri(&uri, &type, &ops);

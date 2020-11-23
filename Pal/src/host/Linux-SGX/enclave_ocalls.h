@@ -96,6 +96,8 @@ int ocall_update_debugger(struct debug_map* _Atomic* debug_map);
 
 int ocall_eventfd(unsigned int initval, int flags);
 
+int ocall_ioctl(int fd, unsigned int cmd, unsigned long arg);
+
 /*!
  * \brief Execute untrusted code in PAL to obtain a quote from the Quoting Enclave.
  *

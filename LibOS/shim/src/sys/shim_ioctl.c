@@ -6,6 +6,7 @@
  */
 
 #include <asm/ioctls.h>
+#include <sys/eventfd.h>
 
 #include "pal.h"
 #include "shim_handle.h"
@@ -106,6 +107,45 @@ long shim_do_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) {
         default:
             ret = -ENOSYS;
             break;
+    }
+
+    if (ret == -ENOSYS && hdl->type == TYPE_FILE && hdl->info.file.type == FILE_DEV) {
+        /* LibOS doesn't know how to handle this IOCTL, forward it to the host */
+        ret = 0;
+        if (!DkDeviceIoControl(hdl->pal_handle, cmd, arg))
+            ret = -PAL_ERRNO();
+
+        /* FIXME: very special case of DRM_IOCTL_I915_GEM_EXECBUFFER2_WR: its arg is of type
+         *        drm_i915_gem_execbuffer2 with a field `rsvd2 >> 32` returning a "fence" FD to poll
+         *        on (basically, an eventfd type of FD): we need to create a corresponding object in
+         *        Graphene, we abuse eventfd for it */
+        if (cmd == /*DRM_IOCTL_I915_GEM_EXECBUFFER2_WR*/0xc0406469) {
+            char* arg_char = (char*)arg;
+            uint64_t rsvd2 = *((uint64_t*)(arg_char + 56)); /* 56 is offset of rsvd2 */
+            int fence_fd = rsvd2 >> 32;
+            ret = shim_do_eventfd2(/*count=*/fence_fd, /*flags=*/EFD_SEMAPHORE); /* abuse args */
+            if (ret >= 0) {
+                fence_fd = ret;
+                *((uint64_t*)(arg_char + 56)) = (uint64_t)fence_fd << 32;
+            }
+        }
+
+        /* FIXME: very special case of DRM_IOCTL_I915_GETPARAM(I915_PARAM_HAS_BSD2): Intel Media
+         *        Driver uses Sys-V IPC (semget and shmget family of syscalls) for multi-process
+         *        user-mode synchronization (to load-balance execution of video encode/decode on
+         *        two VCS rings) if I915_PARAM_HAS_BSD2 == true; we don't support shmget() in
+         *        Graphene so we stub I915_PARAM_HAS_BSD2 = false; this leads to slightly worse
+         *        performance because only one VCS ring is used for video encode/decode but this may
+         *        be fixed after Media Driver removes this Sys-V IPC dependency (see comment
+         *        https://bugzilla.mozilla.org/show_bug.cgi?id=1619585#c46). */
+        if (cmd == /*DRM_IOCTL_I915_GETPARAM*/0xc0106446) {
+            typedef struct drm_i915_getparam {int32_t param; int* value;} drm_i915_getparam_t;
+            drm_i915_getparam_t* arg_getparam = (drm_i915_getparam_t*)arg;
+            if (arg_getparam->param == /*I915_PARAM_HAS_BSD2*/31) {
+                /* return BSD2 = false, meaning there is no second VCS ring */
+                arg_getparam->value = 0;
+            }
+        }
     }
 
     put_handle(hdl);

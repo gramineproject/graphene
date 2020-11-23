@@ -592,6 +592,12 @@ class TC_40_FileSystem(RegressionTestCase):
         stdout, _ = self.run_binary(['device'])
         self.assertIn('TEST OK', stdout)
 
+    @unittest.skipUnless(HAS_SGX,
+        'This test uses the Intel SGX driver (host-Linux kernel module).')
+    def test_003_device_enclave(self):
+        stdout, _ = self.run_binary(['device_enclave'])
+        self.assertIn('TEST OK', stdout)
+
     def test_010_path(self):
         stdout, _ = self.run_binary(['proc_path'])
         self.assertIn('proc path test success', stdout)

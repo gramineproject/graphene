@@ -99,6 +99,17 @@ DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]) {
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
+PAL_BOL DkDeviceIoControl(PAL_HANDLE handle, PAL_NUM cmd, PAL_NUM arg) {
+    ENTER_PAL_CALL(DkDeviceIoControl);
+
+    int ret = _DkDeviceIoControl(handle, cmd, arg);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
+}
+
 PAL_BOL DkAttestationReport(PAL_PTR user_report_data, PAL_NUM* user_report_data_size,
                             PAL_PTR target_info, PAL_NUM* target_info_size, PAL_PTR report,
                             PAL_NUM* report_size) {

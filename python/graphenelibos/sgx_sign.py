@@ -71,6 +71,12 @@ def read_manifest(filename):
                 manifest_layout.append((None, None))
                 break
 
+            if line.strip().startswith("{") or line.strip().startswith("}") or \
+                    line.strip().startswith("[") or line.strip().startswith("]"):
+                # TOML multi-line syntax, add it as-is
+                manifest_layout.append((None, line))
+                continue
+
             pound = line.find("#")
             if pound != -1:
                 comment = line[pound:].strip()

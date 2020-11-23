@@ -931,13 +931,16 @@ static int chroot_checkout(struct shim_handle* hdl) {
     if (hdl->fs == &chroot_builtin_fs)
         hdl->fs = NULL;
 
+    bool is_host_device = false;
     if (hdl->type == TYPE_FILE) {
         struct shim_file_data* data = FILE_HANDLE_DATA(hdl);
-        if (data)
+        if (data) {
+            is_host_device = (data->type == FILE_DEV && strcmp(qstrgetstr(&hdl->uri), "dev:tty"));
             hdl->info.file.data = NULL;
+        }
     }
 
-    if (hdl->pal_handle) {
+    if (hdl->pal_handle && !is_host_device) {
         /*
          * if the file still exists in the host, no need to send
          * the handle over RPC; otherwise, send it.

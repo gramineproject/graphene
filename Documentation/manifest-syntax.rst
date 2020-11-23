@@ -400,6 +400,102 @@ trusted and allowed are allowed for access, and Graphene-SGX emits a warning
 message for every such file. This is a convenient way to determine the set of
 files that the ported application uses.
 
+Allowed IOCTLs
+^^^^^^^^^^^^^^
+
+::
+
+    sgx.ioctl_structs.[identifier] = [memory-layout-format]
+
+    sgx.allowed_ioctls.[identifier].request = [NUM]
+    sgx.allowed_ioctls.[identifier].struct  = "[identifier-of-ioctl-struct]"
+
+By default, Graphene-SGX disables all device-backed IOCTLs. This syntax allows
+to explicitly allow a set of IOCTLs on devices (devices must be explicitly
+mounted via ``fs.mount`` manifest syntax). Only IOCTLs with the ``request``
+argument found among the manifest-listed IOCTLs are allowed to pass-through to
+the host. Each IOCTL entry must also contain a reference to an IOCTL struct in
+its ``struct`` field.
+
+Available IOCTL structs are described via ``sgx.ioctl_structs``. Each IOCTL
+struct describes the memory layout of the ``arg`` argument (typically a pointer
+to a complex nested object passed to the device).  Description of the memory
+layout is required for a deep copy of the argument.  The memory layout is
+described using the TOML syntax of inline arrays (for each new separate memory
+region) and inline tables (for each sub-region in one memory region). Each
+sub-region is described via the following keys:
+
+- ``name`` is an optional name for this sub-region; mainly used to find
+  length-specifying fields.
+- ``align`` is an optional alignment of the memory region; may be specified only
+  in the first sub-region of a memory region (all other sub-regions are
+  contigious with the first sub-region, so specifying their alignment doesn't
+  make sense).
+- ``size`` is a mandatory size of this sub-region. The ``size`` field may be a
+  string with the name of another field that contains the size value or an
+  integer with the constant size measured in ``units`` (default unit is 1 byte;
+  also see below). For example, ``size = "strlen"`` denotes a size field that
+  will be calculated dynamically during IOCTL execution based on the sub-region
+  named ``strlen``, whereas ``size = 16`` denotes a sub-region of size 16B. Note
+  that for ``ptr`` sub-regions, the ``size`` field has a different meaning: it
+  denotes the number of adjacent memory regions (in other words, it denotes the
+  number of items in the ``ptr`` array).
+- ``unit`` is an optional unit of measurement for ``size``. It is 1 byte by
+  default. Unit of measurement must be a constant integer. For example,
+  ``size = "strlen"`` and ``unit = 2`` denote a wide-char string (where each
+  character is 2B long) of a dynamically calculated length.
+- ``type = ["none" | "out" | "in" | "inout"]`` is an optional direction of copy
+  for this sub-region. For example, ``type = "out"`` denotes a sub-region to be
+  copied out of the enclave to untrusted memory, i.e., this sub-region is an
+  input to the host device. The default value is ``none`` which is useful for
+  e.g. padding of structs.  This field may be ommitted if the ``ptr`` field is
+  specified for this sub-region (pointer sub-regions contain the pointer value
+  which must be rewired to point to untrusted memory).
+- ``ptr = [ another memory region ]`` specifies a pointer to another, nested
+  memory region. This field is required when describing complex IOCTL structs.
+  Such pointer memory region always has the implicit size of 8B, and the
+  pointer value is always rewired to the memory region in untrusted memory
+  (containing a copied-out nested memory region). If ``ptr`` is specified
+  together with ``size``, it describes not just a pointer but an array of these
+  memory regions.
+- ``onlyif = "simple boolean expression"`` allows to condition the sub region
+  based on a boolean expression. The only currently supported format of
+  expressions is ``token1 == token2`` or ``token1 != token2``, where ``token1``
+  and ``token2`` may be constant integers or sub region names.
+
+Consider this simple example::
+
+    sgx.ioctl_structs.st1 = [ { ptr=[ {name="nested_region", align=4096, size=4096, type="out"} ] } ]
+
+The above example specifies a root struct (first memory region) that consists
+of a single sub-region that contains an 8-byte pointer value. This pointer
+points to another memory region in enclave memory that contains a single
+sub-region of size 4KB and that must be 4KB-aligned. This nested sub-region has
+a name ``nested_region`` (not used, only for illustrative purposes). Also, this
+nested sub-region is copied out of the enclave. The pointer value of the first
+memory region is rewired to point to the second memory region in untrusted
+memory. No fields/memory regions are copied back from untrusted memory inside
+the enclave after an IOCTL with this struct executes.
+
+If the IOCTL's third argument is simply an integer (or unused at all), then the
+syntax must specify the struct as an empty TOML array::
+
+    sgx.ioctl_structs.st2 = [ ]
+
+IOCTLs that use these structs are defined like this::
+
+    sgx.allowed_ioctls.io1.request = 0x12345678
+    sgx.allowed_ioctls.io1.struct = "st1"
+
+    sgx.allowed_ioctls.io2.request = 0x87654321
+    sgx.allowed_ioctls.io2.struct = "st1"
+
+    sgx.allowed_ioctls.io3.request = 0x43218765  # this IOCTL's arg is passed as-is
+    sgx.allowed_ioctls.io3.struct = "st2"
+
+For more examples and complex usages of the IOCTL syntax, refer to the Graphene
+examples, in particular, ``device_enclave.manifest.template``.
+
 Trusted child processes
 ^^^^^^^^^^^^^^^^^^^^^^^
 
