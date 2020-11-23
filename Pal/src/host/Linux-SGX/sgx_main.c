@@ -783,6 +783,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     }
     pal_sec->cpu_socket = cpu_socket;
 
+    /* Get CPU topology information */
     ret = get_core_topo_info(&pal_sec->topo_info);
     if (ret < 0)
         return ret;

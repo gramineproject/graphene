@@ -39,7 +39,7 @@ static int node_info_open(struct shim_handle* hdl, const char* name, int flags) 
     }
 
     len = strlen(node_filebuf) + 1;
-    char* str = malloc(SYSFS_FILESZ);
+    char* str = malloc(len);
     if (!str)
         return -ENOMEM;
     memcpy(str, node_filebuf, len);

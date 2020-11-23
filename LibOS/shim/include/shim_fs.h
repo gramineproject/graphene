@@ -483,8 +483,6 @@ extern struct shim_mount eventfd_builtin_fs;
 #define FILE_RW_MODE 0666
 #define FILE_R_MODE  0444
 
-#define SYSFS_FILESZ    256
-
 extern struct shim_fs_ops dev_fs_ops;
 extern struct shim_d_ops dev_d_ops;
 
@@ -558,7 +556,7 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count);
 off_t str_seek(struct shim_handle* hdl, off_t offset, int whence);
 int str_flush(struct shim_handle* hdl);
 
-/* /sys fs related common APIs*/
+/* /sys fs related common APIs */
 int extract_num_from_path(const char* path);
 int sys_info_mode(const char* name, mode_t* mode);
 int sys_info_stat(const char* name, struct stat* buf);

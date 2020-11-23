@@ -291,7 +291,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     int possible_logical_cores = sec_info.possible_logical_cores;
     if (possible_logical_cores < 1 || possible_logical_cores >= (1 << 16)) {
-        SGX_DBG(DBG_E, "Invalid sec_info.num_possible_logical_cores: %d\n", possible_logical_cores);
+        SGX_DBG(DBG_E, "Invalid sec_info.possible_logical_cores: %d\n", possible_logical_cores);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.possible_logical_cores = possible_logical_cores;
@@ -390,7 +390,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     if (!sgx_copy_to_enclave(core_topology, online_logical_cores * sizeof(PAL_CORE_TOPO_INFO),
                              sec_info.topo_info.core_topology,
                              online_logical_cores * sizeof(PAL_CORE_TOPO_INFO))) {
-        SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
+        SGX_DBG(DBG_E, "Copying cpu_topology into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -398,7 +398,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     PAL_CORE_CACHE_INFO* cache_info = (PAL_CORE_CACHE_INFO*)malloc(num_cache_index *
                                                                    sizeof(PAL_CORE_CACHE_INFO));
     if (!cache_info) {
-        SGX_DBG(DBG_E, "Allocation for cache failed\n");
+        SGX_DBG(DBG_E, "Allocation for cache_info failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -422,7 +422,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     if (!sgx_copy_to_enclave(numa_topology, num_online_nodes * sizeof(PAL_NUMA_TOPO_INFO),
                              sec_info.topo_info.numa_topology,
                              num_online_nodes * sizeof(PAL_NUMA_TOPO_INFO))) {
-        SGX_DBG(DBG_E, "Copying cpu_socket into the enclave failed\n");
+        SGX_DBG(DBG_E, "Copying numa_topology into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     g_pal_sec.topo_info.numa_topology = numa_topology;

@@ -71,7 +71,7 @@ int get_hw_resource(const char* filename, bool count) {
 }
 
 /* Reads up to count bytes from the file into the buf passed.
- * Returns 0 or number of bytes read on success and UNIX error code on failure */
+ * Returns 0 or number of bytes read on success and UNIX error code on failure. */
 int read_file_buffer(const char* filename, char* buf, size_t count) {
     int fd = INLINE_SYSCALL(open, 2, filename, O_RDONLY);
     if (IS_ERR(fd))
@@ -85,6 +85,8 @@ int read_file_buffer(const char* filename, char* buf, size_t count) {
     return ret;
 }
 
+/* Returns number of cache levels present on this system by counting "indexX" dir entries under
+ * `/sys/devices/system/cpu/cpuX/cache` on success and UNIX error code on failure. */
 static int get_num_cache_level(const char* path) {
     char buf[1024];
     int bpos;
@@ -96,7 +98,7 @@ static int get_num_cache_level(const char* path) {
     if (IS_ERR(fd))
         return -ERRNO(fd);
 
-    while (1) {
+    while (true) {
         nread = INLINE_SYSCALL(getdents64, 3, fd, buf, 1024);
         if (IS_ERR(nread))
             return -ERRNO(nread);
@@ -117,10 +119,9 @@ static int get_num_cache_level(const char* path) {
     return num_dirs ? : -ENOENT;
 }
 
-/* Get Core topology related info */
+/* Get core topology related info */
 int get_core_topo_info(PAL_TOPO_INFO* topo_info) {
-    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online",
-                                                   /*count=*/true);
+    int online_logical_cores = get_hw_resource("/sys/devices/system/cpu/online", /*count=*/true);
     if (online_logical_cores < 0)
         return online_logical_cores;
 
@@ -149,7 +150,7 @@ int get_core_topo_info(PAL_TOPO_INFO* topo_info) {
 
     char filename[128];
     for (int idx = 0; idx < online_logical_cores; idx++) {
-        /* cpu0 is always online and so this file is not present */
+        /* cpu0 is always online and thus the "online" file is not present. */
         if (idx != 0) {
             snprintf(filename, sizeof(filename), "/sys/devices/system/cpu/cpu%d/online", idx);
             ret = read_file_buffer(filename, core_topology[idx].is_logical_core_online,
@@ -250,7 +251,7 @@ out_topology:
     return ret;
 }
 
-/* Get Numa topology related info */
+/* Get NUMA topology related info */
 int get_numa_topo_info(PAL_TOPO_INFO* topo_info) {
     int ret = read_file_buffer("/sys/devices/system/node/online", topo_info->online_nodes,
                                PAL_SYSFS_BUF_FILESZ);

@@ -119,7 +119,7 @@ int sys_list_resource_num(const char* pathname, struct shim_dirent** buf, int le
         dirent_in_buf->next = (void*)dirent_in_buf + dirent_size;
         dirent_in_buf->ino  = 1;
         dirent_in_buf->type = LINUX_DT_DIR;
-        dirent_in_buf  = dirent_in_buf->next;
+        dirent_in_buf = dirent_in_buf->next;
     }
 
     *buf = dirent_in_buf;

@@ -158,10 +158,10 @@ static int __mount_sys(struct shim_dentry* root) {
         return ret;
     }
 
-    debug("mounting as sys filesystem: /sys\n");
+    debug("Mounting as sys filesystem: /sys\n");
 
     if ((ret = mount_fs("sys", NULL, "/sys", root, NULL, 0)) < 0) {
-        debug("mounting sys filesystem failed (%d)\n", ret);
+        debug("Mounting sys filesystem failed (%d)\n", ret);
         return ret;
     }
 

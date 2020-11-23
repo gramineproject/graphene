@@ -76,9 +76,9 @@ objs = \
 	fs/proc/thread.o \
 	fs/socket/fs.o \
 	fs/str/fs.o \
-	fs/sys/fs.o \
-	fs/sys/cpu_info.o \
 	fs/sys/cache_info.o \
+	fs/sys/cpu_info.o \
+	fs/sys/fs.o \
 	fs/sys/node_info.o \
 	ipc/shim_ipc.o \
 	ipc/shim_ipc_child.o \

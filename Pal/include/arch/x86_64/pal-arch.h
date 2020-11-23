@@ -26,11 +26,11 @@ typedef struct pal_tcb PAL_TCB;
 #define PAL_LIBOS_TCB_SIZE 256
 
 /* Used to represent plain integers (only numeric values) */
-#define PAL_SYSFS_INT_FILESZ      16
-/* Used to represent buffers having numeric values with text. E.g 1024576 KB */
-#define PAL_SYSFS_BUF_FILESZ      64
-/* used to represent cpumaps like 00000000,ffffffff,00000000,ffffffff */
-#define PAL_SYSFS_MAP_FILESZ      256
+#define PAL_SYSFS_INT_FILESZ 16
+/* Used to represent buffers having numeric values with text. "E.g 1024576 KB" */
+#define PAL_SYSFS_BUF_FILESZ 64
+/* Used to represent cpumaps like "00000000,ffffffff,00000000,ffffffff" */
+#define PAL_SYSFS_MAP_FILESZ 256
 
 typedef struct pal_tcb {
     struct pal_tcb* self;
