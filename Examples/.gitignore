@@ -6,4 +6,3 @@ pal_loader
 *.o
 *~
 *.swp
-__pycache__

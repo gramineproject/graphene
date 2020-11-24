@@ -21,7 +21,8 @@ pal.map
 *.so.*
 
 # python
-*.pyc
+*.py[co]
+__pycache__
 
 # sgx
 *.manifest.sgx
