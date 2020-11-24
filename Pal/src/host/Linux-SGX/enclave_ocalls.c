@@ -153,15 +153,38 @@ int ocall_mmap_untrusted(int fd, uint64_t offset, size_t size, unsigned short pr
         return -EPERM;
     }
 
+    if (!mem || (*mem && !sgx_is_completely_outside_enclave(*mem, size))) {
+        sgx_reset_ustack(old_ustack);
+        return -EINVAL;
+    }
+
+    if (*mem && !IS_ALLOC_ALIGNED_PTR(*mem)) {
+        /* fixed address must be correctly aligned */
+        sgx_reset_ustack(old_ustack);
+        return -EINVAL;
+    }
+
     WRITE_ONCE(ms->ms_fd, fd);
     WRITE_ONCE(ms->ms_offset, offset);
     WRITE_ONCE(ms->ms_size, size);
     WRITE_ONCE(ms->ms_prot, prot);
+    WRITE_ONCE(ms->ms_mem, *mem);
 
     retval = sgx_exitless_ocall(OCALL_MMAP_UNTRUSTED, ms);
+    if (IS_ERR(retval) && !IS_UNIX_ERR(retval)) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    void* returned_mem = READ_ONCE(ms->ms_mem);
+    if (*mem && returned_mem != *mem) {
+        /* requested to mmap at a fixed address but OCALL returned another address */
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
 
     if (!retval) {
-        if (!sgx_copy_ptr_to_enclave(mem, READ_ONCE(ms->ms_mem), size)) {
+        if (!sgx_copy_ptr_to_enclave(mem, returned_mem, size)) {
             sgx_reset_ustack(old_ustack);
             return -EPERM;
         }
@@ -191,6 +214,8 @@ int ocall_munmap_untrusted(const void* mem, size_t size) {
     WRITE_ONCE(ms->ms_size, size);
 
     retval = sgx_exitless_ocall(OCALL_MUNMAP_UNTRUSTED, ms);
+    if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
+        retval = -EPERM;
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -209,15 +234,20 @@ int ocall_munmap_untrusted(const void* mem, size_t size) {
  * indicates whether explicit munmap is needed at the end of such OCALL.
  */
 static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap) {
+    int ret;
+
+    *mem = NULL;
     *need_munmap = false;
+
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
+
     uint64_t in_use = 0;
     if (!__atomic_compare_exchange_n(&cache->in_use, &in_use, 1, /*weak=*/false, __ATOMIC_RELAXED,
                                      __ATOMIC_RELAXED)) {
         /* AEX signal handling case: cache is in use, so make explicit mmap/munmap */
-        int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
-        if (IS_ERR(retval)) {
-            return retval;
+        ret = ocall_mmap_untrusted(/*fd=*/-1, /*offset=*/0, size, PROT_READ | PROT_WRITE, mem);
+        if (IS_ERR(ret)) {
+            return ret;
         }
         *need_munmap = true;
         return 0;
@@ -229,16 +259,16 @@ static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap
             *mem = cache->mem;
             return 0;
         }
-        int retval = ocall_munmap_untrusted(cache->mem, cache->size);
-        if (IS_ERR(retval)) {
+        ret = ocall_munmap_untrusted(cache->mem, cache->size);
+        if (IS_ERR(ret)) {
             cache->valid = false;
             __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
-            return retval;
+            return ret;
         }
     }
 
-    int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
-    if (IS_ERR(retval)) {
+    ret = ocall_mmap_untrusted(/*fd=*/-1, /*offset=*/0, size, PROT_READ | PROT_WRITE, mem);
+    if (IS_ERR(ret)) {
         cache->valid = false;
         __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
     } else {
@@ -246,7 +276,7 @@ static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap
         cache->mem   = *mem;
         cache->size  = size;
     }
-    return retval;
+    return ret;
 }
 
 static void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munmap) {

@@ -90,13 +90,14 @@ static long sgx_ocall_exit(void* pms) {
 static long sgx_ocall_mmap_untrusted(void* pms) {
     ms_ocall_mmap_untrusted_t* ms = (ms_ocall_mmap_untrusted_t*)pms;
     void* addr;
-
     ODEBUG(OCALL_MMAP_UNTRUSTED, ms);
-    addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
-                                 ms->ms_prot,
-                                 (ms->ms_fd == -1) ? MAP_ANONYMOUS | MAP_PRIVATE
-                                                   : MAP_FILE | MAP_SHARED,
-                                 ms->ms_fd, ms->ms_offset);
+
+    /* NOTE: enclave never asks for fixed address 0x0, so ms_mem == NULL means "no fixed addr" */
+    int flags = ms->ms_mem ? MAP_FIXED : 0;
+    flags    |= (ms->ms_fd == -1) ? MAP_ANONYMOUS | MAP_PRIVATE : MAP_FILE | MAP_SHARED;
+
+    addr = (void*)INLINE_SYSCALL(mmap, 6, ms->ms_mem, ms->ms_size, ms->ms_prot, flags, ms->ms_fd,
+                                 ms->ms_offset);
     if (IS_ERR_P(addr))
         return -ERRNO_P(addr);
 
