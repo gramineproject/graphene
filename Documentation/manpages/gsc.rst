@@ -41,7 +41,7 @@ Software packages
 -----------------
 
 Please install the ``docker.io``, ``python3``, ``python3-pip`` packages. In
-addition, install the Docker client, Jinja2, TOML, and YAML python package via
+addition, install the Docker client, Jinja2, TOML, and YAML python packages via
 pip. GSC requires Python 3.6 or later.
 
 .. code-block:: sh
@@ -482,7 +482,7 @@ This example assumes that all prerequisites are installed and configured.
       # Sign graphenized Docker image with the key
       ./gsc sign-image python enclave-key.pem
 
-#. Retrieve SGX-related information from graphenized Image using :command:`gsc info-image`:
+#. Retrieve SGX-related information from graphenized image using :command:`gsc info-image`:
 
    .. code-block:: sh
 
