@@ -9,7 +9,7 @@ node('sgx_slave_2.6') {
     docker.build(
         "local:${env.BUILD_TAG}",
         '-f .ci/ubuntu18.04.dockerfile .'
-    ).inside("${env.DOCKER_ARGS}") {
+    ).inside("${env.DOCKER_ARGS_COMMON} ${env.DOCKER_ARGS_SGX}") {
         sh 'printenv'
 
         load '.ci/lib/stage-lint.jenkinsfile'
