@@ -1,4 +1,7 @@
-env.DOCKER_ARGS = '''
+env.DOCKER_ARGS_COMMON = '''
+    --device=/dev/kmsg:/dev/kmsg
+'''
+env.DOCKER_ARGS_SGX = '''
     --volume=/lib/modules:/lib/modules:ro
     --volume=/usr/src:/usr/src:ro
     --volume=/var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket

@@ -9,7 +9,7 @@ node('nonsgx_slave') {
     docker.build(
         "local:${env.BUILD_TAG}",
         '-f .ci/ubuntu16.04.dockerfile .'
-    ).inside() {
+    ).inside("${env.DOCKER_ARGS_COMMON}") {
         sh 'printenv'
 
         load '.ci/lib/stage-lint.jenkinsfile'
