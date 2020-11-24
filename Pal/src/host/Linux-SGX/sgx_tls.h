@@ -6,7 +6,7 @@
 #include "pal.h"
 
 struct untrusted_area {
-    void* mem;
+    void* addr;
     size_t size;
     uint64_t in_use; /* must be uint64_t, because SET_ENCLAVE_TLS() currently supports only 8-byte
                       * types. TODO: fix this. */

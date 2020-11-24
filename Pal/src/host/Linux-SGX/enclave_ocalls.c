@@ -158,7 +158,7 @@ noreturn void ocall_exit(int exitcode, int is_exitgroup) {
     }
 }
 
-int ocall_mmap_untrusted(int fd, uint64_t offset, size_t size, unsigned short prot, void** mem) {
+int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int fd, off_t offset) {
     int retval = 0;
     ms_ocall_mmap_untrusted_t* ms;
 
@@ -169,48 +169,81 @@ int ocall_mmap_untrusted(int fd, uint64_t offset, size_t size, unsigned short pr
         return -EPERM;
     }
 
-    WRITE_ONCE(ms->ms_fd, fd);
-    WRITE_ONCE(ms->ms_offset, offset);
+    if (!addrptr) {
+        sgx_reset_ustack(old_ustack);
+        return -EINVAL;
+    }
+
+    void* requested_addr = *addrptr;
+
+    if (flags & MAP_FIXED) {
+        if (!sgx_is_completely_outside_enclave(requested_addr, size) ||
+                !IS_ALLOC_ALIGNED_PTR(requested_addr)) {
+            sgx_reset_ustack(old_ustack);
+            return -EINVAL;
+        }
+    } else {
+        requested_addr = NULL; /* for sanity */
+    }
+
+    WRITE_ONCE(ms->ms_addr, requested_addr);
     WRITE_ONCE(ms->ms_size, size);
     WRITE_ONCE(ms->ms_prot, prot);
+    WRITE_ONCE(ms->ms_flags, flags);
+    WRITE_ONCE(ms->ms_fd, fd);
+    WRITE_ONCE(ms->ms_offset, offset);
 
     do {
         retval = sgx_exitless_ocall(OCALL_MMAP_UNTRUSTED, ms);
     } while (retval == -EINTR);
 
-    if (!retval) {
-        if (!sgx_copy_ptr_to_enclave(mem, READ_ONCE(ms->ms_mem), size)) {
+    if (IS_ERR(retval)) {
+        sgx_reset_ustack(old_ustack);
+        return IS_UNIX_ERR(retval) ? retval : -EPERM;
+    }
+
+    void* returned_addr = READ_ONCE(ms->ms_addr);
+    if (flags & MAP_FIXED) {
+        /* addrptr already contains the mmap'ed address, no need to update it */
+        if (returned_addr != requested_addr) {
+            sgx_reset_ustack(old_ustack);
+            return -EPERM;
+        }
+    } else {
+        /* update addrptr with the mmap'ed address */
+        if (!sgx_copy_ptr_to_enclave(addrptr, returned_addr, size)) {
             sgx_reset_ustack(old_ustack);
             return -EPERM;
         }
     }
 
     sgx_reset_ustack(old_ustack);
-    return retval;
+    return 0;
 }
 
-int ocall_munmap_untrusted(const void* mem, size_t size) {
+int ocall_munmap_untrusted(const void* addr, size_t size) {
     int retval = 0;
     ms_ocall_munmap_untrusted_t* ms;
 
-    void* old_ustack = sgx_prepare_ustack();
-    if (!sgx_is_completely_outside_enclave(mem, size)) {
-        sgx_reset_ustack(old_ustack);
+    if (!sgx_is_completely_outside_enclave(addr, size) || !IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
-    }
 
+    void* old_ustack = sgx_prepare_ustack();
     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
     if (!ms) {
         sgx_reset_ustack(old_ustack);
         return -EPERM;
     }
 
-    WRITE_ONCE(ms->ms_mem, mem);
+    WRITE_ONCE(ms->ms_addr, addr);
     WRITE_ONCE(ms->ms_size, size);
 
     do {
         retval = sgx_exitless_ocall(OCALL_MUNMAP_UNTRUSTED, ms);
     } while (retval == -EINTR);
+
+    if (IS_ERR(retval) && !IS_UNIX_ERR(retval))
+        retval = -EPERM;
 
     sgx_reset_ustack(old_ustack);
     return retval;
@@ -228,16 +261,22 @@ int ocall_munmap_untrusted(const void* mem, size_t size) {
  * handling do not use the cache and always explicitly mmap/munmap untrusted memory; 'need_munmap'
  * indicates whether explicit munmap is needed at the end of such OCALL.
  */
-static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap) {
+static int ocall_mmap_untrusted_cache(size_t size, void** addrptr, bool* need_munmap) {
+    int ret;
+
+    *addrptr = NULL;
     *need_munmap = false;
+
     struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;
+
     uint64_t in_use = 0;
     if (!__atomic_compare_exchange_n(&cache->in_use, &in_use, 1, /*weak=*/false, __ATOMIC_RELAXED,
                                      __ATOMIC_RELAXED)) {
         /* AEX signal handling case: cache is in use, so make explicit mmap/munmap */
-        int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
-        if (IS_ERR(retval)) {
-            return retval;
+        ret = ocall_mmap_untrusted(addrptr, size, PROT_READ | PROT_WRITE,
+                                   MAP_ANONYMOUS | MAP_PRIVATE, /*fd=*/-1, /*offset=*/0);
+        if (IS_ERR(ret)) {
+            return ret;
         }
         *need_munmap = true;
         return 0;
@@ -246,32 +285,33 @@ static int ocall_mmap_untrusted_cache(size_t size, void** mem, bool* need_munmap
     /* normal execution case: cache was not in use, so use it/allocate new one for reuse */
     if (cache->valid) {
         if (cache->size >= size) {
-            *mem = cache->mem;
+            *addrptr = cache->addr;
             return 0;
         }
-        int retval = ocall_munmap_untrusted(cache->mem, cache->size);
-        if (IS_ERR(retval)) {
+        ret = ocall_munmap_untrusted(cache->addr, cache->size);
+        if (IS_ERR(ret)) {
             cache->valid = false;
             __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
-            return retval;
+            return ret;
         }
     }
 
-    int retval = ocall_mmap_untrusted(-1, 0, size, PROT_READ | PROT_WRITE, mem);
-    if (IS_ERR(retval)) {
+    ret = ocall_mmap_untrusted(addrptr, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE,
+                               /*fd=*/-1, /*offset=*/0);
+    if (IS_ERR(ret)) {
         cache->valid = false;
         __atomic_store_n(&cache->in_use, 0, __ATOMIC_RELAXED);
     } else {
         cache->valid = true;
-        cache->mem   = *mem;
+        cache->addr  = *addrptr;
         cache->size  = size;
     }
-    return retval;
+    return ret;
 }
 
-static void ocall_munmap_untrusted_cache(void* mem, size_t size, bool need_munmap) {
+static void ocall_munmap_untrusted_cache(void* addr, size_t size, bool need_munmap) {
     if (need_munmap) {
-        ocall_munmap_untrusted(mem, size);
+        ocall_munmap_untrusted(addr, size);
         /* there is not much we can do in case of error */
     } else {
         struct untrusted_area* cache = &get_tcb_trts()->untrusted_area_cache;

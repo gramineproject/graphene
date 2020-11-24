@@ -96,25 +96,21 @@ static long sgx_ocall_exit(void* pms) {
 static long sgx_ocall_mmap_untrusted(void* pms) {
     ms_ocall_mmap_untrusted_t* ms = (ms_ocall_mmap_untrusted_t*)pms;
     void* addr;
-
     ODEBUG(OCALL_MMAP_UNTRUSTED, ms);
-    addr = (void*)INLINE_SYSCALL(mmap, 6, NULL, ms->ms_size,
-                                 ms->ms_prot,
-                                 (ms->ms_fd == -1) ? MAP_ANONYMOUS | MAP_PRIVATE
-                                                   : MAP_FILE | MAP_SHARED,
+
+    addr = (void*)INLINE_SYSCALL(mmap, 6, ms->ms_addr, ms->ms_size, ms->ms_prot, ms->ms_flags,
                                  ms->ms_fd, ms->ms_offset);
     if (IS_ERR_P(addr))
         return -ERRNO_P(addr);
 
-    ms->ms_mem = addr;
+    ms->ms_addr = addr;
     return 0;
 }
 
 static long sgx_ocall_munmap_untrusted(void* pms) {
     ms_ocall_munmap_untrusted_t* ms = (ms_ocall_munmap_untrusted_t*)pms;
     ODEBUG(OCALL_MUNMAP_UNTRUSTED, ms);
-    INLINE_SYSCALL(munmap, 2, ALLOC_ALIGN_DOWN_PTR(ms->ms_mem),
-                   ALLOC_ALIGN_UP_PTR(ms->ms_mem + ms->ms_size) - ALLOC_ALIGN_DOWN_PTR(ms->ms_mem));
+    INLINE_SYSCALL(munmap, 2, ms->ms_addr, ms->ms_size);
     return 0;
 }
 

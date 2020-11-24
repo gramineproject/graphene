@@ -73,15 +73,16 @@ typedef struct {
 } ms_ocall_exit_t;
 
 typedef struct {
-    int ms_fd;
-    uint64_t ms_offset;
+    void* ms_addr;
     size_t ms_size;
-    unsigned short ms_prot;
-    void* ms_mem;
+    int ms_prot;
+    int ms_flags;
+    int ms_fd;
+    off_t ms_offset;
 } ms_ocall_mmap_untrusted_t;
 
 typedef struct {
-    const void* ms_mem;
+    const void* ms_addr;
     size_t ms_size;
 } ms_ocall_munmap_untrusted_t;
 
