@@ -122,7 +122,7 @@ void debug_setprefix(shim_tcb_t* tcb) {
         if (*it == ':' || *it == '/')
             exec = it + 1;
 
-    uint32_t vmid = g_process_ipc_info.vmid & 0xFFFF;
+    uint32_t vmid = g_process_ipc_info.vmid;
     if (tcb->tp) {
         if (!is_internal_tid(tcb->tp->tid)) {
             /* normal app thread: show Process ID, Thread ID, and exec name */

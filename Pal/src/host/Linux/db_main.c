@@ -227,7 +227,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     g_linux_state.uid = g_uid;
     g_linux_state.gid = g_gid;
-    g_linux_state.process_id = (start_time & (~0xffff)) | g_linux_state.pid;
+    g_linux_state.process_id = g_linux_state.pid;
 
     if (!g_linux_state.parent_process_id)
         g_linux_state.parent_process_id = g_linux_state.process_id;
