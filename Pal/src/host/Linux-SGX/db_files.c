@@ -412,7 +412,6 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
     uint64_t total    = handle->file.total;
     void* mem         = *addr;
-    void* umem;
     int ret;
 
     /*
@@ -451,6 +450,7 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         map_end   = ALLOC_ALIGN_UP(end);
     }
 
+    void* umem = NULL;
     ret = ocall_mmap_untrusted(handle->file.fd, map_start, map_end - map_start, PROT_READ, &umem);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "file_map - ocall returned %d\n", ret);
