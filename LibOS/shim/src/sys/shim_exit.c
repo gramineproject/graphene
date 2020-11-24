@@ -40,7 +40,7 @@ static noreturn void libos_clean_and_exit(int exit_code) {
     store_all_msg_persist();
     del_all_ipc_ports();
 
-    debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF, exit_code);
+    debug("process %u exited with status %d\n", g_process_ipc_info.vmid, exit_code);
 
     /* TODO: We exit whole libos, but there are some objects that might need cleanup, e.g. we should
      * release this (last) thread pid. We should do a proper cleanup of everything. */

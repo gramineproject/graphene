@@ -29,9 +29,9 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid) {
      * killed by SIGKILL.
      */
     if (mark_child_exited_by_vmid(vmid, /*uid=*/0, /*exit_code=*/0, SIGKILL)) {
-        debug("Child process (vmid: 0x%x) got disconnected\n", vmid & 0xffff);
+        debug("Child process (vmid: 0x%x) got disconnected\n", vmid);
     } else {
-        debug("Unknown process (vmid: 0x%x) disconnected\n", vmid & 0xffff);
+        debug("Unknown process (vmid: 0x%x) disconnected\n", vmid);
     }
 }
 
@@ -78,7 +78,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     __UNUSED(port);
     struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
 
-    debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", msg->src & 0xFFFF,
+    debug("IPC callback from %u: IPC_MSG_CHILDEXIT(%u, %u, %d, %u)\n", msg->src,
           msgin->ppid, msgin->pid, msgin->exitcode, msgin->term_signal);
 
     /* Message cannot come from our own process. */

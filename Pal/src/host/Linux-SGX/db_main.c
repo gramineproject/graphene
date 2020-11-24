@@ -290,7 +290,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     g_linux_state.uid = g_pal_sec.uid;
     g_linux_state.gid = g_pal_sec.gid;
-    g_linux_state.process_id = (start_time & (~0xffff)) | g_pal_sec.pid;
+    /* TODO: guard this from malicious host. Probably just fully randomize? */
+    g_linux_state.process_id = g_pal_sec.pid;
 
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 

@@ -72,7 +72,7 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
         ret = broadcast_ipc(msg, IPC_PORT_DIRECTCHILD | IPC_PORT_DIRECTPARENT,
                             /*exclude_port=*/NULL);
     } else {
-        debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest & 0xFFFF, sender, type,
+        debug("IPC send to %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", dest, sender, type,
               target, signum);
         ret = send_ipc_message(msg, port);
         put_ipc_port(port);
@@ -85,7 +85,7 @@ out:
 int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill*)msg->msg;
 
-    debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", msg->src & 0xFFFF,
+    debug("IPC callback from %u: IPC_MSG_PID_KILL(%u, %d, %u, %d)\n", msg->src,
           msgin->sender, msgin->type, msgin->id, msgin->signum);
 
     int ret = 0;

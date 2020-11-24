@@ -285,8 +285,7 @@ static void __add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type,
 static void __del_ipc_port(struct shim_ipc_port* port) {
     assert(locked(&ipc_helper_lock));
 
-    debug("Deleting port %p (handle %p) of process %u\n", port, port->pal_handle,
-          port->vmid & 0xFFFF);
+    debug("Deleting port %p (handle %p) of process %u\n", port, port->pal_handle, port->vmid);
 
     DkStreamDelete(port->pal_handle, 0);
     LISTP_DEL_INIT(port, &port_list, list);
@@ -315,7 +314,7 @@ static void __del_ipc_port(struct shim_ipc_port* port) {
 
 void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type, port_fini fini) {
     debug("Adding port %p (handle %p) for process %u (type=%04x)\n", port, port->pal_handle,
-          port->vmid & 0xFFFF, type);
+          port->vmid, type);
 
     lock(&ipc_helper_lock);
     __add_ipc_port(port, vmid, type, fini);
@@ -324,7 +323,7 @@ void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type, port_fin
 
 void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini,
                         struct shim_ipc_port** portptr) {
-    debug("Adding port (handle %p) for process %u (type %04x)\n", hdl, vmid & 0xFFFF, type);
+    debug("Adding port (handle %p) for process %u (type %04x)\n", hdl, vmid, type);
 
     struct shim_ipc_port* port = NULL;
     if (portptr)
@@ -410,7 +409,7 @@ struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type) {
     LISTP_FOR_EACH_ENTRY(tmp, &port_list, list) {
         if (tmp->vmid == vmid && (tmp->type & type)) {
             debug("Found port %p (handle %p) for process %u (type %04x)\n", tmp, tmp->pal_handle,
-                  tmp->vmid & 0xFFFF, tmp->type);
+                  tmp->vmid, tmp->type);
             port = tmp;
             __get_ipc_port(port);
             break;
@@ -479,13 +478,13 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
         port = target_ports[i];
 
         debug("Broadcast to port %p (handle %p) for process %u (type %x, target %x)\n", port,
-              port->pal_handle, port->vmid & 0xFFFF, port->type, target_type);
+              port->pal_handle, port->vmid, port->type, target_type);
 
         msg->dst = port->vmid;
         ret = send_ipc_message(msg, port);
         if (ret < 0) {
             debug("Broadcast to port %p (handle %p) for process %u failed (errno = %d)!\n", port,
-                  port->pal_handle, port->vmid & 0xFFFF, ret);
+                  port->pal_handle, port->vmid, ret);
             goto out;
         }
     }
@@ -501,7 +500,7 @@ out:
 
 static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     struct shim_ipc_resp* resp = (struct shim_ipc_resp*)&msg->msg;
-    debug("IPC callback from %u: IPC_MSG_RESP(%d)\n", msg->src & 0xFFFF, resp->retval);
+    debug("IPC callback from %u: IPC_MSG_RESP(%d)\n", msg->src, resp->retval);
 
     if (!msg->seq)
         return resp->retval;
@@ -532,7 +531,7 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
     struct shim_ipc_resp* resp = (struct shim_ipc_resp*)resp_msg->msg;
     resp->retval = ret;
 
-    debug("IPC send to %u: IPC_MSG_RESP(%d)\n", resp_msg->dst & 0xFFFF, ret);
+    debug("IPC send to %u: IPC_MSG_RESP(%d)\n", resp_msg->dst, ret);
     return send_ipc_message(resp_msg, port);
 }
 
@@ -589,8 +588,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
         debug(
             "Received IPC message from port %p (handle %p): code=%d size=%lu "
             "src=%u dst=%u seq=%lx\n",
-            port, port->pal_handle, msg->code, msg->size, msg->src & 0xFFFF, msg->dst & 0xFFFF,
-            msg->seq);
+            port, port->pal_handle, msg->code, msg->size, msg->src, msg->dst, msg->seq);
 
         /* skip messages coming from myself (in case of broadcast) */
         if (msg->src != g_process_ipc_info.vmid) {
@@ -602,7 +600,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                     ret = send_response_ipc_message(port, msg->src, ret, msg->seq);
                     if (ret < 0) {
                         debug("Sending IPC_MSG_RESP msg on port %p (handle %p) to %u failed\n",
-                              port, port->pal_handle, msg->src & 0xFFFF);
+                              port, port->pal_handle, msg->src);
                         ret = -PAL_ERRNO();
                         goto out;
                     }
@@ -744,8 +742,8 @@ noreturn static void shim_ipc_helper(void* dummy) {
             ret_events[ports_cnt + 1] = 0;
             ports_cnt++;
 
-            debug("Listening to process %u on port %p (handle %p, type %04x)\n",
-                  port->vmid & 0xFFFF, port, port->pal_handle, port->type);
+            debug("Listening to process %u on port %p (handle %p, type %04x)\n", port->vmid, port,
+                  port->pal_handle, port->type);
         }
 
         unlock(&ipc_helper_lock);
