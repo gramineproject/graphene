@@ -1,0 +1,44 @@
+stage('clean-check') {
+    sh '''
+        ./Scripts/gitignore-test
+    '''
+    sh '''
+        cd "$(./Scripts/clean-check-test-copy)"
+
+        rm -f Pal/src/host/Linux-SGX/signer/enclave-key.pem
+
+        make distclean
+
+        rm -rf LibOS/glibc-2.*
+
+        make -C LibOS/shim/test/regression clean
+
+        make -C Examples/python-simple clean
+        make -C Examples/python-scipy-insecure clean
+        make -C Examples/bash clean
+        make -C Examples/curl clean
+        #make -C Examples/gcc distclean
+        make -C Examples/memcached distclean
+        make -C Examples/redis distclean
+        make -C Examples/lighttpd distclean
+        make -C Examples/nginx distclean
+        make -C Examples/apache distclean
+        make -C Examples/blender distclean
+        #make -C Examples/r distclean
+        make -C Pal/src PAL_HOST=Skeleton clean
+
+        make -C Examples/ra-tls-mbedtls distclean
+        make -C Examples/ra-tls-secret-prov distclean
+
+        make -C LibOS/shim/test/ltp clean
+        # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
+        rm -rf /tmp/*.clean-check.clean/LibOS/shim/test/ltp/src
+        rm -rf LibOS/shim/test/ltp/src
+
+        # python/ subdir does not have makefiles, so no clean
+        rm -rf /tmp/*.clean-check.clean/python/graphenelibos/__pycache__
+        rm -rf python/graphenelibos/__pycache__
+
+        ./Scripts/clean-check
+    '''
+}

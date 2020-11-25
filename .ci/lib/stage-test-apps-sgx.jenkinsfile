@@ -149,38 +149,4 @@ stage('test') {
             fi
         '''
     }
-
-    sh '''
-        ./Scripts/gitignore-test
-    '''
-    sh '''
-        cd "$(./Scripts/clean-check-test-copy)"
-
-        rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
-        make distclean
-
-        make -C Examples/python-simple SGX=1 clean
-        make -C Examples/python-scipy-insecure SGX=1 clean
-        make -C Examples/bash SGX=1 clean
-        make -C Examples/curl SGX=1 clean
-        #make -C Examples/gcc SGX=1 distclean
-        make -C Examples/memcached SGX=1 distclean
-        make -C Examples/redis SGX=1 distclean
-        make -C Examples/lighttpd SGX=1 distclean
-        make -C Examples/nginx SGX=1 distclean
-        make -C Examples/apache SGX=1 distclean
-        make -C Examples/blender SGX=1 distclean
-        #make -C Examples/r SGX=1 distclean
-        make -C Examples/ra-tls-mbedtls SGX=1 distclean
-        make -C Examples/ra-tls-secret-prov SGX=1 distclean
-
-        # Currently used release of LTP contains broken symlinks under
-        # utils/ffsb-6.0-rc2/ (config.guess and config.sub); without explicit
-        # rm of these symlinks, the clean-check utility fails. We should
-        # update to newer release of LTP where this issue will be fixed.
-        rm -rf /tmp/*/LibOS/shim/test/ltp/src
-        rm -rf LibOS/shim/test/ltp/src
-
-        ./Scripts/clean-check
-    '''
 }

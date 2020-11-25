@@ -20,5 +20,6 @@ node('sgx_slave_2.6') {
         } finally {
             load '.ci/lib/artifacts.jenkinsfile'
         }
+        load '.ci/lib/stage-clean-check.jenkinsfile'
     }
 }
