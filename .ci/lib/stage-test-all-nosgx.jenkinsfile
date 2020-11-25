@@ -126,36 +126,4 @@ stage('test') {
         '''
     }
     */
-
-    sh '''
-        ./Scripts/gitignore-test
-    '''
-    sh '''
-        cd "$(./Scripts/clean-check-test-copy)"
-
-        make distclean
-        rm -rf LibOS/glibc-2.*
-        make -C LibOS/shim/test/regression clean
-
-        make -C LibOS/shim/test/ltp clean
-        # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
-        rm -rf /tmp/graphene*.clean-check.clean/LibOS/shim/test/ltp/src
-        rm -rf LibOS/shim/test/ltp/src
-
-        make -C Examples/python-simple clean
-        make -C Examples/python-scipy-insecure clean
-        make -C Examples/bash clean
-        make -C Examples/curl clean
-        #make -C Examples/gcc distclean
-        make -C Examples/memcached distclean
-        make -C Examples/redis distclean
-        make -C Examples/lighttpd distclean
-        make -C Examples/nginx distclean
-        make -C Examples/apache distclean
-        make -C Examples/blender distclean
-        #make -C Examples/r distclean
-        make -C Pal/src PAL_HOST=Skeleton clean
-
-        ./Scripts/clean-check
-    '''
 }
