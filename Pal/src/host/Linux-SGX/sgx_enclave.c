@@ -100,9 +100,7 @@ static long sgx_ocall_mmap_untrusted(void* pms) {
 static long sgx_ocall_munmap_untrusted(void* pms) {
     ms_ocall_munmap_untrusted_t* ms = (ms_ocall_munmap_untrusted_t*)pms;
     ODEBUG(OCALL_MUNMAP_UNTRUSTED, ms);
-    const void* aligned_bottom = ALLOC_ALIGN_DOWN_PTR(ms->ms_addr);
-    const void* aligned_top    = ALLOC_ALIGN_UP_PTR(ms->ms_addr + ms->ms_size);
-    INLINE_SYSCALL(munmap, 2, aligned_bottom, aligned_top - aligned_bottom);
+    INLINE_SYSCALL(munmap, 2, ms->ms_addr, ms->ms_size);
     return 0;
 }
 

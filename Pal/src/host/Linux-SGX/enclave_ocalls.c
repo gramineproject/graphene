@@ -178,9 +178,9 @@ int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int f
     WRITE_ONCE(ms->ms_offset, offset);
 
     retval = sgx_exitless_ocall(OCALL_MMAP_UNTRUSTED, ms);
-    if (IS_ERR(retval) && !IS_UNIX_ERR(retval)) {
+    if (IS_ERR(retval)) {
         sgx_reset_ustack(old_ustack);
-        return -EPERM;
+        return IS_UNIX_ERR(retval) ? retval : -EPERM;
     }
 
     void* returned_addr = READ_ONCE(ms->ms_addr);
@@ -206,7 +206,7 @@ int ocall_munmap_untrusted(const void* addr, size_t size) {
     int retval = 0;
     ms_ocall_munmap_untrusted_t* ms;
 
-    if (!sgx_is_completely_outside_enclave(addr, size))
+    if (!sgx_is_completely_outside_enclave(addr, size) || !IS_ALLOC_ALIGNED_PTR(addr))
         return -EINVAL;
 
     void* old_ustack = sgx_prepare_ustack();
