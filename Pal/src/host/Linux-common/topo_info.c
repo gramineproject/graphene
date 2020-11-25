@@ -283,8 +283,8 @@ int get_numa_topo_info(PAL_TOPO_INFO* topo_info) {
             goto out_topology;
         numa_topology[idx].distance[ret] = '\0';
 
-        /* Set persistent hugepages to zero. /sys fs doesn't provide write permission to modify the
-         * field */
+        /* Since our /sys fs doesn't support writes, set persistent hugepages to their default value
+         * of zero */
         memcpy(numa_topology[idx].hugepages[HUGEPAGES_2M].nr_hugepages, "0\n", 3);
         memcpy(numa_topology[idx].hugepages[HUGEPAGES_1G].nr_hugepages, "0\n", 3);
     }

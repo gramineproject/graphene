@@ -390,7 +390,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     if (!sgx_copy_to_enclave(core_topology, online_logical_cores * sizeof(PAL_CORE_TOPO_INFO),
                              sec_info.topo_info.core_topology,
                              online_logical_cores * sizeof(PAL_CORE_TOPO_INFO))) {
-        SGX_DBG(DBG_E, "Copying cpu_topology into the enclave failed\n");
+        SGX_DBG(DBG_E, "Copying core_topology into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -405,7 +405,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     if (!sgx_copy_to_enclave(cache_info, num_cache_index * sizeof(PAL_CORE_CACHE_INFO),
                              sec_info.topo_info.core_topology->cache,
                              num_cache_index * sizeof(PAL_CORE_CACHE_INFO))) {
-        SGX_DBG(DBG_E, "Copying cache info into the enclave failed\n");
+        SGX_DBG(DBG_E, "Copying cache_info into the enclave failed\n");
         ocall_exit(1, /*is_exitgroup=*/true);
     }
     core_topology->cache = cache_info;

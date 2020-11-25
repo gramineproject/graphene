@@ -23,7 +23,7 @@ static int cpu_info_open(struct shim_handle* hdl, const char* name, int flags) {
     if (cpunum < 0)
         return -ENOENT;
 
-    /* temp_buf needs to stay on stack for the whole duration of the this function. */
+    /* temp_buf needs to stay on stack for the whole duration of this function. */
     char temp_buf[16];
     const char* cpu_filebuf;
     if (!strcmp(filename, "online")) {

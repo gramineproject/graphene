@@ -27,7 +27,7 @@ typedef struct pal_tcb PAL_TCB;
 
 /* Used to represent plain integers (only numeric values) */
 #define PAL_SYSFS_INT_FILESZ 16
-/* Used to represent buffers having numeric values with text. "E.g 1024576 KB" */
+/* Used to represent buffers having numeric values with text. E.g "1024576 KB" */
 #define PAL_SYSFS_BUF_FILESZ 64
 /* Used to represent cpumaps like "00000000,ffffffff,00000000,ffffffff" */
 #define PAL_SYSFS_MAP_FILESZ 256
