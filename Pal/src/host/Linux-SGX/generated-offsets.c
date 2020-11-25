@@ -11,12 +11,7 @@
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 
-/* sgx.h header from the Intel SGX driver assumes that `__packed` macro was defined */
-#ifndef __packed
-#define __packed __attribute__((packed))
-#endif
-#include "sgx.h"
-#undef __packed
+#include "gsgx.h"
 
 __attribute__((__used__)) static void dummy(void) {
     /* defines in sgx_arch.h */

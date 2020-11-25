@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-import sys, os, shutil
+import os
+import string
+import sys
 
 DRIVER_VERSIONS = {
         'sgx_user.h':                 '/dev/isgx',
@@ -9,8 +11,8 @@ DRIVER_VERSIONS = {
         'sgx_in_kernel.h':            '/dev/sgx/enclave',
 }
 
-def find_intel_sgx_driver():
-    """
+def find_intel_sgx_driver(isgx_driver_path):
+    '''
     Graphene only needs one header from the Intel SGX Driver:
       - sgx_user.h for non-DCAP, older version of the driver
         (https://github.com/intel/linux-sgx-driver)
@@ -22,38 +24,54 @@ def find_intel_sgx_driver():
         (https://lore.kernel.org/linux-sgx/20200716135303.276442-1-jarkko.sakkinen@linux.intel.com)
 
     This function returns the required header from the SGX driver.
-    """
-    isgx_driver_path = os.getenv("ISGX_DRIVER_PATH")
-    if not isgx_driver_path:
-        msg = 'Enter the Intel SGX driver dir with C headers (or press ENTER for in-kernel driver): '
-        isgx_driver_path = os.path.expanduser(input(msg))
-
-    if not isgx_driver_path or isgx_driver_path.strip() == '':
-        # user did not specify any driver path, use default in-kernel driver's C header
-        isgx_driver_path = os.path.dirname(os.path.abspath(__file__))
-
+    '''
     for header_path, dev_path in DRIVER_VERSIONS.items():
         abs_header_path = os.path.abspath(os.path.join(isgx_driver_path, header_path))
         if os.path.exists(abs_header_path):
             return abs_header_path, dev_path
 
-    raise Exception("Could not find the header from the Intel SGX Driver")
+    print('Could not find the header from the Intel SGX Driver (ISGX_DRIVER_PATH={!r})'.format(
+        isgx_driver_path), file=sys.stderr)
+    sys.exit(1)
 
+class MesonTemplate(string.Template):
+    pattern = '''
+        @(?:
+            (?P<escaped>@) |
+            (?P<named>[A-Za-z0-9_]+)@ |
+            (?P<braced>[A-Za-z0-9_]+)@ |
+            (?P<invalid>)
+        )
+    '''
 
 def main():
-    """ Find and copy header/device paths from Intel SGX Driver"""
-    header_path, dev_path = find_intel_sgx_driver()
+    '''
+    Find and copy header/device paths from Intel SGX Driver
+    '''
+    try:
+        isgx_driver_path = os.environ['ISGX_DRIVER_PATH']
+    except KeyError:
+        print(
+            'ISGX_DRIVER_PATH environment variable is undefined. You can define\n'
+            'ISGX_DRIVER_PATH="" to use the default in-kernel driver\'s C header.',
+            file=sys.stderr)
+        sys.exit(1)
 
-    this_header_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sgx.h')
-    shutil.copyfile(header_path, this_header_path)
+    if not isgx_driver_path:
+        # user did not specify any driver path, use default in-kernel driver's C header
+        isgx_driver_path = os.path.dirname(os.path.abspath(__file__))
 
-    with open(this_header_path, 'a') as f:
-        f.write('\n\n#ifndef ISGX_FILE\n#define ISGX_FILE "%s"\n#endif\n' % dev_path)
-        if dev_path == '/dev/sgx' or dev_path == '/dev/sgx/enclave':
-            f.write('\n\n#ifndef SGX_DCAP\n#define SGX_DCAP 1\n#endif\n')
-        if dev_path == '/dev/sgx/enclave':
-            f.write('\n\n#ifndef SGX_DCAP_16_OR_LATER\n#define SGX_DCAP_16_OR_LATER 1\n#endif\n')
+    header_path, dev_path = find_intel_sgx_driver(isgx_driver_path)
+
+    with sys.stdin:
+        template = MesonTemplate(sys.stdin.read())
+
+    sys.stdout.write(template.safe_substitute(
+        DRIVER_SGX_H=header_path,
+        ISGX_FILE=dev_path,
+        DEFINE_DCAP=('#define SGX_DCAP 1' if dev_path == '/dev/sgx/enclave' else '')
+    ))
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == '__main__':
+    main()
