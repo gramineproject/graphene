@@ -18,12 +18,7 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-/* sgx.h is required to define SGX_DCAP,
- * and doesn't have a definition for __packed */
-#ifndef __packed
-#define __packed __attribute__((packed))
-#endif
-#include "sgx.h"
+#include "gsgx.h"
 #include "sgx_api.h"
 #include "sgx_attest.h"
 #include "toml.h"
