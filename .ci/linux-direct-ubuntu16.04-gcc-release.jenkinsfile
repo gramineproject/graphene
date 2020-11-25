@@ -19,5 +19,6 @@ node('nonsgx_slave') {
         } finally {
             load '.ci/lib/artifacts.jenkinsfile'
         }
+        load '.ci/lib/stage-clean-check.jenkinsfile'
     }
 }
