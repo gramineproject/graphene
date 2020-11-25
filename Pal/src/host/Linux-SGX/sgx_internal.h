@@ -147,4 +147,10 @@ int block_async_signals(bool block);
 
 void update_debugger(void);
 
+#ifdef SGX_PROFILE
+int sgx_profile_init(bool all);
+void sgx_profile_finish(void);
+void sgx_profile_sample(void* tcs);
+#endif
+
 #endif

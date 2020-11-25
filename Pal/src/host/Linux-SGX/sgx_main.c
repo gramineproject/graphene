@@ -172,7 +172,7 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
     return 0;
 }
 
-static int initialize_enclave(struct pal_enclave* enclave) {
+static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
     int ret = 0;
     int enclave_image = -1;
     sgx_arch_token_t enclave_token;
@@ -300,6 +300,40 @@ static int initialize_enclave(struct pal_enclave* enclave) {
         goto out;
     }
     g_sgx_enable_stats = !!enable_stats_int64;
+
+    char* profile_str;
+    ret = toml_string_in(enclave->manifest_root, "sgx.profile", &profile_str);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile\' (the value must be 'none', 'root' or 'all')\n");
+        ret = -EINVAL;
+        goto out;
+    }
+#ifdef SGX_PROFILE
+    if (!profile_str || !strcmp(profile_str, "none")) {
+        // do not enable
+    } else if (!strcmp(profile_str, "root")) {
+        if (first_process) {
+            ret = sgx_profile_init(/*all=*/false);
+            if (ret < 0)
+                goto out;
+        }
+    } else if (!strcmp(profile_str, "all")) {
+        ret = sgx_profile_init(/*all=*/true);
+        if (ret < 0)
+            goto out;
+    } else {
+        SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be 'none', 'root' or 'all')\n");
+        ret = EINVAL;
+        goto out;
+    }
+#else
+    __UNUSED(first_process);
+    if (profile_str && strcmp(profile_str, "none")) {
+        SGX_DBG(DBG_E, "Cannot use \'sgx.profile\' when compiled without SGX_PROFILE\n");
+        ret = EINVAL;
+        goto out;
+    }
+#endif
 
     ret = read_enclave_token(enclave->token, &enclave_token);
     if (ret < 0) {
@@ -650,7 +684,6 @@ static int initialize_enclave(struct pal_enclave* enclave) {
     }
 
     ret = 0;
-
 out:
     if (enclave_image >= 0)
         INLINE_SYSCALL(close, 1, enclave_image);
@@ -769,7 +802,7 @@ static int get_hw_resource(const char* filename, bool count) {
  * exits after this function's failure. */
 static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* manifest_path,
                         char* exec_path, char* args, size_t args_size, char* env, size_t env_size,
-                        bool need_gsgx) {
+                        bool need_gsgx, bool first_process) {
     struct pal_sec* pal_sec = &enclave->pal_sec;
     int ret;
     size_t exec_path_len = strlen(exec_path);
@@ -918,7 +951,7 @@ static int load_enclave(struct pal_enclave* enclave, int manifest_fd, char* mani
     SGX_DBG(DBG_I, "Token file: %s\n", token_path);
     free(token_path);
 
-    ret = initialize_enclave(enclave);
+    ret = initialize_enclave(enclave, first_process);
     if (ret < 0)
         return ret;
 
@@ -1166,7 +1199,7 @@ int main(int argc, char* argv[], char* envp[]) {
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1 : 0;
 
     ret = load_enclave(&g_pal_enclave, manifest_fd, manifest_path, exec_path, args, args_size, env,
-                       env_size, need_gsgx);
+                       env_size, need_gsgx, first_process);
     if (ret < 0) {
         SGX_DBG(DBG_E, "load_enclave() failed with error %d\n", ret);
     }

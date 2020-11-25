@@ -64,6 +64,9 @@ static long sgx_ocall_exit(void* pms) {
     /* exit the whole process if exit_group() */
     if (ms->ms_is_exitgroup) {
         update_and_print_stats(/*process_wide=*/true);
+#ifdef SGX_PROFILE
+        sgx_profile_finish();
+#endif
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
     }
 
@@ -76,6 +79,9 @@ static long sgx_ocall_exit(void* pms) {
     if (!current_enclave_thread_cnt()) {
         /* no enclave threads left, kill the whole process */
         update_and_print_stats(/*process_wide=*/true);
+#ifdef SGX_PROFILE
+        sgx_profile_finish();
+#endif
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
     }
 

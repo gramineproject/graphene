@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright (C) 2020  Intel Corporation
+#                     Paweł Marczewski <pawel@invisiblethingslab.com>
+
+# Display SGX profile report based on a file produced by Graphene (SGX_PROFILE).
+
+# TODO: Improve symbol resolution - currently we parse the ELF file, but this doesn't properly load
+# external debug info (e.g. Python binary)
+
+import argparse
+from collections import namedtuple
+import os
+import sys
+import bisect
+
+from elftools.elf.elffile import ELFFile
+
+Symbol = namedtuple('Symbol', ['name', 'obj', 'start', 'end'])
+
+def load_symbols(file_name, offset):
+    basename = os.path.basename(file_name)
+    with open(file_name, 'rb') as f:
+        elf = ELFFile(f)
+        symtab = elf.get_section_by_name('.symtab')
+        if not symtab:
+            print('No symbols for {}'.format(file_name), file=sys.stderr)
+            return
+        for symbol in symtab.iter_symbols():
+            if (symbol['st_info']['type'] == 'STT_FUNC' and
+                symbol['st_value'] > 0 and
+                symbol['st_size'] > 0):
+
+                yield Symbol(
+                    name=symbol.name,
+                    obj=basename,
+                    start=offset + symbol['st_value'],
+                    end=offset + symbol['st_value'] + symbol['st_size'],
+                )
+
+
+class Resolver:
+    def __init__(self, files):
+        self.symbols = []
+        self.files = files
+        self.files.sort()
+        for addr, file_name in self.files:
+            self.symbols.extend(load_symbols(file_name, addr))
+        self.symbols.sort(key=lambda sym: sym.start)
+        self.starts = [sym.start for sym in self.symbols]
+        self.file_starts = [addr for addr, file_name in self.files]
+
+    def resolve(self, addr):
+        idx = bisect.bisect(self.starts, addr) - 1
+        if idx < 0:
+            return self.resolve_by_file(addr)
+        sym = self.symbols[idx]
+        assert sym.start <= addr
+        if sym.end <= addr:
+            return self.resolve_by_file(addr)
+
+        return sym.name, sym.obj
+
+    def resolve_by_file(self, addr):
+        idx = bisect.bisect(self.file_starts, addr) - 1
+        if idx < 0:
+            return '({:x})'.format(addr), '?'
+
+        file_addr, file_name = self.files[idx]
+        obj = os.path.basename(file_name)
+        return '({:x})'.format(addr - file_addr), obj
+
+    def resolve_all(self, counters):
+        result = {}
+        for addr, count in counters.items():
+            location = self.resolve(addr)
+            if location in result:
+                result[location] += count
+            else:
+                result[location] = count
+
+        return result
+
+
+def load_file(file_name):
+    counters = {}
+    files = []
+    with open(file_name, 'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if line.startswith('counter'):
+                _, s_addr, s_count = line.split(' ', 3)
+                addr = int(s_addr, 16)
+                count = int(s_count)
+                counters[addr] = count
+            elif line.startswith('file'):
+                _, s_addr, file_name = line.split(' ', 3)
+                addr = int(s_addr, 16)
+                files.append((addr, file_name))
+
+    return counters, files
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Display SGX profile report based on a file produced by Graphene.')
+    parser.add_argument('file_name', metavar='FILE', nargs='?', default='sgx-profile.data',
+                        help='file to load data from (default: %(default)s)')
+    parser.add_argument('-t', '--threshold', type=float, default=0.05, metavar='K',
+                        help='discard samples less frequent than K%%, default: %(default)s '
+                        '(use 0 to show everything)')
+    args = parser.parse_args()
+
+    counters, files = load_file(args.file_name)
+    resolver = Resolver(files)
+    report = resolver.resolve_all(counters)
+
+    total = sum(counters.values())
+
+    row = '{:>7}  {:20}  {:20}'
+    print(row.format('TIME', 'OBJ', 'SYMBOL'))
+    print()
+
+    for (name, obj), count in sorted(report.items(), key=lambda item: item[1], reverse=True):
+        percent = 100 * count / total
+        if percent >= args.threshold:
+            print(row.format(
+                '{:.2f}%'.format(percent),
+                obj,
+                name,
+            ))
+
+
+if __name__ == '__main__':
+    main()
