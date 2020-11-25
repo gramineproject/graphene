@@ -163,12 +163,10 @@ clean_:
 
 .PHONY: clean
 clean: clean_
-	$(MAKE) -C sgx-driver $@
 	$(MAKE) -C tools $@
 
 .PHONY: distclean
 distclean: clean_
-	$(MAKE) -C sgx-driver $@
 	$(MAKE) -C tools $@
 
 .PHONY: test

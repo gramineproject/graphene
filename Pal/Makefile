@@ -33,7 +33,6 @@ format:
 	                               -path ./src/host/Linux-SGX/tools/common/cJSON.h -prune -o \
 	                               -path ./src/host/Linux-SGX/tools/common/cJSON-*/cJSON.c -prune -o \
 	                               -path ./src/host/Linux-SGX/tools/common/cJSON-*/cJSON.h -prune -o \
-	                               -path ./src/host/Linux-SGX/sgx-driver -prune -o \
 	                               \( -name '*.h' -o -name '*.c' \) -print)
 
 .PHONY: distclean

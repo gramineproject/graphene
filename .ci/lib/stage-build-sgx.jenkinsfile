@@ -18,19 +18,12 @@ stage('build') {
         # test the build with the DCAP driver v1.6 and clean up afterwards
 
         cd "$WORKSPACE"
-
-        ISGX_DRIVER_PATH=/opt/intel/SGXDataCenterAttestationPrimitives/driver/linux \
-            make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/sgx-driver
-        make ${MAKEOPTS}
-
+        make ${MAKEOPTS} ISGX_DRIVER_PATH=/opt/intel/SGXDataCenterAttestationPrimitives/driver/linux
         make ${MAKEOPTS} clean
-        make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/sgx-driver distclean
     '''
 
     sh '''
-        ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver \
-            make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/sgx-driver
-        make ${MAKEOPTS}
+        make ${MAKEOPTS} ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver
     '''
 
     try {
