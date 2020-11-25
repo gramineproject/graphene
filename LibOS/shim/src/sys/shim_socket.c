@@ -822,7 +822,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
         return -ENOTSOCK;
 
     struct shim_sock_handle* sock = &hdl->info.sock;
-    int ret;
+    int ret = 0;
     PAL_HANDLE accepted = NULL;
 
     if (sock->sock_type != SOCK_STREAM) {
@@ -843,16 +843,21 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     lock(&hdl->lock);
 
+    PAL_HANDLE handle = hdl->pal_handle;
     if (sock->sock_state != SOCK_LISTENED) {
         debug("shim_accpet: invalid socket\n");
         ret = -EINVAL;
-        goto out;
     }
+    unlock(&hdl->lock);
 
-    accepted = DkStreamWaitForClient(hdl->pal_handle);
+    accepted = DkStreamWaitForClient(handle);
     if (!accepted) {
         ret = -PAL_ERRNO();
-        goto out;
+    }
+
+    lock(&hdl->lock);
+    if (ret < 0) {
+       goto out;
     }
 
     if (flags & O_NONBLOCK) {
