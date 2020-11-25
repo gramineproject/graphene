@@ -36,7 +36,7 @@ stage('clean-check') {
         make -C Examples/ra-tls-secret-prov distclean
 
         # python/ subdir does not have makefiles, so no clean
-        rm -rf /tmp/*/python/graphenelibos/__pycache__
+        rm -rf /tmp/*.clean-check.clean/python/graphenelibos/__pycache__
         rm -rf python/graphenelibos/__pycache__
 
         ./Scripts/clean-check
