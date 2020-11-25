@@ -822,7 +822,7 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
         return -ENOTSOCK;
 
     struct shim_sock_handle* sock = &hdl->info.sock;
-    int ret;
+    int ret = 0;
     PAL_HANDLE accepted = NULL;
 
     if (sock->sock_type != SOCK_STREAM) {
@@ -843,15 +843,31 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     lock(&hdl->lock);
 
+    PAL_HANDLE handle = hdl->pal_handle;
     if (sock->sock_state != SOCK_LISTENED) {
-        debug("shim_accpet: invalid socket\n");
+        debug("shim_accept: invalid socket\n");
         ret = -EINVAL;
         goto out;
     }
+    unlock(&hdl->lock);
 
-    accepted = DkStreamWaitForClient(hdl->pal_handle);
+    /* NOTE: DkStreamWaitForClient() is blocking so we need to unlock before it and lock again
+     * afterwards; we rely on DkStreamWaitForClient() being thread-safe and that `handle` is not
+     * freed during the wait. */
+    accepted = DkStreamWaitForClient(handle);
     if (!accepted) {
         ret = -PAL_ERRNO();
+    }
+
+    lock(&hdl->lock);
+    if (ret < 0) {
+       goto out;
+    }
+
+    assert(hdl->pal_handle == handle);
+    if (sock->sock_state != SOCK_LISTENED) {
+        debug("shim_accept: socket changed while waiting for a client connection\n");
+        ret = -ECONNABORTED;
         goto out;
     }
 
