@@ -18,7 +18,6 @@ find . -name \*.py \
     -and -not -path ./LibOS/shim/test/ltp/build/\* \
     -and -not -path ./LibOS/shim/test/ltp/install/\* \
     -and -not -path ./Examples/pytorch/\* \
-    -and -not -path ./Pal/src/host/Linux-SGX/sgx-driver/\* \
 | sed 's/./\\&/g' \
 | xargs "${PYLINT}" "$@" \
     Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
