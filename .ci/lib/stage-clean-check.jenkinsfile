@@ -13,11 +13,6 @@ stage('clean-check') {
 
         make -C LibOS/shim/test/regression clean
 
-        make -C LibOS/shim/test/ltp clean
-        # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
-        rm -rf /tmp/*/LibOS/shim/test/ltp/src
-        rm -rf LibOS/shim/test/ltp/src
-
         make -C Examples/python-simple clean
         make -C Examples/python-scipy-insecure clean
         make -C Examples/bash clean
@@ -34,6 +29,11 @@ stage('clean-check') {
 
         make -C Examples/ra-tls-mbedtls distclean
         make -C Examples/ra-tls-secret-prov distclean
+
+        make -C LibOS/shim/test/ltp clean
+        # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
+        rm -rf /tmp/*.clean-check.clean/LibOS/shim/test/ltp/src
+        rm -rf LibOS/shim/test/ltp/src
 
         # python/ subdir does not have makefiles, so no clean
         rm -rf /tmp/*.clean-check.clean/python/graphenelibos/__pycache__
