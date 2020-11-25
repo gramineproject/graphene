@@ -73,6 +73,12 @@ extern struct pal_enclave {
     /* Pointer to information for GDB inside the enclave (see sgx_rtld.h).
      * Set up using update_debugger() ocall. */
     struct debug_map* _Atomic* debug_map;
+
+    /* profiling */
+    bool profile_enable;
+    char profile_filename[64];
+    bool profile_with_stack;
+    int profile_frequency;
 #endif
 
     /* security information */
@@ -147,6 +153,33 @@ int block_signals(bool block, const int* sigs, int nsig);
 int block_async_signals(bool block);
 
 void update_debugger(void);
+
+#ifdef DEBUG
+/* SGX profiling (sgx_profile.c) */
+
+/*
+ * Default and maximum sampling frequency. We depend on Linux scheduler to interrupt us, so it's not
+ * possible to achieve higher than 250.
+ */
+#define SGX_PROFILE_DEFAULT_FREQUENCY 50
+#define SGX_PROFILE_MAX_FREQUENCY 250
+
+/* Filenames for saved data */
+#define SGX_PROFILE_FILENAME "sgx-perf.data"
+#define SGX_PROFILE_FILENAME_WITH_PID "sgx-perf-%d.data"
+
+/* Initialize based on g_pal_enclave settings */
+int sgx_profile_init(void);
+
+/* Finalize and close file */
+void sgx_profile_finish(void);
+
+/* Record a sample */
+void sgx_profile_sample(void* tcs);
+
+/* Record a new mmap of executable region */
+void sgx_profile_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset);
+#endif
 
 /* perf.data output (sgx_perf_data.h) */
 

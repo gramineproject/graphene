@@ -37,13 +37,35 @@ bool sgx_is_completely_outside_enclave(const void* addr, size_t size) {
     return g_enclave_base >= addr + size || g_enclave_top <= addr;
 }
 
+/*
+ * When DEBUG is enabled, we run sgx_profile_sample() during asynchronous enclave exit (AEX), which
+ * uses the stack. Make sure to update URSP so that the AEX handler does not overwrite the part of
+ * the stack that we just allocated.
+ *
+ * (Recall that URSP is an outside stack pointer, saved by EENTER and restored on AEX by the SGX
+ * hardware itself.)
+ */
+#ifdef DEBUG
+
+#define UPDATE_USTACK(_ustack)                           \
+    do {                                                 \
+        SET_ENCLAVE_TLS(ustack, _ustack);                \
+        GET_ENCLAVE_TLS(gpr)->ursp = (uint64_t)_ustack;  \
+    } while(0)
+
+#else
+
+#define UPDATE_USTACK(_ustack) SET_ENCLAVE_TLS(ustack, _ustack)
+
+#endif
+
 void* sgx_prepare_ustack(void) {
     void* old_ustack = GET_ENCLAVE_TLS(ustack);
 
     void* ustack = old_ustack;
     if (ustack != GET_ENCLAVE_TLS(ustack_top))
         ustack -= RED_ZONE_SIZE;
-    SET_ENCLAVE_TLS(ustack, ustack);
+    UPDATE_USTACK(ustack);
 
     return old_ustack;
 }
@@ -55,7 +77,7 @@ void* sgx_alloc_on_ustack_aligned(size_t size, size_t alignment) {
     if (!sgx_is_completely_outside_enclave(ustack, size)) {
         return NULL;
     }
-    SET_ENCLAVE_TLS(ustack, ustack);
+    UPDATE_USTACK(ustack);
     return ustack;
 }
 
@@ -76,7 +98,7 @@ void* sgx_copy_to_ustack(const void* ptr, size_t size) {
 
 void sgx_reset_ustack(const void* old_ustack) {
     assert(old_ustack <= GET_ENCLAVE_TLS(ustack_top));
-    SET_ENCLAVE_TLS(ustack, old_ustack);
+    UPDATE_USTACK(old_ustack);
 }
 
 bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, size_t size) {
