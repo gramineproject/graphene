@@ -359,7 +359,7 @@ int load_trusted_file(PAL_HANDLE file, sgx_stub_t** stubptr, uint64_t* sizeptr, 
      * caller's responsibility to unmap those areas after use */
     *sizeptr = tf->size;
     if (*sizeptr) {
-        ret = ocall_mmap_untrusted(fd, /*offset=*/0, tf->size, PROT_READ, umem);
+        ret = ocall_mmap_untrusted(umem, tf->size, PROT_READ, MAP_SHARED, fd, /*offset=*/0);
         if (IS_ERR(ret)) {
             *umem = NULL;
             ret = unix_to_pal_error(ERRNO(ret));

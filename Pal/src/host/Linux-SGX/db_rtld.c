@@ -146,7 +146,7 @@ void _DkDebugAddMap(struct link_map* map) {
         unsigned long s = ALLOC_ALIGN_DOWN(ehdr->e_shoff);
         unsigned long e = ALLOC_ALIGN_UP(ehdr->e_shoff + shdrsz);
         void* umem = NULL;
-        ocall_mmap_untrusted(fd, s, e - s, PROT_READ, &umem);
+        ocall_mmap_untrusted(&umem, e - s, PROT_READ, MAP_SHARED, fd, s);
         memcpy(shdr, umem + ehdr->e_shoff - s, shdrsz);
         ocall_munmap_untrusted(umem, e - s);
     }
@@ -168,7 +168,7 @@ void _DkDebugAddMap(struct link_map* map) {
         unsigned long s = ALLOC_ALIGN_DOWN(shstroff);
         unsigned long e = ALLOC_ALIGN_UP(shstroff + shstrsz);
         void* umem = NULL;
-        ocall_mmap_untrusted(fd, s, e - s, PROT_READ, &umem);
+        ocall_mmap_untrusted(&umem, e - s, PROT_READ, MAP_SHARED, fd, s);
         memcpy((void*)shstrtab, umem + shstroff - s, shstrsz);
         ocall_munmap_untrusted(umem, e - s);
     }

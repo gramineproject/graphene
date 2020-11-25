@@ -19,7 +19,8 @@ static size_t g_page_size = PRESET_PAGESIZE;
 
 static inline void* __malloc(int size) {
     void* addr = NULL;
-    int ret = ocall_mmap_untrusted(/*fd=*/-1, /*offset=*/0, size, PROT_READ | PROT_WRITE, &addr);
+    int ret = ocall_mmap_untrusted(&addr, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE,
+                                   /*fd=*/-1, /*offset=*/0);
     return IS_ERR(ret) ? NULL : addr;
 }
 

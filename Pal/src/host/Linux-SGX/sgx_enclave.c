@@ -88,24 +88,21 @@ static long sgx_ocall_mmap_untrusted(void* pms) {
     void* addr;
     ODEBUG(OCALL_MMAP_UNTRUSTED, ms);
 
-    /* NOTE: enclave never asks for fixed address 0x0, so ms_mem == NULL means "no fixed addr" */
-    int flags = ms->ms_mem ? MAP_FIXED : 0;
-    flags    |= (ms->ms_fd == -1) ? MAP_ANONYMOUS | MAP_PRIVATE : MAP_FILE | MAP_SHARED;
-
-    addr = (void*)INLINE_SYSCALL(mmap, 6, ms->ms_mem, ms->ms_size, ms->ms_prot, flags, ms->ms_fd,
-                                 ms->ms_offset);
+    addr = (void*)INLINE_SYSCALL(mmap, 6, ms->ms_addr, ms->ms_size, ms->ms_prot, ms->ms_flags,
+                                 ms->ms_fd, ms->ms_offset);
     if (IS_ERR_P(addr))
         return -ERRNO_P(addr);
 
-    ms->ms_mem = addr;
+    ms->ms_addr = addr;
     return 0;
 }
 
 static long sgx_ocall_munmap_untrusted(void* pms) {
     ms_ocall_munmap_untrusted_t* ms = (ms_ocall_munmap_untrusted_t*)pms;
     ODEBUG(OCALL_MUNMAP_UNTRUSTED, ms);
-    INLINE_SYSCALL(munmap, 2, ALLOC_ALIGN_DOWN_PTR(ms->ms_mem),
-                   ALLOC_ALIGN_UP_PTR(ms->ms_mem + ms->ms_size) - ALLOC_ALIGN_DOWN_PTR(ms->ms_mem));
+    const void* aligned_bottom = ALLOC_ALIGN_DOWN_PTR(ms->ms_addr);
+    const void* aligned_top    = ALLOC_ALIGN_UP_PTR(ms->ms_addr + ms->ms_size);
+    INLINE_SYSCALL(munmap, 2, aligned_bottom, aligned_top - aligned_bottom);
     return 0;
 }
 
