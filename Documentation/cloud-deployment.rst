@@ -40,7 +40,6 @@ Building
 
        git clone https://github.com/oscarlab/graphene.git
        cd graphene
-       git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
 
 #. Prepare the signing keys::
 

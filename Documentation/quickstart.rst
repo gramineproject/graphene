@@ -55,7 +55,6 @@ second command should list the process status of :command:`aesm_service`.
 
       git clone https://github.com/oscarlab/graphene.git
       cd graphene
-      git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
       export GRAPHENE_DIR=$PWD
 
 #. Prepare a signing key::
