@@ -10,7 +10,7 @@ import argparse
 
 def generate_signature(exec_):
     sign_process = subprocess.Popen([
-        '/graphene/signer/pal-sgx-sign',
+        '/graphene/python/graphene-sgx-sign',
         '-exec', exec_,
         '-libpal', '/graphene/Runtime/libpal-Linux-SGX.so',
         '-key', '/gsc-signer-key.pem',
@@ -27,7 +27,7 @@ def generate_signature(exec_):
         or not os.path.exists(os.path.join('./', exec_ + '.manifest.sgx'))
         or not os.path.exists(os.path.join('./', exec_ + '.sig'))):
         print(err.decode())
-        print('Finalize manifests failed due to pal-sgx-sign failure.')
+        print('Finalize manifests failed due to graphene-sgx-sign failure.')
         sys.exit(1)
 
 # Iterate over manifest file to find enclave size definition and return it

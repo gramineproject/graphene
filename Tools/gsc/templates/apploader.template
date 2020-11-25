@@ -13,7 +13,7 @@ then
     do
         # Remove .manifest from file
         executable=${manifest%.manifest}
-        /graphene/signer/pal-sgx-get-token -output ${executable}.token -sig ${executable}.sig
+        /graphene/python/graphene-sgx-get-token -output ${executable}.token -sig ${executable}.sig
     done
 
     # Run the application in Graphene

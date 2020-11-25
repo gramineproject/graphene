@@ -11,4 +11,4 @@ FROM {{image}}
 COPY --from=unsigned_image {{working_dir}}*.sig ./
 COPY --from=unsigned_image {{working_dir}}*.sgx ./
 
-RUN rm signing_order.txt sign_manifests.py /graphene/signer/pal-sgx-sign /graphene/signer/pal_sgx_sign.py
+RUN rm signing_order.txt sign_manifests.py /graphene/python/graphene-sgx-sign /graphene/python/graphenelibos/sgx_sign.py
