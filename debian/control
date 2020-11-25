@@ -1,0 +1,45 @@
+Source: graphene
+Priority: optional
+Maintainer: Wojtek Porczyk <woju@invisiblethingslab.com>
+Build-Depends: debhelper (>= 11),
+ meson,
+ wget, ca-certificates
+Standards-Version: 4.1.3
+Section: misc
+Homepage: https://graphene.readthedocs.io/
+Vcs-Browser: https://github.com/oscarlab/graphene
+Vcs-Git: https://github.com/oscarlab/graphene.git
+
+Package: graphene
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: A lightweight guest OS designed to run a single application
+
+#Package: graphene-direct
+#Architecture: amd64
+#Depends: ${shlibs:Depends}, ${misc:Depends}
+#Description: A lightweight guest OS designed to run a single application
+#
+#Package: graphene-sgx
+#Architecture: amd64
+#Depends: ${shlibs:Depends}, ${misc:Depends}
+#Description: A lightweight guest OS designed to run a single application
+# This package is a version built against upstream, in-tree driver.
+#Conflicts: graphene-sgx-oot
+#Conflicts: graphene-sgx-dcap
+#
+#Package: graphene-sgx-oot
+#Architecture: amd64
+#Depends: ${shlibs:Depends}, ${misc:Depends}
+#Description: A lightweight guest OS designed to run a single application
+# This package is a version built against old, out-of-tree SGX driver.
+#Conflicts: graphene-sgx
+#Conflicts: graphene-sgx-dcap
+#
+#Package: graphene-sgx-dcap
+#Architecture: amd64
+#Depends: ${shlibs:Depends}, ${misc:Depends}
+#Description: A lightweight guest OS designed to run a single application
+# This package is a version built against DCAP driver.
+#Conflicts: graphene-sgx
+#Conflicts: graphene-sgx-oot

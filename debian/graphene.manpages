@@ -1,0 +1,6 @@
+Documentation/_build/man/gsc.1
+Documentation/_build/man/ias_request.1
+Documentation/_build/man/is_sgx_available.1
+Documentation/_build/man/pal_loader.1
+Documentation/_build/man/quote_dump.1
+Documentation/_build/man/verify_ias_report.1
