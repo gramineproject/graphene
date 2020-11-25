@@ -489,7 +489,7 @@ Some useful options for recording (``perf record``):
 * ``-e cpu-clock``: sample the ``cpu-clock`` event, which will be triggered also
   inside enclave (as opposed to the default ``cpu-cycles`` event). Unfortunately
   such events will be counted towards ``async_exit_pointer`` instead of
-  functions executing inside enclave.
+  functions executing inside enclave (but see also :ref:`sgx-profile`).
 
 Some useful options for displaying the report (``perf report``):
 
@@ -504,6 +504,34 @@ Further reading
 * `Linux perf examples - Brendan Gregg
   <http://www.brendangregg.com/perf.html>`__
 * Man pages: ``man perf record``, ``man perf report`` etc.
+
+.. _sgx-profile:
+
+SGX profiling
+-------------
+
+There is some experimental support for profiling the code inside the SGX
+enclave. Here is how to use it:
+
+#. Compile Graphene with ``SGX=1 DEBUG=1``.
+
+#. Add ``sgx.profile.enable = "main"`` to manifest (to collect data for the main
+   process), or ``sgx.profile.enable = "all"`` (to collect data for all
+   processes).
+
+#. (Add ``sgx.profile.with_stack = 1`` for call chain information.)
+
+#. Run your application. It should say something like ``Profile data written to
+   sgx-perf.data`` on process exit (in case of ``sgx.profile.enable = "all"``,
+   multiple files will be written).
+
+#. Run ``perf report -i <data file>`` (see :ref:`perf` above).
+
+*Note*: The accuracy of this tool is unclear. The SGX profiling works by
+measuring the value of instruction pointer on each asynchronous enclave exit
+(AEX), which happen on Linux scheduler interrupts, as well as other events such
+as page faults. While we attempt to measure time (and not only count
+occurences), the results might be inaccurate.
 
 Other useful tools for profiling
 --------------------------------

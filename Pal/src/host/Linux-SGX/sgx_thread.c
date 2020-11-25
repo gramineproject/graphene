@@ -85,6 +85,8 @@ void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack) {
     tcb->aex_cnt          = 0;
     tcb->sync_signal_cnt  = 0;
     tcb->async_signal_cnt = 0;
+
+    tcb->profile_sample_time = 0;
 }
 
 static spinlock_t tcs_lock = INIT_SPINLOCK_UNLOCKED;

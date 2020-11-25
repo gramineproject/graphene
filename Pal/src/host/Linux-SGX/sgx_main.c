@@ -213,6 +213,20 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     }
     enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
 
+#ifdef DEBUG
+    if (enclave->profile_enable) {
+        if (!(enclave->pal_sec.enclave_attributes.flags & SGX_FLAGS_DEBUG)) {
+            SGX_DBG(DBG_E, "Cannot use \'sgx.profile\' with a production enclave\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        ret = sgx_profile_init();
+        if (ret < 0)
+            goto out;
+    }
+#endif
+
     ret = read_enclave_sigstruct(enclave->sigfile, &enclave_sigstruct);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Reading enclave sigstruct failed: %d\n", -ret);
@@ -712,6 +726,55 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
 
     /* EPID is used if SPID is a non-empty string in manifest, otherwise DCAP/ECDSA */
     enclave_info->use_epid_attestation = sgx_ra_client_spid_str && strlen(sgx_ra_client_spid_str);
+
+#ifdef DEBUG
+    enclave_info->profile_enable = false;
+    strcpy(enclave_info->profile_filename, "sgx-perf.data");
+
+    char* profile_str = NULL;
+    ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile\' (the value must be \"none\", \"main\" or \"all\")\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if (!profile_str || !strcmp(profile_str, "none")) {
+        // do not enable
+    } else if (!strcmp(profile_str, "main")) {
+        if (enclave_info->is_first_process) {
+            enclave_info->profile_enable = true;
+        }
+    } else if (!strcmp(profile_str, "all")) {
+        enclave_info->profile_enable = true;
+        snprintf(enclave_info->profile_filename, ARRAY_SIZE(enclave_info->profile_filename),
+                 "sgx-perf-%d.data", (int)INLINE_SYSCALL(getpid, 0));
+    } else {
+        SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be \"none', \"main\" or \"all\")\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    int64_t profile_with_stack;
+    ret = toml_int_in(manifest_root, "sgx.profile.with_stack", /*defaultval=*/0,
+                      &profile_with_stack);
+    if (ret < 0 || (profile_with_stack != 0 && profile_with_stack != 1)) {
+        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile.with_stack\' (the value must be 0 or 1)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->profile_with_stack = profile_with_stack;
+
+    int64_t profile_frequency;
+    ret = toml_int_in(manifest_root, "sgx.profile.frequency", /*defaultval=*/50,
+                      &profile_frequency);
+    if (ret < 0 || (profile_frequency <= 0)) {
+        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile.frequency\' (the value must be a positive integer)\n");
+        ret = -EINVAL;
+        goto out;
+    }
+    enclave_info->profile_frequency = profile_frequency;
+#endif
 
     ret = 0;
 

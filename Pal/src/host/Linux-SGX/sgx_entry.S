@@ -64,8 +64,42 @@ sgx_ecall:
 	.type async_exit_pointer, @function
 
 async_exit_pointer:
+	.cfi_startproc
+
 	# increment per-thread AEX counter for stats
 	lock incq %gs:PAL_TCB_URTS_AEX_CNT
+
+#ifdef DEBUG
+	# Save ERESUME parameters
+	pushq %rax
+	.cfi_adjust_cfa_offset 8
+	pushq %rbx
+	.cfi_adjust_cfa_offset 8
+	pushq %rcx
+	.cfi_adjust_cfa_offset 8
+
+	# Align stack (required by System V AMD64 ABI)
+	movq %rsp, %rbp
+	andq $~0xF, %rsp
+
+	# Call sgx_profile_sample with %rdi = TCS
+	movq %rbx, %rdi
+	call sgx_profile_sample
+
+	# Restore stack
+	movq %rbp, %rsp
+
+	# Restore ERESUME parameters
+	popq %rcx
+	.cfi_adjust_cfa_offset -8
+	popq %rbx
+	.cfi_adjust_cfa_offset -8
+	popq %rax
+	.cfi_adjust_cfa_offset -8
+#endif
+
+	.cfi_endproc
+
 	# fall-through to ERESUME
 
 	.global eresume_pointer
