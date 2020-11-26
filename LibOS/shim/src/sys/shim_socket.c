@@ -845,8 +845,9 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
 
     PAL_HANDLE handle = hdl->pal_handle;
     if (sock->sock_state != SOCK_LISTENED) {
-        debug("shim_accpet: invalid socket\n");
+        debug("shim_accept: invalid socket\n");
         ret = -EINVAL;
+        goto out;
     }
     unlock(&hdl->lock);
 
@@ -858,6 +859,12 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
     lock(&hdl->lock);
     if (ret < 0) {
        goto out;
+    }
+
+    if (sock->sock_state != SOCK_LISTENED || hdl->pal_handle != handle) {
+        debug("shim_accept: socket changed while waiting for a client connection\n");
+        ret = -ECONNABORTED;
+        goto out;
     }
 
     if (flags & O_NONBLOCK) {
