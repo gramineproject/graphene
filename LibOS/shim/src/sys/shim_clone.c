@@ -369,7 +369,9 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
         /* We should not have saved any references to this thread anywhere and `put_thread` below
          * should free it. */
         assert(__atomic_load_n(&thread->ref_count.counter, __ATOMIC_RELAXED) == 1);
-        /* We do not want to release `tid`, now it's owned by child process. */
+        /* We do not want to release `tid` now, we will do this one the child process dies. This
+         * makes little sense (as in theory we've passed the ownership of this id to the child), but
+         * IPC code is a mess, so that's what we have to do. */
         thread->tid = 0;
         put_thread(thread);
 
