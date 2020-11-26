@@ -851,6 +851,9 @@ static int __do_accept(struct shim_handle* hdl, int flags, struct sockaddr* addr
     }
     unlock(&hdl->lock);
 
+    /* NOTE: DkStreamWaitForClient() is blocking so we need to unlock before it and lock again
+     * afterwards; we rely on DkStreamWaitForClient() being thread-safe and that `handle` is not
+     * freed during the wait. */
     accepted = DkStreamWaitForClient(handle);
     if (!accepted) {
         ret = -PAL_ERRNO();
