@@ -191,8 +191,8 @@ int ocall_mmap_untrusted(void** addrptr, size_t size, int prot, int flags, int f
             return -EPERM;
         }
     } else {
-        /* update addrptr with the mmap'ed address, but only if mmap succeeded */
-        if (!retval && !sgx_copy_ptr_to_enclave(addrptr, returned_addr, size)) {
+        /* update addrptr with the mmap'ed address */
+        if (!sgx_copy_ptr_to_enclave(addrptr, returned_addr, size)) {
             sgx_reset_ustack(old_ustack);
             return -EPERM;
         }
