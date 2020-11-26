@@ -7,7 +7,6 @@ import sys
 DRIVER_VERSIONS = {
         'sgx_user.h':                 '/dev/isgx',
         'include/uapi/asm/sgx_oot.h': '/dev/sgx/enclave',
-        'include/uapi/asm/sgx.h':     '/dev/sgx/enclave',
         'sgx_in_kernel.h':            '/dev/sgx/enclave',
 }
 
@@ -18,8 +17,6 @@ def find_intel_sgx_driver(isgx_driver_path):
         (https://github.com/intel/linux-sgx-driver)
       - include/uapi/asm/sgx_oot.h for DCAP 1.6+ version of the driver
         (https://github.com/intel/SGXDataCenterAttestationPrimitives)
-      - include/uapi/asm/sgx.h for in-kernel 20+ version of the driver
-        (https://lore.kernel.org/linux-sgx/20190417103938.7762-1-jarkko.sakkinen@linux.intel.com/)
       - default sgx_in_kernel.h for in-kernel 32+ version of the driver
         (https://lore.kernel.org/linux-sgx/20200716135303.276442-1-jarkko.sakkinen@linux.intel.com)
 
