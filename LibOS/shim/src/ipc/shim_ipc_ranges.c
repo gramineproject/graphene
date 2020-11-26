@@ -272,7 +272,7 @@ static int add_ipc_range(IDTYPE base, IDTYPE owner, const char* uri) {
 static void __del_ipc_subrange(struct subrange** ptr) {
     struct subrange* s = *ptr;
     *ptr = NULL;
-    put_ipc_info(s->owner);
+    put_ipc_info_in_list(s->owner);
     free(s);
     nsubed--;
 }
