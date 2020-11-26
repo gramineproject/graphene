@@ -146,7 +146,7 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
     uint64_t request_mmap_addr = secs->base;
     uint64_t request_mmap_size = secs->size;
 
-#ifdef SGX_DCAP_16_OR_LATER
+#ifdef SGX_DCAP
     /* newer DCAP/in-kernel SGX drivers allow starting enclave address space with non-zero;
      * the below trick to start from DEFAULT_HEAP_MIN is to avoid vm.mmap_min_addr==0 issue */
     if (request_mmap_addr < DEFAULT_HEAP_MIN) {
@@ -157,7 +157,7 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
 
     uint64_t addr = INLINE_SYSCALL(mmap, 6, request_mmap_addr, request_mmap_size,
                                    PROT_NONE, /* newer DCAP driver requires such initial mmap */
-#ifdef SGX_DCAP_16_OR_LATER
+#ifdef SGX_DCAP
                                    MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #else
                                    MAP_FIXED | MAP_SHARED, g_isgx_device, 0);
@@ -260,7 +260,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         SGX_DBG(DBG_I, "adding pages to enclave: %p-%p [%s:%s] (%s)%s\n", addr, addr + size, t, p,
                 comment, m);
 
-#ifdef SGX_DCAP_16_OR_LATER
+#ifdef SGX_DCAP
     if (!user_addr && g_zero_pages_size < size) {
         /* not enough contigious zero pages to back up enclave pages, allocate more */
         /* TODO: this logic can be removed if we introduce a size cap in ENCLAVE_ADD_PAGES ioctl */
@@ -352,7 +352,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         SGX_DBG(DBG_I, "Changing protections of EADDed pages returned %d\n", ret);
         return -ERRNO(ret);
     }
-#endif /* SGX_DCAP_16_OR_LATER */
+#endif /* SGX_DCAP */
 
     return 0;
 }
@@ -369,7 +369,7 @@ int init_enclave(sgx_arch_secs_t* secs, sgx_arch_enclave_css_t* sigstruct,
     SGX_DBG(DBG_I, "    mr_enclave:   %s\n", ALLOCA_BYTES2HEXSTR(sigstruct->body.enclave_hash.m));
 
     struct sgx_enclave_init param = {
-#ifndef SGX_DCAP_16_OR_LATER
+#ifndef SGX_DCAP
         .addr = enclave_valid_addr,
 #endif
         .sigstruct = (uint64_t)sigstruct,

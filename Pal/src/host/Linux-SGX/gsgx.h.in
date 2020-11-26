@@ -52,8 +52,4 @@
 
 @DEFINE_DCAP@
 
-#ifdef SGX_DCAP
-# define SGX_DCAP_16_OR_LATER 1
-#endif
-
 #endif /* __ARCH_GSGX_H__ */
