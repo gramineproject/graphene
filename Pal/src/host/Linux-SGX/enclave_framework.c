@@ -187,7 +187,38 @@ int init_enclave_key(void) {
     memset(&keyrequest, 0, sizeof(sgx_key_request_t));
     keyrequest.key_name = SEAL_KEY;
 
-    int ret = sgx_getkey(&keyrequest, &g_enclave_key);
+    #define FLAGS_NON_SECURITY_BITS (0xFFFFFFFFFFFFC0ULL | SGX_FLAGS_MODE64BIT | \
+        SGX_FLAGS_PROVISION_KEY | SGX_FLAGS_LICENSE_KEY)
+    #define TSEAL_DEFAULT_FLAGSMASK (~FLAGS_NON_SECURITY_BITS)
+
+    keyrequest.attribute_mask.flags = TSEAL_DEFAULT_FLAGSMASK;
+    keyrequest.attribute_mask.xfrm = 0x0;
+    keyrequest.key_policy = KEYPOLICY_MRSIGNER;
+
+    // Get the report to obtain isv_svn and cpu_svn
+    __sgx_mem_aligned sgx_target_info_t tmp_target_info;
+    memset(&tmp_target_info, 0, sizeof(sgx_target_info_t));
+    __sgx_mem_aligned sgx_report_data_t tmp_report_data;
+    memset(&tmp_report_data, 0, sizeof(sgx_report_data_t));
+    __sgx_mem_aligned sgx_report_t tmp_report;
+    memset(&tmp_report, 0, sizeof(sgx_report_t));
+    int ret = sgx_get_report(&tmp_target_info, &tmp_report_data, &tmp_report);
+    if (ret) {
+        SGX_DBG(DBG_E, "Can't get report\n");
+        return -PAL_ERROR_DENIED;
+    }
+
+    memcpy(&(keyrequest.cpu_svn), &(tmp_report.body.cpu_svn), sizeof(sgx_cpu_svn_t));
+    memcpy(&(keyrequest.isv_svn), &(tmp_report.body.isv_svn), sizeof(sgx_isv_svn_t));
+    keyrequest.config_svn = tmp_report.body.config_svn;
+
+    // Get a random number to populate the key_id of the key_request
+    ret = _DkRandomBitsRead(&keyrequest.key_id, sizeof(keyrequest.key_id));
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Failed to generate a random id: %d\n", ret);
+        return ret;
+    }
+    ret = sgx_getkey(&keyrequest, &g_enclave_key);
     if (ret) {
         SGX_DBG(DBG_E, "Can't get seal key\n");
         return -PAL_ERROR_DENIED;
