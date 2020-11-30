@@ -4,4 +4,11 @@ stage('build') {
         make ${MAKEOPTS} test
         make ${MAKEOPTS} -C Pal/src PAL_HOST=Skeleton
     '''
+
+    sh '''
+        meson build \
+            -Ddirect=enabled \
+            -Dsgx=disabled
+        ninja -C build
+    '''
 }

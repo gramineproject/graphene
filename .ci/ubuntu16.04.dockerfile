@@ -1,6 +1,8 @@
 # Start with 16.04
 FROM ubuntu:16.04
 
+RUN echo 'deb http://archive.ubuntu.com/ubuntu xenial-backports main restricted universe multiverse' > /etc/apt/sources.list.d/backports.list
+
 # Add steps here to set up dependencies
 RUN apt-get update \
     && apt-get install -y \
@@ -52,6 +54,7 @@ RUN apt-get update \
        wget \
        zlib1g \
        zlib1g-dev \
+    && apt install -y -t xenial-backports meson \
     && /usr/bin/pip3 install protobuf \
 
 # Add the user UID:1001, GID:1001, home at /leeroy

@@ -32,4 +32,11 @@ stage('build') {
             make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/sgx-driver
         make ${MAKEOPTS}
     '''
+
+    sh '''
+        meson setup build \
+            -Ddirect=disabled \
+            -Dsgx=enabled
+        ninja -C build
+    '''
 }
