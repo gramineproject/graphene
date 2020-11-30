@@ -454,6 +454,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     size_t last_len;
     find_last_component(mount_point, &last, &last_len);
 
+    bool need_parent_put = false;
     lock(&dcache_lock);
 
     if (!parent) {
@@ -469,6 +470,7 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
                 debug("Path lookup failed %d\n", ret);
                 goto out_with_unlock;
             }
+            need_parent_put = true;
         }
     }
 
@@ -545,11 +547,17 @@ int mount_fs(const char* type, const char* uri, const char* mount_point, struct 
     /* Set the file system at the mount point properly */
     dent->fs = mount;
 
-    if (dentp && !ret)
+    if (dentp && !ret) {
         *dentp = dent;
+    } else {
+        put_dentry(dent);
+    }
 
 out_with_unlock:
     unlock(&dcache_lock);
+    if (need_parent_put) {
+        put_dentry(parent);
+    }
 out:
     return ret;
 }

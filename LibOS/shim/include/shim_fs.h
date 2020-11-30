@@ -123,14 +123,6 @@ struct shim_dentry {
     struct shim_qstr rel_path; /* the path is relative to its mount point */
     struct shim_qstr name;     /* caching the file's name. */
 
-    /* DEP 6/16/17: For now, let's try not hashing; I suspect it is overkill for most purposes.
-     * I'll leave the field here for now, but propose we move to a per-directory table to accelerate
-     * lookups, rather than a global table, since this just supports one process.
-     */
-    LIST_TYPE(shim_dentry) hlist; /* to resolve collisions in the hash table */
-    LIST_TYPE(shim_dentry) list; /* put dentry to different list according to its availability, \
-                                  * persistent or freeable */
-
     struct shim_dentry* parent;
     int nchildren;
     LISTP_TYPE(shim_dentry) children; /* These children and siblings link */
@@ -393,6 +385,8 @@ int list_directory_handle(struct shim_dentry* dent, struct shim_handle* hdl);
 void get_dentry(struct shim_dentry* dent);
 /* Decrement the reference count on dent */
 void put_dentry(struct shim_dentry* dent);
+/* Decrement the reference count by one and delete `dent` if this is the last reference. */
+void put_dentry_maybe_delete(struct shim_dentry* dent);
 
 /* Size of the path constructed by dentry_get_path(), including null terminator. */
 size_t dentry_get_path_size(struct shim_dentry* dent);
