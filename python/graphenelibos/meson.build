@@ -7,16 +7,21 @@ init_py = configure_file(
     configuration: conf,
 )
 
-offsets_py = configure_file(
-    input: '../../Pal/src/host/Linux-SGX/generated_offsets.py',
-    output: '_offsets.py',
-    copy: true,
-)
-
 python3.install_sources([
     init_py,
-    offsets_py,
-    '_aesm_pb2.py',
-    'sgx_get_token.py',
-    'sgx_sign.py',
 ], subdir: 'graphenelibos')
+
+if sgx
+    offsets_py = configure_file(
+        input: '../../Pal/src/host/Linux-SGX/generated_offsets.py',
+        output: '_offsets.py',
+        copy: true,
+    )
+
+    python3.install_sources([
+        offsets_py,
+        '_aesm_pb2.py',
+        'sgx_get_token.py',
+        'sgx_sign.py',
+    ], subdir: 'graphenelibos')
+endif
