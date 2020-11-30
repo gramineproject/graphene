@@ -9,34 +9,95 @@
 # external debug info (e.g. Python binary)
 
 import argparse
+import bisect
 from collections import namedtuple
 import os
+from pathlib import Path
 import sys
-import bisect
 
 from elftools.elf.elffile import ELFFile
 
 Symbol = namedtuple('Symbol', ['name', 'obj', 'start', 'end'])
 
+
+def iter_symbols(elf, offset, basename):
+    symtab = elf.get_section_by_name('.symtab')
+    if not symtab:
+        return
+    for symbol in symtab.iter_symbols():
+        if (symbol['st_info']['type'] == 'STT_FUNC' and
+            symbol['st_value'] > 0 and
+            symbol['st_size'] > 0):
+
+            yield Symbol(
+                name=symbol.name,
+                obj=basename,
+                start=offset + symbol['st_value'],
+                end=offset + symbol['st_value'] + symbol['st_size'],
+            )
+
+
+def find_debug_binary(elf, path):
+    '''
+    Find a debug binary for a given ELF.
+
+    See: https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
+    '''
+
+    debug_dir = Path('/usr/lib/debug')
+
+    # Try looking up by build-id
+    section = elf.get_section_by_name('.note.gnu.build-id')
+    if section:
+        notes = list(section.iter_notes())
+        assert len(notes) == 1
+        note = notes[0]
+        assert note['n_type'] == 'NT_GNU_BUILD_ID'
+        build_id = note['n_desc']
+
+        # /usr/lib/debug/.build-id/ab/cdef1234.debug',
+        debug_path = debug_dir / '.build-id' / build_id[:2] / (build_id[2:] + '.debug')
+        if debug_path.is_file():
+            return debug_path
+
+    debug_name = path.name + '.debug'
+    for debug_path in [
+            # /usr/bin/ls.debug
+            path.with_name(debug_name),
+            # /usr/bin/.debug/ls.debug
+            path.parent / '.debug' / debug_name,
+            # /usr/lib/debug/usr/bin/ls.debug
+            debug_dir / path.with_name(debug_name)
+    ]:
+        if debug_path.is_file():
+            return debug_path
+
+    return None
+
+
 def load_symbols(file_name, offset):
-    basename = os.path.basename(file_name)
+    path = Path(file_name).resolve()
+    if not path.is_file():
+        print('File not found: {}'.format(path), file=sys.stderr)
+        return
+
     with open(file_name, 'rb') as f:
         elf = ELFFile(f)
-        symtab = elf.get_section_by_name('.symtab')
-        if not symtab:
-            print('No symbols for {}'.format(file_name), file=sys.stderr)
-            return
-        for symbol in symtab.iter_symbols():
-            if (symbol['st_info']['type'] == 'STT_FUNC' and
-                symbol['st_value'] > 0 and
-                symbol['st_size'] > 0):
 
-                yield Symbol(
-                    name=symbol.name,
-                    obj=basename,
-                    start=offset + symbol['st_value'],
-                    end=offset + symbol['st_value'] + symbol['st_size'],
-                )
+        if elf.get_section_by_name('.symtab'):
+            yield from iter_symbols(elf, offset, path.name)
+            return
+
+        debug_path = find_debug_binary(elf, path)
+        if not debug_path:
+            print('No symbols for {}, and no debug info found. '
+                  'Consider installing a *-dbg/dbgsym/debuginfo package.'
+                  .format(path), file=sys.stderr)
+            return
+
+    with open(debug_path, 'rb') as f:
+        elf = ELFFile(f)
+        yield from iter_symbols(elf, offset, path.name)
 
 
 class Resolver:

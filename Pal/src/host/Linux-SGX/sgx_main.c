@@ -301,17 +301,17 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
     }
     g_sgx_enable_stats = !!enable_stats_int64;
 
-    char* profile_str;
+    char* profile_str = NULL;
     ret = toml_string_in(enclave->manifest_root, "sgx.profile", &profile_str);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile\' (the value must be 'none', 'root' or 'all')\n");
+        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile\' (the value must be \"none\", \"main\" or \"all\")\n");
         ret = -EINVAL;
         goto out;
     }
 #ifdef SGX_PROFILE
     if (!profile_str || !strcmp(profile_str, "none")) {
         // do not enable
-    } else if (!strcmp(profile_str, "root")) {
+    } else if (!strcmp(profile_str, "main")) {
         if (first_process) {
             ret = sgx_profile_init(/*all=*/false);
             if (ret < 0)
@@ -322,15 +322,15 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
         if (ret < 0)
             goto out;
     } else {
-        SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be 'none', 'root' or 'all')\n");
-        ret = EINVAL;
+        SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be \"none', \"main\" or \"all\")\n");
+        ret = -EINVAL;
         goto out;
     }
 #else
     __UNUSED(first_process);
     if (profile_str && strcmp(profile_str, "none")) {
         SGX_DBG(DBG_E, "Cannot use \'sgx.profile\' when compiled without SGX_PROFILE\n");
-        ret = EINVAL;
+        ret = -EINVAL;
         goto out;
     }
 #endif
@@ -684,6 +684,7 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
     }
 
     ret = 0;
+
 out:
     if (enclave_image >= 0)
         INLINE_SYSCALL(close, 1, enclave_image);

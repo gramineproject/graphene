@@ -18,7 +18,14 @@
 #include "cpu.h"
 #include "perm.h"
 #include "sgx_internal.h"
+#include "sgx_tls.h"
 #include "spinlock.h"
+#include "uthash.h"
+
+#define NSEC_IN_SEC 1000000000
+
+// Assume Linux scheduler will normally interrupt the enclave each 4 ms, or 250 times per second
+#define MAX_DT (NSEC_IN_SEC / 250)
 
 struct counter {
     void* ip;
@@ -28,15 +35,13 @@ struct counter {
 
 static spinlock_t g_profile_lock = INIT_SPINLOCK_UNLOCKED;
 static struct counter* g_counters = NULL;
-static uint64_t g_last_tsc = 0;
 
 static int g_profile_enabled = false;
 static int g_profile_all = false;
 static int g_mem_fd = -1;
-static uint64_t g_max_dt = 0;
 
 /* Read memory from inside enclave (using /proc/self/mem). */
-static void debug_read(void* dest, void* addr, size_t size) {
+static int debug_read(void* dest, void* addr, size_t size) {
     int ret;
     size_t cur_size = size;
     void* cur_dest = dest;
@@ -50,12 +55,12 @@ static void debug_read(void* dest, void* addr, size_t size) {
 
         if (IS_ERR(ret)) {
             SGX_DBG(DBG_E, "debug_read: error reading %lu bytes at %p: %d\n", size, addr, ERRNO(ret));
-            INLINE_SYSCALL(exit_group, 1, ERRNO(ret));
+            return ret;
         }
 
         if (ret == 0) {
             SGX_DBG(DBG_E, "debug_read: EOF reading %lu bytes at %p\n", size, addr);
-            INLINE_SYSCALL(exit_group, 1, 255);
+            return ret;
         }
 
         assert(ret > 0);
@@ -64,13 +69,16 @@ static void debug_read(void* dest, void* addr, size_t size) {
         cur_dest += ret;
         cur_addr += ret;
     }
+    return 0;
 }
 
 static void* get_sgx_ip(void* tcs) {
     uint64_t ossa;
     uint32_t cssa;
-    debug_read(&ossa, tcs + 16, sizeof(ossa));
-    debug_read(&cssa, tcs + 24, sizeof(cssa));
+    if (debug_read(&ossa, tcs + 16, sizeof(ossa)) < 0)
+        return NULL;
+    if (debug_read(&cssa, tcs + 24, sizeof(cssa)) < 0)
+        return NULL;
 
     void* gpr_addr = (void*)(
         g_pal_enclave.baseaddr
@@ -78,23 +86,51 @@ static void* get_sgx_ip(void* tcs) {
         - sizeof(sgx_pal_gpr_t));
 
     uint64_t rip;
-    debug_read(&rip, gpr_addr + offsetof(sgx_pal_gpr_t, rip), sizeof(rip));
+    if (debug_read(&rip, gpr_addr + offsetof(sgx_pal_gpr_t, rip), sizeof(rip)) < 0)
+        return NULL;
 
     return (void*)rip;
 }
 
-#define CPUID_LEAF_TSC_FREQ 0x15
+static int write_report(int fd) {
+    int ret;
 
-static uint64_t get_tsc_hz(void) {
-    uint32_t words[PAL_CPUID_WORD_NUM];
-    uint64_t crys_hz;
+    // Write out counters
+    struct counter* counter;
+    struct counter* tmp;
+    HASH_ITER(hh, g_counters, counter, tmp) {
+        pal_fdprintf(fd, "counter %p %lu\n", counter->ip, counter->count);
+        HASH_DEL(g_counters, counter);
+        free(counter);
+    }
 
-    cpuid(CPUID_LEAF_TSC_FREQ, 0, words);
-    if (words[PAL_CPUID_WORD_EBX] > 0 && words[PAL_CPUID_WORD_EAX] > 0) {
-        /* nominal frequency of the core crystal clock in kHz */
-        crys_hz = words[PAL_CPUID_WORD_ECX];
-        if (crys_hz > 0) {
-            return crys_hz * words[PAL_CPUID_WORD_EBX] / words[PAL_CPUID_WORD_EAX];
+    // Write out debug_map (unfortunately we have to read it from enclave memory)
+    if (g_pal_enclave.debug_map) {
+        struct debug_map* _Atomic pmap;
+        ret = debug_read(&pmap, g_pal_enclave.debug_map, sizeof(pmap));
+        if (IS_ERR(ret))
+            return ret;
+
+        while (pmap) {
+            struct debug_map map;
+            ret = debug_read(&map, pmap, sizeof(map));
+            if (IS_ERR(ret))
+                return ret;
+
+            pal_fdprintf(fd, "file %p ", map.load_addr);
+
+            // Read file_name byte by byte until we encounter null terminator, and write it out
+            char* file_name = map.file_name;
+            char c;
+            do {
+                ret = debug_read(&c, file_name, sizeof(c));
+                if (IS_ERR(ret))
+                    return ret;
+                pal_fdprintf(fd, "%c", c ?: '\n');
+                file_name++;
+            } while (c);
+
+            pmap = map.next;
         }
     }
     return 0;
@@ -103,15 +139,6 @@ static uint64_t get_tsc_hz(void) {
 int sgx_profile_init(bool all) {
     assert(!g_profile_enabled);
     assert(g_mem_fd == -1);
-
-    uint64_t tsc_hz = get_tsc_hz();
-    if (tsc_hz == 0) {
-        SGX_DBG(DBG_E, "sgx_profile_init: failed to get TSC frequency\n");
-        return -ENOSYS;
-    }
-
-    // Assume Linux scheduler will normally interrupt the enclave 4 ms, or 250 times per second.
-    g_max_dt = tsc_hz / 250;
 
     int ret = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDONLY | O_LARGEFILE, 0);
     if (IS_ERR(ret)) {
@@ -144,44 +171,15 @@ void sgx_profile_finish(void) {
         snprintf(buf, sizeof(buf), "sgx-profile.data");
     SGX_DBG(DBG_I, "writing profile data to %s\n", buf);
 
-    int fd = INLINE_SYSCALL(open, 3, buf, O_WRONLY | O_TRUNC | O_CREAT, PERM_rw_______);
+    int fd = INLINE_SYSCALL(open, 3, buf, O_WRONLY | O_TRUNC | O_CREAT, PERM_rw_r__r__);
     if (IS_ERR(fd)) {
         SGX_DBG(DBG_E, "sgx_profile_finish: error opening file: %d\n", -fd);
         goto out;
     }
 
-    // Write out counters
-    struct counter* counter;
-    struct counter* tmp;
-    HASH_ITER(hh, g_counters, counter, tmp) {
-        pal_fdprintf(fd, "counter %p %lu\n", counter->ip, counter->count);
-        HASH_DEL(g_counters, counter);
-        free(counter);
-    }
-
-    // Write out debug_map (unfortunately we have to read it from enclave memory)
-    if (g_pal_enclave.debug_map) {
-        struct debug_map* _Atomic pmap;
-        debug_read(&pmap, g_pal_enclave.debug_map, sizeof(pmap));
-
-        while (pmap) {
-            struct debug_map map;
-            debug_read(&map, pmap, sizeof(map));
-
-            pal_fdprintf(fd, "file %p ", map.load_addr);
-
-            // Read file_name byte by byte until we encounter null terminator, and write it out
-            char* file_name = map.file_name;
-            char c;
-            do {
-                debug_read(&c, file_name, sizeof(c));
-                pal_fdprintf(fd, "%c", c ?: '\n');
-                file_name++;
-            } while (c);
-
-            pmap = map.next;
-        }
-    }
+    ret = write_report(fd);
+    if (IS_ERR(ret))
+        SGX_DBG(DBG_E, "sgx_profile_finish: error writing report: %d\n", -ret);
 
     ret = INLINE_SYSCALL(close, 1, fd);
     if (IS_ERR(ret))
@@ -198,26 +196,46 @@ out:
 /*
  * Update counters after exit from enclave.
  *
- * We use RDTSC to measure time since the last measurement, because in some cases the asynchronous
- * exits happen more often (e.g. repeated page faults), and places causing these exits would be
- * inaccurately counted if we always increased counters by 1.
+ * We use clock_gettime() to measure time since the last measurement, because in some cases the
+ * asynchronous exits happen more often (e.g. repeated page faults), and places causing these exits
+ * would be inaccurately counted if we always increased counters by 1.
  */
 void sgx_profile_sample(void* tcs) {
     if (!g_profile_enabled)
         return;
 
+    // Check current IP in enclave
     void* ip = get_sgx_ip(tcs);
-    spinlock_lock(&g_profile_lock);
+    if (!ip)
+        return;
 
-    uint64_t tsc = get_tsc();
-    if (g_last_tsc > 0) {
-        assert(tsc >= g_last_tsc);
-        uint64_t dt = tsc - g_last_tsc;
+    // Check current time
+    struct timespec ts;
+    int res = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &ts);
+    if (res < 0) {
+        SGX_DBG(DBG_E, "sgx_profile_sample: clock_gettime failed: %d\n", res);
+        return;
+    }
+    assert((unsigned)ts.tv_sec < (1UL << 63) / NSEC_IN_SEC);
+    uint64_t sample_time = ts.tv_sec * NSEC_IN_SEC + ts.tv_nsec;
 
-        // Increase by at most g_max_dt ticks: if the last measurement is older, it means we
+    // Compare and update last recorded time per thread
+    uint64_t dt = 0;
+    PAL_TCB_URTS* tcb = get_tcb_urts();
+    if (tcb->profile_sample_time > 0) {
+        assert(sample_time >= tcb->profile_sample_time);
+        dt = sample_time - tcb->profile_sample_time;
+
+        // Increase by at most MAX_DT nanoseconds: if the last measurement is older, it means we
         // probably slept since then.
-        if (dt > g_max_dt)
-            dt = g_max_dt;
+        if (dt > MAX_DT)
+            dt = MAX_DT;
+    }
+    tcb->profile_sample_time = sample_time;
+
+    // Increase counters, if necessary
+    if (dt > 0) {
+        spinlock_lock(&g_profile_lock);
 
         struct counter* counter;
         HASH_FIND_PTR(g_counters, &ip, counter);
@@ -229,10 +247,9 @@ void sgx_profile_sample(void* tcs) {
             counter->count = dt;
             HASH_ADD_PTR(g_counters, ip, counter);
         }
-    }
-    g_last_tsc = tsc;
 
-    spinlock_unlock(&g_profile_lock);
+        spinlock_unlock(&g_profile_lock);
+    }
 }
 
 #endif /* SGX_PROFILE */

@@ -518,7 +518,7 @@ enclave. Here is how to use it:
 #. Make sure to install Python package ``pyelftools`` (e.g. ``sudo apt-get
    install python-pyelftools``).
 
-#. Add ``sgx.profile = "root"`` to manifest (to collect data for the main
+#. Add ``sgx.profile = "main"`` to manifest (to collect data for the main
    process), or ``sgx.profile = "all"`` (to collect data for all processes).
 
 #. Run your application. It should say something like ``writing profile data to
@@ -528,13 +528,13 @@ enclave. Here is how to use it:
 #. Run ``profile-report``
    (``Pal/src/host/Linux-SGX/tools/profile-report/profile-report``) with the
    data file as parameter. It should display a table of functions (or raw
-   addresses, if symbol information is not available)
+   addresses, if symbol information is not available).
 
 *Note*: The accuracy of this tool is unclear. The SGX profiling works by
 measuring the value of instruction pointer on each asynchronous enclave exit
-(AEX), which happen on Linux scheduler interrupts as well as other such as page
-faults. While we attempt to measure time (and not only count occurences), the
-results might be inaccurate.
+(AEX), which happen on Linux scheduler interrupts, as well as other events such
+as page faults. While we attempt to measure time (and not only count
+occurences), the results might be inaccurate.
 
 Other useful tools for profiling
 --------------------------------

@@ -93,6 +93,7 @@ typedef struct pal_tcb_urts {
     atomic_ulong aex_cnt;          /* # of AEXs, corresponds to # of interrupts/signals */
     atomic_ulong sync_signal_cnt;  /* # of sync signals, corresponds to # of SIGSEGV/SIGILL/.. */
     atomic_ulong async_signal_cnt; /* # of async signals, corresponds to # of SIGINT/SIGCONT/.. */
+    uint64_t profile_sample_time;  /* last time sgx_profile_sample() has been called */
 } PAL_TCB_URTS;
 
 extern void pal_tcb_urts_init(PAL_TCB_URTS* tcb, void* stack, void* alt_stack);

@@ -78,7 +78,7 @@ async_exit_pointer:
 	pushq %rcx
 	.cfi_adjust_cfa_offset 8
 
-	# Align stack (eequired by System V AMD64 ABI)
+	# Align stack (required by System V AMD64 ABI)
 	movq %rsp, %rbp
 	andq $~0xF, %rsp
 

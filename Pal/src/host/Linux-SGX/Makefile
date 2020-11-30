@@ -70,7 +70,6 @@ enclave-asm-objs = enclave_entry.o
 
 urts-objs = \
 	clone-x86_64.o \
-	sgx_profile.o \
 	sgx_enclave.o \
 	sgx_exception.o \
 	sgx_framework.o \
@@ -78,6 +77,7 @@ urts-objs = \
 	sgx_main.o \
 	sgx_platform.o \
 	sgx_process.o \
+	sgx_profile.o \
 	sgx_gdb_info.o \
 	sgx_thread.o \
 	quote/aesm.pb-c.o \

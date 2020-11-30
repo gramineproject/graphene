@@ -464,15 +464,15 @@ SGX profiling
 
 ::
 
-    sgx.profile = ["none"|"root"|"all"]
+    sgx.profile = ["none"|"main"|"all"]
     (Default: "none")
 
 This syntax specifies whether to enable SGX profiling. Graphene must be compiled
 with ``DEBUG=1`` and ``SGX_PROFILE=1`` for this option to work.
 
-If this option is set to ``root``, the root process will collect IP samples and
-save them as ``profile-sgx.data``. If it's to ``all``, all processes will
-collect samples and save them to ``profile-sgx-<PID>.data``.
+If this option is set to ``main``, the main process will collect IP samples and
+save them as ``sgx-profile.data``. If it is set to ``all``, all processes will
+collect samples and save them to ``sgx-profile-<PID>.data``.
 
 The saved files can be used to generate a report with ``profile-report`` tool,
 located in ``Pal/src/host/Linux-SGX/tools/profile-report/`` directory. It
