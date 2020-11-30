@@ -8,6 +8,9 @@ prefix = get_option('prefix')
 pkglibexecdir = get_option('libexecdir') / meson.project_name()
 pkgdatadir = get_option('datadir') / meson.project_name()
 
+direct = get_option('direct') == 'enabled'
+sgx = get_option('sgx') == 'enabled'
+
 python3 = import('python').find_installation('python3', modules: [
     'google.protobuf',
 ])
