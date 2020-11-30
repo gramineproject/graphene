@@ -32,4 +32,17 @@ stage('build') {
             make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/sgx-driver
         make ${MAKEOPTS}
     '''
+
+    try {
+        sh '''
+            meson setup build \
+                -Ddirect=disabled \
+                -Dsgx=enabled
+            ninja -C build
+            DESTDIR=$PWD/install ninja -C build install
+        '''
+    } finally {
+        archiveArtifacts 'build/meson-logs/**/*'
+    }
+    sh 'rm -rf build install'
 }

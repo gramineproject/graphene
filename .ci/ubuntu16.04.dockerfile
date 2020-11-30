@@ -35,6 +35,7 @@ RUN apt-get update \
        libxxf86vm1 \
        linux-headers-4.4.0-161-generic \
        net-tools \
+       ninja-build \
        pkg-config \
        protobuf-c-compiler \
        python \
@@ -52,7 +53,7 @@ RUN apt-get update \
        wget \
        zlib1g \
        zlib1g-dev \
-    && /usr/bin/pip3 install protobuf \
+    && /usr/bin/pip3 install protobuf meson==0.45.1 \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
