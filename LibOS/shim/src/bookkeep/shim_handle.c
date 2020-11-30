@@ -460,7 +460,7 @@ void put_handle(struct shim_handle* hdl) {
         }
 
         if (hdl->dentry)
-            put_dentry(hdl->dentry);
+            put_dentry_maybe_delete(hdl->dentry);
 
         if (hdl->fs)
             put_mount(hdl->fs);

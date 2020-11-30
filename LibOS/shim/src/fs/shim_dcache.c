@@ -47,8 +47,6 @@ static struct shim_dentry* alloc_dentry(void) {
     REF_SET(dent->ref_count, 1);
     dent->mode = NO_MODE;
 
-    INIT_LIST_HEAD(dent, hlist);
-    INIT_LIST_HEAD(dent, list);
     INIT_LISTP(&dent->children);
     INIT_LIST_HEAD(dent, siblings);
 
@@ -102,35 +100,70 @@ void get_dentry(struct shim_dentry* dent) {
 }
 
 static void free_dentry(struct shim_dentry* dent) {
+    if (dent->fs) {
+        put_mount(dent->fs);
+    }
+
+    qstrfree(&dent->rel_path);
+    qstrfree(&dent->name);
+
+    if (dent->parent) {
+        put_dentry(dent->parent);
+    }
+
+    assert(dent->nchildren == 0);
+    assert(LISTP_EMPTY(&dent->children));
+    assert(LIST_EMPTY(dent, siblings));
+
+    if (dent->mounted) {
+        put_mount(dent->mounted);
+    }
+
+    /* XXX: We are leaking `data` field here. This field seems to have different meaning for
+     * different dentries and how to free it is a mystery to me. */
+
     destroy_lock(&dent->lock);
+
     free_mem_obj_to_mgr(dentry_mgr, dent);
 }
 
-/* Decrement the reference count on dent.
+/*
+ * Decrement the reference count on dent.
  *
- * For now, we don't have an eviction policy, so just
- * keep everything.
- *
- * If a dentry is on the children list of a parent, it has
- * a refcount of at least 1.
- *
- * If the ref count ever hits zero, we free the dentry.
- *
+ * If we notice that dentry is negative and there are only 2 references left (ours and 1 for
+ * parent's children list) we try to free this dentry - try, because somebody could get another
+ * reference asynchronously.
  */
+void put_dentry_maybe_delete(struct shim_dentry* dent) {
+    long count = REF_GET(dent->ref_count);
+    assert(count >= 0);
+
+    /* First try without the lock. This check is racy - in some cases dentry might be left alive,
+     * but this is a opportunistic free anyway. */
+    if (count == 2) {
+        lock(&dcache_lock);
+
+        count = REF_GET(dent->ref_count);
+        /* If the dentry does not exist on fs anymore, let's delete it. */
+        if (count == 2 && dent->state & DENTRY_NEGATIVE && dent->parent) {
+            LISTP_DEL_INIT(dent, &dent->parent->children, siblings);
+            put_dentry(dent);
+        }
+
+        unlock(&dcache_lock);
+    }
+
+    /* This might free `dent`. */
+    put_dentry(dent);
+}
+
 void put_dentry(struct shim_dentry* dent) {
     int count = REF_DEC(dent->ref_count);
     assert(count >= 0);
-    // We don't expect this to commonly free a dentry, and may represent a
-    // reference counting bug.
     if (count == 0) {
-        debug("XXX Churn Warning: Freeing dentry %p; may not be expected\n", dent);
-        // Add some assertions that the dentry is properly cleaned up, like it
-        // isn't on a parent's children list
         assert(LIST_EMPTY(dent, siblings));
         free_dentry(dent);
     }
-
-    return;
 }
 
 /* Allocate and initialize a new dentry for path name, under
@@ -336,8 +369,6 @@ BEGIN_CP_FUNC(dentry) {
 
         lock(&dent->lock);
         *new_dent = *dent;
-        INIT_LIST_HEAD(new_dent, hlist);
-        INIT_LIST_HEAD(new_dent, list);
         INIT_LISTP(&new_dent->children);
         INIT_LIST_HEAD(new_dent, siblings);
         clear_lock(&new_dent->lock);
@@ -381,8 +412,6 @@ BEGIN_RS_FUNC(dentry) {
     __UNUSED(offset);
     struct shim_dentry* dent = (void*)(base + GET_CP_FUNC_ENTRY());
 
-    CP_REBASE(dent->hlist);
-    CP_REBASE(dent->list);
     CP_REBASE(dent->children);
     CP_REBASE(dent->siblings);
     CP_REBASE(dent->fs);
