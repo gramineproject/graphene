@@ -14,11 +14,16 @@ stage('test') {
         make ${MAKEOPTS} all
         make test
     '''
-    sh '''
-        cd LibOS/shim/test/ltp
-        make ${MAKEOPTS} all
-        make ltp.xml
-    '''
+    try {
+        sh '''
+            cd LibOS/shim/test/ltp
+            make ${MAKEOPTS} all
+            make ltp.xml
+        '''
+    } finally {
+        archiveArtifacts 'LibOS/shim/test/ltp/ltp.xml'
+        junit 'LibOS/shim/test/ltp/ltp.xml'
+    }
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/python-simple

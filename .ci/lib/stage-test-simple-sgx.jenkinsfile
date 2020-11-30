@@ -27,11 +27,4 @@ stage('test') {
             make SGX=1 test
         '''
     }
-
-    // LTP is ignored under SGX because of random segfaults
-    sh '''
-        cd LibOS/shim/test/ltp
-        make -j8 SGX=1 all sgx-tokens
-        make SGX=1 ltp-sgx.xml || :
-        '''
 }
