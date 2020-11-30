@@ -12,11 +12,8 @@ node('nonsgx_slave') {
         load '.ci/lib/stage-lint.jenkinsfile'
         load '.ci/lib/stage-clean-check-prepare.jenkinsfile'
         load '.ci/lib/stage-build-nosgx.jenkinsfile'
-        try {
-            load '.ci/lib/stage-test-all-nosgx.jenkinsfile'
-        } finally {
-            load '.ci/lib/artifacts.jenkinsfile'
-        }
+        load '.ci/lib/stage-test.jenkinsfile'
+        load '.ci/lib/stage-test-direct.jenkinsfile'
         load '.ci/lib/stage-clean-check.jenkinsfile'
     }
 }

@@ -1,4 +1,0 @@
-always {
-    junit 'Pal/regression/pal-regression.xml'
-    junit 'LibOS/shim/test/regression/libos-regression.xml'
-}

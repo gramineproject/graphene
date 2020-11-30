@@ -1,4 +1,4 @@
-stage('test') {
+stage('test-sgx') {
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/python-simple
