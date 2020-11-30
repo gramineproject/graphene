@@ -5,10 +5,12 @@ project(
 )
 
 prefix = get_option('prefix')
-pkglibexecdir = get_option('libexecdir') / meson.project_name()
-pkgdatadir = get_option('datadir') / meson.project_name()
+pkglibexecdir = join_paths(get_option('libexecdir'), meson.project_name())
+pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 
-python3 = import('python').find_installation('python3', modules: [
+# TODO: after deprecating 18.04/bionic, update this to import('python')
+python3mod = import('python3')
+python3 = python3mod.find_python('python3', modules: [
     'google.protobuf',
 ])
 

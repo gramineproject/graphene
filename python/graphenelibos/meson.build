@@ -13,10 +13,10 @@ offsets_py = configure_file(
     copy: true,
 )
 
-python3.install_sources([
+install_data([
     init_py,
     offsets_py,
     '_aesm_pb2.py',
     'sgx_get_token.py',
     'sgx_sign.py',
-], subdir: 'graphenelibos')
+], install_dir: join_paths(python3mod.sysconfig_path('platlib'), 'graphenelibos'))
