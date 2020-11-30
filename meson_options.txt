@@ -1,0 +1,5 @@
+# TODO: after deprecating 18.04/bionic, change these to type: 'feature'
+option('direct', type: 'combo', choices: ['disabled', 'enabled'],
+    description: 'Build and install graphene (aka Linux aka nonsgx)')
+option('sgx', type: 'combo', choices: ['disabled', 'enabled'],
+    description: 'Build and install graphene-sgx (aka Linux-SGX)')
