@@ -36,3 +36,7 @@ int _DkGetCPUInfo(PAL_CPU_INFO* ci) {
     /* needs to be implemented */
     return 0;
 }
+
+int _DkGetTopologyInfo(PAL_TOPO_INFO* topo_info) {
+    return 0;
+}
