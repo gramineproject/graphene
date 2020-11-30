@@ -1,19 +1,4 @@
-stage('test') {
-    sh '''
-        cd Pal/regression
-        make ${MAKEOPTS} all
-        make regression
-    '''
-    sh '''
-        cd LibOS/shim/test/regression
-        make ${MAKEOPTS} all
-        make regression
-    '''
-    sh '''
-        cd LibOS/shim/test/fs
-        make ${MAKEOPTS} all
-        make test
-    '''
+stage('test-direct') {
     try {
         sh '''
             cd LibOS/shim/test/ltp
