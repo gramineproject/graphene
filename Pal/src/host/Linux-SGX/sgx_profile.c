@@ -60,7 +60,7 @@ static int debug_read(void* dest, void* addr, size_t size) {
 
         if (ret == 0) {
             SGX_DBG(DBG_E, "debug_read: EOF reading %lu bytes at %p\n", size, addr);
-            return ret;
+            return -EINVAL;
         }
 
         assert(ret > 0);
@@ -196,9 +196,11 @@ out:
 /*
  * Update counters after exit from enclave.
  *
- * We use clock_gettime() to measure time since the last measurement, because in some cases the
- * asynchronous exits happen more often (e.g. repeated page faults), and places causing these exits
- * would be inaccurately counted if we always increased counters by 1.
+ * Note that this uses thread CPU time instead of just increasing the counters by 1. This is because
+ * we cannot assume a fixed sampling period (unlike e.g. perf-record). While at least one AEX event
+ * should happen every 4 ms (default timer interrupt on modern Linux); AEX events will happen on
+ * other interrupts/exceptions as well, such as page faults. Weighing the samples by elapsed time
+ * makes sure that we do not inflate the count if AEX events happen more often.
  */
 void sgx_profile_sample(void* tcs) {
     if (!g_profile_enabled)
@@ -209,9 +211,9 @@ void sgx_profile_sample(void* tcs) {
     if (!ip)
         return;
 
-    // Check current time
+    // Check current CPU time
     struct timespec ts;
-    int res = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &ts);
+    int res = INLINE_SYSCALL(clock_gettime, 2, CLOCK_THREAD_CPUTIME_ID, &ts);
     if (res < 0) {
         SGX_DBG(DBG_E, "sgx_profile_sample: clock_gettime failed: %d\n", res);
         return;
@@ -226,8 +228,8 @@ void sgx_profile_sample(void* tcs) {
         assert(sample_time >= tcb->profile_sample_time);
         dt = sample_time - tcb->profile_sample_time;
 
-        // Increase by at most MAX_DT nanoseconds: if the last measurement is older, it means we
-        // probably slept since then.
+        // Assume that time spent on one sample is never longer than MAX_DT nanoseconds, because of
+        // Linux timer interrupt.
         if (dt > MAX_DT)
             dt = MAX_DT;
     }
