@@ -374,11 +374,6 @@ int set_new_fd_handle_above_fd(FDTYPE fd, struct shim_handle* hdl, int fd_flags,
     return __set_new_fd_handle(fd, hdl, fd_flags, handle_map, /*find_first=*/true);
 }
 
-void flush_handle(struct shim_handle* hdl) {
-    if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->flush)
-        hdl->fs->fs_ops->flush(hdl);
-}
-
 static inline __attribute__((unused)) const char* __handle_name(struct shim_handle* hdl) {
     if (!qstrempty(&hdl->path))
         return qstrgetstr(&hdl->path);
@@ -612,30 +607,6 @@ void put_handle_map(struct shim_handle_map* map) {
         free(map->map);
         free(map);
     }
-}
-
-int flush_handle_map(struct shim_handle_map* map) {
-    get_handle_map(map);
-    lock(&map->lock);
-
-    if (map->fd_top == FD_NULL)
-        goto done;
-
-    /* now we go through the handle map and flush each handle */
-    for (int i = 0; i <= map->fd_top; i++) {
-        if (!HANDLE_ALLOCATED(map->map[i]))
-            continue;
-
-        struct shim_handle* handle = map->map[i]->handle;
-
-        if (handle)
-            flush_handle(handle);
-    }
-
-done:
-    unlock(&map->lock);
-    put_handle_map(map);
-    return 0;
 }
 
 int walk_handle_map(int (*callback)(struct shim_fd_handle*, struct shim_handle_map*),
