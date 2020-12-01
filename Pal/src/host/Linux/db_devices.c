@@ -118,8 +118,8 @@ static int dev_close(PAL_HANDLE handle) {
     int ret = 0;
     if (handle->dev.fd != PAL_IDX_POISON && handle->dev.fd != 0 && handle->dev.fd != 1) {
         ret = INLINE_SYSCALL(close, 1, handle->dev.fd);
-        handle->dev.fd = PAL_IDX_POISON;
     }
+    handle->dev.fd = PAL_IDX_POISON;
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 

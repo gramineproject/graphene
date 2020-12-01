@@ -35,10 +35,11 @@ int main(int argc, char* arvg[]) {
         errx(1, "/dev/kmsg lseek(0, SEEK_SET) didn't return 0 (returned: %ld)", offset);
 
     char buf[1024];
-    ssize_t bytes = read(devfd, buf, sizeof(buf));
+    ssize_t bytes = read(devfd, buf, sizeof(buf) - 1);
     if (bytes < 0)
         err(1, "/dev/kmsg read");
 
+    buf[bytes] = '\0';
     printf("First line of /dev/kmsg: %s", buf);
 
     int ret = close(devfd);
