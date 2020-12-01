@@ -1,7 +1,6 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -18,14 +17,22 @@ int main(int argc, char* arvg[]) {
      *        lseek() is not aware of device-specific semantics */
     offset = lseek(devfd, 0, SEEK_CUR);
     if (offset != -1 || errno != EINVAL) {
-        errx(1, "/dev/kmsg lseek(SEEK_CUR) didn't return -EINVAL (returned: %ld, errno=%d)",
+        errx(1, "/dev/kmsg lseek(0, SEEK_CUR) didn't return -EINVAL (returned: %ld, errno=%d)",
+             offset, errno);
+    }
+
+    offset = lseek(devfd, 1, SEEK_CUR);
+    if (offset != -1 || errno != ESPIPE) {
+        errx(1, "/dev/kmsg lseek(1, SEEK_CUR) didn't return -ESPIPE (returned: %ld, errno=%d)",
              offset, errno);
     }
 #endif
 
     offset = lseek(devfd, /*offset=*/0, SEEK_SET);
     if (offset < 0)
-        err(1, "/dev/kmsg lseek(SEEK_SET)");
+        err(1, "/dev/kmsg lseek(0, SEEK_SET)");
+    if (offset > 0)
+        errx(1, "/dev/kmsg lseek(0, SEEK_SET) didn't return 0 (returned: %ld)", offset);
 
     char buf[1024];
     ssize_t bytes = read(devfd, buf, sizeof(buf));

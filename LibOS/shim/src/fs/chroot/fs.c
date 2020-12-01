@@ -711,6 +711,9 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int wence) {
     struct shim_file_handle* file = &hdl->info.file;
     lock(&hdl->lock);
 
+    /* TODO: this function emulates lseek() completely inside the LibOS, but some device files
+     *       may report size == 0 during fstat() and may provide device-specific lseek() logic;
+     *       this emulation breaks for such device-specific cases */
     off_t marker = file->marker;
     off_t size = file->size;
 
@@ -734,7 +737,6 @@ static off_t chroot_seek(struct shim_handle* hdl, off_t offset, int wence) {
             break;
 
         case SEEK_END:
-            /* TODO: devices may report size == 0 during fstat(), then this emulation breaks */
             marker = size + offset;
             break;
     }
