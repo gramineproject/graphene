@@ -1,9 +1,7 @@
 stage('test-regression') {
     sh '''
-        make ${MAKEOPTS} test
         if test -n "$SGX"
         then
-            make ${MAKEOPTS} sgx-tokens
             make ${MAKEOPTS} -C Pal/src/host/Linux-SGX/tools install \
                 PREFIX=../../../../../../LibOS/shim/test/fs
         fi
@@ -29,7 +27,6 @@ stage('test-regression') {
         try {
             sh '''
                 cd LibOS/shim/test/regression
-                make clean  # re-build with ra_client_spid set
                 make ${MAKEOPTS} RA_CLIENT_SPID=${ra_client_spid} all
                 if test -n "$SGX"
                 then
