@@ -182,16 +182,20 @@ int sgx_verify_report(sgx_report_t* report) {
     return 0;
 }
 
+/* Let SGX generate an enclave-specific seal key via EGETKEY(SEAL_KEY). Key derivation material
+ * includes security-relevant bits of the enclave ATTRIBUTES data struct (e.g., DEBUG bit to prevent
+ * secret migration between debug and production enclaves), MRSIGNER key policy (to allow secret
+ * migration between different enclaves of the same author/signer), CPU & ISV & CONFIG SVNs (to
+ * prevent secret migration to older vulnerable versions of the enclave). Currently the derivation
+ * material also includes random KEYID which makes this seal key non-reproducible even by other
+ * enclaves from the same signer. */
 int init_enclave_key(void) {
     __sgx_mem_aligned sgx_key_request_t keyrequest;
     memset(&keyrequest, 0, sizeof(sgx_key_request_t));
     keyrequest.key_name = SEAL_KEY;
 
-    #define FLAGS_NON_SECURITY_BITS (0xFFFFFFFFFFFFC0ULL | SGX_FLAGS_MODE64BIT | \
-        SGX_FLAGS_PROVISION_KEY | SGX_FLAGS_LICENSE_KEY)
-    #define TSEAL_DEFAULT_FLAGSMASK (~FLAGS_NON_SECURITY_BITS)
-
-    keyrequest.attribute_mask.flags = TSEAL_DEFAULT_FLAGSMASK;
+    keyrequest.attribute_mask.flags = SGX_FLAGS_INITIALIZED | SGX_FLAGS_DEBUG | \
+				      SGX_FLAGS_RESERVED_BIT3;
     keyrequest.attribute_mask.xfrm = 0x0;
     keyrequest.key_policy = KEYPOLICY_MRSIGNER;
 
@@ -204,13 +208,13 @@ int init_enclave_key(void) {
     memset(&tmp_report, 0, sizeof(sgx_report_t));
     int ret = sgx_get_report(&tmp_target_info, &tmp_report_data, &tmp_report);
     if (ret) {
-        SGX_DBG(DBG_E, "Can't get report\n");
+        SGX_DBG(DBG_E, "Failed to get enclave report\n");
         return -PAL_ERROR_DENIED;
     }
 
-    memcpy(&(keyrequest.cpu_svn), &(tmp_report.body.cpu_svn), sizeof(sgx_cpu_svn_t));
-    memcpy(&(keyrequest.isv_svn), &(tmp_report.body.isv_svn), sizeof(sgx_isv_svn_t));
-    keyrequest.config_svn = tmp_report.body.config_svn;
+    memcpy(&keyrequest.cpu_svn, &tmp_report.body.cpu_svn, sizeof(sgx_cpu_svn_t));
+    memcpy(&keyrequest.isv_svn, &tmp_report.body.isv_svn, sizeof(sgx_isv_svn_t));
+    memcpy(&keyrequest.config_svn, &tmp_report.body.config_svn, sizeof(sgx_config_svn_t));
 
     // Get a random number to populate the key_id of the key_request
     ret = _DkRandomBitsRead(&keyrequest.key_id, sizeof(keyrequest.key_id));
@@ -218,9 +222,10 @@ int init_enclave_key(void) {
         SGX_DBG(DBG_E, "Failed to generate a random id: %d\n", ret);
         return ret;
     }
+
     ret = sgx_getkey(&keyrequest, &g_enclave_key);
     if (ret) {
-        SGX_DBG(DBG_E, "Can't get seal key\n");
+        SGX_DBG(DBG_E, "Failed to get enclave seal key\n");
         return -PAL_ERROR_DENIED;
     }
 
