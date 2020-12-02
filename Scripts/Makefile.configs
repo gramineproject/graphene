@@ -47,9 +47,6 @@ ARCH_LONG := $(SYS)
 DEBUG ?=
 export DEBUG
 
-SGX_PROFILE ?=
-export SGX_PROFILE
-
 CFLAGS += -Wall -std=c11 -Wmissing-prototypes
 CXXFLAGS += -Wall -std=c++14
 
@@ -60,15 +57,6 @@ ASFLAGS += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
 CXXFLAGS += -DDEBUG
-endif
-
-ifeq ($(SGX_PROFILE),1)
-ifneq ($(DEBUG),1)
-$(error SGX_PROFILE needs DEBUG)
-endif
-CFLAGS += -DSGX_PROFILE
-ASFLAGS += -DSGX_PROFILE
-CXXFLAGS += -DSGX_PROFILE
 endif
 
 ifeq ($(DEBUG),)

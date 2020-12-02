@@ -308,7 +308,7 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
         ret = -EINVAL;
         goto out;
     }
-#ifdef SGX_PROFILE
+#ifdef DEBUG
     if (!profile_str || !strcmp(profile_str, "none")) {
         // do not enable
     } else if (!strcmp(profile_str, "main")) {
@@ -329,7 +329,7 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
 #else
     __UNUSED(first_process);
     if (profile_str && strcmp(profile_str, "none")) {
-        SGX_DBG(DBG_E, "Cannot use \'sgx.profile\' when compiled without SGX_PROFILE\n");
+        SGX_DBG(DBG_E, "Cannot use \'sgx.profile\' when compiled without DEBUG\n");
         ret = -EINVAL;
         goto out;
     }

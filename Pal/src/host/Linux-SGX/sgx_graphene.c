@@ -29,7 +29,7 @@ static int fputch(void* f, int ch, struct printbuf* b) {
     return 0;
 }
 
-static int vprintf(int fd, const char* fmt, va_list ap) {
+static int vfdprintf(int fd, const char* fmt, va_list ap) {
     struct printbuf b;
 
     b.idx = 0;
@@ -45,7 +45,7 @@ int pal_fdprintf(int fd, const char* fmt, ...) {
     int cnt;
 
     va_start(ap, fmt);
-    cnt = vprintf(fd, fmt, ap);
+    cnt = vfdprintf(fd, fmt, ap);
     va_end(ap);
 
     return cnt;
@@ -56,7 +56,7 @@ int pal_printf(const char* fmt, ...) {
     int cnt;
 
     va_start(ap, fmt);
-    cnt = vprintf(2, fmt, ap);
+    cnt = vfdprintf(2, fmt, ap);
     va_end(ap);
 
     return cnt;

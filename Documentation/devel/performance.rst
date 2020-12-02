@@ -513,7 +513,7 @@ SGX profiling
 There is some experimental support for profiling the code inside the SGX
 enclave. Here is how to use it:
 
-#. Compile Graphene with ``SGX=1 SGX_PROFILE=1 DEBUG=1``.
+#. Compile Graphene with ``SGX=1 DEBUG=1``.
 
 #. Make sure to install Python package ``pyelftools`` (e.g. ``sudo apt-get
    install python-pyelftools``).

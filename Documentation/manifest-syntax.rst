@@ -468,7 +468,7 @@ SGX profiling
     (Default: "none")
 
 This syntax specifies whether to enable SGX profiling. Graphene must be compiled
-with ``DEBUG=1`` and ``SGX_PROFILE=1`` for this option to work.
+with ``DEBUG=1`` for this option to work.
 
 If this option is set to ``main``, the main process will collect IP samples and
 save them as ``sgx-profile.data``. If it is set to ``all``, all processes will

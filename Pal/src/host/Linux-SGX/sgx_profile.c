@@ -9,7 +9,7 @@
  * loaded objects, so that the resulting file can be converted to a report.
  */
 
-#ifdef SGX_PROFILE
+#ifdef DEBUG
 
 #include <assert.h>
 #include <errno.h>
@@ -254,4 +254,4 @@ void sgx_profile_sample(void* tcs) {
     }
 }
 
-#endif /* SGX_PROFILE */
+#endif /* DEBUG */

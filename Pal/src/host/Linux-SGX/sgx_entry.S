@@ -69,7 +69,7 @@ async_exit_pointer:
 	# increment per-thread AEX counter for stats
 	lock incq %gs:PAL_TCB_URTS_AEX_CNT
 
-#ifdef SGX_PROFILE
+#ifdef DEBUG
 	# Save ERESUME parameters
 	pushq %rax
 	.cfi_adjust_cfa_offset 8

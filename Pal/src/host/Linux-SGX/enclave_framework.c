@@ -38,14 +38,14 @@ bool sgx_is_completely_outside_enclave(const void* addr, size_t size) {
 }
 
 /*
- * When SGX_PROFILE is enabled, we run some code on asynchronous enclave exit (AEX) that uses the
- * stack. Make sure to update URSP so that the AEX handler does not overwrite the part of the stack
- * that we just allocated.
+ * When DEBUG is enabled, we run sgx_profile_sample() during asynchronous enclave exit (AEX), which
+ * uses the stack. Make sure to update URSP so that the AEX handler does not overwrite the part of
+ * the stack that we just allocated.
  *
  * (Recall that URSP is an outside stack pointer, saved by EENTER and restored on AEX by the SGX
  * hardware itself.)
  */
-#if SGX_PROFILE
+#ifdef DEBUG
 
 #define UPDATE_USTACK(_ustack)                           \
     do {                                                 \
