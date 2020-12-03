@@ -18,7 +18,6 @@ project(
 
 prefix = get_option('prefix')
 pkglibdir = join_paths(get_option('libdir'), meson.project_name())
-pkglibexecdir = join_paths(get_option('libexecdir'), meson.project_name())
 pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 
 direct = get_option('direct') == 'enabled'
