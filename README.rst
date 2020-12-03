@@ -63,7 +63,7 @@ are available <https://graphene.readthedocs.io/en/latest/building.html>`__.
 How to run an application in Graphene?
 ======================================
 
-Graphene library OS uses `pal_loader` utility as a loader to bootstrap
+Graphene library OS uses :program:`pal_loader` utility as a loader to bootstrap
 applications in the library OS::
 
    [PATH TO Runtime]/pal_loader [EXECUTABLE] [ARGUMENTS]...
