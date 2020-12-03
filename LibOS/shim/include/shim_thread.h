@@ -204,15 +204,21 @@ static inline void thread_setwait(struct shim_thread** queue, struct shim_thread
 static inline int thread_sleep(uint64_t timeout_us) {
     struct shim_thread* cur_thread = get_cur_thread();
 
-    if (!cur_thread)
+    if (!cur_thread) {
+        debug("thread_sleep:%d\n", __LINE__);
         return -EINVAL;
+    }
 
     PAL_HANDLE event = cur_thread->scheduler_event;
-    if (!event)
+    if (!event) {
+        debug("thread_sleep:%d\n", __LINE__);
         return -EINVAL;
+    }
 
-    if (!DkSynchronizationObjectWait(event, timeout_us))
+    if (!DkSynchronizationObjectWait(event, timeout_us)) {
+        debug("thread_sleep:%d: PAL_ERRNO()=%ld\n", __LINE__, PAL_ERRNO());
         return -PAL_ERRNO();
+    }
 
     return 0;
 }
