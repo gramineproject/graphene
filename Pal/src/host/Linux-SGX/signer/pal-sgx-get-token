@@ -4,7 +4,6 @@
 import sys
 import os
 import pathlib
-import warnings
 
 try:
     fspath = os.fspath
@@ -17,7 +16,4 @@ sys.path.insert(0, fspath(pathlib.Path(__file__).parent.parent))
 sys.path.insert(0, fspath((pathlib.Path(__file__) / '../../../../../../python').resolve()))
 from graphenelibos.sgx_get_token import main
 
-warnings.warn(
-    'pal-sgx-get-token is deprecated, please install graphene and use graphene-sgx-get-token',
-    DeprecationWarning)
 sys.exit(main())
