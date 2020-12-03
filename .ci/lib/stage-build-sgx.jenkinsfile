@@ -29,6 +29,7 @@ stage('build') {
     try {
         sh '''
             meson setup build \
+                -Dlibexecdir=lib \
                 -Ddirect=disabled \
                 -Dsgx=enabled
             ninja -C build
