@@ -31,8 +31,8 @@ static void* g_high = &g_mem_pool[POOL_SIZE];
 
 #define STARTUP_SIZE 2
 
-static inline void* __malloc(int size);
-static inline void __free(void* addr, int size);
+static inline void* __malloc(size_t size);
+static inline void __free(void* addr, size_t size);
 #define system_malloc(size) __malloc(size)
 #define system_free(addr, size) __free(addr, size)
 
@@ -40,8 +40,10 @@ static inline void __free(void* addr, int size);
 
 /* caller (slabmgr.h) releases g_slab_mgr_lock before calling this function (this must be reworked
  * in the future), so grab the lock again to protect g_low/g_high */
-static inline void* __malloc(int size) {
+static inline void* __malloc(size_t size) {
     void* addr = NULL;
+
+    size = ALIGN_UP(size, MIN_MALLOC_ALIGNMENT);;
 
 #if STATIC_SLAB == 1
     SYSTEM_LOCK();
@@ -78,7 +80,7 @@ static inline void* __malloc(int size) {
 
 /* caller (slabmgr.h) releases g_slab_mgr_lock before calling this function (this must be reworked
  * in the future), so grab the lock again to protect g_low/g_high */
-static inline void __free(void* addr, int size) {
+static inline void __free(void* addr, size_t size) {
     if (!addr)
         return;
 #if STATIC_SLAB == 1
