@@ -705,7 +705,6 @@ static int init_trusted_file(const char* key, const char* uri) {
     int ret;
 
     /* read sgx.trusted_checksum.<key> entry from manifest */
-    assert(g_pal_state.manifest_root);
     char* fullkey = alloc_concat("sgx.trusted_checksum.", static_strlen("sgx.trusted_checksum."),
                                  key, strlen(key));
     if (!fullkey)

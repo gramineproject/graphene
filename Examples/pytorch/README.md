@@ -37,5 +37,5 @@ Run `make` to build the non-SGX version and `make SGX=1` to build the SGX versio
 Execute any one of the following commands to run the workload
 
 - natively: `python3 pytorchexample.py`
-- Graphene w/o SGX: `./pal_loader ./python3.manifest ./pytorchexample.py`
-- Graphene with SGX: `SGX=1 ./pal_loader ./python3.manifest ./pytorchexample.py`
+- Graphene w/o SGX: `./pal_loader ./python3 ./pytorchexample.py`
+- Graphene with SGX: `SGX=1 ./pal_loader ./python3 ./pytorchexample.py`

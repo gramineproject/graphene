@@ -406,7 +406,6 @@ out:
 /* Read PF paths from manifest and register them */
 static int register_protected_files(void) {
     int ret;
-    assert(g_pal_state.manifest_root);
     toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
     if (!manifest_sgx)
         return 0;
@@ -461,8 +460,6 @@ int init_protected_files(void) {
 
     pf_set_callbacks(cb_read, cb_write, cb_truncate, cb_aes_gcm_encrypt, cb_aes_gcm_decrypt,
                      cb_random, debug_callback);
-
-    assert(g_pal_state.manifest_root);
 
     /* if wrap key is not hard-coded in the manifest, assume that it was received from parent or
      * it will be provisioned after local/remote attestation; otherwise read it from manifest */

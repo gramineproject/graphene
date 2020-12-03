@@ -397,8 +397,6 @@ int _DkAttestationQuote(const PAL_PTR user_report_data, PAL_NUM user_report_data
     sgx_spid_t spid;
     bool linkable;
 
-    assert(g_pal_state.manifest_root);
-
     /* read sgx.ra_client_spid from manifest (must be hex string) */
     char* ra_client_spid_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "sgx.ra_client_spid", &ra_client_spid_str);

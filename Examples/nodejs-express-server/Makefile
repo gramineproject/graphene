@@ -81,7 +81,7 @@ pal_loader:
 
 .PHONY: check
 check: all
-	./pal_loader nodejs.manifest helloworld.js 3000 & SERVER_ID=$$!; \
+	./pal_loader ./nodejs helloworld.js 3000 & SERVER_ID=$$!; \
 	sleep 3; \
 	curl localhost:3000 > OUTPUT; \
 	kill -9 $$SERVER_ID;

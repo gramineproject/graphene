@@ -28,8 +28,6 @@ struct pal_sec {
     PAL_PTR     exec_addr;
     PAL_NUM     exec_size;
 
-    PAL_SEC_STR manifest_name;
-
     /* child's stream FD created and sent over by parent */
     PAL_IDX stream_fd;
 

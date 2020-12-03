@@ -24,7 +24,6 @@ executables = \
 	AttestationReport \
 	avl_tree_test \
 	Bootstrap \
-	Bootstrap2 \
 	Bootstrap3 \
 	Bootstrap7 \
 	Directory \
@@ -60,9 +59,7 @@ executables = \
 
 manifests = \
 	manifest \
-	Bootstrap2.manifest \
 	Bootstrap3.manifest \
-	Bootstrap4.manifest \
 	Bootstrap6.manifest \
 	Bootstrap7.manifest \
 	File.manifest \
@@ -74,7 +71,6 @@ manifests = \
 	Thread2_exitless.manifest
 
 target = \
-	Bootstrap4 \
 	Bootstrap6 \
 	Thread2_exitless \
 	$(executables) \
@@ -118,7 +114,7 @@ $(executables): %: %.c $(LDLIBS-executables)
 # Handle multiple tests which share one binary (Graphene requires 1-1 manifest-executable
 # correspondence).
 
-Bootstrap4 Bootstrap6: Bootstrap
+Bootstrap6: Bootstrap
 	$(call cmd,ln_sfr)
 
 Thread2_exitless: Thread2
