@@ -108,6 +108,7 @@ int _DkEventWait(PAL_HANDLE event) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
                 } else {
+                    warn("_DkEventWait: error %d\n", ERRNO(ret));
                     ret = unix_to_pal_error(ERRNO(ret));
                     break;
                 }
