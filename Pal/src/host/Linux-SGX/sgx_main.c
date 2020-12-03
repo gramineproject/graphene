@@ -301,6 +301,13 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
     }
     g_sgx_enable_stats = !!enable_stats_int64;
 
+    ret = read_enclave_token(enclave->token, &enclave_token);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Reading enclave token failed: %d\n", -ret);
+        goto out;
+    }
+    enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
+
     char* profile_str = NULL;
     ret = toml_string_in(enclave->manifest_root, "sgx.profile", &profile_str);
     if (ret < 0) {
@@ -309,22 +316,34 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
         goto out;
     }
 #ifdef DEBUG
+    bool enable_profile = false;
+    bool enable_profile_all = false;
+
     if (!profile_str || !strcmp(profile_str, "none")) {
         // do not enable
     } else if (!strcmp(profile_str, "main")) {
         if (first_process) {
-            ret = sgx_profile_init(/*all=*/false);
-            if (ret < 0)
-                goto out;
+            enable_profile = true;
         }
     } else if (!strcmp(profile_str, "all")) {
-        ret = sgx_profile_init(/*all=*/true);
-        if (ret < 0)
-            goto out;
+        enable_profile = true;
+        enable_profile_all = true;
     } else {
         SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be \"none', \"main\" or \"all\")\n");
         ret = -EINVAL;
         goto out;
+    }
+
+    if (enable_profile) {
+        if (!(enclave->pal_sec.enclave_attributes.flags & SGX_FLAGS_DEBUG)) {
+            SGX_DBG(DBG_E, "Cannot use \'sgx.profile\' with a production enclave\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        ret = sgx_profile_init(/*all=*/enable_profile_all);
+        if (ret < 0)
+            goto out;
     }
 #else
     __UNUSED(first_process);
@@ -334,13 +353,6 @@ static int initialize_enclave(struct pal_enclave* enclave, bool first_process) {
         goto out;
     }
 #endif
-
-    ret = read_enclave_token(enclave->token, &enclave_token);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "Reading enclave token failed: %d\n", -ret);
-        goto out;
-    }
-    enclave->pal_sec.enclave_attributes = enclave_token.body.attributes;
 
     ret = read_enclave_sigstruct(enclave->sigfile, &enclave_sigstruct);
     if (ret < 0) {

@@ -245,6 +245,12 @@ void sgx_profile_sample(void* tcs) {
             counter->count += dt;
         } else {
             counter = malloc(sizeof(*counter));
+            if (!counter) {
+                SGX_DBG(DBG_E, "sgx_profile_sample: out of memory\n");
+                spinlock_unlock(&g_profile_lock);
+                return;
+            }
+
             counter->ip = ip;
             counter->count = dt;
             HASH_ADD_PTR(g_counters, ip, counter);
