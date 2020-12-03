@@ -186,8 +186,8 @@ Python as the actual executable). For illustrative purposes, we will look at
 only a few entries of the file. Note that we can simply ignore SGX-specific keys
 (starting with the ``sgx.`` prefix) for our non-SGX run.
 
-Notice that the manifest file is not fully secure because it propagates
-untrusted command-line arguments and environment variables into the enclave. We
+Notice that the manifest file is not secure because it propagates untrusted
+command-line arguments and environment variables into the enclave. We
 keep these work-arounds in this tutorial for simplicity, but this configuration
 must not be used in production::
 
@@ -229,11 +229,11 @@ This command will autogenerate a couple new files:
    also create a symlink to the Python binary, with the name corresponding to
    the manifest.
 
-Now, launch Graphene with the generated manifest via ``pal_loader``. You can
-simply append the arguments after the manifest name.  Our example takes
+Now, launch Graphene via ``pal_loader``. You can simply append the arguments
+after the executable name.  Our example takes
 ``pytorchexample.py`` as an argument::
 
-   ./pal_loader python3.manifest pytorchexample.py
+   ./pal_loader ./python3 pytorchexample.py
 
 That's it. You have run the PyTorch example with Graphene. You can check
 ``result.txt`` to make sure it ran correctly.
@@ -306,7 +306,7 @@ After running this command and building all the required files, we can simply
 set ``SGX=1`` environment variable and use ``pal_loader`` to launch the PyTorch
 workload inside an SGX enclave::
 
-   SGX=1 ./pal_loader python3.manifest.sgx pytorchexample.py
+   SGX=1 ./pal_loader ./python3 pytorchexample.py
 
 It will run exactly the same Python script but inside the SGX enclave. Again,
 you can verify that PyTorch ran correctly by examining ``result.txt``.
@@ -538,7 +538,7 @@ We are ready to run the end-to-end PyTorch example. Notice that we didn't change
 a line of code in the Python script. Moreover, we can run it with exactly the
 same command used in the previous section::
 
-   SGX=1 ./pal_loader python3.manifest pytorchexample.py
+   SGX=1 ./pal_loader ./python3 pytorchexample.py
 
 This should run PyTorch with encrypted input files and generate the encrypted
 ``result.txt`` output file. Note that we already launched the secret

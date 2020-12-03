@@ -1,2 +1,0 @@
-loader.debug_type = "inline"
-loader.argv0_override = "Bootstrap2"

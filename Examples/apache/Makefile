@@ -256,7 +256,7 @@ start-native-server: all clean-server
 .PHONY: start-graphene-server
 start-graphene-server: all clean-server
 	@echo "Listen on $(LISTEN_HOST):$(LISTEN_PORT)"
-	$(PREFIX) ./pal_loader httpd.manifest -D FOREGROUND \
+	$(PREFIX) ./pal_loader ./httpd -D FOREGROUND \
 		-f conf/httpd-graphene.conf \
 		-C "LoadModule mpm_prefork_module modules/mod_mpm_prefork.so" \
 		-C "Listen $(LISTEN_HOST):$(LISTEN_PORT)" \
@@ -276,7 +276,7 @@ start-native-multithreaded-server: all clean-server
 .PHONY: start-graphene-multithreaded-server
 start-graphene-multithreaded-server: all clean-server
 	@echo "Listen on $(LISTEN_HOST):$(LISTEN_PORT)"
-	$(PREFIX) ./pal_loader httpd.manifest -D FOREGROUND \
+	$(PREFIX) ./pal_loader ./httpd -D FOREGROUND \
 		-f conf/httpd-graphene.conf \
 		-C "LoadModule mpm_worker_module modules/mod_mpm_worker.so" \
 		-C "Listen $(LISTEN_HOST):$(LISTEN_PORT)" \

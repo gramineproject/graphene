@@ -142,7 +142,7 @@ RA_CLIENT_SPID=12345678901234567890123456789012 RA_CLIENT_LINKABLE=0 make app cl
 
 SGX=1 ./pal_loader ./server epid &
 
-RA_TLS_EPID_API_KEY=12345678901234567890123456789012 SGX=1 ./pal_loader client_epid.manifest.sgx epid
+RA_TLS_EPID_API_KEY=12345678901234567890123456789012 SGX=1 ./pal_loader ./client_epid epid
 
 # client will successfully connect to the server via RA-TLS/EPID flows
 kill %%
@@ -156,7 +156,7 @@ make app client_dcap.manifest.sgx
 
 SGX=1 ./pal_loader ./server dcap &
 
-SGX=1 ./pal_loader client_dcap.manifest.sgx dcap
+SGX=1 ./pal_loader ./client_dcap dcap
 
 # client will successfully connect to the server via RA-TLS/DCAP flows
 kill %%

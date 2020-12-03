@@ -193,6 +193,10 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
+    /* Initialize alloc_align as early as possible, a lot of PAL APIs depend on this being set. */
+    g_pal_state.alloc_align = _DkGetAllocationAlignment();
+    assert(IS_POWER_OF_2(g_pal_state.alloc_align));
+
     struct pal_sec sec_info;
     if (!sgx_copy_to_enclave(&sec_info, sizeof(sec_info), uptr_sec_info, sizeof(*uptr_sec_info))) {
         SGX_DBG(DBG_E, "Copying sec_info into the enclave failed\n");
@@ -239,9 +243,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     COPY_ARRAY(g_pal_sec.exec_name, sec_info.exec_name);
     g_pal_sec.exec_name[sizeof(g_pal_sec.exec_name) - 1] = '\0';
-
-    COPY_ARRAY(g_pal_sec.manifest_name, sec_info.manifest_name);
-    g_pal_sec.manifest_name[sizeof(g_pal_sec.manifest_name) - 1] = '\0';
 
     g_pal_sec.stream_fd = sec_info.stream_fd;
 
@@ -305,9 +306,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     /* now we can add a link map for PAL itself */
     setup_pal_map(&g_pal_map);
-
-    /* Set the alignment early */
-    g_pal_state.alloc_align = g_page_size;
 
     /* initialize enclave properties */
     rv = init_enclave();
@@ -379,9 +377,8 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
      * read anything.
      */
 
-    PAL_HANDLE manifest, exec = NULL;
+    PAL_HANDLE exec = NULL;
 
-    manifest = setup_dummy_file_handle(g_pal_sec.manifest_name);
     exec = setup_dummy_file_handle(g_pal_sec.exec_name);
 
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
@@ -390,7 +387,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_control.manifest_preload.start = (PAL_PTR)manifest_addr;
     g_pal_control.manifest_preload.end   = (PAL_PTR)manifest_addr + manifest_size;
 
-    /* parse manifest data into config storage */
+    /* parse manifest */
     char errbuf[256];
     toml_table_t* manifest_root = toml_parse(manifest_addr, errbuf, sizeof(errbuf));
     if (!manifest_root) {
@@ -399,6 +396,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
                 "  (in particular, string values must be put in double quotes)\n", errbuf);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
+    g_pal_state.raw_manifest_data = manifest_addr;
     g_pal_state.manifest_root = manifest_root;
 
     ret = toml_sizestring_in(g_pal_state.manifest_root, "loader.pal_internal_mem_size",
@@ -450,6 +448,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
 
     /* call main function */
-    pal_main(g_pal_sec.instance_id, manifest, exec, g_pal_sec.exec_addr, parent, first_thread,
-             arguments, environments);
+    pal_main(g_pal_sec.instance_id, exec, g_pal_sec.exec_addr, parent, first_thread, arguments,
+             environments);
 }

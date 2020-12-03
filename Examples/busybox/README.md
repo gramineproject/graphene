@@ -16,27 +16,11 @@ make SGX=1
 
 # run Busybox shell in non-SGX Graphene
 ./pal_loader busybox sh
-# or
-./pal_loader busybox.manifest sh
 
 # run Busybox shell in Graphene-SGX
 SGX=1 ./pal_loader busybox sh
-# or
-SGX=1 ./pal_loader busybox.manifest.sgx sh
 
 # now a shell session should be running e.g. typing:
 ls
 # should run program `ls` which lists current working directory
-```
-
-Note that busybox can also be started via a manifest file (which contains path
-to the busybox binary):
-
-```sh
-   ./busybox.manifest sh         # to run a shell
-   ./busybox.manifest ls -l      # to list local directory
-
-   # or under SGX:
-   ./busybox.manifest.sgx sh     # to run a shell
-   ./busybox.manifest.sgx ls -l  # to list local directory
 ```

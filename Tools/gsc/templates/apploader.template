@@ -17,8 +17,8 @@ then
     done
 
     # Run the application in Graphene
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}}.manifest.sgx {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
+    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}} {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}
 else
     # Run the application in Graphene
-    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}}.manifest {{binary_arguments}} "${@}"
+    /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}} {{binary_arguments}} "${@}"
 fi

@@ -25,12 +25,12 @@ make SGX=1
 kill -SIGINT %%
 
 # run Nginx in non-SGX Graphene against a benchmark
-./pal_loader ./nginx.manifest -c conf/nginx-graphene.conf &
+./pal_loader ./nginx -c conf/nginx-graphene.conf &
 ./benchmark-http.sh 127.0.0.1:8002
 kill -SIGINT %%
 
 # run Nginx in Graphene-SGX against a benchmark
-SGX=1 ./pal_loader ./nginx.manifest -c conf/nginx-graphene.conf &
+SGX=1 ./pal_loader ./nginx -c conf/nginx-graphene.conf &
 ./benchmark-http.sh 127.0.0.1:8002
 kill -SIGINT %%
 

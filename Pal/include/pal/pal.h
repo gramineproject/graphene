@@ -13,6 +13,8 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#include "toml.h"
+
 #if defined(__i386__) || defined(__x86_64__)
 #include "cpu.h"
 #endif
@@ -130,11 +132,12 @@ typedef struct PAL_CONTROL_ {
     /*
      * Handles and executables
      */
-    PAL_HANDLE manifest_handle; /*!< program manifest */
-    PAL_STR executable;         /*!< executable name */
-    PAL_HANDLE parent_process;  /*!< handle of parent process */
-    PAL_HANDLE first_thread;    /*!< handle of first thread */
-    PAL_BOL enable_debug_log;   /*!< enable debug log calls */
+
+    toml_table_t* manifest_root; /*!< program manifest */
+    PAL_STR executable;          /*!< executable name */
+    PAL_HANDLE parent_process;   /*!< handle of parent process */
+    PAL_HANDLE first_thread;     /*!< handle of first thread */
+    PAL_BOL enable_debug_log;    /*!< enable debug log calls */
 
     /*
      * Memory layout

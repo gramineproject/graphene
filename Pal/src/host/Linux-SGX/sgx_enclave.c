@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+/* Copyright (C) 2014 Stony Brook University
+ */
 #include "sgx_enclave.h"
 
 #include <asm/errno.h>
@@ -14,6 +17,7 @@
 
 #include "cpu.h"
 #include "ecall_types.h"
+#include "linux_utils.h"
 #include "ocall_types.h"
 #include "pal_linux_error.h"
 #include "pal_security.h"
@@ -288,13 +292,34 @@ static long sgx_ocall_clone_thread(void* pms) {
 }
 
 static long sgx_ocall_create_process(void* pms) {
+    long ret;
+    char* manifest = NULL;
+    char* manifest_path = NULL;
+
     ms_ocall_create_process_t* ms = (ms_ocall_create_process_t*)pms;
     ODEBUG(OCALL_CREATE_PROCESS, ms);
-    long ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd);
-    if (ret < 0)
-        return ret;
+
+    /* Temporary solution, will be removed after introduction of centralized manifests. */
+    manifest_path = alloc_concat(ms->ms_uri + URI_PREFIX_FILE_LEN, -1, ".manifest.sgx", -1);
+    if (!manifest_path) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    ret = read_text_file_to_cstr(manifest_path, &manifest);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd, manifest);
+    if (ret < 0) {
+        goto out;
+    }
     ms->ms_pid = ret;
-    return 0;
+    ret = 0;
+out:
+    free(manifest_path);
+    free(manifest);
+    return ret;
 }
 
 static long sgx_ocall_futex(void* pms) {
