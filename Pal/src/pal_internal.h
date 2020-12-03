@@ -149,12 +149,9 @@ extern struct pal_internal_state {
 
     PAL_HANDLE      parent_process;
 
-    const char*     manifest;
-    PAL_HANDLE      manifest_handle;
-
+    const char*     raw_manifest_data;
     toml_table_t*   manifest_root;
 
-    const char*     exec;
     PAL_HANDLE      exec_handle;
 
     /* May not be the same as page size, see e.g. SYSTEM_INFO::dwAllocationGranularity on Windows.
@@ -183,20 +180,21 @@ extern PAL_CONTROL g_pal_control;
  * This function must be called by the host-specific loader.
  *
  * \param instance_id       current instance id
- * \param manifest_handle   manifest handle if opened
- * \param exec_handle       executable handle if opened
  * \param exec_loaded_addr  executable addr if loaded
  * \param parent_process    parent process if it's a child
  * \param first_thread      first thread handle
  * \param arguments         application arguments
  * \param environments      environment variables
  */
-noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE manifest_handle, PAL_HANDLE exec_handle,
-                       PAL_PTR exec_loaded_addr, PAL_HANDLE parent_process, PAL_HANDLE first_thread,
-                       PAL_STR* arguments, PAL_STR* environments);
+noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE exec_handle, PAL_PTR exec_loaded_addr,
+                       PAL_HANDLE parent_process, PAL_HANDLE first_thread, PAL_STR* arguments,
+                       PAL_STR* environments);
 
 /* For initialization */
+
+/* Called very early, its implementation should have no dependencies. */
 unsigned long _DkGetAllocationAlignment(void);
+
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end);
 bool _DkCheckMemoryMappable(const void* addr, size_t size);
 PAL_NUM _DkGetProcessId(void);

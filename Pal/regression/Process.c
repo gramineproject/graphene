@@ -10,11 +10,6 @@ int main(int argc, char** argv, char** envp) {
     if (argc > 1 && !memcmp(argv[1], "Child", 6)) {
         pal_printf("Child Process Created\n");
 
-        /* check manifest name */
-        char manifest[30] = "";
-        DkStreamGetName(pal_control.manifest_handle, manifest, 30);
-        pal_printf("Loaded Manifest: %s\n", manifest);
-
         /* check arguments */
         pal_printf("# of Arguments: %d\n", argc);
         for (int i = 0; i < argc; i++) {

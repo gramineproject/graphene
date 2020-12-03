@@ -288,6 +288,9 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         .flags   = skip_eextend ? 0 : SGX_PAGE_MEASURE,
         .count   = 0, /* output parameter, will be checked after IOCTL */
     };
+    /* DCAP and in-kernel drivers require aligned data */
+    assert(IS_ALIGNED_POW2(param.src, g_page_size));
+    assert(IS_ALIGNED_POW2(param.offset, g_page_size));
 
     /* NOTE: SGX driver v39 removes `count` field and returns "number of bytes added" as return
      * value directly in `ret`. It also caps the maximum number of bytes to be added as 1MB, or 256

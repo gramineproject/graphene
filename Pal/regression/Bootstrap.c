@@ -16,11 +16,6 @@ int main(int argc, char** argv, char** envp) {
     /* check executable name */
     pal_printf("Loaded Executable: %s\n", pal_control.executable);
 
-    /* check manifest name */
-    char manifest[30];
-    DkStreamGetName(pal_control.manifest_handle, manifest, 30);
-    pal_printf("Loaded Manifest: %s\n", manifest);
-
     /* check arguments */
     pal_printf("# of Arguments: %d\n", argc);
     for (int i = 0; i < argc; i++) {

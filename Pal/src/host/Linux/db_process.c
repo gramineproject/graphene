@@ -92,7 +92,6 @@ out:
 struct proc_param {
     PAL_HANDLE parent;
     PAL_HANDLE exec;
-    PAL_HANDLE manifest;
     const char** argv;
 };
 
@@ -128,8 +127,6 @@ static int __attribute_noinline child_process(struct proc_param* proc_param) {
         handle_set_cloexec(proc_param->parent, false);
     if (proc_param->exec)
         handle_set_cloexec(proc_param->exec, false);
-    if (proc_param->manifest)
-        handle_set_cloexec(proc_param->manifest, false);
 
     int res = INLINE_SYSCALL(execve, 3, g_pal_loader_path, proc_param->argv,
                              g_linux_state.host_environ);
@@ -182,14 +179,14 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     param.parent   = parent_handle;
     param.exec     = exec;
-    param.manifest = g_pal_state.manifest_handle;
 
     /* step 3: compose process parameters */
 
-    size_t parent_datasz = 0, exec_datasz = 0, manifest_datasz = 0;
+    size_t parent_datasz = 0;
+    size_t exec_datasz = 0;
+    size_t manifest_data_size = 0;
     void* parent_data = NULL;
     void* exec_data = NULL;
-    void* manifest_data = NULL;
 
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
@@ -203,17 +200,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     }
     exec_datasz = (size_t)ret;
 
-    if (g_pal_state.manifest_handle) {
-        ret = handle_serialize(g_pal_state.manifest_handle, &manifest_data);
-        if (ret < 0) {
-            free(parent_data);
-            free(exec_data);
-            goto out;
-        }
-        manifest_datasz = (size_t)ret;
-    }
+    manifest_data_size = strlen(g_pal_state.raw_manifest_data);
 
-    size_t datasz = parent_datasz + exec_datasz + manifest_datasz;
+    size_t datasz = parent_datasz + exec_datasz + manifest_data_size;
     struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + datasz);
 
     proc_args->parent_process_id = g_linux_state.parent_process_id;
@@ -232,13 +221,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     data += (proc_args->exec_data_size = exec_datasz);
     free(exec_data);
 
-    if (manifest_data) {
-        memcpy(data, manifest_data, manifest_datasz);
-        data += (proc_args->manifest_data_size = manifest_datasz);
-        free(manifest_data);
-    } else {
-        proc_args->manifest_data_size = 0;
-    }
+    proc_args->manifest_data_size = manifest_data_size;
+    memcpy(data, g_pal_state.raw_manifest_data, manifest_data_size);
+    data += manifest_data_size;
 
     /* step 4: create a child thread which will execve in the future */
 
@@ -304,7 +289,7 @@ out:
 }
 
 void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDLE* exec_handle,
-                        PAL_HANDLE* manifest_handle) {
+                        char** manifest_out) {
     int ret = 0;
 
     /* try to do a very large reading, so it doesn't have to be read for the
@@ -352,20 +337,18 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDL
         *exec_handle = exec;
     }
 
-    /* deserialize the manifest handle, if there is one */
-    if (proc_args->manifest_data_size) {
-        PAL_HANDLE manifest = NULL;
+    char* manifest = malloc(proc_args->manifest_data_size + 1);
+    if (!manifest)
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+    memcpy(manifest, data, proc_args->manifest_data_size);
+    manifest[proc_args->manifest_data_size] = '\0';
+    data += proc_args->manifest_data_size;
 
-        ret = handle_deserialize(&manifest, data, proc_args->manifest_data_size);
-        if (ret < 0)
-            INIT_FAIL(-ret, "cannot deserialize manifest handle");
-
-        data += proc_args->manifest_data_size;
-        *manifest_handle = manifest;
-    }
     g_linux_state.parent_process_id = proc_args->parent_process_id;
     g_linux_state.memory_quota = proc_args->memory_quota;
     memcpy(&g_pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
+
+    *manifest_out = manifest;
 }
 
 noreturn void _DkProcessExit(int exitcode) {

@@ -19,7 +19,7 @@ To build Graphene with debug symbols, the source code needs to be compiled with
 
 To run Graphene with GDB, use the following command to run your application::
 
-    GDB=1 [Graphene Directory]/Runtime/pal_loader [executable|manifest] [arguments]
+    GDB=1 [Graphene Directory]/Runtime/pal_loader [executable] [arguments]
 
 Debugging with SGX support
 --------------------------
@@ -46,4 +46,4 @@ run the following commands::
 To run Graphene with GDB, use the Graphene loader (``pal_loader``) and specify
 ``GDB=1``::
 
-    GDB=1 SGX=1 [Graphene Directory]/Runtime/pal_loader [executable|manifest] [arguments]
+    GDB=1 SGX=1 [Graphene Directory]/Runtime/pal_loader [executable] [arguments]

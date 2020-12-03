@@ -50,20 +50,21 @@ uint16_t ntohs(uint16_t shortval);
 
 extern struct pal_enclave {
     /* attributes */
+    bool is_first_process; // Initial process in Graphene namespace is special.
     unsigned long baseaddr;
     unsigned long size;
     unsigned long thread_num;
     unsigned long rpc_thread_num;
     unsigned long ssaframesize;
+    bool use_static_address;
+    bool remote_attestation_enabled;
+    bool use_epid_attestation; /* Valid only if `remote_attestation_enabled` is true, selects
+                                * EPID/DCAP attestation scheme. */
 
     /* files */
-    int manifest;
     int exec;
     int sigfile;
     int token;
-
-    /* manifest */
-    toml_table_t* manifest_root;
 
     /* Path to the PAL binary */
     char* libpal_uri;
@@ -140,7 +141,7 @@ void thread_exit(int status);
 uint64_t sgx_edbgrd(void* addr);
 void sgx_edbgwr(void* addr, uint64_t data);
 
-int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec);
+int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** manifest);
 int sgx_signal_setup(void);
 int block_signals(bool block, const int* sigs, int nsig);
 int block_async_signals(bool block);

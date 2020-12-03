@@ -103,8 +103,7 @@ static inline void __free(void* addr, int size) {
 static SLAB_MGR g_slab_mgr = NULL;
 
 void init_slab_mgr(int alignment) {
-    if (g_slab_mgr)
-        return;
+    assert(!g_slab_mgr);
 
     g_slab_alignment = alignment;
     g_slab_mgr       = create_slab_mgr();

@@ -212,18 +212,6 @@ def resolve_uri(uri, check_exist=True):
             'Cannot resolve ' + orig_uri + ' or the file does not exist.')
     return target
 
-# Resolve an URI relative to manifest file to its absolute path
-def resolve_manifest_uri(manifest_path, uri):
-    if len(uri) < 2 or not uri.startswith('"') or not uri.endswith('"'):
-        raise Exception('Cannot parse uri `' + uri + '` (must be put in double quotes).')
-    uri = uri[1:-1]
-
-    if not uri.startswith('file:'):
-        raise Exception('URI ' + uri + ' is not a local file')
-    path = uri[len('file:'):]
-    if os.path.isabs(path):
-        return path
-    return os.path.join(os.path.dirname(manifest_path), path)
 
 def get_checksum(filename):
     digest = hashlib.sha256()
@@ -485,8 +473,7 @@ def gen_area_content(attr, areas, enclave_base_addr, enclave_heap_min):
                       enclave_base_addr + sig_stacks[t].addr + sig_stacks[t].size)
         set_tls_field(t, offs.SGX_SSA, ssa)
         set_tls_field(t, offs.SGX_GPR, ssa + SSAFRAMESIZE - offs.SGX_GPR_SIZE)
-        set_tls_field(t, offs.SGX_MANIFEST_SIZE,
-                      os.stat(manifest_area.file).st_size)
+        set_tls_field(t, offs.SGX_MANIFEST_SIZE, len(manifest_area.content))
         set_tls_field(t, offs.SGX_HEAP_MIN, enclave_base_addr + enclave_heap_min)
         set_tls_field(t, offs.SGX_HEAP_MAX, enclave_base_addr + enclave_heap_max)
         if exec_area is not None:
@@ -623,7 +610,7 @@ def generate_measurement(attr, areas):
             include_page(digest, page, flags, start_zero + data + end_zero, True)
 
     for area in areas:
-        if area.file:
+        if area.file is not None:
             with open(area.file, 'rb') as file:
                 if area.is_binary:
                     loadcmds = get_loadcmds(area.file)
@@ -660,7 +647,7 @@ def generate_measurement(attr, areas):
                     start = addr - area.addr
                     end = start + offs.PAGESIZE
                     data = area.content[start:end]
-
+                    data += b'\0' * (offs.PAGESIZE - len(data)) # pad last page
                 include_page(mrenclave, addr, area.flags, data, area.measure)
 
             print_area(area.addr, area.size, area.flags, area.desc,
@@ -879,11 +866,14 @@ def main_sign(args):
 
     output_manifest(args['output'], manifest, manifest_layout)
 
+    with open(args['output'], 'rb') as f:
+        manifest_data = f.read()
+    manifest_data += b'\0' # in-memory manifest needs NULL-termination
+
     memory_areas = [
-        MemoryArea('manifest', file=args['output'],
+        MemoryArea('manifest', content=manifest_data, size=len(manifest_data),
                    flags=PAGEINFO_R | PAGEINFO_REG)
         ] + memory_areas
-
     memory_areas = populate_memory_areas(attr, memory_areas, enclave_base_addr, enclave_heap_min)
 
     print("Memory:")
@@ -893,8 +883,8 @@ def main_sign(args):
     print("    %s" % mrenclave.hex())
 
     # Generate sigstruct
-    open(args['sigfile'], 'wb').write(
-        generate_sigstruct(attr, args, mrenclave))
+    with open(args['sigfile'], 'wb') as f:
+        f.write(generate_sigstruct(attr, args, mrenclave))
     return 0
 
 
