@@ -60,4 +60,24 @@ if sgx
         configuration: conf_graphene_sgx,
         install_dir: get_option('bindir'),
     )
+
+    install_data(
+        'crt1.o',
+        'crti.o',
+        'crtn.o',
+        'ld-linux-x86-64.so.2',
+        'libc.so',
+        'libc.so.6',
+        'libdl.so.2',
+        'libm.so.6',
+        'libnss_dns.so.2',
+        'libpthread.so.0',
+        'libresolv.so.2',
+        'librt.so.1',
+        'libsysdb.a',
+        'libsysdb.so',
+#       'libsysdb_debug.so',
+        'libthread_db.so.1',
+        'libutil.so.1',
+        install_dir: join_paths(pkglibdir, 'sgx', 'runtime'))
 endif
