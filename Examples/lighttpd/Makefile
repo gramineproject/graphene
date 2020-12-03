@@ -164,7 +164,7 @@ start-native-server: all
 
 .PHONY: start-graphene-server
 start-graphene-server: all
-	./pal_loader lighttpd.manifest -D -m $(INSTALL_DIR)/lib -f lighttpd.conf
+	./pal_loader ./lighttpd -D -m $(INSTALL_DIR)/lib -f lighttpd.conf
 
 .PHONY: clean
 clean:

@@ -557,6 +557,7 @@ static void create_instance(struct pal_sec* pal_sec) {
 static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_info) {
     int ret = 0;
     toml_table_t* manifest_root = NULL;
+    char* sgx_ra_client_spid_str = NULL;
 
     char errbuf[256];
     manifest_root = toml_parse(loader_config, errbuf, sizeof(errbuf));
@@ -672,16 +673,17 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
                       &sgx_remote_attestation_int);
     if (ret < 0 || (sgx_remote_attestation_int != 0 && sgx_remote_attestation_int != 1)) {
         SGX_DBG(DBG_E, "Cannot parse \'sgx.remote_attestation\' (the value must be 0 or 1)\n");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
     enclave_info->remote_attestation_enabled = !!sgx_remote_attestation_int;
 
-    char* sgx_ra_client_spid_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.ra_client_spid", &sgx_ra_client_spid_str);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Cannot parse \'sgx.ra_client_spid\' "
                        "(the value must be put in double quotes!)\n");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     int64_t sgx_ra_client_linkable_int;
@@ -689,7 +691,8 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
                       &sgx_ra_client_linkable_int);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Cannot parse \'sgx.ra_client_linkable\'\n");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     if (!enclave_info->remote_attestation_enabled &&
@@ -698,17 +701,17 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
                 "Detected EPID remote attestation parameters \'ra_client_spid\' and/or "
                 "\'ra_client_linkable\' in the manifest but no \'remote_attestation\' parameter. "
                 "Please add \'sgx.remote_attestation = 1\' to the manifest.\n");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     /* EPID is used if SPID is a non-empty string in manifest, otherwise DCAP/ECDSA */
     enclave_info->use_epid_attestation = sgx_ra_client_spid_str && strlen(sgx_ra_client_spid_str);
-    free(sgx_ra_client_spid_str);
-
 
     ret = 0;
 
 out:
+    free(sgx_ra_client_spid_str);
     toml_free(manifest_root);
     return ret;
 }
@@ -774,7 +777,7 @@ static int get_hw_resource(const char* filename, bool count) {
 
 /* Warning: This function does not free up resources on failure - it assumes that the whole process
  * exits after this function's failure. */
-static int load_enclave(struct pal_enclave* enclave, char* loader_config, char* exec_path,
+static int load_enclave(struct pal_enclave* enclave, char* loader_config, const char* exec_path,
                         char* args, size_t args_size, char* env, size_t env_size, bool need_gsgx) {
     struct pal_sec* pal_sec = &enclave->pal_sec;
     int ret;
@@ -973,7 +976,6 @@ static void force_linux_to_grow_stack(void) {
 int main(int argc, char* argv[], char* envp[]) {
     char* manifest_path = NULL;
     char* exec_path = NULL;
-    int exec_fd = -1;
     int ret = 0;
     bool need_gsgx = true;
     char* loader_config = NULL;
@@ -1007,62 +1009,15 @@ int main(int argc, char* argv[], char* envp[]) {
     }
 
     if (first_process) {
-        /* The initial Graphene process is special - it was started by the user, so `exec_path` may
-         * either contain a path to the executable or to a manifest. */
         g_pal_enclave.is_first_process = true;
 
-        exec_path = strdup(argv[3]);
-        if (!exec_path) {
-            ret = -ENOMEM;
-            goto out;
-        }
-
-        if (strendswith(exec_path, ".manifest.sgx")) {
-            manifest_path = strdup(exec_path);
-        } else if (strendswith(exec_path, ".manifest")) {
-            manifest_path = alloc_concat(exec_path, -1, ".sgx", -1);
-        } else {
-            manifest_path = alloc_concat(exec_path, -1, ".manifest.sgx", -1);
-        }
+        exec_path = argv[3];
+        manifest_path = alloc_concat(exec_path, -1, ".manifest.sgx", -1);
         if (!manifest_path) {
             ret = -ENOMEM;
             goto out;
         }
 
-        exec_fd = INLINE_SYSCALL(open, 3, exec_path, O_RDONLY | O_CLOEXEC, 0);
-        if (IS_ERR(exec_fd)) {
-            SGX_DBG(DBG_E, "Input file not found: %s\n", exec_path);
-            goto usage;
-        }
-
-        char file_first_four_bytes[4];
-        ret = INLINE_SYSCALL(read, 3, exec_fd, file_first_four_bytes, sizeof(file_first_four_bytes));
-        if (IS_ERR(ret)) {
-            goto out;
-        }
-        if (ret != sizeof(file_first_four_bytes)) {
-            ret = -EINVAL;
-            goto out;
-        }
-
-        if (memcmp(file_first_four_bytes, "\177ELF", sizeof(file_first_four_bytes))) {
-            /* exec_path doesn't refer to ELF executable, so it must refer to the
-             * manifest. Verify this and update exec_path with the manifest suffix
-             * removed.
-             */
-
-            if (strendswith(exec_path, ".manifest")) {
-                exec_path[strlen(exec_path) - static_strlen(".manifest")] = '\0';
-            } else if (strendswith(exec_path, ".manifest.sgx")) {
-                INLINE_SYSCALL(lseek, 3, exec_fd, 0, SEEK_SET);
-                exec_fd = -1;
-
-                exec_path[strlen(exec_path) - static_strlen(".manifest.sgx")] = '\0';
-            } else {
-                SGX_DBG(DBG_E, "Invalid manifest file specified: %s\n", exec_path);
-                goto out;
-            }
-        }
         SGX_DBG(DBG_I, "Manifest file: %s\n", manifest_path);
         ret = read_text_file_to_cstr(manifest_path, &loader_config);
         if (ret < 0) {
@@ -1125,9 +1080,6 @@ out:
         INLINE_SYSCALL(close, 1, g_pal_enclave.sigfile);
     if (g_pal_enclave.token >= 0)
         INLINE_SYSCALL(close, 1, g_pal_enclave.token);
-    if (!IS_ERR(exec_fd))
-        INLINE_SYSCALL(close, 1, exec_fd);
-    free(exec_path);
 
     return ret;
 

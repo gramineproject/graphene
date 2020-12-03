@@ -866,8 +866,8 @@ def main_sign(args):
 
     output_manifest(args['output'], manifest, manifest_layout)
 
-    with open(args['output'], 'rb') as f:
-        manifest_data = f.read()
+    with open(args['output'], 'rb') as file:
+        manifest_data = file.read()
     manifest_data += b'\0' # in-memory manifest needs NULL-termination
 
     memory_areas = [
@@ -883,8 +883,8 @@ def main_sign(args):
     print("    %s" % mrenclave.hex())
 
     # Generate sigstruct
-    with open(args['sigfile'], 'wb') as f:
-        f.write(generate_sigstruct(attr, args, mrenclave))
+    with open(args['sigfile'], 'wb') as file:
+        file.write(generate_sigstruct(attr, args, mrenclave))
     return 0
 
 

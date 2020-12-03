@@ -112,19 +112,19 @@ int sgx_create_process(const char* uri, size_t nargs, const char** args, int* st
 
     ret = INLINE_SYSCALL(write, 3, fds[1], &proc_args, sizeof(struct proc_args));
     if (IS_ERR(ret) || (size_t)ret != sizeof(struct proc_args)) {
-        ret = -EPERM;
+        ret = IS_ERR(ret) ? -ERRNO(ret) : -EINTR;
         goto out;
     }
 
     ret = INLINE_SYSCALL(write, 3, fds[1], manifest, proc_args.manifest_size);
     if (IS_ERR(ret) || (size_t)ret != proc_args.manifest_size) {
-        ret = -EPERM;
+        ret = IS_ERR(ret) ? -ERRNO(ret) : -EINTR;
         goto out;
     }
 
     ret = INLINE_SYSCALL(read, 3, fds[1], &rete, sizeof(rete));
     if (IS_ERR(ret) || (size_t)ret != sizeof(rete)) {
-        ret = -EPERM;
+        ret = IS_ERR(ret) ? -ERRNO(ret) : -EINTR;
         goto out;
     }
 

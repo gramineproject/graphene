@@ -182,8 +182,8 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     /* step 3: compose process parameters */
 
-    size_t parent_datasz = 0;
-    size_t exec_datasz = 0;
+    size_t parent_data_size = 0;
+    size_t exec_data_size = 0;
     size_t manifest_data_size = 0;
     void* parent_data = NULL;
     void* exec_data = NULL;
@@ -191,19 +191,19 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
         goto out;
-    parent_datasz = (size_t)ret;
+    parent_data_size = (size_t)ret;
 
     ret = handle_serialize(exec, &exec_data);
     if (ret < 0) {
         free(parent_data);
         goto out;
     }
-    exec_datasz = (size_t)ret;
+    exec_data_size = (size_t)ret;
 
     manifest_data_size = strlen(g_pal_state.raw_manifest_data);
 
-    size_t datasz = parent_datasz + exec_datasz + manifest_data_size;
-    struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + datasz);
+    size_t data_size = parent_data_size + exec_data_size + manifest_data_size;
+    struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + data_size);
 
     proc_args->parent_process_id = g_linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &g_pal_sec, sizeof(struct pal_sec));
@@ -213,16 +213,18 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     void* data = (void*)(proc_args + 1);
 
-    memcpy(data, parent_data, parent_datasz);
-    data += (proc_args->parent_data_size = parent_datasz);
+    memcpy(data, parent_data, parent_data_size);
+    proc_args->parent_data_size = parent_data_size;
+    data += parent_data_size;
     free(parent_data);
 
-    memcpy(data, exec_data, exec_datasz);
-    data += (proc_args->exec_data_size = exec_datasz);
+    memcpy(data, exec_data, exec_data_size);
+    proc_args->exec_data_size = exec_data_size;
+    data += exec_data_size;
     free(exec_data);
 
-    proc_args->manifest_data_size = manifest_data_size;
     memcpy(data, g_pal_state.raw_manifest_data, manifest_data_size);
+    proc_args->manifest_data_size = manifest_data_size;
     data += manifest_data_size;
 
     /* step 4: create a child thread which will execve in the future */
@@ -267,9 +269,9 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     /* step 4: send parameters over the process handle */
 
     ret = INLINE_SYSCALL(write, 3, child_handle->process.stream, proc_args,
-                         sizeof(struct proc_args) + datasz);
+                         sizeof(struct proc_args) + data_size);
 
-    if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args) + datasz) {
+    if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args) + data_size) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -306,14 +308,14 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDL
     if (!proc_args->parent_data_size)
         INIT_FAIL(PAL_ERROR_INVAL, "invalid process created");
 
-    size_t datasz = proc_args->parent_data_size + proc_args->exec_data_size
-                    + proc_args->manifest_data_size;
-    new_proc_args = __alloca(sizeof(*proc_args) + datasz);
+    size_t data_size = proc_args->parent_data_size + proc_args->exec_data_size
+                       + proc_args->manifest_data_size;
+    new_proc_args = __alloca(sizeof(*proc_args) + data_size);
     memcpy(new_proc_args, proc_args, sizeof(*proc_args));
     proc_args = new_proc_args;
     void* data = (void*)(proc_args + 1);
 
-    bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, datasz);
+    bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, data_size);
     if (IS_ERR(bytes))
         INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
 

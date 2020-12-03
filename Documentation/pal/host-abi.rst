@@ -28,7 +28,6 @@ is described in :doc:`../manifest-syntax`.
 Manifest and executable loading
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The PAL loader supports multiple ways of locating the manifest and executable.
 To run a program in Graphene properly, the PAL loader generally requires both a
 manifest and an executable. The user shall specify the executable to load in
 the command line, and the PAL loader will try to locate the manifest based on
@@ -39,8 +38,8 @@ Precisely, the loading rules for the manifest and executable are as follows:
 #. The first argument given to :program:`pal_loader` has to be an executable.
 #. The loader will search for the
    manifest in the following order: the same file name as the executable with
-   a `.manifest` or `.manifest.sgx` extension, or `manifest` file without any
-   extension.
+   a ``.manifest`` or ``.manifest.sgx`` extension, or ``manifest`` file
+   without any extension.
 
 Data types and variables
 ------------------------

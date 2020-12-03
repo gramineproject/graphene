@@ -115,13 +115,13 @@ cc1-ldd: cc1
 .PHONY: check
 check: all
 	@echo "\n\nCompiling hello.c..."
-	./pal_loader gcc.manifest test_files/helloworld.c -o test_files/hello
+	./pal_loader ./gcc test_files/helloworld.c -o test_files/hello
 	@chmod 755 test_files/hello
 	-./test_files/hello
 	$(RM) test_files/hello
 
 	@echo "\n\nCompiling bzip2.c..."
-	./pal_loader ./gcc.manifest test_files/bzip2.c -o test_files/bzip2
+	./pal_loader ./gcc test_files/bzip2.c -o test_files/bzip2
 	@chmod 755 test_files/bzip2
 	$(RM) bzip2.tmp
 	@cp -f test_files/bzip2 test_files/bzip2.copy
@@ -131,7 +131,7 @@ check: all
 	$(RM) test_files/bzip2 test_file/bzip2.copy
 
 	@echo "\n\nCompiling gzip.c..."
-	./pal_loader ./gcc.manifest test_files/gzip.c -o test_files/gzip
+	./pal_loader ./gcc test_files/gzip.c -o test_files/gzip
 	@chmod 755 test_files/gzip
 	@cp -f test_files/gzip test_files/gzip.copy
 	./test_files/gzip test_files/gzip.copy

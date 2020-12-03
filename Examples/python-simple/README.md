@@ -42,14 +42,14 @@ Here's an example of running Python scripts under Graphene:
 
 Without SGX:
 ```
-./pal_loader python.manifest scripts/helloworld.py
-./pal_loader python.manifest scripts/fibonacci.py
+./pal_loader ./python scripts/helloworld.py
+./pal_loader ./python scripts/fibonacci.py
 ```
 
 With SGX:
 ```
-SGX=1 ./pal_loader python.manifest scripts/helloworld.py
-SGX=1 ./pal_loader python.manifest scripts/fibonacci.py
+SGX=1 ./pal_loader ./python scripts/helloworld.py
+SGX=1 ./pal_loader ./python scripts/fibonacci.py
 ```
 
 You can also manually run included tests:

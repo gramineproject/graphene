@@ -173,7 +173,7 @@ start-native-server: all
 
 .PHONY: start-graphene-server
 start-graphene-server: all
-	./pal_loader nginx.manifest -c conf/nginx-graphene.conf
+	./pal_loader ./nginx -c conf/nginx-graphene.conf
 
 .PHONY: clean
 clean:

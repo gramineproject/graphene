@@ -4,7 +4,7 @@
 #
 # lighttpd must be run with the pal_loader:
 #
-# ./pal_loader lighttpd.manifest <script>
+# ./pal_loader ./lighttpd <script>
 
 loader.argv0_override = "lighttpd"
 

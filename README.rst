@@ -63,20 +63,11 @@ are available <https://graphene.readthedocs.io/en/latest/building.html>`__.
 How to run an application in Graphene?
 ======================================
 
-Graphene library OS uses the PAL (``libpal.so``) as a loader to bootstrap
-applications in the library OS. To start Graphene, PAL (``libpal.so``) will have
-to be run as an executable, with the name of the program, and a |nbsp| "manifest
-file" (per-app configuration) given from the command line. Graphene provides
-two options for specifying the programs and manifest files:
+Graphene library OS uses `pal_loader` utility as a loader to bootstrap
+applications in the library OS::
 
-- option 1 (automatic manifest)::
-
-   [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
-   (Manifest file: "[PROGRAM].manifest" or "manifest")
-
-- option 2 (given manifest)::
-
-   [PATH TO Runtime]/pal_loader [MANIFEST] [ARGUMENTS]...
+   [PATH TO Runtime]/pal_loader [EXECUTABLE] [ARGUMENTS]...
+   (Manifest file: "[EXECUTABLE].manifest" or "manifest")
 
 Running an application requires some minimal configuration in the application's
 manifest file. A |nbsp| sensible manifest file will include paths to the library

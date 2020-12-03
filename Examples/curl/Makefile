@@ -84,7 +84,7 @@ pal_loader:
 check: all
 	(cd test-docroot; exec python3 -m http.server -b 127.0.0.1 19111) & httpd_pid=$$!; \
 	sleep 1; \
-	./pal_loader curl.manifest http://127.0.0.1:19111/ > OUTPUT; rc=$$?; \
+	./pal_loader ./curl http://127.0.0.1:19111/ > OUTPUT; rc=$$?; \
 	kill $$httpd_pid; exit $$rc
 
 	@grep -q "Hello World" OUTPUT && echo "[ Success 1/1 ]"
