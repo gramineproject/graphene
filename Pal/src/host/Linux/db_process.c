@@ -142,6 +142,8 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     PAL_HANDLE parent_handle = NULL;
     PAL_HANDLE child_handle = NULL;
     struct proc_args* proc_args = NULL;
+    void* parent_data = NULL;
+    void* exec_data = NULL;
     int ret;
 
     assert(uri);
@@ -186,8 +188,6 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     size_t parent_data_size = 0;
     size_t exec_data_size = 0;
     size_t manifest_data_size = 0;
-    void* parent_data = NULL;
-    void* exec_data = NULL;
 
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
@@ -196,7 +196,6 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     ret = handle_serialize(exec, &exec_data);
     if (ret < 0) {
-        free(parent_data);
         goto out;
     }
     exec_data_size = (size_t)ret;
@@ -205,6 +204,10 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     size_t data_size = parent_data_size + exec_data_size + manifest_data_size;
     proc_args = malloc(sizeof(struct proc_args) + data_size);
+    if (!proc_args) {
+        ret = -ENOMEM;
+        goto out;
+    }
 
     proc_args->parent_process_id = g_linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &g_pal_sec, sizeof(struct pal_sec));
@@ -217,12 +220,10 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     memcpy(data, parent_data, parent_data_size);
     proc_args->parent_data_size = parent_data_size;
     data += parent_data_size;
-    free(parent_data);
 
     memcpy(data, exec_data, exec_data_size);
     proc_args->exec_data_size = exec_data_size;
     data += exec_data_size;
-    free(exec_data);
 
     memcpy(data, g_pal_state.raw_manifest_data, manifest_data_size);
     proc_args->manifest_data_size = manifest_data_size;
@@ -280,6 +281,8 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     *handle = child_handle;
     ret = 0;
 out:
+    free(parent_data);
+    free(exec_data);
     free(proc_args);
     if (parent_handle)
         _DkObjectClose(parent_handle);
