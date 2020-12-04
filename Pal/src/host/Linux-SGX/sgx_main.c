@@ -242,9 +242,13 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             TCS,
             TLS
         } data_src;
-        int fd; // valid iff data_src == ELF_FD
-        const char* buf; // valid iff data_src == BUF
-        size_t buf_size; // ^
+        union {
+            int fd; // valid iff data_src == ELF_FD
+            struct { // valid iff data_src == BUF
+                const char* buf;
+                size_t buf_size;
+            };
+        };
 
         unsigned long addr, size, prot;
         enum sgx_page_type type;
