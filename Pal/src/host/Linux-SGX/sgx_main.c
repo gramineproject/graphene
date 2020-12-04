@@ -667,6 +667,7 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
         ret = -EINVAL;
         goto out;
     }
+    free(dummy_sigfile_str);
 
     int64_t sgx_remote_attestation_int;
     ret = toml_int_in(manifest_root, "sgx.remote_attestation", /*defaultval=*/0,

@@ -141,6 +141,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     PAL_HANDLE exec = NULL;
     PAL_HANDLE parent_handle = NULL;
     PAL_HANDLE child_handle = NULL;
+    struct proc_args* proc_args = NULL;
     int ret;
 
     assert(uri);
@@ -203,7 +204,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     manifest_data_size = strlen(g_pal_state.raw_manifest_data);
 
     size_t data_size = parent_data_size + exec_data_size + manifest_data_size;
-    struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + data_size);
+    proc_args = malloc(sizeof(struct proc_args) + data_size);
 
     proc_args->parent_process_id = g_linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &g_pal_sec, sizeof(struct pal_sec));
@@ -279,6 +280,7 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
     *handle = child_handle;
     ret = 0;
 out:
+    free(proc_args);
     if (parent_handle)
         _DkObjectClose(parent_handle);
     if (exec)
@@ -294,63 +296,60 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDL
                         char** manifest_out) {
     int ret = 0;
 
-    /* try to do a very large reading, so it doesn't have to be read for the
-       second time */
-    struct proc_args* proc_args = __alloca(sizeof(struct proc_args));
-    struct proc_args* new_proc_args;
+    struct proc_args proc_args;
 
-    int bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, proc_args, sizeof(*proc_args));
-    if (IS_ERR(bytes)) {
-        INIT_FAIL(-unix_to_pal_error(ERRNO(bytes)), "communication with parent failed");
+    long bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, &proc_args, sizeof(proc_args));
+    if (IS_ERR(bytes) || bytes != sizeof(proc_args)) {
+        int err = IS_ERR(bytes) ? -unix_to_pal_error(ERRNO(bytes)) : PAL_ERROR_INTERRUPTED;
+        INIT_FAIL(err, "communication with parent failed");
     }
 
     /* a child must have parent handle and an executable */
-    if (!proc_args->parent_data_size)
+    if (!proc_args.parent_data_size)
         INIT_FAIL(PAL_ERROR_INVAL, "invalid process created");
 
-    size_t data_size = proc_args->parent_data_size + proc_args->exec_data_size
-                       + proc_args->manifest_data_size;
-    new_proc_args = __alloca(sizeof(*proc_args) + data_size);
-    memcpy(new_proc_args, proc_args, sizeof(*proc_args));
-    proc_args = new_proc_args;
-    char* data = (char*)(proc_args + 1);
+    size_t data_size = proc_args.parent_data_size + proc_args.exec_data_size
+                       + proc_args.manifest_data_size;
+    char* data = malloc(data_size);
 
     bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, data_size);
-    if (IS_ERR(bytes))
+    if (IS_ERR(bytes) || (size_t)bytes != data_size)
         INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
 
     /* now deserialize the parent_handle */
     PAL_HANDLE parent = NULL;
-    ret = handle_deserialize(&parent, data, proc_args->parent_data_size);
+    char* data_iter = data;
+    ret = handle_deserialize(&parent, data_iter, proc_args.parent_data_size);
     if (ret < 0)
         INIT_FAIL(-ret, "cannot deserialize parent process handle");
-    data += proc_args->parent_data_size;
+    data_iter += proc_args.parent_data_size;
     *parent_handle = parent;
 
     /* deserialize the executable handle */
-    if (proc_args->exec_data_size) {
+    if (proc_args.exec_data_size) {
         PAL_HANDLE exec = NULL;
 
-        ret = handle_deserialize(&exec, data, proc_args->exec_data_size);
+        ret = handle_deserialize(&exec, data_iter, proc_args.exec_data_size);
         if (ret < 0)
             INIT_FAIL(-ret, "cannot deserialize executable handle");
 
-        data += proc_args->exec_data_size;
+        data_iter += proc_args.exec_data_size;
         *exec_handle = exec;
     }
 
-    char* manifest = malloc(proc_args->manifest_data_size + 1);
+    char* manifest = malloc(proc_args.manifest_data_size + 1);
     if (!manifest)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
-    memcpy(manifest, data, proc_args->manifest_data_size);
-    manifest[proc_args->manifest_data_size] = '\0';
-    data += proc_args->manifest_data_size;
+    memcpy(manifest, data_iter, proc_args.manifest_data_size);
+    manifest[proc_args.manifest_data_size] = '\0';
+    data_iter += proc_args.manifest_data_size;
 
-    g_linux_state.parent_process_id = proc_args->parent_process_id;
-    g_linux_state.memory_quota = proc_args->memory_quota;
-    memcpy(&g_pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
+    g_linux_state.parent_process_id = proc_args.parent_process_id;
+    g_linux_state.memory_quota = proc_args.memory_quota;
+    memcpy(&g_pal_sec, &proc_args.pal_sec, sizeof(struct pal_sec));
 
     *manifest_out = manifest;
+    free(data);
 }
 
 noreturn void _DkProcessExit(int exitcode) {

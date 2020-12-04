@@ -268,6 +268,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     ssize_t ret;
 
     assert(g_pal_state.manifest_root);
+    assert(g_pal_state.alloc_align && IS_POWER_OF_2(g_pal_state.alloc_align));
     assert(exec_handle);
 
     ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
@@ -281,16 +282,15 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     if (ret < 0 || dummy_exec_str)
         INIT_FAIL(PAL_ERROR_INVAL, "loader.exec is not supported anymore. Please update your "
                                    "manifest according to the current documentation.");
+    free(dummy_exec_str);
 
     /* must be an ELF */
-    if (exec_handle) {
-        if (exec_loaded_addr) {
-            if (!has_elf_magic(exec_loaded_addr, sizeof(ElfW(Ehdr))))
-                INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
-        } else {
-            if (!is_elf_object(exec_handle))
-                INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
-        }
+    if (exec_loaded_addr) {
+        if (!has_elf_magic(exec_loaded_addr, sizeof(ElfW(Ehdr))))
+            INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
+    } else {
+        if (!is_elf_object(exec_handle))
+            INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
     }
 
     g_pal_state.exec_handle = exec_handle;
@@ -376,8 +376,11 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     }
 
     if (use_host_env) {
-        printf("WARNING: Forwarding host environment variables to the app is enabled. Don't use "
-               "this configuration in production!\n");
+        /* Warn only in the first process. */
+        if (!parent_process) {
+            printf("WARNING: Forwarding host environment variables to the app is enabled. Don't "
+                   "use this configuration in production!\n");
+        }
     } else {
         environments = malloc(sizeof(*environments));
         if (!environments)
@@ -412,16 +415,13 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
     load_libraries();
 
-    if (exec_handle) {
-        if (exec_loaded_addr) {
-            ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
-        } else {
-            ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
-        }
-
-        if (ret < 0)
-            INIT_FAIL(-ret, pal_strerror(ret));
+    if (exec_loaded_addr) {
+        ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
+    } else {
+        ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
     }
+    if (ret < 0)
+        INIT_FAIL(-ret, pal_strerror(ret));
 
     set_debug_type();
 
