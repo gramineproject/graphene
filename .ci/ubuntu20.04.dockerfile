@@ -12,6 +12,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     gdb \
     gettext \
     git \
+    jq \
     libapr1-dev \
     libaprutil1-dev \
     libcurl4-openssl-dev \
