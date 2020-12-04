@@ -1,8 +1,6 @@
 /*.manifest
 /*.xml
 
-/pal_loader
-
 /.cache
 /abort
 /abort_multithread

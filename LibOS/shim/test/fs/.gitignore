@@ -1,8 +1,6 @@
 /*.manifest
 /*.xml
 
-/pal_loader
-
 /copy_mmap_rev
 /copy_mmap_seq
 /copy_mmap_whole

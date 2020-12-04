@@ -23,9 +23,9 @@ LDFLAGS-libos-debug = -L$(SHIMDIR)/src -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-l
 
 .PHONY: all
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-all: pal_loader $(exec_target) | $(all_manifests) $(call expand_target_to_sgx,$(all_manifests)) $(call expand_target_to_sig,$(all_manifests))
+all: $(exec_target) | $(all_manifests) $(call expand_target_to_sgx,$(all_manifests)) $(call expand_target_to_sig,$(all_manifests))
 else
-all: pal_loader
+all:
 endif
 
 .PHONY: sgx-tokens
@@ -34,9 +34,6 @@ sgx-tokens: $(call expand_target_to_token,$(all_manifests))
 manifest_rules = \
 	-Darch_libdir=$(ARCH_LIBDIR) \
 	$(extra_rules)
-
-pal_loader:
-	ln -sf $(RUNTIME)/pal_loader
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
@@ -47,7 +44,7 @@ endif
 
 .PHONY: clean
 clean: $(clean-extra)
-	$(RM) -r pal_loader $(gen_manifests) $(exec_target) $(wildcard *.d) .output.* \
+	$(RM) -r $(gen_manifests) $(exec_target) $(wildcard *.d) .output.* \
 	       *.sig *.token *.manifest.sgx
 
 .PHONY: distclean

@@ -638,7 +638,7 @@ class TC_50_GDB(RegressionTestCase):
         # pylint: disable=fixme
         #
         # To run this test manually, use:
-        # GDB=1 GDB_SCRIPT=debug.gdb ./pal_loader debug
+        # GDB=1 GDB_SCRIPT=debug.gdb graphene-{direct|sgx} debug
         #
         # TODO: strengthen this test after SGX includes enclave entry.
         #
@@ -671,7 +671,7 @@ class TC_50_GDB(RegressionTestCase):
     @unittest.skipUnless(ON_X86, 'x86-specific')
     def test_010_regs_x86_64(self):
         # To run this test manually, use:
-        # GDB=1 GDB_SCRIPT=debug_regs-x86_64.gdb ./pal_loader debug_regs-x86_64
+        # GDB=1 GDB_SCRIPT=debug_regs-x86_64.gdb graphene-{direct|sgx} debug_regs-x86_64
 
         stdout, _ = self.run_gdb(['debug_regs-x86_64'], 'debug_regs-x86_64.gdb')
 
