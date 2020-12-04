@@ -314,6 +314,8 @@ void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent_handle, PAL_HANDL
     size_t data_size = proc_args.parent_data_size + proc_args.exec_data_size
                        + proc_args.manifest_data_size;
     char* data = malloc(data_size);
+    if (!data)
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
 
     bytes = INLINE_SYSCALL(read, 3, parent_pipe_fd, data, data_size);
     if (IS_ERR(bytes) || (size_t)bytes != data_size)
