@@ -245,7 +245,7 @@ class TestRunner:
         Raises:
             AbnormalTestResult: for assorted failures
         '''
-        cmd = [*self.suite.loader, *self.cmd]
+        cmd = [self.suite.loader, *self.cmd]
         timeout = self.cfgsection.getfloat('timeout')
         self.log.info('starting %r with timeout %d', cmd, timeout)
         start_time = time.time()
@@ -441,10 +441,7 @@ class TestSuite:
         ]
         self.sgx = self.config.getboolean(config.default_section, 'sgx')
 
-        self.loader = [
-            fspath(config.getpath(config.default_section, 'loader').resolve())]
-        if self.sgx:
-            self.loader.append('SGX')
+        self.loader = 'graphene-sgx' if self.sgx else 'graphene-direct'
 
         self.bindir = (
             config.getpath(config.default_section, 'ltproot') / 'testcases/bin')
@@ -574,7 +571,6 @@ def load_config(files):
         defaults={
             'timeout': '30',
             'sgx': 'false',
-            'loader': './pal_loader',
             'ltproot': './install',
             'junit-classname': 'apps.LTP',
         })

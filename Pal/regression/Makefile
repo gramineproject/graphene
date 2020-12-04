@@ -77,12 +77,12 @@ target = \
 
 include ../../Scripts/manifest.mk
 graphene_lib = .lib/graphene-lib.a
-pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
+pal_lib ?= ../../Runtime/libpal-$(PAL_HOST).so
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 .PHONY: all
-all: pal_loader $(target) $(call expand_target_to_sig,$(target)) \
+all: $(target) $(call expand_target_to_sig,$(target)) \
      $(call expand_target_to_sgx,$(target)) $(preloads)
 
 .PHONY: sgx-tokens
@@ -112,9 +112,6 @@ $(preloads): %.so: %.c $(LDLIBS-preloads)
 LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads) abort.o
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
-
-pal_loader:
-	ln -s ../../Runtime/pal_loader $@
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
@@ -153,8 +150,7 @@ clean:
 		.output.* \
 		.pytest_cache \
 		__pycache__ \
-		pal-regression.xml \
-		pal_loader
+		pal-regression.xml
 
 .PHONY: distclean
 distclean: clean
