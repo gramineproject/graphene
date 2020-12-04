@@ -16,7 +16,7 @@ stage('test') {
                 then
                     make ${MAKEOPTS} sgx-tokens
                 fi
-                make regression
+                python3 -m pytest -v --junit-xml pal-regression.xml test_pal.py
             '''
         } finally {
             junit 'Pal/regression/pal-regression.xml'
@@ -32,7 +32,7 @@ stage('test') {
                 then
                     make ${MAKEOPTS} RA_CLIENT_SPID=${ra_client_spid} sgx-tokens
                 fi
-                make regression
+                python3 -m pytest -v --junit-xml libos-regression.xml test_libos.py
             '''
         } finally {
             junit 'LibOS/shim/test/regression/libos-regression.xml'
@@ -40,14 +40,18 @@ stage('test') {
     }
 
     timeout(time: 5, unit: 'MINUTES') {
-        sh '''
-            cd LibOS/shim/test/fs
-            make ${MAKEOPTS} all
-            if test -n "$SGX"
-            then
-                make ${MAKEOPTS} sgx-tokens
-            fi
-            make test
-        '''
+        try {
+            sh '''
+                cd LibOS/shim/test/fs
+                make ${MAKEOPTS} all
+                if test -n "$SGX"
+                then
+                    make ${MAKEOPTS} sgx-tokens
+                fi
+                python3 -m pytest -v --junit-xml fs.xml test_fs.py test_pf.py
+            '''
+        } finally {
+            junit 'LibOS/shim/test/fs/fs.xml'
+        }
     }
 }

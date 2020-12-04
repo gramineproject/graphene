@@ -4,6 +4,9 @@ endif
 
 MAKEFILE_MANIFEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
+%.manifest: %.toml.in
+	graphene-manifest $(MANIFESTOPTS) $< $@
+
 %.manifest: %.manifest.template
 	$(call cmd,manifest,$*,$(manifest_rules))
 

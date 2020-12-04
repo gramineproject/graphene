@@ -44,7 +44,7 @@ if sgx
 
     meson.add_install_script('/bin/sh', '-c',
         'ln -s pal-sgx "$MESON_INSTALL_DESTDIR_PREFIX"/@0@'.format(
-            join_paths(pkglibexecdir, 'direct', 'loader')))
+            join_paths(pkglibexecdir, 'sgx', 'loader')))
 
     hostpalpath_linux_sgx = join_paths(prefix, pkglibdir, 'sgx')
     conf_graphene_sgx = configuration_data()

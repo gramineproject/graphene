@@ -6,6 +6,8 @@ import subprocess
 import sys
 import unittest
 
+fspath = getattr(os, 'fspath', str) # pylint: disable=invalid-name
+
 # pylint: disable=subprocess-popen-preexec-fn,subprocess-run-check
 
 HAS_SGX = os.environ.get('SGX') == '1'
@@ -28,25 +30,37 @@ class RegressionTestCase(unittest.TestCase):
         except KeyError:
             self.fail('environment variable {} not set'.format(name))
 
+    @property
+    def pal_path(self):
+        return pathlib.Path(os.getenv(self.HOST_PAL_PATH_ENV,
+            pathlib.Path(os.getenv('PREFIX', '/usr')) / 'lib/graphene'
+            / ('sgx' if HAS_SGX else 'direct')))
+
+    @property
+    def libpal_path(self):
+        return pathlib.Path(os.getenv(self.LIBPAL_PATH_ENV, fspath(self.pal_path / 'libpal.so')))
+
+    @property
+    def loader_path(self):
+        return pathlib.Path(os.getenv(self.LOADER_ENV, fspath(self.pal_path / 'loader')))
+
     def has_debug(self):
-        libpal = self.get_env(self.LIBPAL_PATH_ENV)
-        p = subprocess.run(['objdump', '-x', libpal], check=True, stdout=subprocess.PIPE)
+        p = subprocess.run(['objdump', '-x', fspath(self.libpal_path)],
+            check=True, stdout=subprocess.PIPE)
         dump = p.stdout.decode()
         return '.debug_info' in dump
 
     def run_gdb(self, args, gdb_script, **kwds):
-        host_pal_path = self.get_env(self.HOST_PAL_PATH_ENV)
-
         # See also pal_loader.
         prefix = ['gdb', '-q']
         env = os.environ.copy()
-        prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/debug_map_gdb.py')]
+        prefix += ['-x', os.path.join(self.pal_path, 'gdb_integration/debug_map_gdb.py')]
         if HAS_SGX:
-            prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/graphene_sgx_gdb.py')]
-            sgx_gdb = os.path.join(host_pal_path, 'gdb_integration/sgx_gdb.so')
+            prefix += ['-x', fspath(self.pal_path / 'gdb_integration/graphene_sgx_gdb.py')]
+            sgx_gdb = fspath(self.pal_path / 'gdb_integration/sgx_gdb.so')
             env['LD_PRELOAD'] = sgx_gdb + ':' + env.get('LD_PRELOAD', '')
         else:
-            prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/graphene_gdb.py')]
+            prefix += ['-x', fspath(self.pal_path, 'gdb_integration/graphene_gdb.py')]
 
         # Override TTY, as apparently os.setpgrp() confuses GDB and causes it to hang.
         prefix += ['-x', gdb_script, '-batch', '-tty=/dev/null']
@@ -58,18 +72,16 @@ class RegressionTestCase(unittest.TestCase):
         timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
             else self.DEFAULT_TIMEOUT)
 
-        loader = self.get_env(self.LOADER_ENV)
-        if not pathlib.Path(loader).exists():
-            self.skipTest('loader ({}) not found'.format(loader))
-
-        libpal = self.get_env(self.LIBPAL_PATH_ENV)
-        if not pathlib.Path(libpal).exists():
-            self.skipTest('libpal ({}) not found'.format(libpal))
+        if not self.loader_path.exists():
+            self.skipTest('loader ({}) not found'.format(self.loader_path))
+        if not self.libpal_path.exists():
+            self.skipTest('libpal ({}) not found'.format(self.libpal_path))
 
         if prefix is None:
             prefix = []
 
-        with subprocess.Popen([*prefix, loader, libpal, 'init', *args],
+        with subprocess.Popen(
+                [*prefix, fspath(self.loader_path), fspath(self.libpal_path), 'init', *args],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 preexec_fn=os.setpgrp,
                 **kwds) as process:

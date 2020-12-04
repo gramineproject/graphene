@@ -29,14 +29,18 @@ stage('build') {
     try {
         sh '''
             meson setup build \
-                -Dlibexecdir=lib \
+                --prefix="$PREFIX" \
+                --libexecdir=lib \
                 -Ddirect=disabled \
                 -Dsgx=enabled
             ninja -C build
-            DESTDIR=$PWD/install ninja -C build install
+            ninja -C build install
         '''
     } finally {
         archiveArtifacts 'build/meson-logs/**/*'
     }
-    sh 'rm -rf build install'
+    sh 'rm -rf build'
+
+    // prevent cheating and testing from repo
+    sh 'make ${MAKEOPTS} -C Runtime clean'
 }
