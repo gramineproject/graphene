@@ -334,7 +334,7 @@ static int register_protected_path(const char* path, struct protected_file** new
     size_t len = URI_MAX;
     ret = get_norm_path(path, normpath, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Couldn't normalize path (%s): %s\n", path, pal_strerror(ret));
+        SGX_DBG(DBG_E, "Couldn't normalize path (%s): %s\n", path, pal_strerror(-ret));
         goto out;
     }
 

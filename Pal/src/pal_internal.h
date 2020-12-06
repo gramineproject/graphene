@@ -341,9 +341,9 @@ void _DkPrintConsole(const void* buf, int size);
 int printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 int vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1, 0)));
 
-/* errval is negative value, see pal_strerror */
-static inline void print_error(const char* errstring, int errval) {
-    printf("%s (%s)\n", errstring, pal_strerror(errval));
+/* err - positive value of error code */
+static inline void print_error(const char* msg, int err) {
+    printf("%s (%s)\n", msg, pal_strerror(err));
 }
 
 #endif

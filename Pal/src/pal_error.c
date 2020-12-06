@@ -3,6 +3,8 @@
 
 #include "pal_error.h"
 
+#include "assert.h"
+
 struct pal_error_description {
     int error;
     const char* description;
@@ -58,6 +60,7 @@ static const struct pal_error_description g_pal_error_list[] = {
 #define PAL_ERROR_COUNT (sizeof(g_pal_error_list) / sizeof(g_pal_error_list[0]))
 
 const char* pal_strerror(int err) {
+    assert(err >= 0);
     for (size_t i = 0; i < PAL_ERROR_COUNT; i++)
         if (g_pal_error_list[i].error == err)
             return g_pal_error_list[i].description;
