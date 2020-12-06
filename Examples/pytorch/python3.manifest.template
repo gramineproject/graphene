@@ -2,11 +2,10 @@
 #
 # This manifest was tested on Ubuntu 16.04 and 18.04.
 
-loader.argv0_override = "python3"
-
 # Graphene environment, including the path to the library OS and the debug
 # option (inline/none)
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+libos.entrypoint = "file:$(PYTHON3)"
 loader.debug_type = "$(GRAPHENEDEBUG)"
 
 # Read application arguments directly from the command line. Don't use this on production!
@@ -74,6 +73,7 @@ sgx.thread_num = 128
 
 # SGX trusted libraries
 
+sgx.trusted_files.python3 = "file:$(PYTHON3)"
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
 sgx.trusted_files.libdl = "file:$(GRAPHENEDIR)/Runtime/libdl.so.2"
@@ -86,11 +86,14 @@ sgx.trusted_files.libnssdns = "file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2"
 
 sgx.trusted_files.libstdc = "file:/usr/$(ARCH_LIBDIR)/libstdc++.so.6"
 sgx.trusted_files.libgccs = "file:$(ARCH_LIBDIR)/libgcc_s.so.1"
-sgx.trusted_files.libaptpkg = "file:/usr/$(ARCH_LIBDIR)/libapt-pkg.so.5.0"
+# Ubuntu16.04 sgx.trusted_files.libaptpkg = "file:/usr/$(ARCH_LIBDIR)/libapt-pkg.so.5.0"
+# Ubuntu18.04 sgx.trusted_files.libaptpkg = "file:/usr/$(ARCH_LIBDIR)/libapt-pkg.so.5.0"
+# Ubuntu20.04 sgx.trusted_files.libaptpkg = "file:/usr/$(ARCH_LIBDIR)/libapt-pkg.so.6.0"
 sgx.trusted_files.liblz4 = "file:/usr/$(ARCH_LIBDIR)/liblz4.so.1"
 sgx.trusted_files.libsystemd = "file:$(ARCH_LIBDIR)/libsystemd.so.0"
 sgx.trusted_files.libselinux = "file:$(ARCH_LIBDIR)/libselinux.so.1"
-sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
+# Ubuntu16.04 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
+# Ubuntu18.04 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
 sgx.trusted_files.libpcre = "file:$(ARCH_LIBDIR)/libpcre.so.3"
 sgx.trusted_files.libgpgerror = "file:$(ARCH_LIBDIR)/libgpg-error.so.0"
 sgx.trusted_files.libexpat = "file:$(ARCH_LIBDIR)/libexpat.so.1"
@@ -134,9 +137,6 @@ sgx.trusted_files.model = "file:alexnet-pretrained.pt"
 # Scratch space
 sgx.allowed_files.tmp = "file:/tmp"
 
-# The workload needs to fork/execve; this allows it to do so
-sgx.trusted_children.fork = "file:python3_child.sig"
-
 # Various locations where Python dependencies are found
 sgx.allowed_files.python3 = "file:/usr/lib/python3"
 sgx.allowed_files.pythonhome = "file:$(HOME)/.local/lib"
@@ -163,6 +163,8 @@ sgx.allowed_files.resolv = "file:/etc/resolv.conf"
 
 # System's file system table
 sgx.allowed_files.fstab = "file:/etc/fstab"
+
+sgx.nonpie_binary = 1
 
 # Graphene optionally provides patched OpenMP runtime library that runs faster
 # inside SGX enclaves (execute `make -C LibOS gcc` to generate it). Uncomment

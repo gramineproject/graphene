@@ -50,6 +50,16 @@ This syntax specifies the libraries to be preloaded before loading the
 executable. The URIs of the libraries must be separated by commas. The libraries
 must be ELF binaries. This usually contains the LibOS library ``libsysdb.so``.
 
+Entrypoint
+^^^^^^^^^^
+
+::
+
+   libos.entrypoint = "URI"
+
+This specifies the first executable which is to be started when spawning a
+Graphene instance from this manifest file.
+
 Command-line arguments
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -260,6 +270,17 @@ The PAL and library OS code/data count towards this size value, as well as the
 application memory itself: application's code, stack, heap, loaded application
 libraries, etc. The application cannot allocate memory that exceeds this limit.
 
+Non-PIE binaries
+^^^^^^^^^^^^^^^^
+
+::
+
+    sgx.nonpie_binary = [1|0]
+    (Default: 0)
+
+This setting tells Graphene whether to use a specially crafted memory layout,
+which is required to support non-relocatable binaries (non-PIE).
+
 Number of threads
 ^^^^^^^^^^^^^^^^^
 
@@ -399,19 +420,6 @@ access. If the file check policy is ``allow_all_but_log``, all files other than
 trusted and allowed are allowed for access, and Graphene-SGX emits a warning
 message for every such file. This is a convenient way to determine the set of
 files that the ported application uses.
-
-Trusted child processes
-^^^^^^^^^^^^^^^^^^^^^^^
-
-::
-
-    sgx.trusted_children.[identifier] = "[URI of signature file (.sig)]"
-
-This syntax specifies the signatures of allowed child processes of the current
-application. Upon process creation, the enclave in the current (parent) process
-will attest the enclave in the child process, by comparing to the signatures of
-the trusted children. If the child process is not trusted, the enclave will
-refuse to communicate with it.
 
 Attestation and quotes
 ^^^^^^^^^^^^^^^^^^^^^^

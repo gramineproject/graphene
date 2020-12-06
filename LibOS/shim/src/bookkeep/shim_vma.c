@@ -545,15 +545,6 @@ int init_vma(void) {
             .offset  = 0,
             .comment = "manifest",
         },
-        {
-            .begin   = (uintptr_t)PAL_CB(executable_range.start),
-            .end     = (uintptr_t)PAL_CB(executable_range.end),
-            .prot    = PROT_NONE,
-            .flags   = MAP_PRIVATE | MAP_ANONYMOUS | VMA_UNMAPPED,
-            .file    = NULL,
-            .offset  = 0,
-            .comment = "exec",
-        },
     };
 
     spinlock_lock_signal_off(&vma_tree_lock);

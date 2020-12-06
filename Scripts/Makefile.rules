@@ -138,9 +138,6 @@ quiet_cmd_cmulti = [ $@ ]
       cmd_cmulti = $(CC) -MD -MP $(CFLAGS) $(CFLAGS-$@) -o $@ $^ $(LDLIBS) $(LDLIBS-$@)
 
 # sgx sign
-quiet_cmd_sgx_sign_exec = [ $*.{sig, manifest.sgx} ]
-      cmd_sgx_sign_exec = $(SGX_SIGN) -output $*.manifest.sgx -exec $* -manifest $< > .output.sgx_sign.$*
-
 quiet_cmd_sgx_sign = [ $*.{sig, manifest.sgx} ]
       cmd_sgx_sign = $(SGX_SIGN) -output $*.manifest.sgx -manifest $< > .output.sgx_sign.$*
 
@@ -149,13 +146,13 @@ quiet_cmd_sgx_get_token = [ Token: $(basename $*) ]
       cmd_sgx_get_token = $(SGX_GET_TOKEN) -output $@ -sig $^ > .output.sgx_get_token.$(basename $*)
 
 # sgx manifest dependency
-quiet_cmd_sgx_sign_depend_exec = [ $@ ]
-      cmd_sgx_sign_depend_exec = $(SGX_SIGN) -depend -output $@ -exec $* -manifest $<
+quiet_cmd_sgx_sign_depend = [ $@ ]
+      cmd_sgx_sign_depend = $(SGX_SIGN) -depend -output $@ -manifest $<
 
-# manifest
+# manifest ($(2) - entrypoint, $(3) - replace rules)
 quiet_cmd_manifest = [ $@ ]
       cmd_manifest = \
-	$(if $(2),sed $(2) $< > $@,cp -f $< $@)
+  $(if $(2),sed $(3) -e 's:\$$(ENTRYPOINT):$(2):g' $< > $@,cp -f $< $@)
 
 # pal map
 PAL_SYMBOL_FILE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../Pal/src/pal-symbols

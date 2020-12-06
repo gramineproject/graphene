@@ -11,7 +11,7 @@ sgx.allowed_files.blender_input = "file:$(DATA_DIR)/scenes/"
 sgx.allowed_files.blender_output = "file:$(DATA_DIR)/images/"
 
 
-loader.argv0_override = "blender"
+libos.entrypoint = "file:$(BLENDER_DIR)/blender"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
@@ -51,11 +51,11 @@ fs.mount.blender.uri = "file:$(BLENDER_DIR)"
 
 sys.stack.size = "8M"
 
-
 sgx.enclave_size = "2048M"
 sgx.thread_num = 64
+sgx.nonpie_binary = 1
 
-
+sgx.trusted_files.blender = "file:$(BLENDER_DIR)/blender"
 sgx.trusted_files.ld = "file:$(GRAPHENE_DIR)/Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:$(GRAPHENE_DIR)/Runtime/libc.so.6"
 sgx.trusted_files.libdl = "file:$(GRAPHENE_DIR)/Runtime/libdl.so.2"
@@ -83,3 +83,4 @@ sgx.trusted_files.libnuma = "file:/usr/$(ARCH_LIBDIR)/libnuma.so.1"
 
 # Ubuntu version specific files
 # [Ubuntu18.04] sgx.trusted_files.libbsd = "file:$(ARCH_LIBDIR)/libbsd.so.0"
+# [Ubuntu20.04] sgx.trusted_files.libbsd = "file:/usr/$(ARCH_LIBDIR)/libbsd.so.0"

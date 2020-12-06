@@ -1,0 +1,7 @@
+pal.entrypoint = "file:Process2"
+loader.argv0_override = "Process2"
+loader.debug_type = "inline"
+
+sgx.nonpie_binary = 1
+
+sgx.trusted_files.entrypoint = "file:Process2"

@@ -1,0 +1,16 @@
+loader.preload = "file:../../src/libsysdb.so"
+libos.entrypoint = "file:shared_object"
+loader.argv0_override = "shared_object"
+
+loader.env.LD_LIBRARY_PATH = "/lib"
+loader.debug_type = "none"
+
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:../../../../Runtime"
+
+sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
+sgx.trusted_files.shared_object = "file:shared_object"
+
+sgx.nonpie_binary = 1

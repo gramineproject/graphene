@@ -5,9 +5,15 @@ endif
 MAKEFILE_MANIFEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 %.manifest: %.manifest.template
-	$(call cmd,manifest,$(manifest_rules))
+	$(call cmd,manifest,$*,$(manifest_rules))
 
-manifest: manifest.template
-	$(call cmd,manifest,$(manifest_rules))
+%.manifest: manifest.template
+	$(call cmd,manifest,$*,$(manifest_rules))
 
--include $(MAKEFILE_MANIFEST_DIR)/../Pal/src/host/$(PAL_HOST)/Makefile.manifest
+PAL_SPECIFIC_MAKEFILE = $(MAKEFILE_MANIFEST_DIR)/../Pal/src/host/$(PAL_HOST)/Makefile.manifest
+ifneq ($(wildcard $(PAL_SPECIFIC_MAKEFILE)),)
+    # We don't want to use "-include" syntax here to not trigger making this file by %.manifest
+    # rules.
+    $(PAL_SPECIFIC_MAKEFILE): ;
+    include $(PAL_SPECIFIC_MAKEFILE)
+endif

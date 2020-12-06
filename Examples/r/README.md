@@ -4,8 +4,6 @@ This directory contains an example for running R in Graphene, including the
 Makefile and a template for generating the manifest. The application was
 tested on Ubuntu 16.04, with both normal Linux and SGX platforms.
 
-**This example is temporarily broken until we rewrite Graphene loader**
-
 # Generating the manifest
 
 ## Building for Linux

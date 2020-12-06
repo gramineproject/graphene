@@ -21,49 +21,31 @@ GRAPHENEDEBUG = none
 endif
 
 .PHONY: all
-all: curl.manifest curl pal_loader
+all: curl.manifest pal_loader
 ifeq ($(SGX),1)
 all: curl.token
 endif
 
 include ../../Scripts/Makefile.configs
 
-# curl dependencies (generated from ldd). For SGX, the manifest needs to list all the libraries
-# loaded during execution, so that the signer can include the file hashes.
+# Generate manifest rules for curl dependencies.
+# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
+# there's no harm in this.
+.INTERMEDIATE: trusted-libs
+trusted-libs: ../common_tools/get_deps.sh
+	../common_tools/get_deps.sh $(CURL_DIR)/curl > $@
 
-# We need to replace Glibc dependencies with Graphene-specific Glibc. The Glibc binaries are
-# already listed in the manifest template, so we can skip them from the ldd results.
-GLIBC_DEPS = linux-vdso.so.1 /lib64/ld-linux-x86-64.so.2 libc.so.6 libm.so.6 librt.so.1 \
-			 libdl.so.2 libpthread.so.0 libutil.so.1 libresolv.so.2 libnss_dns.so.2
-
-# List all the curl dependencies, besides Glibc libraries
-.INTERMEDIATE: curl-deps
-curl-deps:
-	@ldd $(CURL_DIR)/curl | \
-		awk '{if ($$2 =="=>") {print $$1}}' | \
-		sort | uniq | grep -v -x $(patsubst %,-e %,$(GLIBC_DEPS)) > $@
-
-# Generate manifest rules for curl dependencies
-.INTERMEDIATE: curl-trusted-libs
-curl-trusted-libs: curl-deps
-	@for F in `cat curl-deps`; do \
-		P=`ldd $(CURL_DIR)/curl | grep $$F | awk '{print $$3; exit}'`; \
-		N=`echo $$F | tr --delete '.' | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
-	done > $@
-
-curl.manifest: curl.manifest.template curl-trusted-libs
-	@sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(CURL_DIR)|'"$(CURL_DIR)"'|g' \
-		-e 's|$$(CURL_TRUSTED_LIBS)|'"`cat curl-trusted-libs`"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+curl.manifest: curl.manifest.template trusted-libs
+	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	     -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+	     -e 's|$$(CURL_DIR)|'"$(CURL_DIR)"'|g' \
+	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	     $<; \
+	cat trusted-libs) > $@
 
 # Generate SGX-specific manifest, enclave signature, and token for enclave initialization
-curl.manifest.sgx: curl curl.manifest
+curl.manifest.sgx: curl.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-exec curl \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
 		-manifest curl.manifest -output $@
@@ -71,11 +53,7 @@ curl.manifest.sgx: curl curl.manifest
 curl.sig: curl.manifest.sgx
 
 curl.token: curl.sig
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output $@ -sig $^
-
-curl:
-	ln -s $(CURL_DIR)/curl $@
+	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
 
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
@@ -92,7 +70,7 @@ check: all
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig curl pal_loader OUTPUT
+	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT
 
 .PHONY: distclean
 distclean: clean

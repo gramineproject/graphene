@@ -144,8 +144,7 @@ typedef struct PAL_CONTROL_ {
     PAL_BOL disable_aslr;       /*!< disable ASLR (may be necessary for restricted environments) */
     PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
-    PAL_PTR_RANGE executable_range; /*!< address where executable is loaded */
-    PAL_PTR_RANGE manifest_preload; /*!< manifest preloaded here */
+    PAL_PTR_RANGE manifest_preload; /*!< manifest was preloaded here */
 
     /*
      * Host information
@@ -234,10 +233,10 @@ PAL_BOL DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 /*!
  * \brief Create a new process to run a separate executable.
  *
- * \param uri the URI of the manifest file or the executable to be loaded in the new process.
+ * \param exec_uri the URI of the executable to be loaded in the new process.
  * \param args an array of strings -- the arguments to be passed to the new process.
  */
-PAL_HANDLE DkProcessCreate(PAL_STR uri, PAL_STR* args);
+PAL_HANDLE DkProcessCreate(PAL_STR exec_uri, PAL_STR* args);
 
 /*!
  * \brief Magic exit code that instructs the exiting process to wait for its children

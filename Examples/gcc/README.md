@@ -1,5 +1,7 @@
 # Introduction
 
+*** TODO: this example should be reworked to use a standalone gcc version, not the one from the system and readded to Jenkins ***
+
 This directory contains a Makefile and template manifests to run gcc and its related tools on
 Graphene. We tested with gcc version 5.5.0 and binutils (as, ld) version 2.26.1 on Ubuntu 16.04. We
 also tested on Ubuntu 18.04 with gcc version 7.4.0 and binutils version 2.30. This example uses the
@@ -7,8 +9,6 @@ package version of gcc and related tools (as, cc1, collect2, ld) installed on th
 compiling them from source as some of the other examples do.
 
 The Makefile and the template manifest contain comments to hopefully make them easier to understand.
-
-**This example is temporarily broken until we rewrite Graphene loader**
 
 # Quick Start
 

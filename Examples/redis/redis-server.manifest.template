@@ -9,6 +9,7 @@
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+libos.entrypoint = "file:redis-server"
 
 # Show/hide debug log of Graphene ('inline' or 'none' respectively). Note that
 # GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
@@ -73,6 +74,8 @@ fs.mount.etc.uri = "file:/etc"
 # typical Redis workloads.
 sgx.enclave_size = "1024M"
 
+sgx.nonpie_binary = 1
+
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at
 # enclave creation time.
@@ -99,6 +102,8 @@ sgx.thread_num = 8
 # and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
 # match, this library is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
+
+sgx.trusted_files.redis-server = "file:redis-server"
 
 # Glibc libraries. ld, libc, libm, libdl, librt provide common functionality;
 # pthread is needed because Redis spawns helper threads for bookkeeping.

@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-loader.argv0_override = "nodejs"
+libos.entrypoint = "file:$(NODEJS_DIR)/nodejs"
 
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so.
@@ -43,8 +43,9 @@ sgx.enclave_size = "2G"
 # enclave creation time.
 sgx.thread_num = 8
 
-# Specify all libraries used by Node.js and its dependencies (including all libs
+# Specify all files used by Node.js and its dependencies (including all libs
 # which can be loaded at runtime via dlopen).
+sgx.trusted_files.nodejs = "file:$(NODEJS_DIR)/nodejs"
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
 sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
@@ -52,7 +53,8 @@ sgx.trusted_files.libdl = "file:$(GRAPHENEDIR)/Runtime/libdl.so.2"
 sgx.trusted_files.librt = "file:$(GRAPHENEDIR)/Runtime/librt.so.1"
 sgx.trusted_files.libutil = "file:$(GRAPHENEDIR)/Runtime/libutil.so.1"
 sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
-$(NODEJS_TRUSTED_LIBS)
+sgx.trusted_files.libstdcpp = "file:$(GRAPHENEDIR)/Runtime/libstdc++.so.6"
+sgx.trusted_files.libgcc_s = "file:$(GRAPHENEDIR)/Runtime/libgcc_s.so.1"
 
-# JavaScript (trusted)
+# input file
 sgx.trusted_files.javascript = "file:helloworld.js"

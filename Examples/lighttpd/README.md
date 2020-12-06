@@ -37,7 +37,7 @@ Once the server has started, you can test it with `wget`
 
 You may also run the benchmark script using `ab` (Apachebench)
 
-    ./benchmark-http.sh 127.0.0.1:8003
+    ../common_tools/benchmark-http.sh 127.0.0.1:8003
 
 Use Ctrl-C to terminate the server once you are finished testing lighttpd.
 

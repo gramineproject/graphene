@@ -77,7 +77,6 @@ class Exec:
         signer_path = self.graphene_path / 'Pal/src/host/Linux-SGX/signer'
 
         subprocess.run([os.fspath(signer_path / 'pal-sgx-sign'),
-            '--exec', os.fspath(self.executable_path),
             '--manifest', os.fspath(self.manifest_path),
             '--output', os.fspath(self.manifest_sgx_path),
             '--key', os.fspath(signer_path / 'enclave-key.pem'),

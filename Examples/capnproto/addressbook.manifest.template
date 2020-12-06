@@ -2,6 +2,9 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04 and Ubuntu 18.04.
 
+# The binary to execute.
+libos.entrypoint = "file:addressbook"
+
 # LibOS layer library of Graphene (currently only one implementation, libsysdb)
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
@@ -40,9 +43,12 @@ sgx.enclave_size = "256M"
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 8
 sgx.thread_num = 8
 
+sgx.trusted_files.addressbook = "file:addressbook"
+
 # Glibc libraries
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
 sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
 sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
-$(TRUSTEDLIBS)
+sgx.trusted_files.libstdcpp = "file:$(GRAPHENEDIR)/Runtime/libstdc++.so.6"
+sgx.trusted_files.libgcc_s = "file:$(GRAPHENEDIR)/Runtime/libgcc_s.so.1"

@@ -1,4 +1,5 @@
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+libos.entrypoint = "file:label_image"
 loader.env.LD_LIBRARY_PATH = "/lib:."
 loader.env.PATH = "/bin:/usr/bin"
 loader.debug_type = "none"
@@ -13,6 +14,8 @@ fs.mount.lib1.uri = "file:$(GRAPHENEDIR)/Runtime"
 # Minimum amount of memory to make it work.
 sgx.enclave_size = "512M"
 
+sgx.nonpie_binary = 1
+
 # We test with 4 TensorFlow threads, so over-approximate to 16 enclave threads.
 sgx.thread_num = 16
 
@@ -25,6 +28,7 @@ sgx.trusted_files.libgcc = "file:$(GRAPHENEDIR)/Runtime/libgcc_s.so.1"
 sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
 sgx.trusted_files.librt = "file:$(GRAPHENEDIR)/Runtime/librt.so.1"
 sgx.trusted_files.libtensorflowframework = "file:libtensorflow_framework.so"
+sgx.trusted_files.label_image = "file:label_image"
 
 sgx.trusted_files.model = "file:inception_v3.tflite"
 sgx.allowed_files.image = "file:image.bmp"

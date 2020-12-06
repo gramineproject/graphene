@@ -86,18 +86,15 @@ c_executables = \
 	vfork_and_exec \
 	$(c_executables-$(ARCH))
 
-cxx_executables = bootstrap_c++
+cxx_executables = bootstrap_cpp
 
-manifests = \
-	manifest \
+repo_manifests = \
 	argv_from_file.manifest \
-	attestation.manifest \
 	debug_log_file.manifest \
 	debug_log_inline.manifest \
 	env_from_file.manifest \
 	env_from_host.manifest \
 	eventfd.manifest \
-	exec_victim.manifest \
 	exit_group.manifest \
 	file_check_policy_allow_all_but_log.manifest \
 	file_check_policy_strict.manifest \
@@ -112,35 +109,23 @@ manifests = \
 	mmap_file.manifest \
 	multi_pthread.manifest \
 	multi_pthread_exitless.manifest \
-	openmp.manifest \
 	proc_path.manifest \
 	shared_object.manifest
 
+# Empty rule to prevent overriding them using "%.manifest: manifest.template" rule.
+$(repo_manifests): ;
+
+gen_manifests = $(filter-out $(repo_manifests),$(addsuffix .manifest,$(c_executables) $(cxx_executables)))
+all_manifests = $(repo_manifests) $(gen_manifests)
+
 exec_target = \
 	$(c_executables) \
-	$(cxx_executables) \
-	argv_from_file.manifest \
-	debug_log_file.manifest \
-	debug_log_inline.manifest \
-	env_from_file.manifest \
-	env_from_host.manifest \
-	file_check_policy_allow_all_but_log.manifest \
-	file_check_policy_strict.manifest \
-	init_fail2.manifest \
-	multi_pthread_exitless.manifest
+	$(cxx_executables)
 
+# repo_manifests needs to be included here to generate .manifest.sgx on SGX also for them.
 target = \
-	argv_from_file \
-	debug_log_file \
-	debug_log_inline \
-	env_from_host \
-	env_from_file \
-	file_check_policy_allow_all_but_log \
-	file_check_policy_strict \
-	init_fail2 \
-	multi_pthread_exitless \
 	$(exec_target) \
-	$(manifests)
+	$(all_manifests)
 
 clean-extra += clean-tmp
 
@@ -179,24 +164,6 @@ LDLIBS-attestation += $(PALDIR)/../lib/crypto/mbedtls/install/lib/libmbedcrypto.
 
 CFLAGS-fp_multithread += -pthread -fno-builtin  # see comment in the test's source
 LDLIBS-fp_multithread += -lm
-
-# Handle multiple tests which share one binary (Graphene requires 1-1 manifest-executable
-# correspondence).
-
-argv_from_file env_from_host env_from_file: bootstrap
-	$(call cmd,ln_sfr)
-
-debug_log_file debug_log_inline: bootstrap
-	$(call cmd,ln_sfr)
-
-file_check_policy_allow_all_but_log file_check_policy_strict: file_check_policy
-	$(call cmd,ln_sfr)
-
-init_fail2: init_fail
-	$(call cmd,ln_sfr)
-
-multi_pthread_exitless: multi_pthread
-	$(call cmd,ln_sfr)
 
 %: %.c
 	$(call cmd,csingle)

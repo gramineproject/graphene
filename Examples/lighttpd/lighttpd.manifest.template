@@ -6,7 +6,7 @@
 #
 # ./pal_loader ./lighttpd <script>
 
-loader.argv0_override = "lighttpd"
+libos.entrypoint = "file:$(INSTALL_DIR)/sbin/lighttpd"
 
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).
@@ -62,7 +62,11 @@ sgx.enclave_size = "256M"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 3
 
-# SGX trusted libraries
+sgx.nonpie_binary = 1
+
+# SGX trusted files
+
+sgx.trusted_files.lighttpd = "file:$(INSTALL_DIR)/sbin/lighttpd"
 
 # Glibc libraries
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
@@ -76,8 +80,9 @@ sgx.trusted_files.libz = "file:$(ARCH_LIBDIR)/libz.so.1"
 sgx.trusted_files.nss_files = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
 
 # lighttpd modules and dependencies
-$(LIGHTTPD_TRUSTED_MODS)
-$(LIGHTTPD_TRUSTED_LIBS)
+sgx.trusted_files.mod_indexfile = "file:$(INSTALL_DIR)/lib/mod_indexfile.so"
+sgx.trusted_files.mod_dirlisting = "file:$(INSTALL_DIR)/lib/mod_dirlisting.so"
+sgx.trusted_files.mod_staticfile = "file:$(INSTALL_DIR)/lib/mod_staticfile.so"
 
 # Trusted configuration files
 sgx.trusted_files.conf = "file:lighttpd.conf"

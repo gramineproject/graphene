@@ -81,15 +81,15 @@ redis-server.manifest: redis-server.manifest.template
 # Additionally, Graphene-SGX requires EINITTOKEN and SIGSTRUCT objects (see
 # SGX hardware ABI, in particular EINIT instruction). The "pal-sgx-get-token"
 # script generates these objects and puts them in files .token and .sig
-# respectively. Note that filenames must be the same as the executable/manifest
+# respectively. Note that filenames must be the same as the manifest
 # name (i.e., "redis-server").
 
 redis-server.manifest.sgx: redis-server.manifest $(SRCDIR)/src/redis-server
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@ \
-		-exec $(SRCDIR)/src/redis-server
+		-manifest $< \
+		-output $@
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output redis-server.token -sig redis-server.sig
 

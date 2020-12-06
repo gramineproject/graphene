@@ -22,15 +22,10 @@ else
 GRAPHENEDEBUG = none
 endif
 
-GREP = grep
-SED  = sed
-LDD  = ldd
-AWK  = awk
-
 CONF_FILES = lighttpd-server.conf lighttpd.conf
 
 .PHONY: all
-all: $(INSTALL_DIR)/sbin/lighttpd lighttpd.manifest $(CONF_FILES) testdata | lighttpd pal_loader
+all: $(INSTALL_DIR)/sbin/lighttpd lighttpd.manifest $(CONF_FILES) testdata | pal_loader
 ifeq ($(SGX),1)
 all: lighttpd.token
 endif
@@ -54,61 +49,30 @@ $(LIGHTTPD_SRC)/configure: $(LIGHTTPD_SRC).tar.gz
 $(LIGHTTPD_SRC).tar.gz:
 	$(GRAPHENEDIR)/Scripts/download --output $@ --sha256 $(LIGHTTPD_HASH) $(foreach mirror,$(LIGHTTPD_MIRRORS),--url $(mirror)/$(LIGHTTPD_SRC).tar.gz)
 
-# lighttpd dependencies (generate from ldd):
-#
-# For SGX, the manifest needs to list all the libraries loaded during the
-# execution, so that the signer can include the file checksums.
-#
-# The dependencies are generated from the ldd results.
+# Generate manifest rules for lighttpd dependencies.
+# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
+# there's no harm in this.
+PROGRAMS = $(INSTALL_DIR)/sbin/lighttpd \
+           $(INSTALL_DIR)/lib/mod_indexfile.so \
+           $(INSTALL_DIR)/lib/mod_dirlisting.so \
+           $(INSTALL_DIR)/lib/mod_staticfile.so
+.INTERMEDIATE: trusted-libs
+trusted-libs: ../common_tools/get_deps.sh $(INSTALL_DIR)/sbin/lighttpd
+	../common_tools/get_deps.sh $(PROGRAMS) > $@
 
-# We need to replace Glibc dependencies with Graphene-specific Glibc. The Glibc
-# binaries are already listed in the manifest template, so we can skip them
-# from the ldd results
-GLIBC_DEPS = linux-vdso /lib64/ld-linux-x86-64 libc libm librt libdl libpthread libutil
-
-LIGHTTPD_LIBS = $(INSTALL_DIR)/lib/mod_indexfile.so \
-		$(INSTALL_DIR)/lib/mod_dirlisting.so \
-		$(INSTALL_DIR)/lib/mod_staticfile.so
-
-# Listing all the lighttpd dependencies, besides Glibc libraries
-.INTERMEDIATE: lighttpd-deps
-lighttpd-deps: $(INSTALL_DIR)/sbin/lighttpd
-	@$(LDD) $(LIGHTTPD_LIBS) $(INSTALL_DIR)/sbin/lighttpd | \
-		$(AWK) '{if ($$2 =="=>") {split($$1,s,/\./); print s[1]}}' | \
-		sort | uniq | $($(GREP) -v -x $(patsubst %,-e %,$(GLIBC_DEPS))) > $@
-
-# Generating manifest rules for lighttpd dependencies
-.INTERMEDIATE: lighttpd-trusted-libs
-lighttpd-trusted-libs: lighttpd-deps
-	@LIGHTTPD_LIBS="$(LIGHTTPD_LIBS)" && \
-	for F in `cat lighttpd-deps`; do \
-		P=`$(LDD) $$LIGHTTPD_LIBS $(INSTALL_DIR)/sbin/lighttpd | $(GREP) $$F | $(AWK) '{print $$3; exit}'`; \
-		N=`echo $$F | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = \\\"file:$$P\\\"\\\\n"; \
-	done > $@
-
-.INTERMEDIATE: lighttpd-trusted-mods
-lighttpd-trusted-mods:
-	@for F in $(LIGHTTPD_LIBS); do \
-		N=`basename $$F .so | tr --delete '-'`; \
-		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
-	done > $@
-
-lighttpd.manifest: lighttpd.manifest.template lighttpd-trusted-libs lighttpd-trusted-mods
-	@$(SED) -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
-		-e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
-		-e 's|$$(LIGHTTPD_TRUSTED_MODS)|'"`cat lighttpd-trusted-mods`"'|g' \
-		-e 's|$$(LIGHTTPD_TRUSTED_LIBS)|'"`cat lighttpd-trusted-libs`"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+lighttpd.manifest: lighttpd.manifest.template trusted-libs
+	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	     -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+	     -e 's|$$(INSTALL_DIR)|'"$(INSTALL_DIR)"'|g' \
+	     -e 's|$$(INSTALL_DIR_ABSPATH)|'"$(abspath $(INSTALL_DIR))"'|g' \
+	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	     $<; \
+	cat trusted-libs) > $@
 
 # Generate the SGX-specific manifest (lighttpd.manifest.sgx), the enclave signature, and the token
 # for enclave initialization.
-lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd | lighttpd
+lighttpd.manifest.sgx: lighttpd.manifest $(INSTALL_DIR)/sbin/lighttpd
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-exec lighttpd \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
 		-manifest lighttpd.manifest -output $@
@@ -117,9 +81,6 @@ lighttpd.sig: lighttpd.manifest.sgx
 
 lighttpd.token: lighttpd.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $^
-
-lighttpd: $(INSTALL_DIR)/sbin/lighttpd
-	ln -s $< $@
 
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
@@ -169,7 +130,7 @@ start-graphene-server: all
 .PHONY: clean
 clean:
 	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader OUTPUT result-* $(CONF_FILES) \
-	      lighttpd pal_loader
+	      pal_loader
 
 .PHONY: distclean
 distclean: clean

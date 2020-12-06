@@ -6,6 +6,7 @@
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+libos.entrypoint = "file:$(PYTHONEXEC)"
 loader.debug_type = "$(GRAPHENEDEBUG)"
 
 # Read application arguments directly from the command line. Don't use this on production!
@@ -71,7 +72,11 @@ sgx.enclave_size = "1G"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 8
 
+sgx.nonpie_binary = 1
+
 # SGX trusted libraries
+
+sgx.trusted_files.python = "file:$(PYTHONEXEC)"
 
 # Glibc libraries
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
@@ -88,7 +93,20 @@ sgx.trusted_files.libresolve = "file:$(GRAPHENEDIR)/Runtime/libresolv.so.2"
 sgx.trusted_files.libexpat = "file:$(ARCH_LIBDIR)/libexpat.so.1"
 sgx.trusted_files.libnssfiles = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
 sgx.trusted_files.libnssmdns4 = "file:$(ARCH_LIBDIR)/libnss_mdns4_minimal.so.2"
-$(PYTHON_TRUSTED_LIBS)
+# [Ubuntu16.04] sgx.trusted_files.hashlib = "file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.hashlib = "file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.ctypes = "file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.ctypes = "file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.ssl = "file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.ssl = "file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.bz2 = "file:$(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.bz2 = "file:$(PYTHONHOME)/lib-dynload/_bz2.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.lzma = "file:$(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.lzma = "file:$(PYTHONHOME)/lib-dynload/_lzma.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.json = "file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.json = "file:$(PYTHONHOME)/lib-dynload/_json.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.aptpkg = "file:$(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.aptpkg = "file:$(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
 
 # Python scripts required for helloworld.py/fibonacci.py
 # NOTE: we ignore precompiled .pyc files since they are for optimization purposes only

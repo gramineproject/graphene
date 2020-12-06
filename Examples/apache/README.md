@@ -22,20 +22,20 @@ make SGX=1
 
 # run original Apache against HTTP and HTTPS benchmarks (benchmark-http.sh, uses ab)
 make start-native-server &
-./benchmark-http.sh 127.0.0.1:8001
-./benchmark-http.sh https://127.0.0.1:8443
+../common_tools/benchmark-http.sh 127.0.0.1:8001
+../common_tools/benchmark-http.sh https://127.0.0.1:8443
 kill -SIGINT %%
 
 # run Apache in non-SGX Graphene against HTTP and HTTPS benchmarks
 make start-graphene-server &
-./benchmark-http.sh 127.0.0.1:8001
-./benchmark-http.sh https://127.0.0.1:8443
+../common_tools/benchmark-http.sh 127.0.0.1:8001
+../common_tools/benchmark-http.sh https://127.0.0.1:8443
 kill -SIGINT %%
 
 # run Apache in Graphene-SGX against HTTP and HTTPS benchmarks
 SGX=1 make start-graphene-server &
-./benchmark-http.sh 127.0.0.1:8001
-./benchmark-http.sh https://127.0.0.1:8443
+../common_tools/benchmark-http.sh 127.0.0.1:8001
+../common_tools/benchmark-http.sh https://127.0.0.1:8443
 kill -SIGINT %%
 
 # you can also test the server using other utilities like wget

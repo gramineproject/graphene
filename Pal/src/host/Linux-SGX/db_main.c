@@ -73,38 +73,6 @@ PAL_NUM _DkGetProcessId(void) {
 static struct link_map g_pal_map;
 
 /*
- * Creates a dummy file handle with the given name.
- *
- * The handle is not backed by any file. Reads will return EOF and writes will
- * fail.
- */
-static PAL_HANDLE setup_dummy_file_handle(const char* name) {
-    if (!strstartswith(name, URI_PREFIX_FILE))
-        return NULL;
-
-    name += URI_PREFIX_FILE_LEN;
-    size_t len = strlen(name) + 1;
-    PAL_HANDLE handle = malloc(HANDLE_SIZE(file) + len);
-    SET_HANDLE_TYPE(handle, file);
-    HANDLE_HDR(handle)->flags |= RFD(0);
-    handle->file.fd = PAL_IDX_POISON;
-
-    char* path = (void*)handle + HANDLE_SIZE(file);
-    int ret = get_norm_path(name, path, &len);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", name, pal_strerror(ret));
-        free(handle);
-        return NULL;
-    }
-    handle->file.realpath = path;
-
-    handle->file.total = 0;
-    handle->file.stubs = NULL;
-
-    return handle;
-}
-
-/*
  * Takes a pointer+size to an untrusted memory region containing a
  * NUL-separated list of strings. It builds an argv-style list in trusted memory
  * with those strings.
@@ -176,12 +144,12 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
                              size_t args_size, char* uptr_env, size_t env_size,
                              struct pal_sec* uptr_sec_info) {
     /* Our arguments are coming directly from the urts. We are responsible to check them. */
-    int rv;
+    int ret;
 
     uint64_t start_time;
-    rv = _DkSystemTimeQuery(&start_time);
-    if (rv < 0) {
-        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", rv);
+    ret = _DkSystemTimeQuery(&start_time);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", ret);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -197,8 +165,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     g_pal_sec.heap_min = GET_ENCLAVE_TLS(heap_min);
     g_pal_sec.heap_max = GET_ENCLAVE_TLS(heap_max);
-    g_pal_sec.exec_addr = GET_ENCLAVE_TLS(exec_addr);
-    g_pal_sec.exec_size = GET_ENCLAVE_TLS(exec_size);
 
     /* Skip URI_PREFIX_FILE. */
     if (libpal_uri_len < URI_PREFIX_FILE_LEN) {
@@ -233,6 +199,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
 
     g_pal_sec.instance_id = sec_info.instance_id;
 
+    // TODO: remove after migrating exec handling to LibOS.
     COPY_ARRAY(g_pal_sec.exec_name, sec_info.exec_name);
     g_pal_sec.exec_name[sizeof(g_pal_sec.exec_name) - 1] = '\0';
 
@@ -297,9 +264,9 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     setup_pal_map(&g_pal_map);
 
     /* initialize enclave properties */
-    rv = init_enclave();
-    if (rv) {
-        SGX_DBG(DBG_E, "Failed to initialize enclave properties: %d\n", rv);
+    ret = init_enclave();
+    if (ret) {
+        SGX_DBG(DBG_E, "Failed to initialize enclave properties: %d\n", ret);
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
@@ -341,7 +308,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* initialize master key (used for pipes' encryption for all enclaves of an application); it
      * will be overwritten below in init_child_process() with inherited-from-parent master key if
      * this enclave is child */
-    int ret = _DkRandomBitsRead(&g_master_key, sizeof(g_master_key));
+    ret = _DkRandomBitsRead(&g_master_key, sizeof(g_master_key));
     if (ret < 0) {
         SGX_DBG(DBG_E, "_DkRandomBitsRead failed: %d\n", ret);
         ocall_exit(1, /*is_exitgroup=*/true);
@@ -350,24 +317,15 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     /* if there is a parent, create parent handle */
     PAL_HANDLE parent = NULL;
     if (g_pal_sec.ppid) {
-        if ((rv = init_child_process(&parent)) < 0) {
-            SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", rv);
+        if ((ret = init_child_process(&parent)) < 0) {
+            SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", ret);
             ocall_exit(1, /*is_exitgroup=*/true);
         }
     }
 
+    // TODO: Should this really be so early? Isn't this insecure?
     /* now let's mark our enclave as initialized */
     g_pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
-
-    /*
-     * We create dummy handles for exec and manifest here to make the logic in
-     * pal_main happy and pass the path of them. The handles can't be used to
-     * read anything.
-     */
-
-    PAL_HANDLE exec = NULL;
-
-    exec = setup_dummy_file_handle(g_pal_sec.exec_name);
 
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
     void* manifest_addr = g_enclave_top - ALIGN_UP_PTR_POW2(manifest_size, g_page_size);
@@ -395,23 +353,18 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         ocall_exit(1, true);
     }
 
-    if ((rv = init_trusted_files()) < 0) {
-        SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", rv);
+    if ((ret = init_trusted_files()) < 0) {
+        SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", ret);
         ocall_exit(1, true);
     }
 
-    if ((rv = init_trusted_children()) < 0) {
-        SGX_DBG(DBG_E, "Failed to load the measurement of trusted child enclaves: %d\n", rv);
+    if ((ret = init_file_check_policy()) < 0) {
+        SGX_DBG(DBG_E, "Failed to load the file check policy: %d\n", ret);
         ocall_exit(1, true);
     }
 
-    if ((rv = init_file_check_policy()) < 0) {
-        SGX_DBG(DBG_E, "Failed to load the file check policy: %d\n", rv);
-        ocall_exit(1, true);
-    }
-
-    if ((rv = init_protected_files()) < 0) {
-        SGX_DBG(DBG_E, "Failed to initialize protected files: %d\n", rv);
+    if ((ret = init_protected_files()) < 0) {
+        SGX_DBG(DBG_E, "Failed to initialize protected files: %d\n", ret);
         ocall_exit(1, true);
     }
 
@@ -425,6 +378,5 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
 
     /* call main function */
-    pal_main(g_pal_sec.instance_id, exec, g_pal_sec.exec_addr, parent, first_thread, arguments,
-             environments);
+    pal_main(g_pal_sec.instance_id, g_pal_sec.exec_name, parent, first_thread, arguments, environments);
 }

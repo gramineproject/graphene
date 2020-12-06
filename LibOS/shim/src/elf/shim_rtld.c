@@ -333,8 +333,9 @@ static void setup_elf_hash(struct link_map* map) {
 /* Map in the shared object NAME, actually located in REALNAME, and already
    opened on FD */
 static struct link_map* __map_elf_object(struct shim_handle* file, const void* fbp, size_t fbp_len,
-                                         void* addr, int type, struct link_map* remap) {
+                                         void* addr, int type) {
     ElfW(Phdr)* new_phdr = NULL;
+    int initial_type = type;
 
     if (file && (!file->fs || !file->fs->fs_ops))
         return NULL;
@@ -347,12 +348,10 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
     if (file && (!read || !mmap || !seek))
         return NULL;
 
-    struct link_map* l =
-        remap ? remap
-              : new_elf_object(file ? (!qstrempty(&file->path) ? qstrgetstr(&file->path)
-                                                               : qstrgetstr(&file->uri))
-                                    : "",
-                               type);
+    struct link_map* l = new_elf_object(file ? (!qstrempty(&file->path) ? qstrgetstr(&file->path)
+                                                                : qstrgetstr(&file->uri))
+                                             : "",
+                                        type);
 
     if (!l)
         return NULL;
@@ -552,6 +551,15 @@ do_remap:
             /* Map the segment contents from the file.  */
             void* mapaddr = (void*)RELOCATE(l, c->mapstart);
 
+            // Warning: An ugly hack ahead. The problem is that the whole RTLD code is terrible
+            //          and the only reasonable way of fixing it is to rewrite it from scratch.
+            type = initial_type;
+            if (is_in_adjacent_user_vmas(mapaddr, c->mapend - c->mapstart)) {
+                /* these file contents are already mapped (probably via the received checkpoint in
+                 * child process), skip mapping it again by temporarily setting OBJECT_MAPPED */
+                type = OBJECT_MAPPED;
+            }
+
             if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
                 ret = bkeep_mmap_fixed(mapaddr, c->mapend - c->mapstart, c->prot,
                                        c->flags | MAP_FIXED | MAP_PRIVATE
@@ -693,10 +701,7 @@ success:
 call_lose:
     free(new_phdr);
     debug("loading %s: %s\n", l->l_name, errstring);
-    if (l != remap) {
-        /* l was allocated via new_elf_object() */
-        free(l);
-    }
+    free(l);
     return NULL;
 }
 
@@ -883,21 +888,15 @@ int check_elf_object(struct shim_handle* file) {
     return __check_elf_header(&fb, l);
 }
 
-static int __load_elf_object(struct shim_handle* file, void* addr, int type,
-                             struct link_map* remap);
+static int __load_elf_object(struct shim_handle* file, void* addr, int type);
 
-int load_elf_object(struct shim_handle* file, void* addr, size_t mapped) {
+int load_elf_object(struct shim_handle* file) {
     if (!file)
         return -EINVAL;
 
-    if (mapped)
-        debug("adding %s as runtime object loaded at %p-%p\n",
-              file ? qstrgetstr(&file->uri) : "(unknown)", addr, addr + mapped);
-    else
-        debug("loading %s as runtime object at %p\n", file ? qstrgetstr(&file->uri) : "(unknown)",
-              addr);
+    debug("loading \"%s\"\n", file ? qstrgetstr(&file->uri) : "(unknown)");
 
-    return __load_elf_object(file, addr, mapped ? OBJECT_MAPPED : OBJECT_LOAD, NULL);
+    return __load_elf_object(file, NULL, OBJECT_LOAD);
 }
 
 static void add_link_map(struct link_map* map) {
@@ -931,8 +930,7 @@ static void replace_link_map(struct link_map* new, struct link_map* old) {
 
 static int do_relocate_object(struct link_map* l);
 
-static int __load_elf_object(struct shim_handle* file, void* addr, int type,
-                             struct link_map* remap) {
+static int __load_elf_object(struct shim_handle* file, void* addr, int type) {
     char* hdr = addr;
     int len = 0, ret = 0;
 
@@ -942,7 +940,7 @@ static int __load_elf_object(struct shim_handle* file, void* addr, int type,
             goto out;
     }
 
-    struct link_map* map = __map_elf_object(file, hdr, len, addr, type, remap);
+    struct link_map* map = __map_elf_object(file, hdr, len, addr, type);
 
     if (!map) {
         ret = -EINVAL;
@@ -1298,7 +1296,7 @@ static int __load_interp_object(struct link_map* exec_map) {
             goto err;
         }
 
-        if (!(ret = __load_elf_object(interp, NULL, OBJECT_LOAD, NULL)))
+        if (!(ret = __load_elf_object(interp, NULL, OBJECT_LOAD)))
             interp_map = __search_map_by_handle(interp);
 
         put_handle(interp);
@@ -1391,7 +1389,7 @@ static int vdso_map_init(void) {
 
     memcpy(addr, &vdso_so, vdso_so_size);
     memset(addr + vdso_so_size, 0, ALLOC_ALIGN_UP(vdso_so_size) - vdso_so_size);
-    __load_elf_object(NULL, addr, OBJECT_VDSO, NULL);
+    __load_elf_object(NULL, addr, OBJECT_VDSO);
     vdso_map->l_name = "vDSO";
 
     for (size_t i = 0; i < ARRAY_SIZE(vsyms); i++) {
@@ -1431,7 +1429,7 @@ int vdso_map_migrate(void) {
 }
 
 int init_internal_map(void) {
-    __load_elf_object(NULL, &__load_address, OBJECT_INTERNAL, NULL);
+    __load_elf_object(NULL, &__load_address, OBJECT_INTERNAL);
     internal_map->l_name = "libsysdb.so";
     return 0;
 }
@@ -1451,10 +1449,15 @@ int init_loader(void) {
     struct link_map* exec_map = __search_map_by_handle(exec);
 
     if (!exec_map) {
-        if ((ret = load_elf_object(exec, (void*)PAL_CB(executable_range.start),
-                                   PAL_CB(executable_range.end) - PAL_CB(executable_range.start))) <
-            0)
+        ret = load_elf_object(exec);
+        if (ret < 0) {
+            // TODO: Actually verify that the non-PIE-ness was the real cause of loading failure.
+            warn("ERROR: Failed to load %s. This may be caused by the binary being non-PIE, in "
+                 "which case Graphene requires a specially-crafted memory layout. You can enable "
+                 "it by adding 'sgx.nonpie_binary = 1' to the manifest.\n",
+                 qstrgetstr(&exec->path));
             goto out;
+        }
 
         exec_map = __search_map_by_handle(exec);
     }
@@ -1502,7 +1505,7 @@ int register_library(const char* name, unsigned long load_address) {
         return err;
     }
 
-    __load_elf_object(hdl, (void*)load_address, OBJECT_USER, NULL);
+    __load_elf_object(hdl, (void*)load_address, OBJECT_USER);
     put_handle(hdl);
     return 0;
 }
