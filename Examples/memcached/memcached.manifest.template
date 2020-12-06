@@ -23,6 +23,9 @@
 # build process.
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
+# Binary to run.
+libos.entrypoint = "file:memcached"
+
 # Show/hide debug log of Graphene ("inline" or "none" respectively). Note that
 # GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
 # build process.
@@ -117,14 +120,17 @@ sgx.thread_num = 16
 # paths according to mount points above.
 #
 # As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
-# specified library, measures its hash, and outputs the hash in auto-generated
+# specified file, measures its hash, and outputs the hash in auto-generated
 # entry 'sgx.trusted_checksum.xxx' in auto-generated memcached.manifest.sgx.
-# Note that this happens on the developer machine.
+# Note that this happens on the developer machine or a build server.
 #
-# At runtime, during loading of this library, Graphene-SGX measures its hash
+# At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
 # and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
 # match, this library is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
+
+
+sgx.trusted_files.memcached = "file:memcached"
 
 # Glibc libraries. ld and libc are needed for all apps; pthread is needed
 # because Memcached is multi-threaded.

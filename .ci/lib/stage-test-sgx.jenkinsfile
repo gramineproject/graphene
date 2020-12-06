@@ -27,7 +27,7 @@ stage('test-sgx') {
             make ${MAKEOPTS} check
         '''
     }
-    /* Disabled until we fix Graphene loader
+    /* TODO: segfaults for some reason, probably a bug in RTLD code.
     timeout(time: 10, unit: 'MINUTES') {
         sh '''
             cd Examples/gcc
@@ -100,7 +100,6 @@ stage('test-sgx') {
             make ${MAKEOPTS} check
         '''
     }
-    /* Disabled until we fix Graphene loader (uses execve('/bin/sh'))
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/r
@@ -108,7 +107,6 @@ stage('test-sgx') {
             make ${MAKEOPTS} check
         '''
     }
-    */
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             # test SGX remote attestation only on Ubuntu 18.04 to keep internet requests to minimum

@@ -143,7 +143,6 @@ int copy_and_verify_trusted_file(const char* path, const void* umem, uint64_t um
                                  uint64_t umem_end, void* buffer, uint64_t offset, uint64_t size,
                                  sgx_stub_t* stubs, uint64_t total_size);
 
-int init_trusted_children(void);
 int register_trusted_child(const char* uri, const char* mr_enclave_str);
 
 int init_enclave(void);
@@ -256,7 +255,7 @@ int sgx_verify_report(sgx_report_t* report);
 int sgx_get_report(const sgx_target_info_t* target_info, const sgx_report_data_t* data,
                    sgx_report_t* report);
 
-typedef int (*check_mr_enclave_t)(PAL_HANDLE, sgx_measurement_t*, struct pal_enclave_state*);
+typedef bool (*mr_enclave_check_t)(PAL_HANDLE, sgx_measurement_t*, struct pal_enclave_state*);
 
 /*
  * _DkStreamReportRequest, _DkStreamReportRespond:
@@ -264,12 +263,12 @@ typedef int (*check_mr_enclave_t)(PAL_HANDLE, sgx_measurement_t*, struct pal_enc
  *
  * @stream:           stream handle for sending and receiving messages
  * @data:             data to sign in the outbound message
- * @check_mr_enclave: callback function for checking the measurement of the other end
+ * @is_mr_enclave_ok: callback function for checking the measurement of the other end
  */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mr_enclave_t check_mr_enclave);
+                           mr_enclave_check_t is_mr_enclave_ok);
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mr_enclave_t check_mr_enclave);
+                           mr_enclave_check_t is_mr_enclave_ok);
 
 int _DkStreamSecureInit(PAL_HANDLE stream, bool is_server, PAL_SESSION_KEY* session_key,
                         LIB_SSL_CONTEXT** out_ssl_ctx, const uint8_t* buf_load_ssl_ctx,

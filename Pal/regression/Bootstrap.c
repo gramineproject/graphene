@@ -3,11 +3,6 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-static int test_data = 0;
-static int test_func(void) {
-    return 0;
-}
-
 int main(int argc, char** argv, char** envp) {
     /* check if the program is loaded */
     pal_printf("User Program Started\n");
@@ -42,17 +37,6 @@ int main(int argc, char** argv, char** envp) {
     if (pal_control.user_address.start && pal_control.user_address.end &&
         pal_control.user_address.start < pal_control.user_address.end)
         pal_printf("User Address Range OK\n");
-
-    /* executable address range */
-    pal_printf("Executable Range: %p - %p\n", pal_control.executable_range.start,
-               pal_control.executable_range.end);
-
-    if (pal_control.executable_range.start && pal_control.executable_range.end &&
-        pal_control.executable_range.start < (void*)&test_data &&
-        (void*)&test_data < pal_control.executable_range.end &&
-        pal_control.executable_range.start < (void*)&test_func &&
-        (void*)&test_func < pal_control.executable_range.end)
-        pal_printf("Executable Range OK\n");
 
     pal_printf("CPU num: %ld\n", pal_control.cpu_info.online_logical_cores);
     pal_printf("CPU vendor: %s\n", pal_control.cpu_info.cpu_vendor);

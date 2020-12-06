@@ -225,12 +225,8 @@ This command will autogenerate a couple new files:
 #. Create a symbolic link to the generic Graphene loader (``pal_loader``). This
    is just for convenience.
 
-#. Because Graphene requires 1-1 manifest-executable correspondence, it will
-   also create a symlink to the Python binary, with the name corresponding to
-   the manifest.
-
 Now, launch Graphene via ``pal_loader``. You can simply append the arguments
-after the executable name.  Our example takes
+after the project name.  Our example takes
 ``pytorchexample.py`` as an argument::
 
    ./pal_loader ./python3 pytorchexample.py

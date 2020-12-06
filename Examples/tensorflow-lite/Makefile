@@ -58,12 +58,11 @@ label_image.manifest: label_image.manifest.template
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		$< > $@
 
-label_image.manifest.sgx: label_image label_image.manifest inception_v3.tflite labels.txt
+label_image.manifest.sgx: label_image.manifest inception_v3.tflite labels.txt
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $<.manifest -output $@ \
-		-exec $<
+		-manifest $< -output $@
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
 		-output label_image.token -sig label_image.sig
 

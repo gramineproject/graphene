@@ -30,28 +30,28 @@ $(KEY_FILE):
 .PRECIOUS: gsc-%-bash
 gsc-%-bash: %-bash
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(addprefix test/, bash.manifest ls.manifest)
+	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-bash) test/bash.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-bash) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-python3
 gsc-%-python3: %-python3 %-python3.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
+	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3) test/$*-python3.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-python3) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-python3-trusted-args
 gsc-%-python3-trusted-args: %-python3-trusted-args %-python3.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build -c test/config-$*.yaml -L $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3-trusted-args) $(addprefix test/, $*-python3.manifest)
+	cd .. && ./gsc build -c test/config-$*.yaml -L $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-python3-trusted-args) test/$*-python3.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-python3-trusted-args) $(notdir $(KEY_FILE))
 	touch $@
 
 .PRECIOUS: gsc-%-pytorch
 gsc-%-pytorch: %-pytorch %-pytorch.manifest
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(addprefix test/, $*-pytorch.manifest sh.manifest uname.manifest)
+	cd .. && ./gsc build -c test/config-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) test/$*-pytorch.manifest
 	cd .. && ./gsc sign-image -c test/config-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-pytorch) $(notdir $(KEY_FILE))
 	touch $@
 
@@ -59,7 +59,7 @@ gsc-%-pytorch: %-pytorch %-pytorch.manifest
 gsc-%-base-python3: graphene-% %-base-python3
 	printf "Distro: \"$*\"\nGraphene:\n   Image: \"graphene-$*$(IMAGE_SUFFIX)\"\n" > config-image-$*.yaml
 	echo "Building graphenized image $@..."
-	cd .. && ./gsc build -c test/config-image-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-base-python3) $(addprefix test/, $*-python3.manifest sh.manifest ls.manifest)
+	cd .. && ./gsc build -c test/config-image-$*.yaml -L --insecure-args $(GSC_BUILD_FLAGS) $(addsuffix $(IMAGE_SUFFIX), $*-base-python3) test/$*-python3.manifest
 	cd .. && ./gsc sign-image -c test/config-image-$*.yaml $(addsuffix $(IMAGE_SUFFIX), $*-base-python3) $(notdir $(KEY_FILE))
 	touch $@
 

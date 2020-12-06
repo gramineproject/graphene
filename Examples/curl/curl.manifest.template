@@ -2,6 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
+libos.entrypoint = "file:$(CURL_DIR)/curl"
 loader.argv0_override = "curl"
 
 # LibOS layer library of Graphene. There is currently only one implementation,
@@ -50,8 +51,9 @@ sgx.enclave_size = "256M"
 # enclave creation time.
 sgx.thread_num = 4
 
-# Specify all libraries used by curl and its dependencies (including all libs
+# Specify all binaries used by curl and its dependencies (including all libs
 # which can be loaded at runtime via dlopen).
+sgx.trusted_files.curl = "file:$(CURL_DIR)/curl"
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
 sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
@@ -63,7 +65,6 @@ sgx.trusted_files.libresolv = "file:$(GRAPHENEDIR)/Runtime/libresolv.so.2"
 sgx.trusted_files.libnssdns = "file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2"
 sgx.trusted_files.libnss_files = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
 sgx.trusted_files.libnss_mdns4_minimal = "file:$(ARCH_LIBDIR)/libnss_mdns4_minimal.so.2"
-$(CURL_TRUSTED_LIBS)
 
 # Name Service Switch (NSS) files. Glibc reads these files as part of name-
 # service information gathering. For more info, see 'man nsswitch.conf'.

@@ -20,7 +20,7 @@ execs = \
 	stat \
 	truncate
 
-manifests = manifest
+manifests = $(addsuffix .manifest,$(execs))
 
 exec_target = $(execs)
 

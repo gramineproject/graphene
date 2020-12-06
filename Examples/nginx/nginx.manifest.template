@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
-loader.argv0_override = "nginx"
+libos.entrypoint = "file:$(INSTALL_DIR)/sbin/nginx"
 
 # Graphene environment, including the path to the library OS and the debug
 # option (inline/none).
@@ -55,7 +55,9 @@ sgx.enclave_size = "256M"
 # We (somewhat arbitrarily) specify 4 threads since Nginx is single-threaded.
 sgx.thread_num = 4
 
-# SGX trusted libraries
+# SGX trusted files
+
+sgx.trusted_files.nginx = "file:$(INSTALL_DIR)/sbin/nginx"
 
 # Glibc libraries
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
@@ -73,9 +75,6 @@ sgx.trusted_files.libnssnis = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
 
 # libNSL is a dependency of libnss_compat above
 sgx.trusted_files.libnsl = "file:$(ARCH_LIBDIR)/libnsl.so.1"
-
-# Nginx dependencies (shared libraries)
-$(NGINX_TRUSTED_LIBS)
 
 # Nginx configuration (trusted)
 sgx.trusted_files.conf1 = "file:$(INSTALL_DIR)/conf/nginx-graphene.conf"

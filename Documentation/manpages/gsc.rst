@@ -240,43 +240,15 @@ specified during :command:`docker run` are ignored.
 To be able to provide arguments at runtime, the image build has to enable this
 via the option :option:`--insecure-args <gsc-build --insecure-args>`.
 
-Application-specific manifest files
------------------------------------
-
-Each application loaded by Graphene requires a separate manifest file.
-:program:`gsc` semi-automatically generates these manifest files. It generates a
-list of trusted files, assumes values for the number of stacks and memory size,
-and generates the chain of trusted children (see below for details). To allow
-specializing each application manifest, :program:`gsc` allows the user to
-augment each generated manifest. In particular, this allows to add additional
-trusted or allowed files and specify a particular enclave size or number of
-Thread Control Structures (TCS).
-
-:program:`gsc` allows application-specific manifest files to be empty or not to
-exist. In this case :program:`gsc` generates a generic manifest file.
-
 Docker images starting multiple applications
 --------------------------------------------
 
 Depending on the use case, a Docker container may execute multiple applications.
 The Docker image defines the entrypoint application which could fork additional
 applications. A common pattern in Docker images executes an entrypoint script
-which calls a set of applications. In Graphene the manifest of a parent
-application has to specify all trusted children that might be forked.
-
-We define the parent-child relationship by overestimating the set of possible
-children. Multiple applications are specified as arguments to :program:`gsc`.
-The example below creates a Docker image with three applications. Based on the
-specified chain of applications, :program:`gsc` generates parent-child
-relationships between application ``appi`` and all applications after it in
-the chain (``> appi``). This overestimates the set of trusted children and may
-not map to the actual partent-child relationship. In the example below ``app1``
-may call ``app2`` or ``app3``, and ``app2`` may call ``app3``, but ``app2`` may
-*not* call ``app1``, and ``app3`` may *not* call ``app1`` or ``app2``.
-
-.. code-block:: sh
-
-   gsc build image app1.manifest app2.manifest app3.manifest
+which calls a set of applications. Similarly to Docker, Graphene has a
+corresponding option (``libos.entrypoint``) which should point to the first
+executable started inside Graphene namespace.
 
 Stages of building graphenized SGX Docker images
 ------------------------------------------------
@@ -501,14 +473,6 @@ Data mounted as Docker volumes at runtime is not included in the general search
 for trusted files during the image build. As a result, Graphene denies access to
 these files, since they are neither allowed nor trusted files. This will likely
 break applications using files stored in Docker volumes.
-
-Workaround
-^^^^^^^^^^
-
-   Trusted files can be added to image-specific manifest file (first argument to
-   :command:`gsc build` command) at build time. This workaround does not allow
-   these files to change between build and run, or over multiple runs. This only
-   provides integrity for files and not confidentiality.
 
 Allowing dynamic file contents via Graphene protected files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -59,9 +59,6 @@ int main(int argc, char** argv, char** envp) {
     void* mem3 = (void*)pal_control.user_address.start;
     void* mem4 = (void*)pal_control.user_address.end - UNIT;
 
-    if (mem3 >= pal_control.executable_range.start && mem3 < pal_control.executable_range.end)
-        mem3 = (void*)ALIGN_UP_PTR(pal_control.executable_range.end, UNIT);
-
     mem3 = (void*)DkVirtualMemoryAlloc(mem3, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
     mem4 = (void*)DkVirtualMemoryAlloc(mem4, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
 

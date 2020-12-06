@@ -37,7 +37,7 @@ stage('test-direct') {
             make check
         '''
     }
-    /* Disabled until we fix Graphene loader
+    /* TODO: segfaults for some reason, probably a bug in RTLD code.
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/gcc
@@ -107,7 +107,6 @@ stage('test-direct') {
             make check
         '''
     }
-    /* Disabled until we fix Graphene loader (uses execve('/bin/sh'))
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/r
@@ -115,5 +114,4 @@ stage('test-direct') {
             make check
         '''
     }
-    */
 }

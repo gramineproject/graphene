@@ -120,7 +120,7 @@ int handle_deserialize(PAL_HANDLE* handle, const void* data, int size);
 
 bool stataccess(struct stat* stats, int acc);
 
-void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, PAL_HANDLE* exec,
+void init_child_process(int parent_pipe_fd, PAL_HANDLE* parent, char** exec_uri_out,
                         char** manifest_out);
 
 int get_hw_resource(const char* filename, bool count);

@@ -82,11 +82,11 @@ relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspa
 %.manifest: %.manifest.template
 	@echo [ $@ ]
 	RELDIR=$(filter-out ./,$(call relative-to,$(dir $@),$(shell pwd))/) && \
-	sed $(manifest_rules) $< > $@
+	sed -e 's:\$$(ENTRYPOINT):$*:g' $(manifest_rules) $< > $@
 
-manifest: manifest.template
+%.manifest: manifest.template
 	@echo [ $@ ]
-	sed $(manifest_rules) $< > $@
+	sed -e 's:\$$(ENTRYPOINT):$*:g' $(manifest_rules) $< > $@
 
 ifeq ($(SGX),1)
 SGX_DIR = $(PALDIR)/host/Linux-SGX
@@ -107,15 +107,11 @@ expand_target_to_sgx = $(addsuffix .manifest.sgx,$(call drop_manifest_suffix,$(1
 	@echo [ $@ ]
 	@$(SGX_GET_TOKEN) -output $@ -sig $^ > .output.sgx_get_token.$(basename $*)
 
-%.sig %.manifest.sgx: %.manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+%.sig %.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
 	@echo [ $@ ]
-	@$(SGX_SIGN) -output $*.manifest.sgx -exec $* -manifest $< > .output.sgx_sign.$*
+	@$(SGX_SIGN) -output $*.manifest.sgx -manifest $< > .output.sgx_sign.$*
 
 %.sig %.manifest.sgx: manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
-	@echo [ $@ ]
-	@$(SGX_SIGN) -output $*.manifest.sgx -exec $* -manifest $< > .output.sgx_sign.$*
-
-%.sig %.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
 	@echo [ $@ ]
 	@$(SGX_SIGN) -output $*.manifest.sgx -manifest $< > .output.sgx_sign.$*
 
@@ -123,17 +119,17 @@ expand_target_to_sgx = $(addsuffix .manifest.sgx,$(call drop_manifest_suffix,$(1
 
 %.manifest.sgx.d: %.manifest
 	@echo [ $@ ]
-	@$(SGX_SIGN) -depend -output $@ -exec $* -manifest $<
+	@$(SGX_SIGN) -depend -output $@ -manifest $<
 
 %.manifest.sgx.d: manifest
 	@echo [ $@ ]
 	@$(SGX_SIGN) -depend -output $@ -manifest $<
 
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
-include $(addsuffix .manifest.sgx.d,$(call drop_manifest_suffix,$(exec_target)))
+include $(addsuffix .manifest.sgx.d,$(call drop_manifest_suffix,$(manifests)))
 endif
 endif
 
 .PHONY: clean
 clean: $(clean-extra)
-	$(RM) -r pal_loader $(exec_target) *.token *.sig *.manifest.sgx $(target) $(wildcard *.d) .output.*
+	$(RM) -r pal_loader $(manifests) *.token *.sig *.manifest.sgx $(target) $(wildcard *.d) .output.*

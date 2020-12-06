@@ -57,7 +57,7 @@ def generate_build_dockerfile(image, env, binary):
         dockerfile.write(env.get_template(
             f'Dockerfile.{env.globals["Distro"]}.build.template').render(binary=binary))
 
-def prepare_build_context(image, user_manifests, env, binary):
+def prepare_build_context(image, manifest, env, binary):
     gsc_image = gsc_image_name(image)
     # create directory for image specific files
     os.makedirs(gsc_image, exist_ok=True)
@@ -69,16 +69,12 @@ def prepare_build_context(image, user_manifests, env, binary):
     generate_app_loader(gsc_image, env, binary)
 
     # generate manifest stub for this app
-    generate_manifest(gsc_image, env, user_manifests[0], binary)
+    generate_manifest(gsc_image, env, manifest, binary)
 
-    for user_manifest in user_manifests[1:]:
-        generate_manifest(gsc_image, env, user_manifest,
-            user_manifest[user_manifest.rfind('/') + 1 : user_manifest.rfind('.manifest')])
-
-    fm_path = (pathlib.Path(gsc_image) / 'finalize_manifests').with_suffix('.py')
-    shutil.copyfile('finalize_manifests.py', fm_path)
-    sm_path = (pathlib.Path(gsc_image) / 'sign_manifests').with_suffix('.py')
-    shutil.copyfile('sign_manifests.py', sm_path)
+    fm_path = (pathlib.Path(gsc_image) / 'finalize_manifest').with_suffix('.py')
+    shutil.copyfile('finalize_manifest.py', fm_path)
+    sm_path = (pathlib.Path(gsc_image) / 'sign_manifest').with_suffix('.py')
+    shutil.copyfile('sign_manifest.py', sm_path)
 
 def extract_binary_cmd_from_image_config(config):
     entrypoint = config['Entrypoint'] or []
@@ -123,7 +119,7 @@ def extract_working_dir(image):
 
     return working_dir
 
-def prepare_env(base_image, image, args, user_manifests):
+def prepare_env(base_image, image, args, manifest):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
 
     env.globals.update(vars(args))
@@ -145,8 +141,6 @@ def prepare_env(base_image, image, args, user_manifests):
             'binary_arguments': binary_arguments,
             'cmd': cmd,
             'working_dir': working_dir,
-            'user_manifests': ' '.join([os.path.basename(manifest)
-                                       for manifest in user_manifests[1:]])
             })
 
     return env, binary
@@ -196,7 +190,6 @@ def extract_build_args(args):
 # [<app2.manifest> ...].
 def gsc_build(args):
     image = args.image
-    user_manifests = args.manifests
 
     docker_socket = docker.from_env()
 
@@ -211,9 +204,9 @@ def gsc_build(args):
 
     print(f'Building graphenized image from base image {image}')
 
-    env, binary = prepare_env(base_image, image, args, user_manifests)
+    env, binary = prepare_env(base_image, image, args, args.manifest)
 
-    prepare_build_context(image, user_manifests, env, binary)
+    prepare_build_context(image, args.manifest, env, binary)
 
     buildargs_dict = extract_build_args(args)
 
@@ -279,12 +272,12 @@ def gsc_build_graphene(args):
 
         print(f'Successfully built Graphene-only Docker image {image}.')
 
-def generate_dockerfile_sign_manifests(image, env):
+def generate_dockerfile_sign_manifest(image, env):
 
-    dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile.sign_manifests')
+    dockerfile_path = (pathlib.Path(gsc_image_name(image)) / 'Dockerfile.sign_manifest')
     with open(dockerfile_path, 'w') as dockerfile:
         dockerfile.write(env.get_template(
-            f'Dockerfile.{env.globals["Distro"]}.sign_manifests.template')
+            f'Dockerfile.{env.globals["Distro"]}.sign_manifest.template')
             .render(image=gsc_unsigned_image_name(image)))
 
 # Sign Docker image which was previously built via `gsc build`.
@@ -306,7 +299,7 @@ def gsc_sign_image(args):
     env.globals.update(config)
     env.globals.update({'working_dir': extract_working_dir(gsc_image)})
 
-    generate_dockerfile_sign_manifests(image, env)
+    generate_dockerfile_sign_manifest(image, env)
 
     fk_path = (pathlib.Path(gsc_image_name(image)) / 'gsc-signer-key').with_suffix('.pem')
     shutil.copyfile(os.path.abspath(key), fk_path)
@@ -315,7 +308,7 @@ def gsc_sign_image(args):
         # We force the removal of intermediate Docker images to not leave the signing
         # key in a Docker container.
         build_docker_image(gsc_image_name(image), gsc_image_name(image),
-                           'Dockerfile.sign_manifests', forcerm=True)
+                           'Dockerfile.sign_manifest', forcerm=True)
 
     finally:
         # Remove key file from the temporary folder
@@ -351,10 +344,7 @@ sub_build.add_argument('-c', '--config_file', type=argparse.FileType('r', encodi
     default='config.yaml', help='Specify configuration file.')
 sub_build.add_argument('image',
     help='Name of the application Docker image.')
-sub_build.add_argument('manifests',
-    nargs='+',
-    help='Application-specific manifest files. The first manifest will be used for the entry '
-         'point of the Docker image.')
+sub_build.add_argument('manifest', help='Manifest file to use.')
 
 sub_build_graphene = subcommands.add_parser('build-graphene',
     help="Build base Graphene Docker image")

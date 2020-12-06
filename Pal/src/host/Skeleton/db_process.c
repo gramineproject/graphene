@@ -16,7 +16,7 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
+int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

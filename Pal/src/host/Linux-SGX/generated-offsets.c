@@ -75,7 +75,7 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);
     OFFSET(SGX_ENCLAVE_SIZE, enclave_tls, enclave_size);
     OFFSET(SGX_TCS_OFFSET, enclave_tls, tcs_offset);
-    OFFSET(SGX_INITIAL_STACK_OFFSET, enclave_tls, initial_stack_offset);
+    OFFSET(SGX_INITIAL_STACK_ADDR, enclave_tls, initial_stack_offset);
     OFFSET(SGX_TMP_RIP, enclave_tls, tmp_rip);
     OFFSET(SGX_ECALL_RETURN_ADDR, enclave_tls, ecall_return_addr);
     OFFSET(SGX_SIG_STACK_LOW, enclave_tls, sig_stack_low);
@@ -94,8 +94,6 @@ __attribute__((__used__)) static void dummy(void) {
     OFFSET(SGX_MANIFEST_SIZE, enclave_tls, manifest_size);
     OFFSET(SGX_HEAP_MIN, enclave_tls, heap_min);
     OFFSET(SGX_HEAP_MAX, enclave_tls, heap_max);
-    OFFSET(SGX_EXEC_ADDR, enclave_tls, exec_addr);
-    OFFSET(SGX_EXEC_SIZE, enclave_tls, exec_size);
     OFFSET(SGX_CLEAR_CHILD_TID, enclave_tls, clear_child_tid);
 
     /* struct pal_tcb_urts aka PAL_TCB_URTS */

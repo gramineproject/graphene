@@ -1,5 +1,4 @@
 /*.tar.gz
-/httpd
 /httpd-*/*
 /install/*
 /OUTPUT

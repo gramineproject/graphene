@@ -4,6 +4,9 @@
 
 ################################## GRAPHENE ###################################
 
+# The binary to execute.
+libos.entrypoint = "file:busybox"
+
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
@@ -81,6 +84,8 @@ fs.mount.etc.uri = "file:/etc"
 # and compares it with the one specified in 'sgx.trusted_checksum.xxx'. If both
 # hashes match, this library is trusted and allowed to be loaded and used. Note
 # that this happens on the client machine.
+
+sgx.trusted_files.busybox = "file:busybox"
 
 # Glibc libraries.
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"

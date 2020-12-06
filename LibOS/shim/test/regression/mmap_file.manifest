@@ -1,0 +1,22 @@
+loader.preload = "file:../../src/libsysdb.so"
+libos.entrypoint = "file:mmap_file"
+loader.argv0_override = "mmap_file"
+
+loader.env.LD_LIBRARY_PATH = "/lib"
+loader.debug_type = "none"
+
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:../../../../Runtime"
+
+fs.mount.bin.type = "chroot"
+fs.mount.bin.path = "/bin"
+fs.mount.bin.uri = "file:/bin"
+
+sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
+sgx.trusted_files.mmap_file = "file:mmap_file"
+
+sgx.allowed_files.testfile = "file:testfile"
+
+sgx.nonpie_binary = 1

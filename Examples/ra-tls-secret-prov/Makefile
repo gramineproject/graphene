@@ -150,8 +150,7 @@ secret_prov_client.manifest.sgx: secret_prov_client.manifest secret_prov_client 
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@ \
-		-exec secret_prov_client
+		-manifest $< -output $@
 
 secret_prov_client.sig: secret_prov_client.manifest.sgx
 
@@ -171,8 +170,7 @@ secret_prov_min_client.manifest.sgx: secret_prov_min_client.manifest secret_prov
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@ \
-		-exec secret_prov_min_client
+		-manifest $< -output $@
 
 secret_prov_min_client.sig: secret_prov_min_client.manifest.sgx
 
@@ -197,8 +195,7 @@ secret_prov_pf_client.manifest.sgx: secret_prov_pf_client.manifest secret_prov_p
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@ \
-		-exec secret_prov_pf_client
+		-manifest $< -output $@
 
 secret_prov_pf_client.sig: secret_prov_pf_client.manifest.sgx
 
