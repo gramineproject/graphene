@@ -9,6 +9,7 @@
 # to relative path to Graphene repository in the Makefile as part of the
 # build process.
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+libos.entrypoint = "file:redis-server"
 
 # Show/hide debug log of Graphene ('inline' or 'none' respectively). Note that
 # GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
@@ -73,6 +74,8 @@ fs.mount.etc.uri = "file:/etc"
 # typical Redis workloads.
 sgx.enclave_size = "1024M"
 
+sgx.nonpie_binary = 1
+
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 8. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at
 # enclave creation time.
@@ -83,22 +86,24 @@ sgx.enclave_size = "1024M"
 # specifying '8' allows to run a maximum of 6 Redis threads which is enough.
 sgx.thread_num = 8
 
-############################# SGX: TRUSTED LIBS ###############################
+############################# SGX: TRUSTED FILES ###############################
 
-# Specify all libraries used by Redis and its dependencies (including all
-# libraries which can be loaded at runtime via dlopen). The paths to libraries
-# are host-OS paths. These libraries will be searched for in in-Graphene visible
+# Specify all files used by Redis and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to files
+# are host-OS paths. These files will be searched for in in-Graphene visible
 # paths according to mount points above.
 #
 # As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
-# specified library, measures its hash, and outputs the hash in auto-generated
+# specified file, measures its hash, and outputs the hash in auto-generated
 # entry 'sgx.trusted_checksum.xxx' in auto-generated redis-server.manifest.sgx.
-# Note that this happens on the developer machine.
+# Note that this happens on the developer machine or a build server.
 #
-# At runtime, during loading of this library, Graphene-SGX measures its hash
+# At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
 # and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
-# match, this library is trusted and allowed to be loaded and used. Note that
+# match, this file is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
+
+sgx.trusted_files.redis-server = "file:redis-server"
 
 # Glibc libraries. ld, libc, libm, libdl, librt provide common functionality;
 # pthread is needed because Redis spawns helper threads for bookkeeping.
@@ -127,8 +132,6 @@ sgx.trusted_files.liblzma = "file:$(ARCH_LIBDIR)/liblzma.so.5"
 sgx.trusted_files.libgcrypt = "file:$(ARCH_LIBDIR)/libgcrypt.so.20"
 sgx.trusted_files.libgpgerror = "file:$(ARCH_LIBDIR)/libgpg-error.so.0"
 sgx.trusted_files.liblz4 = "file:/usr/$(ARCH_LIBDIR)/liblz4.so.1"
-
-############################ SGX: TRUSTED FILES ###############################
 
 # Trusted no-library files include configuration files, read-only files, and
 # other static files. It is useful to specify such files here to make sure

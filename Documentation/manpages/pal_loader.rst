@@ -11,7 +11,7 @@
 Synopsis
 ========
 
-:command:`pal_loader` [SGX] [GDB] {<*EXECUTABLE*>} [<*ARGS*> ...]
+:command:`pal_loader` [SGX] [GDB] {<*APPLICATION*>} [<*ARGS*> ...]
 
 Description
 ===========

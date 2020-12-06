@@ -25,7 +25,7 @@ struct enclave_tls {
     /* private to Linux-SGX PAL */
     uint64_t enclave_size;
     uint64_t tcs_offset;
-    uint64_t initial_stack_offset;
+    uint64_t initial_stack_addr;
     uint64_t tmp_rip;
     uint64_t sig_stack_low;
     uint64_t sig_stack_high;
@@ -44,8 +44,6 @@ struct enclave_tls {
     uint64_t manifest_size;
     void*    heap_min;
     void*    heap_max;
-    void*    exec_addr;
-    uint64_t exec_size;
     int*     clear_child_tid;
     struct untrusted_area untrusted_area_cache;
 };

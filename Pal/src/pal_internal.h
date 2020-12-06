@@ -144,7 +144,7 @@ static inline int handle_size(PAL_HANDLE handle) {
 void notify_failure(unsigned long error);
 
 /* all pal config value */
-extern struct pal_internal_state {
+struct pal_internal_state {
     PAL_NUM         instance_id;
 
     PAL_HANDLE      parent_process;
@@ -152,11 +152,10 @@ extern struct pal_internal_state {
     const char*     raw_manifest_data;
     toml_table_t*   manifest_root;
 
-    PAL_HANDLE      exec_handle;
-
     /* May not be the same as page size, e.g. SYSTEM_INFO::dwAllocationGranularity on Windows */
     size_t          alloc_align;
-} g_pal_state;
+};
+extern struct pal_internal_state g_pal_state;
 
 extern PAL_CONTROL g_pal_control;
 
@@ -175,16 +174,15 @@ extern PAL_CONTROL g_pal_control;
  * This function must be called by the host-specific loader.
  *
  * \param instance_id       current instance id
- * \param exec_handle       executable handle if opened
- * \param exec_loaded_addr  executable addr if loaded
+ * \param exec_uri          executable URI
  * \param parent_process    parent process if it's a child
  * \param first_thread      first thread handle
  * \param arguments         application arguments
  * \param environments      environment variables
  */
-noreturn void pal_main(PAL_NUM instance_id, PAL_HANDLE exec_handle, PAL_PTR exec_loaded_addr,
-                       PAL_HANDLE parent_process, PAL_HANDLE first_thread, PAL_STR* arguments,
-                       PAL_STR* environments);
+noreturn void pal_main(PAL_NUM instance_id, const char* exec_uri,
+                       PAL_HANDLE parent_process, PAL_HANDLE first_thread,
+                       PAL_STR* arguments, PAL_STR* environments);
 
 /* For initialization */
 
@@ -225,7 +223,7 @@ noreturn void _DkThreadExit(int* clear_child_tid);
 int _DkThreadDelayExecution(uint64_t* duration_us);
 void _DkThreadYieldExecution(void);
 int _DkThreadResume(PAL_HANDLE threadHandle);
-int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args);
+int _DkProcessCreate(PAL_HANDLE* handle, const char* exec_uri, const char** args);
 noreturn void _DkProcessExit(int exitCode);
 int _DkThreadSetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
 int _DkThreadGetCpuAffinity(PAL_HANDLE thread, PAL_NUM cpumask_size, PAL_PTR cpu_mask);
@@ -302,8 +300,7 @@ enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
 bool has_elf_magic(const void* header, size_t len);
 bool is_elf_object(PAL_HANDLE handle);
 int load_elf_object(const char* uri, enum object_type type);
-int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type);
-int add_elf_object(void* addr, PAL_HANDLE handle, int type);
+int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** out_loading_base);
 
 void init_slab_mgr(int alignment);
 void* malloc(size_t size);

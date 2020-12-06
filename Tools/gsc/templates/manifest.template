@@ -3,6 +3,7 @@ loader.preload = "file:/graphene/Runtime/libsysdb.so"
 {% if insecure_args %}
 loader.arg0_override = "{{binary}}"
 {% endif %}
+libos.entrypoint = "file:{{binary}}"
 loader.env.LD_LIBRARY_PATH = "/graphene/Runtime:{{"{{library_paths}}"}}"
 loader.env.PATH = "{{"{{env_path}}"}}"
 loader.debug_type = {% if debug %} "inline" {% else %} "none" {% endif %}
@@ -15,8 +16,8 @@ fs.root.uri = "file:/"
 # working directory to the desired location
 fs.start_dir = "{{working_dir}}"
 
-# Start at static addresses (otherwise breaks when static and PIE executables are used)
-sgx.static_address = 1
+# Start at static addresses (otherwise breaks when non-relocatable executables are used)
+sgx.nonpie_binary = 1
 
 {% if insecure_args %}
 # !! INSECURE !! Allow passing command-line arguments from the host without validation

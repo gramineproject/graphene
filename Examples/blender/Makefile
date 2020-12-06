@@ -14,10 +14,11 @@ RUN_DIR = $(PWD)/run_dir
 
 UBUNTU_VER = $(shell lsb_release --short --id)$(shell lsb_release --short --release)
 
-ifeq ($(UBUNTU_VER), Ubuntu18.04)
+ifeq ($(UBUNTU_VER), Ubuntu20.04)
+else ifeq ($(UBUNTU_VER), Ubuntu18.04)
 else ifeq ($(UBUNTU_VER), Ubuntu16.04)
 else
-$(error This example requires Ubuntu 16.04 or 18.04)
+$(error This example requires Ubuntu 16.04, 18.04 or 20.04)
 endif
 
 ifeq ($(DEBUG),1)
@@ -28,9 +29,9 @@ endif
 
 
 .PHONY: all
-all: $(BLENDER_DIR)/blender $(BLENDER_DIR)/blender.manifest | $(RUN_DIR)/pal_loader $(DATA_DIR)/images
+all: $(BLENDER_DIR)/blender blender.manifest | $(RUN_DIR)/pal_loader $(DATA_DIR)/images
 ifeq ($(SGX),1)
-all: $(BLENDER_DIR)/blender.token
+all: blender.manifest.sgx blender.sig blender.token
 endif
 
 include ../../Scripts/Makefile.configs
@@ -44,29 +45,30 @@ $(BLENDER_DIR)/blender:
 $(RUN_DIR):
 	mkdir -p $@
 
-$(BLENDER_DIR)/blender.manifest: blender.manifest.template $(BLENDER_DIR)/blender | $(RUN_DIR)
-	sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
-		-e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
-		-e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
-		-e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
-		-e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
-		-e 's|# \['"$(UBUNTU_VER)"'\] ||g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+.INTERMEDIATE: trusted-libs
+trusted-libs: ../common_tools/get_deps.sh $(BLENDER_DIR)/blender
+	../common_tools/get_deps.sh $(BLENDER_DIR)/blender > $@
 
-$(BLENDER_DIR)/blender.manifest.sgx: $(BLENDER_DIR)/blender $(BLENDER_DIR)/blender.manifest \
+blender.manifest: blender.manifest.template trusted-libs | $(RUN_DIR)
+	(sed -e 's|$$(GRAPHENE_DIR)|'"$(GRAPHENE_DIR)"'|g' \
+	     -e 's|$$(GRAPHENE_DEBUG)|'"$(GRAPHENE_DEBUG)"'|g' \
+	     -e 's|$$(DATA_DIR)|'"$(DATA_DIR)"'|g' \
+	     -e 's|$$(BLENDER_DIR)|'"$(BLENDER_DIR)"'|g' \
+	     -e 's|$$(BLENDER_VER)|'"$(BLENDER_VER)"'|g' \
+	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	     $<; \
+    cat trusted-libs) > $@
+
+blender.sig blender.manifest.sgx &: $(BLENDER_DIR)/blender blender.manifest \
         $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so | $(RUN_DIR)
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-output $@ \
+		-output blender.manifest.sgx \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $(BLENDER_DIR)/blender.manifest \
-		-exec $<
+		-manifest blender.manifest
 
-$(BLENDER_DIR)/blender.token: $(BLENDER_DIR)/blender.manifest.sgx
-	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token \
-		-output $@ \
-		-sig $(BLENDER_DIR)/blender.sig
+blender.token: blender.sig
+	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
 
 $(RUN_DIR)/pal_loader: | $(RUN_DIR)
 	ln -s $(GRAPHENE_DIR)/Runtime/pal_loader $@
@@ -76,14 +78,12 @@ $(DATA_DIR)/images:
 
 .PHONY: check
 check: all
-	cd $(RUN_DIR) && BLENDER_DIR=$(BLENDER_DIR) DATA_DIR=$(DATA_DIR) \
-	    sh $(PWD)/test_all_scenes.sh
+	cd $(RUN_DIR) && DATA_DIR=$(DATA_DIR) sh $(PWD)/test_all_scenes.sh
 
 .PHONY: clean
 clean:
-	$(RM) -r $(RUN_DIR) $(DATA_DIR)/images $(BLENDER_DIR)/blender.manifest \
-	      $(BLENDER_DIR)/blender.manifest.sgx $(BLENDER_DIR)/blender.sig \
-	      $(BLENDER_DIR)/blender.token
+	$(RM) -r $(RUN_DIR) $(DATA_DIR)/images blender.manifest blender.manifest.sgx blender.sig \
+	         blender.token trusted-libs
 
 .PHONY: distclean
 distclean: clean

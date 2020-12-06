@@ -35,7 +35,7 @@ static void load_libraries(void) {
     /* string with preload libs: can be multiple URIs separated by commas */
     ret = toml_string_in(g_pal_state.manifest_root, "loader.preload", &preload_str);
     if (ret < 0)
-        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.preload\'");
+        INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'loader.preload'");
 
     if (!preload_str)
         return;
@@ -156,7 +156,7 @@ static void set_debug_type(void) {
     char* debug_type = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_type", &debug_type);
     if (ret < 0)
-        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.debug_type\'");
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.debug_type'");
 
     if (!debug_type)
         return;
@@ -171,7 +171,7 @@ static void set_debug_type(void) {
         char* debug_file = NULL;
         ret = toml_string_in(g_pal_state.manifest_root, "loader.debug_file", &debug_file);
         if (ret < 0 || !debug_file)
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot find/parse \'loader.debug_file\'");
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot find/parse 'loader.debug_file'");
 
         ret = _DkInitDebugStream(debug_file);
         free(debug_file);
@@ -179,7 +179,7 @@ static void set_debug_type(void) {
     } else if (!strcmp(debug_type, "none")) {
         ret = 0;
     } else {
-        INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Unknown \'loader.debug_type\' "
+        INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Unknown 'loader.debug_type' "
                            "(allowed: `inline`, `file`, `none`)");
     }
 
@@ -254,8 +254,7 @@ out_fail:
  * configuration for early initialization.
  */
 noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
-                       PAL_HANDLE exec_handle,     /* executable handle if opened */
-                       PAL_PTR exec_loaded_addr,   /* executable addr if loaded */
+                       const char* exec_uri, // TODO: remove after migrating exec handling to LibOS.
                        PAL_HANDLE parent_process,  /* parent process if it's a child */
                        PAL_HANDLE first_thread,    /* first thread handle */
                        PAL_STR* arguments,         /* application arguments */
@@ -263,19 +262,10 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     g_pal_state.instance_id = instance_id;
     g_pal_state.parent_process = parent_process;
 
-    char uri_buf[URI_MAX];
-    char* exec_uri = NULL;
     ssize_t ret;
 
     assert(g_pal_state.manifest_root);
     assert(g_pal_state.alloc_align && IS_POWER_OF_2(g_pal_state.alloc_align));
-    assert(exec_handle);
-
-    ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
-    if (ret < 0)
-        INIT_FAIL(-ret, "Cannot get executable name");
-
-    exec_uri = malloc_copy(uri_buf, ret + 1);
 
     char* dummy_exec_str = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.exec", &dummy_exec_str);
@@ -284,23 +274,12 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                                    "manifest according to the current documentation.");
     free(dummy_exec_str);
 
-    /* must be an ELF */
-    if (exec_loaded_addr) {
-        if (!has_elf_magic(exec_loaded_addr, sizeof(ElfW(Ehdr))))
-            INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
-    } else {
-        if (!is_elf_object(exec_handle))
-            INIT_FAIL(PAL_ERROR_INVAL, "Executable is not an ELF binary");
-    }
-
-    g_pal_state.exec_handle = exec_handle;
-
     bool disable_aslr = false;
     int64_t disable_aslr_int64;
     ret = toml_int_in(g_pal_state.manifest_root, "loader.insecure__disable_aslr",
                       /*defaultval=*/0, &disable_aslr_int64);
     if (ret < 0 || (disable_aslr_int64 != 0 && disable_aslr_int64 != 1)) {
-        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.insecure__disable_aslr\' "
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.insecure__disable_aslr' "
                                              "(the value must be 0 or 1)");
     }
     disable_aslr = !!disable_aslr_int64;
@@ -315,7 +294,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     char* argv0_override = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.argv0_override", &argv0_override);
     if (ret < 0)
-        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv0_override\'");
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.argv0_override'");
 
     if (argv0_override) {
         argv0_overridden = true;
@@ -333,7 +312,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                       /*defaultval=*/0, &use_cmdline_argv);
     if (ret < 0 || (use_cmdline_argv != 0 && use_cmdline_argv != 1)) {
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
-                           "\'loader.insecure__use_cmdline_argv\' (the value must be 0 or 1)");
+                           "'loader.insecure__use_cmdline_argv' (the value must be 0 or 1)");
     }
 
     if (use_cmdline_argv) {
@@ -347,7 +326,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
         ret = toml_string_in(g_pal_state.manifest_root, "loader.argv_src_file", &argv_src_file);
         if (ret < 0)
-            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.argv_src_file\'");
+            INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.argv_src_file'");
 
         if (argv_src_file) {
             /* Load argv from a file and discard cmdline argv. We trust the file contents (this can
@@ -358,7 +337,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
             ret = load_cstring_array(argv_src_file, &arguments);
             if (ret < 0)
-                INIT_FAIL(-ret, "Cannot load arguments from \'loader.argv_src_file\'");
+                INIT_FAIL(-ret, "Cannot load arguments from 'loader.argv_src_file'");
 
             free(argv_src_file);
         } else if (!argv0_overridden || (arguments[0] && arguments[1])) {
@@ -372,7 +351,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
                       /*defaultval=*/0, &use_host_env);
     if (ret < 0 || (use_host_env != 0 && use_host_env != 1)) {
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse "
-                           "\'loader.insecure__use_host_env\' (the value must be 0 or 1)");
+                           "'loader.insecure__use_host_env' (the value must be 0 or 1)");
     }
 
     if (use_host_env) {
@@ -391,7 +370,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
     char* env_src_file = NULL;
     ret = toml_string_in(g_pal_state.manifest_root, "loader.env_src_file", &env_src_file);
     if (ret < 0)
-        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse \'loader.env_src_file\'");
+        INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, "Cannot parse 'loader.env_src_file'");
 
     if (use_host_env && env_src_file)
         INIT_FAIL(PAL_ERROR_INVAL, "Wrong manifest configuration - cannot use "
@@ -402,7 +381,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
          * achieved using protected or trusted files). */
         ret = load_cstring_array(env_src_file, &environments);
         if (ret < 0)
-            INIT_FAIL(-ret, "Cannot load environment variables from \'loader.env_src_file\'");
+            INIT_FAIL(-ret, "Cannot load environment variables from 'loader.env_src_file'");
         free(env_src_file);
     }
 
@@ -415,13 +394,17 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
     load_libraries();
 
-    if (exec_loaded_addr) {
-        ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
-    } else {
-        ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
-    }
+    // TODO: This is just an ugly, temporary hack for PAL regression tests and should only be used
+    // there until we clean up the way LibOS is loaded.
+    char* entrypoint;
+    ret = toml_string_in(g_pal_state.manifest_root, "pal.entrypoint", &entrypoint);
     if (ret < 0)
-        INIT_FAIL(-ret, pal_strerror(-ret));
+        INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'");
+    if (entrypoint) {
+        // Temporary hack: Assume we're in PAL regression test suite and load the test binary
+        // directly, without LibOS.
+        exec_uri = entrypoint;
+    }
 
     set_debug_type();
 
@@ -442,6 +425,13 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         goto out_fail;
     }
     g_pal_control.mem_info.mem_total = _DkMemoryQuota();
+
+    if (entrypoint) {
+        // Temporary hack: Assume we're in PAL regression test suite and load the test binary
+        // directly, without LibOS.
+        if ((ret = load_elf_object(entrypoint, OBJECT_EXEC)) < 0)
+            INIT_FAIL(-ret, "Unable to load pal.entrypoint");
+    }
 
     /* Now we will start the execution */
     start_execution(arguments, environments);

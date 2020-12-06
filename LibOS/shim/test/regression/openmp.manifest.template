@@ -1,7 +1,9 @@
 loader.preload = "file:../../src/libsysdb.so"
+libos.entrypoint = "file:openmp"
+loader.argv0_override = "openmp"
+
 loader.env.LD_LIBRARY_PATH = "/lib:/usrlib"
 loader.debug_type = "none"
-loader.argv0_override = "openmp"
 
 fs.mount.lib.type = "chroot"
 fs.mount.lib.path = "/lib"
@@ -21,6 +23,7 @@ sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
 sgx.trusted_files.libpthread = "file:../../../../Runtime/libpthread.so.0"
 sgx.trusted_files.libdl = "file:../../../../Runtime/libdl.so.2"
+sgx.trusted_files.openmp = "file:openmp"
 
 sgx.trusted_files.libgomp_native = "file:/usr$(ARCH_LIBDIR)/libgomp.so.1"
 
@@ -31,4 +34,4 @@ sgx.trusted_files.libgomp_native = "file:/usr$(ARCH_LIBDIR)/libgomp.so.1"
 
 #sgx.trusted_files.libgomp_graphene = "file:../../../../Runtime/libgomp.so.1"
 
-sgx.static_address = 1
+sgx.nonpie_binary = 1

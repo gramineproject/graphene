@@ -250,14 +250,7 @@ static struct link_map* map_elf_object_by_handle(PAL_HANDLE handle, enum object_
 #define APPEND_WRITECOPY(prot) ((prot) | PAL_PROT_WRITECOPY)
 
     if (e_type == ET_DYN) {
-        /* This is a position-independent shared object. Graphene allows
-         * libraries to be mapped anywhere in address space, but the
-         * executable must be mapped at the exact address. This is because
-         * Graphene copies libraries during fork but does not copy executable.
-         * We must enforce that executable segments are located at the same
-         * addresses across forks: simply use a predefined base address. */
-        void* mapaddr = type == OBJECT_EXEC ? DEFAULT_OBJECT_EXEC_ADDR : NULL;
-
+        void* mapaddr = NULL;
         ret = _DkStreamMap(handle, (void**)&mapaddr, APPEND_WRITECOPY(c->prot), c->mapoff,
                            maplength);
         if (ret < 0) {
@@ -428,94 +421,22 @@ int load_elf_object(const char* uri, enum object_type type) {
     if (ret < 0)
         return ret;
 
-    ret = load_elf_object_by_handle(handle, type);
+    ret = load_elf_object_by_handle(handle, type, /*out_loading_base=*/NULL);
 
     _DkObjectClose(handle);
     return ret;
 }
 
-int add_elf_object(void* addr, PAL_HANDLE handle, int type) {
-    if (!addr)
-        return -PAL_ERROR_INVAL;
-
-    struct link_map* map = new_elf_object(_DkStreamRealpath(handle), type);
-    if (!map)
-        return -PAL_ERROR_NOMEM;
-
-    const ElfW(Ehdr)* header = (void*)addr;
-    const ElfW(Phdr)* ph;
-    const ElfW(Phdr)* phdr = (ElfW(Phdr)*)((char*)addr + header->e_phoff);
-
-    map->l_phdr  = (void*)header->e_phoff;
-    map->l_phnum = header->e_phnum;
-
-    ElfW(Addr) mapstart = ~0; /* start with the highest possible address */
-    ElfW(Addr) mapend   = 0;  /* start with the lowest possible address */
-
-    for (ph = phdr; ph < &phdr[map->l_phnum]; ph++)
-        switch (ph->p_type) {
-            case PT_DYNAMIC:
-                map->l_ld    = (void*)ph->p_vaddr;
-                map->l_ldnum = ph->p_memsz / sizeof(ElfW(Dyn));
-                break;
-            case PT_LOAD: {
-                ElfW(Addr) start = (ElfW(Addr))ALLOC_ALIGN_DOWN(map->l_addr + ph->p_vaddr);
-                ElfW(Addr) end =
-                    (ElfW(Addr))ALLOC_ALIGN_UP(map->l_addr + ph->p_vaddr + ph->p_memsz);
-                if (start < mapstart)
-                    mapstart = start;
-                if (end > mapend)
-                    mapend = end;
-            }
-        }
-
-    map->l_addr      = (ElfW(Addr))addr - mapstart;
-    map->l_entry     = header->e_entry;
-    map->l_map_start = (ElfW(Addr))addr;
-    map->l_map_end   = (ElfW(Addr))addr + (mapend - mapstart);
-
-    map->l_real_ld = (ElfW(Dyn)*)((char*)map->l_addr + (unsigned long)map->l_ld);
-    map->l_ld      = malloc_copy(map->l_real_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
-
-    elf_get_dynamic_info(map->l_ld, map->l_info, map->l_addr);
-    setup_elf_hash(map);
-    ELF_DYNAMIC_RELOCATE(map);
-
-    /* append to list (to preserve order of libs specified in
-     * manifest, e.g., loader.preload)
-     */
-    map->l_next = NULL;
-    if (!g_loaded_maps) {
-        map->l_prev = NULL;
-        g_loaded_maps = map;
-    } else {
-        struct link_map* end = g_loaded_maps;
-        while (end->l_next)
-            end = end->l_next;
-        end->l_next = map;
-        map->l_prev = end;
-    }
-
-    if (type == OBJECT_EXEC)
-        g_exec_map = map;
-
-#ifdef DEBUG
-    _DkDebugAddMap(map);
-#endif
-
-    return 0;
-}
-
 static int relocate_elf_object(struct link_map* l);
 
-int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type) {
+int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** out_loading_base) {
     struct link_map* map = NULL;
     char fb[FILEBUF_SIZE];
     char* errstring;
     int ret = 0;
 
-    /* Now we will start verify the file as a ELF header. This part of code
-       is borrow from open_verify() */
+    /* Now we will start verify the file as a ELF header. This part of code was borrowed from
+     * open_verify(). */
     ElfW(Ehdr)* ehdr = (ElfW(Ehdr)*)&fb;
     ElfW(Phdr)* phdr = NULL;
     int phdr_malloced = 0;
@@ -608,6 +529,8 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type) {
     _DkDebugAddMap(map);
 #endif
 
+    if (out_loading_base)
+        *out_loading_base = (void*)map->l_map_start;
     return 0;
 
 verify_failed:
@@ -983,10 +906,6 @@ void* stack_before_call __attribute_unused = NULL;
 noreturn void start_execution(const char** arguments, const char** environs) {
     /* First we will try to run all the preloaded libraries which come with
        entry points */
-    if (g_exec_map) {
-        g_pal_control.executable_range.start = (PAL_PTR)ALLOC_ALIGN_DOWN(g_exec_map->l_map_start);
-        g_pal_control.executable_range.end   = (PAL_PTR)ALLOC_ALIGN_UP(g_exec_map->l_map_end);
-    }
 
     int narguments = 0;
     for (const char** a = arguments; *a; a++, narguments++)

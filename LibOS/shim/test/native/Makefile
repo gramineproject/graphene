@@ -63,7 +63,7 @@ target = \
 	$(manifests)
 
 include ../../../../Scripts/Makefile.configs
-include ../../../../Scripts/Makefile.manifest
+include ../../../../Scripts/manifest.mk
 include ../../../../Scripts/Makefile.Test
 
 LDLIBS-condvar += -lpthread

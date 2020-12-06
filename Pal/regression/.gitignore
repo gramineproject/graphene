@@ -2,7 +2,14 @@
 /*.xml
 /*.manifest
 
-/manifest
+!Bootstrap3.manifest
+!Bootstrap6.manifest
+!Bootstrap7.manifest
+!File.manifest
+!Process3.manifest
+!Thread2.manifest
+!Thread2_exitless.manifest
+
 /pal_loader
 
 /.cache

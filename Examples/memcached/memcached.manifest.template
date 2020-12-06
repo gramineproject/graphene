@@ -23,6 +23,9 @@
 # build process.
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 
+# Binary to run.
+libos.entrypoint = "file:memcached"
+
 # Show/hide debug log of Graphene ("inline" or "none" respectively). Note that
 # GRAPHENEDEBUG macro is expanded to inline/none in the Makefile as part of the
 # build process.
@@ -99,6 +102,8 @@ fs.mount.etc.uri = "file:/etc"
 # an issue in Memcached source code, not related to Graphene.
 sgx.enclave_size = "1024M"
 
+sgx.nonpie_binary = 1
+
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 16. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at
 # enclave creation time. If Memcached spawns more threads, Graphene-SGX fails.
@@ -109,22 +114,25 @@ sgx.enclave_size = "1024M"
 # '16' allows to run a maximum of 13 Memcached threads (`--threads <= 13`).
 sgx.thread_num = 16
 
-############################# SGX: TRUSTED LIBS ###############################
+############################# SGX: TRUSTED FILES ###############################
 
-# Specify all libraries used by Memcached and its dependencies (including all
-# libraries which can be loaded at runtime via dlopen). The paths to libraries
-# are host-OS paths. These libraries will be searched for in in-Graphene visible
+# Specify all files used by Memcached and its dependencies (including all
+# libraries which can be loaded at runtime via dlopen). The paths to files
+# are host-OS paths. These files will be searched for in in-Graphene visible
 # paths according to mount points above.
 #
 # As part of the build process, Graphene-SGX script (`pal-sgx-sign`) finds each
-# specified library, measures its hash, and outputs the hash in auto-generated
+# specified file, measures its hash, and outputs the hash in auto-generated
 # entry 'sgx.trusted_checksum.xxx' in auto-generated memcached.manifest.sgx.
-# Note that this happens on the developer machine.
+# Note that this happens on the developer machine or a build server.
 #
-# At runtime, during loading of this library, Graphene-SGX measures its hash
+# At runtime, during loading of each "trusted file", Graphene-SGX measures its hash
 # and compares with the one specified in 'sgx.trusted_checksum.xxx'. If hashes
-# match, this library is trusted and allowed to be loaded and used. Note that
+# match, this file is trusted and allowed to be loaded and used. Note that
 # this happens on the client machine.
+
+
+sgx.trusted_files.memcached = "file:memcached"
 
 # Glibc libraries. ld and libc are needed for all apps; pthread is needed
 # because Memcached is multi-threaded.

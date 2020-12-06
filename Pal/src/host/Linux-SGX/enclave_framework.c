@@ -694,12 +694,9 @@ static int register_trusted_file(const char* uri, const char* checksum_str, bool
 
             new->checksum.bytes[i] = byte1 * 16 + byte2;
         }
-
-        SGX_DBG(DBG_S, "trusted: %s\n", new->uri);
     } else {
         memset(&new->checksum, 0, sizeof(sgx_checksum_t));
         new->allowed = true;
-        SGX_DBG(DBG_S, "allowed: %s\n", new->uri);
     }
 
     spinlock_lock(&g_trusted_file_lock);
@@ -727,8 +724,7 @@ static int init_trusted_file(const char* key, const char* uri) {
     int ret;
 
     /* read sgx.trusted_checksum.<key> entry from manifest */
-    char* fullkey = alloc_concat("sgx.trusted_checksum.", static_strlen("sgx.trusted_checksum."),
-                                 key, strlen(key));
+    char* fullkey = alloc_concat("sgx.trusted_checksum.", -1, key, -1);
     if (!fullkey)
         return -PAL_ERROR_NOMEM;
 
@@ -764,10 +760,6 @@ out:
 
 int init_trusted_files(void) {
     int ret;
-
-    ret = init_trusted_file("exec", g_pal_sec.exec_name);
-    if (ret < 0)
-        return ret;
 
     /* read loader.preload string from manifest and register its files as trusted */
     char* preload_str = NULL;
@@ -893,77 +885,6 @@ no_trusted:
     }
 
 no_allowed:
-    return 0;
-}
-
-int init_trusted_children(void) {
-    int ret;
-
-    /* read sgx.trusted_children and corresponding sgx.trusted_mrenclave entries from manifest */
-    toml_table_t* manifest_sgx = toml_table_in(g_pal_state.manifest_root, "sgx");
-    if (!manifest_sgx)
-        return 0;
-
-    toml_table_t* toml_trusted_children = toml_table_in(manifest_sgx, "trusted_children");
-    if (!toml_trusted_children)
-        return 0;
-
-    ssize_t toml_trusted_children_cnt = toml_table_nkval(toml_trusted_children);
-    if (toml_trusted_children_cnt <= 0)
-        return 0;
-
-    toml_table_t* toml_trusted_mrenclaves = toml_table_in(manifest_sgx, "trusted_mrenclave");
-    if (!toml_trusted_mrenclaves) {
-        SGX_DBG(DBG_E, "No corresponding \'sgx.trusted_mrenclave\' to \'sgx.trusted_children\'\n");
-        return -PAL_ERROR_INVAL;
-    }
-
-    ssize_t toml_trusted_mrenclaves_cnt = toml_table_nkval(toml_trusted_mrenclaves);
-    if (toml_trusted_mrenclaves_cnt != toml_trusted_children_cnt) {
-        SGX_DBG(DBG_E, "No corresponding \'sgx.trusted_mrenclave\' to \'sgx.trusted_children\'\n");
-        return -PAL_ERROR_INVAL;
-    }
-
-    for (ssize_t i = 0; i < toml_trusted_mrenclaves_cnt; i++) {
-        const char* toml_trusted_mrenclave_key = toml_key_in(toml_trusted_mrenclaves, i);
-        assert(toml_trusted_mrenclave_key);
-        toml_raw_t toml_trusted_mrenclave_raw = toml_raw_in(toml_trusted_mrenclaves,
-                                                            toml_trusted_mrenclave_key);
-        assert(toml_trusted_mrenclave_raw);
-
-        /* find corresponding trusted_children from trusted_mrenclave */
-        toml_raw_t toml_trusted_child_raw = toml_raw_in(toml_trusted_children,
-                                                        toml_trusted_mrenclave_key);
-        if (!toml_trusted_child_raw) {
-            SGX_DBG(DBG_E, "No \'sgx.trusted_children.%s\' found\n", toml_trusted_mrenclave_key);
-            return -PAL_ERROR_INVAL;
-        }
-
-        char* toml_trusted_mrenclave_str = NULL;
-        ret = toml_rtos(toml_trusted_mrenclave_raw, &toml_trusted_mrenclave_str);
-        if (ret < 0) {
-            SGX_DBG(DBG_E, "Invalid trusted mrenclave in manifest: \'%s\'\n",
-                    toml_trusted_mrenclave_key);
-            return -PAL_ERROR_INVAL;
-        }
-
-        char* toml_trusted_child_str = NULL;
-        ret = toml_rtos(toml_trusted_child_raw, &toml_trusted_child_str);
-        if (ret < 0) {
-            SGX_DBG(DBG_E, "Invalid trusted child in manifest: \'%s\'\n",
-                    toml_trusted_mrenclave_key);
-            free(toml_trusted_mrenclave_str);
-            return -PAL_ERROR_INVAL;
-        }
-
-        ret = register_trusted_child(toml_trusted_child_str, toml_trusted_mrenclave_str);
-        free(toml_trusted_mrenclave_str);
-        free(toml_trusted_child_str);
-
-        if (ret < 0)
-            return ret;
-    }
-
     return 0;
 }
 
@@ -1130,7 +1051,7 @@ out_no_final:
  * see comments in db_process.c).
  */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mr_enclave_t check_mr_enclave) {
+                           mr_enclave_check_t is_mr_enclave_ok) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1178,16 +1099,8 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    ret = check_mr_enclave(stream, &report.body.mr_enclave, remote_state);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to check local report: %ld\n", ret);
-        goto out;
-    }
-
-    if (ret == 1) {
-        SGX_DBG(DBG_E,
-                "Not an allowed enclave (mr_enclave = %s). Maybe missing 'sgx.trusted_children' in "
-                "the manifest file?\n",
+    if (!is_mr_enclave_ok(stream, &report.body.mr_enclave, remote_state)) {
+        SGX_DBG(DBG_E, "Not an allowed enclave (mr_enclave = %s)\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;
@@ -1232,7 +1145,7 @@ out:
  * see comments in db_process.c).
  */
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mr_enclave_t check_mr_enclave) {
+                           mr_enclave_check_t is_mr_enclave_ok) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1296,16 +1209,8 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    ret = check_mr_enclave(stream, &report.body.mr_enclave, remote_state);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to check mr_enclave: %ld\n", ret);
-        goto out;
-    }
-
-    if (ret == 1) {
-        SGX_DBG(DBG_E,
-                "Not an allowed enclave (mr_enclave = %s). Maybe missing 'sgx.trusted_children' in "
-                "the manifest file?\n",
+    if (!is_mr_enclave_ok(stream, &report.body.mr_enclave, remote_state)) {
+        SGX_DBG(DBG_E, "Not an allowed enclave (mr_enclave = %s)\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;

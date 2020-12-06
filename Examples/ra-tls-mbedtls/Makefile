@@ -33,13 +33,15 @@ endif
 all: app epid  # by default, only build EPID because it doesn't rely on additional (DCAP) libs
 
 .PHONY: app
-app: mbedtls/CMakeLists.txt server.manifest.sgx server.token client pal_loader
+app: mbedtls/CMakeLists.txt server.manifest.sgx server.sig server.token client pal_loader
 
 .PHONY: epid
-epid: libra_tls_attest.so libra_tls_verify_epid.so client_epid.sig
+epid: libra_tls_attest.so libra_tls_verify_epid.so client_epid.manifest.sgx client_epid.sig \
+      client_epid.token
 
 .PHONY: dcap
-dcap: libra_tls_attest.so libra_tls_verify_dcap.so client_dcap.token
+dcap: libra_tls_attest.so libra_tls_verify_dcap.so client_dcap.manifest.sgx client_dcap.sig \
+      client_dcap.token
 
 ############################# MBEDTLS DEPENDENCY ##############################
 
@@ -134,8 +136,7 @@ server.manifest.sgx: server.manifest server libra_tls_attest.so mbedtls/CMakeLis
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@ \
-		-exec server
+		-manifest $< -output $@
 
 server.sig: server.manifest.sgx
 
@@ -144,50 +145,27 @@ server.token: server.sig
 
 ########################### CLIENT (DCAP) MANIFEST ############################
 
-# DCAP dependencies (generated from ldd). For SGX, the manifest needs to list all the libraries
-# loaded during execution, so that the signer can include the file hashes.
+# Generate manifest rules for client dependencies.
+# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
+# there's no harm in this.
+CLIENT_DCAP_LIBS = client libra_tls_verify_dcap_graphene.so /usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so
+.INTERMEDIATE: client-trusted-libs
+client-dcap-trusted-libs: ../common_tools/get_deps.sh client libra_tls_verify_dcap_graphene.so
+	../common_tools/get_deps.sh $(CLIENT_DCAP_LIBS) > $@
 
-# We need to replace Glibc dependencies with Graphene-specific Glibc. The Glibc binaries are
-# already listed in the manifest template, so we can skip them from the ldd results.
-GLIBC_DEPS = linux-vdso.so.1 /lib64/ld-linux-x86-64.so.2 libc.so.6 libm.so.6 librt.so.1 \
-			 libdl.so.2 libpthread.so.0 libutil.so.1 libresolv.so.2 libnss_dns.so.2
-
-# List all the dcap dependencies, besides Glibc libraries
-.INTERMEDIATE: client_dcap-list
-client_dcap-list: client libra_tls_verify_dcap_graphene.so
-	@ldd client > $@
-	@ldd libra_tls_verify_dcap_graphene.so >> $@
-	@ldd /usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so >> $@
-
-.INTERMEDIATE: client_dcap-deps
-client_dcap-deps: client_dcap-list
-	@cat $< | \
-		awk '{if ($$2 =="=>") {print $$3}}' | \
-		sort | uniq | grep -v $(patsubst %,-e %,$(GLIBC_DEPS)) > $@
-	@echo "/usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so.1" >> $@
-
-# Generate manifest rules for dcap dependencies
-.INTERMEDIATE: client_dcap-trusted-libs
-client_dcap-trusted-libs: client_dcap-deps
-	@for F in `cat $<`; do \
-		N=`basename $$F | tr --delete '.' | tr --delete '-' | tr --delete '+'`; \
-		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
-	done > $@
-
-client_dcap.manifest: client.manifest.template client_dcap-trusted-libs
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(CLIENT_TRUSTED_LIBS)|'"`cat client_dcap-trusted-libs`"'|g' \
-		-e 's|$$(RA_TLS_VERIFY_LIB)|'"libra_tls_verify_dcap_graphene.so"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+client_dcap.manifest: client.manifest.template client-dcap-trusted-libs
+	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	    -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+	    -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	    $<; \
+	cat client-dcap-trusted-libs) > $@
 
 client_dcap.manifest.sgx: client_dcap.manifest mbedtls/CMakeLists.txt
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@ \
-		-exec client
+		-manifest $< \
+		-output $@
 
 client_dcap.sig: client_dcap.manifest.sgx
 
@@ -196,40 +174,28 @@ client_dcap.token: client_dcap.sig
 
 ########################### CLIENT (EPID) MANIFEST ############################
 
-# List all the epid dependencies, besides Glibc libraries
-.INTERMEDIATE: client_epid-list
-client_epid-list: client libra_tls_verify_epid.so
-	@ldd client > $@
-	@ldd libra_tls_verify_epid.so >> $@
+# Generate manifest rules for client dependencies.
+# We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
+# there's no harm in this.
+CLIENT_EPID_LIBS = client libra_tls_verify_epid.so
+.INTERMEDIATE: client-trusted-libs
+client-epid-trusted-libs: ../common_tools/get_deps.sh $(CLIENT_EPID_LIBS)
+	../common_tools/get_deps.sh $(CLIENT_EPID_LIBS) > $@
 
-.INTERMEDIATE: client_epid-deps
-client_epid-deps: client_epid-list
-	@cat $< | \
-		awk '{if ($$2 =="=>") {print $$3}}' | \
-		sort | uniq | grep -v $(patsubst %,-e %,$(GLIBC_DEPS)) > $@
-
-# Generate manifest rules for epid dependencies
-.INTERMEDIATE: client_epid-trusted-libs
-client_epid-trusted-libs: client_epid-deps
-	@for F in `cat $<`; do \
-		N=`basename $$F | tr --delete '.' | tr --delete '-' | tr --delete '+'`; \
-		echo -n "sgx.trusted_files.$$N = \\\"file:$$F\\\"\\\\n"; \
-	done > $@
-
-client_epid.manifest: client.manifest.template client_epid-trusted-libs
-	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
-		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-		-e 's|$$(CLIENT_TRUSTED_LIBS)|'"`cat client_epid-trusted-libs`"'|g' \
-		-e 's|$$(RA_TLS_VERIFY_LIB)|'"libra_tls_verify_epid.so"'|g' \
-		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
-		$< > $@
+client_epid.manifest: client.manifest.template client-epid-trusted-libs
+	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
+	     -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
+	     -e 's|$$(RA_TLS_VERIFY_LIB)|'"libra_tls_verify_epid.so"'|g' \
+	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
+	     $<; \
+	cat client-epid-trusted-libs) > $@
 
 client_epid.manifest.sgx: client_epid.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(GRAPHENEKEY) \
-		-manifest $< -output $@ \
-		-exec client
+		-manifest $< \
+		-output $@
 
 client_epid.sig: client_epid.manifest.sgx
 
@@ -282,7 +248,8 @@ check_dcap_fail: app dcap
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT
+	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT \
+	      client-dcap-trusted-libs client-epid-trusted-libs
 
 .PHONY: distclean
 distclean: clean

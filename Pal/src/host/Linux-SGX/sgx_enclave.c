@@ -34,31 +34,6 @@ static long sgx_ocall_exit(void* pms) {
     ms_ocall_exit_t* ms = (ms_ocall_exit_t*)pms;
     ODEBUG(OCALL_EXIT, NULL);
 
-    if (ms->ms_is_exitgroup && ms->ms_exitcode == PAL_WAIT_FOR_CHILDREN_EXIT) {
-        /* this is a "temporary" process exiting after execve'ing a child process: it must still
-         * be around until the child finally exits (because its parent in turn may wait on it) */
-        SGX_DBG(DBG_I, "Temporary process exits after emulating execve, wait for child to exit\n");
-
-        int wstatus;
-        int ret = INLINE_SYSCALL(wait4, 4, /*any child*/ -1, &wstatus, /*options=*/0,
-                                 /*rusage=*/NULL);
-        if (IS_ERR(ret)) {
-            /* it's too late to recover from errors, just log it and set some reasonable exit code
-             */
-            SGX_DBG(DBG_I, "Temporary process waited for child to exit but received error %d\n",
-                    ret);
-            ms->ms_exitcode = ECHILD;
-        } else {
-            /* Linux expects 0..127 for normal termination and 128..255 for signal termination */
-            if (WIFEXITED(wstatus))
-                ms->ms_exitcode = WEXITSTATUS(wstatus);
-            else if (WIFSIGNALED(wstatus))
-                ms->ms_exitcode = 128 + WTERMSIG(wstatus);
-            else
-                ms->ms_exitcode = ECHILD;
-        }
-    }
-
     if (ms->ms_exitcode != (int)((uint8_t)ms->ms_exitcode)) {
         SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n",
                 ms->ms_exitcode, (uint8_t)ms->ms_exitcode);
@@ -295,33 +270,17 @@ static long sgx_ocall_clone_thread(void* pms) {
 
 static long sgx_ocall_create_process(void* pms) {
     long ret;
-    char* manifest = NULL;
-    char* manifest_path = NULL;
 
     ms_ocall_create_process_t* ms = (ms_ocall_create_process_t*)pms;
     ODEBUG(OCALL_CREATE_PROCESS, ms);
 
-    /* Temporary solution, will be removed after introduction of centralized manifests. */
-    manifest_path = alloc_concat(ms->ms_uri + URI_PREFIX_FILE_LEN, -1, ".manifest.sgx", -1);
-    if (!manifest_path) {
-        ret = -ENOMEM;
-        goto out;
-    }
-    ret = read_text_file_to_cstr(manifest_path, &manifest);
+    ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd,
+                             g_pal_enclave.raw_manifest_data);
     if (ret < 0) {
-        goto out;
-    }
-
-    ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, &ms->ms_stream_fd, manifest);
-    if (ret < 0) {
-        goto out;
+        return ret;
     }
     ms->ms_pid = ret;
-    ret = 0;
-out:
-    free(manifest_path);
-    free(manifest);
-    return ret;
+    return 0;
 }
 
 static long sgx_ocall_futex(void* pms) {

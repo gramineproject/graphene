@@ -1,0 +1,21 @@
+loader.preload = "file:../../src/libsysdb.so"
+libos.entrypoint = "file:init_fail"
+loader.argv0_override = "init_fail"
+
+loader.env.LD_LIBRARY_PATH = "/lib"
+loader.debug_type = "none"
+
+fs.mount.lib.type = "chroot"
+fs.mount.lib.path = "/lib"
+fs.mount.lib.uri = "file:../../../../Runtime"
+
+# purposefully force mount failure to cause early shim abort
+fs.mount.test.type = "chroot"
+fs.mount.test.path = "/test"
+fs.mount.test.uri = "file:I_DONT_EXIST"
+
+sgx.trusted_files.ld = "file:../../../../Runtime/ld-linux-x86-64.so.2"
+sgx.trusted_files.libc = "file:../../../../Runtime/libc.so.6"
+sgx.trusted_files.init_fail = "file:init_fail"
+
+sgx.nonpie_binary = 1

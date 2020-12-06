@@ -552,31 +552,16 @@ BEGIN_RS_FUNC(thread) {
 
     assert(!get_cur_thread());
 
-    if (thread->shim_tcb) {
-        /* fork case */
-        CP_REBASE(thread->shim_tcb);
+    CP_REBASE(thread->shim_tcb);
 
-        shim_tcb_t* tcb = shim_get_tcb();
-        *tcb = *thread->shim_tcb;
-        __shim_tcb_init(tcb);
+    shim_tcb_t* tcb = shim_get_tcb();
+    *tcb = *thread->shim_tcb;
+    __shim_tcb_init(tcb);
 
-        assert(tcb->context.regs && shim_context_get_sp(&tcb->context));
-        update_tls_base(tcb->context.tls_base);
-        /* Temporarily disable preemption until the thread resumes. */
-        __disable_preempt(tcb);
-    } else {
-        /* execve case */
-        /* In execve case, the following holds:
-         * stack = NULL
-         * stack_top = NULL
-         * frameptr = NULL
-         * tcb = NULL
-         * shim_tcb = NULL
-         * in_vm = false
-         */
-        if (thread->signal_dispositions)
-            thread_sigaction_reset_on_execve(thread);
-    }
+    assert(tcb->context.regs && shim_context_get_sp(&tcb->context));
+    update_tls_base(tcb->context.tls_base);
+    /* Temporarily disable preemption until the thread resumes. */
+    __disable_preempt(tcb);
 
     thread->pal_handle = PAL_CB(first_thread);
 

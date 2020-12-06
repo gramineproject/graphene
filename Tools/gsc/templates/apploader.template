@@ -8,13 +8,8 @@ then
     # Set SGX default values for PAL
     GSC_PAL=Linux-SGX
 
-    # Generate EINITOKEN for all applications
-    for manifest in {{binary}}.manifest {{user_manifests}}
-    do
-        # Remove .manifest from file
-        executable=${manifest%.manifest}
-        /graphene/python/graphene-sgx-get-token -output ${executable}.token -sig ${executable}.sig
-    done
+    # Generate EINITOKEN
+    /graphene/python/graphene-sgx-get-token -output {{binary}}.token -sig {{binary}}.sig
 
     # Run the application in Graphene
     /graphene/Runtime/pal-$GSC_PAL /graphene/Runtime/libpal-$GSC_PAL.so init {{binary}} {% if insecure_args %}{{binary_arguments}} "${@}"{% endif %}

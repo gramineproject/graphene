@@ -52,8 +52,8 @@ addition, install the Docker client python package via pip. GSC requires Python
 Kernel modules and services
 ---------------------------
 
-To run Intel SGX applications, please install the following kernel driver and
-services.
+To run with Intel SGX, please install the following kernel driver and
+services:
 
 - `Intel SGX driver <https://github.com/intel/linux-sgx-driver>`__
 - `Intel SGX SDK <https://01.org/intel-software-guard-extensions/downloads>`__
@@ -130,21 +130,15 @@ Synopsis:
 
 .. option:: -c
 
-   Specify configuration file. Default: :file:`config.yaml`
+   Specify configuration file. Default: :file:`config.yaml`.
 
 .. option:: IMAGE-NAME
 
-   Name of the application Docker image
+   Name of the application Docker image.
 
-.. option:: APP1.MANIFEST
+.. option:: APP.MANIFEST
 
-   Application-specific manifest file for the executable entrypoint of the
-   Docker image
-
-.. option:: APPN.MANIFEST
-
-   Application-specific Manifest for the n-th application
-
+   Manifest file (Graphene configuration).
 
 .. program:: gsc-sign-image
 
@@ -227,8 +221,8 @@ Synopsis:
 Using Graphene's trusted command line arguments
 -----------------------------------------------
 
-Most applications aren't designed to run with attacker-controlled arguments.
-Allowing an attacker to control application arguments can break the security of
+Most executables aren't designed to run with attacker-controlled arguments.
+Allowing an attacker to control executable arguments can break the security of
 the resulting enclave.
 
 :command:`gsc build` uses the existing Docker image's entrypoint and cmd fields
@@ -240,43 +234,15 @@ specified during :command:`docker run` are ignored.
 To be able to provide arguments at runtime, the image build has to enable this
 via the option :option:`--insecure-args <gsc-build --insecure-args>`.
 
-Application-specific manifest files
------------------------------------
-
-Each application loaded by Graphene requires a separate manifest file.
-:program:`gsc` semi-automatically generates these manifest files. It generates a
-list of trusted files, assumes values for the number of stacks and memory size,
-and generates the chain of trusted children (see below for details). To allow
-specializing each application manifest, :program:`gsc` allows the user to
-augment each generated manifest. In particular, this allows to add additional
-trusted or allowed files and specify a particular enclave size or number of
-Thread Control Structures (TCS).
-
-:program:`gsc` allows application-specific manifest files to be empty or not to
-exist. In this case :program:`gsc` generates a generic manifest file.
-
 Docker images starting multiple applications
 --------------------------------------------
 
 Depending on the use case, a Docker container may execute multiple applications.
-The Docker image defines the entrypoint application which could fork additional
-applications. A common pattern in Docker images executes an entrypoint script
-which calls a set of applications. In Graphene the manifest of a parent
-application has to specify all trusted children that might be forked.
-
-We define the parent-child relationship by overestimating the set of possible
-children. Multiple applications are specified as arguments to :program:`gsc`.
-The example below creates a Docker image with three applications. Based on the
-specified chain of applications, :program:`gsc` generates parent-child
-relationships between application ``appi`` and all applications after it in
-the chain (``> appi``). This overestimates the set of trusted children and may
-not map to the actual partent-child relationship. In the example below ``app1``
-may call ``app2`` or ``app3``, and ``app2`` may call ``app3``, but ``app2`` may
-*not* call ``app1``, and ``app3`` may *not* call ``app1`` or ``app2``.
-
-.. code-block:: sh
-
-   gsc build image app1.manifest app2.manifest app3.manifest
+The Docker image defines the entrypoint executable which could fork additional
+executables. A common pattern in Docker images is executing an entrypoint script
+which calls a set of executables. Similarly to Docker, Graphene has a
+corresponding option (``libos.entrypoint``) which should point to the first
+executable started inside Graphene namespace.
 
 Stages of building graphenized SGX Docker images
 ------------------------------------------------
@@ -375,7 +341,7 @@ Run graphenized Docker images
 
 Execute :command:`docker run` command via Docker CLI and provide gsgx and
 isgx/sgx device, and the PSW/AESM socket. Additional Docker options and
-application arguments may be supplied to the :command:`docker run` command.
+executable arguments may be supplied to the :command:`docker run` command.
 
 .. warning::
    Forwarding devices to a container lowers security of the host. GSC should
@@ -399,8 +365,8 @@ application arguments may be supplied to the :command:`docker run` command.
 
 .. option:: ARGUMENTS
 
-   Application arguments to be supplied to the application launching inside the
-   Docker container and Graphene. Such arguments may only be provided when
+   Arguments to be supplied to the executable launching inside the Docker
+   container and Graphene. Such arguments may only be provided when
    :option:`--insecure-args <gsc-build --insecure-args>` was specified during
    :command:`gsc build`.
 
@@ -513,10 +479,10 @@ Workaround
 Allowing dynamic file contents via Graphene protected files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   Docker volumes can include Graphene protected files. As a result Graphene
-   can open these protected files without knowing the exact contents as long as
-   the protected file was configured in the application-specific manifest. The
-   complete and secure use of protected files may require additional steps.
+   Docker volumes can include Graphene protected files. As a result Graphene can
+   open these protected files without knowing the exact contents as long as the
+   protected file was configured in the manifest. The complete and secure use of
+   protected files may require additional steps.
 
 Integration of Docker Secrets
 -----------------------------
@@ -524,7 +490,7 @@ Integration of Docker Secrets
 Docker Secrets are automatically pulled by Docker and the results are stored
 either in environment variables or mounted as files. GSC is currently unaware of
 such files and hence, cannot mark them trusted. Similar to trusted data, these
-files may be added to the application-specific manifest.
+files may be added to the manifest.
 
 Access to files in excluded paths
 ---------------------------------
@@ -533,7 +499,7 @@ The manifest generation excludes all files and paths starting with
 :file:`/boot`, :file:`/dev`, :file:`/proc`, :file:`/var`, :file:`/sys`, and
 :file:`/etc/rc` from the list of trusted files. If your application
 relies on some files in these directories, you must manually add them to the
-application-specific manifest::
+manifest::
 
    sgx.trusted_files.[identifier] = "[URI]"
    or

@@ -37,7 +37,6 @@ stage('test-direct') {
             make check
         '''
     }
-    /* Disabled until we fix Graphene loader
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/gcc
@@ -45,7 +44,6 @@ stage('test-direct') {
             make check
         '''
     }
-    */
     timeout(time: 10, unit: 'MINUTES') {
         sh '''
             cd Examples/memcached
@@ -78,7 +76,7 @@ stage('test-direct') {
             make -j8 all
             make start-graphene-server &
             sleep 1
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8003
         '''
     }
     timeout(time: 10, unit: 'MINUTES') {
@@ -87,7 +85,7 @@ stage('test-direct') {
             make -j8 all
             make start-graphene-server &
             sleep 1
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8002
         '''
     }
     timeout(time: 20, unit: 'MINUTES') {
@@ -96,8 +94,8 @@ stage('test-direct') {
             make -j8 all
             make start-graphene-server &
             sleep 1
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8001
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh https://127.0.0.1:8443
         '''
     }
     timeout(time: 5, unit: 'MINUTES') {
@@ -107,7 +105,6 @@ stage('test-direct') {
             make check
         '''
     }
-    /* Disabled until we fix Graphene loader (uses execve('/bin/sh'))
     timeout(time: 5, unit: 'MINUTES') {
         sh '''
             cd Examples/r
@@ -115,5 +112,4 @@ stage('test-direct') {
             make check
         '''
     }
-    */
 }

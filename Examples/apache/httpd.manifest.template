@@ -2,14 +2,13 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
+loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
+libos.entrypoint = "file:$(INSTALL_DIR)/bin/httpd"
 loader.argv0_override = "httpd"
 
 # Read application arguments directly from the command line. Don't use this on production!
 loader.insecure__use_cmdline_argv = 1
 
-# Graphene environment, including the path to the library OS and the debug
-# option (inline/none).
-loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
 loader.debug_type = "$(GRAPHENEDEBUG)"
 
 # Environment variables
@@ -45,10 +44,12 @@ fs.mount.cwd.uri = "file:$(INSTALL_DIR)"
 
 # SGX general options
 
+sgx.nonpie_binary = 1
+
 # Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
 # size must be specified during signing. If Apache needs more virtual memory
 # than the enclave size, Graphene will not be able to allocate it.
-sgx.enclave_size = "256M"
+sgx.enclave_size = "512M"
 
 # Set the maximum number of enclave threads. For SGX v1, the number of enclave
 # TCSes must be specified during signing, so the application cannot use more
@@ -61,7 +62,9 @@ sgx.enclave_size = "256M"
 # up to 25 threads/process.
 sgx.thread_num = 32
 
-# SGX trusted libraries
+# SGX trusted files
+
+sgx.trusted_files.httpd = "file:$(INSTALL_DIR)/bin/httpd"
 
 # Glibc libraries
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"

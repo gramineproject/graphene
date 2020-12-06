@@ -135,7 +135,7 @@ static struct link_map g_pal_map;
 noreturn static void print_usage_and_exit(const char* argv_0) {
     const char* self = argv_0 ?: "<this program>";
     printf("USAGE:\n"
-           "\tFirst process: %s <path to libpal.so> init <executable> args...\n"
+           "\tFirst process: %s <path to libpal.so> init <application> args...\n"
            "\tChildren:      %s <path to libpal.so> child <parent_pipe_fd> args...\n",
            self, self);
     printf("This is an internal interface. Use pal_loader to launch applications in Graphene.\n");
@@ -233,34 +233,23 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
         g_linux_state.parent_process_id = g_linux_state.process_id;
 
     PAL_HANDLE parent = NULL;
-    PAL_HANDLE exec_handle = NULL;
     char* manifest = NULL;
+    char* exec_uri = NULL; // TODO: This should be removed from here and handled by LibOS.
     if (first_process) {
-        char* exec_uri = alloc_concat(URI_PREFIX_FILE, URI_PREFIX_FILE_LEN, argv[3], -1);
-        char* manifest_path = alloc_concat(argv[3], -1, ".manifest", -1);
-        if (!exec_uri || !manifest_path)
+        const char* application_path = argv[3];
+        char* manifest_path = alloc_concat(application_path, -1, ".manifest", -1);
+        if (!manifest_path)
             INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
-        ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY, 0, 0, PAL_OPTION_CLOEXEC);
-        free(exec_uri);
-        if (ret < 0) {
-            INIT_FAIL(-ret, "Failed to open file to execute");
-        }
-
-        if (!is_elf_object(exec_handle)) {
-            INIT_FAIL(EINVAL, "First argument passed to Graphene must be an executable");
-        }
 
         ret = read_text_file_to_cstr(manifest_path, &manifest);
-        if (ret == -ENOENT) {
-            ret = read_text_file_to_cstr("manifest", &manifest);
-        }
         if (ret < 0) {
             INIT_FAIL(-ret, "Reading manifest failed");
         }
     } else {
         // Children receive their argv and config via IPC.
         int parent_pipe_fd = atoi(argv[3]);
-        init_child_process(parent_pipe_fd, &parent, &exec_handle, &manifest);
+        init_child_process(parent_pipe_fd, &parent, &exec_uri, &manifest);
+        assert(exec_uri);
     }
     assert(manifest);
 
@@ -273,8 +262,24 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     if (!g_pal_state.manifest_root)
         INIT_FAIL_MANIFEST(PAL_ERROR_DENIED, errbuf);
 
+    if (!exec_uri) {
+        ret = toml_string_in(g_pal_state.manifest_root, "libos.entrypoint", &exec_uri);
+        if (ret < 0) {
+            INIT_FAIL_MANIFEST(PAL_ERROR_INVAL, "Cannot parse 'libos.entrypoint'\n");
+        } else if (exec_uri == NULL) {
+            // Temporary hack for PAL regression tests. TODO: We should always error out here.
+            char* pal_entrypoint;
+            ret = toml_string_in(g_pal_state.manifest_root, "pal.entrypoint", &pal_entrypoint);
+            if (ret < 0)
+                INIT_FAIL(PAL_ERROR_INVAL, "Cannot parse 'pal.entrypoint'\n");
+            if (!pal_entrypoint)
+                INIT_FAIL(PAL_ERROR_INVAL,
+                          "'libos.entrypoint' must be specified in the manifest\n");
+        }
+    }
+
     /* call to main function */
-    pal_main((PAL_NUM)g_linux_state.parent_process_id, exec_handle, NULL, parent, first_thread,
+    pal_main((PAL_NUM)g_linux_state.parent_process_id, exec_uri, parent, first_thread,
              first_process ? argv + 3 : argv + 4, envp);
 }
 

@@ -2,6 +2,8 @@
 #
 # This manifest was prepared and tested on Ubuntu 16.04.
 
+libos.entrypoint = "file:$(PYTHONEXEC)"
+
 # Graphene environment, including the path of the library OS and the debug
 # option (inline/none).
 loader.preload = "file:$(GRAPHENEDIR)/Runtime/libsysdb.so"
@@ -63,6 +65,8 @@ sys.stack.size = "2M"
 
 # SGX general options
 
+sgx.nonpie_binary = 1
+
 # Set the virtual memory size of the SGX enclave. For SGX v1, the enclave
 # size must be specified during signing. If Python needs more virtual memory
 # than the enclave size, Graphene will not be able to allocate it.
@@ -76,7 +80,9 @@ sgx.enclave_size = "1G"
 # the application can create is (sgx.thread_num - 2).
 sgx.thread_num = 32
 
-# SGX trusted libraries
+# SGX trusted files
+
+sgx.trusted_files.python = "file:$(PYTHONEXEC)"
 
 # Glibc libraries
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
@@ -92,7 +98,18 @@ sgx.trusted_files.libz = "file:$(ARCH_LIBDIR)/libz.so.1"
 sgx.trusted_files.libbz2 = "file:$(ARCH_LIBDIR)/libbz2.so.1.0"
 sgx.trusted_files.liblzma = "file:$(ARCH_LIBDIR)/liblzma.so.5"
 sgx.trusted_files.libexpat = "file:$(ARCH_LIBDIR)/libexpat.so.1"
-$(PYTHON_TRUSTED_LIBS)
+# [Ubuntu16.04] sgx.trusted_files.ctypes = "file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.ctypes = "file:$(PYTHONHOME)/lib-dynload/_ctypes.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.hashlib = "file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.hashlib = "file:$(PYTHONHOME)/lib-dynload/_hashlib.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.ssl = "file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.ssl = "file:$(PYTHONHOME)/lib-dynload/_ssl.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.lapack_lite = "file:$(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.lapack_lite = "file:$(PYTHONDISTHOME)/numpy/linalg/lapack_lite.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.multiarray = "file:$(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.multiarray = "file:$(PYTHONDISTHOME)/numpy/core/multiarray.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu16.04] sgx.trusted_files.sparsetools = "file:$(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
+# [Ubuntu18.04] sgx.trusted_files.sparsetools = "file:$(PYTHONDISTHOME)/scipy/sparse/_sparsetools.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARCH_LONG).so"
 
 # SGX untrusted (allowed) files/directories
 sgx.allowed_files.scripts = "file:scripts"

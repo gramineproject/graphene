@@ -105,7 +105,7 @@ do
 done
 
 if [ "$MANIFEST" == "" ]; then
-	echo "Usage: $0 [<executable_path>|<manifest_path>] <args>..."
+	echo "Usage: $0 [<application>] <args>..."
 	exit 1
 fi
 

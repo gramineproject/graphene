@@ -410,10 +410,8 @@ int ipc_sysv_semret_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 /* general-purpose routines */
 int init_ipc(void);
 int init_ipc_helper(void);
-int pause_ipc_helper(void);
-int resume_ipc_helper(void);
 
-struct shim_process_ipc_info* create_process_ipc_info(bool is_execve);
+struct shim_process_ipc_info* create_process_ipc_info(void);
 void free_process_ipc_info(struct shim_process_ipc_info* process);
 
 struct shim_ipc_info* create_ipc_info_and_port(bool use_vmid_as_port_name);

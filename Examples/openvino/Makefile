@@ -32,8 +32,7 @@ endif
 
 .PHONY: all
 all: $(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd \
-     $(MODEL_DIR)/$(MODEL_NAME).bin object_detection_sample_ssd.manifest pal_loader \
-     | object_detection_sample_ssd
+     $(MODEL_DIR)/$(MODEL_NAME).bin object_detection_sample_ssd.manifest pal_loader
 ifeq ($(SGX),1)
 all: object_detection_sample_ssd.manifest.sgx object_detection_sample_ssd.sig \
      object_detection_sample_ssd.token
@@ -76,28 +75,24 @@ object_detection_sample_ssd.manifest: object_detection_sample_ssd.manifest.templ
 # Generating the SGX-specific manifest (object_detection_sample_ssd.manifest.sgx), the enclave signature,
 # and the token for enclave initialization.
 object_detection_sample_ssd.manifest.sgx: object_detection_sample_ssd.manifest \
-		$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd \
-		| object_detection_sample_ssd
+		$(OPENVINO_DIR)/inference-engine/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-exec object_detection_sample_ssd \
 		-libpal $(GRAPHENE_DIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-manifest $< -output $@
+		-manifest $< \
+		-output $@
 
 object_detection_sample_ssd.sig: object_detection_sample_ssd.manifest.sgx
 
 object_detection_sample_ssd.token: object_detection_sample_ssd.sig
 	$(GRAPHENE_DIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -sig $< -output $@
 
-object_detection_sample_ssd:
-	ln -s $(OPENVINO_DIR)/bin/intel64/$(OPENVINO_BUILD)/object_detection_sample_ssd $@
-
 pal_loader:
 	ln -s $(GRAPHENE_DIR)/Runtime/pal_loader $@
 
 .PHONY: clean
 clean:
-	$(RM) *.manifest *.manifest.sgx *.token *.sig object_detection_sample_ssd pal_loader *.bmp
+	$(RM) *.manifest *.manifest.sgx *.token *.sig pal_loader *.bmp
 
 .PHONY: distclean
 distclean: clean

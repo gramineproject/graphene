@@ -1,7 +1,6 @@
 /*.manifest
 /*.xml
 
-/manifest
 /pal_loader
 
 /copy_mmap_rev

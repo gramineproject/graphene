@@ -57,33 +57,34 @@ executables = \
 	normalize_path \
 	$(executables-$(ARCH))
 
-manifests = \
-	manifest \
+repo_manifests = \
 	Bootstrap3.manifest \
 	Bootstrap6.manifest \
 	Bootstrap7.manifest \
 	File.manifest \
-	Process.manifest \
-	Process2.manifest \
 	Process3.manifest \
-	SendHandle.manifest \
 	Thread2.manifest \
 	Thread2_exitless.manifest
 
-target = \
-	Bootstrap6 \
-	Thread2_exitless \
-	$(executables) \
-	$(manifests)
+# Empty rule to prevent overriding them using "%.manifest: manifest.template" rule.
+$(repo_manifests): ;
 
-include ../../Scripts/Makefile.manifest
+gen_manifests = $(filter-out $(repo_manifests),$(addsuffix .manifest,$(executables)))
+all_manifests = $(repo_manifests) $(gen_manifests)
+
+target = \
+	$(executables) \
+	$(all_manifests)
+
+include ../../Scripts/manifest.mk
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 .PHONY: all
-all: $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(preloads)
+all: pal_loader $(target) $(call expand_target_to_sig,$(target)) \
+     $(call expand_target_to_sgx,$(target)) $(preloads)
 
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(target))
@@ -111,14 +112,8 @@ LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(prelo
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle) -no-pie $(LDLIBS-executables)
 
-# Handle multiple tests which share one binary (Graphene requires 1-1 manifest-executable
-# correspondence).
-
-Bootstrap6: Bootstrap
-	$(call cmd,ln_sfr)
-
-Thread2_exitless: Thread2
-	$(call cmd,ln_sfr)
+pal_loader:
+	ln -s ../../Runtime/pal_loader $@
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
@@ -137,7 +132,9 @@ pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target))
 
 .PHONY: clean
 clean:
-	$(RM) -r $(target) $(preloads) *.tmp .lib *.cached *.sig .*.sig *.d .*.d .output.* *.token .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache pal-regression.xml
+	$(RM) -r $(executables) $(preloads) $(gen_manifests) *.tmp .lib *.cached *.sig .*.sig *.d .*.d \
+	         .output.* *.token .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache \
+	         pal-regression.xml pal_loader
 
 .PHONY: distclean
 distclean: clean

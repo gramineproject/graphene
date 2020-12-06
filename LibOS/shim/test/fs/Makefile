@@ -20,7 +20,7 @@ execs = \
 	stat \
 	truncate
 
-manifests = manifest
+manifests = $(addsuffix .manifest,$(execs))
 
 exec_target = $(execs)
 
@@ -34,7 +34,7 @@ clean-extra += clean-tmp
 default: all
 
 include ../../../../Scripts/Makefile.configs
-include ../../../../Scripts/Makefile.manifest
+include ../../../../Scripts/manifest.mk
 include ../../../../Scripts/Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
@@ -71,4 +71,5 @@ pf-test.xml: test_pf.py $(call expand_target_to_token,$(target))
 
 .PHONY: clean-tmp
 clean-tmp:
-	$(RM) -r *.tmp *.cached *.manifest.sgx *~ *.sig *.token *.o __pycache__ .pytest_cache .cache *.xml bin lib
+	$(RM) -r *.tmp *.cached pal_loader $(manifests) *.manifest.sgx *~ *.sig *.token *.o \
+	         __pycache__ .pytest_cache .cache *.xml bin lib

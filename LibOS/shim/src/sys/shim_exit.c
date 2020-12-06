@@ -42,12 +42,6 @@ static noreturn void libos_clean_and_exit(int exit_code) {
 
     debug("process %u exited with status %d\n", g_process_ipc_info.vmid & 0xFFFF, exit_code);
 
-    if (exit_code == PAL_WAIT_FOR_CHILDREN_EXIT) {
-        /* user application specified magic exit code; this should be an extremely rare case */
-        debug("exit status collides with Graphene-internal magic status; changed to 1\n");
-        exit_code = 1;
-    }
-
     /* TODO: We exit whole libos, but there are some objects that might need cleanup, e.g. we should
      * release this (last) thread pid. We should do a proper cleanup of everything. */
     DkProcessExit(exit_code);

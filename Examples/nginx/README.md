@@ -21,17 +21,17 @@ make SGX=1
 
 # run original Nginx against a benchmark (benchmark-http.sh, uses ab)
 ./install/sbin/nginx -c conf/nginx-graphene.conf &
-./benchmark-http.sh 127.0.0.1:8002
+../common_tools/benchmark-http.sh 127.0.0.1:8002
 kill -SIGINT %%
 
 # run Nginx in non-SGX Graphene against a benchmark
 ./pal_loader ./nginx -c conf/nginx-graphene.conf &
-./benchmark-http.sh 127.0.0.1:8002
+../common_tools/benchmark-http.sh 127.0.0.1:8002
 kill -SIGINT %%
 
 # run Nginx in Graphene-SGX against a benchmark
 SGX=1 ./pal_loader ./nginx -c conf/nginx-graphene.conf &
-./benchmark-http.sh 127.0.0.1:8002
+../common_tools/benchmark-http.sh 127.0.0.1:8002
 kill -SIGINT %%
 
 # you can also test the server using other utilities like wget

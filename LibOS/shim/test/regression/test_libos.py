@@ -89,21 +89,17 @@ class TC_01_Bootstrap(RegressionTestCase):
         'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '
         'Linux PAL, then we should allow this test on Linux PAL as well.')
     def test_105_basic_bootstrapping_static(self):
-        # bootstrap_static
         stdout, _ = self.run_binary(['bootstrap_static'])
         self.assertIn('Hello world (bootstrap_static)!', stdout)
 
     def test_106_basic_bootstrapping_pie(self):
-        # bootstrap_pie
         stdout, _ = self.run_binary(['bootstrap_pie'])
         self.assertIn('User program started', stdout)
         self.assertIn('Local Address in Executable: 0x', stdout)
         self.assertIn('argv[0] = bootstrap_pie', stdout)
 
-    def test_110_basic_bootstrapping_cxx(self):
-        stdout, _ = self.run_binary(['bootstrap_c++'])
-
-        # Basic Bootstrapping (C++)
+    def test_110_basic_bootstrapping_cpp(self):
+        stdout, _ = self.run_binary(['bootstrap_cpp'])
         self.assertIn('User Program Started', stdout)
 
     def test_200_exec(self):
@@ -146,16 +142,11 @@ class TC_01_Bootstrap(RegressionTestCase):
         stdout, _ = self.run_binary(['exec_invalid_args'])
 
         # Execve with invalid pointers in arguments
-        self.assertIn(
-            'execve(invalid-path) correctly returned error', stdout)
-        self.assertIn(
-            'execve(invalid-argv-ptr) correctly returned error', stdout)
-        self.assertIn(
-            'execve(invalid-envp-ptr) correctly returned error', stdout)
-        self.assertIn(
-            'execve(invalid-argv) correctly returned error', stdout)
-        self.assertIn(
-            'execve(invalid-envp) correctly returned error', stdout)
+        self.assertIn('execve(invalid-path) correctly returned error', stdout)
+        self.assertIn('execve(invalid-argv-ptr) correctly returned error', stdout)
+        self.assertIn('execve(invalid-envp-ptr) correctly returned error', stdout)
+        self.assertIn('execve(invalid-argv) correctly returned error', stdout)
+        self.assertIn('execve(invalid-envp) correctly returned error', stdout)
 
     def test_300_shared_object(self):
         stdout, _ = self.run_binary(['shared_object'])
@@ -413,6 +404,8 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('mmap test 2 passed', stdout)
         self.assertIn('mmap test 3 passed', stdout)
         self.assertIn('mmap test 4 passed', stdout)
+
+        # "test 5" and "test 8" are checked below, in test_051_mmap_sgx
 
     @unittest.skipIf(HAS_SGX,
         'On SGX, SIGBUS isn\'t always implemented correctly, for lack '

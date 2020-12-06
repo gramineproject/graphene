@@ -1,16 +1,13 @@
 include ../../../makevars.mk
 
-manifests = $(wildcard $(ROOTDIR)/*.manifest.template) manifest
 testcases = $(shell cd $(ROOTDIR); \
-	./runltp_xml.py $(RUNLTPOPTS) -c ltp-sgx.cfg --list-executables $(LTPSCENARIO))
+	./runltp_xml.py $(RUNLTPOPTS) -c ltp.cfg --list-executables $(LTPSCENARIO))
 
 exec_target = $(testcases)
+manifests = $(addsuffix .manifest,$(testcases))
 target = $(manifests) $(testcases) etc/nsswitch.conf etc/passwd
 
 include $(ROOTDIR)/Makefile.Test
-
-$(addsuffix .template,$(manifests)): %: ../../../%
-	ln -sf $< $@
 
 etc/nsswitch.conf:
 	mkdir -p etc

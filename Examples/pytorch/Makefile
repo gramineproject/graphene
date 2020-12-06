@@ -31,14 +31,12 @@ endif
 UBUNTU_VERSION = $(DISTRIB_ID)$(DISTRIB_RELEASE)
 
 .PHONY: all
-all: python3.manifest python3_child.manifest | python3 python3_child pal_loader
+all: pytorch.manifest | pal_loader
 ifeq ($(SGX),1)
-all: python3.token python3_child.token
+all: pytorch.manifest.sgx pytorch.sig pytorch.token
 endif
 
 include ../../Scripts/Makefile.configs
-
-python3.sig: python3_child.sig
 
 # .manifest.template contains stanzas for both Ubuntu 16 and 18. The last rule selectively enables
 # those lines based on the Ubuntu version detected.
@@ -46,37 +44,20 @@ python3.sig: python3_child.sig
 	sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 		-e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
 		-e 's|$$(HOME)|'"$(HOME)"'|g' \
+		-e 's|$$(PYTHON3)|'"$(PYTHON3)"'|g' \
 		-e 's|# '"$(UBUNTU_VERSION)"' ||g' \
 		-e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 		$< > $@
 
-python3.sig: python3.manifest | python3
+pytorch.sig: pytorch.manifest
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-exec python3 \
 		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
 		-key $(SGX_SIGNER_KEY) \
-		-output python3.manifest.sgx \
-		-manifest python3.manifest
+		-output pytorch.manifest.sgx \
+		-manifest pytorch.manifest
 
 %.token: %.sig
 	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output $@ -sig $<
-
-# The PyTorch workload forks/execve()s at some point. Having two manifests is a workaround until
-# Graphene fixes its loader.
-python3_child.manifest: python3.manifest
-	cp $< $@
-	sed -i '/trusted_children/d' $@
-
-python3_child.sig: python3_child python3_child.manifest
-	$(GRAPHENEDIR)/Pal/src/host/Linux-SGX/signer/pal-sgx-sign \
-		-exec python3 \
-		-libpal $(GRAPHENEDIR)/Runtime/libpal-Linux-SGX.so \
-		-key $(SGX_SIGNER_KEY) \
-		-output python3_child.manifest.sgx \
-		-manifest python3_child.manifest
-
-python3 python3_child:
-	ln -s $(PYTHON3) $@
 
 pal_loader:
 	ln -s $(GRAPHENEDIR)/Runtime/pal_loader $@
@@ -87,7 +68,7 @@ download_model:
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest python3 python3_child pal_loader
+	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader
 
 .PHONY: distclean
 distclean: clean

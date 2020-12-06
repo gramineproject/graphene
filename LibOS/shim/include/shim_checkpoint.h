@@ -338,10 +338,9 @@ typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_process*, struc
 /*!
  * \brief Create child process and migrate state to it.
  *
- * Called in parent process during fork/clone/execve.
+ * Called in parent process during fork/clone.
  *
  * \param migrate_func          Migration function defined by the caller.
- * \param exec                  Executable to load in the child process.
  * \param child_process         Struct bookkeeping the child process, added to the children list.
  * \param process_description   Struct describing the new process (child).
  * \param thread_description    Struct describing main thread of the child process.
@@ -350,7 +349,7 @@ typedef int (*migrate_func_t)(struct shim_cp_store*, struct shim_process*, struc
  *
  * \return  0 on success, negative POSIX error code on failure.
  */
-int create_process_and_send_checkpoint(migrate_func_t migrate_func, struct shim_handle* exec,
+int create_process_and_send_checkpoint(migrate_func_t migrate_func,
                                        struct shim_child_process* child_process,
                                        struct shim_process* process_description,
                                        struct shim_thread* thread_description, ...);

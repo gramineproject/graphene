@@ -28,18 +28,9 @@ is described in :doc:`../manifest-syntax`.
 Manifest and executable loading
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To run a program in Graphene properly, the PAL loader generally requires both a
-manifest and an executable. The user shall specify the executable to load in
-the command line, and the PAL loader will try to locate the manifest based on
-the file name.
-
-Precisely, the loading rules for the manifest and executable are as follows:
-
-#. The first argument given to :program:`pal_loader` has to be an executable.
-#. The loader will search for the
-   manifest in the following order: the same file name as the executable with
-   a ``.manifest`` or ``.manifest.sgx`` extension, or ``manifest`` file
-   without any extension.
+To run a program in Graphene the PAL loader needs a manifest, which will
+describe the whole environment inside Graphene namespace. It also describes
+which executable to start first (via ``libos.entrypoint``).
 
 Data types and variables
 ------------------------

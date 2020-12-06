@@ -17,14 +17,14 @@ stage('clean-check') {
         make -C Examples/python-scipy-insecure clean
         make -C Examples/bash clean
         make -C Examples/curl clean
-        #make -C Examples/gcc distclean
+        make -C Examples/gcc distclean
         make -C Examples/memcached distclean
         make -C Examples/redis distclean
         make -C Examples/lighttpd distclean
         make -C Examples/nginx distclean
         make -C Examples/apache distclean
         make -C Examples/blender distclean
-        #make -C Examples/r distclean
+        make -C Examples/r distclean
         make -C Pal/src PAL_HOST=Skeleton clean
 
         make -C Examples/ra-tls-mbedtls distclean

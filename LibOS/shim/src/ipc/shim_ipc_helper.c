@@ -17,6 +17,9 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
+// TODO: There's some dead code left in this file after removal of execve-in-new-process quirk. We
+// need to clean it up.
+
 #define IPC_HELPER_STACK_SIZE (g_pal_alloc_align * 4)
 
 static struct shim_lock ipc_port_mgr_lock;
@@ -33,13 +36,12 @@ static MEM_MGR port_mgr;
 DEFINE_LISTP(shim_ipc_port);
 static LISTP_TYPE(shim_ipc_port) port_list;
 
-static enum { HELPER_NOTALIVE, HELPER_STOPPED, HELPER_ALIVE } ipc_helper_state = HELPER_NOTALIVE;
+static enum { HELPER_NOTALIVE, HELPER_ALIVE } ipc_helper_state = HELPER_NOTALIVE;
 
 static struct shim_thread* ipc_helper_thread;
 static struct shim_lock ipc_helper_lock;
 
 static AEVENTTYPE install_new_event;
-static AEVENTTYPE helper_stopped_event;
 
 static int create_ipc_helper(void);
 static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
@@ -177,10 +179,6 @@ int init_ipc_helper(void) {
     }
 
     int ret = create_event(&install_new_event);
-    if (ret < 0) {
-        return ret;
-    }
-    ret = create_event(&helper_stopped_event);
     if (ret < 0) {
         return ret;
     }
@@ -630,48 +628,6 @@ out:
     return ret;
 }
 
-int pause_ipc_helper(void) {
-    bool needs_wait = false;
-
-    lock(&ipc_helper_lock);
-    if (ipc_helper_state == HELPER_ALIVE) {
-        ipc_helper_state = HELPER_STOPPED;
-
-        int ret = clear_event(&helper_stopped_event);
-        if (ret < 0) {
-            unlock(&ipc_helper_lock);
-            return ret;
-        }
-        needs_wait = true;
-
-        /* Wake up the helper thread, so that it notices `ipc_helper_state` change. */
-        ret = set_event(&install_new_event, 1);
-        if (ret < 0) {
-            unlock(&ipc_helper_lock);
-            return ret;
-        }
-    }
-    unlock(&ipc_helper_lock);
-
-    if (needs_wait) {
-        /* Wait until the helper thread notices the stop event. */
-        return wait_event(&helper_stopped_event);
-    }
-
-    return 0;
-}
-
-int resume_ipc_helper(void) {
-    int ret = 0;
-    lock(&ipc_helper_lock);
-    if (ipc_helper_state == HELPER_STOPPED) {
-        ipc_helper_state = HELPER_ALIVE;
-        ret = set_event(&install_new_event, 1);
-    }
-    unlock(&ipc_helper_lock);
-    return ret;
-}
-
 /* Main routine of the IPC helper thread. IPC helper thread is spawned when the first IPC port is
  * added and is terminated only when the whole Graphene application terminates. IPC helper thread
  * runs in an endless loop and waits on port events (either the addition/removal of ports or actual
@@ -735,15 +691,6 @@ noreturn static void shim_ipc_helper(void* dummy) {
             ipc_helper_thread = NULL;
             unlock(&ipc_helper_lock);
             break;
-        } else if (ipc_helper_state == HELPER_STOPPED) {
-            if (set_event(&helper_stopped_event, 1) < 0) {
-                goto out_err_unlock;
-            }
-            unlock(&ipc_helper_lock);
-            if (wait_event(&install_new_event) < 0) {
-                goto out_err;
-            }
-            continue;
         }
 
         /* iterate through all known ports from `port_list` to repopulate `ports` */

@@ -133,7 +133,7 @@ typedef struct PAL_CONTROL_ {
      */
 
     toml_table_t* manifest_root; /*!< program manifest */
-    PAL_STR executable;          /*!< executable name */
+    PAL_STR executable;          /*!< initial executable name. TODO: remove from PAL */
     PAL_HANDLE parent_process;   /*!< handle of parent process */
     PAL_HANDLE first_thread;     /*!< handle of first thread */
     PAL_BOL enable_debug_log;    /*!< enable debug log calls */
@@ -144,8 +144,7 @@ typedef struct PAL_CONTROL_ {
     PAL_BOL disable_aslr;       /*!< disable ASLR (may be necessary for restricted environments) */
     PAL_PTR_RANGE user_address; /*!< The range of user addresses */
 
-    PAL_PTR_RANGE executable_range; /*!< address where executable is loaded */
-    PAL_PTR_RANGE manifest_preload; /*!< manifest preloaded here */
+    PAL_PTR_RANGE manifest_preload; /*!< manifest was preloaded here */
 
     /*
      * Host information
@@ -234,20 +233,10 @@ PAL_BOL DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 /*!
  * \brief Create a new process to run a separate executable.
  *
- * \param uri the URI of the manifest file or the executable to be loaded in the new process.
+ * \param exec_uri the URI of the executable to be loaded in the new process.
  * \param args an array of strings -- the arguments to be passed to the new process.
  */
-PAL_HANDLE DkProcessCreate(PAL_STR uri, PAL_STR* args);
-
-/*!
- * \brief Magic exit code that instructs the exiting process to wait for its children
- *
- * Required for a corner case when the parent exec's the child in a new Graphene process: for
- * correctness, the parent cannot immediately exit since it may have a parent that waits on it.
- * If an application by coincidence picks this magic number as its exit code, it is changed to
- * another exit code so as to not confuse the PAL code.
- */
-#define PAL_WAIT_FOR_CHILDREN_EXIT (1024 * 1024)
+PAL_HANDLE DkProcessCreate(PAL_STR exec_uri, PAL_STR* args);
 
 /*!
  * \brief Terminate all threads in the process immediately.

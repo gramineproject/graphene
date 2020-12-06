@@ -79,12 +79,11 @@ enclave_entry:
 	movq $1, %gs:SGX_THREAD_STARTED
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
-	subq %gs:SGX_TCS_OFFSET, %rbx
-	movq %rbx, %rcx
+	mov %rbx, %rcx
+	subq %gs:SGX_TCS_OFFSET, %rcx
 
-	# switch to enclave stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
-	addq %gs:SGX_INITIAL_STACK_OFFSET, %rbx
-	movq %rbx, %rsp
+	# switch to enclave stack
+	movq %gs:SGX_INITIAL_STACK_ADDR, %rsp
 
 	# clear the rest of register states
 	xorq %rax, %rax

@@ -48,26 +48,28 @@ uint16_t htons(uint16_t shortval);
 uint32_t ntohl(uint32_t longval);
 uint16_t ntohs(uint16_t shortval);
 
-extern struct pal_enclave {
+struct pal_enclave {
     /* attributes */
     bool is_first_process; // Initial process in Graphene namespace is special.
+
+    char* application_path;
+    char* raw_manifest_data;
     unsigned long baseaddr;
     unsigned long size;
     unsigned long thread_num;
     unsigned long rpc_thread_num;
     unsigned long ssaframesize;
-    bool use_static_address;
+    bool nonpie_binary;
     bool remote_attestation_enabled;
     bool use_epid_attestation; /* Valid only if `remote_attestation_enabled` is true, selects
                                 * EPID/DCAP attestation scheme. */
 
     /* files */
-    int exec;
     int sigfile;
     int token;
 
-    /* Path to the PAL binary */
-    char* libpal_uri;
+    char* libpal_uri; /* Path to the PAL binary */
+    char* entrypoint_uri; /* URI of the entry executable for the LibOS */
 
 #ifdef DEBUG
     /* Pointer to information for GDB inside the enclave (see sgx_rtld.h).
@@ -83,7 +85,9 @@ extern struct pal_enclave {
 
     /* security information */
     struct pal_sec pal_sec;
-} g_pal_enclave;
+};
+
+extern struct pal_enclave g_pal_enclave;
 
 int open_sgx_driver(bool need_gsgx);
 bool is_wrfsbase_supported(void);
@@ -147,7 +151,8 @@ void thread_exit(int status);
 uint64_t sgx_edbgrd(void* addr);
 void sgx_edbgwr(void* addr, uint64_t data);
 
-int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** manifest);
+int sgx_init_child_process(int parent_pipe_fd, struct pal_sec* pal_sec, char** application_path_out,
+                           char** manifest);
 int sgx_signal_setup(void);
 int block_signals(bool block, const int* sigs, int nsig);
 int block_async_signals(bool block);

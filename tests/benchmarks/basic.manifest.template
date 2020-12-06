@@ -18,4 +18,4 @@ sgx.trusted_files.libpthread = file:@GRAPHENEDIR@/Runtime/libpthread.so.0
 
 sgx.thread_num = 3
 
-#sgx.static_address = 1
+#sgx.nonpie_binary = 1

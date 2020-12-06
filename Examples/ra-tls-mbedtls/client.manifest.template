@@ -2,7 +2,7 @@
 #
 # This manifest was prepared and tested on Ubuntu 18.04.
 
-loader.argv0_override = "client"
+libos.entrypoint = "file:client"
 
 # LibOS layer library of Graphene. There is currently only one implementation,
 # so it is always set to libsysdb.so.
@@ -52,8 +52,9 @@ sgx.enclave_size = "256M"
 # enclave creation time.
 sgx.thread_num = 4
 
-# Specify all libraries used by dcap and its dependencies (including all libs
+# Specify all files used by dcap and its dependencies (including all libs
 # which can be loaded at runtime via dlopen).
+sgx.trusted_files.client = "file:client"
 sgx.trusted_files.ld = "file:$(GRAPHENEDIR)/Runtime/ld-linux-x86-64.so.2"
 sgx.trusted_files.libc = "file:$(GRAPHENEDIR)/Runtime/libc.so.6"
 sgx.trusted_files.libm = "file:$(GRAPHENEDIR)/Runtime/libm.so.6"
@@ -64,10 +65,6 @@ sgx.trusted_files.libpthread = "file:$(GRAPHENEDIR)/Runtime/libpthread.so.0"
 sgx.trusted_files.libresolv = "file:$(GRAPHENEDIR)/Runtime/libresolv.so.2"
 sgx.trusted_files.libnssdns = "file:$(GRAPHENEDIR)/Runtime/libnss_dns.so.2"
 sgx.trusted_files.libnss_files = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
-
-sgx.trusted_files.libratlsattest = "file:$(RA_TLS_VERIFY_LIB)"
-
-$(CLIENT_TRUSTED_LIBS)
 
 # Name Service Switch (NSS) files. Glibc reads these files as part of name-
 # service information gathering. For more info, see 'man nsswitch.conf'.
