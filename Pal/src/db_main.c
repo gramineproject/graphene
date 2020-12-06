@@ -421,7 +421,7 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
         ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
     }
     if (ret < 0)
-        INIT_FAIL(-ret, pal_strerror(ret));
+        INIT_FAIL(-ret, pal_strerror(-ret));
 
     set_debug_type();
 
