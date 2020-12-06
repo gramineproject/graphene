@@ -67,10 +67,6 @@ PAL_NUM _DkGetProcessId(void) {
     return g_linux_state.process_id;
 }
 
-PAL_NUM _DkGetHostId(void) {
-    return 0;
-}
-
 #include "dynamic_link.h"
 #include "elf-x86_64.h"
 

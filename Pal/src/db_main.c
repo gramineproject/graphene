@@ -427,7 +427,6 @@ noreturn void pal_main(PAL_NUM instance_id,        /* current instance id */
 
     g_pal_control.host_type       = XSTRINGIFY(HOST_TYPE);
     g_pal_control.process_id      = _DkGetProcessId();
-    g_pal_control.host_id         = _DkGetHostId();
     g_pal_control.manifest_root   = g_pal_state.manifest_root;
     g_pal_control.executable      = exec_uri;
     g_pal_control.parent_process  = parent_process;

@@ -130,10 +130,6 @@ PAL_NUM _DkGetProcessId(void) {
     return g_linux_state.process_id;
 }
 
-PAL_NUM _DkGetHostId(void) {
-    return 0;
-}
-
 #include "dynamic_link.h"
 
 #if USE_VDSO_GETTIME == 1
