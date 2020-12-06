@@ -62,7 +62,6 @@ directory:
      used by PAL internally.
    + ``_DkGetProcessId`` (required): Return a unique process ID for each
      process.
-   + ``_DkGetHostId`` (optional): Return a unique host ID for each host.
    + ``_DkGetCPUInfo`` (optional): Retrieve CPU information, such as vendor ID,
      model name.
 
