@@ -9,6 +9,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define MSG "Hello from /proc/1/fd/1\n"
+
 static void* fn(void* arg) {
     /* not to consume CPU, each thread simply sleeps */
     sleep(10000);
@@ -86,6 +88,50 @@ int main(int argc, char** argv) {
     ret = closedir(dir);
     if (ret < 0) {
         perror("closedir /proc/1");
+        return 1;
+    }
+
+    printf("===== Contents of /proc/1/fd\n");
+    dir = opendir("/proc/1/fd");
+    if (!dir) {
+        perror("opendir /proc/1/fd");
+        return 1;
+    }
+
+    errno = 0;
+    while ((dirent = readdir(dir))) {
+        printf("/proc/1/fd/%s\n", dirent->d_name);
+    }
+    if (errno) {
+        perror("readdir /proc/1/fd");
+        return 1;
+    }
+
+    ret = closedir(dir);
+    if (ret < 0) {
+        perror("closedir /proc/1/fd");
+        return 1;
+    }
+
+    printf("===== Writing to /proc/1/fd/1 (stdout)\n");
+    f = fopen("/proc/1/fd/1", "w");
+    if (!f) {
+        perror("fopen /proc/1/fd/1");
+        return 1;
+    }
+
+    ret = fwrite(MSG, sizeof(MSG), 1, f);
+    if (ferror(f)) {
+        perror("fread /proc/1/fd/1");
+        return 1;
+    }
+
+    /* above fwrite must print "Hello ..." to stdout *without* bufferization */
+    memset(buf, 0, sizeof(buf));
+
+    ret = fclose(f);
+    if (ret) {
+        perror("fclose /proc/1/fd/1");
         return 1;
     }
 
