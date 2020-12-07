@@ -252,7 +252,7 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
     int my_pathlen = 0;
     int err = 0;
     struct shim_dentry* my_dent = NULL;
-    struct shim_qstr this = QSTR_INIT;
+    struct shim_qstr link_target = QSTR_INIT;
     bool leaf_case = false; // Leaf call in case of recursion
     bool no_start = false; // start not passed
     bool no_fs = false; // fs not passed
@@ -363,18 +363,15 @@ int __path_lookupat(struct shim_dentry* start, const char* path, int flags,
 
                 assert(my_dent->fs->d_ops && my_dent->fs->d_ops->follow_link);
 
-                if ((err = my_dent->fs->d_ops->follow_link(my_dent, &this)) < 0)
+                if ((err = my_dent->fs->d_ops->follow_link(my_dent, &link_target)) < 0)
                     goto out;
 
-                path = qstrgetstr(&this);
+                /* let's re-start lookup & recursion with the link's target */
+                my_path = qstrgetstr(&link_target);
 
-                if (path) {
+                if (my_path) {
                     /* symlink name starts with a slash, restart lookup at root */
-                    if (*path == '/') {
-                        /* FIXME: below logic assumes that target file is under chroot; this misses
-                         *        cases like `/dev/stdin` which is a link to `/proc/self/fd/0`
-                         *        (i.e., Graphene currently fails if target is under pseudo-FS) */
-
+                    if (*my_path == '/') {
                         /*XXX: Check out path_reacquire here? */
                         // my_dent's refcount was incremented by lookup_dentry above,
                         // we need to not leak it here
@@ -464,7 +461,7 @@ out:
     if (no_fs)
         put_mount(fs);
 
-    qstrfree(&this);
+    qstrfree(&link_target);
     return err;
 }
 
