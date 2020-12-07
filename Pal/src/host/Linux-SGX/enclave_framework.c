@@ -195,7 +195,7 @@ int init_enclave_key(void) {
     keyrequest.key_name = SEAL_KEY;
 
     keyrequest.attribute_mask.flags = SGX_FLAGS_INITIALIZED | SGX_FLAGS_DEBUG | \
-				      SGX_FLAGS_RESERVED_BIT3;
+                                      SGX_FLAGS_RESERVED_BIT3;
     keyrequest.attribute_mask.xfrm = 0x0;
     keyrequest.key_policy = KEYPOLICY_MRSIGNER;
 
