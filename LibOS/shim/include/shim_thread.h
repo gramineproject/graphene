@@ -45,8 +45,15 @@ struct shim_rt_signal_queue {
     struct shim_signal* queue[MAX_SIGNAL_LOG];
 };
 
+/*
+ * We store standard signals directly inside queue and real-time signals as pointers to objects
+ * obtained via `malloc`.
+ * `pending_mask` stores mask of signals present in this queue.
+ * Accesses to this queue should be protected by a lock.
+ */
 struct shim_signal_queue {
-    struct shim_signal* standard_signals[SIGRTMIN - 1];
+    __sigset_t pending_mask;
+    struct shim_signal standard_signals[SIGRTMIN - 1];
     struct shim_rt_signal_queue rt_signal_queues[NUM_SIGS - SIGRTMIN + 1];
 };
 
@@ -55,6 +62,11 @@ DEFINE_LISTP(shim_thread);
 struct shim_thread {
     /* Field for inserting threads on global `g_thread_list`. */
     LIST_TYPE(shim_thread) list;
+
+/* Internal LibOS stack size: 3 pages + one guard page. */
+#define SHIM_THREAD_LIBOS_STACK_SIZE (3 * PAGE_SIZE  + PAGE_SIZE)
+    /* Pointer to the bottom of the internal LibOS stack. */
+    void* libos_stack_bottom;
 
     /* thread identifier */
     IDTYPE tid;
@@ -80,17 +92,9 @@ struct shim_thread {
      * `process_pending_signals_cnt`. */
     uint64_t pending_signals;
 
-    /*
-     * This field is used for checking whether we handled a signal (e.g. if we want to sleep and
-     * make some decision after wakeup based on whether we handled a signal, see `sigsuspend`)
-     * and can have following values:
-     * - `SIGNAL_NOT_HANDLED` - usually initialized to this - no signals were handled,
-     * - `SIGNAL_HANDLED` - at least one signal was handled,
-     * - `SIGNAL_HANDLED_RESTART` - same as above, but the signal had `SA_RESTART` flag.
-     * `SIGNAL_HANDLED` has priority over `SIGNAL_HANDLED_RESTART`, i.e. if we handle multiple
-     * signals, some with `SA_RESTART`, some without it, this field will be set to `SIGNAL_HANDLED`.
-     */
-    unsigned char signal_handled;
+    struct shim_signal forced_signal;
+
+    /* This field can be accessed without any locks, but each thread can access only its own. */
     stack_t signal_altstack;
 
     /* futex robust list */
@@ -120,20 +124,13 @@ struct shim_thread_queue {
     bool in_use;
 };
 
-/* See the explanation in `shim_thread`. */
-enum {
-    SIGNAL_NOT_HANDLED = 0,
-    SIGNAL_HANDLED,
-    SIGNAL_HANDLED_RESTART,
-};
-
 int init_threading(void);
 
 static inline bool is_internal(struct shim_thread* thread) {
     return thread->tid >= INTERNAL_TID_BASE;
 }
 
-void clear_signal_queue(struct shim_signal_queue* queue);
+void free_signal_queue(struct shim_signal_queue* queue);
 
 void get_signal_dispositions(struct shim_signal_dispositions* dispositions);
 void put_signal_dispositions(struct shim_signal_dispositions* dispositions);
@@ -185,6 +182,7 @@ static inline void set_cur_thread(struct shim_thread* thread) {
     }
 
     tcb->tp = thread;
+    tcb->libos_stack_bottom = thread->libos_stack_bottom;
     thread->shim_tcb = tcb;
 
     if (tcb->debug_buf)
@@ -201,7 +199,7 @@ static inline void thread_setwait(struct shim_thread** queue, struct shim_thread
     }
 }
 
-static inline int thread_sleep(uint64_t timeout_us) {
+static inline int thread_sleep(uint64_t timeout_us, bool ignore_pending_signals) {
     struct shim_thread* cur_thread = get_cur_thread();
 
     if (!cur_thread)
@@ -210,6 +208,10 @@ static inline int thread_sleep(uint64_t timeout_us) {
     PAL_HANDLE event = cur_thread->scheduler_event;
     if (!event)
         return -EINVAL;
+
+    if (!ignore_pending_signals && have_pending_signals()) {
+        return -EINTR;
+    }
 
     if (!DkSynchronizationObjectWait(event, timeout_us))
         return -PAL_ERRNO();
@@ -273,6 +275,17 @@ struct shim_thread* lookup_thread(IDTYPE tid);
 
 struct shim_thread* get_new_thread(void);
 struct shim_thread* get_new_internal_thread(void);
+
+/*!
+ * \brief Allocate a new stack for LibOS calls (emulated syscalls).
+ *
+ * \param thread Thread to get the stack.
+ *
+ * Allocates a new stack used to handle LibOS calls (emulated sysacalls).
+ * On success returns `0`, on failure - negative error code.
+ * Should be called only once per thread.
+ */
+int alloc_thread_libos_stack(struct shim_thread* thread);
 
 /* Adds `thread` to global thread list. */
 void add_thread(struct shim_thread* thread);

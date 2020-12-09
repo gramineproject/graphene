@@ -16,6 +16,7 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include "api.h"
 #include "cpu.h"
 #include "pal.h"
 
@@ -175,26 +176,86 @@ typedef struct {
     PAL_XSTATE_HEADER header;
 } __attribute__((packed, aligned(PAL_XSTATE_ALIGN))) PAL_XREGS_STATE;
 
-/* Define PAL_CONTEXT_ outside the typedef for Doxygen */
-struct PAL_CONTEXT_ {
-    PAL_NUM r8, r9, r10, r11, r12, r13, r14, r15;
-    PAL_NUM rdi, rsi, rbp, rbx, rdx, rax, rcx;
-    PAL_NUM rsp, rip;
-    PAL_NUM efl, csgsfs, err, trapno, oldmask, cr2;
+/* Define PAL_CONTEXT outside the typedef for Doxygen */
+struct PAL_CONTEXT {
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rdi;
+    uint64_t rsi;
+    uint64_t rbp;
+    uint64_t rbx;
+    uint64_t rdx;
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rsp;
+    uint64_t rip;
+    uint64_t efl;
+    uint64_t csgsfsss;
+    uint64_t err;
+    uint64_t trapno;
+    uint64_t oldmask;
+    uint64_t cr2;
+
     PAL_XREGS_STATE* fpregs;
+
+    uint32_t mxcsr; /* MXCSR control/status register (for SSE/AVX/...) */
+    uint16_t fpcw;  /* FPU Control Word (for x87) */
+    uint8_t is_fpregs_used; /* Equal to 0 iff `fpregs` is not populated. */
+    uint8_t _pad;
 };
-typedef struct PAL_CONTEXT_ PAL_CONTEXT;
+typedef struct PAL_CONTEXT PAL_CONTEXT;
+
+typedef int64_t arch_syscall_arg_t;
+
+#define ALL_SYSCALL_ARGS(context) \
+    (context)->rdi, \
+    (context)->rsi, \
+    (context)->rdx, \
+    (context)->r10, \
+    (context)->r8, \
+    (context)->r9
+
 
 static inline void pal_context_set_ip(PAL_CONTEXT* context, PAL_NUM insnptr) {
     context->rip = insnptr;
 }
-
 static inline PAL_NUM pal_context_get_ip(PAL_CONTEXT* context) {
     return context->rip;
 }
 
-static inline bool pal_context_has_user_pagefault(PAL_CONTEXT* context) {
-    return !!(context->err & 4);
+static inline void pal_context_set_sp(PAL_CONTEXT* context, PAL_NUM sp) {
+    context->rsp = sp;
+}
+static inline PAL_NUM pal_context_get_sp(PAL_CONTEXT* context) {
+    return context->rsp;
+}
+
+static inline void pal_context_set_retval(PAL_CONTEXT* context, uint64_t val) {
+    context->rax = val;
+}
+static inline uint64_t pal_context_get_retval(PAL_CONTEXT* context) {
+    return context->rax;
+}
+
+static inline uint64_t pal_context_get_syscall(PAL_CONTEXT* context) {
+    return context->rax;
+}
+
+/* Copies `PAL_CONTEXT` without extended fpu/sse state (but keeping control words). */
+static inline void pal_context_copy(PAL_CONTEXT* dst, PAL_CONTEXT* src) {
+    *dst = *src;
+    dst->is_fpregs_used = 0;
+    dst->fpregs = NULL;
+    if (src->is_fpregs_used) {
+        dst->mxcsr = src->fpregs->fpstate.mxcsr;
+        dst->fpcw = src->fpregs->fpstate.cwd;
+    }
 }
 
 /* PAL_CPU_INFO holds /proc/cpuinfo data */

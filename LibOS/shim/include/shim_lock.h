@@ -10,7 +10,6 @@
 #include "pal.h"
 #include "pal_debug.h"
 #include "shim_internal.h"
-#include "shim_tcb.h"
 #include "shim_thread.h"
 #include "shim_types.h"
 
@@ -59,9 +58,6 @@ static void lock(struct shim_lock* l) {
         __abort();
     }
 
-    shim_tcb_t* tcb = shim_get_tcb();
-    disable_preempt(tcb);
-
     while (!DkSynchronizationObjectWait(l->lock, NO_TIMEOUT))
         /* nop */;
 
@@ -84,11 +80,8 @@ static inline void unlock(struct shim_lock* l) {
         __abort();
     }
 
-    shim_tcb_t* tcb = shim_get_tcb();
-
     l->owner = 0;
     DkMutexRelease(l->lock);
-    enable_preempt(tcb);
 }
 
 static inline bool locked(struct shim_lock* l) {

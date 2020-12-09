@@ -46,9 +46,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
-    unsigned long tls_base = 0;
-    update_tls_base(tls_base);
-    debug("set tls_base to 0x%lx\n", tls_base);
+    set_tls_base(0);
 
     thread_sigaction_reset_on_execve(cur_thread);
 
@@ -316,11 +314,6 @@ reopen:
     /* All other threads are dead. Restoring initial value in case we stay inside same process
      * instance and call execve again. */
     __atomic_store_n(&first, 0, __ATOMIC_RELAXED);
-
-    /* Disable preemption during `execve`. It will be enabled back in `execute_elf_object` if we
-     * stay in the same process. Otherwise it is never enabled, since this process dies both on
-     * errors and success. */
-    disable_preempt(NULL);
 
     /* Passing ownership of `exec`. */
     ret = shim_do_execve_rtld(exec, argv, envp);

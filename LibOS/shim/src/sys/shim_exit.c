@@ -48,9 +48,6 @@ static noreturn void libos_clean_and_exit(int exit_code) {
 }
 
 noreturn void thread_exit(int error_code, int term_signal) {
-    /* Disable preemption as soon we won't be able to process signals. */
-    disable_preempt(NULL);
-
     /* Remove current thread from the threads list. */
     if (!check_last_thread(/*mark_self_dead=*/true)) {
         struct shim_thread* cur_thread = get_cur_thread();
@@ -98,16 +95,9 @@ static int mark_thread_to_die(struct shim_thread* thread, void* arg) {
         return 0;
     }
 
-    bool need_wakeup = false;
+    bool need_wakeup = !__atomic_exchange_n(&thread->time_to_die, true, __ATOMIC_ACQ_REL);
 
-    lock(&thread->lock);
-    if (!thread->time_to_die) {
-        need_wakeup = true;
-    }
-    thread->time_to_die = true;
-    unlock(&thread->lock);
-
-    /* Now let's kick `thread`, so that it notices (in `__handle_signals`) the flag `time_to_die`
+    /* Now let's kick `thread`, so that it notices (in `handle_signal`) the flag `time_to_die`
      * set above (but only if we really set that flag). */
     if (need_wakeup) {
         thread_wakeup(thread);
@@ -154,7 +144,7 @@ noreturn void process_exit(int error_code, int term_signal) {
     thread_exit(error_code, term_signal);
 }
 
-noreturn long shim_do_exit_group(int error_code) {
+long shim_do_exit_group(int error_code) {
     assert(!is_internal(get_cur_thread()));
 
     error_code &= 0xFF;
@@ -164,7 +154,7 @@ noreturn long shim_do_exit_group(int error_code) {
     process_exit(error_code, 0);
 }
 
-noreturn long shim_do_exit(int error_code) {
+long shim_do_exit(int error_code) {
     assert(!is_internal(get_cur_thread()));
 
     error_code &= 0xFF;

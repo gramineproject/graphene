@@ -542,19 +542,17 @@ enum PAL_EVENT {
     /*! arithmetic error (div-by-zero, floating point exception, etc.) */
     PAL_EVENT_ARITHMETIC_ERROR = 1,
     /*! segmentation fault, protection fault, bus fault */
-    PAL_EVENT_MEMFAULT         = 2,
+    PAL_EVENT_MEMFAULT,
     /*! illegal instructions */
-    PAL_EVENT_ILLEGAL          = 3,
-    /*! terminated by external program */
-    PAL_EVENT_QUIT             = 4,
-    /*! suspended by external program */
-    PAL_EVENT_SUSPEND          = 5,
-    /*! continued by external program */
-    PAL_EVENT_RESUME           = 6,
+    PAL_EVENT_ILLEGAL,
+    /*! terminated by external program (see "sys.enable_sigterm_injection" manifest option) */
+    PAL_EVENT_QUIT,
+    /*! interrupted (usually internally to handle aync event) */
+    PAL_EVENT_INTERRUPTED,
     /*! failure within PAL calls */
-    PAL_EVENT_FAILURE          = 7,
+    PAL_EVENT_FAILURE,
 
-    PAL_EVENT_NUM_BOUND        = 8,
+    PAL_EVENT_NUM_BOUND,
 };
 
 typedef void (*PAL_EVENT_HANDLER)(PAL_NUM arg, PAL_CONTEXT*);

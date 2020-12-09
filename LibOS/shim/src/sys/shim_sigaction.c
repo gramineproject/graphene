@@ -9,6 +9,7 @@
  * and "tgkill".
  */
 
+#include <asm/unistd.h>
 #include <errno.h>
 #include <stddef.h>  // FIXME(mkow): Without this we get:
                      //     asm/signal.h:126:2: error: unknown type name ‘size_t’
@@ -26,8 +27,8 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-long shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
-                       struct __kernel_sigaction* oldact, size_t sigsetsize) {
+long shim_do_rt_sigaction(int signum, const struct __kernel_sigaction* act,
+                          struct __kernel_sigaction* oldact, size_t sigsetsize) {
     /* SIGKILL and SIGSTOP cannot be caught or ignored */
     if (signum == SIGKILL || signum == SIGSTOP || signum <= 0 || signum > NUM_SIGS ||
             sigsetsize != sizeof(__sigset_t))
@@ -36,8 +37,15 @@ long shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
     if (act && test_user_memory((void*)act, sizeof(*act), false))
         return -EFAULT;
 
-    if (oldact && test_user_memory(oldact, sizeof(*oldact), false))
+    if (oldact && test_user_memory(oldact, sizeof(*oldact), true))
         return -EFAULT;
+
+    if (act && !(act->sa_flags & SA_RESTORER)) {
+        /* XXX: This might not be true for all architectures (but is for x86_64) ...
+         * Check `shim_signal.c` if you update this! */
+        debug("SA_RESTORER flag is required!\n");
+        return -EINVAL;
+    }
 
     struct shim_thread* cur = get_cur_thread();
 
@@ -57,13 +65,25 @@ long shim_do_sigaction(int signum, const struct __kernel_sigaction* act,
     return 0;
 }
 
-long shim_do_sigreturn(int __unused) {
-    __UNUSED(__unused);
-    /* do nothing */
-    return 0;
+long shim_do_rt_sigreturn(void) {
+    PAL_CONTEXT* context = SHIM_TCB_GET(context.regs);
+
+    __sigset_t new_mask;
+    restore_sigreturn_context(context, &new_mask);
+    clear_illegal_signals(&new_mask);
+
+    struct shim_thread* current = get_cur_thread();
+    lock(&current->lock);
+    set_sig_mask(current, &new_mask);
+    unlock(&current->lock);
+
+    /* We restored user context, it's not a syscall. */
+    SHIM_TCB_SET(context.syscall_nr, -1);
+
+    return pal_context_get_retval(context);
 }
 
-long shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
+long shim_do_rt_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {
     __sigset_t old;
 
     if (how != SIG_BLOCK && how != SIG_UNBLOCK && how != SIG_SETMASK)
@@ -113,25 +133,31 @@ out:
 }
 
 long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
+    if (ss && test_user_memory((void*)ss, sizeof(*ss), /*writable=*/false)) {
+        return -EFAULT;
+    }
+    if (oss && test_user_memory(oss, sizeof(*oss), /*writable=*/true)) {
+        return -EFAULT;
+    }
+
     if (ss && (ss->ss_flags & ~SS_DISABLE))
         return -EINVAL;
 
     struct shim_thread* cur = get_cur_thread();
-    lock(&cur->lock);
 
     stack_t* cur_ss = &cur->signal_altstack;
 
-    if (oss)
+    if (oss) {
         *oss = *cur_ss;
+        if (cur_ss->ss_size == 0) {
+            oss->ss_flags |= SS_DISABLE;
+        }
+    }
 
-    void* sp = (void*)shim_context_get_sp(&(shim_get_tcb()->context));
-    /* check if thread is currently executing on an active altstack */
-    if (!(cur_ss->ss_flags & SS_DISABLE) && sp && cur_ss->ss_sp <= sp &&
-            sp < cur_ss->ss_sp + cur_ss->ss_size) {
+    if (is_on_altstack(pal_context_get_sp(shim_get_tcb()->context.regs), cur_ss)) {
         if (oss)
             oss->ss_flags |= SS_ONSTACK;
-        if (ss) {
-            unlock(&cur->lock);
+        if (ss && !(cur_ss->ss_flags & SS_DISABLE)) {
             return -EPERM;
         }
     }
@@ -142,7 +168,6 @@ long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
             cur_ss->ss_flags = SS_DISABLE;
         } else {
             if (ss->ss_size < MINSIGSTKSZ) {
-                unlock(&cur->lock);
                 return -ENOMEM;
             }
 
@@ -150,76 +175,76 @@ long shim_do_sigaltstack(const stack_t* ss, stack_t* oss) {
         }
     }
 
-    unlock(&cur->lock);
     return 0;
 }
 
-long shim_do_sigsuspend(const __sigset_t* mask_ptr) {
+long shim_do_rt_sigsuspend(const __sigset_t* mask_ptr, size_t setsize) {
+    if (setsize != sizeof(sigset_t)) {
+        return -EINVAL;
+    }
     if (!mask_ptr || test_user_memory((void*)mask_ptr, sizeof(*mask_ptr), false))
         return -EFAULT;
 
     __sigset_t mask = *mask_ptr;
     clear_illegal_signals(&mask);
 
-    struct shim_thread* cur = get_cur_thread();
-
-    __atomic_store_n(&cur->signal_handled, SIGNAL_NOT_HANDLED, __ATOMIC_RELEASE);
-
-    lock(&cur->lock);
+    struct shim_thread* current = get_cur_thread();
     __sigset_t old;
-    get_sig_mask(cur, &old);
+    lock(&current->lock);
+    get_sig_mask(current, &old);
+    set_sig_mask(current, &mask);
+    unlock(&current->lock);
 
-    set_sig_mask(cur, &mask);
-    unlock(&cur->lock);
-
-    /* We might have unblocked some pending signals. */
-    handle_signals();
-
-    thread_setwait(NULL, NULL);
-
-    /* `SA_RESTART` does not affect `sigsuspend`. */
-    while (__atomic_load_n(&cur->signal_handled, __ATOMIC_ACQUIRE) == SIGNAL_NOT_HANDLED) {
-        thread_sleep(NO_TIMEOUT);
-        handle_signals();
+    DkEventClear(current->scheduler_event);
+    while (!have_pending_signals()) {
+        int ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/false);
+        if (ret < 0 && ret != -EINTR && ret != -EAGAIN) {
+            return ret;
+        }
     }
 
-    lock(&cur->lock);
-    set_sig_mask(cur, &old);
-    unlock(&cur->lock);
-    return -EINTR;
+    /* XXX: This basicaly doubles the work of `shim_do_syscall`. The alternative would be to add
+     * handling of saved signal maks (probably inside `current`) to `shim_do_syscall`, but as it
+     * is specific to sigsuspend I'm leaving this here for now. */
+    int ret = -EINTR;
+    PAL_CONTEXT* context = SHIM_TCB_GET(context.regs);
+    pal_context_set_retval(context, ret);
+
+    debug_print_syscall_after(__NR_rt_sigsuspend, ret, ALL_SYSCALL_ARGS(context));
+
+    if (!handle_signal(context, &old)) {
+        restart_syscall(context, __NR_rt_sigsuspend);
+    }
+
+    SHIM_TCB_SET(context.syscall_nr, -1);
+    SHIM_TCB_SET(context.regs, NULL);
+    return_from_syscall(context);
 }
 
-long shim_do_sigpending(__sigset_t* set, size_t sigsetsize) {
+long shim_do_rt_sigpending(__sigset_t* set, size_t sigsetsize) {
     if (sigsetsize != sizeof(*set))
         return -EINVAL;
 
     if (!set || test_user_memory(set, sigsetsize, false))
         return -EFAULT;
 
-    struct shim_thread* cur = get_cur_thread();
-
-    get_pending_signals(cur, set);
+    get_pending_signals(set);
 
     return 0;
 }
 
-struct signal_thread_arg {
-    int sig;
-    bool current_should_handle;
-};
-
-static int _wakeup_one_thread(struct shim_thread* thread, void* _arg) {
-    struct signal_thread_arg* arg = (struct signal_thread_arg*)_arg;
+static int _wakeup_one_thread(struct shim_thread* thread, void* arg) {
+    int sig = (int)(long)arg;
     int ret = 0;
+
+    if (thread == get_cur_thread()) {
+        return ret;
+    }
 
     lock(&thread->lock);
 
-    if (!__sigismember(&thread->signal_mask, arg->sig)) {
-        if (thread == get_cur_thread()) {
-            arg->current_should_handle = true;
-        } else {
-            thread_wakeup(thread);
-        }
+    if (!__sigismember(&thread->signal_mask, sig)) {
+        thread_wakeup(thread);
         ret = 1;
     }
 
@@ -237,21 +262,23 @@ int kill_current_proc(siginfo_t* info) {
         return ret;
     }
 
-    struct signal_thread_arg arg = {
-        .sig = info->si_signo,
-        .current_should_handle = false,
-    };
+    int sig = info->si_signo;
+    struct shim_thread* current = get_cur_thread();
+    if (!is_internal(current)) {
+        /* Can we handle this singal? */
+        lock(&current->lock);
+        if (!__sigismember(&current->signal_mask, sig)) {
+            /* Yes we can. */
+            unlock(&current->lock);
+            return 0;
+        }
+        unlock(&current->lock);
+    }
 
-    ret = walk_thread_list(_wakeup_one_thread, &arg, /*one_shot=*/true);
+    ret = walk_thread_list(_wakeup_one_thread, (void*)(long)sig, /*one_shot=*/true);
     /* Ignore `-ESRCH` as this just means that currently no thread is able to handle the signal. */
     if (ret < 0 && ret != -ESRCH) {
         return ret;
-    }
-
-    if (arg.current_should_handle) {
-        assert(ret == 0);
-        /* We've delivered the signal to the current thread, now need to handle it. */
-        handle_signals();
     }
 
     return 0;
@@ -345,14 +372,12 @@ int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc
             .si_pid   = sender,
             .si_code  = SI_TKILL,
         };
-        if (thread == get_cur_thread()) {
-            deliver_signal(&info, NULL);
-        } else {
-            int ret = append_signal(thread, &info);
-            if (ret < 0) {
-                put_thread(thread);
-                return ret;
-            }
+        int ret = append_signal(thread, &info);
+        if (ret < 0) {
+            put_thread(thread);
+            return ret;
+        }
+        if (thread != get_cur_thread()) {
             thread_wakeup(thread);
         }
 

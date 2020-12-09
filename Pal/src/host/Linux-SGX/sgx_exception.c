@@ -49,7 +49,7 @@ __attribute__((visibility("hidden"))) void __restore_rt(void);
 
 void sgx_entry_return(void);
 
-static const int ASYNC_SIGNALS[] = {SIGTERM, SIGINT, SIGCONT};
+static const int ASYNC_SIGNALS[] = {SIGTERM, SIGCONT};
 
 static int block_signal(int sig, bool block) {
     int how = block ? SIG_BLOCK : SIG_UNBLOCK;
@@ -101,17 +101,15 @@ static int get_pal_event(int sig) {
             return PAL_EVENT_ILLEGAL;
         case SIGTERM:
             return PAL_EVENT_QUIT;
-        case SIGINT:
-            return PAL_EVENT_SUSPEND;
         case SIGCONT:
-            return PAL_EVENT_RESUME;
+            return PAL_EVENT_INTERRUPTED;
         default:
             return -1;
     }
 }
 
 static bool interrupted_in_enclave(struct ucontext* uc) {
-    unsigned long rip = pal_ucontext_get_ip(uc);
+    unsigned long rip = ucontext_get_ip(uc);
 
     /* in case of AEX, RIP can point to any instruction in the AEP/ERESUME trampoline code, i.e.,
      * RIP can point to anywhere in [async_exit_pointer, async_exit_pointer_end) interval */
@@ -137,7 +135,7 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     }
 
     /* exception happened in untrusted PAL code (during syscall handling): fatal in Graphene */
-    unsigned long rip = pal_ucontext_get_ip(uc);
+    unsigned long rip = ucontext_get_ip(uc);
     switch (signum) {
         case SIGSEGV:
             SGX_DBG(DBG_E, "Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
@@ -177,8 +175,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
      * was interrupted by calling sgx_entry_return(syscall_return_value=-EINTR, event) */
     /* TODO: we abandon PAL state here (possibly still holding some locks, etc) and return to
      *       enclave; ideally we must unwind/fix the state and only then jump into enclave */
-    greg_t func_args[2] = {-EINTR, event};
-    pal_ucontext_set_function_parameters(uc, sgx_entry_return, /*func_args_num=*/2, func_args);
+    ucontext_set_function_parameters(uc, sgx_entry_return, -EINTR, event);
 }
 
 static void handle_dummy_signal(int signum, siginfo_t* info, struct ucontext* uc) {
@@ -227,10 +224,6 @@ int sgx_signal_setup(void) {
 
     /* register asynchronous signals in host Linux */
     ret = set_signal_handler(SIGTERM, handle_async_signal);
-    if (ret < 0)
-        goto err;
-
-    ret = set_signal_handler(SIGINT, handle_async_signal);
     if (ret < 0)
         goto err;
 

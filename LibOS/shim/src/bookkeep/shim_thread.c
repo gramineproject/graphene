@@ -14,6 +14,7 @@
 #include "list.h"
 #include "pal.h"
 #include "shim_checkpoint.h"
+#include "shim_flags_conv.h"
 #include "shim_handle.h"
 #include "shim_internal.h"
 #include "shim_ipc.h"
@@ -21,6 +22,7 @@
 #include "shim_process.h"
 #include "shim_signal.h"
 #include "shim_thread.h"
+#include "shim_vma.h"
 
 static IDTYPE g_tid_alloc_idx = 0;
 
@@ -103,6 +105,50 @@ static struct shim_thread* alloc_new_thread(void) {
     return thread;
 }
 
+int alloc_thread_libos_stack(struct shim_thread* thread) {
+    assert(thread->libos_stack_bottom == NULL);
+
+    void* addr = NULL;
+    int prot = PROT_READ | PROT_WRITE;
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
+    int ret = bkeep_mmap_any(SHIM_THREAD_LIBOS_STACK_SIZE, prot, flags, /*file=*/NULL, /*offset=*/0,
+                             "libos_stack", &addr);
+    if (ret < 0) {
+        return ret;
+    }
+
+    bool need_mem_free = false;
+    if (DkVirtualMemoryAlloc(addr, SHIM_THREAD_LIBOS_STACK_SIZE, 0, LINUX_PROT_TO_PAL(prot, flags))
+            != addr) {
+        ret = -PAL_ERRNO();
+        goto unmap;
+    }
+    need_mem_free = true;
+
+    if (!DkVirtualMemoryProtect(addr, PAGE_SIZE, PAL_PROT_NONE)) {
+        ret = -PAL_ERRNO();
+        goto unmap;
+    }
+
+    thread->libos_stack_bottom = (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE;
+
+    return 0;
+
+unmap:;
+    void* tmp_vma = NULL;
+    if (bkeep_munmap(addr, SHIM_THREAD_LIBOS_STACK_SIZE, /*is_internal=*/true, &tmp_vma) < 0) {
+        debug("[alloc_thread_libos_stack]"
+              " Failed to remove bookkeeped memory that was not allocated at %p-%p!\n",
+              addr, (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE);
+        BUG();
+    }
+    if (need_mem_free) {
+        DkVirtualMemoryFree(addr, SHIM_THREAD_LIBOS_STACK_SIZE);
+    }
+    bkeep_remove_tmp_vma(tmp_vma);
+    return ret;
+}
+
 static int init_main_thread(void) {
     struct shim_thread* cur_thread = get_cur_thread();
     if (cur_thread) {
@@ -143,6 +189,14 @@ static int init_main_thread(void) {
     if (!cur_thread->scheduler_event) {
         put_thread(cur_thread);
         return -ENOMEM;
+    }
+
+    /* TODO: I believe there is some Pal allocated initial stack which could be reused by the first
+     * thread. */
+    int ret = alloc_thread_libos_stack(cur_thread);
+    if (ret < 0) {
+        put_thread(cur_thread);
+        return ret;
     }
 
     cur_thread->pal_handle = PAL_CB(first_thread);
@@ -284,6 +338,18 @@ void put_thread(struct shim_thread* thread) {
     if (!ref_count) {
         assert(LIST_EMPTY(thread, list));
 
+        if (thread->libos_stack_bottom) {
+            void* tmp_vma = NULL;
+            char* addr = (char*)thread->libos_stack_bottom - SHIM_THREAD_LIBOS_STACK_SIZE;
+            if (bkeep_munmap(addr, SHIM_THREAD_LIBOS_STACK_SIZE, /*is_internal=*/true, &tmp_vma) < 0) {
+                debug("[put_thread] Failed to remove bookkeeped memory at %p-%p!\n",
+                      addr, (char*)addr + SHIM_THREAD_LIBOS_STACK_SIZE);
+                BUG();
+            }
+            DkVirtualMemoryFree(addr, SHIM_THREAD_LIBOS_STACK_SIZE);
+            bkeep_remove_tmp_vma(tmp_vma);
+        }
+
         if (thread->pal_handle && thread->pal_handle != PAL_CB(first_thread))
             DkObjectClose(thread->pal_handle);
 
@@ -295,7 +361,7 @@ void put_thread(struct shim_thread* thread) {
             put_signal_dispositions(thread->signal_dispositions);
         }
 
-        clear_signal_queue(&thread->signal_queue);
+        free_signal_queue(&thread->signal_queue);
 
         /* `signal_altstack` is provided by the user, no need for a clean up. */
 
@@ -487,6 +553,8 @@ BEGIN_CP_FUNC(thread) {
 
         INIT_LIST_HEAD(new_thread, list);
 
+        new_thread->libos_stack_bottom = NULL;
+
         new_thread->pal_handle = NULL;
 
         new_thread->handle_map = NULL;
@@ -510,6 +578,10 @@ BEGIN_CP_FUNC(thread) {
             new_tcb->tp        = NULL;
             new_tcb->debug_buf = NULL;
             new_tcb->vma_cache = NULL;
+
+            size_t roff = ADD_CP_OFFSET(sizeof(*thread->shim_tcb->context.regs));
+            new_thread->shim_tcb->context.regs = (void*)(base + roff);
+            pal_context_copy(new_thread->shim_tcb->context.regs, thread->shim_tcb->context.regs);
         }
     } else {
         new_thread = (struct shim_thread*)(base + off);
@@ -552,22 +624,26 @@ BEGIN_RS_FUNC(thread) {
 
     assert(!get_cur_thread());
 
+    int ret = alloc_thread_libos_stack(thread);
+    if (ret < 0) {
+        return ret;
+    }
+
     CP_REBASE(thread->shim_tcb);
+    CP_REBASE(thread->shim_tcb->context.regs);
 
     shim_tcb_t* tcb = shim_get_tcb();
     *tcb = *thread->shim_tcb;
     __shim_tcb_init(tcb);
 
-    assert(tcb->context.regs && shim_context_get_sp(&tcb->context));
-    update_tls_base(tcb->context.tls_base);
-    /* Temporarily disable preemption until the thread resumes. */
-    __disable_preempt(tcb);
+    assert(tcb->context.regs);
+    set_tls_base(tcb->context.tls_base);
 
     thread->pal_handle = PAL_CB(first_thread);
 
     set_cur_thread(thread);
 
-    int ret = debug_setbuf(thread->shim_tcb, NULL);
+    ret = debug_setbuf(thread->shim_tcb, NULL);
     if (ret < 0) {
         return ret;
     }

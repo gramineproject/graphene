@@ -5,6 +5,7 @@
 #define _SHIM_INTERNAL_H_
 
 #include <stdbool.h>
+#include <stdnoreturn.h>
 
 #include "api.h"
 #include "assert.h"
@@ -70,235 +71,24 @@ void debug_vprintf(const char* fmt, va_list ap) __attribute__((format(printf, 1,
         debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); \
     } while (0)
 
-/* definition for syscall table */
-void handle_signals(void);
+void syscalldb(void);
+noreturn void shim_do_syscall(PAL_CONTEXT* context);
+noreturn void return_from_syscall(PAL_CONTEXT* regs);
+noreturn void restore_child_context_after_clone(struct shim_context* context);
+void prepare_sigframe(PAL_CONTEXT* context, siginfo_t* siginfo, uint64_t handler,
+                      uint64_t restorer, bool use_altstack, __sigset_t* old_mask);
+void restart_syscall(PAL_CONTEXT* context, uint64_t syscall_nr);
+void restore_sigreturn_context(PAL_CONTEXT* context, __sigset_t* new_mask);
+bool maybe_emulate_syscall(PAL_CONTEXT* context);
+bool handle_signal(PAL_CONTEXT* context, __sigset_t* old_mask_ptr);
 long convert_pal_errno(long err);
-void syscall_wrapper(void);
-void syscall_wrapper_after_syscalldb(void);
 
 #define PAL_ERRNO() convert_pal_errno(PAL_NATIVE_ERRNO())
-
-#define SHIM_ARG_TYPE long
-
-static inline int64_t get_cur_preempt(void) {
-    shim_tcb_t* tcb = shim_get_tcb();
-    assert(tcb);
-    return __atomic_load_n(&tcb->context.preempt.counter, __ATOMIC_SEQ_CST);
-}
-
-#define BEGIN_SHIM(name, args...)              \
-    SHIM_ARG_TYPE __shim_##name(args) {        \
-        SHIM_ARG_TYPE ret = 0;                 \
-        int64_t preempt = get_cur_preempt();   \
-        __UNUSED(preempt);
-
-#define END_SHIM(name)                        \
-        handle_signals();                     \
-        assert(preempt == get_cur_preempt()); \
-        return ret;                           \
-    }
-
-#define DEFINE_SHIM_SYSCALL(name, n, func, ...) \
-    SHIM_SYSCALL_##n(name, func, __VA_ARGS__)
-
-#define PROTO_ARGS_0()              void
-#define PROTO_ARGS_1(t, a)          t a
-#define PROTO_ARGS_2(t, a, rest...) t a, PROTO_ARGS_1(rest)
-#define PROTO_ARGS_3(t, a, rest...) t a, PROTO_ARGS_2(rest)
-#define PROTO_ARGS_4(t, a, rest...) t a, PROTO_ARGS_3(rest)
-#define PROTO_ARGS_5(t, a, rest...) t a, PROTO_ARGS_4(rest)
-#define PROTO_ARGS_6(t, a, rest...) t a, PROTO_ARGS_5(rest)
-
-#define CAST_ARGS_0()
-#define CAST_ARGS_1(t, a)          (SHIM_ARG_TYPE)a
-#define CAST_ARGS_2(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_1(rest)
-#define CAST_ARGS_3(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_2(rest)
-#define CAST_ARGS_4(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_3(rest)
-#define CAST_ARGS_5(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_4(rest)
-#define CAST_ARGS_6(t, a, rest...) (SHIM_ARG_TYPE)a, CAST_ARGS_5(rest)
-
-#define DEFINE_SHIM_FUNC(func, n, r, args...) \
-    r func(PROTO_ARGS_##n(args));
-
-#define PARSE_SYSCALL1(name, ...) \
-    debug_print_syscall_before(__NR_##name, ##__VA_ARGS__);
-
-#define PARSE_SYSCALL2(name, ret_val, ...) \
-    debug_print_syscall_after(__NR_##name, ret_val, ##__VA_ARGS__);
 
 void debug_print_syscall_before(int sysno, ...);
 void debug_print_syscall_after(int sysno, ...);
 
-#define SHIM_SYSCALL_0(name, func, r)       \
-    BEGIN_SHIM(name, void)                  \
-        PARSE_SYSCALL1(name);               \
-        r __ret = (func)();                 \
-        PARSE_SYSCALL2(name, __ret);        \
-        ret = (SHIM_ARG_TYPE)__ret;         \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_1(name, func, r, t1, a1)        \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1)           \
-        t1 a1 = (t1)__arg1;                          \
-        PARSE_SYSCALL1(name, a1);                    \
-        r __ret = (func)(a1);                        \
-        PARSE_SYSCALL2(name, __ret, a1);             \
-        ret = (SHIM_ARG_TYPE)__ret;                  \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_2(name, func, r, t1, a1, t2, a2)                \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2)     \
-        t1 a1 = (t1)__arg1;                                          \
-        t2 a2 = (t2)__arg2;                                          \
-        PARSE_SYSCALL1(name, a1, a2);                                \
-        r __ret = (func)(a1, a2);                                    \
-        PARSE_SYSCALL2(name, __ret, a1, a2);                         \
-        ret = (SHIM_ARG_TYPE)__ret;                                  \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_3(name, func, r, t1, a1, t2, a2, t3, a3)                              \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3)     \
-        t1 a1 = (t1)__arg1;                                                                \
-        t2 a2 = (t2)__arg2;                                                                \
-        t3 a3 = (t3)__arg3;                                                                \
-        PARSE_SYSCALL1(name, a1, a2, a3);                                                  \
-        r __ret = (func)(a1, a2, a3);                                                      \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3);                                           \
-        ret = (SHIM_ARG_TYPE)__ret;                                                        \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_4(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4)                      \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,     \
-               SHIM_ARG_TYPE __arg4)                                                       \
-        t1 a1 = (t1)__arg1;                                                                \
-        t2 a2 = (t2)__arg2;                                                                \
-        t3 a3 = (t3)__arg3;                                                                \
-        t4 a4 = (t4)__arg4;                                                                \
-        PARSE_SYSCALL1(name, a1, a2, a3, a4);                                              \
-        r __ret = (func)(a1, a2, a3, a4);                                                  \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4);                                       \
-        ret = (SHIM_ARG_TYPE)__ret;                                                        \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_5(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5)              \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,     \
-               SHIM_ARG_TYPE __arg4, SHIM_ARG_TYPE __arg5)                                 \
-        t1 a1 = (t1)__arg1;                                                                \
-        t2 a2 = (t2)__arg2;                                                                \
-        t3 a3 = (t3)__arg3;                                                                \
-        t4 a4 = (t4)__arg4;                                                                \
-        t5 a5 = (t5)__arg5;                                                                \
-        PARSE_SYSCALL1(name, a1, a2, a3, a4, a5);                                          \
-        r __ret = (func)(a1, a2, a3, a4, a5);                                              \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4, a5);                                   \
-        ret = (SHIM_ARG_TYPE)__ret;                                                        \
-    END_SHIM(name)
-
-#define SHIM_SYSCALL_6(name, func, r, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6)             \
-    BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1, SHIM_ARG_TYPE __arg2, SHIM_ARG_TYPE __arg3,            \
-               SHIM_ARG_TYPE __arg4, SHIM_ARG_TYPE __arg5, SHIM_ARG_TYPE __arg6)                  \
-        t1 a1 = (t1)__arg1;                                                                       \
-        t2 a2 = (t2)__arg2;                                                                       \
-        t3 a3 = (t3)__arg3;                                                                       \
-        t4 a4 = (t4)__arg4;                                                                       \
-        t5 a5 = (t5)__arg5;                                                                       \
-        t6 a6 = (t6)__arg6;                                                                       \
-        PARSE_SYSCALL1(name, a1, a2, a3, a4, a5, a6);                                             \
-        r __ret = (func)(a1, a2, a3, a4, a5, a6);                                                 \
-        PARSE_SYSCALL2(name, __ret, a1, a2, a3, a4, a5, a6);                                      \
-        ret = (SHIM_ARG_TYPE)__ret;                                                               \
-    END_SHIM(name)
-
-#define SHIM_PROTO_ARGS_0 void
-#define SHIM_PROTO_ARGS_1 SHIM_ARG_TYPE __arg1
-#define SHIM_PROTO_ARGS_2 SHIM_PROTO_ARGS_1, SHIM_ARG_TYPE __arg2
-#define SHIM_PROTO_ARGS_3 SHIM_PROTO_ARGS_2, SHIM_ARG_TYPE __arg3
-#define SHIM_PROTO_ARGS_4 SHIM_PROTO_ARGS_3, SHIM_ARG_TYPE __arg4
-#define SHIM_PROTO_ARGS_5 SHIM_PROTO_ARGS_4, SHIM_ARG_TYPE __arg5
-#define SHIM_PROTO_ARGS_6 SHIM_PROTO_ARGS_5, SHIM_ARG_TYPE __arg6
-
-#define SHIM_UNUSED_ARGS_0()
-
-#define SHIM_UNUSED_ARGS_1() \
-    do {                     \
-        __UNUSED(__arg1);    \
-    } while (0)
-#define SHIM_UNUSED_ARGS_2()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_1(); \
-        __UNUSED(__arg2);     \
-    } while (0)
-#define SHIM_UNUSED_ARGS_3()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_2(); \
-        __UNUSED(__arg3);     \
-    } while (0)
-#define SHIM_UNUSED_ARGS_4()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_3(); \
-        __UNUSED(__arg4);     \
-    } while (0)
-
-#define SHIM_UNUSED_ARGS_5()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_4(); \
-        __UNUSED(__arg5);     \
-    } while (0)
-
-#define SHIM_UNUSED_ARGS_6()  \
-    do {                      \
-        SHIM_UNUSED_ARGS_5(); \
-        __UNUSED(__arg6);     \
-    } while (0)
-
-#define SHIM_SYSCALL_RETURN_ENOSYS(name, n, ...)                                   \
-    BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                                          \
-        debug("WARNING: syscall " #name " not implemented. Returning -ENOSYS.\n"); \
-        SHIM_UNUSED_ARGS_##n();                                                    \
-        ret = -ENOSYS;                                                             \
-    END_SHIM(name)
-
 #define PAL_CB(member) (pal_control.member)
-
-static inline int64_t __disable_preempt(shim_tcb_t* tcb) {
-    // tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
-    int64_t preempt = __atomic_add_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
-    /* Assert if this counter overflows */
-    assert(preempt != 0);
-    // debug("disable preempt: %d\n", preempt);
-    return preempt;
-}
-
-static inline void disable_preempt(shim_tcb_t* tcb) {
-    if (!tcb && !(tcb = shim_get_tcb()))
-        return;
-
-    __disable_preempt(tcb);
-}
-
-static inline void __enable_preempt(shim_tcb_t* tcb) {
-    int64_t preempt = __atomic_sub_fetch(&tcb->context.preempt.counter, 1, __ATOMIC_SEQ_CST);
-    /* Assert if this counter underflows */
-    __UNUSED(preempt);
-    assert(preempt >= 0);
-    // debug("enable preempt: %d\n", preempt);
-}
-
-void __handle_signals(shim_tcb_t* tcb);
-
-static inline void enable_preempt(shim_tcb_t* tcb) {
-    if (!tcb && !(tcb = shim_get_tcb()))
-        return;
-
-    int64_t preempt = __atomic_load_n(&tcb->context.preempt.counter, __ATOMIC_SEQ_CST);
-    if (!preempt)
-        return;
-
-    if (preempt == 1)
-        __handle_signals(tcb);
-
-    __enable_preempt(tcb);
-}
 
 /*
  * These events have counting semaphore semantics:

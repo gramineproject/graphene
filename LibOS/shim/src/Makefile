@@ -49,6 +49,7 @@ CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
 objs = \
+	shim_arch_prctl-$(ARCH).o \
 	shim_async.o \
 	shim_checkpoint.o \
 	shim_context-$(ARCH).o \
@@ -185,6 +186,8 @@ libsysdb.a: $(objs)
 syscallas-$(ARCH).S shim_context-$(ARCH).c: asm-offsets.h
 
 include ../../../Scripts/Makefile.rules
+
+vdso/vdso.o: CFLAGS += -Ivdso/arch/$(ARCH)/
 
 LDFLAGS-vdso/vdso.so.dbg = -nostdlib -shared \
 	--hash-style=both --build-id -Bsymbolic \
