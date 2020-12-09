@@ -174,10 +174,11 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
     }
 
     /* signal arrived while in untrusted PAL code (during syscall handling), emulate as if syscall
-     * was interrupted */
+     * was interrupted by calling sgx_entry_return(syscall_return_value=-EINTR, event) */
     /* TODO: we abandon PAL state here (possibly still holding some locks, etc) and return to
      *       enclave; ideally we must unwind/fix the state and only then jump into enclave */
-    pal_ucontext_set_function_parameters(uc, sgx_entry_return, 2, -EINTR, event);
+    greg_t func_args[2] = {-EINTR, event};
+    pal_ucontext_set_function_parameters(uc, sgx_entry_return, /*func_args_num=*/2, func_args);
 }
 
 static void handle_dummy_signal(int signum, siginfo_t* info, struct ucontext* uc) {
