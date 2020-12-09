@@ -18,13 +18,13 @@
 #include "shim_table.h"
 #include "shim_thread.h"
 
-int shim_do_sched_yield(void) {
+long shim_do_sched_yield(void) {
     DkThreadYieldExecution();
     return 0;
 }
 
 /* dummy implementation: ignore user-supplied niceval and return success */
-int shim_do_setpriority(int which, int who, int niceval) {
+long shim_do_setpriority(int which, int who, int niceval) {
     __UNUSED(who);
 
     if (which != PRIO_PROCESS && which != PRIO_PGRP && which != PRIO_USER)
@@ -37,7 +37,7 @@ int shim_do_setpriority(int which, int who, int niceval) {
 }
 
 /* dummy implementation: always return the default nice value of 20 */
-int shim_do_getpriority(int which, int who) {
+long shim_do_getpriority(int which, int who) {
     __UNUSED(who);
 
     if (which != PRIO_PROCESS && which != PRIO_PGRP && which != PRIO_USER)
@@ -47,7 +47,7 @@ int shim_do_getpriority(int which, int who) {
 }
 
 /* dummy implementation: ignore user-supplied param and return success */
-int shim_do_sched_setparam(pid_t pid, struct __kernel_sched_param* param) {
+long shim_do_sched_setparam(pid_t pid, struct __kernel_sched_param* param) {
     if (pid < 0 || param == NULL)
         return -EINVAL;
 
@@ -55,7 +55,7 @@ int shim_do_sched_setparam(pid_t pid, struct __kernel_sched_param* param) {
 }
 
 /* dummy implementation: always return sched_priority of 0 (implies non-real-time sched policy) */
-int shim_do_sched_getparam(pid_t pid, struct __kernel_sched_param* param) {
+long shim_do_sched_getparam(pid_t pid, struct __kernel_sched_param* param) {
     if (pid < 0 || param == NULL)
         return -EINVAL;
 
@@ -64,7 +64,7 @@ int shim_do_sched_getparam(pid_t pid, struct __kernel_sched_param* param) {
 }
 
 /* dummy implementation: ignore user-supplied policy & param and return success */
-int shim_do_sched_setscheduler(pid_t pid, int policy, struct __kernel_sched_param* param) {
+long shim_do_sched_setscheduler(pid_t pid, int policy, struct __kernel_sched_param* param) {
     policy &= ~SCHED_RESET_ON_FORK; /* ignore reset-on-fork flag */
 
     if (pid < 0 || param == NULL)
@@ -90,14 +90,14 @@ int shim_do_sched_setscheduler(pid_t pid, int policy, struct __kernel_sched_para
 }
 
 /* dummy implementation: always return SCHED_NORMAL (default round-robin time-sharing policy) */
-int shim_do_sched_getscheduler(pid_t pid) {
+long shim_do_sched_getscheduler(pid_t pid) {
     if (pid < 0)
         return -EINVAL;
 
     return SCHED_NORMAL;
 }
 
-int shim_do_sched_get_priority_max(int policy) {
+long shim_do_sched_get_priority_max(int policy) {
     /* fail on unrecognized policies */
     if (policy != SCHED_NORMAL && policy != SCHED_BATCH &&
             policy != SCHED_IDLE && /* non-real-time */
@@ -112,7 +112,7 @@ int shim_do_sched_get_priority_max(int policy) {
     return 0;
 }
 
-int shim_do_sched_get_priority_min(int policy) {
+long shim_do_sched_get_priority_min(int policy) {
     /* fail on unrecognized policies */
     if (policy != SCHED_NORMAL && policy != SCHED_BATCH &&
             policy != SCHED_IDLE && /* non-real-time */
@@ -128,7 +128,7 @@ int shim_do_sched_get_priority_min(int policy) {
 }
 
 /* dummy implementation: always return 100 ms (default in Linux) */
-int shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
+long shim_do_sched_rr_get_interval(pid_t pid, struct timespec* interval) {
     if (pid < 0)
         return -EINVAL;
 
@@ -223,7 +223,7 @@ long shim_do_sched_getaffinity(pid_t pid, unsigned int cpumask_size, unsigned lo
 }
 
 /* dummy implementation: always return cpu0  */
-int shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
+long shim_do_getcpu(unsigned* cpu, unsigned* node, struct getcpu_cache* unused) {
     __UNUSED(unused);
 
     if (cpu) {

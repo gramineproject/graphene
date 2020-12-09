@@ -41,7 +41,7 @@ __asm__(
 __attribute__((visibility("hidden"))) void __restore_rt(void);
 #endif  /* defined(__x86_64__) */
 
-static const int ASYNC_SIGNALS[] = {SIGTERM, SIGINT, SIGCONT};
+static const int ASYNC_SIGNALS[] = {SIGTERM, SIGCONT};
 
 static int block_signal(int sig, bool block) {
     int how = block ? SIG_BLOCK : SIG_UNBLOCK;
@@ -93,30 +93,18 @@ static int get_pal_event(int sig) {
             return PAL_EVENT_ILLEGAL;
         case SIGTERM:
             return PAL_EVENT_QUIT;
-        case SIGINT:
-            return PAL_EVENT_SUSPEND;
         case SIGCONT:
-            return PAL_EVENT_RESUME;
+            return PAL_EVENT_INTERRUPTED;
         default:
             return -1;
     }
 }
 
-static void perform_signal_handling(int event, siginfo_t* info, ucontext_t* uc) {
+/* This function must be reentrant and thread-safe - this includes `upcall` too! */
+static void perform_signal_handling(int event, PAL_NUM arg, ucontext_t* uc) {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event);
     if (!upcall)
         return;
-
-    PAL_NUM arg = 0;
-    if (info) {
-        switch (event) {
-            case PAL_EVENT_ARITHMETIC_ERROR:
-            case PAL_EVENT_MEMFAULT:
-            case PAL_EVENT_ILLEGAL:
-                arg = (PAL_NUM)info->si_addr;
-                break;
-        }
-    }
 
     PAL_CONTEXT context;
     ucontext_to_pal_context(&context, uc);
@@ -128,10 +116,10 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
     int event = get_pal_event(signum);
     assert(event > 0);
 
-    uintptr_t rip = pal_ucontext_get_ip(uc);
+    uintptr_t rip = ucontext_get_ip(uc);
     if (!ADDR_IN_PAL(rip)) {
         /* exception happened in application or LibOS code, normal benign case */
-        perform_signal_handling(event, info, uc);
+        perform_signal_handling(event, (PAL_NUM)info->si_addr, uc);
         return;
     }
 
@@ -157,50 +145,13 @@ static void handle_sync_signal(int signum, siginfo_t* info, struct ucontext* uc)
 }
 
 static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc) {
+    __UNUSED(info);
+
     int event = get_pal_event(signum);
     assert(event > 0);
 
-    uintptr_t rip = pal_ucontext_get_ip(uc);
-    if (!ADDR_IN_PAL(rip)) {
-        /* signal arrived while in application or LibOS code, normal benign case */
-        perform_signal_handling(event, info, uc);
-        return;
-    }
-
-    /* signal arrived while in PAL code, add as pending for this thread; note that there is no race
-     * on pending_events as TCB is thread-local and async signals are blocked during signal
-     * handling */
-    PAL_TCB_LINUX* tcb = get_tcb_linux();
-    assert(tcb);
-    if (tcb->pending_events_num < MAX_SIGNAL_LOG)
-        tcb->pending_events[tcb->pending_events_num++] = event;
-}
-
-void __check_pending_event(void) {
-    PAL_TCB_LINUX* tcb = get_tcb_linux();
-    assert(tcb);
-
-    if (!tcb->pending_events_num)
-        return;
-
-    /* block signals while delivering pending events to avoid races on pending_events */
-    int ret = block_async_signals(/*block=*/true);
-    if (IS_ERR(ret))
-        return;
-
-    /* LibOS signal handler may call PAL functions which in turn may call this function again,
-     * so we force TCB's pending_events_num to zero to avoid nesting of this function */
-    int num = tcb->pending_events_num;
-    tcb->pending_events_num = 0;
-
-    for (int i = 0; i < num; i++) {
-        PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(tcb->pending_events[i]);
-        if (upcall) {
-            (*upcall)(/*arg=*/0, /*context=*/NULL);
-        }
-    }
-
-    (void)block_async_signals(/*block=*/false);
+    uintptr_t rip = ucontext_get_ip(uc);
+    perform_signal_handling(event, ADDR_IN_PAL(rip), uc);
 }
 
 void _DkRaiseFailure(int error) {
@@ -248,17 +199,11 @@ void signal_setup(void) {
         goto err;
 
     /* register asynchronous signals in host Linux */
-    ret = set_signal_handler(SIGTERM, handle_async_signal);
-    if (ret < 0)
-        goto err;
-
-    ret = set_signal_handler(SIGINT, handle_async_signal);
-    if (ret < 0)
-        goto err;
-
-    ret = set_signal_handler(SIGCONT, handle_async_signal);
-    if (ret < 0)
-        goto err;
+    for (size_t i = 0; i < ARRAY_SIZE(ASYNC_SIGNALS); i++) {
+        ret = set_signal_handler(ASYNC_SIGNALS[i], handle_async_signal);
+        if (ret < 0)
+            goto err;
+    }
 
     return;
 err:

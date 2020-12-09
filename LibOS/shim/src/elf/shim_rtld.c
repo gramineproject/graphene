@@ -1337,34 +1337,16 @@ int remove_loaded_libraries(void) {
  * functions after migration.
  */
 static void* vdso_addr __attribute_migratable                       = NULL;
-static ElfW(Addr)* __vdso_shim_clock_gettime __attribute_migratable = NULL;
-static ElfW(Addr)* __vdso_shim_gettimeofday __attribute_migratable  = NULL;
-static ElfW(Addr)* __vdso_shim_time __attribute_migratable          = NULL;
-static ElfW(Addr)* __vdso_shim_getcpu __attribute_migratable        = NULL;
+static ElfW(Addr)* __vdso_syscalldb __attribute_migratable        = NULL;
 
 static const struct {
     const char* name;
     ElfW(Addr) value;
     ElfW(Addr)** func;
 } vsyms[] = {{
-                 .name  = "__vdso_shim_clock_gettime",
-                 .value = (ElfW(Addr))&__shim_clock_gettime,
-                 .func  = &__vdso_shim_clock_gettime,
-             },
-             {
-                 .name  = "__vdso_shim_gettimeofday",
-                 .value = (ElfW(Addr))&__shim_gettimeofday,
-                 .func  = &__vdso_shim_gettimeofday,
-             },
-             {
-                 .name  = "__vdso_shim_time",
-                 .value = (ElfW(Addr))&__shim_time,
-                 .func  = &__vdso_shim_time,
-             },
-             {
-                 .name  = "__vdso_shim_getcpu",
-                 .value = (ElfW(Addr))&__shim_getcpu,
-                 .func  = &__vdso_shim_getcpu,
+                 .name  = "__vdso_syscalldb",
+                 .value = (ElfW(Addr))&syscalldb,
+                 .func  = &__vdso_syscalldb,
              }};
 
 static int vdso_map_init(void) {
@@ -1576,10 +1558,6 @@ noreturn void execute_elf_object(struct shim_handle* exec, void* argp, ElfW(auxv
 
     /* We are done with using this handle. */
     put_handle(exec);
-
-    /* Ready to start execution, re-enable preemption. */
-    shim_tcb_t* tcb = shim_get_tcb();
-    __enable_preempt(tcb);
 
     CALL_ELF_ENTRY(entry, argp);
 

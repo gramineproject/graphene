@@ -71,9 +71,7 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
-    unsigned long tls_base = 0;
-    update_tls_base(tls_base);
-    debug("set tls_base to 0x%lx\n", tls_base);
+    set_tls_base(0);
 
     thread_sigaction_reset_on_execve(cur_thread);
 
@@ -192,7 +190,7 @@ static int migrate_execve(struct shim_cp_store* cpstore, struct shim_process* pr
                          argv, envp);
 }
 
-int shim_do_execve(const char* file, const char** argv, const char** envp) {
+long shim_do_execve(const char* file, const char** argv, const char** envp) {
     struct shim_thread* cur_thread = get_cur_thread();
     struct shim_dentry* dent       = NULL;
     int ret = 0, argc = 0;
@@ -369,11 +367,6 @@ reopen:
     /* All other threads are dead. Restoring initial value in case we stay inside same process
      * instance and call execve again. */
     __atomic_store_n(&first, 0, __ATOMIC_RELAXED);
-
-    /* Disable preemption during `execve`. It will be enabled back in `execute_elf_object` if we
-     * stay in the same process. Otherwise it is never enabled, since this process dies both on
-     * errors and success. */
-    disable_preempt(NULL);
 
     bool use_same_process = true;
     if (!strcmp(PAL_CB(host_type), "Linux-SGX")) {

@@ -14,7 +14,7 @@
 #include "shim_internal.h"
 #include "shim_table.h"
 
-int shim_do_gettimeofday(struct __kernel_timeval* tv, struct __kernel_timezone* tz) {
+long shim_do_gettimeofday(struct __kernel_timeval* tv, struct __kernel_timezone* tz) {
     if (!tv)
         return -EINVAL;
 
@@ -34,7 +34,7 @@ int shim_do_gettimeofday(struct __kernel_timeval* tv, struct __kernel_timezone* 
     return 0;
 }
 
-time_t shim_do_time(time_t* tloc) {
+long shim_do_time(time_t* tloc) {
     uint64_t time = DkSystemTimeQuery();
 
     if (time == (uint64_t)-1)
@@ -51,7 +51,7 @@ time_t shim_do_time(time_t* tloc) {
     return t;
 }
 
-int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
+long shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
     /* all clocks are the same */
     if (!(0 <= which_clock && which_clock < MAX_CLOCKS))
         return -EINVAL;
@@ -72,7 +72,7 @@ int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
     return 0;
 }
 
-int shim_do_clock_getres(clockid_t which_clock, struct timespec* tp) {
+long shim_do_clock_getres(clockid_t which_clock, struct timespec* tp) {
     /* all clocks are the same */
     if (!(0 <= which_clock && which_clock < MAX_CLOCKS))
         return -EINVAL;

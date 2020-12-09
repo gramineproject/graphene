@@ -27,7 +27,7 @@ static void signal_alarm(IDTYPE caller, void* arg) {
     }
 }
 
-int shim_do_alarm(unsigned int seconds) {
+long shim_do_alarm(unsigned int seconds) {
     uint64_t usecs = 1000000ULL * seconds;
 
     int64_t ret = install_async_event(NULL, usecs, &signal_alarm, NULL);
@@ -66,8 +66,8 @@ static void signal_itimer(IDTYPE target, void* arg) {
 #define ITIMER_REAL 0
 #endif
 
-int shim_do_setitimer(int which, struct __kernel_itimerval* value,
-                      struct __kernel_itimerval* ovalue) {
+long shim_do_setitimer(int which, struct __kernel_itimerval* value,
+                       struct __kernel_itimerval* ovalue) {
     if (which != ITIMER_REAL)
         return -ENOSYS;
 
@@ -114,7 +114,7 @@ int shim_do_setitimer(int which, struct __kernel_itimerval* value,
     return 0;
 }
 
-int shim_do_getitimer(int which, struct __kernel_itimerval* value) {
+long shim_do_getitimer(int which, struct __kernel_itimerval* value) {
     if (which != ITIMER_REAL)
         return -ENOSYS;
 

@@ -3,6 +3,11 @@
 
 #include "shim_syscalls.h"
 
+/* Names taken from the Linux kernel. */
+#define ERESTARTSYS     512 /* Usual case - restart if SA_RESTART is set. */
+#define ERESTARTNOINTR  513 /* Always restart. */
+#define ERESTARTNOHAND  514 /* Restart if no signal handler. */
+
 #define DEFAULT_BRK_MAX_SIZE   (256 * 1024)        /* 256KB */
 #define DEFAULT_SYS_STACK_SIZE (256 * 1024)        /* 256KB */
 

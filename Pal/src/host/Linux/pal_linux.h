@@ -139,14 +139,10 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define ADDR_IN_PAL(addr) \
         ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
-#define MAX_SIGNAL_LOG 32
-
 typedef struct pal_tcb_linux {
     PAL_TCB common;
     struct {
         /* private to Linux PAL */
-        int        pending_events[MAX_SIGNAL_LOG];
-        int        pending_events_num;
         PAL_HANDLE handle;
         void*      alt_stack;
         int        (*callback)(void*);

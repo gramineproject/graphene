@@ -304,7 +304,7 @@ Exception handling
 
 .. doxygentypedef:: PAL_CONTEXT
    :project: pal
-.. doxygenstruct:: PAL_CONTEXT_
+.. doxygenstruct:: PAL_CONTEXT
    :project: pal
    :members:
 

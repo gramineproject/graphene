@@ -1,9 +1,10 @@
 #ifndef _SHIM_SIGNAL_H_
 #define _SHIM_SIGNAL_H_
 
+#include <stdbool.h>
+
 #include "shim_defs.h"
 #include "shim_types.h"
-#include "ucontext.h"
 
 #define __WCOREDUMP_BIT 0x80
 
@@ -102,24 +103,21 @@ __SIGSETFN(shim_sigdelset, ((__set->__val[__word] &= ~__mask), 0), )
 
 void clear_illegal_signals(__sigset_t* set);
 
-/* NB: Check shim_signal.c if this changes.  Some memset(0) elision*/
 struct shim_signal {
-    siginfo_t    info;
-    bool         context_stored;
-    ucontext_t   context;
-    PAL_CONTEXT* pal_context;
+    siginfo_t siginfo;
 };
 
-void get_pending_signals(struct shim_thread* thread, __sigset_t* set);
+void get_pending_signals(__sigset_t* set);
+bool have_pending_signals(void);
+
+uint64_t get_stack_for_sighandler(uint64_t sp, bool use_altstack);
+bool is_on_altstack(uint64_t sp, stack_t* alt_stack);
 
 struct shim_thread;
 
 int init_signal(void);
 
-void __store_context(shim_tcb_t* tcb, PAL_CONTEXT* pal_context, struct shim_signal* signal);
-
 int append_signal(struct shim_thread* thread, siginfo_t* info);
-void deliver_signal(siginfo_t* info, PAL_CONTEXT* context);
 
 void get_sig_mask(struct shim_thread* thread, __sigset_t* mask);
 void set_sig_mask(struct shim_thread* thread, const __sigset_t* new_set);

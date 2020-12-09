@@ -298,11 +298,11 @@ static void* _vma_malloc(size_t size) {
     if (DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_WRITE | PAL_PROT_READ) != addr) {
         struct shim_vma* vmas_to_free = NULL;
 
-        spinlock_lock_signal_off(&vma_tree_lock);
+        spinlock_lock(&vma_tree_lock);
         /* Since we are freeing a range we just created, additional vma is not needed. */
         int ret = _vma_bkeep_remove((uintptr_t)addr, (uintptr_t)addr + size, /*is_internal=*/true,
                                     NULL, &vmas_to_free);
-        spinlock_unlock_signal_on(&vma_tree_lock);
+        spinlock_unlock(&vma_tree_lock);
         if (ret < 0) {
             debug("Removing a vma we just created failed with %d!\n", ret);
             BUG();
@@ -456,7 +456,7 @@ static struct shim_vma* alloc_vma(void) {
             BUG();
         }
 
-        spinlock_lock_signal_off(&vma_tree_lock);
+        spinlock_lock(&vma_tree_lock);
         /* Currently `tmp_vma` is always used (added to `vma_tree`), but this assumption could
          * easily be changed (e.g. if we implement VMAs merging).*/
         struct avl_tree_node* node = &tmp_vma.tree_node;
@@ -466,7 +466,7 @@ static struct shim_vma* alloc_vma(void) {
             avl_tree_swap_node(&vma_tree, node, &vma_migrate->tree_node);
             vma_migrate = NULL;
         }
-        spinlock_unlock_signal_on(&vma_tree_lock);
+        spinlock_unlock(&vma_tree_lock);
 
         if (vma_migrate) {
             free_mem_obj_to_mgr(vma_mgr, vma_migrate);
@@ -556,7 +556,7 @@ int init_vma(void) {
         },
     };
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     int ret = 0;
     /* First of init_vmas is reserved for later usage. */
     for (size_t i = 1; i < ARRAY_SIZE(init_vmas); i++) {
@@ -582,7 +582,7 @@ int init_vma(void) {
         debug("Initial VMA region 0x%lx-0x%lx (%s) bookkeeped\n", init_vmas[i].begin,
               init_vmas[i].end, init_vmas[i].comment);
     }
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
     /* From now on if we return with an error we might leave a structure local to this function in
      * vma_tree. We do not bother with removing them - this is initialization of VMA subsystem, if
      * it fails the whole application startup fails and we should never call any of functions in
@@ -639,7 +639,7 @@ int init_vma(void) {
         }
     }
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     for (size_t i = 0; i < ARRAY_SIZE(init_vmas); i++) {
         /* Skip empty areas. */
         if (init_vmas[i].begin == init_vmas[i].end) {
@@ -649,7 +649,7 @@ int init_vma(void) {
         avl_tree_swap_node(&vma_tree, &init_vmas[i].tree_node, &vmas_to_migrate_to[i]->tree_node);
         vmas_to_migrate_to[i] = NULL;
     }
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 
     for (size_t i = 0; i < ARRAY_SIZE(vmas_to_migrate_to); i++) {
         if (vmas_to_migrate_to[i]) {
@@ -691,7 +691,7 @@ int bkeep_munmap(void* addr, size_t length, bool is_internal, void** tmp_vma_ptr
 
     struct shim_vma* vmas_to_free = NULL;
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     int ret = _vma_bkeep_remove((uintptr_t)addr, (uintptr_t)addr + length, is_internal,
                                 vma2 ? &vma2 : NULL, &vmas_to_free);
     if (ret >= 0) {
@@ -699,7 +699,7 @@ int bkeep_munmap(void* addr, size_t length, bool is_internal, void** tmp_vma_ptr
         *tmp_vma_ptr = (void*)vma1;
         vma1 = NULL;
     }
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 
     free_vmas_freelist(vmas_to_free);
     if (vma1) {
@@ -718,9 +718,9 @@ void bkeep_remove_tmp_vma(void* _vma) {
 
     assert(vma->flags == (VMA_INTERNAL | VMA_UNMAPPED));
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     avl_tree_delete(&vma_tree, &vma->tree_node);
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 
     free_vma(vma);
 }
@@ -757,7 +757,7 @@ int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags, struct shim
 
     struct shim_vma* vmas_to_free = NULL;
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     int ret = 0;
     if (flags & MAP_FIXED_NOREPLACE) {
         struct shim_vma* tmp_vma = _lookup_vma(new_vma->begin);
@@ -771,7 +771,7 @@ int bkeep_mmap_fixed(void* addr, size_t length, int prot, int flags, struct shim
     if (ret >= 0) {
         avl_tree_insert(&vma_tree, &new_vma->tree_node);
     }
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 
     free_vmas_freelist(vmas_to_free);
     if (vma1) {
@@ -921,10 +921,10 @@ int bkeep_mprotect(void* addr, size_t length, int prot, bool is_internal) {
         return -ENOMEM;
     }
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     int ret = _vma_bkeep_change((uintptr_t)addr, (uintptr_t)addr + length, prot, is_internal, &vma1,
                                 &vma2);
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 
     if (vma1) {
         free_vma(vma1);
@@ -984,7 +984,7 @@ int bkeep_mmap_any_in_range(void* _bottom_addr, void* _top_addr, size_t length, 
     new_vma->offset = file ? offset : 0;
     copy_comment(new_vma, comment ?: "");
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
 
     struct shim_vma* vma = _lookup_vma(top_addr);
     uintptr_t max_addr;
@@ -1022,7 +1022,7 @@ out_found:
     new_vma = NULL;
 
 out:
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
     if (new_vma) {
         free_vma(new_vma);
     }
@@ -1068,7 +1068,7 @@ int lookup_vma(void* addr, struct shim_vma_info* vma_info) {
     assert(vma_info);
     int ret = 0;
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     struct shim_vma* vma = _lookup_vma((uintptr_t)addr);
     if (!vma || !is_addr_in_vma((uintptr_t)addr, vma)) {
         ret = -ENOENT;
@@ -1078,7 +1078,7 @@ int lookup_vma(void* addr, struct shim_vma_info* vma_info) {
     dump_vma(vma_info, vma);
 
 out:
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
     return ret;
 }
 
@@ -1087,7 +1087,7 @@ bool is_in_adjacent_user_vmas(void* addr, size_t length) {
     uintptr_t end = begin + length;
     bool ret = false;
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     struct shim_vma* vma = _lookup_vma(begin);
     if (!vma || begin < vma->begin || (vma->flags & (VMA_INTERNAL | VMA_UNMAPPED))) {
         goto out;
@@ -1103,7 +1103,7 @@ bool is_in_adjacent_user_vmas(void* addr, size_t length) {
 
     ret = true;
 out:
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
     return ret;
 }
 
@@ -1112,7 +1112,7 @@ static size_t dump_all_vmas_with_buf(struct shim_vma_info* infos, size_t max_cou
     size_t size = 0;
     struct shim_vma_info* vma_info = infos;
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     struct shim_vma* vma;
 
     for (vma = _get_first_vma(); vma; vma = _get_next_vma(vma)) {
@@ -1126,7 +1126,7 @@ static size_t dump_all_vmas_with_buf(struct shim_vma_info* infos, size_t max_cou
         size++;
     }
 
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 
     return size;
 }
@@ -1205,9 +1205,9 @@ int madvise_dontneed_range(uintptr_t begin, uintptr_t end) {
         .error = 0,
     };
 
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
     bool is_continuous = _traverse_vmas_in_range(begin, end, madvise_dontneed_visitor, &ctx);
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 
     if (!is_continuous)
         return -ENOMEM;
@@ -1381,7 +1381,7 @@ static void debug_print_vma(struct shim_vma* vma) {
 }
 
 void debug_print_all_vmas(void) {
-    spinlock_lock_signal_off(&vma_tree_lock);
+    spinlock_lock(&vma_tree_lock);
 
     struct shim_vma* vma = _get_first_vma();
     while (vma) {
@@ -1389,5 +1389,5 @@ void debug_print_all_vmas(void) {
         vma = _get_next_vma(vma);
     }
 
-    spinlock_unlock_signal_on(&vma_tree_lock);
+    spinlock_unlock(&vma_tree_lock);
 }

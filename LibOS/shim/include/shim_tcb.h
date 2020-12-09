@@ -10,27 +10,10 @@
 #define SHIM_TCB_CANARY 0xdeadbeef
 
 struct shim_context {
-    struct shim_regs* regs;
-    struct shim_ext_context ext_ctx;
-    uint64_t          tls_base;
-    struct atomic_int preempt;
+    PAL_CONTEXT* regs;
+    long syscall_nr;
+    unsigned long tls_base; /* Used only in clone. */
 };
-
-static inline unsigned long shim_context_get_sp(struct shim_context* sc) {
-    return shim_regs_get_sp(sc->regs);
-}
-
-static inline void shim_context_set_sp(struct shim_context* sc, unsigned long sp) {
-    shim_regs_set_sp(sc->regs, sp);
-}
-
-static inline unsigned long shim_context_get_syscallnr(struct shim_context* sc) {
-    return shim_regs_get_syscallnr(sc->regs);
-}
-
-static inline void shim_context_set_syscallnr(struct shim_context* sc, unsigned long sc_num) {
-    shim_regs_set_syscallnr(sc->regs, sc_num);
-}
 
 struct debug_buf;
 
@@ -39,7 +22,9 @@ struct shim_tcb {
     uint64_t            canary;
     shim_tcb_t*         self;
     struct shim_thread* tp;
+    void*               libos_stack_bottom;
     struct shim_context context;
+    void*               syscall_scratch_pc;
     int                 pal_errno;
     struct debug_buf*   debug_buf;
     void*               vma_cache;
@@ -55,9 +40,12 @@ struct shim_tcb {
     } test_range;
 };
 
+static_assert(sizeof(shim_tcb_t) <= sizeof(((PAL_TCB*)0)->libos_tcb));
+
 static inline void __shim_tcb_init(shim_tcb_t* shim_tcb) {
     shim_tcb->canary    = SHIM_TCB_CANARY;
     shim_tcb->self      = shim_tcb;
+    shim_tcb->context.syscall_nr = -1;
     shim_tcb->vma_cache = NULL;
 }
 
@@ -75,13 +63,6 @@ static inline shim_tcb_t* shim_get_tcb(void) {
 
 static inline bool shim_tcb_check_canary(void) {
     return SHIM_TCB_GET(canary) == SHIM_TCB_CANARY;
-}
-
-static inline void update_tls_base(unsigned long tls_base) {
-    shim_tcb_t* shim_tcb = shim_get_tcb();
-    shim_tcb->context.tls_base = tls_base;
-    shim_arch_update_tls_base(tls_base);
-    assert(shim_tcb_check_canary());
 }
 
 #endif /* _SHIM_H_ */

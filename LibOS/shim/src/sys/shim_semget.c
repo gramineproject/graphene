@@ -209,7 +209,7 @@ int del_sem_handle(struct shim_sem_handle* sem) {
     return ret;
 }
 
-int shim_do_semget(key_t key, int nsems, int semflg) {
+long shim_do_semget(key_t key, int nsems, int semflg) {
     IDTYPE semid = 0;
     int ret;
 
@@ -299,11 +299,11 @@ static int __do_semop(int semid, struct sembuf* sops, unsigned int nsops, unsign
     return ret;
 }
 
-int shim_do_semop(int semid, struct sembuf* sops, unsigned int nsops) {
+long shim_do_semop(int semid, struct sembuf* sops, unsigned int nsops) {
     return __do_semop(semid, sops, nsops, IPC_SEM_NOTIMEOUT);
 }
 
-int shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
+long shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
                        const struct timespec* timeout) {
     unsigned long timeout_ns = IPC_SEM_NOTIMEOUT;
     if (timeout) {
@@ -313,7 +313,7 @@ int shim_do_semtimedop(int semid, struct sembuf* sops, unsigned int nsops,
     return __do_semop(semid, sops, nsops, timeout_ns);
 }
 
-int shim_do_semctl(int semid, int semnum, int cmd, unsigned long arg) {
+long shim_do_semctl(int semid, int semnum, int cmd, unsigned long arg) {
     struct shim_sem_handle* sem;
     int ret;
 

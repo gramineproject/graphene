@@ -5,27 +5,6 @@
 
 #include "pal.h"
 
-struct shim_regs {
-    uint64_t orig_rax;
-    uint64_t rsp;
-    uint64_t r15;
-    uint64_t r14;
-    uint64_t r13;
-    uint64_t r12;
-    uint64_t r11;
-    uint64_t r10;
-    uint64_t r9;
-    uint64_t r8;
-    uint64_t rcx;
-    uint64_t rdx;
-    uint64_t rsi;
-    uint64_t rdi;
-    uint64_t rbx;
-    uint64_t rbp;
-    uint64_t rflags;
-    uint64_t rip;
-};
-
 /* adopt Linux x86-64 structs for FP layout: self-contained definition is needed for LibOS, so
  * define the exact same layout with `shim_` prefix; taken from
  * https://elixir.bootlin.com/linux/v5.9/source/arch/x86/include/uapi/asm/sigcontext.h */
@@ -105,26 +84,6 @@ struct shim_xstate {
     /* rest is filled with extended regs (YMM, ZMM, ...) by HW + 4B of MAGIC2 value by SW */
 } __attribute__((aligned(SHIM_XSTATE_ALIGN)));
 
-static inline uint64_t shim_regs_get_sp(struct shim_regs* sr) {
-    return sr->rsp;
-}
-
-static inline void shim_regs_set_sp(struct shim_regs* sr, uint64_t sp) {
-    sr->rsp = sp;
-}
-
-static inline uint64_t shim_regs_get_ip(struct shim_regs* sr) {
-    return sr->rip;
-}
-
-static inline uint64_t shim_regs_get_syscallnr(struct shim_regs* sr) {
-    return sr->orig_rax;
-}
-
-static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num) {
-    sr->orig_rax = sc_num;
-}
-
 #define SHIM_TCB_GET(member)                                            \
     ({                                                                  \
         shim_tcb_t* tcb;                                                \
@@ -186,19 +145,14 @@ static inline void shim_regs_set_syscallnr(struct shim_regs* sr, uint64_t sc_num
         }                                                               \
     } while (0)
 
-static inline void shim_arch_update_tls_base(unsigned long tls_base) {
+static inline void set_tls_base(unsigned long tls_base) {
     DkSegmentRegisterSet(PAL_SEGMENT_FS, (PAL_PTR)tls_base);
 }
 
-/* On x86_64 the tls_base (fs register) is the same as the tls parameter to 'clone' */
-static inline unsigned long tls_to_tls_base(unsigned long tls) {
-    return tls;
+static inline unsigned long get_tls_base(void) {
+    void* addr = NULL;
+    (void)DkSegmentRegisterGet(PAL_SEGMENT_FS, &addr);
+    return (unsigned long)addr;
 }
-
-/* extended context */
-struct shim_ext_context {
-    uint16_t  fpcw;    /* FPU Control Word (for x87) */
-    uint32_t  mxcsr;   /* MXCSR control/status register (for SSE/AVX/...) */
-};
 
 #endif /* _SHIM_TCB_ARCH_H_ */

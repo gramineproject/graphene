@@ -10,20 +10,20 @@
 #include "shim_thread.h"
 #include "shim_types.h"
 
-pid_t shim_do_getpid(void) {
+long shim_do_getpid(void) {
     return g_process.pid;
 }
 
-pid_t shim_do_gettid(void) {
+long shim_do_gettid(void) {
     /* `tid` is constant, no need to take a lock. */
     return get_cur_thread()->tid;
 }
 
-pid_t shim_do_getppid(void) {
+long shim_do_getppid(void) {
     return g_process.ppid;
 }
 
-int shim_do_set_tid_address(int* tidptr) {
+long shim_do_set_tid_address(int* tidptr) {
     struct shim_thread* cur = get_cur_thread();
     lock(&cur->lock);
     cur->clear_child_tid = tidptr;
@@ -31,7 +31,7 @@ int shim_do_set_tid_address(int* tidptr) {
     return cur->tid;
 }
 
-int shim_do_setpgid(pid_t pid, pid_t pgid) {
+long shim_do_setpgid(pid_t pid, pid_t pgid) {
     if (pgid < 0) {
         return -EINVAL;
     }
@@ -46,7 +46,7 @@ int shim_do_setpgid(pid_t pid, pid_t pgid) {
     return -EINVAL;
 }
 
-int shim_do_getpgid(pid_t pid) {
+long shim_do_getpgid(pid_t pid) {
     if (!pid || g_process.pid == (IDTYPE)pid) {
         return __atomic_load_n(&g_process.pgid, __ATOMIC_ACQUIRE);
     }
@@ -56,16 +56,16 @@ int shim_do_getpgid(pid_t pid) {
     return -EINVAL;
 }
 
-pid_t shim_do_getpgrp(void) {
+long shim_do_getpgrp(void) {
     return shim_do_getpgid(0);
 }
 
-int shim_do_setsid(void) {
+long shim_do_setsid(void) {
     /* TODO: currently we do not support session management. */
     return -ENOSYS;
 }
 
-int shim_do_getsid(pid_t pid) {
+long shim_do_getsid(pid_t pid) {
     /* TODO: currently we do not support session management. */
     __UNUSED(pid);
     return -ENOSYS;

@@ -1,5 +1,5 @@
 diff --git a/Makeconfig b/Makeconfig
-index 87a22e88bed375d073663063dd4a93444d72ba25..b69ff41077a5f279bde52aac11f03604fa61ae65 100644
+index 87a22e8..3e2cf93 100644
 --- a/Makeconfig
 +++ b/Makeconfig
 @@ -841,7 +841,8 @@ endif	# $(+cflags) == ""
@@ -13,7 +13,7 @@ index 87a22e88bed375d073663063dd4a93444d72ba25..b69ff41077a5f279bde52aac11f03604
  # Since libio has several internal header files, we use a -I instead
  # of many little headers in the include directory.
 diff --git a/Makefile b/Makefile
-index 7fc92ae3a278e5014b4dc1c5ccccb799cc378fdd..75811230906df19d159ca780102a656f9738babe 100644
+index 7fc92ae..7581123 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -178,6 +178,8 @@ $(inst_includedir)/gnu/stubs.h: $(+force)
@@ -26,7 +26,7 @@ index 7fc92ae3a278e5014b4dc1c5ccccb799cc378fdd..75811230906df19d159ca780102a656f
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
 diff --git a/Makerules b/Makerules
-index 53eabfaba82a127221089112b40a51dc5e6949ea..fcb9f92ccee70fdaf5d4acd2430668e5964d57e3 100644
+index 53eabfa..fcb9f92 100644
 --- a/Makerules
 +++ b/Makerules
 @@ -802,7 +802,7 @@ verbose	:=
@@ -39,7 +39,7 @@ index 53eabfaba82a127221089112b40a51dc5e6949ea..fcb9f92ccee70fdaf5d4acd2430668e5
  # This makes all the object files in the parent library archive.
  
 diff --git a/elf/Makefile b/elf/Makefile
-index 63a535502c15e32eb4f21feaefa3cbf5be6d8afa..f27aeaf665cb2d7a4c0b9a1a0d025aba6e303556 100644
+index 63a5355..f27aeaf 100644
 --- a/elf/Makefile
 +++ b/elf/Makefile
 @@ -21,7 +21,7 @@ subdir		:= elf
@@ -62,7 +62,7 @@ index 63a535502c15e32eb4f21feaefa3cbf5be6d8afa..f27aeaf665cb2d7a4c0b9a1a0d025aba
  dl-routines += dl-cache
  endif
 diff --git a/elf/Versions b/elf/Versions
-index 23deda984ff1eda4b648495a321505dadd578e7d..3136787df7f228dd4497c622681cabb3ff55f7d2 100644
+index 23deda9..3136787 100644
 --- a/elf/Versions
 +++ b/elf/Versions
 @@ -65,4 +65,7 @@ ld {
@@ -74,7 +74,7 @@ index 23deda984ff1eda4b648495a321505dadd578e7d..3136787df7f228dd4497c622681cabb3
 +  }
  }
 diff --git a/elf/dl-load.c b/elf/dl-load.c
-index c0d6249373fb4cb1b5971fe953cbcbf6ae28c1f4..916d6339f0851be2b78e952c59e27488a1da1f3e 100644
+index c0d6249..916d633 100644
 --- a/elf/dl-load.c
 +++ b/elf/dl-load.c
 @@ -45,6 +45,7 @@
@@ -96,7 +96,7 @@ index c0d6249373fb4cb1b5971fe953cbcbf6ae28c1f4..916d6339f0851be2b78e952c59e27488
    _dl_add_to_namespace_list (l, nsid);
  
 diff --git a/elf/rtld.c b/elf/rtld.c
-index 647661ca45901d6e42c3c52475030d8dd06b61ab..fd1324eedaef598170f4dce47e1807c74f032d58 100644
+index 647661c..fd1324e 100644
 --- a/elf/rtld.c
 +++ b/elf/rtld.c
 @@ -332,6 +332,23 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
@@ -134,7 +134,7 @@ index 647661ca45901d6e42c3c52475030d8dd06b61ab..fd1324eedaef598170f4dce47e1807c7
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
 diff --git a/sysdeps/gnu/errlist-compat.awk b/sysdeps/gnu/errlist-compat.awk
-index 202de93cc5b94ca161322e978ffa3b6ea8286c98..105479cce4e15b3d544ac3bdb4b8e3b4d47d2695 100644
+index 202de93..105479c 100644
 --- a/sysdeps/gnu/errlist-compat.awk
 +++ b/sysdeps/gnu/errlist-compat.awk
 @@ -56,7 +56,9 @@ END {
@@ -149,7 +149,7 @@ index 202de93cc5b94ca161322e978ffa3b6ea8286c98..105479cce4e15b3d544ac3bdb4b8e3b4
    if (highest < count) {
      printf "*** errlist.c count %d vs Versions sys_errlist@%s count %d\n", \
 diff --git a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
-index fca9dc08e2470c5e31c9008d4ea4222bc75b8d37..bddf501d72a1fa3febcb77b7afc1ba1cfc390cf4 100644
+index fca9dc0..bddf501 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 @@ -84,7 +84,8 @@ ENTRY(____longjmp_chk)
@@ -163,7 +163,7 @@ index fca9dc08e2470c5e31c9008d4ea4222bc75b8d37..bddf501d72a1fa3febcb77b7afc1ba1c
  	testl	%eax, %eax
  	jne	.Lok2
 diff --git a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
-index 687057dba3f7e05e73f2a6d67a8896b7f014a949..f35c6b79fbe60d195d5142102d2486878f0eda01 100644
+index 687057d..f35c6b7 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 @@ -111,7 +111,7 @@ ENTRY(__pthread_disable_asynccancel)
@@ -176,7 +176,7 @@ index 687057dba3f7e05e73f2a6d67a8896b7f014a949..f35c6b79fbe60d195d5142102d248687
  	jmp	3b
  END(__pthread_disable_asynccancel)
 diff --git a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x86_64/clone.S
-index 382568a3e9ebad911eb2fe05094deb8b09231639..1a6a671899299c8cb5577e7cde832f3f7204e8ed 100644
+index 382568a..1a6a671 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/clone.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/clone.S
 @@ -76,7 +76,7 @@ ENTRY (__clone)
@@ -198,7 +198,7 @@ index 382568a3e9ebad911eb2fe05094deb8b09231639..1a6a671899299c8cb5577e7cde832f3f
  	movl	%eax, %fs:TID
  1:
 diff --git a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
-index 79bdc018ec80ca9da4441ac64369faeeee9c5711..febf5e8ee8161445b709d021a56ffa2e1d1c5768 100644
+index 79bdc01..febf5e8 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 @@ -75,7 +75,7 @@ ENTRY(__getcontext)
@@ -211,7 +211,7 @@ index 79bdc018ec80ca9da4441ac64369faeeee9c5711..febf5e8ee8161445b709d021a56ffa2e
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S b/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
-index 4f9483e0be01cd08e49c87ad963c3ad5dc496487..a3b7b07c4cbe62df855e702df1d656782f573069 100644
+index 4f9483e..a3b7b07 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
 @@ -90,7 +90,7 @@ __lll_lock_wait_private:
@@ -278,7 +278,7 @@ index 4f9483e0be01cd08e49c87ad963c3ad5dc496487..a3b7b07c4cbe62df855e702df1d65678
  	cmpl	$0, (%rdi)
  	jne	1f
 diff --git a/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S b/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
-index b08d8992fd6fd21d46c1ca56cc34a1dd0e526a50..056aa99d2c4d46d5eeee61d08965cbf5dfa0446f 100644
+index b08d899..056aa99 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
 @@ -80,7 +80,7 @@ __lll_robust_lock_wait:
@@ -309,7 +309,7 @@ index b08d8992fd6fd21d46c1ca56cc34a1dd0e526a50..056aa99d2c4d46d5eeee61d08965cbf5
  
  	movl	(%r12), %eax
 diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
-index de455dda4ffd00fd6d88f4e7d078afc7b50127e6..19239d264f9512a47bdcd1bbbb29fc81f56aa24c 100644
+index de455dd..19239d2 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
 @@ -87,7 +87,7 @@ ENTRY(__pthread_cond_broadcast)
@@ -340,7 +340,7 @@ index de455dda4ffd00fd6d88f4e7d078afc7b50127e6..19239d264f9512a47bdcd1bbbb29fc81
  END(__pthread_cond_broadcast)
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
-index da14bc30bc4776b7f2b6c0441d9c87ddb4283a8a..6477e90bfd6d63310d52fc9eda46329886a999ac 100644
+index da14bc3..6477e90 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
 @@ -78,7 +78,7 @@ ENTRY(__pthread_cond_signal)
@@ -371,7 +371,7 @@ index da14bc30bc4776b7f2b6c0441d9c87ddb4283a8a..6477e90bfd6d63310d52fc9eda463298
  	/* Unlock.  */
  4:	LOCK
 diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
-index 9a63314b6e536068b326e283642f67c25530f6e8..2b4cd6b86c2f264cbd47e79cf90602c64364c601 100644
+index 9a63314..2b4cd6b 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
 @@ -175,7 +175,7 @@ __pthread_cond_timedwait:
@@ -420,7 +420,7 @@ index 9a63314b6e536068b326e283642f67c25530f6e8..2b4cd6b86c2f264cbd47e79cf90602c6
  	/* Lock the mutex only if we don't own it already.  This only happens
  	   in case of PI mutexes, if we got cancelled after a successful
 diff --git a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
-index ed93d5d29c88af1c7bacc9b7c860a40c596bb7f1..43377128c0b25fca179676afc26a661c72a3736b 100644
+index ed93d5d..4337712 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
 @@ -138,7 +138,7 @@ __pthread_cond_wait:
@@ -469,7 +469,7 @@ index ed93d5d29c88af1c7bacc9b7c860a40c596bb7f1..43377128c0b25fca179676afc26a661c
  	/* Lock the mutex only if we don't own it already.  This only happens
  	   in case of PI mutexes, if we got cancelled after a successful
 diff --git a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
-index 56e085685804f51e49eef4c21ad9efdf0d21e59e..81038f485616592419c5fb2f63c0c887bd95a6ce 100644
+index 56e0856..81038f4 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 @@ -43,7 +43,7 @@ ENTRY(__setcontext)
@@ -482,7 +482,7 @@ index 56e085685804f51e49eef4c21ad9efdf0d21e59e..81038f485616592419c5fb2f63c0c887
  	cfi_adjust_cfa_offset(-8)
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
-index 71ac05c4bc01c560935f3bbd4306e3aeacb6d9be..c6e28bb2362b07cfa3f3ade189ae337195671830 100644
+index 71ac05c..2f5e622 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 @@ -120,7 +120,7 @@ asm									\
@@ -490,12 +490,12 @@ index 71ac05c4bc01c560935f3bbd4306e3aeacb6d9be..c6e28bb2362b07cfa3f3ade189ae3371
     "__" #name ":\n"							\
     "	movq $" #syscall ", %rax\n"					\
 -   "	syscall\n"							\
-+   SYSCALLDB_ASM							\
++   SYSCALLDB								\
     ".LEND_" #name ":\n"							\
     ".section .eh_frame,\"a\",@progbits\n"				\
     ".LSTARTFRAME_" #name ":\n"						\
 diff --git a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
-index b201244933d27c055e2b2fbd9a9913b682a88280..cfee5c6b5e5f9e59db4c0b21902b6edbf86594b1 100644
+index b201244..cfee5c6 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 @@ -75,7 +75,7 @@ ENTRY(__swapcontext)
@@ -508,7 +508,7 @@ index b201244933d27c055e2b2fbd9a9913b682a88280..cfee5c6b5e5f9e59db4c0b21902b6edb
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-index 62437a1cca713173ab3df2457c74d0f9ff44b451..91e6afb56c8a437fded7340578fff96294246ec6 100644
+index 62437a1..91e6afb 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
 @@ -34,7 +34,7 @@ ENTRY (syscall)
@@ -521,7 +521,7 @@ index 62437a1cca713173ab3df2457c74d0f9ff44b451..91e6afb56c8a437fded7340578fff962
  	jae SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  	ret			/* Return to caller.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
-index d023d68174d3dfb4e698160b31ae31ad291802e1..ed5c1bb1df7a69d80eb66955c92dff4f2a628413 100644
+index d023d68..ed5c1bb 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 +++ b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 @@ -22,6 +22,7 @@
@@ -560,7 +560,7 @@ index d023d68174d3dfb4e698160b31ae31ad291802e1..ed5c1bb1df7a69d80eb66955c92dff4f
      : "0" (name) ASM_ARGS_##nr : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);   \
      (long int) resultvar; })
 diff --git a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
-index 8332ade9fb0c6812000fab39fd8519b14dbd7901..92db5d46ff337a239dc52f82c811ab5b94376d81 100644
+index 8332ade..92db5d4 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/vfork.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/vfork.S
 @@ -46,7 +46,7 @@ ENTRY (__vfork)
@@ -573,7 +573,7 @@ index 8332ade9fb0c6812000fab39fd8519b14dbd7901..92db5d46ff337a239dc52f82c811ab5b
  	/* Push back the return PC.  */
  	pushq	%rdi
 diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
-index 980ca73cf2f6a468860e72858e5ec461d86814a7..b3525fc8fee08fc4a4e711c0171b77e3c413578f 100644
+index 980ca73..b3525fc 100644
 --- a/sysdeps/x86_64/dl-machine.h
 +++ b/sysdeps/x86_64/dl-machine.h
 @@ -554,7 +554,8 @@ elf_machine_lazy_rel (struct link_map *map,
@@ -587,7 +587,7 @@ index 980ca73cf2f6a468860e72858e5ec461d86814a7..b3525fc8fee08fc4a4e711c0171b77e3
  }
  
 diff --git a/sysdeps/x86_64/nptl/tls.h b/sysdeps/x86_64/nptl/tls.h
-index 2b061a07c6c59575e93de08d699b7c69720faf03..e0fea4445f43dad1b812381da4afbd428a4a1ed6 100644
+index 2b061a0..e0fea44 100644
 --- a/sysdeps/x86_64/nptl/tls.h
 +++ b/sysdeps/x86_64/nptl/tls.h
 @@ -28,6 +28,7 @@

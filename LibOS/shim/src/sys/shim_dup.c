@@ -16,7 +16,7 @@
 #include "shim_thread.h"
 #include "shim_utils.h"
 
-int shim_do_dup(unsigned int fd) {
+long shim_do_dup(unsigned int fd) {
     struct shim_handle_map* handle_map = get_thread_handle_map(NULL);
 
     struct shim_handle* hdl = get_fd_handle(fd, NULL, handle_map);
@@ -29,7 +29,7 @@ int shim_do_dup(unsigned int fd) {
     return vfd == -ENOMEM ? -EMFILE : vfd;
 }
 
-int shim_do_dup2(unsigned int oldfd, unsigned int newfd) {
+long shim_do_dup2(unsigned int oldfd, unsigned int newfd) {
     if (oldfd == newfd)
         return -EINVAL;
 
@@ -52,7 +52,7 @@ int shim_do_dup2(unsigned int oldfd, unsigned int newfd) {
     return vfd == -ENOMEM ? -EMFILE : vfd;
 }
 
-int shim_do_dup3(unsigned int oldfd, unsigned int newfd, int flags) {
+long shim_do_dup3(unsigned int oldfd, unsigned int newfd, int flags) {
     if ((flags & ~O_CLOEXEC) || oldfd == newfd)
         return -EINVAL;
 

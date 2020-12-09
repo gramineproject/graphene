@@ -7,5 +7,5 @@ LibOS documentation
 
 There is a |~| random function:
 
-.. doxygenfunction:: handle_signals
+.. doxygenfunction:: wait_event
    :project: libos

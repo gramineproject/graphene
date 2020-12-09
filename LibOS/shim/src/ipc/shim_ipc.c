@@ -350,7 +350,7 @@ int send_ipc_message_with_ack(struct shim_ipc_msg_with_ack* msg, struct shim_ipc
     /* force thread which will send the message to wait for response;
      * ignore unrelated interrupts but fail on actual errors */
     do {
-        ret = thread_sleep(NO_TIMEOUT);
+        ret = thread_sleep(NO_TIMEOUT, /*ignore_pending_signals=*/true);
         if (ret < 0 && ret != -EINTR && ret != -EAGAIN)
             goto out;
     } while (ret != 0);

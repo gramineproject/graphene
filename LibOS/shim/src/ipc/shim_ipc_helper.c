@@ -863,7 +863,6 @@ noreturn static void shim_ipc_helper(void* dummy) {
     free(pals);
     free(pal_events);
 
-    __disable_preempt(self->shim_tcb);
     put_thread(self);
     debug("IPC helper thread terminated\n");
 
@@ -885,7 +884,6 @@ static void shim_ipc_helper_prepare(void* arg) {
 
     shim_tcb_init();
     set_cur_thread(self);
-    update_tls_base(0);
 
     struct debug_buf debug_buf;
     (void)debug_setbuf(shim_get_tcb(), &debug_buf);

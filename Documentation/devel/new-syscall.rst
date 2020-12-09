@@ -3,41 +3,26 @@ Implementing new system call
 
 .. highlight:: c
 
-1. Define interface of system call
-----------------------------------
+1. Define interface of system call and add it to system call table
+------------------------------------------------------------------
 
 For example, assume we are implementing :manpage:`sched_setaffinity(2)`. You
-must find the definition of ``sched_setaffinity`` in
-:file:`shim_syscalls.c`, which will be the following code::
-
-   SHIM_SYSCALL_RETURN_ENOSYS(sched_setaffinity, 3, long, pid_t, pid, unsigned int,
-                              len, unsigned long*, user_mask_ptr)
-
-Change this line to ``DEFINE_SHIM_SYSCALL(...)`` to name the function that
-implements this system call: ``shim_do_sched_setaffinity`` (this is the naming
-convention, please follow it)::
-
-   DEFINE_SHIM_SYSCALL(sched_setaffinity, 3, shim_do_sched_setaffinity, long, pid_t, pid,
-                       unsigned int, len, unsigned long*, user_mask_ptr)
-
-
-2. Add definitions to system call table
----------------------------------------
-
-To implement system call ``sched_setaffinity``, two functions need to be defined
-in :file:`shim_table.h`: ``__shim_sched_setaffinity`` and
-``shim_do_sched_setaffinity``. The first one should already be defined. Add the
-second in respect to the system call you are implementing, with the same
-prototype as defined in :file:`shim_syscalls.c`::
+must add the prototype of the function implementing it to :file:`shim_table.h`::
 
    long shim_do_sched_setaffinity(pid_t pid, unsigned int len, unsigned long* user_mask_ptr);
 
-3. Implement system call
+Note that we use the following naming convetion: ``shim_do_`` followed by
+an actual syscall name. Additionally this function should return ``long``.
+Now you need to add an appropriate entry in the syscalls table in
+:file:`shim_table-$(ARCH).c`::
+
+    [__NR_sched_setaffinity] = (shim_fp)shim_do_sched_setaffinity
+
+2. Implement system call
 ------------------------
 
-You can add the function body of ``shim_do_sysinfo`` (or the function name defined
-earlier) in a new source file or any existing source file in
-:file:`LibOS/shim/src/sys`.
+You can add the function body of ``shim_do_sched_setaffinity`` in a new source
+file or any existing source file in :file:`LibOS/shim/src/sys`.
 
 For example, in :file:`LibOS/shim/src/sys/shim_sched.c`::
 
@@ -45,7 +30,7 @@ For example, in :file:`LibOS/shim/src/sys/shim_sched.c`::
       /* code for implementing the semantics of sched_setaffinity */
    }
 
-4. Add new PAL Calls (optional)
+3. Add new PAL Calls (optional)
 -------------------------------
 
 The concept of Graphene library OS is to keep the PAL interface as simple as
@@ -66,14 +51,14 @@ Make sure you use the PAL-specific data types, including :type:`PAL_BOL`,
 with the ``Dk`` prefix, followed by a comprehensive name describing the purpose
 of the PAL call.
 
-5. Export new PAL calls from PAL binaries (optional)
+4. Export new PAL calls from PAL binaries (optional)
 ----------------------------------------------------
 
 For each directory in :file:`PAL/host/`, there is a :file:`pal.map` file. This
 file lists all the symbols accessible to the library OS. The new PAL call needs
 to be listed here in order to be used by your system call implementation.
 
-6. Implement new PAL calls (optional)
+5. Implement new PAL calls (optional)
 -------------------------------------
 
 .. todo::
