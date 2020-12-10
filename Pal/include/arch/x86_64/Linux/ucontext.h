@@ -162,7 +162,6 @@ static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* fu
     const unsigned int param_regs[] = {REG_RDI, REG_RSI, REG_RDX, REG_RCX};
 
     assert(count <= ARRAY_SIZE(param_regs));
-    assert(count <= ARRAY_SIZE(func_args));
 
     uc->uc_mcontext.gregs[REG_RIP] = (greg_t)func;
     for (size_t i = 0; i < count; i++)
