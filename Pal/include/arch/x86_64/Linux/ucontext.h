@@ -157,14 +157,14 @@ static inline uint64_t pal_ucontext_get_ip(ucontext_t* uc) {
     return uc->uc_mcontext.gregs[REG_RIP];
 }
 
-static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* func, size_t count,
-                                                        greg_t func_args[4]) {
+static inline void pal_ucontext_set_function_parameters(ucontext_t* uc, void* func,
+                                                        size_t func_args_num, greg_t* func_args) {
     const unsigned int param_regs[] = {REG_RDI, REG_RSI, REG_RDX, REG_RCX};
 
-    assert(count <= ARRAY_SIZE(param_regs));
+    assert(func_args_num <= ARRAY_SIZE(param_regs));
 
     uc->uc_mcontext.gregs[REG_RIP] = (greg_t)func;
-    for (size_t i = 0; i < count; i++)
+    for (size_t i = 0; i < func_args_num; i++)
         uc->uc_mcontext.gregs[param_regs[i]] = func_args[i];
 }
 

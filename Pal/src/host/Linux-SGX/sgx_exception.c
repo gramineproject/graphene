@@ -177,7 +177,7 @@ static void handle_async_signal(int signum, siginfo_t* info, struct ucontext* uc
      * was interrupted by calling sgx_entry_return(syscall_return_value=-EINTR, event) */
     /* TODO: we abandon PAL state here (possibly still holding some locks, etc) and return to
      *       enclave; ideally we must unwind/fix the state and only then jump into enclave */
-    greg_t func_args[4] = {-EINTR, event, /*unused*/0, /*unused*/0};
+    greg_t func_args[2] = {-EINTR, event};
     pal_ucontext_set_function_parameters(uc, sgx_entry_return, /*count=*/2, func_args);
 }
 
