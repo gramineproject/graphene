@@ -8,7 +8,8 @@ CFLAGS += -Wextra -Wno-unused-parameter -Wno-sign-compare $(call cc-option,-Wnul
 ASFLAGS += -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
 LDFLAGS += -shared -nostdlib -z combreloc -z defs \
-	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal-$(ARCH).lds
+	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal-$(ARCH).lds \
+	  --eh-frame-hdr
 
 pal_loader =
 pal_sec =
