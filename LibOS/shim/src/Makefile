@@ -142,7 +142,7 @@ endif
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sfr)
 
-LDFLAGS-libsysdb.so += --version-script shim.map -T shim-$(ARCH).lds
+LDFLAGS-libsysdb.so += --version-script shim.map -T shim-$(ARCH).lds --eh-frame-hdr
 libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 	     $(graphene_lib) $(pal_lib) shim.map shim-$(ARCH).lds
 	$(call cmd,ld_so_o)
