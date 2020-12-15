@@ -148,4 +148,30 @@ int block_async_signals(bool block);
 
 void update_debugger(void);
 
+/* perf.data output (sgx_perf_data.h) */
+
+#define PD_STACK_SIZE 8192
+
+struct perf_data;
+
+struct perf_data* pd_open(const char* file_name, bool with_stack);
+
+/* Finalize and close; returns resulting file size */
+ssize_t pd_close(struct perf_data* pd);
+
+/* Write PERF_RECORD_COMM (report command name) */
+int pd_event_command(struct perf_data* pd, const char* command, uint32_t pid, uint32_t tid);
+
+/* Write PERF_RECORD_MMAP (report mmap of executable region) */
+int pd_event_mmap(struct perf_data* pd, const char* filename, uint32_t pid, uint64_t addr,
+                  uint64_t len, uint64_t pgoff);
+
+/* Write PERF_RECORD_SAMPLE (simple version) */
+int pd_event_sample_simple(struct perf_data* pd, uint64_t ip, uint32_t pid, uint32_t tid,
+                           uint64_t period);
+
+/* Write PERF_RECORD_SAMPLE (with stack sample, at most PD_STACK_SIZE bytes) */
+int pd_event_sample_stack(struct perf_data* pd,  uint64_t ip, uint32_t pid, uint32_t tid,
+                          uint64_t period, sgx_pal_gpr_t* gpr, void* stack, size_t stack_size);
+
 #endif
