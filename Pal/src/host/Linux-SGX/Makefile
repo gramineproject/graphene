@@ -75,6 +75,7 @@ urts-objs = \
 	sgx_framework.o \
 	sgx_graphene.o \
 	sgx_main.o \
+	sgx_perf_data.o \
 	sgx_platform.o \
 	sgx_process.o \
 	sgx_gdb_info.o \
