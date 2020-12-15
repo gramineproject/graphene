@@ -3,3 +3,5 @@
 /nginx-*/*
 /OUTPUT
 /result-*
+/ssl/ca.*
+/ssl/server.*
