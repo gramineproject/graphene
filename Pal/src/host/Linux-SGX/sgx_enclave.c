@@ -700,6 +700,18 @@ static long sgx_ocall_update_debugger(void* pms) {
     return 0;
 }
 
+static long sgx_ocall_report_mmap(void* pms) {
+    ms_ocall_report_mmap_t* ms = (ms_ocall_report_mmap_t*)pms;
+    ODEBUG(OCALL_REPORT_MMAP, ms);
+
+#ifdef DEBUG
+    sgx_profile_report_mmap(ms->ms_filename, ms->ms_addr, ms->ms_len, ms->ms_offset);
+#else
+    __UNUSED(ms);
+#endif
+    return 0;
+}
+
 static long sgx_ocall_get_quote(void* pms) {
     ms_ocall_get_quote_t* ms = (ms_ocall_get_quote_t*)pms;
     ODEBUG(OCALL_GET_QUOTE, ms);
@@ -746,6 +758,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_RENAME]           = sgx_ocall_rename,
     [OCALL_DELETE]           = sgx_ocall_delete,
     [OCALL_UPDATE_DEBUGGER]  = sgx_ocall_update_debugger,
+    [OCALL_REPORT_MMAP]      = sgx_ocall_report_mmap,
     [OCALL_EVENTFD]          = sgx_ocall_eventfd,
     [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,
 };
