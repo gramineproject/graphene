@@ -89,6 +89,39 @@ static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
     return 0;
 }
 
+#ifdef DEBUG
+static int report_mmaps(int fd, const char* filename, uint64_t base) {
+    int ret = 0;
+
+    if (IS_ERR(ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET)))
+        return -ERRNO(ret);
+
+    char filebuf[FILEBUF_SIZE];
+    ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
+
+    if ((size_t)ret < sizeof(ElfW(Ehdr)))
+        return -ENOEXEC;
+
+    const ElfW(Ehdr)* header = (void*)filebuf;
+    const ElfW(Phdr)* phdr   = (void*)filebuf + header->e_phoff;
+    const ElfW(Phdr)* ph;
+
+    for (ph = phdr; ph < &phdr[header->e_phnum]; ph++)
+        if (ph->p_type == PT_LOAD && ph->p_flags & PF_X) {
+            uint64_t mapstart  = ALLOC_ALIGN_DOWN(ph->p_vaddr);
+            uint64_t mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
+            uint64_t mapoff = ALLOC_ALIGN_DOWN(ph->p_offset);
+            sgx_profile_report_mmap(filename, base + mapstart, mapend - mapstart, mapoff);
+            if (IS_ERR(ret))
+                return -ERRNO(ret);
+        }
+
+    return 0;
+}
+#endif /* DEBUG */
+
 static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base,
                                unsigned long prot) {
     int ret = 0;
@@ -554,6 +587,16 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
             }
         }
     }
+
+#ifdef DEBUG
+    if (enclave->profile_enable) {
+        /* Report libpal map before enclave start, so that all profiling samples can be attributed
+         * to it. */
+        ret = report_mmaps(enclave_image, enclave->libpal_uri + URI_PREFIX_FILE_LEN, pal_area->addr);
+        if (IS_ERR(ret))
+            goto out;
+    }
+#endif
 
     ret = 0;
 

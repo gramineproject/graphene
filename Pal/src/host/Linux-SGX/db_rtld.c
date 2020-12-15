@@ -198,6 +198,14 @@ void _DkDebugAddMap(struct link_map* map) {
     }
 
     debug_map_add(debug_map);
+
+    for (ph = phdr; ph < &phdr[ehdr->e_phnum]; ++ph)
+        if (ph->p_type == PT_LOAD && ph->p_flags & PF_X) {
+            uint64_t mapstart = ALLOC_ALIGN_DOWN(ph->p_vaddr);
+            uint64_t mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
+            uint64_t offset = ALLOC_ALIGN_DOWN(ph->p_offset);
+            ocall_report_mmap(map->l_name, map->l_addr + mapstart, mapend - mapstart, offset);
+        }
 }
 
 void _DkDebugDelMap(struct link_map* map) {
