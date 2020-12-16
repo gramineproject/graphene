@@ -560,14 +560,6 @@ ret_fault:
     return has_fault;
 }
 
-void __attribute__((weak)) syscall_wrapper(void) {
-    /*
-     * work around for link.
-     * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
-     * due to missing syscall_wrapper.
-     */
-}
-
 static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     struct shim_vma_info vma_info = {.file = NULL};
 

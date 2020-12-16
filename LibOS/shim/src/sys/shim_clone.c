@@ -23,14 +23,6 @@
 #include "shim_utils.h"
 #include "shim_vma.h"
 
-void __attribute__((weak)) syscall_wrapper_after_syscalldb(void) {
-    /*
-     * workaround for linking.
-     * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
-     * due to missing syscall_wrapper_after_syscalldb.
-     */
-}
-
 struct shim_clone_args {
     PAL_HANDLE create_event;
     PAL_HANDLE initialize_event;
