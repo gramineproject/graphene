@@ -147,6 +147,11 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
         return NULL;
     }
 
+    /*
+     * Start writing to file from PROLOGUE_SIZE position. The beginning will be overwritten in
+     * write_prologue_epilogue().
+     */
+
     ret = INLINE_SYSCALL(ftruncate, 2, fd, PROLOGUE_SIZE);
     if (ret < 0)
         goto fail;
