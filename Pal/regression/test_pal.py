@@ -80,7 +80,7 @@ class TC_00_BasicSet2(RegressionTestCase):
     @unittest.skipUnless(ON_X86, "x86-specific")
     def test_Segment(self):
         _, stderr = self.run_binary(['Segment'])
-        self.assertIn('TLS = 0x', stderr)
+        self.assertIn('Test OK', stderr)
 
     def test_Select(self):
         _, stderr = self.run_binary(['Select'])
@@ -258,7 +258,8 @@ class TC_02_Symbols(RegressionTestCase):
         'DkMemoryAvailableQuota',
     ]
     if ON_X86:
-        ALL_SYMBOLS.append('DkSegmentRegister')
+        ALL_SYMBOLS.append('DkSegmentRegisterGet')
+        ALL_SYMBOLS.append('DkSegmentRegisterSet')
 
     def test_000_symbols(self):
         _, stderr = self.run_binary(['Symbols'])
