@@ -21,7 +21,7 @@
 #include "spinlock.h"
 #include "string.h"
 
-// glibc realpath; declared here because the headers will conflict with PAL
+// FIXME: this is glibc realpath, declared here because the headers will conflict with PAL
 char* realpath(const char* path, char* resolved_path);
 
 #define NSEC_IN_SEC 1000000000
@@ -34,8 +34,8 @@ static uint64_t g_profile_period;
 static int g_mem_fd = -1;
 
 /* Read memory from inside enclave (using /proc/self/mem). */
-static int debug_read(void* dest, void* addr, size_t size) {
-    int ret;
+static ssize_t debug_read(void* dest, void* addr, size_t size) {
+    ssize_t ret;
     size_t total = 0;
 
     while (size > 0) {
@@ -58,7 +58,7 @@ static int debug_read(void* dest, void* addr, size_t size) {
 }
 
 static int debug_read_all(void* dest, void* addr, size_t size) {
-    int ret = debug_read(dest, addr, size);
+    ssize_t ret = debug_read(dest, addr, size);
     if (IS_ERR(ret))
         return ret;
     if ((unsigned)ret < size)
@@ -133,9 +133,9 @@ out:
     }
 
     if (g_perf_data) {
-        int close_ret = pd_close(g_perf_data);
+        ssize_t close_ret = pd_close(g_perf_data);
         if (IS_ERR(close_ret))
-            SGX_DBG(DBG_E, "sgx_profile_init: pd_close failed: %d\n", ERRNO(close_ret));
+            SGX_DBG(DBG_E, "sgx_profile_init: pd_close failed: %d\n", (int)ERRNO(close_ret));
             g_perf_data = NULL;
     }
     return ret;

@@ -772,7 +772,7 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
 
 #ifdef DEBUG
     enclave_info->profile_enable = false;
-    strcpy(enclave_info->profile_filename, "sgx-perf.data");
+    enclave_info->profile_filename[0] = '\0';
 
     char* profile_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);
@@ -786,6 +786,7 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
         // do not enable
     } else if (!strcmp(profile_str, "main")) {
         if (enclave_info->is_first_process) {
+            strcpy(enclave_info->profile_filename, "sgx-perf.data");
             enclave_info->profile_enable = true;
         }
     } else if (!strcmp(profile_str, "all")) {
@@ -793,7 +794,7 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
         snprintf(enclave_info->profile_filename, ARRAY_SIZE(enclave_info->profile_filename),
                  "sgx-perf-%d.data", (int)INLINE_SYSCALL(getpid, 0));
     } else {
-        SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be \"none', \"main\" or \"all\")\n");
+        SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be \"none\", \"main\" or \"all\")\n");
         ret = -EINVAL;
         goto out;
     }
@@ -811,7 +812,7 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
     int64_t profile_frequency;
     ret = toml_int_in(manifest_root, "sgx.profile.frequency", /*defaultval=*/50,
                       &profile_frequency);
-    if (ret < 0 || (profile_frequency <= 0)) {
+    if (ret < 0 || profile_frequency <= 0) {
         SGX_DBG(DBG_E, "Cannot parse \'sgx.profile.frequency\' (the value must be a positive integer)\n");
         ret = -EINVAL;
         goto out;
