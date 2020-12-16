@@ -114,8 +114,6 @@ static int report_mmaps(int fd, const char* filename, uint64_t base) {
             uint64_t mapend = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_filesz);
             uint64_t mapoff = ALLOC_ALIGN_DOWN(ph->p_offset);
             sgx_profile_report_mmap(filename, base + mapstart, mapend - mapstart, mapoff);
-            if (IS_ERR(ret))
-                return -ERRNO(ret);
         }
 
     return 0;
@@ -590,9 +588,19 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 
 #ifdef DEBUG
     if (enclave->profile_enable) {
-        /* Report libpal map before enclave start, so that all profiling samples can be attributed
-         * to it. */
-        ret = report_mmaps(enclave_image, enclave->libpal_uri + URI_PREFIX_FILE_LEN, pal_area->addr);
+        /*
+         * Report libpal map. All subsequent files will be reported via DkDebugAddMap(), but this
+         * one has to be handled separately.
+         *
+         * We report it here, before enclave start (as opposed to setup_pal_map()), because we want
+         * the mmap to appear in profiling data before the samples from libpal code, so that the
+         * addresses for these samples can be resolved to symbols.
+         *
+         * TODO: Also report the map to GDB before enclave start (and not in setup_pal_map()), so
+         * that libpal symbols are known to gdb immediately after enclave start.
+         */
+        ret = report_mmaps(enclave_image, enclave->libpal_uri + URI_PREFIX_FILE_LEN,
+                           pal_area->addr);
         if (IS_ERR(ret))
             goto out;
     }
