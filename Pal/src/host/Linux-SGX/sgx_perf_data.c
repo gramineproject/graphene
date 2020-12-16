@@ -35,8 +35,14 @@
 #include "perm.h"
 #include "sgx_internal.h"
 
+#ifndef __x86_64__
+#error "Unsupported architecture"
+#endif
+
 #define PROLOGUE_SIZE (sizeof(struct perf_file_header) + sizeof(struct perf_file_attr))
 
+/* Buffer size for pending perf data. Choose a big enough size (32 MB) so that we don't need to
+ * flush to a file too often. */
 #define BUF_SIZE (32 * 1024 * 1024)
 
 /* Registers to sample - see arch/x86/include/uapi/asm/perf_regs.h */
@@ -87,9 +93,8 @@ struct perf_file_attr {
 
 struct perf_data {
     int fd;
-    size_t file_pos;
-    // Assume last buf_pos bytes have not been written yet
-    size_t buf_pos;
+    // Data to be flushed to a file
+    size_t buf_count;
     uint8_t buf[BUF_SIZE];
 
     bool with_stack;
@@ -109,28 +114,27 @@ static ssize_t write_all(int fd, const void* buf, size_t count) {
 }
 
 static int pd_flush(struct perf_data* pd) {
-    if (pd->buf_pos == 0)
+    if (pd->buf_count == 0)
         return 0;
 
-    ssize_t ret = write_all(pd->fd, pd->buf, pd->buf_pos);
+    ssize_t ret = write_all(pd->fd, pd->buf, pd->buf_count);
     if (ret < 0)
         return ret;
-    pd->buf_pos = 0;
+    pd->buf_count = 0;
     return 0;
 }
 
 // Add data to buffer; flush first if necessary
 static int pd_write(struct perf_data* pd, const void* data, size_t size) {
-    if (pd->buf_pos + size > sizeof(pd->buf)) {
+    if (pd->buf_count + size > sizeof(pd->buf)) {
         int ret = pd_flush(pd);
         if (ret < 0)
             return ret;
     }
 
-    assert(pd->buf_pos + size < sizeof(pd->buf));
-    memcpy(pd->buf + pd->buf_pos, data, size);
-    pd->buf_pos += size;
-    pd->file_pos += size;
+    assert(pd->buf_count + size < sizeof(pd->buf));
+    memcpy(pd->buf + pd->buf_count, data, size);
+    pd->buf_count += size;
     return 0;
 }
 
@@ -145,25 +149,24 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
 
     ret = INLINE_SYSCALL(ftruncate, 2, fd, PROLOGUE_SIZE);
     if (ret < 0)
-        goto out;
+        goto fail;
 
     ret = INLINE_SYSCALL(lseek, 3, fd, PROLOGUE_SIZE, SEEK_SET);
     if (ret < 0)
-        goto out;
+        goto fail;
 
     struct perf_data* pd = malloc(sizeof(*pd));
     if (!pd) {
         SGX_DBG(DBG_E, "pd_open: out of memory\n");
-        goto out;
+        goto fail;
     }
 
     pd->fd = fd;
-    pd->file_pos = PROLOGUE_SIZE;
-    pd->buf_pos = 0;
+    pd->buf_count = 0;
     pd->with_stack = with_stack;
     return pd;
 
-out:
+fail:
     ret = INLINE_SYSCALL(close, 1, fd);
     if (ret < 0)
         SGX_DBG(DBG_E, "pd_open: close failed: %d\n", ret);
@@ -173,8 +176,10 @@ out:
 static int write_prologue_epilogue(struct perf_data* pd) {
     int ret;
 
-    assert(pd->buf_pos == 0); // all data flushed
-    size_t data_end = pd->file_pos;
+    assert(pd->buf_count == 0); // all data flushed
+    ssize_t data_end = INLINE_SYSCALL(lseek, 3, pd->fd, 0, SEEK_CUR);
+    if (data_end < 0)
+        return data_end;
 
     /*
      * Prologue, at beginning of file:
@@ -238,7 +243,7 @@ static int write_prologue_epilogue(struct perf_data* pd) {
     const char* arch = "x86_64";
     uint32_t arch_size = strlen(arch) + 1;
     struct perf_file_section arch_section = {
-        .offset = pd->file_pos + sizeof(arch_section),
+        .offset = data_end + sizeof(arch_section),
         .size = sizeof(arch_size) + arch_size,
     };
     ret = write_all(pd->fd, &arch_section, sizeof(arch_section));
