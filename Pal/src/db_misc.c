@@ -32,23 +32,17 @@ PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size) {
 }
 
 #if defined(__x86_64__)
-PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr) {
+PAL_BOL DkSegmentRegister(PAL_FLG reg, PAL_PTR addr) {
     ENTER_PAL_CALL(DkSegmentRegister);
-    void* seg_addr = (void*)addr;
-    int ret;
 
-    if (addr) {
-        ret = _DkSegmentRegisterSet(reg, seg_addr);
-    } else {
-        ret = _DkSegmentRegisterGet(reg, &seg_addr);
-    }
+    int ret = _DkSegmentRegister(reg, addr);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
-        seg_addr = NULL;
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    LEAVE_PAL_CALL_RETURN((PAL_PTR)seg_addr);
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 #endif
 

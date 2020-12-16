@@ -20,7 +20,7 @@ static void callback(void* args) {
 
     pal_printf("Threads Run in Parallel OK\n");
 
-    DkSegmentRegister(PAL_SEGMENT_FS, &private2);
+    DkSegmentRegister(PAL_SET_SEGMENT_FS, &private2);
     const char* ptr2;
     __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr2)::"memory");
     pal_printf("Private Message (FS Segment) 2: %s\n", ptr2);
@@ -31,7 +31,7 @@ static void callback(void* args) {
 }
 
 int main() {
-    DkSegmentRegister(PAL_SEGMENT_FS, &private1);
+    DkSegmentRegister(PAL_SET_SEGMENT_FS, &private1);
     const char* ptr1;
     __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr1)::"memory");
     pal_printf("Private Message (FS Segment) 1: %s\n", ptr1);
