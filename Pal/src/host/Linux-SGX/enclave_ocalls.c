@@ -301,7 +301,7 @@ int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4])
     return retval;
 }
 
-int ocall_open(const char* pathname, int flags, unsigned short mode) {
+int ocall_open_with_retry(const char* pathname, int flags, unsigned short mode) {
     int retval = 0;
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_open_t* ms;
@@ -322,8 +322,8 @@ int ocall_open(const char* pathname, int flags, unsigned short mode) {
     }
     WRITE_ONCE(ms->ms_pathname, untrusted_pathname);
 
-    /* this open() ocall is used only for files and devices (never to open pipes), so it must never
-     * return -EINTR (which may happen when untrusted PAL receives an async signal from host OS) */
+    /* this ocall is used only for files and devices (never to open pipes), so it must never return
+     * -EINTR (which may happen when untrusted PAL receives an async signal from host OS) */
     do {
         retval = sgx_exitless_ocall(OCALL_OPEN, ms);
     } while (retval == -EINTR);
@@ -345,9 +345,8 @@ int ocall_close(int fd) {
 
     WRITE_ONCE(ms->ms_fd, fd);
 
-    do {
-        retval = sgx_exitless_ocall(OCALL_CLOSE, ms);
-    } while (retval == -EINTR);
+    /* note that close() must not be retried on -EINTR, see e.g. https://lwn.net/Articles/576478 */
+    retval = sgx_exitless_ocall(OCALL_CLOSE, ms);
 
     sgx_reset_ustack(old_ustack);
     return retval;

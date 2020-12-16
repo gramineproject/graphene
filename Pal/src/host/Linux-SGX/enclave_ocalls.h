@@ -20,7 +20,7 @@ int ocall_munmap_untrusted(const void* mem, uint64_t size);
 
 int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
-int ocall_open(const char* pathname, int flags, unsigned short mode);
+int ocall_open_with_retry(const char* pathname, int flags, unsigned short mode);
 
 int ocall_close(int fd);
 

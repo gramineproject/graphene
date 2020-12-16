@@ -230,7 +230,7 @@ static int is_directory(const char* path, bool* is_dir) {
     struct stat st;
 
     *is_dir = false;
-    int ret = ocall_open(path, O_RDONLY, 0);
+    int ret = ocall_open_with_retry(path, O_RDONLY, /*mode=*/0);
     if (IS_ERR(ret)) {
         /* this can be called on a path without the file existing, assume non-dir for now */
         ret = 0;
@@ -268,7 +268,7 @@ static int register_protected_dir(const char* path) {
     if (!buf)
         return -PAL_ERROR_NOMEM;
 
-    ret = ocall_open(path, O_RDONLY | O_DIRECTORY, 0);
+    ret = ocall_open_with_retry(path, O_RDONLY | O_DIRECTORY, /*mode=*/0);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_E, "register_protected_dir: opening %s failed: %d\n", path, ret);
         ret = unix_to_pal_error(ERRNO(ret));
