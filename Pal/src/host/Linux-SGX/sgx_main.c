@@ -778,17 +778,18 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
     /* EPID is used if SPID is a non-empty string in manifest, otherwise DCAP/ECDSA */
     enclave_info->use_epid_attestation = sgx_ra_client_spid_str && strlen(sgx_ra_client_spid_str);
 
-#ifdef DEBUG
-    enclave_info->profile_enable = false;
-    enclave_info->profile_filename[0] = '\0';
-
     char* profile_str = NULL;
     ret = toml_string_in(manifest_root, "sgx.profile.enable", &profile_str);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile\' (the value must be \"none\", \"main\" or \"all\")\n");
+        SGX_DBG(DBG_E, "Cannot parse \'sgx.profile.enable\' "
+                "(the value must be \"none\", \"main\" or \"all\")\n");
         ret = -EINVAL;
         goto out;
     }
+
+#ifdef DEBUG
+    enclave_info->profile_enable = false;
+    enclave_info->profile_filename[0] = '\0';
 
     if (!profile_str || !strcmp(profile_str, "none")) {
         // do not enable
@@ -802,7 +803,8 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
         snprintf(enclave_info->profile_filename, ARRAY_SIZE(enclave_info->profile_filename),
                  "sgx-perf-%d.data", (int)INLINE_SYSCALL(getpid, 0));
     } else {
-        SGX_DBG(DBG_E, "Invalid \'sgx.profile\' (the value must be \"none\", \"main\" or \"all\")\n");
+        SGX_DBG(DBG_E, "Invalid \'sgx.profile.enable\' "
+                "(the value must be \"none\", \"main\" or \"all\")\n");
         ret = -EINVAL;
         goto out;
     }
@@ -826,6 +828,13 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
         goto out;
     }
     enclave_info->profile_frequency = profile_frequency;
+#else
+    if (profile_str && strcmp(profile_str, "none")) {
+        SGX_DBG(DBG_E, "Invalid \'sgx.profile.enable\' "
+                "(SGX profiling works only when Graphene is compiled with DEBUG=1)\n");
+        ret = -EINVAL;
+        goto out;
+    }
 #endif
 
     ret = 0;
