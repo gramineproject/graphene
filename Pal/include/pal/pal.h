@@ -715,21 +715,29 @@ PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size);
 PAL_BOL DkInstructionCacheFlush(PAL_PTR addr, PAL_NUM size);
 
 enum PAL_SEGMENT {
-    PAL_GET_SEGMENT_FS = 1,
-    PAL_SET_SEGMENT_FS,
-    PAL_GET_SEGMENT_GS,
-    PAL_SET_SEGMENT_GS,
+    PAL_SEGMENT_FS = 1,
+    PAL_SEGMENT_GS,
 };
 
 /*!
- * \brief Get or set segment register
+ * \brief Get segment register
  *
- * \param reg the register to be get or set (#PAL_SEGMENT)
- * \param addr the address where result will be stored for get or address to be set
+ * \param reg the register to get (#PAL_SEGMENT)
+ * \param addr the address where result will be stored
  *
  * \return true on success, false on error
  */
-PAL_BOL DkSegmentRegister(PAL_FLG reg, PAL_PTR addr);
+PAL_BOL DkSegmentRegisterGet(PAL_FLG reg, PAL_PTR* addr);
+
+/*!
+ * \brief Set segment register
+ *
+ * \param reg the register to be set (#PAL_SEGMENT)
+ * \param addr the address to be set
+ *
+ * \return true on success, false on error
+ */
+PAL_BOL DkSegmentRegisterSet(PAL_FLG reg, PAL_PTR addr);
 
 /*!
  * \brief Return the amount of currently available memory for LibOS/application

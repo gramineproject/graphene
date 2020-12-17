@@ -32,7 +32,11 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSegmentRegister(int reg, void* addr) {
+int _DkSegmentRegisterGet(int reg, void** addr) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkSegmentRegisterSet(int reg, void* addr) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

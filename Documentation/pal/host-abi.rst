@@ -371,7 +371,10 @@ and to obtain an attestation report and quote.
 .. doxygenfunction:: DkRandomBitsRead
    :project: pal
 
-.. doxygenfunction:: DkSegmentRegister
+.. doxygenfunction:: DkSegmentRegisterGet
+   :project: pal
+
+.. doxygenfunction:: DkSegmentRegisterSet
    :project: pal
 
 .. doxygenenum:: PAL_SEGMENT

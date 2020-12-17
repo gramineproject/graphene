@@ -219,23 +219,29 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
     return 0;
 }
 
-int _DkSegmentRegister(int reg, void* addr) {
+int _DkSegmentRegisterGet(int reg, void** addr) {
     switch (reg) {
-        case PAL_GET_SEGMENT_FS:
-            *(void**)addr = (void*)GET_ENCLAVE_TLS(fsbase);
-            break;
-        case PAL_SET_SEGMENT_FS:
-            SET_ENCLAVE_TLS(fsbase, (void*)addr);
-            wrfsbase((uint64_t)addr);
-            break;
-        case PAL_GET_SEGMENT_GS:
-            /* Fallthrough */
-        case PAL_SET_SEGMENT_GS:
-            /* GS is internally used, denied any access to it */
+        case PAL_SEGMENT_FS:
+            *addr = (void*)GET_ENCLAVE_TLS(fsbase);
+            return 0;
+        case PAL_SEGMENT_GS:
+            /* GS is internally used, deny any access to it */
             return -PAL_ERROR_DENIED;
         default:
             return -PAL_ERROR_INVAL;
     }
+}
 
-    return 0;
+int _DkSegmentRegisterSet(int reg, void* addr) {
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            SET_ENCLAVE_TLS(fsbase, addr);
+            wrfsbase((uint64_t)addr);
+            return 0;
+        case PAL_SEGMENT_GS:
+            /* GS is internally used, deny any access to it */
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
+    }
 }

@@ -230,26 +230,28 @@ int _DkRandomBitsRead(void* buffer, size_t size) {
 }
 #endif
 
-int _DkSegmentRegister(int reg, void* addr) {
-    int ret = 0;
-
+int _DkSegmentRegisterGet(int reg, void** addr) {
     switch (reg) {
-        case PAL_GET_SEGMENT_FS:
-            ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, addr);
-            break;
-        case PAL_SET_SEGMENT_FS:
-            ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
-            break;
-        case PAL_GET_SEGMENT_GS:
-            /* Fallthrough */
-        case PAL_SET_SEGMENT_GS:
+        case PAL_SEGMENT_FS:
+            return INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, addr);
+        case PAL_SEGMENT_GS:
             // The GS segment is used for the internal TCB of PAL
             return -PAL_ERROR_DENIED;
         default:
             return -PAL_ERROR_INVAL;
     }
+}
 
-    return ret;
+int _DkSegmentRegisterSet(int reg, void* addr) {
+    switch (reg) {
+        case PAL_SEGMENT_FS:
+            return INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
+        case PAL_SEGMENT_GS:
+            // The GS segment is used for the internal TCB of PAL
+            return -PAL_ERROR_DENIED;
+        default:
+            return -PAL_ERROR_INVAL;
+    }
 }
 
 int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
