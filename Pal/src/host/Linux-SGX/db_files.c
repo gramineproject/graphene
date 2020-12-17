@@ -54,10 +54,10 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     bool pf_create = (create & PAL_CREATE_ALWAYS) || (create & PAL_CREATE_TRY);
 
     /* try to do the real open */
-    int fd = ocall_open_with_retry(uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
-                                        PAL_CREATE_TO_LINUX_OPEN(create)  |
-                                        PAL_OPTION_TO_LINUX_OPEN(options),
-                                   share);
+    int fd = ocall_open(uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
+                             PAL_CREATE_TO_LINUX_OPEN(create)  |
+                             PAL_OPTION_TO_LINUX_OPEN(options),
+                        share);
     if (IS_ERR(fd)) {
         ret = unix_to_pal_error(ERRNO(fd));
         goto out;
@@ -589,7 +589,7 @@ static int file_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* at
 
     /* open the file with O_NONBLOCK to avoid blocking the current thread if it is actually a FIFO
      * pipe; O_NONBLOCK will be reset below if it is a regular file */
-    int fd = ocall_open_with_retry(uri, O_NONBLOCK, /*mode=*/0);
+    int fd = ocall_open(uri, O_NONBLOCK, 0);
     if (IS_ERR(fd))
         return unix_to_pal_error(ERRNO(fd));
 
@@ -759,7 +759,7 @@ static int dir_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         }
     }
 
-    ret = ocall_open_with_retry(uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options), /*mode=*/0);
+    ret = ocall_open(uri, O_DIRECTORY | PAL_OPTION_TO_LINUX_OPEN(options), 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 

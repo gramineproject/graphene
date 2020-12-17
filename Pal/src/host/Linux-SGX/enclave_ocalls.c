@@ -1,5 +1,21 @@
 /*
  * This is for enclave to make ocalls to untrusted runtime.
+ *
+ * Most ocall implementations retry the host-level operations on -EINTR, except for a few ocalls
+ * that are expected to be able to return -EINTR (read, write, recv, send, accept, connect, sleep,
+ * futex). The -EINTR error happens when an async signal arrives from the host OS, with two
+ * sub-cases: (a) signal arrives during a slow host-level syscall or (b) signal arrives during other
+ * untrusted-PAL code execution. In both cases, the untrusted-PAL signal handler injects -EINTR and
+ * forces an ocall return. To prevent ocalls from returning -EINTR to unsuspecting LibOS/user app,
+ * here we retry a host-level syscall. In some cases, this may lead to FD leaks or incorrect
+ * semantics (e.g., a retried open() syscall may have succeeded the first time, but a signal arrived
+ * right-after this syscall and forced -EINTR, thus leaving an FD from the first try open and
+ * leaking). See also `man 7 signal` and `sgx_exception.c: handle_async_signal()`.
+ *
+ * FIXME: Ideally, the untrusted-PAL signal handler must inspect the interrupted RIP and unwind/fix
+ *        the untrusted state and decide whether to inject -EINTR or report success (e.g., if a
+ *        signal arrives right-after an open() syscall, the signal handler must update ocall return
+ *        values and report success instead of injecting -EINTR).
  */
 
 #include "enclave_ocalls.h"
@@ -301,7 +317,7 @@ int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4])
     return retval;
 }
 
-int ocall_open_with_retry(const char* pathname, int flags, unsigned short mode) {
+int ocall_open(const char* pathname, int flags, unsigned short mode) {
     int retval = 0;
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_open_t* ms;
@@ -322,8 +338,6 @@ int ocall_open_with_retry(const char* pathname, int flags, unsigned short mode) 
     }
     WRITE_ONCE(ms->ms_pathname, untrusted_pathname);
 
-    /* this ocall is used only for files and devices (never to open pipes), so it must never return
-     * -EINTR (which may happen when untrusted PAL receives an async signal from host OS) */
     do {
         retval = sgx_exitless_ocall(OCALL_OPEN, ms);
     } while (retval == -EINTR);

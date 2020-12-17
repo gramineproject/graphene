@@ -130,7 +130,7 @@ void _DkDebugAddMap(struct link_map* map) {
     ElfW(Phdr)* phdr = (void*)(map->l_map_start + ehdr->e_phoff);
     const ElfW(Phdr)* ph;
 
-    int fd = ocall_open_with_retry(map->l_name, O_RDONLY, /*mode=*/0);
+    int fd = ocall_open(map->l_name, O_RDONLY, 0);
     if (IS_ERR(fd))
         return;
 

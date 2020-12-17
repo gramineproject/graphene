@@ -69,7 +69,7 @@ static const char* const g_cpu_flags[] = {
 static ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size) {
     int fd;
 
-    fd = ocall_open_with_retry(filename, O_RDONLY, /*mode=*/0);
+    fd = ocall_open(filename, O_RDONLY, 0);
     if (fd < 0)
         return fd;
 

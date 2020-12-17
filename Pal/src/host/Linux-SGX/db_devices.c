@@ -57,10 +57,10 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         /* other devices must be opened through the host */
         hdl->dev.nonblocking = (options & PAL_OPTION_NONBLOCK) ? PAL_TRUE : PAL_FALSE;
 
-        ret = ocall_open_with_retry(uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
-                                         PAL_CREATE_TO_LINUX_OPEN(create)  |
-                                         PAL_OPTION_TO_LINUX_OPEN(options),
-                                    share);
+        ret = ocall_open(uri, PAL_ACCESS_TO_LINUX_OPEN(access)  |
+                              PAL_CREATE_TO_LINUX_OPEN(create)  |
+                              PAL_OPTION_TO_LINUX_OPEN(options),
+                         share);
         if (IS_ERR(ret)) {
             ret = unix_to_pal_error(ERRNO(ret));
             goto fail;
@@ -151,7 +151,7 @@ static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* att
         attr->pending_size = 0;
     } else {
         /* other devices must query the host */
-        int fd = ocall_open_with_retry(uri, /*flags=*/0, /*mode=*/0);
+        int fd = ocall_open(uri, 0, 0);
         if (IS_ERR(fd))
             return unix_to_pal_error(ERRNO(fd));
 
