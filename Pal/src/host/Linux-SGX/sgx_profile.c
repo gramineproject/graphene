@@ -38,20 +38,21 @@ static ssize_t debug_read(void* dest, void* addr, size_t size) {
     ssize_t ret;
     size_t total = 0;
 
-    while (size > 0) {
-        ret = INLINE_SYSCALL(pread, 4, g_mem_fd, dest, size, (off_t)addr);
+    while (total < size) {
+        ret = INLINE_SYSCALL(pread, 4, g_mem_fd, (uint8_t*)dest + total, size - total,
+                             (off_t)addr + total);
 
         if (IS_ERR(ret) && ERRNO(ret) == EINTR)
             continue;
 
         if (IS_ERR(ret))
+            return ret;
+
+        if (ret == 0)
             break;
 
         assert(ret > 0);
-        assert((unsigned)ret <= size);
-        size -= ret;
-        dest += ret;
-        addr += ret;
+        assert((size_t)ret + total <= size);
         total += ret;
     }
     return total;
@@ -61,7 +62,7 @@ static int debug_read_all(void* dest, void* addr, size_t size) {
     ssize_t ret = debug_read(dest, addr, size);
     if (IS_ERR(ret))
         return ret;
-    if ((unsigned)ret < size)
+    if ((size_t)ret < size)
         return -EINVAL;
     return 0;
 }
@@ -80,7 +81,7 @@ static int get_sgx_gpr(sgx_pal_gpr_t* gpr, void* tcs) {
     void* gpr_addr = (void*)(
         g_pal_enclave.baseaddr
         + ossa + cssa * g_pal_enclave.ssaframesize
-        - sizeof(sgx_pal_gpr_t));
+        - sizeof(*gpr));
 
     ret = debug_read_all(gpr, gpr_addr, sizeof(*gpr));
     if (ret < 0)
@@ -100,7 +101,7 @@ int sgx_profile_init(void) {
 
     ret = INLINE_SYSCALL(open, 3, "/proc/self/mem", O_RDONLY | O_LARGEFILE, 0);
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "sgx_profile_init: opening /proc/self/mem failed: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "sgx_profile_init: opening /proc/self/mem failed: %d\n", ret);
         goto out;
     }
     g_mem_fd = ret;
@@ -116,7 +117,7 @@ int sgx_profile_init(void) {
     pid_t pid = g_pal_enclave.pal_sec.pid;
     ret = pd_event_command(pd, "pal-sgx", pid, /*tid=*/pid);
     if (!pd) {
-        SGX_DBG(DBG_E, "sgx_profile_init: reporting command failed: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "sgx_profile_init: reporting command failed: %d\n", ret);
         goto out;
     }
 
@@ -135,7 +136,7 @@ out:
     if (g_perf_data) {
         ssize_t close_ret = pd_close(g_perf_data);
         if (IS_ERR(close_ret))
-            SGX_DBG(DBG_E, "sgx_profile_init: pd_close failed: %d\n", (int)ERRNO(close_ret));
+            SGX_DBG(DBG_E, "sgx_profile_init: pd_close failed: %d\n", (int)close_ret);
             g_perf_data = NULL;
     }
     return ret;
@@ -152,14 +153,14 @@ void sgx_profile_finish(void) {
 
     size = pd_close(g_perf_data);
     if (IS_ERR(size))
-        SGX_DBG(DBG_E, "sgx_profile_finish: pd_close failed: %d\n", ERRNO((int)size));
+        SGX_DBG(DBG_E, "sgx_profile_finish: pd_close failed: %d\n", (int)size);
     g_perf_data = NULL;
 
     spinlock_unlock(&g_perf_data_lock);
 
     ret = INLINE_SYSCALL(close, 1, g_mem_fd);
     if (IS_ERR(ret))
-        SGX_DBG(DBG_E, "sgx_profile_finish: closing /proc/self/mem failed: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "sgx_profile_finish: closing /proc/self/mem failed: %d\n", ret);
     g_mem_fd = -1;
 
     SGX_DBG(DBG_I, "Profile data written to %s (%lu bytes)\n", g_pal_enclave.profile_filename,
@@ -174,7 +175,7 @@ static void sample_simple(void* tcs, pid_t pid, pid_t tid) {
 
     ret = get_sgx_gpr(&gpr, tcs);
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "error reading GPR: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "error reading GPR: %d\n", ret);
         return;
     }
 
@@ -183,7 +184,7 @@ static void sample_simple(void* tcs, pid_t pid, pid_t tid) {
     spinlock_unlock(&g_perf_data_lock);
 
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "error recording sample: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "error recording sample: %d\n", ret);
     }
 }
 
@@ -193,7 +194,7 @@ static void sample_stack(void* tcs, pid_t pid, pid_t tid) {
 
     ret = get_sgx_gpr(&gpr, tcs);
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "error reading GPR: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "error reading GPR: %d\n", ret);
         return;
     }
 
@@ -201,7 +202,7 @@ static void sample_stack(void* tcs, pid_t pid, pid_t tid) {
     size_t stack_size;
     ret = debug_read(stack, (void*)gpr.rsp, sizeof(stack));
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "error reading stack: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "error reading stack: %d\n", ret);
         return;
     }
     stack_size = ret;
@@ -212,7 +213,7 @@ static void sample_stack(void* tcs, pid_t pid, pid_t tid) {
     spinlock_unlock(&g_perf_data_lock);
 
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "error recording sample: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "error recording sample: %d\n", ret);
     }
 }
 
@@ -234,10 +235,9 @@ void sgx_profile_sample(void* tcs) {
     struct timespec ts;
     ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_THREAD_CPUTIME_ID, &ts);
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "sgx_profile_sample: clock_gettime failed: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "sgx_profile_sample: clock_gettime failed: %d\n", ret);
         return;
     }
-    assert((unsigned)ts.tv_sec < (1UL << 63) / NSEC_IN_SEC);
     uint64_t sample_time = ts.tv_sec * NSEC_IN_SEC + ts.tv_nsec;
 
     // Compare and update last recorded time per thread
@@ -256,10 +256,11 @@ void sgx_profile_sample(void* tcs) {
         pid_t pid = g_pal_enclave.pal_sec.pid;
         pid_t tid = pid;
 
-        if (g_pal_enclave.profile_with_stack)
+        if (g_pal_enclave.profile_with_stack) {
             sample_stack(tcs, pid, tid);
-        else
+        } else {
             sample_simple(tcs, pid, tid);
+        }
     }
 }
 
@@ -282,7 +283,7 @@ void sgx_profile_report_mmap(const char* filename, uint64_t addr, uint64_t len, 
     int ret = pd_event_mmap(g_perf_data, path, pid, addr, len, offset);
     spinlock_unlock(&g_perf_data_lock);
     if (IS_ERR(ret))
-        SGX_DBG(DBG_E, "sgx_profile_report_mmap: pd_event_mmap failed: %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "sgx_profile_report_mmap: pd_event_mmap failed: %d\n", ret);
 }
 
 #endif /* DEBUG */

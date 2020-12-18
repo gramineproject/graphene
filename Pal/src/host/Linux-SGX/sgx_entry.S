@@ -65,6 +65,7 @@ sgx_ecall:
 
 async_exit_pointer:
 	.cfi_startproc
+	.cfi_undefined %rip
 
 	# increment per-thread AEX counter for stats
 	lock incq %gs:PAL_TCB_URTS_AEX_CNT
@@ -80,6 +81,7 @@ async_exit_pointer:
 
 	# Align stack (required by System V AMD64 ABI)
 	movq %rsp, %rbp
+	.cfi_def_cfa_register %rbp
 	andq $~0xF, %rsp
 
 	# Call sgx_profile_sample with %rdi = TCS
@@ -88,6 +90,7 @@ async_exit_pointer:
 
 	# Restore stack
 	movq %rbp, %rsp
+	.cfi_def_cfa_register %rsp
 
 	# Restore ERESUME parameters
 	popq %rcx

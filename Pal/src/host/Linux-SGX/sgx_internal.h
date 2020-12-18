@@ -157,6 +157,17 @@ void update_debugger(void);
 #ifdef DEBUG
 /* SGX profiling (sgx_profile.c) */
 
+/*
+ * Default and maximum sampling frequency. We depend on Linux scheduler to interrupt us, so it's not
+ * possible to achieve higher than 250.
+ */
+#define SGX_PROFILE_DEFAULT_FREQUENCY 50
+#define SGX_PROFILE_MAX_FREQUENCY 250
+
+/* Filenames for saved data */
+#define SGX_PROFILE_FILENAME "sgx-perf.data"
+#define SGX_PROFILE_FILENAME_WITH_PID "sgx-perf-%d.data"
+
 /* Initialize based on g_pal_enclave settings */
 int sgx_profile_init(void);
 
