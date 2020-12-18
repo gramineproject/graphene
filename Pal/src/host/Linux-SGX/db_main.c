@@ -175,14 +175,10 @@ extern void* g_enclave_top;
 noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char* uptr_args,
                              size_t args_size, char* uptr_env, size_t env_size,
                              struct pal_sec* uptr_sec_info) {
-    /*
-     * Our arguments are coming directly from the urts. We are responsible to check them.
-     */
-
-    PAL_HANDLE parent = NULL;
+    /* Our arguments are coming directly from the urts. We are responsible to check them. */
     int rv;
-    uint64_t start_time;
 
+    uint64_t start_time;
     rv = _DkSystemTimeQuery(&start_time);
     if (rv < 0) {
         SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", rv);
@@ -246,9 +242,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     g_pal_sec.qe_targetinfo = sec_info.qe_targetinfo;
 #ifdef DEBUG
     g_pal_sec.in_gdb = sec_info.in_gdb;
-#endif
-#if PRINT_ENCLAVE_STAT == 1
-    g_pal_sec.start_time = sec_info.start_time;
 #endif
 
     /* For {p,u,g}ids we can at least do some minimal checking. */
@@ -325,8 +318,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         ocall_exit(1, /*is_exitgroup=*/true);
     }
 
-    g_pal_state.start_time = start_time;
-
     g_linux_state.uid = g_pal_sec.uid;
     g_linux_state.gid = g_pal_sec.gid;
     g_linux_state.process_id = (start_time & (~0xffff)) | g_pal_sec.pid;
@@ -357,6 +348,7 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     }
 
     /* if there is a parent, create parent handle */
+    PAL_HANDLE parent = NULL;
     if (g_pal_sec.ppid) {
         if ((rv = init_child_process(&parent)) < 0) {
             SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", rv);
@@ -422,17 +414,6 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
         SGX_DBG(DBG_E, "Failed to initialize protected files: %d\n", rv);
         ocall_exit(1, true);
     }
-
-#if PRINT_ENCLAVE_STAT == 1
-    uint64_t end_time;
-    rv = _DkSystemTimeQuery(&end_time);
-    if (rv < 0) {
-        SGX_DBG(DBG_E, "_DkSystemTimeQuery() failed: %d\n", rv);
-        ocall_exit(1, /*is_exitgroup=*/true);
-    }
-    printf("                >>>>>>>> Enclave loading time =      %10ld milliseconds\n",
-           end_time - g_pal_sec.start_time);
-#endif
 
     /* set up thread handle */
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));

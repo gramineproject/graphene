@@ -784,15 +784,15 @@ static int get_hw_resource(const char* filename, bool count) {
  * exits after this function's failure. */
 static int load_enclave(struct pal_enclave* enclave, char* loader_config, const char* exec_path,
                         char* args, size_t args_size, char* env, size_t env_size, bool need_gsgx) {
-    struct pal_sec* pal_sec = &enclave->pal_sec;
     int ret;
+    struct timeval tv;
+
+    struct pal_sec* pal_sec = &enclave->pal_sec;
     size_t exec_path_len = strlen(exec_path);
 
-#if PRINT_ENCLAVE_STAT == 1
-    struct timeval tv;
+    uint64_t start_time;
     INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
-    pal_sec->start_time = tv.tv_sec * 1000000UL + tv.tv_usec;
-#endif
+    start_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 
     ret = open_sgx_driver(need_gsgx);
     if (ret < 0)
@@ -955,6 +955,17 @@ static int load_enclave(struct pal_enclave* enclave, char* loader_config, const 
     ret = pal_thread_init(tcb);
     if (ret < 0)
         return ret;
+
+    uint64_t end_time;
+    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
+    end_time = tv.tv_sec * 1000000UL + tv.tv_usec;
+
+    if (g_sgx_enable_stats) {
+        /* this shows the time for Graphene + the Intel SGX driver to initialize the untrusted
+         * PAL and config and create the SGX enclave, add enclave pages, measure and init it */
+        pal_printf("----- SGX enclave loading time = %10lu microseconds -----\n",
+                   end_time - start_time);
+    }
 
     /* start running trusted PAL */
     ecall_enclave_start(enclave->libpal_uri, args, args_size, env, env_size);

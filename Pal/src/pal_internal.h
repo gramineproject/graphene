@@ -154,13 +154,8 @@ extern struct pal_internal_state {
 
     PAL_HANDLE      exec_handle;
 
-    /* May not be the same as page size, see e.g. SYSTEM_INFO::dwAllocationGranularity on Windows.
-     */
+    /* May not be the same as page size, e.g. SYSTEM_INFO::dwAllocationGranularity on Windows */
     size_t          alloc_align;
-
-    PAL_HANDLE      console;
-
-    uint64_t        start_time;
 } g_pal_state;
 
 extern PAL_CONTROL g_pal_control;

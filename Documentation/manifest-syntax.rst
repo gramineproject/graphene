@@ -455,6 +455,10 @@ This syntax specifies whether to enable SGX enclave-specific statistics:
    AEXs (corresponds to interrupts/exceptions/signals during enclave
    execution). Prints per-thread and per-process stats.
 
+#. Printing the SGX enclave loading time at startup. The enclave loading time
+   includes creating the enclave, adding enclave pages, measuring them and
+   initializing the enclave.
+
 *Note:* this option is insecure and cannot be used with production enclaves
 (``sgx.debug = 0``). If the production enclave is started with this option set,
 Graphene will fail initialization of the enclave.
