@@ -22,10 +22,6 @@
 
 #define TRUSTED_STUB_SIZE (PRESET_PAGESIZE * 4UL)
 
-//#define USE_AES_NI          1
-
-#define PRINT_ENCLAVE_STAT 0
-
 #define MAX_ARGS_SIZE 10000000
 #define MAX_ENV_SIZE  10000000
 

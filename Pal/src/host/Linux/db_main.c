@@ -154,7 +154,6 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
     int ret;
     uint64_t start_time = _DkSystemTimeQueryEarly();
-    g_pal_state.start_time = start_time;
 
     /* Initialize alloc_align as early as possible, a lot of PAL APIs depend on this being set. */
     g_pal_state.alloc_align = _DkGetAllocationAlignment();
