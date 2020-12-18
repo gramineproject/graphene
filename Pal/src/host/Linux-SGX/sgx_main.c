@@ -821,8 +821,7 @@ static int parse_loader_config(char* loader_config, struct pal_enclave* enclave_
     enclave_info->profile_with_stack = profile_with_stack;
 
     int64_t profile_frequency;
-    ret = toml_int_in(manifest_root, "sgx.profile.frequency",
-                      /*defaultval=*/SGX_PROFILE_DEFAULT_FREQUENCY,
+    ret = toml_int_in(manifest_root, "sgx.profile.frequency", SGX_PROFILE_DEFAULT_FREQUENCY,
                       &profile_frequency);
     if (ret < 0 || !(0 < profile_frequency && profile_frequency <= SGX_PROFILE_MAX_FREQUENCY)) {
         SGX_DBG(DBG_E, "Cannot parse \'sgx.profile.frequency\' "

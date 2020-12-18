@@ -136,7 +136,7 @@ out:
     if (g_perf_data) {
         ssize_t close_ret = pd_close(g_perf_data);
         if (IS_ERR(close_ret))
-            SGX_DBG(DBG_E, "sgx_profile_init: pd_close failed: %d\n", (int)close_ret);
+            SGX_DBG(DBG_E, "sgx_profile_init: pd_close failed: %ld\n", close_ret);
             g_perf_data = NULL;
     }
     return ret;
@@ -153,7 +153,7 @@ void sgx_profile_finish(void) {
 
     size = pd_close(g_perf_data);
     if (IS_ERR(size))
-        SGX_DBG(DBG_E, "sgx_profile_finish: pd_close failed: %d\n", (int)size);
+        SGX_DBG(DBG_E, "sgx_profile_finish: pd_close failed: %ld\n", size);
     g_perf_data = NULL;
 
     spinlock_unlock(&g_perf_data_lock);
