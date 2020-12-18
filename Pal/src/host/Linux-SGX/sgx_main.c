@@ -45,6 +45,15 @@ char* g_libpal_path = NULL;
 
 struct pal_enclave g_pal_enclave;
 
+/*
+ * FIXME: the ELF-parsing functions in this file (scan_enclave_binary, report_mmaps,
+ * load_enclave_binary) assume that all the program headers will be found within first FILEBUF_SIZE
+ * bytes. This will be true for most binaries, but is not guaranteed.
+ *
+ * (Glibc also allocates such a buffer but recovers when it's too small, see elf/dl-load.c in glibc
+ * sources.)
+ */
+
 static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
                                unsigned long* entry) {
     int ret = 0;
