@@ -297,7 +297,7 @@ int ocall_cpuid(unsigned int leaf, unsigned int subleaf, unsigned int values[4])
 
 int ocall_open(const char* pathname, int flags, unsigned short mode) {
     int retval = 0;
-    int len = pathname ? strlen(pathname) + 1 : 0;
+    size_t len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_open_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -687,7 +687,7 @@ int ocall_ftruncate(int fd, uint64_t length) {
 
 int ocall_mkdir(const char* pathname, unsigned short mode) {
     int retval = 0;
-    int len = pathname ? strlen(pathname) + 1 : 0;
+    size_t len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_mkdir_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1340,7 +1340,7 @@ int ocall_rename(const char* oldpath, const char* newpath) {
 
 int ocall_delete(const char* pathname) {
     int retval = 0;
-    int len = pathname ? strlen(pathname) + 1 : 0;
+    size_t len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_delete_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();
@@ -1383,7 +1383,7 @@ int ocall_update_debugger(struct debug_map* _Atomic* debug_map) {
 
 int ocall_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset) {
     int retval = 0;
-    int filename_len = filename ? strlen(filename) + 1 : 0;
+    size_t filename_len = filename ? strlen(filename) + 1 : 0;
     ms_ocall_report_mmap_t* ms;
 
     void* old_ustack = sgx_prepare_ustack();

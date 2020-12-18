@@ -50,12 +50,12 @@ static int scan_enclave_binary(int fd, unsigned long* base, unsigned long* size,
     int ret = 0;
 
     if (IS_ERR(ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET)))
-        return -ERRNO(ret);
+        return ret;
 
     char filebuf[FILEBUF_SIZE];
     ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        return ret;
 
     if ((size_t)ret < sizeof(ElfW(Ehdr)))
         return -ENOEXEC;
@@ -94,12 +94,12 @@ static int report_mmaps(int fd, const char* filename, uint64_t base) {
     int ret = 0;
 
     if (IS_ERR(ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET)))
-        return -ERRNO(ret);
+        return ret;
 
     char filebuf[FILEBUF_SIZE];
     ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        return ret;
 
     if ((size_t)ret < sizeof(ElfW(Ehdr)))
         return -ENOEXEC;
@@ -125,12 +125,12 @@ static int load_enclave_binary(sgx_arch_secs_t* secs, int fd, unsigned long base
     int ret = 0;
 
     if (IS_ERR(ret = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET)))
-        return -ERRNO(ret);
+        return ret;
 
     char filebuf[FILEBUF_SIZE];
     ret = INLINE_SYSCALL(read, 3, fd, filebuf, FILEBUF_SIZE);
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        return ret;
 
     const ElfW(Ehdr)* header = (void*)filebuf;
     const ElfW(Phdr)* phdr   = (void*)filebuf + header->e_phoff;
@@ -221,7 +221,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
     enclave_image = INLINE_SYSCALL(open, 3, enclave->libpal_uri + URI_PREFIX_FILE_LEN, O_RDONLY, 0);
     if (IS_ERR(enclave_image)) {
         SGX_DBG(DBG_E, "Cannot find enclave image: %s\n", enclave->libpal_uri);
-        ret = -ERRNO(enclave_image);
+        ret = enclave_image;
         goto out;
     }
 
@@ -855,13 +855,13 @@ out:
 static int get_hw_resource(const char* filename, bool count) {
     int fd = INLINE_SYSCALL(open, 3, filename, O_RDONLY | O_CLOEXEC, 0);
     if (IS_ERR(fd))
-        return -ERRNO(fd);
+        return fd;
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
     INLINE_SYSCALL(close, 1, fd);
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        return ret;
 
     buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
