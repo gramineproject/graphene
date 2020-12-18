@@ -19,6 +19,7 @@ DEFINE_LIST(async_event);
 struct async_event {
     IDTYPE caller; /* thread installing this event */
     LIST_TYPE(async_event) list;
+    LIST_TYPE(async_event) triggered_list;
     void (*callback)(IDTYPE caller, void* arg);
     void* arg;
     PAL_HANDLE object;    /* handle (async IO) to wait on */
@@ -310,7 +311,7 @@ static void shim_async_helper(void* arg) {
                 LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
                     if (tmp->object == pals[i]) {
                         debug("Async IO event triggered at %lu\n", now);
-                        LISTP_ADD_TAIL(tmp, &triggered, list);
+                        LISTP_ADD_TAIL(tmp, &triggered, triggered_list);
                         break;
                     }
                 }
@@ -322,11 +323,11 @@ static void shim_async_helper(void* arg) {
             if (tmp->callback == &cleanup_thread) {
                 debug("Thread exited, cleaning up\n");
                 LISTP_DEL(tmp, &async_list, list);
-                LISTP_ADD_TAIL(tmp, &triggered, list);
+                LISTP_ADD_TAIL(tmp, &triggered, triggered_list);
             } else if (tmp->expire_time && tmp->expire_time <= now) {
                 debug("Alarm/timer triggered at %lu (expired at %lu)\n", now, tmp->expire_time);
                 LISTP_DEL(tmp, &async_list, list);
-                LISTP_ADD_TAIL(tmp, &triggered, list);
+                LISTP_ADD_TAIL(tmp, &triggered, triggered_list);
             }
         }
 
@@ -334,8 +335,8 @@ static void shim_async_helper(void* arg) {
 
         /* call callbacks for all triggered events */
         if (!LISTP_EMPTY(&triggered)) {
-            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &triggered, list) {
-                LISTP_DEL(tmp, &triggered, list);
+            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &triggered, triggered_list) {
+                LISTP_DEL(tmp, &triggered, triggered_list);
                 tmp->callback(tmp->caller, tmp->arg);
                 if (!tmp->object) {
                     /* this is a one-off exit-child or alarm/timer event */

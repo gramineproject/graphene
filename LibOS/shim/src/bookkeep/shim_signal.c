@@ -560,14 +560,6 @@ ret_fault:
     return has_fault;
 }
 
-void __attribute__((weak)) syscall_wrapper(void) {
-    /*
-     * work around for link.
-     * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
-     * due to missing syscall_wrapper.
-     */
-}
-
 static void illegal_upcall(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     struct shim_vma_info vma_info = {.file = NULL};
 
@@ -829,13 +821,13 @@ void handle_signals(void) {
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb);
 
-    int64_t preempt = __disable_preempt(tcb);
-
-    if (preempt > 1)
-        debug("signal delayed (%ld)\n", preempt);
-    else
+    int64_t preempt_level = __disable_preempt(tcb);
+    if (preempt_level == 1) {
+        /* upon entering this function, preempt level was 0 and thus we can handle signals now
+         * (otherwise preempt level was 1+, indicating that we are in signal handler; we don't
+         * support nested sighandling so we defer such signals until preempt level is 0 again) */
         __handle_signals(tcb);
-
+    }
     __enable_preempt(tcb);
 }
 

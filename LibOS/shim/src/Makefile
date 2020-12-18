@@ -31,7 +31,7 @@ ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include -I../include/arc
 LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
 
-files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
+files_to_build = libsysdb.a libsysdb.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 
 defs	= -DIN_SHIM
@@ -145,12 +145,6 @@ $(files_to_install): $(RUNTIME_DIR)/%: %
 LDFLAGS-libsysdb.so += --version-script shim.map -T shim-$(ARCH).lds
 libsysdb.so: $(objs) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 	     $(graphene_lib) $(pal_lib) shim.map shim-$(ARCH).lds
-	$(call cmd,ld_so_o)
-
-LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim-$(ARCH).lds
-libsysdb_debug.so: $(filter-out syscallas-$(ARCH).o,$(objs)) \
-		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
-		   $(graphene_lib) $(pal_lib) shim-debug.map shim-$(ARCH).lds
 	$(call cmd,ld_so_o)
 
 .PHONY: graphene_lib_recurse
