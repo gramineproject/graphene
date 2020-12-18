@@ -132,7 +132,7 @@ static int pd_write(struct perf_data* pd, const void* data, size_t size) {
             return ret;
     }
 
-    assert(pd->buf_count + size < sizeof(pd->buf));
+    assert(pd->buf_count + size <= sizeof(pd->buf));
     memcpy(pd->buf + pd->buf_count, data, size);
     pd->buf_count += size;
     return 0;
@@ -143,7 +143,7 @@ struct perf_data* pd_open(const char* file_name, bool with_stack) {
 
     int fd = INLINE_SYSCALL(open, 3, file_name, O_WRONLY | O_TRUNC | O_CREAT, PERM_rw_r__r__);
     if (fd < 0) {
-        SGX_DBG(DBG_E, "pd_open: cannot open %s for writing: %d\n", file_name, -fd);
+        SGX_DBG(DBG_E, "pd_open: cannot open %s for writing: %d\n", file_name, fd);
         return NULL;
     }
 
@@ -266,6 +266,7 @@ static int write_prologue_epilogue(struct perf_data* pd) {
 
 ssize_t pd_close(struct perf_data* pd) {
     ssize_t ret = 0;
+    int close_ret;
 
     ret = pd_flush(pd);
     if (ret < 0)
@@ -279,11 +280,10 @@ ssize_t pd_close(struct perf_data* pd) {
     if (ret < 0)
         goto out;
 
-    int close_ret;
 out:
     close_ret = INLINE_SYSCALL(close, 1, pd->fd);
     if (close_ret < 0)
-        SGX_DBG(DBG_E, "pd_close: close failed: %d\n", -close_ret);
+        SGX_DBG(DBG_E, "pd_close: close failed: %d\n", close_ret);
 
     free(pd);
     return ret;
