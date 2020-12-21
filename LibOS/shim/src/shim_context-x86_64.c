@@ -149,7 +149,9 @@ noreturn void restore_child_context_after_clone(struct shim_context* context) {
     shim_tcb_t* tcb = shim_get_tcb();
     __enable_preempt(tcb);
 
-    __asm__ volatile("movq %0, %%rsp\r\n"
+    __asm__ volatile("fldcw (%0)\r\n" /* restore FP (fpcw) and SSE/AVX/... (mxcsr) control words */
+                     "ldmxcsr (%1)\r\n"
+                     "movq %2, %%rsp\r\n"
                      "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */
                      "popq %%r15\r\n"
                      "popq %%r14\r\n"
@@ -169,7 +171,7 @@ noreturn void restore_child_context_after_clone(struct shim_context* context) {
                      "movq "XSTRINGIFY(SHIM_REGS_RSP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
                      "movq $0, %%rax\r\n"
                      "jmp *-"XSTRINGIFY(RED_ZONE_SIZE)"-8(%%rsp)\r\n"
-                     :: "g"(&regs) : "memory");
+                     :: "g"(&context->fpcw), "g"(&context->mxcsr), "g"(&regs) : "memory");
 
     __builtin_unreachable();
 }
