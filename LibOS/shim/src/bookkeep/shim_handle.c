@@ -488,7 +488,7 @@ static struct shim_handle_map* get_new_handle_map(FDTYPE size) {
     if (!handle_map)
         return NULL;
 
-    handle_map->map = calloc(size, sizeof(struct shim_fd_handle));
+    handle_map->map = calloc(size, sizeof(*handle_map->map));
 
     if (!handle_map->map) {
         free(handle_map);
