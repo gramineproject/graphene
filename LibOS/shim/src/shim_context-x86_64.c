@@ -149,6 +149,11 @@ noreturn void restore_child_context_after_clone(struct shim_context* context) {
     shim_tcb_t* tcb = shim_get_tcb();
     __enable_preempt(tcb);
 
+    /* Restore FP (fpcw) and SSE/AVX/... (mxcsr) control words. */
+    __asm__ volatile("fldcw (%0)\r\n"
+                     "ldmxcsr (%1)\r\n"
+                     :: "g"(&context->fpcw), "g"(&context->mxcsr) : "memory");
+
     __asm__ volatile("movq %0, %%rsp\r\n"
                      "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */
                      "popq %%r15\r\n"

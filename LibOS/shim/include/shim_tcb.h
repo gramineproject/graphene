@@ -11,6 +11,8 @@
 
 struct shim_context {
     struct shim_regs* regs;
+    uint16_t          fpcw;    /* FPU Control Word (for x87) */
+    uint32_t          mxcsr;   /* MXCSR control/status register (for SSE/AVX/...) */
     uint64_t          fs_base;
     struct atomic_int preempt;
 };

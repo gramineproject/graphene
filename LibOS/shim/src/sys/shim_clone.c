@@ -30,7 +30,8 @@ struct shim_clone_args {
     void* stack;
     unsigned long fs_base;
     struct shim_regs regs;
-    void* xstate_extended;
+    uint16_t fpcw;
+    uint32_t mxcsr;
 };
 
 /*
@@ -76,12 +77,6 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     debug("set fs_base to 0x%lx\n", tcb->context.fs_base);
 
-    /* FIXME: The below XSAVE area restore is not really correct but rather a dummy and will be
-     * fixed later. Now it restores the extended state from within LibOS rather than the app. In
-     * reality, XSAVE area should be part of shim_regs, and XRSTOR should happen during
-     * restore_context(). */
-    shim_xstate_restore(arg->xstate_extended);
-
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
         my_thread->set_child_tid = NULL;
@@ -100,6 +95,10 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     }
 
     add_thread(my_thread);
+
+    /* New thread inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words of parent thread. */
+    tcb->context.fpcw  = arg->fpcw;
+    tcb->context.mxcsr = arg->mxcsr;
 
     /* Copy regs before we let the parent release them. */
     struct shim_regs regs = arg->regs;
@@ -163,6 +162,10 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
      * even without any locks. Note this is a shallow copy, so `shim_tcb.context.regs` will be
      * shared with the parent. */
     shim_tcb.context.regs = self->shim_tcb->context.regs;
+
+    /* new process inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words */
+    shim_tcb.context.fpcw  = self->shim_tcb->context.fpcw;
+    shim_tcb.context.mxcsr = self->shim_tcb->context.mxcsr;
 
     if (flags & CLONE_SETTLS) {
         shim_tcb.context.fs_base = fs_base;
@@ -416,16 +419,8 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     new_args.stack   = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
     new_args.fs_base = fs_base;
     new_args.regs    = *self->shim_tcb->context.regs;
-
-    /* FIXME: The below XSAVE area save is not really correct but rather a dummy and will be fixed
-     * later. Now it saves the extended state from within LibOS rather than the app. In reality,
-     * XSAVE area should be part of shim_regs, and XSAVE should happen during syscalldb().
-     * Also note that we require up to 4KB of stack space for XSAVE -- this is wrong for e.g. Go
-     * because its goroutines start with 2KB stack size; but we'll remove XSAVE here anyway. */
-    size_t xstate_extended_size = g_shim_xsave_size + SHIM_FP_XSTATE_MAGIC2_SIZE;
-    new_args.xstate_extended    = ALIGN_DOWN_PTR(new_args.stack - xstate_extended_size,
-                                                 SHIM_XSTATE_ALIGN);
-    shim_xstate_save(new_args.xstate_extended);
+    new_args.fpcw    = self->shim_tcb->context.fpcw;
+    new_args.mxcsr   = self->shim_tcb->context.mxcsr;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child
