@@ -11,6 +11,7 @@
 
 #include <asm/errno.h>
 #include <asm/fcntl.h>
+#include <asm/ioctls.h>
 #include <asm/poll.h>
 #include <linux/sched.h>
 #include <linux/time.h>

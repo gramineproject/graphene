@@ -20,6 +20,7 @@
 #include "pal_linux_error.h"
 #include "stat.h"
 #include "sysdep-arch.h"
+#include "sysdeps/generic/ldsodefs.h"
 
 #define IS_ERR   INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
@@ -49,13 +50,7 @@ extern struct pal_linux_state {
 
     unsigned long   memory_quota;
 
-#if USE_VDSO_GETTIME == 1
-#if USE_CLOCK_GETTIME == 1
     long int (*vdso_clock_gettime)(long int clk, struct timespec* tp);
-#else
-    long int (*vdso_gettimeofday)(struct timeval*, void*);
-#endif
-#endif
 } g_linux_state;
 
 #ifdef INLINE_SYSCALL
@@ -110,6 +105,7 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback);
 
 struct link_map;
 void setup_pal_map(struct link_map* map);
+void setup_vdso_map(ElfW(Addr) addr);
 
 /* set/unset CLOEXEC flags of all fds in a handle */
 int handle_set_cloexec(PAL_HANDLE handle, bool enable);
@@ -133,8 +129,6 @@ ssize_t read_file_buffer(const char* filename, char* buf, size_t buf_size);
 void cpuid(unsigned int leaf, unsigned int subleaf, unsigned int words[]);
 int block_async_signals(bool block);
 void signal_setup(void);
-
-unsigned long _DkSystemTimeQueryEarly(void);
 
 extern char __text_start, __text_end, __data_start, __data_end;
 #define TEXT_START ((void*)(&__text_start))

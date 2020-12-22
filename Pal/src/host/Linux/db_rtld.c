@@ -6,8 +6,6 @@
  * other. The source code in this file was imported from the GNU C Library and modified.
  */
 
-#include "db_rtld.h"
-
 #include "api.h"
 #include "elf-arch.h"
 #include "elf/elf.h"
@@ -141,7 +139,6 @@ void setup_pal_map(struct link_map* pal_map) {
     g_loaded_maps = pal_map;
 }
 
-#if USE_VDSO_GETTIME == 1
 void setup_vdso_map(ElfW(Addr) addr) {
     const ElfW(Ehdr)* header = (void*)addr;
     struct link_map vdso_map;
@@ -193,21 +190,12 @@ void setup_vdso_map(ElfW(Addr) addr) {
                 break;
         }
 
-#if USE_CLOCK_GETTIME == 1
     const char* gettime = "__vdso_clock_gettime";
-#else
-    const char* gettime = "__vdso_gettimeofday";
-#endif
     uint_fast32_t fast_hash = elf_fast_hash(gettime);
     long int hash = elf_hash(gettime);
     ElfW(Sym)* sym = NULL;
 
     sym = do_lookup_map(NULL, gettime, fast_hash, hash, &vdso_map);
     if (sym)
-#if USE_CLOCK_GETTIME == 1
         g_linux_state.vdso_clock_gettime = (void*)(load_offset + sym->st_value);
-#else
-        g_linux_state.vdso_gettimeofday  = (void*)(load_offset + sym->st_value);
-#endif
 }
-#endif

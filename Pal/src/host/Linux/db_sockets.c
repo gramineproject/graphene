@@ -8,6 +8,7 @@
 
 #include <asm/errno.h>
 #include <asm/fcntl.h>
+#include <asm/ioctls.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/poll.h>
