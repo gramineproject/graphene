@@ -48,8 +48,9 @@ def main():
     try:
         isgx_driver_path = os.environ['ISGX_DRIVER_PATH']
     except KeyError:
-        print('ISGX_DRIVER_PATH environment variable is undefined. You can define an\n'
-            'empty ISGX_DRIVER_PATH="" to use the default in-kernel driver\'s C header.',
+        print(
+            'ISGX_DRIVER_PATH environment variable is undefined. You can define\n'
+            'ISGX_DRIVER_PATH="" to use the default in-kernel driver\'s C header.',
             file=sys.stderr)
         sys.exit(1)
 
