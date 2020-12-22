@@ -50,7 +50,11 @@ static PAL_IDX pal_assign_tid(void) {
     return __atomic_add_fetch(&tid.counter, 1, __ATOMIC_SEQ_CST);
 }
 
-void pal_start_thread(void) {
+/* Initialization wrapper of a newly-created thread. This function finds a newly-created thread in
+ * g_thread_list, initializes its TCB/TLS, and jumps into the callback-to-run. Graphene uses GCC's
+ * stack protector that looks for a canary at %gs:0x8, but this function starts with a default
+ * canary and then updates it to a random one, so we disable stack protector here. */
+__attribute__ ((__optimize__("-fno-stack-protector"))) void pal_start_thread(void) {
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
     _DkInternalLock(&g_thread_list_lock);
@@ -72,8 +76,15 @@ void pal_start_thread(void) {
     const void* param = thread_param->param;
     free(thread_param);
     new_thread->param = NULL;
+
     SET_ENCLAVE_TLS(thread, new_thread);
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+
+    /* each newly-created thread (including the first thread) has its own random stack canary */
+    uint64_t stack_protector_canary;
+    _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
+    SET_ENCLAVE_TLS(common.stack_protector_canary, stack_protector_canary);
+
     PAL_TCB* pal_tcb = pal_get_tcb();
     memset(&pal_tcb->libos_tcb, 0, sizeof(pal_tcb->libos_tcb));
     callback((void*)param);

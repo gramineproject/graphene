@@ -59,6 +59,14 @@ noreturn void __abort(void) {
     DkProcessExit(1);
 }
 
+/* we use GCC's stack protector; when it detects corrupted stack, it calls __stack_chk_fail() */
+noreturn void __stack_chk_fail(void); /* to supress GCC's warning "no previous prototype" */
+void __stack_chk_fail(void) {
+    debug("Stack protector: Graphene LibOS internal stack is corrupted at %p\n",
+          __builtin_return_address(0));
+    __abort();
+}
+
 static int pal_errno_to_unix_errno[PAL_ERROR_NATIVE_COUNT + 1] = {
     [PAL_ERROR_SUCCESS]         = 0,
     [PAL_ERROR_NOTIMPLEMENTED]  = ENOSYS,

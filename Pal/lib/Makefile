@@ -2,6 +2,11 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 include ../src/host/$(PAL_HOST)/Makefile.am
 
+# FIXME: currently disable GCC's stack protector in the common libs because they are linked with
+#        different libraries/executables including those that do not provide __stack_chk_fail(),
+#        e.g. PAL regression tests (in particular, avl_tree_test.c)
+CFLAGS += -fno-stack-protector
+
 CFLAGS += \
 	-I../include \
 	-I../include/arch/$(ARCH) \

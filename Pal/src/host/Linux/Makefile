@@ -1,7 +1,7 @@
 include ../../../../Scripts/Makefile.configs
 include Makefile.am
 
-CFLAGS	+= \
+CFLAGS += \
 	-I. \
 	-Iinclude \
 	-I../.. \
@@ -12,6 +12,14 @@ CFLAGS	+= \
 	-I../../../include/host/Linux \
 	-I../../../include/host/Linux-common \
 	-I../../../include/lib
+
+# use TLS-based stack protector of GCC (Linux PAL must have a canary in its PAL_TCB at offset 0x8);
+# not all compilers support mstack-protector-guard, so use stack protector only if supported
+CFLAGS += -fno-stack-protector
+ifeq ($(ARCH),x86_64)
+CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls \
+	                        -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
+endif
 
 ASFLAGS += \
 	-I. \

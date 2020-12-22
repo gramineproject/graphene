@@ -436,6 +436,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
                 memset(gs, 0, g_page_size);
                 assert(sizeof(*gs) <= g_page_size);
                 gs->common.self = (PAL_TCB*)(tls_area->addr + g_page_size * t + enclave_secs.base);
+                gs->common.stack_protector_canary = STACK_PROTECTOR_CANARY_DEFAULT;
                 gs->enclave_size = enclave->size;
                 gs->tcs_offset = tcs_area->addr + g_page_size * t;
                 gs->initial_stack_offset = stack_areas[t].addr + ENCLAVE_STACK_SIZE;

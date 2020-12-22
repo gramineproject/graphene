@@ -25,8 +25,13 @@ typedef struct pal_tcb PAL_TCB;
 
 #define PAL_LIBOS_TCB_SIZE 256
 
+#define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbadUL
+
 typedef struct pal_tcb {
     struct pal_tcb* self;
+    /* random per-thread canary used by GCC's stack protector; must be in %gs reg and at offset 0x8
+     * because we specify `-mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8` */
+    uint64_t stack_protector_canary;
     /* uint64_t for alignment */
     uint64_t libos_tcb[(PAL_LIBOS_TCB_SIZE + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
     /* data private to PAL implementation follows this struct. */
