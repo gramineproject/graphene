@@ -81,7 +81,16 @@ static inline struct enclave_tls* get_tcb_trts(void) {
                 : "ir"(value), "i"(offsetof(struct enclave_tls, member))                       \
                 : "memory");                                                                   \
     } while (0)
-#else
+
+
+__attribute__((__optimize__("-fno-stack-protector")))
+static inline void pal_set_tcb_stack_canary(uint64_t canary) {
+    ((char*)&canary)[0] = 0; /* prevent C-string-based stack leaks from exposing the cookie */
+    SET_ENCLAVE_TLS(common.stack_protector_canary, canary);
+}
+
+#else /* IN_ENCLAVE */
+
 /* private to untrusted Linux PAL, unique to each untrusted thread */
 typedef struct pal_tcb_urts {
     struct pal_tcb_urts* self;
@@ -109,6 +118,6 @@ static inline PAL_TCB_URTS* get_tcb_urts(void) {
 
 extern bool g_sgx_enable_stats;
 void update_and_print_stats(bool process_wide);
-#endif
+#endif /* IN_ENCLAVE */
 
 #endif /* __SGX_TLS_H__ */

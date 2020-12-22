@@ -172,6 +172,9 @@ fail:
 extern void* g_enclave_base;
 extern void* g_enclave_top;
 
+/* Graphene uses GCC's stack protector that looks for a canary at gs:[0x8], but this function starts
+ * with a default canary and then updates it to a random one, so we disable stack protector here */
+__attribute__((__optimize__("-fno-stack-protector")))
 noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char* uptr_args,
                              size_t args_size, char* uptr_env, size_t env_size,
                              struct pal_sec* uptr_sec_info) {
@@ -423,6 +426,14 @@ noreturn void pal_linux_main(char* uptr_libpal_uri, size_t libpal_uri_len, char*
     first_thread->thread.tid = 1;
     g_pal_control.first_thread = first_thread;
     SET_ENCLAVE_TLS(thread, &first_thread->thread);
+
+    uint64_t stack_protector_canary;
+    ret = _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "_DkRandomBitsRead failed: %d\n", ret);
+        ocall_exit(1, /*is_exitgroup=*/true);
+    }
+    pal_set_tcb_stack_canary(stack_protector_canary);
 
     /* call main function */
     pal_main(g_pal_sec.instance_id, exec, g_pal_sec.exec_addr, parent, first_thread, arguments,

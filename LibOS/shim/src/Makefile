@@ -6,7 +6,7 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes $(call cc-option,-Wtrampolines) \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
-	  -fno-stack-protector -fno-builtin -Wno-inline \
+	  -fno-builtin -Wno-inline \
 	  -I../include \
 	  -I../include/arch/$(ARCH) \
 	  -I../../../Pal/include \
@@ -17,6 +17,16 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -I../../../Pal/include/pal
 
 CFLAGS += -Wextra
+
+# use TLS-based stack protector of GCC (we rely on the fact that LibOS reuses the same TCB as its
+# underlying PAL which must have a canary in its PAL_TCB at offset 0x8, so no additional enabling
+# is required in the LibOS code);
+# not all compilers support mstack-protector-guard, so use stack protector only if supported
+CFLAGS += -fno-stack-protector
+ifeq ($(ARCH),x86_64)
+CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls \
+	                        -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
+endif
 
 # Some of the code uses alignof on expressions, which is a GNU extension.
 # Silence Clang - it complains but does support it.

@@ -31,7 +31,7 @@ defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 
-commons_objs_encl = bogomips.o
+commons_objs_encl = bogomips.o stack_protector.o
 commons_objs_urts = file_utils.o main_exec_path.o
 
 enclave-objs = \
@@ -85,6 +85,16 @@ urts-objs = \
 urts-asm-objs = sgx_entry.o
 
 graphene_lib = .lib/graphene-lib.a
+
+# use TLS-based stack protector of GCC (trusted PAL must have a canary in its PAL_TCB at offset
+# 0x8, untrusted PAL uses the default GCC scheme)
+# not all compilers support mstack-protector-guard, so use stack protector only if supported
+CFLAGS += -fno-stack-protector
+ifeq ($(ARCH),x86_64)
+$(enclave-objs): CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls \
+                             -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
+$(urts-objs): CFLAGS += $(call cc-option, -fstack-protector-strong)
+endif
 
 .PHONY: all
 all: gsgx.h $(host_files) tools

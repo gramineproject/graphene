@@ -28,6 +28,14 @@ CFLAGS += \
 	-I../include/arch/$(ARCH)/$(PAL_HOST) \
 	-I../include/lib
 
+# use TLS-based stack protector of GCC (all PALs must have a canary in its PAL_TCB at offset 0x8);
+# not all compilers support mstack-protector-guard, so use stack protector only if supported
+CFLAGS += -fno-stack-protector
+ifeq ($(ARCH),x86_64)
+CFLAGS += $(call cc-option, -fstack-protector-strong -mstack-protector-guard=tls \
+	                        -mstack-protector-guard-reg=%gs -mstack-protector-guard-offset=8)
+endif
+
 PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
 # Build Targets:

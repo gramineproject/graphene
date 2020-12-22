@@ -78,19 +78,29 @@ out:
     return ret;
 }
 
-/*
- * pal_thread_init(): An initialization wrapper of a newly-created thread (including
- * the first thread). This function accepts a TCB pointer to be set to the GS register
- * of the thread. The rest of the TCB is used as the alternative stack for signal
- * handling.
- */
-int pal_thread_init(void* tcbptr) {
+/* Initialization wrapper of a newly-created thread (including the first thread). This function
+ * accepts a TCB pointer to be set to the GS register (on x86-64) of the thread. The rest of the TCB
+ * is used as the alternate stack for signal handling. Since Graphene uses GCC's stack protector,
+ * and this function modifies the stack protector's GS register, we disable stack protector here. */
+__attribute__((__optimize__("-fno-stack-protector"))) int pal_thread_init(void* tcbptr) {
     PAL_TCB_LINUX* tcb = tcbptr;
     int ret;
 
+    /* we inherited the parent's GS register which we shouldn't use in the child thread, but GCC's
+     * stack protector will look for a canary at gs:[0x8] in functions called below (e.g.,
+     * _DkRandomBitsRead), so let's install a default canary in the child's TCB */
+    pal_set_tcb_stack_canary(tcb, STACK_PROTECTOR_CANARY_DEFAULT);
     ret = pal_set_tcb(&tcb->common);
     if (IS_ERR(ret))
         return -ERRNO(ret);
+
+    /* each newly-created thread (including the first thread) has its own random stack canary */
+    uint64_t stack_protector_canary;
+    ret = _DkRandomBitsRead(&stack_protector_canary, sizeof(stack_protector_canary));
+    if (IS_ERR(ret))
+        return -EPERM;
+
+    pal_set_tcb_stack_canary(tcb, stack_protector_canary);
 
     if (tcb->alt_stack) {
         stack_t ss = {
@@ -224,8 +234,8 @@ noreturn void _DkThreadExit(int* clear_child_tid) {
         ss.ss_flags = SS_DISABLE;
         ss.ss_size  = 0;
 
-        // Take precautions to unset the TCB and alternative stack first.
-        pal_set_tcb(NULL);
+        /* take precautions to unset alternate stack; note that we cannot unset the TCB because
+         * GCC's stack protector still uses the GS register until the end of this function */
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
     }
 
