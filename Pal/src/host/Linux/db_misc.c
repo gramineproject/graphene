@@ -17,50 +17,15 @@
 #include "pal_linux_defs.h"
 #include "pal_security.h"
 
-int __gettimeofday(struct timeval* tv, struct timezone* tz);
-
-unsigned long _DkSystemTimeQueryEarly(void) {
-#if USE_CLOCK_GETTIME == 1
-    struct timespec time;
-    int ret;
-
-    ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
-
-    /* Come on, gettimeofday mostly never fails */
-    if (IS_ERR(ret))
-        return 0;
-
-    /* in microseconds */
-    return 1000000ULL * time.tv_sec + time.tv_nsec / 1000;
-#else
-    struct timeval time;
-    int ret;
-
-    ret = INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
-
-    /* Come on, gettimeofday mostly never fails */
-    if (IS_ERR(ret))
-        return 0;
-
-    /* in microseconds */
-    return 1000000ULL * time.tv_sec + time.tv_usec;
-#endif
-}
-
 int _DkSystemTimeQuery(uint64_t* out_usec) {
-#if USE_CLOCK_GETTIME == 1
     struct timespec time;
     int ret;
 
-#if USE_VDSO_GETTIME == 1
     if (g_linux_state.vdso_clock_gettime) {
         ret = g_linux_state.vdso_clock_gettime(CLOCK_REALTIME, &time);
     } else {
-#endif
         ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
-#if USE_VDSO_GETTIME == 1
     }
-#endif
 
     if (IS_ERR(ret))
         return ret;
@@ -68,34 +33,8 @@ int _DkSystemTimeQuery(uint64_t* out_usec) {
     /* in microseconds */
     *out_usec = 1000000 * (uint64_t)time.tv_sec + time.tv_nsec / 1000;
     return 0;
-#else
-    struct timeval time;
-    int ret;
-
-#if USE_VDSO_GETTIME == 1
-    if (g_linux_state.vdso_gettimeofday) {
-        ret = g_linux_state.vdso_gettimeofday(&time, NULL);
-    } else {
-#endif
-#if USE_VSYSCALL_GETTIME == 1
-        ret = __gettimeofday(&time, NULL);
-#else
-        ret = INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
-#endif
-#if USE_VDSO_GETTIME == 1
-    }
-#endif
-
-    if (IS_ERR(ret))
-        return ret;
-
-    /* in microseconds */
-    *out_usec = 1000000 * (uint64_t)time.tv_sec + time.tv_usec;
-    return 0;
-#endif
 }
 
-#if USE_ARCH_RD_RAND != 1
 size_t _DkRandomBitsRead(void* buffer, size_t size) {
     if (!g_pal_sec.random_device) {
         int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
@@ -117,7 +56,6 @@ size_t _DkRandomBitsRead(void* buffer, size_t size) {
 
     return 0;
 }
-#endif
 
 int _DkInstructionCacheFlush(const void* addr, int size) {
     __UNUSED(addr);

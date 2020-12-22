@@ -219,17 +219,6 @@ out_vendor_id:
     return rv;
 }
 
-#if USE_ARCH_RDRAND == 1
-int _DkRandomBitsRead(void* buffer, size_t size) {
-    uint32_t rand;
-    for (size_t i = 0; i < size; i += sizeof(rand)) {
-        rand = rdrand();
-        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
-    }
-    return 0;
-}
-#endif
-
 int _DkSegmentRegisterGet(int reg, void** addr) {
     switch (reg) {
         case PAL_SEGMENT_FS:

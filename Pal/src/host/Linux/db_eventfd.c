@@ -6,6 +6,7 @@
  */
 
 #include <asm/fcntl.h>
+#include <asm/ioctls.h>
 #include <asm/poll.h>
 #include <linux/time.h>
 #include <linux/types.h>

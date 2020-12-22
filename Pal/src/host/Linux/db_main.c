@@ -38,9 +38,7 @@ struct pal_sec g_pal_sec;
 
 static size_t g_page_size = PRESET_PAGESIZE;
 static int g_uid, g_gid;
-#if USE_VDSO_GETTIME == 1
 static ElfW(Addr) g_sysinfo_ehdr;
-#endif
 
 static void read_args_from_stack(void* initial_rsp, int* out_argc, const char*** out_argv,
                                  const char*** out_envp) {
@@ -85,11 +83,9 @@ static void read_args_from_stack(void* initial_rsp, int* out_argc, const char***
             case AT_EGID:
                 g_gid ^= av->a_un.a_val;
                 break;
-#if USE_VDSO_GETTIME == 1
             case AT_SYSINFO_EHDR:
                 g_sysinfo_ehdr = av->a_un.a_val;
                 break;
-#endif
         }
     }
     *out_argc = argc;
@@ -103,7 +99,7 @@ unsigned long _DkGetAllocationAlignment(void) {
 
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     void* end_addr = (void*)ALLOC_ALIGN_DOWN_PTR(TEXT_START);
-    void* start_addr = (void*)USER_ADDRESS_LOWEST;
+    void* start_addr = (void*)DEFAULT_HEAP_MIN;
 
     assert(IS_ALLOC_ALIGNED_PTR(start_addr) && IS_ALLOC_ALIGNED_PTR(end_addr));
 
@@ -132,10 +128,6 @@ PAL_NUM _DkGetProcessId(void) {
 
 #include "dynamic_link.h"
 
-#if USE_VDSO_GETTIME == 1
-void setup_vdso_map(ElfW(Addr) addr);
-#endif
-
 static struct link_map g_pal_map;
 
 #include "elf-arch.h"
@@ -153,7 +145,12 @@ noreturn static void print_usage_and_exit(const char* argv_0) {
 noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     __UNUSED(fini_callback);  // TODO: We should call `fini_callback` at the end.
     int ret;
-    uint64_t start_time = _DkSystemTimeQueryEarly();
+
+    uint64_t start_time;
+    ret = _DkSystemTimeQuery(&start_time);
+    if (ret < 0)
+        INIT_FAIL(unix_to_pal_error(-ret), "_DkSystemTimeQuery() failed");
+
 
     /* Initialize alloc_align as early as possible, a lot of PAL APIs depend on this being set. */
     g_pal_state.alloc_align = _DkGetAllocationAlignment();
@@ -215,10 +212,8 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
 
     setup_pal_map(&g_pal_map);
 
-#if USE_VDSO_GETTIME == 1
     if (g_sysinfo_ehdr)
         setup_vdso_map(g_sysinfo_ehdr);
-#endif
 
     if (!g_pal_sec.process_id)
         g_pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
