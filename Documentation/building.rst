@@ -78,16 +78,14 @@ Run the following commands on Ubuntu to install SGX-related dependencies::
 FSGSBASE is a feature in recent processors which allows direct access to the FS
 and GS segment base addresses. For more information about FSGSBASE and its
 benefits, see `this discussion <https://lwn.net/Articles/821719>`__.
+FSGSBASE patchset was merged in 5.9. For older kernels it is available as
+`separate patches <https://github.com/oscarlab/graphene-sgx-driver/tree/master/fsgsbase_patches>`__.
 
-FSGSBASE patchset was merged in 5.9. For older kernels it is available as separate
-patches.
-
-Enabling FSGSBASE support requires building and installing a custom kernel with
-backported patches. The instructions to patch and compile a Linux kernel with
-FSGSBASE support below are written around Ubuntu 18.04 LTS (Bionic Beaver) with
-a Linux 5.4 LTS stable kernel but can be adapted for other distros as necessary.
-These instructions ensure that the resulting kernel has FSGSBASE support and up
-to date security mitigations.
+The following instructions to patch and compile a Linux kernel with FSGSBASE
+support below are written around Ubuntu 18.04 LTS (Bionic Beaver) with a Linux
+5.4 LTS stable kernel but can be adapted for other distros as necessary. These
+instructions ensure that the resulting kernel has FSGSBASE support and up to
+date security mitigations.
 
 #. Clone the repository with patches::
 
@@ -138,9 +136,10 @@ FSGSBASE feature available in recent processors.
 
 .. warning::
 
-   This module is a |~| quick-and-dirty hack with gaping security hole.
-   "Do not use for production" is not a |~| joke. We use it only for testing
-   on very old kernels when the patchset does not apply cleanly.
+   This module is a |~| quick-and-dirty hack with dangerous security hole
+   (allows unauthorised local privilege escalation). "Do not use for production"
+   is not a |~| joke. We use it only for testing on very old kernels where the
+   patchset does not apply cleanly.
 
 To install the Graphene FSGSBASE driver, run the following commands::
 
