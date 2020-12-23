@@ -28,7 +28,7 @@ struct shim_clone_args {
     PAL_HANDLE initialize_event;
     struct shim_thread* thread;
     void* stack;
-    unsigned long fs_base;
+    unsigned long tls_base;
     struct shim_regs regs;
     struct shim_ext_context ext_ctx;
 };
@@ -60,7 +60,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
 
     shim_tcb_init();
     set_cur_thread(my_thread);
-    update_fs_base(arg->fs_base);
+    update_tls_base(arg->tls_base);
 
     /* only now we can call LibOS/PAL functions because they require a set-up TCB;
      * do not move the below functions before shim_tcb_init/set_cur_thread()! */
@@ -74,7 +74,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     struct debug_buf debug_buf;
     (void)debug_setbuf(tcb, &debug_buf);
 
-    debug("set fs_base to 0x%lx\n", tcb->context.fs_base);
+    debug("set tls_base to 0x%lx\n", tcb->context.tls_base);
 
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
@@ -141,7 +141,7 @@ static int migrate_fork(struct shim_cp_store* store, struct shim_process* proces
     return START_MIGRATE(store, fork, process_description, thread_description, process_ipc_info);
 }
 
-static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long fs_base,
+static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, unsigned long tls_base,
                             unsigned long user_stack_addr, int* set_parent_tid) {
     assert(!(flags & CLONE_VM));
 
@@ -165,9 +165,9 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
     shim_tcb.context.ext_ctx = self->shim_tcb->context.ext_ctx;
 
     if (flags & CLONE_SETTLS) {
-        shim_tcb.context.fs_base = fs_base;
+        shim_tcb.context.tls_base = tls_base;
     } else {
-        shim_tcb.context.fs_base = self->shim_tcb->context.fs_base;
+        shim_tcb.context.tls_base = self->shim_tcb->context.tls_base;
     }
 
     thread->shim_tcb = &shim_tcb;
@@ -346,9 +346,9 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     if (flags & CLONE_CHILD_CLEARTID)
         thread->clear_child_tid = child_tidptr;
 
-    unsigned long fs_base = 0;
+    unsigned long tls_base = 0;
     if (flags & CLONE_SETTLS) {
-        fs_base = tls_to_fs_base(tls);
+        tls_base = tls_to_tls_base(tls);
     }
 
     if (!(flags & CLONE_VM)) {
@@ -356,7 +356,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
          * another process. */
         assert(!(flags & CLONE_THREAD));
 
-        ret = do_clone_new_vm(flags, thread, fs_base, user_stack_addr, set_parent_tid);
+        ret = do_clone_new_vm(flags, thread, tls_base, user_stack_addr, set_parent_tid);
 
         /* We should not have saved any references to this thread anywhere and `put_thread` below
          * should free it. */
@@ -412,11 +412,11 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     /* Increasing refcount due to copy below. Passing ownership of the new copy
      * of this pointer to the new thread (receiver of new_args). */
     get_thread(thread);
-    new_args.thread  = thread;
-    new_args.stack   = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
-    new_args.fs_base = fs_base;
-    new_args.regs    = *self->shim_tcb->context.regs;
-    new_args.ext_ctx = self->shim_tcb->context.ext_ctx;
+    new_args.thread   = thread;
+    new_args.stack    = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
+    new_args.tls_base = tls_base;
+    new_args.regs     = *self->shim_tcb->context.regs;
+    new_args.ext_ctx  = self->shim_tcb->context.ext_ctx;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child

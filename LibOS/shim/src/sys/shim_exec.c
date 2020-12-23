@@ -71,9 +71,9 @@ noreturn static void __shim_do_execve_rtld(struct execve_rtld_arg* __arg) {
     struct shim_thread* cur_thread = get_cur_thread();
     int ret = 0;
 
-    unsigned long fs_base = 0;
-    update_fs_base(fs_base);
-    debug("set fs_base to 0x%lx\n", fs_base);
+    unsigned long tls_base = 0;
+    update_tls_base(tls_base);
+    debug("set tls_base to 0x%lx\n", tls_base);
 
     thread_sigaction_reset_on_execve(cur_thread);
 
