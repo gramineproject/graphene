@@ -151,8 +151,8 @@ ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const uint_fast
                          unsigned long int elf_hash, const struct link_map* map);
 
 /* for GDB debugging */
-void _DkDebugAddMap(struct link_map* map);
-void _DkDebugDelMap(struct link_map* map);
+void _DkDebugMapAdd(const char* name, void* addr);
+void _DkDebugMapRemove(void* addr);
 
 noreturn void start_execution(const char** arguments, const char** environs);
 

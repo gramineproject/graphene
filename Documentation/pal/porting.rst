@@ -91,7 +91,7 @@ point :func:`pal_main()`. The definition of :func:`pal_main()` is:
    `g_loaded_maps` list. Otherwise, you need to implement `resolve_rtld`
    function to return addresses of the host ABI by names.
 
-You may implement the optional `_DkDebugAddMap` and `_DkDebugDelMap` to use
+You may implement the optional `_DkDebugMapAdd` and `_DkDebugMapRemove` to use
 a host-specific debugger such as GDB to debug applications in Graphene.
 
 3. Test HelloWorld without loading library OS

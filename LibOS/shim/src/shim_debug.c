@@ -54,7 +54,7 @@ void clean_link_map_list(void) {
 
     struct gdb_link_map* m = link_map_list;
     for (; m; m = m->l_next) {
-        DkDebugDetachBinary(m->l_addr);
+        DkDebugMapRemove(m->l_addr);
         free(m);
     }
 
@@ -78,7 +78,7 @@ void remove_r_debug(void* addr) {
     if (m->l_next)
         m->l_next->l_prev = m->l_prev;
 
-    DkDebugDetachBinary(addr);
+    DkDebugMapRemove(addr);
 }
 
 void append_r_debug(const char* uri, void* addr, void* dyn_addr) {
@@ -110,7 +110,7 @@ void append_r_debug(const char* uri, void* addr, void* dyn_addr) {
     new->l_next = NULL;
     *tail       = new;
 
-    DkDebugAttachBinary(uri, addr);
+    DkDebugMapAdd(uri, addr);
 }
 
 BEGIN_CP_FUNC(gdb_map) {
@@ -156,7 +156,7 @@ BEGIN_RS_FUNC(gdb_map) {
     map->l_prev = prev;
     *tail       = map;
 
-    DkDebugAttachBinary(map->l_name, map->l_addr);
+    DkDebugMapAdd(map->l_name, map->l_addr);
 
     DEBUG_RS("base=%p,name=%s", map->l_addr, map->l_name);
 }

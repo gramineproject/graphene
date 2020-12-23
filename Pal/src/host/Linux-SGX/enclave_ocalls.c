@@ -1363,24 +1363,6 @@ int ocall_delete(const char* pathname) {
     return retval;
 }
 
-int ocall_update_debugger(struct debug_map* _Atomic* debug_map) {
-    int retval = 0;
-    ms_ocall_update_debugger_t* ms;
-
-    void* old_ustack = sgx_prepare_ustack();
-    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
-    if (!ms) {
-        sgx_reset_ustack(old_ustack);
-        return -EPERM;
-    }
-
-    WRITE_ONCE(ms->ms_debug_map, debug_map);
-    retval = sgx_exitless_ocall(OCALL_UPDATE_DEBUGGER, ms);
-
-    sgx_reset_ustack(old_ustack);
-    return retval;
-}
-
 int ocall_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_t offset) {
     int retval = 0;
     size_t filename_len = filename ? strlen(filename) + 1 : 0;
@@ -1408,6 +1390,50 @@ int ocall_report_mmap(const char* filename, uint64_t addr, uint64_t len, uint64_
     return retval;
 }
 
+int ocall_debug_map_add(const char* name, void* addr) {
+    int retval = 0;
+    size_t len = strlen(name) + 1;
+    ms_ocall_debug_map_add_t* ms;
+
+     void* old_ustack = sgx_prepare_ustack();
+     ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    void* untrusted_name = sgx_copy_to_ustack(name, len);
+    if (!untrusted_name) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_name, untrusted_name);
+    WRITE_ONCE(ms->ms_addr, addr);
+
+    retval = sgx_exitless_ocall(OCALL_DEBUG_MAP_ADD, ms);
+
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}
+
+int ocall_debug_map_remove(void* addr) {
+    int retval = 0;
+    ms_ocall_debug_map_remove_t* ms;
+
+    void* old_ustack = sgx_prepare_ustack();
+    ms = sgx_alloc_on_ustack_aligned(sizeof(*ms), alignof(*ms));
+    if (!ms) {
+        sgx_reset_ustack(old_ustack);
+        return -EPERM;
+    }
+
+    WRITE_ONCE(ms->ms_addr, addr);
+    retval = sgx_exitless_ocall(OCALL_DEBUG_MAP_REMOVE, ms);
+
+    sgx_reset_ustack(old_ustack);
+    return retval;
+}
 
 int ocall_eventfd(unsigned int initval, int flags) {
     int retval = 0;

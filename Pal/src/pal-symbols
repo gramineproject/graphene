@@ -44,8 +44,8 @@ DkSegmentRegisterSet
 DkStreamChangeName
 DkStreamAttributesSetByHandle
 DkMemoryAvailableQuota
-DkDebugAttachBinary
-DkDebugDetachBinary
+DkDebugMapAdd
+DkDebugMapRemove
 DkAttestationReport
 DkAttestationQuote
 DkSetProtectedFilesKey
