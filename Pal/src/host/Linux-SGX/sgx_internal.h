@@ -13,7 +13,6 @@
 #include "api.h"
 #include "pal_linux.h"
 #include "pal_security.h"
-#include "sgx_rtld.h"
 #include "sysdep-arch.h"
 #include "toml.h"
 
@@ -72,10 +71,6 @@ struct pal_enclave {
     char* entrypoint_uri; /* URI of the entry executable for the LibOS */
 
 #ifdef DEBUG
-    /* Pointer to information for GDB inside the enclave (see sgx_rtld.h).
-     * Set up using update_debugger() ocall. */
-    struct debug_map* _Atomic* debug_map;
-
     /* profiling */
     bool profile_enable;
     char profile_filename[64];

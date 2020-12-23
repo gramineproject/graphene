@@ -43,6 +43,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-apport \
     python3-apt \
     python3-breathe \
+    python3-pyelftools \
     python3-lxml \
     python3-numpy \
     python3-pip \

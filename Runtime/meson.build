@@ -5,6 +5,9 @@ if direct
     install_data('../Pal/src/host/Linux/libpal.so',
         install_dir: join_paths(pkglibexecdir, 'linux'))
     install_subdir('../Pal/src/host/Linux/gdb_integration',
+        install_dir: join_paths(pkglibexecdir, 'linux'),
+        exclude_files: ['debug_map_gdb.py'])
+    install_subdir('../Pal/gdb_integration',
         install_dir: join_paths(pkglibexecdir, 'linux'))
 
     hostpalpath_linux = join_paths(prefix, pkglibexecdir, 'linux')
@@ -29,6 +32,9 @@ if sgx
         '../Pal/src/host/Linux-SGX/libpal.so',
         install_dir: join_paths(pkglibexecdir, 'linux-sgx'))
     install_subdir('../Pal/src/host/Linux-SGX/gdb_integration',
+        install_dir: join_paths(pkglibexecdir, 'linux-sgx'),
+        exclude_files: ['debug_map_gdb.py'])
+    install_subdir('../Pal/gdb_integration',
         install_dir: join_paths(pkglibexecdir, 'linux-sgx'))
 
     hostpalpath_linux_sgx = join_paths(prefix, pkglibexecdir, 'linux-sgx')
