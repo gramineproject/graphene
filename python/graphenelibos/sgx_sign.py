@@ -854,7 +854,7 @@ def main_sign(args):
         # executable is static, i.e. it is non-PIE: enclave base address must cover code segment
         # loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this)
         enclave_base_addr = offs.DEFAULT_ENCLAVE_BASE
-        enclave_heap_min = offs.DEFAULT_HEAP_MIN
+        enclave_heap_min = offs.MMAP_MIN_ADDR
     else:
         # executable is not static, i.e. it is PIE: enclave base address can be arbitrary (we
         # choose it same as enclave_size), and heap can start immediately at this base address
