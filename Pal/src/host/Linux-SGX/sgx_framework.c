@@ -148,10 +148,10 @@ int create_enclave(sgx_arch_secs_t* secs, sgx_arch_token_t* token) {
 
 #ifdef SGX_DCAP_16_OR_LATER
     /* newer DCAP/in-kernel SGX drivers allow starting enclave address space with non-zero;
-     * the below trick to start from DEFAULT_HEAP_MIN is to avoid vm.mmap_min_addr==0 issue */
-    if (request_mmap_addr < DEFAULT_HEAP_MIN) {
-        request_mmap_size -= DEFAULT_HEAP_MIN - request_mmap_addr;
-        request_mmap_addr  = DEFAULT_HEAP_MIN;
+     * the below trick to start from MMAP_MIN_ADDR is to avoid vm.mmap_min_addr==0 issue */
+    if (request_mmap_addr < MMAP_MIN_ADDR) {
+        request_mmap_size -= MMAP_MIN_ADDR - request_mmap_addr;
+        request_mmap_addr  = MMAP_MIN_ADDR;
     }
 #endif
 

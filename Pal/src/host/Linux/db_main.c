@@ -99,7 +99,7 @@ unsigned long _DkGetAllocationAlignment(void) {
 
 void _DkGetAvailableUserAddressRange(PAL_PTR* start, PAL_PTR* end) {
     void* end_addr = (void*)ALLOC_ALIGN_DOWN_PTR(TEXT_START);
-    void* start_addr = (void*)DEFAULT_HEAP_MIN;
+    void* start_addr = (void*)MMAP_MIN_ADDR;
 
     assert(IS_ALLOC_ALIGNED_PTR(start_addr) && IS_ALLOC_ALIGNED_PTR(end_addr));
 

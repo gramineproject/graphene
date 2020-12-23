@@ -198,7 +198,7 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
         /* executable is static, i.e. it is non-PIE: enclave base address must cover code segment
          * loaded at 0x400000, and heap cannot start at zero (modern OSes do not allow this) */
         enclave->baseaddr = DEFAULT_ENCLAVE_BASE;
-        enclave_heap_min  = DEFAULT_HEAP_MIN;
+        enclave_heap_min  = MMAP_MIN_ADDR;
     } else {
         /* executable is not static, i.e. it is PIE: enclave base address can be arbitrary (we
          * choose it same as enclave_size), and heap can start immediately at this base address */
