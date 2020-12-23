@@ -40,6 +40,7 @@ class RegressionTestCase(unittest.TestCase):
         # See also pal_loader.
         prefix = ['gdb', '-q']
         env = os.environ.copy()
+        prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/debug_map_gdb.py')]
         if HAS_SGX:
             prefix += ['-x', os.path.join(host_pal_path, 'gdb_integration/graphene_sgx_gdb.py')]
             sgx_gdb = os.path.join(host_pal_path, 'gdb_integration/sgx_gdb.so')

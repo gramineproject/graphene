@@ -404,7 +404,7 @@ void free_elf_object(struct link_map* map) {
         map->l_next->l_prev = map->l_prev;
 
 #ifdef DEBUG
-    _DkDebugDelMap(map);
+    _DkDebugMapRemove((void*)map->l_addr);
 #endif
 
     if (g_loaded_maps == map)
@@ -526,7 +526,7 @@ int load_elf_object_by_handle(PAL_HANDLE handle, enum object_type type, void** o
         g_exec_map = map;
 
 #ifdef DEBUG
-    _DkDebugAddMap(map);
+    _DkDebugMapAdd(map->l_name, (void*)map->l_addr);
 #endif
 
     if (out_loading_base)
@@ -800,7 +800,7 @@ static int relocate_elf_object(struct link_map* l) {
     return 0;
 }
 
-void DkDebugAttachBinary(PAL_STR uri, PAL_PTR start_addr) {
+void DkDebugMapAdd(PAL_STR uri, PAL_PTR start_addr) {
 #ifndef DEBUG
     __UNUSED(uri);
     __UNUSED(start_addr);
@@ -809,69 +809,16 @@ void DkDebugAttachBinary(PAL_STR uri, PAL_PTR start_addr) {
         return;
 
     const char* realname = uri + URI_PREFIX_FILE_LEN;
-    struct link_map* l = new_elf_object(realname, OBJECT_EXTERNAL);
-    if (!l)
-        return;
 
-    /* This is the ELF header.  We read it in `open_verify'.  */
-    const ElfW(Ehdr)* header = (ElfW(Ehdr)*)start_addr;
-
-    l->l_entry     = header->e_entry;
-    l->l_phnum     = header->e_phnum;
-    l->l_map_start = (ElfW(Addr))start_addr;
-
-    ElfW(Phdr)* phdr = (void*)((char*)start_addr + header->e_phoff);
-    const ElfW(Phdr)* ph;
-    ElfW(Addr) map_start = 0, map_end = 0;
-
-    for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
-        if (ph->p_type == PT_PHDR) {
-            if (!map_start || ph->p_vaddr < map_start)
-                map_start = ALLOC_ALIGN_DOWN(ph->p_vaddr);
-            if (!map_end || ph->p_vaddr + ph->p_memsz > map_end)
-                map_end = ALLOC_ALIGN_UP(ph->p_vaddr + ph->p_memsz);
-        }
-
-    l->l_addr    = l->l_map_start - map_start;
-    l->l_map_end = l->l_addr + map_end;
-
-    for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
-        switch (ph->p_type) {
-            /* These entries tell us where to find things once the file's
-               segments are mapped in.  We record the addresses it says
-               verbatim, and later correct for the run-time load address.  */
-            case PT_DYNAMIC:
-                l->l_ld = l->l_real_ld = (ElfW(Dyn)*)((char*)l->l_addr + ph->p_vaddr);
-                l->l_ldnum = ph->p_memsz / sizeof(ElfW(Dyn));
-                break;
-
-            case PT_PHDR:
-                l->l_phdr = (ElfW(Phdr)*)((char*)l->l_addr + ph->p_vaddr);
-                break;
-
-            case PT_GNU_RELRO:
-                l->l_relro_addr = l->l_addr + ph->p_vaddr;
-                l->l_relro_size = ph->p_memsz;
-                break;
-        }
-
-    _DkDebugAddMap(l);
-    free(l);
+    _DkDebugMapAdd(realname, start_addr);
 #endif
 }
 
-void DkDebugDetachBinary(PAL_PTR start_addr) {
+void DkDebugMapRemove(PAL_PTR start_addr) {
 #ifndef DEBUG
     __UNUSED(start_addr);
 #else
-    for (struct link_map* l = g_loaded_maps; l; l = l->l_next)
-        if (l->l_map_start == (ElfW(Addr))start_addr) {
-            _DkDebugDelMap(l);
-
-            if (l->l_type == OBJECT_EXTERNAL)
-                free_elf_object(l);
-            break;
-        }
+    _DkDebugMapRemove(start_addr);
 #endif
 }
 

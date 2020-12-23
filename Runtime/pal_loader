@@ -77,9 +77,11 @@ if [ "$GDB" == "1" ]; then
 		PREFIX+=("-i=mi")
 	fi
 	if [ 0"$SGX" -gt 0 ]; then
+		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/debug_map_gdb.py")
 		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/graphene_sgx_gdb.py")
 		ENVS+=("LD_PRELOAD=$HOST_PAL_PATH/gdb_integration/sgx_gdb.so:$LD_PRELOAD")
 	else
+		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/debug_map_gdb.py")
 		PREFIX+=("-x" "$HOST_PAL_PATH/gdb_integration/graphene_gdb.py")
 	fi
 	if [ "$GDB_SCRIPT" != "" ]; then
