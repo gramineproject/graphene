@@ -51,7 +51,7 @@ static inline uint64_t rdfsbase(void) {
     uint64_t fsbase;
     __asm__ volatile(
         ".byte 0xf3, 0x48, 0x0f, 0xae, 0xc0\n" /* RDFSBASE %RAX */
-        : "=a"(fsbase));
+        : "=a"(fsbase) :: "memory");
     return fsbase;
 }
 
@@ -61,7 +61,7 @@ static inline uint64_t rdfsbase(void) {
 static inline void wrfsbase(uint64_t addr) {
     __asm__ volatile(
         ".byte 0xf3, 0x48, 0x0f, 0xae, 0xd7\n" /* WRFSBASE %RDI */
-        :: "D"(addr));
+        :: "D"(addr) : "memory");
 }
 
 
