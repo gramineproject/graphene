@@ -163,6 +163,8 @@ noreturn void pal_linux_main(void* initial_rsp, void* fini_callback) {
     dummy_tcb_for_stack_protector.common.self = &dummy_tcb_for_stack_protector.common;
     dummy_tcb_for_stack_protector.common.stack_protector_canary = STACK_PROTECTOR_CANARY_DEFAULT;
     ret = pal_set_tcb(&dummy_tcb_for_stack_protector.common);
+    if (ret < 0)
+        INIT_FAIL(unix_to_pal_error(-ret), "pal_set_tcb() failed");
 
     uint64_t start_time = _DkSystemTimeQueryEarly();
     g_pal_state.start_time = start_time;
