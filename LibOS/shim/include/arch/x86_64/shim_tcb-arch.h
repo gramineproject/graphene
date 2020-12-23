@@ -195,4 +195,10 @@ static inline unsigned long tls_to_fs_base(unsigned long tls) {
     return tls;
 }
 
+/* extended context */
+struct shim_ext_context {
+    uint16_t  fpcw;    /* FPU Control Word (for x87) */
+    uint32_t  mxcsr;   /* MXCSR control/status register (for SSE/AVX/...) */
+};
+
 #endif /* _SHIM_TCB_ARCH_H_ */

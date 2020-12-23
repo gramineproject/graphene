@@ -171,7 +171,7 @@ noreturn void restore_child_context_after_clone(struct shim_context* context) {
                      "movq "XSTRINGIFY(SHIM_REGS_RSP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
                      "movq $0, %%rax\r\n"
                      "jmp *-"XSTRINGIFY(RED_ZONE_SIZE)"-8(%%rsp)\r\n"
-                     :: "g"(&context->fpcw), "g"(&context->mxcsr), "g"(&regs) : "memory");
+                     :: "g"(&context->ext_ctx.fpcw), "g"(&context->ext_ctx.mxcsr), "g"(&regs) : "memory");
 
     __builtin_unreachable();
 }

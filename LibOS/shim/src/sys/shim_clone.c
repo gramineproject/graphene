@@ -30,8 +30,7 @@ struct shim_clone_args {
     void* stack;
     unsigned long fs_base;
     struct shim_regs regs;
-    uint16_t fpcw;
-    uint32_t mxcsr;
+    struct shim_ext_context ext_ctx;
 };
 
 /*
@@ -97,8 +96,7 @@ static int clone_implementation_wrapper(struct shim_clone_args* arg) {
     add_thread(my_thread);
 
     /* New thread inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words of parent thread. */
-    tcb->context.fpcw  = arg->fpcw;
-    tcb->context.mxcsr = arg->mxcsr;
+    tcb->context.ext_ctx = arg->ext_ctx;
 
     /* Copy regs before we let the parent release them. */
     struct shim_regs regs = arg->regs;
@@ -164,8 +162,7 @@ static long do_clone_new_vm(unsigned long flags, struct shim_thread* thread, uns
     shim_tcb.context.regs = self->shim_tcb->context.regs;
 
     /* new process inherits FP (fpcw) and SSE/AVX/... (mxcsr) control words */
-    shim_tcb.context.fpcw  = self->shim_tcb->context.fpcw;
-    shim_tcb.context.mxcsr = self->shim_tcb->context.mxcsr;
+    shim_tcb.context.ext_ctx = self->shim_tcb->context.ext_ctx;
 
     if (flags & CLONE_SETTLS) {
         shim_tcb.context.fs_base = fs_base;
@@ -419,8 +416,7 @@ long shim_do_clone(unsigned long flags, unsigned long user_stack_addr, int* pare
     new_args.stack   = (void*)(user_stack_addr ?: shim_context_get_sp(&self->shim_tcb->context));
     new_args.fs_base = fs_base;
     new_args.regs    = *self->shim_tcb->context.regs;
-    new_args.fpcw    = self->shim_tcb->context.fpcw;
-    new_args.mxcsr   = self->shim_tcb->context.mxcsr;
+    new_args.ext_ctx = self->shim_tcb->context.ext_ctx;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child
