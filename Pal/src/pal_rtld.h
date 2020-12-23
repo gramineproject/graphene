@@ -4,9 +4,10 @@
 #ifndef PAL_RTLD_H
 #define PAL_RTLD_H
 
+#include <endian.h>
+
 #include "api.h"
 #include "elf/elf.h"
-#include "host_endian.h"
 #include "pal_error.h"
 #include "pal_internal.h"
 #include "sysdeps/generic/ldsodefs.h"
