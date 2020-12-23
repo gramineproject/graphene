@@ -16,8 +16,9 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
+#include <endian.h>
+
 #include "api.h"
-#include "host_endian.h"
 
 static uint16_t __bswap_16(uint16_t x) {
     return __builtin_bswap32(x) >> 16;
