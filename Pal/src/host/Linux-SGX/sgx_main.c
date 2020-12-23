@@ -35,7 +35,6 @@
 #include <linux/in6.h>
 #include <sys/auxv.h>
 
-#include "sysdep.h"
 #include "sysdeps/generic/ldsodefs.h"
 
 size_t g_page_size = PRESET_PAGESIZE;

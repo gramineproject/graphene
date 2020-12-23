@@ -9,7 +9,6 @@
 #define ELF_MACHINE_NAME "x86_64"
 
 #include "pal_internal.h"
-#include "sysdep.h"
 #include "sysdeps/generic/ldsodefs.h"
 
 /* Return the link-time address of _DYNAMIC.  Conveniently, this is the
