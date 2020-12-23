@@ -137,7 +137,7 @@ FSGSBASE feature available in recent processors.
 .. warning::
 
    This module is a |~| quick-and-dirty hack with dangerous security hole
-   (allows unauthorised local privilege escalation). "Do not use for production"
+   (allows unauthorized local privilege escalation). "Do not use for production"
    is not a |~| joke. We use it only for testing on very old kernels where the
    patchset does not apply cleanly.
 
