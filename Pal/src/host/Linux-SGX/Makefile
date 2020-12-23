@@ -3,7 +3,6 @@ include Makefile.am
 
 CFLAGS += \
 	-I. \
-	-Iinclude \
 	-I../.. \
 	-I../../../include \
 	-I../../../include/pal \
