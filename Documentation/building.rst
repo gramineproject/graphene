@@ -72,6 +72,9 @@ Run the following commands on Ubuntu to install SGX-related dependencies::
     sudo apt install -y python3-pip
     sudo /usr/bin/pip3 install protobuf
 
+    # For Debian
+    sudo apt-get install -y python3-protobuf protobuf-compiler
+
 2. Install the Linux kernel patched with FSGSBASE
 """""""""""""""""""""""""""""""""""""""""""""""""
 
