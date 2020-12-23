@@ -4,6 +4,7 @@
 
 int main(int argc, const char** argv, const char** envp) {
     printf("User Program Started\n");
+    getchar();
 
     printf("# of arguments: %d\n", argc);
 

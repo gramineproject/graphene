@@ -18,6 +18,7 @@
 #include "hex.h"
 #include "toml.h"
 
+#include "debug_map.h"
 #include "gdb_integration/sgx_gdb.h"
 #include "linux_utils.h"
 #include "rpc_queue.h"
@@ -598,21 +599,20 @@ static int initialize_enclave(struct pal_enclave* enclave, const char* manifest_
 #ifdef DEBUG
     if (enclave->profile_enable) {
         /*
-         * Report libpal map. All subsequent files will be reported via DkDebugAddMap(), but this
+         * Report libpal map. All subsequent files will be reported via DkDebugMapAdd(), but this
          * one has to be handled separately.
          *
          * We report it here, before enclave start (as opposed to setup_pal_map()), because we want
          * the mmap to appear in profiling data before the samples from libpal code, so that the
          * addresses for these samples can be resolved to symbols.
-         *
-         * TODO: Also report the map to GDB before enclave start (and not in setup_pal_map()), so
-         * that libpal symbols are known to gdb immediately after enclave start.
          */
         ret = report_mmaps(enclave_image, enclave->libpal_uri + URI_PREFIX_FILE_LEN,
                            pal_area->addr);
         if (IS_ERR(ret))
             goto out;
     }
+
+    debug_map_add(enclave->libpal_uri + URI_PREFIX_FILE_LEN, (void*)pal_area->addr);
 #endif
 
     ret = 0;
@@ -997,8 +997,6 @@ static int load_enclave(struct pal_enclave* enclave, char* loader_config, const 
 
         env_i += strnlen(&env[env_i], env_size - env_i) + 1;
     }
-
-    enclave->debug_map = NULL;
 #endif
 
     ret = parse_loader_config(loader_config, enclave);
