@@ -145,7 +145,7 @@ static void shim_async_helper(void* arg) {
 
     shim_tcb_init();
     set_cur_thread(self);
-    update_fs_base(0);
+    update_tls_base(0);
 
     struct debug_buf debug_buf;
     (void)debug_setbuf(shim_get_tcb(), &debug_buf);

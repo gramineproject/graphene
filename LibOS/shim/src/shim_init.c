@@ -369,7 +369,7 @@ noreturn void* shim_init(int argc, void* args) {
 
     /* create the initial TCB, shim can not be run without a tcb */
     shim_tcb_init();
-    update_fs_base(0);
+    update_tls_base(0);
     __disable_preempt(shim_get_tcb()); // Temporarily disable preemption for delaying any signal
                                        // that arrives during initialization
 

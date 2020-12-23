@@ -500,7 +500,7 @@ void* shim_do_arch_prctl(int code, void* addr) {
             if (!addr)
                 return (void*)-EINVAL;
 
-            update_fs_base((unsigned long)addr);
+            update_tls_base((unsigned long)addr);
             debug("set fs_base to 0x%lx\n", (unsigned long)addr);
             return NULL;
 

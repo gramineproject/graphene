@@ -12,7 +12,7 @@
 struct shim_context {
     struct shim_regs* regs;
     struct shim_ext_context ext_ctx;
-    uint64_t          fs_base;
+    uint64_t          tls_base;
     struct atomic_int preempt;
 };
 
@@ -77,10 +77,10 @@ static inline bool shim_tcb_check_canary(void) {
     return SHIM_TCB_GET(canary) == SHIM_TCB_CANARY;
 }
 
-static inline void update_fs_base(unsigned long fs_base) {
+static inline void update_tls_base(unsigned long tls_base) {
     shim_tcb_t* shim_tcb = shim_get_tcb();
-    shim_tcb->context.fs_base = fs_base;
-    shim_arch_update_fs_base(fs_base);
+    shim_tcb->context.tls_base = tls_base;
+    shim_arch_update_tls_base(tls_base);
     assert(shim_tcb_check_canary());
 }
 
