@@ -16,6 +16,7 @@
 #include <sys/wait.h>
 
 #include "cpu.h"
+#include "debug_map.h"
 #include "ecall_types.h"
 #include "linux_utils.h"
 #include "ocall_types.h"
@@ -683,13 +684,26 @@ static long sgx_ocall_eventfd(void* pms) {
     return ret;
 }
 
-static long sgx_ocall_update_debugger(void* pms) {
-    ms_ocall_update_debugger_t* ms = (ms_ocall_update_debugger_t*)pms;
-    ODEBUG(OCALL_UPDATE_DEBUGGER, ms);
+static long sgx_ocall_debug_map_add(void* pms) {
+    ms_ocall_debug_map_add_t* ms = (ms_ocall_debug_map_add_t*)pms;
 
 #ifdef DEBUG
-    g_pal_enclave.debug_map = ms->ms_debug_map;
-    update_debugger();
+    int ret = debug_map_add(ms->ms_name, ms->ms_addr);
+    if (ret < 0)
+        SGX_DBG(DBG_E, "debug_map_add(%s, %p): %d", ms->ms_name, ms->ms_addr, ret);
+#else
+    __UNUSED(ms);
+#endif
+    return 0;
+}
+
+static long sgx_ocall_debug_map_remove(void* pms) {
+    ms_ocall_debug_map_remove_t* ms = (ms_ocall_debug_map_remove_t*)pms;
+
+#ifdef DEBUG
+    int ret = debug_map_remove(ms->ms_addr);
+    if (ret < 0)
+        SGX_DBG(DBG_E, "debug_map_remove(%p): %d", ms->ms_addr, ret);
 #else
     __UNUSED(ms);
 #endif
@@ -753,7 +767,8 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
     [OCALL_POLL]             = sgx_ocall_poll,
     [OCALL_RENAME]           = sgx_ocall_rename,
     [OCALL_DELETE]           = sgx_ocall_delete,
-    [OCALL_UPDATE_DEBUGGER]  = sgx_ocall_update_debugger,
+    [OCALL_DEBUG_MAP_ADD]    = sgx_ocall_debug_map_add,
+    [OCALL_DEBUG_MAP_REMOVE] = sgx_ocall_debug_map_remove,
     [OCALL_REPORT_MMAP]      = sgx_ocall_report_mmap,
     [OCALL_EVENTFD]          = sgx_ocall_eventfd,
     [OCALL_GET_QUOTE]        = sgx_ocall_get_quote,

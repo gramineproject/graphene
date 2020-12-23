@@ -41,6 +41,7 @@ RUN apt-get update \
        python \
        python3-apport \
        python3-apt \
+       python3-elftools \
        python3-lxml \
        python3-minimal \
        python3-numpy \

@@ -2,126 +2,32 @@
 /* Copyright (C) 2014 Stony Brook University */
 
 /*
- * This file contains utilities to load ELF binaries into the memory and link them against each
- * other. The source code in this file was imported from the GNU C Library and modified.
+ * This file contains host-specific code related to linking and reporting ELFs to debugger.
+ *
+ * Overview of ELF files used in this host:
+ * - libpal.so - used as main executable, so it doesn't need to be reported separately
+ * - LibOS, application, libc... - reported through DkDebugMap*
  */
 
 #include "api.h"
+#include "debug_map.h"
 #include "elf-arch.h"
 #include "elf/elf.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "pal_defs.h"
-#include "pal_error.h"
-#include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_linux_defs.h"
 #include "pal_rtld.h"
-#include "pal_security.h"
-#include "sysdeps/generic/ldsodefs.h"
 
-/* This function exists solely to have a breakpoint set on it by the debugger. The debugger is
- * supposed to find this function's address by examining the r_brk member of struct r_debug, but GDB
- * 4.15 in fact looks for this particular symbol name in the PT_INTERP file.  */
-static void __attribute__((noinline)) pal_dl_debug_state(void) {
-    if (g_pal_sec._dl_debug_state)
-        g_pal_sec._dl_debug_state();
+void _DkDebugMapAdd(const char* name, void* addr) {
+    int ret = debug_map_add(name, addr);
+    if (ret < 0)
+        printf("debug_map_add(%s, %p) failed: %d\n", name, addr, ret);
 }
 
-extern __typeof(pal_dl_debug_state) _dl_debug_state __attribute((alias("pal_dl_debug_state")));
-
-/* This structure communicates dl state to the debugger.  The debugger normally finds it via the
- * DT_DEBUG entry in the dynamic section, but in a statically-linked program there is no dynamic
- * section for the debugger to examine and it looks for this particular symbol name.  */
-struct r_debug g_pal_r_debug = {1, NULL, (ElfW(Addr))&pal_dl_debug_state, RT_CONSISTENT, 0};
-symbol_version_default(g_pal_r_debug, _r_debug, PAL);
-
-void _DkDebugAddMap(struct link_map* map) {
-#ifdef DEBUG
-    struct r_debug* dbg = g_pal_sec._r_debug ?: &g_pal_r_debug;
-    int len = map->l_name ? strlen(map->l_name) + 1 : 0;
-
-    struct link_map** prev = &dbg->r_map;
-    struct link_map* last = NULL;
-    struct link_map* tmp = *prev;
-    while (tmp) {
-        if (tmp->l_addr == map->l_addr && tmp->l_ld == map->l_ld &&
-                !memcmp(tmp->l_name, map->l_name, len))
-            return;
-
-        last = tmp;
-        tmp = *(prev = &last->l_next);
-    }
-
-    struct link_gdb_map* m = malloc(sizeof(struct link_gdb_map) + len);
-    if (!m)
-        return;
-
-    if (len) {
-        m->l_name = (char*)m + sizeof(struct link_gdb_map);
-        memcpy((void*)m->l_name, map->l_name, len);
-    } else {
-        m->l_name = NULL;
-    }
-
-    m->l_addr = map->l_addr;
-    m->l_ld   = map->l_real_ld;
-
-    dbg->r_state = RT_ADD;
-    pal_dl_debug_state();
-
-    *prev = (struct link_map*)m;
-    m->l_prev = last;
-    m->l_next = NULL;
-
-    dbg->r_state = RT_CONSISTENT;
-    pal_dl_debug_state();
-#else
-    __UNUSED(map);
-#endif
-}
-
-void _DkDebugDelMap(struct link_map* map) {
-#ifdef DEBUG
-    struct r_debug* dbg = g_pal_sec._r_debug ?: &g_pal_r_debug;
-    int len = map->l_name ? strlen(map->l_name) + 1 : 0;
-
-    struct link_map** prev = &dbg->r_map;
-    struct link_map* last = NULL;
-    struct link_map* tmp = *prev;
-    struct link_map* found = NULL;
-    while (tmp) {
-        if (tmp->l_addr == map->l_addr && tmp->l_ld == map->l_ld &&
-                !memcmp(tmp->l_name, map->l_name, len)) {
-            found = tmp;
-            break;
-        }
-
-        last = tmp;
-        tmp = *(prev = &last->l_next);
-    }
-
-    if (!found)
-        return;
-
-    dbg->r_state = RT_DELETE;
-    pal_dl_debug_state();
-
-    if (last)
-        last->l_next = tmp->l_next;
-    else
-        dbg->r_map = tmp->l_next;
-
-    if (tmp->l_next)
-        tmp->l_next->l_prev = last;
-
-    free(tmp);
-
-    dbg->r_state = RT_CONSISTENT;
-    pal_dl_debug_state();
-#else
-    __UNUSED(map);
-#endif
+void _DkDebugMapRemove(void* addr) {
+    int ret = debug_map_remove(addr);
+    if (ret < 0)
+        printf("debug_map_remove(%p) failed: %d\n", addr, ret);
 }
 
 void setup_pal_map(struct link_map* pal_map) {
@@ -134,7 +40,6 @@ void setup_pal_map(struct link_map* pal_map) {
     pal_map->l_phnum   = header->e_phnum;
     setup_elf_hash(pal_map);
 
-    _DkDebugAddMap(pal_map);
     pal_map->l_prev = pal_map->l_next = NULL;
     g_loaded_maps = pal_map;
 }

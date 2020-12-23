@@ -212,8 +212,6 @@ int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
 
     proc_args->parent_process_id = g_linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &g_pal_sec, sizeof(struct pal_sec));
-    proc_args->pal_sec._dl_debug_state = NULL;
-    proc_args->pal_sec._r_debug        = NULL;
     proc_args->memory_quota            = g_linux_state.memory_quota;
 
     char* data = (char*)(proc_args + 1);

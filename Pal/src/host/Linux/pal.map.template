@@ -1,9 +1,4 @@
 PAL {
-    global: $(PAL_SYMBOLS) _r_debug;
-
+    global: $(PAL_SYMBOLS)
     local: *;
-};
-PAL_PRIVATE {
-    global:
-        _dl_debug_state;
 };
