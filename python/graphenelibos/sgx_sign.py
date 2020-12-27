@@ -526,7 +526,7 @@ def generate_measurement(enclave_base, attr, areas):
 
         print('    %016x-%016lx [%s:%s] %s' % (addr, addr + size, type_, prot, desc))
 
-    def load_file(digest, enclave_base, file, offset, addr, filesize, memsize, desc, flags):
+    def load_file(digest, file, offset, addr, filesize, memsize, desc, flags):
         # pylint: disable=too-many-arguments
         f_addr = rounddown(offset)
         m_addr = rounddown(addr)
