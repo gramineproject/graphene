@@ -180,10 +180,9 @@ CLIENT_EPID_LIBS = client libra_tls_verify_epid.so
 client-epid-trusted-libs: ../common_tools/get_deps.sh $(CLIENT_EPID_LIBS)
 	../common_tools/get_deps.sh $(CLIENT_EPID_LIBS) > $@
 
-client_epid.manifest: client.manifest.template client_epid-trusted-libs
+client_epid.manifest: client.manifest.template client-epid-trusted-libs
 	(sed -e 's|$$(GRAPHENEDIR)|'"$(GRAPHENEDIR)"'|g' \
 	     -e 's|$$(GRAPHENEDEBUG)|'"$(GRAPHENEDEBUG)"'|g' \
-	     -e 's|$$(CLIENT_TRUSTED_LIBS)|'"`cat client_epid-trusted-libs`"'|g' \
 	     -e 's|$$(RA_TLS_VERIFY_LIB)|'"libra_tls_verify_epid.so"'|g' \
 	     -e 's|$$(ARCH_LIBDIR)|'"$(ARCH_LIBDIR)"'|g' \
 	     $<; \

@@ -43,8 +43,8 @@ PY_LIBS += $(PYTHONDISTHOME)/apt_pkg.cpython-$(PYTHONSHORTVERSION)m-$(PYTHON_ARC
 endif
 
 ifeq ($(PYTHONSHORTVERSION),35)
-PYTHON_TRUSTED_SCRIPTS = sgx.trusted_files.python21 = \\\"file:$(PYTHONHOME)/_sysconfigdata.py\\\"\\n\\\" \
-	  "sgx.trusted_files.python22 = \\\"file:$(PYTHONHOME)/plat-$(PYTHON_ARCH_LONG)/_sysconfigdata_m.py\\\"\\n
+PYTHON_TRUSTED_SCRIPTS = sgx.trusted_files.python21 = \\\"file:$(PYTHONHOME)/_sysconfigdata.py\\\"\\n \
+	  sgx.trusted_files.python22 = \\\"file:$(PYTHONHOME)/plat-$(PYTHON_ARCH_LONG)/_sysconfigdata_m.py\\\"\\n
 else
 PYTHON_TRUSTED_SCRIPTS = sgx.trusted_files.python21 = \\\"file:$(PYTHONHOME)/_sysconfigdata_m_linux_$(PYTHON_ARCH_LONG).py\\\"\\n
 endif
