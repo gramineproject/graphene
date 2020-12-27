@@ -585,8 +585,8 @@ def generate_measurement(enclave_base, attr, areas):
                         desc = 'code'
                     else:
                         desc = 'data'
-                    load_file(mrenclave, enclave_base, file, offset, baseaddr_ + addr,
-                              filesize, memsize, desc, flags)
+                    load_file(mrenclave, file, offset, baseaddr_ + addr, filesize, memsize,
+                              desc, flags)
         else:
             for addr in range(area.addr, area.addr + area.size, offs.PAGESIZE):
                 data = ZERO_PAGE
