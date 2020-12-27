@@ -71,7 +71,7 @@ stage('test-sgx') {
             make ${MAKEOPTS}
             make ${MAKEOPTS} start-graphene-server &
             sleep 10
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8003
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8003
         '''
     }
     timeout(time: 15, unit: 'MINUTES') {
@@ -80,7 +80,7 @@ stage('test-sgx') {
             make ${MAKEOPTS}
             make ${MAKEOPTS} start-graphene-server &
             sleep 30
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8002
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8002
         '''
     }
     timeout(time: 25, unit: 'MINUTES') {
@@ -89,8 +89,8 @@ stage('test-sgx') {
             make ${MAKEOPTS}
             make ${MAKEOPTS} start-graphene-server &
             sleep 30
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
-            LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh https://127.0.0.1:8443
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh 127.0.0.1:8001
+            LOOP=1 CONCURRENCY_LIST="1 32" ../common_tools/benchmark-http.sh https://127.0.0.1:8443
         '''
     }
     timeout(time: 5, unit: 'MINUTES') {

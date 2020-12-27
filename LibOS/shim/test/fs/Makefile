@@ -71,4 +71,5 @@ pf-test.xml: test_pf.py $(call expand_target_to_token,$(target))
 
 .PHONY: clean-tmp
 clean-tmp:
-	$(RM) -r *.tmp *.cached *.manifest.sgx *~ *.sig *.token *.o __pycache__ .pytest_cache .cache *.xml bin lib
+	$(RM) -r *.tmp *.cached pal_loader $(manifests) *.manifest.sgx *~ *.sig *.token *.o \
+	         __pycache__ .pytest_cache .cache *.xml bin lib
