@@ -119,7 +119,7 @@ def extract_working_dir(image):
 
     return working_dir
 
-def prepare_env(base_image, image, args, manifest):
+def prepare_env(base_image, image, args):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates/'))
 
     env.globals.update(vars(args))
@@ -204,7 +204,7 @@ def gsc_build(args):
 
     print(f'Building graphenized image from base image {image}')
 
-    env, binary = prepare_env(base_image, image, args, args.manifest)
+    env, binary = prepare_env(base_image, image, args)
 
     prepare_build_context(image, args.manifest, env, binary)
 

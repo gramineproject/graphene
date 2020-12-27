@@ -6,7 +6,6 @@
 import os
 import sys
 import subprocess
-import argparse
 
 def generate_signature(exec_):
     sign_process = subprocess.Popen([
