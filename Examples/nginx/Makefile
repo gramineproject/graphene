@@ -65,7 +65,7 @@ $(NGINX_SRC).tar.gz:
 # We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
 # there's no harm in this.
 .INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
+trusted-libs: ../common_tools/get_deps.sh $(INSTALL_DIR)/sbin/nginx
 	../common_tools/get_deps.sh $(INSTALL_DIR)/sbin/nginx > $@
 
 nginx.manifest: nginx.manifest.template trusted-libs

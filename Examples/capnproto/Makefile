@@ -57,7 +57,7 @@ $(SRCDIR)/addressbook: $(SRCDIR)/addressbook.c++ $(SRCDIR)/addressbook.capnp
 # We'll duplicate some Glibc libraries (which Graphene provides in a customized version), but
 # there's no harm in this.
 .INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
+trusted-libs: ../common_tools/get_deps.sh $(SRCDIR)/addressbook
 	../common_tools/get_deps.sh $(SRCDIR)/addressbook > $@
 
 

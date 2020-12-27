@@ -57,7 +57,7 @@ PROGRAMS = $(INSTALL_DIR)/sbin/lighttpd \
            $(INSTALL_DIR)/lib/mod_dirlisting.so \
            $(INSTALL_DIR)/lib/mod_staticfile.so
 .INTERMEDIATE: trusted-libs
-trusted-libs: ../common_tools/get_deps.sh
+trusted-libs: ../common_tools/get_deps.sh $(INSTALL_DIR)/sbin/lighttpd
 	../common_tools/get_deps.sh $(PROGRAMS) > $@
 
 lighttpd.manifest: lighttpd.manifest.template trusted-libs

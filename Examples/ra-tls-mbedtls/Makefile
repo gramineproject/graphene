@@ -148,7 +148,7 @@ server.token: server.sig
 # there's no harm in this.
 CLIENT_DCAP_LIBS = client libra_tls_verify_dcap_graphene.so /usr/$(ARCH_LIBDIR)/libdcap_quoteprov.so
 .INTERMEDIATE: client-trusted-libs
-client-dcap-trusted-libs: ../common_tools/get_deps.sh
+client-dcap-trusted-libs: ../common_tools/get_deps.sh client libra_tls_verify_dcap_graphene.so
 	../common_tools/get_deps.sh $(CLIENT_DCAP_LIBS) > $@
 
 client_dcap.manifest: client.manifest.template client-dcap-trusted-libs
@@ -177,7 +177,7 @@ client_dcap.token: client_dcap.sig
 # there's no harm in this.
 CLIENT_EPID_LIBS = client libra_tls_verify_epid.so
 .INTERMEDIATE: client-trusted-libs
-client-epid-trusted-libs: ../common_tools/get_deps.sh
+client-epid-trusted-libs: ../common_tools/get_deps.sh $(CLIENT_EPID_LIBS)
 	../common_tools/get_deps.sh $(CLIENT_EPID_LIBS) > $@
 
 client_epid.manifest: client.manifest.template client_epid-trusted-libs

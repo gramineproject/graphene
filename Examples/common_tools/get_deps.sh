@@ -3,7 +3,7 @@
 # Copyright (C) 2020 Intel Corporation
 #                    Michał Kowalczyk <mkow@invisiblethingslab.com>
 
-set -e
+set -eu -o pipefail
 
 # Arguments: binaries for which to generate manifest trusted files list.
 
