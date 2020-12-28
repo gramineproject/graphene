@@ -460,12 +460,13 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
         uint64_t end            = offset + size;
         uint64_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
         uint64_t aligned_end    = ALLOC_ALIGN_UP(end);
-        uint64_t aligned_size   = aligned_end - aligned_offset;
+        uint64_t total_size     = aligned_end - aligned_offset;
 
         uint64_t total_bytes = 0;
-        while (total_bytes < aligned_size) {
-            ssize_t bytes = ocall_pread(handle->file.fd, mem + total_bytes,
-                                        aligned_size - total_bytes,
+        while (total_bytes < total_size) {
+            uint64_t read_size = total_size - total_bytes < MAX_READ_SIZE ?
+                                 total_size - total_bytes : MAX_READ_SIZE;
+            ssize_t bytes = ocall_pread(handle->file.fd, mem + total_bytes, read_size,
                                         aligned_offset + total_bytes);
             if (bytes > 0) {
                 total_bytes += bytes;
@@ -479,9 +480,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
             }
         }
 
-        if (aligned_size - total_bytes > 0) {
+        if (total_size - total_bytes > 0) {
             /* file ended before all requested memory was filled -- remaining memory is zeroed */
-            memset(mem + total_bytes, 0, aligned_size - total_bytes);
+            memset(mem + total_bytes, 0, total_size - total_bytes);
         }
     }
 
