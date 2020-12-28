@@ -79,3 +79,5 @@ sgx.trusted_files.libnssfiles = "file:$(ARCH_LIBDIR)/libnss_files.so.2"
 sgx.trusted_files.libnssnis = "file:$(ARCH_LIBDIR)/libnss_nis.so.2"
 
 sgx.allowed_files.scripts = "file:scripts"
+
+sgx.nonpie_binary = 1
