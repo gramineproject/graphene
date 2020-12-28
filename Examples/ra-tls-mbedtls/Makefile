@@ -246,7 +246,8 @@ check_dcap_fail: app dcap
 
 .PHONY: clean
 clean:
-	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT
+	$(RM) *.token *.sig *.manifest.sgx *.manifest pal_loader server client *.so *.so.* OUTPUT \
+	      client-dcap-trusted-libs client-epid-trusted-libs
 
 .PHONY: distclean
 distclean: clean
