@@ -21,6 +21,8 @@ sgx.trusted_files.libdl = "file:../../../../Runtime/libdl.so.2"
 sgx.trusted_files.libm = "file:../../../../Runtime/libm.so.6"
 sgx.trusted_files.attestation = "file:attestation"
 
+sgx.nonpie_binary = 1
+
 sgx.remote_attestation = 1
 sgx.ra_client_spid = "$(RA_CLIENT_SPID)"
 sgx.ra_client_linkable = $(RA_CLIENT_LINKABLE)

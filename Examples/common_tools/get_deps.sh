@@ -8,10 +8,15 @@ set -eu -o pipefail
 # Arguments: binaries for which to generate manifest trusted files list.
 
 # Be careful: We have to skip vdso, which doesn't have a corresponding file on the disk (we assume
-# that such files have paths starting with '/', seems ldd aways prints absolute paths).
+# that such files have paths starting with '/', seems ldd aways prints absolute paths). Also, old
+# ldd (from Ubuntu 16.04) prints vdso differently than newer ones:
+# old:
+#     linux-vdso.so.1 =>  (0x00007ffd31fee000)
+# new:
+#     linux-vdso.so.1 (0x00007ffd31fee000)
 DEPS=$(ldd "$@" \
 	| awk '{
-		if ($2 == "=>") {
+		if ($2 == "=>" && $3 ~ /^\/.*$/) {
 			print $3
 		} else if ($1 ~ /^\/.*$/ && $2 ~ /^\(.+\)$/) {
 			print $1
