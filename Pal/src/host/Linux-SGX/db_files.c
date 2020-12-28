@@ -25,6 +25,10 @@
 
 #include "enclave_pages.h"
 
+/* this macro is used to emulate mmap() via pread() in chunks of 128MB (mmapped files may be many
+ * GBs in size, and a pread OCALL could fail with -ENOMEM, so we cap to reasonably small size) */
+#define MAX_READ_SIZE (PRESET_PAGESIZE * 1024L * 32)
+
 /* 'open' operation for file streams */
 static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
@@ -404,21 +408,22 @@ out:
 
 /* 'map' operation for file stream. */
 static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, uint64_t size) {
-    struct protected_file* pf = find_protected_file_handle(handle);
+    int ret;
 
+    if (size > SIZE_MAX) {
+        /* for compatibility with 32-bit systems */
+        return -PAL_ERROR_INVAL;
+    }
+
+    struct protected_file* pf = find_protected_file_handle(handle);
     if (pf)
         return pf_file_map(pf, handle, addr, prot, offset, size);
 
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
-    uint64_t total    = handle->file.total;
     void* mem         = *addr;
-    int ret;
 
-    /*
-     * If the file is listed in the manifest as an "allowed" file,
-     * we allow mapping the file outside the enclave, if the library OS
-     * does not request a specific address.
-     */
+    /* If the file is listed in the manifest as an "allowed" file, we allow mapping the file outside
+     * the enclave, if the library OS does not request a specific address. */
     if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
         ret = ocall_mmap_untrusted(&mem, size, PAL_PROT_TO_LINUX(prot), MAP_SHARED, handle->file.fd,
                                    offset);
@@ -440,41 +445,77 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     if (!mem)
         return -PAL_ERROR_NOMEM;
 
-    uint64_t end = (offset + size > total) ? total : offset + size;
-    uint64_t map_start, map_end;
-
     if (stubs) {
-        map_start = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
-        map_end   = ALIGN_UP(end, TRUSTED_STUB_SIZE);
-    } else {
-        map_start = ALLOC_ALIGN_DOWN(offset);
-        map_end   = ALLOC_ALIGN_UP(end);
-    }
+        /* case of trusted file: already mmaped in umem, copy from there into enclave memory and
+         * verify hashes along the way */
+        off_t end            = (offset + size > handle->file.total) ? handle->file.total
+                                                                    : offset + size;
+        off_t aligned_offset = ALIGN_DOWN(offset, TRUSTED_STUB_SIZE);
+        off_t aligned_end    = ALIGN_UP(end, TRUSTED_STUB_SIZE);
+        off_t total_size     = aligned_end - aligned_offset;
 
-    void* umem = NULL;
-    ret = ocall_mmap_untrusted(&umem, map_end - map_start, PROT_READ, MAP_SHARED, handle->file.fd,
-                               map_start);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_E, "file_map - ocall returned %d\n", ret);
-        return unix_to_pal_error(ERRNO(ret));
-    }
+        if ((uint64_t)total_size > SIZE_MAX) {
+            /* for compatibility with 32-bit systems */
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
 
-    if (stubs) {
-        ret = copy_and_verify_trusted_file(handle->file.realpath, umem, map_start, map_end, mem,
-                                           offset, end - offset, stubs, total);
-
+        ret = copy_and_verify_trusted_file(handle->file.realpath,
+                                           handle->file.umem + aligned_offset,
+                                           aligned_offset, aligned_end,
+                                           mem, offset, end - offset,
+                                           stubs, handle->file.total);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "file_map - verify trusted returned %d\n", ret);
-            ocall_munmap_untrusted(umem, map_end - map_start);
-            return ret;
+            SGX_DBG(DBG_E, "file_map - copy & verify on trusted file returned %d\n", ret);
+            goto out;
         }
     } else {
-        memcpy(mem, umem + (offset - map_start), end - offset);
+        /* case of allowed file: simply read from underlying file descriptor into enclave memory */
+        off_t end            = offset + size;
+        off_t aligned_offset = ALLOC_ALIGN_DOWN(offset);
+        off_t aligned_end    = ALLOC_ALIGN_UP(end);
+        off_t total_size     = aligned_end - aligned_offset;
+
+        if ((uint64_t)total_size > SIZE_MAX) {
+            /* for compatibility with 32-bit systems */
+            ret = -PAL_ERROR_INVAL;
+            goto out;
+        }
+
+        ssize_t bytes_read = 0;
+        while (bytes_read < total_size) {
+            size_t read_size = total_size - bytes_read < MAX_READ_SIZE ?
+                               total_size - bytes_read : MAX_READ_SIZE;
+            ssize_t bytes = ocall_pread(handle->file.fd, mem + bytes_read, read_size,
+                                        aligned_offset + bytes_read);
+            if (bytes > 0) {
+                bytes_read += bytes;
+            } else if (bytes == 0) {
+                break; /* EOF */
+            } else if (ERRNO(bytes) == EINTR || ERRNO(bytes) == EAGAIN) {
+                continue;
+            } else {
+                SGX_DBG(DBG_E, "file_map - ocall_pread on allowed file returned %ld\n", bytes);
+                ret = unix_to_pal_error(ERRNO(bytes));
+                goto out;
+            }
+        }
+
+        if (total_size - bytes_read > 0) {
+            /* file ended before all requested memory was filled -- remaining memory has to be
+             * zeroed */
+            memset(mem + bytes_read, 0, total_size - bytes_read);
+        }
     }
 
-    ocall_munmap_untrusted(umem, map_end - map_start);
     *addr = mem;
-    return 0;
+    ret = 0;
+
+out:
+    if (ret < 0) {
+        free_enclave_pages(mem, size);
+    }
+    return ret;
 }
 
 static int64_t pf_file_setlength(struct protected_file* pf, PAL_HANDLE handle, uint64_t length) {
