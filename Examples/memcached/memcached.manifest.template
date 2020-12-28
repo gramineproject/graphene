@@ -102,6 +102,8 @@ fs.mount.etc.uri = "file:/etc"
 # an issue in Memcached source code, not related to Graphene.
 sgx.enclave_size = "1024M"
 
+sgx.nonpie_binary = 1
+
 # Set maximum number of in-enclave threads (somewhat arbitrarily) to 16. Recall
 # that SGX v1 requires to specify the maximum number of simulteneous threads at
 # enclave creation time. If Memcached spawns more threads, Graphene-SGX fails.
