@@ -1,5 +1,7 @@
 /*.tar.gz
 /OUTPUT
 /client
+/client-dcap-trusted-libs
+/client-epid-trusted-libs
 /mbedtls
 /server

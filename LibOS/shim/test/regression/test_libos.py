@@ -399,6 +399,8 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('mmap test 6 passed', stdout)
         self.assertIn('mmap test 7 passed', stdout)
 
+        # TODO: why is "test 5" missing from here??
+
         # Private mmap beyond file range (after fork)
         self.assertIn('mmap test 1 passed', stdout)
         self.assertIn('mmap test 2 passed', stdout)
