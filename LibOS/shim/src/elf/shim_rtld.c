@@ -335,6 +335,7 @@ static void setup_elf_hash(struct link_map* map) {
 static struct link_map* __map_elf_object(struct shim_handle* file, const void* fbp, size_t fbp_len,
                                          void* addr, int type) {
     ElfW(Phdr)* new_phdr = NULL;
+    int initial_type = type;
 
     if (file && (!file->fs || !file->fs->fs_ops))
         return NULL;
@@ -549,6 +550,15 @@ do_remap:
         if (c->mapend > c->mapstart) {
             /* Map the segment contents from the file.  */
             void* mapaddr = (void*)RELOCATE(l, c->mapstart);
+
+            // Warning: An ugly hack ahead. The problem is that the whole RTLD code is terrible
+            //          and the only reasonable way of fixing it is to rewrite it from scratch.
+            type = initial_type;
+            if (is_in_adjacent_user_vmas(mapaddr, c->mapend - c->mapstart)) {
+                /* these file contents are already mapped (probably via the received checkpoint in
+                 * child process), skip mapping it again by temporarily setting OBJECT_MAPPED */
+                type = OBJECT_MAPPED;
+            }
 
             if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO) {
                 ret = bkeep_mmap_fixed(mapaddr, c->mapend - c->mapstart, c->prot,
