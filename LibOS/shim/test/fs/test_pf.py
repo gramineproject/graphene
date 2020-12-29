@@ -193,7 +193,7 @@ class TC_50_ProtectedFiles(TC_00_FileSystem):
 
     def __corrupt_file(self, input_path, output_path):
         cmd = [self.PF_TAMPER, '-w', self.WRAP_KEY, '-i', input_path, '-o', output_path]
-        return self.run_native_binary(cmd)
+        return self.run_native_binary(cmd, libpath=os.path.join(os.getcwd(), 'lib'))
 
     # invalid/corrupted files
     def test_500_invalid(self):
