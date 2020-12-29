@@ -283,7 +283,7 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
     struct sgx_enclave_add_pages param = {
         .offset  = (uint64_t)addr,
         .src     = (uint64_t)(user_addr ?: g_zero_pages),
-        .length  = size,
+        .length  = 0 /* dummy, will be calculated below */,
         .secinfo = (uint64_t)&secinfo,
         .flags   = skip_eextend ? 0 : SGX_PAGE_MEASURE,
         .count   = 0, /* output parameter, will be checked after IOCTL */
@@ -300,7 +300,10 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
      * field of struct and thus may stay redundant (and unused by driver v39). We hope that this
      * contrived logic won't be needed when the SGX driver stabilizes its ioctl interface.
      * (https://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-sgx.git/tag/?h=v39) */
-    while (param.length > 0) {
+    uint64_t rest_size = size;
+    while (rest_size > 0) {
+        param.length = rest_size > SGX_DRIVER_MAX_ADDPAGES_SIZE ? SGX_DRIVER_MAX_ADDPAGES_SIZE
+                                                                : rest_size;
         ret = INLINE_SYSCALL(ioctl, 3, g_isgx_device, SGX_IOC_ENCLAVE_ADD_PAGES, &param);
         if (IS_ERR(ret)) {
             if (ret == -EINTR)
@@ -310,11 +313,15 @@ int add_pages_to_enclave(sgx_arch_secs_t* secs, void* addr, void* user_addr, uns
         }
 
         uint64_t added_size = ret > 0 ? (uint64_t)ret : param.count;
+        if (!added_size) {
+            /* some versions of Intel SGX driver do not report how many pages/bytes were added */
+            added_size = param.length;
+        }
 
         param.offset += added_size;
         if (param.src != (uint64_t)g_zero_pages)
             param.src += added_size;
-        param.length -= added_size;
+        rest_size -= added_size;
     }
 
     /* ask Intel SGX driver to actually mmap the added enclave pages */

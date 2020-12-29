@@ -154,6 +154,10 @@ int block_async_signals(bool block);
 
 void update_debugger(void);
 
+/* some versions of the Intel SGX driver have a 1MB (256 pages) cap implicitly (and erroneously)
+ * enforced on ioctl(SGX_IOC_ENCLAVE_ADD_PAGES); we let Graphene support these subpar versions */
+#define SGX_DRIVER_MAX_ADDPAGES_SIZE (256UL * 4096)
+
 #ifdef DEBUG
 /* SGX profiling (sgx_profile.c) */
 
