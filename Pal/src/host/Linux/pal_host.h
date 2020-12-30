@@ -154,16 +154,13 @@ typedef struct pal_handle {
 
 #define HANDLE_TYPE(handle) ((handle)->hdr.type)
 
-extern void __check_pending_event(void);
-
+// TODO: remove these
 #define LEAVE_PAL_CALL()         \
     do {                         \
-        __check_pending_event(); \
     } while (0)
 
 #define LEAVE_PAL_CALL_RETURN(retval) \
     do {                              \
-        __check_pending_event();      \
         return (retval);              \
     } while (0)
 

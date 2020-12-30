@@ -20,8 +20,7 @@ int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])(int, PAL_UPCALL, int) = {
     /* MemFault   */ NULL,
     /* Illegal    */ NULL,
     /* Quit       */ NULL,
-    /* Suspend    */ NULL,
-    /* Resume     */ NULL,
+    /* Interrupt  */ NULL,
     /* Failure    */ NULL,
 };
 

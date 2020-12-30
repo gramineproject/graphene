@@ -145,7 +145,6 @@ static void shim_async_helper(void* arg) {
 
     shim_tcb_init();
     set_cur_thread(self);
-    update_tls_base(0);
 
     struct debug_buf debug_buf;
     (void)debug_setbuf(shim_get_tcb(), &debug_buf);
@@ -346,7 +345,6 @@ static void shim_async_helper(void* arg) {
         }
     }
 
-    __disable_preempt(self->shim_tcb);
     put_thread(self);
     debug("Async helper thread terminated\n");
 

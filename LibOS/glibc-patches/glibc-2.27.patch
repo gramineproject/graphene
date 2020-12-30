@@ -1,5 +1,5 @@
 diff --git a/Makeconfig b/Makeconfig
-index 86a71e580213f6e5de6e619d9f3370f4365b4ae2..114d4ee080dbccbb696f40469a8010663fec7a9a 100644
+index 86a71e580213f6e5de6e619d9f3370f4365b4ae2..515f8be0d13a14fe0588c357cfc5608503aca341 100644
 --- a/Makeconfig
 +++ b/Makeconfig
 @@ -916,7 +916,8 @@ endif	# $(+cflags) == ""
@@ -290,7 +290,7 @@ index 4a9b662074ddbd62d958d8db7ec09b9d5741ad59..21bd14d778135102632952712a307453
  	cfi_adjust_cfa_offset(-8)
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
-index 2f7459f6fc602d1a176f725bb2dd4f10364ae997..9c2191541be0b8855ee3789993004a03bf9eab0f 100644
+index 2f7459f6fc602d1a176f725bb2dd4f10364ae997..b4c35a8e494ce1a8a9faa6ffd517dc993465b8be 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 @@ -120,7 +120,7 @@ asm									\
@@ -298,7 +298,7 @@ index 2f7459f6fc602d1a176f725bb2dd4f10364ae997..9c2191541be0b8855ee3789993004a03
     "__" #name ":\n"							\
     "	movq $" #syscall ", %rax\n"					\
 -   "	syscall\n"							\
-+   SYSCALLDB_ASM							\
++   SYSCALLDB								\
     ".LEND_" #name ":\n"							\
     ".section .eh_frame,\"a\",@progbits\n"				\
     ".LSTARTFRAME_" #name ":\n"						\
