@@ -21,13 +21,15 @@ noreturn void __abort(void);
  * build system.
  */
 #ifdef DEBUG
-#define assert(expr)                                                     \
-    ({                                                                   \
-        (!(expr)) ? ({                                                   \
-            warn("assert failed " __FILE__ ":%d %s\n", __LINE__, #expr); \
-            __abort();                                                   \
-        })                                                               \
-                  : (void)0;                                             \
+/* This `if` is weird intentionally - not to have parentheses around `expr` to catch `assert(x = y)`
+ * errors. */
+#define assert(expr)                                                        \
+    ({                                                                      \
+        if (expr) {} else {                                                 \
+            warn("assert failed " __FILE__ ":%d %s\n", __LINE__, #expr);    \
+            __abort();                                                      \
+        }                                                                   \
+        (void)0;                                                            \
     })
 #else
 #define assert(expr) ((void)0)

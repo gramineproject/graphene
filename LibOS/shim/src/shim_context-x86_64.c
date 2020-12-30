@@ -118,7 +118,7 @@ void shim_xstate_restore(const void* xstate_extended) {
     assert(fpx_sw->magic1 == SHIM_FP_XSTATE_MAGIC1);
     assert(fpx_sw->extended_size == g_shim_xsave_size + SHIM_FP_XSTATE_MAGIC2_SIZE);
     assert(fpx_sw->xfeatures == g_shim_xsave_features);
-    assert(fpx_sw->xstate_size = g_shim_xsave_size);
+    assert(fpx_sw->xstate_size == g_shim_xsave_size);
     assert(*((__typeof__(SHIM_FP_XSTATE_MAGIC2)*)bytes_after_xstate) == SHIM_FP_XSTATE_MAGIC2);
 
     __UNUSED(bytes_after_xstate);
